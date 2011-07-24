@@ -45,7 +45,7 @@
 #include "plstr.h"
 #include "prmem.h"
 #include "prprf.h"
-#include "nsPluginDefs.h"
+#include "npapi.h"
 
 #include "nsString.h"
 
@@ -199,7 +199,7 @@ nsPluginFile::~nsPluginFile()
 {}
 
 // Loads the plugin into memory using NSPR's shared-library loading
-nsresult nsPluginFile::LoadPlugin( PRLibrary *&outLibrary)
+nsresult nsPluginFile::LoadPlugin(PRLibrary **outLibrary)
 {
     if (!mPlugin)
       return NS_ERROR_NULL_POINTER;
@@ -207,13 +207,15 @@ nsresult nsPluginFile::LoadPlugin( PRLibrary *&outLibrary)
     nsCAutoString temp;
     mPlugin->GetNativePath(temp);
 
-    outLibrary = PR_LoadLibrary(temp.get());
-    return outLibrary == nsnull ? NS_ERROR_FAILURE : NS_OK;
+    *outLibrary = PR_LoadLibrary(temp.get());
+    return *outLibrary == nsnull ? NS_ERROR_FAILURE : NS_OK;
 }
 
 // Obtains all of the information currently available for this plugin.
-nsresult nsPluginFile::GetPluginInfo( nsPluginInfo &info)
+nsresult nsPluginFile::GetPluginInfo(nsPluginInfo &info, PRLibrary **outLibrary)
 {
+   *outLibrary = nsnull;
+
    nsresult   rv = NS_ERROR_FAILURE;
    HMODULE    hPlug = 0; // Need a HMODULE to query resource statements
    char       failure[ CCHMAXPATH] = "";
@@ -232,20 +234,20 @@ nsresult nsPluginFile::GetPluginInfo( nsPluginInfo &info)
 
    while( ret == NO_ERROR)
    {
-      info.fName = LoadRCDATAString( hPlug, NS_INFO_ProductName);
+      info.fName = LoadRCDATAString( hPlug, NP_INFO_ProductName);
 
-      info.fVersion = LoadRCDATAVersion( hPlug, NS_INFO_ProductVersion);
+      info.fVersion = LoadRCDATAVersion( hPlug, NP_INFO_ProductVersion);
 
       // get description (doesn't matter if it's missing)...
-      info.fDescription = LoadRCDATAString( hPlug, NS_INFO_FileDescription);
+      info.fDescription = LoadRCDATAString( hPlug, NP_INFO_FileDescription);
 
-      char * mimeType = LoadRCDATAString( hPlug, NS_INFO_MIMEType);
+      char * mimeType = LoadRCDATAString( hPlug, NP_INFO_MIMEType);
       if( nsnull == mimeType) break;
 
-      char * mimeDescription = LoadRCDATAString( hPlug, NS_INFO_FileOpenName);
+      char * mimeDescription = LoadRCDATAString( hPlug, NP_INFO_FileOpenName);
       if( nsnull == mimeDescription) break;
 
-      char * extensions = LoadRCDATAString( hPlug, NS_INFO_FileExtents);
+      char * extensions = LoadRCDATAString( hPlug, NP_INFO_FileExtents);
       if( nsnull == extensions) break;
 
       info.fVariantCount = CalculateVariantCount(mimeType);

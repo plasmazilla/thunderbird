@@ -59,9 +59,9 @@ const nsMsgSearchOp = Components.interfaces.nsMsgSearchOp;
 
 // XXX we need to know whether the gloda indexer is enabled for upsell reasons,
 // but this should really just be exposed on the main Gloda public interface.
-Cu.import("resource://app/modules/gloda/indexer.js");
+Cu.import("resource:///modules/gloda/indexer.js");
 // we need to be able to create gloda message searcher instances for upsells:
-Cu.import("resource://app/modules/gloda/msg_search.js");
+Cu.import("resource:///modules/gloda/msg_search.js");
 
 
 /**
@@ -441,7 +441,7 @@ let QuickFilterManager = {
    */
   killFilter: function MFM_killFilter(aName) {
     let filterDef = this.filterDefsByName[aName];
-    this.filterDefs.splice(this.filterDefs.indexOf(aName), 1);
+    this.filterDefs.splice(this.filterDefs.indexOf(filterDef), 1);
     delete this.filterDefsByName[aName];
   },
 
@@ -1079,9 +1079,9 @@ let MessageTextFilter = {
    *  thread pane.
    */
   domBindExtra: function MessageTextFilter_domBind(aDocument, aMuxer, aNode) {
-    // -- platform-dependent emptytext setup
+    // -- platform-dependent placeholder setup
     aNode.setAttribute(
-      "emptytext",
+      "placeholder",
       aNode.getAttribute("emptytextbase")
            .replace("#1", aNode.getAttribute(Application.platformIsMac ?
                                              "keyLabelMac" : "keyLabelNonMac")));

@@ -40,11 +40,9 @@ DEPTH		= ../../..
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
+relativesrcdir = mailnews/import/test
 
 include $(DEPTH)/config/autoconf.mk
-
-# Module name for xpcshell tests.
-MODULE         = test_import
 
 XPCSHELL_TESTS = unit
 

@@ -85,19 +85,11 @@
 #define OPERA_PREFERENCES_FILE_NAME NS_LITERAL_STRING("opera6.ini")
 #define OPERA_HISTORY_FILE_NAME NS_LITERAL_STRING("global.dat")
 #define OPERA_BOOKMARKS_FILE_NAME NS_LITERAL_STRING("opera6.adr")
-#elif defined (XP_BEOS)
-#define OPERA_PREFERENCES_FOLDER_NAME NS_LITERAL_STRING("Opera")
-#define OPERA_PREFERENCES_FILE_NAME NS_LITERAL_STRING("opera.ini")
-#define OPERA_HISTORY_FILE_NAME NS_LITERAL_STRING("global.dat")
-#define OPERA_BOOKMARKS_FILE_NAME NS_LITERAL_STRING("opera.adr")
 #else
 #error Need to define location of Opera Profile data.
 #endif
 
 #define OPERA_COOKIES_FILE_NAME NS_LITERAL_STRING("cookies4.dat")
-#ifdef XP_BEOS
-#define OPERA_COOKIES_FILE_NAME NS_LITERAL_STRING("cookies.dat")
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 // nsBrowserProfileMigrator
@@ -327,7 +319,6 @@ nsOperaProfileMigrator::PrefTransform gTransforms[] = {
   { "Visited link", nsnull, _OPM(COLOR), "browser.visited_color", _OPM(SetString), PR_FALSE, { -1 } },
   { "Link", nsnull, _OPM(COLOR), "browser.anchor_color", _OPM(SetString), PR_FALSE, { -1 } },
   { nsnull, "Underline", _OPM(BOOL), "browser.underline_anchors", _OPM(SetBool), PR_FALSE, { -1 } },
-  { nsnull, "Expiry", _OPM(INT), "browser.history_expire_days", _OPM(SetInt), PR_FALSE, { -1 } },
 
   { "Security Prefs", "Enable SSL v2", _OPM(BOOL), "security.enable_ssl2", _OPM(SetBool), PR_FALSE, { -1 } },
   { nsnull, "Enable SSL v3", _OPM(BOOL), "security.enable_ssl3", _OPM(SetBool), PR_FALSE, { -1 } },
@@ -487,12 +478,12 @@ nsOperaProfileMigrator::CopyProxySettings(nsINIParser &aParser,
 
   PRInt32 networkProxyType = 0;
 
-  const char* protocols[4] = { "HTTP", "HTTPS", "FTP", "GOPHER" };
-  const char* protocols_l[4] = { "http", "https", "ftp", "gopher" };
+  const char* protocols[] = { "HTTP", "HTTPS", "FTP"  };
+  const char* protocols_l[] = { "http", "https", "ftp" };
   char toggleBuf[15], serverBuf[20], serverPrefBuf[20], 
        serverPortPrefBuf[25];
   PRInt32 enabled;
-  for (PRUint32 i = 0; i < 4; ++i) {
+  for (PRUint32 i = 0; i < NS_ARRAY_LENGTH(protocols); ++i) {
     sprintf(toggleBuf, "Use %s", protocols[i]);
     GetInteger(aParser, "Proxy", toggleBuf, &enabled);
     if (enabled) {
@@ -884,7 +875,9 @@ nsOperaCookieMigrator::AddCookieOverride(nsIPermissionManager* aManager)
   rv = aManager->Add(uri, "cookie",
                      (mCurrHandlingInfo == 1 || mCurrHandlingInfo == 3)
                      ? (PRUint32) nsIPermissionManager::ALLOW_ACTION
-                     : (PRUint32) nsIPermissionManager::DENY_ACTION);
+                     : (PRUint32) nsIPermissionManager::DENY_ACTION,
+                     nsIPermissionManager::EXPIRE_NEVER,
+                     0);
 
   mCurrHandlingInfo = 0;
 

@@ -40,7 +40,15 @@ must be one of the following:
 
 1. Inclusion of another manifest
 
-   include <relative_path>
+   <failure-type>* include <relative_path>
+
+   <failure-type> is the same as listed below for a test item.  As for 
+   test items, multiple failure types listed on the same line are 
+   combined by using the last matching failure type listed.  However, 
+   the failure type on a manifest is combined with the failure type on 
+   the test (or on a nested manifest) with the rule that the last in the
+   following list wins:  fails, random, skip.  (In other words, skip 
+   always wins, and random beats fails.)
 
 2. A test item
 
@@ -58,11 +66,24 @@ must be one of the following:
                           conditions of <type>. If the condition is not met,
                           the test passes if the conditions of <type> are met.
 
+      needs-focus  The test fails or times out if the reftest window is not
+                   focused.
+
       random  The results of the test are random and therefore not to be
               considered in the output.
 
       random-if(condition) The results of the test are random if a given
                            condition is met.
+
+      silentfail This test may fail silently, and if that happens it should
+                 count as if the test passed. This is useful for cases where
+                 silent failure is the intended behavior (for example, in
+                 an out of memory situation in JavaScript, we stop running
+                 the script silently and immediately, in hopes of reclaiming
+                 enough memory to keep the browser functioning).
+
+      silentfail-if(condition) This test may fail silently if the condition
+                               is met.
 
       skip  This test should not be run. This is useful when a test fails in a
             catastrophic way, such as crashing or hanging the browser. Using
@@ -73,6 +94,17 @@ must be one of the following:
                          useful if, for example, the test crashes only on a
                          particular platform (i.e. it allows us to get test
                          coverage on the other platforms).
+
+      slow  The test may take a long time to run, so run it if slow tests are
+            either enabled or not disabled (test manifest interpreters may
+            choose whether or not to run such tests by default).
+
+      slow-if(condition) If the condition is met, the test is treated as if
+                         'slow' had been specified.  This is useful for tests
+                         which are slow only on particular platforms (e.g. a
+                         test which exercised out-of-memory behavior might be
+                         fast on a 32-bit system but inordinately slow on a
+                         64-bit system).
 
       asserts(count)
           Loading the test and reference is known to assert exactly
@@ -98,10 +130,14 @@ must be one of the following:
       asserts-if(condition,minCount-maxCount)
           Same as above, but only if condition is true.
 
+      Conditions are JavaScript expressions *without spaces* in them.
+      They are evaluated in a sandbox in which a limited set of
+      variables are defined.  See the BuildConditionSandbox function in
+      layout/tools/reftest.js for details.
+
       Examples of using conditions:
-          fails-if(MOZ_WIDGET_TOOLKIT=="windows") ...
-          fails-if(MOZ_WIDGET_TOOLKIT=="cocoa") ...
-          fails-if(MOZ_WIDGET_TOOLKIT=="gtk2") ...
+          fails-if(winWidget) == test reference
+          asserts-if(cocoaWidget,2) load crashtest
 
    b. <http>, if present, is one of the strings (sans quotes) "HTTP" or
       "HTTP(..)" or "HTTP(../..)" or "HTTP(../../..)", etc. , indicating that
@@ -346,6 +382,17 @@ function doTest() {
   document.documentElement.removeAttribute('class');
 }
 document.addEventListener("MozReftestInvalidate", doTest, false);
+
+Zoom Tests
+==========
+
+When the root element of a test has a "reftest-zoom" attribute, that zoom
+factor is applied when rendering the test. The reftest document will be
+800 device pixels wide by 1000 device pixels high. The reftest harness assumes
+that the CSS pixel dimensions are 800/zoom and 1000/zoom. For best results
+therefore, choose zoom factors that do not require rounding when we calculate
+the number of appunits per device pixel; i.e. the zoom factor should divide 60,
+so 60/zoom is an integer.
 
 Printing Tests
 ==============

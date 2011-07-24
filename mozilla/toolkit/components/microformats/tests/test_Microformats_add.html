@@ -81,6 +81,7 @@
   <script class="testbody" type="text/javascript">
 
   function hTest(node, validate) {
+    netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
     if (node)
       Microformats.parser.newMicroformat(this, node, "hTest", validate);
   }
@@ -230,6 +231,8 @@
 
     ok(mf2.length, 1, "Check that the mfTest microformat version 2 is now valid");
     doTest3_4_and5(true);
+
+    Microformats.remove("hTest");
   }
 
   </script>

@@ -52,33 +52,10 @@ LIBXUL_LIBRARY = 1
 
 NATIVE_THEME_SUPPORT = 1
 
-REQUIRES	= xpcom \
-		  string \
-		  gfx \
-		  pref \
-		  dom \
-		  docshell \
-		  necko \
-		  uconv \
-		  intl \
-		  imglib2 \
-		  view \
-		  content \
-		  layout \
-		  util \
-		  locale \
-		  thebes \
-		  cairo \
-		  qcms \
-		  $(NULL)
 
-ifdef MOZ_X11
-REQUIRES += gtkxtbin
-endif
 
 CSRCS		= \
 		mozcontainer.c \
-		keysym2ucs.c \
 		$(NULL)
 
 ifdef ACCESSIBILITY
@@ -100,7 +77,7 @@ CPPSRCS		= \
 		nsScreenManagerGtk.cpp \
 		nsImageToPixbuf.cpp \
 		nsAccessibilityHelper.cpp \
-		nsAccelerometerUnix.cpp \
+		nsGtkIMModule.cpp \
 		$(NULL)
 
 ifdef MOZ_X11
@@ -113,6 +90,9 @@ CPPSRCS		+= \
 		nsPrintOptionsGTK.cpp \
 		nsPrintDialogGTK.cpp \
 		nsPrintSettingsGTK.cpp \
+		nsCUPSShim.cpp \
+		nsPaperPS.cpp \
+		nsPSPrinters.cpp \
 		$(NULL)
 endif
 
@@ -123,9 +103,6 @@ CPPSRCS += 	nsClipboard.cpp \
 endif
 
 # build our subdirs, too
-ifdef ACCESSIBILITY
-REQUIRES	+= accessibility
-endif
 
 SHARED_LIBRARY_LIBS = ../xpwidgets/libxpwidgets_s.a
 
@@ -165,6 +142,8 @@ CPPSRCS		+= nsNativeThemeGTK.cpp
 DEFINES		+= -DNATIVE_THEME_SUPPORT
 endif
 
+include $(topsrcdir)/config/config.mk
+include $(topsrcdir)/ipc/chromium/chromium-config.mk
 include $(topsrcdir)/config/rules.mk
 
 CFLAGS          += $(MOZ_GTK2_CFLAGS) $(MOZ_STARTUP_NOTIFICATION_CFLAGS)
@@ -176,17 +155,13 @@ CXXFLAGS += $(MOZ_GCONF_CFLAGS)
 endif
 endif
 
-DEFINES         += -DUSE_XIM
 DEFINES		+= -DCAIRO_GFX
 
-ifdef MOZ_ENABLE_POSTSCRIPT
-DEFINES         += -DUSE_POSTSCRIPT
-EXTRA_DSO_LDOPTS += -lgfxpsshar
-endif
-
-
-DEFINES		+=
 INCLUDES	+= \
 		-I$(srcdir)/../xpwidgets \
+		-I$(srcdir)/../shared \
 		-I$(topsrcdir)/other-licenses/atk-1.0 \
 		$(NULL)
+ifdef MOZ_X11
+INCLUDES   	+= -I$(srcdir)/../shared/x11
+endif

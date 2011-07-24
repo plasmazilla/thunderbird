@@ -41,9 +41,9 @@
 #define _nsARIAMap_H_
 
 #include "prtypes.h"
-#include "nsAccessibilityAtoms.h"
 
-#include "nsIContent.h"
+class nsIAtom;
+class nsIContent;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Value constants
@@ -157,6 +157,12 @@ enum eStateValueType
   kMixedType
 };
 
+enum EDefaultStateRule
+{
+  //eNoDefaultState,
+  eUseFirstState
+};
+
 /**
  * ID for state map entry, used in nsRoleMapEntry.
  */
@@ -174,6 +180,7 @@ enum eStateMapEntryID
   eARIAInvalid,
   eARIAMultiline,
   eARIAMultiSelectable,
+  eARIAOrientation,
   eARIAPressed,
   eARIAReadonly,
   eARIAReadonlyOrEditable,
@@ -187,7 +194,7 @@ public:
   /**
    * Used to create stub.
    */
-  nsStateMapEntry() {}
+  nsStateMapEntry();
 
   /**
    * Used for ARIA attributes having boolean or mixed values.
@@ -208,6 +215,17 @@ public:
                   PRUint32 aExtraState3 = 0);
 
   /**
+   * Used for ARIA attributes having enumerated values, and where a default
+   * attribute state should be assumed when not supplied by the author.
+   */
+  nsStateMapEntry(nsIAtom **aAttrName,
+                  EDefaultStateRule aDefaultStateRule,
+                  const char *aValue1, PRUint32 aState1, PRUint32 aExtraState1,
+                  const char *aValue2, PRUint32 aState2, PRUint32 aExtraState2,
+                  const char *aValue3 = 0, PRUint32 aState3 = 0,
+                  PRUint32 aExtraState3 = 0);
+
+  /**
    * Maps ARIA state map pointed by state map entry ID to accessible states.
    *
    * @param  aContent         [in] node of the accessible
@@ -222,33 +240,33 @@ public:
 
 private:
   // ARIA attribute name
-  nsIAtom** attributeName;
+  nsIAtom** mAttributeName;
 
   // Indicates if attribute is token (can be undefined)
-  PRBool isToken;
+  PRBool mIsToken;
 
   // State applied always if attribute is defined
-  PRUint32 permanentState;
+  PRUint32 mPermanentState;
 
   // States applied if attribute value is matched to the stored value
-  const char* value1;
-  PRUint32 state1;
-  PRUint32 extraState1;
+  const char* mValue1;
+  PRUint32 mState1;
+  PRUint32 mExtraState1;
 
-  const char* value2;
-  PRUint32 state2;
-  PRUint32 extraState2;
+  const char* mValue2;
+  PRUint32 mState2;
+  PRUint32 mExtraState2;
 
-  const char* value3;
-  PRUint32 state3;
-  PRUint32 extraState3;
+  const char* mValue3;
+  PRUint32 mState3;
+  PRUint32 mExtraState3;
 
   // States applied if no stored values above are matched
-  PRUint32 defaultState;
-  PRUint32 defaultExtraState;
+  PRUint32 mDefaultState;
+  PRUint32 mDefaultExtraState;
 
   // Permanent and false states are applied if attribute is absent
-  PRBool definedIfAbsent;
+  PRBool mDefinedIfAbsent;
 };
 
 

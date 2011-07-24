@@ -47,19 +47,26 @@
 #include "nsIDOMGetSVGDocument.h"
 #endif
 #include "nsIDOMHTMLObjectElement.h"
-#include "nsIFormSubmission.h"
+#include "nsFormSubmission.h"
 #include "nsIObjectFrame.h"
 #include "nsIPluginInstance.h"
+#include "nsIConstraintValidation.h"
 
-class nsHTMLObjectElement : public nsGenericHTMLFormElement,
-                            public nsObjectLoadingContent,
-                            public nsIDOMHTMLObjectElement
+using namespace mozilla::dom;
+
+class nsHTMLObjectElement : public nsGenericHTMLFormElement
+                          , public nsObjectLoadingContent
+                          , public nsIDOMHTMLObjectElement
+                          , public nsIConstraintValidation
 #ifdef MOZ_SVG
-                            , public nsIDOMGetSVGDocument
+                          , public nsIDOMGetSVGDocument
 #endif
 {
 public:
-  nsHTMLObjectElement(nsINodeInfo *aNodeInfo, PRBool aFromParser = PR_FALSE);
+  using nsIConstraintValidation::GetValidationMessage;
+
+  nsHTMLObjectElement(already_AddRefed<nsINodeInfo> aNodeInfo,
+                      mozilla::dom::FromParser aFromParser = mozilla::dom::NOT_FROM_PARSER);
   virtual ~nsHTMLObjectElement();
 
   // nsISupports
@@ -93,18 +100,19 @@ public:
   virtual nsresult UnsetAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
                              PRBool aNotify);
 
-  virtual PRBool IsHTMLFocusable(PRBool *aIsFocusable, PRInt32 *aTabIndex);
+  virtual PRBool IsHTMLFocusable(PRBool aWithMouse, PRBool *aIsFocusable, PRInt32 *aTabIndex);
   virtual PRUint32 GetDesiredIMEState();
 
   // Overriden nsIFormControl methods
-  NS_IMETHOD_(PRInt32) GetType() const
+  NS_IMETHOD_(PRUint32) GetType() const
   {
     return NS_FORM_OBJECT;
   }
 
   NS_IMETHOD Reset();
-  NS_IMETHOD SubmitNamesValues(nsIFormSubmission *aFormSubmission,
-                               nsIContent *aSubmitElement);
+  NS_IMETHOD SubmitNamesValues(nsFormSubmission *aFormSubmission);
+
+  virtual bool IsDisabled() const { return PR_FALSE; }
 
   virtual nsresult DoneAddingChildren(PRBool aHaveNotified);
   virtual PRBool IsDoneAddingChildren();
@@ -115,7 +123,7 @@ public:
                                 nsAttrValue &aResult);
   virtual nsMapRuleToAttributesFunc GetAttributeMappingFunction() const;
   NS_IMETHOD_(PRBool) IsAttributeMapped(const nsIAtom *aAttribute) const;
-  virtual PRInt32 IntrinsicState() const;
+  virtual nsEventStates IntrinsicState() const;
   virtual void DestroyContent();
 
   // nsObjectLoadingContent
@@ -123,16 +131,25 @@ public:
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
 
+  nsresult CopyInnerTo(nsGenericElement* aDest) const;
+
   void StartObjectLoad() { StartObjectLoad(PR_TRUE); }
 
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED_NO_UNLINK(nsHTMLObjectElement,
                                                      nsGenericHTMLFormElement)
 
+  virtual nsXPCClassInfo* GetClassInfo();
 private:
   /**
    * Calls LoadObject with the correct arguments to start the plugin load.
    */
   NS_HIDDEN_(void) StartObjectLoad(PRBool aNotify);
+
+  /**
+   * Returns if the element is currently focusable regardless of it's tabindex
+   * value. This is used to know the default tabindex value.
+   */
+  bool IsFocusableForTabIndex();
 
   PRPackedBool mIsDoneAddingChildren;
 };
@@ -141,12 +158,16 @@ private:
 NS_IMPL_NS_NEW_HTML_ELEMENT_CHECK_PARSER(Object)
 
 
-nsHTMLObjectElement::nsHTMLObjectElement(nsINodeInfo *aNodeInfo,
-                                         PRBool aFromParser)
+nsHTMLObjectElement::nsHTMLObjectElement(already_AddRefed<nsINodeInfo> aNodeInfo,
+                                         FromParser aFromParser)
   : nsGenericHTMLFormElement(aNodeInfo),
     mIsDoneAddingChildren(!aFromParser)
 {
   RegisterFreezableElement();
+  SetIsNetworkCreated(aFromParser == FROM_PARSER_NETWORK);
+
+  // <object> is always barred from constraint validation.
+  SetBarredFromConstraintValidation(PR_TRUE);
 }
 
 nsHTMLObjectElement::~nsHTMLObjectElement()
@@ -183,6 +204,8 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 NS_IMPL_ADDREF_INHERITED(nsHTMLObjectElement, nsGenericElement) 
 NS_IMPL_RELEASE_INHERITED(nsHTMLObjectElement, nsGenericElement) 
 
+DOMCI_NODE_DATA(HTMLObjectElement, nsHTMLObjectElement)
+
 NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(nsHTMLObjectElement)
   NS_HTML_CONTENT_INTERFACE_TABLE_BEGIN(nsHTMLObjectElement)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIDOMHTMLObjectElement)
@@ -191,11 +214,11 @@ NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(nsHTMLObjectElement)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIStreamListener)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIFrameLoaderOwner)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIObjectLoadingContent)
-    NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIObjectLoadingContent_MOZILLA_1_9_2_BRANCH)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIImageLoadingContent)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, imgIContainerObserver)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIInterfaceRequestor)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIChannelEventSink)
+    NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIConstraintValidation)
 #ifdef MOZ_SVG
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIDOMGetSVGDocument)
 #endif
@@ -206,6 +229,8 @@ NS_HTML_CONTENT_INTERFACE_TABLE_TAIL_CLASSINFO(HTMLObjectElement)
 
 NS_IMPL_ELEMENT_CLONE(nsHTMLObjectElement)
 
+// nsIConstraintValidation
+NS_IMPL_NSICONSTRAINTVALIDATION(nsHTMLObjectElement)
 
 NS_IMETHODIMP
 nsHTMLObjectElement::GetForm(nsIDOMHTMLFormElement **aForm)
@@ -226,9 +251,8 @@ nsHTMLObjectElement::BindToTree(nsIDocument *aDocument,
 
   // If we already have all the children, start the load.
   if (mIsDoneAddingChildren) {
-    nsContentUtils::AddScriptRunner(
-      new nsRunnableMethod<nsHTMLObjectElement>(this,
-                                                &nsHTMLObjectElement::StartObjectLoad));
+    void (nsHTMLObjectElement::*start)() = &nsHTMLObjectElement::StartObjectLoad;
+    nsContentUtils::AddScriptRunner(NS_NewRunnableMethod(this, start));
   }
 
   return NS_OK;
@@ -280,22 +304,61 @@ nsHTMLObjectElement::UnsetAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
   return nsGenericHTMLFormElement::UnsetAttr(aNameSpaceID, aAttribute, aNotify);
 }
 
-PRBool
-nsHTMLObjectElement::IsHTMLFocusable(PRBool *aIsFocusable, PRInt32 *aTabIndex)
+bool
+nsHTMLObjectElement::IsFocusableForTabIndex()
 {
-  if (Type() == eType_Plugin) {
+  nsIDocument* doc = GetCurrentDoc();
+  if (!doc || doc->HasFlag(NODE_IS_EDITABLE)) {
+    return false;
+  }
+
+  return Type() == eType_Plugin || IsEditableRoot() ||
+         (Type() == eType_Document && nsContentUtils::IsSubDocumentTabbable(this));
+}
+
+PRBool
+nsHTMLObjectElement::IsHTMLFocusable(PRBool aWithMouse,
+                                     PRBool *aIsFocusable, PRInt32 *aTabIndex)
+{
+  // TODO: this should probably be managed directly by IsHTMLFocusable.
+  // See bug 597242.
+  nsIDocument *doc = GetCurrentDoc();
+  if (!doc || doc->HasFlag(NODE_IS_EDITABLE)) {
+    if (aTabIndex) {
+      GetIntAttr(nsGkAtoms::tabindex, -1, aTabIndex);
+    }
+
+    *aIsFocusable = PR_FALSE;
+
+    return PR_FALSE;
+  }
+
+  // This method doesn't call nsGenericHTMLFormElement intentionally.
+  // TODO: It should probably be changed when bug 597242 will be fixed.
+  if (Type() == eType_Plugin || IsEditableRoot() ||
+      (Type() == eType_Document && nsContentUtils::IsSubDocumentTabbable(this))) {
     // Has plugin content: let the plugin decide what to do in terms of
     // internal focus from mouse clicks
     if (aTabIndex) {
-      GetTabIndex(aTabIndex);
+      GetIntAttr(nsGkAtoms::tabindex, 0, aTabIndex);
     }
-  
+
     *aIsFocusable = PR_TRUE;
 
     return PR_FALSE;
   }
 
-  return nsGenericHTMLFormElement::IsHTMLFocusable(aIsFocusable, aTabIndex);
+  // TODO: this should probably be managed directly by IsHTMLFocusable.
+  // See bug 597242.
+  const nsAttrValue* attrVal = mAttrsAndChildren.GetAttr(nsGkAtoms::tabindex);
+
+  *aIsFocusable = attrVal && attrVal->Type() == nsAttrValue::eInteger;
+
+  if (aTabIndex && *aIsFocusable) {
+    *aTabIndex = attrVal->GetIntegerValue();
+  }
+
+  return PR_FALSE;
 }
 
 PRUint32
@@ -315,8 +378,7 @@ nsHTMLObjectElement::Reset()
 }
 
 NS_IMETHODIMP
-nsHTMLObjectElement::SubmitNamesValues(nsIFormSubmission *aFormSubmission,
-                                       nsIContent *aSubmitElement)
+nsHTMLObjectElement::SubmitNamesValues(nsFormSubmission *aFormSubmission)
 {
   nsAutoString name;
   if (!GetAttr(kNameSpaceID_None, nsGkAtoms::name, name)) {
@@ -343,7 +405,7 @@ nsHTMLObjectElement::SubmitNamesValues(nsIFormSubmission *aFormSubmission,
   nsresult rv = pi->GetFormValue(value);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  return aFormSubmission->AddNameValuePair(this, name, value);
+  return aFormSubmission->AddNameValuePair(name, value);
 }
 
 NS_IMPL_STRING_ATTR(nsHTMLObjectElement, Align, align)
@@ -358,7 +420,8 @@ NS_IMPL_STRING_ATTR(nsHTMLObjectElement, Height, height)
 NS_IMPL_INT_ATTR(nsHTMLObjectElement, Hspace, hspace)
 NS_IMPL_STRING_ATTR(nsHTMLObjectElement, Name, name)
 NS_IMPL_STRING_ATTR(nsHTMLObjectElement, Standby, standby)
-NS_IMPL_INT_ATTR(nsHTMLObjectElement, TabIndex, tabindex)
+NS_IMPL_INT_ATTR_DEFAULT_VALUE(nsHTMLObjectElement, TabIndex, tabindex,
+                               IsFocusableForTabIndex() ? 0 : -1)
 NS_IMPL_STRING_ATTR(nsHTMLObjectElement, Type, type)
 NS_IMPL_STRING_ATTR(nsHTMLObjectElement, UseMap, usemap)
 NS_IMPL_INT_ATTR(nsHTMLObjectElement, Vspace, vspace)
@@ -459,9 +522,10 @@ nsHTMLObjectElement::StartObjectLoad(PRBool aNotify)
     // get interpreted as the page itself, instead of absence of URI.
     LoadObject(nsnull, aNotify, ctype);
   }
+  SetIsNetworkCreated(PR_FALSE);
 }
 
-PRInt32
+nsEventStates
 nsHTMLObjectElement::IntrinsicState() const
 {
   return nsGenericHTMLFormElement::IntrinsicState() | ObjectState();
@@ -478,4 +542,17 @@ nsHTMLObjectElement::DestroyContent()
 {
   RemovedFromDocument();
   nsGenericHTMLFormElement::DestroyContent();
+}
+
+nsresult
+nsHTMLObjectElement::CopyInnerTo(nsGenericElement* aDest) const
+{
+  nsresult rv = nsGenericHTMLFormElement::CopyInnerTo(aDest);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  if (aDest->GetOwnerDoc()->IsStaticDocument()) {
+    CreateStaticClone(static_cast<nsHTMLObjectElement*>(aDest));
+  }
+
+  return rv;
 }

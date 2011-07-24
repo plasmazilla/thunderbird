@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Global Database.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -160,6 +160,9 @@ nsAutoCompleteGlodaResult.prototype = {
   getValueAt: function(aIndex) {
     let thing = this._results[aIndex];
     return thing.name || thing.value || thing.subject;
+  },
+  getLabelAt: function(aIndex) {
+    return this.getValueAt(aIndex);
   },
   // rich uses this to be the "title".  it is the upper text
   // we try and show the identity here.
@@ -526,8 +529,6 @@ function nsAutoCompleteGloda() {
 }
 
 nsAutoCompleteGloda.prototype = {
-  classDescription: "AutoCompleteGloda",
-  contractID: "@mozilla.org/autocomplete/search;1?name=gloda",
   classID: Components.ID("{3bbe4d77-3f70-4252-9500-bc00c26f476d}"),
   QueryInterface: XPCOMUtils.generateQI([
       Components.interfaces.nsIAutoCompleteSearch]),
@@ -561,6 +562,5 @@ nsAutoCompleteGloda.prototype = {
   }
 };
 
-function NSGetModule(compMgr, fileSpec) {
-  return XPCOMUtils.generateModule([nsAutoCompleteGloda]);
-}
+var components = [nsAutoCompleteGloda];
+const NSGetFactory = XPCOMUtils.generateNSGetFactory(components);

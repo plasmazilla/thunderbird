@@ -46,6 +46,7 @@ nsAutoCompleteSimpleResult.prototype = {
  getCommentAt: function() { return null; },
  getStyleAt: function() { return null; },
  getImageAt: function() { return null; },
+ getLabelAt: function() { return null; },
  removeValueAt: function() {}
 };
 
@@ -138,13 +139,13 @@ function checkResult() {
     // is set.
     autocomplete.highlightNonMatches = "true";
 
-    is(style.getPropertyCSSValue("color").cssText, "rgb(0, 0, 0)",
-       "not nomatch and highlightNonMatches - should be black");
+    isnot(style.getPropertyCSSValue("color").cssText, "rgb(255, 0, 0)",
+          "not nomatch and highlightNonMatches - should not be red");
 
     autocomplete.highlightNonMatches = "false";
 
-    is(style.getPropertyCSSValue("color").cssText, "rgb(0, 0, 0)",
-       "not nomatch and not highlightNonMatches - should be black");
+    isnot(style.getPropertyCSSValue("color").cssText, "rgb(255, 0, 0)",
+          "not nomatch and not highlightNonMatches - should not be red");
 
     setTimeout(check, 0);
   }
@@ -162,12 +163,13 @@ function checkResult() {
 
     autocomplete.highlightNonMatches = "false";
 
-    is(style.getPropertyCSSValue("color").cssText, "rgb(0, 0, 0)",
-       "nomatch and not highlightNonMatches - should be black");
+    isnot(style.getPropertyCSSValue("color").cssText, "rgb(255, 0, 0)",
+          "nomatch and not highlightNonMatches - should not be red");
 
     setTimeout(function() {
       // Unregister the factory so that we don't get in the way of other tests
       componentManager.unregisterFactory(autoCompleteSimpleID, autoCompleteSimple);
+      autocomplete.controller.stopSearch();
       SimpleTest.finish();
     }, 0);
   }

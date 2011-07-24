@@ -72,6 +72,20 @@ class IDMap {
     return data_.empty();
   }
 
+#if defined(CHROMIUM_MOZILLA_BUILD)
+  void Clear() {
+    data_.clear();
+  }
+
+  bool HasData(const T* data) const {
+    // XXX would like to use <algorithm> here ...
+    for (const_iterator it = begin(); it != end(); ++it)
+      if (data == it->second)
+        return true;
+    return false;
+  }
+#endif
+
   T* Lookup(int32 id) const {
     const_iterator i = data_.find(id);
     if (i == data_.end())

@@ -52,14 +52,20 @@ _TEST_FILES = \
 		test_domstorage.xul \
 		domstorage_global.xul \
 		domstorage_global.js \
-		test_focus.xul \
-		window_focus.xul \
 		focus_window2.xul \
 		focus_frameset.html \
 		child_focus_frame.html \
 		test_focus_switchbinding.xul \
+		test_focus.xul \
+		window_focus.xul \
 		test_focused_link_scroll.xul \
 		test_geolocation.xul \
+		test_activation.xul \
+		window_activation.xul \
+		test_DOMWindowCreated.xul \
+		DOMWindowCreated_chrome.xul \
+		DOMWindowCreated_content.html \
+		test_sandbox_image.xul \
 		$(NULL)
 
 libs:: $(_TEST_FILES)

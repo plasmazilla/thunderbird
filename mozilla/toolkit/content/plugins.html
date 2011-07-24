@@ -94,12 +94,16 @@
   var numPlugins = navigator.plugins.length;
 
   if (numPlugins > 0)
-    document.writeln("<h1 id=\"plugs\">" + pluginsbundle.GetStringFromName("installedplugins_label") + "<\/h1>");
+    document.writeln("<h1 id=\"plugs\">" + pluginsbundle.GetStringFromName("enabledplugins_label") + "<\/h1>");
   else
-    document.writeln("<h1 id=\"noplugs\">" + pluginsbundle.GetStringFromName("nopluginsareinstalled_label") + "<\/h1>");
+    document.writeln("<h1 id=\"noplugs\">" + pluginsbundle.GetStringFromName("nopluginsareenabled_label") + "<\/h1>");
 
   document.writeln("<div id=\"findmore\">" + pluginsbundle.GetStringFromName("findmore_label") + " ");
   document.writeln("<a href=\"" + regionbundle.GetStringFromName("more_plugins_url") + "\">" + regionbundle.GetStringFromName("more_plugins_label") + "<\/a>.");
+  document.writeln("<\/div>");
+
+  document.writeln("<div id=\"findpluginupdates\">" + pluginsbundle.GetStringFromName("findpluginupdates_label") + " ");
+  document.writeln("<a href=\"" + regionbundle.GetStringFromName("pluginupdates_url") + "\">" + regionbundle.GetStringFromName("pluginupdates_label") + "<\/a>.");
   document.writeln("<\/div>");
 
   document.writeln("<div id=\"installhelp\">" + pluginsbundle.GetStringFromName("installhelp_label") + " ");
@@ -129,30 +133,21 @@
       document.writeln("<tr><th class=\"type\">" + pluginsbundle.GetStringFromName("mimetype_label") + "<\/th>");
       document.writeln("<th class=\"desc\">" + pluginsbundle.GetStringFromName("description_label") + "<\/th>");
       document.writeln("<th class=\"suff\">" + pluginsbundle.GetStringFromName("suffixes_label") + "<\/th>");
-      document.writeln("<th class=\"enabled\">" + pluginsbundle.GetStringFromName("enabled_label") + "<\/th><\/tr>");
-      document.writeln("<\/thead>");
+      document.writeln("<\/tr><\/thead>");
       document.writeln("<tbody>");
 
       var numTypes = plugin.length;
       var mimetype;
-      var enabled;
-      var enabledPlugin;
       for (var j = 0; j < numTypes; j++)
       {
         mimetype = plugin[j];
 
         if (mimetype)
         {
-          enabled = pluginsbundle.GetStringFromName("no_label");
-          enabledPlugin = mimetype.enabledPlugin;
-          if (enabledPlugin && (enabledPlugin.filename == plugin.filename))
-            enabled = pluginsbundle.GetStringFromName("yes_label");
-
           document.writeln("<tr>");
           document.writeln("<td>" + mimetype.type + "<\/td>");
           document.writeln("<td>" + mimetype.description + "<\/td>");
           document.writeln("<td>" + mimetype.suffixes + "<\/td>");
-          document.writeln("<td>" + enabled + "<\/td>");
           document.writeln("<\/tr>");
         }
       }

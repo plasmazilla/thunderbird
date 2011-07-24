@@ -43,7 +43,7 @@
 var MODULE_NAME = "test-lightweight-themes";
 
 var RELATIVE_ROOT = '../shared-modules';
-var MODULE_REQUIRES = ['window-helpers'];
+var MODULE_REQUIRES = ['folder-display-helpers', 'content-tab-helpers'];
 
 var controller = {};
 Components.utils.import('resource://mozmill/modules/controller.js', controller);
@@ -52,18 +52,15 @@ Components.utils.import('resource://mozmill/modules/mozmill.js', mozmill);
 var elib = {};
 Components.utils.import('resource://mozmill/modules/elementslib.js', elib);
 
-var windowHelper;
-var mc;
-
 // RELATIVE_ROOT messes with the collector, so we have to bring the path back
 // so we get the right path for the resources.
 var url = collector.addHttpResource('../content-tabs/html', 'content');
 
 var setupModule = function (module) {
-  windowHelper = collector.getModule('window-helpers');
-  mc = windowHelper.wait_for_existing_window("mail:3pane");
-  windowHelper.installInto(module);
-  windowHelper.augment_controller(mc);
+  let fdh = collector.getModule('folder-display-helpers');
+  fdh.installInto(module);
+  let cth = collector.getModule('content-tab-helpers');
+  cth.installInto(module);
 };
 
 const ALERT_TIMEOUT = 10000;
@@ -77,6 +74,13 @@ let AlertWatcher = {
   waitForAlert: function(aController) {
     if (!this.alerted)
       aController.waitForEval("subject.alerted", ALERT_TIMEOUT, 100, this);
+
+    // Double check the notification box has finished animating.
+    let notificationBox =
+      mc.tabmail.selectedTab.panel.getElementsByTagName("notificationbox")[0];
+    if (notificationBox && notificationBox._animating)
+      aController.waitForEval("!subject._animating", ALERT_TIMEOUT, 100,
+                              notificationBox);
 
     aController.window.document.removeEventListener("AlertActive",
                                                     this.alertActive, false);
@@ -114,7 +118,6 @@ function currentLwTheme() {
 function install_theme(themeNo, previousThemeNo) {
   let notificationBox =
     mc.tabmail.selectedTab.panel.getElementsByTagName("notificationbox")[0];
-  notificationBox.slideSteps = 1;
 
   // Clicking the button will bring up a notification box requesting to allow
   // installation of the theme
@@ -122,9 +125,6 @@ function install_theme(themeNo, previousThemeNo) {
   mc.click(new elib.Elem(mc.window.content.document
                            .getElementById("install" + themeNo)));
   AlertWatcher.waitForAlert(mc);
-
-  // sleep so the one frame happens.
-  mc.sleep(55);
 
   // We're going to acknowledge the theme installation being allowed, and
   // in doing so, the theme will be installed. However, we also will get a new
@@ -141,9 +141,6 @@ function install_theme(themeNo, previousThemeNo) {
   if (currentLwTheme().id != ("test-0" + themeNo))
     throw new Error("Incorrect theme installed, expected: test-0" + themeNo +
                     " got " + currentLwTheme().id);
-
-  // sleep so the one frame happens.
-  mc.sleep(55);
 
   // Now click the undo button, no new notification bar this time.
   check_and_click_notification_box_action_in_current_tab(2, 0);
@@ -166,8 +163,6 @@ function install_theme(themeNo, previousThemeNo) {
                            .getElementById("install" + themeNo)));
   AlertWatcher.waitForAlert(mc);
 
-  mc.sleep(55);
-
   // We're going to acknowledge the theme installation being allowed, and
   // in doing so, the theme will be installed. However, we also will get a new
   // notification box displayed saying the installation is complete, so we'll
@@ -178,9 +173,6 @@ function install_theme(themeNo, previousThemeNo) {
 
   // Now just close the notification box
   close_notification_box_in_current_tab();
-
-  // Wait one frame.
-  mc.sleep(55);
 
   // And one final check for what we've got installed.
   if (!currentLwTheme())
@@ -196,16 +188,7 @@ function test_lightweight_themes() {
   if (currentLwTheme())
     throw new Error("Lightweight theme selected when there should not have been.");
 
-  // To open a tab we're going to have to cheat and use tabmail so we can load
-  // in the data of what we want.
-  let preCount = mc.tabmail.tabContainer.childNodes.length;
-
-  let newTab = mc.tabmail.openTab("contentTab", { contentPage: url + 'test-lwthemes.html' });
-
-  mc.waitForEval("subject.busy == false", 5000, 100, newTab);
-
-  if (mc.tabmail.tabContainer.childNodes.length != preCount + 1)
-    throw new Error("The content tab didn't open");
+  let newTab = open_content_tab_with_url(url + 'test-lwthemes.html');
 
   // Try installing the first theme, no previous theme.
   install_theme(1);
@@ -213,8 +196,5 @@ function test_lightweight_themes() {
   // Now try the second one, checking that the first is selected when we undo.
   install_theme(2, 1);
 
-  mc.tabmail.closeTab(newTab);
-
-  if (mc.tabmail.tabContainer.childNodes.length != preCount)
-    throw new Error("The content tab didn't close");
+  close_tab(newTab);
 }

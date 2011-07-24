@@ -104,8 +104,7 @@ public:
   nsresult Initialize(nsIDocumentViewerPrint* aDocViewerPrint, 
                       nsISupports*            aContainer,
                       nsIDocument*            aDocument,
-                      nsIDeviceContext*       aDevContext,
-                      nsIWidget*              aParentWidget,
+                      float                   aScreenDPI,
                       FILE*                   aDebugFile);
 
   nsresult GetSeqFrameAndCountPages(nsIFrame*& aSeqFrame, PRInt32& aCount);
@@ -165,7 +164,7 @@ public:
   // Timer Methods
   nsresult StartPagePrintTimer(nsPrintObject* aPO);
 
-  PRBool IsWindowsInOurSubTree(nsIDOMWindow * aDOMWindow);
+  PRBool IsWindowsInOurSubTree(nsPIDOMWindow * aDOMWindow);
   static PRBool IsParentAFrameSet(nsIDocShell * aParent);
   PRBool IsThereAnIFrameSelected(nsIDocShell* aDocShell,
                                  nsIDOMWindow* aDOMWin,
@@ -195,9 +194,7 @@ public:
   PRBool   CheckBeforeDestroy();
   nsresult Cancelled();
 
-  nsIWidget* GetPrintPreviewWindow() {return mPrtPreview->mPrintObject->mWindow;}
-
-  nsIViewManager* GetPrintPreviewViewManager() {return mPrtPreview->mPrintObject->mViewManager;}
+  nsIPresShell* GetPrintPreviewPresShell() {return mPrtPreview->mPrintObject->mPresShell;}
 
   float GetPrintPreviewScale() { return mPrtPreview->mPrintObject->
                                         mPresContext->GetPrintPreviewScale(); }
@@ -227,10 +224,12 @@ public:
 protected:
 
   nsresult CommonPrint(PRBool aIsPrintPreview, nsIPrintSettings* aPrintSettings,
-              nsIWebProgressListener* aWebProgressListener);
+                       nsIWebProgressListener* aWebProgressListener,
+                       nsIDOMDocument* aDoc);
 
   nsresult DoCommonPrint(PRBool aIsPrintPreview, nsIPrintSettings* aPrintSettings,
-                         nsIWebProgressListener* aWebProgressListener);
+                         nsIWebProgressListener* aWebProgressListener,
+                         nsIDOMDocument* aDoc);
 
   void FirePrintCompletionEvent();
   static nsresult GetSeqFrameAndCountPagesInternal(nsPrintObject*  aPO,
@@ -282,14 +281,13 @@ protected:
 
   nsCOMPtr<nsIDocumentViewerPrint> mDocViewerPrint;
   nsISupports*            mContainer;      // [WEAK] it owns me!
-  nsIDeviceContext*       mDeviceContext;  // not ref counted
+  float                   mScreenDPI;
   
   nsPrintData*            mPrt;
   nsPagePrintTimer*       mPagePrintTimer;
   nsIPageSequenceFrame*   mPageSeqFrame;
 
   // Print Preview
-  nsCOMPtr<nsIWidget>     mParentWidget;        
   nsPrintData*            mPrtPreview;
   nsPrintData*            mOldPrtPreview;
 

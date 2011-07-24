@@ -44,6 +44,7 @@
 #ifndef _nsNSSComponent_h_
 #define _nsNSSComponent_h_
 
+#include "mozilla/Mutex.h"
 #include "nsCOMPtr.h"
 #include "nsISignatureVerifier.h"
 #include "nsIURIContentListener.h"
@@ -62,7 +63,6 @@
 #include "nsITimer.h"
 #include "nsNetUtil.h"
 #include "nsHashtable.h"
-#include "prlock.h"
 #include "nsICryptoHash.h"
 #include "nsICryptoHMAC.h"
 #include "hasht.h"
@@ -97,11 +97,12 @@
 
 enum EnsureNSSOperator
 {
-  nssLoading = 0,
+  nssLoadingComponent = 0,
   nssInitSucceeded = 1,
   nssInitFailed = 2,
   nssShutdown = 3,
-  nssEnsure = 4
+  nssEnsure = 100,
+  nssEnsureOnChromeOnly = 101
 };
 
 extern PRBool EnsureNSSInitialized(EnsureNSSOperator op);
@@ -227,7 +228,6 @@ private:
   void destructorSafeDestroyNSSReference();
 };
 
-struct PRLock;
 class nsNSSShutDownList;
 class nsSSLThread;
 class nsCertVerificationThread;
@@ -238,9 +238,10 @@ class nsNSSComponent : public nsISignatureVerifier,
                        public nsINSSComponent,
                        public nsIObserver,
                        public nsSupportsWeakReference,
-                       public nsITimerCallback,
-                       public nsINSSErrorsService
+                       public nsITimerCallback
 {
+  typedef mozilla::Mutex Mutex;
+
 public:
   NS_DEFINE_STATIC_CID_ACCESSOR( NS_NSSCOMPONENT_CID )
 
@@ -252,7 +253,6 @@ public:
   NS_DECL_NSIENTROPYCOLLECTOR
   NS_DECL_NSIOBSERVER
   NS_DECL_NSITIMERCALLBACK
-  NS_DECL_NSINSSERRORSSERVICE
 
   NS_METHOD Init();
 
@@ -327,7 +327,7 @@ private:
   void DoProfileBeforeChange(nsISupports* aSubject);
   void DoProfileChangeNetRestore();
   
-  PRLock *mutex;
+  Mutex mutex;
   
   nsCOMPtr<nsIScriptSecurityManager> mScriptSecurityManager;
   nsCOMPtr<nsIStringBundle> mPIPNSSBundle;
@@ -340,7 +340,7 @@ private:
   PLHashTable *hashTableCerts;
   nsAutoString mDownloadURL;
   nsAutoString mCrlUpdateKey;
-  PRLock *mCrlTimerLock;
+  Mutex mCrlTimerLock;
   nsHashtable *crlsScheduledForDownload;
   PRBool crlDownloadTimerOn;
   PRBool mUpdateTimerInitialized;
@@ -379,6 +379,15 @@ public:
   static nsresult getErrorMessageFromCode(PRInt32 err,
                                           nsINSSComponent *component,
                                           nsString &returnedMessage);
+};
+
+class nsPSMInitPanic
+{
+private:
+  static PRBool isPanic;
+public:
+  static void SetPanic() {isPanic = PR_TRUE;}
+  static PRBool GetPanic() {return isPanic;}
 };
 
 #endif // _nsNSSComponent_h_

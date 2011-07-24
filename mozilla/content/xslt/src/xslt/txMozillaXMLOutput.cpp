@@ -57,41 +57,40 @@
 #include "nsIConsoleService.h"
 #include "nsIDOMDocumentFragment.h"
 #include "nsINameSpaceManager.h"
-#include "nsICSSStyleSheet.h"
+#include "nsCSSStyleSheet.h"
 #include "txStringUtils.h"
 #include "txURIUtils.h"
 #include "nsIHTMLDocument.h"
 #include "nsIStyleSheetLinkingElement.h"
 #include "nsIDocumentTransformer.h"
-#include "nsICSSLoader.h"
+#include "mozilla/css/Loader.h"
 #include "nsICharsetAlias.h"
 #include "nsIHTMLContentSink.h"
 #include "nsContentUtils.h"
 #include "txXMLUtils.h"
+#include "nsContentSink.h"
 #include "nsINode.h"
 #include "nsContentCreatorFunctions.h"
 #include "txError.h"
+
+using namespace mozilla::dom;
 
 #define TX_ENSURE_CURRENTNODE                           \
     NS_ASSERTION(mCurrentNode, "mCurrentNode is NULL"); \
     if (!mCurrentNode)                                  \
         return NS_ERROR_UNEXPECTED
 
-txMozillaXMLOutput::txMozillaXMLOutput(const nsSubstring& aRootName,
-                                       PRInt32 aRootNsID,
-                                       txOutputFormat* aFormat,
-                                       nsIDOMDocument* aSourceDocument,
-                                       nsIDOMDocument* aResultDocument,
+txMozillaXMLOutput::txMozillaXMLOutput(txOutputFormat* aFormat,
                                        nsITransformObserver* aObserver)
     : mTreeDepth(0),
       mBadChildLevel(0),
       mTableState(NORMAL),
-      mHaveBaseElement(PR_FALSE),
       mCreatingNewDocument(PR_TRUE),
       mOpenedElementIsHTML(PR_FALSE),
       mRootContentCreated(PR_FALSE),
       mNoFixup(PR_FALSE)
 {
+    MOZ_COUNT_CTOR(txMozillaXMLOutput);
     if (aObserver) {
         mNotifier = new txTransformNotifier();
         if (mNotifier) {
@@ -101,8 +100,6 @@ txMozillaXMLOutput::txMozillaXMLOutput(const nsSubstring& aRootName,
 
     mOutputFormat.merge(*aFormat);
     mOutputFormat.setFromDefaults();
-
-    createResultDocument(aRootName, aRootNsID, aSourceDocument, aResultDocument);
 }
 
 txMozillaXMLOutput::txMozillaXMLOutput(txOutputFormat* aFormat,
@@ -111,12 +108,12 @@ txMozillaXMLOutput::txMozillaXMLOutput(txOutputFormat* aFormat,
     : mTreeDepth(0),
       mBadChildLevel(0),
       mTableState(NORMAL),
-      mHaveBaseElement(PR_FALSE),
       mCreatingNewDocument(PR_FALSE),
       mOpenedElementIsHTML(PR_FALSE),
       mRootContentCreated(PR_FALSE),
       mNoFixup(aNoFixup)
 {
+    MOZ_COUNT_CTOR(txMozillaXMLOutput);
     mOutputFormat.merge(*aFormat);
     mOutputFormat.setFromDefaults();
 
@@ -128,6 +125,11 @@ txMozillaXMLOutput::txMozillaXMLOutput(txOutputFormat* aFormat,
     else {
       mCurrentNode = nsnull;
     }
+}
+
+txMozillaXMLOutput::~txMozillaXMLOutput()
+{
+    MOZ_COUNT_DTOR(txMozillaXMLOutput);
 }
 
 nsresult
@@ -258,8 +260,15 @@ txMozillaXMLOutput::endDocument(nsresult aResult)
         
         return rv;
     }
-    // This should really be handled by nsIDocument::EndLoad
-    mDocument->SetReadyStateInternal(nsIDocument::READYSTATE_INTERACTIVE);
+
+    if (mCreatingNewDocument) {
+        // This should really be handled by nsIDocument::EndLoad
+        mDocument->SetReadyStateInternal(nsIDocument::READYSTATE_INTERACTIVE);
+        nsScriptLoader* loader = mDocument->ScriptLoader();
+        if (loader) {
+            loader->ParsingComplete(PR_FALSE);
+        }
+    }
 
     if (!mRefreshString.IsEmpty()) {
         nsPIDOMWindow *win = mDocument->GetWindow();
@@ -267,7 +276,7 @@ txMozillaXMLOutput::endDocument(nsresult aResult)
             nsCOMPtr<nsIRefreshURI> refURI =
                 do_QueryInterface(win->GetDocShell());
             if (refURI) {
-                refURI->SetupRefreshURIFromHeader(mDocument->GetBaseURI(),
+                refURI->SetupRefreshURIFromHeader(mDocument->GetDocBaseURI(),
                                                   mRefreshString);
             }
         }
@@ -297,10 +306,8 @@ txMozillaXMLOutput::endElement()
     nsresult rv = closePrevious(PR_TRUE);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    NS_ASSERTION(mCurrentNode->IsNodeOfType(nsINode::eELEMENT),
-                 "borked mCurrentNode");
-    NS_ENSURE_TRUE(mCurrentNode->IsNodeOfType(nsINode::eELEMENT),
-                   NS_ERROR_UNEXPECTED);
+    NS_ASSERTION(mCurrentNode->IsElement(), "borked mCurrentNode");
+    NS_ENSURE_TRUE(mCurrentNode->IsElement(), NS_ERROR_UNEXPECTED);
 
     nsIContent* element = static_cast<nsIContent*>
                                      (static_cast<nsINode*>
@@ -308,15 +315,23 @@ txMozillaXMLOutput::endElement()
 
     // Handle html-elements
     if (!mNoFixup) {
-        if (element->IsNodeOfType(nsINode::eHTML)) {
+        if (element->IsHTML()) {
             rv = endHTMLElement(element);
             NS_ENSURE_SUCCESS(rv, rv);
         }
 
-        // Handle script elements
-        if (element->Tag() == nsGkAtoms::script &&
-            (element->IsNodeOfType(nsINode::eHTML) ||
-            element->GetNameSpaceID() == kNameSpaceID_SVG)) {
+        // Handle elements that are different when parser-created
+        PRInt32 ns = element->GetNameSpaceID();
+        nsIAtom* localName = element->Tag();
+
+        if ((ns == kNameSpaceID_XHTML && (localName == nsGkAtoms::script ||
+                                          localName == nsGkAtoms::title ||
+                                          localName == nsGkAtoms::object ||
+                                          localName == nsGkAtoms::applet ||
+                                          localName == nsGkAtoms::select ||
+                                          localName == nsGkAtoms::textarea)) ||
+            (ns == kNameSpaceID_SVG && (localName == nsGkAtoms::script ||
+                                        localName == nsGkAtoms::title))) {
 
             rv = element->DoneAddingChildren(PR_TRUE);
 
@@ -327,6 +342,10 @@ txMozillaXMLOutput::endElement()
                 rv = mNotifier->AddScriptElement(sele);
                 NS_ENSURE_SUCCESS(rv, rv);
             }
+        } else if (ns == kNameSpaceID_XHTML &&
+                   (localName == nsGkAtoms::input ||
+                    localName == nsGkAtoms::button)) {
+          element->DoneCreatingElement();
         }
     }
 
@@ -434,6 +453,13 @@ txMozillaXMLOutput::startDocument()
         mNotifier->OnTransformStart();
     }
 
+    if (mCreatingNewDocument) {
+        nsScriptLoader* loader = mDocument->ScriptLoader();
+        if (loader) {
+            loader->BeginDeferringScripts();
+        }
+    }
+
     return NS_OK;
 }
 
@@ -539,7 +565,9 @@ txMozillaXMLOutput::startElementInternal(nsIAtom* aPrefix,
     ni = mNodeInfoManager->GetNodeInfo(aLocalName, aPrefix, aNsID);
     NS_ENSURE_TRUE(ni, NS_ERROR_OUT_OF_MEMORY);
 
-    NS_NewElement(getter_AddRefs(mOpenedElement), aNsID, ni, PR_FALSE);
+    NS_NewElement(getter_AddRefs(mOpenedElement), aNsID, ni.forget(),
+                  mCreatingNewDocument ?
+                  FROM_PARSER_XSLT : FROM_PARSER_FRAGMENT);
 
     // Set up the element and adjust state
     if (!mNoFixup) {
@@ -548,11 +576,6 @@ txMozillaXMLOutput::startElementInternal(nsIAtom* aPrefix,
             rv = startHTMLElement(mOpenedElement, mOpenedElementIsHTML);
             NS_ENSURE_SUCCESS(rv, rv);
 
-        }
-        else if (aNsID == kNameSpaceID_SVG &&
-                 aLocalName == txHTMLAtoms::script) {
-            nsCOMPtr<nsIScriptElement> sele = do_QueryInterface(mOpenedElement);
-            sele->WillCallDoneAddingChildren();
         }
     }
 
@@ -586,12 +609,13 @@ txMozillaXMLOutput::closePrevious(PRBool aFlushText)
             NS_ENSURE_SUCCESS(rv, rv);
         }
 
-        if (currentIsDoc) {
-            mRootContentCreated = PR_TRUE;
-        }
-
         rv = mCurrentNode->AppendChildTo(mOpenedElement, PR_TRUE);
         NS_ENSURE_SUCCESS(rv, rv);
+
+        if (currentIsDoc) {
+            mRootContentCreated = PR_TRUE;
+            nsContentSink::NotifyDocElementCreated(mDocument);
+        }
 
         mCurrentNode = mOpenedElement;
         mOpenedElement = nsnull;
@@ -636,8 +660,9 @@ txMozillaXMLOutput::createTxWrapper()
     NS_ENSURE_SUCCESS(rv, rv);
 
     nsCOMPtr<nsIContent> wrapper;
-    rv = mDocument->CreateElem(nsGkAtoms::result, nsGkAtoms::transformiix,
-                               namespaceID, PR_FALSE, getter_AddRefs(wrapper));
+    rv = mDocument->CreateElem(nsDependentAtomString(nsGkAtoms::result),
+                               nsGkAtoms::transformiix, namespaceID,
+                               PR_FALSE, getter_AddRefs(wrapper));
     NS_ENSURE_SUCCESS(rv, rv);
 
     PRUint32 i, j, childCount = mDocument->GetChildCount();
@@ -650,7 +675,7 @@ txMozillaXMLOutput::createTxWrapper()
         nsCOMPtr<nsIContent> childContent = mDocument->GetChildAt(j);
 
 #ifdef DEBUG
-        if (childContent->IsNodeOfType(nsINode::eELEMENT)) {
+        if (childContent->IsElement()) {
             rootLocation = j;
         }
 #endif
@@ -746,10 +771,6 @@ txMozillaXMLOutput::startHTMLElement(nsIContent* aElement, PRBool aIsHTML)
         rv = aElement->AppendChildTo(meta, PR_FALSE);
         NS_ENSURE_SUCCESS(rv, rv);
     }
-    else if (atom == nsGkAtoms::script) {
-        nsCOMPtr<nsIScriptElement> sele = do_QueryInterface(aElement);
-        sele->WillCallDoneAddingChildren();
-    }
 
     return NS_OK;
 }
@@ -771,23 +792,6 @@ txMozillaXMLOutput::endHTMLElement(nsIContent* aElement)
                                  (NS_PTR_TO_INT32(mTableStateStack.pop()));
 
         return NS_OK;
-    }
-    else if (mCreatingNewDocument && atom == txHTMLAtoms::base &&
-             !mHaveBaseElement) {
-        // The first base wins
-        mHaveBaseElement = PR_TRUE;
-
-        nsAutoString value;
-        aElement->GetAttr(kNameSpaceID_None, txHTMLAtoms::target, value);
-        mDocument->SetBaseTarget(value);
-
-        aElement->GetAttr(kNameSpaceID_None, txHTMLAtoms::href, value);
-        nsCOMPtr<nsIURI> baseURI;
-        NS_NewURI(getter_AddRefs(baseURI), value, nsnull);
-
-        if (baseURI) {
-            mDocument->SetBaseURI(baseURI); // The document checks if it is legal to set this base
-        }
     }
     else if (mCreatingNewDocument && atom == txHTMLAtoms::meta) {
         // handle HTTP-EQUIV data
@@ -974,7 +978,9 @@ txMozillaXMLOutput::createHTMLElement(nsIAtom* aName,
                                        kNameSpaceID_XHTML);
     NS_ENSURE_TRUE(ni, NS_ERROR_OUT_OF_MEMORY);
 
-    return NS_NewHTMLElement(aResult, ni, PR_FALSE);
+    return NS_NewHTMLElement(aResult, ni.forget(), mCreatingNewDocument ?
+        FROM_PARSER_XSLT : FROM_PARSER_FRAGMENT);
+
 }
 
 txTransformNotifier::txTransformNotifier()
@@ -1015,7 +1021,7 @@ txTransformNotifier::ScriptEvaluated(nsresult aResult,
 }
 
 NS_IMETHODIMP 
-txTransformNotifier::StyleSheetLoaded(nsICSSStyleSheet* aSheet,
+txTransformNotifier::StyleSheetLoaded(nsCSSStyleSheet* aSheet,
                                       PRBool aWasAlternate,
                                       nsresult aStatus)
 {

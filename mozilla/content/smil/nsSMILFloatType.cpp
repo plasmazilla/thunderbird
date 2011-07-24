@@ -43,20 +43,18 @@
 
 /*static*/ nsSMILFloatType nsSMILFloatType::sSingleton;
 
-nsresult
+void
 nsSMILFloatType::Init(nsSMILValue& aValue) const
 {
-  NS_PRECONDITION(aValue.mType == this || aValue.IsNull(),
-    "Unexpected value type");
+  NS_PRECONDITION(aValue.IsNull(), "Unexpected value type");
   aValue.mU.mDouble = 0.0;
   aValue.mType = this;
-  return NS_OK;
 }
 
 void
 nsSMILFloatType::Destroy(nsSMILValue& aValue) const
 {
-  NS_PRECONDITION(aValue.mType == this, "Unexpected SMIL value.");
+  NS_PRECONDITION(aValue.mType == this, "Unexpected SMIL value");
   aValue.mU.mDouble = 0.0;
   aValue.mType      = &nsSMILNullType::sSingleton;
 }
@@ -64,10 +62,20 @@ nsSMILFloatType::Destroy(nsSMILValue& aValue) const
 nsresult
 nsSMILFloatType::Assign(nsSMILValue& aDest, const nsSMILValue& aSrc) const
 {
-  NS_PRECONDITION(aDest.mType == aSrc.mType, "Incompatible SMIL types.");
-  NS_PRECONDITION(aDest.mType == this, "Unexpected SMIL value.");
+  NS_PRECONDITION(aDest.mType == aSrc.mType, "Incompatible SMIL types");
+  NS_PRECONDITION(aDest.mType == this, "Unexpected SMIL value");
   aDest.mU.mDouble = aSrc.mU.mDouble;
   return NS_OK;
+}
+
+PRBool
+nsSMILFloatType::IsEqual(const nsSMILValue& aLeft,
+                         const nsSMILValue& aRight) const
+{
+  NS_PRECONDITION(aLeft.mType == aRight.mType, "Incompatible SMIL types");
+  NS_PRECONDITION(aLeft.mType == this, "Unexpected type for SMIL value");
+
+  return aLeft.mU.mDouble == aRight.mU.mDouble;
 }
 
 nsresult
@@ -106,8 +114,8 @@ nsSMILFloatType::Interpolate(const nsSMILValue& aStartVal,
   NS_PRECONDITION(aStartVal.mType == aEndVal.mType,
       "Trying to interpolate different types");
   NS_PRECONDITION(aStartVal.mType == this,
-      "Unexpected types for interpolation.");
-  NS_PRECONDITION(aResult.mType   == this, "Unexpected result type.");
+      "Unexpected types for interpolation");
+  NS_PRECONDITION(aResult.mType   == this, "Unexpected result type");
 
   const double &startVal = aStartVal.mU.mDouble;
   const double &endVal   = aEndVal.mU.mDouble;

@@ -37,11 +37,3 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-gTestsuite = 'ecma_3_1';
-
-// explicitly turn on js18
-if (typeof version != 'undefined')
-{
-  version(180);
-}
-

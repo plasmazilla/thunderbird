@@ -406,6 +406,14 @@ public:
    *  primarily introduced for the benefit of the javascript emitter.
    */
   PRBool write_pure_bodies;
+
+  /**
+   * When true, only processes metadata (i.e. size) for streamed attachments.
+   *  Mime emitters that expect any attachment data (including inline text and
+   *  image attachments) should leave this as false (the default value).  At
+   *  the moment, only the JS mime emitter uses this.
+   */
+  PRBool metadata_only;
 };
 
 #endif /* _MODLMIME_H_ */

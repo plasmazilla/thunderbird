@@ -404,5 +404,91 @@ FAIL
     self.pp.do_include(f)
     self.assertEqual(self.pp.out.getvalue(), "first\rsecond\r")
 
+  def test_number_value_equals(self):
+    f = NamedIO("number_value_equals.in", """#define FOO 1000
+#if FOO == 1000
+number value is equal
+#else
+number value is not equal
+#endif
+""")
+    self.pp.do_include(f)
+    self.assertEqual(self.pp.out.getvalue(), "number value is equal\n")
+
+  def test_number_value_equals_defines(self):
+    f = NamedIO("number_value_equals_defines.in", """#if FOO == 1000
+number value is equal
+#else
+number value is not equal
+#endif
+""")
+    self.pp.handleCommandLine(["-DFOO=1000"])
+    self.pp.do_include(f)
+    self.assertEqual(self.pp.out.getvalue(), "number value is equal\n")
+
+  def test_octal_value_equals(self):
+    f = NamedIO("octal_value_equals.in", """#define FOO 0100
+#if FOO == 0100
+octal value is equal
+#else
+octal value is not equal
+#endif
+""")
+    self.pp.do_include(f)
+    self.assertEqual(self.pp.out.getvalue(), "octal value is equal\n")
+
+  def test_octal_value_equals_defines(self):
+    f = NamedIO("octal_value_equals_defines.in", """#if FOO == 0100
+octal value is equal
+#else
+octal value is not equal
+#endif
+""")
+    self.pp.handleCommandLine(["-DFOO=0100"])
+    self.pp.do_include(f)
+    self.assertEqual(self.pp.out.getvalue(), "octal value is equal\n")
+
+  def test_value_quoted_expansion(self):
+    """
+    Quoted values on the commandline don't currently have quotes stripped.
+    Pike says this is for compat reasons.
+    """
+    f = NamedIO("value_quoted_expansion.in", """#filter substitution
+@FOO@
+""")
+    self.pp.handleCommandLine(['-DFOO="ABCD"'])
+    self.pp.do_include(f)
+    self.assertEqual(self.pp.out.getvalue(), '"ABCD"\n')
+
+  def test_octal_value_quoted_expansion(self):
+    f = NamedIO("value_quoted_expansion.in", """#filter substitution
+@FOO@
+""")
+    self.pp.handleCommandLine(['-DFOO="0100"'])
+    self.pp.do_include(f)
+    self.assertEqual(self.pp.out.getvalue(), '"0100"\n')
+
+  def test_number_value_not_equals_quoted_defines(self):
+    f = NamedIO("number_value_not_equals_quoted_defines.in", """#if FOO == 1000
+number value is equal
+#else
+number value is not equal
+#endif
+""")
+    self.pp.handleCommandLine(['-DFOO="1000"'])
+    self.pp.do_include(f)
+    self.assertEqual(self.pp.out.getvalue(), "number value is not equal\n")
+
+  def test_octal_value_not_equals_quoted_defines(self):
+    f = NamedIO("octal_value_not_equals_quoted_defines.in", """#if FOO == 0100
+octal value is equal
+#else
+octal value is not equal
+#endif
+""")
+    self.pp.handleCommandLine(['-DFOO="0100"'])
+    self.pp.do_include(f)
+    self.assertEqual(self.pp.out.getvalue(), "octal value is not equal\n")
+
 if __name__ == '__main__':
   unittest.main()

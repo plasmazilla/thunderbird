@@ -1,3 +1,4 @@
+/*
 //  qcms
 //  Copyright (C) 2009 Mozilla Corporation
 //  Copyright (C) 1998-2007 Marti Maria
@@ -19,15 +20,17 @@
 // LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION 
 // OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION 
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
 
 #include <stdlib.h>
 #include <math.h>
 #include <assert.h>
 #include "qcmsint.h"
 
-#if defined(_M_IX86) || defined(__i386__) || defined(__x86_64__) || defined(_M_AMD64)
+/* for MSVC, GCC, Intel, and Sun compilers */
+#if defined(_M_IX86) || defined(__i386__) || defined(__i386) || defined(_M_AMD64) || defined(__x86_64__) || defined(__x86_64)
 #define X86
-#endif
+#endif /* _M_IX86 || __i386__ || __i386 || _M_AMD64 || __x86_64__ || __x86_64 */
 
 //XXX: could use a bettername
 typedef uint16_t uint16_fract_t;
@@ -37,7 +40,7 @@ typedef uint16_t uint16_fract_t;
 float lut_interp_linear(double value, uint16_t *table, int length)
 {
 	int upper, lower;
-	value = value * (length - 1);
+	value = value * (length - 1); // scale to length of the array
 	upper = ceil(value);
 	lower = floor(value);
 	//XXX: can we be more performant here?
@@ -49,15 +52,60 @@ float lut_interp_linear(double value, uint16_t *table, int length)
 /* same as above but takes and returns a uint16_t value representing a range from 0..1 */
 uint16_t lut_interp_linear16(uint16_t input_value, uint16_t *table, int length)
 {
+	/* Start scaling input_value to the length of the array: 65535*(length-1).
+	 * We'll divide out the 65535 next */
 	uint32_t value = (input_value * (length - 1));
 	uint32_t upper = (value + 65534) / 65535; /* equivalent to ceil(value/65535) */
 	uint32_t lower = value / 65535;           /* equivalent to floor(value/65535) */
+	/* interp is the distance from upper to value scaled to 0..65535 */
 	uint32_t interp = value % 65535;
 
-	value = (table[upper]*(interp) + table[lower]*(65535 - interp))/65535;
+	value = (table[upper]*(interp) + table[lower]*(65535 - interp))/65535; // 0..65535*65535
 
 	return value;
 }
+
+/* same as above but takes an input_value from 0..PRECACHE_OUTPUT_MAX
+ * and returns a uint8_t value representing a range from 0..1 */
+static
+uint8_t lut_interp_linear_precache_output(uint32_t input_value, uint16_t *table, int length)
+{
+	/* Start scaling input_value to the length of the array: PRECACHE_OUTPUT_MAX*(length-1).
+	 * We'll divide out the PRECACHE_OUTPUT_MAX next */
+	uint32_t value = (input_value * (length - 1));
+
+	/* equivalent to ceil(value/PRECACHE_OUTPUT_MAX) */
+	uint32_t upper = (value + PRECACHE_OUTPUT_MAX-1) / PRECACHE_OUTPUT_MAX;
+	/* equivalent to floor(value/PRECACHE_OUTPUT_MAX) */
+	uint32_t lower = value / PRECACHE_OUTPUT_MAX;
+	/* interp is the distance from upper to value scaled to 0..PRECACHE_OUTPUT_MAX */
+	uint32_t interp = value % PRECACHE_OUTPUT_MAX;
+
+	/* the table values range from 0..65535 */
+	value = (table[upper]*(interp) + table[lower]*(PRECACHE_OUTPUT_MAX - interp)); // 0..(65535*PRECACHE_OUTPUT_MAX)
+
+	/* round and scale */
+	value += (PRECACHE_OUTPUT_MAX*65535/255)/2;
+        value /= (PRECACHE_OUTPUT_MAX*65535/255); // scale to 0..255
+	return value;
+}
+
+#if 0
+/* if we use a different representation i.e. one that goes from 0 to 0x1000 we can be more efficient
+ * because we can avoid the divisions and use a shifting instead */
+/* same as above but takes and returns a uint16_t value representing a range from 0..1 */
+uint16_t lut_interp_linear16(uint16_t input_value, uint16_t *table, int length)
+{
+	uint32_t value = (input_value * (length - 1));
+	uint32_t upper = (value + 4095) / 4096; /* equivalent to ceil(value/4096) */
+	uint32_t lower = value / 4096;           /* equivalent to floor(value/4096) */
+	uint32_t interp = value % 4096;
+
+	value = (table[upper]*(interp) + table[lower]*(4096 - interp))/4096; // 0..4096*4096
+
+	return value;
+}
+#endif
 
 void compute_curve_gamma_table_type1(float gamma_table[256], double gamma)
 {
@@ -706,7 +754,7 @@ static void qcms_transform_data_gray_out_precache(qcms_transform *transform, uns
 		float linear = transform->input_gamma_table_gray[device];
 
 		/* we could round here... */
-		gray = linear * 65535.;
+		gray = linear * PRECACHE_OUTPUT_MAX;
 
 		*dest++ = transform->output_table_r->data[gray];
 		*dest++ = transform->output_table_g->data[gray];
@@ -725,7 +773,7 @@ static void qcms_transform_data_graya_out_precache(qcms_transform *transform, un
 		float linear = transform->input_gamma_table_gray[device];
 
 		/* we could round here... */
-		gray = linear * 65535.;
+		gray = linear * PRECACHE_OUTPUT_MAX;
 
 		*dest++ = transform->output_table_r->data[gray];
 		*dest++ = transform->output_table_g->data[gray];
@@ -733,354 +781,6 @@ static void qcms_transform_data_graya_out_precache(qcms_transform *transform, un
 		*dest++ = alpha;
 	}
 }
-
-static const ALIGN float floatScale = 65536.0f;
-static const ALIGN float * const floatScaleAddr = &floatScale; // Win32 ASM doesn't know how to take addressOf inline
-
-static const ALIGN float clampMaxValue = ((float) (65536 - 1)) / 65536.0f;
-
-#ifdef X86
-#if 0
-#include <emmintrin.h>
-void qcms_transform_data_rgb_out_lut_sse_intrin(qcms_transform *transform, unsigned char *src, unsigned char *dest, size_t length)
-{
-	int i;
-	float (*mat)[4] = transform->matrix;
-        char input_back[32];
-	/* Ensure we have a buffer that's 16 byte aligned regardless of the original
-	 * stack alignment. We can't use __attribute__((aligned(16))) or __declspec(align(32))
-	 * because they don't work on stack variables. gcc 4.4 does do the right thing 
-	 * on x86 but that's too new for us right now. For more info: gcc bug #16660 */
-        float *input = (float*)(((uintptr_t)&input_back[16]) & ~0xf);
-        /* share input and output locations to save having to keep the
-         * locations in separate registers */
-        uint32_t* output = (uint32_t*)input;
-	for (i=0; i<length; i++) {
-		const float *clampMax = &clampMaxValue;
-
-		unsigned char device_r = *src++;
-		unsigned char device_g = *src++;
-		unsigned char device_b = *src++;
-
-		__m128 xmm1 = _mm_load_ps(mat[0]);
-		__m128 xmm2 = _mm_load_ps(mat[1]);
-		__m128 xmm3 = _mm_load_ps(mat[2]);
-
-		__m128 vec_r = _mm_load_ss(&transform->input_gamma_table_r[device_r]);
-		vec_r = _mm_shuffle_ps(vec_r, vec_r, 0);
-		__m128 vec_g = _mm_load_ss(&transform->input_gamma_table_r[device_g]);
-		vec_g = _mm_shuffle_ps(vec_g, vec_g, 0);
-		__m128 vec_b = _mm_load_ss(&transform->input_gamma_table_r[device_b]);
-		vec_b = _mm_shuffle_ps(vec_b, vec_b, 0);
-
-		vec_r = _mm_mul_ps(vec_r, xmm1);
-		vec_g = _mm_mul_ps(vec_g, xmm2);
-		vec_b = _mm_mul_ps(vec_b, xmm3);
-
-		vec_r = _mm_add_ps(vec_r, _mm_add_ps(vec_g, vec_b));
-
-		__m128 max = _mm_load_ss(&clampMax);
-		max = _mm_shuffle_ps(max, max, 0);
-		__m128 min = _mm_setzero_ps();
-
-		vec_r = _mm_max_ps(min, vec_r);
-		vec_r = _mm_min_ps(max, vec_r);
-
-		__m128 scale = _mm_load_ss(&floatScale);
-		scale = _mm_shuffle_ps(scale, scale, 0);
-		__m128 result = _mm_mul_ps(vec_r, scale);
-
-		__m128i out = _mm_cvtps_epi32(result);
-		_mm_store_si128((__m128i*)input, out);
-
-		*dest++ = transform->output_table_r->data[output[0]];
-		*dest++ = transform->output_table_g->data[output[1]];
-		*dest++ = transform->output_table_b->data[output[2]];
-	}
-}
-#endif
-
-#if defined(_MSC_VER) && defined(_M_AMD64)
-#include <emmintrin.h>
-#endif
-
-static void qcms_transform_data_rgb_out_lut_sse(qcms_transform *transform, unsigned char *src, unsigned char *dest, size_t length)
-{
-	unsigned int i;
-	float (*mat)[4] = transform->matrix;
-        char input_back[32];
-	/* Ensure we have a buffer that's 16 byte aligned regardless of the original
-	 * stack alignment. We can't use __attribute__((aligned(16))) or __declspec(align(32))
-	 * because they don't work on stack variables. gcc 4.4 does do the right thing 
-	 * on x86 but that's too new for us right now. For more info: gcc bug #16660 */
-        float *input = (float*)(((uintptr_t)&input_back[16]) & ~0xf);
-        /* share input and output locations to save having to keep the
-         * locations in separate registers */
-        uint32_t* output = (uint32_t*)input;
-
-        input[3] = 0; /* initialize the unused 4th element of the input array */
-	for (i = 0; i < length; i++) {
-		const float *clampMax = &clampMaxValue;
-
-		unsigned char device_r = *src++;
-		unsigned char device_g = *src++;
-		unsigned char device_b = *src++;
-
-		input[0] = transform->input_gamma_table_r[device_r];
-		input[1] = transform->input_gamma_table_g[device_g];
-		input[2] = transform->input_gamma_table_b[device_b];
-
-#ifdef __GNUC__
-		__asm(
-                      "movaps (%0), %%xmm1;\n\t"          // Move the first matrix column to xmm1
-                      "movaps 16(%0), %%xmm2;\n\t"        // Move the second matrix column to xmm2
-                      "movaps 32(%0), %%xmm3;\n\t"        // move the third matrix column to xmm3
-                      "movaps (%3), %%xmm0;\n\t"        // Move the vector to xmm0
-
-                                                          // Note - We have to copy and then shuffle because of the weird
-                                                          // semantics of shufps
-                                                          //
-                      "movaps %%xmm0, %%xmm4;\n\t"        // Copy the vector to xmm4
-                      "shufps $0, %%xmm4, %%xmm4;\n\t"    // Shuffle to repeat the first vector element repeated 4 times
-                      "mulps %%xmm4, %%xmm1;\n\t"         // Multiply the first vector element by the first matrix column
-                      "movaps %%xmm0, %%xmm5; \n\t"       // Copy the vector to xmm5
-                      "shufps $0x55, %%xmm5, %%xmm5;\n\t" // Shuffle to repeat the second vector element repeated 4 times
-                      "mulps %%xmm5, %%xmm2;\n\t"         // Multiply the second vector element by the seccond matrix column 
-                      "movaps %%xmm0, %%xmm6;\n\t"        // Copy the vector to xmm6
-                      "shufps $0xAA, %%xmm6, %%xmm6;\n\t" // Shuffle to repeat the third vector element repeated 4 times
-                      "mulps %%xmm6, %%xmm3;\n\t"         // Multiply the third vector element by the third matrix column
-
-                      "addps %%xmm3, %%xmm2;\n\t"         // Sum (second + third) columns
-                      "addps %%xmm2, %%xmm1;\n\t"         // Sum ((second + third) + first) columns
-
-                      "movss (%1), %%xmm7;\n\t"        // load the floating point representation of 65535/65536 
-                      "shufps $0, %%xmm7, %%xmm7;\n\t" // move it into all of the four slots
-                      "minps %%xmm7, %%xmm1;\n\t"      // clamp the vector to 1.0 max
-                      "xorps %%xmm6, %%xmm6;\n\t"       // get us cleared bitpatern, which is 0.0f
-                      "maxps %%xmm6, %%xmm1;\n\t"      // clamp the vector to 0.0 min
-                      "movss (%2), %%xmm5;\n\t"        // load the floating point scale factor
-                      "shufps $0, %%xmm5, %%xmm5;\n\t" // put it in all four slots
-                      "mulps %%xmm5, %%xmm1;\n\t"      // multiply by the scale factor
-                      "cvtps2dq %%xmm1, %%xmm1;\n\t"   // convert to integers
-                      "movdqa %%xmm1, (%3);\n\t"       // store
-
-                      : 
-                      : "r" (mat), "r" (clampMax), "r" (&floatScale), "r" (input)
-                      : "memory"
-/* older versions of gcc don't know about these registers so only include them as constraints
-   if gcc knows about them */
-#ifdef __SSE2__
-                        , "%xmm0", "%xmm1", "%xmm2", "%xmm3", "%xmm4", "%xmm5", "%xmm6", "%xmm7"
-#endif
-                      );
-#elif defined(_MSC_VER) && defined(_M_IX86)
-                __asm {
-                      mov      eax, mat
-                      mov      ecx, clampMax
-                      mov      edx, floatScaleAddr
-		      mov      ebx, input
-
-                      movaps   xmm1, [eax]
-                      movaps   xmm2, [eax + 16]
-                      movaps   xmm3, [eax + 32]
-                      movaps   xmm0, [ebx]
-
-                      movaps   xmm4, xmm0
-                      shufps   xmm4, xmm4, 0
-                      mulps    xmm1, xmm4
-                      movaps   xmm5, xmm0
-                      shufps   xmm5, xmm5, 0x55
-                      mulps    xmm2, xmm5
-                      movaps   xmm6, xmm0
-                      shufps   xmm6, xmm6, 0xAA
-                      mulps    xmm3, xmm6
-
-                      addps    xmm2, xmm3
-                      addps    xmm1, xmm2
-
-                      movss    xmm7, [ecx]
-                      shufps   xmm7, xmm7, 0
-                      minps    xmm1, xmm7
-                      xorps    xmm6, xmm6
-                      maxps    xmm1, xmm6
-                      movss    xmm5, [edx]
-                      shufps   xmm5, xmm5, 0
-                      mulps    xmm1, xmm5
-                      cvtps2dq xmm1, xmm1
-                      movdqa   [ebx], xmm1
-                }
-#elif defined(_MSC_VER) && defined(_M_AMD64)
-                {
-                        __m128 xmm0, xmm1, xmm2, xmm3, xmm5, xmm6, xmm7;
-
-                        xmm1 = _mm_load_ps((__m128*)mat);
-                        xmm2 = _mm_load_ps(((__m128*)mat) + 1);
-                        xmm3 = _mm_load_ps(((__m128*)mat) + 2);
-                        xmm0 = _mm_load_ps((__m128*)input);
-
-                        xmm1 = _mm_mul_ps(xmm1, _mm_shuffle_ps(xmm0, xmm0, _MM_SHUFFLE(0,0,0,0)));
-                        xmm2 = _mm_mul_ps(xmm2, _mm_shuffle_ps(xmm0, xmm0, _MM_SHUFFLE(1,1,1,1)));
-                        xmm3 = _mm_mul_ps(xmm3, _mm_shuffle_ps(xmm0, xmm0, _MM_SHUFFLE(2,2,2,2)));
-
-                        xmm1 = _mm_add_ps(xmm1, _mm_add_ps(xmm2, xmm3));
-
-                        xmm7 = _mm_load_ss(clampMax);
-                        xmm7 = _mm_shuffle_ps(xmm7, xmm7, _MM_SHUFFLE(0,0,0,0));
-                        xmm1 = _mm_min_ps(xmm1, xmm7);
-                        xmm6 = _mm_xor_ps(xmm6, xmm6);
-                        xmm1 = _mm_max_ps(xmm1, xmm6);
-                        xmm5 = _mm_load_ss(&floatScale);
-                        xmm5 = _mm_shuffle_ps(xmm5, xmm5, _MM_SHUFFLE(0,0,0,0));
-                        xmm1 = _mm_mul_ps(xmm1, xmm5);
-                        _mm_store_si128((__m128i*)input, _mm_cvtps_epi32(xmm1));
-                }
-#else
-#error "Unknown platform"
-#endif
-
-		*dest++ = transform->output_table_r->data[output[0]];
-		*dest++ = transform->output_table_g->data[output[1]];
-		*dest++ = transform->output_table_b->data[output[2]];
-	}
-}
-
-static void qcms_transform_data_rgba_out_lut_sse(qcms_transform *transform, unsigned char *src, unsigned char *dest, size_t length)
-{
-	unsigned int i;
-	float (*mat)[4] = transform->matrix;
-        char input_back[32];
-	/* align input on 16 byte boundary */
-        float *input = (float*)(((uintptr_t)&input_back[16]) & ~0xf);
-        /* share input and output locations to save having to keep the
-         * locations in separate registers */
-        uint32_t* output = (uint32_t*)input;
-	for (i = 0; i < length; i++) {
-		const float *clampMax = &clampMaxValue;
-
-		unsigned char device_r = *src++;
-		unsigned char device_g = *src++;
-		unsigned char device_b = *src++;
-		unsigned char alpha = *src++;
-
-		input[0] = transform->input_gamma_table_r[device_r];
-		input[1] = transform->input_gamma_table_g[device_g];
-		input[2] = transform->input_gamma_table_b[device_b];
-
-#ifdef __GNUC__
-		__asm(
-                      "movaps (%0), %%xmm1;\n\t"          // Move the first matrix column to xmm1
-                      "movaps 16(%0), %%xmm2;\n\t"        // Move the second matrix column to xmm2
-                      "movaps 32(%0), %%xmm3;\n\t"        // move the third matrix column to xmm3
-                      "movaps (%3), %%xmm0;\n\t"        // Move the vector to xmm0
-
-                                                          // Note - We have to copy and then shuffle because of the weird
-                                                          // semantics of shufps
-                                                          //
-                      "movaps %%xmm0, %%xmm4;\n\t"        // Copy the vector to xmm4
-                      "shufps $0, %%xmm4, %%xmm4;\n\t"    // Shuffle to repeat the first vector element repeated 4 times
-                      "mulps %%xmm4, %%xmm1;\n\t"         // Multiply the first vector element by the first matrix column
-                      "movaps %%xmm0, %%xmm5; \n\t"       // Copy the vector to xmm5
-                      "shufps $0x55, %%xmm5, %%xmm5;\n\t" // Shuffle to repeat the second vector element repeated 4 times
-                      "mulps %%xmm5, %%xmm2;\n\t"         // Multiply the second vector element by the seccond matrix column 
-                      "movaps %%xmm0, %%xmm6;\n\t"        // Copy the vector to xmm6
-                      "shufps $0xAA, %%xmm6, %%xmm6;\n\t" // Shuffle to repeat the third vector element repeated 4 times
-                      "mulps %%xmm6, %%xmm3;\n\t"         // Multiply the third vector element by the third matrix column
-
-                      "addps %%xmm3, %%xmm2;\n\t"         // Sum (second + third) columns
-                      "addps %%xmm2, %%xmm1;\n\t"         // Sum ((second + third) + first) columns
-
-                      "movss (%1), %%xmm7;\n\t"        // load the floating point representation of 65535/65536 
-                      "shufps $0, %%xmm7, %%xmm7;\n\t" // move it into all of the four slots
-                      "minps %%xmm7, %%xmm1;\n\t"      // clamp the vector to 1.0 max
-                      "xorps %%xmm6, %%xmm6;\n\t"       // get us cleared bitpatern, which is 0.0f
-                      "maxps %%xmm6, %%xmm1;\n\t"      // clamp the vector to 0.0 min
-                      "movss (%2), %%xmm5;\n\t"        // load the floating point scale factor
-                      "shufps $0, %%xmm5, %%xmm5;\n\t" // put it in all four slots
-                      "mulps %%xmm5, %%xmm1;\n\t"      // multiply by the scale factor
-                      "cvtps2dq %%xmm1, %%xmm1;\n\t"   // convert to integers
-                      "movdqa %%xmm1, (%3);\n\t"       // store
-
-                      : 
-                      : "r" (mat), "r" (clampMax), "r" (&floatScale), "r" (input)
-                      : "memory"
-/* older versions of gcc don't know about these registers so only include them as constraints
-   if gcc knows about them */
-#ifdef __SSE2__
-                        , "%xmm0", "%xmm1", "%xmm2", "%xmm3", "%xmm4", "%xmm5", "%xmm6", "%xmm7"
-#endif
-                      );
-#elif defined(_MSC_VER) && defined(_M_IX86)
-                __asm {
-                      mov      eax, mat
-                      mov      ecx, clampMax
-                      mov      edx, floatScaleAddr
-		      mov      ebx, input
-
-                      movaps   xmm1, [eax]
-                      movaps   xmm2, [eax + 16]
-                      movaps   xmm3, [eax + 32]
-                      movaps   xmm0, [ebx]
-
-                      movaps   xmm4, xmm0
-                      shufps   xmm4, xmm4, 0
-                      mulps    xmm1, xmm4
-                      movaps   xmm5, xmm0
-                      shufps   xmm5, xmm5, 0x55
-                      mulps    xmm2, xmm5
-                      movaps   xmm6, xmm0
-                      shufps   xmm6, xmm6, 0xAA
-                      mulps    xmm3, xmm6
-
-                      addps    xmm2, xmm3
-                      addps    xmm1, xmm2
-
-                      movss    xmm7, [ecx]
-                      shufps   xmm7, xmm7, 0
-                      minps    xmm1, xmm7
-                      xorps    xmm6, xmm6
-                      maxps    xmm1, xmm6
-                      movss    xmm5, [edx]
-                      shufps   xmm5, xmm5, 0
-                      mulps    xmm1, xmm5
-                      cvtps2dq xmm1, xmm1
-                      movdqa   [ebx], xmm1
-                }
-#elif defined(_MSC_VER) && defined(_M_AMD64)
-                {
-                        __m128 xmm0, xmm1, xmm2, xmm3, xmm5, xmm6, xmm7;
-
-                        xmm1 = _mm_load_ps((__m128*)mat);
-                        xmm2 = _mm_load_ps(((__m128*)mat) + 1);
-                        xmm3 = _mm_load_ps(((__m128*)mat) + 2);
-                        xmm0 = _mm_load_ps((__m128*)input);
-
-                        xmm1 = _mm_mul_ps(xmm1, _mm_shuffle_ps(xmm0, xmm0, _MM_SHUFFLE(0,0,0,0)));
-                        xmm2 = _mm_mul_ps(xmm2, _mm_shuffle_ps(xmm0, xmm0, _MM_SHUFFLE(1,1,1,1)));
-                        xmm3 = _mm_mul_ps(xmm3, _mm_shuffle_ps(xmm0, xmm0, _MM_SHUFFLE(2,2,2,2)));
-
-                        xmm1 = _mm_add_ps(xmm1, _mm_add_ps(xmm2, xmm3));
-
-                        xmm7 = _mm_load_ss(clampMax);
-                        xmm7 = _mm_shuffle_ps(xmm7, xmm7, _MM_SHUFFLE(0,0,0,0));
-                        xmm1 = _mm_min_ps(xmm1, xmm7);
-                        xmm6 = _mm_xor_ps(xmm6, xmm6);
-                        xmm1 = _mm_max_ps(xmm1, xmm6);
-                        xmm5 = _mm_load_ss(&floatScale);
-                        xmm5 = _mm_shuffle_ps(xmm5, xmm5, _MM_SHUFFLE(0,0,0,0));
-                        xmm1 = _mm_mul_ps(xmm1, xmm5);
-                        _mm_store_si128((__m128i*)input, _mm_cvtps_epi32(xmm1));
-                }
-#else
-#error "Unknown platform"
-#endif
-
-		*dest++ = transform->output_table_r->data[output[0]];
-		*dest++ = transform->output_table_g->data[output[1]];
-		*dest++ = transform->output_table_b->data[output[2]];
-		*dest++ = alpha;
-	}
-}
-#endif
 
 static void qcms_transform_data_rgb_out_lut_precache(qcms_transform *transform, unsigned char *src, unsigned char *dest, size_t length)
 {
@@ -1105,9 +805,9 @@ static void qcms_transform_data_rgb_out_lut_precache(qcms_transform *transform, 
 		out_linear_b = clamp_float(out_linear_b);
 
 		/* we could round here... */
-		r = out_linear_r * 65535.;
-		g = out_linear_g * 65535.;
-		b = out_linear_b * 65535.;
+		r = out_linear_r * PRECACHE_OUTPUT_MAX;
+		g = out_linear_g * PRECACHE_OUTPUT_MAX;
+		b = out_linear_b * PRECACHE_OUTPUT_MAX;
 
 		*dest++ = transform->output_table_r->data[r];
 		*dest++ = transform->output_table_g->data[g];
@@ -1139,9 +839,9 @@ static void qcms_transform_data_rgba_out_lut_precache(qcms_transform *transform,
 		out_linear_b = clamp_float(out_linear_b);
 
 		/* we could round here... */
-		r = out_linear_r * 65535.;
-		g = out_linear_g * 65535.;
-		b = out_linear_b * 65535.;
+		r = out_linear_r * PRECACHE_OUTPUT_MAX;
+		g = out_linear_g * PRECACHE_OUTPUT_MAX;
+		b = out_linear_b * PRECACHE_OUTPUT_MAX;
 
 		*dest++ = transform->output_table_r->data[r];
 		*dest++ = transform->output_table_g->data[g];
@@ -1335,27 +1035,26 @@ void qcms_transform_release(qcms_transform *t)
 static void compute_precache_pow(uint8_t *output, float gamma)
 {
 	uint32_t v = 0;
-	for (v = 0; v <= 0xffff; v++) {
+	for (v = 0; v < PRECACHE_OUTPUT_SIZE; v++) {
 		//XXX: don't do integer/float conversion... and round?
-		output[v] = 255. * pow(v/65535., gamma);
+		output[v] = 255. * pow(v/(double)PRECACHE_OUTPUT_MAX, gamma);
 	}
 }
 
 void compute_precache_lut(uint8_t *output, uint16_t *table, int length)
 {
 	uint32_t v = 0;
-	for (v = 0; v <= 0xffff; v++) {
-		//XXX: don't do integer/float conversion... round?
-		output[v] = lut_interp_linear16(v, table, length) >> 8;
+	for (v = 0; v < PRECACHE_OUTPUT_SIZE; v++) {
+		output[v] = lut_interp_linear_precache_output(v, table, length);
 	}
 }
 
 void compute_precache_linear(uint8_t *output)
 {
 	uint32_t v = 0;
-	for (v = 0; v <= 0xffff; v++) {
+	for (v = 0; v < PRECACHE_OUTPUT_SIZE; v++) {
 		//XXX: round?
-		output[v] = v >> 8;
+		output[v] = v / (PRECACHE_OUTPUT_SIZE/256);
 	}
 }
 
@@ -1382,7 +1081,7 @@ qcms_bool compute_precache(struct curveType *trc, uint8_t *output)
 	return true;
 }
 
-
+#ifdef X86
 // Determine if we can build with SSE2 (this was partly copied from jmorecfg.h in
 // mozilla/jpeg)
  // -------------------------------------------------------------------------
@@ -1409,7 +1108,7 @@ static void cpuid(uint32_t fxn, uint32_t *a, uint32_t *b, uint32_t *c, uint32_t 
        *c = c_;
        *d = d_;
 }
-#elif defined(__GNUC__) && defined(__i386__)
+#elif (defined(__GNUC__) || defined(__SUNPRO_C)) && (defined(__i386__) || defined(__i386))
 #define HAS_CPUID
 /* Get us a CPUID function. We can't use ebx because it's the PIC register on
    some platforms, so we use ESI instead and save ebx to avoid clobbering it. */
@@ -1425,31 +1124,43 @@ static void cpuid(uint32_t fxn, uint32_t *a, uint32_t *b, uint32_t *c, uint32_t 
 }
 #endif
 
-// -------------------------Runtime SSE2 Detection-----------------------------
+// -------------------------Runtime SSEx Detection-----------------------------
 
+/* MMX is always supported per
+ *  Gecko v1.9.1 minimum CPU requirements */
+#define SSE1_EDX_MASK (1UL << 25)
 #define SSE2_EDX_MASK (1UL << 26)
-static qcms_bool sse2_available(void)
+#define SSE3_ECX_MASK (1UL <<  0)
+
+static int sse_version_available(void)
 {
-#if defined(__x86_64__) || defined(_M_AMD64)
-       return true;
+#if defined(__x86_64__) || defined(__x86_64) || defined(_M_AMD64)
+	/* we know at build time that 64-bit CPUs always have SSE2
+	 * this tells the compiler that non-SSE2 branches will never be
+	 * taken (i.e. OK to optimze away the SSE1 and non-SIMD code */
+	return 2;
 #elif defined(HAS_CPUID)
-       static int has_sse2 = -1;
-       uint32_t a, b, c, d;
-       uint32_t function = 0x00000001;
+	static int sse_version = -1;
+	uint32_t a, b, c, d;
+	uint32_t function = 0x00000001;
 
-       if (has_sse2 == -1) {
-              has_sse2 = 0;
-	      cpuid(function, &a, &b, &c, &d);
-              if (d & SSE2_EDX_MASK)
-                     has_sse2 = 1;
-              else
-                     has_sse2 = 0;
-       }
+	if (sse_version == -1) {
+		sse_version = 0;
+		cpuid(function, &a, &b, &c, &d);
+		if (c & SSE3_ECX_MASK)
+			sse_version = 3;
+		else if (d & SSE2_EDX_MASK)
+			sse_version = 2;
+		else if (d & SSE1_EDX_MASK)
+			sse_version = 1;
+	}
 
-       return has_sse2;
+	return sse_version;
+#else
+	return 0;
 #endif
-       return false;
 }
+#endif
 
 void build_output_lut(struct curveType *trc,
 		uint16_t **output_gamma_lut, size_t *output_gamma_lut_length)
@@ -1498,8 +1209,8 @@ void qcms_profile_precache_output_transform(qcms_profile *profile)
 		profile->output_table_b = precache_create();
 		if (profile->output_table_b &&
 				!compute_precache(profile->blueTRC, profile->output_table_b->data)) {
-			precache_release(profile->output_table_g);
-			profile->output_table_g = NULL;
+			precache_release(profile->output_table_b);
+			profile->output_table_b = NULL;
 		}
 	}
 }
@@ -1520,7 +1231,7 @@ qcms_transform* qcms_transform_create(
 	if (out_type != QCMS_DATA_RGB_8 &&
                 out_type != QCMS_DATA_RGBA_8) {
             assert(0 && "output type");
-	    free(transform);
+	    transform_free(transform);
             return NULL;
         }
 
@@ -1550,17 +1261,27 @@ qcms_transform* qcms_transform_create(
             if (in_type != QCMS_DATA_RGB_8 &&
                     in_type != QCMS_DATA_RGBA_8){
                 assert(0 && "input type");
-		free(transform);
+                transform_free(transform);
                 return NULL;
             }
 	    if (precache) {
 #ifdef X86
-		    if (sse2_available()) {
+		    if (sse_version_available() >= 2) {
 			    if (in_type == QCMS_DATA_RGB_8)
-				    transform->transform_fn = qcms_transform_data_rgb_out_lut_sse;
+				    transform->transform_fn = qcms_transform_data_rgb_out_lut_sse2;
 			    else
-				    transform->transform_fn = qcms_transform_data_rgba_out_lut_sse;
+				    transform->transform_fn = qcms_transform_data_rgba_out_lut_sse2;
 
+#if !(defined(_MSC_VER) && defined(_M_AMD64))
+                    /* Microsoft Compiler for x64 doesn't support MMX.
+                     * SSE code uses MMX so that we disable on x64 */
+		    } else
+		    if (sse_version_available() >= 1) {
+			    if (in_type == QCMS_DATA_RGB_8)
+				    transform->transform_fn = qcms_transform_data_rgb_out_lut_sse1;
+			    else
+				    transform->transform_fn = qcms_transform_data_rgba_out_lut_sse1;
+#endif
 		    } else
 #endif
 		    {
@@ -1612,7 +1333,7 @@ qcms_transform* qcms_transform_create(
             if (in_type != QCMS_DATA_GRAY_8 &&
                     in_type != QCMS_DATA_GRAYA_8){
                 assert(0 && "input type");
-		free(transform);
+                transform_free(transform);
                 return NULL;
             }
 
@@ -1637,10 +1358,16 @@ qcms_transform* qcms_transform_create(
 	    }
 	} else {
 		assert(0 && "unexpected colorspace");
+		qcms_transform_release(transform);
+		return NO_MEM_TRANSFORM;
 	}
 	return transform;
 }
 
+#if defined(__GNUC__) && !defined(__x86_64__) && !defined(__amd64__)
+/* we need this to avoid crashes when gcc assumes the stack is 128bit aligned */
+__attribute__((__force_align_arg_pointer__))
+#endif
 void qcms_transform_data(qcms_transform *transform, void *src, void *dest, size_t length)
 {
 	transform->transform_fn(transform, src, dest, length);

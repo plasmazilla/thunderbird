@@ -58,7 +58,6 @@ endif
 
 EXPORTS         = gtk2xtbin.h 
 
-REQUIRES	= xpcom
 
 include $(topsrcdir)/config/rules.mk
 
@@ -66,11 +65,7 @@ ifdef MOZ_ENABLE_GTK2
 CFLAGS		+= $(MOZ_GTK2_CFLAGS)
 endif
 
-DEFINES		+= -D_IMPL_GTKXTBIN_API -DUSE_XIM
-
-ifeq ($(OS_ARCH), OpenVMS)
-DEFINES		+= -DGENERIC_MOTIF_REDEFINES
-endif
+DEFINES		+= -D_IMPL_GTKXTBIN_API
 
 INCLUDES	+= \
 		-I$(srcdir) \

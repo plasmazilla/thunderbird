@@ -51,12 +51,19 @@ CPPSRCS = \
   MozillaRuntimeMain.cpp \
   $(NULL)
 
+ifeq (Android,$(OS_TARGET))
+WRAP_MALLOC_CFLAGS =
+WRAP_MALLOC_LIB =
+CPPSRCS = MozillaRuntimeMainAndroid.cpp
+else
 LIBS += \
   $(XPCOM_LIBS) \
   $(NSPR_LIBS) \
   $(NULL)
+endif
 
 LOCAL_INCLUDES += -I$(topsrcdir)/toolkit/xre
+LOCAL_INCLUDES += -I$(topsrcdir)/xpcom/base
 
 ifndef MOZ_WINCONSOLE
 ifdef MOZ_DEBUG
@@ -92,6 +99,10 @@ OS_LIBS += $(call EXPAND_LIBNAME,comctl32 comdlg32 uuid shell32 ole32 oleaut32 v
 OS_LIBS += $(call EXPAND_LIBNAME,usp10 msimg32)
 endif
 
+ifneq (Android,$(OS_TARGET))
+LIBS += $(JEMALLOC_LIBS)
+endif
+
 include $(topsrcdir)/config/rules.mk
 
 ifeq ($(OS_ARCH),WINNT)
@@ -107,5 +118,22 @@ ifeq ($(OS_ARCH),WINNT)
 #
 ifndef GNU_CC
 LDFLAGS += /HEAP:0x40000
+ifeq ($(OS_TEST),x86_64)
+# set stack to 2MB on x64 build.  See bug 582910
+LDFLAGS += -STACK:2097152
 endif
+endif
+endif
+
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+
+libs::
+	$(NSINSTALL) -D $(DIST)/bin/$(PROGRAM).app
+	rsync -a -C --exclude "*.in" $(srcdir)/macbuild/Contents $(DIST)/bin/$(PROGRAM).app 
+	sed -e "s/%PROGRAM%/$(PROGRAM)/" $(srcdir)/macbuild/Contents/Info.plist.in > $(DIST)/bin/$(PROGRAM).app/Contents/Info.plist
+	sed -e "s/%APP_NAME%/$(MOZ_APP_DISPLAYNAME)/" $(srcdir)/macbuild/Contents/Resources/English.lproj/InfoPlist.strings.in | \
+	  iconv -f UTF-8 -t UTF-16 > $(DIST)/bin/$(PROGRAM).app/Contents/Resources/English.lproj/InfoPlist.strings
+	$(NSINSTALL) -D $(DIST)/bin/$(PROGRAM).app/Contents/MacOS
+	$(NSINSTALL) $(PROGRAM) $(DIST)/bin/$(PROGRAM).app/Contents/MacOS
+	rm -f $(DIST)/bin/$(PROGRAM)
 endif

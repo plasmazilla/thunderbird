@@ -35,33 +35,31 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-// This test makes sure that browsingmode attribute of the window is correctly
+// This test makes sure that privatebrowsingmode attribute of the window is correctly
 // switched with private browsing mode changes.
 
 function test() {
   // initialization
-  let prefBranch = Cc["@mozilla.org/preferences-service;1"].
-                   getService(Ci.nsIPrefBranch);
-  prefBranch.setBoolPref("browser.privatebrowsing.keep_current_session", true);
+  gPrefService.setBoolPref("browser.privatebrowsing.keep_current_session", true);
   let pb = Cc["@mozilla.org/privatebrowsing;1"].
            getService(Ci.nsIPrivateBrowsingService);
   let docRoot = document.documentElement;
 
-  is(docRoot.getAttribute("browsingmode"), "normal",
-    "browsingmode should be \"normal\" initially");
+  ok(!docRoot.hasAttribute("privatebrowsingmode"),
+    "privatebrowsingmode should not be present in normal mode");
 
   // enter private browsing mode
   pb.privateBrowsingEnabled = true;
 
-  is(docRoot.getAttribute("browsingmode"), "private",
-    "browsingmode should be \"private\" inside the private browsing mode");
+  is(docRoot.getAttribute("privatebrowsingmode"), "temporary",
+    "privatebrowsingmode should be \"temporary\" inside the private browsing mode");
 
   // leave private browsing mode
   pb.privateBrowsingEnabled = false;
 
-  is(docRoot.getAttribute("browsingmode"), "normal",
-    "browsingmode should be \"normal\" outside the private browsing mode");
+  ok(!docRoot.hasAttribute("privatebrowsingmode"),
+    "privatebrowsingmode should not be present in normal mode");
 
   // cleanup
-  prefBranch.clearUserPref("browser.privatebrowsing.keep_current_session");
+  gPrefService.clearUserPref("browser.privatebrowsing.keep_current_session");
 }

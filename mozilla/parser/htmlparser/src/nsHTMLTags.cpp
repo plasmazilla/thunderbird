@@ -57,6 +57,10 @@ static const PRUnichar sHTMLTagUnicodeName_applet[] =
   {'a', 'p', 'p', 'l', 'e', 't', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_area[] =
   {'a', 'r', 'e', 'a', '\0'};
+static const PRUnichar sHTMLTagUnicodeName_article[] =
+  {'a', 'r', 't', 'i', 'c', 'l', 'e', '\0'};
+static const PRUnichar sHTMLTagUnicodeName_aside[] =
+  {'a', 's', 'i', 'd', 'e', '\0'};
 #if defined(MOZ_MEDIA)
 static const PRUnichar sHTMLTagUnicodeName_audio[] =
   {'a', 'u', 'd', 'i', 'o', '\0'};
@@ -99,6 +103,8 @@ static const PRUnichar sHTMLTagUnicodeName_colgroup[] =
   {'c', 'o', 'l', 'g', 'r', 'o', 'u', 'p', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_counter[] =
   {'c', 'o', 'u', 'n', 't', 'e', 'r', '\0'};
+static const PRUnichar sHTMLTagUnicodeName_datalist[] =
+  {'d', 'a', 't', 'a', 'l', 'i', 's', 't', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_dd[] =
   {'d', 'd', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_del[] =
@@ -119,8 +125,14 @@ static const PRUnichar sHTMLTagUnicodeName_embed[] =
   {'e', 'm', 'b', 'e', 'd', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_fieldset[] =
   {'f', 'i', 'e', 'l', 'd', 's', 'e', 't', '\0'};
+static const PRUnichar sHTMLTagUnicodeName_figcaption[] =
+  {'f', 'i', 'g', 'c', 'a', 'p', 't', 'i', 'o', 'n', '\0'};
+static const PRUnichar sHTMLTagUnicodeName_figure[] =
+  {'f', 'i', 'g', 'u', 'r', 'e', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_font[] =
   {'f', 'o', 'n', 't', '\0'};
+static const PRUnichar sHTMLTagUnicodeName_footer[] =
+  {'f', 'o', 'o', 't', 'e', 'r', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_form[] =
   {'f', 'o', 'r', 'm', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_frame[] =
@@ -141,6 +153,10 @@ static const PRUnichar sHTMLTagUnicodeName_h6[] =
   {'h', '6', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_head[] =
   {'h', 'e', 'a', 'd', '\0'};
+static const PRUnichar sHTMLTagUnicodeName_header[] =
+  {'h', 'e', 'a', 'd', 'e', 'r', '\0'};
+static const PRUnichar sHTMLTagUnicodeName_hgroup[] =
+  {'h', 'g', 'r', 'o', 'u', 'p', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_hr[] =
   {'h', 'r', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_html[] =
@@ -175,6 +191,8 @@ static const PRUnichar sHTMLTagUnicodeName_listing[] =
   {'l', 'i', 's', 't', 'i', 'n', 'g', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_map[] =
   {'m', 'a', 'p', '\0'};
+static const PRUnichar sHTMLTagUnicodeName_mark[] =
+  {'m', 'a', 'r', 'k', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_marquee[] =
   {'m', 'a', 'r', 'q', 'u', 'e', 'e', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_menu[] =
@@ -183,6 +201,8 @@ static const PRUnichar sHTMLTagUnicodeName_meta[] =
   {'m', 'e', 't', 'a', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_multicol[] =
   {'m', 'u', 'l', 't', 'i', 'c', 'o', 'l', '\0'};
+static const PRUnichar sHTMLTagUnicodeName_nav[] =
+  {'n', 'a', 'v', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_nobr[] =
   {'n', 'o', 'b', 'r', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_noembed[] =
@@ -199,6 +219,8 @@ static const PRUnichar sHTMLTagUnicodeName_optgroup[] =
   {'o', 'p', 't', 'g', 'r', 'o', 'u', 'p', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_option[] =
   {'o', 'p', 't', 'i', 'o', 'n', '\0'};
+static const PRUnichar sHTMLTagUnicodeName_output[] =
+  {'o', 'u', 't', 'p', 'u', 't', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_p[] =
   {'p', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_param[] =
@@ -215,6 +237,8 @@ static const PRUnichar sHTMLTagUnicodeName_samp[] =
   {'s', 'a', 'm', 'p', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_script[] =
   {'s', 'c', 'r', 'i', 'p', 't', '\0'};
+static const PRUnichar sHTMLTagUnicodeName_section[] =
+  {'s', 'e', 'c', 't', 'i', 'o', 'n', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_select[] =
   {'s', 'e', 'l', 'e', 'c', 't', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_small[] =
@@ -274,11 +298,13 @@ static const PRUnichar sHTMLTagUnicodeName_xmp[] =
 
 // static array of unicode tag names
 #define HTML_TAG(_tag, _classname) sHTMLTagUnicodeName_##_tag,
+#define HTML_HTMLELEMENT_TAG(_tag) sHTMLTagUnicodeName_##_tag,
 #define HTML_OTHER(_tag)
 const PRUnichar* const nsHTMLTags::sTagUnicodeTable[] = {
 #include "nsHTMLTagList.h"
 };
 #undef HTML_TAG
+#undef HTML_HTMLELEMENT_TAG
 #undef HTML_OTHER
 
 // static array of tag atoms
@@ -316,17 +342,28 @@ HTMLTagsHashCodeAtom(const void *key)
 
 #define NS_HTMLTAG_NAME_MAX_LENGTH 10
 
+#define HTML_TAG(_tag, _classname) NS_STATIC_ATOM_BUFFER(Atombuffer_##_tag, #_tag)
+#define HTML_HTMLELEMENT_TAG(_tag) NS_STATIC_ATOM_BUFFER(Atombuffer_##_tag, #_tag)
+#define HTML_OTHER(_tag)
+#include "nsHTMLTagList.h"
+#undef HTML_TAG
+#undef HTML_HTMLELEMENT_TAG
+#undef HTML_OTHER
+
+
 // static
 nsresult
 nsHTMLTags::AddRefTable(void)
 {
   // static array of tag StaticAtom structs
-#define HTML_TAG(_tag, _classname) { #_tag, &nsHTMLTags::sTagAtomTable[eHTMLTag_##_tag - 1] },
+#define HTML_TAG(_tag, _classname) NS_STATIC_ATOM(Atombuffer_##_tag, &nsHTMLTags::sTagAtomTable[eHTMLTag_##_tag - 1]),
+#define HTML_HTMLELEMENT_TAG(_tag) NS_STATIC_ATOM(Atombuffer_##_tag, &nsHTMLTags::sTagAtomTable[eHTMLTag_##_tag - 1]),
 #define HTML_OTHER(_tag)
   static const nsStaticAtom sTagAtoms_info[] = {
 #include "nsHTMLTagList.h"
   };
 #undef HTML_TAG
+#undef HTML_HTMLELEMENT_TAG
 #undef HTML_OTHER
 
   if (gTableRefCount++ == 0) {
@@ -361,12 +398,12 @@ nsHTMLTags::AddRefTable(void)
 
 
 
-#ifdef DEBUG
+#if defined(DEBUG) && defined(NS_STATIC_ATOM_USE_WIDE_STRINGS)
     {
       // let's verify that all names in the the table are lowercase...
       for (i = 0; i < NS_HTML_TAG_MAX; ++i) {
-        nsCAutoString temp1(sTagAtoms_info[i].mString);
-        nsCAutoString temp2(sTagAtoms_info[i].mString);
+        nsAutoString temp1((PRUnichar*)sTagAtoms_info[i].mStringBuffer->Data());
+        nsAutoString temp2((PRUnichar*)sTagAtoms_info[i].mStringBuffer->Data());
         ToLowerCase(temp1);
         NS_ASSERTION(temp1.Equals(temp2), "upper case char in table");
       }
@@ -375,7 +412,7 @@ nsHTMLTags::AddRefTable(void)
       // correct.
       for (i = 0; i < NS_HTML_TAG_MAX; ++i) {
         nsAutoString temp1(sTagUnicodeTable[i]);
-        nsAutoString temp2; temp2.AssignWithConversion(sTagAtoms_info[i].mString);
+        nsAutoString temp2((PRUnichar*)sTagAtoms_info[i].mStringBuffer->Data());
         NS_ASSERTION(temp1.Equals(temp2), "Bad unicode tag name!");
       }
 
@@ -383,7 +420,7 @@ nsHTMLTags::AddRefTable(void)
       PRUint32 maxTagNameLength = 0;
       for (i = 0; i < NS_HTML_TAG_MAX; ++i) {
         PRUint32 len = nsCRT::strlen(sTagUnicodeTable[i]);
-        maxTagNameLength = PR_MAX(len, maxTagNameLength);        
+        maxTagNameLength = NS_MAX(len, maxTagNameLength);        
       }
       NS_ASSERTION(maxTagNameLength == NS_HTMLTAG_NAME_MAX_LENGTH,
                    "NS_HTMLTAG_NAME_MAX_LENGTH not set correctly!");

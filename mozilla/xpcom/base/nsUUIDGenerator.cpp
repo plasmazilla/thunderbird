@@ -48,35 +48,28 @@
 
 #include "nsMemory.h"
 
-#include "nsAutoLock.h"
-
 #include "nsUUIDGenerator.h"
+
+using namespace mozilla;
 
 NS_IMPL_THREADSAFE_ISUPPORTS1(nsUUIDGenerator, nsIUUIDGenerator)
 
 nsUUIDGenerator::nsUUIDGenerator()
-    : mLock(nsnull)
+    : mLock("nsUUIDGenerator.mLock")
 {
 }
 
 nsUUIDGenerator::~nsUUIDGenerator()
 {
-    if (mLock) {
-        PR_DestroyLock(mLock);
-    }
 }
 
 nsresult
 nsUUIDGenerator::Init()
 {
-    mLock = PR_NewLock();
-
-    NS_ENSURE_TRUE(mLock, NS_ERROR_OUT_OF_MEMORY);
-
     // We're a service, so we're guaranteed that Init() is not going
     // to be reentered while we're inside Init().
     
-#if !defined(XP_WIN) && !defined(XP_MACOSX)
+#if !defined(XP_WIN) && !defined(XP_MACOSX) && !defined(ANDROID)
     /* initialize random number generator using NSPR random noise */
     unsigned int seed;
 
@@ -136,7 +129,7 @@ nsUUIDGenerator::GenerateUUIDInPlace(nsID* id)
 {
     // The various code in this method is probably not threadsafe, so lock
     // across the whole method.
-    nsAutoLock lock(mLock);
+    MutexAutoLock lock(mLock);
 
 #if defined(WINCE)
     // WINCE only has CoCreateGuid if DCOM support is compiled into the BSP;
@@ -171,11 +164,19 @@ nsUUIDGenerator::GenerateUUIDInPlace(nsID* id)
      * back to it; instead, we use the value returned when we called
      * initstate, since older glibc's have broken setstate() return values
      */
+#ifndef ANDROID
     setstate(mState);
+#endif
 
     PRSize bytesLeft = sizeof(nsID);
     while (bytesLeft > 0) {
+#ifdef ANDROID
+        long rval = arc4random();
+        const int mRBytes = 4;
+#else
         long rval = random();
+#endif
+
 
         PRUint8 *src = (PRUint8*)&rval;
         // We want to grab the mRBytes least significant bytes of rval, since
@@ -199,8 +200,10 @@ nsUUIDGenerator::GenerateUUIDInPlace(nsID* id)
     id->m3[0] &= 0x3f;
     id->m3[0] |= 0x80;
 
+#ifndef ANDROID
     /* Restore the previous RNG state */
     setstate(mSavedState);
+#endif
 #endif
 
     return NS_OK;

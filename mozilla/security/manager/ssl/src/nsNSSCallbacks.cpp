@@ -64,7 +64,6 @@
 #include "nsIUploadChannel.h"
 #include "nsSSLThread.h"
 #include "nsThreadUtils.h"
-#include "nsAutoLock.h"
 #include "nsIThread.h"
 #include "nsIWindowWatcher.h"
 #include "nsIPrompt.h"
@@ -76,6 +75,8 @@
 #include "ocsp.h"
 #include "nssb64.h"
 #include "secerr.h"
+
+using namespace mozilla;
 
 static NS_DEFINE_CID(kNSSComponentCID, NS_NSSCOMPONENT_CID);
 NSSCleanupAutoPtrClass(CERTCertificate, CERT_DestroyCertificate)
@@ -235,14 +236,14 @@ SECStatus nsNSSHttpRequestSession::createFcn(SEC_HTTP_SERVER_SESSION session,
     rs->mTimeoutInterval = maxBug404059Timeout;
   }
 
-  rs->mURL.Append(nsDependentCString(http_protocol_variant));
+  rs->mURL.Assign(http_protocol_variant);
   rs->mURL.AppendLiteral("://");
   rs->mURL.Append(hss->mHost);
   rs->mURL.AppendLiteral(":");
   rs->mURL.AppendInt(hss->mPort);
   rs->mURL.Append(path_and_query_string);
 
-  rs->mRequestMethod = nsDependentCString(http_request_method);
+  rs->mRequestMethod = http_request_method;
 
   *pRequest = (void*)rs;
   return SECSuccess;
@@ -334,13 +335,13 @@ SECStatus nsNSSHttpRequestSession::trySendAndReceiveFcn(PRPollDesc **pPollDesc,
 void
 nsNSSHttpRequestSession::AddRef()
 {
-  PR_AtomicIncrement(&mRefCount);
+  NS_AtomicIncrementRefcnt(mRefCount);
 }
 
 void
 nsNSSHttpRequestSession::Release()
 {
-  PRInt32 newRefCount = PR_AtomicDecrement(&mRefCount);
+  PRInt32 newRefCount = NS_AtomicDecrementRefcnt(mRefCount);
   if (!newRefCount) {
     delete this;
   }
@@ -372,11 +373,8 @@ nsNSSHttpRequestSession::internal_send_receive_attempt(PRBool &retryable_error,
   if (!mListener)
     return SECFailure;
 
-  if (NS_FAILED(mListener->InitLocks()))
-    return SECFailure;
-
-  PRLock *waitLock = mListener->mLock;
-  PRCondVar *waitCondition = mListener->mCondition;
+  Mutex& waitLock = mListener->mLock;
+  CondVar& waitCondition = mListener->mCondition;
   volatile PRBool &waitFlag = mListener->mWaitFlag;
   waitFlag = PR_TRUE;
 
@@ -398,7 +396,7 @@ nsNSSHttpRequestSession::internal_send_receive_attempt(PRBool &retryable_error,
   PRBool request_canceled = PR_FALSE;
 
   {
-    nsAutoLock locker(waitLock);
+    MutexAutoLock locker(waitLock);
 
     const PRIntervalTime start_time = PR_IntervalNow();
     PRIntervalTime wait_interval;
@@ -426,12 +424,11 @@ nsNSSHttpRequestSession::internal_send_receive_attempt(PRBool &retryable_error,
         // thread manager. Thanks a lot to Christian Biesinger who
         // made me aware of this possibility. (kaie)
 
-        locker.unlock();
+        MutexAutoUnlock unlock(waitLock);
         NS_ProcessNextEvent(nsnull);
-        locker.lock();
       }
 
-      PR_WaitCondVar(waitCondition, wait_interval);
+      waitCondition.Wait(wait_interval);
       
       if (!waitFlag)
         break;
@@ -557,8 +554,8 @@ void nsNSSHttpInterface::unregisterHttpClient()
 nsHTTPListener::nsHTTPListener()
 : mResultData(nsnull),
   mResultLen(0),
-  mLock(nsnull),
-  mCondition(nsnull),
+  mLock("nsHTTPListener.mLock"),
+  mCondition(mLock, "nsHTTPListener.mCondition"),
   mWaitFlag(PR_TRUE),
   mResponsibleForDoneSignal(PR_FALSE),
   mLoadGroup(nsnull),
@@ -566,33 +563,10 @@ nsHTTPListener::nsHTTPListener()
 {
 }
 
-nsresult nsHTTPListener::InitLocks()
-{
-  mLock = PR_NewLock();
-  if (!mLock)
-    return NS_ERROR_OUT_OF_MEMORY;
-  
-  mCondition = PR_NewCondVar(mLock);
-  if (!mCondition)
-  {
-    PR_DestroyLock(mLock);
-    mLock = nsnull;
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
-  
-  return NS_OK;
-}
-
 nsHTTPListener::~nsHTTPListener()
 {
   if (mResponsibleForDoneSignal)
     send_done_signal();
-
-  if (mCondition)
-    PR_DestroyCondVar(mCondition);
-  
-  if (mLock)
-    PR_DestroyLock(mLock);
 
   if (mLoader) {
     nsCOMPtr<nsIThread> mainThread(do_GetMainThread());
@@ -607,18 +581,16 @@ nsHTTPListener::FreeLoadGroup(PRBool aCancelLoad)
 {
   nsILoadGroup *lg = nsnull;
 
-  if (mLock) {
-    nsAutoLock locker(mLock);
+  MutexAutoLock locker(mLock);
 
-    if (mLoadGroup) {
-      if (mLoadGroupOwnerThread != PR_GetCurrentThread()) {
-        NS_ASSERTION(PR_FALSE,
-          "attempt to access nsHTTPDownloadEvent::mLoadGroup on multiple threads, leaking it!");
-      }
-      else {
-        lg = mLoadGroup;
-        mLoadGroup = nsnull;
-      }
+  if (mLoadGroup) {
+    if (mLoadGroupOwnerThread != PR_GetCurrentThread()) {
+      NS_ASSERTION(PR_FALSE,
+                   "attempt to access nsHTTPDownloadEvent::mLoadGroup on multiple threads, leaking it!");
+    }
+    else {
+      lg = mLoadGroup;
+      mLoadGroup = nsnull;
     }
   }
 
@@ -688,9 +660,9 @@ void nsHTTPListener::send_done_signal()
   mResponsibleForDoneSignal = PR_FALSE;
 
   {
-    nsAutoLock locker(mLock);
+    MutexAutoLock locker(mLock);
     mWaitFlag = PR_FALSE;
-    PR_NotifyAllCondVar(mCondition);
+    mCondition.NotifyAll();
   }
 }
 
@@ -877,17 +849,22 @@ void PR_CALLBACK HandshakeCallback(PRFileDesc* fd, void* client_data) {
   if (SSL_HandshakeNegotiatedExtension(fd, ssl_renegotiation_info_xtn, &siteSupportsSafeRenego) != SECSuccess
       || !siteSupportsSafeRenego) {
 
+    PRBool wantWarning = (nsSSLIOLayerHelpers::getWarnLevelMissingRFC5746() > 0);
+
     nsNSSSocketInfo* infoObject = (nsNSSSocketInfo*) fd->higher->secret;
-    nsCOMPtr<nsIConsoleService> console(do_GetService(NS_CONSOLESERVICE_CONTRACTID));
-    if (infoObject && console) {
-      nsXPIDLCString hostName;
-      infoObject->GetHostName(getter_Copies(hostName));
+    nsCOMPtr<nsIConsoleService> console;
+    if (infoObject && wantWarning) {
+      console = do_GetService(NS_CONSOLESERVICE_CONTRACTID);
+      if (console) {
+        nsXPIDLCString hostName;
+        infoObject->GetHostName(getter_Copies(hostName));
 
-      nsAutoString msg;
-      msg.Append(NS_ConvertASCIItoUTF16(hostName));
-      msg.Append(NS_LITERAL_STRING(" : server does not support RFC 5746, see CVE-2009-3555"));
+        nsAutoString msg;
+        msg.Append(NS_ConvertASCIItoUTF16(hostName));
+        msg.Append(NS_LITERAL_STRING(" : server does not support RFC 5746, see CVE-2009-3555"));
 
-      console->LogStringMessage(msg.get());
+        console->LogStringMessage(msg.get());
+      }
     }
     if (nsSSLIOLayerHelpers::treatUnsafeNegotiationAsBroken()) {
       secStatus = nsIWebProgressListener::STATE_IS_BROKEN;
@@ -934,7 +911,7 @@ void PR_CALLBACK HandshakeCallback(PRFileDesc* fd, void* client_data) {
 
     CERTCertificate *serverCert = SSL_PeerCertificate(fd);
     if (serverCert) {
-      nsRefPtr<nsNSSCertificate> nssc = new nsNSSCertificate(serverCert);
+      nsRefPtr<nsNSSCertificate> nssc = nsNSSCertificate::Create(serverCert);
       CERT_DestroyCertificate(serverCert);
       serverCert = nsnull;
 
@@ -942,7 +919,7 @@ void PR_CALLBACK HandshakeCallback(PRFileDesc* fd, void* client_data) {
       infoObject->GetPreviousCert(getter_AddRefs(prevcert));
 
       PRBool equals_previous = PR_FALSE;
-      if (prevcert) {
+      if (prevcert && nssc) {
         nsresult rv = nssc->Equals(prevcert, &equals_previous);
         if (NS_FAILED(rv)) {
           equals_previous = PR_FALSE;
@@ -1061,7 +1038,7 @@ SECStatus PR_CALLBACK AuthCertificateCallback(void* client_data, PRFileDesc* fd,
     nsRefPtr<nsNSSCertificate> nsc;
 
     if (!status || !status->mServerCert) {
-      nsc = new nsNSSCertificate(serverCert);
+      nsc = nsNSSCertificate::Create(serverCert);
     }
 
     if (SECSuccess == rv) {
@@ -1095,16 +1072,16 @@ SECStatus PR_CALLBACK AuthCertificateCallback(void* client_data, PRFileDesc* fd,
         }
 
         // We have found a signer cert that we want to remember.
-        nsCAutoString nickname;
-        nickname = nsNSSCertificate::defaultServerNickname(node->cert);
-        if (!nickname.IsEmpty()) {
+        char* nickname = nsNSSCertificate::defaultServerNickname(node->cert);
+        if (nickname && *nickname) {
           PK11SlotInfo *slot = PK11_GetInternalKeySlot();
           if (slot) {
             PK11_ImportCert(slot, node->cert, CK_INVALID_HANDLE, 
-                            const_cast<char*>(nickname.get()), PR_FALSE);
+                            nickname, PR_FALSE);
             PK11_FreeSlot(slot);
           }
         }
+        PR_FREEIF(nickname);
       }
 
       CERT_DestroyCertList(certList);

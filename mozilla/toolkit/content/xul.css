@@ -22,6 +22,12 @@
   -moz-binding: url("chrome://global/content/bindings/general.xml#root-element");
 }
 
+%ifdef XP_MACOSX
+:root[drawintitlebar="true"] {
+  padding-top: 22px;
+}
+%endif
+
 :root:-moz-locale-dir(rtl) {
   direction: rtl;
 }
@@ -118,12 +124,6 @@ button {
   -moz-binding: url("chrome://global/content/bindings/button.xml#button");
 }
 
-%ifdef XP_MACOSX
-button[default="true"] {
-  -moz-binding: url("chrome://global/content/bindings/button.xml#button-periodic-redraw");
-}
-%endif
-
 button[type="repeat"] {
   -moz-binding: url("chrome://global/content/bindings/button.xml#button-repeat");
 }
@@ -135,6 +135,14 @@ button[type="menu"], button[type="panel"] {
 button[type="menu-button"] {
   -moz-binding: url("chrome://global/content/bindings/button.xml#menu-button");
 }
+
+%ifdef MOZ_WIDGET_GTK2
+/********* detection of system setting to use icons in buttons ***********/
+button[label]:not([label=""]) > .button-box > .button-icon:not(:-moz-system-metric(images-in-buttons)),
+button[label]:not([label=""]) > .button-box > .box-inherit > .button-icon:not(:-moz-system-metric(images-in-buttons)) {
+  display: none;
+}
+%endif
 
 /********** toolbarbutton **********/
 
@@ -186,6 +194,16 @@ notificationbox {
 
 notification {
   -moz-binding: url("chrome://global/content/bindings/notification.xml#notification");
+  -moz-transition: margin-top 300ms, opacity 300ms;
+}
+
+/*********** popup notification ************/
+popupnotification {
+  -moz-binding: url("chrome://global/content/bindings/notification.xml#popup-notification")
+}
+
+.popup-notification-menubutton:not([label]) {
+  display: none;
 }
 
 /********** image **********/
@@ -239,21 +257,30 @@ toolbar {
   -moz-binding: url("chrome://global/content/bindings/toolbar.xml#toolbar");
 }
 
+toolbar[customizing="true"][collapsed="true"] {
+  /* Some apps, e.g. Firefox, use 'collapsed' to hide toolbars.
+     Override it while customizing. */
+  visibility: visible;
+}
+
+toolbar[customizing="true"][hidden="true"] {
+  /* Some apps, e.g. SeaMonkey, use 'hidden' to hide toolbars.
+     Override it while customizing. */
+  display: -moz-box;
+}
+
 %ifdef XP_MACOSX
 toolbar[type="menubar"] {
   min-height: 0 !important;
   border: 0 !important;
 }
-%endif
-
-%ifdef XP_WIN
+%else
 toolbar[type="menubar"][autohide="true"] {
   -moz-binding: url("chrome://global/content/bindings/toolbar.xml#toolbar-menubar-autohide");
   overflow: hidden;
 }
 
-toolbar[type="menubar"][autohide="true"]:not([customizable="true"])[inactive="true"],
-toolbox:not([customizing="true"]) > toolbar[type="menubar"][autohide="true"][customizable="true"][inactive="true"]:not([customized="true"]) {
+toolbar[type="menubar"][autohide="true"][inactive="true"]:not([customizing="true"]) {
   min-height: 0 !important;
   height: 0 !important;
   -moz-appearance: none !important;
@@ -336,12 +363,13 @@ menuitem.menuitem-non-iconic {
 
 %ifdef MOZ_WIDGET_GTK2
 /********* detection of system setting to use icons in menus ***********/
-menuitem:not([type]):not(:-moz-system-metric(images-in-menus)) > .menu-iconic-left {
-  visibility: hidden;
-}
-
-menu:not(:-moz-system-metric(images-in-menus)) > .menu-iconic-left {
-  visibility: hidden;
+@media not all and (-moz-images-in-menus) {
+  .menu-iconic-left {
+    visibility: hidden;
+  }
+  :-moz-any(menuitem[type], .menuitem-with-favicon) > .menu-iconic-left {
+    visibility: visible;
+  }
 }
 %endif
 
@@ -380,6 +408,10 @@ tooltip {
   -moz-box-orient: vertical;
   white-space: pre-wrap;
   margin-top: 21px;
+}
+
+panel[type="arrow"] {
+  -moz-binding: url("chrome://global/content/bindings/popup.xml#arrowpanel");
 }
 
 %ifdef XP_MACOSX
@@ -681,6 +713,14 @@ textbox[multiline="true"] {
   -moz-binding: url("chrome://global/content/bindings/textbox.xml#input-box");
 }
 
+html|textarea.textbox-textarea {
+  resize: none;
+}
+
+textbox[resizable="true"] > .textbox-input-box > html|textarea.textbox-textarea {
+  resize: both;
+}
+
 .textbox-input-box[spellcheck="true"] {
   -moz-binding: url("chrome://global/content/bindings/textbox.xml#input-box-spell");
 }
@@ -749,6 +789,8 @@ panel[type="autocomplete-richlistbox"] {
   -moz-binding: url("chrome://global/content/bindings/autocomplete.xml#autocomplete-rich-result-popup");
 }
 
+/* FIXME: bug 616258 */
+
 .autocomplete-tree {
   -moz-binding: url("chrome://global/content/bindings/autocomplete.xml#autocomplete-tree");
   -moz-user-focus: ignore;
@@ -784,6 +826,15 @@ panel[type="autocomplete-richlistbox"] {
 .autocomplete-history-dropmarker[enablehistory="true"] {
   display: -moz-box;
   -moz-binding: url("chrome://global/content/bindings/autocomplete.xml#history-dropmarker");
+}
+
+.ac-ellipsis-after {
+  visibility: hidden;
+}
+
+.ac-url-text[type~="action"],
+.ac-action-text:not([type~="action"]) {
+  visibility: collapse;
 }
 
 %endif
@@ -848,6 +899,8 @@ dropmarker {
 
 resizer {
   -moz-binding: url("chrome://global/content/bindings/resizer.xml#resizer");
+  position: relative;
+  z-index: 2147483647;
 }
 
 /********** splitter **********/
@@ -1135,4 +1188,10 @@ findbar {
 /*********** filefield ************/
 filefield {
   -moz-binding: url("chrome://global/content/bindings/filefield.xml#filefield");
+}
+
+/*********** tabmodalprompt ************/
+tabmodalprompt {
+  -moz-binding: url("chrome://global/content/tabprompts.xml#tabmodalprompt");
+  text-shadow: none;
 }

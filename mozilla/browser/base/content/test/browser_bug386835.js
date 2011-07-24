@@ -2,8 +2,8 @@ var gTestPage = "http://example.org/browser/browser/base/content/test/dummy_page
 var gTestImage = "http://example.org/browser/browser/base/content/test/moz.png";
 var gTab1, gTab2, gTab3;
 var gLevel;
-const kBack = 0;
-const kForward = 1;
+const BACK = 0;
+const FORWARD = 1;
 
 function test() {
   waitForExplicitFinish();
@@ -41,88 +41,45 @@ function thirdPageLoaded() {
   zoomTest(gTab3, gLevel, "Tab 3 should have zoomed as it was loading in the background");
 
   // Switching to tab 2 should update its zoom setting.
+  afterZoom(function() {
+    zoomTest(gTab1, gLevel, "Tab 1 should still be zoomed");
+    zoomTest(gTab2, gLevel, "Tab 2 should be zoomed now");
+    zoomTest(gTab3, gLevel, "Tab 3 should still be zoomed");
+
+    load(gTab1, gTestImage, imageLoaded);
+  });
+
   gBrowser.selectedTab = gTab2;
-
-  zoomTest(gTab1, gLevel, "Tab 1 should still be zoomed");
-  zoomTest(gTab2, gLevel, "Tab 2 should be zoomed now");
-  zoomTest(gTab3, gLevel, "Tab 3 should still be zoomed");
-
-  load(gTab1, gTestImage, imageLoaded);
 }
 
 function imageLoaded() {
   zoomTest(gTab1, 1, "Zoom should be 1 when image was loaded in the background");
-  gBrowser.selectedTab = gTab1;
-  zoomTest(gTab1, 1, "Zoom should still be 1 when tab with image is selected");
+  afterZoom(function() {
+    zoomTest(gTab1, 1, "Zoom should still be 1 when tab with image is selected");
 
-  executeSoon(imageZoomSwitch);
+    executeSoon(imageZoomSwitch);
+  });
+  gBrowser.selectedTab = gTab1;
 }
 
 function imageZoomSwitch() {
-  navigate(kBack, function() {
-    navigate(kForward, function() {
+  navigate(BACK, function () {
+    navigate(FORWARD, function () {
       zoomTest(gTab1, 1, "Tab 1 should not be zoomed when an image loads");
-      gBrowser.selectedTab = gTab2;
-      zoomTest(gTab1, 1, "Tab 1 should still not be zoomed when deselected");
 
-      // Mac OS X does not support print preview, so skip those tests
-      let isOSX = ("nsILocalFileMac" in Components.interfaces);
-      if (isOSX)
+      afterZoom(function() {
+        zoomTest(gTab1, 1, "Tab 1 should still not be zoomed when deselected");
         finishTest();
-      else
-        runPrintPreviewTests();
-    });
-  });
-}
-
-function runPrintPreviewTests() {
-  // test print preview on image document
-  testPrintPreview(gTab1, function() {
-    // test print preview on HTML document
-    testPrintPreview(gTab2, function() {
-      // test print preview on image document with siteSpecific set to false
-      gPrefService.setBoolPref("browser.zoom.siteSpecific", false);
-      testPrintPreview(gTab1, function() {
-        // test print preview of HTML document with siteSpecific set to false
-        testPrintPreview(gTab2, function() {
-          if (gPrefService.prefHasUserValue("browser.zoom.siteSpecific"))
-            gPrefService.clearUserPref("browser.zoom.siteSpecific");
-          finishTest();
-        });
       });
+      gBrowser.selectedTab = gTab2;
     });
   });
 }
 
-function testPrintPreview(aTab, aCallback) {
-  gBrowser.selectedTab = aTab;
-  FullZoom.enlarge();
-  let level = ZoomManager.zoom;
-
-  function onEnterPP() {
-    toggleAffectedChromeOrig.apply(null, arguments);
-
-    function onExitPP() {
-      toggleAffectedChromeOrig.apply(null, arguments);
-      toggleAffectedChrome = toggleAffectedChromeOrig;
-
-      zoomTest(aTab, level, "Toggling print preview mode should not affect zoom level");
-
-      FullZoom.reset();
-      aCallback();
-    }
-    toggleAffectedChrome = onExitPP;
-    PrintUtils.exitPrintPreview();
-  }
-  let toggleAffectedChromeOrig = toggleAffectedChrome;
-  toggleAffectedChrome = onEnterPP;
-
-  let printPreview = new Function(document.getElementById("cmd_printPreview")
-                                          .getAttribute("oncommand"));
-  executeSoon(printPreview);
-}
-
+var finishTestStarted  = false;
 function finishTest() {
+  ok(!finishTestStarted, "finishTest called more than once");
+  finishTestStarted = true;
   gBrowser.selectedTab = gTab1;
   FullZoom.reset();
   gBrowser.removeTab(gTab1);
@@ -138,20 +95,53 @@ function zoomTest(tab, val, msg) {
 }
 
 function load(tab, url, cb) {
+  let didLoad = false;
+  let didZoom = false;
   tab.linkedBrowser.addEventListener("load", function (event) {
     event.currentTarget.removeEventListener("load", arguments.callee, true);
-    cb();
+    didLoad = true;
+    if (didZoom)
+      executeSoon(cb);
   }, true);
+
+  afterZoom(function() {
+    didZoom = true;
+    if (didLoad)
+      executeSoon(cb);
+  });
+
   tab.linkedBrowser.loadURI(url);
 }
 
 function navigate(direction, cb) {
-  gBrowser.addEventListener("pageshow", function(event) {
+  let didPs = false;
+  let didZoom = false;
+  gBrowser.addEventListener("pageshow", function (event) {
     gBrowser.removeEventListener("pageshow", arguments.callee, true);
-    setTimeout(cb, 0);
+    didPs = true;
+    if (didZoom)
+      executeSoon(cb);
   }, true);
-  if (direction == kBack)
+
+  afterZoom(function() {
+    didZoom = true;
+    if (didPs)
+      executeSoon(cb);
+  });
+
+  if (direction == BACK)
     gBrowser.goBack();
-  else if (direction == kForward)
+  else if (direction == FORWARD)
     gBrowser.goForward();
+}
+
+function afterZoom(cb) {
+  let oldAPTS = FullZoom._applyPrefToSetting;
+  FullZoom._applyPrefToSetting = function(value, browser) {
+    if (!value)
+      value = undefined;
+    oldAPTS.call(FullZoom, value, browser);
+    FullZoom._applyPrefToSetting = oldAPTS;
+    executeSoon(cb);
+  };
 }

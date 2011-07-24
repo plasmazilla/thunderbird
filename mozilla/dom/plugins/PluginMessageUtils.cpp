@@ -87,6 +87,8 @@ MediateRace(const RPCChannel::Message& parent,
   switch (parent.type()) {
   case PPluginInstance::Msg_Paint__ID:
   case PPluginInstance::Msg_NPP_SetWindow__ID:
+  case PPluginInstance::Msg_NPP_HandleEvent_Shmem__ID:
+  case PPluginInstance::Msg_NPP_HandleEvent_IOSurface__ID:
     // our code relies on the frame list not changing during paints and
     // reflows
     return RPCChannel::RRPParentWins;
@@ -159,6 +161,19 @@ void DeferNPVariantLastRelease(const NPNetscapeFuncs* f, NPVariant* v)
   DeferNPObjectLastRelease(f, v->value.objectValue);
   VOID_TO_NPVARIANT(*v);
 }
+
+#ifdef XP_WIN
+
+// The private event used for double-pass widgetless plugin rendering.
+UINT DoublePassRenderingEvent()
+{
+  static UINT gEventID = 0;
+  if (!gEventID)
+    gEventID = ::RegisterWindowMessage(L"MozDoublePassMsg");
+  return gEventID;
+}
+
+#endif
 
 } // namespace plugins
 } // namespace mozilla

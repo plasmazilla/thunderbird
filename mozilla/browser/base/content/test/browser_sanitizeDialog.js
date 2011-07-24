@@ -15,7 +15,7 @@
  *
  * The Original Code is sanitize dialog test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -51,15 +51,13 @@
  */
 
 Cc["@mozilla.org/moz/jssubscript-loader;1"].
-  getService(Components.interfaces.mozIJSSubScriptLoader).
+  getService(Ci.mozIJSSubScriptLoader).
   loadSubScript("chrome://mochikit/content/MochiKit/packed.js");
 
 Cc["@mozilla.org/moz/jssubscript-loader;1"].
-  getService(Components.interfaces.mozIJSSubScriptLoader).
+  getService(Ci.mozIJSSubScriptLoader).
   loadSubScript("chrome://browser/content/sanitize.js");
 
-const winWatch = Cc["@mozilla.org/embedcomp/window-watcher;1"].
-                 getService(Ci.nsIWindowWatcher);
 const dm = Cc["@mozilla.org/download-manager;1"].
            getService(Ci.nsIDownloadManager);
 const bhist = Cc["@mozilla.org/browser/global-history;2"].
@@ -452,8 +450,10 @@ WindowHelper.prototype = {
        "Details button should be " + dir + " because item list is " +
        (hidden ? "" : "not ") + "hidden");
     let height = 0;
-    if (!hidden)
+    if (!hidden) {
+      ok(list.boxObject.height > 30, "listbox has sufficient size")
       height += list.boxObject.height;
+    }
     if (this.isWarningPanelVisible())
       height += this.getWarningPanel().boxObject.height;
     ok(height < this.win.innerHeight,
@@ -536,75 +536,73 @@ WindowHelper.prototype = {
   open: function () {
     let wh = this;
 
-    let windowObserver = {
-      observe: function(aSubject, aTopic, aData) {
-        if (aTopic !== "domwindowopened")
+    function windowObserver(aSubject, aTopic, aData) {
+      if (aTopic != "domwindowopened")
+        return;
+
+      Services.ww.unregisterNotification(windowObserver);
+
+      var loaded = false;
+      let win = aSubject.QueryInterface(Ci.nsIDOMWindow);
+
+      win.addEventListener("load", function onload(event) {
+        win.removeEventListener("load", onload, false);
+
+        if (win.name !== "SanitizeDialog")
           return;
 
-        winWatch.unregisterNotification(this);
+        wh.win = win;
+        loaded = true;
 
-        var loaded = false;
-        let win = aSubject.QueryInterface(Ci.nsIDOMWindow);
-
-        win.addEventListener("load", function onload(event) {
-          win.removeEventListener("load", onload, false);
-
-          if (win.name !== "SanitizeDialog")
-            return;
-
-          wh.win = win;
-          loaded = true;
-
-          executeSoon(function () {
-            // Some exceptions that reach here don't reach the test harness, but
-            // ok()/is() do...
-            try {
-              wh.onload();
-            }
-            catch (exc) {
-              win.close();
-              ok(false, "Unexpected exception: " + exc + "\n" + exc.stack);
-              finish();
-            }
-          });
-        }, false);
-
-        win.addEventListener("unload", function onunload(event) {
-          if (win.name !== "SanitizeDialog") {
-            win.removeEventListener("unload", onunload, false);
-            return;
+        executeSoon(function () {
+          // Some exceptions that reach here don't reach the test harness, but
+          // ok()/is() do...
+          try {
+            wh.onload();
           }
+          catch (exc) {
+            win.close();
+            ok(false, "Unexpected exception: " + exc + "\n" + exc.stack);
+            finish();
+          }
+        });
+      }, false);
 
-          // Why is unload fired before load?
-          if (!loaded)
-            return;
-
+      win.addEventListener("unload", function onunload(event) {
+        if (win.name !== "SanitizeDialog") {
           win.removeEventListener("unload", onunload, false);
-          wh.win = win;
+          return;
+        }
 
-          executeSoon(function () {
-            // Some exceptions that reach here don't reach the test harness, but
-            // ok()/is() do...
-            try {
-              if (wh.onunload)
-                wh.onunload();
-              doNextTest();
-            }
-            catch (exc) {
-              win.close();
-              ok(false, "Unexpected exception: " + exc + "\n" + exc.stack);
-              finish();
-            }
-          });
-        }, false);
-      }
-    };
-    winWatch.registerNotification(windowObserver);
-    winWatch.openWindow(null,
-                        "chrome://browser/content/sanitize.xul",
-                        "SanitizeDialog",
-                        "chrome,titlebar,dialog,centerscreen,modal",
-                        null);
+        // Why is unload fired before load?
+        if (!loaded)
+          return;
+
+        win.removeEventListener("unload", onunload, false);
+        wh.win = win;
+
+        executeSoon(function () {
+          // Some exceptions that reach here don't reach the test harness, but
+          // ok()/is() do...
+          try {
+            if (wh.onunload)
+              wh.onunload();
+            doNextTest();
+          }
+          catch (exc) {
+            win.close();
+            ok(false, "Unexpected exception: " + exc + "\n" + exc.stack);
+            finish();
+          }
+        });
+      }, false);
+    }
+    Services.ww.registerNotification(windowObserver);
+    Services.ww.openWindow(null,
+                           "chrome://browser/content/sanitize.xul",
+                           "SanitizeDialog",
+                           "chrome,titlebar,dialog,centerscreen,modal",
+                           null);
   },
 
   /**
@@ -752,7 +750,7 @@ function downloadExists(aID)
     "WHERE id = :id"
   );
   stmt.params.id = aID;
-  let rows = stmt.step();
+  let rows = stmt.executeStep();
   stmt.finalize();
   return !!rows;
 }
@@ -838,6 +836,7 @@ function intPrefIs(aPrefName, aExpectedVal, aMsg) {
 ///////////////////////////////////////////////////////////////////////////////
 
 function test() {
+  requestLongerTimeout(2);
   blankSlate();
   waitForExplicitFinish();
   // Kick off all the tests in the gAllTests array.

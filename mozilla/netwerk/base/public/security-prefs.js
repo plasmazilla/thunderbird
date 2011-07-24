@@ -1,14 +1,14 @@
-pref("general.useragent.security",       "U");
-
 pref("security.enable_ssl2",             false);
 pref("security.enable_ssl3",             true);
 pref("security.enable_tls",		 true);
 pref("security.enable_tls_session_tickets", true);
 
-pref("security.ssl.allow_unrestricted_renego_everywhere__temporarily_available_pref", true);
+pref("security.ssl.allow_unrestricted_renego_everywhere__temporarily_available_pref", false);
 pref("security.ssl.renego_unrestricted_hosts", "");
 pref("security.ssl.treat_unsafe_negotiation_as_broken", false);
 pref("security.ssl.require_safe_negotiation",  false);
+pref("security.ssl.warn_missing_rfc5746",  1);
+pref("security.ssl.enable_false_start", false);
 
 pref("security.ssl2.rc4_128", false);
 pref("security.ssl2.rc2_128", false);

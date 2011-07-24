@@ -690,6 +690,9 @@ loadTestEVInfos()
     temp_ev->cert = CERT_FindCertByIssuerAndSN(nsnull, &ias);
     NS_ASSERTION(temp_ev->cert, "Could not find EV root in NSS storage");
 
+    SECITEM_FreeItem(&ias.derIssuer, PR_FALSE);
+    SECITEM_FreeItem(&ias.serialNumber, PR_FALSE);
+
     if (!temp_ev->cert)
       return;
 
@@ -890,9 +893,13 @@ nsNSSComponent::IdentityInfoInit()
     NS_ASSERTION(rv==SECSuccess, "error converting ascii to binary.");
     rv = ATOB_ConvertAsciiToItem(&ias.serialNumber, const_cast<char*>(entry.serial_base64));
     NS_ASSERTION(rv==SECSuccess, "error converting ascii to binary.");
+    ias.serialNumber.type = siUnsignedInteger;
 
     entry.cert = CERT_FindCertByIssuerAndSN(nsnull, &ias);
     NS_ASSERTION(entry.cert, "Could not find EV root in NSS storage");
+
+    SECITEM_FreeItem(&ias.derIssuer, PR_FALSE);
+    SECITEM_FreeItem(&ias.serialNumber, PR_FALSE);
 
     if (!entry.cert)
       continue;
@@ -965,7 +972,7 @@ static SECStatus getFirstEVPolicy(CERTCertificate *cert, SECOidTag &outOidTag)
       while (*policyInfos != NULL) {
         policyInfo = *policyInfos++;
 
-        SECOidTag oid_tag = SECOID_FindOIDTag(&policyInfo->policyID);
+        SECOidTag oid_tag = policyInfo->oid;
         if (oid_tag != SEC_OID_UNKNOWN && isEVPolicy(oid_tag)) {
           // in our list of OIDs accepted for EV
           outOidTag = oid_tag;
@@ -1077,6 +1084,7 @@ nsNSSCertificate::hasValidEVOidTag(SECOidTag &resultOidTag, PRBool &validEV)
     | CERT_REV_M_ALLOW_NETWORK_FETCHING
     | CERT_REV_M_ALLOW_IMPLICIT_DEFAULT_SOURCE
     | CERT_REV_M_REQUIRE_INFO_ON_MISSING_SOURCE
+    | CERT_REV_M_IGNORE_MISSING_FRESH_INFO
     | CERT_REV_M_STOP_TESTING_ON_FRESH_INFO;
 
   PRUint64 revMethodIndependentFlags = 

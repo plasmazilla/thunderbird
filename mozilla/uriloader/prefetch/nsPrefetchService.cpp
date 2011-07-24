@@ -60,6 +60,7 @@
 #include "prtime.h"
 #include "prlog.h"
 #include "plstr.h"
+#include "nsIAsyncVerifyRedirectCallback.h"
 
 #if defined(PR_LOGGING)
 //
@@ -363,9 +364,10 @@ nsPrefetchNode::GetInterface(const nsIID &aIID, void **aResult)
 //-----------------------------------------------------------------------------
 
 NS_IMETHODIMP
-nsPrefetchNode::OnChannelRedirect(nsIChannel *aOldChannel,
-                                  nsIChannel *aNewChannel,
-                                  PRUint32 aFlags)
+nsPrefetchNode::AsyncOnChannelRedirect(nsIChannel *aOldChannel,
+                                       nsIChannel *aNewChannel,
+                                       PRUint32 aFlags,
+                                       nsIAsyncVerifyRedirectCallback *callback)
 {
     nsCOMPtr<nsIURI> newURI;
     nsresult rv = aNewChannel->GetURI(getter_AddRefs(newURI));
@@ -395,6 +397,7 @@ nsPrefetchNode::OnChannelRedirect(nsIChannel *aOldChannel,
 
     mChannel = aNewChannel;
 
+    callback->OnRedirectVerifyCallback(NS_OK);
     return NS_OK;
 }
 
@@ -441,12 +444,13 @@ nsPrefetchService::Init()
     }
 
     // Observe xpcom-shutdown event
-    nsCOMPtr<nsIObserverService> observerServ(
-            do_GetService("@mozilla.org/observer-service;1", &rv));
-    if (NS_FAILED(rv)) return rv;
+    nsCOMPtr<nsIObserverService> observerService =
+      mozilla::services::GetObserverService();
+    if (!observerService)
+      return NS_ERROR_FAILURE;
 
-    rv = observerServ->AddObserver(this, NS_XPCOM_SHUTDOWN_OBSERVER_ID, PR_TRUE);
-    if (NS_FAILED(rv)) return rv;
+    rv = observerService->AddObserver(this, NS_XPCOM_SHUTDOWN_OBSERVER_ID, PR_TRUE);
+    NS_ENSURE_SUCCESS(rv, rv);
 
     if (!mDisabled)
         AddProgressListener();
@@ -486,11 +490,10 @@ nsPrefetchService::ProcessNextURI()
 void
 nsPrefetchService::NotifyLoadRequested(nsPrefetchNode *node)
 {
-    nsresult rv;
-
     nsCOMPtr<nsIObserverService> observerService =
-        do_GetService("@mozilla.org/observer-service;1", &rv);
-    if (NS_FAILED(rv)) return;
+      mozilla::services::GetObserverService();
+    if (!observerService)
+      return;
 
     observerService->NotifyObservers(static_cast<nsIDOMLoadStatus*>(node),
                                      "prefetch-load-requested", nsnull);
@@ -499,11 +502,10 @@ nsPrefetchService::NotifyLoadRequested(nsPrefetchNode *node)
 void
 nsPrefetchService::NotifyLoadCompleted(nsPrefetchNode *node)
 {
-    nsresult rv;
-
     nsCOMPtr<nsIObserverService> observerService =
-        do_GetService("@mozilla.org/observer-service;1", &rv);
-    if (NS_FAILED(rv)) return;
+      mozilla::services::GetObserverService();
+    if (!observerService)
+      return;
 
     observerService->NotifyObservers(static_cast<nsIDOMLoadStatus*>(node),
                                      "prefetch-load-completed", nsnull);

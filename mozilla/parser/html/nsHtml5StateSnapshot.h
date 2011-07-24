@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009 Mozilla Foundation
+ * Copyright (c) 2009-2010 Mozilla Foundation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a 
  * copy of this software and associated documentation files (the "Software"), 
@@ -30,6 +30,7 @@
 
 #include "prtypes.h"
 #include "nsIAtom.h"
+#include "nsHtml5AtomTable.h"
 #include "nsString.h"
 #include "nsINameSpaceManager.h"
 #include "nsIContent.h"
@@ -39,10 +40,14 @@
 #include "nsHtml5DocumentMode.h"
 #include "nsHtml5ArrayCopy.h"
 #include "nsHtml5NamedCharacters.h"
+#include "nsHtml5NamedCharactersAccel.h"
 #include "nsHtml5Atoms.h"
 #include "nsHtml5ByteReadable.h"
+#include "nsIUnicodeDecoder.h"
+#include "nsAHtml5TreeBuilderState.h"
+#include "nsHtml5Macros.h"
 
-class nsHtml5Parser;
+class nsHtml5StreamParser;
 
 class nsHtml5Tokenizer;
 class nsHtml5TreeBuilder;
@@ -54,20 +59,37 @@ class nsHtml5UTF16Buffer;
 class nsHtml5Portability;
 
 
-class nsHtml5StateSnapshot
+class nsHtml5StateSnapshot : public nsAHtml5TreeBuilderState
 {
+  private:
+    autoJArray<nsHtml5StackNode*,PRInt32> stack;
+    autoJArray<nsHtml5StackNode*,PRInt32> listOfActiveFormattingElements;
+    nsIContent** formPointer;
+    nsIContent** headPointer;
+    nsIContent** deepTreeSurrogateParent;
+    PRInt32 mode;
+    PRInt32 originalMode;
+    PRBool framesetOk;
+    PRBool needToDropLF;
+    PRBool quirks;
   public:
-    nsHtml5StateSnapshot(jArray<nsHtml5StackNode*,PRInt32> stack, jArray<nsHtml5StackNode*,PRInt32> listOfActiveFormattingElements, nsIContent* formPointer);
-    jArray<nsHtml5StackNode*,PRInt32> stack;
-    jArray<nsHtml5StackNode*,PRInt32> listOfActiveFormattingElements;
-    nsIContent* formPointer;
+    nsHtml5StateSnapshot(jArray<nsHtml5StackNode*,PRInt32> stack, jArray<nsHtml5StackNode*,PRInt32> listOfActiveFormattingElements, nsIContent** formPointer, nsIContent** headPointer, nsIContent** deepTreeSurrogateParent, PRInt32 mode, PRInt32 originalMode, PRBool framesetOk, PRBool needToDropLF, PRBool quirks);
+    jArray<nsHtml5StackNode*,PRInt32> getStack();
+    jArray<nsHtml5StackNode*,PRInt32> getListOfActiveFormattingElements();
+    nsIContent** getFormPointer();
+    nsIContent** getHeadPointer();
+    nsIContent** getDeepTreeSurrogateParent();
+    PRInt32 getMode();
+    PRInt32 getOriginalMode();
+    PRBool isFramesetOk();
+    PRBool isNeedToDropLF();
+    PRBool isQuirks();
+    PRInt32 getListOfActiveFormattingElementsLength();
+    PRInt32 getStackLength();
     ~nsHtml5StateSnapshot();
     static void initializeStatics();
     static void releaseStatics();
 };
-
-#ifdef nsHtml5StateSnapshot_cpp__
-#endif
 
 
 

@@ -45,9 +45,7 @@ include $(DEPTH)/config/autoconf.mk
 MODULE		= simple
 XPI_NAME	= simple
 LIBRARY_NAME    = simpletest
-ifneq ($(OS_ARCH),WINNT)
 SHORT_LIBNAME = simpltst
-endif
 IS_COMPONENT	= 1
 
 CPPSRCS		= SimpleTest.cpp
@@ -57,6 +55,6 @@ EXTRA_DSO_LDOPTS = \
 	$(NSPR_LIBS) \
 	$(NULL)
 
-EXTRA_COMPONENTS = $(srcdir)/SimpleTest.js
+EXTRA_COMPONENTS = SimpleTest.js SimpleTest.manifest
 
 include $(topsrcdir)/config/rules.mk

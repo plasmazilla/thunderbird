@@ -52,7 +52,7 @@
 interface nsIDOMNode;
 
 
-[scriptable, uuid(40b2282a-a882-4483-a634-dec468d88377)]
+[scriptable, uuid(19187542-1f4d-46e1-9b2d-d5de02dace85)]
 interface nsIMarkupDocumentViewer : nsISupports
 {
 
@@ -126,14 +126,6 @@ interface nsIMarkupDocumentViewer : nsISupports
   attribute octet bidiTextType;
 
   /**
-   * bidiControlsTextMode: the order of bidirectional text in form controls.
-   *                       1 - logical
-   *                       2 - visual
-   *                       3 - like the containing document
-   */
-  attribute octet bidiControlsTextMode;
-
-  /**
    * bidiNumeral: the type of numerals to display. 
    *              1 - depending on context, default is Arabic numerals
    *              2 - depending on context, default is Hindi numerals
@@ -161,4 +153,12 @@ interface nsIMarkupDocumentViewer : nsISupports
    * Use this attribute to access all the Bidi options in one operation
    */
   attribute PRUint32 bidiOptions;
+};
+
+[scriptable, uuid(cadfcad1-5570-4dac-b5a2-cd1ea751fe29)]
+interface nsIMarkupDocumentViewer_MOZILLA_2_0_BRANCH : nsIMarkupDocumentViewer
+{
+	/** The minimum font size  */
+	attribute long minFontSize;
+
 };

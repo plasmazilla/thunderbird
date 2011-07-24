@@ -57,80 +57,49 @@ EXPORTS_mozilla = \
   PluginPRLibrary.h \
   $(NULL)
 
-REQUIRES	= xpcom \
-		  xpconnect \
-		  string \
-		  java \
-		  pref \
-		  necko \
-		  caps \
-		  intl \
-		  uconv \
-		  unicharutil \
-		  dom \
-		  gfx \
-		  thebes \
-		  content \
-		  widget \
-		  mimetype \
-		  exthandler \
-		  docshell \
-		  windowwatcher \
-		  imglib2 \
-		  layout \
-		  js \
-		  locale \
-		  $(NULL)
-
-ifdef MOZ_OJI
-REQUIRES	+= oji
-endif
-
-ifneq (,$(filter gtk2,$(MOZ_WIDGET_TOOLKIT)))
-REQUIRES	+= gtkxtbin
-endif
-
 CPPSRCS		= \
 		nsNPAPIPlugin.cpp \
 		nsNPAPIPluginInstance.cpp \
+		nsNPAPIPluginStreamListener.cpp \
+		nsPluginStreamListenerPeer.cpp \
 		nsPluginHost.cpp \
 		nsPluginModule.cpp \
 		nsJSNPRuntime.cpp \
+		nsPluginTags.cpp \
 		PluginPRLibrary.cpp \
 		$(NULL)
 
-ifdef MOZ_OJI
-CPPSRCS		+= nsJVMAuthTools.cpp
-endif
-
-ifeq ($(OS_ARCH), BeOS)
-	CPPSRCS += nsPluginsDirBeOS.cpp
-	CPPSRCS += nsPluginNativeWindow.cpp
-else
 ifneq (,$(filter WINNT WINCE,$(OS_ARCH)))
 	CPPSRCS += nsPluginsDirWin.cpp
 	CPPSRCS += nsPluginNativeWindowWin.cpp
 	CPPSRCS += nsPluginDirServiceProvider.cpp
+	LOCAL_INCLUDES += -I$(topsrcdir)/xpcom/base
 else
 ifeq ($(MOZ_WIDGET_TOOLKIT),os2)
 	CPPSRCS += nsPluginsDirOS2.cpp
 	CPPSRCS += nsPluginNativeWindowOS2.cpp
 else
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 	CPPSRCS += nsPluginsDirDarwin.cpp
 	CPPSRCS += nsPluginNativeWindow.cpp
 else
-ifeq ($(MOZ_WIDGET_TOOLKIT),gtk2)
 	CPPSRCS += nsPluginsDirUnix.cpp
+ifeq ($(MOZ_WIDGET_TOOLKIT),gtk2)
 	CPPSRCS += nsPluginNativeWindowGtk2.cpp
 else
-	CPPSRCS += nsPluginsDirUnix.cpp
+ifeq ($(MOZ_WIDGET_TOOLKIT),qt)
+	CPPSRCS += nsPluginNativeWindowQt.cpp
+else
 	CPPSRCS += nsPluginNativeWindow.cpp
 endif
 endif
 endif
 endif
 endif
+
+LOCAL_INCLUDES = \
+  -I$(topsrcdir)/xpcom/base/ \
+  $(NULL)
 
 ifneq (,$(filter WINNT Darwin,$(OS_ARCH)))
 EXTRA_DSO_LIBS	+= gkgfx
@@ -145,33 +114,26 @@ EXTRA_DSO_LDOPTS = \
 		$(MOZ_JS_LIBS) \
 		$(NULL)
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 EXTRA_DSO_LDOPTS += $(TK_LIBS)
 endif
 
-ifndef WINCE
-ENABLE_CXX_EXCEPTIONS = 1
-endif
-
 include $(topsrcdir)/config/config.mk
-ifdef MOZ_IPC
 include $(topsrcdir)/ipc/chromium/chromium-config.mk
-endif
 include $(topsrcdir)/config/rules.mk
 
 ifeq ($(OS_ARCH),WINNT)
 OS_LIBS		+= $(call EXPAND_LIBNAME,version)
 endif
 
-ifeq ($(OS_ARCH), OpenVMS)
-DEFINES		+= -DGENERIC_MOTIF_REDEFINES
-OS_CXXFLAGS	+= -Wc,warn=disa=NOSIMPINT
-endif
+CXXFLAGS         += $(TK_CFLAGS)
+EXTRA_DSO_LDOPTS += $(TK_LIBS)
 
 ifdef MOZ_ENABLE_GTK2
-CXXFLAGS        += $(MOZ_GTK2_CFLAGS)
-CFLAGS          += $(MOZ_GTK2_CFLAGS)
-EXTRA_DSO_LDOPTS += -lgtkxtbin $(XLDFLAGS) $(XT_LIBS) $(MOZ_GTK2_LIBS) $(XLIBS) $(XEXT_LIBS) $(XCOMPOSITE_LIBS)
+EXTRA_DSO_LDOPTS += -lgtkxtbin $(XLDFLAGS) $(XT_LIBS) $(XLIBS) $(XEXT_LIBS) $(XCOMPOSITE_LIBS)
 endif           #MOZ_ENABLE_GTK2
 
-LOCAL_INCLUDES += -I$(topsrcdir)/toolkit/crashreporter
+ifeq ($(MOZ_WIDGET_TOOLKIT),qt)
+EXTRA_DSO_LDOPTS += $(XEXT_LIBS) $(XCOMPOSITE_LIBS)
+endif
+

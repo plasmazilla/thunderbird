@@ -56,7 +56,6 @@
 #include "plstr.h"
 #include "nsILocalFileMac.h"
 #include "nsIFileURL.h"
-#include "nsInt64.h"
 #include "nsTArray.h"
 #include "nsObjCExceptions.h"
 
@@ -193,11 +192,11 @@ nsresult nsIconChannel::ExtractIconInfoFromUrl(nsIFile ** aLocalFile, PRUint32 *
   iconURI->GetContentType(aContentType);
   iconURI->GetFileExtension(aFileExtension);
   
-  nsCOMPtr<nsIURI> fileURI;
-  rv = iconURI->GetIconFile(getter_AddRefs(fileURI));
-  if (NS_FAILED(rv) || !fileURI) return NS_OK;
+  nsCOMPtr<nsIURL> url;
+  rv = iconURI->GetIconURL(getter_AddRefs(url));
+  if (NS_FAILED(rv) || !url) return NS_OK;
 
-  nsCOMPtr<nsIFileURL> fileURL = do_QueryInterface(fileURI, &rv);
+  nsCOMPtr<nsIFileURL> fileURL = do_QueryInterface(url, &rv);
   if (NS_FAILED(rv) || !fileURL) return NS_OK;
 
   nsCOMPtr<nsIFile> file;
@@ -220,7 +219,7 @@ NS_IMETHODIMP nsIconChannel::AsyncOpen(nsIStreamListener *aListener, nsISupports
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Init our stream pump
-  rv = mPump->Init(inStream, nsInt64(-1), nsInt64(-1), 0, 0, PR_FALSE);
+  rv = mPump->Init(inStream, PRInt64(-1), PRInt64(-1), 0, 0, PR_FALSE);
   NS_ENSURE_SUCCESS(rv, rv);
   
   rv = mPump->AsyncRead(this, ctxt);
@@ -275,7 +274,7 @@ nsresult nsIconChannel::MakeInputStream(nsIInputStream** _retval, PRBool nonBloc
     iconImage = [[NSWorkspace sharedWorkspace] iconForFileType:fileExtension];
   }
 
-  // If we still don't have an icon, get the generic document icon  
+  // If we still don't have an icon, get the generic document icon.
   if (!iconImage)
     iconImage = [[NSWorkspace sharedWorkspace] iconForFileType:NSFileTypeUnknown];
 

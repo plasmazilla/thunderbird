@@ -37,8 +37,33 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsSVGViewBox.h"
+#include "nsSVGUtils.h"
 #include "prdtoa.h"
 #include "nsTextFormatter.h"
+#include "nsCharSeparatedTokenizer.h"
+#ifdef MOZ_SMIL
+#include "nsSMILValue.h"
+#include "SVGViewBoxSMILType.h"
+#endif // MOZ_SMIL
+
+#define NUM_VIEWBOX_COMPONENTS 4
+using namespace mozilla;
+
+/* Implementation of nsSVGViewBoxRect methods */
+
+PRBool
+nsSVGViewBoxRect::operator==(const nsSVGViewBoxRect& aOther) const
+{
+  if (&aOther == this)
+    return PR_TRUE;
+
+  return x == aOther.x &&
+    y == aOther.y &&
+    width == aOther.width &&
+    height == aOther.height;
+}
+
+/* Cycle collection macros for nsSVGViewBox */
 
 NS_SVG_VAL_IMPL_CYCLE_COLLECTION(nsSVGViewBox::DOMBaseVal, mSVGElement)
 NS_SVG_VAL_IMPL_CYCLE_COLLECTION(nsSVGViewBox::DOMAnimVal, mSVGElement)
@@ -56,22 +81,24 @@ NS_IMPL_CYCLE_COLLECTING_RELEASE(nsSVGViewBox::DOMAnimatedRect)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsSVGViewBox::DOMBaseVal)
   NS_INTERFACE_MAP_ENTRY(nsIDOMSVGRect)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(SVGRect)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGRect)
 NS_INTERFACE_MAP_END
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsSVGViewBox::DOMAnimVal)
   NS_INTERFACE_MAP_ENTRY(nsIDOMSVGRect)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(SVGRect)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGRect)
 NS_INTERFACE_MAP_END
+
+DOMCI_DATA(SVGAnimatedRect, nsSVGViewBox::DOMAnimatedRect)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsSVGViewBox::DOMAnimatedRect)
   NS_INTERFACE_MAP_ENTRY(nsIDOMSVGAnimatedRect)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(SVGAnimatedRect)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGAnimatedRect)
 NS_INTERFACE_MAP_END
 
-/* Implementation */
+/* Implementation of nsSVGViewBox methods */
 
 void
 nsSVGViewBox::Init()
@@ -81,24 +108,71 @@ nsSVGViewBox::Init()
   mHasBaseVal = PR_FALSE;
 }
 
-const nsSVGViewBoxRect&
-nsSVGViewBox::GetAnimValue() const
+void
+nsSVGViewBox::SetAnimValue(float aX, float aY, float aWidth, float aHeight,
+                           nsSVGElement *aSVGElement)
 {
-  if (mAnimVal)
-    return *mAnimVal;
-
-  return mBaseVal;
+  if (!mAnimVal) {
+    // it's okay if allocation fails - and no point in reporting that
+    mAnimVal = new nsSVGViewBoxRect(aX, aY, aWidth, aHeight);
+  } else {
+    mAnimVal->x = aX;
+    mAnimVal->y = aY;
+    mAnimVal->width = aWidth;
+    mAnimVal->height = aHeight;
+  }
+  aSVGElement->DidAnimateViewBox();
 }
 
 void
 nsSVGViewBox::SetBaseValue(float aX, float aY, float aWidth, float aHeight,
                            nsSVGElement *aSVGElement, PRBool aDoSetAttr)
 {
-  mAnimVal = nsnull;
   mBaseVal = nsSVGViewBoxRect(aX, aY, aWidth, aHeight);
   mHasBaseVal = PR_TRUE;
 
   aSVGElement->DidChangeViewBox(aDoSetAttr);
+#ifdef MOZ_SMIL
+  if (mAnimVal) {
+    aSVGElement->AnimationNeedsResample();
+  }
+#endif
+}
+
+static nsresult
+ToSVGViewBoxRect(const nsAString& aStr, nsSVGViewBoxRect *aViewBox)
+{
+  nsCharSeparatedTokenizer
+    tokenizer(aStr, ',',
+              nsCharSeparatedTokenizer::SEPARATOR_OPTIONAL);
+  float vals[NUM_VIEWBOX_COMPONENTS];
+  PRUint32 i;
+  for (i = 0; i < NUM_VIEWBOX_COMPONENTS && tokenizer.hasMoreTokens(); ++i) {
+    NS_ConvertUTF16toUTF8 utf8Token(tokenizer.nextToken());
+    const char *token = utf8Token.get();
+    if (*token == '\0') {
+      return NS_ERROR_DOM_SYNTAX_ERR; // empty string (e.g. two commas in a row)
+    }
+
+    char *end;
+    vals[i] = float(PR_strtod(token, &end));
+    if (*end != '\0' || !NS_FloatIsFinite(vals[i])) {
+      return NS_ERROR_DOM_SYNTAX_ERR; // parse error
+    }
+  }
+
+  if (i != NUM_VIEWBOX_COMPONENTS ||              // Too few values.
+      tokenizer.hasMoreTokens() ||                // Too many values.
+      tokenizer.lastTokenEndedWithSeparator()) {  // Trailing comma.
+    return NS_ERROR_DOM_SYNTAX_ERR;
+  } else {
+    aViewBox->x = vals[0];
+    aViewBox->y = vals[1];
+    aViewBox->width = vals[2];
+    aViewBox->height = vals[3];
+  }
+
+  return NS_OK;
 }
 
 nsresult
@@ -106,33 +180,12 @@ nsSVGViewBox::SetBaseValueString(const nsAString& aValue,
                                  nsSVGElement *aSVGElement,
                                  PRBool aDoSetAttr)
 {
-  nsresult rv = NS_OK;
-
-  char *str = ToNewUTF8String(aValue);
-
-  char *rest = str;
-  char *token;
-  const char *delimiters = ",\x20\x9\xD\xA";
-
-  float vals[4];
-  PRUint32 i;
-  for (i = 0; i < 4; ++i) {
-    if (!(token = nsCRT::strtok(rest, delimiters, &rest))) break; // parse error
-
-    char *end;
-    vals[i] = float(PR_strtod(token, &end));
-    if (*end != '\0' || !NS_FloatIsFinite(vals[i])) break; // parse error
+  nsSVGViewBoxRect viewBox;
+  nsresult res = ToSVGViewBoxRect(aValue, &viewBox);
+  if (NS_SUCCEEDED(res)) {
+    SetBaseValue(viewBox.x, viewBox.y, viewBox.width, viewBox.height, aSVGElement, aDoSetAttr);
   }
-  if (i!=4 || nsCRT::strtok(rest, delimiters, &rest)!=0) {
-    // there was a parse error.
-    rv = NS_ERROR_FAILURE;
-  } else {
-    SetBaseValue(vals[0], vals[1], vals[2], vals[3], aSVGElement, aDoSetAttr);
-  }
-
-  nsMemory::Free(str);
-
-  return rv;
+  return res;
 }
 
 void
@@ -216,3 +269,60 @@ nsSVGViewBox::DOMBaseVal::SetHeight(float aHeight)
                      mSVGElement, PR_TRUE);
   return NS_OK;
 }
+
+#ifdef MOZ_SMIL
+nsISMILAttr*
+nsSVGViewBox::ToSMILAttr(nsSVGElement *aSVGElement)
+{
+  return new SMILViewBox(this, aSVGElement);
+}
+
+nsresult
+nsSVGViewBox::SMILViewBox
+            ::ValueFromString(const nsAString& aStr,
+                              const nsISMILAnimationElement* /*aSrcElement*/,
+                              nsSMILValue& aValue,
+                              PRBool& aPreventCachingOfSandwich) const
+{
+  nsSVGViewBoxRect viewBox;
+  nsresult res = ToSVGViewBoxRect(aStr, &viewBox);
+  if (NS_FAILED(res)) {
+    return res;
+  }
+  nsSMILValue val(&SVGViewBoxSMILType::sSingleton);
+  *static_cast<nsSVGViewBoxRect*>(val.mU.mPtr) = viewBox;
+  aValue.Swap(val);
+  aPreventCachingOfSandwich = PR_FALSE;
+  
+  return NS_OK;
+}
+
+nsSMILValue
+nsSVGViewBox::SMILViewBox::GetBaseValue() const
+{
+  nsSMILValue val(&SVGViewBoxSMILType::sSingleton);
+  *static_cast<nsSVGViewBoxRect*>(val.mU.mPtr) = mVal->mBaseVal;
+  return val;
+}
+
+void
+nsSVGViewBox::SMILViewBox::ClearAnimValue()
+{
+  if (mVal->mAnimVal) {
+    mVal->mAnimVal = nsnull;
+    mSVGElement->DidAnimateViewBox();
+  }
+}
+
+nsresult
+nsSVGViewBox::SMILViewBox::SetAnimValue(const nsSMILValue& aValue)
+{
+  NS_ASSERTION(aValue.mType == &SVGViewBoxSMILType::sSingleton,
+               "Unexpected type to assign animated value");
+  if (aValue.mType == &SVGViewBoxSMILType::sSingleton) {
+    nsSVGViewBoxRect &vb = *static_cast<nsSVGViewBoxRect*>(aValue.mU.mPtr);
+    mVal->SetAnimValue(vb.x, vb.y, vb.width, vb.height, mSVGElement);
+  }
+  return NS_OK;
+}
+#endif // MOZ_SMIL

@@ -45,13 +45,12 @@
 #include "nsIChannel.h"
 #include "nsIDOMLoadListener.h"
 #include "nsIChannelEventSink.h"
+#include "nsIAsyncVerifyRedirectCallback.h"
 #include "nsIInterfaceRequestor.h"
 #include "nsString.h"
 #include "nsWeakReference.h"
 #include "nsIDocument.h"
 #include "nsIDOMDocument.h"
-#include "nsIDOMDOMImplementation.h"
-#include "nsIPrivateDOMImplementation.h"
 #include "nsIScriptSecurityManager.h"
 #include "nsContentUtils.h"
 #include "nsThreadUtils.h"
@@ -221,8 +220,8 @@ nsSyncLoader::LoadDocument(nsIChannel* aChannel,
     }
 
     if (aLoaderPrincipal) {
-        listener = new nsCrossSiteListenerProxy(listener, aLoaderPrincipal,
-                                                mChannel, PR_FALSE, &rv);
+        listener = new nsCORSListenerProxy(listener, aLoaderPrincipal,
+                                           mChannel, PR_FALSE, &rv);
         NS_ENSURE_TRUE(listener, NS_ERROR_OUT_OF_MEMORY);
         NS_ENSURE_SUCCESS(rv, rv);
     }
@@ -266,7 +265,7 @@ nsSyncLoader::LoadDocument(nsIChannel* aChannel,
 
     NS_ENSURE_TRUE(mLoadSuccess, NS_ERROR_FAILURE);
 
-    NS_ENSURE_TRUE(document->GetRootContent(), NS_ERROR_FAILURE);
+    NS_ENSURE_TRUE(document->GetRootElement(), NS_ERROR_FAILURE);
 
     return CallQueryInterface(document, aResult);
 }
@@ -362,14 +361,16 @@ nsSyncLoader::Error(nsIDOMEvent* aEvent)
 }
 
 NS_IMETHODIMP
-nsSyncLoader::OnChannelRedirect(nsIChannel *aOldChannel,
-                                nsIChannel *aNewChannel,
-                                PRUint32    aFlags)
+nsSyncLoader::AsyncOnChannelRedirect(nsIChannel *aOldChannel,
+                                     nsIChannel *aNewChannel,
+                                     PRUint32 aFlags,
+                                     nsIAsyncVerifyRedirectCallback *callback)
 {
     NS_PRECONDITION(aNewChannel, "Redirecting to null channel?");
 
     mChannel = aNewChannel;
 
+    callback->OnRedirectVerifyCallback(NS_OK);
     return NS_OK;
 }
 
@@ -464,7 +465,7 @@ nsSyncLoadService::PushSyncStreamToListener(nsIInputStream* aIn,
         if (NS_FAILED(rv)) {
             chunkSize = 4096;
         }
-        chunkSize = PR_MIN(PR_UINT16_MAX, chunkSize);
+        chunkSize = NS_MIN(PRInt32(PR_UINT16_MAX), chunkSize);
 
         rv = NS_NewBufferedInputStream(getter_AddRefs(bufferedStream), aIn,
                                        chunkSize);

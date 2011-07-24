@@ -67,7 +67,7 @@ public:
   NS_IMETHOD  Init(nsIContent* aContent,
                    nsIFrame*   aParent,
                    nsIFrame*   aPrevInFlow);
-  virtual void Destroy();
+  virtual void DestroyFrom(nsIFrame* aDestructRoot);
   NS_IMETHOD  AttributeChanged(PRInt32         aNameSpaceID,
                                nsIAtom*        aAttribute,
                                PRInt32         aModType);
@@ -150,7 +150,7 @@ protected:
   gfxMatrix GetCanvasTMForChildren();
   void InvalidateDirtyRect(nsSVGOuterSVGFrame* aOuter,
                            const nsRect& aRect, PRUint32 aFlags);
-  void FlushDirtyRegion();
+  void FlushDirtyRegion(PRUint32 aFlags);
 
   // If width or height is less than or equal to zero we must disable rendering
   PRBool IsDisabled() const { return mRect.width <= 0 || mRect.height <= 0; }

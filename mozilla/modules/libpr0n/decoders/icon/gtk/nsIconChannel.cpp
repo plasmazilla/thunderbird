@@ -20,6 +20,7 @@
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
+ *  Nils Maier <MaierMan@web.de>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -73,8 +74,6 @@ typedef char* (*_GnomeIconLookup_fn)(GtkIconTheme *icon_theme, GnomeThumbnailFac
                                      const char *file_uri, const char *custom_icon, GnomeVFSFileInfo *file_info,
                                      const char *mime_type, GnomeIconLookupFlags flags, GnomeIconLookupResultFlags *result);
 typedef GnomeIconTheme* (*_GnomeIconThemeNew_fn)(void);
-typedef char* (*_GnomeIconThemeLookupIcon_fn)(GnomeIconTheme *theme, const char *icon_name, int size,
-                                              const GnomeIconData **icon_data, int *base_size);
 typedef int (*_GnomeInit_fn)(const char *app_id, const char *app_version, int argc, char **argv, const struct poptOption *options,
                              int flags, poptContext *return_ctx);
 typedef GnomeProgram* (*_GnomeProgramGet_fn)(void);
@@ -88,7 +87,6 @@ static PRBool gTriedToLoadGnomeLibs = PR_FALSE;
 
 static _GnomeIconLookup_fn _gnome_icon_lookup = nsnull;
 static _GnomeIconThemeNew_fn _gnome_icon_theme_new = nsnull;
-static _GnomeIconThemeLookupIcon_fn _gnome_icon_theme_lookup_icon = nsnull;
 static _GnomeInit_fn _gnome_init = nsnull;
 static _GnomeProgramGet_fn _gnome_program_get = nsnull;
 static _GnomeVFSGetFileInfo_fn _gnome_vfs_get_file_info = nsnull;
@@ -165,35 +163,22 @@ static GtkWidget *gStockImageWidget = nsnull;
 static GnomeIconTheme *gIconTheme = nsnull;
 #endif
 
-#if GTK_CHECK_VERSION(2,4,0)
-static GtkIconFactory *gIconFactory = nsnull;
-#endif
-
 static void
 ensure_stock_image_widget()
 {
+  // Only the style of the GtkImage needs to be used, but the widget is kept
+  // to track dynamic style changes.
   if (!gProtoWindow) {
     gProtoWindow = gtk_window_new(GTK_WINDOW_POPUP);
-    gtk_widget_realize(gProtoWindow);
     GtkWidget* protoLayout = gtk_fixed_new();
     gtk_container_add(GTK_CONTAINER(gProtoWindow), protoLayout);
 
     gStockImageWidget = gtk_image_new();
     gtk_container_add(GTK_CONTAINER(protoLayout), gStockImageWidget);
-    gtk_widget_realize(gStockImageWidget);
-  }
-}
 
-#if GTK_CHECK_VERSION(2,4,0)
-static void
-ensure_icon_factory()
-{
-  if (!gIconFactory) {
-    gIconFactory = gtk_icon_factory_new();
-    gtk_icon_factory_add_default(gIconFactory);
+    gtk_widget_ensure_style(gStockImageWidget);
   }
 }
-#endif
 
 #ifdef MOZ_ENABLE_GNOMEUI
 static nsresult
@@ -209,9 +194,8 @@ ensure_libgnomeui()
     _gnome_init = (_GnomeInit_fn)PR_FindFunctionSymbol(gLibGnomeUI, "gnome_init_with_popt_table");
     _gnome_icon_theme_new = (_GnomeIconThemeNew_fn)PR_FindFunctionSymbol(gLibGnomeUI, "gnome_icon_theme_new");
     _gnome_icon_lookup = (_GnomeIconLookup_fn)PR_FindFunctionSymbol(gLibGnomeUI, "gnome_icon_lookup");
-    _gnome_icon_theme_lookup_icon = (_GnomeIconThemeLookupIcon_fn)PR_FindFunctionSymbol(gLibGnomeUI, "gnome_icon_theme_lookup_icon");
 
-    if (!_gnome_init || !_gnome_icon_theme_new || !_gnome_icon_lookup || !_gnome_icon_theme_lookup_icon) {
+    if (!_gnome_init || !_gnome_icon_theme_new || !_gnome_icon_lookup) {
       PR_UnloadLibrary(gLibGnomeUI);
       gLibGnomeUI = nsnull;
       return NS_ERROR_NOT_AVAILABLE;
@@ -356,30 +340,25 @@ nsIconChannel::InitWithGnome(nsIMozIconURI *aIconURI)
   fileInfo.refcount = 1; // In case some GnomeVFS function addrefs and releases it
 
   nsCAutoString spec;
-  nsCOMPtr<nsIURI> fileURI;
-  rv = aIconURI->GetIconFile(getter_AddRefs(fileURI));
-  if (fileURI) {
-    fileURI->GetAsciiSpec(spec);
+  nsCOMPtr<nsIURL> url;
+  rv = aIconURI->GetIconURL(getter_AddRefs(url));
+  if (url) {
+    url->GetAsciiSpec(spec);
     // Only ask gnome-vfs for a GnomeVFSFileInfo for file: uris, to avoid a
     // network request
     PRBool isFile;
-    if (NS_SUCCEEDED(fileURI->SchemeIs("file", &isFile)) && isFile) {
+    if (NS_SUCCEEDED(url->SchemeIs("file", &isFile)) && isFile) {
       _gnome_vfs_get_file_info(spec.get(), &fileInfo, GNOME_VFS_FILE_INFO_DEFAULT);
     }
     else {
-      // We have to get a leaf name from our uri...
-      nsCOMPtr<nsIURL> url(do_QueryInterface(fileURI));
-      if (url) {
-        nsCAutoString name;
-        // The filename we get is UTF-8-compatible, which matches gnome expectations.
-        // See also: http://lists.gnome.org/archives/gnome-vfs-list/2004-March/msg00049.html
-        // "Whenever we can detect the charset used for the URI type we try to
-        //  convert it to/from utf8 automatically inside gnome-vfs."
-        // I'll interpret that as "otherwise, this field is random junk".
-        url->GetFileName(name);
-        fileInfo.name = g_strdup(name.get());
-      }
-      // If this is no nsIURL, nothing we can do really.
+      // The filename we get is UTF-8-compatible, which matches gnome expectations.
+      // See also: http://lists.gnome.org/archives/gnome-vfs-list/2004-March/msg00049.html
+      // "Whenever we can detect the charset used for the URI type we try to
+      //  convert it to/from utf8 automatically inside gnome-vfs."
+      // I'll interpret that as "otherwise, this field is random junk".
+      nsCAutoString name;
+      url->GetFileName(name);
+      fileInfo.name = g_strdup(name.get());
 
       if (!type.IsEmpty()) {
         fileInfo.valid_fields = GNOME_VFS_FILE_INFO_FIELDS_MIME_TYPE;
@@ -394,10 +373,11 @@ nsIconChannel::InitWithGnome(nsIMozIconURI *aIconURI)
     if (ms) {
       nsCAutoString fileExt;
       aIconURI->GetFileExtension(fileExt);
-      ms->GetTypeFromExtension(fileExt, type);
+      if (!fileExt.IsEmpty()) {
+        ms->GetTypeFromExtension(fileExt, type);
+      }
     }
   }
-
   // Get the icon theme
   if (!gIconTheme) {
     gIconTheme = _gnome_icon_theme_new();
@@ -415,17 +395,19 @@ nsIconChannel::InitWithGnome(nsIMozIconURI *aIconURI)
   _gnome_vfs_file_info_clear(&fileInfo);
   if (!name)
     return NS_ERROR_NOT_AVAILABLE;
+  
+  // Get the default theme associated with the screen
+  // Do NOT free.
+  GtkIconTheme *theme = gtk_icon_theme_get_default();
+  if (!theme) {
+    g_free(name);
+    return NS_ERROR_UNEXPECTED;
+  }
 
-  char* file = _gnome_icon_theme_lookup_icon(gIconTheme, name, iconSize,
-                                             NULL, NULL);
-  g_free(name);
-  if (!file)
-    return NS_ERROR_NOT_AVAILABLE;
-
-  // Create a GdkPixbuf buffer and scale it
   GError *err = nsnull;
-  GdkPixbuf* buf = gdk_pixbuf_new_from_file(file, &err);
-  g_free(file);
+  GdkPixbuf* buf = gtk_icon_theme_load_icon(theme, name, iconSize, (GtkIconLookupFlags)0, &err);
+  g_free(name);
+  
   if (!buf) {
     if (err)
       g_error_free(err);
@@ -433,8 +415,8 @@ nsIconChannel::InitWithGnome(nsIMozIconURI *aIconURI)
   }
 
   GdkPixbuf* scaled = buf;
-  if (gdk_pixbuf_get_width(buf)  != iconSize &&
-      gdk_pixbuf_get_height(buf) != iconSize) {
+  if (PRUint32(gdk_pixbuf_get_width(buf))  != iconSize &&
+      PRUint32(gdk_pixbuf_get_height(buf)) != iconSize) {
     // scale...
     scaled = gdk_pixbuf_scale_simple(buf, iconSize, iconSize,
                                      GDK_INTERP_BILINEAR);
@@ -475,32 +457,84 @@ nsIconChannel::Init(nsIURI* aURI)
   iconURI->GetIconState(iconStateString);
 
   GtkIconSize icon_size = moz_gtk_icon_size(iconSizeString.get());
-   
+  GtkStateType state = iconStateString.EqualsLiteral("disabled") ?
+    GTK_STATE_INSENSITIVE : GTK_STATE_NORMAL;
+
+  // First lookup the icon by stock id and text direction.
+  GtkTextDirection direction = GTK_TEXT_DIR_NONE;
+  if (StringEndsWith(stockIcon, NS_LITERAL_CSTRING("-ltr"))) {
+    direction = GTK_TEXT_DIR_LTR;
+  } else if (StringEndsWith(stockIcon, NS_LITERAL_CSTRING("-rtl"))) {
+    direction = GTK_TEXT_DIR_RTL;
+  }
+
+  PRBool forceDirection = direction != GTK_TEXT_DIR_NONE;
+  nsCAutoString stockID;
+  PRBool useIconName = PR_FALSE;
+  if (!forceDirection) {
+    direction = gtk_widget_get_default_direction();
+    stockID = stockIcon;
+  } else {
+    // GTK versions < 2.22 use icon names from concatenating stock id with
+    // -(rtl|ltr), which is how the moz-icon stock name is interpreted here.
+    stockID = Substring(stockIcon, 0, stockIcon.Length() - 4);
+    // However, if we lookup bidi icons by the stock name, then GTK versions
+    // >= 2.22 will use a bidi lookup convention that most icon themes do not
+    // yet follow.  Therefore, we first check to see if the theme supports the
+    // old icon name as this will have bidi support (if found).
+    GtkIconTheme *icon_theme = gtk_icon_theme_get_default();
+    // Micking what gtk_icon_set_render_icon does with sizes, though it's not
+    // critical as icons will be scaled to suit size.  It just means we follow
+    // the same pathes and so share caches.
+    gint width, height;
+    if (gtk_icon_size_lookup(icon_size, &width, &height)) {
+      gint size = NS_MIN(width, height);
+      // We use gtk_icon_theme_lookup_icon() without
+      // GTK_ICON_LOOKUP_USE_BUILTIN instead of gtk_icon_theme_has_icon() so
+      // we don't pick up fallback icons added by distributions for backward
+      // compatibility.
+      GtkIconInfo *icon =
+        gtk_icon_theme_lookup_icon(icon_theme, stockIcon.get(),
+                                   size, (GtkIconLookupFlags)0);
+      if (icon) {
+        useIconName = PR_TRUE;
+        gtk_icon_info_free(icon);
+      }
+    }
+  }
+
   ensure_stock_image_widget();
+  GtkStyle *style = gtk_widget_get_style(gStockImageWidget);
+  GtkIconSet *icon_set = NULL;
+  if (!useIconName) {
+    icon_set = gtk_style_lookup_icon_set(style, stockID.get());
+  }
 
-  gboolean sensitive = strcmp(iconStateString.get(), "disabled");
-  gtk_widget_set_sensitive (gStockImageWidget, sensitive);
-
-  GdkPixbuf *icon = gtk_widget_render_icon(gStockImageWidget, stockIcon.get(),
-                                           icon_size, NULL);
-#if GTK_CHECK_VERSION(2,4,0)
-  if (!icon) {
-    ensure_icon_factory();
-      
-    GtkIconSet *icon_set = gtk_icon_set_new();
+  if (!icon_set) {
+    // Either we have choosen icon-name lookup for a bidi icon, or stockIcon is
+    // not a stock id so we assume it is an icon name.
+    useIconName = PR_TRUE;
+    // Creating a GtkIconSet is a convenient way to allow the style to
+    // render the icon, possibly with variations suitable for insensitive
+    // states.
+    icon_set = gtk_icon_set_new();
     GtkIconSource *icon_source = gtk_icon_source_new();
     
     gtk_icon_source_set_icon_name(icon_source, stockIcon.get());
     gtk_icon_set_add_source(icon_set, icon_source);
-    gtk_icon_factory_add(gIconFactory, stockIcon.get(), icon_set);
-    gtk_icon_set_unref(icon_set);
     gtk_icon_source_free(icon_source);
-
-    icon = gtk_widget_render_icon(gStockImageWidget, stockIcon.get(),
-                                  icon_size, NULL);
   }
-#endif
 
+  GdkPixbuf *icon =
+    gtk_icon_set_render_icon (icon_set, style, direction, state,
+                              icon_size, gStockImageWidget, NULL);
+  if (useIconName) {
+    gtk_icon_set_unref(icon_set);
+  }
+
+  // According to documentation, gtk_icon_set_render_icon() never returns
+  // NULL, but it does return NULL when we have the problem reported here:
+  // https://bugzilla.gnome.org/show_bug.cgi?id=629878#c13
   if (!icon)
     return NS_ERROR_NOT_AVAILABLE;
   
@@ -519,13 +553,6 @@ nsIconChannel::Shutdown() {
     gProtoWindow = nsnull;
     gStockImageWidget = nsnull;
   }
-#if GTK_CHECK_VERSION(2,4,0)
-  if (gIconFactory) {
-    gtk_icon_factory_remove_default(gIconFactory);
-    g_object_unref(gIconFactory);
-    gIconFactory = nsnull;
-  }
-#endif
 #ifdef MOZ_ENABLE_GNOMEUI
   if (gIconTheme) {
     g_object_unref(G_OBJECT(gIconTheme));

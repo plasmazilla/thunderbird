@@ -13,7 +13,7 @@
  *
  * The Original Code is mozilla.org code.
  *
- * The Initial Developer of the Original Code is Mozilla Messaging, Inc.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -44,6 +44,7 @@
 #include "nsWeakPtr.h"
 #include "nsTArray.h"
 #include "prlog.h"
+#include "nsIWeakReferenceUtils.h"
 
 class nsImapMailFolder;
 class nsIAutoSyncMsgStrategy;
@@ -80,19 +81,19 @@ class MsgStrategyComparatorAdaptor
  */
 class nsAutoSyncState : public nsIAutoSyncState, public nsIUrlListener
 {
- public:
+public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIAUTOSYNCSTATE
   NS_DECL_NSIURLLISTENER
-  
+
   nsAutoSyncState(nsImapMailFolder *aOwnerFolder, PRTime aLastSyncTime = 0UL);
-  
-  /// Called by owner folder when new headers are fetched form the server
-  nsresult OnNewHeaderFetchCompleted(const nsTArray<nsMsgKey> &aMsgKeyList);
+
+  /// Called by owner folder when new headers are fetched from the server
+  void OnNewHeaderFetchCompleted(const nsTArray<nsMsgKey> &aMsgKeyList);
 
   /// Sets the last sync time in lower precision (seconds)
   void SetLastSyncTimeInSec(PRInt32 aLastSyncTime);
-  
+
   /// Manages storage space for auto-sync operations 
   nsresult ManageStorageSpace();
 

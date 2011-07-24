@@ -47,22 +47,19 @@
             script="chrome://communicator/content/pref/pref-keynav.js">
 
     <preferences id="keynav_preferences">
-      <preference id="accessibility.typeaheadfind.autostart"
-                  name="accessibility.typeaheadfind.autostart"
-                  onchange="SetLinksOnlyEnabled(this.value);"
-                  type="bool"/>
-      <preference id="accessibility.typeaheadfind.linksonly"
-                  name="accessibility.typeaheadfind.linksonly"
-                  type="bool"/>
-      <preference id="accessibility.typeaheadfind.enablesound"
-                  name="accessibility.typeaheadfind.enablesound"
-                  type="bool"/>
-      <preference id="accessibility.typeaheadfind.enabletimeout"
-                  name="accessibility.typeaheadfind.enabletimeout"
-                  type="bool"/>
       <preference id="accessibility.tabfocus"
                   name="accessibility.tabfocus"
                   type="int"/>
+      <preference id="accessibility.browsewithcaret"
+                  name="accessibility.browsewithcaret"
+                  type="bool"/>
+      <preference id="accessibility.browsewithcaret_shortcut.enabled"
+                  name="accessibility.browsewithcaret_shortcut.enabled"
+                  type="bool"
+                  onchange="UpdateBrowseWithCaretItems();"/>
+      <preference id="accessibility.warn_on_browsewithcaret"
+                  name="accessibility.warn_on_browsewithcaret"
+                  type="bool"/>
     </preferences>
 
     <groupbox id="tabNavigationPrefs"
@@ -85,36 +82,23 @@
       <description>&tabNavigationTextboxes.label;</description>
     </groupbox>
 
-    <groupbox align="start">
-      <caption label="&findAsYouTypeBehavior.label;"/>
-      <checkbox id="findAsYouTypeEnableAuto"
-                label="&findAsYouTypeEnableAuto.label;"
-                accesskey="&findAsYouTypeEnableAuto.accesskey;"
-                preference="accessibility.typeaheadfind.autostart"/>
-      <radiogroup id="findAsYouTypeAutoWhat"
-                  class="indent"
-                  preference="accessibility.typeaheadfind.linksonly">
-        <radio value="false"
-               label="&findAsYouTypeAutoText.label;"
-               accesskey="&findAsYouTypeAutoText.accesskey;"/>
-        <radio value="true"
-               label="&findAsYouTypeAutoLinks.label;"
-               accesskey="&findAsYouTypeAutoLinks.accesskey;"/>
-      </radiogroup>
-      <description>&findAsYouTypeTip.label;</description>
-
-      <vbox class="box-padded"
-            align="start">
-        <separator class="thin" />
-        <checkbox id="findAsYouTypeSound"
-                  label="&findAsYouTypeSound.label;"
-                  accesskey="&findAsYouTypeSound.accesskey;"
-                  preference="accessibility.typeaheadfind.enablesound"/>
-        <checkbox id="findAsYouTypeTimeout"
-                  label="&findAsYouTypeTimeout.label;"
-                  accesskey="&findAsYouTypeTimeout.accesskey;"
-                  preference="accessibility.typeaheadfind.enabletimeout"/>
-      </vbox>
+    <groupbox id="browseWithCaretPrefs"
+              align="start">
+      <caption label="&accessibilityBrowseWithCaret.label;"/>
+      <description>&browseWithCaretDesc.label;</description>
+      <checkbox id="browseWithCaretUse"
+                label="&browseWithCaretUse.label;"
+                accesskey="&browseWithCaretUse.accesskey;"
+                preference="accessibility.browsewithcaret"/>
+      <checkbox id="browseWithCaretShortCut"
+                label="&browseWithCaretShortCut.label;"
+                accesskey="&browseWithCaretShortCut.accesskey;"
+                preference="accessibility.browsewithcaret_shortcut.enabled"/>
+      <checkbox id="browseWithCaretWarn"
+                class="indent"
+                label="&browseWithCaretWarn.label;"
+                accesskey="&browseWithCaretWarn.accesskey;"
+                preference="accessibility.warn_on_browsewithcaret"/>
     </groupbox>
 
   </prefpane>

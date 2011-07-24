@@ -37,6 +37,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "base/basictypes.h"
+#include "IPC/IPCMessageUtils.h"
 #include "nsCOMPtr.h"
 #include "nsDOMUIEvent.h"
 #include "nsIPresShell.h"
@@ -45,7 +47,6 @@
 #include "nsIDOMNode.h"
 #include "nsIContent.h"
 #include "nsContentUtils.h"
-#include "nsIPresShell.h"
 #include "nsIEventStateManager.h"
 #include "nsIFrame.h"
 #include "nsLayoutUtils.h"
@@ -114,11 +115,12 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 NS_IMPL_ADDREF_INHERITED(nsDOMUIEvent, nsDOMEvent)
 NS_IMPL_RELEASE_INHERITED(nsDOMUIEvent, nsDOMEvent)
 
+DOMCI_DATA(UIEvent, nsDOMUIEvent)
+
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(nsDOMUIEvent)
   NS_INTERFACE_MAP_ENTRY(nsIDOMUIEvent)
   NS_INTERFACE_MAP_ENTRY(nsIDOMNSUIEvent)
-  NS_INTERFACE_MAP_ENTRY(nsIPrivateCompositionEvent)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(UIEvent)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(UIEvent)
 NS_INTERFACE_MAP_END_INHERITING(nsDOMEvent)
 
 nsIntPoint
@@ -128,6 +130,7 @@ nsDOMUIEvent::GetScreenPoint()
        (mEvent->eventStructType != NS_MOUSE_EVENT &&
         mEvent->eventStructType != NS_POPUP_EVENT &&
         mEvent->eventStructType != NS_MOUSE_SCROLL_EVENT &&
+        mEvent->eventStructType != NS_MOZTOUCH_EVENT &&
         mEvent->eventStructType != NS_DRAG_EVENT &&
         mEvent->eventStructType != NS_SIMPLE_GESTURE_EVENT)) {
     return nsIntPoint(0, 0);
@@ -151,6 +154,7 @@ nsDOMUIEvent::GetClientPoint()
       (mEvent->eventStructType != NS_MOUSE_EVENT &&
        mEvent->eventStructType != NS_POPUP_EVENT &&
        mEvent->eventStructType != NS_MOUSE_SCROLL_EVENT &&
+       mEvent->eventStructType != NS_MOZTOUCH_EVENT &&
        mEvent->eventStructType != NS_DRAG_EVENT &&
        mEvent->eventStructType != NS_SIMPLE_GESTURE_EVENT) ||
       !mPresContext ||
@@ -264,6 +268,10 @@ nsDOMUIEvent::GetRangeParent(nsIDOMNode** aRangeParent)
                                                               targetFrame);
     nsCOMPtr<nsIContent> parent = targetFrame->GetContentOffsetsFromPoint(pt).content;
     if (parent) {
+      if (parent->IsInNativeAnonymousSubtree() &&
+          !nsContentUtils::CanAccessNativeAnon()) {
+        return NS_OK;
+      }
       return CallQueryInterface(parent, aRangeParent);
     }
   }
@@ -318,6 +326,7 @@ nsDOMUIEvent::GetLayerPoint()
       (mEvent->eventStructType != NS_MOUSE_EVENT &&
        mEvent->eventStructType != NS_POPUP_EVENT &&
        mEvent->eventStructType != NS_MOUSE_SCROLL_EVENT &&
+       mEvent->eventStructType != NS_MOZTOUCH_EVENT &&
        mEvent->eventStructType != NS_DRAG_EVENT &&
        mEvent->eventStructType != NS_SIMPLE_GESTURE_EVENT) ||
       !mPresContext ||
@@ -368,18 +377,6 @@ nsDOMUIEvent::GetIsChar(PRBool* aIsChar)
   }
 }
 
-NS_METHOD nsDOMUIEvent::GetCompositionReply(nsTextEventReply** aReply)
-{
-  if((mEvent->message == NS_COMPOSITION_START) ||
-     (mEvent->message == NS_COMPOSITION_QUERY))
-  {
-    *aReply = &(static_cast<nsCompositionEvent*>(mEvent)->theReply);
-    return NS_OK;
-  }
-  *aReply = nsnull;
-  return NS_ERROR_FAILURE;
-}
-
 NS_METHOD
 nsDOMUIEvent::DuplicatePrivateData()
 {
@@ -393,6 +390,28 @@ nsDOMUIEvent::DuplicatePrivateData()
     mEvent->refPoint = screenPoint;
   }
   return rv;
+}
+
+void
+nsDOMUIEvent::Serialize(IPC::Message* aMsg, PRBool aSerializeInterfaceType)
+{
+  if (aSerializeInterfaceType) {
+    IPC::WriteParam(aMsg, NS_LITERAL_STRING("uievent"));
+  }
+
+  nsDOMEvent::Serialize(aMsg, PR_FALSE);
+
+  PRInt32 detail = 0;
+  GetDetail(&detail);
+  IPC::WriteParam(aMsg, detail);
+}
+
+PRBool
+nsDOMUIEvent::Deserialize(const IPC::Message* aMsg, void** aIter)
+{
+  NS_ENSURE_TRUE(nsDOMEvent::Deserialize(aMsg, aIter), PR_FALSE);
+  NS_ENSURE_TRUE(IPC::ReadParam(aMsg, aIter, &mDetail), PR_FALSE);
+  return PR_TRUE;
 }
 
 nsresult NS_NewDOMUIEvent(nsIDOMEvent** aInstancePtrResult,

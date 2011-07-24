@@ -35,91 +35,54 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "nsIGenericFactory.h"
-#include "nsICategoryManager.h"
+#include "mozilla/ModuleUtils.h"
 #include "nsNetUtil.h"
-#include "nsXPIDLString.h"
-#ifndef MOZ_THUNDERBIRD
 #include "nsDirectoryViewer.h"
 #ifdef MOZ_RDF
 #include "rdf.h"
 #include "nsRDFCID.h"
 #endif
 #include "nsCURILoader.h"
-#include "nsXPFEComponentsCID.h"
-#include "nsBrowserInstance.h"
-#endif
 
-#include "nsBrowserStatusFilter.h"
-
-#ifndef MOZ_THUNDERBIRD
 #ifdef MOZ_RDF
 // Factory constructors
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsHTTPIndex, Init)
 #endif
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsDirectoryViewerFactory)
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsBrowserInstance)
-#endif
 
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsBrowserStatusFilter)
-
-#ifndef MOZ_THUNDERBIRD
-static NS_METHOD
-RegisterProc(nsIComponentManager *aCompMgr,
-             nsIFile *aPath,
-             const char *registryLocation,
-             const char *componentType,
-             const nsModuleComponentInfo *info)
-{
-    nsresult rv;
-    nsCOMPtr<nsICategoryManager> catman = do_GetService(NS_CATEGORYMANAGER_CONTRACTID, &rv);
-    if (NS_FAILED(rv)) return rv;
-
-    // add the MIME types layotu can handle to the handlers category.
-    // this allows users of layout's viewers (the docshell for example)
-    // to query the types of viewers layout can create.
-    return catman->AddCategoryEntry("Gecko-Content-Viewers", "application/http-index-format",
-                                    "@mozilla.org/xpfe/http-index-format-factory-constructor",
-                                    PR_TRUE, PR_TRUE, nsnull);
-}
-
-static NS_METHOD
-UnregisterProc(nsIComponentManager *aCompMgr,
-               nsIFile *aPath,
-               const char *registryLocation,
-               const nsModuleComponentInfo *info)
-{
-    nsresult rv;
-    nsCOMPtr<nsICategoryManager> catman = do_GetService(NS_CATEGORYMANAGER_CONTRACTID, &rv);
-    if (NS_FAILED(rv)) return rv;
-
-    return catman->DeleteCategoryEntry("Gecko-Content-Viewers",
-                                       "application/http-index-format", PR_TRUE);
-}
-#endif
-
-static const nsModuleComponentInfo components[] = {
-#ifndef MOZ_THUNDERBIRD
-   { "Directory Viewer", NS_DIRECTORYVIEWERFACTORY_CID,
-      "@mozilla.org/xpfe/http-index-format-factory-constructor",
-      nsDirectoryViewerFactoryConstructor, RegisterProc, UnregisterProc  },
+NS_DEFINE_NAMED_CID(NS_DIRECTORYVIEWERFACTORY_CID);
 #ifdef MOZ_RDF
-    { "Directory Viewer", NS_HTTPINDEX_SERVICE_CID, NS_HTTPINDEX_SERVICE_CONTRACTID,
-      nsHTTPIndexConstructor },
-    { "Directory Viewer", NS_HTTPINDEX_SERVICE_CID, NS_HTTPINDEX_DATASOURCE_CONTRACTID,
-      nsHTTPIndexConstructor },
+NS_DEFINE_NAMED_CID(NS_HTTPINDEX_SERVICE_CID);
 #endif
-    { "nsBrowserInstance",
-      NS_BROWSERINSTANCE_CID,
-      NS_BROWSERINSTANCE_CONTRACTID,
-      nsBrowserInstanceConstructor
-    },
+
+
+static const mozilla::Module::CIDEntry kXPFECIDs[] = {
+    { &kNS_DIRECTORYVIEWERFACTORY_CID, false, NULL, nsDirectoryViewerFactoryConstructor },
+#ifdef MOZ_RDF
+    { &kNS_HTTPINDEX_SERVICE_CID, false, NULL, nsHTTPIndexConstructor },
 #endif
-    { NS_BROWSERSTATUSFILTER_CLASSNAME,
-      NS_BROWSERSTATUSFILTER_CID,
-      NS_BROWSERSTATUSFILTER_CONTRACTID,
-      nsBrowserStatusFilterConstructor
-    },
+    { NULL }
 };
 
-NS_IMPL_NSGETMODULE(application, components)
+static const mozilla::Module::ContractIDEntry kXPFEContracts[] = {
+    { "@mozilla.org/xpfe/http-index-format-factory-constructor", &kNS_DIRECTORYVIEWERFACTORY_CID },
+#ifdef MOZ_RDF
+    { NS_HTTPINDEX_SERVICE_CONTRACTID, &kNS_HTTPINDEX_SERVICE_CID },
+    { NS_HTTPINDEX_DATASOURCE_CONTRACTID, &kNS_HTTPINDEX_SERVICE_CID },
+#endif
+    { NULL }
+};
+
+static const mozilla::Module::CategoryEntry kXPFECategories[] = {
+    { "Gecko-Content-Viewers", "application/http-index-format", "@mozilla.org/xpfe/http-index-format-factory-constructor" },
+    { NULL }
+};
+
+static const mozilla::Module kXPFEModule = {
+    mozilla::Module::kVersion,
+    kXPFECIDs,
+    kXPFEContracts,
+    kXPFECategories
+};
+
+NSMODULE_DEFN(application) = &kXPFEModule;

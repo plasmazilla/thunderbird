@@ -45,13 +45,14 @@
 #endif
 #define TAB "    "
 
-static const char* JSVAL2String(JSContext* cx, jsval val, JSBool* isString)
+static const char* JSVAL2String(JSContext* cx, jsval val, JSBool* isString,
+                                JSAutoByteString *bytes)
 {
     JSAutoRequest ar(cx);
     const char* value = nsnull;
     JSString* value_str = JS_ValueToString(cx, val);
     if(value_str)
-        value = JS_GetStringBytes(value_str);
+        value = bytes->encode(cx, value_str);
     if(value)
     {
         const char* found = strstr(value, "function ");
@@ -68,21 +69,18 @@ static char* FormatJSFrame(JSContext* cx, JSStackFrame* fp,
                            char* buf, int num,
                            JSBool showArgs, JSBool showLocals, JSBool showThisProps)
 {
-    if(JS_IsNativeFrame(cx, fp))
-        return JS_sprintf_append(buf, "%d [native frame]\n", num);
-
     JSPropertyDescArray callProps = {0, nsnull};
     JSPropertyDescArray thisProps = {0, nsnull};
-    JSObject* thisObj = nsnull;
+    JSBool gotThisVal = JS_FALSE;
+    jsval thisVal;
     JSObject* callObj = nsnull;
-    const char* funname = nsnull;
+    JSString* funname = nsnull;
+    JSAutoByteString funbytes;
     const char* filename = nsnull;
     PRInt32 lineno = 0;
     JSFunction* fun = nsnull;
     uint32 namedArgCount = 0;
     jsval val;
-    const char* name;
-    const char* value;
     JSBool isString;
 
     // get the info for this stack frame
@@ -91,6 +89,9 @@ static char* FormatJSFrame(JSContext* cx, JSStackFrame* fp,
     jsbytecode* pc = JS_GetFramePC(cx, fp);
 
     JSAutoRequest ar(cx);
+    JSAutoEnterCompartment ac;
+    if(!ac.enter(cx, JS_GetFrameScopeChain(cx, fp)))
+        return buf;
 
     if(script && pc)
     {
@@ -98,7 +99,7 @@ static char* FormatJSFrame(JSContext* cx, JSStackFrame* fp,
         lineno =  (PRInt32) JS_PCToLineNumber(cx, script, pc);
         fun = JS_GetFrameFunction(cx, fp);
         if(fun)
-            funname = JS_GetFunctionName(fun);
+            funname = JS_GetFunctionId(fun);
 
         if(showArgs || showLocals)
         {
@@ -108,19 +109,21 @@ static char* FormatJSFrame(JSContext* cx, JSStackFrame* fp,
                     callProps.array = nsnull;  // just to be sure
         }
 
-        thisObj = JS_GetFrameThis(cx, fp);
-        if(showThisProps)
+        gotThisVal = JS_GetFrameThis(cx, fp, &thisVal);
+        if (!gotThisVal ||
+            !showThisProps ||
+            JSVAL_IS_PRIMITIVE(thisVal) ||
+            !JS_GetPropertyDescArray(cx, JSVAL_TO_OBJECT(thisVal),
+                                     &thisProps))
         {
-            if(thisObj)
-                if(!JS_GetPropertyDescArray(cx, thisObj, &thisProps))
-                    thisProps.array = nsnull;  // just to be sure
+            thisProps.array = nsnull;  // just to be sure
         }
     }
 
     // print the frame number and function name
 
     if(funname)
-        buf = JS_sprintf_append(buf, "%d %s(", num, funname);
+        buf = JS_sprintf_append(buf, "%d %s(", num, funbytes.encode(cx, funname));
     else if(fun)
         buf = JS_sprintf_append(buf, "%d anonymous(", num);
     else
@@ -136,11 +139,13 @@ static char* FormatJSFrame(JSContext* cx, JSStackFrame* fp,
             JSPropertyDesc* desc = &callProps.array[i];
             if(desc->flags & JSPD_ARGUMENT)
             {
-                name = JSVAL2String(cx, desc->id, &isString);
+                JSAutoByteString nameBytes;
+                const char* name = JSVAL2String(cx, desc->id, &isString, &nameBytes);
                 if(!isString)
                     name = nsnull;
-                value = JSVAL2String(cx, desc->value, &isString);
-
+                JSAutoByteString valueBytes;
+                const char* value = JSVAL2String(cx, desc->value, &isString, &valueBytes);
+                
                 buf = JS_sprintf_append(buf, "%s%s%s%s%s%s",
                                         namedArgCount ? ", " : "",
                                         name ? name :"",
@@ -171,7 +176,8 @@ static char* FormatJSFrame(JSContext* cx, JSStackFrame* fp,
 
                     if(JS_GetProperty(cx, argsObj, number, &val))
                     {
-                        value = JSVAL2String(cx, val, &isString);
+                        JSAutoByteString valueBytes;
+                        const char *value = JSVAL2String(cx, val, &isString, &valueBytes);
                         buf = JS_sprintf_append(buf, "%s%s%s%s",
                                         k ? ", " : "",
                                         isString ? "\"" : "",
@@ -201,8 +207,10 @@ static char* FormatJSFrame(JSContext* cx, JSStackFrame* fp,
             JSPropertyDesc* desc = &callProps.array[i];
             if(desc->flags & JSPD_VARIABLE)
             {
-                name = JSVAL2String(cx, desc->id, nsnull);
-                value = JSVAL2String(cx, desc->value, &isString);
+                JSAutoByteString nameBytes;
+                JSAutoByteString valueBytes;
+                const char *name = JSVAL2String(cx, desc->id, nsnull, &nameBytes);
+                const char *value = JSVAL2String(cx, desc->value, &isString, &valueBytes);
 
                 if(name && value)
                 {
@@ -219,21 +227,25 @@ static char* FormatJSFrame(JSContext* cx, JSStackFrame* fp,
 
     // print the value of 'this'
 
-    if(showLocals && thisObj)
+    if(showLocals)
     {
-        jsval thisJSVal = OBJECT_TO_JSVAL(thisObj);
-        JSString* thisValStr;
-        char* thisVal;
-
-        if(nsnull != (thisValStr = JS_ValueToString(cx, thisJSVal)) &&
-           nsnull != (thisVal = JS_GetStringBytes(thisValStr)))
+        if(gotThisVal)
         {
-            buf = JS_sprintf_append(buf, TAB "this = %s\n", thisVal);
-            if(!buf) goto out;
+            JSString* thisValStr;
+            JSAutoByteString thisValBytes;
+
+            if(nsnull != (thisValStr = JS_ValueToString(cx, thisVal)) &&
+               thisValBytes.encode(cx, thisValStr))
+            {
+                buf = JS_sprintf_append(buf, TAB "this = %s\n", thisValBytes.ptr());
+                if(!buf) goto out;
+            }
         }
+        else
+            buf = JS_sprintf_append(buf, TAB "<failed to get 'this' value>\n");
     }
 
-    // print the properties of 'this'
+    // print the properties of 'this', if it is an object
 
     if(showThisProps && thisProps.array)
     {
@@ -243,9 +255,10 @@ static char* FormatJSFrame(JSContext* cx, JSStackFrame* fp,
             JSPropertyDesc* desc = &thisProps.array[i];
             if(desc->flags & JSPD_ENUMERATE)
             {
-
-                name = JSVAL2String(cx, desc->id, nsnull);
-                value = JSVAL2String(cx, desc->value, &isString);
+                JSAutoByteString nameBytes;
+                JSAutoByteString valueBytes;
+                const char *name = JSVAL2String(cx, desc->id, nsnull, &nameBytes);
+                const char *value = JSVAL2String(cx, desc->value, &isString, &valueBytes);
                 if(name && value)
                 {
                     buf = JS_sprintf_append(buf, TAB "this.%s = %s%s%s\n",
@@ -290,6 +303,18 @@ static char* FormatJSStackDump(JSContext* cx, char* buf,
 JSBool
 xpc_DumpJSStack(JSContext* cx, JSBool showArgs, JSBool showLocals, JSBool showThisProps)
 {
+    if(char* buf = xpc_PrintJSStack(cx, showArgs, showLocals, showThisProps))
+    {
+        fputs(buf, stdout);
+        JS_smprintf_free(buf);
+    }
+    return JS_TRUE;
+}
+
+char*
+xpc_PrintJSStack(JSContext* cx, JSBool showArgs, JSBool showLocals,
+                 JSBool showThisProps)
+{
     char* buf;
     JSExceptionState *state = JS_SaveExceptionState(cx);
     if(!state)
@@ -298,16 +323,11 @@ xpc_DumpJSStack(JSContext* cx, JSBool showArgs, JSBool showLocals, JSBool showTh
     JS_ClearPendingException(cx);
 
     buf = FormatJSStackDump(cx, nsnull, showArgs, showLocals, showThisProps);
-    if(buf)
-    {
-        fputs(buf, stdout);
-        JS_smprintf_free(buf);
-    }
-    else
+    if(!buf)
         puts("Failed to format JavaScript stack for dump");
 
     JS_RestoreExceptionState(cx, state);
-    return JS_TRUE;
+    return buf;
 }
 
 /***************************************************************************/
@@ -354,12 +374,12 @@ xpc_DumpEvalInJSStackFrame(JSContext* cx, JSUint32 frameno, const char* text)
 
     jsval rval;
     JSString* str;
-    const char* chars;
+    JSAutoByteString bytes;
     if(JS_EvaluateInStackFrame(cx, fp, text, strlen(text), "eval", 1, &rval) &&
        nsnull != (str = JS_ValueToString(cx, rval)) &&
-       nsnull != (chars = JS_GetStringBytes(str)))
+       bytes.encode(cx, str))
     {
-        printf("%s\n", chars);
+        printf("%s\n", bytes.ptr());
     }
     else
         puts("eval failed!");
@@ -426,9 +446,9 @@ static const int tab_width = 2;
 
 static void PrintObjectBasics(JSObject* obj)
 {
-    if(OBJ_IS_NATIVE(obj))
+    if (obj->isNative())
         printf("%p 'native' <%s>",
-               (void *)obj, STOBJ_GET_CLASS(obj)->name);
+               (void *)obj, obj->getClass()->name);
     else
         printf("%p 'host'", (void *)obj);
 }
@@ -450,11 +470,11 @@ static void PrintObject(JSObject* obj, int depth, ObjectPile* pile)
         return;
     }
 
-    if(!OBJ_IS_NATIVE(obj))
+    if(!obj->isNative())
         return;
 
-    JSObject* parent = STOBJ_GET_PARENT(obj);
-    JSObject* proto  = STOBJ_GET_PROTO(obj);
+    JSObject* parent = obj->getParent();
+    JSObject* proto  = obj->getProto();
 
     printf("%*sparent: ", INDENT(depth+1));
     if(parent)

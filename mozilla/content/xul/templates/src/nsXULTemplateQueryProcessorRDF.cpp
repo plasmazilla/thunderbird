@@ -55,7 +55,6 @@
 #include "nsGkAtoms.h"
 #include "nsIDocument.h"
 #include "nsIXULDocument.h"
-#include "nsUnicharUtils.h"
 #include "nsAttrName.h"
 #include "rdf.h"
 #include "nsArrayUtils.h"
@@ -71,6 +70,7 @@
 #include "nsXULTemplateResultRDF.h"
 #include "nsXULTemplateResultSetRDF.h"
 #include "nsXULTemplateQueryProcessorRDF.h"
+#include "nsXULSortService.h"
 
 //----------------------------------------------------------------------
 
@@ -148,10 +148,8 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsXULTemplateQueryProcessorRDF)
     NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMARRAY(mQueries)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
-NS_IMPL_CYCLE_COLLECTING_ADDREF_AMBIGUOUS(nsXULTemplateQueryProcessorRDF,
-                                          nsIXULTemplateQueryProcessor)
-NS_IMPL_CYCLE_COLLECTING_RELEASE_AMBIGUOUS(nsXULTemplateQueryProcessorRDF,
-                                           nsIXULTemplateQueryProcessor)
+NS_IMPL_CYCLE_COLLECTING_ADDREF(nsXULTemplateQueryProcessorRDF)
+NS_IMPL_CYCLE_COLLECTING_RELEASE(nsXULTemplateQueryProcessorRDF)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsXULTemplateQueryProcessorRDF)
     NS_INTERFACE_MAP_ENTRY(nsIXULTemplateQueryProcessor)
     NS_INTERFACE_MAP_ENTRY(nsIRDFObserver)
@@ -652,9 +650,10 @@ nsXULTemplateQueryProcessorRDF::TranslateRef(nsISupports* aDatasource,
 
 NS_IMETHODIMP
 nsXULTemplateQueryProcessorRDF::CompareResults(nsIXULTemplateResult* aLeft,
-                                                             nsIXULTemplateResult* aRight,
-                                                             nsIAtom* aVar,
-                                                             PRInt32* aResult)
+                                               nsIXULTemplateResult* aRight,
+                                               nsIAtom* aVar,
+                                               PRUint32 aSortHints,
+                                               PRInt32* aResult)
 {
     NS_ENSURE_ARG_POINTER(aLeft);
     NS_ENSURE_ARG_POINTER(aRight);
@@ -673,8 +672,7 @@ nsXULTemplateQueryProcessorRDF::CompareResults(nsIXULTemplateResult* aLeft,
         return NS_OK;
     }
 
-    nsAutoString sortkey;
-    aVar->ToString(sortkey);
+    nsDependentAtomString sortkey(aVar);
 
     nsCOMPtr<nsISupports> leftNode, rightNode;
 
@@ -705,7 +703,7 @@ nsXULTemplateQueryProcessorRDF::CompareResults(nsIXULTemplateResult* aLeft,
     else {
         // get the values for the sort key from the results
         aLeft->GetBindingObjectFor(aVar, getter_AddRefs(leftNode));
-    aRight->GetBindingObjectFor(aVar, getter_AddRefs(rightNode));
+        aRight->GetBindingObjectFor(aVar, getter_AddRefs(rightNode));
     }
 
     {
@@ -718,18 +716,12 @@ nsXULTemplateQueryProcessorRDF::CompareResults(nsIXULTemplateResult* aLeft,
                 l->GetValueConst(&lstr);
                 r->GetValueConst(&rstr);
 
-                nsICollation* collation = nsXULContentUtils::GetCollation();
-                if (collation) {
-                    collation->CompareString(nsICollation::kCollationCaseInSensitive,
-                                             nsDependentString(lstr),
-                                             nsDependentString(rstr),
-                                             aResult);
-                }
-                else
-                    *aResult = ::Compare(nsDependentString(lstr),
-                                         nsDependentString(rstr),
-                                         nsCaseInsensitiveStringComparator());
+                *aResult = XULSortServiceImpl::CompareValues(
+                               nsDependentString(lstr),
+                               nsDependentString(rstr), aSortHints);
             }
+
+            return NS_OK;
         }
     }
 
@@ -753,6 +745,8 @@ nsXULTemplateQueryProcessorRDF::CompareResults(nsIXULTemplateResult* aLeft,
                 else
                     *aResult = -1;
             }
+
+            return NS_OK;
         }
     }
 
@@ -768,6 +762,8 @@ nsXULTemplateQueryProcessorRDF::CompareResults(nsIXULTemplateResult* aLeft,
 
                 *aResult = lval - rval;
             }
+
+            return NS_OK;
         }
     }
 
@@ -1278,7 +1274,12 @@ nsXULTemplateQueryProcessorRDF::CompileExtendedQuery(nsRDFQuery* aQuery,
         nsIContent *condition = aConditions->GetChildAt(i);
 
         // the <content> condition should always be the first child
-        if (condition->Tag() == nsGkAtoms::content && !i) {
+        if (condition->Tag() == nsGkAtoms::content) {
+            if (i) {
+                nsXULContentUtils::LogTemplateError(ERROR_TEMPLATE_CONTENT_NOT_FIRST);
+                continue;
+            }
+
             // check for <content tag='tag'/> which indicates that matches
             // should only be generated for items inside content with that tag
             nsAutoString tagstr;
@@ -1401,11 +1402,9 @@ nsXULTemplateQueryProcessorRDF::CompileTripleCondition(nsRDFQuery* aQuery,
     nsCOMPtr<nsIAtom> svar;
     nsCOMPtr<nsIRDFResource> sres;
     if (subject.IsEmpty()) {
-        PR_LOG(gXULTemplateLog, PR_LOG_ALWAYS,
-               ("xultemplate[%p] has empty <triple> 'subject'", this));
+        nsXULContentUtils::LogTemplateError(ERROR_TEMPLATE_TRIPLE_BAD_SUBJECT);
         return NS_OK;
     }
-
     if (subject[0] == PRUnichar('?'))
         svar = do_GetAtom(subject);
     else
@@ -1416,20 +1415,10 @@ nsXULTemplateQueryProcessorRDF::CompileTripleCondition(nsRDFQuery* aQuery,
     aCondition->GetAttr(kNameSpaceID_None, nsGkAtoms::predicate, predicate);
 
     nsCOMPtr<nsIRDFResource> pres;
-    if (predicate.IsEmpty()) {
-        PR_LOG(gXULTemplateLog, PR_LOG_ALWAYS,
-               ("xultemplate[%p] has empty <triple> 'predicate'", this));
-
+    if (predicate.IsEmpty() || predicate[0] == PRUnichar('?')) {
+        nsXULContentUtils::LogTemplateError(ERROR_TEMPLATE_TRIPLE_BAD_PREDICATE);
         return NS_OK;
     }
-
-    if (predicate[0] == PRUnichar('?')) {
-        PR_LOG(gXULTemplateLog, PR_LOG_ALWAYS,
-               ("xultemplate[%p] cannot handle variables in <triple> 'predicate'", this));
-
-        return NS_OK;
-    }
-
     gRDFService->GetUnicodeResource(predicate, getter_AddRefs(pres));
 
     // object
@@ -1439,8 +1428,7 @@ nsXULTemplateQueryProcessorRDF::CompileTripleCondition(nsRDFQuery* aQuery,
     nsCOMPtr<nsIAtom> ovar;
     nsCOMPtr<nsIRDFNode> onode;
     if (object.IsEmpty()) {
-        PR_LOG(gXULTemplateLog, PR_LOG_ALWAYS,
-               ("xultemplate[%p] has empty <triple> 'object'", this));
+        nsXULContentUtils::LogTemplateError(ERROR_TEMPLATE_TRIPLE_BAD_OBJECT);
         return NS_OK;
     }
 
@@ -1473,9 +1461,7 @@ nsXULTemplateQueryProcessorRDF::CompileTripleCondition(nsRDFQuery* aQuery,
         testnode = new nsRDFPropertyTestNode(aParentNode, this, sres, pres, ovar);
     }
     else {
-        PR_LOG(gXULTemplateLog, PR_LOG_ALWAYS,
-               ("xultemplate[%p] tautology in <triple> test", this));
-
+        nsXULContentUtils::LogTemplateError(ERROR_TEMPLATE_TRIPLE_NO_VAR);
         return NS_OK;
     }
 
@@ -1514,9 +1500,7 @@ nsXULTemplateQueryProcessorRDF::CompileMemberCondition(nsRDFQuery* aQuery,
     aCondition->GetAttr(kNameSpaceID_None, nsGkAtoms::container, container);
 
     if (!container.IsEmpty() && container[0] != PRUnichar('?')) {
-        PR_LOG(gXULTemplateLog, PR_LOG_ALWAYS,
-               ("xultemplate[%p] on <member> test, expected 'container' attribute to name a variable", this));
-
+        nsXULContentUtils::LogTemplateError(ERROR_TEMPLATE_MEMBER_NOCONTAINERVAR);
         return NS_OK;
     }
 
@@ -1527,9 +1511,7 @@ nsXULTemplateQueryProcessorRDF::CompileMemberCondition(nsRDFQuery* aQuery,
     aCondition->GetAttr(kNameSpaceID_None, nsGkAtoms::child, child);
 
     if (!child.IsEmpty() && child[0] != PRUnichar('?')) {
-        PR_LOG(gXULTemplateLog, PR_LOG_ALWAYS,
-               ("xultemplate[%p] on <member> test, expected 'child' attribute to name a variable", this));
-
+        nsXULContentUtils::LogTemplateError(ERROR_TEMPLATE_MEMBER_NOCHILDVAR);
         return NS_OK;
     }
 

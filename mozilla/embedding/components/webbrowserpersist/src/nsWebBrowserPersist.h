@@ -58,7 +58,6 @@
 
 #include "nsHashtable.h"
 #include "nsTArray.h"
-#include "nsInt64.h"
 
 #include "nsCWebBrowserPersist.h"
 
@@ -126,6 +125,8 @@ private:
     nsresult MakeOutputStreamFromURI(nsIURI *aURI, nsIOutputStream  **aOutStream);
     nsresult CreateChannelFromURI(nsIURI *aURI, nsIChannel **aChannel);
     nsresult StartUpload(nsIStorageStream *aOutStream, nsIURI *aDestinationURI,
+        const nsACString &aContentType);
+    nsresult StartUpload(nsIInputStream *aInputStream, nsIURI *aDestinationURI,
         const nsACString &aContentType);
     nsresult CalculateAndAppendFileExt(nsIURI *aURI, nsIChannel *aChannel,
         nsIURI *aOriginalURIWithExtension);
@@ -238,8 +239,8 @@ private:
     PRPackedBool              mSerializingOutput;
     PRUint32                  mPersistFlags;
     PRUint32                  mPersistResult;
-    nsInt64                   mTotalCurrentProgress;
-    nsInt64                   mTotalMaxProgress;
+    PRInt64                   mTotalCurrentProgress;
+    PRInt64                   mTotalMaxProgress;
     PRInt16                   mWrapColumn;
     PRUint32                  mEncodingFlags;
     nsString                  mContentType;

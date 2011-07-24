@@ -35,9 +35,14 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "IPC/IPCMessageUtils.h"
+#include "mozilla/net/NeckoMessageUtils.h"
+
 #include "nsBufferedStreams.h"
 #include "nsStreamUtils.h"
 #include "nsCRT.h"
+#include "nsNetCID.h"
+#include "nsIClassInfoImpl.h"
 
 #ifdef DEBUG_brendan
 # define METERING
@@ -158,7 +163,7 @@ nsBufferedStream::Seek(PRInt32 whence, PRInt64 offset)
     nsCOMPtr<nsISeekableStream> ras = do_QueryInterface(mStream, &rv);
     if (NS_FAILED(rv)) return rv;
 
-    nsInt64 absPos;
+    PRInt64 absPos = 0;
     switch (whence) {
       case nsISeekableStream::NS_SEEK_SET:
         absPos = offset;
@@ -198,8 +203,8 @@ nsBufferedStream::Seek(PRInt32 whence, PRInt64 offset)
 
     METER(if (bufstats.mBigSeekIndex < MAX_BIG_SEEKS)
               bufstats.mBigSeek[bufstats.mBigSeekIndex].mOldOffset =
-                  mBufferStartOffset + nsInt64(mCursor));
-    const nsInt64 minus1 = -1;
+                  mBufferStartOffset + PRInt64(mCursor));
+    const PRInt64 minus1 = -1;
     if (absPos == minus1) {
         // then we had the SEEK_END case, above
         PRInt64 tellPos;
@@ -224,7 +229,7 @@ nsBufferedStream::Tell(PRInt64 *result)
     if (mStream == nsnull)
         return NS_BASE_STREAM_CLOSED;
     
-    nsInt64 result64 = mBufferStartOffset;
+    PRInt64 result64 = mBufferStartOffset;
     result64 += mCursor;
     *result = result64;
     return NS_OK;
@@ -246,13 +251,28 @@ nsBufferedStream::SetEOF()
 ////////////////////////////////////////////////////////////////////////////////
 // nsBufferedInputStream
 
-NS_IMPL_ISUPPORTS_INHERITED3(nsBufferedInputStream, 
-                             nsBufferedStream,
+NS_IMPL_ADDREF_INHERITED(nsBufferedInputStream, nsBufferedStream)
+NS_IMPL_RELEASE_INHERITED(nsBufferedInputStream, nsBufferedStream)
+
+NS_IMPL_CLASSINFO(nsBufferedInputStream, NULL, nsIClassInfo::THREADSAFE,
+                  NS_BUFFEREDINPUTSTREAM_CID)
+
+NS_INTERFACE_MAP_BEGIN(nsBufferedInputStream)
+    NS_INTERFACE_MAP_ENTRY(nsIInputStream)
+    NS_INTERFACE_MAP_ENTRY(nsIBufferedInputStream)
+    NS_INTERFACE_MAP_ENTRY(nsIStreamBufferAccess)
+    NS_INTERFACE_MAP_ENTRY(nsIIPCSerializable)
+    NS_IMPL_QUERY_CLASSINFO(nsBufferedInputStream)
+NS_INTERFACE_MAP_END_INHERITING(nsBufferedStream)
+
+NS_IMPL_CI_INTERFACE_GETTER5(nsBufferedInputStream,
                              nsIInputStream,
                              nsIBufferedInputStream,
-                             nsIStreamBufferAccess)
+                             nsISeekableStream,
+                             nsIStreamBufferAccess,
+                             nsIIPCSerializable)
 
-NS_METHOD
+nsresult
 nsBufferedInputStream::Create(nsISupports *aOuter, REFNSIID aIID, void **aResult)
 {
     NS_ENSURE_NO_AGGREGATION(aOuter);
@@ -466,6 +486,36 @@ nsBufferedInputStream::GetUnbufferedStream(nsISupports* *aStream)
     return NS_OK;
 }
 
+PRBool
+nsBufferedInputStream::Read(const IPC::Message *aMsg, void **aIter)
+{
+    using IPC::ReadParam;
+
+    PRUint32 bufferSize;
+    IPC::InputStream inputStream;
+    if (!ReadParam(aMsg, aIter, &bufferSize) ||
+        !ReadParam(aMsg, aIter, &inputStream))
+        return PR_FALSE;
+
+    nsCOMPtr<nsIInputStream> stream(inputStream);
+    nsresult rv = Init(stream, bufferSize);
+    if (NS_FAILED(rv))
+        return PR_FALSE;
+
+    return PR_TRUE;
+}
+
+void
+nsBufferedInputStream::Write(IPC::Message *aMsg)
+{
+    using IPC::WriteParam;
+
+    WriteParam(aMsg, mBufferSize);
+
+    IPC::InputStream inputStream(Source());
+    WriteParam(aMsg, inputStream);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // nsBufferedOutputStream
 
@@ -480,7 +530,7 @@ NS_INTERFACE_MAP_BEGIN(nsBufferedOutputStream)
     NS_INTERFACE_MAP_ENTRY(nsIStreamBufferAccess)
 NS_INTERFACE_MAP_END_INHERITING(nsBufferedStream)
 
-NS_METHOD
+nsresult
 nsBufferedOutputStream::Create(nsISupports *aOuter, REFNSIID aIID, void **aResult)
 {
     NS_ENSURE_NO_AGGREGATION(aOuter);

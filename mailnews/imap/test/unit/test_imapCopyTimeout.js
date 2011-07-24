@@ -35,22 +35,22 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-// This test our handling of server timeouts during online move of 
+// This tests our handling of server timeouts during online move of
 // an imap message. The move is done as an offline operation and then
-//played back, to copy what the apps do.
+// played back, to copy what the apps do.
 
 let prefs = Components.classes["@mozilla.org/preferences-service;1"].
                 getService(Components.interfaces.nsIPrefService).getBranch("");
 prefs.setIntPref("mailnews.tcptimeout", 2);
 
-load("../../mailnews/resources/logHelper.js");
-load("../../mailnews/resources/mailTestUtils.js");
-load("../../mailnews/resources/asyncTestUtils.js");
-load("../../mailnews/resources/alertTestUtils.js");
-load("../../mailnews/resources/messageGenerator.js");
+load("../../../resources/logHelper.js");
+load("../../../resources/mailTestUtils.js");
+load("../../../resources/asyncTestUtils.js");
+load("../../../resources/alertTestUtils.js");
+load("../../../resources/messageGenerator.js");
 
 // IMAP pump
-load("../../mailnews/resources/IMAPpump.js");
+load("../../../resources/IMAPpump.js");
 
 // Globals
 

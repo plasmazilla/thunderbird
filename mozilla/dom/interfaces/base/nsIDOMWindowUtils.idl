@@ -45,14 +45,28 @@
  * getInterface on a DOMWindow.
  */
 
+%{C++
+#include "nsColor.h"
+#include "nsRect.h"
+#include "gfxContext.h"
+%}
+
+[ref] native nsConstRect(const nsRect);
+native nscolor(nscolor);
+[ptr] native gfxContext(gfxContext);
+typedef unsigned long long nsViewID;
+
+interface nsICycleCollectorListener;
 interface nsIDOMNode;
 interface nsIDOMNodeList;
 interface nsIDOMElement;
 interface nsIDOMHTMLCanvasElement;
 interface nsIDOMEvent;
+interface nsITransferable;
 interface nsIQueryContentEventResult;
+interface nsIDOMWindow;
 
-[scriptable, uuid(6a60fde5-a00a-4732-bbea-2787c174c04f)]
+[scriptable, uuid(3828e648-af61-47e1-b9bc-89ca51bc19f2)]
 interface nsIDOMWindowUtils : nsISupports {
 
   /**
@@ -82,6 +96,12 @@ interface nsIDOMWindowUtils : nsISupports {
   readonly attribute boolean docCharsetIsForced;
 
   /**
+   * Get current cursor type from this window
+   * @return the current value of nsCursor
+   */
+  short getCursorType();
+
+  /**
    * Function to get metadata associated with the window's current document
    * @param aName the name of the metadata.  This should be all lowercase.
    * @return the value of the metadata, or the empty string if it's not set
@@ -99,8 +119,73 @@ interface nsIDOMWindowUtils : nsISupports {
    */
   unsigned long redraw([optional] in unsigned long aCount);
 
-  /** Synthesize a mouse event for a window. The event types supported
-   *  are: 
+  /**
+   * Set the CSS viewport to be |widthPx| x |heightPx| in units of CSS
+   * pixels, regardless of the size of the enclosing widget/view.
+   * This will trigger reflow.
+   *
+   * The caller of this method must have UniversalXPConnect
+   * privileges.
+   */
+  void setCSSViewport(in float aWidthPx, in float aHeightPx);
+
+  /**
+   * For any scrollable element, this allows you to override the
+   * visible region and draw more than what is visible, which is
+   * useful for asynchronous drawing. The "displayport" will be
+   * <xPx, yPx, widthPx, heightPx> in units of CSS pixels,
+   * regardless of the size of the enclosing container.  This
+   * will *not* trigger reflow.
+   *
+   * For the root scroll area, pass in the root document element.
+   * For scrollable elements, pass in the container element (for
+   * instance, the element with overflow: scroll).
+   *
+   * <x, y> is relative to the top-left of what would normally be
+   * the visible area of the element. This means that the pixels
+   * rendered to the displayport take scrolling into account,
+   * for example.
+   *
+   * It's legal to set a displayport that extends beyond the overflow
+   * area in any direction (left/right/top/bottom).
+   * 
+   * It's also legal to set a displayport that extends beyond the
+   * area's bounds.  No pixels are rendered outside the area bounds.
+   *
+   * The caller of this method must have UniversalXPConnect
+   * privileges.
+   */
+  void setDisplayPortForElement(in float aXPx, in float aYPx,
+                                in float aWidthPx, in float aHeightPx,
+                                in nsIDOMElement aElement);
+
+  /**
+   * Get/set the resolution at which rescalable web content is drawn.
+   * Currently this is only (some) thebes content.
+   *
+   * Setting a new resolution does *not* trigger reflow.  This API is
+   * entirely separate from textZoom and fullZoom; a resolution scale
+   * can be applied together with both textZoom and fullZoom.
+   *
+   * The effect of is API for gfx code to allocate more or fewer
+   * pixels for rescalable content by a factor of |resolution| in
+   * either or both dimensions.  setResolution() together with
+   * setDisplayport() can be used to implement a non-reflowing
+   * scale-zoom in concert with another entity that can draw with a
+   * scale.  For example, to scale a content |window| inside a
+   * <browser> by a factor of 2.0
+   *
+   *   window.setDisplayport(x, y, oldW / 2.0, oldH / 2.0);
+   *   window.setResolution(2.0, 2.0);
+   *   // elsewhere
+   *   browser.setViewportScale(2.0, 2.0);
+   *
+   * The caller of this method must have UniversalXPConnect
+   * privileges.
+   */
+  void setResolution(in float aXResolution, in float aYResolution);
+
+  /** Synthesize a mouse event. The event types supported are:
    *    mousedown, mouseup, mousemove, mouseover, mouseout, contextmenu
    *
    * Events are sent in coordinates offset by aX and aY from the window.
@@ -118,6 +203,10 @@ interface nsIDOMWindowUtils : nsISupports {
    * Will throw a DOM security error if called without UniversalXPConnect
    * privileges.
    *
+   * The event is dispatched via the toplevel window, so it could go to any
+   * window under the toplevel window, in some cases it could never reach this
+   * window at all.
+   *
    * @param aType event type
    * @param aX x offset in CSS pixels
    * @param aY y offset in CSS pixels
@@ -134,6 +223,17 @@ interface nsIDOMWindowUtils : nsISupports {
                       in long aClickCount,
                       in long aModifiers,
                       [optional] in boolean aIgnoreRootScrollFrame);
+
+  /** The same as sendMouseEvent but ensures that the event is dispatched to
+   *  this DOM window or one of its children.
+   */
+  void sendMouseEventToWindow(in AString aType,
+                              in float aX,
+                              in float aY,
+                              in long aButton,
+                              in long aClickCount,
+                              in long aModifiers,
+                              [optional] in boolean aIgnoreRootScrollFrame);
 
   /** Synthesize a mouse scroll event for a window. The event types supported
    *  are: 
@@ -203,6 +303,20 @@ interface nsIDOMWindowUtils : nsISupports {
                           in AString aUnmodifiedCharacters);
 
   /**
+   * See nsIWidget::SynthesizeNativeMouseEvent
+   *
+   * Will be called on the widget that contains aElement.
+   * Cannot be accessed from unprivileged context (not content-accessible)
+   * Will throw a DOM security error if called without UniversalXPConnect
+   * privileges.
+   */
+  void sendNativeMouseEvent(in long aScreenX,
+                            in long aScreenY,
+                            in long aNativeMessage,
+                            in long aModifierFlags,
+                            in nsIDOMElement aElement);
+
+  /**
    * See nsIWidget::ActivateNativeMenuItemAt
    *
    * Cannot be accessed from unprivileged context (not content-accessible)
@@ -238,13 +352,16 @@ interface nsIDOMWindowUtils : nsISupports {
   void focus(in nsIDOMElement aElement);
 
   /**
-   * Force a garbage collection. This will run the cycle-collector twice to
-   * make sure all garbage is collected.
+   * Force a garbage collection followed by a cycle collection.
    *
    * Will throw a DOM security error if called without UniversalXPConnect
    * privileges in non-debug builds. Available to all callers in debug builds.
+   *
+   * @param aListener listener that receives information about the CC graph
+   *                  (see @mozilla.org/cycle-collector-logger;1 for a logger
+   *                   component)
    */
-  void garbageCollect();
+  void garbageCollect([optional] in nsICycleCollectorListener aListener);
 
   /**
    * Force processing of any queued paints
@@ -284,10 +401,33 @@ interface nsIDOMWindowUtils : nsISupports {
    *        null for coordinates outside of the viewport.
    * @param aFlushLayout flushes layout if true. Otherwise, no flush occurs.
    */
-  nsIDOMElement elementFromPoint(in long aX,
-                                 in long aY,
+  nsIDOMElement elementFromPoint(in float aX,
+                                 in float aY,
                                  in boolean aIgnoreRootScrollFrame,
                                  in boolean aFlushLayout);
+
+  /**
+   * Retrieve all nodes that intersect a rect in the window's document.
+   *
+   * @param aX x reference for the rectangle in CSS pixels
+   * @param aY y reference for the rectangle in CSS pixels
+   * @param aTopSize How much to expand up the rectangle
+   * @param aRightSize How much to expand right the rectangle
+   * @param aBottomSize How much to expand down the rectangle
+   * @param aLeftSize How much to expand left the rectangle
+   * @param aIgnoreRootScrollFrame whether or not to ignore the root scroll
+   *        frame when retrieving the element. If false, this method returns
+   *        null for coordinates outside of the viewport.
+   * @param aFlushLayout flushes layout if true. Otherwise, no flush occurs.
+   */
+  nsIDOMNodeList nodesFromRect(in float aX,
+                               in float aY,
+                               in float aTopSize, 
+                               in float aRightSize,
+                               in float aBottomSize,
+                               in float aLeftSize,
+                               in boolean aIgnoreRootScrollFrame,
+                               in boolean aFlushLayout);
 
   /**
    * Compare the two canvases, returning the number of differing pixels and
@@ -338,17 +478,6 @@ interface nsIDOMWindowUtils : nsISupports {
   void getScrollXY(in boolean aFlushLayout, out long aScrollX, out long aScrollY);
 
   /**
-   * Creates a ChromeObjectWrapper for the object and returns it.
-   *
-   * @param scope The JavaScript object whose scope we'll use as the
-   *        parent of the wrapper.
-   * @param objToWrap The JavaScript object to wrap.
-   * @return the wrapped object.
-   */
-
-  void getCOWForObject(/* scope, objToWrap */);
-
-  /**
    * Get IME open state. TRUE means 'Open', otherwise, 'Close'.
    * This property works only when IMEEnabled is IME_STATUS_ENABLED.
    */
@@ -393,11 +522,7 @@ interface nsIDOMWindowUtils : nsISupports {
    * Get the number of screen pixels per CSS pixel.
    */
   readonly attribute float screenPixelsPerCSSPixel;
-};
 
-[scriptable, uuid(b0f803f7-98c0-4152-812c-d6678ba23049)]
-interface nsIDOMWindowUtils_1_9_2 : nsISupports
-{
   /**
    * Dispatches aEvent via the nsIPresShell object of the window's document.
    * The event is dispatched to aTarget, which should be an object
@@ -413,33 +538,79 @@ interface nsIDOMWindowUtils_1_9_2 : nsISupports
   boolean dispatchDOMEventViaPresShell(in nsIDOMNode aTarget,
                                        in nsIDOMEvent aEvent,
                                        in boolean aTrusted);
-};
 
-[scriptable, uuid(915abb48-66d4-4135-a0d8-153fb87b99e6)]
-interface nsIDOMWindowUtils_1_9_2_5 : nsISupports
-{
   /**
-   * Retrieve all nodes that intersect a rect in the window's document.
-   *
-   * @param aX x reference for the rectangle in CSS pixels
-   * @param aY y reference for the rectangle in CSS pixels
-   * @param aTopSize How much to expand up the rectangle
-   * @param aRightSize How much to expand right the rectangle
-   * @param aBottomSize How much to expand down the rectangle
-   * @param aLeftSize How much to expand left the rectangle
-   * @param aIgnoreRootScrollFrame whether or not to ignore the root scroll
-   *        frame when retrieving the element. If false, this method returns
-   *        null for coordinates outside of the viewport.
-   * @param aFlushLayout flushes layout if true. Otherwise, no flush occurs.
+   * Returns the real classname (possibly of the mostly-transparent security
+   * wrapper) of aObj.
    */
-  nsIDOMNodeList nodesFromRect(in float aX,
-                               in float aY,
-                               in float aTopSize, 
-                               in float aRightSize,
-                               in float aBottomSize,
-                               in float aLeftSize,
-                               in boolean aIgnoreRootScrollFrame,
-                               in boolean aFlushLayout);
+  string getClassName(/*in JSObjectPtr aObj*/);
+
+  /**
+   * Generate a content command event.
+   *
+   * Cannot be accessed from unprivileged context (not content-accessible)
+   * Will throw a DOM security error if called without UniversalXPConnect
+   * privileges.
+   *
+   * @param aType Type of command content event to send.  Can be one of "cut",
+   *        "copy", "paste", "delete", "undo", "redo", or "pasteTransferable".
+   * @param aTransferable an instance of nsITransferable when aType is
+   *        "pasteTransferable"
+   */
+  void sendContentCommandEvent(in AString aType,
+                               [optional] in nsITransferable aTransferable);
+
+  /**
+   * Synthesize a composition event to the window.
+   *
+   * Cannot be accessed from unprivileged context (not content-accessible)
+   * Will throw a DOM security error if called without UniversalXPConnect
+   * privileges.
+   *
+   * @param aType The event type: "compositionstart" or "compositionend".
+   */
+  void sendCompositionEvent(in AString aType);
+
+  /**
+   * Synthesize a text event to the window.
+   *
+   * Cannot be accessed from unprivileged context (not content-accessible)
+   * Will throw a DOM security error if called without UniversalXPConnect
+   * privileges.
+   *
+   * Currently, this method doesn't support 4 or more clauses composition
+   * string.
+   *
+   * @param aCompositionString  composition string
+   * @param a*ClauseLengh       the length of nth clause, set 0 when you
+   *                            don't need second or third clause.
+   * @param a*ClauseAttr        the attribute of nth clause, uese following
+   *                            const values.
+   * @param aCaretStart         the caret position in the composition string,
+   *                            if you set negative value, this method don't
+   *                            set the caret position to the event.
+   * @param aCaretLength        the caret length, if this is one or more,
+   *                            the caret will be wide caret, otherwise,
+   *                            it's collapsed.
+   *                            XXX nsEditor doesn't support wide caret yet.
+   */
+
+  // NOTE: These values must be same to NS_TEXTRANGE_* in nsGUIEvent.h
+
+  const unsigned long COMPOSITION_ATTR_RAWINPUT              = 0x02;
+  const unsigned long COMPOSITION_ATTR_SELECTEDRAWTEXT       = 0x03;
+  const unsigned long COMPOSITION_ATTR_CONVERTEDTEXT         = 0x04;
+  const unsigned long COMPOSITION_ATTR_SELECTEDCONVERTEDTEXT = 0x05;
+
+  void sendTextEvent(in AString aCompositionString,
+                     in long aFirstClauseLength,
+                     in unsigned long aFirstClauseAttr,
+                     in long aSecondClauseLength,
+                     in unsigned long aSecondClauseAttr,
+                     in long aThirdClauseLength,
+                     in unsigned long aThirdClauseAttr,
+                     in long aCaretStart,
+                     in long aCaretLength);
 
   /**
    * Synthesize a query content event.
@@ -542,8 +713,172 @@ interface nsIDOMWindowUtils_1_9_2_5 : nsISupports
   const unsigned long QUERY_CHARACTER_AT_POINT                  = 3208;
 
   /**
-   * Exposes the CSS parser's "initial syntax is valid" heuristic for
-   * testing.
+   * Synthesize a selection set event to the window.
+   *
+   * This sets the selection as the specified information.
+   *
+   * @param aOffset  The caret offset of the selection start.
+   * @param aLength  The length of the selection.  If this is too long, the
+   *                 extra length is ignored.
+   * @param aReverse If true, the selection set from |aOffset + aLength| to
+   *                 |aOffset|.  Otherwise, set from |aOffset| to
+   *                 |aOffset + aLength|.
+   * @return True, if succeeded.  Otherwise, false.
    */
-  boolean cssInitialSyntaxIsValid(in AString aSheet);
+  boolean sendSelectionSetEvent(in unsigned long aOffset,
+                                in unsigned long aLength,
+                                in boolean aReverse);
+
+  /**
+   * Perform the equivalent of:
+   *   window.getComputedStyle(aElement, aPseudoElement).
+   *     getPropertyValue(aPropertyName)
+   * except that, when the link whose presence in history is allowed to
+   * influence aElement's style is visited, get the value the property
+   * would have if allowed all properties to change as a result of
+   * :visited selectors (except for cases where getComputedStyle uses
+   * data from the frame).
+   *
+   * This is easier to implement than adding our property restrictions
+   * to this API, and is sufficient for the present testing
+   * requirements (which are essentially testing 'color').
+   */
+  AString getVisitedDependentComputedStyle(in nsIDOMElement aElement,
+                                           in AString aPseudoElement,
+                                           in AString aPropertyName);
+
+  /**
+   * Returns the parent of obj.
+   *
+   * @param obj The JavaScript object whose parent is to be gotten.
+   * @return the parent.
+   */
+  void getParent(/* obj */);
+
+  /**
+   * Get the id of the outer window of this window.  This will never throw.
+   */
+  readonly attribute unsigned long long outerWindowID;
+
+  /**
+   * Get the id of the current inner window of this window.  If there
+   * is no current inner window, throws NS_ERROR_NOT_AVAILABLE.
+   */
+  readonly attribute unsigned long long currentInnerWindowID;
+
+  /**
+   * Put the window into a state where scripts are frozen and events
+   * suppressed, for use when the window has launched a modal prompt.
+   */
+  [noscript] void enterModalState();
+
+  /**
+   * Resume normal window state, where scripts can run and events are
+   * delivered.
+   */
+  [noscript] void leaveModalState();
+
+  /**
+   * Same as enterModalState, but returns the window associated with the
+   * current JS context.
+   */
+  nsIDOMWindow enterModalStateWithWindow();
+
+  /**
+   * Same as leaveModalState, but takes a window associated with the active
+   * context when enterModalStateWithWindow was called. The currently context
+   * might be different at the moment (see bug 621764).
+   */
+  void leaveModalStateWithWindow(in nsIDOMWindow aWindow);
+
+  /**
+   * Is the window is in a modal state? [See enterModalState()]
+   */
+  [noscript] boolean isInModalState();
+
+  /**
+   * Suspend/resume timeouts on this window and its descendant windows.
+   */
+  void suspendTimeouts();
+  void resumeTimeouts();
+
+  /**
+   * What type of layer manager the widget associated with this window is
+   * using. "Basic" is unaccelerated; other types are accelerated. Throws an
+   * error if there is no widget associated with this window.
+   */
+  readonly attribute AString layerManagerType;
+
+  /**
+   * The DPI of the display
+   */
+  readonly attribute float displayDPI;
+
+  /**
+   * Return the outer window with the given ID, if any.  Can return null.
+   */
+  nsIDOMWindow getOuterWindowWithId(in unsigned long long aOuterWindowID);
+
+  [noscript] void RenderDocument(in nsConstRect aRect,
+                                 in PRUint32 aFlags,
+                                 in nscolor aBackgroundColor,
+                                 in gfxContext aThebesContext);
+
+  /**
+   * advanceTimeAndRefresh allows the caller to take over the refresh
+   * driver timing for a window.  A call to advanceTimeAndRefresh does
+   * three things:
+   *  (1) It marks the refresh driver for this presentation so that it
+   *      no longer refreshes on its own, but is instead driven entirely
+   *      by the caller (except for the refresh that happens when a
+   *      document comes out of the bfcache).
+   *  (2) It advances the refresh driver's current refresh time by the
+   *      argument given.  Negative advances are permitted.
+   *  (3) It does a refresh (i.e., notifies refresh observers) at that
+   *      new time.
+   *
+   * Note that this affects other connected docshells of the same type
+   * in the same docshell tree, such as parent frames.
+   *
+   * When callers have completed their use of advanceTimeAndRefresh,
+   * they must call restoreNormalRefresh.
+   */
+  void advanceTimeAndRefresh(in long long aMilliseconds);
+
+  /**
+   * Undoes the effects of advanceTimeAndRefresh.
+   */
+  void restoreNormalRefresh();
+
+  /**
+   * Method for testing nsStyleAnimation::ComputeDistance.
+   *
+   * Returns the distance between the two values as reported by
+   * nsStyleAnimation::ComputeDistance for the given element and
+   * property.
+   */
+  double computeAnimationDistance(in nsIDOMElement element,
+                                  in AString property,
+                                  in AString value1,
+                                  in AString value2);
+
+  /**
+   * Get the type of the currently focused html input, if any.
+   */
+  readonly attribute string focusedInputType;
+
+  /**
+   * Given a view ID from the compositor process, retrieve the element
+   * associated with a view. For scrollpanes for documents, the root
+   * element of the document is returned.
+   */
+  nsIDOMElement findElementWithViewId(in nsViewID aId);
+
+  /**
+   * Checks the layer tree for this window and returns true
+   * if all layers have transforms that are translations by integers,
+   * no leaf layers overlap, and the union of the leaf layers is exactly
+   * the bounds of the window. Always returns true in non-DEBUG builds.
+   */
+  boolean leafLayersPartitionWindow();
 };

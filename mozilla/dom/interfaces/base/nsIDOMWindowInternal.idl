@@ -43,8 +43,9 @@ interface nsIPrompt;
 interface nsIControllers;
 interface nsIDOMLocation;
 interface nsIVariant;
+interface nsIAnimationFrameListener;
 
-[scriptable, uuid(c2f4433a-8b4c-4676-ab30-3bffd26fb29e)]
+[scriptable, uuid(9d6a1157-0719-46a7-b49f-7ffeaa0b5c86)]
 interface nsIDOMWindowInternal : nsIDOMWindow2
 {
   readonly attribute nsIDOMWindowInternal        window;
@@ -77,8 +78,6 @@ interface nsIDOMWindowInternal : nsIDOMWindow2
   /* [replaceable] statusbar */
   readonly attribute nsIDOMBarProp               statusbar;
 
-  /* [replaceable] directories */
-  readonly attribute nsIDOMBarProp               directories;
   readonly attribute boolean                     closed;
   readonly attribute nsIDOMCrypto                crypto;
   readonly attribute nsIDOMPkcs11                pkcs11;
@@ -126,9 +125,7 @@ interface nsIDOMWindowInternal : nsIDOMWindow2
 
   // prompt() should return a null string if cancel is pressed
   DOMString                 prompt([optional] in DOMString aMessage,
-                                   [optional] in DOMString aInitial,
-                                   [optional] in DOMString aTitle,
-                                   [optional] in unsigned long aSavePassword);
+                                   [optional] in DOMString aInitial);
 
   void                      focus();
   void                      blur();
@@ -218,4 +215,34 @@ interface nsIDOMWindowInternal : nsIDOMWindow2
    */
   [binaryname(PostMessageMoz)] void postMessage(in DOMString message,
                                                 in DOMString targetOrigin);
+
+  /**
+   * Returns the number of times this document for this window has
+   * been painted to the screen.
+   */
+  readonly attribute unsigned long long mozPaintCount;
+
+  /**
+   * Request a refresh of this browser window.
+   */
+  void
+    mozRequestAnimationFrame([optional] in nsIAnimationFrameListener aListener);
+
+  /**
+   * The current animation start time in milliseconds since the epoch.
+   */
+  readonly attribute long long mozAnimationStartTime;
+};
+
+[scriptable, uuid(8fc58f56-f769-4368-a098-edd08550cf1a)]
+interface nsIDOMMozURLProperty : nsISupports
+{
+  DOMString createObjectURL(in nsIDOMBlob blob);
+  void revokeObjectURL(in DOMString URL);
+};
+
+[scriptable, uuid(05563c0c-b74c-41ad-91d1-bc22d580a581)]
+interface nsIDOMWindow_2_0_BRANCH : nsISupports
+{
+  readonly attribute nsIDOMMozURLProperty URL;
 };

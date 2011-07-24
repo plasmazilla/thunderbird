@@ -46,9 +46,9 @@
 #import <objc/Object.h>
 #import <IOKit/IOKitLib.h>
 
-#define MAC_OS_X_VERSION_10_4_HEX 0x00001040
 #define MAC_OS_X_VERSION_10_5_HEX 0x00001050
 #define MAC_OS_X_VERSION_10_6_HEX 0x00001060
+#define MAC_OS_X_VERSION_10_7_HEX 0x00001070
 
 class nsToolkit : public nsIToolkit
 {
@@ -59,13 +59,10 @@ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSITOOLKIT
 
-  // Returns the OS X version as returned from Gestalt(gestaltSystemVersion, ...)
   static PRInt32     OSXVersion();
-  
-  // Convenience functions to check the OS version
-  static PRBool      OnLeopardOrLater();
   static PRBool      OnSnowLeopardOrLater();
-  
+  static PRBool      OnLionOrLater();
+
   static void        PostSleepWakeNotification(const char* aNotification);
 
   static nsresult    SwizzleMethods(Class aClass, SEL orgMethod, SEL posedMethod,

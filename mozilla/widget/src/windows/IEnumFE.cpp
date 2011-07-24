@@ -37,6 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "IEnumFE.h"
+#include "nsAlgorithm.h"
 
 CEnumFormatEtc::CEnumFormatEtc() :
   mRefCnt(0),
@@ -49,6 +50,7 @@ CEnumFormatEtc::CEnumFormatEtc(nsTArray<FormatEtc>& aArray) :
   mRefCnt(0),
   mCurrentIdx(0)
 {
+  // a deep copy, calls FormatEtc's copy constructor on each
   mFormatList.AppendElements(aArray);
 }
 
@@ -124,7 +126,7 @@ CEnumFormatEtc::Next(ULONG aMaxToFetch, FORMATETC *aResult, ULONG *aNumFetched)
   if (!aMaxToFetch)
       return S_FALSE;
 
-  PRUint32 count = static_cast<PRUint32>(aMaxToFetch) < left ? static_cast<PRUint32>(aMaxToFetch) : left;
+  PRUint32 count = NS_MIN(static_cast<PRUint32>(aMaxToFetch), left);
 
   PRUint32 idx = 0;
   while (count > 0) {
@@ -164,6 +166,7 @@ STDMETHODIMP
 CEnumFormatEtc::Clone(LPENUMFORMATETC *aResult)
 {
   // Must return a new IEnumFORMATETC interface with the same iterative state.
+
   if (!aResult)
       return E_INVALIDARG;
 
@@ -180,6 +183,8 @@ CEnumFormatEtc::Clone(LPENUMFORMATETC *aResult)
   return S_OK;
 }
 
+/* utils */
+
 void
 CEnumFormatEtc::AddFormatEtc(LPFORMATETC aFormat)
 {
@@ -192,6 +197,7 @@ CEnumFormatEtc::AddFormatEtc(LPFORMATETC aFormat)
 }
 
 /* private */
+
 void
 CEnumFormatEtc::SetIndex(PRUint32 aIdx)
 {

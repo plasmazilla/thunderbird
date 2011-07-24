@@ -45,6 +45,7 @@ include $(DEPTH)/config/autoconf.mk
 include $(topsrcdir)/config/rules.mk
 
 _MOCHITEST_FILES = \
+  utils.js \
   test_getauthenticationinfo.html \
   test_npobject_getters.html \
   test_npruntime_npnevaluate.html \
@@ -69,6 +70,7 @@ _MOCHITEST_FILES = \
   test_pluginstream_poststream.html \
   test_pluginstream_seek.html \
   test_pluginstream_newstream.html \
+  test_pluginstream_seek_close.html \
   test_fullpage.html \
   loremipsum.xtest \
   loremipsum.xtest^headers^ \
@@ -76,6 +78,7 @@ _MOCHITEST_FILES = \
   test_streamNotify.html \
   test_instantiation.html \
   test_cookies.html \
+  test_npn_timers.html \
   test_npn_asynccall.html \
   test_bug532208.html \
   large-pic.jpg \
@@ -83,42 +86,55 @@ _MOCHITEST_FILES = \
   test_streamatclose.html \
   neverending.sjs \
   test_newstreamondestroy.html \
-  test_propertyAndMethod.html \
-  test_enumerate.html \
-  $(NULL)
-
-#  test_npruntime_npnsetexception.html \ Disabled for e10s
-
-ifdef MOZ_IPC
-_MOCHITEST_FILES += \
   test_crashing.html \
-  test_crashing2.html \
+  $(warning test_crashing2.html disabled due to random orange; see bug 566049) \
   test_hanging.html \
   crashing_subpage.html \
   test_GCrace.html \
+  test_propertyAndMethod.html \
+  test_bug539565-1.html \
+  test_bug539565-2.html \
+  test_enumerate.html \
+  test_npruntime_construct.html \
+  307-xo-redirect.sjs \
+  test_redirect_handling.html \
+  test_clear_site_data.html \
   $(NULL)
-endif
+
+#  test_plugin_scroll_painting.html \ bug 596491
+#  test_npruntime_npnsetexception.html \ Disabled for e10s
 
 ifeq ($(OS_ARCH),WINNT)
 _MOCHITEST_FILES += \
   test_windowed_invalidate.html \
   $(NULL)
+
+# test_positioning.html \ disabled due to oddness, perhaps scrolling of the
+# mochitest window?
 endif
 
 _MOCHICHROME_FILES = \
-  test_bug479979.xul \
+  utils.js \
   test_npruntime.xul   \
   test_privatemode.xul \
   test_wmode.xul \
+  test_bug479979.xul \
   $(NULL)
 
-ifeq (gtk2,$(MOZ_WIDGET_TOOLKIT))
+ifneq ($(MOZ_WIDGET_TOOLKIT),cocoa)
 _MOCHITEST_FILES += \
-		test_copyText.html \
-		$(NULL)
+  test_visibility.html \
+  $(NULL)
+
+ifneq ($(OS_ARCH),WINNT)
+_MOCHICHROME_FILES += \
+  test_xulbrowser_plugin_visibility.xul \
+  xulbrowser_plugin_visibility.xul \
+  plugin_visibility_loader.html \
+  $(NULL)
+endif
 endif
 
-ifdef MOZ_IPC
 ifdef MOZ_CRASHREPORTER
 _MOCHICHROME_FILES += \
   test_crash_notify.xul \
@@ -126,10 +142,29 @@ _MOCHICHROME_FILES += \
   test_crash_submit.xul \
   $(NULL)
 endif
+
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+_MOCHICHROME_FILES += \
+  test_convertpoint.xul \
+  $(NULL)
+
+_MOCHITEST_FILES += \
+  test_cocoa_window_focus.html \
+  cocoa_window_focus.html \
+  test_cocoa_focus.html \
+  cocoa_focus.html \
+  $(NULL)
+endif
+
+ifeq (gtk2,$(MOZ_WIDGET_TOOLKIT))
+_MOCHITEST_FILES += \
+		test_copyText.html \
+		test_crash_nested_loop.html \
+		$(NULL)
 endif
 
 libs:: $(_MOCHICHROME_FILES)
 	$(INSTALL) $^ $(DEPTH)/_tests/testing/mochitest/chrome/$(relativesrcdir)
 
 libs:: $(_MOCHITEST_FILES)
-	$(INSTALL) $^ $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)
+	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)

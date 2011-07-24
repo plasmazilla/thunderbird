@@ -35,7 +35,7 @@ button {
   /* margin left/right: 1/2 of scrubber thumb width, for overhang. */
   margin: 10px 22px;
   background-color: #C7D0D9;
-  -moz-border-radius: 4px;
+  border-radius: 4px;
 }
 
 .bufferBar, .progressBar {
@@ -62,12 +62,12 @@ button {
 /* .progress-bar is an element inside the <progressmeter> implementation. */
 .bufferBar > .progress-bar {
   background-color: #B1BBC5;
-  -moz-border-radius: 4px;
+  border-radius: 4px;
 }
 
 .progressBar > .progress-bar {
   background-color: #6B7B8D;
-  -moz-border-radius: 4px;
+  border-radius: 4px;
 }
 
 /* .scale-slider is an element inside the <scale> implementation. */
@@ -93,7 +93,7 @@ button {
   -moz-border-right-colors: #000000;
   -moz-border-bottom-colors: #000000;
   -moz-border-left-colors: #000000;
-  -moz-border-radius: 5px;
+  border-radius: 5px;
   min-height: 11px;
   min-width: 20px;
 }
@@ -102,7 +102,7 @@ button {
   /* margin left/right: make bar 8px wide (control width = 28, minus 2 * 10 margin) */
   margin: 0px 10px;
   background-color: #B1BBC5;
-  -moz-border-radius: 4px;
+  border-radius: 4px;
 }
 
 .durationBox {
@@ -114,7 +114,12 @@ button {
   padding-left: 8px; /* don't bump into the scrubber bar */
   padding-top: 0px; /* center vertically with scrubber bar */
   color: #000000;
-  font: 11px sans-serif;
+  font-size: 11px;
+  font-family: Helvetica, Arial, sans-serif;
+}
+
+.positionLabel {
+  display: none;
 }
 
 .scrubber .scale-slider {
@@ -143,11 +148,14 @@ button {
 
 .timeLabel {
   color: #000000;
-  font: 10px sans-serif;
+  font-size: 10px;
+  font-family: Helvetica, Arial, sans-serif;
   padding-top: 4px;
 }
 
 .statusOverlay {
+  -moz-box-align: center;
+  -moz-box-pack: center;
   background-color: #000000;
 }
 
@@ -163,4 +171,34 @@ button {
 
 .statusIcon[type="error"] {
   background: url(chrome://global/skin/media/error.png) no-repeat center;
+}
+
+/* CSS Transitions */
+.controlBar:not([immediate]) {
+  -moz-transition-property: opacity;
+  -moz-transition-duration: 200ms;
+}
+
+.controlBar[fadeout] {
+  opacity: 0.0;
+}
+
+.volumeStack:not([immediate]) {
+  -moz-transition-property: opacity, margin-top;
+  -moz-transition-duration: 200ms, 200ms;
+}
+
+.volumeStack[fadeout] {
+  opacity: 0.0;
+  margin-top: 0px;
+}
+
+.statusOverlay:not([immediate]) {
+  -moz-transition-property: opacity;
+  -moz-transition-duration: 300ms;
+  -moz-transition-delay: 750ms;
+}
+
+.statusOverlay[fadeout] {
+  opacity: 0.0;
 }

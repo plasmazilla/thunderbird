@@ -39,22 +39,23 @@
 #ifndef nsThread_h__
 #define nsThread_h__
 
+#include "mozilla/Mutex.h"
 #include "nsIThreadInternal.h"
 #include "nsISupportsPriority.h"
 #include "nsEventQueue.h"
 #include "nsThreadUtils.h"
 #include "nsString.h"
-#include "nsAutoLock.h"
-#include "nsAutoPtr.h"
+#include "nsTObserverArray.h"
 
 // A native thread
-class nsThread : public nsIThreadInternal, public nsISupportsPriority
+class nsThread : public nsIThreadInternal2, public nsISupportsPriority
 {
 public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIEVENTTARGET
   NS_DECL_NSITHREAD
   NS_DECL_NSITHREADINTERNAL
+  NS_DECL_NSITHREADINTERNAL2
   NS_DECL_NSISUPPORTSPRIORITY
 
   nsThread();
@@ -104,10 +105,6 @@ private:
       : mNext(nsnull), mFilter(filter) {
     }
 
-    PRBool IsInitialized() {
-      return mQueue.IsInitialized();
-    }
-
     PRBool GetEvent(PRBool mayWait, nsIRunnable **event) {
       return mQueue.GetEvent(mayWait, event);
     }
@@ -129,9 +126,12 @@ private:
   // another thread).  This means that we can avoid holding the lock while
   // using mObserver and mEvents on the thread itself.  When calling PutEvent
   // on mEvents, we have to hold the lock to synchronize with PopEventQueue.
-  PRLock *mLock;
+  mozilla::Mutex mLock;
 
   nsCOMPtr<nsIThreadObserver> mObserver;
+
+  // Only accessed on the target thread.
+  nsAutoTObserverArray<nsCOMPtr<nsIThreadObserver>, 2> mEventObservers;
 
   nsChainedEventQueue *mEvents;   // never null
   nsChainedEventQueue  mEventsRoot;
@@ -153,11 +153,15 @@ private:
 class nsThreadSyncDispatch : public nsRunnable {
 public:
   nsThreadSyncDispatch(nsIThread *origin, nsIRunnable *task)
-    : mOrigin(origin), mSyncTask(task) {
+    : mOrigin(origin), mSyncTask(task), mResult(NS_ERROR_NOT_INITIALIZED) {
   }
 
   PRBool IsPending() {
     return mSyncTask != nsnull;
+  }
+
+  nsresult Result() {
+    return mResult;
   }
 
 private:
@@ -165,6 +169,7 @@ private:
 
   nsCOMPtr<nsIThread> mOrigin;
   nsCOMPtr<nsIRunnable> mSyncTask;
+  nsresult mResult;
 };
 
 #endif  // nsThread_h__

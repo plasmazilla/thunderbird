@@ -57,7 +57,8 @@ CPPSRCS		    = lirasm.cpp \
 		RegAlloc.cpp   \
 		avmplus.cpp    \
 		Native$(NANOJIT_ARCH).cpp \
-		VMPI.cpp \
+		njconfig.cpp   \
+		VMPI.cpp       \
 		$(NULL)
 
 
@@ -66,13 +67,10 @@ LOCAL_INCLUDES += -I$(topsrcdir) -I..
 include $(topsrcdir)/config/rules.mk
 
 ifdef _MSC_VER
-ifdef WINCE
-WIN32_EXE_LDFLAGS += -ENTRY:mainACRTStartup
-endif
 CFLAGS += -EHsc
 CXXFLAGS += -EHsc
 endif
 
-check::
-	$(srcdir)/testlirc.sh
+check:: $(PROGRAM)
+	$(srcdir)/testlirc.sh $(PROGRAM)
 

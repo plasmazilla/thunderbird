@@ -39,13 +39,16 @@
 #ifndef nsMenuBaseX_h_
 #define nsMenuBaseX_h_
 
+#import <Foundation/Foundation.h>
+
 #include "nsCOMPtr.h"
 #include "nsIContent.h"
 
 enum nsMenuObjectTypeX {
   eMenuBarObjectType,
   eSubmenuObjectType,
-  eMenuItemObjectType
+  eMenuItemObjectType,
+  eStandaloneNativeMenuObjectType,
 };
 
 // All menu objects subclass this.
@@ -63,6 +66,40 @@ public:
 
 protected:
   nsCOMPtr<nsIContent> mContent;
+};
+
+
+//
+// Object stored as "representedObject" for all menu items
+//
+
+class nsMenuGroupOwnerX;
+
+@interface MenuItemInfo : NSObject
+{
+  nsMenuGroupOwnerX * mMenuGroupOwner;
+}
+
+- (id) initWithMenuGroupOwner:(nsMenuGroupOwnerX *)aMenuGroupOwner;
+- (nsMenuGroupOwnerX *) menuGroupOwner;
+- (void) setMenuGroupOwner:(nsMenuGroupOwnerX *)aMenuGroupOwner;
+
+@end
+
+
+// Special command IDs that we know Mac OS X does not use for anything else.
+// We use these in place of carbon's IDs for these commands in order to stop
+// Carbon from messing with our event handlers. See bug 346883.
+
+enum {
+  eCommand_ID_About      = 1,
+  eCommand_ID_Prefs      = 2,
+  eCommand_ID_Quit       = 3,
+  eCommand_ID_HideApp    = 4,
+  eCommand_ID_HideOthers = 5,
+  eCommand_ID_ShowAll    = 6,
+  eCommand_ID_Update     = 7,
+  eCommand_ID_Last       = 8
 };
 
 #endif // nsMenuBaseX_h_

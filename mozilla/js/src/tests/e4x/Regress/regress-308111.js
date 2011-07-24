@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-gTestfile = 'regress-308111.js';
 
 var summary = "Regression - Do not crash when searching large e4x tree";
 var BUGNUMBER = 308111;
@@ -282,7 +281,6 @@ var xml = <prefs>
 <pref><name>intl.charsetmenu.browser.more4</name></pref>
 <pref><name>network.http.keep-alive</name></pref>
 <pref><name>ui.key.accelKey</name></pref>
-<pref><name>privacy.popups.firstTime</name></pref>
 <pref><name>browser.fixup.alternate.enabled</name></pref>
 <pref><name>font.name-list.serif.x-cans</name></pref>
 <pref><name>security.enable_ssl3</name></pref>
@@ -513,7 +511,6 @@ var xml = <prefs>
 <pref><name>image.animation_mode</name></pref>
 <pref><name>network.http.sendRefererHeader</name></pref>
 <pref><name>font.default.x-central-euro</name></pref>
-<pref><name>plugin.default_plugin_disabled</name></pref>
 <pref><name>network.protocol-handler.external.ms-help</name></pref>
 <pref><name>font.default.x-geor</name></pref>
 <pref><name>browser.download.manager.openDelay</name></pref>

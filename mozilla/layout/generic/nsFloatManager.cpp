@@ -46,6 +46,8 @@
 #include "nsBlockDebugFlags.h"
 #include "nsContentErrors.h"
 
+using namespace mozilla;
+
 PRInt32 nsFloatManager::sCachedFloatManagerCount = 0;
 void* nsFloatManager::sCachedFloatManagers[NS_FLOAT_MANAGER_CACHE_SIZE];
 
@@ -70,7 +72,11 @@ PSArenaFreeCB(size_t aSize, void* aPtr, void* aClosure)
 
 nsFloatManager::nsFloatManager(nsIPresShell* aPresShell)
   : mX(0), mY(0),
-    mFloatDamage(PSArenaAllocCB, PSArenaFreeCB, aPresShell)
+    mFloatDamage(PSArenaAllocCB, PSArenaFreeCB, aPresShell),
+    mPushedLeftFloatPastBreak(PR_FALSE),
+    mPushedRightFloatPastBreak(PR_FALSE),
+    mSplitLeftFloatAcrossBreak(PR_FALSE),
+    mSplitRightFloatAcrossBreak(PR_FALSE)
 {
   MOZ_COUNT_CTOR(nsFloatManager);
 }
@@ -138,11 +144,11 @@ void nsFloatManager::Shutdown()
 
 nsFlowAreaRect
 nsFloatManager::GetFlowArea(nscoord aYOffset, BandInfoType aInfoType,
-                            nscoord aHeight, nscoord aContentAreaWidth,
+                            nscoord aHeight, nsRect aContentArea,
                             SavedState* aState) const
 {
   NS_ASSERTION(aHeight >= 0, "unexpected max height");
-  NS_ASSERTION(aContentAreaWidth >= 0, "unexpected content area width");
+  NS_ASSERTION(aContentArea.width >= 0, "unexpected content area width");
 
   nscoord top = aYOffset + mY;
   if (top < nscoord_MIN) {
@@ -166,7 +172,8 @@ nsFloatManager::GetFlowArea(nscoord aYOffset, BandInfoType aInfoType,
   if (floatCount == 0 ||
       (mFloats[floatCount-1].mLeftYMost <= top &&
        mFloats[floatCount-1].mRightYMost <= top)) {
-    return nsFlowAreaRect(0, aYOffset, aContentAreaWidth, aHeight, PR_FALSE);
+    return nsFlowAreaRect(aContentArea.x, aYOffset, aContentArea.width,
+                          aHeight, PR_FALSE);
   }
 
   nscoord bottom;
@@ -183,8 +190,8 @@ nsFloatManager::GetFlowArea(nscoord aYOffset, BandInfoType aInfoType,
       bottom = nscoord_MAX;
     }
   }
-  nscoord left = mX;
-  nscoord right = aContentAreaWidth + mX;
+  nscoord left = mX + aContentArea.x;
+  nscoord right = mX + aContentArea.XMost();
   if (right < left) {
     NS_WARNING("bad value");
     right = left;
@@ -317,25 +324,18 @@ nsFloatManager::CalculateRegionFor(nsIFrame*       aFloat,
   return region;
 }
 
+NS_DECLARE_FRAME_PROPERTY(FloatRegionProperty, nsIFrame::DestroyMargin)
+
 nsRect
 nsFloatManager::GetRegionFor(nsIFrame* aFloat)
 {
   nsRect region = aFloat->GetRect();
-  void* storedRegion = aFloat->GetProperty(nsGkAtoms::floatRegionProperty);
+  void* storedRegion = aFloat->Properties().Get(FloatRegionProperty());
   if (storedRegion) {
     nsMargin margin = *static_cast<nsMargin*>(storedRegion);
     region.Inflate(margin);
   }
   return region;
-}
-
-static void
-DestroyMarginFunc(void*    aFrame,
-                  nsIAtom* aPropertyName,
-                  void*    aPropertyValue,
-                  void*    aDtorData)
-{
-  delete static_cast<nsMargin*>(aPropertyValue);
 }
 
 nsresult
@@ -344,21 +344,16 @@ nsFloatManager::StoreRegionFor(nsIFrame* aFloat,
 {
   nsresult rv = NS_OK;
   nsRect rect = aFloat->GetRect();
+  FrameProperties props = aFloat->Properties();
   if (aRegion == rect) {
-    rv = aFloat->DeleteProperty(nsGkAtoms::floatRegionProperty);
-    if (rv == NS_PROPTABLE_PROP_NOT_THERE) rv = NS_OK;
+    props.Delete(FloatRegionProperty());
   }
   else {
-    nsMargin* storedMargin = static_cast<nsMargin*>(aFloat
-                               ->GetProperty(nsGkAtoms::floatRegionProperty));
+    nsMargin* storedMargin = static_cast<nsMargin*>
+      (props.Get(FloatRegionProperty()));
     if (!storedMargin) {
       storedMargin = new nsMargin();
-      rv = aFloat->SetProperty(nsGkAtoms::floatRegionProperty, storedMargin,
-                               DestroyMarginFunc);
-      if (NS_FAILED(rv)) {
-        delete storedMargin;
-        return rv;
-      }
+      props.Set(FloatRegionProperty(), storedMargin);
     }
     *storedMargin = aRegion - rect;
   }
@@ -425,6 +420,10 @@ nsFloatManager::PushState(SavedState* aState)
   // reflows ensures that nothing gets missed.
   aState->mX = mX;
   aState->mY = mY;
+  aState->mPushedLeftFloatPastBreak = mPushedLeftFloatPastBreak;
+  aState->mPushedRightFloatPastBreak = mPushedRightFloatPastBreak;
+  aState->mSplitLeftFloatAcrossBreak = mSplitLeftFloatAcrossBreak;
+  aState->mSplitRightFloatAcrossBreak = mSplitRightFloatAcrossBreak;
   aState->mFloatInfoCount = mFloats.Length();
 }
 
@@ -435,6 +434,10 @@ nsFloatManager::PopState(SavedState* aState)
 
   mX = aState->mX;
   mY = aState->mY;
+  mPushedLeftFloatPastBreak = aState->mPushedLeftFloatPastBreak;
+  mPushedRightFloatPastBreak = aState->mPushedRightFloatPastBreak;
+  mSplitLeftFloatAcrossBreak = aState->mSplitLeftFloatAcrossBreak;
+  mSplitRightFloatAcrossBreak = aState->mSplitRightFloatAcrossBreak;
 
   NS_ASSERTION(aState->mFloatInfoCount <= mFloats.Length(),
                "somebody misused PushState/PopState");
@@ -444,6 +447,9 @@ nsFloatManager::PopState(SavedState* aState)
 nscoord
 nsFloatManager::GetLowestFloatTop() const
 {
+  if (mPushedLeftFloatPastBreak || mPushedRightFloatPastBreak) {
+    return nscoord_MAX;
+  }
   if (!HasAnyFloats()) {
     return nscoord_MIN;
   }
@@ -475,8 +481,12 @@ nsFloatManager::List(FILE* out) const
 #endif
 
 nscoord
-nsFloatManager::ClearFloats(nscoord aY, PRUint8 aBreakType) const
+nsFloatManager::ClearFloats(nscoord aY, PRUint8 aBreakType,
+                            PRUint32 aFlags) const
 {
+  if (!(aFlags & DONT_CLEAR_PUSHED_FLOATS) && ClearContinues(aBreakType)) {
+    return nscoord_MAX;
+  }
   if (!HasAnyFloats()) {
     return aY;
   }
@@ -486,14 +496,14 @@ nsFloatManager::ClearFloats(nscoord aY, PRUint8 aBreakType) const
   const FloatInfo &tail = mFloats[mFloats.Length() - 1];
   switch (aBreakType) {
     case NS_STYLE_CLEAR_LEFT_AND_RIGHT:
-      bottom = PR_MAX(bottom, tail.mLeftYMost);
-      bottom = PR_MAX(bottom, tail.mRightYMost);
+      bottom = NS_MAX(bottom, tail.mLeftYMost);
+      bottom = NS_MAX(bottom, tail.mRightYMost);
       break;
     case NS_STYLE_CLEAR_LEFT:
-      bottom = PR_MAX(bottom, tail.mLeftYMost);
+      bottom = NS_MAX(bottom, tail.mLeftYMost);
       break;
     case NS_STYLE_CLEAR_RIGHT:
-      bottom = PR_MAX(bottom, tail.mRightYMost);
+      bottom = NS_MAX(bottom, tail.mRightYMost);
       break;
     default:
       // Do nothing
@@ -503,6 +513,17 @@ nsFloatManager::ClearFloats(nscoord aY, PRUint8 aBreakType) const
   bottom -= mY;
 
   return bottom;
+}
+
+PRBool
+nsFloatManager::ClearContinues(PRUint8 aBreakType) const
+{
+  return ((mPushedLeftFloatPastBreak || mSplitLeftFloatAcrossBreak) &&
+          (aBreakType == NS_STYLE_CLEAR_LEFT_AND_RIGHT ||
+           aBreakType == NS_STYLE_CLEAR_LEFT)) ||
+         ((mPushedRightFloatPastBreak || mSplitRightFloatAcrossBreak) &&
+          (aBreakType == NS_STYLE_CLEAR_LEFT_AND_RIGHT ||
+           aBreakType == NS_STYLE_CLEAR_RIGHT));
 }
 
 /////////////////////////////////////////////////////////////////////////////

@@ -46,23 +46,7 @@ MODULE = transformiix
 LIBRARY_NAME = txxpath_s
 LIBXUL_LIBRARY = 1
 
-REQUIRES	= string \
-		  xpcom \
-		  $(NULL)
 
-ifndef MOZ_XSLT_STANDALONE
-REQUIRES +=	  dom \
-		  content \
-		  widget \
-		  xpconnect \
-		  js \
-		  unicharutil \
-		  layout \
-		  necko \
-		  htmlparser \
-		  pref \
-		  $(NULL)
-endif
 
 CPPSRCS = \
         txBooleanExpr.cpp \
@@ -101,7 +85,6 @@ CPPSRCS += nsXPathEvaluator.cpp \
            nsXPathExpression.cpp \
            nsXPathNSResolver.cpp \
            nsXPathResult.cpp \
-           nsXPath1Scheme.cpp \
            txMozillaXPathTreeWalker.cpp \
            txNodeSetAdaptor.cpp \
            txXPCOMExtensionFunction.cpp

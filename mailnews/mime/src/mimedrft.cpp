@@ -175,6 +175,7 @@ mime_dump_attachments ( nsMsgAttachmentData *attachData )
     printf("Description       : %s\n", tmp->description ? tmp->description : "nsnull");
     printf("Mac Type          : %s\n", tmp->x_mac_type ? tmp->x_mac_type : "nsnull");
     printf("Mac Creator       : %s\n", tmp->x_mac_creator ? tmp->x_mac_creator : "nsnull");
+    printf("Size in bytes     : %d\n", tmp->size);
     i++;
     tmp++;
   }
@@ -218,6 +219,7 @@ nsresult CreateComposeParams(nsCOMPtr<nsIMsgComposeParams> &pMsgComposeParams,
           attachment->SetContentType(curAttachment->real_type);
           attachment->SetMacType(curAttachment->x_mac_type);
           attachment->SetMacCreator(curAttachment->x_mac_creator);
+          attachment->SetSize(curAttachment->size);
           compFields->AddAttachment(attachment);
         }
       }
@@ -280,22 +282,21 @@ CreateTheComposeWindow(nsIMsgCompFields *   compFields,
 }
 
 nsresult
-SendTheMessage(nsIMsgCompFields *   compFields,
-               nsMsgAttachmentData *attachmentList,
-               MSG_ComposeType      composeType,
-               MSG_ComposeFormat    composeFormat,
-               nsIMsgIdentity *     identity,
-               const char *         originalMsgURI,
-               nsIMsgDBHdr *        origMsgHdr)
+ForwardMsgInline(nsIMsgCompFields *compFields,
+                 nsMsgAttachmentData *attachmentList,
+                 MSG_ComposeFormat composeFormat,
+                 nsIMsgIdentity *identity,
+                 const char *originalMsgURI,
+                 nsIMsgDBHdr *origMsgHdr)
 {
   nsCOMPtr<nsIMsgComposeParams> pMsgComposeParams;
   nsresult rv = CreateComposeParams(pMsgComposeParams, compFields,
-                       attachmentList,
-                       composeType,
-                       composeFormat,
-                       identity,
-                       originalMsgURI,
-                       origMsgHdr);
+                                    attachmentList,
+                                    nsIMsgCompType::ForwardInline,
+                                    composeFormat,
+                                    identity,
+                                    originalMsgURI,
+                                    origMsgHdr);
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIMsgComposeService> msgComposeService =
@@ -306,10 +307,19 @@ SendTheMessage(nsIMsgCompFields *   compFields,
   NS_ENSURE_SUCCESS(rv, rv);
 
   /** initialize nsIMsgCompose, Send the message, wait for send completion response **/
-  rv = pMsgCompose->Initialize(nsnull, pMsgComposeParams) ;
+  rv = pMsgCompose->Initialize(pMsgComposeParams, nsnull, nsnull);
   NS_ENSURE_SUCCESS(rv,rv);
 
-  return pMsgCompose->SendMsg(nsIMsgSend::nsMsgDeliverNow, identity, nsnull, nsnull, nsnull) ;
+  rv = pMsgCompose->SendMsg(nsIMsgSend::nsMsgDeliverNow, identity, nsnull, nsnull, nsnull);
+  if (NS_SUCCEEDED(rv))
+  {
+    nsCOMPtr<nsIMsgFolder> origFolder;
+    origMsgHdr->GetFolder(getter_AddRefs(origFolder));
+    if (origFolder)
+      origFolder->AddMessageDispositionState(
+                  origMsgHdr, nsIMsgFolder::nsMsgDispositionState_Forwarded);
+  }
+  return rv;
 }
 
 nsresult
@@ -605,6 +615,8 @@ mime_draft_process_attachments(mime_draft_data *mdd)
     {
       NS_MsgSACopy ( &(tmp->x_mac_creator), tmpFile->x_mac_creator );
     }
+
+    tmp->size = tmpFile->size;
 
     if (bodyAsAttachment && (i == 0))
       tmpFile = mdd->attachments;
@@ -1583,12 +1595,15 @@ mime_parse_stream_complete (nsMIMESession *stream)
           if (mdd->forwardInlineFilter)
           {
             fields->SetTo(mdd->forwardToAddress);
-            SendTheMessage(fields, newAttachData, nsIMsgCompType::ForwardInline,
-                           composeFormat, mdd->identity, mdd->originalMsgURI,
-                           mdd->origMsgHdr);
+            ForwardMsgInline(fields, newAttachData, composeFormat,
+                             mdd->identity, mdd->originalMsgURI,
+                             mdd->origMsgHdr);
           }
           else
-            CreateTheComposeWindow(fields, newAttachData, nsIMsgCompType::ForwardInline, composeFormat, mdd->identity, mdd->originalMsgURI, mdd->origMsgHdr);
+            CreateTheComposeWindow(fields, newAttachData,
+                                   nsIMsgCompType::ForwardInline, composeFormat,
+                                   mdd->identity, mdd->originalMsgURI,
+                                   mdd->origMsgHdr);
         }
         else
         {
@@ -1883,6 +1898,7 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
     PR_FREEIF(boundary);
     PR_FREEIF(tmp_value);
   }
+  newAttachment->size = 0;
   newAttachment->encoding = MimeHeaders_get ( headers, HEADER_CONTENT_TRANSFER_ENCODING,
                                               PR_FALSE, PR_FALSE );
   newAttachment->description = MimeHeaders_get( headers, HEADER_CONTENT_DESCRIPTION,
@@ -2011,8 +2027,10 @@ mime_decompose_file_output_fn (const char     *buf,
     return NS_OK;
 
   if (mdd->decoder_data) {
-    ret = MimeDecoderWrite(mdd->decoder_data, buf, size);
+    PRInt32 outsize;
+    ret = MimeDecoderWrite(mdd->decoder_data, buf, size, &outsize);
     if (ret == -1) return -1;
+    mdd->curAttachment->size += outsize;
   }
   else
   {
@@ -2020,6 +2038,7 @@ mime_decompose_file_output_fn (const char     *buf,
     mdd->tmpFileStream->Write(buf, size, &bytesWritten);
     if (bytesWritten < size)
       return MIME_ERROR_WRITING_FILE;
+    mdd->curAttachment->size += size;
   }
 
   return NS_OK;

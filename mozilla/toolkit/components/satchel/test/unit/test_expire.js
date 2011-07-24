@@ -40,7 +40,7 @@ var fh, prefs;
 
 function countAllEntries() {
     let stmt = fh.DBConnection.createStatement("SELECT COUNT(*) as numEntries FROM moz_formhistory");
-    do_check_true(stmt.step());
+    do_check_true(stmt.executeStep());
     let numEntries = stmt.row.numEntries;
     stmt.finalize();
     return numEntries;
@@ -79,8 +79,6 @@ function run_test()
           getService(Ci.nsIPrefBranch);
 
   // We're going to clear this at the end, so it better have the default value now.
-  do_check_false(prefs.prefHasUserValue("browser.history_expire_days"));
-  do_check_false(prefs.prefHasUserValue("browser.history_expire_days_min"));
   do_check_false(prefs.prefHasUserValue("browser.formfill.expire_days"));
 
 
@@ -97,6 +95,11 @@ function run_test()
   do_check_false(fh.entryExists("name-C", "value-C"));
   fh.addEntry("name-C", "value-C");
   do_check_true(fh.entryExists("name-C", "value-C"));
+
+  // Check the original db size.
+  // Do a vacuum to make sure the db has current page size.
+  fh.DBConnection.executeSimpleSQL("VACUUM");
+  var oldSize = dbFile.clone().fileSize;
 
   // Update some existing entries to have ages relative to when the test runs.
   var now = 1000 * Date.now();
@@ -144,14 +147,8 @@ function run_test()
   // ===== 4 =====
   testnum++;
 
-  // Set formfill pref to 30 days for SeaMonkey and Thunderbird as they
-  // both include a default value of 180 days whereas other apps fall back
-  // to using the history_expire_days value.
-  if ("nsIMsgFolder" in Ci)
-    prefs.setIntPref("browser.formfill.expire_days", 30);
-  // Set pref to 30 days and expire.
-  prefs.setIntPref("browser.history_expire_days", 30);
-  prefs.setIntPref("browser.history_expire_days_min", 30);
+  // Set formfill pref to 30 days.
+  prefs.setIntPref("browser.formfill.expire_days", 30);
   do_check_true(fh.entryExists("179DaysOld", "foo"));
   do_check_true(fh.entryExists("bar", "31days"));
   do_check_true(fh.entryExists("bar", "29days"));
@@ -164,32 +161,17 @@ function run_test()
   do_check_true(fh.entryExists("bar", "29days"));
   do_check_eq(505, countAllEntries());
 
+
   // ===== 5 =====
-  testnum++;
-
-  // Set pref to 20 days and expire.
-  // No change expected as minimum is still 30.
-  prefs.setIntPref("browser.history_expire_days", 20);
-  do_check_eq(505, countAllEntries());
-
-  triggerExpiration();
-
-  do_check_eq(505, countAllEntries());
-
-  // ===== 6 =====
   testnum++;
 
   // Set override pref to 10 days and expire. This expires a large batch of
   // entries, and should trigger a VACCUM to reduce file size.
   prefs.setIntPref("browser.formfill.expire_days", 10);
-  prefs.setIntPref("browser.history_expire_days", 1);
-  prefs.setIntPref("browser.history_expire_days_min", 1);
 
   do_check_true(fh.entryExists("bar", "29days"));
   do_check_true(fh.entryExists("9DaysOld", "foo"));
   do_check_eq(505, countAllEntries());
-
-  do_check_true(dbFile.fileSize > 70000);
 
   triggerExpiration();
 
@@ -202,39 +184,13 @@ function run_test()
   // Check that the file size was reduced.
   // Need to clone the nsIFile because the size is being cached on Windows.
   dbFile = dbFile.clone();
-  do_check_true(dbFile.fileSize < 6000);
+  do_check_true(dbFile.fileSize < oldSize);
 
-  // ===== 7 =====
-  testnum++;
-
-  if (prefs.prefHasUserValue("browser.formfill.expire_days"))
-    prefs.clearUserPref("browser.formfill.expire_days");
-
-  // Disable history (set history_expire_days = 0) and expire.
-  // all entries but one should be deleted as min should be ignored.
-  if ("nsIMsgFolder" in Ci)
-    prefs.setIntPref("browser.formfill.expire_days", 0);
-  prefs.setIntPref("browser.history_expire_days", 0);
-  prefs.setIntPref("browser.history_expire_days_min", 30);
-
-  do_check_true(fh.entryExists("9DaysOld", "foo"));
-  do_check_eq(3, countAllEntries());
-
-  triggerExpiration();
-
-  do_check_false(fh.entryExists("9DaysOld", "foo"));
-  do_check_true(fh.entryExists("name-B", "value-B"));
-  do_check_false(fh.entryExists("name-C", "value-C"));
-  do_check_eq(1, countAllEntries());
 
   } catch (e) {
       throw "FAILED in test #" + testnum + " -- " + e;
   } finally {
       // Make sure we always reset prefs.
-      if (prefs.prefHasUserValue("browser.history_expire_days"))
-        prefs.clearUserPref("browser.history_expire_days");
-      if (prefs.prefHasUserValue("browser.history_expire_days_min"))
-        prefs.clearUserPref("browser.history_expire_days_min");
       if (prefs.prefHasUserValue("browser.formfill.expire_days"))
         prefs.clearUserPref("browser.formfill.expire_days");
   }

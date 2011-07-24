@@ -50,34 +50,11 @@ SHORT_LIBNAME  = gkparser
 GRE_MODULE	= 1
 LIBXUL_LIBRARY = 1
 
-REQUIRES	= xpcom \
-		  string \
-		  necko \
-		  util \
-		  uconv \
-		  unicharutil \
-		  expat \
-		  xml \
-		  content \
-		  dom \
-		  pref \
-		  nkcache \
-		  intl \
-		  xpconnect \
-		  layout \
-		  widget \
-		  caps \
-		  js \
-		  $(NULL)
 
 SHARED_LIBRARY_LIBS = \
 		$(DEPTH)/parser/expat/lib/$(LIB_PREFIX)mozexpat_s.$(LIB_SUFFIX) \
 		$(DEPTH)/parser/xml/src/$(LIB_PREFIX)saxp.$(LIB_SUFFIX) \
 		$(NULL)
-
-ifdef MOZ_PERF_METRICS
-SHARED_LIBRARY_LIBS +=	$(DEPTH)/modules/libutil/src/$(LIB_PREFIX)mozutil_s.$(LIB_SUFFIX)
-endif
 
 CPPSRCS = \
 		nsScannerString.cpp \
@@ -97,15 +74,10 @@ CPPSRCS = \
 		nsScanner.cpp       \
 		nsToken.cpp         \
 		nsParserMsgUtils.cpp\
-		$(NULL)
-
-ifdef MOZ_VIEW_SOURCE
-CPPSRCS += \
 		nsViewSourceHTML.cpp   \
 		$(NULL)
-endif
 
-ifneq ($(MOZ_DEBUG)$(MOZ_PERF_METRICS),)
+ifdef MOZ_DEBUG
 CPPSRCS += \
 		nsLoggingSink.cpp   \
 		$(NULL)

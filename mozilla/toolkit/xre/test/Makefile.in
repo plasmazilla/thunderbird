@@ -49,11 +49,10 @@ DIRS += win
 endif
 
 MOCHITEST_FILES = \
-  $(warning test_fpuhandler.html temporarily disabled - see bug 538642) \
-  $(warning to enable, libs rule also needs to be uncommented) \
+  test_fpuhandler.html \
   $(NULL)
 
 include $(topsrcdir)/config/rules.mk
 
-#libs:: $(MOCHITEST_FILES)
-#	$(INSTALL) $^ $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)
+libs:: $(MOCHITEST_FILES)
+	$(INSTALL) $^ $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)

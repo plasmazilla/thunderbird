@@ -43,13 +43,14 @@
  * The nsIDOMHTMLDocument interface is the interface to a [X]HTML
  * document object.
  *
- * For more information on this interface please see
+ * This interface is trying to follow the DOM Level 2 HTML specification:
  * http://www.w3.org/TR/DOM-Level-2-HTML/
  *
- * @status FROZEN
+ * with changes from the work-in-progress WHATWG HTML specification:
+ * http://www.whatwg.org/specs/web-apps/current-work/
  */
 
-[scriptable, uuid(a6cf9084-15b3-11d2-932e-00805f8add32)]
+[scriptable, uuid(0d3bef04-a890-4dbc-8571-b8e96ff5426b)]
 interface nsIDOMHTMLDocument : nsIDOMDocument
 {
            attribute DOMString            title;
@@ -73,12 +74,8 @@ interface nsIDOMHTMLDocument : nsIDOMDocument
   [noscript] void           open();
   void                      close();
 
-  // The methods write() and writeln() must be callable from JS with
-  // no arguments for backwards compatibility, thus they are marked
-  // [noscript] here. The JS versions of these methods are defined in
-  // nsIDOMNSHTMLDocument.
-  [noscript] void           write(in DOMString text);
-  [noscript] void           writeln(in DOMString text);
+  void                      write([optional, Null(Stringify)] in DOMString text);
+  void                      writeln([optional, Null(Stringify)] in DOMString text);
 
   nsIDOMNodeList            getElementsByName(in DOMString elementName);
 };

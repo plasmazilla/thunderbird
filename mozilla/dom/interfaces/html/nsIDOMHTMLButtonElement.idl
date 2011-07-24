@@ -43,23 +43,39 @@
  * The nsIDOMHTMLButtonElement interface is the interface to a [X]HTML
  * button element.
  *
- * For more information on this interface please see
+ * This interface is trying to follow the DOM Level 2 HTML specification:
  * http://www.w3.org/TR/DOM-Level-2-HTML/
  *
- * @status FROZEN
+ * with changes from the work-in-progress WHATWG HTML specification:
+ * http://www.whatwg.org/specs/web-apps/current-work/
  */
 
-[scriptable, uuid(a6cf9095-15b3-11d2-932e-00805f8add32)]
+interface nsIDOMValidityState;
+
+[scriptable, uuid(7a40902e-d0ce-41f2-bc46-e247e9662ea8)]
 interface nsIDOMHTMLButtonElement : nsIDOMHTMLElement
 {
-  readonly attribute nsIDOMHTMLFormElement form;
-           attribute DOMString             accessKey;
+           attribute boolean               autofocus;
            attribute boolean               disabled;
+  readonly attribute nsIDOMHTMLFormElement form;
+           attribute DOMString             formAction;
+           attribute DOMString             formEnctype;
+           attribute DOMString             formMethod;
+           attribute boolean               formNoValidate;
+           attribute DOMString             formTarget;
+
            attribute DOMString             name;
-           attribute long                  tabIndex;
-  // The scriptable version of type is writable and lives on
-  // nsIDOMNSHTMLButtonElement (have to do it this way because this
-  // interface is frozen and we don't want to break binary compat).
-  [noscript] readonly attribute DOMString  type;
+           attribute DOMString             type;
            attribute DOMString             value;
+
+           attribute long                  tabIndex;
+
+  // The following lines are part of the constraint validation API, see:
+  // http://www.whatwg.org/specs/web-apps/current-work/#the-constraint-validation-api
+  readonly attribute boolean             willValidate;
+  readonly attribute nsIDOMValidityState validity;
+  readonly attribute DOMString           validationMessage;
+  boolean checkValidity();
+  void setCustomValidity(in DOMString error);
 };
+

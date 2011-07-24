@@ -27,10 +27,11 @@
  *   Jan Varga <varga@ku.sk>
  *   Seth Spitzer <sspitzer@netscape.com>
  *   David Bienvenu <bienvenu@netscape.com>
- *   Ian Neal <bugzilla@arlen.demon.co.uk>
+ *   Ian Neal <iann_bugzilla@blueyonder.co.uk>
  *   Karsten Düsterloh <mnyromyr@tprac.de>
  *   Christopher Thomas <cst@yecc.com>
  *   Jeremy Morton <bugzilla@game-point.net>
+ *   Jens Hatlak <jh@junetz.de>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -46,6 +47,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource:///modules/folderUtils.jsm");
 
 const kClassicMailLayout  = 0;
@@ -70,6 +72,7 @@ const kNotAPhishMessage = 1;
 const kMsgNotificationPhishingBar = 1;
 const kMsgNotificationJunkBar = 2;
 const kMsgNotificationRemoteImages = 3;
+const kMsgNotificationMDN = 4;
 
 const kMsgForwardAsAttachment = 0;
 const kMsgForwardInline = 2;
@@ -385,6 +388,10 @@ function InitMessageMenu()
   var watchThreadMenuItem = document.getElementById("watchThread");
   if (watchThreadMenuItem) {
       watchThreadMenuItem.setAttribute("hidden", isNews ? "" : "true");
+  }
+  var cancelMenuItem = document.getElementById("menu_cancel");
+  if (cancelMenuItem) {
+      cancelMenuItem.setAttribute("hidden", isNews ? "" : "true");
   }
 
   // Disable the Move and Copy menus if there are no messages selected.
@@ -871,9 +878,7 @@ function UpdateDeleteCommand()
 {
   var value = "value";
   var uri = GetFirstSelectedMessage();
-  if (IsNewsMessage(uri))
-    value += "News";
-  else if (SelectedMessagesAreDeleted())
+  if (SelectedMessagesAreDeleted())
     value += "IMAPDeleted";
   if (GetNumSelectedMessages() < 2)
     value += "Message";
@@ -885,9 +890,20 @@ function UpdateDeleteCommand()
 
 function SelectedMessagesAreDeleted()
 {
-    return gDBView && gDBView.numSelected &&
-           (gDBView.hdrForFirstSelectedMessage.flags &
-            Components.interfaces.nsMsgMessageFlags.IMAPDeleted);
+  if (!gDBView || !gDBView.numSelected)
+    return false;
+
+  try
+  {
+    return gDBView.hdrForFirstSelectedMessage.flags &
+           Components.interfaces.nsMsgMessageFlags.IMAPDeleted;
+  }
+  catch (ex)
+  {
+    // hdrForFirstSelectedMessage found an empty or invalid selection
+    // even though numSelected indicated otherwise
+    return false;
+  }
 }
 
 function SelectedMessagesAreJunk()
@@ -1042,10 +1058,12 @@ function MsgGetNextNMessages()
 
 function MsgDeleteMessage(aReallyDelete)
 {
-  // if the user deletes a message before its mark as read timer goes off,
-  // we should mark it as read this ensures that we clear the biff indicator
-  // from the system tray when the user deletes the new message
-  MarkSelectedMessagesRead(true);
+  // If the user deletes a message before its mark as read timer goes off,
+  // we should mark it as read (unless the user changed the pref). This
+  // ensures that we clear the biff indicator from the system tray when
+  // the user deletes the new message.
+  if (pref.getBoolPref("mailnews.ui.deleteMarksRead"))
+    MarkSelectedMessagesRead(true);
   SetNextMessageAfterDelete();
 
   // determine if we're using the IMAP delete model
@@ -1080,14 +1098,8 @@ function MsgMoveMessage(destFolder)
     // get the msg folder we're moving messages into
     var destUri = destFolder.getAttribute('id');
     let destMsgFolder = GetMsgFolderFromUri(destUri);
-    // we don't move news messages, we copy them
-    if (isNewsURI(gDBView.msgFolder.URI)) {
-      gDBView.doCommandWithFolder(nsMsgViewCommandType.copyMessages, destMsgFolder);
-    }
-    else {
-      SetNextMessageAfterDelete();
-      gDBView.doCommandWithFolder(nsMsgViewCommandType.moveMessages, destMsgFolder);
-    }
+    SetNextMessageAfterDelete();
+    gDBView.doCommandWithFolder(nsMsgViewCommandType.moveMessages, destMsgFolder);
   }
   catch (ex) {
     dump("MsgMoveMessage failed: " + ex + "\n");
@@ -1172,63 +1184,83 @@ function BatchMessageMover()
 {
   this._batches = {};
   this._currentKey = null;
+  this._dstFolderParent = null;
+  this._dstFolderName = null;
 }
 
 BatchMessageMover.prototype =
 {
-  ArchiveSelectedMessages: function()
+  archiveMessages: function(aMsgHdrs)
   {
-    let selectedMsgUris = GetSelectedMessages();
-    if (!selectedMsgUris.length)
+    if (!aMsgHdrs.length)
       return;
 
     // We need to get the index of the message to select after archiving
     // completes but reset the global variable to prevent the DBview from
     // updating the selection; we'll do it manually at the end of
-    // ProcessNextBatch.
+    // processNextBatch.
     SetNextMessageAfterDelete();
     this.messageToSelectAfterWereDone = gNextMessageViewIndexAfterDelete;
     gNextMessageViewIndexAfterDelete = -2;
 
-    let messages = Components.classes["@mozilla.org/array;1"]
-                             .createInstance(Components.interfaces.nsIMutableArray);
-
-    for (let i = 0; i < selectedMsgUris.length; ++i)
+    for (let i = 0; i < aMsgHdrs.length; ++i)
     {
-      let msgHdr = messenger.msgHdrFromURI(selectedMsgUris[i]);
+      let msgHdr = aMsgHdrs[i];
+      let server = msgHdr.folder.server;
       let msgDate = new Date(msgHdr.date / 1000);  // convert date to JS date object
       let msgYear = msgDate.getFullYear().toString();
-      let dstFolderName = msgDate.toLocaleFormat("%Y-%m");
-      let copyBatchKey = msgHdr.folder.URI + '\000' + dstFolderName;
+      let monthFolderName = msgDate.toLocaleFormat("%Y-%m");
+
+      let archiveFolderUri;
+      let archiveGranularity;
+      let archiveKeepFolderStructure;
+      if (server.type == "rss") {
+        // RSS servers don't have an identity so we special case the archives URI.
+        archiveFolderUri = server.serverURI + "/Archives";
+        archiveGranularity =
+          Application.prefs.get("mail.identity.default.archive_granularity").value;
+        archiveKeepFolderStructure =
+          Application.prefs.get("mail.identity.default.archive_keep_folder_structure").value;
+      }
+      else {
+        let identity = GetIdentityForHeader(msgHdr,
+          Components.interfaces.nsIMsgCompType.ReplyAll);
+        archiveFolderUri = identity.archiveFolder;
+        archiveGranularity = identity.archiveGranularity;
+        archiveKeepFolderStructure = identity.archiveKeepFolderStructure;
+      }
+      let archiveFolder = GetMsgFolderFromUri(archiveFolderUri, false);
+
+      let copyBatchKey = msgHdr.folder.URI + '\000' + monthFolderName;
       if (!(copyBatchKey in this._batches))
-        this._batches[copyBatchKey] = [msgHdr.folder, msgYear, dstFolderName];
+        this._batches[copyBatchKey] = [msgHdr.folder,
+                                       archiveFolderUri,
+                                       archiveGranularity,
+                                       archiveKeepFolderStructure,
+                                       msgYear,
+                                       monthFolderName];
       this._batches[copyBatchKey].push(msgHdr);
     }
+
+    let notificationService = Components.classes["@mozilla.org/messenger/msgnotificationservice;1"]
+                                        .getService(Components.interfaces.nsIMsgFolderNotificationService);
+    notificationService.addListener(this, notificationService.folderAdded);
+
     // Now we launch the code iterating over all message copies, one in turn.
-    this.ProcessNextBatch();
+    this.processNextBatch();
   },
 
-  ProcessNextBatch: function()
+  processNextBatch: function()
   {
     for (let key in this._batches)
     {
       this._currentKey = key;
       let batch = this._batches[key];
-      let srcFolder = batch[0];
-      let msgYear = batch[1];
-      let msgMonth = batch[2];
-      let msgs = batch.slice(3);
-      // RSS servers don't have an identity so we special case the archives URI.
-      let archiveFolderUri;
-      if (srcFolder.server.type == 'rss')
-        archiveFolderUri = srcFolder.server.serverURI + "/Archives";
-      else
-        archiveFolderUri = GetIdentityForHeader(msgs[0],
-          Components.interfaces.nsIMsgCompType.ReplyAll).archiveFolder;
+      let [srcFolder, archiveFolderUri, granularity, keepFolderStructure, msgYear, msgMonth] = batch;
+      let msgs = batch.slice(6);
 
       let archiveFolder = GetMsgFolderFromUri(archiveFolderUri, false);
       let dstFolder = archiveFolder;
-      let granularity = archiveFolder.server.archiveGranularity;
       // For imap folders, we need to create the sub-folders asynchronously,
       // so we chain the urls using the listener called back from 
       // createStorageIfMissing. For local, createStorageIfMissing is
@@ -1242,8 +1274,8 @@ BatchMessageMover.prototype =
           return;
       }
       if (!archiveFolder.canCreateSubfolders)
-        granularity = Components.interfaces.nsIMsgIncomingServer.singleArchiveFolder;
-      if (granularity >= Components.interfaces.nsIMsgIncomingServer.perYearArchiveFolders)
+        granularity = Components.interfaces.nsIMsgIdentity.singleArchiveFolder;
+      if (granularity >= Components.interfaces.nsIMsgIdentity.perYearArchiveFolders)
       {
         archiveFolderUri += "/" + msgYear;
         dstFolder = GetMsgFolderFromUri(archiveFolderUri, false);
@@ -1254,7 +1286,7 @@ BatchMessageMover.prototype =
             return;
         }
       }
-      if (granularity >= Components.interfaces.nsIMsgIncomingServer.perMonthArchiveFolders)
+      if (granularity >= Components.interfaces.nsIMsgIdentity.perMonthArchiveFolders)
       {
         archiveFolderUri += "/" + msgMonth;
         dstFolder = GetMsgFolderFromUri(archiveFolderUri, false);
@@ -1265,17 +1297,64 @@ BatchMessageMover.prototype =
             return;
         }
       }
+
+      // Create the folder structure in Archives
+      // For imap folders, we need to create the sub-folders asynchronously,
+      // so we chain the actions using the listener called back from 
+      // createSubfolder. For local, createSubfolder is synchronous.
+      if (archiveFolder.canCreateSubfolders && keepFolderStructure)
+      {
+        // Collect in-order list of folders of source folder structure,
+        // excluding top-level INBOX folder
+        let folderNames = [];
+        let rootFolder = srcFolder.server.rootFolder;
+        let inboxFolder = GetInboxFolder(srcFolder.server);
+        let folder = srcFolder;
+        while (folder != rootFolder && folder != inboxFolder)
+        {
+          folderNames.unshift(folder.name);
+          folder = folder.parent;
+        }
+        // Determine Archive folder structure
+        for (let i = 0; i < folderNames.length; ++i)
+        {
+          let folderName = folderNames[i];
+          if (!dstFolder.containsChildNamed(folderName))
+          {
+            // Create Archive sub-folder (IMAP: async) 
+            if (isImap)
+            {
+              this._dstFolderParent = dstFolder;
+              this._dstFolderName = folderName;
+            }
+            dstFolder.createSubfolder(folderName, msgWindow);
+            if (isImap)
+              return;
+          }
+          dstFolder = dstFolder.getChildNamed(folderName);
+        }
+      }
+
       if (dstFolder != srcFolder)
       {
+        // Make sure the target folder is visible in the folder tree.
+        EnsureFolderIndex(GetFolderTree().builderView, dstFolder);
+
         let array = Components.classes["@mozilla.org/array;1"]
                               .createInstance(Components.interfaces.nsIMutableArray);
         msgs.forEach(function(item){array.appendElement(item, false);});
-        gCopyService.CopyMessages(srcFolder, array, dstFolder, true, this,
-                                  msgWindow, true);
+        // If the source folder doesn't support deleting messages, we
+        // make archive a copy, not a move.
+        gCopyService.CopyMessages(srcFolder, array, dstFolder,
+                                  srcFolder.canDeleteMessages, this, msgWindow, true);
         return; // only do one.
       }
       delete this._batches[key];
     }
+
+    Components.classes["@mozilla.org/messenger/msgnotificationservice;1"]
+              .getService(Components.interfaces.nsIMsgFolderNotificationService)
+              .removeListener(this);
 
     // We're just going to select the message now.
     let treeView = gDBView.QueryInterface(Components.interfaces.nsITreeView);
@@ -1283,21 +1362,22 @@ BatchMessageMover.prototype =
     treeView.selectionChanged();
   },
 
+  // This also implements nsIUrlListener, but we only care about the
+  // OnStopRunningUrl (createStorageIfMissing callback).
   OnStartRunningUrl: function(aUrl)
   {
   },
-
   OnStopRunningUrl: function(aUrl, aExitCode)
   {
     // This will always be a create folder url, afaik.
     if (Components.isSuccessCode(aExitCode))
-      this.ProcessNextBatch();
+      this.processNextBatch();
     else
       this._batches = null;
   },
 
   // This also implements nsIMsgCopyServiceListener, but we only care
-  // about the OnStopCopy.
+  // about the OnStopCopy (CopyMessages callback).
   OnStartCopy: function()
   {
   },
@@ -1317,27 +1397,43 @@ BatchMessageMover.prototype =
       // remove batch we just finished and continue
       delete this._batches[this._currentKey];
       this._currentKey = null;
-      this.ProcessNextBatch();
+      this.processNextBatch();
     }
     else
     {
       this._batches = null;
     }
   },
+
+  // This also implements nsIMsgFolderListener, but we only care about the
+  // folderAdded (createSubfolder callback).
+  folderAdded: function(aFolder)
+  {
+    // Check that this is the folder we're interested in.
+    if (aFolder.parent == this._dstFolderParent &&
+        aFolder.name == this._dstFolderName)
+    {
+      this._dstFolderParent = null;
+      this._dstFolderName = null;
+      this.processNextBatch();
+    }
+  },
+
   QueryInterface: function(aIID)
   {
     if (aIID.equals(Components.interfaces.nsIUrlListener) ||
         aIID.equals(Components.interfaces.nsIMsgCopyServiceListener) ||
+        aIID.equals(Components.interfaces.nsIMsgFolderListener) ||
         aIID.equals(Components.interfaces.nsISupports))
       return this;
     throw Components.results.NS_ERROR_NO_INTERFACE;
   }
 }
 
-function MsgArchiveSelectedMessages(event)
+function MsgArchiveSelectedMessages(aEvent)
 {
   let batchMover = new BatchMessageMover();
-  batchMover.ArchiveSelectedMessages();
+  batchMover.archiveMessages(gFolderDisplay.selectedMessages);
 }
 
 
@@ -1526,17 +1622,13 @@ function MsgUnsubscribe()
 
 function MsgSaveAsFile()
 {
-    if (GetNumSelectedMessages() == 1) {
-        SaveAsFile(GetFirstSelectedMessage());
-    }
+  SaveAsFile(GetSelectedMessages());
 }
 
 function MsgSaveAsTemplate()
 {
-    var folder = GetLoadedMsgFolder();
-    if (GetNumSelectedMessages() == 1) {
-        SaveAsTemplate(GetFirstSelectedMessage(), folder);
-    }
+  if (GetNumSelectedMessages() == 1)
+    SaveAsTemplate(GetFirstSelectedMessage());
 }
 
 const nsIFilePicker = Components.interfaces.nsIFilePicker;
@@ -1678,26 +1770,17 @@ function MsgOpenSelectedMessageInExistingWindow()
     return false;
 }
 
-function MsgOpenSearch(aSearchStr, aReverseBackgroundPref)
+function MsgOpenSearch(aSearchStr, aEvent)
 {
-  var topWindow = getTopWin();
-  if (topWindow)
-  {
-    topWindow.OpenSearch("internet", aSearchStr, true, aReverseBackgroundPref);
-  }
-  else
-  {
-    // open the requested window, but block it until it's fully loaded
-    function NewSearchWindowLoaded()
-    {
-      topWindow.setTimeout(topWindow.OpenSearch, 0, "internet", aSearchStr, false, aReverseBackgroundPref);
-      // make sure that this handler is called only once
-      topWindow.removeEventListener("load", NewSearchWindowLoaded, false);
-    }
-    // open a new window to load the search in and remember it until it's fully loaded
-    topWindow = window.openDialog(getBrowserURL(), "_blank", "chrome,all,dialog=no");
-    topWindow.addEventListener("load", NewSearchWindowLoaded, false);
-  }
+  // If you change /suite/navigator/navigator.js->BrowserSearch::loadSearch()
+  // make sure you make corresponding changes here.
+  var submission = Services.search.defaultEngine.getSubmission(aSearchStr);
+  if (!submission)
+    return;
+
+  var newTabPref = Services.prefs.getBoolPref("browser.search.opentabforcontextsearch");
+  var where = newTabPref ? aEvent && aEvent.shiftKey ? "tabshifted" : "tab" : "window";
+  openUILinkIn(submission.uri.spec, where, null, submission.postData);
 }
 
 function MsgOpenNewWindowForMessage(messageUri, folderUri)
@@ -2168,6 +2251,14 @@ function getMessageBrowser()
   return gMessageBrowser;
 }
 
+// The zoom manager, view source and possibly some other functions still rely
+// on the getBrowser function.
+function getBrowser()
+{
+  return GetTabMail() ? GetTabMail().getBrowserForSelectedTab() :
+                        getMessageBrowser();
+}
+
 function getMarkupDocumentViewer()
 {
   return getMessageBrowser().markupDocumentViewer;
@@ -2539,10 +2630,9 @@ var gMessageNotificationBar =
                     0, // for no msgNotificationBar
                     1, // 1 << (kMsgNotificationPhishingBar - 1)
                     2, // 1 << (kMsgNotificationJunkBar - 1)
-                    4  // 1 << (kMsgNotificationRemoteImages - 1)
+                    4, // 1 << (kMsgNotificationRemoteImages - 1)
+                    8  // 1 << (kMsgNotificationMDN - 1)
                   ],
-
-  mMsgNotificationBar: document.getElementById('msgNotificationBar'),
 
   setJunkMsg: function(aMsgHdr)
   {
@@ -2581,11 +2671,18 @@ var gMessageNotificationBar =
     this.updateMsgNotificationBar(kMsgNotificationPhishingBar, phishingMsg);
   },
 
+  setMDNMsg: function(aMdnGenerator, aMsgHeader)
+  {
+    this.mdnGenerator = aMdnGenerator;
+    this.updateMsgNotificationBar(kMsgNotificationMDN, true);
+  },
+
   clearMsgNotifications: function()
   {
     this.mBarStatus = 0;
-    this.mMsgNotificationBar.selectedIndex = 0;
-    this.mMsgNotificationBar.collapsed = true;
+    var msgNotificationBar = document.getElementById('msgNotificationBar');
+    msgNotificationBar.selectedIndex = 0;
+    msgNotificationBar.collapsed = true;
   },
 
   // private method used to set our message notification deck to the correct value...
@@ -2597,9 +2694,10 @@ var gMessageNotificationBar =
 
     // the phishing message takes precedence over the junk message
     // which takes precedence over the remote content message
-    this.mMsgNotificationBar.selectedIndex = this.mBarFlagValues.indexOf(status & -status);
+    var msgNotificationBar = document.getElementById('msgNotificationBar');
+    msgNotificationBar.selectedIndex = this.mBarFlagValues.indexOf(status & -status);
 
-    this.mMsgNotificationBar.collapsed = !status;
+    msgNotificationBar.collapsed = !status;
   },
 
   /**
@@ -2625,6 +2723,7 @@ function LoadMsgWithRemoteContent()
   // then reload the message
 
   setMsgHdrPropertyAndReload("remoteContentPolicy", kAllowRemoteContent);
+  window.content.focus();
 }
 
 /**
@@ -2666,14 +2765,19 @@ function allowRemoteContentForSender()
   var enumerator = Components.classes["@mozilla.org/abmanager;1"]
                              .getService(Components.interfaces.nsIAbManager)
                              .directories;
-  var cardForEmailAddress;
-  var addrbook;
+  var cardForEmailAddress = null;
+  var addrbook = null;
   while (!cardForEmailAddress && enumerator.hasMoreElements())
   {
     addrbook = enumerator.getNext()
                          .QueryInterface(Components.interfaces.nsIAbDirectory);
-    try {
-      cardForEmailAddress = addrbook.cardForEmailAddress(authorEmailAddress);
+    // Try/catch because cardForEmailAddress will throw if not implemented.
+    try
+    {
+      // If it's a read-only book, don't find a card as we won't be able
+      // to modify the card.
+      if (!addrbook.readOnly)
+        cardForEmailAddress = addrbook.cardForEmailAddress(authorEmailAddress);
     } catch (e) {}
   }
 
@@ -2893,24 +2997,28 @@ function HandleMDNResponse(aUrl)
     return;
 
   // Everything looks good so far, let's generate the MDN response.
-  var mdnGenerator = Components.classes["@mozilla.org/messenger-mdn/generator;1"].
-                                  createInstance(Components.interfaces.nsIMsgMdnGenerator);
-  mdnGenerator.process(Components.interfaces.nsIMsgMdnGenerator.eDisplayed,
-                       msgWindow,
-                       msgFolder,
-                       msgHdr.messageKey,
-                       mimeHdr,
-                       false);
+  var mdnGenerator = Components.classes["@mozilla.org/messenger-mdn/generator;1"]
+                               .createInstance(Components.interfaces.nsIMsgMdnGenerator);
+  var askUser = mdnGenerator.process(Components.interfaces.nsIMsgMdnGenerator.eDisplayed,
+                                     msgWindow,
+                                     msgFolder,
+                                     msgHdr.messageKey,
+                                     mimeHdr,
+                                     false);
+  if (askUser)
+    gMessageNotificationBar.setMDNMsg(mdnGenerator, msgHdr);
+}
 
-  // Reset mark msg MDN "Sent" and "Not Needed".
-  msgHdr.flags = (msgFlags &
-                  ~Components.interfaces.nsMsgMessageFlags.MDNReportNeeded);
-  msgHdr.OrFlags(Components.interfaces.nsMsgMessageFlags.MDNReportSent);
+function SendMDNResponse()
+{
+  gMessageNotificationBar.mdnGenerator.userAgreed();
+  gMessageNotificationBar.updateMsgNotificationBar(kMsgNotificationMDN, false);
+}
 
-  // Commit db changes.
-  var msgdb = msgFolder.msgDatabase;
-  if (msgdb)
-    msgdb.Commit(Components.interfaces.nsMsgDBCommitType.kLargeCommit);
+function IgnoreMDNResponse()
+{
+  gMessageNotificationBar.mdnGenerator.userDeclined();
+  gMessageNotificationBar.updateMsgNotificationBar(kMsgNotificationMDN, false);
 }
 
 function MsgSearchMessages()
@@ -3124,6 +3232,10 @@ function MailToolboxCustomizeDone(aToolboxChanged)
 {
   toolboxCustomizeDone("mail-menubar", getMailToolbox(), aToolboxChanged);
   SetupMoveCopyMenus('button-file', accountManagerDataSource, folderDataSource);
+
+  // make sure the folder location picker is initialized, if it exists
+  if ("OnLoadLocationTree" in window)
+    OnLoadLocationTree();
 }
 
 function MailToolboxCustomizeChange(event)

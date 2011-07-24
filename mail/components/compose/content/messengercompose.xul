@@ -49,14 +49,16 @@
 <?xul-overlay href="chrome://messenger/content/baseMenuOverlay.xul"?>
 
 <!DOCTYPE window [
-<!ENTITY % messengercomposeDTD SYSTEM "chrome://messenger/locale/messengercompose/messengercompose.dtd" >
-%messengercomposeDTD;
-<!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd" >
-%brandDTD;
-<!ENTITY % charsetDTD SYSTEM "chrome://global/locale/charsetOverlay.dtd" >
-%charsetDTD;
-<!ENTITY % customizeToolbarDTD SYSTEM "chrome://global/locale/customizeToolbar.dtd">
-%customizeToolbarDTD;
+  <!ENTITY % messengercomposeDTD SYSTEM "chrome://messenger/locale/messengercompose/messengercompose.dtd" >
+  %messengercomposeDTD;
+  <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd" >
+  %brandDTD;
+  <!ENTITY % charsetDTD SYSTEM "chrome://global/locale/charsetOverlay.dtd" >
+  %charsetDTD;
+  <!ENTITY % customizeToolbarDTD SYSTEM "chrome://global/locale/customizeToolbar.dtd">
+  %customizeToolbarDTD;
+  <!ENTITY % textcontextDTD SYSTEM "chrome://global/locale/textcontext.dtd">
+  %textcontextDTD;
 ]>
 
 <window id="msgcomposeWindow"
@@ -82,7 +84,6 @@
 <script type="application/javascript" src="chrome://messenger/content/accountUtils.js"/>
 <script type="application/javascript" src="chrome://messenger/content/widgetglue.js"/>
 <script type="application/javascript" src="chrome://messenger/content/mailCore.js"/>
-<script type="application/javascript" src="chrome://global/content/inlineSpellCheckUI.js"/>
 <script type="application/javascript" src="chrome://editor/content/editor.js"/>
 <script type="application/javascript" src="chrome://messenger/content/messengercompose/MsgComposeCommands.js"/>
 
@@ -94,6 +95,7 @@
 <script type="application/javascript" src="chrome://messenger/content/messengercompose/addressingWidgetOverlay.js"/>
 <script type="application/javascript" src="chrome://global/content/charsetOverlay.js"/>
 <script type="application/javascript" src="chrome://global/content/globalOverlay.js"/>
+<script type="application/javascript" src="chrome://global/content/contentAreaUtils.js"/>
 <script type="application/javascript" src="chrome://communicator/content/utilityOverlay.js"/>
 
 <commandset id="composeCommands">
@@ -151,14 +153,13 @@
   <command id="cmd_copy" oncommand="goDoCommand('cmd_copy')" disabled="true"/>
   <command id="cmd_paste" oncommand="goDoCommand('cmd_paste')" disabled="true"/>
   <command id="cmd_rewrap" oncommand="goDoCommand('cmd_rewrap')"/>
-  <command id="cmd_delete" oncommand="goDoCommand('cmd_delete')" valueDefault="&deleteCmd.label;" disabled="true"/>
+  <command id="cmd_delete" oncommand="goDoCommand('cmd_delete')" valueDefault="&deleteCmd.label;" valueDefaultAccessKey="&deleteCmd.accesskey;" valueRemoveAttachmentAccessKey="&removeAttachment.accesskey;" disabled="true"/>
   <command id="cmd_renameAttachment" oncommand="goDoCommand('cmd_renameAttachment')" disabled="true"/>
   <command id="cmd_selectAll" oncommand="goDoCommand('cmd_selectAll')" disabled="true"/>
   <command id="cmd_openAttachment" oncommand="goDoCommand('cmd_openAttachment')" disabled="true"/>  
   <command id="cmd_account" oncommand="goDoCommand('cmd_account')"/>
 
   <!-- View Menu -->
-  <command id="cmd_showComposeToolbar" oncommand="goDoCommand('cmd_showComposeToolbar')"/>
   <command id="cmd_showFormatToolbar" oncommand="goDoCommand('cmd_showFormatToolbar')"/>
 
   <!-- Options Menu -->
@@ -264,15 +265,16 @@
 
 <keyset id="editorKeys"/>
 
-<popup id="msgComposeContext"
-       onpopupshowing="if (event.target != this) return true; openEditorContextMenu(this);">
+<menupopup id="msgComposeContext"
+           onpopupshowing="if (event.target != this) return true; openEditorContextMenu(this);">
 
-  <menuitem id="spellCheckNoSuggestions" label="&spellCheckNoSuggestions.label;" disabled="true"/>
-  <menuseparator id="spellCheckAddSep"/>
-  <menuitem id="spellCheckAddToDictionary" label="&spellCheckAddToDictionary.label;" accesskey="&spellCheckAddToDictionary.accesskey;"
-            oncommand="InlineSpellCheckerUI.addToDictionary();"/>  
+  <!-- Spellchecking menu items -->
+  <menuitem id="spellCheckNoSuggestions" label="&spellNoSuggestions.label;" disabled="true"/>
+  <menuseparator id="spellCheckAddSep" />
+  <menuitem id="spellCheckAddToDictionary" label="&spellAddToDictionary.label;" accesskey="&spellAddToDictionary.accesskey;"
+            oncommand="gSpellChecker.addToDictionary();"/>
   <menuitem id="spellCheckIgnoreWord" label="&spellCheckIgnoreWord.label;" accesskey="&spellCheckIgnoreWord.accesskey;"
-            oncommand="InlineSpellCheckerUI.ignoreWord();"/>  
+            oncommand="gSpellChecker.ignoreWord();"/>
   <menuseparator id="spellCheckSuggestionsSeparator"/>
 
   <menuitem label="&undo.label;" accesskey="&undo.accesskey;" command="cmd_undo"/>
@@ -284,9 +286,33 @@
   <menuitem label="&delete.label;" accesskey="&delete.accesskey;" command="cmd_delete"/>
   <menuseparator/>
   <menuitem label="&selectAll.label;" accesskey="&selectAll.accesskey;" command="cmd_selectAll"/>
-</popup>
 
-<popup id="msgComposeAttachmentContext" onpopupshowing="updateEditItems();">
+  <!-- Spellchecking general menu items (enable, add dictionaries...) -->
+  <menuseparator id="spellCheckSeparator"/>
+  <menuitem id="spellCheckEnable"
+            label="&spellCheckEnable.label;"
+            type="checkbox"
+            accesskey="&spellCheckEnable.accesskey;"
+            oncommand="enableInlineSpellCheck(!gSpellChecker.enabled);"/>
+  <menuitem id="spellCheckAddDictionariesMain"
+            label="&spellAddDictionaries.label;"
+            accesskey="&spellAddDictionaries.accesskey;"
+            oncommand="openDictionaryList();"/>
+  <menu id="spellCheckDictionaries"
+        label="&spellDictionaries.label;"
+        accesskey="&spellDictionaries.accesskey;">
+    <menupopup id="spellCheckDictionariesMenu">
+      <menuseparator id="spellCheckLanguageSeparator"/>
+      <menuitem id="spellCheckAddDictionaries"
+                label="&spellAddDictionaries.label;"
+                accesskey="&spellAddDictionaries.accesskey;"
+                oncommand="openDictionaryList();"/>
+    </menupopup>
+  </menu>
+
+</menupopup>
+
+<menupopup id="msgComposeAttachmentContext" onpopupshowing="updateEditItems();">
   <menuitem label="&openAttachment.label;" accesskey="&openAttachment.accesskey;" command="cmd_openAttachment"/>
   <menuitem label="&removeAttachment.label;" accesskey="&removeAttachment.accesskey;" command="cmd_delete"/>
   <menuitem label="&renameAttachment.label;" accesskey="&renameAttachment.accesskey;" command="cmd_renameAttachment"/>
@@ -294,16 +320,16 @@
   <menuseparator/>
   <menuitem label="&attachFile.label;" accesskey="&attachFile.accesskey;" command="cmd_attachFile"/>
   <menuitem label="&attachPage.label;" accesskey="&attachPage.accesskey;" command="cmd_attachPage"/>
-</popup>
+</menupopup>
 
-<popup id="toolbar-context-menu"
-       onpopupshowing="onViewToolbarsPopupShowing(event, 'compose-toolbox');">
+<menupopup id="toolbar-context-menu"
+           onpopupshowing="onViewToolbarsPopupShowing(event, 'compose-toolbox');">
   <menuseparator/>
   <menuitem id="CustomizeComposeToolbar"
             command="cmd_CustomizeComposeToolbar"
             label="&customizeToolbar.label;"
             accesskey="&customizeToolbar.accesskey;"/>
-</popup>
+</menupopup>
 
   <toolbox id="compose-toolbox"
            class="toolbox-top"
@@ -454,7 +480,8 @@
           <menuitem label="&checkSpellingCmd2.label;" id="menu_checkspelling" accesskey="&checkSpellingCmd2.accesskey;" key="key_checkspelling" command="cmd_spelling"/>
           <menuitem label="&enableInlineSpellChecker.label;" id="menu_inlineSpellCheck" 
                            accesskey="&enableInlineSpellChecker.accesskey;" checked="false"
-                           type="checkbox" oncommand="enableInlineSpellCheck(!InlineSpellCheckerUI.enabled);"/>
+                           type="checkbox"
+                           oncommand="enableInlineSpellCheck(!gSpellChecker.enabled);"/>
           <menuitem label="&quoteCmd.label;" accesskey="&quoteCmd.accesskey;" command="cmd_quoteMessage"/>
           <menuseparator/>
           <menuitem id="returnReceiptMenu" type="checkbox" label="&returnReceiptMenu.label;" accesskey="&returnReceiptMenu.accesskey;" checked="false" oncommand="ToggleReturnReceipt(event.target)"/>
@@ -574,6 +601,7 @@
 
     <toolbarbutton class="toolbarbutton-1" type="menu-button"
                id="spellingButton" label="&spellingButton.label;" 
+               tooltiptext="&spellingButton.tooltip;" disabled="true"
                command="cmd_spelling">
       <!-- this popup gets dynamically generated -->
       <menupopup id="languageMenuList" oncommand="ChangeLanguage(event);"
@@ -654,7 +682,7 @@
     <splitter id="sidebar-splitter" hidden="true"/>
 
     <vbox flex="1">  
-    <toolbox id="headers-box" class="toolbox-top" mode="icons"> 
+    <toolbox id="headers-box" class="toolbox-top" mode="icons">
     <toolbar id="MsgHeadersToolbar" persist="collapsed" flex="1"
              customizable="true" nowindowdrag="true"
              ondragover="nsDragAndDrop.dragOver(event, envelopeDragObserver);"
@@ -662,8 +690,10 @@
              ondragexit="nsDragAndDrop.dragExit(event, envelopeDragObserver);">
       <hbox id="msgheaderstoolbar-box" flex="1">
         <vbox flex="1" id="addresses-box">
-          <hbox align="center">
-            <label value="&fromAddr.label;" accesskey="&fromAddr.accesskey;" control="msgIdentity"/>
+          <hbox id="top-gradient-box">
+            <hbox align="center" pack="end" style="&headersSpace.style;">
+              <label value="&fromAddr.label;" accesskey="&fromAddr.accesskey;" control="msgIdentity"/>
+            </hbox>
             <menulist id="msgIdentity" type="description" flex="1" oncommand="LoadIdentity(false);">
               <menupopup id="msgIdentityPopup"/>
             </menulist>
@@ -672,7 +702,7 @@
                    onkeydown="awKeyDown(event, this)"
                    onclick="awClickEmptySpace(event.originalTarget, true)">
             <listcols>
-              <listcol id="typecol-addressingWidget"/>
+              <listcol id="typecol-addressingWidget" style="&headersSpace.style;"/>
               <listcol id="textcol-addressingWidget" flex="1"/>
             </listcols>
             <listitem class="addressingWidgetItem" allowevents="true">
@@ -708,8 +738,10 @@
               </listcell>
             </listitem>
           </listbox>
-          <hbox align="center">
-            <label value="&subject.label;" accesskey="&subject.accesskey;" control="msgSubject"/>
+          <hbox id="subject-box">
+            <hbox align="center" pack="end" style="&headersSpace.style;">
+              <label value="&subject.label;" accesskey="&subject.accesskey;" control="msgSubject"/>
+            </hbox>
             <textbox id="msgSubject" flex="1" class="toolbar" disableonsend="true" spellcheck="true"
                      oninput="gContentChanged=true;SetComposeWindowTitle();"
                      onkeypress="subjectKeyPress(event);" />
@@ -717,13 +749,17 @@
         </vbox>
         <splitter id="attachmentbucket-sizer" collapsed="true" collapse="after"/>
         <vbox id="attachments-box" collapsed="true">
-          <label id="attachmentBucketText" value="&attachments.label;" crop="right"
-                 accesskey="&attachments.accesskey;" control="attachmentBucket"/>
+          <hbox>
+            <label id="attachmentBucketCount" control="attachmentBucket"
+                   crop="right" accesskey="&attachments.accesskey;"/>
+            <label id="attachmentBucketSize"/>
+          </hbox>
           <listbox seltype="multiple" id="attachmentBucket" flex="1" rows="4"
                    tabindex="0"
                    context="msgComposeAttachmentContext"
                    onkeypress="if (event.keyCode == 8 || event.keyCode == 46) RemoveSelectedAttachment();"
-                   onclick="AttachmentBucketClicked(event);"/>
+                   onclick="AttachmentBucketClicked(event);"
+                   ondraggesture="nsDragAndDrop.startDrag(event, attachmentBucketDNDObserver);"/>
         </vbox>
       </hbox>
     </toolbar>   
@@ -731,9 +767,10 @@
     <!-- These toolbar items get filled out from the editorOverlay -->
     <toolbar class="chromeclass-toolbar" id="FormatToolbar" persist="collapsed"
              customizable="true" nowindowdrag="true">
-      <menulist id="ParagraphSelect"/>
-      <menulist id="FontFaceSelect"/>
-      <stack id="ColorButtons"/>
+      <toolbaritem id="paragraph-select-container"/>
+      <toolbaritem id="font-face-select-container"/>
+      <toolbaritem id="color-buttons-container"
+                   disableoncustomize="true"/>
       <toolbarbutton id="DecreaseFontSizeButton"/>
       <toolbarbutton id="IncreaseFontSizeButton"/>
       <toolbarseparator class="toolbarseparator-standard"/>
@@ -748,16 +785,19 @@
       <toolbarseparator class="toolbarseparator-standard"/>
       <toolbarbutton id="AlignPopupButton"/>
       <toolbarbutton id="InsertPopupButton"/>
-      <toolbarbutton type="menu" id="smileButtonMenu" padwithspace="true"
-                     observes="cmd_smiley"
-                     tooltiptext="&SmileButton.tooltip;">
+      <toolbarbutton id="smileButtonMenu"
+                     class="formatting-button"
+                     tooltiptext="&SmileButton.tooltip;"
+                     padwithspace="true"
+                     type="menu"
+                     observes="cmd_smiley">
         <menupopup id="smilyPopup">
           <menuitem id="smileySmile" class="menuitem-iconic" label="&smiley1Cmd.label;" 
                     oncommand="doStatefulCommand('cmd_smiley', ':-)'  )"/>
           <menuitem id="smileyFrown" class="menuitem-iconic" label="&smiley2Cmd.label;"
-                    oncommand="doStatefulCommand('cmd_smiley', ':-('  )"/>                                              
+                    oncommand="doStatefulCommand('cmd_smiley', ':-('  )"/>
           <menuitem id="smileyWink" class="menuitem-iconic" label="&smiley3Cmd.label;"
-                    oncommand="doStatefulCommand('cmd_smiley', ';-)'  )"/>                       
+                    oncommand="doStatefulCommand('cmd_smiley', ';-)'  )"/>
           <menuitem id="smileyTongue" class="menuitem-iconic" label="&smiley4Cmd.label;"
                     oncommand="doStatefulCommand('cmd_smiley', ':-P'  )"/>
           <menuitem id="smileyLaughing" class="menuitem-iconic" label="&smiley5Cmd.label;"
@@ -767,23 +807,23 @@
           <menuitem id="smileyUndecided" class="menuitem-iconic" label="&smiley7Cmd.label;"
                     oncommand="doStatefulCommand('cmd_smiley', ':-\\' )"/>
           <menuitem id="smileySurprise" class="menuitem-iconic" label="&smiley8Cmd.label;"
-                    oncommand="doStatefulCommand('cmd_smiley', '=-O' )"/>           
+                    oncommand="doStatefulCommand('cmd_smiley', '=-O' )"/>
           <menuitem id="smileyKiss" class="menuitem-iconic" label="&smiley9Cmd.label;"
-                    oncommand="doStatefulCommand('cmd_smiley', ':-*' )"/>           
+                    oncommand="doStatefulCommand('cmd_smiley', ':-*' )"/>
           <menuitem id="smileyYell" class="menuitem-iconic" label="&smiley10Cmd.label;"
-                    oncommand="doStatefulCommand('cmd_smiley', '>:o' )"/>           
+                    oncommand="doStatefulCommand('cmd_smiley', '>:o' )"/>
           <menuitem id="smileyCool" class="menuitem-iconic" label="&smiley11Cmd.label;"
-                    oncommand="doStatefulCommand('cmd_smiley', '8-)' )"/>           
+                    oncommand="doStatefulCommand('cmd_smiley', '8-)' )"/>
           <menuitem id="smileyMoney" class="menuitem-iconic" label="&smiley12Cmd.label;"
-                    oncommand="doStatefulCommand('cmd_smiley', ':-$' )"/>           
+                    oncommand="doStatefulCommand('cmd_smiley', ':-$' )"/>
           <menuitem id="smileyFoot" class="menuitem-iconic" label="&smiley13Cmd.label;"
-                    oncommand="doStatefulCommand('cmd_smiley', ':-!' )"/>           
+                    oncommand="doStatefulCommand('cmd_smiley', ':-!' )"/>
           <menuitem id="smileyInnocent" class="menuitem-iconic" label="&smiley14Cmd.label;"
-                    oncommand="doStatefulCommand('cmd_smiley', 'O:-)' )"/>           
+                    oncommand="doStatefulCommand('cmd_smiley', 'O:-)' )"/>
           <menuitem id="smileyCry" class="menuitem-iconic" label="&smiley15Cmd.label;"
                     oncommand="doStatefulCommand('cmd_smiley', ':\'(' )"/>
           <menuitem id="smileySealed" class="menuitem-iconic" label="&smiley16Cmd.label;"
-                    oncommand="doStatefulCommand('cmd_smiley', ':-X' )"/>           
+                    oncommand="doStatefulCommand('cmd_smiley', ':-X' )"/>
         </menupopup>
       </toolbarbutton>
       <spacer flex="1"/>
@@ -800,9 +840,7 @@
 
   </vbox>
   </hbox>
-  <panel id="customizeToolbarSheetPopup"
-         noautohide="true"
-         onpopupshown="this.moveTo(this.boxObject.screenX + (window.innerWidth - this.boxObject.width) / 2, this.boxObject.screenY);">
+  <panel id="customizeToolbarSheetPopup" noautohide="true">
     <iframe id="customizeToolbarSheetIFrame"
             style="&dialog.style;"
             hidden="true"/>
@@ -814,7 +852,9 @@
 
   <statusbar id="status-bar" class="chromeclass-status">
     <statusbarpanel id="statusText" flex="1"/>
-    <statusbarpanel class="statusbarpanel-progress" id="statusbar-progresspanel">
+    <statusbarpanel id="statusbar-progresspanel"
+                    class="statusbarpanel-progress"
+                    collapsed="true">
       <progressmeter id="compose-progressmeter" class="progressmeter-statusbar" mode="normal" value="0"/>
     </statusbarpanel>
   </statusbar>

@@ -3,7 +3,7 @@ A representation of makefile data structures.
 """
 
 import logging, re, os, sys
-import parserdata, parser, functions, process, util, builtins
+import parserdata, parser, functions, process, util, implicit
 from cStringIO import StringIO
 
 _log = logging.getLogger('pymake.data')
@@ -462,7 +462,7 @@ class Pattern(object):
 
     _backre = re.compile(r'[%\\]')
     def __str__(self):
-        if not self.ispattern:
+        if not self.ispattern():
             return self._backre.sub(r'\\\1', self.data[0])
 
         return self._backre.sub(r'\\\1', self.data[0]) + '%' + self.data[1]
@@ -595,6 +595,7 @@ class RemakeRuleContext(object):
         self.running = False
         self.error = False
         self.depsremaining = len(deps) + 1
+        self.remake = False
 
     def resolvedeps(self, serial, cb):
         self.resolvecb = cb
@@ -603,6 +604,11 @@ class RemakeRuleContext(object):
             self._resolvedepsserial()
         else:
             self._resolvedepsparallel()
+
+    def _weakdepfinishedserial(self, error, didanything):
+        if error:
+            self.remake = True
+        self._depfinishedserial(False, didanything)
 
     def _depfinishedserial(self, error, didanything):
         assert error in (True, False)
@@ -617,8 +623,9 @@ class RemakeRuleContext(object):
                 return
         
         if len(self.resolvelist):
-            self.makefile.context.defer(self.resolvelist.pop(0).make,
-                                        self.makefile, self.targetstack, self._depfinishedserial)
+            dep, weak = self.resolvelist.pop(0)
+            self.makefile.context.defer(dep.make,
+                                        self.makefile, self.targetstack, weak and self._weakdepfinishedserial or self._depfinishedserial)
         else:
             self.resolvecb(error=self.error, didanything=self.didanything)
 
@@ -630,7 +637,13 @@ class RemakeRuleContext(object):
         if self.makefile.error:
             depfinished(True, False)
         else:
-            d.make(self.makefile, self.targetstack, self._depfinishedparallel)
+            dep, weak = d
+            dep.make(self.makefile, self.targetstack, weak and self._weakdepfinishedparallel or self._depfinishedparallel)
+
+    def _weakdepfinishedparallel(self, error, didanything):
+        if error:
+            self.remake = True
+        self._depfinishedparallel(False, didanything)
 
     def _depfinishedparallel(self, error, didanything):
         assert error in (True, False)
@@ -678,29 +691,36 @@ class RemakeRuleContext(object):
             if self.target.mtime is None:
                 self.target.beingremade()
             else:
-                for d in self.deps:
+                for d, weak in self.deps:
                     if mtimeislater(d.mtime, self.target.mtime):
                         self.target.beingremade()
                         break
             cb(error=False)
             return
 
-        remake = False
-        if self.target.mtime is None:
-            remake = True
-            _log.info("%sRemaking %s using rule at %s: target doesn't exist or is a forced target", indent, self.target.target, self.rule.loc)
+        if self.rule.doublecolon:
+            if len(self.deps) == 0:
+                if self.avoidremakeloop:
+                    _log.info("%sNot remaking %s using rule at %s because it would introduce an infinite loop.", indent, self.target.target, self.rule.loc)
+                    cb(error=False)
+                    return
+
+        remake = self.remake
+        if remake:
+            _log.info("%sRemaking %s using rule at %s: weak dependency was not found.", indent, self.target.target, self.rule.loc)
+        else:
+            if self.target.mtime is None:
+                remake = True
+                _log.info("%sRemaking %s using rule at %s: target doesn't exist or is a forced target", indent, self.target.target, self.rule.loc)
 
         if not remake:
             if self.rule.doublecolon:
                 if len(self.deps) == 0:
-                    if self.avoidremakeloop:
-                        _log.info("%sNot remaking %s using rule at %s because it would introduce an infinite loop.", indent, self.target.target, self.rule.loc)
-                    else:
-                        _log.info("%sRemaking %s using rule at %s because there are no prerequisites listed for a double-colon rule.", indent, self.target.target, self.rule.loc)
-                        remake = True
+                    _log.info("%sRemaking %s using rule at %s because there are no prerequisites listed for a double-colon rule.", indent, self.target.target, self.rule.loc)
+                    remake = True
 
         if not remake:
-            for d in self.deps:
+            for d, weak in self.deps:
                 if mtimeislater(d.mtime, self.target.mtime):
                     _log.info("%sRemaking %s using rule at %s because %s is newer.", indent, self.target.target, self.rule.loc, d.target)
                     remake = True
@@ -735,6 +755,8 @@ class Target(object):
     The rules associated with this target may be Rule instances or, in the case of static pattern
     rules, PatternRule instances.
     """
+
+    wasremade = False
 
     def __init__(self, target, makefile):
         assert isinstance(target, str)
@@ -939,8 +961,8 @@ class Target(object):
                         libname = lp.resolve('', stem)
 
                         for dir in searchdirs:
-                            libpath = os.path.join(dir, libname).replace('\\', '/')
-                            fspath = os.path.join(makefile.workdir, libpath)
+                            libpath = util.normaljoin(dir, libname).replace('\\', '/')
+                            fspath = util.normaljoin(makefile.workdir, libpath)
                             mtime = getmtime(fspath)
                             if mtime is not None:
                                 self.vpathtarget = libpath
@@ -953,12 +975,13 @@ class Target(object):
 
         search = [self.target]
         if not os.path.isabs(self.target):
-            search += [os.path.join(dir, self.target).replace('\\', '/')
+            search += [util.normaljoin(dir, self.target).replace('\\', '/')
                        for dir in makefile.getvpath(self.target)]
 
         for t in search:
-            fspath = os.path.join(makefile.workdir, t).replace('\\', '/')
+            fspath = util.normaljoin(makefile.workdir, t).replace('\\', '/')
             mtime = getmtime(fspath)
+#            _log.info("Searching %s ... checking %s ... mtime %r" % (t, fspath, mtime))
             if mtime is not None:
                 self.vpathtarget = t
                 self.mtime = mtime
@@ -976,6 +999,7 @@ class Target(object):
         self.realmtime = self.mtime
         self.mtime = None
         self.vpathtarget = self.target
+        self.wasremade = True
 
     def notifydone(self, makefile):
         assert self._state == MAKESTATE_WORKING, "State was %s" % self._state
@@ -985,7 +1009,7 @@ class Target(object):
             makefile.context.defer(cb, error=self.error, didanything=self.didanything)
         del self._callbacks 
 
-    def make(self, makefile, targetstack, cb, avoidremakeloop=False):
+    def make(self, makefile, targetstack, cb, avoidremakeloop=False, printerror=True):
         """
         If we are out of date, asynchronously make ourself. This is a multi-stage process, mostly handled
         by the helper objects RemakeTargetSerially, RemakeTargetParallel,
@@ -1028,7 +1052,8 @@ class Target(object):
         try:
             self.resolvedeps(makefile, targetstack, [], False)
         except util.MakeError, e:
-            print e
+            if printerror:
+                print e
             self.error = True
             self.notifydone(makefile)
             return
@@ -1039,13 +1064,13 @@ class Target(object):
             return
 
         if self.isdoublecolon():
-            rulelist = [RemakeRuleContext(self, makefile, r, [makefile.gettarget(p) for p in r.prerequisites], targetstack, avoidremakeloop) for r in self.rules]
+            rulelist = [RemakeRuleContext(self, makefile, r, [(makefile.gettarget(p), False) for p in r.prerequisites], targetstack, avoidremakeloop) for r in self.rules]
         else:
             alldeps = []
 
             commandrule = None
             for r in self.rules:
-                rdeps = [makefile.gettarget(p) for p in r.prerequisites]
+                rdeps = [(makefile.gettarget(p), r.weakdeps) for p in r.prerequisites]
                 if len(r.commands):
                     assert commandrule is None
                     commandrule = r
@@ -1117,17 +1142,18 @@ def splitcommand(command):
 
 def findmodifiers(command):
     """
-    Find any of +-@ prefixed on the command.
-    @returns (command, isHidden, isRecursive, ignoreErrors)
+    Find any of +-@% prefixed on the command.
+    @returns (command, isHidden, isRecursive, ignoreErrors, isNative)
     """
 
     isHidden = False
     isRecursive = False
     ignoreErrors = False
+    isNative = False
 
-    realcommand = command.lstrip(' \t\n@+-')
+    realcommand = command.lstrip(' \t\n@+-%')
     modset = set(command[:-len(realcommand)])
-    return realcommand, '@' in modset, '+' in modset, '-' in modset
+    return realcommand, '@' in modset, '+' in modset, '-' in modset, '%' in modset
 
 class _CommandWrapper(object):
     def __init__(self, cline, ignoreErrors, loc, context, **kwargs):
@@ -1148,6 +1174,32 @@ class _CommandWrapper(object):
         self.usercb = cb
         process.call(self.cline, loc=self.loc, cb=self._cb, context=self.context, **self.kwargs)
 
+class _NativeWrapper(_CommandWrapper):
+    def __init__(self, cline, ignoreErrors, loc, context,
+                 pycommandpath, **kwargs):
+        _CommandWrapper.__init__(self, cline, ignoreErrors, loc, context,
+                                 **kwargs)
+        # get the module and method to call
+        parts, badchar = process.clinetoargv(cline)
+        if parts is None:
+            raise DataError("native command '%s': shell metacharacter '%s' in command line" % (cline, badchar), self.loc)
+        if len(parts) < 2:
+            raise DataError("native command '%s': no method name specified" % cline, self.loc)
+        if pycommandpath:
+            self.pycommandpath = re.split('[%s\s]+' % os.pathsep,
+                                          pycommandpath)
+        else:
+            self.pycommandpath = None
+        self.module = parts[0]
+        self.method = parts[1]
+        self.cline_list = parts[2:]
+
+    def __call__(self, cb):
+        self.usercb = cb
+        process.call_native(self.module, self.method, self.cline_list,
+                            loc=self.loc, cb=self._cb, context=self.context,
+                            pycommandpath=self.pycommandpath, **self.kwargs)
+
 def getcommandsforrule(rule, target, makefile, prerequisites, stem):
     v = Variables(parent=target.variables)
     setautomaticvariables(v, makefile, target, prerequisites)
@@ -1159,13 +1211,22 @@ def getcommandsforrule(rule, target, makefile, prerequisites, stem):
     for c in rule.commands:
         cstring = c.resolvestr(makefile, v)
         for cline in splitcommand(cstring):
-            cline, isHidden, isRecursive, ignoreErrors = findmodifiers(cline)
-            if isHidden:
+            cline, isHidden, isRecursive, ignoreErrors, isNative = findmodifiers(cline)
+            if isHidden or makefile.silent:
                 echo = None
             else:
                 echo = "%s$ %s" % (c.loc, cline)
-            yield _CommandWrapper(cline, ignoreErrors=ignoreErrors, env=env, cwd=makefile.workdir, loc=c.loc, context=makefile.context,
-                                 echo=echo)
+            if not isNative:
+                yield _CommandWrapper(cline, ignoreErrors=ignoreErrors, env=env, cwd=makefile.workdir, loc=c.loc, context=makefile.context,
+                                      echo=echo)
+            else:
+                f, s, e = v.get("PYCOMMANDPATH", True)
+                if e:
+                    e = e.resolvestr(makefile, v, ["PYCOMMANDPATH"])
+                yield _NativeWrapper(cline, ignoreErrors=ignoreErrors,
+                                     env=env, cwd=makefile.workdir,
+                                     loc=c.loc, context=makefile.context,
+                                     echo=echo, pycommandpath=e)
 
 class Rule(object):
     """
@@ -1173,11 +1234,12 @@ class Rule(object):
     contain rule-specific variables. This rule may be associated with multiple targets.
     """
 
-    def __init__(self, prereqs, doublecolon, loc):
+    def __init__(self, prereqs, doublecolon, loc, weakdeps):
         self.prerequisites = prereqs
         self.doublecolon = doublecolon
         self.commands = []
         self.loc = loc
+        self.weakdeps = weakdeps
 
     def addcommand(self, c):
         assert isinstance(c, (Expansion, StringExpansion))
@@ -1190,6 +1252,8 @@ class Rule(object):
         # TODO: $* in non-pattern rules?
 
 class PatternRuleInstance(object):
+    weakdeps = False
+
     """
     A pattern rule instantiated for a particular target. It has the same API as Rule, but
     different internals, forwarding most information on to the PatternRule.
@@ -1269,10 +1333,11 @@ class PatternRule(object):
         return [p.resolve(dir, stem) for p in self.prerequisites]
 
 class _RemakeContext(object):
-    def __init__(self, makefile, remakelist, mtimelist, cb):
+    def __init__(self, makefile, cb):
         self.makefile = makefile
-        self.remakelist = remakelist
-        self.mtimelist = mtimelist # list of (target, mtime)
+        self.included = [(makefile.gettarget(f), required)
+                         for f, required in makefile.included]
+        self.toremake = list(self.included)
         self.cb = cb
 
         self.remakecb(error=False, didanything=False)
@@ -1280,16 +1345,22 @@ class _RemakeContext(object):
     def remakecb(self, error, didanything):
         assert error in (True, False)
 
-        if error:
+        if error and self.required:
             print "Error remaking makefiles (ignored)"
 
-        if len(self.remakelist):
-            self.remakelist.pop(0).make(self.makefile, [], avoidremakeloop=True, cb=self.remakecb)
+        if len(self.toremake):
+            target, self.required = self.toremake.pop(0)
+            target.make(self.makefile, [], avoidremakeloop=True, cb=self.remakecb, printerror=False)
         else:
-            for t, oldmtime in self.mtimelist:
-                if t.mtime != oldmtime:
+            for t, required in self.included:
+                if t.wasremade:
+                    _log.info("Included file %s was remade, restarting make", t.target)
                     self.cb(remade=True)
                     return
+                elif required and t.mtime is None:
+                    self.cb(remade=False, error=DataError("No rule to remake missing include file %s" % t.target))
+                    return
+
             self.cb(remade=False)
 
 class Makefile(object):
@@ -1300,7 +1371,8 @@ class Makefile(object):
 
     def __init__(self, workdir=None, env=None, restarts=0, make=None,
                  makeflags='', makeoverrides='',
-                 makelevel=0, context=None, targets=(), keepgoing=False):
+                 makelevel=0, context=None, targets=(), keepgoing=False,
+                 silent=False):
         self.defaulttarget = None
 
         if env is None:
@@ -1314,6 +1386,7 @@ class Makefile(object):
         self.exportedvars = {}
         self._targets = {}
         self.keepgoing = keepgoing
+        self.silent = silent
         self._patternvariables = [] # of (pattern, variables)
         self.implicitrules = []
         self.parsingfinished = False
@@ -1333,6 +1406,8 @@ class Makefile(object):
         self.variables.set('MAKE_RESTARTS', Variables.FLAVOR_SIMPLE,
                            Variables.SOURCE_AUTOMATIC, restarts > 0 and str(restarts) or '')
 
+        self.variables.set('.PYMAKE', Variables.FLAVOR_SIMPLE,
+                           Variables.SOURCE_MAKEFILE, "1")
         if make is not None:
             self.variables.set('MAKE', Variables.FLAVOR_SIMPLE,
                                Variables.SOURCE_MAKEFILE, make)
@@ -1357,7 +1432,7 @@ class Makefile(object):
         self.variables.set('MAKECMDGOALS', Variables.FLAVOR_SIMPLE,
                            Variables.SOURCE_AUTOMATIC, ' '.join(targets))
 
-        for vname, val in builtins.variables.iteritems():
+        for vname, val in implicit.variables.iteritems():
             self.variables.set(vname,
                                Variables.FLAVOR_SIMPLE,
                                Variables.SOURCE_IMPLICIT, val)
@@ -1367,7 +1442,7 @@ class Makefile(object):
         Inform the makefile of a target which is a candidate for being the default target,
         if there isn't already a default target.
         """
-        if self.defaulttarget is None:
+        if self.defaulttarget is None and t != '.PHONY':
             self.defaulttarget = t
 
     def getpatternvariables(self, pattern):
@@ -1443,19 +1518,17 @@ class Makefile(object):
 
         self.error = False
 
-    def include(self, path, required=True, loc=None):
+    def include(self, path, required=True, weak=False, loc=None):
         """
         Include the makefile at `path`.
         """
-        fspath = os.path.join(self.workdir, path)
+        self.included.append((path, required))
+        fspath = util.normaljoin(self.workdir, path)
         if os.path.exists(fspath):
-            self.included.append(path)
             stmts = parser.parsefile(fspath)
             self.variables.append('MAKEFILE_LIST', Variables.SOURCE_AUTOMATIC, path, None, self)
-            stmts.execute(self)
+            stmts.execute(self, weak=weak)
             self.gettarget(path).explicit = True
-        elif required:
-            raise DataError("Attempting to include file '%s' which doesn't exist." % (path,), loc)
 
     def addvpath(self, pattern, dirs):
         """
@@ -1484,7 +1557,7 @@ class Makefile(object):
 
     def remakemakefiles(self, cb):
         mlist = []
-        for f in self.included:
+        for f, required in self.included:
             t = self.gettarget(f)
             t.explicit = True
             t.resolvevpath(self)
@@ -1492,7 +1565,7 @@ class Makefile(object):
 
             mlist.append((t, oldmtime))
 
-        _RemakeContext(self, [self.gettarget(f) for f in self.included], mlist, cb)
+        _RemakeContext(self, cb)
 
     def getsubenvironment(self, variables):
         env = dict(self.env)

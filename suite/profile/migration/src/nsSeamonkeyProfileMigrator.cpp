@@ -88,12 +88,13 @@ nsSeamonkeyProfileMigrator::Migrate(PRUint16 aItems,
 
   if (!mTargetProfile) {
     GetProfilePath(aStartup, getter_AddRefs(mTargetProfile));
-    if (!mTargetProfile) return NS_ERROR_FAILURE;
+    if (!mTargetProfile)
+      return NS_ERROR_FILE_NOT_FOUND;
   }
   if (!mSourceProfile) {
     GetSourceProfile(aProfile);
     if (!mSourceProfile)
-      return NS_ERROR_FAILURE;
+      return NS_ERROR_FILE_NOT_FOUND;
   }
 
   NOTIFY_OBSERVERS(MIGRATION_STARTED, nsnull);
@@ -303,8 +304,6 @@ nsSeamonkeyProfileMigrator::PrefTransform gTransforms[] = {
   MAKESAMETYPEPREFTRANSFORM("browser.sessionhistory.max_total_viewers",Int),
   MAKESAMETYPEPREFTRANSFORM("browser.startup.page",                    Int),
   MAKESAMETYPEPREFTRANSFORM("browser.throbber.url",                    String),
-  MAKESAMETYPEPREFTRANSFORM("browser.toolbars.showbutton.go",          Bool),
-  MAKESAMETYPEPREFTRANSFORM("browser.toolbars.showbutton.search",      Bool),
   MAKESAMETYPEPREFTRANSFORM("browser.triple_click_selects_paragraph",  Bool),
   MAKESAMETYPEPREFTRANSFORM("browser.underline_anchors",               Bool),
   MAKESAMETYPEPREFTRANSFORM("browser.visited_color",                   String),
@@ -415,8 +414,6 @@ nsSeamonkeyProfileMigrator::PrefTransform gTransforms[] = {
 
   MAKESAMETYPEPREFTRANSFORM("mail.send_struct",                        Bool),
   MAKESAMETYPEPREFTRANSFORM("mail.show_headers",                       Int),
-  MAKESAMETYPEPREFTRANSFORM("mail.showPreviewText",                    Bool),
-  MAKESAMETYPEPREFTRANSFORM("mail.signature_date",                     Int),
   MAKESAMETYPEPREFTRANSFORM("mail.smtp.useMatchingDomainServer",       Bool),
   MAKESAMETYPEPREFTRANSFORM("mail.smtp.useMatchingHostNameServer",     Bool),
   MAKESAMETYPEPREFTRANSFORM("mail.smtp.defaultserver",                 String),
@@ -498,10 +495,8 @@ nsSeamonkeyProfileMigrator::PrefTransform gTransforms[] = {
   MAKESAMETYPEPREFTRANSFORM("msgcompose.text_color",                   String),
 
   MAKESAMETYPEPREFTRANSFORM("news.get_messages_on_select",             Bool),
-  MAKESAMETYPEPREFTRANSFORM("news.show_first_unread",                  Bool),
   MAKESAMETYPEPREFTRANSFORM("news.show_size_in_lines",                 Bool),
   MAKESAMETYPEPREFTRANSFORM("news.update_unread_on_expand",            Bool),
-  MAKESAMETYPEPREFTRANSFORM("news.wrap_long_lines",                    Bool),
 
   // pdi is the new preference, but nii is the old one - so do nii first, and
   // then do pdi to account for both situations
@@ -520,8 +515,6 @@ nsSeamonkeyProfileMigrator::PrefTransform gTransforms[] = {
   MAKESAMETYPEPREFTRANSFORM("network.proxy.autoconfig_url",            String),
   MAKESAMETYPEPREFTRANSFORM("network.proxy.ftp",                       String),
   MAKESAMETYPEPREFTRANSFORM("network.proxy.ftp_port",                  Int),
-  MAKESAMETYPEPREFTRANSFORM("network.proxy.gopher",                    String),
-  MAKESAMETYPEPREFTRANSFORM("network.proxy.gopher_port",               Int),
   MAKESAMETYPEPREFTRANSFORM("network.proxy.http",                      String),
   MAKESAMETYPEPREFTRANSFORM("network.proxy.http_port",                 Int),
   MAKESAMETYPEPREFTRANSFORM("network.proxy.no_proxies_on",             String),

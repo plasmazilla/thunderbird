@@ -63,6 +63,7 @@
         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
         width="500" height="400"
         persist="width height screenX screenY sizemode"
+        toggletoolbar="true"
         windowtype="history:manager">
 
   <commandset id="tasksCommands">
@@ -102,7 +103,7 @@
   </keyset>
 
   <popupset id="placesPopupset">
-    <popup id="placesContext"/>
+    <menupopup id="placesContext"/>
   </popupset>
 
   <toolbox id="history-toolbox">

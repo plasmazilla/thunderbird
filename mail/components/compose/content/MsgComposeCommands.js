@@ -45,6 +45,7 @@ Components.utils.import("resource:///modules/attachmentChecker.js");
 
 Components.utils.import("resource:///modules/MailUtils.js");
 Components.utils.import("resource:///modules/errUtils.js");
+Components.utils.import("resource://gre/modules/InlineSpellChecker.jsm");
 
 /**
  * interfaces
@@ -67,6 +68,11 @@ var sDictCount = 0;
 */
 var msgWindow = Components.classes["@mozilla.org/messenger/msgwindow;1"]
                           .createInstance(Components.interfaces.nsIMsgWindow);
+
+var gMessenger = Components.classes["@mozilla.org/messenger;1"]
+                           .createInstance(Components.interfaces.nsIMessenger)
+
+var gSpellChecker = new InlineSpellChecker();
 
 /**
  * Global variables, need to be re-initialized every time mostly because we need to release them when the window close
@@ -102,6 +108,7 @@ var gRemindLater;
 var gSendDefaultCharset;
 var gCharsetTitle;
 var gCharsetConvertManager;
+var gComposeBundle;
 
 var gLastWindowToHaveFocus;
 var gReceiptOptionChanged;
@@ -113,6 +120,7 @@ var gAutoSaveInterval;
 var gAutoSaveTimeout;
 var gAutoSaveKickedIn;
 var gEditingDraft;
+var gAttachmentsSize;
 
 const kComposeAttachDirPrefName = "mail.compose.attach.dir";
 
@@ -140,6 +148,7 @@ function InitializeGlobalVariables()
   gSendDefaultCharset = null;
   gCharsetTitle = null;
   gCharsetConvertManager = Components.classes['@mozilla.org/charset-converter-manager;1'].getService(Components.interfaces.nsICharsetConverterManager);
+  gComposeBundle = document.getElementById("bundle_composeMsgs");
   gMailSession = Components.classes["@mozilla.org/messenger/services/session;1"].getService(Components.interfaces.nsIMsgMailSession);
   gHideMenus = false;
   gRemindLater = false;
@@ -148,6 +157,7 @@ function InitializeGlobalVariables()
   gReceiptOptionChanged = false;
   gDSNOptionChanged = false;
   gAttachVCardOptionChanged = false;
+  gAttachmentsSize = 0;
 }
 InitializeGlobalVariables();
 
@@ -234,10 +244,11 @@ var gComposeRecyclingListener = {
       document.getElementById("customizeToolbarSheetIFrame")
               .contentWindow.finishToolbarCustomization();
 
-    // Stop InlineSpellCheckerUI so personal dictionary is saved
+    // Stop gSpellChecker so personal dictionary is saved
     enableInlineSpellCheck(false);
     // clear any suggestions in the context menu
-    InlineSpellCheckerUI.clearSuggestionsFromMenu();
+    gSpellChecker.clearSuggestionsFromMenu();
+    gSpellChecker.clearDictionaryListFromMenu();
 
     //Reset editor
     EditorResetFontAndColorAttributes();
@@ -310,6 +321,22 @@ var stateListener = {
   }
 };
 
+var gSendListener = {
+  // nsIMsgSendListener
+  onStartSending: function (aMsgID, aMsgSize) {},
+  onProgress: function (aMsgID, aProgress, aProgressMax) {},
+  onStatus: function (aMsgID, aMsg) {},
+  onStopSending: function (aMsgID, aStatus, aMsg, aReturnFile) {
+    if (Components.isSuccessCode(aStatus)) {
+      Components.classes["@mozilla.org/observer-service;1"]
+      .getService(Components.interfaces.nsIObserverService)
+      .notifyObservers(null, "mail:composeSendSucceeded", null);
+    }
+  },
+  onGetDraftFolderURI: function (aFolderURI) {},
+  onSendNotPerformed: function (aMsgID, aStatus) {},
+};
+
 // all progress notifications are done through the nsIWebProgressListener implementation...
 var progressListener = {
     onStateChange: function(aWebProgress, aRequest, aStateFlags, aStatus)
@@ -317,6 +344,7 @@ var progressListener = {
       if (aStateFlags & Components.interfaces.nsIWebProgressListener.STATE_START)
       {
         document.getElementById('compose-progressmeter').setAttribute( "mode", "undetermined" );
+        document.getElementById("statusbar-progresspanel").collapsed = false;
       }
 
       if (aStateFlags & Components.interfaces.nsIWebProgressListener.STATE_STOP)
@@ -324,6 +352,7 @@ var progressListener = {
         gSendOrSaveOperationInProgress = false;
         document.getElementById('compose-progressmeter').setAttribute( "mode", "normal" );
         document.getElementById('compose-progressmeter').setAttribute( "value", 0 );
+        document.getElementById("statusbar-progresspanel").collapsed = true;
         document.getElementById('statusText').setAttribute('label', '');
       }
     },
@@ -412,7 +441,6 @@ var defaultController =
       case "cmd_account":
 
       //View Menu
-      case "cmd_showComposeToolbar":
       case "cmd_showFormatToolbar":
 
       //Options Menu
@@ -452,7 +480,23 @@ var defaultController =
 
       //Edit Menu
       case "cmd_delete":
-        return MessageGetNumSelectedAttachments();
+        var numSelectedAttachments = MessageGetNumSelectedAttachments();
+
+        var cmdDelete = document.getElementById("cmd_delete");
+        var textValue = cmdDelete.getAttribute("valueDefault");
+        var accesskeyValue = cmdDelete.getAttribute("valueDefaultAccessKey");
+
+        var hasAttachments = MessageHasAttachments();
+        if (hasAttachments) {
+          textValue = gComposeBundle.getString("removeAttachmentMsgs");
+          textValue = PluralForm.get(numSelectedAttachments, textValue);
+          accesskeyValue = cmdDelete.getAttribute("valueRemoveAttachmentAccessKey");
+        }
+
+        cmdDelete.setAttribute("label", textValue);
+        cmdDelete.setAttribute("accesskey", accesskeyValue);
+
+        return hasAttachments ? numSelectedAttachments : 0;
       case "cmd_selectAll":
         return MessageHasAttachments();
       case "cmd_openAttachment":
@@ -462,8 +506,6 @@ var defaultController =
       case "cmd_account":
 
       //View Menu
-      case "cmd_showComposeToolbar":
-        return true;
       case "cmd_showFormatToolbar":
         return composeHTML;
 
@@ -517,7 +559,6 @@ var defaultController =
       case "cmd_account"            : MsgAccountManager(null); break;
 
       //View Menu
-      case "cmd_showComposeToolbar" : goToggleToolbar('composeToolbar2', 'menu_showComposeToolbar'); break;
       case "cmd_showFormatToolbar"  : goToggleToolbar('FormatToolbar', 'menu_showFormatToolbar');   break;
 
       //Options Menu
@@ -578,10 +619,16 @@ function GetSelectedMessages()
 function SetupCommandUpdateHandlers()
 {
   top.controllers.insertControllerAt(0, defaultController);
+
+  document.getElementById("optionsMenuPopup")
+          .addEventListener("popupshowing", updateOptionItems, true);
 }
 
 function UnloadCommandUpdateHandlers()
 {
+  document.getElementById("optionsMenuPopup")
+          .removeEventListener("popupshowing", updateOptionItems, true);
+
   top.controllers.removeController(defaultController);
 }
 
@@ -627,22 +674,33 @@ function updateComposeItems()
 
     // Options Menu
     goUpdateCommand("cmd_spelling");
+    // Workaround to update 'Quote' toolbar button. (See bug 609926.)
     goUpdateCommand("cmd_quoteMessage");
   } catch(e) {}
 }
 
 function openEditorContextMenu(popup)
 {
-  InlineSpellCheckerUI.clearSuggestionsFromMenu();
-  InlineSpellCheckerUI.initFromEvent(document.popupRangeParent, document.popupRangeOffset);
-  var onMisspelling = InlineSpellCheckerUI.overMisspelling;
+  gSpellChecker.clearSuggestionsFromMenu();
+  gSpellChecker.initFromEvent(document.popupRangeParent, document.popupRangeOffset);
+  var onMisspelling = gSpellChecker.overMisspelling;
   document.getElementById('spellCheckSuggestionsSeparator').hidden = !onMisspelling;
   document.getElementById('spellCheckAddToDictionary').hidden = !onMisspelling;
   document.getElementById('spellCheckIgnoreWord').hidden = !onMisspelling;
   var separator = document.getElementById('spellCheckAddSep');
   separator.hidden = !onMisspelling;
   document.getElementById('spellCheckNoSuggestions').hidden = !onMisspelling ||
-      InlineSpellCheckerUI.addSuggestionsToMenu(popup, separator, 5);
+      gSpellChecker.addSuggestionsToMenu(popup, separator, 5);
+
+  // We ought to do that, otherwise changing dictionaries will have no effect!
+  // InlineSpellChecker only registers callbacks for entries that are not the
+  // current dictionary, so if we changed dictionaries in the meanwhile, we must
+  // rebuild the list so that the right callbacks are registered in the Language
+  // menu.
+  gSpellChecker.clearDictionaryListFromMenu();
+  let dictMenu = document.getElementById("spellCheckDictionariesMenu");
+  let dictSep = document.getElementById("spellCheckLanguageSeparator");
+  gSpellChecker.addDictionaryListToMenu(dictMenu, dictSep);
 
   updateEditItems();
 }
@@ -658,6 +716,11 @@ function updateEditItems()
   goUpdateCommand("cmd_find");
   goUpdateCommand("cmd_findNext");
   goUpdateCommand("cmd_findPrev");
+}
+
+function updateOptionItems()
+{
+  goUpdateCommand("cmd_quoteMessage");
 }
 
 var messageComposeOfflineObserver =
@@ -1194,7 +1257,6 @@ attachmentWorker.onerror = function(error)
 attachmentWorker.onmessage = function(event)
 {
   let keywordsFound = event.data;
-  let bundle = document.getElementById("bundle_composeMsgs");
   let msg = null;
   let nBox = document.getElementById("attachmentNotificationBox");
   let notification = nBox.getNotificationWithValue("1");
@@ -1214,7 +1276,7 @@ attachmentWorker.onmessage = function(event)
     msgText.id = "attachmentReminderText";
     msgText.setAttribute("crop", "end");
     msgText.setAttribute("flex", "1");
-    let textValue = bundle.getString("attachmentReminderKeywordsMsgs");
+    let textValue = gComposeBundle.getString("attachmentReminderKeywordsMsgs");
     textValue = PluralForm.get(keywordsFound.length, textValue)
                           .replace("#1", keywordsFound.length);
     msgText.setAttribute("value", textValue);
@@ -1248,8 +1310,8 @@ attachmentWorker.onmessage = function(event)
     nBox.removeNotification(notification);
   if (msg) {
     var addButton = {
-      accessKey : bundle.getString("addAttachmentButton.accessskey"),
-      label: bundle.getString("addAttachmentButton"),
+      accessKey : gComposeBundle.getString("addAttachmentButton.accessskey"),
+      label: gComposeBundle.getString("addAttachmentButton"),
       callback: function (aNotificationBar, aButton)
       {
         goDoCommand("cmd_attachFile");
@@ -1257,8 +1319,8 @@ attachmentWorker.onmessage = function(event)
     };
 
     var remindButton = {
-      accessKey : bundle.getString("remindLaterButton.accessskey"),
-      label: bundle.getString("remindLaterButton"),
+      accessKey : gComposeBundle.getString("remindLaterButton.accessskey"),
+      label: gComposeBundle.getString("remindLaterButton"),
       callback: function (aNotificationBar, aButton)
       {
         gRemindLater = true;
@@ -1329,7 +1391,7 @@ function ShouldShowAttachmentNotification(async)
     // together to foobar.
     let brs = mailBodyNode.getElementsByTagName("br");
     for (let i = brs.length - 1; i >= 0; i--) {
-      brs[i].parentNode.replaceChild(document.createTextNode("\n"), brs[i]);
+      brs[i].parentNode.replaceChild(mailBodyNode.ownerDocument.createTextNode("\n"), brs[i]);
     }
 
     // Ignore signature (plain text compose mode).
@@ -1339,8 +1401,7 @@ function ShouldShowAttachmentNotification(async)
       mailData = mailData.substring(0, sigIndex);
 
     // Ignore forwarded messages (plain text and html compose mode).
-    let bundle = document.getElementById("bundle_composeMsgs");
-    let fwdText = bundle.getString("mailnews.reply_header_originalmessage");
+    let fwdText = gComposeBundle.getString("mailnews.reply_header_originalmessage");
     let fwdIndex = mailData.indexOf(fwdText);
     if (fwdIndex > 0)
       mailData = mailData.substring(0, fwdIndex);
@@ -1503,17 +1564,17 @@ function ComposeStartup(recycled, aParams)
   LoadIdentity(true);
   var composeSvc = Components.classes["@mozilla.org/messengercompose;1"]
                              .getService(Components.interfaces.nsIMsgComposeService);
-  gMsgCompose = composeSvc.InitCompose(window, params);
+
+  // Get the <editor> element to startup an editor
+  var editorElement = GetCurrentEditorElement();
+  gMsgCompose = composeSvc.initCompose(params, window, editorElement.docShell);
   if (gMsgCompose)
   {
     // set the close listener
     gMsgCompose.recyclingListener = gComposeRecyclingListener;
-
+    gMsgCompose.addMsgSendListener(gSendListener);
     //Lets the compose object knows that we are dealing with a recycled window
     gMsgCompose.recycledWindow = recycled;
-
-    // Get the <editor> element to startup an editor
-    var editorElement = GetCurrentEditorElement();
 
     document.getElementById("returnReceiptMenu")
             .setAttribute('checked', gMsgCompose.compFields.returnReceipt);
@@ -1521,8 +1582,6 @@ function ComposeStartup(recycled, aParams)
             .setAttribute('checked', gMsgCompose.compFields.DSN);
     document.getElementById("cmd_attachVCard")
             .setAttribute('checked', gMsgCompose.compFields.attachVCard);
-    document.getElementById("menu_inlineSpellCheck")
-            .setAttribute('checked', getPref("mail.spellcheck.inline"));
 
     // If recycle, editor is already created
     if (!recycled)
@@ -1576,7 +1635,7 @@ function ComposeStartup(recycled, aParams)
 
       var attachments = msgCompFields.attachments;
       if (attachments.hasMoreElements())
-        ChangeAttachmentBucketVisibility(false);
+        UpdateAttachmentBucket(true);
 
       while (attachments.hasMoreElements()) {
         AddUrlAttachment(attachments.getNext().QueryInterface(Components.interfaces.nsIMsgAttachment));
@@ -1731,9 +1790,8 @@ function ComposeLoad()
   }
   catch (ex) {
     Components.utils.reportError(ex);
-    var bundle = document.getElementById("bundle_composeMsgs");
-    gPromptService.alert(window, bundle.getString("initErrorDlogTitle"),
-                         bundle.getString("initErrorDlgMessage"));
+    gPromptService.alert(window, gComposeBundle.getString("initErrorDlogTitle"),
+                         gComposeBundle.getString("initErrorDlgMessage"));
 
     MsgComposeCloseWindow(false); // Don't try to recycle a bogus window
     return;
@@ -1756,11 +1814,13 @@ function ComposeUnload()
 {
   UnloadCommandUpdateHandlers();
 
-  // Stop InlineSpellCheckerUI so personal dictionary is saved
+  // Stop gSpellChecker so personal dictionary is saved
   enableInlineSpellCheck(false);
 
   EditorCleanup();
 
+  if (gMsgCompose)
+    gMsgCompose.removeMsgSendListener(gSendListener);
   RemoveMessageComposeOfflineObserver();
   RemoveDirectoryServerObserver(null);
   if (gCurrentIdentity)
@@ -1916,15 +1976,14 @@ function GenericSendMessage( msgType )
         // Remind the person if there isn't a subject
         if (subject == "")
         {
-          var bundle = document.getElementById("bundle_composeMsgs");
           if (gPromptService.confirmEx(
                 window,
-                bundle.getString("subjectEmptyTitle"),
-                bundle.getString("subjectEmptyMessage"),
+                gComposeBundle.getString("subjectEmptyTitle"),
+                gComposeBundle.getString("subjectEmptyMessage"),
                 (gPromptService.BUTTON_TITLE_IS_STRING * gPromptService.BUTTON_POS_0) +
                 (gPromptService.BUTTON_TITLE_IS_STRING * gPromptService.BUTTON_POS_1),
-                bundle.getString("sendWithEmptySubjectButton"),
-                bundle.getString("cancelSendingButton"),
+                gComposeBundle.getString("sendWithEmptySubjectButton"),
+                gComposeBundle.getString("cancelSendingButton"),
                 null, null, {value:0}) == 1)
           {
             GetMsgSubjectElement().focus();
@@ -1939,15 +1998,14 @@ function GenericSendMessage( msgType )
         if ((gRemindLater || (getPref("mail.compose.attachment_reminder_aggressive") &&
              document.getElementById("attachmentNotificationBox").currentNotification)) &&
             ShouldShowAttachmentNotification(false)) {
-          var bundle = document.getElementById("bundle_composeMsgs");
           var flags = gPromptService.BUTTON_POS_0 * gPromptService.BUTTON_TITLE_IS_STRING +
                       gPromptService.BUTTON_POS_1 * gPromptService.BUTTON_TITLE_IS_STRING;
           var hadForgotten = gPromptService.confirmEx(window,
-                               bundle.getString("attachmentReminderTitle"),
-                               bundle.getString("attachmentReminderMsg"),
+                               gComposeBundle.getString("attachmentReminderTitle"),
+                               gComposeBundle.getString("attachmentReminderMsg"),
                                flags,
-                               bundle.getString("attachmentReminderFalseAlarm"),
-                               bundle.getString("attachmentReminderYesIForgot"),
+                               gComposeBundle.getString("attachmentReminderFalseAlarm"),
+                               gComposeBundle.getString("attachmentReminderYesIForgot"),
                                null, null, {value:0});
           if (hadForgotten)
             return;
@@ -1971,12 +2029,11 @@ function GenericSendMessage( msgType )
           if (!dontAskAgain)
           {
             var checkbox = {value:false};
-            var bundle = document.getElementById("bundle_composeMsgs");
             var okToProceed = gPromptService.confirmCheck(
                                   window,
-                                  bundle.getString("noNewsgroupSupportTitle"),
-                                  bundle.getString("recipientDlogMessage"),
-                                  bundle.getString("CheckMsg"),
+                                  gComposeBundle.getString("noNewsgroupSupportTitle"),
+                                  gComposeBundle.getString("recipientDlogMessage"),
+                                  gComposeBundle.getString("CheckMsg"),
                                   checkbox);
 
             if (!okToProceed)
@@ -2132,18 +2189,17 @@ function CheckValidEmailAddress(to, cc, bcc)
   var invalidStr = null;
   // crude check that the to, cc, and bcc fields contain at least one '@'.
   // We could parse each address, but that might be overkill.
-  if (to.length > 0 && (to.indexOf("@") <= 0 || to.indexOf("@") == to.length - 1))
+  if (to.length > 0 && (to.indexOf("@") <= 0 && to.toLowerCase() != "postmaster" || to.indexOf("@") == to.length - 1))
     invalidStr = to;
-  else if (cc.length > 0 && (cc.indexOf("@") <= 0 || cc.indexOf("@") == cc.length - 1))
+  else if (cc.length > 0 && (cc.indexOf("@") <= 0 && cc.toLowerCase() != "postmaster" || cc.indexOf("@") == cc.length - 1))
     invalidStr = cc;
-  else if (bcc.length > 0 && (bcc.indexOf("@") <= 0 || bcc.indexOf("@") == bcc.length - 1))
+  else if (bcc.length > 0 && (bcc.indexOf("@") <= 0 && bcc.toLowerCase() != "postmaster" || bcc.indexOf("@") == bcc.length - 1))
     invalidStr = bcc;
   if (invalidStr)
   {
-    var bundle = document.getElementById("bundle_composeMsgs");
     if (gPromptService)
-      gPromptService.alert(window, bundle.getString("addressInvalidTitle"),
-                           bundle.getFormattedString("addressInvalid",
+      gPromptService.alert(window, gComposeBundle.getString("addressInvalidTitle"),
+                           gComposeBundle.getFormattedString("addressInvalid",
                                                      [invalidStr], 1));
     return false;
   }
@@ -2168,15 +2224,14 @@ function SendMessageWithCheck()
 
     if (warn) {
         var checkValue = {value:false};
-        var bundle = document.getElementById("bundle_composeMsgs");
         var buttonPressed = gPromptService.confirmEx(window,
-              bundle.getString('sendMessageCheckWindowTitle'),
-              bundle.getString('sendMessageCheckLabel'),
+              gComposeBundle.getString('sendMessageCheckWindowTitle'),
+              gComposeBundle.getString('sendMessageCheckLabel'),
               (gPromptService.BUTTON_TITLE_IS_STRING * gPromptService.BUTTON_POS_0) +
               (gPromptService.BUTTON_TITLE_CANCEL * gPromptService.BUTTON_POS_1),
-              bundle.getString('sendMessageCheckSendButtonLabel'),
+              gComposeBundle.getString('sendMessageCheckSendButtonLabel'),
               null, null,
-              bundle.getString('CheckMsg'),
+              gComposeBundle.getString('CheckMsg'),
               checkValue);
         if (buttonPressed != 0) {
             return;
@@ -2324,7 +2379,7 @@ function OutputFormatMenuSelect(target)
 // walk through the recipients list and add them to the inline spell checker ignore list
 function addRecipientsToIgnoreList(aAddressesToAdd)
 {
-  if (InlineSpellCheckerUI.enabled)
+  if (gSpellChecker.enabled)
   {
     // break the list of potentially many recipients back into individual names
     var hdrParser = Components.classes["@mozilla.org/messenger/headerparser;1"].getService(Components.interfaces.nsIMsgHeaderParser);
@@ -2349,7 +2404,7 @@ function addRecipientsToIgnoreList(aAddressesToAdd)
       }
     }
 
-    InlineSpellCheckerUI.mInlineSpellChecker.ignoreWords(tokenizedNames, tokenizedNames.length);
+    gSpellChecker.mInlineSpellChecker.ignoreWords(tokenizedNames, tokenizedNames.length);
   }
 }
 
@@ -2469,8 +2524,8 @@ function ChangeLanguage(event)
     branch.setComplexValue("spellchecker.dictionary", nsISupportsString, str);
 
     // now check the document over again with the new dictionary
-    if (InlineSpellCheckerUI.enabled)
-      InlineSpellCheckerUI.mInlineSpellChecker.spellCheckRange(null);
+    if (gSpellChecker.enabled)
+      gSpellChecker.mInlineSpellChecker.spellCheckRange(null);
   }
   event.stopPropagation();
 }
@@ -2617,19 +2672,18 @@ function SetComposeWindowTitle()
 {
   var newTitle = GetMsgSubjectElement().value;
 
-  var bundle = document.getElementById("bundle_composeMsgs");
   if (newTitle == "" )
-    newTitle = bundle.getString("defaultSubject");
+    newTitle = gComposeBundle.getString("defaultSubject");
 
   newTitle += GetCharsetUIString();
-  document.title = bundle.getString("windowTitlePrefix") + " " + newTitle;
+  document.title = gComposeBundle.getString("windowTitlePrefix") + " " + newTitle;
 }
 
 // Check for changes to document and allow saving before closing
 // This is hooked up to the OS's window close widget (e.g., "X" for Windows)
 function ComposeCanClose()
 {
-  // Do this early, so ldap sessions have a better chance to 
+  // Do this early, so ldap sessions have a better chance to
   // cleanup after themselves.
   ReleaseAutoCompleteState();
   if (gSendOrSaveOperationInProgress)
@@ -2640,12 +2694,11 @@ function ComposeCanClose()
     {
       var brandBundle = document.getElementById("brandBundle");
       var brandShortName = brandBundle.getString("brandShortName");
-      var bundle = document.getElementById("bundle_composeMsgs");
-      var promptTitle = bundle.getString("quitComposeWindowTitle");
-      var promptMsg = bundle.getFormattedString("quitComposeWindowMessage2",
+      var promptTitle = gComposeBundle.getString("quitComposeWindowTitle");
+      var promptMsg = gComposeBundle.getFormattedString("quitComposeWindowMessage2",
                                                 [brandShortName], 1);
-      var quitButtonLabel = bundle.getString("quitComposeWindowQuitButtonLabel2");
-      var waitButtonLabel = bundle.getString("quitComposeWindowWaitButtonLabel2");
+      var quitButtonLabel = gComposeBundle.getString("quitComposeWindowQuitButtonLabel2");
+      var waitButtonLabel = gComposeBundle.getString("quitComposeWindowWaitButtonLabel2");
 
       result = gPromptService.confirmEx(window, promptTitle, promptMsg,
           (gPromptService.BUTTON_TITLE_IS_STRING*gPromptService.BUTTON_POS_0) +
@@ -2669,10 +2722,9 @@ function ComposeCanClose()
     window.focus();
     if (gPromptService)
     {
-      var bundle = document.getElementById("bundle_composeMsgs");
       result = gPromptService.confirmEx(window,
-                              bundle.getString("saveDlogTitle"),
-                              bundle.getString("saveDlogMessage"),
+                              gComposeBundle.getString("saveDlogTitle"),
+                              gComposeBundle.getString("saveDlogMessage"),
                               (gPromptService.BUTTON_TITLE_SAVE * gPromptService.BUTTON_POS_0) +
                               (gPromptService.BUTTON_TITLE_CANCEL * gPromptService.BUTTON_POS_1) +
                               (gPromptService.BUTTON_TITLE_DONT_SAVE * gPromptService.BUTTON_POS_2),
@@ -2803,8 +2855,7 @@ function AttachFile()
   //Get file using nsIFilePicker and convert to URL
   var fp = Components.classes["@mozilla.org/filepicker;1"]
                      .createInstance(nsIFilePicker);
-  var bundle = document.getElementById("bundle_composeMsgs");
-  fp.init(window, bundle.getString("chooseFileToAttach"),
+  fp.init(window, gComposeBundle.getString("chooseFileToAttach"),
           nsIFilePicker.modeOpenMultiple);
 
   var lastDirectory = GetLastAttachDirectory();
@@ -2840,6 +2891,7 @@ function AddFileAttachment(file)
                              .createInstance(Components.interfaces.nsIMsgAttachment);
 
   attachment.url = fileHandler.getURLSpecFromFile(file);
+  attachment.size = file.fileSize;
   AddUrlAttachment(attachment);
 }
 
@@ -2856,19 +2908,28 @@ function AddUrlAttachment(attachment)
   if (!attachment.name)
     attachment.name = gMsgCompose.AttachmentPrettyName(attachment.url, null);
 
-  var bundle = document.getElementById("bundle_composeMsgs");
-
   // For security reasons, don't allow *-message:// uris to leak out.
   // We don't want to reveal the .slt path (for mailbox://), or the username
   // or hostname.
   if (/^mailbox-message:|^imap-message:|^news-message:/i.test(attachment.name))
-    attachment.name = bundle.getString("messageAttachmentSafeName");
+    attachment.name = gComposeBundle.getString("messageAttachmentSafeName");
   // Don't allow file or mail/news protocol uris to leak out either.
   else if (/^file:|^mailbox:|^imap:|^s?news:/i.test(attachment.name))
-    attachment.name = bundle.getString("partAttachmentSafeName");
+    attachment.name = gComposeBundle.getString("partAttachmentSafeName");
 
   var bucket = document.getElementById("attachmentBucket");
-  var item = bucket.appendItem(attachment.name, "");
+  var item;
+  if (attachment.size != -1)
+  {
+    var size = gMessenger.formatFileSize(attachment.size);
+    var nameAndSize = gComposeBundle.getFormattedString(
+      "attachmentNameAndSize", [attachment.name, size]);
+    item = bucket.appendItem(nameAndSize, "");
+    gAttachmentsSize += attachment.size;
+  }
+  else
+    item = bucket.appendItem(attachment.name, "");
+
   item.attachment = attachment; // Full attachment object stored here.
   try {
     item.setAttribute("tooltiptext", decodeURI(attachment.url));
@@ -2877,6 +2938,7 @@ function AddUrlAttachment(attachment)
     item.setAttribute("tooltiptext", attachment.url);
   }
   item.setAttribute("class", "listitem-iconic");
+  item.setAttribute("crop", "center");
 
   // For local file urls, we are better off using the full file url because
   // moz-icon will actually resolve the file url and get the right icon from
@@ -2891,7 +2953,7 @@ function AddUrlAttachment(attachment)
   else
     item.setAttribute("image", "moz-icon:" + attachment.url);
 
-  ChangeAttachmentBucketVisibility(false);
+  UpdateAttachmentBucket(true);
   gContentChanged = true;
   CheckForAttachmentNotification(null);
 }
@@ -2923,10 +2985,9 @@ function AttachPage()
    if (gPromptService)
    {
       var result = {value:"http://"};
-      var bundle = document.getElementById("bundle_composeMsgs");
       if (gPromptService.prompt(window,
-                                bundle.getString("attachPageDlogTitle"),
-                                bundle.getString("attachPageDlogMessage"),
+                                gComposeBundle.getString("attachPageDlogTitle"),
+                                gComposeBundle.getString("attachPageDlogMessage"),
                                 result,
                                 null,
                                 {value:0}))
@@ -2984,14 +3045,31 @@ function RemoveAllAttachments()
     child.attachment = null;
   }
 
-  ChangeAttachmentBucketVisibility(true);
+  UpdateAttachmentBucket(false);
   CheckForAttachmentNotification(null);
 }
 
-function ChangeAttachmentBucketVisibility(aHideBucket)
+/**
+ * Display/hide and update the content of the attachment bucket (specifically
+ * the total file size of the attachments and the number of current attachments)
+ *
+ * @param aShowBucket true if the bucket should be shown, false otherwise
+ */
+function UpdateAttachmentBucket(aShowBucket)
 {
-  document.getElementById("attachments-box").collapsed = aHideBucket;
-  document.getElementById("attachmentbucket-sizer").collapsed = aHideBucket;
+  if (aShowBucket) {
+    var count = document.getElementById("attachmentBucket").getRowCount();
+
+    var words = gComposeBundle.getString("attachmentCount");
+    var countStr = PluralForm.get(count, words).replace("#1", count);
+
+    document.getElementById("attachmentBucketCount").value = countStr;
+    document.getElementById("attachmentBucketSize").value =
+      gMessenger.formatFileSize(gAttachmentsSize);
+  }
+
+  document.getElementById("attachments-box").collapsed = !aShowBucket;
+  document.getElementById("attachmentbucket-sizer").collapsed = !aShowBucket;
 }
 
 function RemoveSelectedAttachment()
@@ -3002,6 +3080,11 @@ function RemoveSelectedAttachment()
     for (let i = bucket.selectedCount - 1; i >= 0; i--)
     {
       child = bucket.removeItemAt(bucket.getIndexOfItem(bucket.getSelectedItem(i)));
+      if (child.attachment.size != -1)
+      {
+        gAttachmentsSize -= child.attachment.size;
+        UpdateAttachmentBucket(true);
+      }
       // Let's release the attachment object held by the node else it won't go away until the window is destroyed
       child.attachment = null;
     }
@@ -3016,13 +3099,12 @@ function RenameSelectedAttachment()
   if (bucket.selectedItems.length != 1)
     return; // not one attachment selected
 
-  var bundle = document.getElementById("bundle_composeMsgs");
   var item = bucket.getSelectedItem(0);
   var attachmentName = {value: item.attachment.name};
   if (gPromptService.prompt(
                      window,
-                     bundle.getString("renameAttachmentTitle"),
-                     bundle.getString("renameAttachmentMessage"),
+                     gComposeBundle.getString("renameAttachmentTitle"),
+                     gComposeBundle.getString("renameAttachmentMessage"),
                      attachmentName,
                      null,
                      {value: 0}))
@@ -3031,7 +3113,16 @@ function RenameSelectedAttachment()
     if (modifiedAttachmentName == "")
       return; // name was not filled, bail out
 
-    item.label = modifiedAttachmentName;
+    var nameAndSize = modifiedAttachmentName;
+    if (item.attachment.size != -1)
+    {
+      var size = gMessenger.formatFileSize(item.attachment.size);
+      item.label = gComposeBundle.getFormattedString(
+          "attachmentNameAndSize", [modifiedAttachmentName, size]);
+    }
+    else
+      item.label = modifiedAttachmentName;
+
     item.attachment.name = modifiedAttachmentName;
     gContentChanged = true;
   }
@@ -3063,9 +3154,7 @@ function OpenSelectedAttachment()
     if (messagePrefix.test(attachmentUrl))
     {
       // we must be dealing with a forwarded attachment, treat this special
-      var messenger = Components.classes["@mozilla.org/messenger;1"].createInstance();
-      messenger = messenger.QueryInterface(Components.interfaces.nsIMessenger);
-      var msgHdr = messenger.messageServiceFromURI(attachmentUrl).messageURIToMsgHdr(attachmentUrl);
+      var msgHdr = gMessenger.messageServiceFromURI(attachmentUrl).messageURIToMsgHdr(attachmentUrl);
       if (msgHdr)
         MailUtils.openMessageInNewWindow(msgHdr);
     }
@@ -3106,17 +3195,17 @@ nsAttachmentOpener.prototype =
 
   onStartURIOpen: function(uri)
   {
-    return;
+    return false;
   },
 
   doContent: function(contentType, isContentPreferred, request, contentHandler)
   {
-    return;
+    return false;
   },
 
   isPreferred: function(contentType, desiredContentType)
   {
-    return;
+    return false;
   },
 
   canHandleContent: function(contentType, isContentPreferred, desiredContentType)
@@ -3439,6 +3528,7 @@ var envelopeDragObserver = {
       {
         var item = dataList[i].first;
         var prettyName;
+        var size;
         var rawData = item.data;
 
         // We could be dropping an attachment OR an address, check and do the right thing..
@@ -3453,16 +3543,23 @@ var envelopeDragObserver = {
                                         .getService(Components.interfaces.nsIIOService)
                                         .getProtocolHandler("file")
                                         .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
+
+            size = rawData.fileSize;
             rawData = fileHandler.getURLSpecFromFile(rawData);
+          }
+          else if (item.flavour.contentType == "text/x-moz-message")
+          {
+            size = gMessenger.messageServiceFromURI(rawData)
+                             .messageURIToMsgHdr(rawData).messageSize;
           }
           else
           {
-            var separator = rawData.indexOf("\n");
-            if (separator != -1)
-            {
-              prettyName = rawData.substr(separator+1);
-              rawData = rawData.substr(0,separator);
-            }
+            var pieces = rawData.split("\n");
+            rawData = pieces[0];
+            if (pieces.length > 1)
+              prettyName = pieces[1];
+            if (pieces.length > 2)
+              size = parseInt(pieces[2]);
           }
 
           if (DuplicateFileAlreadyAttached(rawData))
@@ -3496,6 +3593,8 @@ var envelopeDragObserver = {
                                      .createInstance(Components.interfaces.nsIMsgAttachment);
               attachment.url = rawData;
               attachment.name = prettyName;
+              if (size !== undefined)
+                attachment.size = size;
               AddUrlAttachment(attachment);
             }
           }
@@ -3515,8 +3614,7 @@ var envelopeDragObserver = {
       {
         // make sure the attachment box is visible during drag over
         var attachmentBox = document.getElementById("attachments-box");
-        if (attachmentBox.collapsed)
-          ChangeAttachmentBucketVisibility(false);
+        UpdateAttachmentBucket(true);
       }
       else
       {
@@ -3539,6 +3637,16 @@ var envelopeDragObserver = {
     }
 };
 
+var attachmentBucketDNDObserver = {
+  onDragStart: function (aEvent, aAttachmentData, aDragAction)
+  {
+    var target = aEvent.target;
+
+    if (target.localName == "listitem")
+      aAttachmentData.data = CreateAttachmentTransferData(target.attachment);
+  }
+};
+
 function DisplaySaveFolderDlg(folderURI)
 {
   try
@@ -3555,15 +3663,14 @@ function DisplaySaveFolderDlg(folderURI)
     if (!msgfolder)
       return;
     var checkbox = {value:0};
-    var bundle = document.getElementById("bundle_composeMsgs");
-    var SaveDlgTitle = bundle.getString("SaveDialogTitle");
+    var SaveDlgTitle = gComposeBundle.getString("SaveDialogTitle");
     var dlgMsg = bundle.getFormattedString("SaveDialogMsg",
                                            [msgfolder.name,
                                             msgfolder.server.prettyName]);
 
     var CheckMsg = bundle.getString("CheckMsg");
     gPromptService.alertCheck(window, SaveDlgTitle, dlgMsg,
-                              bundle.getString("CheckMsg"), checkbox);
+                              gComposeBundle.getString("CheckMsg"), checkbox);
     try {
           gCurrentIdentity.showSaveMsgDlg = !checkbox.value;
     }//try
@@ -3846,16 +3953,41 @@ function InitEditor()
   editor.addOverrideStyleSheet("chrome://messenger/content/composerOverlay.css");
   gMsgCompose.initEditor(editor, window.content);
 
-  InlineSpellCheckerUI.init(editor);
+  // We always go through this function everytime we init an editor, be it a
+  // recycled editor, or a fresh one. First step is making sure we can spell
+  // check.
+  gSpellChecker.init(editor);
+  document.getElementById('menu_inlineSpellCheck')
+          .setAttribute('disabled', !gSpellChecker.canSpellCheck);
+  document.getElementById('spellCheckEnable')
+          .setAttribute('disabled', !gSpellChecker.canSpellCheck);
+  // If canSpellCheck = false, then hidden = false, i.e. show it so that we can
+  // still add dictionaries. Else, hide that.
+  document.getElementById('spellCheckAddDictionariesMain')
+          .setAttribute('hidden', gSpellChecker.canSpellCheck);
+  // Then, we enable related UI entries.
   enableInlineSpellCheck(getPref("mail.spellcheck.inline"));
-  document.getElementById('menu_inlineSpellCheck').setAttribute('disabled', !InlineSpellCheckerUI.canSpellCheck);
+  let dictMenu = document.getElementById("spellCheckDictionariesMenu");
+  let dictSep = document.getElementById("spellCheckLanguageSeparator");
+  gSpellChecker.addDictionaryListToMenu(dictMenu, dictSep);
+
   editor.addEditorObserver(gAttachmentNotifier);
 }
 
+// This function modifies gSpellChecker and updates the UI accordingly. It's
+// called either at startup (see InitEditor above), or when the user clicks on
+// one of the two menu items that allow them to toggle the spellcheck feature
+// (either context menu or Options menu).
 function enableInlineSpellCheck(aEnableInlineSpellCheck)
 {
-  InlineSpellCheckerUI.enabled = aEnableInlineSpellCheck;
+  gSpellChecker.enabled = aEnableInlineSpellCheck;
   document.getElementById('msgSubject').setAttribute('spellcheck', aEnableInlineSpellCheck);
+  document.getElementById("menu_inlineSpellCheck")
+          .setAttribute('checked', aEnableInlineSpellCheck);
+  document.getElementById("spellCheckEnable")
+          .setAttribute('checked', aEnableInlineSpellCheck);
+  document.getElementById('spellCheckDictionaries')
+          .setAttribute('hidden', !aEnableInlineSpellCheck);
 }
 
 function getMailToolbox()

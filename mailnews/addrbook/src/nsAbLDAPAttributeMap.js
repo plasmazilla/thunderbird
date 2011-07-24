@@ -1,6 +1,4 @@
-/* -*- Mode: Javascript; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 2 -*-
- *
- * ***** BEGIN LICENSE BLOCK *****
+/* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
  * The contents of this file are subject to the Mozilla Public License Version
@@ -38,6 +36,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+
 const NS_ABLDAPATTRIBUTEMAP_CID = Components.ID(
   "{127b341a-bdda-4270-85e1-edff569a9b85}");
 const NS_ABLDAPATTRIBUTEMAPSERVICE_CID = Components.ID(
@@ -49,6 +49,8 @@ function nsAbLDAPAttributeMap() {
 }
 
 nsAbLDAPAttributeMap.prototype = {
+  classID: NS_ABLDAPATTRIBUTEMAP_CID,
+
   getAttributeList: function getAttributeList(aProperty) {
 
     if (!(aProperty in this.mPropertyMap)) {
@@ -97,8 +99,10 @@ nsAbLDAPAttributeMap.prototype = {
     }
 
     // delete any attr mappings created by the existing property map entry
-    for each (attr in this.mPropertyMap[aProperty]) {
-      delete this.mAttrMap[attr];
+    if (aProperty in this.mPropertyMap) {
+      for each (attr in this.mPropertyMap[aProperty]) {
+        delete this.mAttrMap[attr];
+      }
     }
 
     // add these attrs to the attrmap
@@ -119,7 +123,7 @@ nsAbLDAPAttributeMap.prototype = {
     return this.mAttrMap[aAttribute];
   },
 
-  getAllCardAttributes: function getAllCardAttributes(aCount) {
+  getAllCardAttributes: function getAllCardAttributes() {
     var attrs = [];
     for each (var attrArray in this.mPropertyMap) {
       attrs = attrs.concat(attrArray);
@@ -129,12 +133,11 @@ nsAbLDAPAttributeMap.prototype = {
       throw Components.results.NS_ERROR_FAILURE;
     }
 
-    aCount.value = attrs.length;
-    return attrs;
+    return attrs.join(",");
   },
-  
+
   getAllCardProperties: function getAllCardProperties(aCount) {
-    
+
     var props = [];
     for (var prop in this.mPropertyMap) {
       props.push(prop);
@@ -186,7 +189,7 @@ nsAbLDAPAttributeMap.prototype = {
 
         // find the first attr that exists in this message
         if (msgAttrs.indexOf(attr) != -1) {
-          
+
           try {
             var values = aMessage.getValues(attr, {});
             // strip out the optional label from the labeledURI
@@ -214,7 +217,7 @@ nsAbLDAPAttributeMap.prototype = {
   },
 
   checkState: function checkState() {
-    
+
     var attrsSeen = [];
 
     for each (var attrArray in this.mPropertyMap) {
@@ -239,14 +242,8 @@ nsAbLDAPAttributeMap.prototype = {
     return;
   },
 
-  QueryInterface: function QueryInterface(iid) {
-    if (!iid.equals(Components.interfaces.nsIAbLDAPAttributeMap) &&
-        !iid.equals(Components.interfaces.nsISupports)) {
-      throw Components.results.NS_ERROR_NO_INTERFACE;
-    }
-
-    return this;
-  }
+  QueryInterface: XPCOMUtils
+    .generateQI([Components.interfaces.nsIAbLDAPAttributeMap])
 }
 
 function nsAbLDAPAttributeMapService() {
@@ -254,7 +251,9 @@ function nsAbLDAPAttributeMapService() {
 
 nsAbLDAPAttributeMapService.prototype = {
 
-  mAttrMaps: {}, 
+  classID: NS_ABLDAPATTRIBUTEMAPSERVICE_CID,
+
+  mAttrMaps: {},
 
   getMapForPrefBranch: function getMapForPrefBranch(aPrefBranchName) {
 
@@ -275,99 +274,9 @@ nsAbLDAPAttributeMapService.prototype = {
     return attrMap;
   },
 
-  QueryInterface: function (iid) {
-    if (iid.equals(Components.interfaces.nsIAbLDAPAttributeMapService) ||
-        iid.equals(Components.interfaces.nsISupports))
-      return this;
-
-    throw Components.results.NS_ERROR_NO_INTERFACE;
-  } 
+  QueryInterface: XPCOMUtils
+    .generateQI([Components.interfaces.nsIAbLDAPAttributeMapService])
 }
 
-var nsAbLDAPAttributeMapModule = {
-  registerSelf: function (compMgr, fileSpec, location, type) {
-    debug("*** Registering Addressbook LDAP Attribute Map components\n");
-    compMgr = compMgr.QueryInterface(
-      Components.interfaces.nsIComponentRegistrar);
+const NSGetFactory = XPCOMUtils.generateNSGetFactory([nsAbLDAPAttributeMap, nsAbLDAPAttributeMapService]);
 
-    compMgr.registerFactoryLocation(
-      NS_ABLDAPATTRIBUTEMAP_CID,
-      "Addressbook LDAP Attribute Map Component",
-      "@mozilla.org/addressbook/ldap-attribute-map;1",
-      fileSpec, location, type);
-
-    compMgr.registerFactoryLocation(
-      NS_ABLDAPATTRIBUTEMAPSERVICE_CID,
-      "Addressbook LDAP Attribute Map Service",
-      "@mozilla.org/addressbook/ldap-attribute-map-service;1",
-      fileSpec, location, type);
-  },
-
-  /*
-   * The GetClassObject method is responsible for producing Factory objects
-   */
-  getClassObject: function (compMgr, cid, iid) {
-    if (!iid.equals(Components.interfaces.nsIFactory))
-      throw Components.results.NS_ERROR_NOT_IMPLEMENTED;
-
-    if (cid.equals(NS_ABLDAPATTRIBUTEMAP_CID)) {
-      return this.nsAbLDAPAttributeMapFactory;
-    } 
-
-    if (cid.equals(NS_ABLDAPATTRIBUTEMAPSERVICE_CID)) {
-      return this.nsAbLDAPAttributeMapServiceFactory;
-    }
-
-    throw Components.results.NS_ERROR_NO_INTERFACE;
-  },
-
-  /* factory objects */
-  nsAbLDAPAttributeMapFactory: {
-    /*
-     * Construct an instance of the interface specified by iid, possibly
-     * aggregating it with the provided outer.  (If you don't know what
-     * aggregation is all about, you don't need to.  It reduces even the
-     * mightiest of XPCOM warriors to snivelling cowards.)
-     */
-    createInstance: function (outer, iid) {
-      if (outer != null)
-        throw Components.results.NS_ERROR_NO_AGGREGATION;
-
-      return (new nsAbLdapAttributeMap()).QueryInterface(iid);
-    }
-  },
-
-  nsAbLDAPAttributeMapServiceFactory: {
-    /*
-     * Construct an instance of the interface specified by iid, possibly
-     * aggregating it with the provided outer.  (If you don't know what
-     * aggregation is all about, you don't need to.  It reduces even the
-     * mightiest of XPCOM warriors to snivelling cowards.)
-     */
-    createInstance: function (outer, iid) {
-      if (outer != null)
-        throw Components.results.NS_ERROR_NO_AGGREGATION;
-
-      return (new nsAbLDAPAttributeMapService()).QueryInterface(iid);
-    }
-  },
-
-  /*
-   * The canUnload method signals that the component is about to be unloaded.
-   * C++ components can return false to indicate that they don't wish to be
-   * unloaded, but the return value from JS components' canUnload is ignored:
-   * mark-and-sweep will keep everything around until it's no longer in use,
-   * making unconditional ``unload'' safe.
-   *
-   * You still need to provide a (likely useless) canUnload method, though:
-   * it's part of the nsIModule interface contract, and the JS loader _will_
-   * call it.
-   */
-  canUnload: function(compMgr) {
-    return true;
-  }
-};
-
-function NSGetModule(compMgr, fileSpec) {
-  return nsAbLDAPAttributeMapModule;
-}

@@ -147,7 +147,7 @@ nsresult nsZipWriter::ReadFile(nsIFile *aFile)
     rv = NS_NewLocalFileInputStream(getter_AddRefs(inputStream), aFile);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    char buf[1024];
+    PRUint8 buf[1024];
     PRInt64 seek = size - 1024;
     PRUint32 length = 1024;
 
@@ -164,7 +164,7 @@ nsresult nsZipWriter::ReadFile(nsIFile *aFile)
             inputStream->Close();
             return rv;
         }
-        rv = ZW_ReadData(inputStream, buf, length);
+        rv = ZW_ReadData(inputStream, (char *)buf, length);
         if (NS_FAILED(rv)) {
             inputStream->Close();
             return rv;
@@ -177,7 +177,7 @@ nsresult nsZipWriter::ReadFile(nsIFile *aFile)
         // We know it's at least this far from the end
         for (PRUint32 pos = length - ZIP_EOCDR_HEADER_SIZE;
              (PRInt32)pos >= 0; pos--) {
-            PRUint32 sig = PEEK32((unsigned char *)buf + pos);
+            PRUint32 sig = PEEK32(buf + pos);
             if (sig == ZIP_EOCDR_HEADER_SIGNATURE) {
                 // Skip down to entry count
                 pos += 10;
@@ -190,7 +190,7 @@ nsresult nsZipWriter::ReadFile(nsIFile *aFile)
                 if (commentlen == 0)
                     mComment.Truncate();
                 else if (pos + commentlen <= length)
-                    mComment.Assign(buf + pos, commentlen);
+                    mComment.Assign((const char *)buf + pos, commentlen);
                 else {
                     if ((seek + pos + commentlen) > size) {
                         inputStream->Close();
@@ -301,7 +301,7 @@ NS_IMETHODIMP nsZipWriter::Open(nsIFile *aFile, PRInt32 aIoFlags)
         return rv;
     }
 
-    rv = NS_NewBufferedOutputStream(getter_AddRefs(mStream), stream, 0x800);
+    rv = NS_NewBufferedOutputStream(getter_AddRefs(mStream), stream, 64 * 1024);
     if (NS_FAILED(rv)) {
         stream->Close();
         mHeaders.Clear();
@@ -682,7 +682,7 @@ NS_IMETHODIMP nsZipWriter::Close()
             size += mHeaders[i]->GetCDSHeaderLength();
         }
 
-        char buf[ZIP_EOCDR_HEADER_SIZE];
+        PRUint8 buf[ZIP_EOCDR_HEADER_SIZE];
         PRUint32 pos = 0;
         WRITE32(buf, &pos, ZIP_EOCDR_HEADER_SIGNATURE);
         WRITE16(buf, &pos, 0);
@@ -693,7 +693,7 @@ NS_IMETHODIMP nsZipWriter::Close()
         WRITE32(buf, &pos, mCDSOffset);
         WRITE16(buf, &pos, mComment.Length());
 
-        nsresult rv = ZW_WriteData(mStream, buf, pos);
+        nsresult rv = ZW_WriteData(mStream, (const char *)buf, pos);
         if (NS_FAILED(rv)) {
             Cleanup();
             return rv;
@@ -710,6 +710,24 @@ NS_IMETHODIMP nsZipWriter::Close()
         if (NS_FAILED(rv)) {
             Cleanup();
             return rv;
+        }
+
+        // Go back and rewrite the file headers
+        for (PRInt32 i = 0; i < mHeaders.Count(); i++) {
+            nsZipHeader *header = mHeaders[i];
+            if (!header->mWriteOnClose)
+              continue;
+
+            rv = seekable->Seek(nsISeekableStream::NS_SEEK_SET, header->mOffset);
+            if (NS_FAILED(rv)) {
+               Cleanup();
+               return rv;
+            }
+            rv = header->WriteFileHeader(mStream);
+            if (NS_FAILED(rv)) {
+               Cleanup();
+               return rv;
+            }
         }
     }
 

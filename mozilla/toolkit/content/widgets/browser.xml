@@ -25,6 +25,7 @@
    -   Peter Parente <parente@cs.unc.edu>
    -   Christopher Thomas <cst@yecc.com>
    -   Michael Ventnor <m.ventnor@gmail.com>
+   -   Arpad Borsos <arpad.borsos@googlemail.com>
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -50,6 +51,9 @@
           xmlns:xul="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
   <binding id="browser" extends="xul:browser">
+    <content clickthrough="never">
+      <children/>
+    </content>
     <implementation type="application/javascript" implements="nsIAccessibleProvider, nsIObserver, nsIDOMEventListener">
       <property name="accessibleType" readonly="true">
         <getter>
@@ -181,8 +185,11 @@
               catch (e) {
               }
             }
-            try {
+
+            if (!(aFlags & this.webNavigation.LOAD_FLAGS_FROM_EXTERNAL))
               this.userTypedClear++;
+
+            try {
               this.webNavigation.loadURI(aURI, aFlags, aReferrerURI, aPostData, null);
             } finally {
               if (this.userTypedClear)
@@ -252,6 +259,10 @@
 
       <property name="docShell"
                 onget="return this._docShell || (this._docShell = this.boxObject.QueryInterface(Components.interfaces.nsIContainerBoxObject).docShell);"
+                readonly="true"/>
+
+      <property name="messageManager"
+                onget="return this.QueryInterface(Components.interfaces.nsIFrameLoaderOwner).frameLoader.messageManager;"
                 readonly="true"/>
 
       <field name="_webNavigation">null</field>
@@ -350,6 +361,12 @@
       <property name="contentPrincipal"
                 onget="return this.contentDocument.nodePrincipal;"
                 readonly="true"/>
+
+      <property name="showWindowResizer"
+                onset="if (val) this.setAttribute('showresizer', 'true');
+                       else this.removeAttribute('showresizer');
+                       return val;"
+                onget="return this.getAttribute('showresizer') == 'true';"/>
 
       <field name="mPrefs" readonly="true">
         Components.classes['@mozilla.org/preferences-service;1']
@@ -493,8 +510,14 @@
             if (!tabBrowser || tabBrowser.mCurrentBrowser == this)
               this.fastFind.setDocShell(this.docShell);
 
-            if (this._scrollingView)
-              this._autoScrollPopup.hidePopup();
+            
+            if (this._scrollable) {
+              var doc =
+                this._scrollable.ownerDocument || this._scrollable.document;
+              if (doc == aEvent.target) {
+                this._autoScrollPopup.hidePopup();
+              }
+            }
          ]]>
         </body>
       </method>
@@ -533,10 +556,6 @@
       </method>
 
       <field name="pageReport">null</field>
-
-      <field name="mDragDropHandler">
-        null
-      </field>
 
       <property name="securityUI">
         <getter>
@@ -620,7 +639,14 @@
         false
       </field>
 
+      <field name="droppedLinkHandler">
+        null
+      </field>
+
       <field name="mIconURL">null</field>
+
+      <!-- This is managed by the tabbrowser -->
+      <field name="lastURI">null</field>
 
       <field name="mDestroyed">false</field>
 
@@ -636,17 +662,12 @@
                       Components.classes["@mozilla.org/browser/shistory;1"]
                                 .createInstance(Components.interfaces.nsISHistory);
               // enable global history
-              this.docShell.QueryInterface(Components.interfaces.nsIDocShellHistory).useGlobalHistory = true;
+              if (this.docShell)
+                this.docShell.QueryInterface(Components.interfaces.nsIDocShellHistory).useGlobalHistory = true;
             }
           }
           catch (e) {
             Components.utils.reportError(e);
-          }
-          try {
-            this.mDragDropHandler = Components.classes["@mozilla.org:/content/content-area-dragdrop;1"].createInstance(Components.interfaces.nsIDragDropHandler);
-            this.mDragDropHandler.hookupTo(this, null);
-          }
-          catch (e) {
           }
           try {
             var securityUI = this.securityUI;
@@ -686,10 +707,6 @@
             }
           }
 
-          if (this.mDragDropHandler)
-            this.mDragDropHandler.detach();
-          this.mDragDropHandler = null;
-
           this.detachFormFill();
           
           this._fastFind = null;
@@ -697,6 +714,8 @@
           
           // The feeds cache can keep the document inside this browser alive.
           this.feeds = null;
+
+          this.lastURI = null;
 
           this.removeEventListener("pageshow", this.onPageShow, true);
           this.removeEventListener("pagehide", this.onPageHide, true);
@@ -736,23 +755,22 @@
           ]]>
         </body>
       </method>
-          
-      <field name="_AUTOSCROLL_SPEED">3</field>
+
       <field name="_AUTOSCROLL_SNAP">10</field>
-      <field name="_scrollingView">null</field>
-      <field name="_autoScrollTimer">null</field>
+      <field name="_scrollable">null</field>
       <field name="_startX">null</field>
       <field name="_startY">null</field>
       <field name="_screenX">null</field>
       <field name="_screenY">null</field>
+      <field name="_lastFrame">null</field>
       <field name="_autoScrollPopup">null</field>
       <field name="_autoScrollNeedsCleanup">false</field>
 
       <method name="stopScroll">
         <body>
           <![CDATA[
-            if (this._scrollingView) {
-              this._scrollingView = null;
+            if (this._scrollable) {
+              this._scrollable = null;
               window.removeEventListener("mousemove", this, true);
               window.removeEventListener("mousedown", this, true);
               window.removeEventListener("mouseup", this, true);
@@ -760,7 +778,7 @@
               window.removeEventListener("keydown", this, true);
               window.removeEventListener("keypress", this, true);
               window.removeEventListener("keyup", this, true);
-              clearInterval(this._autoScrollTimer);
+              window.removeEventListener("MozBeforePaint", this, true);
             }
          ]]>
        </body>
@@ -799,24 +817,70 @@
             // we need these attributes so themers don't need to create per-platform packages
             if (screen.colorDepth > 8) { // need high color for transparency
               // Exclude second-rate platforms
-              this._autoScrollPopup.setAttribute("transparent", !/BeOS|OS\/2|Photon/.test(navigator.appVersion));
+              this._autoScrollPopup.setAttribute("transparent", !/BeOS|OS\/2/.test(navigator.appVersion));
               // Enable translucency on Windows and Mac
               this._autoScrollPopup.setAttribute("translucent", /Win|Mac/.test(navigator.platform));
             }
 
-            this._scrollingView = event.originalTarget.ownerDocument.defaultView;
-            if (this._scrollingView.scrollMaxX > 0) {
-              this._autoScrollPopup.setAttribute("scrolldir", this._scrollingView.scrollMaxY > 0 ? "NSEW" : "EW");
-            }
-            else if (this._scrollingView.scrollMaxY > 0) {
-              this._autoScrollPopup.setAttribute("scrolldir", "NS");
-            }
-            else {
-              this._scrollingView = null; // abort scrolling
-              return;
+            // this is a list of overflow property values that allow scrolling
+            const scrollingAllowed = ['scroll', 'auto'];
+
+            // go upward in the DOM and find any parent element that has a overflow
+            // area and can therefore be scrolled
+            for (this._scrollable = event.originalTarget; this._scrollable;
+                 this._scrollable = this._scrollable.parentNode) {
+              // do not use overflow based autoscroll for <html> Elements
+              // or non-html elements such as svg or Document nodes
+              // also make sure to skip select elements that are not multiline
+              if (!(this._scrollable instanceof HTMLElement) ||
+                  (this._scrollable instanceof HTMLHtmlElement) ||
+                  ((this._scrollable instanceof HTMLSelectElement) && !this._scrollable.multiple)) {
+                continue;
+              }
+
+              var overflowx = this._scrollable.ownerDocument.defaultView
+                                  .getComputedStyle(this._scrollable, '')
+                                  .getPropertyValue('overflow-x');
+              var overflowy = this._scrollable.ownerDocument.defaultView
+                                  .getComputedStyle(this._scrollable, '')
+                                  .getPropertyValue('overflow-y');
+              // we already discarded non-multiline selects so allow vertical
+              // scroll for multiline ones directly without checking for a
+              // overflow property
+              var scrollVert = this._scrollable.clientHeight > 0 &&
+                               this._scrollable.scrollHeight > this._scrollable.clientHeight &&
+                               (this._scrollable instanceof HTMLSelectElement ||
+                                scrollingAllowed.indexOf(overflowy) >= 0);
+
+              // do not allow horizontal scrolling for select elements, it leads
+              // to visual artifacts and is not the expected behavior anyway
+              if (!(this._scrollable instanceof HTMLSelectElement) &&
+                  this._scrollable.clientWidth > 0 &&
+                  this._scrollable.scrollWidth > this._scrollable.clientWidth &&
+                  scrollingAllowed.indexOf(overflowx) >= 0) {
+                this._autoScrollPopup.setAttribute("scrolldir", scrollVert ? "NSEW" : "EW");
+                break;
+              }
+              else if (scrollVert) {
+                this._autoScrollPopup.setAttribute("scrolldir", "NS");
+                break;
+              }
             }
 
-            document.popupNode = null;
+            if (!this._scrollable) {
+              this._scrollable = event.originalTarget.ownerDocument.defaultView;
+              if (this._scrollable.scrollMaxX > 0) {
+                this._autoScrollPopup.setAttribute("scrolldir", this._scrollable.scrollMaxY > 0 ? "NSEW" : "EW");
+              }
+              else if (this._scrollable.scrollMaxY > 0) {
+                this._autoScrollPopup.setAttribute("scrolldir", "NS");
+              }
+              else {
+                this._scrollable = null; // abort scrolling
+                return;
+              }
+            }
+
             this._autoScrollPopup.showPopup(document.documentElement,
                                             event.screenX,
                                             event.screenY,
@@ -826,6 +890,9 @@
             this._startY = event.screenY;
             this._screenX = event.screenX;
             this._screenY = event.screenY;
+            this._scrollErrorX = 0;
+            this._scrollErrorY = 0;
+            this._lastFrame = window.mozAnimationStartTime;
 
             window.addEventListener("mousemove", this, true);
             window.addEventListener("mousedown", this, true);
@@ -834,12 +901,9 @@
             window.addEventListener("keydown", this, true);
             window.addEventListener("keypress", this, true);
             window.addEventListener("keyup", this, true);
+            window.addEventListener("MozBeforePaint", this, true);
 
-            this._scrollErrorX = 0;
-            this._scrollErrorY = 0;
-
-            this._autoScrollTimer = setInterval(function(self) { self.autoScrollLoop(); },
-                                                20, this);
+            window.mozRequestAnimationFrame();
          ]]>
        </body>
      </method>
@@ -873,19 +937,42 @@
      </method>
 
      <method name="autoScrollLoop">
+       <parameter name="timestamp"/>
        <body>
          <![CDATA[
-           var x = this._accelerate(this._screenX, this._startX);
-           var y = this._accelerate(this._screenY, this._startY);
+           // avoid long jumps when the browser hangs for more than
+           // |maxTimeDelta| ms
+           const maxTimeDelta = 100;
+           var timeDelta = Math.min(maxTimeDelta, timestamp - this._lastFrame);
+           // we used to scroll |_accelerate()| pixels every 20ms (50fps)
+           var timeCompensation = timeDelta / 20;
+           this._lastFrame = timestamp;
 
-           var desiredScrollX = this._scrollErrorX + x;
-           var actualScrollX = this._roundToZero(desiredScrollX);
-           this._scrollErrorX = (desiredScrollX - actualScrollX);
-           var desiredScrollY = this._scrollErrorY + y;
-           var actualScrollY = this._roundToZero(desiredScrollY);
-           this._scrollErrorY = (desiredScrollY - actualScrollY);
+           var actualScrollX = 0;
+           var actualScrollY = 0;
+           // don't bother scrolling vertically when the scrolldir is only horizontal
+           // and the other way around
+           var scrolldir = this._autoScrollPopup.getAttribute("scrolldir");
+           if (scrolldir != 'EW') {
+             var y = this._accelerate(this._screenY, this._startY) * timeCompensation;
+             var desiredScrollY = this._scrollErrorY + y;
+             actualScrollY = this._roundToZero(desiredScrollY);
+             this._scrollErrorY = (desiredScrollY - actualScrollY);
+           }
+           if (scrolldir != 'NS') {
+             var x = this._accelerate(this._screenX, this._startX) * timeCompensation;
+             var desiredScrollX = this._scrollErrorX + x;
+             actualScrollX = this._roundToZero(desiredScrollX);
+             this._scrollErrorX = (desiredScrollX - actualScrollX);
+           }
 
-           this._scrollingView.scrollBy(actualScrollX, actualScrollY);
+           if (this._scrollable instanceof Window)
+             this._scrollable.scrollBy(actualScrollX, actualScrollY);
+           else { // an element with overflow
+             this._scrollable.scrollLeft += actualScrollX;
+             this._scrollable.scrollTop += actualScrollY;
+           }
+           window.mozRequestAnimationFrame();
          ]]>
        </body>
      </method>
@@ -930,8 +1017,11 @@
         <parameter name="aEvent"/>
         <body>
         <![CDATA[
-          if (this._scrollingView) {
+          if (this._scrollable) {
             switch(aEvent.type) {
+              case "MozBeforePaint":
+                this.autoScrollLoop(aEvent.timeStamp);
+                break;
               case "mousemove": {
                 this._screenX = aEvent.screenX;
                 this._screenY = aEvent.screenY;
@@ -1071,15 +1161,58 @@
       </handler>
       <handler event="mousedown" phase="capturing">
         <![CDATA[
-          if (!this._scrollingView && event.button == 1) {
-            if (!this.autoscrollEnabled  ||
-                this.currentURI.spec == "about:blank"|| 
+          if (!this._scrollable && event.button == 1) {
+            if (!this.autoscrollEnabled ||
                 this.isAutoscrollBlocker(event.originalTarget))
               return;
 
             this.startScroll(event);
           }
         ]]>
+      </handler>
+      <handler event="dragover" group="system">
+      <![CDATA[
+        if (!this.droppedLinkHandler || event.getPreventDefault())
+          return;
+
+        // For drags that appear to be internal text (for example, tab drags),
+        // set the dropEffect to 'none'. This prevents the drop even if some
+        // other listener cancelled the event.
+        var types = event.dataTransfer.types;
+        if (types.contains("text/x-moz-text-internal") && !types.contains("text/plain")) {
+          event.dataTransfer.dropEffect = "none";
+          event.stopPropagation();
+          event.preventDefault();
+        }
+
+        let linkHandler = Components.classes["@mozilla.org/content/dropped-link-handler;1"].
+                            getService(Components.interfaces.nsIDroppedLinkHandler);
+        if (linkHandler.canDropLink(event, false))
+          event.preventDefault();
+      ]]>
+      </handler>
+      <handler event="drop" group="system">
+      <![CDATA[
+        if (!this.droppedLinkHandler || event.getPreventDefault())
+          return;
+
+        let name = { };
+        let linkHandler = Components.classes["@mozilla.org/content/dropped-link-handler;1"].
+                            getService(Components.interfaces.nsIDroppedLinkHandler);
+        try {
+          var uri = linkHandler.dropLink(event, name);
+        } catch (ex) {
+          return;
+        }
+
+        // don't allow dropping javascript or data urls
+        if (/^\s*(javascript|data):/.test(uri))
+          return;
+
+        if (uri) {
+          this.droppedLinkHandler(event, uri, name.value);
+        }
+      ]]>
       </handler>
     </handlers>
 

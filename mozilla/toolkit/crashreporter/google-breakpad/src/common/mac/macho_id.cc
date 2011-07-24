@@ -37,7 +37,6 @@ extern "C" {  // necessary for Leopard
   #include <fcntl.h>
   #include <mach-o/loader.h>
   #include <mach-o/swap.h>
-  #include <openssl/md5.h>
   #include <openssl/sha.h>
   #include <stdio.h>
   #include <stdlib.h>
@@ -47,13 +46,19 @@ extern "C" {  // necessary for Leopard
   #include <unistd.h>
 }
 
+#include "common/md5.h"
 #include "common/mac/macho_id.h"
 #include "common/mac/macho_walker.h"
 #include "common/mac/macho_utilities.h"
 
 namespace MacFileUtilities {
 
-MachoID::MachoID(const char *path) {
+MachoID::MachoID(const char *path)
+   : file_(0), 
+     crc_(0), 
+     md5_context_(), 
+     sha1_context_(), 
+     update_function_(NULL) {
   strlcpy(path_, path, sizeof(path_));
   file_ = open(path, O_RDONLY);
 }
@@ -112,14 +117,14 @@ void MachoID::UpdateCRC(unsigned char *bytes, size_t size) {
 }
 
 void MachoID::UpdateMD5(unsigned char *bytes, size_t size) {
-  MD5_Update(&md5_context_, bytes, size);
+  MD5Update(&md5_context_, bytes, size);
 }
 
 void MachoID::UpdateSHA1(unsigned char *bytes, size_t size) {
   SHA_Update(&sha1_context_, bytes, size);
 }
 
-void MachoID::Update(MachoWalker *walker, unsigned long offset, size_t size) {
+void MachoID::Update(MachoWalker *walker, off_t offset, size_t size) {
   if (!update_function_ || !size)
     return;
 
@@ -182,7 +187,7 @@ bool MachoID::IDCommand(int cpu_type, unsigned char identifier[16]) {
     identifier[2] = 0;
     identifier[3] = 0;
 
-    for (int j = 0, i = strlen(path_)-1; i >= 0 && path_[i]!='/'; ++j, --i) {
+    for (int j = 0, i = (int)strlen(path_)-1; i>=0 && path_[i]!='/'; ++j, --i) {
       identifier[j%4] += path_[i];
     }
 
@@ -220,15 +225,12 @@ bool MachoID::MD5(int cpu_type, unsigned char identifier[16]) {
   MachoWalker walker(path_, WalkerCB, this);
   update_function_ = &MachoID::UpdateMD5;
 
-  if (MD5_Init(&md5_context_)) {
-    if (!walker.WalkHeader(cpu_type))
-      return false;
+  MD5Init(&md5_context_);
+  if (!walker.WalkHeader(cpu_type))
+    return false;
 
-    MD5_Final(identifier, &md5_context_);
-    return true;
-  }
-
-  return false;
+  MD5Final(identifier, &md5_context_);
+  return true;
 }
 
 bool MachoID::SHA1(int cpu_type, unsigned char identifier[16]) {
@@ -313,7 +315,9 @@ bool MachoID::WalkerCB(MachoWalker *walker, load_command *cmd, off_t offset,
       // sections of type S_ZEROFILL are "virtual" and contain no data
       // in the file itself
       if ((sec64.flags & SECTION_TYPE) != S_ZEROFILL && sec64.offset != 0)
-        macho_id->Update(walker, header_offset + sec64.offset, sec64.size);
+        macho_id->Update(walker, 
+                         header_offset + sec64.offset, 
+                         (size_t)sec64.size);
 
       offset += sizeof(struct section_64);
     }

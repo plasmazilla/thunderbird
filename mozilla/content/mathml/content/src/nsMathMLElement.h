@@ -54,7 +54,7 @@ class nsMathMLElement : public nsMathMLElementBase
                       , public nsIDOMElement
 {
 public:
-  nsMathMLElement(nsINodeInfo* aNodeInfo)
+  nsMathMLElement(already_AddRefed<nsINodeInfo> aNodeInfo)
     : nsMathMLElementBase(aNodeInfo), mIncrementScriptLevel(PR_FALSE)
   {}
 
@@ -90,7 +90,7 @@ public:
                                       nsRuleData* aRuleData);
   
   nsresult Clone(nsINodeInfo*, nsINode**) const;
-  virtual PRInt32 IntrinsicState() const;
+  virtual nsEventStates IntrinsicState() const;
   virtual PRBool IsNodeOfType(PRUint32 aFlags) const;
 
   // Set during reflow as necessary. Does a style change notification,
@@ -100,6 +100,7 @@ public:
     return mIncrementScriptLevel;
   }
 
+  virtual nsXPCClassInfo* GetClassInfo();
 private:
   PRPackedBool mIncrementScriptLevel;
 };

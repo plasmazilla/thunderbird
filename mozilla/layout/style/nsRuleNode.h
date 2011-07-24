@@ -53,35 +53,46 @@ struct PLDHashTable;
 class nsILanguageAtomService;
 struct nsRuleData;
 class nsIStyleRule;
-struct nsCSSStruct;
 struct nsCSSValueList;
-// Copy of typedef that's in nsCSSStruct.h, for compilation speed.
-typedef nsCSSStruct nsRuleDataStruct;
 
-struct nsRuleDataFont;
 class nsCSSValue;
 struct nsCSSRect;
 
+class nsStyleCoord;
+
+template <nsStyleStructID MinIndex, nsStyleStructID Count>
+class FixedStyleStructArray
+{
+private:
+  void* mArray[Count];
+public:
+  void*& operator[](nsStyleStructID aIndex) {
+    NS_ABORT_IF_FALSE(MinIndex <= aIndex && aIndex < (MinIndex + Count),
+                      "out of range");
+    return mArray[aIndex - MinIndex];
+  }
+
+  const void* operator[](nsStyleStructID aIndex) const {
+    NS_ABORT_IF_FALSE(MinIndex <= aIndex && aIndex < (MinIndex + Count),
+                      "out of range");
+    return mArray[aIndex - MinIndex];
+  }
+};
+
 struct nsInheritedStyleData
 {
-
-#define STYLE_STRUCT_INHERITED(name, checkdata_cb, ctor_args) \
-  nsStyle##name * m##name##Data;
-#define STYLE_STRUCT_RESET(name, checkdata_cb, ctor_args)
-
-#include "nsStyleStructList.h"
-
-#undef STYLE_STRUCT_INHERITED
-#undef STYLE_STRUCT_RESET
+  FixedStyleStructArray<nsStyleStructID_Inherited_Start,
+                        nsStyleStructID_Inherited_Count> mStyleStructs;
 
   void* operator new(size_t sz, nsPresContext* aContext) CPP_THROW_NEW {
     return aContext->AllocateFromShell(sz);
   }
 
-  void ClearInheritedData(PRUint32 aBits) {
+  void DestroyStructs(PRUint32 aBits, nsPresContext* aContext) {
 #define STYLE_STRUCT_INHERITED(name, checkdata_cb, ctor_args) \
-    if (m##name##Data && (aBits & NS_STYLE_INHERIT_BIT(name))) \
-      m##name##Data = nsnull;
+    void *name##Data = mStyleStructs[eStyleStruct_##name]; \
+    if (name##Data && !(aBits & NS_STYLE_INHERIT_BIT(name))) \
+      static_cast<nsStyle##name*>(name##Data)->Destroy(aContext);
 #define STYLE_STRUCT_RESET(name, checkdata_cb, ctor_args)
 
 #include "nsStyleStructList.h"
@@ -91,66 +102,42 @@ struct nsInheritedStyleData
   }
 
   void Destroy(PRUint32 aBits, nsPresContext* aContext) {
-#define STYLE_STRUCT_INHERITED(name, checkdata_cb, ctor_args) \
-    if (m##name##Data && !(aBits & NS_STYLE_INHERIT_BIT(name))) \
-      m##name##Data->Destroy(aContext);
-#define STYLE_STRUCT_RESET(name, checkdata_cb, ctor_args)
-
-#include "nsStyleStructList.h"
-
-#undef STYLE_STRUCT_INHERITED
-#undef STYLE_STRUCT_RESET
-
+    DestroyStructs(aBits, aContext);
     aContext->FreeToShell(sizeof(nsInheritedStyleData), this);
   }
 
   nsInheritedStyleData() {
-#define STYLE_STRUCT_INHERITED(name, checkdata_cb, ctor_args) \
-    m##name##Data = nsnull;
-#define STYLE_STRUCT_RESET(name, checkdata_cb, ctor_args)
-
-#include "nsStyleStructList.h"
-
-#undef STYLE_STRUCT_INHERITED
-#undef STYLE_STRUCT_RESET
-
+    for (nsStyleStructID i = nsStyleStructID_Inherited_Start;
+         i < nsStyleStructID_Inherited_Start + nsStyleStructID_Inherited_Count;
+         i = nsStyleStructID(i + 1)) {
+      mStyleStructs[i] = nsnull;
+    }
   }
 };
 
 struct nsResetStyleData
 {
+  FixedStyleStructArray<nsStyleStructID_Reset_Start,
+                        nsStyleStructID_Reset_Count> mStyleStructs;
+
   nsResetStyleData()
   {
-#define STYLE_STRUCT_RESET(name, checkdata_cb, ctor_args) \
-    m##name##Data = nsnull;
-#define STYLE_STRUCT_INHERITED(name, checkdata_cb, ctor_args)
-
-#include "nsStyleStructList.h"
-
-#undef STYLE_STRUCT_RESET
-#undef STYLE_STRUCT_INHERITED
+    for (nsStyleStructID i = nsStyleStructID_Reset_Start;
+         i < nsStyleStructID_Reset_Start + nsStyleStructID_Reset_Count;
+         i = nsStyleStructID(i + 1)) {
+      mStyleStructs[i] = nsnull;
+    }
   }
 
   void* operator new(size_t sz, nsPresContext* aContext) CPP_THROW_NEW {
     return aContext->AllocateFromShell(sz);
   }
 
-  void ClearInheritedData(PRUint32 aBits) {
-#define STYLE_STRUCT_RESET(name, checkdata_cb, ctor_args) \
-    if (m##name##Data && (aBits & NS_STYLE_INHERIT_BIT(name))) \
-      m##name##Data = nsnull;
-#define STYLE_STRUCT_INHERITED(name, checkdata_cb, ctor_args)
-
-#include "nsStyleStructList.h"
-
-#undef STYLE_STRUCT_RESET
-#undef STYLE_STRUCT_INHERITED
-  }
-
   void Destroy(PRUint32 aBits, nsPresContext* aContext) {
 #define STYLE_STRUCT_RESET(name, checkdata_cb, ctor_args) \
-    if (m##name##Data && !(aBits & NS_STYLE_INHERIT_BIT(name))) \
-      m##name##Data->Destroy(aContext);
+    void *name##Data = mStyleStructs[eStyleStruct_##name]; \
+    if (name##Data && !(aBits & NS_STYLE_INHERIT_BIT(name))) \
+      static_cast<nsStyle##name*>(name##Data)->Destroy(aContext);
 #define STYLE_STRUCT_INHERITED(name, checkdata_cb, ctor_args)
 
 #include "nsStyleStructList.h"
@@ -160,91 +147,52 @@ struct nsResetStyleData
 
     aContext->FreeToShell(sizeof(nsResetStyleData), this);
   }
-
-#define STYLE_STRUCT_RESET(name, checkdata_cb, ctor_args) \
-  nsStyle##name * m##name##Data;
-#define STYLE_STRUCT_INHERITED(name, checkdata_cb, ctor_args)
-
-#include "nsStyleStructList.h"
-
-#undef STYLE_STRUCT_RESET
-#undef STYLE_STRUCT_INHERITED
-
 };
 
 struct nsCachedStyleData
 {
-  struct StyleStructInfo {
-    ptrdiff_t mCachedStyleDataOffset;
-    ptrdiff_t mInheritResetOffset;
-    PRBool    mIsReset;
-  };
-
-  static StyleStructInfo gInfo[];
-
   nsInheritedStyleData* mInheritedData;
   nsResetStyleData* mResetData;
 
-  static PRBool IsReset(const nsStyleStructID& aSID) {
-    return gInfo[aSID].mIsReset;
+  static PRBool IsReset(const nsStyleStructID aSID) {
+    NS_ABORT_IF_FALSE(0 <= aSID && aSID < nsStyleStructID_Length,
+                      "must be an inherited or reset SID");
+    return nsStyleStructID_Reset_Start <= aSID;
   }
 
-  static PRUint32 GetBitForSID(const nsStyleStructID& aSID) {
+  static PRUint32 GetBitForSID(const nsStyleStructID aSID) {
     return 1 << aSID;
   }
 
-  NS_HIDDEN_(void*) NS_FASTCALL GetStyleData(const nsStyleStructID& aSID) {
-    // Each struct is stored at this.m##type##Data->m##name##Data where
-    // |type| is either Inherit or Reset, and |name| is the name of the
-    // style struct.  The |gInfo| stores the offset of the appropriate
-    // m##type##Data for the struct within nsCachedStyleData (|this|)
-    // and the offset of the appropriate m##name##Data within the
-    // m##type##Data.  Note that if we don't have any reset structs,
-    // then mResetData is null, and likewise for mInheritedData.  This
-    // saves us from having to go through the long if-else cascade into
-    // which most compilers will turn a case statement.
-
-    // NOTE:  nsStyleContext::SetStyle works roughly the same way.
-
-    const StyleStructInfo& info = gInfo[aSID];
-
-    // Get either &mInheritedData or &mResetData.
-    char* resetOrInheritSlot = reinterpret_cast<char*>(this) + info.mCachedStyleDataOffset;
-
-    // Get either mInheritedData or mResetData.
-    char* resetOrInherit = reinterpret_cast<char*>(*reinterpret_cast<void**>(resetOrInheritSlot));
-
-    void* data = nsnull;
-    if (resetOrInherit) {
-      // If we have the mInheritedData or mResetData, then we might have
-      // the struct, so get it.
-      char* dataSlot = resetOrInherit + info.mInheritResetOffset;
-      data = *reinterpret_cast<void**>(dataSlot);
+  void* NS_FASTCALL GetStyleData(const nsStyleStructID aSID) {
+    if (IsReset(aSID)) {
+      if (mResetData) {
+        return mResetData->mStyleStructs[aSID];
+      }
+    } else {
+      if (mInheritedData) {
+        return mInheritedData->mStyleStructs[aSID];
+      }
     }
-    return data;
+    return nsnull;
   }
 
   // Typesafe and faster versions of the above
   #define STYLE_STRUCT_INHERITED(name_, checkdata_cb_, ctor_args_)       \
-    NS_HIDDEN_(nsStyle##name_ *) NS_FASTCALL GetStyle##name_ () {        \
-      return mInheritedData ? mInheritedData->m##name_##Data : nsnull;   \
+    nsStyle##name_ * NS_FASTCALL GetStyle##name_ () {                    \
+      return mInheritedData ? static_cast<nsStyle##name_*>(              \
+        mInheritedData->mStyleStructs[eStyleStruct_##name_]) : nsnull;   \
     }
   #define STYLE_STRUCT_RESET(name_, checkdata_cb_, ctor_args_)           \
-    NS_HIDDEN_(nsStyle##name_ *) NS_FASTCALL GetStyle##name_ () {        \
-      return mResetData ? mResetData->m##name_##Data : nsnull;           \
+    nsStyle##name_ * NS_FASTCALL GetStyle##name_ () {                    \
+      return mResetData ? static_cast<nsStyle##name_*>(                  \
+        mResetData->mStyleStructs[eStyleStruct_##name_]) : nsnull;       \
     }
   #include "nsStyleStructList.h"
   #undef STYLE_STRUCT_RESET
   #undef STYLE_STRUCT_INHERITED
 
-  NS_HIDDEN_(void) ClearInheritedData(PRUint32 aBits) {
-    if (mResetData)
-      mResetData->ClearInheritedData(aBits);
-    if (mInheritedData)
-      mInheritedData->ClearInheritedData(aBits);
-  }
-
-  NS_HIDDEN_(void) Destroy(PRUint32 aBits, nsPresContext* aContext) {
+  void Destroy(PRUint32 aBits, nsPresContext* aContext) {
     if (mResetData)
       mResetData->Destroy(aBits, aContext);
     if (mInheritedData)
@@ -451,286 +399,273 @@ private:
                       // Compute*Data functions don't initialize from
                       // inherited data.
 
+  // Reference count.  This just counts the style contexts that reference this
+  // rulenode.  And children the rulenode has had.  When this goes to 0 or
+  // stops being 0, we notify the style set.
+  // Note, in particular, that when a child is removed mRefCnt is NOT
+  // decremented.  This is on purpose; the notifications to the style set are
+  // only used to determine when it's worth running GC on the ruletree, and
+  // this setup makes it so we only count unused ruletree leaves for purposes
+  // of deciding when to GC.  We could more accurately count unused rulenodes
+  // by releasing/addrefing our parent when our refcount transitions to or from
+  // 0, but it doesn't seem worth it to do that.
+  PRUint32 mRefCnt;
+
 public:
   // Overloaded new operator. Initializes the memory to 0 and relies on an arena
   // (which comes from the presShell) to perform the allocation.
-  NS_HIDDEN_(void*) operator new(size_t sz, nsPresContext* aContext) CPP_THROW_NEW;
-  NS_HIDDEN_(void) Destroy() { DestroyInternal(nsnull); }
-  static NS_HIDDEN_(nsILanguageAtomService*) gLangService;
+  void* operator new(size_t sz, nsPresContext* aContext) CPP_THROW_NEW;
+  void Destroy() { DestroyInternal(nsnull); }
+  static nsILanguageAtomService* gLangService;
+
+  // Implemented in nsStyleSet.h, since it needs to know about nsStyleSet.
+  inline void AddRef();
+
+  // Implemented in nsStyleSet.h, since it needs to know about nsStyleSet.
+  inline void Release();
 
 protected:
-  NS_HIDDEN_(void) DestroyInternal(nsRuleNode ***aDestroyQueueTail);
-  NS_HIDDEN_(void) PropagateDependentBit(PRUint32 aBit,
-                                         nsRuleNode* aHighestNode);
-  NS_HIDDEN_(void) PropagateNoneBit(PRUint32 aBit, nsRuleNode* aHighestNode);
-  
-  NS_HIDDEN_(const void*) SetDefaultOnRoot(const nsStyleStructID aSID,
-                                                 nsStyleContext* aContext);
+  void DestroyInternal(nsRuleNode ***aDestroyQueueTail);
+  void PropagateDependentBit(PRUint32 aBit, nsRuleNode* aHighestNode);
+  void PropagateNoneBit(PRUint32 aBit, nsRuleNode* aHighestNode);
 
-  NS_HIDDEN_(const void*)
-    WalkRuleTree(const nsStyleStructID aSID, nsStyleContext* aContext, 
-                 nsRuleData* aRuleData, nsRuleDataStruct* aSpecificData);
+  const void* SetDefaultOnRoot(const nsStyleStructID aSID,
+                               nsStyleContext* aContext);
 
-  NS_HIDDEN_(const void*)
+  const void*
+    WalkRuleTree(const nsStyleStructID aSID, nsStyleContext* aContext);
+
+  const void*
     ComputeDisplayData(void* aStartStruct,
-                       const nsRuleDataStruct& aData,
+                       const nsRuleData* aRuleData,
                        nsStyleContext* aContext, nsRuleNode* aHighestNode,
                        RuleDetail aRuleDetail,
                        const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeVisibilityData(void* aStartStruct,
-                          const nsRuleDataStruct& aData,
+                          const nsRuleData* aRuleData,
                           nsStyleContext* aContext, nsRuleNode* aHighestNode,
                           RuleDetail aRuleDetail,
                           const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeFontData(void* aStartStruct,
-                    const nsRuleDataStruct& aData,
+                    const nsRuleData* aRuleData,
                     nsStyleContext* aContext, nsRuleNode* aHighestNode,
                     RuleDetail aRuleDetail,
                     const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeColorData(void* aStartStruct,
-                     const nsRuleDataStruct& aData,
+                     const nsRuleData* aRuleData,
                      nsStyleContext* aContext, nsRuleNode* aHighestNode,
                      RuleDetail aRuleDetail,
                      const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeBackgroundData(void* aStartStruct,
-                          const nsRuleDataStruct& aData, 
+                          const nsRuleData* aRuleData,
                           nsStyleContext* aContext, nsRuleNode* aHighestNode,
                           RuleDetail aRuleDetail,
                           const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeMarginData(void* aStartStruct,
-                      const nsRuleDataStruct& aData, 
+                      const nsRuleData* aRuleData,
                       nsStyleContext* aContext, nsRuleNode* aHighestNode,
                       RuleDetail aRuleDetail,
                       const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeBorderData(void* aStartStruct,
-                      const nsRuleDataStruct& aData, 
+                      const nsRuleData* aRuleData,
                       nsStyleContext* aContext, nsRuleNode* aHighestNode,
                       RuleDetail aRuleDetail,
                       const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputePaddingData(void* aStartStruct,
-                       const nsRuleDataStruct& aData, 
+                       const nsRuleData* aRuleData,
                        nsStyleContext* aContext, nsRuleNode* aHighestNode,
                        RuleDetail aRuleDetail,
                        const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeOutlineData(void* aStartStruct,
-                       const nsRuleDataStruct& aData, 
+                       const nsRuleData* aRuleData,
                        nsStyleContext* aContext, nsRuleNode* aHighestNode,
                        RuleDetail aRuleDetail,
                        const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeListData(void* aStartStruct,
-                    const nsRuleDataStruct& aData,
+                    const nsRuleData* aRuleData,
                     nsStyleContext* aContext, nsRuleNode* aHighestNode,
                     RuleDetail aRuleDetail,
                     const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputePositionData(void* aStartStruct,
-                        const nsRuleDataStruct& aData, 
+                        const nsRuleData* aRuleData,
                         nsStyleContext* aContext, nsRuleNode* aHighestNode,
                         RuleDetail aRuleDetail,
                         const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeTableData(void* aStartStruct,
-                     const nsRuleDataStruct& aData, 
+                     const nsRuleData* aRuleData,
                      nsStyleContext* aContext, nsRuleNode* aHighestNode,
                      RuleDetail aRuleDetail,
                      const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeTableBorderData(void* aStartStruct,
-                           const nsRuleDataStruct& aData, 
+                           const nsRuleData* aRuleData,
                            nsStyleContext* aContext, nsRuleNode* aHighestNode,
                            RuleDetail aRuleDetail,
                            const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeContentData(void* aStartStruct,
-                       const nsRuleDataStruct& aData,
+                       const nsRuleData* aRuleData,
                        nsStyleContext* aContext, nsRuleNode* aHighestNode,
                        RuleDetail aRuleDetail,
                        const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeQuotesData(void* aStartStruct,
-                      const nsRuleDataStruct& aData, 
+                      const nsRuleData* aRuleData,
                       nsStyleContext* aContext, nsRuleNode* aHighestNode,
                       RuleDetail aRuleDetail,
                       const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeTextData(void* aStartStruct,
-                    const nsRuleDataStruct& aData, 
+                    const nsRuleData* aRuleData,
                     nsStyleContext* aContext, nsRuleNode* aHighestNode,
                     RuleDetail aRuleDetail,
                     const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeTextResetData(void* aStartStruct,
-                         const nsRuleDataStruct& aData,
+                         const nsRuleData* aRuleData,
                          nsStyleContext* aContext, nsRuleNode* aHighestNode,
                          RuleDetail aRuleDetail,
                          const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeUserInterfaceData(void* aStartStruct,
-                             const nsRuleDataStruct& aData, 
+                             const nsRuleData* aRuleData,
                              nsStyleContext* aContext,
                              nsRuleNode* aHighestNode,
                              RuleDetail aRuleDetail,
                              const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeUIResetData(void* aStartStruct,
-                       const nsRuleDataStruct& aData,
+                       const nsRuleData* aRuleData,
                        nsStyleContext* aContext, nsRuleNode* aHighestNode,
                        RuleDetail aRuleDetail,
                        const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeXULData(void* aStartStruct,
-                   const nsRuleDataStruct& aData, 
+                   const nsRuleData* aRuleData,
                    nsStyleContext* aContext, nsRuleNode* aHighestNode,
                    RuleDetail aRuleDetail,
                    const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeColumnData(void* aStartStruct,
-                      const nsRuleDataStruct& aData,
+                      const nsRuleData* aRuleData,
                       nsStyleContext* aContext, nsRuleNode* aHighestNode,
                       RuleDetail aRuleDetail,
                       const PRBool aCanStoreInRuleTree);
 
-#ifdef MOZ_SVG
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeSVGData(void* aStartStruct,
-                   const nsRuleDataStruct& aData, 
+                   const nsRuleData* aRuleData,
                    nsStyleContext* aContext, nsRuleNode* aHighestNode,
                    RuleDetail aRuleDetail,
                    const PRBool aCanStoreInRuleTree);
 
-  NS_HIDDEN_(const void*)
+  const void*
     ComputeSVGResetData(void* aStartStruct,
-                        const nsRuleDataStruct& aData, 
+                        const nsRuleData* aRuleData,
                         nsStyleContext* aContext, nsRuleNode* aHighestNode,
                         RuleDetail aRuleDetail,
                         const PRBool aCanStoreInRuleTree);
-#endif
 
   // helpers for |ComputeFontData| that need access to |mNoneBits|:
-  static NS_HIDDEN_(void) SetFontSize(nsPresContext* aPresContext,
-                                      const nsRuleDataFont& aFontData,
-                                      const nsStyleFont* aFont,
-                                      const nsStyleFont* aParentFont,
-                                      nscoord* aSize,
-                                      const nsFont& aSystemFont,
-                                      nscoord aParentSize,
-                                      nscoord aScriptLevelAdjustedParentSize,
-                                      PRBool aUsedStartStruct,
-                                      PRBool aAtRoot,
-                                      PRBool& aCanStoreInRuleTree);
+  static void SetFontSize(nsPresContext* aPresContext,
+                          const nsRuleData* aRuleData,
+                          const nsStyleFont* aFont,
+                          const nsStyleFont* aParentFont,
+                          nscoord* aSize,
+                          const nsFont& aSystemFont,
+                          nscoord aParentSize,
+                          nscoord aScriptLevelAdjustedParentSize,
+                          PRBool aUsedStartStruct,
+                          PRBool aAtRoot,
+                          PRBool& aCanStoreInRuleTree);
 
-  static NS_HIDDEN_(void) SetFont(nsPresContext* aPresContext,
-                                  nsStyleContext* aContext,
-                                  nscoord aMinFontSize,
-                                  PRUint8 aGenericFontID,
-                                  const nsRuleDataFont& aFontData,
-                                  const nsStyleFont* aParentFont,
-                                  nsStyleFont* aFont,
-                                  PRBool aStartStruct,
-                                  PRBool& aCanStoreInRuleTree);
+  static void SetFont(nsPresContext* aPresContext,
+                      nsStyleContext* aContext,
+                      nscoord aMinFontSize,
+                      PRUint8 aGenericFontID,
+                      const nsRuleData* aRuleData,
+                      const nsStyleFont* aParentFont,
+                      nsStyleFont* aFont,
+                      PRBool aStartStruct,
+                      PRBool& aCanStoreInRuleTree);
 
-  static NS_HIDDEN_(void) SetGenericFont(nsPresContext* aPresContext,
-                                         nsStyleContext* aContext,
-                                         PRUint8 aGenericFontID,
-                                         nscoord aMinFontSize,
-                                         nsStyleFont* aFont);
+  static void SetGenericFont(nsPresContext* aPresContext,
+                             nsStyleContext* aContext,
+                             PRUint8 aGenericFontID,
+                             nscoord aMinFontSize,
+                             nsStyleFont* aFont);
 
-  NS_HIDDEN_(void) AdjustLogicalBoxProp(nsStyleContext* aContext,
-                                        const nsCSSValue& aLTRSource,
-                                        const nsCSSValue& aRTLSource,
-                                        const nsCSSValue& aLTRLogicalValue,
-                                        const nsCSSValue& aRTLLogicalValue,
-                                        PRUint8 aSide,
-                                        nsCSSRect& aValueRect,
-                                        PRBool& aCanStoreInRuleTree);
+  void AdjustLogicalBoxProp(nsStyleContext* aContext,
+                            const nsCSSValue& aLTRSource,
+                            const nsCSSValue& aRTLSource,
+                            const nsCSSValue& aLTRLogicalValue,
+                            const nsCSSValue& aRTLLogicalValue,
+                            mozilla::css::Side aSide,
+                            nsCSSRect& aValueRect,
+                            PRBool& aCanStoreInRuleTree);
 
-  inline RuleDetail CheckSpecifiedProperties(const nsStyleStructID aSID, const nsRuleDataStruct& aRuleDataStruct);
+  inline RuleDetail CheckSpecifiedProperties(const nsStyleStructID aSID,
+                                             const nsRuleData* aRuleData);
 
-  NS_HIDDEN_(const void*) GetParentData(const nsStyleStructID aSID);
+  const void* GetParentData(const nsStyleStructID aSID);
   #define STYLE_STRUCT(name_, checkdata_cb_, ctor_args_)  \
-    NS_HIDDEN_(const nsStyle##name_*) GetParent##name_();
+    const nsStyle##name_* GetParent##name_();
   #include "nsStyleStructList.h"
-  #undef STYLE_STRUCT  
+  #undef STYLE_STRUCT
 
-  NS_HIDDEN_(const void*) GetDisplayData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetVisibilityData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetFontData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetColorData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetBackgroundData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetMarginData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetBorderData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetPaddingData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetOutlineData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetListData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetPositionData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetTableData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetTableBorderData(nsStyleContext* aContext);
-
-  NS_HIDDEN_(const void*) GetContentData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetQuotesData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetTextData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetTextResetData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetUserInterfaceData(nsStyleContext* aContext);
-
-  NS_HIDDEN_(const void*) GetUIResetData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetXULData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetColumnData(nsStyleContext* aContext);
-#ifdef MOZ_SVG
-  NS_HIDDEN_(const void*) GetSVGData(nsStyleContext* aContext);
-  NS_HIDDEN_(const void*) GetSVGResetData(nsStyleContext* aContext);
-#endif
-
-  NS_HIDDEN_(already_AddRefed<nsCSSShadowArray>)
-                          GetShadowData(nsCSSValueList* aList,
-                                        nsStyleContext* aContext,
-                                        PRBool aIsBoxShadow,
-                                        PRBool& inherited);
+  already_AddRefed<nsCSSShadowArray>
+              GetShadowData(const nsCSSValueList* aList,
+                            nsStyleContext* aContext,
+                            PRBool aIsBoxShadow,
+                            PRBool& inherited);
 
 private:
   nsRuleNode(nsPresContext* aPresContext, nsRuleNode* aParent,
-             nsIStyleRule* aRule, PRUint8 aLevel, PRBool aIsImportant)
-    NS_HIDDEN;
-  ~nsRuleNode() NS_HIDDEN;
+             nsIStyleRule* aRule, PRUint8 aLevel, PRBool aIsImportant);
+  ~nsRuleNode();
 
 public:
-  static NS_HIDDEN_(nsRuleNode*) CreateRootNode(nsPresContext* aPresContext);
+  static nsRuleNode* CreateRootNode(nsPresContext* aPresContext);
 
-  NS_HIDDEN_(nsRuleNode*) Transition(nsIStyleRule* aRule, PRUint8 aLevel,
-                                     PRPackedBool aIsImportantRule);
+  // Transition never returns null; on out of memory it'll just return |this|.
+  nsRuleNode* Transition(nsIStyleRule* aRule, PRUint8 aLevel,
+                         PRPackedBool aIsImportantRule);
   nsRuleNode* GetParent() const { return mParent; }
   PRBool IsRoot() const { return mParent == nsnull; }
 
   // These PRUint8s are really nsStyleSet::sheetType values.
-  PRUint8 GetLevel() const { 
+  PRUint8 GetLevel() const {
     NS_ASSERTION(!IsRoot(), "can't call on root");
     return (mDependentBits & NS_RULE_NODE_LEVEL_MASK) >>
              NS_RULE_NODE_LEVEL_SHIFT;
@@ -745,16 +680,15 @@ public:
   // NOTE: Does not |AddRef|.
   nsPresContext* GetPresContext() const { return mPresContext; }
 
-  NS_HIDDEN_(const void*) GetStyleData(nsStyleStructID aSID, 
-                                       nsStyleContext* aContext,
-                                       PRBool aComputeData);
+  const void* GetStyleData(nsStyleStructID aSID,
+                           nsStyleContext* aContext,
+                           PRBool aComputeData);
 
   #define STYLE_STRUCT(name_, checkdata_cb_, ctor_args_)                      \
-    NS_HIDDEN_(const nsStyle##name_*)                                         \
-      GetStyle##name_(nsStyleContext* aContext,                               \
-                      PRBool aComputeData);
+    const nsStyle##name_* GetStyle##name_(nsStyleContext* aContext,           \
+                                          PRBool aComputeData);
   #include "nsStyleStructList.h"
-  #undef STYLE_STRUCT  
+  #undef STYLE_STRUCT
 
   /*
    * Garbage collection.  Mark walks up the tree, marking any unmarked
@@ -762,8 +696,8 @@ public:
    * the children, destroys any that are unmarked, and clears marks,
    * returning true if the node on which it was called was destroyed.
    */
-  NS_HIDDEN_(void) Mark();
-  NS_HIDDEN_(PRBool) Sweep();
+  void Mark();
+  PRBool Sweep();
 
   static PRBool
     HasAuthorSpecifiedRules(nsStyleContext* aStyleContext,
@@ -778,6 +712,30 @@ public:
                             nsStyleContext* aStyleContext,
                             nsPresContext* aPresContext,
                             PRBool& aCanStoreInRuleTree);
+
+  struct ComputedCalc {
+    nscoord mLength;
+    float mPercent;
+
+    ComputedCalc(nscoord aLength, float aPercent)
+      : mLength(aLength), mPercent(aPercent) {}
+  };
+  static ComputedCalc
+  SpecifiedCalcToComputedCalc(const nsCSSValue& aValue,
+                              nsStyleContext* aStyleContext,
+                              nsPresContext* aPresContext,
+                              PRBool& aCanStoreInRuleTree);
+
+  // Compute the value of an nsStyleCoord that IsCalcUnit().
+  // (Values that don't require aPercentageBasis should be handled
+  // inside nsRuleNode rather than through this API.)
+  static nscoord ComputeComputedCalc(const nsStyleCoord& aCoord,
+                                     nscoord aPercentageBasis);
+
+  // Compute the value of an nsStyleCoord that is either a coord, a
+  // percent, or a calc expression.
+  static nscoord ComputeCoordPercentCalc(const nsStyleCoord& aCoord,
+                                         nscoord aPercentageBasis);
 
   // Return whether the rule tree for which this node is the root has
   // cached data such that we need to do dynamic change handling for

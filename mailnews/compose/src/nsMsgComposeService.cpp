@@ -57,7 +57,6 @@
 #include "nsISupportsPrimitives.h"
 #include "nsIWindowWatcher.h"
 #include "nsIDOMWindow.h"
-#include "nsEscape.h"
 #include "nsIContentViewer.h"
 #include "nsIMsgWindow.h"
 #include "nsIDocShell.h"
@@ -78,11 +77,7 @@
 #include "nsIMimeMiscStatus.h"
 #include "nsIStreamConverter.h"
 #include "nsMsgMimeCID.h"
-#ifdef MOZILLA_1_9_2_BRANCH
-#include "nsXPFEComponentsCID.h"
-#else
 #include "nsToolkitCompsCID.h"
-#endif
 #include "nsNetUtil.h"
 #include "nsIMsgMailNewsUrl.h"
 #include "nsIInterfaceRequestorUtils.h"
@@ -109,6 +104,7 @@
 
 #include "nsICommandLine.h"
 #include "nsIAppStartup.h"
+#include "nsMsgUtils.h"
 
 #ifdef XP_WIN32
 #include <windows.h>
@@ -119,9 +115,6 @@
 static NS_DEFINE_CID(kParserCID, NS_PARSER_CID);
 // </for>
 
-#ifdef NS_DEBUG
-static PRBool _just_to_be_sure_we_create_only_one_compose_service_ = PR_FALSE;
-#endif
 
 #define DEFAULT_CHROME  "chrome://messenger/content/messengercompose/messengercompose.xul"
 
@@ -160,10 +153,6 @@ static PRUint32 GetMessageSizeFromURI(const char * originalMsgURI)
 
 nsMsgComposeService::nsMsgComposeService()
 {
-#ifdef NS_DEBUG
-  NS_ASSERTION(!_just_to_be_sure_we_create_only_one_compose_service_, "You cannot create several message compose service!");
-  _just_to_be_sure_we_create_only_one_compose_service_ = PR_TRUE;
-#endif
 
 // Defaulting the value of mLogComposePerformance to FALSE to prevent logging.
   mLogComposePerformance = PR_FALSE;
@@ -498,9 +487,8 @@ nsMsgComposeService::GetOrigWindowSelection(MSG_ComposeType type, nsIMsgWindow *
 
       if (NS_SUCCEEDED(rv))
       {
-        const nsPromiseFlatString& tString = PromiseFlatString(selPlain);
-        const PRUint32 length = tString.Length();
-        const PRUnichar* unicodeStr = tString.get();
+        const PRUint32 length = selPlain.Length();
+        const PRUnichar* unicodeStr = selPlain.get();
         PRInt32 endWordPos = lineBreaker->Next(unicodeStr, length, 0);
         
         // If there's not even one word, then there's not multiple words
@@ -518,7 +506,7 @@ nsMsgComposeService::GetOrigWindowSelection(MSG_ComposeType type, nsIMsgWindow *
 
     if (!charsOnlyIf.IsEmpty())
     {
-      if (selPlain.FindCharInSet(NS_ConvertUTF8toUTF16(charsOnlyIf)) < 0)
+      if (MsgFindCharInSet(selPlain, charsOnlyIf.get()) < 0)
         return NS_ERROR_ABORT;
     }
   }
@@ -565,7 +553,7 @@ nsMsgComposeService::OpenComposeWindow(const char *msgComposeWindowURL, nsIMsgDB
     || type == nsIMsgCompType::ReplyWithTemplate || type == nsIMsgCompType::Redirect)
   {
     nsCAutoString uriToOpen(originalMsgURI);
-    uriToOpen += (uriToOpen.FindChar('?') == kNotFound) ? "?" : "&";
+    uriToOpen += (uriToOpen.FindChar('?') == kNotFound) ? '?' : '&';
     uriToOpen.Append("fetchCompleteMessage=true");
     if (type == nsIMsgCompType::Redirect)
       uriToOpen.Append("&redirect=true");
@@ -612,16 +600,17 @@ nsMsgComposeService::OpenComposeWindow(const char *msgComposeWindowURL, nsIMsgDB
           if (slashpos > 0 )
           {
             // uri is "[s]news://host[:port]/group"
-            newsURI.Left(host, slashpos);
-            newsURI.Right(group, newsURI.Length() - slashpos - 1);
+            host = StringHead(newsURI, slashpos);
+            group = Substring(newsURI, slashpos + 1);
+
           }
           else
             group = originalMsgURI;
 
           nsCAutoString unescapedName;
-          NS_UnescapeURL(group,
-                         esc_FileBaseName|esc_Forced|esc_AlwaysCopy,
-                         unescapedName);
+          MsgUnescapeString(group,
+                            nsINetUtil::ESCAPE_URL_FILE_BASENAME | nsINetUtil::ESCAPE_URL_FORCED,
+                            unescapedName);
           pMsgCompFields->SetNewsgroups(NS_ConvertUTF8toUTF16(unescapedName));
           pMsgCompFields->SetNewshost(host.get());
         }
@@ -694,7 +683,7 @@ NS_IMETHODIMP nsMsgComposeService::GetParamsForMailto(nsIURI * aURI, nsIMsgCompo
           if (!escaped)
             return NS_ERROR_OUT_OF_MEMORY;
 
-          CopyUTF8toUTF16(escaped, sanitizedBody);
+          CopyUTF8toUTF16(nsDependentCString(escaped), sanitizedBody);
           nsMemory::Free(escaped);
         }
         else
@@ -779,14 +768,12 @@ NS_IMETHODIMP nsMsgComposeService::OpenComposeWindowWithURI(const char * aMsgCom
   return rv;
 }
 
-NS_IMETHODIMP nsMsgComposeService::InitCompose(nsIDOMWindowInternal *aWindow,
-                                          nsIMsgComposeParams *params,
-                                          nsIMsgCompose **_retval)
+NS_IMETHODIMP nsMsgComposeService::InitCompose(nsIMsgComposeParams *aParams,
+                                               nsIDOMWindowInternal *aWindow,
+                                               nsIDocShell *aDocShell,
+                                               nsIMsgCompose **_retval)
 {
-  nsresult rv;
-
-  /* we need to remove the window from the cache
-  */
+  // We need to remove the window from the cache.
   PRInt32 i;
   for (i = 0; i < mMaxRecycledWindows; i ++)
     if (mCachedWindows[i].window == aWindow)
@@ -795,10 +782,12 @@ NS_IMETHODIMP nsMsgComposeService::InitCompose(nsIDOMWindowInternal *aWindow,
       break;
     }
 
-  nsCOMPtr <nsIMsgCompose> msgCompose = do_CreateInstance(NS_MSGCOMPOSE_CONTRACTID, &rv);
+  nsresult rv;
+  nsCOMPtr<nsIMsgCompose> msgCompose =
+    do_CreateInstance(NS_MSGCOMPOSE_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv,rv);
 
-  rv = msgCompose->Initialize(aWindow, params);
+  rv = msgCompose->Initialize(aParams, aWindow, aDocShell);
   NS_ENSURE_SUCCESS(rv,rv);
 
   NS_IF_ADDREF(*_retval = msgCompose);
@@ -853,9 +842,6 @@ NS_IMETHODIMP nsMsgComposeService::TimeStamp(const char * label, PRBool resetTim
   PRIntervalTime totalTime = PR_IntervalToMilliseconds(now - mStartTime);
   PRIntervalTime deltaTime = PR_IntervalToMilliseconds(now - mPreviousTime);
 
-#if defined(DEBUG_ducarroz)
-  printf("XXX Time Stamp: [%5d][%5d] - %s\n", totalTime, deltaTime, label);
-#endif
   PR_LOG(MsgComposeLogModule, PR_LOG_ALWAYS, ("[%3.2f][%3.2f] - %s\n",
 ((double)totalTime/1000.0) + 0.005, ((double)deltaTime/1000.0) + 0.005, label));
 
@@ -1047,7 +1033,7 @@ NS_IMETHODIMP nsMsgTemplateReplyHelper::OnStopRunningUrl(nsIURI *aUrl, nsresult 
 
   /** initialize nsIMsgCompose, Send the message, wait for send completion response **/
 
-  rv = pMsgCompose->Initialize(parentWindow, pMsgComposeParams) ;
+  rv = pMsgCompose->Initialize(pMsgComposeParams, parentWindow, nsnull);
   NS_ENSURE_SUCCESS(rv,rv);
 
   Release();
@@ -1196,7 +1182,7 @@ NS_IMETHODIMP nsMsgComposeService::ReplyWithTemplate(nsIMsgDBHdr *aMsgHdr, const
   // we need to convert the template uri, which is of the form
   // <folder uri>?messageId=<messageId>&subject=<subject>
   nsCOMPtr <nsIMsgMessageService> msgService;
-  rv = GetMessageServiceFromURI(nsDependentCString(templateMsgHdrUri), getter_AddRefs(msgService));
+  rv = GetMessageServiceFromURI(templateMsgHdrUri, getter_AddRefs(msgService));
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsISupports> listenerSupports;
@@ -1294,7 +1280,7 @@ nsMsgComposeService::ForwardMessage(const nsAString &forwardTo,
   NS_ENSURE_SUCCESS(rv,rv);
 
   /** initialize nsIMsgCompose, Send the message, wait for send completion response **/
-  rv = pMsgCompose->Initialize(parentWindow, pMsgComposeParams) ;
+  rv = pMsgCompose->Initialize(pMsgComposeParams, parentWindow, nsnull);
   NS_ENSURE_SUCCESS(rv,rv);
 
   rv = pMsgCompose->SendMsg(nsIMsgSend::nsMsgDeliverNow, identity, nsnull, nsnull, nsnull);
@@ -1478,51 +1464,58 @@ nsresult nsMsgComposeService::AddGlobalHtmlDomains()
 }
 
 NS_IMETHODIMP
-nsMsgComposeService::RegisterComposeWindow(nsIDOMWindowInternal * aWindow, nsIMsgCompose *aComposeObject)
+nsMsgComposeService::RegisterComposeDocShell(nsIDocShell *aDocShell,
+                                             nsIMsgCompose *aComposeObject)
 {
-  NS_ENSURE_ARG_POINTER(aWindow);
+  NS_ENSURE_ARG_POINTER(aDocShell);
   NS_ENSURE_ARG_POINTER(aComposeObject);
 
   nsresult rv;
 
   // add the msg compose / dom window mapping to our hash table
-  nsCOMPtr<nsIWeakReference> weakDOMWindow = do_GetWeakReference(aWindow, &rv);
+  nsCOMPtr<nsIWeakReference> weakDocShell = do_GetWeakReference(aDocShell, &rv);
   NS_ENSURE_SUCCESS(rv,rv);
   nsCOMPtr<nsIWeakReference> weakMsgComposePtr = do_GetWeakReference(aComposeObject);
   NS_ENSURE_SUCCESS(rv,rv);
-  mOpenComposeWindows.Put(weakDOMWindow, weakMsgComposePtr);
+  mOpenComposeWindows.Put(weakDocShell, weakMsgComposePtr);
 
   return rv;
 }
 
 NS_IMETHODIMP
-nsMsgComposeService::UnregisterComposeWindow(nsIDOMWindowInternal * aWindow)
+nsMsgComposeService::UnregisterComposeDocShell(nsIDocShell *aDocShell)
 {
-  NS_ENSURE_ARG_POINTER(aWindow);
+  NS_ENSURE_ARG_POINTER(aDocShell);
 
   nsresult rv;
-  nsCOMPtr<nsIWeakReference> weakDOMWindow = do_GetWeakReference(aWindow, &rv);
+  nsCOMPtr<nsIWeakReference> weakDocShell = do_GetWeakReference(aDocShell, &rv);
   NS_ENSURE_SUCCESS(rv,rv);
 
-  mOpenComposeWindows.Remove(weakDOMWindow);
+  mOpenComposeWindows.Remove(weakDocShell);
 
   return rv;
 }
 
 NS_IMETHODIMP
-nsMsgComposeService::GetMsgComposeForWindow(nsIDOMWindowInternal * aWindow, nsIMsgCompose ** aComposeObject)
+nsMsgComposeService::GetMsgComposeForDocShell(nsIDocShell *aDocShell,
+                                              nsIMsgCompose **aComposeObject)
 {
-  NS_ENSURE_ARG_POINTER(aWindow);
+  NS_ENSURE_ARG_POINTER(aDocShell);
   NS_ENSURE_ARG_POINTER(aComposeObject);
+
+  if (!mOpenComposeWindows.Count())
+    return NS_ERROR_FAILURE;
 
   // get the weak reference for our dom window
   nsresult rv;
-  nsCOMPtr<nsIWeakReference> weakDOMWindow = do_GetWeakReference(aWindow, &rv);
-  NS_ENSURE_SUCCESS(rv,rv);
+  nsCOMPtr<nsIWeakReference> weakDocShell = do_GetWeakReference(aDocShell, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIWeakReference> weakMsgComposePtr;
 
-  NS_ENSURE_TRUE(mOpenComposeWindows.Get(weakDOMWindow, getter_AddRefs(weakMsgComposePtr)), NS_ERROR_FAILURE);
+  if (!mOpenComposeWindows.Get(weakDocShell,
+                               getter_AddRefs(weakMsgComposePtr)))
+    return NS_ERROR_FAILURE;
 
   nsCOMPtr<nsIMsgCompose> msgCompose = do_QueryReferent(weakMsgComposePtr, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -1606,7 +1599,7 @@ nsMsgComposeService::RunMessageThroughMimeDraft(
 
   nsCOMPtr<nsIURI> url;
   PRBool fileUrl = StringBeginsWith(aMsgURI, NS_LITERAL_CSTRING("file:"));
-  if (fileUrl || nsDependentCString(aMsgURI).Find("&type=application/x-message-display") >= 0)
+  if (fileUrl || PromiseFlatCString(aMsgURI).Find("&type=application/x-message-display") >= 0)
     rv = NS_NewURI(getter_AddRefs(url), aMsgURI);
   else
     rv = messageService->GetUrlForUri(PromiseFlatCString(aMsgURI).get(), getter_AddRefs(url), aMsgWindow);

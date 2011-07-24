@@ -56,7 +56,13 @@ DIRS	+= \
 	globalstorage \
 	localstorage \
 	sessionstorage \
+	storageevent \
 	$(NULL)
+
+#needs IPC support, also tests do not run successfully in Firefox for now
+#ifneq (mobile,$(MOZ_BUILD_APP))
+#DIRS	+= notification
+#endif
 
 include $(topsrcdir)/config/rules.mk
 

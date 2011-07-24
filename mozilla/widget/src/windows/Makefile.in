@@ -46,33 +46,6 @@ MODULE		= widget
 LIBRARY_NAME	= widget_windows
 LIBXUL_LIBRARY = 1
 
-REQUIRES	= xpcom \
-			string \
-			dom \
-			accessibility \
-			content \
-			content_xul \
-			gfx \
-			necko \
-			pref \
-			plugin \
-			timer \
-			uconv \
-			intl \
-			locale \
-			webshell \
-			docshell \
-			layout \
-			xuldoc \
-			view \
-			imglib2 \
-			uriloader \
-			webbrowserpersist \
-			unicharutil \
-			thebes \
-			cairo \
-			qcms \
-			$(NULL)
 
 CPPSRCS		= \
 	nsWindow.cpp \
@@ -91,13 +64,19 @@ CPPSRCS		= \
 	nsSound.cpp \
 	nsIMM32Handler.cpp \
 	WindowHook.cpp \
-	nsAccelerometerWin.cpp \
 	WinTaskbar.cpp \
 	TaskbarPreview.cpp \
 	TaskbarTabPreview.cpp \
 	TaskbarWindowPreview.cpp \
 	TaskbarPreviewButton.cpp \
-        $(NULL)
+ 	JumpListBuilder.cpp \
+ 	JumpListItem.cpp \
+	GfxInfo.cpp \
+	$(NULL)
+
+ifdef MOZ_CRASHREPORTER
+CPPSRCS += LSPAnnotator.cpp
+endif
 
 ifdef NS_PRINTING
 CPPSRCS		+= \
@@ -114,7 +93,7 @@ CPPSRCS += \
 	$(NULL)
 else
 CPPSRCS += \
-	nsKeyboardLayout.cpp \
+	KeyboardLayout.cpp \
 	IEnumFE.cpp  \
 	nsDataObj.cpp  \
 	nsDataObjCollection.cpp  \
@@ -124,12 +103,22 @@ CPPSRCS += \
 	nsClipboard.cpp      \
 	nsImageClipboard.cpp \
 	nsBidiKeyboard.cpp   \
-	nsTextStore.cpp \
 	$(NULL)
+ifdef NS_ENABLE_TSF
+CPPSRCS		+= nsTextStore.cpp
+endif
 endif
 
 
 DEFINES		+= -D_IMPL_NS_WIDGET -DMOZ_UNICODE 
+
+ifdef MOZ_ENABLE_D3D9_LAYER
+DEFINES		+= -DMOZ_ENABLE_D3D9_LAYER
+endif
+
+ifdef MOZ_ENABLE_D3D10_LAYER
+DEFINES		+= -DMOZ_ENABLE_D3D10_LAYER
+endif
 
 ifdef BUILD_STATIC_LIBS
 DEFINES		+= -DMOZ_STATIC_COMPONENT_LIBS
@@ -143,7 +132,7 @@ LOCAL_INCLUDES	= \
 		-I$(srcdir)/../xpwidgets \
 		-I$(srcdir) \
 		-I$(topsrcdir)/toolkit/xre \
-		-I$(topsrcdir)/toolkit/crashreporter \
+		-I$(topsrcdir)/xpcom/base \
 		$(NULL)
 
 FORCE_STATIC_LIB = 1
@@ -152,13 +141,11 @@ ifdef WINCE
 EXTRA_DSO_LDOPTS += ddraw.lib
 endif
 
-ifndef WINCE
-ENABLE_CXX_EXCEPTIONS = 1
-endif
-
-ifdef MOZ_IPC
 include $(topsrcdir)/config/config.mk
 include $(topsrcdir)/ipc/chromium/chromium-config.mk
+
+ifdef ENABLE_TESTS
+TOOL_DIRS  += tests
 endif
 
 include $(topsrcdir)/config/rules.mk

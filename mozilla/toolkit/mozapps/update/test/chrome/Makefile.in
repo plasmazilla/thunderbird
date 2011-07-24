@@ -50,14 +50,31 @@ _OTHER_FILES = \
 _CHROME_FILES = \
   test_0011_check_basic.xul \
   test_0012_check_basic_license.xul \
+  test_0013_check_incompat_basic.xul \
+  test_0015_check_incompat_basic_addons.xul \
+  test_0014_check_incompat_basic_license.xul \
+  test_0016_check_incompat_basic_license_addons.xul \
   test_0021_check_billboard.xul \
   test_0022_check_billboard_license.xul \
+  test_0023_check_incompat_billboard.xul \
+  test_0024_check_incompat_billboard_license.xul \
+  test_0025_check_incompat_billboard_addons.xul \
+  test_0026_check_incompat_billboard_license_addons.xul \
   test_0031_available_basic.xul \
   test_0032_available_basic_license.xul \
+  test_0033_available_incompat_basic.xul \
+  test_0034_available_incompat_basic_license.xul \
+  test_0035_available_incompat_basic_addons.xul \
+  test_0036_available_incompat_basic_license_addons.xul \
   test_0041_available_billboard.xul \
   test_0042_available_billboard_license.xul \
+  test_0043_available_incompat_billboard.xul \
+  test_0044_available_incompat_billboard_license.xul \
+  test_0045_available_incompat_billboard_addons.xul \
+  test_0046_available_incompat_billboard_license_addons.xul \
   test_0051_check_error_xml_malformed.xul \
   test_0052_check_no_updates.xul \
+  test_0053_check_billboard_license_noAttr.xul \
   test_0054_check_billboard_license_404.xul \
   test_0061_check_verifyFailPartial_noComplete.xul \
   test_0062_check_verifyFailComplete_noPartial.xul \
@@ -73,7 +90,19 @@ _CHROME_FILES = \
   test_0084_error_patchApplyFailure_verify_failed.xul \
   test_0091_installed.xul \
   test_0092_finishedBackground.xul \
+  test_0111_neverButton_basic.xul \
   test_0112_neverButton_billboard.xul \
+  test_0113_showNeverForVersionRemovedWithPref.xul \
+  test_0121_check_requireBuiltinCert.xul \
+  test_0122_check_allowNonBuiltinCert_validCertAttrs.xul \
+  test_0123_check_allowNonBuiltinCert_noCertAttrsCheck.xul \
+  test_0131_check_invalidCertAttrs_noUpdate.xul \
+  test_0132_check_invalidCertAttrs_hasUpdate.xul \
+  test_0141_notify_invalidCertAttrs_noUpdate.xul \
+  test_0142_notify_invalidCertAttrs_hasUpdate.xul \
+  test_0151_notify_backgroundCheckError.xul \
+  test_0900_deprecatedUpdateFormat_minor.xul \
+  test_0901_deprecatedUpdateFormat_major.xul \
   test_9999_cleanup.xul \
   $(NULL)
 

@@ -1,73 +1,87 @@
+// Wanted delay (in ms) to let UI fully update.
+// 375: hopefully enough (on slow test environments).
+var gDelay = 375;
+
 var tab1, tab2;
 
-function executeSoon(step) {
-  todo(false, "Using setTimeout(,0) instead of real executeSoon() otherwise this test breaks");
-  setTimeout(step, 0);
+function focus_in_navbar()
+{
+  var parent = document.activeElement.parentNode;
+  while (parent && parent.id != "nav-bar")
+    parent = parent.parentNode;
+
+  return parent != null;
 }
 
-function test() {
+function test()
+{
   waitForExplicitFinish();
 
-  tab1 = gBrowser.addTab();
-  tab2 = gBrowser.addTab();
-  executeSoon(step1);
-}
+  // Ftr, SeaMonkey doesn't support animation (yet).
+  tab1 = gBrowser.addTab("about:blank");
+  tab2 = gBrowser.addTab("about:blank");
 
-function step1() {
-  EventUtils.synthesizeMouse(tab1, 9, 9, {});
-  executeSoon(step2);
+  EventUtils.synthesizeMouseAtCenter(tab1, {});
+  setTimeout(step2, gDelay);
 }
 
 function step2()
 {
-  is(gBrowser.selectedTab, tab1, "mouse on tab selects tab");
-  isnot(document.activeElement, tab1, "mouse on tab not activeElement");
+  is(gBrowser.selectedTab, tab1, "1st click on tab1 selects tab");
+  isnot(document.activeElement, tab1, "1st click on tab1 does not activate tab");
 
-  EventUtils.synthesizeMouse(tab1, 9, 9, {});
-  executeSoon(step3);
+  EventUtils.synthesizeMouseAtCenter(tab1, {});
+  setTimeout(step3, gDelay);
 }
 
 function step3()
 {
-  todo_is(document.activeElement, tab1, "mouse on tab again activeElement");
+  is(gBrowser.selectedTab, tab1, "2nd click on selected tab1 keeps tab selected");
+  // SeaMonkey differs from Firefox.
+  is(document.activeElement, tab1, "2nd click on selected tab1 activates tab");
 
-  document.getElementById("urlbar").inputField.focus();
-  EventUtils.synthesizeKey("VK_TAB", { });
+  // Ftr, SeaMonkey doesn't support tabsontop (yet).
+  ok(true, "focusing URLBar then sending Tab(s) until out of nav-bar.");
+  document.getElementById("urlbar").focus();
+  while (focus_in_navbar())
+    EventUtils.synthesizeKey("VK_TAB", { });
+  is(gBrowser.selectedTab, tab1, "tab key to selected tab1 keeps tab selected");
+  is(document.activeElement, tab1, "tab key to selected tab1 activates tab");
 
-  let osString = Components.classes["@mozilla.org/xre/app-info;1"]
-                           .getService(Ci.nsIXULRuntime).OS;
-  if (osString != "Linux" || document.activeElement == tab1) {
-    // Expected behavior.
-    is(document.activeElement, tab1, "tab key to tab activeElement");
-  } else {
-    // Linux intermittent failure.
-    // Check local name too to help diagnose bug 491624.
-    todo_is(document.activeElement.localName, "tab",
-            "tab key to tab activeElement (bug 491624: name = " +
-              document.activeElement.localName + ")");
-    todo_is(document.activeElement, tab1,
-            "tab key to tab activeElement (bug 491624: object = " +
-              document.activeElement + ")");
-  }
-
-  EventUtils.synthesizeMouse(tab1, 9, 9, {});
-  executeSoon(step4);
+  EventUtils.synthesizeMouseAtCenter(tab1, {});
+  setTimeout(step4, gDelay);
 }
 
 function step4()
 {
-  is(document.activeElement, tab1, "mouse on tab while focused still activeElement");
+  is(gBrowser.selectedTab, tab1, "3rd click on activated tab1 keeps tab selected");
+  is(document.activeElement, tab1, "3rd click on activated tab1 keeps tab activated");
 
-  EventUtils.synthesizeMouse(tab2, 9, 9, {});
-  executeSoon(step5);
+  EventUtils.synthesizeMouseAtCenter(tab2, {});
+  setTimeout(step5, gDelay);
 }
 
 function step5()
 {
-  is(document.activeElement, tab2, "mouse on another tab while focused still activeElement");
+  // The tabbox selects a tab within a setTimeout in a bubbling mousedown event
+  // listener, and focuses the current tab if another tab previously had focus.
+  is(gBrowser.selectedTab, tab2, "click on tab2 while tab1 is activated selects tab");
+  is(document.activeElement, tab2, "click on tab2 while tab1 is activated activates tab");
 
-  gBrowser.removeTab(tab1);
+  ok(true, "focusing content then sending middle-button mousedown to tab2.");
+  content.focus();
+  EventUtils.synthesizeMouseAtCenter(tab2, {button: 1, type: "mousedown"});
+  setTimeout(step6, gDelay);
+}
+
+function step6()
+{
+  is(gBrowser.selectedTab, tab2, "middle-button mousedown on selected tab2 keeps tab selected");
+  // SeaMonkey differs from Firefox.
+  is(document.activeElement, tab2, "middle-button mousedown on selected tab2 activates tab");
+
   gBrowser.removeTab(tab2);
+  gBrowser.removeTab(tab1);
 
   finish();
 }

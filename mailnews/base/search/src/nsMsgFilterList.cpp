@@ -79,7 +79,6 @@ nsMsgFilterList::nsMsgFilterList() :
   m_startWritingToBuffer = PR_FALSE;
   m_temporaryList = PR_FALSE;
   m_curFilter = nsnull;
-  m_arbitraryHeaders.SetLength(0);
 }
 
 NS_IMPL_ADDREF(nsMsgFilterList)
@@ -560,7 +559,7 @@ nsresult nsMsgFilterList::LoadTextFilters(nsIInputStream *aStream)
         m_curFilter->SetUnparseable(PR_TRUE);
       break;
     case nsIMsgFilterList::attribVersion:
-      m_fileVersion = value.ToInteger(&intToStringResult, 10);
+      m_fileVersion = value.ToInteger(&intToStringResult);
       if (NS_FAILED(intToStringResult))
       {
         attrib = nsIMsgFilterList::attribNone;
@@ -633,7 +632,7 @@ nsresult nsMsgFilterList::LoadTextFilters(nsIInputStream *aStream)
       {
         // Older versions of filters didn't have the ability to turn on/off the
         // manual filter context, so default manual to be on in that case
-        PRInt32 filterType = value.ToInteger(&intToStringResult, 10);
+        PRInt32 filterType = value.ToInteger(&intToStringResult);
         if (m_fileVersion < kManualContextVersion)
           filterType |= nsMsgFilterType::Manual;
         m_curFilter->SetType((nsMsgFilterTypeType) filterType);
@@ -679,7 +678,7 @@ nsresult nsMsgFilterList::LoadTextFilters(nsIInputStream *aStream)
         {
           // upgrade label to corresponding tag/keyword
           nsresult res;
-          PRInt32 labelInt = value.ToInteger(&res, 10);
+          PRInt32 labelInt = value.ToInteger(&res);
           if (NS_SUCCEEDED(res))
           {
             nsCAutoString keyword("$label");
@@ -691,7 +690,7 @@ nsresult nsMsgFilterList::LoadTextFilters(nsIInputStream *aStream)
         else if (type == nsMsgFilterAction::JunkScore)
         {
           nsresult res;
-          PRInt32 junkScore = value.ToInteger(&res, 10);
+          PRInt32 junkScore = value.ToInteger(&res);
           if (NS_SUCCEEDED(res))
             currentFilterAction->SetJunkScore(junkScore);
         }
@@ -930,7 +929,7 @@ nsresult nsMsgFilterList::SaveTextFilters(nsIOutputStream *aStream)
       break;
   }
   if (NS_SUCCEEDED(err))
-    m_arbitraryHeaders.SetLength(0);
+    m_arbitraryHeaders.Truncate();
   return err;
 }
 
@@ -1099,12 +1098,14 @@ nsMsgFilterList::GetVersion(PRInt16 *aResult)
 
 NS_IMETHODIMP nsMsgFilterList::MatchOrChangeFilterTarget(const nsACString &oldFolderUri, const nsACString &newFolderUri, PRBool caseInsensitive, PRBool *found)
 {
+  NS_ENSURE_ARG_POINTER(found);
   nsresult rv = NS_OK;
   PRUint32 numFilters;
   rv = m_filters->Count(&numFilters);
   NS_ENSURE_SUCCESS(rv,rv);
   nsCOMPtr <nsIMsgFilter> filter;
   nsCString folderUri;
+  *found = PR_FALSE;
   for (PRUint32 index = 0; index < numFilters; index++)
   {
     filter = do_QueryElementAt(m_filters, index, &rv);
@@ -1137,7 +1138,7 @@ NS_IMETHODIMP nsMsgFilterList::MatchOrChangeFilterTarget(const nsACString &oldFo
               if (!newFolderUri.IsEmpty())  //if we just want to match the uri's, newFolderUri will be null
                 rv = filterAction->SetTargetFolderUri(newFolderUri);
               NS_ENSURE_SUCCESS(rv,rv);
-              *found =PR_TRUE;
+              *found = PR_TRUE;
             }
           }
           else
@@ -1147,7 +1148,7 @@ NS_IMETHODIMP nsMsgFilterList::MatchOrChangeFilterTarget(const nsACString &oldFo
               if (!newFolderUri.IsEmpty()) //if we just want to match the uri's, newFolderUri will be null
                 rv = filterAction->SetTargetFolderUri(newFolderUri);
               NS_ENSURE_SUCCESS(rv,rv);
-              *found =PR_TRUE;
+              *found = PR_TRUE;
             }
           }
         break;  //we allow only one move action per filter
@@ -1194,7 +1195,7 @@ nsresult nsMsgFilterList::ComputeArbitraryHeaders()
           {
             if (m_arbitraryHeaders.IsEmpty())
               m_arbitraryHeaders.Assign(arbitraryHeader);
-            else if (m_arbitraryHeaders.Find(arbitraryHeader, PR_TRUE) == -1)
+            else if (m_arbitraryHeaders.Find(arbitraryHeader, CaseInsensitiveCompare) == -1)
             {
               m_arbitraryHeaders.Append(" ");
               m_arbitraryHeaders.Append(arbitraryHeader);

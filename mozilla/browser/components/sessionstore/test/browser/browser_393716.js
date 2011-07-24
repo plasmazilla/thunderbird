@@ -7,7 +7,7 @@ function test() {
   }
   catch (ex) { }
   ok(ss, "SessionStore service is available");
-  let tabbrowser = getBrowser();
+  let tabbrowser = gBrowser;
   waitForExplicitFinish();
   
   /////////////////
@@ -21,12 +21,13 @@ function test() {
   let tab = tabbrowser.addTab(testURL);
   ss.setTabValue(tab, key, value);
   tab.linkedBrowser.addEventListener("load", function(aEvent) {
+    this.removeEventListener("load", arguments.callee, true);
     // get the tab's state
     let state = ss.getTabState(tab);
     ok(state, "get the tab's state");
     
     // verify the tab state's integrity
-    state = eval("(" + state + ")");
+    state = JSON.parse(state);
     ok(state instanceof Object && state.entries instanceof Array && state.entries.length > 0,
        "state object seems valid");
     ok(state.entries.length == 1 && state.entries[0].url == testURL,
@@ -49,26 +50,28 @@ function test() {
   // create a new tab
   let tab2 = tabbrowser.addTab();
   // set the tab's state
-  ss.setTabState(tab2, state.toSource());
+  ss.setTabState(tab2, JSON.stringify(state));
   tab2.linkedBrowser.addEventListener("load", function(aEvent) {
+    this.removeEventListener("load", arguments.callee, true);
     // verify the correctness of the restored tab
     ok(ss.getTabValue(tab2, key2) == value2 && this.currentURI.spec == testURL,
        "the tab's state was correctly restored");
     
     // add text data
     let textbox = this.contentDocument.getElementById("textbox");
-    textbox.wrappedJSObject.value = value3;
+    textbox.value = value3;
     
     // duplicate the tab
     let duplicateTab = ss.duplicateTab(window, tab2);
     tabbrowser.removeTab(tab2);
     
     duplicateTab.linkedBrowser.addEventListener("load", function(aEvent) {
+      this.removeEventListener("load", arguments.callee, true);
       // verify the correctness of the duplicated tab
       ok(ss.getTabValue(duplicateTab, key2) == value2 && this.currentURI.spec == testURL,
          "correctly duplicated the tab's state");
       let textbox = this.contentDocument.getElementById("textbox");
-      is(textbox.wrappedJSObject.value, value3, "also duplicated text data");
+      is(textbox.value, value3, "also duplicated text data");
       
       // clean up
       tabbrowser.removeTab(duplicateTab);

@@ -43,12 +43,11 @@
 #include "nsXBLPrototypeResources.h"
 #include "nsXBLPrototypeHandler.h"
 #include "nsXBLProtoImplMethod.h"
-#include "nsICSSStyleSheet.h"
 #include "nsICSSLoaderObserver.h"
 #include "nsWeakReference.h"
 #include "nsIContent.h"
 #include "nsHashtable.h"
-#include "nsIXBLDocumentInfo.h"
+#include "nsXBLDocumentInfo.h"
 #include "nsCOMArray.h"
 #include "nsXBLProtoImpl.h"
 
@@ -60,6 +59,7 @@ class nsIXBLService;
 class nsFixedSizeAllocator;
 class nsXBLProtoImplField;
 class nsXBLBinding;
+class nsCSSStyleSheet;
 
 // *********************************************************************/
 // The XBLPrototypeBinding class
@@ -81,7 +81,7 @@ public:
   // binding URIs.
   PRBool CompareBindingURI(nsIURI* aURI) const;
 
-  nsresult GetAllowScripts(PRBool* aResult);
+  PRBool GetAllowScripts();
 
   nsresult BindingAttached(nsIContent* aBoundElement);
   nsresult BindingDetached(nsIContent* aBoundElement);
@@ -140,7 +140,7 @@ public:
   void SetBasePrototype(nsXBLPrototypeBinding* aBinding);
   nsXBLPrototypeBinding* GetBasePrototype() { return mBaseBinding; }
 
-  nsIXBLDocumentInfo* XBLDocumentInfo() const { return mXBLDocInfoWeak; }
+  nsXBLDocumentInfo* XBLDocumentInfo() const { return mXBLDocInfoWeak; }
   PRBool IsChrome() { return mXBLDocInfoWeak->IsChrome(); }
   
   PRBool HasBasePrototype() { return mHasBaseProto; }
@@ -149,12 +149,12 @@ public:
   void SetInitialAttributes(nsIContent* aBoundElement, nsIContent* aAnonymousContent);
 
   nsIStyleRuleProcessor* GetRuleProcessor();
-  nsCOMArray<nsICSSStyleSheet>* GetStyleSheets();
+  nsXBLPrototypeResources::sheet_array_type* GetStyleSheets();
 
   PRBool HasInsertionPoints() { return mInsertionPointTable != nsnull; }
   
   PRBool HasStyleSheets() {
-    return mResources && mResources->mStyleSheetList.Count() > 0;
+    return mResources && mResources->mStyleSheetList.Length() > 0;
   }
 
   nsresult FlushSkinSheets();
@@ -164,7 +164,8 @@ public:
   // XXXbz this aIndex has nothing to do with an index into the child
   // list of the insertion parent or anything.
   nsIContent* GetInsertionPoint(nsIContent* aBoundElement,
-                                nsIContent* aCopyRoot, nsIContent *aChild,
+                                nsIContent* aCopyRoot,
+                                const nsIContent *aChild,
                                 PRUint32* aIndex);
 
   nsIContent* GetSingleInsertionPoint(nsIContent* aBoundElement,
@@ -199,7 +200,7 @@ public:
   // this with the Initialize() method, which must be called after the
   // binding's handlers, properties, etc are all set.
   nsresult Init(const nsACString& aRef,
-                nsIXBLDocumentInfo* aInfo,
+                nsXBLDocumentInfo* aInfo,
                 nsIContent* aElement,
                 PRBool aFirstBinding = PR_FALSE);
 
@@ -276,7 +277,7 @@ protected:
  
   nsXBLPrototypeResources* mResources; // If we have any resources, this will be non-null.
                                       
-  nsIXBLDocumentInfo* mXBLDocInfoWeak; // A pointer back to our doc info.  Weak, since it owns us.
+  nsXBLDocumentInfo* mXBLDocInfoWeak; // A pointer back to our doc info.  Weak, since it owns us.
 
   nsObjectHashtable* mAttributeTable; // A table for attribute containers. Namespace IDs are used as
                                       // keys in the table. Containers are nsObjectHashtables.

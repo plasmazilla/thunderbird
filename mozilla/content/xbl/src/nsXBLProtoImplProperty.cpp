@@ -176,28 +176,26 @@ nsXBLProtoImplProperty::InstallMember(nsIScriptContext* aContext,
   if ((mJSGetterObject || mJSSetterObject) && targetClassObject) {
     JSObject * getter = nsnull;
     JSAutoRequest ar(cx);
+    JSAutoEnterCompartment ac;
+
+    if (!ac.enter(cx, globalObject))
+      return NS_ERROR_UNEXPECTED;
+
     if (mJSGetterObject)
       if (!(getter = ::JS_CloneFunctionObject(cx, mJSGetterObject, globalObject)))
         return NS_ERROR_OUT_OF_MEMORY;
 
-    nsresult rv;
-    nsAutoGCRoot getterroot(&getter, &rv);
-    NS_ENSURE_SUCCESS(rv, rv);
-    
     JSObject * setter = nsnull;
     if (mJSSetterObject)
       if (!(setter = ::JS_CloneFunctionObject(cx, mJSSetterObject, globalObject)))
         return NS_ERROR_OUT_OF_MEMORY;
 
-    nsAutoGCRoot setterroot(&setter, &rv);
-    NS_ENSURE_SUCCESS(rv, rv);
-    
     nsDependentString name(mName);
     if (!::JS_DefineUCProperty(cx, targetClassObject,
                                reinterpret_cast<const jschar*>(mName),
                                name.Length(), JSVAL_VOID,
                                JS_DATA_TO_FUNC_PTR(JSPropertyOp, getter),
-                               JS_DATA_TO_FUNC_PTR(JSPropertyOp, setter),
+                               JS_DATA_TO_FUNC_PTR(JSStrictPropertyOp, setter),
                                mJSAttributes))
       return NS_ERROR_OUT_OF_MEMORY;
   }

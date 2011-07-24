@@ -66,7 +66,7 @@ public:
     nsStorageItemsTable mTable;
     PRInt32 mUsageDelta;
 
-    nsInMemoryStorage() : mUsageDelta(0) { mTable.Init(20); }
+    nsInMemoryStorage() : mUsageDelta(0) {}
   };
 
   /**
@@ -82,14 +82,14 @@ public:
    *
    */
   nsresult
-  GetItemsTable(nsDOMStorage* aStorage,
+  GetItemsTable(DOMStorageImpl* aStorage,
                 nsInMemoryStorage** aMemoryStorage);
 
   /**
    * Retrieve a list of all the keys associated with a particular domain.
    */
   nsresult
-  GetAllKeys(nsDOMStorage* aStorage,
+  GetAllKeys(DOMStorageImpl* aStorage,
              nsTHashtable<nsSessionStorageEntry>* aKeys);
 
   /**
@@ -98,7 +98,7 @@ public:
    * @throws NS_ERROR_DOM_NOT_FOUND_ERR if key not found
    */
   nsresult
-  GetKeyValue(nsDOMStorage* aStorage,
+  GetKeyValue(DOMStorageImpl* aStorage,
               const nsAString& aKey,
               nsAString& aValue,
               PRBool* aSecure);
@@ -107,11 +107,12 @@ public:
    * Set the value and secure flag for a key in storage.
    */
   nsresult
-  SetKey(nsDOMStorage* aStorage,
+  SetKey(DOMStorageImpl* aStorage,
          const nsAString& aKey,
          const nsAString& aValue,
          PRBool aSecure,
          PRInt32 aQuota,
+         PRBool aExcludeOfflineFromUsage,
          PRInt32* aNewUsage);
 
   /**
@@ -119,7 +120,7 @@ public:
    * not found.
    */
   nsresult
-  SetSecure(nsDOMStorage* aStorage,
+  SetSecure(DOMStorageImpl* aStorage,
             const nsAString& aKey,
             const PRBool aSecure);
 
@@ -127,21 +128,22 @@ public:
    * Removes a key from storage.
    */
   nsresult
-  RemoveKey(nsDOMStorage* aStorage,
+  RemoveKey(DOMStorageImpl* aStorage,
             const nsAString& aKey,
+            PRBool aExcludeOfflineFromUsage,
             PRInt32 aKeyUsage);
 
   /**
     * Remove all keys belonging to this storage.
     */
   nsresult
-  ClearStorage(nsDOMStorage* aStorage);
+  ClearStorage(DOMStorageImpl* aStorage);
 
   /**
    * If we have changed the persistent storage, drop any potential session storages
    */
   nsresult
-  DropStorage(nsDOMStorage* aStorage);
+  DropStorage(DOMStorageImpl* aStorage);
 
   /**
    * Removes all keys added by a given domain.
@@ -167,7 +169,7 @@ public:
     * Returns usage for a storage using its GetQuotaDomainDBKey() as a key.
     */
   nsresult
-  GetUsage(nsDOMStorage* aStorage, PRInt32 *aUsage);
+  GetUsage(DOMStorageImpl* aStorage, PRBool aExcludeOfflineFromUsage, PRInt32 *aUsage);
 
   /**
     * Returns usage of the domain and optionaly by any subdomain.
@@ -182,7 +184,7 @@ protected:
   PRBool mPreloading;
 
   nsresult
-  GetUsageInternal(const nsACString& aQuotaDomainDBKey, PRInt32 *aUsage);
+  GetUsageInternal(const nsACString& aQuotaDomainDBKey, PRBool aExcludeOfflineFromUsage, PRInt32 *aUsage);
 };
 
 #endif

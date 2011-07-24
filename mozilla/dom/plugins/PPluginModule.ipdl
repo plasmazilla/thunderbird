@@ -37,14 +37,15 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-include protocol "PPluginIdentifier.ipdl";
-include protocol "PPluginInstance.ipdl";
+include protocol PPluginIdentifier;
+include protocol PPluginInstance;
 
 include "npapi.h";
 include "mozilla/plugins/PluginMessageUtils.h";
 
 using NPError;
 using NPNVariable;
+using base::FileDescriptor;
 using mozilla::plugins::NativeThreadId;
 
 namespace mozilla {
@@ -68,6 +69,10 @@ both:
                           int32_t aInt);
 
 child:
+  // Forces the child process to update its plugin function table.
+  rpc NP_GetEntryPoints()
+    returns (NPError rv);
+
   // Return the plugin's thread ID, if it can be found.
   rpc NP_Initialize()
     returns (NativeThreadId tid, NPError rv);
@@ -81,7 +86,30 @@ child:
   rpc NP_Shutdown()
     returns (NPError rv);
 
+  rpc OptionalFunctionsSupported()
+    returns (bool aURLRedirectNotify, bool aClearSiteData,
+             bool aGetSitesWithData);
+
+  rpc NPP_ClearSiteData(nsCString site, uint64_t flags, uint64_t maxAge)
+    returns (NPError rv);
+
+  rpc NPP_GetSitesWithData()
+    returns (nsCString[] sites);
+
 parent:
+  /**
+   * This message is only used on X11 platforms.
+   *
+   * Send a dup of the plugin process's X socket to the parent
+   * process.  In theory, this scheme keeps the plugin's X resources
+   * around until after both the plugin process shuts down *and* the
+   * parent process closes the dup fd.  This is used to prevent the
+   * parent process from crashing on X errors if, e.g., the plugin
+   * crashes *just before* a repaint and the parent process tries to
+   * use the newly-invalid surface.
+   */
+  async BackUpXResources(FileDescriptor aXSocketFd);
+
   rpc NPN_UserAgent()
     returns (nsCString userAgent);
 
@@ -100,6 +128,13 @@ parent:
   async ProcessNativeEventsInRPCCall();
 
   sync AppendNotesToCrashReport(nsCString aNotes);
+
+  // OS X Specific calls to manage the plugin's window
+  // when interposing system calls.
+  async PluginShowWindow(uint32_t aWindowId, bool aModal,
+                         int32_t aX, int32_t aY,
+                         size_t aWidth, size_t aHeight);
+  async PluginHideWindow(uint32_t aWindowId);
 };
 
 } // namespace plugins

@@ -26,6 +26,13 @@ SimpleTest.waitForExplicitFinish();
 
 var iframe;
 
+function getZoomRatio() {
+  netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
+  var utils = window.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+                    .getInterface(Components.interfaces.nsIDOMWindowUtils);
+  return utils.screenPixelsPerCSSPixel;
+}
+
 function run() {
   iframe = document.getElementById("subdoc");
   var subdoc = iframe.contentDocument;
@@ -161,6 +168,13 @@ function run() {
   query_should_be_parseable("not all and (orientation)");
   query_should_be_parseable("only all and (orientation)");
 
+  query_should_be_parseable("(-moz-device-orientation)");
+  query_should_not_be_parseable("not (-moz-device-orientation)");
+  query_should_not_be_parseable("only (-moz-device-orientation)");
+  query_should_be_parseable("all and (-moz-device-orientation)");
+  query_should_be_parseable("not all and (-moz-device-orientation)");
+  query_should_be_parseable("only all and (-moz-device-orientation)");
+
   var features = [ "width", "height", "device-width", "device-height" ];
   var feature;
   var i;
@@ -275,6 +289,24 @@ function run() {
   should_apply("not all and (orientation: landscape)");
   should_apply("(orientation: portrait)");
 
+  expression_should_be_parseable("-moz-device-orientation");
+  expression_should_be_parseable("-moz-device-orientation: portrait");
+  expression_should_be_parseable("-moz-device-orientation: landscape");
+  expression_should_not_be_parseable("min--moz-device-orientation");
+  expression_should_not_be_parseable("min--moz-device-orientation: portrait");
+  expression_should_not_be_parseable("min--moz-device-orientation: landscape");
+  expression_should_not_be_parseable("max--moz-device-orientation");
+  expression_should_not_be_parseable("max--moz-device-orientation: portrait");
+  expression_should_not_be_parseable("max--moz-device-orientation: landscape");
+
+  // determine the actual configuration of the screen and test against it
+  var device_orientation = (device_width > device_height) ? "landscape" : "portrait";
+  var not_device_orientation = (device_orientation == "landscape") ? "portrait" : "landscape";
+  should_apply("(-moz-device-orientation)");
+  should_apply("(-moz-device-orientation: " + device_orientation + ")");
+  should_not_apply("(-moz-device-orientation: " + not_device_orientation + ")");
+  should_apply("not all and (-moz-device-orientation: " + not_device_orientation + ")");
+
   should_apply("(aspect-ratio: 59/80)");
   should_not_apply("(aspect-ratio: 58/80)");
   should_not_apply("(aspect-ratio: 59/81)");
@@ -328,6 +360,26 @@ function run() {
   should_not_apply("all and (max-device-aspect-ratio: " + low_dar_1 + ")");
   should_apply("not all and (max-device-aspect-ratio: " + low_dar_2 + ")");
   expression_should_not_be_parseable("max-device-aspect-ratio");
+
+  var real_dpr = 1.0 * getZoomRatio();
+  var high_dpr = 1.1 * getZoomRatio();
+  var low_dpr = 0.9 * getZoomRatio();
+  should_apply("all and (max--moz-device-pixel-ratio: " + real_dpr + ")");
+  should_apply("all and (min--moz-device-pixel-ratio: " + real_dpr + ")");
+  should_not_apply("not all and (max--moz-device-pixel-ratio: " + real_dpr + ")");
+  should_not_apply("not all and (min--moz-device-pixel-ratio: " + real_dpr + ")");
+  should_apply("all and (min--moz-device-pixel-ratio: " + low_dpr + ")");
+  should_apply("all and (max--moz-device-pixel-ratio: " + high_dpr + ")");
+  should_not_apply("all and (max--moz-device-pixel-ratio: " + low_dpr + ")");
+  should_not_apply("all and (min--moz-device-pixel-ratio: " + high_dpr + ")");
+  should_apply("not all and (max--moz-device-pixel-ratio: " + low_dpr + ")");
+  should_apply("not all and (min--moz-device-pixel-ratio: " + high_dpr + ")");
+  should_apply("(-moz-device-pixel-ratio: " + real_dpr + ")");
+  should_not_apply("(-moz-device-pixel-ratio: " + high_dpr + ")");
+  should_not_apply("(-moz-device-pixel-ratio: " + low_dpr + ")");
+  should_apply("(-moz-device-pixel-ratio)");
+  expression_should_not_be_parseable("min--moz-device-pixel-ratio");
+  expression_should_not_be_parseable("max--moz-device-pixel-ratio");
 
   features = [ "max-aspect-ratio", "device-aspect-ratio" ];
   for (i in features) {
@@ -499,6 +551,7 @@ function run() {
   expression_should_be_parseable("-moz-scrollbar-end-forward");
   expression_should_be_parseable("-moz-scrollbar-thumb-proportional");
   expression_should_be_parseable("-moz-images-in-menus");
+  expression_should_be_parseable("-moz-images-in-buttons");
   expression_should_be_parseable("-moz-windows-default-theme");
   expression_should_be_parseable("-moz-mac-graphite-theme");
   expression_should_be_parseable("-moz-windows-compositor");
@@ -512,6 +565,7 @@ function run() {
   expression_should_be_parseable("-moz-scrollbar-end-forward: 0");
   expression_should_be_parseable("-moz-scrollbar-thumb-proportional: 0");
   expression_should_be_parseable("-moz-images-in-menus: 0");
+  expression_should_be_parseable("-moz-images-in-buttons: 0");
   expression_should_be_parseable("-moz-windows-default-theme: 0");
   expression_should_be_parseable("-moz-mac-graphite-theme: 0");
   expression_should_be_parseable("-moz-windows-compositor: 0");
@@ -525,6 +579,7 @@ function run() {
   expression_should_be_parseable("-moz-scrollbar-end-forward: 1");
   expression_should_be_parseable("-moz-scrollbar-thumb-proportional: 1");
   expression_should_be_parseable("-moz-images-in-menus: 1");
+  expression_should_be_parseable("-moz-images-in-buttons: 1");
   expression_should_be_parseable("-moz-windows-default-theme: 1");
   expression_should_be_parseable("-moz-mac-graphite-theme: 1");
   expression_should_be_parseable("-moz-windows-compositor: 1");
@@ -538,6 +593,7 @@ function run() {
   expression_should_not_be_parseable("-moz-scrollbar-end-forward: -1");
   expression_should_not_be_parseable("-moz-scrollbar-thumb-proportional: -1");
   expression_should_not_be_parseable("-moz-images-in-menus: -1");
+  expression_should_not_be_parseable("-moz-images-in-buttons: -1");
   expression_should_not_be_parseable("-moz-windows-default-theme: -1");
   expression_should_not_be_parseable("-moz-mac-graphite-theme: -1");
   expression_should_not_be_parseable("-moz-windows-compositor: -1");
@@ -551,12 +607,25 @@ function run() {
   expression_should_not_be_parseable("-moz-scrollbar-end-forward: true");
   expression_should_not_be_parseable("-moz-scrollbar-thumb-proportional: true");
   expression_should_not_be_parseable("-moz-images-in-menus: true");
+  expression_should_not_be_parseable("-moz-images-in-buttons: true");
   expression_should_not_be_parseable("-moz-windows-default-theme: true");
   expression_should_not_be_parseable("-moz-mac-graphite-theme: true");
   expression_should_not_be_parseable("-moz-windows-compositor: true");
   expression_should_not_be_parseable("-moz-windows-classic: true");
   expression_should_not_be_parseable("-moz-touch-enabled: true");
   expression_should_not_be_parseable("-moz-maemo-classic: true");
+
+  // windows theme media queries
+  expression_should_be_parseable("-moz-windows-theme: aero");
+  expression_should_be_parseable("-moz-windows-theme: luna-blue");
+  expression_should_be_parseable("-moz-windows-theme: luna-olive");
+  expression_should_be_parseable("-moz-windows-theme: luna-silver");
+  expression_should_be_parseable("-moz-windows-theme: royale");
+  expression_should_be_parseable("-moz-windows-theme: generic");
+  expression_should_be_parseable("-moz-windows-theme: zune");
+  expression_should_be_parseable("-moz-windows-theme: garbage");
+  expression_should_not_be_parseable("-moz-windows-theme: ''");
+  expression_should_not_be_parseable("-moz-windows-theme: ");
 
   // Parsing tests
   // bug 454227
@@ -585,6 +654,11 @@ function run() {
   should_apply("[badsyntax],all");
   should_not_apply("badmedium,[badsyntax]");
   should_not_apply("[badsyntax],badmedium");
+  // bug 528096
+  should_not_apply_unbalanced("((resolution),all");
+  should_not_apply_unbalanced("(resolution(),all");
+  should_not_apply_unbalanced("(resolution (),all");
+  should_not_apply_unbalanced("(resolution:(),all");
 
   handle_posted_items();
 }

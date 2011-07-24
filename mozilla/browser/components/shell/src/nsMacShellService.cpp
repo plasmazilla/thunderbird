@@ -56,7 +56,7 @@
 #include "nsStringAPI.h"
 
 #include <CoreFoundation/CoreFoundation.h>
-#include <Carbon/Carbon.h>
+#include <ApplicationServices/ApplicationServices.h>
 
 #define NETWORK_PREFPANE NS_LITERAL_CSTRING("/System/Library/PreferencePanes/Network.prefPane")
 #define DESKTOP_PREFPANE NS_LITERAL_CSTRING("/System/Library/PreferencePanes/DesktopScreenEffectsPref.prefPane")
@@ -432,7 +432,7 @@ nsMacShellService::OpenApplicationWithURI(nsILocalFile* aApplication, const nsAC
     ::CFRelease(uri);
     return NS_ERROR_OUT_OF_MEMORY;
   }
-  
+
   LSLaunchURLSpec launchSpec;
   launchSpec.appURL = appURL;
   launchSpec.itemURLs = uris;

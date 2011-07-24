@@ -81,13 +81,7 @@ function typeAheadFind()
 
 typeAheadFind.prototype = {
   /* properties required for XPCOMUtils */
-  classDescription: "Suite Type Ahead Find",
   classID: Components.ID("{45c8f75b-a299-4178-a461-f63690389055}"),
-  contractID: "@mozilla.org/suite/typeaheadfind;1",
-  _xpcom_categories: [{
-    category: "app-startup",
-    service: true
-  }],
 
   /* members */
   mBadKeysSinceMatch: 0,
@@ -201,9 +195,9 @@ typeAheadFind.prototype = {
         element instanceof Components.interfaces.nsIDOMHTMLTextAreaElement)
       return true;
 
-    // Don't start a find if the focus is on a text, password or file field.
+    // Don't start a find if the focus is on an editable field
     if (element instanceof Components.interfaces.nsIDOMHTMLInputElement &&
-        element.type in {text: true, password: true, file: true})
+        element.mozIsTextField(false))
       return true;
 
     // Don't start a find if the focus isn't or can't be set to content
@@ -444,6 +438,4 @@ typeAheadFind.prototype = {
   },
 };
 
-function NSGetModule() {
-  return XPCOMUtils.generateModule([typeAheadFind]);
-}
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([typeAheadFind]);

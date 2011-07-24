@@ -42,10 +42,12 @@
 #include "nsILocalFile.h"
 #include "nsIStringBundle.h"
 #include "nsStringGlue.h"
+#include "nsTArray.h"
+#include "nsIObserverService.h"
+#include "nsITimer.h"
+#include "nsIMailProfileMigrator.h"
 
-class nsIFile;
 class nsIPrefBranch;
-class nsVoidArray;
 class nsIMutableArray;
 
 struct fileTransactionEntry {
@@ -54,15 +56,30 @@ struct fileTransactionEntry {
   nsString newName; // only valid if the file should be renamed after getting copied
 };
 
+#define F(a) nsNetscapeProfileMigratorBase::a
 
-class nsNetscapeProfileMigratorBase
+#define MAKEPREFTRANSFORM(pref, newpref, getmethod, setmethod) \
+  { pref, newpref, F(Get##getmethod), F(Set##setmethod), PR_FALSE, { -1 } }
+
+#define MAKESAMETYPEPREFTRANSFORM(pref, method) \
+  { pref, 0, F(Get##method), F(Set##method), PR_FALSE, { -1 } }
+
+class nsNetscapeProfileMigratorBase : public nsIMailProfileMigrator,
+                                      public nsITimerCallback
+                                      
 {
 public:
+  NS_DECL_ISUPPORTS
+  NS_DECL_NSITIMERCALLBACK
+
   nsNetscapeProfileMigratorBase();
   virtual ~nsNetscapeProfileMigratorBase() { };
 
-public:
-  typedef nsresult(*prefConverter)(void*, nsIPrefBranch*);
+  NS_IMETHOD GetSourceHasMultipleProfiles(PRBool* aResult);
+  NS_IMETHOD GetSourceExists(PRBool* aResult);
+
+  struct PrefTransform;
+  typedef nsresult(*prefConverter)(PrefTransform*, nsIPrefBranch*);
 
   struct PrefTransform {
     const char*   sourcePrefName;
@@ -77,19 +94,31 @@ public:
     };
   };
 
-  static nsresult GetString(void* aTransform, nsIPrefBranch* aBranch);
-  static nsresult SetString(void* aTransform, nsIPrefBranch* aBranch);
-  static nsresult GetWString(void* aTransform, nsIPrefBranch* aBranch);
-  static nsresult SetWString(void* aTransform, nsIPrefBranch* aBranch);
-  static nsresult SetWStringFromASCII(void* aTransform, nsIPrefBranch* aBranch);
-  static nsresult GetBool(void* aTransform, nsIPrefBranch* aBranch);
-  static nsresult SetBool(void* aTransform, nsIPrefBranch* aBranch);
-  static nsresult GetInt(void* aTransform, nsIPrefBranch* aBranch);
-  static nsresult SetInt(void* aTransform, nsIPrefBranch* aBranch);
+  struct PrefBranchStruct {
+    char*         prefName;
+    PRInt32       type;
+    union {
+      char*       stringValue;
+      PRInt32     intValue;
+      PRBool      boolValue;
+    };
+  };
+
+  typedef nsTArray<PrefBranchStruct*> PBStructArray;
+
+  static nsresult GetString(PrefTransform* aTransform, nsIPrefBranch* aBranch);
+  static nsresult SetString(PrefTransform* aTransform, nsIPrefBranch* aBranch);
+  static nsresult GetBool(PrefTransform* aTransform, nsIPrefBranch* aBranch);
+  static nsresult SetBool(PrefTransform* aTransform, nsIPrefBranch* aBranch);
+  static nsresult GetInt(PrefTransform* aTransform, nsIPrefBranch* aBranch);
+  static nsresult SetInt(PrefTransform* aTransform, nsIPrefBranch* aBranch);
 
   nsresult RecursiveCopy(nsIFile* srcDir, nsIFile* destDir); // helper routine
 
 protected:
+  void CopyNextFolder();
+  void EndCopyFolders();
+
   nsresult GetProfileDataFromProfilesIni(nsILocalFile* aDataDir,
                                          nsIMutableArray* aProfileNames,
                                          nsIMutableArray* aProfileLocations);
@@ -102,13 +131,19 @@ protected:
   nsresult GetSignonFileName(PRBool aReplace, char** aFileName);
   nsresult LocateSignonsFile(char** aResult);
 
-protected:
   nsCOMPtr<nsILocalFile> mSourceProfile;
   nsCOMPtr<nsIFile> mTargetProfile;
-  nsCOMPtr<nsIStringBundle> mBundle;
 
-  nsVoidArray * mFileCopyTransactions; // list of src/destination files we still have to copy into the new profile directory
+  // List of src/destination files we still have to copy into the new profile
+  // directory.
+  nsTArray<fileTransactionEntry> mFileCopyTransactions;
   PRUint32 mFileCopyTransactionIndex;
+
+  PRInt64 mMaxProgress;
+  PRInt64 mCurrentProgress;
+
+  nsCOMPtr<nsIObserverService> mObserverService;
+  nsCOMPtr<nsITimer> mFileIOTimer;
 };
  
 #endif

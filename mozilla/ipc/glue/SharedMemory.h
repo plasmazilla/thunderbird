@@ -18,7 +18,7 @@
  *
  * The Initial Developer of the Original Code is
  *   The Mozilla Foundation
- * Portions created by the Initial Developer are Copyright (C) 2009
+ * Portions created by the Initial Developer are Copyright (C) 2009-2010
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
@@ -40,9 +40,8 @@
 #ifndef mozilla_ipc_SharedMemory_h
 #define mozilla_ipc_SharedMemory_h
 
-#include "base/shared_memory.h"
-
 #include "nsDebug.h"
+#include "nsISupportsImpl.h"    // NS_INLINE_DECL_REFCOUNTING
 
 //
 // This is a low-level wrapper around platform shared memory.  Don't
@@ -59,35 +58,25 @@ enum Rights {
 namespace mozilla {
 namespace ipc {
 
-class SharedMemory : public base::SharedMemory
+class SharedMemory
 {
 public:
-  typedef base::SharedMemoryHandle SharedMemoryHandle;
+  enum SharedMemoryType {
+    TYPE_BASIC,
+    TYPE_SYSV,
+    TYPE_UNKNOWN
+  };
 
-  SharedMemory() :
-    base::SharedMemory(),
-    mSize(0)
-  {
-  }
+  virtual ~SharedMemory() { Unmapped(); Destroyed(); }
 
-  SharedMemory(const SharedMemoryHandle& aHandle) :
-    base::SharedMemory(aHandle, false),
-    mSize(0)
-  {
-  }
+  size_t Size() const { return mMappedSize; }
 
-  bool Map(size_t nBytes)
-  {
-    bool ok = base::SharedMemory::Map(nBytes);
-    if (ok)
-      mSize = nBytes;
-    return ok;
-  }
+  virtual void* memory() const = 0;
 
-  size_t Size()
-  {
-    return mSize;
-  }
+  virtual bool Create(size_t size) = 0;
+  virtual bool Map(size_t nBytes) = 0;
+
+  virtual SharedMemoryType Type() const = 0;
 
   void
   Protect(char* aAddr, size_t aSize, int aRights)
@@ -110,12 +99,35 @@ public:
     SystemProtect(aAddr, aSize, aRights);
   }
 
+  NS_INLINE_DECL_REFCOUNTING(SharedMemory)
+
   static void SystemProtect(char* aAddr, size_t aSize, int aRights);
   static size_t SystemPageSize();
+  static size_t PageAlignedSize(size_t aSize);
 
-private:
-  // NB: we have to track this because shared_memory_win.cc doesn't
-  size_t mSize;
+protected:
+  SharedMemory();
+
+  // Implementations should call these methods on shmem usage changes,
+  // but *only if* the OS-specific calls are known to have succeeded.
+  // The methods are expected to be called in the pattern
+  //
+  //   Created (Mapped Unmapped)* Destroy
+  //
+  // but this isn't checked.
+  void Created(size_t aNBytes);
+  void Mapped(size_t aNBytes);
+  void Unmapped();
+  void Destroyed();
+
+  // The size of the shmem region requested in Create(), if
+  // successful.  SharedMemory instances that are opened from a
+  // foreign handle have an alloc size of 0, even though they have
+  // access to the alloc-size information.
+  size_t mAllocSize;
+  // The size of the region mapped in Map(), if successful.  All
+  // SharedMemorys that are mapped have a non-zero mapped size.
+  size_t mMappedSize;
 };
 
 } // namespace ipc

@@ -53,9 +53,10 @@ NO_PKG_FILES = \
 # If we're on mac, we want to make the .pkg first, in the mac/
 # directory. Then packager.mk can put it into a DMG
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 DIRS += mac
 _APPNAME = $(PKG_BASENAME).pkg
+_BINPATH = /XUL.framework/Versions/Current
 PKG_SKIP_STRIP = 1
 MOZ_PKG_SPECIAL = pkg
 PKG_DMG_SOURCE = $(STAGEPATH)xulrunner-pkg
@@ -66,19 +67,6 @@ include $(topsrcdir)/config/rules.mk
 INSTALL_SDK = 1
 
 include $(topsrcdir)/toolkit/mozapps/installer/packager.mk
-
-$(MOZILLA_VERSION).system.conf: $(topsrcdir)/config/milestone.txt Makefile
-	printf "[%s]\nGRE_PATH=%s\nxulrunner=true\nabi=%s" \
-	  $(MOZILLA_VERSION) $(installdir) $(TARGET_XPCOM_ABI)> $@
-
-ifndef SKIP_GRE_REGISTRATION
-# to register xulrunner per-user, override this with $HOME/.gre.d
-regdir = /etc/gre.d
-
-install:: $(MOZILLA_VERSION).system.conf
-	$(NSINSTALL) -D $(DESTDIR)$(regdir)
-	$(SYSINSTALL) $(IFLAGS1) $^ $(DESTDIR)$(regdir)
-endif
 
 # Add pkg-config files to the install:: target
 
@@ -102,21 +90,21 @@ FULL_NSPR_LIBS=$(subst $(prefix),\$${sdkdir},$(shell $(DEPTH)/nsprpub/config/nsp
 NSPR_VERSION=$(shell $(DEPTH)/nsprpub/config/nspr-config --version)
 endif
 
+MOZ_XUL_LINK = -lxpcomglue_s -lxul -lxpcom
+ifdef JS_SHARED_LIBRARY
+MOZ_JS_LINK = -lmozjs
+else
+MOZ_JS_LINK = $(MOZ_XUL_LINK)
+endif
+
 $(warning FULL_NSPR_CFLAGS=$(FULL_NSPR_CFLAGS))
 
 ifndef MOZ_NATIVE_NSS
 pkg_config_files += mozilla-nss.pc
 endif
 
-ifdef MOZ_OJI
-OJIDEF=-DOJI
-else
-OJIDEF=
-endif
-
 %.pc: $(srcdir)/%.pc.in $(GLOBAL_DEPS)
 	cat $< | sed \
-	-e "s|%ojidef%|$(OJIDEF)|" \
 	-e "s|%prefix%|$(prefix)|" \
 	-e "s|%includedir%|$(includedir)|" \
 	-e "s|%idldir%|$(idldir)|" \
@@ -127,7 +115,9 @@ endif
 	-e "s|%FULL_NSPR_LIBS%|$(FULL_NSPR_LIBS)|" \
 	-e "s|%FULL_NSPR_CFLAGS%|$(FULL_NSPR_CFLAGS)|" \
 	-e "s|%NSPR_NAME%|$(NSPR_NAME)|" \
-	-e "s|%NSPR_VERSION%|$(NSPR_VERSION)|" > $@
+	-e "s|%NSPR_VERSION%|$(NSPR_VERSION)|" \
+	-e "s|%MOZ_XUL_LINK%|$(MOZ_XUL_LINK)|" \
+	-e "s|%MOZ_JS_LINK%|$(MOZ_JS_LINK)|" > $@
 	chmod 644 $@
 
 install:: $(pkg_config_files)

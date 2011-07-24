@@ -15,7 +15,7 @@
  *
  * The Original Code is Places test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -176,21 +176,16 @@ function nextTest() {
 var ww = Cc["@mozilla.org/embedcomp/window-watcher;1"].
          getService(Ci.nsIWindowWatcher);
 
-var windowObserver = {
-  observe: function(aSubject, aTopic, aData) {
-    if (aTopic === "domwindowopened") {
-      ww.unregisterNotification(this);
-      gLibrary = aSubject.QueryInterface(Ci.nsIDOMWindow);
-      gLibrary.addEventListener("load", function onLoad(event) {
-        gLibrary.removeEventListener("load", onLoad, false);
-        executeSoon(function () {
-          // Execute tests.
-          nextTest();
-        });
-      }, false);
-    }
-  }
-};
+function windowObserver(aSubject, aTopic, aData) {
+  if (aTopic != "domwindowopened")
+    return;
+  ww.unregisterNotification(windowObserver);
+  gLibrary = aSubject.QueryInterface(Ci.nsIDOMWindow);
+  gLibrary.addEventListener("load", function onLoad(event) {
+    gLibrary.removeEventListener("load", onLoad, false);
+    executeSoon(nextTest);
+  }, false);
+}
 
 function test() {
   waitForExplicitFinish();

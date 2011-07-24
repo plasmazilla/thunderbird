@@ -13,8 +13,8 @@ function run_test() {
   if (! ("nsILocalFileMac" in Components.interfaces))
     return;
   // test file with ':' in the name (generated from Mozilla 1.8 branch).
-  let bugmail = do_get_file("../../mailnews/data/bugmail-1");
-  let bugmailmsf = do_get_file("../../mailnews/data/bugmail-1.msf");
+  let bugmail = do_get_file("../../../data/bugmail-1");
+  let bugmailmsf = do_get_file("../../../data/bugmail-1.msf");
   let localMailDir = gProfileDir.clone();
   localMailDir.append("Mail");
   localMailDir.append("Local Folders");
@@ -22,12 +22,12 @@ function run_test() {
   pop3dir.append("Mail");
   pop3dir.append("poptest");
   // Copy the file to the local mail directory
-  bugmail.copyTo(localMailDir, "bugmail/1");
-  bugmailmsf.copyTo(localMailDir, "bugmail/1.msf");
+  bugmail.copyTo(localMailDir, "bugmail:1");
+  bugmailmsf.copyTo(localMailDir, "bugmail:1.msf");
 
   // Copy the file to the pop3 server mail directory
-  bugmail.copyTo(pop3dir, "bugmail/1");
-  bugmailmsf.copyTo(pop3dir, "bugmail/1.msf");
+  bugmail.copyTo(pop3dir, "bugmail:1");
+  bugmailmsf.copyTo(pop3dir, "bugmail:1.msf");
 
   const prefSvc = Components.classes["@mozilla.org/preferences-service;1"]
                  .getService(Components.interfaces.nsIPrefBranch);

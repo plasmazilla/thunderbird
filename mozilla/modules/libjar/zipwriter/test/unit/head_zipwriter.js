@@ -55,11 +55,11 @@ const ZIP_FILE_HEADER_SIZE = 30;
 const ZIP_CDS_HEADER_SIZE = 46;
 const ZIP_METHOD_STORE = 0
 const ZIP_METHOD_DEFLATE = 8
+const ZIP_EXTENDED_TIMESTAMP_SIZE = 9;
 
 const PR_USEC_PER_MSEC = 1000;
-
-// ZIP times are stored at a 2 second resolution.
-const TIME_RESOLUTION = 2000;
+const PR_USEC_PER_SEC  = 1000000;
+const PR_MSEC_PER_SEC  = 1000;
 
 const DATA_DIR = "data/";
 

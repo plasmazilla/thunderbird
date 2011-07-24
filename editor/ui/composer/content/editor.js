@@ -98,6 +98,9 @@ const kUseCssPref         = "editor.use_css";
 const kCRInParagraphsPref = "editor.CR_creates_new_p";
 
 function ShowHideToolbarSeparators(toolbar) {
+  // Make sure the toolbar actually exists.
+  if (!toolbar)
+    return;
   var childNodes = toolbar.childNodes;
   var separator = null;
   var hideSeparator = true;
@@ -117,7 +120,7 @@ function ShowHideToolbarSeparators(toolbar) {
 
 function ShowHideToolbarButtons()
 {
-  var array = gPrefs.getChildList(kEditorToolbarPrefs, {});
+  var array = gPrefs.getChildList(kEditorToolbarPrefs);
   for (var i in array) {
     var prefName = array[i];
     var id = prefName.substr(kEditorToolbarPrefs.length) + "Button";
@@ -198,22 +201,6 @@ nsPrefListener.prototype =
     else if (editor && (prefName == kCRInParagraphsPref))
       editor.returnInParagraphCreatesNewParagraph = gPrefs.getBoolPref(prefName);
   }
-}
-
-function AfterHighlightColorChange()
-{
-  if (!IsHTMLEditor())
-    return;
-
-  var button = document.getElementById("cmd_highlight");
-  if (button) {
-    var mixedObj = {};
-    try {
-      var state = GetCurrentEditor().getHighlightColorState(mixedObj);
-      button.setAttribute("state", state);
-      onHighlightColorChange();
-    } catch (e) {}
-  }      
 }
 
 function EditorOnLoad()
@@ -415,7 +402,10 @@ var gEditorDocumentObserver =
           setTimeout(SetFocusOnStartup, 0);
 
           // Call EditorSetDefaultPrefsAndDoctype first so it gets the default author before initing toolbars
+          editor.enableUndo(false);
           EditorSetDefaultPrefsAndDoctype();
+          editor.resetModificationCount();
+          editor.enableUndo(true);
 
           // We may load a text document into an html editor,
           //   so be sure editortype is set correctly
@@ -1998,25 +1988,29 @@ function EditorToggleParagraphMarks()
 function UpdateWindowTitle()
 {
   try {
-    var windowTitle = GetDocumentTitle();
-    if (!windowTitle)
-      windowTitle = GetString("untitled");
+    var filename = "";
+    var windowTitle = "";
+    var title = GetDocumentTitle();
 
     // Append just the 'leaf' filename to the Doc. Title for the window caption
     var docUrl = GetDocumentUrl();
     if (docUrl && !IsUrlAboutBlank(docUrl))
     {
       var scheme = GetScheme(docUrl);
-      var filename = GetFilename(docUrl);
+      filename = GetFilename(docUrl);
       if (filename)
-        windowTitle += " [" + scheme + ":/.../" + filename + "]";
+        windowTitle = " [" + scheme + ":/.../" + filename + "]";
 
+      var fileType = IsHTMLEditor() ? "html" : "text";
       // Save changed title in the recent pages data in prefs
-      SaveRecentFilesPrefs();
+      SaveRecentFilesPrefs(title, fileType);
     }
-    // Set window title with " - Composer" appended
+
+    // Set window title with " - Composer" or " - Text Editor" appended.
     var xulWin = document.documentElement;
-    document.title = windowTitle + xulWin.getAttribute("titlemenuseparator") + 
+    document.title = (title || filename || GetString("untitled")) +
+                     windowTitle +
+                     xulWin.getAttribute("titlemenuseparator") + 
                      xulWin.getAttribute("titlemodifier");
   } catch (e) { dump(e); }
 }
@@ -2053,13 +2047,14 @@ function BuildRecentPagesMenu()
     {
       // Build the menu
       var title = GetUnicharPref("editor.history_title_"+i);
-      AppendRecentMenuitem(popup, title, url, menuIndex);
+      var fileType = GetUnicharPref("editor.history_type_" + i);
+      AppendRecentMenuitem(popup, title, url, fileType, menuIndex);
       menuIndex++;
     }
   }
 }
 
-function SaveRecentFilesPrefs()
+function SaveRecentFilesPrefs(aTitle, aFileType)
 {
   // Can't do anything if no prefs
   if (!gPrefs) return;
@@ -2072,11 +2067,13 @@ function SaveRecentFilesPrefs()
 
   var titleArray = [];
   var urlArray = [];
+  var typeArray = [];
 
   if (historyCount && !IsUrlAboutBlank(curUrl) &&  GetScheme(curUrl) != "data")
   {
-    titleArray.push(GetDocumentTitle());
+    titleArray.push(aTitle);
     urlArray.push(curUrl);
+    typeArray.push(aFileType);
   }
 
   for (var i = 0; i < historyCount && urlArray.length < historyCount; i++)
@@ -2090,8 +2087,10 @@ function SaveRecentFilesPrefs()
     if (url && url != curUrl && GetScheme(url) != "data")
     {
       var title = GetUnicharPref("editor.history_title_"+i);
+      var fileType = GetUnicharPref("editor.history_type_" + i);
       titleArray.push(title);
       urlArray.push(url);
+      typeArray.push(fileType);
     }
   }
 
@@ -2100,10 +2099,11 @@ function SaveRecentFilesPrefs()
   {
     SetUnicharPref("editor.history_title_"+i, titleArray[i]);
     SetUnicharPref("editor.history_url_"+i, urlArray[i]);
+    SetUnicharPref("editor.history_type_" + i, typeArray[i]);
   }
 }
 
-function AppendRecentMenuitem(menupopup, title, url, menuIndex)
+function AppendRecentMenuitem(menupopup, title, url, aFileType, menuIndex)
 {
   if (menupopup)
   {
@@ -2132,7 +2132,9 @@ function AppendRecentMenuitem(menupopup, title, url, menuIndex)
 
       menuItem.setAttribute("label", itemString);
       menuItem.setAttribute("crop", "center");
+      menuItem.setAttribute("tooltiptext", url);
       menuItem.setAttribute("value", url);
+      menuItem.setAttribute("fileType", aFileType);
       if (accessKey != " ")
         menuItem.setAttribute("accesskey", accessKey);
       menupopup.appendChild(menuItem);
@@ -2459,12 +2461,7 @@ function EditorSetDefaultPrefsAndDoctype()
     }
     catch (ex) {}
     if ( prefCharsetString && prefCharsetString != 0)
-    {
-      editor.enableUndo(false);
       editor.documentCharacterSet = prefCharsetString;
-      editor.resetModificationCount();
-      editor.enableUndo(true);
-    }
 
     var node = 0;
     var listlength = nodelist.length;
@@ -2511,7 +2508,7 @@ function EditorSetDefaultPrefsAndDoctype()
   var titlenodelist = editor.document.getElementsByTagName("title");
   if (headelement && titlenodelist && titlenodelist.length == 0)
   {
-     titleElement = domdoc.createElement("title");
+     var titleElement = domdoc.createElement("title");
      if (titleElement)
        headelement.appendChild(titleElement);
   }

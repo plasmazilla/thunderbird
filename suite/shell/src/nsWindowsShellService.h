@@ -38,12 +38,11 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nscore.h"
-#include "nsIShellService.h"
+#include "nsShellService.h"
 #include "nsStringGlue.h"
+#include "nsIWindowsShellService.h"
 
 #include <windows.h>
-
-#define NS_SUITEWININTEGRATION_CONTRACTID "@mozilla.org/suite/shell-service;1"
 
 #define NS_SUITEWININTEGRATION_CID \
 {0x39b688ec, 0xe308, 0x49e5, {0xbe, 0x6b, 0x28, 0xdc, 0x7f, 0xcd, 0x61, 0x54}}
@@ -56,7 +55,7 @@ typedef struct {
   PRInt32 flags;
 } SETTING;
 
-class nsWindowsShellService : public nsIShellService
+class nsWindowsShellService : public nsIWindowsShellService
 {
 public:
   nsWindowsShellService() : mCheckedThisSessionClient(PR_FALSE) {};
@@ -65,6 +64,7 @@ public:
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSISHELLSERVICE
+  NS_DECL_NSIWINDOWSSHELLSERVICE
 
 protected:
   PRBool IsDefaultClientVista(PRUint16 aApps, PRBool* aIsDefaultClient);

@@ -47,6 +47,11 @@ LIBRARY_NAME	= jsdombase_s
 LIBXUL_LIBRARY	= 1
 FORCE_STATIC_LIB = 1
 
+EXTRA_PP_COMPONENTS = \
+		ConsoleAPI.js \
+		ConsoleAPI.manifest \
+		$(NULL)
+
 XPIDLSRCS = \
   nsIEntropyCollector.idl \
   nsIScriptChannel.idl \
@@ -54,6 +59,7 @@ XPIDLSRCS = \
 
 EXPORTS = \
   nsDOMCID.h \
+  nsDOMClassInfoClasses.h \
   nsDOMClassInfoID.h \
   nsDOMError.h \
   nsDOMJSUtils.h \
@@ -62,7 +68,6 @@ EXPORTS = \
   nsIBaseDOMException.h \
   nsIDOMClassInfo.h \
   nsIDOMScriptObjectFactory.h \
-  nsIFocusController.h \
   nsIJSEventListener.h \
   nsIJSNativeInitializer.h \
   nsIScriptContext.h	\
@@ -78,6 +83,7 @@ EXPORTS = \
   nsPIWindowRoot.h \
   nsFocusManager.h \
   nsWrapperCache.h \
+  nsContentPermissionHelper.h \
   $(NULL)
 
 CPPSRCS =			\
@@ -86,7 +92,6 @@ CPPSRCS =			\
 	nsDOMWindowUtils.cpp 	\
 	nsJSEnvironment.cpp	\
 	nsJSTimeoutHandler.cpp	\
-	nsFocusController.cpp	\
 	nsFocusManager.cpp \
 	nsGlobalWindow.cpp      \
 	nsGlobalWindowCommands.cpp \
@@ -102,6 +107,7 @@ CPPSRCS =			\
 	nsScriptNameSpaceManager.cpp \
 	nsDOMScriptObjectFactory.cpp \
 	nsQueryContentEventResult.cpp \
+	nsContentPermissionHelper.cpp \
 	$(NULL)
 
 include $(topsrcdir)/dom/dom-config.mk
@@ -110,15 +116,17 @@ ifdef MOZ_JSDEBUGGER
 DEFINES += -DMOZ_JSDEBUGGER
 endif
 
+include $(topsrcdir)/config/config.mk
+include $(topsrcdir)/ipc/chromium/chromium-config.mk
+
 include $(topsrcdir)/config/rules.mk
 
 LOCAL_INCLUDES += \
-	-I$(topsrcdir)/xpcom/io \
-	$(NULL)
+		-I$(srcdir)/../../js/src/xpconnect/src \
+		-I$(srcdir)/../../js/src/xpconnect/wrappers \
+		$(NULL)
 
 ifdef MOZ_X11
-ifdef MOZ_ENABLE_GTK2
 CXXFLAGS += $(TK_CFLAGS)
 LDFLAGS += $(TK_LIBS)
-endif
 endif

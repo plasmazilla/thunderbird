@@ -43,19 +43,30 @@ if [ "$COMM_BUILD" ]; then
   MOZ_LDAP_XPCOM=1
 fi
 MOZ_STATIC_MAIL_BUILD=1
+MOZ_CHROME_FILE_FORMAT=omni
 MOZ_COMPOSER=1
 MOZ_SUITE=1
-MOZ_APP_VERSION=`cat ${_topsrcdir}/$MOZ_BUILD_APP/config/version.txt`
-SEAMONKEY_VERSION=$MOZ_APP_VERSION
 MOZ_BRANDING_DIRECTORY=suite/branding/nightly
 MOZ_OFFICIAL_BRANDING_DIRECTORY=suite/branding/nightly
-MOZ_EXTENSIONS_DEFAULT=" venkman inspector irc gnomevfs reporter"
+MOZ_EXTENSIONS_DEFAULT=" venkman inspector irc gnomevfs"
 MOZ_UPDATER=1
 MOZ_HELP_VIEWER=1
-MOZ_TOOLKIT_SEARCH=
 MOZ_MORK=1
+MOZ_STATIC_BUILD_UNSUPPORTED=1
+MOZ_APP_COMPONENT_LIBS="xpautocomplete $MAIL_COMPONENT $LDAP_COMPONENT"
+MOZ_APP_COMPONENT_MODULES="MODULE(xpAutoComplete) $MAIL_MODULE $LDAP_MODULE"
+MOZ_APP_EXTRA_LIBS="$LDAP_LIBS"
+MOZ_SERVICES_SYNC=1
 
-# Disable libxul which is (now) the default on mozilla-central. (Bug 394502)
-MOZ_ENABLE_LIBXUL=
-# Until we can build with libxul, we can't have ipc either. (Bug 531292)
-MOZ_IPC=
+# Needed for the mozilla-central build side of the system.
+# Can be dropped when we branch MOZILLA_5_0_BRANCH
+MOZILLA_BRANCH_VERSION=`echo ${MOZILLA_VERSION} | sed -e 's/^\([0-9]\.[0-9]\).*/\1/;'`
+
+if test "$MOZILLA_BRANCH_VERSION" = "5.0"; then
+  MOZ_APP_VERSION_TXT=${_topsrcdir}/$MOZ_BUILD_APP/config/version-50.txt
+else
+  MOZ_APP_VERSION_TXT=${_topsrcdir}/$MOZ_BUILD_APP/config/version.txt
+fi
+
+MOZ_APP_VERSION=`cat $MOZ_APP_VERSION_TXT`
+SEAMONKEY_VERSION=$MOZ_APP_VERSION

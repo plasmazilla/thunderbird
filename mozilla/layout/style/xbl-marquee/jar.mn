@@ -1,4 +1,4 @@
-comm.jar:
-%   content xbl-marquee %content/xbl-marquee/ xpcnativewrappers=yes
+toolkit.jar:
+%   content xbl-marquee %content/xbl-marquee/
     content/xbl-marquee/xbl-marquee.xml
     content/xbl-marquee/xbl-marquee.css

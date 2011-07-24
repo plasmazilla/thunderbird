@@ -42,6 +42,7 @@
 #include "nsIThreadInternal.h"
 #include "nsIObserver.h"
 #include "nsIRunnable.h"
+#include "nsCOMArray.h"
 #include "nsCOMPtr.h"
 #include "prinrval.h"
 
@@ -61,7 +62,7 @@ public:
   nsBaseAppShell();
 
 protected:
-  virtual ~nsBaseAppShell() {}
+  virtual ~nsBaseAppShell();
 
   /**
    * This method is called by subclasses when the app shell singleton is
@@ -73,6 +74,13 @@ protected:
    * Called by subclasses from a native event. See ScheduleNativeEventCallback.
    */
   void NativeEventCallback();
+
+  /**
+   * Make a decision as to whether or not NativeEventCallback will
+   * trigger gecko event processing when there are pending gecko
+   * events.
+   */
+  virtual void DoProcessMoreGeckoEvents();
 
   /**
    * Implemented by subclasses.  Invoke NativeEventCallback from a native
@@ -95,9 +103,15 @@ protected:
   virtual PRBool ProcessNextNativeEvent(PRBool mayWait) = 0;
 
   PRInt32 mSuspendNativeCount;
+  PRUint32 mEventloopNestingLevel;
 
 private:
   PRBool DoProcessNextNativeEvent(PRBool mayWait);
+
+  /**
+   * Runs all synchronous sections which are queued up in mSyncSections.
+   */
+  void RunSyncSections();
 
   nsCOMPtr<nsIRunnable> mDummyEvent;
   /**
@@ -109,7 +123,6 @@ private:
   PRBool *mBlockedWait;
   PRInt32 mFavorPerf;
   PRInt32 mNativeEventPending;
-  PRUint32 mEventloopNestingLevel;
   PRIntervalTime mStarvationDelay;
   PRIntervalTime mSwitchTime;
   PRIntervalTime mLastNativeEventTime;
@@ -119,6 +132,7 @@ private:
     eEventloopOther  // innermost native event loop is a native library/plugin etc
   };
   EventloopNestingState mEventloopNestingState;
+  nsCOMArray<nsIRunnable> mSyncSections;
   PRPackedBool mRunning;
   PRPackedBool mExiting;
   /**
@@ -131,6 +145,22 @@ private:
    * otherwise lead to a "deadlock" where native events aren't processed at all.
    */
   PRPackedBool mBlockNativeEvent;
+  /**
+   * Tracks whether we have processed any gecko events in NativeEventCallback so
+   * that we can avoid erroneously entering a blocking loop waiting for gecko
+   * events to show up during OnProcessNextEvent.  This is required because on
+   * OS X ProcessGeckoEvents may be invoked inside the context of 
+   * ProcessNextNativeEvent and may result in NativeEventCallback being invoked
+   * and in turn invoking NS_ProcessPendingEvents.  Because
+   * ProcessNextNativeEvent may be invoked prior to the NS_HasPendingEvents
+   * waiting loop, this is the only way to make the loop aware that events may
+   * have been processed.
+   *
+   * This variable is set to PR_FALSE in OnProcessNextEvent prior to the first
+   * call to DoProcessNextNativeEvent.  It is set to PR_TRUE by
+   * NativeEventCallback after calling NS_ProcessPendingEvents.
+   */
+  PRPackedBool mProcessedGeckoEvents;
 };
 
 #endif // nsBaseAppShell_h__

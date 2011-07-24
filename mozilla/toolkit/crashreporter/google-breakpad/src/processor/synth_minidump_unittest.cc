@@ -29,7 +29,8 @@
 
 // Original author: Jim Blandy <jimb@mozilla.com> <jimb@red-bean.com>
 
-// test_assembler_unittest.cc: Unit tests for google_breakpad::TestAssembler.
+// synth_minidump_unittest.cc: Unit tests for google_breakpad::SynthMinidump
+// classes.
 
 #include <sstream>
 #include <string>
@@ -49,9 +50,9 @@ using google_breakpad::SynthMinidump::Stream;
 using google_breakpad::SynthMinidump::String;
 using google_breakpad::SynthMinidump::SystemInfo;
 using google_breakpad::SynthMinidump::Thread;
-using google_breakpad::TestAssembler::kBigEndian;
-using google_breakpad::TestAssembler::kLittleEndian;
-using google_breakpad::TestAssembler::Label;
+using google_breakpad::test_assembler::kBigEndian;
+using google_breakpad::test_assembler::kLittleEndian;
+using google_breakpad::test_assembler::Label;
 using std::string;
 
 TEST(Section, Simple) {

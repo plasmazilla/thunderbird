@@ -40,14 +40,13 @@ function handleRequest(request, response)
     // Standards mode documents will ignore the style sheet if it is being
     // served as text/html (regardless of its contents).  Quirks mode
     // documents will ignore the style sheet if it is being served as
-    // text/html _and_ it is neither same-origin nor well-formed.
-    // Regardless, style sheets are ignored if they come as the body
-    // of an HTTP error response.
+    // text/html _and_ it is not same-origin.  Regardless, style sheets
+    // are ignored if they come as the body of an HTTP error response.
     //
     // Style sheets that should be ignored paint the element red; those
     // that should be honored paint it lime.
-    let color = ((responseCSS || (quirksMode && (sameOrigin || !malformed)))
-    	      	 && !httpError) ? 'lime' : 'red';
+    let color = ((responseCSS || (quirksMode && sameOrigin)) && !httpError
+		 ? 'lime' : 'red');
 
     // For debugging the test itself, we have the capacity to make every style
     // sheet well-formed, or every style sheet do nothing.

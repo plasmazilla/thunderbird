@@ -39,14 +39,15 @@ DEPTH		= ../../../../../..
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
+NO_PROFILE_GUIDED_OPTIMIZE = 1
 
 include $(DEPTH)/config/autoconf.mk
 
 MODULE		= xpcom
 LIBRARY_NAME	= xptcmd
+EXPORT_LIBRARY	= ../..
 MOZILLA_INTERNAL_API = 1
 
-REQUIRES = string
 
 #
 # The default is this buildable, but non-functioning code.
@@ -55,6 +56,26 @@ CPPSRCS = $(error XPTCall not implemented on this platform!)
 
 # Force use of PIC
 FORCE_USE_PIC	= 1
+
+ifeq ($(OS_ARCH),SunOS)
+ifneq (86,$(findstring 86,$(OS_TEST)))
+# disable PGO for this directory with Sun Studio on SPARC because
+# compiling with xprofile=collect will insert code into nsXPTCStubBase::Stub##n
+NO_PROFILE_GUIDED_OPTIMIZE = 1
+endif
+endif
+
+ifeq (Darwin,$(OS_ARCH))
+ifeq (86,$(findstring 86,$(OS_TEST)))
+ifneq (x86_64,$(OS_TEST))
+# If we compile xptcinvoke_unixish_x86.cpp with -fomit-frame-pointer
+# we end up crashing on startup, presumably because of the %esp munging we do
+# when KEEP_STACK_16_BYTE_ALIGNED.  So let's not use that flag here.
+# NOTE: MODULE_OPTIMIZE_FLAGS must be set before including config.mk
+MODULE_OPTIMIZE_FLAGS=-O3
+endif
+endif
+endif
 
 include $(topsrcdir)/config/config.mk
 
@@ -76,7 +97,7 @@ endif
 endif
 endif
 
-ifneq (,$(filter FreeBSD NetBSD OpenBSD BSD_OS,$(OS_ARCH)))
+ifneq (,$(filter NetBSD OpenBSD BSD_OS GNU,$(OS_ARCH)))
 ifeq (86,$(findstring 86,$(OS_TEST)))
 CPPSRCS		:= xptcinvoke_unixish_x86.cpp xptcstubs_unixish_x86.cpp
 endif
@@ -85,7 +106,7 @@ endif
 # New code for Linux, et. al., with gcc
 # Migrate other platforms here after testing
 #
-ifneq (,$(filter Linux GNU_%,$(OS_ARCH)))
+ifneq (,$(filter Linux FreeBSD GNU_%,$(OS_ARCH)))
 # Linux/x86-64
 ifeq (x86_64,$(OS_TEST))
 CPPSRCS		:= xptcinvoke_x86_64_unix.cpp xptcstubs_x86_64_linux.cpp
@@ -107,18 +128,6 @@ endif
 #
 ifeq ($(OS_ARCH)$(OS_TEST),OpenBSDx86_64)
 CPPSRCS		:= xptcinvoke_amd64_openbsd.cpp xptcstubs_amd64_openbsd.cpp
-endif
-#
-# FreeBSD/amd64
-#
-ifeq ($(OS_ARCH)$(OS_TEST),FreeBSDx86_64)
-CPPSRCS		:= xptcinvoke_amd64_linux.cpp xptcstubs_amd64_linux.cpp
-endif
-#
-# BeOS/Intel (uses the same unixish_x86 code)
-#
-ifeq ($(OS_ARCH)$(OS_TEST),BeOSBePC)
-CPPSRCS		:= xptcinvoke_unixish_x86.cpp xptcstubs_unixish_x86.cpp
 endif
 #
 # Neutrino/Intel (uses the same unixish_x86 code)
@@ -144,12 +153,22 @@ endif
 # Solaris/Intel
 #
 ifeq ($(OS_ARCH),SunOS)
+ifeq (x86_64,$(OS_TEST))
+ifndef GNU_CC
+CPPSRCS		:= xptcstubs_x86_64_solaris.cpp xptcinvoke_x86_64_solaris.cpp
+ASFILES		:= xptcstubs_asm_x86_64_solaris_SUNW.s
+else
+CPPSRCS		:= xptcstubs_x86_64_linux.cpp xptcinvoke_x86_64_unix.cpp
+endif
+else
 ifeq (86,$(findstring 86,$(OS_TEST)))
-CPPSRCS		:= xptcinvoke_x86_solaris.cpp xptcstubs_x86_solaris.cpp
 # 28817: if Solaris Intel OS, and native compiler, always build optimised.
 ifndef GNU_CC
+CPPSRCS		:= xptcinvoke_x86_solaris.cpp xptcstubs_x86_solaris.cpp
 ASFILES		:= xptcinvoke_asm_x86_solaris_SUNW.s xptcstubs_asm_x86_solaris_SUNW.s
-CXXFLAGS += -O
+else
+CPPSRCS		:= xptcinvoke_gcc_x86_unix.cpp xptcstubs_gcc_x86_unix.cpp
+endif
 endif
 endif
 endif
@@ -175,13 +194,6 @@ endif
 #
 ifeq ($(OS_ARCH)$(OS_TEST),OpenBSDalpha)
 CPPSRCS		:= xptcinvoke_alpha_openbsd.cpp xptcstubs_alpha_openbsd.cpp
-endif
-#
-# OpenVMS/Alpha
-#
-ifeq ($(OS_ARCH)$(CPU_ARCH),OpenVMSAlpha)
-CPPSRCS		:= xptcinvoke_openvms_alpha.cpp xptcstubs_openvms_alpha.cpp
-ASFILES		:= xptcinvoke_asm_openvms_alpha.s xptcstubs_asm_openvms_alpha.s
 endif
 
 ######################################################################
@@ -237,12 +249,14 @@ endif
 # Linux/HPPA/gcc
 #
 ifeq ($(OS_ARCH),Linux)
-ifneq (,$(filter hppa2.0 hppa1.1,$(OS_TEST)))
+ifneq (,$(filter hppa hppa2.0 hppa1.1,$(OS_TEST)))
 ifndef GNU_CXX
 $(error Unknown C++ compiler, xptcall assembly will probably be incorrect.)
 else
 CPPSRCS		:= xptcinvoke_pa32.cpp xptcstubs_pa32.cpp
 ASFILES		:= xptcstubs_asm_parisc_linux.s xptcinvoke_asm_parisc_linux.s
+# #434190 optimized builds crash
+CXXFLAGS 	:=  $(filter-out $(MOZ_OPTIMIZE_FLAGS), $(CXXFLAGS))
 endif
 endif
 endif
@@ -289,8 +303,13 @@ endif
 
 ifeq ($(OS_ARCH),Linux)
 ifneq (,$(findstring mips, $(OS_TEST)))
+ifneq (,$(findstring mips64, $(OS_TEST)))
+CPPSRCS		:= xptcinvoke_mips64.cpp xptcstubs_mips64.cpp
+ASFILES		:= xptcinvoke_asm_mips64.s xptcstubs_asm_mips64.s
+else
 CPPSRCS		:= xptcinvoke_mips.cpp xptcstubs_mips.cpp
 ASFILES		:= xptcinvoke_asm_mips.s xptcstubs_asm_mips.s
+endif
 ASFLAGS		+= -I$(DIST)/include -x assembler-with-cpp
 endif
 endif
@@ -419,6 +438,7 @@ endif
 ifeq ($(OS_ARCH),SunOS)
 ifneq (86,$(findstring 86,$(OS_TEST)))
 ifdef HAVE_64BIT_OS
+ASFLAGS		+= -xarch=v9
 CPPSRCS		:= xptcinvoke_sparcv9_solaris.cpp xptcstubs_sparcv9_solaris.cpp
 else
 CPPSRCS		:= xptcinvoke_sparc_solaris.cpp xptcstubs_sparc_solaris.cpp
@@ -431,10 +451,6 @@ else
 ASFILES		:= xptcinvoke_asm_sparc_solaris_GCC.s xptcstubs_asm_sparc_solaris.s
 endif
 else
-
-# disable PGO for this directory with Sun Studio on SPARC
-# because compiling with xprofile=collect will insert code into nsXPTCStubBase::Stub##n
-NO_PROFILE_GUIDED_OPTIMIZE = 1
 
 ifdef HAVE_64BIT_OS
 ASFILES		:= xptcinvoke_asm_sparcv9_solaris_SUNW.s xptcstubs_asm_sparcv9_solaris.s
@@ -514,22 +530,18 @@ xptcstubs_asm_irix.o: $(DIST)/include/xptcstubsdef.inc $(srcdir)/xptcstubs_asm_i
 	@if test ! -f ./Makefile.in; then rm -f ./xptcstubs_asm_irix.s; else true; fi
 endif
 
-ifeq ($(OS_ARCH),OpenVMS)
-# Our assembler wants the include file to be of assembler syntax, not C/C++
-# syntax, so we have to massage it slightly.
-
-xptcstubs_asm_openvms_alpha.o: $(DIST)/include/xptcstubsdef.inc $(srcdir)/xptcstubs_asm_openvms_alpha.s
-	sed \
-	  -e 's/^\(.*_ENTRY\)(\([0-9]*\))/ \1 \2/' \
-	  -e 's/\/\*\(.*\)\*\//; \1/' \
-	$(DIST)/include/xptcstubsdef.inc > ./xptcstubsdef_asm.vms
-	$(AS) -o $@ $(ASFLAGS) $(AS_DASH_C_FLAG) $(srcdir)/xptcstubs_asm_openvms_alpha.s
-	@rm -f ./xptcstubsdef_asm.vms
-endif
-
 ifeq ($(OS_ARCH),SunOS)
 ifeq (86,$(findstring 86,$(OS_TEST)))
 ifndef GNU_CC
+ifeq (x86_64,$(OS_TEST))
+xptcstubs_asm_x86_64_solaris_SUNW.o: $(DIST)/include/xptcstubsdef.inc $(srcdir)/xptcstubs_asm_x86_64_solaris_SUNW.s
+	sed \
+	  -e 's/^\(STUB_ENTRY\)(\([0-9]\))/\11\(\2\)/' \
+	  -e 's/^\(STUB_ENTRY\)(\([0-9][0-9]\))/\12\(\2\)/' \
+	  -e 's/^\(STUB_ENTRY\)(\([0-9][0-9][0-9]\))/\13\(\2\)/' \
+	$(DIST)/include/xptcstubsdef.inc > ./xptcstubsdef_asm.solx86
+	$(AS) -o $@ -xarch=amd64 $(ASFLAGS) $(AS_DASH_C_FLAG) -I./ $(srcdir)/xptcstubs_asm_x86_64_solaris_SUNW.s
+else
 xptcstubs_asm_x86_solaris_SUNW.o: $(DIST)/include/xptcstubsdef.inc $(srcdir)/xptcstubs_asm_x86_solaris_SUNW.s
 	sed \
 	  -e 's/^\(STUB_ENTRY\)(\([0-9]\))/\11\(\2\)/' \
@@ -537,10 +549,8 @@ xptcstubs_asm_x86_solaris_SUNW.o: $(DIST)/include/xptcstubsdef.inc $(srcdir)/xpt
 	  -e 's/^\(STUB_ENTRY\)(\([0-9][0-9][0-9]\))/\13\(\2\)/' \
 	$(DIST)/include/xptcstubsdef.inc > ./xptcstubsdef_asm.solx86
 	$(AS) -o $@ $(ASFLAGS) $(AS_DASH_C_FLAG) -I./ $(srcdir)/xptcstubs_asm_x86_solaris_SUNW.s
+endif
 	@rm -f ./xptcstubsdef_asm.solx86
 endif
 endif
 endif
-
-libs:: $(LIBRARY)
-	$(INSTALL) $(LIBRARY) ../..

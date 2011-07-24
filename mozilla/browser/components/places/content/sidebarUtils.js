@@ -86,7 +86,7 @@ var SidebarUtils = {
     else if (!mouseInGutter && openInTabs &&
             aEvent.originalTarget.localName == "treechildren") {
       tbo.view.selection.select(row.value);
-      PlacesUIUtils.openContainerNodeInTabs(aTree.selectedNode, aEvent);
+      PlacesUIUtils.openContainerNodeInTabs(aTree.selectedNode, aEvent, tbo.view);
     }
     else if (!mouseInGutter && !isContainer &&
              aEvent.originalTarget.localName == "treechildren") {
@@ -94,13 +94,18 @@ var SidebarUtils = {
       // do this *before* attempting to load the link since openURL uses
       // selection as an indication of which link to load.
       tbo.view.selection.select(row.value);
-      PlacesUIUtils.openNodeWithEvent(aTree.selectedNode, aEvent);
+      PlacesUIUtils.openNodeWithEvent(aTree.selectedNode, aEvent, tbo.view);
     }
   },
 
   handleTreeKeyPress: function SU_handleTreeKeyPress(aEvent) {
-    if (aEvent.keyCode == KeyEvent.DOM_VK_RETURN)
-      PlacesUIUtils.openNodeWithEvent(aEvent.target.selectedNode, aEvent);
+    // XXX Bug 627901: Post Fx4, this method should take a tree parameter.
+    let node = aEvent.target.selectedNode;
+    if (node) {
+      let view = PlacesUIUtils.getViewForNode(node);
+      if (aEvent.keyCode == KeyEvent.DOM_VK_RETURN)
+        PlacesUIUtils.openNodeWithEvent(node, aEvent, view);
+    }
   },
 
   /**
@@ -117,21 +122,20 @@ var SidebarUtils = {
     tbo.getCellAt(aEvent.clientX, aEvent.clientY, row, col, obj);
 
     // row.value is -1 when the mouse is hovering an empty area within the tree.
-    // To avoid showing a URL from a previously hovered node,
-    // for a currently hovered non-url node, we must clear the URL from the
-    // status bar in these cases.
+    // To avoid showing a URL from a previously hovered node for a currently
+    // hovered non-url node, we must clear the moused-over URL in these cases.
     if (row.value != -1) {
-      var cell = tree.view.nodeForTreeIndex(row.value);
-      if (PlacesUtils.nodeIsURI(cell))
-        window.top.XULBrowserWindow.setOverLink(cell.uri, null);
+      var node = tree.view.nodeForTreeIndex(row.value);
+      if (PlacesUtils.nodeIsURI(node))
+        this.setMouseoverURL(node.uri);
       else
-        this.clearURLFromStatusBar();
+        this.setMouseoverURL("");
     }
     else
-      this.clearURLFromStatusBar();
+      this.setMouseoverURL("");
   },
 
-  clearURLFromStatusBar: function SU_clearURLFromStatusBar() {
-    window.top.XULBrowserWindow.setOverLink("", null);  
+  setMouseoverURL: function SU_setMouseoverURL(aURL) {
+    window.top.XULBrowserWindow.setOverLink(aURL, null);
   }
 };

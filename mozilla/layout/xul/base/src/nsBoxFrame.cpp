@@ -84,7 +84,6 @@
 #include "nsIScrollableFrame.h"
 #include "nsWidgetsCID.h"
 #include "nsCSSAnonBoxes.h"
-#include "nsIScrollableView.h"
 #include "nsHTMLContainerFrame.h"
 #include "nsIEventStateManager.h"
 #include "nsIDOMDocument.h"
@@ -101,9 +100,6 @@
 // Needed for Print Preview
 #include "nsIDocument.h"
 #include "nsIURI.h"
-
-
-static NS_DEFINE_IID(kWidgetCID, NS_CHILD_CID);
 
 //define DEBUG_REDRAW
 
@@ -140,8 +136,7 @@ nsBoxFrame::nsBoxFrame(nsIPresShell* aPresShell,
                        nsStyleContext* aContext,
                        PRBool aIsRoot,
                        nsIBoxLayout* aLayoutManager) :
-  nsContainerFrame(aContext),
-  mMouseThrough(unset)
+  nsContainerFrame(aContext)
 {
   mState |= NS_STATE_IS_HORIZONTAL;
   mState |= NS_STATE_AUTO_STRETCH;
@@ -215,8 +210,6 @@ nsBoxFrame::Init(nsIContent*      aContent,
       GetDebugPref(GetPresContext());
 #endif
 
-  mMouseThrough = unset;
-
   UpdateMouseThrough();
 
   // register access key
@@ -230,30 +223,17 @@ void nsBoxFrame::UpdateMouseThrough()
   if (mContent) {
     static nsIContent::AttrValuesArray strings[] =
       {&nsGkAtoms::never, &nsGkAtoms::always, nsnull};
-    static const eMouseThrough values[] = {never, always};
-    PRInt32 index = mContent->FindAttrValueIn(kNameSpaceID_None,
-        nsGkAtoms::mousethrough, strings, eCaseMatters);
-    if (index >= 0) {
-      mMouseThrough = values[index];
+    switch (mContent->FindAttrValueIn(kNameSpaceID_None,
+              nsGkAtoms::mousethrough, strings, eCaseMatters)) {
+      case 0: AddStateBits(NS_FRAME_MOUSE_THROUGH_NEVER); break;
+      case 1: AddStateBits(NS_FRAME_MOUSE_THROUGH_ALWAYS); break;
+      case 2: {
+        RemoveStateBits(NS_FRAME_MOUSE_THROUGH_ALWAYS);
+        RemoveStateBits(NS_FRAME_MOUSE_THROUGH_NEVER);
+        break;
+      }
     }
   }
-}
-
-PRBool
-nsBoxFrame::GetMouseThrough() const
-{
-  switch(mMouseThrough)
-  {
-    case always:
-      return PR_TRUE;
-    case never:
-      return PR_FALSE;
-    case unset:
-      if (mParent && mParent->IsBoxFrame())
-        return mParent->GetMouseThrough();
-  }
-
-  return PR_FALSE;
 }
 
 void
@@ -636,7 +616,7 @@ nsBoxFrame::GetMinWidth(nsIRenderingContext *aRenderingContext)
   GetBorderAndPadding(bp);
 
   result = minSize.width - bp.LeftRight();
-  result = PR_MAX(result, 0);
+  result = NS_MAX(result, 0);
 
   return result;
 }
@@ -658,7 +638,7 @@ nsBoxFrame::GetPrefWidth(nsIRenderingContext *aRenderingContext)
   GetBorderAndPadding(bp);
 
   result = prefSize.width - bp.LeftRight();
-  result = PR_MAX(result, 0);
+  result = NS_MAX(result, 0);
 
   return result;
 }
@@ -763,7 +743,7 @@ nsBoxFrame::Reflow(nsPresContext*          aPresContext,
   aDesiredSize.height = mRect.height;
   aDesiredSize.ascent = ascent;
 
-  aDesiredSize.mOverflowArea = GetOverflowRect();
+  aDesiredSize.mOverflowAreas = GetOverflowAreas();
 
 #ifdef DO_NOISY_REFLOW
   {
@@ -791,8 +771,7 @@ nsBoxFrame::GetPrefSize(nsBoxLayoutState& aBoxLayoutState)
   nsSize size(0,0);
   DISPLAY_PREF_SIZE(this, size);
   if (!DoesNeedRecalc(mPrefSize)) {
-     size = mPrefSize;
-     return size;
+     return mPrefSize;
   }
 
 #ifdef DEBUG_LAYOUT
@@ -803,13 +782,19 @@ nsBoxFrame::GetPrefSize(nsBoxLayoutState& aBoxLayoutState)
     return size;
 
   // if the size was not completely redefined in CSS then ask our children
-  if (!nsIBox::AddCSSPrefSize(aBoxLayoutState, this, size))
+  PRBool widthSet, heightSet;
+  if (!nsIBox::AddCSSPrefSize(this, size, widthSet, heightSet))
   {
     if (mLayoutManager) {
-      size = mLayoutManager->GetPrefSize(this, aBoxLayoutState);
-      nsIBox::AddCSSPrefSize(aBoxLayoutState, this, size);
-    } else
+      nsSize layoutSize = mLayoutManager->GetPrefSize(this, aBoxLayoutState);
+      if (!widthSet)
+        size.width = layoutSize.width;
+      if (!heightSet)
+        size.height = layoutSize.height;
+    }
+    else {
       size = nsBox::GetPrefSize(aBoxLayoutState);
+    }
   }
 
   nsSize minSize = GetMinSize(aBoxLayoutState);
@@ -849,8 +834,7 @@ nsBoxFrame::GetMinSize(nsBoxLayoutState& aBoxLayoutState)
   nsSize size(0,0);
   DISPLAY_MIN_SIZE(this, size);
   if (!DoesNeedRecalc(mMinSize)) {
-    size = mMinSize;
-    return size;
+    return mMinSize;
   }
 
 #ifdef DEBUG_LAYOUT
@@ -861,12 +845,17 @@ nsBoxFrame::GetMinSize(nsBoxLayoutState& aBoxLayoutState)
     return size;
 
   // if the size was not completely redefined in CSS then ask our children
-  if (!nsIBox::AddCSSMinSize(aBoxLayoutState, this, size))
+  PRBool widthSet, heightSet;
+  if (!nsIBox::AddCSSMinSize(aBoxLayoutState, this, size, widthSet, heightSet))
   {
     if (mLayoutManager) {
-      size = mLayoutManager->GetMinSize(this, aBoxLayoutState);
-      nsIBox::AddCSSMinSize(aBoxLayoutState, this, size);
-    } else {
+      nsSize layoutSize = mLayoutManager->GetMinSize(this, aBoxLayoutState);
+      if (!widthSet)
+        size.width = layoutSize.width;
+      if (!heightSet)
+        size.height = layoutSize.height;
+    }
+    else {
       size = nsBox::GetMinSize(aBoxLayoutState);
     }
   }
@@ -885,8 +874,7 @@ nsBoxFrame::GetMaxSize(nsBoxLayoutState& aBoxLayoutState)
   nsSize size(NS_INTRINSICSIZE, NS_INTRINSICSIZE);
   DISPLAY_MAX_SIZE(this, size);
   if (!DoesNeedRecalc(mMaxSize)) {
-    size = mMaxSize;
-    return size;
+    return mMaxSize;
   }
 
 #ifdef DEBUG_LAYOUT
@@ -897,12 +885,17 @@ nsBoxFrame::GetMaxSize(nsBoxLayoutState& aBoxLayoutState)
     return size;
 
   // if the size was not completely redefined in CSS then ask our children
-  if (!nsIBox::AddCSSMaxSize(aBoxLayoutState, this, size))
+  PRBool widthSet, heightSet;
+  if (!nsIBox::AddCSSMaxSize(this, size, widthSet, heightSet))
   {
     if (mLayoutManager) {
-      size = mLayoutManager->GetMaxSize(this, aBoxLayoutState);
-      nsIBox::AddCSSMaxSize(aBoxLayoutState, this, size);
-    } else {
+      nsSize layoutSize = mLayoutManager->GetMaxSize(this, aBoxLayoutState);
+      if (!widthSet)
+        size.width = layoutSize.width;
+      if (!heightSet)
+        size.height = layoutSize.height;
+    }
+    else {
       size = nsBox::GetMaxSize(aBoxLayoutState);
     }
   }
@@ -945,7 +938,7 @@ nsBoxFrame::DoLayout(nsBoxLayoutState& aState)
 }
 
 void
-nsBoxFrame::Destroy()
+nsBoxFrame::DestroyFrom(nsIFrame* aDestructRoot)
 {
   // unregister access key
   RegUnregAccessKey(PR_FALSE);
@@ -953,7 +946,7 @@ nsBoxFrame::Destroy()
   // clean up the container box's layout manager and child boxes
   SetLayoutManager(nsnull);
 
-  nsContainerFrame::Destroy();
+  nsContainerFrame::DestroyFrom(aDestructRoot);
 } 
 
 #ifdef DEBUG_LAYOUT
@@ -1045,6 +1038,12 @@ nsBoxFrame::InsertFrames(nsIAtom*        aListName,
    if (mLayoutManager)
      mLayoutManager->ChildrenInserted(this, state, aPrevFrame, newFrames);
 
+   // Make sure to check box order _after_ notifying the layout
+   // manager; otherwise the slice we give the layout manager will
+   // just be bogus.  If the layout manager cares about the order, we
+   // just lose.
+   CheckBoxOrder(state);
+
 #ifdef DEBUG_LAYOUT
    // if we are in debug make sure our children are in debug as well.
    if (mState & NS_STATE_CURRENTLY_IN_DEBUG)
@@ -1071,6 +1070,12 @@ nsBoxFrame::AppendFrames(nsIAtom*        aListName,
    // notify the layout manager
    if (mLayoutManager)
      mLayoutManager->ChildrenAppended(this, state, newFrames);
+
+   // Make sure to check box order _after_ notifying the layout
+   // manager; otherwise the slice we give the layout manager will
+   // just be bogus.  If the layout manager cares about the order, we
+   // just lose.
+   CheckBoxOrder(state);
 
 #ifdef DEBUG_LAYOUT
    // if we are in debug make sure our children are in debug as well.
@@ -1124,6 +1129,10 @@ nsBoxFrame::AttributeChanged(PRInt32 aNameSpaceID,
       aAttribute == nsGkAtoms::valign      ||
       aAttribute == nsGkAtoms::left        ||
       aAttribute == nsGkAtoms::top         ||
+      aAttribute == nsGkAtoms::right        ||
+      aAttribute == nsGkAtoms::bottom       ||
+      aAttribute == nsGkAtoms::start        ||
+      aAttribute == nsGkAtoms::end          ||
       aAttribute == nsGkAtoms::minwidth     ||
       aAttribute == nsGkAtoms::maxwidth     ||
       aAttribute == nsGkAtoms::minheight    ||
@@ -1194,7 +1203,11 @@ nsBoxFrame::AttributeChanged(PRInt32 aNameSpaceID,
         mState &= ~NS_STATE_AUTO_STRETCH;
     }
     else if (aAttribute == nsGkAtoms::left ||
-             aAttribute == nsGkAtoms::top) {
+             aAttribute == nsGkAtoms::top ||
+             aAttribute == nsGkAtoms::right ||
+             aAttribute == nsGkAtoms::bottom ||
+             aAttribute == nsGkAtoms::start ||
+             aAttribute == nsGkAtoms::end) {
       mState &= ~NS_STATE_STACK_NOT_POSITIONED;
     }
     else if (aAttribute == nsGkAtoms::mousethrough) {
@@ -1239,7 +1252,8 @@ nsBoxFrame::GetDebugPref(nsPresContext* aPresContext)
 
 class nsDisplayXULDebug : public nsDisplayItem {
 public:
-  nsDisplayXULDebug(nsIFrame* aFrame) : nsDisplayItem(aFrame) {
+  nsDisplayXULDebug(nsDisplayListBuilder* aBuilder, nsIFrame* aFrame) :
+    nsDisplayItem(aBuilder, aFrame) {
     MOZ_COUNT_CTOR(nsDisplayXULDebug);
   }
 #ifdef NS_BUILD_REFCNT_LOGGING
@@ -1252,12 +1266,12 @@ public:
                        HitTestState* aState, nsTArray<nsIFrame*> *aOutFrames) {
     nsPoint rectCenter(aRect.x + aRect.width / 2, aRect.y + aRect.height / 2);
     static_cast<nsBoxFrame*>(mFrame)->
-      DisplayDebugInfoFor(this, rectCenter - aBuilder->ToReferenceFrame(mFrame));
+      DisplayDebugInfoFor(this, rectCenter - ToReferenceFrame());
     aOutFrames->AppendElement(this);
   }
   virtual void Paint(nsDisplayListBuilder* aBuilder
                      nsIRenderingContext* aCtx);
-  NS_DISPLAY_DECL_NAME("XULDebug")
+  NS_DISPLAY_DECL_NAME("XULDebug", TYPE_XUL_DEBUG)
 };
 
 void
@@ -1265,7 +1279,7 @@ nsDisplayXULDebug::Paint(nsDisplayListBuilder* aBuilder,
                          nsIRenderingContext* aCtx)
 {
   static_cast<nsBoxFrame*>(mFrame)->
-    PaintXULDebugOverlay(*aCtx, aBuilder->ToReferenceFrame(mFrame));
+    PaintXULDebugOverlay(*aCtx, ToReferenceFrame());
 }
 
 static void
@@ -1281,26 +1295,54 @@ nsBoxFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
                              const nsRect&           aDirtyRect,
                              const nsDisplayListSet& aLists)
 {
-  nsresult rv = DisplayBorderBackgroundOutline(aBuilder, aLists);
+  // forcelayer is only supported on XUL elements with box layout
+  PRBool forceLayer =
+    GetContent()->HasAttr(kNameSpaceID_None, nsGkAtoms::layer) &&
+    GetContent()->IsXUL();
+
+  nsDisplayListCollection tempLists;
+  const nsDisplayListSet& destination = forceLayer ? tempLists : aLists;
+
+  nsresult rv = DisplayBorderBackgroundOutline(aBuilder, destination);
   NS_ENSURE_SUCCESS(rv, rv);
 
 #ifdef DEBUG_LAYOUT
-  // REVIEW: From GetFrameForPoint
   if (mState & NS_STATE_CURRENTLY_IN_DEBUG) {
-    rv = aLists.BorderBackground()->AppendNewToTop(new (aBuilder)
-        nsDisplayGeneric(this, PaintXULDebugBackground, "XULDebugBackground"));
+    rv = destination.BorderBackground()->AppendNewToTop(new (aBuilder)
+        nsDisplayGeneric(aBuilder, this, PaintXULDebugBackground,
+                         "XULDebugBackground"));
     NS_ENSURE_SUCCESS(rv, rv);
-    rv = aLists.Outlines()->AppendNewToTop(new (aBuilder)
-        nsDisplayXULDebug(this));
+    rv = destination.Outlines()->AppendNewToTop(new (aBuilder)
+        nsDisplayXULDebug(aBuilder, this));
     NS_ENSURE_SUCCESS(rv, rv);
   }
 #endif
 
-  rv = BuildDisplayListForChildren(aBuilder, aDirtyRect, aLists);
+  rv = BuildDisplayListForChildren(aBuilder, aDirtyRect, destination);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // see if we have to draw a selection frame around this container
-  return DisplaySelectionOverlay(aBuilder, aLists);
+  rv = DisplaySelectionOverlay(aBuilder, destination.Content());
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  if (forceLayer) {
+    // This is a bit of a hack. Collect up all descendant display items
+    // and merge them into a single Content() list. This can cause us
+    // to violate CSS stacking order, but forceLayer is a magic
+    // XUL-only extension anyway.
+    nsDisplayList masterList;
+    masterList.AppendToTop(tempLists.BorderBackground());
+    masterList.AppendToTop(tempLists.BlockBorderBackgrounds());
+    masterList.AppendToTop(tempLists.Floats());
+    masterList.AppendToTop(tempLists.Content());
+    masterList.AppendToTop(tempLists.PositionedDescendants());
+    masterList.AppendToTop(tempLists.Outlines());
+    // Wrap the list to make it its own layer
+    rv = aLists.Content()->AppendNewToTop(new (aBuilder)
+        nsDisplayOwnLayer(aBuilder, this, &masterList));
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -1723,9 +1765,10 @@ nsBoxFrame::DisplayDebugInfoFor(nsIBox*  aBox,
                     nsSize maxSizeCSS (NS_INTRINSICSIZE, NS_INTRINSICSIZE);
                     nscoord flexCSS = NS_INTRINSICSIZE;
 
-                    nsIBox::AddCSSPrefSize(state, child, prefSizeCSS);
-                    nsIBox::AddCSSMinSize (state, child, minSizeCSS);
-                    nsIBox::AddCSSMaxSize (state, child, maxSizeCSS);
+                    PRBool widthSet, heightSet;
+                    nsIBox::AddCSSPrefSize(child, prefSizeCSS, widthSet, heightSet);
+                    nsIBox::AddCSSMinSize (state, child, minSizeCSS, widthSet, heightSet);
+                    nsIBox::AddCSSMaxSize (child, maxSizeCSS, widthSet, heightSet);
                     nsIBox::AddCSSFlex    (state, child, flexCSS);
 
                     nsSize prefSize = child->GetPrefSize(state);
@@ -1826,12 +1869,12 @@ nsBoxFrame::CreateViewForFrame(nsPresContext*  aPresContext,
 
       // Create a view
       if (aIsPopup) {
-        viewManager->GetRootView(parentView);
+        parentView = viewManager->GetRootView();
         visibility = nsViewVisibility_kHide;
         zIndex = PR_INT32_MAX;
       }
       else {
-        parentView = aFrame->GetParent()->GetParentViewForChildFrame(aFrame);
+        parentView = aFrame->GetParent()->GetClosestView();
       }
 
       NS_ASSERTION(parentView, "no parent view");
@@ -1839,16 +1882,9 @@ nsBoxFrame::CreateViewForFrame(nsPresContext*  aPresContext,
       // Create a view
       nsIView *view = viewManager->CreateView(aFrame->GetRect(), parentView, visibility);
       if (view) {
-        // Insert the view into the view hierarchy. If the parent view is a
-        // scrolling view we need to do this differently
-        nsIScrollableView*  scrollingView = parentView->ToScrollableView();
-        if (scrollingView) {
-          scrollingView->SetScrolledView(view);
-        } else {
-          viewManager->SetViewZIndex(view, autoZIndex, zIndex);
-          // XXX put view last in document order until we can do better
-          viewManager->InsertChild(parentView, view, nsnull, PR_TRUE);
-        }
+        viewManager->SetViewZIndex(view, autoZIndex, zIndex);
+        // XXX put view last in document order until we can do better
+        viewManager->InsertChild(parentView, view, nsnull, PR_TRUE);
       }
 
       // Remember our view
@@ -1905,30 +1941,6 @@ nsBoxFrame::RegUnregAccessKey(PRBool aDoReg)
     rv = esm->UnregisterAccessKey(mContent, key);
 
   return rv;
-}
-
-void
-nsBoxFrame::FireDOMEventSynch(const nsAString& aDOMEventName, nsIContent *aContent)
-{
-  // XXX This will be deprecated, because it is not good to fire synchronous DOM events
-  // from layout. It's better to use nsFrame::FireDOMEvent() which is asynchronous.
-  nsPresContext *presContext = PresContext();
-  nsIContent *content = aContent ? aContent : mContent;
-  if (content && presContext) {
-    // Fire a DOM event
-    nsCOMPtr<nsIDOMEvent> event;
-    if (NS_SUCCEEDED(nsEventDispatcher::CreateEvent(presContext, nsnull,
-                                                    NS_LITERAL_STRING("Events"),
-                                                    getter_AddRefs(event)))) {
-      event->InitEvent(aDOMEventName, PR_TRUE, PR_TRUE);
-
-      nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(event));
-      privateEvent->SetTrusted(PR_TRUE);
-
-      nsEventDispatcher::DispatchDOMEvent(content, nsnull, event,
-                                          presContext, nsnull);
-    }
-  }
 }
 
 PRBool
@@ -2049,7 +2061,8 @@ nsBoxFrame::CheckBoxOrder(nsBoxLayoutState& aState)
   if (!child)
     return;
 
-  mFrames.SetFrames(MergeSort(aState, mFrames.FirstChild()));
+  nsIFrame* head = MergeSort(aState, mFrames.FirstChild());
+  mFrames = nsFrameList(head, nsLayoutUtils::GetLastSibling(head));
 }
 
 NS_IMETHODIMP
@@ -2091,50 +2104,31 @@ nsBoxFrame::RelayoutChildAtOrdinal(nsBoxLayoutState& aState, nsIBox* aChild)
 
   PRUint32 ord = aChild->GetOrdinal(aState);
   
-  nsIFrame *child = mFrames.FirstChild();
-  nsIFrame *curPrevSib = nsnull, *newPrevSib = nsnull;
-  PRBool foundPrevSib = PR_FALSE, foundNewPrevSib = PR_FALSE;
+  nsIFrame* child = mFrames.FirstChild();
+  nsIFrame* newPrevSib = nsnull;
 
   while (child) {
-    if (child == aChild)
-      foundPrevSib = PR_TRUE;
-    else if (!foundPrevSib)
-      curPrevSib = child;
+    if (ord < child->GetOrdinal(aState)) {
+      break;
+    }
 
-    PRUint32 ordCmp = child->GetOrdinal(aState);
-    if (ord < ordCmp)
-      foundNewPrevSib = PR_TRUE;
-    else if (!foundNewPrevSib && child != aChild)
+    if (child != aChild) {
       newPrevSib = child;
+    }
 
     child = child->GetNextBox();
   }
 
-  NS_ASSERTION(foundPrevSib, "aChild not in frame list?");
-
-  if (curPrevSib == newPrevSib) {
+  if (aChild->GetPrevSibling() == newPrevSib) {
     // This box is not moving.
     return NS_OK;
   }
 
-  // Take aChild out of its old position in the child list.
-  if (curPrevSib)
-    curPrevSib->SetNextSibling(aChild->GetNextSibling());
-  else
-    mFrames.SetFrames(aChild->GetNextSibling());
+  // Take |aChild| out of its old position in the child list.
+  mFrames.RemoveFrame(aChild);
 
-  nsIBox* newNextSib;
-  if (newPrevSib) {
-    // insert |aChild| between |newPrevSib| and its next sibling
-    newNextSib = newPrevSib->GetNextSibling();
-    newPrevSib->SetNextSibling(aChild);
-  } else {
-    // no |newPrevSib| found, so this box will become |mFirstChild|
-    newNextSib = mFrames.FirstChild();
-    mFrames.SetFrames(aChild);
-  }
-
-  aChild->SetNextSibling(newNextSib);
+  // Insert it after |newPrevSib| or at the start if it's null.
+  mFrames.InsertFrame(nsnull, newPrevSib, aChild);
 
   return NS_OK;
 }
@@ -2163,15 +2157,17 @@ nsBoxFrame::RelayoutChildAtOrdinal(nsBoxLayoutState& aState, nsIBox* aChild)
 // reasonable thing to do.
 class nsDisplayXULEventRedirector : public nsDisplayWrapList {
 public:
-  nsDisplayXULEventRedirector(nsIFrame* aFrame, nsDisplayItem* aItem,
+  nsDisplayXULEventRedirector(nsDisplayListBuilder* aBuilder,
+                              nsIFrame* aFrame, nsDisplayItem* aItem,
                               nsIFrame* aTargetFrame)
-    : nsDisplayWrapList(aFrame, aItem), mTargetFrame(aTargetFrame) {}
-  nsDisplayXULEventRedirector(nsIFrame* aFrame, nsDisplayList* aList,
+    : nsDisplayWrapList(aBuilder, aFrame, aItem), mTargetFrame(aTargetFrame) {}
+  nsDisplayXULEventRedirector(nsDisplayListBuilder* aBuilder,
+                              nsIFrame* aFrame, nsDisplayList* aList,
                               nsIFrame* aTargetFrame)
-    : nsDisplayWrapList(aFrame, aList), mTargetFrame(aTargetFrame) {}
+    : nsDisplayWrapList(aBuilder, aFrame, aList), mTargetFrame(aTargetFrame) {}
   virtual void HitTest(nsDisplayListBuilder* aBuilder, const nsRect& aRect,
                        HitTestState* aState, nsTArray<nsIFrame*> *aOutFrames);
-  NS_DISPLAY_DECL_NAME("XULEventRedirector")
+  NS_DISPLAY_DECL_NAME("XULEventRedirector", TYPE_XUL_EVENT_REDIRECTOR)
 private:
   nsIFrame* mTargetFrame;
 };
@@ -2182,8 +2178,8 @@ void nsDisplayXULEventRedirector::HitTest(nsDisplayListBuilder* aBuilder,
   nsTArray<nsIFrame*> outFrames;
   mList.HitTest(aBuilder, aRect, aState, &outFrames);
 
-  PRInt32 originalLength = aOutFrames->Length();
-  PRInt32 localLength = outFrames.Length();
+  PRBool topMostAdded = PR_FALSE;
+  PRUint32 localLength = outFrames.Length();
 
   for (PRUint32 i = 0; i < localLength; i++) {
 
@@ -2194,13 +2190,16 @@ void nsDisplayXULEventRedirector::HitTest(nsDisplayListBuilder* aBuilder,
                                nsGkAtoms::_true, eCaseMatters)) {
         // Events are allowed on 'frame', so let it go.
         aOutFrames->AppendElement(outFrames.ElementAt(i));
+        topMostAdded = PR_TRUE;
       }
     }
 
-  }
-  // If no hits were found, treat it as a hit on the target frame itself
-  if (aOutFrames->Length() == originalLength) {
-    aOutFrames->AppendElement(mTargetFrame);
+    // If there was no hit on the topmost frame or its ancestors,
+    // add the target frame itself as the first candidate (see bug 562554).
+    if (!topMostAdded) {
+      topMostAdded = PR_TRUE;
+      aOutFrames->AppendElement(mTargetFrame);
+    }
   }
 }
 
@@ -2212,12 +2211,12 @@ public:
   virtual nsDisplayItem* WrapList(nsDisplayListBuilder* aBuilder,
                                   nsIFrame* aFrame, nsDisplayList* aList) {
     return new (aBuilder)
-        nsDisplayXULEventRedirector(aFrame, aList, mTargetFrame);
+        nsDisplayXULEventRedirector(aBuilder, aFrame, aList, mTargetFrame);
   }
   virtual nsDisplayItem* WrapItem(nsDisplayListBuilder* aBuilder,
                                   nsDisplayItem* aItem) {
     return new (aBuilder)
-        nsDisplayXULEventRedirector(aItem->GetUnderlyingFrame(), aItem,
+        nsDisplayXULEventRedirector(aBuilder, aItem->GetUnderlyingFrame(), aItem,
                                     mTargetFrame);
   }
 private:

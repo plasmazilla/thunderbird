@@ -14,8 +14,7 @@
  *
  * The Original Code is mozilla.org code.
  *
- * The Initial Developer of the Original Code is
- *   Mozilla Corp
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -36,7 +35,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#if defined(_M_IX86) || defined(__i386__) || defined(__amd64__)
+#if defined(_M_IX86) || defined(_M_X64) || defined(__i386__) || defined(__i386) || defined(__amd64__)
 
 /*
  * x87 FPU Control Word:

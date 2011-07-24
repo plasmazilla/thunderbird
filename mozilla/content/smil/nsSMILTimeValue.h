@@ -41,6 +41,7 @@
 #include "prtypes.h"
 #include "prlong.h"
 #include "nsSMILTypes.h"
+#include "nsDebug.h"
 
 /*----------------------------------------------------------------------
  * nsSMILTimeValue class
@@ -52,17 +53,16 @@
  * nsSMILTime          -- a timestamp in milliseconds.
  * nsSMILTimeValue     -- (this class) a timestamp that can take the additional
  *                        states 'indefinite' and 'unresolved'
- * nsSMILInterval      -- a pair of nsSMILTimeValues that defines a begin and an
- *                        end point.
  * nsSMILInstanceTime  -- an nsSMILTimeValue used for constructing intervals. It
- *                        contains additional fields to govern reset behavior.
- *                        It also forms an anchor for establishing syncbase
- *                        relationships.
+ *                        contains additional fields to govern reset behavior
+ *                        and track timing dependencies (e.g. syncbase timing).
+ * nsSMILInterval      -- a pair of nsSMILInstanceTimes that defines a begin and
+ *                        an end time for animation.
  * nsSMILTimeValueSpec -- a component of a begin or end attribute, such as the
- *                        '5s' or 'a.end+2m' in begin="5s; a.end+2m". These
- *                        objects produce nsSMILInstanceTimes and are also used
- *                        in managing dependent relationships between
- *                        animations.
+ *                        '5s' or 'a.end+2m' in begin="5s; a.end+2m". Acts as
+ *                        a broker between an nsSMILTimedElement and its
+ *                        nsSMILInstanceTimes by generating new instance times
+ *                        and handling changes to existing times.
  *
  * Objects of this class may be in one of three states:
  *
@@ -102,23 +102,75 @@ class nsSMILTimeValue
 {
 public:
   // Creates an unresolved time value
-  nsSMILTimeValue();
+  nsSMILTimeValue()
+  : mMilliseconds(kUnresolvedMillis),
+    mState(STATE_UNRESOLVED)
+  { }
 
-  PRBool            IsIndefinite() const { return mState == STATE_INDEFINITE; }
-  void              SetIndefinite();
+  // Creates a resolved time value
+  explicit nsSMILTimeValue(nsSMILTime aMillis)
+  : mMilliseconds(aMillis),
+    mState(STATE_RESOLVED)
+  { }
 
-  PRBool            IsResolved() const { return mState == STATE_RESOLVED; }
-  void              SetUnresolved();
+  // Named constructor to create an indefinite time value
+  static nsSMILTimeValue Indefinite()
+  {
+    nsSMILTimeValue value;
+    value.SetIndefinite();
+    return value;
+  }
 
-  nsSMILTime        GetMillis() const;
-  void              SetMillis(nsSMILTime aMillis);
+  PRBool IsIndefinite() const { return mState == STATE_INDEFINITE; }
+  void SetIndefinite()
+  {
+    mState = STATE_INDEFINITE;
+    mMilliseconds = kUnresolvedMillis;
+  }
 
-  PRInt8            CompareTo(const nsSMILTimeValue& aOther) const;
+  PRBool IsResolved() const { return mState == STATE_RESOLVED; }
+  void SetUnresolved()
+  {
+    mState = STATE_UNRESOLVED;
+    mMilliseconds = kUnresolvedMillis;
+  }
+
+  nsSMILTime GetMillis() const
+  {
+    NS_ABORT_IF_FALSE(mState == STATE_RESOLVED,
+       "GetMillis() called for unresolved time");
+
+    return mState == STATE_RESOLVED ? mMilliseconds : kUnresolvedMillis;
+  }
+
+  void SetMillis(nsSMILTime aMillis)
+  {
+    mState = STATE_RESOLVED;
+    mMilliseconds = aMillis;
+  }
+
+  PRInt8 CompareTo(const nsSMILTimeValue& aOther) const;
+
+  PRBool operator==(const nsSMILTimeValue& aOther) const
+  { return CompareTo(aOther) == 0; }
+
+  PRBool operator!=(const nsSMILTimeValue& aOther) const
+  { return CompareTo(aOther) != 0; }
+
+  PRBool operator<(const nsSMILTimeValue& aOther) const
+  { return CompareTo(aOther) < 0; }
+
+  PRBool operator>(const nsSMILTimeValue& aOther) const
+  { return CompareTo(aOther) > 0; }
+
+  PRBool operator<=(const nsSMILTimeValue& aOther) const
+  { return CompareTo(aOther) <= 0; }
+
+  PRBool operator>=(const nsSMILTimeValue& aOther) const
+  { return CompareTo(aOther) >= 0; }
 
 private:
-  PRInt8            Cmp(PRInt64 aA, PRInt64 aB) const;
-
-  static nsSMILTime kUnresolvedSeconds;
+  static nsSMILTime kUnresolvedMillis;
 
   nsSMILTime        mMilliseconds;
   enum {

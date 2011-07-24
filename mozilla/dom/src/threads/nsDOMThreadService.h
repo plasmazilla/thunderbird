@@ -47,12 +47,13 @@
 
 // Other includes
 #include "jsapi.h"
+#include "mozilla/Monitor.h"
 #include "nsAutoPtr.h"
 #include "nsCOMPtr.h"
+#include "nsDataHashtable.h"
 #include "nsRefPtrHashtable.h"
 #include "nsStringGlue.h"
 #include "nsTPtrArray.h"
-#include "prmon.h"
 
 #include "prlog.h"
 #ifdef PR_LOGGING
@@ -68,6 +69,13 @@ class nsIScriptGlobalObject;
 class nsIThreadJSContextStack;
 class nsIXPConnect;
 class nsIXPCSecurityManager;
+
+enum ThreadsafeStatus
+{
+  Threadsafe,
+  NotThreadsafe,
+  Unknown
+};
 
 class nsDOMThreadService : public nsIEventTarget,
                            public nsIObserver,
@@ -108,14 +116,16 @@ public:
   static nsIThreadJSContextStack* ThreadJSContextStack();
   static nsIXPCSecurityManager* WorkerSecurityManager();
 
-  static jsval ShareStringAsJSVal(JSContext* aCx,
-                                  const nsAString& aString);
-
   void CancelWorkersForGlobal(nsIScriptGlobalObject* aGlobalObject);
   void SuspendWorkersForGlobal(nsIScriptGlobalObject* aGlobalObject);
   void ResumeWorkersForGlobal(nsIScriptGlobalObject* aGlobalObject);
 
   nsresult ChangeThreadPoolMaxThreads(PRInt16 aDelta);
+
+  void NoteThreadsafeContractId(const nsACString& aContractId,
+                                PRBool aIsThreadsafe);
+
+  ThreadsafeStatus GetContractIdThreadsafeStatus(const nsACString& aContractId);
 
 private:
   nsDOMThreadService();
@@ -175,7 +185,7 @@ private:
 
   // mMonitor protects all access to mWorkersInProgress and
   // mCreationsInProgress.
-  PRMonitor* mMonitor;
+  mozilla::Monitor mMonitor;
 
   // A map from nsDOMWorkerThread to nsDOMWorkerRunnable.
   nsRefPtrHashtable<nsVoidPtrHashKey, nsDOMWorkerRunnable> mWorkersInProgress;
@@ -187,6 +197,9 @@ private:
   // A list of worker runnables that were never started because the worker was
   // suspended. Always protected with mMonitor.
   nsTArray<nsDOMWorkerRunnable*> mSuspendedWorkers;
+
+  // Always protected with mMonitor.
+  nsDataHashtable<nsCStringHashKey, PRBool> mThreadsafeContractIDs;
 
   nsString mAppName;
   nsString mAppVersion;

@@ -229,8 +229,7 @@ public:
      * Determine the member variable from inside an action body. It will be
      * the value of the uri attribute on a node.
      */
-    nsresult
-    DetermineMemberVariable(nsIContent* aActionElement, nsIAtom** aMemberVariable);
+    already_AddRefed<nsIAtom> DetermineMemberVariable(nsIContent* aElement);
 
     /**
      * Compile a simple query. A simple query is one that doesn't have a
@@ -438,7 +437,8 @@ protected:
 
     enum {
         eDontTestEmpty = (1 << 0),
-        eDontRecurse = (2 << 0)
+        eDontRecurse = (1 << 1),
+        eLoggingEnabled = (1 << 2)
     };
 
     PRInt32 mFlags;
@@ -509,6 +509,18 @@ protected:
      */
     virtual nsresult
     SynchronizeResult(nsIXULTemplateResult* aResult) = 0;
+
+    /**
+     * Output a new match or removed match to the console.
+     *
+     * @param aId id of the result
+     * @param aMatch new or removed match
+     * @param aIsNew true for new matched, false for removed matches
+     */
+    void
+    OutputMatchToLog(nsIRDFResource* aId,
+                     nsTemplateMatch* aMatch,
+                     PRBool aIsNew);
 
     virtual void Traverse(nsCycleCollectionTraversalCallback &cb) const
     {

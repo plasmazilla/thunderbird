@@ -89,20 +89,7 @@ AppPicker.prototype =
         // Grab a list of nsILocalHandlerApp application helpers to list
         var fileList = mimeInfo.possibleLocalHandlers;
 
-        /*
-          <richlistitem id="app-picker-item" value=nsfileobject>
-            <hbox align="center">
-              <image id="app-picker-item-image" src=""/>
-              <vbox>
-                <hbox align="center">
-                  <listcell id="app-picker-item-cell" label="Outlook"/>
-                </hbox>
-              </vbox>
-            </hbox>
-          </richlistitem>
-        */
-
-        var list = document.getElementById("app-picker-list");
+        var list = document.getElementById("app-picker-listbox");
 
         var primaryCount = 0;
         
@@ -121,32 +108,11 @@ AppPicker.prototype =
             continue;
           }
 
-          var item = document.createElement("richlistitem");
-          item.setAttribute("id", "app-picker-item");
-          item.value = file;
-          item.label = this.getFileDisplayName(file.executable);
-          item.setAttribute("ondblclick", "g_dialog.appDoubleClick();");
-
-          var hbox1 = document.createElement("hbox");
-          hbox1.setAttribute("align", "center");
-
-          var image = document.createElement("image");
-          image.setAttribute("id", "app-picker-item-image");
-          image.setAttribute("src", this.getFileIconURL(file.executable));
-
-          var vbox1 = document.createElement("vbox");
-          var hbox2 = document.createElement("hbox");
-          hbox2.setAttribute("align", "center");
-
-          var cell = document.createElement("listcell");
-          cell.setAttribute("id", "app-picker-item-cell");
-          cell.setAttribute("label", this.getFileDisplayName(file.executable));
-
-          hbox2.appendChild(cell);
-          vbox1.appendChild(hbox2);
-          hbox1.appendChild(image);
-          hbox1.appendChild(vbox1);
-          item.appendChild(hbox1);
+          var item = document.createElement("listitem");
+          item.className = "listitem-iconic";
+          item.handlerApp = file;
+          item.setAttribute("label", this.getFileDisplayName(file.executable));
+          item.setAttribute("image", this.getFileIconURL(file.executable));
           list.appendChild(item);
 
           primaryCount++;
@@ -182,22 +148,18 @@ AppPicker.prototype =
     */ 
     getFileDisplayName: function getFileDisplayName(file) {
 #ifdef XP_WIN
-      const nsILocalFileWin = Components.interfaces.nsILocalFileWin;
-      if (file instanceof nsILocalFileWin) {
+      if (file instanceof Components.interfaces.nsILocalFileWin) {
         try {
           return file.getVersionInfoField("FileDescription");
-        } catch (e) {
-        }
+        } catch (e) {}
       }
 #endif
 #ifdef XP_MACOSX
-    const nsILocalFileMac = Components.interfaces.nsILocalFileMac;
-    if (file instanceof nsILocalFileMac) {
-      try {
-        return lfm.bundleDisplayName;
-      } catch (e) {
+      if (file instanceof Components.interfaces.nsILocalFileMac) {
+        try {
+          return file.bundleDisplayName;
+        } catch (e) {}
       }
-    }
 #endif
       return file.leafName;
     },
@@ -206,7 +168,7 @@ AppPicker.prototype =
     * Double click accepts an app
     */
     appDoubleClick: function appDoubleClick() {
-      var list = document.getElementById("app-picker-list");
+      var list = document.getElementById("app-picker-listbox");
       var selItem = list.selectedItem;
 
       if (!selItem) {
@@ -214,7 +176,7 @@ AppPicker.prototype =
           return true;
       }
 
-      this._incomingParams.handlerApp = selItem.value;
+      this._incomingParams.handlerApp = selItem.handlerApp;
       window.close();
 
       return true;
@@ -223,14 +185,14 @@ AppPicker.prototype =
     appPickerOK: function appPickerOK() {
       if (this._incomingParams.handlerApp) return true;
 
-      var list = document.getElementById("app-picker-list");
+      var list = document.getElementById("app-picker-listbox");
       var selItem = list.selectedItem;
 
       if (!selItem) {
         this._incomingParams.handlerApp = null;
         return true;
       }
-      this._incomingParams.handlerApp = selItem.value;
+      this._incomingParams.handlerApp = selItem.handlerApp;
 
       return true;
     },

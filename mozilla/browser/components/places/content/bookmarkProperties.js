@@ -196,7 +196,7 @@ var BookmarkPropertiesPanel = {
                              PlacesUtils.bookmarks.DEFAULT_INDEX,
                              Ci.nsITreeView.DROP_ON);
 
-      switch(dialogInfo.type) {
+      switch (dialogInfo.type) {
         case "bookmark":
           this._itemType = BOOKMARK_ITEM;
           if ("uri" in dialogInfo) {
@@ -279,7 +279,7 @@ var BookmarkPropertiesPanel = {
           // Load In Sidebar
           this._loadInSidebar = PlacesUtils.annotations
                                            .itemHasAnnotation(this._itemId,
-                                                              LOAD_IN_SIDEBAR_ANNO);
+                                                              PlacesUIUtils.LOAD_IN_SIDEBAR_ANNO);
           break;
 
         case "folder":
@@ -295,10 +295,10 @@ var BookmarkPropertiesPanel = {
 
       // Description
       if (PlacesUtils.annotations
-                     .itemHasAnnotation(this._itemId, DESCRIPTION_ANNO)) {
+                     .itemHasAnnotation(this._itemId, PlacesUIUtils.DESCRIPTION_ANNO)) {
         this._description = PlacesUtils.annotations
                                        .getItemAnnotation(this._itemId,
-                                                          DESCRIPTION_ANNO);
+                                                          PlacesUIUtils.DESCRIPTION_ANNO);
       }
     }
   },
@@ -546,7 +546,7 @@ var BookmarkPropertiesPanel = {
     try {
       var value = this._element(aTextboxID).value;
       if (value) {
-        var uri = PlacesUIUtils.createFixedURI(value);
+        PlacesUIUtils.createFixedURI(value);
         return true;
       }
     } catch (e) { }

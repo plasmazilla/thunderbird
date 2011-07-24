@@ -48,6 +48,10 @@
 #include "nspr.h"
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
+#include "nsIObserverService.h"
+#include "nsComponentManagerUtils.h"
+#include "nsServiceManagerUtils.h"
+#include "nsMsgUtils.h"
 
 #define PREF_BIFF_JITTER "mail.biff.add_interval_jitter"
 
@@ -55,12 +59,14 @@ static NS_DEFINE_CID(kStatusBarBiffManagerCID, NS_STATUSBARBIFFMANAGER_CID);
 
 static PRLogModuleInfo *MsgBiffLogModule = nsnull;
 
-NS_IMPL_ISUPPORTS3(nsMsgBiffManager, nsIMsgBiffManager, nsIIncomingServerListener, nsISupportsWeakReference)
+NS_IMPL_ISUPPORTS4(nsMsgBiffManager, nsIMsgBiffManager,
+                   nsIIncomingServerListener, nsIObserver,
+                   nsISupportsWeakReference)
 
 void OnBiffTimer(nsITimer *timer, void *aBiffManager)
 {
   nsMsgBiffManager *biffManager = (nsMsgBiffManager*)aBiffManager;
-  biffManager->PerformBiff();		
+  biffManager->PerformBiff();
 }
 
 nsMsgBiffManager::nsMsgBiffManager()
@@ -76,6 +82,15 @@ nsMsgBiffManager::~nsMsgBiffManager()
 
   if (!mHaveShutdown)
     Shutdown();
+
+  nsresult rv;
+  nsCOMPtr<nsIObserverService> observerService =
+       do_GetService("@mozilla.org/observer-service;1", &rv);
+  if (NS_SUCCEEDED(rv))
+  {
+    observerService->RemoveObserver(this, "wake_notification");
+    observerService->RemoveObserver(this, "sleep_notification");
+  }
 }
 
 NS_IMETHODIMP nsMsgBiffManager::Init()
@@ -105,6 +120,13 @@ NS_IMETHODIMP nsMsgBiffManager::Init()
   if (!MsgBiffLogModule)
     MsgBiffLogModule = PR_NewLogModule("MsgBiff");
 
+  nsCOMPtr<nsIObserverService> observerService =
+           do_GetService("@mozilla.org/observer-service;1", &rv);
+  if (NS_SUCCEEDED(rv))
+  {
+    observerService->AddObserver(this, "sleep_notification", PR_TRUE);
+    observerService->AddObserver(this, "wake_notification", PR_TRUE);
+  }
   return NS_OK;
 }
 
@@ -127,6 +149,23 @@ NS_IMETHODIMP nsMsgBiffManager::Shutdown()
   return NS_OK;
 }
 
+NS_IMETHODIMP nsMsgBiffManager::Observe(nsISupports *aSubject, const char *aTopic, const PRUnichar *someData)
+{
+  if (!strcmp(aTopic, "sleep_notification") && mBiffTimer)
+  {
+    mBiffTimer->Cancel();
+    mBiffTimer = nsnull;
+  }
+  else if (!strcmp(aTopic, "wake_notification"))
+  {
+    // wait 10 seconds after waking up to start biffing again.
+    mBiffTimer = do_CreateInstance("@mozilla.org/timer;1");
+    mBiffTimer->InitWithFuncCallback(OnBiffTimer, (void*)this, 10000,
+                                     nsITimer::TYPE_ONE_SHOT);
+  }
+  return NS_OK;
+}
+
 NS_IMETHODIMP nsMsgBiffManager::AddServerBiff(nsIMsgIncomingServer *server)
 {
   PRInt32 biffMinutes;
@@ -144,8 +183,7 @@ NS_IMETHODIMP nsMsgBiffManager::AddServerBiff(nsIMsgIncomingServer *server)
     {
       nsBiffEntry biffEntry;
       biffEntry.server = server;
-      nsTime currentTime;
-      rv = SetNextBiffTime(biffEntry, currentTime);
+      rv = SetNextBiffTime(biffEntry, PR_Now());
       if (NS_FAILED(rv))
         return rv;
 
@@ -164,7 +202,7 @@ NS_IMETHODIMP nsMsgBiffManager::RemoveServerBiff(nsIMsgIncomingServer *server)
 
   // Should probably reset biff time if this was the server that gets biffed
   // next.
-	return NS_OK;
+  return NS_OK;
 }
 
 
@@ -226,7 +264,7 @@ nsresult nsMsgBiffManager::AddBiffEntry(nsBiffEntry &biffEntry)
   return NS_OK;
 }
 
-nsresult nsMsgBiffManager::SetNextBiffTime(nsBiffEntry &biffEntry, const nsTime currentTime)
+nsresult nsMsgBiffManager::SetNextBiffTime(nsBiffEntry &biffEntry, PRTime currentTime)
 {
   nsIMsgIncomingServer *server = biffEntry.server;
   if (!server)
@@ -238,7 +276,7 @@ nsresult nsMsgBiffManager::SetNextBiffTime(nsBiffEntry &biffEntry, const nsTime 
 
   // Add biffInterval, converted in microseconds, to current time.
   // Force 64-bit multiplication.
-  nsTime chosenTimeInterval = biffInterval * 60000000LL;
+  PRTime chosenTimeInterval = biffInterval * 60000000LL;
   biffEntry.nextBiffTime = currentTime + chosenTimeInterval;
 
   // Check if we should jitter.
@@ -269,9 +307,9 @@ nsresult nsMsgBiffManager::SetupNextBiff()
   {
     // Get the next biff entry
     const nsBiffEntry &biffEntry = mBiffArray[0];
-    nsTime currentTime;
-    nsInt64 biffDelay;
-    nsInt64 ms(1000);
+    PRTime currentTime = PR_Now();
+    PRInt64 biffDelay;
+    PRInt64 ms(1000);
 
     if (currentTime > biffEntry.nextBiffTime)
     {
@@ -284,7 +322,7 @@ nsresult nsMsgBiffManager::SetupNextBiff()
       biffDelay = biffEntry.nextBiffTime - currentTime;
 
     // Convert biffDelay into milliseconds
-    nsInt64 timeInMS = biffDelay / ms;
+    PRInt64 timeInMS = biffDelay / ms;
     PRUint32 timeInMSUint32 = (PRUint32)timeInMS;
 
     // Can't currently reset a timer when it's in the process of
@@ -304,7 +342,7 @@ nsresult nsMsgBiffManager::SetupNextBiff()
 //This is the function that does a biff on all of the servers whose time it is to biff.
 nsresult nsMsgBiffManager::PerformBiff()
 {
-  nsTime currentTime;
+  PRTime currentTime = PR_Now();
   nsCOMArray<nsIMsgFolder> targetFolders;
   PR_LOG(MsgBiffLogModule, PR_LOG_ALWAYS, ("performing biffs\n"));
 

@@ -188,6 +188,18 @@ function run_test() {
     do_check_true(request.nsIHttpChannel.requestSucceeded);
     do_check_eq(data, rangeBody);
 
+    // Try a successful suspend/resume from 0
+    var chan = make_channel("http://localhost:4444/range");
+    chan.nsIResumableChannel.resumeAt(0, entityID);
+    chan.asyncOpen(new ChannelListener(try_suspend_resume, null,
+                                       CL_SUSPEND | CL_EXPECT_3S_DELAY), null);
+  }
+
+  function try_suspend_resume(request, data, ctx) {
+    dump("*** try_suspend_resume()\n");
+    do_check_true(request.nsIHttpChannel.requestSucceeded);
+    do_check_eq(data, rangeBody);
+
     // Try a successful resume from 0
     var chan = make_channel("http://localhost:4444/range");
     chan.nsIResumableChannel.resumeAt(0, entityID);
@@ -198,6 +210,7 @@ function run_test() {
     dump("*** success()\n");
     do_check_true(request.nsIHttpChannel.requestSucceeded);
     do_check_eq(data, rangeBody);
+
 
     // Authentication (no password; working resume)
     // (should not give us any data)
@@ -213,7 +226,7 @@ function run_test() {
     do_check_eq(request.status, NS_ERROR_ENTITY_CHANGED);
 
     // Authentication + not working resume
-    var chan = make_channel("http://localhost:4444/auth");
+    var chan = make_channel("http://guest:guest@localhost:4444/auth");
     chan.nsIResumableChannel.resumeAt(1, entityID);
     chan.notificationCallbacks = new Requestor();
     chan.asyncOpen(new ChannelListener(test_auth, null, CL_EXPECT_FAILURE), null);
@@ -224,7 +237,7 @@ function run_test() {
     do_check_true(request.nsIHttpChannel.responseStatus < 300);
 
     // Authentication + working resume
-    var chan = make_channel("http://localhost:4444/range");
+    var chan = make_channel("http://guest:guest@localhost:4444/range");
     chan.nsIResumableChannel.resumeAt(1, entityID);
     chan.notificationCallbacks = new Requestor();
     chan.nsIHttpChannel.setRequestHeader("X-Need-Auth", "true", false);

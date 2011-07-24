@@ -319,10 +319,18 @@ void nsMailDatabase::UpdateFolderFlag(nsIMsgDBHdr *mailHdr, PRBool bSet,
           PR_snprintf(buf, sizeof(buf), X_MOZILLA_STATUS_FORMAT,
             flags & 0x0000FFFF);
           PRInt32 lineLen = PL_strlen(buf);
-          PRUint64 status2Pos = statusPos + lineLen + MSG_LINEBREAK_LEN;
+          PRUint64 status2Pos = statusPos + lineLen;
           fileStream->Write(buf, lineLen, &bytesWritten);
-          
+
           // time to upate x-mozilla-status2
+          // first find it by finding end of previous line, see bug 234935
+          seekableStream->Seek(nsISeekableStream::NS_SEEK_SET, status2Pos);
+          do
+          {
+            rv = inputStream->Read(buf, 1, &bytesRead);
+            status2Pos++;
+          } while (NS_SUCCEEDED(rv) && (*buf == '\n' || *buf == '\r'));
+          status2Pos--;
           seekableStream->Seek(nsISeekableStream::NS_SEEK_SET, status2Pos);
           if (NS_SUCCEEDED(inputStream->Read(buf, X_MOZILLA_STATUS2_LEN + 10, &bytesRead)))
           {
@@ -419,7 +427,7 @@ NS_IMETHODIMP nsMailDatabase::GetSummaryValid(PRBool *aResult)
   if (m_folderFile && m_dbFolderInfo)
   {
     m_dbFolderInfo->GetNumUnreadMessages(&numUnreadMessages);
-    m_dbFolderInfo->GetFolderSize64(&folderSize);
+    m_dbFolderInfo->GetFolderSize(&folderSize);
     m_dbFolderInfo->GetFolderDate(&folderDate);
 
     // compare current version of db versus filed out version info, 
@@ -493,7 +501,7 @@ NS_IMETHODIMP nsMailDatabase::SetSummaryValid(PRBool valid)
       PRUint32 actualFolderTimeStamp;
       PRInt64 fileSize;
       GetMailboxModProperties(&fileSize, &actualFolderTimeStamp);
-      m_dbFolderInfo->SetUint64Property("folderSize", fileSize);
+      m_dbFolderInfo->SetFolderSize(fileSize);
       m_dbFolderInfo->SetFolderDate(actualFolderTimeStamp);
       m_dbFolderInfo->SetVersion(GetCurVersion());
     }
@@ -718,7 +726,7 @@ nsresult nsMailDatabase::SetFolderInfoValid(nsILocalFile *folderName, int num, i
     // ### this does later stuff (marks latered messages unread), which may be a problem
     nsCString summaryNativePath;
     summaryPath->GetNativePath(summaryNativePath);
-    err = pMessageDB->OpenMDB(summaryNativePath.get(), PR_FALSE);
+    err = pMessageDB->OpenMDB(summaryNativePath.get(), PR_FALSE, PR_TRUE);
     if (err != NS_OK)
     {
       delete pMessageDB;
@@ -726,21 +734,21 @@ nsresult nsMailDatabase::SetFolderInfoValid(nsILocalFile *folderName, int num, i
     }
     bOpenedDB = PR_TRUE;
   }
-  
-  if (pMessageDB == nsnull)
+
+  if (!pMessageDB)
   {
 #ifdef DEBUG
     printf("Exception opening summary file\n");
 #endif
     return NS_MSG_ERROR_FOLDER_SUMMARY_OUT_OF_DATE;
   }
-  
+
   {
     pMessageDB->m_folderFile = folderName;
     PRUint32 actualFolderTimeStamp;
     PRInt64 fileSize;
     pMessageDB->GetMailboxModProperties(&fileSize, &actualFolderTimeStamp);
-    pMessageDB->m_dbFolderInfo->SetFolderSize64(fileSize);
+    pMessageDB->m_dbFolderInfo->SetFolderSize((PRUint32) fileSize);
     pMessageDB->m_dbFolderInfo->SetFolderDate(actualFolderTimeStamp);
     pMessageDB->m_dbFolderInfo->ChangeNumUnreadMessages(numunread);
     pMessageDB->m_dbFolderInfo->ChangeNumMessages(num);

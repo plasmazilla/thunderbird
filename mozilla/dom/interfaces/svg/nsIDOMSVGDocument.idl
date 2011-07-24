@@ -39,7 +39,7 @@
 
 interface nsIDOMSVGSVGElement;
 
-[scriptable, uuid(12d3b664-1dd2-11b2-a7cf-ceee7e90f396)]
+[scriptable, uuid(fc52bd3f-850c-4d80-819f-5bd8321b4b59)]
 interface nsIDOMSVGDocument : nsIDOMDocument
                          /* , nsIDOMDocumentEvent */
 {

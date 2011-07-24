@@ -45,7 +45,7 @@
 class nsHTMLLinkAccessible : public nsHyperTextAccessibleWrap
 {
 public:
-  nsHTMLLinkAccessible(nsIDOMNode* aDomNode, nsIWeakReference* aShell);
+  nsHTMLLinkAccessible(nsIContent *aContent, nsIWeakReference *aShell);
  
   NS_DECL_ISUPPORTS_INHERITED
 
@@ -56,12 +56,13 @@ public:
   NS_IMETHOD GetActionName(PRUint8 aIndex, nsAString& aName);
   NS_IMETHOD DoAction(PRUint8 aIndex);
 
-  // nsIAccessibleHyperLink
-  NS_IMETHOD GetURI(PRInt32 aIndex, nsIURI **aURI);
-
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
+
+  // HyperLinkAccessible
+  virtual bool IsHyperLink();
+  virtual already_AddRefed<nsIURI> GetAnchorURI(PRUint32 aAnchorIndex);
 
 protected:
   enum { eAction_Jump = 0 };

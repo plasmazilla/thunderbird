@@ -52,24 +52,24 @@
   <script type="application/javascript"
           src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"/>
   <script type="application/javascript"
-          src="chrome://mochikit/content/chrome/toolkit/mozapps/downloads/tests/chrome/utils.js"/>
+          src="utils.js"/>
 
   <script type="application/javascript">
   <![CDATA[
 
 const UCT_URI = "chrome://mozapps/content/downloads/unknownContentType.xul";
 
-let testIndex = 0;
+let testIndex = -1;
 let tests = [
   { // This URL will trigger the simple UI, where only the Save an Cancel buttons are available
-    url: "http://localhost:8888/chrome/toolkit/mozapps/downloads/tests/chrome/unknownContentType_dialog_layout_data.pif",
+    url: "http://mochi.test:8888/chrome/toolkit/mozapps/downloads/tests/chrome/unknownContentType_dialog_layout_data.pif",
     elements: {
       basicBox: { collapsed: false },
       normalBox: { collapsed: true }
     }
   },
   { // This URL will trigger the full UI
-    url: "http://localhost:8888/chrome/toolkit/mozapps/downloads/tests/chrome/unknownContentType_dialog_layout_data.txt",
+    url: "http://mochi.test:8888/chrome/toolkit/mozapps/downloads/tests/chrome/unknownContentType_dialog_layout_data.txt",
     elements: {
       basicBox: { collapsed: true },
       normalBox: { collapsed: false }
@@ -85,23 +85,20 @@ SimpleTest.waitForExplicitFinish();
 let windowObserver = {
   observe: function(aSubject, aTopic, aData) {
     let win = aSubject.QueryInterface(Ci.nsIDOMEventTarget);
-    win.focus();
 
+    if (aTopic == "domwindowclosed") {
+      if (win.location == UCT_URI)
+        loadNextTest();
+      return;
+    }
+
+    // domwindowopened
     win.addEventListener("load", function onLoad(event) {
       win.removeEventListener("load", onLoad, false);
-      if (win.document.documentURI != UCT_URI)
-        return;
 
       // Let the dialog initialize
       SimpleTest.executeSoon(function() {
         checkWindow(win);
-        testIndex++;
-        if (!tests[testIndex]) {
-          ww.unregisterNotification(windowObserver);
-          SimpleTest.finish();
-          return;
-        }
-        loadNextTest();
       });
     }, false);
   }
@@ -113,6 +110,11 @@ function init() {
 }
 
 function loadNextTest() {
+  if (!tests[++testIndex]) {
+    ww.unregisterNotification(windowObserver);
+    SimpleTest.finish();
+    return;
+  }
   let frame = document.getElementById("testframe");
   frame.setAttribute("src", tests[testIndex].url);
 }

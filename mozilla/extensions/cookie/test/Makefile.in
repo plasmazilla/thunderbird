@@ -51,6 +51,10 @@ _TEST_FILES = \
   file_domain_inner.html \
   file_domain_inner_inner.html \
   test_differentdomain.html \
+  test_different_domain_in_hierarchy.html \
+  file_domain_hierarchy_inner.html \
+  file_domain_hierarchy_inner_inner.html \
+  file_domain_hierarchy_inner_inner_inner.html \
   test_image.html \
   file_image_inner.html \
   file_image_inner_inner.html \
@@ -58,6 +62,10 @@ _TEST_FILES = \
   image1.png^headers^ \
   image2.png \
   image2.png^headers^ \
+  beltzner.jpg \
+  beltzner.jpg^headers^ \
+  damonbowling.jpg \
+  damonbowling.jpg^headers^ \
   test1.css \
   test1.css^headers^ \
   test2.css \
@@ -76,23 +84,22 @@ _TEST_FILES = \
   file_loopback_inner.html \
   $(NULL)
 
-# the tests below use Firefox-specific features
-ifdef MOZ_PHOENIX
 _BROWSER_TEST_FILES = \
   browser_test_favicon.js \
   $(NULL)
-endif
 
 libs:: $(_TEST_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)
 
-# see above, only defined for Firefox
-ifdef MOZ_PHOENIX
 libs:: $(_BROWSER_TEST_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/browser/$(relativesrcdir)
-endif
 
 XPCSHELL_TESTS = unit
+
+# FIXME/bug 575918: out-of-process xpcshell is broken on OS X
+ifneq ($(OS_ARCH),Darwin)
+XPCSHELL_TESTS += unit_ipc
+endif
 
 include $(topsrcdir)/config/rules.mk
 

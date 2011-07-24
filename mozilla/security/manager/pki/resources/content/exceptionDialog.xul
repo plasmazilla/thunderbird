@@ -14,8 +14,7 @@
    -
    - The Original Code is mozilla.org code.
    -
-   - The Initial Developer of the Original Code is
-   - Mozilla Corp
+   - The Initial Developer of the Original Code is the Mozilla Foundation.
    - Portions created by the Initial Developer are Copyright (C) 2007
    - the Initial Developer. All Rights Reserved.
    -
@@ -47,8 +46,8 @@
         xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul" 
         title="&exceptionMgr.title;"
         buttons="cancel,extra1,extra2"
-        buttonlabelextra1="&exceptionMgr.exceptionButton;"
-        buttonaccesskeyextra1="&exceptionMgr.exceptionButtonAccess;"
+        buttonlabelextra1="&exceptionMgr.exceptionButton.label;"
+        buttonaccesskeyextra1="&exceptionMgr.exceptionButton.accesskey;"
         style="width: 500px; height: 480px;"
         onload="initExceptionDialog();"
         ondialogextra1="addException();"
@@ -56,9 +55,9 @@
         persist="screenX screenY width height"
         defaultButton="extra2">
   
-  <script type="application/x-javascript" src="chrome://global/content/strres.js"/>
-  <script type="application/x-javascript" src="chrome://pippki/content/pippki.js"/>
-  <script type="application/x-javascript" src="chrome://pippki/content/exceptionDialog.js"/>
+  <script type="application/javascript" src="chrome://global/content/strres.js"/>
+  <script type="application/javascript" src="chrome://pippki/content/pippki.js"/>
+  <script type="application/javascript" src="chrome://pippki/content/exceptionDialog.js"/>
   
   <hbox>
     <vbox>

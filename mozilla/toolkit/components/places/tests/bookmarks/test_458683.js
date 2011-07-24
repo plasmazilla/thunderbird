@@ -15,7 +15,7 @@
  *
  * The Original Code is Bug 458683 code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -36,7 +36,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-Components.utils.import("resource://gre/modules/utils.js");
 var tests = [];
 
 // Get database connection
@@ -123,7 +122,7 @@ var invalidTagChildTest = {
     toolbar.containerOpen = false;
 
     // test for our tag
-    var tags = PlacesUtils.tagging.getTagsForURI(PlacesUtils._uri(this._itemUrl), {});
+    var tags = PlacesUtils.tagging.getTagsForURI(PlacesUtils._uri(this._itemUrl));
     do_check_eq(tags.length, 1);
     do_check_eq(tags[0], this._tag);
   }
@@ -134,7 +133,7 @@ function run_test() {
   do_check_eq(typeof PlacesUtils, "object");
 
   // make json file
-  var jsonFile = dirSvc.get("ProfD", Ci.nsILocalFile);
+  var jsonFile = Services.dirsvc.get("ProfD", Ci.nsILocalFile);
   jsonFile.append("bookmarks.json");
   if (jsonFile.exists())
     jsonFile.remove(false);
@@ -151,7 +150,7 @@ function run_test() {
 
   // export json to file
   try {
-    PlacesUtils.backupBookmarksToFile(jsonFile);
+    PlacesUtils.backups.saveBookmarksToJSONFile(jsonFile);
   } catch(ex) { do_throw("couldn't export to file: " + ex); }
 
   // clean

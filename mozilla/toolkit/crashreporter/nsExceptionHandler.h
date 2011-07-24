@@ -52,6 +52,10 @@
 #include <windows.h>
 #endif
 
+#if defined(XP_MACOSX)
+#include <mach/mach.h>
+#endif
+
 namespace CrashReporter {
 nsresult SetExceptionHandler(nsILocalFile* aXREDirectory, bool force=false);
 nsresult UnsetExceptionHandler();
@@ -85,7 +89,6 @@ bool AppendExtraData(nsILocalFile* extraFile, const AnnotationTable& data);
 nsresult GetSubmitReports(PRBool* aSubmitReport);
 nsresult SetSubmitReports(PRBool aSubmitReport);
 
-#ifdef MOZ_IPC
 // Out-of-process crash reporter API.
 
 // Return true iff a dump was found for |childPid|, and return the
@@ -94,9 +97,12 @@ nsresult SetSubmitReports(PRBool aSubmitReport);
 bool TakeMinidumpForChild(PRUint32 childPid,
                           nsILocalFile** dump NS_OUTPARAM);
 
-#ifdef XP_WIN
+#if defined(XP_WIN)
 typedef HANDLE ProcessHandle;
 typedef DWORD ThreadId;
+#elif defined(XP_MACOSX)
+typedef task_t ProcessHandle;
+typedef mach_port_t ThreadId;
 #else
 typedef int ProcessHandle;
 typedef int ThreadId;
@@ -123,7 +129,7 @@ bool CreatePairedMinidumps(ProcessHandle childPid,
                            nsILocalFile** childDump NS_OUTPARAM,
                            nsILocalFile** parentDump NS_OUTPARAM);
 
-#  if defined(XP_WIN32)
+#  if defined(XP_WIN32) || defined(XP_MACOSX)
 // Parent-side API for children
 const char* GetChildNotificationPipe();
 
@@ -145,10 +151,31 @@ bool CreateNotificationPipeForChild(int* childCrashFd, int* childCrashRemapFd);
 
 // Child-side API
 bool SetRemoteExceptionHandler();
+
 #endif  // XP_WIN32
 
 bool UnsetRemoteExceptionHandler();
-#endif // MOZ_IPC
+
+#if defined(__ANDROID__)
+// Android builds use a custom library loader, so /proc/<pid>/maps
+// will just show anonymous mappings for all the non-system
+// shared libraries. This API is to work around that by providing
+// info about the shared libraries that are mapped into these anonymous
+// mappings.
+void AddLibraryMapping(const char* library_name,
+                       const char* file_id,
+                       uintptr_t   start_address,
+                       size_t      mapping_length,
+                       size_t      file_offset);
+
+void AddLibraryMappingForChild(PRUint32    childPid,
+                               const char* library_name,
+                               const char* file_id,
+                               uintptr_t   start_address,
+                               size_t      mapping_length,
+                               size_t      file_offset);
+void RemoveLibraryMappingsForChild(PRUint32 childPid);
+#endif
 }
 
 #endif /* nsExceptionHandler_h__ */

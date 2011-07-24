@@ -35,6 +35,10 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "nsICharsetDetectionObserver.h"
+#include "nsICharsetDetector.h"
+#include "nsIPrefLocalizedString.h"
+#include "nsILineInputStream.h"
 #include "nsMsgAttachmentHandler.h"
 #include "prmem.h"
 #include "nsMsgCopy.h"
@@ -47,14 +51,12 @@
 #include "nsURLFetcher.h"
 #include "nsMimeTypes.h"
 #include "nsMsgCompCID.h"
-#include "nsReadableUtils.h"
 #include "nsIMsgMessageService.h"
 #include "nsMsgUtils.h"
 #include "nsMsgPrompts.h"
 #include "nsTextFormatter.h"
 #include "nsIPrompt.h"
 #include "nsITextToSubURI.h"
-#include "nsEscape.h"
 #include "nsIURL.h"
 #include "nsIFileURL.h"
 #include "nsNetCID.h"
@@ -104,7 +106,8 @@ nsresult nsSimpleZipper::AddToZip(nsIZipWriter *aZipWriter,
   // find out the path this file/dir should have in the zip
   nsCString leafName;
   aFile->GetNativeLeafName(leafName);
-  nsCString currentPath(aPath + leafName);
+  nsCString currentPath(aPath);
+  currentPath += leafName;
     
   PRBool isDirectory;
   aFile->IsDirectory(&isDirectory);
@@ -497,6 +500,100 @@ DONE:
   return 0;
 }
 
+class CharsetDetectionObserver : public nsICharsetDetectionObserver
+{
+public:
+  NS_DECL_ISUPPORTS
+  CharsetDetectionObserver(nsMsgAttachmentHandler* aAttachment)
+  {
+    m_attachment = aAttachment;
+  };
+
+  virtual ~CharsetDetectionObserver() {};
+  NS_IMETHOD Notify(const char* aCharset, nsDetectionConfident aConf)
+  {
+    m_attachment->m_charset = PL_strdup(aCharset);
+    return NS_OK;
+  };
+
+private:
+  nsMsgAttachmentHandler* m_attachment;
+};
+
+NS_IMPL_ISUPPORTS1(CharsetDetectionObserver, nsICharsetDetectionObserver)
+
+nsresult
+nsMsgAttachmentHandler::PickCharset()
+{
+
+  if (m_charset || strcmp(m_type, TEXT_PLAIN))
+    return NS_OK;;
+
+  nsCOMPtr<nsILocalFile> tmpFile =
+    do_QueryInterface(mTmpFile);
+  if (!tmpFile)
+    return NS_OK;
+  
+  nsCOMPtr<nsICharsetDetector> detector =
+    do_CreateInstance(NS_CHARSET_DETECTOR_CONTRACTID_BASE
+                             "universal_charset_detector");
+  if (!detector)
+  {
+    nsresult rv;
+    nsAdoptingString detectorName;
+    nsCOMPtr<nsIPrefBranch> prefBranch =
+      do_GetService(NS_PREFSERVICE_CONTRACTID,&rv);
+    NS_ENSURE_SUCCESS(rv,rv);
+
+    if (prefBranch)
+    {
+      nsCOMPtr<nsIPrefLocalizedString> prefLocalString;
+      prefBranch->GetComplexValue("intl.charset.detector",
+                          NS_GET_IID(nsIPrefLocalizedString),
+                          getter_AddRefs(prefLocalString));
+      prefLocalString->GetData(getter_Copies(detectorName));
+    }
+
+    // No universal charset detector, try the default charset detector
+    if (!detectorName.IsEmpty())
+    {
+      nsCAutoString detectorContractID;
+      detectorContractID.AssignLiteral(NS_CHARSET_DETECTOR_CONTRACTID_BASE);
+      AppendUTF16toUTF8(detectorName, detectorContractID);
+      detector = do_CreateInstance(detectorContractID.get());
+    }
+  }
+  
+  if (detector)
+  {
+    nsCOMPtr<nsIInputStream> inputFile;
+    nsCOMPtr<nsILineInputStream> lineInputStream;
+    nsCAutoString buffer;
+    PRBool isMore = PR_TRUE;
+    PRBool dontFeed = PR_FALSE;
+    nsCOMPtr<CharsetDetectionObserver> obs = new CharsetDetectionObserver(this);
+    nsresult rv;
+
+    nsCAutoString leafName;
+    tmpFile->GetNativeLeafName(leafName);
+    rv = NS_NewLocalFileInputStream(getter_AddRefs(inputFile), tmpFile);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    lineInputStream = do_QueryInterface(inputFile, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    detector->Init(obs);
+    while (isMore && NS_SUCCEEDED(lineInputStream->ReadLine(buffer, &isMore)))
+    {
+      detector->DoIt(buffer.get(), buffer.Length(), &dontFeed);
+      if (dontFeed)
+        break;
+    }
+    detector->Done();
+  }
+  return NS_OK;
+}
+    
 static nsresult
 FetcherURLDoneCallback(nsresult aStatus,
                        const nsACString &aContentType,
@@ -592,7 +689,7 @@ nsMsgAttachmentHandler::SnarfMsgAttachment(nsMsgCompFields *compFields)
     if (NS_SUCCEEDED(rv) && messageService)
     {
       nsCAutoString uri(m_uri);
-      uri += (uri.FindChar('?') == kNotFound) ? "?" : "&";
+      uri += (uri.FindChar('?') == kNotFound) ? '?' : '&';
       uri.Append("fetchCompleteMessage=true");
       nsCOMPtr<nsIStreamListener> strListener;
       fetcher->QueryInterface(NS_GET_IID(nsIStreamListener), getter_AddRefs(strListener));
@@ -658,16 +755,11 @@ done:
 }
 
 #ifdef XP_MACOSX
-PRBool nsMsgAttachmentHandler::HasResourceFork(FSSpec *fsSpec)
+PRBool nsMsgAttachmentHandler::HasResourceFork(FSRef *fsRef)
 {
-  FSRef fsRef;
-  if (::FSpMakeFSRef(fsSpec, &fsRef) == noErr)
-  {
-    FSCatalogInfo catalogInfo;
-    OSErr err = ::FSGetCatalogInfo(&fsRef, kFSCatInfoDataSizes + kFSCatInfoRsrcSizes, &catalogInfo, nsnull, nsnull, nsnull);
-    return (err == noErr && catalogInfo.rsrcLogicalSize != 0);
-  }
-  return PR_FALSE;
+  FSCatalogInfo catalogInfo;
+  OSErr err = FSGetCatalogInfo(fsRef, kFSCatInfoDataSizes + kFSCatInfoRsrcSizes, &catalogInfo, nsnull, nsnull, nsnull);
+  return (err == noErr && catalogInfo.rsrcLogicalSize != 0);
 }
 #endif
 
@@ -716,10 +808,11 @@ nsMsgAttachmentHandler::SnarfAttachment(nsMsgCompFields *compFields)
     // Unescape the path (i.e. un-URLify it) before making a FSSpec
     nsCAutoString filePath;
     filePath.Adopt(nsMsgGetLocalFileFromURL(sourceURISpec.get()));
-    nsUnescape(filePath.BeginWriting());
+    nsCAutoString unescapedFilePath;
+    MsgUnescapeString(filePath, 0, unescapedFilePath);
 
     nsCOMPtr<nsILocalFile> sourceFile;
-    NS_NewNativeLocalFile(filePath, PR_TRUE, getter_AddRefs(sourceFile));
+    NS_NewNativeLocalFile(unescapedFilePath, PR_TRUE, getter_AddRefs(sourceFile));
     if (!sourceFile)
       return NS_ERROR_FAILURE;
       
@@ -731,7 +824,7 @@ nsMsgAttachmentHandler::SnarfAttachment(nsMsgCompFields *compFields)
     if (isPackage)
       rv = ConvertToZipFile(macFile);
     else
-      rv = ConvertToAppleEncoding(sourceURISpec, filePath, macFile);
+      rv = ConvertToAppleEncoding(sourceURISpec, unescapedFilePath, macFile);
     
     NS_ENSURE_SUCCESS(rv, rv);
   }
@@ -795,24 +888,28 @@ nsMsgAttachmentHandler::ConvertToAppleEncoding(const nsCString &aFileURI,
   // convert the apple file to AppleDouble first, and then patch the
   // address in the url.
   
-
   //We need to retrieve the file type and creator...
-  FSSpec fsSpec;
-  aSourceFile->GetFSSpec(&fsSpec);
-  FInfo info;
-  if (FSpGetFInfo (&fsSpec, &info) == noErr)
-  {
-    char filetype[32];
-    PR_snprintf(filetype, sizeof(filetype), "%X", info.fdType);
-    PR_Free(m_x_mac_type);
-    m_x_mac_type = PL_strdup(filetype);
 
-    PR_snprintf(filetype, sizeof(filetype), "%X", info.fdCreator);
-    PR_Free(m_x_mac_creator);
-    m_x_mac_creator = PL_strdup(filetype);
-  }
+  char fileInfo[32];
+  OSType type, creator;
 
-  PRBool sendResourceFork = HasResourceFork(&fsSpec);
+  nsresult rv = aSourceFile->GetFileType(&type);
+  if (NS_FAILED(rv))
+    return PR_FALSE;
+  PR_snprintf(fileInfo, sizeof(fileInfo), "%X", type);
+  PR_Free(m_x_mac_type);
+  m_x_mac_type = PL_strdup(fileInfo);
+
+  rv = aSourceFile->GetFileCreator(&creator);
+  if (NS_FAILED(rv))
+    return PR_FALSE;
+  PR_snprintf(fileInfo, sizeof(fileInfo), "%X", creator);
+  PR_Free(m_x_mac_creator);
+  m_x_mac_creator = PL_strdup(fileInfo);
+
+  FSRef fsRef;
+  aSourceFile->GetFSRef(&fsRef);
+  PRBool sendResourceFork = HasResourceFork(&fsRef);
 
   // if we have a resource fork, check the filename extension, maybe we don't need the resource fork!
   if (sendResourceFork)
@@ -820,7 +917,7 @@ nsMsgAttachmentHandler::ConvertToAppleEncoding(const nsCString &aFileURI,
     nsCOMPtr<nsIURL> fileUrl(do_CreateInstance(NS_STANDARDURL_CONTRACTID));
     if (fileUrl)
     {
-      nsresult rv = fileUrl->SetSpec(aFileURI);
+      rv = fileUrl->SetSpec(aFileURI);
       if (NS_SUCCEEDED(rv))
       {
         nsCAutoString ext;
@@ -982,7 +1079,7 @@ nsMsgAttachmentHandler::ConvertToAppleEncoding(const nsCString &aFileURI,
 # define TEXT_TYPE  0x54455854  /* the characters 'T' 'E' 'X' 'T' */
 # define text_TYPE  0x74657874  /* the characters 't' 'e' 'x' 't' */
 
-      if (info.fdType != TEXT_TYPE && info.fdType != text_TYPE)
+      if (type != TEXT_TYPE && type != text_TYPE)
       {
         MacGetFileType(aSourceFile, &useDefault, &macType, &macEncoding);
         PR_Free(m_type);
@@ -1020,13 +1117,14 @@ nsMsgAttachmentHandler::LoadDataFromFile(nsILocalFile *file, nsString &sigData, 
   inputFile->Read(readBuf, readSize, &bytesRead);
   inputFile->Close();
 
+  nsDependentCString cstringReadBuf(readBuf, bytesRead);
   if (charsetConversion)
   {
-    if (NS_FAILED(ConvertToUnicode(m_charset, nsDependentCString(readBuf), sigData)))
-      CopyASCIItoUTF16(readBuf, sigData);
+    if (NS_FAILED(ConvertToUnicode(m_charset, cstringReadBuf, sigData)))
+      CopyASCIItoUTF16(cstringReadBuf, sigData);
   }
   else
-    CopyASCIItoUTF16(readBuf, sigData);
+    CopyASCIItoUTF16(cstringReadBuf, sigData);
 
   PR_FREEIF(readBuf);
   return NS_OK;
@@ -1035,8 +1133,8 @@ nsMsgAttachmentHandler::LoadDataFromFile(nsILocalFile *file, nsString &sigData, 
 nsresult
 nsMsgAttachmentHandler::Abort()
 {
-  nsCOMPtr<nsIRequest> saveRequest = mRequest;
-  mRequest = nsnull;
+  nsCOMPtr<nsIRequest> saveRequest;
+  saveRequest.swap(mRequest);
   NS_ASSERTION(m_mime_delivery_state != nsnull, "not-null m_mime_delivery_state");
 
   if (m_done)
@@ -1128,12 +1226,12 @@ nsMsgAttachmentHandler::UrlExit(nsresult status, const PRUnichar* aMsg)
     else
     if (NS_SUCCEEDED(mURL->GetSpec(turl)) && !turl.IsEmpty())
       {
-        nsCAutoString unescapeUrl(turl);
-        nsUnescape(unescapeUrl.BeginWriting());
-        if (unescapeUrl.IsEmpty())
+        nsCAutoString unescapedUrl;
+        MsgUnescapeString(turl, 0, unescapedUrl);
+        if (unescapedUrl.IsEmpty())
           printfString = nsTextFormatter::smprintf(msg.get(), turl.get());
         else
-          printfString = nsTextFormatter::smprintf(msg.get(), unescapeUrl.get());
+          printfString = nsTextFormatter::smprintf(msg.get(), unescapedUrl.get());
       }
     else
       printfString = nsTextFormatter::smprintf(msg.get(), "?");

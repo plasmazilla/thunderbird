@@ -42,7 +42,7 @@ VPATH = @srcdir@
 include $(DEPTH)/config/autoconf.mk
 
 GARBAGE_DIRS += _ipdlheaders
-GARBAGE += ipdl_lextab.py ipdl_yacctab.py
+GARBAGE += ipdl_lextab.py ipdl_yacctab.py $(wildcard *.pyc $(srcdir)/ipdl/*.pyc $(srcdir)/ipdl/cxx/*.pyc)
 
 MODULE = ipdlgen
 LIBRARY_NAME = mozipdlgen_s
@@ -54,9 +54,26 @@ EXPORT_LIBRARY = 1
 ## When you add IPDL files to a source directory, list the directory here.
 ##
 IPDLDIRS =  \
+  uriloader/exthandler \
   dom/plugins  \
-  ipc/ipdl/test/cxx  \
+  dom/ipc  \
+  dom/src/storage \
+  gfx/layers/ipc \
+  ipc/testshell  \
+  js/ipc  \
+  js/jetpack \
+  layout/ipc \
+  netwerk/ipc  \
+  netwerk/protocol/ftp \
+  netwerk/protocol/http  \
+  netwerk/protocol/wyciwyg \
+  netwerk/cookie  \
+  uriloader/prefetch  \
   $(NULL)
+
+ifdef MOZ_IPDL_TESTS #{
+IPDLDIRS += ipc/ipdl/test/cxx
+endif #}
 ##-----------------------------------------------------------------------------
 
 ifdef MOZ_IPDL_TESTS
@@ -82,10 +99,10 @@ CPPSRCS =					\
   $(PROTOCOLS:%.ipdl=%Child.cpp)		\
   $(NULL)
 
-LOCAL_INCLUDES += \
-  -I$(DEPTH)/ipc/ipdl/_ipdlheaders \
-  -I$(topsrcdir)/toolkit/crashreporter \
-  $(NULL)
+GARBAGE += $(CPPSRCS)
+
+LOCAL_INCLUDES += -I$(DEPTH)/ipc/ipdl/_ipdlheaders
+
 
 include $(topsrcdir)/config/config.mk
 include $(topsrcdir)/ipc/chromium/chromium-config.mk

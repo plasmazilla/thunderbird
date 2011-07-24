@@ -54,10 +54,10 @@ typedef nsXMLElement nsXTFElementWrapperBase;
 
 class nsXTFElementWrapper : public nsXTFElementWrapperBase,
                             public nsIXTFElementWrapper,
-                            public nsIClassInfo
+                            public nsXPCClassInfo
 {
 public:
-  nsXTFElementWrapper(nsINodeInfo* aNodeInfo, nsIXTFElement* aXTFElement);
+  nsXTFElementWrapper(already_AddRefed<nsINodeInfo> aNodeInfo, nsIXTFElement* aXTFElement);
   virtual ~nsXTFElementWrapper();
   nsresult Init();
 
@@ -72,6 +72,11 @@ public:
   NS_DECL_NSIXTFELEMENTWRAPPER
     
   // nsIContent specializations:
+#ifdef HAVE_CPP_AMBIGUITY_RESOLVING_USING
+  using nsINode::GetProperty;
+  using nsINode::SetProperty;
+#endif
+
   virtual nsresult BindToTree(nsIDocument* aDocument, nsIContent* aParent,
                               nsIContent* aBindingParent,
                               PRBool aCompileEventHandlers);
@@ -103,7 +108,7 @@ public:
   PRUint32 GetAttrCount() const;
   virtual already_AddRefed<nsINodeInfo> GetExistingAttrNameFromQName(const nsAString& aStr) const;
 
-  virtual PRInt32 IntrinsicState() const;
+  virtual nsEventStates IntrinsicState() const;
 
   virtual void BeginAddingChildren();
   virtual nsresult DoneAddingChildren(PRBool aHaveNotified);
@@ -122,7 +127,24 @@ public:
   
   // nsIClassInfo interface
   NS_DECL_NSICLASSINFO
-  
+
+  // nsIXPCScriptable interface
+  NS_FORWARD_SAFE_NSIXPCSCRIPTABLE(GetBaseXPCClassInfo())
+
+  // nsXPCClassInfo
+  virtual void PreserveWrapper(nsISupports *aNative)
+  {
+    nsXPCClassInfo *ci = GetBaseXPCClassInfo();
+    if (ci) {
+      ci->PreserveWrapper(aNative);
+    }
+  }
+  virtual PRUint32 GetInterfacesBitmap()
+  {
+    nsXPCClassInfo *ci = GetBaseXPCClassInfo();
+    return ci ? ci->GetInterfacesBitmap() :  0;
+  }
+
   virtual nsresult PostHandleEvent(nsEventChainPostVisitor& aVisitor);
 
   nsresult CloneState(nsIDOMElement *aElement)
@@ -131,12 +153,24 @@ public:
   }
   nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
 
+  virtual nsXPCClassInfo* GetClassInfo() { return this; }
+
+  virtual void NodeInfoChanged(nsINodeInfo* aOldNodeInfo)
+  {
+  }
+
 protected:
   virtual nsIXTFElement* GetXTFElement() const
   {
     return mXTFElement;
   }
-  
+
+  static nsXPCClassInfo* GetBaseXPCClassInfo()
+  {
+    return static_cast<nsXPCClassInfo*>(
+      NS_GetDOMClassInfoInstance(eDOMClassInfo_Element_id));
+  }
+
   // implementation helpers:  
   PRBool QueryInterfaceInner(REFNSIID aIID, void** result);
 
@@ -153,7 +187,7 @@ protected:
    * The intrinsic state of the element.
    * @see nsIContent::IntrinsicState()
    */
-  PRInt32 mIntrinsicState;
+  nsEventStates mIntrinsicState;
 
   // Temporary owner used by GetAttrNameAt
   nsAttrName mTmpAttrName;
@@ -164,7 +198,7 @@ protected:
 NS_DEFINE_STATIC_IID_ACCESSOR(nsXTFElementWrapper, NS_XTFELEMENTWRAPPER_IID)
 
 nsresult
-NS_NewXTFElementWrapper(nsIXTFElement* aXTFElement, nsINodeInfo* aNodeInfo,
+NS_NewXTFElementWrapper(nsIXTFElement* aXTFElement, already_AddRefed<nsINodeInfo> aNodeInfo,
                         nsIContent** aResult);
 
 #endif // __NS_XTFELEMENTWRAPPER_H__

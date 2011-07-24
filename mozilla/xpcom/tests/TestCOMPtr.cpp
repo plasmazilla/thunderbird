@@ -320,58 +320,6 @@ AnISupportsPtrPtrContext( nsISupports** )
 	{
 	}
 
-
-// Optimism
-#define TEST_EXCEPTIONS 1
-
-// HAVE_CPP_EXCEPTIONS is defined automagically on unix
-#if defined(XP_UNIX) || defined(XP_BEOS) || defined(XP_OS2)
-#if !defined(HAVE_CPP_EXCEPTIONS)
-#undef TEST_EXCEPTIONS
-#endif
-#endif
-
-#ifdef TEST_EXCEPTIONS
-static
-nsresult
-TestBloat_Raw()
-	{
-		IBar* barP = 0;
-		nsresult result = CreateIBar(REINTERPRET_CAST(void**, &barP));
-
-		if ( barP )
-			{
-				try
-					{
-						IFoo* fooP = 0;
-						if ( NS_SUCCEEDED( result = barP->QueryInterface(NS_GET_IID(IFoo), REINTERPRET_CAST(void**, &fooP)) ) )
-							{
-								try
-									{
-										fooP->print_totals();
-									}
-								catch( ... )
-									{
-										NS_RELEASE(fooP);
-										throw;
-									}
-
-								NS_RELEASE(fooP);
-							}
-					}
-				catch( ... )
-					{
-						NS_RELEASE(barP);
-						throw;
-					}
-
-				NS_RELEASE(barP);
-			}
-
-		return result;
-	}
-#endif // TEST_EXCEPTIONS
-
 static
 nsresult
 TestBloat_Raw_Unsafe()
@@ -420,11 +368,8 @@ main()
   {
     printf(">>main()\n");
 
-		printf("sizeof(nsCOMPtr<IFoo>) --> %d\n", sizeof(nsCOMPtr<IFoo>));
+		printf("sizeof(nsCOMPtr<IFoo>) --> %u\n", unsigned(sizeof(nsCOMPtr<IFoo>)));
 
-#ifdef TEST_EXCEPTIONS
-		TestBloat_Raw();
-#endif // TEST_EXCEPTIONS
 		TestBloat_Raw_Unsafe();
 		TestBloat_Smart();
 

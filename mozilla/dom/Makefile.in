@@ -64,6 +64,7 @@ DIRS = \
   interfaces/offline \
   interfaces/geolocation \
   interfaces/threads \
+  interfaces/notification \
   $(NULL)
 
 ifdef MOZ_SVG
@@ -80,6 +81,9 @@ DIRS += \
   src \
   locales \
   plugins \
+  indexedDB \
+  system \
+  ipc \
   $(NULL)
 
 ifdef ENABLE_TESTS

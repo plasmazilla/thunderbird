@@ -59,7 +59,7 @@ const fsDebugAll = 3;
 /**
  * JavaScript constructors for commonly-used classes; precreating these is a
  * speedup over doing the same from base principles.  See the docs at
- * http://developer.mozilla.org/en/docs/Components.Constructor for details.
+ * http://developer.mozilla.org/en/Components.Constructor for details.
  */
 const ServerSocket = CC("@mozilla.org/network/server-socket;1",
                         "nsIServerSocket",
@@ -167,7 +167,7 @@ nsMailServer.prototype = {
 
     this._socketClosed = true;
     // We've been killed or we've stopped, reset the handler to the original
-    // state
+    // state (e.g. to require authentication again).
     this._handler.resetTest();
   },
 
@@ -199,10 +199,8 @@ nsMailServer.prototype = {
     this._socket.close();
     this._socket = null;
 
-    if (this._readers.some(function (e) { return e.observer.forced })) {
-      do_test_finished();
+    if (this._readers.some(function (e) { return e.observer.forced }))
       return;
-    }
 
     // spin an event loop and wait for the socket-close notification
     var thr = gThreadManager.currentThread;
@@ -433,6 +431,9 @@ nsMailReader.prototype = {
 
         this._preventLFMunge = false;
         this._handler.postCommand(this);
+
+        if (this.watchWord && command == this.watchWord)
+          this.stopTest();
       } catch (e) {
         response = this._handler.onServerFault(e);
         if (e instanceof Error) {

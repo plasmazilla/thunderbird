@@ -36,10 +36,12 @@
  * 
  * ***** END LICENSE BLOCK ***** */
 
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+
+gBrowser.selectedTab = gBrowser.addTab();
+
 function test() {
-  // Due to LAZY_ADD this is an async test.
   waitForExplicitFinish();
-  const LAZY_ADD_TIMER = 3000;
 
   var URIs = [
     "http://example.com/tests/toolkit/components/places/tests/browser/399606-window.location.href.html",
@@ -70,18 +72,35 @@ function test() {
     onDeleteURI: function(aURI) {},
     onClearHistory: function() {},
     onPageChanged: function(aURI, aWhat, aValue) {},
-    onPageExpired: function(aURI, aVisitTime, aWholeEntry) {},
+    onDeleteVisits: function() {},
     QueryInterface: XPCOMUtils.generateQI([Ci.nsINavHistoryObserver])
   };
   hs.addObserver(historyObserver, false);
 
+  /**
+   * Clears history invoking callback when done.
+   */
+  function waitForClearHistory(aCallback)
+  {
+    let observer = {
+      observe: function(aSubject, aTopic, aData)
+      {
+        Services.obs.removeObserver(this, PlacesUtils.TOPIC_EXPIRATION_FINISHED);
+        aCallback(aSubject, aTopic, aData);
+      }
+    };
+    Services.obs.addObserver(observer, PlacesUtils.TOPIC_EXPIRATION_FINISHED, false);
+    PlacesUtils.bhistory.removeAllPages();
+  }
+
   function confirm_results() {
+    gBrowser.removeCurrentTab();
     hs.removeObserver(historyObserver, false);
     for (let aURI in historyObserver.visitCount) {
-      is(historyObserver.visitCount[aURI], 1, "onVisit has been received right number of times for " + aURI);
+      is(historyObserver.visitCount[aURI], 1,
+         "onVisit has been received right number of times for " + aURI);
     }
-    hs.QueryInterface(Ci.nsIBrowserHistory).removeAllPages();
-    finish();
+    waitForClearHistory(finish);
   }
 
   var loadCount = 0;
@@ -90,8 +109,8 @@ function test() {
     info("new load count is " + loadCount);
 
     if (loadCount == 3) {
-      window.getBrowser().removeEventListener("DOMContentLoaded", handleLoad, true);
-      window.content.document.location.href = "about:blank";
+      gBrowser.removeEventListener("DOMContentLoaded", handleLoad, true);
+      content.location.href = "about:blank";
       executeSoon(check_next_uri);
     }
   }
@@ -100,11 +119,11 @@ function test() {
     if (URIs.length) {
       let uri = URIs.shift();
       loadCount = 0;
-      window.getBrowser().addEventListener("DOMContentLoaded", handleLoad, true);
-      window.content.document.location.href = uri;
+      gBrowser.addEventListener("DOMContentLoaded", handleLoad, true);
+      content.location.href = uri;
     }
     else {
-      setTimeout(confirm_results, LAZY_ADD_TIMER * 2);
+      confirm_results();
     }
   }
   executeSoon(check_next_uri);

@@ -46,50 +46,7 @@ MODULE		= content
 LIBRARY_NAME	= gkconbase_s
 LIBXUL_LIBRARY	= 1
 
-REQUIRES	= xpcom \
-		  string \
-		  dom \
-		  gfx \
-		  thebes \
-		  layout \
-		  widget \
-		  view \
-		  locale \
-		  htmlparser \
-		  js \
-		  webshell \
-		  necko \
-		  nkcache \
-		  mimetype \
-		  exthandler \
-		  chardet \
-		  caps \
-		  lwbrk \
-		  uconv \
-		  docshell \
-		  pref \
-		  xpconnect \
-		  unicharutil \
-		  intl \
-		  webbrowserpersist \
-		  imglib2 \
-		  plugin \
-		  prefetch \
-		  xuldoc \
-		  uriloader \
-		  rdf \
-		  xultmpl \
-		  util \
-		  appshell \
-		  shistory \
-		  editor \
-		  windowwatcher \
-		  html5 \
-		  $(NULL)
 
-ifdef ACCESSIBILITY
-REQUIRES	+= accessibility
-endif
 
 EXPORTS		= \
 		nsAtomListUtils.h \
@@ -107,12 +64,19 @@ EXPORTS		= \
 		mozAutoDocUpdate.h \
 		$(NULL)
 
+EXPORTS_NAMESPACES = mozilla/dom
+
+EXPORTS_mozilla/dom = \
+  Link.h \
+  $(NULL)
+
 CPPSRCS		= \
 		mozSanitizingSerializer.cpp \
 		nsAtomListUtils.cpp \
 		nsAttrAndChildArray.cpp \
 		nsAttrValue.cpp \
 		nsCCUncollectableMarker.cpp \
+		nsChannelPolicy.cpp \
 		nsCommentNode.cpp \
 		nsContentAreaDragDrop.cpp \
 		nsContentIterator.cpp \
@@ -122,20 +86,24 @@ CPPSRCS		= \
 		nsContentUtils.cpp \
 		nsCopySupport.cpp \
 		nsCrossSiteListenerProxy.cpp \
+		nsCSPService.cpp \
 		nsDataDocumentContentPolicy.cpp \
 		nsDOMAttribute.cpp \
 		nsDOMAttributeMap.cpp \
 		nsDOMDocumentType.cpp \
+		nsDOMEventTargetWrapperCache.cpp \
 		nsDOMFile.cpp \
 		nsDOMFileReader.cpp \
 		nsDOMLists.cpp \
 		nsDOMParser.cpp \
 		nsDOMSerializer.cpp \
 		nsDOMTokenList.cpp \
+		nsDOMSettableTokenList.cpp \
 		nsDocument.cpp \
 		nsDocumentEncoder.cpp \
 		nsDocumentFragment.cpp \
 		nsFrameLoader.cpp \
+		nsFormData.cpp \
 		nsGenConImageContent.cpp \
 		nsGenericDOMDataNode.cpp \
 		nsGenericElement.cpp \
@@ -171,11 +139,31 @@ CPPSRCS		= \
 		nsTextNode.cpp \
 		nsTraversal.cpp \
 		nsTreeWalker.cpp \
+		nsWebSocket.cpp \
 		nsXHTMLContentSerializer.cpp \
 		nsXMLContentSerializer.cpp \
 		nsXMLHttpRequest.cpp \
 		nsXMLNameSpaceMap.cpp \
+		Link.cpp \
+		nsFileDataProtocolHandler.cpp \
+		nsFrameMessageManager.cpp \
+		nsInProcessTabChildGlobal.cpp \
+		ThirdPartyUtil.cpp \
 		$(NULL)
+
+# Are we targeting x86-32 or x86-64?  If so, we want to include SSE2 code for
+# nsTextFragment.cpp
+ifneq (,$(INTEL_ARCHITECTURE))
+
+CPPSRCS += nsTextFragmentSSE2.cpp
+
+# gcc requires -msse2 for this file since it uses SSE2 intrinsics.  (See bug
+# 585538 comment 12.)
+ifdef GNU_CC
+nsTextFragmentSSE2.$(OBJ_SUFFIX): CXXFLAGS+=-msse2
+endif
+
+endif
 
 GQI_SRCS = contentbase.gqi
 
@@ -183,14 +171,29 @@ GQI_SRCS = contentbase.gqi
 # static lib.
 FORCE_STATIC_LIB = 1
 
-EXTRA_COMPONENTS = $(srcdir)/nsBadCertHandler.js
+EXTRA_COMPONENTS = \
+		$(srcdir)/nsBadCertHandler.js \
+		nsBadCertHandler.manifest \
+		contentSecurityPolicy.js \
+		contentSecurityPolicy.manifest \
+		contentAreaDropListener.js \
+		contentAreaDropListener.manifest \
+		messageWakeupService.js \
+		messageWakeupService.manifest \
+		$(NULL)
 
+EXTRA_JS_MODULES = \
+		CSPUtils.jsm \
+		$(NULL)
+
+include $(topsrcdir)/config/config.mk
+include $(topsrcdir)/ipc/chromium/chromium-config.mk
 include $(topsrcdir)/config/rules.mk
 
 INCLUDES	+= \
 		-I$(srcdir)/../../events/src \
 		-I$(srcdir)/../../xml/content/src \
-		-I$(srcdir)/../../xul/base/src \
+		-I$(srcdir)/../../../layout/xul/base/src \
 		-I$(srcdir)/../../xul/content/src \
 		-I$(srcdir)/../../html/content/src \
 		-I$(srcdir)/../../base/src \
@@ -200,6 +203,9 @@ INCLUDES	+= \
 		-I$(srcdir)/../../../dom/base \
 		-I$(srcdir)/../../xml/document/src \
 		-I$(topsrcdir)/xpcom/io \
+		-I$(topsrcdir)/dom/ipc \
+		-I$(topsrcdir)/js/src/xpconnect/src \
+		-I$(topsrcdir)/caps/include \
 		$(NULL)
 
 DEFINES += -D_IMPL_NS_LAYOUT

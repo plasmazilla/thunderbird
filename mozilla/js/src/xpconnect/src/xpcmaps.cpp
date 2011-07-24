@@ -474,7 +474,9 @@ XPCNativeScriptableSharedMap::Entry::Hash(JSDHashTable *table, const void *key)
     XPCNativeScriptableShared* obj =
         (XPCNativeScriptableShared*) key;
 
-    // hash together the flags and the classname string
+    // hash together the flags and the classname string, ignore the interfaces
+    // bitmap since it's very rare that it's different when flags and classname
+    // are the same.
 
     h = (JSDHashNumber) obj->GetFlags();
     for (s = (const unsigned char*) obj->GetJSClass()->name; *s != '\0'; s++)
@@ -493,9 +495,10 @@ XPCNativeScriptableSharedMap::Entry::Match(JSDHashTable *table,
     XPCNativeScriptableShared* obj2 =
         (XPCNativeScriptableShared*) key;
 
-    // match the flags and the classname string
+    // match the flags, the classname string and the interfaces bitmap
 
-    if(obj1->GetFlags() != obj2->GetFlags())
+    if(obj1->GetFlags() != obj2->GetFlags() ||
+       obj1->GetInterfacesBitmap() != obj2->GetInterfacesBitmap())
         return JS_FALSE;
 
     const char* name1 = obj1->GetJSClass()->name;
@@ -545,13 +548,13 @@ JSBool
 XPCNativeScriptableSharedMap::GetNewOrUsed(JSUint32 flags,
                                            char* name,
                                            JSBool isGlobal,
+                                           PRUint32 interfacesBitmap,
                                            XPCNativeScriptableInfo* si)
 {
     NS_PRECONDITION(name,"bad param");
     NS_PRECONDITION(si,"bad param");
 
-    XPCNativeScriptableShared key(flags, name);
-
+    XPCNativeScriptableShared key(flags, name, interfacesBitmap);
     Entry* entry = (Entry*)
         JS_DHashTableOperate(mTable, &key, JS_DHASH_ADD);
     if(!entry)
@@ -562,7 +565,8 @@ XPCNativeScriptableSharedMap::GetNewOrUsed(JSUint32 flags,
     if(!shared)
     {
         entry->key = shared =
-            new XPCNativeScriptableShared(flags, key.TransferNameOwnership());
+            new XPCNativeScriptableShared(flags, key.TransferNameOwnership(),
+                                          interfacesBitmap);
         if(!shared)
             return JS_FALSE;
         shared->PopulateJSClass(isGlobal);
@@ -757,5 +761,20 @@ WrappedNative2WrapperMap::AddLink(JSObject* wrappedObject, Link* oldLink)
 
     return PR_TRUE;
 }
+
+/***************************************************************************/
+// implement JSObject2JSObjectMap...
+
+struct JSDHashTableOps
+JSObject2JSObjectMap::sOps = {
+    JS_DHashAllocTable,
+    JS_DHashFreeTable,
+    JS_DHashVoidPtrKeyStub,
+    JS_DHashMatchEntryStub,
+    JS_DHashMoveEntryStub,
+    JS_DHashClearEntryStub,
+    JS_DHashFinalizeStub,
+    nsnull
+};
 
 /***************************************************************************/

@@ -35,10 +35,12 @@
 #include <stdio.h> /* For stderr */
 #include <string.h> /* For strncmp */
 #include <assert.h>
+#include "icalmemory.h"
+
 #ifdef WIN32
 #define snprintf _snprintf
 #endif
-#include "icalmemory.h"
+
 
 /*** @brief Allowed request status values
  */

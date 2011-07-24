@@ -46,8 +46,22 @@
 %{ C++
 #define NS_SUCCESS_I_DID_SOMETHING \
    (NS_ERROR_GENERATE_SUCCESS(NS_ERROR_MODULE_XPCONNECT,1))
+
+/**
+ * Classes that want to only be touched by chrome (or from code whose filename
+ * begins with chrome://global/) shoudl return this from their scriptable
+ * helper's PreCreate hook.
+ */
 #define NS_SUCCESS_CHROME_ACCESS_ONLY \
    (NS_ERROR_GENERATE_SUCCESS(NS_ERROR_MODULE_XPCONNECT,2))
+
+/**
+ * Classes that want slim wrappers should return NS_SUCCESS_ALLOW_SLIM_WRAPPERS
+ * from their scriptable helper's PreCreate hook. They must also force a parent
+ * for their wrapper (from the PreCreate hook), they must implement
+ * nsWrapperCache and their scriptable helper must implement nsXPCClassInfo and
+ * must return DONT_ASK_INSTANCE_FOR_SCRIPTABLE in the flags.
+ */
 #define NS_SUCCESS_ALLOW_SLIM_WRAPPERS \
    (NS_ERROR_GENERATE_SUCCESS(NS_ERROR_MODULE_XPCONNECT,3))
 %}
@@ -59,7 +73,7 @@
  * to *_retval unless they want to return PR_FALSE.
  */
 
-[uuid(5d309b93-e9b4-4374-bcd5-44245c83408f)]
+[uuid(a40ce52e-2d8c-400f-9af2-f8784a656070)]
 interface nsIXPCScriptable : nsISupports
 {
     /* bitflags used for 'flags' (only 32 bits available!) */
@@ -94,7 +108,6 @@ interface nsIXPCScriptable : nsISupports
     const PRUint32 DONT_REFLECT_INTERFACE_NAMES     = 1 << 27;
     const PRUint32 WANT_EQUALITY                    = 1 << 28;
     const PRUint32 WANT_OUTER_OBJECT                = 1 << 29;
-    const PRUint32 WANT_INNER_OBJECT                = 1 << 30;
 
     // The high order bit is RESERVED for consumers of these flags. 
     // No implementor of this interface should ever return flags 
@@ -114,23 +127,23 @@ interface nsIXPCScriptable : nsISupports
                       in JSContextPtr cx, in JSObjectPtr obj);
 
     PRBool addProperty(in nsIXPConnectWrappedNative wrapper,
-                       in JSContextPtr cx, in JSObjectPtr obj, in JSVal id,
+                       in JSContextPtr cx, in JSObjectPtr obj, in jsid id,
                        in JSValPtr vp);
 
     PRBool delProperty(in nsIXPConnectWrappedNative wrapper,
-                       in JSContextPtr cx, in JSObjectPtr obj, in JSVal id,
+                       in JSContextPtr cx, in JSObjectPtr obj, in jsid id,
                        in JSValPtr vp);
 
     // The returnCode should be set to NS_SUCCESS_I_DID_SOMETHING if
     // this method does something.
     PRBool getProperty(in nsIXPConnectWrappedNative wrapper,
-                       in JSContextPtr cx, in JSObjectPtr obj, in JSVal id,
+                       in JSContextPtr cx, in JSObjectPtr obj, in jsid id,
                        in JSValPtr vp);
 
     // The returnCode should be set to NS_SUCCESS_I_DID_SOMETHING if
     // this method does something.
     PRBool setProperty(in nsIXPConnectWrappedNative wrapper,
-                       in JSContextPtr cx, in JSObjectPtr obj, in JSVal id,
+                       in JSContextPtr cx, in JSObjectPtr obj, in jsid id,
                        in JSValPtr vp);
 
     PRBool enumerate(in nsIXPConnectWrappedNative wrapper,
@@ -138,10 +151,10 @@ interface nsIXPCScriptable : nsISupports
 
     PRBool newEnumerate(in nsIXPConnectWrappedNative wrapper,
                         in JSContextPtr cx, in JSObjectPtr obj,
-                        in PRUint32 enum_op, in JSValPtr statep, out JSID idp);
+                        in PRUint32 enum_op, in JSValPtr statep, out jsid idp);
 
     PRBool newResolve(in nsIXPConnectWrappedNative wrapper,
-                      in JSContextPtr cx, in JSObjectPtr obj, in JSVal id,
+                      in JSContextPtr cx, in JSObjectPtr obj, in jsid id,
                       in PRUint32 flags, out JSObjectPtr objp);
 
     PRBool convert(in nsIXPConnectWrappedNative wrapper,
@@ -152,7 +165,7 @@ interface nsIXPCScriptable : nsISupports
                     in JSContextPtr cx, in JSObjectPtr obj);
 
     PRBool checkAccess(in nsIXPConnectWrappedNative wrapper,
-                       in JSContextPtr cx, in JSObjectPtr obj, in JSVal id,
+                       in JSContextPtr cx, in JSObjectPtr obj, in jsid id,
                        in PRUint32 mode, in JSValPtr vp);
 
     PRBool call(in nsIXPConnectWrappedNative wrapper,
@@ -165,19 +178,51 @@ interface nsIXPCScriptable : nsISupports
 
     PRBool hasInstance(in nsIXPConnectWrappedNative wrapper,
                        in JSContextPtr cx, in JSObjectPtr obj,
-                       in JSVal val, out PRBool bp);
+                       in jsval val, out PRBool bp);
 
     void trace(in nsIXPConnectWrappedNative wrapper,
                in JSTracerPtr trc, in JSObjectPtr obj);
 
     PRBool equality(in nsIXPConnectWrappedNative wrapper,
-                    in JSContextPtr cx, in JSObjectPtr obj, in JSVal val);
+                    in JSContextPtr cx, in JSObjectPtr obj, in jsval val);
 
     JSObjectPtr outerObject(in nsIXPConnectWrappedNative wrapper,
                             in JSContextPtr cx, in JSObjectPtr obj);
 
-    JSObjectPtr innerObject(in nsIXPConnectWrappedNative wrapper,
-                            in JSContextPtr cx, in JSObjectPtr obj);
-
     void postCreatePrototype(in JSContextPtr cx, in JSObjectPtr proto);
 };
+
+%{ C++
+
+#include "nsAutoPtr.h"
+
+#define NS_XPCCLASSINFO_IID \
+{ 0x9a5b0342, 0x0f70, 0x4d31, \
+ { 0xb7, 0xd7, 0x29, 0x68, 0xa5, 0x70, 0x4b, 0xd8 } }
+
+class NS_NO_VTABLE nsXPCClassInfo : public nsIClassInfo,
+                                    public nsIXPCScriptable
+{
+public:
+  NS_DECLARE_STATIC_IID_ACCESSOR(NS_XPCCLASSINFO_IID)
+
+  NS_IMETHOD_(nsrefcnt) AddRef() = 0;
+  NS_IMETHOD_(nsrefcnt) Release() = 0;
+
+  virtual void PreserveWrapper(nsISupports *aNative) = 0;
+
+  virtual PRUint32 GetInterfacesBitmap() = 0;
+};
+
+NS_DEFINE_STATIC_IID_ACCESSOR(nsXPCClassInfo, NS_XPCCLASSINFO_IID)
+
+inline
+nsresult
+CallQueryInterface(nsISupports* aSourcePtr,
+                   nsRefPtrGetterAddRefs<nsXPCClassInfo> aDestPtr)
+{
+  return CallQueryInterface(aSourcePtr,
+                            static_cast<nsXPCClassInfo**>(aDestPtr));
+}
+
+%}

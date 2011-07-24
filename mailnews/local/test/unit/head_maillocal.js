@@ -1,11 +1,13 @@
+gDEPTH = "../../../../";
+
 // Import the main scripts that mailnews tests need to set up and tear down
-load("../../mailnews/resources/mailDirService.js");
-load("../../mailnews/resources/mailTestUtils.js");
+load("../../../resources/mailDirService.js");
+load("../../../resources/mailTestUtils.js");
 
 // Import the pop3 server scripts
-load("../../mailnews/fakeserver/maild.js")
-load("../../mailnews/fakeserver/auth.js")
-load("../../mailnews/fakeserver/pop3d.js")
+load("../../../fakeserver/maild.js")
+load("../../../fakeserver/auth.js")
+load("../../../fakeserver/pop3d.js")
 
 const POP3_PORT = 1024+110;
 
@@ -22,16 +24,8 @@ function setupServerDaemon(debugOption) {
 
 function createPop3ServerAndLocalFolders() {
   loadLocalMailAccount();
-
-  var acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
-
-  var incoming = acctMgr.createIncomingServer("fred", "localhost", "pop3");
-
-  incoming.port = POP3_PORT;
-  incoming.password = "wilma";
-
-  return incoming;
+  let server = create_incoming_server("pop3", POP3_PORT, "fred", "wilma");
+  return server;
 }
 
 function do_check_transaction(real, expected) {

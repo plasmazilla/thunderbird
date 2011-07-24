@@ -2,8 +2,8 @@
 
 /* Test of accessing over 2GB local folder */
 
-load("../../mailnews/resources/messageGenerator.js");
-const bugmail10 = do_get_file("../../mailnews/data/bugmail10");
+load("../../../resources/messageGenerator.js");
+const bugmail10 = do_get_file("../../../data/bugmail10");
 
 var gLocalTrashFolder;
 var gCopyService;
@@ -110,7 +110,7 @@ gStreamListener = {
     var original = stream.read(this._data.length);
 
     do_check_eq(this._data, original);
-    do_timeout(0, do_test_end());
+    do_timeout(0, do_test_end);
   },
   onDataAvailable : function (aRequest, aContext, aInputStream, aOff, aCount) {
     if (this._stream == null) {

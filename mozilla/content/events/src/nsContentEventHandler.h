@@ -83,18 +83,24 @@ public:
   nsresult OnQuerySelectionAsTransferable(nsQueryContentEvent* aEvent);
   // NS_QUERY_CHARACTER_AT_POINT event handler
   nsresult OnQueryCharacterAtPoint(nsQueryContentEvent* aEvent);
+  // NS_QUERY_DOM_WIDGET_HITTEST event handler
+  nsresult OnQueryDOMWidgetHittest(nsQueryContentEvent* aEvent);
 
   // NS_SELECTION_* event
   nsresult OnSelectionEvent(nsSelectionEvent* aEvent);
 
 protected:
   nsPresContext* mPresContext;
-  nsIPresShell* mPresShell;
+  nsCOMPtr<nsIPresShell> mPresShell;
   nsCOMPtr<nsISelection> mSelection;
   nsCOMPtr<nsIRange> mFirstSelectedRange;
   nsCOMPtr<nsIContent> mRootContent;
 
   nsresult Init(nsQueryContentEvent* aEvent);
+  nsresult Init(nsSelectionEvent* aEvent);
+
+  // InitCommon() is called from each Init().
+  nsresult InitCommon();
 
 public:
   // FlatText means the text that is generated from DOM tree. The BR elements

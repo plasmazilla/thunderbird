@@ -35,12 +35,13 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#ifndef nsEntityConverter_h__
+#define nsEntityConverter_h__
+
 #include "nsIEntityConverter.h"
 #include "nsIFactory.h"
 #include "nsIStringBundle.h"
 #include "nsCOMPtr.h"
-
-nsresult NS_NewEntityConverter(nsISupports** oResult);
 
 #define kVERSION_STRING_LEN 128
 
@@ -95,3 +96,5 @@ protected:
   nsEntityVersionList *mVersionList;            // array of version number/name pairs
   PRUint32 mVersionListLength;                  // number of supported versions
 };
+
+#endif

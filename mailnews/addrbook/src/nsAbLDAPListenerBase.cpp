@@ -51,6 +51,10 @@
 #include "nsILoginInfo.h"
 #include "nsServiceManagerUtils.h"
 #include "nsXPCOMCIDInternal.h"
+#include "nsComponentManagerUtils.h"
+#include "nsMemory.h"
+
+using namespace mozilla;
 
 nsAbLDAPListenerBase::nsAbLDAPListenerBase(nsILDAPURL* url,
                                            nsILDAPConnection* connection,
@@ -58,14 +62,12 @@ nsAbLDAPListenerBase::nsAbLDAPListenerBase(nsILDAPURL* url,
                                            const PRInt32 timeOut) :
   mDirectoryUrl(url), mConnection(connection), mLogin(login),
   mTimeOut(timeOut), mBound(PR_FALSE), mInitialized(PR_FALSE),
-  mLock(nsnull)
+  mLock("nsAbLDAPListenerBase.mLock")
 {
 }
 
 nsAbLDAPListenerBase::~nsAbLDAPListenerBase()
 {
-  if (mLock)
-    PR_DestroyLock(mLock);
 }
 
 nsresult nsAbLDAPListenerBase::Initiate()
@@ -75,10 +77,6 @@ nsresult nsAbLDAPListenerBase::Initiate()
 
   if (mInitialized)
     return NS_OK;
-
-  mLock = PR_NewLock();
-  if (!mLock)
-    return NS_ERROR_OUT_OF_MEMORY;
 
   mInitialized = PR_TRUE;
 

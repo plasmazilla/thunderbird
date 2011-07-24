@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-var gTestfile = 'regress-358594-05.js';
 
 //-----------------------------------------------------------------------------
 var BUGNUMBER = 358594;
@@ -57,7 +56,7 @@ function test()
   // don't crash|assert
   f = function () { };
   f.hhhhhhhhh = this; 
-  this.m setter = f; 
+  Object.defineProperty(this, "m", { set: f, enumerable: true, configurable: true });
   uneval(this);
   reportCompare(expect, actual, summary);
 

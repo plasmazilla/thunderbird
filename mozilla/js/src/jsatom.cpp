@@ -44,8 +44,8 @@
 #include <string.h>
 #include "jstypes.h"
 #include "jsstdint.h"
-#include "jsutil.h" /* Added by JSIFY */
-#include "jshash.h" /* Added by JSIFY */
+#include "jsutil.h"
+#include "jshash.h"
 #include "jsprf.h"
 #include "jsapi.h"
 #include "jsatom.h"
@@ -55,10 +55,16 @@
 #include "jslock.h"
 #include "jsnum.h"
 #include "jsparse.h"
-#include "jsscan.h"
 #include "jsstr.h"
 #include "jsversion.h"
+#include "jsxml.h"
+
 #include "jsstrinlines.h"
+#include "jsatominlines.h"
+#include "jsobjinlines.h"
+
+using namespace js;
+using namespace js::gc;
 
 /*
  * ATOM_HASH assumes that JSHashNumber is 32-bit even on 64-bit systems.
@@ -83,9 +89,9 @@ JS_STATIC_ASSERT((1 + 2) * sizeof(JSAtom *) ==
                  offsetof(JSAtomState, typeAtoms) - ATOM_OFFSET_START);
 
 const char *
-js_AtomToPrintableString(JSContext *cx, JSAtom *atom)
+js_AtomToPrintableString(JSContext *cx, JSAtom *atom, JSAutoByteString *bytes)
 {
-    return js_ValueToPrintableString(cx, ATOM_KEY(atom));
+    return js_ValueToPrintable(cx, StringValue(atom), bytes);
 }
 
 #define JS_PROTO(name,code,init) const char js_##name##_str[] = #name;
@@ -132,32 +138,51 @@ const char *const js_common_atom_names[] = {
     js_caller_str,              /* callerAtom                   */
     js_class_prototype_str,     /* classPrototypeAtom           */
     js_constructor_str,         /* constructorAtom              */
-    js_count_str,               /* countAtom                    */
     js_each_str,                /* eachAtom                     */
     js_eval_str,                /* evalAtom                     */
     js_fileName_str,            /* fileNameAtom                 */
     js_get_str,                 /* getAtom                      */
-    js_getter_str,              /* getterAtom                   */
+    js_global_str,              /* globalAtom                   */
+    js_ignoreCase_str,          /* ignoreCaseAtom               */
     js_index_str,               /* indexAtom                    */
     js_input_str,               /* inputAtom                    */
+    "toISOString",              /* toISOStringAtom              */
     js_iterator_str,            /* iteratorAtom                 */
+    js_join_str,                /* joinAtom                     */
+    js_lastIndex_str,           /* lastIndexAtom                */
     js_length_str,              /* lengthAtom                   */
     js_lineNumber_str,          /* lineNumberAtom               */
     js_message_str,             /* messageAtom                  */
+    js_multiline_str,           /* multilineAtom                */
     js_name_str,                /* nameAtom                     */
     js_next_str,                /* nextAtom                     */
     js_noSuchMethod_str,        /* noSuchMethodAtom             */
-    js_parent_str,              /* parentAtom                   */
+    "[object Null]",            /* objectNullAtom               */
+    "[object Undefined]",       /* objectUndefinedAtom          */
     js_proto_str,               /* protoAtom                    */
     js_set_str,                 /* setAtom                      */
-    js_setter_str,              /* setterAtom                   */
+    js_source_str,              /* sourceAtom                   */
     js_stack_str,               /* stackAtom                    */
+    js_sticky_str,              /* stickyAtom                   */
+    js_toGMTString_str,         /* toGMTStringAtom              */
     js_toLocaleString_str,      /* toLocaleStringAtom           */
     js_toSource_str,            /* toSourceAtom                 */
     js_toString_str,            /* toStringAtom                 */
+    js_toUTCString_str,         /* toUTCStringAtom              */
     js_valueOf_str,             /* valueOfAtom                  */
     js_toJSON_str,              /* toJSONAtom                   */
     "(void 0)",                 /* void0Atom                    */
+    js_enumerable_str,          /* enumerableAtom               */
+    js_configurable_str,        /* configurableAtom             */
+    js_writable_str,            /* writableAtom                 */
+    js_value_str,               /* valueAtom                    */
+    js_test_str,                /* testAtom                     */
+    "use strict",               /* useStrictAtom                */
+    "loc",                      /* locAtom                      */
+    "line",                     /* lineAtom                     */
+    "Infinity",                 /* InfinityAtom                 */
+    "NaN",                      /* NaNAtom                      */
+    "builder",                  /* builderAtom                  */
 
 #if JS_HAS_XML_SUPPORT
     js_etago_str,               /* etagoAtom                    */
@@ -170,15 +195,23 @@ const char *const js_common_atom_names[] = {
     js_starQualifier_str,       /* starQualifierAtom            */
     js_tagc_str,                /* tagcAtom                     */
     js_xml_str,                 /* xmlAtom                      */
+    "@mozilla.org/js/function", /* functionNamespaceURIAtom     */
 #endif
 
-#ifdef NARCISSUS
-    js___call___str,            /* __call__Atom                 */
-    js___construct___str,       /* __construct__Atom            */
-    js___hasInstance___str,     /* __hasInstance__Atom          */
-    js_ExecutionContext_str,    /* ExecutionContextAtom         */
-    js_current_str,             /* currentAtom                  */
-#endif
+    "Proxy",                    /* ProxyAtom                    */
+
+    "getOwnPropertyDescriptor", /* getOwnPropertyDescriptorAtom */
+    "getPropertyDescriptor",    /* getPropertyDescriptorAtom    */
+    "defineProperty",           /* definePropertyAtom           */
+    "delete",                   /* deleteAtom                   */
+    "getOwnPropertyNames",      /* getOwnPropertyNames          */
+    "enumerate",                /* enumerateAtom                */
+    "fix",                      /* fixAtom                      */
+
+    "has",                      /* hasAtom                      */
+    "hasOwn",                   /* hasOwnAtom                   */
+    "keys",                     /* keysAtom                     */
+    "iterate"                   /* iterateAtom                  */
 };
 
 JS_STATIC_ASSERT(JS_ARRAY_LENGTH(js_common_atom_names) * sizeof(JSAtom *) ==
@@ -201,33 +234,45 @@ const char js_callee_str[]          = "callee";
 const char js_caller_str[]          = "caller";
 const char js_class_prototype_str[] = "prototype";
 const char js_constructor_str[]     = "constructor";
-const char js_count_str[]           = "__count__";
 const char js_each_str[]            = "each";
 const char js_eval_str[]            = "eval";
 const char js_fileName_str[]        = "fileName";
 const char js_get_str[]             = "get";
 const char js_getter_str[]          = "getter";
+const char js_global_str[]          = "global";
+const char js_ignoreCase_str[]      = "ignoreCase";
 const char js_index_str[]           = "index";
 const char js_input_str[]           = "input";
 const char js_iterator_str[]        = "__iterator__";
+const char js_join_str[]            = "join";
+const char js_lastIndex_str[]       = "lastIndex";
 const char js_length_str[]          = "length";
 const char js_lineNumber_str[]      = "lineNumber";
 const char js_message_str[]         = "message";
+const char js_multiline_str[]       = "multiline";
 const char js_name_str[]            = "name";
 const char js_next_str[]            = "next";
 const char js_noSuchMethod_str[]    = "__noSuchMethod__";
 const char js_object_str[]          = "object";
-const char js_parent_str[]          = "__parent__";
 const char js_proto_str[]           = "__proto__";
 const char js_setter_str[]          = "setter";
 const char js_set_str[]             = "set";
+const char js_source_str[]          = "source";
 const char js_stack_str[]           = "stack";
+const char js_sticky_str[]          = "sticky";
+const char js_toGMTString_str[]     = "toGMTString";
+const char js_toLocaleString_str[]  = "toLocaleString";
 const char js_toSource_str[]        = "toSource";
 const char js_toString_str[]        = "toString";
-const char js_toLocaleString_str[]  = "toLocaleString";
+const char js_toUTCString_str[]     = "toUTCString";
 const char js_undefined_str[]       = "undefined";
 const char js_valueOf_str[]         = "valueOf";
 const char js_toJSON_str[]          = "toJSON";
+const char js_enumerable_str[]      = "enumerable";
+const char js_configurable_str[]    = "configurable";
+const char js_writable_str[]        = "writable";
+const char js_value_str[]           = "value";
+const char js_test_str[]            = "test";
 
 #if JS_HAS_XML_SUPPORT
 const char js_etago_str[]           = "</";
@@ -247,142 +292,38 @@ const char js_close_str[]           = "close";
 const char js_send_str[]            = "send";
 #endif
 
-#ifdef NARCISSUS
-const char js___call___str[]         = "__call__";
-const char js___construct___str[]    = "__construct__";
-const char js___hasInstance___str[]  = "__hasInstance__";
-const char js_ExecutionContext_str[] = "ExecutionContext";
-const char js_current_str[]          = "current";
-#endif
-
-/*
- * JSAtomState.doubleAtoms and JSAtomState.stringAtoms hashtable entry. To
- * support pinned and interned string atoms, we use the lowest bits of the
- * keyAndFlags field to store ATOM_PINNED and ATOM_INTERNED flags.
- */
-typedef struct JSAtomHashEntry {
-    JSDHashEntryHdr hdr;
-    jsuword         keyAndFlags;
-} JSAtomHashEntry;
-
-#define ATOM_ENTRY_FLAG_MASK            (ATOM_PINNED | ATOM_INTERNED)
-
-JS_STATIC_ASSERT(ATOM_ENTRY_FLAG_MASK < JSVAL_ALIGN);
-
 /*
  * Helper macros to access and modify JSAtomHashEntry.
  */
-#define TO_ATOM_ENTRY(hdr)              ((JSAtomHashEntry *) hdr)
-#define ATOM_ENTRY_KEY(entry)                                                 \
-    ((void *)((entry)->keyAndFlags & ~ATOM_ENTRY_FLAG_MASK))
-#define ATOM_ENTRY_FLAGS(entry)                                               \
-    ((uintN)((entry)->keyAndFlags & ATOM_ENTRY_FLAG_MASK))
-#define INIT_ATOM_ENTRY(entry, key)                                           \
-    ((void)((entry)->keyAndFlags = (jsuword)(key)))
-#define ADD_ATOM_ENTRY_FLAGS(entry, flags)                                    \
-    ((void)((entry)->keyAndFlags |= (jsuword)(flags)))
-#define CLEAR_ATOM_ENTRY_FLAGS(entry, flags)                                  \
-    ((void)((entry)->keyAndFlags &= ~(jsuword)(flags)))
 
-static JSDHashNumber
-HashDouble(JSDHashTable *table, const void *key);
-
-static JSBool
-MatchDouble(JSDHashTable *table, const JSDHashEntryHdr *hdr, const void *key);
-
-static JSDHashNumber
-HashString(JSDHashTable *table, const void *key);
-
-static JSBool
-MatchString(JSDHashTable *table, const JSDHashEntryHdr *hdr, const void *key);
-
-static const JSDHashTableOps DoubleHashOps = {
-    JS_DHashAllocTable,
-    JS_DHashFreeTable,
-    HashDouble,
-    MatchDouble,
-    JS_DHashMoveEntryStub,
-    JS_DHashClearEntryStub,
-    JS_DHashFinalizeStub,
-    NULL
-};
-
-static const JSDHashTableOps StringHashOps = {
-    JS_DHashAllocTable,
-    JS_DHashFreeTable,
-    HashString,
-    MatchString,
-    JS_DHashMoveEntryStub,
-    JS_DHashClearEntryStub,
-    JS_DHashFinalizeStub,
-    NULL
-};
-
-#define IS_DOUBLE_TABLE(table)      ((table)->ops == &DoubleHashOps)
-#define IS_STRING_TABLE(table)      ((table)->ops == &StringHashOps)
-
-#define IS_INITIALIZED_STATE(state) IS_DOUBLE_TABLE(&(state)->doubleAtoms)
-
-static JSDHashNumber
-HashDouble(JSDHashTable *table, const void *key)
+inline AtomEntryType
+StringToInitialAtomEntry(JSString *str)
 {
-    JS_ASSERT(IS_DOUBLE_TABLE(table));
-    return JS_HASH_DOUBLE(*(jsdouble *)key);
+    return (AtomEntryType) str;
 }
 
-static JSDHashNumber
-HashString(JSDHashTable *table, const void *key)
+inline uintN
+AtomEntryFlags(AtomEntryType entry)
 {
-    JS_ASSERT(IS_STRING_TABLE(table));
-    return js_HashString((JSString *)key);
+    return (uintN) (entry & ATOM_ENTRY_FLAG_MASK);
 }
 
-static JSBool
-MatchDouble(JSDHashTable *table, const JSDHashEntryHdr *hdr, const void *key)
+/*
+ * Conceptually, we have compressed a HashMap<JSAtom *, uint> into a
+ * HashMap<size_t>. Here, we promise that we are only changing the "value" of
+ * the HashMap entry, so the const_cast is safe.
+ */
+
+inline void
+AddAtomEntryFlags(const AtomEntryType &entry, uintN flags)
 {
-    JSAtomHashEntry *entry = TO_ATOM_ENTRY(hdr);
-    jsdouble d1, d2;
-
-    JS_ASSERT(IS_DOUBLE_TABLE(table));
-    if (entry->keyAndFlags == 0) {
-        /* See comments in MatchString. */
-        return JS_FALSE;
-    }
-
-    d1 = *(jsdouble *)ATOM_ENTRY_KEY(entry);
-    d2 = *(jsdouble *)key;
-    if (JSDOUBLE_IS_NaN(d1))
-        return JSDOUBLE_IS_NaN(d2);
-#if defined(XP_WIN)
-    /* XXX MSVC miscompiles such that (NaN == 0) */
-    if (JSDOUBLE_IS_NaN(d2))
-        return JS_FALSE;
-#endif
-    return d1 == d2;
+    const_cast<AtomEntryType &>(entry) |= AtomEntryType(flags);
 }
 
-static JSBool
-MatchString(JSDHashTable *table, const JSDHashEntryHdr *hdr, const void *key)
+inline void
+ClearAtomEntryFlags(const AtomEntryType &entry, uintN flags)
 {
-    JSAtomHashEntry *entry = TO_ATOM_ENTRY(hdr);
-
-    JS_ASSERT(IS_STRING_TABLE(table));
-    if (entry->keyAndFlags == 0) {
-        /*
-         * This happens when js_AtomizeString adds a new hash entry and
-         * releases the lock but before it takes the lock the second time to
-         * initialize keyAndFlags for the entry.
-         *
-         * We always return false for such entries so JS_DHashTableOperate
-         * never finds them. We clean them during GC's sweep phase.
-         *
-         * It means that with a contested lock or when GC is triggered outside
-         * the lock we may end up adding two entries, but this is a price for
-         * simpler code.
-         */
-        return JS_FALSE;
-    }
-    return js_EqualStrings((JSString *)ATOM_ENTRY_KEY(entry), (JSString *)key);
+    const_cast<AtomEntryType &>(entry) &= ~AtomEntryType(flags);
 }
 
 /*
@@ -392,63 +333,21 @@ MatchString(JSDHashTable *table, const JSDHashEntryHdr *hdr, const void *key)
  * atomized strings with just 1K entries.
  */
 #define JS_STRING_HASH_COUNT   1024
-#define JS_DOUBLE_HASH_COUNT   64
 
 JSBool
 js_InitAtomState(JSRuntime *rt)
 {
     JSAtomState *state = &rt->atomState;
 
-   /*
-    * The caller must zero the state before calling this function.
-    */
-    JS_ASSERT(!state->stringAtoms.ops);
-    JS_ASSERT(!state->doubleAtoms.ops);
-
-    if (!JS_DHashTableInit(&state->stringAtoms, &StringHashOps,
-                           NULL, sizeof(JSAtomHashEntry),
-                           JS_DHASH_DEFAULT_CAPACITY(JS_STRING_HASH_COUNT))) {
-        state->stringAtoms.ops = NULL;
-        return JS_FALSE;
-    }
-    JS_ASSERT(IS_STRING_TABLE(&state->stringAtoms));
-
-    if (!JS_DHashTableInit(&state->doubleAtoms, &DoubleHashOps,
-                           NULL, sizeof(JSAtomHashEntry),
-                           JS_DHASH_DEFAULT_CAPACITY(JS_DOUBLE_HASH_COUNT))) {
-        state->doubleAtoms.ops = NULL;
-        JS_DHashTableFinish(&state->stringAtoms);
-        state->stringAtoms.ops = NULL;
-        return JS_FALSE;
-    }
-    JS_ASSERT(IS_DOUBLE_TABLE(&state->doubleAtoms));
+    JS_ASSERT(!state->atoms.initialized());
+    if (!state->atoms.init(JS_STRING_HASH_COUNT))
+        return false;
 
 #ifdef JS_THREADSAFE
     js_InitLock(&state->lock);
 #endif
-    JS_ASSERT(IS_INITIALIZED_STATE(state));
+    JS_ASSERT(state->atoms.initialized());
     return JS_TRUE;
-}
-
-static JSDHashOperator
-js_string_uninterner(JSDHashTable *table, JSDHashEntryHdr *hdr,
-                     uint32 number, void *arg)
-{
-    JSAtomHashEntry *entry = TO_ATOM_ENTRY(hdr);
-    JSRuntime *rt = (JSRuntime *)arg;
-    JSString *str;
-
-    /*
-     * Any string entry that remains at this point must be initialized, as the
-     * last GC should clean any uninitialized ones.
-     */
-    JS_ASSERT(IS_STRING_TABLE(table));
-    JS_ASSERT(entry->keyAndFlags != 0);
-    str = (JSString *)ATOM_ENTRY_KEY(entry);
-
-    /* Pass null as context. */
-    js_FinalizeStringRT(rt, str, js_GetExternalStringGCType(str), NULL);
-    return JS_DHASH_NEXT;
 }
 
 void
@@ -456,7 +355,7 @@ js_FinishAtomState(JSRuntime *rt)
 {
     JSAtomState *state = &rt->atomState;
 
-    if (!IS_INITIALIZED_STATE(state)) {
+    if (!state->atoms.initialized()) {
         /*
          * We are called with uninitialized state when JS_NewRuntime fails and
          * calls JS_DestroyRuntime on a partially initialized runtime.
@@ -464,15 +363,11 @@ js_FinishAtomState(JSRuntime *rt)
         return;
     }
 
-    JS_DHashTableEnumerate(&state->stringAtoms, js_string_uninterner, rt);
-    JS_DHashTableFinish(&state->stringAtoms);
-    JS_DHashTableFinish(&state->doubleAtoms);
+    for (AtomSet::Range r = state->atoms.all(); !r.empty(); r.popFront())
+        AtomEntryToKey(r.front())->finalize(rt);
 
 #ifdef JS_THREADSAFE
     js_FinishLock(&state->lock);
-#endif
-#ifdef DEBUG
-    memset(state, JS_FREE_PATTERN, sizeof *state);
 #endif
 }
 
@@ -493,100 +388,54 @@ js_InitCommonAtoms(JSContext *cx)
     JS_ASSERT((uint8 *)atoms - (uint8 *)state == LAZY_ATOM_OFFSET_START);
     memset(atoms, 0, ATOM_OFFSET_LIMIT - LAZY_ATOM_OFFSET_START);
 
+    cx->runtime->emptyString = state->emptyAtom;
     return JS_TRUE;
-}
-
-static JSDHashOperator
-js_atom_unpinner(JSDHashTable *table, JSDHashEntryHdr *hdr,
-                 uint32 number, void *arg)
-{
-    JS_ASSERT(IS_STRING_TABLE(table));
-    CLEAR_ATOM_ENTRY_FLAGS(TO_ATOM_ENTRY(hdr), ATOM_PINNED);
-    return JS_DHASH_NEXT;
 }
 
 void
 js_FinishCommonAtoms(JSContext *cx)
 {
+    cx->runtime->emptyString = NULL;
     JSAtomState *state = &cx->runtime->atomState;
 
-    JS_DHashTableEnumerate(&state->stringAtoms, js_atom_unpinner, NULL);
+    for (AtomSet::Range r = state->atoms.all(); !r.empty(); r.popFront())
+        ClearAtomEntryFlags(r.front(), ATOM_PINNED);
+
 #ifdef DEBUG
     memset(COMMON_ATOMS_START(state), JS_FREE_PATTERN,
            ATOM_OFFSET_LIMIT - ATOM_OFFSET_START);
 #endif
 }
 
-static JSDHashOperator
-js_locked_atom_tracer(JSDHashTable *table, JSDHashEntryHdr *hdr,
-                      uint32 number, void *arg)
-{
-    JSAtomHashEntry *entry = TO_ATOM_ENTRY(hdr);
-    JSTracer *trc = (JSTracer *)arg;
-
-    if (entry->keyAndFlags == 0) {
-        /* Ignore uninitialized entries during tracing. */
-        return JS_DHASH_NEXT;
-    }
-    JS_SET_TRACING_INDEX(trc, "locked_atom", (size_t)number);
-    JS_CallTracer(trc, ATOM_ENTRY_KEY(entry),
-                  IS_STRING_TABLE(table) ? JSTRACE_STRING : JSTRACE_DOUBLE);
-    return JS_DHASH_NEXT;
-}
-
-static JSDHashOperator
-js_pinned_atom_tracer(JSDHashTable *table, JSDHashEntryHdr *hdr,
-                        uint32 number, void *arg)
-{
-    JSAtomHashEntry *entry = TO_ATOM_ENTRY(hdr);
-    JSTracer *trc = (JSTracer *)arg;
-    uintN flags = ATOM_ENTRY_FLAGS(entry);
-
-    JS_ASSERT(IS_STRING_TABLE(table));
-    if (flags & (ATOM_PINNED | ATOM_INTERNED)) {
-        JS_SET_TRACING_INDEX(trc,
-                             flags & ATOM_PINNED
-                             ? "pinned_atom"
-                             : "interned_atom",
-                             (size_t)number);
-        JS_CallTracer(trc, ATOM_ENTRY_KEY(entry), JSTRACE_STRING);
-    }
-    return JS_DHASH_NEXT;
-}
-
 void
-js_TraceAtomState(JSTracer *trc, JSBool allAtoms)
+js_TraceAtomState(JSTracer *trc)
 {
     JSRuntime *rt = trc->context->runtime;
     JSAtomState *state = &rt->atomState;
 
-    if (allAtoms) {
-        JS_DHashTableEnumerate(&state->doubleAtoms, js_locked_atom_tracer, trc);
-        JS_DHashTableEnumerate(&state->stringAtoms, js_locked_atom_tracer, trc);
+#ifdef DEBUG
+    size_t number = 0;
+#endif
+
+    if (rt->gcKeepAtoms) {
+        for (AtomSet::Range r = state->atoms.all(); !r.empty(); r.popFront()) {
+            JS_SET_TRACING_INDEX(trc, "locked_atom", number++);
+            MarkString(trc, AtomEntryToKey(r.front()));
+        }
     } else {
-        JS_DHashTableEnumerate(&state->stringAtoms, js_pinned_atom_tracer, trc);
+        for (AtomSet::Range r = state->atoms.all(); !r.empty(); r.popFront()) {
+            AtomEntryType entry = r.front();
+            uintN flags = AtomEntryFlags(entry);
+            if (flags & (ATOM_PINNED | ATOM_INTERNED)) {
+                JS_SET_TRACING_INDEX(trc,
+                                     flags & ATOM_PINNED
+                                     ? "pinned_atom"
+                                     : "interned_atom",
+                                     number++);
+                MarkString(trc, AtomEntryToKey(entry));
+            }
+        }
     }
-}
-
-static JSDHashOperator
-js_atom_sweeper(JSDHashTable *table, JSDHashEntryHdr *hdr,
-                uint32 number, void *arg)
-{
-    JSAtomHashEntry *entry = TO_ATOM_ENTRY(hdr);
-    JSContext *cx = (JSContext *)arg;
-
-    /* Remove uninitialized entries.  */
-    if (entry->keyAndFlags == 0)
-        return JS_DHASH_REMOVE;
-
-    if (ATOM_ENTRY_FLAGS(entry) & (ATOM_PINNED | ATOM_INTERNED)) {
-        /* Pinned or interned key cannot be finalized. */
-        JS_ASSERT(!js_IsAboutToBeFinalized(cx, ATOM_ENTRY_KEY(entry)));
-    } else if (js_IsAboutToBeFinalized(cx, ATOM_ENTRY_KEY(entry))) {
-        /* Remove entries with things about to be GC'ed. */
-        return JS_DHASH_REMOVE;
-    }
-    return JS_DHASH_NEXT;
 }
 
 void
@@ -594,198 +443,96 @@ js_SweepAtomState(JSContext *cx)
 {
     JSAtomState *state = &cx->runtime->atomState;
 
-    JS_DHashTableEnumerate(&state->doubleAtoms, js_atom_sweeper, cx);
-    JS_DHashTableEnumerate(&state->stringAtoms, js_atom_sweeper, cx);
-
-    /*
-     * Optimize for simplicity and mutate table generation numbers even if the
-     * sweeper has not removed any entries.
-     */
-    state->doubleAtoms.generation++;
-    state->stringAtoms.generation++;
+    for (AtomSet::Enum e(state->atoms); !e.empty(); e.popFront()) {
+        AtomEntryType entry = e.front();
+        if (AtomEntryFlags(entry) & (ATOM_PINNED | ATOM_INTERNED)) {
+            /* Pinned or interned key cannot be finalized. */
+            JS_ASSERT(!IsAboutToBeFinalized(cx, AtomEntryToKey(entry)));
+        } else if (IsAboutToBeFinalized(cx, AtomEntryToKey(entry))) {
+            e.removeFront();
+        }
+    }
 }
 
-JSAtom *
-js_AtomizeDouble(JSContext *cx, jsdouble d)
+/*
+ * Callers passing ATOM_NOCOPY have freshly allocated *pchars and thus this
+ * memory can be used as a new JSAtom's buffer without copying. When this flag
+ * is set, the contract is that callers will free *pchars iff *pchars == NULL.
+ */
+static JSAtom *
+Atomize(JSContext *cx, const jschar **pchars, size_t length, uintN flags)
 {
-    JSAtomState *state;
-    JSDHashTable *table;
-    JSAtomHashEntry *entry;
-    uint32 gen;
-    jsdouble *key;
-    jsval v;
+    const jschar *chars = *pchars;
+    JS_ASSERT(!(flags & ~(ATOM_PINNED|ATOM_INTERNED|ATOM_NOCOPY)));
 
-    state = &cx->runtime->atomState;
-    table = &state->doubleAtoms;
+    if (JSAtom *s = JSAtom::lookupStatic(chars, length))
+        return s;
 
-    JS_LOCK(cx, &state->lock);
-    entry = TO_ATOM_ENTRY(JS_DHashTableOperate(table, &d, JS_DHASH_ADD));
-    if (!entry)
-        goto failed_hash_add;
-    if (entry->keyAndFlags == 0) {
-        gen = ++table->generation;
-        JS_UNLOCK(cx, &state->lock);
+    AutoLockAtomsCompartment lock(cx);
 
-        key = js_NewWeaklyRootedDouble(cx, d);
-        if (!key)
-            return NULL;
+    AtomSet &atoms = cx->runtime->atomState.atoms;
+    AtomSet::AddPtr p = atoms.lookupForAdd(AtomHasher::Lookup(chars, length));
 
-        JS_LOCK(cx, &state->lock);
-        if (table->generation == gen) {
-            JS_ASSERT(entry->keyAndFlags == 0);
+    JSAtom *atom;
+    if (p) {
+        atom = AtomEntryToKey(*p);
+    } else {
+        SwitchToCompartment sc(cx, cx->runtime->atomsCompartment);
+
+        JSFixedString *key;
+        if (flags & ATOM_NOCOPY) {
+            key = js_NewString(cx, const_cast<jschar *>(chars), length);
+            if (!key)
+                return NULL;
+            *pchars = NULL;  /* Caller should not free *pchars. */
         } else {
-            entry = TO_ATOM_ENTRY(JS_DHashTableOperate(table, key,
-                                                       JS_DHASH_ADD));
-            if (!entry)
-                goto failed_hash_add;
-            if (entry->keyAndFlags != 0)
-                goto finish;
-            ++table->generation;
+            key = js_NewStringCopyN(cx, chars, length);
+            if (!key)
+                return NULL;
         }
-        INIT_ATOM_ENTRY(entry, key);
+
+        /*
+         * We have to relookup the key as the last ditch GC invoked from the
+         * string allocation or OOM handling may unlock the atomsCompartment.
+         */
+        AtomHasher::Lookup lookup(chars, length);
+        if (!atoms.relookupOrAdd(p, lookup, StringToInitialAtomEntry(key))) {
+            JS_ReportOutOfMemory(cx); /* SystemAllocPolicy does not report */
+            return NULL;
+        }
+
+        atom = key->morphInternedStringIntoAtom();
     }
 
-  finish:
-    v = DOUBLE_TO_JSVAL((jsdouble *)ATOM_ENTRY_KEY(entry));
-    cx->weakRoots.lastAtom = v;
-    JS_UNLOCK(cx, &state->lock);
-
-    return (JSAtom *)v;
-
-  failed_hash_add:
-    JS_UNLOCK(cx, &state->lock);
-    JS_ReportOutOfMemory(cx);
-    return NULL;
+    AddAtomEntryFlags(*p, flags & (ATOM_PINNED | ATOM_INTERNED));
+    return atom;
 }
 
 JSAtom *
 js_AtomizeString(JSContext *cx, JSString *str, uintN flags)
 {
-    jsval v;
-    JSAtomState *state;
-    JSDHashTable *table;
-    JSAtomHashEntry *entry;
-    JSString *key;
-    uint32 gen;
+    JS_ASSERT(!(flags & ATOM_NOCOPY));
 
-    JS_ASSERT(!(flags & ~(ATOM_PINNED|ATOM_INTERNED|ATOM_TMPSTR|ATOM_NOCOPY)));
-    JS_ASSERT_IF(flags & ATOM_NOCOPY, flags & ATOM_TMPSTR);
-
-    if (str->isAtomized())
-        return (JSAtom *) STRING_TO_JSVAL(str);
+    if (str->isAtom())
+        return &str->asAtom();
 
     size_t length = str->length();
-    if (length == 1) {
-        jschar c = str->chars()[0];
-        if (c < UNIT_STRING_LIMIT)
-            return (JSAtom *) STRING_TO_JSVAL(JSString::unitString(c));
-    }
+    const jschar *chars = str->getChars(cx);
+    if (!chars)
+        return NULL;
 
-    /*
-     * Here we know that JSString::intStringTable covers only 256 (or at least
-     * not 1000 or more) chars. We rely on order here to resolve the unit vs.
-     * int string atom identity issue by giving priority to unit strings for
-     * '0' through '9' (see JSString::intString in jsstrinlines.h).
-     */
-    JS_STATIC_ASSERT(INT_STRING_LIMIT <= 999);
-    if (2 <= length && length <= 3) {
-        const jschar *chars = str->chars();
-
-        if ('1' <= chars[0] && chars[0] <= '9' &&
-            '0' <= chars[1] && chars[1] <= '9' &&
-            (length == 2 || ('0' <= chars[2] && chars[2] <= '9'))) {
-            jsint i = (chars[0] - '0') * 10 + chars[1] - '0';
-
-            if (length == 3)
-                i = i * 10 + chars[2] - '0'; 
-            if (jsuint(i) < INT_STRING_LIMIT)
-                return (JSAtom *) STRING_TO_JSVAL(JSString::intString(i));
-        }
-    }
-
-    state = &cx->runtime->atomState;
-    table = &state->stringAtoms;
-
-    JS_LOCK(cx, &state->lock);
-    entry = TO_ATOM_ENTRY(JS_DHashTableOperate(table, str, JS_DHASH_ADD));
-    if (!entry)
-        goto failed_hash_add;
-    if (entry->keyAndFlags != 0) {
-        key = (JSString *)ATOM_ENTRY_KEY(entry);
-    } else {
-        /*
-         * We created a new hashtable entry. Unless str is already allocated
-         * from the GC heap and flat, we have to release state->lock as
-         * string construction is a complex operation. For example, it can
-         * trigger GC which may rehash the table and make the entry invalid.
-         */
-        ++table->generation;
-        if (!(flags & ATOM_TMPSTR) && str->isFlat()) {
-            str->flatClearMutable();
-            key = str;
-        } else {
-            gen = table->generation;
-            JS_UNLOCK(cx, &state->lock);
-
-            if (flags & ATOM_TMPSTR) {
-                if (flags & ATOM_NOCOPY) {
-                    key = js_NewString(cx, str->flatChars(), str->flatLength());
-                    if (!key)
-                        return NULL;
-
-                    /* Finish handing off chars to the GC'ed key string. */
-                    str->mChars = NULL;
-                } else {
-                    key = js_NewStringCopyN(cx, str->flatChars(), str->flatLength());
-                    if (!key)
-                        return NULL;
-                }
-           } else {
-                JS_ASSERT(str->isDependent());
-                if (!js_UndependString(cx, str))
-                    return NULL;
-                key = str;
-            }
-
-            JS_LOCK(cx, &state->lock);
-            if (table->generation == gen) {
-                JS_ASSERT(entry->keyAndFlags == 0);
-            } else {
-                entry = TO_ATOM_ENTRY(JS_DHashTableOperate(table, key,
-                                                           JS_DHASH_ADD));
-                if (!entry)
-                    goto failed_hash_add;
-                if (entry->keyAndFlags != 0) {
-                    key = (JSString *)ATOM_ENTRY_KEY(entry);
-                    goto finish;
-                }
-                ++table->generation;
-            }
-        }
-        INIT_ATOM_ENTRY(entry, key);
-        key->flatSetAtomized();
-    }
-
-  finish:
-    ADD_ATOM_ENTRY_FLAGS(entry, flags & (ATOM_PINNED | ATOM_INTERNED));
-    JS_ASSERT(key->isAtomized());
-    v = STRING_TO_JSVAL(key);
-    cx->weakRoots.lastAtom = v;
-    JS_UNLOCK(cx, &state->lock);
-    return (JSAtom *)v;
-
-  failed_hash_add:
-    JS_UNLOCK(cx, &state->lock);
-    JS_ReportOutOfMemory(cx);
-    return NULL;
+    JS_ASSERT(length <= JSString::MAX_LENGTH);
+    return Atomize(cx, &chars, length, flags);
 }
 
 JSAtom *
 js_Atomize(JSContext *cx, const char *bytes, size_t length, uintN flags)
 {
-    jschar *chars;
-    JSString str;
-    JSAtom *atom;
+    JS_ASSERT(!(flags & ATOM_NOCOPY));
+    CHECK_REQUEST(cx);
+
+    if (!CheckStringLength(cx, length))
+        return NULL;
 
     /*
      * Avoiding the malloc in js_InflateString on shorter strings saves us
@@ -794,10 +541,11 @@ js_Atomize(JSContext *cx, const char *bytes, size_t length, uintN flags)
      * The vast majority of atomized strings are already in the hashtable. So
      * js_AtomizeString rarely has to copy the temp string we make.
      */
-#define ATOMIZE_BUF_MAX 32
+    static const unsigned ATOMIZE_BUF_MAX = 32;
     jschar inflated[ATOMIZE_BUF_MAX];
     size_t inflatedLength = ATOMIZE_BUF_MAX - 1;
 
+    const jschar *chars;
     if (length < ATOMIZE_BUF_MAX) {
         js_InflateStringToBuffer(cx, bytes, length, inflated, &inflatedLength);
         inflated[inflatedLength] = 0;
@@ -810,124 +558,62 @@ js_Atomize(JSContext *cx, const char *bytes, size_t length, uintN flags)
         flags |= ATOM_NOCOPY;
     }
 
-    str.initFlat(chars, inflatedLength);
-    atom = js_AtomizeString(cx, &str, ATOM_TMPSTR | flags);
-    if (chars != inflated && str.flatChars())
-        cx->free(chars);
+    JSAtom *atom = Atomize(cx, &chars, inflatedLength, flags);
+    if ((flags & ATOM_NOCOPY) && chars)
+        cx->free_((void *)chars);
     return atom;
 }
 
 JSAtom *
 js_AtomizeChars(JSContext *cx, const jschar *chars, size_t length, uintN flags)
 {
-    JSString str;
+    JS_ASSERT(!(flags & ATOM_NOCOPY));
+    CHECK_REQUEST(cx);
 
-    str.initFlat((jschar *)chars, length);
-    return js_AtomizeString(cx, &str, ATOM_TMPSTR | flags);
+    if (!CheckStringLength(cx, length))
+        return NULL;
+
+    return Atomize(cx, &chars, length, flags);
 }
 
 JSAtom *
 js_GetExistingStringAtom(JSContext *cx, const jschar *chars, size_t length)
 {
-    JSString str, *str2;
-    JSAtomState *state;
-    JSDHashEntryHdr *hdr;
-
-    if (length == 1) {
-        jschar c = *chars;
-        if (c < UNIT_STRING_LIMIT)
-            return (JSAtom *) STRING_TO_JSVAL(JSString::unitString(c));
-    }
-
-    str.initFlat((jschar *)chars, length);
-    state = &cx->runtime->atomState;
-
-    JS_LOCK(cx, &state->lock);
-    hdr = JS_DHashTableOperate(&state->stringAtoms, &str, JS_DHASH_LOOKUP);
-    str2 = JS_DHASH_ENTRY_IS_BUSY(hdr)
-           ? (JSString *)ATOM_ENTRY_KEY(TO_ATOM_ENTRY(hdr))
-           : NULL;
-    JS_UNLOCK(cx, &state->lock);
-
-    return str2 ? (JSAtom *)STRING_TO_JSVAL(str2) : NULL;
-}
-
-JSBool
-js_AtomizePrimitiveValue(JSContext *cx, jsval v, JSAtom **atomp)
-{
-    JSAtom *atom;
-
-    if (JSVAL_IS_STRING(v)) {
-        atom = js_AtomizeString(cx, JSVAL_TO_STRING(v), 0);
-        if (!atom)
-            return JS_FALSE;
-    } else if (JSVAL_IS_DOUBLE(v)) {
-        atom = js_AtomizeDouble(cx, *JSVAL_TO_DOUBLE(v));
-        if (!atom)
-            return JS_FALSE;
-    } else {
-        JS_ASSERT(JSVAL_IS_INT(v) || JSVAL_IS_BOOLEAN(v) ||
-                  JSVAL_IS_NULL(v) || JSVAL_IS_VOID(v));
-        atom = (JSAtom *)v;
-    }
-    *atomp = atom;
-    return JS_TRUE;
+    if (JSAtom *atom = JSAtom::lookupStatic(chars, length))
+        return atom;
+    AutoLockAtomsCompartment lock(cx);
+    AtomSet::Ptr p = cx->runtime->atomState.atoms.lookup(AtomHasher::Lookup(chars, length));
+    return p ? AtomEntryToKey(*p) : NULL;
 }
 
 #ifdef DEBUG
-
-static JSDHashOperator
-atom_dumper(JSDHashTable *table, JSDHashEntryHdr *hdr,
-            uint32 number, void *arg)
-{
-    JSAtomHashEntry *entry = TO_ATOM_ENTRY(hdr);
-    FILE *fp = (FILE *)arg;
-    void *key;
-    uintN flags;
-
-    fprintf(fp, "%3u %08x ", number, (uintN)entry->hdr.keyHash);
-    if (entry->keyAndFlags == 0) {
-        fputs("<uninitialized>", fp);
-    } else {
-        key = ATOM_ENTRY_KEY(entry);
-        if (IS_DOUBLE_TABLE(table)) {
-            fprintf(fp, "%.16g", *(jsdouble *)key);
-        } else {
-            JS_ASSERT(IS_STRING_TABLE(table));
-            js_FileEscapedString(fp, (JSString *)key, '"');
-        }
-        flags = ATOM_ENTRY_FLAGS(entry);
-        if (flags != 0) {
-            fputs((flags & (ATOM_PINNED | ATOM_INTERNED))
-                  ? " pinned | interned"
-                  : (flags & ATOM_PINNED) ? " pinned" : " interned",
-                  fp);
-        }
-    }
-    putc('\n', fp);
-    return JS_DHASH_NEXT;
-}
-
 JS_FRIEND_API(void)
 js_DumpAtoms(JSContext *cx, FILE *fp)
 {
     JSAtomState *state = &cx->runtime->atomState;
 
-    fprintf(fp, "stringAtoms table contents:\n");
-    JS_DHashTableEnumerate(&state->stringAtoms, atom_dumper, fp);
-#ifdef JS_DHASHMETER
-    JS_DHashTableDumpMeter(&state->stringAtoms, atom_dumper, fp);
-#endif
-    putc('\n', fp);
-
-    fprintf(fp, "doubleAtoms table contents:\n");
-    JS_DHashTableEnumerate(&state->doubleAtoms, atom_dumper, fp);
-#ifdef JS_DHASHMETER
-    JS_DHashTableDumpMeter(&state->doubleAtoms, atom_dumper, fp);
-#endif
+    fprintf(fp, "atoms table contents:\n");
+    unsigned number = 0;
+    for (AtomSet::Range r = state->atoms.all(); !r.empty(); r.popFront()) {
+        AtomEntryType entry = r.front();
+        fprintf(fp, "%3u ", number++);
+        if (entry == 0) {
+            fputs("<uninitialized>", fp);
+        } else {
+            JSAtom *key = AtomEntryToKey(entry);
+            FileEscapedString(fp, key, '"');
+            uintN flags = AtomEntryFlags(entry);
+            if (flags != 0) {
+                fputs((flags & (ATOM_PINNED | ATOM_INTERNED))
+                      ? " pinned | interned"
+                      : (flags & ATOM_PINNED) ? " pinned" : " interned",
+                      fp);
+            }
+        }
+        putc('\n', fp);
+    }
     putc('\n', fp);
 }
-
 #endif
 
 static JSHashNumber
@@ -952,23 +638,23 @@ JS_STATIC_ASSERT(TEMP_SIZE_START >= sizeof(JSHashTable));
 static void *
 js_alloc_temp_space(void *priv, size_t size)
 {
-    JSCompiler *jsc = (JSCompiler *) priv;
+    Parser *parser = (Parser *) priv;
 
     void *space;
     if (size < TEMP_SIZE_LIMIT) {
         int bin = JS_CeilingLog2(size) - TEMP_SIZE_START_LOG2;
         JS_ASSERT(unsigned(bin) < NUM_TEMP_FREELISTS);
 
-        space = jsc->tempFreeList[bin];
+        space = parser->tempFreeList[bin];
         if (space) {
-            jsc->tempFreeList[bin] = *(void **)space;
+            parser->tempFreeList[bin] = *(void **)space;
             return space;
         }
     }
 
-    JS_ARENA_ALLOCATE(space, &jsc->context->tempPool, size);
+    JS_ARENA_ALLOCATE(space, &parser->context->tempPool, size);
     if (!space)
-        js_ReportOutOfScriptQuota(jsc->context);
+        js_ReportOutOfScriptQuota(parser->context);
     return space;
 }
 
@@ -978,29 +664,29 @@ js_free_temp_space(void *priv, void *item, size_t size)
     if (size >= TEMP_SIZE_LIMIT)
         return;
 
-    JSCompiler *jsc = (JSCompiler *) priv;
+    Parser *parser = (Parser *) priv;
     int bin = JS_CeilingLog2(size) - TEMP_SIZE_START_LOG2;
     JS_ASSERT(unsigned(bin) < NUM_TEMP_FREELISTS);
 
-    *(void **)item = jsc->tempFreeList[bin];
-    jsc->tempFreeList[bin] = item;
+    *(void **)item = parser->tempFreeList[bin];
+    parser->tempFreeList[bin] = item;
 }
 
 static JSHashEntry *
 js_alloc_temp_entry(void *priv, const void *key)
 {
-    JSCompiler *jsc = (JSCompiler *) priv;
+    Parser *parser = (Parser *) priv;
     JSAtomListElement *ale;
 
-    ale = jsc->aleFreeList;
+    ale = parser->aleFreeList;
     if (ale) {
-        jsc->aleFreeList = ALE_NEXT(ale);
+        parser->aleFreeList = ALE_NEXT(ale);
         return &ale->entry;
     }
 
-    JS_ARENA_ALLOCATE_TYPE(ale, JSAtomListElement, &jsc->context->tempPool);
+    JS_ARENA_ALLOCATE_TYPE(ale, JSAtomListElement, &parser->context->tempPool);
     if (!ale) {
-        js_ReportOutOfScriptQuota(jsc->context);
+        js_ReportOutOfScriptQuota(parser->context);
         return NULL;
     }
     return &ale->entry;
@@ -1009,11 +695,11 @@ js_alloc_temp_entry(void *priv, const void *key)
 static void
 js_free_temp_entry(void *priv, JSHashEntry *he, uintN flag)
 {
-    JSCompiler *jsc = (JSCompiler *) priv;
+    Parser *parser = (Parser *) priv;
     JSAtomListElement *ale = (JSAtomListElement *) he;
 
-    ALE_SET_NEXT(ale, jsc->aleFreeList);
-    jsc->aleFreeList = ale;
+    ALE_SET_NEXT(ale, parser->aleFreeList);
+    parser->aleFreeList = ale;
 }
 
 static JSHashAllocOps temp_alloc_ops = {
@@ -1024,24 +710,23 @@ static JSHashAllocOps temp_alloc_ops = {
 JSAtomListElement *
 JSAtomList::rawLookup(JSAtom *atom, JSHashEntry **&hep)
 {
-    JSAtomListElement *ale;
-
     if (table) {
         hep = JS_HashTableRawLookup(table, ATOM_HASH(atom), atom);
-        ale = *hep ? (JSAtomListElement *) *hep : NULL;
-    } else {
-        JSHashEntry **alep = &list;
-        hep = NULL;
-        while ((ale = (JSAtomListElement *)*alep) != NULL) {
-            if (ALE_ATOM(ale) == atom) {
-                /* Hit, move atom's element to the front of the list. */
-                *alep = ale->entry.next;
-                ale->entry.next = list;
-                list = &ale->entry;
-                break;
-            }
-            alep = &ale->entry.next;
+        return (JSAtomListElement *) *hep;
+    }
+
+    JSHashEntry **alep = &list;
+    hep = NULL;
+    JSAtomListElement *ale;
+    while ((ale = (JSAtomListElement *)*alep) != NULL) {
+        if (ALE_ATOM(ale) == atom) {
+            /* Hit, move atom's element to the front of the list. */
+            *alep = ale->entry.next;
+            ale->entry.next = list;
+            list = &ale->entry;
+            break;
         }
+        alep = &ale->entry.next;
     }
     return ale;
 }
@@ -1049,7 +734,7 @@ JSAtomList::rawLookup(JSAtom *atom, JSHashEntry **&hep)
 #define ATOM_LIST_HASH_THRESHOLD        12
 
 JSAtomListElement *
-JSAtomList::add(JSCompiler *jsc, JSAtom *atom, AddHow how)
+JSAtomList::add(Parser *parser, JSAtom *atom, AddHow how)
 {
     JS_ASSERT(!set);
 
@@ -1060,7 +745,7 @@ JSAtomList::add(JSCompiler *jsc, JSAtom *atom, AddHow how)
     if (!ale || how != UNIQUE) {
         if (count < ATOM_LIST_HASH_THRESHOLD && !table) {
             /* Few enough for linear search and no hash table yet needed. */
-            ale = (JSAtomListElement *)js_alloc_temp_entry(jsc, atom);
+            ale = (JSAtomListElement *)js_alloc_temp_entry(parser, atom);
             if (!ale)
                 return NULL;
             ALE_SET_ATOM(ale, atom);
@@ -1086,7 +771,7 @@ JSAtomList::add(JSCompiler *jsc, JSAtom *atom, AddHow how)
                 JS_ASSERT(!hep);
                 table = JS_NewHashTable(count + 1, js_hash_atom_ptr,
                                         JS_CompareValues, JS_CompareValues,
-                                        &temp_alloc_ops, jsc);
+                                        &temp_alloc_ops, parser);
                 if (!table)
                     return NULL;
 
@@ -1146,7 +831,7 @@ JSAtomList::add(JSCompiler *jsc, JSAtom *atom, AddHow how)
 }
 
 void
-JSAtomList::rawRemove(JSCompiler *jsc, JSAtomListElement *ale, JSHashEntry **hep)
+JSAtomList::rawRemove(Parser *parser, JSAtomListElement *ale, JSHashEntry **hep)
 {
     JS_ASSERT(!set);
     JS_ASSERT(count != 0);
@@ -1162,10 +847,24 @@ JSAtomList::rawRemove(JSCompiler *jsc, JSAtomListElement *ale, JSHashEntry **hep
             hep = &(*hep)->next;
         }
         *hep = ale->entry.next;
-        js_free_temp_entry(jsc, &ale->entry, HT_FREE_ENTRY);
+        js_free_temp_entry(parser, &ale->entry, HT_FREE_ENTRY);
     }
 
     --count;
+}
+
+JSAutoAtomList::~JSAutoAtomList()
+{
+    if (table) {
+        JS_HashTableDestroy(table);
+    } else {
+        JSHashEntry *hep = list;
+        while (hep) {
+            JSHashEntry *next = hep->next;
+            js_free_temp_entry(parser, hep, HT_FREE_ENTRY);
+            hep = next;
+        }
+    }
 }
 
 JSAtomListElement *
@@ -1245,3 +944,49 @@ js_InitAtomMap(JSContext *cx, JSAtomMap *map, JSAtomList *al)
     }
     al->clear();
 }
+
+#if JS_HAS_XML_SUPPORT
+bool
+js_InternNonIntElementIdSlow(JSContext *cx, JSObject *obj, const Value &idval,
+                             jsid *idp)
+{
+    JS_ASSERT(idval.isObject());
+    if (obj->isXML()) {
+        *idp = OBJECT_TO_JSID(&idval.toObject());
+        return true;
+    }
+
+    if (!js_IsFunctionQName(cx, &idval.toObject(), idp))
+        return JS_FALSE;
+    if (!JSID_IS_VOID(*idp))
+        return true;
+
+    return js_ValueToStringId(cx, idval, idp);
+}
+
+bool
+js_InternNonIntElementIdSlow(JSContext *cx, JSObject *obj, const Value &idval,
+                             jsid *idp, Value *vp)
+{
+    JS_ASSERT(idval.isObject());
+    if (obj->isXML()) {
+        JSObject &idobj = idval.toObject();
+        *idp = OBJECT_TO_JSID(&idobj);
+        vp->setObject(idobj);
+        return true;
+    }
+
+    if (!js_IsFunctionQName(cx, &idval.toObject(), idp))
+        return JS_FALSE;
+    if (!JSID_IS_VOID(*idp)) {
+        *vp = IdToValue(*idp);
+        return true;
+    }
+
+    if (js_ValueToStringId(cx, idval, idp)) {
+        vp->setString(JSID_TO_STRING(*idp));
+        return true;
+    }
+    return false;
+}
+#endif

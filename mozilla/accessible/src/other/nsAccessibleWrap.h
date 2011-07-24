@@ -48,12 +48,13 @@
 
 class nsAccessibleWrap : public nsAccessible
 {
-  public: // construction, destruction
-    nsAccessibleWrap(nsIDOMNode*, nsIWeakReference *aShell);
-    virtual ~nsAccessibleWrap();
+public: // construction, destruction
+  nsAccessibleWrap(nsIContent *aContent, nsIWeakReference *aShell);
+  virtual ~nsAccessibleWrap();
 
   protected:
-    virtual nsresult FirePlatformEvent(nsIAccessibleEvent *aEvent) {
+    virtual nsresult FirePlatformEvent(AccEvent* aEvent)
+    {
       return NS_OK;
     }
 };

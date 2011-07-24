@@ -322,6 +322,10 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
   border-bottom: none;
 }
 
+#attachmentBucketSize {
+  color: #888a85;
+}
+
 /* ::::: attachment reminder ::::: */
 
 #attachmentNotificationBox > notification .messageImage {
@@ -345,8 +349,7 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
 
 /* XXX I should really have a selector rule here to select just .listcell-icon objects underneath the attachmentList listbox */
 
-.listcell-icon
-{
+.listcell-icon {
   -moz-margin-start: 2px;
   margin-top: 2px;
 }
@@ -359,7 +362,6 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
 }
 
 #msgSubject {
-  margin-top: 0px;
   margin-bottom: 4px;
 }
 
@@ -371,18 +373,25 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
   
 #addressingWidget {
   -moz-user-focus: none;
+  -moz-appearance: none;
   width: 0;
-}  
+  border: none;
+  background-color: transparent;
+}
 
-#typecol-addressingWidget {
-  min-width: 9em;
-  border-right: 1px solid #CACAFF;
+#addressingWidget listboxbody {
+  margin: 1px 0;
+}
+
+#textcol-addressingWidget {
+  border: 1px solid threedshadow;
+  background-color: -moz-field;
 }
 
 .addressingWidgetItem,
 .dummy-row {
-  border: none !important;
-  background-color: inherit !important;
+  background-color: transparent !important;
+  border-width: 0;
   color: inherit !important;
 }
 
@@ -391,13 +400,9 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
   padding: 0px;
 }
 
-.addressingWidgetCell:first-child {
-  border-top: none;
-}
-
+.addressingWidgetCell:first-child,
 .dummy-row-cell:first-child {
-  border-top: none;
-  border-bottom: 1px solid #CACAFF;
+  border-bottom: none;
 }
 
 .person-icon {
@@ -405,8 +410,36 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
   list-style-image: url("chrome://messenger/skin/addressbook/icons/abcard.png");
 }
 
-.aw-menulist > dropmarker {
-  height: 11px; 
+.aw-menulist {
+  -moz-binding: url("chrome://global/content/bindings/menulist.xml#menulist");
+  -moz-appearance: menulist;
+  -moz-box-align: stretch;
+  margin: 1px 0;
+  -moz-margin-start: 7px;
+  list-style-image: none;
+}
+
+.aw-menulist > .menulist-label-box {
+  margin: 0;
+}
+
+/* set the dropmarker at the beginning of the aw-menulist */
+.aw-menulist:-moz-locale-dir(ltr),
+.aw-menulist > .menulist-label-box:-moz-locale-dir(rtl) {
+  direction: rtl; 
+}
+
+.aw-menulist:-moz-locale-dir(rtl),
+.aw-menulist > .menulist-label-box:-moz-locale-dir(ltr) {
+  direction: ltr; 
+}
+
+.aw-menulist > .menulist-label-box > .menulist-icon {
+  -moz-margin-start: 0;
+}
+
+.aw-menulist > .menulist-label-box > .menulist-label {
+  margin: 0 1px !important;
 }
 
 #MsgHeadersToolbar {
@@ -415,7 +448,7 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
 
 /* ::::: format toolbar ::::: */
 
-#FormatToolbar > toolbarbutton {
+toolbarbutton.formatting-button {
   list-style-image: url("chrome://messenger/skin/messengercompose/format-buttons.png");
 }
  

@@ -85,6 +85,7 @@ function toggleAffectedChrome(aHide)
   //   (*) tab browser ``strip''
   //   (*) sidebar
   //   (*) statusbar
+  //   (*) findbar
 
   if (!gChromeState)
     gChromeState = new Object;
@@ -92,6 +93,7 @@ function toggleAffectedChrome(aHide)
   var statusbar = document.getElementById("status-bar");
   getNavToolbox().hidden = aHide; 
   var notificationBox = gBrowser.getNotificationBox();
+  var findbar = document.getElementById("FindToolbar")
 
   // sidebar states map as follows:
   //   was-hidden    => hide/show nothing
@@ -123,6 +125,24 @@ function toggleAffectedChrome(aHide)
     // deal with the notification box
     gChromeState.notificationsWereHidden = notificationBox.notificationsHidden;
     notificationBox.notificationsHidden = true;
+
+    if (findbar)
+    {
+      gChromeState.findbarWasHidden = findbar.hidden;
+      findbar.close();
+    }
+    else
+    {
+      gChromeState.findbarWasHidden = true;
+    }
+
+    gChromeState.syncNotificationsOpen = false;
+    var syncNotifications = document.getElementById("sync-notifications");
+    if (syncNotifications)
+    {
+      gChromeState.syncNotificationsOpen = !syncNotifications.notificationsHidden;
+      syncNotifications.notificationsHidden = true;
+    }
   }
   else
   {
@@ -141,6 +161,12 @@ function toggleAffectedChrome(aHide)
 
     // restore the notification box
     notificationBox.notificationsHidden = gChromeState.notificationsWereHidden;
+
+    if (!gChromeState.findbarWasHidden)
+      findbar.open();
+
+    if (gChromeState.syncNotificationsOpen)
+      document.getElementById("sync-notifications").notificationsHidden = false;
   }
 
   // if we are unhiding and sidebar used to be there rebuild it
@@ -175,10 +201,10 @@ var PrintPreviewListener = {
   onExit: function () {
     getBrowser().selectedTab = this._tabBeforePrintPreview;
     this._tabBeforePrintPreview = null;
-    getBrowser().removeTab(this._printPreviewTab, true);
-    this._printPreviewTab = null;
     gInPrintPreviewMode = false;
     toggleAffectedChrome(false);
+    getBrowser().removeTab(this._printPreviewTab, { disableUndo: true });
+    this._printPreviewTab = null;
   }
 };
 

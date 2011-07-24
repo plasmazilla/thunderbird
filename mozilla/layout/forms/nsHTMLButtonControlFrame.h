@@ -43,8 +43,6 @@
 #include "nsIFormControlFrame.h"
 #include "nsHTMLParts.h"
 
-#include "nsPresContext.h"
-#include "nsIPresShell.h"
 #include "nsStyleContext.h"
 #include "nsLeafFrame.h"
 #include "nsCSSRendering.h"
@@ -54,6 +52,7 @@
 #include "nsButtonFrameRenderer.h"
 
 class nsIRenderingContext;
+class nsPresContext;
 
 class nsHTMLButtonControlFrame : public nsHTMLContainerFrame,
                                  public nsIFormControlFrame 
@@ -62,7 +61,7 @@ public:
   nsHTMLButtonControlFrame(nsStyleContext* aContext);
   ~nsHTMLButtonControlFrame();
 
-  virtual void Destroy();
+  virtual void DestroyFrom(nsIFrame* aDestructRoot);
 
   NS_DECL_QUERYFRAME
   NS_DECL_FRAMEARENA_HELPERS
@@ -105,7 +104,7 @@ public:
                          nsIFrame*       aOldFrame);
 
 #ifdef ACCESSIBILITY
-  NS_IMETHOD GetAccessible(nsIAccessible** aAccessible);
+  virtual already_AddRefed<nsAccessible> CreateAccessible();
 #endif
 
   virtual nsIAtom* GetType() const;

@@ -255,10 +255,6 @@ function onFilterServerClick(selection)
 
 function CanRunFiltersAfterTheFact(aServer)
 {
-  // can't manually run news filters yet
-  if (aServer.type == "nntp")
-    return false;
-
   // filter after the fact is implement using search
   // so if you can't search, you can't filter after the fact
   return aServer.canSearchMessages;
@@ -522,6 +518,8 @@ function moveCurrentFilter(motion)
       gFilterTree.view.selection.select(gFilterTree.currentIndex - 1);
     else
       gFilterTree.view.selection.select(gFilterTree.currentIndex + 1);
+
+    gFilterTree.treeBoxObject.ensureRowIsVisible(gFilterTree.currentIndex);
 }
 
 function updateButtons()

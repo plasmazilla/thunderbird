@@ -74,7 +74,7 @@ const TESTS = [ {
 function runTest() {
   debugDump("entering");
 
-  let url = URL_UPDATE + "?type=minor&showLicense=1&showDetails=1" +
+  let url = URL_UPDATE + "?showLicense=1&showDetails=1&showPrompt=1" +
             getVersionParams();
   setUpdateURLOverride(url);
 

@@ -47,7 +47,6 @@
  * or undefined if o.p has no getter.  Users can wrap and layer."
  */
 //-----------------------------------------------------------------------------
-var gTestfile = 'getset-006.js';
 var UBound = 0;
 var BUGNUMBER = 71992;
 var summary = 'Testing  obj.__lookupGetter__(), obj.__lookupSetter__()';
@@ -147,7 +146,7 @@ actual = [obj.__lookupSetter__(cnName), obj.__lookupGetter__(cnName)];
 expect = [cnNameSetter, cnNameGetter];
 addThis();
 
-status = 'In SECTION3 of test; looking up non-existent getter/setter';
+status = 'In SECTION3 of test; looking up nonexistent getter/setter';
 actual = [obj.__lookupSetter__(cnColor), obj.__lookupGetter__(cnColor)];
 expect = [undefined, undefined];
 addThis();

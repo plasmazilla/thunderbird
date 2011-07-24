@@ -191,10 +191,13 @@ private:
 
 static nsresult
 LookupFunction(const char *aContractID, nsIAtom* aName, nsIID &aIID,
-               PRUint16 &aMethodIndex)
+               PRUint16 &aMethodIndex, nsISupports **aHelper)
 {
     nsresult rv;
-    nsCOMPtr<nsIClassInfo> classInfo = do_GetClassObject(aContractID, &rv);
+    nsCOMPtr<nsISupports> helper = do_GetService(aContractID, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    nsCOMPtr<nsIClassInfo> classInfo = do_QueryInterface(helper, &rv);
     NS_ENSURE_SUCCESS(rv, rv);
 
     nsCOMPtr<nsIInterfaceInfoManager> iim =
@@ -212,10 +215,9 @@ LookupFunction(const char *aContractID, nsIAtom* aName, nsIID &aIID,
     // foo-bar becomes fooBar). Note that if there are any names that already
     // have uppercase letters they might cause false matches (both fooBar and
     // foo-bar matching fooBar).
-    const char *name;
-    aName->GetUTF8String(&name);
+    const PRUnichar *name = aName->GetUTF16String();
     nsCAutoString methodName;
-    char letter;
+    PRUnichar letter;
     PRBool upperNext = PR_FALSE;
     while ((letter = *name)) {
         if (letter == '-') {
@@ -253,8 +255,7 @@ LookupFunction(const char *aContractID, nsIAtom* aName, nsIID &aIID,
 
             aIID = *iid;
             aMethodIndex = methodIndex;
-
-            return NS_OK;
+            return helper->QueryInterface(aIID, (void**)aHelper);
         }
     }
 
@@ -269,11 +270,10 @@ TX_ResolveFunctionCallXPCOM(const nsCString &aContractID, PRInt32 aNamespaceID,
 {
     nsIID iid;
     PRUint16 methodIndex;
-    nsresult rv = LookupFunction(aContractID.get(), aName, iid, methodIndex);
-    NS_ENSURE_SUCCESS(rv, rv);
-
     nsCOMPtr<nsISupports> helper;
-    rv = CallGetService(aContractID.get(), iid, getter_AddRefs(helper));
+
+    nsresult rv = LookupFunction(aContractID.get(), aName, iid, methodIndex,
+                                 getter_AddRefs(helper));
     NS_ENSURE_SUCCESS(rv, rv);
 
     if (!aFunction) {
@@ -316,6 +316,7 @@ txXPCOMExtensionFunctionCall::GetParamType(const nsXPTParamInfo &aParam,
                 return eOBJECT;
             }
         }
+        // FALLTHROUGH
         default:
         {
             // XXX Error!
@@ -544,6 +545,9 @@ txXPCOMExtensionFunctionCall::evaluate(txIEvalContext* aContext,
     }
     else {
         returnParam.SetPtrIsData();
+        if (returnType == eNODESET || returnType == eOBJECT) {
+            returnParam.SetValIsInterface();
+        }
         returnParam.ptr = &returnParam.val;
     }
 

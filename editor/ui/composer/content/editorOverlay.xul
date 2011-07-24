@@ -58,12 +58,28 @@
     <!-- defined in globalOverlay -->
     <key id="key_newNavigator"/>
     <key id="key_newBlankPage"/>
-    <key id="openeditorkb"   key="&openFileCmd.key;"          observes="cmd_open"  modifiers="accel"/>
-    <key id="openremoteeditorkb"  key="&openRemoteCmd.key;"   observes="cmd_openRemote"  modifiers="accel,shift"/>
-    <key id="savekb"         key="&saveCmd.key;"              observes="cmd_save"   modifiers="accel"/>
-    <key id="publishkb"      key="&publishCmd.key;"           observes="cmd_publish" modifiers="accel,shift"/>
-    <key id="closekb"        key="&closeCmd.key;"             observes="cmd_close"  modifiers="accel"/>
-    <key id="printkb"        key="&printCmd.key;"             observes="cmd_print"  modifiers="accel"/>
+    <key id="openeditorkb"
+         key="&openFileCmd.key;"
+         command="cmd_open"  modifiers="accel"/>
+    <key id="openremoteeditorkb"
+         key="&openRemoteCmd.key;"
+         command="cmd_openRemote"  modifiers="accel,shift"/>
+    <key id="savekb"
+         key="&saveCmd.key;"
+         command="cmd_save"
+         modifiers="accel"/>
+    <key id="publishkb"
+         key="&publishCmd.key;"
+         command="cmd_publish"
+         modifiers="accel,shift"/>
+    <key id="closekb"
+         key="&closeCmd.key;"
+         command="cmd_close"
+         modifiers="accel"/>
+    <key id="printkb"
+         key="&printCmd.key;"
+         command="cmd_print"
+         modifiers="accel"/>
     <key id="key_quit"/>
     <key id="key_undo"/>
     <key id="key_redo"/>
@@ -72,42 +88,102 @@
     <key id="key_paste"/>
     <key id="key_delete"/>
     <key id="key_selectAll"/>
-    <key id="pastequotationkb" key="&pasteAsQuotationCmd.key;"
-         observes="cmd_pasteQuote" modifiers="accel, shift"/>
-    <key id="pastenoformattingkb" key="&pasteNoFormatting.key;"
-         observes="cmd_pasteNoFormatting" modifiers="accel, shift"/>
-    <key id="findkb"            key="&findCmd.key;"            observes="cmd_find"  modifiers="accel"/>
-    <key id="findnextkb"        key="&findAgainCmd.key;"        observes="cmd_findNext"  modifiers="accel"/>
-    <key id="findprevkb"        key="&findPrevCmd.key;"        observes="cmd_findPrev"  modifiers="accel,shift"/>
-    <key keycode="&findAgainCmd.key2;" observes="cmd_findNext"/>
-    <key keycode="&findPrevCmd.key2;" observes="cmd_findPrev" modifiers="shift"/>
+    <key id="pastequotationkb"
+         key="&pasteAsQuotationCmd.key;"
+         command="cmd_pasteQuote"
+         modifiers="accel, shift"/>
+    <key id="pastenoformattingkb"
+         key="&pasteNoFormatting.key;"
+         command="cmd_pasteNoFormatting"
+         modifiers="accel, shift"/>
+    <key id="findkb"
+         key="&findCmd.key;"
+         command="cmd_find"
+         modifiers="accel"/>
+    <key id="findnextkb"
+         key="&findAgainCmd.key;"
+         command="cmd_findNext"
+         modifiers="accel"/>
+    <key id="findprevkb"
+         key="&findPrevCmd.key;"
+         command="cmd_findPrev"
+         modifiers="accel,shift"/>
+    <key keycode="&findAgainCmd.key2;"
+         command="cmd_findNext"/>
+    <key keycode="&findPrevCmd.key2;"
+         command="cmd_findPrev"
+         modifiers="shift"/>
 #ifdef MOZ_X11
-    <key keycode="&findCmd.key2;" observes="cmd_find"/>
+    <key keycode="&findCmd.key2;"
+         command="cmd_find"/>
 #endif
     <key id="checkspellingkb"
          key="&checkSpellingCmd2.key;"
-         observes="cmd_spelling"
+         command="cmd_spelling"
          modifiers="accel,shift"
          disabled="true"/>
 
-    <key id="boldkb"         key="&styleBoldCmd.key;"       observes="cmd_bold" modifiers="accel"/>
-    <key id="italickb"       key="&styleItalicCmd.key;"     observes="cmd_italic" modifiers="accel"/>
-    <key id="underlinekb"    key="&styleUnderlineCmd.key;"  observes="cmd_underline" modifiers="accel"/>
-    <key id="fixedwidthkb"   key="&fontFixedWidth.key;" observes="cmd_tt" modifiers="accel"/>
+    <key id="boldkb"
+         key="&styleBoldCmd.key;"
+         command="cmd_bold"
+         modifiers="accel"/>
+    <key id="italickb"
+         key="&styleItalicCmd.key;"
+         command="cmd_italic"
+         modifiers="accel"/>
+    <key id="underlinekb"
+         key="&styleUnderlineCmd.key;"
+         command="cmd_underline"
+         modifiers="accel"/>
+    <key id="fixedwidthkb"
+         key="&fontFixedWidth.key;"
+         command="cmd_tt"
+         modifiers="accel"/>
 
-    <key id="increaseindentkb"  key="&increaseIndent.key;"  observes="cmd_indent"  modifiers="accel"/>
-    <key id="decreaseindentkb"  key="&decreaseIndent.key;"  observes="cmd_outdent"  modifiers="accel"/>
+    <key id="increaseindentkb"
+         key="&increaseIndent.key;"
+         command="cmd_indent"
+         modifiers="accel"/>
+    <key id="decreaseindentkb"
+         key="&decreaseIndent.key;"
+         command="cmd_outdent"
+         modifiers="accel"/>
 
-    <key id="removestyleskb"       key="&formatRemoveStyles.key;"   observes="cmd_removeStyles"  modifiers="accel, shift"/>
-    <key id="removestyleskb2"       key=" "   observes="cmd_removeStyles"  modifiers="accel"/>
-    <key id="removelinkskb"        key="&formatRemoveLinks.key;"    observes="cmd_removeLinks"  modifiers="accel, shift"/>
-    <key id="removenamedanchorskb" key="&formatRemoveNamedAnchors.key;"    observes="cmd_removeNamedAnchors"  modifiers="accel, shift"/>
-    <key id="decreasefontsizekb"   key="&decreaseFontSize.key;"     observes="cmd_decreaseFont"  modifiers="accel"/>
-    <key id="increasefontsizekb"   key="&increaseFontSize.key;"     observes="cmd_increaseFont"  modifiers="accel"/>
-    <key                           key="&increaseFontSize.key;"     observes="cmd_increaseFont"  modifiers="accel,shift"/>
-    <key                           key="&increaseFontSize.key2;"    observes="cmd_increaseFont"  modifiers="accel"/>
+    <key id="removestyleskb"
+         key="&formatRemoveStyles.key;"
+         command="cmd_removeStyles"
+         modifiers="accel, shift"/>
+    <key id="removestyleskb2"
+         key=" "
+         command="cmd_removeStyles"
+         modifiers="accel"/>
+    <key id="removelinkskb"
+         key="&formatRemoveLinks.key;"
+         command="cmd_removeLinks"
+         modifiers="accel, shift"/>
+    <key id="removenamedanchorskb"
+         key="&formatRemoveNamedAnchors.key;"
+         command="cmd_removeNamedAnchors"
+         modifiers="accel, shift"/>
+    <key id="decreasefontsizekb"
+         key="&decreaseFontSize.key;"
+         command="cmd_decreaseFont"
+         modifiers="accel"/>
+    <key id="increasefontsizekb"
+         key="&increaseFontSize.key;"
+         command="cmd_increaseFont"
+         modifiers="accel"/>
+    <key key="&increaseFontSize.key;"
+         command="cmd_increaseFont"
+         modifiers="accel,shift"/>
+    <key key="&increaseFontSize.key2;"
+         command="cmd_increaseFont"
+         modifiers="accel"/>
 
-    <key id="insertlinkkb"         key="&insertLinkCmd.key;"           observes="cmd_link"          modifiers="accel"/>
+    <key id="insertlinkkb"
+         key="&insertLinkCmd.key;"
+         command="cmd_link"
+         modifiers="accel"/>
   </keyset>
 
   <!-- commands updated when the editor gets created -->
@@ -129,7 +205,6 @@
           oncommandupdate="goUpdateComposerMenuItems(this)">
     <!-- format menu -->
     <command id="cmd_listProperties"  oncommand="goDoCommand('cmd_listProperties')"/>
-    <command id="cmd_pageProperties"  oncommand="goDoCommand('cmd_pageProperties')"/>
     <command id="cmd_colorProperties" oncommand="goDoCommand('cmd_colorProperties')"/>
 
     <command id="cmd_link"             oncommand="goDoCommand('cmd_link')"/>
@@ -151,10 +226,6 @@
     <command id="cmd_insertHTMLWithDialog" oncommand="goDoCommand('cmd_insertHTMLWithDialog')"  label="&insertHTMLCmd.label;"/>
     <command id="cmd_insertBreak"      oncommand="goDoCommand('cmd_insertBreak')"/>
     <command id="cmd_insertBreakAll"   oncommand="goDoCommand('cmd_insertBreakAll')"/>
-    <command id="cmd_NormalMode"       oncommand="goDoCommand('cmd_NormalMode')"     label="&NormalMode.label;"/>
-    <command id="cmd_AllTagsMode"      oncommand="goDoCommand('cmd_AllTagsMode')"    label="&AllTagsMode.label;"/>
-    <command id="cmd_HTMLSourceMode"   oncommand="goDoCommand('cmd_HTMLSourceMode')"/>
-    <command id="cmd_PreviewMode"      oncommand="goDoCommand('cmd_PreviewMode')"    label="&PreviewMode.label;"/>
 
     <!-- only used in context popup menu -->
     <command id="cmd_editLink"         oncommand="goDoCommand('cmd_editLink')"/>
@@ -169,14 +240,10 @@
           oncommandupdate="goUpdateComposerMenuItems(this)">
     <command id="cmd_save"           label="&saveCmd.label;"           oncommand="goDoCommand('cmd_save')"/>
     <command id="cmd_saveAs"         label="&saveAsCmd.label;"         oncommand="goDoCommand('cmd_saveAs')"/>
-    <command id="cmd_exportToText"   label="&exportToTextCmd.label;"   oncommand="goDoCommand('cmd_exportToText')"/>
     <command id="cmd_saveAndChangeEncoding"  label="&saveAsChangeEncodingCmd.label;"  oncommand="goDoCommand('cmd_saveAndChangeEncoding')"/>
     <command id="cmd_publish"        label="&publishCmd.label;"        oncommand="goDoCommand('cmd_publish')"/>
     <command id="cmd_publishAs"      label="&publishAsCmd.label;"      oncommand="goDoCommand('cmd_publishAs')"/>
     <command id="cmd_revert"         label="&fileRevert.label;"        oncommand="goDoCommand('cmd_revert')"/>
-    <command id="cmd_preview"                                          oncommand="goDoCommand('cmd_preview')"/>
-    <command id="cmd_editSendPage"   label="&sendPageCmd.label;"
-                                     accesskey="&sendPageCmd.accesskey;"  oncommand="goDoCommand('cmd_editSendPage')"/>
   </commandset>
 
   <!-- edit menu commands. These get updated by code in globalOverlay.js -->
@@ -198,10 +265,10 @@
     <command id="cmd_findNext"      oncommand="goDoCommand('cmd_findNext')"     label="&findAgainCmd.label;"/>
     <command id="cmd_findPrev"      oncommand="goDoCommand('cmd_findPrev')"     label="&findPrevCmd.label;"/>
     <command id="cmd_spelling"      oncommand="goDoCommand('cmd_spelling')"/>
-    <command id="cmd_validate"      label="&validateCmd.label;" accesskey="&validateCmd.accesskey;" oncommand="goDoCommand('cmd_validate')"/>
     <command id="cmd_checkLinks"    oncommand="goDoCommand('cmd_checkLinks')"/>
     <command id="cmd_pasteQuote"    oncommand="goDoCommand('cmd_pasteQuote')" label="&pasteAsQuotationCmd.label;"/>
-    <command id="cmd_publishSettings" label="&publishSettings.label;" accesskey="&publishSettings.accesskey;" oncommand="goDoCommand('cmd_publishSettings')"/>
+    <command id="cmd_publishSettings"
+             oncommand="goDoCommand('cmd_publishSettings');"/>
   </commandset>
 
   <!-- style related commands that update on creation, and on selection change -->
@@ -250,7 +317,6 @@
     <command id="cmd_removeStyles"                    oncommand="goDoCommand('cmd_removeStyles')"/>
     <command id="cmd_removeLinks"                     oncommand="goDoCommand('cmd_removeLinks')"/>
     <command id="cmd_removeNamedAnchors"              oncommand="goDoCommand('cmd_removeNamedAnchors')"/>
-    <command id="cmd_updateStructToolbar"             oncommand="goDoCommand('cmd_updateStructToolbar')"/>
   </commandset>
 
   <!-- commands updated only when the menu gets created -->
@@ -295,93 +361,79 @@
     <command id="cmd_editTable"           oncommand="goDoCommand('cmd_editTable')"/>
   </commandset>
 
-  <broadcasterset id="broadcasterset">
-    <!-- Broadcasters/commands with no other home -->
-    <!-- view menu -->
+  <commandset id="editorCommands">
+    <commandset id="globalEditMenuItems"/>
+    <commandset id="selectEditMenuItems"/>
+    <commandset id="undoEditMenuItems"/>
+    <commandset id="clipboardEditMenuItems"/>
+    <command id="toggleSidebar"/>
+    <!-- file menu -->
     <command id="cmd_newNavigator"/>
     <command id="cmd_newEditor"/>
     <command id="cmd_newEditorTemplate"/>
     <command id="cmd_newEditorDraft"/>
+    <!-- view menu -->
     <command id="cmd_viewCompToolbar"     oncommand="goToggleToolbar('EditToolbar','cmd_viewCompToolbar');"         checked="true"/>
     <command id="cmd_viewFormatToolbar"   oncommand="goToggleToolbar('FormatToolbar','cmd_viewFormatToolbar');"     checked="true"/>
-    <command id="cmd_viewEditModeToolbar" oncommand="goToggleToolbar('EditModeToolbar','cmd_viewEditModeToolbar');" checked="true"/>
-
-    <!-- Obsolete; these will go away -->
-    <command id="Editor:Font:Size" fontsize=""/>
-  </broadcasterset>
+  </commandset>
 
   <!-- File  menu items -->
-  <!-- Note: globalOverlay.xul uses menu_newEditor, but we want different menu item text
-             so we use our own id, label, and accesskey but connect to the same global key and broadcaster node
-   -->
   <menu id="fileMenu" label="&fileMenu.label;" accesskey="&fileMenu.accesskey;">
     <menupopup id="menu_FilePopup" onpopupshowing="EditorInitFileMenu();">
       <menu id="menu_New">
         <menupopup id="menu_NewPopup">
-          <menuitem id="menu_newBlankPage"
-                    label="&newBlankPageCmd.label;"
-                    accesskey="&newBlankPageCmd.accesskey;"
-                    key="key_newBlankPage"
-                    command="cmd_newEditor"/>
+          <menuitem id="menu_newEditor"/>
           <menuseparator id="composerBeginGlobalNewItems"/>
-          <!-- From globalOverlay.xul -->
-          <menuitem id="menu_newNavigator" observes="cmd_newNavigator"/>
+          <menuitem id="menu_newNavigator"/>
         </menupopup>
       </menu>
       <menuitem id="menu_openRemote"
                 accesskey="&openRemoteCmd.accesskey;"
                 key="openremoteeditorkb"
-                observes="cmd_openRemote"/>
+                command="cmd_openRemote"/>
       <menuitem id="menu_openFile"
                 label="&openFileCmd.label;"
                 accesskey="&openFileCmd.accesskey;"
                 key="openeditorkb"
-                observes="cmd_open"/>
+                command="cmd_open"/>
       <menu id="menu_RecentFiles"
             label="&fileRecentMenu.label;"
             accesskey="&fileRecentMenu.accesskey;"
             onpopupshowing="BuildRecentPagesMenu();">
         <menupopup id="menupopup_RecentFiles"
-                   oncommand="editPage(event.target.getAttribute('value'), window, false);"/>
+                   oncommand="editPage(event.target.getAttribute('value'),
+                                       event.target.getAttribute('fileType'));"/>
           <!-- menuitems appended at runtime -->
       </menu>
       <menuitem id="menu_close"
                 accesskey="&closeCmd.accesskey;"
                 key="closekb"
-                observes="cmd_close"/>
+                command="cmd_close"/>
       <menuseparator id="fileMenuAfterCloseSeparator"/>
       <menuitem id="saveMenuitem"
                 accesskey="&saveCmd.accesskey;"
                 key="savekb"
-                observes="cmd_save"/>
+                command="cmd_save"/>
       <menuitem id="menu_saveAs"
                 accesskey="&saveAsCmd.accesskey;"
-                observes="cmd_saveAs"/>
+                command="cmd_saveAs"/>
       <menuitem id="menu_saveAsChangeEncoding"
                 accesskey="&saveAsChangeEncodingCmd.accesskey;"
-                observes="cmd_saveAndChangeEncoding"/>
+                command="cmd_saveAndChangeEncoding"/>
       <menuseparator id="fileMenuAfterSaveAsChangeEncodingSeparator"/>
       <menuitem id="publishMenuitem"
                 accesskey="&publishCmd.accesskey;"
                 key="publishkb"
-                observes="cmd_publish"/>
+                command="cmd_publish"/>
       <menuitem id="menu_publishAs"
                 accesskey="&publishAsCmd.accesskey;"
-                observes="cmd_publishAs"/>
+                command="cmd_publishAs"/>
       <menuseparator id="fileMenuAfterPublishAsSeparator"/>
       <menuitem id="menu_fileRevert"
                 accesskey="&fileRevert.accesskey;"
-                observes="cmd_revert"/>
+                command="cmd_revert"/>
       <menuseparator id="fileMenuAfterFileRevertSeparator"/>
-      <menuitem id="fileExportToText"
-                accesskey="&exportToTextCmd.accesskey;"
-                observes="cmd_exportToText"/>
-      <menuitem id="previewInBrowser"
-                label="&previewCmd.label;"
-                accesskey="&previewCmd.accesskey;"
-                observes="cmd_preview"/>
-      <!-- menuitem id="menu_SendPage" is merged here from mailEditorOverlay.xul,
-           where "position" is assumed to be just after 'previewInBrowser'  -->
+      <!-- menuitems are merged in here from composerOverlay.xul -->
       <menuitem id="printSetupMenuItem"
                 label="&printSetupCmd.label;"
                 accesskey="&printSetupCmd.accesskey;"
@@ -390,7 +442,7 @@
                 label="&printCmd.label;"
                 accesskey="&printCmd.accesskey;"
                 key="printkb"
-                observes="cmd_print"/>
+                command="cmd_print"/>
       <!-- The Exit/Quit item is merged from platformGlobalOverlay.xul -->
     </menupopup>
   </menu>
@@ -404,8 +456,9 @@
       <menuitem id="menu_cut"/>
       <menuitem id="menu_copy"/>
       <menuitem id="menu_paste"/>
-      <menuitem id="menu_pasteNoFormatting" key="pastenoformattingkb"
-                observes="cmd_pasteNoFormatting"/>
+      <menuitem id="menu_pasteNoFormatting"
+                key="pastenoformattingkb"
+                command="cmd_pasteNoFormatting"/>
       <menuitem id="menu_delete"/>
       <menuseparator id="edEditMenuSep2" />
       <menuitem id="menu_selectAll"/>
@@ -414,21 +467,21 @@
                 label="&findCmd.label;"
                 accesskey="&findCmd.accesskey;"
                 key="findkb"
-                observes="cmd_find"/>
+                command="cmd_find"/>
       <menuitem id="menu_findnext"
                 accesskey="&findAgainCmd.accesskey;"
                 key="findnextkb"
-                observes="cmd_findNext"/>
+                command="cmd_findNext"/>
       <menuitem id="menu_findprev"
                 accesskey="&findPrevCmd.accesskey;"
                 key="findprevkb"
-                observes="cmd_findPrev"/>
+                command="cmd_findPrev"/>
       <menuseparator id="sep_checkspelling"/>
       <menuitem id="menu_checkspelling"
                 label="&checkSpellingCmd2.label;"
                 accesskey="&checkSpellingCmd2.accesskey;"
                 key="checkspellingkb"
-                observes="cmd_spelling"
+                command="cmd_spelling"
                 disabled="true"/>
       <menuitem id="menu_inlinespellcheck"
                 type="checkbox"
@@ -436,32 +489,14 @@
                 accesskey="&enableInlineSpellChecker.accesskey;"
                 oncommand="InlineSpellCheckerUI.enabled = !InlineSpellCheckerUI.enabled"/>
       <menuseparator id="menu_prefsSep"/>
-      <menuitem id="menu_preferences"     observes="cmd_preferences"/>
-      <!-- Note: other Edit items (menu_validate, menu_publishSettings) are inserted from composerOverlay.xul -->
+      <menuitem id="menu_publishSettings"
+                label="&publishSettings.label;"
+                accesskey="&publishSettings.accesskey;"
+                command="cmd_publishSettings"/>
+      <menuitem id="menu_preferences"
+                command="cmd_preferences"/>
     </menupopup>
   </menu>
-
-  <menuitem id="viewNormalMode"
-            type="radio"
-            group="mode"
-            accesskey="&NormalMode.accesskey;"
-            observes="cmd_NormalMode"/>
-  <menuitem id="viewAllTagsMode"
-            type="radio"
-            group="mode"
-            accesskey="&AllTagsMode.accesskey;"
-            observes="cmd_AllTagsMode"/>
-  <menuitem id="viewSourceMode"
-            type="radio"
-            group="mode"
-            label="&HTMLSourceMode.label;"
-            accesskey="&HTMLSourceMode.accesskey;"
-            observes="cmd_HTMLSourceMode"/>
-  <menuitem id="viewPreviewMode"
-            type="radio"
-            group="mode"
-            accesskey="&PreviewMode.accesskey;"
-            observes="cmd_PreviewMode"/>
 
   <menupopup id = "composerCharsetMenuPopup"  onpopupshowing="updateCharsetPopupMenu(this)" />
 
@@ -473,31 +508,31 @@
       <menuitem id="insertImage"
                 label="&insertImageCmd.label;"
                 accesskey="&insertImageCmd.accesskey;"
-                observes="cmd_image"/>
+                command="cmd_image"/>
       <menuitem id="insertTable"
                 label="&insertTableCmd.label;"
                 accesskey="&insertTableCmd.accesskey;"
-                observes="cmd_InsertTable"/>
+                command="cmd_InsertTable"/>
       <menuitem id="insertLink"
                 label="&insertLinkCmd.label;"
                 accesskey="&insertLinkCmd.accesskey;"
-                observes="cmd_link"
+                command="cmd_link"
                 key="insertlinkkb"/>
       <menuitem id="insertAnchor"
                 label="&insertAnchorCmd.label;"
                 accesskey="&insertAnchorCmd.accesskey;"
-                observes="cmd_anchor"/>
+                command="cmd_anchor"/>
       <menuitem id="insertHline"
                 label="&insertHLineCmd.label;"
                 accesskey="&insertHLineCmd.accesskey;"
-                observes="cmd_hline"/>
+                command="cmd_hline"/>
       <menuitem id="insertHTMLSource"
                 accesskey="&insertHTMLCmd.accesskey;"
-                observes="cmd_insertHTMLWithDialog"
+                command="cmd_insertHTMLWithDialog"
                 key="inserthtmlkb"/>
       <menuitem id="insertChars"
                 accesskey="&insertCharsCmd.accesskey;"
-                observes="cmd_insertChars"/>
+                command="cmd_insertChars"/>
       <menu id="insertTOC" label="&tocMenu.label;" accesskey="&tocMenu.accesskey;">
         <menupopup id="insertTOCPopup" onpopupshowing="InitTOCMenu()">
           <menuitem id="insertTOCMenuitem"
@@ -515,18 +550,10 @@
         </menupopup>
       </menu>
       <menuseparator id="insertMenuSeparator"/>
-      <menuitem id="insertBreakAll" accesskey="&insertBreakAllCmd.accesskey;"   observes="cmd_insertBreakAll"   label="&insertBreakAllCmd.label;"/>
-    </menupopup>
-  </menu>
-
-  <!-- Insert menu for PlainText editor -->
-  <menu id="insertMenuPlainText"
-        label="&insertMenu.label;"
-        accesskey="&insertMenu.accesskey;">
-    <menupopup id="insertMenuPlainTextPopup">
-      <menuitem id="insertPlainTextChars"
-                accesskey="&insertCharsCmd.accesskey;"
-                observes="cmd_insertChars"/>
+      <menuitem id="insertBreakAll"
+                accesskey="&insertBreakAllCmd.accesskey;"
+                command="cmd_insertBreakAll"
+                label="&insertBreakAllCmd.label;"/>
     </menupopup>
   </menu>
 
@@ -590,13 +617,14 @@
       <menuitem id="menu_decreaseFontSize"
                 label="&decreaseFontSize.label;"
                 accesskey="&decreaseFontSize.accesskey;"
-                observes="cmd_decreaseFont" type="radio"
+                command="cmd_decreaseFont"
+                type="radio"
                 name="1"
                 key="decreasefontsizekb"/>
       <menuitem id="menu_increaseFontSize"
                 label="&increaseFontSize.label;"
                 accesskey="&increaseFontSize.accesskey;"
-                observes="cmd_increaseFont"
+                command="cmd_increaseFont"
                 type="radio"
                 name="1" key="increasefontsizekb"/>
         <menuseparator id="fontSizeMenuAfterIncreaseFontSizeSeparator"/>
@@ -740,25 +768,29 @@
     
     <!-- Note: "cmd_fontColor" only monitors color state, it doesn't execute the command
          (We should use "cmd_fontColorState" and "cmd_backgroundColorState" ?) -->
-    <menuitem id="fontColor" label="&formatFontColor.label;" 
-          accesskey="&formatFontColor.accesskey;"
-          observes="cmd_fontColor"
-          oncommand="EditorSelectColor('Text', null);"
-          position="4"/>
+    <menuitem id="fontColor"
+              label="&formatFontColor.label;" 
+              accesskey="&formatFontColor.accesskey;"
+              observes="cmd_fontColor"
+              oncommand="EditorSelectColor('Text', null);"
+              position="4"/>
     <menuseparator id="removeSep" position="5"/>
 
     <!-- label and accesskey set at runtime from strings -->
-    <menuitem id="removeStylesMenuitem" key="removestyleskb"
-          observes="cmd_removeStyles"
-          position="6"/>
-    <menuitem id="removeLinksMenuitem" key="removelinkskb"
-          observes="cmd_removeLinks"
-          position="7"/>
-    <menuitem id="removeNamedAnchorsMenuitem"  label="&formatRemoveNamedAnchors.label;"
-          key="removenamedanchorskb"
-          accesskey="&formatRemoveNamedAnchors.accesskey;"
-          observes="cmd_removeNamedAnchors"
-          position="8"/>
+    <menuitem id="removeStylesMenuitem"
+              key="removestyleskb"
+              observes="cmd_removeStyles"
+              position="6"/>
+    <menuitem id="removeLinksMenuitem"
+              key="removelinkskb"
+              observes="cmd_removeLinks"
+              position="7"/>
+    <menuitem id="removeNamedAnchorsMenuitem"
+              label="&formatRemoveNamedAnchors.label;"
+              key="removenamedanchorskb"
+              accesskey="&formatRemoveNamedAnchors.accesskey;"
+              observes="cmd_removeNamedAnchors"
+              position="8"/>
     <menuseparator id="tabSep" position="9"/>
 
     <!-- Note: the 'Init' menu methods for Paragraph, List, and Align
@@ -851,36 +883,36 @@
                   name="1"
                   label="&noneCmd.label;"
                   accesskey="&noneCmd.accesskey;"
-                  observes="cmd_removeList"/>
+                  command="cmd_removeList"/>
         <menuitem id="menu_ul"
                   type="radio"
                   name="1"
                   label="&listBulletCmd.label;"
                   accesskey="&listBulletCmd.accesskey;"
-                  observes="cmd_ul"/>
+                  command="cmd_ul"/>
         <menuitem id="menu_ol"
                   type="radio"
                   name="1"
                   label="&listNumberedCmd.label;"
                   accesskey="&listNumberedCmd.accesskey;"
-                  observes="cmd_ol"/>
+                  command="cmd_ol"/>
         <menuitem id="menu_dt"
                   type="radio"
                   name="1"
                   label="&listTermCmd.label;"
                   accesskey="&listTermCmd.accesskey;"
-                  observes="cmd_dt"/>
+                  command="cmd_dt"/>
         <menuitem id="menu_dd"
                   type="radio"
                   name="1"
                   label="&listDefinitionCmd.label;"
                   accesskey="&listDefinitionCmd.accesskey;"
-                  observes="cmd_dd"/>
+                  command="cmd_dd"/>
         <menuseparator/>
         <menuitem id="listProps"
                   label="&listPropsCmd.label;"
                   accesskey="&listPropsCmd.accesskey;"
-                  observes="cmd_listProperties"/>
+                  command="cmd_listProperties"/>
       </menupopup>
     </menu>
     <menuseparator id="identingSep" position="12"/>
@@ -889,13 +921,13 @@
               label="&increaseIndent.label;"
               accesskey="&increaseIndent.accesskey;"
               key="increaseindentkb"
-              observes="cmd_indent"
+              command="cmd_indent"
               position="13"/>
     <menuitem id="decreaseIndent"
               label="&decreaseIndent.label;"
               accesskey="&decreaseIndent.accesskey;"
               key="decreaseindentkb"
-              observes="cmd_outdent"
+              command="cmd_outdent"
               position="14"/>
 
     <menu id="alignMenu" label="&alignMenu.label;" accesskey="&alignMenu.accesskey;"
@@ -939,18 +971,10 @@
     <!-- Merge property items here -->
   </menupopup>
 
-  <menuitem id="snapToGrid" label="&grid.label;" accesskey="&grid.accesskey;"
-            oncommand="goDoCommand('cmd_grid')"   observes="cmd_renderedHTMLEnabler"/>
-
-  <!-- Next 3 are items to append at the bottom of the formatMenuPopup -->
+  <!-- Next 2 are items to append at the bottom of the formatMenuPopup -->
   <!-- label and accesskey filled in during menu creation -->
   <menuitem id="objectProperties"   oncommand="goDoCommand('cmd_objectProperties')"   observes="cmd_renderedHTMLEnabler"/>
   <!-- Don't use 'observes', must call command correctly -->
-  <menuitem id="pageProperties"
-            label="&pageProperties.label;"
-            accesskey="&pageProperties.accesskey;"
-            oncommand="goDoCommand('cmd_pageProperties')"
-            observes="cmd_renderedHTMLEnabler"/>
   <menuitem id="colorsAndBackground"
             label="&colorsAndBackground.label;"
             accesskey="&colorsAndBackground.accesskey;"
@@ -965,34 +989,34 @@
           <menuitem id="menu_insertTable"
                     label="&insertTableCmd.label;"
                     accesskey="&insertTableCmd.accesskey;"
-                    observes="cmd_InsertTable"/>
+                    command="cmd_InsertTable"/>
           <menuseparator id="tableMenuAfterInsertTableSeparator"/>
           <menuitem id="menu_tableRowAbove"
                     label="&tableRowAbove.label;"
                     accesskey="&tableRowAbove.accesskey;"
-                    observes="cmd_InsertRowAbove"/>
+                    command="cmd_InsertRowAbove"/>
           <menuitem id="menu_tableRowBelow"
                     label="&tableRowBelow.label;"
                     accesskey="&tableRowBelow.accesskey;"
-                    observes="cmd_InsertRowBelow"/>
+                    command="cmd_InsertRowBelow"/>
           <menuseparator id="tableMenuAfterTableRowSeparator"/>
           <menuitem id="menu_tableColumnBefore"
                     label="&tableColumnBefore.label;"
                     accesskey="&tableColumnBefore.accesskey;"
-                    observes="cmd_InsertColumnBefore"/>
+                    command="cmd_InsertColumnBefore"/>
           <menuitem id="menu_tableColumnAfter"
                     label="&tableColumnAfter.label;"
                     accesskey="&tableColumnAfter.accesskey;"
-                    observes="cmd_InsertColumnAfter"/>
+                    command="cmd_InsertColumnAfter"/>
           <menuseparator id="tableMenuAfterInsertColumnSeparator"/>
           <menuitem id="menu_tableCellBefore"
                     label="&tableCellBefore.label;"
                     accesskey="&tableCellBefore.accesskey;"
-                    observes="cmd_InsertCellBefore"/>
+                    command="cmd_InsertCellBefore"/>
           <menuitem id="menu_tableCellAfter"
                     label="&tableCellAfter.label;"
                     accesskey="&tableCellAfter.accesskey;"
-                    observes="cmd_InsertCellAfter"/>
+                    command="cmd_InsertCellAfter"/>
         </menupopup>
       </menu>
       <menu id="tableSelectMenu" label="&tableSelectMenu.label;" accesskey="&tableSelectMenu.accesskey;">
@@ -1000,23 +1024,23 @@
           <menuitem id="menu_SelectTable"
                     label="&tableTable.label;"
                     accesskey="&tableTable.accesskey;"
-                    observes="cmd_SelectTable"/>
+                    command="cmd_SelectTable"/>
           <menuitem id="menu_SelectRow"
                     label="&tableRow.label;"
                     accesskey="&tableRow.accesskey;"
-                    observes="cmd_SelectRow"/>
+                    command="cmd_SelectRow"/>
           <menuitem id="menu_SelectColumn"
                     label="&tableColumn.label;"
                     accesskey="&tableColumn.accesskey;"
-                    observes="cmd_SelectColumn"/>
+                    command="cmd_SelectColumn"/>
           <menuitem id="menu_SelectCell"
                     label="&tableCell.label;"
                     accesskey="&tableCell.accesskey;"
-                    observes="cmd_SelectCell"/>
+                    command="cmd_SelectCell"/>
           <menuitem id="menu_SelectAllCells"
                     label="&tableAllCells.label;"
                     accesskey="&tableAllCells.accesskey;"
-                    observes="cmd_SelectAllCells"/>
+                    command="cmd_SelectAllCells"/>
         </menupopup>
       </menu>
       <menu id="tableDeleteMenu" label="&tableDeleteMenu.label;" accesskey="&tableDeleteMenu.accesskey;">
@@ -1024,23 +1048,23 @@
           <menuitem id="menu_DeleteTable"
                     label="&tableTable.label;"
                     accesskey="&tableTable.accesskey;"
-                    observes="cmd_DeleteTable"/>
+                    command="cmd_DeleteTable"/>
           <menuitem id="menu_DeleteRow"
                     label="&tableRows.label;"
                     accesskey="&tableRow.accesskey;"
-                    observes="cmd_DeleteRow"/>
+                    command="cmd_DeleteRow"/>
           <menuitem id="menu_DeleteColumn"
                     label="&tableColumns.label;"
                     accesskey="&tableColumn.accesskey;"
-                    observes="cmd_DeleteColumn"/>
+                    command="cmd_DeleteColumn"/>
           <menuitem id="menu_DeleteCell"
                     label="&tableCells.label;"
                     accesskey="&tableCell.accesskey;"
-                    observes="cmd_DeleteCell"/>
+                    command="cmd_DeleteCell"/>
           <menuitem id="menu_DeleteCellContents"
                     label="&tableCellContents.label;"
                     accesskey="&tableCellContents.accesskey;"
-                    observes="cmd_DeleteCellContents"/>
+                    command="cmd_DeleteCellContents"/>
         </menupopup>
       </menu>
       <menuseparator id="tableDeleteMenuAfterDeleteCellSeparator"/>
@@ -1048,30 +1072,32 @@
       <menuitem id="menu_JoinTableCells"
                 label="&tableJoinCells.label;"
                 accesskey="&tableJoinCells.accesskey;"
-                observes="cmd_JoinTableCells"/>
+                command="cmd_JoinTableCells"/>
       <menuitem id="menu_SlitTableCell"
                 label="&tableSplitCell.label;"
                 accesskey="&tableSplitCell.accesskey;"
-                observes="cmd_SplitTableCell"/>
+                command="cmd_SplitTableCell"/>
       <menuitem id="menu_ConvertToTable"
                 label="&convertToTable.label;"
                 accesskey="&convertToTable.accesskey;"
-                observes="cmd_ConvertToTable"/>
+                command="cmd_ConvertToTable"/>
       <menuseparator id="tableDeleteMenuAfterConvertToTableSeparator"/>
       <menuitem id="menu_TableOrCellColor"
                 label="&tableOrCellColor.label;"
                 accesskey="&tableOrCellColor.accesskey;"
-                observes="cmd_TableOrCellColor"/>
+                command="cmd_TableOrCellColor"/>
       <menuitem id="menu_tableProperties"
                 label="&tableProperties.label;"
                 accesskey="&tableProperties.accesskey;"
-                observes="cmd_editTable"/>
+                command="cmd_editTable"/>
     </menupopup>
   </menu>
 
-  <!-- this is only used in messengercompose.xul -->
-  <toolbarbutton type="menu" id="AlignPopupButton" observes="cmd_align"
-              tooltiptext="&AlignPopupButton.tooltip;">
+  <toolbarbutton id="AlignPopupButton"
+                 class="formatting-button"
+                 tooltiptext="&AlignPopupButton.tooltip;"
+                 type="menu"
+                 observes="cmd_align">
     <menupopup id="AlignPopup">
       <menuitem id="AlignLeftItem" class="menuitem-iconic" label="&alignLeft.label;"
                 oncommand="doStatefulCommand('cmd_align', 'left')"
@@ -1084,48 +1110,64 @@
                 tooltiptext="&alignRightButton.tooltip;"   />
       <menuitem id="AlignJustifyItem" class="menuitem-iconic" label="&alignJustify.label;"
                 oncommand="doStatefulCommand('cmd_align', 'justify')"
-                tooltiptext="&alignjustifyButton.tooltip;" />
+                tooltiptext="&alignJustifyButton.tooltip;"/>
     </menupopup>
   </toolbarbutton>
 
-  <!-- InsertPopupButton is used by messengercompose.xul -->
-  <toolbarbutton type="menu" id="InsertPopupButton" observes="cmd_renderedHTMLEnabler"
-              tooltiptext="&InsertPopupButton.tooltip;">
+  <toolbarbutton id="InsertPopupButton"
+                 class="formatting-button"
+                 tooltiptext="&InsertPopupButton.tooltip;"
+                 type="menu"
+                 observes="cmd_renderedHTMLEnabler">
     <menupopup id="InsertPopup">
-      <menuitem id="InsertLinkItem" class="menuitem-iconic" observes="cmd_link"
-                oncommand="goDoCommand('cmd_link')" label="&linkToolbarCmd.label;"
-                tooltiptext="&linkToolbarCmd.tooltip;"   />
-      <menuitem id="InsertAnchorItem" class="menuitem-iconic" observes="cmd_anchor"
-                oncommand="goDoCommand('cmd_anchor')" label="&anchorToolbarCmd.label;"
-                tooltiptext="&anchorToolbarCmd.tooltip;" />
-      <menuitem id="InsertImageItem"  class="menuitem-iconic" observes="cmd_image"
-                oncommand="goDoCommand('cmd_image')" label="&imageToolbarCmd.label;"
-                tooltiptext="&imageToolbarCmd.tooltip;"  />
-      <menuitem id="InsertHRuleItem"  class="menuitem-iconic" observes="cmd_hline"
-                oncommand="goDoCommand('cmd_hline')" label="&hruleToolbarCmd.label;"
-                tooltiptext="&hruleToolbarCmd.tooltip;"  />
-      <menuitem id="InsertTableItem"  class="menuitem-iconic" observes="cmd_table"
-                oncommand="goDoCommand('cmd_table')" label="&tableToolbarCmd.label;"
-                tooltiptext="&tableToolbarCmd.tooltip;"  />
+      <menuitem id="InsertLinkItem"
+                class="menuitem-iconic"
+                command="cmd_link"
+                label="&linkToolbarCmd.label;"
+                tooltiptext="&linkToolbarCmd.tooltip;"/>
+      <menuitem id="InsertAnchorItem"
+                class="menuitem-iconic"
+                command="cmd_anchor"
+                label="&anchorToolbarCmd.label;"
+                tooltiptext="&anchorToolbarCmd.tooltip;"/>
+      <menuitem id="InsertImageItem"
+                class="menuitem-iconic"
+                command="cmd_image"
+                label="&imageToolbarCmd.label;"
+                tooltiptext="&imageToolbarCmd.tooltip;"/>
+      <menuitem id="InsertHRuleItem"
+                class="menuitem-iconic"
+                command="cmd_hline"
+                label="&hruleToolbarCmd.label;"
+                tooltiptext="&hruleToolbarCmd.tooltip;"/>
+      <menuitem id="InsertTableItem"
+                class="menuitem-iconic"
+                command="cmd_table"
+                label="&tableToolbarCmd.label;"
+                tooltiptext="&tableToolbarCmd.tooltip;"/>
     </menupopup>
   </toolbarbutton>
 
   <!-- Editor toolbar items -->
   <!-- note that we override the submenu item label "Blank Window" with "New" used for the menu -->
-  <toolbarbutton id="newButton" class="toolbarbutton-1"
-                 label="&newMenu.label;" command="cmd_newEditor"
+  <toolbarbutton id="newButton"
+                 class="toolbarbutton-1"
+                 label="&newToolbarCmd.label;"
+                 command="cmd_newEditor"
                  tooltiptext="&newToolbarCmd.tooltip;"/>
-  <toolbarbutton id="openButton" class="toolbarbutton-1"
-                 label="&openToolbarCmd.label;" observes="cmd_open"
+  <toolbarbutton id="openButton"
+                 class="toolbarbutton-1"
+                 label="&openToolbarCmd.label;"
+                 command="cmd_open"
                  tooltiptext="&openToolbarCmd.tooltip;"/>
-  <toolbarbutton id="saveButton" class="toolbarbutton-1" observes="cmd_save"
+  <toolbarbutton id="saveButton"
+                 class="toolbarbutton-1"
+                 command="cmd_save"
                  tooltiptext="&saveToolbarCmd.tooltip;"/>
-  <toolbarbutton id="publishButton" class="toolbarbutton-1"
-                 observes="cmd_publish"
+  <toolbarbutton id="publishButton"
+                 class="toolbarbutton-1"
+                 command="cmd_publish"
                  tooltiptext="&publishToolbarCmd.tooltip;"/>
-  <toolbarbutton id="previewButton" class="toolbarbutton-1"
-                 label="&previewToolbarCmd.label;" observes="cmd_preview"
-                 tooltiptext="&previewToolbarCmd.tooltip;"/>
   <toolbarbutton id="cutButton" class="toolbarbutton-1"
                  label="&cutCmd.label;" command="cmd_cut"
                  tooltiptext="&cutCmd.label;"/>
@@ -1147,31 +1189,52 @@
     </menupopup>
   </toolbarbutton>
     
-  <toolbarbutton id="findButton" class="toolbarbutton-1"
-                 label="&findToolbarCmd.label;" observes="cmd_find"
+  <toolbarbutton id="findButton"
+                 class="toolbarbutton-1"
+                 label="&findToolbarCmd.label;"
+                 command="cmd_find"
                  tooltiptext="&findToolbarCmd.tooltip;"/>
-  <toolbarbutton id="spellingButton" class="toolbarbutton-1" disabled="true"
-                 label="&spellToolbarCmd.label;" observes="cmd_spelling"
+  <toolbarbutton id="spellingButton"
+                 class="toolbarbutton-1"
+                 disabled="true"
+                 label="&spellToolbarCmd.label;"
+                 command="cmd_spelling"
                  tooltiptext="&spellToolbarCmd.tooltip;"/>
-  <toolbarbutton id="imageButton" class="toolbarbutton-1"
-                 label="&imageToolbarCmd.label;" observes="cmd_image"
+  <toolbarbutton id="imageButton"
+                 class="toolbarbutton-1"
+                 label="&imageToolbarCmd.label;"
+                 command="cmd_image"
                  tooltiptext="&imageToolbarCmd.tooltip;"/>
-  <toolbarbutton id="hlineButton" class="toolbarbutton-1"
-                 label="&hruleToolbarCmd.label;" observes="cmd_hline"
+  <toolbarbutton id="hlineButton"
+                 class="toolbarbutton-1"
+                 label="&hruleToolbarCmd.label;"
+                 command="cmd_hline"
                  tooltiptext="&hruleToolbarCmd.tooltip;"/>
-  <toolbarbutton id="tableButton" class="toolbarbutton-1"
-                 label="&tableToolbarCmd.label;" observes="cmd_table"
+  <toolbarbutton id="tableButton"
+                 class="toolbarbutton-1"
+                 label="&tableToolbarCmd.label;"
+                 command="cmd_table"
                  tooltiptext="&tableToolbarCmd.tooltip;"/>
-  <toolbarbutton id="linkButton" class="toolbarbutton-1"
-                 label="&linkToolbarCmd.label;" observes="cmd_link"
+  <toolbarbutton id="linkButton"
+                 class="toolbarbutton-1"
+                 label="&linkToolbarCmd.label;"
+                 command="cmd_link"
                  tooltiptext="&linkToolbarCmd.tooltip;"/>
-  <toolbarbutton id="namedAnchorButton" class="toolbarbutton-1"
-                 label="&anchorToolbarCmd.label;" observes="cmd_anchor"
+  <toolbarbutton id="namedAnchorButton"
+                 class="toolbarbutton-1"
+                 label="&anchorToolbarCmd.label;"
+                 command="cmd_anchor"
                  tooltiptext="&anchorToolbarCmd.tooltip;"/>
 
   <!-- Formatting toolbar items. "value" are HTML tagnames, don't translate -->
-  <menulist class="toolbar-focustarget" id="ParagraphSelect" observes="cmd_renderedHTMLEnabler"
-    tooltiptext="&ParagraphSelect.tooltip;" crop="right">
+<toolbaritem id="paragraph-select-container"
+             class="formatting-button"
+             tooltiptext="&ParagraphSelect.tooltip;"
+             observes="cmd_renderedHTMLEnabler">
+  <menulist id="ParagraphSelect"
+            class="toolbar-focustarget"
+            crop="right">
+    <observes element="paragraph-select-container" attribute="disabled"/>
     <observes element="cmd_paragraphState" attribute="state" onbroadcast="onParagraphFormatChange(this.parentNode, 'cmd_paragraphState')"/>
     <menupopup id="ParagraphPopup" oncommand="doStatefulCommand('cmd_paragraphState', event.target.value)">
       <menuitem id="toolbarmenu_bodyText" label="&bodyTextCmd.label;" value=""/>
@@ -1186,10 +1249,17 @@
       <menuitem id="toolbarmenu_pre" label="&paragraphPreformatCmd.label;"  value="pre"/>
     </menupopup>
   </menulist>
+</toolbaritem>
 
   <!-- "value" are HTML tagnames, don't translate -->
-  <menulist class="toolbar-focustarget" id="FontFaceSelect" observes="cmd_renderedHTMLEnabler"
-    tooltiptext="&FontFaceSelect.tooltip;" crop="right">
+<toolbaritem id="font-face-select-container"
+             class="formatting-button"
+             tooltiptext="&FontFaceSelect.tooltip;"
+             observes="cmd_renderedHTMLEnabler">
+  <menulist id="FontFaceSelect"
+            class="toolbar-focustarget"
+            crop="right">
+    <observes element="font-face-select-container" attribute="disabled"/>
     <observes element="cmd_fontFace" attribute="state" onbroadcast="onFontFaceChange(this.parentNode, 'cmd_fontFace')"/>
     <menupopup id="FontFacePopup" oncommand="doStatefulCommand('cmd_fontFace', event.target.value)">
       <menuitem id="toolbarmenu_fontVarWidth" label="&fontVarWidth.label;" value=""/>
@@ -1204,8 +1274,16 @@
       <menuseparator id="toolbarmenuAfterFontFaceCourierSeparator"/>
     </menupopup>
   </menulist>
+</toolbaritem>
 
-  <menulist class="toolbar-focustarget" id="FontSizeSelect" oncommand="EditorSelectFontSize()"  tooltiptext="&FontSizeSelect.tooltip;" crop="right">
+<toolbaritem id="font-size-select-container"
+             class="formatting-button"
+             tooltiptext="&FontSizeSelect.tooltip;">
+  <menulist id="FontSizeSelect"
+            class="toolbar-focustarget"
+            crop="right"
+            oncommand="EditorSelectFontSize();">
+    <observes element="font-size-select-container" attribute="disabled"/>
     <observes element="cmd_fontSize" attribute="state" onbroadcast="onFontSizeChange(this.parentNode, 'cmd_fontSize')"/>
     <menupopup id="FontSizePopup">
       <menuitem id="toobarmenu_fontSize_xx-small" label="&size-xx-smallCmd.label;"/>
@@ -1217,7 +1295,10 @@
       <menuitem id="toobarmenu_fontSize_xx-large" label="&size-xx-largeCmd.label;"/>
     </menupopup>
   </menulist>
+</toolbaritem>
 
+<toolbaritem id="color-buttons-container"
+             class="formatting-button">
   <stack id="ColorButtons" align="center">
     <observes element="cmd_fontColor"       attribute="state" onbroadcast="onFontColorChange()"/>
     <observes element="cmd_backgroundColor" attribute="state" onbroadcast="onBackgroundColorChange()"/>
@@ -1228,90 +1309,134 @@
           onclick="EditorSelectColor('Text', event);"
           tooltiptext="&TextColorButton.tooltip;"/>
   </stack>
+</toolbaritem>
   <toolbarbutton id="HighlightColorButton"
-          tooltiptext="&HighlightColorButton.tooltip;" command="cmd_highlight">
+                 class="formatting-button"
+                 tooltiptext="&HighlightColorButton.tooltip;"
+                 command="cmd_highlight">
     <observes element="cmd_highlight" attribute="state" onbroadcast="onHighlightColorChange()"/>
     <observes element="cmd_highlight" attribute="collapsed"/>
   </toolbarbutton>
 
-<!-- A BUG IN CSS/BOXES MAKES THIS ASSERT WHEN CLASS= IS PRESENT AND WE TRY TO COLLAPSE THE TOOLBOX -->
-  <toolbarbutton id="DecreaseFontSizeButton" observes="cmd_decreaseFont"
-          tooltiptext="&decreaseFontSizeToolbarCmd.tooltip;"/>
-  <toolbarbutton id="IncreaseFontSizeButton" observes="cmd_increaseFont"
-          tooltiptext="&increaseFontSizeToolbarCmd.tooltip;"/>
-
-  <toolbarbutton id="boldButton" type="checkbox" autoCheck="false" observes="cmd_bold"
-          tooltiptext="&boldToolbarCmd.tooltip;">
+  <toolbarbutton id="DecreaseFontSizeButton"
+                 class="formatting-button"
+                 tooltiptext="&decreaseFontSizeToolbarCmd.tooltip;"
+                 command="cmd_decreaseFont"/>
+  <toolbarbutton id="IncreaseFontSizeButton"
+                 class="formatting-button"
+                 tooltiptext="&increaseFontSizeToolbarCmd.tooltip;"
+                 command="cmd_increaseFont"/>
+  <toolbarbutton id="boldButton"
+                 class="formatting-button"
+                 tooltiptext="&boldToolbarCmd.tooltip;"
+                 type="checkbox"
+                 autoCheck="false"
+                 command="cmd_bold">
     <observes element="cmd_bold" type="checkbox" attribute="state" onbroadcast="onButtonUpdate(this.parentNode, 'cmd_bold')"/>
   </toolbarbutton>
-  <toolbarbutton id="italicButton" type="checkbox" autoCheck="false" observes="cmd_italic"
-          tooltiptext="&italicToolbarCmd.tooltip;">
+  <toolbarbutton id="italicButton"
+                 class="formatting-button"
+                 tooltiptext="&italicToolbarCmd.tooltip;"
+                 type="checkbox"
+                 autoCheck="false"
+                 command="cmd_italic">
     <observes element="cmd_italic" attribute="state" onbroadcast="onButtonUpdate(this.parentNode, 'cmd_italic')"/>
   </toolbarbutton>
-  <toolbarbutton id="underlineButton" type="checkbox" autoCheck="false" observes="cmd_underline"
-          tooltiptext="&underlineToolbarCmd.tooltip;">
+  <toolbarbutton id="underlineButton"
+                 class="formatting-button"
+                 tooltiptext="&underlineToolbarCmd.tooltip;"
+                 type="checkbox"
+                 autoCheck="false"
+                 command="cmd_underline">
     <observes element="cmd_underline" attribute="state" onbroadcast="onButtonUpdate(this.parentNode, 'cmd_underline')"/>
   </toolbarbutton>
 
-  <toolbarbutton id="ulButton" type="radio" group="lists" autoCheck="false" observes="cmd_ul"
-          tooltiptext="&bulletListToolbarCmd.tooltip;">
+  <toolbarbutton id="ulButton"
+                 class="formatting-button"
+                 tooltiptext="&bulletListToolbarCmd.tooltip;"
+                 type="radio"
+                 group="lists"
+                 autoCheck="false"
+                 command="cmd_ul">
       <observes element="cmd_ul" attribute="state" onbroadcast="onButtonUpdate(this.parentNode, 'cmd_ul')"/>
   </toolbarbutton>
 
-  <toolbarbutton id="olButton" type="radio" group="lists" autoCheck="false" observes="cmd_ol"
-          tooltiptext="&numberListToolbarCmd.tooltip;">
+  <toolbarbutton id="olButton"
+                 class="formatting-button"
+                 tooltiptext="&numberListToolbarCmd.tooltip;"
+                 type="radio"
+                 group="lists"
+                 autoCheck="false"
+                 command="cmd_ol">
       <observes element="cmd_ol" attribute="state" onbroadcast="onButtonUpdate(this.parentNode, 'cmd_ol')"/>
   </toolbarbutton>
 
-  <toolbarbutton id="outdentButton" observes="cmd_outdent"
-          tooltiptext="&outdentToolbarCmd.tooltip;"/>
-  <toolbarbutton id="indentButton" observes="cmd_indent"
-          tooltiptext="&indentToolbarCmd.tooltip;"/>
+  <toolbarbutton id="outdentButton"
+                 class="formatting-button"
+                 tooltiptext="&outdentToolbarCmd.tooltip;"
+                 command="cmd_outdent"/>
+  <toolbarbutton id="indentButton"
+                 class="formatting-button"
+                 tooltiptext="&indentToolbarCmd.tooltip;"
+                 command="cmd_indent"/>
 
   <!-- alignment buttons -->
-  <toolbarbutton id="align-left-button" type="radio" group="align" autoCheck="false"
-                 oncommand="doStatefulCommand('cmd_align', 'left')"
-                 tooltiptext="&alignLeft.tooltip;" >
+  <toolbarbutton id="align-left-button"
+                 class="formatting-button"
+                 tooltiptext="&alignLeftButton.tooltip;"
+                 type="radio"
+                 group="align"
+                 autoCheck="false"
+                 oncommand="doStatefulCommand('cmd_align', 'left')">
     <observes element="cmd_align" attribute="state" 
               onbroadcast="onStateButtonUpdate(this.parentNode, 'cmd_align', 'left')" />
   </toolbarbutton>
-  <toolbarbutton id="align-center-button" type="radio" group="align" autoCheck="false"
-                 oncommand="doStatefulCommand('cmd_align', 'center')"
-                 tooltiptext="&alignCenter.tooltip;" >
+  <toolbarbutton id="align-center-button"
+                 class="formatting-button"
+                 tooltiptext="&alignCenterButton.tooltip;"
+                 type="radio"
+                 group="align"
+                 autoCheck="false"
+                 oncommand="doStatefulCommand('cmd_align', 'center')">
     <observes element="cmd_align" attribute="state" 
               onbroadcast="onStateButtonUpdate(this.parentNode, 'cmd_align', 'center')"/>
   </toolbarbutton>
-  <toolbarbutton id="align-right-button" type="radio" group="align" autoCheck="false"
-                 oncommand="doStatefulCommand('cmd_align', 'right')"
-                 tooltiptext="&alignRight.tooltip;" >
+  <toolbarbutton id="align-right-button"
+                 class="formatting-button"
+                 tooltiptext="&alignRightButton.tooltip;"
+                 type="radio"
+                 group="align"
+                 autoCheck="false"
+                 oncommand="doStatefulCommand('cmd_align', 'right')">
     <observes element="cmd_align" attribute="state"
               onbroadcast="onStateButtonUpdate(this.parentNode, 'cmd_align', 'right')"/>
   </toolbarbutton>
-  <toolbarbutton id="align-justify-button" type="radio" group="align" autoCheck="false"
-                 oncommand="doStatefulCommand('cmd_align', 'justify')"
-                 tooltiptext="&alignJustify.tooltip;" >
+  <toolbarbutton id="align-justify-button"
+                 class="formatting-button"
+                 tooltiptext="&alignJustifyButton.tooltip;"
+                 type="radio"
+                 group="align"
+                 autoCheck="false"
+                 oncommand="doStatefulCommand('cmd_align', 'justify')">
     <observes element="cmd_align" attribute="state"
               onbroadcast="onStateButtonUpdate(this.parentNode, 'cmd_align', 'justify')"/>
   </toolbarbutton>
-  
-  <toolbarbutton id="absolutePositionButton" type="checkbox" tooltiptext="&layer.tooltip;" observes="cmd_absPos">
+ 
+  <toolbarbutton id="absolutePositionButton"
+                 class="formatting-button"
+                 tooltiptext="&layer.tooltip;"
+                 type="checkbox"
+                 command="cmd_absPos">
     <observes element="cmd_absPos" attribute="state" onbroadcast="onStateButtonUpdate(this.parentNode, 'cmd_absPos', 'absolute')"/>
   </toolbarbutton>
-  <toolbarbutton id="decreaseZIndexButton" observes="cmd_decreaseZIndex"
-                 tooltiptext="&layerSendToBack.tooltip;"/>
-  <toolbarbutton id="increaseZIndexButton" observes="cmd_increaseZIndex"
-                 tooltiptext="&layerBringToFront.tooltip;"/>
-
-  <!-- Edit Mode toolbar -->
-  <tabs id="EditModeTabs" onselect="this.selectedItem.doCommand()"/>
-  <tab id="NormalModeButton"   class="tab-bottom edit-mode _plain" type="text" selected="1" label="&NormalModeTab.label;"  oncommand="goDoCommand('cmd_NormalMode');"
-          tooltiptext="&NormalMode.tooltip;"/>
-  <tab id="TagModeButton"      class="tab-bottom edit-mode _plain" type="text" selected="0" label="&AllTagsMode.label;"    oncommand="goDoCommand('cmd_AllTagsMode');"
-          tooltiptext="&AllTagsMode.tooltip;"/>
-  <tab id="SourceModeButton"   class="tab-bottom edit-mode _plain" type="text" selected="0" label="&SourceMode.label;"     oncommand="goDoCommand('cmd_HTMLSourceMode');"
-          tooltiptext="&HTMLSourceMode.tooltip;" dir="&SourceTabDirection;"/>
-  <tab id="PreviewModeButton"  class="tab-bottom edit-mode _plain" type="text" selected="0" label="&PreviewMode.label;"    oncommand="goDoCommand('cmd_PreviewMode');"
-          tooltiptext="&PreviewMode.tooltip;"/>
+  <toolbarbutton id="decreaseZIndexButton"
+                 class="formatting-button"
+                 tooltiptext="&layerSendToBack.tooltip;"
+                 command="cmd_decreaseZIndex"/>
+  <toolbarbutton id="increaseZIndexButton"
+                 class="formatting-button"
+                 tooltiptext="&layerBringToFront.tooltip;"
+                 command="cmd_increaseZIndex"/>
 
   <!-- Paste as quotation is used by mail compose,
        but in composer it has to go in the debug menu

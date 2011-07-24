@@ -60,14 +60,6 @@
 #include <windows.h>
 #endif
 
-// #define MORK_CONFIG_USE_ORKINFILE 1
- 
-#ifdef MORK_CONFIG_USE_ORKINFILE
-#ifndef _ORKINFILE_
-#include "orkinFile.h"
-#endif
-#endif /*MORK_CONFIG_USE_ORKINFILE*/
-
 //3456789_123456789_123456789_123456789_123456789_123456789_123456789_123456789
 
 
@@ -150,19 +142,6 @@ morkFile::CloseFile(morkEnv* ev) // called by CloseMorkNode();
 
 // } ===== end morkNode methods =====
 // ````` ````` ````` ````` ````` 
-
-nsIMdbFile*
-morkFile::AcquireFileHandle(morkEnv* ev)
-{
-  nsIMdbFile* outFile = 0;
-
-#ifdef MORK_CONFIG_USE_ORKINFILE
-  return this;
-#endif /*MORK_CONFIG_USE_ORKINFILE*/
-  MORK_USED_1(ev);
-    
-  return outFile;
-}
 
 /*static*/ morkFile*
 morkFile::OpenOldFile(morkEnv* ev, nsIMdbHeap* ioHeap,
@@ -282,11 +261,11 @@ morkFile::NewFileErrnoError(morkEnv* ev) const
        "\015\012\015\012\015\012\015\012\015\012\015\012\015\012\015\012";
 #    define morkFile_kNewlinesCount 8
 #  else
-#    if defined(MORK_UNIX) || defined(MORK_BEOS)
+#    ifdef MORK_UNIX
        static const char morkFile_kNewlines[] = 
        "\012\012\012\012\012\012\012\012\012\012\012\012\012\012\012\012";
 #      define morkFile_kNewlinesCount 16
-#    endif /* MORK_UNIX || MORK_BEOS */
+#    endif /* MORK_UNIX */
 #  endif /* MORK_WIN */
 #endif /* MORK_MAC */
 

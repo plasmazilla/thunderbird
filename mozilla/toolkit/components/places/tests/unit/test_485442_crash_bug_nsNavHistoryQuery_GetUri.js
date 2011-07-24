@@ -15,7 +15,7 @@
  *
  * The Original Code is mozilla.com code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -47,8 +47,7 @@ function run_test() {
   result.root.containerOpen = true;
   var rootNode = result.root;
   rootNode.QueryInterface(Ci.nsINavHistoryQueryResultNode);
-  var outObj = {};
-  var queries = rootNode.getQueries(outObj);
+  var queries = rootNode.getQueries();
   do_check_eq(queries[0].uri, null); // Should be null, instead of crashing the browser
   rootNode.containerOpen = false;
 }

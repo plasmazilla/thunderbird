@@ -85,23 +85,19 @@
 #define THREADED 0
 #define THREAD_SAFE 0
 
-#ifdef _MSC_VER
-typedef __int8             int8_t;
-typedef __int16            int16_t;
-typedef __int32            int32_t;
-typedef __int64            int64_t;
-typedef unsigned __int8    uint8_t;
-typedef unsigned __int16   uint16_t;
-typedef unsigned __int32   uint32_t;
-typedef unsigned __int64   uint64_t;
-#else
-#include <inttypes.h>
-#endif
+#include "VMPI.h"
+
+// Note, this is not supported in configurations with more than one AvmCore running
+// in the same process.
 
 // portable align macro
 #if defined(_MSC_VER)
 	#define vprof_align8(t) __declspec(align(8)) t
-#elif defined(__GNUC__) || defined(__SUNPRO_C) || defined(__SUNPRO_CC)
+#elif defined(__GNUC__)
+	#define vprof_align8(t) t __attribute__ ((aligned (8)))
+#elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
+	#define vprof_align8(t) t __attribute__ ((aligned (8)))
+#elif defined(VMCFG_SYMBIAN)
 	#define vprof_align8(t) t __attribute__ ((aligned (8)))
 #endif
 
@@ -109,61 +105,130 @@ typedef unsigned __int64   uint64_t;
 extern "C" {
 #endif
 
-int profileValue (void** id, char* file, int line, int64_t value, ...);
-int _profileEntryValue (void* id, int64_t value);
-int histValue(void** id, char* file, int line, int64_t value, int nbins, ...);
-int _histEntryValue (void* id, int64_t value);
+int initValueProfile(void** id, char* file, int line, ...);
+int profileValue(void* id, int64_t value);
+int initHistProfile(void** id, char* file, int line, int nbins, ...);
+int histValue(void* id, int64_t value);
+uint64_t readTimestampCounter();
 
 #ifdef __cplusplus
 }
 #endif 
 
+//#define DOPROF
+
 #ifndef DOPROF
-#define _vprof(v)
-#define _nvprof(n,v)
-#define _hprof(h)
-#define _nhprof(n,h)
+#define _nvprof(e,v)
+#ifndef VMCFG_SYMBIAN
+#define _vprof(v,...)
+#define _hprof(v,n,...)
+#define _nhprof(e,v,n,...)
+#define _ntprof_begin(e)
+#define _ntprof_end(e)
+#define _jvprof_init(id,...)
+#define _jnvprof_init(id,e,...)
+#define _jhprof_init(id,n,...)
+#define _jnhprof_init(id,e,n,...)
+#define _jvprof(id,v)
+#define _jhprof(id,v)
+#endif // ! VMCFG_SYMBIAN
 #else
 
+// Historical/compatibility note:
+// The macros below were originally written using conditional expressions, not if/else.  The original author
+// said that this was done to allow _vprof and _nvprof to be used in an expression context, but the old code
+// had already wrapped the macro bodies in { }, so it is not clear how this could have worked.  At present,
+// the profiling macros must appear in a statement context only.
+ 
 #define _vprof(v,...) \
-{ \
+do { \
     static void* id = 0; \
-    (id != 0) ? \
-        _profileEntryValue (id, (int64_t) (v)) \
-    : \
-        profileValue (&id, __FILE__, __LINE__, (int64_t) (v), ##__VA_ARGS__, NULL) \
-    ;\
-}
+    if (id == 0) \
+        initValueProfile(&id, __FILE__, __LINE__, ##__VA_ARGS__, NULL); \
+    profileValue(id, (int64_t) (v)); \
+} while (0)
 
-#define _nvprof(e,v,...) \
-{ \
+#define _nvprof(e,v) \
+do { \
     static void* id = 0; \
-    (id != 0) ? \
-        _profileEntryValue (id, (int64_t) (v)) \
-    : \
-        profileValue (&id, (char*) (e), -1, (int64_t) (v), ##__VA_ARGS__, NULL) \
-    ; \
-}
+    if (id == 0) \
+        initValueProfile(&id, (char*) (e), -1, NULL); \
+    profileValue(id, (int64_t) (v)); \
+} while (0)
 
 #define _hprof(v,n,...) \
-{ \
+do { \
     static void* id = 0; \
-    (id != 0) ? \
-        _histEntryValue (id, (int64_t) (v)) \
-    : \
-        histValue (&id, __FILE__, __LINE__, (int64_t) (v), (int) (n), ##__VA_ARGS__) \
-    ; \
-}
+    if (id == 0) \
+        initHistProfile(&id, __FILE__, __LINE__, (int) (n), ##__VA_ARGS__); \
+    histValue(id, (int64_t) (v)); \
+} while (0)
 
 #define _nhprof(e,v,n,...) \
-{ \
+do { \
     static void* id = 0; \
-    (id != 0) ? \
-        _histEntryValue (id, (int64_t) (v)) \
-    : \
-        histValue (&id, (char*) (e), -1, (int64_t) (v), (int) (n), ##__VA_ARGS__) \
-    ; \
-}
+    if (id == 0) \
+        initHistProfile(&id, (char*) (e), -1, (int) (n), ##__VA_ARGS__); \
+    histValue(id, (int64_t) (v)); \
+} while (0)
+
+// Profile execution time between _ntprof_begin(e) and _ntprof_end(e).
+// The tag 'e' must match at the beginning and end of the region to
+// be timed.  Regions may be nested or overlap arbitrarily, as it is
+// the tag alone that defines the begin/end correspondence.
+
+#define _ntprof_begin(e) \
+do { \
+    static void* id = 0; \
+    if (id == 0) \
+        initValueProfile(&id, (char*)(e), -1, NULL); \
+    ((entry_t)id)->i64var[0] = readTimestampCounter(); \
+} while (0)
+
+// Assume 2.6 Ghz CPU
+#define TICKS_PER_USEC 2600
+
+#define _ntprof_end(e) \
+do { \
+    static void* id = 0; \
+    uint64_t stop = readTimestampCounter(); \
+    if (id == 0) \
+        initValueProfile(&id, (char*)(e), -1, NULL); \
+    uint64_t start = ((entry_t)id)->i64var[0]; \
+    uint64_t usecs = (stop - start) / TICKS_PER_USEC; \
+    profileValue(id, usecs); \
+} while (0)
+
+// These macros separate the creation of a profile record from its later usage.
+// They are intended for profiling JIT-generated code.  Once created, the JIT can
+// bind a pointer to the profile record into the generated code, which can then
+// record profile events during execution.
+
+#define _jvprof_init(id,...) \
+    if (*(id) == 0) \
+        initValueProfile((id), __FILE__, __LINE__, ##__VA_ARGS__, NULL)
+
+#define _jnvprof_init(id,e,...) \
+    if (*(id) == 0) \
+        initValueProfile((id), (char*) (e), -1, ##__VA_ARGS__, NULL)
+
+#define _jhprof_init(id,n,...) \
+    if (*(id) == 0) \
+        initHistProfile((id), __FILE__, __LINE__, (int) (n), ##__VA_ARGS__)
+
+#define _jnhprof_init(id,e,n,...) \
+    if (*(id) == 0) \
+        initHistProfile((id), (char*) (e), -1, (int) (n), ##__VA_ARGS__)
+
+// Calls to the _jvprof and _jhprof macros must be wrapped in a non-inline
+// function in order to be invoked from JIT-compiled code.
+
+#define _jvprof(id,v) \
+    profileValue((id), (int64_t) (v))
+
+#define _jhprof(id,v) \
+    histValue((id), (int64_t) (v))
+
 #endif
 
 #define NUM_EVARS 4

@@ -15,7 +15,7 @@
  *
  * The Original Code is Places test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -47,7 +47,7 @@
  *
  * Basically, fully tests sorting the placeContent tree in the Places Library
  * window.  Sorting is verified by comparing the nsINavHistoryResult returned by
- * placeContent.getResult to the expected sort values.
+ * placeContent.result to the expected sort values.
  */
 
 // Two properties of nsINavHistoryResult control the sort of the tree:
@@ -103,9 +103,9 @@ let prevSortKey = null;
 function checkSort(aTree, aSortingMode, aSortingAnno) {
   // The placeContent tree's sort is determined by the nsINavHistoryResult it
   // stores.  Get it and check that the sort is what the caller expects.
-  let res = aTree.getResult();
+  let res = aTree.result;
   isnot(res, null,
-        "sanity check: placeContent.getResult() should not return null");
+        "sanity check: placeContent.result should not return null");
 
   // Check sortingMode.
   is(res.sortingMode, aSortingMode,
@@ -271,32 +271,30 @@ function test() {
   let ww = Cc["@mozilla.org/embedcomp/window-watcher;1"].
            getService(Ci.nsIWindowWatcher);
 
-  let windowObserver = {
-    observe: function(aSubject, aTopic, aData) {
-      if (aTopic === "domwindowopened") {
-        ww.unregisterNotification(this);
-        let win = aSubject.QueryInterface(Ci.nsIDOMWindow);
-        win.addEventListener("load", function onLoad(event) {
-          win.removeEventListener("load", onLoad, false);
-          executeSoon(function () {
-            let tree = win.document.getElementById("placeContent");
-            isnot(tree, null, "sanity check: placeContent tree should exist");
-            // Run the tests.
-            testSortByColAndDir(win, tree, true);
-            testSortByColAndDir(win, tree, false);
-            testSortByDir(win, tree, true);
-            testSortByDir(win, tree, false);
-            testInvalid(win, tree);
-            // Reset the sort to SORT_BY_NONE.
-            setSort(win, tree, false, false);
-            // Close the window and finish.
-            win.close();
-            finish();
-          });
-        }, false);
-      }
-    }
-  };
+  function windowObserver(aSubject, aTopic, aData) {
+    if (aTopic != "domwindowopened")
+      return;
+    ww.unregisterNotification(windowObserver);
+    let win = aSubject.QueryInterface(Ci.nsIDOMWindow);
+    win.addEventListener("load", function onLoad(event) {
+      win.removeEventListener("load", onLoad, false);
+      executeSoon(function () {
+        let tree = win.document.getElementById("placeContent");
+        isnot(tree, null, "sanity check: placeContent tree should exist");
+        // Run the tests.
+        testSortByColAndDir(win, tree, true);
+        testSortByColAndDir(win, tree, false);
+        testSortByDir(win, tree, true);
+        testSortByDir(win, tree, false);
+        testInvalid(win, tree);
+        // Reset the sort to SORT_BY_NONE.
+        setSort(win, tree, false, false);
+        // Close the window and finish.
+        win.close();
+        finish();
+      });
+    }, false);
+  }
 
   ww.registerNotification(windowObserver);
   ww.openWindow(null,

@@ -51,18 +51,20 @@
 class nsBoxLayoutState;
 
 // flags from box
-#define NS_STATE_BOX_CHILD_RESERVED      0x00100000
-#define NS_STATE_STACK_NOT_POSITIONED    0x00200000
-//#define NS_STATE_IS_HORIZONTAL           0x00400000  moved to nsIFrame.h
-#define NS_STATE_AUTO_STRETCH            0x00800000
-//#define NS_STATE_IS_ROOT                 0x01000000  moved to nsBox.h
-#define NS_STATE_CURRENTLY_IN_DEBUG      0x02000000
-//#define NS_STATE_SET_TO_DEBUG            0x04000000  moved to nsBox.h
-//#define NS_STATE_DEBUG_WAS_SET           0x08000000  moved to nsBox.h
-//                                         0x10000000  not used anymore
-#define NS_STATE_BOX_WRAPS_KIDS_IN_BLOCK 0x20000000
-#define NS_STATE_EQUAL_SIZE              0x40000000
-//#define NS_STATE_IS_DIRECTION_NORMAL     0x80000000  moved to nsIFrame.h
+#define NS_STATE_BOX_CHILD_RESERVED      NS_FRAME_STATE_BIT(20)
+#define NS_STATE_STACK_NOT_POSITIONED    NS_FRAME_STATE_BIT(21)
+//#define NS_STATE_IS_HORIZONTAL           NS_FRAME_STATE_BIT(22)  moved to nsIFrame.h
+#define NS_STATE_AUTO_STRETCH            NS_FRAME_STATE_BIT(23)
+//#define NS_STATE_IS_ROOT                 NS_FRAME_STATE_BIT(24)  moved to nsBox.h
+#define NS_STATE_CURRENTLY_IN_DEBUG      NS_FRAME_STATE_BIT(25)
+//#define NS_STATE_SET_TO_DEBUG            NS_FRAME_STATE_BIT(26)  moved to nsBox.h
+//#define NS_STATE_DEBUG_WAS_SET           NS_FRAME_STATE_BIT(27)  moved to nsBox.h
+//                                         NS_FRAME_STATE_BIT(28)  not used anymore
+#define NS_STATE_BOX_WRAPS_KIDS_IN_BLOCK NS_FRAME_STATE_BIT(29)
+#define NS_STATE_EQUAL_SIZE              NS_FRAME_STATE_BIT(30)
+//#define NS_STATE_IS_DIRECTION_NORMAL     NS_FRAME_STATE_BIT(31)  moved to nsIFrame.h
+#define NS_FRAME_MOUSE_THROUGH_ALWAYS    NS_FRAME_STATE_BIT(60)
+#define NS_FRAME_MOUSE_THROUGH_NEVER     NS_FRAME_STATE_BIT(61)
 
 nsIFrame* NS_NewBoxFrame(nsIPresShell* aPresShell,
                          nsStyleContext* aContext,
@@ -104,7 +106,6 @@ public:
   virtual Halignment GetHAlign() const { return mHalign; }
   NS_IMETHOD DoLayout(nsBoxLayoutState& aBoxLayoutState);
 
-  virtual PRBool GetMouseThrough() const;
   virtual PRBool ComputesOwnOverflowArea() { return PR_FALSE; }
 
   // ----- child and sibling operations ---
@@ -205,11 +206,6 @@ public:
 
   static nsresult LayoutChildAt(nsBoxLayoutState& aState, nsIBox* aBox, const nsRect& aRect);
 
-  // Fire DOM event. If no aContent argument use frame's mContent.
-  // XXX This will be deprecated, because it is not good to fire synchronous DOM events
-  // from layout. It's better to use nsFrame::FireDOMEvent() which is asynchronous.
-  void FireDOMEventSynch(const nsAString& aDOMEventName, nsIContent *aContent = nsnull);
-
   /**
    * Utility method to redirect events on descendants to this frame.
    * Supports 'allowevents' attribute on descendant elements to allow those
@@ -241,7 +237,7 @@ protected:
     virtual PRBool GetInitialVAlignment(Valignment& aValign); 
     virtual PRBool GetInitialAutoStretch(PRBool& aStretch); 
   
-    virtual void Destroy();
+    virtual void DestroyFrom(nsIFrame* aDestructRoot);
 
     nsSize mPrefSize;
     nsSize mMinSize;
@@ -277,15 +273,13 @@ private:
     void DrawLine(nsIRenderingContext& aRenderingContext,  PRBool aHorizontal, nscoord x1, nscoord y1, nscoord x2, nscoord y2);
     void FillRect(nsIRenderingContext& aRenderingContext,  PRBool aHorizontal, nscoord x, nscoord y, nscoord width, nscoord height);
 #endif
-    void UpdateMouseThrough();
+    virtual void UpdateMouseThrough();
 
     void CacheAttributes();
 
     // instance variables.
     Halignment mHalign;
     Valignment mValign;
-
-    eMouseThrough mMouseThrough;
 
 #ifdef DEBUG_LAYOUT
     static PRBool gDebug;

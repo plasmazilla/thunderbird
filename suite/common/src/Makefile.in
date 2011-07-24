@@ -45,15 +45,25 @@ include $(DEPTH)/config/autoconf.mk
 MODULE		= suitecommon
 
 EXTRA_COMPONENTS = \
+	nsAbout.js \
 	nsAboutCertError.js \
+	nsAboutData.js \
+	nsAboutLife.js \
 	nsAboutSessionRestore.js \
+	nsAboutSyncTabs.js \
 	nsSessionStartup.js \
+	nsSidebar.js \
+	SuiteCommon.manifest \
 	nsSuiteDownloadManagerUI.js \
 	nsSuiteGlue.js \
 	$(NULL)
 
 EXTRA_PP_COMPONENTS = \
 	nsSessionStore.js \
+	$(NULL)
+
+EXTRA_JS_MODULES = \
+	PlacesUIUtils.jsm \
 	$(NULL)
 
 include $(topsrcdir)/config/rules.mk

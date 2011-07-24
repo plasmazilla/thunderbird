@@ -15,8 +15,7 @@
    -
    - The Original Code is about:memory.
    -
-   - The Initial Developer of the Original Code is
-   -   Mozilla Corp
+   - The Initial Developer of the Original Code is the Mozilla Foundation.
    - Portions created by the Initial Developer are Copyright (C) 2009
    - the Initial Developer. All Rights Reserved.
    -
@@ -41,20 +40,28 @@
   <head>
     <title>about:memory</title>
 
-    <link rel="stylesheet" href="chrome://global/content/aboutMemory.css" type="text/css"/>
+    <link rel="stylesheet" href="chrome://global/skin/aboutMemory.css"
+          type="text/css"/>
 
-    <script type="text/javascript" src="chrome://global/content/aboutMemory.js"/>
+    <script type="text/javascript"
+            src="chrome://global/content/aboutMemory.js"/>
   </head>
 
-  <body onload="doLoad()">
+  <body onload="doLoad()" onunload="doUnload()">
     <h1>Memory Usage</h1>
 
     <div id="memOverview" class="memOverview memBox">
       <h2>Overview</h2>
       <table border="0">
 	<tbody>
-	  <tr><td width="100%">Memory mapped:</td><td id="memMappedValue" class="memValue"></td></tr>
-	  <tr><td>Memory in use:</td><td id="memInUseValue" class="memValue"></td></tr>
+	  <tr>
+            <td width="100%">Memory mapped:</td>
+            <td id="memMappedValue" class="memValue"></td>
+          </tr>
+	  <tr>
+            <td>Memory in use:</td>
+            <td id="memInUseValue" class="memValue"></td>
+          </tr>
 	</tbody>
       </table>
     </div>
@@ -63,7 +70,10 @@
       <h2>Other Information</h2>
       <table border="0">
 	<thead>
-	  <tr><th style="text-align: left" width="100%">Description</th><th>Value</th></tr>
+	  <tr>
+            <th style="text-align: left" width="100%">Description</th>
+            <th>Value</th>
+          </tr>
 	</thead>
 	<tbody id="memOtherRows">
 	</tbody>

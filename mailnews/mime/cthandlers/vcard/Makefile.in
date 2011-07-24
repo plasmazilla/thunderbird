@@ -52,24 +52,9 @@ LIBRARY_NAME	= vcard
 EXPORT_LIBRARY = 1
 IS_COMPONENT	= 1
 MODULE_NAME	= nsVCardModule
-
 else
 LIBRARY_NAME = vcard_s
 endif
-
-META_COMPONENT = mail
-
-REQUIRES	= xpcom \
-		  string \
-		  mime \
-		  msgbase \
-		  msgbaseutil \
-		  uconv \
-		  necko \
-		  intl \
-		  pref \
-		  addrbook \
-		  $(NULL)
 
 ifeq ($(OS_ARCH),WINNT)
 MAPFILE		= vcard.map
@@ -86,12 +71,7 @@ ifndef MOZ_STATIC_MAIL_BUILD
 
 CPPSRCS += nsVCardFactory.cpp
 
-
-ifeq ($(USE_SHORT_LIBNAME),1)
-EXTRA_DSO_LIBS = msgbsutl
-else
 EXTRA_DSO_LIBS = msgbaseutil
-endif
 
 ifdef MOZILLA_INTERNAL_API
 EXTRA_DSO_LDOPTS = \
@@ -117,7 +97,4 @@ FORCE_STATIC_LIB = 1
 
 endif
 
-
-
 include $(topsrcdir)/config/rules.mk
-

@@ -21,6 +21,7 @@
  the Initial Developer. All Rights Reserved.
 
  Contributor(s):
+    Ian Neal <iann_bugzilla@blueyonder.co.uk>
 
  Alternatively, the contents of this file may be used under the terms of
  either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -64,6 +65,9 @@
         style="width: 60em; height: 40em;"
         screenX="10" screenY="10"
         persist="width height screenX screenY sizemode"
+        toggletoolbar="true"
+        lightweightthemes="true"
+        lightweightthemesfooter="status-bar"
         windowtype="mail:3pane">
 
 <stringbundleset id="stringbundleset">
@@ -115,25 +119,31 @@
 <broadcasterset id="mailBroadcasters">
   <broadcaster id="mailHideMenus"/>
   <broadcaster id="mailDisableKeys"/>
+  <broadcaster id="mailDisableViewsSearch" disabled="true"/>
   <!-- File Menu -->
   <broadcaster id="Communicator:WorkMode"/>
 </broadcasterset>
+
+<broadcasterset id="mainBroadcasterSet"/>
 
 <keyset id="mailKeys">
   <keyset id="tasksKeys"/>
 </keyset>
 
-<popupset id="mainPopupSet"/>
-<popup id="mailContext"/>
-<popup id="folderPaneContext"/>
-<popup id="attachmentListContext"/>
-<tooltip id="attachmentListTooltip"/>
-<popup id="copyUrlPopup"/>
-<popup id="toolbar-context-menu"/>
-<popup id="messageIdContext"/>
-<popup id="emailAddressPopup"/>
-<tooltip id="folderpopup" class="folderSummaryPopup"/>
-<tooltip id="aHTMLTooltip" onpopupshowing="return FillInHTMLTooltip(document.tooltipNode);"/>
+  <popupset id="mainPopupSet">
+    <menupopup id="mailContext"/>
+    <menupopup id="folderPaneContext"/>
+    <menupopup id="attachmentListContext"/>
+    <tooltip id="attachmentListTooltip"/>
+    <menupopup id="copyUrlPopup"/>
+    <menupopup id="messageIdContext"/>
+    <menupopup id="emailAddressPopup"/>
+    <menupopup id="toolbar-context-menu"/>
+    <tooltip id="folderpopup" class="folderSummaryPopup"/>
+    <tooltip id="aHTMLTooltip"
+             onpopupshowing="return FillInHTMLTooltip(document.tooltipNode);"/>
+    <panel id="customizeToolbarSheetPopup"/>
+  </popupset>
 
   <toolbox id="mail-toolbox" class="toolbox-top">
     <toolbar id="mail-toolbar-menubar2">
@@ -142,10 +152,24 @@
       </toolbaritem>
     </toolbar>
     <toolbar id="msgToolbar"/>
-    <toolbarset id="customToolbars" context="toolbar-context-menu"/>
-    <toolbar id="msgLocationToolbar"/>
+    <toolbarset id="customToolbars"/>
+    <toolbar id="searchToolbar"
+             class="chromeclass-toolbar"
+             persist="collapsed"
+             grippytooltiptext="&searchToolbar.tooltip;"
+             toolbarname="&showSearchToolbarCmd.label;"
+             accesskey="&showSearchToolbarCmd.accesskey;"
+             customizable="true"
+             nowindowdrag="true"
+             mode="full"
+             iconsize="small"
+             labelalign="end"
+             defaultmode="full"
+             defaulticonsize="small"
+             defaultlabelalign="end"
+             defaultset="mailviews-container,spring,search-container,button-search-container"
+             context="toolbar-context-menu"/>
   </toolbox>
-  <panel id="customizeToolbarSheetPopup"/>
 
   <!-- XXX This extension point (tabmail-container) is only temporary!
            (See bug 460252 for details.)
@@ -203,7 +227,6 @@
                 </vbox>
                 <!-- second panel is the threadPane -->
                 <vbox id="threadPaneBox">
-                  <hbox id="searchBoxHolder"/>
                   <tree id="threadTree"
                         treelines="true"
                         keepcurrentinview="true"

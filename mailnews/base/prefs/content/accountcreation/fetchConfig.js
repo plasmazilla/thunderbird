@@ -41,14 +41,20 @@
  * Params @see fetchConfigFromISP()
  */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 function fetchConfigFromDisk(domain, successCallback, errorCallback)
 {
   return new TimeoutAbortable(runAsync(function()
   {
     try {
       // <TB installdir>/isp/example.com.xml
-      var uri = "resource:///isp/" + sanitize.hostname(domain) + ".xml";
-      var contents = readURLasUTF8(makeNSIURI(uri));
+      var configLocation = Services.dirsvc.get("CurProcD", Ci.nsIFile);
+      configLocation.append("isp");
+      configLocation.append(sanitize.hostname(domain) + ".xml");
+
+      var contents =
+        readURLasUTF8(Services.io.newFileURI(configLocation));
        // Bug 336551 trips over <?xml ... >
       contents = contents.replace(/<\?xml[^>]*\?>/, "");
       successCallback(readFromXML(new XML(contents)));
@@ -72,7 +78,8 @@ function fetchConfigFromDisk(domain, successCallback, errorCallback)
  * @param errorCallback {Function(ex)}   A callback that
  *         will be called when we could not retrieve a configuration,
  *         for whatever reason. This is expected (e.g. when there's no config
- *         for this domain at this location), so do not unconditionally show this to the user.
+ *         for this domain at this location),
+ *         so do not unconditionally show this to the user.
  *         The first paramter will be an exception object or error string.
  */
 function fetchConfigFromISP(domain, emailAddress, successCallback,
@@ -96,6 +103,12 @@ function fetchConfigFromISP(domain, emailAddress, successCallback,
       ddump("fetchisp 1 <" + url1 + "> took " + (Date.now() - time) +
           "ms and failed with " + e1);
       time = Date.now();
+      if (e1 instanceof CancelledException)
+      {
+        errorCallback(e1);
+        return;
+      }
+
       let fetch2 = new FetchHTTP(
         url2, { emailaddress: emailAddress }, false,
         function(result)
@@ -106,7 +119,9 @@ function fetchConfigFromISP(domain, emailAddress, successCallback,
         {
           ddump("fetchisp 2 <" + url2 + "> took " + (Date.now() - time) +
               "ms and failed with " + e2);
-          errorCallback(e1); // return error for primary call
+          // return the error for the primary call,
+          // unless the fetch was cancelled
+          errorCallback(e2 instanceof CancelledException ? e2 : e1);
         });
       sucAbortable.current = fetch2;
       fetch2.start();
@@ -124,17 +139,19 @@ function fetchConfigFromISP(domain, emailAddress, successCallback,
 
 function fetchConfigFromDB(domain, successCallback, errorCallback)
 {
-  let pref = Components.classes["@mozilla.org/preferences-service;1"]
-                               .getService(Components.interfaces.nsIPrefBranch);
+  let pref = Cc["@mozilla.org/preferences-service;1"]
+             .getService(Ci.nsIPrefBranch);
   let url = pref.getCharPref("mailnews.auto_config_url");
-  let domain = sanitize.hostname(domain);
+  domain = sanitize.hostname(domain);
 
   // If we don't specify a place to put the domain, put it at the end.
   if (url.indexOf("{{domain}}") == -1)
     url = url + domain;
   else
     url = url.replace("{{domain}}", domain);
-  url = url.replace("{{accounts}}", gAccountMgr.accounts.Count());
+  var accountManager = Cc["@mozilla.org/messenger/account-manager;1"]
+                       .getService(Ci.nsIMsgAccountManager);
+  url = url.replace("{{accounts}}", accountManager.accounts.Count());
 
   if (!url.length)
     return errorCallback("no fetch url set");
@@ -171,7 +188,7 @@ function fetchConfigFromDB(domain, successCallback, errorCallback)
  */
 function fetchConfigForMX(domain, successCallback, errorCallback)
 {
-  var domain = sanitize.hostname(domain);
+  domain = sanitize.hostname(domain);
 
   var sucAbortable = new SuccessiveAbortable();
   var time = Date.now();
@@ -219,7 +236,7 @@ function fetchConfigForMX(domain, successCallback, errorCallback)
  */
 function getMX(domain, successCallback, errorCallback)
 {
-  let domain = sanitize.hostname(domain);
+  domain = sanitize.hostname(domain);
 
   let pref = Cc["@mozilla.org/preferences-service;1"]
                .getService(Ci.nsIPrefBranch);

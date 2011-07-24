@@ -36,8 +36,19 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#ifndef _MOZSTORAGE_H_
-#define _MOZSTORAGE_H_
+/**
+ * To add additional errors to Storage, please append entries to the bottom of
+ * the list in the following format:
+ * '#define NS_ERROR_STORAGE_YOUR_ERR \
+ *    NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_STORAGE, n)'
+ * where n is the next unique positive integer.  You must also add an entry to
+ * js/src/xpconnect/src/xpc.msg under the code block beginning with the comment
+ * 'storage related codes (from mozStorage.h)', in the following format:
+ * 'XPC_MSG_DEF(NS_ERROR_STORAGE_YOUR_ERR, "brief description of your error")'
+ */
+
+#ifndef MOZSTORAGE_H
+#define MOZSTORAGE_H
 
 #define NS_ERROR_STORAGE_BUSY \
   NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_STORAGE, 1)
@@ -45,4 +56,7 @@
 #define NS_ERROR_STORAGE_IOERR \
   NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_STORAGE, 2)
 
-#endif /* _MOZSTORAGE_H_ */
+#define NS_ERROR_STORAGE_CONSTRAINT \
+  NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_STORAGE, 3)
+
+#endif /* MOZSTORAGE_H */

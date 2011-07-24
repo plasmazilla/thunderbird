@@ -40,7 +40,18 @@
 #include "nsISupports.idl"
 #include "nsIPrefBranch.idl"
 
+%{C++
+struct PrefTuple;
+template<class E, class A> class nsTArray;
+struct nsTArrayInfallibleAllocator;
+%}
+
+[ptr] native nsPreferencesArrayPtr(nsTArray<PrefTuple, nsTArrayInfallibleAllocator>);
+[ptr] native nsPreferencePtr(PrefTuple);
+[ptr] native nsPreferencePtrConst(const PrefTuple);
+
 interface nsIFile;
+interface nsILocalFile;
 
 /**
  * The nsIPrefService interface is the main entry point into the back end
@@ -50,8 +61,6 @@ interface nsIFile;
  * of the preferences themselves.
  *
  * @see nsIPrefBranch
- * 
- * @status FROZEN
  */
 
 [scriptable, uuid(decb9cc7-c08f-4ea5-be91-a8fc637ce2d2)]
@@ -107,7 +116,6 @@ interface nsIPrefService : nsISupports
    */
   void savePrefFile(in nsIFile aFile);
 
-
   /**
    * Call to get a Preferences "Branch" which accesses user preference data.
    * Using a Set method on this object will always create or set a user
@@ -155,14 +163,37 @@ interface nsIPrefService : nsISupports
 
 };
 
+[scriptable, uuid(08c8cd2f-8345-45ee-938d-37ee6d3661b2)]
+interface nsIPrefServiceInternal : nsISupports
+{
+  /**
+   * Called to read the preferences in the defaults/preferences/
+   * directory of a zip file
+   *
+   * @param aFile The zip file to be read.
+   *
+   * @return NS_OK The file was read and processed.
+   * @return Other The file failed to read or contained invalid data.
+   *
+   * @see readUserPrefs
+   */
+  void readExtensionPrefs(in nsILocalFile aFile);
+
+  [noscript] void mirrorPreferences(in nsPreferencesArrayPtr aArray);
+  [noscript] void mirrorPreference(in ACString aPrefName, in nsPreferencePtr aPref);
+  [noscript] boolean prefHasUserValue(in ACString aPrefName);
+  [noscript] void setPreference(in nsPreferencePtrConst aPref);
+  [noscript] void clearContentPref(in ACString aPrefName);
+};
+
 %{C++
 
 #define NS_PREFSERVICE_CID                             \
   { /* {1cd91b88-1dd2-11b2-92e1-ed22ed298000} */       \
-    0x1cd91b88,                                        \
-    0x1dd2,                                            \
-    0x11b2,                                            \
-    { 0x92, 0xe1, 0xed, 0x22, 0xed, 0x29, 0x80, 0x00 } \
+    0x91ca2441,                                        \
+    0x050f,                                            \
+    0x4f7c,                                            \
+    { 0x9d, 0xf8, 0x75, 0xb4, 0x0e, 0xa4, 0x01, 0x56 } \
   }
 
 #define NS_PREFSERVICE_CONTRACTID "@mozilla.org/preferences-service;1"

@@ -61,10 +61,14 @@ const PRUint32 kDefaultTreeCacheSize = 256;
   { 0xb8, 0xe1, 0x2c, 0x44, 0xb0, 0x41, 0x85, 0xe3 }    \
 }
 
-class nsXULTreeAccessible : public nsXULSelectableAccessible
+class nsXULTreeAccessible : public nsAccessibleWrap
 {
 public:
-  nsXULTreeAccessible(nsIDOMNode* aDOMNode, nsIWeakReference* aShell);
+  using nsAccessible::GetChildCount;
+  using nsAccessible::GetChildAt;
+  using nsAccessible::GetChildAtPoint;
+
+  nsXULTreeAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsISupports and cycle collection
   NS_DECL_ISUPPORTS_INHERITED
@@ -73,27 +77,31 @@ public:
 
   // nsIAccessible
   NS_IMETHOD GetValue(nsAString& aValue);
-
-  NS_IMETHOD GetFirstChild(nsIAccessible **aFirstChild);
-  NS_IMETHOD GetLastChild(nsIAccessible **aLastChild);
-  NS_IMETHOD GetChildCount(PRInt32 *aChildCount);
-  NS_IMETHOD GetChildAt(PRInt32 aChildIndex, nsIAccessible **aChild);
-
   NS_IMETHOD GetFocusedChild(nsIAccessible **aFocusedChild);
-
-  // nsIAccessibleSelectable
-  NS_DECL_NSIACCESSIBLESELECTABLE
 
   // nsAccessNode
   virtual PRBool IsDefunct();
-  virtual nsresult Shutdown();
+  virtual void Shutdown();
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
-  virtual nsresult GetChildAtPoint(PRInt32 aX, PRInt32 aY,
-                                   PRBool aDeepestChild,
-                                   nsIAccessible **aChild);
+  virtual nsAccessible* GetChildAtPoint(PRInt32 aX, PRInt32 aY,
+                                        EWhichChildAtPoint aWhichChild);
+
+  virtual nsAccessible* GetChildAt(PRUint32 aIndex);
+  virtual PRInt32 GetChildCount();
+
+  // SelectAccessible
+  virtual bool IsSelect();
+  virtual already_AddRefed<nsIArray> SelectedItems();
+  virtual PRUint32 SelectedItemCount();
+  virtual nsAccessible* GetSelectedItem(PRUint32 aIndex);
+  virtual bool IsItemSelected(PRUint32 aIndex);
+  virtual bool AddItemToSelection(PRUint32 aIndex);
+  virtual bool RemoveItemFromSelection(PRUint32 aIndex);
+  virtual bool SelectAll();
+  virtual bool UnselectAll();
 
   // nsXULTreeAccessible
 
@@ -104,9 +112,8 @@ public:
    * in the cache then create and cache it.
    *
    * @param aRow         [in] the given row index
-   * @param aAccessible  [out] tree item accessible
    */
-  void GetTreeItemAccessible(PRInt32 aRow, nsIAccessible **aAccessible);
+  nsAccessible* GetTreeItemAccessible(PRInt32 aRow);
 
   /**
    * Invalidates the number of cached treeitem accessibles.
@@ -139,14 +146,11 @@ protected:
   /**
    * Creates tree item accessible for the given row index.
    */
-  virtual void CreateTreeItemAccessible(PRInt32 aRowIndex,
-                                        nsAccessNode** aAccessNode);
+  virtual already_AddRefed<nsAccessible> CreateTreeItemAccessible(PRInt32 aRow);
 
   nsCOMPtr<nsITreeBoxObject> mTree;
   nsCOMPtr<nsITreeView> mTreeView;
-  nsAccessNodeHashtable mAccessNodeCache;
-
-  NS_IMETHOD ChangeSelection(PRInt32 aIndex, PRUint8 aMethod, PRBool *aSelState);
+  nsAccessibleHashtable mAccessibleCache;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsXULTreeAccessible,
@@ -167,21 +171,16 @@ NS_DEFINE_STATIC_IID_ACCESSOR(nsXULTreeAccessible,
 class nsXULTreeItemAccessibleBase : public nsAccessibleWrap
 {
 public:
-  nsXULTreeItemAccessibleBase(nsIDOMNode *aDOMNode, nsIWeakReference *aShell,
-                              nsIAccessible *aParent, nsITreeBoxObject *aTree,
+  using nsAccessible::GetParent;
+
+  nsXULTreeItemAccessibleBase(nsIContent *aContent, nsIWeakReference *aShell,
+                              nsAccessible *aParent, nsITreeBoxObject *aTree,
                               nsITreeView *aTreeView, PRInt32 aRow);
 
   // nsISupports
   NS_DECL_ISUPPORTS_INHERITED
 
-  // nsIAccessNode
-  NS_IMETHOD GetUniqueID(void **aUniqueID);
-
   // nsIAccessible
-  NS_IMETHOD GetParent(nsIAccessible **aParent);
-  NS_IMETHOD GetNextSibling(nsIAccessible **aNextSibling);
-  NS_IMETHOD GetPreviousSibling(nsIAccessible **aPreviousSibling);
-
   NS_IMETHOD GetFocusedChild(nsIAccessible **aFocusedChild);
 
   NS_IMETHOD GetBounds(PRInt32 *aX, PRInt32 *aY,
@@ -193,28 +192,37 @@ public:
   NS_IMETHOD GetRelationByType(PRUint32 aRelationType,
                                nsIAccessibleRelation **aRelation);
 
+  NS_IMETHOD GroupPosition(PRInt32 *aGroupLevel,
+                           PRInt32 *aSimilarItemsInGroup,
+                           PRInt32 *aPositionInGroup);
+
   NS_IMETHOD GetNumActions(PRUint8 *aCount);
   NS_IMETHOD GetActionName(PRUint8 aIndex, nsAString& aName);
   NS_IMETHOD DoAction(PRUint8 aIndex);
 
   // nsAccessNode
   virtual PRBool IsDefunct();
-  virtual nsresult Shutdown();
+  virtual void Shutdown();
+  virtual bool IsPrimaryForNode() const;
 
   // nsAccessible
-  virtual nsresult GetAttributesInternal(nsIPersistentProperties *aAttributes);
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
+  virtual PRInt32 GetIndexInParent() const;
 
   // nsXULTreeItemAccessibleBase
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_XULTREEITEMBASEACCESSIBLE_IMPL_CID)
 
   /**
+   * Return row index associated with the accessible.
+   */
+  PRInt32 GetRowIndex() const { return mRow; }
+
+  /**
    * Return cell accessible for the given column. If XUL tree accessible is not
    * accessible table then return null.
    */
-  virtual void GetCellAccessible(nsITreeColumn *aColumn,
-                                 nsIAccessible **aCellAcc)
-    { *aCellAcc = nsnull; }
+  virtual nsAccessible* GetCellAccessible(nsITreeColumn *aColumn)
+    { return nsnull; }
 
   /**
    * Proccess row invalidation. Used to fires name change events.
@@ -226,6 +234,8 @@ protected:
 
   // nsAccessible
   virtual void DispatchClickEvent(nsIContent *aContent, PRUint32 aActionIndex);
+  virtual nsAccessible* GetSiblingAtOffset(PRInt32 aOffset,
+                                           nsresult *aError = nsnull);
 
   // nsXULTreeItemAccessibleBase
 
@@ -249,29 +259,29 @@ NS_DEFINE_STATIC_IID_ACCESSOR(nsXULTreeItemAccessibleBase,
 class nsXULTreeItemAccessible : public nsXULTreeItemAccessibleBase
 {
 public:
-  nsXULTreeItemAccessible(nsIDOMNode *aDOMNode, nsIWeakReference *aShell,
-                          nsIAccessible *aParent, nsITreeBoxObject *aTree,
+  nsXULTreeItemAccessible(nsIContent *aContent, nsIWeakReference *aShell,
+                          nsAccessible *aParent, nsITreeBoxObject *aTree,
                           nsITreeView *aTreeView, PRInt32 aRow);
-
-  // nsIAccessible
-  NS_IMETHOD GetFirstChild(nsIAccessible **aFirstChild);
-  NS_IMETHOD GetLastChild(nsIAccessible **aLastChild);
-  NS_IMETHOD GetChildCount(PRInt32 *aChildCount);
 
   NS_IMETHOD GetName(nsAString& aName);
 
   // nsAccessNode
   virtual PRBool IsDefunct();
-  virtual nsresult Init();
-  virtual nsresult Shutdown();
+  virtual PRBool Init();
+  virtual void Shutdown();
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
 
   // nsXULTreeItemAccessibleBase
   virtual void RowInvalidated(PRInt32 aStartColIdx, PRInt32 aEndColIdx);
 
 protected:
+
+  // nsAccessible
+  virtual void CacheChildren();
+
+  // nsXULTreeItemAccessible
   nsCOMPtr<nsITreeColumn> mColumn;
   nsString mCachedName;
 };
@@ -283,10 +293,13 @@ protected:
 class nsXULTreeColumnsAccessible : public nsXULColumnsAccessible
 {
 public:
-  nsXULTreeColumnsAccessible(nsIDOMNode* aDOMNode, nsIWeakReference* aShell);
+  nsXULTreeColumnsAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
-  // nsIAccessible
-  NS_IMETHOD GetNextSibling(nsIAccessible **aNextSibling);
+protected:
+
+  // nsAccessible
+  virtual nsAccessible* GetSiblingAtOffset(PRInt32 aOffset,
+                                           nsresult *aError = nsnull);
 };
 
 #endif

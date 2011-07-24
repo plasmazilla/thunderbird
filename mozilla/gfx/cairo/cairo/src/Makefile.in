@@ -43,8 +43,6 @@ VPATH           = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-SUBMAKEFILES	+= cairo-features.h
-
 ifndef MOZ_ENABLE_LIBXUL
 VISIBILITY_FLAGS =
 endif
@@ -54,22 +52,21 @@ LIBRARY_NAME    = mozcairo
 LIBXUL_LIBRARY = 1
 
 ifdef GNU_CC
+OS_CXXFLAGS := $(filter-out -pedantic,$(OS_CXXFLAGS))
 MODULE_OPTIMIZE_FLAGS = -O2
 else
 ifeq ($(OS_ARCH),SunOS)
 MODULE_OPTIMIZE_FLAGS = -xO5
 endif
 ifeq ($(OS_ARCH),WINNT)
+ifneq ($(OS_TEST),x86_64)
 # FIXME: bug 413019
 OS_COMPILE_CFLAGS += -GL-
+endif
 MODULE_OPTIMIZE_FLAGS = -O2
 endif
 endif
 
-REQUIRES        = $(PNG_REQUIRES) \
-                  $(ZLIB_REQUIRES) \
-                  libpixman \
-                  $(NULL)
 
 CSRCS   = \
         cairo.c \
@@ -78,7 +75,10 @@ CSRCS   = \
         cairo-array.c \
 	cairo-atomic.c \
         cairo-bentley-ottmann.c \
-        cairo-cache.c \
+	cairo-bentley-ottmann-rectilinear.c \
+	cairo-bentley-ottmann-rectangular.c \
+        cairo-base64-stream.c \
+	cairo-cache.c \
         cairo-clip.c \
         cairo-color.c \
         cairo-debug.c \
@@ -96,7 +96,6 @@ CSRCS   = \
         cairo-image-surface.c \
         cairo-lzw.c \
         cairo-matrix.c \
-        cairo-meta-surface.c \
 	cairo-misc.c \
 	cairo-mutex.c \
         cairo-output-stream.c \
@@ -110,17 +109,20 @@ CSRCS   = \
         cairo-pattern.c \
         cairo-pen.c \
         cairo-polygon.c \
+	cairo-recording-surface.c \
         cairo-rectangle.c \
         cairo-region.c \
         cairo-scaled-font.c \
         cairo-scaled-font-subsets.c \
-        cairo-skiplist.c \
         cairo-slope.c \
         cairo-spans.c \
         cairo-spline.c \
         cairo-stroke-style.c \
         cairo-surface.c \
+	cairo-surface-clipper.c \
         cairo-surface-fallback.c \
+	cairo-surface-wrapper.c \
+	cairo-tee-surface.c \
         cairo-tor-scan-converter.c \
         cairo-toy-font-face.c \
         cairo-traps.c \
@@ -158,9 +160,14 @@ ifeq ($(MOZ_WIDGET_TOOLKIT),windows)
 CSRCS	+=	cairo-win32-surface.c
 
 ifndef WINCE
+ifdef MOZ_ENABLE_DWRITE_FONT
+CPPSRCS +=	cairo-dwrite-font.cpp
+endif
+ifdef MOZ_ENABLE_D2D_SURFACE
+CPPSRCS +=	cairo-d2d-surface.cpp
+endif
 CSRCS	+=	cairo-win32-font.c
 else
-CSRCS	+=	cairo-ddraw-surface.c
 EXPORTS_cairo +=	cairo-ddraw.h
 endif
 
@@ -186,7 +193,7 @@ CSRCS   += $(PSPDF_BASE_CSRCS) $(PDF_CSRCS)
 EXPORTS_cairo += $(PDF_EXPORTS)
 endif
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 CSRCS   += cairo-quartz-surface.c cairo-quartz-image-surface.c cairo-quartz-font.c
 EXPORTS_cairo += cairo-quartz.h cairo-quartz-image.h
 endif
@@ -201,9 +208,16 @@ CSRCS   += $(PSPDF_BASE_CSRCS) $(PDF_CSRCS) $(PS_CSRCS)
 EXPORTS_cairo += $(PDF_EXPORTS) $(PS_EXPORTS)
 endif
 
+ifeq ($(MOZ_WIDGET_TOOLKIT),android)
+CSRCS   += $(PSPDF_BASE_CSRCS) $(PDF_CSRCS)
+EXPORTS_cairo += $(PDF_EXPORTS)
+endif
+
 ifeq ($(MOZ_WIDGET_TOOLKIT),qt)
-CPPSRCS += cairo-qpainter-surface.cpp
-EXPORTS_cairo += cairo-qpainter.h
+CPPSRCS += cairo-qt-surface.cpp
+CSRCS   += $(PSPDF_BASE_CSRCS) $(PDF_CSRCS) 
+EXPORTS_cairo += cairo-qt.h
+EXPORTS_cairo += $(PDF_EXPORTS)
 OS_INCLUDES += $(MOZ_QT_CFLAGS)
 endif
 
@@ -218,6 +232,7 @@ CSRCS   += cairo-xlib-surface.c \
 	   cairo-xlib-visual.c \
 	   cairo-xlib-display.c
 EXPORTS_cairo += cairo-xlib.h cairo-xlib-xrender.h
+OS_INCLUDES += $(XCFLAGS)
 endif
 
 ifdef MOZ_ENABLE_CAIRO_FT
@@ -234,6 +249,11 @@ FORCE_USE_PIC = 1
 
 include $(topsrcdir)/config/rules.mk
 
+# Disable spammy "missing initializer" GCC warning
+ifdef GNU_CC
+CFLAGS += -Wno-missing-field-initializers
+endif # GNU_CC
+
 DEFINES += -DPACKAGE_VERSION="\"moz\"" -DPACKAGE_BUGREPORT="\"http://bugzilla.mozilla.org/\""
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),windows)
@@ -243,3 +263,13 @@ endif
 ifdef MOZ_TREE_CAIRO
 DEFINES += -DMOZ_TREE_CAIRO
 endif
+
+ifndef MOZ_TREE_PIXMAN
+CFLAGS += $(MOZ_CAIRO_CFLAGS)
+CXXFLAGS += $(MOZ_CAIRO_CFLAGS)
+else
+DEFINES += -DMOZ_TREE_PIXMAN
+endif
+
+cairo-features.h: $(srcdir)/cairo-features.h.in $(GLOBAL_DEPS)
+	$(PERL) $(AUTOCONF_TOOLS)/make-makefile -t $(topsrcdir) -d $(DEPTH) ./$@

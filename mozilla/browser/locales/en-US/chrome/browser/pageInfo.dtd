@@ -99,6 +99,10 @@
 <!ENTITY  permInstall           "Install Extensions or Themes">
 <!ENTITY  permGeo               "Share Location">
 
+<!ENTITY  permIndexedDB              "Maintain Offline Storage">
+<!ENTITY  permClearStorage           "Clear Storage">
+<!ENTITY  permClearStorage.accesskey "C">
+
 <!ENTITY  securityTab           "Security">
 <!ENTITY  securityTab.accesskey "S">
 <!ENTITY  securityHeader        "Security information for this page">
@@ -113,7 +117,7 @@
 <!ENTITY  securityView.identity.verifier "Verified by:">
 
 <!ENTITY  securityView.privacy.header                   "Privacy &amp; History">
-<!ENTITY  securityView.privacy.history                  "Have I visited this web site before today?">
+<!ENTITY  securityView.privacy.history                  "Have I visited this web site prior to today?">
 <!ENTITY  securityView.privacy.cookies                  "Is this web site storing information (cookies) on my computer?">
 <!ENTITY  securityView.privacy.viewCookies              "View Cookies">
 <!ENTITY  securityView.privacy.viewCookies.accessKey    "k">

@@ -67,19 +67,18 @@ enum PopupControlState {
 };
 
 class nsIDocShell;
-class nsIFocusController;
 class nsIContent;
 class nsIDocument;
 class nsIScriptTimeoutHandler;
-class nsPresContext;
 struct nsTimeout;
 class nsScriptObjectHolder;
 class nsXBLPrototypeHandler;
 class nsIArray;
+class nsPIWindowRoot;
 
 #define NS_PIDOMWINDOW_IID \
-{ 0x70c9f57f, 0xf7b3, 0x4a37, \
-  { 0xbe, 0x36, 0xbb, 0xb2, 0xd7, 0xe9, 0x40, 0x13 } }
+{ 0x8d8be7db, 0xffaa, 0x4962, \
+  { 0xa7, 0x27, 0xb7, 0x0f, 0xc9, 0xfa, 0xd3, 0x0e } }
 
 class nsPIDOMWindow : public nsIDOMWindowInternal
 {
@@ -90,12 +89,43 @@ public:
 
   virtual void ActivateOrDeactivate(PRBool aActivate) = 0;
 
+  // this is called GetTopWindowRoot to avoid conflicts with nsIDOMWindow2::GetWindowRoot
+  virtual already_AddRefed<nsPIWindowRoot> GetTopWindowRoot() = 0;
+
+  virtual void SetActive(PRBool aActive)
+  {
+    mIsActive = aActive;
+  }
+
+  PRBool IsActive()
+  {
+    return mIsActive;
+  }
+
+  void SetIsBackground(PRBool aIsBackground)
+  {
+    mIsBackground = aIsBackground;
+  }
+
+  PRBool IsBackground()
+  {
+    return mIsBackground;
+  }
+
   nsPIDOMEventTarget* GetChromeEventHandler() const
   {
     return mChromeEventHandler;
   }
 
   virtual void SetChromeEventHandler(nsPIDOMEventTarget* aChromeEventHandler) = 0;
+
+  nsPIDOMEventTarget* GetParentTarget()
+  {
+    if (!mParentTarget) {
+      UpdateParentTarget();
+    }
+    return mParentTarget;
+  }
 
   PRBool HasMutationListeners(PRUint32 aMutationEventType) const
   {
@@ -147,7 +177,8 @@ public:
     win->mMutationBits |= aType;
   }
 
-  virtual nsIFocusController* GetRootFocusController() = 0;
+  virtual void MaybeUpdateTouchState() {}
+  virtual void UpdateTouchState() {}
 
   // GetExtantDocument provides a backdoor to the DOM GetDocument accessor
   nsIDOMDocument* GetExtantDocument() const
@@ -295,7 +326,7 @@ public:
 
   nsPIDOMWindow *GetOuterWindow()
   {
-    return mIsInnerWindow ? mOuterWindow : this;
+    return mIsInnerWindow ? mOuterWindow.get() : this;
   }
 
   nsPIDOMWindow *GetCurrentInnerWindow() const
@@ -353,7 +384,7 @@ public:
    */
   virtual nsresult SetNewDocument(nsIDocument *aDocument,
                                   nsISupports *aState,
-                                  PRBool aClearScope) = 0;
+                                  PRBool aForceReuseInnerWindow) = 0;
 
   /**
    * Set the opener window.  aOriginalOpener is true if and only if this is the
@@ -371,16 +402,11 @@ public:
    * Callback for notifying a window about a modal dialog being
    * opened/closed with the window as a parent.
    */
-  virtual void EnterModalState() = 0;
-  virtual void LeaveModalState() = 0;
+  virtual nsIDOMWindow *EnterModalState() = 0;
+  virtual void LeaveModalState(nsIDOMWindow *) = 0;
 
   virtual PRBool CanClose() = 0;
   virtual nsresult ForceClose() = 0;
-
-  void SetModalContentWindow(PRBool aIsModalContentWindow)
-  {
-    mIsModalContentWindow = aIsModalContentWindow;
-  }
 
   PRBool IsModalContentWindow() const
   {
@@ -406,6 +432,34 @@ public:
   }
   
   /**
+   * Call this to indicate that some node (this window, its document,
+   * or content in that document) has a touch event listener.
+   */
+  void SetHasTouchEventListeners()
+  {
+    mMayHaveTouchEventListener = PR_TRUE;
+    MaybeUpdateTouchState();
+  }
+
+  /**
+   * Call this to check whether some node (this window, its document,
+   * or content in that document) has a MozAudioAvailable event listener.
+   */
+  PRBool HasAudioAvailableEventListeners()
+  {
+    return mMayHaveAudioAvailableEventListener;
+  }
+
+  /**
+   * Call this to indicate that some node (this window, its document,
+   * or content in that document) has a MozAudioAvailable event listener.
+   */
+  void SetHasAudioAvailableEventListeners()
+  {
+    mMayHaveAudioAvailableEventListener = PR_TRUE;
+  }
+
+  /**
    * Initialize window.java and window.Packages.
    */
   virtual void InitJavaProperties() = 0;
@@ -422,7 +476,13 @@ public:
    * DO NOT CALL EITHER OF THESE METHODS DIRECTLY. USE THE FOCUS MANAGER
    * INSTEAD.
    */
-  virtual nsIContent* GetFocusedNode() = 0;
+  nsIContent* GetFocusedNode()
+  {
+    if (IsOuterWindow()) {
+      return mInnerWindow ? mInnerWindow->mFocusedNode.get() : nsnull;
+    }
+    return mFocusedNode;
+  }
   virtual void SetFocusedNode(nsIContent* aNode,
                               PRUint32 aFocusMethod = 0,
                               PRBool aNeedsFocus = PR_FALSE) = 0;
@@ -451,6 +511,23 @@ public:
   virtual void SetReadyForFocus() = 0;
 
   /**
+   * Whether the focused content within the window should show a focus ring.
+   */
+  virtual PRBool ShouldShowFocusRing() = 0;
+
+  /**
+   * Set the keyboard indicator state for accelerators and focus rings.
+   */
+  virtual void SetKeyboardIndicators(UIStateChangeType aShowAccelerators,
+                                     UIStateChangeType aShowFocusRings) = 0;
+
+  /**
+   * Get the keyboard indicator state for accelerators and focus rings.
+   */
+  virtual void GetKeyboardIndicators(PRBool* aShowAccelerators,
+                                     PRBool* aShowFocusRings) = 0;
+
+  /**
    * Indicates that the page in the window has been hidden. This is used to
    * reset the focus state.
    */
@@ -462,6 +539,10 @@ public:
    */
   virtual nsresult DispatchAsyncHashchange() = 0;
 
+  /**
+   * Instructs this window to synchronously dispatch a popState event.
+   */
+  virtual nsresult DispatchSyncPopState() = 0;
 
   /**
    * Tell this window that there is an observer for orientation changes
@@ -477,30 +558,42 @@ public:
    */
   virtual nsresult SetArguments(nsIArray *aArguments, nsIPrincipal *aOrigin) = 0;
 
+  /**
+   * NOTE! This function *will* be called on multiple threads so the
+   * implementation must not do any AddRef/Release or other actions that will
+   * mutate internal state.
+   */
+  virtual PRUint32 GetSerial() = 0;
+
+  /**
+   * Return the window id of this window
+   */
+  PRUint64 WindowID() const { return mWindowID; }
+
 protected:
   // The nsPIDOMWindow constructor. The aOuterWindow argument should
   // be null if and only if the created window itself is an outer
   // window. In all other cases aOuterWindow should be the outer
   // window for the inner window that is being created.
-  nsPIDOMWindow(nsPIDOMWindow *aOuterWindow)
-    : mFrameElement(nsnull), mDocShell(nsnull), mModalStateDepth(0),
-      mRunningTimeout(nsnull), mMutationBits(0), mIsDocumentLoaded(PR_FALSE),
-      mIsHandlingResizeEvent(PR_FALSE), mIsInnerWindow(aOuterWindow != nsnull),
-      mMayHavePaintEventListener(PR_FALSE),
-      mIsModalContentWindow(PR_FALSE), mInnerWindow(nsnull),
-      mOuterWindow(aOuterWindow)
-  {
-  }
+  nsPIDOMWindow(nsPIDOMWindow *aOuterWindow);
+
+  ~nsPIDOMWindow();
 
   void SetChromeEventHandlerInternal(nsPIDOMEventTarget* aChromeEventHandler) {
     mChromeEventHandler = aChromeEventHandler;
+    // mParentTarget will be set when the next event is dispatched.
+    mParentTarget = nsnull;
   }
+
+  virtual void UpdateParentTarget() = 0;
 
   // These two variables are special in that they're set to the same
   // value on both the outer window and the current inner window. Make
   // sure you keep them in sync!
   nsCOMPtr<nsPIDOMEventTarget> mChromeEventHandler; // strong
   nsCOMPtr<nsIDOMDocument> mDocument; // strong
+
+  nsCOMPtr<nsPIDOMEventTarget> mParentTarget; // strong
 
   // These members are only used on outer windows.
   nsCOMPtr<nsIDOMElement> mFrameElement;
@@ -517,14 +610,37 @@ protected:
   PRPackedBool           mIsHandlingResizeEvent;
   PRPackedBool           mIsInnerWindow;
   PRPackedBool           mMayHavePaintEventListener;
+  PRPackedBool           mMayHaveTouchEventListener;
+  PRPackedBool           mMayHaveAudioAvailableEventListener;
 
   // This variable is used on both inner and outer windows (and they
   // should match).
   PRPackedBool           mIsModalContentWindow;
 
+  // Tracks activation state that's used for :-moz-window-inactive.
+  // Only used on outer windows.
+  PRPackedBool           mIsActive;
+
+  // Tracks whether our docshell is active.  If it is, mIsBackground
+  // is false.  Too bad we have so many different concepts of
+  // "active".  Only used on outer windows.
+  PRPackedBool           mIsBackground;
+
   // And these are the references between inner and outer windows.
   nsPIDOMWindow         *mInnerWindow;
-  nsPIDOMWindow         *mOuterWindow;
+  nsCOMPtr<nsPIDOMWindow> mOuterWindow;
+
+  // the element within the document that is currently focused when this
+  // window is active
+  nsCOMPtr<nsIContent> mFocusedNode;
+
+  // A unique (as long as our 64-bit counter doesn't roll over) id for
+  // this window.
+  PRUint64 mWindowID;
+
+  // This is only used by the inner window. Set to true once we've sent
+  // the (chrome|content)-document-global-created notification.
+  PRPackedBool mHasNotifiedGlobalCreated;
 };
 
 

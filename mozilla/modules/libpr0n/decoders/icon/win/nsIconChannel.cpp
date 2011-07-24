@@ -53,7 +53,6 @@
 #include "nsIStringStream.h"
 #include "nsIURL.h"
 #include "nsNetUtil.h"
-#include "nsInt64.h"
 #include "nsIFile.h"
 #include "nsIFileURL.h"
 #include "nsIMIMEService.h"
@@ -227,11 +226,11 @@ nsresult nsIconChannel::ExtractIconInfoFromUrl(nsIFile ** aLocalFile, PRUint32 *
   iconURI->GetContentType(aContentType);
   iconURI->GetFileExtension(aFileExtension);
 
-  nsCOMPtr<nsIURI> fileURI;
-  rv = iconURI->GetIconFile(getter_AddRefs(fileURI));
-  if (NS_FAILED(rv) || !fileURI) return NS_OK;
+  nsCOMPtr<nsIURL> url;
+  rv = iconURI->GetIconURL(getter_AddRefs(url));
+  if (NS_FAILED(rv) || !url) return NS_OK;
 
-  nsCOMPtr<nsIFileURL>    fileURL = do_QueryInterface(fileURI, &rv);
+  nsCOMPtr<nsIFileURL> fileURL = do_QueryInterface(url, &rv);
   if (NS_FAILED(rv) || !fileURL) return NS_OK;
 
   nsCOMPtr<nsIFile> file;
@@ -249,7 +248,7 @@ NS_IMETHODIMP nsIconChannel::AsyncOpen(nsIStreamListener *aListener, nsISupports
     return rv;
 
   // Init our streampump
-  rv = mPump->Init(inStream, nsInt64(-1), nsInt64(-1), 0, 0, PR_FALSE);
+  rv = mPump->Init(inStream, PRInt64(-1), PRInt64(-1), 0, 0, PR_FALSE);
   if (NS_FAILED(rv))
     return rv;
 
@@ -585,7 +584,8 @@ static BITMAPINFO* CreateBitmapInfo(BITMAPINFOHEADER* aHeader,
                                     size_t aColorTableSize)
 {
   BITMAPINFO* bmi = (BITMAPINFO*) ::operator new(sizeof(BITMAPINFOHEADER) +
-                                                 aColorTableSize);
+                                                 aColorTableSize,
+                                                 mozilla::fallible_t());
   if (bmi) {
     memcpy(bmi, aHeader, sizeof(BITMAPINFOHEADER));
     memset(bmi->bmiColors, 0, aColorTableSize);

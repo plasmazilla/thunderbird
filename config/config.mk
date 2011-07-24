@@ -56,11 +56,6 @@ endif
 ifndef INCLUDED_AUTOCONF_MK
 include $(DEPTH)/config/autoconf.mk
 endif
-ifndef INCLUDED_INSURE_MK
-ifdef MOZ_INSURIFYING
-include $(MOZILLA_SRCDIR)/config/insure.mk
-endif
-endif
 
 COMMA = ,
 
@@ -85,6 +80,11 @@ $(foreach x,$(CHECK_VARS),$(check-variable))
 
 core_abspath = $(if $(findstring :,$(1)),$(1),$(if $(filter /%,$(1)),$(1),$(CURDIR)/$(1)))
 
+nullstr :=
+space :=$(nullstr) # EOL
+
+core_winabspath = $(firstword $(subst /, ,$(call core_abspath,$(1)))):$(subst $(space),,$(patsubst %,\\%,$(wordlist 2,$(words $(subst /, ,$(call core_abspath,$(1)))), $(strip $(subst /, ,$(call core_abspath,$(1)))))))
+
 # FINAL_TARGET specifies the location into which we copy end-user-shipped
 # build products (typelibs, components, chrome).
 #
@@ -92,14 +92,8 @@ core_abspath = $(if $(findstring :,$(1)),$(1),$(if $(filter /%,$(1)),$(1),$(CURD
 # XPI-contents staging directory for ambitious and right-thinking extensions.
 FINAL_TARGET = $(if $(XPI_NAME),$(DIST)/xpi-stage/$(XPI_NAME),$(DIST)/bin)
 
-# MAKE_JARS_TARGET is a staging area for make-jars.pl.  When packaging in
-# the jar format, make-jars leaves behind a directory structure that's not
-# needed in $(FINAL_TARGET).  For both, flat, and symlink, the directory
-# structure contains the chrome, so leave it in $(FINAL_TARGET).
-ifeq (jar,$(MOZ_CHROME_FILE_FORMAT))
-MAKE_JARS_TARGET = $(if $(XPI_NAME),$(FINAL_TARGET).stage,$(DIST)/chrome-stage)
-else
-MAKE_JARS_TARGET = $(FINAL_TARGET)
+ifdef XPI_NAME
+DEFINES += -DXPI_NAME=$(XPI_NAME)
 endif
 
 # The VERSION_NUMBER is suffixed onto the end of the DLLs we ship.
@@ -154,95 +148,32 @@ MOZ_WIDGET_SUPPORT_LIBS    = $(DIST)/lib/$(LIB_PREFIX)widgetsupport_s.$(LIB_SUFF
 
 ifdef MOZ_MEMORY
 ifneq (,$(filter-out WINNT WINCE,$(OS_ARCH)))
-ifdef MOZILLA_1_9_2_BRANCH
-JEMALLOC_LIBS = $(MKSHLIB_FORCE_ALL) $(call EXPAND_LIBNAME_PATH,jemalloc,$(DIST)/lib) $(MKSHLIB_UNFORCE_ALL)
-else
 JEMALLOC_LIBS = $(MKSHLIB_FORCE_ALL) $(call EXPAND_MOZLIBNAME,jemalloc) $(MKSHLIB_UNFORCE_ALL)
-endif # ! MOZILLA_1_9_2_BRANCH
 endif
 endif
+
+CC := $(CC_WRAPPER) $(CC)
+CXX := $(CXX_WRAPPER) $(CXX)
 
 # determine debug-related options
 _DEBUG_CFLAGS :=
 _DEBUG_LDFLAGS :=
 
-ifndef MOZ_DEBUG
-  # global debugging is disabled 
-  # check if it was explicitly enabled for this module
-  ifneq (, $(findstring $(MODULE), $(MOZ_DEBUG_MODULES)))
-    MOZ_DEBUG:=1
-  endif
-else
-  # global debugging is enabled
-  # check if it was explicitly disabled for this module
-  ifneq (, $(findstring ^$(MODULE), $(MOZ_DEBUG_MODULES)))
-    MOZ_DEBUG:=
-  endif
-endif
-
 ifdef MOZ_DEBUG
-  _DEBUG_CFLAGS += $(MOZ_DEBUG_ENABLE_DEFS)
+  _DEBUG_CFLAGS += $(MOZ_DEBUG_ENABLE_DEFS) $(MOZ_DEBUG_FLAGS)
+  _DEBUG_LDFLAGS += $(MOZ_DEBUG_LDFLAGS)
   XULPPFLAGS += $(MOZ_DEBUG_ENABLE_DEFS)
 else
   _DEBUG_CFLAGS += $(MOZ_DEBUG_DISABLE_DEFS)
   XULPPFLAGS += $(MOZ_DEBUG_DISABLE_DEFS)
-endif
-
-# determine if -g should be passed to the compiler, based on
-# the current module, and the value of MOZ_DBGRINFO_MODULES
-
-ifdef MOZ_DEBUG
-  MOZ_DBGRINFO_MODULES += ALL_MODULES
-  pattern := ALL_MODULES ^ALL_MODULES
-else
-  MOZ_DBGRINFO_MODULES += ^ALL_MODULES
-  pattern := ALL_MODULES ^ALL_MODULES
-endif
-
-ifdef MODULE
-  # our current Makefile specifies a module name - add it to our pattern
-  pattern += $(MODULE) ^$(MODULE)
-endif
-
-# start by finding the first relevant module name 
-# (remember that the order of the module names in MOZ_DBGRINFO_MODULES 
-# is reversed from the order the user specified to configure - 
-# this allows the user to put general names at the beginning
-# of the list, and to override them with explicit module names later 
-# in the list)
-
-first_match:=$(firstword $(filter $(pattern), $(MOZ_DBGRINFO_MODULES)))
-
-ifeq ($(first_match), $(MODULE))
-  # the user specified explicitly that 
-  # this module should be compiled with -g
-  _DEBUG_CFLAGS += $(MOZ_DEBUG_FLAGS)
-  _DEBUG_LDFLAGS += $(MOZ_DEBUG_LDFLAGS)
-else
-  ifeq ($(first_match), ^$(MODULE))
-    # the user specified explicitly that this module 
-    # should not be compiled with -g (nothing to do)
-  else
-    ifeq ($(first_match), ALL_MODULES)
-      # the user didn't mention this module explicitly, 
-      # but wanted all modules to be compiled with -g
-      _DEBUG_CFLAGS += $(MOZ_DEBUG_FLAGS)
-      _DEBUG_LDFLAGS += $(MOZ_DEBUG_LDFLAGS)      
-    else
-      ifeq ($(first_match), ^ALL_MODULES)
-        # the user didn't mention this module explicitly, 
-        # but wanted all modules to be compiled without -g (nothing to do)
-      endif
-    endif
+  ifdef MOZ_DEBUG_SYMBOLS
+    _DEBUG_CFLAGS += $(MOZ_DEBUG_FLAGS)
+    _DEBUG_LDFLAGS += $(MOZ_DEBUG_LDFLAGS)
   endif
 endif
 
-ifndef MOZILLA_1_9_2_BRANCH
 MOZALLOC_LIB = $(call EXPAND_MOZLIBNAME,mozalloc)
-endif
 
-# append debug flags 
-# (these might have been above when processing MOZ_DBGRINFO_MODULES)
 OS_CFLAGS += $(_DEBUG_CFLAGS)
 OS_CXXFLAGS += $(_DEBUG_CFLAGS)
 OS_LDFLAGS += $(_DEBUG_LDFLAGS)
@@ -271,11 +202,6 @@ ifdef MOZ_DEBUG_SYMBOLS
 OS_CXXFLAGS += -Zi -UDEBUG -DNDEBUG
 OS_CFLAGS += -Zi -UDEBUG -DNDEBUG
 OS_LDFLAGS += -DEBUG -OPT:REF
-ifdef MOZILLA_1_9_2_BRANCH
-# This breaks builds on VC10, but mozilla-1.9.2 doesn't build with VC10 anyway,
-# so this isn't a big loss.
-OS_LDFLAGS += -OPT:NOWIN98
-endif # MOZILLA_1_9_2_BRANCH
 endif # MOZ_DEBUG_SYMBOLS
 
 ifdef MOZ_QUANTIFY
@@ -310,12 +236,6 @@ ifndef BUILD_STATIC_LIBS
 _ENABLE_PIC=1
 endif
 ifneq (,$(FORCE_SHARED_LIB)$(FORCE_USE_PIC))
-_ENABLE_PIC=1
-endif
-
-# In Firefox, all components are linked into either libxul or the static
-# meta-component, and should be compiled with PIC.
-ifdef MOZ_META_COMPONENT
 _ENABLE_PIC=1
 endif
 
@@ -388,6 +308,10 @@ ifndef STATIC_LIBRARY_NAME
 ifdef LIBRARY_NAME
 STATIC_LIBRARY_NAME=$(LIBRARY_NAME)
 endif
+endif
+
+ifeq (WINNT,$(OS_ARCH))
+MOZ_FAKELIBS = 1
 endif
 
 # This comes from configure
@@ -501,10 +425,17 @@ PURIFY		= purify $(PURIFYOPTIONS)
 QUANTIFY	= quantify $(QUANTIFYOPTIONS)
 ifdef CROSS_COMPILE
 XPIDL_COMPILE 	= $(CYGWIN_WRAPPER) $(LIBXUL_DIST)/host/bin/host_xpidl$(HOST_BIN_SUFFIX)
+ifdef MOZILLA_5_0_BRANCH
 XPIDL_LINK	= $(CYGWIN_WRAPPER) $(LIBXUL_DIST)/host/bin/host_xpt_link$(HOST_BIN_SUFFIX)
+endif
 else
 XPIDL_COMPILE 	= $(CYGWIN_WRAPPER) $(LIBXUL_DIST)/bin/xpidl$(BIN_SUFFIX)
+ifdef MOZILLA_5_0_BRANCH
 XPIDL_LINK	= $(CYGWIN_WRAPPER) $(LIBXUL_DIST)/bin/xpt_link$(BIN_SUFFIX)
+endif
+endif
+ifndef MOZILLA_5_0_BRANCH
+XPIDL_LINK = $(PYTHON) $(SDK_BIN_DIR)/xpt.py link
 endif
 
 INCLUDES = \
@@ -596,12 +527,8 @@ OS_COMPILE_CMFLAGS += -fobjc-exceptions
 OS_COMPILE_CMMFLAGS += -fobjc-exceptions
 endif
 
-COMPILE_CFLAGS	= $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(PROFILER_CFLAGS) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(CFLAGS) $(RTL_FLAGS) $(OS_COMPILE_CFLAGS)
-ifdef MOZILLA_1_9_2_BRANCH
-COMPILE_CXXFLAGS = $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(PROFILER_CFLAGS) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(CXXFLAGS) $(RTL_FLAGS) $(OS_COMPILE_CXXFLAGS)
-else
-COMPILE_CXXFLAGS = $(STL_FLAGS) $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(PROFILER_CFLAGS) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(CXXFLAGS) $(RTL_FLAGS) $(OS_COMPILE_CXXFLAGS)
-endif
+COMPILE_CFLAGS	= $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(CFLAGS) $(RTL_FLAGS) $(OS_COMPILE_CFLAGS)
+COMPILE_CXXFLAGS = $(STL_FLAGS) $(VISIBILITY_FLAGS) $(DEFINES) $(INCLUDES) $(DSO_CFLAGS) $(DSO_PIC_CFLAGS) $(CXXFLAGS) $(RTL_FLAGS) $(OS_COMPILE_CXXFLAGS)
 COMPILE_CMFLAGS = $(OS_COMPILE_CMFLAGS)
 COMPILE_CMMFLAGS = $(OS_COMPILE_CMMFLAGS)
 
@@ -642,10 +569,6 @@ DEPENDENCIES	= .md
 
 MOZ_COMPONENT_LIBS=$(XPCOM_LIBS) $(MOZ_COMPONENT_NSPR_LIBS)
 
-ifdef GC_LEAK_DETECTOR
-XPCOM_LIBS += -lboehm
-endif
-
 ifeq (xpconnect, $(findstring xpconnect, $(BUILD_MODULES)))
 DEFINES +=  -DXPCONNECT_STANDALONE
 endif
@@ -656,11 +579,9 @@ else
 ELF_DYNSTR_GC	= :
 endif
 
-ifndef MOZILLA_1_9_2_BRANCH
 ifeq ($(MOZ_WIDGET_TOOLKIT),qt)
 OS_LIBS += $(MOZ_QT_LIBS)
 endif
-endif # ! MOZILLA_1_9_2_BRANCH
 
 ifndef CROSS_COMPILE
 ifdef USE_ELF_DYNSTR_GC
@@ -758,21 +679,9 @@ endif
 DEFINES		+= -DOSTYPE=\"$(OS_CONFIG)\"
 DEFINES		+= -DOSARCH=$(OS_ARCH)
 
-# For profiling
-ifdef ENABLE_EAZEL_PROFILER
-ifndef INTERNAL_TOOLS
-ifneq ($(LIBRARY_NAME), xpt)
-ifneq (, $(findstring $(shell $(MOZILLA_SRCDIR)/build/unix/print-depth-path.sh | awk -F/ '{ print $$2; }'), $(MOZ_PROFILE_MODULES)))
-PROFILER_CFLAGS	= $(EAZEL_PROFILER_CFLAGS) -DENABLE_EAZEL_PROFILER
-PROFILER_LIBS	= $(EAZEL_PROFILER_LIBS)
-endif
-endif
-endif
-endif
-
 ######################################################################
 
-GARBAGE		+= $(DEPENDENCIES) $(MKDEPENDENCIES) $(MKDEPENDENCIES).bak core $(wildcard core.[0-9]*) $(wildcard *.err) $(wildcard *.pure) $(wildcard *_pure_*.o) Templates.DB
+GARBAGE		+= $(DEPENDENCIES) $(MKDEPENDENCIES) $(MKDEPENDENCIES).bak core $(wildcard core.[0-9]*) $(wildcard *.err) $(wildcard *.pure) $(wildcard *_pure_*.o) Templates.DB $(FAKE_LIBRARY)
 
 ifeq ($(OS_ARCH),Darwin)
 ifndef NSDISTMODE
@@ -855,9 +764,7 @@ endif
 endif
 
 ifdef WINCE
-ifndef MOZILLA_1_9_2_BRANCH
 RUN_TEST_PROGRAM = $(PYTHON) $(MOZILLA_SRCDIR)/build/mobile/devicemanager-run-test.py
-endif # ! MOZILLA_1_9_2_BRANCH
 else
 ifeq (OS2,$(OS_ARCH))
 RUN_TEST_PROGRAM = $(MOZILLA_SRCDIR)/build/os2/test_os2.cmd "$(DIST)"
@@ -872,3 +779,7 @@ ifdef TIERS
 DIRS += $(foreach tier,$(TIERS),$(tier_$(tier)_dirs))
 STATIC_DIRS += $(foreach tier,$(TIERS),$(tier_$(tier)_staticdirs))
 endif
+
+OPTIMIZE_JARS_CMD = $(PYTHON) $(call core_abspath,$(MOZILLA_SRCDIR)/config/optimizejars.py)
+
+CREATE_PRECOMPLETE_CMD = $(PYTHON) $(call core_abspath,$(MOZILLA_SRCDIR)/config/createprecomplete.py)

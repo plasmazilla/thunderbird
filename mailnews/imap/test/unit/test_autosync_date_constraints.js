@@ -5,7 +5,7 @@
 
 var gIMAPDaemon, gServer, gIMAPIncomingServer;
 
-load("../../mailnews/resources/messageGenerator.js");
+load("../../../resources/messageGenerator.js");
 
 const gIMAPService = Cc["@mozilla.org/messenger/messageservice;1?type=imap"]
                        .getService(Ci.nsIMsgMessageService);
@@ -140,8 +140,7 @@ function doTest(test)
     // Set a limit of three seconds; if the notifications haven't arrived by then there's a problem.
     do_timeout(10000, function(){
         if (gCurTestNum == test)
-          do_throw("Notifications not received in 10000 ms for operation " + testFn.name + 
-            ", current status is " + gCurrStatus);
+          do_throw("Notifications not received in 10000 ms for operation " + testFn.name);
         }
       );
     try {

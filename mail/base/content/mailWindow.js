@@ -166,6 +166,9 @@ function nsMsgStatusFeedback()
   this._progressBarContainer = document.getElementById("statusbar-progresspanel");
   this._throbber = document.getElementById("throbber-box");
   this._activeProcesses = new Array();
+
+  // make sure the stop button is accurate from the get-go
+  goUpdateCommand("cmd_stop");
 }
 
 nsMsgStatusFeedback.prototype =
@@ -212,6 +215,11 @@ nsMsgStatusFeedback.prototype =
     this._statusText.label = link;
   },
 
+  // Called before links are navigated to to allow us to retarget them if needed.
+  onBeforeLinkTraversal: function(originalTarget, linkURI, linkNode, isAppTab) {
+    return originalTarget;
+  },
+
   QueryInterface: function(iid) {
     if (iid.equals(Components.interfaces.nsIMsgStatusFeedback) ||
         iid.equals(Components.interfaces.nsIXULBrowserWindow) ||
@@ -242,6 +250,9 @@ nsMsgStatusFeedback.prototype =
     // Start the throbber.
     if (this._throbber)
       this._throbber.setAttribute("busy", true);
+
+    // Update the stop button
+    goUpdateCommand("cmd_stop");
   },
 
   startMeteors: function() {
@@ -274,6 +285,9 @@ nsMsgStatusFeedback.prototype =
     // Turn progress meter off.
     this._statusFeedbackProgress = -1;
     this.updateProgress();
+
+    // Update the stop button
+    goUpdateCommand("cmd_stop");
   },
 
   stopMeteors: function() {
@@ -691,9 +705,15 @@ nsBrowserAccess.prototype = {
     let loadInBackground =
       Application.prefs.getValue("browser.tabs.loadDivertedInBackground", false);
 
-    let newTab = win.document.getElementById("tabmail")
-                    .openTab("contentTab", {contentPage: "about:blank",
-                                            background: loadInBackground});
+    let tabmail = win.document.getElementById("tabmail");
+    let clickHandler = null;
+    let browser = tabmail.getBrowserForDocument(content);
+    if (browser)
+      clickHandler = browser.clickHandler;
+
+    let newTab = tabmail.openTab("contentTab", {contentPage: "about:blank",
+                                                background: loadInBackground,
+                                                clickHandler: clickHandler});
 
     newWindow = newTab.browser.docShell
                       .QueryInterface(Components.interfaces.nsIInterfaceRequestor)

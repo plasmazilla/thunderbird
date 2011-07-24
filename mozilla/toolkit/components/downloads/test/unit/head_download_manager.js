@@ -40,6 +40,14 @@
 do_load_httpd_js();
 do_get_profile();
 
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+
+var downloadUtils = { };
+XPCOMUtils.defineLazyServiceGetter(downloadUtils,
+                                   "downloadManager",
+                                   "@mozilla.org/download-manager;1",
+                                   Ci.nsIDownloadManager);
+
 function createURI(aObj)
 {
   var ios = Cc["@mozilla.org/network/io-service;1"].
@@ -63,7 +71,7 @@ var provider = {
     throw Cr.NS_ERROR_FAILURE;
   },
   QueryInterface: function(iid) {
-    if (iid.equals(Ci.nsIDirectoryProvider) ||
+    if (iid.equals(Ci.nsIDirectoryServiceProvider) ||
         iid.equals(Ci.nsISupports)) {
       return this;
     }
@@ -173,6 +181,10 @@ function getDownloadListener()
   };
 }
 
+XPCOMUtils.defineLazyGetter(this, "Services", function() {
+  Cu.import("resource://gre/modules/Services.jsm");
+  return Services;
+});
+
 // Disable alert service notifications
-let ps = Cc['@mozilla.org/preferences-service;1'].getService(Ci.nsIPrefBranch);
-ps.setBoolPref("browser.download.manager.showAlertOnComplete", false);
+Services.prefs.setBoolPref("browser.download.manager.showAlertOnComplete", false);

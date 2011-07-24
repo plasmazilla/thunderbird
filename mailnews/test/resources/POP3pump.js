@@ -6,7 +6,7 @@
  *  gPOP3Pump:        the main access to the routine
  *  gPOP3Pump.run()   function to run to load the messages
  *  gPOP3Pump.files:  (in) an array of message files to load
- *  gPOP3Pump.onDone: (in) string with statement(s) to execute after completion
+ *  gPOP3Pump.onDone: function to execute after completion
  *  gPOP3Pump.fakeServer:  (out) the POP3 incoming server
  *
  * adapted from test_pop3GetNewMail.js
@@ -14,14 +14,21 @@
  * Original Author: Kent James <kent@caspia.com>
  *
  */
+// We can be executed from multiple depths
+// Provide understandable error message
+if (typeof gDEPTH == "undefined")
+  do_throw("gDEPTH must be defined when using IMAPpump.js");
 
 // Import the pop3 server scripts
 if (typeof nsMailServer == 'undefined')
-  load("../../mailnews/fakeserver/maild.js");
+  load(gDEPTH + "mailnews/fakeserver/maild.js");
 if (typeof AuthPLAIN == 'undefined')
-  load("../../mailnews/fakeserver/auth.js")
+  load(gDEPTH + "mailnews/fakeserver/auth.js")
 if (typeof pop3Daemon == 'undefined')
-  load("../../mailnews/fakeserver/pop3d.js");
+  load(gDEPTH + "mailnews/fakeserver/pop3d.js");
+
+// Add mailTestUtils for create_incoming_server
+load(gDEPTH + "mailnews/resources/mailTestUtils.js");
 
 function POP3Pump()
 {
@@ -87,16 +94,9 @@ POP3Pump.prototype._createPop3ServerAndLocalFolders =
     loadLocalMailAccount();
 
   if (!this.fakeServer)
-  {
-    let acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                    .getService(Ci.nsIMsgAccountManager);
+    this.fakeServer = create_incoming_server("pop3", this.kPOP3_PORT,
+                                             "fred", "wilma");
 
-    let incoming = acctMgr.createIncomingServer("fred", "localhost", "pop3");
-
-    incoming.port = this.kPOP3_PORT;
-    incoming.password = "wilma";
-    this.fakeServer = incoming;
-  }
   return this.fakeServer;
 };
 

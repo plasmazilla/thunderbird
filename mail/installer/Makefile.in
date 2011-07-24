@@ -58,17 +58,37 @@ MOZ_NONLOCALIZED_PKG_LIST = \
 MOZ_LOCALIZED_PKG_LIST = $(AB_CD)
 
 DEFINES += -DAB_CD=$(AB_CD) -DMOZ_APP_NAME=$(MOZ_APP_NAME) -DPREF_DIR=$(PREF_DIR)
-
-ifdef MOZ_UPDATER
-DEFINES += -DMOZ_UPDATER=1
-endif
-
 ifdef MOZ_ENABLE_GNOME_COMPONENT
 DEFINES += -DMOZ_ENABLE_GNOME_COMPONENT=1
 endif
 
 ifeq (gtk2, $(MOZ_WIDGET_TOOLKIT))
 DEFINES += -DMOZ_GTK2=1
+endif
+
+ifdef _MSC_VER
+DEFINES += -D_MSC_VER=$(_MSC_VER)
+endif
+
+ifeq ($(MOZ_CHROME_FILE_FORMAT), jar)
+DEFINES += -DJAREXT=.jar
+else
+DEFINES += -DJAREXT=
+endif
+
+ifdef MOZ_ANGLE
+DEFINES += -DMOZ_ANGLE=$(MOZ_ANGLE)
+DEFINES += -DMOZ_D3DX9_DLL=$(MOZ_D3DX9_DLL)
+DEFINES += -DMOZ_D3DCOMPILER_DLL=$(MOZ_D3DCOMPILER_DLL)
+endif
+
+ifdef MOZ_UPDATER
+DEFINES += -DMOZ_UPDATER=1
+endif
+
+ifdef MOZ_IPC
+include $(MOZILLA_SRCDIR)/ipc/app/defs.mk
+DEFINES += -DMOZ_CHILD_PROCESS_NAME=$(MOZ_CHILD_PROCESS_NAME)
 endif
 
 ifdef MOZ_PKG_MANIFEST_P
@@ -85,31 +105,17 @@ MOZ_PKG_MAC_ICON=branding/disk.icns
 MOZ_PKG_MAC_EXTRA=--symlink "/Applications:/ "
 endif
 
-# You do *NOT* want to set MAIL_PKG_SHARED: shared builds are slower at
-# everything except being rebuilt. It only exists so we can package builds
-# where xpcshell will work, to run tests on packaged builds. If you want to
-# package, install, or build an installer, build with --enable-static in your
-# mozconfig instead.
-ifndef MAIL_PKG_SHARED
-ifndef BUILD_STATIC_LIBS
-$(error you need an "--enable-static" build to package a build)
+ifndef MOZ_ENABLE_LIBXUL
+$(error you need an "--enable-libxul" build to package a build)
 endif
+
+NON_OMNIJAR_FILES = defaults/messenger/mailViews.dat
+
+ifndef LIBXUL_SDK
+INSTALL_SDK = 1
 endif
 
 include $(MOZILLA_SRCDIR)/toolkit/mozapps/installer/packager.mk
-
-ifdef MOZ_PKG_PRETTYNAMES
-libs::
-	$(MAKE) -C $(DEPTH)/mail/locales langpack-$(AB_CD)
-
-UPLOAD_EXTRA_FILES += $(LANGPACK)
-else
-libs::
-	$(MAKE) -C $(DEPTH)/mail/locales langpack-$(AB_CD) PKG_LANGPACK_PATH=
-
-UPLOAD_EXTRA_FILES += $(PKG_LANGPACK_BASENAME).xpi
-endif
-
 
 ifeq (Darwin, $(OS_ARCH))
 BINPATH = $(_BINPATH)
@@ -118,6 +124,9 @@ else
 BINPATH = bin
 endif
 DEFINES += -DBINPATH=$(BINPATH)
+
+libs::
+	$(MAKE) -C $(DEPTH)/mail/locales langpack
 
 ifeq (WINNT,$(OS_ARCH))
 PKGCOMP_FIND_OPTS = 

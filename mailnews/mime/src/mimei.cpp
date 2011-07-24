@@ -826,7 +826,7 @@ mime_find_class (const char *content_type, MimeHeaders *hdrs,
 
 MimeObject *
 mime_create (const char *content_type, MimeHeaders *hdrs,
-       MimeDisplayOptions *opts)
+       MimeDisplayOptions *opts, PRBool forceInline /* = PR_FALSE */)
 {
   /* If there is no Content-Disposition header, or if the Content-Disposition
    is ``inline'', then we display the part inline (and let mime_find_class()
@@ -938,7 +938,7 @@ mime_create (const char *content_type, MimeHeaders *hdrs,
 
   /* If the option `Show Attachments Inline' is off, now would be the time to change our mind... */
   /* Also, if we're doing a reply (i.e. quoting the body), then treat that according to preference. */
-  if (opts && (!opts->show_attachment_inline_p ||
+  if (opts && ((!opts->show_attachment_inline_p && !forceInline) ||
                (!opts->quote_attachment_inline_p &&
                 (opts->format_out == nsMimeOutput::nsMimeMessageQuoting ||
                  opts->format_out == nsMimeOutput::nsMimeMessageBodyQuoting))))
@@ -1577,6 +1577,9 @@ mime_parse_url_options(const char *url, MimeDisplayOptions *options)
         //  current offenders are:
         //  - MimeInlineImage
         options->write_pure_bodies = PR_TRUE;
+        // we don't actually care about the data in the attachments, just the
+        // metadata (i.e. size)
+        options->metadata_only = PR_TRUE;
       }
     }
 
@@ -1697,13 +1700,13 @@ MimeOptions_write(MimeDisplayOptions *opt, nsCString &name, const char *data,
     if (opt->state->separator_suppressed_p)
       opt->state->separator_suppressed_p = PR_FALSE;
     else {
-      char *sep = "<BR><FIELDSET CLASS=\"mimeAttachmentHeader\">";
+      const char *sep = "<BR><FIELDSET CLASS=\"mimeAttachmentHeader\">";
       int lstatus = opt->output_fn(sep, strlen(sep), closure);
       opt->state->separator_suppressed_p = PR_FALSE;
       if (lstatus < 0) return lstatus;
 
       if (!name.IsEmpty()) {
-          sep = "<LEGEND CLASS=\"mimeAttachmentName\">";
+          sep = "<LEGEND CLASS=\"mimeAttachmentHeaderName\">";
           lstatus = opt->output_fn(sep, strlen(sep), closure);
           opt->state->separator_suppressed_p = PR_FALSE;
           if (lstatus < 0) return lstatus;

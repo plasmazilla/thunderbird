@@ -54,7 +54,6 @@
 #include "nsCOMPtr.h"
 #include "nsStringGlue.h"
 #include "nsTArray.h"
-#include "prlock.h"
 
 #include "nsDOMWorker.h"
 
@@ -91,6 +90,8 @@ class nsDOMWorkerScriptLoader : public nsDOMWorkerFeature,
                                 public nsIRunnable,
                                 public nsIStreamLoaderObserver
 {
+  typedef mozilla::Mutex Mutex;
+
   friend class AutoSuspendWorkerEvents;
   friend class ScriptLoaderRunnable;
 
@@ -103,11 +104,12 @@ public:
 
   nsresult LoadScripts(JSContext* aCx,
                        const nsTArray<nsString>& aURLs,
-                       PRBool aForWorker);
+                       PRBool aExecute);
 
-  nsresult LoadScript(JSContext* aCx,
-                      const nsString& aURL,
-                      PRBool aForWorker);
+  nsresult LoadWorkerScript(JSContext* aCx,
+                            const nsString& aURL);
+
+  nsresult ExecuteScripts(JSContext* aCx);
 
   virtual void Cancel();
 
@@ -117,7 +119,6 @@ private:
 
   nsresult DoRunLoop(JSContext* aCx);
   nsresult VerifyScripts(JSContext* aCx);
-  nsresult ExecuteScripts(JSContext* aCx);
 
   nsresult RunInternal();
 
@@ -132,8 +133,8 @@ private:
   void SuspendWorkerEvents();
   void ResumeWorkerEvents();
 
-  PRLock* Lock() {
-    return mWorker->Lock();
+  Mutex& GetLock() {
+    return mWorker->GetLock();
   }
 
   class ScriptLoaderRunnable : public nsIRunnable

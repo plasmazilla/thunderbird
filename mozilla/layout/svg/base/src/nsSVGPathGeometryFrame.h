@@ -47,15 +47,10 @@
 #include "gfxRect.h"
 #include "gfxMatrix.h"
 
-class nsPresContext;
 class nsSVGMarkerFrame;
 class nsSVGMarkerProperty;
 
 typedef nsSVGGeometryFrame nsSVGPathGeometryFrameBase;
-
-#define HITTEST_MASK_FILL        0x01
-#define HITTEST_MASK_STROKE      0x02
-#define HITTEST_MASK_FORCE_TEST  0x04
 
 class nsSVGPathGeometryFrame : public nsSVGPathGeometryFrameBase,
                                public nsISVGChildFrame
@@ -112,7 +107,6 @@ protected:
   NS_IMETHOD_(PRBool) HasValidCoveredRect() { return PR_TRUE; }
 
 protected:
-  virtual PRUint16 GetHittestMask();
   void GeneratePath(gfxContext *aContext,
                     const gfxMatrix *aOverrideTransform = nsnull);
 

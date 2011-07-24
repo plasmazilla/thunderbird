@@ -10,11 +10,14 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=441737
   <script type="application/javascript" src="chrome://mochikit/content/tests/SimpleTest/SimpleTest.js"></script>
 
   <script type="application/javascript"
-    src="chrome://mochikit/content/a11y/accessible/common.js"></script>
+    src="common.js"></script>
   <script type="application/javascript"
-    src="chrome://mochikit/content/a11y/accessible/role.js"></script>
+    src="role.js"></script>
   <script type="application/javascript"
-    src="chrome://mochikit/content/a11y/accessible/states.js"></script>
+    src="states.js"></script>
+
+  <script type="application/javascript"
+          src="chrome://mochikit/content/chrome-harness.js"/>
 
   <script type="application/javascript">
     function doTest()
@@ -39,7 +42,8 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=441737
            "Wrong attribute on document!");
 
         // nsIAccessibleDocument
-        is(docAcc.URL, "chrome://mochikit/content/a11y/accessible/test_nsIAccessibleDocument.html",
+        var rootDir = getRootDirectory(window.location.href);
+        is(docAcc.URL, rootDir.path + "test_nsIAccessibleDocument.html",
            "Wrong URL for document!");
         is(docAcc.title, "nsIAccessibleDocument chrome tests",        
            "Wrong title for document!");
@@ -54,7 +58,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=441737
         // Test for correct nsIDOMDocument retrieval.
         var domDoc = null;
         try {
-          domDoc = docAcc.document.QueryInterface(nsIDOMDocument);
+          domDoc = docAcc.DOMDocument.QueryInterface(nsIDOMDocument);
         } catch(e) {}
         ok(domDoc, "no nsIDOMDocument for this doc accessible!");
         is(domDoc, document, "Document nodes do not match!");
@@ -72,7 +76,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=441737
     }
 
     SimpleTest.waitForExplicitFinish();
-    addLoadEvent(doTest);
+    addA11yLoadEvent(doTest);
   </script>
 </head>
 <body>

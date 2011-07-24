@@ -265,12 +265,22 @@ class nsTString_CharT : public nsTSubstring_CharT
 #endif // !CharT_is_PRUnichar
 
         /**
-         * Perform string to float conversion.
+         * Perform string to double-precision float conversion.
          *
          * @param   aErrorCode will contain error if one occurs
-         * @return  float rep of string value
+         * @return  double-precision float rep of string value
          */
-      NS_COM float ToFloat( PRInt32* aErrorCode ) const;
+      NS_COM double ToDouble( PRInt32* aErrorCode ) const;
+
+        /**
+         * Perform string to single-precision float conversion.
+         *
+         * @param   aErrorCode will contain error if one occurs
+         * @return  single-precision float rep of string value
+         */
+      float ToFloat( PRInt32* aErrorCode ) const {
+        return (float)ToDouble(aErrorCode);
+      }
 
 
         /**
@@ -280,7 +290,9 @@ class nsTString_CharT : public nsTSubstring_CharT
          * @return  int rep of string value, and possible (out) error code
          */
       NS_COM PRInt32 ToInteger( PRInt32* aErrorCode, PRUint32 aRadix=kRadix10 ) const;
-      
+      PRInt32 ToInteger( nsresult* aErrorCode, PRUint32 aRadix=kRadix10 ) const {
+        return ToInteger(reinterpret_cast<PRInt32*>(aErrorCode), aRadix);
+      }
 
         /**
          * |Left|, |Mid|, and |Right| are annoying signatures that seem better almost
@@ -382,34 +394,6 @@ class nsTString_CharT : public nsTSubstring_CharT
       NS_COM void AppendWithConversion( const nsTAString_IncompatibleCharT& aString );
       NS_COM void AppendWithConversion( const incompatible_char_type* aData, PRInt32 aLength=-1 );
 
-        /**
-         * Append the given integer to this string 
-         */
-      NS_COM void AppendInt( PRInt32 aInteger, PRInt32 aRadix=kRadix10 ); //radix=8,10 or 16
-
-        /**
-         * Append the given unsigned integer to this string
-         */
-      inline void AppendInt( PRUint32 aInteger, PRInt32 aRadix = kRadix10 )
-        {
-          AppendInt(PRInt32(aInteger), aRadix);
-        }
-
-        /**
-         * Append the given 64-bit integer to this string.
-         * @param aInteger The integer to append
-         * @param aRadix   The radix to use; can be 8, 10 or 16.
-         */
-      NS_COM void AppendInt( PRInt64 aInteger, PRInt32 aRadix=kRadix10 );
-
-        /**
-         * Append the given float to this string 
-         */
-
-      NS_COM void AppendFloat( float aFloat );
-
-      NS_COM void AppendFloat( double aFloat );
-
 #endif // !MOZ_STRING_WITH_OBSOLETE_API
 
 
@@ -444,9 +428,20 @@ class nsTFixedString_CharT : public nsTString_CharT
          *        the length of the string already contained in the buffer
          */
 
-      NS_COM nsTFixedString_CharT( char_type* data, size_type storageSize );
+      nsTFixedString_CharT( char_type* data, size_type storageSize )
+        : string_type(data, PRUint32(char_traits::length(data)), F_TERMINATED | F_FIXED | F_CLASS_FIXED)
+        , mFixedCapacity(storageSize - 1)
+        , mFixedBuf(data)
+        {}
 
-      NS_COM nsTFixedString_CharT( char_type* data, size_type storageSize, size_type length );
+      nsTFixedString_CharT( char_type* data, size_type storageSize, size_type length )
+        : string_type(data, length, F_TERMINATED | F_FIXED | F_CLASS_FIXED)
+        , mFixedCapacity(storageSize - 1)
+        , mFixedBuf(data)
+        {
+          // null-terminate
+          mFixedBuf[length] = char_type(0);
+        }
 
         // |operator=| does not inherit, so we must define our own
       self_type& operator=( char_type c )                                                       { Assign(c);        return *this; }

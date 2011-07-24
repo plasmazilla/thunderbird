@@ -70,18 +70,21 @@ static RedirEntry kRedirMap[] = {
 #ifdef MOZ_SAFE_BROWSING
   { "blocked", "chrome://browser/content/safebrowsing/blockedSite.xhtml",
     nsIAboutModule::URI_SAFE_FOR_UNTRUSTED_CONTENT |
-    nsIAboutModule::ALLOW_SCRIPT },
+    nsIAboutModule::ALLOW_SCRIPT |
+    nsIAboutModule::HIDE_FROM_ABOUTABOUT },
 #endif
   { "certerror", "chrome://browser/content/certerror/aboutCertError.xhtml",
     nsIAboutModule::URI_SAFE_FOR_UNTRUSTED_CONTENT |
-    nsIAboutModule::ALLOW_SCRIPT },
+    nsIAboutModule::ALLOW_SCRIPT |
+    nsIAboutModule::HIDE_FROM_ABOUTABOUT },
   { "feeds", "chrome://browser/content/feeds/subscribe.xhtml",
     nsIAboutModule::URI_SAFE_FOR_UNTRUSTED_CONTENT |
-    nsIAboutModule::ALLOW_SCRIPT },
+    nsIAboutModule::ALLOW_SCRIPT |
+    nsIAboutModule::HIDE_FROM_ABOUTABOUT },
   { "privatebrowsing", "chrome://browser/content/aboutPrivateBrowsing.xhtml",
     nsIAboutModule::ALLOW_SCRIPT },
   { "rights",
-#ifdef OFFICIAL_BUILD
+#ifdef MOZ_OFFICIAL_BRANDING
     "chrome://global/content/aboutRights.xhtml",
 #else
     "chrome://global/content/aboutRights-unbranded.xhtml",
@@ -93,7 +96,12 @@ static RedirEntry kRedirMap[] = {
     nsIAboutModule::ALLOW_SCRIPT },
   { "sessionrestore", "chrome://browser/content/aboutSessionRestore.xhtml",
     nsIAboutModule::ALLOW_SCRIPT },
-  { "support", "chrome://browser/content/aboutSupport.xhtml",
+#ifdef MOZ_SERVICES_SYNC
+  { "sync-tabs", "chrome://browser/content/aboutSyncTabs.xul",
+    nsIAboutModule::ALLOW_SCRIPT },
+#endif
+  { "home", "chrome://browser/content/aboutHome.xhtml",
+    nsIAboutModule::URI_SAFE_FOR_UNTRUSTED_CONTENT |
     nsIAboutModule::ALLOW_SCRIPT },
 };
 static const int kRedirTotal = NS_ARRAY_LENGTH(kRedirMap);
@@ -176,7 +184,7 @@ AboutRedirector::GetURIFlags(nsIURI *aURI, PRUint32 *result)
   return NS_ERROR_ILLEGAL_VALUE;
 }
 
-NS_METHOD
+nsresult
 AboutRedirector::Create(nsISupports *aOuter, REFNSIID aIID, void **result)
 {
   AboutRedirector* about = new AboutRedirector();

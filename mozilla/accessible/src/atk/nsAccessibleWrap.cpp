@@ -40,6 +40,9 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsAccessibleWrap.h"
+
+#include "nsAccUtils.h"
+#include "nsApplicationAccessibleWrap.h"
 #include "nsRootAccessible.h"
 #include "nsDocAccessibleWrap.h"
 #include "nsIAccessibleValue.h"
@@ -47,6 +50,7 @@
 #include "nsAutoPtr.h"
 #include "prprf.h"
 #include "nsRoleMap.h"
+#include "nsRelUtils.h"
 #include "nsStateMap.h"
 
 #include "nsMaiInterfaceComponent.h"
@@ -63,9 +67,8 @@
 #include "nsMaiInterfaceDocument.h"
 #include "nsMaiInterfaceImage.h"
 
-#include "nsAppRootAccessible.h"
-
-extern "C" GType g_atk_hyperlink_impl_type; //defined in nsAppRootAccessible.cpp
+//defined in nsApplicationAccessibleWrap.cpp
+extern "C" GType g_atk_hyperlink_impl_type;
 
 /* MaiAtkObject */
 
@@ -267,10 +270,9 @@ PRInt32 nsAccessibleWrap::mAccWrapCreated = 0;
 PRInt32 nsAccessibleWrap::mAccWrapDeleted = 0;
 #endif
 
-nsAccessibleWrap::nsAccessibleWrap(nsIDOMNode* aNode,
-                                   nsIWeakReference *aShell)
-    : nsAccessible(aNode, aShell),
-      mAtkObject(nsnull)
+nsAccessibleWrap::
+    nsAccessibleWrap(nsIContent *aContent, nsIWeakReference *aShell) :
+    nsAccessible(aContent, aShell), mAtkObject(nsnull)
 {
 #ifdef MAI_LOGGING
     ++mAccWrapCreated;
@@ -304,11 +306,11 @@ void nsAccessibleWrap::ShutdownAtkObject()
     }
 }
 
-nsresult
+void
 nsAccessibleWrap::Shutdown()
 {
     ShutdownAtkObject();
-    return nsAccessible::Shutdown();
+    nsAccessible::Shutdown();
 }
 
 MaiHyperlink* nsAccessibleWrap::GetMaiHyperlink(PRBool aCreate /* = PR_TRUE */)
@@ -450,20 +452,14 @@ nsAccessibleWrap::CreateMaiInterfaces(void)
         interfacesBits |= 1 << MAI_INTERFACE_IMAGE;
     }
 
-    //nsIAccessibleHyperLink
-    nsCOMPtr<nsIAccessibleHyperLink> accessInterfaceHyperlink;
-    QueryInterface(NS_GET_IID(nsIAccessibleHyperLink),
-                   getter_AddRefs(accessInterfaceHyperlink));
-    if (accessInterfaceHyperlink) {
+    // HyperLinkAccessible
+    if (IsHyperLink()) {
        interfacesBits |= 1 << MAI_INTERFACE_HYPERLINK_IMPL;
     }
 
     if (!nsAccUtils::MustPrune(this)) {  // These interfaces require children
       //nsIAccessibleHypertext
-      nsCOMPtr<nsIAccessibleHyperText> accessInterfaceHypertext;
-      QueryInterface(NS_GET_IID(nsIAccessibleHyperText),
-                     getter_AddRefs(accessInterfaceHypertext));
-      if (accessInterfaceHypertext) {
+      if (IsHyperText()) {
           interfacesBits |= 1 << MAI_INTERFACE_HYPERTEXT;
       }
 
@@ -476,10 +472,7 @@ nsAccessibleWrap::CreateMaiInterfaces(void)
       }
       
       //nsIAccessibleSelection
-      nsCOMPtr<nsIAccessibleSelectable> accessInterfaceSelection;
-      QueryInterface(NS_GET_IID(nsIAccessibleSelectable),
-                     getter_AddRefs(accessInterfaceSelection));
-      if (accessInterfaceSelection) {
+      if (IsSelect()) {
           interfacesBits |= 1 << MAI_INTERFACE_SELECTION;
       }
     }
@@ -559,7 +552,7 @@ GetUniqueMaiAtkTypeName(PRUint16 interfacesBits)
 PRBool nsAccessibleWrap::IsValidObject()
 {
     // to ensure we are not shut down
-    return (mDOMNode != nsnull);
+    return !IsDefunct();
 }
 
 /* static functions for ATK callbacks */
@@ -756,11 +749,8 @@ getRoleCB(AtkObject *aAtkObj)
 #endif
 
     if (aAtkObj->role == ATK_ROLE_INVALID) {
-        PRUint32 accRole, atkRole;
-        nsresult rv = accWrap->GetRole(&accRole);
-        NS_ENSURE_SUCCESS(rv, ATK_ROLE_INVALID);
-
-        atkRole = atkRoleMap[accRole]; // map to the actual value
+        // map to the actual value
+        PRUint32 atkRole = atkRoleMap[accWrap->Role()];
         NS_ASSERTION(atkRoleMap[nsIAccessibleRole::ROLE_LAST_ENTRY] ==
                      kROLE_ATK_LAST_ENTRY, "ATK role map skewed");
         aAtkObj->role = static_cast<AtkRole>(atkRole);
@@ -846,9 +836,8 @@ getParentCB(AtkObject *aAtkObj)
             return nsnull;
         }
 
-        nsCOMPtr<nsIAccessible> accParent;
-        nsresult rv = accWrap->GetParent(getter_AddRefs(accParent));
-        if (NS_FAILED(rv) || !accParent)
+        nsAccessible* accParent = accWrap->GetParent();
+        if (!accParent)
             return nsnull;
 
         AtkObject *parent = nsAccessibleWrap::GetAtkObject(accParent);
@@ -866,21 +855,7 @@ getChildCountCB(AtkObject *aAtkObj)
         return 0;
     }
 
-    PRInt32 count = 0;
-    nsCOMPtr<nsIAccessibleHyperText> hyperText;
-    accWrap->QueryInterface(NS_GET_IID(nsIAccessibleHyperText), getter_AddRefs(hyperText));
-    if (hyperText) {
-        // If HyperText, then number of links matches number of children
-        hyperText->GetLinkCount(&count);
-    }
-    else {
-        nsCOMPtr<nsIAccessibleText> accText;
-        accWrap->QueryInterface(NS_GET_IID(nsIAccessibleText), getter_AddRefs(accText));
-        if (!accText) {    // Accessible text that is not a HyperText has no children
-            accWrap->GetChildCount(&count);
-        }
-    }
-    return count;
+    return accWrap->GetEmbeddedChildCount();
 }
 
 AtkObject *
@@ -891,32 +866,12 @@ refChildCB(AtkObject *aAtkObj, gint aChildIndex)
       return nsnull;
     }
 
-    // XXX Fix this so it is not O(n^2) to walk through the children!
-    // Either we can cache the last accessed child so that we can just GetNextSibling()
-    // or we should cache an array of children in each nsAccessible
-    // (instead of mNextSibling on the children)
     nsAccessibleWrap *accWrap = GetAccessibleWrap(aAtkObj);
     if (!accWrap || nsAccUtils::MustPrune(accWrap)) {
         return nsnull;
     }
 
-    nsCOMPtr<nsIAccessible> accChild;
-    nsCOMPtr<nsIAccessibleHyperText> hyperText;
-    accWrap->QueryInterface(NS_GET_IID(nsIAccessibleHyperText), getter_AddRefs(hyperText));
-    if (hyperText) {
-        // If HyperText, then number of links matches number of children
-        nsCOMPtr<nsIAccessibleHyperLink> hyperLink;
-        hyperText->GetLink(aChildIndex, getter_AddRefs(hyperLink));
-        accChild = do_QueryInterface(hyperLink);
-    }
-    else {
-        nsCOMPtr<nsIAccessibleText> accText;
-        accWrap->QueryInterface(NS_GET_IID(nsIAccessibleText), getter_AddRefs(accText));
-        if (!accText) {  // Accessible Text that is not HyperText has no children
-            accWrap->GetChildAt(aChildIndex, getter_AddRefs(accChild));
-        }
-    }
-
+    nsAccessible* accChild = accWrap->GetEmbeddedChildAt(aChildIndex);
     if (!accChild)
         return nsnull;
 
@@ -925,10 +880,10 @@ refChildCB(AtkObject *aAtkObj, gint aChildIndex)
     NS_ASSERTION(childAtkObj, "Fail to get AtkObj");
     if (!childAtkObj)
         return nsnull;
+    g_object_ref(childAtkObj);
     
     //this will addref parent
     atk_object_set_parent(childAtkObj, aAtkObj);
-    g_object_ref(childAtkObj);
     return childAtkObj;
 }
 
@@ -942,36 +897,12 @@ getIndexInParentCB(AtkObject *aAtkObj)
         return -1;
     }
 
-    nsCOMPtr<nsIAccessible> parent;
-    accWrap->GetParent(getter_AddRefs(parent));
+    nsAccessible *parent = accWrap->GetParent();
     if (!parent) {
         return -1; // No parent
     }
 
-    nsCOMPtr<nsIAccessible> sibling;
-    parent->GetFirstChild(getter_AddRefs(sibling));
-    if (!sibling) {
-        return -1;  // Error, parent has no children
-    }
-
-    PRInt32 currentIndex = 0;
-
-    while (sibling != static_cast<nsIAccessible*>(accWrap)) {
-      NS_ASSERTION(sibling, "Never ran into the same child that we started from");
-
-      if (!sibling) {
-          return -1;
-      }
-      if (nsAccUtils::IsEmbeddedObject(sibling)) {
-        ++ currentIndex;
-      }
-
-      nsCOMPtr<nsIAccessible> tempAccessible;
-      sibling->GetNextSibling(getter_AddRefs(tempAccessible));
-      sibling.swap(tempAccessible);
-    }
-
-    return currentIndex;
+    return parent->GetIndexOfEmbeddedChild(accWrap);
 }
 
 static void TranslateStates(PRUint32 aState, const AtkStateMap *aStateMap,
@@ -1095,10 +1026,10 @@ nsAccessibleWrap *GetAccessibleWrap(AtkObject *aAtkObj)
 
     NS_ENSURE_TRUE(tmpAccWrap->GetAtkObject() == aAtkObj, nsnull);
 
-    nsRefPtr<nsApplicationAccessibleWrap> appAccWrap =
+    nsApplicationAccessible *applicationAcc =
         nsAccessNode::GetApplicationAccessible();
     nsAccessibleWrap* tmpAppAccWrap =
-        static_cast<nsAccessibleWrap*>(appAccWrap.get());
+        static_cast<nsAccessibleWrap*>(applicationAcc);
 
     if (tmpAppAccWrap != tmpAccWrap && !tmpAccWrap->IsValidObject())
         return nsnull;
@@ -1107,34 +1038,29 @@ nsAccessibleWrap *GetAccessibleWrap(AtkObject *aAtkObj)
 }
 
 nsresult
-nsAccessibleWrap::FireAccessibleEvent(nsIAccessibleEvent *aEvent)
+nsAccessibleWrap::HandleAccEvent(AccEvent* aEvent)
 {
-    nsresult rv = nsAccessible::FireAccessibleEvent(aEvent);
+    nsresult rv = nsAccessible::HandleAccEvent(aEvent);
     NS_ENSURE_SUCCESS(rv, rv);
 
     return FirePlatformEvent(aEvent);
 }
 
 nsresult
-nsAccessibleWrap::FirePlatformEvent(nsIAccessibleEvent *aEvent)
+nsAccessibleWrap::FirePlatformEvent(AccEvent* aEvent)
 {
-    nsCOMPtr<nsIAccessible> accessible;
-    aEvent->GetAccessible(getter_AddRefs(accessible));
+    nsAccessible *accessible = aEvent->GetAccessible();
     NS_ENSURE_TRUE(accessible, NS_ERROR_FAILURE);
 
-    PRUint32 type = 0;
-    nsresult rv = aEvent->GetEventType(&type);
-    NS_ENSURE_SUCCESS(rv, rv);
+    PRUint32 type = aEvent->GetEventType();
 
     AtkObject *atkObj = nsAccessibleWrap::GetAtkObject(accessible);
 
     // We don't create ATK objects for nsIAccessible plain text leaves,
     // just return NS_OK in such case
     if (!atkObj) {
-        NS_ASSERTION(type == nsIAccessibleEvent::EVENT_ASYNCH_SHOW ||
-                     type == nsIAccessibleEvent::EVENT_ASYNCH_HIDE ||
-                     type == nsIAccessibleEvent::EVENT_DOM_CREATE ||
-                     type == nsIAccessibleEvent::EVENT_DOM_DESTROY,
+        NS_ASSERTION(type == nsIAccessibleEvent::EVENT_SHOW ||
+                     type == nsIAccessibleEvent::EVENT_HIDE,
                      "Event other than SHOW and HIDE fired for plain text leaves");
         return NS_OK;
     }
@@ -1155,14 +1081,14 @@ nsAccessibleWrap::FirePlatformEvent(nsIAccessibleEvent *aEvent)
     case nsIAccessibleEvent::EVENT_FOCUS:
       {
         MAI_LOG_DEBUG(("\n\nReceived: EVENT_FOCUS\n"));
-        nsRefPtr<nsRootAccessible> rootAccWrap = accWrap->GetRootAccessible();
+        nsRootAccessible* rootAccWrap = accWrap->RootAccessible();
         if (rootAccWrap && rootAccWrap->mActivated) {
             atk_focus_tracker_notify(atkObj);
             // Fire state change event for focus
-            nsCOMPtr<nsIAccessibleStateChangeEvent> stateChangeEvent =
-              new nsAccStateChangeEvent(accessible,
-                                        nsIAccessibleStates::STATE_FOCUSED,
-                                        PR_FALSE, PR_TRUE);
+            nsRefPtr<AccEvent> stateChangeEvent =
+              new AccStateChangeEvent(accessible,
+                                      nsIAccessibleStates::STATE_FOCUSED,
+                                      PR_FALSE, PR_TRUE);
             return FireAtkStateChangeEvent(stateChangeEvent, atkObj);
         }
       } break;
@@ -1170,7 +1096,7 @@ nsAccessibleWrap::FirePlatformEvent(nsIAccessibleEvent *aEvent)
     case nsIAccessibleEvent::EVENT_VALUE_CHANGE:
       {
         MAI_LOG_DEBUG(("\n\nReceived: EVENT_VALUE_CHANGE\n"));
-        nsCOMPtr<nsIAccessibleValue> value(do_QueryInterface(accessible));
+        nsCOMPtr<nsIAccessibleValue> value(do_QueryObject(accessible));
         if (value) {    // Make sure this is a numeric value
             // Don't fire for MSAA string value changes (e.g. text editing)
             // ATK values are always numeric
@@ -1192,13 +1118,12 @@ nsAccessibleWrap::FirePlatformEvent(nsIAccessibleEvent *aEvent)
       {
         MAI_LOG_DEBUG(("\n\nReceived: EVENT_TEXT_CARET_MOVED\n"));
 
-        nsCOMPtr<nsIAccessibleCaretMoveEvent> caretMoveEvent(do_QueryInterface(aEvent));
+        AccCaretMoveEvent* caretMoveEvent = downcast_accEvent(aEvent);
         NS_ASSERTION(caretMoveEvent, "Event needs event data");
         if (!caretMoveEvent)
             break;
 
-        PRInt32 caretOffset = -1;
-        caretMoveEvent->GetCaretOffset(&caretOffset);
+        PRInt32 caretOffset = caretMoveEvent->GetCaretOffset();
 
         MAI_LOG_DEBUG(("\n\nCaret postion: %d", caretOffset));
         g_signal_emit_by_name(atkObj,
@@ -1222,12 +1147,11 @@ nsAccessibleWrap::FirePlatformEvent(nsIAccessibleEvent *aEvent)
     case nsIAccessibleEvent::EVENT_TABLE_ROW_INSERT:
       {
         MAI_LOG_DEBUG(("\n\nReceived: EVENT_TABLE_ROW_INSERT\n"));
-        nsCOMPtr<nsIAccessibleTableChangeEvent> tableEvent = do_QueryInterface(aEvent);
+        AccTableChangeEvent* tableEvent = downcast_accEvent(aEvent);
         NS_ENSURE_TRUE(tableEvent, NS_ERROR_FAILURE);
 
-        PRInt32 rowIndex, numRows;
-        tableEvent->GetRowOrColIndex(&rowIndex);
-        tableEvent->GetNumRowsOrCols(&numRows);
+        PRInt32 rowIndex = tableEvent->GetIndex();
+        PRInt32 numRows = tableEvent->GetCount();
 
         g_signal_emit_by_name(atkObj,
                               "row_inserted",
@@ -1240,12 +1164,11 @@ nsAccessibleWrap::FirePlatformEvent(nsIAccessibleEvent *aEvent)
    case nsIAccessibleEvent::EVENT_TABLE_ROW_DELETE:
      {
         MAI_LOG_DEBUG(("\n\nReceived: EVENT_TABLE_ROW_DELETE\n"));
-        nsCOMPtr<nsIAccessibleTableChangeEvent> tableEvent = do_QueryInterface(aEvent);
+        AccTableChangeEvent* tableEvent = downcast_accEvent(aEvent);
         NS_ENSURE_TRUE(tableEvent, NS_ERROR_FAILURE);
 
-        PRInt32 rowIndex, numRows;
-        tableEvent->GetRowOrColIndex(&rowIndex);
-        tableEvent->GetNumRowsOrCols(&numRows);
+        PRInt32 rowIndex = tableEvent->GetIndex();
+        PRInt32 numRows = tableEvent->GetCount();
 
         g_signal_emit_by_name(atkObj,
                               "row_deleted",
@@ -1265,12 +1188,11 @@ nsAccessibleWrap::FirePlatformEvent(nsIAccessibleEvent *aEvent)
     case nsIAccessibleEvent::EVENT_TABLE_COLUMN_INSERT:
       {
         MAI_LOG_DEBUG(("\n\nReceived: EVENT_TABLE_COLUMN_INSERT\n"));
-        nsCOMPtr<nsIAccessibleTableChangeEvent> tableEvent = do_QueryInterface(aEvent);
+        AccTableChangeEvent* tableEvent = downcast_accEvent(aEvent);
         NS_ENSURE_TRUE(tableEvent, NS_ERROR_FAILURE);
 
-        PRInt32 colIndex, numCols;
-        tableEvent->GetRowOrColIndex(&colIndex);
-        tableEvent->GetNumRowsOrCols(&numCols);
+        PRInt32 colIndex = tableEvent->GetIndex();
+        PRInt32 numCols = tableEvent->GetCount();
 
         g_signal_emit_by_name(atkObj,
                               "column_inserted",
@@ -1283,12 +1205,11 @@ nsAccessibleWrap::FirePlatformEvent(nsIAccessibleEvent *aEvent)
     case nsIAccessibleEvent::EVENT_TABLE_COLUMN_DELETE:
       {
         MAI_LOG_DEBUG(("\n\nReceived: EVENT_TABLE_COLUMN_DELETE\n"));
-        nsCOMPtr<nsIAccessibleTableChangeEvent> tableEvent = do_QueryInterface(aEvent);
+        AccTableChangeEvent* tableEvent = downcast_accEvent(aEvent);
         NS_ENSURE_TRUE(tableEvent, NS_ERROR_FAILURE);
 
-        PRInt32 colIndex, numCols;
-        tableEvent->GetRowOrColIndex(&colIndex);
-        tableEvent->GetNumRowsOrCols(&numCols);
+        PRInt32 colIndex = tableEvent->GetIndex();
+        PRInt32 numCols = tableEvent->GetCount();
 
         g_signal_emit_by_name(atkObj,
                               "column_deleted",
@@ -1308,12 +1229,10 @@ nsAccessibleWrap::FirePlatformEvent(nsIAccessibleEvent *aEvent)
         g_signal_emit_by_name(atkObj, "visible_data_changed");
         break;
 
-    case nsIAccessibleEvent::EVENT_DOM_CREATE:
-    case nsIAccessibleEvent::EVENT_ASYNCH_SHOW:
+    case nsIAccessibleEvent::EVENT_SHOW:
         return FireAtkShowHideEvent(aEvent, atkObj, PR_TRUE);
 
-    case nsIAccessibleEvent::EVENT_DOM_DESTROY:
-    case nsIAccessibleEvent::EVENT_ASYNCH_HIDE:
+    case nsIAccessibleEvent::EVENT_HIDE:
         return FireAtkShowHideEvent(aEvent, atkObj, PR_FALSE);
 
         /*
@@ -1334,7 +1253,7 @@ nsAccessibleWrap::FirePlatformEvent(nsIAccessibleEvent *aEvent)
       {
         MAI_LOG_DEBUG(("\n\nReceived: EVENT_WINDOW_ACTIVATED\n"));
         nsRootAccessible *rootAcc =
-          static_cast<nsRootAccessible *>(accessible.get());
+          static_cast<nsRootAccessible *>(accessible);
         rootAcc->mActivated = PR_TRUE;
         guint id = g_signal_lookup ("activate", MAI_TYPE_ATK_OBJECT);
         g_signal_emit(atkObj, id, 0);
@@ -1347,9 +1266,30 @@ nsAccessibleWrap::FirePlatformEvent(nsIAccessibleEvent *aEvent)
       {
         MAI_LOG_DEBUG(("\n\nReceived: EVENT_WINDOW_DEACTIVATED\n"));
         nsRootAccessible *rootAcc =
-          static_cast<nsRootAccessible *>(accessible.get());
+          static_cast<nsRootAccessible *>(accessible);
         rootAcc->mActivated = PR_FALSE;
         guint id = g_signal_lookup ("deactivate", MAI_TYPE_ATK_OBJECT);
+        g_signal_emit(atkObj, id, 0);
+      } break;
+
+    case nsIAccessibleEvent::EVENT_WINDOW_MAXIMIZE:
+      {
+        MAI_LOG_DEBUG(("\n\nReceived: EVENT_WINDOW_MAXIMIZE\n"));
+        guint id = g_signal_lookup ("maximize", MAI_TYPE_ATK_OBJECT);
+        g_signal_emit(atkObj, id, 0);
+      } break;
+
+    case nsIAccessibleEvent::EVENT_WINDOW_MINIMIZE:
+      {
+        MAI_LOG_DEBUG(("\n\nReceived: EVENT_WINDOW_MINIMIZE\n"));
+        guint id = g_signal_lookup ("minimize", MAI_TYPE_ATK_OBJECT);
+        g_signal_emit(atkObj, id, 0);
+      } break;
+
+    case nsIAccessibleEvent::EVENT_WINDOW_RESTORE:
+      {
+        MAI_LOG_DEBUG(("\n\nReceived: EVENT_WINDOW_RESTORE\n"));
+        guint id = g_signal_lookup ("restore", MAI_TYPE_ATK_OBJECT);
         g_signal_emit(atkObj, id, 0);
       } break;
 
@@ -1389,23 +1329,17 @@ nsAccessibleWrap::FirePlatformEvent(nsIAccessibleEvent *aEvent)
 }
 
 nsresult
-nsAccessibleWrap::FireAtkStateChangeEvent(nsIAccessibleEvent *aEvent,
+nsAccessibleWrap::FireAtkStateChangeEvent(AccEvent* aEvent,
                                           AtkObject *aObject)
 {
     MAI_LOG_DEBUG(("\n\nReceived: EVENT_STATE_CHANGE\n"));
 
-    nsCOMPtr<nsIAccessibleStateChangeEvent> event =
-        do_QueryInterface(aEvent);
+    AccStateChangeEvent* event = downcast_accEvent(aEvent);
     NS_ENSURE_TRUE(event, NS_ERROR_FAILURE);
 
-    PRUint32 state = 0;
-    event->GetState(&state);
-
-    PRBool isExtra;
-    event->IsExtraState(&isExtra);
-
-    PRBool isEnabled;
-    event->IsEnabled(&isEnabled);
+    PRUint32 state = event->GetState();
+    PRBool isExtra = event->IsExtraState();
+    PRBool isEnabled = event->IsStateEnabled();
 
     PRInt32 stateIndex = AtkStateMap::GetStateIndexFor(state);
     if (stateIndex >= 0) {
@@ -1431,26 +1365,19 @@ nsAccessibleWrap::FireAtkStateChangeEvent(nsIAccessibleEvent *aEvent,
 }
 
 nsresult
-nsAccessibleWrap::FireAtkTextChangedEvent(nsIAccessibleEvent *aEvent,
+nsAccessibleWrap::FireAtkTextChangedEvent(AccEvent* aEvent,
                                           AtkObject *aObject)
 {
     MAI_LOG_DEBUG(("\n\nReceived: EVENT_TEXT_REMOVED/INSERTED\n"));
 
-    nsCOMPtr<nsIAccessibleTextChangeEvent> event =
-        do_QueryInterface(aEvent);
+    AccTextChangeEvent* event = downcast_accEvent(aEvent);
     NS_ENSURE_TRUE(event, NS_ERROR_FAILURE);
 
-    PRInt32 start = 0;
-    event->GetStart(&start);
+    PRInt32 start = event->GetStartOffset();
+    PRUint32 length = event->GetLength();
+    PRBool isInserted = event->IsTextInserted();
 
-    PRUint32 length = 0;
-    event->GetLength(&length);
-
-    PRBool isInserted;
-    event->IsInserted(&isInserted);
-
-    PRBool isFromUserInput;
-    event->GetIsFromUserInput(&isFromUserInput);
+    PRBool isFromUserInput = aEvent->IsFromUserInput();
 
     char *signal_name = g_strconcat(isInserted ? "text_changed::insert" : "text_changed::delete",
                                     isFromUserInput ? "" : kNonUserInputEvent, NULL);
@@ -1461,7 +1388,7 @@ nsAccessibleWrap::FireAtkTextChangedEvent(nsIAccessibleEvent *aEvent,
 }
 
 nsresult
-nsAccessibleWrap::FireAtkShowHideEvent(nsIAccessibleEvent *aEvent,
+nsAccessibleWrap::FireAtkShowHideEvent(AccEvent* aEvent,
                                        AtkObject *aObject, PRBool aIsAdded)
 {
     if (aIsAdded)
@@ -1473,8 +1400,7 @@ nsAccessibleWrap::FireAtkShowHideEvent(nsIAccessibleEvent *aEvent,
     AtkObject *parentObject = getParentCB(aObject);
     NS_ENSURE_STATE(parentObject);
 
-    PRBool isFromUserInput;
-    aEvent->GetIsFromUserInput(&isFromUserInput);
+    PRBool isFromUserInput = aEvent->IsFromUserInput();
     char *signal_name = g_strconcat(aIsAdded ? "children_changed::add" :  "children_changed::remove",
                                     isFromUserInput ? "" : kNonUserInputEvent, NULL);
     g_signal_emit_by_name(parentObject, signal_name, indexInParent, aObject, NULL);

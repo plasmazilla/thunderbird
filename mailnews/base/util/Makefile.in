@@ -55,42 +55,6 @@ ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
 MOZILLA_INTERNAL_API = 1
 endif
 
-META_COMPONENT = mail
-
-REQUIRES	= xpcom \
-		  string \
-		  msgbase \
-		  rdf \
-		  necko \
-		  msgdb \
-		  intl \
-		  mork \
-		  locale \
-		  pref \
-		  rdfutil \
-		  mime \
-		  caps \
-		  msgcompose \
-		  addrbook \
-		  docshell \
-		  uriloader \
-		  msgimap \
-		  msglocal \
-		  msgnews \
-		  txmgr \
-		  uconv \
-		  unicharutil \
-		  nkcache \
-		  mimetype \
-		  windowwatcher \
-		  htmlparser \
-		  content \
-		  layout \
-		  loginmgr \
-		  pipnss \
-		  $(ZLIB_REQUIRES) \
-		  $(NULL)
-
 CPPSRCS		= \
 		nsMsgLineBuffer.cpp \
 		nsMsgDBFolder.cpp \
@@ -138,6 +102,8 @@ EXTRA_JS_MODULES = \
 		templateUtils.js \
 		IOUtils.js \
 		mailnewsMigrator.js \
+		dictUtils.js \
+		mailServices.js \
 		$(NULL)
 
 ifndef MOZ_STATIC_MAIL_BUILD

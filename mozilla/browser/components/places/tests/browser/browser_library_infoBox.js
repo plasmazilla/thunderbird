@@ -13,7 +13,7 @@
  *
  * The Original Code is Places test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -152,7 +152,6 @@ gTests.push({
 });
 
 function checkInfoBoxSelected(PO) {
-  PO._places.focus();
   is(getAndCheckElmtById("detailsDeck").selectedIndex, 1,
      "Selected element in detailsDeck is infoBox.");
 }
@@ -219,21 +218,19 @@ function nextTest() {
 var ww = Cc["@mozilla.org/embedcomp/window-watcher;1"].
          getService(Ci.nsIWindowWatcher);
 
-var windowObserver = {
-  observe: function(aSubject, aTopic, aData) {
-    if (aTopic === "domwindowopened") {
-      ww.unregisterNotification(this);
-      gLibrary = aSubject.QueryInterface(Ci.nsIDOMWindow);
-      gLibrary.addEventListener("load", function onLoad(event) {
-        gLibrary.removeEventListener("load", onLoad, false);
-        executeSoon(function () {
-          // Execute tests.
-          nextTest();
-        });
-      }, false);
-    }
-  }
-};
+function windowObserver(aSubject, aTopic, aData) {
+  if (aTopic != "domwindowopened")
+    return;
+  ww.unregisterNotification(windowObserver);
+  gLibrary = aSubject.QueryInterface(Ci.nsIDOMWindow);
+  gLibrary.addEventListener("load", function onLoad(event) {
+    gLibrary.removeEventListener("load", onLoad, false);
+    executeSoon(function() {
+      gLibrary.PlacesOrganizer._places.focus();
+      waitForFocus(nextTest, gLibrary);
+    });
+  }, false);
+}
 
 function test() {
   dump("Starting test browser_library_infoBox.js\n");

@@ -43,6 +43,9 @@
  * Before adding to this file, ask yourself, is this a JS routine that is going to be used by all of the main mail windows?
  */
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
+
 var gCustomizeSheet = false;
 
 function overlayRestoreDefaultSet() {
@@ -116,7 +119,10 @@ function overlayOnLoad()
   else if (window.frameElement && "toolbox" in window.frameElement)
     toolbox = window.frameElement.toolbox;
 
-  document.getElementById("CustomizeToolbarWindow").setAttribute("toolboxId", toolbox.id);
+  let toolbarWindow = document.getElementById("CustomizeToolbarWindow");
+  toolbarWindow.setAttribute("toolboxId", toolbox.id);
+  if (toolbox.getAttribute("inlinetoolbox") == "true")
+    toolbarWindow.setAttribute("inlinetoolbox", "true");
   toolbox.setAttribute("doCustomization", "true");
 
   let mode = toolbox.getAttribute("mode");
@@ -175,8 +181,10 @@ function CustomizeMailToolbar(toolboxId, customizePopupId)
 
   if (gCustomizeSheet) {
     var sheetFrame = document.getElementById("customizeToolbarSheetIFrame");
+    var panel = document.getElementById("customizeToolbarSheetPopup");
     sheetFrame.hidden = false;
     sheetFrame.toolbox = toolbox;
+    sheetFrame.panel = panel;
 
     // The document might not have been loaded yet, if this is the first time.
     // If it is already loaded, reload it so that the onload intialization code
@@ -186,8 +194,14 @@ function CustomizeMailToolbar(toolboxId, customizePopupId)
     else
       sheetFrame.setAttribute("src", customizeURL);
 
-    document.getElementById("customizeToolbarSheetPopup")
-            .openPopup(toolbox, "after_start", 0, 0);
+    // Open the panel, but make it invisible until the iframe has loaded so
+    // that the user doesn't see a white flash.
+    panel.style.visibility = "hidden";
+    toolbox.addEventListener("beforecustomization", function () {
+      toolbox.removeEventListener("beforecustomization", arguments.callee, false);
+      panel.style.removeProperty("visibility");
+    }, false);
+    panel.openPopup(toolbox, "after_start", 0, 0);
   }
   else {
     var wintype = document.documentElement.getAttribute("windowtype");
@@ -376,25 +390,47 @@ function openOptionsDialog(aPaneID, aTabID)
     openDialog("chrome://messenger/content/preferences/preferences.xul","Preferences", features, aPaneID, aTabID);
 }
 
-function openAddonsMgr(aPane)
+function openAddonsMgr(aView)
 {
-  const EMTYPE = "Extension:Manager";
-  var wm = Components.classes["@mozilla.org/appshell/window-mediator;1"]
-                     .getService(Components.interfaces.nsIWindowMediator);
-  var theEM = wm.getMostRecentWindow(EMTYPE);
-  if (theEM) {
-    theEM.focus();
-    if (aPane)
-      theEM.showView(aPane);
-    return;
+  if (aView) {
+    let emWindow;
+    let browserWindow;
+
+    function receivePong(aSubject, aTopic, aData) {
+      let browserWin = aSubject.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+        .getInterface(Components.interfaces.nsIWebNavigation)
+        .QueryInterface(Components.interfaces.nsIDocShellTreeItem)
+        .rootTreeItem
+        .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+        .getInterface(Components.interfaces.nsIDOMWindow);
+      if (!emWindow || browserWin == window /* favor the current window */) {
+        emWindow = aSubject;
+        browserWindow = browserWin;
+      }
+    }
+    Services.obs.addObserver(receivePong, "EM-pong", false);
+    Services.obs.notifyObservers(null, "EM-ping", "");
+    Services.obs.removeObserver(receivePong, "EM-pong");
+
+    if (emWindow) {
+      emWindow.loadView(aView);
+      let tabmail = browserWindow.document.getElementById("tabmail");
+      tabmail.switchToTab(tabmail.getBrowserForDocument(emWindow));
+      emWindow.focus();
+      return;
+    }
   }
 
-  const EMURL = "chrome://mozapps/content/extensions/extensions.xul";
-  const EMFEATURES = "chrome,menubar,extra-chrome,toolbar,dialog=no,resizable";
-  if (aPane)
-    window.openDialog(EMURL, "", EMFEATURES, aPane);
-  else
-    window.openDialog(EMURL, "", EMFEATURES);
+  openContentTab("about:addons", "tab", "addons.mozilla.org");
+
+  if (aView) {
+    // This must be a new load, else the ping/pong would have
+    // found the window above.
+    Services.obs.addObserver(function (aSubject, aTopic, aData) {
+        Services.obs.removeObserver(arguments.callee, aTopic);
+        aSubject.loadView(aView);
+      }, "EM-loaded", false);
+  }
 }
 
 function openActivityMgr()
@@ -430,21 +466,21 @@ function SetBusyCursor(window, enable)
 
 function openAboutDialog()
 {
-#ifdef XP_MACOSX
-  var wm = Components.classes["@mozilla.org/appshell/window-mediator;1"]
-                     .getService(Components.interfaces.nsIWindowMediator);
-  var win = wm.getMostRecentWindow("Mail:About");
-  if (win)  // If we have an open about dialog, just focus it.
+  let enumerator = Services.wm.getEnumerator("Mail:About");
+  while (enumerator.hasMoreElements()) {
+    // Only open one about window
+    let win = enumerator.getNext();
     win.focus();
-  else {
-    // Define minimizable=no although it does nothing on OS X
-    // (see Bug 287162); remove this comment once Bug 287162 is fixed...
-    window.open("chrome://messenger/content/aboutDialog.xul", "About",
-                "chrome, resizable=no, minimizable=no");
+    return;
   }
+
+#ifdef XP_MACOSX
+  var features = "chrome,resizable=no,minimizable=no";
 #else
-  window.openDialog("chrome://messenger/content/aboutDialog.xul", "About", "centerscreen,chrome,resizable=no");
+  // XXX Should have dependent as well?
+  var features = "chrome,centerscreen,resizable=no";
 #endif
+  window.openDialog("chrome://messenger/content/aboutDialog.xul", "About", features);
 }
 
 /**
@@ -474,6 +510,34 @@ function openFormattedURL(aPrefName)
   var protocolSvc = Components.classes["@mozilla.org/uriloader/external-protocol-service;1"]
                               .getService(Components.interfaces.nsIExternalProtocolService);
   protocolSvc.loadURI(uri);
+}
+
+/**
+ * Prompt the user to restart the browser in safe mode.
+ */
+function safeModeRestart()
+{
+  // prompt the user to confirm
+  let bundle = Services.strings.createBundle(
+    "chrome://messenger/locale/messenger.properties");
+  let promptTitle = bundle.GetStringFromName("safeModeRestartPromptTitle");
+  let promptMessage = bundle.GetStringFromName("safeModeRestartPromptMessage");
+  let restartText = bundle.GetStringFromName("safeModeRestartButton");
+  let buttonFlags = (Services.prompt.BUTTON_POS_0 *
+                     Services.prompt.BUTTON_TITLE_IS_STRING) +
+                    (Services.prompt.BUTTON_POS_1 *
+                     Services.prompt.BUTTON_TITLE_CANCEL) +
+                    Services.prompt.BUTTON_POS_0_DEFAULT;
+
+  let rv = Services.prompt.confirmEx(window, promptTitle, promptMessage,
+                                     buttonFlags, restartText, null, null,
+                                     null, {});
+  if (rv == 0) {
+    let environment = Components.classes["@mozilla.org/process/environment;1"]
+                                .getService(Components.interfaces.nsIEnvironment);
+    environment.set("MOZ_SAFE_MODE_RESTART", "1");
+    Application.restart();
+  }
 }
 
 #ifndef XP_WIN
@@ -513,4 +577,95 @@ function getMostRecentMailWindow() {
 #endif
 
   return win;
+}
+
+/**
+ * Create a TransferData object for a message attachment, either from the
+ * message reader or the composer.
+ *
+ * @param aAttachment the attachment object
+ * @return the TransferData
+ */
+function CreateAttachmentTransferData(aAttachment)
+{
+  if (aAttachment.contentType == "text/x-moz-deleted")
+    return;
+
+  var name = aAttachment.name || aAttachment.displayName;
+
+  var data = new TransferData();
+  if (aAttachment.url && name)
+  {
+    // Only add type/filename info for non-file URLs that don't already
+    // have it.
+    if (/(^file:|&filename=)/.test(aAttachment.url))
+      var info = aAttachment.url;
+    else
+      var info = aAttachment.url + "&type=" + aAttachment.contentType +
+                 "&filename=" + encodeURIComponent(name);
+
+    data.addDataForFlavour("text/x-moz-url",
+                           info + "\n" + name + "\n" + aAttachment.size);
+    data.addDataForFlavour("text/x-moz-url-data", aAttachment.url);
+    data.addDataForFlavour("text/x-moz-url-desc", name);
+    data.addDataForFlavour("application/x-moz-file-promise-url",
+                           aAttachment.url);
+    data.addDataForFlavour("application/x-moz-file-promise",
+                           new nsFlavorDataProvider(), 0,
+                           Components.interfaces.nsISupports);
+  }
+  return data;
+}
+
+function nsFlavorDataProvider()
+{
+}
+
+nsFlavorDataProvider.prototype =
+{
+  QueryInterface : function(iid)
+  {
+      if (iid.equals(Components.interfaces.nsIFlavorDataProvider) ||
+          iid.equals(Components.interfaces.nsISupports))
+        return this;
+      throw Components.results.NS_NOINTERFACE;
+  },
+
+  getFlavorData : function(aTransferable, aFlavor, aData, aDataLen)
+  {
+    // get the url for the attachment
+    if (aFlavor == "application/x-moz-file-promise")
+    {
+      var urlPrimitive = { };
+      var dataSize = { };
+      aTransferable.getTransferData("application/x-moz-file-promise-url", urlPrimitive, dataSize);
+
+      var srcUrlPrimitive = urlPrimitive.value.QueryInterface(Components.interfaces.nsISupportsString);
+
+      // now get the destination file location from kFilePromiseDirectoryMime
+      var dirPrimitive = {};
+      aTransferable.getTransferData("application/x-moz-file-promise-dir", dirPrimitive, dataSize);
+      var destDirectory = dirPrimitive.value.QueryInterface(Components.interfaces.nsILocalFile);
+
+      // now save the attachment to the specified location
+      // XXX: we need more information than just the attachment url to save it, fortunately, we have an array
+      // of all the current attachments so we can cheat and scan through them
+
+      var attachment = null;
+      for each (let index in Iterator(currentAttachments, true))
+      {
+        attachment = currentAttachments[index];
+        if (attachment.url == srcUrlPrimitive)
+          break;
+      }
+
+      // call our code for saving attachments
+      if (attachment)
+      {
+        var destFilePath = messenger.saveAttachmentToFolder(attachment.contentType, attachment.url, encodeURIComponent(attachment.displayName), attachment.uri, destDirectory);
+        aData.value = destFilePath.QueryInterface(Components.interfaces.nsISupports);
+        aDataLen.value = 4;
+      }
+    }
+  }
 }

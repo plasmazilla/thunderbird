@@ -45,10 +45,7 @@ ifndef tier_xpcom_dirs
 include $(topsrcdir)/xpcom/build.mk
 endif
 
-TIERS += zlib \
-	necko \
-	$(NULL)
-
+TIERS += zlib
 
 ifndef MOZ_NATIVE_ZLIB
 tier_zlib_dirs	+= modules/zlib
@@ -66,13 +63,9 @@ endif
 # these are only in the necko tier because libpref needs it
 
 ifndef WINCE
-ifneq (1_,$(MOZ_NO_XPCOM_OBSOLETE)_$(MOZ_XPINSTALL))
+ifneq (,$(MOZ_XPINSTALL))
 tier_necko_dirs += modules/libreg
 endif
-endif
-
-ifndef MOZ_NO_XPCOM_OBSOLETE
-tier_necko_dirs += xpcom/obsolete
 endif
 
 tier_necko_dirs += \

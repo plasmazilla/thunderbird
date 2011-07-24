@@ -13,7 +13,7 @@
  *
  * The Original Code is Geolocation.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation
+ * The Initial Developer of the Original Code is Mozilla Foundation
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -34,6 +34,12 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#ifndef nsGeoLocation_h
+#define nsGeoLocation_h
+
+#include "mozilla/dom/PContentPermissionRequestChild.h"
+// Microsoft's API Name hackery sucks
+#undef CreateEvent
 
 #include "nsCOMPtr.h"
 #include "nsAutoPtr.h"
@@ -57,38 +63,53 @@
 #include "nsPIDOMWindow.h"
 
 #include "nsIGeolocationProvider.h"
+#include "nsIContentPermissionPrompt.h"
+
+#include "PCOMContentPermissionRequestChild.h"
 
 class nsGeolocationService;
 class nsGeolocation;
 
-class nsGeolocationRequest : public nsIGeolocationRequest, public nsITimerCallback
+class nsGeolocationRequest
+ : public nsIContentPermissionRequest
+ , public nsITimerCallback
+ , public PCOMContentPermissionRequestChild
 {
  public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
-  NS_DECL_NSIGEOLOCATIONREQUEST
+  NS_DECL_NSICONTENTPERMISSIONREQUEST
   NS_DECL_NSITIMERCALLBACK
 
-  NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(nsGeolocationRequest, nsIGeolocationRequest)
+  NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(nsGeolocationRequest, nsIContentPermissionRequest)
 
   nsGeolocationRequest(nsGeolocation* locator,
                        nsIDOMGeoPositionCallback* callback,
                        nsIDOMGeoPositionErrorCallback* errorCallback,
-                       nsIDOMGeoPositionOptions* options);
+                       nsIDOMGeoPositionOptions* options,
+                       PRBool watchPositionRequest = PR_FALSE);
   nsresult Init();
   void Shutdown();
 
+  // Called by the geolocation device to notify that a location has changed.
+  void Update(nsIDOMGeoPosition* aPosition);
+
   void SendLocation(nsIDOMGeoPosition* location);
   void MarkCleared();
+  PRBool IsActive() {return !mCleared;}
   PRBool Allowed() {return mAllowed;}
+  void SetTimeoutTimer();
 
   ~nsGeolocationRequest();
+
+  bool Recv__delete__(const bool& allow);
+  void IPDLRelease() { Release(); }
 
  private:
 
   void NotifyError(PRInt16 errorCode);
   PRPackedBool mAllowed;
   PRPackedBool mCleared;
-  PRPackedBool mHasSentData;
+  PRPackedBool mIsWatchPositionRequest;
 
   nsCOMPtr<nsITimer> mTimeoutTimer;
   nsCOMPtr<nsIDOMGeoPositionCallback> mCallback;
@@ -121,13 +142,8 @@ public:
   void AddLocator(nsGeolocation* locator);
   void RemoveLocator(nsGeolocation* locator);
 
-  PRBool IsBetterPosition(nsIDOMGeoPosition* aPosition);
-
   void SetCachedPosition(nsIDOMGeoPosition* aPosition);
   nsIDOMGeoPosition* GetCachedPosition();
-
-  // Returns true if there is at least one geolocation provider.
-  PRBool   HasGeolocationProvider();
 
   // Find and startup a geolocation device (gps, nmea, etc.)
   nsresult StartDevice();
@@ -204,6 +220,8 @@ private:
 
   ~nsGeolocation();
 
+  bool RegisterRequestWithPrompt(nsGeolocationRequest* request);
+
   // Two callback arrays.  The first |mPendingCallbacks| holds objects for only
   // one callback and then they are released/removed from the array.  The second
   // |mWatchingCallbacks| holds objects until the object is explictly removed or
@@ -211,8 +229,6 @@ private:
 
   nsTArray<nsRefPtr<nsGeolocationRequest> > mPendingCallbacks;
   nsTArray<nsRefPtr<nsGeolocationRequest> > mWatchingCallbacks;
-
-  PRBool mUpdateInProgress;
 
   // window that this was created for.  Weak reference.
   nsWeakPtr mOwner;
@@ -223,3 +239,5 @@ private:
   // owning back pointer.
   nsRefPtr<nsGeolocationService> mService;
 };
+
+#endif /* nsGeoLocation_h */

@@ -57,7 +57,6 @@
         <splitter class="tree-splitter"/>
         <treecol id="tokencol" label="&certmgr.tokenname;"
                      persist="hidden width ordinal" flex="1"/>
-<!--        <treecol id="certdbkeycol" collapsed="true" flex="1"/> -->
       </treecols>
       <treechildren ondblclick="viewCerts();"/>
     </tree>
@@ -70,8 +69,8 @@
               accesskey="&certmgr.view2.accesskey;"
               disabled="true" oncommand="viewCerts();"/>
       <button id="ca_editButton"
-              label="&certmgr.edit2.label;"
-              accesskey="&certmgr.edit2.accesskey;"
+              label="&certmgr.edit3.label;"
+              accesskey="&certmgr.edit3.accesskey;"
               disabled="true" oncommand="editCerts();"/>
       <button id="ca_addButton"
               label="&certmgr.restore2.label;"
@@ -82,8 +81,8 @@
               accesskey="&certmgr.export.accesskey;"
               disabled="true" oncommand="exportCerts();"/>
       <button id="ca_deleteButton"
-              label="&certmgr.delete2.label;"
-              accesskey="&certmgr.delete2.accesskey;"
+              label="&certmgr.delete_builtin.label;"
+              accesskey="&certmgr.delete_builtin.accesskey;"
               disabled="true" oncommand="deleteCerts();"/>
     </hbox>
   </vbox>

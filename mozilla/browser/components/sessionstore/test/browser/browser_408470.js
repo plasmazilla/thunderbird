@@ -40,11 +40,12 @@ function test() {
   waitForExplicitFinish();
   
   let pendingCount = 1;
-  let testUrl = "chrome://mochikit/content/browser/" +
-    "browser/components/sessionstore/test/browser/browser_408470_sample.html";
+  let rootDir = getRootDirectory(gTestPath);
+  let testUrl = rootDir + "browser_408470_sample.html";
   let tab = gBrowser.addTab(testUrl);
   
   tab.linkedBrowser.addEventListener("load", function(aEvent) {
+    tab.linkedBrowser.removeEventListener("load", arguments.callee, true);
     // enable all stylesheets and verify that they're correctly persisted
     Array.forEach(tab.linkedBrowser.contentDocument.styleSheets, function(aSS, aIx) {
       pendingCount++;
@@ -53,6 +54,7 @@ function test() {
       
       let newTab = gBrowser.duplicateTab(tab);
       newTab.linkedBrowser.addEventListener("load", function(aEvent) {
+        newTab.linkedBrowser.removeEventListener("load", arguments.callee, true);
         let states = Array.map(newTab.linkedBrowser.contentDocument.styleSheets,
                                function(aSS) !aSS.disabled);
         let correct = states.indexOf(true) == aIx && states.indexOf(true, aIx + 1) == -1;
@@ -72,6 +74,7 @@ function test() {
     tab.linkedBrowser.markupDocumentViewer.authorStyleDisabled = true;
     let newTab = gBrowser.duplicateTab(tab);
     newTab.linkedBrowser.addEventListener("load", function(aEvent) {
+      newTab.linkedBrowser.removeEventListener("load", arguments.callee, true);
       is(newTab.linkedBrowser.markupDocumentViewer.authorStyleDisabled, true,
          "disabled all stylesheets");
       

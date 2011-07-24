@@ -20,6 +20,7 @@
  *
  * Contributor(s):
  *   Dietrich Ayala <dietrich@mozilla.com>
+ *   Marco Bonardo <mak77@bonardo.net>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -62,13 +63,13 @@ var bs = Cc["@mozilla.org/browser/nav-bookmarks-service;1"].
          getService(Ci.nsINavBookmarksService);
 
 function add_visit(aURI, aDate) {
-  var placeID = hs.addVisit(aURI,
+  var visitId = hs.addVisit(aURI,
                             aDate,
                             null, // no referrer
                             hs.TRANSITION_TYPED, // user typed in URL bar
                             false, // not redirect
                             0);
-  return placeID;
+  return visitId;
 }
 
 function add_bookmark(aURI) {
@@ -86,7 +87,7 @@ var ptests = [];
 
 /*********************** end header **********************/
 
-const TEST_REPEAT_COUNT = 10;
+const TEST_REPEAT_COUNT = 6;
 
 // test duration of bookmarks sidebar opening
 ptests.push({
@@ -97,14 +98,16 @@ ptests.push({
     var start = Date.now();
     var sb = document.getElementById("sidebar");
     sb.addEventListener("load", function() {
-      var duration = Date.now() - start;
       sb.removeEventListener("load", arguments.callee, true);
-      toggleSidebar("viewBookmarksSidebar", false);
-      self.times.push(duration);
-      if (self.times.length == TEST_REPEAT_COUNT)
-        self.finish();
-      else
-        self.run();
+      executeSoon(function() {
+        var duration = Date.now() - start;
+        toggleSidebar("viewBookmarksSidebar", false);
+        self.times.push(duration);
+        if (self.times.length == TEST_REPEAT_COUNT)
+          self.finish();
+        else
+          self.run();
+      });
     }, true);
     toggleSidebar("viewBookmarksSidebar", true);
   },
@@ -116,18 +119,20 @@ ptests.push({
     var avgDuration = totalDuration/this.times.length;
     var report = make_test_report("open_bookmarks_sidebar", avgDuration);
     ok(true, report);
-    runNextTest();
+    setTimeout(runNextTest, 0);
   }
 });
 
 function test() {
+  requestLongerTimeout(2);
   // kick off tests
-  runNextTest();
+  setTimeout(runNextTest, 0);
 }
 
 function runNextTest() {
-  if (ptests.length > 0)
+  if (ptests.length > 0) {
     ptests.shift().run();
+  }
   else
     finish();
 }

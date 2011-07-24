@@ -53,13 +53,29 @@ class nsIVariant;
 class nsIObjectInputStream;
 class nsIObjectOutputStream;
 class nsScriptObjectHolder;
+class nsIScriptObjectPrincipal;
 
 typedef void (*nsScriptTerminationFunc)(nsISupports* aRef);
 
-// 87482b5e-e019-4df5-9bc2-b2a51b1f2d28
+#define NS_ISCRIPTCONTEXTPRINCIPAL_IID \
+  { 0xd012cdb3, 0x8f1e, 0x4440, \
+    { 0x8c, 0xbd, 0x32, 0x7f, 0x98, 0x1d, 0x37, 0xb4 } }
+
+class nsIScriptContextPrincipal : public nsISupports
+{
+public:
+  NS_DECLARE_STATIC_IID_ACCESSOR(NS_ISCRIPTCONTEXTPRINCIPAL_IID)
+
+  virtual nsIScriptObjectPrincipal* GetObjectPrincipal() = 0;
+};
+
+NS_DEFINE_STATIC_IID_ACCESSOR(nsIScriptContextPrincipal,
+                              NS_ISCRIPTCONTEXTPRINCIPAL_IID)
+
+// a7139c0e-962c-44b6-bec3-e4166bfe84eb
 #define NS_ISCRIPTCONTEXT_IID \
-{ 0x87482b5e, 0xe019, 0x4df5, \
-  { 0x9b, 0xc2, 0xb2, 0xa5, 0x1b, 0x1f, 0x2d, 0x28 } }
+{ 0xa7139c0e, 0x962c, 0x44b6, \
+  { 0xbe, 0xc3, 0xe4, 0x16, 0x6b, 0xfe, 0x84, 0xeb } }
 
 /* This MUST match JSVERSION_DEFAULT.  This version stuff if we don't
    know what language we have is a little silly... */
@@ -72,7 +88,7 @@ typedef void (*nsScriptTerminationFunc)(nsISupports* aRef);
  * should be removed in a short time. Ideally this interface will be
  * language neutral</I>
  */
-class nsIScriptContext : public nsISupports
+class nsIScriptContext : public nsIScriptContextPrincipal
 {
 public:
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_ISCRIPTCONTEXT_IID)
@@ -304,6 +320,7 @@ public:
   virtual nsresult CreateNativeGlobalForInner(
                                       nsIScriptGlobalObject *aNewInner,
                                       PRBool aIsChrome,
+                                      nsIPrincipal *aPrincipal,
                                       void **aNativeGlobal,
                                       nsISupports **aHolder) = 0;
 
@@ -317,17 +334,28 @@ public:
 
 
   /**
-   * Init this context ready for use.  If aGlobalObject is not NULL, this
-   * function may initialize based on this global (for example, using the
-   * global to locate a chrome window, create a new 'scope' for this
-   * global, etc)
-   *
-   * @param aGlobalObject the gobal object, which may be nsnull.
-   *
-   * @return NS_OK if context initialization was successful
-   *
+   * Initialize the context generally. Does not create a global object.
    **/
-  virtual nsresult InitContext(nsIScriptGlobalObject *aGlobalObject) = 0;
+  virtual nsresult InitContext() = 0;
+
+  /**
+   * Creates the outer window for this context.
+   *
+   * @param aGlobalObject The script global object to use as our global.
+   */
+  virtual nsresult CreateOuterObject(nsIScriptGlobalObject *aGlobalObject,
+                                     nsIScriptGlobalObject *aCurrentInner) = 0;
+
+  /**
+   * Given an outer object, updates this context with that outer object.
+   */
+  virtual nsresult SetOuterObject(void *aOuterObject) = 0;
+
+  /**
+   * Prepares this context for use with the current inner window for the
+   * context's global object. This must be called after CreateOuterObject.
+   */
+  virtual nsresult InitOuterWindow() = 0;
 
   /**
    * Check to see if context is as yet intialized. Used to prevent
@@ -403,6 +431,11 @@ public:
   virtual void SetProcessingScriptTag(PRBool aResult) = 0;
 
   /**
+   * Called to find out if this script context might be executing script.
+   */
+  virtual PRBool GetExecutingScript() = 0;
+
+  /**
    * Tell the context whether or not to GC when destroyed.  An optimization
    * used when the window is a [i]frame, so GC will happen anyway.
    */
@@ -461,25 +494,7 @@ public:
   virtual void LeaveModalState() = 0;
 };
 
-// 9531D11E-97F8-4455-9DB1-5008F10BDBD6
-#define NS_ISCRIPTCONTEXT_1_9_2_IID \
-{ 0x9531D11E, 0x97F8, 0x4455, \
-  { 0x9D, 0xB1, 0x50, 0x08, 0xF1, 0x0B, 0xDB, 0xD6 } }
-
-class nsIScriptContext_1_9_2 : public nsIScriptContext
-{
-public:
-  NS_DECLARE_STATIC_IID_ACCESSOR(NS_ISCRIPTCONTEXT_1_9_2_IID)
-
-  /**
-   * Called to find out if this script context might be executing script.
-   */
-  virtual PRBool GetExecutingScript() = 0;
-};
-
-
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIScriptContext, NS_ISCRIPTCONTEXT_IID)
-NS_DEFINE_STATIC_IID_ACCESSOR(nsIScriptContext_1_9_2, NS_ISCRIPTCONTEXT_1_9_2_IID)
 
 #endif // nsIScriptContext_h__
 

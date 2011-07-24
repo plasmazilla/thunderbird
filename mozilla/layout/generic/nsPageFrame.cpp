@@ -424,17 +424,23 @@ nsPageFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
 
   if (PresContext()->IsScreen()) {
     rv = set.BorderBackground()->AppendNewToTop(new (aBuilder)
-        nsDisplayGeneric(this, ::PaintPrintPreviewBackground, "PrintPreviewBackground"));
+        nsDisplayGeneric(aBuilder, this, ::PaintPrintPreviewBackground,
+                         "PrintPreviewBackground",
+                         nsDisplayItem::TYPE_PRINT_PREVIEW_BACKGROUND));
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
   rv = set.BorderBackground()->AppendNewToTop(new (aBuilder)
-        nsDisplayGeneric(this, ::PaintPageContent, "PageContent"));
+        nsDisplayGeneric(aBuilder, this, ::PaintPageContent,
+                         "PageContent",
+                         nsDisplayItem::TYPE_PAGE_CONTENT));
   NS_ENSURE_SUCCESS(rv, rv);
 
   if (PresContext()->IsRootPaginatedDocument()) {
     rv = set.Content()->AppendNewToTop(new (aBuilder)
-        nsDisplayGeneric(this, ::PaintHeaderFooter, "HeaderFooter"));
+        nsDisplayGeneric(aBuilder, this, ::PaintHeaderFooter,
+                         "HeaderFooter",
+                         nsDisplayItem::TYPE_HEADER_FOOTER));
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
@@ -506,7 +512,7 @@ nsPageFrame::PaintHeaderFooter(nsIRenderingContext& aRenderingContext,
 
   // Get the FontMetrics to determine width.height of strings
   nsCOMPtr<nsIFontMetrics> fontMet;
-  pc->DeviceContext()->GetMetricsFor(*mPD->mHeadFootFont, nsnull,
+  pc->DeviceContext()->GetMetricsFor(*mPD->mHeadFootFont,
                                      pc->GetUserFontSet(),
                                      *getter_AddRefs(fontMet));
 
@@ -578,10 +584,12 @@ nsPageFrame::PaintPageContent(nsIRenderingContext& aRenderingContext,
 
   nsRect backgroundRect = nsRect(nsPoint(0, 0), pageContentFrame->GetSize());
   nsCSSRendering::PaintBackground(PresContext(), aRenderingContext, this,
-                                  rect, backgroundRect, 0);
+                                  rect, backgroundRect,
+                                  nsCSSRendering::PAINTBG_SYNC_DECODE_IMAGES);
 
   nsLayoutUtils::PaintFrame(&aRenderingContext, pageContentFrame,
-                            nsRegion(rect), NS_RGBA(0,0,0,0));
+                            nsRegion(rect), NS_RGBA(0,0,0,0),
+                            nsLayoutUtils::PAINT_SYNC_DECODE_IMAGES);
 
   aRenderingContext.PopState();
 }

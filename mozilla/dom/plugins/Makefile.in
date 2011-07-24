@@ -50,17 +50,17 @@ EXPORTS_mozilla = \
   PluginLibrary.h \
   $(NULL)
 
-ifdef MOZ_IPC
-
 EXPORTS_NAMESPACES = mozilla mozilla/plugins
 
 EXPORTS_mozilla/plugins = \
   BrowserStreamChild.h \
   BrowserStreamParent.h \
   ChildAsyncCall.h \
+  ChildTimer.h \
   NPEventOSX.h \
   NPEventWindows.h \
   NPEventX11.h \
+  NPEventAndroid.h \
   PluginIdentifierChild.h \
   PluginIdentifierParent.h \
   PluginInstanceChild.h \
@@ -82,7 +82,7 @@ EXPORTS_mozilla/plugins = \
   PluginStreamParent.h \
   PluginMessageUtils.h \
   PluginProcessParent.h \
-  PluginThreadChild.h \
+  PluginProcessChild.h \
   StreamNotifyChild.h \
   StreamNotifyParent.h \
   $(NULL)
@@ -92,15 +92,28 @@ LIBRARY_NAME     = domplugins_s
 LIBXUL_LIBRARY   = 1
 FORCE_STATIC_LIB = 1
 EXPORT_LIBRARY = 1
-ENABLE_CXX_EXCEPTIONS = 1
+
+ifeq ($(MOZ_ENABLE_QT),1)
+MOCSRCS = \
+  moc_NestedLoopTimer.cpp \
+  $(NULL)
+
+QTSRCS = \
+  NestedLoopTimer.cpp \
+  $(NULL)
+endif
 
 CPPSRCS = \
+  $(MOCSRCS) \
+  $(QTSRCS) \
   ChildAsyncCall.cpp \
+  ChildTimer.cpp \
   PluginMessageUtils.cpp \
   PluginInstanceChild.cpp \
   PluginInstanceParent.cpp \
   PluginModuleChild.cpp \
   PluginModuleParent.cpp \
+  PluginProcessChild.cpp \
   PluginProcessParent.cpp \
   PluginScriptableObjectChild.cpp \
   PluginScriptableObjectParent.cpp \
@@ -108,23 +121,34 @@ CPPSRCS = \
   BrowserStreamParent.cpp \
   PluginStreamChild.cpp \
   PluginStreamParent.cpp \
-  PluginThreadChild.cpp \
   $(NULL)
 
 ifeq (WINNT,$(OS_ARCH))
-CPPSRCS += COMMessageFilter.cpp
+CPPSRCS += \
+  COMMessageFilter.cpp \
+  PluginSurfaceParent.cpp \
+  $(NULL)
+
+EXPORTS_mozilla/plugins += \
+  PluginSurfaceParent.h \
+  $(NULL)
+endif
+
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+CMMSRCS   += \
+    PluginUtilsOSX.mm \
+    PluginInterposeOSX.mm \
+    $(NULL)
 endif
 
 LOCAL_INCLUDES = \
   -I$(topsrcdir)/modules/plugin/base/public/ \
   -I$(topsrcdir)/modules/plugin/base/src/ \
-  -I$(topsrcdir)/toolkit/xre \
-  -I$(topsrcdir)/toolkit/crashreporter \
+  -I$(topsrcdir)/xpcom/base/ \
   $(NULL)
 
 include $(topsrcdir)/config/config.mk
 include $(topsrcdir)/ipc/chromium/chromium-config.mk
-endif
 
 include $(topsrcdir)/config/rules.mk
 

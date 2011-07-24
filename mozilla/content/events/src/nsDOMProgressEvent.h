@@ -1,7 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim:set ts=2 sw=2 sts=2 et cindent: */
 /* ***** BEGIN LICENSE BLOCK *****
- * Version: ML 1.1/GPL 2.0/LGPL 2.1
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
  * The contents of this file are subject to the Mozilla Public License Version
  * 1.1 (the "License"); you may not use this file except in compliance with
@@ -49,8 +49,8 @@
  * See http://www.whatwg.org/specs/web-apps/current-work/#progress0 for
  * further details.
  */
-class nsDOMProgressEvent : public nsIDOMProgressEvent,
-                           public nsDOMEvent
+class nsDOMProgressEvent : public nsDOMEvent,
+                           public nsIDOMProgressEvent
 {
 public:
   nsDOMProgressEvent(nsPresContext* aPresContext, nsEvent* aEvent)

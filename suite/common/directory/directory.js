@@ -129,10 +129,10 @@ function Boot()
   if (document.getElementById('tree'))
     Init();
   else
-    setTimeout("Boot()", 500);
+    setTimeout(Boot, 500);
 }
 
-setTimeout("Boot()", 0);
+setTimeout(Boot, 0);
 
 function Init()
 {
@@ -162,7 +162,7 @@ function Init()
 
   if (baseURI && (baseURI.indexOf("file://") != 0)) {
     // Note: DON'T add the HTTPIndex datasource into the tree
-    // for file URLs, only do it for FTP/Gopher/etc URLs; the "rdf:files"
+    // for file URLs, only do it for other URLs; the "rdf:files"
     // datasources handles file URLs
     tree.database.AddDataSource(HTTPIndex);
   }
@@ -299,7 +299,7 @@ function BeginDragTree (event)
 
 function scrollDown()
 {
-  window.frames[0].scrollTo(0, window.frames[0].document.height);
+  window.frames[0].scrollTo(0, window.frames[0].document.body.clientHeight);
 }
 
 function OnFTPControlLog(server, msg)

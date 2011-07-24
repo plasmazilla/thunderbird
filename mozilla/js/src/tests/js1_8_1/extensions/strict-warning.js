@@ -27,3 +27,5 @@ function test(expr) {
 test('a = 0');
 test('a = (f(), g)');
 test('a = b || c > d');
+reportCompare('passed', 'passed', 'Overparenthesized assignment in a condition should not be a strict error.');
+

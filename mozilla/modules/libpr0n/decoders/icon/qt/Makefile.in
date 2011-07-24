@@ -45,13 +45,6 @@ MODULE		= imgicon
 LIBRARY_NAME	= imgiconqt_s
 LIBXUL_LIBRARY	= 1
 
-REQUIRES	= xpcom \
-		  string \
-		  necko \
-		  intl \
-		  mimetype \
-		  gtkqticonsconverter \
-		  $(NULL)
 
 CPPSRCS		= nsIconChannel.cpp
 
@@ -64,6 +57,7 @@ FORCE_USE_PIC = 1
 
 DIRS = public
 
+EXTRA_COMPONENTS = gtkqticonsconverter.manifest
 EXTRA_PP_COMPONENTS = gtkqticonsconverter.js
 
 include $(topsrcdir)/config/rules.mk

@@ -43,22 +43,6 @@ include $(DEPTH)/config/autoconf.mk
 
 MODULE		= suitemigration
 LIBRARY_NAME	= suitemigration_s
-META_COMPONENT  = suite
-
-REQUIRES	= \
-		xpcom \
-		string \
-		intl \
-		necko \
-		dom \
-		libreg \
-		pref \
-		rdf \
-		windowwatcher \
-		suitebrowser \
-		xulapp \
-		loginmgr \
-		$(NULL)
 
 CPPSRCS = \
 		nsProfileMigrator.cpp \

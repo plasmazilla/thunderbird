@@ -92,7 +92,8 @@ nsStyleChangeList::AppendChange(nsIFrame* aFrame, nsIContent* aContent, nsChange
                "must have frame");
   NS_ASSERTION(aContent || !(aHint & nsChangeHint_ReconstructFrame),
                "must have content");
-  NS_ASSERTION(!aContent || aContent->IsNodeOfType(nsINode::eELEMENT),
+  // XXXbz we should make this take Element instead of nsIContent
+  NS_ASSERTION(!aContent || aContent->IsElement(),
                "Shouldn't be trying to restyle non-elements directly");
   NS_ASSERTION(!(aHint & nsChangeHint_ReflowFrame) ||
                (aHint & nsChangeHint_NeedReflow),
@@ -144,8 +145,8 @@ nsStyleChangeList::AppendChange(nsIFrame* aFrame, nsIContent* aContent, nsChange
   return NS_OK;
 }
 
-void 
-nsStyleChangeList::Clear() 
+void
+nsStyleChangeList::Clear()
 {
   for (PRInt32 index = mCount - 1; index >= 0; --index) {
     nsIContent* content = mArray[index].mContent;

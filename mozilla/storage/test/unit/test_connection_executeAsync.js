@@ -35,7 +35,10 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-// This file tests the functionality of mozIStorageConnection::executeAsync
+/*
+ * This file tests the functionality of mozIStorageConnection::executeAsync for
+ * both mozIStorageStatement and mozIStorageAsyncStatement.
+ */
 
 const INTEGER = 1;
 const TEXT = "this is test text";
@@ -58,18 +61,18 @@ function test_create_and_add()
   stmts[0] = getOpenedDatabase().createStatement(
     "INSERT INTO test (id, string, number, nuller, blober) VALUES (?, ?, ?, ?, ?)"
   );
-  stmts[0].bindInt32Parameter(0, INTEGER);
-  stmts[0].bindStringParameter(1, TEXT);
-  stmts[0].bindDoubleParameter(2, REAL);
-  stmts[0].bindNullParameter(3);
-  stmts[0].bindBlobParameter(4, BLOB, BLOB.length);
-  stmts[1] = getOpenedDatabase().createStatement(
+  stmts[0].bindByIndex(0, INTEGER);
+  stmts[0].bindByIndex(1, TEXT);
+  stmts[0].bindByIndex(2, REAL);
+  stmts[0].bindByIndex(3, null);
+  stmts[0].bindBlobByIndex(4, BLOB, BLOB.length);
+  stmts[1] = getOpenedDatabase().createAsyncStatement(
     "INSERT INTO test (string, number, nuller, blober) VALUES (?, ?, ?, ?)"
   );
-  stmts[1].bindStringParameter(0, TEXT);
-  stmts[1].bindDoubleParameter(1, REAL);
-  stmts[1].bindNullParameter(2);
-  stmts[1].bindBlobParameter(3, BLOB, BLOB.length);
+  stmts[1].bindByIndex(0, TEXT);
+  stmts[1].bindByIndex(1, REAL);
+  stmts[1].bindByIndex(2, null);
+  stmts[1].bindBlobByIndex(3, BLOB, BLOB.length);
 
   getOpenedDatabase().executeAsync(stmts, stmts.length, {
     handleResult: function(aResultSet)
@@ -91,7 +94,7 @@ function test_create_and_add()
       let stmt = getOpenedDatabase().createStatement(
         "SELECT string, number, nuller, blober FROM test WHERE id = ?"
       );
-      stmt.bindInt32Parameter(0, INTEGER);
+      stmt.bindByIndex(0, INTEGER);
       try {
         do_check_true(stmt.executeStep());
         do_check_eq(TEXT, stmt.getString(0));
@@ -131,7 +134,7 @@ function test_create_and_add()
 function test_transaction_created()
 {
   let stmts = [];
-  stmts[0] = getOpenedDatabase().createStatement(
+  stmts[0] = getOpenedDatabase().createAsyncStatement(
     "BEGIN"
   );
   stmts[1] = getOpenedDatabase().createStatement(
@@ -169,13 +172,18 @@ function test_multiple_bindings_on_statements()
   const ITERATIONS = 5;
 
   let stmts = [];
+  let db = getOpenedDatabase();
+  let sqlString = "INSERT INTO test (id, string, number, nuller, blober) " +
+                    "VALUES (:int, :text, :real, :null, :blob)";
   // We run the same statement twice, and should insert 2 * AMOUNT_TO_ADD.
   for (let i = 0; i < ITERATIONS; i++) {
-    stmts[i] = getOpenedDatabase().createStatement(
-      "INSERT INTO test (id, string, number, nuller, blober) " +
-      "VALUES (:int, :text, :real, :null, :blob)"
-    );
-    let params = stmts[i].newBindingParamsArray()
+    // alternate the type of statement we create
+    if (i % 2)
+      stmts[i] = db.createStatement(sqlString);
+    else
+      stmts[i] = db.createAsyncStatement(sqlString);
+
+    let params = stmts[i].newBindingParamsArray();
     for (let j = 0; j < AMOUNT_TO_ADD; j++) {
       let bp = params.newBindingParams();
       bp.bindByName("int", INTEGER);
@@ -236,6 +244,66 @@ function test_multiple_bindings_on_statements()
   stmts.forEach(function(stmt) stmt.finalize());
 }
 
+function test_asyncClose_does_not_complete_before_statements()
+{
+  let stmt = createStatement("SELECT * FROM sqlite_master");
+  let executed = false;
+  stmt.executeAsync({
+    handleResult: function(aResultSet)
+    {
+    },
+    handleError: function(aError)
+    {
+      print("Error code " + aError.result + " with message '" +
+            aError.message + "' returned.");
+      do_throw("Unexpected error!");
+    },
+    handleCompletion: function(aReason)
+    {
+      print("handleCompletion(" + aReason +
+            ") for test_asyncClose_does_not_complete_before_statements");
+      do_check_eq(Ci.mozIStorageStatementCallback.REASON_FINISHED, aReason);
+      executed = true;
+    }
+  });
+  stmt.finalize();
+
+  getOpenedDatabase().asyncClose(function() {
+    // Ensure that the statement executed to completion.
+    do_check_true(executed);
+
+    // Reset gDBConn so that later tests will get a new connection object.
+    gDBConn = null;
+    run_next_test();
+  });
+}
+
+function test_asyncClose_does_not_throw_no_callback()
+{
+  getOpenedDatabase().asyncClose();
+
+  // Reset gDBConn so that later tests will get a new connection object.
+  gDBConn = null;
+  run_next_test();
+}
+
+function test_double_asyncClose_throws()
+{
+  let conn = getOpenedDatabase();
+  conn.asyncClose();
+  try {
+    conn.asyncClose();
+    do_throw("should have thrown");
+  }
+  catch (e) {
+    do_check_eq(e.result, Cr.NS_ERROR_UNEXPECTED);
+  }
+
+  // Reset gDBConn so that later tests will get a new connection object.
+  gDBConn = null;
+  run_next_test();
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //// Test Runner
 
@@ -244,18 +312,33 @@ let tests =
   test_create_and_add,
   test_transaction_created,
   test_multiple_bindings_on_statements,
+  test_asyncClose_does_not_complete_before_statements,
+  test_asyncClose_does_not_throw_no_callback,
+  test_double_asyncClose_throws,
 ];
 let index = 0;
 
 function run_next_test()
 {
-  if (index < tests.length) {
-    do_test_pending();
-    print("Running the next test: " + tests[index].name);
-    tests[index++]();
+  function _run_next_test() {
+    if (index < tests.length) {
+      do_test_pending();
+      print("Running the next test: " + tests[index].name);
+
+      // Asynchronous tests means that exceptions don't kill the test.
+      try {
+        tests[index++]();
+      }
+      catch (e) {
+        do_throw(e);
+      }
+    }
+
+    do_test_finished();
   }
 
-  do_test_finished();
+  // For saner stacks, we execute this code RSN.
+  do_execute_soon(_run_next_test);
 }
 
 function run_test()

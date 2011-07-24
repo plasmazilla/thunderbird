@@ -43,26 +43,10 @@
 #include "nsIDOMSVGPathElement.h"
 #include "nsIDOMSVGAnimatedPathData.h"
 #include "nsSVGNumber2.h"
+#include "SVGAnimatedPathSegList.h"
 #include "gfxPath.h"
 
 class gfxContext;
-
-class nsSVGPathList
-{
-friend class nsSVGPathDataParserToInternal;
-
-public:
-  enum { MOVETO, LINETO, CURVETO, CLOSEPATH };
-  nsSVGPathList() : mArguments(nsnull), mNumCommands(0), mNumArguments(0) {}
-  ~nsSVGPathList() { Clear(); }
-  void Playback(gfxContext *aCtx);
-  void Clear();
-
-protected:
-  float   *mArguments;
-  PRUint32 mNumCommands;
-  PRUint32 mNumArguments;
-};
 
 typedef nsSVGPathGeometryElement nsSVGPathElementBase;
 
@@ -75,11 +59,11 @@ friend class nsSVGTextPathFrame;
 
 protected:
   friend nsresult NS_NewSVGPathElement(nsIContent **aResult,
-                                       nsINodeInfo *aNodeInfo);
-  nsSVGPathElement(nsINodeInfo *aNodeInfo);
-  virtual ~nsSVGPathElement();
+                                       already_AddRefed<nsINodeInfo> aNodeInfo);
+  nsSVGPathElement(already_AddRefed<nsINodeInfo> aNodeInfo);
 
 public:
+  typedef mozilla::SVGAnimatedPathSegList SVGAnimatedPathSegList;
   // interfaces:
 
   NS_DECL_ISUPPORTS_INHERITED
@@ -94,10 +78,6 @@ public:
   // nsIContent interface
   NS_IMETHOD_(PRBool) IsAttributeMapped(const nsIAtom* name) const;
 
-  // nsISVGValueObserver
-  NS_IMETHOD DidModifySVGObservable (nsISVGValue* observable,
-                                     nsISVGValue::modificationType aModType);
-
   // nsSVGPathGeometryElement methods:
   virtual PRBool AttributeDefinesGeometry(const nsIAtom *aName);
   virtual PRBool IsMarkable();
@@ -108,21 +88,25 @@ public:
 
   // nsIContent interface
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
-  virtual nsresult BeforeSetAttr(PRInt32 aNamespaceID, nsIAtom* aName,
-                                 const nsAString* aValue, PRBool aNotify);
+
+  virtual nsXPCClassInfo* GetClassInfo();
+
+  virtual SVGAnimatedPathSegList* GetAnimPathSegList() {
+    return &mD;
+  }
+
+  virtual nsIAtom* GetPathDataAttrName() const {
+    return nsGkAtoms::d;
+  }
 
 protected:
 
   // nsSVGElement method
   virtual NumberAttributesInfo GetNumberInfo();
 
-  // Helper for lazily creating pathseg list
-  nsresult CreatePathSegList();
-
-  nsCOMPtr<nsIDOMSVGPathSegList> mSegments;
+  SVGAnimatedPathSegList mD;
   nsSVGNumber2 mPathLength;
   static NumberInfo sNumberInfo;
-  nsSVGPathList mPathData;
 };
 
 #endif

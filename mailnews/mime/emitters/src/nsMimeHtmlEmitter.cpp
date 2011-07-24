@@ -58,12 +58,10 @@
 #include "nsComponentManagerUtils.h"
 #include "nsIMimeConverter.h"
 #include "nsMsgMimeCID.h"
-#include "nsDateTimeFormatCID.h"
 #include "nsMsgUtils.h"
 #include "nsAutoPtr.h"
 #include "nsINetUtil.h"
 #include "nsMemory.h"
-#include "nsTextFormatter.h"
 
 #define VIEW_ALL_HEADERS 2
 
@@ -178,13 +176,13 @@ nsMimeHtmlDisplayEmitter::GetHeaderSink(nsIMsgHeaderSink ** aHeaderSink)
         msgurl->GetMsgHeaderSink(getter_AddRefs(mHeaderSink));
         if (!mHeaderSink)  // if the url is not overriding the header sink, then just get the one from the msg window
         {
-        nsCOMPtr<nsIMsgWindow> msgWindow;
-        msgurl->GetMsgWindow(getter_AddRefs(msgWindow));
-        if (msgWindow)
-          msgWindow->GetMsgHeaderSink(getter_AddRefs(mHeaderSink));
+          nsCOMPtr<nsIMsgWindow> msgWindow;
+          msgurl->GetMsgWindow(getter_AddRefs(msgWindow));
+          if (msgWindow)
+            msgWindow->GetMsgHeaderSink(getter_AddRefs(mHeaderSink));
+        }
       }
     }
-  }
   }
 
   *aHeaderSink = mHeaderSink;
@@ -215,7 +213,6 @@ nsresult nsMimeHtmlDisplayEmitter::BroadcastHeaders(nsIMsgHeaderSink * aHeaderSi
       ToLowerCase(extraExpandedHeaders);
       ParseString(extraExpandedHeaders, ' ', extraExpandedHeadersArray);
     }
-
   }
 
   for (PRInt32 i=0; i<mHeaderArray->Count(); i++)
@@ -241,7 +238,7 @@ nsresult nsMimeHtmlDisplayEmitter::BroadcastHeaders(nsIMsgHeaderSink * aHeaderSi
           PL_strcasecmp("content-type", headerInfo->name) && PL_strcasecmp("message-id", headerInfo->name) &&
           PL_strcasecmp("x-newsreader", headerInfo->name) && PL_strcasecmp("x-mimeole", headerInfo->name) &&
           PL_strcasecmp("references", headerInfo->name) && PL_strcasecmp("in-reply-to", headerInfo->name) &&
-          PL_strcasecmp("list-post", headerInfo->name) &&
+          PL_strcasecmp("list-post", headerInfo->name) && PL_strcasecmp("delivered-to", headerInfo->name) &&
           // make headerStr lower case because IndexOf is case-sensitive
          (!extraExpandedHeadersArray.Length() || (ToLowerCase(headerStr),
             extraExpandedHeadersArray.IndexOf(headerStr) ==
@@ -294,7 +291,7 @@ NS_IMETHODIMP nsMimeHtmlDisplayEmitter::WriteHTMLHeaders(const nsACString &name)
     if (!PL_strcasecmp("Newsgroups", headerInfo->name))
     {
       bFromNewsgroups = PR_TRUE;
-    break;
+      break;
     }
   }
 
@@ -304,124 +301,15 @@ NS_IMETHODIMP nsMimeHtmlDisplayEmitter::WriteHTMLHeaders(const nsACString &name)
 
   if (headerSink)
   {
-  PRInt32 viewMode = 0;
-  nsCOMPtr<nsIPrefBranch> pPrefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
-  if (pPrefBranch)
-    rv = pPrefBranch->GetIntPref("mail.show_headers", &viewMode);
+    PRInt32 viewMode = 0;
+    nsCOMPtr<nsIPrefBranch> pPrefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
+    if (pPrefBranch)
+      rv = pPrefBranch->GetIntPref("mail.show_headers", &viewMode);
 
     rv = BroadcastHeaders(headerSink, viewMode, bFromNewsgroups);
   } // if header Sink
 
   return NS_OK;
-}
-
-nsresult nsMimeHtmlDisplayEmitter::GenerateDateString(const char * dateString, nsACString &formattedDate)
-{
-  nsresult rv = NS_OK;
-
-  if (!mDateFormatter) {
-    mDateFormatter = do_CreateInstance(NS_DATETIMEFORMAT_CONTRACTID, &rv);
-    if (NS_FAILED(rv))
-      return rv;
-  }
-
-  /**
-   * See if the user wants to have the date displayed in the senders
-   * timezone (including the timezone offset).
-   * We also evaluate the pref original_date which was introduced
-   * as makeshift in bug 118899.
-   */
-  PRBool displaySenderTimezone = PR_FALSE;
-  PRBool displayOriginalDate = PR_FALSE;
-
-  nsCOMPtr<nsIPrefService> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCOMPtr<nsIPrefBranch> dateFormatPrefs;
-  rv = prefs->GetBranch("mailnews.display.", getter_AddRefs(dateFormatPrefs));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  dateFormatPrefs->GetBoolPref("date_senders_timezone", &displaySenderTimezone);
-  dateFormatPrefs->GetBoolPref("original_date", &displayOriginalDate);
-  // migrate old pref to date_senders_timezone
-  if (displayOriginalDate && !displaySenderTimezone)
-    dateFormatPrefs->SetBoolPref("date_senders_timezone", PR_TRUE);
-
-  PRExplodedTime explodedMsgTime;
-  rv = PR_ParseTimeStringToExplodedTime(dateString, PR_FALSE, &explodedMsgTime);
-  /**
-   * To determine the date format to use, comparison of current and message
-   * time has to be made. If displaying in local time, both timestamps have
-   * to be in local time. If displaying in senders time zone, leave the compare
-   * time in that time zone.
-   * Otherwise in TZ+0100 on 2009-03-12 a message from 2009-03-11T20:49-0700
-   * would be displayed as "20:49 -0700" though it in fact is not from the
-   * same day.
-   */
-  PRExplodedTime explodedCompTime;
-  if (displaySenderTimezone)
-    explodedCompTime = explodedMsgTime;
-  else
-    PR_ExplodeTime(PR_ImplodeTime(&explodedMsgTime), PR_LocalTimeParameters, &explodedCompTime);
-
-  PRExplodedTime explodedCurrentTime;
-  PR_ExplodeTime(PR_Now(), PR_LocalTimeParameters, &explodedCurrentTime);
-
-  // if the message is from today, don't show the date, only the time. (i.e. 3:15 pm)
-  // if the message is from the last week, show the day of the week.   (i.e. Mon 3:15 pm)
-  // in all other cases, show the full date (03/19/01 3:15 pm)
-  nsDateFormatSelector dateFormat = kDateFormatShort;
-  if (explodedCurrentTime.tm_year == explodedCompTime.tm_year &&
-      explodedCurrentTime.tm_month == explodedCompTime.tm_month &&
-      explodedCurrentTime.tm_mday == explodedCompTime.tm_mday)
-  {
-    // same day...
-    dateFormat = kDateFormatNone;
-  }
-  // the following chunk of code causes us to show a day instead of a number if the message was received
-  // within the last 7 days. i.e. Mon 5:10pm. We need to add a preference so folks to can enable this behavior
-  // if they want it.
-/*
-  else if (LL_CMP(currentTime, >, dateOfMsg))
-  {
-    PRInt64 microSecondsPerSecond, secondsInDays, microSecondsInDays;
-    LL_I2L(microSecondsPerSecond, PR_USEC_PER_SEC);
-    LL_UI2L(secondsInDays, 60 * 60 * 24 * 7); // how many seconds in 7 days.....
-    LL_MUL(microSecondsInDays, secondsInDays, microSecondsPerSecond); // turn that into microseconds
-
-    PRInt64 diff;
-    LL_SUB(diff, currentTime, dateOfMsg);
-    if (LL_CMP(diff, <=, microSecondsInDays)) // within the same week
-      dateFormat = kDateFormatWeekday;
-  }
-*/
-
-  nsAutoString formattedDateString;
-  if (NS_SUCCEEDED(rv))
-  {
-    rv = mDateFormatter->FormatPRExplodedTime(nsnull /* nsILocale* locale */,
-                                              dateFormat,
-                                              kTimeFormatNoSeconds,
-                                              &explodedCompTime,
-                                              formattedDateString);
-
-    if (NS_SUCCEEDED(rv))
-    {
-      if (displaySenderTimezone)
-      {
-        // offset of local time from UTC in minutes
-        PRInt32 senderoffset = (explodedMsgTime.tm_params.tp_gmt_offset + explodedMsgTime.tm_params.tp_dst_offset) / 60;
-        // append offset to date string
-        PRUnichar *tzstring = nsTextFormatter::smprintf(NS_LITERAL_STRING(" %+05d").get(), (senderoffset / 60 * 100) + (senderoffset % 60));
-        formattedDateString.Append(tzstring);
-        nsTextFormatter::smprintf_free(tzstring);
-      }
-
-      CopyUTF16toUTF8(formattedDateString, formattedDate);
-    }
-  }
-
-  return rv;
 }
 
 nsresult
@@ -498,7 +386,7 @@ nsMimeHtmlDisplayEmitter::StartAttachment(const nsACString &name,
                                  unicodeHeaderValue.get(), uriString.get(),
                                  aIsExternalAttachment);
 
-    mSkipAttachment = PR_TRUE;
+    mSkipAttachment = PR_FALSE;
   }
   else if (mFormat == nsMimeOutput::nsMimeMessagePrintOutput)
   {
@@ -534,44 +422,55 @@ nsMimeHtmlDisplayEmitter::StartAttachmentInBody(const nsACString &name,
         (!strcmp(contentType, APPLICATION_XPKCS7_SIGNATURE)) ||
         (!strcmp(contentType, APPLICATION_PKCS7_SIGNATURE)) ||
         (!strcmp(contentType, TEXT_VCARD)))
-     ) {
+     )
+  {
      mSkipAttachment = PR_TRUE;
      return NS_OK;
   }
 
-  if (!mFirst) {
+  if (mFirst)
+  {
     UtilityWrite("<br><fieldset class=\"mimeAttachmentHeader\">");
-    if (!name.IsEmpty()) {
-      UtilityWrite("<legend class=\"mimeAttachmentName\">");
-      UtilityWrite(name);
+    if (!name.IsEmpty())
+    {
+      nsresult rv;
+
+      nsCOMPtr<nsIStringBundleService> bundleSvc =
+        do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      nsCOMPtr<nsIStringBundle> bundle;
+      rv = bundleSvc->CreateBundle("chrome://messenger/locale/messenger.properties",
+                                   getter_AddRefs(bundle));
+      NS_ENSURE_SUCCESS(rv, rv);
+
+      nsString attachmentsHeader;
+      bundle->GetStringFromName(NS_LITERAL_STRING("attachmentsPrintHeader").get(),
+                                getter_Copies(attachmentsHeader)); 
+
+      UtilityWrite("<legend class=\"mimeAttachmentHeaderName\">");
+      UtilityWrite(NS_ConvertUTF16toUTF8(attachmentsHeader).get());
       UtilityWrite("</legend>");
     }
     UtilityWrite("</fieldset>");
+    UtilityWrite("<div class=\"mimeAttachmentWrap\">");
+    UtilityWrite("<table class=\"mimeAttachmentTable\">");
   }
 
-  mFirst = PR_FALSE;
-
-  UtilityWrite("<center>");
-  UtilityWrite("<table border>");
   UtilityWrite("<tr>");
-  UtilityWrite("<td>");
 
-  UtilityWrite("<div align=right class=\"headerdisplayname\" style=\"display:inline;\">");
-
+  UtilityWrite("<td class=\"mimeAttachmentFile\">");
   UtilityWrite(name);
-
-  UtilityWrite("</div>");
-
   UtilityWrite("</td>");
-  UtilityWrite("<td>");
-  UtilityWrite("<table border=0>");
+
+  mFirst = PR_FALSE;
   return NS_OK;
 }
 
 nsresult
 nsMimeHtmlDisplayEmitter::AddAttachmentField(const char *field, const char *value)
 {
-  if (mSkipAttachment || BroadCastHeadersAndAttachments())
+  if (mSkipAttachment)
     return NS_OK;
 
   // Don't let bad things happen
@@ -582,25 +481,26 @@ nsMimeHtmlDisplayEmitter::AddAttachmentField(const char *field, const char *valu
   if (!strcmp(field, HEADER_X_MOZILLA_PART_URL))
     return NS_OK;
 
-  char  *newValue = MsgEscapeHTML(value);
+  nsCOMPtr<nsIMsgHeaderSink> headerSink;
+  nsresult rv = GetHeaderSink(getter_AddRefs(headerSink));
+  if (NS_SUCCEEDED(rv) && headerSink)
+  {
+    headerSink->AddAttachmentField(field, value);
+  }
+  else
+  {
+    // Currently, we only care about the part size.
+    if (strcmp(field, HEADER_X_MOZILLA_PART_SIZE))
+      return NS_OK;
 
-  UtilityWrite("<tr>");
+    PRUint64 size = atoi(value);
+    nsAutoString sizeString;
+    rv = FormatFileSize(size, PR_FALSE, sizeString);
+    UtilityWrite("<td class=\"mimeAttachmentSize\">");
+    UtilityWrite(NS_ConvertUTF16toUTF8(sizeString).get());
+    UtilityWrite("</td>");
+  }
 
-  UtilityWrite("<td>");
-  UtilityWrite("<div align=right class=\"headerdisplayname\" style=\"display:inline;\">");
-
-  UtilityWrite(field);
-  UtilityWrite(":");
-  UtilityWrite("</div>");
-  UtilityWrite("</td>");
-  UtilityWrite("<td>");
-
-  UtilityWrite(newValue);
-
-  UtilityWrite("</td>");
-  UtilityWrite("</tr>");
-
-  PR_Free(newValue);
   return NS_OK;
 }
 
@@ -615,15 +515,9 @@ nsMimeHtmlDisplayEmitter::EndAttachment()
   if (BroadCastHeadersAndAttachments())
     return NS_OK;
 
-  if (mFormat == nsMimeOutput::nsMimeMessagePrintOutput) {
-    UtilityWrite("</table>");
-    UtilityWrite("</td>");
+  if (mFormat == nsMimeOutput::nsMimeMessagePrintOutput)
     UtilityWrite("</tr>");
 
-    UtilityWrite("</table>");
-    UtilityWrite("</center>");
-    UtilityWrite("<br>");
-  }
   return NS_OK;
 }
 
@@ -635,6 +529,13 @@ nsMimeHtmlDisplayEmitter::EndAllAttachments()
   rv = GetHeaderSink(getter_AddRefs(headerSink));
   if (headerSink)
     headerSink->OnEndAllAttachments();
+
+  if (mFormat == nsMimeOutput::nsMimeMessagePrintOutput)
+  {
+    UtilityWrite("</table>");
+    UtilityWrite("</div>");
+  }
+
   return rv;
 }
 
@@ -651,8 +552,8 @@ nsMimeHtmlDisplayEmitter::EndBody()
 {
   if (mFormat != nsMimeOutput::nsMimeMessageFilterSniffer)
   {
-  UtilityWriteCRLF("</body>");
-  UtilityWriteCRLF("</html>");
+    UtilityWriteCRLF("</body>");
+    UtilityWriteCRLF("</html>");
   }
   nsCOMPtr<nsIMsgHeaderSink> headerSink;
   nsresult rv = GetHeaderSink(getter_AddRefs(headerSink));

@@ -45,7 +45,7 @@
 // Mozilla Frozen APIs
 #include "nsXULAppAPI.h"
 
-XRE_InitEmbeddingType XRE_InitEmbedding;
+XRE_InitEmbedding2Type XRE_InitEmbedding2;
 XRE_TermEmbeddingType XRE_TermEmbedding;
 
 #include "nsAppDirectoryServiceDefs.h"
@@ -166,45 +166,27 @@ int main(int argc, char *argv[])
     LoadString(ghInstanceApp, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
     MyRegisterClass(ghInstanceApp);
 
-    // Find the GRE (libxul). We are only using frozen interfaces, so we
-    // should be compatible all the way up to (but not including) mozilla 2.0
-    static const GREVersionRange vr = {
-        "1.8a1",
-        PR_TRUE,
-        "2.0",
-        PR_FALSE
-    };
-
-    char xpcomPath[_MAX_PATH];
-    rv = GRE_GetGREPathWithProperties(&vr, 1, nsnull, 0,
-                                      xpcomPath, sizeof(xpcomPath));
-    if (NS_FAILED(rv))
-        return 1;
-
-    char *lastslash = ns_strrpbrk(xpcomPath, "/\\");
+    char path[_MAX_PATH];
+    GetModuleFileName(ghInstanceApp, path, sizeof(path));
+    char* lastslash = ns_strrpbrk(path, "/\\");
     if (!lastslash)
-        return 2;
+        return 7;
 
-    rv = XPCOMGlueStartup(xpcomPath);
+    strcpy(lastslash, "\\xulrunner\\xpcom.dll");
+
+    rv = XPCOMGlueStartup(path);
     if (NS_FAILED(rv))
         return 3;
 
-    *lastslash = '\0';
+    strcpy(lastslash, "\\xulrunner\\xul.dll");
 
-    char xulPath[_MAX_PATH];
-    _snprintf(xulPath, sizeof(xulPath), "%s\\xul.dll", xpcomPath);
-    xulPath[sizeof(xulPath) - 1] = '\0';
-
-    HINSTANCE xulModule = LoadLibraryEx(xulPath, NULL, 0);
+    HINSTANCE xulModule = LoadLibraryEx(path, NULL, 0);
     if (!xulModule)
         return 4;
 
-    char temp[_MAX_PATH];
-    GetModuleFileName(xulModule, temp, sizeof(temp));
-
-    XRE_InitEmbedding =
-        (XRE_InitEmbeddingType) GetProcAddress(xulModule, "XRE_InitEmbedding");
-    if (!XRE_InitEmbedding) {
+    XRE_InitEmbedding2 =
+        (XRE_InitEmbedding2Type) GetProcAddress(xulModule, "XRE_InitEmbedding2");
+    if (!XRE_InitEmbedding2) {
         fprintf(stderr, "Error: %i\n", GetLastError());
         return 5;
     }
@@ -218,27 +200,23 @@ int main(int argc, char *argv[])
 
     // Scope all the XPCOM stuff
     {
+        strcpy(lastslash, "\\xulrunner");
+
         nsCOMPtr<nsILocalFile> xuldir;
-        rv = NS_NewNativeLocalFile(nsCString(xpcomPath), PR_FALSE,
+        rv = NS_NewNativeLocalFile(nsCString(path), PR_FALSE,
                                    getter_AddRefs(xuldir));
         if (NS_FAILED(rv))
             return 6;
 
-        char self[_MAX_PATH];
-        GetModuleFileName(ghInstanceApp, self, sizeof(self));
-        lastslash = ns_strrpbrk(xpcomPath, "/\\");
-        if (!lastslash)
-            return 7;
-
         *lastslash = '\0';
 
         nsCOMPtr<nsILocalFile> appdir;
-        rv = NS_NewNativeLocalFile(nsCString(self), PR_FALSE,
+        rv = NS_NewNativeLocalFile(nsCString(path), PR_FALSE,
                                    getter_AddRefs(appdir));
         if (NS_FAILED(rv))
             return 8;
 
-        rv = XRE_InitEmbedding(xuldir, appdir, nsnull, nsnull, 0);
+        rv = XRE_InitEmbedding2(xuldir, appdir, nsnull);
         if (NS_FAILED(rv))
             return 9;
 

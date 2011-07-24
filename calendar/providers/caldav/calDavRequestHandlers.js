@@ -573,7 +573,6 @@ webDavSyncHandler.prototype = {
         switch (aLocalName) {
             case "response": // WebDAV Sync draft 3
             case "sync-response": // WebDAV Sync draft 0,1,2
-                cal.processPendingEvent();
                 let r = this.currentResponse;
                 if (r.href &&
                     r.href.length) {
@@ -753,7 +752,7 @@ multigetSyncHandler.prototype = {
             this._reader.onStartRequest(request, context);
         } else {
             let errorMsg = "CalDAV: Error: got status " + responseStatus +
-                               " fetching calendar data for " + thisCalendar.name + ", " + aListener;
+                               " fetching calendar data for " + this.calendar.name + ", " + this.listener;
             this.calendar.notifyGetFailed(errorMsg, this.listener, this.changeLogListener);
             this._reader = null;
         }
@@ -886,7 +885,6 @@ multigetSyncHandler.prototype = {
     endElement: function mg_endElement(aUri, aLocalName, aQName) {
         switch (aLocalName) {
             case "response":
-                cal.processPendingEvent();
                 let r = this.currentResponse;
                 if (r.href &&
                     r.href.length) {

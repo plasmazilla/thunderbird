@@ -41,6 +41,11 @@
 /* API tests for XPConnect - use xpcshell for JS tests. */
 
 #include <stdio.h>
+#include <ctype.h>
+#include <stdarg.h>
+
+#include "jsapi.h"
+#include "jscntxt.h"
 
 #include "nsComponentManagerUtils.h"
 #include "nsServiceManagerUtils.h"
@@ -58,8 +63,6 @@
 #include "nsStringAPI.h"
 #include "nsEmbedString.h"
 
-#include "jsapi.h"
-
 #include "xpctest.h"
 
 /***************************************************************************/
@@ -69,68 +72,72 @@ FILE *gOutFile = NULL;
 FILE *gErrFile = NULL;
 
 static JSBool
-Print(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+Print(JSContext *cx, uintN argc, jsval *vp)
 {
     uintN i, n;
     JSString *str;
 
+    jsval *argv = JS_ARGV(cx, vp);
     for (i = n = 0; i < argc; i++) {
         str = JS_ValueToString(cx, argv[i]);
         if (!str)
-            return JS_FALSE;
-        fprintf(gOutFile, "%s%s", i ? " " : "", JS_GetStringBytes(str));
+            return false;
+        JSAutoByteString bytes(cx, str);
+        if (!bytes)
+            return false;
+        fprintf(gOutFile, "%s%s", i ? " " : "", bytes.ptr());
     }
     n++;
     if (n)
         fputc('\n', gOutFile);
-    return JS_TRUE;
+    JS_SET_RVAL(cx, vp, JSVAL_VOID);
+    return true;
 }
 
 static JSBool
-Load(JSContext *cx, JSObject *obj, uintN argc, jsval *argv, jsval *rval)
+Load(JSContext *cx, uintN argc, jsval *vp)
 {
     uintN i;
     JSString *str;
-    const char *filename;
-    JSScript *script;
-    JSBool ok;
     jsval result;
 
+    JSObject *obj = JS_THIS_OBJECT(cx, vp);
+    if (!obj)
+        return JS_FALSE;
+
+    jsval *argv = JS_ARGV(cx, vp);
     for (i = 0; i < argc; i++) {
         str = JS_ValueToString(cx, argv[i]);
         if (!str)
             return JS_FALSE;
         argv[i] = STRING_TO_JSVAL(str);
-        filename = JS_GetStringBytes(str);
-        script = JS_CompileFile(cx, obj, filename);
-        if (!script)
-            ok = JS_FALSE;
-        else {
-            ok = JS_ExecuteScript(cx, obj, script, &result);
-            JS_DestroyScript(cx, script);
-        }
-        if (!ok)
-            return JS_FALSE;
+        JSAutoByteString filename(cx, str);
+        if (!filename)
+            return false;
+        JSObject *scriptObj = JS_CompileFile(cx, obj, filename.ptr());
+        if (!scriptObj || !JS_ExecuteScript(cx, obj, scriptObj, &result))
+            return false;
     }
+    JS_SET_RVAL(cx, vp, JSVAL_VOID);
     return JS_TRUE;
 }
 
 static JSFunctionSpec glob_functions[] = {
-    {"print",           Print,          0,0,0},
-    {"load",            Load,           1,0,0},
-    {nsnull,nsnull,0,0,0}
+    {"print",           Print,          0,0},
+    {"load",            Load,           1,0},
+    {nsnull,nsnull,0,0}
 };
 
 static JSClass global_class = {
     "global", 0,
-    JS_PropertyStub,  JS_PropertyStub,  JS_PropertyStub,  JS_PropertyStub,
+    JS_PropertyStub,  JS_PropertyStub,  JS_PropertyStub,  JS_StrictPropertyStub,
     JS_EnumerateStub, JS_ResolveStub,   JS_ConvertStub,   nsnull
 };
 
 static void
 my_ErrorReporter(JSContext *cx, const char *message, JSErrorReport *report)
 {
-    printf(message);
+    fputs(message, stdout);
 }
 
 /***************************************************************************/
@@ -239,7 +246,7 @@ MySecMan::CanCreateWrapper(JSContext * aJSContext, const nsIID & aIID, nsISuppor
                     "security exception")));
             return NS_ERROR_FAILURE;
         default:
-            NS_ASSERTION(0,"bad case");
+            NS_ERROR("bad case");
             return NS_OK;
     }
 }
@@ -257,7 +264,7 @@ MySecMan::CanCreateInstance(JSContext * aJSContext, const nsCID & aCID)
                     "security exception")));
             return NS_ERROR_FAILURE;
         default:
-            NS_ASSERTION(0,"bad case");
+            NS_ERROR("bad case");
             return NS_OK;
     }
 }
@@ -275,14 +282,14 @@ MySecMan::CanGetService(JSContext * aJSContext, const nsCID & aCID)
                     "security exception")));
             return NS_ERROR_FAILURE;
         default:
-            NS_ASSERTION(0,"bad case");
+            NS_ERROR("bad case");
             return NS_OK;
     }
 }
 
-/* void CanAccess (in PRUint32 aAction, in nsIXPCNativeCallContext aCallContext, in JSContextPtr aJSContext, in JSObjectPtr aJSObject, in nsISupports aObj, in nsIClassInfo aClassInfo, in JSVal aName, inout voidPtr aPolicy); */
+/* void CanAccess (in PRUint32 aAction, in nsIXPCNativeCallContext aCallContext, in JSContextPtr aJSContext, in JSObjectPtr aJSObject, in nsISupports aObj, in nsIClassInfo aClassInfo, in jsid aName, inout voidPtr aPolicy); */
 NS_IMETHODIMP 
-MySecMan::CanAccess(PRUint32 aAction, nsAXPCNativeCallContext *aCallContext, JSContext * aJSContext, JSObject * aJSObject, nsISupports *aObj, nsIClassInfo *aClassInfo, jsval aName, void * *aPolicy)
+MySecMan::CanAccess(PRUint32 aAction, nsAXPCNativeCallContext *aCallContext, JSContext * aJSContext, JSObject * aJSObject, nsISupports *aObj, nsIClassInfo *aClassInfo, jsid aName, void * *aPolicy)
 {
     switch(mMode)
     {
@@ -294,7 +301,7 @@ MySecMan::CanAccess(PRUint32 aAction, nsAXPCNativeCallContext *aCallContext, JSC
                     "security exception")));
             return NS_ERROR_FAILURE;
         default:
-            NS_ASSERTION(0,"bad case");
+            NS_ERROR("bad case");
             return NS_OK;
     }
 }
@@ -304,7 +311,7 @@ static void
 EvaluateScript(JSContext* jscontext, JSObject* glob, MySecMan* sm, MySecMan::Mode mode, const char* msg, const char* t, jsval &rval)
 {
     sm->SetMode(mode);
-    printf(msg);
+    fputs(msg, stdout);
     JSAutoRequest ar(jscontext);
     JS_EvaluateScript(jscontext, glob, t, strlen(t), "builtin", 1, &rval);
 }
@@ -447,6 +454,77 @@ sm_test_done:
 /***************************************************************************/
 // arg formatter test...
 
+// A bit of history: JS_PushArguments/JS_PushArgumentsVA used to be part of the
+// JS public (friend, really) API using js_AllocStack to obtain the rooted
+// output array. js_AllocStack was removed and, to preserve the ability to test
+// JS_ConvertArguments, these functions were moved here and hacked down to
+// size.
+
+#ifdef HAVE_VA_LIST_AS_ARRAY
+#define JS_ADDRESSOF_VA_LIST(ap) ((va_list *)(ap))
+#else
+#define JS_ADDRESSOF_VA_LIST(ap) (&(ap))
+#endif
+
+static JSBool
+TryArgumentFormatter(JSContext *cx, const char **formatp, JSBool fromJS,
+                     jsval **vpp, va_list *app)
+{
+    const char *format;
+    JSArgumentFormatMap *map;
+
+    format = *formatp;
+    for (map = cx->argumentFormatMap; map; map = map->next) {
+        if (!strncmp(format, map->format, map->length)) {
+            *formatp = format + map->length;
+            return map->formatter(cx, format, fromJS, vpp, app);
+        }
+    }
+    JS_ReportErrorNumber(cx, js_GetErrorMessage, NULL, JSMSG_BAD_CHAR, format);
+    return JS_FALSE;
+}
+
+static bool
+PushArgumentsVA(JSContext *cx, uintN argc, jsval *argv, const char *format, va_list ap)
+{
+    char c;
+    JSString *str;
+
+    jsval *sp = argv;
+
+    while ((c = *format++) != '\0') {
+        if (isspace(c) || c == '*')
+            continue;
+        switch (c) {
+          case 's':
+            str = JS_NewStringCopyZ(cx, va_arg(ap, char *));
+            if (!str)
+                return false;
+            *sp = STRING_TO_JSVAL(str);
+            break;
+          default:
+            format--;
+            if (!TryArgumentFormatter(cx, &format, JS_FALSE, &sp, JS_ADDRESSOF_VA_LIST(ap)))
+                return false;
+            /* NB: the formatter already updated sp, so we continue here. */
+            continue;
+        }
+        sp++;
+    }
+
+    return true;
+}
+
+static bool
+PushArguments(JSContext *cx, uintN argc, jsval *argv, const char *format, ...)
+{
+    va_list ap;
+    va_start(ap, format);
+    bool ret = PushArgumentsVA(cx, argc, argv, format, ap);
+    va_end(ap);
+    return ret;
+}
+
 #define TAF_CHECK(cond, msg) \
     if (!cond) {       \
         printf(msg);   \
@@ -458,8 +536,6 @@ static void
 TestArgFormatter(JSContext* jscontext, JSObject* glob, nsIXPConnect* xpc)
 {
     JSBool ok = JS_TRUE;
-    jsval* argv;
-    void* mark;
 
     const char*                  a_in = "some string";
     nsCOMPtr<nsITestXPCFoo>      b_in = new nsTestXPCFoo();
@@ -468,11 +544,11 @@ TestArgFormatter(JSContext* jscontext, JSObject* glob, nsIXPConnect* xpc)
     const char*                  e_in = "another meaningless chunck of text";
     
 
-    char*                   a_out;
+    JSBool                  a_match;
     nsCOMPtr<nsISupports>   b_out;
     nsCOMPtr<nsIVariant>    c_out;
     nsAutoString            d_out;
-    char*                   e_out;
+    JSBool                  e_match;
 
     nsCOMPtr<nsITestXPCFoo> specified;
     PRInt32                 val;
@@ -487,20 +563,25 @@ TestArgFormatter(JSContext* jscontext, JSObject* glob, nsIXPConnect* xpc)
 
     do {
         JSAutoRequest ar(jscontext);
-        argv = JS_PushArguments(jscontext, &mark, "s %ip %iv %is s",
-                                a_in, 
-                                &NS_GET_IID(nsITestXPCFoo2), b_in.get(), 
-                                c_in.get(),
-                                static_cast<const nsAString*>(&d_in), 
-                                e_in);
-    
-        if(!argv)
+
+        // Prepare an array of arguments for JS_ConvertArguments
+        jsval argv[5];
+        js::AutoArrayRooter tvr(jscontext, JS_ARRAY_LENGTH(argv), argv);
+
+        if (!PushArguments(jscontext, 5, argv,
+                           "s %ip %iv %is s",
+                           a_in,
+                           &NS_GET_IID(nsITestXPCFoo2), b_in.get(),
+                           c_in.get(),
+                           static_cast<const nsAString*>(&d_in),
+                           e_in))
         {
             printf(" could not convert from native to JS -- FAILED!\n");
             return;
         }
-    
-        ok = JS_ConvertArguments(jscontext, 5, argv, "s %ip %iv %is s",
+
+        JSString *a_out, *e_out;
+        ok = JS_ConvertArguments(jscontext, 5, argv, "S %ip %iv %is S",
                                 &a_out, 
                                 static_cast<nsISupports**>(getter_AddRefs(b_out)), 
                                 static_cast<nsIVariant**>(getter_AddRefs(c_out)),
@@ -516,18 +597,16 @@ TestArgFormatter(JSContext* jscontext, JSObject* glob, nsIXPConnect* xpc)
         TAF_CHECK(c_out, " JS to native for %%iv returned NULL -- FAILED!\n");
         TAF_CHECK(NS_SUCCEEDED(c_out->GetAsInt32(&val)) && val == 5, " JS to native for %%iv holds wrong value -- FAILED!\n");
         TAF_CHECK(d_in.Equals(d_out), " JS to native for %%is returned the wrong value -- FAILED!\n");
+        TAF_CHECK(JS_StringEqualsAscii(jscontext, a_out, a_in, &a_match), " oom -- FAILED!\n");
+        TAF_CHECK(JS_StringEqualsAscii(jscontext, e_out, e_in, &e_match), " oom -- FAILED!\n");
     } while (0);
     if (!ok)
-        goto out;
+        return;
 
-    if(!strcmp(a_in, a_out) && !strcmp(e_in, e_out))
+    if(a_match && e_match)
         printf("passed\n");
     else
         printf(" conversion OK, but surrounding was mangled -- FAILED!\n");
-
-out:
-    JSAutoRequest ar(jscontext);
-    JS_PopArguments(jscontext, mark);
 }
 
 /***************************************************************************/
@@ -607,8 +686,7 @@ static void ShowXPCException()
             rv = e->ToString(&str);
             if(NS_SUCCEEDED(rv) && str)
             {
-                printf(str);
-                printf("\n");
+                printf("%s\n", str);
                 nsMemory::Free(str);
 
                 nsresult res;
@@ -708,10 +786,6 @@ int main()
     {
         nsCOMPtr<nsIServiceManager> servMan;
         NS_InitXPCOM2(getter_AddRefs(servMan), nsnull, nsnull);
-        nsCOMPtr<nsIComponentRegistrar> registrar = do_QueryInterface(servMan);
-        NS_ASSERTION(registrar, "Null nsIComponentRegistrar");
-        if(registrar)
-            registrar->AutoRegister(nsnull);
     
         // get the JSRuntime from the runtime svc, if possible
         nsCOMPtr<nsIJSRuntimeService> rtsvc =
@@ -743,9 +817,14 @@ int main()
 
         {
             JSAutoRequest ar(jscontext);
-            glob = JS_NewObject(jscontext, &global_class, NULL, NULL);
+            glob = JS_NewCompartmentAndGlobalObject(jscontext, &global_class, NULL);
             if (!glob)
                 DIE("FAILED to create global object");
+
+            JSAutoEnterCompartment ac;
+            if (!ac.enter(jscontext, glob))
+                DIE("FAILED to enter compartment");
+
             if (!JS_InitStandardClasses(jscontext, glob))
                 DIE("FAILED to init standard classes");
             if (!JS_DefineFunctions(jscontext, glob, glob_functions))

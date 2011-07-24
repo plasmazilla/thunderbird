@@ -13,7 +13,7 @@
  *
  * The Original Code is Geolocation.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation
+ * The Initial Developer of the Original Code is Mozilla Foundation
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -49,18 +49,4 @@ interface nsIDOMGeoPositionAddress : nsISupports
   readonly attribute DOMString country;
   readonly attribute DOMString countryCode;
   readonly attribute DOMString postalCode;
-};
-
-[scriptable, uuid(98808DEB-C8E4-422C-BA97-08BF2031464C)]
-interface nsIDOMGeoPositionAddress_MOZILLA_1_9_2_BRANCH : nsISupports
-{
-  readonly attribute string streetNumber;
-  readonly attribute string street;
-  readonly attribute string premises;
-  readonly attribute string city;
-  readonly attribute string county;
-  readonly attribute string region;
-  readonly attribute string country;
-  readonly attribute string countryCode;
-  readonly attribute string postalCode;
 };

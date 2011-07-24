@@ -179,35 +179,33 @@ XPCThrower::Verbosify(XPCCallContext& ccx,
     if(ccx.HasInterfaceAndMember())
     {
         XPCNativeInterface* iface = ccx.GetInterface();
+        jsid id = JSID_VOID;
 #ifdef XPC_IDISPATCH_SUPPORT
         NS_ASSERTION(ccx.GetIDispatchMember() == nsnull || 
                         ccx.GetMember() == nsnull,
                      "Both IDispatch member and regular XPCOM member "
                      "were set in XPCCallContext");
-        char const * name;
         if(ccx.GetIDispatchMember())
         {
             XPCDispInterface::Member * member = 
                 reinterpret_cast<XPCDispInterface::Member*>(ccx.GetIDispatchMember());
-            if(member && JSVAL_IS_STRING(member->GetName()))
+            if(member && JSID_IS_STRING(member->GetName()))
             {
-                name = JS_GetStringBytes(JSVAL_TO_STRING(member->GetName()));
+                id = member->GetName();
             }
-            else
-                name = "Unknown";
         }
         else
-            name = iface->GetMemberName(ccx, ccx.GetMember());
-        sz = JS_smprintf("%s [%s.%s]",
-                         *psz,
-                         iface->GetNameString(),
-                         name);
-#else
-        sz = JS_smprintf("%s [%s.%s]",
-                         *psz,
-                         iface->GetNameString(),
-                         iface->GetMemberName(ccx, ccx.GetMember()));
 #endif
+        {
+            id = ccx.GetMember()->GetName();
+        }
+        JSAutoByteString bytes;
+        const char *name = JSID_IS_VOID(id) ? "Unknown" : bytes.encode(ccx, JSID_TO_STRING(id));
+        if(!name)
+        {
+            name = "";
+        }
+        sz = JS_smprintf("%s [%s.%s]", *psz, iface->GetNameString(), name);
     }
 
     if(sz)
@@ -312,6 +310,8 @@ XPCThrower::ThrowExceptionObject(JSContext* cx, nsIException* e)
            (xpcEx = do_QueryInterface(e)) &&
            NS_SUCCEEDED(xpcEx->StealJSVal(&thrown)))
         {
+            if (!JS_WrapValue(cx, &thrown))
+                return JS_FALSE;
             JS_SetPendingException(cx, thrown);
             success = JS_TRUE;
         }
@@ -352,7 +352,6 @@ XPCThrower::ThrowCOMError(JSContext* cx, unsigned long COMErrorCode,
     if(!nsXPCException::NameAndFormatForNSResult(rv, nsnull, &format))
         format = "";
     msg = format;
-#ifndef WINCE
     if(exception)
     {
         msg += static_cast<const char *>
@@ -393,13 +392,6 @@ XPCThrower::ThrowCOMError(JSContext* cx, unsigned long COMErrorCode,
             msg.AppendInt(static_cast<PRUint32>(COMErrorCode), 16);
         }
     }
-
-#else
-    // No error object, so just report the result
-    msg += "COM Error Result = ";
-    msg.AppendInt(static_cast<PRUint32>(COMErrorCode), 16);
-#endif
-
     XPCThrower::BuildAndThrowException(cx, rv, msg.get());
 }
 

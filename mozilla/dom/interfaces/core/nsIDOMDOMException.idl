@@ -49,8 +49,6 @@
  *
  * For more information on this interface please see
  * http://www.w3.org/TR/DOM-Level-3-Core/
- *
- * @status FROZEN
  */
 
 [scriptable, uuid(a6cf910a-15b3-11d2-932e-00805f8add32)]
@@ -80,6 +78,7 @@ interface nsIDOMDOMException : nsISupports
   const unsigned short      VALIDATION_ERR                 = 16;
   // Introduced in DOM Level 3:
   const unsigned short      TYPE_MISMATCH_ERR              = 17;
+  const unsigned short      DATA_CLONE_ERR                 = 25;
 
   readonly attribute unsigned long   code;
 };

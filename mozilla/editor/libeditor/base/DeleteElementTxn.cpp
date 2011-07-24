@@ -72,6 +72,8 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(DeleteElementTxn, EditTxn)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mRefNode)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
+NS_IMPL_ADDREF_INHERITED(DeleteElementTxn, EditTxn)
+NS_IMPL_RELEASE_INHERITED(DeleteElementTxn, EditTxn)
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(DeleteElementTxn)
 NS_INTERFACE_MAP_END_INHERITING(EditTxn)
 
@@ -79,7 +81,7 @@ NS_IMETHODIMP DeleteElementTxn::Init(nsIEditor *aEditor,
                                      nsIDOMNode *aElement,
                                      nsRangeUpdater *aRangeUpdater)
 {
-  if (!aEditor || !aElement) return NS_ERROR_NULL_POINTER;
+  NS_ENSURE_TRUE(aEditor && aElement, NS_ERROR_NULL_POINTER);
   mEditor = aEditor;
   mElement = do_QueryInterface(aElement);
   nsresult result = mElement->GetParentNode(getter_AddRefs(mParent));
@@ -98,10 +100,15 @@ NS_IMETHODIMP DeleteElementTxn::Init(nsIEditor *aEditor,
 NS_IMETHODIMP DeleteElementTxn::DoTransaction(void)
 {
 #ifdef NS_DEBUG
-  if (gNoisy) { printf("%p Do Delete Element element = %p\n", this, mElement.get()); }
+  if (gNoisy)
+  {
+    printf("%p Do Delete Element element = %p\n",
+           static_cast<void*>(this),
+           static_cast<void*>(mElement.get()));
+  }
 #endif
 
-  if (!mElement) return NS_ERROR_NOT_INITIALIZED;
+  NS_ENSURE_TRUE(mElement, NS_ERROR_NOT_INITIALIZED);
 
   if (!mParent) { return NS_OK; }  // this is a no-op, there's no parent to delete mElement from
 
@@ -144,7 +151,13 @@ NS_IMETHODIMP DeleteElementTxn::DoTransaction(void)
 NS_IMETHODIMP DeleteElementTxn::UndoTransaction(void)
 {
 #ifdef NS_DEBUG
-  if (gNoisy) { printf("%p Undo Delete Element element = %p, parent = %p\n", this, mElement.get(), mParent.get()); }
+  if (gNoisy)
+  {
+    printf("%p Undo Delete Element element = %p, parent = %p\n",
+           static_cast<void*>(this),
+           static_cast<void*>(mElement.get()),
+           static_cast<void*>(mParent.get()));
+  }
 #endif
 
   if (!mParent) { return NS_OK; } // this is a legal state, the txn is a no-op
@@ -181,7 +194,13 @@ NS_IMETHODIMP DeleteElementTxn::UndoTransaction(void)
 NS_IMETHODIMP DeleteElementTxn::RedoTransaction(void)
 {
 #ifdef NS_DEBUG
-  if (gNoisy) { printf("%p Redo Delete Element element = %p, parent = %p\n", this, mElement.get(), mParent.get()); }
+  if (gNoisy)
+  {
+    printf("%p Redo Delete Element element = %p, parent = %p\n",
+           static_cast<void*>(this),
+           static_cast<void*>(mElement.get()),
+           static_cast<void*>(mParent.get()));
+  }
 #endif
 
   if (!mParent) { return NS_OK; } // this is a legal state, the txn is a no-op

@@ -60,17 +60,75 @@ bdo[dir] {
  * formatting obtained by explicitly adding a dir attribute (assigned the
  * inherited value) to the transformed element." */
 
-address, blockquote, body, caption, center, col, colgroup, dd, dir, div, dl, dt,
-fieldset, form, h1, h2, h3, h4, h5, h6, hr, html, isindex, li, listing, map, 
-marquee, menu, noframes, ol, p, plaintext, pre, table, tbody, td, tfoot, th, 
-thead, tr, ul, xmp {
+address,
+article,
+aside,
+blockquote,
+body,
+caption,
+center,
+col,
+colgroup,
+dd,
+dir,
+div,
+dl,
+dt,
+fieldset,
+footer,
+form,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+header,
+hgroup,
+hr,
+html,
+isindex,
+li,
+listing,
+map,
+marquee,
+menu,
+nav,
+noframes,
+ol,
+p,
+plaintext,
+pre,
+section,
+table,
+tbody,
+td,
+tfoot,
+th,
+thead,
+tr,
+ul,
+xmp {
   unicode-bidi: embed;
 }
 
 
 /* blocks */
 
-html, div, map, dt, isindex, form {
+article,
+aside,
+div,
+dt,
+figcaption,
+footer,
+form,
+header,
+hgroup,
+html,
+isindex,
+map,
+nav,
+section {
   display: block;
 }
 
@@ -89,7 +147,7 @@ dd {
   -moz-margin-start: 40px;
 }
 
-blockquote {
+blockquote, figure {
   display: block;
   margin: 1em 40px;
 }
@@ -128,34 +186,55 @@ h1 {
   margin: .67em 0;
 }
 
-h2 {
+h2,
+:-moz-any(article, aside, nav, section)
+h1 {
   display: block;
   font-size: 1.5em;
   font-weight: bold;
   margin: .83em 0;
 }
 
-h3 {
+h3,
+:-moz-any(article, aside, nav, section)
+:-moz-any(article, aside, nav, section)
+h1 {
   display: block;
   font-size: 1.17em;
   font-weight: bold;
   margin: 1em 0;
 }
 
-h4 {
+h4,
+:-moz-any(article, aside, nav, section)
+:-moz-any(article, aside, nav, section)
+:-moz-any(article, aside, nav, section)
+h1 {
   display: block;
+  font-size: 1.00em;
   font-weight: bold;
   margin: 1.33em 0;
 }
 
-h5 {
+h5,
+:-moz-any(article, aside, nav, section)
+:-moz-any(article, aside, nav, section)
+:-moz-any(article, aside, nav, section)
+:-moz-any(article, aside, nav, section)
+h1 {
   display: block;
   font-size: 0.83em;
   font-weight: bold;
   margin: 1.67em 0;
 }
 
-h6 {
+h6,
+:-moz-any(article, aside, nav, section)
+:-moz-any(article, aside, nav, section)
+:-moz-any(article, aside, nav, section)
+:-moz-any(article, aside, nav, section)
+:-moz-any(article, aside, nav, section)
+h1 {
   display: block;
   font-size: 0.67em;
   font-weight: bold;
@@ -199,10 +278,138 @@ table[align="right"] {
   text-align: start;
 }
 
-table[rules]:not([rules="none"]) {
+
+/* border collapse rules */
+
+  /* Set hidden if we have 'frame' or 'rules' attribute.
+     Set it on all sides when we do so there's more consistency
+     in what authors should expect */
+
+  /* Put this first so 'border' and 'frame' rules can override it. */
+table[rules] { 
+  border-width: thin;
+  border-style: hidden;
+}
+
+  /* 'border' before 'frame' so 'frame' overrides
+      A border with a given value should, of course, pass that value
+      as the border-width in pixels -> attr mapping */
+
+  /* :-moz-table-border-nonzero is like [border]:not([border="0"]) except it
+     also checks for other zero-like values according to HTML attribute
+     parsing rules */
+table:-moz-table-border-nonzero { 
+  border-width: thin;
+  border-style: outset;
+}
+
+table[frame] {
+  border: thin hidden;
+}
+
+/* specificity must beat table:-moz-table-border-nonzero rule above */
+table[frame="void"]   { border-style: hidden; }
+table[frame="above"]  { border-style: outset hidden hidden hidden; }
+table[frame="below"]  { border-style: hidden hidden outset hidden; }
+table[frame="lhs"]    { border-style: hidden hidden hidden outset; }
+table[frame="rhs"]    { border-style: hidden outset hidden hidden; }
+table[frame="hsides"] { border-style: outset hidden; }
+table[frame="vsides"] { border-style: hidden outset; }
+table[frame="box"],
+table[frame="border"] { border-style: outset; }
+
+ 
+/* Internal Table Borders */
+
+  /* 'border' cell borders first */
+
+table:-moz-table-border-nonzero > * > tr > td,
+table:-moz-table-border-nonzero > * > tr > th,
+table:-moz-table-border-nonzero > * > td,
+table:-moz-table-border-nonzero > * > th,
+table:-moz-table-border-nonzero > td,
+table:-moz-table-border-nonzero > th
+{
+  border-width: thin;
+  border-style: inset;
+}
+
+/* collapse only if rules are really specified */
+table[rules]:not([rules="none"]):not([rules=""]) {
   border-collapse: collapse;
 }
-   
+
+/* only specified rules override 'border' settings  
+  (increased specificity to achieve this) */
+table[rules]:not([rules=""])> tr > td,
+table[rules]:not([rules=""])> * > tr > td,
+table[rules]:not([rules=""])> tr > th,
+table[rules]:not([rules=""])> * > tr > th,
+table[rules]:not([rules=""])> td,
+table[rules]:not([rules=""])> th
+{
+  border-width: thin;
+  border-style: none;
+}
+
+
+table[rules][rules="none"]  > tr > td,
+table[rules][rules="none"] > * > tr > td,
+table[rules][rules="none"] > tr > th,
+table[rules][rules="none"] > * > tr > th,
+table[rules][rules="none"] > td,
+table[rules][rules="none"] > th
+{
+  border-width: thin;
+  border-style: hidden;
+}
+
+table[rules][rules="all"] > tr > td,
+table[rules][rules="all"] > * > tr > td,
+table[rules][rules="all"] > tr > th,
+table[rules][rules="all"] > * > tr > th,
+table[rules][rules="all"] > td,
+table[rules][rules="all"] > th 
+{
+  border-width: thin;
+  border-style: solid;
+}
+
+table[rules][rules="rows"] > tr,
+table[rules][rules="rows"] > * > tr {
+  border-top-width: thin;
+  border-bottom-width: thin;
+  border-top-style: solid;
+  border-bottom-style: solid;
+}
+
+
+table[rules][rules="cols"] > tr > td,
+table[rules][rules="cols"] > * > tr > td,
+table[rules][rules="cols"] > tr > th,
+table[rules][rules="cols"] > * > tr > th {
+  border-left-width: thin;
+  border-right-width: thin;
+  border-left-style: solid;
+  border-right-style: solid;
+}
+
+table[rules][rules="groups"] > colgroup {
+  border-left-width: thin;
+  border-right-width: thin;
+  border-left-style: solid;
+  border-right-style: solid;
+}
+table[rules][rules="groups"] > tfoot,
+table[rules][rules="groups"] > thead,
+table[rules][rules="groups"] > tbody {
+  border-top-width: thin;
+  border-bottom-width: thin;
+  border-top-style: solid;
+  border-bottom-style: solid;
+}
+  
+  
 /* caption inherits from table not table-outer */  
 caption {
   display: table-caption;
@@ -277,6 +484,20 @@ table > form:-moz-is-html {
   display: none !important;
 }
 
+table[bordercolor] > tbody,
+table[bordercolor] > thead,
+table[bordercolor] > tfoot,
+table[bordercolor] > col,
+table[bordercolor] > colgroup,
+table[bordercolor] > tr,
+table[bordercolor] > * > tr,
+table[bordercolor]  > tr > td,
+table[bordercolor] > * > tr > td,
+table[bordercolor]  > tr > th,
+table[bordercolor] > * > tr > th {
+  border-color: inherit;
+}
+
 /* inlines */
 
 q:before {
@@ -335,6 +556,11 @@ nobr {
   white-space: nowrap;
 }
 
+mark {
+  background: yellow;
+  color: black;
+}
+
 /* titles */
 abbr[title], acronym[title] {
   border-bottom: dotted 1px;
@@ -361,35 +587,26 @@ li {
 }
 
 /* nested lists have no top/bottom margins */
-ul ul,   ul ol,   ul dir,   ul menu,   ul dl,
-ol ul,   ol ol,   ol dir,   ol menu,   ol dl,
-dir ul,  dir ol,  dir dir,  dir menu,  dir dl,
-menu ul, menu ol, menu dir, menu menu, menu dl,
-dl ul,   dl ol,   dl dir,   dl menu,   dl dl {
+:-moz-any(ul, ol, dir, menu, dl) ul,
+:-moz-any(ul, ol, dir, menu, dl) ol,
+:-moz-any(ul, ol, dir, menu, dl) dir,
+:-moz-any(ul, ol, dir, menu, dl) menu,
+:-moz-any(ul, ol, dir, menu, dl) dl {
   margin-top: 0;
   margin-bottom: 0;
 }
 
 /* 2 deep unordered lists use a circle */
-ol ul,   ul ul,   menu ul,   dir ul,
-ol menu, ul menu, menu menu, dir menu,
-ol dir,  ul dir,  menu dir,  dir dir {
+:-moz-any(ol, ul, menu, dir) ul,
+:-moz-any(ol, ul, menu, dir) menu,
+:-moz-any(ol, ul, menu, dir) dir {
   list-style-type: circle;
 }
 
 /* 3 deep (or more) unordered lists use a square */
-ol ol ul,     ol ul ul,     ol menu ul,     ol dir ul,
-ol ol menu,   ol ul menu,   ol menu menu,   ol dir menu,
-ol ol dir,    ol ul dir,    ol menu dir,    ol dir dir,
-ul ol ul,     ul ul ul,     ul menu ul,     ul dir ul,
-ul ol menu,   ul ul menu,   ul menu menu,   ul dir menu,
-ul ol dir,    ul ul dir,    ul menu dir,    ul dir dir,
-menu ol ul,   menu ul ul,   menu menu ul,   menu dir ul,
-menu ol menu, menu ul menu, menu menu menu, menu dir menu,
-menu ol dir,  menu ul dir,  menu menu dir,  menu dir dir,
-dir ol ul,    dir ul ul,    dir menu ul,    dir dir ul,
-dir ol menu,  dir ul menu,  dir menu menu,  dir dir menu,
-dir ol dir,   dir ul dir,   dir menu dir,   dir dir dir {
+:-moz-any(ol, ul, menu, dir) :-moz-any(ol, ul, menu, dir) ul,
+:-moz-any(ol, ul, menu, dir) :-moz-any(ol, ul, menu, dir) menu,
+:-moz-any(ol, ul, menu, dir) :-moz-any(ol, ul, menu, dir) dir {
   list-style-type: square;
 }
 
@@ -413,10 +630,6 @@ hr[size="1"] {
   border-style: solid none none none;
 }
 
-*|*:-moz-any-link img, img[usemap], object[usemap] {
-  border: 2px solid;
-}
-
 img:-moz-broken::before, input:-moz-broken::before,
 img:-moz-user-disabled::before, input:-moz-user-disabled::before,
 img:-moz-loading::before, input:-moz-loading::before,
@@ -426,8 +639,7 @@ applet:-moz-empty-except-children-with-localname(param):-moz-user-disabled::befo
   unicode-bidi: embed;
 }
 
-object:-moz-broken > *|*, applet:-moz-broken > *|*
-object:-moz-user-disabled > *|*, applet:-moz-user-disabled > *|* {
+:-moz-any(object,applet):-moz-any(:-moz-broken,:-moz-user-disabled) > *|* {
   /*
     Inherit in the object's alignment so that if we aren't aligned explicitly
     we'll end up in the right place vertically.  See bug 36997.  Note that this
@@ -483,25 +695,45 @@ canvas {
 }
 
 /* focusable content: anything w/ tabindex >=0 is focusable */
-abbr:focus, acronym:focus, address:focus, b:focus,
-base:focus, big:focus, blockquote:focus, br:focus, canvas:focus, caption:focus,
-center:focus, cite:focus, code:focus, col:focus, colgroup:focus, dd:focus,
-del:focus, dfn:focus, dir:focus, div:focus, dl:focus, dt:focus, em:focus,
-fieldset:focus, font:focus, form:focus, h1:focus, h2:focus, h3:focus, h4:focus,
-h5:focus, h6:focus, hr:focus, i:focus, img:focus, ins:focus, 
-kbd:focus, label:focus, legend:focus, li:focus, link:focus, menu:focus, 
-ol:focus, p:focus, pre:focus, q:focus, s:focus, samp:focus, 
-small:focus, span:focus, strike:focus, strong:focus, sub:focus, sup:focus, 
-table:focus, tbody:focus, td:focus, tfoot:focus, th:focus, thead:focus, 
-tr:focus, tt:focus, u:focus, ul:focus, var:focus {
+abbr:-moz-focusring, acronym:-moz-focusring, address:-moz-focusring,
+applet:-moz-focusring,
+b:-moz-focusring, base:-moz-focusring, big:-moz-focusring,
+blockquote:-moz-focusring, br:-moz-focusring, canvas:-moz-focusring,
+caption:-moz-focusring, center:-moz-focusring, cite:-moz-focusring,
+code:-moz-focusring, col:-moz-focusring, colgroup:-moz-focusring,
+dd:-moz-focusring, del:-moz-focusring, dfn:-moz-focusring, dir:-moz-focusring,
+div:-moz-focusring, dl:-moz-focusring, dt:-moz-focusring, em:-moz-focusring,
+embed:-moz-focusring,
+fieldset:-moz-focusring, font:-moz-focusring, form:-moz-focusring,
+h1:-moz-focusring, h2:-moz-focusring, h3:-moz-focusring, h4:-moz-focusring,
+h5:-moz-focusring, h6:-moz-focusring, hr:-moz-focusring, i:-moz-focusring,
+img:-moz-focusring, ins:-moz-focusring, kbd:-moz-focusring,
+label:-moz-focusring, legend:-moz-focusring, li:-moz-focusring,
+link:-moz-focusring,
+menu:-moz-focusring,
+object:-moz-focusring,
+ol:-moz-focusring,
+p:-moz-focusring,
+pre:-moz-focusring, q:-moz-focusring, s:-moz-focusring, samp:-moz-focusring,
+small:-moz-focusring, span:-moz-focusring, strike:-moz-focusring,
+strong:-moz-focusring, sub:-moz-focusring, sup:-moz-focusring,
+table:-moz-focusring, tbody:-moz-focusring, td:-moz-focusring,
+tfoot:-moz-focusring, th:-moz-focusring, thead:-moz-focusring, 
+tr:-moz-focusring, tt:-moz-focusring, u:-moz-focusring,
+ul:-moz-focusring, var:-moz-focusring {
   /* Don't specify the outline-color, we should always use initial value. */
    outline: 1px dotted;
 }
 
 /* hidden elements */
-area, base, basefont, head, meta, script, style, title,
+base, basefont, datalist, head, meta, script, style, title,
 noembed, param {
    display: none;
+}
+
+area {
+  /* Don't give it frames other than its imageframe */
+  display: none ! important;
 }
 
 /* media elements */

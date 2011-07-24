@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 #include "nsIDOMHTMLButtonElement.h"
-#include "nsIDOMNSHTMLButtonElement.h"
 #include "nsIDOMHTMLFormElement.h"
 #include "nsIDOMEventTarget.h"
 #include "nsGenericHTMLElement.h"
@@ -45,9 +44,10 @@
 #include "nsPresContext.h"
 #include "nsIFormControl.h"
 #include "nsIForm.h"
-#include "nsIFormSubmission.h"
+#include "nsFormSubmission.h"
+#include "nsFormSubmissionConstants.h"
 #include "nsIURL.h"
-
+#include "nsEventStateManager.h"
 #include "nsIFrame.h"
 #include "nsIFormControlFrame.h"
 #include "nsIEventStateManager.h"
@@ -61,16 +61,31 @@
 #include "nsPresState.h"
 #include "nsLayoutErrors.h"
 #include "nsFocusManager.h"
+#include "nsHTMLFormElement.h"
+#include "nsIConstraintValidation.h"
+#include "mozAutoDocUpdate.h"
 
 #define NS_IN_SUBMIT_CLICK      (1 << 0)
 #define NS_OUTER_ACTIVATE_EVENT (1 << 1)
 
+static const nsAttrValue::EnumTable kButtonTypeTable[] = {
+  { "button", NS_FORM_BUTTON_BUTTON },
+  { "reset", NS_FORM_BUTTON_RESET },
+  { "submit", NS_FORM_BUTTON_SUBMIT },
+  { 0 }
+};
+
+// Default type is 'submit'.
+static const nsAttrValue::EnumTable* kButtonDefaultType = &kButtonTypeTable[2];
+
 class nsHTMLButtonElement : public nsGenericHTMLFormElement,
                             public nsIDOMHTMLButtonElement,
-                            public nsIDOMNSHTMLButtonElement
+                            public nsIConstraintValidation
 {
 public:
-  nsHTMLButtonElement(nsINodeInfo *aNodeInfo);
+  using nsIConstraintValidation::GetValidationMessage;
+
+  nsHTMLButtonElement(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsHTMLButtonElement();
 
   // nsISupports
@@ -88,30 +103,28 @@ public:
   // nsIDOMHTMLButtonElement
   NS_DECL_NSIDOMHTMLBUTTONELEMENT
 
-  // nsIDOMNSHTMLButtonElement
-  // Can't just use the macro, since it shares GetType with
-  // nsIDOMHTMLButtonElement
-  NS_IMETHOD Blur();
-  NS_IMETHOD Focus();
-  NS_IMETHOD Click();
-  NS_IMETHOD SetType(const nsAString& aType);
-
   // overriden nsIFormControl methods
-  NS_IMETHOD_(PRInt32) GetType() const { return mType; }
+  NS_IMETHOD_(PRUint32) GetType() const { return mType; }
   NS_IMETHOD Reset();
-  NS_IMETHOD SubmitNamesValues(nsIFormSubmission* aFormSubmission,
-                               nsIContent* aSubmitElement);
+  NS_IMETHOD SubmitNamesValues(nsFormSubmission* aFormSubmission);
   NS_IMETHOD SaveState();
   PRBool RestoreState(nsPresState* aState);
+
+  nsEventStates IntrinsicState() const;
 
   /**
    * Called when an attribute is about to be changed
    */
   virtual nsresult BeforeSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
                                  const nsAString* aValue, PRBool aNotify);
+  /**
+   * Called when an attribute has just been changed
+   */
+  nsresult AfterSetAttr(PRInt32 aNamespaceID, nsIAtom* aName,
+                        const nsAString* aValue, PRBool aNotify);
   
   // nsIContent overrides...
-  virtual PRBool IsHTMLFocusable(PRBool *aIsFocusable, PRInt32 *aTabIndex);
+  virtual PRBool IsHTMLFocusable(PRBool aWithMouse, PRBool *aIsFocusable, PRInt32 *aTabIndex);
   virtual PRBool ParseAttribute(PRInt32 aNamespaceID,
                                 nsIAtom* aAttribute,
                                 const nsAString& aValue,
@@ -121,10 +134,10 @@ public:
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
   virtual void DoneCreatingElement();
+  virtual nsXPCClassInfo* GetClassInfo();
 
 protected:
-  PRInt8 mType;
-  PRPackedBool mHandlingClick;
+  PRUint8 mType;
   PRPackedBool mDisabledChanged;
   PRPackedBool mInInternalActivate;
 
@@ -141,13 +154,14 @@ private:
 NS_IMPL_NS_NEW_HTML_ELEMENT(Button)
 
 
-nsHTMLButtonElement::nsHTMLButtonElement(nsINodeInfo *aNodeInfo)
+nsHTMLButtonElement::nsHTMLButtonElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsGenericHTMLFormElement(aNodeInfo),
-    mType(NS_FORM_BUTTON_SUBMIT),  // default
-    mHandlingClick(PR_FALSE),
+    mType(kButtonDefaultType->value),
     mDisabledChanged(PR_FALSE),
     mInInternalActivate(PR_FALSE)
 {
+  // <button> is always barred from constraint validation.
+  SetBarredFromConstraintValidation(PR_TRUE);
 }
 
 nsHTMLButtonElement::~nsHTMLButtonElement()
@@ -160,14 +174,19 @@ NS_IMPL_ADDREF_INHERITED(nsHTMLButtonElement, nsGenericElement)
 NS_IMPL_RELEASE_INHERITED(nsHTMLButtonElement, nsGenericElement)
 
 
+DOMCI_NODE_DATA(HTMLButtonElement, nsHTMLButtonElement)
+
 // QueryInterface implementation for nsHTMLButtonElement
 NS_INTERFACE_TABLE_HEAD(nsHTMLButtonElement)
   NS_HTML_CONTENT_INTERFACE_TABLE2(nsHTMLButtonElement,
                                    nsIDOMHTMLButtonElement,
-                                   nsIDOMNSHTMLButtonElement)
+                                   nsIConstraintValidation)
   NS_HTML_CONTENT_INTERFACE_TABLE_TO_MAP_SEGUE(nsHTMLButtonElement,
                                                nsGenericHTMLFormElement)
 NS_HTML_CONTENT_INTERFACE_TABLE_TAIL_CLASSINFO(HTMLButtonElement)
+
+// nsIConstraintValidation
+NS_IMPL_NSICONSTRAINTVALIDATION(nsHTMLButtonElement)
 
 // nsIDOMHTMLButtonElement
 
@@ -183,80 +202,36 @@ nsHTMLButtonElement::GetForm(nsIDOMHTMLFormElement** aForm)
   return nsGenericHTMLFormElement::GetForm(aForm);
 }
 
-NS_IMPL_STRING_ATTR(nsHTMLButtonElement, AccessKey, accesskey)
+NS_IMPL_BOOL_ATTR(nsHTMLButtonElement, Autofocus, autofocus)
 NS_IMPL_BOOL_ATTR(nsHTMLButtonElement, Disabled, disabled)
+NS_IMPL_ACTION_ATTR(nsHTMLButtonElement, FormAction, formaction)
+NS_IMPL_ENUM_ATTR_DEFAULT_VALUE(nsHTMLButtonElement, FormEnctype, formenctype,
+                                kFormDefaultEnctype->tag)
+NS_IMPL_ENUM_ATTR_DEFAULT_VALUE(nsHTMLButtonElement, FormMethod, formmethod,
+                                kFormDefaultMethod->tag)
+NS_IMPL_BOOL_ATTR(nsHTMLButtonElement, FormNoValidate, formnovalidate)
+NS_IMPL_STRING_ATTR(nsHTMLButtonElement, FormTarget, formtarget)
 NS_IMPL_STRING_ATTR(nsHTMLButtonElement, Name, name)
-NS_IMPL_INT_ATTR_DEFAULT_VALUE(nsHTMLButtonElement, TabIndex, tabindex, 0)
+NS_IMPL_INT_ATTR(nsHTMLButtonElement, TabIndex, tabindex)
 NS_IMPL_STRING_ATTR(nsHTMLButtonElement, Value, value)
-NS_IMPL_STRING_ATTR_DEFAULT_VALUE(nsHTMLButtonElement, Type, type, "submit")
-
-NS_IMETHODIMP
-nsHTMLButtonElement::Blur()
-{
-  return nsGenericHTMLElement::Blur();
-}
-
-NS_IMETHODIMP
-nsHTMLButtonElement::Focus()
-{
-  return nsGenericHTMLElement::Focus();
-}
-
-NS_IMETHODIMP
-nsHTMLButtonElement::Click()
-{
-  if (mHandlingClick)
-    return NS_OK;
-
-  mHandlingClick = PR_TRUE;
-  // Hold on to the document in case one of the events makes it die or
-  // something...
-  nsCOMPtr<nsIDocument> doc = GetCurrentDoc();
-
-  if (doc) {
-    nsIPresShell *shell = doc->GetPrimaryShell();
-    if (shell) {
-      nsCOMPtr<nsPresContext> context = shell->GetPresContext();
-      if (context) {
-        // Click() is never called from native code, but it may be
-        // called from chrome JS. Mark this event trusted if Click()
-        // is called from chrome code.
-        nsMouseEvent event(nsContentUtils::IsCallerChrome(),
-                           NS_MOUSE_CLICK, nsnull,
-                           nsMouseEvent::eReal);
-        nsEventStatus status = nsEventStatus_eIgnore;
-        nsEventDispatcher::Dispatch(static_cast<nsIContent*>(this), context,
-                                    &event, nsnull, &status);
-      }
-    }
-  }
-
-  mHandlingClick = PR_FALSE;
-
-  return NS_OK;
-}
+NS_IMPL_ENUM_ATTR_DEFAULT_VALUE(nsHTMLButtonElement, Type, type,
+                                kButtonDefaultType->tag)
 
 PRBool
-nsHTMLButtonElement::IsHTMLFocusable(PRBool *aIsFocusable, PRInt32 *aTabIndex)
+nsHTMLButtonElement::IsHTMLFocusable(PRBool aWithMouse, PRBool *aIsFocusable, PRInt32 *aTabIndex)
 {
-  if (nsGenericHTMLElement::IsHTMLFocusable(aIsFocusable, aTabIndex)) {
+  if (nsGenericHTMLFormElement::IsHTMLFocusable(aWithMouse, aIsFocusable, aTabIndex)) {
     return PR_TRUE;
   }
-  if (aTabIndex && (sTabFocusModel & eTabFocus_formElementsMask) == 0) {
-    *aTabIndex = -1;
-  }
 
-  *aIsFocusable = !HasAttr(kNameSpaceID_None, nsGkAtoms::disabled);
+  *aIsFocusable = 
+#ifdef XP_MACOSX
+    (!aWithMouse || nsFocusManager::sMouseFocusesFormControl) &&
+#endif
+    !IsDisabled();
 
   return PR_FALSE;
 }
-
-static const nsAttrValue::EnumTable kButtonTypeTable[] = {
-  { "button", NS_FORM_BUTTON_BUTTON },
-  { "reset", NS_FORM_BUTTON_RESET },
-  { "submit", NS_FORM_BUTTON_SUBMIT },
-  { 0 }
-};
 
 PRBool
 nsHTMLButtonElement::ParseAttribute(PRInt32 aNamespaceID,
@@ -264,14 +239,26 @@ nsHTMLButtonElement::ParseAttribute(PRInt32 aNamespaceID,
                                     const nsAString& aValue,
                                     nsAttrValue& aResult)
 {
-  if (aAttribute == nsGkAtoms::type && kNameSpaceID_None == aNamespaceID) {
-    // XXX ARG!! This is major evilness. ParseAttribute
-    // shouldn't set members. Override SetAttr instead
-    PRBool res = aResult.ParseEnumValue(aValue, kButtonTypeTable);
-    if (res) {
-      mType = aResult.GetEnumValue();
+  if (aNamespaceID == kNameSpaceID_None) {
+    if (aAttribute == nsGkAtoms::type) {
+      // XXX ARG!! This is major evilness. ParseAttribute
+      // shouldn't set members. Override SetAttr instead
+      PRBool success = aResult.ParseEnumValue(aValue, kButtonTypeTable, PR_FALSE);
+      if (success) {
+        mType = aResult.GetEnumValue();
+      } else {
+        mType = kButtonDefaultType->value;
+      }
+
+      return success;
     }
-    return res;
+
+    if (aAttribute == nsGkAtoms::formmethod) {
+      return aResult.ParseEnumValue(aValue, kFormMethodTable, PR_FALSE);
+    }
+    if (aAttribute == nsGkAtoms::formenctype) {
+      return aResult.ParseEnumValue(aValue, kFormEnctypeTable, PR_FALSE);
+    }
   }
 
   return nsGenericHTMLElement::ParseAttribute(aNamespaceID, aAttribute, aValue,
@@ -283,10 +270,8 @@ nsHTMLButtonElement::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
 {
   // Do not process any DOM events if the element is disabled
   aVisitor.mCanHandle = PR_FALSE;
-  PRBool bDisabled;
-  nsresult rv = GetDisabled(&bDisabled);
-  if (NS_FAILED(rv) || bDisabled) {
-    return rv;
+  if (IsDisabled()) {
+    return NS_OK;
   }
 
   nsIFormControlFrame* formControlFrame = GetFormControlFrame(PR_FALSE);
@@ -318,7 +303,7 @@ nsHTMLButtonElement::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
       // tell the form that we are about to enter a click handler.
       // that means that if there are scripted submissions, the
       // latest one will be deferred until after the exit point of the handler.
-      mForm->OnSubmitClickBegin();
+      mForm->OnSubmitClickBegin(this);
     }
   }
 
@@ -377,9 +362,11 @@ nsHTMLButtonElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
             nsMouseEvent event(NS_IS_TRUSTED_EVENT(aVisitor.mEvent),
                                NS_MOUSE_CLICK, nsnull,
                                nsMouseEvent::eReal);
+            event.inputSource = nsIDOMNSMouseEvent::MOZ_SOURCE_KEYBOARD;
             nsEventDispatcher::Dispatch(static_cast<nsIContent*>(this),
                                         aVisitor.mPresContext, &event, nsnull,
                                         &status);
+            aVisitor.mEventStatus = nsEventStatus_eConsumeNoDefault;
           }
         }
         break;// NS_KEY_PRESS
@@ -389,13 +376,17 @@ nsHTMLButtonElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
           if (aVisitor.mEvent->eventStructType == NS_MOUSE_EVENT) {
             if (static_cast<nsMouseEvent*>(aVisitor.mEvent)->button ==
                   nsMouseEvent::eLeftButton) {
-              aVisitor.mPresContext->EventStateManager()->
-                SetContentState(this, NS_EVENT_STATE_ACTIVE);
+              if (NS_IS_TRUSTED_EVENT(aVisitor.mEvent)) {
+                nsIEventStateManager* esm =
+                  aVisitor.mPresContext->EventStateManager();
+                nsEventStateManager::SetActiveManager(
+                  static_cast<nsEventStateManager*>(esm), this);
+              }
               nsIFocusManager* fm = nsFocusManager::GetFocusManager();
               if (fm)
                 fm->SetFocus(this, nsIFocusManager::FLAG_BYMOUSE |
                                    nsIFocusManager::FLAG_NOSCROLL);
-              aVisitor.mEventStatus = nsEventStatus_eConsumeNoDefault;
+              aVisitor.mEvent->flags |= NS_EVENT_FLAG_PREVENT_ANCHOR_ACTIONS;
             } else if (static_cast<nsMouseEvent*>(aVisitor.mEvent)->button ==
                          nsMouseEvent::eMiddleButton ||
                        static_cast<nsMouseEvent*>(aVisitor.mEvent)->button ==
@@ -463,9 +454,18 @@ nsHTMLButtonElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
         //
         // Using presShell to dispatch the event. It makes sure that
         // event is not handled if the window is being destroyed.
-        if (presShell) {
-          nsCOMPtr<nsIContent> form(do_QueryInterface(mForm));
-          presShell->HandleDOMEventWithTarget(form, &event, &status);
+        if (presShell && (event.message != NS_FORM_SUBMIT ||
+                          mForm->HasAttr(kNameSpaceID_None, nsGkAtoms::novalidate) ||
+                          // We know the element is a submit control, if this check is moved,
+                          // make sure formnovalidate is used only if it's a submit control.
+                          HasAttr(kNameSpaceID_None, nsGkAtoms::formnovalidate) ||
+                          mForm->CheckValidFormSubmission())) {
+          // TODO: removing this code and have the submit event sent by the form
+          // see bug 592124.
+          // Hold a strong ref while dispatching
+          nsRefPtr<nsHTMLFormElement> form(mForm);
+          presShell->HandleDOMEventWithTarget(mForm, &event, &status);
+          aVisitor.mEventStatus = nsEventStatus_eConsumeNoDefault;
         }
       }
     }
@@ -501,32 +501,28 @@ nsHTMLButtonElement::Reset()
 }
 
 NS_IMETHODIMP
-nsHTMLButtonElement::SubmitNamesValues(nsIFormSubmission* aFormSubmission,
-                                       nsIContent* aSubmitElement)
+nsHTMLButtonElement::SubmitNamesValues(nsFormSubmission* aFormSubmission)
 {
   nsresult rv = NS_OK;
 
   //
   // We only submit if we were the button pressed
   //
-  if (aSubmitElement != this) {
+  if (aFormSubmission->GetOriginatingElement() != this) {
     return NS_OK;
   }
 
-  //
   // Disabled elements don't submit
-  //
-  PRBool disabled;
-  rv = GetDisabled(&disabled);
-  if (NS_FAILED(rv) || disabled) {
-    return rv;
+  if (IsDisabled()) {
+    return NS_OK;
   }
 
   //
   // Get the name (if no name, no submit)
   //
   nsAutoString name;
-  if (!GetAttr(kNameSpaceID_None, nsGkAtoms::name, name)) {
+  GetAttr(kNameSpaceID_None, nsGkAtoms::name, name);
+  if (name.IsEmpty()) {
     return NS_OK;
   }
 
@@ -542,7 +538,7 @@ nsHTMLButtonElement::SubmitNamesValues(nsIFormSubmission* aFormSubmission,
   //
   // Submit
   //
-  rv = aFormSubmission->AddNameValuePair(this, name, value);
+  rv = aFormSubmission->AddNameValuePair(name, value);
 
   return rv;
 }
@@ -567,6 +563,34 @@ nsHTMLButtonElement::BeforeSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
                                                  aValue, aNotify);
 }
 
+nsresult
+nsHTMLButtonElement::AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
+                                  const nsAString* aValue, PRBool aNotify)
+{
+  nsEventStates states;
+
+  if (aNameSpaceID == kNameSpaceID_None) {
+    if (aName == nsGkAtoms::type) {
+      if (!aValue) {
+        mType = kButtonDefaultType->value;
+      }
+
+      states |= NS_EVENT_STATE_MOZ_SUBMITINVALID;
+    }
+
+    if (aNotify && !states.IsEmpty()) {
+      nsIDocument* doc = GetCurrentDoc();
+      if (doc) {
+        MOZ_AUTO_DOC_UPDATE(doc, UPDATE_CONTENT_STATE, PR_TRUE);
+        doc->ContentStateChanged(this, states);
+      }
+    }
+  }
+
+  return nsGenericHTMLFormElement::AfterSetAttr(aNameSpaceID, aName,
+                                                aValue, aNotify);
+}
+
 NS_IMETHODIMP
 nsHTMLButtonElement::SaveState()
 {
@@ -577,9 +601,9 @@ nsHTMLButtonElement::SaveState()
   nsPresState *state = nsnull;
   nsresult rv = GetPrimaryPresState(this, &state);
   if (state) {
-    PRBool disabled;
-    GetDisabled(&disabled);
-    state->SetDisabled(disabled);
+    // We do not want to save the real disabled state but the disabled
+    // attribute.
+    state->SetDisabled(HasAttr(kNameSpaceID_None, nsGkAtoms::disabled));
   }
 
   return rv;
@@ -594,3 +618,16 @@ nsHTMLButtonElement::RestoreState(nsPresState* aState)
 
   return PR_FALSE;
 }
+
+nsEventStates
+nsHTMLButtonElement::IntrinsicState() const
+{
+  nsEventStates state = nsGenericHTMLFormElement::IntrinsicState();
+
+  if (mForm && !mForm->GetValidity() && IsSubmitControl()) {
+    state |= NS_EVENT_STATE_MOZ_SUBMITINVALID;
+  }
+
+  return state;
+}
+

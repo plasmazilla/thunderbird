@@ -22,6 +22,7 @@
  *   Mike Shaver <shaver@off.net>
  *   Michiel van Leeuwen <mvl@exedo.nl>
  *   Daniel Boelzle <daniel.boelzle@sun.com>
+ *   Philipp Kewisch <mozilla@kewis.ch>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -56,6 +57,7 @@ calIcalProperty::~calIcalProperty()
     }
 }
 
+NS_IMPL_CLASSINFO(calIcalProperty, NULL, 0, CAL_ICALPROPERTY_CID)
 NS_IMPL_ISUPPORTS1(calIcalProperty, calIIcalProperty)
 NS_IMPL_CI_INTERFACE_GETTER1(calIcalProperty, calIIcalProperty)
 
@@ -103,6 +105,13 @@ calIcalProperty::GetValue(nsACString &str)
         icalstr = icalvalue_get_text(value);
     } else if (valuekind == ICAL_X_VALUE) {
         icalstr = icalvalue_get_x(value);
+    } else if (valuekind == ICAL_ATTACH_VALUE) {
+        icalattach *attach = icalvalue_get_attach(value);
+        if (icalattach_get_is_url(attach)) {
+            icalstr = icalattach_get_url(attach);
+        } else {
+            icalstr = (const char *)icalattach_get_data(attach);
+        }
     } else {
         icalstr = icalproperty_get_value_as_string(mProperty);
     }
@@ -137,6 +146,10 @@ calIcalProperty::SetValue(const nsACString &str)
     } else if (kind == ICAL_X_VALUE) {
         icalvalue *v = icalvalue_new_x(PromiseFlatCString(str).get());
         icalproperty_set_value(mProperty, v);
+    } else if (kind == ICAL_ATTACH_VALUE) {
+        const char *strdata = PromiseFlatCString(str).get();
+        icalattach *v = icalattach_new_from_data(strdata, NULL, NULL);
+        icalproperty_set_attach(mProperty, v);
     } else {
         icalproperty_set_value_from_string(mProperty,
                                            PromiseFlatCString(str).get(),
@@ -815,6 +828,8 @@ calIcalComponent::Get##Attrname(calIDuration **dtp)                     \
     return NS_OK;                                                       \
 }
 
+
+NS_IMPL_CLASSINFO(calIcalComponent, NULL, nsIClassInfo::THREADSAFE, CAL_ICALCOMPONENT_CID)
 NS_IMPL_THREADSAFE_ISUPPORTS2(calIcalComponent, calIIcalComponent, nsIClassInfo)
 NS_IMPL_CI_INTERFACE_GETTER1(calIcalComponent, calIIcalComponent)
 NS_IMPL_THREADSAFE_CI(calIcalComponent)
@@ -1199,6 +1214,7 @@ calIcalComponent::AddProperty(calIIcalProperty * prop)
 //     return NS_OK;
 // }
 
+NS_IMPL_CLASSINFO(calICSService, NULL, nsIClassInfo::THREADSAFE, CAL_ICSSERVICE_CID)
 NS_IMPL_THREADSAFE_ISUPPORTS2(calICSService, calIICSService, nsIClassInfo)
 NS_IMPL_CI_INTERFACE_GETTER1(calICSService, calIICSService)
 NS_IMPL_THREADSAFE_CI(calICSService)

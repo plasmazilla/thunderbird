@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-gTestfile = 'regress-001.js';
 
 /**
  *  File Name:          RegExp/regress-001.js
@@ -54,8 +53,8 @@ var BUGNUMBER = "2157";
 
 startTest();
 
-AddRegExpCases( /a||b/(''),
-		"//a||b/('')",
+AddRegExpCases( /a||b/.exec(''),
+		"/a||b/.exec('')",
 		1,
 		[''] );
 

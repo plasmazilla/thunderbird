@@ -44,9 +44,6 @@ include $(srcdir)/../src/objs.mk
 
 MODULE		= profdirserviceprovider
 LIBRARY_NAME	= profdirserviceprovidersa_s
-REQUIRES	= xpcom \
-		  string \
-		  $(NULL)
 
 CPPSRCS		= $(MODULES_PROFILEDIRSERVICE_SRC_LCSRCS)
 
@@ -58,6 +55,7 @@ include $(topsrcdir)/config/rules.mk
 LOCAL_INCLUDES = -I$(srcdir)/../src
 
 DEFINES += -DXPCOM_GLUE
+STL_FLAGS =
 
 export:: $(MODULES_PROFILEDIRSERVICE_SRC_CSRCS)
 	$(INSTALL) $^ .

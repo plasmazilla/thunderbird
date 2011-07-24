@@ -45,36 +45,42 @@ include $(DEPTH)/config/autoconf.mk
 MODULE		= prefetch
 LIBRARY_NAME	= prefetch_s
 LIBXUL_LIBRARY	= 1
-REQUIRES	= xpcom \
-		  dom \
-		  content \
-		  widget \
-		  layout \
-		  string \
-		  necko \
-		  uriloader \
-		  nkcache \
-		  chardet \
-		  pref \
-		  caps \
-		  $(NULL)
+
+EXPORTS_NAMESPACES = mozilla/docshell
+
+EXPORTS_mozilla/docshell += \
+  OfflineCacheUpdateParent.h \
+  OfflineCacheUpdateChild.h  \
+  $(NULL)
 
 CPPSRCS = \
 		nsPrefetchService.cpp \
 		nsOfflineCacheUpdate.cpp \
+		nsOfflineCacheUpdateService.cpp  \
+		OfflineCacheUpdateGlue.cpp \
+		OfflineCacheUpdateChild.cpp \
+		OfflineCacheUpdateParent.cpp \
 		$(NULL)
 
 XPIDLSRCS =	\
 		nsIPrefetchService.idl \
 		nsIOfflineCacheUpdate.idl \
 		$(NULL)
+
 EXPORTS = \
 		nsCPrefetchService.h \
+		$(NULL)
+
+LOCAL_INCLUDES = \
+		-I$(topsrcdir)/content/base/src \
+		-I$(topsrcdir)/content/events/src \
 		$(NULL)
 
 # we don't want the shared lib, but we want to force the creation of a static lib.
 FORCE_STATIC_LIB = 1
 
+include $(topsrcdir)/config/config.mk
+include $(topsrcdir)/ipc/chromium/chromium-config.mk
 include $(topsrcdir)/config/rules.mk
 
 # vim: ts=4 sw=4 noexpandtab

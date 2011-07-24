@@ -15,7 +15,7 @@
  *
  * The Original Code is Places Unit Test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -42,11 +42,37 @@
  * bookmark on init, we should not try to import.
  */
 
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+
+XPCOMUtils.defineLazyServiceGetter(this, "bs",
+                                   "@mozilla.org/browser/nav-bookmarks-service;1",
+                                   "nsINavBookmarksService");
+XPCOMUtils.defineLazyServiceGetter(this, "anno",
+                                   "@mozilla.org/browser/annotation-service;1",
+                                   "nsIAnnotationService");
+
+let bookmarksObserver = {
+  onBeginUpdateBatch: function() {},
+  onEndUpdateBatch: function() {
+    let itemId = bs.getIdForItemAt(bs.toolbarFolder, 0);
+    do_check_neq(itemId, -1);
+    if (anno.itemHasAnnotation(itemId, "Places/SmartBookmark"))
+      continue_test();
+  },
+  onItemAdded: function() {},
+  onBeforeItemRemoved: function(id) {},
+  onItemRemoved: function(id, folder, index, itemType) {},
+  onItemChanged: function() {},
+  onItemVisited: function(id, visitID, time) {},
+  onItemMoved: function() {},
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsINavBookmarkObserver])
+};
+
 const PREF_SMART_BOOKMARKS_VERSION = "browser.places.smartBookmarksVersion";
 
-const TOPIC_PLACES_INIT_COMPLETE = "places-init-complete";
-
 function run_test() {
+  do_test_pending();
+
   // Create our bookmarks.html copying bookmarks.glue.html to the profile
   // folder.  It will be ignored.
   create_bookmarks_html("bookmarks.glue.html");
@@ -59,11 +85,6 @@ function run_test() {
     do_check_false(db.exists());
   }
 
-  // Disable Smart Bookmarks creation.
-  let ps = Cc["@mozilla.org/preferences-service;1"].
-           getService(Ci.nsIPrefBranch);
-  ps.setIntPref(PREF_SMART_BOOKMARKS_VERSION, -1);
-
   // Initialize Places through the History Service.
   let hs = Cc["@mozilla.org/browser/nav-history-service;1"].
            getService(Ci.nsINavHistoryService);
@@ -73,37 +94,28 @@ function run_test() {
 
   // A migrator would run before nsBrowserGlue, so we mimic that behavior
   // adding a bookmark.
-  bs = Cc["@mozilla.org/browser/nav-bookmarks-service;1"].
-           getService(Ci.nsINavBookmarksService);
   bs.insertBookmark(bs.bookmarksMenuFolder, uri("http://mozilla.org/"),
                     bs.DEFAULT_INDEX, "migrated");
 
   // Initialize nsBrowserGlue.
-  Cc["@mozilla.org/browser/browserglue;1"].getService(Ci.nsIBrowserGlue);
+  let bg = Cc["@mozilla.org/browser/browserglue;1"].
+           getService(Ci.nsIBrowserGlue);
 
-  // Places initialization has already happened, so we need to simulate
-  // it. This will force browserGlue::_initPlaces().
-  let os = Cc["@mozilla.org/observer-service;1"].
-           getService(Ci.nsIObserverService);
-  os.notifyObservers(null, TOPIC_PLACES_INIT_COMPLETE, null);
-
-  // Import could take some time, usually less than 1s, but to be sure we will
-  // check after 3s.
-  do_test_pending();
-  do_timeout(3000, "continue_test();");
+  // The test will continue once import has finished and smart bookmarks
+  // have been created.
+  bs.addObserver(bookmarksObserver, false);
 }
 
 function continue_test() {
-  let bs = Cc["@mozilla.org/browser/nav-bookmarks-service;1"].
-           getService(Ci.nsINavBookmarksService);
-
   // Check the created bookmarks still exist.
-  let itemId = bs.getIdForItemAt(bs.bookmarksMenuFolder, 0);
+  let itemId = bs.getIdForItemAt(bs.bookmarksMenuFolder, SMART_BOOKMARKS_ON_MENU);
   do_check_eq(bs.getItemTitle(itemId), "migrated");
 
   // Check that we have not imported any new bookmark.
-  do_check_eq(bs.getIdForItemAt(bs.bookmarksMenuFolder, 1), -1);
-  do_check_eq(bs.getIdForItemAt(bs.toolbarFolder, 0), -1);
+  do_check_eq(bs.getIdForItemAt(bs.bookmarksMenuFolder, SMART_BOOKMARKS_ON_MENU + 1), -1);
+  do_check_eq(bs.getIdForItemAt(bs.toolbarFolder, SMART_BOOKMARKS_ON_MENU), -1);
+
+  remove_bookmarks_html();
 
   do_test_finished();
 }

@@ -36,10 +36,10 @@
 #
 # ***** END LICENSE BLOCK *****
 
-DEPTH		= ../..
-topsrcdir	= @top_srcdir@
-srcdir		= @srcdir@
-VPATH		= @srcdir@
+DEPTH = ../..
+topsrcdir = @top_srcdir@
+srcdir = @srcdir@
+VPATH = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
@@ -47,62 +47,24 @@ MODULE = xulapp
 LIBRARY_NAME = xulapp_s
 LIBXUL_LIBRARY = 1
 
-REQUIRES = \
-	appcomps \
-	toolkitcomps \
-	appshell \
-	chrome \
-	content \
-	docshell \
-	dom \
-	embed_base \
-	embedcomponents \
-	extensions \
-	gfx \
-	intl \
-	js \
-	necko \
-	pref \
-	profile \
-	string \
-	uriloader \
-	widget \
-	windowwatcher \
-	xpcom \
-	xpconnect \
-	xpinstall \
-	$(NULL)
-
-ifdef MOZ_JPROF
-REQUIRES += jprof
-endif
-
-ifdef NS_TRACE_MALLOC
-REQUIRES += tracemalloc
-endif
-
-ifdef MOZ_CRASHREPORTER
-REQUIRES += crashreporter
-endif
-
 FORCE_STATIC_LIB = 1
 
 XPIDLSRCS = \
-	nsINativeAppSupport.idl \
-	$(NULL)
+  nsINativeAppSupport.idl \
+  $(NULL)
 
 ifneq (,$(filter WINCE WINNT,$(OS_ARCH)))
 XPIDLSRCS += nsIWinAppHelper.idl
 endif
 
 CPPSRCS = \
-	nsAppRunner.cpp \
-	nsConsoleWriter.cpp \
-	nsXREDirProvider.cpp \
-	nsNativeAppSupportBase.cpp \
-	nsAppData.cpp \
-	nsSigHandlers.cpp \
-	$(NULL)
+  nsAppRunner.cpp \
+  nsConsoleWriter.cpp \
+  nsXREDirProvider.cpp \
+  nsNativeAppSupportBase.cpp \
+  nsAppData.cpp \
+  nsSigHandlers.cpp \
+  $(NULL)
 
 ifdef MOZ_SPLASHSCREEN
 ifeq ($(OS_ARCH),WINCE)
@@ -112,15 +74,17 @@ CPPSRCS += nsSplashScreenDummy.cpp
 endif
 endif
 
-DEFINES += -DIMPL_XREAPI
+DEFINES += -DIMPL_XREAPI -DMOZ_APP_NAME='"$(MOZ_APP_NAME)"'
 
 ifndef BUILD_STATIC_LIBS
 CPPSRCS += nsEmbedFunctions.cpp
 endif
 
 ifdef MOZ_UPDATER
+ifneq ($(OS_TARGET),Android)
 CPPSRCS += nsUpdateDriver.cpp
 DEFINES += -DMOZ_UPDATER
+endif
 endif
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),windows)
@@ -134,11 +98,13 @@ else
 ifeq ($(MOZ_WIDGET_TOOLKIT),os2)
 CPPSRCS += nsNativeAppSupportOS2.cpp
 else
-ifeq ($(MOZ_WIDGET_TOOLKIT),beos)
-CPPSRCS += nsNativeAppSupportBeOS.cpp
-else
 ifeq ($(MOZ_WIDGET_TOOLKIT),gtk2)
 CPPSRCS += nsNativeAppSupportUnix.cpp
+else
+ifeq ($(MOZ_WIDGET_TOOLKIT),qt)
+CPPSRCS += nsNativeAppSupportQt.cpp
+CPPSRCS += nsQAppInstance.cpp
+EXPORTS += nsQAppInstance.h
 else
 CPPSRCS += nsNativeAppSupportDefault.cpp
 endif
@@ -149,18 +115,22 @@ endif
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),cocoa)
 CMMSRCS += MacLaunchHelper.mm
-CPPSRCS += nsCommandLineServiceMac.cpp
-OS_CXXFLAGS += -fexceptions
-endif
-ifeq ($(MOZ_WIDGET_TOOLKIT),cocoa)
 CMMSRCS += MacApplicationDelegate.mm
+CMMSRCS += MacAutoreleasePool.mm
+CPPSRCS += nsCommandLineServiceMac.cpp
+ENABLE_CXX_EXCEPTIONS = 1
 endif
 
 ifdef MOZ_X11
 CPPSRCS += nsX11ErrorHandler.cpp
 endif
 
-SHARED_LIBRARY_LIBS += ../profile/src/$(LIB_PREFIX)profile_s.$(LIB_SUFFIX)
+ifeq ($(OS_TARGET),Android)
+CPPSRCS += nsAndroidStartup.cpp
+DEFINES += -DANDROID_PACKAGE_NAME='"$(ANDROID_PACKAGE_NAME)"'
+endif
+
+SHARED_LIBRARY_LIBS += ../profile/$(LIB_PREFIX)profile_s.$(LIB_SUFFIX)
 
 ifdef MOZ_ENABLE_XREMOTE
 SHARED_LIBRARY_LIBS += $(DEPTH)/widget/src/xremoteclient/$(LIB_PREFIX)xremote_client_s.$(LIB_SUFFIX)
@@ -171,17 +141,18 @@ ifdef MOZ_CRASHREPORTER
 SHARED_LIBRARY_LIBS += $(DEPTH)/toolkit/crashreporter/$(LIB_PREFIX)exception_handler_s.$(LIB_SUFFIX)
 ifeq ($(OS_ARCH),WINNT)
 SHARED_LIBRARY_LIBS += \
-	$(DEPTH)/toolkit/crashreporter/google-breakpad/src/client/windows/handler/$(LIB_PREFIX)exception_handler_s.$(LIB_SUFFIX) \
-	$(DEPTH)/toolkit/crashreporter/google-breakpad/src/client/windows/crash_generation/$(LIB_PREFIX)crash_generation_s.$(LIB_SUFFIX) \
-	$(DEPTH)/toolkit/crashreporter/google-breakpad/src/common/windows/$(LIB_PREFIX)breakpad_windows_common_s.$(LIB_SUFFIX)
+  $(DEPTH)/toolkit/crashreporter/google-breakpad/src/client/windows/handler/$(LIB_PREFIX)exception_handler_s.$(LIB_SUFFIX) \
+  $(DEPTH)/toolkit/crashreporter/google-breakpad/src/client/windows/crash_generation/$(LIB_PREFIX)crash_generation_s.$(LIB_SUFFIX) \
+  $(DEPTH)/toolkit/crashreporter/google-breakpad/src/common/windows/$(LIB_PREFIX)breakpad_windows_common_s.$(LIB_SUFFIX)
 endif
 
 ifeq ($(OS_ARCH),Darwin)
 SHARED_LIBRARY_LIBS += \
-	$(DEPTH)/toolkit/crashreporter/google-breakpad/src/client/$(LIB_PREFIX)minidump_file_writer_s.$(LIB_SUFFIX) \
-	$(DEPTH)/toolkit/crashreporter/google-breakpad/src/client/mac/handler/$(LIB_PREFIX)exception_handler_s.$(LIB_SUFFIX) \
-	$(DEPTH)/toolkit/crashreporter/google-breakpad/src/common/$(LIB_PREFIX)breakpad_common_s.$(LIB_SUFFIX) \
-	$(DEPTH)/toolkit/crashreporter/google-breakpad/src/common/mac/$(LIB_PREFIX)breakpad_mac_common_s.$(LIB_SUFFIX)
+  $(DEPTH)/toolkit/crashreporter/google-breakpad/src/client/$(LIB_PREFIX)minidump_file_writer_s.$(LIB_SUFFIX) \
+  $(DEPTH)/toolkit/crashreporter/google-breakpad/src/client/mac/crash_generation/$(LIB_PREFIX)crash_generation_s.$(LIB_SUFFIX) \
+  $(DEPTH)/toolkit/crashreporter/google-breakpad/src/client/mac/handler/$(LIB_PREFIX)exception_handler_s.$(LIB_SUFFIX) \
+  $(DEPTH)/toolkit/crashreporter/google-breakpad/src/common/$(LIB_PREFIX)breakpad_common_s.$(LIB_SUFFIX) \
+  $(DEPTH)/toolkit/crashreporter/google-breakpad/src/common/mac/$(LIB_PREFIX)breakpad_mac_common_s.$(LIB_SUFFIX)
 endif
 
 ifeq ($(OS_ARCH),Linux)
@@ -216,23 +187,21 @@ include $(topsrcdir)/config/rules.mk
 LOCAL_INCLUDES += \
   -I$(topsrcdir)/dom/ipc \
   -I$(topsrcdir)/toolkit/crashreporter \
+  -I$(topsrcdir)/dom/base \
   $(NULL)
 
 ifdef BUILD_STATIC_LIBS
 export::
-	@$(PERL) -I$(MOZILLA_DIR)/config $(MOZILLA_DIR)/config/build-list.pl $(FINAL_LINK_COMP_NAMES) Apprunner
-#	embedding/browser/gtk/src/Makefile.in sucks! we need to add an empty line to 
-# FINAL_LINK_COMPS to keep the two lists in sync :-(
-	@$(PERL) -I$(MOZILLA_DIR)/config $(MOZILLA_DIR)/config/build-list.pl $(FINAL_LINK_COMPS) ""
+	@$(PYTHON) $(MOZILLA_DIR)/config/buildlist.py $(FINAL_LINK_COMP_NAMES) Apprunner
 endif
 
 LOCAL_INCLUDES += \
-	-I$(srcdir) \
-	-I$(srcdir)/../profile/src \
-	-I$(topsrcdir)/config \
-	$(NULL)
+  -I$(srcdir) \
+  -I$(srcdir)/../profile \
+  -I$(topsrcdir)/config \
+  $(NULL)
 
-CXXFLAGS += $(TK_CFLAGS) $(MOZ_DBUS_CFLAGS)
+CXXFLAGS += $(TK_CFLAGS) $(MOZ_DBUS_CFLAGS) $(MOZ_DBUS_GLIB_CFLAGS)
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),gtk2)
 CXXFLAGS += $(MOZ_PANGO_CFLAGS)
@@ -248,38 +217,46 @@ DEFINES += \
 
 ifdef TARGET_XPCOM_ABI
 DEFINES += \
-	-DTARGET_XPCOM_ABI=\"$(TARGET_XPCOM_ABI)\" \
-	-DTARGET_OS_ABI=\"$(OS_TARGET)_$(TARGET_XPCOM_ABI)\" \
-	$(NULL)
+  -DTARGET_XPCOM_ABI=\"$(TARGET_XPCOM_ABI)\" \
+  -DTARGET_OS_ABI=\"$(OS_TARGET)_$(TARGET_XPCOM_ABI)\" \
+  $(NULL)
 endif
 
 DEFINES += -DTOOLKIT_EM_VERSION=\"$(shell $(PERL) $(topsrcdir)/config/milestone.pl --topsrcdir=$(topsrcdir))\"
 
 ifdef WRAP_SYSTEM_INCLUDES
-DEFINES		+= -DWRAP_SYSTEM_INCLUDES
+DEFINES += -DWRAP_SYSTEM_INCLUDES
 endif
 
 ifeq ($(OS_ARCH),Linux)
 ifneq (,$(findstring lib64,$(libdir)))
-DEFINES     += -DHAVE_USR_LIB64_DIR
+DEFINES += -DHAVE_USR_LIB64_DIR
 endif
 endif
 
-SOURCE_STAMP := $(shell cd $(topsrcdir) && hg identify 2>/dev/null | cut -f1 -d' ')
+MOZ_SOURCE_STAMP ?= $(firstword $(shell hg -R $(topsrcdir) parent --template="{node|short}\n" 2>/dev/null))
 # strip a trailing slash from the repo URL because it's not always present,
 # and we want to construct a working URL in buildconfig.html
 # make+shell+sed = awful
 _dollar=$$
 SOURCE_REPO := $(shell cd $(topsrcdir) && hg showconfig paths.default 2>/dev/null | head -n1 | sed -e "s/^ssh:/http:/" -e "s/\/$(_dollar)//" )
 
-ifdef SOURCE_STAMP
-INIARGS = --sourcestamp=$(SOURCE_STAMP)
+ifdef MOZ_SOURCE_STAMP
+INIARGS = --sourcestamp=$(MOZ_SOURCE_STAMP)
 # extra sanity check for old versions of hg
 # that don't support showconfig
 ifeq (http,$(patsubst http%,http,$(SOURCE_REPO)))
 INIARGS += --sourcerepo=$(SOURCE_REPO)
 endif
 endif
+
+# Solaris /usr/bin/diff doesn't have -n option
+GRE_MILESTONE := $(shell tail -n 1 $(topsrcdir)/config/milestone.txt 2>/dev/null || tail -1 $(topsrcdir)/config/milestone.txt)
+GRE_BUILDID := $(shell cat $(DEPTH)/config/buildid)
+ 
+DEFINES += -DGRE_MILESTONE=$(GRE_MILESTONE) -DGRE_BUILDID=$(GRE_BUILDID)
+
+$(srcdir)/nsAppRunner.cpp: $(DEPTH)/config/buildid $(topsrcdir)/config/milestone.txt
 
 platform.ini: FORCE
 	$(PYTHON) $(srcdir)/make-platformini.py --buildid=$(shell cat $(DEPTH)/config/buildid) $(INIARGS) $(topsrcdir)/config/milestone.txt > $@

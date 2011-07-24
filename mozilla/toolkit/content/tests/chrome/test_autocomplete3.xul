@@ -46,6 +46,7 @@ nsAutoCompleteSimpleResult.prototype = {
  getCommentAt: function() { return null; },
  getStyleAt: function() { return null; },
  getImageAt: function() { return null; },
+ getLabelAt: function() { return null; },
  removeValueAt: function() {}
 };
 
@@ -168,6 +169,7 @@ function checkResult() {
     setTimeout(function() {
       // Unregister the factory so that we don't get in the way of other tests
       componentManager.unregisterFactory(autoCompleteSimpleID, autoCompleteSimple);
+      autocomplete.controller.stopSearch();
       SimpleTest.finish();
     }, 0);
   }

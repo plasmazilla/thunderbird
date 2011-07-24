@@ -54,6 +54,7 @@
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
 #include "nsIPrefLocalizedString.h"
+#include "nsIChromeRegistry.h"
 
 NS_IMPL_ISUPPORTS4(nsIndexedToHTML,
                    nsIDirIndexListener,
@@ -81,7 +82,7 @@ static void AppendNonAsciiToNCR(const nsAString& in, nsAFlatString& out)
   }
 }
 
-NS_METHOD
+nsresult
 nsIndexedToHTML::Create(nsISupports *aOuter, REFNSIID aIID, void **aResult) {
     nsresult rv;
     if (aOuter)
@@ -180,7 +181,7 @@ nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
     rv = channel->GetURI(getter_AddRefs(uri));
     if (NS_FAILED(rv)) return rv;
 
-    channel->SetContentType(NS_LITERAL_CSTRING("application/xhtml+xml"));
+    channel->SetContentType(NS_LITERAL_CSTRING("text/html"));
 
     mParser = do_CreateInstance("@mozilla.org/dirIndexParser;1",&rv);
     if (NS_FAILED(rv)) return rv;
@@ -208,7 +209,6 @@ nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
 
     PRBool isScheme = PR_FALSE;
     PRBool isSchemeFile = PR_FALSE;
-    PRBool isSchemeGopher = PR_FALSE;
     if (NS_SUCCEEDED(uri->SchemeIs("ftp", &isScheme)) && isScheme) {
 
         // strip out the password here, so it doesn't show in the page title
@@ -263,8 +263,6 @@ nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
         rv = mParser->SetEncoding("UTF-8");
         NS_ENSURE_SUCCESS(rv, rv);
 
-    } else if (NS_SUCCEEDED(uri->SchemeIs("gopher", &isSchemeGopher)) && isSchemeGopher) {
-        mExpectAbsLoc = PR_TRUE;
     } else if (NS_SUCCEEDED(uri->SchemeIs("jar", &isScheme)) && isScheme) {
         nsCAutoString path;
         rv = uri->GetPath(path);
@@ -299,7 +297,9 @@ nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
     }
 
     nsString buffer;
-    buffer.AppendLiteral("<?xml version=\"1.0\" encoding=\"");
+    buffer.AppendLiteral("<!DOCTYPE html>\n"
+                         "<html>\n<head>\n"
+                         "<meta http-equiv=\"content-type\" content=\"text/html; charset=");
     
     // Get the encoding from the parser
     // XXX - this won't work for any encoding set via a 301: line in the
@@ -311,13 +311,8 @@ nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
     if (NS_FAILED(rv)) return rv;
 
     AppendASCIItoUTF16(encoding, buffer);
-    buffer.AppendLiteral("\"?>\n"
-                         "<!DOCTYPE html ["
-                         " <!ENTITY % globalDTD SYSTEM \"chrome://global/locale/global.dtd\">\n"
-                         " %globalDTD;\n"
-                         "]>\n"
-                         "<html xmlns=\"http://www.w3.org/1999/xhtml\">\n<head>\n"
-                         "<style type=\"text/css\"><![CDATA[\n"
+    buffer.AppendLiteral("\">\n"
+                         "<style type=\"text/css\">\n"
                          ":root {\n"
                          "  font-family: sans-serif;\n"
                          "}\n"
@@ -386,15 +381,6 @@ nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
                          "  -moz-padding-start: .5em;\n"
                          "  white-space: nowrap;\n"
                          "}\n"
-                         "@-moz-document url-prefix(gopher://) {\n"
-                         "  td {\n"
-                         "    white-space: pre !important;\n"
-                         "    font-family: monospace;\n"
-                         "  }\n"
-                         "  table {\n"
-                         "    direction: ltr;\n"
-                         "  }\n"
-                         "}\n"
                          ".symlink {\n"
                          "  font-style: italic;\n"
                          "}\n"
@@ -412,91 +398,89 @@ nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
                          ".dir::before {\n"
                          "  content: url(resource://gre/res/html/folder.png);\n"
                          "}\n"
-                         "]]></style>\n"
+                         "</style>\n"
                          "<link rel=\"stylesheet\" media=\"screen, projection\" type=\"text/css\""
-                         " href=\"chrome://global/skin/dirListing/dirListing.css\" />\n");
+                         " href=\"chrome://global/skin/dirListing/dirListing.css\">\n"
+                         "<script type=\"application/javascript\">\n"
+                         "var gTable, gOrderBy, gTBody, gRows, gUI_showHidden;\n"
+                         "document.addEventListener(\"DOMContentLoaded\", function() {\n"
+                         "  gTable = document.getElementsByTagName(\"table\")[0];\n"
+                         "  gTBody = gTable.tBodies[0];\n"
+                         "  if (gTBody.rows.length < 2)\n"
+                         "    return;\n"
+                         "  gUI_showHidden = document.getElementById(\"UI_showHidden\");\n"
+                         "  var headCells = gTable.tHead.rows[0].cells,\n"
+                         "      hiddenObjects = false;\n"
+                         "  function rowAction(i) {\n"
+                         "    return function(event) {\n"
+                         "      event.preventDefault();\n"
+                         "      orderBy(i);\n"
+                         "    }\n"
+                         "  }\n"
+                         "  for (var i = headCells.length - 1; i >= 0; i--) {\n"
+                         "    var anchor = document.createElement(\"a\");\n"
+                         "    anchor.href = \"\";\n"
+                         "    anchor.appendChild(headCells[i].firstChild);\n"
+                         "    headCells[i].appendChild(anchor);\n"
+                         "    headCells[i].addEventListener(\"click\", rowAction(i), true);\n"
+                         "  }\n"
+                         "  if (gUI_showHidden) {\n"
+                         "    gRows = Array.slice(gTBody.rows);\n"
+                         "    hiddenObjects = gRows.some(function (row) row.className == \"hidden-object\");\n"
+                         "  }\n"
+                         "  gTable.setAttribute(\"order\", \"\");\n"
+                         "  if (hiddenObjects) {\n"
+                         "    gUI_showHidden.style.display = \"block\";\n"
+                         "    updateHidden();\n"
+                         "  }\n"
+                         "}, \"false\");\n"
+                         "function compareRows(rowA, rowB) {\n"
+                         "  var a = rowA.cells[gOrderBy].getAttribute(\"sortable-data\") || \"\";\n"
+                         "  var b = rowB.cells[gOrderBy].getAttribute(\"sortable-data\") || \"\";\n"
+                         "  var intA = +a;\n"
+                         "  var intB = +b;\n"
+                         "  if (a == intA && b == intB) {\n"
+                         "    a = intA;\n"
+                         "    b = intB;\n"
+                         "  } else {\n"
+                         "    a = a.toLowerCase();\n"
+                         "    b = b.toLowerCase();\n"
+                         "  }\n"
+                         "  if (a < b)\n"
+                         "    return -1;\n"
+                         "  if (a > b)\n"
+                         "    return 1;\n"
+                         "  return 0;\n"
+                         "}\n"
+                         "function orderBy(column) {\n"
+                         "  if (!gRows)\n"
+                         "    gRows = Array.slice(gTBody.rows);\n"
+                         "  var order;\n"
+                         "  if (gOrderBy == column) {\n"
+                         "    order = gTable.getAttribute(\"order\") == \"asc\" ? \"desc\" : \"asc\";\n"
+                         "  } else {\n"
+                         "    order = \"asc\";\n"
+                         "    gOrderBy = column;\n"
+                         "    gTable.setAttribute(\"order-by\", column);\n"
+                         "    gRows.sort(compareRows);\n"
+                         "  }\n"
+                         "  gTable.removeChild(gTBody);\n"
+                         "  gTable.setAttribute(\"order\", order);\n"
+                         "  if (order == \"asc\")\n"
+                         "    for (var i = 0; i < gRows.length; i++)\n"
+                         "      gTBody.appendChild(gRows[i]);\n"
+                         "  else\n"
+                         "    for (var i = gRows.length - 1; i >= 0; i--)\n"
+                         "      gTBody.appendChild(gRows[i]);\n"
+                         "  gTable.appendChild(gTBody);\n"
+                         "}\n"
+                         "function updateHidden() {\n"
+                         "  gTable.className = gUI_showHidden.getElementsByTagName(\"input\")[0].checked ?\n"
+                         "                     \"\" :\n"
+                         "                     \"remove-hidden\";\n"
+                         "}\n"
+                         "</script>\n");
 
-    if (!isSchemeGopher) {
-        buffer.AppendLiteral("<script type=\"application/javascript\"><![CDATA[\n"
-                             "var gTable, gOrderBy, gTBody, gRows, gUI_showHidden;\n"
-                             "document.addEventListener(\"DOMContentLoaded\", function() {\n"
-                             "  gTable = document.getElementsByTagName(\"table\")[0];\n"
-                             "  gTBody = gTable.tBodies[0];\n"
-                             "  if (gTBody.rows.length < 2)\n"
-                             "    return;\n"
-                             "  gUI_showHidden = document.getElementById(\"UI_showHidden\");\n"
-                             "  var headCells = gTable.tHead.rows[0].cells,\n"
-                             "      hiddenObjects = false;\n"
-                             "  function rowAction(i) {\n"
-                             "    return function(event) {\n"
-                             "      event.preventDefault();\n"
-                             "      orderBy(i);\n"
-                             "    }\n"
-                             "  }\n"
-                             "  for (var i = headCells.length - 1; i >= 0; i--) {\n"
-                             "    var anchor = document.createElement(\"a\");\n"
-                             "    anchor.href = \"\";\n"
-                             "    anchor.appendChild(headCells[i].firstChild);\n"
-                             "    headCells[i].appendChild(anchor);\n"
-                             "    headCells[i].addEventListener(\"click\", rowAction(i), true);\n"
-                             "  }\n"
-                             "  if (gUI_showHidden) {\n"
-                             "    gRows = Array.slice(gTBody.rows);\n"
-                             "    hiddenObjects = gRows.some(function (row) row.className == \"hidden-object\");\n"
-                             "  }\n"
-                             "  gTable.setAttribute(\"order\", \"\");\n"
-                             "  if (hiddenObjects) {\n"
-                             "    gUI_showHidden.style.display = \"block\";\n"
-                             "    updateHidden();\n"
-                             "  }\n"
-                             "}, \"false\");\n"
-                             "function compareRows(rowA, rowB) {\n"
-                             "  var a = rowA.cells[gOrderBy].getAttribute(\"sortable-data\") || \"\";\n"
-                             "  var b = rowB.cells[gOrderBy].getAttribute(\"sortable-data\") || \"\";\n"
-                             "  var intA = +a;\n"
-                             "  var intB = +b;\n"
-                             "  if (a == intA && b == intB) {\n"
-                             "    a = intA;\n"
-                             "    b = intB;\n"
-                             "  } else {\n"
-                             "    a = a.toLowerCase();\n"
-                             "    b = b.toLowerCase();\n"
-                             "  }\n"
-                             "  if (a < b)\n"
-                             "    return -1;\n"
-                             "  if (a > b)\n"
-                             "    return 1;\n"
-                             "  return 0;\n"
-                             "}\n"
-                             "function orderBy(column) {\n"
-                             "  if (!gRows)\n"
-                             "    gRows = Array.slice(gTBody.rows);\n"
-                             "  var order;\n"
-                             "  if (gOrderBy == column) {\n"
-                             "    order = gTable.getAttribute(\"order\") == \"asc\" ? \"desc\" : \"asc\";\n"
-                             "  } else {\n"
-                             "    order = \"asc\";\n"
-                             "    gOrderBy = column;\n"
-                             "    gTable.setAttribute(\"order-by\", column);\n"
-                             "    gRows.sort(compareRows);\n"
-                             "  }\n"
-                             "  gTable.removeChild(gTBody);\n"
-                             "  gTable.setAttribute(\"order\", order);\n"
-                             "  if (order == \"asc\")\n"
-                             "    for (var i = 0; i < gRows.length; i++)\n"
-                             "      gTBody.appendChild(gRows[i]);\n"
-                             "  else\n"
-                             "    for (var i = gRows.length - 1; i >= 0; i--)\n"
-                             "      gTBody.appendChild(gRows[i]);\n"
-                             "  gTable.appendChild(gTBody);\n"
-                             "}\n"
-                             "function updateHidden() {\n"
-                             "  gTable.className = gUI_showHidden.getElementsByTagName(\"input\")[0].checked ?\n"
-                             "                     \"\" :\n"
-                             "                     \"remove-hidden\";\n"
-                             "}\n"
-                             "]]></script>\n");
-    }
     buffer.AppendLiteral("<link rel=\"icon\" type=\"image/png\" href=\"");
     nsCOMPtr<nsIURI> innerUri = NS_GetInnermostURI(uri);
     if (!innerUri)
@@ -546,9 +530,9 @@ nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
                              "BYWFOWicuqppoNTnStHzPFCPQhBEBOyGAX4JMADFetubi4BS"
                              "YAAAAABJRU5ErkJggg%3D%3D");
     }
-    buffer.AppendLiteral("\" />\n<title>");
+    buffer.AppendLiteral("\">\n<title>");
 
-    // Anything but a gopher url needs to end in a /,
+    // Everything needs to end in a /,
     // otherwise we end up linking to file:///foo/dirfile
 
     if (!mTextToSubURI) {
@@ -622,7 +606,20 @@ nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
         NS_ERROR("broken protocol handler didn't escape double-quote.");
     }
 
-    buffer.AppendLiteral("</head>\n<body dir=\"&locale.dir;\">\n<h1>");
+    nsAutoString direction(NS_LITERAL_STRING("ltr"));
+    nsCOMPtr<nsIXULChromeRegistry> reg =
+      mozilla::services::GetXULChromeRegistryService();
+    if (reg) {
+      PRBool isRTL = PR_FALSE;
+      reg->IsLocaleRTL(NS_LITERAL_CSTRING("global"), &isRTL);
+      if (isRTL) {
+        direction.AssignLiteral("rtl");
+      }
+    }
+
+    buffer.AppendLiteral("</head>\n<body dir=\"");
+    buffer.Append(direction);
+    buffer.AppendLiteral("\">\n<h1>");
     
     const PRUnichar* formatHeading[] = {
         htmlEscSpec.get()
@@ -660,42 +657,40 @@ nsIndexedToHTML::DoOnStartRequest(nsIRequest* request, nsISupports *aContext,
                                         getter_Copies(showHiddenText));
         if (NS_FAILED(rv)) return rv;
 
-        buffer.AppendLiteral("<p id=\"UI_showHidden\" style=\"display:none\"><label><input type=\"checkbox\" checked=\"checked\" onchange=\"updateHidden()\" />");
+        buffer.AppendLiteral("<p id=\"UI_showHidden\" style=\"display:none\"><label><input type=\"checkbox\" checked onchange=\"updateHidden()\">");
         AppendNonAsciiToNCR(showHiddenText, buffer);
         buffer.AppendLiteral("</label></p>\n");
     }
 
     buffer.AppendLiteral("<table>\n");
 
-    if (!isSchemeGopher) {
-        nsXPIDLString columnText;
+    nsXPIDLString columnText;
 
-        buffer.AppendLiteral(" <thead>\n"
-                             "  <tr>\n"
-                             "   <th>");
+    buffer.AppendLiteral(" <thead>\n"
+                         "  <tr>\n"
+                         "   <th>");
 
-        rv = mBundle->GetStringFromName(NS_LITERAL_STRING("DirColName").get(),
-                                        getter_Copies(columnText));
-        if (NS_FAILED(rv)) return rv;
-        AppendNonAsciiToNCR(columnText, buffer);
-        buffer.AppendLiteral("</th>\n"
-                             "   <th>");
+    rv = mBundle->GetStringFromName(NS_LITERAL_STRING("DirColName").get(),
+                                    getter_Copies(columnText));
+    if (NS_FAILED(rv)) return rv;
+    AppendNonAsciiToNCR(columnText, buffer);
+    buffer.AppendLiteral("</th>\n"
+                         "   <th>");
 
-        rv = mBundle->GetStringFromName(NS_LITERAL_STRING("DirColSize").get(),
-                                        getter_Copies(columnText));
-        if (NS_FAILED(rv)) return rv;
-        AppendNonAsciiToNCR(columnText, buffer);
-        buffer.AppendLiteral("</th>\n"
-                             "   <th colspan=\"2\">");
+    rv = mBundle->GetStringFromName(NS_LITERAL_STRING("DirColSize").get(),
+                                    getter_Copies(columnText));
+    if (NS_FAILED(rv)) return rv;
+    AppendNonAsciiToNCR(columnText, buffer);
+    buffer.AppendLiteral("</th>\n"
+                         "   <th colspan=\"2\">");
 
-        rv = mBundle->GetStringFromName(NS_LITERAL_STRING("DirColMTime").get(),
-                                        getter_Copies(columnText));
-        if (NS_FAILED(rv)) return rv;
-        AppendNonAsciiToNCR(columnText, buffer);
-        buffer.AppendLiteral("</th>\n"
-                             "  </tr>\n"
-                             " </thead>\n");
-    }
+    rv = mBundle->GetStringFromName(NS_LITERAL_STRING("DirColMTime").get(),
+                                    getter_Copies(columnText));
+    if (NS_FAILED(rv)) return rv;
+    AppendNonAsciiToNCR(columnText, buffer);
+    buffer.AppendLiteral("</th>\n"
+                         "  </tr>\n"
+                         " </thead>\n");
     buffer.AppendLiteral(" <tbody>\n");
 
     aBuffer = buffer;
@@ -857,32 +852,28 @@ nsIndexedToHTML::OnIndexAvailable(nsIRequest *aRequest,
         rv = channel->GetURI(getter_AddRefs(uri));
         if (NS_FAILED(rv)) return rv;
 
-        // No need to do this for Gopher, as the table has only one column in that case
-        PRBool isSchemeGopher = PR_FALSE;
-        if (!(NS_SUCCEEDED(uri->SchemeIs("gopher", &isSchemeGopher)) && isSchemeGopher)) {
-            //XXX this potentially truncates after a combining char (bug 391472)
-            nsXPIDLString descriptionAffix;
-            descriptionAffix.Assign(description);
-            descriptionAffix.Cut(0, descriptionAffix.Length() - 25);
-            if (NS_IS_LOW_SURROGATE(descriptionAffix.First()))
-                descriptionAffix.Cut(0, 1);
-            description.Truncate(PR_MIN(71, description.Length() - 28));
-            if (NS_IS_HIGH_SURROGATE(description.Last()))
-                description.Truncate(description.Length() - 1);
+        //XXX this potentially truncates after a combining char (bug 391472)
+        nsXPIDLString descriptionAffix;
+        descriptionAffix.Assign(description);
+        descriptionAffix.Cut(0, descriptionAffix.Length() - 25);
+        if (NS_IS_LOW_SURROGATE(descriptionAffix.First()))
+            descriptionAffix.Cut(0, 1);
+        description.Truncate(PR_MIN(71, description.Length() - 28));
+        if (NS_IS_HIGH_SURROGATE(description.Last()))
+            description.Truncate(description.Length() - 1);
 
-            escapedShort.Adopt(nsEscapeHTML2(description.get(), description.Length()));
+        escapedShort.Adopt(nsEscapeHTML2(description.get(), description.Length()));
 
-            escapedShort.Append(mEscapedEllipsis);
-            // add ZERO WIDTH SPACE (U+200B) for wrapping
-            escapedShort.AppendLiteral("&#8203;");
-            nsString tmp;
-            tmp.Adopt(nsEscapeHTML2(descriptionAffix.get(), descriptionAffix.Length()));
-            escapedShort.Append(tmp);
+        escapedShort.Append(mEscapedEllipsis);
+        // add ZERO WIDTH SPACE (U+200B) for wrapping
+        escapedShort.AppendLiteral("&#8203;");
+        nsString tmp;
+        tmp.Adopt(nsEscapeHTML2(descriptionAffix.get(), descriptionAffix.Length()));
+        escapedShort.Append(tmp);
 
-            pushBuffer.AppendLiteral(" title=\"");
-            pushBuffer.Append(escaped);
-            pushBuffer.AppendLiteral("\"");
-        }
+        pushBuffer.AppendLiteral(" title=\"");
+        pushBuffer.Append(escaped);
+        pushBuffer.AppendLiteral("\"");
     }
     if (escapedShort.IsEmpty())
         escapedShort.Assign(escaped);
@@ -911,9 +902,16 @@ nsIndexedToHTML::OnIndexAvailable(nsIRequest *aRequest,
 
     NS_ConvertUTF16toUTF8 utf8UnEscapeSpec(unEscapeSpec);
 
+    // Adding trailing slash helps to recognize whether the URL points to a file
+    // or a directory (bug #214405).
+    if ((type == nsIDirIndex::TYPE_DIRECTORY) &&
+        (utf8UnEscapeSpec.Last() != '/')) {
+        utf8UnEscapeSpec.Append('/');
+    }
+
     // now minimally re-escape the location...
     PRUint32 escFlags;
-    // for some protocols, like gopher, we expect the location to be absolute.
+    // for some protocols, we expect the location to be absolute.
     // if so, and if the location indeed appears to be a valid URI, then go
     // ahead and treat it like one.
     if (mExpectAbsLoc &&
@@ -923,10 +921,9 @@ nsIndexedToHTML::OnIndexAvailable(nsIRequest *aRequest,
     }
     else {
         // escape as relative
-        // esc_Directory is needed for protocols which allow the same name for
-        // both a directory and a file and distinguish between the two by a
-        // trailing '/' -- without it, the trailing '/' will be escaped, and
-        // links from within that directory will be incorrect
+        // esc_Directory is needed because directories have a trailing slash.
+        // Without it, the trailing '/' will be escaped, and links from within
+        // that directory will be incorrect
         escFlags = esc_Forced | esc_OnlyASCII | esc_AlwaysCopy | esc_FileBaseName | esc_Colon | esc_Directory;
     }
     NS_EscapeURL(utf8UnEscapeSpec.get(), utf8UnEscapeSpec.Length(), escFlags, escapeBuf);
@@ -946,7 +943,10 @@ nsIndexedToHTML::OnIndexAvailable(nsIRequest *aRequest,
         PRInt32 lastDot = escapeBuf.RFindChar('.');
         if (lastDot != kNotFound) {
             escapeBuf.Cut(0, lastDot);
-            AppendUTF8toUTF16(escapeBuf, pushBuffer);
+            NS_ConvertUTF8toUTF16 utf16EscapeBuf(escapeBuf);
+            nsString htmlFileExt;
+            htmlFileExt.Adopt(nsEscapeHTML2(utf16EscapeBuf.get(), utf16EscapeBuf.Length()));
+            pushBuffer.Append(htmlFileExt);
         } else {
             pushBuffer.AppendLiteral("unknown");
         }
@@ -957,7 +957,7 @@ nsIndexedToHTML::OnIndexAvailable(nsIRequest *aRequest,
                                         getter_Copies(altText));
         if (NS_FAILED(rv)) return rv;
         AppendNonAsciiToNCR(altText, pushBuffer);
-        pushBuffer.AppendLiteral("\" />");
+        pushBuffer.AppendLiteral("\">");
     }
 
     pushBuffer.Append(escapedShort);

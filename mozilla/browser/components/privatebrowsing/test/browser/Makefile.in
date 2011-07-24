@@ -45,13 +45,11 @@ include $(DEPTH)/config/autoconf.mk
 include $(topsrcdir)/config/rules.mk
 
 _BROWSER_TEST_FILES =  \
+		head.js \
 		browser_console_clear.js \
-		browser_privatebrowsing_beforeunload.js \
 		browser_privatebrowsing_certexceptionsui.js \
-		browser_privatebrowsing_contextmenu_blockimage.js \
-		browser_privatebrowsing_cookieacceptdialog.js \
+		browser_privatebrowsing_commandline_toggle.js \
 		browser_privatebrowsing_crh.js \
-		browser_privatebrowsing_downloadmonitor.js \
 		browser_privatebrowsing_fastswitch.js \
 		browser_privatebrowsing_findbar.js \
 		browser_privatebrowsing_forgetthissite.js \
@@ -65,6 +63,8 @@ _BROWSER_TEST_FILES =  \
 		browser_privatebrowsing_placestitle.js \
 		browser_privatebrowsing_popupblocker.js \
 		browser_privatebrowsing_popupmode.js \
+		browser_privatebrowsing_protocolhandler.js \
+		browser_privatebrowsing_protocolhandler_page.html \
 		browser_privatebrowsing_searchbar.js \
 		browser_privatebrowsing_sslsite_transition.js \
 		browser_privatebrowsing_theming.js \
@@ -77,12 +77,26 @@ _BROWSER_TEST_FILES =  \
 		browser_privatebrowsing_windowtitle_page.html \
 		browser_privatebrowsing_zoom.js \
 		browser_privatebrowsing_zoomrestore.js \
+		browser_privatebrowsing_clearplugindata.js \
+		browser_privatebrowsing_clearplugindata.html \
 		ctxmenu.html \
 		ctxmenu-image.png \
 		popup.html \
 		staller.sjs \
 		title.sjs \
 		$(NULL)
+
+# Disabled until bug 564934 is fixed:
+#		browser_privatebrowsing_downloadmonitor.js \
+
+# Turn off private browsing tests that perma-timeout on Linux.
+ifneq (Linux,$(OS_ARCH))
+_BROWSER_TEST_FILES += \
+		browser_privatebrowsing_beforeunload_enter.js \
+		browser_privatebrowsing_beforeunload_exit.js \
+		browser_privatebrowsing_cookieacceptdialog.js \
+		$(NULL)
+endif
 
 libs:: $(_BROWSER_TEST_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/browser/$(relativesrcdir)

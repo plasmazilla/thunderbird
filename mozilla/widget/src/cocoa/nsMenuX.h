@@ -40,10 +40,10 @@
 #define nsMenuX_h_
 
 #import <Cocoa/Cocoa.h>
-#import <Carbon/Carbon.h>
 
 #include "nsMenuBaseX.h"
 #include "nsMenuBarX.h"
+#include "nsMenuGroupOwnerX.h"
 #include "nsCOMPtr.h"
 #include "nsChangeObserver.h"
 #include "nsAutoPtr.h"
@@ -53,13 +53,15 @@ class nsMenuItemIconX;
 class nsMenuItemX;
 class nsIWidget;
 
-// MenuDelegate is used to receive Cocoa notifications for
-// setting up carbon events
+// MenuDelegate is used to receive Cocoa notifications for setting
+// up carbon events. Protocol is defined as of 10.6 SDK.
+#if defined(MAC_OS_X_VERSION_10_6) && (MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_6)
+@interface MenuDelegate : NSObject < NSMenuDelegate >
+#else
 @interface MenuDelegate : NSObject
+#endif
 {
   nsMenuX* mGeckoMenu; // weak ref
-  EventHandlerRef mEventHandler;
-  BOOL mHaveInstalledCarbonEvents;
 }
 - (id)initWithGeckoMenu:(nsMenuX*)geckoMenu;
 @end
@@ -85,13 +87,13 @@ public:
   nsMenuObjectTypeX MenuObjectType() {return eSubmenuObjectType;}
 
   // nsMenuX
-  nsresult       Create(nsMenuObjectX* aParent, nsMenuBarX* aMenuBar, nsIContent* aNode);
+  nsresult       Create(nsMenuObjectX* aParent, nsMenuGroupOwnerX* aMenuGroupOwner, nsIContent* aNode);
   PRUint32       GetItemCount();
   nsMenuObjectX* GetItemAt(PRUint32 aPos);
   nsresult       GetVisibleItemCount(PRUint32 &aCount);
   nsMenuObjectX* GetVisibleItemAt(PRUint32 aPos);
-  nsEventStatus  MenuOpened(const nsMenuEvent& aMenuEvent);
-  void           MenuClosed(const nsMenuEvent& aMenuEvent);
+  nsEventStatus  MenuOpened();
+  void           MenuClosed();
   void           SetRebuild(PRBool aMenuEvent);
   NSMenuItem*    NativeMenuItem();
 
@@ -105,9 +107,7 @@ protected:
   nsresult       SetupIcon();
   void           GetMenuPopupContent(nsIContent** aResult);
   PRBool         OnOpen();
-  PRBool         OnOpened();
   PRBool         OnClose();
-  PRBool         OnClosed();
   nsresult       AddMenuItem(nsMenuItemX* aMenuItem);
   nsresult       AddMenu(nsMenuX* aMenu);
   void           LoadMenuItem(nsIContent* inMenuItemContent);  
@@ -118,7 +118,7 @@ protected:
   nsString                  mLabel;
   PRUint32                  mVisibleItemsCount; // cache
   nsMenuObjectX*            mParent; // [weak]
-  nsMenuBarX*               mMenuBar; // [weak]
+  nsMenuGroupOwnerX*        mMenuGroupOwner; // [weak]
   // The icon object should never outlive its creating nsMenuX object.
   nsRefPtr<nsMenuItemIconX> mIcon;
   GeckoNSMenu*              mNativeMenu; // [strong]

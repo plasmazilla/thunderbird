@@ -1,6 +1,6 @@
-diff -r 1c16bdc50547 media/libsydneyaudio/include/sydney_audio.h
---- a/media/libsydneyaudio/include/sydney_audio.h	Mon Apr 12 12:46:25 2010 +0900
-+++ b/media/libsydneyaudio/include/sydney_audio.h	Mon Apr 12 04:21:48 2010 -0500
+diff -r b9e9ae011ce4 media/libsydneyaudio/include/sydney_audio.h
+--- a/media/libsydneyaudio/include/sydney_audio.h	Mon Apr 12 10:01:34 2010 +0200
++++ b/media/libsydneyaudio/include/sydney_audio.h	Mon Apr 12 03:25:04 2010 -0500
 @@ -80,16 +80,18 @@ async-signal safe.
  #       define SA_LITTLE_ENDIAN 1
  #   endif
@@ -20,10 +20,10 @@ diff -r 1c16bdc50547 media/libsydneyaudio/include/sydney_audio.h
  #if !defined(int32_t)
  typedef __int32 int32_t;
  #endif
-diff -r 1c16bdc50547 media/libsydneyaudio/src/Makefile.in
---- a/media/libsydneyaudio/src/Makefile.in	Mon Apr 12 12:46:25 2010 +0900
-+++ b/media/libsydneyaudio/src/Makefile.in	Mon Apr 12 04:21:57 2010 -0500
-@@ -72,15 +72,21 @@ OS_LIBS += -framework CoreAudio -framewo
+diff -r b9e9ae011ce4 media/libsydneyaudio/src/Makefile.in
+--- a/media/libsydneyaudio/src/Makefile.in	Mon Apr 12 10:01:34 2010 +0200
++++ b/media/libsydneyaudio/src/Makefile.in	Mon Apr 12 03:25:27 2010 -0500
+@@ -78,15 +78,21 @@ OS_LIBS += -framework CoreAudio -framewo
  endif
  
  ifeq ($(OS_ARCH),SunOS)
@@ -33,9 +33,9 @@ diff -r 1c16bdc50547 media/libsydneyaudio/src/Makefile.in
  endif
  
 +ifeq ($(OS_ARCH),AIX)
-+CSRCS         = \
-+              sydney_audio_aix.c \
-+              $(NULL)
++CSRCS		= \
++		sydney_audio_aix.c \
++		$(NULL)
 +endif
 +
  ifeq ($(OS_ARCH),WINNT)
@@ -45,9 +45,9 @@ diff -r 1c16bdc50547 media/libsydneyaudio/src/Makefile.in
  include $(topsrcdir)/config/rules.mk
  
  LOCAL_INCLUDES += -I$(srcdir)/../include
-diff -r 1c16bdc50547 media/libsydneyaudio/src/sydney_audio_aix.c
+diff -r b9e9ae011ce4 media/libsydneyaudio/src/sydney_audio_aix.c
 --- /dev/null	Thu Jan 01 00:00:00 1970 +0000
-+++ b/media/libsydneyaudio/src/sydney_audio_aix.c	Mon Apr 12 04:21:57 2010 -0500
++++ b/media/libsydneyaudio/src/sydney_audio_aix.c	Mon Apr 12 03:25:27 2010 -0500
 @@ -0,0 +1,484 @@
 +/* ***** BEGIN LICENSE BLOCK *****
 + * Version: MPL 1.1/GPL 2.0/LGPL 2.1

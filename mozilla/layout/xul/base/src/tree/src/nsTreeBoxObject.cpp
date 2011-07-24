@@ -49,7 +49,14 @@
 #include "nsDOMError.h"
 #include "nsTreeBodyFrame.h"
 
-NS_IMPL_ISUPPORTS_INHERITED1(nsTreeBoxObject, nsBoxObject, nsITreeBoxObject)
+NS_IMPL_CYCLE_COLLECTION_1(nsTreeBoxObject, mView)
+
+NS_IMPL_ADDREF_INHERITED(nsTreeBoxObject, nsBoxObject)
+NS_IMPL_RELEASE_INHERITED(nsTreeBoxObject, nsBoxObject)
+
+NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(nsTreeBoxObject)
+  NS_INTERFACE_MAP_ENTRY(nsITreeBoxObject)
+NS_INTERFACE_MAP_END_INHERITING(nsBoxObject)
 
 void
 nsTreeBoxObject::Clear()
@@ -97,7 +104,7 @@ static void FindBodyElement(nsIContent* aParent, nsIContent** aResult)
       // There are nesting tree elements. Only the innermost should
       // find the treechilren.
       break;
-    } else if (content->IsNodeOfType(nsINode::eELEMENT) &&
+    } else if (content->IsElement() &&
                !ni->Equals(nsGkAtoms::_template, kNameSpaceID_XUL)) {
       FindBodyElement(content, aResult);
       if (*aResult)
@@ -107,26 +114,39 @@ static void FindBodyElement(nsIContent* aParent, nsIContent** aResult)
 }
 
 nsTreeBodyFrame*
-nsTreeBoxObject::GetTreeBody()
+nsTreeBoxObject::GetTreeBody(bool aFlushLayout)
 {
+  // Make sure our frames are up to date, and layout as needed.  We
+  // have to do this before checking for our cached mTreeBody, since
+  // it might go away on style flush, and in any case if aFlushLayout
+  // is true we need to make sure to flush no matter what.
+  // XXXbz except that flushing style when we were not asked to flush
+  // layout here breaks things.  See bug 585123.
+  nsIFrame* frame;
+  if (aFlushLayout) {
+    frame = GetFrame(aFlushLayout);
+    if (!frame)
+      return nsnull;
+  }
+
   if (mTreeBody) {
+    // Have one cached already.
     return mTreeBody;
   }
 
-  nsIFrame* frame = GetFrame(PR_FALSE);
-  if (!frame)
-    return nsnull;
+  if (!aFlushLayout) {
+    frame = GetFrame(aFlushLayout);
+    if (!frame)
+      return nsnull;
+  }
 
   // Iterate over our content model children looking for the body.
   nsCOMPtr<nsIContent> content;
   FindBodyElement(frame->GetContent(), getter_AddRefs(content));
-
-  nsIPresShell* shell = GetPresShell(PR_FALSE);
-  if (!shell) {
+  if (!content)
     return nsnull;
-  }
 
-  frame = shell->GetPrimaryFrameFor(content);
+  frame = content->GetPrimaryFrame();
   if (!frame)
      return nsnull;
 
@@ -320,7 +340,7 @@ nsTreeBoxObject::EnsureCellIsVisible(PRInt32 aRow, nsITreeColumn* aCol)
 NS_IMETHODIMP
 nsTreeBoxObject::ScrollToRow(PRInt32 aRow)
 {
-  nsTreeBodyFrame* body = GetTreeBody();
+  nsTreeBodyFrame* body = GetTreeBody(true);
   if (body)
     return body->ScrollToRow(aRow);
   return NS_OK;

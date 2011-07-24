@@ -43,13 +43,14 @@
 
 NS_IMPL_ISUPPORTS1(nsMsgXFViewThread, nsIMsgThread)
 
-nsMsgXFViewThread::nsMsgXFViewThread(nsMsgSearchDBView *view)
+nsMsgXFViewThread::nsMsgXFViewThread(nsMsgSearchDBView *view, nsMsgKey threadId)
 {
   m_numUnreadChildren = 0;
   m_numChildren = 0;
   m_flags = 0;
   m_newestMsgDate = 0;
   m_view = view;
+  m_threadId = threadId;
 }
 
 nsMsgXFViewThread::~nsMsgXFViewThread()
@@ -58,14 +59,15 @@ nsMsgXFViewThread::~nsMsgXFViewThread()
 
 NS_IMETHODIMP nsMsgXFViewThread::SetThreadKey(nsMsgKey threadKey)
 {
-  NS_ERROR("shouldn't call this");
-  return NS_ERROR_NOT_IMPLEMENTED;
+  m_threadId = threadKey;
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsMsgXFViewThread::GetThreadKey(nsMsgKey *aResult)
 {
-  NS_ERROR("shouldn't call this");
-  return NS_ERROR_NOT_IMPLEMENTED;
+  NS_ENSURE_ARG_POINTER(aResult);
+  *aResult = m_threadId;
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsMsgXFViewThread::GetFlags(PRUint32 *aFlags)
@@ -504,7 +506,7 @@ NS_IMETHODIMP nsMsgXFViewThread::GetFirstUnreadChild(nsIMsgDBHdr **aResult)
   }
   return rv;
 }
-NS_IMETHODIMP nsMsgXFViewThread::EnumerateMessages(PRUint32 aParentKey, 
+NS_IMETHODIMP nsMsgXFViewThread::EnumerateMessages(PRUint32 aParentKey,
                                                    nsISimpleEnumerator **aResult)
 {
   NS_ERROR("shouldn't call this");

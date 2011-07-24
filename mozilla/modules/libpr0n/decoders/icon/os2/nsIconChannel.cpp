@@ -47,7 +47,6 @@
 #include "nsReadableUtils.h"
 #include "nsMemory.h"
 #include "nsNetUtil.h"
-#include "nsInt64.h"
 #include "nsILocalFile.h"
 #include "nsIFileURL.h"
 #include "nsDirectoryServiceDefs.h"
@@ -203,7 +202,7 @@ NS_IMETHODIMP nsIconChannel::AsyncOpen(nsIStreamListener *aListener, nsISupports
     return rv;
 
   // Init our streampump
-  rv = mPump->Init(inStream, nsInt64(-1), nsInt64(-1), 0, 0, PR_FALSE);
+  rv = mPump->Init(inStream, PRInt64(-1), PRInt64(-1), 0, 0, PR_FALSE);
   if (NS_FAILED(rv))
     return rv;
 
@@ -228,17 +227,17 @@ nsresult nsIconChannel::ExtractIconInfoFromUrl(nsIFile ** aLocalFile, PRUint32 *
   iconURI->GetContentType(aContentType);
   iconURI->GetFileExtension(aFileExtension);
 
-  nsCOMPtr<nsIURI> fileURI;
-  rv = iconURI->GetIconFile(getter_AddRefs(fileURI));
-  if (NS_FAILED(rv) || !fileURI) return NS_OK;
+  nsCOMPtr<nsIURL> url;
+  rv = iconURI->GetIconURL(getter_AddRefs(url));
+  if (NS_FAILED(rv) || !url) return NS_OK;
 
-  nsCOMPtr<nsIFileURL>    fileURL = do_QueryInterface(fileURI, &rv);
+  nsCOMPtr<nsIFileURL> fileURL = do_QueryInterface(url, &rv);
   if (NS_FAILED(rv) || !fileURL) return NS_OK;
 
   nsCOMPtr<nsIFile> file;
   rv = fileURL->GetFile(getter_AddRefs(file));
   if (NS_FAILED(rv) || !file) return NS_OK;
-  
+
   *aLocalFile = file;
   NS_IF_ADDREF(*aLocalFile);
   return NS_OK;

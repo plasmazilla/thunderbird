@@ -63,7 +63,7 @@ pref("general.open_location.last_window_choice", 0);
 pref("general.smoothScroll", false);
 pref("general.autoScroll", true);
 
-#expand pref("general.useragent.extra.__MOZ_APP_NAME__", "__MOZ_APP_DISPLAYNAME__/__MOZ_APP_VERSION__");
+pref("general.useragent.compatMode.firefox", true);
 
 // 0 = blank, 1 = home (browser.startup.homepage), 2 = last
 pref("browser.startup.page",                1);
@@ -78,13 +78,6 @@ pref("browser.send_pings", false);
 
 pref("browser.chrome.site_icons", true);
 pref("browser.chrome.favicons", false);
-pref("browser.chrome.image_icons.max_size", 1024);
-
-// 0 = never, 1 = when in cache, 2 = always
-pref("browser.chrome.load_toolbar_icons", 0);
-
-pref("browser.toolbars.showbutton.go",      false);
-pref("browser.toolbars.showbutton.search",  true);
 
 pref("browser.download.finished_download_sound", false);
 pref("browser.download.finished_sound_url", "");
@@ -110,15 +103,52 @@ pref("browser.download.progress.closeWhenDone", false);
 // feedback from their action.
 pref("browser.download.saveLinkAsFilenameTimeout", 1000);
 
-// various default search settings
-pref("browser.search.defaulturl", "chrome://navigator-region/locale/region.properties");
-pref("browser.search.opensidebarsearchpanel", true);
+// Use the findbar instead of the dialog box
+pref("browser.findbar.enabled", true);
+
+// Use doorhanger notifications instead of the notification bar
+pref("browser.doorhanger.enabled", true);
+
+// search engines URL
+pref("browser.search.searchEnginesURL", "https://addons.mozilla.org/%LOCALE%/%APP%/search-engines/");
+
+// pointer to the default engine name
+pref("browser.search.defaultenginename", "chrome://communicator-region/locale/region.properties");
+
+// Disable logging for the search service by default.
+pref("browser.search.log", false);
+
+// Ordering of Search Engines in the Engine list.
+pref("browser.search.order.1", "chrome://communicator-region/locale/region.properties");
+pref("browser.search.order.2", "chrome://communicator-region/locale/region.properties");
+
+// Search (side)bar results always open in a new tab.
+pref("browser.search.openintab", false);
+
+// Invoking a search reveals the sidebar panel.
+pref("browser.search.opensidebarsearchpanel", false);
+
+// Open context search results in either a new window or tab.
 pref("browser.search.opentabforcontextsearch", false);
-pref("browser.search.last_search_category", "NC:SearchCategory?category=urn:search:category:1");
-pref("browser.search.mode", 0);
-// basic search popup constraint: minimum sherlock plugin version displayed
-// (note: must be a string representation of a float or it'll default to 0.0)
-pref("browser.search.basic.min_ver", "0.0");
+
+// Send ping to the server to update.
+pref("browser.search.update", true);
+
+// Disable logging for the search service update system by default.
+pref("browser.search.update.log", false);
+
+// Check whether we need to perform engine updates every 6 hours
+pref("browser.search.update.interval", 21600);
+
+// enable search suggestions by default
+pref("browser.search.suggest.enabled", true);
+
+// Smart Browsing prefs
+pref("keyword.enabled", true);
+// Override the default keyword.URL. Empty value means
+// "use the search service's default engine"
+pref("keyword.URL", "");
+
 pref("browser.urlbar.autocomplete.enabled", true);
 pref("browser.urlbar.clickSelectsAll", true);
 // when clickSelectsAll=true, does it also apply when the click is past end of text?
@@ -159,8 +189,9 @@ pref("browser.urlbar.restrict.typed", "~");
 pref("browser.urlbar.match.title", "#");
 pref("browser.urlbar.match.url", "@");
 
-pref("browser.search.param.Google.1.custom", "chrome://navigator/content/searchconfig.properties");
-pref("browser.search.param.Google.1.default", "chrome://navigator/content/searchconfig.properties");
+// Whether or not microsummary and generator updates are enabled.
+pref("browser.microsummary.enabled", true);
+pref("browser.microsummary.updateGenerators", true);
 
 pref("browser.history.grouping", "day");
 pref("browser.sessionhistory.max_entries", 50);
@@ -177,18 +208,6 @@ pref("places.database.cache_to_memory_percentage", 6);
 // the (maximum) number of the recent visits to sample
 // when calculating frecency
 pref("places.frecency.numVisits", 10);
-
-// Number of records to update frecency for when idle.
-pref("places.frecency.numCalcOnIdle", 50);
-
-// Number of records to update frecency for when migrating from
-// a pre-frecency build.
-pref("places.frecency.numCalcOnMigrate", 50);
-
-// Perform frecency recalculation after this amount of idle, repeating.
-// A value of zero disables updating of frecency on idle.
-// Default is 1 minute (60000ms).
-pref("places.frecency.updateIdleTime", 60000);
 
 // buckets (in days) for frecency calculation
 pref("places.frecency.firstBucketCutoff", 4);
@@ -208,7 +227,7 @@ pref("places.frecency.embedVisitBonus", 0);
 pref("places.frecency.framedLinkVisitBonus", 0);
 pref("places.frecency.linkVisitBonus", 100);
 pref("places.frecency.typedVisitBonus", 2000);
-pref("places.frecency.bookmarkVisitBonus", 150);
+pref("places.frecency.bookmarkVisitBonus", 75);
 pref("places.frecency.downloadVisitBonus", 0);
 pref("places.frecency.permRedirectVisitBonus", 0);
 pref("places.frecency.tempRedirectVisitBonus", 0);
@@ -218,12 +237,27 @@ pref("places.frecency.defaultVisitBonus", 0);
 pref("places.frecency.unvisitedBookmarkBonus", 140);
 pref("places.frecency.unvisitedTypedBonus", 200);
 
+// By default, do not export HTML at shutdown.
+// If true, at shutdown the bookmarks in your menu and toolbar will
+// be exported as HTML to the bookmarks.html file.
+pref("browser.bookmarks.autoExportHTML", false);
+
+// The maximum number of daily bookmark backups to
+// keep in {PROFILEDIR}/bookmarkbackups. Special values:
+// -1: unlimited
+//  0: no backups created (and deletes all existing backups)
+pref("browser.bookmarks.max_backups", 10);
+
+// Don't try to alter this pref, it'll be reset the next time you use the
+// bookmarking dialog
+pref("browser.bookmarks.editDialog.firstEditField", "namePicker");
+
 // Tabbed browser
 pref("browser.tabs.loadDivertedInBackground", false);
-pref("browser.tabs.loadInBackground", false);
+pref("browser.tabs.loadInBackground", true);
 pref("browser.tabs.opentabfor.doubleclick", false);
-pref("browser.tabs.opentabfor.middleclick", false);
-pref("browser.tabs.opentabfor.urlbar", false);
+pref("browser.tabs.opentabfor.middleclick", true);
+pref("browser.tabs.opentabfor.urlbar", true);
 pref("browser.tabs.tooltippreview.enable", true);
 pref("browser.tabs.tooltippreview.width", 300);
 pref("browser.tabs.autoHide", true);
@@ -233,11 +267,14 @@ pref("browser.tabs.warnOnClose", true);
 pref("browser.tabs.warnOnCloseOther", true);
 pref("browser.tabs.warnOnOpen", true);
 pref("browser.tabs.maxOpenBeforeWarn", 15);
+pref("browser.tabs.insertRelatedAfterCurrent", true);
 // 0 = append, 1 = replace
 pref("browser.tabs.loadGroup", 1);
 
 // how many browsers can be saved in the DOM (by the tabbed browser)
 pref("browser.tabs.max_tabs_undo", 3);
+// should popups by saved in the DOM (by the tabbed browser)
+pref("browser.tabs.cache_popups", false);
 
 // tab width and clipping
 pref("browser.tabs.tabMinWidth", 100);
@@ -261,27 +298,18 @@ pref("browser.windows.loadOnNewWindow", 1);
 
 // external link handling in tabbed browsers. values from nsIBrowserDOMWindow.
 // 0=default window, 1=current window/tab, 2=new window, 3=new tab in most recent window
-pref("browser.link.open_external", 2); // open externally-launched links in a new window
-
-// handle links targeting new windows
-pref("browser.link.open_newwindow", 2);
+pref("browser.link.open_external", 3);
+// internal links handling in tabbed browsers. see .open_external for values.
+pref("browser.link.open_newwindow", 3);
 
 // 0: no restrictions - divert everything
 // 1: don't divert window.open at all
 // 2: don't divert window.open with features
-pref("browser.link.open_newwindow.restriction", 0); 
+pref("browser.link.open_newwindow.restriction", 2);
 
 // Translation service
 pref("browser.translation.service", "chrome://navigator-region/locale/region.properties");
 pref("browser.translation.serviceDomain", "chrome://navigator-region/locale/region.properties");
-  
-// Smart Browsing prefs
-pref("browser.related.provider", "http://www-rl.netscape.com/wtgn?");
-pref("browser.related.disabledForDomains", "");
-pref("keyword.enabled", true);
-
-//Internet Search
-pref("browser.search.defaultenginename", "chrome://communicator-region/locale/region.properties");
 
 // 0 goes back
 // 1 act like pgup
@@ -294,7 +322,15 @@ pref("browser.backspace_action", 0);
 // 2 - pre-populate site URL and pre-fetch certificate.
 pref("browser.ssl_override_behavior", 2);
 
+// if true, use full page zoom instead of text zoom
 pref("browser.zoom.full", true);
+
+// Whether or not to save and restore zoom levels on a per-site basis.
+pref("browser.zoom.siteSpecific", true);
+
+// Whether or not to update background tabs to the current zoom level
+// once they come to the foreground (i.e. get activated).
+pref("browser.zoom.updateBackgroundTabs", true);
 
 pref("javascript.options.showInConsole",    true);
 
@@ -302,12 +338,12 @@ pref("offline.startup_state",            0);
 pref("offline.send.unsent_messages",            0);
 pref("offline.download.download_messages",  0);
 
+pref("browser.offline-apps.notify", true);
+
 pref("browser.formfill.expire_days",        180);
 
-// -- folders (Mac: these are binary aliases.)
-pref("mail.signature_file",             "");
-pref("mail.directory",                  "");
-pref("news.directory",                  "");
+pref("mailnews.ui.deleteMarksRead", true);
+
 pref("spellchecker.dictionaries.download.url", "chrome://branding/locale/brand.properties");
 
 // this will automatically enable inline spellchecking (if it is available) for
@@ -321,6 +357,9 @@ pref("layout.spellcheckDefault", 1);
 pref("accessibility.blockautorefresh", false);
 
 // special TypeAheadFind settings
+
+// Use the findbar for type ahead find, instead of the XPFE implementation
+pref("accessibility.typeaheadfind.usefindbar", true);
 pref("accessibility.typeaheadfind.flashBar", 0);
 #ifndef XP_UNIX
 pref("accessibility.typeaheadfind.soundURL", "default");
@@ -374,7 +413,9 @@ pref("browser.sessionstore.interval", 15000);
 pref("browser.sessionstore.postdata", 0);
 // on which sites to save text data, POSTDATA and cookies
 // 0 = everywhere, 1 = unencrypted sites, 2 = nowhere
-pref("browser.sessionstore.privacy_level", 1);
+pref("browser.sessionstore.privacy_level", 0);
+// the same as browser.sessionstore.privacy_level, but for saving deferred session data
+pref("browser.sessionstore.privacy_level_deferred", 2);
 // number of crashes that can occur before the about:sessionrestore page is displayed
 // (this pref has no effect if more than 6 hours have passed since the last crash)
 pref("browser.sessionstore.max_resumed_crashes", 1);
@@ -383,6 +424,11 @@ pref("browser.sessionstore.max_tabs_undo", 10);
 // how many windows can be reopened (per session) - on non-OS X platforms this
 // pref may be ignored when dealing with pop-up windows to ensure proper startup
 pref("browser.sessionstore.max_windows_undo", 3);
+// The number of tabs that can restore concurrently:
+// < 0 = All tabs can restore at the same time
+//   0 = Only the selected tab in each window will load.
+//   N = N tabs should restore at the same time
+pref("browser.sessionstore.max_concurrent_tabs", 3);
 
 pref("shell.checkDefaultClient", true);
 // We want to check if we are the default client for browser and mail. See 
@@ -391,6 +437,9 @@ pref("shell.checkDefaultApps", 3);
 
 pref("app.releaseNotesURL", "chrome://branding/locale/brand.properties");
 pref("app.vendorURL", "chrome://branding/locale/brand.properties");
+
+// Base URL for web-based support pages.
+pref("app.support.baseURL", "http://www.seamonkey-project.org/doc/");
 
 // App-specific update preferences
 
@@ -409,7 +458,7 @@ pref("app.update.auto", true);
 // 1                  download no prompt  download no prompt if no incompatibilities
 // 2                  download no prompt  prompt
 //
-// See chart in nsUpdateService.js.in for more details
+// See chart in nsUpdateService.js for more details
 //
 pref("app.update.mode", 1);
 
@@ -417,7 +466,7 @@ pref("app.update.mode", 1);
 pref("app.update.silent", false);
 
 // Update service URL:
-pref("app.update.url", "https://aus2-community.mozilla.org/update/1/%PRODUCT%/%VERSION%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/update.xml");
+pref("app.update.url", "https://aus2-community.mozilla.org/update/3/%PRODUCT%/%VERSION%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/update.xml");
 // URL user can browse to manually if for some reason all update installation
 // attempts fail.
 pref("app.update.url.manual", "http://www.seamonkey-project.org/");
@@ -428,15 +477,55 @@ pref("app.update.url.details", "chrome://communicator-region/locale/region.prope
 // User-settable override to app.update.url for testing purposes.
 //pref("app.update.url.override", "");
  
+// Enables some extra Application Update Logging (can reduce performance)
+pref("app.update.log", false);
+
+// The number of general background check failures to allow before notifying the
+// user of the failure. User initiated update checks always notify the user of
+// the failure.
+pref("app.update.backgroundMaxErrors", 10);
+
+// When |app.update.cert.requireBuiltIn| is true or not specified the
+// final certificate and all certificates the connection is redirected to before
+// the final certificate for the url specified in the |app.update.url|
+// preference must be built-in.
+pref("app.update.cert.requireBuiltIn", true);
+
+// When |app.update.cert.checkAttributes| is true or not specified the
+// certificate attributes specified in the |app.update.certs.| preference branch
+// are checked against the certificate for the url specified by the
+// |app.update.url| preference.
+pref("app.update.cert.checkAttributes", true);
+
+// The number of certificate attribute check failures to allow for background
+// update checks before notifying the user of the failure. User initiated update
+// checks always notify the user of the certificate attribute check failure.
+pref("app.update.cert.maxErrors", 5);
+
+// The |app.update.certs.| preference branch contains branches that are
+// sequentially numbered starting at 1 that contain attribute name / value
+// pairs for the certificate used by the server that hosts the update xml file
+// as specified in the |app.update.url| preference. When these preferences are
+// present the following conditions apply for a successful update check:
+// 1. the uri scheme must be https
+// 2. the preference name must exist as an attribute name on the certificate and
+//    the value for the name must be the same as the value for the attribute
+//    name on the certificate.
+// If these conditions aren't met it will be treated the same as when there is
+// no update available. This validation will not be performed when using the
+// |app.update.url.override| preference for update checking.
+pref("app.update.certs.1.issuerName", "OU=Equifax Secure Certificate Authority,O=Equifax,C=US");
+pref("app.update.certs.1.commonName", "aus2-community.mozilla.org");
+
 // Interval: Time between checks for a new version (in seconds)
 //           default=1 day
 pref("app.update.interval", 86400);
 // Interval: Time before prompting the user again to restart to install the
 //           latest download (in seconds) default=1 day
 pref("app.update.nagTimer.restart", 86400);
-// Interval: When all registered timers should be checked (in milliseconds)
-//           default=10 minutes
-pref("app.update.timer", 600000);
+// The minimum delay in seconds for the timer to fire.
+// default=2 minutes
+pref("app.update.timerMinimumDelay", 120);
 // Give the user x seconds to react before showing the big UI. default=12 hrs
 pref("app.update.promptWaitTime", 43200);
 // Show the Update Checking/Ready UI when the user was idle for x seconds
@@ -456,66 +545,70 @@ pref("app.update.incompatible.mode", 0);
 
 // Extension preferences
 
-// Developers can set this to |true| if they are constantly changing files in their 
-// extensions directory so that the extension system does not constantly think that
-// their extensions are being updated and thus reregistered every time the app is
-// started.
-pref("extensions.ignoreMTimeChanges", false);
 // Enables some extra Extension System Logging (can reduce performance)
 pref("extensions.logging.enabled", false);
 
 // Blocklist preferences
 pref("extensions.blocklist.enabled", true);
 pref("extensions.blocklist.interval", 86400);
-pref("extensions.blocklist.url", "https://addons.mozilla.org/blocklist/3/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/");
+pref("extensions.blocklist.url", "https://addons.mozilla.org/blocklist/3/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PING_COUNT%/%TOTAL_PING_COUNT%/%DAYS_SINCE_LAST_PING%/");
 pref("extensions.blocklist.detailsURL", "https://www.mozilla.com/%LOCALE%/blocklist/");
 
-// Symmetric (can be overridden by individual extensions) update preferences.
+// Update preferences for installed Extensions and Themes.
+// Symmetric (can be overridden by individual extensions),
 // e.g.
 //  extensions.{GUID}.update.enabled
 //  extensions.{GUID}.update.url
 //  extensions.{GUID}.update.interval
+//  extensions.{GUID}.update.autoUpdateDefault
 //  .. etc ..
 //
 pref("extensions.update.enabled", true);
 pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%");
-pref("extensions.update.interval", 86400);  // Check for updates to Extensions and 
-                                            // Themes every day
+pref("extensions.update.interval", 86400);         // Check daily for updates to add-ons
+pref("extensions.update.autoUpdateDefault", true); // Download and install automatically
 
-// Preferences for the Get Add-ons pane
-pref("extensions.getAddons.showPane", true);
-pref("extensions.getAddons.browseAddons", "https://addons.mozilla.org/%LOCALE%/%APP%");
-pref("extensions.getAddons.maxResults", 5);
-pref("extensions.getAddons.recommended.browseURL", "https://addons.mozilla.org/%LOCALE%/%APP%/recommended");
-pref("extensions.getAddons.recommended.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/list/featured/all/10/%OS%/%VERSION%");
+// Preferences for AMO integration
+pref("extensions.getAddons.cache.enabled", true);  // also toggles personalized recommendations
+pref("extensions.getAddons.maxResults", 15);
+pref("extensions.getAddons.get.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/guid:%IDS%?src=seamonkey&appOS=%OS%&appVersion=%VERSION%&tMain=%TIME_MAIN%&tFirstPaint=%TIME_FIRST_PAINT%&tSessionRestored=%TIME_SESSION_RESTORED%");
 pref("extensions.getAddons.search.browseURL", "https://addons.mozilla.org/%LOCALE%/%APP%/search?q=%TERMS%");
-pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/%TERMS%/all/10/%OS%/%VERSION%");
+pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/%TERMS%/all/%MAX_RESULTS%/%OS%/%VERSION%?src=seamonkey");
+pref("extensions.webservice.discoverURL", "https://services.addons.mozilla.org/%LOCALE%/%APP%/discovery/pane/%VERSION%/%OS%");
 
-// Non-symmetric (not shared by extensions) extension-specific [update] preferences
-pref("extensions.getMoreExtensionsURL", "chrome://branding/locale/brand.properties");
+// getMoreThemes is used by our UI under our switch theme menu
 pref("extensions.getMoreThemesURL", "chrome://branding/locale/brand.properties");
-pref("extensions.getMorePluginsURL", "chrome://branding/locale/brand.properties");
-pref("extensions.getMoreLocalesURL", "chrome://branding/locale/brand.properties");
 pref("extensions.dss.enabled", false);          // Dynamic Skin Switching
 pref("extensions.dss.switchPending", false);    // Non-dynamic switch pending after next
                                                 // restart.
 
-pref("xpinstall.dialog.confirm", "chrome://mozapps/content/xpinstall/xpinstallConfirm.xul");
+pref("extensions.{972ce4c6-7e08-4474-a285-3208198ce6fd}.name", "chrome://navigator/locale/navigator.properties");
+pref("extensions.{972ce4c6-7e08-4474-a285-3208198ce6fd}.description", "chrome://navigator/locale/navigator.properties");
 
-pref("xpinstall.dialog.progress.skin", "chrome://mozapps/content/extensions/extensions.xul");
-pref("xpinstall.dialog.progress.chrome", "chrome://mozapps/content/extensions/extensions.xul");
-pref("xpinstall.dialog.progress.type.skin", "Extension:Manager");
-pref("xpinstall.dialog.progress.type.chrome", "Extension:Manager");
+pref("extensions.modern@themes.mozilla.org.name", "chrome://navigator/locale/navigator.properties");
+pref("extensions.modern@themes.mozilla.org.description", "chrome://navigator/locale/navigator.properties");
 
-pref("xpinstall.whitelist.add.103", "addons.mozilla.org");
+pref("xpinstall.enabled", true);
+pref("xpinstall.whitelist.add", "addons.mozilla.org");
+pref("xpinstall.whitelist.add.36", "getpersonas.com");
 
-pref("xpinstall.whitelist.add", "update.mozilla.org");
-pref("xpinstall.blacklist.add", "");
+pref("lightweightThemes.update.enabled", true);
 
 // Customizable toolbar stuff
 pref("custtoolbar.personal_toolbar_folder", "");
 // Use a popup window for the customize toolbar UI
 pref("toolbar.customization.usesheet", false);
+
+#ifdef XP_WIN
+#ifndef WINCE
+pref("browser.taskbar.lists.enabled", true);
+pref("browser.taskbar.lists.frequent.enabled", true);
+pref("browser.taskbar.lists.recent.enabled", false);
+pref("browser.taskbar.lists.maxListItemCount", 7);
+pref("browser.taskbar.lists.tasks.enabled", true);
+pref("browser.taskbar.lists.refreshInSeconds", 30);
+#endif
+#endif
 
 pref("sidebar.customize.all_panels.url", "http://sidebar-rdf.netscape.com/%LOCALE%/sidebar-rdf/%SIDEBAR_VERSION%/all-panels.rdf");
 pref("sidebar.customize.directory.url", "http://dmoz.org/Netscape/Sidebar/");
@@ -556,6 +649,16 @@ pref("privacy.item.offlineApps", false);
 pref("privacy.sanitize.sanitizeOnShutdown", false);
 pref("privacy.sanitize.promptOnSanitize", true);
 
+/* mousewheel.withcontrolkey.action:
+ * 0 = lines
+ * 1 = pages
+ * 2 = history
+ * 3 = text or full zoom depending on "browser.zoom.full".
+ */
+pref("mousewheel.withcontrolkey.action",3);
+pref("mousewheel.withcontrolkey.sysnumlines",false);
+pref("mousewheel.withcontrolkey.numlines",1);
+
 // Show XUL error pages instead of alerts for errors
 pref("browser.xul.error_pages.enabled", true);
 pref("browser.xul.error_pages.expert_bad_cert", false);
@@ -573,17 +676,34 @@ pref("dom.disable_window_flip",        true);
 // prevent JS from disabling or replacing context menus
 pref("dom.event.contextmenu.enabled",  true);
 
-#ifndef MOZ_IPC
-pref("dom.ipc.plugins.enabled", false);
-#else
+// The default for this pref reflects whether the build is capable of IPC.
+// (Turning it on in a no-IPC build will have no effect.)
+#ifdef XP_MACOSX
+// i386 IPC preferences
+pref("dom.ipc.plugins.enabled.i386", false);
+pref("dom.ipc.plugins.enabled.i386.flash player.plugin", true);
+pref("dom.ipc.plugins.enabled.i386.javaplugin2_npapi.plugin", true);
+pref("dom.ipc.plugins.enabled.i386.javaappletplugin.plugin", true);
+// x86_64 ipc preferences
+pref("dom.ipc.plugins.enabled.x86_64", true);
+#elifdef MOZ_IPC
 pref("dom.ipc.plugins.enabled", true);
+#else
+pref("dom.ipc.plugins.enabled", false);
 #endif
 
-// Disables default plugin for Plugin Finder Service
-pref("plugin.default_plugin_disabled", true);
 // plugin finder service url
 pref("pfs.datasource.url", "https://pfs.mozilla.org/plugins/PluginFinderService.php?mimetype=%PLUGIN_MIMETYPE%&appID=%APP_ID%&appVersion=%APP_VERSION%&clientOS=%CLIENT_OS%&chromeLocale=%CHROME_LOCALE%");
+pref("plugins.update.url", "http://www.mozilla.com/%LOCALE%/plugincheck/");
+pref("plugins.update.notifyUser", false);
+pref("plugins.hide_infobar_for_outdated_plugin", false);
+pref("plugins.hide_infobar_for_carbon_failure_plugin", false);
 pref("plugins.hide_infobar_for_missing_plugin", false);
+
+#ifndef XP_MACOSX
+// Restore the spinner that was removed in bug 481359
+pref("ui.use_activity_cursor", true);
+#endif
 
 #ifdef XP_MACOSX
 // determines the behavior upon starting a download.
@@ -636,3 +756,73 @@ pref("browser.rights.override", true);
 // Don't show the about:rights notification in non-official builds.
 pref("browser.rights.override", true);
 #endif
+
+// The sync engines to use.
+pref("services.sync.registerEngines", "Bookmarks,Form,History,Password,Prefs,Tab");
+// Preferences to be synced by default
+pref("services.sync.prefs.sync.accessibility.blockautorefresh", true);
+pref("services.sync.prefs.sync.accessibility.browsewithcaret", true);
+pref("services.sync.prefs.sync.accessibility.typeaheadfind.autostart", true);
+pref("services.sync.prefs.sync.accessibility.typeaheadfind.linksonly", true);
+pref("services.sync.prefs.sync.accessibility.typeaheadfind.usefindbar", true);
+pref("services.sync.prefs.sync.app.update.mode", true);
+pref("services.sync.prefs.sync.browser.download.manager.behavior", true);
+pref("services.sync.prefs.sync.browser.download.manager.closeWhenDone", true);
+pref("services.sync.prefs.sync.browser.download.manager.retention", true);
+pref("services.sync.prefs.sync.browser.download.manager.showWhenStarting", true);
+pref("services.sync.prefs.sync.browser.download.manager.scanWhenDone", true);
+pref("services.sync.prefs.sync.browser.formfill.enable", true);
+pref("services.sync.prefs.sync.browser.link.open_external", true);
+pref("services.sync.prefs.sync.browser.link.open_newwindow", true);
+pref("services.sync.prefs.sync.browser.search.update", true);
+pref("services.sync.prefs.sync.browser.startup.homepage", true);
+pref("services.sync.prefs.sync.browser.startup.page", true);
+pref("services.sync.prefs.sync.browser.tabs.autoHide", true);
+pref("services.sync.prefs.sync.browser.tabs.closeButtons", true);
+pref("services.sync.prefs.sync.browser.tabs.loadInBackground", true);
+pref("services.sync.prefs.sync.browser.tabs.warnOnClose", true);
+pref("services.sync.prefs.sync.browser.tabs.warnOnCloseOther", true);
+pref("services.sync.prefs.sync.browser.tabs.warnOnOpen", true);
+pref("services.sync.prefs.sync.browser.urlbar.autocomplete.enabled", true);
+pref("services.sync.prefs.sync.browser.urlbar.autoFill", true);
+pref("services.sync.prefs.sync.browser.urlbar.default.behavior", true);
+pref("services.sync.prefs.sync.dom.disable_open_during_load", true);
+pref("services.sync.prefs.sync.dom.disable_window_flip", true);
+pref("services.sync.prefs.sync.dom.disable_window_move_resize", true);
+pref("services.sync.prefs.sync.dom.disable_window_open_feature.status", true);
+pref("services.sync.prefs.sync.dom.disable_window_status_change", true);
+pref("services.sync.prefs.sync.dom.event.contextmenu.enabled", true);
+pref("services.sync.prefs.sync.extensions.update.enabled", true);
+pref("services.sync.prefs.sync.general.smoothScroll", true);
+pref("services.sync.prefs.sync.intl.accept_languages", true);
+pref("services.sync.prefs.sync.javascript.enabled", true);
+pref("services.sync.prefs.sync.layout.spellcheckDefault", true);
+pref("services.sync.prefs.sync.lightweightThemes.isThemeSelected", true);
+pref("services.sync.prefs.sync.lightweightThemes.usedThemes", true);
+pref("services.sync.prefs.sync.network.cookie.cookieBehavior", true);
+pref("services.sync.prefs.sync.network.cookie.lifetimePolicy", true);
+pref("services.sync.prefs.sync.permissions.default.image", true);
+pref("services.sync.prefs.sync.privacy.donottrackheader.enabled", true);
+pref("services.sync.prefs.sync.privacy.item.cache", true);
+pref("services.sync.prefs.sync.privacy.item.cookies", true);
+pref("services.sync.prefs.sync.privacy.item.downloads", true);
+pref("services.sync.prefs.sync.privacy.item.formdata", true);
+pref("services.sync.prefs.sync.privacy.item.history", true);
+pref("services.sync.prefs.sync.privacy.item.offlineApps", true);
+pref("services.sync.prefs.sync.privacy.item.passwords", true);
+pref("services.sync.prefs.sync.privacy.item.sessions", true);
+pref("services.sync.prefs.sync.privacy.item.urlbar", true);
+pref("services.sync.prefs.sync.privacy.sanitize.sanitizeOnShutdown", true);
+pref("services.sync.prefs.sync.security.OCSP.enabled", true);
+pref("services.sync.prefs.sync.security.OCSP.require", true);
+pref("services.sync.prefs.sync.security.default_personal_cert", true);
+pref("services.sync.prefs.sync.security.enable_ssl3", true);
+pref("services.sync.prefs.sync.security.enable_tls", true);
+pref("services.sync.prefs.sync.security.warn_entering_secure", true);
+pref("services.sync.prefs.sync.security.warn_entering_weak", true);
+pref("services.sync.prefs.sync.security.warn_leaving_secure", true);
+pref("services.sync.prefs.sync.security.warn_submit_insecure", true);
+pref("services.sync.prefs.sync.security.warn_viewing_mixed", true);
+pref("services.sync.prefs.sync.signon.rememberSignons", true);
+pref("services.sync.prefs.sync.spellchecker.dictionary", true);
+pref("services.sync.prefs.sync.xpinstall.whitelist.required", true);

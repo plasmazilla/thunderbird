@@ -44,29 +44,17 @@ include $(DEPTH)/config/autoconf.mk
 
 MODULE		= msgmdn
 LIBRARY_NAME	= msgmdn_s
-META_COMPONENT = mail
 ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
 MOZILLA_INTERNAL_API = 1
 endif
 
-REQUIRES	= xpcom \
-		  string \
-		  msgbase \
-		  necko \
-		  mime \
-		  pref \
-		  intl \
-		  msgbaseutil \
-		  msgimap \
-		  mimetype \
-		  msgcompose \
-		  $(NULL)
 
 CPPSRCS		= \
                 nsMsgMdnGenerator.cpp \
 		$(NULL)
 
-EXTRA_COMPONENTS =  mdn-service.js
+EXTRA_COMPONENTS =  mdn-service.js \
+                    mdn-service.manifest
 
 # we don't want the shared lib, but we want to force the creation of a static lib.
 FORCE_STATIC_LIB = 1

@@ -37,32 +37,9 @@
 
 #include "nsUCSupport.h"
 #include "nsUTF8ToUnicode.h"
+#include "mozilla/SSE.h"
 
 #define UNICODE_BYTE_ORDER_MARK    0xFEFF
-
-NS_IMETHODIMP NS_NewUTF8ToUnicode(nsISupports* aOuter,
-                                  const nsIID& aIID,
-                                  void** aResult)
-{
-  if (!aResult) {
-    return NS_ERROR_NULL_POINTER;
-  }
-  if (aOuter) {
-    *aResult = nsnull;
-    return NS_ERROR_NO_AGGREGATION;
-  }
-  nsUTF8ToUnicode * inst = new nsUTF8ToUnicode();
-  if (!inst) {
-    *aResult = nsnull;
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
-  nsresult res = inst->QueryInterface(aIID, aResult);
-  if (NS_FAILED(res)) {
-    *aResult = nsnull;
-    delete inst;
-  }
-  return res;
-}
 
 static PRUnichar* EmitSurrogatePair(PRUint32 ucs4, PRUnichar* aDest)
 {
@@ -94,7 +71,7 @@ nsUTF8ToUnicode::nsUTF8ToUnicode()
  * However, there is an edge case where the output can be longer than the
  *  input: if the previous buffer ended with an incomplete multi-byte
  *  sequence and this buffer does not begin with a valid continuation
- *  byte, we will return NS_ERROR_UNEXPECTED and the caller may insert a
+ *  byte, we will return NS_ERROR_ILLEGAL_INPUT and the caller may insert a
  *  replacement character in the output buffer which corresponds to no
  *  character in the input buffer. So in the worst case the destination
  *  will need to be one code unit longer than the source.
@@ -128,6 +105,101 @@ NS_IMETHODIMP nsUTF8ToUnicode::Reset()
 //----------------------------------------------------------------------
 // Subclassing of nsBasicDecoderSupport class [implementation]
 
+// Fast ASCII -> UTF16 inner loop implementations
+//
+// Convert_ascii_run will update src and dst to the new values, and
+// len must be the maximum number ascii chars that it would be valid
+// to take from src and place into dst.  (That is, the minimum of the
+// number of bytes left in src and the number of unichars available in
+// dst.)
+
+#if defined(__arm__) || defined(_M_ARM)
+
+// on ARM, do extra work to avoid byte/halfword reads/writes by
+// reading/writing a word at a time for as long as we can
+static inline void
+Convert_ascii_run (const char *&src,
+                   PRUnichar *&dst,
+                   PRInt32 len)
+{
+  const PRUint32 *src32;
+  PRUint32 *dst32;
+
+  // with some alignments, we'd never actually break out of the slow loop, so
+  // check and do the faster slow loop
+  if ((((NS_PTR_TO_UINT32(dst) & 3) == 0) && ((NS_PTR_TO_UINT32(src) & 1) == 0)) ||
+      (((NS_PTR_TO_UINT32(dst) & 3) == 2) && ((NS_PTR_TO_UINT32(src) & 1) == 1)))
+  {
+    while (((NS_PTR_TO_UINT32(src) & 3) ||
+            (NS_PTR_TO_UINT32(dst) & 3)) &&
+           len > 0)
+    {
+      if (*src & 0x80U)
+        return;
+      *dst++ = (PRUnichar) *src++;
+      len--;
+    }
+  } else {
+    goto finish;
+  }
+
+  // then go 4 bytes at a time
+  src32 = (const PRUint32*) src;
+  dst32 = (PRUint32*) dst;
+
+  while (len > 4) {
+    PRUint32 in = *src32++;
+
+    if (in & 0x80808080U) {
+      src32--;
+      break;
+    }
+
+    *dst32++ = ((in & 0x000000ff) >>  0) | ((in & 0x0000ff00) << 8);
+    *dst32++ = ((in & 0x00ff0000) >> 16) | ((in & 0xff000000) >> 8);
+
+    len -= 4;
+  }
+
+  src = (const char *) src32;
+  dst = (PRUnichar *) dst32;
+
+finish:
+  while (len-- > 0 && (*src & 0x80U) == 0) {
+    *dst++ = (PRUnichar) *src++;
+  }
+}
+
+#else
+
+#ifdef MOZILLA_MAY_SUPPORT_SSE2
+namespace mozilla {
+namespace SSE2 {
+
+void Convert_ascii_run(const char *&src, PRUnichar *&dst, PRInt32 len);
+
+}
+}
+#endif
+
+static inline void
+Convert_ascii_run (const char *&src,
+                   PRUnichar *&dst,
+                   PRInt32 len)
+{
+#ifdef MOZILLA_MAY_SUPPORT_SSE2
+  if (mozilla::supports_sse2()) {
+    mozilla::SSE2::Convert_ascii_run(src, dst, len);
+    return;
+  }
+#endif
+
+  while (len-- > 0 && (*src & 0x80U) == 0) {
+    *dst++ = (PRUnichar) *src++;
+  }
+}
+
+#endif
 
 NS_IMETHODIMP nsUTF8ToUnicode::Convert(const char * aSrc,
                                        PRInt32 * aSrcLength,
@@ -161,6 +233,12 @@ NS_IMETHODIMP nsUTF8ToUnicode::Convert(const char * aSrc,
     mFirst = PR_FALSE;
   }
 
+  // alias these locally for speed
+  PRInt32 mUcs4 = this->mUcs4;
+  PRUint8 mState = this->mState;
+  PRUint8 mBytes = this->mBytes;
+  PRUint8 mFirst = this->mFirst;
+
   // Set mFirst to PR_FALSE now so we don't have to every time through the ASCII
   // branch within the loop.
   if (mFirst && aSrcLen && (0 == (0x80 & (*aSrc))))
@@ -171,8 +249,9 @@ NS_IMETHODIMP nsUTF8ToUnicode::Convert(const char * aSrc,
       // When mState is zero we expect either a US-ASCII character or a
       // multi-octet sequence.
       if (0 == (0x80 & (*in))) {
-        // US-ASCII, pass straight through.
-        *out++ = (PRUnichar)*in;
+        PRInt32 max_loops = PR_MIN(inend - in, outend - out);
+        Convert_ascii_run(in, out, max_loops);
+        --in; // match the rest of the cases
         mBytes = 1;
       } else if (0xC0 == (0xE0 & (*in))) {
         // First octet of 2 octet sequence
@@ -218,7 +297,7 @@ NS_IMETHODIMP nsUTF8ToUnicode::Convert(const char * aSrc,
          * Return an error condition. Caller is responsible for flushing and
          * refilling the buffer and resetting state.
          */
-        res = NS_ERROR_UNEXPECTED;
+        res = NS_ERROR_ILLEGAL_INPUT;
         break;
       }
     } else {
@@ -247,7 +326,7 @@ NS_IMETHODIMP nsUTF8ToUnicode::Convert(const char * aSrc,
               ((mUcs4 & 0xFFFFF800) == 0xD800) ||
               // Codepoints outside the Unicode range are illegal
               (mUcs4 > 0x10FFFF)) {
-            res = NS_ERROR_UNEXPECTED;
+            res = NS_ERROR_ILLEGAL_INPUT;
             break;
           }
           if (mUcs4 > 0xFFFF) {
@@ -279,7 +358,7 @@ NS_IMETHODIMP nsUTF8ToUnicode::Convert(const char * aSrc,
          * for flushing and refilling the buffer and resetting state.
          */
         in--;
-        res = NS_ERROR_UNEXPECTED;
+        res = NS_ERROR_ILLEGAL_INPUT;
         break;
       }
     }
@@ -296,6 +375,11 @@ NS_IMETHODIMP nsUTF8ToUnicode::Convert(const char * aSrc,
 
   *aSrcLength = in - aSrc;
   *aDestLength = out - aDest;
+
+  this->mUcs4 = mUcs4;
+  this->mState = mState;
+  this->mBytes = mBytes;
+  this->mFirst = mFirst;
 
   return(res);
 }

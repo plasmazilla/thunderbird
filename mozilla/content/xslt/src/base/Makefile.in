@@ -46,24 +46,7 @@ MODULE = transformiix
 LIBRARY_NAME = txbase_s
 LIBXUL_LIBRARY = 1
 
-REQUIRES	= string \
-		  xpcom \
-		  $(NULL)
 
-ifndef MOZ_XSLT_STANDALONE
-REQUIRES	+= unicharutil \
-		  dom \
-		  content \
-		  layout \
-		  pref \
-		  widget \
-		  necko \
-		  caps \
-		  xpconnect \
-		  js \
-		  htmlparser \
-		  $(NULL)
-endif
 
 CPPSRCS	= txDouble.cpp \
 	txList.cpp \

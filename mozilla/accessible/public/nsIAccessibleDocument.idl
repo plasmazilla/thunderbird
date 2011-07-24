@@ -55,10 +55,8 @@ interface nsIDOMWindow;
  * of a document. You can also get one from 
  * nsIAccessNode::GetAccessibleDocument() or 
  * nsIAccessibleEvent::GetAccessibleDocument()
- *
- * @status UNDER_REVIEW
  */
-[scriptable, uuid(b7ae45bd-21e9-4ed5-a67e-86448b25d56b)]
+[scriptable, uuid(451242bd-8a0c-4198-ae88-c053609a4e5d)]
 interface nsIAccessibleDocument : nsISupports
 {
   /**
@@ -84,7 +82,7 @@ interface nsIAccessibleDocument : nsISupports
   /**
    * The nsIDOMDocument interface associated with this document.
    */
-  readonly attribute nsIDOMDocument document;
+  readonly attribute nsIDOMDocument DOMDocument;
 
   /**
    * The nsIDOMWindow that the document resides in.
@@ -103,23 +101,17 @@ interface nsIAccessibleDocument : nsISupports
   [noscript] readonly attribute voidPtr windowHandle;
 
   /**
-   * Returns the access node cached by this document
-   * @param aUniqueID The unique ID used to cache the node.
-   *                  This matches up with the uniqueID attribute on
-   *                  nsIAccessNode.
-   * @return The nsIAccessNode cached for this particular unique ID.
+   * Return the parent document accessible.
    */
-  [noscript] nsIAccessNode getCachedAccessNode(in voidPtr aUniqueID);
+  readonly attribute nsIAccessibleDocument parentDocument;
 
   /**
-   * Returns the first accessible parent of a DOM node.
-   * Guaranteed not to return nsnull if the DOM node is in a document.
-   * @param aDOMNode The DOM node we need an accessible for.
-   * @param aCanCreate Can accessibles be created or must it be the first 
-   *                   cached accessible in the parent chain?
-   * @return An first nsIAccessible found by crawling up the DOM node
-   *         to the document root.
+   * Return the count of child document accessibles.
    */
-  nsIAccessible getAccessibleInParentChain(in nsIDOMNode aDOMNode,
-                                           in boolean aCanCreate);
+  readonly attribute unsigned long childDocumentCount;
+
+  /**
+   * Return the child document accessible at the given index.
+   */
+  nsIAccessibleDocument getChildDocumentAt(in unsigned long index);
 };

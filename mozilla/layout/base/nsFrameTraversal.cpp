@@ -494,11 +494,7 @@ nsFrameIterator::GetFirstChildInner(nsIFrame* aFrame) {
 
 nsIFrame*
 nsFrameIterator::GetLastChildInner(nsIFrame* aFrame) {
-  nsIFrame* child = aFrame->GetFirstChild(nsnull);
-  if (!child)
-    return nsnull;
-  nsFrameList list(child);
-  return list.LastChild();
+  return aFrame->GetChildList(nsnull).LastChild();
 }
 
 nsIFrame*
@@ -508,11 +504,7 @@ nsFrameIterator::GetNextSiblingInner(nsIFrame* aFrame) {
 
 nsIFrame*
 nsFrameIterator::GetPrevSiblingInner(nsIFrame* aFrame) {
-  nsIFrame* parent = GetParentFrame(aFrame);
-  if (!parent)
-    return nsnull;
-  nsFrameList list(parent->GetFirstChild(nsnull));
-  return list.GetPrevSiblingFor(aFrame);
+  return aFrame->GetPrevSibling();
 }
 
 
@@ -522,8 +514,7 @@ nsFrameIterator::GetPlaceholderFrame(nsIFrame* aFrame)
   nsIFrame* result = aFrame;
   nsIPresShell *presShell = mPresContext->GetPresShell();
   if (presShell) {
-    nsIFrame* placeholder = 0;
-    presShell->GetPlaceholderFrameFor(aFrame, &placeholder);
+    nsIFrame* placeholder = presShell->GetPlaceholderFrameFor(aFrame);
     if (placeholder)
       result = placeholder;
   }
@@ -545,20 +536,12 @@ nsFrameIterator::IsPopupFrame(nsIFrame* aFrame)
 
 nsIFrame*
 nsVisualIterator::GetFirstChildInner(nsIFrame* aFrame) {
-  nsIFrame* child = aFrame->GetFirstChild(nsnull);
-  if (!child)
-    return nsnull;
-  nsFrameList list(child);
-  return list.GetNextVisualFor(nsnull);
+  return aFrame->GetChildList(nsnull).GetNextVisualFor(nsnull);
 }
 
 nsIFrame*
 nsVisualIterator::GetLastChildInner(nsIFrame* aFrame) {
-  nsIFrame* child = aFrame->GetFirstChild(nsnull);
-  if (!child)
-    return nsnull;
-  nsFrameList list(child);
-  return list.GetPrevVisualFor(nsnull);
+  return aFrame->GetChildList(nsnull).GetPrevVisualFor(nsnull);
 }
 
 nsIFrame*
@@ -566,8 +549,7 @@ nsVisualIterator::GetNextSiblingInner(nsIFrame* aFrame) {
   nsIFrame* parent = GetParentFrame(aFrame);
   if (!parent)
     return nsnull;
-  nsFrameList list(parent->GetFirstChild(nsnull));
-  return list.GetNextVisualFor(aFrame);
+  return parent->GetChildList(nsnull).GetNextVisualFor(aFrame);
 }
 
 nsIFrame*
@@ -575,6 +557,5 @@ nsVisualIterator::GetPrevSiblingInner(nsIFrame* aFrame) {
   nsIFrame* parent = GetParentFrame(aFrame);
   if (!parent)
     return nsnull;
-  nsFrameList list(parent->GetFirstChild(nsnull));
-  return list.GetPrevVisualFor(aFrame);
+  return parent->GetChildList(nsnull).GetPrevVisualFor(aFrame);
 }

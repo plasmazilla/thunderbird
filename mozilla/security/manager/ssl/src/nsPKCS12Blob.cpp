@@ -272,6 +272,7 @@ finish:
   // finish the decoder
   if (dcx)
     SEC_PKCS12DecoderFinish(dcx);
+  SECITEM_ZfreeItem(&unicodePw, PR_FALSE);
   return NS_OK;
 }
 
@@ -302,7 +303,7 @@ nsPKCS12Blob::LoadCerts(const PRUnichar **certNames, int numCerts)
         return NS_ERROR_FAILURE;
       else continue; /* user may request to keep going */
     }
-    nsCOMPtr<nsIX509Cert> cert = new nsNSSCertificate(nssCert);
+    nsCOMPtr<nsIX509Cert> cert = nsNSSCertificate::Create(nssCert);
     CERT_DestroyCertificate(nssCert);
     if (!cert) {
       if (!handleError())
@@ -487,6 +488,7 @@ finish:
     PR_Close(this->mTmpFile);
     this->mTmpFile = NULL;
   }
+  SECITEM_ZfreeItem(&unicodePw, PR_FALSE);
   return rv;
 }
 

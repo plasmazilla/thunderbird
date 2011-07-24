@@ -42,6 +42,7 @@
 #include "nsIFormControlFrame.h"
 #include "nsIDOMMouseListener.h"
 #include "nsIAnonymousContentCreator.h"
+#include "nsICapturePicker.h"
 #include "nsCOMPtr.h"
 
 #include "nsTextControlFrame.h"
@@ -53,7 +54,6 @@ class nsFileControlFrame : public nsBlockFrame,
 {
 public:
   nsFileControlFrame(nsStyleContext* aContext);
-  virtual ~nsFileControlFrame();
 
   NS_IMETHOD Init(nsIContent* aContent,
                   nsIFrame*   aParent,
@@ -78,7 +78,7 @@ public:
                     const nsHTMLReflowState& aReflowState,
                     nsReflowStatus&          aStatus);
 
-  virtual void Destroy();
+  virtual void DestroyFrom(nsIFrame* aDestructRoot);
 
 #ifdef NS_DEBUG
   NS_IMETHOD GetFrameName(nsAString& aResult) const;
@@ -87,18 +87,27 @@ public:
   NS_IMETHOD AttributeChanged(PRInt32         aNameSpaceID,
                               nsIAtom*        aAttribute,
                               PRInt32         aModType);
+  virtual void ContentStatesChanged(nsEventStates aStates);
   virtual PRBool IsLeaf() const;
 
 
 
   // nsIAnonymousContentCreator
   virtual nsresult CreateAnonymousContent(nsTArray<nsIContent*>& aElements);
+  virtual void AppendAnonymousContentTo(nsBaseContentList& aElements,
+                                        PRUint32 aFilter);
 
 #ifdef ACCESSIBILITY
-  NS_IMETHOD GetAccessible(nsIAccessible** aAccessible);
+  virtual already_AddRefed<nsAccessible> CreateAccessible();
 #endif
 
+  typedef PRBool (*AcceptAttrCallback)(const nsAString&, void*);
+  void ParseAcceptAttribute(AcceptAttrCallback aCallback, void* aClosure) const;
+
+  nsIFrame* GetTextFrame() { return mTextFrame; }
+
 protected:
+
   class MouseListener;
   friend class MouseListener;
   class MouseListener : public nsIDOMMouseListener {
@@ -117,16 +126,51 @@ protected:
     // and textfield.
     NS_IMETHOD MouseDown(nsIDOMEvent* aMouseEvent) { return NS_OK; }
     NS_IMETHOD MouseUp(nsIDOMEvent* aMouseEvent) { return NS_OK; }
-    NS_IMETHOD MouseClick(nsIDOMEvent* aMouseEvent);
+    NS_IMETHOD MouseClick(nsIDOMEvent* aMouseEvent) = 0;
     NS_IMETHOD MouseDblClick(nsIDOMEvent* aMouseEvent) { return NS_OK; }
     NS_IMETHOD MouseOver(nsIDOMEvent* aMouseEvent) { return NS_OK; }
     NS_IMETHOD MouseOut(nsIDOMEvent* aMouseEvent) { return NS_OK; }
     NS_IMETHOD HandleEvent(nsIDOMEvent* aEvent) { return NS_OK; }
 
-  private:
+  protected:
     nsFileControlFrame* mFrame;
   };
+
+  class SyncDisabledStateEvent;
+  friend class SyncDisabledStateEvent;
+  class SyncDisabledStateEvent : public nsRunnable
+  {
+  public:
+    SyncDisabledStateEvent(nsFileControlFrame* aFrame)
+      : mFrame(aFrame)
+    {}
+
+    NS_IMETHOD Run() {
+      nsFileControlFrame* frame = static_cast<nsFileControlFrame*>(mFrame.GetFrame());
+      NS_ENSURE_STATE(frame);
+
+      frame->SyncDisabledState();
+      return NS_OK;
+    }
+
+  private:
+    nsWeakFrame mFrame;
+  };
+
+  class CaptureMouseListener: public MouseListener {
+  public:
+    CaptureMouseListener(nsFileControlFrame* aFrame) : MouseListener(aFrame),
+                                                       mMode(0) {};
+    NS_IMETHOD MouseClick(nsIDOMEvent* aMouseEvent);
+    PRUint32 mMode;
+  };
   
+  class BrowseMouseListener: public MouseListener {
+  public:
+    BrowseMouseListener(nsFileControlFrame* aFrame) : MouseListener(aFrame) {};
+     NS_IMETHOD MouseClick(nsIDOMEvent* aMouseEvent);
+  };
+
   virtual PRBool IsFrameOfType(PRUint32 aFlags) const
   {
     return nsBlockFrame::IsFrameOfType(aFlags &
@@ -150,16 +194,18 @@ protected:
    * @see nsFileControlFrame::CreateAnonymousContent
    */
   nsCOMPtr<nsIContent> mBrowse;
+
   /**
-   * The current value, stored during those rare in-between periods where the
-   * file frame is there but the input frame is not.
+   * The capture button input.
+   * @see nsFileControlFrame::CreateAnonymousContent
    */
-  nsString*           mCachedState;
+  nsCOMPtr<nsIContent> mCapture;
 
   /**
    * Our mouse listener.  This makes sure we don't get used after destruction.
    */
-  nsRefPtr<MouseListener> mMouseListener;
+  nsRefPtr<BrowseMouseListener> mMouseListener;
+  nsRefPtr<CaptureMouseListener> mCaptureMouseListener;
 
 private:
   /**
@@ -179,11 +225,15 @@ private:
    * Copy an attribute from file content to text and button content.
    * @param aNameSpaceID namespace of attr
    * @param aAttribute attribute atom
-   * @param aWhichControls which controls to apply to (SYNC_TEXT or SYNC_FILE
-   *        or SYNC_BOTH)
+   * @param aWhichControls which controls to apply to (SYNC_TEXT or SYNC_FILE)
    */
   void SyncAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
                 PRInt32 aWhichControls);
+
+  /**
+   * Sync the disabled state of the content with anonymous children.
+   */
+  void SyncDisabledState();
 };
 
 #endif

@@ -85,7 +85,7 @@ function add_normalized_visit(aURI, aTime, aDayOffset) {
 function days_for_x_months_ago(aNowObj, aMonths) {
   var oldTime = new Date();
   // Set day before month, otherwise we could try to calculate 30 February, or
-  // other not existant days.
+  // other nonexistent days.
   oldTime.setDate(1);
   oldTime.setMonth(aNowObj.getMonth() - aMonths);
   oldTime.setHours(0);
@@ -99,15 +99,15 @@ var nowObj = new Date();
 // This test relies on en-US locale
 // Offset is number of days
 var containers = [
-  { label: "Today"               , offset: 0                     , visible: true },
-  { label: "Yesterday"           , offset: -1                    , visible: true },
-  { label: "Last 7 days"         , offset: -3                    , visible: true },
-  { label: "This month"          , offset: -8                    , visible: nowObj.getDate() > 8 },
-  { label: ""                    , offset: -days_for_x_months_ago(nowObj, 0)   , visible: true },
-  { label: ""                    , offset: -days_for_x_months_ago(nowObj, 1)   , visible: true },
-  { label: ""                    , offset: -days_for_x_months_ago(nowObj, 2)   , visible: true },
-  { label: ""                    , offset: -days_for_x_months_ago(nowObj, 3)   , visible: true },
-  { label: ""                    , offset: -days_for_x_months_ago(nowObj, 4)   , visible: true },
+  { label: "Today"               , offset: 0                                 , visible: true },
+  { label: "Yesterday"           , offset: -1                                , visible: true },
+  { label: "Last 7 days"         , offset: -3                                , visible: true },
+  { label: "This month"          , offset: -8                                , visible: nowObj.getDate() > 8 },
+  { label: ""                    , offset: -days_for_x_months_ago(nowObj, 0) , visible: true },
+  { label: ""                    , offset: -days_for_x_months_ago(nowObj, 1) , visible: true },
+  { label: ""                    , offset: -days_for_x_months_ago(nowObj, 2) , visible: true },
+  { label: ""                    , offset: -days_for_x_months_ago(nowObj, 3) , visible: true },
+  { label: ""                    , offset: -days_for_x_months_ago(nowObj, 4) , visible: true },
   { label: "Older than 6 months" , offset: -days_for_x_months_ago(nowObj, 5) , visible: true },
 ];
 
@@ -457,9 +457,6 @@ function test_date_liveupdate(aResultType) {
 
 // main
 function run_test() {
-  // Increase history limit to 1 year
-  ps.setIntPref("browser.history_expire_days", 365);
-
   // Cleanup.
   bh.removeAllPages();
   remove_all_bookmarks();

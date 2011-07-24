@@ -36,19 +36,18 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "IPCMessageUtils.h"
+#include "mozilla/net/NeckoMessageUtils.h"
+
 #include "nsSimpleNestedURI.h"
 #include "nsIObjectInputStream.h"
 #include "nsIObjectOutputStream.h"
 #include "nsNetUtil.h"
 
-// nsSimpleURI uses aggregation, so use the non-logging addref/release macros.
-NS_IMPL_QUERY_INTERFACE_INHERITED1(nsSimpleNestedURI, nsSimpleURI, nsINestedURI)
-NS_IMPL_NONLOGGING_ADDREF_INHERITED(nsSimpleNestedURI, nsSimpleURI)
-NS_IMPL_NONLOGGING_RELEASE_INHERITED(nsSimpleNestedURI, nsSimpleURI)
+NS_IMPL_ISUPPORTS_INHERITED1(nsSimpleNestedURI, nsSimpleURI, nsINestedURI)
 
 nsSimpleNestedURI::nsSimpleNestedURI(nsIURI* innerURI)
-    : nsSimpleURI(nsnull),
-      mInnerURI(innerURI)
+    : mInnerURI(innerURI)
 {
     NS_ASSERTION(innerURI, "Must have inner URI");
     NS_TryToSetImmutable(innerURI);
@@ -87,6 +86,32 @@ nsSimpleNestedURI::Write(nsIObjectOutputStream* aStream)
     rv = aStream->WriteCompoundObject(mInnerURI, NS_GET_IID(nsIURI),
                                       PR_TRUE);
     return rv;
+}
+
+// nsIIPCSerializable
+
+PRBool
+nsSimpleNestedURI::Read(const IPC::Message *aMsg, void **aIter)
+{
+    if (!nsSimpleURI::Read(aMsg, aIter))
+        return PR_FALSE;
+
+    IPC::URI uri;
+    if (!ReadParam(aMsg, aIter, &uri))
+        return PR_FALSE;
+
+    mInnerURI = uri;
+
+    return PR_TRUE;
+}
+
+void
+nsSimpleNestedURI::Write(IPC::Message *aMsg)
+{
+    nsSimpleURI::Write(aMsg);
+
+    IPC::URI uri(mInnerURI);
+    WriteParam(aMsg, uri);
 }
 
 // nsINestedURI

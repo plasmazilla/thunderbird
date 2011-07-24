@@ -42,6 +42,7 @@
 #include "nsSMILParserUtils.h"
 #include "nsSMILNullType.h"
 #include "nsISMILAnimationElement.h"
+#include "nsSMILTimedElement.h"
 #include "nsGkAtoms.h"
 #include "nsCOMPtr.h"
 #include "nsCOMArray.h"
@@ -75,37 +76,25 @@ nsAttrValue::EnumTable nsSMILAnimationFunction::sCalcModeTable[] = {
       {nsnull, 0}
 };
 
-// Bits for attributes that are parsed the same regardless of animated type
-#define BF_ACCUMULATE  0
-#define BF_ADDITIVE    1
-#define BF_CALC_MODE   2
-#define BF_KEY_TIMES   3
-#define BF_KEY_SPLINES 4
-
 // Any negative number should be fine as a sentinel here,
 // because valid distances are non-negative.
 #define COMPUTE_DISTANCE_ERROR (-1)
-
-// Based on GET/SET_BOOLBIT in nsHTMLInputElement.cpp
-#define GET_FLAG(bitfield, field) (((bitfield) & (0x01 << (field))) \
-                                     ? PR_TRUE : PR_FALSE)
-#define SET_FLAG(bitfield, field, b) ((b) \
-                                     ? ((bitfield) |=  (0x01 << (field))) \
-                                     : ((bitfield) &= ~(0x01 << (field))))
 
 //----------------------------------------------------------------------
 // Constructors etc.
 
 nsSMILAnimationFunction::nsSMILAnimationFunction()
-  : mIsActive(PR_FALSE),
-    mIsFrozen(PR_FALSE),
-    mSampleTime(-1),
+  : mSampleTime(-1),
     mRepeatIteration(0),
-    mLastValue(PR_FALSE),
-    mHasChanged(PR_TRUE),
     mBeginTime(LL_MININT),
     mAnimationElement(nsnull),
-    mErrorFlags(0)
+    mErrorFlags(0),
+    mIsActive(PR_FALSE),
+    mIsFrozen(PR_FALSE),
+    mLastValue(PR_FALSE),
+    mHasChanged(PR_TRUE),
+    mValueNeedsReparsingEverySample(PR_FALSE),
+    mPrevSampleWasSingleValueAnimation(PR_FALSE)
 {
 }
 
@@ -188,11 +177,17 @@ nsSMILAnimationFunction::SampleAt(nsSMILTime aSampleTime,
                                   const nsSMILTimeValue& aSimpleDuration,
                                   PRUint32 aRepeatIteration)
 {
-  if (mHasChanged || mLastValue || mSampleTime != aSampleTime ||
-      mSimpleDuration.CompareTo(aSimpleDuration) ||
-      mRepeatIteration != aRepeatIteration) {
-    mHasChanged = PR_TRUE;
-  }
+  // * Update mHasChanged ("Might this sample be different from prev one?")
+  // Were we previously sampling a fill="freeze" final val? (We're not anymore.)
+  mHasChanged |= mLastValue;
+
+  // Are we sampling at a new point in simple duration? And does that matter?
+  mHasChanged |=
+    (mSampleTime != aSampleTime || mSimpleDuration != aSimpleDuration) &&
+    !IsValueFixedForSimpleDuration();
+
+  // Are we on a new repeat and accumulating across repeats?
+  mHasChanged |= (mRepeatIteration != aRepeatIteration) && GetAccumulate();
 
   mSampleTime       = aSampleTime;
   mSimpleDuration   = aSimpleDuration;
@@ -218,6 +213,7 @@ nsSMILAnimationFunction::Activate(nsSMILTime aBeginTime)
   mIsActive = PR_TRUE;
   mIsFrozen = PR_FALSE;
   mFrozenValue = nsSMILValue();
+  mHasChanged = PR_TRUE;
 }
 
 void
@@ -234,9 +230,10 @@ nsSMILAnimationFunction::ComposeResult(const nsISMILAttr& aSMILAttr,
                                        nsSMILValue& aResult)
 {
   mHasChanged = PR_FALSE;
+  mPrevSampleWasSingleValueAnimation = PR_FALSE;
 
   // Skip animations that are inactive or in error
-  if (!IsActive() || mErrorFlags != 0)
+  if (!IsActiveOrFrozen() || mErrorFlags != 0)
     return;
 
   // Get the animation values
@@ -245,27 +242,38 @@ nsSMILAnimationFunction::ComposeResult(const nsISMILAttr& aSMILAttr,
   if (NS_FAILED(rv))
     return;
 
-  // If this interval is active, we must have a non-negative
-  // mSampleTime and a resolved or indefinite mSimpleDuration.
-  // (Otherwise, we're probably just frozen.)
-  if (mIsActive) {
-    NS_ENSURE_TRUE(mSampleTime >= 0,);
-    NS_ENSURE_TRUE(mSimpleDuration.IsResolved() ||
-                   mSimpleDuration.IsIndefinite(),);
-  }
+  // Check that we have the right number of keySplines and keyTimes
+  CheckValueListDependentAttrs(values.Length());
+  if (mErrorFlags != 0)
+    return;
 
-  nsSMILValue result(aResult.mType);
+  // If this interval is active, we must have a non-negative mSampleTime
+  NS_ABORT_IF_FALSE(mSampleTime >= 0 || !mIsActive,
+      "Negative sample time for active animation");
+  NS_ABORT_IF_FALSE(mSimpleDuration.IsResolved() ||
+      mSimpleDuration.IsIndefinite() || mLastValue,
+      "Unresolved simple duration for active or frozen animation");
 
-  if (mSimpleDuration.IsIndefinite() ||
-      (HasAttr(nsGkAtoms::values) && values.Length() == 1)) {
+  // If we want to add but don't have a base value then just fail outright.
+  // This can happen when we skipped getting the base value because there's an
+  // animation function in the sandwich that should replace it but that function
+  // failed unexpectedly.
+  PRBool isAdditive = IsAdditive();
+  if (isAdditive && aResult.IsNull())
+    return;
 
-    // Indefinite duration or only one value set: Always set the first value
+  nsSMILValue result;
+
+  if (values.Length() == 1 && !IsToAnimation()) {
+
+    // Single-valued animation
     result = values[0];
+    mPrevSampleWasSingleValueAnimation = PR_TRUE;
 
   } else if (mLastValue) {
 
     // Sampling last value
-    nsSMILValue last(values[values.Length() - 1]);
+    const nsSMILValue& last = values[values.Length() - 1];
     result = last;
 
     // See comment in AccumulateResult: to-animation does not accumulate
@@ -283,8 +291,11 @@ nsSMILAnimationFunction::ComposeResult(const nsISMILAttr& aSMILAttr,
   } else {
 
     // Interpolation
-    NS_ENSURE_SUCCESS(InterpolateResult(values, result, aResult),);
-    NS_ENSURE_SUCCESS(AccumulateResult(values, result),);
+    if (NS_FAILED(InterpolateResult(values, result, aResult)))
+      return;
+
+    if (NS_FAILED(AccumulateResult(values, result)))
+      return;
 
     if (IsToAnimation() && mIsFrozen) {
       mFrozenValue = result;
@@ -292,8 +303,10 @@ nsSMILAnimationFunction::ComposeResult(const nsISMILAttr& aSMILAttr,
   }
 
   // If additive animation isn't required or isn't supported, set the value.
-  if (!IsAdditive() || NS_FAILED(aResult.SandwichAdd(result))) {
-    aResult = result;
+  if (!isAdditive || NS_FAILED(aResult.SandwichAdd(result))) {
+    aResult.Swap(result);
+    // Note: The old value of aResult is now in |result|, and it will get
+    // cleaned up when |result| goes out of scope, when this function returns.
   }
 }
 
@@ -302,31 +315,39 @@ nsSMILAnimationFunction::CompareTo(const nsSMILAnimationFunction* aOther) const
 {
   NS_ENSURE_TRUE(aOther, 0);
 
-  NS_ASSERTION(aOther != this, "Trying to compare to self.");
+  NS_ASSERTION(aOther != this, "Trying to compare to self");
 
   // Inactive animations sort first
-  if (!IsActive() && aOther->IsActive())
+  if (!IsActiveOrFrozen() && aOther->IsActiveOrFrozen())
     return -1;
 
-  if (IsActive() && !aOther->IsActive())
+  if (IsActiveOrFrozen() && !aOther->IsActiveOrFrozen())
     return 1;
 
   // Sort based on begin time
   if (mBeginTime != aOther->GetBeginTime())
     return mBeginTime > aOther->GetBeginTime() ? 1 : -1;
 
-  // XXX When syncbase timing is implemented, we next need to sort based on
-  // dependencies
+  // Next sort based on syncbase dependencies: the dependent element sorts after
+  // its syncbase
+  const nsSMILTimedElement& thisTimedElement =
+    mAnimationElement->TimedElement();
+  const nsSMILTimedElement& otherTimedElement =
+    aOther->mAnimationElement->TimedElement();
+  if (thisTimedElement.IsTimeDependent(otherTimedElement))
+    return 1;
+  if (otherTimedElement.IsTimeDependent(thisTimedElement))
+    return -1;
 
   // Animations that appear later in the document sort after those earlier in
   // the document
-  nsIContent &thisElement = mAnimationElement->Content();
-  nsIContent &otherElement = aOther->mAnimationElement->Content();
+  nsIContent& thisContent = mAnimationElement->AsElement();
+  nsIContent& otherContent = aOther->mAnimationElement->AsElement();
 
-  NS_ASSERTION(&thisElement != &otherElement,
-             "Two animations cannot have the same animation content element!");
+  NS_ABORT_IF_FALSE(&thisContent != &otherContent,
+      "Two animations cannot have the same animation content element!");
 
-  return (nsContentUtils::PositionIsBefore(&thisElement, &otherElement))
+  return (nsContentUtils::PositionIsBefore(&thisContent, &otherContent))
           ? -1 : 1;
 }
 
@@ -339,14 +360,24 @@ nsSMILAnimationFunction::WillReplace() const
    * here we return false for to animation as it builds on the underlying value
    * unless its a frozen to animation.
    */
-  return !(IsAdditive() || IsToAnimation()) ||
-    (IsToAnimation() && mIsFrozen && !mHasChanged);
+  return !mErrorFlags && (!(IsAdditive() || IsToAnimation()) ||
+                          (IsToAnimation() && mIsFrozen && !mHasChanged));
 }
 
 PRBool
 nsSMILAnimationFunction::HasChanged() const
 {
-  return mHasChanged;
+  return mHasChanged || mValueNeedsReparsingEverySample;
+}
+
+PRBool
+nsSMILAnimationFunction::UpdateCachedTarget(const nsSMILTargetIdentifier& aNewTarget)
+{
+  if (!mLastTarget.Equals(aNewTarget)) {
+    mLastTarget = aNewTarget;
+    return PR_TRUE;
+  }
+  return PR_FALSE;
 }
 
 //----------------------------------------------------------------------
@@ -357,92 +388,105 @@ nsSMILAnimationFunction::InterpolateResult(const nsSMILValueArray& aValues,
                                            nsSMILValue& aResult,
                                            nsSMILValue& aBaseValue)
 {
-  nsresult rv = NS_OK;
-  const nsSMILValue* from = nsnull;
-  const nsSMILValue* to = nsnull;
-  const nsSMILTime& dur = mSimpleDuration.GetMillis();
-
-  // Sanity Checks
-  NS_ASSERTION(mSampleTime >= 0.0f, "Sample time should not be negative...");
-  NS_ASSERTION(dur  >= 0.0f, "Simple duration should not be negative...");
-
-  if (mSampleTime >= dur || mSampleTime < 0) {
-    NS_ERROR("Animation sampled outside interval.");
-    return NS_ERROR_FAILURE;
-  }
-
+  // Sanity check animation values
   if ((!IsToAnimation() && aValues.Length() < 2) ||
       (IsToAnimation()  && aValues.Length() != 1)) {
-    NS_ERROR("Unexpected number of values.");
+    NS_ERROR("Unexpected number of values");
     return NS_ERROR_FAILURE;
   }
-  // End Sanity Checks
 
-  double fTime = double(mSampleTime);
-  double fDur = double(dur);
+  // Get the normalised progress through the simple duration.
+  //
+  // If we have an indefinite simple duration, just set the progress to be
+  // 0 which will give us the expected behaviour of the animation being fixed at
+  // its starting point.
+  double simpleProgress = 0.0;
 
-  // Get the normalised progress through the simple duration
-  double simpleProgress = (fDur > 0.0) ? fTime / fDur : 0.0;
+  if (mSimpleDuration.IsResolved()) {
+    nsSMILTime dur = mSimpleDuration.GetMillis();
 
-  // Handle bad keytimes (where first != 0 and/or last != 1)
-  // See http://brian.sol1.net/svg/range-for-keytimes for more info.
-  if (HasAttr(nsGkAtoms::keyTimes)) {
-    double first = mKeyTimes[0];
-    if (first > 0.0 && simpleProgress < first) {
-      if (!IsToAnimation())
-        aResult = aValues[0];
-      return rv;
+    NS_ABORT_IF_FALSE(dur >= 0, "Simple duration should not be negative");
+    NS_ABORT_IF_FALSE(mSampleTime >= 0, "Sample time should not be negative");
+
+    if (mSampleTime >= dur || mSampleTime < 0) {
+      NS_ERROR("Animation sampled outside interval");
+      return NS_ERROR_FAILURE;
     }
-    double last = mKeyTimes[mKeyTimes.Length() - 1];
-    if (last < 1.0 && simpleProgress >= last) {
-      if (IsToAnimation())
-        aResult = aValues[0];
-      else
-        aResult = aValues[aValues.Length() - 1];
-      return rv;
-    }
+
+    if (dur > 0) {
+      simpleProgress = (double)mSampleTime / dur;
+    } // else leave simpleProgress at 0.0 (e.g. if mSampleTime == dur == 0)
   }
 
-  ScaleSimpleProgress(simpleProgress);
-
-  // Handle CALC_DISCRETE separately, because it's simple.
-  if (GetCalcMode() == CALC_DISCRETE) {
+  nsresult rv = NS_OK;
+  nsSMILCalcMode calcMode = GetCalcMode();
+  if (calcMode != CALC_DISCRETE) {
+    // Get the normalised progress between adjacent values
+    const nsSMILValue* from = nsnull;
+    const nsSMILValue* to = nsnull;
+    // Init to -1 to make sure that if we ever forget to set this, the
+    // NS_ABORT_IF_FALSE that tests that intervalProgress is in range will fail.
+    double intervalProgress = -1.f;
     if (IsToAnimation()) {
-      // Two discrete values: our base value, and the val in our array
-      aResult = (simpleProgress < 0.5f) ? aBaseValue : aValues[0];
-    } else {
-      PRUint32 index = (PRUint32) floor(simpleProgress * (aValues.Length()));
-      aResult = aValues[index];
-    }
-    return NS_OK;
-  }
-
-  // Get the normalised progress between adjacent values
-  double intervalProgress;
-  if (IsToAnimation()) {
-    // Note: Don't need to do any special-casing for CALC_PACED here,
-    // because To-Animation doesn't use a values list, by definition.
-    from = &aBaseValue;
-    to = &aValues[0];
-    intervalProgress = simpleProgress;
-    ScaleIntervalProgress(intervalProgress, 0, 1);
-  } else {
-    if (GetCalcMode() == CALC_PACED) {
-      rv = ComputePacedPosition(aValues, simpleProgress, intervalProgress,
-                                from, to);
-      NS_ENSURE_SUCCESS(rv,rv);
-    } else { // GetCalcMode() == CALC_LINEAR or GetCalcMode() == CALC_SPLINE
-      PRUint32 index = (PRUint32)floor(simpleProgress * (aValues.Length() - 1));
+      if (aBaseValue.IsNull()) {
+        rv = NS_ERROR_FAILURE;
+      } else {
+        from = &aBaseValue;
+        to = &aValues[0];
+        if (calcMode == CALC_PACED) {
+          // Note: key[Times/Splines/Points] are ignored for calcMode="paced"
+          intervalProgress = simpleProgress;
+        } else {
+          double scaledSimpleProgress =
+            ScaleSimpleProgress(simpleProgress, calcMode);
+          intervalProgress = ScaleIntervalProgress(scaledSimpleProgress, 0);
+        }
+      }
+    } else if (calcMode == CALC_PACED) {
+      rv = ComputePacedPosition(aValues, simpleProgress,
+                                intervalProgress, from, to);
+      // Note: If the above call fails, we'll skip the "from->Interpolate"
+      // call below, and we'll drop into the CALC_DISCRETE section
+      // instead. (as the spec says we should, because our failure was
+      // presumably due to the values being non-additive)
+    } else { // calcMode == CALC_LINEAR or calcMode == CALC_SPLINE
+      double scaledSimpleProgress =
+        ScaleSimpleProgress(simpleProgress, calcMode);
+      PRUint32 index = (PRUint32)floor(scaledSimpleProgress *
+                                       (aValues.Length() - 1));
       from = &aValues[index];
       to = &aValues[index + 1];
-      intervalProgress = simpleProgress * (aValues.Length() - 1) - index;
-      ScaleIntervalProgress(intervalProgress, index, aValues.Length() - 1);
+      intervalProgress =
+        scaledSimpleProgress * (aValues.Length() - 1) - index;
+      intervalProgress = ScaleIntervalProgress(intervalProgress, index);
+    }
+
+    if (NS_SUCCEEDED(rv)) {
+      NS_ABORT_IF_FALSE(from, "NULL from-value during interpolation");
+      NS_ABORT_IF_FALSE(to, "NULL to-value during interpolation");
+      NS_ABORT_IF_FALSE(0.0f <= intervalProgress && intervalProgress < 1.0f,
+                      "Interval progress should be in the range [0, 1)");
+      rv = from->Interpolate(*to, intervalProgress, aResult);
     }
   }
-  NS_ASSERTION(from, "NULL from-value during interpolation.");
-  NS_ASSERTION(to, "NULL to-value during interpolation.");
 
-  return from->Interpolate(*to, intervalProgress, aResult);
+  // Discrete-CalcMode case
+  // Note: If interpolation failed (isn't supported for this type), the SVG
+  // spec says to force discrete mode.
+  if (calcMode == CALC_DISCRETE || NS_FAILED(rv)) {
+    if (IsToAnimation()) {
+      // SMIL 3, 12.6.4: Since a to animation has only 1 value, a discrete to
+      // animation will simply set the to value for the simple duration.
+      aResult = aValues[0];
+    } else {
+      double scaledSimpleProgress =
+        ScaleSimpleProgress(simpleProgress, CALC_DISCRETE);
+      PRUint32 index = (PRUint32)floor(scaledSimpleProgress * aValues.Length());
+      aResult = aValues[index];
+    }
+    rv = NS_OK;
+  }
+  return rv;
 }
 
 nsresult
@@ -451,7 +495,7 @@ nsSMILAnimationFunction::AccumulateResult(const nsSMILValueArray& aValues,
 {
   if (!IsToAnimation() && GetAccumulate() && mRepeatIteration)
   {
-    nsSMILValue lastValue = aValues[aValues.Length() - 1];
+    const nsSMILValue& lastValue = aValues[aValues.Length() - 1];
 
     // If the target attribute type doesn't support addition, Add will
     // fail and we leave aResult untouched.
@@ -468,7 +512,8 @@ nsSMILAnimationFunction::AccumulateResult(const nsSMILValueArray& aValues,
  *  - determines where we are between them
  *    (returned as aIntervalProgress)
  *
- * Returns NS_OK, unless there's an error computing distances.
+ * Returns NS_OK, or NS_ERROR_FAILURE if our values don't support distance
+ * computation.
  */
 nsresult
 nsSMILAnimationFunction::ComputePacedPosition(const nsSMILValueArray& aValues,
@@ -478,9 +523,20 @@ nsSMILAnimationFunction::ComputePacedPosition(const nsSMILValueArray& aValues,
                                               const nsSMILValue*& aTo)
 {
   NS_ASSERTION(0.0f <= aSimpleProgress && aSimpleProgress < 1.0f,
-               "aSimpleProgress is out of bounds.");
+               "aSimpleProgress is out of bounds");
   NS_ASSERTION(GetCalcMode() == CALC_PACED,
                "Calling paced-specific function, but not in paced mode");
+  NS_ABORT_IF_FALSE(aValues.Length() >= 2, "Unexpected number of values");
+
+  // Trivial case: If we have just 2 values, then there's only one interval
+  // for us to traverse, and our progress across that interval is the exact
+  // same as our overall progress.
+  if (aValues.Length() == 2) {
+    aIntervalProgress = aSimpleProgress;
+    aFrom = &aValues[0];
+    aTo = &aValues[1];
+    return NS_OK;
+  }
 
   double totalDistance = ComputePacedTotalDistance(aValues);
   if (totalDistance == COMPUTE_DISTANCE_ERROR)
@@ -504,11 +560,18 @@ nsSMILAnimationFunction::ComputePacedPosition(const nsSMILValueArray& aValues,
     NS_ASSERTION(remainingDist >= 0, "distance values must be non-negative");
 
     double curIntervalDist;
-    nsresult tmpRv = aValues[i].ComputeDistance(aValues[i+1], curIntervalDist);
-    NS_ASSERTION(NS_SUCCEEDED(tmpRv), "ComputeDistance failed...?");
+
+#ifdef DEBUG
+    nsresult rv =
+#endif
+      aValues[i].ComputeDistance(aValues[i+1], curIntervalDist);
+    NS_ABORT_IF_FALSE(NS_SUCCEEDED(rv),
+                      "If we got through ComputePacedTotalDistance, we should "
+                      "be able to recompute each sub-distance without errors");
+
     NS_ASSERTION(curIntervalDist >= 0, "distance values must be non-negative");
     // Clamp distance value at 0, just in case ComputeDistance is evil.
-    curIntervalDist = PR_MAX(curIntervalDist, 0.0f);
+    curIntervalDist = NS_MAX(curIntervalDist, 0.0);
 
     if (remainingDist >= curIntervalDist) {
       remainingDist -= curIntervalDist;
@@ -531,14 +594,15 @@ nsSMILAnimationFunction::ComputePacedPosition(const nsSMILValueArray& aValues,
   }
 
   NS_NOTREACHED("shouldn't complete loop & get here -- if we do, "
-                "then aSimpleProgress was probably out of bounds.");
+                "then aSimpleProgress was probably out of bounds");
   return NS_ERROR_FAILURE;
 }
 
 /*
- * Computes & caches the total distance to be travelled by a paced animation.
+ * Computes the total distance to be travelled by a paced animation.
  *
- * Returns NS_OK, unless there's an error computing distance.
+ * Returns the total distance, or returns COMPUTE_DISTANCE_ERROR if
+ * our values don't support distance computation.
  */
 double
 nsSMILAnimationFunction::ComputePacedTotalDistance(
@@ -551,14 +615,14 @@ nsSMILAnimationFunction::ComputePacedTotalDistance(
   for (PRUint32 i = 0; i < aValues.Length() - 1; i++) {
     double tmpDist;
     nsresult rv = aValues[i].ComputeDistance(aValues[i+1], tmpDist);
-    if (!NS_SUCCEEDED(rv)) {
-      NS_NOTREACHED("ComputeDistance failed...?");
+    if (NS_FAILED(rv)) {
       return COMPUTE_DISTANCE_ERROR;
     }
 
-    // Clamp distance value at 0, just in case ComputeDistance is evil.
-    NS_ASSERTION(tmpDist >= 0, "distance values must be non-negative");
-    tmpDist = PR_MAX(tmpDist, 0.0f);
+    // Clamp distance value to 0, just in case we have an evil ComputeDistance
+    // implementation somewhere
+    NS_ABORT_IF_FALSE(tmpDist >= 0.0f, "distance values must be non-negative");
+    tmpDist = NS_MAX(tmpDist, 0.0);
 
     totalDistance += tmpDist;
   }
@@ -566,61 +630,61 @@ nsSMILAnimationFunction::ComputePacedTotalDistance(
   return totalDistance;
 }
 
-/*
- * Scale the simple progress, taking into account any keyTimes.
- */
-void
-nsSMILAnimationFunction::ScaleSimpleProgress(double& aProgress)
+double
+nsSMILAnimationFunction::ScaleSimpleProgress(double aProgress,
+                                             nsSMILCalcMode aCalcMode)
 {
   if (!HasAttr(nsGkAtoms::keyTimes))
-    return;
+    return aProgress;
 
   PRUint32 numTimes = mKeyTimes.Length();
 
   if (numTimes < 2)
-    return;
+    return aProgress;
 
   PRUint32 i = 0;
   for (; i < numTimes - 2 && aProgress >= mKeyTimes[i+1]; ++i);
+
+  if (aCalcMode == CALC_DISCRETE) {
+    // discrete calcMode behaviour differs in that each keyTime defines the time
+    // from when the corresponding value is set, and therefore the last value
+    // needn't be 1. So check if we're in the last 'interval', that is, the
+    // space between the final value and 1.0.
+    if (aProgress >= mKeyTimes[i+1]) {
+      NS_ABORT_IF_FALSE(i == numTimes - 2,
+          "aProgress is not in range of the current interval, yet the current"
+          " interval is not the last bounded interval either.");
+      ++i;
+    }
+    return (double)i / numTimes;
+  }
 
   double& intervalStart = mKeyTimes[i];
   double& intervalEnd   = mKeyTimes[i+1];
 
   double intervalLength = intervalEnd - intervalStart;
-  if (intervalLength <= 0.0) {
-    aProgress = intervalStart;
-    return;
-  }
+  if (intervalLength <= 0.0)
+    return intervalStart;
 
-  aProgress = (i + (aProgress - intervalStart) / intervalLength) *
-         1.0 / double(numTimes - 1);
+  return (i + (aProgress - intervalStart) / intervalLength) /
+         double(numTimes - 1);
 }
 
-/*
- * Scale the interval progress, taking into account any keySplines
- * or discrete methods.
- */
-void
-nsSMILAnimationFunction::ScaleIntervalProgress(double& aProgress,
-                                               PRUint32   aIntervalIndex,
-                                               PRUint32   aNumIntervals)
+double
+nsSMILAnimationFunction::ScaleIntervalProgress(double aProgress,
+                                               PRUint32 aIntervalIndex)
 {
   if (GetCalcMode() != CALC_SPLINE)
-    return;
+    return aProgress;
 
   if (!HasAttr(nsGkAtoms::keySplines))
-    return;
+    return aProgress;
 
-  NS_ASSERTION(aIntervalIndex < (PRUint32)mKeySplines.Length(),
-               "Invalid interval index.");
-  NS_ASSERTION(aNumIntervals >= 1, "Invalid number of intervals.");
-
-  if (aIntervalIndex >= (PRUint32)mKeySplines.Length() ||
-      aNumIntervals < 1)
-    return;
+  NS_ABORT_IF_FALSE(aIntervalIndex < mKeySplines.Length(),
+                    "Invalid interval index");
 
   nsSMILKeySpline const &spline = mKeySplines[aIntervalIndex];
-  aProgress = spline.GetSplineValue(aProgress);
+  return spline.GetSplineValue(aProgress);
 }
 
 PRBool
@@ -645,23 +709,35 @@ nsSMILAnimationFunction::GetAttr(nsIAtom* aAttName, nsAString& aResult) const
  * A utility function to make querying an attribute that corresponds to an
  * nsSMILValue a little neater.
  *
- * @param aAttName    The attribute name (in the global namespace)
- * @param aSMILAttr   The SMIL attribute to perform the parsing
- * @param aResult     The resulting nsSMILValue
+ * @param aAttName    The attribute name (in the global namespace).
+ * @param aSMILAttr   The SMIL attribute to perform the parsing.
+ * @param[out] aResult        The resulting nsSMILValue.
+ * @param[out] aPreventCachingOfSandwich
+ *                    If |aResult| contains dependencies on its context that
+ *                    should prevent the result of the animation sandwich from
+ *                    being cached and reused in future samples (as reported
+ *                    by nsISMILAttr::ValueFromString), then this outparam
+ *                    will be set to PR_TRUE. Otherwise it is left unmodified.
  *
  * Returns PR_FALSE if a parse error occurred, otherwise returns PR_TRUE.
  */
 PRBool
 nsSMILAnimationFunction::ParseAttr(nsIAtom* aAttName,
                                    const nsISMILAttr& aSMILAttr,
-                                   nsSMILValue& aResult) const
+                                   nsSMILValue& aResult,
+                                   PRBool& aPreventCachingOfSandwich) const
 {
   nsAutoString attValue;
   if (GetAttr(aAttName, attValue)) {
-    nsresult rv =
-      aSMILAttr.ValueFromString(attValue, mAnimationElement, aResult);
+    PRBool preventCachingOfSandwich;
+    nsresult rv = aSMILAttr.ValueFromString(attValue, mAnimationElement,
+                                            aResult, preventCachingOfSandwich);
     if (NS_FAILED(rv))
       return PR_FALSE;
+
+    if (preventCachingOfSandwich) {
+      aPreventCachingOfSandwich = PR_TRUE;
+    }
   }
   return PR_TRUE;
 }
@@ -687,25 +763,38 @@ nsSMILAnimationFunction::GetValues(const nsISMILAttr& aSMILAttr,
   if (!mAnimationElement)
     return NS_ERROR_FAILURE;
 
+  mValueNeedsReparsingEverySample = PR_FALSE;
   nsSMILValueArray result;
 
   // If "values" is set, use it
   if (HasAttr(nsGkAtoms::values)) {
     nsAutoString attValue;
     GetAttr(nsGkAtoms::values, attValue);
+    PRBool preventCachingOfSandwich;
     nsresult rv = nsSMILParserUtils::ParseValues(attValue, mAnimationElement,
-                                                 aSMILAttr, result);
+                                                 aSMILAttr, result,
+                                                 preventCachingOfSandwich);
     if (NS_FAILED(rv))
       return rv;
 
+    if (preventCachingOfSandwich) {
+      mValueNeedsReparsingEverySample = PR_TRUE;
+    }
   // Else try to/from/by
   } else {
-
+    PRBool preventCachingOfSandwich = PR_FALSE;
     PRBool parseOk = PR_TRUE;
     nsSMILValue to, from, by;
-    parseOk &= ParseAttr(nsGkAtoms::to,   aSMILAttr, to);
-    parseOk &= ParseAttr(nsGkAtoms::from, aSMILAttr, from);
-    parseOk &= ParseAttr(nsGkAtoms::by,   aSMILAttr, by);
+    parseOk &= ParseAttr(nsGkAtoms::to,   aSMILAttr, to,
+                         preventCachingOfSandwich);
+    parseOk &= ParseAttr(nsGkAtoms::from, aSMILAttr, from,
+                         preventCachingOfSandwich);
+    parseOk &= ParseAttr(nsGkAtoms::by,   aSMILAttr, by,
+                         preventCachingOfSandwich);
+    
+    if (preventCachingOfSandwich) {
+      mValueNeedsReparsingEverySample = PR_TRUE;
+    }
 
     if (!parseOk)
       return NS_ERROR_FAILURE;
@@ -737,38 +826,16 @@ nsSMILAnimationFunction::GetValues(const nsISMILAttr& aSMILAttr,
     }
   }
 
-  // Check that we have the right number of keySplines and keyTimes
-  CheckKeyTimes(result.Length());
-  CheckKeySplines(result.Length());
-
   result.SwapElements(aResult);
 
   return NS_OK;
 }
 
-inline PRBool
-nsSMILAnimationFunction::IsToAnimation() const
+void
+nsSMILAnimationFunction::CheckValueListDependentAttrs(PRUint32 aNumValues)
 {
-  return !HasAttr(nsGkAtoms::values) &&
-         HasAttr(nsGkAtoms::to) &&
-         !HasAttr(nsGkAtoms::from);
-}
-
-inline PRBool
-nsSMILAnimationFunction::IsAdditive() const
-{
-  /*
-   * Animation is additive if:
-   *
-   * (1) additive = "sum" (GetAdditive() == true), or
-   * (2) it is 'by animation' (by is set, from and values are not)
-   *
-   * Although animation is not additive if it is 'to animation'
-   */
-  PRBool isByAnimation = (!HasAttr(nsGkAtoms::values)
-                       &&  HasAttr(nsGkAtoms::by)
-                       && !HasAttr(nsGkAtoms::from));
-  return !IsToAnimation() && (GetAdditive() || isByAnimation);
+  CheckKeyTimes(aNumValues);
+  CheckKeySplines(aNumValues);
 }
 
 /**
@@ -782,39 +849,46 @@ nsSMILAnimationFunction::CheckKeyTimes(PRUint32 aNumValues)
   if (!HasAttr(nsGkAtoms::keyTimes))
     return;
 
+  nsSMILCalcMode calcMode = GetCalcMode();
+
   // attribute is ignored for calcMode = paced
-  if (GetCalcMode() == CALC_PACED) {
-    SET_FLAG(mErrorFlags, BF_KEY_TIMES, PR_FALSE);
+  if (calcMode == CALC_PACED) {
+    SetKeyTimesErrorFlag(PR_FALSE);
     return;
   }
 
-  if (mKeyTimes.Length() < 1) {
+  PRUint32 numKeyTimes = mKeyTimes.Length();
+  if (numKeyTimes < 1) {
     // keyTimes isn't set or failed preliminary checks
-    SET_FLAG(mErrorFlags, BF_KEY_TIMES, PR_TRUE);
+    SetKeyTimesErrorFlag(PR_TRUE);
     return;
   }
 
   // no. keyTimes == no. values
-  if ((mKeyTimes.Length() != aNumValues && !IsToAnimation()) ||
-      (IsToAnimation() && mKeyTimes.Length() != 2)) {
-    SET_FLAG(mErrorFlags, BF_KEY_TIMES, PR_TRUE);
+  // For to-animation the number of values is considered to be 2 unless it's
+  // discrete to-animation in which case either 1 or 2 is acceptable.
+  PRBool matchingNumOfValues = IsToAnimation() ?
+      calcMode == CALC_DISCRETE ? numKeyTimes <= 2 : numKeyTimes == 2 :
+      numKeyTimes == aNumValues;
+  if (!matchingNumOfValues) {
+    SetKeyTimesErrorFlag(PR_TRUE);
     return;
   }
 
-  // special handling if there is only one keyTime. The spec doesn't say what to
-  // do in this case so we allow the keyTime to be either 0 or 1.
-  if (mKeyTimes.Length() == 1) {
-    double time = mKeyTimes[0];
-    SET_FLAG(mErrorFlags, BF_KEY_TIMES, !(time == 0.0 || time == 1.0));
+  // first value must be 0
+  if (mKeyTimes[0] != 0.0) {
+    SetKeyTimesErrorFlag(PR_TRUE);
     return;
   }
 
-  // According to the spec, the first value should be 0 and for linear or spline
-  // calcMode's the last value should be 1, but then an example is give with
-  // a spline calcMode and keyTimes "0.0; 0.7". So we don't bother checking
-  // the end-values here but just allow bad specs.
+  // last value must be 1 for linear or spline calcModes
+  if (calcMode != CALC_DISCRETE && numKeyTimes > 1 &&
+      mKeyTimes[numKeyTimes - 1] != 1.0) {
+    SetKeyTimesErrorFlag(PR_TRUE);
+    return;
+  }
 
-  SET_FLAG(mErrorFlags, BF_KEY_TIMES, PR_FALSE);
+  SetKeyTimesErrorFlag(PR_FALSE);
 }
 
 void
@@ -822,25 +896,25 @@ nsSMILAnimationFunction::CheckKeySplines(PRUint32 aNumValues)
 {
   // attribute is ignored if calc mode is not spline
   if (GetCalcMode() != CALC_SPLINE) {
-    SET_FLAG(mErrorFlags, BF_KEY_SPLINES, PR_FALSE);
+    SetKeySplinesErrorFlag(PR_FALSE);
     return;
   }
 
   // calc mode is spline but the attribute is not set
   if (!HasAttr(nsGkAtoms::keySplines)) {
-    SET_FLAG(mErrorFlags, BF_KEY_SPLINES, PR_FALSE);
+    SetKeySplinesErrorFlag(PR_FALSE);
     return;
   }
 
   if (mKeySplines.Length() < 1) {
     // keyTimes isn't set or failed preliminary checks
-    SET_FLAG(mErrorFlags, BF_KEY_SPLINES, PR_TRUE);
+    SetKeySplinesErrorFlag(PR_TRUE);
     return;
   }
 
   // ignore splines if there's only one value
   if (aNumValues == 1 && !IsToAnimation()) {
-    SET_FLAG(mErrorFlags, BF_KEY_SPLINES, PR_FALSE);
+    SetKeySplinesErrorFlag(PR_FALSE);
     return;
   }
 
@@ -848,11 +922,18 @@ nsSMILAnimationFunction::CheckKeySplines(PRUint32 aNumValues)
   PRUint32 splineSpecs = mKeySplines.Length();
   if ((splineSpecs != aNumValues - 1 && !IsToAnimation()) ||
       (IsToAnimation() && splineSpecs != 1)) {
-    SET_FLAG(mErrorFlags, BF_KEY_SPLINES, PR_TRUE);
+    SetKeySplinesErrorFlag(PR_TRUE);
     return;
   }
 
-  SET_FLAG(mErrorFlags, BF_KEY_SPLINES, PR_FALSE);
+  SetKeySplinesErrorFlag(PR_FALSE);
+}
+
+PRBool
+nsSMILAnimationFunction::IsValueFixedForSimpleDuration() const
+{
+  return mSimpleDuration.IsIndefinite() ||
+    (!mHasChanged && mPrevSampleWasSingleValueAnimation);
 }
 
 //----------------------------------------------------------------------
@@ -865,7 +946,7 @@ nsSMILAnimationFunction::GetAccumulate() const
   if (!value)
     return PR_FALSE;
 
-  return (value->GetEnumValue() == PR_TRUE);
+  return value->GetEnumValue();
 }
 
 PRBool
@@ -875,7 +956,7 @@ nsSMILAnimationFunction::GetAdditive() const
   if (!value)
     return PR_FALSE;
 
-  return (value->GetEnumValue() == PR_TRUE);
+  return value->GetEnumValue();
 }
 
 nsSMILAnimationFunction::nsSMILCalcMode
@@ -898,14 +979,14 @@ nsSMILAnimationFunction::SetAccumulate(const nsAString& aAccumulate,
   mHasChanged = PR_TRUE;
   PRBool parseResult =
     aResult.ParseEnumValue(aAccumulate, sAccumulateTable, PR_TRUE);
-  SET_FLAG(mErrorFlags, BF_ACCUMULATE, !parseResult);
+  SetAccumulateErrorFlag(!parseResult);
   return parseResult ? NS_OK : NS_ERROR_FAILURE;
 }
 
 void
 nsSMILAnimationFunction::UnsetAccumulate()
 {
-  SET_FLAG(mErrorFlags, BF_ACCUMULATE, PR_FALSE);
+  SetAccumulateErrorFlag(PR_FALSE);
   mHasChanged = PR_TRUE;
 }
 
@@ -916,14 +997,14 @@ nsSMILAnimationFunction::SetAdditive(const nsAString& aAdditive,
   mHasChanged = PR_TRUE;
   PRBool parseResult
     = aResult.ParseEnumValue(aAdditive, sAdditiveTable, PR_TRUE);
-  SET_FLAG(mErrorFlags, BF_ADDITIVE, !parseResult);
+  SetAdditiveErrorFlag(!parseResult);
   return parseResult ? NS_OK : NS_ERROR_FAILURE;
 }
 
 void
 nsSMILAnimationFunction::UnsetAdditive()
 {
-  SET_FLAG(mErrorFlags, BF_ADDITIVE, PR_FALSE);
+  SetAdditiveErrorFlag(PR_FALSE);
   mHasChanged = PR_TRUE;
 }
 
@@ -934,14 +1015,14 @@ nsSMILAnimationFunction::SetCalcMode(const nsAString& aCalcMode,
   mHasChanged = PR_TRUE;
   PRBool parseResult
     = aResult.ParseEnumValue(aCalcMode, sCalcModeTable, PR_TRUE);
-  SET_FLAG(mErrorFlags, BF_CALC_MODE, !parseResult);
+  SetCalcModeErrorFlag(!parseResult);
   return parseResult ? NS_OK : NS_ERROR_FAILURE;
 }
 
 void
 nsSMILAnimationFunction::UnsetCalcMode()
 {
-  SET_FLAG(mErrorFlags, BF_CALC_MODE, PR_FALSE);
+  SetCalcModeErrorFlag(PR_FALSE);
   mHasChanged = PR_TRUE;
 }
 
@@ -981,7 +1062,7 @@ void
 nsSMILAnimationFunction::UnsetKeySplines()
 {
   mKeySplines.Clear();
-  SET_FLAG(mErrorFlags, BF_KEY_SPLINES, PR_FALSE);
+  SetKeySplinesErrorFlag(PR_FALSE);
   mHasChanged = PR_TRUE;
 }
 
@@ -992,7 +1073,9 @@ nsSMILAnimationFunction::SetKeyTimes(const nsAString& aKeyTimes,
   mKeyTimes.Clear();
   aResult.SetTo(aKeyTimes);
 
-  nsresult rv = nsSMILParserUtils::ParseKeyTimes(aKeyTimes, mKeyTimes);
+  nsresult rv =
+    nsSMILParserUtils::ParseSemicolonDelimitedProgressList(aKeyTimes, PR_TRUE,
+                                                           mKeyTimes);
 
   if (NS_SUCCEEDED(rv) && mKeyTimes.Length() < 1)
     rv = NS_ERROR_FAILURE;
@@ -1009,6 +1092,6 @@ void
 nsSMILAnimationFunction::UnsetKeyTimes()
 {
   mKeyTimes.Clear();
-  SET_FLAG(mErrorFlags, BF_KEY_TIMES, PR_FALSE);
+  SetKeyTimesErrorFlag(PR_FALSE);
   mHasChanged = PR_TRUE;
 }

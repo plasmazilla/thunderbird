@@ -43,6 +43,8 @@
 #include "nsTPtrArray.h"
 #include "nsRect.h"
 #include "nsCOMPtr.h"
+#include "nsAlgorithm.h"
+#include "nsAutoPtr.h"
 
 #undef DEBUG_TABLE_CELLMAP
 
@@ -60,7 +62,7 @@ struct nsColInfo
   PRInt32 mNumCellsOrig; // number of cells originating in the col
   PRInt32 mNumCellsSpan; // number of cells spanning into the col via colspans (not rowspans)
 
-  nsColInfo(); 
+  nsColInfo();
   nsColInfo(PRInt32 aNumCellsOrig,
             PRInt32 aNumCellsSpan);
 };
@@ -87,13 +89,13 @@ public:
                  PRBool          aBorderCollapse);
 
   /** destructor
-    * NOT VIRTUAL BECAUSE THIS CLASS SHOULD **NEVER** BE SUBCLASSED  
+    * NOT VIRTUAL BECAUSE THIS CLASS SHOULD **NEVER** BE SUBCLASSED
     */
   ~nsTableCellMap();
-  
+
   void RemoveGroupCellMap(nsTableRowGroupFrame* aRowGroup);
 
-  void InsertGroupCellMap(nsTableRowGroupFrame&  aNewRowGroup,
+  void InsertGroupCellMap(nsTableRowGroupFrame*  aNewRowGroup,
                           nsTableRowGroupFrame*& aPrevRowGroup);
 
   /**
@@ -116,7 +118,7 @@ public:
                                  PRBool    aUseRowIfOverlap) const;
 
   /** return the CellData for the cell at (aRowIndex, aColIndex) */
-  CellData* GetDataAt(PRInt32 aRowIndex, 
+  CellData* GetDataAt(PRInt32 aRowIndex,
                       PRInt32 aColIndex) const;
 
   // this function creates a col if needed
@@ -139,7 +141,7 @@ public:
                   nsRect&           aDamageArea);
   /** Remove the previously gathered column information */
   void ClearCols();
-  void InsertRows(nsTableRowGroupFrame&       aRowGroup,
+  void InsertRows(nsTableRowGroupFrame*       aRowGroup,
                   nsTArray<nsTableRowFrame*>& aRows,
                   PRInt32                     aFirstRowIndex,
                   PRBool                      aConsiderSpans,
@@ -169,9 +171,9 @@ public:
   /** return the actual number of rows in the table represented by this CellMap */
   PRInt32 GetRowCount() const;
 
-  nsTableCellFrame* GetCellInfoAt(PRInt32  aRowX, 
-                                  PRInt32  aColX, 
-                                  PRBool*  aOriginates = nsnull, 
+  nsTableCellFrame* GetCellInfoAt(PRInt32  aRowX,
+                                  PRInt32  aColX,
+                                  PRBool*  aOriginates = nsnull,
                                   PRInt32* aColSpan = nsnull) const;
 
   /**
@@ -215,7 +217,7 @@ protected:
    * into or out of the rows.  This function can only handle insertion
    * or deletion but NOT both.  So either aRowsToInsert must be null
    * or aNumRowsToRemove must be 0.
-   * 
+   *
    * // XXXbz are both allowed to happen?  That'd be a no-op...
    */
   void RebuildConsideringRows(nsCellMap*                  aCellMap,
@@ -225,21 +227,18 @@ protected:
                               nsRect&                     aDamageArea);
 
 public:
-  PRBool ColIsSpannedInto(PRInt32 aColIndex) const;
-  PRBool ColHasSpanningCells(PRInt32 aColIndex) const;
-
   void ExpandZeroColSpans();
 
-  void SetNotTopStart(PRUint8    aSide,
-                      nsCellMap& aCellMap,
-                      PRUint32   aYPos,
-                      PRUint32   aXPos,
-                      PRBool     aIsLowerRight = PR_FALSE);
+  void ResetTopStart(PRUint8    aSide,
+                     nsCellMap& aCellMap,
+                     PRUint32   aYPos,
+                     PRUint32   aXPos,
+                     PRBool     aIsLowerRight = PR_FALSE);
 
-  void SetBCBorderEdge(PRUint8       aEdge, 
+  void SetBCBorderEdge(mozilla::css::Side aEdge,
                        nsCellMap&    aCellMap,
                        PRUint32      aCellMapStart,
-                       PRUint32      aYPos, 
+                       PRUint32      aYPos,
                        PRUint32      aXPos,
                        PRUint32      aLength,
                        BCBorderOwner aOwner,
@@ -249,9 +248,9 @@ public:
   void SetBCBorderCorner(Corner      aCorner,
                          nsCellMap&  aCellMap,
                          PRUint32    aCellMapStart,
-                         PRUint32    aYPos, 
+                         PRUint32    aYPos,
                          PRUint32    aXPos,
-                         PRUint8     aOwner,
+                         mozilla::css::Side aOwner,
                          nscoord     aSubSize,
                          PRBool      aBevel,
                          PRBool      aIsBottomRight = PR_FALSE);
@@ -267,9 +266,9 @@ protected:
 
   friend class nsCellMap;
   friend class BCMapCellIterator;
-  friend class BCMapBorderIterator;
+  friend class BCPaintBorderIterator;
   friend class nsCellMapColumnIterator;
-  
+
 /** Insert a row group cellmap after aPrevMap, if aPrefMap is null insert it
   * at the beginning, the ordering of the cellmap corresponds to the ordering of
   * rowgroups once OrderRowGroups has been called
@@ -285,7 +284,7 @@ protected:
   BCInfo*                     mBCInfo;
 };
 
-/** nsCellMap is a support class for nsTablePart.  
+/** nsCellMap is a support class for nsTablePart.
   * It maintains an Rows x Columns grid onto which the cells of the table are mapped.
   * This makes processing of rowspan and colspan attributes much easier.
   * Each cell is represented by a CellData object.
@@ -301,14 +300,14 @@ protected:
 class nsCellMap
 {
 public:
-  /** constructor 
+  /** constructor
     * @param aRowGroupFrame the row group frame this is a cellmap for
     * @param aIsBC whether the table is doing border-collapse
     */
-  nsCellMap(nsTableRowGroupFrame& aRowGroupFrame, PRBool aIsBC);
+  nsCellMap(nsTableRowGroupFrame* aRowGroupFrame, PRBool aIsBC);
 
   /** destructor
-    * NOT VIRTUAL BECAUSE THIS CLASS SHOULD **NEVER** BE SUBCLASSED  
+    * NOT VIRTUAL BECAUSE THIS CLASS SHOULD **NEVER** BE SUBCLASSED
     */
   ~nsCellMap();
 
@@ -357,26 +356,26 @@ public:
   void GetRowAndColumnByIndex(PRInt32 aColCount, PRInt32 aIndex,
                               PRInt32 *aRow, PRInt32 *aColumn) const;
 
-  /** append the cellFrame at an empty or dead cell or finally at the end of 
-    * the row at aRowIndex and return a pointer to the celldata entry in the 
+  /** append the cellFrame at an empty or dead cell or finally at the end of
+    * the row at aRowIndex and return a pointer to the celldata entry in the
     * cellmap
     *
     * @param aMap               - reference to the table cell map
-    * @param aCellFrame         - a pointer to the cellframe which will be appended 
+    * @param aCellFrame         - a pointer to the cellframe which will be appended
     *                             to the row
     * @param aRowIndex          - to this row the celldata entry will be added
-    * @param aRebuildIfNecessay - if a cell spans into a row below it might be 
-    *                             necesserary to rebuild the cellmap as this rowspan 
+    * @param aRebuildIfNecessay - if a cell spans into a row below it might be
+    *                             necesserary to rebuild the cellmap as this rowspan
     *                             might overlap another cell.
     * @param aDamageArea        - area in cellmap coordinates which have been updated.
-    * @param aColToBeginSearch  - if not null contains the column number where 
-    *                             the search for a empty or dead cell in the 
+    * @param aColToBeginSearch  - if not null contains the column number where
+    *                             the search for a empty or dead cell in the
     *                             row should start
-    * @return                   - a pointer to the celldata entry inserted into 
+    * @return                   - a pointer to the celldata entry inserted into
     *                             the cellmap
     */
   CellData* AppendCell(nsTableCellMap&   aMap,
-                       nsTableCellFrame* aCellFrame, 
+                       nsTableCellFrame* aCellFrame,
                        PRInt32           aRowIndex,
                        PRBool            aRebuildIfNecessary,
                        nsRect&           aDamageArea,
@@ -439,8 +438,6 @@ public:
   PRBool RowHasSpanningCells(PRInt32 aRowIndex,
                              PRInt32 aNumEffCols) const;
 
-  PRBool ColHasSpanningCells(PRInt32 aColIndex) const;
-
   void ExpandZeroColSpans(nsTableCellMap& aMap);
 
   /** indicate whether the row has more than one cell that either originates
@@ -448,11 +445,11 @@ public:
    */
   PRBool HasMoreThanOneCell(PRInt32 aRowIndex) const;
 
-  /* Get the rowspan for a cell starting at aRowIndex and aColIndex. 
+  /* Get the rowspan for a cell starting at aRowIndex and aColIndex.
    * If aGetEffective is true the size will not exceed the last content based
    * row. Cells can have a specified rowspan that extends below the last
    * content based row. This is legitimate considering incr. reflow where the
-   * content rows will arive later. 
+   * content rows will arive later.
    */
   PRInt32 GetRowSpan(PRInt32 aRowIndex,
                      PRInt32 aColIndex,
@@ -473,7 +470,7 @@ public:
 protected:
   friend class nsTableCellMap;
   friend class BCMapCellIterator;
-  friend class BCMapBorderIterator;
+  friend class BCPaintBorderIterator;
   friend class nsTableFrame;
   friend class nsCellMapColumnIterator;
 
@@ -483,15 +480,15 @@ protected:
    */
   PRBool Grow(nsTableCellMap& aMap,
               PRInt32         aNumRows,
-              PRInt32         aRowIndex = -1); 
+              PRInt32         aRowIndex = -1);
 
   void GrowRow(CellDataArray& aRow,
                PRInt32        aNumCols);
 
   /** assign aCellData to the cell at (aRow,aColumn) */
   void SetDataAt(nsTableCellMap& aMap,
-                 CellData&       aCellData, 
-                 PRInt32         aMapRowIndex, 
+                 CellData&       aCellData,
+                 PRInt32         aMapRowIndex,
                  PRInt32         aColIndex);
 
   CellData* GetDataAt(PRInt32         aMapRowIndex,
@@ -546,7 +543,7 @@ protected:
                                nsRect&                      aDamageArea);
 
   PRBool CellsSpanOut(nsTArray<nsTableRowFrame*>& aNewRows) const;
- 
+
   /** If a cell spans out of the area defined by aStartRowIndex, aEndRowIndex
     * and aStartColIndex, aEndColIndex the cellmap changes are more severe so
     * the corresponding routines needs to be called. This is also necessary if
@@ -573,11 +570,8 @@ protected:
                                PRInt32           aRowIndex,
                                PRBool&           aIsZeroRowSpan) const;
 
-  PRInt32 GetColSpanForNewCell(nsTableCellFrame& aCellFrameToAdd, 
+  PRInt32 GetColSpanForNewCell(nsTableCellFrame& aCellFrameToAdd,
                                PRBool&           aIsZeroColSpan) const;
- 
-  PRBool IsZeroColSpan(PRInt32 aRowIndex,
-                       PRInt32 aColIndex) const;
 
   // Destroy a CellData struct.  This will handle the case of aData
   // actually being a BCCellData properly.
@@ -591,11 +585,11 @@ protected:
     * in that row.  It can be larger than mContentRowCount due to row spans
     * extending beyond the table */
   // XXXbz once we have auto TArrays, we should probably use them here.
-  nsTArray<CellDataArray> mRows; 
+  nsTArray<CellDataArray> mRows;
 
   /** the number of rows in the table (content) which is not indentical to the
     * number of rows in the cell map due to row spans extending beyond the end
-    * of thetable (dead rows) or empty tr tags 
+    * of thetable (dead rows) or empty tr tags
     */
   PRInt32 mContentRowCount;
 
@@ -609,7 +603,7 @@ protected:
   PRBool mIsBC;
 
   // Prescontext to deallocate and allocate celldata
-  nsCOMPtr<nsPresContext> mPresContext;
+  nsRefPtr<nsPresContext> mPresContext;
 };
 
 /**
@@ -629,7 +623,7 @@ public:
     if (mCurMap) {
       mCurMapContentRowCount = mCurMap->GetRowCount();
       PRUint32 rowArrayLength = mCurMap->mRows.Length();
-      mCurMapRelevantRowCount = PR_MIN(mCurMapContentRowCount, rowArrayLength);
+      mCurMapRelevantRowCount = NS_MIN(mCurMapContentRowCount, rowArrayLength);
       if (mCurMapRelevantRowCount == 0 && mOrigCells > 0) {
         // This row group is useless; advance!
         AdvanceRowGroup();
@@ -643,7 +637,7 @@ public:
   }
 
   nsTableCellFrame* GetNextFrame(PRInt32* aRow, PRInt32* aColSpan);
-  
+
 private:
   void AdvanceRowGroup();
 
@@ -658,7 +652,7 @@ private:
   // mCurMap starts.  This is used to compute row indices to pass to
   // nsTableCellMap::GetDataAt, so must be a _content_ row index.
   PRUint32 mCurMapStart;
-  
+
   // In steady-state mCurMapRow is the row in our current nsCellMap
   // that we'll use the next time GetNextFrame() is called.  Due to
   // the way we skip over rowspans, the entry in mCurMapRow and mCol
@@ -702,20 +696,20 @@ inline nsTableRowGroupFrame* nsCellMap::GetRowGroup() const
 }
 
 inline PRInt32 nsCellMap::GetRowCount(PRBool aConsiderDeadRowSpanRows) const
-{ 
+{
   PRInt32 rowCount = (aConsiderDeadRowSpanRows) ? mRows.Length() : mContentRowCount;
-  return rowCount; 
+  return rowCount;
 }
 
 // nsColInfo
 
 inline nsColInfo::nsColInfo()
- :mNumCellsOrig(0), mNumCellsSpan(0) 
+ :mNumCellsOrig(0), mNumCellsSpan(0)
 {}
 
 inline nsColInfo::nsColInfo(PRInt32 aNumCellsOrig,
                             PRInt32 aNumCellsSpan)
- :mNumCellsOrig(aNumCellsOrig), mNumCellsSpan(aNumCellsSpan) 
+ :mNumCellsOrig(aNumCellsOrig), mNumCellsSpan(aNumCellsSpan)
 {}
 
 

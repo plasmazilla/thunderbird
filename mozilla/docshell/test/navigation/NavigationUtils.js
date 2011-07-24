@@ -177,7 +177,7 @@ function xpcGetFramesByName(name) {
 
 function xpcCleanupWindows() {
   xpcEnumerateContentWindows(function(win) {
-    if (win.location.protocol == "data:")
+    if (win.location && win.location.protocol == "data:")
       win.close();
   });
 }
@@ -208,7 +208,11 @@ function xpcWaitForFinishedFrames(callback, numFrames) {
   }
 
   function searchForFinishedFrames(win) {
-    if (escape(unescape(win.location)) == escape(target_url)) {
+    if (escape(unescape(win.location)) == escape(target_url) && 
+        win.document && 
+        win.document.body && 
+        win.document.body.textContent == body && 
+        win.document.readyState == "complete") {
       if (!contains(win, finishedWindows)) {
         finishedWindows.push(win);
         frameFinished();

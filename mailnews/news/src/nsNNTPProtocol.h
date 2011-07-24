@@ -122,10 +122,6 @@ NNTP_READ_GROUP_RESPONSE,
 NNTP_READ_GROUP_BODY,
 NNTP_SEND_GROUP_FOR_ARTICLE,
 NNTP_SEND_GROUP_FOR_ARTICLE_RESPONSE,
-NNTP_PROFILE_ADD,
-NNTP_PROFILE_ADD_RESPONSE,
-NNTP_PROFILE_DELETE,
-NNTP_PROFILE_DELETE_RESPONSE,
 NNTP_SEND_ARTICLE_NUMBER,
 NEWS_PROCESS_BODIES,
 NNTP_PRINT_ARTICLE_HEADERS,
@@ -198,6 +194,8 @@ private:
 
   void ParseHeaderForCancel(char *buf);
 
+  virtual const char* GetType() {return "nntp";}
+
   static PRBool CheckIfAuthor(nsISupports *aElement, void *data);
 
   nsCOMPtr <nsINNTPNewsgroupList> m_newsgroupList;
@@ -229,7 +227,6 @@ private:
   PRUint32   m_dataBufSize;
 
   /* for group command */
-  char     *m_path;        /* message id */
   nsCString m_currentGroup;     /* current group */
 
   PRInt32   m_firstArticle;
@@ -254,10 +251,9 @@ private:
   PRInt32   m_readNewsListCount;
 
   // Per news article state information. (article number, author, subject, id, etc
-  char   *m_messageID;
+  nsCString m_messageID;
   PRInt32   m_articleNumber;   /* current article number */
-  char   *m_commandSpecificData;
-  char   *m_searchData;
+  nsCString m_searchData;
 
   PRInt32   m_originalContentLength; /* the content length at the time of calling graph progress */
 
@@ -461,11 +457,11 @@ private:
   PRInt32 SearchResponse();
   PRInt32 SearchResults(nsIInputStream *inputStream, PRUint32 length);
 
-  ////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
   // End of Protocol Methods
-  ////////////////////////////////////////////////////////////////////////////////////////
+  //////////////////////////////////////////////////////////////////////////////
 
-  nsresult ParseURL(nsIURI * aURL, char ** aGroup, char ** aMessageID, char ** aCommandSpecificData);
+  nsresult ParseURL(nsIURI *aURL, nsCString &aGroup, nsCString &aMessageID);
 
   void SetProgressBarPercent(PRUint32 aProgress, PRUint32 aProgressMax);
   nsresult SetProgressStatus(const PRUnichar *aMessage);

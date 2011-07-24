@@ -38,6 +38,15 @@
 #include "nsRect.h"
 #include "nsString.h"
 #include "nsIDeviceContext.h"
+#include "prlog.h"
+#include <limits.h>
+
+// the mozilla::css::Side sequence must match the nsMargin nscoord sequence
+PR_STATIC_ASSERT((NS_SIDE_TOP == 0) && (NS_SIDE_RIGHT == 1) && (NS_SIDE_BOTTOM == 2) && (NS_SIDE_LEFT == 3));
+
+
+/* static */
+const nsIntRect nsIntRect::kMaxSizedIntRect(0, 0, INT_MAX, INT_MAX);
 
 // Containment
 PRBool nsRect::Contains(nscoord aX, nscoord aY) const
@@ -49,7 +58,7 @@ PRBool nsRect::Contains(nscoord aX, nscoord aY) const
 //Also Returns true if aRect is Empty
 PRBool nsRect::Contains(const nsRect &aRect) const
 {
-  return aRect.IsEmpty() || 
+  return aRect.IsEmpty() ||
           ((PRBool) ((aRect.x >= x) && (aRect.y >= y) &&
                     (aRect.XMost() <= XMost()) && (aRect.YMost() <= YMost())));
 }
@@ -78,20 +87,20 @@ PRBool nsRect::IntersectRect(const nsRect &aRect1, const nsRect &aRect2)
   // Compute the destination width
   temp = PR_MIN(xmost1, xmost2);
   if (temp <= x) {
-    Empty();
-    return PR_FALSE;
+    width = 0;
+  } else {
+    width = temp - x;
   }
-  width = temp - x;
 
   // Compute the destination height
   temp = PR_MIN(ymost1, ymost2);
   if (temp <= y) {
-    Empty();
-    return PR_FALSE;
+    height = 0;
+  } else {
+    height = temp - y;
   }
-  height = temp - y;
 
-  return PR_TRUE;
+  return !IsEmpty();
 }
 
 // Computes the smallest rectangle that contains both aRect1 and aRect2 and
@@ -185,14 +194,42 @@ nsMargin nsRect::operator-(const nsRect& aRect) const
 }
 
 // scale the rect but round to smallest containing rect
-nsRect& nsRect::ScaleRoundOut(float aScale) 
+nsRect& nsRect::ScaleRoundOut(float aXScale, float aYScale)
 {
-  nscoord right = NSToCoordCeil(float(XMost()) * aScale);
-  nscoord bottom = NSToCoordCeil(float(YMost()) * aScale);
-  x = NSToCoordFloor(float(x) * aScale);
-  y = NSToCoordFloor(float(y) * aScale);
+  nscoord right = NSToCoordCeil(float(XMost()) * aXScale);
+  nscoord bottom = NSToCoordCeil(float(YMost()) * aYScale);
+  x = NSToCoordFloor(float(x) * aXScale);
+  y = NSToCoordFloor(float(y) * aYScale);
   width = (right - x);
   height = (bottom - y);
+  return *this;
+}
+
+#ifdef DEBUG
+static bool IsFloatInteger(float aFloat)
+{
+  return fabs(aFloat - NS_round(aFloat)) < 1e-6;
+}
+#endif
+
+nsRect& nsRect::ExtendForScaling(float aXMult, float aYMult)
+{
+  NS_ASSERTION((IsFloatInteger(aXMult) || IsFloatInteger(1/aXMult)) &&
+               (IsFloatInteger(aYMult) || IsFloatInteger(1/aYMult)),
+               "Multiplication factors must be integers or 1/integer");
+               
+  // Scale rect by multiplier, snap outwards to integers and then unscale.
+  // We round the results to the nearest integer to prevent floating point errors.
+  if (aXMult < 1) {
+    nscoord right = NSToCoordRound(ceil(float(XMost()) * aXMult) / aXMult);
+    x = NSToCoordRound(floor(float(x) * aXMult) / aXMult);
+    width = right - x;
+  }
+  if (aYMult < 1) {
+    nscoord bottom = NSToCoordRound(ceil(float(YMost()) * aYMult) / aYMult);
+    y = NSToCoordRound(floor(float(y) * aYMult) / aYMult);
+    height = bottom - y;
+  }
   return *this;
 }
 
@@ -291,5 +328,17 @@ PRBool nsIntRect::UnionRect(const nsIntRect &aRect1, const nsIntRect &aRect2)
   }
 
   return result;
+}
+
+// scale the rect but round to smallest containing rect
+nsIntRect& nsIntRect::ScaleRoundOut(float aXScale, float aYScale)
+{
+  nscoord right = NSToCoordCeil(float(XMost()) * aXScale);
+  nscoord bottom = NSToCoordCeil(float(YMost()) * aYScale);
+  x = NSToCoordFloor(float(x) * aXScale);
+  y = NSToCoordFloor(float(y) * aYScale);
+  width = (right - x);
+  height = (bottom - y);
+  return *this;
 }
 

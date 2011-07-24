@@ -87,34 +87,33 @@ var PrintUtils = {
     }
   },
 
-  // calling PrintUtils.printPreview() requires that you have three functions
-  // in the global scope: getPPBrowser(), which returns the browser element in
-  // the window print preview uses, getNavToolbox(), which returns the element
-  // (usually the main toolbox element) before which the print preview toolbar
-  // should be inserted, and getWebNavigation(), which returns the document's
-  // nsIWebNavigation object
-  printPreview: function (aEnterPPCallback, aExitPPCallback, aWindow)
+  // If aCallback is not null, it must be an object which has the following methods:
+  // getPrintPreviewBrowser(), getSourceBrowser(),
+  // getNavToolbox(), onEnter() and onExit().
+  // If aCallback is null, then printPreview must previously have been called with
+  // non-null aCallback and that object will be reused.
+  printPreview: function (aCallback)
   {
-    // if we're already in PP mode, don't set the callbacks; chances
-    // are they're null because someone is calling printPreview() to
+    // if we're already in PP mode, don't set the callback; chances
+    // are it is null because someone is calling printPreview() to
     // get us to refresh the display.
-    var pptoolbar = document.getElementById("print-preview-toolbar");
-    if (!pptoolbar) {
-      this._onEnterPP = aEnterPPCallback;
-      this._onExitPP  = aExitPPCallback;
+    if (!document.getElementById("print-preview-toolbar")) {
+      this._callback = aCallback;
+      this._sourceBrowser = aCallback.getSourceBrowser();
+      this._originalTitle = this._sourceBrowser.contentDocument.title;
+      this._originalURL = this._sourceBrowser.currentURI.spec;
     } else {
       // collapse the browser here -- it will be shown in
-      // onEnterPrintPreview; this forces a reflow which fixes display
+      // enterPrintPreview; this forces a reflow which fixes display
       // issues in bug 267422.
-      var browser = getPPBrowser();
-      if (browser)
-        browser.collapsed = true;
+      this._sourceBrowser = this._callback.getPrintPreviewBrowser();
+      this._sourceBrowser.collapsed = true;
     }
 
     this._webProgressPP = {};
     var ppParams        = {};
     var notifyOnOpen    = {};
-    var webBrowserPrint = this.getWebBrowserPrint(aWindow);
+    var webBrowserPrint = this.getWebBrowserPrint();
     var printSettings   = this.getPrintSettings();
     // Here we get the PrintingPromptService so we can display the PP Progress from script
     // For the browser implemented via XUL with the PP toolbar we cannot let it be
@@ -129,9 +128,8 @@ var PrintUtils = {
       PPROMPTSVC.showProgress(window, webBrowserPrint, printSettings, this._obsPP, false,
                               this._webProgressPP, ppParams, notifyOnOpen);
       if (ppParams.value) {
-        var webNav = getWebNavigation();
-        ppParams.value.docTitle = webNav.document.title;
-        ppParams.value.docURL   = webNav.currentURI.spec;
+        ppParams.value.docTitle = this._originalTitle;
+        ppParams.value.docURL   = this._originalURL;
       }
 
       // this tells us whether we should continue on with PP or 
@@ -148,6 +146,10 @@ var PrintUtils = {
     var contentWindow = aWindow || window.content;
     return contentWindow.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
                         .getInterface(Components.interfaces.nsIWebBrowserPrint);
+  },
+
+  getPrintPreview: function() {
+    return this._callback.getPrintPreviewBrowser().docShell.printPreview;
   },
 
   ////////////////////////////////////////
@@ -190,11 +192,12 @@ var PrintUtils = {
     return printSettings;
   },
 
-  _originalZoomValue: null,
   _closeHandlerPP: null,
   _webProgressPP: null,
-  _onEnterPP: null,
-  _onExitPP: null,
+  _callback: null,
+  _sourceBrowser: null,
+  _originalTitle: "",
+  _originalURL: "",
 
   // This observer is called once the progress dialog has been "opened"
   _obsPP: 
@@ -215,36 +218,36 @@ var PrintUtils = {
     }
   },
 
-  enterPrintPreview: function (aWindow)
+  enterPrintPreview: function ()
   {
     gFocusedElement = document.commandDispatcher.focusedElement;
 
-    // Reset the zoom value and save it to be restored later.
-    if (typeof ZoomManager == "object") {
-      this._originalZoomValue = ZoomManager.zoom;
-      ZoomManager.reset();
-    }
+    var webBrowserPrint;
+    var printSettings  = this.getPrintSettings();
+    var originalWindow = this._sourceBrowser.contentWindow;
 
-    var webBrowserPrint = this.getWebBrowserPrint(aWindow);
-    var printSettings   = this.getPrintSettings();
     try {
-      webBrowserPrint.printPreview(printSettings, null, this._webProgressPP.value);
+      webBrowserPrint = this.getPrintPreview();
+      webBrowserPrint.printPreview(printSettings, originalWindow,
+                                   this._webProgressPP.value);
     } catch (e) {
-      if (typeof ZoomManager == "object")
-        ZoomManager.zoom = this._originalZoomValue;
       // Pressing cancel is expressed as an NS_ERROR_ABORT return value,
       // causing an exception to be thrown which we catch here.
       // Unfortunately this will also consume helpful failures, so add a
       // dump(e); // if you need to debug
+
+      // Need to call enter and exit so that UI gets back to normal.
+      this._callback.onEnter();
+      this._callback.onExit();
       return;
     }
 
     var printPreviewTB = document.getElementById("print-preview-toolbar");
     if (printPreviewTB) {
       printPreviewTB.updateToolbar();
-      var browser = getPPBrowser();
-      if (browser)
-        browser.collapsed = false;
+      var browser = this._callback.getPrintPreviewBrowser();
+      browser.collapsed = false;
+      browser.contentWindow.focus();
       return;
     }
 
@@ -257,7 +260,7 @@ var PrintUtils = {
     printPreviewTB.id = "print-preview-toolbar";
     printPreviewTB.className = "toolbar-primary";
 
-    var navToolbox = getNavToolbox();
+    var navToolbox = this._callback.getNavToolbox();
     navToolbox.parentNode.insertBefore(printPreviewTB, navToolbox);
 
     // copy the window close handler
@@ -269,18 +272,16 @@ var PrintUtils = {
 
     // disable chrome shortcuts...
     window.addEventListener("keypress", this.onKeyPressPP, true);
- 
-    var contentWindow = aWindow || window.content;
-    contentWindow.focus();
+
+    var browser = this._callback.getPrintPreviewBrowser();
+    browser.collapsed = false;
+    browser.contentWindow.focus();
 
     // on Enter PP Call back
-    if (this._onEnterPP) {
-      this._onEnterPP();
-      this._onEnterPP = null;
-    }
+    this._callback.onEnter();
   },
 
-  exitPrintPreview: function (aWindow)
+  exitPrintPreview: function ()
   {
     window.removeEventListener("keypress", this.onKeyPressPP, true);
 
@@ -288,28 +289,22 @@ var PrintUtils = {
     document.documentElement.setAttribute("onclose", this._closeHandlerPP);
     this._closeHandlerPP = null;
 
-    var webBrowserPrint = this.getWebBrowserPrint(aWindow);
+    var webBrowserPrint = this.getPrintPreview();
     webBrowserPrint.exitPrintPreview();
-    if (typeof ZoomManager == "object")
-      ZoomManager.zoom = this._originalZoomValue;
 
     // remove the print preview toolbar
     var printPreviewTB = document.getElementById("print-preview-toolbar");
-    getNavToolbox().parentNode.removeChild(printPreviewTB);
+    this._callback.getNavToolbox().parentNode.removeChild(printPreviewTB);
 
     var fm = Components.classes["@mozilla.org/focus-manager;1"]
                        .getService(Components.interfaces.nsIFocusManager);
     if (gFocusedElement)
       fm.setFocus(gFocusedElement, fm.FLAG_NOSCROLL);
     else
-      (aWindow || window.content).focus();
+      window.content.focus();
     gFocusedElement = null;
 
-    // on Exit PP Call back
-    if (this._onExitPP) {
-      this._onExitPP();
-      this._onExitPP = null;
-    }
+    this._callback.onExit();
   },
 
   onKeyPressPP: function (aEvent)

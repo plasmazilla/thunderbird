@@ -15,7 +15,7 @@
  * The Original Code is mozilla.org code.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Corporation.
+ * Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -52,7 +52,7 @@ class nsXULListboxAccessibleWrap : public nsXULListboxAccessible,
                                    public CAccessibleTable
 {
 public:
-  nsXULListboxAccessibleWrap(nsIDOMNode *aDOMNode, nsIWeakReference *aShell);
+  nsXULListboxAccessibleWrap(nsIContent *aContent, nsIWeakReference *aShell);
 
   // IUnknown
   DECL_IUNKNOWN_INHERITED
@@ -69,7 +69,7 @@ class nsXULListCellAccessibleWrap : public nsXULListCellAccessible,
                                     public CAccessibleTableCell
 {
 public:
-  nsXULListCellAccessibleWrap(nsIDOMNode *aDOMNode, nsIWeakReference *aShell);
+  nsXULListCellAccessibleWrap(nsIContent *aContent, nsIWeakReference *aShell);
 
   // IUnknown
   DECL_IUNKNOWN_INHERITED

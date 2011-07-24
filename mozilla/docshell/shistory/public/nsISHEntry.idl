@@ -58,7 +58,7 @@ class nsDocShellEditorData;
 [ptr] native nsDocShellEditorDataPtr(nsDocShellEditorData);
 
 
-[scriptable, uuid(09fecea6-5453-43ba-bf91-3ff32618f037)]
+[scriptable, uuid(39b73c3a-48eb-4189-8069-247279c3c42d)]
 interface nsISHEntry : nsIHistoryEntry
 {
     /** URI for the document */
@@ -149,6 +149,21 @@ interface nsISHEntry : nsIHistoryEntry
      */
     attribute unsigned long pageIdentifier;
 
+    /**
+     * docIdentifier is an integer that should be the same for two entries
+     * attached to the same docshell if and only if the two entries are entries
+     * for the same document.  In practice, two entries A and B will have the
+     * same docIdentifier if they have the same pageIdentifier or if B was
+     * created by A calling history.pushState().
+     */
+    attribute unsigned long long docIdentifier;
+
+    /**
+     * Changes this entry's doc identifier to a new value which is unique
+     * among those of all other entries.
+     */
+    void setUniqueDocIdentifier();
+
     /** attribute to set and get the cache key for the entry */
     attribute nsISupports cacheKey;
 
@@ -173,7 +188,9 @@ interface nsISHEntry : nsIHistoryEntry
                            in nsIInputStream inputStream,
                            in nsILayoutHistoryState layoutHistoryState,
                            in nsISupports cacheKey, in ACString contentType,
-                           in nsISupports owner);
+                           in nsISupports owner,
+                           in unsigned long long docshellID,
+                           in boolean dynamicCreation);
 
     nsISHEntry clone();
 
@@ -193,6 +210,12 @@ interface nsISHEntry : nsIHistoryEntry
     attribute nsISupports owner;
 
     /**
+     * Get/set data associated with this history state via a pushState() call,
+     * encoded as JSON.
+     **/
+    attribute AString stateData;
+
+    /**
      * Gets the owning pointer to the editor data assosicated with
      * this shistory entry. This forgets its pointer, so free it when
      * you're done.
@@ -208,8 +231,36 @@ interface nsISHEntry : nsIHistoryEntry
 
     /** Returns true if this shistory entry is storing a detached editor. */
     [noscript, notxpcom] boolean hasDetachedEditor();
+
+    /**
+     * Returns true if the related docshell was added because of
+     * dynamic addition of an iframe/frame.
+     */
+    boolean isDynamicallyAdded();
+
+    /**
+     * Returns true if any of the child entries returns true
+     * when isDynamicallyAdded is called on it.
+     */
+    boolean hasDynamicallyAddedChild();
+
+    /**
+     * The history ID of the docshell.
+     */
+    attribute unsigned long long docshellID;
 };
 
+[scriptable, uuid(bb66ac35-253b-471f-a317-3ece940f04c5)]
+interface nsISHEntryInternal : nsISupports
+{
+    [notxpcom] void RemoveFromBFCacheAsync();
+    [notxpcom] void RemoveFromBFCacheSync();
+
+    /**
+     * A number that is assigned by the sHistory when the entry is activated
+     */
+    attribute unsigned long lastTouched;
+};
 
 %{ C++
 // {BFD1A791-AD9F-11d3-BDC7-0050040A9B44}

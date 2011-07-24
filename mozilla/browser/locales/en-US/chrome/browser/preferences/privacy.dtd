@@ -1,3 +1,8 @@
+<!ENTITY tracking.label                 "Tracking">
+
+<!ENTITY doNotTrack.label               "Tell web sites I do not want to be tracked">
+<!ENTITY doNotTrack.accesskey           "d">
+
 <!ENTITY  history.label                 "History">
 
 <!ENTITY  locationBar.label             "Location Bar">
@@ -12,10 +17,10 @@
 
 
 <!ENTITY  acceptCookies.label           "Accept cookies from sites">
-<!ENTITY  acceptCookies.accesskey       "c">
+<!ENTITY  acceptCookies.accesskey       "A">
 
 <!ENTITY  acceptThirdParty.label        "Accept third-party cookies">
-<!ENTITY  acceptThirdParty.accesskey    "p">
+<!ENTITY  acceptThirdParty.accesskey    "c">
 
 <!ENTITY  keepUntil.label               "Keep until:">
 <!ENTITY  keepUntil.accesskey           "K">
@@ -29,7 +34,6 @@
 
 <!ENTITY  showCookies.label             "Show Cookies…">
 <!ENTITY  showCookies.accesskey         "S">
-
 
 <!ENTITY  historyHeader.pre.label          "&brandShortName; will:">
 <!ENTITY  historyHeader.pre.accesskey      "w">
@@ -57,18 +61,11 @@
 <!ENTITY  dontrememberActions.clearHistory.label "clear all current history">
 <!ENTITY  dontrememberActions.post.label         ".">
 
-<!ENTITY  privateBrowsingAutoStart.label "Automatically start &brandShortName; in a private browsing session">
-<!ENTITY  privateBrowsingAutoStart.accesskey "A">
+<!ENTITY  privateBrowsingPermanent.label "Permanent Private Browsing mode">
+<!ENTITY  privateBrowsingPermanent.accesskey "P">
 
-<!-- LOCALIZATION NOTE:
-  The entities rememberHistory.pre.label and rememberHistory.post.label appear on a single
-  line in preferences as follows:
-
-  &rememberHistory.pre.label  [ textbox for number of days ]  &rememberHistory.post.label;
--->
-<!ENTITY  rememberHistory.pre.label      "Remember my browsing history for at least">
-<!ENTITY  rememberHistory.pre.accesskey  "b">
-<!ENTITY  rememberHistory.post.label     "days">
+<!ENTITY  rememberHistory.label      "Remember my browsing history">
+<!ENTITY  rememberHistory.accesskey  "b">
 
 <!ENTITY  rememberDownload.label         "Remember download history">
 <!ENTITY  rememberDownload.accesskey     "d">

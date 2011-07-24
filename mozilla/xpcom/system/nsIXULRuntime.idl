@@ -44,7 +44,7 @@
  *                    stable/frozen, please contact Benjamin Smedberg.
  */
 
-[scriptable, uuid(17311145-97da-49eb-b984-965bdee8879c)]
+[scriptable, uuid(7685dac8-3637-4660-a544-928c5ec0e714)]
 interface nsIXULRuntime : nsISupports
 {
   /**
@@ -86,4 +86,34 @@ interface nsIXULRuntime : nsISupports
    * This is taken from the MOZ_WIDGET_TOOLKIT configure variable.
    */
   readonly attribute AUTF8String widgetToolkit;
+
+  /**
+   * The legal values of processType.
+   */
+  const unsigned long PROCESS_TYPE_DEFAULT = 0;
+  const unsigned long PROCESS_TYPE_PLUGIN = 1;
+  const unsigned long PROCESS_TYPE_CONTENT = 2;
+  const unsigned long PROCESS_TYPE_JETPACK = 3;
+  const unsigned long PROCESS_TYPE_IPDLUNITTEST = 4;
+
+  /**
+   * The type of the caller's process.  Returns one of the values above.
+   */
+  readonly attribute unsigned long processType;
+
+  /**
+   * Signal the apprunner to invalidate caches on the next restart.
+   * This will cause components to be autoregistered and all
+   * fastload data to be re-created.
+   */
+  void invalidateCachesOnRestart();
+
+  /**
+   * Starts a child process. This method is intented to pre-start a
+   * content child process so that when it is actually needed, it is
+   * ready to go.
+   *
+   * @throw NS_ERROR_NOT_AVAILABLE if not available.
+   */
+  void ensureContentProcess();
 };

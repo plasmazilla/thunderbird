@@ -51,12 +51,13 @@ class nsTreeBoxObject : public nsITreeBoxObject, public nsBoxObject
 {
 public:
   NS_DECL_ISUPPORTS_INHERITED
+  NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(nsTreeBoxObject, nsBoxObject)
   NS_DECL_NSITREEBOXOBJECT
 
   nsTreeBoxObject();
   ~nsTreeBoxObject();
 
-  nsTreeBodyFrame* GetTreeBody();
+  nsTreeBodyFrame* GetTreeBody(bool aFlushLayout = false);
   nsTreeBodyFrame* GetCachedTreeBody() { return mTreeBody; }
 
   //NS_PIBOXOBJECT interfaces

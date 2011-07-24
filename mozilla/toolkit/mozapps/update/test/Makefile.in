@@ -39,16 +39,15 @@ DEPTH     = ../../../..
 topsrcdir = @top_srcdir@
 srcdir    = @srcdir@
 VPATH     = @srcdir@
+relativesrcdir = toolkit/mozapps/update/test
 
 include $(DEPTH)/config/autoconf.mk
-
-MODULE = test_update
 
 XPCSHELL_TESTS = \
   unit \
   $(NULL)
 
-TESTROOT = $(call core_abspath,$(DEPTH))/_tests/xpcshell/$(MODULE)
+TESTROOT = $(call core_abspath,$(DEPTH))/_tests/xpcshell/$(relativesrcdir)
 
 DEFINES += \
   -DAB_CD=$(AB_CD) \
@@ -77,24 +76,18 @@ INI_TEST_FILES = \
 
 LOCAL_INCLUDES += \
   -I$(srcdir) \
-  -I$(topsrcdir)/toolkit/mozapps/update/src \
+  -I$(topsrcdir)/toolkit/mozapps/update \
   $(NULL)
 
 MOZ_WINCONSOLE = 1
 
 LIBS += \
-  $(DEPTH)/toolkit/mozapps/update/src/updater/readstrings.$(OBJ_SUFFIX) \
+  ../../readstrings/$(LIB_PREFIX)readstrings.$(LIB_SUFFIX) \
   $(NULL)
 
 ifeq ($(OS_ARCH),WINNT)
 USE_STATIC_LIBS = 1
 DEFINES += -DUNICODE -D_UNICODE
-endif
-
-ifeq ($(OS_ARCH),WINCE)
-USE_STATIC_LIBS = 1
-DEFINES += -DUNICODE -D_UNICODE
-WIN32_EXE_LDFLAGS += -ENTRY:mainWCRTStartup
 endif
 
 include $(topsrcdir)/config/rules.mk
@@ -121,5 +114,5 @@ libs:: unit/head_update.js.in
 
 ifndef ANDROID
 libs::
-	$(INSTALL) TestAUSHelper$(BIN_SUFFIX) $(TESTROOT)/unit
+	$(INSTALL) TestAUSHelper$(BIN_SUFFIX) $(DEPTH)/_tests/xpcshell/$(relativesrcdir)/unit
 endif # ANDROID

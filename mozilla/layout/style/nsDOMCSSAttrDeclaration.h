@@ -20,6 +20,7 @@
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
+ *   Ms2ger <ms2ger@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -37,48 +38,65 @@
 
 /* DOM object for element.style */
 
-#ifndef nsDOMCSSAttributeDeclaration_h___
-#define nsDOMCSSAttributeDeclaration_h___
+#ifndef nsDOMCSSAttributeDeclaration_h
+#define nsDOMCSSAttributeDeclaration_h
 
 #include "nsDOMCSSDeclaration.h"
 
+#include "nsAutoPtr.h"
 #include "nsString.h"
 #include "nsWrapperCache.h"
-#include "nsIContent.h"
 
-class nsICSSLoader;
-class nsICSSParser;
+namespace mozilla {
+namespace css {
+class Loader;
+}
+
+namespace dom {
+class Element;
+}
+}
 
 class nsDOMCSSAttributeDeclaration : public nsDOMCSSDeclaration,
                                      public nsWrapperCache
 {
 public:
-  nsDOMCSSAttributeDeclaration(nsIContent *aContent);
+  typedef mozilla::dom::Element Element;
+  nsDOMCSSAttributeDeclaration(Element* aContent
+#ifdef MOZ_SMIL
+                               , PRBool aIsSMILOverride
+#endif // MOZ_SMIL
+                               );
   ~nsDOMCSSAttributeDeclaration();
 
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
-  NS_DECL_CYCLE_COLLECTION_CLASS(nsDOMCSSAttributeDeclaration)
+  NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(nsDOMCSSAttributeDeclaration,
+                                           nsICSSDeclaration)
 
   // If GetCSSDeclaration returns non-null, then the decl it returns
   // is owned by our current style rule.
-  virtual nsresult GetCSSDeclaration(nsCSSDeclaration **aDecl,
-                                     PRBool aAllocate);
+  virtual mozilla::css::Declaration* GetCSSDeclaration(PRBool aAllocate);
   virtual nsresult GetCSSParsingEnvironment(nsIURI** aSheetURI,
                                             nsIURI** aBaseURI,
                                             nsIPrincipal** aSheetPrincipal,
-                                            nsICSSLoader** aCSSLoader,
-                                            nsICSSParser** aCSSParser);
+                                            mozilla::css::Loader** aCSSLoader);
   NS_IMETHOD GetParentRule(nsIDOMCSSRule **aParent);
 
-  virtual nsISupports *GetParentObject()
-  {
-    return mContent;
-  }
+  virtual nsINode* GetParentObject();
 
 protected:
-  virtual nsresult DeclarationChanged();
-  
-  nsCOMPtr<nsIContent> mContent;
+  virtual nsresult SetCSSDeclaration(mozilla::css::Declaration* aDecl);
+  virtual nsIDocument* DocToUpdate();
+
+  nsRefPtr<Element> mElement;
+
+#ifdef MOZ_SMIL
+  /* If true, this indicates that this nsDOMCSSAttributeDeclaration
+   * should interact with mContent's SMIL override style rule (rather
+   * than the inline style rule).
+   */
+  const PRBool mIsSMILOverride;
+#endif // MOZ_SMIL
 };
 
-#endif /* nsDOMCSSAttributeDeclaration_h___ */
+#endif /* nsDOMCSSAttributeDeclaration_h */

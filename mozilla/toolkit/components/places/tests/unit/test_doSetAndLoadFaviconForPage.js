@@ -1,17 +1,51 @@
+/* -*- Mode: Java; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
+ * vim:set ts=2 sw=2 sts=2 et:
+ * ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Places unit test code.
+ *
+ * The Initial Developer of the Original Code is the Mozilla Foundation.
+ * Portions created by the Initial Developer are Copyright (C) 2009
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *  Gavin Sharp <gavin@gavinsharp.com> (original author)
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
 /*
- * Tests for nsIFaviconService
+ * Tests for nsIFaviconService::SetAndLoadFaviconForPage()
  */
 
-var iconsvc = Cc["@mozilla.org/browser/favicon-service;1"].
-              getService(Ci.nsIFaviconService);
+var iconsvc = PlacesUtils.favicons;
 
 function addBookmark(aURI) {
-  var bmsvc = Cc["@mozilla.org/browser/nav-bookmarks-service;1"].
-              getService(Ci.nsINavBookmarksService);
-  return bmsvc.insertBookmark(bmsvc.unfiledBookmarksFolder,
-                              aURI,
-                              bmsvc.DEFAULT_INDEX,
-                              aURI.spec);
+  var bs = PlacesUtils.bookmarks;
+  return bs.insertBookmark(bs.unfiledBookmarksFolder, aURI,
+                           bs.DEFAULT_INDEX, aURI.spec);
 }
 
 function checkAddSucceeded(pageURI, mimetype, data) {
@@ -22,22 +56,12 @@ function checkAddSucceeded(pageURI, mimetype, data) {
   // Ensure input and output are identical
   do_check_eq(mimetype, outMimeType.value);
   do_check_true(compareArrays(data, outData));
+  do_check_guid_for_uri(pageURI);
 }
-
-// TODO bug 527036: There is no way to know whether setting a favicon failed.
-//function checkAddFailed(pageURI) {
-//  var savedFaviconURI = null;
-//  try {
-//    savedFaviconURI = iconsvc.getFaviconForPage(pageURI);
-//  } catch (ex) {}
-//
-//  // ensure that the addition failed
-//  do_check_eq(savedFaviconURI, null);
-//}
 
 var favicons = [
   {
-    uri: iosvc.newFileURI(do_get_file("favicon-normal32.png")),
+    uri: uri(do_get_file("favicon-normal32.png")),
     data: readFileData(do_get_file("favicon-normal32.png")),
     mimetype: "image/png"
   }
@@ -54,20 +78,12 @@ var tests = [
     },
     check: function check1() {
       checkAddSucceeded(this.pageURI, this.favicon.mimetype, this.favicon.data);
+      do_log_info("Check that the added page is marked as hidden.");
+      do_check_true(isUrlHidden(this.pageURI));
+      do_log_info("Check that the added page has 0 frecency.");
+      do_check_eq(frecencyForUrl(this.pageURI), 0);
     }
   },
-
-  // TODO bug 527036: There is no way to know whether setting a favicon failed.
-  //{
-  //  desc: "test setAndLoadFaviconForPage for about: URIs",
-  //  pageURI: uri("about:test1"),
-  //  go: function go2() {
-  //    iconsvc.setAndLoadFaviconForPage(this.pageURI, favicons[0].uri, true);
-  //  },
-  //  check: function check2() {
-  //    checkAddFailed(this.pageURI);
-  //  }
-  //},
 
   {
     desc: "test setAndLoadFaviconForPage for bookmarked about: URIs",
@@ -84,26 +100,6 @@ var tests = [
     }
   },
 
-  // TODO bug 527036: There is no way to know whether setting a favicon failed.
-  //{
-  //  desc: "test setAndLoadFaviconForPage with history disabled",
-  //  pageURI: uri("http://test2.bar/"),
-  //  go: function go4() {
-  //    // disable history
-  //    var prefs = Cc["@mozilla.org/preferences-service;1"].getService(Ci.nsIPrefBranch);
-  //    prefs.setIntPref("browser.history_expire_days", 0);
-  //
-  //    iconsvc.setAndLoadFaviconForPage(this.pageURI, favicons[0].uri, true);
-  //
-  //    try {
-  //      prefs.clearUserPref("browser.history_expire_days");
-  //    } catch (ex) {}
-  //  },
-  //  check: function check4() {
-  //    checkAddFailed(this.pageURI);
-  //  }
-  //},
-
   {
     desc: "test setAndLoadFaviconForPage with history disabled for bookmarked URI",
     pageURI: uri("http://test3.bar/"),
@@ -111,41 +107,20 @@ var tests = [
     go: function go5() {
       // disable history
       var prefs = Cc["@mozilla.org/preferences-service;1"].getService(Ci.nsIPrefBranch);
-      prefs.setIntPref("browser.history_expire_days", 0);
+      prefs.setBoolPref("places.history.enabled", false);
 
       // Add as bookmark
       addBookmark(this.pageURI);
 
       iconsvc.setAndLoadFaviconForPage(this.pageURI, this.favicon.uri, true);
 
-      try {
-        prefs.clearUserPref("browser.history_expire_days");
-      } catch (ex) {}
+      prefs.setBoolPref("places.history.enabled", true);
     },
     check: function check5() {
       checkAddSucceeded(this.pageURI, this.favicon.mimetype, this.favicon.data);
     }
   },
 
-  // TODO bug 527036: There is no way to know whether setting a favicon failed.
-  //{
-  //  desc: "test setAndLoadFaviconForPage in PB mode for non-bookmarked URI",
-  //  pageURI: uri("http://test5.bar/"),
-  //  favicon: favicons[0],
-  //  go: function go7() {
-  //    // enable PB
-  //    var pb = Cc["@mozilla.org/privatebrowsing;1"].
-  //             getService(Ci.nsIPrivateBrowsingService);
-  //    pb.privateBrowsingEnabled = true;
-  //
-  //    iconsvc.setAndLoadFaviconForPage(this.pageURI, this.favicon.uri, true);
-  //
-  //    pb.privateBrowsingEnabled = false;
-  //  },
-  //  check: function check7() {
-  //    checkAddFailed(this.pageURI);
-  //  }
-  //},
 ];
 
 if ("@mozilla.org/privatebrowsing;1" in Cc) {
@@ -184,7 +159,7 @@ var historyObserver = {
   onBeforeDeleteURI: function() {},
   onDeleteURI: function() {},
   onClearHistory: function() {},
-  onPageExpired: function() {},
+  onDeleteVisits: function() {},
 
   onPageChanged: function historyObserver_onPageChanged(pageURI, what, value) {
     if (what != Ci.nsINavHistoryObserver.ATTRIBUTE_FAVICON)
@@ -193,10 +168,13 @@ var historyObserver = {
     if (pageURI.equals(tests[currentTestIndex].pageURI)) {
       tests[currentTestIndex].check();
       currentTestIndex++;
-      if (currentTestIndex == tests.length)
+      if (currentTestIndex == tests.length) {
         do_test_finished();
-      else
+      }
+      else {
+        do_log_info(tests[currentTestIndex].desc);
         tests[currentTestIndex].go();
+      }
     }
     else
       do_throw("Received PageChanged for a non-current test!");
@@ -218,10 +196,9 @@ function run_test() {
   // check that the favicon loaded correctly
   do_check_eq(favicons[0].data.length, 344);
 
-  var hs = Cc["@mozilla.org/browser/nav-history-service;1"].
-           getService(Ci.nsINavHistoryService);
-  hs.addObserver(historyObserver, false);
+  PlacesUtils.history.addObserver(historyObserver, false);
 
   // Start the tests
+  do_log_info(tests[currentTestIndex].desc);
   tests[currentTestIndex].go();
 };

@@ -47,6 +47,8 @@
 #include "nsIMsgLocalMailFolder.h"
 #include "nsIDBFolderInfo.h"
 #include "nsServiceManagerUtils.h"
+#include "nsComponentManagerUtils.h"
+#include "nsMsgUtils.h"
 
 nsrefcnt nsRssIncomingServer::gInstanceCount    = 0;
 
@@ -165,14 +167,12 @@ NS_IMETHODIMP nsRssIncomingServer::PerformBiff(nsIMsgWindow *aMsgWindow)
   PRUint32 cnt =0;
   allDescendents->Count(&cnt);
 
-  nsCOMPtr<nsISupports> supports;
   nsCOMPtr<nsIUrlListener> urlListener;
   nsCOMPtr<nsIMsgFolder> rssFolder;
 
   for (PRUint32 index = 0; index < cnt; index++)
   {
-    supports = getter_AddRefs(allDescendents->ElementAt(index));
-    rssFolder = do_QueryInterface(supports, &rv);
+    rssFolder = do_QueryElementAt(allDescendents, index);
     if (rssFolder)
     {
       urlListener = do_QueryInterface(rssFolder);
@@ -282,6 +282,12 @@ NS_IMETHODIMP nsRssIncomingServer::MsgsMoveCopyCompleted(
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+NS_IMETHODIMP nsRssIncomingServer::MsgKeyChanged(nsMsgKey aOldKey,
+                                                 nsIMsgDBHdr *aNewHdr)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
 NS_IMETHODIMP nsRssIncomingServer::FolderAdded(nsIMsgFolder *aFolder)
 {
   return FolderChanged(aFolder, PR_FALSE);
@@ -339,13 +345,11 @@ nsresult nsRssIncomingServer::FolderChanged(nsIMsgFolder *aFolder, PRBool aUnsub
       PRUint32 cnt = 0;
       allDescendents->Count(&cnt);
 
-      nsCOMPtr<nsISupports> supports;
       nsCOMPtr<nsIMsgFolder> rssFolder;
 
       for (PRUint32 index = 0; index < cnt; index++)
       {
-        supports = getter_AddRefs(allDescendents->ElementAt(index));
-        rssFolder = do_QueryInterface(supports, &rv);
+        rssFolder = do_QueryElementAt(allDescendents, index, &rv);
         if (rssFolder)
           rssDownloader->UpdateSubscriptionsDS(rssFolder, aUnsubscribe);
       }

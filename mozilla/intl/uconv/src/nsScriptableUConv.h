@@ -44,12 +44,11 @@
 #include "nsICharsetConverterManager.h"
 #include "nsIScriptableUConv.h"
 
-class nsScriptableUnicodeConverter : public nsIScriptableUnicodeConverter_1_9_BRANCH
+class nsScriptableUnicodeConverter : public nsIScriptableUnicodeConverter
 {
 public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSISCRIPTABLEUNICODECONVERTER
-  NS_DECL_NSISCRIPTABLEUNICODECONVERTER_1_9_BRANCH
 
   nsScriptableUnicodeConverter();
   virtual ~nsScriptableUnicodeConverter();

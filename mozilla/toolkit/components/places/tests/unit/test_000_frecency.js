@@ -67,10 +67,9 @@ try {
 function add_visit(aURI, aVisitDate, aVisitType) {
   var isRedirect = aVisitType == histsvc.TRANSITION_REDIRECT_PERMANENT ||
                    aVisitType == histsvc.TRANSITION_REDIRECT_TEMPORARY;
-  var placeID = histsvc.addVisit(aURI, aVisitDate, null,
+  var visitId = histsvc.addVisit(aURI, aVisitDate, null,
                                  aVisitType, isRedirect, 0);
-  do_check_true(placeID > 0);
-  return placeID;
+  return visitId;
 }
 
 var bucketPrefs = [
@@ -83,6 +82,7 @@ var bucketPrefs = [
 
 var bonusPrefs = {
   embedVisitBonus: Ci.nsINavHistoryService.TRANSITION_EMBED,
+  framedLinkVisitBonus: Ci.nsINavHistoryService.TRANSITION_FRAMED_LINK,
   linkVisitBonus: Ci.nsINavHistoryService.TRANSITION_LINK,
   typedVisitBonus: Ci.nsINavHistoryService.TRANSITION_TYPED,
   bookmarkVisitBonus: Ci.nsINavHistoryService.TRANSITION_BOOKMARK,
@@ -153,6 +153,7 @@ bucketPrefs.every(function(bucket) {
       if (!points) {
         if (!visitType ||
             visitType == Ci.nsINavHistoryService.TRANSITION_EMBED ||
+            visitType == Ci.nsINavHistoryService.TRANSITION_FRAMED_LINK ||
             visitType == Ci.nsINavHistoryService.TRANSITION_DOWNLOAD ||
             bonusName == "defaultVisitBonus")
           frecency = 0;
@@ -173,8 +174,10 @@ bucketPrefs.every(function(bucket) {
       add_visit(calculatedURI, dateInPeriod, visitType);
     }
 
-    if (calculatedURI && frecency)
+    if (calculatedURI && frecency) {
       results.push([calculatedURI, frecency, matchTitle]);
+      setPageTitle(calculatedURI, matchTitle);
+    }
   }
   return true;
 });
@@ -240,6 +243,11 @@ AutoCompleteInput.prototype = {
 }
 
 function run_test() {
+  do_test_pending();
+  waitForAsyncUpdates(continue_test);
+}
+
+function continue_test() {
   var controller = Components.classes["@mozilla.org/autocomplete/controller;1"].
                    getService(Components.interfaces.nsIAutoCompleteController);
 
@@ -252,9 +260,6 @@ function run_test() {
   // always search in history + bookmarks, no matter what the default is
   prefs.setIntPref("browser.urlbar.search.sources", 3);
   prefs.setIntPref("browser.urlbar.default.behavior", 0);
-
-  // Search is asynchronous, so don't let the test finish immediately
-  do_test_pending();
 
   var numSearchesStarted = 0;
   input.onSearchBegin = function() {

@@ -17,17 +17,56 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=590771
 
 /** Test for Bug 590771 **/
 
-var attr = document.createAttribute("foo");
-attr.value = "bar";
-var ni = document.createNodeIterator(attr, -1, null, false);
-ni.nextNode();
-ni.nextNode();
-is(ni.referenceNode, attr.firstChild,
-   "iterator should be on the first child attribute");
+function test1()
+{
+  var attr = document.createAttribute("foo");
+  attr.value = "bar";
+  var ni = document.createNodeIterator(attr, -1, null, false);
+  ni.nextNode();
+  ni.nextNode();
+  is(ni.referenceNode, attr.firstChild,
+      "iterator should be on the first child attribute");
 
-attr.removeChild(attr.firstChild);
-is(ni.referenceNode, attr,
-   "iterator should be on the attribute now");
+  attr.removeChild(attr.firstChild);
+  is(ni.referenceNode, attr,
+     "iterator should be on the attribute now");
+}
+
+function test2()
+{
+  var attr = document.createAttribute("foo");
+  attr.value = "bar";
+  var ni = document.createNodeIterator(attr, -1, null, false);
+  ni.nextNode();
+  ni.nextNode();
+  is(ni.referenceNode, attr.firstChild,
+      "iterator should be on the first child attribute");
+
+  attr.value = "";
+  is(ni.referenceNode, attr,
+     "iterator should be on the attribute now");
+}
+
+function test3()
+{
+  var attr = document.createAttribute("foo");
+  attr.value = "bar";
+  var node = document.createElement("div");
+  node.setAttributeNode(attr);
+  var ni = document.createNodeIterator(attr, -1, null, false);
+  ni.nextNode();
+  ni.nextNode();
+  is(ni.referenceNode, attr.firstChild,
+      "iterator should be on the first child attribute");
+
+  node.setAttribute("foo", "");
+  is(ni.referenceNode, attr,
+     "iterator should be on the attribute now");
+}
+
+test1();
+test2();
+test3();
 
 </script>
 </pre>

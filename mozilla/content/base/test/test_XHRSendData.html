@@ -195,11 +195,11 @@ finally {
 
 function cleanUpData() {
   testFiles.forEach(
-    function (testFile) {
-      try {
-        testFile.remove(false);
-      } catch (e) {}
-    }
+      function (testFile) {
+        try {
+          testFile.remove(false);
+        } catch (e) {}
+      }
   );
 }
 

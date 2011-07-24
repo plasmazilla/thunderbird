@@ -22,6 +22,7 @@
  * Contributor(s):
  *   Michael Lowe <michael.lowe@bigfoot.com>
  *   Darin Fisher <darin@meer.net>
+ *   Jim Mathies <jmathies@mozilla.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -40,6 +41,16 @@
 #include "nsAppShell.h"
 #include "nsToolkit.h"
 #include "nsThreadUtils.h"
+#include "WinTaskbar.h"
+#include "nsString.h"
+#include "nsIMM32Handler.h"
+
+// For skidmark code
+#include <windows.h> 
+#include <tlhelp32.h> 
+
+const PRUnichar* kAppShellEventId = L"nsAppShell:EventID";
+const PRUnichar* kTaskbarButtonEventId = L"TaskbarButtonCreated";
 
 #ifdef WINCE
 BOOL WaitMessage(VOID)
@@ -68,28 +79,45 @@ UINT nsAppShell::GetTaskbarButtonCreatedMessage() {
 }
 #endif
 
+namespace mozilla {
+namespace crashreporter {
+void LSPAnnotate();
+} // namespace crashreporter
+} // namespace mozilla
+
+using mozilla::crashreporter::LSPAnnotate;
+
 //-------------------------------------------------------------------------
 
-static BOOL PeekKeyAndIMEMessage(LPMSG msg, HWND hwnd)
+static PRBool PeekUIMessage(MSG* aMsg)
 {
-  MSG msg1, msg2, *lpMsg;
-  BOOL b1, b2;
-  b1 = ::PeekMessageW(&msg1, NULL, WM_KEYFIRST, WM_IME_KEYLAST, PM_NOREMOVE);
-  b2 = ::PeekMessageW(&msg2, NULL, WM_IME_SETCONTEXT, WM_IME_KEYUP, PM_NOREMOVE);
-  if (b1 || b2) {
-    if (b1 && b2) {
-      if (msg1.time < msg2.time)
-        lpMsg = &msg1;
-      else
-        lpMsg = &msg2;
-    } else if (b1)
-      lpMsg = &msg1;
-    else
-      lpMsg = &msg2;
-    return ::PeekMessageW(msg, hwnd, lpMsg->message, lpMsg->message, PM_REMOVE);
+  MSG keyMsg, imeMsg, mouseMsg, *pMsg = 0;
+  PRBool haveKeyMsg, haveIMEMsg, haveMouseMsg;
+
+  haveKeyMsg = ::PeekMessageW(&keyMsg, NULL, WM_KEYFIRST, WM_IME_KEYLAST, PM_NOREMOVE);
+  haveIMEMsg = ::PeekMessageW(&imeMsg, NULL, NS_WM_IMEFIRST, NS_WM_IMELAST, PM_NOREMOVE);
+  haveMouseMsg = ::PeekMessageW(&mouseMsg, NULL, WM_MOUSEFIRST, WM_MOUSELAST, PM_NOREMOVE);
+
+  if (haveKeyMsg) {
+    pMsg = &keyMsg;
+  }
+  if (haveIMEMsg && (!pMsg || imeMsg.time < pMsg->time)) {
+    pMsg = &imeMsg;
   }
 
-  return false;
+  if (pMsg && !nsIMM32Handler::CanOptimizeKeyAndIMEMessages(pMsg)) {
+    return PR_FALSE;
+  }
+
+  if (haveMouseMsg && (!pMsg || mouseMsg.time < pMsg->time)) {
+    pMsg = &mouseMsg;
+  }
+
+  if (!pMsg) {
+    return PR_FALSE;
+  }
+
+  return ::PeekMessageW(aMsg, NULL, pMsg->message, pMsg->message, PM_REMOVE);
 }
 
 /*static*/ LRESULT CALLBACK
@@ -117,12 +145,20 @@ nsAppShell::~nsAppShell()
 nsresult
 nsAppShell::Init()
 {
+#ifdef MOZ_CRASHREPORTER
+  LSPAnnotate();
+#endif
+
   if (!sMsgId)
-    sMsgId = RegisterWindowMessageW(L"nsAppShell:EventID");
+    sMsgId = RegisterWindowMessageW(kAppShellEventId);
 
 #if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_WIN7
-  sTaskbarButtonCreatedMsg = ::RegisterWindowMessageW(L"TaskbarButtonCreated");
+  sTaskbarButtonCreatedMsg = ::RegisterWindowMessageW(kTaskbarButtonEventId);
   NS_ASSERTION(sTaskbarButtonCreatedMsg, "Could not register taskbar button creation message");
+
+  // Global app registration id for Win7 and up. See
+  // WinTaskbar.cpp for details.
+  mozilla::widget::WinTaskbar::RegisterAppUserModelID();
 #endif
 
   WNDCLASSW wc;
@@ -150,25 +186,149 @@ nsAppShell::Init()
   return nsBaseAppShell::Init();
 }
 
+/**
+ * This is some temporary code to keep track of where in memory dlls are
+ * loaded. This is useful in case someone calls into a dll that has been
+ * unloaded. This code lets us see which dll used to be loaded at the given
+ * called address.
+ */
+#if defined(_MSC_VER) && defined(_M_IX86)
+
+#define LOADEDMODULEINFO_STRSIZE 23
+#define NUM_LOADEDMODULEINFO 250
+
+struct LoadedModuleInfo {
+  void* mStartAddr;
+  void* mEndAddr;
+  char mName[LOADEDMODULEINFO_STRSIZE + 1];
+};
+
+static LoadedModuleInfo* sLoadedModules = 0;
+
+static void
+CollectNewLoadedModules()
+{
+  HANDLE hModuleSnap = INVALID_HANDLE_VALUE;
+  MODULEENTRY32W module;
+
+  // Take a snapshot of all modules in our process.
+  hModuleSnap = CreateToolhelp32Snapshot(TH32CS_SNAPMODULE, 0);
+  if (hModuleSnap == INVALID_HANDLE_VALUE)
+    return;
+
+  // Set the size of the structure before using it.
+  module.dwSize = sizeof(MODULEENTRY32W);
+
+  // Now walk the module list of the process,
+  // and display information about each module
+  PRBool done = !Module32FirstW(hModuleSnap, &module);
+  while (!done) {
+    NS_LossyConvertUTF16toASCII moduleName(module.szModule);
+    PRBool found = PR_FALSE;
+    PRUint32 i;
+    for (i = 0; i < NUM_LOADEDMODULEINFO &&
+                sLoadedModules[i].mStartAddr; ++i) {
+      if (sLoadedModules[i].mStartAddr == module.modBaseAddr &&
+          !strcmp(moduleName.get(),
+                  sLoadedModules[i].mName)) {
+        found = PR_TRUE;
+        break;
+      }
+    }
+
+    if (!found && i < NUM_LOADEDMODULEINFO) {
+      sLoadedModules[i].mStartAddr = module.modBaseAddr;
+      sLoadedModules[i].mEndAddr = module.modBaseAddr + module.modBaseSize;
+      strncpy(sLoadedModules[i].mName, moduleName.get(),
+              LOADEDMODULEINFO_STRSIZE);
+      sLoadedModules[i].mName[LOADEDMODULEINFO_STRSIZE] = 0;
+    }
+
+    done = !Module32NextW(hModuleSnap, &module);
+  }
+
+  PRUint32 i;
+  for (i = 0; i < NUM_LOADEDMODULEINFO &&
+              sLoadedModules[i].mStartAddr; ++i) {}
+
+  CloseHandle(hModuleSnap);
+}
+
+NS_IMETHODIMP
+nsAppShell::Run(void)
+{
+  LoadedModuleInfo modules[NUM_LOADEDMODULEINFO];
+  memset(modules, 0, sizeof(modules));
+  sLoadedModules = modules;
+
+  nsresult rv = nsBaseAppShell::Run();
+
+  // Don't forget to null this out!
+  sLoadedModules = nsnull;
+
+  return rv;
+}
+
+#endif
+
+void
+nsAppShell::DoProcessMoreGeckoEvents()
+{
+  // Called by nsBaseAppShell's NativeEventCallback() after it has finished
+  // processing pending gecko events and there are still gecko events pending
+  // for the thread. (This can happen if NS_ProcessPendingEvents reached it's
+  // starvation timeout limit.) The default behavior in nsBaseAppShell is to
+  // call ScheduleNativeEventCallback to post a follow up native event callback
+  // message. This triggers an additional call to NativeEventCallback for more
+  // gecko event processing.
+
+  // There's a deadlock risk here with certain internal Windows modal loops. In
+  // our dispatch code, we prioritize messages so that input is handled first.
+  // However Windows modal dispatch loops often prioritize posted messages. If
+  // we find ourselves in a tight gecko timer loop where NS_ProcessPendingEvents
+  // takes longer than the timer duration, NS_HasPendingEvents(thread) will
+  // always be true. ScheduleNativeEventCallback will be called on every
+  // NativeEventCallback callback, and in a Windows modal dispatch loop, the
+  // callback message will be processed first -> input gets starved, dead lock.
+  
+  // To avoid, don't post native callback messages from NativeEventCallback
+  // when we're in a modal loop. This gets us back into the Windows modal
+  // dispatch loop dispatching input messages. Once we drop out of the modal
+  // loop, we use mNativeCallbackPending to fire off a final NativeEventCallback
+  // if we need it, which insures NS_ProcessPendingEvents gets called and all
+  // gecko events get processed.
+  if (mEventloopNestingLevel < 2) {
+    OnDispatchedEvent(nsnull);
+    mNativeCallbackPending = PR_FALSE;
+  } else {
+    mNativeCallbackPending = PR_TRUE;
+  }
+}
+
 void
 nsAppShell::ScheduleNativeEventCallback()
 {
-  // post a message to the native event queue...
-  NS_ADDREF_THIS();
+  // Post a message to the hidden message window
+  NS_ADDREF_THIS(); // will be released when the event is processed
   ::PostMessage(mEventWnd, sMsgId, 0, reinterpret_cast<LPARAM>(this));
 }
 
 PRBool
 nsAppShell::ProcessNextNativeEvent(PRBool mayWait)
 {
+#if defined(_MSC_VER) && defined(_M_IX86)
+  if (sXPCOMHasLoadedNewDLLs && sLoadedModules) {
+    sXPCOMHasLoadedNewDLLs = PR_FALSE;
+    CollectNewLoadedModules();
+  }
+#endif
+
   PRBool gotMessage = PR_FALSE;
 
   do {
     MSG msg;
-    // Give priority to system messages (in particular keyboard, mouse, timer,
-    // and paint messages).
-    if (PeekKeyAndIMEMessage(&msg, NULL) ||
-        ::PeekMessageW(&msg, NULL, WM_MOUSEFIRST, WM_MOUSELAST, PM_REMOVE) || 
+    // Give priority to keyboard and mouse messages.
+    if (PeekUIMessage(&msg) ||
         ::PeekMessageW(&msg, NULL, 0, 0, PM_REMOVE)) {
       gotMessage = PR_TRUE;
       if (msg.message == WM_QUIT) {
@@ -183,6 +343,11 @@ nsAppShell::ProcessNextNativeEvent(PRBool mayWait)
       ::WaitMessage();
     }
   } while (!gotMessage && mayWait);
+
+  // See DoProcessNextNativeEvent, mEventloopNestingLevel will be
+  // one when a modal loop unwinds.
+  if (mNativeCallbackPending && mEventloopNestingLevel == 1)
+    DoProcessMoreGeckoEvents();
 
   return gotMessage;
 }

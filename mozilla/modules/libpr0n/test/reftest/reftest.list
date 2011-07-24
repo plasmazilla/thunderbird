@@ -1,4 +1,4 @@
-# Check for 24-bit color mode (bug 414720)
+# Check for 24-bit color mode (test for bug 414720)
 == colordepth.html about:blank
 
 # "PngSuite, the official set of PNG test images"
@@ -22,8 +22,14 @@ include pngsuite-zlib/reftest.list
 # JPEG tests
 include jpeg/reftest.list
 
+# GIF tests
+include gif/reftest.list
+
 # APNG tests
 include apng/reftest.list
+
+# Icon tests
+include icon/win/reftest.list
 
 # Generic image tests
 include generic/reftest.list

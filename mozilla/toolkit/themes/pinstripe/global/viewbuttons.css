@@ -34,8 +34,10 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+%include shared.inc
+
 #topBar {
-  -moz-appearance: -moz-mac-unified-toolbar;
+  -moz-appearance: toolbar;
 }
 
 .viewGroupWrapper {
@@ -46,8 +48,8 @@
 #viewGroup {
   background-color: rgba(0, 0, 0, 0.55);
   padding: 1px;
-  -moz-border-radius: 3px;
-  -moz-box-shadow: rgba(255, 255, 255, 0.4) 0 1px;
+  border-radius: @toolbarbuttonCornerRadius@;
+  box-shadow: @loweredShadow@;
   margin: 4px 0 9px;
 }
 
@@ -57,19 +59,19 @@
   -moz-box-align: center;
   -moz-appearance: none;
   font: menu;
-  text-shadow: rgba(255, 255, 255, 0.4) 0 1px;
+  text-shadow: @loweredShadow@;
   margin: 0;
   padding: 0 4px;
   border: none;
   border-left: 1px solid rgba(0, 0, 0, 0.8);
-  background: -moz-linear-gradient(top, #FFF, #ADADAD) repeat-x;
+  background: @toolbarbuttonBackground@;
 }
 
 #viewGroup > radio:active:hover,
 #viewGroup > toolbarbutton:active:hover {
-  background: #B5B5B5;
-  text-shadow: rgba(255, 255, 255, 0.4) 0 1px;
-  -moz-box-shadow: inset rgba(0, 0, 0, 0.3) 0 -6px 14px, inset #000 0 1px 4px, inset rgba(0, 0, 0, 0.2) 0 1px 4px;
+  background: @toolbarbuttonPressedBackgroundColor@;
+  text-shadow: @loweredShadow@;
+  box-shadow: @toolbarbuttonPressedInnerShadow@;
 }
 
 #viewGroup > radio[selected=true],
@@ -77,31 +79,29 @@
   color: #FFF !important;
   text-shadow: rgba(0, 0, 0, 0.4) 0 1px;
   background: #606060;
-  -moz-box-shadow: inset #2A2A2A 0 3px 5px;
+  box-shadow: inset #2A2A2A 0 3px 3.5px;
 }
 
 #viewGroup > radio[selected=true]:active:hover,
 #viewGroup > toolbarbutton[checked=true]:active:hover {
   background-color: #4E4E4E;
-  -moz-box-shadow: inset #1c1c1c 0 3px 5px;
+  box-shadow: inset #1c1c1c 0 3px 3.5px;
 }
 
-:root:not([active]) #viewGroup {
+#viewGroup:-moz-window-inactive {
   background-color: rgba(0, 0, 0, 0.25);
 }
 
-:root:not([active]) #viewGroup > radio,
-:root:not([active]) #viewGroup > toolbarbutton {
-  color: #7C7C7C !important; /* remove this when we support click-through */
+#viewGroup > radio:-moz-window-inactive,
+#viewGroup > toolbarbutton:-moz-window-inactive {
   border-color: rgba(0, 0, 0, 0.4);
-  background-image: -moz-linear-gradient(top, #FFF, #CCC);
+  background-image: @toolbarbuttonInactiveBackgroundImage@;
 }
 
-:root:not([active]) #viewGroup > radio[selected=true],
-:root:not([active]) #viewGroup > toolbarbutton[checked=true] {
-  color: #E6E6E6 !important; /* remove this when we support click-through */
+#viewGroup > radio[selected=true]:-moz-window-inactive,
+#viewGroup > toolbarbutton[checked=true]:-moz-window-inactive {
   background: #8E8E8E;
-  -moz-box-shadow: inset rgba(0, 0, 0, 0.5) 0 3px 5px;
+  box-shadow: inset rgba(0, 0, 0, 0.5) 0 3px 3.5px;
 }
 
 #viewGroup > radio:-moz-locale-dir(ltr):first-child,
@@ -112,8 +112,8 @@
 #viewGroup > toolbarbutton:-moz-locale-dir(ltr)[first-visible],
 #viewGroup > toolbarbutton:-moz-locale-dir(rtl):last-child,
 #viewGroup > toolbarbutton:-moz-locale-dir(rtl)[last-visible] {
-  -moz-border-radius-topleft: 2px;
-  -moz-border-radius-bottomleft: 2px;
+  border-top-left-radius: 2px;
+  border-bottom-left-radius: 2px;
   border-left: none !important;
 }
 
@@ -125,6 +125,6 @@
 #viewGroup > toolbarbutton:-moz-locale-dir(ltr)[last-visible],
 #viewGroup > toolbarbutton:-moz-locale-dir(rtl):first-child,
 #viewGroup > toolbarbutton:-moz-locale-dir(rtl)[first-visible] {
-  -moz-border-radius-topright: 2px;
-  -moz-border-radius-bottomright: 2px;
+  border-top-right-radius: 2px;
+  border-bottom-right-radius: 2px;
 }

@@ -44,7 +44,7 @@
 #include "nsSVGEnum.h"
 #include "nsSVGAngle.h"
 #include "nsSVGViewBox.h"
-#include "nsSVGPreserveAspectRatio.h"
+#include "SVGAnimatedPreserveAspectRatio.h"
 
 class nsSVGOrientType
 {
@@ -56,8 +56,13 @@ public:
   nsresult SetBaseValue(PRUint16 aValue,
                         nsSVGElement *aSVGElement);
 
+  // XXX FIXME like https://bugzilla.mozilla.org/show_bug.cgi?id=545550 but
+  // without adding an mIsAnimated member...?
   void SetBaseValue(PRUint16 aValue)
     { mAnimVal = mBaseVal = PRUint8(aValue); }
+  // no need to notify, since nsSVGAngle does that
+  void SetAnimValue(PRUint16 aValue)
+    { mAnimVal = PRUint8(aValue); }
 
   PRUint16 GetBaseValue() const
     { return mBaseVal; }
@@ -102,10 +107,12 @@ class nsSVGMarkerElement : public nsSVGMarkerElementBase,
 
 protected:
   friend nsresult NS_NewSVGMarkerElement(nsIContent **aResult,
-                                         nsINodeInfo *aNodeInfo);
-  nsSVGMarkerElement(nsINodeInfo* aNodeInfo);
+                                         already_AddRefed<nsINodeInfo> aNodeInfo);
+  nsSVGMarkerElement(already_AddRefed<nsINodeInfo> aNodeInfo);
 
 public:
+  typedef mozilla::SVGAnimatedPreserveAspectRatio SVGAnimatedPreserveAspectRatio;
+
   // interfaces:
 
   NS_DECL_ISUPPORTS_INHERITED
@@ -132,11 +139,14 @@ public:
 
   // public helpers
   gfxMatrix GetMarkerTransform(float aStrokeWidth,
-                               float aX, float aY, float aAngle);
+                               float aX, float aY, float aAutoAngle);
   gfxMatrix GetViewBoxTransform();
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
 
+  nsSVGOrientType* GetOrientType() { return &mOrientType; }
+
+  virtual nsXPCClassInfo* GetClassInfo();
 protected:
 
   virtual PRBool ParseAttribute(PRInt32 aNameSpaceID, nsIAtom* aName,
@@ -149,7 +159,7 @@ protected:
   virtual AngleAttributesInfo GetAngleInfo();
   virtual EnumAttributesInfo GetEnumInfo();
   virtual nsSVGViewBox *GetViewBox();
-  virtual nsSVGPreserveAspectRatio *GetPreserveAspectRatio();
+  virtual SVGAnimatedPreserveAspectRatio *GetPreserveAspectRatio();
 
   enum { REFX, REFY, MARKERWIDTH, MARKERHEIGHT };
   nsSVGLength2 mLengthAttributes[4];
@@ -165,7 +175,7 @@ protected:
   static AngleInfo sAngleInfo[1];
 
   nsSVGViewBox             mViewBox;
-  nsSVGPreserveAspectRatio mPreserveAspectRatio;
+  SVGAnimatedPreserveAspectRatio mPreserveAspectRatio;
 
   // derived properties (from 'orient') handled separately
   nsSVGOrientType                        mOrientType;

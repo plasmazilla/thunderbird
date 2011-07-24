@@ -49,7 +49,7 @@ class nsNativeThemeGTK: private nsNativeTheme,
                         public nsITheme,
                         public nsIObserver {
 public:
-  NS_DECL_ISUPPORTS
+  NS_DECL_ISUPPORTS_INHERITED
 
   NS_DECL_NSIOBSERVER
 
@@ -92,15 +92,19 @@ public:
 
   PRBool ThemeNeedsComboboxDropmarker();
 
-  virtual nsTransparencyMode GetWidgetTransparency(PRUint8 aWidgetType);
+  virtual Transparency GetWidgetTransparency(nsIFrame* aFrame,
+                                             PRUint8 aWidgetType);
 
   nsNativeThemeGTK();
   virtual ~nsNativeThemeGTK();
 
 private:
+  gint GetTabMarginPixels(nsIFrame* aFrame);
   PRBool GetGtkWidgetAndState(PRUint8 aWidgetType, nsIFrame* aFrame,
                               GtkThemeWidgetType& aGtkWidgetType,
                               GtkWidgetState* aState, gint* aWidgetFlags);
+  PRBool GetExtraSizeForWidget(nsIFrame* aFrame, PRUint8 aWidgetType,
+                               nsIntMargin* aExtra);
 
   void RefreshWidgetWindow(nsIFrame* aFrame);
 

@@ -64,10 +64,7 @@ let _errorConsoleTunnel = {
       // meh, let's just use mark_failure for now.
       // and let's avoid feedback loops (happens in mozmill)
       if ((aMessage instanceof Components.interfaces.nsIScriptError) &&
-        (aMessage.errorMessage.indexOf("Error console says") == -1) &&
-          // MOZILLA_1_9_2_BRANCH fix: gre-resources alias causes an expected
-          //  warning that should not cause us to fail.
-          (aMessage.errorMessage.indexOf("Duplicate resource declaration") == -1))
+        (aMessage.errorMessage.indexOf("Error console says") == -1))
         mark_failure(["Error console says", aMessage]);
     }
     catch (ex) {
@@ -303,10 +300,9 @@ function __simple_obj_copy(aObj, aDepthAllowed) {
     else if (!aDepthAllowed) {
       oot[key] = "truncated, string rep: " + value.toString();
     }
-    // array?  we don't count that as depth for now.
-    else if (("length" in value) &&
-             ("constructor" in value) &&
-             (value.constructor.name == "Array")) {
+    // array?  (not directly counted, but we will terminate because the
+    //  child copying occurs using nextDepth...)
+    else if (Array.isArray(value)) {
       oot[key] = [__value_copy(v, nextDepth) for each
                    ([, v] in Iterator(value))];
     }
@@ -350,6 +346,11 @@ function _normalize_for_json(aObj, aDepthAllowed, aJsonMeNotNeeded) {
   else if (aObj == null)
     return aObj;
 
+  // recursively transform arrays outright
+  if (Array.isArray(aObj))
+      return [__value_copy(v, aDepthAllowed - 1) for each
+              ([, v] in Iterator(aObj))];
+
   // === Mail Specific ===
   // (but common and few enough to not split out)
   if (aObj instanceof Ci.nsIMsgFolder) {
@@ -386,10 +387,54 @@ function _normalize_for_json(aObj, aDepthAllowed, aJsonMeNotNeeded) {
     };
   }
   // === Generic ===
+  // DOM nodes, including elements
+  else if (aObj instanceof Ci.nsIDOMNode) {
+    let name = aObj.nodeName;
+    if (aObj instanceof Ci.nsIDOMElement)
+      name += "#" + aObj.getAttribute("id");
+
+    let nodeAttrs = aObj.attributes, objAttrs = {};
+    for (let iAttr = 0; iAttr < nodeAttrs.length; iAttr++) {
+      objAttrs[nodeAttrs[iAttr].name] = nodeAttrs[iAttr].value;
+    }
+
+    let bounds = aObj.getBoundingClientRect();
+    return {
+      type: "domNode",
+      name: name,
+      value: aObj.nodeValue,
+      namespace: aObj.namespaceURI,
+      boundingClientRect: {left: bounds.left, top: bounds.top,
+                           width: bounds.width, height: bounds.height},
+      attrs: objAttrs,
+    };
+  }
+  else if (aObj instanceof Ci.nsIDOMWindowInternal) {
+    let winId, title;
+    if (aObj.document && aObj.document.documentElement) {
+      title = aObj.document.title;
+      winId = aObj.document.documentElement.getAttribute("windowtype") ||
+              aObj.document.documentElement.getAttribute("id") ||
+              "unnamed";
+    }
+    else {
+      winId = "n/a";
+      title = "no document";
+    }
+    return {
+      type: "domWindow",
+      id: winId,
+      title: title,
+      location: "" + aObj.location,
+      coords: {x: aObj.screenX, y: aObj.screenY},
+      dims: {width: aObj.outerWidth, height: aObj.outerHeight},
+    };
+  }
   // Although straight JS exceptions should serialize pretty well, we can
   //  improve things by making "stack" more friendly.
   else if (aObj instanceof Error) {
     return {
+      type: "error",
       message: aObj.message,
       fileName: aObj.fileName,
       lineNumber: aObj.lineNumber,
@@ -425,7 +470,10 @@ function _normalize_for_json(aObj, aDepthAllowed, aJsonMeNotNeeded) {
     // Do not fall into simple object walking if this is an XPCOM interface.
     //  We might run across getters and that leads to nothing good.
     if (aObj instanceof Ci.nsISupports) {
-      return aObj.toString();
+      return {
+        type: "XPCOM",
+        name: aObj.toString(),
+      }
     }
   }
 
@@ -489,7 +537,8 @@ _MarkAction.prototype = {
 function mark_action(aWho, aWhat, aArgs) {
   let logger = Log4Moz.repository.getLogger("test." + aWho);
 
-  aArgs = [_normalize_for_json(arg) for each ([, arg] in Iterator(aArgs))];
+  aArgs = [_normalize_for_json(arg, undefined, true) for each
+           ([, arg] in Iterator(aArgs))];
   logger.info(_testLoggerActiveContext, new _MarkAction(aWho, aWhat, aArgs));
 }
 
@@ -541,11 +590,14 @@ function mark_failure(aRichString) {
   let args = [_testLoggerActiveContext];
   let text = "";
   for each (let [i, richThing] in Iterator(aRichString)) {
-    text += (i ? " " : "") + richThing;
-    if (richThing == null || typeof(richThing) != "object")
+    text += (i ? " " : "");
+    if (richThing == null || typeof(richThing) != "object") {
+      text += richThing;
       args.push(richThing);
+    }
     else {
       let jsonThing = _normalize_for_json(richThing);
+      text += "[" + jsonThing.type + " " + jsonThing.name + "]";
       // hook things up to be json serialized.
       if (!("_jsonMe" in jsonThing))
         jsonThing.__proto__ = _fake_json_proto;

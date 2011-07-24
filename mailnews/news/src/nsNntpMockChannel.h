@@ -15,7 +15,7 @@
  * The Original Code is mozilla.org code.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging Corporation.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -91,7 +91,7 @@ protected:
   nsCOMPtr<nsIInterfaceRequestor> m_notificationCallbacks;
   nsCString m_contentType;
   nsCString m_contentCharset;
-  PRInt32 m_contentLength;
+  PRInt64 m_contentLength;
 };
 
 #endif  // nsNntpMockChannel_h___

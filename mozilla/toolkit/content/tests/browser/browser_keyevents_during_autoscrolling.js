@@ -1,11 +1,7 @@
 function test()
 {
   const kPrefName_AutoScroll = "general.autoScroll";
-  const kPrefName_ContentLoadURL = "middlemouse.contentLoadURL";
-  var prefSvc = Components.classes["@mozilla.org/preferences-service;1"]
-                          .getService(Components.interfaces.nsIPrefBranch2);
-  var kAutoScrollingEnabled = prefSvc.getBoolPref(kPrefName_AutoScroll);
-  prefSvc.setBoolPref(kPrefName_AutoScroll, true);
+  Services.prefs.setBoolPref(kPrefName_AutoScroll, true);
 
   const kNoKeyEvents   = 0;
   const kKeyDownEvent  = 1;
@@ -53,18 +49,17 @@ function test()
     is(keyFlag, expectedKeyEvents & keyFlag, aEvent.type + " fired: " + key);
   }
 
-  function startTest() {
-    waitForExplicitFinish();
-    gBrowser.addEventListener("load", onLoad, false);
-    var dataUri = 'data:text/html,<body style="height:10000px;"></body>';
-    gBrowser.loadURI(dataUri);
-  }
+  waitForExplicitFinish();
+  gBrowser.selectedBrowser.addEventListener("pageshow", onLoad, false);
+  var dataUri = 'data:text/html,<body style="height:10000px;"></body>';
+  gBrowser.loadURI(dataUri);
 
   function onLoad() {
-    gBrowser.removeEventListener("load", onLoad, false);
+    gBrowser.selectedBrowser.removeEventListener("pageshow", onLoad, false);
+    waitForFocus(onFocus, content);
+  }
 
-    gBrowser.contentWindow.focus();
-
+  function onFocus() {
     var doc = gBrowser.contentDocument;
 
     root = doc.documentElement;
@@ -106,13 +101,13 @@ function test()
     root.removeEventListener("keyup", onKey, true);
 
     // restore the changed prefs
-    prefSvc.setBoolPref(kPrefName_AutoScroll, kAutoScrollingEnabled);
+    if (Services.prefs.prefHasUserValue(kPrefName_AutoScroll))
+      Services.prefs.clearUserPref(kPrefName_AutoScroll);
 
     // cleaning-up
-    gBrowser.loadURI("about:blank");
+    gBrowser.addTab().linkedBrowser.stop();
+    gBrowser.removeCurrentTab();
 
     finish();
   }
-
-  startTest();
 }

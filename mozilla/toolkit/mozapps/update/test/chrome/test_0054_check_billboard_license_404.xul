@@ -42,7 +42,7 @@ const TESTS = [ {
 function runTest() {
   debugDump("entering");
 
-  let url = URL_UPDATE + "?type=major&billboard404=1&license404=1&showDetails=1" +
+  let url = URL_UPDATE + "?billboard404=1&license404=1&showDetails=1" +
             getVersionParams();
   setUpdateURLOverride(url);
 

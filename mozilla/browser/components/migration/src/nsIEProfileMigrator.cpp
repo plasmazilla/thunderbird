@@ -70,6 +70,8 @@
 #include "nsILocalFileWin.h"
 #include "nsAutoPtr.h"
 
+#include "prnetdb.h"
+
 #include <objbase.h>
 #include <shlguid.h>
 #include <urlhist.h>
@@ -378,10 +380,6 @@ const regEntry gRegEntries[] = {
     "network.http.proxy.version",
     TranslateDWORDtoHTTPVersion },
 // SecureProtocols
-  { "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Url History",
-    "DaysToKeep",
-    "browser.history_expire_days",
-    TranslateDWORDtoPRInt32 },
   { "Software\\Microsoft\\Internet Explorer\\Settings",
     "Always Use My Colors",            // XXX DWORD
     "browser.display.use_document_colors",
@@ -405,11 +403,7 @@ const regEntry gRegEntries[] = {
   { 0,
     "Always Use My Font Face",    // XXX DWORD
     "browser.display.use_document_fonts",
-    TranslateYNtoFT },
-  { "Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Url History",
-    "DaysToKeep",
-    "browser.history_expire_days",
-    TranslateDWORDtoPRInt32 }
+    TranslateYNtoFT }
 };
 
 #if 0
@@ -948,7 +942,7 @@ nsIEProfileMigrator::CopyPasswords(PRBool aReplace)
   }
 
   PStoreCreateInstancePtr PStoreCreateInstance = (PStoreCreateInstancePtr)::GetProcAddress(pstoreDLL, "PStoreCreateInstance");
-  IPStorePtr PStore;
+  IPStore* PStore;
   hr = PStoreCreateInstance(&PStore, 0, 0, 0);
 
   rv = GetSignonsListFromPStore(PStore, &signonsFound);
@@ -985,7 +979,7 @@ nsIEProfileMigrator::MigrateSiteAuthSignons(IPStore* aPStore)
     return NS_OK;
 
   GUID mtGuid = {0};
-  IEnumPStoreItemsPtr enumItems = NULL;
+  IEnumPStoreItems* enumItems = NULL;
   hr = aPStore->EnumItems(0, &IEPStoreSiteAuthGUID, &mtGuid, 0, &enumItems);
   if (SUCCEEDED(hr) && enumItems != NULL) {
     LPWSTR itemName = NULL;
@@ -1050,7 +1044,7 @@ nsIEProfileMigrator::GetSignonsListFromPStore(IPStore* aPStore, nsTArray<SignonD
 
   NS_ENSURE_ARG_POINTER(aPStore);
 
-  IEnumPStoreItemsPtr enumItems = NULL;
+  IEnumPStoreItems* enumItems = NULL;
   hr = aPStore->EnumItems(0, &IEPStoreAutocompGUID, &IEPStoreAutocompGUID, 0, &enumItems);
   if (SUCCEEDED(hr) && enumItems != NULL) {
     LPWSTR itemName = NULL;
@@ -1130,7 +1124,7 @@ nsIEProfileMigrator::ResolveAndMigrateSignons(IPStore* aPStore, nsTArray<SignonD
 {
   HRESULT hr;
 
-  IEnumPStoreItemsPtr enumItems = NULL;
+  IEnumPStoreItems* enumItems = NULL;
   hr = aPStore->EnumItems(0, &IEPStoreAutocompGUID, &IEPStoreAutocompGUID, 0, &enumItems);
   if (SUCCEEDED(hr) && enumItems != NULL) {
     LPWSTR itemName = NULL;
@@ -1271,12 +1265,12 @@ nsIEProfileMigrator::CopyFormData(PRBool aReplace)
   }
 
   PStoreCreateInstancePtr PStoreCreateInstance = (PStoreCreateInstancePtr)::GetProcAddress(pstoreDLL, "PStoreCreateInstance");
-  IPStorePtr PStore = NULL;
+  IPStore* PStore = NULL;
   hr = PStoreCreateInstance(&PStore, 0, 0, 0);
   if (FAILED(hr) || PStore == NULL)
     return NS_OK;
 
-  IEnumPStoreItemsPtr enumItems = NULL;
+  IEnumPStoreItems* enumItems = NULL;
   hr = PStore->EnumItems(0, &IEPStoreAutocompGUID, &IEPStoreAutocompGUID, 0, &enumItems);
   if (SUCCEEDED(hr) && enumItems != NULL) {
     LPWSTR itemName = NULL;
@@ -1428,7 +1422,7 @@ nsIEProfileMigrator::CopyFavoritesBatched(PRBool aReplace)
     do_GetService("@mozilla.org/file/directory_service;1", &rv);
   NS_ENSURE_SUCCESS(rv, rv);
   nsCOMPtr<nsIFile> favoritesDirectory;
-  (void)fileLocator->Get("Favs", NS_GET_IID(nsIFile),
+  (void)fileLocator->Get(NS_WIN_FAVORITES_DIR, NS_GET_IID(nsIFile),
                          getter_AddRefs(favoritesDirectory));
 
   // If |favoritesDirectory| is null, it means that we're on a Windows
@@ -1927,14 +1921,20 @@ nsIEProfileMigrator::CopyCookiesFromBuffer(char *aBuffer,
     nsDependentCString stringName(name),
                        stringPath(path);
 
-    // delete any possible extant matching host cookie
-    if (hostCopy[0] == '.')
+    // delete any possible extant matching host cookie and
+    // check if we're dealing with an IPv4/IPv6 hostname.
+    PRBool isIPAddress = PR_FALSE;
+    if (hostCopy[0] == '.') {
       aCookieManager->Remove(nsDependentCString(hostCopy+1),
                              stringName, stringPath, PR_FALSE);
+      PRNetAddr addr;
+      if (PR_StringToNetAddr(hostCopy+1, &addr) == PR_SUCCESS)
+        isIPAddress = PR_TRUE;
+    }
 
     nsresult onerv;
     // Add() makes a new domain cookie
-    onerv = aCookieManager->Add(nsDependentCString(hostCopy),
+    onerv = aCookieManager->Add(nsDependentCString(hostCopy + (isIPAddress ? 1 : 0)),
                                 stringPath,
                                 stringName,
                                 nsDependentCString(value),
@@ -2159,8 +2159,6 @@ nsIEProfileMigrator::CopyProxyPreferences(nsIPrefBranch* aPrefs)
       ProxyData data[] = {
         { "ftp=",     4, PR_FALSE, "network.proxy.ftp",
           "network.proxy.ftp_port"    },
-        { "gopher=",  7, PR_FALSE, "network.proxy.gopher",
-          "network.proxy.gopher_port" },
         { "http=",    5, PR_FALSE, "network.proxy.http",
           "network.proxy.http_port"   },
         { "https=",   6, PR_FALSE, "network.proxy.ssl",
@@ -2171,7 +2169,7 @@ nsIEProfileMigrator::CopyProxyPreferences(nsIPrefBranch* aPrefs)
 
       PRInt32 startIndex = 0, count = 0;
       PRBool foundSpecificProxy = PR_FALSE;
-      for (PRUint32 i = 0; i < 5; ++i) {
+      for (PRUint32 i = 0; i < NS_ARRAY_LENGTH(data); ++i) {
         PRInt32 offset = buf.Find(NS_ConvertASCIItoUTF16(data[i].prefix));
         if (offset >= 0) {
           foundSpecificProxy = PR_TRUE;
@@ -2194,7 +2192,7 @@ nsIEProfileMigrator::CopyProxyPreferences(nsIPrefBranch* aPrefs)
         // No proxy config for any specific type was found, assume 
         // the ProxyServer value is of the form host:port and that 
         // it applies to all protocols.
-        for (PRUint32 i = 0; i < 5; ++i)
+        for (PRUint32 i = 0; i < NS_ARRAY_LENGTH(data); ++i)
           SetProxyPref(buf, data[i].hostPref, data[i].portPref, aPrefs);
         aPrefs->SetBoolPref("network.proxy.share_proxy_settings", PR_TRUE);
       }

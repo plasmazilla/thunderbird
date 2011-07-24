@@ -48,30 +48,10 @@ FORCE_SHARED_LIB = 1
 IS_COMPONENT	 = 1
 MODULE_NAME	 = nsSuiteModule
 
-REQUIRES	= \
-		chardet \
-		intl \
-		necko \
-		nkcache \
-		rdf \
-		shellservice \
-		string \
-		suitebrowser \
-		suitemigration \
-		txmgr \
-		xpcom \
-		xulapp \
-		$(NULL)
 
 CPPSRCS 	= \
 		nsSuiteModule.cpp \
 		$(NULL)
-
-ifdef MOZ_ENABLE_LIBXUL
-CPPSRCS		+= \
-		nsSupportsArray.cpp \
-		$(NULL)
-endif
 
 ifeq ($(OS_ARCH),WINNT)
 OS_LIBS += $(call EXPAND_LIBNAME,ole32 shell32)
@@ -80,7 +60,6 @@ endif
 LOCAL_INCLUDES += \
 		-I$(topsrcdir)/suite/profile \
 		-I$(topsrcdir)/suite/profile/migration/src \
-		-I$(topsrcdir)/suite/browser/src \
 		-I$(topsrcdir)/suite/shell/src \
 		-I$(topsrcdir)/suite/feeds/src \
 		$(NULL)
@@ -88,9 +67,23 @@ LOCAL_INCLUDES += \
 SHARED_LIBRARY_LIBS = \
 	../profile/$(LIB_PREFIX)suiteprofile_s.$(LIB_SUFFIX) \
 	../profile/migration/src/$(LIB_PREFIX)suitemigration_s.$(LIB_SUFFIX) \
-	../browser/src/$(LIB_PREFIX)suitebrowser_s.$(LIB_SUFFIX) \
 	../feeds/src/$(LIB_PREFIX)suitefeeds_s.$(LIB_SUFFIX) \
 	$(NULL)
+
+# We need to link the windows shell service into seamonkey.exe.
+ifdef BUILD_STATIC_LIBS
+BUILD_STATIC_SHELL = 1
+DEFINES += -DBUILD_STATIC_SHELL=1
+endif
+
+ifndef BUILD_STATIC_SHELL
+ifneq (,$(filter windows cocoa gtk2, $(MOZ_WIDGET_TOOLKIT)))
+SHARED_LIBRARY_LIBS += ../shell/src/$(LIB_PREFIX)shellservice_s.$(LIB_SUFFIX)
+ifeq (,$(MOZ_ENABLE_LIBXUL))
+EXTRA_DSO_LIBS += thebes
+endif
+endif
+endif
 
 EXTRA_DSO_LDOPTS += \
 	$(LIBS_DIR) \
@@ -102,20 +95,6 @@ EXTRA_DSO_LDOPTS += \
 	$(MOZ_COMPONENT_LIBS) \
 	$(NULL)
 
-# We need to link the windows shell service into seamonkey.exe.
-ifdef BUILD_STATIC_LIBS
-BUILD_STATIC_SHELL = 1
-DEFINES += -DBUILD_STATIC_SHELL=1
-endif
-
-ifndef BUILD_STATIC_SHELL
-ifeq ($(OS_ARCH),WINNT)
-SHARED_LIBRARY_LIBS += ../shell/src/$(LIB_PREFIX)shellservice_s.$(LIB_SUFFIX)
-ifeq (,$(MOZ_ENABLE_LIBXUL))
-EXTRA_DSO_LDOPTS += $(LIBXUL_DIST)/lib/$(LIB_PREFIX)thebes.$(LIB_SUFFIX)
-endif
-endif
-endif
 
 # Mac: Need to link with CoreFoundation for Mac Migrators (PList reading code)
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))

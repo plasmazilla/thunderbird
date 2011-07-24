@@ -45,7 +45,8 @@
 #include "nsISeekableStream.h"
 #include "nsIStreamBufferAccess.h"
 #include "nsCOMPtr.h"
-#include "nsInt64.h"
+#include "nsIIPCSerializable.h"
+
 ////////////////////////////////////////////////////////////////////////////////
 
 class nsBufferedStream : public nsISeekableStream
@@ -68,7 +69,7 @@ protected:
     char*                       mBuffer;
 
     // mBufferStartOffset is the offset relative to the start of mStream.
-    nsInt64                     mBufferStartOffset;
+    PRInt64                     mBufferStartOffset;
 
     // mCursor is the read cursor for input streams, or write cursor for
     // output streams, and is relative to mBufferStartOffset.
@@ -89,18 +90,20 @@ protected:
 
 class nsBufferedInputStream : public nsBufferedStream,
                               public nsIBufferedInputStream,
-                              public nsIStreamBufferAccess
+                              public nsIStreamBufferAccess,
+                              public nsIIPCSerializable
 {
 public:
     NS_DECL_ISUPPORTS_INHERITED
     NS_DECL_NSIINPUTSTREAM
     NS_DECL_NSIBUFFEREDINPUTSTREAM
     NS_DECL_NSISTREAMBUFFERACCESS
+    NS_DECL_NSIIPCSERIALIZABLE
 
     nsBufferedInputStream() : nsBufferedStream() {}
     virtual ~nsBufferedInputStream() {}
 
-    static NS_METHOD
+    static nsresult
     Create(nsISupports *aOuter, REFNSIID aIID, void **aResult);
 
     nsIInputStream* Source() { 
@@ -129,7 +132,7 @@ public:
     nsBufferedOutputStream() : nsBufferedStream() {}
     virtual ~nsBufferedOutputStream() { nsBufferedOutputStream::Close(); }
 
-    static NS_METHOD
+    static nsresult
     Create(nsISupports *aOuter, REFNSIID aIID, void **aResult);
 
     nsIOutputStream* Sink() { 

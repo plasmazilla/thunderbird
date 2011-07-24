@@ -55,7 +55,6 @@
 #include "nsHTMLParts.h"
 #include "nsString.h"
 #include "nsLeafFrame.h"
-#include "nsPresContext.h"
 #include "nsIRenderingContext.h"
 #include "nsIPresShell.h"
 #include "nsIDocument.h"
@@ -112,12 +111,12 @@ nsImageBoxFrameEvent::Run()
     return NS_OK;
   }
 
-  nsIPresShell *pres_shell = doc->GetPrimaryShell();
+  nsIPresShell *pres_shell = doc->GetShell();
   if (!pres_shell) {
     return NS_OK;
   }
 
-  nsCOMPtr<nsPresContext> pres_context = pres_shell->GetPresContext();
+  nsRefPtr<nsPresContext> pres_context = pres_shell->GetPresContext();
   if (!pres_context) {
     return NS_OK;
   }
@@ -204,7 +203,7 @@ nsImageBoxFrame::MarkIntrinsicWidthsDirty()
 }
 
 void
-nsImageBoxFrame::Destroy()
+nsImageBoxFrame::DestroyFrom(nsIFrame* aDestructRoot)
 {
   // Release image loader first so that it's refcnt can go to zero
   if (mImageRequest)
@@ -213,7 +212,7 @@ nsImageBoxFrame::Destroy()
   if (mListener)
     reinterpret_cast<nsImageBoxListener*>(mListener.get())->SetFrame(nsnull); // set the frame to null so we don't send messages to a dead object.
 
-  nsLeafBoxFrame::Destroy();
+  nsLeafBoxFrame::DestroyFrom(aDestructRoot);
 }
 
 
@@ -223,8 +222,7 @@ nsImageBoxFrame::Init(nsIContent*      aContent,
                       nsIFrame*        aPrevInFlow)
 {
   if (!mListener) {
-    nsImageBoxListener *listener;
-    NS_NEWXPCOM(listener, nsImageBoxListener);
+    nsImageBoxListener *listener = new nsImageBoxListener();
     NS_ADDREF(listener);
     listener->SetFrame(this);
     listener->QueryInterface(NS_GET_IID(imgIDecoderObserver), getter_AddRefs(mListener));
@@ -279,7 +277,7 @@ nsImageBoxFrame::UpdateImage()
     if (!(appearance && nsBox::gTheme && 
           nsBox::gTheme->ThemeSupportsWidget(nsnull, this, appearance))) {
       // get the list-style-image
-      imgIRequest *styleRequest = GetStyleList()->mListStyleImage;
+      imgIRequest *styleRequest = GetStyleList()->GetListStyleImage();
       if (styleRequest) {
         styleRequest->Clone(mListener, getter_AddRefs(mImageRequest));
       }
@@ -289,6 +287,10 @@ nsImageBoxFrame::UpdateImage()
   if (!mImageRequest) {
     // We have no image, so size to 0
     mIntrinsicSize.SizeTo(0, 0);
+  } else {
+    // We don't want discarding or decode-on-draw for xul images.
+    mImageRequest->RequestDecode();
+    mImageRequest->LockImage();
   }
 }
 
@@ -313,7 +315,9 @@ nsImageBoxFrame::UpdateLoadFlags()
 
 class nsDisplayXULImage : public nsDisplayItem {
 public:
-  nsDisplayXULImage(nsImageBoxFrame* aFrame) : nsDisplayItem(aFrame) {
+  nsDisplayXULImage(nsDisplayListBuilder* aBuilder,
+                    nsImageBoxFrame* aFrame) :
+    nsDisplayItem(aBuilder, aFrame) {
     MOZ_COUNT_CTOR(nsDisplayXULImage);
   }
 #ifdef NS_BUILD_REFCNT_LOGGING
@@ -326,14 +330,17 @@ public:
   // event receiver for us
   virtual void Paint(nsDisplayListBuilder* aBuilder,
                      nsIRenderingContext* aCtx);
-  NS_DISPLAY_DECL_NAME("XULImage")
+  NS_DISPLAY_DECL_NAME("XULImage", TYPE_XUL_IMAGE)
 };
 
 void nsDisplayXULImage::Paint(nsDisplayListBuilder* aBuilder,
                               nsIRenderingContext* aCtx)
 {
   static_cast<nsImageBoxFrame*>(mFrame)->
-    PaintImage(*aCtx, mVisibleRect, aBuilder->ToReferenceFrame(mFrame));
+    PaintImage(*aCtx, mVisibleRect, ToReferenceFrame(),
+               aBuilder->ShouldSyncDecodeImages()
+                 ? (PRUint32) imgIContainer::FLAG_SYNC_DECODE
+                 : (PRUint32) imgIContainer::FLAG_NONE);
 }
 
 NS_IMETHODIMP
@@ -354,12 +361,14 @@ nsImageBoxFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   if (!IsVisibleForPainting(aBuilder))
     return NS_OK;
 
-  return aLists.Content()->AppendNewToTop(new (aBuilder) nsDisplayXULImage(this));
+  return aLists.Content()->AppendNewToTop(
+      new (aBuilder) nsDisplayXULImage(aBuilder, this));
 }
 
 void
 nsImageBoxFrame::PaintImage(nsIRenderingContext& aRenderingContext,
-                            const nsRect& aDirtyRect, nsPoint aPt)
+                            const nsRect& aDirtyRect, nsPoint aPt,
+                            PRUint32 aFlags)
 {
   nsRect rect;
   GetClientRect(rect);
@@ -381,7 +390,7 @@ nsImageBoxFrame::PaintImage(nsIRenderingContext& aRenderingContext,
     PRBool hasSubRect = !mUseSrcAttr && (mSubRect.width > 0 || mSubRect.height > 0);
     nsLayoutUtils::DrawSingleImage(&aRenderingContext, imgCon,
         nsLayoutUtils::GetGraphicsFilterForFrame(this),
-        rect, dirty, hasSubRect ? &mSubRect : nsnull);
+        rect, dirty, aFlags, hasSubRect ? &mSubRect : nsnull);
   }
 }
 
@@ -413,8 +422,8 @@ nsImageBoxFrame::DidSetStyleContext(nsStyleContext* aOldStyleContext)
   nsCOMPtr<nsIURI> oldURI, newURI;
   if (mImageRequest)
     mImageRequest->GetURI(getter_AddRefs(oldURI));
-  if (myList->mListStyleImage)
-    myList->mListStyleImage->GetURI(getter_AddRefs(newURI));
+  if (myList->GetListStyleImage())
+    myList->GetListStyleImage()->GetURI(getter_AddRefs(newURI));
   PRBool equal;
   if (newURI == oldURI ||   // handles null==null
       (newURI && oldURI &&
@@ -453,7 +462,8 @@ nsImageBoxFrame::GetPrefSize(nsBoxLayoutState& aState)
   else
     size = mImageSize;
   AddBorderAndPadding(size);
-  nsIBox::AddCSSPrefSize(aState, this, size);
+  PRBool widthSet, heightSet;
+  nsIBox::AddCSSPrefSize(this, size, widthSet, heightSet);
 
   nsSize minSize = GetMinSize(aState);
   nsSize maxSize = GetMaxSize(aState);  
@@ -468,7 +478,8 @@ nsImageBoxFrame::GetMinSize(nsBoxLayoutState& aState)
   nsSize size(0,0);
   DISPLAY_MIN_SIZE(this, size);
   AddBorderAndPadding(size);
-  nsIBox::AddCSSMinSize(aState, this, size);
+  PRBool widthSet, heightSet;
+  nsIBox::AddCSSMinSize(aState, this, size, widthSet, heightSet);
   return size;
 }
 
@@ -498,8 +509,10 @@ NS_IMETHODIMP nsImageBoxFrame::OnStartContainer(imgIRequest *request,
 {
   NS_ENSURE_ARG_POINTER(image);
 
-  // Ensure the animation (if any) is started
-  image->StartAnimation();
+  // Ensure the animation (if any) is started. Note: There is no
+  // corresponding call to Decrement for this. This Increment will be
+  // 'cleaned up' by the Request when it is destroyed, but only then.
+  request->IncrementAnimationConsumers();
 
   nscoord w, h;
   image->GetWidth(&w);
@@ -543,8 +556,8 @@ NS_IMETHODIMP nsImageBoxFrame::OnStopDecode(imgIRequest *request,
   return NS_OK;
 }
 
-NS_IMETHODIMP nsImageBoxFrame::FrameChanged(imgIContainer *container,
-                                            nsIntRect *dirtyRect)
+NS_IMETHODIMP nsImageBoxFrame::FrameChanged(imgIContainer *aContainer,
+                                            const nsIntRect *aDirtyRect)
 {
   nsBoxLayoutState state(PresContext());
   this->Redraw(state);
@@ -590,12 +603,12 @@ NS_IMETHODIMP nsImageBoxListener::OnStopDecode(imgIRequest *request,
   return mFrame->OnStopDecode(request, status, statusArg);
 }
 
-NS_IMETHODIMP nsImageBoxListener::FrameChanged(imgIContainer *container,
-                                               nsIntRect *dirtyRect)
+NS_IMETHODIMP nsImageBoxListener::FrameChanged(imgIContainer *aContainer,
+                                               const nsIntRect *aDirtyRect)
 {
   if (!mFrame)
     return NS_ERROR_FAILURE;
 
-  return mFrame->FrameChanged(container, dirtyRect);
+  return mFrame->FrameChanged(aContainer, aDirtyRect);
 }
 

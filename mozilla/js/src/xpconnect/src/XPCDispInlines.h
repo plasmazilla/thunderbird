@@ -109,7 +109,7 @@ VARTYPE XPCDispInterface::Member::ParamInfo::GetType() const
 inline
 XPCDispInterface::Member::Member() : 
     mType(UNINITIALIZED), mFuncDesc(nsnull), mGetterFuncDesc(nsnull),
-    mTypeInfo(nsnull)
+    mTypeInfo(reinterpret_cast<ITypeInfo *>(nsnull))
 {
 }
 
@@ -211,13 +211,13 @@ PRBool XPCDispInterface::Member::IsParameterizedProperty() const
 }
 
 inline
-jsval XPCDispInterface::Member::GetName() const
+jsid XPCDispInterface::Member::GetName() const
 {
     return mName;
 }
 
 inline
-void XPCDispInterface::Member::SetName(jsval name)
+void XPCDispInterface::Member::SetName(jsid name)
 {
     mName = name;
 }
@@ -310,7 +310,7 @@ void XPCDispInterface::SetJSObject(JSObject* jsobj)
 }
 
 inline
-const XPCDispInterface::Member* XPCDispInterface::FindMember(jsval name) const
+const XPCDispInterface::Member* XPCDispInterface::FindMember(jsid name) const
 {
     // Iterate backwards to save time
     const Member* member = mMembers + mMemberCount;
@@ -610,17 +610,6 @@ void * XPCDispParams::GetOutputBuffer(PRUint32 index)
 }
 
 //=============================================================================
-// XPCDispParamPropJSClass inlines
-inline
-JSBool XPCDispParamPropJSClass::Invoke(XPCCallContext& ccx, 
-                                       XPCDispObject::CallMode mode,
-                                       jsval* retval)
-{
-    return XPCDispObject::Dispatch(ccx, mDispObj, mDispID, mode, mDispParams,
-                                   retval);
-}
-
-//=============================================================================
 // Other helper functions
 
 /**
@@ -646,17 +635,16 @@ jschar * xpc_JSString2String(JSContext * cx, jsval val, PRUint32 * len = 0)
 }
 
 /**
- * Converts a jsval that is a string to a PRUnichar *
+ * Converts a JSString * to a PRUnichar *
  * @param cx a JS context
- * @param val the JS value to vbe converted
+ * @param str the JSString to be converted
  * @param length optional pointer to a variable to hold the length
  * @return a PRUnichar buffer (Does not need to be freed)
  */
 inline
-PRUnichar* xpc_JSString2PRUnichar(XPCCallContext& ccx, jsval val,
+PRUnichar* xpc_JSString2PRUnichar(XPCCallContext& ccx, JSString* str,
                                   size_t* length = nsnull)
 {
-    JSString* str = JS_ValueToString(ccx, val);
     if(!str)
         return nsnull;
     if(length)

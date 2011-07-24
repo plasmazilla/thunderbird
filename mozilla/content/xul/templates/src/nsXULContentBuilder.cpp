@@ -71,6 +71,8 @@
 #include "pldhash.h"
 #include "rdf.h"
 
+using namespace mozilla::dom;
+
 //----------------------------------------------------------------------
 //
 // Return values for EnsureElementHasGenericChild()
@@ -117,7 +119,7 @@ public:
     NS_DECL_NSIMUTATIONOBSERVER_NODEWILLBEDESTROYED
 
 protected:
-    friend NS_IMETHODIMP
+    friend nsresult
     NS_NewXULContentBuilder(nsISupports* aOuter, REFNSIID aIID, void** aResult);
 
     nsXULContentBuilder();
@@ -370,7 +372,7 @@ protected:
     nsSortState mSortState;
 };
 
-NS_IMETHODIMP
+nsresult
 NS_NewXULContentBuilder(nsISupports* aOuter, REFNSIID aIID, void** aResult)
 {
     NS_PRECONDITION(aOuter == nsnull, "no aggregation");
@@ -483,17 +485,14 @@ nsXULContentBuilder::BuildContentFromTemplate(nsIContent *aTemplateNode,
                ("nsXULContentBuilder::BuildContentFromTemplate (is unique: %d)",
                aIsUnique));
 
-        const char *tmpln, *resn, *realn;
-        aTemplateNode->Tag()->GetUTF8String(&tmpln);
-        aResourceNode->Tag()->GetUTF8String(&resn);
-        aRealNode->Tag()->GetUTF8String(&realn);
-
         nsAutoString id;
         aChild->GetId(id);
 
         PR_LOG(gXULTemplateLog, PR_LOG_ALWAYS,
                ("Tags: [Template: %s  Resource: %s  Real: %s] for id %s",
-               tmpln, resn, realn, NS_ConvertUTF16toUTF8(id).get()));
+                nsAtomCString(aTemplateNode->Tag()).get(), 
+                nsAtomCString(aResourceNode->Tag()).get(),
+                nsAtomCString(aRealNode->Tag()).get(), NS_ConvertUTF16toUTF8(id).get()));
     }
 #endif
 
@@ -562,11 +561,9 @@ nsXULContentBuilder::BuildContentFromTemplate(nsIContent *aTemplateNode,
 
 #ifdef PR_LOGGING
         if (PR_LOG_TEST(gXULTemplateLog, PR_LOG_DEBUG)) {
-            const char *tagname;
-            tag->GetUTF8String(&tagname);
             PR_LOG(gXULTemplateLog, PR_LOG_DEBUG,
                    ("xultemplate[%p]     building %s %s %s",
-                    this, tagname,
+                    this, nsAtomCString(tag).get(),
                     (isGenerationElement ? "[resource]" : ""),
                     (isUnique ? "[unique]" : "")));
         }
@@ -638,17 +635,6 @@ nsXULContentBuilder::BuildContentFromTemplate(nsIContent *aTemplateNode,
             rv = realKid->SetAttr(kNameSpaceID_None, nsGkAtoms::id, id, PR_FALSE);
             if (NS_FAILED(rv))
                 return rv;
-
-            if (! aNotify) {
-                // XUL document will watch us, and take care of making
-                // sure that we get added to or removed from the
-                // element map if aNotify is true. If not, we gotta do
-                // it ourselves. Yay.
-                nsCOMPtr<nsIXULDocument> xuldoc =
-                    do_QueryInterface(mRoot->GetDocument());
-                if (xuldoc)
-                    xuldoc->AddElementForID(realKid);
-            }
 
             // Set up the element's 'container' and 'empty' attributes.
             SetContainerAttrs(realKid, aChild, PR_TRUE, PR_FALSE);
@@ -1105,7 +1091,9 @@ nsXULContentBuilder::CreateContainerContents(nsIContent* aElement,
     if (aNotifyAtEnd && container) {
         MOZ_AUTO_DOC_UPDATE(container->GetCurrentDoc(), UPDATE_CONTENT_MODEL,
                             PR_TRUE);
-        nsNodeUtils::ContentAppended(container, newIndexInContainer);
+        nsNodeUtils::ContentAppended(container,
+                                     container->GetChildAt(newIndexInContainer),
+                                     newIndexInContainer);
     }
 
     NS_IF_RELEASE(container);
@@ -1211,6 +1199,9 @@ nsXULContentBuilder::CreateContainerContentsForQuerySet(nsIContent* aElement,
             rv = ReplaceMatch(removematch->mResult, nsnull, nsnull, aElement);
             if (NS_FAILED(rv))
                 return rv;
+
+            if (mFlags & eLoggingEnabled)
+                OutputMatchToLog(resultid, removematch, PR_FALSE);
         }
 
         if (generateContent) {
@@ -1242,6 +1233,9 @@ nsXULContentBuilder::CreateContainerContentsForQuerySet(nsIContent* aElement,
                                          aContainer, aNewIndexInContainer);
             }
         }
+
+        if (mFlags & eLoggingEnabled)
+            OutputMatchToLog(resultid, newmatch, PR_TRUE);
 
         if (prevmatch) {
             prevmatch->mNext = newmatch;
@@ -1302,7 +1296,7 @@ PRBool
 nsXULContentBuilder::IsOpen(nsIContent* aElement)
 {
     // Determine if this is a <treeitem> or <menu> element
-    if (!aElement->IsNodeOfType(nsINode::eXUL))
+    if (!aElement->IsXUL())
         return PR_TRUE;
 
     // XXXhyatt Use the XBL service to obtain a base tag.
@@ -1345,7 +1339,7 @@ nsXULContentBuilder::RemoveGeneratedContent(nsIContent* aElement)
             //     it should be moved outside the inner loop. Bug 297290.
             if (element->NodeInfo()->Equals(nsGkAtoms::_template,
                                             kNameSpaceID_XUL) ||
-                !element->IsNodeOfType(nsINode::eELEMENT))
+                !element->IsElement())
                 continue;
 
             // If the element is in the template map, then we
@@ -1388,7 +1382,9 @@ nsXULContentBuilder::GetElementsForResult(nsIXULTemplateResult* aResult,
     nsAutoString id;
     aResult->GetId(id);
 
-    return xuldoc->GetElementsForID(id, aElements);
+    xuldoc->GetElementsForID(id, aElements);
+
+    return NS_OK;
 }
 
 nsresult
@@ -1407,8 +1403,8 @@ nsXULContentBuilder::CreateElement(PRInt32 aNameSpaceID,
     nsCOMPtr<nsINodeInfo> nodeInfo;
     nodeInfo = doc->NodeInfoManager()->GetNodeInfo(aTag, nsnull, aNameSpaceID);
 
-    rv = NS_NewElement(getter_AddRefs(result), aNameSpaceID, nodeInfo,
-                       PR_FALSE);
+    rv = NS_NewElement(getter_AddRefs(result), aNameSpaceID, nodeInfo.forget(),
+                       NOT_FROM_PARSER);
     if (NS_FAILED(rv))
         return rv;
 
@@ -1563,23 +1559,24 @@ nsXULContentBuilder::GetResultForContent(nsIDOMElement* aElement,
 
 void
 nsXULContentBuilder::AttributeChanged(nsIDocument* aDocument,
-                                      nsIContent*  aContent,
+                                      Element*     aElement,
                                       PRInt32      aNameSpaceID,
                                       nsIAtom*     aAttribute,
-                                      PRInt32      aModType,
-                                      PRUint32     aStateMask)
+                                      PRInt32      aModType)
 {
+    nsCOMPtr<nsIMutationObserver> kungFuDeathGrip(this);
+
     // Handle "open" and "close" cases. We do this handling before
     // we've notified the observer, so that content is already created
     // for the frame system to walk.
-    if ((aContent->GetNameSpaceID() == kNameSpaceID_XUL) &&
-        (aAttribute == nsGkAtoms::open)) {
+    if (aElement->GetNameSpaceID() == kNameSpaceID_XUL &&
+        aAttribute == nsGkAtoms::open) {
         // We're on a XUL tag, and an ``open'' attribute changed.
-        if (aContent->AttrValueIs(kNameSpaceID_None, nsGkAtoms::open,
+        if (aElement->AttrValueIs(kNameSpaceID_None, nsGkAtoms::open,
                                   nsGkAtoms::_true, eCaseMatters))
-            OpenContainer(aContent);
+            OpenContainer(aElement);
         else
-            CloseContainer(aContent);
+            CloseContainer(aElement);
     }
 
     if ((aNameSpaceID == kNameSpaceID_XUL) &&
@@ -1590,13 +1587,14 @@ nsXULContentBuilder::AttributeChanged(nsIDocument* aDocument,
         mSortState.initialized = PR_FALSE;
 
     // Pass along to the generic template builder.
-    nsXULTemplateBuilder::AttributeChanged(aDocument, aContent, aNameSpaceID,
-                                           aAttribute, aModType, aStateMask);
+    nsXULTemplateBuilder::AttributeChanged(aDocument, aElement, aNameSpaceID,
+                                           aAttribute, aModType);
 }
 
 void
 nsXULContentBuilder::NodeWillBeDestroyed(const nsINode* aNode)
 {
+    nsCOMPtr<nsIMutationObserver> kungFuDeathGrip(this);
     // Break circular references
     mContentSupportMap.Clear();
 
@@ -1848,7 +1846,8 @@ nsXULContentBuilder::CompareResultToNode(nsIXULTemplateResult* aResult,
     if (mSortState.direction == nsSortState_natural) {
         // sort in natural order
         nsresult rv = mQueryProcessor->CompareResults(aResult, match->mResult,
-                                                      nsnull, aSortOrder);
+                                                      nsnull, mSortState.sortHints,
+                                                      aSortOrder);
         NS_ENSURE_SUCCESS(rv, rv);
     }
     else {
@@ -1857,7 +1856,8 @@ nsXULContentBuilder::CompareResultToNode(nsIXULTemplateResult* aResult,
         PRInt32 length = mSortState.sortKeys.Count();
         for (PRInt32 t = 0; t < length; t++) {
             nsresult rv = mQueryProcessor->CompareResults(aResult, match->mResult,
-                                                          mSortState.sortKeys[t], aSortOrder);
+                                                          mSortState.sortKeys[t],
+                                                          mSortState.sortHints, aSortOrder);
             NS_ENSURE_SUCCESS(rv, rv);
 
             if (*aSortOrder)
@@ -1881,9 +1881,12 @@ nsXULContentBuilder::InsertSortedNode(nsIContent* aContainer,
     nsresult rv;
 
     if (!mSortState.initialized) {
-        nsAutoString sort, sortDirection;
+        nsAutoString sort, sortDirection, sortHints;
         mRoot->GetAttr(kNameSpaceID_None, nsGkAtoms::sort, sort);
         mRoot->GetAttr(kNameSpaceID_None, nsGkAtoms::sortDirection, sortDirection);
+        mRoot->GetAttr(kNameSpaceID_None, nsGkAtoms::sorthints, sortHints);
+        sortDirection.AppendLiteral(" ");
+        sortDirection += sortHints;
         rv = XULSortServiceImpl::InitializeSortState(mRoot, aContainer,
                                                      sort, sortDirection, &mSortState);
         NS_ENSURE_SUCCESS(rv, rv);

@@ -38,13 +38,14 @@
 //------------------------------------------------------------------------
 
 #include "nsIFile.h"
-#include "nsIGenericFactory.h"
+#include "mozilla/ModuleUtils.h"
 #include "nsIObserver.h"
 #include "nsIObserverService.h"
 #include "nsDirectoryServiceDefs.h"
 #include "nsLiteralString.h"
 #include "nsReadableUtils.h"
 #include "nsIStringBundle.h"
+#include "mozilla/Services.h"
 
 #define INCL_WIN
 #define INCL_DOS
@@ -89,7 +90,7 @@
 //  function prototypes
 //------------------------------------------------------------------------
 
-static nsresult IsDescendedFrom(PRUint32 wpsFilePtr, char *pszClassname);
+static nsresult IsDescendedFrom(PRUint32 wpsFilePtr, const char *pszClassname);
 static nsresult CreateFileForExtension(const char *aFileExt, nsACString& aPath);
 static nsresult DeleteFileForExtension(const char *aPath);
 static void     AssignNLSString(const PRUnichar *aKey, nsAString& _retval);
@@ -682,7 +683,7 @@ nsRwsService::Observe(nsISupports *aSubject, const char *aTopic,
 
 // this wrapper for somIsA() makes HandlerFromPath() easier to read
 
-static nsresult IsDescendedFrom(PRUint32 wpsFilePtr, char *pszClassname)
+static nsresult IsDescendedFrom(PRUint32 wpsFilePtr, const char *pszClassname)
 {
   PRWSHDR   pHdr = 0;
   nsresult  rv = NS_ERROR_FAILURE;
@@ -764,8 +765,8 @@ static void AssignNLSString(const PRUnichar *aKey, nsAString& result)
 
   do {
     nsCOMPtr<nsIStringBundleService> bundleSvc =
-      do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
-    if (NS_FAILED(rv))
+      mozilla::services::GetStringBundleService();
+    if (!bundleSvc)
       break;
 
     nsCOMPtr<nsIStringBundle> bundle;
@@ -1216,7 +1217,7 @@ static nsresult nsRwsServiceInit(nsRwsService **aClass)
     }
 
   // create an instance of nsRwsService
-  NS_NEWXPCOM(sRwsInstance, nsRwsService);
+  sRwsInstance = new nsRwsService();
   if (sRwsInstance == 0)
     return NS_ERROR_OUT_OF_MEMORY;
 
@@ -1224,7 +1225,7 @@ static nsresult nsRwsServiceInit(nsRwsService **aClass)
   NS_ADDREF(*aClass);
 
   // set the class up as a shutdown observer
-  nsCOMPtr<nsIObserverService> os = do_GetService("@mozilla.org/observer-service;1");
+  nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
   if (os)
     os->AddObserver(*aClass, "quit-application", PR_FALSE);
 

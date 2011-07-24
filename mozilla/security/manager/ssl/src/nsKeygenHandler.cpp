@@ -309,7 +309,7 @@ nsKeygenFormProcessor::~nsKeygenFormProcessor()
 {
 }
 
-NS_METHOD
+nsresult
 nsKeygenFormProcessor::Create(nsISupports* aOuter, const nsIID& aIID, void* *aResult)
 {
   nsresult rv;
@@ -442,6 +442,7 @@ GetSlotWithMechanism(PRUint32 aMechanism,
             else {
                 // OOM. adjust numSlots so we don't free unallocated memory. 
                 numSlots = i;
+                PK11_FreeSlotListElement(slotList, slotElement);
                 rv = NS_ERROR_OUT_OF_MEMORY;
                 goto loser;
             }
@@ -477,6 +478,7 @@ GetSlotWithMechanism(PRUint32 aMechanism,
         while (slotElement) {
             if (tokenStr.Equals(NS_ConvertUTF8toUTF16(PK11_GetTokenName(slotElement->slot)))) {
                 *aSlot = slotElement->slot;
+                PK11_FreeSlotListElement(slotList, slotElement);
                 break;
             }
             slotElement = PK11_GetNextSafe(slotList, slotElement, PR_FALSE);
@@ -511,7 +513,6 @@ nsKeygenFormProcessor::GetPublicKey(nsAString& aValue, nsAString& aChallenge,
     KeyType type;
     PRUint32 keyGenMechanism;
     PRInt32 primeBits;
-    PQGParams *pqgParams;
     PK11SlotInfo *slot = nsnull;
     PK11RSAGenParams rsaParams;
     SECOidTag algTag;
@@ -564,18 +565,21 @@ nsKeygenFormProcessor::GetPublicKey(nsAString& aValue, nsAString& aChallenge,
         if (strcmp(keyparamsString, "null") == 0)
             goto loser;
         str = keyparamsString;
+        PRBool found_match = PR_FALSE;
         do {
             end = strchr(str, ',');
             if (end != nsnull)
                 *end = '\0';
             primeBits = pqg_prime_bits(str);
-            if (keysize == primeBits)
-                goto found_match;
+            if (keysize == primeBits) {
+                found_match = PR_TRUE;
+                break;
+            }
             str = end + 1;
         } while (end != nsnull);
-        goto loser;
-found_match:
-        pqgParams = decode_pqg_params(str);
+        if (!found_match) {
+            goto loser;
+        }
     } else if (aKeyType.LowerCaseEqualsLiteral("ec")) {
         keyparamsString = ToNewCString(aKeyParams);
         if (!keyparamsString) {
@@ -595,7 +599,7 @@ found_match:
     if (NS_FAILED(rv)) {
         goto loser;
     }
-      switch (keyGenMechanism) {
+    switch (keyGenMechanism) {
         case CKM_RSA_PKCS_KEY_PAIR_GEN:
             rsaParams.keySizeInBits = keysize;
             rsaParams.pe = DEFAULT_RSA_KEYGEN_PE;
@@ -654,7 +658,7 @@ found_match:
     /* Make sure token is initialized. */
     rv = setPassword(slot, m_ctx);
     if (NS_FAILED(rv))
-    goto loser;
+        goto loser;
 
     sec_rv = PK11_Authenticate(slot, PR_TRUE, m_ctx);
     if (sec_rv != SECSuccess) {
@@ -667,9 +671,7 @@ found_match:
 
     if (NS_SUCCEEDED(rv)) {
         KeygenRunnable = new nsKeygenThread();
-        if (KeygenRunnable) {
-            NS_ADDREF(KeygenRunnable);
-        }
+        NS_IF_ADDREF(KeygenRunnable);
     }
 
     if (NS_FAILED(rv) || !KeygenRunnable) {
@@ -772,7 +774,7 @@ loser:
         }
     }
     if ( spkInfo ) {
-      SECKEY_DestroySubjectPublicKeyInfo(spkInfo);
+        SECKEY_DestroySubjectPublicKeyInfo(spkInfo);
     }
     if ( publicKey ) {
         SECKEY_DestroyPublicKey(publicKey);
@@ -781,13 +783,13 @@ loser:
         SECKEY_DestroyPrivateKey(privateKey);
     }
     if ( arena ) {
-      PORT_FreeArena(arena, PR_TRUE);
+        PORT_FreeArena(arena, PR_TRUE);
     }
     if (slot != nsnull) {
         PK11_FreeSlot(slot);
     }
     if (KeygenRunnable) {
-      NS_RELEASE(KeygenRunnable);
+        NS_RELEASE(KeygenRunnable);
     }
     if (keyparamsString) {
         nsMemory::Free(keyparamsString);
@@ -803,43 +805,31 @@ nsKeygenFormProcessor::ProcessValue(nsIDOMHTMLElement *aElement,
 				    const nsAString& aName, 
 				    nsAString& aValue) 
 { 
-  nsresult rv = NS_OK;
-  nsCOMPtr<nsIDOMHTMLSelectElement>selectElement;
-  nsresult res = aElement->QueryInterface(kIDOMHTMLSelectElementIID, 
-					  getter_AddRefs(selectElement));
-  if (NS_SUCCEEDED(res)) {
-    nsAutoString keygenvalue;
     nsAutoString challengeValue;
     nsAutoString keyTypeValue;
     nsAutoString keyParamsValue;
-
-    selectElement->GetAttribute(NS_LITERAL_STRING("_moz-type"), keygenvalue);
-    if (keygenvalue.EqualsLiteral("-mozilla-keygen")) {
-
-      res = selectElement->GetAttribute(NS_LITERAL_STRING("keytype"), keyTypeValue);
-      if (NS_FAILED(res) || keyTypeValue.IsEmpty()) {
+    
+    aElement->GetAttribute(NS_LITERAL_STRING("keytype"), keyTypeValue);
+    if (keyTypeValue.IsEmpty()) {
         // If this field is not present, we default to rsa.
-  	    keyTypeValue.AssignLiteral("rsa");
-      }
-
-      res = selectElement->GetAttribute(NS_LITERAL_STRING("pqg"), 
-                                        keyParamsValue);
-      /* XXX We can still support the pqg attribute in the keygen 
-       * tag for backward compatibility while introducing a more 
-       * general attribute named keyparams.
-       */
-      if (NS_FAILED(res) || keyParamsValue.IsEmpty()) {
-          res = selectElement->GetAttribute(NS_LITERAL_STRING("keyparams"), 
-                                            keyParamsValue);
-      }
-
-      res = selectElement->GetAttribute(NS_LITERAL_STRING("challenge"), challengeValue);
-      rv = GetPublicKey(aValue, challengeValue, keyTypeValue, 
-			aValue, keyParamsValue);
+        keyTypeValue.AssignLiteral("rsa");
     }
-  }
+    
+    aElement->GetAttribute(NS_LITERAL_STRING("pqg"), 
+                           keyParamsValue);
+    /* XXX We can still support the pqg attribute in the keygen 
+     * tag for backward compatibility while introducing a more 
+     * general attribute named keyparams.
+     */
+    if (keyParamsValue.IsEmpty()) {
+        aElement->GetAttribute(NS_LITERAL_STRING("keyparams"), 
+                               keyParamsValue);
+    }
 
-  return rv; 
+    aElement->GetAttribute(NS_LITERAL_STRING("challenge"), challengeValue);
+
+    return GetPublicKey(aValue, challengeValue, keyTypeValue, 
+                        aValue, keyParamsValue);
 } 
 
 NS_METHOD nsKeygenFormProcessor::ProvideContent(const nsAString& aFormType, 

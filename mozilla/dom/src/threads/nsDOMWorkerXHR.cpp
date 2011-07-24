@@ -45,7 +45,6 @@
 #include "nsIXPConnect.h"
 
 // Other includes
-#include "nsAutoLock.h"
 #include "nsAXPCNativeCallContext.h"
 #include "nsComponentManagerUtils.h"
 #include "nsContentUtils.h"
@@ -58,6 +57,8 @@
 #include "nsDOMWorkerEvents.h"
 #include "nsDOMWorkerPool.h"
 #include "nsDOMWorkerXHRProxy.h"
+
+using namespace mozilla;
 
 // The list of event types that we support. This list and the defines based on
 // it determine the sizes of the listener arrays in nsDOMWorkerXHRProxy. Make
@@ -74,7 +75,8 @@ const char* const nsDOMWorkerXHREventTarget::sListenerTypes[] = {
   "progress",                          /* LISTENER_TYPE_PROGRESS */
 
   // nsIXMLHttpRequest listeners.
-  "readystatechange"                   /* LISTENER_TYPE_READYSTATECHANGE */
+  "readystatechange",                   /* LISTENER_TYPE_READYSTATECHANGE */
+  "loadend"
 };
 
 // This should always be set to the length of sListenerTypes.
@@ -236,6 +238,32 @@ nsDOMWorkerXHREventTarget::SetOnprogress(nsIDOMEventListener* aOnprogress)
   return SetOnXListener(type, aOnprogress);
 }
 
+NS_IMETHODIMP
+nsDOMWorkerXHREventTarget::GetOnloadend(nsIDOMEventListener** aOnloadend)
+{
+  NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
+  NS_ENSURE_ARG_POINTER(aOnloadend);
+
+  nsAutoString type;
+  type.AssignASCII(sListenerTypes[LISTENER_TYPE_LOADEND]);
+
+  nsCOMPtr<nsIDOMEventListener> listener = GetOnXListener(type);
+  listener.forget(aOnloadend);
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDOMWorkerXHREventTarget::SetOnloadend(nsIDOMEventListener* aOnloadend)
+{
+  NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
+
+  nsAutoString type;
+  type.AssignASCII(sListenerTypes[LISTENER_TYPE_LOADEND]);
+
+  return SetOnXListener(type, aOnloadend);
+}
+
 nsDOMWorkerXHRUpload::nsDOMWorkerXHRUpload(nsDOMWorkerXHR* aWorkerXHR)
 : mWorkerXHR(aWorkerXHR)
 {
@@ -246,7 +274,8 @@ nsDOMWorkerXHRUpload::nsDOMWorkerXHRUpload(nsDOMWorkerXHR* aWorkerXHR)
 NS_IMPL_ISUPPORTS_INHERITED1(nsDOMWorkerXHRUpload, nsDOMWorkerXHREventTarget,
                                                    nsIXMLHttpRequestUpload)
 
-NS_IMPL_CI_INTERFACE_GETTER3(nsDOMWorkerXHRUpload, nsIDOMEventTarget,
+NS_IMPL_CI_INTERFACE_GETTER4(nsDOMWorkerXHRUpload, nsIDOMNSEventTarget,
+                                                   nsIDOMEventTarget,
                                                    nsIXMLHttpRequestEventTarget,
                                                    nsIXMLHttpRequestUpload)
 
@@ -257,25 +286,7 @@ nsDOMWorkerXHRUpload::AddEventListener(const nsAString& aType,
                                        nsIDOMEventListener* aListener,
                                        PRBool aUseCapture)
 {
-  NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
-  NS_ENSURE_ARG_POINTER(aListener);
-
-  if (mWorkerXHR->mWorker->IsCanceled()) {
-    return NS_ERROR_ABORT;
-  }
-
-  nsresult rv = nsDOMWorkerXHREventTarget::AddEventListener(aType, aListener,
-                                                            aUseCapture);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  rv = mWorkerXHR->mXHRProxy->UploadEventListenerAdded();
-  if (NS_FAILED(rv)) {
-    NS_WARNING("UploadEventListenerAdded failed!");
-    RemoveEventListener(aType, aListener, aUseCapture);
-    return rv;
-  }
-
-  return NS_OK;
+  return AddEventListener(aType, aListener, aUseCapture, PR_FALSE, 0);
 }
 
 NS_IMETHODIMP
@@ -306,6 +317,36 @@ nsDOMWorkerXHRUpload::DispatchEvent(nsIDOMEvent* aEvent,
   }
 
   return nsDOMWorkerXHREventTarget::DispatchEvent(aEvent, _retval);
+}
+
+NS_IMETHODIMP
+nsDOMWorkerXHRUpload::AddEventListener(const nsAString& aType,
+                                       nsIDOMEventListener* aListener,
+                                       PRBool aUseCapture,
+                                       PRBool aWantsUntrusted,
+                                       PRUint8 optional_argc)
+{
+  NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
+  NS_ENSURE_ARG_POINTER(aListener);
+
+  if (mWorkerXHR->mWorker->IsCanceled()) {
+    return NS_ERROR_ABORT;
+  }
+
+  nsresult rv = nsDOMWorkerXHREventTarget::AddEventListener(aType, aListener,
+                                                            aUseCapture,
+                                                            aWantsUntrusted,
+                                                            optional_argc);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = mWorkerXHR->mXHRProxy->UploadEventListenerAdded();
+  if (NS_FAILED(rv)) {
+    NS_WARNING("UploadEventListenerAdded failed!");
+    RemoveEventListener(aType, aListener, aUseCapture);
+    return rv;
+  }
+
+  return NS_OK;
 }
 
 nsresult
@@ -341,7 +382,7 @@ nsDOMWorkerXHR::~nsDOMWorkerXHR()
   if (mXHRProxy) {
     if (!NS_IsMainThread()) {
       nsCOMPtr<nsIRunnable> runnable =
-        NS_NEW_RUNNABLE_METHOD(nsDOMWorkerXHRProxy, mXHRProxy.get(), Destroy);
+        NS_NewRunnableMethod(mXHRProxy, &nsDOMWorkerXHRProxy::Destroy);
 
       if (runnable) {
         mXHRProxy = nsnull;
@@ -364,7 +405,8 @@ NS_IMPL_QUERY_INTERFACE_INHERITED2(nsDOMWorkerXHR, nsDOMWorkerXHREventTarget,
                                                    nsIXMLHttpRequest,
                                                    nsIXPCScriptable)
 
-NS_IMPL_CI_INTERFACE_GETTER3(nsDOMWorkerXHR, nsIDOMEventTarget,
+NS_IMPL_CI_INTERFACE_GETTER4(nsDOMWorkerXHR, nsIDOMNSEventTarget,
+                                             nsIDOMEventTarget,
                                              nsIXMLHttpRequestEventTarget,
                                              nsIXMLHttpRequest)
 
@@ -452,7 +494,7 @@ nsDOMWorkerXHR::Cancel()
   {
     // This lock is here to prevent a race between Cancel and GetUpload, not to
     // protect mCanceled.
-    nsAutoLock lock(mWorker->Lock());
+    MutexAutoLock lock(mWorker->GetLock());
 
     mCanceled = PR_TRUE;
     mUpload = nsnull;
@@ -599,11 +641,9 @@ nsDOMWorkerXHR::GetResponseHeader(const nsACString& aHeader,
 }
 
 NS_IMETHODIMP
-nsDOMWorkerXHR::OpenRequest(const nsACString& aMethod,
-                            const nsACString& aUrl,
-                            PRBool aAsync,
-                            const nsAString& aUser,
-                            const nsAString& aPassword)
+nsDOMWorkerXHR::Open(const nsACString& aMethod, const nsACString& aUrl,
+                     PRBool aAsync, const nsAString& aUser,
+                     const nsAString& aPassword, PRUint8 optional_argc)
 {
   NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
 
@@ -611,83 +651,14 @@ nsDOMWorkerXHR::OpenRequest(const nsACString& aMethod,
     return NS_ERROR_ABORT;
   }
 
-  nsresult rv = mXHRProxy->OpenRequest(aMethod, aUrl, aAsync, aUser, aPassword);
+  if (!optional_argc) {
+      aAsync = PR_TRUE;
+  }
+
+  nsresult rv = mXHRProxy->Open(aMethod, aUrl, aAsync, aUser, aPassword);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDOMWorkerXHR::Open(const nsACString& aMethod,
-                     const nsACString& aUrl)
-{
-  NS_ASSERTION(!NS_IsMainThread(), "Wrong thread!");
-
-  if (mCanceled) {
-    return NS_ERROR_ABORT;
-  }
-
-  PRBool async = PR_TRUE;
-  nsAutoString user, password;
-
-  nsIXPConnect* xpc = nsContentUtils::XPConnect();
-  NS_ENSURE_TRUE(xpc, NS_ERROR_UNEXPECTED);
-
-  nsAXPCNativeCallContext* cc;
-  nsresult rv = xpc->GetCurrentNativeCallContext(&cc);
-
-  do {
-    if (NS_FAILED(rv) || !cc) {
-      break;
-    }
-
-    PRUint32 argc;
-    rv = cc->GetArgc(&argc);
-    NS_ENSURE_SUCCESS(rv, rv);
-
-    if (argc < 3) {
-      break;
-    }
-
-    jsval* argv;
-    rv = cc->GetArgvPtr(&argv);
-    NS_ENSURE_SUCCESS(rv, rv);
-
-    JSContext* cx;
-    rv = cc->GetJSContext(&cx);
-    NS_ENSURE_SUCCESS(rv, rv);
-
-    JSAutoRequest ar(cx);
-
-    JSBool asyncBool;
-    JS_ValueToBoolean(cx, argv[2], &asyncBool);
-    async = (PRBool)asyncBool;
-
-    if (argc < 4) {
-      break;
-    }
-
-    JSString* argStr;
-    if (!JSVAL_IS_NULL(argv[3]) && !JSVAL_IS_VOID(argv[3])) {
-      argStr = JS_ValueToString(cx, argv[3]);
-      if (argStr) {
-        user.Assign(nsDependentJSString(argStr));
-      }
-    }
-
-    if (argc < 5) {
-      break;
-    }
-
-    if (!JSVAL_IS_NULL(argv[4]) && !JSVAL_IS_VOID(argv[4])) {
-      argStr = JS_ValueToString(cx, argv[4]);
-      if (argStr) {
-        password.Assign(nsDependentJSString(argStr));
-      }
-    }
-  } while (PR_FALSE);
-
-  return OpenRequest(aMethod, aUrl, async, user, password);
 }
 
 NS_IMETHODIMP
@@ -859,7 +830,7 @@ nsDOMWorkerXHR::GetUpload(nsIXMLHttpRequestUpload** aUpload)
     return NS_ERROR_ABORT;
   }
 
-  nsAutoLock lock(worker->Lock());
+  MutexAutoLock lock(worker->GetLock());
 
   if (mCanceled) {
     return NS_ERROR_ABORT;
@@ -929,4 +900,11 @@ nsDOMWorkerXHR::SetWithCredentials(PRBool aWithCredentials)
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
+}
+
+/* readonly attribute jsval (ArrayBuffer) mozResponseArrayBuffer; */
+NS_IMETHODIMP
+nsDOMWorkerXHR::GetMozResponseArrayBuffer(jsval *aResult)
+{
+    return NS_ERROR_NOT_IMPLEMENTED;
 }

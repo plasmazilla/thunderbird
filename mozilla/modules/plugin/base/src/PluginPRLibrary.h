@@ -41,23 +41,12 @@
 
 #include "mozilla/PluginLibrary.h"
 #include "nsNPAPIPlugin.h"
+#include "npfunctions.h"
 
 namespace mozilla {
 
 class PluginPRLibrary : public PluginLibrary
 {
-#if defined(XP_UNIX) && !defined(XP_MACOSX)
-    typedef NPError (*NP_InitializeFunc)(NPNetscapeFuncs*, NPPluginFuncs*);
-#else
-    typedef NPError (OSCALL *NP_InitializeFunc)(NPNetscapeFuncs*);
-#endif
-    typedef NPError (OSCALL *NP_ShutdownFunc)();
-    typedef char* (*NP_GetMIMEDescriptionFunc)();
-    typedef NPError (*NP_GetValueFunc)(void *, NPPVariable, void*);
-#if defined(XP_WIN) || defined(XP_MACOSX) || defined(XP_OS2)
-    typedef NPError (OSCALL *NP_GetEntryPointsFunc)(NPPluginFuncs*);
-#endif
-
 public:
     PluginPRLibrary(const char* aFilePath, PRLibrary* aLibrary) :
 #if defined(XP_UNIX) && !defined(XP_MACOSX)
@@ -67,11 +56,15 @@ public:
 #endif
         mNP_Shutdown(nsnull),
         mNP_GetMIMEDescription(nsnull),
+#if defined(XP_UNIX) && !defined(XP_MACOSX)
         mNP_GetValue(nsnull),
+#endif
 #if defined(XP_WIN) || defined(XP_MACOSX) || defined(XP_OS2)
         mNP_GetEntryPoints(nsnull),
 #endif
         mNPP_New(nsnull),
+        mNPP_ClearSiteData(nsnull),
+        mNPP_GetSitesWithData(nsnull),
         mLibrary(aLibrary)
     {
         NS_ASSERTION(mLibrary, "need non-null lib");
@@ -103,9 +96,9 @@ public:
             return false;
 #endif
 
+#if defined(XP_UNIX) && !defined(XP_MACOSX)
         mNP_GetValue = (NP_GetValueFunc)
             PR_FindFunctionSymbol(mLibrary, "NP_GetValue");
-#ifndef XP_MACOSX
         if (!mNP_GetValue)
             return false;
 #endif
@@ -142,15 +135,39 @@ public:
                              char* argv[], NPSavedData* saved,
                              NPError* error);
 
+    virtual nsresult NPP_ClearSiteData(const char* site, uint64_t flags,
+                                       uint64_t maxAge);
+    virtual nsresult NPP_GetSitesWithData(InfallibleTArray<nsCString>& result);
+
+    virtual nsresult AsyncSetWindow(NPP instance, NPWindow* window);
+    virtual nsresult GetImage(NPP instance, ImageContainer* aContainer, Image** aImage);
+    virtual nsresult GetImageSize(NPP instance, nsIntSize* aSize);
+    NS_OVERRIDE virtual bool UseAsyncPainting() { return false; }
+#if defined(XP_MACOSX)
+    virtual nsresult IsRemoteDrawingCoreAnimation(NPP instance, PRBool *aDrawing);
+#endif
+    NS_OVERRIDE
+    virtual nsresult SetBackgroundUnknown(NPP instance);
+    NS_OVERRIDE
+    virtual nsresult BeginUpdateBackground(NPP instance,
+                                           const nsIntRect&, gfxContext** aCtx);
+    NS_OVERRIDE
+    virtual nsresult EndUpdateBackground(NPP instance,
+                                         gfxContext* aCtx, const nsIntRect&);
+
 private:
     NP_InitializeFunc mNP_Initialize;
     NP_ShutdownFunc mNP_Shutdown;
     NP_GetMIMEDescriptionFunc mNP_GetMIMEDescription;
+#if defined(XP_UNIX) && !defined(XP_MACOSX)
     NP_GetValueFunc mNP_GetValue;
+#endif
 #if defined(XP_WIN) || defined(XP_MACOSX) || defined(XP_OS2)
     NP_GetEntryPointsFunc mNP_GetEntryPoints;
 #endif
     NPP_NewProcPtr mNPP_New;
+    NPP_ClearSiteDataPtr mNPP_ClearSiteData;
+    NPP_GetSitesWithDataPtr mNPP_GetSitesWithData;
     PRLibrary* mLibrary;
 };
 

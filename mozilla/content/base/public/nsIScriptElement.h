@@ -43,11 +43,14 @@
 #include "nsIURI.h"
 #include "nsCOMPtr.h"
 #include "nsIScriptLoaderObserver.h"
+#include "nsWeakPtr.h"
+#include "nsIParser.h"
+#include "nsContentCreatorFunctions.h"
+#include "nsIDOMHTMLScriptElement.h"
 
-// e68ddc48-4055-4ba9-978d-c49d9cf3189a
 #define NS_ISCRIPTELEMENT_IID \
-{ 0xe68ddc48, 0x4055, 0x4ba9, \
-  { 0x97, 0x8d, 0xc4, 0x9d, 0x9c, 0xf3, 0x18, 0x9a } }
+{ 0x6d625b30, 0xfac4, 0x11de, \
+{ 0x8a, 0x39, 0x08, 0x00, 0x20, 0x0c, 0x9a, 0x66 } }
 
 /**
  * Internal interface implemented by script elements
@@ -56,11 +59,23 @@ class nsIScriptElement : public nsIScriptLoaderObserver {
 public:
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_ISCRIPTELEMENT_IID)
 
-  nsIScriptElement()
+  nsIScriptElement(mozilla::dom::FromParser aFromParser)
     : mLineNumber(0),
-      mIsEvaluated(PR_FALSE),
+      mAlreadyStarted(PR_FALSE),
       mMalformed(PR_FALSE),
-      mDoneAddingChildren(PR_TRUE)
+      mDoneAddingChildren(aFromParser == mozilla::dom::NOT_FROM_PARSER ||
+                          aFromParser == mozilla::dom::FROM_PARSER_FRAGMENT),
+      mForceAsync(aFromParser == mozilla::dom::NOT_FROM_PARSER ||
+                  aFromParser == mozilla::dom::FROM_PARSER_FRAGMENT),
+      mFrozen(PR_FALSE),
+      mDefer(PR_FALSE),
+      mAsync(PR_FALSE),
+      mExternal(PR_FALSE),
+      mParserCreated(aFromParser == mozilla::dom::FROM_PARSER_FRAGMENT ?
+                     mozilla::dom::NOT_FROM_PARSER : aFromParser),
+                     // Fragment parser-created scripts (if executable)
+                     // behave like script-created scripts.
+      mCreatorParser(nsnull)
   {
   }
 
@@ -74,7 +89,11 @@ public:
    * Location of script source text. Can return null, in which case
    * this is assumed to be an inline script element.
    */
-  virtual already_AddRefed<nsIURI> GetScriptURI() = 0;
+  nsIURI* GetScriptURI()
+  {
+    NS_PRECONDITION(mFrozen, "Not ready for this call yet!");
+    return mUri;
+  }
   
   /**
    * Script source text for inline script elements.
@@ -84,14 +103,46 @@ public:
   virtual void GetScriptCharset(nsAString& charset) = 0;
 
   /**
+   * Freezes the return values of GetScriptDeferred(), GetScriptAsync() and
+   * GetScriptURI() so that subsequent modifications to the attributes don't
+   * change execution behavior.
+   */
+  virtual void FreezeUriAsyncDefer() = 0;
+
+  /**
    * Is the script deferred. Currently only supported by HTML scripts.
    */
-  virtual PRBool GetScriptDeferred() = 0;
+  PRBool GetScriptDeferred()
+  {
+    NS_PRECONDITION(mFrozen, "Not ready for this call yet!");
+    return mDefer;
+  }
 
   /**
    * Is the script async. Currently only supported by HTML scripts.
    */
-  virtual PRBool GetScriptAsync() = 0;
+  PRBool GetScriptAsync()
+  {
+    NS_PRECONDITION(mFrozen, "Not ready for this call yet!");
+    return mAsync;  
+  }
+
+  /**
+   * Is the script an external script?
+   */
+  PRBool GetScriptExternal()
+  {
+    NS_PRECONDITION(mFrozen, "Not ready for this call yet!");
+    return mExternal;
+  }
+
+  /**
+   * Returns how the element was created.
+   */
+  mozilla::dom::FromParser GetParserCreated()
+  {
+    return mParserCreated;
+  }
 
   void SetScriptLineNumber(PRUint32 aLineNumber)
   {
@@ -113,20 +164,121 @@ public:
 
   void PreventExecution()
   {
-    mIsEvaluated = PR_TRUE;
+    mAlreadyStarted = PR_TRUE;
   }
 
-  void WillCallDoneAddingChildren()
+  void LoseParserInsertedness()
   {
-    NS_ASSERTION(mDoneAddingChildren, "unexpected, but not fatal");
-    mDoneAddingChildren = PR_FALSE;
+    mFrozen = PR_FALSE;
+    mUri = nsnull;
+    mCreatorParser = nsnull;
+    mParserCreated = mozilla::dom::NOT_FROM_PARSER;
+    PRBool async = PR_FALSE;
+    nsCOMPtr<nsIDOMHTMLScriptElement> htmlScript = do_QueryInterface(this);
+    if (htmlScript) {
+      htmlScript->GetAsync(&async);
+    }
+    mForceAsync = !async;
+  }
+
+  void SetCreatorParser(nsIParser* aParser)
+  {
+    mCreatorParser = getter_AddRefs(NS_GetWeakReference(aParser));
+  }
+
+  /**
+   * Informs the creator parser that the evaluation of this script is starting
+   */
+  void BeginEvaluating()
+  {
+    nsCOMPtr<nsIParser> parser = do_QueryReferent(mCreatorParser);
+    if (parser) {
+      parser->BeginEvaluatingParserInsertedScript();
+    }
+  }
+
+  /**
+   * Informs the creator parser that the evaluation of this script is ending
+   */
+  void EndEvaluating()
+  {
+    nsCOMPtr<nsIParser> parser = do_QueryReferent(mCreatorParser);
+    if (parser) {
+      parser->EndEvaluatingParserInsertedScript();
+    }
+  }
+  
+  /**
+   * Retrieves a pointer to the creator parser if this has one or null if not
+   */
+  already_AddRefed<nsIParser> GetCreatorParser()
+  {
+    nsCOMPtr<nsIParser> parser = do_QueryReferent(mCreatorParser);
+    return parser.forget();
   }
 
 protected:
+  /**
+   * The start line number of the script.
+   */
   PRUint32 mLineNumber;
-  PRPackedBool mIsEvaluated;
+  
+  /**
+   * The "already started" flag per HTML5.
+   */
+  PRPackedBool mAlreadyStarted;
+  
+  /**
+   * The script didn't have an end tag.
+   */
   PRPackedBool mMalformed;
+  
+  /**
+   * False if parser-inserted but the parser hasn't triggered running yet.
+   */
   PRPackedBool mDoneAddingChildren;
+
+  /**
+   * If true, the .async property returns true instead of reflecting the
+   * content attribute.
+   */
+  PRPackedBool mForceAsync;
+
+  /**
+   * Whether src, defer and async are frozen.
+   */
+  PRPackedBool mFrozen;
+  
+  /**
+   * The effective deferredness.
+   */
+  PRPackedBool mDefer;
+  
+  /**
+   * The effective asyncness.
+   */
+  PRPackedBool mAsync;
+  
+  /**
+   * The effective externalness. A script can be external with mUri being null
+   * if the src attribute contained an invalid URL string.
+   */
+  PRPackedBool mExternal;
+
+  /**
+   * Whether this element was parser-created.
+   */
+  mozilla::dom::FromParser mParserCreated;
+
+  /**
+   * The effective src (or null if no src).
+   */
+  nsCOMPtr<nsIURI> mUri;
+  
+  /**
+   * The creator parser of a non-defer, non-async parser-inserted script.
+   */
+  nsWeakPtr mCreatorParser;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIScriptElement, NS_ISCRIPTELEMENT_IID)

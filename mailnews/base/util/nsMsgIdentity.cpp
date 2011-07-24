@@ -198,6 +198,8 @@ NS_IMPL_IDPREF_BOOL(BccSelf, "bcc_self")
 NS_IMPL_IDPREF_BOOL(BccOthers, "bcc_other")
 NS_IMPL_IDPREF_STR (BccList, "bcc_other_list")
 
+NS_IMPL_IDPREF_BOOL(SuppressSigSep, "suppress_signature_separator")
+
 NS_IMPL_IDPREF_BOOL(DoCc, "doCc")
 NS_IMPL_IDPREF_STR (DoCcList, "doCcList")
 
@@ -270,6 +272,10 @@ nsMsgIdentity::SetDoBccList(const nsACString& aValue)
 NS_IMPL_FOLDERPREF_STR(DraftFolder, "draft_folder", "Drafts", nsMsgFolderFlags::Drafts)
 NS_IMPL_FOLDERPREF_STR(ArchiveFolder, "archive_folder", "Archives", nsMsgFolderFlags::Archive)
 NS_IMPL_FOLDERPREF_STR(StationeryFolder, "stationery_folder", "Templates", nsMsgFolderFlags::Templates)
+
+NS_IMPL_IDPREF_BOOL(ArchiveEnabled, "archive_enabled")
+NS_IMPL_IDPREF_INT(ArchiveGranularity, "archive_granularity")
+NS_IMPL_IDPREF_BOOL(ArchiveKeepFolderStructure, "archive_keep_folder_structure")
 
 NS_IMPL_IDPREF_BOOL(ShowSaveMsgDlg, "showSaveMsgDlg")
 NS_IMPL_IDPREF_STR (DirectoryServer, "directoryServer")
@@ -566,6 +572,11 @@ nsMsgIdentity::Copy(nsIMsgIdentity *identity)
     COPY_IDENTITY_BOOL_VALUE(identity,GetFccReplyFollowsParent,
                              SetFccReplyFollowsParent)
     COPY_IDENTITY_STR_VALUE(identity,GetStationeryFolder,SetStationeryFolder)
+    COPY_IDENTITY_BOOL_VALUE(identity,GetArchiveEnabled,SetArchiveEnabled)
+    COPY_IDENTITY_INT_VALUE(identity,GetArchiveGranularity,
+                            SetArchiveGranularity)
+    COPY_IDENTITY_BOOL_VALUE(identity,GetArchiveKeepFolderStructure,
+                             SetArchiveKeepFolderStructure)
     COPY_IDENTITY_BOOL_VALUE(identity,GetAttachSignature,SetAttachSignature)
     COPY_IDENTITY_FILE_VALUE(identity,GetSignature,SetSignature)
     COPY_IDENTITY_WSTR_VALUE(identity,GetHtmlSigText,SetHtmlSigText)
@@ -579,6 +590,7 @@ nsMsgIdentity::Copy(nsIMsgIdentity *identity)
     COPY_IDENTITY_BOOL_VALUE(identity,GetAttachVCard,SetAttachVCard)
     COPY_IDENTITY_STR_VALUE(identity,GetEscapedVCard,SetEscapedVCard)
     COPY_IDENTITY_STR_VALUE(identity,GetSmtpServerKey,SetSmtpServerKey)
+    COPY_IDENTITY_BOOL_VALUE(identity,GetSuppressSigSep,SetSuppressSigSep)
     return NS_OK;
 }
 

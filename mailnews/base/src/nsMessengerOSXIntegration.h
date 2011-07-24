@@ -46,8 +46,7 @@
 #include "nsIAtom.h"
 #include "nsITimer.h"
 #include "nsCOMPtr.h"
-#include "nsString.h"
-#include "nsInt64.h"
+#include "nsStringGlue.h"
 #include "nsIObserver.h"
 #include "nsIAlertsService.h"
 
@@ -92,7 +91,6 @@ private:
   PRInt32 mUnreadTotal;
   PRInt32 mNewTotal;
   PRBool mOnlyCountInboxes;
-  PRBool mOnLeopardOrLater;
   PRBool mDoneInitialCount;
 };
 

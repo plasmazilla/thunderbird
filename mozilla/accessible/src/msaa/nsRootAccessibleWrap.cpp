@@ -15,12 +15,12 @@
  * The Original Code is mozilla.org code.
  *
  * The Initial Developer of the Original Code is
- * Netscape Communications Corporation.
- * Portions created by the Initial Developer are Copyright (C) 2003
+ * Mozilla Foundation.
+ * Portions created by the Initial Developer are Copyright (C) 2011
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
- *   Original Author: Aaron Leventhal (aaronl@netscape.com)
+ *   Alexander Surkov <surkov.alexander@gmail.com> (origianl author)
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -37,18 +37,19 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsRootAccessibleWrap.h"
-#include "nsIAccessible.h"
-#include "nsIAccessibleDocument.h"
-#include "nsIServiceManager.h"
 
-/* For documentation of the accessibility architecture, 
- * see http://lxr.mozilla.org/seamonkey/source/accessible/accessible-docs.html
- */
+#include "nsWinUtils.h"
 
-//----- nsRootAccessibleWrap -----
+#include "nsIDOMEventTarget.h"
+#include "nsIEventListenerManager.h"
 
-nsRootAccessibleWrap::nsRootAccessibleWrap(nsIDOMNode *aDOMNode, nsIWeakReference *aShell): 
-  nsRootAccessible(aDOMNode, aShell)
+////////////////////////////////////////////////////////////////////////////////
+// Constructor/desctructor
+
+nsRootAccessibleWrap::
+  nsRootAccessibleWrap(nsIDocument* aDocument, nsIContent* aRootContent,
+                       nsIWeakReference* aShell) :
+  nsRootAccessible(aDocument, aRootContent, aShell)
 {
 }
 
@@ -56,3 +57,22 @@ nsRootAccessibleWrap::~nsRootAccessibleWrap()
 {
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// nsRootAccessible
+
+void
+nsRootAccessibleWrap::DocumentActivated(nsDocAccessible* aDocument)
+{
+  if (nsWinUtils::IsWindowEmulationFor(kDolphinModuleHandle) &&
+      nsWinUtils::IsTabDocument(aDocument->GetDocumentNode())) {
+    PRUint32 count = mChildDocuments.Length();
+    for (PRUint32 idx = 0; idx < count; idx++) {
+      nsDocAccessible* childDoc = mChildDocuments[idx];
+      HWND childDocHWND = static_cast<HWND>(childDoc->GetNativeWindow());
+      if (childDoc != aDocument)
+        nsWinUtils::HideNativeWindow(childDocHWND);
+      else
+        nsWinUtils::ShowNativeWindow(childDocHWND);
+    }
+  }
+}

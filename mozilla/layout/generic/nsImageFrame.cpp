@@ -54,6 +54,8 @@
 #include "nsCSSAnonBoxes.h"
 #include "nsStyleContext.h"
 #include "nsStyleConsts.h"
+#include "nsStyleCoord.h"
+#include "nsTransform2D.h"
 #include "nsImageMap.h"
 #include "nsILinkHandler.h"
 #include "nsIURL.h"
@@ -77,7 +79,7 @@
 #include "nsImageMapUtils.h"
 #include "nsIScriptSecurityManager.h"
 #ifdef ACCESSIBILITY
-#include "nsIAccessibilityService.h"
+#include "nsAccessibilityService.h"
 #endif
 #include "nsIServiceManager.h"
 #include "nsIDOMNode.h"
@@ -101,6 +103,8 @@
 #include "nsBidiUtils.h"
 #include "nsBidiPresUtils.h"
 
+#include "gfxRect.h"
+
 // sizes (pixels) for image icon, padding and border frame
 #define ICON_SIZE        (16)
 #define ICON_PADDING     (3)
@@ -112,6 +116,9 @@
 
 // Default alignment value (so we can tell an unset value from a set value)
 #define ALIGN_UNSET PRUint8(-1)
+
+using namespace mozilla;
+using namespace mozilla::layers;
 
 // static icon information
 nsImageFrame::IconLoad* nsImageFrame::gIconLoad = nsnull;
@@ -125,13 +132,8 @@ static PRBool HaveFixedSize(const nsStylePosition* aStylePosition)
   // check the width and height values in the reflow state's style struct
   // - if width and height are specified as either coord or percentage, then
   //   the size of the image frame is constrained
-  nsStyleUnit widthUnit = aStylePosition->mWidth.GetUnit();
-  nsStyleUnit heightUnit = aStylePosition->mHeight.GetUnit();
-
-  return ((widthUnit  == eStyleUnit_Coord ||
-           widthUnit  == eStyleUnit_Percent) &&
-          (heightUnit == eStyleUnit_Coord ||
-           heightUnit == eStyleUnit_Percent));
+  return aStylePosition->mWidth.IsCoordPercentCalcUnit() &&
+         aStylePosition->mHeight.IsCoordPercentCalcUnit();
 }
 // use the data in the reflow state to decide if the image has a constrained size
 // (i.e. width and height that are based on the containing block size and not the image size) 
@@ -146,11 +148,13 @@ inline PRBool HaveFixedSize(const nsHTMLReflowState& aReflowState)
   // during pass 1 reflow, ComputedWidth() is NS_UNCONSTRAINEDSIZE
   // in pass 2 reflow, ComputedWidth() is 0, it also needs to return PR_FALSE
   // see bug 156731
-  nsStyleUnit heightUnit = (*(aReflowState.mStylePosition)).mHeight.GetUnit();
-  nsStyleUnit widthUnit = (*(aReflowState.mStylePosition)).mWidth.GetUnit();
-  return ((eStyleUnit_Percent == heightUnit && NS_UNCONSTRAINEDSIZE == aReflowState.ComputedHeight()) ||
-          (eStyleUnit_Percent == widthUnit && (NS_UNCONSTRAINEDSIZE == aReflowState.ComputedWidth() ||
-           0 == aReflowState.ComputedWidth())))
+  const nsStyleCoord &height = aReflowState.mStylePosition->mHeight;
+  const nsStyleCoord &width = aReflowState.mStylePosition->mWidth;
+  return ((height.HasPercent() &&
+           NS_UNCONSTRAINEDSIZE == aReflowState.ComputedHeight()) ||
+          (width.HasPercent() &&
+           (NS_UNCONSTRAINEDSIZE == aReflowState.ComputedWidth() ||
+            0 == aReflowState.ComputedWidth())))
           ? PR_FALSE
           : HaveFixedSize(aReflowState.mStylePosition); 
 }
@@ -167,11 +171,13 @@ NS_IMPL_FRAMEARENA_HELPERS(nsImageFrame)
 nsImageFrame::nsImageFrame(nsStyleContext* aContext) :
   ImageFrameSuper(aContext),
   mComputedSize(0, 0),
-  mIntrinsicSize(0, 0),
+  mIntrinsicRatio(0, 0),
   mDisplayingIcon(PR_FALSE)
 {
   // We assume our size is not constrained and we haven't gotten an
   // initial reflow yet, so don't touch those flags.
+  mIntrinsicSize.width.SetCoordValue(0);
+  mIntrinsicSize.height.SetCoordValue(0);
 }
 
 nsImageFrame::~nsImageFrame()
@@ -183,20 +189,21 @@ NS_QUERYFRAME_HEAD(nsImageFrame)
 NS_QUERYFRAME_TAIL_INHERITING(ImageFrameSuper)
 
 #ifdef ACCESSIBILITY
-NS_IMETHODIMP nsImageFrame::GetAccessible(nsIAccessible** aAccessible)
+already_AddRefed<nsAccessible>
+nsImageFrame::CreateAccessible()
 {
-  nsCOMPtr<nsIAccessibilityService> accService = do_GetService("@mozilla.org/accessibilityService;1");
-
+  nsAccessibilityService* accService = nsIPresShell::AccService();
   if (accService) {
-    return accService->CreateHTMLImageAccessible(static_cast<nsIFrame*>(this), aAccessible);
+    return accService->CreateHTMLImageAccessible(mContent,
+                                                 PresContext()->PresShell());
   }
 
-  return NS_ERROR_FAILURE;
+  return nsnull;
 }
 #endif
 
 void
-nsImageFrame::Destroy()
+nsImageFrame::DestroyFrom(nsIFrame* aDestructRoot)
 {
   // Tell our image map, if there is one, to clean up
   // This causes the nsImageMap to unregister itself as
@@ -228,7 +235,7 @@ nsImageFrame::Destroy()
   if (mDisplayingIcon)
     gIconLoad->RemoveIconObserver(this);
 
-  nsSplittableFrame::Destroy();
+  nsSplittableFrame::DestroyFrom(aDestructRoot);
 }
 
 
@@ -277,8 +284,6 @@ nsImageFrame::Init(nsIContent*      aContent,
     currentRequest->GetImage(getter_AddRefs(image));
     if (image) {
       image->SetAnimationMode(aPresContext->ImageAnimationMode());
-      // Ensure the animation (if any) is started.
-      image->StartAnimation();
     }
   }
 
@@ -289,48 +294,84 @@ PRBool
 nsImageFrame::UpdateIntrinsicSize(imgIContainer* aImage)
 {
   NS_PRECONDITION(aImage, "null image");
+  if (!aImage)
+    return PR_FALSE;
 
-  PRBool intrinsicSizeChanged = PR_FALSE;
-  
-  if (aImage) {
+  nsIFrame::IntrinsicSize oldIntrinsicSize = mIntrinsicSize;
+
+  nsIFrame* rootFrame = aImage->GetRootLayoutFrame();
+  if (rootFrame) {
+    // Set intrinsic size to match that of aImage's rootFrame.
+    mIntrinsicSize = rootFrame->GetIntrinsicSize();
+  } else {
+    // Set intrinsic size to match aImage's reported width & height.
     nsIntSize imageSizeInPx;
-    aImage->GetWidth(&imageSizeInPx.width);
-    aImage->GetHeight(&imageSizeInPx.height);
-    nsSize newSize(nsPresContext::CSSPixelsToAppUnits(imageSizeInPx.width),
-                   nsPresContext::CSSPixelsToAppUnits(imageSizeInPx.height));
-    if (mIntrinsicSize != newSize) {
-      intrinsicSizeChanged = PR_TRUE;
-      mIntrinsicSize = newSize;
+    if (NS_FAILED(aImage->GetWidth(&imageSizeInPx.width)) ||
+        NS_FAILED(aImage->GetHeight(&imageSizeInPx.height))) {
+      imageSizeInPx.SizeTo(0, 0);
     }
+    mIntrinsicSize.width.SetCoordValue(
+      nsPresContext::CSSPixelsToAppUnits(imageSizeInPx.width));
+    mIntrinsicSize.height.SetCoordValue(
+      nsPresContext::CSSPixelsToAppUnits(imageSizeInPx.height));
   }
 
-  return intrinsicSizeChanged;
+  return mIntrinsicSize != oldIntrinsicSize;
 }
 
-void
-nsImageFrame::RecalculateTransform(PRBool aInnerAreaChanged)
+PRBool
+nsImageFrame::UpdateIntrinsicRatio(imgIContainer* aImage)
 {
-  // In any case, we need to translate this over appropriately.  Set
-  // translation _before_ setting scaling so that it does not get
-  // scaled!
+  NS_PRECONDITION(aImage, "null image");
 
+  if (!aImage)
+    return PR_FALSE;
+
+  nsSize oldIntrinsicRatio = mIntrinsicRatio;
+
+  nsIFrame* rootFrame = aImage->GetRootLayoutFrame();
+  if (rootFrame) {
+    // Set intrinsic ratio to match that of aImage's rootFrame.
+    mIntrinsicRatio = rootFrame->GetIntrinsicRatio();
+  } else {
+    NS_ABORT_IF_FALSE(mIntrinsicSize.width.GetUnit() == eStyleUnit_Coord &&
+                      mIntrinsicSize.height.GetUnit() == eStyleUnit_Coord,
+                      "since aImage doesn't have a rootFrame, our intrinsic "
+                      "dimensions must have coord units (not percent units)");
+    mIntrinsicRatio.width = mIntrinsicSize.width.GetCoordValue();
+    mIntrinsicRatio.height = mIntrinsicSize.height.GetCoordValue();
+  }
+
+  return mIntrinsicRatio != oldIntrinsicRatio;
+}
+
+PRBool
+nsImageFrame::GetSourceToDestTransform(nsTransform2D& aTransform)
+{
+  // Set the translation components.
   // XXXbz does this introduce rounding errors because of the cast to
   // float?  Should we just manually add that stuff in every time
   // instead?
-  if (aInnerAreaChanged) {
-    nsRect innerArea = GetInnerArea();
-    mTransform.SetToTranslate(float(innerArea.x),
-                              float(innerArea.y - GetContinuationOffset()));
+  nsRect innerArea = GetInnerArea();
+  aTransform.SetToTranslate(float(innerArea.x),
+                            float(innerArea.y - GetContinuationOffset()));
+
+  // Set the scale factors.
+  if (mIntrinsicSize.width.GetUnit() == eStyleUnit_Coord &&
+      mIntrinsicSize.width.GetCoordValue() != 0 &&
+      mIntrinsicSize.height.GetUnit() == eStyleUnit_Coord &&
+      mIntrinsicSize.height.GetCoordValue() != 0 &&
+      mIntrinsicSize.width.GetCoordValue() != mComputedSize.width &&
+      mIntrinsicSize.height.GetCoordValue() != mComputedSize.height) {
+
+    aTransform.SetScale(float(mComputedSize.width)  /
+                        float(mIntrinsicSize.width.GetCoordValue()),
+                        float(mComputedSize.height) /
+                        float(mIntrinsicSize.height.GetCoordValue()));
+    return PR_TRUE;
   }
-  
-  // Set the scale factors
-  if (mIntrinsicSize.width != 0 && mIntrinsicSize.height != 0 &&
-      mIntrinsicSize != mComputedSize) {
-    mTransform.SetScale(float(mComputedSize.width)  / float(mIntrinsicSize.width),
-                        float(mComputedSize.height) / float(mIntrinsicSize.height));
-  } else {
-    mTransform.SetScale(1.0f, 1.0f);
-  }
+
+  return PR_FALSE;
 }
 
 /*
@@ -394,10 +435,18 @@ nsImageFrame::SourceRectToDest(const nsIntRect& aRect)
            nsPresContext::CSSPixelsToAppUnits(aRect.width + 2),
            nsPresContext::CSSPixelsToAppUnits(aRect.height + 2));
 
-  mTransform.TransformCoord(&r.x, &r.y, &r.width, &r.height);
+  nsTransform2D sourceToDest;
+  if (!GetSourceToDestTransform(sourceToDest)) {
+    // Failed to generate transform matrix. Return our whole inner area,
+    // to be on the safe side (since this method is used for generating
+    // invalidation rects).
+    return GetInnerArea();
+  }
+
+  sourceToDest.TransformCoord(&r.x, &r.y, &r.width, &r.height);
 
   // Now, round the edges out to the pixel boundary.
-  int scale = nsPresContext::CSSPixelsToAppUnits(1);
+  nscoord scale = nsPresContext::CSSPixelsToAppUnits(1);
   nscoord right = r.x + r.width;
   nscoord bottom = r.y + r.height;
 
@@ -418,17 +467,17 @@ nsImageFrame::SourceRectToDest(const nsIntRect& aRect)
 
 // This is a macro so that we don't evaluate the boolean last arg
 // unless we have to; it can be expensive
-#define IMAGE_OK(_state, _loadingOK)                        \
-   (((_state) & BAD_STATES) == 0 ||                         \
-    (((_state) & BAD_STATES) == NS_EVENT_STATE_LOADING &&   \
-     (_loadingOK)))
+#define IMAGE_OK(_state, _loadingOK)                                           \
+   (!(_state).HasAtLeastOneOfStates(BAD_STATES) ||                                    \
+    (!(_state).HasAtLeastOneOfStates(NS_EVENT_STATE_BROKEN | NS_EVENT_STATE_USERDISABLED) && \
+     (_state).HasState(NS_EVENT_STATE_LOADING) && (_loadingOK)))
 
 /* static */
 PRBool
 nsImageFrame::ShouldCreateImageFrameFor(nsIContent* aContent,
                                         nsStyleContext* aStyleContext)
 {
-  PRInt32 state = aContent->IntrinsicState();
+  nsEventStates state = aContent->IntrinsicState();
   if (IMAGE_OK(state,
                HaveFixedSize(aStyleContext->GetStylePosition()))) {
     // Image is fine; do the image frame thing
@@ -494,8 +543,6 @@ nsImageFrame::OnStartContainer(imgIRequest *aRequest, imgIContainer *aImage)
    */
   nsPresContext *presContext = PresContext();
   aImage->SetAnimationMode(presContext->ImageAnimationMode());
-  // Ensure the animation (if any) is started.
-  aImage->StartAnimation();
 
   if (IsPendingLoad(aRequest)) {
     // We don't care
@@ -503,16 +550,9 @@ nsImageFrame::OnStartContainer(imgIRequest *aRequest, imgIContainer *aImage)
   }
   
   UpdateIntrinsicSize(aImage);
+  UpdateIntrinsicRatio(aImage);
 
   if (mState & IMAGE_GOTINITIALREFLOW) {
-    // If we previously set the intrinsic size (in EnsureIntrinsicSize)
-    // to the size of the loading-image icon and reflowed the frame,
-    // we'll have an mTransform computed from that intrinsic size.  But
-    // if we still have that transform when we get OnDataAvailable
-    // calls, we'll invalidate the wrong area.  So update the transform
-    // now.
-    RecalculateTransform(PR_FALSE);
-
     // Now we need to reflow if we have an unconstrained size and have
     // already gotten the initial reflow
     if (!(mState & IMAGE_SIZECONSTRAINED)) { 
@@ -544,10 +584,6 @@ nsImageFrame::OnDataAvailable(imgIRequest *aRequest,
     return NS_OK;
   }
   
-  // XXX We really need to round this out, now that we're doing better
-  // image scaling!
-  nsRect r = SourceRectToDest(*aRect);
-
   if (IsPendingLoad(aRequest)) {
     // We don't care
     return NS_OK;
@@ -558,12 +594,19 @@ nsImageFrame::OnDataAvailable(imgIRequest *aRequest,
   if (!aCurrentFrame)
     return NS_OK;
 
+  // XXX We really need to round this out, now that we're doing better
+  // image scaling!
+  nsRect r = (*aRect == nsIntRect::GetMaxSizedIntRect()) ?
+    GetInnerArea() :
+    SourceRectToDest(*aRect);
+
 #ifdef DEBUG_decode
   printf("Source rect (%d,%d,%d,%d) -> invalidate dest rect (%d,%d,%d,%d)\n",
          aRect->x, aRect->y, aRect->width, aRect->height,
          r.x, r.y, r.width, r.height);
 #endif
 
+  mImageContainer = nsnull;
   Invalidate(r);
   
   return NS_OK;
@@ -596,10 +639,14 @@ nsImageFrame::OnStopDecode(imgIRequest *aRequest,
       aRequest->GetImage(getter_AddRefs(imageContainer));
       NS_ASSERTION(imageContainer, "Successful load with no container?");
       intrinsicSizeChanged = UpdateIntrinsicSize(imageContainer);
+      intrinsicSizeChanged = UpdateIntrinsicRatio(imageContainer) ||
+        intrinsicSizeChanged;
     }
     else {
       // Have to size to 0,0 so that GetDesiredSize recalculates the size
-      mIntrinsicSize.SizeTo(0, 0);
+      mIntrinsicSize.width.SetCoordValue(0);
+      mIntrinsicSize.height.SetCoordValue(0);
+      mIntrinsicRatio.SizeTo(0, 0);
     }
 
     if (mState & IMAGE_GOTINITIALREFLOW) { // do nothing if we haven't gotten the initial reflow yet
@@ -621,7 +668,8 @@ nsImageFrame::OnStopDecode(imgIRequest *aRequest,
 }
 
 nsresult
-nsImageFrame::FrameChanged(imgIContainer *aContainer, nsIntRect *aDirtyRect)
+nsImageFrame::FrameChanged(imgIContainer *aContainer,
+                           const nsIntRect *aDirtyRect)
 {
   if (!GetStyleVisibility()->IsVisible()) {
     return NS_OK;
@@ -631,20 +679,26 @@ nsImageFrame::FrameChanged(imgIContainer *aContainer, nsIntRect *aDirtyRect)
     // We don't care about it
     return NS_OK;
   }
-  
-  nsRect r = SourceRectToDest(*aDirtyRect);
+
+  nsRect r = (*aDirtyRect == nsIntRect::GetMaxSizedIntRect()) ?
+    GetInnerArea() :
+    SourceRectToDest(*aDirtyRect);
 
   // Update border+content to account for image change
   Invalidate(r);
+  mImageContainer = nsnull;
   return NS_OK;
 }
 
 void
-nsImageFrame::EnsureIntrinsicSize(nsPresContext* aPresContext)
+nsImageFrame::EnsureIntrinsicSizeAndRatio(nsPresContext* aPresContext)
 {
   // if mIntrinsicSize.width and height are 0, then we should
   // check to see if the size is already known by the image container.
-  if (mIntrinsicSize.width == 0 && mIntrinsicSize.height == 0) {
+  if (mIntrinsicSize.width.GetUnit() == eStyleUnit_Coord &&
+      mIntrinsicSize.width.GetCoordValue() == 0 &&
+      mIntrinsicSize.height.GetUnit() == eStyleUnit_Coord &&
+      mIntrinsicSize.height.GetCoordValue() == 0) {
 
     // Jump through all the hoops to get the status of the request
     nsCOMPtr<imgIRequest> currentRequest;
@@ -662,6 +716,7 @@ nsImageFrame::EnsureIntrinsicSize(nsPresContext* aPresContext)
       currentRequest->GetImage(getter_AddRefs(imgCon));
       NS_ABORT_IF_FALSE(imgCon, "SIZE_AVAILABLE, but no imgContainer?");
       UpdateIntrinsicSize(imgCon);
+      UpdateIntrinsicRatio(imgCon);
     } else {
       // image request is null or image size not known, probably an
       // invalid image specified
@@ -670,8 +725,12 @@ nsImageFrame::EnsureIntrinsicSize(nsPresContext* aPresContext)
       // XXX: we need this in composer, but it is also good for
       // XXX: general quirks mode to always have room for the icon
       if (aPresContext->CompatibilityMode() == eCompatibility_NavQuirks) {
-        mIntrinsicSize.SizeTo(nsPresContext::CSSPixelsToAppUnits(ICON_SIZE+(2*(ICON_PADDING+ALT_BORDER_WIDTH))),
-                              nsPresContext::CSSPixelsToAppUnits(ICON_SIZE+(2*(ICON_PADDING+ALT_BORDER_WIDTH))));
+        nscoord edgeLengthToUse =
+          nsPresContext::CSSPixelsToAppUnits(
+            ICON_SIZE + (2 * (ICON_PADDING + ALT_BORDER_WIDTH)));
+        mIntrinsicSize.width.SetCoordValue(edgeLengthToUse);
+        mIntrinsicSize.height.SetCoordValue(edgeLengthToUse);
+        mIntrinsicRatio.SizeTo(1, 1);
       }
     }
   }
@@ -684,17 +743,11 @@ nsImageFrame::ComputeSize(nsIRenderingContext *aRenderingContext,
                           PRBool aShrinkWrap)
 {
   nsPresContext *presContext = PresContext();
-  EnsureIntrinsicSize(presContext);
-
-  IntrinsicSize intrinsicSize;
-  intrinsicSize.width.SetCoordValue(mIntrinsicSize.width);
-  intrinsicSize.height.SetCoordValue(mIntrinsicSize.height);
-
-  nsSize& intrinsicRatio = mIntrinsicSize; // won't actually be used
+  EnsureIntrinsicSizeAndRatio(presContext);
 
   return nsLayoutUtils::ComputeSizeWithIntrinsicDimensions(
                             aRenderingContext, this,
-                            intrinsicSize, intrinsicRatio, aCBSize,
+                            mIntrinsicSize, mIntrinsicRatio, aCBSize,
                             aMargin, aBorder, aPadding);
 }
 
@@ -724,9 +777,9 @@ nsImageFrame::GetMinWidth(nsIRenderingContext *aRenderingContext)
   nscoord result;
   DISPLAY_MIN_WIDTH(this, result);
   nsPresContext *presContext = PresContext();
-  EnsureIntrinsicSize(presContext);
-  result = mIntrinsicSize.width;
-  return result;
+  EnsureIntrinsicSizeAndRatio(presContext);
+  return mIntrinsicSize.width.GetUnit() == eStyleUnit_Coord ?
+    mIntrinsicSize.width.GetCoordValue() : 0;
 }
 
 /* virtual */ nscoord
@@ -737,17 +790,22 @@ nsImageFrame::GetPrefWidth(nsIRenderingContext *aRenderingContext)
   nscoord result;
   DISPLAY_PREF_WIDTH(this, result);
   nsPresContext *presContext = PresContext();
-  EnsureIntrinsicSize(presContext);
+  EnsureIntrinsicSizeAndRatio(presContext);
   // convert from normal twips to scaled twips (printing...)
-  result = mIntrinsicSize.width;
-  return result;
+  return mIntrinsicSize.width.GetUnit() == eStyleUnit_Coord ?
+    mIntrinsicSize.width.GetCoordValue() : 0;
+}
+
+/* virtual */ nsIFrame::IntrinsicSize
+nsImageFrame::GetIntrinsicSize()
+{
+  return mIntrinsicSize;
 }
 
 /* virtual */ nsSize
 nsImageFrame::GetIntrinsicRatio()
 {
-  EnsureIntrinsicSize(PresContext());
-  return mIntrinsicSize;
+  return mIntrinsicRatio;
 }
 
 NS_IMETHODIMP
@@ -781,7 +839,6 @@ nsImageFrame::Reflow(nsPresContext*          aPresContext,
 
   mComputedSize = 
     nsSize(aReflowState.ComputedWidth(), aReflowState.ComputedHeight());
-  RecalculateTransform(PR_TRUE);
 
   aMetrics.width = mComputedSize.width;
   aMetrics.height = mComputedSize.height;
@@ -794,7 +851,7 @@ nsImageFrame::Reflow(nsPresContext*          aPresContext,
     aMetrics.width = GetPrevInFlow()->GetSize().width;
     nscoord y = GetContinuationOffset();
     aMetrics.height -= y + aReflowState.mComputedBorderPadding.top;
-    aMetrics.height = PR_MAX(0, aMetrics.height);
+    aMetrics.height = NS_MAX(0, aMetrics.height);
   }
 
 
@@ -817,11 +874,11 @@ nsImageFrame::Reflow(nsPresContext*          aPresContext,
       aMetrics.height > aReflowState.availableHeight) { 
     // our desired height was greater than 0, so to avoid infinite
     // splitting, use 1 pixel as the min
-    aMetrics.height = PR_MAX(nsPresContext::CSSPixelsToAppUnits(1), aReflowState.availableHeight);
+    aMetrics.height = NS_MAX(nsPresContext::CSSPixelsToAppUnits(1), aReflowState.availableHeight);
     aStatus = NS_FRAME_NOT_COMPLETE;
   }
 
-  aMetrics.mOverflowArea.SetRect(0, 0, aMetrics.width, aMetrics.height);
+  aMetrics.SetOverflowAreasToDesiredBounds();
   FinishAndStoreOverflow(&aMetrics);
 
   // Now that that's all done, check whether we're resizing... if we are,
@@ -957,10 +1014,12 @@ nsImageFrame::DisplayAltText(nsPresContext*      aPresContext,
         if (vis->mDirection == NS_STYLE_DIRECTION_RTL)
           rv = bidiUtils->RenderText(str, maxFit, NSBIDI_RTL,
                                      aPresContext, aRenderingContext,
+                                     aRenderingContext,
                                      aRect.XMost() - strWidth, y + maxAscent);
         else
           rv = bidiUtils->RenderText(str, maxFit, NSBIDI_LTR,
                                      aPresContext, aRenderingContext,
+                                     aRenderingContext,
                                      aRect.x, y + maxAscent);
       }
     }
@@ -1022,8 +1081,9 @@ nsImageFrame::DisplayAltFeedback(nsIRenderingContext& aRenderingContext,
 
   // Paint the border
   nsRecessedBorder recessedBorder(borderEdgeWidth, PresContext());
-  nsCSSRendering::PaintBorder(PresContext(), aRenderingContext, this, inner,
-                              inner, recessedBorder, mStyleContext);
+  nsCSSRendering::PaintBorderWithStyleBorder(PresContext(), aRenderingContext,
+                                             this, inner, inner,
+                                             recessedBorder, mStyleContext);
 
   // Adjust the inner rect to account for the one pixel recessed border,
   // and a six pixel padding on each edge
@@ -1065,7 +1125,8 @@ nsImageFrame::DisplayAltFeedback(nsIRenderingContext& aRenderingContext,
                   inner.XMost() - size : inner.x,
                   inner.y, size, size);
       nsLayoutUtils::DrawSingleImage(&aRenderingContext, imgCon,
-        nsLayoutUtils::GetGraphicsFilterForFrame(this), dest, aDirtyRect);
+        nsLayoutUtils::GetGraphicsFilterForFrame(this), dest, aDirtyRect,
+        imgIContainer::FLAG_NONE);
       iconUsed = PR_TRUE;
     }
 
@@ -1133,38 +1194,93 @@ static void PaintDebugImageMap(nsIFrame* aFrame, nsIRenderingContext* aCtx,
 }
 #endif
 
-/**
- * Note that nsDisplayImage does not receive events. However, an image element
- * is replaced content so its background will be z-adjacent to the
- * image itself, and hence receive events just as if the image itself
- * received events.
- */
-class nsDisplayImage : public nsDisplayItem {
-public:
-  nsDisplayImage(nsImageFrame* aFrame, imgIContainer* aImage)
-    : nsDisplayItem(aFrame), mImage(aImage) {
-    MOZ_COUNT_CTOR(nsDisplayImage);
-  }
-  virtual ~nsDisplayImage() {
-    MOZ_COUNT_DTOR(nsDisplayImage);
-  }
-  virtual void Paint(nsDisplayListBuilder* aBuilder,
-                     nsIRenderingContext* aCtx);
-  NS_DISPLAY_DECL_NAME("Image")
-private:
-  nsCOMPtr<imgIContainer> mImage;
-};
-
 void
 nsDisplayImage::Paint(nsDisplayListBuilder* aBuilder,
                       nsIRenderingContext* aCtx) {
   static_cast<nsImageFrame*>(mFrame)->
-    PaintImage(*aCtx, aBuilder->ToReferenceFrame(mFrame), mVisibleRect, mImage);
+    PaintImage(*aCtx, ToReferenceFrame(), mVisibleRect, mImage,
+               aBuilder->ShouldSyncDecodeImages()
+                 ? (PRUint32) imgIContainer::FLAG_SYNC_DECODE
+                 : (PRUint32) imgIContainer::FLAG_NONE);
+}
+
+nsCOMPtr<imgIContainer>
+nsDisplayImage::GetImage()
+{
+  return mImage;
+}
+
+nsRefPtr<ImageContainer>
+nsDisplayImage::GetContainer(LayerManager* aManager)
+{
+  return static_cast<nsImageFrame*>(mFrame)->GetContainer(aManager, mImage);
+}
+
+void
+nsDisplayImage::ConfigureLayer(ImageLayer* aLayer)
+{
+  aLayer->SetFilter(nsLayoutUtils::GetGraphicsFilterForFrame(mFrame));
+  
+  PRInt32 factor = nsPresContext::AppUnitsPerCSSPixel();
+  nsImageFrame* imageFrame = static_cast<nsImageFrame*>(mFrame);
+
+  nsRect dest = imageFrame->GetInnerArea() + ToReferenceFrame();
+  gfxRect destRect(dest.x, dest.y, dest.width, dest.height);
+  destRect.ScaleInverse(factor); 
+
+  PRInt32 imageWidth;
+  PRInt32 imageHeight;
+  mImage->GetWidth(&imageWidth);
+  mImage->GetHeight(&imageHeight);
+
+  gfxMatrix transform;
+  transform.Translate(destRect.pos);
+  transform.Scale(destRect.size.width/imageWidth,
+                  destRect.size.height/imageHeight);
+  aLayer->SetTransform(gfx3DMatrix::From2D(transform));
+
+  aLayer->SetVisibleRegion(nsIntRect(0, 0, imageWidth, imageHeight));
+}
+
+nsRefPtr<ImageContainer>
+nsImageFrame::GetContainer(LayerManager* aManager, imgIContainer* aImage)
+{
+  if (mImageContainer && mImageContainer->Manager() == aManager) {
+    return mImageContainer;
+  }
+
+  if (aImage->GetType() != imgIContainer::TYPE_RASTER) {
+    return nsnull;
+  }
+  
+  CairoImage::Data cairoData;
+  nsRefPtr<gfxASurface> imageSurface;
+  aImage->GetFrame(imgIContainer::FRAME_CURRENT,
+                   imgIContainer::FLAG_SYNC_DECODE,
+                   getter_AddRefs(imageSurface));
+  cairoData.mSurface = imageSurface;
+  aImage->GetWidth(&cairoData.mSize.width);
+  aImage->GetHeight(&cairoData.mSize.height);
+
+  mImageContainer = aManager->CreateImageContainer();
+  NS_ASSERTION(mImageContainer, "Failed to create ImageContainer!");
+  
+  // Now create a CairoImage to display the surface.
+  Image::Format cairoFormat = Image::CAIRO_SURFACE;
+  nsRefPtr<Image> image = mImageContainer->CreateImage(&cairoFormat, 1);
+  NS_ASSERTION(image, "Failed to create Image");
+
+  NS_ASSERTION(image->GetFormat() == cairoFormat, "Wrong format");
+  static_cast<CairoImage*>(image.get())->SetData(cairoData);
+  mImageContainer->SetCurrentImage(image);
+
+  return mImageContainer;
 }
 
 void
 nsImageFrame::PaintImage(nsIRenderingContext& aRenderingContext, nsPoint aPt,
-                         const nsRect& aDirtyRect, imgIContainer* aImage)
+                         const nsRect& aDirtyRect, imgIContainer* aImage,
+                         PRUint32 aFlags)
 {
   // Render the image into our content area (the area inside
   // the borders and padding)
@@ -1174,7 +1290,8 @@ nsImageFrame::PaintImage(nsIRenderingContext& aRenderingContext, nsPoint aPt,
   dest.y -= GetContinuationOffset();
 
   nsLayoutUtils::DrawSingleImage(&aRenderingContext, aImage,
-    nsLayoutUtils::GetGraphicsFilterForFrame(this), dest, aDirtyRect);
+    nsLayoutUtils::GetGraphicsFilterForFrame(this), dest, aDirtyRect,
+    aFlags);
 
   nsPresContext* presContext = PresContext();
   nsImageMap* map = GetImageMap(presContext);
@@ -1205,7 +1322,8 @@ nsImageFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   // REVIEW: Checking mRect.IsEmpty() makes no sense to me, so I removed it.
   // It can't have been protecting us against bad situations with zero-size
   // images since adding a border would make the rect non-empty.
-    
+
+  nsDisplayList replacedContent;
   if (mComputedSize.width != 0 && mComputedSize.height != 0) {
     nsCOMPtr<nsIImageLoadingContent> imageLoader = do_QueryInterface(mContent);
     NS_ASSERTION(imageLoader, "Not an image loading content?");
@@ -1216,7 +1334,7 @@ nsImageFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
                               getter_AddRefs(currentRequest));
     }
 
-    PRInt32 contentState = mContent->IntrinsicState();
+    nsEventStates contentState = mContent->IntrinsicState();
     PRBool imageOK = IMAGE_OK(contentState, PR_TRUE);
 
     nsCOMPtr<imgIContainer> imgCon;
@@ -1238,13 +1356,14 @@ nsImageFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     if (!imageOK || !haveSize) {
       // No image yet, or image load failed. Draw the alt-text and an icon
       // indicating the status
-      rv = aLists.Content()->AppendNewToTop(new (aBuilder)
-          nsDisplayGeneric(this, PaintAltFeedback, "AltFeedback"));
+      rv = replacedContent.AppendNewToTop(new (aBuilder)
+          nsDisplayGeneric(aBuilder, this, PaintAltFeedback, "AltFeedback",
+                           nsDisplayItem::TYPE_ALT_FEEDBACK));
       NS_ENSURE_SUCCESS(rv, rv);
     }
     else {
-      rv = aLists.Content()->AppendNewToTop(new (aBuilder)
-          nsDisplayImage(this, imgCon));
+      rv = replacedContent.AppendNewToTop(new (aBuilder)
+          nsDisplayImage(aBuilder, this, imgCon));
       NS_ENSURE_SUCCESS(rv, rv);
 
       // If we were previously displaying an icon, we're not anymore
@@ -1257,22 +1376,34 @@ nsImageFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
 #ifdef DEBUG
       if (GetShowFrameBorders() && GetImageMap(PresContext())) {
         rv = aLists.Outlines()->AppendNewToTop(new (aBuilder)
-            nsDisplayGeneric(this, PaintDebugImageMap, "DebugImageMap"));
+            nsDisplayGeneric(aBuilder, this, PaintDebugImageMap, "DebugImageMap",
+                             nsDisplayItem::TYPE_DEBUG_IMAGE_MAP));
         NS_ENSURE_SUCCESS(rv, rv);
       }
 #endif
     }
   }
 
+  if (ShouldDisplaySelection()) {
+    rv = DisplaySelectionOverlay(aBuilder, &replacedContent,
+                                 nsISelectionDisplay::DISPLAY_IMAGES);
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
+
+  WrapReplacedContentForBorderRadius(aBuilder, &replacedContent, aLists);
+
+  return NS_OK;
+}
+
+bool
+nsImageFrame::ShouldDisplaySelection()
+{
   // XXX what on EARTH is this code for?
-  PRInt16 displaySelection = 0;
   nsresult result;
   nsPresContext* presContext = PresContext();
-  result = presContext->PresShell()->GetSelectionFlags(&displaySelection);
-  if (NS_FAILED(result))
-    return result;
+  PRInt16 displaySelection = presContext->PresShell()->GetSelectionFlags();
   if (!(displaySelection & nsISelectionDisplay::DISPLAY_IMAGES))
-    return NS_OK;//no need to check the blue border, we cannot be drawn selected
+    return false;//no need to check the blue border, we cannot be drawn selected
 //insert hook here for image selection drawing
 #if IMAGE_EDITOR_CHECK
   //check to see if this frame is in an editor context
@@ -1310,7 +1441,7 @@ nsImageFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
                 range->GetEndContainer(getter_AddRefs(rangeNode));
                 range->GetEndOffset(&rangeOffset);
                 if ((rangeNode == parentNode) && (rangeOffset == (thisOffset +1))) //+1 since that would mean this whole content is selected only
-                  return NS_OK; //do not allow nsFrame do draw any further selection
+                  return false; //do not allow nsFrame do draw any further selection
               }
             }
           }
@@ -1319,9 +1450,7 @@ nsImageFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     }
   }
 #endif
-  
-  return DisplaySelectionOverlay(aBuilder, aLists,
-                                 nsISelectionDisplay::DISPLAY_IMAGES);
+  return true;
 }
 
 NS_IMETHODIMP
@@ -1423,6 +1552,16 @@ nsImageFrame::GetContentForEvent(nsPresContext* aPresContext,
   nsIFrame* f = nsLayoutUtils::GetNonGeneratedAncestor(this);
   if (f != this) {
     return f->GetContentForEvent(aPresContext, aEvent, aContent);
+  }
+
+  // XXX We need to make this special check for area element's capturing the
+  // mouse due to bug 135040. Remove it once that's fixed.
+  nsIContent* capturingContent =
+    NS_IS_MOUSE_EVENT(aEvent) ? nsIPresShell::GetCapturingContent() : nsnull;
+  if (capturingContent && capturingContent->GetPrimaryFrame() == this) {
+    *aContent = capturingContent;
+    NS_IF_ADDREF(*aContent);
+    return NS_OK;
   }
 
   nsImageMap* map;
@@ -1530,7 +1669,7 @@ nsImageFrame::GetCursor(const nsPoint& aPoint,
       // specified will inherit the style from the image.
       nsRefPtr<nsStyleContext> areaStyle = 
         PresContext()->PresShell()->StyleSet()->
-          ResolveStyleFor(area, GetStyleContext());
+          ResolveStyleFor(area->AsElement(), GetStyleContext());
       if (areaStyle) {
         FillCursorInformationFromStyle(areaStyle->GetStyleUserInterface(),
                                        aCursor);
@@ -1588,12 +1727,12 @@ nsImageFrame::List(FILE* out, PRInt32 aIndent) const
   if (HasView()) {
     fprintf(out, " [view=%p]", (void*)GetView());
   }
-  fprintf(out, " {%d,%d,%d,%d}", mRect.x, mRect.y, mRect.width, 
-mRect.height);
+  fprintf(out, " {%d,%d,%d,%d}", mRect.x, mRect.y, mRect.width, mRect.height);
   if (0 != mState) {
-    fprintf(out, " [state=%08x]", mState);
+    fprintf(out, " [state=%016llx]", mState);
   }
   fprintf(out, " [content=%p]", (void*)mContent);
+  fprintf(out, " [sc=%p]", static_cast<void*>(mStyleContext));
 
   // output the img src url
   nsCOMPtr<nsIImageLoadingContent> imageLoader = do_QueryInterface(mContent);
@@ -1630,8 +1769,14 @@ nsImageFrame::GetSkipSides() const
 NS_IMETHODIMP 
 nsImageFrame::GetIntrinsicImageSize(nsSize& aSize)
 {
-  aSize = mIntrinsicSize;
-  return NS_OK;
+  if (mIntrinsicSize.width.GetUnit() == eStyleUnit_Coord &&
+      mIntrinsicSize.height.GetUnit() == eStyleUnit_Coord) {
+    aSize.SizeTo(mIntrinsicSize.width.GetCoordValue(),
+                 mIntrinsicSize.height.GetCoordValue());
+    return NS_OK;
+  }
+
+  return NS_ERROR_FAILURE;
 }
 
 nsresult
@@ -1670,6 +1815,7 @@ nsImageFrame::LoadIcon(const nsAString& aSpec,
                        loadFlags,
                        nsnull,
                        nsnull,
+                       nsnull,      /* channel policy not needed */
                        aRequest);
 }
 
@@ -1722,8 +1868,8 @@ nsresult nsImageFrame::LoadIcons(nsPresContext *aPresContext)
 {
   NS_ASSERTION(!gIconLoad, "called LoadIcons twice");
 
-  NS_NAMED_LITERAL_STRING(loadingSrc,"resource://gre/res/loading-image.png");
-  NS_NAMED_LITERAL_STRING(brokenSrc,"resource://gre/res/broken-image.png");
+  NS_NAMED_LITERAL_STRING(loadingSrc,"resource://gre-resources/loading-image.png");
+  NS_NAMED_LITERAL_STRING(brokenSrc,"resource://gre-resources/broken-image.png");
 
   gIconLoad = new IconLoad();
   if (!gIconLoad) 
@@ -1755,8 +1901,7 @@ static const char kIconLoadPrefs[][40] = {
 
 nsImageFrame::IconLoad::IconLoad()
 {
-  nsCOMPtr<nsIPrefBranch2> prefBranch =
-    do_QueryInterface(nsContentUtils::GetPrefBranch());
+  nsIPrefBranch2* prefBranch = nsContentUtils::GetPrefBranch();
 
   // register observers
   for (PRUint32 i = 0; i < NS_ARRAY_LENGTH(kIconLoadPrefs); ++i)
@@ -1867,8 +2012,14 @@ nsImageFrame::IconLoad::OnStopRequest(imgIRequest *aRequest,
 }
 
 NS_IMETHODIMP
+nsImageFrame::IconLoad::OnDiscard(imgIRequest *aRequest)
+{
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 nsImageFrame::IconLoad::FrameChanged(imgIContainer *aContainer,
-                                     nsIntRect * aDirtyRect)
+                                     const nsIntRect *aDirtyRect)
 {
   nsTObserverArray<nsImageFrame*>::ForwardIterator iter(mIconObservers);
   nsImageFrame *frame;
@@ -1923,12 +2074,12 @@ NS_IMETHODIMP nsImageListener::OnStopDecode(imgIRequest *aRequest,
 }
 
 NS_IMETHODIMP nsImageListener::FrameChanged(imgIContainer *aContainer,
-                                            nsIntRect * dirtyRect)
+                                            const nsIntRect *aDirtyRect)
 {
   if (!mFrame)
     return NS_ERROR_FAILURE;
 
-  return mFrame->FrameChanged(aContainer, dirtyRect);
+  return mFrame->FrameChanged(aContainer, aDirtyRect);
 }
 
 static PRBool
@@ -1938,7 +2089,7 @@ IsInAutoWidthTableCellForQuirk(nsIFrame *aFrame)
     return PR_FALSE;
   // Check if the parent of the closest nsBlockFrame has auto width.
   nsBlockFrame *ancestor = nsLayoutUtils::FindNearestBlockAncestor(aFrame);
-  if (ancestor->GetStyleContext()->GetPseudoType() == nsCSSAnonBoxes::cellContent) {
+  if (ancestor->GetStyleContext()->GetPseudo() == nsCSSAnonBoxes::cellContent) {
     // Assume direct parent is a table cell frame.
     nsFrame *grandAncestor = static_cast<nsFrame*>(ancestor->GetParent());
     return grandAncestor &&

@@ -12,13 +12,13 @@ function startTest() {
     return false;
   ok(!v.seeking, "seeking should default to false");
   try {
-    v.seeking = 1;
-    readonly = false;
+    v.seeking = true;
+    readonly = v.seeking === false;
   }
   catch(e) {
-    readonly = true;
+    readonly = "threw exception: " + e;
   }
-  ok(readonly, "seeking should be readonly");
+  is(readonly, true, "seeking should be readonly");
 
   v.play();
   v.currentTime=seekTime;
@@ -29,6 +29,7 @@ function startTest() {
 function seekStarted() {
   if (completed)
     return false;
+  ok(v.currentTime >= seekTime - 0.1, "Video currentTime should be around " + seekTime + ": " + v.currentTime);
   v.pause();
   startPassed = true;
   return false;

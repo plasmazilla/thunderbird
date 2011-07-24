@@ -295,6 +295,7 @@ public:
 
   nsresult Initialize(nsIURI * aURL);
   virtual nsresult LoadUrl(nsIURI *aURL, nsISupports * aConsumer = nsnull);
+  void Cleanup();
 
   const char* GetUsername() { return m_username.get(); }
   void SetUsername(const char* name);
@@ -326,8 +327,12 @@ private:
 
   // progress state information
   void UpdateProgressPercent (PRUint32 totalDone, PRUint32 total);
-  void UpdateStatus(PRInt32 aStatusID);
+  void UpdateStatus(const nsString &aStatusName);
   void UpdateStatusWithString(const PRUnichar * aString);
+  nsresult FormatCounterString(const nsString &stringName,
+                               PRUint32 count1,
+                               PRUint32 count2,
+                               nsString &resultString);
 
   PRInt32  m_bytesInMsgReceived;
   PRInt32  m_totalFolderSize;
@@ -339,6 +344,8 @@ private:
   virtual nsresult ProcessProtocolState(nsIURI * url, nsIInputStream * inputStream,
                                         PRUint32 sourceOffset, PRUint32 length);
   virtual PRInt32 SendData(nsIURI * aURL, const char * dataBuffer, PRBool aSuppressLogging = PR_FALSE);
+
+  virtual const char* GetType() {return "pop3";}
 
   nsCOMPtr<nsIURI> m_url;
   nsCOMPtr<nsIPop3Sink> m_nsIPop3Sink;
@@ -352,6 +359,7 @@ private:
   PRBool m_tlsEnabled;
   PRInt32 m_socketType;
   PRBool m_password_already_sent;
+  PRBool m_needToRerunUrl;
 
   void SetCapFlag(PRUint32 flag);
   void ClearCapFlag(PRUint32 flag);
@@ -420,6 +428,7 @@ private:
   PRInt32 CommitState(PRBool remove_last_entry);
 
   Pop3StatesEnum GetNextPasswordObtainState();
+  nsresult RerunUrl();
 };
 
 #endif /* nsPop3Protocol_h__ */

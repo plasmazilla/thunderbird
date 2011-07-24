@@ -69,11 +69,16 @@ public:
   // mask based clipping.
   PRBool IsTrivial();
 
-#ifdef DEBUG
+  PRBool IsValid();
+
+  // nsIFrame interface:
+  NS_IMETHOD AttributeChanged(PRInt32         aNameSpaceID,
+                              nsIAtom*        aAttribute,
+                              PRInt32         aModType);
+
   NS_IMETHOD Init(nsIContent*      aContent,
                   nsIFrame*        aParent,
                   nsIFrame*        aPrevInFlow);
-#endif
 
   /**
    * Get the "type" of the frame
@@ -99,7 +104,7 @@ public:
   public:
     AutoClipPathReferencer(nsSVGClipPathFrame *aFrame)
        : mFrame(aFrame) {
-      NS_ASSERTION(mFrame->mInUse == PR_FALSE, "reference loop!");
+      NS_ASSERTION(!mFrame->mInUse, "reference loop!");
       mFrame->mInUse = PR_TRUE;
     }
     ~AutoClipPathReferencer() {

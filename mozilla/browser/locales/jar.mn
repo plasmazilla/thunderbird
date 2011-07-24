@@ -6,17 +6,19 @@
     locale/browser/aboutDialog.dtd                 (%chrome/browser/aboutDialog.dtd)
     locale/browser/aboutPrivateBrowsing.dtd        (%chrome/browser/aboutPrivateBrowsing.dtd)
     locale/browser/aboutRobots.dtd                 (%chrome/browser/aboutRobots.dtd)
+    locale/browser/aboutHome.dtd                   (%chrome/browser/aboutHome.dtd)
     locale/browser/aboutSessionRestore.dtd         (%chrome/browser/aboutSessionRestore.dtd)
-    locale/browser/aboutSupport.dtd                (%chrome/browser/aboutSupport.dtd)
-    locale/browser/credits.dtd                     (%chrome/browser/credits.dtd)
+#ifdef MOZ_SERVICES_SYNC
+    locale/browser/aboutSyncTabs.dtd               (%chrome/browser/aboutSyncTabs.dtd)
+#endif
 *   locale/browser/browser.dtd                     (%chrome/browser/browser.dtd)
     locale/browser/baseMenuOverlay.dtd             (%chrome/browser/baseMenuOverlay.dtd)
     locale/browser/browser.properties              (%chrome/browser/browser.properties)
+    locale/browser/inspector.properties            (%chrome/browser/inspector.properties)
     locale/browser/openLocation.dtd                (%chrome/browser/openLocation.dtd)
     locale/browser/openLocation.properties         (%chrome/browser/openLocation.properties)
 *   locale/browser/pageInfo.dtd                    (%chrome/browser/pageInfo.dtd)
     locale/browser/pageInfo.properties             (%chrome/browser/pageInfo.properties)
-    locale/browser/pageReportFirstTime.dtd         (%chrome/browser/pageReportFirstTime.dtd)
     locale/browser/quitDialog.properties           (%chrome/browser/quitDialog.properties)
 *   locale/browser/safeMode.dtd                    (%chrome/browser/safeMode.dtd)
     locale/browser/sanitize.dtd                    (%chrome/browser/sanitize.dtd)
@@ -28,6 +30,8 @@
     locale/browser/shellservice.properties         (%chrome/browser/shellservice.properties)
     locale/browser/tabbrowser.dtd                  (%chrome/browser/tabbrowser.dtd)
     locale/browser/tabbrowser.properties           (%chrome/browser/tabbrowser.properties)
+    locale/browser/tabview.properties              (%chrome/browser/tabview.properties)
+    locale/browser/taskbar.properties              (%chrome/browser/taskbar.properties)
     locale/browser/places/places.dtd               (%chrome/browser/places/places.dtd)
     locale/browser/places/places.properties        (%chrome/browser/places/places.properties)
     locale/browser/places/editBookmarkOverlay.dtd  (%chrome/browser/places/editBookmarkOverlay.dtd)
@@ -40,7 +44,6 @@
 #endif
     locale/browser/feeds/subscribe.dtd              (%chrome/browser/feeds/subscribe.dtd)
     locale/browser/feeds/subscribe.properties       (%chrome/browser/feeds/subscribe.properties)
-    locale/browser/history/history.dtd             (%chrome/browser/history/history.dtd)
     locale/browser/migration/migration.dtd         (%chrome/browser/migration/migration.dtd)
     locale/browser/migration/migration.properties  (%chrome/browser/migration/migration.properties)
     locale/browser/preferences/advanced.dtd           (%chrome/browser/preferences/advanced.dtd)
@@ -60,9 +63,20 @@
     locale/browser/preferences/preferences.properties (%chrome/browser/preferences/preferences.properties)
     locale/browser/preferences/privacy.dtd            (%chrome/browser/preferences/privacy.dtd)
     locale/browser/preferences/security.dtd           (%chrome/browser/preferences/security.dtd)
-    locale/browser/preferences/securityWarnings.dtd   (%chrome/browser/preferences/securityWarnings.dtd)
+#ifdef MOZ_SERVICES_SYNC
+    locale/browser/preferences/sync.dtd               (%chrome/browser/preferences/sync.dtd)
+#endif
     locale/browser/preferences/tabs.dtd               (%chrome/browser/preferences/tabs.dtd)
     locale/browser/sidebar/sidebar.properties      (%chrome/browser/sidebar/sidebar.properties)
+#ifdef MOZ_SERVICES_SYNC
+    locale/browser/syncBrand.dtd                (%chrome/browser/syncBrand.dtd)
+    locale/browser/syncSetup.dtd                (%chrome/browser/syncSetup.dtd)
+    locale/browser/syncSetup.properties         (%chrome/browser/syncSetup.properties)
+    locale/browser/syncGenericChange.properties         (%chrome/browser/syncGenericChange.properties)
+    locale/browser/syncKey.dtd                  (%chrome/browser/syncKey.dtd)
+    locale/browser/syncQuota.dtd                (%chrome/browser/syncQuota.dtd)
+    locale/browser/syncQuota.properties         (%chrome/browser/syncQuota.properties)
+#endif
 % locale browser-region @AB_CD@ %locale/browser-region/
     locale/browser-region/region.properties        (%chrome/browser-region/region.properties)
 # the following files are browser-specific overrides
@@ -72,3 +86,6 @@
 % override chrome://global/locale/netError.dtd chrome://browser/locale/netError.dtd
 % override chrome://global/locale/appstrings.properties chrome://browser/locale/appstrings.properties
 % override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://browser/locale/downloads/settingsChange.dtd
+% locale testpilot @AB_CD@ %locale/feedback/
+    locale/feedback/main.dtd                       (%feedback/main.dtd)
+    locale/feedback/main.properties                (%feedback/main.properties)

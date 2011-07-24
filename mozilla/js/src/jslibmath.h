@@ -42,7 +42,9 @@
 #define _LIBMATH_H
 
 #include <math.h>
-#include "jsversion.h"
+#ifdef XP_WIN
+# include "jsnum.h"
+#endif
 
 /*
  * Use system provided math routines.
@@ -51,11 +53,9 @@
 /* The right copysign function is not always named the same thing. */
 #if __GNUC__ >= 4 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 4)
 #define js_copysign __builtin_copysign
-#elif defined WINCE
-#define js_copysign _copysign
 #elif defined _WIN32
 #if _MSC_VER < 1400
-/* Try to work around apparent _copysign bustage in VC6 and VC7. */
+/* Try to work around apparent _copysign bustage in VC7.x. */
 #define js_copysign js_copysign
 extern double js_copysign(double, double);
 #else

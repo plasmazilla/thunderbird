@@ -1,5 +1,5 @@
 == basic.xul basic-ref.xul
-== basic-negcoord.xul basic-negcoord-ref.xul
+random-if(Android) == basic-negcoord.xul basic-negcoord-ref.xul
 != blur.xul blur-notref.xul
 == color-inherit.xul color-inherit-ref.xul
 == multiple-noblur.xul multiple-noblur-ref.xul
@@ -17,3 +17,6 @@
 == textindent.html textindent-ref.html
 == lineoverflow.html lineoverflow-ref.html
 
+== overflow-not-scrollable-1.html overflow-not-scrollable-1-ref.html
+== overflow-not-scrollable-1.html overflow-not-scrollable-1-ref2.html
+== overflow-not-scrollable-2.html overflow-not-scrollable-2-ref.html

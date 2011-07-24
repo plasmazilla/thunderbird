@@ -34,17 +34,27 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+function browserWindowsCount() {
+  let count = 0;
+  let e = Services.wm.getEnumerator("navigator:browser");
+  while (e.hasMoreElements()) {
+    if (!e.getNext().closed)
+      ++count;
+  }
+  return count;
+}
+
 function test() {
   /** Test for Bug 491168 **/
+  is(browserWindowsCount(), 1, "Only one browser window should be open initially");
 
   // test setup
   let ss = Cc["@mozilla.org/browser/sessionstore;1"].getService(Ci.nsISessionStore);
-  let ioService = Cc["@mozilla.org/network/io-service;1"].getService(Ci.nsIIOService);
 
   waitForExplicitFinish();
 
-  const REFERRER1 = "http://www.example.net/?" + Date.now();
-  const REFERRER2 = "http://www.example.net/?" + Math.random();
+  const REFERRER1 = "http://example.org/?" + Date.now();
+  const REFERRER2 = "http://example.org/?" + Math.random();
 
   let tab = gBrowser.addTab();
   gBrowser.selectedTab = tab;
@@ -61,22 +71,23 @@ function test() {
     ss.setTabState(tab, JSON.stringify(tabState));
 
     tab.addEventListener("SSTabRestored", function() {
-      tab.removeEventListener("SSTabRestored", arguments.callee, false);
+      tab.removeEventListener("SSTabRestored", arguments.callee, true);
       is(window.content.document.referrer, REFERRER2, "document.referrer matches referrer set via setTabState.");
 
       gBrowser.removeTab(tab);
       let newTab = ss.undoCloseTab(window, 0);
       newTab.addEventListener("SSTabRestored", function() {
-        newTab.removeEventListener("SSTabRestored", arguments.callee, false);
+        newTab.removeEventListener("SSTabRestored", arguments.callee, true);
 
         is(window.content.document.referrer, REFERRER2, "document.referrer is still correct after closing and reopening the tab.");
         gBrowser.removeTab(newTab);
 
+        is(browserWindowsCount(), 1, "Only one browser window should be open eventually");
         finish();
       }, true);
     }, true);
   },true);
 
-  let referrerURI = ioService.newURI(REFERRER1, null, null);
-  browser.loadURI("http://www.example.net", referrerURI, null);
+  let referrerURI = Services.io.newURI(REFERRER1, null, null);
+  browser.loadURI("http://example.org", referrerURI, null);
 }

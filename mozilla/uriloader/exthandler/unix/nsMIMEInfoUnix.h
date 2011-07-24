@@ -61,6 +61,9 @@ protected:
   nsresult LaunchDefaultWithDBus(const char *aFilePath);
   NS_IMETHOD GetPossibleApplicationHandlers(nsIMutableArray * *aPossibleAppHandlers);
 #endif
+#if defined(MOZ_ENABLE_CONTENTACTION)
+  NS_IMETHOD GetPossibleApplicationHandlers(nsIMutableArray * *aPossibleAppHandlers);
+#endif
 };
 
 #endif // nsMIMEInfoUnix_h_

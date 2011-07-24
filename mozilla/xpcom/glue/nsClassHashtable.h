@@ -57,12 +57,31 @@ class nsClassHashtable :
 public:
   typedef typename KeyClass::KeyType KeyType;
   typedef T* UserDataType;
+  typedef nsBaseHashtable< KeyClass, nsAutoPtr<T>, T* > base_type;
 
   /**
    * @copydoc nsBaseHashtable::Get
    * @param pData if the key doesn't exist, pData will be set to nsnull.
    */
   PRBool Get(KeyType aKey, UserDataType* pData) const;
+
+  /**
+   * @copydoc nsBaseHashtable::Get
+   * @returns NULL if the key is not present.
+   */
+  UserDataType Get(KeyType aKey) const;
+
+  /**
+   * Remove the entry for the given key from the hashtable and return it in
+   * aOut.  If the key is not in the hashtable, aOut's pointer is set to NULL.
+   *
+   * Normally, an entry is deleted when it's removed from an nsClassHashtable,
+   * but this function transfers ownership of the entry back to the caller
+   * through aOut -- the entry will be deleted when aOut goes out of scope.
+   *
+   * @param aKey the key to get and remove from the hashtable
+   */
+  void RemoveAndForget(KeyType aKey, nsAutoPtr<T> &aOut);
 };
 
 
@@ -80,6 +99,7 @@ class nsClassHashtableMT :
 public:
   typedef typename KeyClass::KeyType KeyType;
   typedef T* UserDataType;
+  typedef nsBaseHashtableMT< KeyClass, nsAutoPtr<T>, T* > base_type;
 
   /**
    * @copydoc nsBaseHashtable::Get
@@ -97,8 +117,7 @@ template<class KeyClass,class T>
 PRBool
 nsClassHashtable<KeyClass,T>::Get(KeyType aKey, T** retVal) const
 {
-  typename nsBaseHashtable<KeyClass,nsAutoPtr<T>,T*>::EntryType* ent =
-    GetEntry(aKey);
+  typename base_type::EntryType* ent = this->GetEntry(aKey);
 
   if (ent)
   {
@@ -114,6 +133,35 @@ nsClassHashtable<KeyClass,T>::Get(KeyType aKey, T** retVal) const
   return PR_FALSE;
 }
 
+template<class KeyClass,class T>
+T*
+nsClassHashtable<KeyClass,T>::Get(KeyType aKey) const
+{
+  typename base_type::EntryType* ent = this->GetEntry(aKey);
+
+  if (!ent)
+    return NULL;
+
+  return ent->mData;
+}
+
+template<class KeyClass,class T>
+void
+nsClassHashtable<KeyClass,T>::RemoveAndForget(KeyType aKey, nsAutoPtr<T> &aOut)
+{
+  aOut = nsnull;
+  nsAutoPtr<T> ptr;
+
+  typename base_type::EntryType *ent = this->GetEntry(aKey);
+  if (!ent)
+    return;
+
+  // Transfer ownership from ent->mData into aOut.
+  aOut = ent->mData;
+
+  this->Remove(aKey);
+}
+
 
 //
 // nsClassHashtableMT definitions
@@ -125,8 +173,7 @@ nsClassHashtableMT<KeyClass,T>::Get(KeyType aKey, T** retVal) const
 {
   PR_Lock(this->mLock);
 
-  typename nsBaseHashtableMT<KeyClass,nsAutoPtr<T>,T*>::EntryType* ent =
-    GetEntry(aKey);
+  typename base_type::EntryType* ent = this->GetEntry(aKey);
 
   if (ent)
   {

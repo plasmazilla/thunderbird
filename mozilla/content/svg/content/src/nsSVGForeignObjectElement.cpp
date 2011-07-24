@@ -56,16 +56,18 @@ NS_IMPL_NS_NEW_SVG_ELEMENT(ForeignObject)
 NS_IMPL_ADDREF_INHERITED(nsSVGForeignObjectElement,nsSVGForeignObjectElementBase)
 NS_IMPL_RELEASE_INHERITED(nsSVGForeignObjectElement,nsSVGForeignObjectElementBase)
 
+DOMCI_NODE_DATA(SVGForeignObjectElement, nsSVGForeignObjectElement)
+
 NS_INTERFACE_TABLE_HEAD(nsSVGForeignObjectElement)
   NS_NODE_INTERFACE_TABLE4(nsSVGForeignObjectElement, nsIDOMNode, nsIDOMElement,
                            nsIDOMSVGElement, nsIDOMSVGForeignObjectElement)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(SVGForeignObjectElement)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGForeignObjectElement)
 NS_INTERFACE_MAP_END_INHERITING(nsSVGForeignObjectElementBase)
 
 //----------------------------------------------------------------------
 // Implementation
 
-nsSVGForeignObjectElement::nsSVGForeignObjectElement(nsINodeInfo *aNodeInfo)
+nsSVGForeignObjectElement::nsSVGForeignObjectElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsSVGForeignObjectElementBase(aNodeInfo)
 {
 }

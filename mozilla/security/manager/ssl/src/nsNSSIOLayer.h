@@ -44,6 +44,7 @@
 #include "prtypes.h"
 #include "prio.h"
 #include "certt.h"
+#include "mozilla/Mutex.h"
 #include "nsString.h"
 #include "nsIInterfaceRequestor.h"
 #include "nsIInterfaceRequestorUtils.h"
@@ -282,16 +283,20 @@ public:
   static PRDescIdentity nsSSLIOLayerIdentity;
   static PRIOMethods nsSSLIOLayerMethods;
 
-  static PRLock *mutex;
+  static mozilla::Mutex *mutex;
   static nsCStringHashSet *mTLSIntolerantSites;
   static nsCStringHashSet *mTLSTolerantSites;
   static nsPSMRememberCertErrorsTable* mHostsWithCertErrors;
 
   static nsCStringHashSet *mRenegoUnrestrictedSites;
   static PRBool mTreatUnsafeNegotiationAsBroken;
+  static PRInt32 mWarnLevelMissingRFC5746;
 
   static void setTreatUnsafeNegotiationAsBroken(PRBool broken);
   static PRBool treatUnsafeNegotiationAsBroken();
+
+  static void setWarnLevelMissingRFC5746(PRInt32 level);
+  static PRInt32 getWarnLevelMissingRFC5746();
 
   static void getSiteKey(nsNSSSocketInfo *socketInfo, nsCSubstring &key);
   static PRBool rememberPossibleTLSProblemSite(PRFileDesc* fd, nsNSSSocketInfo *socketInfo);

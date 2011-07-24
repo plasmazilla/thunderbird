@@ -49,62 +49,26 @@ MODULE		= layout
 LIBRARY_NAME	= gkgeneric_s
 LIBXUL_LIBRARY	= 1
 
-REQUIRES	= xpcom \
-		  string \
-		  dom \
-		  content \
-		  thebes \
-		  gfx \
-		  widget \
-		  locale \
-		  view \
-		  necko \
-		  js \
-		  caps \
-		  pref \
-		  htmlparser \
-		  webshell \
-		  plugin \
-		  docshell \
-		  webbrwsr \
-		  unicharutil \
-		  lwbrk \
-		  imglib2 \
-		  xpconnect \
-		  java \
-		  intl \
-		  thebes \
-		  cairo \
-		  $(NULL)
 
-ifdef MOZ_OJI
-REQUIRES	+= oji
-endif
-
-ifdef ACCESSIBILITY
-REQUIRES	+= accessibility
-endif
 
 EXPORTS		= \
 		nsQueryFrame.h \
 		nsFrameList.h \
+		nsCanvasFrame.h \
 		nsHTMLParts.h \
 		nsHTMLReflowMetrics.h \
 		nsHTMLReflowState.h \
 		nsIAnonymousContentCreator.h \
-		nsICanvasFrame.h \
 		nsIFrame.h \
-		nsIFrameDebug.h \
-		nsIFrameFrame.h \
 		nsIFrameUtil.h \
 		nsIImageFrame.h \
 		nsILineIterator.h \
 		nsIObjectFrame.h \
 		nsIPageSequenceFrame.h \
 		nsIScrollableFrame.h \
-		nsIScrollableViewProvider.h \
 		nsIStatefulFrame.h \
 		nsFrameSelection.h \
+		nsSubDocumentFrame.h \
 		$(NULL)
 
 ifdef IBMBIDI
@@ -126,14 +90,14 @@ CPPSRCS		= \
 		nsFirstLetterFrame.cpp \
 		nsFloatManager.cpp \
 		nsFrame.cpp \
-		nsFrameFrame.cpp \
 		nsFrameList.cpp \
 		nsFrameSetFrame.cpp \
 		nsFrameUtil.cpp \
 		nsGfxScrollFrame.cpp \
 		nsHTMLCanvasFrame.cpp \
 		nsHTMLContainerFrame.cpp \
-		nsHTMLFrame.cpp \
+		nsCanvasFrame.cpp \
+		nsHTMLReflowMetrics.cpp \
 		nsHTMLReflowState.cpp \
 		nsImageFrame.cpp \
 		nsImageMap.cpp \
@@ -148,8 +112,8 @@ CPPSRCS		= \
 		nsPlaceholderFrame.cpp \
 		nsSelection.cpp \
 		nsSimplePageSequence.cpp \
-		nsSpacerFrame.cpp \
 		nsSplittableFrame.cpp \
+		nsSubDocumentFrame.cpp \
 		nsTextFrameThebes.cpp \
 		nsTextFrameUtils.cpp \
 		nsTextRunTransformations.cpp \
@@ -168,29 +132,34 @@ CPPSRCS		+= \
 		$(NULL)
 endif
 
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+CMMSRCS		+= \
+		nsPluginUtilsOSX.mm \
+		$(NULL)
+endif
+
 RESOURCES_HTML = \
 		$(srcdir)/folder.png \
 		$(NULL)
 
-RESOURCES = \
-		$(srcdir)/broken-image.png \
-		$(srcdir)/loading-image.png \
-		$(NULL)
-
 FORCE_STATIC_LIB = 1
 
+include $(topsrcdir)/config/config.mk
+include $(topsrcdir)/ipc/chromium/chromium-config.mk
 include $(topsrcdir)/config/rules.mk
 
 LOCAL_INCLUDES += \
 		-I$(srcdir) \
 		-I$(srcdir)/../base \
 		-I$(srcdir)/../forms \
+		-I$(srcdir)/../style \
 		-I$(srcdir)/../tables \
 		-I$(srcdir)/../xul/base/src \
 		-I$(srcdir)/../../content/xul/content/src \
 		-I$(srcdir)/../../content/base/src \
 		-I$(srcdir)/../../content/html/content/src \
 		-I$(srcdir)/../../dom/base \
+		-I$(srcdir)/../../modules/plugin/base/src \
 		$(MOZ_CAIRO_CFLAGS) \
 		$(NULL)
 
@@ -204,10 +173,8 @@ endif
 
 libs::
 	$(INSTALL) $(RESOURCES_HTML) $(DIST)/bin/res/html
-	$(INSTALL) $(RESOURCES) $(DIST)/bin/res
 
 install::
 	$(SYSINSTALL) $(IFLAGS1) $(RESOURCES_HTML) $(DESTDIR)$(mozappdir)/res/html
-	$(SYSINSTALL) $(IFLAGS1) $(RESOURCES) $(DESTDIR)$(mozappdir)/res
 
 DEFINES += -D_IMPL_NS_LAYOUT

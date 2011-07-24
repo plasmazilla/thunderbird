@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Mail Client.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -97,7 +97,7 @@ function open_search_window_from_context_menu(aFolder) {
   mc.folderTreeController.searchMessages();
   let swc = windowHelper.wait_for_new_window("mailnews:search");
 
-  folderDisplayHelper.close_popup();
+  folderDisplayHelper.close_popup(mc, mc.eid("folderPaneContext"));
 
   return swc;
 }

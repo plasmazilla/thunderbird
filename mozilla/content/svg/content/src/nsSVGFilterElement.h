@@ -58,8 +58,8 @@ class nsSVGFilterElement : public nsSVGFilterElementBase,
 
 protected:
   friend nsresult NS_NewSVGFilterElement(nsIContent **aResult,
-                                         nsINodeInfo *aNodeInfo);
-  nsSVGFilterElement(nsINodeInfo* aNodeInfo);
+                                         already_AddRefed<nsINodeInfo> aNodeInfo);
+  nsSVGFilterElement(already_AddRefed<nsINodeInfo> aNodeInfo);
 
 public:
   // interfaces:
@@ -80,12 +80,16 @@ public:
   // Invalidate users of this filter
   void Invalidate();
 
+  virtual nsXPCClassInfo* GetClassInfo();
 protected:
 
   virtual LengthAttributesInfo GetLengthInfo();
   virtual IntegerAttributesInfo GetIntegerInfo();
   virtual EnumAttributesInfo GetEnumInfo();
   virtual StringAttributesInfo GetStringInfo();
+
+  virtual void DidAnimateLength(PRUint8 aAttrEnum);
+  virtual void DidAnimateEnum(PRUint8 aAttrEnum);
 
   enum { X, Y, WIDTH, HEIGHT };
   nsSVGLength2 mLengthAttributes[4];

@@ -74,7 +74,8 @@ nsMathMLTokenFrame::GetMathMLFrameType()
   nsAutoString style;
   // mathvariant overrides fontstyle
   // http://www.w3.org/TR/2003/REC-MathML2-20031021/chapter3.html#presm.deprecatt
-  mContent->GetAttr(kNameSpaceID_None, nsGkAtoms::MOZfontstyle, style) ||
+  mContent->GetAttr(kNameSpaceID_None,
+                    nsGkAtoms::_moz_math_fontstyle_, style) ||
     mContent->GetAttr(kNameSpaceID_None, nsGkAtoms::mathvariant_, style) ||
     mContent->GetAttr(kNameSpaceID_None, nsGkAtoms::fontstyle_, style);
 
@@ -218,9 +219,9 @@ nsMathMLTokenFrame::Place(nsIRenderingContext& aRenderingContext,
 
   aDesiredSize.mBoundingMetrics = mBoundingMetrics;
   aDesiredSize.width = mBoundingMetrics.width;
-  aDesiredSize.ascent = PR_MAX(mBoundingMetrics.ascent, ascent);
+  aDesiredSize.ascent = NS_MAX(mBoundingMetrics.ascent, ascent);
   aDesiredSize.height = aDesiredSize.ascent +
-                        PR_MAX(mBoundingMetrics.descent, descent);
+                        NS_MAX(mBoundingMetrics.descent, descent);
 
   if (aPlaceOrigin) {
     nscoord dy, dx = 0;
@@ -275,7 +276,7 @@ nsMathMLTokenFrame::ProcessTextData()
 
   // explicitly request a re-resolve to pick up the change of style
   PresContext()->PresShell()->FrameConstructor()->
-    PostRestyleEvent(mContent, eReStyle_Self, NS_STYLE_HINT_NONE);
+    PostRestyleEvent(mContent->AsElement(), eRestyle_Subtree, NS_STYLE_HINT_NONE);
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -351,16 +352,18 @@ nsMathMLTokenFrame::SetTextStyle()
     }
   }
 
-  // set the -moz-math-font-style attribute without notifying that we want a reflow
+  // set the _moz-math-font-style attribute without notifying that we want a reflow
   if (fontstyle.IsEmpty()) {
-    if (mContent->HasAttr(kNameSpaceID_None, nsGkAtoms::MOZfontstyle)) {
-      mContent->UnsetAttr(kNameSpaceID_None, nsGkAtoms::MOZfontstyle, PR_FALSE);
+    if (mContent->HasAttr(kNameSpaceID_None, nsGkAtoms::_moz_math_fontstyle_)) {
+      mContent->UnsetAttr(kNameSpaceID_None, nsGkAtoms::_moz_math_fontstyle_,
+                          PR_FALSE);
       return PR_TRUE;
     }
   }
-  else if (!mContent->AttrValueIs(kNameSpaceID_None, nsGkAtoms::MOZfontstyle,
+  else if (!mContent->AttrValueIs(kNameSpaceID_None,
+                                  nsGkAtoms::_moz_math_fontstyle_,
                                   fontstyle, eCaseMatters)) {
-    mContent->SetAttr(kNameSpaceID_None, nsGkAtoms::MOZfontstyle,
+    mContent->SetAttr(kNameSpaceID_None, nsGkAtoms::_moz_math_fontstyle_,
                       fontstyle, PR_FALSE);
     return PR_TRUE;
   }

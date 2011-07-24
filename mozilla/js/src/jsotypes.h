@@ -51,21 +51,6 @@
 #ifndef PROTYPES_H
 #define PROTYPES_H
 
-#ifdef XP_BEOS
-/* BeOS defines most int types in SupportDefs.h (int8, uint8, int16,
- * uint16, int32, uint32, int64, uint64), so in the interest of
- * not conflicting with other definitions elsewhere we have to skip the
- * #ifdef jungle below, duplicate some definitions, and do our stuff.
- */
-#include <SupportDefs.h>
-
-typedef JSUintn uintn;
-#ifndef _XP_Core_
-typedef JSIntn intn;
-#endif
-
-#else
-
 /* SVR4 typedef of uint is commonly found on UNIX machines. */
 #ifdef XP_UNIX
 #include <sys/types.h>
@@ -75,11 +60,7 @@ typedef JSUintn uint;
 
 typedef JSUintn uintn;
 typedef JSUint64 uint64;
-#if !defined(_WIN32) && !defined(XP_OS2)
 typedef JSUint32 uint32;
-#else
-typedef unsigned long uint32;
-#endif
 typedef JSUint16 uint16;
 typedef JSUint8 uint8;
 
@@ -95,20 +76,22 @@ typedef JSIntn intn;
  */
 #if defined(AIX) && defined(HAVE_SYS_INTTYPES_H)
 #include <sys/inttypes.h>
+#elif defined(__SUNPRO_C) || defined(__SUNPRO_CC)
+typedef JSInt64 int64;
+
+/* Explicit signed keyword for bitfield types is required. */
+/* Some compilers may treat them as unsigned without it. */
+typedef signed int int32;
+typedef signed short int16;
+typedef signed char int8;
 #else
 typedef JSInt64 int64;
 
 /* /usr/include/model.h on HP-UX defines int8, int16, and int32 */
-#if !defined(_WIN32) && !defined(XP_OS2)
 typedef JSInt32 int32;
-#else
-typedef long int32;
-#endif
 typedef JSInt16 int16;
 typedef JSInt8 int8;
 #endif /* AIX && HAVE_SYS_INTTYPES_H */
-
-#endif  /* XP_BEOS */
 
 typedef JSFloat64 float64;
 

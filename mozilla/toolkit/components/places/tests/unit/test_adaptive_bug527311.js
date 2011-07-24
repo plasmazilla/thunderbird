@@ -122,11 +122,11 @@ function check_results() {
 }
 
 
-function addAdaptiveFeedback(aUrl, aSearch) {
+function addAdaptiveFeedback(aUrl, aSearch, aCallback) {
   let observer = {
     observe: function(aSubject, aTopic, aData) {
       os.removeObserver(observer, PLACES_AUTOCOMPLETE_FEEDBACK_UPDATED_TOPIC);
-      do_timeout(0, "check_results();");
+      do_timeout(0, aCallback);
     }
   };
   os.addObserver(observer, PLACES_AUTOCOMPLETE_FEEDBACK_UPDATED_TOPIC, false);
@@ -157,5 +157,5 @@ function run_test() {
   ps.setIntPref("browser.urlbar.default.behavior",
                 Ci.mozIPlacesAutoComplete.BEHAVIOR_HISTORY);
   // Add an adaptive entry.
-  addAdaptiveFeedback(TEST_URL, SEARCH_STRING);
+  addAdaptiveFeedback(TEST_URL, SEARCH_STRING, check_results);
 }

@@ -55,7 +55,7 @@
 #    clean
 #    distclean
 #
-# See http://developer.mozilla.org/en/docs/Build_Documentation for 
+# See http://developer.mozilla.org/en/Build_Documentation for 
 # more information.
 #
 # Options:
@@ -86,14 +86,20 @@ endif
 
 ifndef TOPSRCDIR
 ifeq (,$(wildcard client.mk))
-$(error Must run from the client.mk directory, or specify TOPSRCDIR)
+TOPSRCDIR := $(patsubst %/,%,$(dir $(MAKEFILE_LIST)))
+MOZ_OBJDIR = .
+else
+TOPSRCDIR := $(CWD)
 endif
-TOPSRCDIR = $(CWD)
 endif
 
 # try to find autoconf 2.13 - discard errors from 'which'
 # MacOS X 10.4 sends "no autoconf*" errors to stdout, discard those via grep
 AUTOCONF ?= $(shell which autoconf-2.13 autoconf2.13 autoconf213 2>/dev/null | grep -v '^no autoconf' | head -1)
+
+ifeq (,$(strip $(AUTOCONF)))
+AUTOCONF=$(error Couldn't find autoconf 2.13)
+endif
 
 MKDIR := mkdir
 SH := /bin/sh
@@ -135,11 +141,12 @@ run_for_side_effects := \
 
 include $(TOPSRCDIR)/.mozconfig.mk
 
+ifndef MOZ_OBJDIR
+  MOZ_OBJDIR = obj-$(CONFIG_GUESS)
+endif
+
 ifdef MOZ_BUILD_PROJECTS
 
-ifndef MOZ_OBJDIR
-  $(error When MOZ_BUILD_PROJECTS is set, you must set MOZ_OBJDIR)
-endif
 ifdef MOZ_CURRENT_PROJECT
   OBJDIR = $(MOZ_OBJDIR)/$(MOZ_CURRENT_PROJECT)
   MOZ_MAKE = $(MAKE) $(MOZ_MAKE_FLAGS) -C $(OBJDIR)
@@ -151,13 +158,8 @@ endif
 
 else # MOZ_BUILD_PROJECTS
 
-ifdef MOZ_OBJDIR
-  OBJDIR = $(MOZ_OBJDIR)
-  MOZ_MAKE = $(MAKE) $(MOZ_MAKE_FLAGS) -C $(OBJDIR)
-else
-  OBJDIR := $(TOPSRCDIR)
-  MOZ_MAKE := $(MAKE) $(MOZ_MAKE_FLAGS)
-endif
+OBJDIR = $(MOZ_OBJDIR)
+MOZ_MAKE = $(MAKE) $(MOZ_MAKE_FLAGS) -C $(OBJDIR)
 
 endif # MOZ_BUILD_PROJECTS
 
@@ -208,6 +210,7 @@ endif
 
 profiledbuild::
 	$(MAKE) -f $(TOPSRCDIR)/client.mk build MOZ_PROFILE_GENERATE=1
+	$(MAKE) -C $(PGO_OBJDIR) package
 	OBJDIR=${PGO_OBJDIR} $(PROFILE_GEN_SCRIPT)
 	$(MAKE) -f $(TOPSRCDIR)/client.mk maybe_clobber_profiledbuild
 	$(MAKE) -f $(TOPSRCDIR)/client.mk build MOZ_PROFILE_USE=1
@@ -251,7 +254,7 @@ endif
 # loop through them.
 
 ifeq (,$(MOZ_CURRENT_PROJECT)$(if $(MOZ_BUILD_PROJECTS),,1))
-configure depend build install export libs clean realclean distclean alldep preflight postflight maybe_clobber_profiledbuild::
+configure depend build install export libs clean realclean distclean alldep preflight postflight maybe_clobber_profiledbuild upload sdk::
 	set -e; \
 	for app in $(MOZ_BUILD_PROJECTS); do \
 	  $(MAKE) -f $(TOPSRCDIR)/client.mk $@ MOZ_CURRENT_PROJECT=$$app; \
@@ -286,7 +289,7 @@ CONFIG_STATUS_DEPS := \
 	$(TOPSRCDIR)/mozilla/allmakefiles.sh \
 	$(wildcard $(TOPSRCDIR)/mozilla/nsprpub/configure) \
 	$(wildcard $(TOPSRCDIR)/mozilla/config/milestone.txt) \
-	$(wildcard $(TOPSRCDIR)/directory/c-sdk/configure) \
+	$(wildcard $(TOPSRCDIR)/ldap/sdks/c-sdk/configure) \
 	$(wildcard $(addsuffix confvars.sh,$(wildcard $(TOPSRCDIR)/*/))) \
 	$(NULL)
 
@@ -304,7 +307,6 @@ configure-files: $(CONFIGURES)
 configure:: configure-files
 ifdef MOZ_BUILD_PROJECTS
 	@if test ! -d $(MOZ_OBJDIR); then $(MKDIR) $(MOZ_OBJDIR); else true; fi
-	export MOZ_CURRENT_PROJECT
 endif
 	@if test ! -d $(OBJDIR); then $(MKDIR) $(OBJDIR); else true; fi
 	@echo cd $(OBJDIR);
@@ -351,7 +353,7 @@ build::  $(OBJDIR)/Makefile $(OBJDIR)/config.status
 # Other targets
 
 # Pass these target onto the real build system
-install export libs clean realclean distclean alldep maybe_clobber_profiledbuild:: $(OBJDIR)/Makefile $(OBJDIR)/config.status
+install export libs clean realclean distclean alldep maybe_clobber_profiledbuild upload sdk:: $(OBJDIR)/Makefile $(OBJDIR)/config.status
 	$(MOZ_MAKE) $@
 
 ####################################

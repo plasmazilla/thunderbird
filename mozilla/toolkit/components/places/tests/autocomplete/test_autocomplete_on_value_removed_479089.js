@@ -15,7 +15,7 @@
  *
  * The Original Code is Places unit test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -72,7 +72,7 @@ function run_test()
   // open the result container
   queryRes.root.containerOpen = true;
   // debug queries
-  // dump_table("moz_places_view");
+  // dump_table("moz_places");
   do_check_eq(queryRes.root.childCount, 1);  
   // call the untested code path
   listener.onValueRemoved(null, uri.spec, true);

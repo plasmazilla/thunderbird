@@ -1,9 +1,19 @@
 const TESTROOT = "http://example.com/browser/xpinstall/tests/";
 const TESTROOT2 = "http://example.org/browser/xpinstall/tests/";
-const CHROMEROOT = "chrome://mochikit/content/browser/xpinstall/tests/"
 const XPINSTALL_URL = "chrome://mozapps/content/xpinstall/xpinstallConfirm.xul";
 const PROMPT_URL = "chrome://global/content/commonDialog.xul";
 const ADDONS_URL = "chrome://mozapps/content/extensions/extensions.xul";
+
+var rootDir = getRootDirectory(gTestPath);
+var path = rootDir.split('/');
+var chromeName = path[0] + '//' + path[2];
+var croot = chromeName + "/content/browser/xpinstall/tests/";
+var jar = getJar(croot);
+if (jar) {
+  var tmpdir = extractJarToTmp(jar);
+  croot = 'file://' + tmpdir.path + '/';
+}
+const CHROMEROOT = croot;
 
 /**
  * This is a test harness designed to handle responding to UI during the process
@@ -117,15 +127,16 @@ var Harness = {
       }
     }
     else if (window.document.location.href == PROMPT_URL) {
-      switch (window.gCommonDialogParam.GetInt(3)) {
-        case 0: if (window.opener.document.location.href == ADDONS_URL) {
+      switch (window.args.promptType) {
+        default:
+                if (window.opener.document.location.href == ADDONS_URL) {
                   // A prompt opened by the add-ons manager is liable to be an
                   // xpinstall error, just close it, we'll see the error in
                   // onInstallEnded anyway.
                   window.document.documentElement.acceptDialog();
                 }
                 break;
-        case 2: if (window.gCommonDialogParam.GetInt(4) != 1) {
+        case "promptUserAndPass":
                   // This is a login dialog, hopefully an authentication prompt
                   // for the xpi.
                   if (this.authenticationCallback) {
@@ -142,7 +153,6 @@ var Harness = {
                   else {
                     window.document.documentElement.cancelDialog();
                   }
-                }
                 break;
       }
     }

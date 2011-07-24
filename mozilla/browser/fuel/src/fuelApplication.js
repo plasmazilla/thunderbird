@@ -13,7 +13,7 @@
  *
  * The Original Code is FUEL.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2006
  * the Initial Developer. All Rights Reserved.
  *
@@ -43,49 +43,39 @@ Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 //=================================================
 // Singleton that holds services and utilities
 var Utilities = {
-  _bookmarks : null,
   get bookmarks() {
-    if (!this._bookmarks) {
-      this._bookmarks = Cc["@mozilla.org/browser/nav-bookmarks-service;1"].
-                        getService(Ci.nsINavBookmarksService);
-    }
-    return this._bookmarks;
+    let bookmarks = Cc["@mozilla.org/browser/nav-bookmarks-service;1"].
+                    getService(Ci.nsINavBookmarksService);
+    this.__defineGetter__("bookmarks", function() bookmarks);
+    return this.bookmarks;
   },
 
-  _livemarks : null,
   get livemarks() {
-    if (!this._livemarks) {
-      this._livemarks = Cc["@mozilla.org/browser/livemark-service;2"].
-                        getService(Ci.nsILivemarkService);
-    }
-    return this._livemarks;
+    let livemarks = Cc["@mozilla.org/browser/livemark-service;2"].
+                    getService(Ci.nsILivemarkService);
+    this.__defineGetter__("livemarks", function() livemarks);
+    return this.livemarks;
   },
 
-  _annotations : null,
   get annotations() {
-    if (!this._annotations) {
-      this._annotations = Cc["@mozilla.org/browser/annotation-service;1"].
-                          getService(Ci.nsIAnnotationService);
-    }
-    return this._annotations;
+    let annotations = Cc["@mozilla.org/browser/annotation-service;1"].
+                      getService(Ci.nsIAnnotationService);
+    this.__defineGetter__("annotations", function() annotations);
+    return this.annotations;
   },
 
-  _history : null,
   get history() {
-    if (!this._history) {
-      this._history = Cc["@mozilla.org/browser/nav-history-service;1"].
-                      getService(Ci.nsINavHistoryService);
-    }
-    return this._history;
+    let history = Cc["@mozilla.org/browser/nav-history-service;1"].
+                  getService(Ci.nsINavHistoryService);
+    this.__defineGetter__("history", function() history);
+    return this.history;
   },
 
-  _windowMediator : null,
   get windowMediator() {
-    if (!this._windowMediator) {
-      this._windowMediator = Cc["@mozilla.org/appshell/window-mediator;1"].
-                             getService(Ci.nsIWindowMediator);
-    }
-    return this._windowMediator;
+    let windowMediator = Cc["@mozilla.org/appshell/window-mediator;1"].
+                         getService(Ci.nsIWindowMediator);
+    this.__defineGetter__("windowMediator", function() windowMediator);
+    return this.windowMediator;
   },
 
   makeURI : function(aSpec) {
@@ -96,11 +86,11 @@ var Utilities = {
   },
 
   free : function() {
-    this._bookmarks = null;
-    this._livemarks = null;
-    this._annotations = null;
-    this._history = null;
-    this._windowMediator = null;
+    delete this.bookmarks;
+    delete this.livemarks
+    delete this.annotations;
+    delete this.history;
+    delete this.windowMediator;
   }
 };
 
@@ -133,7 +123,7 @@ Window.prototype = {
    */
   _watch : function win_watch(aType) {
     var self = this;
-    this._tabbrowser.addEventListener(aType,
+    this._tabbrowser.tabContainer.addEventListener(aType,
       this._cleanup[aType] = function(e){ self._event(e); },
       true);
   },
@@ -191,7 +181,7 @@ BrowserTab.prototype = {
   },
 
   get index() {
-    var tabs = this._tabbrowser.mTabs;
+    var tabs = this._tabbrowser.tabs;
     for (var i=0; i<tabs.length; i++) {
       if (tabs[i].linkedBrowser == this._browser)
         return i;
@@ -239,7 +229,7 @@ BrowserTab.prototype = {
    * Helper used to determine the index offset of the browsertab
    */
   _getTab : function bt_gettab() {
-    var tabs = this._tabbrowser.mTabs;
+    var tabs = this._tabbrowser.tabs;
     return tabs[this.index] || null;
   },
 
@@ -287,7 +277,7 @@ function Annotations(aId) {
 
 Annotations.prototype = {
   get names() {
-    return Utilities.annotations.getItemAnnotationNames(this._id, {});
+    return Utilities.annotations.getItemAnnotationNames(this._id);
   },
 
   has : function ann_has(aName) {
@@ -404,7 +394,7 @@ Bookmark.prototype = {
   onEndUpdateBatch : function bm_oeub() {
   },
 
-  onItemAdded : function bm_oia(aId, aFolder, aIndex) {
+  onItemAdded : function bm_oia(aId, aFolder, aIndex, aItemType, aURI) {
     // bookmark object doesn't exist at this point
   },
 
@@ -557,7 +547,7 @@ BookmarkFolder.prototype = {
   onEndUpdateBatch : function bmf_oeub() {
   },
 
-  onItemAdded : function bmf_oia(aId, aFolder, aIndex) {
+  onItemAdded : function bmf_oia(aId, aFolder, aIndex, aItemType, aURI) {
     // handle root folder events
     if (!this._parent)
       this._events.dispatch("add", aId);
@@ -667,7 +657,6 @@ var ApplicationFactory = {
 };
 
 
-
 //=================================================
 // Application constructor
 function Application() {
@@ -679,18 +668,18 @@ function Application() {
 // Application implementation
 Application.prototype = {
   // for nsIClassInfo + XPCOMUtils
-  classDescription: "Application",
   classID:          Components.ID("fe74cf80-aa2d-11db-abbd-0800200c9a66"),
-  contractID:       "@mozilla.org/fuel/application;1",
 
   // redefine the default factory for XPCOMUtils
   _xpcom_factory: ApplicationFactory,
 
   // for nsISupports
-  QueryInterface : XPCOMUtils.generateQI([Ci.fuelIApplication, Ci.extIApplication, Ci.nsIObserver, Ci.nsIClassInfo]),
+  QueryInterface : XPCOMUtils.generateQI([Ci.fuelIApplication, Ci.extIApplication,
+                                          Ci.nsIObserver, Ci.nsIClassInfo]),
 
   getInterfaces : function app_gi(aCount) {
-    var interfaces = [Ci.fuelIApplication, Ci.extIApplication, Ci.nsIObserver, Ci.nsIClassInfo];
+    var interfaces = [Ci.fuelIApplication, Ci.extIApplication, Ci.nsIObserver,
+                      Ci.nsIClassInfo];
     aCount.value = interfaces.length;
     return interfaces;
   },
@@ -700,24 +689,24 @@ Application.prototype = {
     // Call the extApplication version of this function first
     this.__proto__.__proto__.observe.call(this, aSubject, aTopic, aData);
     if (aTopic == "xpcom-shutdown") {
+      this._obs.removeObserver(this, "xpcom-shutdown");
       this._bookmarks = null;
       Utilities.free();
     }
   },
 
   get bookmarks() {
-    if (this._bookmarks == null)
-      this._bookmarks = new BookmarkRoots();
-
-    return this._bookmarks;
+    let bookmarks = new BookmarkRoots();
+    this.__defineGetter__("bookmarks", function() bookmarks);
+    return this.bookmarks;
   },
 
   get windows() {
     var win = [];
-    var enum = Utilities.windowMediator.getEnumerator("navigator:browser");
+    var browserEnum = Utilities.windowMediator.getEnumerator("navigator:browser");
 
-    while (enum.hasMoreElements())
-      win.push(new Window(enum.getNext()));
+    while (browserEnum.hasMoreElements())
+      win.push(new Window(browserEnum.getNext()));
 
     return win;
   },
@@ -727,11 +716,10 @@ Application.prototype = {
   }
 };
 
-//module initialization
-function NSGetModule(aCompMgr, aFileSpec) {
-  // set the proto, defined in extApplication.js
-  Application.prototype.__proto__ = extApplication.prototype;
-  return XPCOMUtils.generateModule([Application]);
-}
-
 #include ../../../toolkit/components/exthelper/extApplication.js
+
+// set the proto, defined in extApplication.js
+Application.prototype.__proto__ = extApplication.prototype;
+
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([Application]);
+

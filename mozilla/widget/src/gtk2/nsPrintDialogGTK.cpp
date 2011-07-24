@@ -57,46 +57,13 @@
 #include "nsIBaseWindow.h"
 #include "nsIDocShellTreeItem.h"
 #include "nsIDocShell.h"
+#include "WidgetUtils.h"
+
+using namespace mozilla::widget;
 
 static const char header_footer_tags[][4] =  {"", "&T", "&U", "&D", "&P", "&PT"};
 
 #define CUSTOM_VALUE_INDEX NS_ARRAY_LENGTH(header_footer_tags)
-
-// XXXdholbert Duplicated from widget/src/xpwidgets/nsBaseFilePicker.cpp
-// Needs to be unified in some generic utility class.
-static nsIWidget *
-DOMWindowToWidget(nsIDOMWindow *dw)
-{
-  nsCOMPtr<nsIWidget> widget;
-
-  nsCOMPtr<nsPIDOMWindow> window = do_QueryInterface(dw);
-  if (window) {
-    nsCOMPtr<nsIBaseWindow> baseWin(do_QueryInterface(window->GetDocShell()));
-
-    while (!widget && baseWin) {
-      baseWin->GetParentWidget(getter_AddRefs(widget));
-      if (!widget) {
-        nsCOMPtr<nsIDocShellTreeItem> docShellAsItem(do_QueryInterface(baseWin));
-        if (!docShellAsItem)
-          return nsnull;
-
-        nsCOMPtr<nsIDocShellTreeItem> parent;
-        docShellAsItem->GetSameTypeParent(getter_AddRefs(parent));
-
-        window = do_GetInterface(parent);
-        if (!window)
-          return nsnull;
-
-        baseWin = do_QueryInterface(window->GetDocShell());
-      }
-    }
-  }
-
-  // This will return a pointer that we're about to release, but
-  // that's ok since the docshell (nsIBaseWindow) holds the widget
-  // alive.
-  return widget.get();
-}
 
 // XXXdholbert Duplicated from widget/src/gtk2/nsFilePicker.cpp
 // Needs to be unified in some generic utility class.
@@ -136,7 +103,7 @@ ShowCustomDialog(GtkComboBox *changed_box, gpointer user_data)
        do_GetService(NS_STRINGBUNDLE_CONTRACTID);
 
   nsCOMPtr<nsIStringBundle> printBundle;
-  bundleSvc->CreateBundle("chrome://global/locale/gnomeprintdialog.properties", getter_AddRefs(printBundle));
+  bundleSvc->CreateBundle("chrome://global/locale/printdialog.properties", getter_AddRefs(printBundle));
   nsXPIDLString intlString;
 
   printBundle->GetStringFromName(NS_LITERAL_STRING("headerFooterCustom").get(), getter_Copies(intlString));
@@ -175,7 +142,7 @@ ShowCustomDialog(GtkComboBox *changed_box, gpointer user_data)
   gtk_widget_show_all(custom_hbox);
 
   gtk_box_pack_start(GTK_BOX(GTK_DIALOG(prompt_dialog)->vbox), custom_hbox, FALSE, FALSE, 0);
-  gint diag_response = gtk_dialog_run(GTK_DIALOG(prompt_dialog));
+  gint diag_response = RunDialog(GTK_DIALOG(prompt_dialog));
 
   if (diag_response == GTK_RESPONSE_ACCEPT) {
     const gchar* response_text = gtk_entry_get_text(GTK_ENTRY(custom_entry));
@@ -230,13 +197,15 @@ class nsPrintDialogWidgetGTK {
 
 nsPrintDialogWidgetGTK::nsPrintDialogWidgetGTK(nsIDOMWindow *aParent, nsIPrintSettings *aSettings)
 {
-  GtkWindow* gtkParent = get_gtk_window_for_nsiwidget(DOMWindowToWidget(aParent));
+  nsCOMPtr<nsIWidget> widget = WidgetUtils::DOMWindowToWidget(aParent);
+  NS_ASSERTION(widget, "Need a widget for dialog to be modal.");
+  GtkWindow* gtkParent = get_gtk_window_for_nsiwidget(widget);
   NS_ASSERTION(gtkParent, "Need a GTK window for dialog to be modal.");
 
   nsCOMPtr<nsIStringBundleService> bundleSvc = do_GetService(NS_STRINGBUNDLE_CONTRACTID);
-  bundleSvc->CreateBundle("chrome://global/locale/gnomeprintdialog.properties", getter_AddRefs(printBundle));
+  bundleSvc->CreateBundle("chrome://global/locale/printdialog.properties", getter_AddRefs(printBundle));
 
-  dialog = gtk_print_unix_dialog_new(GetUTF8FromBundle("printTitle").get(), gtkParent);
+  dialog = gtk_print_unix_dialog_new(GetUTF8FromBundle("printTitleGTK").get(), gtkParent);
 
   gtk_print_unix_dialog_set_manual_capabilities(GTK_PRINT_UNIX_DIALOG(dialog),
                     GtkPrintCapabilities(
@@ -254,7 +223,7 @@ nsPrintDialogWidgetGTK::nsPrintDialogWidgetGTK(nsIDOMWindow *aParent, nsIPrintSe
   // the set_border_width below, 12px matches that of just about every other window.
   GtkWidget* custom_options_tab = gtk_vbox_new(FALSE, 0);
   gtk_container_set_border_width(GTK_CONTAINER(custom_options_tab), 12);
-  GtkWidget* tab_label = gtk_label_new(GetUTF8FromBundle("optionsTabLabel").get());
+  GtkWidget* tab_label = gtk_label_new(GetUTF8FromBundle("optionsTabLabelGTK").get());
 
   PRInt16 frameUIFlag;
   aSettings->GetHowToEnableFrameUI(&frameUIFlag);
@@ -275,7 +244,7 @@ nsPrintDialogWidgetGTK::nsPrintDialogWidgetGTK(nsIDOMWindow *aParent, nsIPrintSe
 
   // "Print Frames" options label, bold and center-aligned
   GtkWidget* print_frames_label = gtk_label_new(NULL);
-  char* pangoMarkup = g_markup_printf_escaped("<b>%s</b>", GetUTF8FromBundle("printFramesTitle").get());
+  char* pangoMarkup = g_markup_printf_escaped("<b>%s</b>", GetUTF8FromBundle("printFramesTitleGTK").get());
   gtk_label_set_markup(GTK_LABEL(print_frames_label), pangoMarkup);
   g_free(pangoMarkup);
   gtk_misc_set_alignment(GTK_MISC(print_frames_label), 0, 0);
@@ -635,7 +604,9 @@ nsPrintDialogServiceGTK::ShowPageSetup(nsIDOMWindow *aParent,
   NS_PRECONDITION(aNSSettings, "aSettings must not be null");
   NS_ENSURE_TRUE(aNSSettings, NS_ERROR_FAILURE);
 
-  GtkWindow* gtkParent = get_gtk_window_for_nsiwidget(DOMWindowToWidget(aParent));
+  nsCOMPtr<nsIWidget> widget = WidgetUtils::DOMWindowToWidget(aParent);
+  NS_ASSERTION(widget, "Need a widget for dialog to be modal.");
+  GtkWindow* gtkParent = get_gtk_window_for_nsiwidget(widget);
   NS_ASSERTION(gtkParent, "Need a GTK window for dialog to be modal.");
 
   nsCOMPtr<nsPrintSettingsGTK> aNSSettingsGTK(do_QueryInterface(aNSSettings));

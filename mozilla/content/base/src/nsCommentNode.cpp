@@ -48,7 +48,7 @@ class nsCommentNode : public nsGenericDOMDataNode,
                       public nsIDOMComment
 {
 public:
-  nsCommentNode(nsINodeInfo *aNodeInfo);
+  nsCommentNode(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsCommentNode();
 
   // nsISupports
@@ -64,9 +64,9 @@ public:
   // Empty interface
 
   // nsIContent
-  virtual PRBool MayHaveFrame() const;
   virtual PRBool IsNodeOfType(PRUint32 aFlags) const;
 
+  virtual nsXPCClassInfo* GetClassInfo();
 #ifdef DEBUG
   virtual void List(FILE* out, PRInt32 aIndent) const;
   virtual void DumpContent(FILE* out = stdout, PRInt32 aIndent = 0,
@@ -88,7 +88,7 @@ NS_NewCommentNode(nsIContent** aInstancePtrResult,
   nsCOMPtr<nsINodeInfo> ni = aNodeInfoManager->GetCommentNodeInfo();
   NS_ENSURE_TRUE(ni, NS_ERROR_OUT_OF_MEMORY);
 
-  nsCommentNode *instance = new nsCommentNode(ni);
+  nsCommentNode *instance = new nsCommentNode(ni.forget());
   if (!instance) {
     return NS_ERROR_OUT_OF_MEMORY;
   }
@@ -98,7 +98,7 @@ NS_NewCommentNode(nsIContent** aInstancePtrResult,
   return NS_OK;
 }
 
-nsCommentNode::nsCommentNode(nsINodeInfo *aNodeInfo)
+nsCommentNode::nsCommentNode(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsGenericDOMDataNode(aNodeInfo)
 {
 }
@@ -107,25 +107,19 @@ nsCommentNode::~nsCommentNode()
 {
 }
 
+DOMCI_NODE_DATA(Comment, nsCommentNode)
 
 // QueryInterface implementation for nsCommentNode
 NS_INTERFACE_TABLE_HEAD(nsCommentNode)
   NS_NODE_INTERFACE_TABLE3(nsCommentNode, nsIDOMNode, nsIDOMCharacterData,
                            nsIDOMComment)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(Comment)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(Comment)
 NS_INTERFACE_MAP_END_INHERITING(nsGenericDOMDataNode)
 
 
 NS_IMPL_ADDREF_INHERITED(nsCommentNode, nsGenericDOMDataNode)
 NS_IMPL_RELEASE_INHERITED(nsCommentNode, nsGenericDOMDataNode)
 
-
-// virtual
-PRBool
-nsCommentNode::MayHaveFrame() const
-{
-  return PR_FALSE;
-}
 
 PRBool
 nsCommentNode::IsNodeOfType(PRUint32 aFlags) const
@@ -162,7 +156,8 @@ nsCommentNode::GetNodeType(PRUint16* aNodeType)
 nsGenericDOMDataNode*
 nsCommentNode::CloneDataNode(nsINodeInfo *aNodeInfo, PRBool aCloneText) const
 {
-  nsCommentNode *it = new nsCommentNode(aNodeInfo);
+  nsCOMPtr<nsINodeInfo> ni = aNodeInfo;
+  nsCommentNode *it = new nsCommentNode(ni.forget());
   if (it && aCloneText) {
     it->mText = mText;
   }

@@ -20,6 +20,7 @@
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
+ *   Philipp Kewisch <mozilla@kewis.ch>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -42,6 +43,7 @@
 
 #include "calUtils.h"
 
+NS_IMPL_CLASSINFO(calPeriod, NULL, 0, CAL_PERIOD_CID)
 NS_IMPL_ISUPPORTS1_CI(calPeriod, calIPeriod)
 
 calPeriod::calPeriod()
@@ -191,7 +193,6 @@ calPeriod::SetIcalString(const nsACString& aIcalString)
     struct icalperiodtype ip;
     ip = icalperiodtype_from_string(PromiseFlatCString(aIcalString).get());
     //XXX Shortcut. Assumes nobody tried to overrule our impl. of calIDateTime
-    //    Should use NS_NEWXPCOM()
     mStart = new calDateTime(&ip.start, nsnull);
     mEnd = new calDateTime(&ip.end, nsnull);
     return NS_OK;

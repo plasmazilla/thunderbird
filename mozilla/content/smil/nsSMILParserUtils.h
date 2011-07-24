@@ -47,6 +47,7 @@ class nsISMILAnimationElement;
 class nsSMILTimeValue;
 class nsSMILValue;
 class nsSMILRepeatCount;
+class nsSMILTimeValueSpecParams;
 
 /**
  * Common parsing utilities for the SMIL module. There is little re-use here; it
@@ -56,19 +57,37 @@ class nsSMILRepeatCount;
 class nsSMILParserUtils
 {
 public:
+  // Abstract helper-class for assisting in parsing |values| attribute
+  class GenericValueParser {
+  public:
+    virtual nsresult Parse(const nsAString& aValueStr) = 0;
+  };
+
   static nsresult ParseKeySplines(const nsAString& aSpec,
                                   nsTArray<double>& aSplineArray);
 
-  static nsresult ParseKeyTimes(const nsAString& aSpec,
-                                nsTArray<double>& aTimesArray);
+  // Used for parsing the |keyTimes| and |keyPoints| attributes.
+  static nsresult ParseSemicolonDelimitedProgressList(const nsAString& aSpec,
+                                                      PRBool aNonDecreasing,
+                                                      nsTArray<double>& aArray);
 
   static nsresult ParseValues(const nsAString& aSpec,
                               const nsISMILAnimationElement* aSrcElement,
                               const nsISMILAttr& aAttribute,
-                              nsTArray<nsSMILValue>& aValuesArray);
+                              nsTArray<nsSMILValue>& aValuesArray,
+                              PRBool& aPreventCachingOfSandwich);
+
+  // Generic method that will run some code on each sub-section of an animation
+  // element's "values" list.
+  static nsresult ParseValuesGeneric(const nsAString& aSpec,
+                                     GenericValueParser& aParser);
 
   static nsresult ParseRepeatCount(const nsAString& aSpec,
                                    nsSMILRepeatCount& aResult);
+
+  static nsresult ParseTimeValueSpecParams(const nsAString& aSpec,
+                                           nsSMILTimeValueSpecParams& aResult);
+
 
   // Used with ParseClockValue. Allow + or - before a clock value.
   static const PRInt8 kClockValueAllowSign       = 1;
@@ -106,31 +125,14 @@ public:
                                   PRUint32 aFlags = 0,
                                   PRBool* aIsMedia = nsnull);
 
-private:
-  static void   SkipWsp(nsACString::const_iterator& aIter,
-                        const nsACString::const_iterator& aIterEnd);
-  static void   SkipWsp(nsAString::const_iterator& aIter,
-                        const nsAString::const_iterator& aIterEnd);
-  static double GetFloat(nsACString::const_iterator& aIter,
-                         const nsACString::const_iterator& aIterEnd,
-                         nsresult *aErrorCode = nsnull);
-  static PRBool IsSpace(const PRUnichar c);
-  static PRBool ConsumeSubstring(nsACString::const_iterator& aIter,
-                                 const nsACString::const_iterator& aIterEnd,
-                                 const char *aSubstring);
-  static PRBool ParseClockComponent(nsACString::const_iterator& aSpec,
-                                    const nsACString::const_iterator& aEnd,
-                                    double& aResult,
-                                    PRBool& aIsReal,
-                                    PRBool& aCouldBeMin,
-                                    PRBool& aCouldBeSec);
-  static PRBool ParseMetricMultiplicand(nsACString::const_iterator& aSpec,
-                                        const nsACString::const_iterator& aEnd,
-                                        PRInt32& multiplicand);
-
-  static const PRUint32 MSEC_PER_SEC;
-  static const PRUint32 MSEC_PER_MIN;
-  static const PRUint32 MSEC_PER_HOUR;
+  /*
+   * This method checks whether the given string looks like a negative number.
+   * Specifically, it checks whether the string looks matches the pattern
+   * "[whitespace]*-[numeral].*" If the string matches this pattern, this
+   * method returns the index of the first character after the '-' sign
+   * (i.e. the index of the absolute value).  If not, this method returns -1.
+   */
+  static PRInt32 CheckForNegativeNumber(const nsAString& aStr);
 };
 
 #endif // NS_SMILPARSERUTILS_H_

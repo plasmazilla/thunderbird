@@ -14,7 +14,6 @@
   locale/@AB_CD@/global/global-strres.properties               (%chrome/global-strres.properties)
   locale/@AB_CD@/global/plugins.properties                     (%chrome/plugins.properties)
   locale/@AB_CD@/global/nsWebBrowserPersist.properties         (%chrome/nsWebBrowserPersist.properties)
-  locale/@AB_CD@/global/printdialog.properties                 (%chrome/printdialog.properties)
   locale/@AB_CD@/global/xslt/xslt.properties                   (%chrome/xslt/xslt.properties)
   locale/@AB_CD@/global/dom/dom.properties                     (%chrome/dom/dom.properties)
 #ifdef MOZ_SVG
@@ -25,9 +24,7 @@
   locale/@AB_CD@/global/layout/HtmlForm.properties             (%chrome/layout/HtmlForm.properties)
   locale/@AB_CD@/global/security/caps.properties               (%chrome/security/caps.properties)
   locale/@AB_CD@/global/xml/prettyprint.dtd                    (%chrome/xml/prettyprint.dtd)
-  locale/@AB_CD@/global/webservices/security.properties        (%chrome/webservices/security.properties)
   locale/@AB_CD@/global-platform/win/accessible.properties     (%chrome/accessibility/win/accessible.properties)
   locale/@AB_CD@/global-platform/mac/accessible.properties     (%chrome/accessibility/mac/accessible.properties)
   locale/@AB_CD@/global-platform/unix/accessible.properties    (%chrome/accessibility/unix/accessible.properties)
   locale/@AB_CD@/global/storage.properties                     (%chrome/storage.properties)
-  locale/@AB_CD@/global/prompts.properties                     (%chrome/prompts.properties)

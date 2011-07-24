@@ -46,9 +46,6 @@
 #include "plbase64.h"
 #include "nsIStringBundle.h"
 #include "plstr.h"
-#include "nsIRDFResource.h"
-#include "nsIRDFService.h"
-#include "nsRDFCID.h"
 #include "nsMsgUtils.h"
 #include "nsINetUtil.h"
 #include "nsComponentManagerUtils.h"
@@ -58,10 +55,12 @@
 #include "nsIMutableArray.h"
 #include "nsArrayUtils.h"
 #include "mozITXTToHTMLConv.h"
+#include "nsIAbManager.h"
 
 #include "nsIProperty.h"
 #include "nsCOMArray.h"
 #include "nsArrayEnumerator.h"
+#include "prmem.h"
 
 #define PREF_MAIL_ADDR_BOOK_LASTNAMEFIRST "mail.addr_book.lastnamefirst"
 
@@ -139,7 +138,47 @@ nsAbCardProperty::~nsAbCardProperty(void)
 {
 }
 
-NS_IMPL_ISUPPORTS1(nsAbCardProperty, nsIAbCard)
+NS_IMPL_ISUPPORTS2(nsAbCardProperty, nsIAbCard, nsIAbItem)
+
+NS_IMETHODIMP nsAbCardProperty::GetUuid(nsACString &uuid)
+{
+  // If we have indeterminate sub-ids, return an empty uuid.
+  if (m_directoryId.Equals("") || m_localId.Equals(""))
+  {
+    uuid.Truncate();
+    return NS_OK;
+  }
+
+  nsresult rv;
+  nsCOMPtr<nsIAbManager> manager = do_GetService(NS_ABMANAGER_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return manager->GenerateUUID(m_directoryId, m_localId, uuid);
+}
+
+NS_IMETHODIMP nsAbCardProperty::GetDirectoryId(nsACString &dirId)
+{
+  dirId = m_directoryId;
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsAbCardProperty::SetDirectoryId(const nsACString &aDirId)
+{
+  m_directoryId = aDirId;
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsAbCardProperty::GetLocalId(nsACString &localId)
+{
+  localId = m_localId;
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsAbCardProperty::SetLocalId(const nsACString &aLocalId)
+{
+  m_localId = aLocalId;
+  return NS_OK;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -706,7 +745,9 @@ nsresult nsAbCardProperty::ConvertToBase64EncodedXML(nsACString &result)
   xmlStr.Append(xmlSubstr);
   xmlStr.AppendLiteral("</directory>\n");
 
-  result.Adopt(PL_Base64Encode(NS_ConvertUTF16toUTF8(xmlStr).get(), 0, nsnull));
+  char *tmpRes = PL_Base64Encode(NS_ConvertUTF16toUTF8(xmlStr).get(), 0, nsnull);
+  result.Assign(tmpRes);
+  PR_Free(tmpRes);
   return NS_OK;
 }
 
@@ -782,15 +823,12 @@ nsresult nsAbCardProperty::ConvertToXMLPrintData(nsAString &aXMLSubstr)
     xmlStr.Append(headingAddresses);
     xmlStr.AppendLiteral("</sectiontitle>");
 
-    nsCOMPtr<nsIRDFService> rdfService = do_GetService("@mozilla.org/rdf/rdf-service;1", &rv);
-    NS_ENSURE_SUCCESS(rv,rv);
+    nsCOMPtr<nsIAbManager> abManager = do_GetService(NS_ABMANAGER_CONTRACTID, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
 
-    nsCOMPtr <nsIRDFResource> resource;
-    rv = rdfService->GetResource(m_MailListURI, getter_AddRefs(resource));
-    NS_ENSURE_SUCCESS(rv,rv);
-
-    nsCOMPtr <nsIAbDirectory> mailList = do_QueryInterface(resource, &rv);
-    NS_ENSURE_SUCCESS(rv,rv);
+    nsCOMPtr <nsIAbDirectory> mailList = nsnull;
+    rv = abManager->GetDirectory(m_MailListURI, getter_AddRefs(mailList));
+    NS_ENSURE_SUCCESS(rv, rv);
 
     nsCOMPtr<nsIMutableArray> addresses;
     rv = mailList->GetAddressLists(getter_AddRefs(addresses));

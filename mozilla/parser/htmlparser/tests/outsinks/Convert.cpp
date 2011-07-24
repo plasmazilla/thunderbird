@@ -91,6 +91,10 @@ Compare(nsString& str, nsString& aFileName)
       break;
     }
   }
+  // Read the rest of the file
+  while ((c = getc(file)) != EOF) {
+    inString.Append(PRUnichar(c));
+  }
   if (file != stdin)
     fclose(file);
 
@@ -98,11 +102,11 @@ Compare(nsString& str, nsString& aFileName)
     return 0;
   else
   {
-    nsAutoString left;
-    str.Left(left, different);
-    char* cstr = ToNewUTF8String(left);
-    printf("Comparison failed at char %d:\n-----\n%s\n-----\n",
-           different, cstr);
+    char* cexpected = ToNewUTF8String(inString);
+    char* cstr = ToNewUTF8String(str);
+    printf("Comparison failed at char %d:\nGot:\n-----\n%s\n-----\nExpected:\n-----\n%s\n-----\n",
+           different, cstr, cexpected);
+    Recycle(cexpected);
     Recycle(cstr);
     return 1;
   }
@@ -314,7 +318,11 @@ Usage: %s [-i intype] [-o outtype] [-f flags] [-w wrapcol] [-c comparison_file] 
     ret = HTML2text(inString, inType, outType, flags, wrapCol, compareAgainst);
   } // this scopes the nsCOMPtrs
   // no nsCOMPtrs are allowed to be alive when you call NS_ShutdownXPCOM
-  nsresult rv = NS_ShutdownXPCOM( NULL );
+
+#ifdef DEBUG
+  nsresult rv =
+#endif
+    NS_ShutdownXPCOM( NULL );
   NS_ASSERTION(NS_SUCCEEDED(rv), "NS_ShutdownXPCOM failed");
   return ret;
 }

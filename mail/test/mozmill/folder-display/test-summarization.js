@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Mail Client.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -53,7 +53,7 @@
 var MODULE_NAME = 'test-summarization';
 
 var RELATIVE_ROOT = '../shared-modules';
-var MODULE_REQUIRES = ['folder-display-helpers'];
+var MODULE_REQUIRES = ['folder-display-helpers', 'address-book-helpers'];
 
 var folder;
 var thread1, thread2, msg1, msg2;
@@ -61,6 +61,8 @@ var thread1, thread2, msg1, msg2;
 var setupModule = function(module) {
   let fdh = collector.getModule('folder-display-helpers');
   fdh.installInto(module);
+  let abh = collector.getModule('address-book-helpers');
+  abh.installInto(module);
 
   folder = create_folder("SummarizationA");
   thread1 = create_thread(10);
@@ -170,7 +172,7 @@ function test_selection_stabilization_logic() {
   // make sure the
 
   // this will not summarize!
-  select_shift_click_row(2);
+  select_shift_click_row(2, mc, true);
   // verify that our summary is still just 0 and 1.
   assert_messages_summarized(mc, messages);
 
@@ -284,4 +286,116 @@ function test_summary_updates_when_new_message_added_to_collapsed_thread() {
   let thread1All = thread1.union(thread1Extra);
   assert_selected(thread1Root);
   assert_messages_summarized(mc, thread1All);
+}
+
+function test_summary_when_multiple_identities() {
+  // First half of the test, makes sure messageDisplay.js understands there's
+  // only one thread
+  let folder1 = create_folder("Search1");
+  be_in_folder(folder1);
+  let thread1 = create_thread(1);
+  add_sets_to_folders([folder1], [thread1]);
+
+  let folder2 = create_folder("Search2");
+  be_in_folder(folder2);
+  make_new_sets_in_folders([folder2], [{count: 1, inReplyTo: thread1}])
+
+  let folderVirtual = create_virtual_folder([folder1, folder2], {}, true, "SearchBoth");
+
+  // Do the needed tricks
+  be_in_folder(folder1);
+  select_click_row(0);
+  plan_to_wait_for_folder_events("DeleteOrMoveMsgCompleted",
+                                 "DeleteOrMoveMsgFailed");
+  mc.window.MsgMoveMessage(folder2);
+  wait_for_folder_events();
+
+  be_in_folder(folder2);
+  select_click_row(1);
+  plan_to_wait_for_folder_events("DeleteOrMoveMsgCompleted",
+                                 "DeleteOrMoveMsgFailed");
+  mc.window.MsgMoveMessage(folder1);
+  wait_for_folder_events();
+
+  be_in_folder(folderVirtual);
+  make_display_threaded();
+  collapse_all_threads();
+
+  // Assertions
+  select_click_row(0);
+  assert_messages_summarized(mc, mc.folderDisplay.selectedMessages);
+  // Thread summary uses class wrappedsender, while multimessage summary uses
+  // class author.
+  assert_summary_contains_N_divs('author', 0);
+  assert_summary_contains_N_divs('wrappedsender', 2);
+
+  // Second half of the test, makes sure MultiMessageSummary groups messages
+  // according to their view thread id
+  let thread1 = create_thread(1);
+  add_sets_to_folders([folder1], [thread1]);
+  be_in_folder(folderVirtual);
+  select_shift_click_row(1);
+
+  assert_summary_contains_N_divs('author', 2);
+}
+
+function extract_first_address(thread)
+{
+  let headerParser = Cc["@mozilla.org/messenger/headerparser;1"]
+                       .getService(Ci.nsIMsgHeaderParser);
+  let addresses = {};
+  let fullNames = {};
+  let names = {};
+  let numAddresses = headerParser.parseHeadersWithArray(
+    thread1.getMsgHdr(0).mime2DecodedAuthor,
+    addresses, names, fullNames);
+
+  return {email: addresses.value[0], name: names.value[0]};
+}
+
+function check_address_name(name) {
+  let htmlframe = mc.e('multimessage');
+  let matches = htmlframe.contentDocument.getElementsByClassName('sender');
+  if (matches[0].textContent != name)
+    throw new Error("Expected to find sender named '" + name + "', found '" +
+                    matches[0].textContent + "'");
+}
+
+function test_display_name_no_abook()
+{
+  be_in_folder(folder);
+
+  let address = extract_first_address(thread1);
+  ensure_no_card_exists(address.email);
+
+  collapse_all_threads();
+  select_click_row(thread1);
+
+  check_address_name(address.name);
+}
+
+function test_display_name_abook()
+{
+  be_in_folder(folder);
+
+  let address = extract_first_address(thread1);
+  ensure_card_exists(address.email, "My Friend", true);
+
+  collapse_all_threads();
+  select_click_row(thread1);
+
+  check_address_name("My Friend");
+}
+
+function test_display_name_abook_no_pdn()
+{
+  be_in_folder(folder);
+
+  let address = extract_first_address(thread1);
+  ensure_card_exists(address.email, "My Friend", false);
+
+  collapse_all_threads();
+  select_click_row(thread1);
+
+  check_address_name(address.name);
 }

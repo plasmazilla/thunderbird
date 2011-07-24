@@ -39,7 +39,6 @@
 #include "nsGenericHTMLElement.h"
 #include "nsGkAtoms.h"
 #include "nsStyleConsts.h"
-#include "nsPresContext.h"
 #include "nsMappedAttributes.h"
 #include "nsRuleData.h"
 
@@ -47,7 +46,7 @@ class nsHTMLTableCaptionElement :  public nsGenericHTMLElement,
                                    public nsIDOMHTMLTableCaptionElement
 {
 public:
-  nsHTMLTableCaptionElement(nsINodeInfo *aNodeInfo);
+  nsHTMLTableCaptionElement(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsHTMLTableCaptionElement();
 
   // nsISupports
@@ -73,13 +72,15 @@ public:
   NS_IMETHOD_(PRBool) IsAttributeMapped(const nsIAtom* aAttribute) const;
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
+
+  virtual nsXPCClassInfo* GetClassInfo();
 };
 
 
 NS_IMPL_NS_NEW_HTML_ELEMENT(TableCaption)
 
 
-nsHTMLTableCaptionElement::nsHTMLTableCaptionElement(nsINodeInfo *aNodeInfo)
+nsHTMLTableCaptionElement::nsHTMLTableCaptionElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsGenericHTMLElement(aNodeInfo)
 {
 }
@@ -92,6 +93,8 @@ nsHTMLTableCaptionElement::~nsHTMLTableCaptionElement()
 NS_IMPL_ADDREF_INHERITED(nsHTMLTableCaptionElement, nsGenericElement)
 NS_IMPL_RELEASE_INHERITED(nsHTMLTableCaptionElement, nsGenericElement)
 
+
+DOMCI_NODE_DATA(HTMLTableCaptionElement, nsHTMLTableCaptionElement)
 
 // QueryInterface implementation for nsHTMLTableCaptionElement
 NS_INTERFACE_TABLE_HEAD(nsHTMLTableCaptionElement)
@@ -123,7 +126,7 @@ nsHTMLTableCaptionElement::ParseAttribute(PRInt32 aNamespaceID,
                                           nsAttrValue& aResult)
 {
   if (aAttribute == nsGkAtoms::align && aNamespaceID == kNameSpaceID_None) {
-    return aResult.ParseEnumValue(aValue, kCaptionAlignTable);
+    return aResult.ParseEnumValue(aValue, kCaptionAlignTable, PR_FALSE);
   }
 
   return nsGenericHTMLElement::ParseAttribute(aNamespaceID, aAttribute, aValue,
@@ -134,10 +137,11 @@ static
 void MapAttributesIntoRule(const nsMappedAttributes* aAttributes, nsRuleData* aData)
 {
   if (aData->mSIDs & NS_STYLE_INHERIT_BIT(TableBorder)) {
-    if (aData->mTableData->mCaptionSide.GetUnit() == eCSSUnit_Null) {
+    nsCSSValue* captionSide = aData->ValueForCaptionSide();
+    if (captionSide->GetUnit() == eCSSUnit_Null) {
       const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::align);
       if (value && value->Type() == nsAttrValue::eEnum)
-        aData->mTableData->mCaptionSide.SetIntValue(value->GetEnumValue(), eCSSUnit_Enumerated);
+        captionSide->SetIntValue(value->GetEnumValue(), eCSSUnit_Enumerated);
     }
   }
 

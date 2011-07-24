@@ -1,7 +1,7 @@
 <html>
 <head>
   <title>Tests for the dragstart event</title>
-  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css">
+  <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css">
   <script type="application/javascript" src="/MochiKit/packed.js"></script>
   <script type="application/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>      
   <script type="application/javascript" src="/tests/SimpleTest/EventUtils.js"></script>      
@@ -32,7 +32,7 @@ function runTests()
 
 function afterDragTests()
 {
-  // the dragstart should have occured due to moving the mouse. gDataTransfer
+  // the dragstart should have occurred due to moving the mouse. gDataTransfer
   // caches the dataTransfer that was used, however it should now be empty and
   // be read only.
   ok(gDataTransfer instanceof DataTransfer, "DataTransfer after dragstart event");
@@ -157,7 +157,7 @@ function test_DataTransfer(dt)
 
   is(dt.mozUserCancelled, false, "userCancelled");
 
-  // because an exception occured, the data should not have been added
+  // because an exception occurred, the data should not have been added
   is(dt.mozItemCount, 0, "empty setDataAt index too high itemCount");
   dt.getData("text/plain", "", "empty setDataAt index too high getData");
 

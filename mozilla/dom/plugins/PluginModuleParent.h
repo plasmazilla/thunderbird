@@ -50,6 +50,7 @@
 
 #include "base/string_util.h"
 
+#include "mozilla/FileUtils.h"
 #include "mozilla/PluginLibrary.h"
 #include "mozilla/plugins/PPluginModuleParent.h"
 #include "mozilla/plugins/PluginInstanceParent.h"
@@ -60,6 +61,8 @@
 #include "nsDataHashtable.h"
 #include "nsHashKeys.h"
 #include "nsIFileStreams.h"
+#include "nsTObserverArray.h"
+#include "nsITimer.h"
 
 namespace mozilla {
 namespace plugins {
@@ -95,14 +98,15 @@ protected:
     PPluginInstanceParent*
     AllocPPluginInstance(const nsCString& aMimeType,
                          const uint16_t& aMode,
-                         const nsTArray<nsCString>& aNames,
-                         const nsTArray<nsCString>& aValues,
+                         const InfallibleTArray<nsCString>& aNames,
+                         const InfallibleTArray<nsCString>& aValues,
                          NPError* rv);
 
     virtual bool
     DeallocPPluginInstance(PPluginInstanceParent* aActor);
 
 public:
+    // aFilePath is UTF8, not native!
     PluginModuleParent(const char* aFilePath);
     virtual ~PluginModuleParent();
 
@@ -135,6 +139,11 @@ public:
     PPluginIdentifierParent*
     GetIdentifierForNPIdentifier(NPIdentifier aIdentifier);
 
+#ifdef OS_MACOSX
+    void AddToRefreshTimer(PluginInstanceParent *aInstance);
+    void RemoveFromRefreshTimer(PluginInstanceParent *aInstance);
+#endif
+
 protected:
     NS_OVERRIDE
     virtual mozilla::ipc::RPCChannel::RacyRPCPolicy
@@ -143,8 +152,14 @@ protected:
         return MediateRace(parent, child);
     }
 
+    virtual bool RecvXXX_HACK_FIXME_cjones(Shmem& mem) { NS_RUNTIMEABORT("not reached"); return false; }
+
     NS_OVERRIDE
     virtual bool ShouldContinueFromReplyTimeout();
+
+    NS_OVERRIDE
+    virtual bool
+    RecvBackUpXResources(const FileDescriptor& aXSocketFd);
 
     virtual bool
     AnswerNPN_UserAgent(nsCString* userAgent);
@@ -162,6 +177,14 @@ protected:
 
     virtual bool
     RecvAppendNotesToCrashReport(const nsCString& aNotes);
+
+    NS_OVERRIDE virtual bool
+    RecvPluginShowWindow(const uint32_t& aWindowId, const bool& aModal,
+                         const int32_t& aX, const int32_t& aY,
+                         const size_t& aWidth, const size_t& aHeight);
+
+    NS_OVERRIDE virtual bool
+    RecvPluginHideWindow(const uint32_t& aWindowId);
 
     static PluginInstanceParent* InstCast(NPP instance);
     static BrowserStreamParent* StreamCast(NPP instance, NPStream* s);
@@ -203,8 +226,24 @@ private:
                                 NPPVariable variable, void *ret_value);
     static NPError NPP_SetValue(NPP instance, NPNVariable variable,
                                 void *value);
+    static void NPP_URLRedirectNotify(NPP instance, const char* url,
+                                      int32_t status, void* notifyData);
 
     virtual bool HasRequiredFunctions();
+    virtual nsresult AsyncSetWindow(NPP instance, NPWindow* window);
+    virtual nsresult GetImage(NPP instance, mozilla::layers::ImageContainer* aContainer, mozilla::layers::Image** aImage);
+    virtual nsresult GetImageSize(NPP instance, nsIntSize* aSize);
+    NS_OVERRIDE virtual bool UseAsyncPainting() { return true; }
+    NS_OVERRIDE
+    virtual nsresult SetBackgroundUnknown(NPP instance);
+    NS_OVERRIDE
+    virtual nsresult BeginUpdateBackground(NPP instance,
+                                           const nsIntRect& aRect,
+                                           gfxContext** aCtx);
+    NS_OVERRIDE
+    virtual nsresult EndUpdateBackground(NPP instance,
+                                         gfxContext* aCtx,
+                                         const nsIntRect& aRect);
 
 #if defined(XP_UNIX) && !defined(XP_MACOSX)
     virtual nsresult NP_Initialize(NPNetscapeFuncs* bFuncs, NPPluginFuncs* pFuncs, NPError* error);
@@ -222,6 +261,14 @@ private:
                              uint16_t mode, int16_t argc, char* argn[],
                              char* argv[], NPSavedData* saved,
                              NPError* error);
+    virtual nsresult NPP_ClearSiteData(const char* site, uint64_t flags,
+                                       uint64_t maxAge);
+    virtual nsresult NPP_GetSitesWithData(InfallibleTArray<nsCString>& result);
+
+#if defined(XP_MACOSX)
+    virtual nsresult IsRemoteDrawingCoreAnimation(NPP instance, PRBool *aDrawing);
+#endif
+
 private:
     void WritePluginExtraDataForMinidump(const nsAString& id);
     void WriteExtraDataForHang();
@@ -234,6 +281,8 @@ private:
     // the plugin thread in mSubprocess
     NativeThreadId mPluginThread;
     bool mShutdown;
+    bool mClearSiteDataSupported;
+    bool mGetSitesWithDataSupported;
     const NPNetscapeFuncs* mNPNIface;
     nsDataHashtable<nsVoidPtrHashKey, PluginIdentifierParent*> mIdentifiers;
     nsNPAPIPlugin* mPlugin;
@@ -242,6 +291,17 @@ private:
     nsString mPluginDumpID;
     nsString mBrowserDumpID;
     nsString mHangID;
+
+#ifdef OS_MACOSX
+    nsCOMPtr<nsITimer> mCATimer;
+    nsTObserverArray<PluginInstanceParent*> mCATimerTargets;
+#endif
+
+#ifdef MOZ_X11
+    // Dup of plugin's X socket, used to scope its resources to this
+    // object instead of the plugin process's lifetime
+    ScopedClose mPluginXSocketFdDup;
+#endif
 };
 
 } // namespace plugins

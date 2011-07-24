@@ -40,7 +40,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-gTestfile = '13.4.4.25.js';
 
 START("13.4.4.25 - XML nodeKind()");
 
@@ -54,7 +53,7 @@ x =
 TEST(2, "element", x.bravo.nodeKind());
 TEST(3, "attribute", x.@attr1.nodeKind());
 
-// Non-existant node type is text
+// Nonexistent node type is text
 x = new XML();
 TEST(4, "text", x.nodeKind());
 TEST(5, "text", XML.prototype.nodeKind());

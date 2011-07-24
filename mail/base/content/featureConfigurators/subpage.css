@@ -57,7 +57,7 @@ h1 {
   color: #000000;
   background-color: #babdb6;
   cursor: pointer;
-  -moz-border-radius: 3px;
+  border-radius: 3px;
   text-shadow: rgba(255, 255, 255, 0.4) 0 1px;
 }
 
@@ -134,7 +134,7 @@ html[dir="rtl"] #disk-space-used {
 #disk-space-warning {
   background-color: Highlight;
   color: HighlightText;
-  -moz-border-radius: 4px;
+  border-radius: 4px;
   padding: 7px;
   margin: 3px 0;
 }
@@ -152,13 +152,18 @@ html[dir="rtl"] #disk-space-used {
 #addon-install-button {
 }
 
-#installing {
+#spinner {
+  display: none;
+  vertical-align: middle;
+  -moz-margin-end: 1em;
+}
+
+#downloading {
   display: none;
 }
 
-#installing .spinner {
-  vertical-align: middle;
-  -moz-margin-end: 1em;
+#installing {
+  display: none;
 }
 
 #installed {
@@ -166,6 +171,10 @@ html[dir="rtl"] #disk-space-used {
 }
 
 #alreadyInstalled {
+  display: none;
+}
+
+#failure {
   display: none;
 }
 

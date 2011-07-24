@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Mail Client.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -71,7 +71,8 @@ function setupModule(module) {
   dummyFolder = inboxFolder.getChildNamed("DisplayMessageWithFolderModesB");
   make_new_sets_in_folder(folder, [{count: 5}]);
   // The message itself doesn't really matter, as long as there's at least one
-  // in the inbox.
+  // in the inbox.  We will delete this in teardownModule because the inbox
+  // is a shared resource and it's not okay to leave stuff in there.
   make_new_sets_in_folder(inboxFolder, [{count: 1}]);
 }
 
@@ -202,4 +203,10 @@ function test_display_inbox_message_in_smart_folder_mode_works() {
  */
 function test_switch_to_all_folders() {
   mc.folderTreeView.mode = "all";
+}
+
+function teardownModule() {
+  be_in_folder(inboxFolder);
+  select_click_row(0);
+  press_delete();
 }

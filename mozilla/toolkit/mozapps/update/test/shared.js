@@ -53,6 +53,7 @@ const PREF_APP_UPDATE_CERT_ERRORS         = "app.update.cert.errors";
 const PREF_APP_UPDATE_CERT_MAXERRORS      = "app.update.cert.maxErrors";
 const PREF_APP_UPDATE_CERT_REQUIREBUILTIN = "app.update.cert.requireBuiltIn";
 const PREF_APP_UPDATE_CHANNEL             = "app.update.channel";
+const PREF_APP_UPDATE_DESIREDCHANNEL      = "app.update.desiredChannel";
 const PREF_APP_UPDATE_ENABLED             = "app.update.enabled";
 const PREF_APP_UPDATE_IDLETIME            = "app.update.idletime";
 const PREF_APP_UPDATE_LOG                 = "app.update.log";
@@ -110,96 +111,40 @@ const PERMS_DIRECTORY = 0755;
 
 #include sharedUpdateXML.js
 
+AUS_Cu.import("resource://gre/modules/Services.jsm");
 AUS_Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 
 const URI_UPDATES_PROPERTIES = "chrome://mozapps/locale/update/updates.properties";
-
-// Emulate the Services module since it doesn't exist on 1.9.2 so the tests can
-// have the same code as on trunk.
-var Services = { };
-
-XPCOMUtils.defineLazyGetter(Services, "prefs", function () {
-  return AUS_Cc["@mozilla.org/preferences-service;1"].
-         getService(AUS_Ci.nsIPrefService).
-         QueryInterface(AUS_Ci.nsIPrefBranch2);
-});
-
-XPCOMUtils.defineLazyGetter(Services, "appinfo", function () {
-  return AUS_Cc["@mozilla.org/xre/app-info;1"].
-         getService(AUS_Ci.nsIXULAppInfo).
-         QueryInterface(AUS_Ci.nsIXULRuntime);
-});
-
-XPCOMUtils.defineLazyGetter(Services, "dirsvc", function () {
-  return AUS_Cc["@mozilla.org/file/directory_service;1"].
-         getService(AUS_Ci.nsIDirectoryService).
-         QueryInterface(AUS_Ci.nsIProperties);
-});
-
-XPCOMUtils.defineLazyServiceGetter(Services, "wm",
-                                   "@mozilla.org/appshell/window-mediator;1",
-                                   "nsIWindowMediator");
-
-XPCOMUtils.defineLazyServiceGetter(Services, "obs",
-                                   "@mozilla.org/observer-service;1",
-                                   "nsIObserverService");
-
-XPCOMUtils.defineLazyServiceGetter(Services, "io",
-                                   "@mozilla.org/network/io-service;1",
-                                   "nsIIOService2");
-
-XPCOMUtils.defineLazyServiceGetter(Services, "prompt",
-                                   "@mozilla.org/embedcomp/prompt-service;1",
-                                   "nsIPromptService");
-
-XPCOMUtils.defineLazyServiceGetter(Services, "vc",
-                                   "@mozilla.org/xpcom/version-comparator;1",
-                                   "nsIVersionComparator");
-
-XPCOMUtils.defineLazyServiceGetter(Services, "ww",
-                                   "@mozilla.org/embedcomp/window-watcher;1",
-                                   "nsIWindowWatcher");
-
-XPCOMUtils.defineLazyServiceGetter(Services, "strings",
-                                   "@mozilla.org/intl/stringbundle;1",
-                                   "nsIStringBundleService");
-
-XPCOMUtils.defineLazyServiceGetter(Services, "urlFormatter",
-                                   "@mozilla.org/toolkit/URLFormatterService;1",
-                                   "nsIURLFormatter");
-
 const gUpdateBundle = Services.strings.createBundle(URI_UPDATES_PROPERTIES);
 
-__defineGetter__("gAUS", function() {
-  delete this.gAUS;
-  return this.gAUS = AUS_Cc["@mozilla.org/updates/update-service;1"].
-                     getService(AUS_Ci.nsIApplicationUpdateService).
-                     QueryInterface(AUS_Ci.nsIApplicationUpdateService2).
-                     QueryInterface(AUS_Ci.nsITimerCallback).
-                     QueryInterface(AUS_Ci.nsIObserver);
+XPCOMUtils.defineLazyGetter(this, "gAUS", function test_gAUS() {
+  return AUS_Cc["@mozilla.org/updates/update-service;1"].
+         getService(AUS_Ci.nsIApplicationUpdateService).
+         QueryInterface(AUS_Ci.nsITimerCallback).
+         QueryInterface(AUS_Ci.nsIObserver);
 });
 
-__defineGetter__("gUpdateManager", function() {
-  delete this.gUpdateManager;
-  return this.gUpdateManager = AUS_Cc["@mozilla.org/updates/update-manager;1"].
-                               getService(AUS_Ci.nsIUpdateManager);
+XPCOMUtils.defineLazyServiceGetter(this, "gUpdateManager",
+                                   "@mozilla.org/updates/update-manager;1",
+                                   "nsIUpdateManager");
+
+XPCOMUtils.defineLazyGetter(this, "gUpdateChecker", function test_gUC() {
+  return AUS_Cc["@mozilla.org/updates/update-checker;1"].
+         createInstance(AUS_Ci.nsIUpdateChecker);
 });
 
-__defineGetter__("gUpdateChecker", function() {
-  delete this.gUpdateChecker;
-  return this.gUpdateChecker = AUS_Cc["@mozilla.org/updates/update-checker;1"].
-                               createInstance(AUS_Ci.nsIUpdateChecker);
+XPCOMUtils.defineLazyGetter(this, "gUP", function test_gUP() {
+  return AUS_Cc["@mozilla.org/updates/update-prompt;1"].
+         createInstance(AUS_Ci.nsIUpdatePrompt);
 });
 
-__defineGetter__("gUP", function() {
-  delete this.gUP;
-  return this.gUP = AUS_Cc["@mozilla.org/updates/update-prompt;1"].
-                    createInstance(AUS_Ci.nsIUpdatePrompt);
+XPCOMUtils.defineLazyGetter(this, "gDefaultPrefBranch", function test_gDPB() {
+  return Services.prefs.getDefaultBranch(null);
 });
 
-__defineGetter__("gDefaultPrefBranch", function() {
-  delete this.gDefaultPrefBranch;
-  return this.gDefaultPrefBranch = Services.prefs.getDefaultBranch(null);
+XPCOMUtils.defineLazyGetter(this, "gZipW", function test_gZipW() {
+  return AUS_Cc["@mozilla.org/zipwriter;1"].
+         createInstance(AUS_Ci.nsIZipWriter);
 });
 
 /* Initializes the update service stub */

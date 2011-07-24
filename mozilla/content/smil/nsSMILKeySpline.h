@@ -38,42 +38,63 @@
 #ifndef NS_SMILKEYSPLINE_H_
 #define NS_SMILKEYSPLINE_H_
 
-#include "prtypes.h"
-
 /**
  * Utility class to provide scaling defined in a keySplines element.
  */
 class nsSMILKeySpline
 {
 public:
-  /*
-   * Create a new key spline control point description.
+  nsSMILKeySpline() { /* caller must call Init later */ }
+
+  /**
+   * Creates a new key spline control point description.
    *
    * aX1, etc. are the x1, y1, x2, y2 cubic Bezier control points as defined by
    * SMILANIM 3.2.3. They must each be in the range 0.0 <= x <= 1.0
    */
   nsSMILKeySpline(double aX1, double aY1,
-                  double aX2, double aY2);
+                  double aX2, double aY2)
+  {
+    Init(aX1, aY1, aX2, aY2);
+  }
 
-  /*
-   * Get the output (y) value for an input (x).
+  void Init(double aX1, double aY1,
+            double aX2, double aY2);
+
+  /**
+   * Gets the output (y) value for an input (x).
    *
-   * x should be a floating-point number between 0 and 1 (inclusive).
+   * @param aX  The input x value. A floating-point number between 0 and
+   *            1 (inclusive).
    */
   double GetSplineValue(double aX) const;
+
+  void GetSplineDerivativeValues(double aX, double& aDX, double& aDY) const;
 
 private:
   void
   CalcSampleValues();
 
+  /**
+   * Returns x(t) given t, x1, and x2, or y(t) given t, y1, and y2.
+   */
   static double
   CalcBezier(double aT, double aA1, double aA2);
 
+  /**
+   * Returns dx/dt given t, x1, and x2, or dy/dt given t, y1, and y2.
+   */
   static double
   GetSlope(double aT, double aA1, double aA2);
 
   double
   GetTForX(double aX) const;
+
+  double
+  NewtonRaphsonIterate(double aX, double aGuessT) const;
+
+  double
+  BinarySubdivide(double aX, double aA, double aB) const;
 
   static double
   A(double aA1, double aA2)
@@ -93,10 +114,10 @@ private:
     return 3.0 * aA1;
   }
 
-  const double         mX1;
-  const double         mY1;
-  const double         mX2;
-  const double         mY2;
+  double               mX1;
+  double               mY1;
+  double               mX2;
+  double               mY2;
 
   enum { kSplineTableSize = 11 };
   double               mSampleValues[kSplineTableSize];

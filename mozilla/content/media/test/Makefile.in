@@ -38,7 +38,7 @@ DEPTH		= ../../..
 topsrcdir	= @top_srcdir@
 srcdir		= @srcdir@
 VPATH		= @srcdir@
-relativesrcdir  = content/media/test
+relativesrcdir	= content/media/test
 
 include $(DEPTH)/config/autoconf.mk
 include $(topsrcdir)/config/rules.mk
@@ -67,11 +67,17 @@ include $(topsrcdir)/config/rules.mk
 # supported, just do ok(true, "Type not supported") and stop the test.
 
 _TEST_FILES = \
+		allowed.sjs \
 		can_play_type_ogg.js \
 		can_play_type_wave.js \
+		can_play_type_webm.js \
 		cancellable_request.sjs \
+		dynamic_redirect.sjs \
+		file_access_controls.html \
 		manifest.js \
 		reactivate_helper.html \
+		redirect.sjs \
+		referer.sjs \
 		seek1.js \
 		seek2.js \
 		seek3.js \
@@ -82,55 +88,98 @@ _TEST_FILES = \
 		seek8.js \
 		seek9.js \
 		seek10.js \
+		seek11.js \
+		seek12.js \
+		seek13.js \
+		seekLies.sjs \
+		test_access_control.html \
 		test_audio1.html \
 		test_audio2.html \
-		test_autobuffer.html \
 		test_autoplay.html \
+		test_autoplay_contentEditable.html \
+		test_buffered.html \
+		test_bug448534.html \
+		test_bug463162.xhtml \
+		test_bug465498.html \
+		test_bug493187.html \
+		test_bug495145.html \
 		test_bug495300.html \
 		test_can_play_type.html \
+		test_closing_connections.html \
 		test_constants.html \
 		test_controls.html \
 		test_currentTime.html \
 		test_decode_error.html \
 		test_decoder_disable.html \
+		test_delay_load.html \
+		test_error_on_404.html \
+		test_error_in_video_document.html \
+		test_info_leak.html \
 		test_load.html \
+		test_load_candidates.html \
+		test_load_source.html \
 		test_media_selection.html \
 		test_mozLoadFrom.html \
 		test_networkState.html \
+		test_new_audio.html \
 		test_paused.html \
-		test_play_twice.html \
+		test_paused_after_ended.html \
+		test_play_events.html \
+		test_play_events_2.html \
+		test_playback.html \
 		test_playback_errors.html \
+		test_preload_actions.html \
+		test_preload_attribute.html \
+		test_progress.html \
 		test_reactivate.html \
 		test_readyState.html \
-		test_seek2.html \
-		test_volume.html \
-		use_large_cache.js \
-		$(NULL)
-
-# Disabled due to flakiness
-#		test_resume.html \
-#
-
-ifneq ($(OS_ARCH),WINNT)
-# These tests are disabled on windows until we
-# figure out the random failures. See bug 475369.
-_TEST_FILES += \
+		test_replay_metadata.html \
 		test_seek.html \
-		test_playback.html \
+		test_seek2.html \
+		test_seekLies.html \
+		test_seek_out_of_range.html \
+		test_source.html \
+		test_source_write.html \
+		test_standalone.html \
+		test_timeupdate_small_files.html \
+		test_volume.html \
+		test_video_to_canvas.html \
+		use_large_cache.js \
+		test_audiowrite.html \
 		$(NULL)
+
+# Don't run in suite
+ifndef MOZ_SUITE
+_TEST_FILES += test_play_twice.html
+else
+$(warning test_play_twice.html is disabled pending investigation. Bug 598252)
 endif
 
-# Ogg sample files
+# These tests are disabled until we figure out random failures.
+# When these tests are fixed, we should also make them backend-independent.
+#		test_resume.html \
+# Bug 492821:
+#   test_videoDocumentTitle.html
+# Bug 493692:
+#   test_preload_suspend.html
+# Bug 567954 and Bug 574586:
+#   test_mixed_principals.html
+# Disabled since we don't play Wave files standalone, for now
+#		test_audioDocumentTitle.html
+
+# sample files
 _TEST_FILES += \
 		320x240.ogv \
-		320x240.allow-origin.ogv \
-		320x240.allow-origin.ogv^headers^ \
 		448636.ogv \
+		audio-overhang.ogg \
+		audio-gaps.ogg \
 		beta-phrasebook.ogg \
 		bogus.ogv \
 		bug495129.ogv \
+		bug495794.ogg \
 		bug461281.ogg \
 		bug482461.ogv \
+		bug482461-theora.ogv \
 		bug498380.ogv \
 		bug498855-1.ogv \
 		bug498855-2.ogv \
@@ -144,20 +193,32 @@ _TEST_FILES += \
 		bug504843.ogv \
 		bug506094.ogv \
 		bug516323.ogv \
+		bug516323.indexed.ogv \
 		bug520493.ogg \
 		bug520500.ogg \
 		bug520908.ogv \
 		bug520908.ogv^headers^ \
 		bug523816.ogv \
 		bug533822.ogg \
+		bug557094.ogv \
+		bug556821.ogv \
+		bug580982.webm \
+		bug603918.webm \
+		bug604067.webm \
 		chain.ogv \
 		dirac.ogg \
+		split.webm \
 		seek.ogv \
+		seek.webm \
+		seek.yuv \
 		short-video.ogv \
 		small-shot.ogg \
 		sound.ogg \
+		spacestorm-1000Hz-100ms.ogg \
+		video-overhang.ogg \
+		file_a4_tone.ogg \
 		$(NULL)
-		
+
 # Wave sample files
 _TEST_FILES += \
 		big.wav \
@@ -168,6 +229,8 @@ _TEST_FILES += \
 		r11025_u8_c1.wav \
 		r11025_u8_c1_trunc.wav \
 		r16000_u8_c1_list.wav \
+		wavedata_u8.wav \
+		wavedata_s16.wav \
 		$(NULL)
 
 # Other files
@@ -175,67 +238,30 @@ _TEST_FILES += \
 		bogus.duh \
 		$(NULL)
 
-# These tests need to be converted to be backend-independent. This list
-# is deprecated, do not add to it.
+# These tests contain backend-specific tests. Try to write backend
+# independent tests rather than adding to this list.
 ifdef MOZ_OGG
 _TEST_FILES += \
-		dynamic_redirect.sjs \
-		test_access_control.html \
-		file_access_controls.html \
-		test_bug448534.html \
-		test_bug468190.html \
-		test_bug493187.html \
-		test_bug495145.html \
-		test_bug495319.html \
-		test_closing_connections.html \
+		test_can_play_type_ogg.html \
 		test_contentDuration1.html \
 		test_contentDuration2.html \
 		test_contentDuration3.html \
 		test_contentDuration4.html \
 		test_contentDuration5.html \
 		test_contentDuration6.html \
-		test_delay_load.html \
-		test_duration1.html \
-		test_ended1.html \
-		test_ended2.html \
-		test_error_on_404.html \
-		test_info_leak.html \
-		test_onloadedmetadata.html \
-		test_load_candidates.html \
-		test_mixed_principals.html \
-		test_play.html \
-		test_progress1.html \
-		test_progress3.html \
-		test_source.html \
-		test_source_write.html \
-		test_standalone.html \
-		test_timeupdate1.html \
-		test_timeupdate2.html \
-		redirect.sjs \
+		test_contentDuration7.html \
 		contentDuration1.sjs \
 		contentDuration2.sjs \
 		contentDuration3.sjs \
 		contentDuration4.sjs \
 		contentDuration5.sjs \
 		contentDuration6.sjs \
-		$(NULL)
-# These tests disabled until we figure out random failures.
-# Bug 492821:
-# test_videoDocumentTitle.html
-# Bug 493692:
-# test_autobuffer2.html
-ifneq ($(OS_ARCH),WINNT)
-# These tests are disabled on windows until we
-# figure out the random failures. See bug 475369.
-_TEST_FILES += \
-		test_timeupdate3.html \
-		$(NULL)
-endif
-endif
-
-ifdef MOZ_OGG
-_TEST_FILES += \
-		test_can_play_type_ogg.html \
+		contentDuration7.sjs \
+		test_a4_tone.html \
+		file_audio_event_adopt_iframe.html \
+		test_audio_event_adopt.html \
+		test_framebuffer.html \
+		test_referer.html \
 		$(NULL)
 else
 _TEST_FILES += \
@@ -243,32 +269,21 @@ _TEST_FILES += \
 		$(NULL)
 endif
 
-# These tests need to be converted to be backend-independent. This list
-# is deprecated, do not add to it.
-ifdef MOZ_WAVE
+ifdef MOZ_WEBM
 _TEST_FILES += \
-		test_bug463162.xhtml \
-		test_bug465498.html \
-		test_bug468190_wav.html \
-		test_bug495145_wav.html \
-		test_paused_after_ended.html \
-		test_progress2.html \
-		test_progress4.html \
-		test_wav_ended1.html \
-		test_wav_ended2.html \
-		test_wav_onloadedmetadata.html \
-		test_wav_timeupdate1.html \
-		test_wav_timeupdate2.html \
-		test_wav_trunc_seek.html \
+		test_can_play_type_webm.html \
 		$(NULL)
-# Disabled since we don't play Wave files standalone, for now
-#		test_wav_standalone.html
-#		test_audioDocumentTitle.html
+else
+_TEST_FILES += \
+		test_can_play_type_no_webm.html \
+		$(NULL)
 endif
 
 ifdef MOZ_WAVE
 _TEST_FILES += \
 		test_can_play_type_wave.html \
+		test_wave_data_u8.html \
+		test_wave_data_s16.html \
 		$(NULL)
 else
 _TEST_FILES += \

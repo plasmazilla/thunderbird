@@ -66,3 +66,15 @@
 .tabmail-tabs[closebuttons="alltabs"] > .tabmail-tab:not(:only-child) > .tab-close-button {
   display: -moz-box;
 }
+
+.tab-drop-indicator {
+  position: relative;
+  z-index: 2;
+}
+
+.tab-throbber:not([busy]):not([thinking]),
+.tab-throbber[busy] + .tab-icon-image,
+.tab-throbber[thinking] + .tab-icon-image,
+.tab-throbber[busy][thinking] + .tab-icon-image {
+  display: none;
+}

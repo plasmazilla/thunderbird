@@ -40,11 +40,13 @@
 #define __NS_ISVGGLYPHFRAGMENTLEAF_H__
 
 #include "nsISVGGlyphFragmentNode.h"
-#include "nsIDOMSVGLengthList.h"
 
 class nsIDOMSVGPoint;
 class nsIDOMSVGRect;
 class nsSVGTextPathFrame;
+namespace mozilla {
+class SVGUserUnitList;
+}
 
 class nsISVGGlyphFragmentLeaf : public nsISVGGlyphFragmentNode
 {
@@ -58,15 +60,31 @@ public:
 
   NS_IMETHOD_(float) GetAdvance(PRBool aForceGlobalTransform)=0;
 
-  NS_IMETHOD_(void) SetGlyphPosition(float x, float y, PRBool aForceGlobalTransform)=0;
+  NS_IMETHOD_(void) SetGlyphPosition(gfxPoint *aPosition, PRBool aForceGlobalTransform)=0;
   NS_IMETHOD_(nsSVGTextPathFrame*) FindTextPathParent()=0;
   NS_IMETHOD_(PRBool) IsStartOfChunk()=0; // == is new absolutely positioned chunk.
-  NS_IMETHOD_(void) GetAdjustedPosition(/* inout */ float &x, /* inout */ float &y)=0;
 
-  NS_IMETHOD_(already_AddRefed<nsIDOMSVGLengthList>) GetX()=0;
-  NS_IMETHOD_(already_AddRefed<nsIDOMSVGLengthList>) GetY()=0;
-  NS_IMETHOD_(already_AddRefed<nsIDOMSVGLengthList>) GetDx()=0;
-  NS_IMETHOD_(already_AddRefed<nsIDOMSVGLengthList>) GetDy()=0;
+  NS_IMETHOD_(void) GetXY(mozilla::SVGUserUnitList *aX, mozilla::SVGUserUnitList *aY)=0;
+  NS_IMETHOD_(void) SetStartIndex(PRUint32 aStartIndex)=0;
+  /*
+   * Returns inherited x and y values instead of parent element's attribute
+   * values.
+   */
+  NS_IMETHOD_(void) GetEffectiveXY(PRInt32 strLength,
+                                   nsTArray<float> &aX, nsTArray<float> &aY)=0;
+  /*
+   * Returns inherited dx and dy values instead of parent element's attribute
+   * values.
+   */
+  NS_IMETHOD_(void) GetEffectiveDxDy(PRInt32 strLength, 
+                                     nsTArray<float> &aDx,
+                                     nsTArray<float> &aDy)=0;
+  /*
+   * Returns inherited rotate values instead of parent element's attribute
+   * values.
+   */
+  NS_IMETHOD_(void) GetEffectiveRotate(PRInt32 strLength,
+                                       nsTArray<float> &aRotate)=0;
   NS_IMETHOD_(PRUint16) GetTextAnchor()=0;
   NS_IMETHOD_(PRBool) IsAbsolutelyPositioned()=0;
 };

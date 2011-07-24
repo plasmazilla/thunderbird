@@ -51,7 +51,7 @@
 
 /*
 * These can be controled by the makefile, but this allows a place to set
-* the values always used in the mozilla client, but perhaps done differnetly
+* the values always used in the mozilla client, but perhaps done differently
 * in other embeddings.
 */
 #ifdef MOZILLA_CLIENT
@@ -273,7 +273,7 @@ struct JSDValue
     intN        nref;
     JSCList     props;
     JSString*   string;
-    const char* funName;
+    JSString*   funName;
     const char* className;
     JSDValue*   proto;
     JSDValue*   parent;
@@ -340,7 +340,9 @@ extern void JSD_ASSERT_VALID_OBJECT(JSDObject* jsdobj);
 extern JSDContext*
 jsd_DebuggerOnForUser(JSRuntime*         jsrt,
                       JSD_UserCallbacks* callbacks,
-                      void*              user);
+                      void*              user,
+                      JSObject*          scopeobj);
+
 extern JSDContext*
 jsd_DebuggerOn(void);
 
@@ -458,8 +460,8 @@ jsd_IsActiveScript(JSDContext* jsdc, JSDScript *jsdscript);
 extern const char*
 jsd_GetScriptFilename(JSDContext* jsdc, JSDScript *jsdscript);
 
-extern const char*
-jsd_GetScriptFunctionName(JSDContext* jsdc, JSDScript *jsdscript);
+extern JSString*
+jsd_GetScriptFunctionId(JSDContext* jsdc, JSDScript *jsdscript);
 
 extern uintN
 jsd_GetScriptBaseLineNumber(JSDContext* jsdc, JSDScript *jsdscript);
@@ -588,7 +590,7 @@ jsd_AddFullSourceText(JSDContext* jsdc,
 extern void
 jsd_DestroyAllSources(JSDContext* jsdc);
 
-extern const char*
+extern char*
 jsd_BuildNormalizedURL(const char* url_string);
 
 extern void
@@ -607,6 +609,11 @@ jsd_SetInterruptHook(JSDContext*           jsdc,
 
 extern JSBool
 jsd_ClearInterruptHook(JSDContext* jsdc);
+
+extern JSBool
+jsd_EnableSingleStepInterrupts(JSDContext* jsdc,
+                               JSDScript*  jsdscript,
+                               JSBool      enable);
 
 extern JSBool
 jsd_SetDebugBreakHook(JSDContext*           jsdc,
@@ -708,11 +715,6 @@ jsd_GetScopeChainForStackFrame(JSDContext* jsdc,
                                JSDStackFrameInfo* jsdframe);
 
 extern JSBool
-jsd_IsStackFrameNative(JSDContext* jsdc, 
-                       JSDThreadState* jsdthreadstate,
-                       JSDStackFrameInfo* jsdframe);
-
-extern JSBool
 jsd_IsStackFrameDebugger(JSDContext* jsdc, 
                          JSDThreadState* jsdthreadstate,
                          JSDStackFrameInfo* jsdframe);
@@ -727,10 +729,10 @@ jsd_GetThisForStackFrame(JSDContext* jsdc,
                          JSDThreadState* jsdthreadstate,
                          JSDStackFrameInfo* jsdframe);
 
-extern const char*
-jsd_GetNameForStackFrame(JSDContext* jsdc, 
-                         JSDThreadState* jsdthreadstate,
-                         JSDStackFrameInfo* jsdframe);
+extern JSString*
+jsd_GetIdForStackFrame(JSDContext* jsdc, 
+                       JSDThreadState* jsdthreadstate,
+                       JSDStackFrameInfo* jsdframe);
 
 extern JSDThreadState*
 jsd_NewThreadState(JSDContext* jsdc, JSContext *cx);
@@ -966,14 +968,17 @@ jsd_GetValueBoolean(JSDContext* jsdc, JSDValue* jsdval);
 extern int32
 jsd_GetValueInt(JSDContext* jsdc, JSDValue* jsdval);
 
-extern jsdouble*
+extern jsdouble
 jsd_GetValueDouble(JSDContext* jsdc, JSDValue* jsdval);
 
 extern JSString*
 jsd_GetValueString(JSDContext* jsdc, JSDValue* jsdval);
 
-extern const char*
-jsd_GetValueFunctionName(JSDContext* jsdc, JSDValue* jsdval);
+extern JSString*
+jsd_GetValueFunctionId(JSDContext* jsdc, JSDValue* jsdval);
+
+extern JSFunction*
+jsd_GetValueFunction(JSDContext* jsdc, JSDValue* jsdval);
 
 /**************************************************/
 
@@ -1043,9 +1048,6 @@ jsd_DestroyObjectManager(JSDContext* jsdc);
 
 extern void
 jsd_DestroyObjects(JSDContext* jsdc);
-
-extern void
-jsd_ObjectHook(JSContext *cx, JSObject *obj, JSBool isNew, void *closure);
 
 extern void
 jsd_Constructing(JSDContext* jsdc, JSContext *cx, JSObject *obj,

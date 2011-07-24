@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-var gTestfile = 'regress-381301.js';
 
 //-----------------------------------------------------------------------------
 var BUGNUMBER = 381301;
@@ -54,8 +53,10 @@ function test()
   printBugNumber(BUGNUMBER);
   printStatus (summary);
 
-  expect = '( { get x decodeURI ( ) { [ native code ] } } )';
-  actual =  uneval({x getter: decodeURI});
+  var o =
+    Object.defineProperty({}, "x", { get: decodeURI, enumerable: true, configurable: true });
+  expect = '( { get x ( ) { [ native code ] } } )';
+  actual =  uneval(o);
 
   compareSource(expect, actual, summary);
 

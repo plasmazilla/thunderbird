@@ -50,9 +50,15 @@
 #include "nsTArray.h"
 #include "nsAutoPtr.h"
 #include "nsCSSRules.h"
+#include "nsRuleWalker.h"
 
 struct RuleCascadeData;
 struct nsCSSSelectorList;
+struct CascadeEnumData;
+struct TreeMatchContext;
+#ifdef MOZ_CSS_ANIMATIONS
+class nsCSSKeyframesRule;
+#endif
 
 /**
  * The CSS style rule processor provides a mechanism for sibling style
@@ -67,8 +73,9 @@ struct nsCSSSelectorList;
 
 class nsCSSRuleProcessor: public nsIStyleRuleProcessor {
 public:
-  nsCSSRuleProcessor(const nsCOMArray<nsICSSStyleSheet>& aSheets, 
-                     PRUint8 aSheetType);
+  typedef nsTArray<nsRefPtr<nsCSSStyleSheet> > sheet_array_type;
+
+  nsCSSRuleProcessor(const sheet_array_type& aSheets, PRUint8 aSheetType);
   virtual ~nsCSSRuleProcessor();
 
   NS_DECL_ISUPPORTS
@@ -76,36 +83,70 @@ public:
 public:
   nsresult ClearRuleCascades();
 
-  static void Startup();
+  static nsresult Startup();
+  static void Shutdown();
   static void FreeSystemMetrics();
   static PRBool HasSystemMetric(nsIAtom* aMetric);
 
   /*
-   * Returns true if the given RuleProcessorData matches one of the
+   * Returns true if the given aElement matches one of the
    * selectors in aSelectorList.  Note that this method will assume
-   * the matching is not for styling purposes.
+   * the given aElement is not a relevant link.  aSelectorList must not
+   * include any pseudo-element selectors.  aSelectorList is allowed
+   * to be null; in this case PR_FALSE will be returned.
    */
-  static PRBool SelectorListMatches(RuleProcessorData& aData,
+  static PRBool SelectorListMatches(mozilla::dom::Element* aElement,
+                                    TreeMatchContext& aTreeMatchContext,
                                     nsCSSSelectorList* aSelectorList);
 
+  /*
+   * Helper to get the content state for a content node.  This may be
+   * slightly adjusted from IntrinsicState().
+   */
+  static nsEventStates GetContentState(mozilla::dom::Element* aElement);
+
+  /*
+   * Helper to get the content state for :visited handling for an element
+   */
+  static nsEventStates GetContentStateForVisitedHandling(
+             mozilla::dom::Element* aElement,
+             nsRuleWalker::VisitedHandlingType aVisitedHandling,
+             PRBool aIsRelevantLink);
+
+  /*
+   * Helper to test whether a node is a link
+   */
+  static PRBool IsLink(mozilla::dom::Element* aElement);
+
   // nsIStyleRuleProcessor
-  NS_IMETHOD RulesMatching(ElementRuleProcessorData* aData);
+  virtual void RulesMatching(ElementRuleProcessorData* aData);
 
-  NS_IMETHOD RulesMatching(PseudoRuleProcessorData* aData);
+  virtual void RulesMatching(PseudoElementRuleProcessorData* aData);
 
-  NS_IMETHOD HasStateDependentStyle(StateRuleProcessorData* aData,
-                                    nsReStyleHint* aResult);
+  virtual void RulesMatching(AnonBoxRuleProcessorData* aData);
 
-  NS_IMETHOD HasAttributeDependentStyle(AttributeRuleProcessorData* aData,
-                                        nsReStyleHint* aResult);
+#ifdef MOZ_XUL
+  virtual void RulesMatching(XULTreeRuleProcessorData* aData);
+#endif
 
-  NS_IMETHOD MediumFeaturesChanged(nsPresContext* aPresContext,
-                                   PRBool* aRulesChanged);
+  virtual nsRestyleHint HasStateDependentStyle(StateRuleProcessorData* aData);
+
+  virtual PRBool HasDocumentStateDependentStyle(StateRuleProcessorData* aData);
+
+  virtual nsRestyleHint
+    HasAttributeDependentStyle(AttributeRuleProcessorData* aData);
+
+  virtual PRBool MediumFeaturesChanged(nsPresContext* aPresContext);
 
   // Append all the currently-active font face rules to aArray.  Return
   // true for success and false for failure.
   PRBool AppendFontFaceRules(nsPresContext* aPresContext,
                              nsTArray<nsFontFaceRuleContainer>& aArray);
+
+#ifdef MOZ_CSS_ANIMATIONS
+  PRBool AppendKeyframesRules(nsPresContext* aPresContext,
+                              nsTArray<nsCSSKeyframesRule*>& aArray);
+#endif
 
 #ifdef DEBUG
   void AssertQuirksChangeOK() {
@@ -114,14 +155,22 @@ public:
   }
 #endif
 
+#ifdef XP_WIN
+  // Cached theme identifier for the moz-windows-theme media query.
+  static PRUint8 GetWindowsThemeIdentifier();
+  static void SetWindowsThemeIdentifier(PRUint8 aId) { 
+    sWinThemeId = aId;
+  }
+#endif
+
 private:
-  static PRBool CascadeSheetEnumFunc(nsICSSStyleSheet* aSheet, void* aData);
+  static PRBool CascadeSheet(nsCSSStyleSheet* aSheet, CascadeEnumData* aData);
 
   RuleCascadeData* GetRuleCascade(nsPresContext* aPresContext);
   void RefreshRuleCascade(nsPresContext* aPresContext);
 
   // The sheet order here is the same as in nsStyleSet::mSheets
-  nsCOMArray<nsICSSStyleSheet> mSheets;
+  sheet_array_type mSheets;
 
   // active first, then cached (most recent first)
   RuleCascadeData* mRuleCascades;
@@ -131,6 +180,10 @@ private:
   
   // type of stylesheet using this processor
   PRUint8 mSheetType;  // == nsStyleSet::sheetType
+
+#ifdef XP_WIN
+  static PRUint8 sWinThemeId;
+#endif
 };
 
 #endif /* nsCSSRuleProcessor_h_ */

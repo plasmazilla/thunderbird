@@ -57,8 +57,10 @@
 #include "nsString.h"
 #include "nsID.h"
 #include "pldhash.h"
-
 #include "nsDOMClassInfo.h"
+#include "nsIObserver.h"
+#include "nsWeakReference.h"
+
 
 struct nsGlobalNameStruct
 {
@@ -83,7 +85,7 @@ struct nsGlobalNameStruct
     eTypeExternalConstructorAlias
   } mType;
 
-  PRBool mPrivilegedOnly;
+  PRBool mChromeOnly;
 
   union {
     PRInt32 mDOMClassInfoID; // eTypeClassConstructor
@@ -104,9 +106,13 @@ class nsICategoryManager;
 class GlobalNameMapEntry;
 
 
-class nsScriptNameSpaceManager
+class nsScriptNameSpaceManager : public nsIObserver,
+                                 public nsSupportsWeakReference
 {
 public:
+  NS_DECL_ISUPPORTS
+  NS_DECL_NSIOBSERVER
+
   nsScriptNameSpaceManager();
   virtual ~nsScriptNameSpaceManager();
 
@@ -124,6 +130,7 @@ public:
 
   nsresult RegisterClassName(const char *aClassName,
                              PRInt32 aDOMClassInfoID,
+                             PRBool aPrivileged,
                              const PRUnichar **aResult);
 
   nsresult RegisterClassProto(const char *aClassName,
@@ -156,13 +163,24 @@ protected:
                                 const PRUnichar **aClassName = nsnull);
 
   nsresult FillHash(nsICategoryManager *aCategoryManager,
-                    const char *aCategory,
-                    nsGlobalNameStruct::nametype aType,
-                    PRBool aPrivilegedOnly);
+                    const char *aCategory);
   nsresult FillHashWithDOMInterfaces();
   nsresult RegisterInterface(const char* aIfName,
                              const nsIID *aIfIID,
                              PRBool* aFoundOld);
+
+  /**
+   * Add a new category entry into the hash table.
+   * Only some categories can be added (see the beginning of the definition).
+   * The other ones will be ignored.
+   *
+   * @aCategoryManager Instance of the category manager service.
+   * @aCategory        Category where the entry comes from.
+   * @aEntry           The entry that should be added.
+   */
+  nsresult AddCategoryEntryToHash(nsICategoryManager* aCategoryManager,
+                                  const char* aCategory,
+                                  nsISupports* aEntry);
 
   // Inline PLDHashTable, init with PL_DHashTableInit() and delete
   // with PL_DHashTableFinish().

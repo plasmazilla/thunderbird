@@ -157,15 +157,6 @@ nsPop3Sink::GetMailAccountURL(char* *urlString)
   return NS_OK;
 }
 
-struct partialRecord
-{
-  partialRecord();
-  ~partialRecord();
-
-  nsCOMPtr<nsIMsgDBHdr> m_msgDBHdr;
-  nsCString m_uidl;
-};
-
 partialRecord::partialRecord() :
   m_msgDBHdr(nsnull)
 {
@@ -248,14 +239,14 @@ nsPop3Sink::FindPartialMessages(nsILocalFile *folderFile)
 void
 nsPop3Sink::CheckPartialMessages(nsIPop3Protocol *protocol)
 {
-  PRUint32 count = m_partialMsgsArray.Count();
+  PRUint32 count = m_partialMsgsArray.Length();
   PRBool deleted = PR_FALSE;
 
   for (PRUint32 i = 0; i < count; i++)
   {
     partialRecord *partialMsg;
     PRBool found = PR_TRUE;
-    partialMsg = static_cast<partialRecord *>(m_partialMsgsArray.ElementAt(i));
+    partialMsg = m_partialMsgsArray.ElementAt(i);
     protocol->CheckMessage(partialMsg->m_uidl.get(), &found);
     if (!found && partialMsg->m_msgDBHdr)
     {
@@ -310,6 +301,7 @@ nsPop3Sink::BeginMailDelivery(PRBool uidlDownload, nsIMsgWindow *aMsgWindow, PRB
   nsCOMPtr<nsILocalFile> path;
 
   m_folder->GetFilePath(getter_AddRefs(path));
+  nsCOMPtr <nsIInputStream> inboxInputStream;
 
   nsCOMPtr<nsIPrefBranch> pPrefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
   if (pPrefBranch)
@@ -336,11 +328,16 @@ nsPop3Sink::BeginMailDelivery(PRBool uidlDownload, nsIMsgWindow *aMsgWindow, PRB
       rv = MsgGetFileStream(m_tmpDownloadFile, getter_AddRefs(m_outFileStream));
       NS_ENSURE_SUCCESS(rv, rv);
     }
+    nsCOMPtr<nsIOutputStream> inboxOutputStream;
+    rv = MsgGetFileStream(path, getter_AddRefs(inboxOutputStream));
+    NS_ENSURE_SUCCESS(rv, rv);
+    inboxInputStream = do_QueryInterface(inboxOutputStream);
   }
   else
   {
     rv = MsgGetFileStream(path, getter_AddRefs(m_outFileStream));
     NS_ENSURE_SUCCESS(rv, rv);
+    inboxInputStream = do_QueryInterface(m_outFileStream);
   }
   // The following (!m_outFileStream etc) was added to make sure that we don't write somewhere
   // where for some reason or another we can't write to and lose the messages
@@ -362,9 +359,8 @@ nsPop3Sink::BeginMailDelivery(PRBool uidlDownload, nsIMsgWindow *aMsgWindow, PRB
   rv = GetServerFolder(getter_AddRefs(serverFolder));
   if (NS_FAILED(rv)) return rv;
 
-  nsCOMPtr <nsIInputStream> inboxInputStream = do_QueryInterface(m_outFileStream);
-  rv = m_newMailParser->Init(serverFolder, m_folder, (m_downloadingToTempFile) ? m_tmpDownloadFile : path,
-                            inboxInputStream, aMsgWindow, m_downloadingToTempFile);
+  rv = m_newMailParser->Init(serverFolder, m_folder,
+                             inboxInputStream, aMsgWindow);
   // If we failed to initialize the parser, then just don't use it!!!
   // We can still continue without one.
 
@@ -781,13 +777,14 @@ nsresult nsPop3Sink::HandleTempDownloadFailed(nsIMsgWindow *msgWindow)
   if (promptService && !confirmString.IsEmpty())
   {
     PRInt32 dlgResult  = -1;
+    PRBool dummyValue = PR_FALSE;
     rv = promptService->ConfirmEx(parentWindow, nsnull, confirmString.get(),
                       nsIPromptService::STD_YES_NO_BUTTONS,
                       nsnull,
                       nsnull,
                       nsnull,
                       nsnull,
-                      nsnull,
+                      &dummyValue,
                       &dlgResult);
     m_newMailParser->m_newMsgHdr = nsnull;
 
@@ -804,7 +801,7 @@ nsPop3Sink::IncorporateComplete(nsIMsgWindow *aMsgWindow, PRInt32 aSize)
   {
     PRUint32 msgKey;
     m_newMailParser->GetEnvelopePos(&msgKey);
-    m_messageUri.SetLength(0);
+    m_messageUri.Truncate();
     nsBuildLocalMessageURI(m_baseMessageUri.get(), msgKey, m_messageUri);
   }
 
@@ -848,7 +845,6 @@ nsPop3Sink::IncorporateComplete(nsIMsgWindow *aMsgWindow, PRInt32 aSize)
 
     if (m_downloadingToTempFile)
     {
-      PRBool moved = PR_FALSE;
       // close file to give virus checkers a chance to do their thing...
       m_outFileStream->Flush();
       m_outFileStream->Close();
@@ -862,95 +858,44 @@ nsPop3Sink::IncorporateComplete(nsIMsgWindow *aMsgWindow, PRInt32 aSize)
       nsCOMPtr <nsIInputStream> inboxInputStream = do_QueryInterface(m_outFileStream);
       rv = MsgReopenFileStream(m_tmpDownloadFile, inboxInputStream);
       NS_ENSURE_SUCCESS(rv, HandleTempDownloadFailed(aMsgWindow));
-      nsMsgKey saveMsgKey;
-      hdr->GetMessageKey(&saveMsgKey);
-      // this is the offset in the temp file, which we need to be correct
-      // when applying filters;
-      hdr->SetMessageKey(0);
-      m_newMailParser->ApplyFilters(&moved, aMsgWindow, 0);
-      // restore the msg key so that we don't confuse the msg hdr
-      // use cache, which requires the hdr to have the same msg key when put
-      // in the use cache as when it is deleted and hence removed
-      // from the use cache.
-      hdr->SetMessageKey(saveMsgKey);
-      if (!moved)
+      if (m_outFileStream)
       {
-        if (m_outFileStream)
-        {
-          nsCOMPtr<nsILocalFile> path;
+        nsCOMPtr<nsILocalFile> path;
 
-          PRInt64 folderSize, tmpDownloadFileSize;
-          m_folder->GetFilePath(getter_AddRefs(path));
-          path->GetFileSize(&folderSize);
-          PRUint32 newMsgPos = (PRUint32) folderSize;
-          PRUint32 msgSize;
-          hdr->GetMessageSize(&msgSize);
-          hdr->SetMessageKey(newMsgPos);
-          // we need to clone because nsLocalFileUnix caches its stat result,
-          // so it doesn't realize the file has changed size.
-          nsCOMPtr <nsIFile> tmpClone;
-          rv = m_tmpDownloadFile->Clone(getter_AddRefs(tmpClone));
-          NS_ENSURE_SUCCESS(rv, rv);
-          tmpClone->GetFileSize(&tmpDownloadFileSize);
+        PRInt64 folderSize, tmpDownloadFileSize;
+        m_folder->GetFilePath(getter_AddRefs(path));
+        path->GetFileSize(&folderSize);
+        PRUint32 newMsgPos = (PRUint32) folderSize;
+        PRUint32 msgSize;
+        hdr->GetMessageSize(&msgSize);
+        hdr->SetMessageKey(newMsgPos);
+        // we need to clone because nsLocalFileUnix caches its stat result,
+        // so it doesn't realize the file has changed size.
+        nsCOMPtr <nsIFile> tmpClone;
+        rv = m_tmpDownloadFile->Clone(getter_AddRefs(tmpClone));
+        NS_ENSURE_SUCCESS(rv, rv);
+        tmpClone->GetFileSize(&tmpDownloadFileSize);
 
-          if (msgSize > tmpDownloadFileSize)
-            rv = NS_MSG_ERROR_WRITING_MAIL_FOLDER;
-          else
-            rv = m_newMailParser->AppendMsgFromFile(inboxInputStream, 0, msgSize, path);
-          if (NS_FAILED(rv))
-            return HandleTempDownloadFailed(aMsgWindow);
-
-          // if we have made it this far then the message has successfully been written to the new folder
-          // now add the header to the destMailDB.
-          if (NS_SUCCEEDED(rv) && m_newMailParser->m_mailDB)
-          {
-            PRUint32 newFlags;
-            hdr->GetFlags(&newFlags);
-            if (! (newFlags & nsMsgMessageFlags::Read))
-            {
-              nsCString junkScoreStr;
-              (void) hdr->GetStringProperty("junkscore", getter_Copies(junkScoreStr));
-              if (atoi(junkScoreStr.get()) < 50)
-              {
-                hdr->OrFlags(nsMsgMessageFlags::New, &newFlags);
-                m_newMailParser->m_mailDB->AddToNewList(newMsgPos);
-              }
-            }
-            m_newMailParser->m_mailDB->AddNewHdrToDB(hdr, PR_TRUE);
-            nsCOMPtr<nsIMsgFolderNotificationService> notifier(do_GetService(NS_MSGNOTIFICATIONSERVICE_CONTRACTID));
-            if (notifier)
-              notifier->NotifyMsgAdded(hdr);
-            m_folder->OrProcessingFlags(
-              newMsgPos, nsMsgProcessingFlags::NotReportedClassified);
-          }
-        }
+        if (msgSize > tmpDownloadFileSize)
+          rv = NS_MSG_ERROR_WRITING_MAIL_FOLDER;
         else
-        {
-            return HandleTempDownloadFailed(aMsgWindow);
-          // need to give an error here.
-        }
+          rv = m_newMailParser->AppendMsgFromFile(inboxInputStream, 0, msgSize, path);
+        if (NS_FAILED(rv))
+          return HandleTempDownloadFailed(aMsgWindow);
+
+        m_outFileStream->Close(); // close so we can truncate.
+        m_tmpDownloadFile->SetFileSize(0);
+        rv = MsgReopenFileStream(m_tmpDownloadFile, inboxInputStream);
+        NS_ENSURE_SUCCESS(rv, rv);
       }
       else
       {
-        nsCOMPtr<nsILocalFile> path;
-        // cleanup after mailHdr in source DB because we moved the message.
-        m_newMailParser->m_mailDB->RemoveHeaderMdbRow(hdr);
-
-        // if the filter moved the message, it called nsParseMailMessageState::Init
-        // to truncate the source folder, which resets m_envelopePos and m_position.
-        // So set the envelopePos explicitly here.
-        m_folder->GetFilePath(getter_AddRefs(path));
-        PRInt64 fileSize;
-        path->GetFileSize(&fileSize);
-        m_newMailParser->SetEnvelopePos((PRUint32) fileSize);
+          return HandleTempDownloadFailed(aMsgWindow);
+        // need to give an error here.
       }
-      m_newMailParser->m_newMsgHdr = nsnull;
-      m_outFileStream->Close(); // close so we can truncate.
-      m_tmpDownloadFile->SetFileSize(0);
-      rv = MsgReopenFileStream(m_tmpDownloadFile, inboxInputStream);
-      NS_ENSURE_SUCCESS(rv, rv);
-    } else
-      m_newMailParser->PublishMsgHeader(aMsgWindow);
+    }
+
+    m_newMailParser->PublishMsgHeader(aMsgWindow);
     // run any reply/forward filter after we've finished with the
     // temp quarantine file, and/or moved the message to another folder.
     m_newMailParser->ApplyForwardAndReplyFilter(aMsgWindow);

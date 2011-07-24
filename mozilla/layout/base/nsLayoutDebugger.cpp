@@ -41,11 +41,13 @@
  */
 
 #include "nsILayoutDebugger.h"
-#include "nsIFrame.h"
-#include "nsIFrameDebug.h"
+#include "nsFrame.h"
 #include "nsDisplayList.h"
+#include "FrameLayerBuilder.h"
 
 #include <stdio.h>
+
+using namespace mozilla::layers;
 
 #ifdef NS_DEBUG
 class nsLayoutDebugger : public nsILayoutDebugger {
@@ -101,28 +103,28 @@ NS_IMPL_ISUPPORTS1(nsLayoutDebugger, nsILayoutDebugger)
 NS_IMETHODIMP
 nsLayoutDebugger::SetShowFrameBorders(PRBool aEnable)
 {
-  nsIFrameDebug::ShowFrameBorders(aEnable);
+  nsFrame::ShowFrameBorders(aEnable);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 nsLayoutDebugger::GetShowFrameBorders(PRBool* aResult)
 {
-  *aResult = nsIFrameDebug::GetShowFrameBorders();
+  *aResult = nsFrame::GetShowFrameBorders();
   return NS_OK;
 }
 
 NS_IMETHODIMP
 nsLayoutDebugger::SetShowEventTargetFrameBorder(PRBool aEnable)
 {
-  nsIFrameDebug::ShowEventTargetFrameBorder(aEnable);
+  nsFrame::ShowEventTargetFrameBorder(aEnable);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 nsLayoutDebugger::GetShowEventTargetFrameBorder(PRBool* aResult)
 {
-  *aResult = nsIFrameDebug::GetShowEventTargetFrameBorder();
+  *aResult = nsFrame::GetShowEventTargetFrameBorder();
   return NS_OK;
 }
 
@@ -155,18 +157,20 @@ PrintDisplayListTo(nsDisplayListBuilder* aBuilder, const nsDisplayList& aList,
                    PRInt32 aIndent, FILE* aOutput)
 {
   for (nsDisplayItem* i = aList.GetBottom(); i != nsnull; i = i->GetAbove()) {
+    if (aList.DidComputeVisibility() && i->GetVisibleRect().IsEmpty())
+      continue;
     for (PRInt32 j = 0; j < aIndent; ++j) {
       fputc(' ', aOutput);
     }
     nsIFrame* f = i->GetUnderlyingFrame();
-    nsIFrameDebug* fDebug = do_QueryFrame(f);
     nsAutoString fName;
-    if (fDebug) {
-      fDebug->GetFrameName(fName);
+    if (f) {
+      f->GetFrameName(fName);
     }
     nsRect rect = i->GetBounds(aBuilder);
     switch (i->GetType()) {
-      case nsDisplayItem::TYPE_CLIP: {
+      case nsDisplayItem::TYPE_CLIP:
+      case nsDisplayItem::TYPE_CLIP_ROUNDED_RECT: {
         nsDisplayClip* c = static_cast<nsDisplayClip*>(i);
         rect = c->GetClipRect();
         break;
@@ -174,27 +178,40 @@ PrintDisplayListTo(nsDisplayListBuilder* aBuilder, const nsDisplayList& aList,
       default:
         break;
     }
-    fprintf(aOutput, "%s %p(%s) (%d,%d,%d,%d)%s%s%s%s\n", i->Name(),
-            (void*)f, NS_ConvertUTF16toUTF8(fName).get(),
-            rect.x, rect.y, rect.width, rect.height,
-            i->IsOpaque(aBuilder) ? " opaque" : "",
-            i->IsUniform(aBuilder) ? " uniform" : "",
-            f && aBuilder->IsMovingFrame(f) ? " moving" : "",
-            f && aBuilder->IsMovingFrame(f) && !i->GetList() &&
-              i->IsVaryingRelativeToMovingFrame(aBuilder) ? " varying" : "");
+    nscolor color;
+    nsRect vis = i->GetVisibleRect();
     nsDisplayList* list = i->GetList();
-    if (list) {
-      PrintDisplayListTo(aBuilder, *list, aIndent + 4, aOutput);
+    nsRegion opaque;
+    if (!list || list->DidComputeVisibility()) {
+      opaque = i->GetOpaqueRegion(aBuilder);
     }
     if (i->GetType() == nsDisplayItem::TYPE_TRANSFORM) {
       nsDisplayTransform* t = static_cast<nsDisplayTransform*>(i);
-      PrintDisplayListTo(aBuilder, *(t->GetStoredList()->GetList()), aIndent + 4, aOutput);
+      list = t->GetStoredList()->GetList();
+    }
+    fprintf(aOutput, "%s %p(%s) (%d,%d,%d,%d)(%d,%d,%d,%d)%s%s",
+            i->Name(), (void*)f, NS_ConvertUTF16toUTF8(fName).get(),
+            rect.x, rect.y, rect.width, rect.height,
+            vis.x, vis.y, vis.width, vis.height,
+            opaque.IsEmpty() ? "" : " opaque",
+            i->IsUniform(aBuilder, &color) ? " uniform" : "");
+    if (f) {
+      PRUint32 key = i->GetPerFrameKey();
+      Layer* layer = aBuilder->LayerBuilder()->GetOldLayerFor(f, key);
+      if (layer) {
+        fprintf(aOutput, " layer=%p", layer);
+      }
+    }
+    fputc('\n', aOutput);
+    if (list) {
+      PrintDisplayListTo(aBuilder, *list, aIndent + 4, aOutput);
     }
   }
 }
 
 void
-nsIFrameDebug::PrintDisplayList(nsDisplayListBuilder* aBuilder, const nsDisplayList& aList)
+nsFrame::PrintDisplayList(nsDisplayListBuilder* aBuilder,
+                          const nsDisplayList& aList)
 {
   PrintDisplayListTo(aBuilder, aList, 0, stderr);
 }

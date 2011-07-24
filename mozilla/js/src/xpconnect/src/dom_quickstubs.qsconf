@@ -48,14 +48,13 @@ name = 'DOM'
 # doesn't crash--it may in fact return a plausible wrong answer.
 
 members = [ 
-    # dom/public/idl/base
+    # dom/interfaces/base
     #
     # Note that many implementations of interfaces in this directory
     # use GetCurrentNativeCallContext, notably:
     #   - nsIDOMCrypto.{generateCRMFRequest,signText}
     #   - nsIDOMLocation.reload
     #   - nsIDOMNSHistory.go
-    #   - nsIDOMJSNavigator.preference
     #   - nsIDOMJSPluginArray.refresh
     #   - nsIDOMWindowInternal.postMessage
     #   - nsIDOMJSWindow.{prompt,setTimeout,setInterval,open,openDialog}
@@ -85,51 +84,15 @@ members = [
     #'nsIDOMLocation.hostname',
     #'nsIDOMLocation.href',
 
-    # dom/public/idl/canvas
+    # dom/interfaces/canvas
     #
-    # nsIDOMCanvasRenderingContext2D
-    # NOTE: attributes strokeStyle and fillStyle are nsIVariant
-    # NOTE: drawImage(), getImageData(), and putImageData() use
-    #       GetCurrentNativeCallContext
-    'nsIDOMCanvasRenderingContext2D.canvas',
-    'nsIDOMCanvasRenderingContext2D.save',
-    'nsIDOMCanvasRenderingContext2D.restore',
-    'nsIDOMCanvasRenderingContext2D.scale',
-    'nsIDOMCanvasRenderingContext2D.rotate',
-    'nsIDOMCanvasRenderingContext2D.translate',
-    'nsIDOMCanvasRenderingContext2D.transform',
-    'nsIDOMCanvasRenderingContext2D.setTransform',
-    'nsIDOMCanvasRenderingContext2D.globalAlpha',
-    'nsIDOMCanvasRenderingContext2D.globalCompositeOperation',
-    'nsIDOMCanvasRenderingContext2D.lineWidth',
-    'nsIDOMCanvasRenderingContext2D.lineCap',
-    'nsIDOMCanvasRenderingContext2D.lineJoin',
-    'nsIDOMCanvasRenderingContext2D.miterLimit',
-    'nsIDOMCanvasRenderingContext2D.clearRect',
-    'nsIDOMCanvasRenderingContext2D.fillRect',
-    'nsIDOMCanvasRenderingContext2D.strokeRect',
-    'nsIDOMCanvasRenderingContext2D.beginPath',
-    'nsIDOMCanvasRenderingContext2D.closePath',
-    'nsIDOMCanvasRenderingContext2D.moveTo',
-    'nsIDOMCanvasRenderingContext2D.lineTo',
-    'nsIDOMCanvasRenderingContext2D.quadraticCurveTo',
-    'nsIDOMCanvasRenderingContext2D.bezierCurveTo',
-    'nsIDOMCanvasRenderingContext2D.arcTo',
-    'nsIDOMCanvasRenderingContext2D.arc',
-    'nsIDOMCanvasRenderingContext2D.rect',
-    'nsIDOMCanvasRenderingContext2D.fill',
-    'nsIDOMCanvasRenderingContext2D.stroke',
-    'nsIDOMCanvasRenderingContext2D.clip',
-    'nsIDOMCanvasRenderingContext2D.font',
-    'nsIDOMCanvasRenderingContext2D.textAlign',
-    'nsIDOMCanvasRenderingContext2D.textBaseline',
-    'nsIDOMCanvasRenderingContext2D.fillText',
-    'nsIDOMCanvasRenderingContext2D.strokeText',
-    'nsIDOMCanvasRenderingContext2D.measureText',
-    'nsIDOMCanvasRenderingContext2D.isPointInPath',
-    'nsIDOMTextMetrics.width',
+    # nsIDOMCanvasRenderingContext2D and friends
+    'nsIDOMCanvasRenderingContext2D.*',
+    'nsIDOMTextMetrics.*',
+    'nsIDOMCanvasGradient.*',
+    'nsIDOMCanvasPattern.*',
 
-    # dom/public/idl/core
+    # dom/interfaces/core
     'nsIDOMCharacterData.data',
     'nsIDOMCharacterData.length',
     'nsIDOMDocument.documentElement',
@@ -140,8 +103,12 @@ members = [
     'nsIDOMDocument.getElementById',
     'nsIDOMDocument.createDocumentFragment',
     'nsIDOMDocument.createElement',
+    'nsIDOMDocument.createElementNS',
     'nsIDOMDocument.importNode',
     'nsIDOMDocument.createTextNode',
+    'nsIDOMDocument.documentURI',
+    'nsIDOMDocument.adoptNode',
+    'nsIDOMDocument.renameNode',
     'nsIDOMElement.removeAttributeNS',
     'nsIDOMElement.removeAttribute',
     'nsIDOMElement.getAttribute',
@@ -177,30 +144,15 @@ members = [
     'nsIDOMNode.removeChild',
     'nsIDOMNode.hasAttributes',
     'nsIDOMNode.attributes',
-    'nsIDOMNodeList.item',
-    'nsIDOMNodeList.length',
+    'nsIDOMNodeList.*',
     'nsIDOMNodeSelector.querySelector',
     'nsIDOMNodeSelector.querySelectorAll',
     'nsIDOMText.splitText',
-    'nsIDOM3Document.documentURI',
-    'nsIDOM3Document.adoptNode',
-    'nsIDOM3Document.renameNode',
-    'nsIDOM3Node.compareDocumentPosition',
-    'nsIDOM3Node.getUserData',
-    'nsIDOM3Node.baseURI',
-    'nsIDOM3Node.textContent',
-    'nsIDOM3Node.isSameNode',
-    'nsIDOM3Node.lookupNamespaceURI',
-    'nsIDOM3Node.setUserData',
-    'nsIDOM3Node.lookupPrefix',
-    'nsIDOM3Node.isDefaultNamespace',
-    'nsIDOM3Node.isEqualNode',
-    'nsIDOM3Text.isElementContentWhitespace',
-    'nsIDOM3Text.replaceWholeText',
-    'nsIDOM3Text.wholeText',
-    'nsIDOMDOMStringList.item',
-    'nsIDOMDOMStringList.length',
-    'nsIDOMDOMStringList.contains',
+    'nsIDOM3Node.*',
+    'nsIDOMDOMImplementation.*',
+    'nsIDOMDOMStringList.*',
+    'nsIDOMDOMTokenList.*',
+    'nsIDOMDOMSettableTokenList.*',
     'nsIDOMNameList.getName',
     'nsIDOMNameList.contains',
     'nsIDOMNameList.containsNS',
@@ -216,52 +168,20 @@ members = [
     'nsIDOMNSDocument.elementFromPoint',
     'nsIDOMNSDocument.activeElement',
     'nsIDOMXULDocument.getBoxObjectFor',
-    'nsIDOMXMLDocument.evaluateXPointer',
-    'nsIDOMXMLDocument.evaluateFIXptr',
-    'nsIDOMNSElement.getClientRects',
-    'nsIDOMNSElement.getBoundingClientRect',
-    'nsIDOMNSElement.getElementsByClassName',
-    'nsIDOMNSElement.scrollWidth',
-    'nsIDOMNSElement.clientLeft',
-    'nsIDOMNSElement.clientHeight',
-    'nsIDOMNSElement.clientWidth',
-    'nsIDOMNSElement.clientTop',
-    'nsIDOMNSElement.mozMatchesSelector',
+    'nsIDOMNSElement.*',
 
-    # dom/public/idl/css
-    'nsIDOMElementCSSInlineStyle.style',
-    'nsIDOMCSS2Properties.background',
-    'nsIDOMCSS2Properties.height',
-    'nsIDOMCSS2Properties.textAlign',
-    'nsIDOMCSS2Properties.right',
-    'nsIDOMCSS2Properties.bottom',
-    'nsIDOMCSS2Properties.fontSize',
-    'nsIDOMCSS2Properties.backgroundColor',
-    'nsIDOMCSS2Properties.letterSpacing',
-    'nsIDOMCSS2Properties.verticalAlign',
-    'nsIDOMCSS2Properties.color',
-    'nsIDOMCSS2Properties.top',
-    'nsIDOMCSS2Properties.width',
-    'nsIDOMCSS2Properties.display',
-    'nsIDOMCSS2Properties.zIndex',
-    'nsIDOMCSS2Properties.position',
-    'nsIDOMCSS2Properties.left',
-    'nsIDOMCSS2Properties.visibility',
-    'nsIDOMNSCSS2Properties.opacity',
-    'nsIDOMRect.top',
-    'nsIDOMRect.right',
-    'nsIDOMRect.left',
-    'nsIDOMRect.bottom',
+    # dom/interfaces/css
+    'nsIDOMElementCSSInlineStyle.*',
+    'nsIDOMCSS2Properties.*',
+    'nsIDOMRect.*',
     'nsIDOMViewCSS.getComputedStyle',
+    'nsIDOMCSSStyleDeclaration.*',
 
-    # dom/public/idl/events
+    # dom/interfaces/events
     'nsIDOMEventTarget.dispatchEvent',
     'nsIDOMEventTarget.removeEventListener',
-    # Conflicts with nsIDOMNSEventTarget.addEventListener;
-    # the conflict is specially resolved in nsDOMClassInfo.cpp.
-    # (See bug 453331.)
-    #'nsIDOMEventTarget.addEventListener',
-    'nsIDOMDocumentEvent.createEvent',
+    'nsIDOMNSEventTarget.addEventListener',
+    'nsIDOMDocumentEvent.*',
 
     'nsIDOMEvent.*',
     'nsIDOMMouseEvent.*',
@@ -285,13 +205,16 @@ members = [
     'nsIDOMNSUIEvent.pageY',
     'nsIDOMNSUIEvent.isChar',
 
-    # dom/public/idl/geolocation - None.
+    # dom/interfaces/geolocation - None.
 
-    # dom/public/idl/html
+    # dom/interfaces/html
     'nsIDOMHTMLAnchorElement.href',
     'nsIDOMHTMLAnchorElement.rel',
     'nsIDOMHTMLAnchorElement.target',
     'nsIDOMHTMLAnchorElement.name',
+    'nsIDOMHTMLAnchorElement.text',
+    'nsIDOMHTMLAnchorElement.search',
+    'nsIDOMHTMLAnchorElement.hash',
     'nsIDOMHTMLBaseElement.href',
     'nsIDOMHTMLBaseElement.target',
     'nsIDOMHTMLButtonElement.name',
@@ -313,9 +236,9 @@ members = [
     'nsIDOMHTMLDocument.forms',
     'nsIDOMHTMLDocument.cookie',
     'nsIDOMHTMLDocument.images',
-    'nsIDOMHTMLElement.className',
-    'nsIDOMHTMLElement.id',
-    'nsIDOMHTMLElement.title',
+    'nsIDOMHTMLDocument.write',
+    'nsIDOMHTMLDocument.writeln',
+    'nsIDOMHTMLElement.*',
     'nsIDOMHTMLFormElement.elements',
     'nsIDOMHTMLFormElement.name',
     'nsIDOMHTMLFormElement.submit',
@@ -333,6 +256,7 @@ members = [
     'nsIDOMHTMLImageElement.name',
     'nsIDOMHTMLImageElement.height',
     'nsIDOMHTMLImageElement.width',
+    'nsIDOMHTMLImageElement.complete',
     'nsIDOMHTMLInputElement.defaultChecked',
     'nsIDOMHTMLInputElement.disabled',
     'nsIDOMHTMLInputElement.select',
@@ -342,12 +266,16 @@ members = [
     'nsIDOMHTMLInputElement.src',
     'nsIDOMHTMLInputElement.name',
     'nsIDOMHTMLInputElement.value',
+    'nsIDOMHTMLInputElement.files',
+    'nsIDOMHTMLInputElement.textLength',
+    'nsIDOMHTMLInputElement.selectionStart',
+    'nsIDOMHTMLInputElement.selectionEnd',
+    'nsIDOMHTMLInputElement.setSelectionRange',
     'nsIDOMHTMLLinkElement.disabled',
     'nsIDOMHTMLOptionElement.index',
     'nsIDOMHTMLOptionElement.selected',
     'nsIDOMHTMLOptionElement.form',
-    # Readonly, shadowed by nsIDOMNSHTMLOptionElement.text (below).
-    #'nsIDOMHTMLOptionElement.text',
+    'nsIDOMHTMLOptionElement.text',
     'nsIDOMHTMLOptionElement.defaultSelected',
     'nsIDOMHTMLOptionElement.value',
     'nsIDOMHTMLOptionElement.label',
@@ -362,6 +290,7 @@ members = [
     'nsIDOMHTMLSelectElement.length',
     'nsIDOMHTMLSelectElement.remove',
     'nsIDOMHTMLSelectElement.selectedIndex',
+    'nsIDOMHTMLSelectElement.item',
     'nsIDOMHTMLSelectElement.type',
     'nsIDOMHTMLSelectElement.options',
     'nsIDOMHTMLSelectElement.size',
@@ -400,50 +329,45 @@ members = [
     'nsIDOMHTMLCanvasElement.width',
     'nsIDOMHTMLCanvasElement.height',
     'nsIDOMHTMLCanvasElement.getContext',
-    # 'nsIDOMHTMLCanvasElement.toDataURL',  # uses GetCurrentNativeCallContext
-    'nsIDOMNSHTMLAnchorElement.text',
-    'nsIDOMNSHTMLAnchorElement.search',
-    'nsIDOMNSHTMLAnchorElement.hash',
+    'nsIDOMHTMLCanvasElement.toDataURL',
     'nsIDOMNSHTMLDocument.width',
     'nsIDOMNSHTMLDocument.height',
     'nsIDOMNSHTMLDocument.domain',
     'nsIDOMNSHTMLDocument.getSelection',
     'nsIDOMNSHTMLDocument.designMode',
-    #'nsIDOMNSHTMLDocument.write',  # uses GetCurrentNativeCallContext
-    #'nsIDOMNSHTMLDocument.writeln',  # uses GetCurrentNativeCallContext
     'nsIDOMNSHTMLElement.contentEditable',
+    'nsIDOMNSHTMLElement.isContentEditable',
     'nsIDOMNSHTMLElement.offsetParent',
     'nsIDOMNSHTMLElement.innerHTML',
     'nsIDOMNSHTMLElement.offsetLeft',
     'nsIDOMNSHTMLElement.offsetTop',
     'nsIDOMNSHTMLElement.offsetHeight',
     'nsIDOMNSHTMLElement.offsetWidth',
+    'nsIDOMNSHTMLElement.scrollIntoView',
     'nsIDOMNSHTMLFrameElement.contentWindow',
-    'nsIDOMNSHTMLImageElement.complete',
-    'nsIDOMNSHTMLInputElement.files',
-    'nsIDOMNSHTMLInputElement.textLength',
-    'nsIDOMNSHTMLInputElement.selectionStart',
-    'nsIDOMNSHTMLInputElement.selectionEnd',
-    'nsIDOMNSHTMLInputElement.setSelectionRange',
     'nsIDOMNSHTMLOptionCollection.selectedIndex',
-    'nsIDOMNSHTMLOptionElement.text',
-    'nsIDOMNSHTMLSelectElement.item',
+    'nsIDOMNSHTMLOptionCollection.add',
     'nsIDOMNSHTMLTextAreaElement.setSelectionRange',
     'nsIDOMNSHTMLTextAreaElement.selectionStart',
     'nsIDOMNSHTMLTextAreaElement.selectionEnd',
     'nsIDOMNSHTMLTextAreaElement.textLength',
+    'nsIDOMNSHTMLTextAreaElement.wrap',
 
-    # dom/public/idl/json - None.
+    # dom/interfaces/json - None.
     # All 4 methods of nsIJSON call GetCurrentNativeCallContext.
 
-    # dom/public/idl/offline - None.
+    # dom/interfaces/load-save - None.
 
-    # dom/public/idl/range
-    'nsIDOMRange.collapsed',
+    # dom/interfaces/offline - None.
 
-    # dom/public/idl/sidebar - None.
+    # dom/interfaces/range
+    'nsIDOMRange.*',
 
-    # dom/public/idl/storage
+    # dom/interfaces/sidebar - None.
+
+    # dom/interfaces/smil - None.
+
+    # dom/interfaces/storage
     'nsIDOMToString.toString',
     'nsIDOMStorage.setItem',
     'nsIDOMStorage.length',
@@ -452,21 +376,25 @@ members = [
     'nsIDOMStorage.removeItem',
     'nsIDOMStorage.clear',
     'nsIDOMStorageItem.value',
-    'nsIDOMStorageWindow.sessionStorage',
-    'nsIDOMStorageWindow.globalStorage',
+    'nsIDOMStorageWindow.*',
 
-    # dom/public/idl/stylesheets - None.
+    # dom/interfaces/stylesheets - None.
 
-    # dom/public/idl/traversal
+    # dom/interfaces/svg - None.
+    'nsIDOMSVGStylable.*',
+
+    # dom/interfaces/threads - None.
+
+    # dom/interfaces/traversal
     'nsIDOMDocumentTraversal.createNodeIterator',
     'nsIDOMNodeIterator.nextNode',
 
-    # dom/public/idl/views
+    # dom/interfaces/views
     'nsIDOMDocumentView.defaultView',
-    
-    # dom/public/idl/xbl - None.
 
-    # dom/public/idl/xpath
+    # dom/interfaces/xbl - None.
+
+    # dom/interfaces/xpath
     'nsIDOMXPathEvaluator.evaluate',
     'nsIDOMXPathEvaluator.createExpression',
     'nsIDOMXPathEvaluator.createNSResolver',
@@ -482,7 +410,73 @@ members = [
     'nsIDOMXPathResult.singleNodeValue',
     'nsIDOMNSXPathExpression.evaluateWithContext',
 
-    # dom/public/idl/xul - None.
+    # dom/interfaces/xul
+    'nsIDOMXULElement.*',
+
+    # layout/xul/base/public
+    'nsIBoxObject.x',
+    'nsIBoxObject.y',
+    'nsIBoxObject.screenX',
+    'nsIBoxObject.screenY',
+    'nsIBoxObject.width',
+    'nsIBoxObject.height',
+
+    # XHR
+    'nsIXMLHttpRequest.*',
+    # nsIXMLHttpRequest.channel is not used on the web, and more
+    # importantly relies on the CAPS check that quickstubs don't make.
+    '-nsIXMLHttpRequest.channel',
+    # various XHR things use ACString and AUTF8String and [cstring]
+    # which quickstubs don't handle as return values (or at all in the
+    # case of AUTF8String) yet.
+    '-nsIXMLHttpRequest.statusText',
+    '-nsIXMLHttpRequest.getAllResponseHeaders',
+    '-nsIXMLHttpRequest.getResponseHeader',
+    '-nsIXMLHttpRequest.setRequestHeader',
+    '-nsIXMLHttpRequest.overrideMimeType',
+    # nsIXMLHttpRequestUpload doesn't live in its own IDL file, so
+    # can't be quickstubbed
+    '-nsIXMLHttpRequest.upload',
+
+    # WebSocket
+    'nsIWebSocket.*',
+
+    # webgl
+    'nsIDOMWebGLRenderingContext.*',
+    # These all use GetCurrentNativeCallContext and should be
+    # custom-quickstubbed.
+    '-nsIDOMWebGLRenderingContext.getActiveAttrib',
+    '-nsIDOMWebGLRenderingContext.getActiveUniform',
+    '-nsIDOMWebGLRenderingContext.getParameter',
+    '-nsIDOMWebGLRenderingContext.getBufferParameter',
+    '-nsIDOMWebGLRenderingContext.getFramebufferAttachmentParameter',
+    '-nsIDOMWebGLRenderingContext.getRenderbufferParameter',
+    '-nsIDOMWebGLRenderingContext.getProgramParameter',
+    '-nsIDOMWebGLRenderingContext.getUniform',
+    '-nsIDOMWebGLRenderingContext.getVertexAttrib',
+    '-nsIDOMWebGLRenderingContext.getShaderParameter',
+    '-nsIDOMWebGLRenderingContext.getContextAttributes',
+
+    # Audio
+    'nsIDOMNotifyAudioAvailableEvent.frameBuffer',
+    'nsIDOMNotifyAudioAvailableEvent.time',
+    'nsIDOMHTMLAudioElement.mozWriteAudio',
+
+    # dom/indexedDB
+    'nsIIDBCursor.*',
+    'nsIIDBCursorWithValue.*',
+    'nsIIDBDatabase.*',
+    'nsIIDBDatabaseException.*',
+    'nsIIDBIndex.*',
+    'nsIIDBKeyRange.*',
+    'nsIIDBObjectStore.*',
+    'nsIIDBRequest.*',
+    'nsIIDBTransaction.*',
+    'nsIIDBFactory.*',
+    'nsIIDBVersionChangeEvent.*',
+    'nsIIDBVersionChangeRequest.*',
+    'nsIIndexedDatabaseUsageCallback.*',
+    'nsIIndexedDatabaseManager.*',
     ]
 
 # Most interfaces can be found by searching the includePath; to find
@@ -498,41 +492,93 @@ irregularFilenames = {
 
     # stowaways
     'nsIDOMTextMetrics': 'nsIDOMCanvasRenderingContext2D',
-    'nsIXPointerResult': 'nsIXPointer',
+    'nsIDOMCanvasGradient': 'nsIDOMCanvasRenderingContext2D',
+    'nsIDOMCanvasPattern': 'nsIDOMCanvasRenderingContext2D',
+
+    'nsIWebGLTexture': 'nsIDOMWebGLRenderingContext',
+    'nsIWebGLBuffer': 'nsIDOMWebGLRenderingContext',
+    'nsIWebGLProgram': 'nsIDOMWebGLRenderingContext',
+    'nsIWebGLShader': 'nsIDOMWebGLRenderingContext',
+    'nsIWebGLShaderArray': 'nsIDOMWebGLRenderingContext',
+    'nsIWebGLFramebuffer': 'nsIDOMWebGLRenderingContext',
+    'nsIWebGLRenderbuffer': 'nsIDOMWebGLRenderingContext',
+    'nsIWebGLActiveInfo': 'nsIDOMWebGLRenderingContext',
+    'nsIWebGLUniformLocation': 'nsIDOMWebGLRenderingContext',
+
+    'nsIIndexedDatabaseUsageCallback': 'nsIIndexedDatabaseManager',
     }
 
 customIncludes = [
     'nsINode.h',
     'nsIContent.h',
     'nsIDocument.h',
-    'nsINodeList.h'
+    'nsINodeList.h',
+    'nsCSSPropertiesQS.h',
+    'nsDocument.h',
+    'nsGenericDOMDataNode.h',
+    'nsGenericElement.h',
+    'nsGenericHTMLElement.h',
+    'nsSVGStylableElement.h',
+    'nsHTMLDocument.h',
+    'nsDOMQS.h',
+    ]
+
+customQuickStubs = [
+    'CustomQS_WebGL.h',
+    'CustomQS_Canvas2D.h'
+    ]
+
+customReturnInterfaces = [
+    'nsIDOMCanvasPattern',
+    'nsIDOMCanvasGradient',
     ]
 
 nsIDOMNode_GetChildNodes_customMethodCallCode = """
-    nsIDOMNodeList* result = self->GetChildNodesList();
-    if (!result)
-        return xpc_qsThrowGetterSetterFailed(cx, NS_ERROR_OUT_OF_MEMORY, JSVAL_TO_OBJECT(*vp), id);
+    nsChildContentList* result = static_cast<nsChildContentList*>(self->GetChildNodesList());
+    rv = result ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
+"""
+
+nsIDOMHTMLDocument_Write_customMethodCallCode = """
+    nsAString &str = arg0;
+    for (uintN i = 1; i < argc; ++i) {
+      xpc_qsDOMString next_arg(cx, argv[i], &argv[i],
+                               xpc_qsDOMString::eStringify,
+                               xpc_qsDOMString::eStringify);
+      if (!next_arg.IsValid())
+        return JS_FALSE;
+
+      str.Append(next_arg);
+    }
+
+    rv = self->%s(arg0);
 """
 
 nsIDOMStorage_Clear_customMethodCallCode = """
-    nsresult rv = self->Clear();
+    rv = self->Clear();
     if (NS_SUCCEEDED(rv))
         JS_ClearScope(cx, obj);
-        
-#ifdef DEBUG
-    nsISupports* result = nsnull;
-    nsISupports* debug_result = nsnull;
-#endif
 """
+
+CUSTOM_QS = {
+    'skipgen': True,
+    'traceable': False
+}
+
+CUSTOM_QS_TN = {
+    'skipgen': True,
+    'traceable': True
+}
 
 customMethodCalls = {
     'nsIDOMNode_GetNextSibling': {
         'thisType': 'nsINode',
-        'code': '    nsINode* result = self->GetSibling(1);'
+        'code': '    nsINode *result = self->GetNextSibling();',
+        'canFail': False
         },
     'nsIDOMNode_GetFirstChild': {
         'thisType': 'nsINode',
-        'code': '    nsINode* result = self->GetChildAt(0);'
+        'code': '    nsINode *result = self->GetFirstChild();',
+        'canFail': False
         },
     'nsIDOMNode_GetChildNodes': {
         'thisType': 'nsINode',
@@ -540,25 +586,357 @@ customMethodCalls = {
         },
     'nsIDOMNode_GetPreviousSibling': {
         'thisType': 'nsINode',
-        'code': '    nsINode* result = self->GetSibling(-1);'
+        'code': '    nsINode *result = self->GetPreviousSibling();',
+        'canFail': False
         },
     'nsIDOMNode_GetLastChild': {
         'thisType': 'nsINode',
-        'code': '    nsINode* result = self->GetLastChild();'
+        'code': '    nsINode *result = self->GetLastChild();',
+        'canFail': False
         },
     'nsIDOMNode_GetOwnerDocument': {
         'thisType': 'nsINode',
-        'code': '    nsIDocument* result = self->GetOwnerDocument();'
+        'code': '    nsIDocument *result = self->GetOwnerDocument();',
+        'canFail': False
         },
     'nsIDOMNode_GetParentNode': {
         'thisType': 'nsINode',
-        'code': '    nsINode* result = self->GetNodeParent();'
+        'code': '    nsINode *result = self->GetNodeParent();',
+        'canFail': False
+        },
+    'nsIDOMNode_InsertBefore': {
+        'thisType': 'nsINode',
+        'arg0Type': 'nsINode',
+        'arg1Type': 'nsINode',
+        'code': '    nsINode *result = self->InsertBefore(arg0, arg1, &rv);\n'
+                '    if(NS_FAILED(rv))\n'
+                '        result = nsnull;'
+        },
+    'nsIDOMNode_ReplaceChild': {
+        'thisType': 'nsINode',
+        'arg0Type': 'nsINode',
+        'arg1Type': 'nsINode',
+        'code': '    nsINode *result = self->ReplaceChild(arg0, arg1, &rv);\n'
+                '    if(NS_FAILED(rv))\n'
+                '        result = nsnull;'
+        },
+    'nsIDOMNode_RemoveChild': {
+        'thisType': 'nsINode',
+        'arg0Type': 'nsINode',
+        'code': '    rv = self->RemoveChild(arg0);\n'
+                '    nsINode *result = NS_SUCCEEDED(rv) ? arg0 : nsnull;'
+        },
+    'nsIDOMNode_AppendChild': {
+        'thisType': 'nsINode',
+        'arg0Type': 'nsINode',
+        'code': '    nsINode *result = self->AppendChild(arg0, &rv);\n'
+                '    if(NS_FAILED(rv))\n'
+                '        result = nsnull;'
+        },
+    'nsIDOMNode_GetNodeType': {
+        'thisType': 'nsINode',
+        'canFail': False
         },
     'nsIDOMNodeList_Item': {
         'thisType': 'nsINodeList',
-        'code': '    nsINode* result = self->GetNodeAt(arg0);'
+        'code': '    nsINode *result = self->GetNodeAt(arg0);',
+        'canFail': False
+        },
+    'nsIDOMHTMLDocument_': {
+        'thisType': 'nsHTMLDocument'
+        },
+    'nsIDOMNodeList_GetLength': {
+        'thisType': 'nsINodeList'
+        },
+    'nsIDOMHTMLDocument_Write': {
+        'thisType': 'nsHTMLDocument',
+        'code': nsIDOMHTMLDocument_Write_customMethodCallCode % 'Write'
+        },
+    'nsIDOMHTMLDocument_Writeln': {
+        'thisType': 'nsHTMLDocument',
+        'code': nsIDOMHTMLDocument_Write_customMethodCallCode % 'Writeln'
+        },
+    'nsIDOMHTMLDocument_GetBody': {
+        'thisType': 'nsHTMLDocument',
+        'code': '    nsIContent *result = self->GetBody(&rv);'
+        },
+    'nsIDOMHTMLDocument_GetElementsByName': {
+        'thisType': 'nsHTMLDocument',
+        'code': '    nsRefPtr<nsContentList> result = '
+                'self->GetElementsByName(arg0);',
+        'canFail': False
+        },
+    'nsIDOMNSHTMLDocument_': {
+        'thisType': 'nsHTMLDocument'
         },
     'nsIDOMStorage_Clear': {
         'code': nsIDOMStorage_Clear_customMethodCallCode
-        }
+        },
+    'nsIDOMCanvasRenderingContext2D_StrokeStyle': { 'skipgen': True },
+    'nsIDOMCanvasRenderingContext2D_StrokeStyle': { 'skipgen': True },
+    'nsIDOMCanvasRenderingContext2D_FillStyle': { 'skipgen': True },
+    'nsIDOMCanvasRenderingContext2D_FillStyle': { 'skipgen': True },
+    'nsIDOMCSS2Properties_': {
+        'thisType': 'nsICSSDeclaration',
+        'additionalArguments': 'const nsCSSProperty prop',
+        'additionalArgumentValues': 'QS_CSS_PROP_%s',
+        'getter_code': '    nsString result;\n' + 
+                       '    rv = self->GetPropertyValue(prop, result);',
+        'setter_code': '    rv = self->SetPropertyValue(prop, arg0);',
+        'canFail': True
+        },
+    'nsIDOMNSElement_': {
+        'thisType': 'nsGenericElement'
+        },
+    'nsIDOMNSElement_GetScrollTop': {
+        'thisType': 'nsGenericElement',
+        'code': '    PRInt32 result = self->GetScrollTop();',
+        'canFail': False
+        },
+    'nsIDOMNSElement_SetScrollTop': {
+        'thisType': 'nsGenericElement',
+        'canFail': False
+        },
+    'nsIDOMNSElement_GetScrollLeft': {
+        'thisType': 'nsGenericElement',
+        'code': '    PRInt32 result = self->GetScrollLeft();',
+        'canFail': False
+        },
+    'nsIDOMNSElement_SetScrollLeft': {
+        'thisType': 'nsGenericElement',
+        'canFail': False
+        },
+    'nsIDOMNSElement_GetScrollHeight': {
+        'thisType': 'nsGenericElement',
+        'code': '    PRInt32 result = self->GetScrollHeight();',
+        'canFail': False
+        },
+    'nsIDOMNSElement_GetScrollWidth': {
+        'thisType': 'nsGenericElement',
+        'code': '    PRInt32 result = self->GetScrollWidth();',
+        'canFail': False
+        },
+    'nsIDOMNSElement_GetClientTop': {
+        'thisType': 'nsGenericElement',
+        'code': '    PRInt32 result = self->GetClientTop();',
+        'canFail': False
+        },
+    'nsIDOMNSElement_SetClientTop': {
+        'thisType': 'nsGenericElement',
+        'canFail': False
+        },
+    'nsIDOMNSElement_GetClientLeft': {
+        'thisType': 'nsGenericElement',
+        'code': '    PRInt32 result = self->GetClientLeft();',
+        'canFail': False
+        },
+    'nsIDOMNSElement_SetClientLeft': {
+        'thisType': 'nsGenericElement',
+        'canFail': False
+        },
+    'nsIDOMNSElement_GetClientHeight': {
+        'thisType': 'nsGenericElement',
+        'code': '    PRInt32 result = self->GetClientHeight();',
+        'canFail': False
+        },
+    'nsIDOMNSElement_GetClientWidth': {
+        'thisType': 'nsGenericElement',
+        'code': '    PRInt32 result = self->GetClientWidth();',
+        'canFail': False
+        },
+    'nsIDOMNSElement_GetFirstElementChild': {
+        'thisType': 'nsGenericElement',
+        'code': '    nsIContent *result = self->GetFirstElementChild();',
+        'canFail': False
+        },
+    'nsIDOMNSElement_GetLastElementChild': {
+        'thisType': 'nsGenericElement',
+        'code': '    nsIContent *result = self->GetLastElementChild();',
+        'canFail': False
+        },
+    'nsIDOMNSElement_GetPreviousElementSibling': {
+        'thisType': 'nsGenericElement',
+        'code': '    nsIContent *result = self->GetPreviousElementSibling();',
+        'canFail': False
+        },
+    'nsIDOMNSElement_GetNextElementSibling': {
+        'thisType': 'nsGenericElement',
+        'code': '    nsIContent *result = self->GetNextElementSibling();',
+        'canFail': False
+        },
+    'nsIDOMNSElement_GetClassList': {
+        'thisType': 'nsGenericElement',
+        'code': '    nsIDOMDOMTokenList *result = self->GetClassList(&rv);'
+        },
+    'nsIDOMNSElement_SetCapture': {
+        'thisType': 'nsGenericElement',
+        'canFail': False
+        },
+    'nsIDOMNSElement_ReleaseCapture': {
+        'thisType': 'nsGenericElement',
+        'canFail': False
+        },
+    'nsIDOMNSElement_MozMatchesSelector': {
+        'thisType': 'nsGenericElement',
+        'code': '    PRBool result = self->MozMatchesSelector(arg0, &rv);',
+        },
+    'nsIDOM3Text_': {
+        'thisType': 'nsGenericTextNode'
+        },
+    'nsIDOM3Text_IsElementContentWhitespace': {
+        'thisType': 'nsGenericTextNode',
+        'code': '    PRBool result = self->IsElementContentWhitespace();',
+        'canFail': False
+        },
+    'nsIDOM3Text_ReplaceWholeText': {
+        'thisType': 'nsGenericTextNode',
+        'code': '    nsIContent* result = '
+                'self->ReplaceWholeText(PromiseFlatString(arg0), &rv);'
+        },
+    'nsIDOMNodeSelector_QuerySelector': {
+        'thisType': 'nsINode',
+        'code': '    nsIContent* result = '
+                'nsGenericElement::doQuerySelector(self, arg0, &rv);'
+        },
+    'nsIDOMNodeSelector_QuerySelectorAll': {
+        'thisType': 'nsINode',
+        'code': '    nsCOMPtr<nsIDOMNodeList> result;\n'
+                '    rv = nsGenericElement::doQuerySelectorAll(self, '
+                'arg0, getter_AddRefs(result));'
+        },
+    'nsIDOM3Node_': {
+        'thisType': 'nsINode'
+        },
+    'nsIDOM3Node_GetBaseURI': {
+        'thisType': 'nsINode',
+        'canFail': False
+        },
+    'nsIDOM3Node_CompareDocumentPosition': {
+        'thisType': 'nsINode',
+        'arg0Type': 'nsINode'
+        },
+    'nsIDOM3Node_GetTextContent': {
+        'thisType': 'nsINode',
+        'canFail': False
+        },
+    'nsIDOM3Node_IsSameNode': {
+        'thisType': 'nsINode',
+        'arg0Type': 'nsINode',
+        'code': '    PRBool result = self->IsSameNode(arg0);',
+        'canFail': False
+        },
+    'nsIDOM3Node_LookupPrefix': {
+        'thisType': 'nsINode',
+        'canFail': False
+        },
+    'nsIDOM3Node_IsDefaultNamespace': {
+        'thisType': 'nsINode',
+        'code': '    PRBool result = self->IsDefaultNamespace(arg0);',
+        'canFail': False
+        },
+    'nsIDOM3Node_LookupNamespaceURI': {
+        'thisType': 'nsINode',
+        'canFail': False
+        },
+    'nsIDOM3Node_IsEqualNode': {
+        'thisType': 'nsINode',
+        'arg0Type': 'nsINode',
+        'code': '    PRBool result = self->IsEqualNode(arg0);',
+        'canFail': False
+        },
+    'nsIDOM3Node_GetUserData': {
+        'thisType': 'nsINode',
+        'code': '    nsIVariant *result = self->GetUserData(arg0);',
+        'canFail': False
+        },
+    'nsIDOMNSHTMLElement_': {
+        'thisType': 'nsGenericHTMLElement'
+        },
+    'nsIDOMHTMLElement_': {
+        'thisType': 'nsGenericHTMLElement'
+        },
+    'nsIDOMElementCSSInlineStyle_GetStyle': {
+        'thisType': 'nsStyledElement',
+        'code': '    /* XXXbz MathML elements inherit from nsStyledElement but\n'
+                '       don\'t actually implement GetStyle. */\n'
+                '    if (self->GetNameSpaceID() == kNameSpaceID_MathML)\n'
+                '      return xpc_qsThrow(cx, NS_ERROR_XPC_BAD_CONVERT_JS);\n'
+                '    nsIDOMCSSStyleDeclaration* result = '
+                'self->GetStyle(&rv);'
+        },
+    'nsIDOMSVGStylable_GetStyle': {
+        'thisType': 'nsSVGStylableElement',
+        'code': '    nsIDOMCSSStyleDeclaration* result = '
+                'self->GetStyle(&rv);'
+        },
+    'nsIDOMDocument_': {
+        'thisType': 'nsDocument'
+        },
+    'nsIDOMDocument_GetElementById': {
+        'thisType': 'nsDocument',
+        'code': '    mozilla::dom::Element *result = self->GetElementById(arg0);',
+        'canFail': False
+        },
+    'nsIDOMDocument_GetElementsByTagName': {
+        'thisType': 'nsDocument',
+        'code': '    nsRefPtr<nsContentList> result ='
+                'self->GetElementsByTagName(arg0);',
+        'canFail': False
+        },
+    'nsIDOMDocument_GetElementsByTagNameNS': {
+        'thisType': 'nsDocument',
+        'code': '    nsRefPtr<nsContentList> result ='
+                'self->GetElementsByTagNameNS(arg0, arg1);',
+        'canFail': False
+        },
+    'nsIDOMNSDocument_': {
+        'thisType': 'nsDocument'
+        },
+    'nsIDOMElement_': {
+        'thisType': 'nsGenericElement'
+        },
+    'nsIDOMDocument_CreateElement': {
+        'thisType': 'nsDocument',
+        'code': '    nsCOMPtr<nsIContent> result;\n'
+                '    rv = self->CreateElement(arg0, getter_AddRefs(result));'
+    },
+    'nsIDOMDocument_CreateElementNS': {
+        'thisType': 'nsDocument',
+        'code': '    nsCOMPtr<nsIContent> result;\n'
+                '    rv = self->CreateElementNS(arg0, arg1, getter_AddRefs(result));'
+    },
+    'nsIDOMDocument_CreateTextNode': {
+        'thisType': 'nsDocument',
+        'code': '    nsCOMPtr<nsIContent> result;\n'
+                '    rv = self->CreateTextNode(arg0, getter_AddRefs(result));'
+    },
+    # WebGL
+    'nsIDOMWebGLRenderingContext_BufferData': CUSTOM_QS,
+    'nsIDOMWebGLRenderingContext_BufferSubData': CUSTOM_QS,
+    'nsIDOMWebGLRenderingContext_ReadPixels': CUSTOM_QS,
+    'nsIDOMWebGLRenderingContext_TexImage2D': CUSTOM_QS,
+    'nsIDOMWebGLRenderingContext_TexSubImage2D': CUSTOM_QS,
+    'nsIDOMWebGLRenderingContext_Uniform1iv': CUSTOM_QS_TN,
+    'nsIDOMWebGLRenderingContext_Uniform2iv': CUSTOM_QS_TN,
+    'nsIDOMWebGLRenderingContext_Uniform3iv': CUSTOM_QS_TN,
+    'nsIDOMWebGLRenderingContext_Uniform4iv': CUSTOM_QS_TN,
+    'nsIDOMWebGLRenderingContext_Uniform1fv': CUSTOM_QS_TN,
+    'nsIDOMWebGLRenderingContext_Uniform2fv': CUSTOM_QS_TN,
+    'nsIDOMWebGLRenderingContext_Uniform3fv': CUSTOM_QS_TN,
+    'nsIDOMWebGLRenderingContext_Uniform4fv': CUSTOM_QS_TN,
+    'nsIDOMWebGLRenderingContext_UniformMatrix2fv': CUSTOM_QS_TN,
+    'nsIDOMWebGLRenderingContext_UniformMatrix3fv': CUSTOM_QS_TN,
+    'nsIDOMWebGLRenderingContext_UniformMatrix4fv': CUSTOM_QS_TN,
+    'nsIDOMWebGLRenderingContext_VertexAttrib1fv': CUSTOM_QS,
+    'nsIDOMWebGLRenderingContext_VertexAttrib2fv': CUSTOM_QS,
+    'nsIDOMWebGLRenderingContext_VertexAttrib3fv': CUSTOM_QS,
+    'nsIDOMWebGLRenderingContext_VertexAttrib4fv': CUSTOM_QS,
+    # Canvas 2D
+    'nsIDOMCanvasRenderingContext2D_CreateImageData': CUSTOM_QS,
+    'nsIDOMCanvasRenderingContext2D_GetImageData': CUSTOM_QS,
+    'nsIDOMCanvasRenderingContext2D_PutImageData': CUSTOM_QS,
+    # Nasty hack to make the ordering of |arc| and |arcTo| correct.
+    # |arc| is not traceable because it has an optional argument.
+    'nsIDOMCanvasRenderingContext2D_ArcTo' : { 'traceable' : False },
     }
+

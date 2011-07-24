@@ -22,49 +22,64 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=392567
 
 /** Test for Bug 392567 **/
 
-var dataUrl = "http://localhost:8888/tests/content/html/content/test/bug392567.jar";
-var jarUrl = "jar:" + dataUrl + "!/index.html";
-var httpUrl = location.href.replace(/\.html.*/, "_404");
+SimpleTest.waitForExplicitFinish();
 
-var form = document.forms.testForm;
-var frame = frames.testFrame;
-document.getElementById("testFrame").onload = processTestResult;
-
-// List of tests to run, each test consists of form action URL and expected result URL
-var tests = [
-  [jarUrl, jarUrl + "?$PARAMS"],
-  [jarUrl + "?jarTest1=jarTest2", jarUrl + "?$PARAMS"],
-  [jarUrl + "?jarTest3=jarTest4#jarTest5", jarUrl + "?$PARAMS#jarTest5"],
-  ["data:text/html,<html></html>", "data:text/html,<html></html>?$PARAMS"],
-  ["data:text/html,<html>How%20about%20this?</html>", "data:text/html,<html>How%20about%20this?$PARAMS"],
-  [httpUrl, httpUrl + "?$PARAMS"],
-  [httpUrl + "?httpTest1=httpTest2", httpUrl + "?$PARAMS"],
-  [httpUrl + "?httpTest3=httpTest4#httpTest5", httpUrl + "?$PARAMS#httpTest5"]
-];
-
-var currentTest = -1;
-
-SimpleTest.waitForExplicitFinish(); 
-runNextTest();
-
-function runNextTest() {
-  currentTest++;
-  if (currentTest >= tests.length) {
-    SimpleTest.finish();
+function runTests()
+{
+  if (window.location.search.match(/\?key=value/)) {
     return;
   }
 
-  form.action = tests[currentTest][0];
-  form.key.value = "value" + currentTest;
-  form.submit();
+  var dataUrl = "http://mochi.test:8888/tests/content/html/content/test/bug392567.jar";
+  var jarUrl = "jar:" + dataUrl + "!/index.html";
+  var httpUrl = location.href.replace(/\.html.*/, "_404");
+  var previousDir = location.href.replace(/test\/[^\/]*$/, "");
+  var documentURL = location.href.replace(/\.html.*/, "\.html");
+
+  var form = document.forms.testForm;
+  var frame = frames.testFrame;
+  document.getElementById("testFrame").onload = processTestResult;
+
+  // List of tests to run, each test consists of form action URL and expected result URL
+  var tests = [
+    [jarUrl, jarUrl + "?$PARAMS"],
+    [jarUrl + "?jarTest1=jarTest2", jarUrl + "?$PARAMS"],
+    [jarUrl + "?jarTest3=jarTest4#jarTest5", jarUrl + "?$PARAMS#jarTest5"],
+    ["data:text/html,<html></html>", "data:text/html,<html></html>?$PARAMS"],
+    ["data:text/html,<html>How%20about%20this?</html>", "data:text/html,<html>How%20about%20this?$PARAMS"],
+    [httpUrl, httpUrl + "?$PARAMS"],
+    [httpUrl + "?httpTest1=httpTest2", httpUrl + "?$PARAMS"],
+    [httpUrl + "?httpTest3=httpTest4#httpTest5", httpUrl + "?$PARAMS#httpTest5"],
+    ["", documentURL + "?$PARAMS"],
+    [" ", documentURL + "?$PARAMS"],
+    ["../", previousDir + "?$PARAMS"],
+  ];
+
+  var currentTest = -1;
+
+  runNextTest();
+
+  function runNextTest() {
+    currentTest++;
+    if (currentTest >= tests.length) {
+      SimpleTest.finish();
+      return;
+    }
+
+    form.setAttribute("action", tests[currentTest][0]);
+    form.key.value = "value" + currentTest;
+    form.submit();
+  }
+
+  function processTestResult() {
+    var expected = tests[currentTest][1].replace(/\$PARAMS/, "key=value" + currentTest);
+    is(frame.location.href, expected, "Submitting to " + tests[currentTest][0]);
+
+    setTimeout(runNextTest, 0);
+  }
 }
 
-function processTestResult() {
-  var expected = tests[currentTest][1].replace(/\$PARAMS/, "key=value" + currentTest);
-  is(frame.location.href, expected, "Submitting to " + tests[currentTest][0]);
-
-  setTimeout(runNextTest, 0);
-}
+addLoadEvent(runTests);
 
 </script>
 </pre>

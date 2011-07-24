@@ -41,18 +41,20 @@
 
 #include "nsCollationCID.h"
 #include "nsDateTimeFormatCID.h"
-#include "nsIGenericFactory.h"
+#include "mozilla/ModuleUtils.h"
 #include "nsILocaleService.h"
 #include "nsIScriptableDateFormat.h"
 #include "nsIServiceManager.h"
 #include "nsLanguageAtomService.h"
+#include "nsCharsetAlias.h"
+#include "nsPlatformCharset.h"
 #include "nsLocaleCID.h"
 
 #if defined(XP_MACOSX)
 #define USE_MAC_LOCALE
 #endif
 
-#if (defined(XP_UNIX) && !defined(XP_MACOSX)) || defined(XP_BEOS)
+#if defined(XP_UNIX) && !defined(XP_MACOSX)
 #define USE_UNIX_LOCALE
 #endif
 
@@ -81,7 +83,7 @@
 #endif
 
 #define NSLOCALE_MAKE_CTOR(ctor_, iface_, func_)          \
-static NS_IMETHODIMP                                      \
+static nsresult                                           \
 ctor_(nsISupports* aOuter, REFNSIID aIID, void** aResult) \
 {                                                         \
   *aResult = nsnull;                                      \
@@ -101,7 +103,8 @@ NSLOCALE_MAKE_CTOR(CreateLocaleService, nsILocaleService, NS_NewLocaleService)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsCollationFactory)
 //NS_GENERIC_FACTORY_CONSTRUCTOR(nsScriptableDateTimeFormat)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsLanguageAtomService)
-
+NS_GENERIC_FACTORY_CONSTRUCTOR(nsCharsetAlias2)
+NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsPlatformCharset, Init)
 
 #ifdef XP_WIN
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsIWin32LocaleImpl)

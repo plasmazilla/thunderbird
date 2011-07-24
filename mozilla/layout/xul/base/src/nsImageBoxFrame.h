@@ -59,7 +59,8 @@ public:
   NS_IMETHOD OnStopDecode(imgIRequest *request, nsresult status,
                           const PRUnichar *statusArg);
   // imgIContainerObserver (override nsStubImageDecoderObserver)
-  NS_IMETHOD FrameChanged(imgIContainer *container, nsIntRect *dirtyRect);
+  NS_IMETHOD FrameChanged(imgIContainer *aContainer,
+                          const nsIntRect *aDirtyRect);
 
   void SetFrame(nsImageBoxFrame *frame) { mFrame = frame; }
 
@@ -92,7 +93,7 @@ public:
 
   virtual void DidSetStyleContext(nsStyleContext* aOldStyleContext);
 
-  virtual void Destroy();
+  virtual void DestroyFrom(nsIFrame* aDestructRoot);
 
   virtual nsIAtom* GetType() const;
 #ifdef DEBUG
@@ -121,13 +122,14 @@ public:
   NS_IMETHOD OnStopDecode(imgIRequest *request,
                           nsresult status,
                           const PRUnichar *statusArg);
-  NS_IMETHOD FrameChanged(imgIContainer *container, nsIntRect *dirtyRect);
+  NS_IMETHOD FrameChanged(imgIContainer *aContainer,
+                          const nsIntRect *aDirtyRect);
 
   virtual ~nsImageBoxFrame();
 
   void  PaintImage(nsIRenderingContext& aRenderingContext,
                    const nsRect& aDirtyRect,
-                   nsPoint aPt);
+                   nsPoint aPt, PRUint32 aFlags);
 
 protected:
   nsImageBoxFrame(nsIPresShell* aShell, nsStyleContext* aContext);

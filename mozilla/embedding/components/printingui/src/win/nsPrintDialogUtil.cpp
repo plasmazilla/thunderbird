@@ -205,7 +205,6 @@ MapPaperSizeToNativeEnum(LPDEVMODEW aDevMode,
 #endif
 
   const double kThreshold = 0.05;
-  PRBool foundEnum = PR_FALSE;
   for (PRInt32 i=0;i<kNumPaperSizes;i++) {
     double width  = kPaperSizes[i].mWidth;
     double height = kPaperSizes[i].mHeight;
@@ -456,17 +455,17 @@ static void SetRadioOfGroup(HWND aDlg, int aRadId)
 
 //--------------------------------------------------------
 typedef struct {
-  char * mKeyStr;
+  const char * mKeyStr;
   long   mKeyId;
 } PropKeyInfo;
 
 // These are the control ids used in the dialog and 
 // defined by MS-Windows in commdlg.h
 static PropKeyInfo gAllPropKeys[] = {
-    {"PrintFrames", grp3},
-    {"Aslaid", rad4},
-    {"selectedframe", rad5},
-    {"Eachframe", rad6},
+    {"printFramesTitleWindows", grp3},
+    {"asLaidOutWindows", rad4},
+    {"selectedFrameWindows", rad5},
+    {"separateFramesWindows", rad6},
     {NULL, NULL}};
 
 //--------------------------------------------------------
@@ -477,20 +476,11 @@ static PropKeyInfo gAllPropKeys[] = {
 // to its parent window
 static void GetLocalRect(HWND aWnd, RECT& aRect, HWND aParent)
 {
-  RECT wr;
-  ::GetWindowRect(aParent, &wr);
-
-  RECT cr;
-  ::GetClientRect(aParent, &cr);
-
   ::GetWindowRect(aWnd, &aRect);
 
-  int borderH = (wr.bottom-wr.top+1) - (cr.bottom-cr.top+1);
-  int borderW = ((wr.right-wr.left+1) - (cr.right-cr.left+1))/2;
-  aRect.top    -= wr.top+borderH-borderW;
-  aRect.left   -= wr.left+borderW;
-  aRect.right  -= wr.left+borderW;
-  aRect.bottom -= wr.top+borderH-borderW;
+  // MapWindowPoints converts screen coordinates to client coordinates.
+  // It works correctly in both left-to-right and right-to-left windows.
+  ::MapWindowPoints(NULL, aParent, (LPPOINT)&aRect, 2);
 }
 
 //--------------------------------------------------------
@@ -738,6 +728,7 @@ static UINT CALLBACK PrintHookProc(HWND hdlg, UINT uiMsg, WPARAM wParam, LPARAM 
 
     // Looks like we were able to extend the dialog
     gDialogWasExtended = PR_TRUE;
+    return TRUE;
   }
   return 0L;
 }
@@ -750,14 +741,13 @@ static UINT CALLBACK PrintHookProc(HWND hdlg, UINT uiMsg, WPARAM wParam, LPARAM 
 //   This function assumes that aPrintName has already been converted from 
 //   unicode
 //
-static HGLOBAL CreateGlobalDevModeAndInit(LPCWSTR aPrintName, nsIPrintSettings* aPS)
+static HGLOBAL CreateGlobalDevModeAndInit(const nsXPIDLString& aPrintName, nsIPrintSettings* aPS)
 {
   HGLOBAL hGlobalDevMode = NULL;
 
-  nsresult rv = NS_ERROR_FAILURE;
   HANDLE hPrinter = NULL;
   // const cast kludge for silly Win32 api's
-  LPWSTR printName = const_cast<wchar_t*>(aPrintName);
+  LPWSTR printName = const_cast<wchar_t*>(aPrintName.get());
   BOOL status = ::OpenPrinterW(printName, &hPrinter, NULL);
   if (status) {
 
@@ -804,7 +794,7 @@ static HGLOBAL CreateGlobalDevModeAndInit(LPCWSTR aPrintName, nsIPrintSettings* 
         ::GlobalFree(hGlobalDevMode);
         ::HeapFree(::GetProcessHeap(), 0, pNewDevMode);
         ::ClosePrinter(hPrinter);
-         return NULL;
+        return NULL;
       }
 
       ::GlobalUnlock(hGlobalDevMode);
@@ -826,14 +816,12 @@ static HGLOBAL CreateGlobalDevModeAndInit(LPCWSTR aPrintName, nsIPrintSettings* 
 
 //------------------------------------------------------------------
 // helper
-static PRUnichar * GetDefaultPrinterNameFromGlobalPrinters()
+static void GetDefaultPrinterNameFromGlobalPrinters(nsXPIDLString &printerName)
 {
-  PRUnichar * printerName = nsnull;
   nsCOMPtr<nsIPrinterEnumerator> prtEnum = do_GetService("@mozilla.org/gfx/printerenumerator;1");
   if (prtEnum) {
-    prtEnum->GetDefaultPrinterName(&printerName);
+    prtEnum->GetDefaultPrinterName(getter_Copies(printerName));
   }
-  return printerName;
 }
 
 // Determine whether we have a completely native dialog
@@ -863,45 +851,48 @@ ShowNativePrintDialog(HWND              aHWnd,
   //NS_ENSURE_ARG_POINTER(aHWnd);
   NS_ENSURE_ARG_POINTER(aPrintSettings);
 
-  nsresult  rv = NS_ERROR_FAILURE;
   gDialogWasExtended  = PR_FALSE;
 
   HGLOBAL hGlobalDevMode = NULL;
   HGLOBAL hDevNames      = NULL;
 
   // Get the Print Name to be used
-  PRUnichar * printerName;
-  aPrintSettings->GetPrinterName(&printerName);
+  nsXPIDLString printerName;
+  aPrintSettings->GetPrinterName(getter_Copies(printerName));
 
   // If there is no name then use the default printer
-  if (!printerName || (printerName && !*printerName)) {
-    printerName = GetDefaultPrinterNameFromGlobalPrinters();
+  if (printerName.IsEmpty()) {
+    GetDefaultPrinterNameFromGlobalPrinters(printerName);
   } else {
     HANDLE hPrinter = NULL;
-    if(!::OpenPrinterW(const_cast<wchar_t*>(printerName), &hPrinter, NULL)) {
+    if(!::OpenPrinterW(const_cast<wchar_t*>(printerName.get()), &hPrinter, NULL)) {
       // If the last used printer is not found, we should use default printer.
-      printerName = GetDefaultPrinterNameFromGlobalPrinters();
+      GetDefaultPrinterNameFromGlobalPrinters(printerName);
     } else {
       ::ClosePrinter(hPrinter);
     }
   }
 
-  NS_ASSERTION(printerName, "We have to have a printer name");
-  if (!printerName) return NS_ERROR_FAILURE;
-
   // Now create a DEVNAMES struct so the the dialog is initialized correctly.
 
-  PRUint32 len = wcslen(printerName);
+  PRUint32 len = printerName.Length();
   hDevNames = (HGLOBAL)::GlobalAlloc(GHND, sizeof(wchar_t) * (len + 1) + 
                                      sizeof(DEVNAMES));
+  if (!hDevNames) {
+    return NS_ERROR_OUT_OF_MEMORY;
+  }
+
   DEVNAMES* pDevNames = (DEVNAMES*)::GlobalLock(hDevNames);
-  pDevNames->wDriverOffset = sizeof(DEVNAMES);
-  pDevNames->wDeviceOffset = sizeof(DEVNAMES);
-  pDevNames->wOutputOffset = sizeof(DEVNAMES)+len+1;
+  if (!pDevNames) {
+    ::GlobalFree(hDevNames);
+    return NS_ERROR_FAILURE;
+  }
+  pDevNames->wDriverOffset = sizeof(DEVNAMES)/sizeof(wchar_t);
+  pDevNames->wDeviceOffset = sizeof(DEVNAMES)/sizeof(wchar_t);
+  pDevNames->wOutputOffset = sizeof(DEVNAMES)/sizeof(wchar_t)+len;
   pDevNames->wDefault      = 0;
 
-  wchar_t* device = &(((wchar_t*)pDevNames)[pDevNames->wDeviceOffset]);
-  wcscpy(device, printerName);
+  memcpy(pDevNames+1, printerName, (len + 1) * sizeof(wchar_t));
   ::GlobalUnlock(hDevNames);
 
   // Create a Moveable Memory Object that holds a new DevMode
@@ -1087,6 +1078,7 @@ ShowNativePrintDialog(HWND              aHWnd,
 #endif
     
   } else {
+    ::SetFocus(aHWnd);
     aPrintSettings->SetIsCancelled(PR_TRUE);
     if (hGlobalDevMode) ::GlobalFree(hGlobalDevMode);
     return NS_ERROR_ABORT;
@@ -1189,6 +1181,7 @@ static BOOL APIENTRY PropSheetCallBack(HWND hdlg, UINT uiMsg, UINT wParam, LONG 
 
     // Looks like we were able to extend the dialog
     gDialogWasExtended = PR_TRUE;
+    return TRUE;
   }
   return 0L;
 }
@@ -1222,7 +1215,6 @@ ShowNativePrintDialogEx(HWND              aHWnd,
   NS_ENSURE_ARG_POINTER(aHWnd);
   NS_ENSURE_ARG_POINTER(aPrintSettings);
 
-  nsresult  rv = NS_ERROR_FAILURE;
   gDialogWasExtended  = PR_FALSE;
 
   // Create a Moveable Memory Object that holds a new DevMode
@@ -1231,11 +1223,10 @@ ShowNativePrintDialogEx(HWND              aHWnd,
   // NOTE: We only need to free hGlobalDevMode when the dialog is cancelled
   // When the user prints, it comes back in the printdlg struct and 
   // is used and cleaned up later
-  PRUnichar * printerName;
-  aPrintSettings->GetPrinterName(&printerName);
+  nsXPIDLString printerName;
+  aPrintSettings->GetPrinterName(getter_Copies(printerName));
   HGLOBAL hGlobalDevMode = NULL;
-  if (printerName) {
-    NS_ENSURE_SUCCESS(rv, rv);
+  if (!printerName.IsEmpty()) {
     hGlobalDevMode = CreateGlobalDevModeAndInit(printerName, aPrintSettings);
   }
 
@@ -1280,7 +1271,7 @@ ShowNativePrintDialogEx(HWND              aHWnd,
     // lLcalize the Property Sheet (Tab) title
     nsCAutoString title;
     nsString optionsStr;
-    if (NS_SUCCEEDED(GetLocalizedString(strBundle, "options", optionsStr))) {
+    if (NS_SUCCEEDED(GetLocalizedString(strBundle, "optionsTitleWindows", optionsStr))) {
       // Failure here just means a blank string
       NS_CopyUnicodeToNative(optionsStr, title);
     }
@@ -1488,6 +1479,9 @@ nsresult NativeShowPrintDialog(HWND                aHWnd,
 #else
   rv = ShowNativePrintDialog(aHWnd, aPrintSettings);
 #endif
+  if (aHWnd) {
+    ::DestroyWindow(aHWnd);
+  }
 
   return rv;
 }

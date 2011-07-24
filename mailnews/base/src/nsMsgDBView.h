@@ -68,6 +68,7 @@
 #include "nsTArray.h"
 #include "nsIMsgCustomColumnHandler.h"
 #include "nsAutoPtr.h"
+#include "nsIWeakReferenceUtils.h"
 #define MESSENGER_STRING_URL       "chrome://messenger/locale/messenger.properties"
 
 typedef nsAutoTArray<nsMsgViewIndex, 1> nsMsgViewIndexArray;
@@ -193,8 +194,6 @@ protected:
   static PRUnichar* kForwardedString;
   static PRUnichar* kNewString;
 
-  static PRUnichar* kKiloByteString;
-
   nsCOMPtr<nsITreeBoxObject> mTree;
   nsCOMPtr<nsITreeSelection> mTreeSelection;
   PRUint32 mNumSelectedRows; // we cache this to determine when to push command status notifications.
@@ -296,7 +295,6 @@ protected:
                                  nsMsgViewIndex msgIndex = nsMsgViewIndex_None,
                                  PRInt32 *pThreadCount = nsnull,
                                  PRUint32 *pFlags = nsnull);
-  virtual nsresult GetThreadContainingMsgHdr(nsIMsgDBHdr *msgHdr, nsIMsgThread **pThread);
   nsMsgKey GetKeyOfFirstMsgInThread(nsMsgKey key);
   PRInt32 CountExpandedThread(nsMsgViewIndex index);
   virtual  nsresult ExpansionDelta(nsMsgViewIndex index, PRInt32 *expansionDelta);
@@ -335,11 +333,9 @@ protected:
                                         nsMsgKey parentKey, PRInt32 level,
                                         nsMsgViewIndex *viewIndex,
                                         PRUint32 *pNumListed);
-  PRInt32  GetSize(void) {return(m_keys.Length());}
+  PRUint32 GetSize(void) {return(m_keys.Length());}
 
   // notification api's
-  void  EnableChangeUpdates();
-  void  DisableChangeUpdates();
   void  NoteChange(nsMsgViewIndex firstlineChanged, PRInt32 numChanged,
                     nsMsgViewNotificationCodeValue changeType);
   void  NoteStartChange(nsMsgViewIndex firstlineChanged, PRInt32 numChanged,
@@ -510,7 +506,7 @@ protected:
   
   //these hold pointers (and IDs) for the nsIMsgCustomColumnHandler object that constitutes the custom column handler
   nsCOMArray <nsIMsgCustomColumnHandler> m_customColumnHandlers;
-  nsStringArray m_customColumnHandlerIDs;
+  nsTArray<nsString> m_customColumnHandlerIDs;
   
   nsIMsgCustomColumnHandler* GetColumnHandler(const PRUnichar*);
   nsIMsgCustomColumnHandler* GetCurColumnHandlerFromDBInfo();

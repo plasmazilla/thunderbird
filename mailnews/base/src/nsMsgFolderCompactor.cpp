@@ -263,6 +263,7 @@ nsFolderCompactState::Compact(nsIMsgFolder *folder, PRBool aOfflineStore,
    {
      m_folder->NotifyCompactCompleted();
      m_folder->ThrowAlertMsg("compactFolderDeniedLock", m_window);
+     m_db = nsnull;
      CleanupTempFilesAfterError();
      if (m_compactAll)
        return CompactNextFolder();
@@ -664,7 +665,7 @@ nsFolderCompactState::OnDataAvailable(nsIRequest *request, nsISupports *ctxt,
   {
     m_statusOffset = 0;
     m_addedHeaderSize = 0;
-    m_messageUri.SetLength(0); // clear the previous message uri
+    m_messageUri.Truncate(); // clear the previous message uri
     if (NS_SUCCEEDED(BuildMessageURI(m_baseMessageUri.get(), m_keyArray[m_curIndex],
                                 m_messageUri)))
     {
@@ -920,7 +921,7 @@ nsresult nsOfflineStoreCompactState::CopyNextMessage(PRBool &done)
 {
   while (m_curIndex < m_size)
   {
-    m_messageUri.SetLength(0); // clear the previous message uri
+    m_messageUri.Truncate(); // clear the previous message uri
     nsresult rv = BuildMessageURI(m_baseMessageUri.get(), m_keyArray[m_curIndex],
                                   m_messageUri);
     NS_ENSURE_SUCCESS(rv, rv);
@@ -1031,11 +1032,14 @@ nsOfflineStoreCompactState::FinishCompact()
   nsCString leafName;
   path->GetNativeLeafName(leafName);
 
+  if (m_fileStream)
+  {
     // close down the temp file stream; preparing for deleting the old folder
     // and its database; then rename the temp folder and database
-  m_fileStream->Flush();
-  m_fileStream->Close();
-  m_fileStream = nsnull;
+    m_fileStream->Flush();
+    m_fileStream->Close();
+    m_fileStream = nsnull;
+  }
 
     // make sure the new database is valid
   nsCOMPtr <nsIDBFolderInfo> dbFolderInfo;
@@ -1178,7 +1182,7 @@ nsOfflineStoreCompactState::OnDataAvailable(nsIRequest *request, nsISupports *ct
   {
     m_statusOffset = 0;
     m_offlineMsgSize = 0;
-    m_messageUri.SetLength(0); // clear the previous message uri
+    m_messageUri.Truncate(); // clear the previous message uri
     if (NS_SUCCEEDED(BuildMessageURI(m_baseMessageUri.get(), m_keyArray[m_curIndex],
                                 m_messageUri)))
     {

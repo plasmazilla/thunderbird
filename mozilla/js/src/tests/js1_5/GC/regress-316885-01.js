@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-var gTestfile = 'regress-316885-01.js';
 //-----------------------------------------------------------------------------
 var BUGNUMBER = 316885;
 var summary = 'Unrooted access in jsinterp.c';
@@ -48,10 +47,10 @@ printStatus (summary);
 var str_with_num = "0.1";
 
 var obj = {
-  elem getter: function() {
+  get elem() {
     return str_with_num;
   },
-  elem setter: function(value) {
+  set elem(value) {
     gc();
   }
 

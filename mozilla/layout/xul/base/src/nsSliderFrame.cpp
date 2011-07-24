@@ -55,7 +55,6 @@
 #include "nsIPresShell.h"
 #include "nsCSSRendering.h"
 #include "nsIDOMEventTarget.h"
-#include "nsIViewManager.h"
 #include "nsIDOMMouseEvent.h"
 #include "nsIDocument.h"
 #include "nsScrollbarButtonFrame.h"
@@ -124,7 +123,6 @@ nsSliderFrame::Init(nsIContent*      aContent,
 
   mCurPos = GetCurrentPosition(aContent);
 
-  CreateViewForFrame(PresContext(), this, GetStyleContext(), PR_TRUE);
   return rv;
 }
 
@@ -225,9 +223,8 @@ public:
 
   NS_IMETHODIMP Run()
   {
-    nsAutoString which;
-    mWhich->ToString(which);
-    return mListener->ValueChanged(which, mValue, mUserChanged);
+    return mListener->ValueChanged(nsDependentAtomString(mWhich),
+                                   mValue, mUserChanged);
   }
 
   nsCOMPtr<nsISliderListener> mListener;
@@ -305,10 +302,8 @@ nsSliderFrame::AttributeChanged(PRInt32 aNameSpaceID,
           }
         }
 
-        nsAutoString currentStr;
-        currentStr.AppendInt(current);
         nsContentUtils::AddScriptRunner(
-          new nsSetAttrRunnable(scrollbar, nsGkAtoms::curpos, currentStr));
+          new nsSetAttrRunnable(scrollbar, nsGkAtoms::curpos, current));
       }
   }
 
@@ -333,7 +328,7 @@ nsSliderFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     // This is EVIL, we shouldn't be messing with event delivery just to get
     // thumb mouse drag events to arrive at the slider!
     return aLists.Outlines()->AppendNewToTop(new (aBuilder)
-        nsDisplayEventReceiver(this));
+        nsDisplayEventReceiver(aBuilder, this));
   }
   
   return nsBoxFrame::BuildDisplayList(aBuilder, aDirtyRect, aLists);
@@ -407,15 +402,15 @@ nsSliderFrame::DoLayout(nsBoxLayoutState& aState)
   PRInt32 maxPos = GetMaxPosition(scrollbar);
   PRInt32 pageIncrement = GetPageIncrement(scrollbar);
 
-  maxPos = PR_MAX(minPos, maxPos);
-  curPos = PR_MAX(minPos, PR_MIN(curPos, maxPos));
+  maxPos = NS_MAX(minPos, maxPos);
+  curPos = NS_MAX(minPos, NS_MIN(curPos, maxPos));
 
   nscoord& availableLength = IsHorizontal() ? clientRect.width : clientRect.height;
   nscoord& thumbLength = IsHorizontal() ? thumbSize.width : thumbSize.height;
 
   if ((pageIncrement + maxPos - minPos) > 0 && thumbBox->GetFlex(aState) > 0) {
     float ratio = float(pageIncrement) / float(maxPos - minPos + pageIncrement);
-    thumbLength = PR_MAX(thumbLength, NSToCoordRound(availableLength * ratio));
+    thumbLength = NS_MAX(thumbLength, NSToCoordRound(availableLength * ratio));
   }
 
   // Round the thumb's length to device pixels.
@@ -693,8 +688,8 @@ nsSliderFrame::CurrentPositionChanged(nsPresContext* aPresContext,
   PRInt32 minPos = GetMinPosition(scrollbar);
   PRInt32 maxPos = GetMaxPosition(scrollbar);
 
-  maxPos = PR_MAX(minPos, maxPos);
-  curPos = PR_MAX(minPos, PR_MIN(curPos, maxPos));
+  maxPos = NS_MAX(minPos, maxPos);
+  curPos = NS_MAX(minPos, NS_MIN(curPos, maxPos));
 
   // get the thumb's rect
   nsIFrame* thumbFrame = mFrames.FirstChild();
@@ -824,13 +819,10 @@ nsSliderFrame::SetCurrentPositionInternal(nsIContent* aScrollbar, PRInt32 aNewPo
       mediator->PositionChanged(scrollbarFrame, GetCurrentPosition(scrollbar), aNewPos);
       // 'mediator' might be dangling now...
       UpdateAttribute(scrollbar, aNewPos, PR_FALSE, aIsSmooth);
-      nsIPresShell* shell = context->GetPresShell();
-      if (shell) {
-        nsIFrame* frame = shell->GetPrimaryFrameFor(content);
-        if (frame && frame->GetType() == nsGkAtoms::sliderFrame) {
-          static_cast<nsSliderFrame*>(frame)->
-            CurrentPositionChanged(frame->PresContext(), aImmediateRedraw);
-        }
+      nsIFrame* frame = content->GetPrimaryFrame();
+      if (frame && frame->GetType() == nsGkAtoms::sliderFrame) {
+        static_cast<nsSliderFrame*>(frame)->
+          CurrentPositionChanged(frame->PresContext(), aImmediateRedraw);
       }
       mUserChanged = PR_FALSE;
       return;
@@ -983,42 +975,14 @@ nsSliderFrame::DragThumb(PRBool aGrabMouseEvents)
     }
   }
 
-  // get its view
-  nsIView* view = GetView();
-
-  if (view) {
-    nsIViewManager* viewMan = view->GetViewManager();
-
-    if (viewMan) {
-      PRBool result;
-
-      if (aGrabMouseEvents) {
-        viewMan->GrabMouseEvents(view,result);
-      } else {
-        viewMan->GrabMouseEvents(nsnull,result);
-      }
-    }
-  }
+  nsIPresShell::SetCapturingContent(aGrabMouseEvents ? GetContent() : nsnull,
+                                    aGrabMouseEvents ? CAPTURE_IGNOREALLOWED : 0);
 }
 
 PRBool
 nsSliderFrame::isDraggingThumb()
 {
-  // get its view
-  nsIView* view = GetView();
-
-  if (view) {
-    nsIViewManager* viewMan = view->GetViewManager();
-
-    if (viewMan) {
-        nsIView* grabbingView;
-        viewMan->GetMouseEventGrabber(grabbingView);
-        if (grabbingView == view)
-          return PR_TRUE;
-    }
-  }
-
-  return PR_FALSE;
+  return (nsIPresShell::GetCapturingContent() == GetContent());
 }
 
 void
@@ -1097,7 +1061,7 @@ nsSliderFrame::HandleRelease(nsPresContext* aPresContext,
 }
 
 void
-nsSliderFrame::Destroy()
+nsSliderFrame::DestroyFrom(nsIFrame* aDestructRoot)
 {
   // tell our mediator if we have one we are gone.
   if (mMediator) {
@@ -1107,7 +1071,7 @@ nsSliderFrame::Destroy()
   StopRepeat();
 
   // call base class Destroy()
-  nsBoxFrame::Destroy();
+  nsBoxFrame::DestroyFrom(aDestructRoot);
 }
 
 nsSize

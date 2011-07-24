@@ -61,6 +61,7 @@
 #include "prmem.h"
 #include "nsServiceManagerUtils.h"
 #include "nsComponentManagerUtils.h"
+#include "nsMsgUtils.h"
 
 static NS_DEFINE_CID(kRDFServiceCID, NS_RDFSERVICE_CID);
 
@@ -302,15 +303,16 @@ nsMsgCopy::DoCopy(nsIFile *aDiskFile, nsIMsgFolder *dstFolder,
           // set the following only when we were in the middle of shutdown
           // process
             copyListener->mCopyInProgress = PR_TRUE;
-            NS_GetCurrentThread(getter_AddRefs(thread));
+            thread = do_GetCurrentThread();
         }
     }
     nsCOMPtr<nsIMsgCopyService> copyService = do_GetService(NS_MSGCOPYSERVICE_CONTRACTID, &rv);
     NS_ENSURE_SUCCESS(rv, rv);
 
     rv = copyService->CopyFileMessage(aDiskFile, dstFolder, aMsgToReplace,
-                                      aIsDraft, nsMsgMessageFlags::Read, EmptyCString(),
-                                      copyListener, msgWindow);
+                                      aIsDraft,
+                                      aIsDraft ? 0 : nsMsgMessageFlags::Read,
+                                      EmptyCString(), copyListener, msgWindow);
     // copyListener->mCopyInProgress can only be set when we are in the
     // middle of the shutdown process
     while (copyListener->mCopyInProgress)

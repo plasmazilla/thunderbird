@@ -40,6 +40,7 @@ DEPTH   = ../../../..
 topsrcdir = @top_srcdir@
 srcdir    = @srcdir@
 VPATH   = @srcdir@
+relativesrcdir = toolkit/components/downloads/test
 
 include $(DEPTH)/config/autoconf.mk
 
@@ -50,9 +51,11 @@ XPCSHELL_TESTS = \
   schema_migration \
   $(NULL)
 
+ifneq (mobile,$(MOZ_BUILD_APP))
 DIRS = \
   browser \
   $(NULL)
+endif
 
 include $(topsrcdir)/config/rules.mk
 

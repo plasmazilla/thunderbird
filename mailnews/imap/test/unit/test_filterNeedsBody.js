@@ -150,8 +150,7 @@ function doTest()
     do_timeout(10000, function()
         {
           if (gCurTestNum == test)
-            do_throw("Notifications not received in 10000 ms for operation " + testFn.name +
-              ", current status is " + gCurrStatus);
+            do_throw("Notifications not received in 10000 ms for operation " + testFn.name);
         }
       );
     try {
@@ -224,7 +223,7 @@ actionTestOffline =
 // given a test file, return the file uri spec
 function specForFileName(aFileName)
 {
-  let file = do_get_file("../../mailnews/data/" + aFileName);
+  let file = do_get_file("../../../data/" + aFileName);
   let msgfileuri = Cc["@mozilla.org/network/io-service;1"]
                      .getService(Ci.nsIIOService)
                      .newFileURI(file)

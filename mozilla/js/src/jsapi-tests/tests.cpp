@@ -39,31 +39,39 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "tests.h"
-#include <iostream>
-
-using namespace std;
+#include <stdio.h>
 
 JSAPITest *JSAPITest::list;
 
-int main()
+int main(int argc, char *argv[])
 {
+    int total = 0;
     int failures = 0;
+    const char *filter = (argc == 2) ? argv[1] : NULL;
+
+    JS_SetCStringsAreUTF8();
 
     for (JSAPITest *test = JSAPITest::list; test; test = test->next) {
-        string name = test->name();
+        const char *name = test->name();
+        if (filter && strstr(name, filter) == NULL)
+            continue;
 
-        cout << name << endl;
+        total += 1;
+
+        printf("%s\n", name);
         if (!test->init()) {
-            cout << "TEST-UNEXPECTED-FAIL | " << name << " | Failed to initialize." << endl;
+            printf("TEST-UNEXPECTED-FAIL | %s | Failed to initialize.\n", name);
             failures++;
             continue;
         }
 
         if (test->run()) {
-            cout << "TEST-PASS | " << name << " | ok" << endl;
+            printf("TEST-PASS | %s | ok\n", name);
         } else {
-            cout << (test->knownFail ? "TEST-KNOWN-FAIL" : "TEST-UNEXPECTED-FAIL")
-                 << " | " << name << " | " << test->messages() << endl;
+            JSAPITestString messages = test->messages();
+            printf("%s | %s | %.*s\n",
+                   (test->knownFail ? "TEST-KNOWN-FAIL" : "TEST-UNEXPECTED-FAIL"),
+                   name, (int) messages.length(), messages.begin());
             if (!test->knownFail)
                 failures++;
         }
@@ -71,9 +79,9 @@ int main()
     }
 
     if (failures) {
-        cout << "\n" << failures << " unexpected failure" << (failures == 1 ? "." : "s.") << endl;
+        printf("\n%d unexpected failure%s.\n", failures, (failures == 1 ? "" : "s"));
         return 1;
     }
-    cout << "\nPassed." << endl;
+    printf("\nPassed: ran %d tests.\n", total);
     return 0;
 }

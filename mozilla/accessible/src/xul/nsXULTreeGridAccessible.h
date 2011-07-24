@@ -15,7 +15,7 @@
  * The Original Code is mozilla.org code.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Corporation.
+ * Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -50,8 +50,7 @@ class nsXULTreeGridAccessible : public nsXULTreeAccessible,
                                 public nsIAccessibleTable
 {
 public:
-  nsXULTreeGridAccessible(nsIDOMNode *aDOMNode,
-                          nsIWeakReference *aShell);
+  nsXULTreeGridAccessible(nsIContent *aContent, nsIWeakReference *aShell);
 
   // nsISupports
   NS_DECL_ISUPPORTS_INHERITED
@@ -60,13 +59,12 @@ public:
   NS_DECL_NSIACCESSIBLETABLE
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
 
 protected:
 
   // nsXULTreeAccessible
-  virtual void CreateTreeItemAccessible(PRInt32 aRow,
-                                        nsAccessNode** aAccessNode);
+  virtual already_AddRefed<nsAccessible> CreateTreeItemAccessible(PRInt32 aRow);
 };
 
 
@@ -77,8 +75,12 @@ protected:
 class nsXULTreeGridRowAccessible : public nsXULTreeItemAccessibleBase
 {
 public:
-  nsXULTreeGridRowAccessible(nsIDOMNode *aDOMNode, nsIWeakReference *aShell,
-                             nsIAccessible *aParent, nsITreeBoxObject *aTree,
+  using nsAccessible::GetChildCount;
+  using nsAccessible::GetChildAt;
+  using nsAccessible::GetChildAtPoint;
+
+  nsXULTreeGridRowAccessible(nsIContent *aContent, nsIWeakReference *aShell,
+                             nsAccessible *aParent, nsITreeBoxObject *aTree,
                              nsITreeView *aTreeView, PRInt32 aRow);
 
   // nsISupports and cycle collection
@@ -86,27 +88,28 @@ public:
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(nsXULTreeGridRowAccessible,
                                            nsAccessible)
 
-  // nsIAccessible
-  NS_IMETHOD GetFirstChild(nsIAccessible **aFirstChild);
-  NS_IMETHOD GetLastChild(nsIAccessible **aLastChild);
-  NS_IMETHOD GetChildCount(PRInt32 *aChildCount);
-  NS_IMETHOD GetChildAt(PRInt32 aChildIndex, nsIAccessible **aChild);
-
   // nsAccessNode
-  virtual nsresult Shutdown();
+  virtual void Shutdown();
 
   // nsAccessible
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
-  virtual nsresult GetChildAtPoint(PRInt32 aX, PRInt32 aY,
-                                   PRBool aDeepestChild,
-                                   nsIAccessible **aChild);
+  virtual PRUint32 NativeRole();
+  virtual nsAccessible* GetChildAtPoint(PRInt32 aX, PRInt32 aY,
+                                        EWhichChildAtPoint aWhichChild);
+
+  virtual nsAccessible* GetChildAt(PRUint32 aIndex);
+  virtual PRInt32 GetChildCount();
 
   // nsXULTreeItemAccessibleBase
-  virtual void GetCellAccessible(nsITreeColumn *aColumn, nsIAccessible **aCell);
+  virtual nsAccessible* GetCellAccessible(nsITreeColumn *aColumn);
   virtual void RowInvalidated(PRInt32 aStartColIdx, PRInt32 aEndColIdx);
 
 protected:
-  nsAccessNodeHashtable mAccessNodeCache;
+
+  // nsAccessible
+  virtual void CacheChildren();
+
+  // nsXULTreeItemAccessibleBase
+  nsAccessibleHashtable mAccessibleCache;
 };
 
 
@@ -127,7 +130,9 @@ class nsXULTreeGridCellAccessible : public nsLeafAccessible,
                                     public nsIAccessibleTableCell
 {
 public:
-  nsXULTreeGridCellAccessible(nsIDOMNode *aDOMNode, nsIWeakReference *aShell,
+  using nsAccessible::GetParent;
+
+  nsXULTreeGridCellAccessible(nsIContent *aContent, nsIWeakReference *aShell,
                               nsXULTreeGridRowAccessible *aRowAcc,
                               nsITreeBoxObject *aTree, nsITreeView *aTreeView,
                               PRInt32 aRow, nsITreeColumn* aColumn);
@@ -135,14 +140,7 @@ public:
   // nsISupports
   NS_DECL_ISUPPORTS_INHERITED
 
-  // nsIAccessNode
-  NS_IMETHOD GetUniqueID(void **aUniqueID);
-
   // nsIAccessible
-  NS_IMETHOD GetParent(nsIAccessible **aParent);
-  NS_IMETHOD GetNextSibling(nsIAccessible **aNextSibling);
-  NS_IMETHOD GetPreviousSibling(nsIAccessible **aPrevSibling);
-
   NS_IMETHOD GetFocusedChild(nsIAccessible **aFocusedChild);
 
   NS_IMETHOD GetName(nsAString& aName);
@@ -158,12 +156,14 @@ public:
 
   // nsAccessNode
   virtual PRBool IsDefunct();
-  virtual nsresult Init();
+  virtual PRBool Init();
+  virtual bool IsPrimaryForNode() const;
 
   // nsAccessible
   virtual nsresult GetAttributesInternal(nsIPersistentProperties *aAttributes);
-  virtual nsresult GetRoleInternal(PRUint32 *aRole);
+  virtual PRUint32 NativeRole();
   virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
+  virtual PRInt32 GetIndexInParent() const;
 
   // nsXULTreeGridCellAccessible
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_XULTREEGRIDCELLACCESSIBLE_IMPL_CID)
@@ -181,6 +181,8 @@ public:
 
 protected:
   // nsAccessible
+  virtual nsAccessible* GetSiblingAtOffset(PRInt32 aOffset,
+                                           nsresult *aError = nsnull);
   virtual void DispatchClickEvent(nsIContent *aContent, PRUint32 aActionIndex);
 
   // nsXULTreeGridCellAccessible

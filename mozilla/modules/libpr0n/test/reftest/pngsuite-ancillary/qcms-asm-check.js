@@ -10,7 +10,7 @@ function check_qcms_has_assembly()
         return true;
     }
 
-    if (navigator.platform == "Win32" || navigator.platform == "OS/2") {
+    if (navigator.platform.indexOf("Win") == 0 || navigator.platform == "OS/2") {
         // Assume all Windows and OS/2 is x86 or x86_64.  We don't
         // expose any way for Web content to check.
         return true;
@@ -18,7 +18,7 @@ function check_qcms_has_assembly()
 
     // On most Unix-like platforms, navigator.platform is basically
     // |uname -sm|.
-    if (navigator.platform.match(/(i[3456]86|x86_64|amd64)/)) {
+    if (navigator.platform.match(/(i[3456]86|x86_64|amd64|i86)/)) {
         return true;
     }
 

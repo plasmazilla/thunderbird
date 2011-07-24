@@ -42,26 +42,60 @@ VPATH		= @srcdir@
 relativesrcdir  = parser/htmlparser/tests/mochitest
 
 include $(DEPTH)/config/autoconf.mk
+
+DIRS = \
+		dir_bug534293 \
+		html5lib_tree_construction \
+		$(NULL)
+
 include $(topsrcdir)/config/rules.mk
 
 _TEST_FILES =	parser_datreader.js \
 		parser_web_testrunner.js \
-		html5lib_tree_dat1.txt \
-		html5lib_tree_dat2.txt \
-		html5lib_tree_dat3.txt \
 		html5_tree_construction_exceptions.js \
 		test_html5_tree_construction.html \
+		test_html5_tree_construction_part2.html \
 		test_bug174351.html \
 	 	test_bug339350.xhtml \
 		test_bug358797.html \
 		test_bug396568.html \
 		test_bug418464.html \
 		test_bug460437.xhtml \
+		test_bug502091.html \
 		bug_502091_iframe.html \
+		test_bug543062.html \
+		file_bug543062.sjs \
+		test_bug552938.html \
+		test_bug552938-2.html \
+		test_bug566879.html \
 		test_compatmode.html \
-		regressions.txt \
 		invalidchar.xml \
+		file_bug534293.sjs \
+		file_bug534293-slow.sjs \
+		test_bug594730.html \
+		file_bug594730-1.html \
+		file_bug594730-2.html \
+		file_bug594730-3.html \
+		file_bug594730-4.html \
+		file_bug594730-5.html \
+		file_bug594730-6.html \
+		file_bug594730-7.html \
+		file_bug594730-8.html \
+		file_bug594730-9.html \
+		test_bug599584.html \
+		iframe_bug599584.html \
+		test_bug642908.html \
+		file_bug642908.sjs \
+		test_bug645115.html \
 		$(NULL)
+
+# Disabled test due to orange on Linux
+#		test_bug568470.html \
+#		file_bug568470.sjs \
+#		file_bug568470-script.sjs \
+
+# Disable test due to frequent orange on Mac
+#		test_bug534293.html \
 
 libs:: $(_TEST_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)

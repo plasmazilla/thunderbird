@@ -57,11 +57,13 @@ nsDOMTokenList::nsDOMTokenList(nsGenericElement *aElement, nsIAtom* aAttrAtom)
 
 nsDOMTokenList::~nsDOMTokenList() { }
 
+DOMCI_DATA(DOMTokenList, nsDOMTokenList)
+
 NS_INTERFACE_TABLE_HEAD(nsDOMTokenList)
   NS_INTERFACE_TABLE1(nsDOMTokenList,
                       nsIDOMDOMTokenList)
   NS_INTERFACE_TABLE_TO_MAP_SEGUE
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(DOMTokenList)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(DOMTokenList)
 NS_INTERFACE_MAP_END
 
 NS_IMPL_ADDREF(nsDOMTokenList)
@@ -152,6 +154,10 @@ void
 nsDOMTokenList::AddInternal(const nsAttrValue* aAttr,
                             const nsAString& aToken)
 {
+  if (!mElement) {
+    return;
+  }
+
   nsAutoString resultStr;
 
   if (aAttr) {

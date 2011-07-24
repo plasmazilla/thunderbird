@@ -26,6 +26,7 @@
  *   Neil Rashbrook (neil@parkwaycc.co.uk)
  *   Seth Spitzer <sspitzer@netscape.com>
  *   Karsten Düsterloh <mnyromyr@tprac.de>
+ *   Ian Neal <iann_bugzilla@blueyonder.co.uk>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -66,7 +67,6 @@ var gNextMessageAfterDelete = null;
 var gNextMessageAfterLoad = null;
 var gNextMessageViewIndexAfterDelete = -2;
 var gCurrentlyDisplayedMessage=nsMsgViewIndex_None;
-var gStartFolderUri = null;
 var gStartMsgKey = nsMsgKey_None;
 var gSearchEmailAddress = null;
 var gRightMouseButtonDown = false;
@@ -684,11 +684,21 @@ function UpdateMailPaneConfig() {
   }
 }
 
-const MailPaneConfigObserver = {
+const MailPrefObserver = {
   observe: function observe(subject, topic, prefName) {
-    // verify that we're changing the mail pane config pref
-    if (topic == "nsPref:changed")
-      UpdateMailPaneConfig();
+    if (topic == "nsPref:changed") {
+      if (prefName == "mail.pane_config.dynamic") {
+        UpdateMailPaneConfig();
+      } else if (prefName == "mail.showCondensedAddresses") {
+        let currentDisplayNameVersion =
+              pref.getIntPref("mail.displayname.version");
+        pref.setIntPref("mail.displayname.version",
+                        ++currentDisplayNameVersion);
+
+        // Refresh the thread pane.
+        GetThreadTree().treeBoxObject.invalid();
+      }
+    }
   }
 };
 
@@ -697,7 +707,8 @@ function OnLoadMessenger()
 {
   AddMailOfflineObserver();
   CreateMailWindowGlobals();
-  pref.addObserver("mail.pane_config.dynamic", MailPaneConfigObserver, false);
+  pref.addObserver("mail.pane_config.dynamic", MailPrefObserver, false);
+  pref.addObserver("mail.showCondensedAddresses", MailPrefObserver, false);
   UpdateMailPaneConfig();
   Create3PaneGlobals();
   verifyAccounts(null, false);
@@ -722,6 +733,7 @@ function OnLoadMessenger()
 
   AddToSession();
 
+  var startFolderUri = null;
   //need to add to session before trying to load start folder otherwise listeners aren't
   //set up correctly.
   // argument[0] --> folder uri
@@ -729,28 +741,25 @@ function OnLoadMessenger()
   // argument[2] --> optional email address; // Will come from aim; needs to show msgs from buddy's email address.
   if ("arguments" in window)
   {
+    var args = window.arguments;
     // filter our any feed urls that came in as arguments to the new window...
-    if (window.arguments.length && /^feed:/i.test(window.arguments[0]))
+    if (args.length && /^feed:/i.test(args[0]))
     {
       var feedHandler =
         Components.classes["@mozilla.org/newsblog-feed-downloader;1"]
                   .getService(Components.interfaces.nsINewsBlogFeedDownloader);
       if (feedHandler)
-        feedHandler.subscribeToFeed(window.arguments[0], null, msgWindow);
-      gStartFolderUri = null;
+        feedHandler.subscribeToFeed(args[0], null, msgWindow);
     }
     else
     {
-      gStartFolderUri = (window.arguments.length > 0) ? window.arguments[0]
-                                                      : null;
+      startFolderUri = (args.length > 0) ? args[0] : null;
     }
-    gStartMsgKey = (window.arguments.length > 1) ? window.arguments[1]
-                                                 : nsMsgKey_None;
-    gSearchEmailAddress = (window.arguments.length > 2) ? window.arguments[2]
-                                                        : null;
+    gStartMsgKey = (args.length > 1) ? args[1] : nsMsgKey_None;
+    gSearchEmailAddress = (args.length > 2) ? args[2] : null;
   }
 
-  setTimeout("loadStartFolder(gStartFolderUri);", 0);
+  window.setTimeout(loadStartFolder, 0, startFolderUri);
 
   Components.classes["@mozilla.org/observer-service;1"]
                      .getService(Components.interfaces.nsIObserverService)
@@ -769,6 +778,9 @@ function OnLoadMessenger()
   mailToolbox.customizeInit = MailToolboxCustomizeInit;
   mailToolbox.customizeDone = MailToolboxCustomizeDone;
   mailToolbox.customizeChange = MailToolboxCustomizeChange;
+
+  // initialize the sync UI
+  gSyncUI.init();
 
   window.addEventListener("AppCommand", HandleAppCommandEvent, true);
 }
@@ -806,7 +818,8 @@ function HandleAppCommandEvent(evt)
 
 function OnUnloadMessenger()
 {
-  pref.removeObserver("mail.pane_config.dynamic", MailPaneConfigObserver, false);
+  pref.removeObserver("mail.pane_config.dynamic", MailPrefObserver, false);
+  pref.removeObserver("mail.showCondensedAddresses", MailPrefObserver, false);
   window.removeEventListener("AppCommand", HandleAppCommandEvent, true);
 
   OnLeavingFolder(gMsgFolderSelected);  // mark all read in current folder
@@ -864,8 +877,7 @@ function Create3PaneGlobals()
 {
   // Update <mailWindow.js> global variables.
   accountCentralBox = document.getElementById("accountCentralBox");
-  gSearchBox = document.getElementById("searchBox");
-  gSearchBox.collapsed = true;
+  gDisableViewsSearch = document.getElementById("mailDisableViewsSearch");
 
   GetMessagePane().collapsed = true;
 }
@@ -1027,12 +1039,10 @@ function OnLoadFolderPane()
     folderUnreadCol.addEventListener("DOMAttrModified", OnFolderUnreadColAttrModified, false);
 
     //Add folderDataSource and accountManagerDataSource to folderPane
-    accountManagerDataSource = accountManagerDataSource.QueryInterface(Components.interfaces.nsIRDFDataSource);
-    folderDataSource = folderDataSource.QueryInterface(Components.interfaces.nsIRDFDataSource);
     var database = GetFolderDatasource();
-
     database.AddDataSource(accountManagerDataSource);
     database.AddDataSource(folderDataSource);
+
     var folderTree = GetFolderTree();
     folderTree.setAttribute("ref", "msgaccounts:/");
 
@@ -1072,27 +1082,15 @@ function UpdateAttachmentCol(aFirstTimeFlag)
     threadTree.treeBoxObject.clearStyleAndImageCaches();
 }
 
-function OnLocationToolbarAttrModified(event)
-{
-    if (!/collapsed|hidden/.test(event.attrName))
-        return;
-    var searchBox = document.getElementById("searchBox");
-    var desiredParent = document.getElementById("msgLocationToolbar");
-    if (desiredParent.hidden || desiredParent.collapsed)
-        desiredParent = document.getElementById("searchBoxHolder");
-    if (searchBox.parentNode != desiredParent)
-        desiredParent.appendChild(searchBox);
-}
-
 function OnLoadLocationTree()
 {
-    var locationTree = document.getElementById('locationPopup').tree;
+  var locationTree = document.getElementById("folderLocationPopup").tree;
+  if (locationTree)
+  {
     locationTree.database.AddDataSource(accountManagerDataSource);
     locationTree.database.AddDataSource(folderDataSource);
     locationTree.setAttribute("ref", "msgaccounts:/");
-    var toolbar = document.getElementById("msgLocationToolbar");
-    toolbar.addEventListener("DOMAttrModified", OnLocationToolbarAttrModified, false);
-    OnLocationToolbarAttrModified({attrName:"collapsed"});
+  }
 }
 
 function OnLocationTreeSelect(menulist)
@@ -1232,6 +1230,10 @@ function GetSelectedFolderIndex()
 // It will also keep the outline/dotted line in the original row.
 function ChangeSelectionWithoutContentLoad(event, tree)
 {
+  // usually, we're only interested in tree content clicks, not scrollbars etc.
+  if (event.originalTarget.localName != "treechildren")
+    return;
+
     var treeBoxObj = tree.treeBoxObject;
     var treeSelection = tree.view.selection;
 
@@ -1270,6 +1272,10 @@ function TreeOnMouseDown(event)
 
 function FolderPaneOnClick(event)
 {
+  // usually, we're only interested in tree content clicks, not scrollbars etc.
+  if (event.originalTarget.localName != "treechildren")
+    return;
+
   // we may want to open the folder in a new tab on middle click
   if (event.button == kMouseButtonMiddle)
   {
@@ -1295,11 +1301,6 @@ function FolderPaneOnClick(event)
       // clicking on the name column in the folder pane should not sort
       event.stopPropagation();
     }
-  }
-  else if ((event.originalTarget.localName == "slider") ||
-           (event.originalTarget.localName == "scrollbarbutton"))
-  {
-    event.stopPropagation();
   }
   else if ((event.detail == 2) &&
            (elt.value != "twisty") &&
@@ -1557,29 +1558,4 @@ function MigrateJunkMailSettings()
     // bump the version so we don't bother doing this again.
     pref.setIntPref("mail.spam.version", 1);
   }
-}
-
-/**
- * Returns a string representation of a folder's specialFolder attribute.
- *
- * @param aFolder The folder whose specialFolder attribute to return.
- */
-function getSpecialFolderString(aFolder) {
-  if (aFolder.flags & 0x1000) // MSG_FOLDER_FLAG_INBOX
-    return "Inbox";
-  if (aFolder.flags & 0x0100) // MSG_FOLDER_FLAG_TRASH
-    return "Trash";
-  if (aFolder.flags & 0x0800) // MSG_FOLDER_FLAG_QUEUE
-    return "Unsent Messages";
-  if (aFolder.flags & 0x0200) // MSG_FOLDER_FLAG_SENTMAIL
-    return "Sent";
-  if (aFolder.flags & 0x0400) // MSG_FOLDER_FLAG_DRAFTS
-    return "Drafts";
-  if (aFolder.flags & 0x400000) // MSG_FOLDER_FLAG_TEMPLATES
-    return "Templates";
-  if (aFolder.flags & 0x40000000) // MSG_FOLDER_FLAG_JUNK
-    return "Junk";
-  if (aFolder.flags & 0x0020) // MSG_FOLDER_FLAG_VIRTUAL
-    return "Virtual";
-  return "none";
 }

@@ -39,6 +39,7 @@
 
 // Load DownloadUtils module for convertByteUnits
 Components.utils.import("resource://gre/modules/DownloadUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 var gAdvancedPane = {
   _inited: false,
@@ -69,6 +70,7 @@ var gAdvancedPane = {
 #ifdef MOZ_CRASHREPORTER
     this.initSubmitCrashes();
 #endif
+    this.updateActualCacheSize();
   },
 
   /**
@@ -150,7 +152,7 @@ var gAdvancedPane = {
     var checkbox = document.getElementById("submitCrashesBox");
     try {
       var cr = Components.classes["@mozilla.org/toolkit/crash-reporter;1"].
-               getService(Components.interfaces.nsICrashReporter_MOZILLA_1_9_2_BRANCH);
+               getService(Components.interfaces.nsICrashReporter);
       checkbox.checked = cr.submitReports;
     } catch (e) {
       checkbox.style.display = "none";
@@ -170,6 +172,17 @@ var gAdvancedPane = {
     } catch (e) { }
   },
 
+  /**
+   * When the user toggles the layers.acceleration.disabled pref,
+   * sync its new value to the gfx.direct2d.disabled pref too.
+   */
+  updateHardwareAcceleration: function()
+  {
+#ifdef XP_WIN
+    var pref = document.getElementById("layers.acceleration.disabled");
+    Services.prefs.setBoolPref("gfx.direct2d.disabled", !pref.value);
+#endif
+  },
 
   // NETWORK TAB
 
@@ -178,6 +191,7 @@ var gAdvancedPane = {
    *
    * browser.cache.disk.capacity
    * - the size of the browser cache in KB
+   * - Only used if browser.cache.disk.smart_size.enabled is disabled
    */
 
   /**
@@ -188,7 +202,52 @@ var gAdvancedPane = {
     document.documentElement.openSubDialog("chrome://browser/content/preferences/connection.xul",
                                            "", null);
   },
+ 
+  // Retrieves the amount of space currently used by disk cache
+  updateActualCacheSize: function ()
+  {
+    var visitor = {
+      visitDevice: function (deviceID, deviceInfo)
+      {
+        if (deviceID == "disk") {
+          var actualSizeLabel = document.getElementById("actualCacheSize");
+          var sizeStrings = DownloadUtils.convertByteUnits(deviceInfo.totalSize);
+          var prefStrBundle = document.getElementById("bundlePreferences");
+          var sizeStr = prefStrBundle.getFormattedString("actualCacheSize",
+                                                          sizeStrings);
+          actualSizeLabel.value = sizeStr;
+        }
+        // Do not enumerate entries
+        return false;
+      },
 
+      visitEntry: function (deviceID, entryInfo)
+      {
+        // Do not enumerate entries.
+        return false;
+      }
+    };
+    var cacheService =
+      Components.classes["@mozilla.org/network/cache-service;1"]
+                .getService(Components.interfaces.nsICacheService);
+    cacheService.visitEntries(visitor);
+  },
+
+  updateCacheSizeUI: function (smartSizeEnabled)
+  {
+    document.getElementById("useCacheBefore").disabled = smartSizeEnabled;
+    document.getElementById("cacheSize").disabled = smartSizeEnabled;
+    document.getElementById("useCacheAfter").disabled = smartSizeEnabled;
+  },
+
+  readSmartSizeEnabled: function ()
+  {
+    // The smart_size.enabled preference element is inverted="true", so its
+    // value is the opposite of the actual pref value
+    var disabled = document.getElementById("browser.cache.disk.smart_size.enabled").value;
+    this.updateCacheSizeUI(!disabled);
+  },
+  
   /**
    * Converts the cache size from units of KB to units of MB and returns that
    * value.
@@ -220,6 +279,7 @@ var gAdvancedPane = {
     try {
       cacheService.evictEntries(Components.interfaces.nsICache.STORE_ANYWHERE);
     } catch(ex) {}
+    this.updateActualCacheSize();
   },
 
   readOfflineNotify: function()
@@ -251,9 +311,9 @@ var gAdvancedPane = {
   {
     var cacheService = Components.classes["@mozilla.org/network/application-cache-service;1"].
                        getService(Components.interfaces.nsIApplicationCacheService);
-    if (!groups) {
-      groups = cacheService.getGroups({});
-    }
+    if (!groups)
+      groups = cacheService.getGroups();
+
     var ios = Components.classes["@mozilla.org/network/io-service;1"].
               getService(Components.interfaces.nsIIOService);
 
@@ -288,7 +348,7 @@ var gAdvancedPane = {
 
     var cacheService = Components.classes["@mozilla.org/network/application-cache-service;1"].
                        getService(Components.interfaces.nsIApplicationCacheService);
-    var groups = cacheService.getGroups({});
+    var groups = cacheService.getGroups();
 
     var bundle = document.getElementById("bundlePreferences");
 
@@ -348,7 +408,7 @@ var gAdvancedPane = {
                        getService(Components.interfaces.nsIApplicationCacheService);
     var ios = Components.classes["@mozilla.org/network/io-service;1"].
               getService(Components.interfaces.nsIIOService);
-    var groups = cacheService.getGroups({});
+    var groups = cacheService.getGroups();
     for (var i = 0; i < groups.length; i++) {
         var uri = ios.newURI(groups[i], null, null);
         if (uri.asciiHost == host) {
@@ -435,7 +495,7 @@ var gAdvancedPane = {
   {
     var aus = 
         Components.classes["@mozilla.org/updates/update-service;1"].
-        getService(Components.interfaces.nsIApplicationUpdateService2);
+        getService(Components.interfaces.nsIApplicationUpdateService);
 
     var enabledPref = document.getElementById("app.update.enabled");
     var enableAppUpdate = document.getElementById("enableAppUpdate");

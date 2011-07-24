@@ -36,7 +36,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "nsICSSStyleSheet.h"
+#include "nsCSSStyleSheet.h"
 #include "nsIStyleRuleProcessor.h"
 #include "nsIDocument.h"
 #include "nsIContent.h"
@@ -48,8 +48,7 @@
 #include "nsIDocumentObserver.h"
 #include "imgILoader.h"
 #include "imgIRequest.h"
-#include "nsICSSLoader.h"
-#include "nsIXBLDocumentInfo.h"
+#include "mozilla/css/Loader.h"
 #include "nsIURI.h"
 #include "nsNetUtil.h"
 #include "nsGkAtoms.h"
@@ -109,10 +108,9 @@ nsXBLResourceLoader::LoadResources(PRBool* aResult)
   *aResult = PR_TRUE;
 
   // Declare our loaders.
-  nsCOMPtr<nsIDocument> doc;
-  mBinding->XBLDocumentInfo()->GetDocument(getter_AddRefs(doc));
+  nsCOMPtr<nsIDocument> doc = mBinding->XBLDocumentInfo()->GetDocument();
 
-  nsICSSLoader* cssLoader = doc->CSSLoader();
+  mozilla::css::Loader* cssLoader = doc->CSSLoader();
   nsIURI *docURL = doc->GetDocumentURI();
   nsIPrincipal* docPrincipal = doc->NodePrincipal();
 
@@ -153,7 +151,7 @@ nsXBLResourceLoader::LoadResources(PRBool* aResult)
           CheckLoadURIWithPrincipal(docPrincipal, url,
                                     nsIScriptSecurityManager::ALLOW_CHROME);
         if (NS_SUCCEEDED(rv)) {
-          nsCOMPtr<nsICSSStyleSheet> sheet;
+          nsRefPtr<nsCSSStyleSheet> sheet;
           rv = cssLoader->LoadSheetSync(url, getter_AddRefs(sheet));
           NS_ASSERTION(NS_SUCCEEDED(rv), "Load failed!!!");
           if (NS_SUCCEEDED(rv))
@@ -182,7 +180,7 @@ nsXBLResourceLoader::LoadResources(PRBool* aResult)
 
 // nsICSSLoaderObserver
 NS_IMETHODIMP
-nsXBLResourceLoader::StyleSheetLoaded(nsICSSStyleSheet* aSheet,
+nsXBLResourceLoader::StyleSheetLoaded(nsCSSStyleSheet* aSheet,
                                       PRBool aWasAlternate,
                                       nsresult aStatus)
 {
@@ -191,7 +189,7 @@ nsXBLResourceLoader::StyleSheetLoaded(nsICSSStyleSheet* aSheet,
     return NS_OK;
   }
    
-  mResources->mStyleSheetList.AppendObject(aSheet);
+  mResources->mStyleSheetList.AppendElement(aSheet);
 
   if (!mInLoadResourcesFunc)
     mPendingSheets--;
@@ -263,9 +261,9 @@ nsXBLResourceLoader::NotifyBoundElements()
         // has a primary frame and whether it's in the undisplayed map
         // before sending a ContentInserted notification, or bad things
         // will happen.
-        nsIPresShell *shell = doc->GetPrimaryShell();
+        nsIPresShell *shell = doc->GetShell();
         if (shell) {
-          nsIFrame* childFrame = shell->GetPrimaryFrameFor(content);
+          nsIFrame* childFrame = content->GetPrimaryFrame();
           if (!childFrame) {
             // Check to see if it's in the undisplayed content map.
             nsStyleContext* sc =

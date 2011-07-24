@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-var gTestfile = 'regress-477234.js';
 //-----------------------------------------------------------------------------
 var BUGNUMBER = 477234;
 var summary = 'Do not assert: v != JSVAL_ERROR_COOKIE';
@@ -57,7 +56,11 @@ function test()
  
   for (iters = 0; iters < 11500; ++iters) {
     for each (let x in ['', '', '']){}
-    eval("__proto__.x getter = function(){}");
+    eval("Object.defineProperty(__proto__, 'x', " +
+         "{" +
+         "  enumerable: true, configurable: true," +
+         "  get: function(){}" +
+         "});");
     var a = uneval;
     delete uneval;
     uneval = a;

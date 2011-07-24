@@ -57,8 +57,14 @@
 #include "nsIContentSniffer.h"
 #include "nsCategoryCache.h"
 #include "nsINetworkLinkService.h"
+#include "nsAsyncRedirectVerifyHelper.h"
 
 #define NS_N(x) (sizeof(x)/sizeof(*x))
+
+// We don't want to expose this observer topic.
+// Intended internal use only for remoting offline/inline events.
+// See Bug 552829
+#define NS_IPC_IOSERVICE_SET_OFFLINE_TOPIC "ipc:network:set-offline"
 
 static const char gScheme[][sizeof("resource")] =
     {"chrome", "file", "http", "jar", "resource"};
@@ -90,8 +96,9 @@ public:
 
     // Called by channels before a redirect happens. This notifies the global
     // redirect observers.
-    nsresult OnChannelRedirect(nsIChannel* oldChan, nsIChannel* newChan,
-                               PRUint32 flags);
+    nsresult AsyncOnChannelRedirect(nsIChannel* oldChan, nsIChannel* newChan,
+                                    PRUint32 flags,
+                                    nsAsyncRedirectVerifyHelper *helper);
 
     // Gets the array of registered content sniffers
     const nsCOMArray<nsIContentSniffer>& GetContentSniffers() {
@@ -100,6 +107,10 @@ public:
 
     PRBool IsOffline() { return mOffline; }
     PRBool IsLinkUp();
+
+    PRBool IsComingOnline() const {
+      return mOffline && mSettingOffline && !mSetOfflineValue;
+    }
 
 private:
     // These shouldn't be called directly:
@@ -121,6 +132,8 @@ private:
     NS_HIDDEN_(void) PrefsChanged(nsIPrefBranch *prefs, const char *pref = nsnull);
     NS_HIDDEN_(void) GetPrefBranch(nsIPrefBranch2 **);
     NS_HIDDEN_(void) ParsePortList(nsIPrefBranch *prefBranch, const char *pref, PRBool remove);
+
+    nsresult InitializeSocketTransportService();
 
 private:
     PRPackedBool                         mOffline;

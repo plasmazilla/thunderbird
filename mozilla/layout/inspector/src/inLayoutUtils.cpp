@@ -84,10 +84,10 @@ inLayoutUtils::GetPresShellFor(nsISupports* aThing)
 
 /*static*/
 nsIFrame*
-inLayoutUtils::GetFrameFor(nsIDOMElement* aElement, nsIPresShell* aShell)
+inLayoutUtils::GetFrameFor(nsIDOMElement* aElement)
 {
   nsCOMPtr<nsIContent> content = do_QueryInterface(aElement);
-  return aShell->GetPrimaryFrameFor(content);
+  return content->GetPrimaryFrame();
 }
 
 nsIEventStateManager*
@@ -104,7 +104,7 @@ inLayoutUtils::GetEventStateManagerFor(nsIDOMElement *aElement)
     return nsnull;
   }
 
-  nsIPresShell *shell = doc->GetPrimaryShell();
+  nsIPresShell *shell = doc->GetShell();
   if (!shell)
     return nsnull;
 

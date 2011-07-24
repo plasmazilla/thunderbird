@@ -28,9 +28,9 @@ Message::Message()
 }
 
 #if !defined(CHROMIUM_MOZILLA_BUILD)
-Message::Message(int32 routing_id, uint16 type, PriorityValue priority)
+Message::Message(int32 routing_id, msgid_t type, PriorityValue priority)
 #else
-Message::Message(int32 routing_id, uint16 type, PriorityValue priority,
+Message::Message(int32 routing_id, msgid_t type, PriorityValue priority,
                  const char* const name)
 #endif
     : Pickle(sizeof(Header)) {
@@ -41,8 +41,8 @@ Message::Message(int32 routing_id, uint16 type, PriorityValue priority,
   header()->num_fds = 0;
 #endif
 #if defined(CHROMIUM_MOZILLA_BUILD)
-  header()->rpc_remote_stack_depth_guess = static_cast<size_t>(-1);
-  header()->rpc_local_stack_depth = static_cast<size_t>(-1);
+  header()->rpc_remote_stack_depth_guess = static_cast<uint32>(-1);
+  header()->rpc_local_stack_depth = static_cast<uint32>(-1);
   header()->seqno = 0;
   InitLoggingVariables(name);
 #else

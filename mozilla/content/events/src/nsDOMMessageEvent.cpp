@@ -49,9 +49,11 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(nsDOMMessageEvent, nsDOMEvent)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mSource)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
+DOMCI_DATA(MessageEvent, nsDOMMessageEvent)
+
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(nsDOMMessageEvent)
   NS_INTERFACE_MAP_ENTRY(nsIDOMMessageEvent)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(MessageEvent)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(MessageEvent)
 NS_INTERFACE_MAP_END_INHERITING(nsDOMEvent)
 
 NS_IMPL_ADDREF_INHERITED(nsDOMMessageEvent, nsDOMEvent)
@@ -103,19 +105,6 @@ nsDOMMessageEvent::InitMessageEvent(const nsAString& aType,
   mSource = aSource;
 
   return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDOMMessageEvent::InitMessageEventNS(const nsAString& aNamespaceURI,
-                                      const nsAString& aType,
-                                      PRBool aCanBubble,
-                                      PRBool aCancelable,
-                                      const nsAString& aData,
-                                      const nsAString& aOrigin,
-                                      const nsAString& aLastEventId,
-                                      nsIDOMWindow* aSource)
-{
-  return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 nsresult

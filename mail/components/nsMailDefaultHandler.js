@@ -408,8 +408,36 @@ var nsMailDefaultHandler = {
         }
       }
       else {
-        openURI(cmdLine.resolveURI(uri));
-        // XXX: add error-handling here! (error dialog, if nothing else)
+        // This must be a regular filename. Use it to create a new message with attachment.
+        let msgComposeService = Components.classes["@mozilla.org/messengercompose;1"]
+                                          .getService(Components.interfaces.nsIMsgComposeService);
+        let msgParams = Components.classes["@mozilla.org/messengercompose/composeparams;1"]
+                                  .createInstance(Components.interfaces.nsIMsgComposeParams);
+        let composeFields = Components.classes["@mozilla.org/messengercompose/composefields;1"]
+                                      .createInstance(Components.interfaces.nsIMsgCompFields);
+        let attachment = Components.classes["@mozilla.org/messengercompose/attachment;1"]
+                                   .createInstance(Components.interfaces.nsIMsgAttachment);
+        let localFile = Components.classes["@mozilla.org/file/local;1"]
+                                  .createInstance(Components.interfaces.nsILocalFile);
+        let ioService = Components.classes["@mozilla.org/network/io-service;1"]
+                                  .getService(Components.interfaces.nsIIOService);
+        let fileHandler = ioService.getProtocolHandler("file")
+                                   .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
+
+        try {
+          // Unescape the URI so that we work with clients that escape spaces.
+          localFile.initWithPath(unescape(uri));
+          attachment.url = fileHandler.getURLSpecFromFile(localFile);
+          composeFields.addAttachment(attachment);
+
+          msgParams.type = Components.interfaces.nsIMsgCompType.New;
+          msgParams.format = Components.interfaces.nsIMsgCompFormat.Default;
+          msgParams.composeFields = composeFields;
+
+          msgComposeService.OpenComposeWindowWithParams(null, msgParams);
+        } catch (e) {
+          openURI(cmdLine.resolveURI(uri));
+        }
       }
     } else {
       var wwatch = Components.classes["@mozilla.org/embedcomp/window-watcher;1"]
@@ -452,8 +480,8 @@ var nsMailDefaultHandler = {
     }
   },
 
-  helpInfo : "  -options             Open the options dialog.\n" +
-             "  -file                Open the specified email file.\n",
+  helpInfo : "  -options           Open the options dialog.\n" +
+             "  -file              Open the specified email file.\n",
 
   /* nsIFactory */
 
@@ -478,16 +506,7 @@ mailDefaultCommandLineHandler.prototype = {
 
   QueryInterface: XPCOMUtils.generateQI([Components.interfaces.nsIModule]),
 
-  _xpcom_categories:
-    [ { category: "command-line-handler",
-        entry: "x-default" },
-      { category: "command-line-validator",
-        entry: "b-default" } ],
-
   _xpcom_factory: nsMailDefaultHandler
 }
 
-// NSGetModule: Return the nsIModule object.
-function NSGetModule(compMgr, fileSpec) {
-  return XPCOMUtils.generateModule([mailDefaultCommandLineHandler]);
-}
+const NSGetFactory = XPCOMUtils.generateNSGetFactory([mailDefaultCommandLineHandler]);

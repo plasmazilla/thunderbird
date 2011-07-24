@@ -39,19 +39,17 @@
 #include "nsIDOMEventTarget.h"
 #include "nsGenericHTMLElement.h"
 #include "nsStyleConsts.h"
-#include "nsPresContext.h"
 #include "nsIDOMText.h"
 #include "nsIDocument.h"
 #include "nsIDOMHTMLDocument.h"
 #include "nsContentUtils.h"
-#include "nsPLDOMEvent.h"
 
 class nsHTMLTitleElement : public nsGenericHTMLElement,
                            public nsIDOMHTMLTitleElement,
                            public nsStubMutationObserver
 {
 public:
-  nsHTMLTitleElement(nsINodeInfo *aNodeInfo);
+  nsHTMLTitleElement(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsHTMLTitleElement();
 
   // nsISupports
@@ -86,6 +84,7 @@ public:
 
   virtual nsresult DoneAddingChildren(PRBool aHaveNotified);
 
+  virtual nsXPCClassInfo* GetClassInfo();
 private:
   void SendTitleChangeEvent(PRBool aBound);
 };
@@ -94,7 +93,7 @@ private:
 NS_IMPL_NS_NEW_HTML_ELEMENT(Title)
 
 
-nsHTMLTitleElement::nsHTMLTitleElement(nsINodeInfo *aNodeInfo)
+nsHTMLTitleElement::nsHTMLTitleElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsGenericHTMLElement(aNodeInfo)
 {
   AddMutationObserver(this);
@@ -108,6 +107,8 @@ nsHTMLTitleElement::~nsHTMLTitleElement()
 NS_IMPL_ADDREF_INHERITED(nsHTMLTitleElement, nsGenericElement) 
 NS_IMPL_RELEASE_INHERITED(nsHTMLTitleElement, nsGenericElement) 
 
+
+DOMCI_NODE_DATA(HTMLTitleElement, nsHTMLTitleElement)
 
 // QueryInterface implementation for nsHTMLTitleElement
 NS_INTERFACE_TABLE_HEAD(nsHTMLTitleElement)
@@ -146,6 +147,7 @@ nsHTMLTitleElement::CharacterDataChanged(nsIDocument *aDocument,
 void
 nsHTMLTitleElement::ContentAppended(nsIDocument *aDocument,
                                     nsIContent *aContainer,
+                                    nsIContent *aFirstNewContent,
                                     PRInt32 aNewIndexInContainer)
 {
   SendTitleChangeEvent(PR_FALSE);
@@ -164,7 +166,8 @@ void
 nsHTMLTitleElement::ContentRemoved(nsIDocument *aDocument,
                                    nsIContent *aContainer,
                                    nsIContent *aChild,
-                                   PRInt32 aIndexInContainer)
+                                   PRInt32 aIndexInContainer,
+                                   nsIContent *aPreviousSibling)
 {
   SendTitleChangeEvent(PR_FALSE);
 }

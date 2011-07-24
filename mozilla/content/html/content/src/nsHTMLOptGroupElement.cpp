@@ -39,14 +39,11 @@
 #include "nsGenericHTMLElement.h"
 #include "nsGkAtoms.h"
 #include "nsStyleConsts.h"
-#include "nsPresContext.h"
 #include "nsIFrame.h"
 #include "nsIFormControlFrame.h"
 #include "nsIEventStateManager.h"
 #include "nsIDocument.h"
 
-#include "nsISelectElement.h"
-#include "nsIDOMHTMLSelectElement.h"
 #include "nsEventDispatcher.h"
 #include "nsHTMLSelectElement.h"
 
@@ -57,7 +54,7 @@ class nsHTMLOptGroupElement : public nsGenericHTMLElement,
                               public nsIDOMHTMLOptGroupElement
 {
 public:
-  nsHTMLOptGroupElement(nsINodeInfo *aNodeInfo);
+  nsHTMLOptGroupElement(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsHTMLOptGroupElement();
 
   // nsISupports
@@ -83,10 +80,11 @@ public:
   // nsIContent
   virtual nsresult PreHandleEvent(nsEventChainPreVisitor& aVisitor);
 
-  virtual PRInt32 IntrinsicState() const;
+  virtual nsEventStates IntrinsicState() const;
  
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
 
+  virtual nsXPCClassInfo* GetClassInfo();
 protected:
 
   /**
@@ -100,7 +98,7 @@ protected:
 NS_IMPL_NS_NEW_HTML_ELEMENT(OptGroup)
 
 
-nsHTMLOptGroupElement::nsHTMLOptGroupElement(nsINodeInfo *aNodeInfo)
+nsHTMLOptGroupElement::nsHTMLOptGroupElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsGenericHTMLElement(aNodeInfo)
 {
 }
@@ -113,6 +111,8 @@ nsHTMLOptGroupElement::~nsHTMLOptGroupElement()
 NS_IMPL_ADDREF_INHERITED(nsHTMLOptGroupElement, nsGenericElement)
 NS_IMPL_RELEASE_INHERITED(nsHTMLOptGroupElement, nsGenericElement)
 
+
+DOMCI_NODE_DATA(HTMLOptGroupElement, nsHTMLOptGroupElement)
 
 // QueryInterface implementation for nsHTMLOptGroupElement
 NS_INTERFACE_TABLE_HEAD(nsHTMLOptGroupElement)
@@ -136,10 +136,8 @@ nsHTMLOptGroupElement::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
   aVisitor.mCanHandle = PR_FALSE;
   // Do not process any DOM events if the element is disabled
   // XXXsmaug This is not the right thing to do. But what is?
-  PRBool disabled;
-  nsresult rv = GetDisabled(&disabled);
-  if (NS_FAILED(rv) || disabled) {
-    return rv;
+  if (HasAttr(kNameSpaceID_None, nsGkAtoms::disabled)) {
+    return NS_OK;
   }
 
   nsIFrame* frame = GetPrimaryFrame();
@@ -158,8 +156,7 @@ nsIContent*
 nsHTMLOptGroupElement::GetSelect()
 {
   nsIContent* parent = this;
-  while ((parent = parent->GetParent()) &&
-         parent->IsNodeOfType(eHTML)) {
+  while ((parent = parent->GetParent()) && parent->IsHTML()) {
     if (parent->Tag() == nsGkAtoms::select) {
       return parent;
     }
@@ -176,7 +173,7 @@ nsHTMLOptGroupElement::InsertChildAt(nsIContent* aKid,
                                      PRUint32 aIndex,
                                      PRBool aNotify)
 {
-  nsSafeOptionListMutation safeMutation(GetSelect(), this, aKid, aIndex);
+  nsSafeOptionListMutation safeMutation(GetSelect(), this, aKid, aIndex, aNotify);
   nsresult rv = nsGenericHTMLElement::InsertChildAt(aKid, aIndex, aNotify);
   if (NS_FAILED(rv)) {
     safeMutation.MutationFailed();
@@ -187,8 +184,7 @@ nsHTMLOptGroupElement::InsertChildAt(nsIContent* aKid,
 nsresult
 nsHTMLOptGroupElement::RemoveChildAt(PRUint32 aIndex, PRBool aNotify, PRBool aMutationEvent)
 {
-  NS_ASSERTION(aMutationEvent, "Someone tried to inhibit mutation events on optgroup child removal.");
-  nsSafeOptionListMutation safeMutation(GetSelect(), this, nsnull, aIndex);
+  nsSafeOptionListMutation safeMutation(GetSelect(), this, nsnull, aIndex, aNotify);
   nsresult rv = nsGenericHTMLElement::RemoveChildAt(aIndex, aNotify, aMutationEvent);
   if (NS_FAILED(rv)) {
     safeMutation.MutationFailed();
@@ -196,13 +192,12 @@ nsHTMLOptGroupElement::RemoveChildAt(PRUint32 aIndex, PRBool aNotify, PRBool aMu
   return rv;
 }
 
-PRInt32
+nsEventStates
 nsHTMLOptGroupElement::IntrinsicState() const
 {
-  PRInt32 state = nsGenericHTMLElement::IntrinsicState();
-  PRBool disabled;
-  GetBoolAttr(nsGkAtoms::disabled, &disabled);
-  if (disabled) {
+  nsEventStates state = nsGenericHTMLElement::IntrinsicState();
+
+  if (HasAttr(kNameSpaceID_None, nsGkAtoms::disabled)) {
     state |= NS_EVENT_STATE_DISABLED;
     state &= ~NS_EVENT_STATE_ENABLED;
   } else {

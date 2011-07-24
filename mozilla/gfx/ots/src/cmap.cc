@@ -399,6 +399,8 @@ bool Parse0514(ots::OpenTypeFile *file,
 
   const off_t offset_var_selector_records = 10;
   const size_t size_of_var_selector_record = 11;
+  const size_t size_of_def_uvs_table = 4;
+  const size_t size_of_non_def_uvs_table = 5;
 
   if (!subtable.Skip(6)) { // skip format and length
     return OTS_FAILURE();
@@ -414,7 +416,7 @@ bool Parse0514(ots::OpenTypeFile *file,
 
   uint32_t prev_var_selector = 0;
   for (uint32_t i = 0; i < num_var_selector_records; i++) {
-    uint32_t var_selector = 0, def_uvs_offset = 0, non_def_uvs_offset = 0;
+    uint32_t var_selector, def_uvs_offset, non_def_uvs_offset;
     if (!subtable.ReadU24(&var_selector) ||
         !subtable.ReadU32(&def_uvs_offset) ||
         !subtable.ReadU32(&non_def_uvs_offset)) {
@@ -429,21 +431,22 @@ bool Parse0514(ots::OpenTypeFile *file,
     prev_var_selector = var_selector;
 
     if (def_uvs_offset) {
-      ots::Buffer uvs_table(data + def_uvs_offset, length - def_uvs_offset);
-      uint32_t num_unicode_value_ranges = 0;
-      if (!uvs_table.ReadU32(&num_unicode_value_ranges)) {
+      uint32_t num_unicode_value_ranges;
+      memcpy(&num_unicode_value_ranges, data + def_uvs_offset, 4);
+      num_unicode_value_ranges = ntohl(num_unicode_value_ranges);
+      if ((length - def_uvs_offset) / size_of_def_uvs_table <
+           num_unicode_value_ranges) {
         return OTS_FAILURE();
       }
 
+      const uint8_t *tables = data + def_uvs_offset + 4;
       uint32_t prev_end_unicode = 0;
-      for (uint32_t j = 0; j < num_unicode_value_ranges; j++) {
+      for (uint32_t j = 0; j < num_unicode_value_ranges;
+           j++, tables += size_of_def_uvs_table) {
         uint32_t start_unicode = 0, end_unicode;
-        uint8_t additional = 0;
-        if (!uvs_table.ReadU24(&start_unicode) ||
-            !uvs_table.ReadU8(&additional)) {
-          return OTS_FAILURE();
-        }
-        end_unicode = start_unicode + additional;
+        memcpy(reinterpret_cast<uint8_t*>(&start_unicode) + 1, tables, 3);
+        start_unicode = ntohl(start_unicode);
+        end_unicode = start_unicode + *(tables + 3);
         if ((j > 0 && start_unicode <= prev_end_unicode) ||
             end_unicode > kUnicodeUpperLimit) {
           return OTS_FAILURE();
@@ -453,27 +456,28 @@ bool Parse0514(ots::OpenTypeFile *file,
     }
 
     if (non_def_uvs_offset) {
-      ots::Buffer uvs_table(data + non_def_uvs_offset,
-                            length - non_def_uvs_offset);
-      uint32_t num_uvs_mappings = 0;
-      if (!uvs_table.ReadU32(&num_uvs_mappings)) {
+      uint32_t num_uvs_mappings;
+      memcpy(&num_uvs_mappings, data + non_def_uvs_offset, 4);
+      num_uvs_mappings = ntohl(num_uvs_mappings);
+      if ((length - non_def_uvs_offset) / size_of_non_def_uvs_table <
+          num_uvs_mappings) {
         return OTS_FAILURE();
       }
 
+      const uint8_t *tables = data + non_def_uvs_offset + 4;
       uint32_t prev_unicode = 0;
-      for (uint32_t j = 0; j < num_uvs_mappings; j++) {
+      for (uint32_t j = 0; j < num_uvs_mappings;
+           j++, tables += size_of_non_def_uvs_table) {
         uint32_t unicode_value = 0;
-        if (!uvs_table.ReadU24(&unicode_value)) {
-          return OTS_FAILURE();
-        }
+        memcpy(reinterpret_cast<uint8_t*>(&unicode_value) + 1, tables, 3);
+        unicode_value = ntohl(unicode_value);
         if ((j > 0 && unicode_value <= prev_unicode) ||
             unicode_value > kUnicodeUpperLimit) {
           return OTS_FAILURE();
         }
-        uint16_t glyph = 0;
-        if (!uvs_table.ReadU16(&glyph)) {
-          return OTS_FAILURE();
-        }
+        uint16_t glyph;
+        memcpy(&glyph, tables + 3, 2);
+        glyph = ntohs(glyph);
         if (glyph >= num_glyphs) {
           return OTS_FAILURE();
         }

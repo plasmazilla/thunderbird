@@ -64,12 +64,11 @@
   min-width: 1px;
 }
 
-#header-view-toolbox {
+.inline-toolbox {
   -moz-padding-end: 6px;
-  padding-top: 3px;
 }
 
-#header-view-toolbar {
+.inline-toolbar {
   -moz-appearance: none;
 }
 
@@ -99,14 +98,14 @@ html|div#expandedHeadersTopBox {
   border: 1px solid transparent;
   font-size: 100%;
   padding-top: 0px;
-  -moz-box-shadow: none;
+  box-shadow: none;
 }
 
 #otherActionsButton:hover {
   color: black;
   border: 1px solid rgb(145,145,145);
   background-color: rgb(210,210,210);
-  -moz-box-shadow: 0px 4px 4px 0px rgb(255,255,255) inset;
+  box-shadow: 0 4px 3px 0 rgb(255,255,255) inset;
 }
 
 
@@ -133,24 +132,76 @@ html|div#expandedHeadersTopBox {
 
 /* ::::: edit message bar ::::: */
 
-#editMessageBox
-{
+#editMessageBox {
   min-width: 1px;
-  -moz-border-radius-bottomleft: 0.2em;
-  -moz-border-radius-bottomright: 0.2em;
+  border-bottom-left-radius: 0.2em;
+  border-bottom-right-radius: 0.2em;
 }
 
-#editMessageDescription
-{
+#editMessageDescription {
   font-style: italic;
   font-weight: bolder;
 }
 
 /* ::::: attachment view ::::: */
 
-#attachmentList
-{
+#attachmentList {
   margin: 0px;
+}
+
+#attachmentToggle {
+  -moz-appearance: treetwisty;
+}
+
+#attachmentToggle[checked="true"] {
+  -moz-appearance: treetwistyopen;
+}
+
+#attachmentIcon {
+  list-style-image: url("chrome://messenger/skin/icons/attachment.png");
+  -moz-margin-start: 5px;
+}
+
+#attachmentCount {
+  margin: 0;
+  -moz-margin-start: 2px;
+  -moz-margin-end: 1px;
+}
+
+#attachmentName {
+  -moz-user-focus: normal;
+  margin: 0;
+  -moz-margin-end: -3px;
+  padding: 1px 2px;
+  border-radius: 2px;
+  border: 1px dotted transparent;
+}
+
+#attachmentName:hover,
+#attachmentName[selected="true"] {
+  cursor: pointer;
+  background-color: #fcaf3e; /* tango orange */
+}
+
+#attachmentName:focus {
+  border-color: Highlight;
+}
+
+#attachmentSize {
+  margin: 0;
+  -moz-margin-start: 8px;
+  color: #888a85; /* the same color as .headerName */
+}
+
+#attachmentSaveAllSingle,
+#attachmentSaveAllMultiple {
+  list-style-image: url("chrome://messenger/skin/icons/download.png");
+}
+
+#attachmentSaveAllSingle > .toolbarbutton-menubutton-button,
+#attachmentSaveAllMultiple > .toolbarbutton-menubutton-button {
+  /* Make sure that the icon is vertically centered */
+  padding-bottom: 0px !important;
 }
 
 /* XXX: Move all of the description attributes to the toolkit */
@@ -159,8 +210,7 @@ description {
   margin: 0;
 }
 
-descriptionitem
-{
+descriptionitem {
   padding: 0px;
   margin: 1px;
   text-decoration: underline;
@@ -168,20 +218,17 @@ descriptionitem
   border: none !important;
 }
 
-description[selectable="true"]:focus > descriptionitem[selected="true"][current="true"] 
-{
+description[selectable="true"]:focus > descriptionitem[selected="true"][current="true"] {
   border: 1px solid #B8B8B8;
   background-color: #C8C8C8;
 }
 
-descriptionitem[selected="true"] 
-{
+descriptionitem[selected="true"] {
   border: 1px solid #B8B8B8;
   background-color: #C8C8C8;
 }
 
-description[selectable="true"]:focus > descriptionitem[selected="true"] 
-{
+description[selectable="true"]:focus > descriptionitem[selected="true"] {
   border: 1px solid #B8B8B8;
   background-color: #C8C8C8;
 }
@@ -189,32 +236,23 @@ description[selectable="true"]:focus > descriptionitem[selected="true"]
 .descriptioncell-icon {
 }
 
-.attachmentBox 
-{
+.attachmentBox {
   width: 15em;
 }
 
-#attachmentView[largeView="true"] .attachmentBox
-{
+#attachmentView[largeView="true"] .attachmentBox{
   -moz-box-orient: vertical;
 }
 
-#attachmentView
-{
+#attachmentView {
   background-color: #E6E6E6;
   border: 1px solid #C8C8C8;
-  -moz-border-radius: 7px;
-  margin: 0px 6px 6px;
+  border-radius: 7px;
+  margin: 4px;
   padding: 4px;  
-  min-height: 30px;
 }
 
-#attachmentView[largeView="true"]
-{
-  min-height: 60px;
-}
-
-#attachmentView[attachmentOverflow="true"] {
+#attachmentListWrapper[attachmentOverflow="true"] {
   overflow: auto;
 }
 
@@ -248,7 +286,7 @@ description[selectable="true"]:focus > descriptionitem[selected="true"]
 
 .msgHeaderView-button {
   -moz-appearance: none;
-  -moz-border-radius: 4px;
+  border-radius: 4px;
   min-height: 22px;
   min-width: 22px;
   max-height: 22px;
@@ -259,13 +297,34 @@ description[selectable="true"]:focus > descriptionitem[selected="true"]
   list-style-image: none; /* overrides the rule from primaryToolbar.css */
   background-color: rgb(210,210,210);
   border: 1px solid rgb(145,145,145);
-  -moz-box-shadow: 0px 20px 16px -10px rgb(255,255,255) inset, 0px 1px rgba(255,255,255, 0.4);
+  box-shadow: 0 20px 11.5px -10px rgb(255,255,255) inset, 0 1px rgba(255,255,255, 0.4);
 }
 
 .msgHeaderView-button:active,
 .msgHeaderView-button[type="menu-button"][open] {
   background-color: rgb(186,186,186);
-  -moz-box-shadow: 0px 4px 4px 0px rgb(140,140,140) inset;
+  box-shadow: 0 4px 3px 0 rgb(140,140,140) inset;
+}
+
+.msgHeaderView-button[type="menu-button"] > .toolbarbutton-menubutton-button {
+  -moz-appearance: none;
+  padding: 0;
+  margin: 0;
+  -moz-padding-start: 0px;
+  -moz-padding-end: 0px;
+  -moz-margin-start: 0px;
+  -moz-margin-end: 0px;
+  padding-bottom: 2px !important;
+  min-width: 1em;
+  min-height: 1ex;
+}
+
+/* The default toolbarbutton CSS makes the dropmarker really tiny in icon mode;
+ * make the click target easier to hit.
+ */
+.msgHeaderView-button[type="menu-button"] > .toolbarbutton-menubutton-dropmarker {
+  -moz-margin-start: 3px;
+  -moz-margin-end: 4px;
 }
 
 .msgHeaderView-flat-button {
@@ -280,7 +339,7 @@ description[selectable="true"]:focus > descriptionitem[selected="true"]
   padding: 0 3px;
   background-color: rgb(211,215,207);
   border: 2px solid #C0C3C6;
-  -moz-border-radius: 4px;
+  border-radius: 4px;
   -moz-border-top-colors: none;
   -moz-border-right-colors: none;
   -moz-border-bottom-colors: none;
@@ -291,7 +350,7 @@ description[selectable="true"]:focus > descriptionitem[selected="true"]
 .msgHeaderView-flat-button[type="menu-button"] > .button-menubutton-button {
   -moz-appearance: none;
   background-color: rgb(211,215,207);
-  -moz-border-radius: 0px;
+  border-radius: 0px;
   border: 0;
   border-right: 2px solid transparent;
   -moz-padding-end: 0.2em;
@@ -335,77 +394,38 @@ toolbarpaletteitem > #hdrReplyToSenderButton {
 
 .hdrReplyToSenderButton {
   /* large icons are only needed for customization dialog, so use here also small icons */
-  list-style-image: url("chrome://messenger/skin/icons/symbolic-reply.png");
-}
-
-toolbar[iconsize="small"] .hdrReplyToSenderButton {
-  list-style-image: url("chrome://messenger/skin/icons/symbolic-reply.png");
+  list-style-image: url("chrome://messenger/skin/icons/message-header-toolbar.png");
+  -moz-image-region: rect(0px, 16px, 16px, 0px);
 }
  
 .hdrReplyButton {
   /* large icons are only needed for customization dialog, so use here also small icons */
-  list-style-image: url("chrome://messenger/skin/icons/symbolic-reply.png");
-}
-
-toolbar[iconsize="small"] .hdrReplyButton {
-  list-style-image: url("chrome://messenger/skin/icons/symbolic-reply.png");
+  list-style-image: url("chrome://messenger/skin/icons/message-header-toolbar.png");
+  -moz-image-region: rect(0px, 16px, 16px, 0px);
 }
  
 .hdrReplyListButton {
   /* large icons are only needed for customization dialog, so use here also small icons */
-  list-style-image: url("chrome://messenger/skin/icons/symbolic-replylist.png");
-}
-
-toolbar[iconsize="small"] .hdrReplyListButton {
-  list-style-image: url("chrome://messenger/skin/icons/symbolic-replylist.png");
+  list-style-image: url("chrome://messenger/skin/icons/message-header-toolbar.png");
+  -moz-image-region: rect(0px, 48px, 16px, 32px);
 }
 
 .hdrReplyAllButton {
   /* large icons are only needed for customization dialog, so use here also small icons */
-  list-style-image: url("chrome://messenger/skin/icons/symbolic-replyall.png");
-}
-
-toolbar[iconsize="small"] .hdrReplyAllButton {
-  list-style-image: url("chrome://messenger/skin/icons/symbolic-replyall.png");
-}
-
-.hdrReplyButton > .toolbarbutton-menubutton-button {
-  -moz-appearance: none;
-  padding: 0;
-  margin: 0;
-  -moz-padding-start: 0px;
-  -moz-padding-end: 0px;
-  -moz-margin-start: 0px;
-  -moz-margin-end: 0px;
-  padding-bottom: 2px !important;
-  min-width: 1em;
-  min-height: 1ex;
-}
-
-/* The default toolbarbutton CSS makes the dropmarker really tiny in icon mode;
- * make the click target easier to hit.
- */
- .hdrReplyButton > .toolbarbutton-menubutton-dropmarker {
-  -moz-margin-start: 3px;
-  -moz-margin-end: 4px;
+  list-style-image: url("chrome://messenger/skin/icons/message-header-toolbar.png");
+  -moz-image-region: rect(0px, 32px, 16px, 16px);
 }
 
 .hdrForwardButton {
   /* large icons are only needed for customization dialog, so use here also small icons */
-  list-style-image: url("chrome://messenger/skin/icons/symbolic-forward.png");
-}
-
-toolbar[iconsize="small"] .hdrForwardButton {
-  list-style-image: url("chrome://messenger/skin/icons/symbolic-forward.png");
+  list-style-image: url("chrome://messenger/skin/icons/message-header-toolbar.png");
+  -moz-image-region: rect(0px, 64px, 16px, 48px);
 }
 
 .hdrArchiveButton {
   /* large icons are only needed for customization dialog, so use here also small icons */
-  list-style-image: url("chrome://messenger/skin/icons/folder-archive.png");
-}
-
-toolbar[iconsize="small"] .hdrArchiveButton {
-  list-style-image: url("chrome://messenger/skin/icons/folder-archive.png");
+  list-style-image: url("chrome://messenger/skin/icons/message-header-toolbar.png");
+  -moz-image-region: rect(0px, 112px, 16px, 96px);
 }
 
 .junkButton[disabled="true"] {
@@ -415,46 +435,39 @@ toolbar[iconsize="small"] .hdrArchiveButton {
 
 .hdrJunkButton {
   /* large icons are only needed for customization dialog, so use here also small icons */
-  list-style-image: url("chrome://messenger/skin/icons/folder-junk.png");
-}
-
-toolbar[iconsize="small"] .hdrJunkButton {
-  list-style-image: url("chrome://messenger/skin/icons/folder-junk.png");
+  list-style-image: url("chrome://messenger/skin/icons/message-header-toolbar.png");
+  -moz-image-region: rect(0px, 96px, 16px, 80px);
 }
 
 .hdrTrashButton {
   /* large icons are only needed for customization dialog, so use here also small icons */
-  list-style-image: url("chrome://messenger/skin/icons/folder-trash.png");
+  list-style-image: url("chrome://messenger/skin/icons/message-header-toolbar.png");
+  -moz-image-region: rect(0px, 80px, 16px, 64px);
 }
 
-toolbar[iconsize="small"] .hdrTrashButton {
-  list-style-image: url("chrome://messenger/skin/icons/folder-trash.png");
-}
-
-/* XXX taken from gnomestripe, has to be checked */
-#header-view-toolbar toolbarpaletteitem toolbarseparator,
-#header-view-toolbar toolbarseparator {
+.inline-toolbar toolbarpaletteitem toolbarseparator,
+.inline-toolbar toolbarseparator {
   height: 26px;
 }
 
-#header-view-toolbar toolbarspacer {
+.inline-toolbar toolbarspacer {
   height: 20px;
 }
 
-window[toolboxId="header-view-toolbox"] #wrapper-spring {
+window[inlinetoolbox] #wrapper-spring {
   display: none;
 }
 
-#header-view-toolbox[doCustomization] {
+.inline-toolbox[doCustomization] {
   background: grey;
 }
 
-#header-view-toolbox[doCustomization] #header-view-toolbar {
+.inline-toolbox[doCustomization] .inline-toolbar {
   min-width: 100px;
   min-height: 10px;
 }
 
-#header-view-toolbar {
+.inline-toolbar {
   -moz-box-pack: end;
   min-width: 50px !important;
   min-height: 14px !important;
@@ -546,7 +559,7 @@ window[toolboxId="header-view-toolbox"] #wrapper-spring {
   padding: 0 0.5ex;
   -moz-margin-start: 0px;
   background-image: url("chrome://messenger/skin/tagbg.png");
-  -moz-border-radius: 3px;
+  border-radius: 3px;
   border-width: 0.5px;
   border-style: outset;
   text-shadow: 0 1px 0 rgba(238,238,236,0.4); /* Tango Alumninum 1 */
@@ -579,7 +592,7 @@ window[toolboxId="header-view-toolbox"] #wrapper-spring {
   -moz-padding-start: 3px !important;
   -moz-padding-end: 3px !important;
   background-color: transparent;
-  -moz-border-radius: 2px;
+  border-radius: 2px;
 }
 
 .emailDisplayButton:hover {
@@ -592,10 +605,10 @@ mail-emailaddress[selected="true"] .emailDisplayButton{
     make sure that the email bubble stays displayed, and
     tweak the bottom to blend in more w/ the menu */
   cursor: pointer;
-  -moz-border-radius: 3px;
+  border-radius: 3px;
   background-color: #fcaf3e; /* tango orange */
-  -moz-border-radius-bottomleft: 0;
-  -moz-border-radius-bottomright: 0;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 /* this is for the comma in between email addresses */
@@ -706,12 +719,12 @@ mail-newsgroups-headerfield {
   -moz-box-align: baseline;
 }
 
-window[toolboxId="header-view-toolbox"] #smallicons,
-window[toolboxId="header-view-toolbox"] button[icon="add"] {
+window[inlinetoolbox] #smallicons,
+window[inlinetoolbox] button[icon="add"] {
   display: none;
 }
 
-window[toolboxId="header-view-toolbox"] #modelist menuitem:first-child {
+window[inlinetoolbox] #modelist menuitem:first-child {
   display: none;
 }
 
@@ -719,4 +732,13 @@ mail-headerfield > .headerValue {
   -moz-user-focus: normal;
   -moz-user-select: text;
   word-wrap: break-word;
+}
+
+#header-view-toolbox {
+  float: right;
+  padding-top: 3px;
+}
+
+#header-view-toolbox:-moz-locale-dir(rtl) {
+  float: left;
 }

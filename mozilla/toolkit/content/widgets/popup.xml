@@ -11,6 +11,8 @@
     </resources>
 
     <implementation implements="nsIDOMXULPopupElement">
+      <property name="label" onget="return this.getAttribute('label');"
+                             onset="this.setAttribute('label', val); return val;"/>
       <property name="position" onget="return this.getAttribute('position');"
                                 onset="this.setAttribute('position', val); return val;"/>
       <property name="popupBoxObject">
@@ -22,6 +24,12 @@
       <property name="state" readonly="true"
                 onget="return this.popupBoxObject.popupState"/>
 
+      <property name="triggerNode" readonly="true"
+                onget="return this.popupBoxObject.triggerNode"/>
+
+      <property name="anchorNode" readonly="true"
+                onget="return this.popupBoxObject.anchorNode"/>
+
       <method name="openPopup">
         <parameter name="aAnchorElement"/>
         <parameter name="aPosition"/>
@@ -29,13 +37,14 @@
         <parameter name="aY"/>
         <parameter name="aIsContextMenu"/>
         <parameter name="aAttributesOverride"/>
+        <parameter name="aTriggerEvent"/>
         <body>
         <![CDATA[
           try {
             var popupBox = this.popupBoxObject;
             if (popupBox)
               popupBox.openPopup(aAnchorElement, aPosition, aX, aY,
-                                 aIsContextMenu, aAttributesOverride);
+                                 aIsContextMenu, aAttributesOverride, aTriggerEvent);
           } catch(e) {}
         ]]>
         </body>
@@ -45,12 +54,13 @@
         <parameter name="aX"/>
         <parameter name="aY"/>
         <parameter name="aIsContextMenu"/>
+        <parameter name="aTriggerEvent"/>
         <body>
         <![CDATA[
           try {
             var popupBox = this.popupBoxObject;
             if (popupBox)
-              popupBox.openPopupAtScreen(aX, aY, aIsContextMenu);
+              popupBox.openPopupAtScreen(aX, aY, aIsContextMenu, aTriggerEvent);
           } catch(e) {}
         ]]>
         </body>
@@ -71,9 +81,9 @@
             popupBox = this.popupBoxObject;
           } catch(e) {}
           try {
-            menuBox = this.parentNode.boxObject.QueryInterface(Components.interfaces.nsIMenuBoxObject);
+            menuBox = this.parentNode.boxObject;
           } catch(e) {}
-          if (menuBox)
+          if (menuBox instanceof Components.interfaces.nsIMenuBoxObject)
             menuBox.openMenu(true);
           else if (popupBox)
             popupBox.showPopup(element, this, xpos, ypos, popuptype, anchoralignment, popupalignment);
@@ -90,9 +100,9 @@
             popupBox = this.boxObject.QueryInterface(Components.interfaces.nsIPopupBoxObject);
           } catch(e) {}
           try {
-            menuBox = this.parentNode.boxObject.QueryInterface(Components.interfaces.nsIMenuBoxObject);
+            menuBox = this.parentNode.boxObject;
           } catch(e) {}
-          if (menuBox)
+          if (menuBox instanceof Components.interfaces.nsIMenuBoxObject)
             menuBox.openMenu(false);
           else if (popupBox)
             popupBox.hidePopup();
@@ -158,7 +168,8 @@
            extends="chrome://global/content/bindings/popup.xml#popup-base">
     
     <content>
-      <xul:arrowscrollbox class="popup-internal-box" flex="1" orient="vertical">
+      <xul:arrowscrollbox class="popup-internal-box" flex="1" orient="vertical"
+                          smoothscroll="false">
         <children/>
       </xul:arrowscrollbox>
     </content>
@@ -264,6 +275,155 @@
           }
         }
       ]]></handler>
+    </handlers>
+  </binding>
+
+  <binding id="arrowpanel" extends="chrome://global/content/bindings/popup.xml#panel">
+    <content flip="both" side="top" position="bottomcenter topleft">
+      <xul:box anonid="container" class="panel-arrowcontainer">
+        <xul:box anonid="arrowbox" class="panel-arrowbox">
+          <xul:image anonid="arrow" class="panel-arrow"/>
+        </xul:box>
+        <xul:box class="panel-arrowcontent">
+          <xul:box class="panel-inner-arrowcontent" xbl:inherits="align,dir,orient,pack">
+            <children/>
+          </xul:box>
+        </xul:box>
+      </xul:box>
+    </content>
+    <implementation>
+      <field name="_fadeTimer"/>
+    </implementation>
+    <handlers>
+      <handler event="popupshowing">
+      <![CDATA[
+        var container = document.getAnonymousElementByAttribute(this, "anonid", "container");
+        var arrowbox = document.getAnonymousElementByAttribute(this, "anonid", "arrowbox");
+        var arrow = document.getAnonymousElementByAttribute(this, "anonid", "arrow");
+
+        var anchor = this.anchorNode;
+        if (!anchor) {
+          arrow.hidden = true;
+          return;
+        }
+
+        // Returns whether the first float is smaller than the second float or
+        // equals to it in a range of epsilon.
+        function smallerTo(aFloat1, aFloat2, aEpsilon)
+        {
+          return aFloat1 <= (aFloat2 + aEpsilon);
+        }
+
+        let popupRect = this.getBoundingClientRect();
+        let popupLeft = window.mozInnerScreenX + popupRect.left;
+        let popupTop = window.mozInnerScreenY + popupRect.top;
+        let popupRight = popupLeft + popupRect.width;
+        let popupBottom = popupTop + popupRect.height;
+
+        let anchorRect = anchor.getBoundingClientRect();
+        let anchorLeft = anchor.ownerDocument.defaultView.mozInnerScreenX + anchorRect.left;
+        let anchorTop = anchor.ownerDocument.defaultView.mozInnerScreenY + anchorRect.top;
+        let anchorRight = anchorLeft + anchorRect.width;
+        let anchorBottom = anchorTop + anchorRect.height;
+
+        const epsilon = 0.1;
+
+        var horizPos = smallerTo(popupRight, anchorLeft, epsilon) ? -1 : smallerTo(anchorRight, popupLeft, epsilon) ? 1 : 0;
+        var vertPos = smallerTo(popupBottom, anchorTop, epsilon) ? -1 : smallerTo(anchorBottom, popupTop, epsilon) ? 1 : 0;
+
+        var anchorClass = "";
+        var hideAnchor = false;
+        if (horizPos == 0) {
+          container.orient = "vertical";
+          arrowbox.orient = "";
+          if (vertPos == 0) {
+            hideAnchor = true;
+          }
+          else {
+            let pack = "";
+
+            // We have to guess where to position the arrow given that we don't
+            // have access to the parameters passed to |openPopup|.
+
+            // If the popup is on the left of the anchor.
+            if (smallerTo(popupLeft, anchorLeft, epsilon) && smallerTo(popupRight, anchorRight, epsilon)) {
+              pack = (popupLeft + popupRect.width / 2 < anchorLeft) ? "end" : "start";
+            // If the popup is on the right of the anchor.
+            } else if (smallerTo(anchorLeft, popupLeft, epsilon) && smallerTo(anchorRight, popupRight, epsilon)) {
+              pack = (popupLeft + popupRect.width / 2 > anchorRight) ? "start" : "end";
+            // If the popup is not on the right nor on the left.
+            // Basically, that means one is above the other and one is bigger
+            // than the other.
+            // In that case, we can't easily choose a position for the arrow so
+            // we have to guess depending on which side the popup is more close to.
+            } else {
+              pack = (Math.abs(popupLeft - anchorLeft) < Math.abs(popupRight - anchorRight)) ? "start" : "end";
+            }
+
+            // In RTL, everything should be inverted.
+            if (window.getComputedStyle(this).direction == "rtl") {
+              pack = (pack == "start") ? "end" : "start";
+            }
+
+            arrowbox.pack = pack;
+
+            if (vertPos == 1) {
+              container.dir = "";
+              anchorClass = "top";
+            }
+            else if (vertPos == -1) {
+              container.dir = "reverse"; 
+              anchorClass = "bottom";
+            }
+          }
+        }
+        else if (vertPos == 0) {
+          container.orient = "";
+          arrowbox.orient = "vertical";
+          if (horizPos == 0) {
+            hideAnchor = true;
+          }
+          else {
+            arrowbox.pack = popupTop + popupRect.height / 2 < anchorTop ? "end" : "start";
+            if (horizPos == 1) {
+              container.dir = "";
+              anchorClass = "left";
+            }
+            else if (horizPos == -1) {
+              container.dir = "reverse";
+              anchorClass = "right";
+            }
+          }
+        }
+        else {
+          hideAnchor = true;
+        }
+        arrow.hidden = hideAnchor;
+        arrow.setAttribute("side", anchorClass);
+        this.setAttribute("side", anchorClass);
+
+        // set fading
+        var fade = this.getAttribute("fade");
+        var fadeDelay = (fade == "fast") ? 1 : fade == "slow" ? 4000 : 0;
+        if (fadeDelay) {
+          this._fadeTimer = setTimeout(function (self) {
+            self.style.opacity = 0.2;
+          }, fadeDelay, this);
+        }
+      ]]>
+      </handler>
+      <handler event="popuphiding" phase="target">
+        clearTimeout(this._fadeTimer);
+        this.style.removeProperty("opacity");
+      </handler>
+      <handler event="transitionend" phase="target">
+      <![CDATA[
+        if (event.propertyName == "opacity") {
+          this.hidePopup();
+          this.style.removeProperty("opacity");
+        }
+      ]]>
+      </handler>
     </handlers>
   </binding>
 

@@ -42,15 +42,14 @@
 #import <Cocoa/Cocoa.h>
 
 #include "nsMenuBaseX.h"
-#include "nsIMutationObserver.h"
-#include "nsHashtable.h"
+#include "nsMenuGroupOwnerX.h"
+#include "nsChangeObserver.h"
 #include "nsINativeMenuService.h"
 #include "nsAutoPtr.h"
 #include "nsString.h"
 
 class nsMenuX;
 class nsMenuItemX;
-class nsChangeObserver;
 class nsIWidget;
 class nsIContent;
 class nsIDocument;
@@ -63,15 +62,11 @@ public:
   NS_IMETHOD CreateNativeMenuBar(nsIWidget* aParent, nsIContent* aMenuBarNode);
 };
 
-// Objective-C class used to allow us to have keyboard commands
-// look like they are doing something but actually do nothing.
+// Objective-C class used to allow us to intervene with keyboard event handling.
 // We allow mouse actions to work normally.
 @interface GeckoNSMenu : NSMenu
 {
 }
-- (BOOL)performKeyEquivalent:(NSEvent*)theEvent;
-- (void)actOnKeyEquivalent:(NSEvent*)theEvent;
-- (void)performMenuUserInterfaceEffectsForEvent:(NSEvent*)theEvent;
 @end
 
 // Objective-C class used as action target for menu items
@@ -81,10 +76,33 @@ public:
 -(IBAction)menuItemHit:(id)sender;
 @end
 
+// Objective-C class used for menu items on the Services menu to allow Gecko
+// to override their standard behavior in order to stop key equivalents from
+// firing in certain instances.
+@interface GeckoServicesNSMenuItem : NSMenuItem
+{
+}
+- (id) target;
+- (SEL) action;
+- (void) _doNothing:(id)sender;
+@end
+
+// Objective-C class used as the Services menu so that Gecko can override the
+// standard behavior of the Services menu in order to stop key equivalents
+// from firing in certain instances.
+@interface GeckoServicesNSMenu : NSMenu
+{
+}
+- (void)addItem:(NSMenuItem *)newItem;
+- (NSMenuItem *)addItemWithTitle:(NSString *)aString action:(SEL)aSelector keyEquivalent:(NSString *)keyEquiv;
+- (void)insertItem:(NSMenuItem *)newItem atIndex:(NSInteger)index;
+- (NSMenuItem *)insertItemWithTitle:(NSString *)aString action:(SEL)aSelector  keyEquivalent:(NSString *)keyEquiv atIndex:(NSInteger)index;
+- (void) _overrideClassOfMenuItem:(NSMenuItem *)menuItem;
+@end
+
 // Once instantiated, this object lives until its DOM node or its parent window is destroyed.
 // Do not hold references to this, they can become invalid any time the DOM node can be destroyed.
-class nsMenuBarX : public nsMenuObjectX,
-                   public nsIMutationObserver
+class nsMenuBarX : public nsMenuGroupOwnerX, public nsChangeObserver
 {
 public:
   nsMenuBarX();
@@ -96,11 +114,12 @@ public:
   // The following content nodes have been removed from the menu system.
   // We save them here for use in command handling.
   nsCOMPtr<nsIContent> mAboutItemContent;
+  nsCOMPtr<nsIContent> mUpdateItemContent;
   nsCOMPtr<nsIContent> mPrefItemContent;
   nsCOMPtr<nsIContent> mQuitItemContent;
 
-  NS_DECL_ISUPPORTS
-  NS_DECL_NSIMUTATIONOBSERVER
+  // nsChangeObserver
+  NS_DECL_CHANGEOBSERVER
 
   // nsMenuObjectX
   void*             NativeData()     {return (void*)mNativeMenu;}
@@ -109,26 +128,20 @@ public:
   // nsMenuBarX
   nsresult          Create(nsIWidget* aParent, nsIContent* aContent);
   void              SetParent(nsIWidget* aParent);
-  void              RegisterForContentChanges(nsIContent* aContent, nsChangeObserver* aMenuObject);
-  void              UnregisterForContentChanges(nsIContent* aContent);
-  PRUint32          RegisterForCommand(nsMenuItemX* aItem);
-  void              UnregisterCommand(PRUint32 aCommandID);
   PRUint32          GetMenuCount();
   bool              MenuContainsAppMenu();
   nsMenuX*          GetMenuAt(PRUint32 aIndex);
-  nsMenuItemX*      GetMenuItemForCommandID(PRUint32 inCommandID);
   nsMenuX*          GetXULHelpMenu();
   void              SetSystemHelpMenu();
   nsresult          Paint();
   void              ForceUpdateNativeMenuAt(const nsAString& indexString);
   void              ForceNativeMenuReload(); // used for testing
-  static char       GetLocalizedAccelKey(char *shortcutID);
+  static char       GetLocalizedAccelKey(const char *shortcutID);
 
 protected:
   void              ConstructNativeMenus();
   nsresult          InsertMenuAtIndex(nsMenuX* aMenu, PRUint32 aIndex);
   void              RemoveMenuAtIndex(PRUint32 aIndex);
-  nsChangeObserver* LookupContentChangeObserver(nsIContent* aContent);
   void              HideItem(nsIDOMDocument* inDoc, const nsAString & inID, nsIContent** outHiddenNode);
   void              AquifyMenuBar();
   NSMenuItem*       CreateNativeAppMenuItem(nsMenuX* inMenu, const nsAString& nodeID, SEL action,
@@ -137,10 +150,7 @@ protected:
 
   nsTArray< nsAutoPtr<nsMenuX> > mMenuArray;
   nsIWidget*         mParentWindow;        // [weak]
-  PRUint32           mCurrentCommandID;    // unique command id (per menu-bar) to give to next item that asks
-  nsIDocument*       mDocument;            // pointer to document
   GeckoNSMenu*       mNativeMenu;            // root menu, representing entire menu bar
-  nsHashtable        mObserverTable;       // stores observers for content change notification
 };
 
 #endif // nsMenuBarX_h_

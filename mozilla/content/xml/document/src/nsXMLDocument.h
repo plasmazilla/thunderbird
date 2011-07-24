@@ -41,8 +41,6 @@
 #include "nsDocument.h"
 #include "nsIDOMXMLDocument.h"
 #include "nsIScriptContext.h"
-#include "nsHTMLStyleSheet.h"
-#include "nsIHTMLCSSStyleSheet.h"
 
 class nsIParser;
 class nsIDOMNode;
@@ -77,6 +75,7 @@ public:
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
 
+  virtual nsXPCClassInfo* GetClassInfo();
 protected:
   // mChannelIsPending indicates whether we're currently asynchronously loading
   // data from mChannel (via document.load() or normal load).  It's set to true
@@ -85,7 +84,6 @@ protected:
   // mChannel is also cancelled.  Note that if this member is true, mChannel
   // cannot be null.
   PRPackedBool mChannelIsPending;
-  PRPackedBool mLoadedAsInteractiveData;
   PRPackedBool mAsync;
   PRPackedBool mLoopingForSyncLoad;
 };

@@ -36,8 +36,6 @@
  * ***** END LICENSE BLOCK ***** */
 
 const ABOUTFEEDS_URI = "chrome://communicator/content/feeds/subscribe.xhtml";
-const ABOUTFEEDS_CONTRACTID = "@mozilla.org/network/protocol/about;1?what=feeds";
-const ABOUTFEEDS_CLASSNAME = "About Feeds Page";
 const ABOUTFEEDS_CLASSID = Components.ID("{f3487aac-65a0-4101-88a4-f7450c231351}");
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
@@ -46,8 +44,6 @@ function AboutFeeds() {
 }
 
 AboutFeeds.prototype = {
-  classDescription: ABOUTFEEDS_CLASSNAME,
-  contractID: ABOUTFEEDS_CONTRACTID,
   classID: ABOUTFEEDS_CLASSID,
   implementationLanguage: Components.interfaces.nsIProgrammingLanguage.JAVASCRIPT,
   QueryInterface: XPCOMUtils.generateQI(
@@ -70,11 +66,10 @@ AboutFeeds.prototype = {
 
   getURIFlags: function() {
     return Components.interfaces.nsIAboutModule.ALLOW_SCRIPT |
-           Components.interfaces.nsIAboutModule.URI_SAFE_FOR_UNTRUSTED_CONTENT;
+           Components.interfaces.nsIAboutModule.URI_SAFE_FOR_UNTRUSTED_CONTENT |
+           Components.interfaces.nsIAboutModule.HIDE_FROM_ABOUTABOUT;
   },
 
 };
 
-function NSGetModule(cm, file) {
-  return XPCOMUtils.generateModule([AboutFeeds]);
-}
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([AboutFeeds]);

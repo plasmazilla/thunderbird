@@ -64,6 +64,8 @@
 #include "nsTArray.h"
 #include "nsCycleCollectionParticipant.h"
 
+using namespace mozilla::dom;
+
 class nsXMLFragmentContentSink : public nsXMLContentSink,
                                  public nsIFragmentContentSink
 {
@@ -118,7 +120,7 @@ protected:
   virtual nsresult CreateElement(const PRUnichar** aAtts, PRUint32 aAttsCount,
                                  nsINodeInfo* aNodeInfo, PRUint32 aLineNumber,
                                  nsIContent** aResult, PRBool* aAppendContent,
-                                 PRBool aFromParser);
+                                 mozilla::dom::FromParser aFromParser);
   virtual nsresult CloseElement(nsIContent* aContent);
 
   virtual void MaybeStartLayout(PRBool aIgnorePendingSheets);
@@ -260,14 +262,14 @@ nsresult
 nsXMLFragmentContentSink::CreateElement(const PRUnichar** aAtts, PRUint32 aAttsCount,
                                         nsINodeInfo* aNodeInfo, PRUint32 aLineNumber,
                                         nsIContent** aResult, PRBool* aAppendContent,
-                                        PRBool aFromParser)
+                                        FromParser /*aFromParser*/)
 {
   // Claim to not be coming from parser, since we don't do any of the
   // fancy CloseElement stuff.
   nsresult rv = nsXMLContentSink::CreateElement(aAtts, aAttsCount,
                                                 aNodeInfo, aLineNumber,
                                                 aResult, aAppendContent,
-                                                PR_FALSE);
+                                                NOT_FROM_PARSER);
 
   // When we aren't grabbing all of the content we, never open a doc
   // element, we run into trouble on the first element, so we don't append,
@@ -589,12 +591,10 @@ nsXHTMLParanoidFragmentSink::Cleanup()
 nsresult
 NS_NewXHTMLParanoidFragmentSink(nsIFragmentContentSink** aResult)
 {
-  nsXHTMLParanoidFragmentSink* it = new nsXHTMLParanoidFragmentSink();
-  if (!it) {
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
   nsresult rv = nsXHTMLParanoidFragmentSink::Init();
   NS_ENSURE_SUCCESS(rv, rv);
+
+  nsXHTMLParanoidFragmentSink* it = new nsXHTMLParanoidFragmentSink();
   NS_ADDREF(*aResult = it);
   
   return NS_OK;
@@ -627,7 +627,7 @@ nsresult
 nsXHTMLParanoidFragmentSink::AddAttributes(const PRUnichar** aAtts,
                                            nsIContent* aContent)
 {
-  nsresult rv;
+  nsresult rv = NS_OK;
 
   // use this to check for safe URIs in the few attributes that allow them
   nsIScriptSecurityManager* secMan = nsContentUtils::GetSecurityManager();

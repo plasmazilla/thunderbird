@@ -61,6 +61,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head>
     <title>&certerror.pagetitle;</title>
+    <link rel="stylesheet" href="chrome://communicator/content/certError.css" type="text/css" media="all" />
     <link rel="stylesheet" href="chrome://communicator/skin/certError.css" type="text/css" media="all" />
     <link rel="icon" type="image/png" id="favicon" href="chrome://global/skin/icons/warning-16.png"/>
 
@@ -111,6 +112,13 @@
         if (getCSSClass() == "expertBadCert") {
           toggle('technicalContent');
           toggle('expertContent');
+        }
+
+        // if this is a Strict-Transport-Security host and the cert
+        // is bad, don't allow overrides (STS Spec section 7.3).
+        if (getCSSClass() == "badStsCert") {
+          var ec = document.getElementById('expertContent');
+          document.getElementById('errorLongContent').removeChild(ec);
         }
 
         // Rather than textContent, we need to treat description as HTML
@@ -217,7 +225,7 @@
           <h2>&certerror.whatShouldIDo.heading;</h2>
           <div id="whatShouldIDoContentText">
             <p>&certerror.whatShouldIDo.content;</p>
-            <xul:button xmlns:xul='http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul' id='getMeOutOfHereButton' label='&certerror.getMeOutOfHere.label;'/>
+            <span id='getMeOutOfHereButton' label='&certerror.getMeOutOfHere.label;'/>
           </div>
         </div>
 
@@ -233,7 +241,7 @@
           <div>
             <p>&certerror.expert.content;</p>
             <p>&certerror.expert.contentPara2;</p>
-            <xul:button xmlns:xul='http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul' id='exceptionDialogButton' label='&certerror.addException.label;'/>
+            <span id='exceptionDialogButton' label='&certerror.addException.label;'/>
           </div>
         </div>
       </div>

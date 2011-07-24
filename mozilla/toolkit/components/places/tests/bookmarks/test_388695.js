@@ -15,7 +15,7 @@
  *
  * The Original Code is Bug 388695 unit test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2007
  * the Initial Developer. All Rights Reserved.
  *
@@ -63,21 +63,21 @@ function run_test() {
   do_test_pending();
 
   gItemId1 = bmsvc.insertBookmark(gTestRoot, gURI, bmsvc.DEFAULT_INDEX, "");
-  do_timeout(100, "phase2();");
+  do_timeout(100, phase2);
 }
 
 function phase2() {
   gItemId2 = bmsvc.insertBookmark(gTestRoot, gURI, bmsvc.DEFAULT_INDEX, "");  
-  var b = bmsvc.getBookmarkIdsForURI(gURI, {});
+  var b = bmsvc.getBookmarkIdsForURI(gURI);
   do_check_eq(b[0], gItemId2);
   do_check_eq(b[1], gItemId1);
-  do_timeout(100, "phase3();");
+  do_timeout(100, phase3);
 }
 
 function phase3() {
   // trigger last modified change
   bmsvc.setItemTitle(gItemId1, "");
-  var b = bmsvc.getBookmarkIdsForURI(gURI, {});
+  var b = bmsvc.getBookmarkIdsForURI(gURI);
   do_check_eq(b[0], gItemId1);
   do_check_eq(b[1], gItemId2);
   do_test_finished();

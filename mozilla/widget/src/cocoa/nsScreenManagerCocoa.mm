@@ -52,11 +52,10 @@ nsScreenManagerCocoa::~nsScreenManagerCocoa()
 }
 
 nsScreenCocoa*
-nsScreenManagerCocoa::ScreenForCocoaScreen (NSScreen *screen)
+nsScreenManagerCocoa::ScreenForCocoaScreen(NSScreen *screen)
 {
-    for (PRInt32 i = 0; i < mScreenList.Count(); i++) {
-        nsScreenCocoa* sc = static_cast<nsScreenCocoa*>(mScreenList.ObjectAt(i));
-
+    for (PRUint32 i = 0; i < mScreenList.Length(); ++i) {
+        nsScreenCocoa* sc = mScreenList[i];
         if (sc->CocoaScreen() == screen) {
             // doesn't addref
             return sc;
@@ -64,8 +63,8 @@ nsScreenManagerCocoa::ScreenForCocoaScreen (NSScreen *screen)
     }
 
     // didn't find it; create and insert
-    nsCOMPtr<nsScreenCocoa> sc = new nsScreenCocoa(screen);
-    mScreenList.AppendObject(sc);
+    nsRefPtr<nsScreenCocoa> sc = new nsScreenCocoa(screen);
+    mScreenList.AppendElement(sc);
     return sc.get();
 }
 

@@ -69,14 +69,16 @@
 const Cc = Components.classes;
 const Ci = Components.interfaces;
 const Cr = Components.results;
-Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+const Cu = Components.utils;
+Cu.import("resource://gre/modules/XPCOMUtils.jsm");
+Cu.import("resource://gre/modules/Services.jsm");
 
 const STATE_RUNNING_STR = "running";
+const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100 megabytes
 
 function debug(aMsg) {
   aMsg = ("SessionStartup: " + aMsg).replace(/\S{80}/g, "$&\n");
-  Cc["@mozilla.org/consoleservice;1"].getService(Ci.nsIConsoleService)
-                                     .logStringMessage(aMsg);
+  Services.console.logStringMessage(aMsg);
 }
 
 /* :::::::: The Service ::::::::::::::: */
@@ -99,7 +101,7 @@ SessionStartup.prototype = {
     // do not need to initialize anything in auto-started private browsing sessions
     let pbs = Cc["@mozilla.org/privatebrowsing;1"].
               getService(Ci.nsIPrivateBrowsingService);
-    if (pbs.autoStarted)
+    if (pbs.autoStarted || pbs.lastChangedByCommandLine)
       return;
 
     let prefBranch = Cc["@mozilla.org/preferences-service;1"].
@@ -113,42 +115,59 @@ SessionStartup.prototype = {
     
     let doResumeSession = prefBranch.getBoolPref("sessionstore.resume_session_once") ||
                           prefBranch.getIntPref("startup.page") == 3;
-    
-    // only read the session file if config allows possibility of restoring
-    var resumeFromCrash = prefBranch.getBoolPref("sessionstore.resume_from_crash");
-    if (!resumeFromCrash && !doResumeSession || !sessionFile.exists())
+
+    // only continue if the session file exists
+    if (!sessionFile.exists())
       return;
-    
+
     // get string containing session state
     this._iniString = this._readStateFile(sessionFile);
     if (!this._iniString)
       return;
-    
+
+    // parse the session state into a JS object
+    let initialState;
     try {
-      // parse the session state into JS objects
-      var s = new Components.utils.Sandbox("about:blank");
-      var initialState = Components.utils.evalInSandbox("(" + this._iniString + ")", s);
+      // remove unneeded braces (added for compatibility with Firefox 2.0 and 3.0)
+      if (this._iniString.charAt(0) == '(')
+        this._iniString = this._iniString.slice(1, -1);
+      try {
+        initialState = JSON.parse(this._iniString);
+      }
+      catch (exJSON) {
+        var s = new Cu.Sandbox("about:blank");
+        initialState = Cu.evalInSandbox("(" + this._iniString + ")", s);
+        this._iniString = JSON.stringify(initialState);
+      }
     }
-    catch (ex) { debug("The session file is invalid: " + ex); } 
-    
+    catch (ex) { debug("The session file is invalid: " + ex); }
+
+    let resumeFromCrash = prefBranch.getBoolPref("sessionstore.resume_from_crash");
     let lastSessionCrashed =
       initialState && initialState.session && initialState.session.state &&
       initialState.session.state == STATE_RUNNING_STR;
-    
+
     // set the startup type
     if (lastSessionCrashed && resumeFromCrash)
       this._sessionType = Ci.nsISessionStartup.RECOVER_SESSION;
     else if (!lastSessionCrashed && doResumeSession)
       this._sessionType = Ci.nsISessionStartup.RESUME_SESSION;
+    else if (initialState)
+      this._sessionType = Ci.nsISessionStartup.DEFER_SESSION;
     else
       this._iniString = null; // reset the state string
 
-    if (this._sessionType != Ci.nsISessionStartup.NO_SESSION) {
+    if (this.doRestore()) {
       // wait for the first browser window to open
-      var observerService = Cc["@mozilla.org/observer-service;1"].
-                            getService(Ci.nsIObserverService);
-      observerService.addObserver(this, "domwindowopened", true);
-      observerService.addObserver(this, "browser:purge-session-history", true);
+
+      // Don't reset the initial window's default args (i.e. the home page(s))
+      // if all stored tabs are pinned.
+      if (!initialState.windows ||
+          !initialState.windows.every(function (win)
+             win.tabs.every(function (tab) tab.pinned)))
+        Services.obs.addObserver(this, "domwindowopened", true);
+
+      Services.obs.addObserver(this, "sessionstore-windows-restored", true);
     }
   },
 
@@ -156,23 +175,20 @@ SessionStartup.prototype = {
    * Handle notifications
    */
   observe: function sss_observe(aSubject, aTopic, aData) {
-    var observerService = Cc["@mozilla.org/observer-service;1"].
-                          getService(Ci.nsIObserverService);
-
     switch (aTopic) {
     case "app-startup": 
-      observerService.addObserver(this, "final-ui-startup", true);
-      observerService.addObserver(this, "quit-application", true);
+      Services.obs.addObserver(this, "final-ui-startup", true);
+      Services.obs.addObserver(this, "quit-application", true);
       break;
     case "final-ui-startup": 
-      observerService.removeObserver(this, "final-ui-startup");
-      observerService.removeObserver(this, "quit-application");
+      Services.obs.removeObserver(this, "final-ui-startup");
+      Services.obs.removeObserver(this, "quit-application");
       this.init();
       break;
     case "quit-application":
       // no reason for initializing at this point (cf. bug 409115)
-      observerService.removeObserver(this, "final-ui-startup");
-      observerService.removeObserver(this, "quit-application");
+      Services.obs.removeObserver(this, "final-ui-startup");
+      Services.obs.removeObserver(this, "quit-application");
       break;
     case "domwindowopened":
       var window = aSubject;
@@ -182,12 +198,20 @@ SessionStartup.prototype = {
         window.removeEventListener("load", arguments.callee, false);
       }, false);
       break;
+    case "sessionstore-windows-restored":
+      Services.obs.removeObserver(this, "sessionstore-windows-restored");
+      // We only want to start listening for the purge notification after we've
+      // sessionstore has finished its initial startup. That way we won't observe
+      // the purge notification & clear the old session before sessionstore loads
+      // it (in the case of a crash).
+      Services.obs.addObserver(this, "browser:purge-session-history", true);
+      break;
     case "browser:purge-session-history":
       // reset all state on sanitization
       this._iniString = null;
       this._sessionType = Ci.nsISessionStartup.NO_SESSION;
       // no need in repeating this, since startup state won't change
-      observerService.removeObserver(this, "browser:purge-session-history");
+      Services.obs.removeObserver(this, "browser:purge-session-history");
       break;
     }
   },
@@ -220,10 +244,13 @@ SessionStartup.prototype = {
     if (aWindow.arguments && aWindow.arguments[0] &&
         aWindow.arguments[0] == defaultArgs)
       aWindow.arguments[0] = null;
-    
-    var observerService = Cc["@mozilla.org/observer-service;1"].
-                          getService(Ci.nsIObserverService);
-    observerService.removeObserver(this, "domwindowopened");
+
+    try {
+      Services.obs.removeObserver(this, "domwindowopened");
+    } catch (e) {
+      // This might throw if we're removing the observer multiple times,
+      // but this is safe to ignore.
+    }
   },
 
 /* ........ Public API ................*/
@@ -240,7 +267,8 @@ SessionStartup.prototype = {
    * @returns bool
    */
   doRestore: function sss_doRestore() {
-    return this._sessionType != Ci.nsISessionStartup.NO_SESSION;
+    return this._sessionType == Ci.nsISessionStartup.RECOVER_SESSION ||
+           this._sessionType == Ci.nsISessionStartup.RESUME_SESSION;
   },
 
   /**
@@ -263,11 +291,9 @@ SessionStartup.prototype = {
     var stateString = Cc["@mozilla.org/supports-string;1"].
                         createInstance(Ci.nsISupportsString);
     stateString.data = this._readFile(aFile) || "";
-    
-    var observerService = Cc["@mozilla.org/observer-service;1"].
-                          getService(Ci.nsIObserverService);
-    observerService.notifyObservers(stateString, "sessionstore-state-read", "");
-    
+
+    Services.obs.notifyObservers(stateString, "sessionstore-state-read", "");
+
     return stateString.data;
   },
 
@@ -284,19 +310,21 @@ SessionStartup.prototype = {
       stream.init(aFile, 0x01, 0, 0);
       var cvstream = Cc["@mozilla.org/intl/converter-input-stream;1"].
                      createInstance(Ci.nsIConverterInputStream);
-      cvstream.init(stream, "UTF-8", 1024, Ci.nsIConverterInputStream.DEFAULT_REPLACEMENT_CHARACTER);
-      
-      var content = "";
+
+      var fileSize = stream.available();
+      if (fileSize > MAX_FILE_SIZE)
+        throw "SessionStartup: sessionstore.js was not processed because it was too large.";
+
+      cvstream.init(stream, "UTF-8", fileSize, Ci.nsIConverterInputStream.DEFAULT_REPLACEMENT_CHARACTER);
       var data = {};
-      while (cvstream.readString(4096, data)) {
-        content += data.value;
-      }
+      cvstream.readString(fileSize, data);
+      var content = data.value;
       cvstream.close();
-      
+
       return content.replace(/\r\n?/g, "\n");
     }
-    catch (ex) { Components.utils.reportError(ex); }
-    
+    catch (ex) { Cu.reportError(ex); }
+
     return null;
   },
 
@@ -304,17 +332,7 @@ SessionStartup.prototype = {
   QueryInterface : XPCOMUtils.generateQI([Ci.nsIObserver,
                                           Ci.nsISupportsWeakReference,
                                           Ci.nsISessionStartup]),
-  classDescription: "Browser Session Startup Service",
   classID:          Components.ID("{ec7a6c20-e081-11da-8ad9-0800200c9a66}"),
-  contractID:       "@mozilla.org/browser/sessionstartup;1",
-
-  // get this contractID registered for certain categories via XPCOMUtils
-  _xpcom_categories: [
-    // make ourselves a startup observer
-    { category: "app-startup", service: true }
-  ]
-
 };
 
-function NSGetModule(aCompMgr, aFileSpec)
-  XPCOMUtils.generateModule([SessionStartup]);
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([SessionStartup]);

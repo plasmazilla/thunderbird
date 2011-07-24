@@ -5,5 +5,4 @@ includedir=%includedir%
 Name: Mozilla Plug-In API
 Description: Mozilla Plug-In API
 Version: %MOZILLA_VERSION%
-Cflags: -I${includedir} -DXP_UNIX %ojidef%
-
+Cflags: -I${includedir} -DXP_UNIX

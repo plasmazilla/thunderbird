@@ -38,14 +38,46 @@
 #include "nsIStreamListener.idl"
 
 interface nsIOutputStream;
+interface nsIRequestObserver;
+interface nsIEventTarget;
 
 /**
  * As data "flows" into a stream listener tee, it is copied to the output stream
  * and then forwarded to the real listener.
  */
-[scriptable, uuid(fb683e76-d42b-41a4-8ae6-65a6c2b146e5)]
+[scriptable, uuid(62b27fc1-6e8c-4225-8ad0-b9d44252973a)]
 interface nsIStreamListenerTee : nsIStreamListener
 {
+    /** 
+     * Initalize the tee.
+     *
+     * @param listener
+     *    the original listener the tee will propagate onStartRequest,
+     *    onDataAvailable and onStopRequest notifications to, exceptions from 
+     *    the listener will be propagated back to the channel
+     * @param sink
+     *    the stream the data coming from the channel will be written to,
+     *    should be blocking
+     * @param requestObserver
+     *    optional parameter, listener that gets only onStartRequest and
+     *    onStopRequest notifications; exceptions threw within this optional
+     *    observer are also propagated to the channel, but exceptions from
+     *    the original listener (listener parameter) are privileged 
+     */
     void init(in nsIStreamListener listener,
-              in nsIOutputStream sink);
+              in nsIOutputStream sink,
+              [optional] in nsIRequestObserver requestObserver);
+
+    /** 
+     * Initalize the tee like above, but with the extra parameter to make it
+     * possible to copy the output asynchronously
+     * @param anEventTarget
+     *    if set, this event-target is used to copy data to the output stream,
+     *    giving an asynchronous tee
+    */
+    void initAsync(in nsIStreamListener listener,
+                   in nsIEventTarget eventTarget,
+                   in nsIOutputStream sink,
+                   [optional] in nsIRequestObserver requestObserver);
+    
 };

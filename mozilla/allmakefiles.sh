@@ -63,11 +63,13 @@ build/pgo/blueprint/Makefile
 build/pgo/js-input/Makefile
 build/unix/Makefile
 build/win32/Makefile
+build/win32/crashinjectdll/Makefile
 config/Makefile
 config/autoconf.mk
 config/mkdepend/Makefile
 config/nspr/Makefile
 config/doxygen.cfg
+config/expandlibs_config.py
 config/tests/src-simple/Makefile
 probes/Makefile
 extensions/Makefile
@@ -84,7 +86,7 @@ if [ "$WINCE" ]; then
   "
 fi
 
-if [ "$MOZ_MEMORY" ]; then
+if [ "$MOZ_MEMORY" -a "$LIBXUL_SDK" = "" ]; then
   add_makefiles "
     memory/jemalloc/Makefile
   "
@@ -112,3 +114,6 @@ done
 if test -z "$LIBXUL_SDK"; then
   . "${srcdir}/toolkit/toolkit-makefiles.sh"
 fi
+
+# Services makefiles
+. "${srcdir}/services/makefiles.sh"

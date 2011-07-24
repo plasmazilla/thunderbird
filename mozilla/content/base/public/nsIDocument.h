@@ -55,11 +55,18 @@
 #include "nsHashKeys.h"
 #include "nsNodeInfoManager.h"
 #include "nsIStreamListener.h"
+#include "nsIVariant.h"
 #include "nsIObserver.h"
+#include "nsGkAtoms.h"
 #include "nsAutoPtr.h"
+#include "nsPIDOMWindow.h"
 #ifdef MOZ_SMIL
-class nsSMILAnimationController;
+#include "nsSMILAnimationController.h"
 #endif // MOZ_SMIL
+#include "nsIScriptGlobalObject.h"
+#include "nsIDocumentEncoder.h"
+#include "nsIAnimationFrameListener.h"
+#include "nsEventStates.h"
 
 class nsIContent;
 class nsPresContext;
@@ -68,9 +75,8 @@ class nsIDocShell;
 class nsStyleSet;
 class nsIStyleSheet;
 class nsIStyleRule;
+class nsCSSStyleSheet;
 class nsIViewManager;
-class nsIScriptGlobalObject;
-class nsPIDOMWindow;
 class nsIDOMEvent;
 class nsIDOMEventTarget;
 class nsIDeviceContext;
@@ -88,9 +94,8 @@ class nsIDOMDocumentType;
 class nsScriptLoader;
 class nsIContentSink;
 class nsIScriptEventManager;
-class nsICSSLoader;
 class nsHTMLStyleSheet;
-class nsIHTMLCSSStyleSheet;
+class nsHTMLCSSStyleSheet;
 class nsILayoutHistoryState;
 class nsIVariant;
 class nsIDOMUserDataHandler;
@@ -102,14 +107,34 @@ class mozAutoSubtreeModified;
 struct JSObject;
 class nsFrameLoader;
 class nsIBoxObject;
+class imgIRequest;
+class nsISHEntry;
 
-// IID for the nsIDocument interface
+namespace mozilla {
+namespace css {
+class Loader;
+} // namespace css
+
+namespace dom {
+class Link;
+class Element;
+} // namespace dom
+} // namespace mozilla
+
+
 #define NS_IDOCUMENT_IID      \
-  { 0x2ca82a51, 0x4a6a, 0x4dfa, \
-      { 0xa6, 0x5f, 0x49, 0x52, 0xa3, 0xaa, 0x02, 0xef } }
+{ 0x2c6ad63f, 0xb7b9, 0x42f8, \
+ { 0xbd, 0xde, 0x76, 0x0a, 0x83, 0xe3, 0xb0, 0x49 } }
 
 // Flag for AddStyleSheet().
 #define NS_STYLESHEET_FROM_CATALOG                (1 << 0)
+
+// Document states
+
+// RTL locale: specific to the XUL localedir attribute
+#define NS_DOCUMENT_STATE_RTL_LOCALE              NS_DEFINE_EVENT_STATE_MACRO(0)
+// Window activation status
+#define NS_DOCUMENT_STATE_WINDOW_INACTIVE         NS_DEFINE_EVENT_STATE_MACRO(1)
 
 //----------------------------------------------------------------------
 
@@ -118,6 +143,8 @@ class nsIBoxObject;
 class nsIDocument : public nsINode
 {
 public:
+  typedef mozilla::dom::Element Element;
+
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_IDOCUMENT_IID)
   NS_DECL_AND_IMPL_ZEROING_OPERATOR_NEW
 
@@ -136,9 +163,10 @@ public:
       // unless we get a window, and in that case the docshell value will get
       // &&-ed in, this is safe.
       mAllowDNSPrefetch(PR_TRUE),
+      mIsBeingUsedAsImage(PR_FALSE),
       mPartID(0)
   {
-    mParentPtrBits |= PARENT_BIT_INDOCUMENT;
+    SetInDocument();
   }
 #endif
   
@@ -187,9 +215,13 @@ public:
    * has just been bound to the document.
    */
   virtual void NotifyPossibleTitleChange(PRBool aBoundTitleElement) = 0;
-  
+
   /**
    * Return the URI for the document. May return null.
+   *
+   * The value returned corresponds to the "document's current address" in
+   * HTML5.  As such, it may change over the lifetime of the document, for
+   * instance as a result of a call to pushState() or replaceState().
    */
   nsIURI* GetDocumentURI() const
   {
@@ -197,7 +229,21 @@ public:
   }
 
   /**
-   * Set the URI for the document.
+   * Return the original URI of the document.  This is the same as the
+   * document's URI unless history.pushState() or replaceState() is invoked on
+   * the document.
+   *
+   * This method corresponds to the "document's address" in HTML5 and, once
+   * set, doesn't change over the lifetime of the document.
+   */
+  nsIURI* GetOriginalURI() const
+  {
+    return mOriginalURI;
+  }
+
+  /**
+   * Set the URI for the document.  This also sets the document's original URI,
+   * if it's null.
    */
   virtual void SetDocumentURI(nsIURI* aURI) = 0;
 
@@ -223,17 +269,26 @@ public:
    * unless it's overridden by SetBaseURI, HTML <base> tags, etc.).  The
    * returned URI could be null if there is no document URI.
    */
-  nsIURI* GetBaseURI() const
+  nsIURI* GetDocBaseURI() const
   {
     return mDocumentBaseURI ? mDocumentBaseURI : mDocumentURI;
   }
+  virtual already_AddRefed<nsIURI> GetBaseURI() const
+  {
+    nsCOMPtr<nsIURI> uri = GetDocBaseURI();
+
+    return uri.forget();
+  }
+
   virtual nsresult SetBaseURI(nsIURI* aURI) = 0;
 
   /**
    * Get/Set the base target of a link in a document.
    */
-  virtual void GetBaseTarget(nsAString &aBaseTarget) const = 0;
-  virtual void SetBaseTarget(const nsAString &aBaseTarget) = 0;
+  virtual void GetBaseTarget(nsAString &aBaseTarget) = 0;
+  void SetBaseTarget(const nsString& aBaseTarget) {
+    mBaseTarget = aBaseTarget;
+  }
 
   /**
    * Return a standard name for the document's character set.
@@ -279,23 +334,28 @@ public:
    * @return PR_TRUE to keep the callback in the callback set, PR_FALSE
    * to remove it.
    */
-  typedef PRBool (* IDTargetObserver)(nsIContent* aOldContent,
-                                      nsIContent* aNewContent, void* aData);
+  typedef PRBool (* IDTargetObserver)(Element* aOldElement,
+                                      Element* aNewelement, void* aData);
 
   /**
    * Add an IDTargetObserver for a specific ID. The IDTargetObserver
    * will be fired whenever the content associated with the ID changes
-   * in the future. At most one (aObserver, aData) pair can be registered
-   * for each ID.
+   * in the future. If aForImage is true, mozSetImageElement can override
+   * what content is associated with the ID. In that case the IDTargetObserver
+   * will be notified at those times when the result of LookupImageElement
+   * changes.
+   * At most one (aObserver, aData, aForImage) triple can be
+   * registered for each ID.
    * @return the content currently associated with the ID.
    */
-  virtual nsIContent* AddIDTargetObserver(nsIAtom* aID,
-                                          IDTargetObserver aObserver, void* aData) = 0;
+  virtual Element* AddIDTargetObserver(nsIAtom* aID, IDTargetObserver aObserver,
+                                       void* aData, PRBool aForImage) = 0;
   /**
-   * Remove the (aObserver, aData) pair for a specific ID, if registered.
+   * Remove the (aObserver, aData, aForImage) triple for a specific ID, if
+   * registered.
    */
-  virtual void RemoveIDTargetObserver(nsIAtom* aID,
-                                      IDTargetObserver aObserver, void* aData) = 0;
+  virtual void RemoveIDTargetObserver(nsIAtom* aID, IDTargetObserver aObserver,
+                                      void* aData, PRBool aForImage) = 0;
 
   /**
    * Get the Content-Type of this document.
@@ -409,10 +469,20 @@ public:
                                nsIViewManager* aViewManager,
                                nsStyleSet* aStyleSet,
                                nsIPresShell** aInstancePtrResult) = 0;
-  virtual PRBool DeleteShell(nsIPresShell* aShell) = 0;
-  virtual nsIPresShell *GetPrimaryShell() const = 0;
-  void SetShellsHidden(PRBool aHide) { mShellsAreHidden = aHide; }
-  PRBool ShellsAreHidden() const { return mShellsAreHidden; }
+  virtual void DeleteShell() = 0;
+
+  nsIPresShell* GetShell() const
+  {
+    return GetBFCacheEntry() ? nsnull : mPresShell;
+  }
+
+  void SetBFCacheEntry(nsISHEntry* aSHEntry) {
+    mSHEntry = aSHEntry;
+    // Doing this just to keep binary compat for the gecko 2.0 release
+    mShellIsHidden = !!aSHEntry;
+  }
+
+  nsISHEntry* GetBFCacheEntry() const { return mSHEntry; }
 
   /**
    * Return the parent document of this document. Will return null
@@ -449,17 +519,36 @@ public:
   virtual nsIContent *FindContentForSubDocument(nsIDocument *aDocument) const = 0;
 
   /**
-   * Return the root content object for this document.
+   * Return the root element for this document.
    */
-  nsIContent *GetRootContent() const
+  Element *GetRootElement() const
   {
-    return (mCachedRootContent &&
-            mCachedRootContent->GetNodeParent() == this) ?
-           reinterpret_cast<nsIContent*>(mCachedRootContent.get()) :
-           GetRootContentInternal();
+    return (mCachedRootElement &&
+            mCachedRootElement->GetNodeParent() == this) ?
+           reinterpret_cast<Element*>(mCachedRootElement.get()) :
+           GetRootElementInternal();
   }
-  virtual nsIContent *GetRootContentInternal() const = 0;
+protected:
+  virtual Element *GetRootElementInternal() const = 0;
 
+public:
+  // Get the root <html> element, or return null if there isn't one (e.g.
+  // if the root isn't <html>)
+  Element* GetHtmlElement();
+  // Returns the first child of GetHtmlContent which has the given tag,
+  // or nsnull if that doesn't exist.
+  Element* GetHtmlChildElement(nsIAtom* aTag);
+  // Get the canonical <body> element, or return null if there isn't one (e.g.
+  // if the root isn't <html> or if the <body> isn't there)
+  Element* GetBodyElement() {
+    return GetHtmlChildElement(nsGkAtoms::body);
+  }
+  // Get the canonical <head> element, or return null if there isn't one (e.g.
+  // if the root isn't <html> or if the <head> isn't there)
+  Element* GetHeadElement() {
+    return GetHtmlChildElement(nsGkAtoms::head);
+  }
+  
   /**
    * Accessors to the collection of stylesheets owned by this document.
    * Style sheets are ordered, most significant last.
@@ -538,7 +627,7 @@ public:
   /**
    * Get this document's CSSLoader.  This is guaranteed to not return null.
    */
-  nsICSSLoader* CSSLoader() const {
+  mozilla::css::Loader* CSSLoader() const {
     return mCSSLoader;
   }
 
@@ -559,8 +648,8 @@ public:
    * Get this document's inline style sheet.  May return null if there
    * isn't one
    */
-  virtual nsIHTMLCSSStyleSheet* GetInlineStyleSheet() const = 0;
-  
+  virtual nsHTMLCSSStyleSheet* GetInlineStyleSheet() const = 0;
+
   /**
    * Get/set the object from which a document can get a script context
    * and scope. This is the context within which all scripts (during
@@ -579,8 +668,13 @@ public:
    * for event/script handling. Do not process any events/script if the method
    * returns null, but aHasHadScriptHandlingObject is true.
    */
-  virtual nsIScriptGlobalObject*
-    GetScriptHandlingObject(PRBool& aHasHadScriptHandlingObject) const = 0;
+  nsIScriptGlobalObject*
+    GetScriptHandlingObject(PRBool& aHasHadScriptHandlingObject) const
+  {
+    aHasHadScriptHandlingObject = mHasHadScriptHandlingObject;
+    return mScriptGlobalObject ? mScriptGlobalObject.get() :
+                                 GetScriptHandlingObjectInternal();
+  }
   virtual void SetScriptHandlingObject(nsIScriptGlobalObject* aScriptObject) = 0;
 
   /**
@@ -595,19 +689,42 @@ public:
   /**
    * Return the window containing the document (the outer window).
    */
-  virtual nsPIDOMWindow *GetWindow() = 0;
+  nsPIDOMWindow *GetWindow() const
+  {
+    return mWindow ? mWindow->GetOuterWindow() : GetWindowInternal();
+  }
 
   /**
    * Return the inner window used as the script compilation scope for
    * this document. If you're not absolutely sure you need this, use
    * GetWindow().
    */
-  virtual nsPIDOMWindow *GetInnerWindow() = 0;
+  nsPIDOMWindow* GetInnerWindow()
+  {
+    return mRemovedFromDocShell ? GetInnerWindowInternal() : mWindow;
+  }
+
+  /**
+   * Return the outer window ID.
+   */
+  PRUint64 OuterWindowID() const
+  {
+    nsPIDOMWindow *window = GetWindow();
+    return window ? window->WindowID() : 0;
+  }
 
   /**
    * Get the script loader for this document
    */ 
   virtual nsScriptLoader* ScriptLoader() = 0;
+
+  /**
+   * Add/Remove an element to the document's id and name hashes
+   */
+  virtual void AddToIdTable(Element* aElement, nsIAtom* aId) = 0;
+  virtual void RemoveFromIdTable(Element* aElement, nsIAtom* aId) = 0;
+  virtual void AddToNameTable(Element* aElement, nsIAtom* aName) = 0;
+  virtual void RemoveFromNameTable(Element* aElement, nsIAtom* aName) = 0;
 
   //----------------------------------------------------------------------
 
@@ -616,7 +733,8 @@ public:
   /**
    * Add a new observer of document change notifications. Whenever
    * content is changed, appended, inserted or removed the observers are
-   * informed.
+   * informed.  An observer that is already observing the document must
+   * not be added without being removed first.
    */
   virtual void AddObserver(nsIDocumentObserver* aObserver) = 0;
 
@@ -639,11 +757,14 @@ public:
   virtual void SetReadyStateInternal(ReadyState rs) = 0;
   virtual ReadyState GetReadyStateEnum() = 0;
 
-  // notify that one or two content nodes changed state
-  // either may be nsnull, but not both
-  virtual void ContentStatesChanged(nsIContent* aContent1,
-                                    nsIContent* aContent2,
-                                    PRInt32 aStateMask) = 0;
+  // notify that a content node changed state
+  virtual void ContentStateChanged(nsIContent* aContent,
+                                   nsEventStates aStateMask) = 0;
+
+  // Notify that a document state has changed.
+  // This should only be called by callers whose state is also reflected in the
+  // implementation of nsDocument::GetDocumentState.
+  virtual void DocumentStatesChanged(nsEventStates aStateMask) = 0;
 
   // Observation hooks for style data to propagate notifications
   // to document observers
@@ -660,6 +781,14 @@ public:
    * (since those may affect the layout of this one).
    */
   virtual void FlushPendingNotifications(mozFlushType aType) = 0;
+
+  /**
+   * Calls FlushPendingNotifications on any external resources this document
+   * has. If this document has no external resources or is an external resource
+   * itself this does nothing. This should only be called with
+   * aType >= Flush_Style.
+   */
+  virtual void FlushExternalResources(mozFlushType aType) = 0;
 
   nsBindingManager* BindingManager() const
   {
@@ -723,9 +852,13 @@ public:
                                  nsAString& aEncoding,
                                  nsAString& Standalone) = 0;
 
-  virtual PRBool IsCaseSensitive()
+  PRBool IsHTML() const
   {
-    return PR_TRUE;
+    return mIsRegularHTML;
+  }
+  PRBool IsXUL() const
+  {
+    return mIsXUL;
   }
 
   virtual PRBool IsScriptEnabled() = 0;
@@ -738,7 +871,7 @@ public:
    * for that document (currently XHTML in HTML documents and XUL in XUL
    * documents), otherwise we use the type specified by the namespace ID.
    */
-  virtual nsresult CreateElem(nsIAtom *aName, nsIAtom *aPrefix,
+  virtual nsresult CreateElem(const nsAString& aName, nsIAtom *aPrefix,
                               PRInt32 aNamespaceID,
                               PRBool aDocumentDefaultType,
                               nsIContent** aResult) = 0;
@@ -761,7 +894,16 @@ public:
    */
   virtual PRInt32 GetDefaultNamespaceID() const = 0;
 
-  nsPropertyTable* PropertyTable() { return &mPropertyTable; }
+  void DeleteAllProperties();
+  void DeleteAllPropertiesFor(nsINode* aNode);
+
+  nsPropertyTable* PropertyTable(PRUint16 aCategory) {
+    if (aCategory == 0)
+      return &mPropertyTable;
+    return GetExtraPropertyTable(aCategory);
+  }
+  PRUint32 GetPropertyTableCount()
+  { return mExtraPropertyTables.Length() + 1; }
 
   /**
    * Sets the ID used to identify this part of the multipart document
@@ -884,22 +1026,16 @@ public:
    * style.
    */
   /**
-   * Notification that an element is a link with a given URI that is
-   * relevant to style.
+   * Notification that an element is a link that is relevant to style.
    */
-  virtual void AddStyleRelevantLink(nsIContent* aContent, nsIURI* aURI) = 0;
+  virtual void AddStyleRelevantLink(mozilla::dom::Link* aLink) = 0;
   /**
    * Notification that an element is a link and its URI might have been
    * changed or the element removed. If the element is still a link relevant
    * to style, then someone must ensure that AddStyleRelevantLink is
    * (eventually) called on it again.
    */
-  virtual void ForgetLink(nsIContent* aContent) = 0;
-  /**
-   * Notification that the visitedness state of a URI has been changed
-   * and style related to elements linking to that URI should be updated.
-   */
-  virtual void NotifyURIVisitednessChanged(nsIURI* aURI) = 0;
+  virtual void ForgetLink(mozilla::dom::Link* aLink) = 0;
 
   /**
    * Resets and removes a box object from the document's box object cache
@@ -947,10 +1083,17 @@ public:
    *
    * @see nsIDOMWindowUtils::elementFromPoint
    */
-  virtual nsresult ElementFromPointHelper(PRInt32 aX, PRInt32 aY,
+  virtual nsresult ElementFromPointHelper(float aX, float aY,
                                           PRBool aIgnoreRootScrollFrame,
                                           PRBool aFlushLayout,
                                           nsIDOMElement** aReturn) = 0;
+
+  virtual nsresult NodesFromRectHelper(float aX, float aY,
+                                       float aTopSize, float aRightSize,
+                                       float aBottomSize, float aLeftSize,
+                                       PRBool aIgnoreRootScrollFrame,
+                                       PRBool aFlushLayout,
+                                       nsIDOMNodeList** aReturn) = 0;
 
   /**
    * See FlushSkinBindings on nsBindingManager
@@ -1013,6 +1156,16 @@ public:
     // Do nothing.
   }
 
+  already_AddRefed<nsIDocumentEncoder> GetCachedEncoder()
+  {
+    return mCachedEncoder.forget();
+  }
+
+  void SetCachedEncoder(already_AddRefed<nsIDocumentEncoder> aEncoder)
+  {
+    mCachedEncoder = aEncoder;
+  }
+
   // In case of failure, the document really can't initialize the frame loader.
   virtual nsresult InitializeFrameLoader(nsFrameLoader* aLoader) = 0;
   // In case of failure, the caller must handle the error, for example by
@@ -1032,6 +1185,19 @@ public:
     return !mParentDocument && !mDisplayDocument;
   }
 
+  PRBool IsBeingUsedAsImage() const {
+    return mIsBeingUsedAsImage;
+  }
+
+  void SetIsBeingUsedAsImage() {
+    mIsBeingUsedAsImage = PR_TRUE;
+  }
+
+  PRBool IsResourceDoc() const {
+    return IsBeingUsedAsImage() || // Are we a helper-doc for an SVG image?
+      !!mDisplayDocument;          // Are we an external resource doc?
+  }
+
   /**
    * Get the document for which this document is an external resource.  This
    * will be null if this document is not an external resource.  Otherwise,
@@ -1049,7 +1215,7 @@ public:
    */
   void SetDisplayDocument(nsIDocument* aDisplayDocument)
   {
-    NS_PRECONDITION(!GetPrimaryShell() &&
+    NS_PRECONDITION(!GetShell() &&
                     !nsCOMPtr<nsISupports>(GetContainer()) &&
                     !GetWindow() &&
                     !GetScriptGlobalObject(),
@@ -1138,9 +1304,21 @@ public:
                                   void* aData);
 
 #ifdef MOZ_SMIL
-  // Getter for this document's SMIL Animation Controller
+  // Indicates whether mAnimationController has been (lazily) initialized.
+  // If this returns PR_TRUE, we're promising that GetAnimationController()
+  // will have a non-null return value.
+  PRBool HasAnimationController()  { return !!mAnimationController; }
+
+  // Getter for this document's SMIL Animation Controller. Performs lazy
+  // initialization, if this document supports animation and if
+  // mAnimationController isn't yet initialized.
   virtual nsSMILAnimationController* GetAnimationController() = 0;
 #endif // MOZ_SMIL
+
+  // Makes the images on this document capable of having their animation
+  // active or suspended. An Image will animate as long as at least one of its
+  // owning Documents needs it to animate; otherwise it can suspend.
+  virtual void SetImagesNeedAnimating(PRBool aAnimating) = 0;
 
   /**
    * Prevents user initiated events from being dispatched to the document and
@@ -1157,7 +1335,50 @@ public:
 
   PRUint32 EventHandlingSuppressed() const { return mEventsSuppressed; }
 
+  /**
+   * Increment the number of external scripts being evaluated.
+   */
+  void BeginEvaluatingExternalScript() { ++mExternalScriptsBeingEvaluated; }
+
+  /**
+   * Decrement the number of external scripts being evaluated.
+   */
+  void EndEvaluatingExternalScript() { --mExternalScriptsBeingEvaluated; }
+
   PRBool IsDNSPrefetchAllowed() const { return mAllowDNSPrefetch; }
+
+  /**
+   * Returns PR_TRUE if this document is allowed to contain XUL element and
+   * use non-builtin XBL bindings.
+   */
+  PRBool AllowXULXBL() {
+    return mAllowXULXBL == eTriTrue ? PR_TRUE :
+           mAllowXULXBL == eTriFalse ? PR_FALSE :
+           InternalAllowXULXBL();
+  }
+
+  void ForceEnableXULXBL() {
+    mAllowXULXBL = eTriTrue;
+  }
+
+  /**
+   * PR_TRUE when this document is a static clone of a normal document.
+   * For example print preview and printing use static documents.
+   */
+  PRBool IsStaticDocument() { return mIsStaticDocument; }
+
+  /**
+   * Clones the document and subdocuments and stylesheet etc.
+   * @param aCloneContainer The container for the clone document.
+   */
+  virtual already_AddRefed<nsIDocument>
+  CreateStaticClone(nsISupports* aCloneContainer);
+
+  /**
+   * If this document is a static clone, this returns the original
+   * document.
+   */
+  nsIDocument* GetOriginalDocument() { return mOriginalDocument; }
 
   /**
    * Called by nsParser to preload images. Can be removed and code moved
@@ -1166,21 +1387,22 @@ public:
    */
   virtual void MaybePreLoadImage(nsIURI* uri) = 0;
 
-  enum DocumentTheme {
-    Doc_Theme_Uninitialized, // not determined yet
-    Doc_Theme_None,
-    Doc_Theme_Neutral,
-    Doc_Theme_Dark,
-    Doc_Theme_Bright
-  };
+  /**
+   * Called by nsParser to preload style sheets.  Can also be merged into
+   * the parser if and when the parser is merged with libgklayout.
+   */
+  virtual void PreloadStyle(nsIURI* aURI, const nsAString& aCharset) = 0;
 
   /**
-   * Returns Doc_Theme_None if there is no lightweight theme specified,
-   * Doc_Theme_Dark for a dark theme, Doc_Theme_Bright for a light theme, and
-   * Doc_Theme_Neutral for any other theme. This is used to determine the state
-   * of the pseudoclasses :-moz-lwtheme and :-moz-lwtheme-text.
+   * Called by the chrome registry to load style sheets.  Can be put
+   * back there if and when when that module is merged with libgklayout.
+   *
+   * This always does a synchronous load.  If aIsAgentSheet is true,
+   * it also uses the system principal and enables unsafe rules.
+   * DO NOT USE FOR UNTRUSTED CONTENT.
    */
-  virtual int GetDocumentLWTheme() { return Doc_Theme_None; }
+  virtual nsresult LoadChromeSheetSync(nsIURI* aURI, PRBool aIsAgentSheet,
+                                       nsCSSStyleSheet** aSheet) = 0;
 
   /**
    * Returns true if the locale used for the document specifies a direction of
@@ -1191,6 +1413,110 @@ public:
    */
   virtual PRBool IsDocumentRightToLeft() { return PR_FALSE; }
 
+  enum DocumentTheme {
+    Doc_Theme_Uninitialized, // not determined yet
+    Doc_Theme_None,
+    Doc_Theme_Neutral,
+    Doc_Theme_Dark,
+    Doc_Theme_Bright
+  };
+
+  /**
+   * Set the document's pending state object (as serialized to JSON).
+   */
+  void SetCurrentStateObject(nsAString &obj)
+  {
+    mCurrentStateObject.Assign(obj);
+    mCurrentStateObjectCached = nsnull;
+  }
+
+  /**
+   * Returns Doc_Theme_None if there is no lightweight theme specified,
+   * Doc_Theme_Dark for a dark theme, Doc_Theme_Bright for a light theme, and
+   * Doc_Theme_Neutral for any other theme. This is used to determine the state
+   * of the pseudoclasses :-moz-lwtheme and :-moz-lwtheme-text.
+   */
+  virtual int GetDocumentLWTheme() { return Doc_Theme_None; }
+
+  /**
+   * Returns the document state.
+   * Document state bits have the form NS_DOCUMENT_STATE_* and are declared in
+   * nsIDocument.h.
+   */
+  virtual nsEventStates GetDocumentState() = 0;
+
+  virtual nsISupports* GetCurrentContentSink() = 0;
+
+  /**
+   * Register/Unregister a filedata uri as being "owned" by this document. 
+   * I.e. that its lifetime is connected with this document. When the document
+   * goes away it should "kill" the uri by calling
+   * nsFileDataProtocolHandler::RemoveFileDataEntry
+   */
+  virtual void RegisterFileDataUri(const nsACString& aUri) = 0;
+  virtual void UnregisterFileDataUri(const nsACString& aUri) = 0;
+
+  virtual void SetScrollToRef(nsIURI *aDocumentURI) = 0;
+  virtual void ScrollToRef() = 0;
+  virtual void ResetScrolledToRefAlready() = 0;
+  virtual void SetChangeScrollPosWhenScrollingToRef(PRBool aValue) = 0;
+
+  /**
+   * This method is similar to GetElementById() from nsIDOMDocument but it
+   * returns a mozilla::dom::Element instead of a nsIDOMElement.
+   * It prevents converting nsIDOMElement to mozill:dom::Element which is
+   * already converted from mozilla::dom::Element.
+   */
+  virtual Element* GetElementById(const nsAString& aElementId) = 0;
+
+  /**
+   * Lookup an image element using its associated ID, which is usually provided
+   * by |-moz-element()|. Similar to GetElementById, with the difference that
+   * elements set using mozSetImageElement have higher priority.
+   * @param aId the ID associated the element we want to lookup
+   * @return the element associated with |aId|
+   */
+  virtual Element* LookupImageElement(const nsAString& aElementId) = 0;
+
+  void ScheduleBeforePaintEvent(nsIAnimationFrameListener* aListener);
+  void BeforePaintEventFiring()
+  {
+    mHavePendingPaint = PR_FALSE;
+  }
+
+  typedef nsTArray< nsCOMPtr<nsIAnimationFrameListener> > AnimationListenerList;
+  /**
+   * Put this documents animation frame listeners into the provided
+   * list, and forget about them.
+   */
+  void TakeAnimationFrameListeners(AnimationListenerList& aListeners);
+
+  // This returns true when the document tree is being teared down.
+  PRBool InUnlinkOrDeletion() { return mInUnlinkOrDeletion; }
+
+  /*
+   * Image Tracking
+   *
+   * Style and content images register their imgIRequests with their document
+   * so that the document can efficiently tell all descendant images when they
+   * are and are not visible. When an image is on-screen, we want to call
+   * LockImage() on it so that it doesn't do things like discarding frame data
+   * to save memory. The PresShell informs the document whether its images
+   * should be locked or not via SetImageLockingState().
+   *
+   * See bug 512260.
+   */
+
+  // Add/Remove images from the document image tracker
+  virtual nsresult AddImage(imgIRequest* aImage) = 0;
+  virtual nsresult RemoveImage(imgIRequest* aImage) = 0;
+
+  // Makes the images on this document locked/unlocked. By default, the locking
+  // state is unlocked/false.
+  virtual nsresult SetImageLockingState(PRBool aLocked) = 0;
+
+  virtual nsresult GetMozCurrentStateObject(nsIVariant** aResult) = 0;
+
 protected:
   ~nsIDocument()
   {
@@ -1200,6 +1526,20 @@ protected:
     //     want to expose to users of the nsIDocument API outside of Gecko.
   }
 
+  nsPropertyTable* GetExtraPropertyTable(PRUint16 aCategory);
+
+  // Never ever call this. Only call GetWindow!
+  virtual nsPIDOMWindow *GetWindowInternal() const = 0;
+
+  // Never ever call this. Only call GetInnerWindow!
+  virtual nsPIDOMWindow *GetInnerWindowInternal() = 0;
+
+  // Never ever call this. Only call GetScriptHandlingObject!
+  virtual nsIScriptGlobalObject* GetScriptHandlingObjectInternal() const = 0;
+
+  // Never ever call this. Only call AllowXULXBL!
+  virtual PRBool InternalAllowXULXBL() = 0;
+
   /**
    * These methods should be called before and after dispatching
    * a mutation event.
@@ -1208,9 +1548,25 @@ protected:
   virtual void WillDispatchMutationEvent(nsINode* aTarget) = 0;
   virtual void MutationEventDispatched(nsINode* aTarget) = 0;
   friend class mozAutoSubtreeModified;
-  friend class nsPresShellIterator;
+
+  virtual Element* GetNameSpaceElement()
+  {
+    return GetRootElement();
+  }
+
+  void SetContentTypeInternal(const nsACString& aType)
+  {
+    mCachedEncoder = nsnull;
+    mContentType = aType;
+  }
+
+  nsCString GetContentTypeInternal() const
+  {
+    return mContentType;
+  }
 
   nsCOMPtr<nsIURI> mDocumentURI;
+  nsCOMPtr<nsIURI> mOriginalURI;
   nsCOMPtr<nsIURI> mDocumentBaseURI;
 
   nsWeakPtr mDocumentLoadGroup;
@@ -1223,16 +1579,16 @@ protected:
   // This is just a weak pointer; the parent document owns its children.
   nsIDocument* mParentDocument;
 
-  // A reference to the content last returned from GetRootContent().
-  // This should be an nsIContent, but that would force us to pull in
-  // nsIContent.h
-  nsCOMPtr<nsINode> mCachedRootContent;
+  // A reference to the element last returned from GetRootElement().
+  // This should be an Element, but that would force us to pull in
+  // Element.h and therefore nsIContent.h.
+  nsCOMPtr<nsINode> mCachedRootElement;
 
   // We'd like these to be nsRefPtrs, but that'd require us to include
   // additional headers that we don't want to expose.
   // The cleanup is handled by the nsDocument destructor.
   nsNodeInfoManager* mNodeInfoManager; // [STRONG]
-  nsICSSLoader* mCSSLoader; // [STRONG]
+  mozilla::css::Loader* mCSSLoader; // [STRONG]
 
   // The set of all object, embed, applet, video and audio elements for
   // which this is the owner document. (They might not be in the document.)
@@ -1240,8 +1596,14 @@ protected:
   // themselves when they go away.
   nsAutoPtr<nsTHashtable<nsPtrHashKey<nsIContent> > > mFreezableElements;
 
+#ifdef MOZ_SMIL
+  // SMIL Animation Controller, lazily-initialized in GetAnimationController
+  nsRefPtr<nsSMILAnimationController> mAnimationController;
+#endif // MOZ_SMIL
+
   // Table of element properties for this document.
   nsPropertyTable mPropertyTable;
+  nsTArray<nsAutoPtr<nsPropertyTable> > mExtraPropertyTables;
 
   // Compatibility mode
   nsCompatibility mCompatMode;
@@ -1257,7 +1619,18 @@ protected:
   // document in it.
   PRPackedBool mIsInitialDocumentInWindow;
 
-  PRPackedBool mShellsAreHidden;
+  // True if we're currently bfcached. This is only here for binary compat.
+  // Remove once the gecko 2.0 has branched and just use mSHEntry instead.
+  PRPackedBool mShellIsHidden;
+
+  PRPackedBool mIsRegularHTML;
+  PRPackedBool mIsXUL;
+
+  enum {
+    eTriUnset = 0,
+    eTriFalse,
+    eTriTrue
+  } mAllowXULXBL;
 
   // True if we're loaded as data and therefor has any dangerous stuff, such
   // as scripts and plugins, disabled.
@@ -1286,12 +1659,41 @@ protected:
   // document has no window, DNS prefetch won't be performed no matter what.
   PRPackedBool mAllowDNSPrefetch;
   
+  // True when this document is a static clone of a normal document
+  PRPackedBool mIsStaticDocument;
+
+  // True while this document is being cloned to a static document.
+  PRPackedBool mCreatingStaticClone;
+
+  // True iff the document is being unlinked or deleted.
+  PRPackedBool mInUnlinkOrDeletion;
+
+  // True if document has ever had script handling object.
+  PRPackedBool mHasHadScriptHandlingObject;
+
+  // True if we're waiting for a before-paint event.
+  PRPackedBool mHavePendingPaint;
+
+  // True if we're an SVG document being used as an image.
+  PRPackedBool mIsBeingUsedAsImage;
+
+  // The document's script global object, the object from which the
+  // document can get its script context and scope. This is the
+  // *inner* window object.
+  nsCOMPtr<nsIScriptGlobalObject> mScriptGlobalObject;
+
+  // If mIsStaticDocument is true, mOriginalDocument points to the original
+  // document.
+  nsCOMPtr<nsIDocument> mOriginalDocument;
+
   // The bidi options for this document.  What this bitfield means is
   // defined in nsBidiUtils.h
   PRUint32 mBidiOptions;
 
   nsCString mContentLanguage;
+private:
   nsCString mContentType;
+protected:
 
   // The document's security info
   nsCOMPtr<nsISupports> mSecurityInfo;
@@ -1304,7 +1706,7 @@ protected:
   // won't be collected
   PRUint32 mMarkedCCGeneration;
 
-  nsTObserverArray<nsIPresShell*> mPresShells;
+  nsIPresShell* mPresShell;
 
   nsCOMArray<nsINode> mSubtreeModifiedTargets;
   PRUint32            mSubtreeModifiedDepth;
@@ -1315,41 +1717,34 @@ protected:
   nsCOMPtr<nsIDocument> mDisplayDocument;
 
   PRUint32 mEventsSuppressed;
+
+  /**
+   * The number number of external scripts (ones with the src attribute) that
+   * have this document as their owner and that are being evaluated right now.
+   */
+  PRUint32 mExternalScriptsBeingEvaluated;
+
+  nsString mCurrentStateObject;
+
+  // Weak reference to mScriptGlobalObject QI:d to nsPIDOMWindow,
+  // updated on every set of mSecriptGlobalObject.
+  nsPIDOMWindow *mWindow;
+
+  nsCOMPtr<nsIDocumentEncoder> mCachedEncoder;
+
+  AnimationListenerList mAnimationFrameListeners;
+
+  // The session history entry in which we're currently bf-cached. Non-null
+  // if and only if we're currently in the bfcache.
+  nsISHEntry* mSHEntry;
+
+  // Our base target.
+  nsString mBaseTarget;
+
+  nsCOMPtr<nsIVariant> mCurrentStateObjectCached;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIDocument, NS_IDOCUMENT_IID)
-
-#define NS_IDOCUMENT_MOZILLA_1_9_2_BRANCH_IID               \
-  { 0x149e42ac, 0x0d6d, 0x4eaf,                             \
-      { 0x9a, 0x99, 0xc3, 0x69, 0x8d, 0x8f, 0xee, 0x2c } }
-class nsIDocument_MOZILLA_1_9_2_BRANCH : public nsISupports {
-public:
-  NS_DECLARE_STATIC_IID_ACCESSOR(NS_IDOCUMENT_MOZILLA_1_9_2_BRANCH_IID)
-
-  virtual nsISupports* GetCurrentContentSink() = 0;
-};
-
-NS_DEFINE_STATIC_IID_ACCESSOR(nsIDocument_MOZILLA_1_9_2_BRANCH,
-                              NS_IDOCUMENT_MOZILLA_1_9_2_BRANCH_IID)
-
-
-#define NS_IDOCUMENT_MOZILLA_1_9_2_5_BRANCH_IID             \
-  { 0x654b6327, 0xed3f, 0x4fe2,                             \
-      { 0x83, 0x40, 0x11, 0xc4, 0x06, 0x36, 0x77, 0x53 } }
-class nsIDocument_MOZILLA_1_9_2_5_BRANCH : public nsISupports {
-public:
-  NS_DECLARE_STATIC_IID_ACCESSOR(NS_IDOCUMENT_MOZILLA_1_9_2_5_BRANCH_IID)
-
-  virtual nsresult NodesFromRectHelper(float aX, float aY,
-                                       float aTopSize, float aRightSize,
-                                       float aBottomSize, float aLeftSize,
-                                       PRBool aIgnoreRootScrollFrame,
-                                       PRBool aFlushLayout,
-                                       nsIDOMNodeList** aReturn) = 0;
-};
-
-NS_DEFINE_STATIC_IID_ACCESSOR(nsIDocument_MOZILLA_1_9_2_5_BRANCH,
-                              NS_IDOCUMENT_MOZILLA_1_9_2_5_BRANCH_IID)
 
 /**
  * mozAutoSubtreeModified batches DOM mutations so that a DOMSubtreeModified

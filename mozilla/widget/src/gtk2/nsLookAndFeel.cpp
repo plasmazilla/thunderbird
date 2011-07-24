@@ -70,6 +70,7 @@ nscolor   nsLookAndFeel::sComboBoxText = 0;
 nscolor   nsLookAndFeel::sComboBoxBackground = 0;
 PRUnichar nsLookAndFeel::sInvisibleCharacter = PRUnichar('*');
 float     nsLookAndFeel::sCaretRatio = 0;
+PRBool    nsLookAndFeel::sMenuSupportsDrag = PR_FALSE;
 
 //-------------------------------------------------------------------------
 //
@@ -410,72 +411,6 @@ NS_IMETHODIMP nsLookAndFeel::GetMetric(const nsMetricID aID, PRInt32 & aMetric)
     res = NS_OK;
 
     switch (aID) {
-    case eMetric_WindowTitleHeight:
-        aMetric = 0;
-        break;
-    case eMetric_WindowBorderWidth:
-        // XXXldb Why is this commented out?
-        //    aMetric = mStyle->klass->xthickness;
-        break;
-    case eMetric_WindowBorderHeight:
-        // XXXldb Why is this commented out?
-        //    aMetric = mStyle->klass->ythickness;
-        break;
-    case eMetric_Widget3DBorder:
-        // XXXldb Why is this commented out?
-        //    aMetric = 4;
-        break;
-    case eMetric_TextFieldHeight:
-        {
-            GtkRequisition req;
-            GtkWidget *text = gtk_entry_new();
-            // needed to avoid memory leak
-            g_object_ref_sink(GTK_OBJECT(text));
-            gtk_widget_size_request(text,&req);
-            aMetric = req.height;
-            gtk_widget_destroy(text);
-            g_object_unref(text);
-        }
-        break;
-    case eMetric_TextFieldBorder:
-        aMetric = 2;
-        break;
-    case eMetric_TextVerticalInsidePadding:
-        aMetric = 0;
-        break;
-    case eMetric_TextShouldUseVerticalInsidePadding:
-        aMetric = 0;
-        break;
-    case eMetric_TextHorizontalInsideMinimumPadding:
-        aMetric = 15;
-        break;
-    case eMetric_TextShouldUseHorizontalInsideMinimumPadding:
-        aMetric = 1;
-        break;
-    case eMetric_ButtonHorizontalInsidePaddingNavQuirks:
-        aMetric = 10;
-        break;
-    case eMetric_ButtonHorizontalInsidePaddingOffsetNavQuirks:
-        aMetric = 8;
-        break;
-    case eMetric_CheckboxSize:
-        aMetric = 15;
-        break;
-    case eMetric_RadioboxSize:
-        aMetric = 15;
-        break;
-    case eMetric_ListShouldUseHorizontalInsideMinimumPadding:
-        aMetric = 15;
-        break;
-    case eMetric_ListHorizontalInsideMinimumPadding:
-        aMetric = 15;
-        break;
-    case eMetric_ListShouldUseVerticalInsidePadding:
-        aMetric = 1;
-        break;
-    case eMetric_ListVerticalInsidePadding:
-        aMetric = 1;
-        break;
     case eMetric_CaretBlinkTime:
         {
             GtkSettings *settings;
@@ -554,6 +489,7 @@ NS_IMETHODIMP nsLookAndFeel::GetMetric(const nsMetricID aID, PRInt32 & aMetric)
         }
         break;
     case eMetric_ScrollArrowStyle:
+        moz_gtk_init();
         aMetric =
             ConvertGTKStepperStyleToMozillaScrollArrowStyle(moz_gtk_get_scrollbar_widget());
         break;
@@ -578,6 +514,7 @@ NS_IMETHODIMP nsLookAndFeel::GetMetric(const nsMetricID aID, PRInt32 & aMetric)
     case eMetric_DWMCompositor:
     case eMetric_WindowsClassic:
     case eMetric_WindowsDefaultTheme:
+    case eMetric_WindowsThemeIdentifier:
         aMetric = 0;
         res = NS_ERROR_NOT_IMPLEMENTED;
         break;
@@ -628,6 +565,12 @@ NS_IMETHODIMP nsLookAndFeel::GetMetric(const nsMetricID aID, PRInt32 & aMetric)
     case eMetric_ImagesInMenus:
         aMetric = moz_gtk_images_in_menus();
         break;
+    case eMetric_ImagesInButtons:
+        aMetric = moz_gtk_images_in_buttons();
+        break;
+    case eMetric_MenuBarDrag:
+        aMetric = sMenuSupportsDrag;
+        break;
     default:
         aMetric = 0;
         res     = NS_ERROR_FAILURE;
@@ -646,30 +589,6 @@ NS_IMETHODIMP nsLookAndFeel::GetMetric(const nsMetricFloatID aID,
     res = NS_OK;
 
     switch (aID) {
-    case eMetricFloat_TextFieldVerticalInsidePadding:
-        aMetric = 0.25f;
-        break;
-    case eMetricFloat_TextFieldHorizontalInsidePadding:
-        aMetric = 0.95f; // large number on purpose so minimum padding is used
-        break;
-    case eMetricFloat_TextAreaVerticalInsidePadding:
-        aMetric = 0.40f;    
-        break;
-    case eMetricFloat_TextAreaHorizontalInsidePadding:
-        aMetric = 0.40f; // large number on purpose so minimum padding is used
-        break;
-    case eMetricFloat_ListVerticalInsidePadding:
-        aMetric = 0.10f;
-        break;
-    case eMetricFloat_ListHorizontalInsidePadding:
-        aMetric = 0.40f;
-        break;
-    case eMetricFloat_ButtonVerticalInsidePadding:
-        aMetric = 0.25f;
-        break;
-    case eMetricFloat_ButtonHorizontalInsidePadding:
-        aMetric = 0.25f;
-        break;
     case eMetricFloat_IMEUnderlineRelativeSize:
         aMetric = 1.0f;
         break;
@@ -744,6 +663,7 @@ nsLookAndFeel::InitLookAndFeel()
     GtkWidget *treeView = gtk_tree_view_new();
     GtkWidget *linkButton = gtk_link_button_new("http://example.com/");
     GtkWidget *menuBar = gtk_menu_bar_new();
+    GtkWidget *entry = gtk_entry_new();
 
     gtk_container_add(GTK_CONTAINER(button), label);
     gtk_container_add(GTK_CONTAINER(combobox), comboboxLabel);
@@ -753,6 +673,7 @@ nsLookAndFeel::InitLookAndFeel()
     gtk_container_add(GTK_CONTAINER(parent), combobox);
     gtk_container_add(GTK_CONTAINER(parent), menuBar);
     gtk_container_add(GTK_CONTAINER(window), parent);
+    gtk_container_add(GTK_CONTAINER(parent), entry);
 
     gtk_widget_set_style(button, NULL);
     gtk_widget_set_style(label, NULL);
@@ -761,6 +682,7 @@ nsLookAndFeel::InitLookAndFeel()
     gtk_widget_set_style(combobox, NULL);
     gtk_widget_set_style(comboboxLabel, NULL);
     gtk_widget_set_style(menuBar, NULL);
+    gtk_widget_set_style(entry, NULL);
 
     gtk_widget_realize(button);
     gtk_widget_realize(label);
@@ -769,6 +691,7 @@ nsLookAndFeel::InitLookAndFeel()
     gtk_widget_realize(combobox);
     gtk_widget_realize(comboboxLabel);
     gtk_widget_realize(menuBar);
+    gtk_widget_realize(entry);
 
     style = gtk_widget_get_style(label);
     if (style) {
@@ -789,6 +712,20 @@ nsLookAndFeel::InitLookAndFeel()
         sMenuBarText = GDK_COLOR_TO_NS_RGB(style->fg[GTK_STATE_NORMAL]);
         sMenuBarHoverText = GDK_COLOR_TO_NS_RGB(style->fg[GTK_STATE_SELECTED]);
     }
+
+    // Some themes have a unified menu bar, and support window dragging on it
+    gboolean supports_menubar_drag = FALSE;
+    GParamSpec *param_spec =
+        gtk_widget_class_find_style_property(GTK_WIDGET_GET_CLASS(menuBar),
+                                             "window-dragging");
+    if (param_spec) {
+        if (g_type_is_a(G_PARAM_SPEC_VALUE_TYPE(param_spec), G_TYPE_BOOLEAN)) {
+            gtk_widget_style_get(menuBar,
+                                 "window-dragging", &supports_menubar_drag,
+                                 NULL);
+        }
+    }
+    sMenuSupportsDrag = supports_menubar_drag;
 
     // GTK's guide to fancy odd row background colors:
     // 1) Check if a theme explicitly defines an odd row color
@@ -837,11 +774,7 @@ nsLookAndFeel::InitLookAndFeel()
         sNativeHyperLinkText = NS_RGB(0x00,0x00,0xEE);
     }
 
-    gtk_widget_destroy(window);
-
     // invisible character styles
-    GtkWidget *entry = gtk_entry_new();
-    g_object_ref_sink(entry);
     guint value;
     g_object_get (entry, "invisible-char", &value, NULL);
     sInvisibleCharacter = PRUnichar(value);
@@ -851,8 +784,7 @@ nsLookAndFeel::InitLookAndFeel()
                          "cursor-aspect-ratio", &sCaretRatio,
                          NULL);
 
-    gtk_widget_destroy(entry);
-    g_object_unref(entry);
+    gtk_widget_destroy(window);
 }
 
 // virtual

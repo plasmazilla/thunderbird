@@ -61,6 +61,7 @@
 #include "nsIXMLContentSink.h"
 #include "nsContentCID.h"
 #include "nsXMLDocument.h"
+#include "mozilla/FunctionTimer.h"
 #include "nsGkAtoms.h"
 #include "nsIMemory.h"
 #include "nsIObserverService.h"
@@ -68,13 +69,14 @@
 #include "nsXBLContentSink.h"
 #include "nsXBLBinding.h"
 #include "nsXBLPrototypeBinding.h"
-#include "nsIXBLDocumentInfo.h"
+#include "nsXBLDocumentInfo.h"
 #include "nsCRT.h"
 #include "nsContentUtils.h"
 #include "nsSyncLoadService.h"
 #include "nsIDOM3Node.h"
 #include "nsContentPolicyUtils.h"
 #include "nsTArray.h"
+#include "nsContentErrors.h"
 
 #include "nsIPresShell.h"
 #include "nsIDocumentObserver.h"
@@ -132,10 +134,10 @@ IsAncestorBinding(nsIDocument* aDocument,
       nsContentUtils::ReportToConsole(nsContentUtils::eXBL_PROPERTIES,
                                       "TooDeepBindingRecursion",
                                       params, NS_ARRAY_LENGTH(params),
-                                      aDocument->GetDocumentURI(),
+                                      nsnull,
                                       EmptyString(), 0, 0,
                                       nsIScriptError::warningFlag,
-                                      "XBL");
+                                      "XBL", aDocument);
       return PR_TRUE;
     }
   }
@@ -213,9 +215,9 @@ public:
     // has a primary frame and whether it's in the undisplayed map
     // before sending a ContentInserted notification, or bad things
     // will happen.
-    nsIPresShell *shell = doc->GetPrimaryShell();
+    nsIPresShell *shell = doc->GetShell();
     if (shell) {
-      nsIFrame* childFrame = shell->GetPrimaryFrameFor(mBoundElement);
+      nsIFrame* childFrame = mBoundElement->GetPrimaryFrame();
       if (!childFrame) {
         // Check to see if it's in the undisplayed content map.
         nsStyleContext* sc =
@@ -437,18 +439,27 @@ nsXBLStreamListener::Load(nsIDOMEvent* aEvent)
     nsIURI* documentURI = bindingDocument->GetDocumentURI();
     bindingManager->RemoveLoadingDocListener(documentURI);
 
-    if (!bindingDocument->GetRootContent()) {
+    if (!bindingDocument->GetRootElement()) {
+      // FIXME: How about an error console warning?
       NS_WARNING("*** XBL doc with no root element! Something went horribly wrong! ***");
       return NS_ERROR_FAILURE;
     }
 
     // Put our doc info in the doc table.
     nsBindingManager *xblDocBindingManager = bindingDocument->BindingManager();
-    nsCOMPtr<nsIXBLDocumentInfo> info =
+    nsRefPtr<nsXBLDocumentInfo> info =
       xblDocBindingManager->GetXBLDocumentInfo(documentURI);
     xblDocBindingManager->RemoveXBLDocumentInfo(info); // Break the self-imposed cycle.
     if (!info) {
-      NS_ERROR("An XBL file is malformed.  Did you forget the XBL namespace on the bindings tag?");
+      if (IsChromeOrResourceURI(documentURI)) {
+        NS_WARNING("An XBL file is malformed. Did you forget the XBL namespace on the bindings tag?");
+      }
+      nsContentUtils::ReportToConsole(nsContentUtils::eXBL_PROPERTIES,
+                                      "MalformedXBL",
+                                      nsnull, 0, documentURI,
+                                      EmptyString(), 0, 0,
+                                      nsIScriptError::warningFlag,
+                                      "XBL");
       return NS_ERROR_FAILURE;
     }
 
@@ -857,7 +868,7 @@ nsXBLService::GetBinding(nsIContent* aBoundElement, nsIURI* aURI,
 
   nsCOMPtr<nsIDocument> boundDocument = aBoundElement->GetOwnerDoc();
 
-  nsCOMPtr<nsIXBLDocumentInfo> docInfo;
+  nsRefPtr<nsXBLDocumentInfo> docInfo;
   nsresult rv = LoadBindingDocumentInfo(aBoundElement, boundDocument, aURI,
                                         aOriginPrincipal,
                                         PR_FALSE, getter_AddRefs(docInfo));
@@ -867,13 +878,9 @@ nsXBLService::GetBinding(nsIContent* aBoundElement, nsIURI* aURI,
     return NS_ERROR_FAILURE;
 
   // Get our doc info and determine our script access.
-  nsCOMPtr<nsIDocument> doc;
-  docInfo->GetDocument(getter_AddRefs(doc));
-  PRBool allowScripts;
-  docInfo->GetScriptAccess(&allowScripts);
+  nsCOMPtr<nsIDocument> doc = docInfo->GetDocument();
 
-  nsXBLPrototypeBinding* protoBinding;
-  docInfo->GetPrototypeBinding(ref, &protoBinding);
+  nsXBLPrototypeBinding* protoBinding = docInfo->GetPrototypeBinding(ref);
 
   NS_ASSERTION(protoBinding, "Unable to locate an XBL binding.");
   if (!protoBinding)
@@ -971,10 +978,10 @@ nsXBLService::GetBinding(nsIContent* aBoundElement, nsIURI* aURI,
               nsContentUtils::ReportToConsole(nsContentUtils::eXBL_PROPERTIES,
                                               "InvalidExtendsBinding",
                                               params, NS_ARRAY_LENGTH(params),
-                                              doc->GetDocumentURI(),
+                                              nsnull,
                                               EmptyString(), 0, 0,
                                               nsIScriptError::errorFlag,
-                                              "XBL");
+                                              "XBL", doc);
               NS_ASSERTION(!IsChromeOrResourceURI(aURI),
                            "Invalid extends value");
               return NS_ERROR_ILLEGAL_VALUE;
@@ -991,7 +998,7 @@ nsXBLService::GetBinding(nsIContent* aBoundElement, nsIURI* aURI,
         nsCOMPtr<nsIURI> bindingURI;
         rv = NS_NewURI(getter_AddRefs(bindingURI), value,
                        doc->GetDocumentCharacterSet().get(),
-                       doc->GetBaseURI());
+                       doc->GetDocBaseURI());
         NS_ENSURE_SUCCESS(rv, rv);
         
         PRUint32 count = aDontExtendURIs.Length();
@@ -1007,10 +1014,10 @@ nsXBLService::GetBinding(nsIContent* aBoundElement, nsIURI* aURI,
             nsContentUtils::ReportToConsole(nsContentUtils::eXBL_PROPERTIES,
                                             "CircularExtendsBinding",
                                             params, NS_ARRAY_LENGTH(params),
-                                            boundDocument->GetDocumentURI(),
+                                            nsnull,
                                             EmptyString(), 0, 0,
                                             nsIScriptError::warningFlag,
-                                            "XBL");
+                                            "XBL", boundDocument);
             return NS_ERROR_ILLEGAL_VALUE;
           }
         }
@@ -1057,13 +1064,28 @@ static PRBool SchemeIs(nsIURI* aURI, const char* aScheme)
   return NS_SUCCEEDED(baseURI->SchemeIs(aScheme, &isScheme)) && isScheme;
 }
 
+static PRBool
+IsSystemOrChromeURLPrincipal(nsIPrincipal* aPrincipal)
+{
+  if (nsContentUtils::IsSystemPrincipal(aPrincipal)) {
+    return PR_TRUE;
+  }
+  
+  nsCOMPtr<nsIURI> uri;
+  aPrincipal->GetURI(getter_AddRefs(uri));
+  NS_ENSURE_TRUE(uri, PR_FALSE);
+  
+  PRBool isChrome = PR_FALSE;
+  return NS_SUCCEEDED(uri->SchemeIs("chrome", &isChrome)) && isChrome;
+}
+
 NS_IMETHODIMP
 nsXBLService::LoadBindingDocumentInfo(nsIContent* aBoundElement,
                                       nsIDocument* aBoundDocument,
                                       nsIURI* aBindingURI,
                                       nsIPrincipal* aOriginPrincipal,
                                       PRBool aForceSyncLoad,
-                                      nsIXBLDocumentInfo** aResult)
+                                      nsXBLDocumentInfo** aResult)
 {
   NS_PRECONDITION(aBindingURI, "Must have a binding URI");
   NS_PRECONDITION(!aOriginPrincipal || aBoundDocument,
@@ -1085,26 +1107,26 @@ nsXBLService::LoadBindingDocumentInfo(nsIContent* aBoundElement,
                               gAllowDataURIs,
                               nsIContentPolicy::TYPE_XBL,
                               aBoundDocument);
-    NS_ENSURE_SUCCESS(rv, rv);
+    NS_ENSURE_SUCCESS(rv, NS_ERROR_XBL_BLOCKED);
 
-    // Also make sure that we're same-origin with the bound document
-    // except if the stylesheet has the system principal.
-    PRBool isSystem;
-    rv = nsContentUtils::GetSecurityManager()->
-      IsSystemPrincipal(aOriginPrincipal, &isSystem);
-    NS_ENSURE_SUCCESS(rv, rv);
+    if (!IsSystemOrChromeURLPrincipal(aOriginPrincipal)) {
+      // Also make sure that we're same-origin with the bound document
+      // except if the stylesheet has the system principal.
+      if (!(gAllowDataURIs && SchemeIs(aBindingURI, "data")) &&
+          !SchemeIs(aBindingURI, "chrome")) {
+        rv = aBoundDocument->NodePrincipal()->CheckMayLoad(aBindingURI,
+                                                           PR_TRUE);
+        NS_ENSURE_SUCCESS(rv, NS_ERROR_XBL_BLOCKED);
+      }
 
-    if (!isSystem &&
-        !(gAllowDataURIs && SchemeIs(aBindingURI, "data")) &&
-        !SchemeIs(aBindingURI, "chrome")) {
-      rv = aBoundDocument->NodePrincipal()->CheckMayLoad(aBindingURI,
-                                                         PR_TRUE);
-      NS_ENSURE_SUCCESS(rv, rv);
+      // Finally check if this document is allowed to use XBL at all.
+      NS_ENSURE_TRUE(aBoundDocument->AllowXULXBL(),
+                     NS_ERROR_XBL_BLOCKED);
     }
   }
 
   *aResult = nsnull;
-  nsCOMPtr<nsIXBLDocumentInfo> info;
+  nsRefPtr<nsXBLDocumentInfo> info;
 
   nsCOMPtr<nsIURI> documentURI;
   rv = aBindingURI->Clone(getter_AddRefs(documentURI));
@@ -1145,8 +1167,7 @@ nsXBLService::LoadBindingDocumentInfo(nsIContent* aBoundElement,
                   ni->Equals(nsGkAtoms::thumb, kNameSpaceID_XUL) ||
                   ((ni->Equals(nsGkAtoms::input) ||
                     ni->Equals(nsGkAtoms::select)) &&
-                   aBoundElement->IsNodeOfType(nsINode::eHTML)))) &&
-        !aForceSyncLoad) {
+                   aBoundElement->IsHTML()))) && !aForceSyncLoad) {
       // The third line of defense is to investigate whether or not the
       // document is currently being loaded asynchronously.  If so, there's no
       // document yet, but we need to glom on our request so that it will be
@@ -1217,6 +1238,8 @@ nsXBLService::FetchBindingDocument(nsIContent* aBoundElement, nsIDocument* aBoun
                                    nsIURI* aDocumentURI, nsIURI* aBindingURI, 
                                    PRBool aForceSyncLoad, nsIDocument** aResult)
 {
+  NS_TIME_FUNCTION;
+
   nsresult rv = NS_OK;
   // Initialize our out pointer to nsnull
   *aResult = nsnull;
@@ -1322,7 +1345,7 @@ NS_NewXBLService(nsIXBLService** aResult)
 
   // Register the first (and only) nsXBLService as a memory pressure observer
   // so it can flush the LRU list in low-memory situations.
-  nsCOMPtr<nsIObserverService> os = do_GetService("@mozilla.org/observer-service;1");
+  nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
   if (os)
     os->AddObserver(result, "memory-pressure", PR_TRUE);
 

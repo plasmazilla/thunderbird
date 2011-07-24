@@ -38,15 +38,24 @@
 
 #ifdef MOZ_WIDGET_GTK2
 #include <glib.h>
+#elif XP_MACOSX
+#include "PluginUtilsOSX.h"
+#include "PluginInterposeOSX.h"
+#endif
+#ifdef MOZ_WIDGET_QT
+#include <QtCore/QCoreApplication>
+#include <QtCore/QEventLoop>
 #endif
 
 #include "base/process_util.h"
 
+#include "mozilla/unused.h"
 #include "mozilla/ipc/SyncChannel.h"
 #include "mozilla/plugins/PluginModuleParent.h"
 #include "mozilla/plugins/BrowserStreamParent.h"
 #include "PluginIdentifierParent.h"
 
+#include "nsAutoPtr.h"
 #include "nsContentUtils.h"
 #include "nsCRT.h"
 #ifdef MOZ_CRASHREPORTER
@@ -62,6 +71,7 @@ using mozilla::ipc::SyncChannel;
 using namespace mozilla::plugins;
 
 static const char kTimeoutPref[] = "dom.ipc.plugins.timeoutSecs";
+static const char kLaunchTimeoutPref[] = "dom.ipc.plugins.processLaunchTimeoutSecs";
 
 template<>
 struct RunnableMethodTraits<mozilla::plugins::PluginModuleParent>
@@ -77,15 +87,21 @@ PluginModuleParent::LoadModule(const char* aFilePath)
 {
     PLUGIN_LOG_DEBUG_FUNCTION;
 
+    PRInt32 prefSecs = nsContentUtils::GetIntPref(kLaunchTimeoutPref, 0);
+
     // Block on the child process being launched and initialized.
-    PluginModuleParent* parent = new PluginModuleParent(aFilePath);
-    parent->mSubprocess->Launch();
+    nsAutoPtr<PluginModuleParent> parent(new PluginModuleParent(aFilePath));
+    bool launched = parent->mSubprocess->Launch(prefSecs * 1000);
+    if (!launched) {
+        // Need to set this so the destructor doesn't complain.
+        parent->mShutdown = true;
+        return nsnull;
+    }
     parent->Open(parent->mSubprocess->GetChannel(),
                  parent->mSubprocess->GetChildProcessHandle());
 
     TimeoutChanged(kTimeoutPref, parent);
-
-    return parent;
+    return parent.forget();
 }
 
 
@@ -93,6 +109,8 @@ PluginModuleParent::PluginModuleParent(const char* aFilePath)
     : mSubprocess(new PluginProcessParent(aFilePath))
     , mPluginThread(0)
     , mShutdown(false)
+    , mClearSiteDataSupported(false)
+    , mGetSitesWithDataSupported(false)
     , mNPNIface(NULL)
     , mPlugin(NULL)
     , mProcessStartTime(time(NULL))
@@ -110,6 +128,12 @@ PluginModuleParent::PluginModuleParent(const char* aFilePath)
 PluginModuleParent::~PluginModuleParent()
 {
     NS_ASSERTION(OkToCleanup(), "unsafe destruction");
+
+#ifdef OS_MACOSX
+    if (mCATimer) {
+        mCATimer->Cancel();
+    }
+#endif
 
     if (!mShutdown) {
         NS_WARNING("Plugin host deleted the module without shutting down.");
@@ -217,7 +241,13 @@ PluginModuleParent::ShouldContinueFromReplyTimeout()
 #ifdef MOZ_CRASHREPORTER
     nsCOMPtr<nsILocalFile> pluginDump;
     nsCOMPtr<nsILocalFile> browserDump;
-    if (CrashReporter::CreatePairedMinidumps(OtherProcess(),
+    CrashReporter::ProcessHandle child;
+#ifdef XP_MACOSX
+    child = mSubprocess->GetChildTask();
+#else
+    child = OtherProcess();
+#endif
+    if (CrashReporter::CreatePairedMinidumps(child,
                                              mPluginThread,
                                              &mHangID,
                                              getter_AddRefs(pluginDump),
@@ -333,8 +363,8 @@ PluginModuleParent::DeallocPPluginIdentifier(PPluginIdentifierParent* aActor)
 PPluginInstanceParent*
 PluginModuleParent::AllocPPluginInstance(const nsCString& aMimeType,
                                          const uint16_t& aMode,
-                                         const nsTArray<nsCString>& aNames,
-                                         const nsTArray<nsCString>& aValues,
+                                         const InfallibleTArray<nsCString>& aNames,
+                                         const InfallibleTArray<nsCString>& aValues,
                                          NPError* rv)
 {
     NS_ERROR("Not reachable!");
@@ -355,7 +385,11 @@ PluginModuleParent::SetPluginFuncs(NPPluginFuncs* aFuncs)
     aFuncs->version = (NP_VERSION_MAJOR << 8) | NP_VERSION_MINOR;
     aFuncs->javaClass = nsnull;
 
-    aFuncs->newp = nsnull; // Gecko should always call this through a PluginLibrary object
+    // Gecko should always call these functions through a PluginLibrary object.
+    aFuncs->newp = NULL;
+    aFuncs->clearsitedata = NULL;
+    aFuncs->getsiteswithdata = NULL;
+
     aFuncs->destroy = NPP_Destroy;
     aFuncs->setwindow = NPP_SetWindow;
     aFuncs->newstream = NPP_NewStream;
@@ -368,6 +402,19 @@ PluginModuleParent::SetPluginFuncs(NPPluginFuncs* aFuncs)
     aFuncs->urlnotify = NPP_URLNotify;
     aFuncs->getvalue = NPP_GetValue;
     aFuncs->setvalue = NPP_SetValue;
+    aFuncs->gotfocus = NULL;
+    aFuncs->lostfocus = NULL;
+    aFuncs->urlredirectnotify = NULL;
+
+    // Provide 'NPP_URLRedirectNotify', 'NPP_ClearSiteData', and
+    // 'NPP_GetSitesWithData' functionality if it is supported by the plugin.
+    bool urlRedirectSupported = false;
+    unused << CallOptionalFunctionsSupported(&urlRedirectSupported,
+                                             &mClearSiteDataSupported,
+                                             &mGetSitesWithDataSupported);
+    if (urlRedirectSupported) {
+      aFuncs->urlredirectnotify = NPP_URLRedirectNotify;
+    }
 }
 
 NPError
@@ -390,7 +437,7 @@ PluginModuleParent::NPP_Destroy(NPP instance,
     NPError retval = parentInstance->Destroy();
     instance->pdata = nsnull;
 
-    (void) PluginInstanceParent::Call__delete__(parentInstance);
+    unused << PluginInstanceParent::Call__delete__(parentInstance);
     return retval;
 }
 
@@ -518,6 +565,30 @@ PluginModuleParent::NPP_SetValue(NPP instance, NPNVariable variable,
 }
 
 bool
+PluginModuleParent::RecvBackUpXResources(const FileDescriptor& aXSocketFd)
+{
+#ifndef MOZ_X11
+    NS_RUNTIMEABORT("This message only makes sense on X11 platforms");
+#else
+    NS_ABORT_IF_FALSE(0 > mPluginXSocketFdDup.mFd,
+                      "Already backed up X resources??");
+    mPluginXSocketFdDup.mFd = aXSocketFd.fd;
+#endif
+    return true;
+}
+
+void
+PluginModuleParent::NPP_URLRedirectNotify(NPP instance, const char* url,
+                                          int32_t status, void* notifyData)
+{
+  PluginInstanceParent* i = InstCast(instance);
+  if (!i)
+    return;
+
+  i->NPP_URLRedirectNotify(url, status, notifyData);
+}
+
+bool
 PluginModuleParent::AnswerNPN_UserAgent(nsCString* userAgent)
 {
     *userAgent = NullableString(mNPNIface->uagent(nsnull));
@@ -591,6 +662,67 @@ PluginModuleParent::HasRequiredFunctions()
     return true;
 }
 
+nsresult
+PluginModuleParent::AsyncSetWindow(NPP instance, NPWindow* window)
+{
+    PluginInstanceParent* i = InstCast(instance);
+    if (!i)
+        return NS_ERROR_FAILURE;
+
+    return i->AsyncSetWindow(window);
+}
+
+nsresult
+PluginModuleParent::GetImage(NPP instance,
+                             mozilla::layers::ImageContainer* aContainer,
+                             mozilla::layers::Image** aImage)
+{
+    PluginInstanceParent* i = InstCast(instance);
+    return !i ? NS_ERROR_FAILURE : i->GetImage(aContainer, aImage);
+}
+
+nsresult
+PluginModuleParent::GetImageSize(NPP instance,
+                                 nsIntSize* aSize)
+{
+    PluginInstanceParent* i = InstCast(instance);
+    return !i ? NS_ERROR_FAILURE : i->GetImageSize(aSize);
+}
+
+nsresult
+PluginModuleParent::SetBackgroundUnknown(NPP instance)
+{
+    PluginInstanceParent* i = InstCast(instance);
+    if (!i)
+        return NS_ERROR_FAILURE;
+
+    return i->SetBackgroundUnknown();
+}
+
+nsresult
+PluginModuleParent::BeginUpdateBackground(NPP instance,
+                                          const nsIntRect& aRect,
+                                          gfxContext** aCtx)
+{
+    PluginInstanceParent* i = InstCast(instance);
+    if (!i)
+        return NS_ERROR_FAILURE;
+
+    return i->BeginUpdateBackground(aRect, aCtx);
+}
+
+nsresult
+PluginModuleParent::EndUpdateBackground(NPP instance,
+                                        gfxContext* aCtx,
+                                        const nsIntRect& aRect)
+{
+    PluginInstanceParent* i = InstCast(instance);
+    if (!i)
+        return NS_ERROR_FAILURE;
+
+    return i->EndUpdateBackground(aCtx, aRect);
+}
+
 #if defined(XP_UNIX) && !defined(XP_MACOSX)
 nsresult
 PluginModuleParent::NP_Initialize(NPNetscapeFuncs* bFuncs, NPPluginFuncs* pFuncs, NPError* error)
@@ -612,6 +744,7 @@ PluginModuleParent::NP_Initialize(NPNetscapeFuncs* bFuncs, NPPluginFuncs* pFuncs
     }
 
     SetPluginFuncs(pFuncs);
+
     return NS_OK;
 }
 #else
@@ -682,8 +815,18 @@ PluginModuleParent::NP_GetEntryPoints(NPPluginFuncs* pFuncs, NPError* error)
 {
     NS_ASSERTION(pFuncs, "Null pointer!");
 
+    // We need to have the child process update its function table
+    // here by actually calling NP_GetEntryPoints since the parent's
+    // function table can reflect NULL entries in the child's table.
+    if (!CallNP_GetEntryPoints(error)) {
+        return NS_ERROR_FAILURE;
+    }
+    else if (*error != NPERR_NO_ERROR) {
+        return NS_OK;
+    }
+
     SetPluginFuncs(pFuncs);
-    *error = NPERR_NO_ERROR;
+
     return NS_OK;
 }
 #endif
@@ -702,8 +845,8 @@ PluginModuleParent::NPP_New(NPMIMEType pluginType, NPP instance,
     }
 
     // create the instance on the other side
-    nsTArray<nsCString> names;
-    nsTArray<nsCString> values;
+    InfallibleTArray<nsCString> names;
+    InfallibleTArray<nsCString> values;
 
     for (int i = 0; i < argc; ++i) {
         names.AppendElement(NullableString(argn[i]));
@@ -711,7 +854,8 @@ PluginModuleParent::NPP_New(NPMIMEType pluginType, NPP instance,
     }
 
     PluginInstanceParent* parentInstance =
-        new PluginInstanceParent(this, instance, mNPNIface);
+        new PluginInstanceParent(this, instance,
+                                 nsDependentCString(pluginType), mNPNIface);
 
     if (!parentInstance->Init()) {
         delete parentInstance;
@@ -735,11 +879,58 @@ PluginModuleParent::NPP_New(NPMIMEType pluginType, NPP instance,
 
     if (*error != NPERR_NO_ERROR) {
         NPP_Destroy(instance, 0);
-        return *error;
+        return NS_ERROR_FAILURE;
     }
 
     return NS_OK;
 }
+
+nsresult
+PluginModuleParent::NPP_ClearSiteData(const char* site, uint64_t flags,
+                                      uint64_t maxAge)
+{
+    if (!mClearSiteDataSupported)
+        return NS_ERROR_NOT_AVAILABLE;
+
+    NPError result;
+    if (!CallNPP_ClearSiteData(NullableString(site), flags, maxAge, &result))
+        return NS_ERROR_FAILURE;
+
+    switch (result) {
+    case NPERR_NO_ERROR:
+        return NS_OK;
+    case NPERR_TIME_RANGE_NOT_SUPPORTED:
+        return NS_ERROR_PLUGIN_TIME_RANGE_NOT_SUPPORTED;
+    case NPERR_MALFORMED_SITE:
+        return NS_ERROR_INVALID_ARG;
+    default:
+        return NS_ERROR_FAILURE;
+    }
+}
+
+nsresult
+PluginModuleParent::NPP_GetSitesWithData(InfallibleTArray<nsCString>& result)
+{
+    if (!mGetSitesWithDataSupported)
+        return NS_ERROR_NOT_AVAILABLE;
+
+    if (!CallNPP_GetSitesWithData(&result))
+        return NS_ERROR_FAILURE;
+
+    return NS_OK;
+}
+
+#if defined(XP_MACOSX)
+nsresult
+PluginModuleParent::IsRemoteDrawingCoreAnimation(NPP instance, PRBool *aDrawing)
+{
+    PluginInstanceParent* i = InstCast(instance);
+    if (!i)
+        return NS_ERROR_FAILURE;
+
+    return i->IsRemoteDrawingCoreAnimation(aDrawing);
+}
+#endif
 
 bool
 PluginModuleParent::AnswerNPN_GetValue_WithBoolReturn(const NPNVariable& aVariable,
@@ -752,7 +943,28 @@ PluginModuleParent::AnswerNPN_GetValue_WithBoolReturn(const NPNVariable& aVariab
     return true;
 }
 
-#if !defined(MOZ_WIDGET_GTK2)
+#if defined(MOZ_WIDGET_QT)
+static const int kMaxtimeToProcessEvents = 30;
+bool
+PluginModuleParent::AnswerProcessSomeEvents()
+{
+    PLUGIN_LOG_DEBUG(("Spinning mini nested loop ..."));
+    QCoreApplication::processEvents(QEventLoop::AllEvents, kMaxtimeToProcessEvents);
+
+    PLUGIN_LOG_DEBUG(("... quitting mini nested loop"));
+
+    return true;
+}
+
+#elif defined(XP_MACOSX)
+bool
+PluginModuleParent::AnswerProcessSomeEvents()
+{
+    mozilla::plugins::PluginUtilsOSX::InvokeNativeEventLoop();
+    return true;
+}
+
+#elif !defined(MOZ_WIDGET_GTK2)
 bool
 PluginModuleParent::AnswerProcessSomeEvents()
 {
@@ -788,7 +1000,82 @@ PluginModuleParent::RecvProcessNativeEventsInRPCCall()
     return true;
 #else
     NS_NOTREACHED(
-        "PluginInstanceParent::AnswerSetNestedEventState not implemented!");
+        "PluginInstanceParent::RecvProcessNativeEventsInRPCCall not implemented!");
     return false;
 #endif
 }
+
+bool
+PluginModuleParent::RecvPluginShowWindow(const uint32_t& aWindowId, const bool& aModal,
+                                         const int32_t& aX, const int32_t& aY,
+                                         const size_t& aWidth, const size_t& aHeight)
+{
+    PLUGIN_LOG_DEBUG(("%s", FULLFUNCTION));
+#if defined(XP_MACOSX)
+    CGRect windowBound = ::CGRectMake(aX, aY, aWidth, aHeight);
+    mac_plugin_interposing::parent::OnPluginShowWindow(aWindowId, windowBound, aModal);
+    return true;
+#else
+    NS_NOTREACHED(
+        "PluginInstanceParent::RecvPluginShowWindow not implemented!");
+    return false;
+#endif
+}
+
+bool
+PluginModuleParent::RecvPluginHideWindow(const uint32_t& aWindowId)
+{
+    PLUGIN_LOG_DEBUG(("%s", FULLFUNCTION));
+#if defined(XP_MACOSX)
+    mac_plugin_interposing::parent::OnPluginHideWindow(aWindowId, OtherSidePID());
+    return true;
+#else
+    NS_NOTREACHED(
+        "PluginInstanceParent::RecvPluginHideWindow not implemented!");
+    return false;
+#endif
+}
+
+#ifdef OS_MACOSX
+#define DEFAULT_REFRESH_MS 20 // CoreAnimation: 50 FPS
+
+void
+CAUpdate(nsITimer *aTimer, void *aClosure) {
+    nsTObserverArray<PluginInstanceParent*> *ips =
+        static_cast<nsTObserverArray<PluginInstanceParent*> *>(aClosure);
+    nsTObserverArray<PluginInstanceParent*>::ForwardIterator iter(*ips);
+    while (iter.HasMore()) {
+        iter.GetNext()->Invalidate();
+    }
+}
+
+void
+PluginModuleParent::AddToRefreshTimer(PluginInstanceParent *aInstance) {
+    if (mCATimerTargets.Contains(aInstance)) {
+        return;
+    }
+
+    mCATimerTargets.AppendElement(aInstance);
+    if (mCATimerTargets.Length() == 1) {
+        if (!mCATimer) {
+            nsresult rv;
+            nsCOMPtr<nsITimer> xpcomTimer = do_CreateInstance(NS_TIMER_CONTRACTID, &rv);
+            if (NS_FAILED(rv)) {
+                NS_WARNING("Could not create Core Animation timer for plugin.");
+                return;
+            }
+            mCATimer = xpcomTimer;
+        }
+        mCATimer->InitWithFuncCallback(CAUpdate, &mCATimerTargets, DEFAULT_REFRESH_MS,
+                                       nsITimer::TYPE_REPEATING_SLACK);
+    }
+}
+
+void
+PluginModuleParent::RemoveFromRefreshTimer(PluginInstanceParent *aInstance) {
+    PRBool visibleRemoved = mCATimerTargets.RemoveElement(aInstance);
+    if (visibleRemoved && mCATimerTargets.IsEmpty()) {
+        mCATimer->Cancel();
+    }
+}
+#endif

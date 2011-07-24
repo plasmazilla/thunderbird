@@ -1,7 +1,7 @@
 <html>
 <head>
   <title>Tests for the dragstart event</title>
-  <link rel="stylesheet" type="text/css" href="chrome://mochikit/content/tests/SimpleTest/test.css">
+  <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css">
   <script type="application/javascript" src="/MochiKit/packed.js"></script>
   <script type="application/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>      
   <script type="application/javascript" src="/tests/SimpleTest/EventUtils.js"></script>      
@@ -16,41 +16,60 @@ SimpleTest.waitForExplicitFinish();
 function fireEvent(target, event) {
   netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
   var utils =
-    window.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-          .getInterface(Components.interfaces.nsIDOMWindowUtils)
-          .QueryInterface(Components.interfaces.nsIDOMWindowUtils_1_9_2);
+    window.QueryInterface(Components.interfaces.nsIInterfaceRequestor).
+           getInterface(Components.interfaces.nsIDOMWindowUtils);
   utils.dispatchDOMEventViaPresShell(target, event, true);
 }
 
-function fireDrop(element, dragData, shouldAllowDrop, shouldAllowOnlyChromeDrop) {
+function fireDrop(element, shouldAllowDrop, shouldAllowOnlyChromeDrop) {
   netscape.security.PrivilegeManager.enablePrivilege('UniversalXPConnect');
   var ds = Components.classes["@mozilla.org/widget/dragservice;1"].
     getService(Components.interfaces.nsIDragService);
 
+  var dataTransfer;
+  var trapDrag = function(event) {
+    dataTransfer = event.dataTransfer;
+    dataTransfer.setData("text/plain", "Hello");;
+    dataTransfer.dropEffect = "move";
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  // need to use real mouse action
+  window.addEventListener("dragstart", trapDrag, true);
+  synthesizeMouse(element, 2, 2, { type: "mousedown" });
+  synthesizeMouse(element, 11, 11, { type: "mousemove" });
+  synthesizeMouse(element, 20, 20, { type: "mousemove" });
+  window.removeEventListener("dragstart", trapDrag, true);
+  synthesizeMouse(element, 20, 20, { type: "mouseup" });
+
   ds.startDragSession();
 
   var event = document.createEvent("DragEvents");
-  event.initDragEvent("dragover", true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null, null);
+  event.initDragEvent("dragover", true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null, dataTransfer);
   fireEvent(element, event);
 
   is(ds.getCurrentSession().canDrop, shouldAllowDrop, "Unexpected .canDrop");
-  is(ds.getCurrentSession().
-       QueryInterface(Components.interfaces.nsIDragSession_1_9_2).onlyChromeDrop,
-     shouldAllowOnlyChromeDrop,
+  is(ds.getCurrentSession().onlyChromeDrop, shouldAllowOnlyChromeDrop,
      "Unexpected .onlyChromeDrop");
 
   event = document.createEvent("DragEvents");
-  event.initDragEvent("drop", true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null, null);
+  event.initDragEvent("drop", true, true, window, 0, 0, 0, 0, 0, false, false, false, false, 0, null, dataTransfer);
   fireEvent(element, event);
 
   ds.endDragSession(false);
   ok(!ds.getCurrentSession(), "There shouldn't be a drag session anymore!");
 }
 
+var chromeGotEvent = false;
+function chromeListener(e) {
+  chromeGotEvent = true;
+}
+
 function runTests()
 {
   var targetHandling = document.getElementById("handling_target");
-  fireDrop(targetHandling, [{"test/plain": "Hello!"}], false, false);
+  fireDrop(targetHandling, true, false);
 
   is(gGotHandlingDrop, true, "Got drop on accepting element (1)");
   is(gGotNotHandlingDrop, false, "Didn't get drop on unaccepting element (1)");
@@ -59,9 +78,11 @@ function runTests()
   gGotHandlingDrop = false;
   gGotNotHandlingDrop = false;
 
+  SpecialPowers.addChromeEventListener("drop", chromeListener, true, false);
   var targetNotHandling = document.getElementById("nothandling_target");
-  fireDrop(targetNotHandling, [{"test/plain": "Hello!"}], true, true);
-
+  fireDrop(targetNotHandling, true, true);
+  SpecialPowers.removeChromeEventListener("drop", chromeListener, true);
+  ok(chromeGotEvent, "Chrome should have got drop event!");
   is(gGotHandlingDrop, false, "Didn't get drop on accepting element (2)");
   is(gGotNotHandlingDrop, false, "Didn't get drop on unaccepting element (2)");
 

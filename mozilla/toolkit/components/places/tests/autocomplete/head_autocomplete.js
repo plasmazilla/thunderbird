@@ -35,20 +35,26 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+const Ci = Components.interfaces;
+const Cc = Components.classes;
+const Cr = Components.results;
+const Cu = Components.utils;
+
+Cu.import("resource://gre/modules/Services.jsm");
+
+// Import common head.
+let (commonFile = do_get_file("../head_common.js", false)) {
+  let uri = Services.io.newFileURI(commonFile);
+  Services.scriptloader.loadSubScript(uri.spec, this);
+}
+
+// Put any other stuff relative to this test folder below.
+
+
 /**
  * Header file for autocomplete testcases that create a set of pages with uris,
  * titles, tags and tests that a given search term matches certain pages.
  */
-
-Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
-
-const TRANSITION_LINK = Ci.nsINavHistoryService.TRANSITION_LINK;
-const TRANSITION_TYPED = Ci.nsINavHistoryService.TRANSITION_TYPED;
-const TRANSITION_BOOKMARK = Ci.nsINavHistoryService.TRANSITION_BOOKMARK;
-const TRANSITION_EMBED = Ci.nsINavHistoryService.TRANSITION_EMBED;
-const TRANSITION_REDIRECT_PERMANENT = Ci.nsINavHistoryService.TRANSITION_REDIRECT_PERMANENT;
-const TRANSITION_REDIRECT_TEMPORARY = Ci.nsINavHistoryService.TRANSITION_REDIRECT_TEMPORARY;
-const TRANSITION_DOWNLOAD = Ci.nsINavHistoryService.TRANSITION_DOWNLOAD;
 
 let current_test = 0;
 
@@ -71,12 +77,14 @@ AutoCompleteInput.prototype = {
   setSelectedIndex: function() {},
   get searchCount() { return this.searches.length; },
   getSearchAt: function(aIndex) this.searches[aIndex],
-  QueryInterface: XPCOMUtils.generateQI([Ci.nsIAutoCompleteInput, Ci.nsIAutoCompletePopup])
+  QueryInterface: XPCOMUtils.generateQI([
+    Ci.nsIAutoCompleteInput,
+    Ci.nsIAutoCompletePopup,
+  ])
 };
 
-function toURI(aSpec)
-{
-  return iosvc.newURI(aSpec, null, null);
+function toURI(aSpec) {
+  return uri(aSpec);
 }
 
 let appendTags = true;
@@ -98,6 +106,9 @@ function ensure_results(aSearch, aExpected)
 
   controller.input = input;
 
+  if (typeof kSearchParam == "string")
+    input.searchParam = kSearchParam;
+
   let numSearchesStarted = 0;
   input.onSearchBegin = function() {
     numSearchesStarted++;
@@ -117,7 +128,8 @@ function ensure_results(aSearch, aExpected)
       let j;
       for (j = 0; j < aExpected.length; j++) {
         // Skip processed expected results
-        if (aExpected[j] == undefined) continue;
+        if (aExpected[j] == undefined)
+          continue;
 
         let [uri, title, tags] = gPages[aExpected[j]];
 
@@ -164,52 +176,25 @@ function ensure_results(aSearch, aExpected)
 }
 
 // Get history services
-try {
-  var histsvc = Cc["@mozilla.org/browser/nav-history-service;1"].
-                getService(Ci.nsINavHistoryService);
-  var bhist = histsvc.QueryInterface(Ci.nsIBrowserHistory);
-  var bmsvc = Cc["@mozilla.org/browser/nav-bookmarks-service;1"].
-              getService(Ci.nsINavBookmarksService);
-  var tagsvc = Cc["@mozilla.org/browser/tagging-service;1"].
-               getService(Ci.nsITaggingService);
-  var iosvc = Cc["@mozilla.org/network/io-service;1"].
-              getService(Ci.nsIIOService);
-  var prefs = Cc["@mozilla.org/preferences-service;1"].
-              getService(Ci.nsIPrefBranch);
-  var lmsvc = Cc["@mozilla.org/browser/livemark-service;2"].
-              getService(Ci.nsILivemarkService);
-} catch(ex) {
-  do_throw("Could not get services\n");
-}
+var histsvc = Cc["@mozilla.org/browser/nav-history-service;1"].
+              getService(Ci.nsINavHistoryService);
+var bhist = histsvc.QueryInterface(Ci.nsIBrowserHistory);
+var bmsvc = Cc["@mozilla.org/browser/nav-bookmarks-service;1"].
+            getService(Ci.nsINavBookmarksService);
+var tagsvc = Cc["@mozilla.org/browser/tagging-service;1"].
+             getService(Ci.nsITaggingService);
+var iosvc = Cc["@mozilla.org/network/io-service;1"].
+            getService(Ci.nsIIOService);
+var prefs = Cc["@mozilla.org/preferences-service;1"].
+            getService(Ci.nsIPrefBranch);
+var lmsvc = Cc["@mozilla.org/browser/livemark-service;2"].
+            getService(Ci.nsILivemarkService);
 
 // Some date not too long ago
 let gDate = new Date(Date.now() - 1000 * 60 * 60) * 1000;
 // Store the page info for each uri
 let gPages = [];
 
-/**
- * Sets the page title synchronously.  The page must already be in the database.
- *
- * @param aURI
- *        An nsIURI to set the title for.
- * @param aTitle
- *        The title to set the page to.
- */
-function setPageTitle(aURI, aTitle)
-{
-  // XXX this function only exists because we have no API to do this. It should
-  //     be added in bug 421897.
-  let db = histsvc.QueryInterface(Ci.nsPIPlacesDatabase).DBConnection;
-  let stmt = db.createStatement(
-    "UPDATE moz_places_view " +
-    "SET title = :title " +
-    "WHERE url = :uri"
-  );
-  stmt.params.title = aTitle;
-  stmt.params.uri = aURI.spec;
-  stmt.execute();
-  stmt.finalize();
-}
 
 /**
  * Adds a livemark container with a single child, and creates various properties
@@ -241,7 +226,7 @@ function addLivemark(aContainerSiteURI, aContainerFeedURI, aContainerTitle,
                      aChildURI, aChildTitle, aTransitionType, aNoChildVisit)
 {
   // Add a page entry for the child uri
-  gPages[aChildURI] = [aChildURI, aChildTitle, /* no tags */];
+  gPages[aChildURI] = [aChildURI, aChildTitle, null];
 
   let out = [aChildURI, aChildTitle];
   out.push("\nchild uri=" + kURIs[aChildURI]);
@@ -367,7 +352,10 @@ function run_test() {
   if (func)
     func();
 
-  ensure_results(search, expected);
+  // At this point frecency could still be updating due to latest pages updates.
+  // This is not a problem in real life, but autocomplete tests should return
+  // reliable resultsets, thus we have to wait.
+  waitForAsyncUpdates(ensure_results, this, [search, expected]);
 }
 
 // Utility function to remove history pages

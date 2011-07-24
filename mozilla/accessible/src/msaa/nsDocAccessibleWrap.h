@@ -44,6 +44,8 @@
 #define _nsDocAccessibleWrap_H_
 
 #include "ISimpleDOMDocument.h"
+
+#include "nsAccUtils.h"
 #include "nsDocAccessible.h"
 #include "nsIDocShellTreeItem.h"
 
@@ -51,15 +53,14 @@ class nsDocAccessibleWrap: public nsDocAccessible,
                            public ISimpleDOMDocument
 {
 public:
-    nsDocAccessibleWrap(nsIDOMNode *aNode, nsIWeakReference *aShell);
-    virtual ~nsDocAccessibleWrap();
+  nsDocAccessibleWrap(nsIDocument *aDocument, nsIContent *aRootContent,
+                      nsIWeakReference *aShell);
+  virtual ~nsDocAccessibleWrap();
 
     // IUnknown
     STDMETHODIMP_(ULONG) AddRef();
     STDMETHODIMP_(ULONG) Release();
     STDMETHODIMP      QueryInterface(REFIID, void**);
-
-    void GetXPAccessibleFor(const VARIANT& varChild, nsIAccessible **aXPAccessible);
 
     // ISimpleDOMDocument
     virtual /* [id][propget] */ HRESULT STDMETHODCALLTYPE get_URL( 
@@ -82,28 +83,27 @@ public:
         /* [in] */ BSTR __RPC_FAR *commaSeparatedMediaTypes);
 
     // IAccessible
-    // Override get_accChild so that it can get any child via the unique ID
-    virtual /* [id][propget] */ HRESULT STDMETHODCALLTYPE get_accChild( 
-        /* [in] */ VARIANT varChild,
-        /* [retval][out] */ IDispatch __RPC_FAR *__RPC_FAR *ppdispChild);
 
     // Override get_accValue to provide URL when no other value is available
     virtual /* [id][propget] */ HRESULT STDMETHODCALLTYPE get_accValue( 
         /* [optional][in] */ VARIANT varChild,
         /* [retval][out] */ BSTR __RPC_FAR *pszValue);
 
-    virtual void FireAnchorJumpEvent();
+  // nsAccessNode
+  virtual void Shutdown();
 
-  // nsDocAccessibleWrap
+  // nsAccessibleWrap
+  virtual nsAccessible *GetXPAccessibleFor(const VARIANT& varChild);
 
-  /**
-   * Find an accessible by the given child ID in cached documents.
-   *
-   * @param  aVarChild    [in] variant pointing to the child ID
-   * @param  aAccessible  [out] the found accessible
-   */
-  static void GetXPAccessibleForChildID(const VARIANT& aVarChild,
-                                        nsIAccessible **aAccessible);
+  // nsDocAccessible
+  virtual void* GetNativeWindow() const;
+
+protected:
+  // nsDocAccessible
+  virtual void NotifyOfInitialUpdate();
+
+protected:
+  void* mHWND;
 };
 
 #endif

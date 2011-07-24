@@ -14,7 +14,7 @@
  * The Original Code is Thunderbird Mail Client.
  *
  * The Initial Developer of the Original Code is
- * Mozilla Messaging, Inc.
+ * the Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2009
  * the Initial Developer. All Rights Reserved.
  *
@@ -474,8 +474,11 @@ IDBViewWrapperListener.prototype = {
    *  shown up.  For a real folder, this happens when the folder is entered.
    *  For a (multi-folder) virtual folder, this happens when the search
    *  completes.
+   * You may get onMessagesLoaded called with aAll false immediately after
+   * the view is opened. You will definitely get onMessagesLoaded(true)
+   * when we've finished getting the headers for the view.
    */
-  onAllMessagesLoaded: function() {
+  onMessagesLoaded: function(aAll) {
   },
 
   /**
@@ -907,7 +910,7 @@ DBViewWrapper.prototype = {
     this.listener.onSearching(aSearching);
     // notify that all messages are loaded if searching has concluded
     if (!aSearching)
-      this.listener.onAllMessagesLoaded();
+      this.listener.onMessagesLoaded(true);
   },
 
    /**
@@ -1135,7 +1138,7 @@ DBViewWrapper.prototype = {
         this._prepareToLoadView(aFolder.msgDatabase, aFolder);
       }
       this._enterFolder();
-      this.listener.onAllMessagesLoaded();
+      this.listener.onMessagesLoaded(true);
     }
   },
 
@@ -1381,7 +1384,9 @@ DBViewWrapper.prototype = {
     // If we are loading the folder, the load completion will also notify us,
     //  so we should not generate all messages loaded right now.
     if (!this.searching && !this.folderLoading)
-      this.listener.onAllMessagesLoaded();
+      this.listener.onMessagesLoaded(true);
+    else if (this.dbView.numMsgsInView > 0)
+      this.listener.onMessagesLoaded(false);
   },
 
   get isMailFolder() {
@@ -1881,6 +1886,9 @@ DBViewWrapper.prototype = {
    * - Mark all messages read in the folder _if so configured_.
    */
   onLeavingFolder: function DBViewWrapper_onLeavingFolder() {
+    // Suppress useless InvalidateRange calls to the tree by the dbView.
+    if (this.dbView)
+      this.dbView.suppressChangeNotifications = true;
     this.displayedFolder.clearNewMessages();
     this.displayedFolder.hasNewMessages = false;
     try {

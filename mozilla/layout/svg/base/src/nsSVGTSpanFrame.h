@@ -52,7 +52,7 @@ class nsSVGTSpanFrame : public nsSVGTSpanFrameBase,
   NS_NewSVGTSpanFrame(nsIPresShell* aPresShell, nsStyleContext* aContext);
 protected:
   nsSVGTSpanFrame(nsStyleContext* aContext) :
-    nsSVGTextContainerFrame(aContext) {}
+    nsSVGTSpanFrameBase(aContext) {}
 
 public:
   NS_DECL_QUERYFRAME
@@ -93,6 +93,7 @@ public:
   NS_IMETHOD_(nsISVGGlyphFragmentLeaf *) GetFirstGlyphFragment();
   NS_IMETHOD_(nsISVGGlyphFragmentLeaf *) GetNextGlyphFragment();
   NS_IMETHOD_(void) SetWhitespaceHandling(PRUint8 aWhitespaceHandling);
+  NS_IMETHOD_(PRBool) IsAllWhitespace();
 };
 
 #endif

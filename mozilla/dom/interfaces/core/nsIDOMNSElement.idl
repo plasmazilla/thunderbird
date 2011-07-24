@@ -39,7 +39,7 @@
 
 #include "domstubs.idl"
 
-[scriptable, uuid(C9DA11BC-32D4-425E-A91F-7E0939C39251)]
+[scriptable, uuid(D894B5D4-44F3-422A-A220-7763C12D4A94)]
 interface nsIDOMNSElement : nsISupports
 {
   /*
@@ -154,9 +154,26 @@ interface nsIDOMNSElement : nsISupports
   readonly attribute nsIDOMDOMTokenList classList;
 
   /**
-   * Returns whether this element would be selected by the given selector string.
-   *
-   * See http://dev.w3.org/2006/webapi/selectors-api2/#matchtesting
+   * Set this during a mousedown event to grab and retarget all mouse events
+   * to this element until the mouse button is released or releaseCapture is
+   * called. If retargetToElement is true, then all events are targetted at
+   * this element. If false, events can also fire at descendants of this
+   * element.
+   * 
    */
-  boolean mozMatchesSelector(in DOMString selector);
+  void setCapture([optional] in boolean retargetToElement);
+
+  /**
+   * If this element has captured the mouse, release the capture. If another
+   * element has captured the mouse, this method has no effect.
+   */
+  void releaseCapture();
+
+  /**
+   * Returns whether this element would be selected by the given selector
+   * string.
+   *
+   * See <http://dev.w3.org/2006/webapi/selectors-api2/>
+   */
+  boolean mozMatchesSelector([Null(Stringify)] in DOMString selector);
 };

@@ -59,8 +59,8 @@ const mozISpellCheckingEngine = Components.interfaces.mozISpellCheckingEngine;
  * static globals, need to be initialized only once
  */
 var sMsgComposeService = Components.classes["@mozilla.org/messengercompose;1"].getService(Components.interfaces.nsIMsgComposeService);
-var sComposeMsgsBundle = document.getElementById("bundle_composeMsgs");
-var sBrandBundle = document.getElementById("brandBundle");
+var sComposeMsgsBundle;
+var sBrandBundle;
 
 var sPrefs = null;
 var sPrefBranchInternal = null;
@@ -75,9 +75,10 @@ var sDictCount = 0;
    this kind of cross file global stuff in the future and instead pass this object as parameter when needed by function
    in the other js file.
 */
-var msgWindow = Components.classes["@mozilla.org/messenger/msgwindow;1"].createInstance();
-msgWindow = msgWindow.QueryInterface(Components.interfaces.nsIMsgWindow);
-
+var msgWindow = Components.classes["@mozilla.org/messenger/msgwindow;1"]
+                          .createInstance(Components.interfaces.nsIMsgWindow);
+var gMessenger = Components.classes["@mozilla.org/messenger;1"]
+                           .createInstance(Components.interfaces.nsIMessenger);
 
 /**
  * Global variables, need to be re-initialized every time mostly because we need to release them when the window close
@@ -326,6 +327,7 @@ var progressListener = {
     {
       if (aStateFlags & Components.interfaces.nsIWebProgressListener.STATE_START)
       {
+        document.getElementById('navigator-throbber').setAttribute("busy", "true");
         document.getElementById('compose-progressmeter').setAttribute( "mode", "undetermined" );
         document.getElementById("statusbar-progresspanel").collapsed = false;
       }
@@ -333,6 +335,7 @@ var progressListener = {
       if (aStateFlags & Components.interfaces.nsIWebProgressListener.STATE_STOP)
       {
         gSendOrSaveOperationInProgress = false;
+        document.getElementById('navigator-throbber').removeAttribute("busy");
         document.getElementById('compose-progressmeter').setAttribute( "mode", "normal" );
         document.getElementById('compose-progressmeter').setAttribute( "value", 0 );
         document.getElementById("statusbar-progresspanel").collapsed = true;
@@ -424,10 +427,6 @@ var defaultController =
       case "cmd_account":
       case "cmd_preferences":
 
-      //View Menu
-      case "cmd_showComposeToolbar":
-      case "cmd_showFormatToolbar":
-
       //Options Menu
       case "cmd_selectAddress":
       case "cmd_outputFormat":
@@ -476,12 +475,6 @@ var defaultController =
       case "cmd_account":
       case "cmd_preferences":
         return true;
-
-      //View Menu
-      case "cmd_showComposeToolbar":
-        return true;
-      case "cmd_showFormatToolbar":
-        return composeHTML;
 
       //Options Menu
       case "cmd_selectAddress":
@@ -535,10 +528,6 @@ var defaultController =
       case "cmd_account"            : MsgAccountManager(null); break;
       case "cmd_preferences"        : DoCommandPreferences(); break;
 
-      //View Menu
-      case "cmd_showComposeToolbar" : goToggleToolbar('composeToolbar', 'menu_showComposeToolbar'); break;
-      case "cmd_showFormatToolbar"  : goToggleToolbar('FormatToolbar', 'menu_showFormatToolbar');   break;
-
       //Options Menu
       case "cmd_selectAddress"      : if (defaultController.isCommandEnabled(command)) SelectAddress();         break;
       case "cmd_quoteMessage"       : if (defaultController.isCommandEnabled(command)) QuoteSelectedMessage();  break;
@@ -579,10 +568,16 @@ function GetSelectedMessages()
 function SetupCommandUpdateHandlers()
 {
   top.controllers.insertControllerAt(0, defaultController);
+
+  document.getElementById("optionsMenuPopup")
+          .addEventListener("popupshowing", updateOptionItems, true);
 }
 
 function UnloadCommandUpdateHandlers()
 {
+  document.getElementById("optionsMenuPopup")
+          .removeEventListener("popupshowing", updateOptionItems, true);
+
   top.controllers.removeController(defaultController);
 }
 
@@ -1194,9 +1189,6 @@ function ComposeStartup(recycled, aParams)
   var params = null; // New way to pass parameters to the compose window as a nsIMsgComposeParameters object
   var args = null;   // old way, parameters are passed as a string
 
-  if (recycled)
-    dump("This is a recycled compose window!\n");
-
   if (aParams)
     params = aParams;
   else if (window.arguments && window.arguments[0]) {
@@ -1217,8 +1209,6 @@ function ComposeStartup(recycled, aParams)
   }
 
   var identityList = document.getElementById("msgIdentity");
-
-  document.addEventListener("keypress", awDocumentKeyPress, true);
 
   if (identityList)
     FillIdentityList(identityList);
@@ -1254,11 +1244,22 @@ function ComposeStartup(recycled, aParams)
       if (args.attachment)
       {
         var attachmentList = args.attachment.split(",");
-        var attachment;
+        var localFile = Components.classes["@mozilla.org/file/local;1"]
+                                  .createInstance(Components.interfaces.nsILocalFile);
+        var fileHandler = Services.io.getProtocolHandler("file")
+                                  .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
         for (let i = 0; i < attachmentList.length; i++)
         {
-          attachment = Components.classes["@mozilla.org/messengercompose/attachment;1"].createInstance(Components.interfaces.nsIMsgAttachment);
-          attachment.url = attachmentList[i];
+          let attachmentStr = attachmentList[i];
+          let attachment = Components.classes["@mozilla.org/messengercompose/attachment;1"]
+                                     .createInstance(Components.interfaces.nsIMsgAttachment);
+
+          try {
+            localFile.initWithPath(attachmentStr);
+            attachment.url = fileHandler.getURLSpecFromFile(localFile);
+          } catch (e) {
+            attachment.url = encodeURI(attachmentStr);
+          }
           composeFields.addAttachment(attachment);
         }
       }
@@ -1269,7 +1270,8 @@ function ComposeStartup(recycled, aParams)
     }
   }
 
-  if (!params.identity) {
+  // " <>" is an empty identity, and most likely not valid
+  if (!params.identity || params.identity.identityName == " <>") {
     // no pre selected identity, so use the default account
     var identities = gAccountManager.defaultAccount.identities;
     if (identities.Count() == 0)
@@ -1281,7 +1283,10 @@ function ComposeStartup(recycled, aParams)
   LoadIdentity(true);
   if (sMsgComposeService)
   {
-    gMsgCompose = sMsgComposeService.InitCompose(window, params);
+    // Get the <editor> element to startup an editor
+    var editorElement = GetCurrentEditorElement();
+    gMsgCompose = sMsgComposeService.initCompose(params, window,
+                                                 editorElement.docShell);
     if (gMsgCompose)
     {
       // set the close listener
@@ -1290,8 +1295,6 @@ function ComposeStartup(recycled, aParams)
       //Lets the compose object knows that we are dealing with a recycled window
       gMsgCompose.recycledWindow = recycled;
 
-      // Get the <editor> element to startup an editor
-      var editorElement = GetCurrentEditorElement();
       if (!editorElement)
       {
         dump("Failed to get editor element!\n");
@@ -1400,14 +1403,14 @@ function ComposeStartup(recycled, aParams)
     }
   }
 
-  // create URI of the folder from draftId 
+  // create URI of the folder from draftId
   var draftId = msgCompFields.draftId;
   var folderURI = draftId.substring(0, draftId.indexOf("#")).replace("-message", "");
-  
+
   try {
     const nsMsgFolderFlags = Components.interfaces.nsMsgFolderFlags;
     var folder = sRDF.GetResource(folderURI);
-  
+
     gEditingDraft = (folder instanceof Components.interfaces.nsIMsgFolder) &&
                     (folder.flags & nsMsgFolderFlags.Drafts);
   }
@@ -1463,6 +1466,9 @@ function WizCallback(state)
 
 function ComposeLoad()
 {
+  sComposeMsgsBundle = document.getElementById("bundle_composeMsgs");
+  sBrandBundle = document.getElementById("brandBundle");
+
   // First get the preferences service
   try {
     var prefService = Components.classes["@mozilla.org/preferences-service;1"]
@@ -1602,7 +1608,7 @@ function InitCharsetMenuCheckMark()
   // use setTimeout workaround to delay checkmark the menu
   // when onmenucomplete is ready then use it instead of oncreate
   // see bug #78290 for the details
-  setTimeout("UpdateMailEditCharset()", 0);
+  setTimeout(UpdateMailEditCharset, 50);
 
 }
 
@@ -1892,11 +1898,11 @@ function CheckValidEmailAddress(aTo, aCC, aBCC)
   var invalidStr = null;
   // crude check that the to, cc, and bcc fields contain at least one '@'.
   // We could parse each address, but that might be overkill.
-  if (aTo.length > 0 && (aTo.indexOf("@") <= 0 || aTo.indexOf("@") == aTo.length - 1))
+  if (aTo.length > 0 && (aTo.indexOf("@") <= 0 && aTo.toLowerCase() != "postmaster" || aTo.indexOf("@") == aTo.length - 1))
     invalidStr = aTo;
-  else if (aCC.length > 0 && (aCC.indexOf("@") <= 0 || aCC.indexOf("@") == aCC.length - 1))
+  else if (aCC.length > 0 && (aCC.indexOf("@") <= 0 && aCC.toLowerCase() != "postmaster" || aCC.indexOf("@") == aCC.length - 1))
     invalidStr = aCC;
-  else if (aBCC.length > 0 && (aBCC.indexOf("@") <= 0 || aBCC.indexOf("@") == aBCC.length - 1))
+  else if (aBCC.length > 0 && (aBCC.indexOf("@") <= 0 && aBCC.toLowerCase() != "postmaster" || aBCC.indexOf("@") == aBCC.length - 1))
     invalidStr = aBCC;
   if (invalidStr)
   {
@@ -2582,6 +2588,7 @@ function AttachFiles(attachments)
     if (!DuplicateFileCheck(currentAttachment)) {
       var attachment = Components.classes["@mozilla.org/messengercompose/attachment;1"].createInstance(Components.interfaces.nsIMsgAttachment);
       attachment.url = currentAttachment;
+      attachment.size = currentFile.fileSize;
       AddAttachment(attachment);
       gContentChanged = true;
     }
@@ -2612,7 +2619,10 @@ function AddAttachment(attachment)
         attachment.name = sComposeMsgsBundle.getString("partAttachmentSafeName");
     }
 
-    item.setAttribute("label", attachment.name);    //use for display only
+    var nameAndSize = attachment.name;
+    if (attachment.size != -1)
+      nameAndSize += " (" + gMessenger.formatFileSize(attachment.size) + ")";
+    item.setAttribute("label", nameAndSize);    //use for display only
     item.attachment = attachment;   //full attachment object stored here
     try {
       item.setAttribute("tooltiptext", decodeURI(attachment.url));
@@ -2621,6 +2631,7 @@ function AddAttachment(attachment)
     }
     item.setAttribute("class", "listitem-iconic");
     item.setAttribute("image", "moz-icon:" + attachment.url);
+    item.setAttribute("crop", "center");
     bucket.appendChild(item);
   }
 }
@@ -2733,7 +2744,10 @@ function RenameSelectedAttachment()
     if (modifiedAttachmentName == "")
       return; // name was not filled, bail out
 
-    item.label = modifiedAttachmentName;
+    var nameAndSize = modifiedAttachmentName;
+    if (item.attachment.size != -1)
+      nameAndSize += " (" + gMessenger.formatFileSize(item.attachment.size) + ")";
+    item.label = nameAndSize;
     item.attachment.name = modifiedAttachmentName;
     gContentChanged = true;
   }
@@ -2764,8 +2778,7 @@ function OpenSelectedAttachment()
     if (messagePrefix.test(attachmentUrl))
     {
       // we must be dealing with a forwarded attachment, treat this specially
-      var messenger = Components.classes["@mozilla.org/messenger;1"].createInstance(Components.interfaces.nsIMessenger);
-      var msgHdr = messenger.msgHdrFromURI(attachmentUrl);
+      var msgHdr = gMessenger.msgHdrFromURI(attachmentUrl);
       if (msgHdr)
       {
         var folderUri = msgHdr.folder.folderURL;
@@ -3067,9 +3080,10 @@ var attachmentBucketObserver = {
 
       for (let i = 0; i < dataListLength; i++)
       {
-        var item = dataList[i].first;
-        var prettyName;
-        var rawData = item.data;
+        let item = dataList[i].first;
+        let prettyName;
+        let size = NaN;
+        let rawData = item.data;
 
         if (item.flavour.contentType == "text/x-moz-url" ||
             item.flavour.contentType == "text/x-moz-message" ||
@@ -3077,20 +3091,26 @@ var attachmentBucketObserver = {
         {
           if (item.flavour.contentType == "application/x-moz-file")
           {
-            var ioService = Components.classes["@mozilla.org/network/io-service;1"]
+            let ioService = Components.classes["@mozilla.org/network/io-service;1"]
                             .getService(Components.interfaces.nsIIOService);
-            var fileHandler = ioService.getProtocolHandler("file")
+            let fileHandler = ioService.getProtocolHandler("file")
                               .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
+            size = rawData.fileSize;
             rawData = fileHandler.getURLSpecFromFile(rawData);
+          }
+          else if (item.flavour.contentType == "text/x-moz-message")
+          {
+            size = gMessenger.messageServiceFromURI(rawData)
+                             .messageURIToMsgHdr(rawData).messageSize;
           }
           else
           {
-            var separator = rawData.indexOf("\n");
-            if (separator != -1)
-            {
-              prettyName = rawData.substr(separator+1);
-              rawData = rawData.substr(0,separator);
-            }
+            let pieces = rawData.split("\n");
+            rawData = pieces[0];
+            if (pieces.length > 1)
+              prettyName = pieces[1];
+            if (pieces.length > 2)
+              size = Number(pieces[2]);
           }
 
           if (DuplicateFileCheck(rawData))
@@ -3099,7 +3119,7 @@ var attachmentBucketObserver = {
           }
           else
           {
-            var isValid = true;
+            let isValid = true;
             if (item.flavour.contentType == "text/x-moz-url") {
               // if this is a url (or selected text)
               // see if it's a valid url by checking
@@ -3109,7 +3129,7 @@ var attachmentBucketObserver = {
               // also skip mailto:, since it doesn't make sense
               // to attach and send mailto urls
               try {
-                var scheme = gIOService.extractScheme(rawData);
+                let scheme = gIOService.extractScheme(rawData);
                 // don't attach mailto: urls
                 if (scheme == "mailto")
                   isValid = false;
@@ -3124,6 +3144,8 @@ var attachmentBucketObserver = {
                            .createInstance(Components.interfaces.nsIMsgAttachment);
               attachment.url = rawData;
               attachment.name = prettyName;
+              if (!isNaN(size))
+                attachment.size = size;
               AddAttachment(attachment);
             }
           }

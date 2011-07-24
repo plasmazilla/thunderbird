@@ -42,17 +42,22 @@
 #include "imgIDecoderObserver.h"
 #include "nsStringAPI.h"
 #include "nsIObserver.h"
+#include "nsWeakReference.h"
 
 #include <gdk-pixbuf/gdk-pixbuf.h>
+#include <libnotify/notify.h>
 
 class imgIRequest;
 
-class nsAlertsIconListener : public imgIDecoderObserver
+class nsAlertsIconListener : public imgIDecoderObserver,
+                             public nsIObserver,
+                             public nsSupportsWeakReference
 {
 public:
   NS_DECL_ISUPPORTS
   NS_DECL_IMGICONTAINEROBSERVER
   NS_DECL_IMGIDECODEROBSERVER
+  NS_DECL_NSIOBSERVER
 
   nsAlertsIconListener();
   virtual ~nsAlertsIconListener();
@@ -77,6 +82,9 @@ protected:
 
   PRPackedBool mLoadedFrame;
   PRPackedBool mAlertHasAction;
+
+  NotifyNotification* mNotification;
+  gulong mClosureHandler;
 
   nsresult StartRequest(const nsAString & aImageUrl);
   nsresult ShowAlert(GdkPixbuf* aPixbuf);

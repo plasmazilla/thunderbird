@@ -1,7 +1,7 @@
 /* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* vim:set ts=2 sw=2 sts=2 et cindent: */
 /* ***** BEGIN LICENSE BLOCK *****
- * Version: ML 1.1/GPL 2.0/LGPL 2.1
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
  * The contents of this file are subject to the Mozilla Public License Version
  * 1.1 (the "License"); you may not use this file except in compliance with
@@ -46,19 +46,51 @@
 #include "gfxContext.h"
 #include "gfxRect.h"
 #include "nsITimer.h"
+#include "ImageLayers.h"
+#include "mozilla/Monitor.h"
+#include "mozilla/Mutex.h"
 
 class nsHTMLMediaElement;
 class nsMediaStream;
 class nsIStreamListener;
+class nsTimeRanges;
+
+// The size to use for audio data frames in MozAudioAvailable events.
+// This value is per channel, and is chosen to give ~43 fps of events,
+// for example, 44100 with 2 channels, 2*1024 = 2048.
+#define FRAMEBUFFER_LENGTH_PER_CHANNEL 1024
+
+// The total size of the framebuffer used for MozAudioAvailable events
+// has to be within the following range.
+#define FRAMEBUFFER_LENGTH_MIN 512
+#define FRAMEBUFFER_LENGTH_MAX 16384
+
+// Shuts down a thread asynchronously.
+class ShutdownThreadEvent : public nsRunnable 
+{
+public:
+  ShutdownThreadEvent(nsIThread* aThread) : mThread(aThread) {}
+  ~ShutdownThreadEvent() {}
+  NS_IMETHOD Run() {
+    mThread->Shutdown();
+    return NS_OK;
+  }
+private:
+  nsCOMPtr<nsIThread> mThread;
+};
 
 // All methods of nsMediaDecoder must be called from the main thread only
-// with the exception of SetRGBData and GetStatistics, which can be
-// called from any thread.
+// with the exception of GetImageContainer, SetVideoData and GetStatistics,
+// which can be called from any thread.
 class nsMediaDecoder : public nsIObserver
 {
 public:
   typedef mozilla::TimeStamp TimeStamp;
   typedef mozilla::TimeDuration TimeDuration;
+  typedef mozilla::layers::ImageContainer ImageContainer;
+  typedef mozilla::layers::Image Image;
+  typedef mozilla::Monitor Monitor;
+  typedef mozilla::Mutex Mutex;
 
   nsMediaDecoder();
   virtual ~nsMediaDecoder();
@@ -80,10 +112,10 @@ public:
 
   // Return the time position in the video stream being
   // played measured in seconds.
-  virtual float GetCurrentTime() = 0;
+  virtual double GetCurrentTime() = 0;
 
   // Seek to the time position in (seconds) from the start of the video.
-  virtual nsresult Seek(float time) = 0;
+  virtual nsresult Seek(double aTime) = 0;
 
   // Called by the element when the playback rate has been changed.
   // Adjust the speed of the playback, optionally with pitch correction,
@@ -91,13 +123,13 @@ public:
   virtual nsresult PlaybackRateChanged() = 0;
 
   // Return the duration of the video in seconds.
-  virtual float GetDuration() = 0;
-  
+  virtual double GetDuration() = 0;
+
   // Pause video playback.
   virtual void Pause() = 0;
 
   // Set the audio volume. It should be a value from 0 to 1.0.
-  virtual void SetVolume(float volume) = 0;
+  virtual void SetVolume(double aVolume) = 0;
 
   // Start playback of a video. 'Load' must have previously been
   // called.
@@ -109,16 +141,8 @@ public:
   // the decoder, even if Load returns an error.
   // This is called at most once per decoder, after Init().
   virtual nsresult Load(nsMediaStream* aStream,
-                        nsIStreamListener **aListener) = 0;
-
-  // Draw the latest video data. This is done
-  // here instead of in nsVideoFrame so that the lock around the
-  // RGB buffer doesn't have to be exposed publically.
-  // The current video frame is drawn to fill aRect.
-  // Called in the main thread only.
-  virtual void Paint(gfxContext* aContext,
-                     gfxPattern::GraphicsFilter aFilter,
-                     const gfxRect& aRect);
+                        nsIStreamListener **aListener,
+                        nsMediaDecoder* aCloneDonor) = 0;
 
   // Called when the video file has completed downloading.
   virtual void ResourceLoaded() = 0;
@@ -160,17 +184,109 @@ public:
     PRPackedBool mPlaybackRateReliable;
   };
 
+  // Frame decoding/painting related performance counters.
+  // Threadsafe.
+  class FrameStatistics {
+  public:
+    
+    FrameStatistics() :
+        mMonitor("nsMediaDecoder::FrameStats"),
+        mParsedFrames(0),
+        mDecodedFrames(0),
+        mPresentedFrames(0) {}
+
+    // Returns number of frames which have been parsed from the media.
+    // Can be called on any thread.
+    PRUint32 GetParsedFrames() {
+      mozilla::MonitorAutoEnter mon(mMonitor);
+      return mParsedFrames;
+    }
+
+    // Returns the number of parsed frames which have been decoded.
+    // Can be called on any thread.
+    PRUint32 GetDecodedFrames() {
+      mozilla::MonitorAutoEnter mon(mMonitor);
+      return mDecodedFrames;
+    }
+
+    // Returns the number of decoded frames which have been sent to the rendering
+    // pipeline for painting ("presented").
+    // Can be called on any thread.
+    PRUint32 GetPresentedFrames() {
+      mozilla::MonitorAutoEnter mon(mMonitor);
+      return mPresentedFrames;
+    }
+
+    // Increments the parsed and decoded frame counters by the passed in counts.
+    // Can be called on any thread.
+    void NotifyDecodedFrames(PRUint32 aParsed, PRUint32 aDecoded) {
+      if (aParsed == 0 && aDecoded == 0)
+        return;
+      mozilla::MonitorAutoEnter mon(mMonitor);
+      mParsedFrames += aParsed;
+      mDecodedFrames += aDecoded;
+    }
+
+    // Increments the presented frame counters.
+    // Can be called on any thread.
+    void NotifyPresentedFrame() {
+      mozilla::MonitorAutoEnter mon(mMonitor);
+      ++mPresentedFrames;
+    }
+
+  private:
+
+    // Monitor to protect access of playback statistics.
+    Monitor mMonitor;
+
+    // Number of frames parsed and demuxed from media.
+    // Access protected by mStatsMonitor.
+    PRUint32 mParsedFrames;
+
+    // Number of parsed frames which were actually decoded.
+    // Access protected by mStatsMonitor.
+    PRUint32 mDecodedFrames;
+
+    // Number of decoded frames which were actually sent down the rendering
+    // pipeline to be painted ("presented"). Access protected by mStatsMonitor.
+    PRUint32 mPresentedFrames;
+  };
+
+  // Stack based class to assist in notifying the frame statistics of
+  // parsed and decoded frames. Use inside video demux & decode functions
+  // to ensure all parsed and decoded frames are reported on all return paths.
+  class AutoNotifyDecoded {
+  public:
+    AutoNotifyDecoded(nsMediaDecoder* aDecoder, PRUint32& aParsed, PRUint32& aDecoded)
+      : mDecoder(aDecoder), mParsed(aParsed), mDecoded(aDecoded) {}
+    ~AutoNotifyDecoded() {
+      mDecoder->GetFrameStatistics().NotifyDecodedFrames(mParsed, mDecoded);
+    }
+  private:
+    nsMediaDecoder* mDecoder;
+    PRUint32& mParsed;
+    PRUint32& mDecoded;
+  };
+
+  // Time in seconds by which the last painted video frame was late by.
+  // E.g. if the last painted frame should have been painted at time t,
+  // but was actually painted at t+n, this returns n in seconds. Threadsafe.
+  double GetFrameDelay();
+
   // Return statistics. This is used for progress events and other things.
   // This can be called from any thread. It's only a snapshot of the
   // current state, since other threads might be changing the state
   // at any time.
   virtual Statistics GetStatistics() = 0;
+  
+  // Return the frame decode/paint related statistics.
+  FrameStatistics& GetFrameStatistics() { return mFrameStats; }
 
   // Set the duration of the media resource in units of milliseconds.
   // This is called via a channel listener if it can pick up the duration
   // from a content header. Must be called from the main thread only.
   virtual void SetDuration(PRInt64 aDuration) = 0;
- 
+
   // Set a flag indicating whether seeking is supported
   virtual void SetSeekable(PRBool aSeekable) = 0;
 
@@ -186,12 +302,16 @@ public:
   // than the result of downloaded data.
   virtual void Progress(PRBool aTimer);
 
+  // Fire timeupdate events if needed according to the time constraints
+  // outlined in the specification.
+  virtual void FireTimeUpdate();
+
   // Called by nsMediaStream when the "cache suspended" status changes.
   // If nsMediaStream::IsSuspendedByCache returns true, then the decoder
   // should stop buffering or otherwise waiting for download progress and
   // start consuming data, if possible, because the cache is full.
   virtual void NotifySuspendedStatusChanged() = 0;
-  
+
   // Called by nsMediaStream when some data has been received.
   // Call on the main thread only.
   virtual void NotifyBytesDownloaded() = 0;
@@ -201,8 +321,12 @@ public:
   // the result from OnStopRequest.
   virtual void NotifyDownloadEnded(nsresult aStatus) = 0;
 
+  // Called as data arrives on the stream and is read into the cache.  Called
+  // on the main thread only.
+  virtual void NotifyDataArrived(const char* aBuffer, PRUint32 aLength, PRUint32 aOffset) = 0;
+
   // Cleanup internal data structures. Must be called on the main
-  // thread by the owning object before that object disposes of this object.  
+  // thread by the owning object before that object disposes of this object.
   virtual void Shutdown();
 
   // Suspend any media downloads that are in progress. Called by the
@@ -215,12 +339,22 @@ public:
   // media element when it is restored from the bfcache, or when we need
   // to stop throttling the download. Call on the main thread only.
   // The download will only actually resume once as many Resume calls
-  // have been made as Suspend calls.
-  virtual void Resume() = 0;
+  // have been made as Suspend calls. When aForceBuffering is PR_TRUE,
+  // we force the decoder to go into buffering state before resuming
+  // playback.
+  virtual void Resume(PRBool aForceBuffering) = 0;
 
   // Returns a weak reference to the media element we're decoding for,
   // if it's available.
   nsHTMLMediaElement* GetMediaElement();
+
+  // Returns the current size of the framebuffer used in
+  // MozAudioAvailable events.
+  PRUint32 GetFrameBufferLength() { return mFrameBufferLength; };
+
+  // Sets the length of the framebuffer used in MozAudioAvailable events.
+  // The new size must be between 512 and 16384.
+  nsresult RequestFrameBufferLength(PRUint32 aLength);
 
   // Moves any existing channel loads into the background, so that they don't
   // block the load event. This is called when we stop delaying the load
@@ -228,6 +362,27 @@ public:
   // background. Implementations of this must call MoveLoadsToBackground() on
   // their nsMediaStream.
   virtual void MoveLoadsToBackground()=0;
+
+  // Gets the image container for the media element. Will return null if
+  // the element is not a video element. This can be called from any
+  // thread; ImageContainers can be used from any thread.
+  ImageContainer* GetImageContainer() { return mImageContainer; }
+
+  // Set the video width, height, pixel aspect ratio, current image and
+  // target paint time of the next video frame to be displayed.
+  // Ownership of the image is transferred to the layers subsystem.
+  void SetVideoData(const gfxIntSize& aSize,
+                    float aPixelAspectRatio,
+                    Image* aImage,
+                    TimeStamp aTarget);
+
+  // Constructs the time ranges representing what segments of the media
+  // are buffered and playable.
+  virtual nsresult GetBuffered(nsTimeRanges* aBuffered) = 0;
+
+  // Returns PR_TRUE if we can play the entire media through without stopping
+  // to buffer, given the current download and playback rates.
+  PRBool CanPlayThrough();
 
 protected:
 
@@ -237,18 +392,13 @@ protected:
   // Stop progress information timer.
   nsresult StopProgress();
 
-  // Set the RGB width, height, pixel aspect ratio, and framerate.
-  // Ownership of the passed RGB buffer is transferred to the decoder.
-  // This is the only nsMediaDecoder method that may be called from
-  // threads other than the main thread.
-  void SetRGBData(PRInt32 aWidth,
-                  PRInt32 aHeight,
-                  float aFramerate,
-                  float aAspectRatio,
-                  unsigned char* aRGBBuffer);
+  // Ensures our media stream has been pinned.
+  void PinForSeek();
 
-protected:
-  // Timer used for updating progress events 
+  // Ensures our media stream has been unpinned.
+  void UnpinForSeek();
+
+  // Timer used for updating progress events
   nsCOMPtr<nsITimer> mProgressTimer;
 
   // This should only ever be accessed from the main thread.
@@ -256,13 +406,22 @@ protected:
   // The decoder does not add a reference the element.
   nsHTMLMediaElement* mElement;
 
-  // RGB data for last decoded frame of video data.
-  // The size of the buffer is mRGBWidth*mRGBHeight*4 bytes and
-  // contains bytes in RGBA format.
-  nsAutoArrayPtr<unsigned char> mRGB;
-
   PRInt32 mRGBWidth;
   PRInt32 mRGBHeight;
+
+  // Counters related to decode and presentation of frames.
+  FrameStatistics mFrameStats;
+
+  // The time at which the current video frame should have been painted.
+  // Access protected by mVideoUpdateLock.
+  TimeStamp mPaintTarget;
+
+  // The delay between the last video frame being presented and it being
+  // painted. This is time elapsed after mPaintTarget until the most recently
+  // painted frame appeared on screen. Access protected by mVideoUpdateLock.
+  TimeDuration mPaintDelay;
+
+  nsRefPtr<ImageContainer> mImageContainer;
 
   // Time that the last progress event was fired. Read/Write from the
   // main thread only.
@@ -284,17 +443,31 @@ protected:
   // to the RGB buffer must obtain this lock first to ensure that
   // the video element does not use video data or sizes that are
   // in the midst of being changed.
-  PRLock* mVideoUpdateLock;
-
-  // Framerate of video being displayed in the element
-  // expressed in numbers of frames per second.
-  float mFramerate;
+  Mutex mVideoUpdateLock;
 
   // Pixel aspect ratio (ratio of the pixel width to pixel height)
-  float mAspectRatio;
+  float mPixelAspectRatio;
 
-  // Has our size changed since the last repaint?
+  // The framebuffer size to use for audioavailable events.
+  PRUint32 mFrameBufferLength;
+
+  // PR_TRUE when our media stream has been pinned. We pin the stream
+  // while seeking.
+  PRPackedBool mPinnedForSeek;
+
+  // Set to PR_TRUE when the video width, height or pixel aspect ratio is
+  // changed by SetVideoData().  The next call to Invalidate() will recalculate
+  // and update the intrinsic size on the element, request a frame reflow and
+  // then reset this flag.
   PRPackedBool mSizeChanged;
+
+  // Set to PR_TRUE in SetVideoData() if the new image has a different size
+  // than the current image.  The image size is also affected by transforms
+  // so this can be true even if mSizeChanged is false, for example when
+  // zooming.  The next call to Invalidate() will call nsIFrame::Invalidate
+  // when this flag is set, rather than just InvalidateLayer, and then reset
+  // this flag.
+  PRPackedBool mImageContainerSizeChanged;
 
   // True if the decoder is being shutdown. At this point all events that
   // are currently queued need to return immediately to prevent javascript

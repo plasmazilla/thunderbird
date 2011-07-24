@@ -56,6 +56,8 @@
 #include "nsIPrefBranch.h"
 #include "nsMsgMessageFlags.h"
 #include "nsIMsgSearchSession.h"
+#include "nsComponentManagerUtils.h"
+#include "nsServiceManagerUtils.h"
 
 static PRBool gReferenceOnlyThreading;
 
@@ -65,6 +67,8 @@ nsMsgSearchDBView::nsMsgSearchDBView()
   mSuppressMsgDisplay = PR_TRUE;
   m_threadsTable.Init();
   m_hdrsTable.Init();
+  m_totalMessagesInView = 0;
+  m_nextThreadId = 1;
 }
 
 nsMsgSearchDBView::~nsMsgSearchDBView()
@@ -108,7 +112,7 @@ NS_IMETHODIMP nsMsgSearchDBView::Open(nsIMsgFolder *folder,
 
 
 PLDHashOperator
-nsMsgSearchDBView::ThreadTableCloner(const nsAString &aKey, nsIMsgThread* aThread, void* aArg)
+nsMsgSearchDBView::ThreadTableCloner(const nsACString &aKey, nsIMsgThread* aThread, void* aArg)
 {
   nsMsgSearchDBView* view = static_cast<nsMsgSearchDBView*>(aArg);
   nsresult rv = view->m_threadsTable.Put(aKey, aThread);
@@ -116,7 +120,7 @@ nsMsgSearchDBView::ThreadTableCloner(const nsAString &aKey, nsIMsgThread* aThrea
 }
 
 PLDHashOperator
-nsMsgSearchDBView::MsgHdrTableCloner(const nsAString &aKey, nsIMsgDBHdr* aMsgHdr, void* aArg)
+nsMsgSearchDBView::MsgHdrTableCloner(const nsACString &aKey, nsIMsgDBHdr* aMsgHdr, void* aArg)
 {
   nsMsgSearchDBView* view = static_cast<nsMsgSearchDBView*>(aArg);
   nsresult rv = view->m_hdrsTable.Put(aKey, aMsgHdr);
@@ -126,9 +130,8 @@ nsMsgSearchDBView::MsgHdrTableCloner(const nsAString &aKey, nsIMsgDBHdr* aMsgHdr
 NS_IMETHODIMP
 nsMsgSearchDBView::CloneDBView(nsIMessenger *aMessengerInstance, nsIMsgWindow *aMsgWindow, nsIMsgDBViewCommandUpdater *aCmdUpdater, nsIMsgDBView **_retval)
 {
-  nsMsgSearchDBView* newMsgDBView;
+  nsMsgSearchDBView* newMsgDBView = new nsMsgSearchDBView();
 
-  NS_NEWXPCOM(newMsgDBView, nsMsgSearchDBView);
   if (!newMsgDBView)
     return NS_ERROR_OUT_OF_MEMORY;
 
@@ -347,6 +350,17 @@ NS_IMETHODIMP nsMsgSearchDBView::OnHdrFlagsChanged(nsIMsgDBHdr *aHdrChanged, PRU
 void nsMsgSearchDBView::InsertMsgHdrAt(nsMsgViewIndex index, nsIMsgDBHdr *hdr,
                               nsMsgKey msgKey, PRUint32 flags, PRUint32 level)
 {
+  if ((PRInt32) index < 0)
+  {
+    NS_ERROR("invalid insert index");
+    index = 0;
+    level = 0;
+  }
+  else if (index > m_keys.Length())
+  {
+    NS_ERROR("inserting past end of array");
+    index = m_keys.Length();
+  }
   m_keys.InsertElementAt(index, msgKey);
   m_flags.InsertElementAt(index, flags);
   m_levels.InsertElementAt(index, level);
@@ -405,7 +419,7 @@ NS_IMETHODIMP nsMsgSearchDBView::GetFolderForViewIndex(nsMsgViewIndex index, nsI
   if (index == nsMsgViewIndex_None || index >= (PRUint32) m_folders.Count())
     return NS_MSG_INVALID_DBVIEW_INDEX;
   NS_IF_ADDREF(*aFolder = m_folders[index]);
-  return NS_OK;
+  return *aFolder ? NS_OK : NS_ERROR_NULL_POINTER;
 }
 
 nsresult nsMsgSearchDBView::GetDBForViewIndex(nsMsgViewIndex index, nsIMsgDatabase **db)
@@ -438,7 +452,7 @@ nsresult nsMsgSearchDBView::AddHdrFromFolder(nsIMsgDBHdr *msgHdr, nsIMsgFolder *
     nsMsgXFViewThread *viewThread;
     if (!thread)
     {
-      viewThread = new nsMsgXFViewThread(this);
+      viewThread = new nsMsgXFViewThread(this, m_nextThreadId++);
       if (!viewThread)
         return NS_ERROR_OUT_OF_MEMORY;
       thread = do_QueryInterface(viewThread);
@@ -572,7 +586,7 @@ void nsMsgSearchDBView::MoveThreadAt(nsMsgViewIndex threadIndex)
   PRBool updatesSuppressed = mSuppressChangeNotification;
   // Turn off tree notifications so that we don't reload the current message.
   if (!updatesSuppressed)
-    DisableChangeUpdates();
+    SetSuppressChangeNotifications(PR_TRUE);
 
   nsCOMPtr<nsIMsgDBHdr> threadHdr;
   GetMsgHdrForViewIndex(threadIndex, getter_AddRefs(threadHdr));
@@ -647,7 +661,7 @@ void nsMsgSearchDBView::MoveThreadAt(nsMsgViewIndex threadIndex)
     RestoreSelection(preservedKey, preservedSelection);
 
   if (!updatesSuppressed)
-    EnableChangeUpdates();
+    SetSuppressChangeNotifications(PR_FALSE);
   nsMsgViewIndex lowIndex = threadIndex < newIndex ? threadIndex : newIndex;
   nsMsgViewIndex highIndex = lowIndex == threadIndex ? newIndex : threadIndex;
   NoteChange(lowIndex, highIndex - lowIndex + childCount + 1,
@@ -704,6 +718,7 @@ nsMsgSearchDBView::OnSearchHit(nsIMsgDBHdr* aMsgHdr, nsIMsgFolder *folder)
       m_dbToUseList.AppendObject(dbToUse);
     }
   }
+  m_totalMessagesInView++;
   if (m_sortValid)
     return InsertHdrFromFolder(aMsgHdr, folder);
   else
@@ -739,6 +754,7 @@ nsMsgSearchDBView::OnNewSearch()
   m_keys.Clear();
   m_levels.Clear();
   m_flags.Clear();
+  m_totalMessagesInView = 0;
 
   // needs to happen after we remove the keys, since RowCountChanged() will call our GetRowCount()
   if (mTree) 
@@ -1274,12 +1290,10 @@ nsresult nsMsgSearchDBView::GetXFThreadFromMsgHdr(nsIMsgDBHdr *msgHdr,
                                                   nsIMsgThread **pThread,
                                                   PRBool *foundByMessageId)
 {
-  nsAutoString hashKey;
   nsCAutoString messageId;
   msgHdr->GetMessageId(getter_Copies(messageId));
-  CopyASCIItoUTF16(messageId, hashKey);
   *pThread = nsnull;
-  m_threadsTable.Get(hashKey, pThread);
+  m_threadsTable.Get(messageId, pThread);
   // The caller may want to know if we found the thread by the msgHdr's
   // messageId
   if (foundByMessageId)
@@ -1296,8 +1310,7 @@ nsresult nsMsgSearchDBView::GetXFThreadFromMsgHdr(nsIMsgDBHdr *msgHdr,
       if (reference.IsEmpty())
         break;
 
-      CopyASCIItoUTF16(reference, hashKey);
-      m_threadsTable.Get(hashKey, pThread);
+      m_threadsTable.Get(reference, pThread);
     }
   }
   // if we're threading by subject, and we couldn't find the thread by ref,
@@ -1307,40 +1320,33 @@ nsresult nsMsgSearchDBView::GetXFThreadFromMsgHdr(nsIMsgDBHdr *msgHdr,
     nsCString subject;
     msgHdr->GetSubject(getter_Copies(subject));
     // this is the raw rfc822 subject header, so this is OK
-    CopyASCIItoUTF16(subject, hashKey);
-    m_threadsTable.Get(hashKey, pThread);
+    m_threadsTable.Get(subject, pThread);
   }
   return (*pThread) ? NS_OK : NS_ERROR_FAILURE;
 }
 
 nsresult nsMsgSearchDBView::GetMsgHdrFromHash(nsCString &reference, nsIMsgDBHdr **hdr)
 {
-  nsString hashKey;
-  CopyASCIItoUTF16(reference, hashKey);
-  return m_hdrsTable.Get(hashKey, hdr);
+  return m_hdrsTable.Get(reference, hdr);
 }
 
 nsresult nsMsgSearchDBView::GetThreadFromHash(nsCString &reference, 
                                               nsIMsgThread **thread)
 {
-  nsString hashKey;
-  CopyASCIItoUTF16(reference, hashKey);
-  return m_threadsTable.Get(hashKey, thread);
+  return m_threadsTable.Get(reference, thread);
 }
 
 nsresult nsMsgSearchDBView::AddRefToHash(nsCString &reference, 
                                          nsIMsgThread *thread)
 {
-  nsString hashKey;
-  CopyASCIItoUTF16(reference, hashKey);
   // Check if this reference is already is associated with a thread;
   // If so, don't overwrite that association.
   nsCOMPtr<nsIMsgThread> oldThread;
-  m_threadsTable.Get(hashKey, getter_AddRefs(oldThread));
+  m_threadsTable.Get(reference, getter_AddRefs(oldThread));
   if (oldThread)
     return NS_OK;
 
-  return m_threadsTable.Put(hashKey, thread);
+  return m_threadsTable.Put(reference, thread);
 }
 
 nsresult nsMsgSearchDBView::AddMsgToHashTables(nsIMsgDBHdr *msgHdr,
@@ -1364,9 +1370,7 @@ nsresult nsMsgSearchDBView::AddMsgToHashTables(nsIMsgDBHdr *msgHdr,
 
   nsCString messageId;
   msgHdr->GetMessageId(getter_Copies(messageId));
-  nsString hashKey;
-  CopyASCIItoUTF16(messageId, hashKey);
-  m_hdrsTable.Put(hashKey, msgHdr);
+  m_hdrsTable.Put(messageId, msgHdr);
   if (!gReferenceOnlyThreading)
   {
     nsCString subject;
@@ -1379,9 +1383,7 @@ nsresult nsMsgSearchDBView::AddMsgToHashTables(nsIMsgDBHdr *msgHdr,
 
 nsresult nsMsgSearchDBView::RemoveRefFromHash(nsCString &reference)
 {
-  nsString hashKey;
-  CopyASCIItoUTF16(reference, hashKey);
-  m_threadsTable.Remove(hashKey);
+  m_threadsTable.Remove(reference);
   return NS_OK;
 }
 
@@ -1405,9 +1407,7 @@ nsresult nsMsgSearchDBView::RemoveMsgFromHashTables(nsIMsgDBHdr *msgHdr)
   }
   nsCString messageId;
   msgHdr->GetMessageId(getter_Copies(messageId));
-  nsString hashKey;
-  CopyASCIItoUTF16(messageId, hashKey);
-  m_hdrsTable.Remove(hashKey);
+  m_hdrsTable.Remove(messageId);
   RemoveRefFromHash(messageId);
   if (!gReferenceOnlyThreading)
   {
@@ -1424,7 +1424,7 @@ nsMsgGroupThread *nsMsgSearchDBView::CreateGroupThread(nsIMsgDatabase * /* db */
   return new nsMsgXFGroupThread();
 }
 
-nsresult nsMsgSearchDBView::GetThreadContainingMsgHdr(nsIMsgDBHdr *msgHdr, 
+NS_IMETHODIMP nsMsgSearchDBView::GetThreadContainingMsgHdr(nsIMsgDBHdr *msgHdr, 
                                                       nsIMsgThread **pThread)
 {
   if (m_viewFlags & nsMsgViewFlagsType::kGroupBySort)
@@ -1490,7 +1490,7 @@ nsMsgSearchDBView::ListIdsInThread(nsIMsgThread *threadHdr,
 NS_IMETHODIMP nsMsgSearchDBView::GetNumMsgsInView(PRInt32 *aNumMsgs)
 {
   NS_ENSURE_ARG_POINTER(aNumMsgs);
-  *aNumMsgs = m_hdrsTable.Count();
+  *aNumMsgs = m_totalMessagesInView;
   return NS_OK;
 }
 

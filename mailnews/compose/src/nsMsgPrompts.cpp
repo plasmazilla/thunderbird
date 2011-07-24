@@ -42,6 +42,8 @@
 #include "nsMsgCompCID.h"
 #include "nsComposeStrings.h"
 #include "nsIStringBundle.h"
+#include "nsServiceManagerUtils.h"
+#include "nsMsgUtils.h"
 
 nsresult
 nsMsgGetMessageByID(PRInt32 aMsgID, nsString& aResult)
@@ -122,21 +124,6 @@ nsMsgDisplayMessageByString(nsIPrompt * aPrompt, const PRUnichar * msg, const PR
   if (prompt)
     rv = prompt->Alert(windowTitle, msg);
   return NS_OK;
-}
-
-nsresult
-nsMsgAskBooleanQuestionByID(nsIPrompt * aPrompt, PRInt32 msgID, PRBool *answer, const PRUnichar * windowTitle)
-{
-  nsresult rv;
-  nsCOMPtr<nsIStringBundleService> bundleService(do_GetService("@mozilla.org/intl/stringbundle;1", &rv));
-  NS_ENSURE_SUCCESS(rv, rv);
-  nsCOMPtr<nsIStringBundle> bundle;
-  rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(bundle));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsString msg;
-  bundle->GetStringFromID(msgID, getter_Copies(msg));
-  return nsMsgAskBooleanQuestionByString(aPrompt, msg.get(), answer, windowTitle);
 }
 
 nsresult

@@ -152,12 +152,14 @@ nsSVGTransformList::GetConsolidationMatrix(nsIDOMSVGTransformList *transforms)
 NS_IMPL_ADDREF(nsSVGTransformList)
 NS_IMPL_RELEASE(nsSVGTransformList)
 
+DOMCI_DATA(SVGTransformList, nsSVGTransformList)
+
 NS_INTERFACE_MAP_BEGIN(nsSVGTransformList)
   NS_INTERFACE_MAP_ENTRY(nsISVGValue)
   NS_INTERFACE_MAP_ENTRY(nsIDOMSVGTransformList)
   NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
   NS_INTERFACE_MAP_ENTRY(nsISVGValueObserver)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(SVGTransformList)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGTransformList)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsISVGValue)
 NS_INTERFACE_MAP_END
 
@@ -170,16 +172,14 @@ nsSVGTransformList::SetValueString(const nsAString& aValue)
   // XXX: we don't implement the _exact_ BNF given in the
   // specs.
 
-  nsresult rv = NS_OK;
-
   // parse transform attribute value
   nsCOMArray<nsIDOMSVGTransform> xforms;
   nsSVGTransformListParser parser(&xforms);
-  rv = parser.Parse(aValue);
+  nsresult rv = parser.Parse(aValue);
 
   if (NS_FAILED(rv)) {
     // there was a parse error.
-    rv = NS_ERROR_FAILURE;
+    rv = NS_ERROR_DOM_SYNTAX_ERR;
   }
   else {
     WillModify();
@@ -303,10 +303,10 @@ NS_IMETHODIMP nsSVGTransformList::ReplaceItem(nsIDOMSVGTransform *newItem,
 {
   NS_ENSURE_NATIVE_TRANSFORM(newItem, _retval);
 
-  nsSVGValueAutoNotifier autonotifier(this);
-
   if (index >= mTransforms.Length())
     return NS_ERROR_DOM_INDEX_SIZE_ERR;
+
+  nsSVGValueAutoNotifier autonotifier(this);
 
   nsIDOMSVGTransform* oldItem = ElementAt(index);
 
@@ -327,12 +327,12 @@ NS_IMETHODIMP nsSVGTransformList::ReplaceItem(nsIDOMSVGTransform *newItem,
 /* nsIDOMSVGTransform removeItem (in unsigned long index); */
 NS_IMETHODIMP nsSVGTransformList::RemoveItem(PRUint32 index, nsIDOMSVGTransform **_retval)
 {
-  nsSVGValueAutoNotifier autonotifier(this);
-
   if (index >= mTransforms.Length()) {
     *_retval = nsnull;
     return NS_ERROR_DOM_INDEX_SIZE_ERR;
   }
+
+  nsSVGValueAutoNotifier autonotifier(this);
 
   *_retval = ElementAt(index);
 

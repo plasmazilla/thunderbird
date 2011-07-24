@@ -3,8 +3,8 @@
  * reprompt when the user re-selects a message.
  */
 
-load("../../mailnews/resources/mailDirService.js");
-load("../../mailnews/resources/mailTestUtils.js");
+load("../../../../resources/mailDirService.js");
+load("../../../../resources/mailTestUtils.js");
 
 var gMessenger = Cc["@mozilla.org/messenger;1"].
                    createInstance(Ci.nsIMessenger);
@@ -56,8 +56,8 @@ function run_test()
                                .createInstance(Components.interfaces.nsIMsgMdnGenerator);
   const MDN_DISPOSE_TYPE_DISPLAYED = 0;
 
-  var askUser = mdnGenerator.process(MDN_DISPOSE_TYPE_DISPLAYED, msgWindow, msgFolder,
-                                     msgHdr.messageKey, mimeHdr, false);
+  mdnGenerator.process(MDN_DISPOSE_TYPE_DISPLAYED, msgWindow, msgFolder,
+                       msgHdr.messageKey, mimeHdr, false);
   mdnGenerator.userDeclined();
   do_check_neq(msgHdr.flags & Ci.nsMsgMessageFlags.MDNReportSent, 0);
   do_check_eq(msgHdr.flags & Ci.nsMsgMessageFlags.MDNReportNeeded, 0);

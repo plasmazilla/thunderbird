@@ -79,7 +79,7 @@ nsXULControllers::DeleteControllers()
 }
 
 
-NS_IMETHODIMP
+nsresult
 NS_NewXULControllers(nsISupports* aOuter, REFNSIID aIID, void** aResult)
 {
   NS_PRECONDITION(aOuter == nsnull, "no aggregation");
@@ -113,15 +113,17 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsXULControllers)
   }
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
+DOMCI_DATA(XULControllers, nsXULControllers)
+
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsXULControllers)
   NS_INTERFACE_MAP_ENTRY(nsIControllers)
   NS_INTERFACE_MAP_ENTRY(nsISecurityCheckedComponent)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIControllers)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(XULControllers)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(XULControllers)
 NS_INTERFACE_MAP_END
 
-NS_IMPL_CYCLE_COLLECTING_ADDREF_AMBIGUOUS(nsXULControllers, nsIControllers)
-NS_IMPL_CYCLE_COLLECTING_RELEASE_AMBIGUOUS(nsXULControllers, nsIControllers)
+NS_IMPL_CYCLE_COLLECTING_ADDREF(nsXULControllers)
+NS_IMPL_CYCLE_COLLECTING_RELEASE(nsXULControllers)
 
 NS_IMETHODIMP
 nsXULControllers::GetControllerForCommand(const char *aCommand, nsIController** _retval)

@@ -43,7 +43,7 @@ function testprivatecl() {
 
 testprivatecl.prototype = {
   _arguments: ["private", "silent"],
-  get length getLength() {
+  get length() {
     return this._arguments.length;
   },
   getArgument: function getArgument(aIndex) {
@@ -74,7 +74,7 @@ testprivatecl.prototype = {
   STATE_INITIAL_LAUNCH: 0,
   STATE_REMOTE_AUTO: 1,
   STATE_REMOTE_EXPLICIT: 2,
-  get state getState() {
+  get state() {
     return this.STATE_INITIAL_LAUNCH;
   },
   preventDefault: false,
@@ -97,9 +97,12 @@ testprivatecl.prototype = {
 function do_test() {
   // initialization
   let pb = Cc[PRIVATEBROWSING_CONTRACT_ID].
-           getService(Ci.nsIPrivateBrowsingService);
+           getService(Ci.nsIPrivateBrowsingService).
+           QueryInterface(Ci.nsIObserver);
 
   let testcl = new testprivatecl();
+
+  pb.observe(testcl, "command-line-startup", null);
 
   let catMan = Cc["@mozilla.org/categorymanager;1"].
                getService(Ci.nsICategoryManager);
@@ -115,4 +118,6 @@ function do_test() {
   do_check_true(pb.privateBrowsingEnabled);
   // and should appear as auto-started!
   do_check_true(pb.autoStarted);
+  // and should be coming from the command line!
+  do_check_eq(pb.lastChangedByCommandLine, true);
 }

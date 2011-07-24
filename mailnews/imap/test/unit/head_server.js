@@ -1,11 +1,16 @@
+// We can be executed from multiple depths
+// Provide gDEPTH if not already defined
+if (typeof gDEPTH == "undefined")
+  gDEPTH = "../../../../";
+
 // Import fakeserver
-load("../../mailnews/fakeserver/maild.js");
-load("../../mailnews/fakeserver/auth.js");
-load("../../mailnews/fakeserver/imapd.js");
+load(gDEPTH + "mailnews/fakeserver/maild.js");
+load(gDEPTH + "mailnews/fakeserver/auth.js");
+load(gDEPTH + "mailnews/fakeserver/imapd.js");
 
 // And mailnews scripts
-load("../../mailnews/resources/mailDirService.js");
-load("../../mailnews/resources/mailTestUtils.js");
+load(gDEPTH + "mailnews/resources/mailDirService.js");
+load(gDEPTH + "mailnews/resources/mailTestUtils.js");
 
 const IMAP_PORT = 1024 + 143;
 
@@ -28,19 +33,7 @@ function makeServer(daemon, infoString) {
 }
 
 function createLocalIMAPServer() {
-  var acctmgr = Cc["@mozilla.org/messenger/account-manager;1"]
-                  .getService(Ci.nsIMsgAccountManager);
-
-  var server = acctmgr.createIncomingServer("user", "localhost", "imap");
-  server.port = IMAP_PORT;
-  server.username = "user";
-  server.password = "password";
-  server.valid = false;
-
-  var account = acctmgr.createAccount();
-  account.incomingServer = server;
-  server.valid = true;
-
+  let server = create_incoming_server("imap", IMAP_PORT, "user", "password");
   server.QueryInterface(Ci.nsIImapIncomingServer);
   return server;
 }

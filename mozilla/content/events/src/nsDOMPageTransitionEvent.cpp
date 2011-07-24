@@ -39,9 +39,11 @@
 #include "nsDOMPageTransitionEvent.h"
 #include "nsContentUtils.h"
 
+DOMCI_DATA(PageTransitionEvent, nsDOMPageTransitionEvent)
+
 NS_INTERFACE_MAP_BEGIN(nsDOMPageTransitionEvent)
   NS_INTERFACE_MAP_ENTRY(nsIDOMPageTransitionEvent)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(PageTransitionEvent)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(PageTransitionEvent)
 NS_INTERFACE_MAP_END_INHERITING(nsDOMEvent)
 
 NS_IMPL_ADDREF_INHERITED(nsDOMPageTransitionEvent, nsDOMEvent)

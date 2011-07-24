@@ -15,7 +15,7 @@
  *
  * The Original Code is Places Test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corporation
+ * The Initial Developer of the Original Code is Mozilla Foundation
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -64,23 +64,19 @@ function createTestData() {
   * This test will test Queries that use relative search terms and URI options
   */
  function run_test() {
-   // This test is randomly failing pretty often, so it's disabled.
-   // See Bug 516505.
-   return;
-
    createTestData();
    populateDB(testData);
-   var query = histsvc.getNewQuery();
+   var query = PlacesUtils.history.getNewQuery();
    query.searchTerms = "moz";
    query.minVisits = 2;
 
    // Options
-   var options = histsvc.getNewQueryOptions();
+   var options = PlacesUtils.history.getNewQueryOptions();
    options.sortingMode = options.SORT_BY_VISITCOUNT_ASCENDING;
    options.resultType = options.RESULTS_AS_VISIT;
 
    // Results
-   var result = histsvc.executeQuery(query, options);
+   var result = PlacesUtils.history.executeQuery(query, options);
    var root = result.root;
    root.containerOpen = true;
 
@@ -118,20 +114,20 @@ function createTestData() {
    LOG("Updating Items in batch");
    var updateBatch = {
      runBatched: function (aUserData) {
-       batchchange = [{ isVisit: true,
-                        lastVisit: now++,
-                        uri: "http://foo.mail.com/changeme1.html",
-                        title: "foo"},
-                      { isVisit: true,
-                        lastVisit: now++,
-                        uri: "http://foo.mail.com/changeme3.html",
-                        title: "moz",
-                        isTag: true,
-                        tagArray: ["foo", "moz"] }];
+       var batchchange = [{ isVisit: true,
+                            lastVisit: now++,
+                            uri: "http://foo.mail.com/changeme1.html",
+                            title: "foo"},
+                          { isVisit: true,
+                            lastVisit: now++,
+                            uri: "http://foo.mail.com/changeme3.html",
+                            title: "moz",
+                            isTag: true,
+                            tagArray: ["foo", "moz"] }];
        populateDB(batchchange);
      }
    };
-   histsvc.runInBatchMode(updateBatch, null);
+   PlacesUtils.history.runInBatchMode(updateBatch, null);
    do_check_false(isInResult({uri: "http://foo.mail.com/changeme1.html"}, root));
    do_check_true(isInResult({uri: "http://foo.mail.com/changeme3.html"}, root));
 

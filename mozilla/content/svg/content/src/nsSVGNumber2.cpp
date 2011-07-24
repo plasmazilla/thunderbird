@@ -35,8 +35,13 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsSVGNumber2.h"
+#include "nsSVGUtils.h"
 #include "nsTextFormatter.h"
 #include "prdtoa.h"
+#ifdef MOZ_SMIL
+#include "nsSMILValue.h"
+#include "nsSMILFloatType.h"
+#endif // MOZ_SMIL
 
 class DOMSVGNumber : public nsIDOMSVGNumber
 {
@@ -65,47 +70,83 @@ NS_IMPL_CYCLE_COLLECTING_RELEASE(nsSVGNumber2::DOMAnimatedNumber)
 NS_IMPL_ADDREF(DOMSVGNumber)
 NS_IMPL_RELEASE(DOMSVGNumber)
 
+DOMCI_DATA(SVGAnimatedNumber, nsSVGNumber2::DOMAnimatedNumber)
+
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsSVGNumber2::DOMAnimatedNumber)
   NS_INTERFACE_MAP_ENTRY(nsIDOMSVGAnimatedNumber)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(SVGAnimatedNumber)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGAnimatedNumber)
 NS_INTERFACE_MAP_END
 
 NS_INTERFACE_MAP_BEGIN(DOMSVGNumber)
   NS_INTERFACE_MAP_ENTRY(nsIDOMSVGNumber)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(SVGNumber)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGNumber)
 NS_INTERFACE_MAP_END
 
 /* Implementation */
+
+static nsresult
+GetValueFromString(const nsAString &aValueAsString,
+                   PRBool aPercentagesAllowed,
+                   float *aValue)
+{
+  NS_ConvertUTF16toUTF8 value(aValueAsString);
+  const char *str = value.get();
+
+  if (NS_IsAsciiWhitespace(*str))
+    return NS_ERROR_DOM_SYNTAX_ERR;
+  
+  char *rest;
+  *aValue = float(PR_strtod(str, &rest));
+  if (rest == str || !NS_FloatIsFinite(*aValue)) {
+    return NS_ERROR_DOM_SYNTAX_ERR;
+  }
+  if (*rest == '%' && aPercentagesAllowed) {
+    *aValue /= 100;
+    ++rest;
+  }
+  if (*rest == '\0') {
+    return NS_OK;
+  }
+  return NS_ERROR_DOM_SYNTAX_ERR;
+}
 
 nsresult
 nsSVGNumber2::SetBaseValueString(const nsAString &aValueAsString,
                                  nsSVGElement *aSVGElement,
                                  PRBool aDoSetAttr)
 {
-  NS_ConvertUTF16toUTF8 value(aValueAsString);
-  const char *str = value.get();
+  float val;
 
-  if (NS_IsAsciiWhitespace(*str))
-    return NS_ERROR_FAILURE;
-  
-  char *rest;
-  float val = float(PR_strtod(str, &rest));
-  if (rest == str || *rest != '\0' || !NS_FloatIsFinite(val)) {
-    return NS_ERROR_FAILURE;
+  nsresult rv = GetValueFromString(
+    aValueAsString, aSVGElement->NumberAttrAllowsPercentage(mAttrEnum), &val);
+
+  if (NS_FAILED(rv)) {
+    return rv;
   }
 
-  mBaseVal = mAnimVal = val;
+  mBaseVal = val;
+  if (!mIsAnimated) {
+    mAnimVal = mBaseVal;
+  }
+#ifdef MOZ_SMIL
+  else {
+    aSVGElement->AnimationNeedsResample();
+  }
+#endif
+
+  // We don't need to call DidChange* here - we're only called by
+  // nsSVGElement::ParseAttribute under nsGenericElement::SetAttr,
+  // which takes care of notifying.
   return NS_OK;
 }
 
 void
 nsSVGNumber2::GetBaseValueString(nsAString & aValueAsString)
 {
-  nsAutoString s;
-  s.AppendFloat(mBaseVal);
-  aValueAsString.Assign(s);
+  aValueAsString.Truncate();
+  aValueAsString.AppendFloat(mBaseVal);
 }
 
 void
@@ -113,8 +154,24 @@ nsSVGNumber2::SetBaseValue(float aValue,
                            nsSVGElement *aSVGElement,
                            PRBool aDoSetAttr)
 {
-  mAnimVal = mBaseVal = aValue;
+  mBaseVal = aValue;
+  if (!mIsAnimated) {
+    mAnimVal = mBaseVal;
+  }
+#ifdef MOZ_SMIL
+  else {
+    aSVGElement->AnimationNeedsResample();
+  }
+#endif
   aSVGElement->DidChangeNumber(mAttrEnum, aDoSetAttr);
+}
+
+void
+nsSVGNumber2::SetAnimValue(float aValue, nsSVGElement *aSVGElement)
+{
+  mAnimVal = aValue;
+  mIsAnimated = PR_TRUE;
+  aSVGElement->DidAnimateNumber(mAttrEnum);
 }
 
 nsresult
@@ -129,3 +186,61 @@ nsSVGNumber2::ToDOMAnimatedNumber(nsIDOMSVGAnimatedNumber **aResult,
   return NS_OK;
 }
 
+#ifdef MOZ_SMIL
+nsISMILAttr*
+nsSVGNumber2::ToSMILAttr(nsSVGElement *aSVGElement)
+{
+  return new SMILNumber(this, aSVGElement);
+}
+
+nsresult
+nsSVGNumber2::SMILNumber::ValueFromString(const nsAString& aStr,
+                                          const nsISMILAnimationElement* /*aSrcElement*/,
+                                          nsSMILValue& aValue,
+                                          PRBool& aPreventCachingOfSandwich) const
+{
+  float value;
+
+  nsresult rv = GetValueFromString(
+    aStr, mSVGElement->NumberAttrAllowsPercentage(mVal->mAttrEnum), &value);
+
+  if (NS_FAILED(rv)) {
+    return rv;
+  }
+
+  nsSMILValue val(&nsSMILFloatType::sSingleton);
+  val.mU.mDouble = value;
+  aValue = val;
+  aPreventCachingOfSandwich = PR_FALSE;
+
+  return NS_OK;
+}
+
+nsSMILValue
+nsSVGNumber2::SMILNumber::GetBaseValue() const
+{
+  nsSMILValue val(&nsSMILFloatType::sSingleton);
+  val.mU.mDouble = mVal->mBaseVal;
+  return val;
+}
+
+void
+nsSVGNumber2::SMILNumber::ClearAnimValue()
+{
+  if (mVal->mIsAnimated) {
+    mVal->SetAnimValue(mVal->mBaseVal, mSVGElement);
+    mVal->mIsAnimated = PR_FALSE;
+  }
+}
+
+nsresult
+nsSVGNumber2::SMILNumber::SetAnimValue(const nsSMILValue& aValue)
+{
+  NS_ASSERTION(aValue.mType == &nsSMILFloatType::sSingleton,
+               "Unexpected type to assign animated value");
+  if (aValue.mType == &nsSMILFloatType::sSingleton) {
+    mVal->SetAnimValue(float(aValue.mU.mDouble), mSVGElement);
+  }
+  return NS_OK;
+}
+#endif // MOZ_SMIL

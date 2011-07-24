@@ -55,7 +55,6 @@
 #include "nsIAtom.h"
 #include "nsINodeInfo.h"
 #include "nsIControllers.h"
-#include "nsICSSParser.h"
 #include "nsIDOMElement.h"
 #include "nsIDOMEventTarget.h"
 #include "nsIDOM3EventTarget.h"
@@ -74,20 +73,25 @@
 #include "nsAttrAndChildArray.h"
 #include "nsGkAtoms.h"
 #include "nsAutoPtr.h"
-#include "nsGenericElement.h"
+#include "nsStyledElement.h"
 #include "nsDOMScriptObjectHolder.h"
 #include "nsIFrameLoader.h"
 
 class nsIDocument;
 class nsString;
 class nsIDocShell;
-class nsICSSStyleRule;
 
 class nsIObjectInputStream;
 class nsIObjectOutputStream;
 class nsIScriptGlobalObjectOwner;
 class nsXULPrototypeNode;
 typedef nsTArray<nsRefPtr<nsXULPrototypeNode> > nsPrototypeArray;
+
+namespace mozilla {
+namespace css {
+class StyleRule;
+}
+}
 
 static NS_DEFINE_CID(kCSSParserCID, NS_CSSPARSER_CID);
 
@@ -253,7 +257,6 @@ public:
 
     virtual ~nsXULPrototypeElement()
     {
-        UnlinkJSObjects();
         Unlink();
     }
 
@@ -282,7 +285,6 @@ public:
 
     nsresult SetAttrAt(PRUint32 aPos, const nsAString& aValue, nsIURI* aDocumentURI);
 
-    void UnlinkJSObjects();
     void Unlink();
 
     nsPrototypeArray         mChildren;
@@ -302,24 +304,6 @@ public:
     // (eg, when a node from an overlay ends up in our document, that node
     // must use its original script language, not our document's default.
     PRUint16                 mScriptTypeID;
-    static void ReleaseGlobals()
-    {
-        NS_IF_RELEASE(sCSSParser);
-    }
-
-protected:
-    static nsICSSParser* GetCSSParser()
-    {
-        if (!sCSSParser) {
-            CallCreateInstance(kCSSParserCID, &sCSSParser);
-            if (sCSSParser) {
-                sCSSParser->SetCaseSensitive(PR_TRUE);
-                sCSSParser->SetQuirkMode(PR_FALSE);
-            }
-        }
-        return sCSSParser;
-    }
-    static nsICSSParser* sCSSParser;
 };
 
 class nsXULDocument;
@@ -372,7 +356,6 @@ public:
     void Set(void *aObject)
     {
         NS_ASSERTION(!mScriptObject.mObject, "Leaking script object.");
-
         if (!aObject) {
             mScriptObject.mObject = nsnull;
 
@@ -471,18 +454,21 @@ public:
 
  */
 
-#define XUL_ELEMENT_TEMPLATE_GENERATED 1 << NODE_TYPE_SPECIFIC_BITS_OFFSET
+#define XUL_ELEMENT_TEMPLATE_GENERATED (1 << ELEMENT_TYPE_SPECIFIC_BITS_OFFSET)
+
+// Make sure we have space for our bit
+PR_STATIC_ASSERT(ELEMENT_TYPE_SPECIFIC_BITS_OFFSET < 32);
 
 class nsScriptEventHandlerOwnerTearoff;
 
-class nsXULElement : public nsGenericElement, public nsIDOMXULElement
+class nsXULElement : public nsStyledElement, public nsIDOMXULElement
 {
 public:
 
     /** Typesafe, non-refcounting cast from nsIContent.  Cheaper than QI. **/
     static nsXULElement* FromContent(nsIContent *aContent)
     {
-        if (aContent->IsNodeOfType(eXUL))
+        if (aContent->IsXUL())
             return static_cast<nsXULElement*>(aContent);
         return nsnull;
     }
@@ -502,9 +488,11 @@ protected:
     static nsIXBLService*       gXBLService;
 
 public:
+    nsXULElement(already_AddRefed<nsINodeInfo> aNodeInfo);
+
     static nsresult
     Create(nsXULPrototypeElement* aPrototype, nsIDocument* aDocument,
-           PRBool aIsScriptable, nsIContent** aResult);
+           PRBool aIsScriptable, mozilla::dom::Element** aResult);
 
     // nsISupports
     NS_DECL_ISUPPORTS_INHERITED
@@ -520,8 +508,6 @@ public:
                                 PRBool aCompileEventHandlers);
     virtual void UnbindFromTree(PRBool aDeep, PRBool aNullParent);
     virtual nsresult RemoveChildAt(PRUint32 aIndex, PRBool aNotify, PRBool aMutationEvent = PR_TRUE);
-    virtual nsIAtom *GetIDAttributeName() const;
-    virtual nsIAtom *GetClassAttributeName() const;
     virtual PRBool GetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
                            nsAString& aResult) const;
     virtual PRBool HasAttr(PRInt32 aNameSpaceID, nsIAtom* aName) const;
@@ -550,16 +536,16 @@ public:
 
     virtual void PerformAccesskey(PRBool aKeyCausesActivation,
                                   PRBool aIsTrustedEvent);
+    nsresult ClickWithInputSource(PRUint16 aInputSource);
 
     virtual nsIContent *GetBindingParent() const;
     virtual PRBool IsNodeOfType(PRUint32 aFlags) const;
-    virtual PRBool IsFocusable(PRInt32 *aTabIndex = nsnull);
-    virtual nsIAtom* GetID() const;
+    virtual PRBool IsFocusable(PRInt32 *aTabIndex = nsnull, PRBool aWithMouse = PR_FALSE);
+    virtual nsIAtom* DoGetID() const;
     virtual const nsAttrValue* DoGetClasses() const;
 
     NS_IMETHOD WalkContentStyleRules(nsRuleWalker* aRuleWalker);
-    virtual nsICSSStyleRule* GetInlineStyleRule();
-    NS_IMETHOD SetInlineStyleRule(nsICSSStyleRule* aStyleRule, PRBool aNotify);
+    virtual mozilla::css::StyleRule* GetInlineStyleRule();
     virtual nsChangeHint GetAttributeChangeHint(const nsIAtom* aAttribute,
                                                 PRInt32 aModType) const;
     NS_IMETHOD_(PRBool) IsAttributeMapped(const nsIAtom* aAttribute) const;
@@ -583,11 +569,12 @@ public:
     NS_DECL_NSIDOMXULELEMENT
 
     virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
-    virtual PRInt32 IntrinsicState() const;
+    virtual nsEventStates IntrinsicState() const;
 
-    nsresult GetStyle(nsIDOMCSSStyleDeclaration** aStyle);
+    nsresult EnsureLocalStyle();
 
     nsresult GetFrameLoader(nsIFrameLoader** aFrameLoader);
+    already_AddRefed<nsFrameLoader> GetFrameLoader();
     nsresult SwapFrameLoaders(nsIFrameLoaderOwner* aOtherOwner);
 
     virtual void RecompileScriptEventListeners();
@@ -600,6 +587,14 @@ public:
       mBindingParent = aBindingParent;
     }
 
+    /**
+     * Get the attr info for the given namespace ID and attribute name.
+     * The namespace ID must not be kNameSpaceID_Unknown and the name
+     * must not be null.
+     */
+    virtual nsAttrInfo GetAttrInfo(PRInt32 aNamespaceID, nsIAtom* aName) const;
+
+    virtual nsXPCClassInfo* GetClassInfo();
 protected:
     // XXX This can be removed when nsNodeUtils::CloneAndAdopt doesn't need
     //     access to mPrototype anymore.
@@ -607,8 +602,6 @@ protected:
 
     // This can be removed if EnsureContentsGenerated dies.
     friend class nsNSElementTearoff;
-
-    nsXULElement(nsINodeInfo* aNodeInfo);
 
     // Implementation methods
     nsresult EnsureContentsGenerated(void) const;
@@ -626,7 +619,7 @@ protected:
     class nsXULSlots : public nsGenericElement::nsDOMSlots
     {
     public:
-       nsXULSlots(PtrBits aFlags);
+       nsXULSlots();
        virtual ~nsXULSlots();
 
        nsRefPtr<nsFrameLoader> mFrameLoader;
@@ -649,13 +642,6 @@ protected:
      * Abandon our prototype linkage, and copy all attributes locally
      */
     nsresult MakeHeavyweight();
-
-    /**
-     * Get the attr info for the given namespace ID and attribute name.
-     * The namespace ID must not be kNameSpaceID_Unknown and the name
-     * must not be null.
-     */
-    virtual nsAttrInfo GetAttrInfo(PRInt32 aNamespaceID, nsIAtom* aName) const;
 
     const nsAttrValue* FindLocalOrProtoAttr(PRInt32 aNameSpaceID,
                                             nsIAtom *aName) const {
@@ -689,10 +675,15 @@ protected:
                         PRBool aCompileEventHandlers);
     void MaybeAddPopupListener(nsIAtom* aLocalName);
 
+    nsIWidget* GetWindowWidget();
 
+    // attribute setters for widget
     nsresult HideWindowChrome(PRBool aShouldHide);
-
+    void SetChromeMargins(const nsAString* aValue);
+    void ResetChromeMargins();
     void SetTitlebarColor(nscolor aColor, PRBool aActive);
+
+    void SetDrawsInTitlebar(PRBool aState);
 
     const nsAttrName* InternalGetExistingAttrNameFromQName(const nsAString& aStr) const;
 
@@ -711,6 +702,8 @@ protected:
 
     friend nsresult
     NS_NewXULElement(nsIContent** aResult, nsINodeInfo *aNodeInfo);
+    friend void
+    NS_TrustedNewXULElement(nsIContent** aResult, nsINodeInfo *aNodeInfo);
 
     static already_AddRefed<nsXULElement>
     Create(nsXULPrototypeElement* aPrototype, nsINodeInfo *aNodeInfo,

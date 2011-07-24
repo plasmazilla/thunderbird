@@ -50,13 +50,14 @@ class nsIAtom;
 class nsPIDOMEventTarget;
 class nsIEventListenerInfo;
 template<class E> class nsCOMArray;
+class nsCxPusher;
 
 /*
  * Event listener manager interface.
  */
 #define NS_IEVENTLISTENERMANAGER_IID \
-{ 0xac49ce4e, 0xaecf, 0x45db, \
-  { 0xa1, 0xe0, 0xea, 0x1d, 0x38, 0x73, 0x39, 0xa3 } }
+{ 0xe86a148b, 0x0563, 0x454f, \
+  { 0x8c, 0xf2, 0xbd, 0xc4, 0x7c, 0xe6, 0xbe, 0x91 } }
 
 class nsIEventListenerManager : public nsISupports {
 
@@ -65,6 +66,9 @@ public:
 
   nsIEventListenerManager() : mMayHavePaintEventListener(PR_FALSE),
     mMayHaveMutationListeners(PR_FALSE),
+    mMayHaveCapturingListeners(PR_FALSE),
+    mMayHaveSystemGroupListeners(PR_FALSE),
+    mMayHaveAudioAvailableEventListener(PR_FALSE),
     mNoListenerForEvent(0)
   {}
 
@@ -138,18 +142,6 @@ public:
                                         PRBool *aDidCompile) = 0;
 
   /**
-  * Causes a check for event listeners and processing by them if they exist.
-  * Event flags live in nsGUIEvent.h
-  * @param an event listener
-  */
-  NS_IMETHOD HandleEvent(nsPresContext* aPresContext,
-                         nsEvent* aEvent,
-                         nsIDOMEvent** aDOMEvent,
-                         nsPIDOMEventTarget* aCurrentTarget,
-                         PRUint32 aFlags,
-                         nsEventStatus* aEventStatus) = 0;
-
-  /**
   * Tells the event listener manager that its target (which owns it) is
   * no longer using it (and could go away).
   *
@@ -214,13 +206,20 @@ public:
    */
   PRBool MayHavePaintEventListener() { return mMayHavePaintEventListener; }
 
+  /**
+   * Returns PR_TRUE if there may be a MozAudioAvailable event listener registered,
+   * PR_FALSE if there definitely isn't.
+   */
+  PRBool MayHaveAudioAvailableEventListener() { return mMayHaveAudioAvailableEventListener; }
+
+
 protected:
   PRUint32 mMayHavePaintEventListener : 1;
   PRUint32 mMayHaveMutationListeners : 1;
-  // These two member variables are used to cache the information
-  // about the last event which was handled but for which event listener manager
-  // didn't have event listeners.
-  PRUint32 mNoListenerForEvent : 30;
+  PRUint32 mMayHaveCapturingListeners : 1;
+  PRUint32 mMayHaveSystemGroupListeners : 1;
+  PRUint32 mMayHaveAudioAvailableEventListener : 1;
+  PRUint32 mNoListenerForEvent : 27;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIEventListenerManager,

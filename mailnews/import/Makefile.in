@@ -44,7 +44,7 @@ include $(DEPTH)/config/autoconf.mk
 
 MODULE		= import
 
-PARALLEL_DIRS	= public src text/src comm4x/public comm4x/src
+PARALLEL_DIRS	= public src text/src vcard/src comm4x/public comm4x/src
 
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 PARALLEL_DIRS	+= eudora/src applemail/src
@@ -58,7 +58,7 @@ endif
 endif
 
 ifdef ENABLE_TESTS
-PARALLEL_DIRS	+= test
+TOOL_DIRS += test
 endif
 
 DIRS = build

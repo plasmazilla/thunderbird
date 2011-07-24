@@ -274,12 +274,14 @@ extern MimeObjectClass *mime_find_class (const char *content_type,
                      MimeDisplayOptions *opts,
                      PRBool exact_match_p);
 
-/* Given a content-type string, creates and returns an appropriate subclass
-   of MimeObject.  The headers (from which the content-type was presumably
-   extracted) are copied.
+/** Given a content-type string, creates and returns an appropriate subclass
+ * of MimeObject.  The headers (from which the content-type was presumably
+ * extracted) are copied. forceInline is set to true when the caller wants
+ * the function to ignore opts->show_attachment_inline_p and force inline
+ * display, e.g., mimemalt wants the body part to be shown inline.
  */
 extern MimeObject *mime_create (const char *content_type, MimeHeaders *hdrs,
-                MimeDisplayOptions *opts);
+                MimeDisplayOptions *opts, PRBool forceInline = PR_FALSE);
 
 
 /* Querying the type hierarchy */
@@ -430,8 +432,7 @@ extern int MimeOptions_write(MimeDisplayOptions *, nsCString &name,
 /* Writes out the right kind of HR (or rather, queues it for writing.) */
 extern int MimeObject_write_separator(MimeObject *);
 
-extern PRBool MimeObjectChildIsMessageBody(MimeObject *obj,
-                                           PRBool *isAlterOrRelated);
+extern PRBool MimeObjectIsMessageBody(MimeObject *obj);
 
 /* This is the data tagged to contexts and the declaration needs to be
    in a header file since more than mimemoz.c needs to see it now...

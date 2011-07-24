@@ -53,10 +53,8 @@ interface nsIDOMCSSPrimitiveValue;
  * has a one to one relationship to the DOM tree.
  * If the DOM node for this access node is "accessible",
  * then a QueryInterface to nsIAccessible will succeed.
- *
- * @status UNDER_REVIEW
  */
-[scriptable, uuid(71a3b4e7-e83d-45cf-a20e-9ce292bcf19f)]
+[scriptable, uuid(ef16ff42-0256-4b48-ae87-b18a95b7f7d6)]
 interface nsIAccessNode : nsISupports
 {
   /**
@@ -65,50 +63,15 @@ interface nsIAccessNode : nsISupports
   readonly attribute nsIDOMNode DOMNode;
 
   /**
-   * The number of DOM children for the DOM node, which
-   * matches the number of nsIAccessNode children for this
-   * nsIAccessNode.
+   * The document accessible that this access node resides in.
    */
-  readonly attribute long numChildren;
-  
-  /**
-   * Get the nth child of this node
-   * @param childNum Zero-based child index
-   * @return The nth nsIAccessNode child
-   */
-  nsIAccessNode getChildNodeAt(in long childNum);
-  
-  /**
-   * The parent nsIAccessNode
-   */
-  readonly attribute nsIAccessNode parentNode;
+  readonly attribute nsIAccessibleDocument document;
 
   /**
-   * The first nsIAccessNode child
+   * The root document accessible that this access node resides in.
    */
-  readonly attribute nsIAccessNode firstChildNode;
+  readonly attribute nsIAccessibleDocument rootDocument;
 
-  /**
-   * The last nsIAccessNode child
-   */
-  readonly attribute nsIAccessNode lastChildNode;
-  
-  /**
-   * The previous nsIAccessNode sibling
-   */
-  readonly attribute nsIAccessNode previousSiblingNode;
-
-  /**
-   * The next nsIAccessNode sibling
-   */
-  readonly attribute nsIAccessNode nextSiblingNode;
-
-  /**
-   * The nsIAccessibleDocument that this nsIAccessNode
-   * resides in.
-   */
-  readonly attribute nsIAccessibleDocument accessibleDocument;
-  
   /**
    * The innerHTML for the DOM node
    * This is a text string of all the markup inside the DOM

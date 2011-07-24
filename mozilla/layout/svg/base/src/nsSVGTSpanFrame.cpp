@@ -37,6 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsIDOMSVGTSpanElement.h"
+#include "nsIDOMSVGAltGlyphElement.h"
 #include "nsSVGTSpanFrame.h"
 #include "nsSVGUtils.h"
 #include "nsSVGTextFrame.h"
@@ -91,7 +92,8 @@ nsSVGTSpanFrame::Init(nsIContent* aContent,
                  "container");
 
     nsCOMPtr<nsIDOMSVGTSpanElement> tspan = do_QueryInterface(aContent);
-    NS_ASSERTION(tspan, "Content is not an SVG tspan");
+    nsCOMPtr<nsIDOMSVGAltGlyphElement> altGlyph = do_QueryInterface(aContent);
+    NS_ASSERTION(tspan || altGlyph, "Content is not an SVG tspan or altGlyph");
   }
 
   return nsSVGTSpanFrameBase::Init(aContent, aParent, aPrevInFlow);
@@ -107,7 +109,8 @@ nsSVGTSpanFrame::AttributeChanged(PRInt32         aNameSpaceID,
       (aAttribute == nsGkAtoms::x ||
        aAttribute == nsGkAtoms::y ||
        aAttribute == nsGkAtoms::dx ||
-       aAttribute == nsGkAtoms::dy)) {
+       aAttribute == nsGkAtoms::dy ||
+       aAttribute == nsGkAtoms::rotate)) {
     NotifyGlyphMetricsChange();
   }
 
@@ -171,7 +174,7 @@ nsSVGTSpanFrame::GetFirstGlyphFragment()
 NS_IMETHODIMP_(nsISVGGlyphFragmentLeaf *)
 nsSVGTSpanFrame::GetNextGlyphFragment()
 {
-  nsIFrame* sibling = mNextSibling;
+  nsIFrame* sibling = GetNextSibling();
   while (sibling) {
     nsISVGGlyphFragmentNode *node = do_QueryFrame(sibling);
     if (node)
@@ -181,8 +184,8 @@ nsSVGTSpanFrame::GetNextGlyphFragment()
 
   // no more siblings. go back up the tree.
   
-  NS_ASSERTION(mParent, "null parent");
-  nsISVGGlyphFragmentNode *node = do_QueryFrame(mParent);
+  NS_ASSERTION(GetParent(), "null parent");
+  nsISVGGlyphFragmentNode *node = do_QueryFrame(GetParent());
   return node ? node->GetNextGlyphFragment() : nsnull;
 }
 
@@ -190,4 +193,10 @@ NS_IMETHODIMP_(void)
 nsSVGTSpanFrame::SetWhitespaceHandling(PRUint8 aWhitespaceHandling)
 {
   nsSVGTSpanFrameBase::SetWhitespaceHandling();
+}
+
+NS_IMETHODIMP_(PRBool)
+nsSVGTSpanFrame::IsAllWhitespace()
+{
+  return nsSVGTSpanFrameBase::IsAllWhitespace();
 }

@@ -37,10 +37,11 @@
 #include "nsIDOMSVGSymbolElement.h"
 #include "nsSVGStylableElement.h"
 #include "nsSVGViewBox.h"
-#include "nsSVGPreserveAspectRatio.h"
+#include "SVGAnimatedPreserveAspectRatio.h"
 #include "nsIDOMSVGFitToViewBox.h"
 #include "nsGkAtoms.h"
 
+using namespace mozilla;
 typedef nsSVGStylableElement nsSVGSymbolElementBase;
 
 class nsSVGSymbolElement : public nsSVGSymbolElementBase,
@@ -49,8 +50,8 @@ class nsSVGSymbolElement : public nsSVGSymbolElementBase,
 {
 protected:
   friend nsresult NS_NewSVGSymbolElement(nsIContent **aResult,
-                                         nsINodeInfo *aNodeInfo);
-  nsSVGSymbolElement(nsINodeInfo* aNodeInfo);
+                                         already_AddRefed<nsINodeInfo> aNodeInfo);
+  nsSVGSymbolElement(already_AddRefed<nsINodeInfo> aNodeInfo);
 
 public:
   // interfaces:
@@ -69,12 +70,13 @@ public:
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
 
+  virtual nsXPCClassInfo* GetClassInfo();
 protected:
   virtual nsSVGViewBox *GetViewBox();
-  virtual nsSVGPreserveAspectRatio *GetPreserveAspectRatio();
+  virtual SVGAnimatedPreserveAspectRatio *GetPreserveAspectRatio();
 
   nsSVGViewBox mViewBox;
-  nsSVGPreserveAspectRatio mPreserveAspectRatio;
+  SVGAnimatedPreserveAspectRatio mPreserveAspectRatio;
 };
 
 NS_IMPL_NS_NEW_SVG_ELEMENT(Symbol)
@@ -85,17 +87,19 @@ NS_IMPL_NS_NEW_SVG_ELEMENT(Symbol)
 NS_IMPL_ADDREF_INHERITED(nsSVGSymbolElement,nsSVGSymbolElementBase)
 NS_IMPL_RELEASE_INHERITED(nsSVGSymbolElement,nsSVGSymbolElementBase)
 
+DOMCI_NODE_DATA(SVGSymbolElement, nsSVGSymbolElement)
+
 NS_INTERFACE_TABLE_HEAD(nsSVGSymbolElement)
   NS_NODE_INTERFACE_TABLE5(nsSVGSymbolElement, nsIDOMNode, nsIDOMElement,
                            nsIDOMSVGElement, nsIDOMSVGFitToViewBox,
                            nsIDOMSVGSymbolElement)
-  NS_INTERFACE_MAP_ENTRY_CONTENT_CLASSINFO(SVGSymbolElement)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGSymbolElement)
 NS_INTERFACE_MAP_END_INHERITING(nsSVGSymbolElementBase)
 
 //----------------------------------------------------------------------
 // Implementation
 
-nsSVGSymbolElement::nsSVGSymbolElement(nsINodeInfo *aNodeInfo)
+nsSVGSymbolElement::nsSVGSymbolElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsSVGSymbolElementBase(aNodeInfo)
 {
 }
@@ -156,7 +160,7 @@ nsSVGSymbolElement::GetViewBox()
   return &mViewBox;
 }
 
-nsSVGPreserveAspectRatio *
+SVGAnimatedPreserveAspectRatio *
 nsSVGSymbolElement::GetPreserveAspectRatio()
 {
   return &mPreserveAspectRatio;

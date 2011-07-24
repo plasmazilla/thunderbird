@@ -37,6 +37,9 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "mozilla/dom/ContentChild.h"
+#include "nsXULAppAPI.h"
+
 #include "nsPrefService.h"
 #include "nsAppDirectoryServiceDefs.h"
 #include "nsDirectoryServiceDefs.h"
@@ -44,8 +47,11 @@
 #include "nsCategoryManagerUtils.h"
 #include "nsNetUtil.h"
 #include "nsIFile.h"
+#include "nsIInputStream.h"
 #include "nsILocalFile.h"
 #include "nsIObserverService.h"
+#include "nsIStringEnumerator.h"
+#include "nsIZipReader.h"
 #include "nsPrefBranch.h"
 #include "nsXPIDLString.h"
 #include "nsCRT.h"
@@ -60,15 +66,23 @@
 #include "prefapi.h"
 #include "prefread.h"
 #include "prefapi_private_data.h"
+#include "PrefTuple.h"
 
 #include "nsITimelineService.h"
 
+#ifdef MOZ_OMNIJAR
+#include "mozilla/Omnijar.h"
+#include "nsZipArchive.h"
+#endif
+
 // Definitions
 #define INITIAL_PREF_FILES 10
+static NS_DEFINE_CID(kZipReaderCID, NS_ZIPREADER_CID);
 
 // Prototypes
 static nsresult openPrefFile(nsIFile* aFile);
 static nsresult pref_InitInitialObjects(void);
+static nsresult pref_LoadPrefsInDirList(const char *listId);
 
 //-----------------------------------------------------------------------------
 
@@ -96,6 +110,7 @@ NS_IMPL_THREADSAFE_RELEASE(nsPrefService)
 NS_INTERFACE_MAP_BEGIN(nsPrefService)
     NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIPrefService)
     NS_INTERFACE_MAP_ENTRY(nsIPrefService)
+    NS_INTERFACE_MAP_ENTRY(nsIPrefServiceInternal)
     NS_INTERFACE_MAP_ENTRY(nsIObserver)
     NS_INTERFACE_MAP_ENTRY(nsIPrefBranch)
     NS_INTERFACE_MAP_ENTRY(nsIPrefBranch2)
@@ -115,8 +130,7 @@ nsresult nsPrefService::Init()
     return NS_ERROR_OUT_OF_MEMORY;
 
   mRootBranch = (nsIPrefBranch2 *)rootBranch;
-  
-  nsXPIDLCString lockFileName;
+
   nsresult rv;
 
   rv = PREF_Init();
@@ -125,6 +139,20 @@ nsresult nsPrefService::Init()
   rv = pref_InitInitialObjects();
   NS_ENSURE_SUCCESS(rv, rv);
 
+  using mozilla::dom::ContentChild;
+  if (XRE_GetProcessType() == GeckoProcessType_Content) {
+    InfallibleTArray<PrefTuple> array;
+    ContentChild::GetSingleton()->SendReadPrefsArray(&array);
+
+    // Store the array
+    nsTArray<PrefTuple>::size_type index = array.Length();
+    while (index-- > 0) {
+      pref_SetPrefTuple(array[index], PR_TRUE);
+    }
+    return NS_OK;
+  }
+
+  nsXPIDLCString lockFileName;
   /*
    * The following is a small hack which will allow us to only load the library
    * which supports the netscape.cfg file if the preference is defined. We
@@ -139,20 +167,26 @@ nsresult nsPrefService::Init()
                                   static_cast<nsISupports *>(static_cast<void *>(this)),
                                   "pref-config-startup");    
 
-  nsCOMPtr<nsIObserverService> observerService = 
-           do_GetService("@mozilla.org/observer-service;1", &rv);
-  if (observerService) {
-    rv = observerService->AddObserver(this, "profile-before-change", PR_TRUE);
-    if (NS_SUCCEEDED(rv)) {
-      rv = observerService->AddObserver(this, "profile-do-change", PR_TRUE);
-    }
-  }
+  nsCOMPtr<nsIObserverService> observerService =
+    mozilla::services::GetObserverService();
+  if (!observerService)
+    return NS_ERROR_FAILURE;
+
+  rv = observerService->AddObserver(this, "profile-before-change", PR_TRUE);
+
+  if (NS_SUCCEEDED(rv))
+    rv = observerService->AddObserver(this, "profile-do-change", PR_TRUE);
+
+  observerService->AddObserver(this, "load-extension-defaults", PR_TRUE);
 
   return(rv);
 }
 
 NS_IMETHODIMP nsPrefService::Observe(nsISupports *aSubject, const char *aTopic, const PRUnichar *someData)
 {
+  if (XRE_GetProcessType() == GeckoProcessType_Content)
+    return NS_ERROR_NOT_AVAILABLE;
+
   nsresult rv = NS_OK;
 
   if (!nsCRT::strcmp(aTopic, "profile-before-change")) {
@@ -167,6 +201,8 @@ NS_IMETHODIMP nsPrefService::Observe(nsISupports *aSubject, const char *aTopic, 
   } else if (!nsCRT::strcmp(aTopic, "profile-do-change")) {
     ResetUserPrefs();
     rv = ReadUserPrefs(nsnull);
+  } else if (!strcmp(aTopic, "load-extension-defaults")) {
+    pref_LoadPrefsInDirList(NS_EXT_PREFS_DEFAULTS_DIR_LIST);
   } else if (!nsCRT::strcmp(aTopic, "reload-default-prefs")) {
     // Reload the default prefs from file.
     pref_InitInitialObjects();
@@ -177,6 +213,11 @@ NS_IMETHODIMP nsPrefService::Observe(nsISupports *aSubject, const char *aTopic, 
 
 NS_IMETHODIMP nsPrefService::ReadUserPrefs(nsIFile *aFile)
 {
+  if (XRE_GetProcessType() == GeckoProcessType_Content) {
+    NS_ERROR("cannot load prefs from content process");
+    return NS_ERROR_NOT_AVAILABLE;
+  }
+
   nsresult rv;
 
   if (nsnull == aFile) {
@@ -193,6 +234,11 @@ NS_IMETHODIMP nsPrefService::ReadUserPrefs(nsIFile *aFile)
 
 NS_IMETHODIMP nsPrefService::ResetPrefs()
 {
+  if (XRE_GetProcessType() == GeckoProcessType_Content) {
+    NS_ERROR("cannot set prefs from content process");
+    return NS_ERROR_NOT_AVAILABLE;
+  }
+
   NotifyServiceObservers(NS_PREFSERVICE_RESET_TOPIC_ID);
   PREF_CleanupPrefs();
 
@@ -204,13 +250,111 @@ NS_IMETHODIMP nsPrefService::ResetPrefs()
 
 NS_IMETHODIMP nsPrefService::ResetUserPrefs()
 {
+  if (XRE_GetProcessType() == GeckoProcessType_Content) {
+    NS_ERROR("cannot set prefs from content process");
+    return NS_ERROR_NOT_AVAILABLE;
+  }
+
   PREF_ClearAllUserPrefs();
   return NS_OK;    
 }
 
 NS_IMETHODIMP nsPrefService::SavePrefFile(nsIFile *aFile)
 {
+  if (XRE_GetProcessType() == GeckoProcessType_Content) {
+    NS_ERROR("cannot save prefs from content process");
+    return NS_ERROR_NOT_AVAILABLE;
+  }
+
   return SavePrefFileInternal(aFile);
+}
+
+/* part of nsIPrefServiceInternal */
+NS_IMETHODIMP nsPrefService::ReadExtensionPrefs(nsILocalFile *aFile)
+{
+  nsresult rv;
+  nsCOMPtr<nsIZipReader> reader = do_CreateInstance(kZipReaderCID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = reader->Open(aFile);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsIUTF8StringEnumerator> files;
+  rv = reader->FindEntries("defaults/preferences/*.(J|j)(S|s)$",
+                           getter_AddRefs(files));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  char buffer[4096];
+
+  PRBool more;
+  while (NS_SUCCEEDED(rv = files->HasMore(&more)) && more) {
+    nsCAutoString entry;
+    rv = files->GetNext(entry);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    nsCOMPtr<nsIInputStream> stream;
+    rv = reader->GetInputStream(entry.get(), getter_AddRefs(stream));
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    PRUint32 avail, read;
+
+    PrefParseState ps;
+    PREF_InitParseState(&ps, PREF_ReaderCallback, NULL);
+    while (NS_SUCCEEDED(rv = stream->Available(&avail)) && avail) {
+      rv = stream->Read(buffer, 4096, &read);
+      if (NS_FAILED(rv)) {
+        NS_WARNING("Pref stream read failed");
+        break;
+      }
+
+      rv = PREF_ParseBuf(&ps, buffer, read);
+      if (NS_FAILED(rv)) {
+        NS_WARNING("Pref stream parse failed");
+        break;
+      }
+    }
+    PREF_FinalizeParseState(&ps);
+  }
+  return rv;
+}
+
+NS_IMETHODIMP nsPrefService::PrefHasUserValue(const nsACString& aPrefName,
+                                              PRBool* aHasValue)
+{
+  *aHasValue = PREF_HasUserPref(aPrefName.BeginReading());
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsPrefService::SetPreference(const PrefTuple *aPref)
+{
+  return pref_SetPrefTuple(*aPref, PR_TRUE);
+}
+
+NS_IMETHODIMP nsPrefService::ClearContentPref(const nsACString& aPrefName)
+{
+  return PREF_ClearUserPref(aPrefName.BeginReading());
+}
+
+NS_IMETHODIMP nsPrefService::MirrorPreference(const nsACString& aPrefName,
+                                              PrefTuple *aPref)
+{
+  PrefHashEntry *pref = pref_HashTableLookup(PromiseFlatCString(aPrefName).get());
+
+  if (!pref)
+    return NS_ERROR_NOT_AVAILABLE;
+
+  pref_GetTupleFromEntry(pref, aPref);
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsPrefService::MirrorPreferences(nsTArray<PrefTuple, nsTArrayInfallibleAllocator> *aArray)
+{
+  aArray->SetCapacity(PL_DHASH_TABLE_SIZE(&gHashTable));
+
+  PL_DHashTableEnumerate(&gHashTable, pref_MirrorPrefs, aArray);
+
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsPrefService::GetBranch(const char *aPrefRoot, nsIPrefBranch **_retval)
@@ -247,12 +391,10 @@ NS_IMETHODIMP nsPrefService::GetDefaultBranch(const char *aPrefRoot, nsIPrefBran
 
 nsresult nsPrefService::NotifyServiceObservers(const char *aTopic)
 {
-  nsresult rv;
   nsCOMPtr<nsIObserverService> observerService = 
-    do_GetService("@mozilla.org/observer-service;1", &rv);
-  
-  if (NS_FAILED(rv) || !observerService)
-    return rv;
+    mozilla::services::GetObserverService();  
+  if (!observerService)
+    return NS_ERROR_FAILURE;
 
   nsISupports *subject = (nsISupports *)((nsIPrefService *)this);
   observerService->NotifyObservers(subject, aTopic, nsnull);
@@ -473,8 +615,8 @@ static nsresult openPrefFile(nsIFile* aFile)
   if (NS_FAILED(rv)) 
     return rv;        
 
-  PRInt64 fileSize;
-  rv = aFile->GetFileSize(&fileSize);
+  PRUint32 fileSize;
+  rv = inStr->Available(&fileSize);
   if (NS_FAILED(rv))
     return rv;
 
@@ -646,25 +788,87 @@ static nsresult pref_LoadPrefsInDirList(const char *listId)
 // Initialize default preference JavaScript buffers from
 // appropriate TEXT resources
 //----------------------------------------------------------------------------------------
-static nsresult pref_InitInitialObjects()
+static nsresult pref_InitDefaults()
 {
-  nsCOMPtr<nsIFile> aFile;
-  nsCOMPtr<nsIFile> defaultPrefDir;
+  nsCOMPtr<nsIFile> greprefsFile;
   nsresult          rv;
 
-  // first we parse the GRE default prefs. This also works if we're not using a GRE, 
-
-  rv = NS_GetSpecialDirectory(NS_GRE_DIR, getter_AddRefs(defaultPrefDir));
+  rv = NS_GetSpecialDirectory(NS_GRE_DIR, getter_AddRefs(greprefsFile));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = defaultPrefDir->AppendNative(NS_LITERAL_CSTRING("greprefs"));
+  rv = greprefsFile->AppendNative(NS_LITERAL_CSTRING("greprefs.js"));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = pref_LoadPrefsInDir(defaultPrefDir, nsnull, 0);
+  rv = openPrefFile(greprefsFile);
   if (NS_FAILED(rv)) {
     NS_WARNING("Error parsing GRE default preferences. Is this an old-style embedding app?");
   }
 
+  return NS_OK;
+}
+
+#ifdef MOZ_OMNIJAR
+static nsresult pref_ReadPrefFromJar(nsZipArchive* jarReader, const char *name)
+{
+  nsZipItemPtr<char> manifest(jarReader, name, true);
+  NS_ENSURE_TRUE(manifest.Buffer(), NS_ERROR_NOT_AVAILABLE);
+
+  PrefParseState ps;
+  PREF_InitParseState(&ps, PREF_ReaderCallback, NULL);
+  nsresult rv = PREF_ParseBuf(&ps, manifest, manifest.Length());
+  PREF_FinalizeParseState(&ps);
+
+  return rv;
+}
+
+static nsresult pref_InitAppDefaultsFromOmnijar()
+{
+  nsresult rv;
+
+  nsZipArchive* jarReader = mozilla::OmnijarReader();
+  if (!jarReader)
+    return pref_InitDefaults();
+
+  rv = pref_ReadPrefFromJar(jarReader, "greprefs.js");
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsZipFind *findPtr;
+  rv = jarReader->FindInit("defaults/pref/*.js$", &findPtr);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsAutoPtr<nsZipFind> find(findPtr);
+
+  nsTArray<nsCString> prefEntries;
+  const char *entryName;
+  PRUint16 entryNameLen;
+  while (NS_SUCCEEDED(find->FindNext(&entryName, &entryNameLen))) {
+    prefEntries.AppendElement(Substring(entryName, entryName + entryNameLen));
+  }
+
+  prefEntries.Sort();
+  for (PRUint32 i = prefEntries.Length(); i--; ) {
+    rv = pref_ReadPrefFromJar(jarReader, prefEntries[i].get());
+    if (NS_FAILED(rv))
+      NS_WARNING("Error parsing preferences.");
+  }
+
+  return NS_OK;
+}
+#endif
+
+static nsresult pref_InitInitialObjects()
+{
+  nsresult rv;
+
+  // first we parse the GRE default prefs. This also works if we're not using a GRE, 
+#ifdef MOZ_OMNIJAR
+  rv = pref_InitAppDefaultsFromOmnijar();
+#else
+  rv = pref_InitDefaults();
+#endif
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsIFile> defaultPrefDir;
   // now parse the "application" default preferences
   rv = NS_GetSpecialDirectory(NS_APP_PREF_DEFAULTS_50_DIR, getter_AddRefs(defaultPrefDir));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -677,18 +881,11 @@ static nsresult pref_InitInitialObjects()
       "winpref.js"
 #elif defined(XP_UNIX)
       "unix.js"
-#if defined(VMS)
-      , "openvms.js"
-#elif defined(_AIX)
+#if defined(_AIX)
       , "aix.js"
 #endif
-#if defined(MOZ_WIDGET_PHOTON)
-	  , "photon.js"
-#endif		 
 #elif defined(XP_OS2)
       "os2pref.js"
-#elif defined(XP_BEOS)
-      "beos.js"
 #endif
   };
 
@@ -703,11 +900,10 @@ static nsresult pref_InitInitialObjects()
   NS_CreateServicesFromCategory(NS_PREFSERVICE_APPDEFAULTS_TOPIC_ID,
                                 nsnull, NS_PREFSERVICE_APPDEFAULTS_TOPIC_ID);
 
-  nsCOMPtr<nsIObserverService> observerService = 
-    do_GetService("@mozilla.org/observer-service;1", &rv);
-  
-  if (NS_FAILED(rv) || !observerService)
-    return rv;
+  nsCOMPtr<nsIObserverService> observerService =
+    mozilla::services::GetObserverService();
+  if (!observerService)
+    return NS_ERROR_FAILURE;
 
   observerService->NotifyObservers(nsnull, NS_PREFSERVICE_APPDEFAULTS_TOPIC_ID, nsnull);
 

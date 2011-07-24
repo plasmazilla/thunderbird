@@ -46,8 +46,6 @@
 <?xul-overlay href="chrome://browser/content/places/placesOverlay.xul"?>
 
 <!DOCTYPE page [
-<!ENTITY % historyDTD SYSTEM "chrome://browser/locale/history/history.dtd">
-%historyDTD;
 <!ENTITY % placesDTD SYSTEM "chrome://browser/locale/places/places.dtd">
 %placesDTD;
 ]>
@@ -58,11 +56,11 @@
 <page id="history-panel" orient="vertical"
       xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
       onload="HistorySidebarInit();"
-      onunload="SidebarUtils.clearURLFromStatusBar();">
+      onunload="SidebarUtils.setMouseoverURL('');">
 
-  <script type="application/x-javascript" 
+  <script type="application/javascript" 
           src="chrome://browser/content/bookmarks/sidebarUtils.js"/>
-  <script type="application/x-javascript" 
+  <script type="application/javascript" 
           src="chrome://browser/content/places/history-panel.js"/>
 
   <commandset id="editMenuCommands"/>
@@ -75,7 +73,7 @@
   </keyset>
 
   <!-- required to overlay the context menu -->
-  <popup id="placesContext" />
+  <menupopup id="placesContext"/>
 
   <!-- Bookmarks and history tooltip -->
   <tooltip id="bhTooltip"/>
@@ -122,7 +120,7 @@
         onkeypress="SidebarUtils.handleTreeKeyPress(event);"
         onclick="SidebarUtils.handleTreeClick(this, event, true);"
         onmousemove="SidebarUtils.handleTreeMouseMove(event);"
-        onmouseout="SidebarUtils.clearURLFromStatusBar();">
+        onmouseout="SidebarUtils.setMouseoverURL('');">
     <treecols>
       <treecol id="title" flex="1" primary="true" hideheader="true"/>
     </treecols>

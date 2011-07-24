@@ -37,13 +37,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-/* ===== button.css =====================================================
-  == Styles used by the XUL button element.
-  ======================================================================= */
-
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
-
-/* :::::::::: button :::::::::: */
 
 button {
   -moz-appearance: button;
@@ -79,8 +73,6 @@ button[disabled="true"] {
 /* ::::: menu/menu-button buttons ::::: */
 
 button[type="menu-button"] {
-  -moz-box-align: center;
-  -moz-box-pack: center;
   margin: 0;
   border: none;
 }
@@ -88,7 +80,7 @@ button[type="menu-button"] {
 .button-menu-dropmarker,
 .button-menubutton-dropmarker {
   -moz-appearance: none !important;
-  border: none !important;
+  border: none;
   background-color: transparent !important;
   margin: 1px;
 }
@@ -120,10 +112,10 @@ button[dlgtype="help"][disabled] {
   opacity: 0.5;
 }
 
-button[dlgtype="help"]:focus {
+button[dlgtype="help"]:-moz-focusring {
   outline: 2px solid -moz-mac-focusring;
   outline-offset: -2px;
-  -moz-outline-radius: 100%;
+  -moz-outline-radius: 10000px;
 }
 
 button[dlgtype="help"] > .button-box > .button-icon {

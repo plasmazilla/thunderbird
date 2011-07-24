@@ -43,7 +43,6 @@
 #include "nsStyleConsts.h"
 #include "nsPresContext.h"
 #include "nsMappedAttributes.h"
-#include "nsCSSStruct.h"
 #include "nsRuleData.h"
 #include "nsIDocument.h"
 
@@ -51,7 +50,7 @@ class nsHTMLFontElement : public nsGenericHTMLElement,
                           public nsIDOMHTMLFontElement
 {
 public:
-  nsHTMLFontElement(nsINodeInfo *aNodeInfo);
+  nsHTMLFontElement(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsHTMLFontElement();
 
   // nsISupports
@@ -76,13 +75,14 @@ public:
   NS_IMETHOD_(PRBool) IsAttributeMapped(const nsIAtom* aAttribute) const;
   virtual nsMapRuleToAttributesFunc GetAttributeMappingFunction() const;
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
+  virtual nsXPCClassInfo* GetClassInfo();
 };
 
 
 NS_IMPL_NS_NEW_HTML_ELEMENT(Font)
 
 
-nsHTMLFontElement::nsHTMLFontElement(nsINodeInfo *aNodeInfo)
+nsHTMLFontElement::nsHTMLFontElement(already_AddRefed<nsINodeInfo> aNodeInfo)
   : nsGenericHTMLElement(aNodeInfo)
 {
 }
@@ -94,6 +94,7 @@ nsHTMLFontElement::~nsHTMLFontElement()
 NS_IMPL_ADDREF_INHERITED(nsHTMLFontElement, nsGenericElement)
 NS_IMPL_RELEASE_INHERITED(nsHTMLFontElement, nsGenericElement)
 
+DOMCI_NODE_DATA(HTMLFontElement, nsHTMLFontElement)
 
 // QueryInterface implementation for nsHTMLFontElement
 NS_INTERFACE_TABLE_HEAD(nsHTMLFontElement)
@@ -148,9 +149,20 @@ nsHTMLFontElement::ParseAttribute(PRInt32 aNamespaceID,
       nsAutoString tmp(aValue);
       tmp.CompressWhitespace(PR_TRUE, PR_TRUE);
       PRUnichar ch = tmp.IsEmpty() ? 0 : tmp.First();
-      if ((ch == '+' || ch == '-') &&
-          aResult.ParseEnumValue(aValue, kRelFontSizeTable)) {
-        return PR_TRUE;
+      if ((ch == '+' || ch == '-')) {
+          if (aResult.ParseEnumValue(aValue, kRelFontSizeTable, PR_FALSE))
+              return PR_TRUE;
+
+          // truncate after digit, then parse it again.
+          PRUint32 i;
+          for (i = 1; i < tmp.Length(); i++) {
+              ch = tmp.CharAt(i);
+              if (!nsCRT::IsAsciiDigit(ch)) {
+                  tmp.Truncate(i);
+                  break;
+              }
+          }
+          return aResult.ParseEnumValue(tmp, kRelFontSizeTable, PR_FALSE);
       }
 
       return aResult.ParseIntValue(aValue);
@@ -160,7 +172,7 @@ nsHTMLFontElement::ParseAttribute(PRInt32 aNamespaceID,
       return aResult.ParseIntValue(aValue);
     }
     if (aAttribute == nsGkAtoms::color) {
-      return aResult.ParseColor(aValue, GetOwnerDoc());
+      return aResult.ParseColor(aValue);
     }
   }
 
@@ -173,23 +185,22 @@ MapAttributesIntoRule(const nsMappedAttributes* aAttributes,
                       nsRuleData* aData)
 {
   if (aData->mSIDs & NS_STYLE_INHERIT_BIT(Font)) {
-    nsRuleDataFont& font = *(aData->mFontData);
-    
     // face: string list
-    if (font.mFamily.GetUnit() == eCSSUnit_Null) {
+    nsCSSValue* family = aData->ValueForFontFamily();
+    if (family->GetUnit() == eCSSUnit_Null) {
       const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::face);
       if (value && value->Type() == nsAttrValue::eString &&
           !value->IsEmptyString()) {
-        font.mFamily.SetStringValue(value->GetStringValue(), eCSSUnit_Families);
-        font.mFamilyFromHTML = PR_TRUE;
+        family->SetStringValue(value->GetStringValue(), eCSSUnit_Families);
       }
     }
 
     // pointSize: int
-    if (font.mSize.GetUnit() == eCSSUnit_Null) {
+    nsCSSValue* fontSize = aData->ValueForFontSize();
+    if (fontSize->GetUnit() == eCSSUnit_Null) {
       const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::pointSize);
       if (value && value->Type() == nsAttrValue::eInteger)
-        font.mSize.SetFloatValue((float)value->GetIntegerValue(), eCSSUnit_Point);
+        fontSize->SetFloatValue((float)value->GetIntegerValue(), eCSSUnit_Point);
       else {
         // size: int, enum , 
         value = aAttributes->GetAttr(nsGkAtoms::size);
@@ -198,32 +209,34 @@ MapAttributesIntoRule(const nsMappedAttributes* aAttributes,
           if (unit == nsAttrValue::eInteger || unit == nsAttrValue::eEnum) { 
             PRInt32 size;
             if (unit == nsAttrValue::eEnum) // int (+/-)
-              size = value->GetEnumValue() + 3;  // XXX should be BASEFONT, not three see bug 3875
+              size = value->GetEnumValue() + 3;
             else
               size = value->GetIntegerValue();
 
             size = ((0 < size) ? ((size < 8) ? size : 7) : 1); 
-            font.mSize.SetIntValue(size, eCSSUnit_Enumerated);
+            fontSize->SetIntValue(size, eCSSUnit_Enumerated);
           }
         }
       }
     }
 
     // fontWeight: int
-    if (font.mWeight.GetUnit() == eCSSUnit_Null) {
+    nsCSSValue* fontWeight = aData->ValueForFontWeight();
+    if (fontWeight->GetUnit() == eCSSUnit_Null) {
       const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::fontWeight);
       if (value && value->Type() == nsAttrValue::eInteger) // +/-
-        font.mWeight.SetIntValue(value->GetIntegerValue(), eCSSUnit_Integer);
+        fontWeight->SetIntValue(value->GetIntegerValue(), eCSSUnit_Integer);
     }
   }
   if (aData->mSIDs & NS_STYLE_INHERIT_BIT(Color)) {
-    if (aData->mColorData->mColor.GetUnit() == eCSSUnit_Null &&
+    nsCSSValue* colorValue = aData->ValueForColor();
+    if (colorValue->GetUnit() == eCSSUnit_Null &&
         aData->mPresContext->UseDocumentColors()) {
       // color: color
       const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::color);
       nscolor color;
       if (value && value->GetColorValue(color)) {
-        aData->mColorData->mColor.SetColorValue(color);
+        colorValue->SetColorValue(color);
       }
     }
   }
@@ -234,12 +247,12 @@ MapAttributesIntoRule(const nsMappedAttributes* aAttributes,
     const nsAttrValue* value = aAttributes->GetAttr(nsGkAtoms::color);
     nscolor color;
     if (value && value->GetColorValue(color)) {
-      nsCSSValue& decoration = aData->mTextData->mDecoration;
+      nsCSSValue* decoration = aData->ValueForTextDecoration();
       PRInt32 newValue = NS_STYLE_TEXT_DECORATION_OVERRIDE_ALL;
-      if (decoration.GetUnit() == eCSSUnit_Enumerated) {
-        newValue |= decoration.GetIntValue();
+      if (decoration->GetUnit() == eCSSUnit_Enumerated) {
+        newValue |= decoration->GetIntValue();
       }
-      decoration.SetIntValue(newValue, eCSSUnit_Enumerated);
+      decoration->SetIntValue(newValue, eCSSUnit_Enumerated);
     }
   }
 

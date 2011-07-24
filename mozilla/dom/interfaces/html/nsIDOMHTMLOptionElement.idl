@@ -43,23 +43,23 @@
  * The nsIDOMHTMLOptionElement interface is the interface to a [X]HTML
  * option element.
  *
- * For more information on this interface please see
+ * This interface is trying to follow the DOM Level 2 HTML specification:
  * http://www.w3.org/TR/DOM-Level-2-HTML/
  *
- * @status FROZEN
+ * with changes from the work-in-progress WHATWG HTML specification:
+ * http://www.whatwg.org/specs/web-apps/current-work/
  */
 
-[scriptable, uuid(a6cf9092-15b3-11d2-932e-00805f8add32)]
+[scriptable, uuid(f289fdb9-fe0f-41d3-bbdb-5c4e21f0a4d2)]
 interface nsIDOMHTMLOptionElement : nsIDOMHTMLElement
 {
-  readonly attribute nsIDOMHTMLFormElement form;
-  // Modified in DOM Level 2:
-           attribute boolean               defaultSelected;
-  readonly attribute DOMString             text;
-  // Modified in DOM Level 2:
-  readonly attribute long                  index;
            attribute boolean               disabled;
+  readonly attribute nsIDOMHTMLFormElement form;
            attribute DOMString             label;
+           attribute boolean               defaultSelected;
            attribute boolean               selected;
            attribute DOMString             value;
+
+           attribute DOMString             text;
+  readonly attribute long                  index;
 };

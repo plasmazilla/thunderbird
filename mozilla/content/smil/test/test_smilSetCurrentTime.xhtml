@@ -8,7 +8,8 @@
 <body>
 <p id="display"></p>
 <div id="content" style="display: none">
-<svg id="svg" xmlns="http://www.w3.org/2000/svg" />
+<svg id="svg" xmlns="http://www.w3.org/2000/svg"
+     onload="this.pauseAnimations()" />
 </div>
 <pre id="test">
 <script class="testbody" type="text/javascript">
@@ -24,14 +25,14 @@ var gSvg = document.getElementById("svg");
 SimpleTest.waitForExplicitFinish();
 
 function main() {
-  // Pause our document, so that the setCurrentTime calls are the only
-  // thing affecting document time
-  gSvg.pauseAnimations();
+  ok(gSvg.animationsPaused(), "should be paused by <svg> load handler");
+  is(gSvg.getCurrentTime(), 0, "should be paused at 0 in <svg> load handler");
 
   // Test that seeking takes effect immediately
   for (var i = 0; i < gTimes.length; i++) {
     gSvg.setCurrentTime(gTimes[i]);
-    assertFloatsEqual(gSvg.getCurrentTime(), gTimes[i]);
+    // We adopt the SVGT1.2 behavior of clamping negative times to 0
+    assertFloatsEqual(gSvg.getCurrentTime(), Math.max(gTimes[i], 0.0));
   }
 
   // Test that seeking isn't messed up by timeouts
@@ -56,7 +57,7 @@ function checkTimesAfterIndex(index) {
 
   gSvg.setCurrentTime(gTimes[index]);
   var func = function() {
-    assertFloatsEqual(gSvg.getCurrentTime(), gTimes[index]);
+    assertFloatsEqual(gSvg.getCurrentTime(), Math.max(gTimes[index], 0.0));
     checkTimesAfterIndex(index + 1);
   }
   setTimeout(func, gWaitTime);

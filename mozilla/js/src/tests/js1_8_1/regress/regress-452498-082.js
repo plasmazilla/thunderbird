@@ -35,7 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-var gTestfile = 'regress-452498-082.js';
 //-----------------------------------------------------------------------------
 var BUGNUMBER = 452498;
 var summary = 'TM: upvar2 regression tests';
@@ -160,11 +159,6 @@ function test()
 // =====
 
   var f = new Function("[] = [( '' )()];");
-  "" + f;
-
-// =====
-
-  var f = new Function("let ([] = [({ get x5 this (x) {}  })]) { for(let y in []) with({}) {} }");
   "" + f;
 
 // =====

@@ -13,8 +13,7 @@
 #
 # The Original Code is the Mozilla Browser code.
 #
-# The Initial Developer of the Original Code is
-#   Mozilla Corp
+# The Initial Developer of the Original Code is the Mozilla Foundation.
 # Portions created by the Initial Developer are Copyright (C) 2009
 # the Initial Developer. All Rights Reserved.
 #
@@ -42,8 +41,11 @@ VPATH     = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
+DEFINES += -DMOZ_NO_MOZALLOC
+
 EXTRA_PP_COMPONENTS = \
     FastStartup.js \
+    FastStartup.manifest \
     $(NULL)
 
 ifdef _MSC_VER

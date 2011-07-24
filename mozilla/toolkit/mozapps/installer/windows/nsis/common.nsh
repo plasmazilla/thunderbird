@@ -20,6 +20,7 @@
 # Contributor(s):
 #  Robert Strong <robert.bugzilla@gmail.com>
 #  Ehsan Akhgari <ehsan.akhgari@gmail.com>
+#  Amir Szekely <kichik@gmail.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -34,6 +35,7 @@
 # the terms of any one of the MPL, the GPL or the LGPL.
 #
 # ***** END LICENSE BLOCK *****
+
 
 ################################################################################
 # Helper defines and macros for toolkit applications
@@ -111,10 +113,27 @@
   !include /NONFATAL WinVer.nsh
 !endif
 
+; Add Windows 7 / 2008 support for versions of WinVer.nsh that don't support
+; them. This can be removed after bug 571381 is fixed.
+!ifndef WINVER_7
+  !define WINVER_7 0x601
+
+  !macro __MOZ__WinVer_DefineOSTests Test
+    !insertmacro __WinVer_DefineOSTest ${Test} 7
+  !macroend
+
+  !insertmacro __MOZ__WinVer_DefineOSTests AtLeast
+  !insertmacro __MOZ__WinVer_DefineOSTests Is
+  !insertmacro __MOZ__WinVer_DefineOSTests AtMost
+!endif
+
+!include x64.nsh
+
 ; NSIS provided macros that we have overridden.
 !include overrides.nsh
 
 !define SHORTCUTS_LOG "shortcuts_log.ini"
+
 
 ################################################################################
 # Macros for debugging
@@ -468,21 +487,38 @@
       SetOutPath "$R7"
       StrCpy $R9 "false"
 
-      start:
       Pop $R8
-      StrCmp "$R8" "end" end +1
-      IfFileExists "$INSTDIR\$R8" +1 start
+      ${While} $R8 != "end"
+        ${Unless} ${FileExists} "$INSTDIR\$R8"
+          Pop $R8 ; get next file to check before continuing
+          ${Continue}
+        ${EndUnless}
 
-      ClearErrors
-      CopyFiles /SILENT "$INSTDIR\$R8" "$R7\$R8"
-      IfErrors +4 +1
-      Delete "$INSTDIR\$R8"
-      IfErrors +1 start
-      Delete "$R7\$R8"
+        ClearErrors
+        CopyFiles /SILENT "$INSTDIR\$R8" "$R7\$R8" ; try to copy
+        ${If} ${Errors}
+          ; File is in use
+          StrCpy $R9 "true"
+          ${Break}
+        ${EndIf}
 
-      StrCpy $R9 "true"
+        Delete "$INSTDIR\$R8" ; delete original
+        ${If} ${Errors}
+          ; File is in use
+          StrCpy $R9 "true"
+          Delete "$R7\$R8" ; delete temp copy
+          ${Break}
+        ${EndIf}
 
-      end:
+        Pop $R8 ; get next file to check
+      ${EndWhile}
+
+      ; clear stack
+      ${While} $R8 != "end"
+        Pop $R8
+      ${EndWhile}
+
+      ; restore everything
       SetOutPath "$INSTDIR"
       CopyFiles /SILENT "$R7\*" "$INSTDIR\"
       RmDir /r "$R7"
@@ -577,9 +613,10 @@
       Push $R7
 
       FindWindow $R7 "$R8"
-      IntCmp $R7 0 +3 +1 +1
-      MessageBox MB_OK|MB_ICONQUESTION "$R9"
-      Abort
+      ${If} $R7 <> 0 ; integer comparison
+        MessageBox MB_OK|MB_ICONQUESTION "$R9"
+        Abort
+      ${EndIf}
 
       Pop $R7
       Exch $R8
@@ -622,113 +659,6 @@
     !define _MOZFUNC_UN
     !verbose pop
   !endif
-!macroend
-
-/**
- * Posts WM_QUIT to the application's message window which is found using the
- * message window's class. This macro uses the nsProcess plugin available
- * from http://nsis.sourceforge.net/NsProcess_plugin
- *
- * @param   _MSG
- *          The message text to display in the message box.
- * @param   _PROMPT
- *          If false don't prompt the user and automatically exit the
- *          application if it is running.
- *
- * $R6 = return value for nsProcess::_FindProcess and nsProcess::_KillProcess
- * $R7 = return value from FindWindow
- * $R8 = _PROMPT
- * $R9 = _MSG
- */
-!macro CloseApp
-
-  !ifndef ${_MOZFUNC_UN}CloseApp
-    !verbose push
-    !verbose ${_MOZFUNC_VERBOSE}
-    !define ${_MOZFUNC_UN}CloseApp "!insertmacro ${_MOZFUNC_UN}CloseAppCall"
-
-    Function ${_MOZFUNC_UN}CloseApp
-      Exch $R9
-      Exch 1
-      Exch $R8
-      Push $R7
-      Push $R6
-
-      loop:
-      Push $R6
-      nsProcess::_FindProcess /NOUNLOAD "${FileMainEXE}"
-      Pop $R6
-      StrCmp $R6 0 +1 end
-
-      StrCmp $R8 "false" +2 +1
-      MessageBox MB_OKCANCEL|MB_ICONQUESTION "$R9" IDCANCEL exit 0
-
-      FindWindow $R7 "${WindowClass}"
-      IntCmp $R7 0 +4 +1 +1
-      System::Call 'user32::PostMessage(i r17, i ${WM_QUIT}, i 0, i 0)'
-      # The amount of time to wait for the app to shutdown before prompting again
-      Sleep 5000
-
-      Push $R6
-      nsProcess::_FindProcess /NOUNLOAD "${FileMainEXE}"
-      Pop $R6
-      StrCmp $R6 0 +1 end
-      Push $R6
-      nsProcess::_KillProcess /NOUNLOAD "${FileMainEXE}"
-      Pop $R6
-      Sleep 2000
-
-      Goto loop
-
-      exit:
-      nsProcess::_Unload
-      Quit
-
-      end:
-      nsProcess::_Unload
-
-      Pop $R6
-      Pop $R7
-      Exch $R8
-      Exch 1
-      Exch $R9
-    FunctionEnd
-
-    !verbose pop
-  !endif
-!macroend
-
-!macro CloseAppCall _MSG _PROMPT
-  !verbose push
-  !verbose ${_MOZFUNC_VERBOSE}
-  Push "${_MSG}"
-  Push "${_PROMPT}"
-  Call CloseApp
-  !verbose pop
-!macroend
-
-!macro un.CloseApp
-  !ifndef un.CloseApp
-    !verbose push
-    !verbose ${_MOZFUNC_VERBOSE}
-    !undef _MOZFUNC_UN
-    !define _MOZFUNC_UN "un."
-
-    !insertmacro CloseApp
-
-    !undef _MOZFUNC_UN
-    !define _MOZFUNC_UN
-    !verbose pop
-  !endif
-!macroend
-
-!macro un.CloseAppCall _MSG _PROMPT
-  !verbose push
-  !verbose ${_MOZFUNC_VERBOSE}
-  Push "${_MSG}"
-  Push "${_PROMPT}"
-  Call un.CloseApp
-  !verbose pop
 !macroend
 
 
@@ -781,12 +711,14 @@
       WriteRegStr SHCTX "$R6" "$R7" "$R8"
 
       !ifndef NO_LOG
-        IfErrors 0 +3
-        FileWriteUTF16LE $fhInstallLog "  ** ERROR Adding Registry String: $R5 | $R6 | $R7 | $R8 **$\r$\n"
-        GoTo +4
-        StrCmp "$R9" "1" +1 +2
-        FileWrite $fhUninstallLog "RegVal: $R5 | $R6 | $R7$\r$\n"
-        FileWriteUTF16LE $fhInstallLog "  Added Registry String: $R5 | $R6 | $R7 | $R8$\r$\n"
+        ${If} ${Errors}
+          ${LogMsg} "** ERROR Adding Registry String: $R5 | $R6 | $R7 | $R8 **"
+        ${Else}
+          ${If} $R9 == 1 ; add to the uninstall log?
+            ${LogUninstall} "RegVal: $R5 | $R6 | $R7"
+          ${EndIf}
+          ${LogMsg} "Added Registry String: $R5 | $R6 | $R7 | $R8"
+        ${EndIf}
       !endif
 
       Exch $R5
@@ -889,12 +821,14 @@
       WriteRegDWORD SHCTX "$R6" "$R7" "$R8"
 
       !ifndef NO_LOG
-        IfErrors 0 +3
-        FileWriteUTF16LE $fhInstallLog "  ** ERROR Adding Registry DWord: $R5 | $R6 | $R7 | $R8 **$\r$\n"
-        GoTo +4
-        StrCmp "$R9" "1" +1 +2
-        FileWrite $fhUninstallLog "RegVal: $R5 | $R6 | $R7$\r$\n"
-        FileWriteUTF16LE $fhInstallLog "  Added Registry DWord: $R5 | $R6 | $R7 | $R8$\r$\n"
+        ${If} ${Errors}
+          ${LogMsg} "** ERROR Adding Registry DWord: $R5 | $R6 | $R7 | $R8 **"
+        ${Else}
+          ${If} $R9 == 1 ; add to the uninstall log?
+            ${LogUninstall} "RegVal: $R5 | $R6 | $R7"
+          ${EndIf}
+          ${LogMsg} "Added Registry DWord: $R5 | $R6 | $R7 | $R8"
+        ${EndIf}
       !endif
 
       Exch $R5
@@ -997,12 +931,14 @@
       WriteRegStr HKCR "$R6" "$R7" "$R8"
 
       !ifndef NO_LOG
-        IfErrors 0 +3
-        FileWriteUTF16LE $fhInstallLog "  ** ERROR Adding Registry String: $R5 | $R6 | $R7 | $R8 **$\r$\n"
-        GoTo +4
-        StrCmp "$R9" "1" +1 +2
-        FileWrite $fhUninstallLog "RegVal: $R5 | $R6 | $R7$\r$\n"
-        FileWriteUTF16LE $fhInstallLog "  Added Registry String: $R5 | $R6 | $R7 | $R8$\r$\n"
+        ${If} ${Errors}
+          ${LogMsg} "** ERROR Adding Registry String: $R5 | $R6 | $R7 | $R8 **"
+        ${Else}
+          ${If} $R9 == 1 ; add to the uninstall log?
+            ${LogUninstall} "RegVal: $R5 | $R6 | $R7"
+          ${EndIf}
+          ${LogMsg} "Added Registry String: $R5 | $R6 | $R7 | $R8"
+        ${EndIf}
       !endif
 
       Exch $R5
@@ -1059,16 +995,13 @@
   !endif
 !macroend
 
-/**
- * Creates a registry key. NSIS doesn't supply a RegCreateKey method and instead
- * will auto create keys when a reg key name value pair is set.
- * i - int (includes char, byte, short, handles, pointers and so on)
- * w - wide-char text, string (LPCWSTR, pointer to first character)
- * * - pointer specifier -> the proc needs the pointer to type, affects next
- *     char (parameter) [ex: '*i' - pointer to int]
- * see the NSIS documentation for additional information.
- */
-!define RegCreateKey "Advapi32::RegCreateKeyW(i, w, *i) i"
+!define KEY_SET_VALUE 0x0002
+!define KEY_WOW64_64KEY 0x0100
+!ifndef HAVE_64BIT_OS
+  !define CREATE_KEY_SAM ${KEY_SET_VALUE}
+!else
+  !define CREATE_KEY_SAM ${KEY_SET_VALUE}|${KEY_WOW64_64KEY}
+!endif
 
 /**
  * Creates a registry key. This will log the actions to the install and
@@ -1088,8 +1021,8 @@
  *       located in one of the predefined registry keys this must be closed
  *       with RegCloseKey (this should not be needed unless someone decides to
  *       do something extremely squirrelly with NSIS).
- * $R5 = return value from RegCreateKeyA (represented by r15 in the system call).
- * $R6 = [in] hKey passed to RegCreateKeyA.
+ * $R5 = return value from RegCreateKeyExW (represented by R5 in the system call).
+ * $R6 = [in] hKey passed to RegCreateKeyExW.
  * $R7 = _ROOT
  * $R8 = _KEY
  * $R9 = _LOG_UNINSTALL
@@ -1119,17 +1052,24 @@
       StrCpy $R6 "0x80000002"
 
       ; see definition of RegCreateKey
-      System::Call "${RegCreateKey}($R6, '$R8', .r14) .r15"
+      System::Call "Advapi32::RegCreateKeyExW(i R6, w R8, i 0, i 0, i 0,\
+                                              i ${CREATE_KEY_SAM}, i 0, *i .R4,\
+                                              i 0) i .R5"
 
       !ifndef NO_LOG
         ; if $R5 is not 0 then there was an error creating the registry key.
-        IntCmp $R5 0 +3 +3
-        FileWriteUTF16LE $fhInstallLog "  ** ERROR Adding Registry Key: $R7 | $R8 **$\r$\n"
-        GoTo +4
-        StrCmp "$R9" "1" +1 +2
-        FileWrite $fhUninstallLog "RegKey: $R7 | $R8$\r$\n"
-        FileWriteUTF16LE $fhInstallLog "  Added Registry Key: $R7 | $R8$\r$\n"
+        ${If} $R5 <> 0
+          ${LogMsg} "** ERROR Adding Registry Key: $R7 | $R8 **"
+        ${Else}
+          ${If} $R9 == 1 ; add to the uninstall log?
+            ${LogUninstall} "RegKey: $R7 | $R8"
+          ${EndIf}
+          ${LogMsg} "Added Registry Key: $R7 | $R8"
+        ${EndIf}
       !endif
+
+      StrCmp $R5 0 +1 +2
+      System::Call "Advapi32::RegCloseKey(iR4)"
 
       Pop $R4
       Pop $R5
@@ -1180,6 +1120,67 @@
   !endif
 !macroend
 
+/**
+ * Helper for checking for the existence of a registry key.
+ * SHCTX is the root key to search.
+ *
+ * @param   _MAIN_KEY
+ *          Sub key to iterate for the key in question
+ * @param   _KEY
+ *          Key name to search for
+ * @return  _RESULT
+ *          'true' / 'false' result
+ */
+!macro CheckIfRegistryKeyExists
+  !ifndef CheckIfRegistryKeyExists
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !define CheckIfRegistryKeyExists "!insertmacro CheckIfRegistryKeyExistsCall"
+
+    Function CheckIfRegistryKeyExists
+      ; stack: main key, key
+      Exch $R9 ; main key
+      Exch 1
+      Exch $R8 ; key
+      Push $R7
+      Push $R6
+      Push $R5
+
+      StrCpy $R5 "false"
+      StrCpy $R7 "0" # loop index
+      ${Do}
+        EnumRegKey $R6 SHCTX "$R9" "$R7"
+        ${If} "$R6" == "$R8"
+          StrCpy $R5 "true"
+          ${Break}
+        ${EndIf}
+        IntOp $R7 $R7 + 1
+      ${LoopWhile} $R6 != ""
+      ClearErrors
+
+      StrCpy $R9 $R5
+
+      Pop $R5
+      Pop $R6
+      Pop $R7
+      Exch $R8
+      Exch 1
+      Exch $R9
+    FunctionEnd
+
+    !verbose pop
+  !endif
+!macroend
+
+!macro CheckIfRegistryKeyExistsCall _MAIN_KEY _KEY _RESULT
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Push "${_KEY}"
+  Push "${_MAIN_KEY}"
+  Call CheckIfRegistryKeyExists
+  Pop ${_RESULT}
+  !verbose pop
+!macroend
 
 ################################################################################
 # Macros for adding file and protocol handlers
@@ -1484,6 +1485,44 @@
   !endif
 !macroend
 
+
+################################################################################
+# Macros for handling DLL registration
+
+!macro RegisterDLL DLL
+
+  ; The x64 regsvr32.exe registers x86 DLL's properly on Windows Vista and above
+  ; (not on Windows XP http://support.microsoft.com/kb/282747) so just use it
+  ; when installing on an x64 systems even when installing an x86 application.
+  ${If} ${RunningX64}
+    ${DisableX64FSRedirection}
+    ExecWait '"$SYSDIR\regsvr32.exe" /s "${DLL}"'
+    ${EnableX64FSRedirection}
+  ${Else}
+    RegDLL "${DLL}"
+  ${EndIf}
+
+!macroend
+
+!macro UnregisterDLL DLL
+
+  ; The x64 regsvr32.exe registers x86 DLL's properly on Windows Vista and above
+  ; (not on Windows XP http://support.microsoft.com/kb/282747) so just use it
+  ; when installing on an x64 systems even when installing an x86 application.
+  ${If} ${RunningX64}
+    ${DisableX64FSRedirection}
+    ExecWait '"$SYSDIR\regsvr32.exe" /s /u "${DLL}"'
+    ${EnableX64FSRedirection}
+  ${Else}
+    UnRegDLL "${DLL}"
+  ${EndIf}
+
+!macroend
+
+!define RegisterDLL `!insertmacro RegisterDLL`
+!define UnregisterDLL `!insertmacro UnregisterDLL`
+
+
 ################################################################################
 # Macros for retrieving existing install paths
 
@@ -1781,20 +1820,31 @@
       ; UNC path so always try to create $INSTDIR
       CreateDirectory "$INSTDIR\"
       GetTempFileName $R8 "$INSTDIR\"
-      IfFileExists "$R8" +3 +1 ; Can files be created?
-      StrCpy $R9 "false"
-      Goto +12
-      Delete "$R8"
-      IfFileExists "$R8" +1 +3 ; Can files be deleted?
-      StrCpy $R9 "false"
-      Goto +8
-      CreateDirectory "$R8"
-      IfFileExists "$R8" +3 +1 ; Can directories be created?
-      StrCpy $R9 "false"
-      GoTo +4
-      RmDir "$R8"
-      IfFileExists "$R8" +1 +2 ; Can directories be deleted?
-      StrCpy $R9 "false"
+
+      ${Unless} ${FileExists} $R8 ; Can files be created?
+        StrCpy $R9 "false"
+        Goto done
+      ${EndUnless}
+
+      Delete $R8
+      ${If} ${FileExists} $R8 ; Can files be deleted?
+        StrCpy $R9 "false"
+        Goto done
+      ${EndIf}
+
+      CreateDirectory $R8
+      ${Unless} ${FileExists} $R8  ; Can directories be created?
+        StrCpy $R9 "false"
+        Goto done
+      ${EndUnless}
+
+      RmDir $R8
+      ${If} ${FileExists} $R8  ; Can directories be deleted?
+        StrCpy $R9 "false"
+        Goto done
+      ${EndIf}
+
+      done:
 
       RmDir "$INSTDIR\" ; Only remove $INSTDIR if it is empty
       ClearErrors
@@ -1843,7 +1893,7 @@
  * directory using GetDiskFreeSpaceExW which respects disk quotas. This macro
  * will calculate the size of all sections that are selected, compare that with
  * the free space available, and if there is sufficient free space it will
- * return true... if not, it will return false. 
+ * return true... if not, it will return false.
  *
  * @return  _RESULT
  *          "true" if there is sufficient free space otherwise "false".
@@ -1902,7 +1952,7 @@
       Delete "$R7"
       CreateDirectory "$R7"
 
-      System::Call 'kernel32::GetDiskFreeSpaceExW(w, *l, *l, *l) i(r17, .r16, ., .) .'
+      System::Call 'kernel32::GetDiskFreeSpaceExW(w, *l, *l, *l) i(R7, .R6, ., .) .'
 
       ; Convert to KB for comparison with $R8 which is in KB
       System::Int64Op $R6 / 1024
@@ -2199,7 +2249,7 @@
       GetFullPathName $R8 "$R9"
       IfErrors end_GetLongPath +1 ; If the path doesn't exist return an empty string.
 
-      System::Call 'kernel32::GetLongPathNameW(w r18, w .r17, i 1024)i .r16'
+      System::Call 'kernel32::GetLongPathNameW(w R8, w .R7, i 1024)i .R6'
       StrCmp "$R7" "" +4 +1 ; Empty string when GetLongPathNameW is not present.
       StrCmp $R6 0 +3 +1    ; Should never equal 0 since the path exists.
       StrCpy $R9 "$R7"
@@ -2307,6 +2357,9 @@
  * to this reg cleanup since the referenced key would be for an app that is no
  * longer installed on the system.
  *
+ * $R0 = on x64 systems set to 'false' at the beginning of the macro when
+ *       enumerating the x86 registry view and set to 'true' when enumerating
+ *       the x64 registry view.
  * $R1 = stores the long path to $INSTDIR
  * $R2 = return value from the stack from the GetParent and GetLongPath macros
  * $R3 = return value from the outer loop's EnumRegKey
@@ -2342,9 +2395,22 @@
       Push $R3
       Push $R2
       Push $R1
+      Push $R0
 
       ${${_MOZFUNC_UN}GetLongPath} "$INSTDIR" $R1
       StrCpy $R6 0  ; set the counter for the outer loop to 0
+
+      ${If} ${RunningX64}
+        StrCpy $R0 "false"
+        ; Set the registry to the 32 bit registry for 64 bit installations or to
+        ; the 64 bit registry for 32 bit installations at the beginning so it can
+        ; easily be set back to the correct registry view when finished.
+        !ifdef HAVE_64BIT_OS
+          SetRegView 32
+        !else
+          SetRegView 64
+        !endif
+      ${EndIf}
 
       outerloop:
       EnumRegKey $R3 SHCTX $R9 $R6
@@ -2393,8 +2459,23 @@
       GoTo outerloop
 
       end:
+      ${If} ${RunningX64}
+      ${AndIf} "$R0" == "false"
+        ; Set the registry to the correct view.
+        !ifdef HAVE_64BIT_OS
+          SetRegView 64
+        !else
+          SetRegView 32
+        !endif
+
+        StrCpy $R6 0  ; set the counter for the outer loop to 0
+        StrCpy $R0 "true"
+        GoTo outerloop
+      ${EndIf}
+
       ClearErrors
 
+      Pop $R0
       Pop $R1
       Pop $R2
       Pop $R3
@@ -2443,9 +2524,13 @@
 
 /**
  * Removes all registry keys from \Software\Windows\CurrentVersion\Uninstall
- * that reference this install location. This uses SHCTX to determine the
- * registry hive so you must call SetShellVarContext first.
+ * that reference this install location in both the 32 bit and 64 bit registry
+ * view. This macro uses SHCTX to determine the registry hive so you must call
+ * SetShellVarContext first.
  *
+ * $R3 = on x64 systems set to 'false' at the beginning of the macro when
+ *       enumerating the x86 registry view and set to 'true' when enumerating
+ *       the x64 registry view.
  * $R4 = stores the long path to $INSTDIR
  * $R5 = return value from ReadRegStr
  * $R6 = string for the base reg key (e.g. Software\Microsoft\Windows\CurrentVersion\Uninstall)
@@ -2474,11 +2559,24 @@
       Push $R6
       Push $R5
       Push $R4
+      Push $R3
 
       ${${_MOZFUNC_UN}GetLongPath} "$INSTDIR" $R4
       StrCpy $R6 "Software\Microsoft\Windows\CurrentVersion\Uninstall"
       StrCpy $R7 ""
       StrCpy $R8 0
+
+      ${If} ${RunningX64}
+        StrCpy $R3 "false"
+        ; Set the registry to the 32 bit registry for 64 bit installations or to
+        ; the 64 bit registry for 32 bit installations at the beginning so it can
+        ; easily be set back to the correct registry view when finished.
+        !ifdef HAVE_64BIT_OS
+          SetRegView 32
+        !else
+          SetRegView 64
+        !endif
+      ${EndIf}
 
       loop:
       EnumRegKey $R7 SHCTX $R6 $R8
@@ -2492,13 +2590,29 @@
       StrCmp "$R9" "$R4" +1 loop
       ClearErrors
       DeleteRegKey SHCTX "$R6\$R7"
-      IfErrors loop
+      IfErrors loop +1
       IntOp $R8 $R8 - 1 ; Decrement the counter on successful deletion
       GoTo loop
 
       end:
+      ${If} ${RunningX64}
+      ${AndIf} "$R3" == "false"
+        ; Set the registry to the correct view.
+        !ifdef HAVE_64BIT_OS
+          SetRegView 64
+        !else
+          SetRegView 32
+        !endif
+
+        StrCpy $R7 ""
+        StrCpy $R8 0
+        StrCpy $R3 "true"
+        GoTo loop
+      ${EndIf}
+
       ClearErrors
 
+      Pop $R3
       Pop $R4
       Pop $R5
       Pop $R6
@@ -2838,15 +2952,16 @@
       StrCpy $R8 "$R9"
       StrCpy $R9 "false"
       ReadRegStr $R7 SHCTX "Software\Classes\$R8\shell\open\command" ""
-      StrCmp "$R7" "" end
 
-      ${GetPathFromString} "$R7" $R7
-      ${GetParent} "$R7" $R7
-      ${GetLongPath} "$R7" $R7
-      StrCmp "$R7" "$INSTDIR" +1 end
-      StrCpy $R9 "true"
+      ${If} $R7 != ""
+        ${GetPathFromString} "$R7" $R7
+        ${GetParent} "$R7" $R7
+        ${GetLongPath} "$R7" $R7
+        ${If} $R7 == $INSTDIR
+          StrCpy $R9 "true"
+        ${EndIf}
+      ${EndIf}
 
-      end:
       ClearErrors
 
       Pop $R7
@@ -2892,14 +3007,14 @@
 !macroend
 
 /**
- * If present removes the VirtualStore directory for this installation. Uses the
- * program files directory path and the current install location to determine
- * the sub-directory in the VirtualStore directory.
+ * Removes the application's VirtualStore directory if present when the
+ * installation directory is a sub-directory of the program files directory.
  *
+ * $R4 = $PROGRAMFILES/$PROGRAMFILES64 for CleanVirtualStore_Internal
  * $R5 = various path values.
- * $R6 = length of the long path to $PROGRAMFILES
- * $R7 = length of the long path to $INSTDIR
- * $R8 = long path to $PROGRAMFILES
+ * $R6 = length of the long path to $PROGRAMFILES32 or $PROGRAMFILES64
+ * $R7 = long path to $PROGRAMFILES32 or $PROGRAMFILES64
+ * $R8 = length of the long path to $INSTDIR
  * $R9 = long path to $INSTDIR
  */
 !macro CleanVirtualStore
@@ -2921,39 +3036,51 @@
       Push $R7
       Push $R6
       Push $R5
+      Push $R4
 
       ${${_MOZFUNC_UN}GetLongPath} "$INSTDIR" $R9
-      StrCmp $R9 "" end +1
-      ${${_MOZFUNC_UN}GetLongPath} "$PROGRAMFILES" $R8
-      StrCmp $R8 "" end +1
+      ${If} "$R9" != ""
+        StrLen $R8 "$R9"
 
-      StrLen $R7 "$R9"
-      StrLen $R6 "$R8"
-      ; Only continue If the length of $INSTDIR is greater than the length of
-      ; $PROGRAMFILES
-      IntCmp $R7 $R6 end end +1
+        StrCpy $R4 $PROGRAMFILES32
+        Call ${_MOZFUNC_UN}CleanVirtualStore_Internal
 
-      ; Copy from the start of $INSTDIR the length of $PROGRAMFILES 
-      StrCpy $R5 "$R9" $R6
-      StrCmp "$R5" "$R8" +1 end ; Check if $INSTDIR is under $PROGRAMFILES
+        ${If} ${RunningX64}
+          StrCpy $R4 $PROGRAMFILES64
+          Call ${_MOZFUNC_UN}CleanVirtualStore_Internal
+        ${EndIf}
 
-      ; Remove the drive letter and colon from the $INSTDIR long path
-      StrCpy $R5 "$R9" "" 2
-      StrCpy $R5 "$PROFILE\AppData\Local\VirtualStore$R5"
-      ${${_MOZFUNC_UN}GetLongPath} "$R5" $R5
-      StrCmp $R5 "" end +1
+      ${EndIf}
 
-      IfFileExists "$R5" +1 end
-      RmDir /r "$R5"
-
-      end:
       ClearErrors
 
+      Pop $R4
       Pop $R5
       Pop $R6
       Pop $R7
       Pop $R8
       Pop $R9
+    FunctionEnd
+
+    Function ${_MOZFUNC_UN}CleanVirtualStore_Internal
+      ${${_MOZFUNC_UN}GetLongPath} "" $R7
+      ${If} "$R7" != ""
+        StrLen $R6 "$R7"
+        ${If} $R8 < $R6
+          ; Copy from the start of $INSTDIR the length of $PROGRAMFILES64
+          StrCpy $R5 "$R9" $R6
+          ${If} "$R5" == "$R7"
+            ; Remove the drive letter and colon from the $INSTDIR long path
+            StrCpy $R5 "$R9" "" 2
+            StrCpy $R5 "$LOCALAPPDATA\VirtualStore$R5"
+            ${${_MOZFUNC_UN}GetLongPath} "$R5" $R5
+            ${If} "$R5" != ""
+            ${AndIf} ${FileExists} "$R5"
+              RmDir /r "$R5"
+            ${EndIf}
+          ${EndIf}
+        ${EndIf}
+      ${EndIf}
     FunctionEnd
 
     !verbose pop
@@ -3036,7 +3163,7 @@
       ; $PROGRAMFILES
       IntCmp $R6 $R5 end end +1
 
-      ; Copy from the start of $INSTDIR the length of $PROGRAMFILES 
+      ; Copy from the start of $INSTDIR the length of $PROGRAMFILES
       StrCpy $R4 "$R8" $R5
       StrCmp "$R4" "$R7" +1 end ; Check if $INSTDIR is under $PROGRAMFILES
 
@@ -3204,10 +3331,11 @@
 
 /**
  * Deletes shortcuts and Start Menu directories under Programs as specified by
- * the shortcuts log ini file. The shortcuts will not be deleted if the shortcut
- * target isn't for this install location which is determined by the shortcut
- * having a target of $INSTDIR\${FileMainEXE}. The context (All Users or Current
- * User) of the $DESKTOP, $STARTMENU, and $SMPROGRAMS constants depends on the
+ * the shortcuts log ini file and on Windows 7 unpins TaskBar and Start Menu
+ * shortcuts. The shortcuts will not be deleted if the shortcut target isn't for
+ * this install location which is determined by the shortcut having a target of
+ * $INSTDIR\${FileMainEXE}. The context (All Users or Current User) of the
+ * $DESKTOP and $SMPROGRAMS constants depends on the
  * SetShellVarContext setting and must be set by the caller of this macro. There
  * is no All Users context for $QUICKLAUNCH but this will not cause a problem
  * since the macro will just continue past the $QUICKLAUNCH shortcut deletion
@@ -3242,12 +3370,16 @@
  * Shortcut2=Mozilla App (Safe Mode).lnk
  *
  * $R4 = counter for appending to Shortcut for enumerating the ini file entries
- * $R5 = return value from ShellLink::GetShortCutTarget
- * $R6 = long path to the Start Menu Programs directory (e.g. $SMPROGRAMS)
- * $R7 = return value from ReadINIStr for the relative path to the applications
- *       directory under the Start Menu Programs directory and the long path to
- *       this directory
- * $R8 = return value from ReadINIStr for enumerating shortcuts
+ * $R5 = return value from ShellLink::GetShortCutTarget and
+ *       ApplicationID::UninstallPinnedItem
+ * $R6 = find handle and the long path to the Start Menu Programs directory
+ *       (e.g. $SMPROGRAMS)
+ * $R7 = path to the $QUICKLAUNCH\User Pinned directory and the return value
+ *       from ReadINIStr for the relative path to the applications directory
+ *       under the Start Menu Programs directory and the long path to this
+ *       directory
+ * $R8 = return filename from FindFirst / FindNext and the return value from
+ *       ReadINIStr for enumerating shortcuts
  * $R9 = long path to the shortcuts log ini file
  */
 !macro DeleteShortcuts
@@ -3272,81 +3404,163 @@
       Push $R5
       Push $R4
 
+      ${If} ${AtLeastWin7}
+        ; Since shortcuts that are pinned can later be removed without removing
+        ; the pinned shortcut unpin the pinned shortcuts for the application's
+        ; main exe using the pinned shortcuts themselves.
+        StrCpy $R7 "$QUICKLAUNCH\User Pinned"
+
+        ${If} ${FileExists} "$R7\TaskBar"
+          ; Delete TaskBar pinned shortcuts for the application's main exe
+          FindFirst $R6 $R8 "$R7\TaskBar\*.lnk"
+          ${Do}
+            ${If} ${FileExists} "$R7\TaskBar\$R8"
+              ShellLink::GetShortCutTarget "$R7\TaskBar\$R8"
+              Pop $R5
+              ${${_MOZFUNC_UN}GetLongPath} "$R5" $R5
+              ${If} "$R5" == "$INSTDIR\${FileMainEXE}"
+                ApplicationID::UninstallPinnedItem "$R7\TaskBar\$R8"
+                Pop $R5
+              ${EndIf}
+            ${EndIf}
+            ClearErrors
+            FindNext $R6 $R8
+            ${If} ${Errors}
+              ${ExitDo}
+            ${EndIf}
+          ${Loop}
+          FindClose $R6
+        ${EndIf}
+
+        ${If} ${FileExists} "$R7\StartMenu"
+          ; Delete Start Menu pinned shortcuts for the application's main exe
+          FindFirst $R6 $R8 "$R7\StartMenu\*.lnk"
+          ${Do}
+            ${If} ${FileExists} "$R7\StartMenu\$R8"
+              ShellLink::GetShortCutTarget "$R7\StartMenu\$R8"
+              Pop $R5
+              ${${_MOZFUNC_UN}GetLongPath} "$R5" $R5
+              ${If} "$R5" == "$INSTDIR\${FileMainEXE}"
+                  ApplicationID::UninstallPinnedItem "$R7\StartMenu\$R8"
+                  Pop $R5
+              ${EndIf}
+            ${EndIf}
+            ClearErrors
+            FindNext $R6 $R8
+            ${If} ${Errors}
+              ${ExitDo}
+            ${EndIf}
+          ${Loop}
+          FindClose $R6
+        ${EndIf}
+      ${EndIf}
+
+      ; Don't call ApplicationID::UninstallPinnedItem since pinned items for
+      ; this application were removed above and removing them below will remove
+      ; the association of side by side installations.
       ${${_MOZFUNC_UN}GetLongPath} "$INSTDIR\uninstall\${SHORTCUTS_LOG}" $R9
-      IfFileExists $R9 +1 end_DeleteShortcuts
+      ${If} ${FileExists} "$R9"
+        ; Delete Start Menu shortcuts for this application
+        StrCpy $R4 -1
+        ${Do}
+          IntOp $R4 $R4 + 1 ; Increment the counter
+          ClearErrors
+          ReadINIStr $R8 "$R9" "STARTMENU" "Shortcut$R4"
+          ${If} ${Errors}
+            ${ExitDo}
+          ${EndIf}
 
-      ; Delete Start Menu shortcuts for this application
-      StrCpy $R4 -1
+          ${If} ${FileExists} "$SMPROGRAMS\$R8"
+            ShellLink::GetShortCutTarget "$SMPROGRAMS\$R8"
+            Pop $R5
+            ${${_MOZFUNC_UN}GetLongPath} "$R5" $R5
+            ${If} "$INSTDIR\${FileMainEXE}" == "$R5"
+              Delete "$SMPROGRAMS\$R8"
+            ${EndIf}
+          ${EndIf}
+        ${Loop}
 
-      IntOp $R4 $R4 + 1 ; Increment the counter
-      ClearErrors
-      ReadINIStr $R8 "$R9" "STARTMENU" "Shortcut$R4"
-      IfErrors +7 +1
-      IfFileExists "$STARTMENU\$R8" +1 -4
-      ShellLink::GetShortCutTarget "$STARTMENU\$R8"
-      Pop $R5
-      StrCmp "$INSTDIR\${FileMainEXE}" "$R5" +1 -7
-      Delete "$STARTMENU\$R8"
-      GoTo -9
+        ; Delete Quick Launch shortcuts for this application
+        StrCpy $R4 -1
+        ${Do}
+          IntOp $R4 $R4 + 1 ; Increment the counter
+          ClearErrors
+          ReadINIStr $R8 "$R9" "QUICKLAUNCH" "Shortcut$R4"
+          ${If} ${Errors}
+            ${ExitDo}
+          ${EndIf}
 
-      ; Delete Quick Launch shortcuts for this application
-      StrCpy $R4 -1
+          ${If} ${FileExists} "$QUICKLAUNCH\$R8"
+            ShellLink::GetShortCutTarget "$QUICKLAUNCH\$R8"
+            Pop $R5
+            ${${_MOZFUNC_UN}GetLongPath} "$R5" $R5
+            ${If} "$INSTDIR\${FileMainEXE}" == "$R5"
+              Delete "$QUICKLAUNCH\$R8"
+            ${EndIf}
+          ${EndIf}
+        ${Loop}
 
-      IntOp $R4 $R4 + 1 ; Increment the counter
-      ClearErrors
-      ReadINIStr $R8 "$R9" "QUICKLAUNCH" "Shortcut$R4"
-      IfErrors +7 +1
-      IfFileExists "$QUICKLAUNCH\$R8" +1 -4
-      ShellLink::GetShortCutTarget "$QUICKLAUNCH\$R8"
-      Pop $R5
-      StrCmp "$INSTDIR\${FileMainEXE}" "$R5" +1 -7
-      Delete "$QUICKLAUNCH\$R8"
-      GoTo -9
+        ; Delete Desktop shortcuts for this application
+        StrCpy $R4 -1
+        ${Do}
+          IntOp $R4 $R4 + 1 ; Increment the counter
+          ClearErrors
+          ReadINIStr $R8 "$R9" "DESKTOP" "Shortcut$R4"
+          ${If} ${Errors}
+            ${ExitDo}
+          ${EndIf}
 
-      ; Delete Desktop shortcuts for this application
-      StrCpy $R4 -1
+          ${If} ${FileExists} "$DESKTOP\$R8"
+            ShellLink::GetShortCutTarget "$DESKTOP\$R8"
+            Pop $R5
+            ${${_MOZFUNC_UN}GetLongPath} "$R5" $R5
+            ${If} "$INSTDIR\${FileMainEXE}" == "$R5"
+              Delete "$DESKTOP\$R8"
+            ${EndIf}
+          ${EndIf}
+        ${Loop}
 
-      IntOp $R4 $R4 + 1 ; Increment the counter
-      ClearErrors
-      ReadINIStr $R8 "$R9" "DESKTOP" "Shortcut$R4"
-      IfErrors +7 +1
-      IfFileExists "$DESKTOP\$R8" +1 -4
-      ShellLink::GetShortCutTarget "$DESKTOP\$R8"
-      Pop $R5
-      StrCmp "$INSTDIR\${FileMainEXE}" "$R5" +1 -7
-      Delete "$DESKTOP\$R8"
-      GoTo -9
+        ${${_MOZFUNC_UN}GetLongPath} "$SMPROGRAMS" $R6
 
-      ${${_MOZFUNC_UN}GetLongPath} "$SMPROGRAMS" $R6
+        ; Delete Start Menu Programs shortcuts for this application
+        ClearErrors
+        ReadINIStr $R7 "$R9" "SMPROGRAMS" "RelativePathToDir"
+        ${${_MOZFUNC_UN}GetLongPath} "$R6\$R7" $R7
+        ${Unless} "$R7" == ""
+          StrCpy $R4 -1
+          ${Do}
+            IntOp $R4 $R4 + 1 ; Increment the counter
+            ClearErrors
+            ReadINIStr $R8 "$R9" "SMPROGRAMS" "Shortcut$R4"
+            ${If} ${Errors}
+              ${ExitDo}
+            ${EndIf}
 
-      ; Delete Start Menu Programs shortcuts for this application
-      ClearErrors
-      ReadINIStr $R7 "$R9" "SMPROGRAMS" "RelativePathToDir"
-      ${${_MOZFUNC_UN}GetLongPath} "$R6\$R7" $R7
-      StrCmp "$R7" "" end_DeleteShortcuts +1
-      StrCpy $R4 -1
+            ${If} ${FileExists} "$R7\$R8"
+              ShellLink::GetShortCutTarget "$R7\$R8"
+              Pop $R5
+              ${${_MOZFUNC_UN}GetLongPath} "$R5" $R5
+              ${If} "$INSTDIR\${FileMainEXE}" == "$R5"
+                Delete "$R7\$R8"
+              ${EndIf}
+            ${EndIf}
+          ${Loop}
 
-      IntOp $R4 $R4 + 1 ; Increment the counter
-      ClearErrors
-      ReadINIStr $R8 "$R9" "SMPROGRAMS" "Shortcut$R4"
-      IfErrors +7 +1
-      IfFileExists "$R7\$R8" +1 -4
-      ShellLink::GetShortCutTarget "$R7\$R8"
-      Pop $R5
-      StrCmp "$INSTDIR\${FileMainEXE}" "$R5" +1 -7
-      Delete "$R7\$R8"
-      GoTo -9
+          ; Delete Start Menu Programs directories for this application
+          ${Do}
+            ClearErrors
+            ${If} "$R6" == "$R7"
+              ${ExitDo}
+            ${EndIf}
+            RmDir "$R7"
+            ${If} ${Errors}
+              ${ExitDo}
+            ${EndIf}
+            ${${_MOZFUNC_UN}GetParent} "$R7" $R7
+          ${Loop}
+        ${EndUnless}
+      ${EndIf}
 
-      ; Delete Start Menu Programs directories for this application
-      start_RemoveSMProgramsDir:
-      ClearErrors
-      StrCmp "$R6" "$R7" end_DeleteShortcuts +1
-      RmDir "$R7"
-      IfErrors end_DeleteShortcuts +1
-      ${${_MOZFUNC_UN}GetParent} "$R7" $R7
-      GoTo start_RemoveSMProgramsDir
-
-      end_DeleteShortcuts:
       ClearErrors
 
       Pop $R4
@@ -3422,21 +3636,20 @@
       ClearErrors
 
       GetFullPathName $R3 "$INSTDIR\uninstall"
-      IfFileExists "$R3\uninstall.update" +1 end_UpdateUninstallLog
+      ${If} ${FileExists} "$R3\uninstall.update"
+        ${LineFind} "$R3\uninstall.update" "" "1:-1" "CleanupUpdateLog"
 
-      ${LineFind} "$R3\uninstall.update" "" "1:-1" "CleanupUpdateLog"
+        GetTempFileName $R2 "$R3"
+        FileOpen $R1 "$R2" w
+        ${TextCompareNoDetails} "$R3\uninstall.update" "$R3\uninstall.log" "SlowDiff" "CreateUpdateDiff"
+        FileClose $R1
 
-      GetTempFileName $R2 "$R3"
-      FileOpen $R1 "$R2" w
-      ${TextCompareNoDetails} "$R3\uninstall.update" "$R3\uninstall.log" "SlowDiff" "CreateUpdateDiff"
-      FileClose $R1
+        IfErrors +2 0
+        ${FileJoin} "$R3\uninstall.log" "$R2" "$R3\uninstall.log"
 
-      IfErrors +2 0
-      ${FileJoin} "$R3\uninstall.log" "$R2" "$R3\uninstall.log"
+        ${DeleteFile} "$R2"
+      ${EndIf}
 
-      ${DeleteFile} "$R2"
-
-      end_UpdateUninstallLog:
       ClearErrors
 
       Pop $R0
@@ -3483,8 +3696,9 @@
 
     Function CreateUpdateDiff
       ${TrimNewLines} "$9" $9
-      StrCmp $9 "" +2 +1
-      FileWrite $R1 "$9$\r$\n"
+      ${If} $9 != ""
+        FileWrite $R1 "$9$\r$\n"
+      ${EndIf}
 
       Push 0
     FunctionEnd
@@ -3749,32 +3963,34 @@
       StrCmp "$R0" "\" +1 end  ; If this isn't a relative path goto end
       StrCmp "$R9" "\install.log" end +1 ; Skip the install.log
       StrCmp "$R9" "\MapiProxy_InUse.dll" end +1 ; Skip the MapiProxy_InUse.dll
-      StrCmp "$R9" "\mozMapi32_InUse.dll" end +1 ; Skip the mozMapi32_InUse.dll 
+      StrCmp "$R9" "\mozMapi32_InUse.dll" end +1 ; Skip the mozMapi32_InUse.dll
 
       StrCpy $R1 "$INSTDIR$R9" ; Copy the install dir path and suffix it with the string
       IfFileExists "$R1" +1 end
 
       ClearErrors
       Delete "$R1"
-      IfErrors +3 +1
-      ${LogMsg} "Deleted File: $R1"
-      GoTo end
+      ${Unless} ${Errors}
+        ${LogMsg} "Deleted File: $R1"
+        Goto end
+      ${EndUnless}
 
       ClearErrors
       Rename "$R1" "$R1.moz-delete"
-      IfErrors +4 +1
-      Delete /REBOOTOK "$R1.moz-delete"
-      ${LogMsg} "Delayed Delete File (Reboot Required): $R1.moz-delete"
-      GoTo end
+      ${Unless} ${Errors}
+        Delete /REBOOTOK "$R1.moz-delete"
+        ${LogMsg} "Delayed Delete File (Reboot Required): $R1.moz-delete"
+        GoTo end
+      ${EndUnless}
 
       ; Check if the file exists in the source. If it does the new file will
       ; replace the existing file when the system is rebooted. If it doesn't
       ; the file will be deleted when the system is rebooted.
-      IfFileExists "$EXEDIR\nonlocalized$R9" end +1
-      IfFileExists "$EXEDIR\localized$R9" end +1
-      IfFileExists "$EXEDIR\optional$R9" end +1
-      Delete /REBOOTOK "$R1"
-      ${LogMsg} "Delayed Delete File (Reboot Required): $R1"
+      ${Unless} ${FileExists} "$EXEDIR\core$R9"
+      ${AndUnless}  ${FileExists} "$EXEDIR\optional$R9"
+        Delete /REBOOTOK "$R1"
+        ${LogMsg} "Delayed Delete File (Reboot Required): $R1"
+      ${EndUnless}
 
       end:
       ClearErrors
@@ -3930,7 +4146,7 @@
       StrCmp $R0 "\" +2 +1
       StrCpy $R1 "$R9"
 
-      UnRegDLL $R1
+      ${UnregisterDLL} $R1
 
       end:
       ClearErrors
@@ -4023,10 +4239,9 @@
       Push $R0
 
       StrCpy $R3 ""
-      IfFileExists "$INSTDIR\uninstall\uninstall.log" +1 end_FindSMProgramsDir
-      ${LineFind} "$INSTDIR\uninstall\uninstall.log" "/NUL" "1:-1" "FindSMProgramsDirRelPath"
-
-      end_FindSMProgramsDir:
+      ${If} ${FileExists} "$INSTDIR\uninstall\uninstall.log"
+        ${LineFind} "$INSTDIR\uninstall\uninstall.log" "/NUL" "1:-1" "FindSMProgramsDirRelPath"
+      ${EndIf}
       ClearErrors
 
       Pop $R0
@@ -4382,7 +4597,6 @@
 !macro InstallOnInitCommon
 
   !ifndef InstallOnInitCommon
-    !insertmacro CloseApp
     !insertmacro ElevateUAC
     !insertmacro GetOptions
     !insertmacro GetParameters
@@ -4399,24 +4613,35 @@
       Push $R6
       Push $R5
 
-      ${Unless} ${AtLeastWin2000}
-        ; XXX-rstrong - some systems fail the AtLeastWin2000 test for an
-        ; unknown reason. To work around this also check if the Windows NT
-        ; registry Key exists and if it does if the first char in
-        ; CurrentVersion is equal to 3 (Windows NT 3.5 and 3.5.1) or 4
-        ; (Windows NT 4).
-        StrCpy $R8 ""
-        ClearErrors
-        ReadRegStr $R8 HKLM "SOFTWARE\Microsoft\Windows NT\CurrentVersion" "CurrentVersion"
-        StrCpy $R8 "$R8" 1
-        ${If} ${Errors}
-        ${OrIf} "$R8" == "3"
-        ${OrIf} "$R8" == "4"
+      !ifdef HAVE_64BIT_OS
+        ${Unless} ${RunningX64}
+        ${OrUnless} ${AtLeastWinVista}
           MessageBox MB_OK|MB_ICONSTOP "$R9" IDOK
           ; Nothing initialized so no need to call OnEndCommon
           Quit
-        ${EndIf}
-      ${EndUnless}
+        ${EndUnless}
+
+        SetRegView 64
+      !else
+        ${Unless} ${AtLeastWin2000}
+          ; XXX-rstrong - some systems fail the AtLeastWin2000 test for an
+          ; unknown reason. To work around this also check if the Windows NT
+          ; registry Key exists and if it does if the first char in
+          ; CurrentVersion is equal to 3 (Windows NT 3.5 and 3.5.1) or 4
+          ; (Windows NT 4).
+          StrCpy $R8 ""
+          ClearErrors
+          ReadRegStr $R8 HKLM "SOFTWARE\Microsoft\Windows NT\CurrentVersion" "CurrentVersion"
+          StrCpy $R8 "$R8" 1
+          ${If} ${Errors}
+          ${OrIf} "$R8" == "3"
+          ${OrIf} "$R8" == "4"
+            MessageBox MB_OK|MB_ICONSTOP "$R9" IDOK
+            ; Nothing initialized so no need to call OnEndCommon
+            Quit
+          ${EndIf}
+        ${EndUnless}
+      !endif
 
       ${GetParameters} $R8
 
@@ -4424,122 +4649,97 @@
       ${ElevateUAC}
 
       ${If} $R8 != ""
-        ClearErrors
-        ${GetOptions} "$R8" "-ms" $R7
-        ${If} ${Errors}
-          ; Default install type
-          StrCpy $InstallType ${INSTALLTYPE_BASIC}
-          ; Support for specifying an installation configuration file.
+        ; Default install type
+        StrCpy $InstallType ${INSTALLTYPE_BASIC}
+
+        ${Unless} ${Silent}
+          ; Manually check for /S in the command line due to Bug 506867
           ClearErrors
-          ${GetOptions} "$R8" "/INI=" $R7
+          ${GetOptions} "$R8" "/S" $R7
           ${Unless} ${Errors}
-            ; The configuration file must also exist
-            ${If} ${FileExists} "$R7"
+            SetSilent silent
+          ${Else}
+            ; Support for the deprecated -ms command line argument. The new command
+            ; line arguments are not supported when -ms is used.
+            ClearErrors
+            ${GetOptions} "$R8" "-ms" $R7
+            ${Unless} ${Errors}
               SetSilent silent
-              ReadINIStr $R8 $R7 "Install" "InstallDirectoryName"
+            ${EndUnless}
+          ${EndUnless}
+        ${EndUnless}
+
+        ; Support for specifying an installation configuration file.
+        ClearErrors
+        ${GetOptions} "$R8" "/INI=" $R7
+        ${Unless} ${Errors}
+          ; The configuration file must also exist
+          ${If} ${FileExists} "$R7"
+            SetSilent silent
+            ReadINIStr $R8 $R7 "Install" "InstallDirectoryName"
+            ${If} $R8 != ""
+              !ifdef HAVE_64BIT_OS
+                StrCpy $INSTDIR "$PROGRAMFILES64\$R8"
+              !else
+                StrCpy $INSTDIR "$PROGRAMFILES32\$R8"
+              !endif
+            ${Else}
+              ReadINIStr $R8 $R7 "Install" "InstallDirectoryPath"
               ${If} $R8 != ""
-                StrCpy $INSTDIR "$PROGRAMFILES\$R8"
-              ${Else}
-                ReadINIStr $R8 $R7 "Install" "InstallDirectoryPath"
-                ${If} $R8 != ""
-                  StrCpy $INSTDIR "$R8"
-                ${EndIf}
+                StrCpy $INSTDIR "$R8"
               ${EndIf}
+            ${EndIf}
 
-              ${If} $INSTDIR == ""
-                ; Check if there is an existing uninstall registry entry for this
-                ; version of the application and if present install into that location
-                StrCpy $R6 "Software\Microsoft\Windows\CurrentVersion\Uninstall\${BrandFullNameInternal} (${AppVersion})"
-                ReadRegStr $R8 HKLM "$R6" "InstallLocation"
-                ${If} $R8 == ""
-                  StrCpy $INSTDIR "$PROGRAMFILES\${BrandFullName}"
-                ${Else}
-                  GetFullPathName $INSTDIR "$R8"
-                  ${Unless} ${FileExists} "$INSTDIR"
-                    StrCpy $INSTDIR "$PROGRAMFILES\${BrandFullName}"
-                  ${EndUnless}
-                ${EndIf}
+            ; Quit if we are unable to create the installation directory or we are
+            ; unable to write to a file in the installation directory.
+            ClearErrors
+            ${If} ${FileExists} "$INSTDIR"
+              GetTempFileName $R6 "$INSTDIR"
+              FileOpen $R5 "$R6" w
+              FileWrite $R5 "Write Access Test"
+              FileClose $R5
+              Delete $R6
+              ${If} ${Errors}
+                ; Nothing initialized so no need to call OnEndCommon
+                Quit
               ${EndIf}
-
-              ; Quit if we are unable to create the installation directory or we are
-              ; unable to write to a file in the installation directory.
-              ClearErrors
-              ${If} ${FileExists} "$INSTDIR"
-                GetTempFileName $R6 "$INSTDIR"
-                FileOpen $R5 "$R6" w
-                FileWrite $R5 "Write Access Test"
-                FileClose $R5
-                Delete $R6
-                ${If} ${Errors}
-                  ; Nothing initialized so no need to call OnEndCommon
-                  Quit
-                ${EndIf}
-              ${Else}
-                CreateDirectory "$INSTDIR"
-                ${If} ${Errors}
-                  ; Nothing initialized so no need to call OnEndCommon
-                  Quit
-                ${EndIf}
+            ${Else}
+              CreateDirectory "$INSTDIR"
+              ${If} ${Errors}
+                ; Nothing initialized so no need to call OnEndCommon
+                Quit
               ${EndIf}
+            ${EndIf}
 
-              ReadINIStr $R8 $R7 "Install" "CloseAppNoPrompt"
-              ${If} $R8 == "true"
-                ; Try to close the app if the exe is in use.
-                ClearErrors
-                ${If} ${FileExists} "$INSTDIR\${FileMainEXE}"
-                  ${DeleteFile} "$INSTDIR\${FileMainEXE}"
-                ${EndIf}
-                ${If} ${Errors}
-                  ClearErrors
-                  ${CloseApp} "false" ""
-                  ClearErrors
-                  ${DeleteFile} "$INSTDIR\${FileMainEXE}"
-                  ; If unsuccessful try one more time and if it still fails Quit
-                  ${If} ${Errors}
-                    ClearErrors
-                    ${CloseApp} "false" ""
-                    ClearErrors
-                    ${DeleteFile} "$INSTDIR\${FileMainEXE}"
-                    ${If} ${Errors}
-                      ; Nothing initialized so no need to call OnEndCommon
-                      Quit
-                    ${EndIf}
-                  ${EndIf}
-                ${EndIf}
-              ${EndIf}
+            ReadINIStr $R8 $R7 "Install" "QuickLaunchShortcut"
+            ${If} $R8 == "false"
+              StrCpy $AddQuickLaunchSC "0"
+            ${Else}
+              StrCpy $AddQuickLaunchSC "1"
+            ${EndIf}
 
-              ReadINIStr $R8 $R7 "Install" "QuickLaunchShortcut"
-              ${If} $R8 == "false"
-                StrCpy $AddQuickLaunchSC "0"
-              ${Else}
-                StrCpy $AddQuickLaunchSC "1"
-              ${EndIf}
+            ReadINIStr $R8 $R7 "Install" "DesktopShortcut"
+            ${If} $R8 == "false"
+              StrCpy $AddDesktopSC "0"
+            ${Else}
+              StrCpy $AddDesktopSC "1"
+            ${EndIf}
 
-              ReadINIStr $R8 $R7 "Install" "DesktopShortcut"
-              ${If} $R8 == "false"
-                StrCpy $AddDesktopSC "0"
-              ${Else}
-                StrCpy $AddDesktopSC "1"
-              ${EndIf}
+            ReadINIStr $R8 $R7 "Install" "StartMenuShortcuts"
+            ${If} $R8 == "false"
+              StrCpy $AddStartMenuSC "0"
+            ${Else}
+              StrCpy $AddStartMenuSC "1"
+            ${EndIf}
 
-              ReadINIStr $R8 $R7 "Install" "StartMenuShortcuts"
-              ${If} $R8 == "false"
-                StrCpy $AddStartMenuSC "0"
-              ${Else}
-                StrCpy $AddStartMenuSC "1"
-              ${EndIf}
-
+            !ifndef NO_STARTMENU_DIR
               ReadINIStr $R8 $R7 "Install" "StartMenuDirectoryName"
               ${If} $R8 != ""
                 StrCpy $StartMenuDir "$R8"
               ${EndIf}
-            ${EndIf}
-          ${EndUnless}
-        ${Else}
-          ; Support for the deprecated -ms command line argument. The new command
-          ; line arguments are not supported when -ms is used.
-          SetSilent silent
-        ${EndIf}
+            !endif
+          ${EndIf}
+        ${EndUnless}
       ${EndIf}
       ClearErrors
 
@@ -4575,6 +4775,7 @@
     !insertmacro GetParameters
     !insertmacro GetParent
     !insertmacro UnloadUAC
+    !insertmacro UpdateShortcutAppModelIDs
     !insertmacro UpdateUninstallLog
 
     !verbose push
@@ -4582,10 +4783,10 @@
     !define UninstallOnInitCommon "!insertmacro UninstallOnInitCommonCall"
 
     Function UninstallOnInitCommon
-; Prevents breaking apps that don't use SetBrandNameVars
-!ifdef SetBrandNameVars
-      ${SetBrandNameVars} "$EXEDIR\distribution\setup.ini"
-!endif
+      ; Prevents breaking apps that don't use SetBrandNameVars
+      !ifdef SetBrandNameVars
+        ${SetBrandNameVars} "$EXEDIR\distribution\setup.ini"
+      !endif
 
       ; Prevent launching the application when a reboot is required and this
       ; executable is the main application executable
@@ -4599,10 +4800,10 @@
       IfFileExists "$INSTDIR\${FileMainEXE}" +2 +1
       Quit ; Nothing initialized so no need to call OnEndCommon
 
-; Prevents breaking apps that don't use SetBrandNameVars
-!ifdef SetBrandNameVars
-      ${SetBrandNameVars} "$INSTDIR\distribution\setup.ini"
-!endif
+      ; Prevents breaking apps that don't use SetBrandNameVars
+      !ifdef SetBrandNameVars
+        ${SetBrandNameVars} "$INSTDIR\distribution\setup.ini"
+      !endif
 
       ; Application update uses a directory named tobedeleted in the $INSTDIR to
       ; delete files on OS reboot when they are in use. Try to delete this
@@ -4618,11 +4819,24 @@
       Reboot
       Quit ; Nothing initialized so no need to call OnEndCommon
 
+      !ifdef HAVE_64BIT_OS
+        SetRegView 64
+      !endif
+
       ${GetParameters} $R0
 
       StrCmp "$R0" "" continue +1
 
+      ; Update this user's shortcuts with the latest app user model id.
+      ClearErrors
+      ${GetOptions} "$R0" "/UpdateShortcutAppUserModelIds" $R2
+      IfErrors hideshortcuts +1
+      ${UpdateShortcutAppModelIDs}  "$INSTDIR\${FileMainEXE}" "${AppUserModelID}" $R2
+      StrCmp "$R2" "true" finish +1 ; true indicates that shortcuts have been updated
+      Quit ; Nothing initialized so no need to call OnEndCommon
+
       ; Require elevation if the user can elevate
+      hideshortcuts:
       ClearErrors
       ${GetOptions} "$R0" "/HideShortcuts" $R2
       IfErrors showshortcuts +1
@@ -4670,7 +4884,8 @@
       IfErrors continue +1
       ; If the uninstall.log does not exist don't perform post update
       ; operations. This prevents updating the registry for zip builds.
-      IfFileExists "$EXEDIR\uninstall.log" +1 finish
+      IfFileExists "$EXEDIR\uninstall.log" +2 +1
+      Quit ; Nothing initialized so no need to call OnEndCommon
       ${PostUpdate}
       ClearErrors
       ${GetOptions} "$R0" "/UninstallLog=" $R2
@@ -4693,7 +4908,7 @@
 
       finish:
       ${UnloadUAC}
-      System::Call "shell32::SHChangeNotify(i, i, i, i) v (0x08000000, 0, 0, 0)"
+      System::Call "shell32::SHChangeNotify(i 0x08000000, i 0, i 0, i 0)"
       Quit ; Nothing initialized so no need to call OnEndCommon
 
       continue:
@@ -4709,9 +4924,27 @@
       ; If we made it this far then this installer is being used as an uninstaller.
       WriteUninstaller "$EXEDIR\uninstaller.exe"
 
-      StrCpy $R1 "$\"$EXEDIR\uninstaller.exe$\""
-      StrCmp $R0 "/S" +1 +2
-      StrCpy $R1 "$\"$EXEDIR\uninstaller.exe$\" /S"
+      ${Unless} ${Silent}
+        ; Manually check for /S in the command line due to Bug 506867
+        ClearErrors
+        ${GetOptions} "$R0" "/S" $R2
+        ${Unless} ${Errors}
+          SetSilent silent
+        ${Else}
+          ; Support for the deprecated -ms command line argument.
+          ClearErrors
+          ${GetOptions} "$R0" "-ms" $R2
+          ${Unless} ${Errors}
+            SetSilent silent
+          ${EndUnless}
+        ${EndUnless}
+      ${EndUnless}
+
+      ${If} ${Silent}
+        StrCpy $R1 "$\"$EXEDIR\uninstaller.exe$\" /S"
+      ${Else}
+        StrCpy $R1 "$\"$EXEDIR\uninstaller.exe$\""
+      ${EndIf}
 
       ; When the uninstaller is launched it copies itself to the temp directory
       ; so it won't be in use so it can delete itself.
@@ -4731,6 +4964,53 @@
   !verbose push
   !verbose ${_MOZFUNC_VERBOSE}
   Call UninstallOnInitCommon
+  !verbose pop
+!macroend
+
+/**
+ * Called from the uninstaller's un.onInit function not to be confused with the
+ * installer's .onInit or the uninstaller's .onInit functions.
+ */
+!macro un.UninstallUnOnInitCommon
+
+  !ifndef un.UninstallUnOnInitCommon
+    !insertmacro un.GetLongPath
+    !insertmacro un.GetParent
+    !insertmacro un.SetBrandNameVars
+
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !define un.UninstallUnOnInitCommon "!insertmacro un.UninstallUnOnInitCommonCall"
+
+    Function un.UninstallUnOnInitCommon
+      ${un.GetParent} "$INSTDIR" $INSTDIR
+      ${un.GetLongPath} "$INSTDIR" $INSTDIR
+      ${Unless} ${FileExists} "$INSTDIR\${FileMainEXE}"
+        Abort
+      ${EndUnless}
+
+      !ifdef HAVE_64BIT_OS
+        SetRegView 64
+      !endif
+
+      ; Prevents breaking apps that don't use SetBrandNameVars
+      !ifdef un.SetBrandNameVars
+        ${un.SetBrandNameVars} "$INSTDIR\distribution\setup.ini"
+      !endif
+
+      ; Initialize $hHeaderBitmap to prevent redundant changing of the bitmap if
+      ; the user clicks the back button
+      StrCpy $hHeaderBitmap ""
+    FunctionEnd
+
+    !verbose pop
+  !endif
+!macroend
+
+!macro un.UninstallUnOnInitCommonCall
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Call un.UninstallUnOnInitCommon
   !verbose pop
 !macroend
 
@@ -4822,10 +5102,6 @@
     !insertmacro CanWriteToInstallDir
     !insertmacro CheckDiskSpace
 
-!ifndef NO_INSTDIR_FROM_REG
-    !insertmacro GetSingleInstallPath
-!endif
-
     !verbose push
     !verbose ${_MOZFUNC_VERBOSE}
     !define PreDirectoryCommon "!insertmacro PreDirectoryCommonCall"
@@ -4887,14 +5163,16 @@
       Push $R7
 
       ${CanWriteToInstallDir} $R7
-      StrCmp $R7 "false" +1 +3
-      MessageBox MB_OK|MB_ICONEXCLAMATION "$R9"
-      Abort
+      ${If} $R7 == "false"
+        MessageBox MB_OK|MB_ICONEXCLAMATION "$R9"
+        Abort
+      ${EndIf}
 
       ${CheckDiskSpace} $R7
-      StrCmp $R7 "false" +1 +3
-      MessageBox MB_OK|MB_ICONEXCLAMATION "$R8"
-      Abort
+      ${If} $R7 == "false"
+        MessageBox MB_OK|MB_ICONEXCLAMATION "$R8"
+        Abort
+      ${EndIf}
 
       Pop $R7
       Exch $R8
@@ -4947,12 +5225,13 @@
       RmDir /r "$INSTDIR\distribution"
 
       ; Remove files from the uninstall directory.
-      IfFileExists "$INSTDIR\uninstall" +1 +7
-      Delete "$INSTDIR\uninstall\*wizard*"
-      Delete "$INSTDIR\uninstall\uninstall.ini"
-      Delete "$INSTDIR\uninstall\cleanup.log"
-      Delete "$INSTDIR\uninstall\uninstall.update"
-      ${OnInstallUninstall}
+      ${If} ${FileExists} "$INSTDIR\uninstall"
+        Delete "$INSTDIR\uninstall\*wizard*"
+        Delete "$INSTDIR\uninstall\uninstall.ini"
+        Delete "$INSTDIR\uninstall\cleanup.log"
+        Delete "$INSTDIR\uninstall\uninstall.update"
+        ${OnInstallUninstall}
+      ${EndIf}
 
       ; Since we write to the uninstall.log in this directory during the
       ; installation create the directory if it doesn't already exist.
@@ -5067,7 +5346,7 @@
               ; the UAC plugin to use UAC::ExecCodeSegment to execute code in
               ; the non-elevated context.
               ${Unless} ${Errors}
-                UAC::RunElevated 
+                UAC::RunElevated
               ${EndUnless}
             ${EndIf}
           ${EndIf}
@@ -5120,7 +5399,7 @@
           ; plugin to use UAC::ExecCodeSegment to execute code in the
           ; non-elevated context.
           ${Unless} ${Errors}
-            UAC::RunElevated 
+            UAC::RunElevated
           ${EndUnless}
         ${EndIf}
       ${EndIf}
@@ -5318,6 +5597,26 @@
       ${LogMsg} "Locale     : $R7"
       ${LogMsg} "App Version: $R8"
       ${LogMsg} "GRE Version: $R9"
+
+      ${If} ${IsWin2000}
+        ${LogMsg} "OS Name    : Windows 2000"
+      ${ElseIf} ${IsWinXP}
+        ${LogMsg} "OS Name    : Windows XP"
+      ${ElseIf} ${IsWin2003}
+        ${LogMsg} "OS Name    : Windows 2003"
+      ${ElseIf} ${IsWinVista}
+        ${LogMsg} "OS Name    : Windows Vista"
+      ${ElseIf} ${AtLeastWinVista} ; Workaround for NSIS 2.33 WinVer.nsh not knowing Win7
+        ${LogMsg} "OS Name    : Windows 7 or above"
+      ${Else}
+        ${LogMsg} "OS Name    : Unable to detect"
+      ${EndIf}
+
+      !ifdef HAVE_64BIT_OS
+        ${LogMsg} "Target CPU : x64"
+      !else
+        ${LogMsg} "Target CPU : x86"
+      !endif
 
       Pop $9
       Pop $R0
@@ -5540,7 +5839,7 @@
  * @param   _SECTION_NAME
  *          The section name to write to in the shortcut log ini file
  * @param   _FILE_NAME
- *          The 
+ *          The shortcut's file name
  *
  * $R6 = return value from ReadIniStr for the shortcut file name
  * $R7 = counter for supporting multiple shortcuts in the same location
@@ -5730,7 +6029,8 @@
  * to the shortcuts log ini file.
  *
  * @param   _REL_PATH_TO_DIR
- *          The 
+ *          The relative path from the Start Menu Programs directory to the
+ *          program's directory.
  *
  * $R9 = _REL_PATH_TO_DIR
  */
@@ -5774,3 +6074,604 @@
   ${DeleteFile} "$INSTDIR\uninstall\${SHORTCUTS_LOG}"
 !macroend
 !define DeleteShortcutsLogFile "!insertmacro DeleteShortcutsLogFile"
+
+
+################################################################################
+# Macros for managing specific Windows version features
+
+/**
+ * Sets the permitted layered service provider (LSP) categories on Windows
+ * Vista and above for the application. Consumers should call this after an
+ * installation log section has completed since this macro will log the results
+ * to the installation log along with a header.
+ *
+ * !IMPORTANT - When calling this macro from an uninstaller do not specify a
+ *              parameter. The paramter is hardcoded with 0x00000000 to remove
+ *              the LSP category for the application when performing an
+ *              uninstall.
+ *
+ * @param   _LSP_CATEGORIES
+ *          The permitted LSP categories for the application. When called by an
+ *          uninstaller this will always be 0x00000000.
+ *
+ * $R5 = error code popped from the stack for the WSCSetApplicationCategory call
+ * $R6 = return value from the WSCSetApplicationCategory call
+ * $R7 = string length for the long path to the main application executable
+ * $R8 = long path to the main application executable
+ * $R9 = _LSP_CATEGORIES
+ */
+!macro SetAppLSPCategories
+
+  !ifndef ${_MOZFUNC_UN}SetAppLSPCategories
+    !define _MOZFUNC_UN_TMP ${_MOZFUNC_UN}
+    !insertmacro ${_MOZFUNC_UN_TMP}GetLongPath
+    !undef _MOZFUNC_UN
+    !define _MOZFUNC_UN ${_MOZFUNC_UN_TMP}
+    !undef _MOZFUNC_UN_TMP
+
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !define ${_MOZFUNC_UN}SetAppLSPCategories "!insertmacro ${_MOZFUNC_UN}SetAppLSPCategoriesCall"
+
+    Function ${_MOZFUNC_UN}SetAppLSPCategories
+      ${Unless} ${AtLeastWinVista}
+        Return
+      ${EndUnless}
+
+      Exch $R9
+      Push $R8
+      Push $R7
+      Push $R6
+      Push $R5
+
+      ${${_MOZFUNC_UN}GetLongPath} "$INSTDIR\${FileMainEXE}" $R8
+      StrLen $R7 "$R8"
+
+      ; Remove existing categories by setting the permitted categories to
+      ; 0x00000000 since new categories are ANDed with existing categories. If
+      ; the param value stored in $R9 is 0x00000000 then skip the removal since
+      ; the categories  will be removed by the second call to
+      ; WSCSetApplicationCategory.
+      StrCmp "$R9" "0x00000000" +2 +1
+      System::Call "Ws2_32::WSCSetApplicationCategory(w R8, i R7, w n, i 0,\
+                                                      i 0x00000000, i n, *i) i"
+
+      ; Set the permitted LSP categories
+      System::Call "Ws2_32::WSCSetApplicationCategory(w R8, i R7, w n, i 0,\
+                                                      i R9, i n, *i .s) i.R6"
+      Pop $R5
+
+!ifndef NO_LOG
+      ${LogHeader} "Setting Permitted LSP Categories"
+      StrCmp "$R6" 0 +3 +1
+      ${LogMsg} "** ERROR Setting LSP Categories: $R5 **"
+      GoTo +2
+      ${LogMsg} "Permitted LSP Categories: $R9"
+!endif
+
+      ClearErrors
+
+      Pop $R5
+      Pop $R6
+      Pop $R7
+      Pop $R8
+      Exch $R9
+    FunctionEnd
+
+    !verbose pop
+  !endif
+!macroend
+
+!macro SetAppLSPCategoriesCall _LSP_CATEGORIES
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Push "${_LSP_CATEGORIES}"
+  Call SetAppLSPCategories
+  !verbose pop
+!macroend
+
+!macro un.SetAppLSPCategoriesCall
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Push "0x00000000"
+  Call un.SetAppLSPCategories
+  !verbose pop
+!macroend
+
+!macro un.SetAppLSPCategories
+  !ifndef un.SetAppLSPCategories
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !undef _MOZFUNC_UN
+    !define _MOZFUNC_UN "un."
+
+    !insertmacro SetAppLSPCategories
+
+    !undef _MOZFUNC_UN
+    !define _MOZFUNC_UN
+    !verbose pop
+  !endif
+!macroend
+
+/**
+ * Checks if any pinned TaskBar lnk files point to the executable's path passed
+ * to the macro.
+ *
+ * @param   _EXE_PATH
+ *          The executable path
+ * @return  _RESULT
+ *          false if no pinned shotcuts were found for this install location.
+ *          true if pinned shotcuts were found for this install location.
+ *
+ * $R5 = stores whether a TaskBar lnk file has been found for the executable
+ * $R6 = long path returned from GetShortCutTarget and GetLongPath
+ * $R7 = file name returned from FindFirst and FindNext
+ * $R8 = find handle for FindFirst and FindNext
+ * $R9 = _EXE_PATH and _RESULT
+ */
+!macro IsPinnedToTaskBar
+
+  !ifndef IsPinnedToTaskBar
+    !insertmacro GetLongPath
+
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !define IsPinnedToTaskBar "!insertmacro IsPinnedToTaskBarCall"
+
+    Function IsPinnedToTaskBar
+      Exch $R9
+      Push $R8
+      Push $R7
+      Push $R6
+      Push $R5
+
+      StrCpy $R5 "false"
+
+      ${If} ${AtLeastWin7}
+      ${AndIf} ${FileExists} "$QUICKLAUNCH\User Pinned\TaskBar"
+        FindFirst $R8 $R7 "$QUICKLAUNCH\User Pinned\TaskBar\*.lnk"
+        ${Do}
+          ${If} ${FileExists} "$QUICKLAUNCH\User Pinned\TaskBar\$R7"
+            ShellLink::GetShortCutTarget "$QUICKLAUNCH\User Pinned\TaskBar\$R7"
+            Pop $R6
+            ${GetLongPath} "$R6" $R6
+            ${If} "$R6" == "$R9"
+              StrCpy $R5 "true"
+              ${ExitDo}
+            ${EndIf}
+          ${EndIf}
+          ClearErrors
+          FindNext $R8 $R7
+          ${If} ${Errors}
+            ${ExitDo}
+          ${EndIf}
+        ${Loop}
+        FindClose $R8
+      ${EndIf}
+
+      ClearErrors
+
+      StrCpy $R9 $R5
+
+      Pop $R5
+      Pop $R6
+      Pop $R7
+      Pop $R8
+      Exch $R9
+    FunctionEnd
+
+    !verbose pop
+  !endif
+!macroend
+
+!macro IsPinnedToTaskBarCall _EXE_PATH _RESULT
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Push "${_EXE_PATH}"
+  Call IsPinnedToTaskBar
+  Pop ${_RESULT}
+  !verbose pop
+!macroend
+
+/**
+ * Checks if any pinned Start Menu lnk files point to the executable's path
+ * passed to the macro.
+ *
+ * @param   _EXE_PATH
+ *          The executable path
+ * @return  _RESULT
+ *          false if no pinned shotcuts were found for this install location.
+ *          true if pinned shotcuts were found for this install location.
+ *
+ * $R5 = stores whether a Start Menu lnk file has been found for the executable
+ * $R6 = long path returned from GetShortCutTarget and GetLongPath
+ * $R7 = file name returned from FindFirst and FindNext
+ * $R8 = find handle for FindFirst and FindNext
+ * $R9 = _EXE_PATH and _RESULT
+ */
+!macro IsPinnedToStartMenu
+
+  !ifndef IsPinnedToStartMenu
+    !insertmacro GetLongPath
+
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !define IsPinnedToStartMenu "!insertmacro IsPinnedToStartMenuCall"
+
+    Function IsPinnedToStartMenu
+      Exch $R9
+      Push $R8
+      Push $R7
+      Push $R6
+      Push $R5
+
+      StrCpy $R5 "false"
+
+      ${If} ${AtLeastWin7}
+      ${AndIf} ${FileExists} "$QUICKLAUNCH\User Pinned\StartMenu"
+        FindFirst $R8 $R7 "$QUICKLAUNCH\User Pinned\StartMenu\*.lnk"
+        ${Do}
+          ${If} ${FileExists} "$QUICKLAUNCH\User Pinned\StartMenu\$R7"
+            ShellLink::GetShortCutTarget "$QUICKLAUNCH\User Pinned\StartMenu\$R7"
+            Pop $R6
+            ${GetLongPath} "$R6" $R6
+            ${If} "$R6" == "$R9"
+              StrCpy $R5 "true"
+              ${ExitDo}
+            ${EndIf}
+          ${EndIf}
+          ClearErrors
+          FindNext $R8 $R7
+          ${If} ${Errors}
+            ${ExitDo}
+          ${EndIf}
+        ${Loop}
+        FindClose $R8
+      ${EndIf}
+
+      ClearErrors
+
+      StrCpy $R9 $R5
+
+      Pop $R5
+      Pop $R6
+      Pop $R7
+      Pop $R8
+      Exch $R9
+    FunctionEnd
+
+    !verbose pop
+  !endif
+!macroend
+
+!macro IsPinnedToStartMenuCall _EXE_PATH _RESULT
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Push "${_EXE_PATH}"
+  Call IsPinnedToStartMenu
+  Pop ${_RESULT}
+  !verbose pop
+!macroend
+
+/**
+ * Gets the number of pinned shortcut lnk files pinned to the Task Bar.
+ *
+ * @return  _RESULT
+ *          number of pinned shortcut lnk files.
+ *
+ * $R7 = file name returned from FindFirst and FindNext
+ * $R8 = find handle for FindFirst and FindNext
+ * $R9 = _RESULT
+ */
+!macro PinnedToTaskBarLnkCount
+
+  !ifndef PinnedToTaskBarLnkCount
+    !insertmacro GetLongPath
+
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !define PinnedToTaskBarLnkCount "!insertmacro PinnedToTaskBarLnkCountCall"
+
+    Function PinnedToTaskBarLnkCount
+      Push $R9
+      Push $R8
+      Push $R7
+
+      StrCpy $R9 0
+
+      ${If} ${AtLeastWin7}
+      ${AndIf} ${FileExists} "$QUICKLAUNCH\User Pinned\TaskBar"
+        FindFirst $R8 $R7 "$QUICKLAUNCH\User Pinned\TaskBar\*.lnk"
+        ${Do}
+          ${If} ${FileExists} "$QUICKLAUNCH\User Pinned\TaskBar\$R7"
+            IntOp $R9 $R9 + 1
+          ${EndIf}
+          ClearErrors
+          FindNext $R8 $R7
+          ${If} ${Errors}
+            ${ExitDo}
+          ${EndIf}
+        ${Loop}
+        FindClose $R8
+      ${EndIf}
+
+      ClearErrors
+
+      Pop $R7
+      Pop $R8
+      Exch $R9
+    FunctionEnd
+
+    !verbose pop
+  !endif
+!macroend
+
+!macro PinnedToTaskBarLnkCountCall _RESULT
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Call PinnedToTaskBarLnkCount
+  Pop ${_RESULT}
+  !verbose pop
+!macroend
+
+/**
+ * Gets the number of pinned shortcut lnk files pinned to the Start Menu.
+ *
+ * @return  _RESULT
+ *          number of pinned shortcut lnk files.
+ *
+ * $R7 = file name returned from FindFirst and FindNext
+ * $R8 = find handle for FindFirst and FindNext
+ * $R9 = _RESULT
+ */
+!macro PinnedToStartMenuLnkCount
+
+  !ifndef PinnedToStartMenuLnkCount
+    !insertmacro GetLongPath
+
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !define PinnedToStartMenuLnkCount "!insertmacro PinnedToStartMenuLnkCountCall"
+
+    Function PinnedToStartMenuLnkCount
+      Push $R9
+      Push $R8
+      Push $R7
+
+      StrCpy $R9 0
+
+      ${If} ${AtLeastWin7}
+      ${AndIf} ${FileExists} "$QUICKLAUNCH\User Pinned\StartMenu"
+        FindFirst $R8 $R7 "$QUICKLAUNCH\User Pinned\StartMenu\*.lnk"
+        ${Do}
+          ${If} ${FileExists} "$QUICKLAUNCH\User Pinned\StartMenu\$R7"
+            IntOp $R9 $R9 + 1
+          ${EndIf}
+          ClearErrors
+          FindNext $R8 $R7
+          ${If} ${Errors}
+            ${ExitDo}
+          ${EndIf}
+        ${Loop}
+        FindClose $R8
+      ${EndIf}
+
+      ClearErrors
+
+      Pop $R7
+      Pop $R8
+      Exch $R9
+    FunctionEnd
+
+    !verbose pop
+  !endif
+!macroend
+
+!macro PinnedToStartMenuLnkCountCall _RESULT
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Call PinnedToStartMenuLnkCount
+  Pop ${_RESULT}
+  !verbose pop
+!macroend
+
+/**
+ * Update Start Menu / TaskBar lnk files that point to the executable's path
+ * passed to the macro and all other shortcuts installed by the application with
+ * the current application user model ID. Requires ApplicationID.
+ *
+ * NOTE: this does not update Desktop shortcut application user model ID due to
+ *       bug 633728.
+ *
+ * @param   _EXE_PATH
+ *          The main application executable path
+ * @param   _APP_ID
+ *          The application user model ID for the current install
+ * @return  _RESULT
+ *          false if no pinned shotcuts were found for this install location.
+ *          true if pinned shotcuts were found for this install location.
+ */
+!macro UpdateShortcutAppModelIDs
+
+  !ifndef UpdateShortcutAppModelIDs
+    !insertmacro GetLongPath
+
+    !verbose push
+    !verbose ${_MOZFUNC_VERBOSE}
+    !define UpdateShortcutAppModelIDs "!insertmacro UpdateShortcutAppModelIDsCall"
+
+    Function UpdateShortcutAppModelIDs
+      ; stack: path, appid
+      Exch $R9 ; stack: $R9, appid | $R9 = path
+      Exch 1   ; stack: appid, $R9
+      Exch $R8 ; stack: $R8, $R9   | $R8 = appid
+      Push $R7 ; stack: $R7, $R8, $R9
+      Push $R6
+      Push $R5
+      Push $R4
+      Push $R3 ; stack: $R3, $R5, $R6, $R7, $R8, $R9
+      Push $R2
+
+      ; $R9 = main application executable path
+      ; $R8 = appid
+      ; $R7 = path to the application's start menu programs directory
+      ; $R6 = path to the shortcut log ini file
+      ; $R5 = shortcut filename
+      ; $R4 = GetShortCutTarget result
+
+      StrCpy $R3 "false"
+
+      ${If} ${AtLeastWin7}
+        ; installed shortcuts
+        ${${_MOZFUNC_UN}GetLongPath} "$INSTDIR\uninstall\${SHORTCUTS_LOG}" $R6
+        ${If} ${FileExists} "$R6"
+          ; Update the Start Menu shortcuts' App ID for this application
+          StrCpy $R2 -1
+          ${Do}
+            IntOp $R2 $R2 + 1 ; Increment the counter
+            ClearErrors
+            ReadINIStr $R5 "$R6" "STARTMENU" "Shortcut$R2"
+            ${If} ${Errors}
+              ${ExitDo}
+            ${EndIf}
+
+            ${If} ${FileExists} "$SMPROGRAMS\$R5"
+              ShellLink::GetShortCutTarget "$SMPROGRAMS\$$R5"
+              Pop $R4
+              ${GetLongPath} "$R4" $R4
+              ${If} "$R4" == "$R9" ; link path == install path
+                ApplicationID::Set "$SMPROGRAMS\$R5" "$R8"
+                Pop $R4
+              ${EndIf}
+            ${EndIf}
+          ${Loop}
+
+          ; Update the Quick Launch shortcuts' App ID for this application
+          StrCpy $R2 -1
+          ${Do}
+            IntOp $R2 $R2 + 1 ; Increment the counter
+            ClearErrors
+            ReadINIStr $R5 "$R6" "QUICKLAUNCH" "Shortcut$R2"
+            ${If} ${Errors}
+              ${ExitDo}
+            ${EndIf}
+
+            ${If} ${FileExists} "$QUICKLAUNCH\$R5"
+              ShellLink::GetShortCutTarget "$QUICKLAUNCH\$R5"
+              Pop $R4
+              ${GetLongPath} "$R4" $R4
+              ${If} "$R4" == "$R9" ; link path == install path
+                ApplicationID::Set "$QUICKLAUNCH\$R5" "$R8"
+                Pop $R4
+              ${EndIf}
+            ${EndIf}
+          ${Loop}
+
+          ; Update the Start Menu Programs shortcuts' App ID for this application
+          ClearErrors
+          ReadINIStr $R7 "$R6" "SMPROGRAMS" "RelativePathToDir"
+          ${Unless} ${Errors}
+            ${${_MOZFUNC_UN}GetLongPath} "$SMPROGRAMS\$R7" $R7
+            ${Unless} "$R7" == ""
+              StrCpy $R2 -1
+              ${Do}
+                IntOp $R2 $R2 + 1 ; Increment the counter
+                ClearErrors
+                ReadINIStr $R5 "$R6" "SMPROGRAMS" "Shortcut$R2"
+                ${If} ${Errors}
+                  ${ExitDo}
+                ${EndIf}
+
+                ${If} ${FileExists} "$R7\$R5"
+                  ShellLink::GetShortCutTarget "$R7\$R5"
+                  Pop $R4
+                  ${GetLongPath} "$R4" $R4
+                  ${If} "$R4" == "$R9" ; link path == install path
+                    ApplicationID::Set "$R7\$R5" "$R8"
+                    Pop $R4
+                  ${EndIf}
+                ${EndIf}
+              ${Loop}
+            ${EndUnless}
+          ${EndUnless}
+        ${EndIf}
+
+        StrCpy $R7 "$QUICKLAUNCH\User Pinned"
+        StrCpy $R3 "false"
+
+        ; $R9 = main application executable path
+        ; $R8 = appid
+        ; $R7 = user pinned path
+        ; $R6 = find handle
+        ; $R5 = found filename
+        ; $R4 = GetShortCutTarget result
+
+        ; TaskBar links
+        FindFirst $R6 $R5 "$R7\TaskBar\*.lnk"
+        ${Do}
+          ${If} ${FileExists} "$R7\TaskBar\$R5"
+            ShellLink::GetShortCutTarget "$R7\TaskBar\$R5"
+            Pop $R4
+            ${If} "$R4" == "$R9" ; link path == install path
+              ApplicationID::Set "$R7\TaskBar\$R5" "$R8"
+              Pop $R4 ; pop Set result off the stack
+              StrCpy $R3 "true"
+            ${EndIf}
+          ${EndIf}
+          ClearErrors
+          FindNext $R6 $R5
+          ${If} ${Errors}
+            ${ExitDo}
+          ${EndIf}
+        ${Loop}
+        FindClose $R6
+
+        ; Start menu links
+        FindFirst $R6 $R5 "$R7\StartMenu\*.lnk"
+        ${Do}
+          ${If} ${FileExists} "$R7\StartMenu\$R5"
+            ShellLink::GetShortCutTarget "$R7\StartMenu\$R5"
+            Pop $R4
+            ${If} "$R4" == "$R9" ; link path == install path
+              ApplicationID::Set "$R7\StartMenu\$R5" "$R8"
+              Pop $R4 ; pop Set result off the stack
+              StrCpy $R3 "true"
+            ${EndIf}
+          ${EndIf}
+          ClearErrors
+          FindNext $R6 $R5
+          ${If} ${Errors}
+            ${ExitDo}
+          ${EndIf}
+        ${Loop}
+        FindClose $R6
+      ${EndIf}
+
+      ClearErrors
+
+      StrCpy $R9 $R3
+
+      Pop $R2
+      Pop $R3  ; stack: $R4, $R5, $R6, $R7, $R8, $R9
+      Pop $R4  ; stack: $R5, $R6, $R7, $R8, $R9
+      Pop $R5  ; stack: $R6, $R7, $R8, $R9
+      Pop $R6  ; stack: $R7, $R8, $R9
+      Pop $R7  ; stack: $R8, $R9
+      Exch $R8 ; stack: appid, $R9 | $R8 = old $R8
+      Exch 1   ; stack: $R9, appid
+      Exch $R9 ; stack: path, appid | $R9 = old $R9
+    FunctionEnd
+
+    !verbose pop
+  !endif
+!macroend
+
+!macro UpdateShortcutAppModelIDsCall _EXE_PATH _APP_ID _RESULT
+  !verbose push
+  !verbose ${_MOZFUNC_VERBOSE}
+  Push "${_APP_ID}"
+  Push "${_EXE_PATH}"
+  Call UpdateShortcutAppModelIDs
+  Pop ${_RESULT}
+  !verbose pop
+!macroend

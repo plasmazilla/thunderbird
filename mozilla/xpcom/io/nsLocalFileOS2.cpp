@@ -591,7 +591,7 @@ nsLocalFile::nsLocalFile()
 {
 }
 
-NS_METHOD
+nsresult
 nsLocalFile::nsLocalFileConstructor(nsISupports* outer, const nsIID& aIID, void* *aInstancePtr)
 {
     NS_ENSURE_ARG_POINTER(aInstancePtr);
@@ -1487,7 +1487,7 @@ nsLocalFile::CopyMove(nsIFile *aParentDir, const nsACString &newName, PRBool mov
     {
         PRBool isDir;
         newParentDir->IsDirectory(&isDir);
-        if (isDir == PR_FALSE)
+        if (!isDir)
         {
             return NS_ERROR_FILE_DESTINATION_NOT_DIR;
         }

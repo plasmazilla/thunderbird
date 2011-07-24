@@ -44,30 +44,14 @@ VPATH = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-MODULE = browserplaces
-LIBRARY_NAME  = browserplaces_s
-FORCE_STATIC_LIB = 1
-FORCE_USE_PIC = 1
-ifndef MOZ_MEMORY
-USE_STATIC_LIBS = 1
-endif
+EXTRA_COMPONENTS = \
+  BrowserPlaces.manifest \
+  PlacesProtocolHandler.js \
+  $(NULL)
 
-REQUIRES	= \
-		  xpcom \
-		  string \
-		  necko \
-		  browsercomps \
-		  toolkitcomps \
-		  unicharutil \
-		  htmlparser \
-		  content \
-		  places \
-		  microsummaries \
-		  $(NULL)
-
-CPPSRCS = nsPlacesImportExportService.cpp
-
-EXTRA_COMPONENTS = nsPlacesTransactionsService.js
+EXTRA_JS_MODULES = \
+  PlacesUIUtils.jsm \
+  $(NULL)
 
 include $(topsrcdir)/config/rules.mk
 

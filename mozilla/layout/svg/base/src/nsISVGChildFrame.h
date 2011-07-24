@@ -47,12 +47,25 @@
 #include "gfxMatrix.h"
 
 class gfxContext;
-class nsPresContext;
 class nsSVGRenderState;
+
+namespace mozilla {
+class SVGAnimatedNumberList;
+class SVGNumberList;
+class SVGAnimatedLengthList;
+class SVGLengthList;
+class SVGUserUnitList;
+}
 
 class nsISVGChildFrame : public nsQueryFrame
 {
 public:
+  typedef mozilla::SVGAnimatedNumberList SVGAnimatedNumberList;
+  typedef mozilla::SVGNumberList SVGNumberList;
+  typedef mozilla::SVGAnimatedLengthList SVGAnimatedLengthList;
+  typedef mozilla::SVGLengthList SVGLengthList;
+  typedef mozilla::SVGUserUnitList SVGUserUnitList;
+
   NS_DECL_QUERYFRAME_TARGET(nsISVGChildFrame)
 
   // Paint this frame - aDirtyRect is the area being redrawn, in frame
@@ -99,7 +112,7 @@ public:
 
   /**
    * Get this frame's contribution to the rect returned by a GetBBox() call
-   * that occured either on this element, or on one of its ancestors.
+   * that occurred either on this element, or on one of its ancestors.
    *
    * SVG defines an element's bbox to be the element's fill bounds in the
    * userspace established by that element. By allowing callers to pass in the

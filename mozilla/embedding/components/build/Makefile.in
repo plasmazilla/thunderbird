@@ -44,39 +44,11 @@ include $(DEPTH)/config/autoconf.mk
 MODULE		= embedcomponents
 LIBRARY_NAME	= embedcomponents
 EXPORT_LIBRARY = 1
-ifneq ($(OS_ARCH),WINNT)
 SHORT_LIBNAME	= embedcmp
-endif
 IS_COMPONENT	= 1
 MODULE_NAME	= embedcomponents
 GRE_MODULE	= 1
 LIBXUL_LIBRARY	= 1
-
-ifdef MOZ_PERF_METRICS
-EXTRA_DSO_LIBS	= mozutil_s
-endif
-
-REQUIRES	= js \
-		  xpcom \
-		  string \
-		  windowwatcher \
-		  webbrwsr \
-		  gfx \
-		  widget \
-		  webbrowserpersist \
-		  find \
-		  htmlparser \
-		  embed_base \
-		  dom \
-		  lwbrk \
-		  mimetype \
-		  content \
-		  layout \
-		  uriloader \
-		  necko \
-		  commandhandler \
-		  xuldoc \
-		  $(NULL)
 
 CPPSRCS		= nsEmbeddingModule.cpp
 
@@ -110,7 +82,7 @@ ifeq ($(MOZ_WIDGET_TOOLKIT),os2)
 LOCAL_INCLUDES += -I$(srcdir)/../printingui/src/os2 
 endif
 
-ifneq (,$(filter qt gtk2 beos photon, $(MOZ_WIDGET_TOOLKIT)))
+ifdef MOZ_PDF_PRINTING
 LOCAL_INCLUDES += -I$(srcdir)/../printingui/src/unixshared 
 endif
 
@@ -121,7 +93,7 @@ OS_LIBS	+= $(call EXPAND_LIBNAME,winspool comdlg32)
 endif
 endif
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 LOCAL_INCLUDES += -I$(srcdir)/../printingui/src/mac
 endif
 
@@ -135,7 +107,7 @@ EXTRA_DSO_LDOPTS = \
 	$(MOZ_JS_LIBS) \
 	$(NULL)
 
-ifneq (,$(filter mac cocoa,$(MOZ_WIDGET_TOOLKIT)))
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 EXTRA_DSO_LDOPTS += \
         $(TK_LIBS) \
         $(NULL)

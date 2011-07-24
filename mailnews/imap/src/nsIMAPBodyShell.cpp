@@ -44,6 +44,7 @@
 #include "nsIPrefBranch.h"
 #include "nsIPrefService.h"
 #include "nsITransport.h"
+#include "nsServiceManagerUtils.h"
 
 // need to talk to Rich about this...
 #define	IMAP_EXTERNAL_CONTENT_HEADER "X-Mozilla-IMAP-Part"
@@ -52,11 +53,6 @@
 // Implementation of the nsIMAPBodyShell and associated classes
 // These are used to parse IMAP BODYSTRUCTURE responses, and intelligently (?)
 // figure out what parts we need to display inline.
-
-static PRInt32 gMaxDepth = 0;	// Maximum depth that we will descend before marking a shell invalid.
-                                // This will be initialized from the prefs the first time a shell is created.
-                                // This is to protect against excessively complex (deep) BODYSTRUCTURE responses.
-
 
 /*
         Create a nsIMAPBodyShell from a full BODYSTRUCUTRE response from the parser.
@@ -76,15 +72,6 @@ static PRInt32 gMaxDepth = 0;	// Maximum depth that we will descend before marki
 
 nsIMAPBodyShell::nsIMAPBodyShell(nsImapProtocol *protocolConnection, nsIMAPBodypartMessage *message, PRUint32 UID, const char *folderName)
 {
-  if (gMaxDepth == 0)
-  {
-    nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID));
-    if (prefBranch) {
-      // one-time initialization
-      prefBranch->GetIntPref("mail.imap.mime_parts_on_demand_max_depth", &gMaxDepth);
-    }
-  }
-  
   m_isValid = PR_FALSE;
   m_isBeingGenerated = PR_FALSE;
   m_cached = PR_FALSE;
@@ -588,9 +575,13 @@ PRBool nsIMAPBodypart::ShouldExplicitlyNotFetchInline()
 ///////////// nsIMAPBodypartLeaf /////////////////////////////
 
 
-nsIMAPBodypartLeaf::nsIMAPBodypartLeaf(char *partNum, nsIMAPBodypart *parentPart,
-  char *bodyType, char *bodySubType, char *bodyID, char *bodyDescription, char *bodyEncoding, PRInt32 partLength) : 
-nsIMAPBodypart(partNum, parentPart)
+nsIMAPBodypartLeaf::nsIMAPBodypartLeaf(char *partNum,
+                                       nsIMAPBodypart *parentPart,
+                                       char *bodyType, char *bodySubType,
+                                       char *bodyID, char *bodyDescription,
+                                       char *bodyEncoding, PRInt32 partLength,
+                                       PRBool preferPlainText)
+  : nsIMAPBodypart(partNum, parentPart), mPreferPlainText(preferPlainText)
 {
   m_bodyType = bodyType;
   m_bodySubType = bodySubType;
@@ -724,22 +715,19 @@ PRBool nsIMAPBodypartLeaf::ShouldFetchInline(nsIMAPBodyShell *aShell)
     {
       // The last text part is still displayed inline,
       // even if View Attachments As Links is on.
-      nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID));
-      PRBool preferPlainText = PR_FALSE;
-      if (prefBranch)
-        prefBranch->GetBoolPref("mailnews.display.prefer_plaintext", &preferPlainText);
-
       nsIMAPBodypart *grandParentPart = m_parentPart->GetParentPart();
-      if ((preferPlainText || !PL_strcasecmp(m_parentPart->GetBodySubType(), "mixed")) &&
+      if ((mPreferPlainText ||
+           !PL_strcasecmp(m_parentPart->GetBodySubType(), "mixed")) &&
           !PL_strcmp(m_partNumberString, "1") &&
           !PL_strcasecmp(m_bodyType, "text"))
         return PR_TRUE;         // we're downloading it inline
 
-      if (   (!PL_strcasecmp(m_parentPart->GetBodySubType(), "alternative") ||
-              (grandParentPart && !PL_strcasecmp(grandParentPart->GetBodySubType(), "alternative")))
-          && !PL_strcasecmp(m_bodyType, "text")
-          && ((!PL_strcasecmp(m_bodySubType, "plain") && preferPlainText) ||
-              (!PL_strcasecmp(m_bodySubType, "html") && !preferPlainText)))
+      if ((!PL_strcasecmp(m_parentPart->GetBodySubType(), "alternative") ||
+           (grandParentPart &&
+            !PL_strcasecmp(grandParentPart->GetBodySubType(), "alternative"))) &&
+          !PL_strcasecmp(m_bodyType, "text") &&
+          ((!PL_strcasecmp(m_bodySubType, "plain") && mPreferPlainText) ||
+           (!PL_strcasecmp(m_bodySubType, "html") && !mPreferPlainText)))
         return PR_TRUE;
 
       // This is the first text part of a top-level multipart.
@@ -789,7 +777,8 @@ PRBool nsIMAPBodypartLeaf::ShouldFetchInline(nsIMAPBodyShell *aShell)
       PL_strncasecmp(m_bodySubType, "x-pkcs7", 7)	// and it's not a signature (signatures are inline)
       )
       return PR_FALSE;	// we can leave it on the server
-    
+    if (!PL_strcasecmp(m_bodyType, "AUDIO"))
+      return PR_FALSE;
     // Here's where we can add some more intelligence -- let's leave out
     // any other parts that we know we can't display inline.
     return PR_TRUE;	// we're downloading it inline
@@ -820,8 +809,18 @@ PRBool nsIMAPBodypartLeaf::PreflightCheckAllInline(nsIMAPBodyShell *aShell)
 
 ///////////// nsIMAPBodypartMessage ////////////////////////
 
-nsIMAPBodypartMessage::nsIMAPBodypartMessage(char *partNum,  nsIMAPBodypart *parentPart,
-  PRBool topLevelMessage, char *bodyType, char *bodySubType, char *bodyID, char *bodyDescription, char *bodyEncoding, PRInt32 partLength) : nsIMAPBodypartLeaf(partNum, parentPart, bodyType, bodySubType, bodyID, bodyDescription, bodyEncoding, partLength)
+nsIMAPBodypartMessage::nsIMAPBodypartMessage(char *partNum,
+                                             nsIMAPBodypart *parentPart,
+                                             PRBool topLevelMessage,
+                                             char *bodyType, char *bodySubType,
+                                             char *bodyID,
+                                             char *bodyDescription,
+                                             char *bodyEncoding,
+                                             PRInt32 partLength,
+                                             PRBool preferPlainText)
+ : nsIMAPBodypartLeaf(partNum, parentPart, bodyType, bodySubType, bodyID,
+                      bodyDescription, bodyEncoding, partLength,
+                      preferPlainText)
 {
   m_topLevelMessage = topLevelMessage;
   if (m_topLevelMessage)
@@ -1264,6 +1263,11 @@ PRBool nsIMAPBodyShellCache::EjectEntry()
 	m_shellHash.Remove(removedShell->GetUID());
 
 	return PR_TRUE;
+}
+
+void nsIMAPBodyShellCache::Clear()
+{
+  while (EjectEntry()) ;
 }
 
 PRBool	nsIMAPBodyShellCache::AddShellToCache(nsIMAPBodyShell *shell)

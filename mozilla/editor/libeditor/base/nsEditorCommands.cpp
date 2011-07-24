@@ -47,6 +47,7 @@
 #include "nsIClipboard.h"
 
 #include "nsEditorCommands.h"
+#include "nsIDocument.h"
 
 
 #define STATE_ENABLED  "state_enabled"
@@ -172,7 +173,7 @@ NS_IMETHODIMP
 nsClearUndoCommand::DoCommand(const char *aCommandName, nsISupports *refCon)
 { 
   nsCOMPtr<nsIEditor> editor = do_QueryInterface(refCon);
-  if (!editor) return NS_ERROR_NOT_IMPLEMENTED;
+  NS_ENSURE_TRUE(editor, NS_ERROR_NOT_IMPLEMENTED);
   
   editor->EnableUndo(PR_FALSE);  // Turning off undo clears undo/redo stacks.
   editor->EnableUndo(PR_TRUE);   // This re-enables undo/redo.
@@ -412,8 +413,7 @@ NS_IMETHODIMP
 nsPasteCommand::DoCommand(const char *aCommandName, nsISupports *aCommandRefCon)
 {
   nsCOMPtr<nsIEditor> editor = do_QueryInterface(aCommandRefCon);
-  if (!editor)
-    return NS_ERROR_FAILURE;
+  NS_ENSURE_TRUE(editor, NS_ERROR_FAILURE);
   
   return editor->Paste(nsIClipboard::kGlobalClipboard);
 }
@@ -437,6 +437,68 @@ nsPasteCommand::GetCommandStateParams(const char *aCommandName,
 }
 
 NS_IMETHODIMP
+nsPasteTransferableCommand::IsCommandEnabled(const char *aCommandName,
+                                             nsISupports *aCommandRefCon,
+                                             PRBool *outCmdEnabled)
+{
+  NS_ENSURE_ARG_POINTER(outCmdEnabled);
+  nsCOMPtr<nsIEditor> editor = do_QueryInterface(aCommandRefCon);
+  if (editor)
+    return editor->CanPasteTransferable(nsnull, outCmdEnabled);
+
+  *outCmdEnabled = PR_FALSE;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsPasteTransferableCommand::DoCommand(const char *aCommandName, nsISupports *aCommandRefCon)
+{
+  return NS_ERROR_FAILURE;
+}
+
+NS_IMETHODIMP 
+nsPasteTransferableCommand::DoCommandParams(const char *aCommandName,
+                                            nsICommandParams *aParams,
+                                            nsISupports *aCommandRefCon)
+{
+  nsCOMPtr<nsIEditor> editor = do_QueryInterface(aCommandRefCon);
+  NS_ENSURE_TRUE(editor, NS_ERROR_FAILURE);
+  
+  nsCOMPtr<nsISupports> supports;
+  aParams->GetISupportsValue("transferable", getter_AddRefs(supports));
+  NS_ENSURE_TRUE(supports, NS_ERROR_FAILURE);
+
+  nsCOMPtr<nsITransferable> trans = do_QueryInterface(supports);
+  NS_ENSURE_TRUE(trans, NS_ERROR_FAILURE);
+
+  return editor->PasteTransferable(trans);
+}
+
+NS_IMETHODIMP 
+nsPasteTransferableCommand::GetCommandStateParams(const char *aCommandName,
+                                                  nsICommandParams *aParams,
+                                                  nsISupports *aCommandRefCon)
+{
+  nsCOMPtr<nsIEditor> editor = do_QueryInterface(aCommandRefCon);
+  NS_ENSURE_TRUE(editor, NS_ERROR_FAILURE);
+
+  nsCOMPtr<nsITransferable> trans;
+
+  nsCOMPtr<nsISupports> supports;
+  aParams->GetISupportsValue("transferable", getter_AddRefs(supports));
+  if (supports) {
+    trans = do_QueryInterface(supports);
+    NS_ENSURE_TRUE(trans, NS_ERROR_FAILURE);
+  }
+
+  PRBool canPaste;
+  nsresult rv = editor->CanPasteTransferable(trans, &canPaste);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return aParams->SetBooleanValue(STATE_ENABLED, canPaste);
+}
+
+NS_IMETHODIMP
 nsSwitchTextDirectionCommand::IsCommandEnabled(const char *aCommandName,
                                  nsISupports *aCommandRefCon,
                                  PRBool *outCmdEnabled)
@@ -452,8 +514,7 @@ NS_IMETHODIMP
 nsSwitchTextDirectionCommand::DoCommand(const char *aCommandName, nsISupports *aCommandRefCon)
 {
   nsCOMPtr<nsIEditor> editor = do_QueryInterface(aCommandRefCon);
-  if (!editor)
-    return NS_ERROR_FAILURE;
+  NS_ENSURE_TRUE(editor, NS_ERROR_FAILURE);
 
   return editor->SwitchTextDirection();
 }
@@ -485,8 +546,7 @@ nsDeleteCommand::IsCommandEnabled(const char * aCommandName,
   nsCOMPtr<nsIEditor> editor = do_QueryInterface(aCommandRefCon);
   *outCmdEnabled = PR_FALSE;
   // we can delete when we can cut
-  if (!editor)
-    return NS_OK;
+  NS_ENSURE_TRUE(editor, NS_OK);
     
   if (!nsCRT::strcmp(aCommandName,"cmd_delete"))
     return editor->CanCut(outCmdEnabled);
@@ -511,8 +571,7 @@ NS_IMETHODIMP
 nsDeleteCommand::DoCommand(const char *aCommandName, nsISupports *aCommandRefCon)
 {
   nsCOMPtr<nsIEditor> editor = do_QueryInterface(aCommandRefCon);
-  if (!editor)
-    return NS_ERROR_FAILURE;
+  NS_ENSURE_TRUE(editor, NS_ERROR_FAILURE);
     
   nsIEditor::EDirection deleteDir = nsIEditor::eNone;
   
@@ -606,27 +665,31 @@ nsSelectionMoveCommands::IsCommandEnabled(const char * aCommandName,
   NS_ENSURE_ARG_POINTER(outCmdEnabled);
   nsCOMPtr<nsIEditor> editor = do_QueryInterface(aCommandRefCon);
   *outCmdEnabled = (editor != nsnull);
-  if (!editor)
-    return NS_ERROR_FAILURE;
+  NS_ENSURE_TRUE(editor, NS_ERROR_FAILURE);
 
   return NS_OK;
 }
-
 
 NS_IMETHODIMP
 nsSelectionMoveCommands::DoCommand(const char *aCommandName,
                                    nsISupports *aCommandRefCon)
 {
   nsCOMPtr<nsIEditor> editor = do_QueryInterface(aCommandRefCon);
-  if (!editor)
-    return NS_ERROR_FAILURE;
+  NS_ENSURE_TRUE(editor, NS_ERROR_FAILURE);
+
+  nsCOMPtr<nsIDOMDocument> domDoc;
+  editor->GetDocument(getter_AddRefs(domDoc));
+  nsCOMPtr<nsIDocument> doc = do_QueryInterface(domDoc);
+  if (doc) {
+    // Most of the commands below (possibly all of them) need layout to
+    // be up to date.
+    doc->FlushPendingNotifications(Flush_Layout);
+  }
 
   nsCOMPtr<nsISelectionController> selCont;
   nsresult rv = editor->GetSelectionController(getter_AddRefs(selCont)); 
-  if (NS_FAILED(rv))
-    return rv;
-  if (!selCont)
-    return NS_ERROR_FAILURE;
+  NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_TRUE(selCont, NS_ERROR_FAILURE);
 
   // complete scroll commands
   if (!nsCRT::strcmp(aCommandName,"cmd_scrollTop"))
@@ -761,8 +824,7 @@ nsInsertPlaintextCommand::DoCommandParams(const char *aCommandName,
   NS_ENSURE_ARG_POINTER(aParams);
 
   nsCOMPtr<nsIPlaintextEditor> editor = do_QueryInterface(refCon);
-  if (!editor)
-    return NS_ERROR_NOT_IMPLEMENTED;
+  NS_ENSURE_TRUE(editor, NS_ERROR_NOT_IMPLEMENTED);
 
   // Get text to insert from command params
   nsAutoString text;

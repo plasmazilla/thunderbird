@@ -42,10 +42,17 @@ interface nsIInputStream;
 interface nsIOutputStream;
 interface nsIScriptGlobalObject;
 
+%{ C++
+#include "jspubtd.h"
+%}
+
+[ptr] native JSValPtr(jsval);
+[ptr] native JSContext(JSContext);
+
 /**
  * Encode and decode JSON text.
  */
-[scriptable, uuid(45464c36-efde-4cb5-8e00-07480533ff35)]
+[scriptable, uuid(a4d68b4e-0c0b-4c7c-b540-ef2f9834171f)]
 interface nsIJSON : nsISupports
 {
   AString encode(/* in JSObject value */);
@@ -59,4 +66,30 @@ interface nsIJSON : nsISupports
 
   void /* JSObject */ decodeFromStream(in nsIInputStream stream,
                                        in long contentLength);
+
+  [noscript] AString  encodeFromJSVal(in JSValPtr value, in JSContext cx);
+
+  // Make sure you GCroot the result of this function before using it.
+  [noscript] jsval    decodeToJSVal(in AString str, in JSContext cx);
+
+
+  /*
+   * Decode a JSON string, but also accept some strings in non-JSON format, as
+   * the decoding methods here did previously before tightening.
+   *
+   * This method is provided only as a temporary transition path for users of
+   * the old code who depended on the ability to decode leniently; new users
+   * should use the non-legacy decoding methods.
+   *
+   * @param str the string to parse
+   */
+  void /* JSObject */ legacyDecode(in AString str);
+
+  /* Identical to legacyDecode, but decode the contents of stream. */
+  void /* JSObject */ legacyDecodeFromStream(in nsIInputStream stream,
+                                             in long contentLength);
+
+  /* Identical to legacyDecode, but decode into a jsval. */
+  // Make sure you GCroot the result of this function before using it.
+  [noscript] jsval    legacyDecodeToJSVal(in AString str, in JSContext cx);
 };
