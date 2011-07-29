@@ -1,0 +1,21 @@
+From: Alexander Sack <asac@debian.org>
+Date: Wed, 27 Jan 2010 19:07:00 +0100
+Subject: bzXXX ftbfs static with system hunspell
+
+---
+ mail/app/Makefile.in |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/mail/app/Makefile.in b/mail/app/Makefile.in
+index ba72505..ced85d9 100644
+--- a/mail/app/Makefile.in
++++ b/mail/app/Makefile.in
+@@ -135,6 +135,7 @@ ifdef BUILD_STATIC_LIBS
+ LIBS += \
+ 	$(MOZ_JS_LIBS) \
+ 	$(TK_LIBS) \
++	$(MOZ_HUNSPELL_LIBS) \
+ 	$(NULL)
+ 
+ # Add explicit X11 dependency when building against X11 toolkits
+-- 

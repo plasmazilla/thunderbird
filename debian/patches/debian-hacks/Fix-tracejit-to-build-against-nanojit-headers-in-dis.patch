@@ -1,0 +1,37 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Wed, 10 Nov 2010 08:41:03 +0100
+Subject: Fix tracejit to build against nanojit headers in
+ dist/include/nanojit
+
+---
+ mozilla/js/src/tracejit/Writer.cpp |    2 +-
+ mozilla/js/src/tracejit/Writer.h   |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/js/src/tracejit/Writer.cpp b/mozilla/js/src/tracejit/Writer.cpp
+index cbd9d27..5f420f9 100644
+--- a/mozilla/js/src/tracejit/Writer.cpp
++++ b/mozilla/js/src/tracejit/Writer.cpp
+@@ -41,7 +41,7 @@
+ #include "jstl.h"
+ #include "jscompartment.h"
+ #include "Writer.h"
+-#include "nanojit.h"
++#include "nanojit/nanojit.h"
+ 
+ namespace js {
+ namespace tjit {
+diff --git a/mozilla/js/src/tracejit/Writer.h b/mozilla/js/src/tracejit/Writer.h
+index b381b6f..bfb0c06 100644
+--- a/mozilla/js/src/tracejit/Writer.h
++++ b/mozilla/js/src/tracejit/Writer.h
+@@ -44,7 +44,7 @@
+ #include "jsobj.h"
+ #include "jsstr.h"
+ #include "jstypedarray.h"
+-#include "nanojit.h"
++#include "nanojit/nanojit.h"
+ 
+ namespace js {
+ namespace tjit {
+-- 

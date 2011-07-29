@@ -1,0 +1,36 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Sun, 24 Apr 2011 09:29:33 +0200
+Subject: Disable building embedded libjpeg-turbo when building with system
+ libjpeg
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=652399
+
+---
+ mozilla/configure.in |    6 +++++-
+ 1 files changed, 5 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/configure.in b/mozilla/configure.in
+index abfe2aa..f97bd04 100644
+--- a/mozilla/configure.in
++++ b/mozilla/configure.in
+@@ -4781,6 +4781,11 @@ if test "$SYSTEM_JPEG" = 0; then
+                      #endif ],
+                    SYSTEM_JPEG=1,
+                    [SYSTEM_JPEG= JPEG_CFLAGS= JPEG_LIBS=]) 
++fi
++
++MOZ_LIBJPEG_TURBO=
++if test -z "$SYSTEM_JPEG"; then
++    MOZ_LIBJPEG_TURBO=1
+ fi 
+ CFLAGS=$_SAVE_CFLAGS
+ LDFLAGS=$_SAVE_LDFLAGS
+@@ -4975,7 +4980,6 @@ VPX_AS_CONVERSION=
+ VPX_ASM_SUFFIX=
+ VPX_X86_ASM=
+ VPX_ARM_ASM=
+-MOZ_LIBJPEG_TURBO=1
+ LIBJPEG_TURBO_AS=
+ LIBJPEG_TURBO_ASFLAGS=
+ LIBJPEG_TURBO_X86_ASM=
+-- 

@@ -1,0 +1,26 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Tue, 22 Mar 2011 17:19:23 +0100
+Subject: Fix FTBFS in xpcom/base on armv4t
+
+https://bugzilla.mozilla.org/show_bug.cgi?id=643779
+
+---
+ mozilla/xpcom/base/nsDebugImpl.cpp |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/xpcom/base/nsDebugImpl.cpp b/mozilla/xpcom/base/nsDebugImpl.cpp
+index f26f97b..353c1e4 100644
+--- a/mozilla/xpcom/base/nsDebugImpl.cpp
++++ b/mozilla/xpcom/base/nsDebugImpl.cpp
+@@ -402,7 +402,9 @@ RealBreak()
+ #elif defined(__GNUC__) && (defined(__i386__) || defined(__i386) || defined(__x86_64__))
+    asm("int $3");
+ #elif defined(__arm__)
+-   asm("BKPT #0");
++   asm(".arch armv5t\n"
++       ".object_arch armv4t\n"
++       "BKPT #0");
+ #elif defined(SOLARIS)
+ #if defined(__i386__) || defined(__i386) || defined(__x86_64__)
+    asm("int $3");
+-- 

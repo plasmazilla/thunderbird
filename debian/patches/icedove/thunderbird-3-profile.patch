@@ -1,0 +1,88 @@
+From: Alexander Sack <asac@debian.org>
+Date: Wed, 27 Jan 2010 19:05:42 +0100
+Subject: thunderbird-3-profile
+
+---
+ config/autoconf.mk.in         |    8 ++++----
+ mail/app/application.ini      |    2 +-
+ mail/confvars.sh              |    2 +-
+ mozilla/build/unix/mozilla.in |   16 ++++++++++++++++
+ 4 files changed, 22 insertions(+), 6 deletions(-)
+
+diff --git a/config/autoconf.mk.in b/config/autoconf.mk.in
+index 8c25640..29fcd45 100644
+--- a/config/autoconf.mk.in
++++ b/config/autoconf.mk.in
+@@ -60,14 +60,14 @@ MOZ_PKG_SPECIAL = @MOZ_PKG_SPECIAL@
+ prefix		= @prefix@
+ exec_prefix	= @exec_prefix@
+ bindir		= @bindir@
+-includedir	= @includedir@/$(MOZ_APP_NAME)-$(MOZ_APP_VERSION)
++includedir	= @includedir@/icedove
+ libdir		= @libdir@
+ datadir		= @datadir@
+ mandir		= @mandir@
+-idldir		= $(datadir)/idl/$(MOZ_APP_NAME)-$(MOZ_APP_VERSION)
++idldir		= $(datadir)/idl/icedove
+ 
+-installdir	= $(libdir)/$(MOZ_APP_NAME)-$(MOZ_APP_VERSION)
+-sdkdir		= $(libdir)/$(MOZ_APP_NAME)-devel-$(MOZ_APP_VERSION)
++installdir	= $(libdir)/icedove
++sdkdir		= $(libdir)/icedove-devel
+ 
+ MOZDEPTH	= $(DEPTH)/mozilla
+ DIST		= $(MOZDEPTH)/dist
+diff --git a/mail/app/application.ini b/mail/app/application.ini
+index 3389b5f..5824d97 100644
+--- a/mail/app/application.ini
++++ b/mail/app/application.ini
+@@ -37,7 +37,7 @@
+ 
+ #filter substitution
+ [App]
+-Name=Thunderbird
++Name=@APP_UA_NAME@
+ Version=@APP_VERSION@
+ BuildID=@GRE_BUILDID@
+ #ifdef MOZ_SOURCE_REPO
+diff --git a/mail/confvars.sh b/mail/confvars.sh
+index eb1a9fd..b7f0f5a 100755
+--- a/mail/confvars.sh
++++ b/mail/confvars.sh
+@@ -36,7 +36,7 @@
+ #
+ # ***** END LICENSE BLOCK *****
+ 
+-MOZ_APP_NAME=thunderbird
++MOZ_APP_NAME=icedove
+ MOZ_UPDATER=1
+ MOZ_THUNDERBIRD=1
+ MOZ_CHROME_FILE_FORMAT=omni
+diff --git a/mozilla/build/unix/mozilla.in b/mozilla/build/unix/mozilla.in
+index e0940fc..0e866c3 100644
+--- a/mozilla/build/unix/mozilla.in
++++ b/mozilla/build/unix/mozilla.in
+@@ -97,6 +97,22 @@ if [ $found = 0 ]; then
+   fi
+ fi
+ 
++# On 1st run, create a profile based on application.ini configuration
++# by moving an existing ~/.mozilla-thunderbird profile
++if [ -e "$moz_libdir/application.ini" ]; then
++  pfname=`grep ^Name $moz_libdir/application.ini | cut -d= -f2 | tr 'A-Z' 'a-z'`
++  if [ -f "$HOME/.$pfname" ]; then
++    # should never happen
++    mv $HOME/.$pfname $HOME/.$pfname.moved_out_by_mozilla_startup_script
++  fi
++  if [ "$HOME/.$pfname" != "$HOME/.mozilla-thunderbird" ] && \
++     [ ! -d "$HOME/.$pfname" ] && \
++     [   -d "$HOME/.mozilla-thunderbird" ] ; then
++    echo "*INFO* No $HOME/.$pfname detected. Moving $HOME/.mozilla-thunderbird into this place"
++    mv $HOME/.mozilla-thunderbird $HOME/.$pfname
++  fi
++fi
++
+ script_args=""
+ debugging=0
+ MOZILLA_BIN="${progbase}-bin"
+-- 

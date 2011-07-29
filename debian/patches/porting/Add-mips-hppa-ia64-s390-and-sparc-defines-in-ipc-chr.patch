@@ -1,0 +1,50 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Mon, 25 Apr 2011 11:32:45 +0200
+Subject: Add mips, hppa, ia64, s390 and sparc defines in
+ ipc/chromium/src/build/build_config.h
+
+---
+ mozilla/ipc/chromium/src/build/build_config.h      |   15 +++++++++++++++
+ .../chromium/src/chrome/common/ipc_message_utils.h |    2 +-
+ 2 files changed, 16 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h
+index f7293d9..3536d1c 100644
+--- a/mozilla/ipc/chromium/src/build/build_config.h
++++ b/mozilla/ipc/chromium/src/build/build_config.h
+@@ -60,6 +60,21 @@
+ #elif defined(__ppc__) || defined(__powerpc__)
+ #define ARCH_CPU_PPC 1
+ #define ARCH_CPU_32_BITS 1
++#elif defined(__mips__)
++#define ARCH_CPU_MIPS 1
++#define ARCH_CPU_32_BITS 1
++#elif defined(__hppa__)
++#define ARCH_CPU_HPPA 1
++#define ARCH_CPU_32_BITS 1
++#elif defined(__ia64__)
++#define ARCH_CPU_IA64 1
++#define ARCH_CPU_64_BITS 1
++#elif defined(__s390__)
++#define ARCH_CPU_S390 1
++#define ARCH_CPU_32_BITS 1
++#elif defined(__sparc__)
++#define ARCH_CPU_SPARC 1
++#define ARCH_CPU_32_BITS 1
+ #else
+ #error Please add support for your architecture in build/build_config.h
+ #endif
+diff --git a/mozilla/ipc/chromium/src/chrome/common/ipc_message_utils.h b/mozilla/ipc/chromium/src/chrome/common/ipc_message_utils.h
+index 3c50df9..1486cb3 100644
+--- a/mozilla/ipc/chromium/src/chrome/common/ipc_message_utils.h
++++ b/mozilla/ipc/chromium/src/chrome/common/ipc_message_utils.h
+@@ -219,7 +219,7 @@ struct ParamTraits<unsigned long> {
+   }
+ };
+ 
+-#if !(defined(OS_MACOSX) || defined(OS_WIN) || (defined(CHROMIUM_MOZILLA_BUILD) && defined(OS_LINUX) && defined(ARCH_CPU_64_BITS)))
++#if !(defined(OS_MACOSX) || defined(OS_WIN) || (defined(CHROMIUM_MOZILLA_BUILD) && defined(OS_LINUX) && defined(ARCH_CPU_64_BITS)) || defined(ARCH_CPU_S390))
+ // There size_t is a synonym for |unsigned long| ...
+ template <>
+ struct ParamTraits<size_t> {
+-- 

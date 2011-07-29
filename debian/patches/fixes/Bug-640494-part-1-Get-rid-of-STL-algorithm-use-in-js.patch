@@ -1,0 +1,31 @@
+From: Jason Orendorff <jorendorff@mozilla.com>
+Date: Sat, 23 Apr 2011 08:48:50 +0200
+Subject: Bug 640494 part 1 - Get rid of STL algorithm use in jsworker.cpp.
+ r=jimb
+
+---
+ mozilla/js/src/shell/jsworkers.cpp |    3 +--
+ 1 files changed, 1 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/js/src/shell/jsworkers.cpp b/mozilla/js/src/shell/jsworkers.cpp
+index 798be1e..7dfd146 100644
+--- a/mozilla/js/src/shell/jsworkers.cpp
++++ b/mozilla/js/src/shell/jsworkers.cpp
+@@ -40,7 +40,6 @@
+ 
+ #ifdef JS_THREADSAFE
+ 
+-#include <algorithm>
+ #include <string.h>
+ #include "prthread.h"
+ #include "prlock.h"
+@@ -117,7 +116,7 @@ class Queue {
+ 
+     T pop() {
+         if (front->empty()) {
+-            std::reverse(back->begin(), back->end());
++            js::Reverse(back->begin(), back->end());
+             Vec *tmp = front;
+             front = back;
+             back = tmp;
+-- 

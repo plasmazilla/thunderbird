@@ -1,0 +1,21 @@
+From: Mike Hommey <glandium@debian.org>
+Date: Sat, 8 Dec 2007 19:24:40 +0100
+Subject: Set javascript.options.showInConsole
+
+---
+ mozilla/modules/libpref/src/init/all.js |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/modules/libpref/src/init/all.js b/mozilla/modules/libpref/src/init/all.js
+index 02b8689..0f59aa6 100644
+--- a/mozilla/modules/libpref/src/init/all.js
++++ b/mozilla/modules/libpref/src/init/all.js
+@@ -607,6 +607,7 @@ pref("javascript.options.strict",           false);
+ pref("javascript.options.strict.debug",     true);
+ #endif
+ pref("javascript.options.relimit",          true);
++pref("javascript.options.showInConsole",    true);
+ pref("javascript.options.tracejit.content",  true);
+ pref("javascript.options.tracejit.chrome",   true);
+ pref("javascript.options.methodjit.content", true);
+-- 
