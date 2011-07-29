@@ -83,6 +83,8 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--with-system-jpeg=/usr \
 	--with-system-zlib=/usr \
 	--with-system-bz2 \
+	--with-system-libvpx \
+	--with-system-libevent \
 	--with-system-nspr \
 	--with-system-nss \
 	--with-system-png \

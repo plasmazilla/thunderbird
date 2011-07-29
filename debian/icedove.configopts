@@ -9,3 +9,5 @@ ac_add_options --with-system-nss # MOZ_NATIVE_NSS=1
 ac_add_options --enable-system-hunspell # MOZ_NATIVE_HUNSPELL=1
 ac_add_options --enable-system-sqlite # MOZ_NATIVE_SQLITE=1
 ac_add_options --enable-system-ffi # MOZ_NATIVE_FFI=1
+ac_add_options --with-system-libevent # MOZ_NATIVE_LIBEVENT=1
+ac_add_options --with-system-libvpx # MOZ_NATIVE_LIBVPX=1
