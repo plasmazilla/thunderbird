@@ -107,6 +107,7 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--enable-gnomeui \
 	--enable-canvas \
 	--enable-crypto \
+	--enable-shared-js \
 	--enable-system-cairo \
 	--enable-system-sqlite \
 	--enable-system-ffi \
