@@ -87,7 +87,6 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--with-system-libevent \
 	--with-system-nspr \
 	--with-system-nss \
-	--with-system-png \
 	--disable-javaxpcom \
 	--disable-crashreporter \
 	--disable-elf-dynstr-gc \
