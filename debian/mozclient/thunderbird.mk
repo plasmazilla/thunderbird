@@ -20,24 +20,3 @@
 MOZCLIENT_PROJECTNAME := thunderbird
 
 -include /usr/share/mozilla-devscripts/mozclient.mk
-
-COMPARE_FILTER_PRE_IN := sed \
-	-e 's,foo,foo,' \
-	$(NULL)
-
-COMPARE_FILTER_PRE_OUT := sed \
-	-e 's,^usr/lib/thunderbird[^/]*/,,' \
-	-e 's,^usr/share/pixmaps/.*,,' \
-	$(NULL)
-
-COMPARE_FILTER_IN    := sed \
-	-e 's,foo,foo,' \
-	$(NULL)
-
-COMPARE_FILTER_OUT   := sed \
-	-e 's,^DEBIAN/.*,,' \
-	-e 's,^usr/lib/debug/.*,,' \
-	-e 's,^usr/share/doc/.*,,' \
-	-e 's,^usr/share/menu/.*,,' \
-	-e 's,^usr/share/applications/.*,,' \
-	$(NULL)

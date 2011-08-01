@@ -55,7 +55,6 @@ endif
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/autotools.mk
 include $(CURDIR)/debian/mozclient/$(DEB_MOZ_APPLICATION).mk
-include $(CURDIR)/debian/mozclient/compare.mk
 
 DEB_AUTO_UPDATE_DEBIAN_CONTROL=0
 
@@ -213,8 +212,6 @@ binary-install/$(DEB_MOZ_APPLICATION)::
 	touch debian/$(DEB_MOZ_NAME)$(DEBIAN_TB_DIR)/.autoreg
 	dh_install -p$(DEB_MOZ_APPLICATION) debian/tmp/usr/share/pixmaps/$(DEB_MOZ_APPLICATION).xpm usr/share/pixmaps
 	dh_link -p$(DEB_MOZ_APPLICATION) $(DEBIAN_TB_DIR)/$(DEB_MOZ_APPLICATION) usr/bin/$(DEB_MOZ_APPLICATION)
-
-binary-post-install/$(DEB_MOZ_APPLICATION):: compare
 
 binary-predeb/$(DEB_MOZ_APPLICATION)::
 	LD_LIBRARY_PATH=$(DEB_DESTDIR)usr/lib/$(DEB_MOZ_APPLICATION) dpkg-shlibdeps -Tdebian/$(DEB_MOZ_APPLICATION).substvars -dDepends -pgnome $(foreach lib,dbusservice mozgnome nkgnomevfs,debian/$(DEB_MOZ_APPLICATION)/usr/lib/$(DEB_MOZ_APPLICATION)/components/lib$(lib).so)
