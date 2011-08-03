@@ -1,7 +1,6 @@
 #filter substitution
 
 @AB_CD@.jar:
-% locale branding @AB_CD@ %locale/branding/
-# Shredder branding only exists in en-US
-  locale/branding/brand.dtd        (en-US/brand.dtd)
-* locale/branding/brand.properties (en-US/brand.properties)
+% locale branding @AB_CD@ %locale/@AB_CD@/branding/
+  locale/@AB_CD@/branding/brand.dtd        (%brand.dtd)
+  locale/@AB_CD@/branding/brand.properties (%brand.properties)
