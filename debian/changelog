@@ -1,3 +1,23 @@
+icedove (5.0-1) experimental; urgency=low
+
+  * New Upstream Version (Closes: #632037)
+  * [98c5a8f] build against libffi and libvpx
+  * [52dff12] build javascript lib as shared library
+  * [6f1c24d] build against mozilla png library
+  * [9e16beb] c-sdk moved from directory/sdks/c-sdk to ldap/sdks/c-sdk
+  * [57763a0] override libtheora embedded-library error
+  * [fc71b62] adjust install/links files for new upstream version
+  * [6e83a58] Revert "lintian: override ancient-libtool warning" override no
+    longer needed
+  * [d65b463] change hardcoded list of non-Linux build depends into linux-any
+    (Closes: #634301)
+  * [ff3a8f3] remove file compare in build run
+  * [a21efa9] add branding for icedove 5.0
+  * [7023939] update porting/Fix-FTBFS-in-xpcom-base-on-armv4t.patch - fix
+    building on armhf
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 03 Aug 2011 18:25:17 +0200
+
 icedove (3.1.11-1) unstable; urgency=high
 
   * New Upstream Version
