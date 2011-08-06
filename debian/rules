@@ -130,6 +130,11 @@ ifeq ($(DEB_BUILD_ARCH),alpha)
 	MAIN_LDFLAGS += -Wl,--no-relax
 endif
 
+ifeq ($(DEB_BUILD_ARCH),ia64)
+	DEB_CONFIGURE_USER_FLAGS += --enable-optimize=-O2
+endif
+
+
 subst_files = \
 	debian/$(DEB_MOZ_APPLICATION).postinst \
 	debian/$(DEB_MOZ_APPLICATION).prerm \
