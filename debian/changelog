@@ -1,3 +1,16 @@
+icedove (5.0-2) experimental; urgency=low
+
+  * [7f92927] fix FTBFS on ia64: use gcc with -O2 instead of -Os
+  * [b6b8dea] Disable methodjit on armel
+  * [5b45336] remove obsolete conffiles with dpkg-maintscript-helper
+    (Closes: #636819)
+  * [868cfa3] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting/Allow-ipc-code-to-build-on-GNU-hurd.patch - fix building on
+      GNU/hurd - Thanks to Pino Toscano
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 07 Aug 2011 15:35:09 +0200
+
 icedove (5.0-1) experimental; urgency=low
 
   * New Upstream Version (Closes: #632037)
