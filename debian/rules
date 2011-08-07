@@ -140,6 +140,8 @@ endif
 
 subst_files = \
 	debian/$(DEB_MOZ_APPLICATION).postinst \
+	debian/$(DEB_MOZ_APPLICATION).postrm \
+	debian/$(DEB_MOZ_APPLICATION).preinst \
 	debian/$(DEB_MOZ_APPLICATION).prerm \
 	debian/$(DEB_MOZ_APPLICATION).install \
 	debian/$(DEB_MOZ_APPLICATION)-dev.install \

@@ -31,4 +31,10 @@ if [ "$1" = "configure" ] && dpkg --compare-versions "$2" lt "3.0.4-3" && [ -e /
     fi
 fi
 
+dpkg-maintscript-helper rm_conffile /etc/icedove/profile/US/localstore.rdf "5.0-1" -- "$@"
+dpkg-maintscript-helper rm_conffile /etc/icedove/profile/US/mimeTypes.rdf "5.0-1" -- "$@"
+dpkg-maintscript-helper rm_conffile /etc/icedove/profile/prefs.js "5.0-1" -- "$@"
+dpkg-maintscript-helper rm_conffile /etc/icedove/profile/mimeTypes.rdf "5.0-1" -- "$@"
+dpkg-maintscript-helper rm_conffile /etc/icedove/profile/localstore.rdf "5.0-1" -- "$@"
+
 #DEBHELPER#
