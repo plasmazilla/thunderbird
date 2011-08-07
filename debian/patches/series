@@ -45,3 +45,4 @@ debian-hacks/Fix-tracejit-to-build-against-nanojit-headers-in-dis.patch
 debian-hacks/Allow-to-build-against-system-nspr-4.8.6.patch
 system-libs/libxul-linking-error-with-enable-system-ffi-and-stat.patch
 porting/Fix-FTBFS-in-xpcom-base-on-armv4t.patch
+porting/Allow-ipc-code-to-build-on-GNU-hurd.patch
