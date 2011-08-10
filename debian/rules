@@ -145,6 +145,7 @@ subst_files = \
 	debian/$(DEB_MOZ_APPLICATION).prerm \
 	debian/$(DEB_MOZ_APPLICATION).install \
 	debian/$(DEB_MOZ_APPLICATION)-dev.install \
+	debian/$(DEB_MOZ_APPLICATION)-dev.links \
 	debian/$(DEB_MOZ_APPLICATION).links \
 	debian/$(DEB_MOZ_APPLICATION).menu \
 	debian/$(DEB_MOZ_APPLICATION).desktop \
@@ -214,6 +215,11 @@ ifeq ($(DEB_MOZ_NAME),icedove)
 	install -m 644 debian/app-icons/icedovebig.svg \
 		debian/icedove/usr/share/icons/hicolor/scalable/apps/icedove.svg
 endif
+# remove duplicate .so files in dev package
+	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libmozalloc.so
+	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libmozjs.so
+	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libxpcom.so
+	rm debian/tmp/usr/lib/icedove-devel/sdk/lib/libxul.so
 
 install/$(DEB_MOZ_APPLICATION)-dev::
 	find debian/tmp/usr/share/idl/icedove -type f -name '*.idl' -exec chmod a-x {} \;
