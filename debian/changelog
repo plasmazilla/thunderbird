@@ -1,3 +1,16 @@
+icedove (3.0.11-1+squeeze4) stable-security; urgency=high
+
+  * [afd20a1] backported patches from xulrunner fixes mfsa2011-32
+    - CVE-2011-0084: Crash in SVGTextElement.getCharNumAtPosition()
+    - CVE-2011-2378: Dangling pointer vulnerability in appendChild
+    - CVE-2011-2980: Binary planting vulnerability in ThinkPadSensor::Startup
+    - CVE-2011-2981: Privilege escalation using event handlers
+    - CVE-2011-2982: Miscellaneous memory safety hazards (rv:1.9.2.20)
+    - CVE-2011-2983: Private data leakage using RegExp.input
+    - CVE-2011-2984: Privilege escalation dropping a tab element in content area
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 18 Aug 2011 18:51:16 +0200
+
 icedove (3.0.11-1+squeeze3) stable-security; urgency=high
 
   * [637d85f] backported patches from xulrunner fixes mfsa2011-{19-24}
