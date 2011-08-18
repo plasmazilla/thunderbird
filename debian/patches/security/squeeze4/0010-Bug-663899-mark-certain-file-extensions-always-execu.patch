@@ -1,0 +1,63 @@
+From 89c61e4808cc99edb35880c1a1a259523420aa6e Mon Sep 17 00:00:00 2001
+From: Cameron Kaiser <spectre@armory.com>
+Date: Wed, 22 Jun 2011 20:07:24 -0700
+Subject: Bug 663899 - mark certain file extensions always executable;
+ r=smichaud, a=LegNeato
+
+---
+ xpcom/io/nsLocalFileUnix.cpp |   39 +++++++++++++++++++++++++++++++++++++++
+ 1 files changed, 39 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/xpcom/io/nsLocalFileUnix.cpp b/mozilla/xpcom/io/nsLocalFileUnix.cpp
+index 211f6c6..3684432 100644
+--- a/mozilla/xpcom/io/nsLocalFileUnix.cpp
++++ b/mozilla/xpcom/io/nsLocalFileUnix.cpp
+@@ -1347,6 +1347,45 @@ nsLocalFile::IsExecutable(PRBool *_retval)
+     CHECK_mPath();
+     NS_ENSURE_ARG_POINTER(_retval);
+ 
++    // Check extension (bug 663899). On certain platforms, the file
++    // extension may cause the OS to treat it as executable regardless of
++    // the execute bit, such as .jar on Mac OS X. We borrow the code from
++    // nsLocalFileWin, slightly modified.
++
++    // Don't be fooled by symlinks.
++    PRBool symLink;
++    nsresult rv = IsSymlink(&symLink);
++    if (NS_FAILED(rv))
++        return rv;
++
++    nsAutoString path;
++    if (symLink)
++        GetTarget(path);
++    else
++        GetPath(path);
++
++    PRInt32 dotIdx = path.RFindChar(PRUnichar('.'));
++    if (dotIdx != kNotFound) {
++        // Convert extension to lower case.
++        PRUnichar *p = path.BeginWriting();
++        for(p += dotIdx + 1; *p; p++)
++            *p +=  (*p >= L'A' && *p <= L'Z') ? 'a' - 'A' : 0; 
++        
++        // Search for any of the set of executable extensions.
++        static const char * const executableExts[] = {
++            "air",         // Adobe AIR installer
++            "jar"};        // java application bundle
++        nsDependentSubstring ext = Substring(path, dotIdx + 1);
++        for (int i = 0; i < NS_ARRAY_LENGTH(executableExts); i++) {
++            if (ext.EqualsASCII(executableExts[i])) {
++                // Found a match.  Set result and quit.
++                *_retval = PR_TRUE;
++                return NS_OK;
++            }
++        }
++    }
++
++    // Failing that, check the execute bit.
+     *_retval = (access(mPath.get(), X_OK) == 0);
+     if (*_retval || errno == EACCES)
+         return NS_OK;
+-- 
+1.7.5.4
+

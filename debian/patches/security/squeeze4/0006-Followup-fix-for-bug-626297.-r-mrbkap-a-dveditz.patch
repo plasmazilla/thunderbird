@@ -1,0 +1,50 @@
+From 7ce9ead135ceddf24f3d5f2e55f5de5a7f427b03 Mon Sep 17 00:00:00 2001
+From: Chris Leary <cdleary@gmail.com>
+Date: Fri, 29 Jul 2011 11:37:22 -0700
+Subject: Followup fix for bug 626297. (r=mrbkap, a=dveditz)
+
+---
+ js/src/jsregexp.cpp |    7 +++----
+ 1 files changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/mozilla/js/src/jsregexp.cpp b/mozilla/js/src/jsregexp.cpp
+index f5135d8..cea7459 100644
+--- a/mozilla/js/src/jsregexp.cpp
++++ b/mozilla/js/src/jsregexp.cpp
+@@ -4051,14 +4051,13 @@ js_ExecuteRegExp(JSContext *cx, JSRegExp *re, JSString *str, size_t *indexp,
+     size_t i, length, start;
+     JSSubString *morepar;
+     JSBool ok;
+-    JSRegExpStatics *res;
++    JSRegExpStatics *res = NULL;
+     ptrdiff_t matchlen;
+     uintN num, morenum;
+     JSString *parstr, *matchstr;
+     JSObject *obj;
+ 
+     RECapture *parsub = NULL;
+-    void *mark;
+     int64 *timestamp;
+ 
+     /*
+@@ -4085,7 +4084,7 @@ js_ExecuteRegExp(JSContext *cx, JSRegExp *re, JSString *str, size_t *indexp,
+             return JS_FALSE;
+         *timestamp = JS_Now();
+     }
+-    mark = JS_ARENA_MARK(&cx->regexpPool);
++    void *mark = JS_ARENA_MARK(&cx->regexpPool);
+ 
+     x = InitMatch(cx, &gData, re, length);
+ 
+@@ -4261,7 +4260,7 @@ js_ExecuteRegExp(JSContext *cx, JSRegExp *re, JSString *str, size_t *indexp,
+     res->rightContext.length = gData.cpend - ep;
+ 
+ out:
+-    if (!ok)
++    if (!ok && res)
+         clearJSRegExpStatics(cx, res);
+     JS_ARENA_RELEASE(&cx->regexpPool, mark);
+     return ok;
+-- 
+1.7.5.4
+

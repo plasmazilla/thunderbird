@@ -1,0 +1,61 @@
+From f937d6b710a76a8d4f52861f8e36c0a34cc64187 Mon Sep 17 00:00:00 2001
+From: Chris Coulson <chrisccoulson@ubuntu.com>
+Date: Wed, 29 Jun 2011 10:51:05 -0400
+Subject: Bug 667087 - Cookies cannot be stored with single character
+ hostnames; r=dwitte approval1.9.2.19=clegnitto
+
+---
+ extensions/cookie/test/unit/test_bug667087.js |   18 ++++++++++++++++++
+ netwerk/cookie/src/nsCookieService.cpp        |    4 ++--
+ 2 files changed, 20 insertions(+), 2 deletions(-)
+ create mode 100644 extensions/cookie/test/unit/test_bug667087.js
+
+diff --git a/mozilla/extensions/cookie/test/unit/test_bug667087.js b/mozilla/extensions/cookie/test/unit/test_bug667087.js
+new file mode 100644
+index 0000000..4f4773b
+--- /dev/null
++++ b/mozilla/extensions/cookie/test/unit/test_bug667087.js
+@@ -0,0 +1,18 @@
++/* Any copyright is dedicated to the Public Domain.
++   http://creativecommons.org/publicdomain/zero/1.0/ */
++
++const Cc = Components.classes;
++const Ci = Components.interfaces;
++
++function run_test() {
++  var cs = Cc["@mozilla.org/cookieService;1"].getService(Ci.nsICookieService);
++  var cm = Cc["@mozilla.org/cookiemanager;1"].getService(Ci.nsICookieManager2);
++  var ios = Cc["@mozilla.org/network/io-service;1"].getService(Ci.nsIIOService);
++  var expiry = (Date.now() + 1000) * 1000;
++
++  // Test our handling of host names with a single character consisting only
++  // of a single character
++  cm.add("a", "/", "foo", "bar", false, false, true, expiry);
++  do_check_eq(cm.countCookiesFromHost("a"), 1);
++  do_check_eq(cs.getCookieString(ios.newURI("http://a", null, null), null), "foo=bar");
++}
+diff --git a/mozilla/netwerk/cookie/src/nsCookieService.cpp b/mozilla/netwerk/cookie/src/nsCookieService.cpp
+index 7b4d6e3..8354b46 100644
+--- a/mozilla/netwerk/cookie/src/nsCookieService.cpp
++++ b/mozilla/netwerk/cookie/src/nsCookieService.cpp
+@@ -1357,7 +1357,7 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
+         stale = PR_TRUE;
+     }
+ 
+-    if (!nextDot || (nextDot <= end && *(nextDot + 1) == '\0'))
++    if (!nextDot || (nextDot <= end && *(nextDot + 1) == '\0' && *nextDot == '.'))
+       break;
+ 
+     currentDot = nextDot;
+@@ -2237,7 +2237,7 @@ nsCookieService::CountCookiesFromHostInternal(const nsACString  &aHost,
+       }
+     }
+ 
+-    if (!nextDot || (nextDot <= end && *(nextDot + 1) == '\0'))
++    if (!nextDot || (nextDot <= end && *(nextDot + 1) == '\0' && *nextDot == '.'))
+       break;
+ 
+     currentDot = nextDot;
+-- 
+1.7.5.4
+

@@ -1,0 +1,52 @@
+From 993a71b3231efdd4940a2846b485af37948b93cd Mon Sep 17 00:00:00 2001
+From: Olli Pettay <Olli.Pettay@helsinki.fi>
+Date: Tue, 2 Aug 2011 11:04:49 +0300
+Subject: Bug 643062, more generic null pointer check for
+ ExecuteDetachedHandler, r=sicking , a=dveditz
+
+---
+ content/xbl/src/nsBindingManager.cpp |    3 +++
+ content/xbl/src/nsXBLBinding.cpp     |    6 ++----
+ 2 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/mozilla/content/xbl/src/nsBindingManager.cpp b/mozilla/content/xbl/src/nsBindingManager.cpp
+index defa371..42793a4 100644
+--- a/mozilla/content/xbl/src/nsBindingManager.cpp
++++ b/mozilla/content/xbl/src/nsBindingManager.cpp
+@@ -551,6 +551,9 @@ nsBindingManager::SetBinding(nsIContent* aContent, nsXBLBinding* aBinding)
+     SetWrappedJS(aContent, nsnull);
+     SetContentListFor(aContent, nsnull);
+     SetAnonymousNodesFor(aContent, nsnull);
++    if (oldBinding) {
++      oldBinding->SetBoundElement(nsnull);
++    }
+   }
+ 
+   return result ? NS_OK : NS_ERROR_FAILURE;
+diff --git a/mozilla/content/xbl/src/nsXBLBinding.cpp b/mozilla/content/xbl/src/nsXBLBinding.cpp
+index ad2b490..3d951a5 100644
+--- a/mozilla/content/xbl/src/nsXBLBinding.cpp
++++ b/mozilla/content/xbl/src/nsXBLBinding.cpp
+@@ -972,9 +972,7 @@ nsXBLBinding::ExecuteAttachedHandler()
+   if (mNextBinding)
+     mNextBinding->ExecuteAttachedHandler();
+ 
+-  // Executing mNextBindings constructor might have caused us to loose our
+-  // bound element
+-  if (mBoundElement && AllowScripts())
++  if (AllowScripts())
+     mPrototypeBinding->BindingAttached(mBoundElement);
+ }
+ 
+@@ -1387,7 +1385,7 @@ nsXBLBinding::AllowScripts()
+     return PR_FALSE;
+   }
+ 
+-  nsIDocument* doc = mBoundElement->GetOwnerDoc();
++  nsIDocument* doc = mBoundElement ? mBoundElement->GetOwnerDoc() : nsnull;
+   if (!doc) {
+     return PR_FALSE;
+   }
+-- 
+1.7.5.4
+

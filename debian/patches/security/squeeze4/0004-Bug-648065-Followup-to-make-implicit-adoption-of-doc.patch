@@ -1,0 +1,28 @@
+From f0c14eb5d7da37cbecfe7d55bd39a3c73c52d302 Mon Sep 17 00:00:00 2001
+From: Jonas Sicking <jonas@sicking.cc>
+Date: Tue, 26 Jul 2011 14:04:03 -0700
+Subject: Bug 648065: Followup to make implicit adoption of doctypes work.
+ r=jst a=dveditz
+
+---
+ content/base/src/nsGenericElement.cpp |    4 +++-
+ 1 files changed, 3 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/content/base/src/nsGenericElement.cpp b/mozilla/content/base/src/nsGenericElement.cpp
+index 4ef985c..33288e6 100644
+--- a/mozilla/content/base/src/nsGenericElement.cpp
++++ b/mozilla/content/base/src/nsGenericElement.cpp
+@@ -3964,7 +3964,9 @@ nsGenericElement::doReplaceOrInsertBefore(PRBool aReplace,
+       }
+     }
+ 
+-    if (!container->HasSameOwnerDoc(newContent)) {
++    if (!container->HasSameOwnerDoc(newContent) &&
++        (nodeType != nsIDOMNode::DOCUMENT_TYPE_NODE ||
++         newContent->GetOwnerDoc())) {
+       return NS_ERROR_DOM_HIERARCHY_REQUEST_ERR;
+     }
+ 
+-- 
+1.7.5.4
+

@@ -1,0 +1,40 @@
+From c441025c30edd97836fbd7bfc1ea0a36ff824726 Mon Sep 17 00:00:00 2001
+From: Jason Orendorff <jorendorff@mozilla.com>
+Date: Mon, 29 Mar 2010 11:24:42 -0500
+Subject: Bug 541255 - "Assertion failure: obj->isDenseArray(), at
+ ../jsarray.cpp". r=brendan. a=dveditz
+
+---
+ js/src/jsinterp.cpp |    2 +-
+ js/src/jstracer.cpp |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/js/src/jsinterp.cpp b/mozilla/js/src/jsinterp.cpp
+index 6337d50..5d8ba1c 100644
+--- a/mozilla/js/src/jsinterp.cpp
++++ b/mozilla/js/src/jsinterp.cpp
+@@ -2057,7 +2057,7 @@ js_GetUpvar(JSContext *cx, uintN level, uintN cookie)
+     uintN slot = UPVAR_FRAME_SLOT(cookie);
+     jsval *vp;
+ 
+-    if (!fp->fun) {
++    if (!fp->fun || (fp->flags & JSFRAME_EVAL)) {
+         vp = fp->slots + fp->script->nfixed;
+     } else if (slot < fp->fun->nargs) {
+         vp = fp->argv;
+diff --git a/mozilla/js/src/jstracer.cpp b/mozilla/js/src/jstracer.cpp
+index 4c1e05b..a7ff03b 100644
+--- a/mozilla/js/src/jstracer.cpp
++++ b/mozilla/js/src/jstracer.cpp
+@@ -8621,7 +8621,7 @@ TraceRecorder::upvar(JSScript* script, JSUpvarArray* uva, uintN index, jsval& v)
+     JSStackFrame* fp = cx->display[level];
+     const CallInfo* ci;
+     int32 slot;
+-    if (!fp->fun) {
++    if (!fp->fun || (fp->flags & JSFRAME_EVAL)) {
+         ci = &js_GetUpvarStackOnTrace_ci;
+         slot = cookieSlot;
+     } else if (cookieSlot < fp->fun->nargs) {
+-- 
+1.7.5.4
+

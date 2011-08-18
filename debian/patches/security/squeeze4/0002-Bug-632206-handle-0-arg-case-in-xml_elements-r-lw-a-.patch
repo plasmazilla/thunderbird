@@ -1,0 +1,26 @@
+From 6bb89b170e3e8755d94bce955acab86f53c899c4 Mon Sep 17 00:00:00 2001
+From: David Mandelin <dmandelin@mozilla.com>
+Date: Wed, 13 Jul 2011 17:23:37 -0700
+Subject: Bug 632206: handle 0-arg case in xml_elements, r=lw, a=clegnitto
+
+---
+ js/src/jsxml.cpp |    3 ++-
+ 1 files changed, 2 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/js/src/jsxml.cpp b/mozilla/js/src/jsxml.cpp
+index f3a4f02..0d3f814 100644
+--- a/mozilla/js/src/jsxml.cpp
++++ b/mozilla/js/src/jsxml.cpp
+@@ -5931,7 +5931,8 @@ xml_elements(JSContext *cx, uintN argc, jsval *vp)
+     nameqn = ToXMLName(cx, name, &funid);
+     if (!nameqn)
+         return JS_FALSE;
+-    vp[2] = OBJECT_TO_JSVAL(nameqn);
++    if (argc)
++        vp[2] = OBJECT_TO_JSVAL(nameqn);
+ 
+     if (funid)
+         return xml_list_helper(cx, xml, vp) != NULL;
+-- 
+1.7.5.4
+

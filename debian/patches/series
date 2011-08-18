@@ -127,3 +127,17 @@ security/squeeze3/Bug-635235-Set-the-ending-line-number-for-XML-whites.patch
 security/squeeze3/bug-642734-don-t-access-proxy-after-it-has-been-repl.patch
 security/squeeze3/Bug-650874-Fix-correctness-issue-with-JSOP_CALLGVAR-.patch
 security/squeeze3/Bug-664009-Fix-a-minor-array-bug-that-happens-to-bre.patch
+security/squeeze4/0001-Bug-667087-Cookies-cannot-be-stored-with-single-char.patch
+security/squeeze4/0002-Bug-632206-handle-0-arg-case-in-xml_elements-r-lw-a-.patch
+security/squeeze4/0003-Bug-648065-Don-t-attempt-to-insert-nodes-that-live-i.patch
+security/squeeze4/0004-Bug-648065-Followup-to-make-implicit-adoption-of-doc.patch
+security/squeeze4/0005-Bug-626297-Permit-pending-input-on-regular-expressio.patch
+security/squeeze4/0006-Followup-fix-for-bug-626297.-r-mrbkap-a-dveditz.patch
+security/squeeze4/0007-Bug-541255-Assertion-failure-obj-isDenseArray-at-.-j.patch
+security/squeeze4/0008-Fix-bug-614151.-r-jst-mozilla.com-a-dveditz.patch
+security/squeeze4/0009-Fix-bug-643450.-r-peterv-a-dveditz.patch
+security/squeeze4/0010-Bug-663899-mark-certain-file-extensions-always-execu.patch
+security/squeeze4/0011-bug-615970-r-luke-a-clegnitto.patch
+security/squeeze4/0012-Bug-572129-restrict-data-transfer-data-handling-r-en.patch
+security/squeeze4/0013-Bug-643062-more-generic-null-pointer-check-for-Execu.patch
+security/squeeze4/0014-Bug-655098-Root-the-jsid-stored-in-NPObjectMemberPri.patch

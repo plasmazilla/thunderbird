@@ -1,0 +1,56 @@
+From e85d4423e83ab9d5d927b957bb179213803655ef Mon Sep 17 00:00:00 2001
+From: Olli Pettay <Olli.Pettay@helsinki.fi>
+Date: Tue, 2 Aug 2011 01:14:25 +0300
+Subject: Bug 572129, restrict data transfer data handling, r=enn,bz,
+ a=dveditz
+
+---
+ content/events/src/nsDOMDataTransfer.cpp |   24 +++++++++++++++++++++++-
+ 1 files changed, 23 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/content/events/src/nsDOMDataTransfer.cpp b/mozilla/content/events/src/nsDOMDataTransfer.cpp
+index 0f9edf9..6c685ac 100644
+--- a/mozilla/content/events/src/nsDOMDataTransfer.cpp
++++ b/mozilla/content/events/src/nsDOMDataTransfer.cpp
+@@ -52,6 +52,7 @@
+ #include "nsContentUtils.h"
+ #include "nsIContent.h"
+ 
++#include "nsIScriptObjectPrincipal.h"
+ NS_IMPL_CYCLE_COLLECTION_2(nsDOMDataTransfer, mDragTarget, mDragImage)
+ 
+ NS_IMPL_CYCLE_COLLECTING_ADDREF(nsDOMDataTransfer)
+@@ -376,8 +377,29 @@ nsDOMDataTransfer::MozGetDataAt(const nsAString& aFormat,
+           (NS_FAILED(principal->Subsumes(formatitem.mPrincipal, &subsumes)) || !subsumes))
+         return NS_ERROR_DOM_SECURITY_ERR;
+ 
+-      if (!formatitem.mData)
++      if (!formatitem.mData) {
+         FillInExternalDragData(formatitem, aIndex);
++      } else {
++        nsCOMPtr<nsISupports> data;
++        formatitem.mData->GetAsISupports(getter_AddRefs(data));
++        // Make sure the code that is calling us is same-origin with the data.
++        nsCOMPtr<nsPIDOMEventTarget> pt = do_QueryInterface(data);
++        if (pt) {
++          nsCOMPtr<nsIScriptContext> c;
++          nsresult rv = pt->GetContextForEventHandlers(getter_AddRefs(c));
++          NS_ENSURE_TRUE(c && NS_SUCCEEDED(rv), NS_ERROR_DOM_SECURITY_ERR);
++          nsCOMPtr<nsIScriptObjectPrincipal> sp =
++            do_QueryInterface(c->GetGlobalObject());
++          NS_ENSURE_TRUE(sp, NS_ERROR_DOM_SECURITY_ERR);
++          nsIPrincipal* dataPrincipal = sp->GetPrincipal();
++          NS_ENSURE_TRUE(dataPrincipal, NS_ERROR_DOM_SECURITY_ERR);
++          NS_ENSURE_TRUE(principal || (principal = GetCurrentPrincipal()),
++                         NS_ERROR_DOM_SECURITY_ERR);
++          PRBool equals = PR_FALSE;
++          NS_ENSURE_TRUE(NS_SUCCEEDED(principal->Equals(dataPrincipal, &equals)) && equals,
++                         NS_ERROR_DOM_SECURITY_ERR);
++        }
++      }
+       *aData = formatitem.mData;
+       NS_IF_ADDREF(*aData);
+       return NS_OK;
+-- 
+1.7.5.4
+

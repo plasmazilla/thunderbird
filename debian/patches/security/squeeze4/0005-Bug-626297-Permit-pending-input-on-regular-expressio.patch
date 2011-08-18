@@ -1,0 +1,211 @@
+From c84f1d909ecb49452c570722e7b2e2859aaade61 Mon Sep 17 00:00:00 2001
+From: Chris Leary <cdleary@gmail.com>
+Date: Fri, 22 Jul 2011 11:10:34 -0700
+Subject: Bug 626297: Permit pending input on regular expression statics.
+ (r=mrbkap, a=LegNeato)
+
+---
+ js/src/jsapi.cpp                                |   13 ++------
+ js/src/jsregexp.cpp                             |   35 ++++++++++++++++++----
+ js/src/jsregexp.h                               |    7 +++-
+ js/src/xpconnect/src/XPCSafeJSObjectWrapper.cpp |    6 ++--
+ 4 files changed, 39 insertions(+), 22 deletions(-)
+
+diff --git a/mozilla/js/src/jsapi.cpp b/mozilla/js/src/jsapi.cpp
+index 37cacb4..878f0d7 100644
+--- a/mozilla/js/src/jsapi.cpp
++++ b/mozilla/js/src/jsapi.cpp
+@@ -5730,7 +5730,7 @@ JS_SetRegExpInput(JSContext *cx, JSString *input, JSBool multiline)
+     CHECK_REQUEST(cx);
+     /* No locking required, cx is thread-private and input must be live. */
+     res = &cx->regExpStatics;
+-    res->input = input;
++    res->pendingInput = input;
+     res->multiline = multiline;
+     cx->runtime->gcPoke = JS_TRUE;
+ }
+@@ -5742,15 +5742,7 @@ JS_ClearRegExpStatics(JSContext *cx)
+ 
+     /* No locking required, cx is thread-private and input must be live. */
+     res = &cx->regExpStatics;
+-    res->input = NULL;
+-    res->multiline = JS_FALSE;
+-    res->parenCount = 0;
+-    res->lastMatch = res->lastParen = js_EmptySubString;
+-    res->leftContext = res->rightContext = js_EmptySubString;
+-    if (res->moreParens) {
+-        JS_free(cx, res->moreParens);
+-        res->moreParens = NULL;
+-    }
++    clearJSRegExpStatics(cx, res);
+     cx->runtime->gcPoke = JS_TRUE;
+ }
+ 
+@@ -5762,6 +5754,7 @@ JS_ClearRegExpRoots(JSContext *cx)
+     /* No locking required, cx is thread-private and input must be live. */
+     res = &cx->regExpStatics;
+     res->input = NULL;
++    res->pendingInput = NULL;
+     cx->runtime->gcPoke = JS_TRUE;
+ }
+ 
+diff --git a/mozilla/js/src/jsregexp.cpp b/mozilla/js/src/jsregexp.cpp
+index 565885a..f5135d8 100644
+--- a/mozilla/js/src/jsregexp.cpp
++++ b/mozilla/js/src/jsregexp.cpp
+@@ -4025,6 +4025,21 @@ bad:
+     return NULL;
+ }
+ 
++void
++clearJSRegExpStatics(JSContext *cx, JSRegExpStatics *statics)
++{
++    statics->input = NULL;
++    statics->pendingInput = NULL;
++    statics->multiline = JS_FALSE;
++    statics->parenCount = 0;
++    statics->lastMatch = statics->lastParen = js_EmptySubString;
++    statics->leftContext = statics->rightContext = js_EmptySubString;
++    if (statics->moreParens) {
++        JS_free(cx, statics->moreParens);
++        statics->moreParens = NULL;
++    }
++}
++
+ JSBool
+ js_ExecuteRegExp(JSContext *cx, JSRegExp *re, JSString *str, size_t *indexp,
+                  JSBool test, jsval *rval)
+@@ -4143,7 +4158,7 @@ js_ExecuteRegExp(JSContext *cx, JSRegExp *re, JSString *str, size_t *indexp,
+     }
+ 
+     res = &cx->regExpStatics;
+-    res->input = str;
++    res->pendingInput = res->input = str;
+     res->parenCount = re->parenCount;
+     if (re->parenCount == 0) {
+         res->lastParen = js_EmptySubString;
+@@ -4246,6 +4261,8 @@ js_ExecuteRegExp(JSContext *cx, JSRegExp *re, JSString *str, size_t *indexp,
+     res->rightContext.length = gData.cpend - ep;
+ 
+ out:
++    if (!ok)
++        clearJSRegExpStatics(cx, res);
+     JS_ARENA_RELEASE(&cx->regexpPool, mark);
+     return ok;
+ }
+@@ -4371,10 +4388,11 @@ js_InitRegExpStatics(JSContext *cx)
+ 
+ JS_FRIEND_API(void)
+ js_SaveAndClearRegExpStatics(JSContext *cx, JSRegExpStatics *statics,
+-                             JSTempValueRooter *tvr)
++                             JSTempValueRooter *tvr, JSTempValueRooter *tvr2)
+ {
+     *statics = cx->regExpStatics;
+     JS_PUSH_TEMP_ROOT_STRING(cx, statics->input, tvr);
++    JS_PUSH_TEMP_ROOT_STRING(cx, statics->pendingInput, tvr2);
+     /*
+      * Prevent JS_ClearRegExpStatics from freeing moreParens, since we've only
+      * moved it elsewhere (into statics->moreParens).
+@@ -4385,11 +4403,12 @@ js_SaveAndClearRegExpStatics(JSContext *cx, JSRegExpStatics *statics,
+ 
+ JS_FRIEND_API(void)
+ js_RestoreRegExpStatics(JSContext *cx, JSRegExpStatics *statics,
+-                        JSTempValueRooter *tvr)
++                        JSTempValueRooter *tvr, JSTempValueRooter *tvr2)
+ {
+     /* Clear/free any new JSRegExpStatics data before clobbering. */
+     JS_ClearRegExpStatics(cx);
+     cx->regExpStatics = *statics;
++    JS_POP_TEMP_ROOT(cx, tvr2);
+     JS_POP_TEMP_ROOT(cx, tvr);
+ }
+ 
+@@ -4400,6 +4419,8 @@ js_TraceRegExpStatics(JSTracer *trc, JSContext *acx)
+ 
+     if (res->input)
+         JS_CALL_STRING_TRACER(trc, res->input, "res->input");
++    if (res->pendingInput)
++        JS_CALL_STRING_TRACER(trc, res->pendingInput, "res->pendingInput");
+ }
+ 
+ void
+@@ -4423,8 +4444,8 @@ regexp_static_getProperty(JSContext *cx, JSObject *obj, jsval id, jsval *vp)
+     slot = JSVAL_TO_INT(id);
+     switch (slot) {
+       case REGEXP_STATIC_INPUT:
+-        *vp = res->input ? STRING_TO_JSVAL(res->input)
+-                         : JS_GetEmptyStringValue(cx);
++        *vp = res->pendingInput ? STRING_TO_JSVAL(res->pendingInput)
++                                : JS_GetEmptyStringValue(cx);
+         return JS_TRUE;
+       case REGEXP_STATIC_MULTILINE:
+         *vp = BOOLEAN_TO_JSVAL(res->multiline);
+@@ -4466,7 +4487,7 @@ regexp_static_setProperty(JSContext *cx, JSObject *obj, jsval id, jsval *vp)
+             !JS_ConvertValue(cx, *vp, JSTYPE_STRING, vp)) {
+             return JS_FALSE;
+         }
+-        res->input = JSVAL_TO_STRING(*vp);
++        res->pendingInput = JSVAL_TO_STRING(*vp);
+     } else if (JSVAL_TO_INT(id) == REGEXP_STATIC_MULTILINE) {
+         if (!JSVAL_IS_BOOLEAN(*vp) &&
+             !JS_ConvertValue(cx, *vp, JSTYPE_BOOLEAN, vp)) {
+@@ -4856,7 +4877,7 @@ regexp_exec_sub(JSContext *cx, JSObject *obj, uintN argc, jsval *argv,
+ 
+     /* Now that obj is unlocked, it's safe to (potentially) grab the GC lock. */
+     if (argc == 0) {
+-        str = cx->regExpStatics.input;
++        str = cx->regExpStatics.pendingInput;
+         if (!str) {
+             const char *bytes = js_GetStringBytes(cx, re->source);
+ 
+diff --git a/mozilla/js/src/jsregexp.h b/mozilla/js/src/jsregexp.h
+index 6173e19..55c439a 100644
+--- a/mozilla/js/src/jsregexp.h
++++ b/mozilla/js/src/jsregexp.h
+@@ -54,6 +54,7 @@ JS_BEGIN_EXTERN_C
+ 
+ struct JSRegExpStatics {
+     JSString    *input;         /* input string to match (perl $_, GC root) */
++    JSString    *pendingInput;  /* pending input string to match */
+     JSBool      multiline;      /* whether input contains newlines (perl $*) */
+     uint16      parenCount;     /* number of valid elements in parens[] */
+     uint16      moreLength;     /* number of allocated elements in moreParens */
+@@ -65,13 +66,15 @@ struct JSRegExpStatics {
+     JSSubString rightContext;   /* input to right of last match (perl $') */
+ };
+ 
++extern void clearJSRegExpStatics(JSContext *cx, JSRegExpStatics *statics);
++
+ extern JS_FRIEND_API(void)
+ js_SaveAndClearRegExpStatics(JSContext *cx, JSRegExpStatics *statics,
+-                             JSTempValueRooter *tvr);
++                             JSTempValueRooter *tvr, JSTempValueRooter *tvr2);
+ 
+ extern JS_FRIEND_API(void)
+ js_RestoreRegExpStatics(JSContext *cx, JSRegExpStatics *statics,
+-                        JSTempValueRooter *tvr);
++                        JSTempValueRooter *tvr, JSTempValueRooter *tvr2);
+ 
+ /*
+  * This struct holds a bitmap representation of a class from a regexp.
+diff --git a/mozilla/js/src/xpconnect/src/XPCSafeJSObjectWrapper.cpp b/mozilla/js/src/xpconnect/src/XPCSafeJSObjectWrapper.cpp
+index d0984cd..09ac735 100644
+--- a/mozilla/js/src/xpconnect/src/XPCSafeJSObjectWrapper.cpp
++++ b/mozilla/js/src/xpconnect/src/XPCSafeJSObjectWrapper.cpp
+@@ -529,10 +529,10 @@ CallWithoutStatics(JSContext *cx, JSObject *obj, jsval fval, uintN argc,
+                    jsval *argv, jsval *rval)
+ {
+   JSRegExpStatics statics;
+-  JSTempValueRooter tvr;
+-  js_SaveAndClearRegExpStatics(cx, &statics, &tvr);
++  JSTempValueRooter tvr, tvr2;
++  js_SaveAndClearRegExpStatics(cx, &statics, &tvr, &tvr2);
+   JSBool ok = ::JS_CallFunctionValue(cx, obj, fval, argc, argv, rval);
+-  js_RestoreRegExpStatics(cx, &statics, &tvr);
++  js_RestoreRegExpStatics(cx, &statics, &tvr, &tvr2);
+   return ok;
+ }
+ 
+-- 
+1.7.5.4
+

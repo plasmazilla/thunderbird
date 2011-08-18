@@ -1,0 +1,120 @@
+From a796c7c094a40885eaf5d1d4701b77f816aef615 Mon Sep 17 00:00:00 2001
+From: Blake Kaplan <mrbkap@gmail.com>
+Date: Tue, 28 Dec 2010 11:21:30 -0800
+Subject: Fix bug 614151. r=jst@mozilla.com, a=dveditz
+
+---
+ caps/src/nsScriptSecurityManager.cpp |   26 ++++++++++++++++++++++++--
+ dom/src/base/nsJSEnvironment.cpp     |   29 +++++++++++++++++++----------
+ 2 files changed, 43 insertions(+), 12 deletions(-)
+
+diff --git a/mozilla/caps/src/nsScriptSecurityManager.cpp b/mozilla/caps/src/nsScriptSecurityManager.cpp
+index 2dda140..a7c4014 100644
+--- a/mozilla/caps/src/nsScriptSecurityManager.cpp
++++ b/mozilla/caps/src/nsScriptSecurityManager.cpp
+@@ -419,6 +419,8 @@ nsScriptSecurityManager::PushContextPrincipal(JSContext *cx,
+                                               JSStackFrame *fp,
+                                               nsIPrincipal *principal)
+ {
++    NS_ASSERTION(principal, "Must pass a non-null principal");
++
+     ContextPrincipal *cp = new ContextPrincipal(mContextPrincipals, cx, fp,
+                                                 principal);
+     if (!cp)
+@@ -2508,12 +2510,32 @@ nsScriptSecurityManager::IsCapabilityEnabled(const char *capability,
+     JSStackFrame *fp = nsnull;
+     JSContext *cx = GetCurrentJSContext();
+     fp = cx ? JS_FrameIterator(cx, &fp) : nsnull;
++
++    JSStackFrame *target = nsnull;
++    nsIPrincipal *targetPrincipal = nsnull;
++    for (ContextPrincipal *cp = mContextPrincipals; cp; cp = cp->mNext)
++    {
++        if (cp->mCx == cx)
++        {
++            target = cp->mFp;
++            targetPrincipal = cp->mPrincipal;
++            break;
++        }
++    }
++
+     if (!fp)
+     {
+-        // No script code on stack. Allow execution.
+-        *result = PR_TRUE;
++        // No script code on stack. If we had a principal pushed for this
++        // context and fp is null, then we use that principal. Otherwise, we
++        // don't have enough information and have to allow execution.
++
++        *result = (targetPrincipal && !target)
++                  ? (targetPrincipal == mSystemPrincipal)
++                  : PR_TRUE;
++
+         return NS_OK;
+     }
++
+     *result = PR_FALSE;
+     nsIPrincipal* previousPrincipal = nsnull;
+     do
+diff --git a/mozilla/dom/src/base/nsJSEnvironment.cpp b/mozilla/dom/src/base/nsJSEnvironment.cpp
+index 5ab28aa..9884475 100644
+--- a/mozilla/dom/src/base/nsJSEnvironment.cpp
++++ b/mozilla/dom/src/base/nsJSEnvironment.cpp
+@@ -2133,9 +2133,8 @@ nsJSContext::CallEventHandler(nsISupports* aTarget, void *aScope, void *aHandler
+   // xxxmarkh - this comment is no longer true - principals are not used at
+   // all now, and never were in some cases.
+ 
+-  nsCOMPtr<nsIJSContextStack> stack =
+-    do_GetService("@mozilla.org/js/xpc/ContextStack;1", &rv);
+-  if (NS_FAILED(rv) || NS_FAILED(stack->Push(mContext)))
++  nsCxPusher pusher;
++  if (!pusher.Push(mContext))
+     return NS_ERROR_FAILURE;
+ 
+   // check if the event handler can be run on the object in question
+@@ -2156,14 +2155,23 @@ nsJSContext::CallEventHandler(nsISupports* aTarget, void *aScope, void *aHandler
+     // in the same scope as aTarget.
+     rv = ConvertSupportsTojsvals(aargv, target, &argc,
+                                  reinterpret_cast<void **>(&argv), &mark);
+-    if (NS_FAILED(rv)) {
+-      stack->Pop(nsnull);
+-      return rv;
+-    }
++    NS_ENSURE_SUCCESS(rv, rv);
+ 
+     AutoFreeJSStack stackGuard(mContext, mark); // ensure always freed.
+ 
+-    jsval funval = OBJECT_TO_JSVAL(static_cast<JSObject *>(aHandler));
++    JSObject *funobj = static_cast<JSObject *>(aHandler);
++    nsCOMPtr<nsIPrincipal> principal;
++    rv = sSecurityManager->GetObjectPrincipal(mContext, funobj,
++                                              getter_AddRefs(principal));
++    NS_ENSURE_SUCCESS(rv, rv);
++
++    JSStackFrame *currentfp = nsnull;
++    rv = sSecurityManager->PushContextPrincipal(mContext,
++                                                JS_FrameIterator(mContext, &currentfp),
++                                                principal);
++    NS_ENSURE_SUCCESS(rv, rv);
++
++    jsval funval = OBJECT_TO_JSVAL(funobj);
+     JSAutoRequest ar(mContext);
+     PRBool ok = ::JS_CallFunctionValue(mContext, target,
+                                        funval, argc, argv, &rval);
+@@ -2181,10 +2189,11 @@ nsJSContext::CallEventHandler(nsISupports* aTarget, void *aScope, void *aHandler
+       // Tell the caller that the handler threw an error.
+       rv = NS_ERROR_FAILURE;
+     }
++
++    sSecurityManager->PopContextPrincipal(mContext);
+   }
+ 
+-  if (NS_FAILED(stack->Pop(nsnull)))
+-    return NS_ERROR_FAILURE;
++  pusher.Pop();
+ 
+   // Convert to variant before calling ScriptEvaluated, as it may GC, meaning
+   // we would need to root rval.
+-- 
+1.7.5.4
+

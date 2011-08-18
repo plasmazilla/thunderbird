@@ -1,0 +1,40 @@
+From 36041a885658204b9623935cdd198015f6766ba5 Mon Sep 17 00:00:00 2001
+From: Jonas Sicking <jonas@sicking.cc>
+Date: Thu, 21 Jul 2011 17:07:19 -0700
+Subject: Bug 648065: Don't attempt to insert nodes that live in the wrong
+ document as a child if userdata or mutation handlers have moved the
+ node after we originally adopted it. r=jst a=dveditz
+
+---
+ content/base/src/nsGenericElement.cpp |    8 ++++++++
+ 1 files changed, 8 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/content/base/src/nsGenericElement.cpp b/mozilla/content/base/src/nsGenericElement.cpp
+index 0a013f0..4ef985c 100644
+--- a/mozilla/content/base/src/nsGenericElement.cpp
++++ b/mozilla/content/base/src/nsGenericElement.cpp
+@@ -3895,6 +3895,10 @@ nsGenericElement::doReplaceOrInsertBefore(PRBool aReplace,
+ 
+       nsMutationGuard guard;
+ 
++      if (!container->HasSameOwnerDoc(childContent)) {
++        return NS_ERROR_DOM_HIERARCHY_REQUEST_ERR;
++      }
++
+       // XXXbz how come no reparenting here?  That seems odd...
+       // Insert the child.
+       res = container->InsertChildAt(childContent, insPos, PR_TRUE);
+@@ -3960,6 +3964,10 @@ nsGenericElement::doReplaceOrInsertBefore(PRBool aReplace,
+       }
+     }
+ 
++    if (!container->HasSameOwnerDoc(newContent)) {
++      return NS_ERROR_DOM_HIERARCHY_REQUEST_ERR;
++    }
++
+     if (!newContent->IsNodeOfType(eXUL)) {
+       nsContentUtils::ReparentContentWrapper(newContent, aParent,
+                                              container->GetOwnerDoc(),
+-- 
+1.7.5.4
+
