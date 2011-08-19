@@ -2160,9 +2160,8 @@ nsJSContext::CallEventHandler(nsISupports* aTarget, void *aScope, void *aHandler
   // xxxmarkh - this comment is no longer true - principals are not used at
   // all now, and never were in some cases.
 
-  nsCOMPtr<nsIJSContextStack> stack =
-    do_GetService("@mozilla.org/js/xpc/ContextStack;1", &rv);
-  if (NS_FAILED(rv) || NS_FAILED(stack->Push(mContext)))
+  nsCxPusher pusher;
+  if (!pusher.Push(mContext))
     return NS_ERROR_FAILURE;
 
   // check if the event handler can be run on the object in question
@@ -2183,14 +2182,23 @@ nsJSContext::CallEventHandler(nsISupports* aTarget, void *aScope, void *aHandler
     // in the same scope as aTarget.
     rv = ConvertSupportsTojsvals(aargv, target, &argc,
                                  reinterpret_cast<void **>(&argv), &mark);
-    if (NS_FAILED(rv)) {
-      stack->Pop(nsnull);
-      return rv;
-    }
+    NS_ENSURE_SUCCESS(rv, rv);
 
     AutoFreeJSStack stackGuard(mContext, mark); // ensure always freed.
 
-    jsval funval = OBJECT_TO_JSVAL(static_cast<JSObject *>(aHandler));
+    JSObject *funobj = static_cast<JSObject *>(aHandler);
+    nsCOMPtr<nsIPrincipal> principal;
+    rv = sSecurityManager->GetObjectPrincipal(mContext, funobj,
+                                              getter_AddRefs(principal));
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    JSStackFrame *currentfp = nsnull;
+    rv = sSecurityManager->PushContextPrincipal(mContext,
+                                                JS_FrameIterator(mContext, &currentfp),
+                                                principal);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    jsval funval = OBJECT_TO_JSVAL(funobj);
     JSAutoRequest ar(mContext);
     ++mExecuteDepth;
     PRBool ok = ::JS_CallFunctionValue(mContext, target,
@@ -2198,32 +2206,27 @@ nsJSContext::CallEventHandler(nsISupports* aTarget, void *aScope, void *aHandler
     --mExecuteDepth;
 
     if (!ok) {
-      // Tell XPConnect about any pending exceptions. This is needed
-      // to avoid dropping JS exceptions in case we got here through
-      // nested calls through XPConnect.
-
-      ReportPendingException();
-
       // Don't pass back results from failed calls.
       rval = JSVAL_VOID;
 
       // Tell the caller that the handler threw an error.
       rv = NS_ERROR_FAILURE;
-    }
-  }
-
-  if (NS_FAILED(stack->Pop(nsnull)))
-    return NS_ERROR_FAILURE;
-
-  // Convert to variant before calling ScriptEvaluated, as it may GC, meaning
-  // we would need to root rval.
-  JSAutoRequest ar(mContext);
-  if (NS_SUCCEEDED(rv)) {
-    if (rval == JSVAL_NULL)
+    } else if (rval == JSVAL_NULL) {
       *arv = nsnull;
-    else
+    } else {
       rv = nsContentUtils::XPConnect()->JSToVariant(mContext, rval, arv);
+    }
+
+    // Tell XPConnect about any pending exceptions. This is needed
+    // to avoid dropping JS exceptions in case we got here through
+    // nested calls through XPConnect.
+    if (NS_FAILED(rv))
+      ReportPendingException();
+
+    sSecurityManager->PopContextPrincipal(mContext);
   }
+
+  pusher.Pop();
 
   // ScriptEvaluated needs to come after we pop the stack
   ScriptEvaluated(PR_TRUE);

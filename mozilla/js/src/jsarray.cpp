@@ -1527,17 +1527,6 @@ array_toString_sub(JSContext *cx, JSObject *obj, JSBool locale,
     MUST_FLOW_THROUGH("out");
     bool ok = false;
 
-    /* Get characters to use for the separator. */
-    static const jschar comma = ',';
-    const jschar *sep;
-    size_t seplen;
-    if (sepstr) {
-        sepstr->getCharsAndLength(sep, seplen);
-    } else {
-        sep = &comma;
-        seplen = 1;
-    }
-
     /*
      * This object will take responsibility for the jschar buffer until the
      * buffer is transferred to the returned JSString.
@@ -1576,6 +1565,15 @@ array_toString_sub(JSContext *cx, JSObject *obj, JSBool locale,
 
         /* Append the separator. */
         if (index + 1 != length) {
+            static const jschar comma = ',';
+            const jschar *sep;
+            size_t seplen;
+            if (sepstr) {
+                sepstr->getCharsAndLength(sep, seplen);
+            } else {
+                sep = &comma;
+                seplen = 1;
+            }
             if (!cb.append(sep, seplen))
                 goto out;
         }
