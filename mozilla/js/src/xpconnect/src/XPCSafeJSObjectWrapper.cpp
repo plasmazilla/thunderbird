@@ -500,7 +500,7 @@ public:
       }
     }
 
-    js_SaveAndClearRegExpStatics(cx, &statics, &tvr);
+    js_SaveAndClearRegExpStatics(cx, &statics, &tvr, &tvr2);
     fp = JS_SaveFrameChain(cx);
     options =
       JS_SetOptions(cx, JS_GetOptions(cx) | JSOPTION_DONT_REPORT_UNCAUGHT);
@@ -514,7 +514,7 @@ public:
     if (cx) {
       JS_SetOptions(cx, options);
       JS_RestoreFrameChain(cx, fp);
-      js_RestoreRegExpStatics(cx, &statics, &tvr);
+      js_RestoreRegExpStatics(cx, &statics, &tvr, &tvr2);
       nsIScriptSecurityManager_1_9_2 *ssm = XPCWrapper::GetSecurityManager();
       if (ssm) {
         ssm->PopContextPrincipal(cx);
@@ -526,6 +526,7 @@ private:
   JSContext *cx;
   JSRegExpStatics statics;
   JSTempValueRooter tvr;
+  JSTempValueRooter tvr2;
   uint32 options;
   JSStackFrame *fp;
 };

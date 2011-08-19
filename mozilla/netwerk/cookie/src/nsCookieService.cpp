@@ -1348,7 +1348,7 @@ nsCookieService::GetCookieInternal(nsIURI      *aHostURI,
         stale = PR_TRUE;
     }
 
-    if (!nextDot || (nextDot <= end && *(nextDot + 1) == '\0'))
+    if (!nextDot || (nextDot <= end && *(nextDot + 1) == '\0' && *nextDot == '.'))
       break;
 
     currentDot = nextDot;
@@ -2228,7 +2228,7 @@ nsCookieService::CountCookiesFromHostInternal(const nsACString  &aHost,
       }
     }
 
-    if (!nextDot || (nextDot <= end && *(nextDot + 1) == '\0'))
+    if (!nextDot || (nextDot <= end && *(nextDot + 1) == '\0' && *nextDot == '.'))
       break;
 
     currentDot = nextDot;
@@ -2281,7 +2281,7 @@ nsCookieService::GetCookiesFromHost(const nsACString     &aHost,
         cookieList.AppendObject(iter.current);
     }
 
-    if (!nextDot || (nextDot <= end && *(nextDot + 1) == '\0'))
+    if (!nextDot || (nextDot <= end && *(nextDot + 1) == '\0' && *nextDot == '.'))
       break;
 
     currentDot = nextDot;
