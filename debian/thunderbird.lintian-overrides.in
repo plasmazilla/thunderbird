@@ -1,0 +1,1 @@
+@DEB_MOZ_APPLICATION@: embedded-library usr/lib/@DEB_MOZ_APPLICATION@/components/libgklayout.so: libtheora

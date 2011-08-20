@@ -138,6 +138,7 @@ subst_files = \
 	debian/$(DEB_MOZ_APPLICATION).menu \
 	debian/$(DEB_MOZ_APPLICATION).desktop \
 	debian/$(DEB_MOZ_APPLICATION).pc \
+	debian/$(DEB_MOZ_APPLICATION).lintian-overrides \
 	$(NULL)
 
 $(DEB_MOZ_APPLICATION)%: thunderbird%.in
