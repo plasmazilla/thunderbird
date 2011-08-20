@@ -1,3 +1,24 @@
+icedove (3.1.12-1) unstable; urgency=high
+
+  * New Upstream Version
+    MFSA 2011-32:
+    - CVE-2011-0084: Crash in SVGTextElement.getCharNumAtPosition()
+    - CVE-2011-2378: Dangling pointer vulnerability in appendChild
+    - CVE-2011-2980: Binary planting vulnerability in ThinkPadSensor::Startup
+    - CVE-2011-2981: Privilege escalation using event handlers
+    - CVE-2011-2982: Miscellaneous memory safety hazards (rv:1.9.2.20)
+    - CVE-2011-2983: Private data leakage using RegExp.input
+    - CVE-2011-2984: Privilege escalation dropping a tab element in content area
+  * [c8fe0f9] rebuild patch queue from patch-queue branch
+    obsolete patches (fixed upstream):
+    - 0059-Fix-unaligned-reads-in-qcms.patch
+  * [ddb3405] override libtheora embedded-library error
+  * [4e1ec75] remove obsolete cdbs rule to extract tarball
+  * [0fc5d44] build against libnotify4 (libnotify-dev >= 0.7) (Closes: #637194)
+  * [77b5402] Build-depend on libjpeg-dev instead of libjpeg62-dev
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 20 Aug 2011 17:55:22 +0200
+
 icedove (3.1.11-1) unstable; urgency=high
 
   * New Upstream Version
