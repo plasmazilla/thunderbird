@@ -46,12 +46,6 @@ endif
 
 DEB_AUTO_UPDATE_AUTOCONF=2.13
 
-ifneq (,$(wildcard *.tar.bz2)$(DEBIAN_MOZCLIENT_EMBEDDED))
-   DEB_TAR_SRCDIR := mozilla
-   MOZCLIENT_EMBEDDED = 1
-   DEBIAN_TB_DIR = /usr/lib/$(DEB_MOZ_NAME)-$(shell tail -1 build-tree/mozilla/$(MOZ_APPLICATION)/config/$(TB_VERSION_FILE))
-   include /usr/share/cdbs/1/rules/tarball.mk
-endif
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/autotools.mk
 include $(CURDIR)/debian/mozclient/$(DEB_MOZ_APPLICATION).mk
