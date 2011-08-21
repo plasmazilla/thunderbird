@@ -31,7 +31,7 @@ Build-Depends: bzip2,
 	libiw-dev [!kfreebsd-i386 !kfreebsd-amd64 !hurd-i386],
 	python-ply,
 	cdbs (>= 0.4.27),
-	libnotify-dev (>= 0.7),
+	libnotify-dev (>= 0.4),
 	libffi-dev
 Vcs-Git: git://git.debian.org/pkg-mozilla/icedove.git
 Vcs-Browser: http://git.debian.org/?p=pkg-mozilla/icedove.git;a=summary
