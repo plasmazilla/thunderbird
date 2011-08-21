@@ -2330,6 +2330,11 @@ NPObjectMember_Mark(JSContext *cx, JSObject *obj, void *arg)
                      "NPObject Member => fieldValue", arg);
   }
 
+  if (!JSVAL_IS_PRIMITIVE(memberPrivate->methodName)) {
+    ::JS_MarkGCThing(cx, JSVAL_TO_OBJECT(memberPrivate->methodName),
+                     "NPObject Member => methodName", arg);
+  }
+
   // There's no strong reference from our private data to the
   // NPObject, so make sure to mark the NPObject wrapper to keep the
   // NPObject alive as long as this NPObjectMember is alive.

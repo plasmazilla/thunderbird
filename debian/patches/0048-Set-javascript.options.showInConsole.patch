@@ -7,10 +7,10 @@ Subject: Set javascript.options.showInConsole
  1 files changed, 1 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/modules/libpref/src/init/all.js b/mozilla/modules/libpref/src/init/all.js
-index 455b68f..f6eb93d 100644
+index 299ebb5..2163975 100644
 --- a/mozilla/modules/libpref/src/init/all.js
 +++ b/mozilla/modules/libpref/src/init/all.js
-@@ -556,6 +556,7 @@ pref("dom.event.contextmenu.enabled",       true);
+@@ -564,6 +564,7 @@ pref("dom.event.contextmenu.enabled",       true);
  pref("javascript.enabled",                  true);
  pref("javascript.options.strict",           false);
  pref("javascript.options.relimit",          false);

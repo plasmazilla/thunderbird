@@ -143,8 +143,8 @@ NS_IMETHODIMP nsSVGTextContentElement::GetRotationOfChar(PRUint32 charnum, float
 /* long getCharNumAtPosition (in nsIDOMSVGPoint point); */
 NS_IMETHODIMP nsSVGTextContentElement::GetCharNumAtPosition(nsIDOMSVGPoint *point, PRInt32 *_retval)
 {
-  // null check when implementing - this method can be used by scripts!
-  if (!point)
+  nsCOMPtr<nsISVGValue> p = do_QueryInterface(point);
+  if (!p)
     return NS_ERROR_DOM_SVG_WRONG_TYPE_ERR;
 
   *_retval = -1;
