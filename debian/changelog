@@ -1,3 +1,11 @@
+icedove (3.1.12-1~bpo60+1) squeeze-backports; urgency=low
+
+  * Rebuild for squeeze-backports.
+  * [8a2ec46] Revert "build against libnotify4 (libnotify-dev >= 0.7)"
+  * [831860d] Revert "Build-depend on libjpeg-dev instead of libjpeg62-dev"
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 21 Aug 2011 19:01:27 +0200
+
 icedove (3.1.12-1) unstable; urgency=high
 
   * New Upstream Version
