@@ -1,0 +1,59 @@
+<!ENTITY itemJunk.label          "Uønsket e-post">
+<!ENTITY itemPhishing.label      "E-postsvindel">
+<!ENTITY itemPasswords.label     "Passord">
+<!ENTITY itemAntiVirus.label     "Antivirus">
+<!ENTITY itemCookies.label       "Nettinnhold">
+
+<!-- Junk Mail Controls -->
+<!ENTITY junkMail.intro "Angi forvalgt oppførsel for uønsket e-post. Konto-spesifikke innstillinger for uønsket e-post kan angis i Kontoinnstillinger.">
+<!ENTITY manualMark.label "Når jeg markerer meldinger som uønskede:">
+<!ENTITY manualMark.accesskey "N">
+<!ENTITY manualMarkModeMove.label "Flytt dem til kontoens «Uønsket»-mappe">
+<!ENTITY manualMarkModeMove.accesskey "F">
+<!ENTITY manualMarkModeDelete.label "Slett dem">
+<!ENTITY manualMarkModeDelete.accesskey "S">
+<!ENTITY markAsReadOnSpam.label "Marker uønskede meldinger som lest">
+<!ENTITY markAsReadOnSpam.accesskey "M">
+<!ENTITY enableJunkLogging.label "Loggfør hendelser i filteret for uønsket e-post">
+<!ENTITY enableJunkLogging.accesskey "L">
+<!ENTITY openJunkLog.label "Vis logg">
+<!ENTITY openJunkLog.accesskey "V">
+<!ENTITY resetTrainingData.label "Tilbakestill treningsdata">
+<!ENTITY resetTrainingData.accesskey "T">
+
+<!-- Phishing Detector -->
+<!ENTITY phishingDetector1.intro  "&brandShortName; kan analysere meldinger og oppdage mulige e-postsvindler ved å se etter vanlige teknikker brukt for å lure deg.">
+<!ENTITY enablePhishingDetector1.label    "Fortell meg dersom meldinger jeg leser er mistenkte e-postsvindler">
+<!ENTITY enablePhishingDetector1.accesskey  "F">
+<!ENTITY useDownloadedList.label "Bruk en nedlastet liste over mistenkte e-postsvindler">
+<!ENTITY useDownloadedList.accesskey "B">
+
+<!-- Passwords -->
+<!ENTITY savedPasswords.intro           "&brandShortName; kan huske passordene for alle kontoene dine.">
+<!ENTITY useMasterPassword.label        "Bruk et hovedpassord">
+<!ENTITY useMasterPassword.accesskey    "B">
+<!ENTITY masterPassword.intro           "Du kan bruke et hovedpassord for å beskytte alle passordene, men da må du skrive inn passordet en gang for hver programøkt.">
+<!ENTITY changeMasterPassword.label     "Endre hovedpassord …">
+<!ENTITY changeMasterPassword.accesskey "E">
+<!ENTITY savedPasswords.label           "Lagrede passord …">
+<!ENTITY savedPasswords.accesskey       "L">
+
+<!-- Anti Virus -->
+<!ENTITY antiVirus.intro      "&brandShortName; kan gjøre det enkelt for antivirus-programmer å analysere e-post du laster ned for virus før de lagres.">
+<!ENTITY antiVirus.label      "Tillat antivirus-programmer å sette innkommende meldinger i karantene">
+<!ENTITY antiVirus.accesskey  "T">
+
+<!-- Cookies -->
+<!ENTITY cookies.intro                  "&brandShortName; lar deg angi hvilke blogger, nyhetskilder og andre nettsteder som har lov til å sette infokapsler.">
+<!ENTITY acceptCookies.label            "Tillat infokapsler fra nettsteder">
+<!ENTITY acceptCookies.accesskey        "T">
+<!ENTITY keepUntil.label                "Behold de inntil:">
+<!ENTITY keepUntil.accesskey            "B">
+<!ENTITY expire.label                   "de utløper på dato">
+<!ENTITY close.label                    "jeg lukker &brandShortName;">
+<!ENTITY askEachTime.label              "spør meg hver gang">
+<!ENTITY cookieExceptions.label         "Unntak …">
+<!ENTITY cookieExceptions.accesskey     "U">
+<!ENTITY showCookies.label              "Vis infokapsler …">
+<!ENTITY showCookies.accesskey          "V">
+

@@ -1,0 +1,40 @@
+<!ENTITY aboutSupport.pageTitle "Fejlfindingsinformation">
+
+<!-- LOCALIZATION NOTE (aboutSupport.pageSubtitle): don't change the 'supportLink' id. -->
+<!ENTITY aboutSupport.pageSubtitle "
+  Denne side indeholder teknisk information som måske kan være brugbar når du forsøger
+  at løse et problem. Hvis du leder efter svar på ofte spurgte spørgsmål vedrørende
+  &brandShortName;, kan du besøge vores <a id='supportLink'>support websted</a>.
+">
+
+<!ENTITY aboutSupport.extensionsTitle "Tilføjelser">
+<!ENTITY aboutSupport.extensionName "Navn">
+<!ENTITY aboutSupport.extensionEnabled "Aktiveret">
+<!ENTITY aboutSupport.extensionVersion "Version">
+<!ENTITY aboutSupport.extensionId "ID">
+
+<!ENTITY aboutSupport.appBasicsTitle "Programinfo">
+<!ENTITY aboutSupport.appBasicsName "Navn">
+<!ENTITY aboutSupport.appBasicsVersion "Version">
+<!ENTITY aboutSupport.appBasicsProfileDir "Profilmappe">
+<!ENTITY aboutSupport.appBasicsEnabledPlugins "Aktive plugins">
+<!ENTITY aboutSupport.appBasicsBuildConfig "Byggekonfiguration">
+<!ENTITY aboutSupport.appBasicsUserAgent "User Agent">
+
+<!ENTITY aboutSupport.show.label "Åbn mappe">
+
+<!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
+variant of aboutSupport.show.label.  This allows us to use the preferred
+"Finder" terminology on Mac. -->
+<!ENTITY aboutSupport.showMac.label "Vis i Finder">
+
+<!ENTITY aboutSupport.modifiedPrefsTitle "Ændrede indstillinger">
+<!ENTITY aboutSupport.modifiedPrefsName "Navn">
+<!ENTITY aboutSupport.modifiedPrefsValue "Værdi">
+
+<!ENTITY aboutSupport.graphicsTitle "Grafik">
+
+<!ENTITY aboutSupport.installationHistoryTitle "Installationshistorik">
+<!ENTITY aboutSupport.updateHistoryTitle "Opdateringshistorik">
+
+<!ENTITY aboutSupport.copyToClipboard.label "Kopier alt til udklipsholderen">

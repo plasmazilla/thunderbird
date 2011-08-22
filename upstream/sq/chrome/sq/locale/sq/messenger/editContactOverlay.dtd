@@ -1,0 +1,19 @@
+<!ENTITY editContactPanelDeleteContact.label "Fshije">
+<!ENTITY editContactPanelDeleteContact.accesskey "F">
+
+<!ENTITY editContactName.label "Emër:">
+<!ENTITY editContactName.accesskey "E">
+
+<!ENTITY editContactEmail.label "Email:">
+<!ENTITY editContactEmail.accesskey "m">
+
+<!ENTITY editContactAddressBook.label "Libër Adresash:">
+<!ENTITY editContactAddressBook.accesskey "L">
+
+<!ENTITY editContactPanelCancel.label "Anuloje">
+<!ENTITY editContactPanelCancel.accesskey "A">
+
+<!ENTITY editContactPanelDone.label "U bë">
+<!ENTITY editContactPanelDone.accesskey "u">
+
+<!ENTITY contactMoveDisabledWarning.description "Librin e adresave nuk e ndryshoni dot ngaqë kontakti gjendet në një listë postimesh.">

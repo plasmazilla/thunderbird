@@ -1,0 +1,16 @@
+<!ENTITY smtpServer.label "Configuración del servidor de salida (SMTP)">
+<!ENTITY smtpDesc.label "Aunque puede especificar más de un servidor de salida (SMTP), esto sólo se recomienda para usuarios avanzados. Configurar múltiples servidores SMTP puede causar errores al enviar mensajes.">
+<!ENTITY smtpListAdd.label "Añadir…">
+<!ENTITY smtpListAdd.accesskey "d">
+<!ENTITY smtpListEdit.label "Editar…">
+<!ENTITY smtpListEdit.accesskey "E">
+<!ENTITY smtpListDelete.label "Eliminar">
+<!ENTITY smtpListDelete.accesskey "m">
+<!ENTITY smtpListSetDefault.label "Establecer predeterminado">
+<!ENTITY smtpListSetDefault.accesskey "t">
+<!ENTITY serverDescription.label "Descripción: ">
+<!ENTITY serverName.label "Nombre del servidor: ">
+<!ENTITY serverPort.label "Puerto: ">
+<!ENTITY userName.label "Nombre de usuario: ">
+<!ENTITY connectionSecurity.label "Seguridad de la conexión: ">
+<!ENTITY authMethod.label "Método de identificación: ">

@@ -1,0 +1,86 @@
+<!ENTITY autoconfigWizard.title          "அஞ்சல் கணக்கு Setup">
+<!ENTITY name.label                      "உங்களுடைய பெயர்:">
+<!ENTITY name.accesskey                  "n">
+<!ENTITY name.text                       "உங்களுடைய பெயர், as shown to others">
+<!ENTITY email.label                     "மின்னஞ்சல் முகவரி:">
+<!ENTITY email.accesskey                 "l">
+<!ENTITY password.label                  "கடவுச்சொல்:">
+<!ENTITY password.accesskey              "P">
+<!ENTITY password.text                   "Optional, will only be used to validate the username">
+
+<!ENTITY incoming.label                  "Incoming:">
+<!ENTITY outgoing.label                  "Outgoing:">
+<!ENTITY noEncryption.label              "None">
+<!ENTITY starttls.label                  "STARTTLS">
+<!ENTITY sslTls.label                    "SSL/TLS">
+
+<!ENTITY imap.label                      "IMAP">
+<!ENTITY smtp.label                      "SMTP">
+
+<!ENTITY cancel.label                    "ரத்துச்செய்க">
+<!ENTITY cancel.accesskey                "a">
+<!ENTITY continue.label                  "தொடர்க">
+<!ENTITY continue.accesskey              "C">
+<!ENTITY stop.label                      "நிறுத்துக">
+<!ENTITY stop.accesskey                  "S">
+<!-- LOCALIZATION NOTE (retest.label): This is the text that is
+     displayed on the button which will re-guess the account configuration,
+     taking into account the settings the user has changed. -->
+
+<!ENTITY rememberPassword.label          "கடவுச்சொல்லினை ஞாபகப்படுத்துக">
+<!ENTITY rememberPassword.accesskey      "m">
+
+<!ENTITY warning.label                   "எச்சரிக்கை!">
+<!ENTITY incomingSettings.label          "Incoming அமைப்புக்கள்:">
+<!ENTITY outgoingSettings.label          "Outgoing அமைப்புக்கள்:">
+<!ENTITY technicaldetails.label          "தொழில்நுட்ப விபரங்கள்">
+<!-- LOCALIZATION NOTE (confirmWarning.label): If there is a security
+     warning on the outgoing server, then the user will need to check a
+     checkbox beside this text before continuing. -->
+<!ENTITY confirmWarning.label            "I understand the risks.">
+<!ENTITY confirmWarning.accesskey        "u">
+<!-- LOCALIZATION NOTE (createAccount.label): If there is a security warning
+     on the incoming or outgoing servers, then the page that pops up will
+     have this text in a button to continue by creating the account. -->
+<!ENTITY createAccount.label             "கணக்கினை உருவாக்குக">
+<!ENTITY createAccount.accesskey         "C">
+<!-- LOCALIZATION NOTE (changeSettings.label): If there is a security warning on
+     the incoming or outgoing servers, then the page that pops up will have
+     this text in a button to take you back to the previous page to change
+     the settings and try again. -->
+<!ENTITY changeSettings.label            "அமைப்புகளை மாற்றுக">
+<!ENTITY changeSettings.accesskey        "S">
+
+<!ENTITY contactYourProvider.description "&brandShortName; can allow you to get to your mail using the provided configurations. However, you should contact your administrator or email provider regarding these improper connections. See the Thunderbird FAQ for more information.">
+
+<!ENTITY insecureServer.tooltip.title    "எச்சரிக்கை! This is an insecure server.">
+<!ENTITY insecureServer.tooltip.details  "மேலதிக விபரங்களுக்காக circle மீது சொடுக்குக.">
+
+<!ENTITY insecureSelfSigned.description  "The server uses a certificate that we can't trust, so we can't be sure that someone isn't intercepting the traffic between &brandShortName; and your server. &brandShortName; will let you get to your mail, but you should really get your email provider to configure the server with a trusted certificate.">
+<!ENTITY secureServer.description        "வாழ்த்துக்கள்! This is a secure server.">
+
+
+<!--
+Entities below were automatically added by compare-locales,
+ based on en-US entities.
+-->
+
+<!ENTITY pop3Long.label "POP3 (keep mail on your computer)">
+<!ENTITY autodetect.label "Autodetect">
+<!ENTITY name.placeholder "First Last">
+<!ENTITY half-manual-test.label "Re-test">
+<!ENTITY username.label "Username:">
+<!ENTITY port.label "Port">
+<!ENTITY half-manual-test.accesskey "t">
+<!ENTITY advancedSetup.label "Advanced config">
+<!ENTITY imapLong.label "IMAP (remote folders)">
+<!ENTITY auth.label "Authentication">
+<!ENTITY hostname.label "Server hostname">
+<!ENTITY insecureUnencrypted.description "Your email and authentication are sent unencrypted, so your password (and your message) could easily be read by other people. &brandShortName; will let you get to your mail, but you should contact your email provider about configuring the server with a secure connection.">
+<!ENTITY advancedSetup.accesskey "A">
+<!ENTITY manual-edit.label "Manual config">
+<!ENTITY ssl.label "SSL">
+<!ENTITY email.placeholder "email@example.com">
+<!ENTITY password.placeholder "Password">
+<!ENTITY pop3.label "POP3">
+<!ENTITY manual-edit.accesskey "M">

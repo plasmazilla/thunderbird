@@ -1,0 +1,173 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+ Version: MPL 1.1/GPL 2.0/LGPL 2.1
+
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License. You may obtain a copy of the License at
+ http://www.mozilla.org/MPL/
+
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+
+ The Original Code is Mozilla Communicator client code, released
+ March 31, 1998.
+
+ The Initial Developer of the Original Code is
+ Netscape Communications Corporation.
+ Portions created by the Initial Developer are Copyright (C) 1998-1999
+ the Initial Developer. All Rights Reserved.
+
+ Contributor(s):
+
+ Alternatively, the contents of this file may be used under the terms of
+ either the GNU General Public License Version 2 or later (the "GPL"), or
+ the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ in which case the provisions of the GPL or the LGPL are applicable instead
+ of those above. If you wish to allow use of your version of this file only
+ under the terms of either the GPL or the LGPL, and not to allow others to
+ use your version of this file under the terms of the MPL, indicate your
+ decision by deleting the provisions above and replace them with the notice
+ and other provisions required by the GPL or the LGPL. If you do not delete
+ the provisions above, a recipient may use your version of this file under
+ the terms of any one of the MPL, the GPL or the LGPL.
+
+ ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY Contact.tab                     "איש קשר">
+<!ENTITY Contact.accesskey               "ק">
+<!ENTITY Name.box                        "שם">
+
+<!-- LOCALIZATION NOTE:
+ NameField1, NameField2, PhoneticField1, PhoneticField2
+ those fields are either LN or FN depends on the target country.
+ "FirstName" and "LastName" can be swapped for id to change the order
+ but they should not be translated (same applied to phonetic id).
+ Make sure the translation of label corresponds to the order of id.
+-->
+
+<!-- LOCALIZATION NOTE (NameField1.id) : DONT_TRANSLATE -->
+<!ENTITY NameField1.id                  "FirstName">
+<!-- LOCALIZATION NOTE (NameField2.id) : DONT_TRANSLATE -->
+<!ENTITY NameField2.id                  "LastName">
+<!-- LOCALIZATION NOTE (PhoneticField1.id) : DONT_TRANSLATE -->
+<!ENTITY PhoneticField1.id              "PhoneticFirstName">
+<!-- LOCALIZATION NOTE (PhoneticField2.id) : DONT_TRANSLATE -->
+<!ENTITY PhoneticField2.id              "PhoneticLastName">
+
+<!ENTITY NameField1.label               "פרטי:">
+<!ENTITY NameField1.accesskey           "פ">
+<!ENTITY NameField2.label               "משפחה:">
+<!ENTITY NameField2.accesskey           "מ">
+<!ENTITY PhoneticField1.label           "פונטי:">
+<!ENTITY PhoneticField2.label           "פונטי:">
+<!ENTITY DisplayName.label              "תצוגה:">
+<!ENTITY DisplayName.accesskey          "צ">
+<!ENTITY preferDisplayName.label        "תמיד העדף את שם התצוגה על פני כותרת ההודעה">
+<!ENTITY preferDisplayName.accesskey    "ת">
+<!ENTITY NickName.label                 "כינוי:">
+<!ENTITY NickName.accesskey             "כ">
+
+<!ENTITY PrimaryEmail.label             "דוא״ל:">
+<!ENTITY PrimaryEmail.accesskey         "ד">
+<!ENTITY SecondEmail.label              "דוא״ל נוסף:">
+<!ENTITY SecondEmail.accesskey          "נ">
+<!ENTITY PreferMailFormat.label         "מעדיף לקבל הודעות בתבנית:">
+<!ENTITY PreferMailFormat.accesskey     "ת">
+<!ENTITY PlainText.label                "טקסט פשוט">
+<!ENTITY HTML.label                     "HTML">
+<!ENTITY Unknown.label                  "לא ידוע">
+<!ENTITY ScreenName.label               "שם מסך:">
+<!ENTITY ScreenName.accesskey           "מ">
+
+<!ENTITY allowRemoteContent1.label      "אפשר תוכן מרוחק.">
+<!ENTITY allowRemoteContent1.accesskey  "ר">
+<!ENTITY allowRemoteContent1.tooltip    "בהודעות HTML ניתן לצרף תוכן ממקורות מרוחקים. פתיחה של הודעות אלו תפתח חיבור עם המקור המרוחק. דרך זה עלולה לאפשר מעקב אחר קריאת ההודעה. סימון תיבה זו תאפשר תכנים חיצוניים לאיש קשר זה.">
+
+<!ENTITY WorkPhone.label                "עבודה:">
+<!ENTITY WorkPhone.accesskey            "ע">
+<!ENTITY HomePhone.label                "בית:">
+<!ENTITY HomePhone.accesskey            "ב">
+<!ENTITY FaxNumber.label                "פקס:">
+<!ENTITY FaxNumber.accesskey            "פ">
+<!ENTITY PagerNumber.label              "איתורית:">
+<!ENTITY PagerNumber.accesskey          "א">
+<!ENTITY CellularNumber.label           "נייד:">
+<!ENTITY CellularNumber.accesskey       "נ">
+
+<!ENTITY Home.tab                       "פרטי">
+<!ENTITY Home.accesskey                 "פ">
+<!ENTITY HomeAddress.label              "כתובת:">
+<!ENTITY HomeAddress.accesskey          "כ">
+<!ENTITY HomeAddress2.label             "">
+<!ENTITY HomeAddress2.accesskey         "">
+<!ENTITY HomeCity.label                 "עיר:">
+<!ENTITY HomeCity.accesskey             "ע">
+<!ENTITY HomeState.label                "מדינה/מחוז:">
+<!ENTITY HomeState.accesskey            "מ">
+<!ENTITY HomeZipCode.label              "מיקוד:">
+<!ENTITY HomeZipCode.accesskey          "ק">
+<!ENTITY HomeCountry.label              "ארץ:">
+<!ENTITY HomeCountry.accesskey          "א">
+<!ENTITY HomeWebPage.label              "אתר אינטרנט:">
+<!ENTITY HomeWebPage.accesskey          "א">
+<!ENTITY Birthday.label                 "תאריך לידה:">
+<!ENTITY Birthday.accesskey             "ל">
+<!ENTITY In.label                       "">
+<!ENTITY Year.placeholder               "שנה">
+<!ENTITY Or.value                       "או">
+<!ENTITY Age.placeholder                "גיל">
+<!ENTITY YearsOld.label                 "">
+
+<!ENTITY Work.tab                       "עבודה">
+<!ENTITY Work.accesskey                 "ע">
+<!ENTITY JobTitle.label                 "תפקיד:">
+<!ENTITY JobTitle.accesskey             "ת">
+<!ENTITY Department.label               "מחלקה:">
+<!ENTITY Department.accesskey           "מ">
+<!ENTITY Company.label                  "ארגון:">
+<!ENTITY Company.accesskey              "ח">
+<!ENTITY WorkAddress.label              "כתובת:">
+<!ENTITY WorkAddress.accesskey          "כ">
+<!ENTITY WorkAddress2.label             "">
+<!ENTITY WorkAddress2.accesskey         "">
+<!ENTITY WorkCity.label                 "עיר:">
+<!ENTITY WorkCity.accesskey             "ע">
+<!ENTITY WorkState.label                "מדינה/מחוז:">
+<!ENTITY WorkState.accesskey            "מ">
+<!ENTITY WorkZipCode.label              "מיקוד:">
+<!ENTITY WorkZipCode.accesskey          "ק">
+<!ENTITY WorkCountry.label              "ארץ:">
+<!ENTITY WorkCountry.accesskey          "א">
+<!ENTITY WorkWebPage.label              "אתר אינטרנט:">
+<!ENTITY WorkWebPage.accesskey          "א">
+
+<!ENTITY Other.tab                      "אחר">
+<!ENTITY Other.accesskey                "ח">
+<!ENTITY Custom1.label                  "מותאם אישית 1:">
+<!ENTITY Custom1.accesskey              "1">
+<!ENTITY Custom2.label                  "מותאם אישית 2:">
+<!ENTITY Custom2.accesskey              "2">
+<!ENTITY Custom3.label                  "מותאם אישית 3:">
+<!ENTITY Custom3.accesskey              "3">
+<!ENTITY Custom4.label                  "מותאם אישית 4:">
+<!ENTITY Custom4.accesskey              "4">
+<!ENTITY Notes.label                    "הערות:">
+<!ENTITY Notes.accesskey                "ה">
+
+<!ENTITY Photo.tab                      "תמונה">
+<!ENTITY Photo.accesskey                "ת">
+<!ENTITY PhotoDesc.label                "בחר אחד מהבאים:">
+<!ENTITY GenericPhoto.label             "תמונה כללית">
+<!ENTITY GenericPhoto.accesskey         "ג">
+<!ENTITY DefaultPhoto.label             "ברירת מחדל">
+<!ENTITY PhotoFile.label                "במחשב זה">
+<!ENTITY PhotoFile.accesskey            "ז">
+<!ENTITY BrowsePhoto.label              "עיין">
+<!ENTITY BrowsePhoto.accesskey          "ע">
+<!ENTITY PhotoURL.label                 "ברשת">
+<!ENTITY PhotoURL.accesskey             "ר">
+<!ENTITY PhotoURL.placeholder           "הקלד או הדבק כתובת לתמונה ברשת">
+<!ENTITY UpdatePhoto.label              "עדכון">
+<!ENTITY UpdatePhoto.accesskey          "ע">

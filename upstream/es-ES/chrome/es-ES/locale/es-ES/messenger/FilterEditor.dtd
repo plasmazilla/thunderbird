@@ -1,0 +1,36 @@
+<!ENTITY window.title "Reglas de filtrado">
+<!ENTITY filterEditorDialog.dimensions "width: 100ch;">
+<!ENTITY filterName.label "Nombre del filtro:">
+<!ENTITY filterName.accesskey "i">
+<!ENTITY junk.label "Correo no deseado">
+<!ENTITY notJunk.label "Legítimo">
+<!ENTITY lowestPriorityCmd.label "La más baja">
+<!ENTITY lowPriorityCmd.label "Baja">
+<!ENTITY normalPriorityCmd.label "Normal">
+<!ENTITY highPriorityCmd.label "Alta">
+<!ENTITY highestPriorityCmd.label "La más alta">
+<!ENTITY contextDesc.label "Aplicar filtro cuando:">
+<!ENTITY contextDesc.accesskey "u">
+<!ENTITY contextIncoming.label "se compruebe el correo">
+<!ENTITY contextManual.label "se ejecute manualmente">
+<!ENTITY contextBoth.label "se compruebe el correo o se ejecute manualmente">
+<!ENTITY contextPostPlugin.label "se compruebe el correo (tras clasificarlo)">
+<!ENTITY contextPostPluginBoth.label "se compruebe el correo (tras clasificarlo) o se ejecute manualmente">
+<!ENTITY filterActionDesc.label "Realizar estas acciones:">
+<!ENTITY filterActionDesc.accesskey "R">
+<!ENTITY moveMessage.label "Mover mensaje a">
+<!ENTITY copyMessage.label "Copiar mensaje a">
+<!ENTITY forwardTo.label "Reenviar mensaje a">
+<!ENTITY replyWithTemplate.label "Responder con plantilla">
+<!ENTITY markMessageRead.label "Marcar como leído">
+<!ENTITY markMessageStarred.label "Añadir estrella">
+<!ENTITY setPriority.label "Fijar prioridad a">
+<!ENTITY addTag.label "Etiquetar mensaje">
+<!ENTITY setJunkScore.label "Fijar estado de correo no deseado a">
+<!ENTITY deleteMessage.label "Eliminar mensaje">
+<!ENTITY deleteFromPOP.label "Eliminar del servidor POP">
+<!ENTITY fetchFromPOP.label "Recuperar del servidor POP">
+<!ENTITY ignoreThread.label "Ignorar conversación">
+<!ENTITY ignoreSubthread.label "Ignorar sub-conversación">
+<!ENTITY watchThread.label "Observar conversación">
+<!ENTITY stopExecution.label "Detener ejecución de los filtros">

@@ -1,8 +1,0 @@
-
-<!ENTITY incompatible.title "Osagai bateraezinak">
-<!ENTITY incompatible.intro "Hurrengo osagaiak ez dira &brandShortName;(r)en eguneraketa honekin bateragarriak eta ezgaitu egingo dira instalatzerakoan:">
-<!ENTITY incompatible.update "&brandShortName;(e)k aldiro bilatuko du bateragarri den bertsiorik dagoen.">
-<!ENTITY incompatible.suffix "&brandShortName;(r)en eguneraketek zure babesarako segurtasun-hobekuntzak dituzte. Oso gomendagarria da &brandShortName; eguneratzea, nahiz eta zure hedapen edo gairen bat bateraezina suertatu.">
-                                     
-<!ENTITY closebutton.label "Itxi">
-

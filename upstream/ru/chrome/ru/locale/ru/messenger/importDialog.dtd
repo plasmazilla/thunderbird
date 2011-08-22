@@ -1,0 +1,27 @@
+<!--null-->
+<!ENTITY importDialog.windowTitle "Импорт">
+<!ENTITY importAll.label "Импортировать всё">
+<!ENTITY importAll.accesskey "п">
+<!ENTITY importMail.label "Почту">
+<!ENTITY importMail.accesskey "ч">
+<!ENTITY importAddressbook.label "Адресные книги">
+<!ENTITY importAddressbook.accesskey "д">
+<!ENTITY importSettings.label "Настройки">
+<!ENTITY importSettings.accesskey "с">
+<!ENTITY importFilters.label "Фильтры">
+<!ENTITY importFilters.accesskey "л">
+<!ENTITY window.width "50em">
+<!ENTITY window.macWidth "55em">
+<!ENTITY importTitle.label "Мастер импорта &brandShortName;">
+<!ENTITY importShortDesc.label "Импорт почты, адресных книг, настроек и фильтров из других программ">
+<!ENTITY importDescription1.label "Мастер импортирует почтовые сообщения, содержимое адресных книг, настройки и/или фильтры из других почтовых программ и адресных книг в &brandShortName;.">
+<!ENTITY importDescription2.label "Импортированная однажды, эта информация будет доступна для вас из &brandShortName;.">
+<!ENTITY selectDescription.label "Выберите программу, из которой хотите произвести импорт:">
+<!ENTITY selectDescription.accesskey "ы">
+<!ENTITY back.label "&lt; Назад">
+<!ENTITY forward.label "Далее &gt;">
+<!ENTITY finish.label "Готово">
+<!ENTITY cancel.label "Отмена">
+<!ENTITY select.label "или выберите то, что хотите импортировать:">
+<!ENTITY title.label "Заголовок">
+<!ENTITY processing.label "Идёт импорт…">

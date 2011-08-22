@@ -1,0 +1,7 @@
+<!ENTITY identitiesListDesc.label "תמיכה בזהויות מרובות">
+<!ENTITY identitiesListAdd.label  "הוספה…">
+<!ENTITY identitiesListAdd.accesskey  "ה">
+<!ENTITY identitiesListEdit.label "עריכה…">
+<!ENTITY identitiesListEdit.accesskey "ע">
+<!ENTITY identitiesListDelete.label "מחיקה">
+<!ENTITY identitiesListDelete.accesskey "מ">

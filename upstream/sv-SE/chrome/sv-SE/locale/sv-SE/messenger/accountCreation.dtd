@@ -1,0 +1,82 @@
+<!ENTITY autoconfigWizard.title          "Lägg till nytt konto">
+<!ENTITY name.label                      "Ditt namn:">
+<!ENTITY name.accesskey                  "D">
+<!ENTITY name.placeholder                "Förnamn Efternamn">
+<!ENTITY name.text                       "Ditt namn, som det visas för andra">
+<!ENTITY email.label                     "E-postadress:">
+<!ENTITY email.accesskey                 "E">
+<!ENTITY email.placeholder               "email@example.se">
+<!ENTITY password.label                  "Lösenord:">
+<!ENTITY password.accesskey              "L">
+<!ENTITY password.placeholder            "Lösenord">
+<!ENTITY password.text                   "Frivilligt, kommer endast användas för att bekräfta användarnamnet">
+<!ENTITY rememberPassword.label          "Spara lösenord">
+<!ENTITY rememberPassword.accesskey      "S">
+
+<!ENTITY imapLong.label                  "IMAP (fjärrmappar)">
+<!ENTITY pop3Long.label                  "POP3 (lagra e-posten på datorn)">
+
+<!ENTITY incoming.label                  "Inkommande:">
+<!ENTITY outgoing.label                  "Utgående:">
+<!ENTITY username.label                  "Användarnamn:">
+<!ENTITY hostname.label                  "Serverns värdnamn">
+<!ENTITY port.label                      "Port">
+<!ENTITY ssl.label                       "SSL">
+<!ENTITY auth.label                      "Autentisering">
+<!ENTITY imap.label                      "IMAP">
+<!ENTITY pop3.label                      "POP3">
+<!ENTITY smtp.label                      "SMTP">
+<!ENTITY autodetect.label                "Välj automatiskt">
+<!-- LOCALIZATION NOTE(noEncryption.label): Neither SSL/TLS nor STARTTLS.
+     Transmission of emails in cleartext over the Internet. -->
+<!ENTITY noEncryption.label              "Ingen">
+<!ENTITY starttls.label                  "STARTTLS">
+<!ENTITY sslTls.label                    "SSL/TLS">
+
+<!ENTITY advancedSetup.label             "Avancerade inställningar">
+<!ENTITY advancedSetup.accesskey         "v">
+<!ENTITY cancel.label                    "Avbryt">
+<!ENTITY cancel.accesskey                "A">
+<!ENTITY continue.label                  "Fortsätt">
+<!ENTITY continue.accesskey              "F">
+<!ENTITY stop.label                      "Stoppa">
+<!ENTITY stop.accesskey                  "S">
+<!-- LOCALIZATION NOTE (half-manual-test.label): This is the text that is
+     displayed on the button in manual edit mode which will re-guess
+     the account configuration, taking into account the settings that
+     the user has manually changed. -->
+<!ENTITY half-manual-test.label          "Testa igen">
+<!ENTITY half-manual-test.accesskey      "T">
+<!ENTITY manual-edit.label               "Manuell inställning">
+<!ENTITY manual-edit.accesskey           "M">
+
+
+<!ENTITY warning.label                   "Varning!">
+<!ENTITY incomingSettings.label          "Inställningar för inkommande:">
+<!ENTITY outgoingSettings.label          "Inställningar för utgående:">
+<!ENTITY technicaldetails.label          "Tekniska detaljer">
+<!-- LOCALIZATION NOTE (confirmWarning.label): If there is a security
+     warning on the outgoing server, then the user will need to check a
+     checkbox beside this text before continuing. -->
+<!ENTITY confirmWarning.label            "Jag förstår riskerna.">
+<!ENTITY confirmWarning.accesskey        "J">
+<!-- LOCALIZATION NOTE (createAccount.label): If there is a security warning
+     on the incoming or outgoing servers, then the page that pops up will
+     have this text in a button to continue by creating the account. -->
+<!ENTITY createAccount.label             "Skapa konto">
+<!ENTITY createAccount.accesskey         "S">
+<!-- LOCALIZATION NOTE (changeSettings.label): If there is a security warning on
+     the incoming or outgoing servers, then the page that pops up will have
+     this text in a button to take you back to the previous page to change
+     the settings and try again. -->
+<!ENTITY changeSettings.label            "Ändra inställningarna">
+<!ENTITY changeSettings.accesskey        "Ä">
+
+<!ENTITY contactYourProvider.description "&brandShortName; kan låta dig hämta e-post med de angivna inställningarna. Du bör dock kontakta din administratör eller e-postleverantör rörande denna olämpliga anslutning. Se Thunderbird FAQ för mer information.">
+
+<!ENTITY insecureServer.tooltip.title    "Varning! Det här är en osäker server.">
+<!ENTITY insecureServer.tooltip.details  "Klicka på cirkeln för fler detaljer.">
+
+<!ENTITY insecureUnencrypted.description "E-posten och inloggningsuppgifterna skickas i klartext, så lösenord och meddelanden kan enkelt läsas av obehöriga. &brandShortName; låter dig komma åt din e-post men du bör försöka få din e-postleverantör att konfigurera servern för en säker anslutning.">
+<!ENTITY insecureSelfSigned.description  "Servern använder ett certifikat som inte är betrott, så vi kan inte vara säkra på ingen avlyssnar trafiken mellan &brandShortName; och servern. &brandShortName; låter dig komma åt din e-post men du bör försöka få din e-postleverantör att konfigurera servern med ett betrott certifikat.">
+<!ENTITY secureServer.description        "Gratulerar! Det här är en säker server.">

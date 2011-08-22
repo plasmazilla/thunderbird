@@ -1,0 +1,18 @@
+<!ENTITY addressbookPicker.label            "פנקס כתובות">
+<!ENTITY addressbookPicker.accesskey        "פ">
+<!ENTITY searchInput.label                  "חפש את:">
+<!ENTITY searchInput.accesskey              "ח">
+<!ENTITY SearchNameOrEmail.label            "שם או דוא״ל">
+
+<!ENTITY deleteAddrBookCard.label           "מחיקה">
+<!ENTITY addrBookCardProperties.label       "מאפיינים">
+<!ENTITY addtoToFieldMenu.label             "הוסף לשדה אל:">
+<!ENTITY addtoCcFieldMenu.label             "הוסף לשדה עותק">
+<!ENTITY addtoBccFieldMenu.label            "הוסף לשדה עותק סמוי">
+
+<!ENTITY toButton.label                     "הוסף לשורה אל:">
+<!ENTITY toButton.accesskey                 "א">
+<!ENTITY ccButton.label                     "הוסף לעותק:">
+<!ENTITY ccButton.accesskey                 "ע">
+<!ENTITY bccButton.label                    "הוסף עותק סמוי:">
+<!ENTITY bccButton.accesskey                "ס">

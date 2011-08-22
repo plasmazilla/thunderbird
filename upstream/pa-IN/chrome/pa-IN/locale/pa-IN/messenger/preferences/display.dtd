@@ -1,0 +1,47 @@
+<!ENTITY itemFormatting.label             "ਫਾਰਮੈਟ">
+<!ENTITY itemTags.label                   "ਟੈਗ">
+
+<!ENTITY style.label                      "ਸਟਾਇਲ:">
+<!ENTITY style.accesskey                  "y">
+<!ENTITY regularStyle.label               "ਨਿਯਮਤ">
+<!ENTITY bold.label                       "ਗੂੜਾ">
+<!ENTITY italic.label                     "ਤਿਰਛਾ">
+<!ENTITY boldItalic.label                 "ਗੂੜ੍ਹਾ ਤਿਰਛਾ">
+<!ENTITY size.label                       "ਆਕਾਰ:">
+<!ENTITY size.accesskey                   "s">
+<!ENTITY regularSize.label                "ਨਿਯਮਤ">
+<!ENTITY bigger.label                     "ਹੋਰ ਵੱਡਾ">
+<!ENTITY smaller.label                    "ਹੋਰ ਛੋਟਾ">
+<!ENTITY color.label                      "ਰੰਗ:">
+<!ENTITY color.accesskey                  "c">
+<!ENTITY displayWidth.label               "ਪਲੇਨ ਟੈਕਸਟ ਸੁਨੇਹਾ">
+<!ENTITY displayText.label                "When displaying quoted plain text messages:">
+<!ENTITY colors.label                     "Colors">
+<!ENTITY overrideColors.label             "When displaying messages, use the following colors:">
+<!ENTITY textColor.label                  "ਟੈਕਸਟ ਰੰਗ:">
+<!ENTITY textColor.accesskey              "T">
+<!ENTITY backgroundColor.label            "ਬੈਕਗਰਾਊਂਡ ਰੰਗ:">
+<!ENTITY backgroundColor.accesskey        "b">
+
+<!-- LOCALIZATION NOTE : (emoticonsAndStructs.label) 'Emoticons' are also known as 'Smileys', e.g. :-)   -->
+<!ENTITY convertEmoticons.label        "Display emoticons as graphics">
+<!ENTITY convertEmoticons.accesskey    "D">
+
+<!-- labels -->
+<!ENTITY displayTagsText.label     "Tags can be used to categorize and prioritize your messages.">
+<!ENTITY addTagButton.label        "ਸ਼ਾਮਲ">
+<!ENTITY addTagButton.accesskey    "A">
+<!ENTITY editTagButton.label       "ਸੋਧ">
+<!ENTITY editTagButton.accesskey   "E">
+<!ENTITY removeTagButton.label     "ਹਟਾਓ">
+<!ENTITY removeTagButton.accesskey "D">
+
+<!-- Fonts -->
+<!ENTITY fontsAndColors.label    "ਫੋਂਟ">
+<!ENTITY defaultFont.label       "ਡਿਫਾਲਟ ਫੋਂਟ:">
+<!ENTITY defaultFont.accesskey   "D">
+<!ENTITY defaultSize.label       "ਆਕਾਰ:">
+<!ENTITY defaultSize.accesskey   "S">
+<!ENTITY fontOptions.accesskey   "A">
+<!ENTITY fontOptions.label       "ਤਕਨੀਕੀ…">
+

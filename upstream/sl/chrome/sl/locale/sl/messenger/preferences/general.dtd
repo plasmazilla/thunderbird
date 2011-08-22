@@ -1,0 +1,35 @@
+<!ENTITY messengerStartPage.label         "&brandShortName;: domača stran">
+<!ENTITY enableStartPage.label            "Ko se &brandShortName; zažene, prikaži domačo stran v polju sporočila">
+<!ENTITY enableStartPage.accesskey        "L">
+<!ENTITY location.label                   "Mesto:">
+<!ENTITY location1.accesskey               "B">
+<!ENTITY useDefault.label                 "Ponastavi privzeto">
+<!ENTITY useDefault.accesskey             "D">
+
+<!ENTITY bounceSystemDockIcon.label       "Animiraj ikono">
+<!ENTITY bounceSystemDockIcon.accesskey   "L">
+
+<!ENTITY newMessagesArrive.label          "Ko prispejo nova sporočila:">
+<!ENTITY playSound.label                  "Predvajaj zvok">
+<!ENTITY playSound1.accesskey              "p">
+<!ENTITY showAnimatedAlert.label          "Pokaži opozorilo">
+<!ENTITY showAnimatedAlert.accesskey      "b">
+<!ENTITY customizeMailAlert.label         "Prilagodi …">
+<!ENTITY customizeMailAlert.accesskey     "z">
+
+<!ENTITY play.label                       "Predvajaj">
+<!ENTITY play.accesskey                   "P">
+<!ENTITY systemsound.label                "Privzeti sistemski zvok za novo pošto">
+<!ENTITY systemsoundMac.label             "Zvok za sistemsko opozorilo">
+<!ENTITY systemsoundMac.accesskey         "n">
+<!ENTITY systemsound.accesskey            "n">
+<!ENTITY customsound.label                "Uporabi naslednjo zvočno datoteko">
+<!ENTITY customsound.accesskey            "U">
+<!ENTITY browse.label                     "Prebrskaj …">
+<!ENTITY browse.accesskey                 "B">
+
+<!ENTITY addonsMgr.label                  "Razširitve in teme">
+<!ENTITY manageAddonsDescWin.label        "Spremeni nastavitve razširitev in tem">
+<!ENTITY manageAddonsDescUnix2.label      "Spremeni nastavitve razširitev in tem">
+<!ENTITY manageAddons.label               "Urejaj razširitve">
+<!ENTITY manageAddons.accesskey           "M">

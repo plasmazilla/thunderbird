@@ -1,0 +1,90 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
+   -
+   - The contents of this file are subject to the Mozilla Public License Version
+   - 1.1 (the "License"); you may not use this file except in compliance with
+   - the License. You may obtain a copy of the License at
+   - http://www.mozilla.org/MPL/
+   -
+   - Software distributed under the License is distributed on an "AS IS" basis,
+   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   - for the specific language governing rights and limitations under the
+   - License.
+   -
+   - Contributor(s):
+   -   Gintautas Grigas <grigas@ktl.mii.lt>
+   -   Tatjana Jevsikova <tatjanaj@julius.ktl.mii.lt>
+   -   Rimas Kudelis <rq@akl.lt>
+   -
+   - Alternatively, the contents of this file may be used under the terms of
+   - either the GNU General Public License Version 2 or later (the "GPL"), or
+   - the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+   - in which case the provisions of the GPL or the LGPL are applicable instead
+   - of those above. If you wish to allow use of your version of this file only
+   - under the terms of either the GPL or the LGPL, and not to allow others to
+   - use your version of this file under the terms of the MPL, indicate your
+   - decision by deleting the provisions above and replace them with the notice
+   - and other provisions required by the LGPL or the GPL. If you do not delete
+   - the provisions above, a recipient may use your version of this file under
+   - the terms of any one of the MPL, the GPL or the LGPL.
+   -
+   - ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY itemJunk.label          "Brukalas">
+<!ENTITY itemPhishing.label      "Apgaulingi laiškai">
+<!ENTITY itemPasswords.label     "Slaptažodžiai">
+<!ENTITY itemAntiVirus.label     "Antivirusinė apsauga">
+<!ENTITY itemCookies.label       "Saitynas">
+
+<!-- Junk Mail Controls -->
+<!ENTITY junkMail.intro "Brukalo kontrolės nuostatos atskiroms paskyroms parenkamos paskyrų nuostatų lange.">
+<!ENTITY manualMark.label "Pažymėjus, kad laiškai yra brukalas:">
+<!ENTITY manualMark.accesskey "P">
+<!ENTITY manualMarkModeMove.label "perkelti juos į paskyros aplanką „Brukalas“">
+<!ENTITY manualMarkModeMove.accesskey "k">
+<!ENTITY manualMarkModeDelete.label "pašalinti juos">
+<!ENTITY manualMarkModeDelete.accesskey "š">
+<!ENTITY markAsReadOnSpam.label "Laiškus, įgijusius brukalo statusą, žymėti kaip skaitytus">
+<!ENTITY markAsReadOnSpam.accesskey "L">
+<!ENTITY enableJunkLogging.label "Įrašyti brukalo filtravimo veiksmus">
+<!ENTITY enableJunkLogging.accesskey "r">
+<!ENTITY openJunkLog.label "Rodyti žurnalą">
+<!ENTITY openJunkLog.accesskey "ž">
+<!ENTITY resetTrainingData.label "Atstatyti automatinės kontrolės duomenis">
+<!ENTITY resetTrainingData.accesskey "t">
+
+<!-- Phishing Detector -->
+<!ENTITY phishingDetector1.intro      "Analizuodama gaunamus laiškus programa gali patikrinti, ar juose nėra apgaulės.">
+<!ENTITY enablePhishingDetector1.label    "Tikrinti, ar gaunamuose laiškuose nėra apgaulės">
+<!ENTITY enablePhishingDetector1.accesskey  "T">
+<!ENTITY useDownloadedList.label "Naudoti atsiųstą įtartinų laiškų sąrašą">
+<!ENTITY useDownloadedList.accesskey "N">
+
+<!-- Passwords -->
+<!ENTITY savedPasswords.intro           "Programa „&brandShortName;“ gali įsiminti visų paskyrų slaptažodžius.">
+<!ENTITY useMasterPassword.label        "Naudoti pagrindinį slaptažodį">
+<!ENTITY useMasterPassword.accesskey    "N">
+<!ENTITY masterPassword.intro           "Pagrindinis slaptažodis apsaugos visus slaptažodžius. Jis turi būti pateikiamas programai kartą per seansą.">
+<!ENTITY changeMasterPassword.label     "Pakeisti pagrindinį slaptažodį…">
+<!ENTITY changeMasterPassword.accesskey "k">
+<!ENTITY savedPasswords.label           "Įrašyti slaptažodžiai…">
+<!ENTITY savedPasswords.accesskey       "s">
+
+<!-- Anti Virus -->
+<!ENTITY antiVirus.intro      "Prieš įrašydama gaunamus laiškus, programa „&brandShortName;“ gali leisti antivirusinei programai patikrinti, ar juose nėra virusų.">
+<!ENTITY antiVirus.label      "Leisti antivirusinei programai izoliuoti įtartinus laiškus">
+<!ENTITY antiVirus.accesskey  "L">
+
+<!-- Cookies -->
+<!ENTITY cookies.intro                  "Čia galite nurodyti, kuriems tinklaraščiams, naujienų srautams ir kitoms svetainėms leisti įrašyti slapukus.">
+<!ENTITY acceptCookies.label            "Leisti įrašyti slapukus">
+<!ENTITY acceptCookies.accesskey        "s">
+<!ENTITY keepUntil.label                "Laikyti iki:">
+<!ENTITY keepUntil.accesskey            "k">
+<!ENTITY expire.label                   "jų galiojimo laiko pabaigos">
+<!ENTITY close.label                    "„&brandShortName;“ seanso pabaigos">
+<!ENTITY askEachTime.label              "klausti prieš priimant slapuką">
+<!ENTITY cookieExceptions.label         "Išimtys…">
+<!ENTITY cookieExceptions.accesskey     "I">
+<!ENTITY showCookies.label              "Rodyti slapukus…">
+<!ENTITY showCookies.accesskey          "R">

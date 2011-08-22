@@ -1,0 +1,40 @@
+<!ENTITY aboutSupport.pageTitle "Technické informace">
+
+<!-- LOCALIZATION NOTE (aboutSupport.pageSubtitle): don't change the 'supportLink' id. -->
+<!ENTITY aboutSupport.pageSubtitle "
+Tato stránka obsahuje technické informace, které mohou být užitečné, pokud se snažíte
+vyřešit nějaký složitější problém s aplikací. Odpovědi na často kladené otázky ohledně
+aplikace &brandShortName; naleznete na <a id='supportLink'>webových stránkách podpory</a>.
+">
+
+<!ENTITY aboutSupport.extensionsTitle "Rozšíření">
+<!ENTITY aboutSupport.extensionName "Název">
+<!ENTITY aboutSupport.extensionEnabled "Povoleno">
+<!ENTITY aboutSupport.extensionVersion "Verze">
+<!ENTITY aboutSupport.extensionId "Id">
+
+<!ENTITY aboutSupport.appBasicsTitle "Stručně o aplikaci">
+<!ENTITY aboutSupport.appBasicsName "Název">
+<!ENTITY aboutSupport.appBasicsVersion "Verze">
+<!ENTITY aboutSupport.appBasicsProfileDir "Složka s profilem">
+<!ENTITY aboutSupport.appBasicsEnabledPlugins "Povolené zásuvné moduly">
+<!ENTITY aboutSupport.appBasicsBuildConfig "Nastavení sestavení">
+<!ENTITY aboutSupport.appBasicsUserAgent "Identifikace prohlížeče">
+
+<!ENTITY aboutSupport.show.label "Otevřít složku">
+
+<!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
+variant of aboutSupport.show.label.  This allows us to use the preferred
+"Finder" terminology on Mac. -->
+<!ENTITY aboutSupport.showMac.label "Zobrazit ve Finderu">
+
+<!ENTITY aboutSupport.modifiedPrefsTitle "Změněné předvolby">
+<!ENTITY aboutSupport.modifiedPrefsName "Název">
+<!ENTITY aboutSupport.modifiedPrefsValue "Hodnota">
+
+<!ENTITY aboutSupport.graphicsTitle "Grafika">
+
+<!ENTITY aboutSupport.installationHistoryTitle "Historie instalací">
+<!ENTITY aboutSupport.updateHistoryTitle "Aktualizovat historii">
+
+<!ENTITY aboutSupport.copyToClipboard.label "Zkopírovat vše do schránky">

@@ -1,7 +1,0 @@
-<!ENTITY  newMessageCmd2.key              "N">
-<!ENTITY  newMessageCmd.key               "M">
-<!ENTITY  newMessageCmd.label             "Mesazh">
-<!ENTITY  newMessageCmd.accesskey         "M">
- 
-<!ENTITY  newContactCmd.label             "Kartë Libri Vendndodhjesh…">
-<!ENTITY  newContactCmd.accesskey         "V">

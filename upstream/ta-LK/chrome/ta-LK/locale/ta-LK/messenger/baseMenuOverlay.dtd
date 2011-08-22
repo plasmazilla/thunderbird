@@ -1,0 +1,33 @@
+<!-- Help Menu -->
+<!ENTITY helpMenu.label "உதவி">
+<!ENTITY helpMenu.accesskey "H">
+<!-- LOCALIZATION NOTE some localizations of Windows use "?"
+                       for the help button in the menubar but Gnome does not.   -->
+<!ENTITY helpMenuWin.label "உதவி">
+<!ENTITY helpMenuWin.accesskey "H">
+<!ENTITY whatsNewCmd.label "What's New">
+<!ENTITY whatsNewCmd.accesskey "W">
+<!ENTITY openHelp.label "உதவி உள்ளடக்கங்கள்">
+<!ENTITY openHelp.accesskey "H">
+<!ENTITY openHelp.commandkey "VK_F1">
+<!ENTITY openHelpMac.label "&brandShortName; உதவி">
+<!ENTITY openHelpMac2.commandkey   "?">
+<!ENTITY openHelpMac2.modifiers    "accel">
+
+
+
+<!--
+Entities below were automatically added by compare-locales,
+ based on en-US entities.
+-->
+
+<!ENTITY aboutMenuCmd.accesskey "A">
+<!ENTITY featureConfiguratorCmd.accesskey "M">
+<!ENTITY releaseCmd2.label "Release Notes">
+<!ENTITY releaseCmd2.accesskey "N">
+<!ENTITY helpTroubleshootingInfo.accesskey "T">
+<!ENTITY helpSafeMode.label "Restart with Add-ons Disabled…">
+<!ENTITY aboutMenuCmd.label "About &brandShortName;">
+<!ENTITY helpSafeMode.accesskey "R">
+<!ENTITY helpTroubleshootingInfo.label "Troubleshooting Information">
+<!ENTITY featureConfiguratorCmd.label "Migration Assistant">

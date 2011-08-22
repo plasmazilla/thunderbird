@@ -1,0 +1,41 @@
+<!ENTITY window.title "Rialacha Scagtha">
+<!ENTITY filterEditorDialog.dimensions "width: 100ch;">
+<!ENTITY filterName.label "Ainm an scagaire:">
+<!ENTITY filterName.accesskey "i">
+
+<!ENTITY junk.label "Dramhphost">
+<!ENTITY notJunk.label "Post Ceart">
+
+<!ENTITY lowestPriorityCmd.label "Is Ísle">
+<!ENTITY lowPriorityCmd.label "Íseal">
+<!ENTITY normalPriorityCmd.label "Gnách">
+<!ENTITY highPriorityCmd.label "Ard">
+<!ENTITY highestPriorityCmd.label "Is Airde">
+
+<!ENTITY contextDesc.label "Cuir an scagaire seo i bhfeidhm agus:">
+<!ENTITY contextDesc.accesskey "f">
+<!ENTITY contextIncoming.label "ríomhphost á sheiceáil">
+<!ENTITY contextManual.label "scagaire á rith de láimh">
+<!ENTITY contextBoth.label "ríomhphost á sheiceáil nó an scagaire á rith de láimh">
+<!ENTITY contextPostPlugin.label "ríomhphost á sheiceáil (tar éis rangaithe)">
+<!ENTITY contextPostPluginBoth.label "ríomhphost á sheiceáil (tar éis rangaithe) nó rite le láimh">
+<!ENTITY filterActionDesc.label "Déan na gníomhartha seo:">
+<!ENTITY filterActionDesc.accesskey "g">
+<!-- New Style Filter Rule Actions -->
+
+<!ENTITY moveMessage.label "Bog an teachtaireacht go">
+<!ENTITY copyMessage.label "Cóipeáil an teachtaireacht go">
+<!ENTITY forwardTo.label "Cuir an teachtaireacht ar aghaidh chuig">
+<!ENTITY replyWithTemplate.label "Freagair le teimpléad">
+<!ENTITY markMessageRead.label "Marcáil mar léite">
+<!ENTITY markMessageStarred.label "Cuir réiltín leis">
+<!ENTITY setPriority.label "Socraigh tosaíocht mar">
+<!ENTITY addTag.label "Clibeáil an teachtaireacht">
+<!ENTITY setJunkScore.label "Socraigh stádas dramhphoist mar">
+<!ENTITY deleteMessage.label "Scrios an teachtaireacht">
+<!ENTITY deleteFromPOP.label "Scrios ar an bhfreastalaí POP">
+<!ENTITY fetchFromPOP.label "Faigh ón bhfreastalaí POP">
+<!ENTITY ignoreThread.label "Tabhair Neamhaird ar an Snáithe">
+<!ENTITY ignoreSubthread.label "Tabhair Neamhaird ar an bhFoshnáithe">
+<!ENTITY watchThread.label "Bí ag Faire ar an Snáithe">
+<!ENTITY stopExecution.label "Stop rith an scagaire">

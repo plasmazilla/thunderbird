@@ -1,0 +1,147 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+ Version: MPL 1.1/GPL 2.0/LGPL 2.1
+
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License. You may obtain a copy of the License at
+ http://www.mozilla.org/MPL/
+
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+
+ The Original Code is Mozilla Communicator client code, released
+ March 31, 1998.
+
+ The Initial Developer of the Original Code is
+ Netscape Communications Corporation.
+ Portions created by the Initial Developer are Copyright (C) 1998-1999
+ the Initial Developer. All Rights Reserved.
+
+ Contributor(s):
+
+ Alternatively, the contents of this file may be used under the terms of
+ either the GNU General Public License Version 2 or later (the "GPL"), or
+ the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ in which case the provisions of the GPL or the LGPL are applicable instead
+ of those above. If you wish to allow use of your version of this file only
+ under the terms of either the GPL or the LGPL, and not to allow others to
+ use your version of this file under the terms of the MPL, indicate your
+ decision by deleting the provisions above and replace them with the notice
+ and other provisions required by the GPL or the LGPL. If you do not delete
+ the provisions above, a recipient may use your version of this file under
+ the terms of any one of the MPL, the GPL or the LGPL.
+
+ ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY toField2.label "إلى">
+<!ENTITY fromField2.label "من">
+<!ENTITY senderField2.label "المرسِل">
+<!ENTITY organizationField2.label "المنظمة">
+<!ENTITY replyToField2.label "رد غلى">
+
+<!ENTITY subjectField2.label "الموضوع">
+<!--# LOCALIZATION NOTE (ccField2.label): DONT_TRANSLATE -->
+<!ENTITY ccField2.label "cc ">
+<!ENTITY bccField2.label "نسخة كربونية مخفية إلى ">
+<!ENTITY newsgroupsField2.label "مجموعات الأخبار ">
+<!ENTITY followupToField2.label "ملحق إلى ">
+<!ENTITY tagsHdr2.label "وسوم ">
+<!ENTITY dateField2.label "التاريخ ">
+<!ENTITY userAgentField2.label "عميل المستخدم ">
+<!ENTITY referencesField2.label "المَراجع ">
+<!ENTITY messageIdField2.label "معرّف الرسالة ">
+<!ENTITY inReplyToField2.label "ردًّا على ">
+<!ENTITY originalWebsite2.label "موقع الوب ">
+
+<!ENTITY editMessageDescription.label "هذه رسالة مسوّدة">
+<!ENTITY editMessageButton.label "حرّر…">
+<!ENTITY hdrArchiveButton.label "أرشِف">
+<!ENTITY hdrArchiveButton.tooltip "أرشِف هذه الرسالة">
+<!ENTITY hdrReplyButton.label "ردّ">
+<!ENTITY hdrReplyButton.tooltip "ردّ على هذه الرسالة">
+<!ENTITY hdrReplyAllButton.label "ردّ على الكل">
+<!ENTITY hdrReplyAllButton.tooltip "ردّ على المرسِل وكل المستلمين">
+<!ENTITY hdrReplyListButton.label "ردّ على القائمة">
+<!ENTITY hdrReplyListButton.tooltip "ردّ على القائمة البريدية">
+<!ENTITY hdrForwardButton.label "مرّر">
+<!ENTITY hdrForwardButton.tooltip "مرّر هذه الرسالة">
+<!ENTITY hdrJunkButton.label "سُخام">
+<!ENTITY hdrJunkButton.tooltip "عامِل هذه الرسالة كسُخام">
+<!ENTITY hdrTrashButton.label "احذف">
+<!ENTITY hdrTrashButton.tooltip "احذف هذه الرسالة">
+
+<!ENTITY hdrViewToolbarShowFull.label "أظهِر الأيقونات والنص">
+<!ENTITY hdrViewToolbarShowFull.accesskey "ت">
+<!ENTITY hdrViewToolbarShowIcons.label "أظهِر الأيقونات فقط">
+<!ENTITY hdrViewToolbarShowIcons.accesskey "ن">
+<!ENTITY hdrViewToolbarShowText.label "أظهِر النص فقط">
+<!ENTITY hdrViewToolbarShowText.accesskey "ص">
+<!ENTITY hdrViewToolbarAlwaysReplySender.label "أظهِر دائمًا ردّ على المرسِل">
+<!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "ر">
+
+<!ENTITY otherActionsButton.label "إجراءات أخرى">
+<!ENTITY otherActionsOpenConversation.label "افتح في محادثة">
+<!ENTITY otherActionsOpenConversation.accesskey "ث">
+<!ENTITY otherActionsOpenInNewWindow.label "افتح في نافذة جديدة">
+<!ENTITY otherActionsOpenInNewWindow.accesskey "ن">
+<!ENTITY otherActionsOpenInNewTab.label "افتح في لسان جديد">
+<!ENTITY otherActionsOpenInNewTab.accesskey "ل">
+<!ENTITY markAsReadMenuItem.label "اجعلها مقروءة">
+<!ENTITY markAsReadMenuItem.accesskey "ء">
+<!ENTITY markAsUnreadMenuItem.label "اجعلها غير مقروءة">
+<!ENTITY markAsUnreadMenuItem.accesskey "ة">
+<!ENTITY saveAsMenuItem.label "احفظ ك‍…">
+<!ENTITY saveAsMenuItem.accesskey "ظ">
+<!ENTITY viewSourceMenuItem.label "اعرض المصدر…">
+<!ENTITY viewSourceMenuItem.accesskey "ص">
+<!ENTITY otherActionsPrint.label "اطبع…">
+<!ENTITY otherActionsPrint.accesskey "ط">
+<!-- Attachment context menu items -->
+
+<!ENTITY openAttachmentCmd.label "افتح">
+<!ENTITY openAttachmentCmd.accesskey "ف">
+<!ENTITY saveAsAttachmentCmd.label "احفظ ك‍…">
+<!ENTITY saveAsAttachmentCmd.accesskey "ك">
+<!ENTITY detachAttachmentCmd.label "ألغِ إرفاق…">
+<!ENTITY detachAttachmentCmd.accesskey "ق">
+<!ENTITY deleteAttachmentCmd.label "احذف">
+<!ENTITY deleteAttachmentCmd.accesskey "ذ">
+<!ENTITY openAllAttachmentsCmd.label "افتح الكل…">
+<!ENTITY openAllAttachmentsCmd.accesskey "ك">
+<!ENTITY saveAllAttachmentsCmd.label "احفظ الكل…">
+<!ENTITY saveAllAttachmentsCmd.accesskey "ح">
+<!ENTITY detachAllAttachmentsCmd.label "ألغ إرفاق الكل…">
+<!ENTITY detachAllAttachmentsCmd.accesskey "غ">
+<!ENTITY deleteAllAttachmentsCmd.label "احذف الكل…">
+<!ENTITY deleteAllAttachmentsCmd.accesskey "ف">
+<!-- Attachment toolbar items -->
+
+<!ENTITY saveAttachmentButton.label "احفظ">
+<!ENTITY saveAttachmentButton.tooltip "يحفظ الملف المرفق">
+<!ENTITY saveAllAttachmentsButton.label "احفظ الكل">
+<!ENTITY saveAllAttachmentsButton.tooltip "يحفظ جميع الملفات المرفقة">
+<!ENTITY openAttachmentMenuItem.label "افتح">
+<!ENTITY openAttachmentMenuItem.accesskey "ح">
+<!ENTITY saveAsAttachmentMenuItem.label "احفظ ك‍…">
+<!ENTITY saveAsAttachmentMenuItem.accesskey "ك">
+<!ENTITY detachAttachmentMenuItem.label "ألغِ إرفاق…">
+<!ENTITY detachAttachmentMenuItem.accesskey "ل">
+<!ENTITY deleteAttachmentMenuItem.label "احذف">
+<!ENTITY deleteAttachmentMenuItem.accesskey "ف">
+<!ENTITY openAllAttachmentsMenuItem.label "افتح الكل…">
+<!ENTITY openAllAttachmentsMenuItem.accesskey "ل">
+<!ENTITY saveAllAttachmentsMenuItem.label "احفظ الكل…">
+<!ENTITY saveAllAttachmentsMenuItem.accesskey "ظ">
+<!ENTITY detachAllAttachmentsMenuItem.label "ألغِ إرفاق الكل…">
+<!ENTITY detachAllAttachmentsMenuItem.accesskey "ر">
+<!ENTITY deleteAllAttachmentsMenuItem.label "احذف الكل…">
+<!ENTITY deleteAllAttachmentsMenuItem.accesskey "ح">
+
+<!ENTITY copyLinkCmd.label "انسخ موقع الرابط">
+<!ENTITY copyLinkCmd.accesskey "خ">
+
+<!ENTITY CopyMessageId.label "انسخ معرّف الرسالة">
+<!ENTITY OpenMessageForMsgId.label "افتح الرسالة من أجل المعرّف">
+<!ENTITY OpenBrowserWithMsgId.label "افتح المتصفح مع معرّف الرسالة">

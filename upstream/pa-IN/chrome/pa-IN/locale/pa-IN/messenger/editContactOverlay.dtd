@@ -1,0 +1,20 @@
+<!ENTITY editContactPanelDeleteContact.label "ਹਟਾਓ">
+<!ENTITY editContactPanelDeleteContact.accesskey "l">
+
+<!ENTITY editContactName.label "ਨਾਂ:">
+<!ENTITY editContactName.accesskey "N">
+
+<!ENTITY editContactEmail.label "ਈਮੇਲ:">
+<!ENTITY editContactEmail.accesskey "E">
+
+<!ENTITY editContactAddressBook.label "ਐਡਰੈਸ ਬੁੱਕ:">
+<!ENTITY editContactAddressBook.accesskey "A">
+
+<!ENTITY editContactPanelCancel.label "ਰੱਦ ਕਰੋ">
+<!ENTITY editContactPanelCancel.accesskey "C">
+
+<!ENTITY editContactPanelDone.label "ਮੁਕੰਮਲ">
+<!ENTITY editContactPanelDone.accesskey "D">
+
+<!ENTITY contactMoveDisabledWarning.description "You can't change the address book because the contact is in a mailing list.">
+

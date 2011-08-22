@@ -1,0 +1,39 @@
+<!ENTITY aboutSupport.pageTitle "Informació per a la resolució de problemes">
+
+<!-- LOCALIZATION NOTE (aboutSupport.pageSubtitle): don't change the 'supportLink' id. -->
+<!ENTITY aboutSupport.pageSubtitle "
+  Aquesta pàgina conté informació tècnica que pot ser útil quan proveu de resoldre un problema. Si cerqueu respostes per a preguntes freqüents
+  del &brandShortName;, visiteu el nostre <a id='supportLink'>lloc web d'assistència</a>.
+">
+
+<!ENTITY aboutSupport.extensionsTitle "Extensions">
+<!ENTITY aboutSupport.extensionName "Nom">
+<!ENTITY aboutSupport.extensionEnabled "Habilitada">
+<!ENTITY aboutSupport.extensionVersion "Versió">
+<!ENTITY aboutSupport.extensionId "ID">
+
+<!ENTITY aboutSupport.appBasicsTitle "Paràmetres bàsics de l'aplicació">
+<!ENTITY aboutSupport.appBasicsName "Nom">
+<!ENTITY aboutSupport.appBasicsVersion "Versió">
+<!ENTITY aboutSupport.appBasicsProfileDir "Directori del perfil">
+<!ENTITY aboutSupport.appBasicsEnabledPlugins "Connectors habilitats">
+<!ENTITY aboutSupport.appBasicsBuildConfig "Configuració de la versió">
+<!ENTITY aboutSupport.appBasicsUserAgent "Agent d'usuari">
+
+<!ENTITY aboutSupport.show.label "Obre la carpeta on es troba">
+
+<!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
+variant of aboutSupport.show.label.  This allows us to use the preferred
+"Finder" terminology on Mac. -->
+<!ENTITY aboutSupport.showMac.label "Mostra-ho en el Finder">
+
+<!ENTITY aboutSupport.modifiedPrefsTitle "Preferències modificades">
+<!ENTITY aboutSupport.modifiedPrefsName "Nom">
+<!ENTITY aboutSupport.modifiedPrefsValue "Valor">
+
+<!ENTITY aboutSupport.graphicsTitle "Gràfics">
+
+<!ENTITY aboutSupport.installationHistoryTitle "Historial d'instal·lació">
+<!ENTITY aboutSupport.updateHistoryTitle "Historial d'actualització">
+
+<!ENTITY aboutSupport.copyToClipboard.label "Copia-ho tot al portaretalls">

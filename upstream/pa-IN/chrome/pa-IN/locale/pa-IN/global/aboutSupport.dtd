@@ -1,0 +1,40 @@
+<!ENTITY aboutSupport.pageTitle "ਸਮੱਸਿਆ ਹੱਲ਼ ਜਾਣਕਾਰੀ">
+
+<!-- LOCALIZATION NOTE (aboutSupport.pageSubtitle): don't change the 'supportLink' id. -->
+<!ENTITY aboutSupport.pageSubtitle "
+  ਇਹ ਸਫ਼ੇ ਉੱਤੇ ਤਕਨੀਕੀ ਜਾਣਕਾਰੀ ਹੈ, ਜੋ ਕਿ ਤੁਹਾਨੂੰ ਸਮੱਸਿਆ ਹੱਲ਼ ਕਰਨ ਲਈ ਫਾਇਦੇਮੰਦ
+  ਹੋ ਸਕਦੀ ਹੈ। ਜੇ ਤੁਸੀਂ &brandShortName; ਬਾਰੇ ਆਮ ਸਵਾਦ ਦੇ ਜਵਾਬ ਲੱਭ ਰਹੇ ਹੋ ਤਾਂ
+ ਸਾਡੀ <a id='supportLink'>ਸਪੋਰਟ ਵੈੱਬ ਸਾਈਟ</a> ਨੂੰ ਵੇਖੋ ਜੀ।
+">
+
+<!ENTITY aboutSupport.extensionsTitle "ਇਕਸਟੈਨਸ਼ਨ">
+<!ENTITY aboutSupport.extensionName "ਨਾਂ">
+<!ENTITY aboutSupport.extensionEnabled "ਚਾਲ ਹੈ">
+<!ENTITY aboutSupport.extensionVersion "ਵਰਜਨ">
+<!ENTITY aboutSupport.extensionId "ID">
+
+<!ENTITY aboutSupport.appBasicsTitle "ਐਪਲੀਕੇਸ਼ਨ ਬੇਸਿਕ">
+<!ENTITY aboutSupport.appBasicsName "ਨਾਂ">
+<!ENTITY aboutSupport.appBasicsVersion "ਵਰਜਨ">
+<!ENTITY aboutSupport.appBasicsProfileDir "ਪਰੋਫਾਇਲ ਡਾਇਰੈਕਟਰੀ">
+<!ENTITY aboutSupport.appBasicsEnabledPlugins "ਚਾਲੂ ਪਲੱਗਇਨ">
+<!ENTITY aboutSupport.appBasicsBuildConfig "ਬਿਲਡ ਸੰਰਚਨਾ">
+<!ENTITY aboutSupport.appBasicsUserAgent "ਯੂਜ਼ਰ ਏਜੰਟ">
+
+<!ENTITY aboutSupport.show.label "ਰੱਖਣ ਵਾਲਾ ਫੋਲਡਰ ਖੋਲ੍ਹੋ">
+
+<!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
+variant of aboutSupport.show.label.  This allows us to use the preferred
+"Finder" terminology on Mac. -->
+<!ENTITY aboutSupport.showMac.label "Finder ਵਿੱਚ ਵੇਖੋ">
+
+<!ENTITY aboutSupport.modifiedPrefsTitle "ਬਦਲੀ ਗਈ ਪਸੰਦ">
+<!ENTITY aboutSupport.modifiedPrefsName "ਨਾਂ">
+<!ENTITY aboutSupport.modifiedPrefsValue "ਮੁੱਲ">
+
+<!ENTITY aboutSupport.graphicsTitle "ਗਰਾਫਿਕਸ">
+
+<!ENTITY aboutSupport.installationHistoryTitle "ਇੰਸਟਾਲੇਸ਼ਨ ਅਤੀਤ">
+<!ENTITY aboutSupport.updateHistoryTitle "ਅੱਪਡੇਟ ਅਤੀਤ">
+
+<!ENTITY aboutSupport.copyToClipboard.label "ਸਭ ਕਲਿੱਪਬੋਰਡ 'ਚ ਕਾਪੀ ਕਰੋ">
