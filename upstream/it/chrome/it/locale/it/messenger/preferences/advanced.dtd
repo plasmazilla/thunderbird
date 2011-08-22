@@ -1,0 +1,84 @@
+<!ENTITY itemGeneral.label "Generale">
+<!ENTITY itemDisplay.label "Lettura e schermo">
+<!ENTITY itemUpdate.label "Aggiornamenti">
+<!ENTITY itemNetworking.label "Rete e spazio su disco">
+<!ENTITY itemCertificates.label "Certificati">
+<!ENTITY enableGlodaSearch.label "Attiva la ricerca globale e l'indicizzazione">
+<!ENTITY enableGlodaSearch.accesskey "E">
+<!ENTITY systemIntegration.label "Integrazione col sistema">
+<!ENTITY alwaysCheckDefault.label "Controlla sempre all'avvio se &brandShortName; è il programma di posta predefinito">
+<!ENTITY alwaysCheckDefault.accesskey "A">
+<!ENTITY searchIntegration.label "Permetti a &searchIntegration.engineName; di cercare nei messaggi">
+<!ENTITY searchIntegration.accesskey "P">
+<!ENTITY checkNow.label "Controlla ora">
+<!ENTITY checkNow.accesskey "C">
+<!ENTITY configEditDesc.label "Impostazioni avanzate">
+<!ENTITY configEdit.label "Editor di configurazione…">
+<!ENTITY configEdit.accesskey "o">
+<!ENTITY returnReceiptsInfo.label "Determina come &brandShortName; gestisce le ricevute di ritorno">
+<!ENTITY showReturnReceipts.label "Ricevute di ritorno…">
+<!ENTITY showReturnReceipts.accesskey "R">
+<!ENTITY reading.caption "Lettura">
+<!ENTITY display.caption "Visualizzazione">
+<!ENTITY showCondensedAddresses.label 'Mostra solo il "nome visualizzato" per i contatti presenti nella rubrica'>
+<!ENTITY showCondensedAddresses.accesskey "o">
+<!ENTITY autoMarkAsRead.label "Marca automaticamente i messaggi come letti">
+<!ENTITY autoMarkAsRead.accesskey "u">
+<!ENTITY markAsReadNoDelay.label "Appena visualizzati">
+<!ENTITY markAsReadNoDelay.accesskey "A">
+<!ENTITY markAsReadDelay.label "Dopo averli visualizzati per">
+<!ENTITY markAsReadDelay.accesskey "D">
+<!ENTITY secondsLabel.label "secondi">
+<!ENTITY openMsgIn.label "Apri i messaggi in:">
+<!ENTITY openMsgInNewTab.label "una nuova scheda">
+<!ENTITY openMsgInNewTab.accesskey "u">
+<!ENTITY reuseExpRadio0.label "una nuova finestra">
+<!ENTITY reuseExpRadio0.accesskey "n">
+<!ENTITY reuseExpRadio1.label "nella stessa finestra">
+<!ENTITY reuseExpRadio1.accesskey "s">
+<!ENTITY closeMsgOnMoveOrDelete.label "Chiudere la finestra (linguetta) del messaggio quando si sposta o si cancella">
+<!ENTITY closeMsgOnMoveOrDelete.accesskey "C">
+<!ENTITY autoCheck.label "Controlla automaticamente la presenza di aggiornamenti per:">
+<!ENTITY enableAppUpdate.label "&brandShortName;">
+<!ENTITY enableAppUpdate.accesskey "h">
+<!ENTITY enableAddonsUpdate.label "Componenti aggiuntivi installati">
+<!ENTITY enableAddonsUpdate.accesskey "C">
+<!ENTITY whenUpdatesFound.label "Quando viene trovato un aggiornamento per &brandShortName;,">
+<!ENTITY modeAskMe.label "Chiedi che cosa fare">
+<!ENTITY modeAskMe.accesskey "e">
+<!ENTITY modeAutomatic.label "Scarica ed installa automaticamente l'aggiornamento">
+<!ENTITY modeAutomatic.accesskey "S">
+<!ENTITY modeAutoAddonWarn.label "Avvisa se verranno disattivati dei componenti aggiuntivi">
+<!ENTITY modeAutoAddonWarn.accesskey "A">
+<!ENTITY showUpdates.label "Mostra cronologia aggiornamenti">
+<!ENTITY showUpdates.accesskey "M">
+<!ENTITY showSettings.label "Impostazioni…">
+<!ENTITY showSettings.accesskey "I">
+<!ENTITY proxiesConfigure.label "Configura il modo in cui &brandShortName; si collega a Internet">
+<!ENTITY connectionsInfo.caption "Connessione">
+<!ENTITY offlineInfo.caption "Non in linea">
+<!ENTITY offlineInfo.label "Configura le impostazioni 'non in linea'">
+<!ENTITY showOffline.label "Non in linea…">
+<!ENTITY showOffline.accesskey "N">
+<!ENTITY Diskspace "Spazio su disco">
+<!ENTITY offlineCompact.label "Compatta le cartelle solo se si guadagnano più di ">
+<!ENTITY offlineCompact.accesskey "C">
+<!ENTITY mb.label "MB">
+<!ENTITY useCacheBefore.label "Utilizza al massimo">
+<!ENTITY useCacheBefore.accesskey "U">
+<!ENTITY useCacheAfter.label "MB di spazio per la cache">
+<!ENTITY clearCacheNow.label "Pulisci ora">
+<!ENTITY clearCacheNow.accesskey "P">
+<!ENTITY certSelection.description "Quando un sito web richiede il certificato personale:">
+<!ENTITY certs.auto "Selezionane uno automaticamente">
+<!ENTITY certs.auto.accesskey "S">
+<!ENTITY certs.ask "Chiedi ogni volta">
+<!ENTITY certs.ask.accesskey "C">
+<!ENTITY viewCertificates.label "Mostra certificati">
+<!ENTITY viewCertificates.accesskey "M">
+<!ENTITY viewCRLs.label "Elenchi di revoca">
+<!ENTITY viewCRLs.accesskey "E">
+<!ENTITY validation.label "Validazione">
+<!ENTITY validation.accesskey "V">
+<!ENTITY viewSecurityDevices.label "Dispositivi di sicurezza">
+<!ENTITY viewSecurityDevices.accesskey "D">

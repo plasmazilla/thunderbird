@@ -1,0 +1,147 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+ Version: MPL 1.1/GPL 2.0/LGPL 2.1
+
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License. You may obtain a copy of the License at
+ http://www.mozilla.org/MPL/
+
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+
+ The Original Code is Mozilla Communicator client code, released
+ March 31, 1998.
+
+ The Initial Developer of the Original Code is
+ Netscape Communications Corporation.
+ Portions created by the Initial Developer are Copyright (C) 1998-1999
+ the Initial Developer. All Rights Reserved.
+
+ Contributor(s):
+
+ Alternatively, the contents of this file may be used under the terms of
+ either the GNU General Public License Version 2 or later (the "GPL"), or
+ the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ in which case the provisions of the GPL or the LGPL are applicable instead
+ of those above. If you wish to allow use of your version of this file only
+ under the terms of either the GPL or the LGPL, and not to allow others to
+ use your version of this file under the terms of the MPL, indicate your
+ decision by deleting the provisions above and replace them with the notice
+ and other provisions required by the GPL or the LGPL. If you do not delete
+ the provisions above, a recipient may use your version of this file under
+ the terms of any one of the MPL, the GPL or the LGPL.
+
+ ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY toField2.label "до">
+<!ENTITY fromField2.label "от">
+<!ENTITY senderField2.label "подател ">
+<!ENTITY organizationField2.label "организация ">
+<!ENTITY replyToField2.label "отговор-до ">
+
+<!ENTITY subjectField2.label "тема ">
+<!--# LOCALIZATION NOTE (ccField2.label): DONT_TRANSLATE -->
+<!ENTITY ccField2.label "cc ">
+<!ENTITY bccField2.label "bcc ">
+<!ENTITY newsgroupsField2.label "дискусионни групи ">
+<!ENTITY followupToField2.label "продължаване в ">
+<!ENTITY tagsHdr2.label "етикети ">
+<!ENTITY dateField2.label "дата ">
+<!ENTITY userAgentField2.label "user-agent ">
+<!ENTITY referencesField2.label "референции ">
+<!ENTITY messageIdField2.label "message-id ">
+<!ENTITY inReplyToField2.label "в-отговор-до ">
+<!ENTITY originalWebsite2.label "уебсайт ">
+
+<!ENTITY editMessageDescription.label "Това е чернова">
+<!ENTITY editMessageButton.label "Редактиране…">
+<!ENTITY hdrArchiveButton.label "архивиране">
+<!ENTITY hdrArchiveButton.tooltip "архивира това съобщение">
+<!ENTITY hdrReplyButton.label "отговор">
+<!ENTITY hdrReplyButton.tooltip "отговаря на това съобщение">
+<!ENTITY hdrReplyAllButton.label "отговор до всички">
+<!ENTITY hdrReplyAllButton.tooltip "отговаря на подателя и всички получатели">
+<!ENTITY hdrReplyListButton.label "отговор до списък">
+<!ENTITY hdrReplyListButton.tooltip "отговаря до пощенския списък">
+<!ENTITY hdrForwardButton.label "препращане">
+<!ENTITY hdrForwardButton.tooltip "препраща съобщението">
+<!ENTITY hdrJunkButton.label "нежелана">
+<!ENTITY hdrJunkButton.tooltip "отбелязва съобщението като нежелано">
+<!ENTITY hdrTrashButton.label "изтриване">
+<!ENTITY hdrTrashButton.tooltip "изтрива съобщението">
+
+<!ENTITY hdrViewToolbarShowFull.label "Показване на икони и текст ">
+<!ENTITY hdrViewToolbarShowFull.accesskey "и">
+<!ENTITY hdrViewToolbarShowIcons.label "Показване само икони">
+<!ENTITY hdrViewToolbarShowIcons.accesskey "и">
+<!ENTITY hdrViewToolbarShowText.label "Показване само текст">
+<!ENTITY hdrViewToolbarShowText.accesskey "т">
+<!ENTITY hdrViewToolbarAlwaysReplySender.label "Винаги показва отговора до подателя">
+<!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "о">
+
+<!ENTITY otherActionsButton.label "други действия">
+<!ENTITY otherActionsOpenConversation.label "отваряне в диалога">
+<!ENTITY otherActionsOpenConversation.accesskey "д">
+<!ENTITY otherActionsOpenInNewWindow.label "отваряне в нов прозорец">
+<!ENTITY otherActionsOpenInNewWindow.accesskey "н">
+<!ENTITY otherActionsOpenInNewTab.label "отваряне в нов подпрозорец">
+<!ENTITY otherActionsOpenInNewTab.accesskey "п">
+<!ENTITY markAsReadMenuItem.label "отбелязване като прочетено">
+<!ENTITY markAsReadMenuItem.accesskey "б">
+<!ENTITY markAsUnreadMenuItem.label "отбелязване като непрочетено">
+<!ENTITY markAsUnreadMenuItem.accesskey "л">
+<!ENTITY saveAsMenuItem.label "запис като…">
+<!ENTITY saveAsMenuItem.accesskey "з">
+<!ENTITY viewSourceMenuItem.label "преглед на изходния код">
+<!ENTITY viewSourceMenuItem.accesskey "п">
+<!ENTITY otherActionsPrint.label "печат…">
+<!ENTITY otherActionsPrint.accesskey "п">
+<!-- Attachment context menu items -->
+
+<!ENTITY openAttachmentCmd.label "Отваряне">
+<!ENTITY openAttachmentCmd.accesskey "О">
+<!ENTITY saveAsAttachmentCmd.label "Запис като…">
+<!ENTITY saveAsAttachmentCmd.accesskey "к">
+<!ENTITY detachAttachmentCmd.label "Откачане…">
+<!ENTITY detachAttachmentCmd.accesskey "к">
+<!ENTITY deleteAttachmentCmd.label "Изтриване">
+<!ENTITY deleteAttachmentCmd.accesskey "з">
+<!ENTITY openAllAttachmentsCmd.label "Отваряне на всички…">
+<!ENTITY openAllAttachmentsCmd.accesskey "О">
+<!ENTITY saveAllAttachmentsCmd.label "Запис на всички…">
+<!ENTITY saveAllAttachmentsCmd.accesskey "в">
+<!ENTITY detachAllAttachmentsCmd.label "Откачане на всички…">
+<!ENTITY detachAllAttachmentsCmd.accesskey "ч">
+<!ENTITY deleteAllAttachmentsCmd.label "Изтриване на всички…">
+<!ENTITY deleteAllAttachmentsCmd.accesskey "з">
+<!-- Attachment toolbar items -->
+
+<!ENTITY saveAttachmentButton.label "запис">
+<!ENTITY saveAttachmentButton.tooltip "запис на прикрепения файл">
+<!ENTITY saveAllAttachmentsButton.label "запис на всички">
+<!ENTITY saveAllAttachmentsButton.tooltip "запис на всички прикрепени файлове">
+<!ENTITY openAttachmentMenuItem.label "отваряне">
+<!ENTITY openAttachmentMenuItem.accesskey "о">
+<!ENTITY saveAsAttachmentMenuItem.label "запис като…">
+<!ENTITY saveAsAttachmentMenuItem.accesskey "з">
+<!ENTITY detachAttachmentMenuItem.label "откачане…">
+<!ENTITY detachAttachmentMenuItem.accesskey "к">
+<!ENTITY deleteAttachmentMenuItem.label "изтриване">
+<!ENTITY deleteAttachmentMenuItem.accesskey "р">
+<!ENTITY openAllAttachmentsMenuItem.label "отваряне на всички…">
+<!ENTITY openAllAttachmentsMenuItem.accesskey "я">
+<!ENTITY saveAllAttachmentsMenuItem.label "запис на всички…">
+<!ENTITY saveAllAttachmentsMenuItem.accesskey "з">
+<!ENTITY detachAllAttachmentsMenuItem.label "откачане на всички…">
+<!ENTITY detachAllAttachmentsMenuItem.accesskey "ч">
+<!ENTITY deleteAllAttachmentsMenuItem.label "изтриване на всички…">
+<!ENTITY deleteAllAttachmentsMenuItem.accesskey "з">
+
+<!ENTITY copyLinkCmd.label "Копиране адреса на връзката">
+<!ENTITY copyLinkCmd.accesskey "К">
+
+<!ENTITY CopyMessageId.label "Копиране на Message-ID">
+<!ENTITY OpenMessageForMsgId.label "Отваряне на писмо за ID">
+<!ENTITY OpenBrowserWithMsgId.label "Отваряне на браузър с Message-ID">

@@ -1,0 +1,41 @@
+<!ENTITY window.title "Szűrés szabályai">
+<!ENTITY filterEditorDialog.dimensions "width: 100ch;">
+<!ENTITY filterName.label "Szűrő neve:">
+<!ENTITY filterName.accesskey "z">
+
+<!ENTITY junk.label "Szemét">
+<!ENTITY notJunk.label "Nem szemét">
+
+<!ENTITY lowestPriorityCmd.label "Nem sürgős">
+<!ENTITY lowPriorityCmd.label "Kevéssé sürgős">
+<!ENTITY normalPriorityCmd.label "Normál">
+<!ENTITY highPriorityCmd.label "Sürgős">
+<!ENTITY highestPriorityCmd.label "Rendkívül sürgős">
+
+<!ENTITY contextDesc.label "Szűrő alkalmazása:">
+<!ENTITY contextDesc.accesskey "S">
+<!ENTITY contextIncoming.label "Levelek ellenőrzésekor">
+<!ENTITY contextManual.label "Kézzel futtatva">
+<!ENTITY contextBoth.label "Levelek ellenőrzésekor vagy kézzel futtatva">
+<!ENTITY contextPostPlugin.label "Levelek ellenőrzésekor (osztályozás után)">
+<!ENTITY contextPostPluginBoth.label "Levelek ellenőrzésekor (osztályozás után) vagy kézzel futtatva">
+<!ENTITY filterActionDesc.label "Műveletek végrehajtása:">
+<!ENTITY filterActionDesc.accesskey "v">
+
+<!-- New Style Filter Rule Actions -->
+<!ENTITY moveMessage.label "Üzenet áthelyezése">
+<!ENTITY copyMessage.label "Üzenet átmásolása">
+<!ENTITY forwardTo.label "Üzenet továbbítása">
+<!ENTITY replyWithTemplate.label "Válasz sablon használatával">
+<!ENTITY markMessageRead.label "Megjelölés olvasottként">
+<!ENTITY markMessageStarred.label "Csillag hozzáadása">
+<!ENTITY setPriority.label "Prioritás beállítása">
+<!ENTITY addTag.label "Üzenet címkézése">
+<!ENTITY setJunkScore.label "Szemét vagy nem szemét">
+<!ENTITY deleteMessage.label "Üzenet törlése">
+<!ENTITY deleteFromPOP.label "Törlés a POP-kiszolgálóról">
+<!ENTITY fetchFromPOP.label "Letöltés a POP-kiszolgálóról">
+<!ENTITY ignoreThread.label "Témacsoport kihagyása">
+<!ENTITY ignoreSubthread.label "Témacsoportrész kihagyása">
+<!ENTITY watchThread.label "Témacsoport figyelése">
+<!ENTITY stopExecution.label "Szűrő végrehajtásának leállítása">

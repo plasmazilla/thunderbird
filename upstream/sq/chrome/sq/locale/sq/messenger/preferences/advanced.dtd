@@ -1,0 +1,110 @@
+<!ENTITY itemGeneral.label             "Të përgjithshme">
+<!ENTITY itemDisplay.label             "Lexim &amp; Paraqitje">
+<!ENTITY itemUpdate.label              "Përditësim">
+<!ENTITY itemNetworking.label          "Hapësirë në Rrjet &amp; Disk">
+<!ENTITY itemCertificates.label        "Dëshmi">
+
+<!-- General Settings -->
+
+<!ENTITY enableGlodaSearch.label       "Aktivizo Kërkim dhe Indeksues Global">
+<!ENTITY enableGlodaSearch.accesskey   "A">
+<!ENTITY systemIntegration.label       "Integrim me Sistemin">
+<!ENTITY alwaysCheckDefault.label      "Gjatë nisjes, kontrollo përherë nëse është apo jo &brandShortName;-i klienti parazgjedhje për postën">
+<!ENTITY alwaysCheckDefault.accesskey  "g">
+<!ENTITY searchIntegration.label       "Lejo &searchIntegration.engineName; të kërkojë në mesazhet">
+<!ENTITY searchIntegration.accesskey   "L">
+
+<!ENTITY checkNow.label                "Kontrolloni Tani…">
+<!ENTITY checkNow.accesskey            "K">
+<!ENTITY configEditDesc.label          "Formësim i Mëtejshëm">
+<!ENTITY configEdit.label              "Përpunues Formësimesh…">
+<!ENTITY configEdit.accesskey          "P">
+<!ENTITY returnReceiptsInfo.label      "Përcaktoni se si i trajton &brandShortName;-i faturat e kthimit">
+<!ENTITY showReturnReceipts.label      "Fatura Kthimi…">
+<!ENTITY showReturnReceipts.accesskey  "F">
+
+<!-- Display and Reading Settings -->
+<!ENTITY reading.caption                "Lexim">
+<!ENTITY display.caption                "Paraqitje">
+<!ENTITY showCondensedAddresses.label  "Shfaq emra ekrani vetëm për persona në librin tim të adresave">
+<!ENTITY showCondensedAddresses.accesskey "q">
+
+<!ENTITY autoMarkAsRead.label          "Shënoji vetvetiu mesazhet si të lexuara">
+<!ENTITY autoMarkAsRead.accesskey      "v">
+<!ENTITY markAsReadNoDelay.label       "Sapo të shfaqen">
+<!ENTITY markAsReadNoDelay.accesskey   "S">
+<!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
+     "After displaying for [___] seconds",
+     using (markAsReadDelay.label) and a number (secondsLabel.label). -->
+<!ENTITY markAsReadDelay.label         "Pas shfaqjes, brenda">
+<!ENTITY markAsReadDelay.accesskey     "P">
+<!ENTITY secondsLabel.label            "sekondash">
+<!ENTITY openMsgIn.label               "Hapi mesazhet në:">
+<!ENTITY openMsgInNewTab.label         "Skedë të re">
+<!ENTITY openMsgInNewTab.accesskey     "k">
+<!ENTITY reuseExpRadio0.label          "Dritare të re mesazhi">
+<!ENTITY reuseExpRadio0.accesskey      "D">
+<!ENTITY reuseExpRadio1.label          "Dritare ekzistuese mesazhi">
+<!ENTITY reuseExpRadio1.accesskey      "z">
+<!ENTITY closeMsgOnMoveOrDelete.label  "Me lëvizjen ose fshirjen, mbyll edhe dritaren/skedën e mesazhit">
+<!ENTITY closeMsgOnMoveOrDelete.accesskey "M">
+
+<!-- Update -->
+<!ENTITY autoCheck.label                "Shih vetvetiu për përditësime të:">
+<!ENTITY enableAppUpdate.label          "&brandShortName;-it">
+<!ENTITY enableAppUpdate.accesskey      "T">
+<!ENTITY enableAddonsUpdate.label       "Shtesave të Instaluara">
+<!ENTITY enableAddonsUpdate.accesskey   "S">
+<!ENTITY whenUpdatesFound.label         "Kur gjenden përditësime të &brandShortName;-it,">
+<!ENTITY modeAskMe.label                "Pyetmë se ç&apos;dua të bëj">
+<!ENTITY modeAskMe.accesskey            "P">
+<!ENTITY modeAutomatic.label            "Shkarkoje dhe instaloje përditësimin vetvetiu">
+<!ENTITY modeAutomatic.accesskey        "v">
+<!ENTITY modeAutoAddonWarn.label        "Sinjalizomë, nëse kështu do të çaktivizohej ndonjë prej shtesave të mia">
+<!ENTITY modeAutoAddonWarn.accesskey    "z">
+<!ENTITY showUpdates.label              "Shfaq Historik Përditësimesh">
+<!ENTITY showUpdates.accesskey          "H">
+
+<!-- Networking and Disk Space -->
+<!ENTITY showSettings.label            "Rregullime…">
+<!ENTITY showSettings.accesskey        "R">
+<!ENTITY proxiesConfigure.label        "Formësoni mënyrën se si &brandShortName;-i lidhet në Internet">
+<!ENTITY connectionsInfo.caption       "Lidhje">
+<!ENTITY offlineInfo.caption           "I palidhur">
+<!ENTITY offlineInfo.label             "Formësoni rregullimet për i palidhur">
+<!ENTITY showOffline.label             "I palidhur…">
+<!ENTITY showOffline.accesskey         "I">
+
+<!ENTITY Diskspace "Hapësirë Disku">
+<!ENTITY offlineCompact.label "Ngjesh dosje, nëse kështu kursehet vend">
+<!ENTITY offlineCompact.accesskey "N">
+<!ENTITY mb.label "MB">
+
+<!-- LOCALIZATION NOTE:
+  The entities useCacheBefore.label and useCacheAfter.label appear on a single
+  line in preferences as follows:
+
+  &useCacheBefore.label  [ textbox for cache size in MB ]   &useCacheAfter.label;
+-->
+<!ENTITY useCacheBefore.label            "Përdor deri më">
+<!ENTITY useCacheBefore.accesskey        "d">
+<!ENTITY useCacheAfter.label             "MB hapësirë për fshehtinën">
+<!ENTITY clearCacheNow.label             "Pastroje Tani">
+<!ENTITY clearCacheNow.accesskey         "P">
+
+
+<!-- Certificates -->
+<!ENTITY certSelection.description       "Kur një shërbyes kërkon dëshminë time vetjake:">
+<!ENTITY certs.auto                      "Përzgjidh një vetvetiu">
+<!ENTITY certs.auto.accesskey            "P">
+<!ENTITY certs.ask                       "Pyetmë çdo herë">
+<!ENTITY certs.ask.accesskey             "y">
+
+<!ENTITY viewCertificates.label         "Shihni Dëshmi">
+<!ENTITY viewCertificates.accesskey     "S">
+<!ENTITY viewCRLs.label                 "Lista Shfuqizimesh">
+<!ENTITY viewCRLs.accesskey             "l">
+<!ENTITY validation.label               "Vleftësim">
+<!ENTITY validation.accesskey           "v">
+<!ENTITY viewSecurityDevices.label      "Pajisje Sigurie">
+<!ENTITY viewSecurityDevices.accesskey  "a">

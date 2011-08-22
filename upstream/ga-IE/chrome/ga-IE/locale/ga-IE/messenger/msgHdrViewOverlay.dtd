@@ -1,0 +1,147 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+ Version: MPL 1.1/GPL 2.0/LGPL 2.1
+
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License. You may obtain a copy of the License at
+ http://www.mozilla.org/MPL/
+
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+
+ The Original Code is Mozilla Communicator client code, released
+ March 31, 1998.
+
+ The Initial Developer of the Original Code is
+ Netscape Communications Corporation.
+ Portions created by the Initial Developer are Copyright (C) 1998-1999
+ the Initial Developer. All Rights Reserved.
+
+ Contributor(s):
+
+ Alternatively, the contents of this file may be used under the terms of
+ either the GNU General Public License Version 2 or later (the "GPL"), or
+ the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ in which case the provisions of the GPL or the LGPL are applicable instead
+ of those above. If you wish to allow use of your version of this file only
+ under the terms of either the GPL or the LGPL, and not to allow others to
+ use your version of this file under the terms of the MPL, indicate your
+ decision by deleting the provisions above and replace them with the notice
+ and other provisions required by the GPL or the LGPL. If you do not delete
+ the provisions above, a recipient may use your version of this file under
+ the terms of any one of the MPL, the GPL or the LGPL.
+
+ ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY toField2.label "Chuig ">
+<!ENTITY fromField2.label "Ó ">
+<!ENTITY senderField2.label "Seoltóir ">
+<!ENTITY organizationField2.label "Eagras ">
+<!ENTITY replyToField2.label "Freagra-chuig ">
+
+<!ENTITY subjectField2.label "Ábhar ">
+<!--# LOCALIZATION NOTE (ccField2.label): DONT_TRANSLATE -->
+<!ENTITY ccField2.label "cc ">
+<!ENTITY bccField2.label "Bcc ">
+<!ENTITY newsgroupsField2.label "Grúpaí-nuachta ">
+<!ENTITY followupToField2.label "Leanúint-chuig ">
+<!ENTITY tagsHdr2.label "Clibeanna ">
+<!ENTITY dateField2.label "Dáta ">
+<!ENTITY userAgentField2.label "Clár-ríomhphoist ">
+<!ENTITY referencesField2.label "Tagairtí ">
+<!ENTITY messageIdField2.label "Aitheantas-teachtaireachta ">
+<!ENTITY inReplyToField2.label "Freagra-ar ">
+<!ENTITY originalWebsite2.label "Suíomh-gréasáin ">
+
+<!ENTITY editMessageDescription.label "Is dréacht é seo">
+<!ENTITY editMessageButton.label "Eagar…">
+<!ENTITY hdrArchiveButton.label "Cuir sa chartlann">
+<!ENTITY hdrArchiveButton.tooltip "Cuir an teachtaireacht seo sa chartlann">
+<!ENTITY hdrReplyButton.label "Freagair">
+<!ENTITY hdrReplyButton.tooltip "Freagair an teachtaireacht seo">
+<!ENTITY hdrReplyAllButton.label "Freagair cách">
+<!ENTITY hdrReplyAllButton.tooltip "Freagra chuig an seoltóir agus gach faighteoir">
+<!ENTITY hdrReplyListButton.label "Freagair liosta">
+<!ENTITY hdrReplyListButton.tooltip "Freagra chuig an liosta ríomhphoist">
+<!ENTITY hdrForwardButton.label "Cuir ar aghaidh">
+<!ENTITY hdrForwardButton.tooltip "Cuir an teachtaireacht seo ar aghaidh">
+<!ENTITY hdrJunkButton.label "Dramhphost">
+<!ENTITY hdrJunkButton.tooltip "Marcáil an teachtaireacht seo mar dhramhphost">
+<!ENTITY hdrTrashButton.label "Scrios">
+<!ENTITY hdrTrashButton.tooltip "Scrios an teachtaireacht seo">
+
+<!ENTITY hdrViewToolbarShowFull.label "Taispeáin Deilbhíní agus Téacs">
+<!ENTITY hdrViewToolbarShowFull.accesskey "a">
+<!ENTITY hdrViewToolbarShowIcons.label "Taispeáin Deilbhíní Amháin">
+<!ENTITY hdrViewToolbarShowIcons.accesskey "i">
+<!ENTITY hdrViewToolbarShowText.label "Taispeáin Téacs Amháin">
+<!ENTITY hdrViewToolbarShowText.accesskey "T">
+<!ENTITY hdrViewToolbarAlwaysReplySender.label "Taispeáin Freagra don Seoltóir i gCónaí">
+<!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "r">
+
+<!ENTITY otherActionsButton.label "Gníomhartha eile">
+<!ENTITY otherActionsOpenConversation.label "Oscail i gcomhrá">
+<!ENTITY otherActionsOpenConversation.accesskey "c">
+<!ENTITY otherActionsOpenInNewWindow.label "Oscail i bhfuinneog nua">
+<!ENTITY otherActionsOpenInNewWindow.accesskey "n">
+<!ENTITY otherActionsOpenInNewTab.label "Oscail i gcluasín nua">
+<!ENTITY otherActionsOpenInNewTab.accesskey "c">
+<!ENTITY markAsReadMenuItem.label "Marcáil léite">
+<!ENTITY markAsReadMenuItem.accesskey "r">
+<!ENTITY markAsUnreadMenuItem.label "Marcáil gan léamh">
+<!ENTITY markAsUnreadMenuItem.accesskey "r">
+<!ENTITY saveAsMenuItem.label "Sábháil Mar…">
+<!ENTITY saveAsMenuItem.accesskey "S">
+<!ENTITY viewSourceMenuItem.label "Taispeáin foinse">
+<!ENTITY viewSourceMenuItem.accesskey "T">
+<!ENTITY otherActionsPrint.label "Priontáil…">
+<!ENTITY otherActionsPrint.accesskey "P">
+<!-- Attachment context menu items -->
+
+<!ENTITY openAttachmentCmd.label "Oscail">
+<!ENTITY openAttachmentCmd.accesskey "O">
+<!ENTITY saveAsAttachmentCmd.label "Sábháil Mar…">
+<!ENTITY saveAsAttachmentCmd.accesskey "a">
+<!ENTITY detachAttachmentCmd.label "Dícheangail…">
+<!ENTITY detachAttachmentCmd.accesskey "c">
+<!ENTITY deleteAttachmentCmd.label "Scrios">
+<!ENTITY deleteAttachmentCmd.accesskey "c">
+<!ENTITY openAllAttachmentsCmd.label "Oscail Uile…">
+<!ENTITY openAllAttachmentsCmd.accesskey "O">
+<!ENTITY saveAllAttachmentsCmd.label "Sábháil Uile…">
+<!ENTITY saveAllAttachmentsCmd.accesskey "S">
+<!ENTITY detachAllAttachmentsCmd.label "Díscoir Uile…">
+<!ENTITY detachAllAttachmentsCmd.accesskey "D">
+<!ENTITY deleteAllAttachmentsCmd.label "Scrios Uile…">
+<!ENTITY deleteAllAttachmentsCmd.accesskey "c">
+<!-- Attachment toolbar items -->
+
+<!ENTITY saveAttachmentButton.label "Sábháil">
+<!ENTITY saveAttachmentButton.tooltip "Sábháil an t-iatán">
+<!ENTITY saveAllAttachmentsButton.label "Sábháil uile">
+<!ENTITY saveAllAttachmentsButton.tooltip "Sábháil gach iatán">
+<!ENTITY openAttachmentMenuItem.label "Oscail">
+<!ENTITY openAttachmentMenuItem.accesskey "O">
+<!ENTITY saveAsAttachmentMenuItem.label "Sábháil Mar…">
+<!ENTITY saveAsAttachmentMenuItem.accesskey "S">
+<!ENTITY detachAttachmentMenuItem.label "Dícheangail…">
+<!ENTITY detachAttachmentMenuItem.accesskey "D">
+<!ENTITY deleteAttachmentMenuItem.label "Scrios">
+<!ENTITY deleteAttachmentMenuItem.accesskey "c">
+<!ENTITY openAllAttachmentsMenuItem.label "Oscail uile…">
+<!ENTITY openAllAttachmentsMenuItem.accesskey "O">
+<!ENTITY saveAllAttachmentsMenuItem.label "Sábháil uile…">
+<!ENTITY saveAllAttachmentsMenuItem.accesskey "S">
+<!ENTITY detachAllAttachmentsMenuItem.label "Dícheangail uile…">
+<!ENTITY detachAllAttachmentsMenuItem.accesskey "D">
+<!ENTITY deleteAllAttachmentsMenuItem.label "Scrios uile…">
+<!ENTITY deleteAllAttachmentsMenuItem.accesskey "c">
+
+<!ENTITY copyLinkCmd.label "Cóipeáil Suíomh an Naisc">
+<!ENTITY copyLinkCmd.accesskey "C">
+
+<!ENTITY CopyMessageId.label "Cóipeáil Aitheantas-Teachtaireachta">
+<!ENTITY OpenMessageForMsgId.label "Oscail teachtaireacht le haitheantas">
+<!ENTITY OpenBrowserWithMsgId.label "Oscail brabhsálaí le hAitheantas-Teachtaireachta">

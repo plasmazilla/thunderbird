@@ -1,0 +1,24 @@
+locale pippki br chrome/br/locale/br/pippki/
+locale messenger br chrome/br/locale/br/messenger/
+locale messenger-newsblog br chrome/br/locale/br/messenger-newsblog/
+manifest chrome/br.manifest
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale messenger-mapi br chrome/br/locale/br/messenger-mapi/
+locale global-region br chrome/br/locale/br/global-region/
+locale communicator br chrome/br/locale/br/communicator/
+locale mozldap br chrome/br/locale/br/mozldap/
+locale branding br chrome/br/locale/br/branding/
+locale places br chrome/br/locale/br/places/
+locale messenger-region br chrome/br/locale/br/messenger-region/
+locale editor br chrome/br/locale/br/editor/
+locale messenger-smime br chrome/br/locale/br/messenger-smime/
+locale mozapps br chrome/br/locale/br/mozapps/
+locale autoconfig br chrome/br/locale/br/autoconfig/
+locale passwordmgr br chrome/br/locale/br/passwordmgr/
+locale cookie br chrome/br/locale/br/cookie/
+locale global br chrome/br/locale/br/global/
+locale alerts br chrome/br/locale/br/alerts/
+locale necko br chrome/br/locale/br/necko/
+locale global-platform br chrome/br/locale/br/global-platform/
+locale pipnss br chrome/br/locale/br/pipnss/

@@ -1,4 +1,0 @@
-<!--LOCALIZATION NOTE sendprogress.dtd Main UI for Send Message Progress Dialog -->
-<!ENTITY sendWindow.title "Stuur tans boodskappe">
-<!ENTITY status.label "Status:">
-<!ENTITY progress.label "Vordering:">

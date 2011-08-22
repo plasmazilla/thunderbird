@@ -1,0 +1,19 @@
+<!ENTITY editContactPanelDeleteContact.label "Törlés">
+<!ENTITY editContactPanelDeleteContact.accesskey "l">
+
+<!ENTITY editContactName.label "Név:">
+<!ENTITY editContactName.accesskey "N">
+
+<!ENTITY editContactEmail.label "E-mail:">
+<!ENTITY editContactEmail.accesskey "E">
+
+<!ENTITY editContactAddressBook.label "Címjegyzék:">
+<!ENTITY editContactAddressBook.accesskey "C">
+
+<!ENTITY editContactPanelCancel.label "Mégse">
+<!ENTITY editContactPanelCancel.accesskey "M">
+
+<!ENTITY editContactPanelDone.label "Kész">
+<!ENTITY editContactPanelDone.accesskey "K">
+
+<!ENTITY contactMoveDisabledWarning.description "Nem módosíthatja a címjegyzéket, mert a név egy levelezőlistán is rajta van.">

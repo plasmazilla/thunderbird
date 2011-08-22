@@ -1,0 +1,41 @@
+<!ENTITY window.title "Filterregels">
+<!ENTITY filterEditorDialog.dimensions "width: 100ch;">
+<!ENTITY filterName.label "Filternaam:">
+<!ENTITY filterName.accesskey "F">
+
+<!ENTITY junk.label "Ongewenst bericht">
+<!ENTITY notJunk.label "Geen ongewenst bericht">
+
+<!ENTITY lowestPriorityCmd.label "Laagst">
+<!ENTITY lowPriorityCmd.label "Laag">
+<!ENTITY normalPriorityCmd.label "Normaal">
+<!ENTITY highPriorityCmd.label "Hoog">
+<!ENTITY highestPriorityCmd.label "Hoogst">
+
+<!ENTITY contextDesc.label "Filter toepassen bij het:">
+<!ENTITY contextDesc.accesskey "t">
+<!ENTITY contextIncoming.label "Controleren van e-mail">
+<!ENTITY contextManual.label "Handmatig uitvoeren">
+<!ENTITY contextBoth.label "Controleren van e-mail of handmatig uitvoeren">
+<!ENTITY contextPostPlugin.label "Controleren van e-mail (na classificatie)">
+<!ENTITY contextPostPluginBoth.label "Controleren van e-mail (na classificatie) of handmatig uitvoeren">
+<!ENTITY filterActionDesc.label "Deze acties uitvoeren:">
+<!ENTITY filterActionDesc.accesskey "v">
+
+<!-- New Style Filter Rule Actions -->
+<!ENTITY moveMessage.label "Bericht verplaatsen naar">
+<!ENTITY copyMessage.label "Bericht kopiëren naar">
+<!ENTITY forwardTo.label "Bericht doorsturen naar">
+<!ENTITY replyWithTemplate.label "Met sjabloon antwoorden">
+<!ENTITY markMessageRead.label "Bericht als gelezen markeren">
+<!ENTITY markMessageStarred.label "Ster toevoegen">
+<!ENTITY setPriority.label "Prioriteit wijzigen in">
+<!ENTITY addTag.label "Bericht labelen">
+<!ENTITY setJunkScore.label "Ongewenstberichtstatus instellen op">
+<!ENTITY deleteMessage.label "Bericht verwijderen">
+<!ENTITY deleteFromPOP.label "Van POP-server verwijderen">
+<!ENTITY fetchFromPOP.label "Van POP-server ophalen">
+<!ENTITY ignoreThread.label "Conversatie negeren">
+<!ENTITY ignoreSubthread.label "Subconversatie negeren"> 
+<!ENTITY watchThread.label "Conversatie volgen">
+<!ENTITY stopExecution.label "Uitvoeren van filter stoppen">

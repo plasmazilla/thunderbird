@@ -1,6 +1,0 @@
-<!ENTITY junkLog.title "অপ্রয়োজনীয় মেইলের লগ">
-<!ENTITY junkLogInfo.label "অপ্রয়োজনীয় মেইল কন্ট্রোল কার্যক্রমের লগ।">
-<!ENTITY clearLog.label "লগ পরিষ্কার করা হবে (C)">
-<!ENTITY clearLog.accesskey "C">
-<!ENTITY closeLog.label "বন্ধ (o)">
-<!ENTITY closeLog.accesskey "o">

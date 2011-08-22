@@ -1,0 +1,157 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+ Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License. You may obtain a copy of the License at
+ http://www.mozilla.org/MPL/
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+ The Original Code is Mozilla Communicator client code, released
+ March 31, 1998.
+ The Initial Developer of the Original Code is
+ Netscape Communications Corporation.
+ Portions created by the Initial Developer are Copyright (C) 1998-1999
+ the Initial Developer. All Rights Reserved.
+ Contributor(s):
+ Alternatively, the contents of this file may be used under the terms of
+ either the GNU General Public License Version 2 or later (the "GPL"), or
+ the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ in which case the provisions of the GPL or the LGPL are applicable instead
+ of those above. If you wish to allow use of your version of this file only
+ under the terms of either the GPL or the LGPL, and not to allow others to
+ use your version of this file under the terms of the MPL, indicate your
+ decision by deleting the provisions above and replace them with the notice
+ and other provisions required by the GPL or the LGPL. If you do not delete
+ the provisions above, a recipient may use your version of this file under
+ the terms of any one of the MPL, the GPL or the LGPL.
+ ***** END LICENSE BLOCK ***** -->
+<!ENTITY Contact.tab                     "연락처">
+<!ENTITY Contact.accesskey               "C">
+<!ENTITY Name.box                        "이름">
+<!-- LOCALIZATION NOTE:
+ NameField1, NameField2, PhoneticField1, PhoneticField2
+ those fields are either LN or FN depends on the target country.
+ "FirstName" and "LastName" can be swapped for id to change the order
+ but they should not be translated (same applied to phonetic id).
+ Make sure the translation of label corresponds to the order of id.
+-->
+<!-- LOCALIZATION NOTE (NameField1.id) : DONT_TRANSLATE -->
+<!ENTITY NameField1.id                  "FirstName">
+<!-- LOCALIZATION NOTE (NameField2.id) : DONT_TRANSLATE -->
+<!ENTITY NameField2.id                  "LastName">
+<!-- LOCALIZATION NOTE (PhoneticField1.id) : DONT_TRANSLATE -->
+<!ENTITY PhoneticField1.id              "PhoneticFirstName">
+<!-- LOCALIZATION NOTE (PhoneticField2.id) : DONT_TRANSLATE -->
+<!ENTITY PhoneticField2.id              "PhoneticLastName">
+<!ENTITY NameField1.label               "이름:">
+<!ENTITY NameField1.accesskey           "F">
+<!ENTITY NameField2.label               "성:">
+<!ENTITY NameField2.accesskey           "L">
+<!ENTITY PhoneticField1.label           "이름:">
+<!ENTITY PhoneticField2.label           "성:">
+<!ENTITY DisplayName.label              "표시명:">
+<!ENTITY DisplayName.accesskey          "D">
+<!ENTITY preferDisplayName.label		"메세지 헤더에는 항상 표시명을 우선">
+<!ENTITY preferDisplayName.accesskey	"y">
+<!ENTITY NickName.label                 "애칭:">
+<!ENTITY NickName.accesskey             "N">
+<!ENTITY PrimaryEmail.label             "기본 메일:">
+<!ENTITY PrimaryEmail.accesskey         "E">
+<!ENTITY SecondEmail.label              "추가 메일:">
+<!ENTITY SecondEmail.accesskey          "i">
+<!ENTITY PreferMailFormat.label         "메일 받기 형식:">
+<!ENTITY PreferMailFormat.accesskey     "v">
+<!ENTITY PlainText.label                "일반 텍스트">
+<!ENTITY HTML.label                     "HTML">
+<!ENTITY Unknown.label                  "알 수 없음">
+<!ENTITY ScreenName.label               "표시명:">
+<!ENTITY ScreenName.accesskey           "S">
+<!ENTITY allowRemoteContent1.label      "외부 콘텐츠 출력 허가">
+<!ENTITY allowRemoteContent1.accesskey  "r">
+<!ENTITY allowRemoteContent1.tooltip    "HTML 메일에서는 외부 콘텐츠를 가져와서 보여줄 수 있습니다. 외부 콘텐츠가 섞인 메시지를 열면 인터넷에 접속해 콘텐츠를 가져오게 됩니다. 이를 이용해 당신이 메일을 보았음을 기록하는 수신 확인 기능이 작동할 수 있습니다. 이 항목을 활성화 시키면 HTML 메일에서 외부 콘텐츠 읽기를 허가합니다.">
+<!ENTITY WorkPhone.label                "직장:">
+<!ENTITY WorkPhone.accesskey            "k">
+<!ENTITY HomePhone.label                "자택:">
+<!ENTITY HomePhone.accesskey            "m">
+<!ENTITY FaxNumber.label                "팩스:">
+<!ENTITY FaxNumber.accesskey            "x">
+<!ENTITY PagerNumber.label              "호출:">
+<!ENTITY PagerNumber.accesskey          "g">
+<!ENTITY CellularNumber.label           "휴대폰:">
+<!ENTITY CellularNumber.accesskey       "b">
+<!ENTITY Home.tab                       "개인">
+<!ENTITY Home.accesskey					"P">
+<!ENTITY HomeAddress.label              "자택 주소:">
+<!ENTITY HomeAddress.accesskey          "A">
+<!ENTITY HomeAddress2.label             "">
+<!ENTITY HomeAddress2.accesskey         "">
+<!ENTITY HomeCity.label                 "시/군/구:">
+<!ENTITY HomeCity.accesskey             "y">
+<!ENTITY HomeState.label                "시/도:">
+<!ENTITY HomeState.accesskey            "S">
+<!ENTITY HomeZipCode.label              "우편번호:">
+<!ENTITY HomeZipCode.accesskey          "Z">
+<!ENTITY HomeCountry.label              "국가:">
+<!ENTITY HomeCountry.accesskey          "u">
+<!ENTITY HomeWebPage.label              "홈 페이지:">
+<!ENTITY HomeWebPage.accesskey          "e">
+<!ENTITY Work.tab                       "직장">
+<!ENTITY Work.accesskey					"W">
+<!ENTITY JobTitle.label                 "직위:">
+<!ENTITY JobTitle.accesskey             "i">
+<!ENTITY Department.label               "부서:">
+<!ENTITY Department.accesskey           "m">
+<!ENTITY Company.label                  "소속:">
+<!ENTITY Company.accesskey              "n">
+<!ENTITY WorkAddress.label              "직장 주소:">
+<!ENTITY WorkAddress.accesskey          "A">
+<!ENTITY WorkAddress2.label             "">
+<!ENTITY WorkAddress2.accesskey         "">
+<!ENTITY WorkCity.label                 "시/군/구:">
+<!ENTITY WorkCity.accesskey             "y">
+<!ENTITY WorkState.label                "시/도:">
+<!ENTITY WorkState.accesskey            "S">
+<!ENTITY WorkZipCode.label              "우편번호:">
+<!ENTITY WorkZipCode.accesskey          "Z">
+<!ENTITY WorkCountry.label              "국가:">
+<!ENTITY WorkCountry.accesskey          "u">
+<!ENTITY WorkWebPage.label              "홈 페이지:">
+<!ENTITY WorkWebPage.accesskey          "e">
+<!ENTITY Other.tab                      "기타:">
+<!ENTITY Other.accesskey                "h">
+<!ENTITY Birthday.label                 "생일:">
+<!ENTITY Birthday.accesskey             "B">
+<!ENTITY In.label                       "">
+<!ENTITY Year.placeholder                 "태어난 해">
+<!ENTITY Or.value                       "년생">
+<!ENTITY Age.placeholder                  "나이">
+<!ENTITY YearsOld.label                 "세">
+
+<!ENTITY Custom1.label                  "사용자 정의1:">
+<!ENTITY Custom1.accesskey              "1">
+<!ENTITY Custom2.label                  "사용자 정의2:">
+<!ENTITY Custom2.accesskey              "2">
+<!ENTITY Custom3.label                  "사용자 정의3:">
+<!ENTITY Custom3.accesskey              "3">
+<!ENTITY Custom4.label                  "사용자 정의4:">
+<!ENTITY Custom4.accesskey              "4">
+<!ENTITY Notes.label                      "메모">
+<!ENTITY Notes.accesskey                "N">
+
+<!ENTITY Photo.tab                      "사진">
+<!ENTITY Photo.accesskey                "o">
+<!ENTITY PhotoDesc.label                "다음 중의 하나를 선택:">
+<!ENTITY GenericPhoto.label             "일반 사진">
+<!ENTITY GenericPhoto.accesskey         "G">
+<!ENTITY DefaultPhoto.label             "기본">
+<!ENTITY PhotoFile.label                "이 컴퓨터">
+<!ENTITY PhotoFile.accesskey            "n">
+<!ENTITY BrowsePhoto.label              "찾아보기">
+<!ENTITY BrowsePhoto.accesskey          "r">
+<!ENTITY PhotoURL.label                 "웹">
+<!ENTITY PhotoURL.accesskey             "b">
+<!ENTITY PhotoURL.placeholder             "사진의 웹 주소를 입력 하십시오.">
+<!ENTITY UpdatePhoto.label              "업데이트">
+<!ENTITY UpdatePhoto.accesskey          "u">

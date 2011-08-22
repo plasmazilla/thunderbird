@@ -1,23 +1,24 @@
-locale cookie pl jar:chrome/pl.jar!/locale/pl/cookie/
-locale communicator pl jar:chrome/pl.jar!/locale/pl/communicator/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+locale alerts pl chrome/pl/locale/pl/alerts/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale global pl jar:chrome/pl.jar!/locale/pl/global/
-locale places pl jar:chrome/pl.jar!/locale/pl/places/
-locale necko pl jar:chrome/pl.jar!/locale/pl/necko/
-locale passwordmgr pl jar:chrome/pl.jar!/locale/pl/passwordmgr/
-locale alerts pl jar:chrome/pl.jar!/locale/pl/alerts/
-locale mozapps pl jar:chrome/pl.jar!/locale/pl/mozapps/
-locale messenger pl jar:chrome/pl.jar!/locale/pl/messenger/
-locale messenger-smime pl jar:chrome/pl.jar!/locale/pl/messenger-smime/
-locale branding pl jar:chrome/pl.jar!/locale/pl/branding/
-locale messenger-region pl jar:chrome/pl.jar!/locale/pl/messenger-region/
-locale messenger-mapi pl jar:chrome/pl.jar!/locale/pl/messenger-mapi/
-locale messenger-newsblog pl jar:chrome/pl.jar!/locale/pl/messenger-newsblog/
-locale global-platform pl jar:chrome/pl.jar!/locale/pl/global-platform/
-locale pippki pl jar:chrome/pl.jar!/locale/pl/pippki/
-locale mozldap pl jar:chrome/pl.jar!/locale/pl/mozldap/
-locale pipnss pl jar:chrome/pl.jar!/locale/pl/pipnss/
-locale editor pl jar:chrome/pl.jar!/locale/pl/editor/
-locale global-region pl jar:chrome/pl.jar!/locale/pl/global-region/
-locale autoconfig pl jar:chrome/pl.jar!/locale/pl/autoconfig/
+locale necko pl chrome/pl/locale/pl/necko/
+locale places pl chrome/pl/locale/pl/places/
+locale cookie pl chrome/pl/locale/pl/cookie/
+locale global-platform pl chrome/pl/locale/pl/global-platform/
+locale messenger-mapi pl chrome/pl/locale/pl/messenger-mapi/
+locale pippki pl chrome/pl/locale/pl/pippki/
+locale communicator pl chrome/pl/locale/pl/communicator/
+locale mozapps pl chrome/pl/locale/pl/mozapps/
+locale mozldap pl chrome/pl/locale/pl/mozldap/
+locale editor pl chrome/pl/locale/pl/editor/
+locale pipnss pl chrome/pl/locale/pl/pipnss/
+locale autoconfig pl chrome/pl/locale/pl/autoconfig/
+locale passwordmgr pl chrome/pl/locale/pl/passwordmgr/
+manifest chrome/pl.manifest
+locale global-region pl chrome/pl/locale/pl/global-region/
+locale messenger pl chrome/pl/locale/pl/messenger/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+locale messenger-region pl chrome/pl/locale/pl/messenger-region/
+locale messenger-newsblog pl chrome/pl/locale/pl/messenger-newsblog/
+locale global pl chrome/pl/locale/pl/global/
+locale branding pl chrome/pl/locale/pl/branding/
+locale messenger-smime pl chrome/pl/locale/pl/messenger-smime/

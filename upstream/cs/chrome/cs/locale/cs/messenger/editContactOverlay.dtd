@@ -1,0 +1,19 @@
+<!ENTITY editContactPanelDeleteContact.label "Smazat">
+<!ENTITY editContactPanelDeleteContact.accesskey "m">
+
+<!ENTITY editContactName.label "Jméno:">
+<!ENTITY editContactName.accesskey "J">
+
+<!ENTITY editContactEmail.label "E-mail:">
+<!ENTITY editContactEmail.accesskey "E">
+
+<!ENTITY editContactAddressBook.label "Adresář:">
+<!ENTITY editContactAddressBook.accesskey "A">
+
+<!ENTITY editContactPanelCancel.label "Zrušit">
+<!ENTITY editContactPanelCancel.accesskey "Z">
+
+<!ENTITY editContactPanelDone.label "Hotovo">
+<!ENTITY editContactPanelDone.accesskey "H">
+
+<!ENTITY contactMoveDisabledWarning.description "Nelze změnit adresář, neboť kontakt je součástí skupiny.">

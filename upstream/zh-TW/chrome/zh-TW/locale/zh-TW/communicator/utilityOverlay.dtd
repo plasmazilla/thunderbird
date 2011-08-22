@@ -1,0 +1,59 @@
+<!-- these things need to move into utilityOverlay.xul -->
+
+<!-- LOCALIZATION NOTE : FILE This file contains the global menu items -->
+
+<!ENTITY fileMenu.label          "檔案">
+<!ENTITY fileMenu.accesskey        "F">
+<!ENTITY newMenu.label            "開新檔案">
+<!ENTITY newMenu.accesskey          "N">
+
+<!ENTITY editMenu.label          "編輯">
+<!ENTITY editMenu.accesskey        "E">
+<!ENTITY undoCmd.label            "復原">
+<!ENTITY undoCmd.key            "Z">
+<!ENTITY undoCmd.accesskey          "U">
+<!ENTITY redoCmd.label            "取消「復原」">
+<!ENTITY redoCmd.key            "Y">
+<!ENTITY redoCmd.accesskey          "R">
+<!ENTITY cutCmd.label            "剪下">
+<!ENTITY cutCmd.key              "X">
+<!ENTITY cutCmd.accesskey          "t">
+<!ENTITY copyCmd.label            "複製">
+<!ENTITY copyCmd.key            "C">
+<!ENTITY copyCmd.accesskey          "C">
+<!ENTITY pasteCmd.label            "貼上">
+<!ENTITY pasteCmd.key            "V">
+<!ENTITY pasteCmd.accesskey          "P">
+<!ENTITY deleteCmd.label          "刪除項目">
+<!ENTITY deleteCmd.accesskey        "D">
+<!ENTITY selectAllCmd.label          "全選">
+<!ENTITY selectAllCmd.key          "A">
+<!ENTITY selectAllCmd.accesskey        "A">
+<!ENTITY preferencesCmd.label        "選項…">
+<!ENTITY preferencesCmd.accesskey      "O">
+<!ENTITY preferencesCmdUnix.label       "個人偏好設定">
+<!ENTITY preferencesCmdUnix.accesskey     "n">
+
+<!ENTITY viewMenu.label          "檢視">
+<!ENTITY viewMenu.accesskey        "V">
+<!ENTITY viewToolbarsMenu.label        "工具列">
+<!ENTITY viewToolbarsMenu.accesskey      "T">
+<!ENTITY showTaskbarCmd.label          "狀態列">
+<!ENTITY showTaskbarCmd.accesskey        "u">
+
+<!ENTITY proxy.label                                    "設定 Proxy …">
+<!ENTITY proxy.accesskey                                "C">
+
+<!ENTITY closeCmd.label      "關閉">
+<!ENTITY closeCmd.key      "W">
+<!ENTITY closeCmd.accesskey    "C">
+
+<!ENTITY quitApplicationCmd.label  "結束">
+<!ENTITY quitApplicationCmd.key    "Q">
+<!ENTITY quitApplicationCmd.accesskey  "x">
+
+<!ENTITY quitApplicationCmdUnix.label  "結束">
+<!ENTITY quitApplicationCmdUnix.accesskey  "Q">
+
+<!ENTITY quitApplicationCmdMac.label  "結束 &brandShortName;">
+<!ENTITY quitApplicationCmdMac.accesskey  "Q">

@@ -1,0 +1,31 @@
+<!ENTITY importAll.label          "Importo Gjithçka">
+<!ENTITY importAll.accesskey      "G">
+<!ENTITY importAddressbook.label  "Libra Adresash">
+<!ENTITY importAddressbook.accesskey "L">
+<!ENTITY importSettings.label     "Rregullime">
+<!ENTITY importSettings.accesskey "R">
+<!ENTITY importFilters.label      "Filtra">
+<!ENTITY importFilters.accesskey  "F">
+<!ENTITY importMail.label         "Postë">
+<!ENTITY importMail.accesskey     "P">
+<!ENTITY importDialog.windowTitle "Importo">
+<!ENTITY  window.width            "40em">
+<!ENTITY  window.macWidth         "45em">
+<!ENTITY selectDescription.accesskey "P">
+
+<!ENTITY importTitle.label        "Ndihmësi &brandShortName; për Importim Poste">
+<!ENTITY importShortDesc.label    "Importoni prej programesh të tjerë Postë, Libra Adresash, Rregullime dhe Filtra">
+<!ENTITY importDescription1.label "Ky ndihmës do të importojë te  &brandShortName;-i mesazhe poste, zëra librash adresash, parapëlqime, dhe/ose filtra prej programesh të tjerë poste, si dhe formate të zakonshëm librash adresash.">
+<!ENTITY importDescription2.label "Pasi të jenë importuar, do të jeni në gjendje t'i përdorni që nga &brandShortName;-i.">
+
+<!ENTITY selectDescription.label  "Ju lutem, përzgjidhni programin prej të cilit doni të importohet:">
+
+<!ENTITY back.label               "&lt; Mbrapsht">
+<!ENTITY forward.label            "Pasuesi &gt;">
+<!ENTITY finish.label             "Përfundoje">
+<!ENTITY cancel.label             "Anuloje">
+
+<!ENTITY select.label             "Përzgjidhni llojin e materialit për t&apos;u importuar:">
+
+<!ENTITY title.label              "Titull">
+<!ENTITY processing.label         "Po importohet…">

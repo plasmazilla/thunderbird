@@ -1,0 +1,146 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+ Version: MPL 1.1/GPL 2.0/LGPL 2.1
+
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License. You may obtain a copy of the License at
+ http://www.mozilla.org/MPL/
+
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+
+ The Original Code is Mozilla Communicator client code, released
+ March 31, 1998.
+
+ The Initial Developer of the Original Code is
+ Netscape Communications Corporation.
+ Portions created by the Initial Developer are Copyright (C) 1998-1999
+ the Initial Developer. All Rights Reserved.
+
+ Contributor(s):
+
+ Alternatively, the contents of this file may be used under the terms of
+ either the GNU General Public License Version 2 or later (the "GPL"), or
+ the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ in which case the provisions of the GPL or the LGPL are applicable instead
+ of those above. If you wish to allow use of your version of this file only
+ under the terms of either the GPL or the LGPL, and not to allow others to
+ use your version of this file under the terms of the MPL, indicate your
+ decision by deleting the provisions above and replace them with the notice
+ and other provisions required by the GPL or the LGPL. If you do not delete
+ the provisions above, a recipient may use your version of this file under
+ the terms of any one of the MPL, the GPL or the LGPL.
+
+ ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY toField2.label "pour ">
+<!ENTITY fromField2.label "de ">
+<!ENTITY senderField2.label "expéditeur ">
+<!ENTITY organizationField2.label "organisation ">
+<!ENTITY replyToField2.label "réponse à ">
+
+<!ENTITY subjectField2.label "sujet ">
+<!--# LOCALIZATION NOTE (ccField2.label): DONT_TRANSLATE -->
+<!ENTITY ccField2.label "copie à ">
+<!ENTITY bccField2.label "copie cachée à ">
+<!ENTITY newsgroupsField2.label "groupes ">
+<!ENTITY followupToField2.label "faire suivre à ">
+<!ENTITY tagsHdr2.label "étiquettes ">
+<!ENTITY dateField2.label "date ">
+<!ENTITY userAgentField2.label "agent utilisateur ">
+<!ENTITY referencesField2.label "références ">
+<!ENTITY messageIdField2.label "identifiant du message ">
+<!ENTITY inReplyToField2.label "en réponse à ">
+<!ENTITY originalWebsite2.label "site Web ">
+
+<!ENTITY editMessageDescription.label "Ceci est un brouillon">
+<!ENTITY editMessageButton.label "Modifier…">
+<!ENTITY hdrArchiveButton.label "archiver">
+<!ENTITY hdrArchiveButton.tooltip "archiver ce message">
+<!ENTITY hdrReplyButton.label "répondre">
+<!ENTITY hdrReplyButton.tooltip "répondre à ce message">
+<!ENTITY hdrReplyAllButton.label "répondre à tous">
+<!ENTITY hdrReplyAllButton.tooltip "répondre à tous les destinataires">
+<!ENTITY hdrReplyListButton.label "répondre à la liste">
+<!ENTITY hdrReplyListButton.tooltip "répondre à la liste de diffusion">
+<!ENTITY hdrForwardButton.label "transférer">
+<!ENTITY hdrForwardButton.tooltip "transférer ce message">
+<!ENTITY hdrJunkButton.label "indésirable">
+<!ENTITY hdrJunkButton.tooltip "marquer ce message comme indésirable">
+<!ENTITY hdrTrashButton.label "supprimer">
+<!ENTITY hdrTrashButton.tooltip "supprimer ce message">
+
+<!ENTITY hdrViewToolbarShowFull.label "Afficher les icônes et le texte">
+<!ENTITY hdrViewToolbarShowFull.accesskey "A">
+<!ENTITY hdrViewToolbarShowIcons.label "Afficher les icônes uniquement">
+<!ENTITY hdrViewToolbarShowIcons.accesskey "f">
+<!ENTITY hdrViewToolbarShowText.label "Afficher le texte uniquement">
+<!ENTITY hdrViewToolbarShowText.accesskey "h">
+<!ENTITY hdrViewToolbarAlwaysReplySender.label "Toujours afficher Répondre à l'expéditeur">
+<!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "x">
+<!ENTITY otherActionsButton.label "autres actions">
+<!ENTITY otherActionsOpenConversation.label "ouvrir dans la discussion">
+<!ENTITY otherActionsOpenConversation.accesskey "c">
+<!ENTITY otherActionsOpenInNewWindow.label "ouvrir dans une nouvelle fenêtre">
+<!ENTITY otherActionsOpenInNewWindow.accesskey "o">
+<!ENTITY otherActionsOpenInNewTab.label "ouvrir dans un nouvel onglet">
+<!ENTITY otherActionsOpenInNewTab.accesskey "u">
+<!ENTITY markAsReadMenuItem.label "marquer comme lu">
+<!ENTITY markAsReadMenuItem.accesskey "l">
+<!ENTITY markAsUnreadMenuItem.label "marquer comme non lu">
+<!ENTITY markAsUnreadMenuItem.accesskey "l">
+<!ENTITY saveAsMenuItem.label "enregistrer sous…">
+<!ENTITY saveAsMenuItem.accesskey "e">
+<!ENTITY viewSourceMenuItem.label "afficher la source">
+<!ENTITY viewSourceMenuItem.accesskey "a">
+<!ENTITY otherActionsPrint.label "imprimer…">
+<!ENTITY otherActionsPrint.accesskey "m">
+
+<!-- Attachment context menu items -->
+<!ENTITY openAttachmentCmd.label "Ouvrir">
+<!ENTITY openAttachmentCmd.accesskey "O">
+<!ENTITY saveAsAttachmentCmd.label "Enregistrer sous…">
+<!ENTITY saveAsAttachmentCmd.accesskey "E">
+<!ENTITY detachAttachmentCmd.label "Détacher…">
+<!ENTITY detachAttachmentCmd.accesskey "a">
+<!ENTITY deleteAttachmentCmd.label "Supprimer">
+<!ENTITY deleteAttachmentCmd.accesskey "u">
+<!ENTITY openAllAttachmentsCmd.label "Tout ouvrir…">
+<!ENTITY openAllAttachmentsCmd.accesskey "v">
+<!ENTITY saveAllAttachmentsCmd.label "Tout enregistrer…">
+<!ENTITY saveAllAttachmentsCmd.accesskey "T">
+<!ENTITY detachAllAttachmentsCmd.label "Tout détacher…">
+<!ENTITY detachAllAttachmentsCmd.accesskey "D">
+<!ENTITY deleteAllAttachmentsCmd.label "Tout supprimer…">
+<!ENTITY deleteAllAttachmentsCmd.accesskey "s">
+
+<!-- Attachment toolbar items -->
+<!ENTITY saveAttachmentButton.label "enregistrer">
+<!ENTITY saveAttachmentButton.tooltip "enregistrer la pièce jointe">
+<!ENTITY saveAllAttachmentsButton.label "tout enregistrer">
+<!ENTITY saveAllAttachmentsButton.tooltip "enregistrer toutes les pièces jointes">
+<!ENTITY openAttachmentMenuItem.label "ouvrir">
+<!ENTITY openAttachmentMenuItem.accesskey "o">
+<!ENTITY saveAsAttachmentMenuItem.label "enregistrer sous…">
+<!ENTITY saveAsAttachmentMenuItem.accesskey "e">
+<!ENTITY detachAttachmentMenuItem.label "détacher…">
+<!ENTITY detachAttachmentMenuItem.accesskey "d">
+<!ENTITY deleteAttachmentMenuItem.label "supprimer">
+<!ENTITY deleteAttachmentMenuItem.accesskey "s">
+<!ENTITY openAllAttachmentsMenuItem.label "tout ouvrir…">
+<!ENTITY openAllAttachmentsMenuItem.accesskey "v">
+<!ENTITY saveAllAttachmentsMenuItem.label "tout enregistrer…">
+<!ENTITY saveAllAttachmentsMenuItem.accesskey "t">
+<!ENTITY detachAllAttachmentsMenuItem.label "tout détacher…">
+<!ENTITY detachAllAttachmentsMenuItem.accesskey "h">
+<!ENTITY deleteAllAttachmentsMenuItem.label "tout supprimer…">
+<!ENTITY deleteAllAttachmentsMenuItem.accesskey "u">
+
+<!ENTITY copyLinkCmd.label "Copier l'adresse du lien">
+<!ENTITY copyLinkCmd.accesskey "C">
+
+<!ENTITY CopyMessageId.label "Copier l'identifiant du message">
+<!ENTITY OpenMessageForMsgId.label "Ouvrir le message pour l'identifiant">
+<!ENTITY OpenBrowserWithMsgId.label "Ouvrir le navigateur avec l'identifiant de message">

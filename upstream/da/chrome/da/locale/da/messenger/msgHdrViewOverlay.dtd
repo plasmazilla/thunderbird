@@ -1,0 +1,147 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+ Version: MPL 1.1/GPL 2.0/LGPL 2.1
+
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License. You may obtain a copy of the License at
+ http://www.mozilla.org/MPL/
+
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+
+ The Original Code is Mozilla Communicator client code, released
+ March 31, 1998.
+
+ The Initial Developer of the Original Code is
+ Netscape Communications Corporation.
+ Portions created by the Initial Developer are Copyright (C) 1998-1999
+ the Initial Developer. All Rights Reserved.
+
+ Contributor(s):
+
+ Alternatively, the contents of this file may be used under the terms of
+ either the GNU General Public License Version 2 or later (the "GPL"), or
+ the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ in which case the provisions of the GPL or the LGPL are applicable instead
+ of those above. If you wish to allow use of your version of this file only
+ under the terms of either the GPL or the LGPL, and not to allow others to
+ use your version of this file under the terms of the MPL, indicate your
+ decision by deleting the provisions above and replace them with the notice
+ and other provisions required by the GPL or the LGPL. If you do not delete
+ the provisions above, a recipient may use your version of this file under
+ the terms of any one of the MPL, the GPL or the LGPL.
+
+ ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY toField2.label "Til ">
+<!ENTITY fromField2.label "Fra ">
+<!ENTITY senderField2.label "Afsender ">
+<!ENTITY organizationField2.label "Organisation ">
+<!ENTITY replyToField2.label "Svar til ">
+
+<!ENTITY subjectField2.label "Emne ">
+<!--# LOCALIZATION NOTE (ccField2.label): DONT_TRANSLATE -->
+<!ENTITY ccField2.label "cc ">
+<!ENTITY bccField2.label "bcc ">
+<!ENTITY newsgroupsField2.label "Nyhedsgrupper ">
+<!ENTITY followupToField2.label "Opfølgning til ">
+<!ENTITY tagsHdr2.label "Mærkater ">
+<!ENTITY dateField2.label "Dato ">
+<!ENTITY userAgentField2.label "Mailprogram ">
+<!ENTITY referencesField2.label "Referencer ">
+<!ENTITY messageIdField2.label "Meddelelses-id ">
+<!ENTITY inReplyToField2.label "Svar på ">
+<!ENTITY originalWebsite2.label "Hjemmeside ">
+
+<!ENTITY editMessageDescription.label "Denne meddelelse er en kladde">
+<!ENTITY editMessageButton.label "Rediger…">
+<!ENTITY hdrArchiveButton.label "Arkiver">
+<!ENTITY hdrArchiveButton.tooltip "Arkiver denne meddelelse">
+<!ENTITY hdrReplyButton.label "Svar">
+<!ENTITY hdrReplyButton.tooltip "Svar på denne meddelelse">
+<!ENTITY hdrReplyAllButton.label "Svar til alle">
+<!ENTITY hdrReplyAllButton.tooltip "Svar afsender og alle modtagere">
+<!ENTITY hdrReplyListButton.label "Svar til liste">
+<!ENTITY hdrReplyListButton.tooltip "Svar til diskussionsliste">
+<!ENTITY hdrForwardButton.label "Videresend">
+<!ENTITY hdrForwardButton.tooltip "Videresend denne meddelelse">
+<!ENTITY hdrJunkButton.label "Spam">
+<!ENTITY hdrJunkButton.tooltip "Marker denne meddelelse">
+<!ENTITY hdrTrashButton.label "Slet">
+<!ENTITY hdrTrashButton.tooltip "Slet denne meddelelse">
+
+<!ENTITY hdrViewToolbarShowFull.label "Vis ikoner og tekst">
+<!ENTITY hdrViewToolbarShowFull.accesskey "V">
+<!ENTITY hdrViewToolbarShowIcons.label "Vis kun ikoner">
+<!ENTITY hdrViewToolbarShowIcons.accesskey "k">
+<!ENTITY hdrViewToolbarShowText.label "Vis kun tekst">
+<!ENTITY hdrViewToolbarShowText.accesskey "t">
+<!ENTITY hdrViewToolbarAlwaysReplySender.label "Vis altid svar til afsender">
+<!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "a">
+
+<!ENTITY otherActionsButton.label "Flere funktioner">
+<!ENTITY otherActionsOpenConversation.label "Vis korrespondance i tråd">
+<!ENTITY otherActionsOpenConversation.accesskey "t">
+<!ENTITY otherActionsOpenInNewWindow.label "Åbn i nyt vindue">
+<!ENTITY otherActionsOpenInNewWindow.accesskey "v">
+<!ENTITY otherActionsOpenInNewTab.label "Åbn i nyt faneblad">
+<!ENTITY otherActionsOpenInNewTab.accesskey "f">
+<!ENTITY markAsReadMenuItem.label "Marker som læst">
+<!ENTITY markAsReadMenuItem.accesskey "l">
+<!ENTITY markAsUnreadMenuItem.label "Marker som ulæst">
+<!ENTITY markAsUnreadMenuItem.accesskey "M">
+<!ENTITY saveAsMenuItem.label "Gem som…">
+<!ENTITY saveAsMenuItem.accesskey "G">
+<!ENTITY viewSourceMenuItem.label "Vis kildekode">
+<!ENTITY viewSourceMenuItem.accesskey "k">
+<!ENTITY otherActionsPrint.label "Udskriv…">
+<!ENTITY otherActionsPrint.accesskey "U">
+
+<!-- Attachment context menu items -->
+<!ENTITY openAttachmentCmd.label    "Åbn">
+<!ENTITY openAttachmentCmd.accesskey    "Å">
+<!ENTITY saveAsAttachmentCmd.label    "Gem som…">
+<!ENTITY saveAsAttachmentCmd.accesskey    "G">
+<!ENTITY detachAttachmentCmd.label    "Afhæft…">
+<!ENTITY detachAttachmentCmd.accesskey    "A">
+<!ENTITY deleteAttachmentCmd.label    "Slet">
+<!ENTITY deleteAttachmentCmd.accesskey    "S">
+<!ENTITY openAllAttachmentsCmd.label    "Åbn alle…">
+<!ENTITY openAllAttachmentsCmd.accesskey    "l">
+<!ENTITY saveAllAttachmentsCmd.label    "Gem alle…">
+<!ENTITY saveAllAttachmentsCmd.accesskey    "a">
+<!ENTITY detachAllAttachmentsCmd.label    "Afhæft alle…">
+<!ENTITY detachAllAttachmentsCmd.accesskey    "f">
+<!ENTITY deleteAllAttachmentsCmd.label    "Slet alle…">
+<!ENTITY deleteAllAttachmentsCmd.accesskey    "t">
+
+<!-- Attachment toolbar items -->
+<!ENTITY saveAttachmentButton.label       "Gem">
+<!ENTITY saveAttachmentButton.tooltip     "Gem den vedhæftede fil">
+<!ENTITY saveAllAttachmentsButton.label   "Gem alle">
+<!ENTITY saveAllAttachmentsButton.tooltip "Gem alle vedhæftede filer">
+<!ENTITY openAttachmentMenuItem.label     "Åbn">
+<!ENTITY openAttachmentMenuItem.accesskey    "Å">
+<!ENTITY saveAsAttachmentMenuItem.label    "Gem som…">
+<!ENTITY saveAsAttachmentMenuItem.accesskey    "G">
+<!ENTITY detachAttachmentMenuItem.label    "Afhæft…">
+<!ENTITY detachAttachmentMenuItem.accesskey    "A">
+<!ENTITY deleteAttachmentMenuItem.label    "Slet">
+<!ENTITY deleteAttachmentMenuItem.accesskey    "S">
+<!ENTITY openAllAttachmentsMenuItem.label    "Åbn alle…">
+<!ENTITY openAllAttachmentsMenuItem.accesskey    "Å">
+<!ENTITY saveAllAttachmentsMenuItem.label    "Gem alle…">
+<!ENTITY saveAllAttachmentsMenuItem.accesskey    "a">
+<!ENTITY detachAllAttachmentsMenuItem.label    "Afhæft alle…">
+<!ENTITY detachAllAttachmentsMenuItem.accesskey    "f">
+<!ENTITY deleteAllAttachmentsMenuItem.label    "Slet alle…">
+<!ENTITY deleteAllAttachmentsMenuItem.accesskey    "t">
+
+<!ENTITY copyLinkCmd.label "Kopier link">
+<!ENTITY copyLinkCmd.accesskey "K">
+
+<!ENTITY CopyMessageId.label "Kopier Meddelelse-ID">
+<!ENTITY OpenMessageForMsgId.label "Åbn meddelelse med ID">
+<!ENTITY OpenBrowserWithMsgId.label "Åbn Browser med Meddelelse-ID">

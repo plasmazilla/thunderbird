@@ -1,0 +1,46 @@
+<!-- extracted from am-copies.xul -->
+
+<!ENTITY copyAndFolderTitle.label "Kopyalar ve dizinler">
+<!ENTITY sendingPrefix.label "Postaları otomatik gönderirken">
+<!ENTITY fccMailFolder.label "Bir kopyasını buraya koy:">
+<!ENTITY fccMailFolder.accesskey "p">
+<!ENTITY fccReplyFollowsParent.label "Yanıtları yanıtlanan iletinin dizinine koy">
+<!ENTITY fccReplyFollowsParent.accesskey "l">
+<!-- LOCALIZATION NOTE (ccAddress.label): do not translate "Cc" in below line -->
+<!ENTITY ccAddress.label "Cc these email addresses:">
+<!ENTITY ccAddress.accesskey "C">
+<!ENTITY ccAddressList.placeholder "Separate addresses with commas">
+<!-- LOCALIZATION NOTE (bccAddress.label): do not translate "Bcc" in below line -->
+<!ENTITY bccAddress.label "Adresi Bcc'ye ekle:">
+<!ENTITY bccAddress.accesskey "B">
+<!ENTITY bccAddressList.placeholder "Separate addresses with commas">
+<!ENTITY saveMessageDlg.label "Mesajlar kaydoldulurken onaylama penceresini göster">
+<!ENTITY saveMessageDlg.accesskey "s">
+<!-- LOCALIZATION NOTE (sentFolderOn.label): OK to translate this, bug #57440 -->
+<!ENTITY sentFolderOn.label "&quot;Giden&quot; dizini:">
+<!ENTITY sentFolderOn.accesskey "e">
+<!ENTITY sentInOtherFolder.label "Diğer">
+<!ENTITY sentInOtherFolder.accesskey "D">
+<!-- LOCALIZATION NOTE (archivesFolderOn.label): OK to translate this, bug #57440 -->
+<!ENTITY archivesTitle.label "Message Archives">
+<!ENTITY keepArchives.label "Keep message archives in:">
+<!ENTITY keepArchives.accesskey "K">
+<!ENTITY archiveHierarchyButton.label "Archive options…">
+<!ENTITY archiveHierarchyButton.accesskey "A">
+<!ENTITY archivesFolderOn.label "&quot;Arşiv&quot; dizini:">
+<!ENTITY archivesFolderOn.accesskey "d">
+<!ENTITY archiveInOtherFolder.label "Diğer:">
+<!ENTITY archiveInOtherFolder.accesskey "D">
+<!ENTITY specialFolders.label "Drafts and Templates">
+<!ENTITY keepDrafts.label "E-postaları Taslak içinde bırak:">
+<!-- LOCALIZATION NOTE (draftsFolderOn.label): OK to translate this, bug #57440 -->
+<!ENTITY draftsFolderOn.label "&quot;Taslak&quot; dizini:">
+<!ENTITY draftsFolderOn.accesskey "T">
+<!ENTITY draftInOtherFolder.label "Diğer">
+<!ENTITY draftInOtherFolder.accesskey "D">
+<!ENTITY keepTemplates.label "E-postaların şablonlarını burda sakla:">
+<!-- LOCALIZATION NOTE (templatesFolderOn.label): OK to translate this, bug #57440 -->
+<!ENTITY templatesFolderOn.label "&quot;Geçici&quot; dizini:">
+<!ENTITY templatesFolderOn.accesskey "G">
+<!ENTITY templateInOtherFolder.label "Diğer:">
+<!ENTITY templateInOtherFolder.accesskey "r">

@@ -1,0 +1,151 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+ Version: MPL 1.1/GPL 2.0/LGPL 2.1
+
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License. You may obtain a copy of the License at
+ http://www.mozilla.org/MPL/
+                   ‍‍
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+
+ The Original Code is Mozilla Communicator client code, released
+ March 31, 1998.
+
+ The Initial Developer of the Original Code is
+ Netscape Communications Corporation.
+ Portions created by the Initial Developer are Copyright (C) 1998-1999
+ the Initial Developer. All Rights Reserved.
+
+ Contributor(s):
+
+ Alternatively, the contents of this file may be used under the terms of
+ either the GNU General Public License Version 2 or later (the "GPL"), or
+ the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ in which case the provisions of the GPL or the LGPL are applicable instead
+ of those above. If you wish to allow use of your version of this file only
+ under the terms of either the GPL or the LGPL, and not to allow others to
+ use your version of this file under the terms of the MPL, indicate your
+ decision by deleting the provisions above and replace them with the notice
+ and other provisions required by the GPL or the LGPL. If you do not delete
+ the provisions above, a recipient may use your version of this file under
+ the terms of any one of the MPL, the GPL or the LGPL.
+
+ ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY toField2.label "වෙත: ">
+<!ENTITY fromField2.label "වෙතින්: ">
+<!ENTITY senderField2.label "එවන්නා: ">
+<!ENTITY organizationField2.label "සංවිධානය: ">
+<!ENTITY replyToField2.label "පිළිතුරු මෙයට: ">
+
+<!ENTITY subjectField2.label "විෂයය: ">
+<!--# LOCALIZATION NOTE (ccField.label): DONT_TRANSLATE -->
+<!ENTITY ccField2.label "පිටපත්: ">
+<!ENTITY bccField2.label "රහස්‍ය පිටපත්: ">
+<!ENTITY newsgroupsField2.label "පුවත්සමූහ: ">
+<!ENTITY followupToField2.label "පසුවිපරම්-මෙයට: ">
+<!ENTITY tagsHdr2.label "ටැග: ">
+<!ENTITY dateField2.label "දිනය: ">
+<!ENTITY userAgentField2.label "User-Agent: ">
+<!ENTITY referencesField2.label "References: ">
+<!ENTITY messageIdField2.label "Message-ID: ">
+<!ENTITY inReplyToField2.label "පිළිතුරු මෙයට: ">
+<!ENTITY originalWebsite2.label "වෙබ් අඩවිය: ">
+
+<!ENTITY editMessageDescription.label "මෙය කෙටුම්පත් කරන ලිපියකි">
+<!ENTITY editMessageButton.label "සැකසීම…">
+<!ENTITY hdrArchiveButton.label "සංරක්ෂණය">
+<!ENTITY hdrArchiveButton.tooltip "මෙම ලිපි සංරක්ෂණය කරන්න">
+<!ENTITY hdrReplyButton.label "පිළිතුරු">
+<!ENTITY hdrReplyButton.tooltip "මෙම ලිපියට පිළිතුරු යවන්න">
+<!ENTITY hdrReplyAllButton.label "සැමට පිළිතුරු">
+<!ENTITY hdrReplyAllButton.tooltip "එවන්නාට සහ සියළු ලබන්නන්ට පිළිතුරු යවන්න">
+<!ENTITY hdrReplyListButton.label "ලැයිස්තුවට පිළිතුරු">
+<!ENTITY hdrReplyListButton.tooltip "ලැයිස්තුවට පිළිතුරු යවන්න">
+<!ENTITY hdrForwardButton.label "යොමු කරන්න">
+<!ENTITY hdrForwardButton.tooltip "මෙම ලිපිය යොමු කරන්න">
+<!ENTITY hdrJunkButton.label "නිසරු (junk)">
+<!ENTITY hdrJunkButton.tooltip "මෙම ලිපිය නිසරු සේ ලකුණු කරන්න">
+<!ENTITY hdrTrashButton.label "මකන්න">
+<!ENTITY hdrTrashButton.tooltip "මෙම ලිපිය මකන්න">
+
+<!ENTITY hdrViewToolbarShowFull.label "අයිකන සහ පාඨ පෙන්වන්න">
+<!ENTITY hdrViewToolbarShowFull.accesskey "a">
+<!ENTITY hdrViewToolbarShowIcons.label "අයිකන පමණක් පෙන්වන්න">
+<!ENTITY hdrViewToolbarShowIcons.accesskey "I">
+<!ENTITY hdrViewToolbarShowText.label "පාඨ පමණක් පෙන්වන්න">
+<!ENTITY hdrViewToolbarShowText.accesskey "T">
+<!ENTITY hdrViewToolbarAlwaysReplySender.label "සැමවිටම එවන්නාට පිළිතුර පෙන්වන්න">
+<!ENTITY hdrViewToolbarAlwaysReplySender.accesskey "R">
+
+<!ENTITY otherActionsButton.label "වෙනත් ක්‍රියාවන්">
+<!ENTITY otherActionsOpenConversation.label "open in conversation">
+<!ENTITY otherActionsOpenConversation.accesskey "c">
+<!ENTITY otherActionsOpenInNewWindow.label "නව කවුළුවක විවෘත කරන්න">
+<!ENTITY otherActionsOpenInNewWindow.accesskey "w">
+<!ENTITY otherActionsOpenInNewTab.label "නව ටැබයක විවෘත කරන්න">
+<!ENTITY otherActionsOpenInNewTab.accesskey "t">
+<!ENTITY markAsReadMenuItem.label "කියවූ සේ ලකුණු කරන්න">
+<!ENTITY markAsReadMenuItem.accesskey "r">
+<!ENTITY markAsUnreadMenuItem.label "නොකියවූ සේ ලකුණු කරන්න">
+<!ENTITY markAsUnreadMenuItem.accesskey "r">
+<!ENTITY saveAsMenuItem.label "සුරකින අයුර…">
+<!ENTITY saveAsMenuItem.accesskey "S">
+<!ENTITY viewSourceMenuItem.label "මූලය පෙන්වන්න…">
+<!ENTITY viewSourceMenuItem.accesskey "V">
+<!ENTITY otherActionsPrint.label "මුද්‍රණය…">
+<!ENTITY otherActionsPrint.accesskey "p">
+
+<!ENTITY openAttachmentCmd.label    "විවෘත කරන්න">
+<!ENTITY openAttachmentCmd.accesskey		"O">
+<!ENTITY saveAsAttachmentCmd.label    "සුරකින්නේ මෙලෙස...">
+<!ENTITY saveAsAttachmentCmd.accesskey		"A">
+<!ENTITY detachAttachmentCmd.label    "වෙන් කරන්න ...">
+<!ENTITY deleteAttachmentCmd.label    "මකන්න">
+<!ENTITY saveAllAttachmentsCmd.label    "සියල්ල සුරකින්න...">
+<!ENTITY saveAllAttachmentsCmd.accesskey		"S">
+<!ENTITY detachAllAttachmentsCmd.label    "සියල්ල වෙන් කරන්න...">
+<!ENTITY detachAllAttachmentsCmd.accesskey    "D">
+<!ENTITY deleteAllAttachmentsCmd.label    "සියල්ල මකන්න...">
+<!ENTITY deleteAllAttachmentsCmd.accesskey    "E">
+
+<!ENTITY copyLinkCmd.label        "ඈදුමේ ස්ථානය කොපි කරන්න">
+<!ENTITY copyLinkCmd.accesskey		"C">
+
+<!ENTITY CopyMessageId.label "Copy Message-ID">
+<!ENTITY OpenMessageForMsgId.label "Open Message For ID">
+<!ENTITY OpenBrowserWithMsgId.label "Open Browser With Message-ID">
+
+
+<!--
+Entities below were automatically added by compare-locales,
+ based on en-US entities.
+-->
+
+<!ENTITY deleteAttachmentMenuItem.accesskey "e">
+<!ENTITY deleteAllAttachmentsMenuItem.accesskey "e">
+<!ENTITY detachAttachmentMenuItem.accesskey "d">
+<!ENTITY detachAllAttachmentsMenuItem.accesskey "d">
+<!ENTITY openAllAttachmentsMenuItem.label "open all…">
+<!ENTITY deleteAllAttachmentsMenuItem.label "delete all…">
+<!ENTITY saveAllAttachmentsButton.label "save all">
+<!ENTITY deleteAttachmentMenuItem.label "delete">
+<!ENTITY saveAttachmentButton.tooltip "save the attached file">
+<!ENTITY detachAllAttachmentsMenuItem.label "detach all…">
+<!ENTITY openAttachmentMenuItem.label "open">
+<!ENTITY saveAsAttachmentMenuItem.accesskey "s">
+<!ENTITY openAllAttachmentsMenuItem.accesskey "o">
+<!ENTITY deleteAttachmentCmd.accesskey "L">
+<!ENTITY saveAllAttachmentsMenuItem.accesskey "s">
+<!ENTITY detachAttachmentMenuItem.label "detach…">
+<!ENTITY openAllAttachmentsCmd.label "Open All…">
+<!ENTITY openAllAttachmentsCmd.accesskey "O">
+<!ENTITY saveAttachmentButton.label "save">
+<!ENTITY saveAsAttachmentMenuItem.label "save as…">
+<!ENTITY detachAttachmentCmd.accesskey "T">
+<!ENTITY openAttachmentMenuItem.accesskey "o">
+<!ENTITY saveAllAttachmentsButton.tooltip "save all the attached files">
+<!ENTITY saveAllAttachmentsMenuItem.label "save all…">

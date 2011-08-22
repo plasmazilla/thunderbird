@@ -1,0 +1,26 @@
+<!-- Help Menu -->
+<!ENTITY helpMenu.label "Довідка">
+<!ENTITY helpMenu.accesskey "Д">
+<!-- LOCALIZATION NOTE some localizations of Windows use "?"
+                       for the help button in the menubar but Gnome does not.   -->
+<!ENTITY helpMenuWin.label "Довідка">
+<!ENTITY helpMenuWin.accesskey "Д">
+<!ENTITY helpTroubleshootingInfo.label     "Вирішення проблем">
+<!ENTITY helpTroubleshootingInfo.accesskey "В">
+<!ENTITY helpSafeMode.label     "Перезапуск з вимкненими додатками…">
+<!ENTITY helpSafeMode.accesskey "П">
+<!ENTITY releaseCmd2.label "Примітки до випуску">
+<!ENTITY releaseCmd2.accesskey "в">
+<!ENTITY whatsNewCmd.label "Що нового">
+<!ENTITY whatsNewCmd.accesskey "Щ">
+<!ENTITY featureConfiguratorCmd.label "Помічник з міграції">
+<!ENTITY featureConfiguratorCmd.accesskey "м">
+<!ENTITY openHelp.label "Зміст">
+<!ENTITY openHelp.accesskey "З">
+<!ENTITY openHelp.commandkey "VK_F1">
+<!ENTITY openHelpMac.label "Довідка &brandShortName;">
+<!ENTITY openHelpMac2.commandkey   "?">
+<!ENTITY openHelpMac2.modifiers    "accel">
+
+<!ENTITY aboutMenuCmd.label "Про &brandShortName;">
+<!ENTITY aboutMenuCmd.accesskey "П">
