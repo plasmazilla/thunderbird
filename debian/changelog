@@ -1,3 +1,10 @@
+icedove (3.1.13-1) unstable; urgency=high
+
+  * New Upstream Version
+    - MFSA 2011-34 Protection against fraudulent DigiNotar certificates
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 31 Aug 2011 20:58:14 +0200
+
 icedove (3.1.12-1) unstable; urgency=high
 
   * New Upstream Version
