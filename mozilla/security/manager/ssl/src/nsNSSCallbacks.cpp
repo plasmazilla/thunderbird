@@ -1002,6 +1002,53 @@ static struct nsSerialBinaryBlacklistEntry myUTNBlacklistEntries[] = {
   { 0, 0 } // end marker
 };
 
+// Bug 682927: Do not trust any DigiNotar-issued certificates.
+// We do this check after normal certificate validation because we do not
+// want to override a "revoked" OCSP response.
+PRErrorCode
+PSM_SSL_BlacklistDigiNotar(CERTCertificate * serverCert,
+                           CERTCertList * serverCertChain)
+{
+  PRBool isDigiNotarIssuedCert = PR_FALSE;
+
+  for (CERTCertListNode *node = CERT_LIST_HEAD(serverCertChain);
+       !CERT_LIST_END(node, serverCertChain);
+       node = CERT_LIST_NEXT(node)) {
+    if (!node->cert->issuerName)
+      continue;
+
+    if (strstr(node->cert->issuerName, "CN=DigiNotar")) {
+      isDigiNotarIssuedCert = PR_TRUE;
+      // Do not let the user override the error if the cert was
+      // chained from the "DigiNotar Root CA" cert and the cert was issued
+      // within the time window in which we think the mis-issuance(s) occurred.
+      if (strstr(node->cert->issuerName, "CN=DigiNotar Root CA")) {
+        PRTime cutoff = 0, notBefore = 0, notAfter = 0;
+        PRStatus status = PR_ParseTimeString("01-JUL-2011 00:00", PR_TRUE, &cutoff);
+        NS_ASSERTION(status == PR_SUCCESS, "PR_ParseTimeString failed");
+        if (status != PR_SUCCESS ||
+           CERT_GetCertTimes(serverCert, &notBefore, &notAfter) != SECSuccess ||
+           notBefore >= cutoff) {
+          return SEC_ERROR_REVOKED_CERTIFICATE;
+        }
+      }
+    }
+
+    // By request of the Dutch government
+    if (!strcmp(node->cert->issuerName,
+                "CN=Staat der Nederlanden Root CA,O=Staat der Nederlanden,C=NL") &&
+        CERT_LIST_END(CERT_LIST_NEXT(node), serverCertChain)) {
+      return 0;
+    }
+  }
+
+  if (isDigiNotarIssuedCert)
+    return SEC_ERROR_UNTRUSTED_ISSUER; // user can override this
+  else
+    return 0; // No DigiNotor cert => carry on as normal
+}
+
+
 SECStatus PR_CALLBACK AuthCertificateCallback(void* client_data, PRFileDesc* fd,
                                               PRBool checksig, PRBool isServer) {
   nsNSSShutDownPreventionLock locker;
@@ -1064,14 +1111,28 @@ SECStatus PR_CALLBACK AuthCertificateCallback(void* client_data, PRFileDesc* fd,
       nsc = new nsNSSCertificate(serverCert);
     }
 
+    CERTCertList *certList = nsnull;
+    if (rv == SECSuccess) {
+      certList = CERT_GetCertChainFromCert(serverCert, PR_Now(), certUsageSSLCA);
+      if (!certList) {
+        rv = SECFailure;
+      } else {
+        PRErrorCode blacklistErrorCode = PSM_SSL_BlacklistDigiNotar(serverCert,
+                                                                    certList);
+        if (blacklistErrorCode != 0) {
+          infoObject->SetCertIssuerBlacklisted();
+          PORT_SetError(blacklistErrorCode);
+          rv = SECFailure;
+        }
+      }
+    }
+
     if (SECSuccess == rv) {
       if (nsc) {
         PRBool dummyIsEV;
         nsc->GetIsExtendedValidation(&dummyIsEV); // the nsc object will cache the status
       }
     
-      CERTCertList *certList = CERT_GetCertChainFromCert(serverCert, PR_Now(), certUsageSSLCA);
-
       nsCOMPtr<nsINSSComponent> nssComponent;
       
       for (CERTCertListNode *node = CERT_LIST_HEAD(certList);
@@ -1107,6 +1168,9 @@ SECStatus PR_CALLBACK AuthCertificateCallback(void* client_data, PRFileDesc* fd,
         }
       }
 
+    }
+
+    if (certList) {
       CERT_DestroyCertList(certList);
     }
 
