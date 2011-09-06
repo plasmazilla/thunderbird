@@ -8,7 +8,7 @@ Closes: #595925
  1 files changed, 0 insertions(+), 3 deletions(-)
 
 diff --git a/upstream/si/install.rdf b/upstream/si/install.rdf
-index 1597965..28cf1a5 100644
+index d3b3cb2..47818fc 100644
 --- a/upstream/si/install.rdf
 +++ b/upstream/si/install.rdf
 @@ -1,6 +1,3 @@

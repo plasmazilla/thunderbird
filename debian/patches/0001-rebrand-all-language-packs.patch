@@ -1,0 +1,1083 @@
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Mon, 5 Sep 2011 19:12:55 +0200
+Subject: rebrand all language packs
+
+---
+ upstream/ar/chrome/ar/locale/ar/branding/brand.dtd |    6 +++---
+ .../chrome/ar/locale/ar/branding/brand.properties  |    6 +++---
+ upstream/bg/chrome/bg/locale/bg/branding/brand.dtd |    4 ++--
+ .../chrome/bg/locale/bg/branding/brand.properties  |    4 ++--
+ upstream/br/chrome/br/locale/br/branding/brand.dtd |    6 +++---
+ .../chrome/br/locale/br/branding/brand.properties  |    4 ++--
+ upstream/ca/chrome/ca/locale/ca/branding/brand.dtd |    6 +++---
+ .../chrome/ca/locale/ca/branding/brand.properties  |    4 ++--
+ upstream/cs/chrome/cs/locale/cs/branding/brand.dtd |    4 ++--
+ .../chrome/cs/locale/cs/branding/brand.properties  |    4 ++--
+ upstream/da/chrome/da/locale/da/branding/brand.dtd |    6 +++---
+ .../chrome/da/locale/da/branding/brand.properties  |    4 ++--
+ upstream/de/chrome/de/locale/de/branding/brand.dtd |    6 +++---
+ .../chrome/de/locale/de/branding/brand.properties  |    6 +++---
+ .../chrome/en-GB/locale/en-GB/branding/brand.dtd   |    6 +++---
+ .../en-GB/locale/en-GB/branding/brand.properties   |    4 ++--
+ .../chrome/es-AR/locale/es-AR/branding/brand.dtd   |    6 +++---
+ .../es-AR/locale/es-AR/branding/brand.properties   |    6 +++---
+ .../chrome/es-ES/locale/es-ES/branding/brand.dtd   |    4 ++--
+ .../es-ES/locale/es-ES/branding/brand.properties   |    6 +++---
+ upstream/et/chrome/et/locale/et/branding/brand.dtd |    6 +++---
+ .../chrome/et/locale/et/branding/brand.properties  |    4 ++--
+ upstream/eu/chrome/eu/locale/eu/branding/brand.dtd |    6 +++---
+ .../chrome/eu/locale/eu/branding/brand.properties  |    4 ++--
+ upstream/fi/chrome/fi/locale/fi/branding/brand.dtd |    6 +++---
+ .../chrome/fi/locale/fi/branding/brand.properties  |    4 ++--
+ upstream/fr/chrome/fr/locale/fr/branding/brand.dtd |    6 +++---
+ .../chrome/fr/locale/fr/branding/brand.properties  |    4 ++--
+ .../chrome/fy-NL/locale/fy-NL/branding/brand.dtd   |    6 +++---
+ .../fy-NL/locale/fy-NL/branding/brand.properties   |    4 ++--
+ .../chrome/ga-IE/locale/ga-IE/branding/brand.dtd   |    4 ++--
+ .../ga-IE/locale/ga-IE/branding/brand.properties   |    4 ++--
+ upstream/gd/chrome/gd/locale/gd/branding/brand.dtd |    6 +++---
+ .../chrome/gd/locale/gd/branding/brand.properties  |    4 ++--
+ upstream/gl/chrome/gl/locale/gl/branding/brand.dtd |    6 +++---
+ .../chrome/gl/locale/gl/branding/brand.properties  |    4 ++--
+ upstream/he/chrome/he/locale/he/branding/brand.dtd |    6 +++---
+ .../chrome/he/locale/he/branding/brand.properties  |    4 ++--
+ upstream/hu/chrome/hu/locale/hu/branding/brand.dtd |    6 +++---
+ .../chrome/hu/locale/hu/branding/brand.properties  |    4 ++--
+ upstream/is/chrome/is/locale/is/branding/brand.dtd |    4 ++--
+ .../chrome/is/locale/is/branding/brand.properties  |    4 ++--
+ upstream/it/chrome/it/locale/it/branding/brand.dtd |    6 +++---
+ .../chrome/it/locale/it/branding/brand.properties  |    6 +++---
+ upstream/ja/chrome/ja/locale/ja/branding/brand.dtd |    6 +++---
+ .../chrome/ja/locale/ja/branding/brand.properties  |    6 +++---
+ upstream/ko/chrome/ko/locale/ko/branding/brand.dtd |    6 +++---
+ .../chrome/ko/locale/ko/branding/brand.properties  |    6 +++---
+ upstream/lt/chrome/lt/locale/lt/branding/brand.dtd |    6 +++---
+ .../chrome/lt/locale/lt/branding/brand.properties  |    4 ++--
+ .../chrome/nb-NO/locale/nb-NO/branding/brand.dtd   |    6 +++---
+ .../nb-NO/locale/nb-NO/branding/brand.properties   |    4 ++--
+ upstream/nl/chrome/nl/locale/nl/branding/brand.dtd |    6 +++---
+ .../chrome/nl/locale/nl/branding/brand.properties  |    4 ++--
+ .../chrome/nn-NO/locale/nn-NO/branding/brand.dtd   |    6 +++---
+ .../nn-NO/locale/nn-NO/branding/brand.properties   |    4 ++--
+ .../chrome/pa-IN/locale/pa-IN/branding/brand.dtd   |    6 +++---
+ .../pa-IN/locale/pa-IN/branding/brand.properties   |    6 +++---
+ upstream/pl/chrome/pl/locale/pl/branding/brand.dtd |    4 ++--
+ .../chrome/pl/locale/pl/branding/brand.properties  |    4 ++--
+ .../chrome/pt-BR/locale/pt-BR/branding/brand.dtd   |    6 +++---
+ .../pt-BR/locale/pt-BR/branding/brand.properties   |    4 ++--
+ .../chrome/pt-PT/locale/pt-PT/branding/brand.dtd   |    6 +++---
+ .../pt-PT/locale/pt-PT/branding/brand.properties   |    6 +++---
+ upstream/rm/chrome/rm/locale/rm/branding/brand.dtd |    6 +++---
+ .../chrome/rm/locale/rm/branding/brand.properties  |    4 ++--
+ upstream/ru/chrome/ru/locale/ru/branding/brand.dtd |    4 ++--
+ .../chrome/ru/locale/ru/branding/brand.properties  |    6 +++---
+ upstream/si/chrome/si/locale/si/branding/brand.dtd |    6 +++---
+ .../chrome/si/locale/si/branding/brand.properties  |    6 +++---
+ upstream/sk/chrome/sk/locale/sk/branding/brand.dtd |    6 +++---
+ .../chrome/sk/locale/sk/branding/brand.properties  |    4 ++--
+ upstream/sl/chrome/sl/locale/sl/branding/brand.dtd |    6 +++---
+ .../chrome/sl/locale/sl/branding/brand.properties  |    4 ++--
+ upstream/sq/chrome/sq/locale/sq/branding/brand.dtd |    6 +++---
+ .../chrome/sq/locale/sq/branding/brand.properties  |    6 +++---
+ .../chrome/sv-SE/locale/sv-SE/branding/brand.dtd   |    6 +++---
+ .../sv-SE/locale/sv-SE/branding/brand.properties   |    4 ++--
+ .../chrome/ta-LK/locale/ta-LK/branding/brand.dtd   |    6 +++---
+ .../ta-LK/locale/ta-LK/branding/brand.properties   |    6 +++---
+ upstream/tr/chrome/tr/locale/tr/branding/brand.dtd |    4 ++--
+ .../chrome/tr/locale/tr/branding/brand.properties  |    6 +++---
+ upstream/uk/chrome/uk/locale/uk/branding/brand.dtd |    6 +++---
+ .../chrome/uk/locale/uk/branding/brand.properties  |    6 +++---
+ .../chrome/zh-TW/locale/zh-TW/branding/brand.dtd   |    6 +++---
+ .../zh-TW/locale/zh-TW/branding/brand.properties   |    4 ++--
+ 86 files changed, 222 insertions(+), 222 deletions(-)
+
+diff --git a/upstream/ar/chrome/ar/locale/ar/branding/brand.dtd b/upstream/ar/chrome/ar/locale/ar/branding/brand.dtd
+index 4a6fab0..54e0fb0 100644
+--- a/upstream/ar/chrome/ar/locale/ar/branding/brand.dtd
++++ b/upstream/ar/chrome/ar/locale/ar/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "ثنْدَربِرد">
+-<!ENTITY  brandFullName         "موزيلا ثنْدَربِرد">
+-<!ENTITY  vendorShortName       "موزيلا">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1         "موزيلا ثَنْدربِرد وشعارات ثَنْدربِرد 
+                                  علامات تجارية لمؤسسة موزيلا.">
+diff --git a/upstream/ar/chrome/ar/locale/ar/branding/brand.properties b/upstream/ar/chrome/ar/locale/ar/branding/brand.properties
+index a7afa70..44bf191 100644
+--- a/upstream/ar/chrome/ar/locale/ar/branding/brand.properties
++++ b/upstream/ar/chrome/ar/locale/ar/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=ثنْدَربِرد
+-brandFullName=موزيلا ثنْدَربِرد
+-vendorShortName=موزيلا
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/bg/chrome/bg/locale/bg/branding/brand.dtd b/upstream/bg/chrome/bg/locale/bg/branding/brand.dtd
+index 7a337ce..f168938 100644
+--- a/upstream/bg/chrome/bg/locale/bg/branding/brand.dtd
++++ b/upstream/bg/chrome/bg/locale/bg/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
+ <!ENTITY vendorShortName "Mozilla">
+ <!ENTITY trademarkInfo.part1 "Mozilla Thunderbird и логотата на Thunderbird са търговски марки на Mozilla Foundation.">
+diff --git a/upstream/bg/chrome/bg/locale/bg/branding/brand.properties b/upstream/bg/chrome/bg/locale/bg/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/bg/chrome/bg/locale/bg/branding/brand.properties
++++ b/upstream/bg/chrome/bg/locale/bg/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/br/chrome/br/locale/br/branding/brand.dtd b/upstream/br/chrome/br/locale/br/branding/brand.dtd
+index fa880bf..5bce6ad 100644
+--- a/upstream/br/chrome/br/locale/br/branding/brand.dtd
++++ b/upstream/br/chrome/br/locale/br/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird hag al logoioù Thunderbird zo merkoù marilhet gant Mozilla Foundation.">
+diff --git a/upstream/br/chrome/br/locale/br/branding/brand.properties b/upstream/br/chrome/br/locale/br/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/br/chrome/br/locale/br/branding/brand.properties
++++ b/upstream/br/chrome/br/locale/br/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/ca/chrome/ca/locale/ca/branding/brand.dtd b/upstream/ca/chrome/ca/locale/ca/branding/brand.dtd
+index 02bf526..7058fd4 100644
+--- a/upstream/ca/chrome/ca/locale/ca/branding/brand.dtd
++++ b/upstream/ca/chrome/ca/locale/ca/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "El Mozilla Thunderbird i logotips del Thunderbird
+                                  són marques registrades de la Mozilla Foundation.">
+diff --git a/upstream/ca/chrome/ca/locale/ca/branding/brand.properties b/upstream/ca/chrome/ca/locale/ca/branding/brand.properties
+index 118e869..44bf191 100644
+--- a/upstream/ca/chrome/ca/locale/ca/branding/brand.properties
++++ b/upstream/ca/chrome/ca/locale/ca/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird 
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/cs/chrome/cs/locale/cs/branding/brand.dtd b/upstream/cs/chrome/cs/locale/cs/branding/brand.dtd
+index c2584a3..c85edb0 100644
+--- a/upstream/cs/chrome/cs/locale/cs/branding/brand.dtd
++++ b/upstream/cs/chrome/cs/locale/cs/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
+ <!ENTITY vendorShortName "Mozilla">
+ <!ENTITY trademarkInfo.part1 "Mozilla Thunderbird a logo Thunderbird jsou obchodní známky Mozilla Foundation.">
+ 
+diff --git a/upstream/cs/chrome/cs/locale/cs/branding/brand.properties b/upstream/cs/chrome/cs/locale/cs/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/cs/chrome/cs/locale/cs/branding/brand.properties
++++ b/upstream/cs/chrome/cs/locale/cs/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/da/chrome/da/locale/da/branding/brand.dtd b/upstream/da/chrome/da/locale/da/branding/brand.dtd
+index 8de44e3..5c3f75a 100644
+--- a/upstream/da/chrome/da/locale/da/branding/brand.dtd
++++ b/upstream/da/chrome/da/locale/da/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird og Thunderbird-logoet er varemærker tilhørende Mozilla Foundation.">
+diff --git a/upstream/da/chrome/da/locale/da/branding/brand.properties b/upstream/da/chrome/da/locale/da/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/da/chrome/da/locale/da/branding/brand.properties
++++ b/upstream/da/chrome/da/locale/da/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/de/chrome/de/locale/de/branding/brand.dtd b/upstream/de/chrome/de/locale/de/branding/brand.dtd
+index 29980da..58f473c 100644
+--- a/upstream/de/chrome/de/locale/de/branding/brand.dtd
++++ b/upstream/de/chrome/de/locale/de/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird und die Thunderbird-Logos sind Warenzeichen der Mozilla Foundation.">
+diff --git a/upstream/de/chrome/de/locale/de/branding/brand.properties b/upstream/de/chrome/de/locale/de/branding/brand.properties
+index b31a75c..44bf191 100644
+--- a/upstream/de/chrome/de/locale/de/branding/brand.properties
++++ b/upstream/de/chrome/de/locale/de/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
+-vendorShortName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/en-GB/chrome/en-GB/locale/en-GB/branding/brand.dtd b/upstream/en-GB/chrome/en-GB/locale/en-GB/branding/brand.dtd
+index 8e3dfb5..244de52 100644
+--- a/upstream/en-GB/chrome/en-GB/locale/en-GB/branding/brand.dtd
++++ b/upstream/en-GB/chrome/en-GB/locale/en-GB/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird and the Thunderbird logos
+                                  are trademarks of the Mozilla Foundation.">
+diff --git a/upstream/en-GB/chrome/en-GB/locale/en-GB/branding/brand.properties b/upstream/en-GB/chrome/en-GB/locale/en-GB/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/en-GB/chrome/en-GB/locale/en-GB/branding/brand.properties
++++ b/upstream/en-GB/chrome/en-GB/locale/en-GB/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/es-AR/chrome/es-AR/locale/es-AR/branding/brand.dtd b/upstream/es-AR/chrome/es-AR/locale/es-AR/branding/brand.dtd
+index 859672f..c9dcd0d 100644
+--- a/upstream/es-AR/chrome/es-AR/locale/es-AR/branding/brand.dtd
++++ b/upstream/es-AR/chrome/es-AR/locale/es-AR/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird y los logos de Thunderbird
+                                  son marcas comerciales de Mozilla Foundation.">
+diff --git a/upstream/es-AR/chrome/es-AR/locale/es-AR/branding/brand.properties b/upstream/es-AR/chrome/es-AR/locale/es-AR/branding/brand.properties
+index e20eab8..44bf191 100644
+--- a/upstream/es-AR/chrome/es-AR/locale/es-AR/branding/brand.properties
++++ b/upstream/es-AR/chrome/es-AR/locale/es-AR/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
+-vendorShortName=Mozilla
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.dtd b/upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.dtd
+index 7a5e361..e0d377a 100644
+--- a/upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.dtd
++++ b/upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
+ <!ENTITY vendorShortName "Mozilla">
+ <!ENTITY trademarkInfo.part1 "Mozilla Thunderbird y los logos de Thunderbird
+                                  son marcas registradas de Mozilla Foundation.">
+diff --git a/upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.properties b/upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.properties
+index c27e6cb..44bf191 100644
+--- a/upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.properties
++++ b/upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName = Thunderbird
+-brandFullName = Mozilla Thunderbird
+-vendorShortName = Mozilla
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/et/chrome/et/locale/et/branding/brand.dtd b/upstream/et/chrome/et/locale/et/branding/brand.dtd
+index cc8c472..c0ecb9f 100644
+--- a/upstream/et/chrome/et/locale/et/branding/brand.dtd
++++ b/upstream/et/chrome/et/locale/et/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird ja Thunderbirdi logod
+                                  on Mozilla Foundation'i kaubamärgid.">
+\ No newline at end of file
+diff --git a/upstream/et/chrome/et/locale/et/branding/brand.properties b/upstream/et/chrome/et/locale/et/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/et/chrome/et/locale/et/branding/brand.properties
++++ b/upstream/et/chrome/et/locale/et/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/eu/chrome/eu/locale/eu/branding/brand.dtd b/upstream/eu/chrome/eu/locale/eu/branding/brand.dtd
+index fca2147..e7d6d7c 100644
+--- a/upstream/eu/chrome/eu/locale/eu/branding/brand.dtd
++++ b/upstream/eu/chrome/eu/locale/eu/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird eta Thunderbird logoak 
+ Mozilla Fundazioaren marka erregistratuak dira.">
+diff --git a/upstream/eu/chrome/eu/locale/eu/branding/brand.properties b/upstream/eu/chrome/eu/locale/eu/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/eu/chrome/eu/locale/eu/branding/brand.properties
++++ b/upstream/eu/chrome/eu/locale/eu/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/fi/chrome/fi/locale/fi/branding/brand.dtd b/upstream/fi/chrome/fi/locale/fi/branding/brand.dtd
+index d42ec45..8ba470d 100644
+--- a/upstream/fi/chrome/fi/locale/fi/branding/brand.dtd
++++ b/upstream/fi/chrome/fi/locale/fi/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird ja Thunderbirdin logo ovat
+                                  Mozilla-säätiön tavaramerkkejä.">
+diff --git a/upstream/fi/chrome/fi/locale/fi/branding/brand.properties b/upstream/fi/chrome/fi/locale/fi/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/fi/chrome/fi/locale/fi/branding/brand.properties
++++ b/upstream/fi/chrome/fi/locale/fi/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/fr/chrome/fr/locale/fr/branding/brand.dtd b/upstream/fr/chrome/fr/locale/fr/branding/brand.dtd
+index 2d2eb4a..fe5c80e 100644
+--- a/upstream/fr/chrome/fr/locale/fr/branding/brand.dtd
++++ b/upstream/fr/chrome/fr/locale/fr/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird et les logos Thunderbird
+                                  sont des marques déposées de la Mozilla Foundation.">
+diff --git a/upstream/fr/chrome/fr/locale/fr/branding/brand.properties b/upstream/fr/chrome/fr/locale/fr/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/fr/chrome/fr/locale/fr/branding/brand.properties
++++ b/upstream/fr/chrome/fr/locale/fr/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/fy-NL/chrome/fy-NL/locale/fy-NL/branding/brand.dtd b/upstream/fy-NL/chrome/fy-NL/locale/fy-NL/branding/brand.dtd
+index 12c1752..75638fc 100644
+--- a/upstream/fy-NL/chrome/fy-NL/locale/fy-NL/branding/brand.dtd
++++ b/upstream/fy-NL/chrome/fy-NL/locale/fy-NL/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird en de Thunderbird-logo's
+                                  binne hannelsmerken fan de Mozilla Foundation.">
+diff --git a/upstream/fy-NL/chrome/fy-NL/locale/fy-NL/branding/brand.properties b/upstream/fy-NL/chrome/fy-NL/locale/fy-NL/branding/brand.properties
+index fd1a07a..44bf191 100644
+--- a/upstream/fy-NL/chrome/fy-NL/locale/fy-NL/branding/brand.properties
++++ b/upstream/fy-NL/chrome/fy-NL/locale/fy-NL/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Mozilla Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/ga-IE/chrome/ga-IE/locale/ga-IE/branding/brand.dtd b/upstream/ga-IE/chrome/ga-IE/locale/ga-IE/branding/brand.dtd
+index ae4f2aa..5c2ec90 100644
+--- a/upstream/ga-IE/chrome/ga-IE/locale/ga-IE/branding/brand.dtd
++++ b/upstream/ga-IE/chrome/ga-IE/locale/ga-IE/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
+ <!ENTITY vendorShortName "Mozilla">
+ <!ENTITY trademarkInfo.part1 "Is trádmharcanna de chuid Fondúireacht Mozilla iad 
+ Mozilla Thunderbird agus suaitheantais Thunderbird.">
+diff --git a/upstream/ga-IE/chrome/ga-IE/locale/ga-IE/branding/brand.properties b/upstream/ga-IE/chrome/ga-IE/locale/ga-IE/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/ga-IE/chrome/ga-IE/locale/ga-IE/branding/brand.properties
++++ b/upstream/ga-IE/chrome/ga-IE/locale/ga-IE/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/gd/chrome/gd/locale/gd/branding/brand.dtd b/upstream/gd/chrome/gd/locale/gd/branding/brand.dtd
+index fe7bfcf..3a1e238 100644
+--- a/upstream/gd/chrome/gd/locale/gd/branding/brand.dtd
++++ b/upstream/gd/chrome/gd/locale/gd/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY brandShortName        "Thunderbird">
+-<!ENTITY brandFullName         "Mozilla Thunderbird">
+-<!ENTITY vendorShortName       "Mozilla">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
++<!ENTITY vendorShortName "Mozilla">
+ <!ENTITY trademarkInfo.part1   "Tha Mozilla Thunderbird is suaicheantasan Thunderbird
+                                 'nan comharran-malairt aig Fonndas Mozilla.">
+diff --git a/upstream/gd/chrome/gd/locale/gd/branding/brand.properties b/upstream/gd/chrome/gd/locale/gd/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/gd/chrome/gd/locale/gd/branding/brand.properties
++++ b/upstream/gd/chrome/gd/locale/gd/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/gl/chrome/gl/locale/gl/branding/brand.dtd b/upstream/gl/chrome/gl/locale/gl/branding/brand.dtd
+index 0898591..2b94450 100644
+--- a/upstream/gl/chrome/gl/locale/gl/branding/brand.dtd
++++ b/upstream/gl/chrome/gl/locale/gl/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird e os logotipos de Thunderbird
+                                  son marcas rexistradas da Fundación Mozilla (Mozilla Foundation).">
+diff --git a/upstream/gl/chrome/gl/locale/gl/branding/brand.properties b/upstream/gl/chrome/gl/locale/gl/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/gl/chrome/gl/locale/gl/branding/brand.properties
++++ b/upstream/gl/chrome/gl/locale/gl/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/he/chrome/he/locale/he/branding/brand.dtd b/upstream/he/chrome/he/locale/he/branding/brand.dtd
+index 1844776..41ded37 100644
+--- a/upstream/he/chrome/he/locale/he/branding/brand.dtd
++++ b/upstream/he/chrome/he/locale/he/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird והלוגו של Thunderbird הם סימנים של Mozilla Foundation.">
+diff --git a/upstream/he/chrome/he/locale/he/branding/brand.properties b/upstream/he/chrome/he/locale/he/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/he/chrome/he/locale/he/branding/brand.properties
++++ b/upstream/he/chrome/he/locale/he/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/hu/chrome/hu/locale/hu/branding/brand.dtd b/upstream/hu/chrome/hu/locale/hu/branding/brand.dtd
+index 87fc644..d69536a 100644
+--- a/upstream/hu/chrome/hu/locale/hu/branding/brand.dtd
++++ b/upstream/hu/chrome/hu/locale/hu/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "A Mozilla Thunderbird és a
+                                  Thunderbird logók a Mozilla Foundation védjegyei.  ">
+diff --git a/upstream/hu/chrome/hu/locale/hu/branding/brand.properties b/upstream/hu/chrome/hu/locale/hu/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/hu/chrome/hu/locale/hu/branding/brand.properties
++++ b/upstream/hu/chrome/hu/locale/hu/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/is/chrome/is/locale/is/branding/brand.dtd b/upstream/is/chrome/is/locale/is/branding/brand.dtd
+index 07b264a..9daedef 100644
+--- a/upstream/is/chrome/is/locale/is/branding/brand.dtd
++++ b/upstream/is/chrome/is/locale/is/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
+ <!ENTITY vendorShortName "Mozilla">
+ <!ENTITY trademarkInfo.part1 "Mozilla Thunderbird og Thunderbird nafnmerkið
+                                  eru vörumerki Mozilla stofnunarinnar.">
+diff --git a/upstream/is/chrome/is/locale/is/branding/brand.properties b/upstream/is/chrome/is/locale/is/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/is/chrome/is/locale/is/branding/brand.properties
++++ b/upstream/is/chrome/is/locale/is/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/it/chrome/it/locale/it/branding/brand.dtd b/upstream/it/chrome/it/locale/it/branding/brand.dtd
+index b2f413d..9cbc8e9 100644
+--- a/upstream/it/chrome/it/locale/it/branding/brand.dtd
++++ b/upstream/it/chrome/it/locale/it/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
+-<!ENTITY vendorShortName "Mozilla Thunderbird">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
++<!ENTITY vendorShortName "Mozilla">
+ <!ENTITY trademarkInfo.part1 "Mozilla Thunderbird e i loghi Thunderbird                                  sono marchi registrati della Mozilla Foundation.">
+diff --git a/upstream/it/chrome/it/locale/it/branding/brand.properties b/upstream/it/chrome/it/locale/it/branding/brand.properties
+index 3014cf8..44bf191 100644
+--- a/upstream/it/chrome/it/locale/it/branding/brand.properties
++++ b/upstream/it/chrome/it/locale/it/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName = Mozilla Thunderbird
+-brandFullName = Mozilla Thunderbird
+-vendorShortName = Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/ja/chrome/ja/locale/ja/branding/brand.dtd b/upstream/ja/chrome/ja/locale/ja/branding/brand.dtd
+index 35b6603..5f35d67 100644
+--- a/upstream/ja/chrome/ja/locale/ja/branding/brand.dtd
++++ b/upstream/ja/chrome/ja/locale/ja/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird および Thunderbird ロゴは 米国 Mozilla Foundation の米国およびその他の国における商標または登録商標です。">
+diff --git a/upstream/ja/chrome/ja/locale/ja/branding/brand.properties b/upstream/ja/chrome/ja/locale/ja/branding/brand.properties
+index 6fbb426..44bf191 100644
+--- a/upstream/ja/chrome/ja/locale/ja/branding/brand.properties
++++ b/upstream/ja/chrome/ja/locale/ja/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName	= Thunderbird
+-brandFullName	= Mozilla Thunderbird
+-vendorShortName	= Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/ko/chrome/ko/locale/ko/branding/brand.dtd b/upstream/ko/chrome/ko/locale/ko/branding/brand.dtd
+index 5f760eb..6636ee5 100644
+--- a/upstream/ko/chrome/ko/locale/ko/branding/brand.dtd
++++ b/upstream/ko/chrome/ko/locale/ko/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
+-<!ENTITY vendorShortName "Mozilla">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
++<!ENTITY vendorShortName "Mozilla">
+ <!ENTITY trademarkInfo.part1 "Mozilla Thunderbird와 Thunderbird 로고는 Mozilla Foundation의 등록 상표 입니다.">
+diff --git a/upstream/ko/chrome/ko/locale/ko/branding/brand.properties b/upstream/ko/chrome/ko/locale/ko/branding/brand.properties
+index e20eab8..44bf191 100644
+--- a/upstream/ko/chrome/ko/locale/ko/branding/brand.properties
++++ b/upstream/ko/chrome/ko/locale/ko/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
+-vendorShortName=Mozilla
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/lt/chrome/lt/locale/lt/branding/brand.dtd b/upstream/lt/chrome/lt/locale/lt/branding/brand.dtd
+index 8ac6f47..7600998 100644
+--- a/upstream/lt/chrome/lt/locale/lt/branding/brand.dtd
++++ b/upstream/lt/chrome/lt/locale/lt/branding/brand.dtd
+@@ -28,8 +28,8 @@
+    -
+    - ***** END LICENSE BLOCK ***** -->
+ 
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Vardas „Mozilla Thunderbird“ ir „Thunderbird“ logotipai yra bendrijos 
+                                  „Mozilla Foundation“ prekės ženklai.">
+diff --git a/upstream/lt/chrome/lt/locale/lt/branding/brand.properties b/upstream/lt/chrome/lt/locale/lt/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/lt/chrome/lt/locale/lt/branding/brand.properties
++++ b/upstream/lt/chrome/lt/locale/lt/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/nb-NO/chrome/nb-NO/locale/nb-NO/branding/brand.dtd b/upstream/nb-NO/chrome/nb-NO/locale/nb-NO/branding/brand.dtd
+index 1f3c797..2d5734c 100644
+--- a/upstream/nb-NO/chrome/nb-NO/locale/nb-NO/branding/brand.dtd
++++ b/upstream/nb-NO/chrome/nb-NO/locale/nb-NO/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird og Thunderbird-logoene
+                                  er varemerker som tilhører Mozilla Foundation.">
+diff --git a/upstream/nb-NO/chrome/nb-NO/locale/nb-NO/branding/brand.properties b/upstream/nb-NO/chrome/nb-NO/locale/nb-NO/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/nb-NO/chrome/nb-NO/locale/nb-NO/branding/brand.properties
++++ b/upstream/nb-NO/chrome/nb-NO/locale/nb-NO/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/nl/chrome/nl/locale/nl/branding/brand.dtd b/upstream/nl/chrome/nl/locale/nl/branding/brand.dtd
+index 8c033c4..d1303b4 100644
+--- a/upstream/nl/chrome/nl/locale/nl/branding/brand.dtd
++++ b/upstream/nl/chrome/nl/locale/nl/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird en de Thunderbird-logo’s 
+                                  zijn handelsmerken van de Mozilla Foundation.">
+diff --git a/upstream/nl/chrome/nl/locale/nl/branding/brand.properties b/upstream/nl/chrome/nl/locale/nl/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/nl/chrome/nl/locale/nl/branding/brand.properties
++++ b/upstream/nl/chrome/nl/locale/nl/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/nn-NO/chrome/nn-NO/locale/nn-NO/branding/brand.dtd b/upstream/nn-NO/chrome/nn-NO/locale/nn-NO/branding/brand.dtd
+index 54a57c2..a30c617 100644
+--- a/upstream/nn-NO/chrome/nn-NO/locale/nn-NO/branding/brand.dtd
++++ b/upstream/nn-NO/chrome/nn-NO/locale/nn-NO/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird og Thunderbird-logoane
+                                  er varemerke som tilhøyrer Mozilla Foundation.">
+diff --git a/upstream/nn-NO/chrome/nn-NO/locale/nn-NO/branding/brand.properties b/upstream/nn-NO/chrome/nn-NO/locale/nn-NO/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/nn-NO/chrome/nn-NO/locale/nn-NO/branding/brand.properties
++++ b/upstream/nn-NO/chrome/nn-NO/locale/nn-NO/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/pa-IN/chrome/pa-IN/locale/pa-IN/branding/brand.dtd b/upstream/pa-IN/chrome/pa-IN/locale/pa-IN/branding/brand.dtd
+index 973a0d1..244de52 100644
+--- a/upstream/pa-IN/chrome/pa-IN/locale/pa-IN/branding/brand.dtd
++++ b/upstream/pa-IN/chrome/pa-IN/locale/pa-IN/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "ਥੰਡਰਬਰਡ">
+-<!ENTITY  brandFullName         "ਮੋਜ਼ੀਲਾ ਥੰਡਰਬਰਡ">
+-<!ENTITY  vendorShortName       "ਮੋਜ਼ੀਲਾ ਥੰਡਰਬਰਡ">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird and the Thunderbird logos
+                                  are trademarks of the Mozilla Foundation.">
+diff --git a/upstream/pa-IN/chrome/pa-IN/locale/pa-IN/branding/brand.properties b/upstream/pa-IN/chrome/pa-IN/locale/pa-IN/branding/brand.properties
+index 6013f83..64b8aa1 100644
+--- a/upstream/pa-IN/chrome/pa-IN/locale/pa-IN/branding/brand.properties
++++ b/upstream/pa-IN/chrome/pa-IN/locale/pa-IN/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=ਥੰਡਰਬਰਡ
+-brandFullName=ਮੋਜ਼ੀਲਾ ਥੰਡਰਬਰਡ
+-vendorShortName=ਮੋਜ਼ੀਲਾ ਥੰਡਰਬਰਡ
+\ No newline at end of file
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+\ No newline at end of file
+diff --git a/upstream/pl/chrome/pl/locale/pl/branding/brand.dtd b/upstream/pl/chrome/pl/locale/pl/branding/brand.dtd
+index 48f7634..9c14f81 100644
+--- a/upstream/pl/chrome/pl/locale/pl/branding/brand.dtd
++++ b/upstream/pl/chrome/pl/locale/pl/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY brandShortName  "Thunderbird">
+-<!ENTITY brandFullName   "Mozilla Thunderbird">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
+ <!ENTITY vendorShortName "Mozilla">
+ 
+ <!ENTITY trademarkInfo.part1 "Mozilla Thunderbird oraz logotyp Thunderbird są znakami towarowymi Mozilla Foundation.">
+diff --git a/upstream/pl/chrome/pl/locale/pl/branding/brand.properties b/upstream/pl/chrome/pl/locale/pl/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/pl/chrome/pl/locale/pl/branding/brand.properties
++++ b/upstream/pl/chrome/pl/locale/pl/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.dtd b/upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.dtd
+index acfddf3..2dc1da1 100644
+--- a/upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.dtd
++++ b/upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird e logotipos Thunderbird são marcas comerciais da Mozilla Foundation.">
+diff --git a/upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.properties b/upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.properties
++++ b/upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.dtd b/upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.dtd
+index da5fcf7..e646cc3 100644
+--- a/upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.dtd
++++ b/upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.dtd
+@@ -1,6 +1,6 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1  "Mozilla Thunderbird e os logos Thunderbird
+                                  são marcas registadas da Mozilla Foundation.">
+ 
+diff --git a/upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.properties b/upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.properties
+index b31a75c..44bf191 100644
+--- a/upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.properties
++++ b/upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
+-vendorShortName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/rm/chrome/rm/locale/rm/branding/brand.dtd b/upstream/rm/chrome/rm/locale/rm/branding/brand.dtd
+index 0fbb61f..38390e3 100644
+--- a/upstream/rm/chrome/rm/locale/rm/branding/brand.dtd
++++ b/upstream/rm/chrome/rm/locale/rm/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird ed ils logos da Thunderbird èn marcas commerzialas da la Mozilla Foundation.">
+diff --git a/upstream/rm/chrome/rm/locale/rm/branding/brand.properties b/upstream/rm/chrome/rm/locale/rm/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/rm/chrome/rm/locale/rm/branding/brand.properties
++++ b/upstream/rm/chrome/rm/locale/rm/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/ru/chrome/ru/locale/ru/branding/brand.dtd b/upstream/ru/chrome/ru/locale/ru/branding/brand.dtd
+index 4248eb8..a7d34e1 100644
+--- a/upstream/ru/chrome/ru/locale/ru/branding/brand.dtd
++++ b/upstream/ru/chrome/ru/locale/ru/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
+ <!ENTITY vendorShortName "Mozilla">
+ <!ENTITY trademarkInfo.part1 "Mozilla Thunderbird и логотипы Thunderbird являются торговыми марками Mozilla Foundation.">
+diff --git a/upstream/ru/chrome/ru/locale/ru/branding/brand.properties b/upstream/ru/chrome/ru/locale/ru/branding/brand.properties
+index c27e6cb..44bf191 100644
+--- a/upstream/ru/chrome/ru/locale/ru/branding/brand.properties
++++ b/upstream/ru/chrome/ru/locale/ru/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName = Thunderbird
+-brandFullName = Mozilla Thunderbird
+-vendorShortName = Mozilla
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/si/chrome/si/locale/si/branding/brand.dtd b/upstream/si/chrome/si/locale/si/branding/brand.dtd
+index 477172f..5f66461 100644
+--- a/upstream/si/chrome/si/locale/si/branding/brand.dtd
++++ b/upstream/si/chrome/si/locale/si/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird and the Thunderbird logos
+                                  are trademarks of the Mozilla Foundation.">
+diff --git a/upstream/si/chrome/si/locale/si/branding/brand.properties b/upstream/si/chrome/si/locale/si/branding/brand.properties
+index e20eab8..44bf191 100644
+--- a/upstream/si/chrome/si/locale/si/branding/brand.properties
++++ b/upstream/si/chrome/si/locale/si/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
+-vendorShortName=Mozilla
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/sk/chrome/sk/locale/sk/branding/brand.dtd b/upstream/sk/chrome/sk/locale/sk/branding/brand.dtd
+index 03a4eca..f985686 100644
+--- a/upstream/sk/chrome/sk/locale/sk/branding/brand.dtd
++++ b/upstream/sk/chrome/sk/locale/sk/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird a logá Thunderbird sú ochranné známky patriace Mozilla Foundation.">
+diff --git a/upstream/sk/chrome/sk/locale/sk/branding/brand.properties b/upstream/sk/chrome/sk/locale/sk/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/sk/chrome/sk/locale/sk/branding/brand.properties
++++ b/upstream/sk/chrome/sk/locale/sk/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/sl/chrome/sl/locale/sl/branding/brand.dtd b/upstream/sl/chrome/sl/locale/sl/branding/brand.dtd
+index c6cb296..f8a12d9 100644
+--- a/upstream/sl/chrome/sl/locale/sl/branding/brand.dtd
++++ b/upstream/sl/chrome/sl/locale/sl/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   " ">
+diff --git a/upstream/sl/chrome/sl/locale/sl/branding/brand.properties b/upstream/sl/chrome/sl/locale/sl/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/sl/chrome/sl/locale/sl/branding/brand.properties
++++ b/upstream/sl/chrome/sl/locale/sl/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/sq/chrome/sq/locale/sq/branding/brand.dtd b/upstream/sq/chrome/sq/locale/sq/branding/brand.dtd
+index d975175..cc09eb2 100644
+--- a/upstream/sq/chrome/sq/locale/sq/branding/brand.dtd
++++ b/upstream/sq/chrome/sq/locale/sq/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird dhe stemat e Thunderbird-it
+                                  janë shenja tregtare të Mozilla Foundation-it.">
+diff --git a/upstream/sq/chrome/sq/locale/sq/branding/brand.properties b/upstream/sq/chrome/sq/locale/sq/branding/brand.properties
+index b31a75c..44bf191 100644
+--- a/upstream/sq/chrome/sq/locale/sq/branding/brand.properties
++++ b/upstream/sq/chrome/sq/locale/sq/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
+-vendorShortName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/sv-SE/chrome/sv-SE/locale/sv-SE/branding/brand.dtd b/upstream/sv-SE/chrome/sv-SE/locale/sv-SE/branding/brand.dtd
+index 78d3640..e0d1696 100644
+--- a/upstream/sv-SE/chrome/sv-SE/locale/sv-SE/branding/brand.dtd
++++ b/upstream/sv-SE/chrome/sv-SE/locale/sv-SE/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird och Thunderbird-logotyper
+                                  är varumärken som tillhör Mozilla Foundation.">
+diff --git a/upstream/sv-SE/chrome/sv-SE/locale/sv-SE/branding/brand.properties b/upstream/sv-SE/chrome/sv-SE/locale/sv-SE/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/sv-SE/chrome/sv-SE/locale/sv-SE/branding/brand.properties
++++ b/upstream/sv-SE/chrome/sv-SE/locale/sv-SE/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+diff --git a/upstream/ta-LK/chrome/ta-LK/locale/ta-LK/branding/brand.dtd b/upstream/ta-LK/chrome/ta-LK/locale/ta-LK/branding/brand.dtd
+index 8e3dfb5..244de52 100644
+--- a/upstream/ta-LK/chrome/ta-LK/locale/ta-LK/branding/brand.dtd
++++ b/upstream/ta-LK/chrome/ta-LK/locale/ta-LK/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird and the Thunderbird logos
+                                  are trademarks of the Mozilla Foundation.">
+diff --git a/upstream/ta-LK/chrome/ta-LK/locale/ta-LK/branding/brand.properties b/upstream/ta-LK/chrome/ta-LK/locale/ta-LK/branding/brand.properties
+index e20eab8..44bf191 100644
+--- a/upstream/ta-LK/chrome/ta-LK/locale/ta-LK/branding/brand.properties
++++ b/upstream/ta-LK/chrome/ta-LK/locale/ta-LK/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
+-vendorShortName=Mozilla
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/tr/chrome/tr/locale/tr/branding/brand.dtd b/upstream/tr/chrome/tr/locale/tr/branding/brand.dtd
+index 6bd9043..ef61bd1 100644
+--- a/upstream/tr/chrome/tr/locale/tr/branding/brand.dtd
++++ b/upstream/tr/chrome/tr/locale/tr/branding/brand.dtd
+@@ -1,4 +1,4 @@
+-<!ENTITY brandShortName "Thunderbird">
+-<!ENTITY brandFullName "Mozilla Thunderbird">
++<!ENTITY brandShortName "Icedove">
++<!ENTITY brandFullName "Icedove">
+ <!ENTITY vendorShortName "Mozilla">
+ <!ENTITY trademarkInfo.part1 "Mozilla Thunderbird ve Thunderbird logoları Mozilla Vakfı'nın tescilli markalarıdır.">
+diff --git a/upstream/tr/chrome/tr/locale/tr/branding/brand.properties b/upstream/tr/chrome/tr/locale/tr/branding/brand.properties
+index f56cedf..44bf191 100644
+--- a/upstream/tr/chrome/tr/locale/tr/branding/brand.properties
++++ b/upstream/tr/chrome/tr/locale/tr/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Mozilla Thunderbird
+-brandFullName=Mozilla Thunderbird
+-vendorShortName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/uk/chrome/uk/locale/uk/branding/brand.dtd b/upstream/uk/chrome/uk/locale/uk/branding/brand.dtd
+index e1963bb..f2832b4 100644
+--- a/upstream/uk/chrome/uk/locale/uk/branding/brand.dtd
++++ b/upstream/uk/chrome/uk/locale/uk/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird та логотипи Thunderbird
+                                  є торговими марками фундації Mozilla.">
+diff --git a/upstream/uk/chrome/uk/locale/uk/branding/brand.properties b/upstream/uk/chrome/uk/locale/uk/branding/brand.properties
+index b31a75c..44bf191 100644
+--- a/upstream/uk/chrome/uk/locale/uk/branding/brand.properties
++++ b/upstream/uk/chrome/uk/locale/uk/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
+-vendorShortName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
++vendorShortName=Mozilla
+diff --git a/upstream/zh-TW/chrome/zh-TW/locale/zh-TW/branding/brand.dtd b/upstream/zh-TW/chrome/zh-TW/locale/zh-TW/branding/brand.dtd
+index 8662784..f9b7989 100644
+--- a/upstream/zh-TW/chrome/zh-TW/locale/zh-TW/branding/brand.dtd
++++ b/upstream/zh-TW/chrome/zh-TW/locale/zh-TW/branding/brand.dtd
+@@ -1,5 +1,5 @@
+-<!ENTITY  brandShortName        "Thunderbird">
+-<!ENTITY  brandFullName         "Mozilla Thunderbird">
+-<!ENTITY  vendorShortName       "Mozilla">
++<!ENTITY  brandShortName "Icedove">
++<!ENTITY  brandFullName "Icedove">
++<!ENTITY  vendorShortName "Mozilla">
+ <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird 字樣與 Thunderbird 標誌
+                                  為 Mozilla 基金會之註冊商標。">
+diff --git a/upstream/zh-TW/chrome/zh-TW/locale/zh-TW/branding/brand.properties b/upstream/zh-TW/chrome/zh-TW/locale/zh-TW/branding/brand.properties
+index 857d0c3..44bf191 100644
+--- a/upstream/zh-TW/chrome/zh-TW/locale/zh-TW/branding/brand.properties
++++ b/upstream/zh-TW/chrome/zh-TW/locale/zh-TW/branding/brand.properties
+@@ -1,3 +1,3 @@
+-brandShortName=Thunderbird
+-brandFullName=Mozilla Thunderbird
++brandShortName=Icedove
++brandFullName=Icedove
+ vendorShortName=Mozilla
+-- 
