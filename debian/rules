@@ -8,23 +8,15 @@ SHELL := sh -e
 override_dh_auto_clean:
 	dh_auto_clean
 
-	cd $(CURDIR)/upstream; \
-	for XPI in *; \
-	do \
-		LOCALE=`basename $${XPI}`; \
-		cd $(CURDIR)/upstream/$${LOCALE}/chrome; \
-		rm -f $${LOCALE}.jar; \
-		cd $(CURDIR)/upstream; \
-	done
+	rm -rf build
 
 override_dh_auto_build:
+	mkdir build
 	cd $(CURDIR)/upstream; \
 	for XPI in *; \
 	do \
 		LOCALE=`basename $${XPI}`; \
-		cd $(CURDIR)/upstream/$${LOCALE}/chrome; \
-		zip -q -0r $${LOCALE}.jar locale; \
-		cd $(CURDIR)/upstream; \
+		xpi-pack $${LOCALE} ../build/$${LOCALE}.xpi; \
 	done
 
 override_dh_auto_install:
@@ -33,17 +25,7 @@ override_dh_auto_install:
 	do \
 		LOCALE=`echo $${DIRECTORY} | tr [:upper:] [:lower:]`; \
 		ID=`cat $${DIRECTORY}/install.rdf | sed --posix '/em:id=/!d;s/[ ]*em:id="//;s/".*//'`; \
-		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/icedove/extensions/$${ID}/chrome; \
-		install -m 644 $${DIRECTORY}/chrome/*.jar $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/icedove/extensions/$${ID}/chrome; \
-		install -m 644 $${DIRECTORY}/install.rdf $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/icedove/extensions/$${ID}; \
-		install -m 644 $${DIRECTORY}/chrome.manifest $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/icedove/extensions/$${ID}; \
-		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/icedove/extensions/$${ID}/uninstall; \
-		cat $${DIRECTORY}/install.rdf | \
-			sed --posix '/<em:locale>/!d' | \
-			sed --posix "s/.*/register	global	locale	$${DIRECTORY}/" > \
-			$(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/icedove/extensions/$${ID}/uninstall/Uninstall; \
-		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/var/lib/icedove/extensions.d; \
-		echo extension,$${ID} > $(CURDIR)/debian/icedove-l10n-$${LOCALE}/var/lib/icedove/extensions.d/50$${DIRECTORY}-locale.ext; \
+		install -D -m 644 ../build/$${DIRECTORY}.xpi $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/share/icedove/extensions/$${ID}.xpi; \
 		mkdir -p $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions; \
-		ln -s /usr/share/icedove/extensions/$${ID} $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/$${ID}; \
-	done;
+		ln -s /usr/share/icedove/extensions/$${ID}.xpi $(CURDIR)/debian/icedove-l10n-$${LOCALE}/usr/lib/icedove/extensions/$${ID}.xpi; \
+	done
