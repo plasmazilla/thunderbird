@@ -33,7 +33,6 @@ Depends:
  icedove-l10n-gl,
  icedove-l10n-he,
  icedove-l10n-hu,
- icedove-l10n-id,
  icedove-l10n-is,
  icedove-l10n-it,
  icedove-l10n-ja,
@@ -280,16 +279,6 @@ Description: Hungarian language package for Icedove
  application using the XUL user interface language.
  .
  This package contains the localization of Icedove in Hungarian.
-
-Package: icedove-l10n-id
-Architecture: all
-Depends: ${misc:Depends}, icedove (>= 5.0), icedove (<= 5.1)
-Description: Indonesian language package for Icedove
- Icedove is an unbranded Thunderbird mail client suitable for free distribution.
- The goal of Thunderbird is to produce a cross platform stand-alone mail
- application using the XUL user interface language.
- .
- This package contains the localization of Icedove in Indonesian.
 
 Package: icedove-l10n-is
 Architecture: all
