@@ -1,3 +1,19 @@
+icedove (3.0.11-1+squeeze5) stable-security; urgency=high
+
+  * [44577f9] backported patches from xulrunner fixes mfsa2011-{36-40}
+    - MFSA 2011-36 aka CVE-2011-2995: Miscellaneous memory safety hazards
+      (rv:7.0 / rv:1.9.2.23)
+    - MFSA 2011-37 aka CVE-2011-2998: Integer underflow when using JavaScript
+      RegExp
+    - MFSA 2011-38 aka CVE-2011-2999: XSS via plugins and shadowed
+      window.location object
+    - MFSA 2011-39 aka CVE-2011-3000: Defense against multiple Location
+      headers due to CRLF Injection
+    - MFSA 2011-40 aka CVE-2011-2372, CVE-2011-3001: Code installation through
+      holding down Enter
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 04 Oct 2011 20:44:21 +0200
+
 icedove (3.0.11-1+squeeze4) stable-security; urgency=high
 
   * [afd20a1] backported patches from xulrunner fixes mfsa2011-32
