@@ -1,0 +1,34 @@
+From: Peter Van der Beken <peterv@propagandism.org>
+Date: Mon, 19 Sep 2011 13:15:45 -0700
+Subject: Fix for bug 660453 (Don't use txExecutionState if init fails),
+ r=jonas, a=LegNeato
+
+---
+ content/xslt/src/xslt/txExecutionState.cpp |    7 ++++++-
+ 1 files changed, 6 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/content/xslt/src/xslt/txExecutionState.cpp b/mozilla/content/xslt/src/xslt/txExecutionState.cpp
+index 8e00d68..8fc18ed 100644
+--- a/mozilla/content/xslt/src/xslt/txExecutionState.cpp
++++ b/mozilla/content/xslt/src/xslt/txExecutionState.cpp
+@@ -86,7 +86,9 @@ txLoadedDocumentsHash::~txLoadedDocumentsHash()
+ 
+ txExecutionState::txExecutionState(txStylesheet* aStylesheet,
+                                    PRBool aDisableLoads)
+-    : mStylesheet(aStylesheet),
++    : mOutputHandler(nsnull),
++      mResultHandler(nsnull),
++      mStylesheet(aStylesheet),
+       mNextInstruction(nsnull),
+       mLocalVariables(nsnull),
+       mRecursionDepth(0),
+@@ -200,6 +202,9 @@ txExecutionState::end(nsresult aResult)
+     if (NS_SUCCEEDED(aResult)) {
+         popTemplateRule();
+     }
++    else if (!mOutputHandler) {
++        return NS_OK;
++    }
+     return mOutputHandler->endDocument(aResult);
+ }
+ 

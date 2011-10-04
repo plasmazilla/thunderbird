@@ -1,0 +1,807 @@
+From: Jason Duell <jduell.mcbugs@gmail.com>
+Date: Mon, 19 Sep 2011 17:15:10 -0700
+Subject: Bug 655389 - CRLF Injection and the parsing of HTTP headers. r=bz
+ a=LegNeato
+
+---
+ js/src/xpconnect/src/xpc.msg                     |    1 +
+ netwerk/base/public/nsNetError.h                 |    8 +
+ netwerk/protocol/http/src/nsHttpHeaderArray.cpp  |   97 +++----
+ netwerk/protocol/http/src/nsHttpHeaderArray.h    |   92 ++++++-
+ netwerk/protocol/http/src/nsHttpResponseHead.cpp |   16 +-
+ netwerk/protocol/http/src/nsHttpResponseHead.h   |    2 +-
+ netwerk/protocol/http/src/nsHttpTransaction.cpp  |   15 +-
+ netwerk/protocol/http/src/nsHttpTransaction.h    |    2 +-
+ netwerk/test/unit/test_duplicate_headers.js      |  363 ++++++++++++++++++++++
+ 9 files changed, 530 insertions(+), 66 deletions(-)
+ create mode 100644 netwerk/test/unit/test_duplicate_headers.js
+
+diff --git a/mozilla/js/src/xpconnect/src/xpc.msg b/mozilla/js/src/xpconnect/src/xpc.msg
+index e09a2b2..84ef8f0 100644
+--- a/mozilla/js/src/xpconnect/src/xpc.msg
++++ b/mozilla/js/src/xpconnect/src/xpc.msg
+@@ -182,6 +182,7 @@ XPC_MSG_DEF(NS_ERROR_NO_CONTENT                     , "Channel opened successful
+ XPC_MSG_DEF(NS_ERROR_IN_PROGRESS                    , "The requested action could not be completed while the object is busy")
+ XPC_MSG_DEF(NS_ERROR_ALREADY_OPENED                 , "Channel is already open")
+ XPC_MSG_DEF(NS_ERROR_INVALID_CONTENT_ENCODING       , "The content encoding of the source document is incorrect")
++XPC_MSG_DEF(NS_ERROR_CORRUPTED_CONTENT              , "Corrupted content was received from server")
+ XPC_MSG_DEF(NS_ERROR_ALREADY_CONNECTED              , "The connection is already established")
+ XPC_MSG_DEF(NS_ERROR_NOT_CONNECTED                  , "The connection does not exist")
+ XPC_MSG_DEF(NS_ERROR_CONNECTION_REFUSED             , "The connection was refused")
+diff --git a/mozilla/netwerk/base/public/nsNetError.h b/mozilla/netwerk/base/public/nsNetError.h
+index 4d657b6..7218c71 100644
+--- a/mozilla/netwerk/base/public/nsNetError.h
++++ b/mozilla/netwerk/base/public/nsNetError.h
+@@ -144,6 +144,14 @@
+ #define NS_ERROR_INVALID_CONTENT_ENCODING \
+     NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_NETWORK, 27)
+ 
++/**
++ * A transport level corruption was found in the source document. for example
++ * a document with a calculated checksum that does not match the Content-MD5
++ * http header.
++ */
++#define NS_ERROR_CORRUPTED_CONTENT \
++    NS_ERROR_GENERATE_FAILURE(NS_ERROR_MODULE_NETWORK, 29)
++
+ /******************************************************************************
+  * Connectivity error codes:
+  */
+diff --git a/mozilla/netwerk/protocol/http/src/nsHttpHeaderArray.cpp b/mozilla/netwerk/protocol/http/src/nsHttpHeaderArray.cpp
+index f17354a..34532ba 100644
+--- a/mozilla/netwerk/protocol/http/src/nsHttpHeaderArray.cpp
++++ b/mozilla/netwerk/protocol/http/src/nsHttpHeaderArray.cpp
+@@ -64,29 +64,50 @@ nsHttpHeaderArray::SetHeader(nsHttpAtom header,
+ 
+     // Create a new entry, or...
+     if (!entry) {
+-        entry = mHeaders.AppendElement(); //new nsEntry(header, value);
++        entry = mHeaders.AppendElement(); // new nsEntry()
+         if (!entry)
+             return NS_ERROR_OUT_OF_MEMORY;
+         entry->header = header;
+         entry->value = value;
++    } else if (merge && !IsSingletonHeader(header)) {
++        MergeHeader(header, entry, value);
++    } else {
++        // Replace the existing string with the new value
++        entry->value = value;
+     }
+-    // Append the new value to the existing value iff...
+-    else if (merge && CanAppendToHeader(header)) {
+-        if (header == nsHttp::Set_Cookie ||
+-            header == nsHttp::WWW_Authenticate ||
+-            header == nsHttp::Proxy_Authenticate)
+-            // Special case these headers and use a newline delimiter to
+-            // delimit the values from one another as commas may appear
+-            // in the values of these headers contrary to what the spec says.
+-            entry->value.Append('\n');
+-        else
+-            // Delimit each value from the others using a comma (per HTTP spec)
+-            entry->value.AppendLiteral(", ");
+-        entry->value.Append(value);
+-    }
+-    // Replace the existing string with the new value
+-    else
++
++    return NS_OK;
++}
++
++nsresult
++nsHttpHeaderArray::SetHeaderFromNet(nsHttpAtom header, const nsACString &value)
++{
++    nsEntry *entry = nsnull;
++    PRInt32 index;
++
++    index = LookupEntry(header, &entry);
++
++    if (!entry) {
++        if (value.IsEmpty())
++            return NS_OK; // ignore empty headers
++        entry = mHeaders.AppendElement(); //new nsEntry(header, value);
++        if (!entry)
++            return NS_ERROR_OUT_OF_MEMORY;
++        entry->header = header;
+         entry->value = value;
++    } else if (!IsSingletonHeader(header)) {
++        MergeHeader(header, entry, value);
++    } else {
++        // Multiple instances of non-mergeable header received from network
++        // - ignore if same value
++        if (!entry->value.Equals(value)) {
++            if (IsSuspectDuplicateHeader(header)) {
++                // reply may be corrupt/hacked (ex: CLRF injection attacks)
++                return NS_ERROR_CORRUPTED_CONTENT;
++            } // else silently drop value: keep value from 1st header seen
++        }
++    }
++
+     return NS_OK;
+ }
+ 
+@@ -129,8 +150,8 @@ nsHttpHeaderArray::VisitHeaders(nsIHttpHeaderVisitor *visitor)
+     return NS_OK;
+ }
+ 
+-void
+-nsHttpHeaderArray::ParseHeaderLine(char *line, nsHttpAtom *hdr, char **val)
++nsresult
++nsHttpHeaderArray::ParseHeaderLine(const char *line, nsHttpAtom *hdr, char **val)
+ {
+     //
+     // BNF from section 4.2 of RFC 2616:
+@@ -149,13 +170,13 @@ nsHttpHeaderArray::ParseHeaderLine(char *line, nsHttpAtom *hdr, char **val)
+     char *p = (char *) strchr(line, ':');
+     if (!p) {
+         LOG(("malformed header [%s]: no colon\n", line));
+-        return;
++        return NS_OK;
+     }
+ 
+     // make sure we have a valid token for the field-name
+     if (!nsHttp::IsValidToken(line, p)) {
+         LOG(("malformed header [%s]: field-name not a token\n", line));
+-        return;
++        return NS_OK;
+     }
+     
+     *p = 0; // null terminate field-name
+@@ -163,7 +184,7 @@ nsHttpHeaderArray::ParseHeaderLine(char *line, nsHttpAtom *hdr, char **val)
+     nsHttpAtom atom = nsHttp::ResolveAtom(line);
+     if (!atom) {
+         LOG(("failed to resolve atom [%s]\n", line));
+-        return;
++        return NS_OK;
+     }
+ 
+     // skip over whitespace
+@@ -181,7 +202,7 @@ nsHttpHeaderArray::ParseHeaderLine(char *line, nsHttpAtom *hdr, char **val)
+     if (val) *val = p;
+ 
+     // assign response header
+-    SetHeader(atom, nsDependentCString(p, p2 - p), PR_TRUE);
++    return SetHeaderFromNet(atom, nsDependentCString(p, p2 - p));
+ }
+ 
+ void
+@@ -215,33 +236,3 @@ nsHttpHeaderArray::Clear()
+ {
+     mHeaders.Clear();
+ }
+-
+-//-----------------------------------------------------------------------------
+-// nsHttpHeaderArray <private>
+-//-----------------------------------------------------------------------------
+-
+-PRInt32
+-nsHttpHeaderArray::LookupEntry(nsHttpAtom header, nsEntry **entry)
+-{
+-    PRUint32 index = mHeaders.IndexOf(header, 0, nsEntry::MatchHeader());
+-    if (index != PR_UINT32_MAX)
+-      *entry = &mHeaders[index];
+-    return index;
+-}
+-
+-PRBool
+-nsHttpHeaderArray::CanAppendToHeader(nsHttpAtom header)
+-{
+-    return header != nsHttp::Content_Type        &&
+-           header != nsHttp::Content_Length      &&
+-           header != nsHttp::User_Agent          &&
+-           header != nsHttp::Referer             &&
+-           header != nsHttp::Host                &&
+-           header != nsHttp::Authorization       &&
+-           header != nsHttp::Proxy_Authorization &&
+-           header != nsHttp::If_Modified_Since   &&
+-           header != nsHttp::If_Unmodified_Since &&
+-           header != nsHttp::From                &&
+-           header != nsHttp::Location            &&
+-           header != nsHttp::Max_Forwards;
+-}
+diff --git a/mozilla/netwerk/protocol/http/src/nsHttpHeaderArray.h b/mozilla/netwerk/protocol/http/src/nsHttpHeaderArray.h
+index ad52dfd..aae7a28 100644
+--- a/mozilla/netwerk/protocol/http/src/nsHttpHeaderArray.h
++++ b/mozilla/netwerk/protocol/http/src/nsHttpHeaderArray.h
+@@ -54,7 +54,14 @@ public:
+ 
+     const char *PeekHeader(nsHttpAtom header);
+ 
+-    nsresult SetHeader(nsHttpAtom header, const nsACString &value, PRBool merge = PR_FALSE);
++    // Used by internal setters: to set header from network use SetHeaderFromNet
++    nsresult SetHeader(nsHttpAtom header, const nsACString &value,
++                       PRBool merge = PR_FALSE);
++
++    // Merges supported headers. For other duplicate values, determines if error
++    // needs to be thrown or 1st value kept.
++    nsresult SetHeaderFromNet(nsHttpAtom header, const nsACString &value);
++
+     nsresult GetHeader(nsHttpAtom header, nsACString &value);
+     void     ClearHeader(nsHttpAtom h);
+ 
+@@ -73,7 +80,9 @@ public:
+ 
+     // parse a header line, return the header atom and a pointer to the 
+     // header value (the substring of the header line -- do not free).
+-    void ParseHeaderLine(char *line, nsHttpAtom *header=nsnull, char **value=nsnull);
++    nsresult ParseHeaderLine(const char *line,
++                             nsHttpAtom *header=nsnull,
++                             char **value=nsnull);
+ 
+     void Flatten(nsACString &, PRBool pruneProxyHeaders=PR_FALSE);
+ 
+@@ -99,10 +108,87 @@ private:
+     };
+ 
+     PRInt32 LookupEntry(nsHttpAtom header, nsEntry **);
+-    PRBool  CanAppendToHeader(nsHttpAtom header);
++    void MergeHeader(nsHttpAtom header, nsEntry *entry, const nsACString &value);
++
++    // Header cannot be merged: only one value possible
++    PRBool  IsSingletonHeader(nsHttpAtom header);
++
++    // Subset of singleton headers: should never see multiple, different
++    // instances of these, else something fishy may be going on (like CLRF
++    // injection)
++    PRBool  IsSuspectDuplicateHeader(nsHttpAtom header);
+ 
+ private:
+     nsTArray<nsEntry> mHeaders;
+ };
+ 
++
++//-----------------------------------------------------------------------------
++// nsHttpHeaderArray <private>: inline functions
++//-----------------------------------------------------------------------------
++
++inline PRInt32
++nsHttpHeaderArray::LookupEntry(nsHttpAtom header, nsEntry **entry)
++{
++    PRUint32 index = mHeaders.IndexOf(header, 0, nsEntry::MatchHeader());
++    if (index != PR_UINT32_MAX)
++        *entry = &mHeaders[index];
++    return index;
++}
++
++inline PRBool
++nsHttpHeaderArray::IsSingletonHeader(nsHttpAtom header)
++{
++    return header == nsHttp::Content_Type        ||
++           header == nsHttp::Content_Disposition ||
++           header == nsHttp::Content_Length      ||
++           header == nsHttp::User_Agent          ||
++           header == nsHttp::Referer             ||
++           header == nsHttp::Host                ||
++           header == nsHttp::Authorization       ||
++           header == nsHttp::Proxy_Authorization ||
++           header == nsHttp::If_Modified_Since   ||
++           header == nsHttp::If_Unmodified_Since ||
++           header == nsHttp::From                ||
++           header == nsHttp::Location            ||
++           header == nsHttp::Max_Forwards;
++}
++
++inline void
++nsHttpHeaderArray::MergeHeader(nsHttpAtom header,
++                               nsEntry *entry,
++                               const nsACString &value)
++{
++    if (value.IsEmpty())
++        return;   // merge of empty header = no-op
++
++    // Append the new value to the existing value
++    if (header == nsHttp::Set_Cookie ||
++        header == nsHttp::WWW_Authenticate ||
++        header == nsHttp::Proxy_Authenticate)
++    {
++        // Special case these headers and use a newline delimiter to
++        // delimit the values from one another as commas may appear
++        // in the values of these headers contrary to what the spec says.
++        entry->value.Append('\n');
++    } else {
++        // Delimit each value from the others using a comma (per HTTP spec)
++        entry->value.AppendLiteral(", ");
++    }
++    entry->value.Append(value);
++}
++
++inline PRBool
++nsHttpHeaderArray::IsSuspectDuplicateHeader(nsHttpAtom header)
++{
++    PRBool retval =  header == nsHttp::Content_Length         ||
++                     header == nsHttp::Content_Disposition    ||
++                     header == nsHttp::Location;
++
++    NS_ASSERTION(!retval || IsSingletonHeader(header),
++                 "Only non-mergeable headers should be in this list\n");
++
++    return retval;
++}
++
+ #endif
+diff --git a/mozilla/netwerk/protocol/http/src/nsHttpResponseHead.cpp b/mozilla/netwerk/protocol/http/src/nsHttpResponseHead.cpp
+index a1aef49..f07717c 100644
+--- a/mozilla/netwerk/protocol/http/src/nsHttpResponseHead.cpp
++++ b/mozilla/netwerk/protocol/http/src/nsHttpResponseHead.cpp
+@@ -197,23 +197,30 @@ nsHttpResponseHead::ParseStatusLine(char *line)
+         PRUintn(mVersion), PRUintn(mStatus), mStatusText.get()));
+ }
+ 
+-void
++nsresult
+ nsHttpResponseHead::ParseHeaderLine(char *line)
+ {
+     nsHttpAtom hdr = {0};
+     char *val;
+ 
+-    mHeaders.ParseHeaderLine(line, &hdr, &val);
++    nsresult rv;
++
++    rv = mHeaders.ParseHeaderLine(line, &hdr, &val);
++    if (NS_FAILED(rv))
++        return rv;
++
+     // leading and trailing LWS has been removed from |val|
+ 
+     // handle some special case headers...
+     if (hdr == nsHttp::Content_Length) {
+         PRInt64 len;
+         // permit only a single value here.
+-        if (nsHttp::ParseInt64(val, &len))
++        if (nsHttp::ParseInt64(val, &len)) {
+             mContentLength = len;
+-        else
++        } else {
+             LOG(("invalid content-length!\n"));
++            return NS_ERROR_CORRUPTED_CONTENT;
++        }
+     }
+     else if (hdr == nsHttp::Content_Type) {
+         LOG(("ParseContentType [type=%s]\n", val));
+@@ -225,6 +232,7 @@ nsHttpResponseHead::ParseHeaderLine(char *line)
+         ParseCacheControl(val);
+     else if (hdr == nsHttp::Pragma)
+         ParsePragma(val);
++    return NS_OK;
+ }
+ 
+ // From section 13.2.3 of RFC2616, we compute the current age of a cached
+diff --git a/mozilla/netwerk/protocol/http/src/nsHttpResponseHead.h b/mozilla/netwerk/protocol/http/src/nsHttpResponseHead.h
+index 890a79d..d56a73d 100644
+--- a/mozilla/netwerk/protocol/http/src/nsHttpResponseHead.h
++++ b/mozilla/netwerk/protocol/http/src/nsHttpResponseHead.h
+@@ -106,7 +106,7 @@ public:
+     void     ParseStatusLine(char *line);
+ 
+     // parse a header line. line must be null terminated. parsing is destructive.
+-    void     ParseHeaderLine(char *line);
++    nsresult ParseHeaderLine(char *line);
+ 
+     // cache validation support methods
+     nsresult ComputeFreshnessLifetime(PRUint32 *);
+diff --git a/mozilla/netwerk/protocol/http/src/nsHttpTransaction.cpp b/mozilla/netwerk/protocol/http/src/nsHttpTransaction.cpp
+index c4bdcfe..0f10f18 100644
+--- a/mozilla/netwerk/protocol/http/src/nsHttpTransaction.cpp
++++ b/mozilla/netwerk/protocol/http/src/nsHttpTransaction.cpp
+@@ -682,11 +682,13 @@ nsHttpTransaction::Restart()
+     return gHttpHandler->InitiateTransaction(this, mPriority);
+ }
+ 
+-void
++nsresult
+ nsHttpTransaction::ParseLine(char *line)
+ {
+     LOG(("nsHttpTransaction::ParseLine [%s]\n", line));
+ 
++    nsresult rv = NS_OK;
++
+     if (!mHaveStatusLine) {
+         mResponseHead->ParseStatusLine(line);
+         mHaveStatusLine = PR_TRUE;
+@@ -694,8 +696,10 @@ nsHttpTransaction::ParseLine(char *line)
+         if (mResponseHead->Version() == NS_HTTP_VERSION_0_9)
+             mHaveAllHeaders = PR_TRUE;
+     }
+-    else
+-        mResponseHead->ParseHeaderLine(line);
++    else {
++        rv = mResponseHead->ParseHeaderLine(line);
++    }
++    return rv;
+ }
+ 
+ nsresult
+@@ -710,8 +714,11 @@ nsHttpTransaction::ParseLineSegment(char *segment, PRUint32 len)
+         // of mLineBuf.
+         mLineBuf.Truncate(mLineBuf.Length() - 1);
+         if (!mHaveStatusLine || (*segment != ' ' && *segment != '\t')) {
+-            ParseLine(mLineBuf.BeginWriting());
++            nsresult rv = ParseLine(mLineBuf.BeginWriting());
+             mLineBuf.Truncate();
++            if (NS_FAILED(rv)) {
++                return rv;
++            }
+         }
+     }
+ 
+diff --git a/mozilla/netwerk/protocol/http/src/nsHttpTransaction.h b/mozilla/netwerk/protocol/http/src/nsHttpTransaction.h
+index 453e0cf..3491b6b 100644
+--- a/mozilla/netwerk/protocol/http/src/nsHttpTransaction.h
++++ b/mozilla/netwerk/protocol/http/src/nsHttpTransaction.h
+@@ -139,7 +139,7 @@ public:
+ 
+ private:
+     nsresult Restart();
+-    void     ParseLine(char *line);
++    nsresult ParseLine(char *line);
+     nsresult ParseLineSegment(char *seg, PRUint32 len);
+     nsresult ParseHead(char *, PRUint32 count, PRUint32 *countRead);
+     nsresult HandleContentStart();
+diff --git a/mozilla/netwerk/test/unit/test_duplicate_headers.js b/mozilla/netwerk/test/unit/test_duplicate_headers.js
+new file mode 100644
+index 0000000..8b5f04f
+--- /dev/null
++++ b/mozilla/netwerk/test/unit/test_duplicate_headers.js
+@@ -0,0 +1,363 @@
++/*
++ * Tests bugs 597706, 655389: prevent duplicate headers with differing values
++ * for some headers like Content-Length, Location, etc.
++ */
++
++////////////////////////////////////////////////////////////////////////////////
++// Test infrastructure
++
++do_load_httpd_js();
++
++var httpserver = new nsHttpServer();
++var index = 0;
++var test_flags = new Array();
++var testPathBase = "/dupe_hdrs";
++
++function run_test()
++{
++  httpserver.start(4444);
++
++  do_test_pending();
++  run_test_number(1);
++}
++
++function run_test_number(num)
++{
++  testPath = testPathBase + num;
++  httpserver.registerPathHandler(testPath, eval("handler" + num));
++
++  var channel = setupChannel(testPath);
++  flags = test_flags[num];   // OK if flags undefined for test
++  channel.asyncOpen(new ChannelListener(eval("completeTest" + num),
++                                        channel, flags), null);
++}
++
++function setupChannel(url)
++{
++  var ios = Components.classes["@mozilla.org/network/io-service;1"].
++                       getService(Ci.nsIIOService);
++  var chan = ios.newChannel("http://localhost:4444" + url, "", null);
++  var httpChan = chan.QueryInterface(Components.interfaces.nsIHttpChannel);
++  return httpChan;
++}
++
++function endTests()
++{
++  httpserver.stop(do_test_finished);
++}
++
++////////////////////////////////////////////////////////////////////////////////
++// Test 1: FAIL because of conflicting Content-Length headers
++test_flags[1] = CL_EXPECT_FAILURE;
++
++function handler1(metadata, response)
++{
++  var body = "012345678901234567890123456789";
++  // Comrades!  We must seize power from the petty-bourgeois running dogs of
++  // httpd.js in order to reply with multiple instances of the same header!
++  response.seizePower();
++  response.write("HTTP/1.0 200 OK\r\n");
++  response.write("Content-Type: text/plain\r\n");
++  response.write("Content-Length: 30\r\n");
++  response.write("Content-Length: 20\r\n");
++  response.write("\r\n");
++  response.write(body);
++  response.finish();
++}
++
++
++function completeTest1(request, data, ctx)
++{
++  do_check_eq(request.status, Components.results.NS_ERROR_CORRUPTED_CONTENT);
++
++  run_test_number(2);
++}
++
++////////////////////////////////////////////////////////////////////////////////
++// Test 2: OK to have duplicate same Content-Length headers
++
++function handler2(metadata, response)
++{
++  var body = "012345678901234567890123456789";
++  response.seizePower();
++  response.write("HTTP/1.0 200 OK\r\n");
++  response.write("Content-Type: text/plain\r\n");
++  response.write("Content-Length: 30\r\n");
++  response.write("Content-Length: 30\r\n");
++  response.write("\r\n");
++  response.write(body);
++  response.finish();
++}
++
++function completeTest2(request, data, ctx)
++{
++  do_check_eq(request.status, 0);
++  run_test_number(3);
++}
++
++////////////////////////////////////////////////////////////////////////////////
++// Test 3: FAIL: 2nd Content-length is blank
++test_flags[3] = CL_EXPECT_FAILURE;
++
++function handler3(metadata, response)
++{
++  var body = "012345678901234567890123456789";
++  response.seizePower();
++  response.write("HTTP/1.0 200 OK\r\n");
++  response.write("Content-Type: text/plain\r\n");
++  response.write("Content-Length: 30\r\n");
++  response.write("Content-Length:\r\n");
++  response.write("\r\n");
++  response.write(body);
++  response.finish();
++}
++
++function completeTest3(request, data, ctx)
++{
++  do_check_eq(request.status, Components.results.NS_ERROR_CORRUPTED_CONTENT);
++
++  run_test_number(4);
++}
++
++////////////////////////////////////////////////////////////////////////////////
++// Test 4: ensure that blank C-len header doesn't allow attacker to reset Clen, 
++// then insert CRLF attack
++test_flags[4] = CL_EXPECT_FAILURE;
++
++function handler4(metadata, response)
++{
++  var body = "012345678901234567890123456789";
++
++  response.seizePower();
++  response.write("HTTP/1.0 200 OK\r\n");
++  response.write("Content-Type: text/plain\r\n");
++  response.write("Content-Length: 30\r\n");
++
++  // Bad Mr Hacker!  Bad!
++  var evilBody = "We are the Evil bytes, Evil bytes, Evil bytes!";
++  response.write("Content-Length:\r\n");
++  response.write("Content-Length: %s\r\n\r\n%s" % (evilBody.length, evilBody));
++  response.write("\r\n");
++  response.write(body);
++  response.finish();
++}
++
++function completeTest4(request, data, ctx)
++{
++  do_check_eq(request.status, Components.results.NS_ERROR_CORRUPTED_CONTENT);
++
++  run_test_number(5);
++}
++
++
++////////////////////////////////////////////////////////////////////////////////
++// Test 5: ensure that we take 1st instance of duplicate, nonmerged headers that
++// are permitted : (ex: Referrer)
++
++function handler5(metadata, response)
++{
++  var body = "012345678901234567890123456789";
++  response.seizePower();
++  response.write("HTTP/1.0 200 OK\r\n");
++  response.write("Content-Type: text/plain\r\n");
++  response.write("Content-Length: 30\r\n");
++  response.write("Referer: naive.org\r\n");
++  response.write("Referer: evil.net\r\n");
++  response.write("\r\n");
++  response.write(body);
++  response.finish();
++}
++
++function completeTest5(request, data, ctx)
++{
++  try {
++    referer = request.getResponseHeader("Referer");
++    do_check_eq(referer, "naive.org");
++  } catch (ex) {
++    do_throw("Referer header should be present");
++  }
++
++  run_test_number(6);
++}
++
++////////////////////////////////////////////////////////////////////////////////
++// Test 5: FAIL if multiple, different Location: headers present
++// - needed to prevent CRLF injection attacks
++test_flags[6] = CL_EXPECT_FAILURE;
++
++function handler6(metadata, response)
++{
++  var body = "012345678901234567890123456789";
++  response.seizePower();
++  response.write("HTTP/1.0 301 Moved\r\n");
++  response.write("Content-Type: text/plain\r\n");
++  response.write("Content-Length: 30\r\n");
++  response.write("Location: http://localhost:4444/content\r\n");
++  response.write("Location: http://www.microsoft.com/\r\n");
++  response.write("Connection: close/\r\n");
++  response.write("\r\n");
++  response.write(body);
++  response.finish();
++}
++
++function completeTest6(request, data, ctx)
++{
++  do_check_eq(request.status, Components.results.NS_ERROR_CORRUPTED_CONTENT);
++
++//  run_test_number(7);   // Test 7 leaking under e10s: unrelated bug?
++  run_test_number(8);
++}
++
++////////////////////////////////////////////////////////////////////////////////
++// Test 7: OK to have multiple Location: headers with same value
++
++function handler7(metadata, response)
++{
++  var body = "012345678901234567890123456789";
++  response.seizePower();
++  response.write("HTTP/1.0 301 Moved\r\n");
++  response.write("Content-Type: text/plain\r\n");
++  response.write("Content-Length: 30\r\n");
++  // redirect to previous test handler that completes OK: test 5
++  response.write("Location: http://localhost:4444" + testPathBase + "5\r\n");
++  response.write("Location: http://localhost:4444" + testPathBase + "5\r\n");
++  response.write("Connection: close/\r\n");
++  response.write("\r\n");
++  response.write(body);
++  response.finish();
++}
++
++function completeTest7(request, data, ctx)
++{
++  // for some reason need this here
++  request.QueryInterface(Components.interfaces.nsIHttpChannel);
++
++  try {
++    referer = request.getResponseHeader("Referer");
++    do_check_eq(referer, "naive.org");
++  } catch (ex) {
++    do_throw("Referer header should be present");
++  }
++
++  run_test_number(8);
++}
++
++////////////////////////////////////////////////////////////////////////////////
++// FAIL if 2nd Location: headers blank
++test_flags[8] = CL_EXPECT_FAILURE;
++
++function handler8(metadata, response)
++{
++  var body = "012345678901234567890123456789";
++  response.seizePower();
++  response.write("HTTP/1.0 301 Moved\r\n");
++  response.write("Content-Type: text/plain\r\n");
++  response.write("Content-Length: 30\r\n");
++  // redirect to previous test handler that completes OK: test 4
++  response.write("Location: http://localhost:4444" + testPathBase + "4\r\n");
++  response.write("Location:\r\n");
++  response.write("Connection: close/\r\n");
++  response.write("\r\n");
++  response.write(body);
++  response.finish();
++}
++
++function completeTest8(request, data, ctx)
++{
++  do_check_eq(request.status, Components.results.NS_ERROR_CORRUPTED_CONTENT);
++
++  run_test_number(9);
++}
++
++////////////////////////////////////////////////////////////////////////////////
++// Test 9: ensure that blank Location header doesn't allow attacker to reset, 
++// then insert an evil one
++test_flags[9] = CL_EXPECT_FAILURE;
++
++function handler9(metadata, response)
++{
++  var body = "012345678901234567890123456789";
++  response.seizePower();
++  response.write("HTTP/1.0 301 Moved\r\n");
++  response.write("Content-Type: text/plain\r\n");
++  response.write("Content-Length: 30\r\n");
++  // redirect to previous test handler that completes OK: test 2 
++  response.write("Location: http://localhost:4444" + testPathBase + "2\r\n");
++  response.write("Location:\r\n");
++  // redirect to previous test handler that completes OK: test 4
++  response.write("Location: http://localhost:4444" + testPathBase + "4\r\n");
++  response.write("Connection: close/\r\n");
++  response.write("\r\n");
++  response.write(body);
++  response.finish();
++}
++
++function completeTest9(request, data, ctx)
++{
++  // All redirection should fail:
++  do_check_eq(request.status, Components.results.NS_ERROR_CORRUPTED_CONTENT);
++
++  run_test_number(10);
++}
++
++////////////////////////////////////////////////////////////////////////////////
++// Test 10: FAIL:  if conflicting values for Content-Dispo 
++test_flags[10] = CL_EXPECT_FAILURE;
++
++function handler10(metadata, response)
++{
++  var body = "012345678901234567890123456789";
++  response.seizePower();
++  response.write("HTTP/1.0 200 OK\r\n");
++  response.write("Content-Type: text/plain\r\n");
++  response.write("Content-Length: 30\r\n");
++  response.write("Content-Disposition: attachment; filename=foo\r\n");
++  response.write("Content-Disposition: attachment; filename=bar\r\n");
++  response.write("Content-Disposition: attachment; filename=baz\r\n");
++  response.write("\r\n");
++  response.write(body);
++  response.finish();
++}
++
++
++function completeTest10(request, data, ctx)
++{
++  do_check_eq(request.status, Components.results.NS_ERROR_CORRUPTED_CONTENT);
++
++  run_test_number(11);
++}
++
++////////////////////////////////////////////////////////////////////////////////
++// Test 11: OK to have duplicate same Content-Disposition headers
++
++function handler11(metadata, response)
++{
++  var body = "012345678901234567890123456789";
++  response.seizePower();
++  response.write("HTTP/1.0 200 OK\r\n");
++  response.write("Content-Type: text/plain\r\n");
++  response.write("Content-Length: 30\r\n");
++  response.write("Content-Disposition: attachment; filename=foo\r\n");
++  response.write("Content-Disposition: attachment; filename=foo\r\n");
++  response.write("\r\n");
++  response.write(body);
++  response.finish();
++}
++
++function completeTest11(request, data, ctx)
++{
++  do_check_eq(request.status, 0);
++
++  try {
++    // TODO when bug XXX lands, also get channel C-D properties and make sure
++    // they're blank
++    dispo = request.getResponseHeader("Content-Disposition");
++    do_check_eq(dispo, "attachment; filename=foo");
++  } catch (ex) {
++    do_throw("Content-Disposition should be present");
++  }
++
++  endTests();
++}
++
++

@@ -1,0 +1,108 @@
+From: Mark Kaplan <mark.kaplan@m86security.com>
+Date: Wed, 14 Sep 2011 16:57:01 -0700
+Subject: Bug 684815 - Fix a crash, a=LegNeato
+
+---
+ js/src/jsregexp.cpp |   27 ++++++++++++++++++---------
+ 1 files changed, 18 insertions(+), 9 deletions(-)
+
+diff --git a/mozilla/js/src/jsregexp.cpp b/mozilla/js/src/jsregexp.cpp
+index cea7459..9f96f3d 100644
+--- a/mozilla/js/src/jsregexp.cpp
++++ b/mozilla/js/src/jsregexp.cpp
+@@ -3367,7 +3367,7 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
+     jsbytecode *nextpc, *testpc;
+     REOp nextop;
+     RECapture *cap;
+-    REProgState *curState;
++    REProgState *curState=NULL;
+     const jschar *startcp;
+     size_t parenIndex, k;
+     size_t parenSoFar = 0;
+@@ -3490,7 +3490,8 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
+                 if (!result)
+                     result = x;
+ 
+-                --gData->stateStackTop;
++                if(gData->stateStackTop)
++                    --gData->stateStackTop;
+                 pc += GET_OFFSET(pc);
+                 op = (REOp) *pc++;
+                 continue;
+@@ -3506,7 +3507,8 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
+                 if (!result)
+                     result = x;
+ 
+-                --gData->stateStackTop;
++                if(gData->stateStackTop)
++                    --gData->stateStackTop;
+                 op = (REOp) *pc++;
+                 continue;
+ 
+@@ -3583,7 +3585,8 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
+                 continue;
+ 
+               case REOP_ASSERTTEST:
+-                --gData->stateStackTop;
++                if(gData->stateStackTop)
++                    --gData->stateStackTop;
+                 --curState;
+                 x->cp = gData->cpbegin + curState->index;
+                 gData->backTrackSP =
+@@ -3595,7 +3598,8 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
+                 break;
+ 
+               case REOP_ASSERTNOTTEST:
+-                --gData->stateStackTop;
++                if(gData->stateStackTop)
++                    --gData->stateStackTop;
+                 --curState;
+                 x->cp = gData->cpbegin + curState->index;
+                 gData->backTrackSP =
+@@ -3671,7 +3675,8 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
+               case REOP_REPEAT:
+                 --curState;
+                 do {
+-                    --gData->stateStackTop;
++                    if(gData->stateStackTop)
++                        --gData->stateStackTop;
+                     if (!result) {
+                         /* Failed, see if we have enough children. */
+                         if (curState->u.quantifier.min == 0)
+@@ -3759,14 +3764,16 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
+                                             pc, x, x->cp, 0, 0)) {
+                         goto bad;
+                     }
+-                    --gData->stateStackTop;
++                    if(gData->stateStackTop)
++                        --gData->stateStackTop;
+                     pc = pc + GET_OFFSET(pc);
+                     op = (REOp) *pc++;
+                 }
+                 continue;
+ 
+               case REOP_MINIMALREPEAT:
+-                --gData->stateStackTop;
++                if(gData->stateStackTop)
++                    --gData->stateStackTop;
+                 --curState;
+ 
+                 re_debug("{%d,%d}", curState->u.quantifier.min,
+@@ -3820,7 +3827,8 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
+                                         parenSoFar - curState->parenSoFar)) {
+                     goto bad;
+                 }
+-                --gData->stateStackTop;
++                if(gData->stateStackTop)
++                    --gData->stateStackTop;
+                 pc = pc + GET_OFFSET(pc);
+                 op = (REOp) *pc++;
+                 JS_ASSERT(op < REOP_LIMIT);
+@@ -3863,6 +3871,7 @@ ExecuteREBytecode(REGlobalData *gData, REMatchState *x)
+             op = (REOp) backTrackData->backtrack_op;
+             JS_ASSERT(op < REOP_LIMIT);
+             gData->stateStackTop = backTrackData->saveStateStackTop;
++
+             JS_ASSERT(gData->stateStackTop);
+ 
+             memcpy(gData->stateStack, backTrackData + 1,

@@ -141,3 +141,9 @@ security/squeeze4/0011-bug-615970-r-luke-a-clegnitto.patch
 security/squeeze4/0012-Bug-572129-restrict-data-transfer-data-handling-r-en.patch
 security/squeeze4/0013-Bug-643062-more-generic-null-pointer-check-for-Execu.patch
 security/squeeze4/0014-Bug-655098-Root-the-jsid-stored-in-NPObjectMemberPri.patch
+security/squeeze5/Bug-665548-bail-early-on-failure-r-jst-a-dveditz.patch
+security/squeeze5/Bug-663899-Use-the-win-temp-file-handling-code-in-al.patch
+security/squeeze5/Bug-684815-Fix-a-crash-a-LegNeato.patch
+security/squeeze5/Fix-for-bug-660453-Don-t-use-txExecutionState-if-ini.patch
+security/squeeze5/Bug-662215-r-bz-a-dveditz.patch
+security/squeeze5/Bug-655389-CRLF-Injection-and-the-parsing-of-HTTP-he.patch
