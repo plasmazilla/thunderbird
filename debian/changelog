@@ -1,3 +1,21 @@
+icedove (3.1.15-1) unstable; urgency=high
+
+  * New Upstream Version
+    - MFSA 2011-36 aka CVE-2011-2995: Miscellaneous memory safety hazards
+      (rv:7.0 / rv:1.9.2.23)
+    - MFSA 2011-37 aka CVE-2011-2998: Integer underflow when using JavaScript
+      RegExp
+    - MFSA 2011-38 aka CVE-2011-2999: XSS via plugins and shadowed
+      window.location object
+    - MFSA 2011-39 aka CVE-2011-3000: Defense against multiple Location
+      headers due to CRLF Injection
+    - MFSA 2011-40 aka CVE-2011-2372, CVE-2011-3001: Code installation through
+      holding down Enter
+  * [ba1f4d3] add Japanese translation for desktop menu entry.
+    Thanks to Hideki Yamane <henrich@debian.org> (Closes: #640679)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 05 Oct 2011 20:05:08 +0200
+
 icedove (3.1.13-1) unstable; urgency=high
 
   * New Upstream Version
