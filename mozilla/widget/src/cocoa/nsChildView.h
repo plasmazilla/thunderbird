@@ -67,7 +67,6 @@
 
 class gfxASurface;
 class nsChildView;
-union nsPluginPort;
 class nsITimer;
 
 enum {
