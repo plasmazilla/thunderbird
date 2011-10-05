@@ -678,10 +678,12 @@ nsHttpTransaction::Restart()
     return gHttpHandler->InitiateTransaction(this, mPriority);
 }
 
-void
+nsresult
 nsHttpTransaction::ParseLine(char *line)
 {
     LOG(("nsHttpTransaction::ParseLine [%s]\n", line));
+
+    nsresult rv = NS_OK;
 
     if (!mHaveStatusLine) {
         mResponseHead->ParseStatusLine(line);
@@ -690,8 +692,10 @@ nsHttpTransaction::ParseLine(char *line)
         if (mResponseHead->Version() == NS_HTTP_VERSION_0_9)
             mHaveAllHeaders = PR_TRUE;
     }
-    else
-        mResponseHead->ParseHeaderLine(line);
+    else {
+        rv = mResponseHead->ParseHeaderLine(line);
+    }
+    return rv;
 }
 
 nsresult
@@ -706,8 +710,11 @@ nsHttpTransaction::ParseLineSegment(char *segment, PRUint32 len)
         // of mLineBuf.
         mLineBuf.Truncate(mLineBuf.Length() - 1);
         if (!mHaveStatusLine || (*segment != ' ' && *segment != '\t')) {
-            ParseLine(mLineBuf.BeginWriting());
+            nsresult rv = ParseLine(mLineBuf.BeginWriting());
             mLineBuf.Truncate();
+            if (NS_FAILED(rv)) {
+                return rv;
+            }
         }
     }
 
