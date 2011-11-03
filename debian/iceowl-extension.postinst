@@ -1,0 +1,7 @@
+#!/bin/sh
+
+if test -e /usr/lib/icedove/.autoreg; then
+  touch /usr/lib/icedove/.autoreg
+fi
+
+#DEBHELPER#

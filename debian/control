@@ -35,7 +35,8 @@ Build-Depends: bzip2,
 	libffi-dev,
 	libevent-dev (>= 1.4.1),
 	libvpx-dev,
-	mesa-common-dev
+	mesa-common-dev,
+	unzip
 Vcs-Git: git://git.debian.org/pkg-mozilla/icedove.git
 Vcs-Browser: http://git.debian.org/?p=pkg-mozilla/icedove.git;a=summary
 Standards-Version: 3.9.2
@@ -85,4 +86,32 @@ Description: Debug Symbols for Icedove
  .
  This package contains the debug symbols for Icedove. Install this package if
  you need to debug such a program or if you need a useful backtrace of a crash.
+
+Package: calendar-timezones
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Timezone Extension for Sunbird/Iceowl (mandatory)
+ This Timezone provides timezone data for Sunbird and the Iceowl/Lightning
+ extension. It's an essential component if you want to use all
+ calendaring features.
+
+Package: iceowl-extension
+Architecture: any
+Depends: icedove (>= ${binary:Version}) | thunderbird (>= ${binary:Version}),
+ calendar-timezones (= ${binary:Version}),
+ ${shlibs:Depends}, ${misc:Depends}
+Recommends: calendar-google-provider
+Suggests: ttf-lyx
+Description: Calendar Extension for Thunderbird/Icedove
+ Iceowl Extension is a Calendar extension for Thunderbird
+ and Icedove based on iceowl - the Mozilla Based Standalone
+ Calendar application.
+
+Package: calendar-google-provider
+Architecture: any
+Depends: ${shlibs:Depends},
+ ${misc:Depends}
+Description: Google Calendar support for lighting- and iceowl-extension
+ Google Calendar support extension for the Iceowl/Lightning extension. It's a
+ recommended component if you want to connect to your google calendar.
 

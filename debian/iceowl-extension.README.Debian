@@ -1,0 +1,10 @@
+Important Security Notice
+-------------------------
+There's no upstream security support for iceowl and iceowl-extension since
+lightning is still under development without an officially supported version by
+upstream. New lightning upstream versions add features and require new
+icedove/thunderbird versions to function.
+
+Therefore Debian doesn't offer official security support for this package.
+
+ -- Guido Günther <agx@sigxcpu.org>  Wed, 29 Sep 2010 11:02:57 +0200
