@@ -1,7 +1,6 @@
 icedove/fix-installdir.patch
 icedove/thunderbird-3-profile.patch
 icedove/no-dynamic-nss-softokn.patch
-debian-hacks/bzXXX-ftbfs-static-with-system-hunspell.patch
 debian-hacks/Add-another-preferences-directory-for-applications-p.patch
 fixes/Allow-.js-preference-files-to-set-locked-prefs-with-.patch
 icedove/fix-branding-in-migration-wizard-and-the-addon-manag.patch
@@ -22,19 +21,7 @@ icedove/fix-forwarding-of-Simple-HTML-email.patch
 icedove/save-a-copy-of-a-attached-file-when-sending-from-OOo.patch
 debian-hacks/stop-configure-if-with-system-bz2-was-passed-but-no-.patch
 debian-hacks/downgrade-SQLITE_VERSION-to-3.7.1.patch
-fixes/Disable-building-embedded-libjpeg-turbo-when-buildin.patch
 system-libs/Allow-to-build-against-system-libffi.patch
-fixes/Bug-626035-Modify-the-way-arm-compiler-flags-are-set.patch
-fixes/Bug-640494-part-1-Get-rid-of-STL-algorithm-use-in-js.patch
-fixes/Bug-640494-part-2-Use-bitwise-operations-in-JSDOUBLE.patch
-fixes/Bug-662224-Define-NS_ATTR_MALLOC-and-NS_WARN_UNUSED_.patch
-fixes/Bug-652139-Use-an-integer-type-in-DocumentViewerImpl.patch
-fixes/Bug-639554-Install-sdk-bin-with-make-install.-r-bsme.patch
-fixes/Bug-668906-Do-not-call-openUnsharedDatabase-with-a-n.patch
-fixes/Bug-671564-Initialize-NS_XPCOM_LIBRARY_FILE-from-NS_.patch
-porting/Bug-638056-Avoid-The-cacheFlush-support-is-missing-o.patch
-porting/Allow-to-build-yuv_convert_arm.cpp-on-armv4t.patch
-porting/Fix-FTBFS-in-IPC-on-Linux-PPC.patch
 porting/Add-mips-hppa-ia64-s390-and-sparc-defines-in-ipc-chr.patch
 porting/Force-NativeARM.o-to-have-arch-armv4t-in-its-.ARM.at.patch
 porting/Allow-ARMv4T-in-nanojit.patch
@@ -42,7 +29,6 @@ porting/Allow-ipc-code-to-build-on-GNU-kfreebsd.patch
 debian-hacks/Don-t-register-plugins-if-the-MOZILLA_DISABLE_PLUGIN.patch
 debian-hacks/Gross-workaround-to-avoid-installing-test-idl-and-in.patch
 debian-hacks/Fix-tracejit-to-build-against-nanojit-headers-in-dis.patch
-debian-hacks/Allow-to-build-against-system-nspr-4.8.6.patch
-system-libs/libxul-linking-error-with-enable-system-ffi-and-stat.patch
-porting/Fix-FTBFS-in-xpcom-base-on-armv4t.patch
 porting/Allow-ipc-code-to-build-on-GNU-hurd.patch
+debian-hacks/get-ride-of-default-debian-hardering-options.patch
+fixes/packager-fails-when-MOZILLA_DIR-is-a-relative-path.patch

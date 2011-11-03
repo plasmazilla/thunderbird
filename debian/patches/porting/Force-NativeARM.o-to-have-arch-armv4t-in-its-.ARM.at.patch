@@ -7,10 +7,10 @@ Subject: Force NativeARM.o to have arch armv4t in its .ARM.attributes
  1 files changed, 1 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/js/src/nanojit/NativeARM.cpp b/mozilla/js/src/nanojit/NativeARM.cpp
-index 5317e3b..37716b3 100644
+index d504c0b..f2fed0e 100644
 --- a/mozilla/js/src/nanojit/NativeARM.cpp
 +++ b/mozilla/js/src/nanojit/NativeARM.cpp
-@@ -138,6 +138,7 @@ Assembler::CountLeadingZeroes(uint32_t data)
+@@ -134,6 +134,7 @@ Assembler::CountLeadingZeroes(uint32_t data)
          // with clz, and clz to be used when appropriate at runtime.
              "   .arch armv5t\n"
  #endif

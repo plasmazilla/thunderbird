@@ -23,10 +23,10 @@ Squashed kFreeBSD/Hurd related fixes:
  8 files changed, 36 insertions(+), 26 deletions(-)
 
 diff --git a/configure.in b/configure.in
-index ae0e75a..8b121be 100644
+index e89d048..6ca7a3f 100644
 --- a/configure.in
 +++ b/configure.in
-@@ -1147,6 +1147,7 @@ if test -n "$CROSS_COMPILE"; then
+@@ -1119,6 +1119,7 @@ if test -n "$CROSS_COMPILE"; then
      case "${target_os}" in
          linux*)       OS_ARCH=Linux OS_TARGET=Linux ;;
          kfreebsd*-gnu) OS_ARCH=GNU_kFreeBSD OS_TARGET=GNU_kFreeBSD ;;
@@ -34,7 +34,7 @@ index ae0e75a..8b121be 100644
          solaris*)     OS_ARCH=SunOS OS_RELEASE=5 ;;
          mingw*)       OS_ARCH=WINNT ;;
          wince*)       OS_ARCH=WINCE ;;
-@@ -1793,7 +1794,7 @@ case "$host" in
+@@ -1765,7 +1766,7 @@ case "$host" in
      HOST_OPTIMIZE_FLAGS="${HOST_OPTIMIZE_FLAGS=-O3}"
      ;;
  
@@ -43,7 +43,7 @@ index ae0e75a..8b121be 100644
      HOST_CFLAGS="$HOST_CFLAGS -DXP_UNIX"
      HOST_NSPR_MDCPUCFG='\"md/_linux.cfg\"'
      HOST_OPTIMIZE_FLAGS="${HOST_OPTIMIZE_FLAGS=-O3}"
-@@ -2797,7 +2798,7 @@ dnl ========================================================
+@@ -2773,7 +2774,7 @@ dnl ========================================================
  dnl = Flags to strip unused symbols from .so components
  dnl ========================================================
  case "$target" in
@@ -52,7 +52,7 @@ index ae0e75a..8b121be 100644
          MOZ_COMPONENTS_VERSION_SCRIPT_LDFLAGS='-Wl,--version-script -Wl,$(BUILD_TOOLS)/gnu-ld-scripts/components-version-script'
          ;;
      *-solaris*)
-@@ -3422,7 +3423,7 @@ then
+@@ -3398,7 +3399,7 @@ then
  			fi
  			;;
  

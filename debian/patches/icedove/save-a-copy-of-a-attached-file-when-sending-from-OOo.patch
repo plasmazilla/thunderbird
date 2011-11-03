@@ -8,16 +8,16 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=378046
 Closes: #505875
 
 ---
- .../compose/content/MsgComposeCommands.js          |   29 ++++++++++++++++++++
- 1 files changed, 29 insertions(+), 0 deletions(-)
+ .../compose/content/MsgComposeCommands.js          |   30 ++++++++++++++++++++
+ 1 files changed, 30 insertions(+), 0 deletions(-)
 
 diff --git a/mail/components/compose/content/MsgComposeCommands.js b/mail/components/compose/content/MsgComposeCommands.js
-index c49c38d..f53fc5f 100644
+index 1fafbed..5c1c9a6 100644
 --- a/mail/components/compose/content/MsgComposeCommands.js
 +++ b/mail/components/compose/content/MsgComposeCommands.js
-@@ -2930,6 +2930,35 @@ function AddUrlAttachment(attachment)
-   else
-     item = bucket.appendItem(attachment.name, "");
+@@ -2940,6 +2940,36 @@ function AddUrlAttachment(attachment)
+   if (attachment.size != -1)
+     gAttachmentsSize += attachment.size;
  
 +  // Take snapshot of attachment if it is a file.
 +  var isFile = /^file:/i;
@@ -48,7 +48,8 @@ index c49c38d..f53fc5f 100644
 +    attachment.temporary = true;
 +  }
 +
-   item.attachment = attachment; // Full attachment object stored here.
++  item.attachment = attachment; // Full attachment object stored here.
    try {
      item.setAttribute("tooltiptext", decodeURI(attachment.url));
+   }
 -- 

@@ -13,10 +13,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=394322
  2 files changed, 13 insertions(+), 2 deletions(-)
 
 diff --git a/mailnews/compose/public/nsIMsgSend.idl b/mailnews/compose/public/nsIMsgSend.idl
-index aef0a3d..2344d30 100644
+index 18b98a8..cc3930f 100644
 --- a/mailnews/compose/public/nsIMsgSend.idl
 +++ b/mailnews/compose/public/nsIMsgSend.idl
-@@ -134,6 +134,8 @@ typedef struct nsMsgAttachedFile
+@@ -135,6 +135,8 @@ typedef struct nsMsgAttachedFile
    
    char        *type;        // The type of the data in file_name (not necessarily the same as the type of orig_url.)
  
