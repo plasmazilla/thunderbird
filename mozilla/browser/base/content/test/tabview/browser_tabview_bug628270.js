@@ -9,7 +9,7 @@ function test() {
     let bounds = new cw.Rect(20, 20, 200, 200);
     let groupItem = new cw.GroupItem([], {bounds: bounds, immediately: true});
 
-    cw.GroupItems.setActiveGroupItem(groupItem);
+    cw.UI.setActive(groupItem);
     gBrowser.loadOneTab('http://mochi.test:8888/', {inBackground: true});
     gBrowser.loadOneTab('http://mochi.test:8888/', {inBackground: true});
 
@@ -23,20 +23,6 @@ function test() {
 
   let getGroupItem = function (index) {
     return cw.GroupItems.groupItems[index];
-  }
-
-  let restoreTab = function (callback) {
-    let tab = undoCloseTab(0);
-
-    if (tab._tabViewTabItem._reconnected) {
-      callback();
-      return;
-    }
-
-    tab._tabViewTabItem.addSubscriber(tab, 'reconnected', function () {
-      tab._tabViewTabItem.removeSubscriber(tab, 'reconnected');
-      afterAllTabsLoaded(callback);
-    });
   }
 
   let activateFirstGroupItem = function () {

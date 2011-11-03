@@ -1,4 +1,5 @@
 /* -*- Mode: javascript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=2 sw=2 sts=2 et :*/
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -78,14 +79,10 @@ const kMsgForwardAsAttachment = 0;
 const kMsgForwardInline = 2;
 
 var gMessengerBundle;
-var gPromptService;
-var gOfflinePromptsBundle;
 var gOfflineManager;
-var gWindowManagerInterface;
 var gPrefBranch = Components.classes["@mozilla.org/preferences-service;1"].getService(Components.interfaces.nsIPrefService).getBranch(null);
 var gCopyService = Components.classes["@mozilla.org/messenger/messagecopyservice;1"]
                              .getService(Components.interfaces.nsIMsgCopyService);
-var gWindowReuse  = 0;
 var gMarkViewedMessageAsReadTimer = null; // if the user has configured the app to mark a message as read if it is viewed for more than n seconds
 
 var gTimelineService = null;
@@ -131,12 +128,10 @@ function menu_new_init()
   var isInbox = msgFolder.isSpecialFolder(
                   Components.interfaces.nsMsgFolderFlags.Inbox, false);
   var isIMAPFolder = serverType == "imap";
-  var ioService = Components.classes["@mozilla.org/network/io-service;1"]
-                         .getService(Components.interfaces.nsIIOService);
   var showNew = ((serverType != 'nntp') && canCreateNew) || isInbox;
   ShowMenuItem("menu_newFolder", showNew);
   ShowMenuItem("menu_newVirtualFolder", showNew);
-  EnableMenuItem("menu_newFolder", !isIMAPFolder || !ioService.offline);
+  EnableMenuItem("menu_newFolder", !isIMAPFolder || !Services.io.offline);
   EnableMenuItem("menu_newVirtualFolder", true);
   if (showNew)
     SetMenuItemLabel("menu_newFolder", gMessengerBundle.getString((isServer || isInbox) ? "newFolderMenuItem" : "newSubfolderMenuItem"));
@@ -212,7 +207,7 @@ function view_init()
     threads_menuitem.setAttribute("disabled", gAccountCentralLoaded);
 
   // Initialize the Message Body menuitem
-  var isFeed = IsFeedItem();
+  var isFeed = gFolderDisplay.selectedMessageIsFeed;
   document.getElementById('viewBodyMenu').hidden = isFeed;
 
   // Initialize the Show Feed Summary menu
@@ -332,11 +327,8 @@ function InitViewMessagesMenu()
 function InitMessageMenu()
 {
   var aMessage = GetFirstSelectedMessage();
-  var isNews = false;
-  if(aMessage) {
-      isNews = IsNewsMessage(aMessage);
-  }
-  var isFeed = IsFeedItem();
+  var isNews = gFolderDisplay.selectedMessageIsNews;
+  var isFeed = gFolderDisplay.selectedMessageIsFeed;
 
   // We show Reply to Newsgroups only for news messages.
   var replyNewsgroupMenuItem = document.getElementById("replyNewsgroupMainMenu");
@@ -473,10 +465,11 @@ function InitViewBodyMenu()
   var html_as = 0;
   var prefer_plaintext = false;
   var disallow_classes = 0;
-  var isFeed = IsFeedItem();
+  var isFeed = gFolderDisplay.selectedMessageIsFeed;
   const defaultIDs = ["bodyAllowHTML",
                       "bodySanitized",
-                      "bodyAsPlaintext"];
+                      "bodyAsPlaintext",
+                      "bodyAllParts"];
   const rssIDs = ["bodyFeedSummaryAllowHTML",
                   "bodyFeedSummarySanitized",
                   "bodyFeedSummaryAsPlaintext"];
@@ -508,6 +501,12 @@ function InitViewBodyMenu()
   var AllowHTML_menuitem = document.getElementById(menuIDs[0]);
   var Sanitized_menuitem = document.getElementById(menuIDs[1]);
   var AsPlaintext_menuitem = document.getElementById(menuIDs[2]);
+  var AllBodyParts_menuitem;
+  if (!isFeed) {
+    AllBodyParts_menuitem = document.getElementById(menuIDs[3]);
+    AllBodyParts_menuitem.hidden =
+      !pref.getBoolPref("mailnews.display.show_all_body_parts_menu");
+  }
 
   if (!prefer_plaintext && !html_as && !disallow_classes &&
       AllowHTML_menuitem)
@@ -518,6 +517,9 @@ function InitViewBodyMenu()
   else if (prefer_plaintext && html_as == 1 && disallow_classes > 0 &&
       AsPlaintext_menuitem)
     AsPlaintext_menuitem.setAttribute("checked", true);
+  else if (!prefer_plaintext && html_as == 4 && !disallow_classes &&
+      AllBodyParts_menuitem)
+    AllBodyParts_menuitem.setAttribute("checked", true);
   // else (the user edited prefs/user.js) check none of the radio menu items
 
   if (isFeed) {
@@ -536,14 +538,6 @@ function IsNewsMessage(messageUri)
 function IsImapMessage(messageUri)
 {
   return (/^imap-message:/.test(messageUri));
-}
-
-function IsFeedItem()
-{
-  return (GetFirstSelectedMessage() &&
-          ((gMsgFolderSelected &&
-            gMsgFolderSelected.server.type == 'rss') ||
-           'content-base' in currentHeaderData));
 }
 
 function SetMenuItemLabel(menuItemId, customLabel)
@@ -959,15 +953,6 @@ function GetFirstSelectedMsgFolder()
     return result;
 }
 
-function GetWindowMediator()
-{
-    if (gWindowManagerInterface)
-        return gWindowManagerInterface;
-
-    var windowManager = Components.classes['@mozilla.org/appshell/window-mediator;1'].getService();
-    return (gWindowManagerInterface = windowManager.QueryInterface(Components.interfaces.nsIWindowMediator));
-}
-
 function GetInboxFolder(server)
 {
     try {
@@ -999,10 +984,8 @@ function GetMessagesForInboxOnServer(server)
 function MsgGetMessage()
 {
   // if offline, prompt for getting messages
-  if(CheckOnline())
+  if (DoGetNewMailWhenOffline())
     GetFolderMessages();
-  else if (DoGetNewMailWhenOffline())
-      GetFolderMessages();
 }
 
 function MsgGetMessagesForAllServers(defaultServer)
@@ -1018,7 +1001,7 @@ function MsgGetMessagesForAllServers(defaultServer)
   */
 function MsgGetMessagesForAllAuthenticatedAccounts()
 {
-  if (CheckOnline() || DoGetNewMailWhenOffline())
+  if (DoGetNewMailWhenOffline())
     MailTasksGetMessagesForAllServers(false, msgWindow, null);
 }
 
@@ -1031,28 +1014,17 @@ function MsgGetMessagesForAccount(aEvent)
   if (!aEvent)
     return;
 
-  if(CheckOnline())
+  if (DoGetNewMailWhenOffline())
     GetMessagesForAccount(aEvent);
-  else if (DoGetNewMailWhenOffline()) 
-      GetMessagesForAccount(aEvent);
-    }
+}
 
 // if offline, prompt for getNextNMessages
 function MsgGetNextNMessages()
 {
-  var folder;
-  
-  if(CheckOnline()) {
-    folder = GetFirstSelectedMsgFolder();
+  if (DoGetNewMailWhenOffline()) {
+    var folder = GetFirstSelectedMsgFolder();
     if(folder) 
       GetNextNMessages(folder);
-  }
-
-  else if(DoGetNewMailWhenOffline()) {
-      folder = GetFirstSelectedMsgFolder();
-      if(folder) {
-        GetNextNMessages(folder);
-      }
   }
 }
 
@@ -1607,9 +1579,7 @@ function ConfirmUnsubscribe(folder)
     var titleMsg = gMessengerBundle.getString("confirmUnsubscribeTitle");
     var dialogMsg = gMessengerBundle.getFormattedString("confirmUnsubscribeText",
                                         [folder.name], 1);
-
-    var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"].getService(Components.interfaces.nsIPromptService);
-    return promptService.confirm(window, titleMsg, dialogMsg);
+    return Services.prompt.confirm(window, titleMsg, dialogMsg);
 }
 
 function MsgUnsubscribe()
@@ -1637,11 +1607,8 @@ function MsgOpenFromFile()
 {
    var fp = Components.classes["@mozilla.org/filepicker;1"].createInstance(nsIFilePicker);
 
-   var strBundleService = Components.classes["@mozilla.org/intl/stringbundle;1"].getService();
-   strBundleService = strBundleService.QueryInterface(Components.interfaces.nsIStringBundleService);
-   var extbundle = strBundleService.createBundle("chrome://messenger/locale/messenger.properties");
-   var filterLabel = extbundle.GetStringFromName("EMLFiles");
-   var windowTitle = extbundle.GetStringFromName("OpenEMLFiles");
+  var filterLabel = gMessengerBundle.getString("EMLFiles");
+  var windowTitle = gMessengerBundle.getString("OpenEMLFiles");
 
    fp.init(window, windowTitle, nsIFilePicker.modeOpen);
    fp.appendFilter(filterLabel, "*.eml; *.msg");
@@ -1695,7 +1662,8 @@ function MsgOpenSelectedMessages()
 {
   // Toggle message body (rss summary) and content-base url in message
   // pane per pref, otherwise open summary or web page in new window.
-  if (IsFeedItem() && GetFeedOpenHandler() == 2) {
+  if (gFolderDisplay.selectedMessageIsFeed && GetFeedOpenHandler() == 2)
+  {
     FeedSetContentViewToggle();
     return;
   }
@@ -1704,16 +1672,17 @@ function MsgOpenSelectedMessages()
   var indices = GetSelectedIndices(dbView);
   var numMessages = indices.length;
 
-  gWindowReuse = gPrefBranch.getBoolPref("mailnews.reuse_message_window");
   // This is a radio type button pref, currently with only 2 buttons.
   // We need to keep the pref type as 'bool' for backwards compatibility
   // with 4.x migrated prefs.  For future radio button(s), please use another
   // pref (either 'bool' or 'int' type) to describe it.
   //
-  // gWindowReuse values: false, true
+  // mailnews.reuse_message_window values:
   //    false: open new standalone message window for each message
   //    true : reuse existing standalone message window for each message
-  if (gWindowReuse && numMessages == 1 && MsgOpenSelectedMessageInExistingWindow())
+  if (gPrefBranch.getBoolPref("mailnews.reuse_message_window") &&
+      numMessages == 1 &&
+      MsgOpenSelectedMessageInExistingWindow())
     return;
     
   var openWindowWarning = gPrefBranch.getIntPref("mailnews.open_window_warning");
@@ -1723,7 +1692,7 @@ function MsgOpenSelectedMessages()
         gMessengerBundle = document.getElementById("bundle_messenger");
     var title = gMessengerBundle.getString("openWindowWarningTitle");
     var text = gMessengerBundle.getFormattedString("openWindowWarningText", [numMessages]);
-    if (!gPromptService.confirm(window, title, text))
+    if (!Services.prompt.confirm(window, title, text))
       return;
   }
 
@@ -1734,7 +1703,7 @@ function MsgOpenSelectedMessages()
 
 function MsgOpenSelectedMessageInExistingWindow()
 {
-    var windowID = GetWindowByWindowType("mail:messageWindow");
+    var windowID = Services.wm.getMostRecentWindow("mail:messageWindow");
     if (!windowID)
       return false;
 
@@ -1758,7 +1727,7 @@ function MsgOpenSelectedMessageInExistingWindow()
         // let's always call CreateView(gDBView)
         // which will clone gDBView
         windowID.CreateView(gDBView);
-        windowID.LoadMessageByMsgKey(msgHdr.messageKey);
+        windowID.OnLoadMessageWindowDelayed(false);
 
         // bring existing window to front
         windowID.focus();
@@ -2050,6 +2019,15 @@ function MsgBodyAsPlaintext()
     return true;
 }
 
+function MsgBodyAllParts()
+{
+  gPrefBranch.setBoolPref("mailnews.display.prefer_plaintext", false);
+  gPrefBranch.setIntPref("mailnews.display.html_as", 4);
+  gPrefBranch.setIntPref("mailnews.display.disallow_mime_handlers", 0);
+  ReloadMessage();
+  return true;
+}
+
 function MsgFeedBodyRenderPrefs(plaintext, html, mime)
 {
   gPrefBranch.setBoolPref("rss.display.prefer_plaintext", plaintext);
@@ -2097,11 +2075,11 @@ function MsgStop()
 function MsgSendUnsentMsgs()
 {
   // if offline, prompt for sendUnsentMessages
-  if(CheckOnline()) {
+  if (!Services.io.offline) {
     SendUnsentMessages();    
   }
   else {
-    var option = PromptSendMessagesOffline();
+    var option = PromptMessagesOffline("send");
     if(option == 0) {
       if (!gOfflineManager) 
         GetOfflineMgrService();
@@ -2338,87 +2316,51 @@ function IsAccountOfflineEnabled()
   return false;
 }
 
-// init nsIPromptService and strings
-function InitPrompts()
-{
-  if(!gPromptService) {
-    gPromptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"].getService();
-    gPromptService = gPromptService.QueryInterface(Components.interfaces.nsIPromptService);
-  }
-  if (!gOfflinePromptsBundle) 
-    gOfflinePromptsBundle = document.getElementById("bundle_offlinePrompts");
-}
-
 function DoGetNewMailWhenOffline()
 {
-  var sendUnsent = false;
-  var goOnline = PromptGetMessagesOffline() == 0;
-  if (goOnline)
+  if (!Services.io.offline)
+    return true;
+
+  if (PromptMessagesOffline("get") == 0)
   {
+    var sendUnsent = false;
     if (this.CheckForUnsentMessages != undefined && CheckForUnsentMessages())
     {
-      var sendUnsentPref = gPrefBranch.getIntPref("offline.send.unsent_messages");
-      switch (sendUnsentPref)
-      {
-        case 0: // ask
-          sendUnsent = gPromptService.confirmEx(window,
-                            gOfflinePromptsBundle.getString('sendMessagesOfflineWindowTitle'),
-                            gOfflinePromptsBundle.getString('sendMessagesLabel2'),
-                            gPromptService.BUTTON_TITLE_IS_STRING * (gPromptService.BUTTON_POS_0 +
-                              gPromptService.BUTTON_POS_1),
-                            gOfflinePromptsBundle.getString('sendMessagesSendButtonLabel'),
-                            gOfflinePromptsBundle.getString('sendMessagesNoSendButtonLabel'),
-                            null, null, {value: 0}) == 0;
-          break;
-        case 1: // always send
-          sendUnsent = true;
-          break;
-      }
+      sendUnsent =
+        gPrefBranch.getIntPref("offline.send.unsent_messages") == 1 ||
+        Services.prompt.confirmEx(
+          window,
+          gOfflinePromptsBundle.getString('sendMessagesOfflineWindowTitle'),
+          gOfflinePromptsBundle.getString('sendMessagesLabel2'),
+          Services.prompt.BUTTON_TITLE_IS_STRING *
+            (Services.prompt.BUTTON_POS_0 + Services.prompt.BUTTON_POS_1),
+          gOfflinePromptsBundle.getString('sendMessagesSendButtonLabel'),
+          gOfflinePromptsBundle.getString('sendMessagesNoSendButtonLabel'),
+          null, null, {value: false}) == 0;
     }
     if (!gOfflineManager) 
       GetOfflineMgrService();
     gOfflineManager.goOnline(sendUnsent /* sendUnsentMessages */, 
                              false /* playbackOfflineImapOperations */, 
                              msgWindow);
- 
+    return true;
   }
-  return goOnline;
+  return false;
 }
 
-// prompt for getting messages when offline
-function PromptGetMessagesOffline()
+// prompt for getting/sending messages when offline
+function PromptMessagesOffline(aPrefix)
 {
-  var buttonPressed = false;
   InitPrompts();
-  if (gPromptService) {
-    var checkValue = {value:false};
-    buttonPressed = gPromptService.confirmEx(window, 
-                            gOfflinePromptsBundle.getString('getMessagesOfflineWindowTitle'), 
-                            gOfflinePromptsBundle.getString('getMessagesOfflineLabel'),
-                            (gPromptService.BUTTON_TITLE_IS_STRING * gPromptService.BUTTON_POS_0) +
-                            (gPromptService.BUTTON_TITLE_CANCEL * gPromptService.BUTTON_POS_1),
-                            gOfflinePromptsBundle.getString('getMessagesOfflineGoButtonLabel'),
-                            null, null, null, checkValue);
-  }
-  return buttonPressed;
-}
-
-// prompt for sending messages when offline
-function PromptSendMessagesOffline()
-{
-  var buttonPressed = false;
-  InitPrompts();
-  if (gPromptService) {
-    var checkValue= {value:false};
-    buttonPressed = gPromptService.confirmEx(window, 
-                            gOfflinePromptsBundle.getString('sendMessagesOfflineWindowTitle'), 
-                            gOfflinePromptsBundle.getString('sendMessagesOfflineLabel'),
-                            (gPromptService.BUTTON_TITLE_IS_STRING * gPromptService.BUTTON_POS_0) +
-                            (gPromptService.BUTTON_TITLE_CANCEL * gPromptService.BUTTON_POS_1),
-                            gOfflinePromptsBundle.getString('sendMessagesOfflineGoButtonLabel'),
-                            null, null, null, checkValue, buttonPressed);
-  }
-  return buttonPressed;
+  var checkValue = {value:false};
+  return Services.prompt.confirmEx(
+      window,
+      gOfflinePromptsBundle.getString(aPrefix + 'MessagesOfflineWindowTitle'), 
+      gOfflinePromptsBundle.getString(aPrefix + 'MessagesOfflineLabel'),
+      (Services.prompt.BUTTON_TITLE_IS_STRING * Services.prompt.BUTTON_POS_0) +
+      (Services.prompt.BUTTON_TITLE_CANCEL * Services.prompt.BUTTON_POS_1),
+      gOfflinePromptsBundle.getString(aPrefix + 'MessagesOfflineGoButtonLabel'),
+      null, null, null, checkValue);
 }
 
 function GetDefaultAccountRootFolder()
@@ -2867,9 +2809,8 @@ function OnMsgParsed(aUrl)
 
   // notify anyone (e.g., extensions) who's interested in when a message is loaded.
   var msgURI = GetLoadedMessage();
-  var observerService = Components.classes["@mozilla.org/observer-service;1"]
-                                  .getService(Components.interfaces.nsIObserverService);
-  observerService.notifyObservers(msgWindow.msgHeaderSink, "MsgMsgDisplayed", msgURI);
+  Services.obs.notifyObservers(msgWindow.msgHeaderSink,
+                               "MsgMsgDisplayed", msgURI);
 
   // scale any overflowing images
   var doc = getMessageBrowser().contentDocument;
@@ -3046,7 +2987,7 @@ function MsgJunkMailInfo(aCheckFirstUse)
       return;
   }
 
-  var desiredWindow = GetWindowByWindowType("mailnews:junkmailinfo");
+  var desiredWindow = Services.wm.getMostRecentWindow("mailnews:junkmailinfo");
 
   if (desiredWindow)
     desiredWindow.focus();
@@ -3065,15 +3006,9 @@ function MsgFilterList(args)
   OpenOrFocusWindow(args, "mailnews:filterlist", "chrome://messenger/content/FilterListDialog.xul");
 }
 
-function GetWindowByWindowType(windowType)
-{
-  var windowManager = Components.classes['@mozilla.org/appshell/window-mediator;1'].getService(Components.interfaces.nsIWindowMediator);
-  return windowManager.getMostRecentWindow(windowType);
-}
-
 function OpenOrFocusWindow(args, windowType, chromeURL)
 {
-  var desiredWindow = GetWindowByWindowType(windowType);
+  var desiredWindow = Services.wm.getMostRecentWindow(windowType);
 
   if (desiredWindow) {
     desiredWindow.focus();
@@ -3095,11 +3030,11 @@ function FeedSetContentViewToggle()
 // Check message format
 function FeedCheckContentFormat()
 {
-  var contentWindowDoc = window.top.content.document;
-
-  // Not an rss message
-  if (!IsFeedItem())
+  // Not an rss message. This also rules out no 3pane to get the browser of.
+  if (!gFolderDisplay.selectedMessageIsFeed)
     return false;
+
+  var contentWindowDoc = getBrowser().contentDocument;
 
   // Thunderbird 2 rss messages with 'Show article summary' not selected,
   // ie message body constructed to show web page in an iframe, can't show
@@ -3124,7 +3059,7 @@ function FeedSetContentView(val)
   var showSummary;
   var wintype = document.documentElement.getAttribute('windowtype');
   var contentBase = currentHeaderData["content-base"];
-  var contentWindowDoc = window.top.content.document;
+  var contentWindowDoc = getBrowser().contentDocument;
   var divHTML = new XPCNativeWrapper(contentWindowDoc,
                       "getElementsByClassName()")
                       .getElementsByClassName("moz-text-html")[0];
@@ -3159,10 +3094,8 @@ function FeedSetContentView(val)
       if (wintype == "mail:3pane") {
         // Get quickmode per feed pref from feeds.rdf
         var quickMode, targetRes;
-        var scriptLoader = Components.classes["@mozilla.org/moz/jssubscript-loader;1"]
-                           .getService(Components.interfaces.mozIJSSubScriptLoader);
-        if (scriptLoader && typeof FZ_NS == 'undefined')
-          scriptLoader.loadSubScript("chrome://messenger-newsblog/content/utils.js");
+        if (typeof FZ_NS == 'undefined')
+          Services.scriptloader.loadSubScript("chrome://messenger-newsblog/content/utils.js");
         try
         {
           var targetRes = getParentTargetForChildResource(

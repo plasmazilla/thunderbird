@@ -22,7 +22,7 @@
 
 #include "ExecutableAllocator.h"
 
-#if ENABLE_ASSEMBLER && WTF_PLATFORM_SYMBIAN
+#if ENABLE_ASSEMBLER && WTF_OS_SYMBIAN
 
 #include <e32hal.h>
 #include <e32std.h>
@@ -47,7 +47,7 @@ size_t ExecutableAllocator::determinePageSize()
 #endif
 }
 
-ExecutablePool::Allocation ExecutablePool::systemAlloc(size_t n)
+ExecutablePool::Allocation ExecutableAllocator::systemAlloc(size_t n)
 {
     RChunk* codeChunk = new RChunk();
 
@@ -58,7 +58,7 @@ ExecutablePool::Allocation ExecutablePool::systemAlloc(size_t n)
     return alloc;
 }
 
-void ExecutablePool::systemRelease(const ExecutablePool::Allocation& alloc)
+void ExecutableAllocator::systemRelease(const ExecutablePool::Allocation& alloc)
 { 
     alloc.chunk->Close();
     delete alloc.chunk;

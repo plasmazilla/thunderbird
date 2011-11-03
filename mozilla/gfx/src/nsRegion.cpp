@@ -71,13 +71,13 @@ inline PRBool nsRegion::nsRectFast::Intersects (const nsRect& aRect) const
 
 inline PRBool nsRegion::nsRectFast::IntersectRect (const nsRect& aRect1, const nsRect& aRect2)
 {
-  const nscoord xmost = PR_MIN (aRect1.XMost (), aRect2.XMost ());
-  x = PR_MAX (aRect1.x, aRect2.x);
+  const nscoord xmost = NS_MIN (aRect1.XMost (), aRect2.XMost ());
+  x = NS_MAX (aRect1.x, aRect2.x);
   width = xmost - x;
   if (width <= 0) return PR_FALSE;
 
-  const nscoord ymost = PR_MIN (aRect1.YMost (), aRect2.YMost ());
-  y = PR_MAX (aRect1.y, aRect2.y);
+  const nscoord ymost = NS_MIN (aRect1.YMost (), aRect2.YMost ());
+  y = NS_MAX (aRect1.y, aRect2.y);
   height = ymost - y;
   if (height <= 0) return PR_FALSE;
 
@@ -86,10 +86,10 @@ inline PRBool nsRegion::nsRectFast::IntersectRect (const nsRect& aRect1, const n
 
 inline void nsRegion::nsRectFast::UnionRect (const nsRect& aRect1, const nsRect& aRect2)
 {
-  const nscoord xmost = PR_MAX (aRect1.XMost (), aRect2.XMost ());
-  const nscoord ymost = PR_MAX (aRect1.YMost (), aRect2.YMost ());
-  x = PR_MIN (aRect1.x, aRect2.x);
-  y = PR_MIN (aRect1.y, aRect2.y);
+  const nscoord xmost = NS_MAX (aRect1.XMost (), aRect2.XMost ());
+  const nscoord ymost = NS_MAX (aRect1.YMost (), aRect2.YMost ());
+  x = NS_MIN(aRect1.x, aRect2.x);
+  y = NS_MIN(aRect1.y, aRect2.y);
   width  = xmost - x;
   height = ymost - y;
 }
@@ -1151,7 +1151,7 @@ void nsRegion::SubRect (const nsRectFast& aRect, nsRegion& aResult, nsRegion& aC
         {
           aResult.InsertInPlace (new RgnRect (ixm, ay, axm - ixm, ah));
         } else
-        if (*pSrcRect == aRect)         // 4. subset
+        if (pSrcRect->IsEqualInterior(aRect)) // 4. subset
         {                               // Current rectangle is equal to aRect
           pSrcRect = pSrcRect->next;    // don't add this one to the result, it's removed
           break;                        // No any other rectangle in region can intersect it
@@ -1261,10 +1261,10 @@ PRBool nsRegion::IsEqual (const nsRegion& aRegion) const
     return (mRectCount == 0) ? PR_TRUE : PR_FALSE;
 
   if (mRectCount == 1 && aRegion.mRectCount == 1) // Both regions are simple rectangles
-    return (*mRectListHead.next == *aRegion.mRectListHead.next);
+    return (mRectListHead.next->IsEqualInterior(*aRegion.mRectListHead.next));
   else                                            // At least one is complex region.
   {
-    if (mBoundRect != aRegion.mBoundRect)         // If regions are equal then bounding rectangles should match
+    if (!mBoundRect.IsEqualInterior(aRegion.mBoundRect)) // If regions are equal then bounding rectangles should match
       return PR_FALSE;
     else
     {
@@ -1293,22 +1293,6 @@ void nsRegion::MoveBy (nsPoint aPt)
   }
 }
 
-nsRegion& nsRegion::ExtendForScaling (float aXMult, float aYMult)
-{
-  nsRegion region;
-  nsRegionRectIterator iter(*this);
-  for (;;) {
-    const nsRect* r = iter.Next();
-    if (!r)
-      break;
-    nsRect rect = *r;
-    rect.ExtendForScaling(aXMult, aYMult);
-    region.Or(region, rect);
-  }
-  *this = region;
-  return *this;
-}
-
 nsRegion& nsRegion::ScaleRoundOut (float aXScale, float aYScale)
 {
   nsRegion region;
@@ -1319,6 +1303,22 @@ nsRegion& nsRegion::ScaleRoundOut (float aXScale, float aYScale)
       break;
     nsRect rect = *r;
     rect.ScaleRoundOut(aXScale, aYScale);
+    region.Or(region, rect);
+  }
+  *this = region;
+  return *this;
+}
+
+nsRegion& nsRegion::ScaleInverseRoundOut (float aXScale, float aYScale)
+{
+  nsRegion region;
+  nsRegionRectIterator iter(*this);
+  for (;;) {
+    const nsRect* r = iter.Next();
+    if (!r)
+      break;
+    nsRect rect = *r;
+    rect.ScaleInverseRoundOut(aXScale, aYScale);
     region.Or(region, rect);
   }
   *this = region;
@@ -1363,13 +1363,41 @@ nsRegion nsRegion::ConvertAppUnitsRoundIn (PRInt32 aFromAPP, PRInt32 aToAPP) con
   return region;
 }
 
-nsIntRegion nsRegion::ToOutsidePixels (nscoord aAppUnitsPerPixel) const
+nsIntRegion nsRegion::ToPixels (nscoord aAppUnitsPerPixel, bool aOutsidePixels) const
 {
   nsIntRegion result;
   nsRegionRectIterator rgnIter(*this);
   const nsRect* currentRect;
   while ((currentRect = rgnIter.Next())) {
-    nsIntRect deviceRect = currentRect->ToOutsidePixels(aAppUnitsPerPixel);
+    nsIntRect deviceRect;
+    if (aOutsidePixels)
+      deviceRect = currentRect->ToOutsidePixels(aAppUnitsPerPixel);
+    else
+      deviceRect = currentRect->ToNearestPixels(aAppUnitsPerPixel);
+    result.Or(result, deviceRect);
+  }
+  return result;
+}
+
+nsIntRegion nsRegion::ToOutsidePixels (nscoord aAppUnitsPerPixel) const
+{
+  return ToPixels(aAppUnitsPerPixel, true);
+}
+
+nsIntRegion nsRegion::ToNearestPixels (nscoord aAppUnitsPerPixel) const
+{
+  return ToPixels(aAppUnitsPerPixel, false);
+}
+
+nsIntRegion nsRegion::ScaleToOutsidePixels (float aScaleX, float aScaleY,
+                                            nscoord aAppUnitsPerPixel) const
+{
+  nsIntRegion result;
+  nsRegionRectIterator rgnIter(*this);
+  const nsRect* currentRect;
+  while ((currentRect = rgnIter.Next())) {
+    nsIntRect deviceRect =
+      currentRect->ScaleToOutsidePixels(aScaleX, aScaleY, aAppUnitsPerPixel);
     result.Or(result, deviceRect);
   }
   return result;

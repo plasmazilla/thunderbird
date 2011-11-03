@@ -82,7 +82,7 @@ template<class T> class nsReadingIterator;
 #include "nsIWebBrowserChrome.h"
 #include "nsIXULWindow.h"
 #include "nsIBaseWindow.h"
-#include "nsIDOMWindowInternal.h"
+#include "nsIDOMWindow.h"
 #include "nsIDocShell.h"
 #include "nsIWidget.h"
 #include "nsIPresShell.h"
@@ -732,8 +732,8 @@ public: // ITfReadOnlyProperty
         if (targetStart > end || targetEnd < start)
           continue;
         // Otherwise, shrink to the target range.
-        start = PR_MAX(targetStart, start);
-        end = PR_MIN(targetEnd, end);
+        start = NS_MAX(targetStart, start);
+        end = NS_MIN(targetEnd, end);
       }
       nsRefPtr<TSFRangeImpl> range = new TSFRangeImpl(start, end - start);
       NS_ENSURE_TRUE(range, E_OUTOFMEMORY);
@@ -952,8 +952,8 @@ public: // ITfCompositionView
       LONG tmpStart, tmpEnd;
       HRESULT hr = GetRegularExtent(mAttrProp->mRanges[i], tmpStart, tmpEnd);
       NS_ENSURE_TRUE(SUCCEEDED(hr), hr);
-      start = PR_MIN(start, tmpStart);
-      end = PR_MAX(end, tmpEnd);
+      start = NS_MIN(start, tmpStart);
+      end = NS_MAX(end, tmpEnd);
     }
     nsRefPtr<TSFRangeImpl> range = new TSFRangeImpl();
     NS_ENSURE_TRUE(range, E_OUTOFMEMORY);
@@ -1552,7 +1552,7 @@ TestApp::Init(void)
       widget->GetNativeData(NS_NATIVE_TSF_THREAD_MGR));
 
   // Create a couple of text boxes for testing
-  nsCOMPtr<nsIDOMWindowInternal> win(do_GetInterface(mWindow));
+  nsCOMPtr<nsIDOMWindow> win(do_GetInterface(mWindow));
   NS_ENSURE_TRUE(win, NS_ERROR_UNEXPECTED);
   nsCOMPtr<nsIDOMDocument> document;
   rv = win->GetDocument(getter_AddRefs(document));
@@ -1623,7 +1623,7 @@ TestApp::Term(void)
   mTextArea = nsnull;
   mButton = nsnull;
 
-  nsCOMPtr<nsIDOMWindowInternal> win(do_GetInterface(mWindow));
+  nsCOMPtr<nsIDOMWindow> win(do_GetInterface(mWindow));
   if (win)
     win->Close();
   win = nsnull;
@@ -2179,9 +2179,9 @@ TestApp::TestExtents(void)
   selCon->ScrollSelectionIntoView(nsISelectionController::SELECTION_NORMAL,
               nsISelectionController::SELECTION_FOCUS_REGION, PR_TRUE);
 
-  nsCOMPtr<nsIDOMWindowInternal> window(do_GetInterface(mWindow));
+  nsCOMPtr<nsIDOMWindow> window(do_GetInterface(mWindow));
   if (!window) {
-    fail("TestExtents: get nsIDOMWindowInternal");
+    fail("TestExtents: get nsIDOMWindow");
     return PR_FALSE;
   }
   RECT windowRect, screenRect, textRect1, textRect2;

@@ -393,7 +393,9 @@ nsHTMLEditUtils::IsMailCite(nsIDOMNode *node)
 {
   NS_PRECONDITION(node, "null parent passed to nsHTMLEditUtils::IsMailCite");
   nsCOMPtr<nsIDOMElement> elem = do_QueryInterface(node);
-  NS_ENSURE_TRUE(elem, PR_FALSE);
+  if (!elem) {
+    return PR_FALSE;
+  }
   nsAutoString attrName (NS_LITERAL_STRING("type")); 
   
   // don't ask me why, but our html mailcites are id'd by "type=cite"...
@@ -433,6 +435,7 @@ nsHTMLEditUtils::IsFormWidget(nsIDOMNode *node)
       || (nodeAtom == nsEditProperty::button)
       || (nodeAtom == nsEditProperty::output)
       || (nodeAtom == nsEditProperty::keygen)
+      || (nodeAtom == nsEditProperty::progress)
       || (nodeAtom == nsEditProperty::input);
 }
 
@@ -474,7 +477,7 @@ nsHTMLEditUtils::SupportsAlignAttr(nsIDOMNode * aNode)
 // body, head, html
 #define GROUP_TOPLEVEL         (1 << 1)  
 
-// base, isindex, link, meta, script, style, title
+// base, link, meta, script, style, title
 #define GROUP_HEAD_CONTENT     (1 << 2)
 
 // b, big, i, s, small, strike, tt, u
@@ -484,8 +487,8 @@ nsHTMLEditUtils::SupportsAlignAttr(nsIDOMNode * aNode)
 // strong, var
 #define GROUP_PHRASE           (1 << 4)
 
-// a, applet, basefont, bdo, br, font, iframe, img, map, object, output, q,
-// script, span, sub, sup
+// a, applet, basefont, bdo, br, font, iframe, img, map, object, output,
+// progress, q, script, span, sub, sup
 #define GROUP_SPECIAL          (1 << 5)
 
 // button, form, input, label, select, textarea
@@ -493,7 +496,7 @@ nsHTMLEditUtils::SupportsAlignAttr(nsIDOMNode * aNode)
 
 // address, applet, article, aside, blockquote, button, center, del, dir, div,
 // dl, fieldset, figure, footer, form, h1, h2, h3, h4, h5, h6, header, hgroup,
-// hr, iframe, ins, isindex, map, menu, nav, noframes, noscript, object, ol, p,
+// hr, iframe, ins, map, menu, nav, noframes, noscript, object, ol, p,
 // pre, table, section, ul
 #define GROUP_BLOCK            (1 << 7)
 
@@ -649,8 +652,6 @@ static const nsElementInfo kElements[eHTMLTag_userdefined] = {
   ELEM(img, PR_FALSE, PR_FALSE, GROUP_SPECIAL, GROUP_NONE),
   ELEM(input, PR_FALSE, PR_FALSE, GROUP_FORMCONTROL, GROUP_NONE),
   ELEM(ins, PR_TRUE, PR_TRUE, GROUP_PHRASE | GROUP_BLOCK, GROUP_FLOW_ELEMENT),
-  ELEM(isindex, PR_FALSE, PR_FALSE, GROUP_BLOCK | GROUP_HEAD_CONTENT,
-       GROUP_NONE),
   ELEM(kbd, PR_TRUE, PR_TRUE, GROUP_PHRASE, GROUP_INLINE_ELEMENT),
   ELEM(keygen, PR_FALSE, PR_FALSE, GROUP_FORMCONTROL, GROUP_NONE),
   ELEM(label, PR_TRUE, PR_FALSE, GROUP_FORMCONTROL, GROUP_INLINE_ELEMENT),
@@ -661,7 +662,8 @@ static const nsElementInfo kElements[eHTMLTag_userdefined] = {
   ELEM(map, PR_TRUE, PR_TRUE, GROUP_SPECIAL, GROUP_BLOCK | GROUP_MAP_CONTENT),
   ELEM(mark, PR_TRUE, PR_TRUE, GROUP_PHRASE, GROUP_INLINE_ELEMENT),
   ELEM(marquee, PR_FALSE, PR_FALSE, GROUP_NONE, GROUP_NONE),
-  ELEM(menu, PR_TRUE, PR_FALSE, GROUP_BLOCK, GROUP_LI),
+  ELEM(menu, PR_TRUE, PR_TRUE, GROUP_BLOCK, GROUP_LI | GROUP_FLOW_ELEMENT),
+  ELEM(menuitem, PR_FALSE, PR_FALSE, GROUP_NONE, GROUP_NONE),
   ELEM(meta, PR_FALSE, PR_FALSE, GROUP_HEAD_CONTENT, GROUP_NONE),
   ELEM(multicol, PR_FALSE, PR_FALSE, GROUP_NONE, GROUP_NONE),
   ELEM(nav, PR_TRUE, PR_TRUE, GROUP_BLOCK, GROUP_FLOW_ELEMENT),
@@ -683,6 +685,7 @@ static const nsElementInfo kElements[eHTMLTag_userdefined] = {
   ELEM(param, PR_FALSE, PR_FALSE, GROUP_OBJECT_CONTENT, GROUP_NONE),
   ELEM(plaintext, PR_FALSE, PR_FALSE, GROUP_NONE, GROUP_NONE),
   ELEM(pre, PR_TRUE, PR_TRUE, GROUP_BLOCK, GROUP_INLINE_ELEMENT),
+  ELEM(progress, PR_TRUE, PR_FALSE, GROUP_SPECIAL, GROUP_FLOW_ELEMENT),
   ELEM(q, PR_TRUE, PR_TRUE, GROUP_SPECIAL, GROUP_INLINE_ELEMENT),
   ELEM(s, PR_TRUE, PR_TRUE, GROUP_FONTSTYLE, GROUP_INLINE_ELEMENT),
   ELEM(samp, PR_TRUE, PR_TRUE, GROUP_PHRASE, GROUP_INLINE_ELEMENT),
@@ -762,7 +765,6 @@ nsHTMLEditUtils::CanContain(PRInt32 aParent, PRInt32 aChild)
       eHTMLTag_form,
       eHTMLTag_iframe,
       eHTMLTag_input,
-      eHTMLTag_isindex,
       eHTMLTag_select,
       eHTMLTag_textarea
     };

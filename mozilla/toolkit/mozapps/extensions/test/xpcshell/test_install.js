@@ -163,6 +163,7 @@ function check_test_1() {
           do_check_true(do_get_addon("test_install1").exists());
           do_check_in_crash_annotation(a1.id, a1.version);
           do_check_eq(a1.size, ADDON1_SIZE);
+          do_check_false(a1.foreignInstall);
 
           do_check_eq(a1.sourceURI.spec,
                       Services.io.newFileURI(do_get_addon("test_install1")).spec);
@@ -382,6 +383,7 @@ function check_test_5(install) {
           do_check_in_crash_annotation(a2.id, a2.version);
           do_check_eq(a2.sourceURI.spec,
                       "http://localhost:4444/addons/test_install2_2.xpi");
+          do_check_false(a2.foreignInstall);
 
           do_check_eq(a2.installDate.getTime(), gInstallDate);
           // Update date should be later (or the same if this test is too fast)
@@ -1543,7 +1545,7 @@ function run_test_26() {
 
       observerService.removeObserver(this);
 
-      do_test_finished();
+      run_test_27();
     }
   });
 
@@ -1557,4 +1559,65 @@ function run_test_26() {
 
     aInstall.install();
   }, "application/x-xpinstall");
+}
+
+
+// Tests that an install can be restarted during onDownloadCancelled after being
+// cancelled in mid-download
+function run_test_27() {
+  prepare_test({ }, [
+    "onNewInstall"
+  ]);
+
+  let url = "http://localhost:4444/addons/test_install3.xpi";
+  AddonManager.getInstallForURL(url, function(aInstall) {
+    ensure_test_completed();
+
+    do_check_neq(aInstall, null);
+    do_check_eq(aInstall.state, AddonManager.STATE_AVAILABLE);
+
+    aInstall.addListener({
+      onDownloadProgress: function() {
+        aInstall.removeListener(this);
+        aInstall.cancel();
+      }
+    });
+
+    prepare_test({}, [
+      "onDownloadStarted",
+      "onDownloadCancelled",
+    ], check_test_27);
+    aInstall.install();
+  }, "application/x-xpinstall");
+}
+
+function check_test_27(aInstall) {
+  prepare_test({
+    "addon3@tests.mozilla.org": [
+      "onInstalling"
+    ]
+  }, [
+    "onDownloadStarted",
+    "onDownloadEnded",
+    "onInstallStarted",
+    "onInstallEnded"
+  ], finish_test_27);
+
+  aInstall.install();
+}
+
+function finish_test_27(aInstall) {
+  prepare_test({
+    "addon3@tests.mozilla.org": [
+      "onOperationCancelled"
+    ]
+  }, [
+    "onInstallCancelled"
+  ]);
+
+  aInstall.cancel();
+
+  ensure_test_completed();
+
+  do_test_finished();
 }

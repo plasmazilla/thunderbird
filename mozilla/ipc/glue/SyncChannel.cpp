@@ -42,7 +42,7 @@
 #include "nsDebug.h"
 #include "nsTraceRefcnt.h"
 
-using mozilla::MutexAutoLock;
+using mozilla::MonitorAutoLock;
 
 template<>
 struct RunnableMethodTraits<mozilla::ipc::SyncChannel>
@@ -88,17 +88,17 @@ bool
 SyncChannel::EventOccurred()
 {
     AssertWorkerThread();
-    mMutex.AssertCurrentThreadOwns();
+    mMonitor.AssertCurrentThreadOwns();
     NS_ABORT_IF_FALSE(AwaitingSyncReply(), "not in wait loop");
 
-    return (!Connected() || 0 != mRecvd.type());
+    return (!Connected() || 0 != mRecvd.type() || mRecvd.is_reply_error());
 }
 
 bool
 SyncChannel::Send(Message* msg, Message* reply)
 {
     AssertWorkerThread();
-    mMutex.AssertNotCurrentThreadOwns();
+    mMonitor.AssertNotCurrentThreadOwns();
     NS_ABORT_IF_FALSE(!ProcessingSyncMessage(),
                       "violation of sync handler invariant");
     NS_ABORT_IF_FALSE(msg->is_sync(), "can only Send() sync messages here");
@@ -109,7 +109,7 @@ SyncChannel::Send(Message* msg, Message* reply)
 
     msg->set_seqno(NextSeqno());
 
-    MutexAutoLock lock(mMutex);
+    MonitorAutoLock lock(mMonitor);
 
     if (!Connected()) {
         ReportConnectionError("SyncChannel");
@@ -142,17 +142,20 @@ SyncChannel::Send(Message* msg, Message* reply)
     // (NB: IPDL prevents the latter from occuring in actor code)
 
     // FIXME/cjones: real error handling
+    bool replyIsError = mRecvd.is_reply_error();
     NS_ABORT_IF_FALSE(mRecvd.is_sync() && mRecvd.is_reply() &&
-                      (mRecvd.is_reply_error() ||
+                      (replyIsError ||
                        (mPendingReply == mRecvd.type() &&
                         msgSeqno == mRecvd.seqno())),
                       "unexpected sync message");
 
     mPendingReply = 0;
-    *reply = mRecvd;
+    if (!replyIsError) {
+        *reply = mRecvd;
+    }
     mRecvd = Message();
 
-    return true;
+    return !replyIsError;
 }
 
 void
@@ -181,7 +184,7 @@ SyncChannel::OnDispatchMessage(const Message& msg)
     reply->set_seqno(msg.seqno());
 
     {
-        MutexAutoLock lock(mMutex);
+        MonitorAutoLock lock(mMonitor);
         if (ChannelConnected == mChannelState)
             SendThroughTransport(reply);
     }
@@ -200,7 +203,7 @@ SyncChannel::OnMessageReceived(const Message& msg)
         return AsyncChannel::OnMessageReceived(msg);
     }
 
-    MutexAutoLock lock(mMutex);
+    MonitorAutoLock lock(mMonitor);
 
     if (MaybeInterceptSpecialIOMessage(msg))
         return;
@@ -223,7 +226,7 @@ SyncChannel::OnChannelError()
 {
     AssertIOThread();
 
-    MutexAutoLock lock(mMutex);
+    MonitorAutoLock lock(mMonitor);
 
     if (ChannelClosing != mChannelState)
         mChannelState = ChannelError;
@@ -253,11 +256,11 @@ bool
 SyncChannel::ShouldContinueFromTimeout()
 {
     AssertWorkerThread();
-    mMutex.AssertCurrentThreadOwns();
+    mMonitor.AssertCurrentThreadOwns();
 
     bool cont;
     {
-        MutexAutoUnlock unlock(mMutex);
+        MonitorAutoUnlock unlock(mMonitor);
         cont = static_cast<SyncListener*>(mListener)->OnReplyTimeout();
     }
 
@@ -295,7 +298,7 @@ SyncChannel::WaitForNotify()
     // XXX could optimize away this syscall for "no timeout" case if desired
     PRIntervalTime waitStart = PR_IntervalNow();
 
-    mCvar.Wait(timeout);
+    mMonitor.Wait(timeout);
 
     // if the timeout didn't expire, we know we received an event.
     // The converse is not true.
@@ -305,7 +308,7 @@ SyncChannel::WaitForNotify()
 void
 SyncChannel::NotifyWorkerThread()
 {
-    mCvar.Notify();
+    mMonitor.Notify();
 }
 
 #endif  // ifndef OS_WIN

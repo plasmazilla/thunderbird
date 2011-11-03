@@ -54,6 +54,7 @@
 #include "jsscript.h"           /* js_XDRScript */
 #include "jsstr.h"
 #include "jsxdrapi.h"
+#include "vm/Debugger.h"
 
 #include "jsobjinlines.h"
 
@@ -239,6 +240,7 @@ JS_XDRInitBase(JSXDRState *xdr, JSXDRMode mode, JSContext *cx)
     xdr->reghash = NULL;
     xdr->userdata = NULL;
     xdr->script = NULL;
+    xdr->state = NULL;
 }
 
 JS_PUBLIC_API(JSXDRState *)
@@ -652,7 +654,7 @@ js_XDRAtom(JSXDRState *xdr, JSAtom **atomp)
     }
 
     if (XDRChars(xdr, chars, nchars))
-        atom = js_AtomizeChars(cx, chars, nchars, 0);
+        atom = js_AtomizeChars(cx, chars, nchars);
     if (chars != stackChars)
         cx->free_(chars);
 
@@ -662,9 +664,28 @@ js_XDRAtom(JSXDRState *xdr, JSAtom **atomp)
     return JS_TRUE;
 }
 
+XDRScriptState::XDRScriptState(JSXDRState *x)
+    : xdr(x)
+    , filename(NULL)
+    , filenameSaved(false)
+{
+    JS_ASSERT(!xdr->state);
+
+    xdr->state = this;
+}
+
+XDRScriptState::~XDRScriptState()
+{
+    xdr->state = NULL;
+    if (xdr->mode == JSXDR_DECODE && filename && !filenameSaved)
+        xdr->cx->free_((void *)filename);
+}
+
 JS_PUBLIC_API(JSBool)
 JS_XDRScriptObject(JSXDRState *xdr, JSObject **scriptObjp)
 {
+    JS_ASSERT(!xdr->state);
+
     JSScript *script;
     uint32 magic;
     if (xdr->mode == JSXDR_DECODE) {
@@ -684,16 +705,26 @@ JS_XDRScriptObject(JSXDRState *xdr, JSObject **scriptObjp)
         return false;
     }
 
+    XDRScriptState state(xdr);
+    if (!xdr->state)
+        return false;
+
+    if (xdr->mode == JSXDR_ENCODE)
+        state.filename = script->filename;
+    if (!JS_XDRCStringOrNull(xdr, (char **) &state.filename))
+        return false;
+
     if (!js_XDRScript(xdr, &script))
         return false;
 
     if (xdr->mode == JSXDR_DECODE) {
-        js_CallNewScriptHook(xdr->cx, script, NULL);
         *scriptObjp = js_NewScriptObject(xdr->cx, script);
         if (!*scriptObjp) {
-            js_DestroyScript(xdr->cx, script);
+            js_DestroyScript(xdr->cx, script, 8);
             return false;
         }
+        js_CallNewScriptHook(xdr->cx, script, NULL);
+        Debugger::onNewScript(xdr->cx, script, *scriptObjp, Debugger::NewHeldScript);
     }
 
     return true;

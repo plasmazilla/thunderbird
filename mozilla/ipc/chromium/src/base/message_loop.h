@@ -10,7 +10,12 @@
 #include <string>
 #include <vector>
 
+#if defined(CHROMIUM_MOZILLA_BUILD)
+#include <map>
+#include "base/lock.h"
+#else
 #include "base/histogram.h"
+#endif
 #include "base/message_pump.h"
 #include "base/observer_list.h"
 #include "base/ref_counted.h"
@@ -259,6 +264,16 @@ public:
     exception_restoration_ = restore;
   }
 
+#if defined(OS_WIN)
+  void set_os_modal_loop(bool os_modal_loop) {
+    os_modal_loop_ = os_modal_loop;
+  }
+
+  bool & os_modal_loop() {
+    return os_modal_loop_;
+  }
+#endif  // OS_WIN
+
   //----------------------------------------------------------------------------
  protected:
   struct RunState {
@@ -375,8 +390,10 @@ public:
   // If message_histogram_ is NULL, this is a no-op.
   void HistogramEvent(int event);
 
-  static const LinearHistogram::DescriptionPair event_descriptions_[];
+#if !defined(CHROMIUM_MOZILLA_BUILD)
+  static const base::LinearHistogram::DescriptionPair event_descriptions_[];
   static bool enable_histogrammer_;
+#endif
 
   Type type_;
 
@@ -403,9 +420,10 @@ public:
   bool exception_restoration_;
 
   std::string thread_name_;
+#if !defined(CHROMIUM_MOZILLA_BUILD)
   // A profiling histogram showing the counts of various messages and events.
-  scoped_ptr<LinearHistogram> message_histogram_;
-
+  scoped_ptr<base::LinearHistogram> message_histogram_;
+#endif
   // A null terminated list which creates an incoming_queue of tasks that are
   // aquired under a mutex for processing on this instance's thread. These tasks
   // have not yet been sorted out into items for our work_queue_ vs items that
@@ -415,6 +433,12 @@ public:
   Lock incoming_queue_lock_;
 
   RunState* state_;
+
+#if defined(OS_WIN)
+  // Should be set to true before calling Windows APIs like TrackPopupMenu, etc
+  // which enter a modal message loop.
+  bool os_modal_loop_;
+#endif
 
   // The next sequence number to use for delayed tasks.
   int next_sequence_num_;

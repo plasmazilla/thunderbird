@@ -61,7 +61,6 @@
 #include "nsIPresShell.h"
 #include "nsStyleContext.h"
 #include "nsIView.h"
-#include "nsIFontMetrics.h"
 #include "nsHTMLParts.h"
 #include "nsGkAtoms.h"
 #include "nsIDOMEvent.h"
@@ -89,6 +88,9 @@
 #include "nsCSSFrameConstructor.h"
 #include "nsCSSRendering.h"
 #include "FrameLayerBuilder.h"
+#include "nsRenderingContext.h"
+#include "TextOverflow.h"
+#include "mozilla/Util.h" // for DebugOnly
 
 #ifdef IBMBIDI
 #include "nsBidiPresUtils.h"
@@ -106,9 +108,9 @@ static const PRUnichar kSquareCharacter = 0x25aa;
 #define DISABLE_FLOAT_BREAKING_IN_COLUMNS
 
 using namespace mozilla;
+using namespace mozilla::css;
 
 #ifdef DEBUG
-#include "nsPrintfCString.h"
 #include "nsBlockDebugFlags.h"
 
 PRBool nsBlockFrame::gLamePaintMetrics;
@@ -569,7 +571,7 @@ nsBlockFrame::GetCaretBaseline() const
       return bp.top + firstLine->mFirstChild->GetCaretBaseline();
     }
   }
-  nsCOMPtr<nsIFontMetrics> fm;
+  nsRefPtr<nsFontMetrics> fm;
   nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm));
   return nsLayoutUtils::GetCenteredFontBaseline(fm, nsHTMLReflowState::
       CalcLineHeight(GetStyleContext(), contentRect.height)) +
@@ -674,8 +676,8 @@ static void ReparentFrame(nsIFrame* aFrame, nsIFrame* aOldParent,
 
   // When pushing and pulling frames we need to check for whether any
   // views need to be reparented
-  nsHTMLContainerFrame::ReparentFrameView(aFrame->PresContext(), aFrame,
-                                          aOldParent, aNewParent);
+  nsContainerFrame::ReparentFrameView(aFrame->PresContext(), aFrame,
+                                      aOldParent, aNewParent);
 }
  
 //////////////////////////////////////////////////////////////////////
@@ -701,7 +703,7 @@ nsBlockFrame::MarkIntrinsicWidthsDirty()
 }
 
 /* virtual */ nscoord
-nsBlockFrame::GetMinWidth(nsIRenderingContext *aRenderingContext)
+nsBlockFrame::GetMinWidth(nsRenderingContext *aRenderingContext)
 {
   nsIFrame* firstInFlow = GetFirstContinuation();
   if (firstInFlow != this)
@@ -778,7 +780,7 @@ nsBlockFrame::GetMinWidth(nsIRenderingContext *aRenderingContext)
 }
 
 /* virtual */ nscoord
-nsBlockFrame::GetPrefWidth(nsIRenderingContext *aRenderingContext)
+nsBlockFrame::GetPrefWidth(nsRenderingContext *aRenderingContext)
 {
   nsIFrame* firstInFlow = GetFirstContinuation();
   if (firstInFlow != this)
@@ -859,8 +861,9 @@ nsRect
 nsBlockFrame::ComputeTightBounds(gfxContext* aContext) const
 {
   // be conservative
-  if (GetStyleContext()->HasTextDecorations())
+  if (GetStyleContext()->HasTextDecorationLines()) {
     return GetVisualOverflowRect();
+  }
   return ComputeSimpleTightBounds(aContext);
 }
 
@@ -2368,10 +2371,9 @@ nsBlockFrame::ReflowDirtyLines(nsBlockReflowState& aState)
         metrics.ascent = metrics.height;
       }
 
-      nsIRenderingContext *rc = aState.mReflowState.rendContext;
-      nsLayoutUtils::SetFontFromStyle(rc, GetStyleContext());
-      nsCOMPtr<nsIFontMetrics> fm;
-      rc->GetFontMetrics(*getter_AddRefs(fm));
+      nsRefPtr<nsFontMetrics> fm;
+      nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm));
+      aState.mReflowState.rendContext->SetFont(fm); // FIXME: needed?
 
       nscoord minAscent =
         nsLayoutUtils::GetCenteredFontBaseline(fm, aState.mMinLineHeight);
@@ -3047,6 +3049,7 @@ nsBlockFrame::ReflowBlockFrame(nsBlockReflowState& aState,
     clearance = 0;
     nscoord topMargin = 0;
     PRBool mayNeedRetry = PR_FALSE;
+    PRBool clearedFloats = PR_FALSE;
     if (applyTopMargin) {
       // Precompute the blocks top margin value so that we can get the
       // correct available space (there might be a float that's
@@ -3121,7 +3124,9 @@ nsBlockFrame::ReflowBlockFrame(nsBlockReflowState& aState,
         nscoord currentY = aState.mY;
         // advance mY to the clear position.
         aState.mY = aState.ClearFloats(aState.mY, breakType, replacedBlock);
-        
+
+        clearedFloats = aState.mY != currentY;
+
         // Compute clearance. It's the amount we need to add to the top
         // border-edge of the frame, after applying collapsed margins
         // from the frame and its children, to get it to line up with
@@ -3153,21 +3158,38 @@ nsBlockFrame::ReflowBlockFrame(nsBlockReflowState& aState,
     nsRect availSpace;
     aState.ComputeBlockAvailSpace(frame, display, floatAvailableSpace,
                                   replacedBlock != nsnull, availSpace);
-    
+
+    // The check for
+    //   (!aState.mReflowState.mFlags.mIsTopOfPage || clearedFloats)
+    // is to some degree out of paranoia:  if we reliably eat up top
+    // margins at the top of the page as we ought to, it wouldn't be
+    // needed.
+    if ((!aState.mReflowState.mFlags.mIsTopOfPage || clearedFloats) &&
+        availSpace.height < 0) {
+      // We know already that this child block won't fit on this
+      // page/column due to the top margin or the clearance.  So we need
+      // to get out of here now.  (If we don't, most blocks will handle
+      // things fine, and report break-before, but zero-height blocks
+      // won't, and will thus make their parent overly-large and force
+      // *it* to be pushed in its entirety.)
+      // Doing this means that we also don't need to worry about the
+      // |availSpace.height += topMargin| below interacting with pushed
+      // floats (which force nscoord_MAX clearance) to cause a
+      // constrained height to turn into an unconstrained one.
+      aState.mY = startingY;
+      aState.mPrevBottomMargin = incomingMargin;
+      PushLines(aState, aLine.prev());
+      NS_FRAME_SET_INCOMPLETE(aState.mReflowStatus);
+      *aKeepReflowGoing = PR_FALSE;
+      return NS_OK;
+    }
+
     // Now put the Y coordinate back to the top of the top-margin +
     // clearance, and flow the block.
     aState.mY -= topMargin;
     availSpace.y -= topMargin;
     if (NS_UNCONSTRAINEDSIZE != availSpace.height) {
       availSpace.height += topMargin;
-
-      // When there is a pushed float, clearance could equal
-      // NS_UNCONSTRAINEDSIZE (FIXME: is that really a good idea?), but
-      // we don't want that to change a constrained height to an
-      // unconstrained one.
-      if (NS_UNCONSTRAINEDSIZE == availSpace.height) {
-        --availSpace.height;
-      }
     }
     
     // Reflow the block into the available space
@@ -3438,9 +3460,6 @@ nsBlockFrame::ReflowInlineFrames(nsBlockReflowState& aState,
   }
   nsFlowAreaRect floatAvailableSpace = aState.GetFloatAvailableSpace();
 
-#ifdef DEBUG
-  PRInt32 spins = 0;
-#endif
   LineReflowStatus lineReflowStatus;
   do {
     nscoord availableSpaceHeight = 0;
@@ -3495,15 +3514,6 @@ nsBlockFrame::ReflowInlineFrames(nsBlockReflowState& aState,
           aState.mCurrentLineFloats.DeleteAll();
           aState.mBelowCurrentLineFloats.DeleteAll();
         }
-        
-  #ifdef DEBUG
-        spins++;
-        if (1000 == spins) {
-          ListTag(stdout);
-          printf(": yikes! spinning on a line over 1000 times!\n");
-          NS_ABORT();
-        }
-  #endif
 
         // Don't allow pullup on a subsequent LINE_REFLOW_REDO_NO_PULL pass
         allowPullUp = PR_FALSE;
@@ -3981,7 +3991,7 @@ nsBlockFrame::SplitFloat(nsBlockReflowState& aState,
   if (nextInFlow) {
     nsContainerFrame *oldParent =
       static_cast<nsContainerFrame*>(nextInFlow->GetParent());
-    nsresult rv = oldParent->StealFrame(aState.mPresContext, nextInFlow);
+    DebugOnly<nsresult> rv = oldParent->StealFrame(aState.mPresContext, nextInFlow);
     NS_ASSERTION(NS_SUCCEEDED(rv), "StealFrame failed");
     if (oldParent != this) {
       ReparentFrame(nextInFlow, oldParent, this);
@@ -4246,11 +4256,7 @@ nsBlockFrame::PlaceLine(nsBlockReflowState& aState,
   if (aState.mPresContext->BidiEnabled()) {
     if (!aState.mPresContext->IsVisualMode() ||
         GetStyleVisibility()->mDirection == NS_STYLE_DIRECTION_RTL) {
-      nsBidiPresUtils* bidiUtils = aState.mPresContext->GetBidiUtils();
-
-      if (bidiUtils && bidiUtils->IsSuccessful() ) {
-        bidiUtils->ReorderFrames(aLine->mFirstChild, aLine->GetChildCount());
-      } // bidiUtils
+      nsBidiPresUtils::ReorderFrames(aLine->mFirstChild, aLine->GetChildCount());
     } // not visual mode
   } // bidi enabled
 #endif // IBMBIDI
@@ -4818,7 +4824,9 @@ nsBlockFrame::AddFrames(nsFrameList& aFrameList, nsIFrame* aPrevSibling)
   nsIPresShell *presShell = PresContext()->PresShell();
 
   // Attempt to find the line that contains the previous sibling
-  nsLineList::iterator prevSibLine = end_lines();
+  nsFrameList overflowFrames;
+  nsLineList* lineList = &mLines;
+  nsLineList::iterator prevSibLine = lineList->end();
   PRInt32 prevSiblingIndex = -1;
   if (aPrevSibling) {
     // XXX_perf This is technically O(N^2) in some cases, but by using
@@ -4826,15 +4834,31 @@ nsBlockFrame::AddFrames(nsFrameList& aFrameList, nsIFrame* aPrevSibling)
     // which is appending content.
 
     // Find the line that contains the previous sibling
-    if (! nsLineBox::RFindLineContaining(aPrevSibling,
-                                         begin_lines(), prevSibLine,
-                                         mFrames.LastChild(),
-                                         &prevSiblingIndex)) {
-      // Note: defensive code! RFindLineContaining must not return
-      // false in this case, so if it does...
-      NS_NOTREACHED("prev sibling not in line list");
-      aPrevSibling = nsnull;
-      prevSibLine = end_lines();
+    if (!nsLineBox::RFindLineContaining(aPrevSibling, lineList->begin(),
+                                        prevSibLine, mFrames.LastChild(),
+                                        &prevSiblingIndex)) {
+      // Not in mLines - try overflow lines.
+      lineList = GetOverflowLines();
+      if (lineList) {
+        prevSibLine = lineList->end();
+        prevSiblingIndex = -1;
+        overflowFrames = nsFrameList(lineList->front()->mFirstChild,
+                                     lineList->back()->LastChild());
+        if (!nsLineBox::RFindLineContaining(aPrevSibling, lineList->begin(),
+                                            prevSibLine,
+                                            overflowFrames.LastChild(),
+                                            &prevSiblingIndex)) {
+          lineList = nsnull;
+        }
+      }
+      if (!lineList) {
+        // Note: defensive code! RFindLineContaining must not return
+        // false in this case, so if it does...
+        NS_NOTREACHED("prev sibling not in line list");
+        lineList = &mLines;
+        aPrevSibling = nsnull;
+        prevSibLine = lineList->end();
+      }
     }
   }
 
@@ -4850,7 +4874,7 @@ nsBlockFrame::AddFrames(nsFrameList& aFrameList, nsIFrame* aPrevSibling)
       if (!line) {
         return NS_ERROR_OUT_OF_MEMORY;
       }
-      mLines.after_insert(prevSibLine, line);
+      lineList->after_insert(prevSibLine, line);
       prevSibLine->SetChildCount(prevSibLine->GetChildCount() - rem);
       // Mark prevSibLine dirty and as needing textrun invalidation, since
       // we may be breaking up text in the line. Its previous line may also
@@ -4862,12 +4886,13 @@ nsBlockFrame::AddFrames(nsFrameList& aFrameList, nsIFrame* aPrevSibling)
       line->SetInvalidateTextRuns(PR_TRUE);
     }
   }
-  else if (! mLines.empty()) {
-    mLines.front()->MarkDirty();
-    mLines.front()->SetInvalidateTextRuns(PR_TRUE);
+  else if (! lineList->empty()) {
+    lineList->front()->MarkDirty();
+    lineList->front()->SetInvalidateTextRuns(PR_TRUE);
   }
+  nsFrameList& frames = lineList == &mLines ? mFrames : overflowFrames;
   const nsFrameList::Slice& newFrames =
-    mFrames.InsertFrames(nsnull, aPrevSibling, aFrameList);
+    frames.InsertFrames(nsnull, aPrevSibling, aFrameList);
 
   // Walk through the new frames being added and update the line data
   // structures to fit.
@@ -4887,7 +4912,7 @@ nsBlockFrame::AddFrames(nsFrameList& aFrameList, nsIFrame* aPrevSibling)
     // a new line, as an optimization, in the two cases we know we'll need it:
     // if the previous line ended with a <br>, or if it has significant whitespace
     // and ended in a newline.
-    if (isBlock || prevSibLine == end_lines() || prevSibLine->IsBlock() ||
+    if (isBlock || prevSibLine == lineList->end() || prevSibLine->IsBlock() ||
         (aPrevSibling && ShouldPutNextSiblingOnNewLine(aPrevSibling))) {
       // Create a new line for the frame and add its line to the line
       // list.
@@ -4895,15 +4920,15 @@ nsBlockFrame::AddFrames(nsFrameList& aFrameList, nsIFrame* aPrevSibling)
       if (!line) {
         return NS_ERROR_OUT_OF_MEMORY;
       }
-      if (prevSibLine != end_lines()) {
+      if (prevSibLine != lineList->end()) {
         // Append new line after prevSibLine
-        mLines.after_insert(prevSibLine, line);
+        lineList->after_insert(prevSibLine, line);
         ++prevSibLine;
       }
       else {
         // New line is going before the other lines
-        mLines.push_front(line);
-        prevSibLine = begin_lines();
+        lineList->push_front(line);
+        prevSibLine = lineList->begin();
       }
     }
     else {
@@ -5929,7 +5954,7 @@ nsBlockFrame::ReflowPushedFloats(nsBlockReflowState& aState,
 
       // Invalidate if there was a position or size change
       nsRect rect = f->GetRect();
-      if (rect != oldRect) {
+      if (!rect.IsEqualInterior(oldRect)) {
         nsRect dirtyRect = oldOverflow;
         dirtyRect.MoveBy(oldRect.x, oldRect.y);
         Invalidate(dirtyRect);
@@ -6078,64 +6103,6 @@ nsBlockFrame::IsVisibleInSelection(nsISelection* aSelection)
   return NS_SUCCEEDED(rv) && visible;
 }
 
-/* virtual */ void
-nsBlockFrame::PaintTextDecorationLine(gfxContext* aCtx, 
-                                      const nsPoint& aPt,
-                                      nsLineBox* aLine,
-                                      nscolor aColor, 
-                                      gfxFloat aOffset, 
-                                      gfxFloat aAscent, 
-                                      gfxFloat aSize,
-                                      const PRUint8 aDecoration) 
-{
-  NS_ASSERTION(!aLine->IsBlock(), "Why did we ask for decorations on a block?");
-
-  nscoord start = aLine->mBounds.x;
-  nscoord width = aLine->mBounds.width;
-
-  AdjustForTextIndent(aLine, start, width);
-      
-  // Only paint if we have a positive width
-  if (width > 0) {
-    gfxPoint pt(PresContext()->AppUnitsToGfxUnits(start + aPt.x),
-                PresContext()->AppUnitsToGfxUnits(aLine->mBounds.y + aPt.y));
-    gfxSize size(PresContext()->AppUnitsToGfxUnits(width), aSize);
-    nsCSSRendering::PaintDecorationLine(
-      aCtx, aColor, pt, size,
-      PresContext()->AppUnitsToGfxUnits(aLine->GetAscent()),
-      aOffset, aDecoration, nsCSSRendering::DECORATION_STYLE_SOLID);
-  }
-}
-
-/*virtual*/ void
-nsBlockFrame::AdjustForTextIndent(const nsLineBox* aLine,
-                                  nscoord& start,
-                                  nscoord& width)
-{
-  if (!GetPrevContinuation() && aLine == begin_lines().get()) {
-    // Adjust for the text-indent.  See similar code in
-    // nsLineLayout::BeginLineReflow.
-    const nsStyleCoord &textIndent = GetStyleText()->mTextIndent;
-    nscoord pctBasis = 0;
-    if (textIndent.HasPercent()) {
-      // Only work out the percentage basis if we need to.
-      // It's a percentage of the containing block width.
-      nsIFrame* containingBlock =
-        nsHTMLReflowState::GetContainingBlockFor(this);
-      NS_ASSERTION(containingBlock, "Must have containing block!");
-      pctBasis = containingBlock->GetContentRect().width;
-    }
-    nscoord indent = nsRuleNode::ComputeCoordPercentCalc(textIndent, pctBasis);
-
-    // Adjust the start position and the width of the decoration by the
-    // value of the indent.  Note that indent can be negative; that's OK.
-    // It'll just increase the width (which can also happen to be
-    // negative!).
-    start += indent;
-    width -= indent;
-  }
-}
-
 #ifdef DEBUG
 static void DebugOutputDrawLine(PRInt32 aDepth, nsLineBox* aLine, PRBool aDrawn) {
   if (nsBlockFrame::gNoisyDamageRepair) {
@@ -6156,7 +6123,7 @@ static nsresult
 DisplayLine(nsDisplayListBuilder* aBuilder, const nsRect& aLineArea,
             const nsRect& aDirtyRect, nsBlockFrame::line_iterator& aLine,
             PRInt32 aDepth, PRInt32& aDrawnLines, const nsDisplayListSet& aLists,
-            nsBlockFrame* aFrame) {
+            nsBlockFrame* aFrame, TextOverflow* aTextOverflow) {
   // If the line's combined area (which includes child frames that
   // stick outside of the line's bounding box or our bounding box)
   // intersects the dirty rect then paint the line.
@@ -6174,24 +6141,20 @@ DisplayLine(nsDisplayListBuilder* aBuilder, const nsRect& aLineArea,
   // on all the frames on the line, but that might be expensive.  So
   // we approximate it by checking it on aFrame; if it's true for any
   // frame in the line, it's also true for aFrame.
-  if (!intersect && !aBuilder->ShouldDescendIntoFrame(aFrame))
+  PRBool lineInline = aLine->IsInline();
+  PRBool lineMayHaveTextOverflow = aTextOverflow && lineInline;
+  if (!intersect && !aBuilder->ShouldDescendIntoFrame(aFrame) &&
+      !lineMayHaveTextOverflow)
     return NS_OK;
 
+  nsDisplayListCollection collection;
   nsresult rv;
   nsDisplayList aboveTextDecorations;
-  PRBool lineInline = aLine->IsInline();
-  if (lineInline) {
-    // Display the text-decoration for the hypothetical anonymous inline box
-    // that wraps these inlines
-    rv = aFrame->DisplayTextDecorations(aBuilder, aLists.Content(),
-                                        &aboveTextDecorations, aLine);
-    NS_ENSURE_SUCCESS(rv, rv);
-  }
 
   // Block-level child backgrounds go on the blockBorderBackgrounds list ...
   // Inline-level child backgrounds go on the regular child content list.
-  nsDisplayListSet childLists(aLists,
-      lineInline ? aLists.Content() : aLists.BlockBorderBackgrounds());
+  nsDisplayListSet childLists(collection,
+    lineInline ? collection.Content() : collection.BlockBorderBackgrounds());
   nsIFrame* kid = aLine->mFirstChild;
   PRInt32 n = aLine->GetChildCount();
   while (--n >= 0) {
@@ -6201,7 +6164,13 @@ DisplayLine(nsDisplayListBuilder* aBuilder, const nsRect& aLineArea,
     kid = kid->GetNextSibling();
   }
   
-  aLists.Content()->AppendToTop(&aboveTextDecorations);
+  collection.Content()->AppendToTop(&aboveTextDecorations);
+
+  if (lineMayHaveTextOverflow) {
+    aTextOverflow->ProcessLine(collection, aLine.get());
+  }
+
+  collection.MoveTo(aLists);
   return NS_OK;
 }
 
@@ -6245,6 +6214,10 @@ nsBlockFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   aBuilder->MarkFramesForDisplayList(this, mAbsoluteContainer.GetChildList(),
                                      aDirtyRect);
 
+  // Prepare for text-overflow processing.
+  nsAutoPtr<TextOverflow> textOverflow(
+    TextOverflow::WillProcessLines(aBuilder, aLists, this));
+
   // Don't use the line cursor if we might have a descendant placeholder ...
   // it might skip lines that contain placeholders but don't themselves
   // intersect with the dirty area.
@@ -6269,7 +6242,7 @@ nsBlockFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
           break;
         }
         rv = DisplayLine(aBuilder, lineArea, aDirtyRect, line, depth, drawnLines,
-                         aLists, this);
+                         aLists, this, textOverflow);
         if (NS_FAILED(rv))
           break;
       }
@@ -6284,7 +6257,7 @@ nsBlockFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
          ++line) {
       nsRect lineArea = line->GetVisualOverflowArea();
       rv = DisplayLine(aBuilder, lineArea, aDirtyRect, line, depth, drawnLines,
-                       aLists, this);
+                       aLists, this, textOverflow);
       if (NS_FAILED(rv))
         break;
       if (!lineArea.IsEmpty()) {
@@ -6301,6 +6274,11 @@ nsBlockFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     if (NS_SUCCEEDED(rv) && nonDecreasingYs && lineCount >= MIN_LINES_NEEDING_CURSOR) {
       SetupLineCursor();
     }
+  }
+
+  // Finalize text-overflow processing.
+  if (textOverflow) {
+    textOverflow->DidProcessLines();
   }
 
   if (NS_SUCCEEDED(rv) && (nsnull != mBullet) && HaveOutsideBullet()) {
@@ -7185,11 +7163,7 @@ nsBlockFrame::ResolveBidi()
     return NS_OK;
   }
 
-  nsBidiPresUtils* bidiUtils = presContext->GetBidiUtils();
-  if (!bidiUtils)
-    return NS_ERROR_NULL_POINTER;
-
-  return bidiUtils->Resolve(this);
+  return nsBidiPresUtils::Resolve(this);
 }
 #endif
 

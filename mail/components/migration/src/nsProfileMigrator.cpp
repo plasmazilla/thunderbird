@@ -37,7 +37,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsILocalFile.h"
-#include "nsIDOMWindowInternal.h"
+#include "nsIDOMWindow.h"
 #include "nsIProfileMigrator.h"
 #include "nsIPrefService.h"
 #include "nsIServiceManager.h"
@@ -198,11 +198,11 @@ nsProfileMigrator::ImportRegistryProfiles(const nsACString& aAppName)
 
   nsCOMPtr<nsIToolkitProfileService> profileSvc
     (do_GetService(NS_PROFILESERVICE_CONTRACTID));
-  NS_ENSURE_TRUE(profileSvc, NS_ERROR_FAILURE);
+  NS_ENSURE_TRUE(profileSvc, PR_FALSE);
 
   nsCOMPtr<nsIProperties> dirService
     (do_GetService("@mozilla.org/file/directory_service;1"));
-  NS_ENSURE_TRUE(dirService, NS_ERROR_FAILURE);
+  NS_ENSURE_TRUE(dirService, PR_FALSE);
 
   nsCOMPtr<nsILocalFile> regFile;
 #ifdef XP_WIN

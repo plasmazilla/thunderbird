@@ -1665,7 +1665,8 @@ NS_IMETHODIMP nsMsgDBView::GetParentIndex(PRInt32 rowIndex, PRInt32 *_retval)
   *_retval = -1;
 
   PRInt32 rowIndexLevel;
-  GetLevel(rowIndex, &rowIndexLevel);
+  nsresult rv = GetLevel(rowIndex, &rowIndexLevel);
+  NS_ENSURE_SUCCESS(rv, rv);
 
   PRInt32 i;
   for(i = rowIndex; i >= 0; i--)
@@ -1897,10 +1898,10 @@ void nsMsgDBView::RememberDeletedMsgHdr(nsIMsgDBHdr *msgHdr)
 {
   nsCString messageId;
   msgHdr->GetMessageId(getter_Copies(messageId));
-  if (mRecentlyDeletedArrayIndex >= mRecentlyDeletedMsgIds.Count())
-    mRecentlyDeletedMsgIds.AppendCString(messageId);
+  if (mRecentlyDeletedArrayIndex >= mRecentlyDeletedMsgIds.Length())
+    mRecentlyDeletedMsgIds.AppendElement(messageId);
   else
-    mRecentlyDeletedMsgIds.ReplaceCStringAt(messageId, mRecentlyDeletedArrayIndex);
+    mRecentlyDeletedMsgIds[mRecentlyDeletedArrayIndex] = messageId;
   // only remember last 20 deleted msgs.
   mRecentlyDeletedArrayIndex = ++mRecentlyDeletedArrayIndex % 20;
 }
@@ -1909,14 +1910,9 @@ PRBool nsMsgDBView::WasHdrRecentlyDeleted(nsIMsgDBHdr *msgHdr)
 {
   nsCString messageId;
   msgHdr->GetMessageId(getter_Copies(messageId));
-  for (PRInt32 i = 0; i < mRecentlyDeletedMsgIds.Count(); i++)
-  {
-    if (messageId.Equals(*(mRecentlyDeletedMsgIds[i])))
-      return PR_TRUE;
-  }
-  return PR_FALSE;
-
+  return mRecentlyDeletedMsgIds.Contains(messageId);
 }
+
 //add a custom column handler
 NS_IMETHODIMP nsMsgDBView::AddColumnHandler(const nsAString& column, nsIMsgCustomColumnHandler* handler)
 {
@@ -2814,7 +2810,7 @@ PRBool nsMsgDBView::OperateOnMsgsInCollapsedThreads()
   if (mTreeSelection)
   {
     nsCOMPtr<nsITreeBoxObject> selTree;
-    nsresult rv = mTreeSelection->GetTree(getter_AddRefs(selTree));
+    mTreeSelection->GetTree(getter_AddRefs(selTree));
     // no tree means stand-alone message window
     if (!selTree)
       return PR_FALSE;
@@ -2855,7 +2851,6 @@ nsresult nsMsgDBView::GetHeadersFromSelection(PRUint32 *indices,
         rv = ListCollapsedChildren(viewIndex, messageArray);
       continue;
     }
-    nsMsgKey key = m_keys[viewIndex];
     nsCOMPtr<nsIMsgDBHdr> msgHdr;
     rv = GetMsgHdrForViewIndex(viewIndex, getter_AddRefs(msgHdr));
     if (NS_SUCCEEDED(rv) && msgHdr)
@@ -2993,7 +2988,6 @@ nsMsgDBView::ApplyCommandToIndices(nsMsgViewCommandTypeValue command, nsMsgViewI
     rv = GetHeadersFromSelection(indices, numIndices, messages);
     NS_ENSURE_SUCCESS(rv, rv);
     messages->GetLength(&length);
-    PRUint32 numMsgsSelected = length;
 
     if (thisIsImapFolder)
       imapUids.SetLength(length);
@@ -3765,7 +3759,8 @@ nsMsgDBView::FnSortIdKey(const void *pItem1, const void *pItem2, void *privateDa
 
     nsIMsgDatabase *db = sortInfo->db;
 
-    rv = db->CompareCollationKeys((*p1)->key, (*p1)->dword, (*p2)->key, (*p2)->dword, &retVal);
+    rv = db->CompareCollationKeys((*p1)->dword, (*p1)->key, (*p2)->dword,
+                                  (*p2)->key, &retVal);
     NS_ASSERTION(NS_SUCCEEDED(rv),"compare failed");
 
     if (retVal)
@@ -3790,7 +3785,8 @@ nsMsgDBView::FnSortIdKeyPtr(const void *pItem1, const void *pItem2, void *privat
 
   nsIMsgDatabase *db = sortInfo->db;
 
-  rv = db->CompareCollationKeys((*p1)->key, (*p1)->dword, (*p2)->key, (*p2)->dword, &retVal);
+  rv = db->CompareCollationKeys((*p1)->dword, (*p1)->key, (*p2)->dword,
+                                (*p2)->key, &retVal);
   NS_ASSERTION(NS_SUCCEEDED(rv),"compare failed");
 
   if (retVal)
@@ -4122,17 +4118,44 @@ nsMsgDBView::GetCollationKey(nsIMsgDBHdr *msgHdr, nsMsgViewSortTypeValue sortTyp
   switch (sortType)
   {
     case nsMsgViewSortType::bySubject:
-        rv = msgHdr->GetSubjectCollationKey(result, len);
+        rv = msgHdr->GetSubjectCollationKey(len, result);
         break;
     case nsMsgViewSortType::byLocation:
         rv = GetLocationCollationKey(msgHdr, result, len);
         break;
     case nsMsgViewSortType::byRecipient:
-        rv = msgHdr->GetRecipientsCollationKey(result, len);
-        break;
+      {
+        nsString recipients;
+        rv = FetchRecipients(msgHdr, recipients);
+        if (NS_SUCCEEDED(rv))
+        {
+          nsCOMPtr <nsIMsgDatabase> dbToUse = m_db;
+          if (!dbToUse) // probably search view
+          {
+            rv = GetDBForHeader(msgHdr, getter_AddRefs(dbToUse));
+            NS_ENSURE_SUCCESS(rv,rv);
+          }
+          rv = dbToUse->CreateCollationKey(recipients, len, result);
+        }
+      }
+      break;
     case nsMsgViewSortType::byAuthor:
-        rv = msgHdr->GetAuthorCollationKey(result, len);
-        break;
+      {
+        rv = msgHdr->GetAuthorCollationKey(len, result);
+        nsString author;
+        rv = FetchAuthor(msgHdr, author);
+        if (NS_SUCCEEDED(rv))
+        {
+          nsCOMPtr <nsIMsgDatabase> dbToUse = m_db;
+          if (!dbToUse) // probably search view
+          {
+            rv = GetDBForHeader(msgHdr, getter_AddRefs(dbToUse));
+            NS_ENSURE_SUCCESS(rv,rv);
+          }
+          rv = dbToUse->CreateCollationKey(author, len, result);
+        }
+      }
+      break;
     case nsMsgViewSortType::byAccount:
     case nsMsgViewSortType::byTags:
       {
@@ -4147,7 +4170,7 @@ nsMsgDBView::GetCollationKey(nsIMsgDBHdr *msgHdr, nsMsgViewSortTypeValue sortTyp
             : FetchTags(msgHdr, str);
 
         if (NS_SUCCEEDED(rv) && dbToUse)
-          rv = dbToUse->CreateCollationKey(str, result, len);
+          rv = dbToUse->CreateCollationKey(str, len, result);
       }
       break;
     case nsMsgViewSortType::byCustom:
@@ -4164,7 +4187,7 @@ nsMsgDBView::GetCollationKey(nsIMsgDBHdr *msgHdr, nsMsgViewSortTypeValue sortTyp
           rv = GetDBForHeader(msgHdr, getter_AddRefs(dbToUse));
           NS_ENSURE_SUCCESS(rv,rv);
         }
-        rv = dbToUse->CreateCollationKey(strKey, result, len);
+        rv = dbToUse->CreateCollationKey(strKey, len, result);
       }
       else
       {
@@ -4205,7 +4228,7 @@ nsMsgDBView::GetLocationCollationKey(nsIMsgDBHdr *msgHdr, PRUint8 **result, PRUi
   rv = folder->GetPrettiestName(locationString);
   NS_ENSURE_SUCCESS(rv,rv);
 
-  return dbToUse->CreateCollationKey(locationString, result, len);
+  return dbToUse->CreateCollationKey(locationString, len, result);
 }
 
 nsresult nsMsgDBView::SaveSortInfo(nsMsgViewSortTypeValue sortType, nsMsgViewSortOrderValue sortOrder)
@@ -5466,9 +5489,17 @@ nsresult nsMsgDBView::ListIdsInThread(nsIMsgThread *threadHdr, nsMsgViewIndex st
   if (m_viewFlags & nsMsgViewFlagsType::kThreadedDisplay && ! (m_viewFlags & nsMsgViewFlagsType::kGroupBySort))
   {
     nsMsgKey parentKey = m_keys[startOfThreadViewIndex];
+    // If the thread is bigger than the hdr cache, expanding the thread
+    // can be slow. Increasing the hdr cache size will help a fair amount.
+    PRUint32 hdrCacheSize;
+    m_db->GetMsgHdrCacheSize(&hdrCacheSize);
+    if (numChildren > hdrCacheSize)
+      m_db->SetMsgHdrCacheSize(numChildren);
     // If this fails, *pNumListed will be 0, and we'll fall back to just
     // enumerating the messages in the thread below.
     rv = ListIdsInThreadOrder(threadHdr, parentKey, 1, &viewIndex, pNumListed);
+    if (numChildren > hdrCacheSize)
+      m_db->SetMsgHdrCacheSize(hdrCacheSize);
   }
   if (! *pNumListed)
   {
@@ -6144,8 +6175,8 @@ nsresult nsMsgDBView::MarkThreadOfMsgRead(nsMsgKey msgId, nsMsgViewIndex msgInde
     if (!threadHdr)
         return NS_MSG_MESSAGE_NOT_FOUND;
 
-    nsCOMPtr <nsIMsgDBHdr> firstHdr;
-    rv = threadHdr->GetChildAt(0, getter_AddRefs(firstHdr));
+    nsCOMPtr<nsIMsgDBHdr> firstHdr;
+    rv = threadHdr->GetChildHdrAt(0, getter_AddRefs(firstHdr));
     NS_ENSURE_SUCCESS(rv, rv);
     nsMsgKey firstHdrId;
     firstHdr->GetMessageKey(&firstHdrId);

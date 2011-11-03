@@ -1,6 +1,5 @@
-/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
-/* vim:expandtab:shiftwidth=4:tabstop=4:
- */
+/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
+/* vim: set ts=2 et sw=2 tw=80: */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -39,10 +38,12 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "nsAccessible.h"
 #include "nsAccessibleWrap.h"
 
 #include "nsAccUtils.h"
 #include "nsApplicationAccessibleWrap.h"
+#include "nsIAccessibleRelation.h"
 #include "nsRootAccessible.h"
 #include "nsDocAccessibleWrap.h"
 #include "nsIAccessibleValue.h"
@@ -50,8 +51,9 @@
 #include "nsAutoPtr.h"
 #include "prprf.h"
 #include "nsRoleMap.h"
-#include "nsRelUtils.h"
 #include "nsStateMap.h"
+#include "Relation.h"
+#include "States.h"
 
 #include "nsMaiInterfaceComponent.h"
 #include "nsMaiInterfaceAction.h"
@@ -66,6 +68,11 @@
 #include "nsComponentManagerUtils.h"
 #include "nsMaiInterfaceDocument.h"
 #include "nsMaiInterfaceImage.h"
+
+using namespace mozilla::a11y;
+
+nsAccessibleWrap::EAvailableAtkSignals nsAccessibleWrap::gAvailableAtkSignals =
+  eUnknown;
 
 //defined in nsApplicationAccessibleWrap.cpp
 extern "C" GType g_atk_hyperlink_impl_type;
@@ -341,9 +348,7 @@ void nsAccessibleWrap::SetMaiHyperlink(MaiHyperlink* aMaiHyperlink)
         if (!maiHyperlink && !aMaiHyperlink) {
             return; // Never set and we're shutting down
         }
-        if (maiHyperlink) {
-            delete maiHyperlink;
-        }
+        delete maiHyperlink;
         g_object_set_qdata(G_OBJECT(mAtkObject), quark_mai_hyperlink,
                            aMaiHyperlink);
     }
@@ -405,12 +410,9 @@ nsAccessibleWrap::CreateMaiInterfaces(void)
     // the Component interface are supported by all nsIAccessible
     interfacesBits |= 1 << MAI_INTERFACE_COMPONENT;
 
-    // Add Action interface if the action count is more than zero.
-    PRUint8 actionCount = 0;
-    nsresult rv = GetNumActions(&actionCount);
-    if (NS_SUCCEEDED(rv) && actionCount > 0) {
-       interfacesBits |= 1 << MAI_INTERFACE_ACTION; 
-    }
+  // Add Action interface if the action count is more than zero.
+  if (ActionCount() > 0)
+    interfacesBits |= 1 << MAI_INTERFACE_ACTION;
 
     //nsIAccessibleText
     nsCOMPtr<nsIAccessibleText> accessInterfaceText;
@@ -452,10 +454,9 @@ nsAccessibleWrap::CreateMaiInterfaces(void)
         interfacesBits |= 1 << MAI_INTERFACE_IMAGE;
     }
 
-    // HyperLinkAccessible
-    if (IsHyperLink()) {
-       interfacesBits |= 1 << MAI_INTERFACE_HYPERLINK_IMPL;
-    }
+  // HyperLinkAccessible
+  if (IsLink())
+    interfacesBits |= 1 << MAI_INTERFACE_HYPERLINK_IMPL;
 
     if (!nsAccUtils::MustPrune(this)) {  // These interfaces require children
       //nsIAccessibleHypertext
@@ -718,20 +719,18 @@ const gchar *
 getDescriptionCB(AtkObject *aAtkObj)
 {
     nsAccessibleWrap *accWrap = GetAccessibleWrap(aAtkObj);
-    if (!accWrap) {
+    if (!accWrap || accWrap->IsDefunct())
         return nsnull;
-    }
 
     /* nsIAccessible is responsible for the non-NULL description */
     nsAutoString uniDesc;
-    nsresult rv = accWrap->GetDescription(uniDesc);
-    NS_ENSURE_SUCCESS(rv, nsnull);
+    accWrap->Description(uniDesc);
 
     NS_ConvertUTF8toUTF16 objDesc(aAtkObj->description);
-    if (!uniDesc.Equals(objDesc)) {
+    if (!uniDesc.Equals(objDesc))
         atk_object_set_description(aAtkObj,
                                    NS_ConvertUTF16toUTF8(uniDesc).get());
-    }
+
     return aAtkObj->description;
 }
 
@@ -796,17 +795,15 @@ ConvertToAtkAttributeSet(nsIPersistentProperties* aAttributes)
     return objAttributeSet;
 }
 
-AtkAttributeSet *
-GetAttributeSet(nsIAccessible* aAccessible)
+AtkAttributeSet*
+GetAttributeSet(nsAccessible* aAccessible)
 {
     nsCOMPtr<nsIPersistentProperties> attributes;
     aAccessible->GetAttributes(getter_AddRefs(attributes));
 
     if (attributes) {
         // Deal with attributes that we only need to expose in ATK
-        PRUint32 state;
-        aAccessible->GetState(&state, nsnull);
-        if (state & nsIAccessibleStates::STATE_HASPOPUP) {
+        if (aAccessible->State() & states::HASPOPUP) {
           // There is no ATK state for haspopup, must use object attribute to expose the same info
           nsAutoString oldValueUnused;
           attributes->SetStringProperty(NS_LITERAL_CSTRING("haspopup"), NS_LITERAL_STRING("true"),
@@ -830,21 +827,20 @@ getAttributesCB(AtkObject *aAtkObj)
 AtkObject *
 getParentCB(AtkObject *aAtkObj)
 {
-    if (!aAtkObj->accessible_parent) {
-        nsAccessibleWrap *accWrap = GetAccessibleWrap(aAtkObj);
-        if (!accWrap) {
-            return nsnull;
-        }
+  if (!aAtkObj->accessible_parent) {
+    nsAccessibleWrap* accWrap = GetAccessibleWrap(aAtkObj);
+    if (!accWrap)
+      return nsnull;
 
-        nsAccessible* accParent = accWrap->GetParent();
-        if (!accParent)
-            return nsnull;
+    nsAccessible* accParent = accWrap->Parent();
+    if (!accParent)
+      return nsnull;
 
-        AtkObject *parent = nsAccessibleWrap::GetAtkObject(accParent);
-        if (parent)
-            atk_object_set_parent(aAtkObj, parent);
-    }
-    return aAtkObj->accessible_parent;
+    AtkObject* parent = nsAccessibleWrap::GetAtkObject(accParent);
+    if (parent)
+      atk_object_set_parent(aAtkObj, parent);
+  }
+  return aAtkObj->accessible_parent;
 }
 
 gint
@@ -897,33 +893,30 @@ getIndexInParentCB(AtkObject *aAtkObj)
         return -1;
     }
 
-    nsAccessible *parent = accWrap->GetParent();
-    if (!parent) {
+    nsAccessible* parent = accWrap->Parent();
+    if (!parent)
         return -1; // No parent
-    }
 
     return parent->GetIndexOfEmbeddedChild(accWrap);
 }
 
-static void TranslateStates(PRUint32 aState, const AtkStateMap *aStateMap,
-                            AtkStateSet *aStateSet)
+static void
+TranslateStates(PRUint64 aState, AtkStateSet* aStateSet)
 {
-  NS_ASSERTION(aStateSet, "Can't pass in null state set");
 
   // Convert every state to an entry in AtkStateMap
   PRUint32 stateIndex = 0;
-  PRUint32 bitMask = 1;
-  while (aStateMap[stateIndex].stateMapEntryType != kNoSuchState) {
-    if (aStateMap[stateIndex].atkState) {    // There's potentially an ATK state for this
+  PRUint64 bitMask = 1;
+  while (gAtkStateMap[stateIndex].stateMapEntryType != kNoSuchState) {
+    if (gAtkStateMap[stateIndex].atkState) { // There's potentially an ATK state for this
       PRBool isStateOn = (aState & bitMask) != 0;
-      if (aStateMap[stateIndex].stateMapEntryType == kMapOpposite) {
+      if (gAtkStateMap[stateIndex].stateMapEntryType == kMapOpposite) {
         isStateOn = !isStateOn;
       }
       if (isStateOn) {
-        atk_state_set_add_state(aStateSet, aStateMap[stateIndex].atkState);
+        atk_state_set_add_state(aStateSet, gAtkStateMap[stateIndex].atkState);
       }
     }
-    // Map extended state
     bitMask <<= 1;
     ++ stateIndex;
   }
@@ -937,18 +930,12 @@ refStateSetCB(AtkObject *aAtkObj)
 
     nsAccessibleWrap *accWrap = GetAccessibleWrap(aAtkObj);
     if (!accWrap) {
-        TranslateStates(nsIAccessibleStates::EXT_STATE_DEFUNCT,
-                        gAtkStateMapExt, state_set);
+        TranslateStates(states::DEFUNCT, state_set);
         return state_set;
     }
 
     // Map states
-    PRUint32 accState = 0, accExtState = 0;
-    nsresult rv = accWrap->GetState(&accState, &accExtState);
-    NS_ENSURE_SUCCESS(rv, state_set);
-
-    TranslateStates(accState, gAtkStateMap, state_set);
-    TranslateStates(accExtState, gAtkStateMapExt, state_set);
+    TranslateStates(accWrap->State(), state_set);
 
     return state_set;
 }
@@ -956,60 +943,47 @@ refStateSetCB(AtkObject *aAtkObj)
 AtkRelationSet *
 refRelationSetCB(AtkObject *aAtkObj)
 {
-    AtkRelationSet *relation_set = nsnull;
-    relation_set = ATK_OBJECT_CLASS(parent_class)->ref_relation_set(aAtkObj);
+  AtkRelationSet* relation_set =
+    ATK_OBJECT_CLASS(parent_class)->ref_relation_set(aAtkObj);
 
-    nsAccessibleWrap *accWrap = GetAccessibleWrap(aAtkObj);
-    if (!accWrap) {
-        return relation_set;
-    }
-
-    AtkRelation* relation;
-    
-    PRUint32 relationType[] = {nsIAccessibleRelation::RELATION_LABELLED_BY,
-                               nsIAccessibleRelation::RELATION_LABEL_FOR,
-                               nsIAccessibleRelation::RELATION_NODE_CHILD_OF,
-                               nsIAccessibleRelation::RELATION_CONTROLLED_BY,
-                               nsIAccessibleRelation::RELATION_CONTROLLER_FOR,
-                               nsIAccessibleRelation::RELATION_EMBEDS,
-                               nsIAccessibleRelation::RELATION_FLOWS_TO,
-                               nsIAccessibleRelation::RELATION_FLOWS_FROM,
-                               nsIAccessibleRelation::RELATION_DESCRIBED_BY,
-                               nsIAccessibleRelation::RELATION_DESCRIPTION_FOR,
-                               };
-
-    for (PRUint32 i = 0; i < NS_ARRAY_LENGTH(relationType); i++) {
-        relation = atk_relation_set_get_relation_by_type(relation_set, static_cast<AtkRelationType>(relationType[i]));
-        if (relation) {
-            atk_relation_set_remove(relation_set, relation);
-        }
-
-        nsCOMPtr<nsIAccessibleRelation> geckoRelation;
-        nsresult rv = accWrap->GetRelationByType(relationType[i],
-                                                 getter_AddRefs(geckoRelation));
-        if (NS_SUCCEEDED(rv) && geckoRelation) {
-            PRUint32 targetsCount = 0;
-            geckoRelation->GetTargetsCount(&targetsCount);
-            if (targetsCount) {
-                AtkObject** accessible_array = new AtkObject*[targetsCount];
-                for (PRUint32 index = 0; index < targetsCount; index++) {
-                    nsCOMPtr<nsIAccessible> geckoTarget;
-                    geckoRelation->GetTarget(index, getter_AddRefs(geckoTarget));
-                    accessible_array[index] =
-                        nsAccessibleWrap::GetAtkObject(geckoTarget);
-                }
-
-                relation = atk_relation_new(accessible_array, targetsCount,
-                                            static_cast<AtkRelationType>(relationType[i]));
-                atk_relation_set_add(relation_set, relation);
-                g_object_unref(relation);
-
-                delete [] accessible_array;
-            }
-        }
-    }
-
+  nsAccessibleWrap *accWrap = GetAccessibleWrap(aAtkObj);
+  if (!accWrap)
     return relation_set;
+
+  PRUint32 relationTypes[] = {
+    nsIAccessibleRelation::RELATION_LABELLED_BY,
+    nsIAccessibleRelation::RELATION_LABEL_FOR,
+    nsIAccessibleRelation::RELATION_NODE_CHILD_OF,
+    nsIAccessibleRelation::RELATION_CONTROLLED_BY,
+    nsIAccessibleRelation::RELATION_CONTROLLER_FOR,
+    nsIAccessibleRelation::RELATION_EMBEDS,
+    nsIAccessibleRelation::RELATION_FLOWS_TO,
+    nsIAccessibleRelation::RELATION_FLOWS_FROM,
+    nsIAccessibleRelation::RELATION_DESCRIBED_BY,
+    nsIAccessibleRelation::RELATION_DESCRIPTION_FOR,
+  };
+
+  for (PRUint32 i = 0; i < NS_ARRAY_LENGTH(relationTypes); i++) {
+    AtkRelationType atkType = static_cast<AtkRelationType>(relationTypes[i]);
+    AtkRelation* atkRelation =
+      atk_relation_set_get_relation_by_type(relation_set, atkType);
+    if (atkRelation)
+      atk_relation_set_remove(relation_set, atkRelation);
+
+    Relation rel(accWrap->RelationByType(relationTypes[i]));
+    nsTArray<AtkObject*> targets;
+    nsAccessible* tempAcc = nsnull;
+    while ((tempAcc = rel.Next()))
+      targets.AppendElement(nsAccessibleWrap::GetAtkObject(tempAcc));
+
+    if (targets.Length()) {
+      atkRelation = atk_relation_new(targets.Elements(), targets.Length(), atkType);
+      atk_relation_set_add(relation_set, atkRelation);
+      g_object_unref(atkRelation);
+    }
+  }
+
+  return relation_set;
 }
 
 // Check if aAtkObj is a valid MaiAtkObject, and return the nsAccessibleWrap
@@ -1086,13 +1060,21 @@ nsAccessibleWrap::FirePlatformEvent(AccEvent* aEvent)
             atk_focus_tracker_notify(atkObj);
             // Fire state change event for focus
             nsRefPtr<AccEvent> stateChangeEvent =
-              new AccStateChangeEvent(accessible,
-                                      nsIAccessibleStates::STATE_FOCUSED,
-                                      PR_FALSE, PR_TRUE);
+              new AccStateChangeEvent(accessible, states::FOCUSED, PR_TRUE);
             return FireAtkStateChangeEvent(stateChangeEvent, atkObj);
         }
       } break;
 
+    case nsIAccessibleEvent::EVENT_NAME_CHANGE:
+      {
+        nsString newName;
+        accessible->GetName(newName);
+        NS_ConvertUTF16toUTF8 utf8Name(newName);
+        if (!atkObj->name || !utf8Name.Equals(atkObj->name))
+          atk_object_set_name(atkObj, utf8Name.get());
+
+        break;
+      }
     case nsIAccessibleEvent::EVENT_VALUE_CHANGE:
       {
         MAI_LOG_DEBUG(("\n\nReceived: EVENT_VALUE_CHANGE\n"));
@@ -1337,26 +1319,22 @@ nsAccessibleWrap::FireAtkStateChangeEvent(AccEvent* aEvent,
     AccStateChangeEvent* event = downcast_accEvent(aEvent);
     NS_ENSURE_TRUE(event, NS_ERROR_FAILURE);
 
-    PRUint32 state = event->GetState();
-    PRBool isExtra = event->IsExtraState();
     PRBool isEnabled = event->IsStateEnabled();
-
-    PRInt32 stateIndex = AtkStateMap::GetStateIndexFor(state);
+    PRInt32 stateIndex = AtkStateMap::GetStateIndexFor(event->GetState());
     if (stateIndex >= 0) {
-        const AtkStateMap *atkStateMap = isExtra ? gAtkStateMapExt : gAtkStateMap;
-        NS_ASSERTION(atkStateMap[stateIndex].stateMapEntryType != kNoSuchState,
+        NS_ASSERTION(gAtkStateMap[stateIndex].stateMapEntryType != kNoSuchState,
                      "No such state");
 
-        if (atkStateMap[stateIndex].atkState != kNone) {
-            NS_ASSERTION(atkStateMap[stateIndex].stateMapEntryType != kNoStateChange,
+        if (gAtkStateMap[stateIndex].atkState != kNone) {
+            NS_ASSERTION(gAtkStateMap[stateIndex].stateMapEntryType != kNoStateChange,
                          "State changes should not fired for this state");
 
-            if (atkStateMap[stateIndex].stateMapEntryType == kMapOpposite)
+            if (gAtkStateMap[stateIndex].stateMapEntryType == kMapOpposite)
                 isEnabled = !isEnabled;
 
             // Fire state change for first state if there is one to map
             atk_object_notify_state_change(aObject,
-                                           atkStateMap[stateIndex].atkState,
+                                           gAtkStateMap[stateIndex].atkState,
                                            isEnabled);
         }
     }
@@ -1376,15 +1354,32 @@ nsAccessibleWrap::FireAtkTextChangedEvent(AccEvent* aEvent,
     PRInt32 start = event->GetStartOffset();
     PRUint32 length = event->GetLength();
     PRBool isInserted = event->IsTextInserted();
-
     PRBool isFromUserInput = aEvent->IsFromUserInput();
+    char* signal_name = nsnull;
 
-    char *signal_name = g_strconcat(isInserted ? "text_changed::insert" : "text_changed::delete",
-                                    isFromUserInput ? "" : kNonUserInputEvent, NULL);
+  if (gAvailableAtkSignals == eUnknown)
+    gAvailableAtkSignals = g_signal_lookup("text-insert", ATK_TYPE_TEXT) ?
+      eHaveNewAtkTextSignals : eNoNewAtkSignals;
+
+  if (gAvailableAtkSignals == eNoNewAtkSignals) {
+    // XXX remove this code and the gHaveNewTextSignals check when we can
+    // stop supporting old atk since it doesn't really work anyway
+    // see bug 619002
+    signal_name = g_strconcat(isInserted ? "text_changed::insert" :
+                              "text_changed::delete",
+                              isFromUserInput ? "" : kNonUserInputEvent, NULL);
     g_signal_emit_by_name(aObject, signal_name, start, length);
-    g_free (signal_name);
+  } else {
+    nsAutoString text;
+    event->GetModifiedText(text);
+    signal_name = g_strconcat(isInserted ? "text-insert" : "text-remove",
+                              isFromUserInput ? "" : "::system", NULL);
+    g_signal_emit_by_name(aObject, signal_name, start, length,
+                          NS_ConvertUTF16toUTF8(text).get());
+  }
 
-    return NS_OK;
+  g_free(signal_name);
+  return NS_OK;
 }
 
 nsresult

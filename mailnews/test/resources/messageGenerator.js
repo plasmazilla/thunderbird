@@ -119,6 +119,8 @@ function SyntheticPart(aProperties) {
       this._contentId = aProperties.contentId;
     if ("disposition" in aProperties)
       this._forceDisposition = aProperties.disposition;
+    if ("extraHeaders" in aProperties)
+      this._extraHeaders = aProperties.extraHeaders;
   }
 }
 SyntheticPart.prototype = {
@@ -161,6 +163,12 @@ SyntheticPart.prototype = {
   },
   get contentIdHeaderValue() {
     return '<' + this._contentId + '>';
+  },
+  get hasExtraHeaders() {
+    return this._extraHeaders;
+  },
+  get extraHeaders() {
+    return this._extraHeaders;
   },
 };
 
@@ -228,6 +236,9 @@ SyntheticPartMulti.prototype = {
              '\r\n';
       if (part.hasContentId)
         s += 'Content-ID: ' + part.contentIdHeaderValue + '\r\n';
+      if (part.hasExtraHeaders)
+        for each (let [k, v] in Iterator(part.extraHeaders))
+          s += k + ': ' + v + '\r\n';
       s += '\r\n';
       s += part.toMessageString() + '\r\n\r\n';
     }
@@ -621,33 +632,16 @@ SyntheticMessage.prototype = {
 };
 
 /**
- * Write a list of messages in mbox format to a file
+ * Write a list of messages to a folder
  *
  * @param aMessages The list of SyntheticMessages instances to write.
- * @param aBaseDir The base directory to start from.
- * @param ... Zero or more relative paths to join to the base directory.
+ * @param aFolder The folder to write to.
  */
-function writeMessagesToMbox (aMessages, aBaseDir) {
-  try {
-    let targetFile = Cc["@mozilla.org/file/local;1"]
-                       .createInstance(Ci.nsILocalFile);
-    targetFile.initWithFile(aBaseDir);
-    for (let iArg = 2; iArg < arguments.length; iArg++)
-      targetFile.appendRelativePath(arguments[iArg]);
-
-    let ostream = Cc["@mozilla.org/network/file-output-stream;1"]
-                    .createInstance(Ci.nsIFileOutputStream);
-    ostream.init(targetFile, -1, -1, 0);
-
-    for (let iMessage = 0; iMessage < aMessages.length; iMessage++) {
-      aMessages[iMessage].writeToMboxStream(ostream);
-    }
-
-    ostream.close();
-  }
-  catch (ex) {
-    do_throw(ex);
-  }
+function addMessagesToFolder (aMessages, aFolder)
+{
+  let localFolder = aFolder.QueryInterface(Ci.nsIMsgLocalMailFolder);
+  for (let [, message] in Iterator(aMessages))
+    localFolder.addMessage(message.toMboxString());
 }
 
 /**
@@ -949,6 +943,25 @@ MessageGenerator.prototype = {
 
     msg.callerData = aArgs.callerData;
 
+    return msg;
+  },
+
+  /**
+   * Create an encrypted SMime message. It's just a wrapper around makeMessage,
+   * that sets the right content-type. Use like makeMessage.
+   */
+  makeEncryptedSMimeMessage:
+      function MessageGenerate_makeEncryptedSMimeMessage(aOptions) {
+    if (!aOptions)
+      aOptions = {};
+    aOptions.clobberHeaders = {
+      'Content-Transfer-Encoding': 'base64',
+      'Content-Disposition': 'attachment; filename="smime.p7m"',
+    }
+    if (!aOptions.body)
+      aOptions.body = {};
+    aOptions.body.contentType = 'application/pkcs7-mime; name="smime.p7m"';
+    let msg = this.makeMessage(aOptions);
     return msg;
   },
 

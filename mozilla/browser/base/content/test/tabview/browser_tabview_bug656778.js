@@ -5,16 +5,9 @@ function test() {
   waitForExplicitFinish();
 
   registerCleanupFunction(function () {
-    let prefs = [
-      TabView.PREF_FIRST_RUN,
-      TabView.PREF_STARTUP_PAGE,
-      TabView.PREF_RESTORE_ENABLED_ONCE
-    ];
-
-    prefs.forEach(function (pref) {
-      if (Services.prefs.prefHasUserValue(pref))
-        Services.prefs.clearUserPref(pref);
-    });
+    Services.prefs.clearUserPref(TabView.PREF_FIRST_RUN);
+    Services.prefs.clearUserPref(TabView.PREF_STARTUP_PAGE);
+    Services.prefs.clearUserPref(TabView.PREF_RESTORE_ENABLED_ONCE);
   });
 
   let assertBoolPref = function (pref, value) {
@@ -35,6 +28,16 @@ function test() {
     assertIntPref(TabView.PREF_STARTUP_PAGE, startupPage);
     assertBoolPref(TabView.PREF_FIRST_RUN, firstRun);
     assertBoolPref(TabView.PREF_RESTORE_ENABLED_ONCE, enabledOnce);
+  };
+
+  let assertNotificationBannerVisible = function (win) {
+    let cw = win.TabView.getContentWindow();
+    is(cw.iQ(".banner").length, 1, "notification banner is visible");
+  };
+
+  let assertNotificationBannerNotVisible = function (win) {
+    let cw = win.TabView.getContentWindow();
+    is(cw.iQ(".banner").length, 0, "notification banner is not visible");
   };
 
   let next = function () {
@@ -59,6 +62,7 @@ function test() {
     setPreferences(1, true, false);
 
     newWindowWithTabView(function (win) {
+      assertNotificationBannerVisible(win);
       assertPreferences(3, true, true);
 
       win.close();
@@ -79,10 +83,12 @@ function test() {
     setPreferences(1, false, false);
 
     newWindowWithTabView(function (win) {
+      assertNotificationBannerNotVisible(win);
       assertPreferences(1, false, false);
 
       win.TabView.firstUseExperienced = true;
 
+      assertNotificationBannerVisible(win);
       assertPreferences(3, true, true);
 
       win.close();
@@ -101,6 +107,7 @@ function test() {
     setPreferences(3, true, false);
 
     newWindowWithTabView(function (win) {
+      assertNotificationBannerNotVisible(win);
       assertPreferences(3, true, true);
 
       win.close();
@@ -118,6 +125,7 @@ function test() {
     setPreferences(3, true, true);
 
     newWindowWithTabView(function (win) {
+      assertNotificationBannerNotVisible(win);
       assertPreferences(3, true, true);
 
       win.close();
@@ -136,6 +144,7 @@ function test() {
     setPreferences(1, true, true);
 
     newWindowWithTabView(function (win) {
+      assertNotificationBannerNotVisible(win);
       assertPreferences(1, true, true);
 
       win.close();

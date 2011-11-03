@@ -88,12 +88,7 @@
 #include "nsAutoPtr.h"
 #include "nsIMsgFolder.h"
 #include "nsIMsgAsyncPrompter.h"
-#ifndef MOZILLA_5_0_BRANCH
 #include "mozilla/ReentrantMonitor.h"
-#else
-#include "mozilla/Monitor.h"
-#define ReentrantMonitorAutoEnter MonitorAutoEnter
-#endif
 class nsIMAPMessagePartIDArray;
 class nsIMsgIncomingServer;
 class nsIPrefBranch;
@@ -381,22 +376,14 @@ private:
   nsCOMPtr<nsIEventTarget> m_sinkEventTarget;
   nsCOMPtr<nsIThread>      m_iThread;
   PRThread     *m_thread;
-#ifndef MOZILLA_5_0_BRANCH
-  // When we don't need 5.0 branch, should remove typedef and explicitly
-  // use mozilla::ReentrantMonitor or set the namespace.
-  typedef mozilla::ReentrantMonitor ReentrantMonitor;
-#else
-  typedef mozilla::Monitor ReentrantMonitor;
-#endif
-  ReentrantMonitor m_dataAvailableMonitor;   // used to notify the arrival of data from the server
-  ReentrantMonitor m_urlReadyToRunMonitor;   // used to notify the arrival of a new url to be processed
-  ReentrantMonitor m_pseudoInterruptMonitor;
-  ReentrantMonitor m_dataMemberMonitor;
-  ReentrantMonitor m_threadDeathMonitor;
-  ReentrantMonitor m_waitForBodyIdsMonitor;
-  ReentrantMonitor m_fetchMsgListMonitor;
-  ReentrantMonitor m_fetchBodyListMonitor;
-  ReentrantMonitor m_passwordReadyMonitor;
+  mozilla::ReentrantMonitor m_dataAvailableMonitor;   // used to notify the arrival of data from the server
+  mozilla::ReentrantMonitor m_urlReadyToRunMonitor;   // used to notify the arrival of a new url to be processed
+  mozilla::ReentrantMonitor m_pseudoInterruptMonitor;
+  mozilla::ReentrantMonitor m_dataMemberMonitor;
+  mozilla::ReentrantMonitor m_threadDeathMonitor;
+  mozilla::ReentrantMonitor m_waitForBodyIdsMonitor;
+  mozilla::ReentrantMonitor m_fetchBodyListMonitor;
+  mozilla::ReentrantMonitor m_passwordReadyMonitor;
   mozilla::Mutex mLock;
   // If we get an async password prompt, this is where the UI thread
   // stores the password, before notifying the imap thread of the password
@@ -439,11 +426,9 @@ private:
   PRBool  CheckNewMail();
 
   // folder opening and listing header functions
-  void UpdatedMailboxSpec(nsImapMailboxSpec *aSpec);
   void FolderHeaderDump(PRUint32 *msgUids, PRUint32 msgCount);
   void FolderMsgDump(PRUint32 *msgUids, PRUint32 msgCount, nsIMAPeFetchFields fields);
   void FolderMsgDumpLoop(PRUint32 *msgUids, PRUint32 msgCount, nsIMAPeFetchFields fields);
-  void WaitForPotentialListOfMsgsToFetch(PRUint32 **msgIdList, PRUint32 &msgCount);
   void WaitForPotentialListOfBodysToFetch(PRUint32 **msgIdList, PRUint32 &msgCount);
   void HeaderFetchCompleted();
   void UploadMessageFromFile(nsIFile* file, const char* mailboxName, PRTime date,
@@ -455,10 +440,7 @@ private:
     imapMessageFlagsType flags,
     PRUint16 userFlags);
 
-  // header listing data
-  PRBool    m_fetchMsgListIsNew;
-  PRUint32  m_fetchCount;
-  PRUint32  *m_fetchMsgIdList;
+  // body fetching listing data
   PRBool    m_fetchBodyListIsNew;
   PRUint32  m_fetchBodyCount;
   PRUint32  *m_fetchBodyIdList;
@@ -776,12 +758,12 @@ class nsIMAPMailboxInfo
 public:
   nsIMAPMailboxInfo(const nsACString &aName, char aDelimiter);
   virtual ~nsIMAPMailboxInfo();
-  
+
   void   SetChildrenListed(PRBool childrenListed);
   PRBool GetChildrenListed();
   const  nsACString& GetMailboxName();
   char   GetDelimiter();
-  
+
 protected:
   nsCString mMailboxName;
   PRBool   mChildrenListed;

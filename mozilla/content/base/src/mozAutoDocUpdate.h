@@ -34,6 +34,10 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "nsContentUtils.h"
+#include "nsIDocument.h"
+#include "nsIDocumentObserver.h"
+
 /**
  * Helper class to automatically handle batching of document updates.  This
  * class will call BeginUpdate on construction and EndUpdate on destruction on
@@ -52,9 +56,6 @@ public:
     if (mDocument) {
       mDocument->BeginUpdate(mUpdateType);
     }
-    else if (aUpdateType == UPDATE_CONTENT_MODEL) {
-      nsContentUtils::AddRemovableScriptBlocker();
-    }
     else {
       nsContentUtils::AddScriptBlocker();
     }
@@ -64,9 +65,6 @@ public:
   {
     if (mDocument) {
       mDocument->EndUpdate(mUpdateType);
-    }
-    else if (mUpdateType == UPDATE_CONTENT_MODEL) {
-      nsContentUtils::RemoveRemovableScriptBlocker();
     }
     else {
       nsContentUtils::RemoveScriptBlocker();

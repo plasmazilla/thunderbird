@@ -94,6 +94,7 @@ public:
      */
     void                    SetCacheParentDirectory(nsILocalFile * parentDir);
     void                    SetCapacity(PRUint32  capacity);
+    void                    SetMaxEntrySize(PRInt32  maxSizeInKilobytes);
 
 /* private: */
 
@@ -105,13 +106,24 @@ public:
     nsDiskCacheMap *        CacheMap()    { return &mCacheMap; }
     
 private:    
+    friend class nsDiskCacheDeviceDeactivateEntryEvent;
     /**
      *  Private methods
      */
 
+    inline bool IsValidBinding(nsDiskCacheBinding *binding)
+    {
+        NS_ASSERTION(binding, "  binding == nsnull");
+        NS_ASSERTION(binding->mDeactivateEvent == nsnull,
+                     "  entry in process of deactivation");
+        return (binding && !binding->mDeactivateEvent);
+    }
+
     PRBool                  Initialized() { return mInitialized; }
 
     nsresult                Shutdown_Private(PRBool flush);
+    nsresult                DeactivateEntry_Private(nsCacheEntry * entry,
+                                                    nsDiskCacheBinding * binding);
 
     nsresult                OpenDiskCache();
     nsresult                ClearDiskCache();
@@ -124,6 +136,7 @@ private:
     nsCOMPtr<nsILocalFile>  mCacheDirectory;
     nsDiskCacheBindery      mBindery;
     PRUint32                mCacheCapacity;     // Unit is KiB's
+    PRInt32                 mMaxEntrySize;      // Unit is bytes internally
     // XXX need soft/hard limits, currentTotal
     nsDiskCacheMap          mCacheMap;
     PRPackedBool            mInitialized;

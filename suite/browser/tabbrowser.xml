@@ -458,6 +458,14 @@
                                                       aCurTotalProgress, aMaxTotalProgress]);
             },
 
+            onProgressChange64: function (aWebProgress, aRequest,
+                                          aCurSelfProgress, aMaxSelfProgress,
+                                          aCurTotalProgress, aMaxTotalProgress) {
+              return this.onProgressChange(aWebProgress, aRequest,
+                aCurSelfProgress, aMaxSelfProgress, aCurTotalProgress,
+                aMaxTotalProgress);
+            },
+
             onStateChange: function (aWebProgress, aRequest, aStateFlags, aStatus) {
               if (!aRequest)
                 return;
@@ -480,7 +488,7 @@
                 if (aWebProgress.DOMWindow == this.mBrowser.contentWindow)
                   this.mBrowser.userTypedClear += 2;
 
-                if (!this.mBlank) {
+                if (!this.mBlank && !(aStateFlags & nsIWebProgressListener.STATE_RESTORING)) {
                   this.mTab.removeAttribute("progress");
                   this.mTab.setAttribute("busy", "true");
                   this.mTab.label = this.mTabBrowser.mStringBundle.getString("tabs.loading");
@@ -501,6 +509,8 @@
                   this.mBlank = false;
 
                 this.mTab.removeAttribute("busy");
+                if (!this.mTab.selected)
+                  this.mTab.setAttribute("unread", "true");
 
                 var location = this.mBrowser.currentURI;
                 if (this.mBrowser.mIconURL) {
@@ -878,9 +888,10 @@
             this.mProgressListeners.forEach(
               function notifyUrlBar(element) {
                 try {
-                  element.onLocationChange(aWebProgress, aRequest, aLocation);
+                  if ("onLocationChange" in element)
+                    element.onLocationChange(aWebProgress, aRequest, aLocation);
                   // If switching tabs, the security may have changed.
-                  if (aSecurityUI)
+                  if (aSecurityUI && "onSecurityChange" in element)
                     element.onSecurityChange(aWebProgress, null, aSecurityUI.state);
                   // If the document already exists, just resend cached data.
                   if (!aRequest && aWebProgress.DOMWindow == aBrowser.contentWindow) {
@@ -1042,6 +1053,7 @@
             newBrowser.docShell.isActive = true;
             this.mCurrentBrowser = newBrowser;
             this.mCurrentTab = this.selectedTab;
+            this.mCurrentTab.removeAttribute("unread");
             var tabListener = this.mTabListeners[this.tabContainer.selectedIndex];
 
             // Update the URL bar.
@@ -2265,12 +2277,15 @@
         <parameter name="aDestIndex"/>
         <body>
           <![CDATA[
-            this._browsers = null; // invalidate cache
-            this.mLastRelatedIndex = 0;
-
             // for compatibility with extensions
             if (typeof(aSrcIndex) != "number")
               aSrcIndex = this.getTabIndex(aSrcIndex);
+
+            if (aSrcIndex == aDestIndex)
+              return;
+
+            this._browsers = null; // invalidate cache
+            this.mLastRelatedIndex = 0;
 
             this.mTabFilters.splice(aDestIndex, 0, this.mTabFilters.splice(aSrcIndex, 1)[0]);
             this.mTabListeners.splice(aDestIndex, 0, this.mTabListeners.splice(aSrcIndex, 1)[0]);
@@ -2287,8 +2302,6 @@
             var evt = document.createEvent("UIEvents");
             evt.initUIEvent("TabMove", true, false, window, aSrcIndex);
             tab.dispatchEvent(evt);
-
-            return tab;
           ]]>
         </body>
       </method>

@@ -47,8 +47,8 @@
 #include "nsIDOMElement.h"
 #include "nsIDOMHTMLAreaElement.h"
 #include "nsIFrame.h"
-#include "nsIImageFrame.h"
-#include "nsIImageMap.h"
+#include "nsImageFrame.h"
+#include "nsImageMap.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // nsHTMLImageMapAccessible
@@ -85,13 +85,13 @@ nsHTMLImageMapAccessible::AnchorCount()
 }
 
 nsAccessible*
-nsHTMLImageMapAccessible::GetAnchor(PRUint32 aAnchorIndex)
+nsHTMLImageMapAccessible::AnchorAt(PRUint32 aAnchorIndex)
 {
   return GetChildAt(aAnchorIndex);
 }
 
 already_AddRefed<nsIURI>
-nsHTMLImageMapAccessible::GetAnchorURI(PRUint32 aAnchorIndex)
+nsHTMLImageMapAccessible::AnchorURIAt(PRUint32 aAnchorIndex)
 {
   nsAccessible* area = GetChildAt(aAnchorIndex);
   if (!area)
@@ -168,8 +168,8 @@ nsHTMLAreaAccessible::GetNameInternal(nsAString & aName)
   return NS_OK;
 }
 
-NS_IMETHODIMP
-nsHTMLAreaAccessible::GetDescription(nsAString& aDescription)
+void
+nsHTMLAreaAccessible::Description(nsString& aDescription)
 {
   aDescription.Truncate();
 
@@ -177,8 +177,6 @@ nsHTMLAreaAccessible::GetDescription(nsAString& aDescription)
   nsCOMPtr<nsIDOMHTMLAreaElement> area(do_QueryInterface(mContent));
   if (area) 
     area->GetShape(aDescription);
-
-  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -203,14 +201,12 @@ nsHTMLAreaAccessible::GetBounds(PRInt32 *aX, PRInt32 *aY,
 
   nsIFrame *frame = GetFrame();
   NS_ENSURE_TRUE(frame, NS_ERROR_FAILURE);
-  nsIImageFrame *imageFrame = do_QueryFrame(frame);
+  nsImageFrame *imageFrame = do_QueryFrame(frame);
 
-  nsCOMPtr<nsIImageMap> map;
-  imageFrame->GetImageMap(presContext, getter_AddRefs(map));
+  nsImageMap* map = imageFrame->GetImageMap(presContext);
   NS_ENSURE_TRUE(map, NS_ERROR_FAILURE);
 
   nsRect rect;
-  nsIntRect orgRectPixels;
   nsresult rv = map->GetBoundsForAreaContent(mContent, rect);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -223,7 +219,7 @@ nsHTMLAreaAccessible::GetBounds(PRInt32 *aX, PRInt32 *aY,
   *aHeight = presContext->AppUnitsToDevPixels(rect.height - rect.y);
 
   // Put coords in absolute screen coords
-  orgRectPixels = frame->GetScreenRectExternal();
+  nsIntRect orgRectPixels = frame->GetScreenRectExternal();
   *aX += orgRectPixels.x;
   *aY += orgRectPixels.y;
 
@@ -233,22 +229,22 @@ nsHTMLAreaAccessible::GetBounds(PRInt32 *aX, PRInt32 *aY,
 ////////////////////////////////////////////////////////////////////////////////
 // nsHTMLAreaAccessible: nsAccessible public
 
-nsresult
-nsHTMLAreaAccessible::GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState)
+PRUint64
+nsHTMLAreaAccessible::NativeState()
 {
   // Bypass the link states specialization for non links.
   if (mRoleMapEntry &&
       mRoleMapEntry->role != nsIAccessibleRole::ROLE_NOTHING &&
       mRoleMapEntry->role != nsIAccessibleRole::ROLE_LINK) {
-    return nsAccessible::GetStateInternal(aState,aExtraState);
+    return nsAccessible::NativeState();
   }
 
-  return nsHTMLLinkAccessible::GetStateInternal(aState, aExtraState);
+  return nsHTMLLinkAccessible::NativeState();
 }
 
 nsAccessible*
-nsHTMLAreaAccessible::GetChildAtPoint(PRInt32 aX, PRInt32 aY,
-                                      EWhichChildAtPoint aWhichChild)
+nsHTMLAreaAccessible::ChildAtPoint(PRInt32 aX, PRInt32 aY,
+                                   EWhichChildAtPoint aWhichChild)
 {
   // Don't walk into area accessibles.
   return this;
@@ -265,13 +261,13 @@ nsHTMLAreaAccessible::StartOffset()
   // We return index in parent because image map contains area links only which
   // are embedded objects.
   // XXX: image map should be a hypertext accessible.
-  return GetIndexInParent();
+  return IndexInParent();
 }
 
 PRUint32
 nsHTMLAreaAccessible::EndOffset()
 {
-  return GetIndexInParent() + 1;
+  return IndexInParent() + 1;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

@@ -58,7 +58,7 @@
 #include "nsIDirectoryService.h"
 #include "nsIWindowWatcher.h"
 #include "nsIWindowMediator.h"
-#include "nsIDOMWindowInternal.h"
+#include "nsIDOMWindow.h"
 #include "nsPIDOMWindow.h"
 #include "nsIDocShell.h"
 #include "nsIBaseWindow.h"
@@ -89,7 +89,7 @@
 #define SHELL32_DLL NS_LITERAL_CSTRING("shell32.dll")
 #define DOUBLE_QUOTE "\""
 #define MAIL_COMMANDLINE_ARG " -mail"
-#define IDI_MAILBIFF 32767
+#define IDI_MAILBIFF 32576
 #define UNREAD_UPDATE_INTERVAL	(20 * 1000)	// 20 seconds
 #define ALERT_CHROME_URL "chrome://messenger/content/newmailalert.xul"
 #define NEW_MAIL_ALERT_ICON "chrome://messenger/skin/icons/new-mail-alert.png"
@@ -136,7 +136,7 @@ HWND hwndForDOMWindow( nsISupports *window )
   return (HWND)( ppWidget->GetNativeData( NS_NATIVE_WIDGET ) );
 }
 
-static void activateWindow( nsIDOMWindowInternal *win )
+static void activateWindow( nsIDOMWindow *win )
 {
   // Try to get native window handle.
   HWND hwnd = hwndForDOMWindow( win );
@@ -163,7 +163,7 @@ static void openMailWindow(const nsACString& aFolderUri)
   rv = mailSession->GetTopmostMsgWindow(getter_AddRefs(topMostMsgWindow));
   if (topMostMsgWindow)
   {
-    nsCOMPtr<nsIDOMWindowInternal> domWindow;
+    nsCOMPtr<nsIDOMWindow> domWindow;
     topMostMsgWindow->GetDomWindow(getter_AddRefs(domWindow));
     if (domWindow)
     {
@@ -628,7 +628,7 @@ nsresult nsMessengerWinIntegration::AlertClicked()
   rv = mailSession->GetTopmostMsgWindow(getter_AddRefs(topMostMsgWindow));
   if (topMostMsgWindow)
   {
-    nsCOMPtr<nsIDOMWindowInternal> domWindow;
+    nsCOMPtr<nsIDOMWindow> domWindow;
     topMostMsgWindow->GetDomWindow(getter_AddRefs(domWindow));
     if (domWindow)
     {

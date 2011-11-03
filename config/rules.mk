@@ -153,16 +153,8 @@ endif
 
 testxpcobjdir = $(MOZDEPTH)/_tests/xpcshell
 
-# Test file installation
-ifneq (,$(filter WINNT os2-emx,$(HOST_OS_ARCH)))
-# Windows and OS/2 nsinstall can't recursively copy directories, so use nsinstall.py
-TEST_INSTALLER = $(PYTHON) $(MOZILLA_SRCDIR)/config/nsinstall.py
-else
-TEST_INSTALLER = $(INSTALL)
-endif
-
 define _INSTALL_TESTS
-$(TEST_INSTALLER) $(wildcard $(srcdir)/$(dir)/*) $(testxpcobjdir)/$(relativesrcdir)/$(dir)
+$(DIR_INSTALL) $(wildcard $(srcdir)/$(dir)/*) $(testxpcobjdir)/$(relativesrcdir)/$(dir)
 
 endef # do not remove the blank line!
 
@@ -170,9 +162,10 @@ SOLO_FILE ?= $(error Specify a test filename in SOLO_FILE when using check-inter
 
 libs::
 	$(foreach dir,$(XPCSHELL_TESTS),$(_INSTALL_TESTS))
-	$(PYTHON) $(MOZILLA_DIR)/config/buildlist.py \
-	  $(testxpcobjdir)/all-test-dirs.list \
-	  $(addprefix $(relativesrcdir)/,$(XPCSHELL_TESTS))
+	$(PYTHON) $(MOZILLA_DIR)/build/xpccheck.py \
+	  $(topsrcdir) \
+	  $(topsrcdir)/$(MOZ_BUILD_APP)/test/xpcshell.ini \
+	  $(addprefix $(topsrcdir)/$(relativesrcdir)/,$(XPCSHELL_TESTS))
 
 testxpcsrcdir = $(MOZILLA_SRCDIR)/testing/xpcshell
 
@@ -183,6 +176,7 @@ xpcshell-tests:
 	  -I$(MOZILLA_DIR)/build \
 	  $(testxpcsrcdir)/runxpcshelltests.py \
 	  --symbols-path=$(DIST)/crashreporter-symbols \
+	  --build-info-json=$(MOZDEPTH)/mozinfo.json \
 	  $(EXTRA_TEST_ARGS) \
 	  $(DIST)/bin/xpcshell \
 	  $(foreach dir,$(XPCSHELL_TESTS),$(testxpcobjdir)/$(relativesrcdir)/$(dir))
@@ -195,6 +189,7 @@ check-interactive:
 	  -I$(MOZILLA_DIR)/build \
 	  $(testxpcsrcdir)/runxpcshelltests.py \
 	  --symbols-path=$(DIST)/crashreporter-symbols \
+	  --build-info-json=$(MOZDEPTH)/mozinfo.json \
 	  --test-path=$(SOLO_FILE) \
 	  --profile-name=$(MOZ_APP_NAME) \
 	  --interactive \
@@ -207,6 +202,7 @@ check-one:
 	  -I$(MOZILLA_DIR)/build \
 	  $(testxpcsrcdir)/runxpcshelltests.py \
 	  --symbols-path=$(DIST)/crashreporter-symbols \
+	  --build-info-json=$(MOZDEPTH)/mozinfo.json \
 	  --test-path=$(SOLO_FILE) \
 	  --profile-name=$(MOZ_APP_NAME) \
 	  --verbose \
@@ -243,7 +239,7 @@ endif # ENABLE_TESTS
 #
 # Library rules
 #
-# If BUILD_STATIC_LIBS or FORCE_STATIC_LIB is set, build a static library.
+# If FORCE_STATIC_LIB is set, build a static library.
 # Otherwise, build a shared library.
 #
 
@@ -265,7 +261,7 @@ endif
 endif
 
 ifdef LIBRARY
-ifneq (_1,$(FORCE_SHARED_LIB)_$(BUILD_STATIC_LIBS))
+ifdef FORCE_SHARED_LIB
 ifdef MKSHLIB
 
 ifdef LIB_IS_C_ONLY
@@ -292,23 +288,11 @@ ifeq ($(OS_ARCH),OS2)
 DEF_FILE		:= $(SHARED_LIBRARY:.dll=.def)
 endif
 
-ifdef MOZ_ENABLE_LIBXUL
 EMBED_MANIFEST_AT=2
-endif
 
 endif # MKSHLIB
-endif # FORCE_SHARED_LIB && !BUILD_STATIC_LIBS
+endif # FORCE_SHARED_LIB
 endif # LIBRARY
-
-ifeq (,$(BUILD_STATIC_LIBS)$(FORCE_STATIC_LIB))
-LIBRARY			:= $(NULL)
-endif
-
-ifeq (_1,$(FORCE_SHARED_LIB)_$(BUILD_STATIC_LIBS))
-SHARED_LIBRARY		:= $(NULL)
-DEF_FILE		:= $(NULL)
-IMPORT_LIBRARY		:= $(NULL)
-endif
 
 ifdef FORCE_STATIC_LIB
 ifndef FORCE_SHARED_LIB
@@ -831,16 +815,9 @@ endif
 export::
 ifdef LIBRARY_NAME
 ifdef EXPORT_LIBRARY
-ifdef IS_COMPONENT
-ifdef BUILD_STATIC_LIBS
-	@$(PYTHON) $(MOZILLA_DIR)/config/buildlist.py $(FINAL_LINK_COMPS) $(STATIC_LIBRARY_NAME)
-ifdef MODULE_NAME
-	@$(PYTHON) $(MOZILLA_DIR)/config/buildlist.py $(FINAL_LINK_COMP_NAMES) $(MODULE_NAME)
-endif
-endif # BUILD_STATIC_LIBS
-else # !IS_COMPONENT
+ifndef IS_COMPONENT
 	$(PYTHON) $(MOZILLA_DIR)/config/buildlist.py $(FINAL_LINK_LIBS) $(STATIC_LIBRARY_NAME)
-endif # IS_COMPONENT
+endif # !IS_COMPONENT
 endif # EXPORT_LIBRARY
 endif # LIBRARY_NAME
 
@@ -1160,7 +1137,7 @@ endif
 #
 ifdef SHARED_LIBRARY_LIBS
 ifeq (,$(GNU_LD)$(filter-out OS2 WINNT WINCE, $(OS_ARCH)))
-ifneq (,$(BUILD_STATIC_LIBS)$(FORCE_STATIC_LIB))
+ifneq (,$(FORCE_STATIC_LIB))
 LOBJS	+= $(SHARED_LIBRARY_LIBS)
 endif
 else
@@ -1690,13 +1667,8 @@ $(XPIDL_GEN_DIR)/%.xpt: %.idl $(XPIDL_COMPILE) $(XPIDL_GEN_DIR)/.done
 
 # no need to link together if XPIDLSRCS contains only XPIDL_MODULE
 ifneq ($(XPIDL_MODULE).idl,$(strip $(XPIDLSRCS)))
-ifdef MOZILLA_5_0_BRANCH
-$(XPIDL_GEN_DIR)/$(XPIDL_MODULE).xpt: $(patsubst %.idl,$(XPIDL_GEN_DIR)/%.xpt,$(XPIDLSRCS)) $(GLOBAL_DEPS) $(XPIDL_LINK)
-	$(XPIDL_LINK) $(XPIDL_GEN_DIR)/$(XPIDL_MODULE).xpt $(patsubst %.idl,$(XPIDL_GEN_DIR)/%.xpt,$(XPIDLSRCS))
-else
 $(XPIDL_GEN_DIR)/$(XPIDL_MODULE).xpt: $(patsubst %.idl,$(XPIDL_GEN_DIR)/%.xpt,$(XPIDLSRCS)) $(GLOBAL_DEPS)
 	$(XPIDL_LINK) $(XPIDL_GEN_DIR)/$(XPIDL_MODULE).xpt $(patsubst %.idl,$(XPIDL_GEN_DIR)/%.xpt,$(XPIDLSRCS))
-endif # MOZILLA_5_0_BRANCH
 endif # XPIDL_MODULE.xpt != XPIDLSRCS
 
 libs:: $(XPIDL_GEN_DIR)/$(XPIDL_MODULE).xpt

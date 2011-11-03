@@ -69,7 +69,7 @@
 #include "nsIDocShellLoadInfo.h"
 #include "nsIMessengerWindowService.h"
 #include "nsIWindowMediator.h"
-#include "nsIDOMWindowInternal.h"
+#include "nsIDOMWindow.h"
 #include "nsIMsgSearchSession.h"
 #include "nsMailDirServiceDefs.h"
 #include "nsIWebNavigation.h"
@@ -560,95 +560,30 @@ nsNntpService::DecomposeNewsMessageURI(const char * aMessageURI, nsIMsgFolder **
 
   nsresult rv = NS_OK;
 
-  if (!PL_strncmp(aMessageURI, kNewsMessageRootURI, kNewsMessageRootURILen))
-  { // uri starts with news-message:/
-    nsCAutoString folderURI;
-    rv = nsParseNewsMessageURI(aMessageURI, folderURI, aMsgKey);
-    NS_ENSURE_SUCCESS(rv,rv);
+  // Construct the news URL
+  nsCOMPtr<nsIMsgMailNewsUrl> mailnewsurl = do_CreateInstance(NS_NNTPURL_CONTRACTID,&rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsINntpUrl> nntpUrl = do_QueryInterface(mailnewsurl, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+  rv = mailnewsurl->SetSpec(nsDependentCString(aMessageURI));
+  NS_ENSURE_SUCCESS(rv, rv);
 
-    rv = GetFolderFromUri(folderURI.get(), aFolder);
-    NS_ENSURE_SUCCESS(rv,rv);
-  }
-  else if (!PL_strncmp(aMessageURI, kNewsRootURI, kNewsRootURILen))
-  { // uri starts with news:/
-    nsCAutoString newsUrl(aMessageURI + kNewsRootURILen + 1);
+  // Get the group name and key from the url
+  nsCAutoString groupName;
+  rv = nntpUrl->GetGroup(groupName);
+  NS_ENSURE_SUCCESS(rv, rv);
 
-    PRInt32 groupPos = newsUrl.Find(kNewsURIGroupQuery); // find ?group=
-    PRInt32 keyPos   = newsUrl.Find(kNewsURIKeyQuery); // find &key=
-    if (groupPos != kNotFound && keyPos != kNotFound)
-    { // internal news uri news://host/message-id?group=mozilla.announce&key=15
-      nsCAutoString groupName;
-      nsCAutoString keyStr;
+  rv = nntpUrl->GetKey(aMsgKey);
+  NS_ENSURE_SUCCESS(rv, rv);
 
-      // setting up url
-      nsCOMPtr <nsIMsgMailNewsUrl> mailnewsurl = do_CreateInstance(NS_NNTPURL_CONTRACTID,&rv);
-      NS_ENSURE_SUCCESS(rv,rv);
-
-      nsCOMPtr <nsIMsgMessageUrl> msgUrl = do_QueryInterface(mailnewsurl, &rv);
-      NS_ENSURE_SUCCESS(rv,rv);
-
-      msgUrl->SetUri(aMessageURI);
-      mailnewsurl->SetSpec(nsDependentCString(aMessageURI));
-
-      // get group name and message key
-      groupName = Substring(newsUrl, groupPos + kNewsURIGroupQueryLen,
-                            keyPos - groupPos - kNewsURIGroupQueryLen);
-      keyStr = Substring(newsUrl, keyPos + kNewsURIKeyQueryLen);
-      // get message key
-      nsMsgKey key = nsMsgKey_None;
-      key = keyStr.ToInteger(&rv);
-      NS_ENSURE_SUCCESS(rv,rv);
-
-      // get userPass
-      nsCAutoString userPass;
-      rv = mailnewsurl->GetUserPass(userPass);
-      NS_ENSURE_SUCCESS(rv,rv);
-
-      // get hostName
-      nsCAutoString hostName;
-      rv = mailnewsurl->GetAsciiHost(hostName);
-      NS_ENSURE_SUCCESS(rv,rv);
-
-      // get server
-      nsCOMPtr <nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
-      NS_ENSURE_SUCCESS(rv,rv);
-
-      nsCString unescapedUserPass;
-      MsgUnescapeString(userPass, 0, unescapedUserPass);
-
-      nsCOMPtr<nsIMsgIncomingServer> server;
-      rv = accountManager->FindServer(unescapedUserPass, hostName,
-                                      NS_LITERAL_CSTRING("nntp"), getter_AddRefs(server));
-      NS_ENSURE_SUCCESS(rv,rv);
-
-      // get root folder
-      nsCOMPtr <nsIMsgFolder> rootFolder;
-      rv = server->GetRootFolder(getter_AddRefs(rootFolder));
-      NS_ENSURE_SUCCESS(rv,rv);
-
-      // get msg folder for group name
-      nsCOMPtr<nsIMsgFolder> child;
-      rv = rootFolder->GetChildNamed(NS_ConvertUTF8toUTF16(groupName),
-                                     getter_AddRefs(child));
-      NS_ENSURE_SUCCESS(rv,rv);
-
-      child.swap(*aFolder);
-      *aMsgKey = key;
-    }
-    else
-    {
-      rv = GetFolderFromUri(aMessageURI, aFolder);
-      NS_ENSURE_SUCCESS(rv,rv);
-      *aMsgKey = nsMsgKey_None;
-    }
-  }
-  else
+  // If there is no group, try the harder way.
+  if (groupName.IsEmpty())
   {
-    // This schema isn't supported
-    return NS_ERROR_INVALID_ARG;
+    *aMsgKey = nsMsgKey_None;
+    return GetFolderFromUri(aMessageURI, aFolder);
   }
 
-  return NS_OK;
+  return mailnewsurl->GetFolder(aFolder);
 }
 
 nsresult
@@ -716,8 +651,13 @@ nsNntpService::CopyMessage(const char * aSrcMessageURI, nsIStreamListener * aMai
 }
 
 NS_IMETHODIMP
-nsNntpService::CopyMessages(nsTArray<nsMsgKey> &keys, nsIMsgFolder *srcFolder, nsIStreamListener * aMailboxCopyHandler, PRBool moveMessage,
-               nsIUrlListener * aUrlListener, nsIMsgWindow *aMsgWindow, nsIURI **aURL)
+nsNntpService::CopyMessages(PRUint32 aNumKeys, nsMsgKey *akeys,
+                            nsIMsgFolder *srcFolder,
+                            nsIStreamListener * aMailboxCopyHandler,
+                            PRBool moveMessage,
+                            nsIUrlListener * aUrlListener,
+                            nsIMsgWindow *aMsgWindow,
+                            nsIURI **aURL)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -1368,7 +1308,12 @@ NS_IMETHODIMP nsNntpService::GetProtocolFlags(PRUint32 *aUritype)
 {
     NS_ENSURE_ARG_POINTER(aUritype);
     *aUritype = URI_NORELATIVE | URI_FORBIDS_AUTOMATIC_DOCUMENT_REPLACEMENT |
-      URI_LOADABLE_BY_ANYONE | ALLOWS_PROXY;
+      URI_LOADABLE_BY_ANYONE | ALLOWS_PROXY
+#ifdef IS_ORIGIN_IS_FULL_SPEC_DEFINED
+      | ORIGIN_IS_FULL_SPEC
+#endif
+    ;
+  
     return NS_OK;
 }
 
@@ -1756,7 +1701,6 @@ nsNntpService::HandleContent(const char * aContentType, nsIInterfaceRequestor* a
       NS_ENSURE_SUCCESS(rv, rv);
 
       PRInt32 cutChar = uriStr.FindChar('?');
-      NS_ASSERTION(cutChar > 0, "No query in the list-ids?");
       if (cutChar > 0)
         uriStr.SetLength(cutChar);
 
@@ -1804,6 +1748,8 @@ nsNntpService::MessageURIToMsgHdr(const char *uri, nsIMsgDBHdr **_retval)
 
   rv = DecomposeNewsMessageURI(uri, getter_AddRefs(folder), &msgKey);
   NS_ENSURE_SUCCESS(rv,rv);
+  if (!folder)
+    return NS_ERROR_NULL_POINTER;
 
   rv = folder->GetMessageHeader(msgKey, _retval);
   NS_ENSURE_SUCCESS(rv,rv);

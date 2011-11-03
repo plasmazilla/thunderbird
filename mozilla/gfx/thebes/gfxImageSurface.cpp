@@ -212,7 +212,7 @@ gfxImageSurface::CopyFrom(gfxImageSurface *other)
     if (other->mStride == mStride) {
         memcpy (mData, other->mData, mStride * mSize.height);
     } else {
-        int lineSize = PR_MIN(other->mStride, mStride);
+        int lineSize = NS_MIN(other->mStride, mStride);
         for (int i = 0; i < mSize.height; i++) {
             unsigned char *src = other->mData + other->mStride * i;
             unsigned char *dst = mData + mStride * i;
@@ -275,7 +275,7 @@ gfxImageSurface::MovePixels(const nsIntRect& aSourceRect,
                       source.Size() == dest.Size() &&
                       offset == (dest.TopLeft() - source.TopLeft()),
                       "Messed up clipping, crash or corruption will follow");
-    if (source.IsEmpty() || source == dest) {
+    if (source.IsEmpty() || source.IsEqualInterior(dest)) {
         return;
     }
 

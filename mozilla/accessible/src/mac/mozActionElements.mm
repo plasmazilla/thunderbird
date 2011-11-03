@@ -41,6 +41,8 @@
 
 #include "nsObjCExceptions.h"
 
+using namespace mozilla::a11y;
+
 extern const NSString *kInstanceDescriptionAttribute; // NSAccessibilityDescriptionAttribute
 extern const NSString *kTopLevelUIElementAttribute;   // NSAccessibilityTopLevelUIElementAttribute
 
@@ -157,12 +159,11 @@ enum CheckboxValue {
 
 - (int)isChecked
 {
-  PRUint32 state = 0;
-  mGeckoAccessible->GetStateInternal(&state, nsnull);
+  PRUint64 state = mGeckoAccessible->NativeState();
 
   // check if we're checked or in a mixed state
-  if (state & nsIAccessibleStates::STATE_CHECKED) {
-    return (state & nsIAccessibleStates::STATE_MIXED) ? kMixed : kChecked;
+  if (state & states::CHECKED) {
+    return (state & states::MIXED) ? kMixed : kChecked;
   }
   
   return kUnchecked;

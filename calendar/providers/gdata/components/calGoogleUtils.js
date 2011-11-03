@@ -72,8 +72,8 @@ var gGoogleSandbox;
  */
 function setCalendarPref(aCalendar, aPrefName, aPrefType, aPrefValue) {
 
-    setPref("calendar.google.calPrefs." + aCalendar.googleCalendarName + "." +
-            aPrefName, aPrefValue, aPrefType);
+    cal.setPref("calendar.google.calPrefs." + aCalendar.googleCalendarName + "." +
+                aPrefName, aPrefValue, aPrefType);
 
     return aPrefValue;
 }
@@ -91,8 +91,8 @@ function setCalendarPref(aCalendar, aPrefName, aPrefType, aPrefValue) {
  * @require aCalendar.googleCalendarName
  */
 function getCalendarPref(aCalendar, aPrefName) {
-    return getPrefSafe("calendar.google.calPrefs." +
-                       aCalendar.googleCalendarName + "."  + aPrefName);
+    return cal.getPrefSafe("calendar.google.calPrefs." +
+                           aCalendar.googleCalendarName + "."  + aPrefName);
 }
 
 /**
@@ -223,14 +223,15 @@ function passwordManagerRemove(aUsername) {
  * Converts a calIEvent to a string of xml data.
  *
  * @param aItem         The item to convert
+ * @param aCalendar     The calendar to use, this must be a calIGoogleCalendar
  * @param aAuthorEmail  The email of the author of the event
  * @param aAuthorName   The full name of the author of the event
  * @return              The xml data of the item
  */
-function ItemToXMLEntry(aItem, aAuthorEmail, aAuthorName) {
+function ItemToXMLEntry(aItem, aCalendar, aAuthorEmail, aAuthorName) {
 
     var selfIsOrganizer = (!aItem.organizer ||
-                            aItem.organizer.id == "mailto:" + aItem.calendar.googleCalendarName);
+                            aItem.organizer.id == "mailto:" + aCalendar.googleCalendarName);
 
     function addExtendedProperty(aName, aValue) {
         if (!selfIsOrganizer || !aValue) {
@@ -297,7 +298,7 @@ function ItemToXMLEntry(aItem, aAuthorEmail, aAuthorName) {
     entry.gd::where.@valueString = aItem.getProperty("LOCATION") || "";
 
     // gd:who
-    if (getPrefSafe("calendar.google.enableAttendees", false)) {
+    if (cal.getPrefSafe("calendar.google.enableAttendees", false)) {
         // XXX Only parse attendees if they are enabled, due to bug 407961
 
         var attendees = aItem.getAttendees({});
@@ -357,7 +358,7 @@ function ItemToXMLEntry(aItem, aAuthorEmail, aAuthorName) {
 
     // Don't notify attendees by default. Use a preference in case the user
     // wants this to be turned on.
-    var notify = getPrefSafe("calendar.google.sendEventNotifications", false);
+    var notify = cal.getPrefSafe("calendar.google.sendEventNotifications", false);
     entry.gCal::sendEventNotifications.@value = (notify ? "true" : "false");
 
     // gd:when
@@ -456,6 +457,8 @@ function ItemToXMLEntry(aItem, aAuthorEmail, aAuthorName) {
     // categories
     // Google does not support categories natively, but allows us to store data
     // as an "extendedProperty", so we do here
+    cal.WARN("CAT: " + aItem.getCategories({}).toSource() + " = " +
+             categoriesArrayToString(aItem.getCategories({})));
     addExtendedProperty("X-MOZ-CATEGORIES",
                         categoriesArrayToString(aItem.getCategories({})));
 
@@ -932,7 +935,7 @@ function XMLEntryToItem(aXMLEntry, aTimezone, aCalendar, aReferenceItem) {
         item.setProperty("LOCATION",
                          aXMLEntry.gd::where.@valueString.toString());
         // gd:who
-        if (getPrefSafe("calendar.google.enableAttendees", false)) {
+        if (cal.getPrefSafe("calendar.google.enableAttendees", false)) {
             // XXX Only parse attendees if they are enabled, due to bug 407961
 
             // This object can easily translate Google's values to our values.

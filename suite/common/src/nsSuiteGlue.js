@@ -96,9 +96,8 @@ SuiteGlue.prototype = {
     }
     delay = delay <= MAX_DELAY ? delay : MAX_DELAY;
 
-    let syncTemp = {};
-    Components.utils.import("resource://services-sync/service.js", syncTemp);
-    syncTemp.Weave.Service.delayedAutoConnect(delay);
+    Components.utils.import("resource://services-sync/main.js");
+    Weave.SyncScheduler.delayedAutoConnect(delay);
   },
 
   // nsIObserver implementation
@@ -486,9 +485,7 @@ SuiteGlue.prototype = {
   _showPluginUpdatePage: function(aWindow) {
     Services.prefs.setBoolPref("plugins.update.notifyUser", false);
 
-    var url = Components.classes["@mozilla.org/toolkit/URLFormatterService;1"]
-                        .getService(Components.interfaces.nsIURLFormatter)
-                        .formatURLPref("plugins.update.url");
+    var url = Services.urlFormatter.formatURLPref("plugins.update.url");
 
     aWindow.getBrowser().addTab(url, { focusNewTab: true });
   },
@@ -647,9 +644,7 @@ SuiteGlue.prototype = {
       else {
         // We have created a new database but we don't have any backup available.
         importBookmarks = true;
-        var dirService = Components.classes["@mozilla.org/file/directory_service;1"]
-                                   .getService(Components.interfaces.nsIProperties);
-        var bookmarksHTMLFile = dirService.get("BMarks", Components.interfaces.nsILocalFile);
+        var bookmarksHTMLFile = Services.dirsvc.get("BMarks", Components.interfaces.nsILocalFile);
         if (bookmarksHTMLFile.exists()) {
           // If bookmarks.html is available in current profile import it...
           importBookmarksHTML = true;
@@ -691,9 +686,7 @@ SuiteGlue.prototype = {
       }
       else {
         // Get bookmarks.html file location.
-        var bookmarksFile = Components.classes["@mozilla.org/file/directory_service;1"]
-                                      .getService(Components.interfaces.nsIProperties)
-                                      .get("BMarks", Components.interfaces.nsILocalFile);
+        var bookmarksFile = Services.dirsvc.get("BMarks", Components.interfaces.nsILocalFile);
         if (bookmarksFile.exists())
           bookmarksURI = Services.io.newFileURI(bookmarksFile);
       }

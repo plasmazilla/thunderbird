@@ -123,7 +123,6 @@ public:
 
   NS_IMETHOD BeginContext(PRInt32 aPosition) { return NS_OK; }
   NS_IMETHOD EndContext(PRInt32 aPosition) { return NS_OK; }
-  NS_IMETHOD WillProcessTokens(void) { return NS_OK; }
   NS_IMETHOD DidProcessTokens(void) { return NS_OK; }
   NS_IMETHOD WillProcessAToken(void) { return NS_OK; }
   NS_IMETHOD DidProcessAToken(void) { return NS_OK; }
@@ -241,7 +240,7 @@ protected:
                                           section.
                                           mHeaderCounter[1] for <h1> etc. */
 
-  nsRefPtr<mozilla::dom::Element> mContent;
+  nsRefPtr<mozilla::dom::Element> mElement;
 
   // For handling table rows
   nsAutoTArray<PRPackedBool, 8> mHasWrittenCellsForRow;

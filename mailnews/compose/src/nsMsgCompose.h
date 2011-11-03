@@ -109,7 +109,6 @@ private:
   nsresult CreateMessage(const char * originalMsgURI, MSG_ComposeType type, nsIMsgCompFields* compFields);
   void CleanUpRecipients(nsString& recipients);
   nsresult GetABDirectories(const nsACString& aDirUri,
-                            nsIRDFService *aRDFService,
                             nsCOMArray<nsIAbDirectory> &aDirArray);
   nsresult BuildMailListArray(nsIAbDirectory* parentDir,
                               nsISupportsArray* array);
@@ -123,7 +122,7 @@ private:
   PRBool                                    mConvertStructs;    // for TagConvertible
   
 	nsCOMPtr<nsIEditor>                       m_editor;
-	nsIDOMWindowInternal                      *m_window;
+	nsIDOMWindow                              *m_window;
   nsCOMPtr<nsIDocShell>                     mDocShell;
   nsCOMPtr<nsIBaseWindow>                   m_baseWindow;
 	nsMsgCompFields                           *m_compFields;

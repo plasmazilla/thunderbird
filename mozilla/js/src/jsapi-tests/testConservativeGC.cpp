@@ -1,6 +1,6 @@
 #include "tests.h"
 #include "jsobj.h"
-#include "jsstr.h"
+#include "vm/String.h"
 
 BEGIN_TEST(testConservativeGC)
 {
@@ -52,7 +52,7 @@ bool checkObjectFields(JSObject *savedCopy, JSObject *obj)
      * doing memcmp.
      */
     savedCopy->objShape = obj->objShape;
-    savedCopy->slots = obj->slots;
+    savedCopy->setSlotsPtr(obj->getSlotsPtr());
     CHECK(!memcmp(savedCopy, obj, sizeof(*obj)));
     return true;
 }

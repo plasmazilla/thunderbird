@@ -51,6 +51,10 @@
 #include "jsprvtd.h"
 #include "jspubtd.h"
 
+#include "frontend/ParseMaps.h"
+
+#include "jsatominlines.h"
+
 JS_BEGIN_EXTERN_C
 
 /*
@@ -154,14 +158,6 @@ struct JSStmtInfo {
 
 #define SET_STATEMENT_TOP(stmt, top)                                          \
     ((stmt)->update = (top), (stmt)->breaks = (stmt)->continues = (-1))
-
-#ifdef JS_SCOPE_DEPTH_METER
-# define JS_SCOPE_DEPTH_METERING(code) ((void) (code))
-# define JS_SCOPE_DEPTH_METERING_IF(cond, code) ((cond) ? (void) (code) : (void) 0)
-#else
-# define JS_SCOPE_DEPTH_METERING(code) ((void) 0)
-# define JS_SCOPE_DEPTH_METERING_IF(code, x) ((void) 0)
-#endif
 
 #define TCF_COMPILING           0x01 /* JSTreeContext is JSCodeGenerator */
 #define TCF_IN_FUNCTION         0x02 /* parsing inside function body */
@@ -277,6 +273,11 @@ struct JSStmtInfo {
 #define TCF_FUN_EXTENSIBLE_SCOPE 0x20000000
 
 /*
+ * The caller is JS_Compile*Script*.
+ */
+#define TCF_NEED_SCRIPT_OBJECT 0x40000000
+
+/*
  * Flags to check for return; vs. return expr; in a function.
  */
 #define TCF_RETURN_FLAGS        (TCF_RETURN_EXPR | TCF_RETURN_VOID)
@@ -301,6 +302,12 @@ struct JSTreeContext {              /* tree context for semantic checks */
     uint32          flags;          /* statement state flags, see above */
     uint32          bodyid;         /* block number of program/function body */
     uint32          blockidGen;     /* preincremented block number generator */
+    uint32          parenDepth;     /* nesting depth of parens that might turn out
+                                       to be generator expressions */
+    uint32          yieldCount;     /* number of |yield| tokens encountered at
+                                       non-zero depth in current paren tree */
+    uint32          argumentsCount; /* number of |arguments| references encountered
+                                       at non-zero depth in current paren tree */
     JSStmtInfo      *topStmt;       /* top of statement info stack */
     JSStmtInfo      *topScopeStmt;  /* top lexical scope statement */
     JSObjectBox     *blockChainBox; /* compile time block scope chain (NB: one
@@ -308,8 +315,14 @@ struct JSTreeContext {              /* tree context for semantic checks */
                                        chain when in head of let block/expr) */
     JSParseNode     *blockNode;     /* parse node for a block with let declarations
                                        (block with its own lexical scope)  */
-    JSAtomList      decls;          /* function, const, and var declarations */
+    js::AtomDecls   decls;          /* function, const, and var declarations */
     js::Parser      *parser;        /* ptr to common parsing and lexing data */
+    JSParseNode     *yieldNode;     /* parse node for a yield expression that might
+                                       be an error if we turn out to be inside a
+                                       generator expression */
+    JSParseNode     *argumentsNode; /* parse node for an arguments variable that
+                                       might be an error if we turn out to be
+                                       inside a generator expression */
 
   private:
     union {
@@ -336,7 +349,7 @@ struct JSTreeContext {              /* tree context for semantic checks */
         scopeChain_ = scopeChain;
     }
 
-    JSAtomList      lexdeps;        /* unresolved lexical name dependencies */
+    js::OwnedAtomDefnMapPtr lexdeps;/* unresolved lexical name dependencies */
     JSTreeContext   *parent;        /* enclosing function or global context */
     uintN           staticLevel;    /* static compilation unit nesting level */
 
@@ -350,22 +363,16 @@ struct JSTreeContext {              /* tree context for semantic checks */
     js::Bindings    bindings;       /* bindings in this code, including
                                        arguments if we're compiling a function */
 
-#ifdef JS_SCOPE_DEPTH_METER
-    uint16          scopeDepth;     /* current lexical scope chain depth */
-    uint16          maxScopeDepth;  /* maximum lexical scope chain depth */
-#endif
-
     void trace(JSTracer *trc);
 
     JSTreeContext(js::Parser *prs)
-      : flags(0), bodyid(0), blockidGen(0), topStmt(NULL), topScopeStmt(NULL),
-        blockChainBox(NULL), blockNode(NULL), parser(prs), scopeChain_(NULL),
-        parent(prs->tc), staticLevel(0), funbox(NULL), functionList(NULL),
-        innermostWith(NULL), bindings(prs->context, prs->emptyCallShape),
-        sharpSlotBase(-1)
+      : flags(0), bodyid(0), blockidGen(0), parenDepth(0), yieldCount(0), argumentsCount(0),
+        topStmt(NULL), topScopeStmt(NULL), blockChainBox(NULL), blockNode(NULL),
+        decls(prs->context), parser(prs), yieldNode(NULL), argumentsNode(NULL), scopeChain_(NULL),
+        lexdeps(prs->context), parent(prs->tc), staticLevel(0), funbox(NULL), functionList(NULL),
+        innermostWith(NULL), bindings(prs->context, prs->emptyCallShape), sharpSlotBase(-1)
     {
         prs->tc = this;
-        JS_SCOPE_DEPTH_METERING(scopeDepth = maxScopeDepth = 0);
     }
 
     /*
@@ -375,12 +382,23 @@ struct JSTreeContext {              /* tree context for semantic checks */
      */
     ~JSTreeContext() {
         parser->tc = this->parent;
-        JS_SCOPE_DEPTH_METERING_IF((maxScopeDepth != uint16(-1)),
-                                   JS_BASIC_STATS_ACCUM(&parser
-                                                          ->context
-                                                          ->runtime
-                                                          ->lexicalScopeDepthStats,
-                                                        maxScopeDepth));
+    }
+
+    /*
+     * JSCodeGenerator derives from JSTreeContext; however, only the top-level
+     * JSCodeGenerators are actually used as full-fledged tree contexts (to
+     * hold decls and lexdeps). We can avoid allocation overhead by making
+     * this distinction explicit.
+     */
+    enum InitBehavior {
+        USED_AS_TREE_CONTEXT,
+        USED_AS_CODE_GENERATOR
+    };
+
+    bool init(JSContext *cx, InitBehavior ib = USED_AS_TREE_CONTEXT) {
+        if (ib == USED_AS_CODE_GENERATOR)
+            return true;
+        return decls.init() && lexdeps.ensureMap(cx);
     }
 
     uintN blockid() { return topStmt ? topStmt->blockid : bodyid; }
@@ -458,11 +476,18 @@ struct JSTreeContext {              /* tree context for semantic checks */
         return flags & TCF_FUN_MUTATES_PARAMETER;
     }
 
-    void noteArgumentsUse() {
+    void noteArgumentsUse(JSParseNode *pn) {
         JS_ASSERT(inFunction());
+        countArgumentsUse(pn);
         flags |= TCF_FUN_USES_ARGUMENTS;
         if (funbox)
             funbox->node->pn_dflags |= PND_FUNARG;
+    }
+
+    void countArgumentsUse(JSParseNode *pn) {
+        JS_ASSERT(pn->pn_atom == parser->context->runtime->atomState.argumentsAtom);
+        argumentsCount++;
+        argumentsNode = pn;
     }
 
     bool needsEagerArguments() const {
@@ -592,7 +617,8 @@ struct JSCodeGenerator : public JSTreeContext
         uintN       currentLine;    /* line number for tree-based srcnote gen */
     } prolog, main, *current;
 
-    JSAtomList      atomList;       /* literals indexed for mapping */
+    js::OwnedAtomIndexMapPtr atomIndices; /* literals indexed for mapping */
+    js::AtomDefnMapPtr roLexdeps;
     uintN           firstLine;      /* first line, for js_NewScriptFromCG */
 
     intN            stackDepth;     /* current stack depth in script frame */
@@ -622,16 +648,17 @@ struct JSCodeGenerator : public JSTreeContext
     JSCGObjectList  regexpList;     /* list of emitted regexp that will be
                                        cloned during execution */
 
-    JSAtomList      upvarList;      /* map of atoms to upvar indexes */
-    JSUpvarArray    upvarMap;       /* indexed upvar pairs (JS_realloc'ed) */
+    js::OwnedAtomIndexMapPtr upvarIndices; /* map of atoms to upvar indexes */
 
-    typedef js::Vector<js::GlobalSlotArray::Entry, 16, js::ContextAllocPolicy> GlobalUseVector;
+    js::UpvarCookies upvarMap;      /* indexed upvar slot locations */
+
+    typedef js::Vector<js::GlobalSlotArray::Entry, 16> GlobalUseVector;
 
     GlobalUseVector globalUses;     /* per-script global uses */
-    JSAtomList      globalMap;      /* per-script map of global name to globalUses vector */
+    js::OwnedAtomIndexMapPtr globalMap; /* per-script map of global name to globalUses vector */
 
     /* Vectors of pn_cookie slot values. */
-    typedef js::Vector<uint32, 8, js::ContextAllocPolicy> SlotVector;
+    typedef js::Vector<uint32, 8> SlotVector;
     SlotVector      closedArgs;
     SlotVector      closedVars;
 
@@ -645,7 +672,11 @@ struct JSCodeGenerator : public JSTreeContext
     JSCodeGenerator(js::Parser *parser,
                     JSArenaPool *codePool, JSArenaPool *notePool,
                     uintN lineno);
-    bool init();
+    bool init(JSContext *cx, JSTreeContext::InitBehavior ib = USED_AS_CODE_GENERATOR);
+
+    JSContext *context() {
+        return parser->context;
+    }
 
     /*
      * Release cg->codePool, cg->notePool, and parser->context->tempPool to
@@ -672,6 +703,10 @@ struct JSCodeGenerator : public JSTreeContext
      */
     bool addGlobalUse(JSAtom *atom, uint32 slot, js::UpvarCookie *cookie);
 
+    bool hasUpvarIndices() const {
+        return upvarIndices.hasMap() && !upvarIndices->empty();
+    }
+
     bool hasSharps() const {
         bool rv = !!(flags & TCF_HAS_SHARPS);
         JS_ASSERT((sharpSlotBase >= 0) == rv);
@@ -686,6 +721,22 @@ struct JSCodeGenerator : public JSTreeContext
     JSVersion version() const { return parser->versionWithFlags(); }
 
     bool shouldNoteClosedName(JSParseNode *pn);
+
+    JS_ALWAYS_INLINE
+    bool makeAtomIndex(JSAtom *atom, jsatomid *indexp) {
+        js::AtomIndexAddPtr p = atomIndices->lookupForAdd(atom);
+        if (p) {
+            *indexp = p.value();
+            return true;
+        }
+
+        jsatomid index = atomIndices->count();
+        if (!atomIndices->add(p, atom, index))
+            return false;
+
+        *indexp = index;
+        return true;
+    }
 
     bool checkSingletonContext() {
         if (!compileAndGo() || inFunction())
@@ -934,6 +985,7 @@ typedef enum JSSrcNoteType {
     SRC_CONT2LABEL  = 17,       /* JSOP_GOTO for 'continue label' with atomid */
     SRC_SWITCH      = 18,       /* JSOP_*SWITCH with offset to end of switch,
                                    2nd off to first JSOP_CASE if condswitch */
+    SRC_SWITCHBREAK = 18,       /* JSOP_GOTO is a break in a switch */
     SRC_FUNCDEF     = 19,       /* JSOP_NOP for function f() with atomid */
     SRC_CATCH       = 20,       /* catch block has guard */
     SRC_EXTENDED    = 21,       /* extended source note, 32-159, in next byte */

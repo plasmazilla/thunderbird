@@ -42,6 +42,7 @@
 
 #include "nsVoidArray.h"
 #include "nsQuickSort.h"
+#include "nsXPCOM.h"
 
 /*
  * Read in an allocation dump, presumably one taken at shutdown (using
@@ -131,6 +132,8 @@ int main(int argc, char **argv)
                 argv[0]);
         return 1;
     }
+
+    NS_InitXPCOM2(NULL, NULL, NULL);
 
     ADLog log;
     if (!log.Read(argv[1])) {
@@ -337,7 +340,7 @@ int main(int argc, char **argv)
 
         // Loop over the sorted nodes twice, first printing the roots
         // and then the non-roots.
-        for (PRBool root_type = PR_TRUE;
+        for (PRInt32 root_type = PR_TRUE;
              root_type == PR_TRUE || root_type == PR_FALSE; --root_type) {
             if (root_type) {
                 printf("\n\n"
@@ -433,6 +436,8 @@ int main(int argc, char **argv)
 
     delete [] sorted_nodes;
     delete [] nodes;
+
+    NS_ShutdownXPCOM(NULL);
 
     return 0;
 }

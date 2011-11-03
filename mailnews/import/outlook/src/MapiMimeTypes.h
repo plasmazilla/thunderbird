@@ -45,7 +45,8 @@
 class CMimeTypes {
 public:
 
-static PRUint8 *  GetMimeType( nsCString& theExt);
+static PRUint8 *  GetMimeType(const nsCString& theExt);
+static PRUint8 *  GetMimeType(const nsString& theExt);
 
 protected:
   // Registry stuff

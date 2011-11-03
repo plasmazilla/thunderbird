@@ -46,16 +46,7 @@ include $(topsrcdir)/config/rules.mk
 
 MOZ_PKG_REMOVALS = $(srcdir)/removed-files.in
 
-ifdef MOZ_ENABLE_LIBXUL
 MOZ_PKG_MANIFEST_P = $(srcdir)/package-manifest.in
-else
-define message
-You need to build with --enable-libxul (the default, unless you specify
---disable-libxul or --enable-shared or --enable-debug) to package a build.
-endef
-default libs installer::
-  $(error $(message))
-endif
 
 MOZ_NONLOCALIZED_PKG_LIST = \
 	xpcom \
@@ -65,13 +56,6 @@ MOZ_NONLOCALIZED_PKG_LIST = \
 
 MOZ_LOCALIZED_PKG_LIST = \
 	$(AB_CD) \
-	$(NULL)
-
-MOZ_OPTIONAL_PKG_LIST = \
-	chatzilla \
-	debugqa \
-	inspector \
-	venkman \
 	$(NULL)
 
 DEFINES += -DAB_CD=$(AB_CD) -DMOZ_APP_NAME=$(MOZ_APP_NAME) -DPREF_DIR=$(PREF_DIR)
@@ -112,6 +96,10 @@ ifdef _MSC_VER
 DEFINES += -D_MSC_VER=$(_MSC_VER)
 endif
 
+ifdef MOZ_URL_CLASSIFIER
+DEFINES += -DMOZ_URL_CLASSIFIER=1
+endif
+
 ifdef MOZ_USE_NATIVE_UCONV
 DEFINES += -DMOZ_USE_NATIVE_UCONV=1
 endif
@@ -132,7 +120,6 @@ ifeq (,$(filter-out WINNT OS2,$(OS_ARCH)))
 DEFINES += -DWIN_OR_OS2=1
 endif
 
-# Don't ifdef MOZ_IPC this because mac ppc needs it too.
 include $(MOZILLA_SRCDIR)/ipc/app/defs.mk
 DEFINES += -DMOZ_CHILD_PROCESS_NAME=$(MOZ_CHILD_PROCESS_NAME)
 

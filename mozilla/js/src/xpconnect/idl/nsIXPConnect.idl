@@ -137,14 +137,6 @@ class nsWrapperCache;
 #define NS_ERROR_XPC_CANT_MODIFY_PROP_ON_WN            GENERATE_XPC_FAILURE(52)
 #define NS_ERROR_XPC_BAD_CONVERT_JS_ZERO_ISNOT_NULL    GENERATE_XPC_FAILURE(53)
 
-#ifdef XPC_IDISPATCH_SUPPORT
-// IDispatch support related errors
-#define NS_ERROR_XPC_COM_UNKNOWN                       GENERATE_XPC_FAILURE(54)
-#define NS_ERROR_XPC_COM_ERROR                         GENERATE_XPC_FAILURE(55)
-#define NS_ERROR_XPC_COM_INVALID_CLASS_ID              GENERATE_XPC_FAILURE(56)
-#define NS_ERROR_XPC_COM_CREATE_FAILED                 GENERATE_XPC_FAILURE(57)
-#define NS_ERROR_XPC_IDISPATCH_NOT_ENABLED             GENERATE_XPC_FAILURE(58)
-#endif
 // any new errors here should have an associated entry added in xpc.msg
 /***************************************************************************/
 %}
@@ -386,7 +378,7 @@ interface nsIXPCFunctionThisTranslator : nsISupports
     nsISupports TranslateThis(in nsISupports        aInitialThis,
                               in nsIInterfaceInfo   aInterfaceInfo,
                               in PRUint16           aMethodIndex,
-                              out PRBool            aHideFirstParamFromJS,
+                              out boolean            aHideFirstParamFromJS,
                               out nsIIDPtr          aIIDOfResult);
 };
 
@@ -598,19 +590,11 @@ interface nsIXPConnect : nsISupports
 
     void debugDump(in short depth);
     void debugDumpObject(in nsISupports aCOMObj, in short depth);
-    void debugDumpJSStack(in PRBool showArgs,
-                          in PRBool showLocals,
-                          in PRBool showThisProps);
+    void debugDumpJSStack(in boolean showArgs,
+                          in boolean showLocals,
+                          in boolean showThisProps);
     void debugDumpEvalInJSStackFrame(in PRUint32 aFrameNumber,
                                      in string aSourceText);
-
-    /**
-    * Set fallback JSContext to use when xpconnect can't find an appropriate
-    * context to use to execute JavaScript.
-    *
-    * @deprecated Use nsIThreadJSContextStack::safeJSContext instead.
-    */
-    [deprecated] void setSafeJSContextForCurrentThread(in JSContextPtr cx);
 
     /**
     * wrapJSAggregatedToNative is just like wrapJS except it is used in cases
@@ -669,7 +653,7 @@ interface nsIXPConnect : nsISupports
                               in JSObjectPtr  aScope,
                               in nsIClassInfo aClassInfo);
 
-    void releaseJSContext(in JSContextPtr aJSContext, in PRBool noGC);
+    void releaseJSContext(in JSContextPtr aJSContext, in boolean noGC);
 
     jsval variantToJS(in JSContextPtr ctx, in JSObjectPtr scope, in nsIVariant value);
     nsIVariant JSToVariant(in JSContextPtr ctx, in jsval value);
@@ -716,7 +700,7 @@ interface nsIXPConnect : nsISupports
      */
     [noscript] jsval evalInSandboxObject(in AString source, in JSContextPtr cx,
                                          in nsIXPConnectJSObjectHolder sandbox,
-                                         in PRBool returnStringOnly);
+                                         in boolean returnStringOnly);
 
     /**
      * Root JS objects held by aHolder.
@@ -777,7 +761,7 @@ interface nsIXPConnect : nsISupports
      *     The interfaces the class implements; interfaceArray and
      *     interfaceCount are like what nsIClassInfo.getInterfaces returns.
      */
-    [noscript,notxpcom] PRBool defineDOMQuickStubs(
+    [noscript,notxpcom] boolean defineDOMQuickStubs(
         in JSContextPtr cx,
         in JSObjectPtr proto,
         in PRUint32 flags,
@@ -785,7 +769,6 @@ interface nsIXPConnect : nsISupports
         [array, size_is(interfaceCount)] in nsIIDPtr interfaceArray);
 
 %{C++
-#ifndef XPCONNECT_STANDALONE
     /**
      * Get the object principal for this wrapper.  Note that this may well end
      * up being null; in that case one should seek principals elsewhere.  Null
@@ -794,7 +777,6 @@ interface nsIXPConnect : nsISupports
      */
     virtual nsIPrincipal* GetPrincipal(JSObject* obj,
                                        PRBool allowShortCircuit) const = 0;
-#endif
     virtual char* DebugPrintJSStack(PRBool showArgs,
                                     PRBool showLocals,
                                     PRBool showThisProps) = 0;
@@ -820,5 +802,5 @@ interface nsIXPConnect : nsISupports
      * This method will turn debug mode on or off when the context 
      * stack reaches zero length.
      */
-    [noscript] void setDebugModeWhenPossible(in PRBool mode);
+    [noscript] void setDebugModeWhenPossible(in boolean mode);
 };

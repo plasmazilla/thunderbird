@@ -261,7 +261,7 @@ nsICODecoder::WriteInternal(const char* aBuffer, PRUint32 aCount)
     }
 
     PRUint32 imageLength;
-    rv = mImage->AppendFrame(0, 0, mDirEntry.mWidth, mDirEntry.mHeight,
+    rv = mImage->EnsureFrame(0, 0, 0, mDirEntry.mWidth, mDirEntry.mHeight,
                              gfxASurface::ImageFormatARGB32, (PRUint8**)&mImageData, &imageLength);
     if (NS_FAILED(rv)) {
       PostDecoderError(rv);
@@ -433,7 +433,7 @@ nsICODecoder::WriteInternal(const char* aBuffer, PRUint32 aCount)
     }
 
     while (mCurLine > 0 && aCount > 0) {
-      PRUint32 toCopy = PR_MIN(rowSize - mRowBytes, aCount);
+      PRUint32 toCopy = NS_MIN(rowSize - mRowBytes, aCount);
       if (toCopy) {
         memcpy(mRow + mRowBytes, aBuffer, toCopy);
         aCount -= toCopy;

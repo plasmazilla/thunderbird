@@ -212,7 +212,7 @@ nsBrowserStatusHandler.prototype =
       // attrs on XUL elements. -- hyatt
       var percentage = (aCurTotalProgress * 100) / aMaxTotalProgress;
       this.statusMeter.value = percentage;
-    } 
+    }
   },
 
   onStateChange : function(aWebProgress, aRequest, aStateFlags, aStatus)
@@ -230,10 +230,12 @@ nsBrowserStatusHandler.prototype =
           aRequest && aWebProgress.DOMWindow == content)
         this.startDocumentLoad(aRequest);
 
-      // Show the progress meter
-      this.statusPanel.collapsed = false;
-      // Turn the throbber on.
-      this.throbberElement.setAttribute("busy", "true");
+      if (!(aStateFlags & nsIWebProgressListener.STATE_RESTORING)) {
+        // Show the progress meter
+        this.statusPanel.collapsed = false;
+        // Turn the throbber on.
+        this.throbberElement.setAttribute("busy", "true");
+      }
 
       // XXX: These need to be based on window activity...
       this.stopButton.disabled = false;
@@ -302,13 +304,13 @@ nsBrowserStatusHandler.prototype =
     if (gContextMenu) {
       // Optimise for the common case
       if (aWebProgress.DOMWindow == content)
-        gContextMenu.menu.hidePopup();
+        document.getElementById("contentAreaContextMenu").hidePopup();
       else {
         for (var contextWindow = gContextMenu.target.ownerDocument.defaultView;
              contextWindow != contextWindow.parent;
              contextWindow = contextWindow.parent) {
           if (contextWindow == aWebProgress.DOMWindow) {
-            gContextMenu.menu.hidePopup();
+            document.getElementById("contentAreaContextMenu").hidePopup();
             break;
           }
         }
@@ -453,8 +455,6 @@ nsBrowserStatusHandler.prototype =
   startDocumentLoad : function(aRequest)
   {
     var uri = aRequest.QueryInterface(Components.interfaces.nsIChannel).originalURI;
-    var observerService = Components.classes["@mozilla.org/observer-service;1"]
-                                    .getService(Components.interfaces.nsIObserverService);
 
     // clear out search-engine data
     getBrowser().selectedBrowser.engines = null;
@@ -468,7 +468,7 @@ nsBrowserStatusHandler.prototype =
       URLBarSetURI(uri);
 
     try {
-      observerService.notifyObservers(content, "StartDocumentLoad", uri.spec);
+      Services.obs.notifyObservers(content, "StartDocumentLoad", uri.spec);
     } catch (e) {
     }
   },
@@ -491,12 +491,9 @@ nsBrowserStatusHandler.prototype =
       dump('\n'); 
     }
 
-    var observerService = Components.classes["@mozilla.org/observer-service;1"]
-                                    .getService(Components.interfaces.nsIObserverService);
-
     var notification = Components.isSuccessCode(aStatus) ? "EndDocumentLoad" : "FailDocumentLoad";
     try {
-      observerService.notifyObservers(content, notification, urlStr);
+      Services.obs.notifyObservers(content, notification, urlStr);
     } catch (e) {
     }
   }

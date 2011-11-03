@@ -118,7 +118,7 @@
 // objects alive during the unlinking.
 // 
 
-#if !defined(__MINGW32__) && !defined(WINCE)
+#if !defined(__MINGW32__)
 #ifdef WIN32
 #include <crtdbg.h>
 #include <errno.h>
@@ -144,14 +144,13 @@
 #include "nsIConsoleService.h"
 #include "nsServiceManagerUtils.h"
 #include "nsThreadUtils.h"
-#include "nsTPtrArray.h"
 #include "nsTArray.h"
 #include "mozilla/Services.h"
 #include "nsICycleCollectorListener.h"
 #include "nsIXPConnect.h"
 #include "nsIJSRuntimeService.h"
+#include "nsIMemoryReporter.h"
 #include "xpcpublic.h"
-
 #include <stdio.h>
 #include <string.h>
 #ifdef WIN32
@@ -165,6 +164,7 @@
 
 #include "mozilla/Mutex.h"
 #include "mozilla/CondVar.h"
+#include "mozilla/Telemetry.h"
 
 using namespace mozilla;
 
@@ -320,6 +320,7 @@ public:
     {
         mSentinelAndBlocks[0].block = nsnull;
         mSentinelAndBlocks[1].block = nsnull;
+        mNumBlocks = 0;
     }
 
     ~EdgePool()
@@ -335,6 +336,9 @@ public:
         while (b) {
             Block *next = b->Next();
             delete b;
+            NS_ASSERTION(mNumBlocks > 0,
+                         "Expected EdgePool mNumBlocks to be positive.");
+            mNumBlocks--;
             b = next;
         }
 
@@ -351,7 +355,7 @@ private:
         Block *block;
     };
     struct Block {
-        enum { BlockSize = 64 * 1024 };
+        enum { BlockSize = 16 * 1024 };
 
         PtrInfoOrBlock mPointers[BlockSize];
         Block() {
@@ -369,6 +373,7 @@ private:
     // Store the null sentinel so that we can have valid iterators
     // before adding any edges and without adding any blocks.
     PtrInfoOrBlock mSentinelAndBlocks[2];
+    PRUint32 mNumBlocks;
 
     Block*& Blocks() { return mSentinelAndBlocks[1].block; }
 
@@ -414,7 +419,8 @@ public:
         Builder(EdgePool &aPool)
             : mCurrent(&aPool.mSentinelAndBlocks[0]),
               mBlockEnd(&aPool.mSentinelAndBlocks[0]),
-              mNextBlockPtr(&aPool.Blocks())
+              mNextBlockPtr(&aPool.Blocks()),
+              mNumBlocks(aPool.mNumBlocks)
         {
         }
 
@@ -432,6 +438,7 @@ public:
                 mCurrent = b->Start();
                 mBlockEnd = b->End();
                 mNextBlockPtr = &b->Next();
+                mNumBlocks++;
             }
             (mCurrent++)->ptrInfo = aEdge;
         }
@@ -439,7 +446,12 @@ public:
         // mBlockEnd points to space for null sentinel
         PtrInfoOrBlock *mCurrent, *mBlockEnd;
         Block **mNextBlockPtr;
+        PRUint32 &mNumBlocks;
     };
+
+    size_t BlocksSize() const {
+        return sizeof(Block) * mNumBlocks;
+    }
 
 };
 
@@ -457,8 +469,8 @@ struct ReversedEdge {
 enum NodeColor { black, white, grey };
 
 // This structure should be kept as small as possible; we may expect
-// a million of them to be allocated and touched repeatedly during
-// each cycle collection.
+// hundreds of thousands of them to be allocated and touched
+// repeatedly during each cycle collection.
 
 struct PtrInfo
 {
@@ -467,9 +479,10 @@ struct PtrInfo
     PRUint32 mColor : 2;
     PRUint32 mInternalRefs : 30;
     PRUint32 mRefCount;
-    EdgePool::Iterator mFirstChild; // first
-    EdgePool::Iterator mLastChild; // one after last
+private:
+    EdgePool::Iterator mFirstChild;
 
+public:
 #ifdef DEBUG_CC
     size_t mBytes;
     char *mName;
@@ -496,8 +509,7 @@ struct PtrInfo
           mColor(grey),
           mInternalRefs(0),
           mRefCount(0),
-          mFirstChild(),
-          mLastChild()
+          mFirstChild()
 #ifdef DEBUG_CC
         , mBytes(0),
           mName(nsnull),
@@ -521,6 +533,28 @@ struct PtrInfo
     PtrInfo() {
         NS_NOTREACHED("should never be called");
     }
+
+    EdgePool::Iterator FirstChild()
+    {
+        return mFirstChild;
+    }
+
+    // this PtrInfo must be part of a NodePool
+    EdgePool::Iterator LastChild()
+    {
+        return (this + 1)->mFirstChild;
+    }
+
+    void SetFirstChild(EdgePool::Iterator aFirstChild)
+    {
+        mFirstChild = aFirstChild;
+    }
+
+    // this PtrInfo must be part of a NodePool
+    void SetLastChild(EdgePool::Iterator aLastChild)
+    {
+        (this + 1)->mFirstChild = aLastChild;
+    }
 };
 
 /**
@@ -530,7 +564,7 @@ struct PtrInfo
 class NodePool
 {
 private:
-    enum { BlockSize = 32 * 1024 }; // could be int template parameter
+    enum { BlockSize = 8 * 1024 }; // could be int template parameter
 
     struct Block {
         // We create and destroy Block using NS_Alloc/NS_Free rather
@@ -540,13 +574,14 @@ private:
         ~Block() { NS_NOTREACHED("should never be called"); }
 
         Block* mNext;
-        PtrInfo mEntries[BlockSize];
+        PtrInfo mEntries[BlockSize + 1]; // +1 to store last child of last node
     };
 
 public:
     NodePool()
         : mBlocks(nsnull),
-          mLast(nsnull)
+          mLast(nsnull),
+          mNumBlocks(0)
     {
     }
 
@@ -569,6 +604,9 @@ public:
         while (b) {
             Block *n = b->mNext;
             NS_Free(b);
+            NS_ASSERTION(mNumBlocks > 0,
+                         "Expected NodePool mNumBlocks to be positive.");
+            mNumBlocks--;
             b = n;
         }
 
@@ -583,7 +621,8 @@ public:
         Builder(NodePool& aPool)
             : mNextBlock(&aPool.mBlocks),
               mNext(aPool.mLast),
-              mBlockEnd(nsnull)
+              mBlockEnd(nsnull),
+              mNumBlocks(aPool.mNumBlocks)
         {
             NS_ASSERTION(aPool.mBlocks == nsnull && aPool.mLast == nsnull,
                          "pool not empty");
@@ -601,6 +640,7 @@ public:
                 mBlockEnd = block->mEntries + BlockSize;
                 block->mNext = nsnull;
                 mNextBlock = &block->mNext;
+                mNumBlocks++;
             }
             return new (mNext++) PtrInfo(aPointer, aParticipant
                                          IF_DEBUG_CC_PARAM(aLangID)
@@ -610,6 +650,7 @@ public:
         Block **mNextBlock;
         PtrInfo *&mNext;
         PtrInfo *mBlockEnd;
+        PRUint32 &mNumBlocks;
     };
 
     class Enumerator;
@@ -630,6 +671,11 @@ public:
             return mNext == mLast;
         }
 
+        PRBool AtBlockEnd() const
+        {
+            return mNext == mBlockEnd;
+        }
+
         PtrInfo* GetNext()
         {
             NS_ASSERTION(!IsDone(), "calling GetNext when done");
@@ -648,9 +694,14 @@ public:
         PtrInfo *mNext, *mBlockEnd, *&mLast;
     };
 
+    size_t BlocksSize() const {
+        return sizeof(Block) * mNumBlocks;
+    }
+
 private:
     Block *mBlocks;
     PtrInfo *mLast;
+    PRUint32 mNumBlocks;
 };
 
 
@@ -669,6 +720,11 @@ struct GCGraph
     }
     ~GCGraph() { 
     }
+
+    size_t BlocksSize() const {
+        return mNodes.BlocksSize() + mEdges.BlocksSize();
+    }
+
 };
 
 // XXX Would be nice to have an nsHashSet<KeyType> API that has
@@ -692,6 +748,7 @@ public:
     // buffer.
 
     nsCycleCollectorParams &mParams;
+    PRUint32 mNumBlocksAlloced;
     PRUint32 mCount;
     Block mFirstBlock;
     nsPurpleBufferEntry *mFreeList;
@@ -729,6 +786,7 @@ public:
 
     void InitBlocks()
     {
+        mNumBlocksAlloced = 0;
         mCount = 0;
         mFreeList = nsnull;
         StartBlock(&mFirstBlock);
@@ -760,6 +818,9 @@ public:
             Block *next = b->mNext;
             delete b;
             b = next;
+            NS_ASSERTION(mNumBlocksAlloced > 0,
+                         "Expected positive mNumBlocksAlloced.");
+            mNumBlocksAlloced--;
         }
         mFirstBlock.mNext = nsnull;
     }
@@ -803,6 +864,7 @@ public:
             if (!b) {
                 return nsnull;
             }
+            mNumBlocksAlloced++;
             StartBlock(b);
 
             // Add the new block as the second block in the list.
@@ -866,6 +928,12 @@ public:
     {
         return mCount;
     }
+
+    size_t BlocksSize() const
+    {
+        return sizeof(Block) * mNumBlocksAlloced;
+    }
+
 };
 
 struct CallbackClosure
@@ -980,8 +1048,7 @@ struct nsCycleCollector
     PRBool mScanInProgress;
     PRBool mFollowupCollection;
     PRUint32 mCollectedObjects;
-    PRBool mFirstCollection;
-    PRTime mCollectionStart;
+    TimeStamp mCollectionStart;
 
     nsCycleCollectionLanguageRuntime *mRuntimes[nsIProgrammingLanguage::MAX+1];
     nsCycleCollectionXPCOMRuntime mXPCOMRuntime;
@@ -990,8 +1057,12 @@ struct nsCycleCollector
 
     nsCycleCollectorParams mParams;
 
-    nsTPtrArray<PtrInfo> *mWhiteNodes;
+    nsTArray<PtrInfo*> *mWhiteNodes;
     PRUint32 mWhiteNodeCount;
+
+    // mVisitedRefCounted and mVisitedGCed are only used for telemetry
+    PRUint32 mVisitedRefCounted;
+    PRUint32 mVisitedGCed;
 
     nsPurpleBuffer mPurpleBuf;
 
@@ -1019,12 +1090,12 @@ struct nsCycleCollector
                      nsICycleCollectorListener *aListener);
 
     // Prepare for and cleanup after one or more collection(s).
-    PRBool PrepareForCollection(nsTPtrArray<PtrInfo> *aWhiteNodes);
+    PRBool PrepareForCollection(nsTArray<PtrInfo*> *aWhiteNodes);
+    void GCIfNeeded(PRBool aForceGC);
     void CleanupAfterCollection();
 
     // Start and finish an individual collection.
-    PRBool BeginCollection(PRBool aForceGC,
-                           nsICycleCollectorListener *aListener);
+    PRBool BeginCollection(nsICycleCollectorListener *aListener);
     PRBool FinishCollection();
 
     PRUint32 SuspectedCount();
@@ -1168,7 +1239,8 @@ Fault(const char *msg, PtrInfo *pi)
         NodePool::Enumerator queue(sCollector->mGraph.mNodes);
         while (!queue.IsDone()) {
             PtrInfo *ppi = queue.GetNext();
-            for (EdgePool::Iterator e = ppi->mFirstChild, e_end = ppi->mLastChild;
+            for (EdgePool::Iterator e = ppi->FirstChild(),
+                                e_end = ppi->LastChild();
                  e != e_end; ++e) {
                 if (*e == pi) {
                     printf("    %p %s\n", ppi->mPointer, ppi->mName);
@@ -1263,8 +1335,8 @@ GraphWalker<Visitor>::DoWalk(nsDeque &aQueue)
 
         if (mVisitor.ShouldVisitNode(pi)) {
             mVisitor.VisitNode(pi);
-            for (EdgePool::Iterator child = pi->mFirstChild,
-                                child_end = pi->mLastChild;
+            for (EdgePool::Iterator child = pi->FirstChild(),
+                                child_end = pi->LastChild();
                  child != child_end; ++child) {
                 aQueue.Push(*child);
             }
@@ -1428,13 +1500,36 @@ public:
     }
 #endif
     void Traverse(PtrInfo* aPtrInfo);
+    void SetLastChild();
 
     // nsCycleCollectionTraversalCallback methods.
     NS_IMETHOD_(void) NoteXPCOMRoot(nsISupports *root);
 
 private:
-    NS_IMETHOD_(void) DescribeNode(CCNodeType type, nsrefcnt refCount,
-                                   size_t objSz, const char *objName);
+    void DescribeNode(PRUint32 refCount,
+                      size_t objSz,
+                      const char *objName)
+    {
+#ifdef DEBUG_CC
+        mCurrPi->mBytes = objSz;
+        mCurrPi->mName = PL_strdup(objName);
+#endif
+
+        if (mListener) {
+            mListener->NoteObject((PRUint64)mCurrPi->mPointer, objName);
+        }
+
+        mCurrPi->mRefCount = refCount;
+
+#ifdef DEBUG_CC
+        sCollector->mStats.mVisitedNode++;
+#endif
+    }
+
+    NS_IMETHOD_(void) DescribeRefCountedNode(nsrefcnt refCount, size_t objSz,
+                                             const char *objName);
+    NS_IMETHOD_(void) DescribeGCedNode(PRBool isMarked, size_t objSz,
+                                       const char *objName);
     NS_IMETHOD_(void) NoteRoot(PRUint32 langID, void *child,
                                nsCycleCollectionParticipant* participant);
     NS_IMETHOD_(void) NoteXPCOMChild(nsISupports *child);
@@ -1518,14 +1613,18 @@ GCGraphBuilder::Traverse(PtrInfo* aPtrInfo)
     }
 #endif
 
-    mCurrPi->mFirstChild = mEdgeBuilder.Mark();
-    
+    mCurrPi->SetFirstChild(mEdgeBuilder.Mark());
+
     nsresult rv = aPtrInfo->mParticipant->Traverse(aPtrInfo->mPointer, *this);
     if (NS_FAILED(rv)) {
         Fault("script pointer traversal failed", aPtrInfo);
     }
+}
 
-    mCurrPi->mLastChild = mEdgeBuilder.Mark();
+void
+GCGraphBuilder::SetLastChild()
+{
+    mCurrPi->SetLastChild(mEdgeBuilder.Mark());
 }
 
 NS_IMETHODIMP_(void)
@@ -1562,32 +1661,24 @@ GCGraphBuilder::NoteRoot(PRUint32 langID, void *root,
 }
 
 NS_IMETHODIMP_(void)
-GCGraphBuilder::DescribeNode(CCNodeType type, nsrefcnt refCount,
-                             size_t objSz, const char *objName)
+GCGraphBuilder::DescribeRefCountedNode(nsrefcnt refCount, size_t objSz,
+                                       const char *objName)
 {
-#ifdef DEBUG_CC
-    mCurrPi->mBytes = objSz;
-    mCurrPi->mName = PL_strdup(objName);
-#endif
+    if (refCount == 0)
+        Fault("zero refcount", mCurrPi);
+    if (refCount == PR_UINT32_MAX)
+        Fault("overflowing refcount", mCurrPi);
+    sCollector->mVisitedRefCounted++;
+    DescribeNode(refCount, objSz, objName);
+}
 
-    if (mListener) {
-        mListener->NoteObject((PRUint64)mCurrPi->mPointer, objName);
-    }
-
-    if (type == RefCounted) {
-        if (refCount == 0)
-            Fault("zero refcount", mCurrPi);
-        if (refCount == PR_UINT32_MAX)
-            Fault("overflowing refcount", mCurrPi);
-
-        mCurrPi->mRefCount = refCount;
-    }
-    else {
-        mCurrPi->mRefCount = type == GCMarked ? PR_UINT32_MAX : 0;
-    }
-#ifdef DEBUG_CC
-    sCollector->mStats.mVisitedNode++;
-#endif
+NS_IMETHODIMP_(void)
+GCGraphBuilder::DescribeGCedNode(PRBool isMarked, size_t objSz,
+                                 const char *objName)
+{
+    PRUint32 refCount = isMarked ? PR_UINT32_MAX : 0;
+    sCollector->mVisitedGCed++;
+    DescribeNode(refCount, objSz, objName);
 }
 
 NS_IMETHODIMP_(void)
@@ -1770,7 +1861,11 @@ nsCycleCollector::MarkRoots(GCGraphBuilder &builder)
     while (!queue.IsDone()) {
         PtrInfo *pi = queue.GetNext();
         builder.Traverse(pi);
+        if (queue.AtBlockEnd())
+            builder.SetLastChild();
     }
+    if (mGraph.mRootCount > 0)
+        builder.SetLastChild();
 }
 
 
@@ -2145,9 +2240,10 @@ nsCycleCollector::nsCycleCollector() :
     mCollectionInProgress(PR_FALSE),
     mScanInProgress(PR_FALSE),
     mCollectedObjects(0),
-    mFirstCollection(PR_TRUE),
     mWhiteNodes(nsnull),
     mWhiteNodeCount(0),
+    mVisitedRefCounted(0),
+    mVisitedGCed(0),
 #ifdef DEBUG_CC
     mPurpleBuf(mParams, mStats),
     mPtrLog(nsnull)
@@ -2244,8 +2340,14 @@ public:
         return mSuppressThisNode;
     }
 
-    NS_IMETHOD_(void) DescribeNode(CCNodeType type, nsrefcnt refCount,
-                                   size_t objSz, const char *objName)
+    NS_IMETHOD_(void) DescribeRefCountedNode(nsrefcnt refCount, size_t objSz,
+                                             const char *objName)
+    {
+        mSuppressThisNode = (PL_strstr(sSuppressionList, objName) != nsnull);
+    }
+
+    NS_IMETHOD_(void) DescribeGCedNode(PRBool isMarked, size_t objSz,
+                                       const char *objName)
     {
         mSuppressThisNode = (PL_strstr(sSuppressionList, objName) != nsnull);
     }
@@ -2461,8 +2563,44 @@ nsCycleCollector::Freed(void *n)
 }
 #endif
 
+// The cycle collector uses the mark bitmap to discover what JS objects
+// were reachable only from XPConnect roots that might participate in
+// cycles. We ask the JS runtime whether we need to force a GC before
+// this CC. It returns true on startup (before the mark bits have been set),
+// and also when UnmarkGray has run out of stack.  We also force GCs on shut 
+// down to collect cycles involving both DOM and JS.
+void
+nsCycleCollector::GCIfNeeded(PRBool aForceGC)
+{
+    NS_ASSERTION(NS_IsMainThread(),
+                 "nsCycleCollector::GCIfNeeded() must be called on the main thread.");
+
+    if (mParams.mDoNothing)
+        return;
+
+    if (!mRuntimes[nsIProgrammingLanguage::JAVASCRIPT])
+        return;
+
+    nsCycleCollectionJSRuntime* rt =
+        static_cast<nsCycleCollectionJSRuntime*>
+            (mRuntimes[nsIProgrammingLanguage::JAVASCRIPT]);
+    if (!rt->NeedCollect() && !aForceGC)
+        return;
+
+#ifdef COLLECT_TIME_DEBUG
+    PRTime start = PR_Now();
+#endif
+    // rt->Collect() must be called from the main thread,
+    // because it invokes XPCJSRuntime::GCCallback(cx, JSGC_BEGIN)
+    // which returns false if not in the main thread.
+    rt->Collect();
+#ifdef COLLECT_TIME_DEBUG
+    printf("cc: GC() took %lldms\n", (PR_Now() - start) / PR_USEC_PER_MSEC);
+#endif
+}
+
 PRBool
-nsCycleCollector::PrepareForCollection(nsTPtrArray<PtrInfo> *aWhiteNodes)
+nsCycleCollector::PrepareForCollection(nsTArray<PtrInfo*> *aWhiteNodes)
 {
 #if defined(DEBUG_CC) && !defined(__MINGW32__)
     if (!mParams.mDoNothing && mParams.mHookMalloc)
@@ -2477,8 +2615,10 @@ nsCycleCollector::PrepareForCollection(nsTPtrArray<PtrInfo> *aWhiteNodes)
 
 #ifdef COLLECT_TIME_DEBUG
     printf("cc: nsCycleCollector::PrepareForCollection()\n");
-    mCollectionStart = PR_Now();
 #endif
+    mCollectionStart = TimeStamp::Now();
+    mVisitedRefCounted = 0;
+    mVisitedGCed = 0;
 
     mCollectionInProgress = PR_TRUE;
 
@@ -2508,10 +2648,15 @@ nsCycleCollector::CleanupAfterCollection()
     _heapmin();
 #endif
 
+    PRUint32 interval((TimeStamp::Now() - mCollectionStart).ToMilliseconds());
 #ifdef COLLECT_TIME_DEBUG
-    printf("cc: CleanupAfterCollection(), total time %lldms\n",
-           (PR_Now() - mCollectionStart) / PR_USEC_PER_MSEC);
+    printf("cc: CleanupAfterCollection(), total time %ums\n", interval);
 #endif
+    Telemetry::Accumulate(Telemetry::CYCLE_COLLECTOR, interval);
+    Telemetry::Accumulate(Telemetry::CYCLE_COLLECTOR_VISITED_REF_COUNTED, mVisitedRefCounted);
+    Telemetry::Accumulate(Telemetry::CYCLE_COLLECTOR_VISITED_GCED, mVisitedGCed);
+    Telemetry::Accumulate(Telemetry::CYCLE_COLLECTOR_COLLECTED, mWhiteNodeCount);
+
 #ifdef DEBUG_CC
     ExplainLiveExpectedGarbage();
 #endif
@@ -2521,15 +2666,16 @@ PRUint32
 nsCycleCollector::Collect(PRUint32 aTryCollections,
                           nsICycleCollectorListener *aListener)
 {
-    nsAutoTPtrArray<PtrInfo, 4000> whiteNodes;
+    nsAutoTArray<PtrInfo*, 4000> whiteNodes;
 
     if (!PrepareForCollection(&whiteNodes))
         return 0;
 
     PRUint32 totalCollections = 0;
     while (aTryCollections > totalCollections) {
-        // Synchronous cycle collection. Always force a JS GC as well.
-        if (!(BeginCollection(PR_TRUE, aListener) && FinishCollection()))
+        // Synchronous cycle collection. Always force a JS GC beforehand.
+        GCIfNeeded(PR_TRUE);
+        if (!(BeginCollection(aListener) && FinishCollection()))
             break;
 
         ++totalCollections;
@@ -2541,32 +2687,10 @@ nsCycleCollector::Collect(PRUint32 aTryCollections,
 }
 
 PRBool
-nsCycleCollector::BeginCollection(PRBool aForceGC,
-                                  nsICycleCollectorListener *aListener)
+nsCycleCollector::BeginCollection(nsICycleCollectorListener *aListener)
 {
     if (mParams.mDoNothing)
         return PR_FALSE;
-
-    // The cycle collector uses the mark bitmap to discover what JS objects
-    // were reachable only from XPConnect roots that might participate in
-    // cycles. If this is the first cycle collection after startup force
-    // a garbage collection, otherwise the GC might not have run yet and
-    // the bitmap is invalid.
-    if (mFirstCollection && mRuntimes[nsIProgrammingLanguage::JAVASCRIPT]) {
-        aForceGC = PR_TRUE;
-        mFirstCollection = PR_FALSE;
-    }
-
-    if (aForceGC && mRuntimes[nsIProgrammingLanguage::JAVASCRIPT]) {
-#ifdef COLLECT_TIME_DEBUG
-        PRTime start = PR_Now();
-#endif
-        static_cast<nsCycleCollectionJSRuntime*>
-            (mRuntimes[nsIProgrammingLanguage::JAVASCRIPT])->Collect();
-#ifdef COLLECT_TIME_DEBUG
-        printf("cc: GC() took %lldms\n", (PR_Now() - start) / PR_USEC_PER_MSEC);
-#endif
-    }
 
     if (aListener && NS_FAILED(aListener->Begin())) {
         aListener = nsnull;
@@ -2770,6 +2894,13 @@ nsCycleCollector::Shutdown()
     // Here we want to run a final collection and then permanently
     // disable the collector because the program is shutting down.
 
+#ifdef DEBUG_CC
+    if (sCollector->mParams.mDrawGraphs) {
+        nsCOMPtr<nsICycleCollectorListener> listener =
+            new nsCycleCollectorLogger();
+        Collect(SHUTDOWN_COLLECTIONS(mParams), listener);
+    } else
+#endif
     Collect(SHUTDOWN_COLLECTIONS(mParams), nsnull);
 
 #ifdef DEBUG_CC
@@ -3018,8 +3149,8 @@ nsCycleCollector::ExplainLiveExpectedGarbage()
                         PtrInfo *pi = (PtrInfo*)stack.Peek();
                         if (pi->mSCCIndex == INDEX_UNREACHED) {
                             pi->mSCCIndex = INDEX_TRAVERSING;
-                            for (EdgePool::Iterator child = pi->mFirstChild,
-                                                child_end = pi->mLastChild;
+                            for (EdgePool::Iterator child = pi->FirstChild(),
+                                                child_end = pi->LastChild();
                                  child != child_end; ++child) {
                                 stack.Push(*child);
                             }
@@ -3062,8 +3193,8 @@ nsCycleCollector::ExplainLiveExpectedGarbage()
                         PtrInfo *pi = queue.GetNext();
                         if (pi->mColor != white)
                             continue;
-                        for (EdgePool::Iterator child = pi->mFirstChild,
-                                            child_end = pi->mLastChild;
+                        for (EdgePool::Iterator child = pi->FirstChild(),
+                                            child_end = pi->LastChild();
                              child != child_end; ++child) {
                             if ((*child)->mSCCIndex != pi->mSCCIndex) {
                                 GraphWalker<SetNonRootGreyVisitor>(SetNonRootGreyVisitor()).Walk(*child);
@@ -3125,7 +3256,7 @@ nsCycleCollector::CreateReversedEdges()
     NodePool::Enumerator countQueue(mGraph.mNodes);
     while (!countQueue.IsDone()) {
         PtrInfo *pi = countQueue.GetNext();
-        for (EdgePool::Iterator e = pi->mFirstChild, e_end = pi->mLastChild;
+        for (EdgePool::Iterator e = pi->FirstChild(), e_end = pi->LastChild();
              e != e_end; ++e, ++edgeCount) {
         }
     }
@@ -3143,7 +3274,7 @@ nsCycleCollector::CreateReversedEdges()
     while (!buildQueue.IsDone()) {
         PtrInfo *pi = buildQueue.GetNext();
         PRInt32 i = 0;
-        for (EdgePool::Iterator e = pi->mFirstChild, e_end = pi->mLastChild;
+        for (EdgePool::Iterator e = pi->FirstChild(), e_end = pi->LastChild();
              e != e_end; ++e) {
             current->mTarget = pi;
             current->mEdgeName = &pi->mEdgeNames[i];
@@ -3188,6 +3319,36 @@ nsCycleCollector::WasFreed(nsISupports *n)
 }
 #endif
 
+
+////////////////////////
+// Memory reporter
+////////////////////////
+
+static PRInt64
+ReportCycleCollectorMem()
+{
+    if (!sCollector)
+        return 0;
+    PRInt64 size = sizeof(nsCycleCollector) + 
+        sCollector->mPurpleBuf.BlocksSize() +
+        sCollector->mGraph.BlocksSize();
+    if (sCollector->mWhiteNodes)
+        size += sCollector->mWhiteNodes->Capacity() * sizeof(PtrInfo*);
+    return size;
+}
+
+NS_MEMORY_REPORTER_IMPLEMENT(CycleCollector,
+                             "explicit/cycle-collector",
+                             KIND_HEAP,
+                             UNITS_BYTES,
+                             ReportCycleCollectorMem,
+                             "Memory used by the cycle collector.  This "
+                             "includes the cycle collector structure, the "
+                             "purple buffer, the graph, and the white nodes.  "
+                             "The latter two are expected to be empty when the "
+                             "cycle collector is idle.")
+
+
 ////////////////////////////////////////////////////////////////////////
 // Module public API (exported in nsCycleCollector.h)
 // Just functions that redirect into the singleton, once it's built.
@@ -3197,8 +3358,13 @@ void
 nsCycleCollector_registerRuntime(PRUint32 langID, 
                                  nsCycleCollectionLanguageRuntime *rt)
 {
+    static PRBool regMemReport = PR_TRUE;
     if (sCollector)
         sCollector->RegisterRuntime(langID, rt);
+    if (regMemReport) {
+        regMemReport = PR_FALSE;
+        NS_RegisterMemoryReporter(new NS_MEMORY_REPORTER_NAME(CycleCollector));
+    }
 }
 
 nsCycleCollectionLanguageRuntime *
@@ -3312,7 +3478,7 @@ public:
                 return NS_OK;
             }
 
-            mCollected = mCollector->BeginCollection(PR_FALSE, mListener);
+            mCollected = mCollector->BeginCollection(mListener);
 
             mReply.Notify();
         }
@@ -3337,12 +3503,14 @@ public:
     {
         NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
+        mCollector->GCIfNeeded(PR_FALSE);
+
         MutexAutoLock autoLock(mLock);
 
         if (!mRunning)
             return 0;
 
-        nsAutoTPtrArray<PtrInfo, 4000> whiteNodes;
+        nsAutoTArray<PtrInfo*, 4000> whiteNodes;
         if (!mCollector->PrepareForCollection(&whiteNodes))
             return 0;
 

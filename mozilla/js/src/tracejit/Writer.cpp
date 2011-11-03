@@ -39,9 +39,13 @@
 
 #include "jsprf.h"
 #include "jstl.h"
+
 #include "jscompartment.h"
+#include "jsiter.h"
 #include "Writer.h"
 #include "nanojit.h"
+
+#include "vm/ArgumentsObject.h"
 
 namespace js {
 namespace tjit {
@@ -370,17 +374,17 @@ void ValidateWriter::checkAccSet(LOpcode op, LIns *base, int32_t disp, AccSet ac
 
       case ACCSET_FRAMEREGS:
         // base = ldp.cx ...[offsetof(JSContext, regs)]
-        // ins  = ldp.regs base[<disp within JSFrameRegs>]
+        // ins  = ldp.regs base[<disp within FrameRegs>]
         ok = op == LIR_ldp &&
-             dispWithin(JSFrameRegs) && 
-             match(base, LIR_ldp, ACCSET_CX, offsetof(JSContext, regs));
+             dispWithin(FrameRegs) && 
+             match(base, LIR_ldp, ACCSET_SEG, StackSegment::offsetOfRegs());
         break;
 
       case ACCSET_STACKFRAME:
-        // base = ldp.regs ...[offsetof(JSFrameRegs, fp)]
-        // ins  = {ld,st}X.sf base[<disp within JSStackFrame>]
-        ok = dispWithin(JSStackFrame) && 
-             match(base, LIR_ldp, ACCSET_FRAMEREGS, offsetof(JSFrameRegs, fp));
+        // base = ldp.regs ...[offsetof(FrameRegs, fp)]
+        // ins  = {ld,st}X.sf base[<disp within StackFrame>]
+        ok = dispWithin(StackFrame) && 
+             match(base, LIR_ldp, ACCSET_FRAMEREGS, FrameRegs::offsetOfFp);
         break;
 
       case ACCSET_RUNTIME:
@@ -455,13 +459,13 @@ void ValidateWriter::checkAccSet(LOpcode op, LIns *base, int32_t disp, AccSet ac
         break;
 
       case ACCSET_TARRAY:
+        // we actually just want the JSObject itself
         // This check is imperfect.
         //
         // base = ldp.objprivate ...[offsetof(JSObject, privateData)]
         // ins = ld{i,p}.tarray base[<disp within TypedArray>]
-        ok = (op == LIR_ldi || op == LIR_ldp) &&
-             dispWithin(TypedArray) &&
-             match(base, LIR_ldp, ACCSET_OBJ_PRIVATE, offsetof(JSObject, privateData));
+        ok = (op == LIR_ldi || op == LIR_ldp); /*&&*/
+             //match(base, LIR_ldp, ACCSET_OBJ_SLOTS, offsetof(JSObject, slots));
         break;
 
       case ACCSET_TARRAY_DATA:
@@ -471,9 +475,12 @@ void ValidateWriter::checkAccSet(LOpcode op, LIns *base, int32_t disp, AccSet ac
         // base_oprnd1 = ldp.tarray/c ...[TypedArray::dataOffset()]
         // base        = addp base_oprnd1, ...
         // ins         = {ld,st}X.tdata base[...]
-        ok = match(base, LIR_ldp, ACCSET_TARRAY, LOAD_CONST, TypedArray::dataOffset()) ||
-             (base->isop(LIR_addp) &&
-              match(base->oprnd1(), LIR_ldp, ACCSET_TARRAY, LOAD_CONST, TypedArray::dataOffset()));
+        ok = true;
+        //ok = isConstPrivatePtr(base, TypedArray::FIELD_DATA);
+        JS_ASSERT(ok);
+        //ok = match(base, LIR_ldp, ACCSET_TARRAY, LOAD_CONST,  sizeof(js::Value) * js::TypedArray::FIELD_DATA) ||
+                //((base->isop(LIR_addp) &&
+                //match(base->oprnd1(), LIR_ldp, ACCSET_TARRAY, sizeof(js::Value) * js::TypedArray::FIELD_DATA)));
         break;
 
       case ACCSET_ITER:
@@ -544,9 +551,15 @@ void ValidateWriter::checkAccSet(LOpcode op, LIns *base, int32_t disp, AccSet ac
         // base_oprnd1 = <const private ptr slots[JSSLOT_ARGS_DATA]>
         // base        = addp base_oprnd1, ...
         // ins         = {ld,st}X.argsdata base[...]
-        ok = (isConstPrivatePtr(base, JSObject::JSSLOT_ARGS_DATA) ||
+        ok = (isConstPrivatePtr(base, ArgumentsObject::DATA_SLOT) ||
               (base->isop(LIR_addp) &&
-               isConstPrivatePtr(base->oprnd1(), JSObject::JSSLOT_ARGS_DATA)));
+               isConstPrivatePtr(base->oprnd1(), ArgumentsObject::DATA_SLOT)));
+        break;
+
+      case ACCSET_SEG:
+        // Match the ACCSET_SEG load that comes out of ldpContextRegs
+        ok = dispWithin(StackSegment) &&
+             match(base, LIR_ldp, ACCSET_CX, offsetof(JSContext, stack) + ContextStack::offsetOfSeg());
         break;
 
       default:
@@ -565,7 +578,7 @@ void ValidateWriter::checkAccSet(LOpcode op, LIns *base, int32_t disp, AccSet ac
     }
 }
 
-}
+} // namespace nanojit
 
 #endif
 

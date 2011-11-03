@@ -173,8 +173,6 @@ static const PRUnichar sHTMLTagUnicodeName_input[] =
   {'i', 'n', 'p', 'u', 't', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_ins[] =
   {'i', 'n', 's', '\0'};
-static const PRUnichar sHTMLTagUnicodeName_isindex[] =
-  {'i', 's', 'i', 'n', 'd', 'e', 'x', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_kbd[] =
   {'k', 'b', 'd', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_keygen[] =
@@ -197,6 +195,8 @@ static const PRUnichar sHTMLTagUnicodeName_marquee[] =
   {'m', 'a', 'r', 'q', 'u', 'e', 'e', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_menu[] =
   {'m', 'e', 'n', 'u', '\0'};
+static const PRUnichar sHTMLTagUnicodeName_menuitem[] =
+  {'m', 'e', 'n', 'u', 'i', 't', 'e', 'm', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_meta[] =
   {'m', 'e', 't', 'a', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_multicol[] =
@@ -229,6 +229,8 @@ static const PRUnichar sHTMLTagUnicodeName_plaintext[] =
   {'p', 'l', 'a', 'i', 'n', 't', 'e', 'x', 't', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_pre[] =
   {'p', 'r', 'e', '\0'};
+static const PRUnichar sHTMLTagUnicodeName_progress[] =
+  {'p', 'r', 'o', 'g', 'r', 'e', 's', 's', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_q[] =
   {'q', '\0'};
 static const PRUnichar sHTMLTagUnicodeName_s[] =

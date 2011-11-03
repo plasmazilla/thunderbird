@@ -21,9 +21,7 @@ function server_open(metadata, response) {
 function server_protected(metadata, response) {
   let body;
 
-  // no btoa() in xpcshell.  it's guest:guest
-  if (metadata.hasHeader("Authorization") &&
-      metadata.getHeader("Authorization") == "Basic Z3Vlc3Q6Z3Vlc3Q=") {
+  if (basic_auth_matches(metadata, "guest", "guest")) {
     body = "This path exists and is protected";
     response.setStatusLine(metadata.httpVersion, 200, "OK, authorized");
     response.setHeader("WWW-Authenticate", 'Basic realm="secret"', false);
@@ -136,37 +134,6 @@ function server_headers(metadata, response) {
   response.bodyOutputStream.write(body, body.length);
 }
 
-/*
- * Utility to allow us to fake a bad cached response within AsyncResource.
- * Swap out the _onComplete handler, pretending to throw before setting
- * status to non-zero. Return an empty response.
- *
- * This should prompt Res_get to retry once.
- *
- * Set FAKE_ZERO_COUNTER accordingly.
- */
-let FAKE_ZERO_COUNTER = 0;
-function fake_status_failure() {
-  _("Switching in status-0 _onComplete handler.");
-  let c = AsyncResource.prototype._onComplete;
-  AsyncResource.prototype._onComplete = function(error, data) {
-    if (FAKE_ZERO_COUNTER > 0) {
-      _("Faking status 0 return...");
-      FAKE_ZERO_COUNTER--;
-      let ret = new String(data);
-      ret.headers = {};
-      ret.status = 0;
-      ret.success = false;
-      Utils.lazy2(ret, "obj", function() JSON.parse(ret));
-
-      this._callback(null, ret);
-    }
-    else {
-      c.apply(this, arguments);
-    }
-  };
-}
-
 function run_test() {
   do_test_pending();
 
@@ -187,7 +154,7 @@ function run_test() {
     "/quota-error": server_quota_error
   });
 
-  Utils.prefs.setIntPref("network.numRetries", 1); // speed up test
+  Svc.Prefs.set("network.numRetries", 1); // speed up test
 
   _("Resource object members");
   let res = new Resource("http://localhost:8080/open");
@@ -218,9 +185,6 @@ function run_test() {
   }
   do_check_true(didThrow);
 
-  let did401 = false;
-  Observers.add("weave:resource:status:401", function() did401 = true);
-
   _("Test that the BasicAuthenticator doesn't screw up header case.");
   let res1 = new Resource("http://localhost:8080/foo");
   res1.setHeader("Authorization", "Basic foobar");
@@ -241,7 +205,6 @@ function run_test() {
   _("GET a password protected resource (test that it'll fail w/o pass, no throw)");
   let res2 = new Resource("http://localhost:8080/protected");
   content = res2.get();
-  do_check_true(did401);
   do_check_eq(content, "This path exists and is protected - failed");
   do_check_eq(content.status, 401);
   do_check_false(content.success);
@@ -334,14 +297,13 @@ function run_test() {
   do_check_eq(content.status, 200);
   do_check_eq(JSON.stringify(content.obj), JSON.stringify(sample_data));
 
-  _("X-Weave-Timestamp header updates Resource.serverTime");
+  _("X-Weave-Timestamp header updates AsyncResource.serverTime");
   // Before having received any response containing the
-  // X-Weave-Timestamp header, Resource.serverTime is null.
-  do_check_eq(Resource.serverTime, null);
+  // X-Weave-Timestamp header, AsyncResource.serverTime is null.
+  do_check_eq(AsyncResource.serverTime, null);
   let res8 = new Resource("http://localhost:8080/timestamp");
   content = res8.get();
-  do_check_eq(Resource.serverTime, TIMESTAMP);
-
+  do_check_eq(AsyncResource.serverTime, TIMESTAMP);
 
   _("GET: no special request headers");
   let res9 = new Resource("http://localhost:8080/headers");
@@ -427,73 +389,11 @@ function run_test() {
   do_check_eq(error.message, "NS_ERROR_CONNECTION_REFUSED");
   do_check_eq(typeof error.stack, "string");
 
-  let redirRequest;
-  let redirToOpen = function(subject) {
-    subject.newUri = "http://localhost:8080/open";
-    redirRequest = subject;
-  };
-  Observers.add("weave:resource:status:401", redirToOpen);
-
-  _("Notification of 401 can redirect to another uri");
-  did401 = false;
-  let res12 = new Resource("http://localhost:8080/protected");
-  content = res12.get();
-  do_check_eq(res12.spec, "http://localhost:8080/open");
-  do_check_eq(content, "This path exists");
-  do_check_eq(content.status, 200);
-  do_check_true(content.success);
-  do_check_eq(res.data, content);
-  do_check_true(did401);
-  do_check_eq(redirRequest.response, "This path exists and is protected - failed");
-  do_check_eq(redirRequest.response.status, 401);
-  do_check_false(redirRequest.response.success);
-
-  Observers.remove("weave:resource:status:401", redirToOpen);
-
-  _("Removing the observer should result in the original 401");
-  did401 = false;
-  let res13 = new Resource("http://localhost:8080/protected");
-  content = res13.get();
-  do_check_true(did401);
-  do_check_eq(content, "This path exists and is protected - failed");
-  do_check_eq(content.status, 401);
-  do_check_false(content.success);
-
-  // Faking problems.
-  fake_status_failure();
-
-  // POST doesn't do our inner retry, so we get a status 0.
-  FAKE_ZERO_COUNTER = 1;
-  let res14 = new Resource("http://localhost:8080/open");
-  content = res14.post("hello");
-  do_check_eq(content.status, 0);
-  do_check_false(content.success);
-
-  // And now we succeed...
-  let res15 = new Resource("http://localhost:8080/open");
-  content = res15.post("hello");
-  do_check_eq(content.status, 405);
-  do_check_false(content.success);
-
-  // Now check that GET silent failures get retried.
-  FAKE_ZERO_COUNTER = 1;
-  let res16 = new Resource("http://localhost:8080/open");
-  content = res16.get();
-  do_check_eq(content.status, 200);
-  do_check_true(content.success);
-
-  // ... but only once.
-  FAKE_ZERO_COUNTER = 2;
-  let res17 = new Resource("http://localhost:8080/open");
-  content = res17.get();
-  do_check_eq(content.status, 0);
-  do_check_false(content.success);
-
   _("Checking handling of errors in onProgress.");
   let res18 = new Resource("http://localhost:8080/json");
   let onProgress = function(rec) {
     // Provoke an XPC exception without a Javascript wrapper.
-    Svc.IO.newURI("::::::::", null, null);
+    Services.io.newURI("::::::::", null, null);
   };
   res18._onProgress = onProgress;
   let oldWarn = res18._log.warn;
@@ -547,6 +447,19 @@ function run_test() {
     error = ex;
   }
   do_check_eq(error.result, Cr.NS_ERROR_NET_TIMEOUT);
+
+  _("Testing URI construction.");
+  let args = [];
+  args.push("newer=" + 1234);
+  args.push("limit=" + 1234);
+  args.push("sort=" + 1234);
+
+  let query = "?" + args.join("&");
+
+  let uri1 = Utils.makeURL("http://foo/" + query);
+  let uri2 = Utils.makeURL("http://foo/");
+  uri2.query = query;
+  do_check_eq(uri1.query, uri2.query);
 
   server.stop(do_test_finished);
 }

@@ -56,10 +56,13 @@ Features to add:
   <title>Reftest analyzer</title>
   <style type="text/css"><![CDATA[
 
-  html, body { margin: 0; padding: 0 }
+  html, body { margin: 0; }
+  html { padding: 0; }
+  body { padding: 4px; }
 
-  #pixelarea, #itemlist, #images { position: absolute; overflow: auto; }
-  #pixelarea { top: 0; left: 0; width: 320px; height: 84px; }
+  #pixelarea, #itemlist, #images { position: absolute; }
+  #itemlist, #images { overflow: auto; }
+  #pixelarea { top: 0; left: 0; width: 320px; height: 84px; overflow: visible }
   #itemlist { top: 84px; left: 0; width: 320px; bottom: 0; }
   #images { top: 0; bottom: 0; left: 320px; right: 0; }
 
@@ -114,9 +117,24 @@ function ID(id) {
   return gIDCache[id];
 }
 
+function hash_parameters() {
+  var result = { };
+  var params = window.location.hash.substr(1).split(/[&;]/);
+  for (var i = 0; i < params.length; i++) {
+    var parts = params[i].split("=");
+    result[parts[0]] = unescape(unescape(parts[1]));
+  }
+  return result;
+}
+
 function load() {
   gPhases = [ ID("entry"), ID("loading"), ID("viewer") ];
   build_mag();
+  var params = hash_parameters();
+  if (params.log) {
+    ID("logentry").value = params.log;
+    log_pasted();
+  }
 }
 
 function build_mag() {
@@ -173,23 +191,28 @@ function fileentry_changed() {
   show_phase("loading");
   var input = ID("fileentry");
   var files = input.files;
-  var log = null;
   if (files.length > 0) {
     // Only handle the first file; don't handle multiple selection.
     // The parts of the log we care about are ASCII-only.  Since we
     // can ignore lines we don't care about, best to read in as
     // iso-8859-1, which guarantees we don't get decoding errors.
-    log = files[0].getAsText("iso-8859-1");
+    var fileReader = new FileReader();
+    fileReader.onload = function(e) {
+      var log = null;
+
+      log = e.target.result;
+      
+      if (log)
+        process_log(log);
+      else
+        show_phase("entry");
+    }
+    fileReader.readAsText(files[0], "iso-8859-1");
   }
   // So the user can process the same filename again (after
   // overwriting the log), clear the value on the form input so we
   // will always get an onchange event.
   input.value = "";
-
-  if (log)
-    process_log(log);
-  else
-    show_phase("entry");
 }
 
 function log_pasted() {

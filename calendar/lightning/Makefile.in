@@ -44,6 +44,9 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
+# Calendar builders currently use STRIP_XPI to reduce the binary component in
+# Lightning.
+
 MODULE		= lightning
 
 export XPI_NAME = lightning
@@ -52,19 +55,13 @@ XPI_PKGNAME = lightning
 
 XPI_EM_ID = {e2fda1a4-762b-4020-b5ad-a41df1933103}
 
-STRIP_XPI = 1
 DIST_FILES = install.rdf application.ini
 PREF_JS_EXPORTS = $(srcdir)/content/lightning.js
 
 # Lighting version number
 LIGHTNING_VERSION := $(shell cat $(srcdir)/../sunbird/config/version.txt)
-ifdef MOZILLA_5_0_BRANCH
-THUNDERBIRD_VERSION := $(shell cat $(topsrcdir)/mail/config/version-50.txt)
-SEAMONKEY_VERSION := $(shell cat $(topsrcdir)/suite/config/version-50.txt)
-else
 THUNDERBIRD_VERSION := $(shell cat $(topsrcdir)/mail/config/version.txt)
 SEAMONKEY_VERSION := $(shell cat $(topsrcdir)/suite/config/version.txt)
-endif
 
 ifneq (,$(findstring pre,$(LIGHTNING_VERSION)))
 DEFINES += -DLIGHTNING_PRERELEASE_VERSION=1
@@ -121,13 +118,23 @@ DIRS = ../libical \
        locales \
        $(NULL)
 
+ifdef ENABLE_TESTS
+DIRS += ../test
+endif
+
 # Select a theme from which to pull our skin goodness
+# Linux: gnomestripe
 # OS X: pinstripe
-# Others: winstripe
+# Windows: winstripe
+
+ifneq (,$(filter gtk2 qt,$(MOZ_WIDGET_TOOLKIT)))
+THEME=gnomestripe
+else
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 THEME=pinstripe
 else
 THEME=winstripe
+endif
 endif
 
 DEFINES += -DTHUNDERBIRD_VERSION=$(THUNDERBIRD_VERSION) \
@@ -159,3 +166,5 @@ ident:
 	@printf "buildid "
 	@$(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py \
 	    $(FINAL_TARGET)/application.ini App BuildID
+
+include $(srcdir)/lightning-symbols.mk

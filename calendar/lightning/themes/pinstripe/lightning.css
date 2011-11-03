@@ -41,7 +41,7 @@
 
 /* Calendar list rules */
 #calendar-panel {
-    padding: 0px 5px 5px;
+    padding-bottom: 5px;
 }
 
 /* Lightning preferences icon */
@@ -110,10 +110,6 @@ radio[pane=paneLightning] {
   background-color: -moz-field;  
 }
 
-.task-tree-subpane {
-  -moz-margin-start: 12px;
-}
-
 /* Write button */
 #newMsgButton-mail-menuitem {
   list-style-image: url(chrome://messenger/skin/icons/mail-toolbar-small.png);
@@ -160,6 +156,7 @@ radio[pane=paneLightning] {
   font-size: 7pt;
   font-family: Arial, Helvetica, sans-serif;
   font-weight: bold;
+  text-shadow: none;
   color: DarkBlue;
   background-color: transparent;
 }

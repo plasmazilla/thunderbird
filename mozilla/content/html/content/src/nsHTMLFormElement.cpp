@@ -81,7 +81,6 @@
 #include "nsIHTMLCollection.h"
 
 #include "nsIConstraintValidation.h"
-#include "nsIEventStateManager.h"
 
 #include "nsIDOMHTMLButtonElement.h"
 
@@ -122,20 +121,15 @@ public:
   // nsIDOMHTMLCollection interface
   NS_DECL_NSIDOMHTMLCOLLECTION
 
-  virtual nsIContent* GetNodeAt(PRUint32 aIndex, nsresult* aResult)
+  virtual nsIContent* GetNodeAt(PRUint32 aIndex)
   {
     FlushPendingNotifications();
-
-    *aResult = NS_OK;
 
     return mElements.SafeElementAt(aIndex, nsnull);
   }
   virtual nsISupports* GetNamedItem(const nsAString& aName,
-                                    nsWrapperCache **aCache,
-                                    nsresult* aResult)
+                                    nsWrapperCache **aCache)
   {
-    *aResult = NS_OK;
-
     nsISupports *item = NamedItemInternal(aName, PR_TRUE);
     *aCache = nsnull;
     return item;
@@ -227,6 +221,7 @@ ShouldBeInElements(nsIFormControl* aFormControl)
   //
   // NS_FORM_INPUT_IMAGE
   // NS_FORM_LABEL
+  // NS_FORM_PROGRESS
 
   return PR_FALSE;
 }
@@ -333,13 +328,11 @@ DOMCI_NODE_DATA(HTMLFormElement, nsHTMLFormElement)
 
 // QueryInterface implementation for nsHTMLFormElement
 NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(nsHTMLFormElement)
-  NS_HTML_CONTENT_INTERFACE_TABLE6(nsHTMLFormElement,
+  NS_HTML_CONTENT_INTERFACE_TABLE4(nsHTMLFormElement,
                                    nsIDOMHTMLFormElement,
-                                   nsIDOMNSHTMLFormElement,
                                    nsIForm,
                                    nsIWebProgressListener,
-                                   nsIRadioGroupContainer,
-                                   nsIRadioGroupContainer_MOZILLA_2_0_BRANCH)
+                                   nsIRadioGroupContainer)
   NS_HTML_CONTENT_INTERFACE_TABLE_TO_MAP_SEGUE(nsHTMLFormElement,
                                                nsGenericHTMLElement)
 NS_HTML_CONTENT_INTERFACE_TABLE_TAIL_CLASSINFO(HTMLFormElement)
@@ -388,23 +381,14 @@ nsHTMLFormElement::AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
   if (aName == nsGkAtoms::novalidate && aNameSpaceID == kNameSpaceID_None) {
     // Update all form elements states because they might be [no longer]
     // affected by :-moz-ui-valid or :-moz-ui-invalid.
-    nsIDocument* doc = GetCurrentDoc();
-    if (doc) {
-      MOZ_AUTO_DOC_UPDATE(doc, UPDATE_CONTENT_STATE, PR_TRUE);
+    for (PRUint32 i = 0, length = mControls->mElements.Length();
+         i < length; ++i) {
+      mControls->mElements[i]->UpdateState(true);
+    }
 
-      for (PRUint32 i = 0, length = mControls->mElements.Length();
-           i < length; ++i) {
-        doc->ContentStateChanged(mControls->mElements[i],
-                                 NS_EVENT_STATE_MOZ_UI_VALID |
-                                 NS_EVENT_STATE_MOZ_UI_INVALID);
-      }
-
-      for (PRUint32 i = 0, length = mControls->mNotInElements.Length();
-           i < length; ++i) {
-        doc->ContentStateChanged(mControls->mNotInElements[i],
-                                 NS_EVENT_STATE_MOZ_UI_VALID |
-                                 NS_EVENT_STATE_MOZ_UI_INVALID);
-      }
+    for (PRUint32 i = 0, length = mControls->mNotInElements.Length();
+         i < length; ++i) {
+      mControls->mNotInElements[i]->UpdateState(true);
     }
   }
 
@@ -513,9 +497,8 @@ CollectOrphans(nsINode* aRemovalRoot, nsTArray<nsGenericHTMLFormElement*> aArray
 #endif
                )
 {
-  // Prepare document update batch.
-  nsIDocument* doc = aArray.IsEmpty() ? nsnull : aArray[0]->GetCurrentDoc();
-  MOZ_AUTO_DOC_UPDATE(doc, UPDATE_CONTENT_STATE, PR_TRUE);
+  // Put a script blocker around all the notifications we're about to do.
+  nsAutoScriptBlocker scriptBlocker;
 
   // Walk backwards so that if we remove elements we can just keep iterating
   PRUint32 length = aArray.Length();
@@ -535,20 +518,8 @@ CollectOrphans(nsINode* aRemovalRoot, nsTArray<nsGenericHTMLFormElement*> aArray
       if (!nsContentUtils::ContentIsDescendantOf(node, aRemovalRoot)) {
         node->ClearForm(PR_TRUE);
 
-        // When a form control loses its form owner, :-moz-ui-invalid and
-        // :-moz-ui-valid might not apply any more.
-        nsEventStates states = NS_EVENT_STATE_MOZ_UI_VALID |
-                               NS_EVENT_STATE_MOZ_UI_INVALID;
-
-        // In addition, submit controls shouldn't have
-        // NS_EVENT_STATE_MOZ_SUBMITINVALID applying if they do not have a form.
-        if (node->IsSubmitControl()) {
-          states |= NS_EVENT_STATE_MOZ_SUBMITINVALID;
-        }
-
-        if (doc) {
-          doc->ContentStateChanged(node, states);
-        }
+        // When a form control loses its form owner, its state can change.
+        node->UpdateState(true);
 #ifdef DEBUG
         removed = PR_TRUE;
 #endif
@@ -1211,7 +1182,7 @@ nsHTMLFormElement::AddElement(nsGenericHTMLFormElement* aChild,
     // unless it replaces what's in the slot.  If it _does_ replace what's in
     // the slot, it becomes the default submit if either the default submit is
     // what's in the slot or the child is earlier than the default submit.
-    nsIFormControl* oldDefaultSubmit = mDefaultSubmitElement;
+    nsGenericHTMLFormElement* oldDefaultSubmit = mDefaultSubmitElement;
     if (!*firstSubmitSlot ||
         (!lastElement &&
          CompareFormControlPosition(aChild, *firstSubmitSlot, this) < 0)) {
@@ -1234,16 +1205,9 @@ nsHTMLFormElement::AddElement(nsGenericHTMLFormElement* aChild,
 
     // Notify that the state of the previous default submit element has changed
     // if the element which is the default submit element has changed.  The new
-    // default submit element is responsible for its own ContentStateChanged
-    // call.
-    if (aNotify && oldDefaultSubmit &&
-        oldDefaultSubmit != mDefaultSubmitElement) {
-      nsIDocument* document = GetCurrentDoc();
-      if (document) {
-        MOZ_AUTO_DOC_UPDATE(document, UPDATE_CONTENT_STATE, PR_TRUE);
-        nsCOMPtr<nsIContent> oldElement(do_QueryInterface(oldDefaultSubmit));
-        document->ContentStateChanged(oldElement, NS_EVENT_STATE_DEFAULT);
-      }
+    // default submit element is responsible for its own state update.
+    if (oldDefaultSubmit && oldDefaultSubmit != mDefaultSubmitElement) {
+      oldDefaultSubmit->UpdateState(aNotify);
     }
   }
 
@@ -1376,12 +1340,7 @@ nsHTMLFormElement::HandleDefaultSubmitRemoval()
 
   // Notify about change if needed.
   if (mDefaultSubmitElement) {
-    nsIDocument* document = GetCurrentDoc();
-    if (document) {
-      MOZ_AUTO_DOC_UPDATE(document, UPDATE_CONTENT_STATE, PR_TRUE);
-      document->ContentStateChanged(mDefaultSubmitElement,
-                                    NS_EVENT_STATE_DEFAULT);
-    }
+    mDefaultSubmitElement->UpdateState(true);
   }
 }
 
@@ -1750,40 +1709,33 @@ nsHTMLFormElement::CheckValidFormSubmission()
       if (!mEverTriedInvalidSubmit) {
         mEverTriedInvalidSubmit = true;
 
-        nsIDocument* doc = GetCurrentDoc();
-        if (doc) {
-          /*
-           * We are going to call ContentStateChanged assuming elements want to
-           * be notified because we can't know.
-           * Submissions shouldn't happen during parsing so it _should_ be safe.
-           */
+        /*
+         * We are going to call update states assuming elements want to
+         * be notified because we can't know.
+         * Submissions shouldn't happen during parsing so it _should_ be safe.
+         */
 
-          MOZ_AUTO_DOC_UPDATE(doc, UPDATE_CONTENT_STATE, PR_TRUE);
+        nsAutoScriptBlocker scriptBlocker;
 
-          for (PRUint32 i = 0, length = mControls->mElements.Length();
-               i < length; ++i) {
-            // Input elements can trigger a form submission and we want to
-            // update the style in that case.
-            if (mControls->mElements[i]->IsHTML(nsGkAtoms::input) &&
-                nsContentUtils::IsFocusedContent(mControls->mElements[i])) {
-              static_cast<nsHTMLInputElement*>(mControls->mElements[i])
-                ->UpdateValidityUIBits(true);
-            }
-
-            doc->ContentStateChanged(mControls->mElements[i],
-                                     NS_EVENT_STATE_MOZ_UI_VALID |
-                                     NS_EVENT_STATE_MOZ_UI_INVALID);
+        for (PRUint32 i = 0, length = mControls->mElements.Length();
+             i < length; ++i) {
+          // Input elements can trigger a form submission and we want to
+          // update the style in that case.
+          if (mControls->mElements[i]->IsHTML(nsGkAtoms::input) &&
+              nsContentUtils::IsFocusedContent(mControls->mElements[i])) {
+            static_cast<nsHTMLInputElement*>(mControls->mElements[i])
+              ->UpdateValidityUIBits(true);
           }
 
-          // Because of backward compatibility, <input type='image'> is not in
-          // elements but can be invalid.
-          // TODO: should probably be removed when bug 606491 will be fixed.
-          for (PRUint32 i = 0, length = mControls->mNotInElements.Length();
-               i < length; ++i) {
-            doc->ContentStateChanged(mControls->mNotInElements[i],
-                                     NS_EVENT_STATE_MOZ_UI_VALID |
-                                     NS_EVENT_STATE_MOZ_UI_INVALID);
-          }
+          mControls->mElements[i]->UpdateState(true);
+        }
+
+        // Because of backward compatibility, <input type='image'> is not in
+        // elements but can be invalid.
+        // TODO: should probably be removed when bug 606491 will be fixed.
+        for (PRUint32 i = 0, length = mControls->mNotInElements.Length();
+             i < length; ++i) {
+          mControls->mNotInElements[i]->UpdateState(true);
         }
       }
 
@@ -1831,26 +1783,20 @@ nsHTMLFormElement::UpdateValidity(PRBool aElementValidity)
     return;
   }
 
-  nsIDocument* doc = GetCurrentDoc();
-  if (!doc) {
-    return;
-  }
-
   /*
-   * We are going to call ContentStateChanged assuming submit controls want to
+   * We are going to update states assuming submit controls want to
    * be notified because we can't know.
    * UpdateValidity shouldn't be called so much during parsing so it _should_
    * be safe.
    */
 
-  MOZ_AUTO_DOC_UPDATE(doc, UPDATE_CONTENT_STATE, PR_TRUE);
+  nsAutoScriptBlocker scriptBlocker;
 
   // Inform submit controls that the form validity has changed.
   for (PRUint32 i = 0, length = mControls->mElements.Length();
        i < length; ++i) {
     if (mControls->mElements[i]->IsSubmitControl()) {
-      doc->ContentStateChanged(mControls->mElements[i],
-                               NS_EVENT_STATE_MOZ_SUBMITINVALID);
+      mControls->mElements[i]->UpdateState(true);
     }
   }
 
@@ -1859,8 +1805,7 @@ nsHTMLFormElement::UpdateValidity(PRBool aElementValidity)
   PRUint32 length = mControls->mNotInElements.Length();
   for (PRUint32 i = 0; i < length; ++i) {
     if (mControls->mNotInElements[i]->IsSubmitControl()) {
-      doc->ContentStateChanged(mControls->mNotInElements[i],
-                               NS_EVENT_STATE_MOZ_SUBMITINVALID);
+      mControls->mNotInElements[i]->UpdateState(true);
     }
   }
 }
@@ -2306,12 +2251,11 @@ nsFormControlList::GetLength(PRUint32* aLength)
 NS_IMETHODIMP
 nsFormControlList::Item(PRUint32 aIndex, nsIDOMNode** aReturn)
 {
-  nsresult rv;
-  nsISupports* item = GetNodeAt(aIndex, &rv);
+  nsISupports* item = GetNodeAt(aIndex);
   if (!item) {
     *aReturn = nsnull;
 
-    return rv;
+    return NS_OK;
   }
 
   return CallQueryInterface(item, aReturn);
@@ -2394,7 +2338,7 @@ nsFormControlList::AddElementToTable(nsGenericHTMLFormElement* aChild,
 
       // Found an element, create a list, add the element to the list and put
       // the list in the hash
-      nsBaseContentList *list = new nsBaseContentList();
+      nsSimpleContentList *list = new nsSimpleContentList(mForm);
       NS_ENSURE_TRUE(list, NS_ERROR_OUT_OF_MEMORY);
 
       NS_ASSERTION(content->GetParent(), "Item in list without parent");
@@ -2418,7 +2362,7 @@ nsFormControlList::AddElementToTable(nsGenericHTMLFormElement* aChild,
       NS_ENSURE_TRUE(nodeList, NS_ERROR_FAILURE);
 
       // Upcast, uggly, but it works!
-      nsBaseContentList *list = static_cast<nsBaseContentList *>
+      nsSimpleContentList *list = static_cast<nsSimpleContentList *>
                                            ((nsIDOMNodeList *)nodeList.get());
 
       NS_ASSERTION(list->Length() > 1,

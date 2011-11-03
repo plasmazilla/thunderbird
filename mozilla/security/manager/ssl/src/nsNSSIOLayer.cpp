@@ -116,6 +116,8 @@ NSSCleanupAutoPtrClass(char, PL_strfree)
 NSSCleanupAutoPtrClass(void, PR_FREEIF)
 NSSCleanupAutoPtrClass_WithParam(PRArenaPool, PORT_FreeArena, FalseParam, PR_FALSE)
 
+static NS_DEFINE_CID(kNSSComponentCID, NS_NSSCOMPONENT_CID);
+
 /* SSM_UserCertChoice: enum for cert choice info */
 typedef enum {ASK, AUTO} SSM_UserCertChoice;
 
@@ -224,7 +226,8 @@ nsNSSSocketInfo::nsNSSSocketInfo()
     mAllowTLSIntoleranceTimeout(PR_TRUE),
     mRememberClientAuthCertificate(PR_FALSE),
     mHandshakeStartTime(0),
-    mPort(0)
+    mPort(0),
+    mIsCertIssuerBlacklisted(PR_FALSE)
 {
   mThreadData = new nsSSLSocketThreadData;
 }
@@ -358,7 +361,7 @@ nsNSSSocketInfo::EnsureDocShellDependentStuffKnown()
   if (mDocShellDependentStuffKnown)
     return NS_OK;
 
-  if (!mCallbacks || nsSSLThread::exitRequested())
+  if (!mCallbacks || nsSSLThread::stoppedOrStopping())
     return NS_ERROR_FAILURE;
 
   mDocShellDependentStuffKnown = PR_TRUE;
@@ -565,7 +568,7 @@ NS_IMETHODIMP nsNSSSocketInfo::GetInterface(const nsIID & uuid, void * *result)
 
     rv = ir->GetInterface(uuid, result);
   } else {
-    if (nsSSLThread::exitRequested())
+    if (nsSSLThread::stoppedOrStopping())
       return NS_ERROR_FAILURE;
 
     nsCOMPtr<nsIInterfaceRequestor> proxiedCallbacks;
@@ -1411,7 +1414,7 @@ displayAlert(nsAFlatString &formattedString, nsNSSSocketInfo *infoObject)
   // The interface requestor object may not be safe, so proxy the call to get
   // the nsIPrompt.
 
-  if (nsSSLThread::exitRequested())
+  if (nsSSLThread::stoppedOrStopping())
     return NS_ERROR_FAILURE;
 
   nsCOMPtr<nsIInterfaceRequestor> proxiedCallbacks;
@@ -1448,7 +1451,7 @@ nsHandleSSLError(nsNSSSocketInfo *socketInfo, PRInt32 err)
     return NS_OK;
   }
 
-  if (nsSSLThread::exitRequested()) {
+  if (nsSSLThread::stoppedOrStopping()) {
     return NS_ERROR_FAILURE;
   }
 
@@ -1774,9 +1777,7 @@ nsSSLIOLayerHelpers::rememberPossibleTLSProblemSite(PRFileDesc* ssl_layer_fd, ns
 
   PRBool enableSSL3 = PR_FALSE;
   SSL_OptionGet(ssl_layer_fd, SSL_ENABLE_SSL3, &enableSSL3);
-  PRBool enableSSL2 = PR_FALSE;
-  SSL_OptionGet(ssl_layer_fd, SSL_ENABLE_SSL2, &enableSSL2);
-  if (enableSSL3 || enableSSL2) {
+  if (enableSSL3) {
     // Add this site to the list of TLS intolerant sites.
     addIntolerantSite(key);
   }
@@ -3352,7 +3353,7 @@ nsNSSBadCertHandler(void *arg, PRFileDesc *sslSocket)
   if (!infoObject)
     return SECFailure;
 
-  if (nsSSLThread::exitRequested())
+  if (nsSSLThread::stoppedOrStopping())
     return cancel_and_failure(infoObject);
 
   CERTCertificate *peerCert = nsnull;
@@ -3377,6 +3378,14 @@ nsNSSBadCertHandler(void *arg, PRFileDesc *sslSocket)
   PRErrorCode errorCodeMismatch = SECSuccess;
   PRErrorCode errorCodeExpired = SECSuccess;
 
+  nsCOMPtr<nsINSSComponent> inss = do_GetService(kNSSComponentCID, &nsrv);
+  if (!inss)
+    return cancel_and_failure(infoObject);
+  nsRefPtr<nsCERTValInParamWrapper> survivingParams;
+  nsrv = inss->GetDefaultCERTValInParam(survivingParams);
+  if (NS_FAILED(nsrv))
+    return cancel_and_failure(infoObject);
+  
   char *hostname = SSL_RevealURL(sslSocket);
   if (!hostname)
     return cancel_and_failure(infoObject);
@@ -3415,10 +3424,26 @@ nsNSSBadCertHandler(void *arg, PRFileDesc *sslSocket)
 
     verify_log->arena = log_arena;
 
-    srv = CERT_VerifyCertificate(CERT_GetDefaultCertDB(), peerCert,
-                                 PR_TRUE, certificateUsageSSLServer,
-                                 PR_Now(), (void*)infoObject, 
-                                 verify_log, NULL);
+    if (!nsNSSComponent::globalConstFlagUsePKIXVerification) {
+      srv = CERT_VerifyCertificate(CERT_GetDefaultCertDB(), peerCert,
+                                  PR_TRUE, certificateUsageSSLServer,
+                                  PR_Now(), (void*)infoObject, 
+                                  verify_log, NULL);
+    }
+    else {
+      CERTValOutParam cvout[2];
+      cvout[0].type = cert_po_errorLog;
+      cvout[0].value.pointer.log = verify_log;
+      cvout[1].type = cert_po_end;
+
+      srv = CERT_PKIXVerifyCert(peerCert, certificateUsageSSLServer,
+                                survivingParams->GetRawPointerForNSS(),
+                                cvout, (void*)infoObject);
+    }
+
+    if (infoObject->IsCertIssuerBlacklisted()) {
+      collected_errors |= nsICertOverrideService::ERROR_UNTRUSTED;
+    }
 
     // We ignore the result code of the cert verification.
     // Either it is a failure, which is expected, and we'll process the
@@ -3671,15 +3696,6 @@ nsSSLIOLayerSetOptions(PRFileDesc *fd, PRBool forSTARTTLS,
     infoObject->SetHasCleartextPhase(PR_TRUE);
   }
 
-  if (forSTARTTLS) {
-    if (SECSuccess != SSL_OptionSet(fd, SSL_ENABLE_SSL2, PR_FALSE)) {
-      return NS_ERROR_FAILURE;
-    }
-    if (SECSuccess != SSL_OptionSet(fd, SSL_V2_COMPATIBLE_HELLO, PR_FALSE)) {
-      return NS_ERROR_FAILURE;
-    }
-  }
-
   // Let's see if we're trying to connect to a site we know is
   // TLS intolerant.
   nsCAutoString key;
@@ -3697,10 +3713,6 @@ nsSSLIOLayerSetOptions(PRFileDesc *fd, PRBool forSTARTTLS,
     // One advantage of this approach, if a site only supports the older
     // hellos, it is more likely that we will get a reasonable error code
     // on our single retry attempt.
-    
-    if (!forSTARTTLS &&
-        SECSuccess != SSL_OptionSet(fd, SSL_V2_COMPATIBLE_HELLO, PR_TRUE))
-      return NS_ERROR_FAILURE;
   }
 
   if (SECSuccess != SSL_OptionSet(fd, SSL_HANDSHAKE_AS_CLIENT, PR_TRUE)) {

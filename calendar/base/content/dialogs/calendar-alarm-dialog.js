@@ -83,11 +83,15 @@ function onDismissAlarm(event) {
 function onDismissAllAlarms() {
     // removes widgets on the fly:
     let alarmRichlist = document.getElementById("alarm-richlist");
+    let parentItems = {};
 
     // Make a copy of the child nodes as they get modified live
     for each (let node in Array.slice(alarmRichlist.childNodes)) {
         // Check if the node is a valid alarm and is still part of DOM
-        if (node.parentNode && node.item && node.alarm) {
+        if (node.parentNode && node.item && node.alarm &&
+            !(node.item.parentItem.hashId in parentItems)) {
+            // We only need to acknowledge one occurrence for repeating items
+            parentItems[node.item.parentItem.hashId] = node.item.parentItem;
             getAlarmService().dismissAlarm(node.item, node.alarm);
         }
     }
@@ -100,12 +104,14 @@ function onDismissAllAlarms() {
  * @param event     The itemdetails event.
  */
 function onItemDetails(event) {
-    // We want this to happen in a calendar window.
-    let wm = Components.classes["@mozilla.org/appshell/window-mediator;1"]
-                       .getService(Components.interfaces.nsIWindowMediator);
-    let calWindow = wm.getMostRecentWindow("calendarMainWindow") ||
-                    wm.getMostRecentWindow("mail:3pane");
-    calWindow.modifyEventWithDialog(event.target.item, null, true);
+    // We want this to happen in a calendar window if possible. Otherwise open
+    // it using our window.
+    let calWindow = cal.getCalendarWindow();
+    if (calWindow) {
+        calWindow.modifyEventWithDialog(event.target.item, null, true);
+    } else {
+        modifyEventWithDialog(event.target.item, null, true);
+    }
 }
 
 /**
@@ -186,11 +192,15 @@ function snoozeAllItems(aDurationMinutes) {
     duration.normalize();
 
     let alarmRichlist = document.getElementById("alarm-richlist");
+    let parentItems = {};
 
     // Make a copy of the child nodes as they get modified live
     for each (let node in Array.slice(alarmRichlist.childNodes)) {
         // Check if the node is a valid alarm and is still part of DOM
-        if (node.parentNode && node.item && node.alarm) {
+        if (node.parentNode && node.item && node.alarm &&
+            !(node.item.parentItem.hashId in parentItems)) {
+            // We only need to acknowledge one occurrence for repeating items
+            parentItems[node.item.parentItem.hashId] = node.item.parentItem;
             getAlarmService().snoozeAlarm(node.item, node.alarm, duration);
         }
     }
@@ -212,18 +222,18 @@ function setupTitle() {
  * the start date of a calendar-alarm-widget.
  *
  * @param aItem                 A calendar item for the comparison of the start date property
- * @param calAlarmWidget        A calendar-alarm-widget for the start date comparison with the given calendar item
+ * @param calAlarmWidget        The alarm widget item for the start date comparison with the given calendar item
  * @return                      1 - if the calendar item starts before the calendar-alarm-widget
  *                             -1 - if the calendar-alarm-widget starts before the calendar item
  *                              0 - otherwise
  */
-function widgetAlarmComptor(aItem, calAlarmWidget) {
+function widgetAlarmComptor(aItem, aWidgetItem) {
 
-    if (aItem == null || calAlarmWidget == null || calAlarmWidget.item == null) return -1;
+    if (aItem == null || aWidgetItem == null) return -1;
 
     // Get the dates to compare
     let aDate = aItem[calGetStartDateProp(aItem)];
-    let bDate = calAlarmWidget.item[calGetStartDateProp(calAlarmWidget.item)];
+    let bDate = aWidgetItem[calGetStartDateProp(aWidgetItem)];
 
     return aDate.compare(bDate);
 }
@@ -239,7 +249,7 @@ function addWidgetFor(aItem, aAlarm) {
     let alarmRichlist = document.getElementById("alarm-richlist");
 
     // Add widgets sorted by start date ascending
-    binaryInsertNode(alarmRichlist, widget, aItem, widgetAlarmComptor, false);
+    cal.binaryInsertNode(alarmRichlist, widget, aItem, widgetAlarmComptor, false);
 
     widget.item = aItem;
     widget.alarm = aAlarm;
@@ -272,7 +282,8 @@ function removeWidgetFor(aItem, aAlarm) {
     let hashId = aItem.hashId;
     let alarmRichlist = document.getElementById("alarm-richlist");
     let nodes = alarmRichlist.childNodes;
-    for (let i = nodes.length - 1; i >= 0; --i) {
+    let notfound = true;
+    for (let i = nodes.length - 1; notfound && i >= 0; --i) {
         let widget = nodes[i];
         if (widget.item && widget.item.hashId == hashId &&
             widget.alarm && widget.alarm.icalString == aAlarm.icalString) {
@@ -286,25 +297,33 @@ function removeWidgetFor(aItem, aAlarm) {
             widget.removeEventListener("snooze", onSnoozeAlarm, false);
             widget.removeEventListener("dismiss", onDismissAlarm, false);
             widget.removeEventListener("itemdetails", onItemDetails, false);
-            alarmRichlist.removeChild(widget);
 
-            if (!alarmRichlist.hasChildNodes()) {
-                // check again next round since this removeWidgetFor call may be
-                // followed by an addWidgetFor call (e.g. when refreshing), and
-                // we don't want to close and open the window in that case.
-                function closer() {
-                    if (!alarmRichlist.hasChildNodes()) {
-                        window.close();
-                    }
-                }
-                setTimeout(closer, 0);
-            }
-            break;
+            alarmRichlist.removeChild(widget);
+            closeIfEmpty();
+            notfound = false;
         }
     }
 
     // Update the title
     setupTitle();
+}
+
+/**
+ * Close the alarm dialog if there are no further alarm widgets
+ */
+function closeIfEmpty() {
+    let alarmRichlist = document.getElementById("alarm-richlist");
+    if (!alarmRichlist.hasChildNodes()) {
+        // check again in a short while since this removeWidgetFor call may be
+        // followed by an addWidgetFor call (e.g. when refreshing), and
+        // we don't want to close and open the window in that case.
+        function closer() {
+            if (!alarmRichlist.hasChildNodes()) {
+                window.close();
+            }
+        }
+        setTimeout(closer, 250);
+    }
 }
 
 /**
@@ -318,4 +337,11 @@ function onSelectAlarm(event) {
         richList.ensureElementIsVisible(richList.getSelectedItem(0));
         richList.userSelectedWidget = true;
     }
+}
+
+function ensureCalendarVisible(aCalendar) {
+    // This function is called on the alarm dialog from calendar-item-editing.js.
+    // Normally, it makes sure that the calendar being edited is made visible,
+    // but the alarm dialog is too far away from the calendar views that it
+    // makes sense to force visiblity for the calendar. Therefore, do nothing.
 }

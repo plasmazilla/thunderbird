@@ -71,10 +71,9 @@ class nsIURI;
 class nsIPrincipal;
 
 // IID for the nsINodeInfo interface
-// 35e53115-b884-4cfc-aa95-bdf0aa5152cf
 #define NS_INODEINFO_IID      \
-{ 0x35e53115, 0xb884, 0x4cfc, \
- { 0xaa, 0x95, 0xbd, 0xf0, 0xaa, 0x51, 0x52, 0xcf } }
+{ 0xc5188ea1, 0x0a9c, 0x43e6, \
+ { 0x95, 0x90, 0xcc, 0x43, 0x6b, 0xe9, 0xcf, 0xa0 } }
 
 class nsINodeInfo : public nsISupports
 {
@@ -82,7 +81,7 @@ public:
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_INODEINFO_IID)
 
   nsINodeInfo()
-    : mInner(nsnull, nsnull, kNameSpaceID_None),
+    : mInner(nsnull, nsnull, kNameSpaceID_None, 0, nsnull),
       mOwnerManager(nsnull)
   {
   }
@@ -117,18 +116,23 @@ public:
    * For the HTML element "<body>" this will return "body" and for the XML
    * element "<html:body>" this will return "html:body".
    */
-  virtual void GetQualifiedName(nsAString& aQualifiedName) const = 0;
+  const nsString& QualifiedName() const {
+    return mQualifiedName;
+  }
 
   /*
-   * Get the local name from this node as a string, GetLocalName() gets the
-   * same string as GetName() but only if the node has a prefix and/or a
-   * namespace URI. If the node has neither a prefix nor a namespace URI the
-   * local name is a null string.
-   *
-   * For the HTML element "<body>" in a HTML document this will return a null
-   * string and for the XML element "<html:body>" this will return "body".
+   * Returns the node's nodeName as defined in DOM Core
    */
-  virtual void GetLocalName(nsAString& aLocalName) const = 0;
+  const nsString& NodeName() const {
+    return mNodeName;
+  }
+
+  /*
+   * Returns the node's localName as defined in DOM Core
+   */
+  const nsString& LocalName() const {
+    return mLocalName;
+  }
 
 #ifdef MOZILLA_INTERNAL_API
   /*
@@ -160,28 +164,33 @@ public:
 
   /*
    * Get the namespace URI for a node, if the node has a namespace URI.
-   *
-   * For the HTML element "<body>" in a HTML document this will return a null
-   * string and for the XML element "<html:body>" (assuming that this element,
-   * or one of its ancestors has an
-   * xmlns:html='http://www.w3.org/1999/xhtml' attribute) this will return
-   * the string "http://www.w3.org/1999/xhtml".
    */
   virtual nsresult GetNamespaceURI(nsAString& aNameSpaceURI) const = 0;
 
   /*
    * Get the namespace ID for a node if the node has a namespace, if not this
    * returns kNameSpaceID_None.
-   *
-   * For the HTML element "<body>" in a HTML document this will return
-   * kNameSpaceID_None and for the XML element "<html:body>" (assuming that
-   * this element, or one of its ancestors has an
-   * xmlns:html='http://www.w3.org/1999/xhtml' attribute) this will return
-   * the namespace ID for "http://www.w3.org/1999/xhtml".
    */
   PRInt32 NamespaceID() const
   {
     return mInner.mNamespaceID;
+  }
+
+  /*
+   * Get the nodetype for the node. Returns the values specified in nsIDOMNode
+   * for nsIDOMNode.nodeType
+   */
+  PRUint16 NodeType() const
+  {
+    return mInner.mNodeType;
+  }
+
+  /*
+   * Get the extra name, used by PIs and DocTypes, for the node.
+   */
+  nsIAtom* GetExtraName() const
+  {
+    return mInner.mExtraName;
   }
 
   /*
@@ -255,13 +264,30 @@ public:
     return mInner.mNamespaceID == aNamespaceID;
   }
 
-  virtual PRBool Equals(const nsAString& aName) const = 0;
-  virtual PRBool Equals(const nsAString& aName,
-                        const nsAString& aPrefix) const = 0;
-  virtual PRBool Equals(const nsAString& aName,
-                        PRInt32 aNamespaceID) const = 0;
-  virtual PRBool Equals(const nsAString& aName, const nsAString& aPrefix,
-                        PRInt32 aNamespaceID) const = 0;
+  PRBool Equals(const nsAString& aName) const
+  {
+    return mInner.mName->Equals(aName);
+  }
+
+  PRBool Equals(const nsAString& aName, const nsAString& aPrefix) const
+  {
+    return mInner.mName->Equals(aName) &&
+      (mInner.mPrefix ? mInner.mPrefix->Equals(aPrefix) : aPrefix.IsEmpty());
+  }
+
+  PRBool Equals(const nsAString& aName, PRInt32 aNamespaceID) const
+  {
+    return mInner.mNamespaceID == aNamespaceID &&
+      mInner.mName->Equals(aName);
+  }
+
+  PRBool Equals(const nsAString& aName, const nsAString& aPrefix,
+                PRInt32 aNamespaceID) const
+  {
+    return mInner.mName->Equals(aName) && mInner.mNamespaceID == aNamespaceID &&
+      (mInner.mPrefix ? mInner.mPrefix->Equals(aPrefix) : aPrefix.IsEmpty());
+  }
+
   virtual PRBool NamespaceEquals(const nsAString& aNamespaceURI) const = 0;
 
   PRBool QualifiedNameEquals(nsIAtom* aNameAtom) const
@@ -270,15 +296,12 @@ public:
     if (!GetPrefixAtom())
       return Equals(aNameAtom);
 
-    return QualifiedNameEqualsInternal(nsDependentAtomString(aNameAtom));
+    return aNameAtom->Equals(mQualifiedName);
   }
 
   PRBool QualifiedNameEquals(const nsAString& aQualifiedName) const
   {
-    if (!GetPrefixAtom())
-      return mInner.mName->Equals(aQualifiedName);
-
-    return QualifiedNameEqualsInternal(aQualifiedName);    
+    return mQualifiedName == aQualifiedName;
   }
 
   /*
@@ -286,13 +309,10 @@ public:
    */
   nsIDocument* GetDocument() const
   {
-    return mOwnerManager->GetDocument();
+    return mDocument;
   }
 
 protected:
-  virtual PRBool
-    QualifiedNameEqualsInternal(const nsAString& aQualifiedName) const = 0;
-
   /*
    * nsNodeInfoInner is used for two things:
    *
@@ -312,33 +332,54 @@ protected:
   public:
     nsNodeInfoInner()
       : mName(nsnull), mPrefix(nsnull), mNamespaceID(kNameSpaceID_Unknown),
-        mNameString(nsnull)
+        mNodeType(0), mNameString(nsnull), mExtraName(nsnull)
     {
     }
-    nsNodeInfoInner(nsIAtom *aName, nsIAtom *aPrefix, PRInt32 aNamespaceID)
+    nsNodeInfoInner(nsIAtom *aName, nsIAtom *aPrefix, PRInt32 aNamespaceID,
+                    PRUint16 aNodeType, nsIAtom* aExtraName)
       : mName(aName), mPrefix(aPrefix), mNamespaceID(aNamespaceID),
-        mNameString(nsnull)
+        mNodeType(aNodeType), mNameString(nsnull), mExtraName(aExtraName)
     {
     }
-    nsNodeInfoInner(const nsAString& aTmpName, nsIAtom *aPrefix, PRInt32 aNamespaceID)
+    nsNodeInfoInner(const nsAString& aTmpName, nsIAtom *aPrefix,
+                    PRInt32 aNamespaceID, PRUint16 aNodeType)
       : mName(nsnull), mPrefix(aPrefix), mNamespaceID(aNamespaceID),
-        mNameString(&aTmpName)
+        mNodeType(aNodeType), mNameString(&aTmpName), mExtraName(nsnull)
     {
     }
 
     nsIAtom*            mName;
     nsIAtom*            mPrefix;
     PRInt32             mNamespaceID;
+    PRUint16            mNodeType; // As defined by nsIDOMNode.nodeType
     const nsAString*    mNameString;
+    nsIAtom*            mExtraName; // Only used by PIs and DocTypes
   };
 
   // nsNodeInfoManager needs to pass mInner to the hash table.
   friend class nsNodeInfoManager;
 
+  nsIDocument* mDocument; // Weak. Cache of mOwnerManager->mDocument
+
   nsNodeInfoInner mInner;
 
   nsCOMPtr<nsIAtom> mIDAttributeAtom;
   nsNodeInfoManager* mOwnerManager; // Strong reference!
+
+  /*
+   * Members for various functions of mName+mPrefix that we can be
+   * asked to compute.
+   */
+
+  // Qualified name
+  nsString mQualifiedName;
+
+  // nodeName for the node.
+  nsString mNodeName;
+
+  // localName for the node. This is either equal to mInner.mName, or a
+  // void string, depending on mInner.mNodeType.
+  nsString mLocalName;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsINodeInfo, NS_INODEINFO_IID)

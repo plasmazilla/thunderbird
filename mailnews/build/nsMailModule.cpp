@@ -99,6 +99,7 @@
 #include "nsMsgBiffManager.h"
 #include "nsMsgPurgeService.h"
 #include "nsStatusBarBiffManager.h"
+#include "nsMsgKeyArray.h"
 #include "nsCopyMessageStreamListener.h"
 #include "nsMsgCopyService.h"
 #include "nsMsgFolderCache.h"
@@ -152,7 +153,6 @@
 // addrbook includes
 ////////////////////////////////////////////////////////////////////////////////
 #include "nsAbBaseCID.h"
-#include "nsDirectoryDataSource.h"
 #include "nsAbBSDirectory.h"
 #include "nsAbMDBDirectory.h"
 #include "nsAbMDBCard.h"
@@ -188,6 +188,7 @@
 //#include "nsAbLDAPChangeLogData.h"
 #include "nsLDAPAutoCompleteSession.h"
 #endif
+
 
 #if defined(XP_WIN) && !defined(__MINGW32__)
 #include "nsAbOutlookDirFactory.h"
@@ -351,6 +352,7 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsCopyMessageStreamListener)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsMsgCopyService)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsMsgFolderCache)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsMsgStatusFeedback)
+NS_GENERIC_FACTORY_CONSTRUCTOR(nsMsgKeyArray)
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsMsgWindow,Init)
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsMsgServiceProviderService, Init)
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsSubscribeDataSource, Init)
@@ -416,6 +418,7 @@ NS_DEFINE_NAMED_CID(NS_MSGCOPYSERVICE_CID);
 NS_DEFINE_NAMED_CID(NS_MSGFOLDERCACHE_CID);
 NS_DEFINE_NAMED_CID(NS_MSGSTATUSFEEDBACK_CID);
 NS_DEFINE_NAMED_CID(NS_MSGWINDOW_CID);
+NS_DEFINE_NAMED_CID(NS_MSGKEYARRAY_CID);
 #ifdef NS_PRINTING
 NS_DEFINE_NAMED_CID(NS_MSG_PRINTENGINE_CID);
 #endif
@@ -461,7 +464,6 @@ NS_DEFINE_NAMED_CID(NS_MAILNEWSDLF_CID);
 ////////////////////////////////////////////////////////////////////////////////
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsAbManager,Init)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbContentHandler)
-NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsAbDirectoryDataSource,Init)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbDirProperty)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbCardProperty)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbBSDirectory)
@@ -483,6 +485,7 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbDirectoryQueryArguments)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbBooleanConditionString)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbBooleanExpression)
 
+
 #if defined(MOZ_LDAP_XPCOM)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPDirectory)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPDirectoryQuery)
@@ -499,6 +502,7 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbLDAPProcessReplicationData)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsLDAPAutoCompleteSession)
 #endif
 
+
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbDirectoryQueryProxy)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbView)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsMsgVCardService)
@@ -511,7 +515,6 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsAbOSXDirFactory)
 #endif
 
 NS_DEFINE_NAMED_CID(NS_ABMANAGER_CID);
-NS_DEFINE_NAMED_CID(NS_ABDIRECTORYDATASOURCE_CID);
 NS_DEFINE_NAMED_CID(NS_ABDIRECTORY_CID);
 NS_DEFINE_NAMED_CID(NS_ABMDBDIRECTORY_CID);
 NS_DEFINE_NAMED_CID(NS_ABMDBCARD_CID);
@@ -531,6 +534,7 @@ NS_DEFINE_NAMED_CID(NS_BOOLEANEXPRESSION_CID);
 NS_DEFINE_NAMED_CID(NS_ABOUTLOOKDIRECTORY_CID);
 NS_DEFINE_NAMED_CID(NS_ABOUTLOOKDIRFACTORY_CID);
 #endif
+
 #if defined(MOZ_LDAP_XPCOM)
 NS_DEFINE_NAMED_CID(NS_ABLDAPDIRECTORY_CID);
 NS_DEFINE_NAMED_CID(NS_ABLDAPDIRECTORYQUERY_CID);
@@ -555,7 +559,7 @@ NS_DEFINE_NAMED_CID(NS_ABLDIFSERVICE_CID);
 ////////////////////////////////////////////////////////////////////////////////
 // bayesian spam filter factories
 ////////////////////////////////////////////////////////////////////////////////
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsBayesianFilter)
+NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsBayesianFilter, Init)
 
 NS_DEFINE_NAMED_CID(NS_BAYESIANFILTER_CID);
 
@@ -811,6 +815,7 @@ const mozilla::Module::CIDEntry kMailNewsCIDs[] = {
   { &kNS_MSGCOPYSERVICE_CID, false, NULL, nsMsgCopyServiceConstructor},
   { &kNS_MSGFOLDERCACHE_CID, false, NULL, nsMsgFolderCacheConstructor},
   { &kNS_MSGSTATUSFEEDBACK_CID, false, NULL, nsMsgStatusFeedbackConstructor},
+  { &kNS_MSGKEYARRAY_CID, false, NULL, nsMsgKeyArrayConstructor},
   { &kNS_MSGWINDOW_CID, false, NULL, nsMsgWindowConstructor},
 #ifdef NS_PRINTING
   { &kNS_MSG_PRINTENGINE_CID, false, NULL, nsMsgPrintEngineConstructor},
@@ -854,7 +859,6 @@ const mozilla::Module::CIDEntry kMailNewsCIDs[] = {
   { &kNS_MAILNEWSDLF_CID, false, NULL, MailNewsDLFConstructor},
   // Address Book Entries
   { &kNS_ABMANAGER_CID, false, NULL, nsAbManagerConstructor },
-  { &kNS_ABDIRECTORYDATASOURCE_CID, false, NULL, nsAbDirectoryDataSourceConstructor },
   { &kNS_ABDIRECTORY_CID, false, NULL, nsAbBSDirectoryConstructor },
   { &kNS_ABMDBDIRECTORY_CID, false, NULL, nsAbMDBDirectoryConstructor },
   { &kNS_ABMDBCARD_CID, false, NULL, nsAbMDBCardConstructor },
@@ -875,6 +879,7 @@ const mozilla::Module::CIDEntry kMailNewsCIDs[] = {
   { &kNS_ABDIRECTORYQUERYARGUMENTS_CID, false, NULL, nsAbDirectoryQueryArgumentsConstructor },
   { &kNS_BOOLEANCONDITIONSTRING_CID, false, NULL, nsAbBooleanConditionStringConstructor },
   { &kNS_BOOLEANEXPRESSION_CID, false, NULL, nsAbBooleanExpressionConstructor },
+
 #if defined(MOZ_LDAP_XPCOM)
   { &kNS_ABLDAPDIRECTORY_CID, false, NULL, nsAbLDAPDirectoryConstructor },
   { &kNS_ABLDAPDIRECTORYQUERY_CID, false, NULL, nsAbLDAPDirectoryQueryConstructor },
@@ -1007,6 +1012,7 @@ const mozilla::Module::ContractIDEntry kMailNewsContracts[] = {
   { NS_MSGCOPYSERVICE_CONTRACTID, &kNS_MSGCOPYSERVICE_CID },
   { NS_MSGFOLDERCACHE_CONTRACTID, &kNS_MSGFOLDERCACHE_CID },
   { NS_MSGSTATUSFEEDBACK_CONTRACTID, &kNS_MSGSTATUSFEEDBACK_CID },
+  { NS_MSGKEYARRAY_CONTRACTID, &kNS_MSGKEYARRAY_CID },
   { NS_MSGWINDOW_CONTRACTID, &kNS_MSGWINDOW_CID },
 #ifdef NS_PRINTING
   { NS_MSGPRINTENGINE_CONTRACTID, &kNS_MSG_PRINTENGINE_CID },
@@ -1050,7 +1056,6 @@ const mozilla::Module::ContractIDEntry kMailNewsContracts[] = {
   // Address Book Entries
   { NS_ABMANAGER_CONTRACTID, &kNS_ABMANAGER_CID },
   { NS_ABMANAGERSTARTUPHANDLER_CONTRACTID, &kNS_ABMANAGER_CID },
-  { NS_ABDIRECTORYDATASOURCE_CONTRACTID, &kNS_ABDIRECTORYDATASOURCE_CID },
   { NS_ABDIRECTORY_CONTRACTID, &kNS_ABDIRECTORY_CID },
   { NS_ABMDBDIRECTORY_CONTRACTID, &kNS_ABMDBDIRECTORY_CID },
   { NS_ABMDBCARD_CONTRACTID, &kNS_ABMDBCARD_CID },
@@ -1071,6 +1076,7 @@ const mozilla::Module::ContractIDEntry kMailNewsContracts[] = {
   { NS_ABDIRECTORYQUERYARGUMENTS_CONTRACTID, &kNS_ABDIRECTORYQUERYARGUMENTS_CID },
   { NS_BOOLEANCONDITIONSTRING_CONTRACTID, &kNS_BOOLEANCONDITIONSTRING_CID },
   { NS_BOOLEANEXPRESSION_CONTRACTID, &kNS_BOOLEANEXPRESSION_CID },
+
 #if defined(MOZ_LDAP_XPCOM)
   { NS_ABLDAPDIRECTORY_CONTRACTID, &kNS_ABLDAPDIRECTORY_CID },
   { NS_ABLDAPDIRECTORYQUERY_CONTRACTID, &kNS_ABLDAPDIRECTORYQUERY_CID },
@@ -1084,6 +1090,7 @@ const mozilla::Module::ContractIDEntry kMailNewsContracts[] = {
   { NS_ABLDAPAUTOCOMPFORMATTER_CONTRACTID, &kNS_ABLDAPAUTOCOMPFORMATTER_CID },
   { "@mozilla.org/autocompleteSession;1?type=ldap", &kNS_LDAPAUTOCOMPLETESESSION_CID },
 #endif
+
   { NS_ABDIRECTORYQUERYPROXY_CONTRACTID, &kNS_ABDIRECTORYQUERYPROXY_CID },
 #ifdef XP_MACOSX
   { NS_ABOSXDIRECTORY_CONTRACTID, &kNS_ABOSXDIRECTORY_CID },

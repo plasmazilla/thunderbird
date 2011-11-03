@@ -2172,7 +2172,7 @@ var nsOpenRemoteCommand =
 
   doCommand: function(aCommand)
   {
-    var params = { browser: null, action: null, url: "" };
+    var params = { action: "2", url: "" };
     openDialog( "chrome://communicator/content/openLocation.xul", "_blank", "chrome,modal,titlebar", params);
     var win = getTopWin();
     switch (params.action) {
@@ -2233,7 +2233,7 @@ var nsPreviewCommand =
         var documentURI = GetDocumentUrl();
         while ( enumerator.hasMoreElements() )
         {
-          browser = enumerator.getNext().QueryInterface(Components.interfaces.nsIDOMWindowInternal);
+          browser = enumerator.getNext();
           if ( browser && (documentURI == browser.getBrowser().currentURI.spec))
             break;
 

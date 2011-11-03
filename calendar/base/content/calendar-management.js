@@ -37,6 +37,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+Components.utils.import("resource://calendar/modules/calUtils.jsm");
+
 /**
  * Get this window's currently selected calendar.
  *
@@ -54,7 +56,7 @@ function getSelectedCalendar() {
  * @param aCalendar     The calendar to delete.
  */
 function promptDeleteCalendar(aCalendar) {
-    let calendars = getCalendarManager().getCalendars({});
+    let calendars = cal.getCalendarManager().getCalendars({});
     if (calendars.length <= 1) {
         // If this is the last calendar, don't delete it.
         return;
@@ -84,7 +86,7 @@ function loadCalendarManager() {
     tree.compositeCalendar = getCompositeCalendar();
 
     // Create the home calendar if no calendar exists.
-    let calendars = getCalendarManager().getCalendars({});
+    let calendars = cal.getCalendarManager().getCalendars({});
     if (!calendars.length) {
         initHomeCalendar();
     }
@@ -96,7 +98,7 @@ function loadCalendarManager() {
 function initHomeCalendar() {
     let calMgr = cal.getCalendarManager();
     let composite = getCompositeCalendar();
-    let url = makeURL("moz-storage-calendar://");
+    let url = cal.makeURL("moz-storage-calendar://");
     let homeCalendar = calMgr.createCalendar("storage", url);
     homeCalendar.name = calGetString("calendar", "homeCalendarName");
     calMgr.registerCalendar(homeCalendar);
@@ -105,7 +107,7 @@ function initHomeCalendar() {
 
     // Wrapping this in a try/catch block, as if any of the migration code
     // fails, the app may not load.
-    if (getPrefSafe("calendar.migrator.enabled", true)) {
+    if (cal.getPrefSafe("calendar.migrator.enabled", true)) {
         try {
             gDataMigrator.checkAndMigrate();
         } catch (e) {
@@ -209,6 +211,16 @@ function calendarListSetupContextMenu(event) {
         disableElement("list-calendars-context-delete");
     }
     return true;
+}
+
+/**
+ * Makes sure the passed calendar is visible to the user
+ *
+ * @param aCalendar   The calendar to make visible.
+ */
+function ensureCalendarVisible(aCalendar) {
+    // We use the main window's calendar list to ensure that the calendar is visible
+    document.getElementById("calendar-list-tree-widget").ensureCalendarVisible(aCalendar);
 }
 
 var compositeObserver = {

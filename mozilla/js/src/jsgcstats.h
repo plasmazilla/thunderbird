@@ -43,16 +43,46 @@
 # define JS_DUMP_CONSERVATIVE_GC_ROOTS 1
 #endif
 
-/* Define JS_GCMETER here if wanted */
-#if defined JS_GCMETER
-const bool JS_WANT_GC_METER_PRINT = true;
-const bool JS_WANT_GC_PER_COMPARTMENT_PRINT = true;
-const bool JS_WANT_CONSERVATIVE_GC_PRINT = true;
-#elif defined DEBUG
-# define JS_GCMETER 1
-const bool JS_WANT_GC_METER_PRINT = false;
-const bool JS_WANT_GC_PER_COMPARTMENT_PRINT = false;
-const bool JS_WANT_CONSERVATIVE_GC_PRINT = false;
+#ifdef JSGC_TESTPILOT
+JS_BEGIN_EXTERN_C
+
+struct JSGCInfo
+{
+    double appTime, gcTime, waitTime, markTime, sweepTime;
+    double sweepObjTime, sweepStringTime, sweepShapeTime, destroyTime, endTime;
+    bool isCompartmental;
+};
+
+extern JS_PUBLIC_API(void)
+JS_SetGCInfoEnabled(JSRuntime *rt, bool enabled);
+
+extern JS_PUBLIC_API(bool)
+JS_GetGCInfoEnabled(JSRuntime *rt);
+
+/*
+ * Data in the circular buffer may end up clobbered before the API client
+ * consumes it. Because of this we have a multi-part API. The client uses code
+ * like the following:
+ *
+ * - Call GetInfo, which provides an info pointer.
+ * - Read data out of the info pointer to a location the client owns.
+ * - Call PopInfo, which provides a "did info get dropped?" value. If that
+ *   value is true, the data read out of the info pointer may be tainted, and
+ *   must be thrown out. Otherwise, the data was definitely safe to read, and
+ *   may be committed to a database or some such.
+ *
+ * When PopInfo indicates that data has been dropped, all of the information in
+ * the circular buffer is reset.
+ */
+
+extern JS_PUBLIC_API(JSGCInfo *)
+JS_GCInfoFront(JSRuntime *rt);
+
+/* Return whether info has dropped. See comment above. */
+extern JS_PUBLIC_API(bool)
+JS_GCInfoPopFront(JSRuntime *rt);
+
+JS_END_EXTERN_C
 #endif
 
 namespace js {
@@ -61,9 +91,9 @@ namespace gc {
  * The conservative GC test for a word shows that it is either a valid GC
  * thing or is not for one of the following reasons.
  */
-enum ConservativeGCTest {
+enum ConservativeGCTest
+{
     CGCT_VALID,
-    CGCT_VALIDWITHOFFSET, /* points within an object */
     CGCT_LOWBITSET, /* excluded because one of the low bits was set */
     CGCT_NOTARENA,  /* not within arena range in a chunk */
     CGCT_NOTCHUNK,  /* not within a valid chunk */
@@ -73,9 +103,12 @@ enum ConservativeGCTest {
     CGCT_END
 };
 
-struct ConservativeGCStats {
+struct ConservativeGCStats
+{
     uint32  counter[gc::CGCT_END];  /* ConservativeGCTest classification
-                                   counters */
+                                       counters */
+    uint32  unaligned;              /* number of valid but not aligned on
+                                       thing start pointers */ 
 
     void add(const ConservativeGCStats &another) {
         for (size_t i = 0; i != JS_ARRAY_LENGTH(counter); ++i)
@@ -85,64 +118,17 @@ struct ConservativeGCStats {
     void dump(FILE *fp);
 };
 
-#ifdef JS_GCMETER
-struct JSGCArenaStats {
-    uint32  alloc;          /* allocation attempts */
-    uint32  localalloc;     /* allocations from local lists */
-    uint32  nthings;        /* live GC things */
-    uint32  maxthings;      /* maximum of live GC cells */
-    double  totalthings;    /* live GC things the GC scanned so far */
-    uint32  narenas;        /* number of arena in list before the GC */
-    uint32  newarenas;      /* new arenas allocated before the last GC */
-    uint32  livearenas;     /* number of live arenas after the last GC */
-    uint32  maxarenas;      /* maximum of allocated arenas */
-    uint32  totalarenas;    /* total number of arenas with live things that
-                               GC scanned so far */
-};
-#endif
-
-#ifdef JS_GCMETER
-
-struct JSGCStats {
-    uint32  lock;       /* valid lock calls */
-    uint32  unlock;     /* valid unlock calls */
-    uint32  unmarked;   /* number of times marking of GC thing's children were
-                           delayed due to a low C stack */
-    uint32  lastditch;  /* number of times the last ditch GC run */
-    uint32  fail;       /* allocation failures */
-#ifdef DEBUG
-    uint32  maxunmarked;/* maximum number of things with children to mark
-                           later */
-#endif
-    uint32  poke;           /* number of potentially useful GC calls */
-    uint32  afree;          /* thing arenas freed so far */
-    uint32  nallarenas;     /* number of all allocated arenas */
-    uint32  maxnallarenas;  /* maximum number of all allocated arenas */
-    uint32  nchunks;        /* number of allocated chunks */
-    uint32  maxnchunks;     /* maximum number of allocated chunks */
-
-    ConservativeGCStats conservative;
-};
-
-extern void
-UpdateCompartmentStats(JSCompartment *comp, unsigned thingKind, uint32 nlivearenas,
-                       uint32 nkilledArenas, uint32 nthings);
-#endif /* JS_GCMETER */
-
-#if defined JS_DUMP_CONSERVATIVE_GC_ROOTS
-void *GetAlignedThing(void *thing, int thingKind);
-#endif
-
 } //gc
 
-#ifdef MOZ_GCTIMER
-
-const bool JS_WANT_GC_SUITE_PRINT = false;  //false for gnuplot output
+#if defined(MOZ_GCTIMER) || defined(JSGC_TESTPILOT)
 
 extern jsrefcount newChunkCount;
 extern jsrefcount destroyChunkCount;
 
-struct GCTimer {
+struct GCTimer
+{
+    JSRuntime *rt;
+
     uint64 enter;
     uint64 startMark;
     uint64 startSweep;
@@ -152,24 +138,55 @@ struct GCTimer {
     uint64 sweepDestroyEnd;
     uint64 end;
 
-    GCTimer();
+    bool isCompartmental;
+    bool enabled; /* Disabled timers should cause no PRMJ calls. */
+
+    GCTimer(JSRuntime *rt, JSCompartment *comp);
 
     uint64 getFirstEnter();
 
+    void clearTimestamps() {
+        memset(&enter, 0, &end - &enter + sizeof(end));
+    }
+
     void finish(bool lastGC);
+
+    enum JSGCReason {
+        PUBLIC_API,
+        MAYBEGC,
+        LASTCONTEXT,
+        DESTROYCONTEXT,
+        COMPARTMENT,
+        LASTDITCH,
+        TOOMUCHMALLOC,
+        ALLOCTRIGGER,
+        CHUNK,
+        SHAPE,
+        NOREASON
+    };
 };
 
-# define GCTIMER_PARAM      , GCTimer &gcTimer
-# define GCTIMER_ARG        , gcTimer
-# define TIMESTAMP(x)       (gcTimer.x = PRMJ_Now())
-# define GCTIMER_BEGIN()    GCTimer gcTimer
-# define GCTIMER_END(last)  (gcTimer.finish(last))
+/* We accept the possiblility of races for this variable. */
+extern volatile GCTimer::JSGCReason gcReason;
+
+#define GCREASON(x) ((gcReason == GCTimer::NOREASON) ? gcReason = GCTimer::x : gcReason = gcReason)
+
+# define GCTIMER_PARAM              , GCTimer &gcTimer
+# define GCTIMER_ARG                , gcTimer
+# define GCTIMESTAMP(stamp_name_) \
+    JS_BEGIN_MACRO \
+        if (gcTimer.enabled) \
+            gcTimer.stamp_name_ = PRMJ_Now(); \
+    JS_END_MACRO
+# define GCTIMER_BEGIN(rt, comp)    GCTimer gcTimer(rt, comp)
+# define GCTIMER_END(last)          (gcTimer.finish(last))
 #else
+# define GCREASON(x)                ((void) 0)
 # define GCTIMER_PARAM
 # define GCTIMER_ARG
-# define TIMESTAMP(x)       ((void) 0)
-# define GCTIMER_BEGIN()    ((void) 0)
-# define GCTIMER_END(last)  ((void) 0)
+# define GCTIMESTAMP(x)             ((void) 0)
+# define GCTIMER_BEGIN(rt, comp)    ((void) 0)
+# define GCTIMER_END(last)          ((void) 0)
 #endif
 
 } //js

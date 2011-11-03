@@ -57,8 +57,17 @@
 
 using namespace mozilla::imagelib;
 
-NS_IMPL_ISUPPORTS4(imgRequestProxy, imgIRequest, nsIRequest,
-                   nsISupportsPriority, nsISecurityInfoProvider)
+NS_IMPL_ADDREF(imgRequestProxy)
+NS_IMPL_RELEASE(imgRequestProxy)
+
+NS_INTERFACE_MAP_BEGIN(imgRequestProxy)
+  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, imgIRequest)
+  NS_INTERFACE_MAP_ENTRY(imgIRequest)
+  NS_INTERFACE_MAP_ENTRY(nsIRequest)
+  NS_INTERFACE_MAP_ENTRY(nsISupportsPriority)
+  NS_INTERFACE_MAP_ENTRY(nsISecurityInfoProvider)
+  NS_INTERFACE_MAP_ENTRY_CONDITIONAL(nsITimedChannel, TimedChannel() != nsnull)
+NS_INTERFACE_MAP_END
 
 imgRequestProxy::imgRequestProxy() :
   mOwner(nsnull),
@@ -529,6 +538,17 @@ NS_IMETHODIMP imgRequestProxy::GetImagePrincipal(nsIPrincipal **aPrincipal)
     return NS_ERROR_FAILURE;
 
   NS_ADDREF(*aPrincipal = mPrincipal);
+
+  return NS_OK;
+}
+
+/* readonly attribute PRInt32 CORSMode; */
+NS_IMETHODIMP imgRequestProxy::GetCORSMode(PRInt32* aCorsMode)
+{
+  if (!mOwner)
+    return NS_ERROR_FAILURE;
+
+  *aCorsMode = mOwner->GetCORSMode();
 
   return NS_OK;
 }

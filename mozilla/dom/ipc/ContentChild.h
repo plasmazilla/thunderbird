@@ -138,16 +138,23 @@ public:
 
     virtual bool RecvAddPermission(const IPC::Permission& permission);
 
-    virtual bool RecvAccelerationChanged(const double& x, const double& y,
+    virtual bool RecvDeviceMotionChanged(const long int& type,
+                                         const double& x, const double& y,
                                          const double& z);
 
     virtual bool RecvScreenSizeChanged(const gfxIntSize &size);
 
     virtual bool RecvFlushMemory(const nsString& reason);
 
+    virtual bool RecvActivateA11y();
+
 #ifdef ANDROID
     gfxIntSize GetScreenSize() { return mScreenSize; }
 #endif
+
+    // Get the directory for IndexedDB files. We query the parent for this and
+    // cache the value
+    nsString &GetIndexedDBPath();
 
 private:
     NS_OVERRIDE

@@ -143,13 +143,13 @@ public:
 
   virtual PRBool HasAudio()
   {
-    mozilla::MonitorAutoEnter mon(mMonitor);
+    NS_ASSERTION(mDecoder->OnDecodeThread(), "Should be on decode thread.");
     return mHasAudio;
   }
 
   virtual PRBool HasVideo()
   {
-    mozilla::MonitorAutoEnter mon(mMonitor);
+    NS_ASSERTION(mDecoder->OnDecodeThread(), "Should be on decode thread.");
     return mHasVideo;
   }
 
@@ -190,12 +190,6 @@ private:
   // reading metadata or destruction of the reader itself.
   void Cleanup();
 
-  // Returns PR_TRUE if we should decode up to the seek target rather than
-  // seeking to the target using an index-assisted seek.  We should do this
-  // if the seek target (aTarget, in ms), lies not too far ahead of the
-  // current playback position (aCurrentTime, in ms).
-  PRBool CanDecodeToTarget(PRInt64 aTarget, PRInt64 aCurrentTime);
-
 private:
   // libnestegg context for webm container. Access on state machine thread
   // or decoder thread only.
@@ -221,8 +215,8 @@ private:
   PRUint32 mVideoTrack;
   PRUint32 mAudioTrack;
 
-  // Time in ms of the start of the first audio sample we've decoded.
-  PRInt64 mAudioStartMs;
+  // Time in microseconds of the start of the first audio sample we've decoded.
+  PRInt64 mAudioStartUsec;
 
   // Number of samples we've decoded since decoding began at mAudioStartMs.
   PRUint64 mAudioSamples;
@@ -230,6 +224,13 @@ private:
   // Parser state and computed offset-time mappings.  Shared by multiple
   // readers when decoder has been cloned.  Main thread only.
   nsRefPtr<nsWebMBufferedState> mBufferedState;
+
+  // Size of the frame initially present in the stream. The picture region
+  // is defined as a ratio relative to this.
+  nsIntSize mInitialFrame;
+
+  // Picture region, as relative to the initial frame size.
+  nsIntRect mPicture;
 
   // Booleans to indicate if we have audio and/or video data
   PRPackedBool mHasVideo;

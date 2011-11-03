@@ -41,7 +41,6 @@
 
 #include "nsAccessibilityAtoms.h"
 
-#include "nsIDOMDocumentXBL.h"
 #include "nsIDOMNode.h"
 #include "nsIContent.h"
 #include "nsIBoxObject.h"
@@ -110,7 +109,7 @@ public:
 
   /**
    * Return an accesskey registered on the given element by
-   * nsIEventStateManager or 0 if there is no registered accesskey.
+   * nsEventStateManager or 0 if there is no registered accesskey.
    *
    * @param aContent - the given element.
    */
@@ -232,6 +231,11 @@ public:
    * Return true if the given document is content document (not chrome).
    */
   static PRBool IsContentDocument(nsIDocument *aDocument);
+
+  /**
+   * Return true if the given document node is for tab document accessible.
+   */
+  static bool IsTabDocument(nsIDocument* aDocumentNode);
 
   /**
    * Return true if the given document is an error page.
@@ -369,14 +373,10 @@ public:
   }
 
   /**
-   * Generates frames for popup subtree.
-   *
-   * @param aContent [in] DOM node containing the menupopup element as a child
-   * @param aIsAnon  [in] specifies whether popup should be searched inside of
-   *                  anonymous or explicit content
+   * Check the visibility across both parent content and chrome.
    */
-  static void GeneratePopupTree(nsIContent *aContent,
-                                PRBool aIsAnon = PR_FALSE);
+  static bool CheckVisibilityInParentChain(nsIFrame* aFrame);
+
 };
 
 
@@ -398,40 +398,6 @@ public:
 
 private:
   nsTArray<nsString> mNames;
-};
-
-/**
- * Used to iterate through IDs or elements pointed by IDRefs attribute. Note,
- * any method used to iterate through IDs or elements moves iterator to next
- * position.
- */
-class IDRefsIterator
-{
-public:
-  IDRefsIterator(nsIContent* aContent, nsIAtom* aIDRefsAttr);
-
-  /**
-   * Return next ID.
-   */
-  const nsDependentSubstring NextID();
-
-  /**
-   * Return next element.
-   */
-  nsIContent* NextElem();
-
-  /**
-   * Return the element with the given ID.
-   */
-  nsIContent* GetElem(const nsDependentSubstring& aID);
-
-private:
-  nsString mIDs;
-  nsAString::index_type mCurrIdx;
-
-  nsIDocument* mDocument;
-  nsCOMPtr<nsIDOMDocumentXBL> mXBLDocument;
-  nsCOMPtr<nsIDOMElement> mBindingParent;
 };
 
 #endif

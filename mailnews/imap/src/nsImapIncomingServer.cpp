@@ -466,6 +466,18 @@ nsImapIncomingServer::PrepareToRetryUrl(nsIImapUrl *aImapUrl, nsIImapMockChannel
 }
 
 NS_IMETHODIMP
+nsImapIncomingServer::SuspendUrl(nsIImapUrl *aImapUrl)
+{
+  NS_ENSURE_ARG_POINTER(aImapUrl);
+  nsImapProtocol::LogImapUrl("suspending url", aImapUrl);
+  PR_CEnterMonitor(this);
+  m_urlQueue.AppendObject(aImapUrl);
+  m_urlConsumers.AppendElement(nsnull);
+  PR_CExitMonitor(this);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
 nsImapIncomingServer::RetryUrl(nsIImapUrl *aImapUrl, nsIImapMockChannel *aChannel)
 {
   nsresult rv;
@@ -722,12 +734,12 @@ nsImapIncomingServer::GetImapConnection(nsIEventTarget *aEventTarget,
       PRBool badConnection = ConnectionTimeOut(connection);
       if (!badConnection)
       {
-        badConnection = NS_FAILED(connection->CanHandleUrl(aImapUrl, 
-                                                           &canRunUrlImmediately, 
+        badConnection = NS_FAILED(connection->CanHandleUrl(aImapUrl,
+                                                           &canRunUrlImmediately,
                                                            &canRunButBusy));
 #ifdef DEBUG_bienvenu
         nsCAutoString curSelectedFolderName;
-        if (connection)    
+        if (connection)
           connection->GetSelectedMailboxName(getter_Copies(curSelectedFolderName));
         // check that no other connection is in the same selected state.
         if (!curSelectedFolderName.IsEmpty())
@@ -953,7 +965,7 @@ nsImapIncomingServer::PerformExpand(nsIMsgWindow *aMsgWindow)
   nsCOMPtr<nsIMsgFolder> rootMsgFolder;
   rv = GetRootFolder(getter_AddRefs(rootMsgFolder));
   NS_ENSURE_SUCCESS(rv, rv);
-  
+
   if (!rootMsgFolder) return NS_ERROR_FAILURE;
 
   nsCOMPtr<nsIImapService> imapService = do_GetService(NS_IMAPSERVICE_CONTRACTID, &rv);
@@ -1191,14 +1203,14 @@ NS_IMETHODIMP nsImapIncomingServer::PossibleImapMailbox(const nsACString& folder
       imapFolder->SetBoxFlags(boxFlags);
       imapFolder->SetExplicitlyVerify(explicitlyVerify);
       imapFolder->GetOnlineName(onlineName);
-      
+
       // online name needs to use the correct hierarchy delimiter (I think...)
       // or the canonical path - one or the other, but be consistent.
       MsgReplaceChar(dupFolderPath, '/', hierarchyDelimiter);
       if (hierarchyDelimiter != '/')
         nsImapUrl::UnescapeSlashes(dupFolderPath.BeginWriting());
 
-      // GMail gives us a localized name for the inbox but doesn't let 
+      // GMail gives us a localized name for the inbox but doesn't let
       // us select that localized name.
       if (boxFlags & kImapInbox)
         imapFolder->SetOnlineName(NS_LITERAL_CSTRING("INBOX"));
@@ -1321,7 +1333,7 @@ NS_IMETHODIMP  nsImapIncomingServer::OnlineFolderCreateFailed(const nsACString& 
   return NS_OK;
 }
 
-NS_IMETHODIMP nsImapIncomingServer::OnlineFolderRename(nsIMsgWindow *msgWindow, const nsACString& oldName, 
+NS_IMETHODIMP nsImapIncomingServer::OnlineFolderRename(nsIMsgWindow *msgWindow, const nsACString& oldName,
                                                        const nsACString& newName)
 {
   nsresult rv = NS_ERROR_FAILURE;
@@ -1632,7 +1644,7 @@ PRBool nsImapIncomingServer::CheckSpecialFolder(nsIRDFService *rdf,
       }
       if (!foundExistingFolder)
         folder->SetFlag(folderFlag);
-        
+
       nsString folderName;
       folder->GetPrettyName(folderName);
       // this will set the localized name based on the folder flag.
@@ -2493,12 +2505,16 @@ nsImapIncomingServer::GetSubscribeListener(nsISubscribeListener **aListener)
 NS_IMETHODIMP
 nsImapIncomingServer::Subscribe(const PRUnichar *aName)
 {
+  NS_ENSURE_ARG_POINTER(aName);
+  
   return SubscribeToFolder(nsDependentString(aName), PR_TRUE, nsnull);
 }
 
 NS_IMETHODIMP
 nsImapIncomingServer::Unsubscribe(const PRUnichar *aName)
 {
+  NS_ENSURE_ARG_POINTER(aName);
+
   return SubscribeToFolder(nsDependentString(aName), PR_FALSE, nsnull);
 }
 
@@ -2633,7 +2649,7 @@ nsresult
 nsImapIncomingServer::ClearInner()
 {
   nsresult rv = NS_OK;
-  if (mInner) 
+  if (mInner)
   {
     rv = mInner->SetSubscribeListener(nsnull);
     NS_ENSURE_SUCCESS(rv,rv);
@@ -2756,7 +2772,7 @@ nsImapIncomingServer::GetNumIdleConnections(PRInt32 *aNumIdleConnections)
   PR_CEnterMonitor(this);
 
   PRInt32 cnt = m_connectionCache.Count();
-  
+
   // loop counting idle connections
   for (PRInt32 i = 0; i < cnt; ++i)
   {
@@ -2874,7 +2890,7 @@ nsImapIncomingServer::GeneratePrettyNameForMigration(nsAString& aPrettyName)
   CopyASCIItoUTF16(userName,constructedPrettyName);
   constructedPrettyName.Append('@');
   constructedPrettyName.Append(NS_ConvertASCIItoUTF16(hostName));
-  
+
   // If the port is valid and not default, add port value to the pretty name
   if ((serverPort > 0) && (!isItDefaultPort)) {
     constructedPrettyName.Append(':');
@@ -2960,7 +2976,7 @@ nsImapIncomingServer::GetFilterScope(nsMsgSearchScopeValue *filterScope)
   // Manual filters could perhaps check the offline status of each folder,
   // though it's hard to see how to make that work since we only store filters
   // per server.
-  // 
+  //
   nsCOMPtr<nsIMsgFolder> rootMsgFolder;
   nsresult rv = GetRootMsgFolder(getter_AddRefs(rootMsgFolder));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -3248,6 +3264,9 @@ nsImapIncomingServer::GetMsgFolderFromURI(nsIMsgFolder *aFolderResource, const n
 NS_IMETHODIMP
 nsImapIncomingServer::CramMD5Hash(const char *decodedChallenge, const char *key, char **result)
 {
+  NS_ENSURE_ARG_POINTER(decodedChallenge);
+  NS_ENSURE_ARG_POINTER(key);
+
   unsigned char resultDigest[DIGEST_LENGTH];
   nsresult rv = MSGCramMD5(decodedChallenge, strlen(decodedChallenge), key, strlen(key), resultDigest);
   NS_ENSURE_SUCCESS(rv, rv);

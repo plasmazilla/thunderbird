@@ -45,7 +45,7 @@
 #include "nsString.h"
 #include "nsPrintfCString.h"
 #include "nsPresContext.h"
-#include "nsIRenderingContext.h"
+#include "nsRenderingContext.h"
 #include "nsIPresShell.h"
 #include "nsGkAtoms.h"
 #include "nsIDocument.h"
@@ -67,16 +67,13 @@
 #include "nsNetUtil.h"
 #include "nsHTMLContainerFrame.h"
 #include "prprf.h"
-#include "nsIFontMetrics.h"
 #include "nsCSSRendering.h"
 #include "nsILink.h"
 #include "nsIDOMHTMLAnchorElement.h"
 #include "nsIDOMHTMLImageElement.h"
-#include "nsIDeviceContext.h"
 #include "nsINameSpaceManager.h"
 #include "nsTextFragment.h"
 #include "nsIDOMHTMLMapElement.h"
-#include "nsImageMapUtils.h"
 #include "nsIScriptSecurityManager.h"
 #ifdef ACCESSIBILITY
 #include "nsAccessibilityService.h"
@@ -90,20 +87,23 @@
 #include "imgIContainer.h"
 #include "imgILoader.h"
 
-#include "nsContentPolicyUtils.h"
 #include "nsCSSFrameConstructor.h"
-#include "nsIPrefBranch2.h"
-#include "nsIPrefService.h"
 #include "nsIDOMRange.h"
 
 #include "nsIContentPolicy.h"
 #include "nsContentPolicyUtils.h"
-#include "nsIEventStateManager.h"
+#include "nsEventStates.h"
 #include "nsLayoutErrors.h"
 #include "nsBidiUtils.h"
 #include "nsBidiPresUtils.h"
 
 #include "gfxRect.h"
+#include "ImageLayers.h"
+
+#include "mozilla/Preferences.h"
+#include "mozilla/Util.h" // for DebugOnly
+
+using namespace mozilla;
 
 // sizes (pixels) for image icon, padding and border frame
 #define ICON_SIZE        (16)
@@ -117,8 +117,8 @@
 // Default alignment value (so we can tell an unset value from a set value)
 #define ALIGN_UNSET PRUint8(-1)
 
-using namespace mozilla;
 using namespace mozilla::layers;
+using namespace mozilla::dom;
 
 // static icon information
 nsImageFrame::IconLoad* nsImageFrame::gIconLoad = nsnull;
@@ -185,7 +185,7 @@ nsImageFrame::~nsImageFrame()
 }
 
 NS_QUERYFRAME_HEAD(nsImageFrame)
-  NS_QUERYFRAME_ENTRY(nsIImageFrame)
+  NS_QUERYFRAME_ENTRY(nsImageFrame)
 NS_QUERYFRAME_TAIL_INHERITING(ImageFrameSuper)
 
 #ifdef ACCESSIBILITY
@@ -249,7 +249,6 @@ nsImageFrame::Init(nsIContent*      aContent,
   NS_ENSURE_SUCCESS(rv, rv);
 
   mListener = new nsImageListener(this);
-  if (!mListener) return NS_ERROR_OUT_OF_MEMORY;
 
   nsCOMPtr<nsIImageLoadingContent> imageLoader = do_QueryInterface(aContent);
   NS_ENSURE_TRUE(imageLoader, NS_ERROR_UNEXPECTED);
@@ -474,10 +473,10 @@ nsImageFrame::SourceRectToDest(const nsIntRect& aRect)
 
 /* static */
 PRBool
-nsImageFrame::ShouldCreateImageFrameFor(nsIContent* aContent,
+nsImageFrame::ShouldCreateImageFrameFor(Element* aElement,
                                         nsStyleContext* aStyleContext)
 {
-  nsEventStates state = aContent->IntrinsicState();
+  nsEventStates state = aElement->State();
   if (IMAGE_OK(state,
                HaveFixedSize(aStyleContext->GetStylePosition()))) {
     // Image is fine; do the image frame thing
@@ -511,12 +510,12 @@ nsImageFrame::ShouldCreateImageFrameFor(nsIContent* aContent,
     else {
       // We are in quirks mode, so we can just check the tag name; no need to
       // check the namespace.
-      nsIAtom *localName = aContent->NodeInfo()->NameAtom();
+      nsIAtom *localName = aElement->Tag();
 
       // Use a sized box if we have no alt text.  This means no alt attribute
       // and the node is not an object or an input (since those always have alt
       // text).
-      if (!aContent->HasAttr(kNameSpaceID_None, nsGkAtoms::alt) &&
+      if (!aElement->HasAttr(kNameSpaceID_None, nsGkAtoms::alt) &&
           localName != nsGkAtoms::object &&
           localName != nsGkAtoms::input) {
         useSizedBox = PR_TRUE;
@@ -596,7 +595,7 @@ nsImageFrame::OnDataAvailable(imgIRequest *aRequest,
 
   // XXX We really need to round this out, now that we're doing better
   // image scaling!
-  nsRect r = (*aRect == nsIntRect::GetMaxSizedIntRect()) ?
+  nsRect r = aRect->IsEqualInterior(nsIntRect::GetMaxSizedIntRect()) ?
     GetInnerArea() :
     SourceRectToDest(*aRect);
 
@@ -680,7 +679,7 @@ nsImageFrame::FrameChanged(imgIContainer *aContainer,
     return NS_OK;
   }
 
-  nsRect r = (*aDirtyRect == nsIntRect::GetMaxSizedIntRect()) ?
+  nsRect r = aDirtyRect->IsEqualInterior(nsIntRect::GetMaxSizedIntRect()) ?
     GetInnerArea() :
     SourceRectToDest(*aDirtyRect);
 
@@ -737,7 +736,7 @@ nsImageFrame::EnsureIntrinsicSizeAndRatio(nsPresContext* aPresContext)
 }
 
 /* virtual */ nsSize
-nsImageFrame::ComputeSize(nsIRenderingContext *aRenderingContext,
+nsImageFrame::ComputeSize(nsRenderingContext *aRenderingContext,
                           nsSize aCBSize, nscoord aAvailableWidth,
                           nsSize aMargin, nsSize aBorder, nsSize aPadding,
                           PRBool aShrinkWrap)
@@ -770,11 +769,11 @@ nsImageFrame::GetContinuationOffset() const
 }
 
 /* virtual */ nscoord
-nsImageFrame::GetMinWidth(nsIRenderingContext *aRenderingContext)
+nsImageFrame::GetMinWidth(nsRenderingContext *aRenderingContext)
 {
   // XXX The caller doesn't account for constraints of the height,
   // min-height, and max-height properties.
-  nscoord result;
+  DebugOnly<nscoord> result;
   DISPLAY_MIN_WIDTH(this, result);
   nsPresContext *presContext = PresContext();
   EnsureIntrinsicSizeAndRatio(presContext);
@@ -783,11 +782,11 @@ nsImageFrame::GetMinWidth(nsIRenderingContext *aRenderingContext)
 }
 
 /* virtual */ nscoord
-nsImageFrame::GetPrefWidth(nsIRenderingContext *aRenderingContext)
+nsImageFrame::GetPrefWidth(nsRenderingContext *aRenderingContext)
 {
   // XXX The caller doesn't account for constraints of the height,
   // min-height, and max-height properties.
-  nscoord result;
+  DebugOnly<nscoord> result;
   DISPLAY_PREF_WIDTH(this, result);
   nsPresContext *presContext = PresContext();
   EnsureIntrinsicSizeAndRatio(presContext);
@@ -907,12 +906,11 @@ nsImageFrame::MeasureString(const PRUnichar*     aString,
                             PRInt32              aLength,
                             nscoord              aMaxWidth,
                             PRUint32&            aMaxFit,
-                            nsIRenderingContext& aContext)
+                            nsRenderingContext& aContext)
 {
   nscoord totalWidth = 0;
-  nscoord spaceWidth;
   aContext.SetTextRunRTL(PR_FALSE);
-  aContext.GetWidth(' ', spaceWidth);
+  nscoord spaceWidth = aContext.GetWidth(' ');
 
   aMaxFit = 0;
   while (aLength > 0) {
@@ -967,22 +965,21 @@ nsImageFrame::MeasureString(const PRUnichar*     aString,
 // between words if a word would extend past the edge of the rectangle
 void
 nsImageFrame::DisplayAltText(nsPresContext*      aPresContext,
-                             nsIRenderingContext& aRenderingContext,
+                             nsRenderingContext& aRenderingContext,
                              const nsString&      aAltText,
                              const nsRect&        aRect)
 {
   // Set font and color
   aRenderingContext.SetColor(GetStyleColor()->mColor);
-  nsLayoutUtils::SetFontFromStyle(&aRenderingContext, mStyleContext);
+  nsRefPtr<nsFontMetrics> fm;
+  nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm));
+  aRenderingContext.SetFont(fm);
 
   // Format the text to display within the formatting rect
-  nsIFontMetrics* fm;
-  aRenderingContext.GetFontMetrics(fm);
 
-  nscoord maxAscent, maxDescent, height;
-  fm->GetMaxAscent(maxAscent);
-  fm->GetMaxDescent(maxDescent);
-  fm->GetHeight(height);
+  nscoord maxAscent = fm->MaxAscent();
+  nscoord maxDescent = fm->MaxDescent();
+  nscoord height = fm->MaxHeight();
 
   // XXX It would be nice if there was a way to have the font metrics tell
   // use where to break the text given a maximum width. At a minimum we need
@@ -1007,21 +1004,17 @@ nsImageFrame::DisplayAltText(nsPresContext*      aPresContext,
     nsresult rv = NS_ERROR_FAILURE;
 
     if (aPresContext->BidiEnabled()) {
-      nsBidiPresUtils* bidiUtils =  aPresContext->GetBidiUtils();
-      
-      if (bidiUtils) {
-        const nsStyleVisibility* vis = GetStyleVisibility();
-        if (vis->mDirection == NS_STYLE_DIRECTION_RTL)
-          rv = bidiUtils->RenderText(str, maxFit, NSBIDI_RTL,
-                                     aPresContext, aRenderingContext,
-                                     aRenderingContext,
-                                     aRect.XMost() - strWidth, y + maxAscent);
-        else
-          rv = bidiUtils->RenderText(str, maxFit, NSBIDI_LTR,
-                                     aPresContext, aRenderingContext,
-                                     aRenderingContext,
-                                     aRect.x, y + maxAscent);
-      }
+      const nsStyleVisibility* vis = GetStyleVisibility();
+      if (vis->mDirection == NS_STYLE_DIRECTION_RTL)
+        rv = nsBidiPresUtils::RenderText(str, maxFit, NSBIDI_RTL,
+                                         aPresContext, aRenderingContext,
+                                         aRenderingContext,
+                                         aRect.XMost() - strWidth, y + maxAscent);
+      else
+        rv = nsBidiPresUtils::RenderText(str, maxFit, NSBIDI_LTR,
+                                         aPresContext, aRenderingContext,
+                                         aRenderingContext,
+                                         aRect.x, y + maxAscent);
     }
     if (NS_FAILED(rv))
       aRenderingContext.DrawString(str, maxFit, aRect.x, y + maxAscent);
@@ -1032,8 +1025,6 @@ nsImageFrame::DisplayAltText(nsPresContext*      aPresContext,
     y += height;
     firstLine = PR_FALSE;
   }
-
-  NS_RELEASE(fm);
 }
 
 struct nsRecessedBorder : public nsStyleBorder {
@@ -1044,7 +1035,7 @@ struct nsRecessedBorder : public nsStyleBorder {
       // Note: use SetBorderColor here because we want to make sure
       // the "special" flags are unset.
       SetBorderColor(side, NS_RGB(0, 0, 0));
-      mBorder.side(side) = aBorderWidth;
+      mBorder.Side(side) = aBorderWidth;
       // Note: use SetBorderStyle here because we want to affect
       // mComputedBorder
       SetBorderStyle(side, NS_STYLE_BORDER_STYLE_INSET);
@@ -1053,7 +1044,7 @@ struct nsRecessedBorder : public nsStyleBorder {
 };
 
 void
-nsImageFrame::DisplayAltFeedback(nsIRenderingContext& aRenderingContext,
+nsImageFrame::DisplayAltFeedback(nsRenderingContext& aRenderingContext,
                                  const nsRect&        aDirtyRect,
                                  imgIRequest*         aRequest,
                                  nsPoint              aPt)
@@ -1095,7 +1086,7 @@ nsImageFrame::DisplayAltFeedback(nsIRenderingContext& aRenderingContext,
 
   // Clip so we don't render outside the inner rect
   aRenderingContext.PushState();
-  aRenderingContext.SetClipRect(inner, nsClipCombine_kIntersect);
+  aRenderingContext.IntersectClip(inner);
 
   // Check if we should display image placeholders
   if (gIconLoad->mPrefShowPlaceholders) {
@@ -1133,17 +1124,16 @@ nsImageFrame::DisplayAltFeedback(nsIRenderingContext& aRenderingContext,
     // if we could not draw the icon, flag that we're waiting for it and
     // just draw some graffiti in the mean time
     if (!iconUsed) {
-      nscolor oldColor;
       nscoord iconXPos = (vis->mDirection ==   NS_STYLE_DIRECTION_RTL) ?
                          inner.XMost() - size : inner.x;
       nscoord twoPX = nsPresContext::CSSPixelsToAppUnits(2);
       aRenderingContext.DrawRect(iconXPos, inner.y,size,size);
-      aRenderingContext.GetColor(oldColor);
+      aRenderingContext.PushState();
       aRenderingContext.SetColor(NS_RGB(0xFF,0,0));
       aRenderingContext.FillEllipse(size/2 + iconXPos, size/2 + inner.y,
                                     size/2 - twoPX, size/2 - twoPX);
-      aRenderingContext.SetColor(oldColor);
-    }  
+      aRenderingContext.PopState();
+    }
 
     // Reduce the inner rect by the width of the icon, and leave an
     // additional ICON_PADDING pixels for padding
@@ -1167,20 +1157,21 @@ nsImageFrame::DisplayAltFeedback(nsIRenderingContext& aRenderingContext,
   aRenderingContext.PopState();
 }
 
-static void PaintAltFeedback(nsIFrame* aFrame, nsIRenderingContext* aCtx,
+static void PaintAltFeedback(nsIFrame* aFrame, nsRenderingContext* aCtx,
      const nsRect& aDirtyRect, nsPoint aPt)
 {
   nsImageFrame* f = static_cast<nsImageFrame*>(aFrame);
+  nsEventStates state = f->GetContent()->AsElement()->State();
   f->DisplayAltFeedback(*aCtx,
                         aDirtyRect,
-                        IMAGE_OK(f->GetContent()->IntrinsicState(), PR_TRUE)
+                        IMAGE_OK(state, PR_TRUE)
                            ? nsImageFrame::gIconLoad->mLoadingImage
                            : nsImageFrame::gIconLoad->mBrokenImage,
                         aPt);
 }
 
 #ifdef NS_DEBUG
-static void PaintDebugImageMap(nsIFrame* aFrame, nsIRenderingContext* aCtx,
+static void PaintDebugImageMap(nsIFrame* aFrame, nsRenderingContext* aCtx,
      const nsRect& aDirtyRect, nsPoint aPt) {
   nsImageFrame* f = static_cast<nsImageFrame*>(aFrame);
   nsRect inner = f->GetInnerArea() + aPt;
@@ -1188,7 +1179,7 @@ static void PaintDebugImageMap(nsIFrame* aFrame, nsIRenderingContext* aCtx,
 
   aCtx->SetColor(NS_RGB(0, 0, 0));
   aCtx->PushState();
-  aCtx->Translate(inner.x, inner.y);
+  aCtx->Translate(inner.TopLeft());
   f->GetImageMap(pc)->Draw(aFrame, *aCtx);
   aCtx->PopState();
 }
@@ -1196,7 +1187,7 @@ static void PaintDebugImageMap(nsIFrame* aFrame, nsIRenderingContext* aCtx,
 
 void
 nsDisplayImage::Paint(nsDisplayListBuilder* aBuilder,
-                      nsIRenderingContext* aCtx) {
+                      nsRenderingContext* aCtx) {
   static_cast<nsImageFrame*>(mFrame)->
     PaintImage(*aCtx, ToReferenceFrame(), mVisibleRect, mImage,
                aBuilder->ShouldSyncDecodeImages()
@@ -1234,9 +1225,9 @@ nsDisplayImage::ConfigureLayer(ImageLayer* aLayer)
   mImage->GetHeight(&imageHeight);
 
   gfxMatrix transform;
-  transform.Translate(destRect.pos);
-  transform.Scale(destRect.size.width/imageWidth,
-                  destRect.size.height/imageHeight);
+  transform.Translate(destRect.TopLeft());
+  transform.Scale(destRect.Width()/imageWidth,
+                  destRect.Height()/imageHeight);
   aLayer->SetTransform(gfx3DMatrix::From2D(transform));
 
   aLayer->SetVisibleRegion(nsIntRect(0, 0, imageWidth, imageHeight));
@@ -1278,7 +1269,7 @@ nsImageFrame::GetContainer(LayerManager* aManager, imgIContainer* aImage)
 }
 
 void
-nsImageFrame::PaintImage(nsIRenderingContext& aRenderingContext, nsPoint aPt,
+nsImageFrame::PaintImage(nsRenderingContext& aRenderingContext, nsPoint aPt,
                          const nsRect& aDirtyRect, imgIContainer* aImage,
                          PRUint32 aFlags)
 {
@@ -1299,7 +1290,7 @@ nsImageFrame::PaintImage(nsIRenderingContext& aRenderingContext, nsPoint aPt,
     aRenderingContext.PushState();
     aRenderingContext.SetColor(NS_RGB(0, 0, 0));
     aRenderingContext.SetLineStyle(nsLineStyle_kDotted);
-    aRenderingContext.Translate(inner.x, inner.y);
+    aRenderingContext.Translate(inner.TopLeft());
     map->Draw(this, aRenderingContext);
     aRenderingContext.PopState();
   }
@@ -1334,7 +1325,7 @@ nsImageFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
                               getter_AddRefs(currentRequest));
     }
 
-    nsEventStates contentState = mContent->IntrinsicState();
+    nsEventStates contentState = mContent->AsElement()->State();
     PRBool imageOK = IMAGE_OK(contentState, PR_TRUE);
 
     nsCOMPtr<imgIContainer> imgCon;
@@ -1453,13 +1444,6 @@ nsImageFrame::ShouldDisplaySelection()
   return true;
 }
 
-NS_IMETHODIMP
-nsImageFrame::GetImageMap(nsPresContext *aPresContext, nsIImageMap **aImageMap)
-{
-  nsImageMap *map = GetImageMap(aPresContext);
-  return CallQueryInterface(map, aImageMap);
-}
-
 nsImageMap*
 nsImageFrame::GetImageMap(nsPresContext* aPresContext)
 {
@@ -1472,13 +1456,11 @@ nsImageFrame::GetImageMap(nsPresContext* aPresContext)
     nsAutoString usemap;
     mContent->GetAttr(kNameSpaceID_None, nsGkAtoms::usemap, usemap);
 
-    nsCOMPtr<nsIDOMHTMLMapElement> map = nsImageMapUtils::FindImageMap(doc,usemap);
+    nsCOMPtr<nsIContent> map = doc->FindImageMap(usemap);
     if (map) {
       mImageMap = new nsImageMap();
-      if (mImageMap) {
-        NS_ADDREF(mImageMap);
-        mImageMap->Init(aPresContext->PresShell(), this, map);
-      }
+      NS_ADDREF(mImageMap);
+      mImageMap->Init(aPresContext->PresShell(), this, map);
     }
   }
 
@@ -1642,7 +1624,7 @@ nsImageFrame::HandleEvent(nsPresContext* aPresContext,
             clicked = PR_TRUE;
           }
           nsContentUtils::TriggerLink(anchorNode, aPresContext, uri, target,
-                                      clicked, PR_TRUE);
+                                      clicked, PR_TRUE, PR_TRUE);
         }
       }
     }
@@ -1766,7 +1748,7 @@ nsImageFrame::GetSkipSides() const
   return skip;
 }
 
-NS_IMETHODIMP 
+nsresult
 nsImageFrame::GetIntrinsicImageSize(nsSize& aSize)
 {
   if (mIntrinsicSize.width.GetUnit() == eStyleUnit_Coord &&
@@ -1809,6 +1791,7 @@ nsImageFrame::LoadIcon(const nsAString& aSpec,
                                        relevant for cookies, so does not
                                        apply to icons. */
                        nsnull,      /* referrer (not relevant for icons) */
+                       nsnull,      /* principal (not relevant for icons) */
                        loadGroup,
                        gIconLoad,
                        nsnull,      /* Not associated with any particular document */
@@ -1872,8 +1855,6 @@ nsresult nsImageFrame::LoadIcons(nsPresContext *aPresContext)
   NS_NAMED_LITERAL_STRING(brokenSrc,"resource://gre-resources/broken-image.png");
 
   gIconLoad = new IconLoad();
-  if (!gIconLoad) 
-    return NS_ERROR_OUT_OF_MEMORY;
   NS_ADDREF(gIconLoad);
 
   nsresult rv;
@@ -1894,22 +1875,33 @@ nsresult nsImageFrame::LoadIcons(nsPresContext *aPresContext)
 NS_IMPL_ISUPPORTS2(nsImageFrame::IconLoad, nsIObserver,
                    imgIDecoderObserver)
 
-static const char kIconLoadPrefs[][40] = {
+static const char* kIconLoadPrefs[] = {
   "browser.display.force_inline_alttext",
-  "browser.display.show_image_placeholders"
+  "browser.display.show_image_placeholders",
+  nsnull
 };
 
 nsImageFrame::IconLoad::IconLoad()
 {
-  nsIPrefBranch2* prefBranch = nsContentUtils::GetPrefBranch();
-
   // register observers
-  for (PRUint32 i = 0; i < NS_ARRAY_LENGTH(kIconLoadPrefs); ++i)
-    prefBranch->AddObserver(kIconLoadPrefs[i], this, PR_FALSE);
-
+  Preferences::AddStrongObservers(this, kIconLoadPrefs);
   GetPrefs();
 }
 
+void
+nsImageFrame::IconLoad::Shutdown()
+{
+  Preferences::RemoveObservers(this, kIconLoadPrefs);
+  // in case the pref service releases us later
+  if (mLoadingImage) {
+    mLoadingImage->CancelAndForgetObserver(NS_ERROR_FAILURE);
+    mLoadingImage = nsnull;
+  }
+  if (mBrokenImage) {
+    mBrokenImage->CancelAndForgetObserver(NS_ERROR_FAILURE);
+    mBrokenImage = nsnull;
+  }
+}
 
 NS_IMETHODIMP
 nsImageFrame::IconLoad::Observe(nsISupports *aSubject, const char* aTopic,
@@ -1932,11 +1924,10 @@ nsImageFrame::IconLoad::Observe(nsISupports *aSubject, const char* aTopic,
 void nsImageFrame::IconLoad::GetPrefs()
 {
   mPrefForceInlineAltText =
-    nsContentUtils::GetBoolPref("browser.display.force_inline_alttext");
+    Preferences::GetBool("browser.display.force_inline_alttext");
 
   mPrefShowPlaceholders =
-    nsContentUtils::GetBoolPref("browser.display.show_image_placeholders",
-                                PR_TRUE);
+    Preferences::GetBool("browser.display.show_image_placeholders", PR_TRUE);
 }
 
 
@@ -2099,7 +2090,7 @@ IsInAutoWidthTableCellForQuirk(nsIFrame *aFrame)
 }
 
 /* virtual */ void
-nsImageFrame::AddInlineMinWidth(nsIRenderingContext *aRenderingContext,
+nsImageFrame::AddInlineMinWidth(nsRenderingContext *aRenderingContext,
                                 nsIFrame::InlineMinWidthData *aData)
 {
 

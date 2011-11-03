@@ -1,5 +1,5 @@
 Cu.import("resource://services-sync/log4moz.js");
-Cu.import("resource://services-sync/resource.js");
+Cu.import("resource://services-sync/identity.js");
 Cu.import("resource://services-sync/jpakeclient.js");
 Cu.import("resource://services-sync/constants.js");
 Cu.import("resource://services-sync/util.js");
@@ -112,9 +112,6 @@ const DATA = {"msg": "eggstreamly sekrit"};
 const POLLINTERVAL = 50;
 
 function run_test() {
-  if (DISABLE_TESTS_BUG_618233)
-    return;
-
   Svc.Prefs.set("jpake.serverURL", "http://localhost:8080/");
   Svc.Prefs.set("jpake.pollInterval", POLLINTERVAL);
   Svc.Prefs.set("jpake.maxTries", 5);
@@ -127,34 +124,21 @@ function run_test() {
   // Ensure PSM is initialized.
   Cc["@mozilla.org/psm;1"].getService(Ci.nsISupports);
 
-  // Simulate Sync setup with a default authenticator in place. We
-  // want to make sure the J-PAKE requests don't include those data.
-  Auth.defaultAuthenticator = new BasicAuthenticator(
-    new Identity("Some Realm", "johndoe"));
+  // Simulate Sync setup with credentials in place. We want to make
+  // sure the J-PAKE requests don't include those data.
+  let id = new Identity(PWDMGR_PASSWORD_REALM, "johndoe");
+  id.password = "ilovejane";
+  ID.set("WeaveID", id);
 
   server = httpd_setup({"/new_channel": server_new_channel,
                         "/report":      server_report});
-  function tearDown() {
-    server.stop(do_test_finished);
-  }
 
   initTestLogging("Trace");
-
-  do_test_pending();
-  Utils.asyncChain(test_success_receiveNoPIN,
-                   test_firstMsgMaxTries,
-                   test_wrongPIN,
-                   test_abort_receiver,
-                   test_abort_sender,
-                   test_wrongmessage,
-                   test_error_channel,
-                   test_error_network,
-                   tearDown
-                   )();
+  run_next_test();
 }
 
 
-function test_success_receiveNoPIN(next) {
+add_test(function test_success_receiveNoPIN() {
   _("Test a successful exchange started by receiveNoPIN().");
 
   let snd = new JPAKEClient({
@@ -171,8 +155,7 @@ function test_success_receiveNoPIN(next) {
     displayPIN: function displayPIN(pin) {
       _("Received PIN " + pin + ". Entering it in the other computer...");
       this.cid = pin.slice(JPAKE_LENGTH_SECRET);
-      Utils.delay(function() { snd.sendWithPIN(pin, DATA); }, 0,
-                  this, "_timer");
+      Utils.nextTick(function() { snd.sendWithPIN(pin, DATA); });
     },
     onAbort: function onAbort(error) {
       do_throw("Shouldn't have aborted! " + error);
@@ -181,14 +164,14 @@ function test_success_receiveNoPIN(next) {
       // Ensure channel was cleared, no error report.
       do_check_eq(channels[this.cid].data, undefined);
       do_check_eq(error_report, undefined);
-      next();
+      run_next_test();
     }
   });
   rec.receiveNoPIN();
-}
+});
 
 
-function test_firstMsgMaxTries(next) {
+add_test(function test_firstMsgMaxTries() {
   _("Test abort when sender doesn't upload anything.");
 
   let rec = new JPAKEClient({
@@ -202,17 +185,17 @@ function test_firstMsgMaxTries(next) {
       do_check_eq(channels[this.cid].data, undefined);
       do_check_eq(error_report, JPAKE_ERROR_TIMEOUT);
       error_report = undefined;
-      next();
+      run_next_test();
     },
     onComplete: function onComplete() {
       do_throw("Shouldn't have completed! ");
     }
   });
   rec.receiveNoPIN();
-}
+});
 
 
-function test_wrongPIN(next) {
+add_test(function test_wrongPIN() {
   _("Test abort when PINs don't match.");
 
   let snd = new JPAKEClient({
@@ -237,24 +220,23 @@ function test_wrongPIN(next) {
       let new_pin = secret + this.cid;
       _("Received PIN " + pin + ", but I'm entering " + new_pin);
 
-      Utils.delay(function() { snd.sendWithPIN(new_pin, DATA); }, 0,
-                  this, "_timer");
+      Utils.nextTick(function() { snd.sendWithPIN(new_pin, DATA); });
     },
     onAbort: function onAbort(error) {
       do_check_eq(error, JPAKE_ERROR_NODATA);
       // Ensure channel was cleared.
       do_check_eq(channels[this.cid].data, undefined);
-      next();
+      run_next_test();
     },
     onComplete: function onComplete() {
       do_throw("Shouldn't have completed! ");
     }
   });
   rec.receiveNoPIN();
-}
+});
 
 
-function test_abort_receiver(next) {
+add_test(function test_abort_receiver() {
   _("Test user abort on receiving side.");
 
   let rec = new JPAKEClient({
@@ -262,23 +244,24 @@ function test_abort_receiver(next) {
       do_throw("onComplete shouldn't be called.");
     },
     onAbort: function onAbort(error) {
-      // Manual abort = no error
-      do_check_eq(error, undefined);
-      // Ensure channel was cleared, no error report.
+      // Manual abort = userabort.
+      do_check_eq(error, JPAKE_ERROR_USERABORT);
+      // Ensure channel was cleared.
       do_check_eq(channels[this.cid].data, undefined);
-      do_check_eq(error_report, undefined);
-      next();
+      do_check_eq(error_report, JPAKE_ERROR_USERABORT);
+      error_report = undefined;
+      run_next_test();
     },
     displayPIN: function displayPIN(pin) {
       this.cid = pin.slice(JPAKE_LENGTH_SECRET);
-      Utils.delay(function() { rec.abort(); }, 0, this, "_timer");
+      Utils.nextTick(function() { rec.abort(); });
     }
   });
   rec.receiveNoPIN();
-}
+});
 
 
-function test_abort_sender(next) {
+add_test(function test_abort_sender() {
   _("Test user abort on sending side.");
 
   let snd = new JPAKEClient({
@@ -286,8 +269,10 @@ function test_abort_sender(next) {
       do_throw("displayPIN shouldn't have been called!");
     },
     onAbort: function onAbort(error) {
-      // Manual abort == no error.
-      do_check_eq(error, undefined);
+      // Manual abort == userabort.
+      do_check_eq(error, JPAKE_ERROR_USERABORT);
+      do_check_eq(error_report, JPAKE_ERROR_USERABORT);
+      error_report = undefined;
     },
     onComplete: function onComplete() {
       do_throw("Shouldn't have completed!");
@@ -303,22 +288,21 @@ function test_abort_sender(next) {
       // Ensure channel was cleared, no error report.
       do_check_eq(channels[this.cid].data, undefined);
       do_check_eq(error_report, undefined);
-      next();
+      run_next_test();
     },
     displayPIN: function displayPIN(pin) {
       _("Received PIN " + pin + ". Entering it in the other computer...");
       this.cid = pin.slice(JPAKE_LENGTH_SECRET);
-      Utils.delay(function() { snd.sendWithPIN(pin, DATA); }, 0,
-                  this, "_timer");
-      Utils.delay(function() { snd.abort(); }, POLLINTERVAL,
-                  this, "_abortTimer");
+      Utils.nextTick(function() { snd.sendWithPIN(pin, DATA); });
+      Utils.namedTimer(function() { snd.abort(); },
+                       POLLINTERVAL, this, "_abortTimer");
     }
   });
   rec.receiveNoPIN();
-}
+});
 
 
-function test_wrongmessage(next) {
+add_test(function test_wrongmessage() {
   let cid = new_channel();
   channels[cid].data = JSON.stringify({type: "receiver2", payload: {}});
   let snd = new JPAKEClient({
@@ -327,14 +311,14 @@ function test_wrongmessage(next) {
     },
     onAbort: function onAbort(error) {
       do_check_eq(error, JPAKE_ERROR_WRONGMESSAGE);
-      next();
+      run_next_test();
     }
   });
   snd.sendWithPIN("01234567" + cid, DATA);
-}
+});
 
 
-function test_error_channel(next) {
+add_test(function test_error_channel() {
   Svc.Prefs.set("jpake.serverURL", "http://localhost:12345/");
 
   let rec = new JPAKEClient({
@@ -344,15 +328,15 @@ function test_error_channel(next) {
     onAbort: function onAbort(error) {
       do_check_eq(error, JPAKE_ERROR_CHANNEL);
       Svc.Prefs.reset("jpake.serverURL");
-      next();
+      run_next_test();
     },
     displayPIN: function displayPIN(pin) {}
   });
   rec.receiveNoPIN();
-}
+});
 
 
-function test_error_network(next) {
+add_test(function test_error_network() {
   Svc.Prefs.set("jpake.serverURL", "http://localhost:12345/");
 
   let snd = new JPAKEClient({
@@ -362,8 +346,13 @@ function test_error_network(next) {
     onAbort: function onAbort(error) {
       do_check_eq(error, JPAKE_ERROR_NETWORK);
       Svc.Prefs.reset("jpake.serverURL");
-      next();
+      run_next_test();
     }
   });
   snd.sendWithPIN("0123456789ab", DATA);
-}
+});
+
+
+add_test(function tearDown() {
+  server.stop(run_next_test);
+});

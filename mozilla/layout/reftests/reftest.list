@@ -89,6 +89,9 @@ skip-if(Android) include css-invalid/reftest.list
 # css-submit-invalid
 include css-submit-invalid/reftest.list
 
+# css text-overflow
+include text-overflow/reftest.list
+
 # css transitions
 include css-transitions/reftest.list
 
@@ -133,6 +136,9 @@ skip-if(Android) include first-letter/reftest.list
 
 # first-line/
 include first-line/reftest.list
+
+# flexbox/
+include flexbox/reftest.list
 
 # floats/
 include floats/reftest.list
@@ -200,6 +206,9 @@ include object/reftest.list
 # ogg-video/
 include ogg-video/reftest.list
 
+# webm-video/
+include webm-video/reftest.list
+
 # parser/
 include ../../parser/htmlparser/tests/reftest/reftest.list
 
@@ -210,7 +219,7 @@ include percent-overflow-sizing/reftest.list
 include pixel-rounding/reftest.list
 
 # plugin/
-include ../../modules/plugin/test/reftest/reftest.list
+include ../../dom/plugins/test/reftest/reftest.list
 
 # printing
 include printing/reftest.list

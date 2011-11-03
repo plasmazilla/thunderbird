@@ -86,7 +86,6 @@
 #include "nsIContentSink.h"
 #include "nsIParserFilter.h"
 #include "nsCOMArray.h"
-#include "nsIUnicharStreamListener.h"
 #include "nsCycleCollectionParticipant.h"
 #include "nsWeakReference.h"
 
@@ -211,17 +210,7 @@ class nsParser : public nsIParser,
      * This method needs documentation
      */
     NS_IMETHOD ParseFragment(const nsAString& aSourceBuffer,
-                             void* aKey,
-                             nsTArray<nsString>& aTagStack,
-                             PRBool aXMLMode,
-                             const nsACString& aContentType,
-                             nsDTDMode aMode = eDTDMode_autodetect);
-
-    NS_IMETHOD ParseFragment(const nsAString& aSourceBuffer,
-                             nsIContent* aTargetNode,
-                             nsIAtom* aContextLocalName,
-                             PRInt32 aContextNamespace,
-                             PRBool aQuirks);
+                             nsTArray<nsString>& aTagStack);
                              
     /**
      * This method gets called when the tokens have been consumed, and it's time
@@ -383,14 +372,6 @@ class nsParser : public nsIParser,
      *  @update  kmcclusk 5/18/98
      */
     void HandleParserContinueEvent(class nsParserContinueEvent *);
-
-    /**
-     * Called by top-level scanners when data from necko is added to
-     * the scanner.
-     */
-    nsresult DataAdded(const nsSubstring& aData, nsIRequest *aRequest);
-
-    static nsCOMArray<nsIUnicharStreamListener> *sParserDataListeners;
 
     static nsICharsetAlias* GetCharsetAliasService() {
       return sCharsetAliasService;

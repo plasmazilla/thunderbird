@@ -71,11 +71,13 @@ function loadLocalMailAccount()
   gLocalMsgAccount = MailServices.accounts.FindAccountForServer(
     gLocalIncomingServer);
 
-  var rootFolder = gLocalIncomingServer.rootMsgFolder;
+  var rootFolder = gLocalIncomingServer.rootMsgFolder
+                     .QueryInterface(Ci.nsIMsgLocalMailFolder);
 
   // Note: Inbox is not created automatically when there is no deferred server,
   // so we need to create it.
-  gLocalInboxFolder = rootFolder.addSubfolder("Inbox");
+  gLocalInboxFolder = rootFolder.createLocalSubfolder("Inbox")
+                       .QueryInterface(Ci.nsIMsgLocalMailFolder);
   // a local inbox should have a Mail flag!
   gLocalInboxFolder.setFlag(Ci.nsMsgFolderFlags.Mail);
 
@@ -216,6 +218,67 @@ function atob(str, c62, c63) {
  * for us so we can get at it.
  */
 var btoa = IOUtils.btoa;
+
+// Gets the first message header in a folder.
+function firstMsgHdr(folder)
+{
+  let enumerator = folder.msgDatabase.EnumerateMessages();
+  if (enumerator.hasMoreElements())
+    return enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
+  return null;
+}
+
+// Loads a message to a string
+// If aCharset is specified, treats the file as being of that charset
+function loadMessageToString(aFolder, aMsgHdr, aCharset)
+{
+  var data = "";
+  let offset = aMsgHdr.messageOffset;
+  let bytesLeft = aMsgHdr.messageSize;
+  var fstream = Cc["@mozilla.org/network/file-input-stream;1"]
+                  .createInstance(Ci.nsIFileInputStream);
+  fstream.init(aFolder.filePath, -1, 0, 0);
+  let seekableStream = fstream.QueryInterface(Ci.nsISeekableStream);
+  seekableStream.seek(Ci.nsISeekableStream.NS_SEEK_SET, offset);
+  if (aCharset)
+  {
+    let cstream = Cc["@mozilla.org/intl/converter-input-stream;1"]
+                    .createInstance(Ci.nsIConverterInputStream);
+    cstream.init(stream, aCharset, 4096, 0x0000);
+    let str = {};
+    let bytesToRead = Math.min(bytesLeft, 4096);
+    while (cstream.readString(bytesToRead, str) != 0) {
+      data += str.value;
+      bytesLeft -= bytesToRead;
+      if (bytesLeft <= 0)
+        break;
+      bytesToRead = Math.min(bytesLeft, 4096);
+    }
+    cstream.close();
+  }
+  else
+  {
+    var sstream = Cc["@mozilla.org/scriptableinputstream;1"]
+                    .createInstance(Ci.nsIScriptableInputStream);
+
+    sstream.init(fstream);
+
+    let bytesToRead = Math.min(bytesLeft, 4096);
+    var str = sstream.read(bytesToRead);
+    bytesLeft -= bytesToRead;
+    while (str.length > 0) {
+      data += str;
+      if (bytesLeft <= 0)
+        break;
+      bytesToRead = Math.min(bytesLeft, 4096);
+      str = sstream.read(bytesToRead);
+      bytesLeft -= bytesToRead;
+    }
+    sstream.close();
+  }
+  fstream.close();
+  return data;
+}
 
 // Loads a file to a string
 // If aCharset is specified, treats the file as being of that charset

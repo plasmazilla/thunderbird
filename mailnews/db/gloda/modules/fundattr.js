@@ -363,6 +363,18 @@ var GlodaFundAttr = {
       });
 
     // Attachment infos
+    this._attrIsEncrypted = Gloda.defineAttribute({
+      provider: this,
+      extensionName: Gloda.BUILT_IN,
+      attributeType: Gloda.kAttrFundamental,
+      attributeName: "isEncrypted",
+      singular: true,
+      emptySetIsSignificant: false,
+      subjectNouns: [Gloda.NOUN_MESSAGE],
+      objectNoun: Gloda.NOUN_NUMBER,
+      });
+
+    // Attachment infos
     this._attrAttachmentInfos = Gloda.defineAttribute({
       provider: this,
       extensionName: Gloda.BUILT_IN,
@@ -545,8 +557,23 @@ var GlodaFundAttr = {
     if (listIdentities.length)
       aGlodaMessage.mailingLists = listIdentities;
 
+    let findIsEncrypted = function (x)
+      x.isEncrypted || (x.parts ? x.parts.some(findIsEncrypted) : false);
+
+    // -- Encryption
+    aGlodaMessage.isEncrypted = false;
+    if (aMimeMsg) {
+      aGlodaMessage.isEncrypted = findIsEncrypted(aMimeMsg);
+    }
+
     // -- Attachments
     if (aMimeMsg) {
+      // nsParseMailbox.cpp puts the attachment flag on msgHdrs as soon as it
+      // finds a multipart/mixed part. This is a good heuristic, but if it turns
+      // out the part has no filename, then we don't treat it as an attachment.
+      // We just streamed the message, and we have all the information to figure
+      // that out, so now is a good place to clear the flag if needed.
+      let foundRealAttachment = false;
       let attachmentTypes = [];
       for each (let [, attachment] in Iterator(aMimeMsg.allAttachments)) {
         // We don't care about would-be attachments that are not user-intended
@@ -557,10 +584,24 @@ var GlodaFundAttr = {
             (attachment.contentType.indexOf("/") != -1)) {
           attachmentTypes.push(MimeTypeNoun.getMimeType(attachment.contentType));
         }
+        if (attachment.isRealAttachment)
+          foundRealAttachment = true;
       }
       if (attachmentTypes.length) {
         aGlodaMessage.attachmentTypes = attachmentTypes;
       }
+
+      let aMsgHdr = aRawReps.header;
+      let wasStreamed = aMsgHdr &&
+        !aGlodaMessage.isEncrypted &&
+        ((aMsgHdr.flags & Ci.nsMsgMessageFlags.Offline) ||
+        (aMsgHdr.folder instanceof Ci.nsIMsgLocalMailFolder));
+
+      // Clear the flag if it turns out there's no attachment after all and we
+      // streamed completely the message (if we didn't, then we have no
+      // knowledge of attachments, unless bug 673370 is fixed).
+      if (!foundRealAttachment && wasStreamed)
+        aMsgHdr.markHasAttachments(false);
 
       // This is not the same kind of attachments as above. Now, we want to
       // provide convenience attributes to Gloda consumers, so that they can run
@@ -571,7 +612,12 @@ var GlodaFundAttr = {
       for each (let [, att] in Iterator(aMimeMsg.allUserAttachments)) {
         if (att.isRealAttachment) {
           attachmentInfos.push(
-            new GlodaAttachment(att.name, att.contentType, att.size, att.url));
+            new GlodaAttachment(att.name,
+                                att.contentType,
+                                att.size,
+                                att.url,
+                                att.isExternal)
+          );
         }
       }
       aGlodaMessage.attachmentInfos = attachmentInfos;

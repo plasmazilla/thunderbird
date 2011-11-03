@@ -60,7 +60,6 @@
 #include "nsIPresShell.h"
 #include "nsFrameManager.h"
 #include "nsIDocument.h"
-#include "nsIDeviceContext.h"
 #include "nsRect.h"
 #include "nsILookAndFeel.h"
 #include "nsIComponentManager.h"
@@ -74,8 +73,7 @@
 #include "nsLayoutUtils.h"
 #include "nsContentUtils.h"
 #include "nsCSSFrameConstructor.h"
-#include "nsIEventStateManager.h"
-#include "nsIBoxLayout.h"
+#include "nsEventStateManager.h"
 #include "nsIPopupBoxObject.h"
 #include "nsPIWindowRoot.h"
 #include "nsIReflowCallback.h"
@@ -87,6 +85,9 @@
 #include "nsIScreenManager.h"
 #include "nsIServiceManager.h"
 #include "nsThemeConstants.h"
+#include "mozilla/Preferences.h"
+
+using namespace mozilla;
 
 PRInt8 nsMenuPopupFrame::sDefaultLevelIsTop = -1;
 
@@ -113,6 +114,7 @@ nsMenuPopupFrame::nsMenuPopupFrame(nsIPresShell* aShell, nsStyleContext* aContex
   mPopupState(ePopupClosed),
   mPopupAlignment(POPUPALIGNMENT_NONE),
   mPopupAnchor(POPUPALIGNMENT_NONE),
+  mConsumeRollupEvent(nsIPopupBoxObject::ROLLUP_DEFAULT),
   mFlipBoth(PR_FALSE),
   mIsOpenChanged(PR_FALSE),
   mIsContextMenu(PR_FALSE),
@@ -120,7 +122,6 @@ nsMenuPopupFrame::nsMenuPopupFrame(nsIPresShell* aShell, nsStyleContext* aContex
   mGeneratedChildren(PR_FALSE),
   mMenuCanOverlapOSBar(PR_FALSE),
   mShouldAutoPosition(PR_TRUE),
-  mConsumeRollupEvent(nsIPopupBoxObject::ROLLUP_DEFAULT),
   mInContentShell(PR_TRUE),
   mIsMenuLocked(PR_FALSE),
   mHFlip(PR_FALSE),
@@ -131,7 +132,7 @@ nsMenuPopupFrame::nsMenuPopupFrame(nsIPresShell* aShell, nsStyleContext* aContex
   if (sDefaultLevelIsTop >= 0)
     return;
   sDefaultLevelIsTop =
-    nsContentUtils::GetBoolPref("ui.panel.default_level_parent", PR_FALSE);
+    Preferences::GetBool("ui.panel.default_level_parent", PR_FALSE);
 } // ctor
 
 
@@ -147,12 +148,12 @@ nsMenuPopupFrame::Init(nsIContent*      aContent,
 
   // lookup if we're allowed to overlap the OS bar (menubar/taskbar) from the
   // look&feel object
-  PRBool tempBool;
+  PRInt32 tempBool;
   presContext->LookAndFeel()->
     GetMetric(nsILookAndFeel::eMetric_MenusCanOverlapOSBar, tempBool);
   mMenuCanOverlapOSBar = tempBool;
 
-  rv = CreateViewForFrame(presContext, this, GetStyleContext(), PR_TRUE, PR_TRUE);
+  rv = CreatePopupViewForFrame();
   NS_ENSURE_SUCCESS(rv, rv);
 
   // XXX Hack. The popup's view should float above all other views,
@@ -834,12 +835,13 @@ nsMenuPopupFrame::HidePopup(PRBool aDeselectMenu, nsPopupState aNewState)
   // XXX, bug 137033, In Windows, if mouse is outside the window when the menupopup closes, no
   // mouse_enter/mouse_exit event will be fired to clear current hover state, we should clear it manually.
   // This code may not the best solution, but we can leave it here until we find the better approach.
-  nsIEventStateManager *esm = PresContext()->EventStateManager();
+  NS_ASSERTION(mContent->IsElement(), "How do we have a non-element?");
+  nsEventStates state = mContent->AsElement()->State();
 
-  nsEventStates state = esm->GetContentState(mContent);
-
-  if (state.HasState(NS_EVENT_STATE_HOVER))
+  if (state.HasState(NS_EVENT_STATE_HOVER)) {
+    nsEventStateManager *esm = PresContext()->EventStateManager();
     esm->SetContentState(nsnull, NS_EVENT_STATE_HOVER);
+  }
 
   nsMenuFrame* menuFrame = GetParentMenu();
   if (menuFrame) {
@@ -1064,6 +1066,7 @@ nsMenuPopupFrame::FlipOrResize(nscoord& aScreenPoint, nscoord aSize,
           aScreenPoint = aScreenEnd - aSize;
         }
         else {
+          aScreenPoint = endpos + aMarginBegin;
           popupSize = aScreenEnd - aScreenPoint;
         }
       }
@@ -1088,7 +1091,22 @@ nsMenuPopupFrame::FlipOrResize(nscoord& aScreenPoint, nscoord aSize,
     }
   }
 
-  return popupSize;
+  // Make sure that the point is within the screen boundaries and that the
+  // size isn't off the edge of the screen. This can happen when a large
+  // positive or negative margin is used.
+  if (aScreenPoint < aScreenBegin) {
+    aScreenPoint = aScreenBegin;
+  }
+  if (aScreenPoint > aScreenEnd) {
+    aScreenPoint = aScreenEnd - aSize;
+  }
+
+  // If popupSize ended up being negative, or the original size was actually
+  // smaller than the calculated popup size, just use the original size instead.
+  if (popupSize <= 0 || aSize < popupSize) {
+    popupSize = aSize;
+  }
+  return NS_MIN(popupSize, aScreenEnd - aScreenPoint);
 }
 
 nsresult
@@ -1159,12 +1177,10 @@ nsMenuPopupFrame::SetPopupPosition(nsIFrame* aAnchorFrame, PRBool aIsMove)
   // the screen rectangle of the root frame, in dev pixels.
   nsRect rootScreenRect = rootFrame->GetScreenRectInAppUnits();
 
-  nsIDeviceContext* devContext = presContext->DeviceContext();
+  nsDeviceContext* devContext = presContext->DeviceContext();
   nscoord offsetForContextMenu = 0;
-  // if mScreenXPos and mScreenYPos are -1, then we are anchored. If they
-  // have other values, then the popup appears unanchored at that screen
-  // coordinate.
-  if (mScreenXPos == -1 && mScreenYPos == -1) {
+
+  if (IsAnchored()) {
     // if we are anchored, there are certain things we don't want to do when
     // repositioning the popup to fit on the screen, such as end up positioned
     // over the anchor, for instance a popup appearing over the menu label.
@@ -1235,51 +1251,49 @@ nsMenuPopupFrame::SetPopupPosition(nsIFrame* aAnchorFrame, PRBool aIsMove)
     vFlip = FlipStyle_Outside;
   }
 
-  // if a panel is being moved, don't flip it. But always do this for content
-  // shells, so that the popup doesn't extend outside the containing frame.
-  if (aIsMove && mPopupType == ePopupTypePanel && !mInContentShell) {
-    hFlip = vFlip = FlipStyle_None;
+  // If a panel is being moved, don't constrain or flip it. But always do this for
+  // content shells, so that the popup doesn't extend outside the containing frame.
+  if (mInContentShell || !aIsMove || mPopupType != ePopupTypePanel) {
+    nsRect screenRect = GetConstraintRect(anchorRect, rootScreenRect);
+
+    // ensure that anchorRect is on screen
+    if (!anchorRect.IntersectRect(anchorRect, screenRect)) {
+      anchorRect.width = anchorRect.height = 0;
+      // if the anchor isn't within the screen, move it to the edge of the screen.
+      if (anchorRect.x < screenRect.x)
+        anchorRect.x = screenRect.x;
+      if (anchorRect.XMost() > screenRect.XMost())
+        anchorRect.x = screenRect.XMost();
+      if (anchorRect.y < screenRect.y)
+        anchorRect.y = screenRect.y;
+      if (anchorRect.YMost() > screenRect.YMost())
+        anchorRect.y = screenRect.YMost();
+    }
+
+    // shrink the the popup down if it is larger than the screen size
+    if (mRect.width > screenRect.width)
+      mRect.width = screenRect.width;
+    if (mRect.height > screenRect.height)
+      mRect.height = screenRect.height;
+
+    // at this point the anchor (anchorRect) is within the available screen
+    // area (screenRect) and the popup is known to be no larger than the screen.
+    // Next, check if there is enough space to show the popup at full size when
+    // positioned at screenPoint. If not, flip the popups to the opposite side
+    // of their anchor point, or resize them as necessary.
+    mRect.width = FlipOrResize(screenPoint.x, mRect.width, screenRect.x,
+                               screenRect.XMost(), anchorRect.x, anchorRect.XMost(),
+                               margin.left, margin.right, offsetForContextMenu, hFlip, &mHFlip);
+
+    mRect.height = FlipOrResize(screenPoint.y, mRect.height, screenRect.y,
+                                screenRect.YMost(), anchorRect.y, anchorRect.YMost(),
+                                margin.top, margin.bottom, offsetForContextMenu, vFlip, &mVFlip);
+
+    NS_ASSERTION(screenPoint.x >= screenRect.x && screenPoint.y >= screenRect.y &&
+                 screenPoint.x + mRect.width <= screenRect.XMost() &&
+                 screenPoint.y + mRect.height <= screenRect.YMost(),
+                 "Popup is offscreen");
   }
-
-  nsRect screenRect = GetConstraintRect(anchorRect, rootScreenRect);
-
-  // ensure that anchorRect is on screen
-  if (!anchorRect.IntersectRect(anchorRect, screenRect)) {
-    anchorRect.width = anchorRect.height = 0;
-    // if the anchor isn't within the screen, move it to the edge of the screen.
-    if (anchorRect.x < screenRect.x)
-      anchorRect.x = screenRect.x;
-    if (anchorRect.XMost() > screenRect.XMost())
-      anchorRect.x = screenRect.XMost();
-    if (anchorRect.y < screenRect.y)
-      anchorRect.y = screenRect.y;
-    if (anchorRect.YMost() > screenRect.YMost())
-      anchorRect.y = screenRect.YMost();
-  }
-
-  // shrink the the popup down if it is larger than the screen size
-  if (mRect.width > screenRect.width)
-    mRect.width = screenRect.width;
-  if (mRect.height > screenRect.height)
-    mRect.height = screenRect.height;
-
-  // at this point the anchor (anchorRect) is within the available screen
-  // area (screenRect) and the popup is known to be no larger than the screen.
-  // Next, check if there is enough space to show the popup at full size when
-  // positioned at screenPoint. If not, flip the popups to the opposite side
-  // of their anchor point, or resize them as necessary.
-  mRect.width = FlipOrResize(screenPoint.x, mRect.width, screenRect.x,
-                             screenRect.XMost(), anchorRect.x, anchorRect.XMost(),
-                             margin.left, margin.right, offsetForContextMenu, hFlip, &mHFlip);
-
-  mRect.height = FlipOrResize(screenPoint.y, mRect.height, screenRect.y,
-                              screenRect.YMost(), anchorRect.y, anchorRect.YMost(),
-                              margin.top, margin.bottom, offsetForContextMenu, vFlip, &mVFlip);
-
-  NS_ASSERTION(screenPoint.x >= screenRect.x && screenPoint.y >= screenRect.y &&
-               screenPoint.x + mRect.width <= screenRect.XMost() &&
-               screenPoint.y + mRect.height <= screenRect.YMost(),
-               "Popup is offscreen");
 
   // determine the x and y position of the view by subtracting the desired
   // screen position from the screen position of the root frame.
@@ -1358,7 +1372,7 @@ nsMenuPopupFrame::GetConstraintRect(const nsRect& aAnchorRect,
   }
 
   // keep a 3 pixel margin to the right and bottom of the screen for the WinXP dropshadow
-  screenRectPixels.SizeBy(-3, -3);
+  screenRectPixels.SizeTo(screenRectPixels.width - 3, screenRectPixels.height - 3);
 
   nsRect screenRect = screenRectPixels.ToAppUnits(presContext->AppUnitsPerDevPixel());
   if (mInContentShell) {
@@ -1539,13 +1553,13 @@ nsMenuPopupFrame::ChangeMenuItem(nsMenuFrame* aMenuItem,
 }
 
 nsMenuFrame*
-nsMenuPopupFrame::Enter()
+nsMenuPopupFrame::Enter(nsGUIEvent* aEvent)
 {
   mIncrementalString.Truncate();
 
   // Give it to the child.
   if (mCurrentMenu)
-    return mCurrentMenu->Enter();
+    return mCurrentMenu->Enter(aEvent);
 
   return nsnull;
 }
@@ -1783,17 +1797,6 @@ nsMenuPopupFrame::AttributeChanged(PRInt32 aNameSpaceID,
     }
   }
 
-  // accessibility needs this to ensure the frames get constructed when the
-  // menugenerated attribute is set, see bug 279703 comment 42 for discussion
-  if (aAttribute == nsGkAtoms::menugenerated &&
-      mFrames.IsEmpty() && !mGeneratedChildren) {
-    EnsureWidget();
-
-    // indicate that the children have been generated and then generate them
-    mGeneratedChildren = PR_TRUE;
-    PresContext()->PresShell()->FrameConstructor()->GenerateChildFrames(this);
-  }
-
   return rv;
 }
 
@@ -1885,4 +1888,50 @@ void
 nsMenuPopupFrame::SetConsumeRollupEvent(PRUint32 aConsumeMode)
 {
   mConsumeRollupEvent = aConsumeMode;
+}
+
+/**
+ * KEEP THIS IN SYNC WITH nsContainerFrame::CreateViewForFrame
+ * as much as possible. Until we get rid of views finally...
+ */
+nsresult
+nsMenuPopupFrame::CreatePopupViewForFrame()
+{
+  if (HasView()) {
+    return NS_OK;
+  }
+
+  nsViewVisibility visibility = nsViewVisibility_kShow;
+  PRInt32 zIndex = 0;
+  PRBool  autoZIndex = PR_FALSE;
+
+  nsIView* parentView;
+  nsIViewManager* viewManager = PresContext()->GetPresShell()->GetViewManager();
+  NS_ASSERTION(nsnull != viewManager, "null view manager");
+
+  // Create a view
+  parentView = viewManager->GetRootView();
+  visibility = nsViewVisibility_kHide;
+  zIndex = PR_INT32_MAX;
+
+  NS_ASSERTION(parentView, "no parent view");
+
+  // Create a view
+  nsIView *view = viewManager->CreateView(GetRect(), parentView, visibility);
+  if (view) {
+    viewManager->SetViewZIndex(view, autoZIndex, zIndex);
+    // XXX put view last in document order until we can do better
+    viewManager->InsertChild(parentView, view, nsnull, PR_TRUE);
+  }
+
+  // Remember our view
+  SetView(view);
+
+  NS_FRAME_LOG(NS_FRAME_TRACE_CALLS,
+    ("nsMenuPopupFrame::CreatePopupViewForFrame: frame=%p view=%p", this, view));
+
+  if (!view)
+    return NS_ERROR_OUT_OF_MEMORY;
+
+  return NS_OK;
 }

@@ -70,7 +70,7 @@ NS_IMPL_FRAMEARENA_HELPERS(nsDeckFrame)
 nsDeckFrame::nsDeckFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
   : nsBoxFrame(aPresShell, aContext), mIndex(0)
 {
-  nsCOMPtr<nsIBoxLayout> layout;
+  nsCOMPtr<nsBoxLayout> layout;
   NS_NewStackLayout(aPresShell, layout);
   SetLayoutManager(layout);
 }
@@ -114,7 +114,7 @@ static void
 CreateViewsForFrames(const nsFrameList& aFrames)
 {
   for (nsFrameList::Enumerator f(aFrames); !f.AtEnd(); f.Next()) {
-    nsHTMLContainerFrame::CreateViewForFrame(f.get(), PR_TRUE);
+    nsContainerFrame::CreateViewForFrame(f.get(), PR_TRUE);
   }
 }
 

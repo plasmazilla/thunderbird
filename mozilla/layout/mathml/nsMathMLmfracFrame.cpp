@@ -24,6 +24,7 @@
  *   David J. Fiddes <D.J.Fiddes@hw.ac.uk>
  *   Shyjan Mahamud <mahamud@cs.cmu.edu>
  *   Frederic Wang <fred.wang@free.fr>
+ *   Florian Scholz <elchi3@elchi3.de>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -45,8 +46,7 @@
 #include "nsPresContext.h"
 #include "nsStyleContext.h"
 #include "nsStyleConsts.h"
-#include "nsIRenderingContext.h"
-#include "nsIFontMetrics.h"
+#include "nsRenderingContext.h"
 
 #include "nsMathMLmfracFrame.h"
 #include "nsDisplayList.h"
@@ -61,11 +61,8 @@
 #define THIN_FRACTION_LINE                   0.5f
 #define THIN_FRACTION_LINE_MINIMUM_PIXELS    1  // minimum of 1 pixel
 
-#define MEDIUM_FRACTION_LINE                 1.5f
-#define MEDIUM_FRACTION_LINE_MINIMUM_PIXELS  2  // minimum of 2 pixels
-
 #define THICK_FRACTION_LINE                  2.0f
-#define THICK_FRACTION_LINE_MINIMUM_PIXELS   4  // minimum of 4 pixels
+#define THICK_FRACTION_LINE_MINIMUM_PIXELS   2  // minimum of 2 pixels
 
 nsIFrame*
 NS_NewMathMLmfracFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
@@ -77,27 +74,6 @@ NS_IMPL_FRAMEARENA_HELPERS(nsMathMLmfracFrame)
 
 nsMathMLmfracFrame::~nsMathMLmfracFrame()
 {
-}
-
-PRBool
-nsMathMLmfracFrame::IsBevelled()
-{
-  nsAutoString value;
-  GetAttribute(mContent, mPresentationData.mstyle, nsGkAtoms::bevelled_,
-               value);
-  return value.EqualsLiteral("true");
-}
-
-NS_IMETHODIMP
-nsMathMLmfracFrame::Init(nsIContent*      aContent,
-                         nsIFrame*        aParent,
-                         nsIFrame*        aPrevInFlow)
-{
-  nsresult rv = nsMathMLContainerFrame::Init(aContent, aParent, aPrevInFlow);
-
-  mIsBevelled = IsBevelled();
-
-  return rv;
 }
 
 eMathMLFrameType
@@ -157,18 +133,14 @@ nsMathMLmfracFrame::CalcLineThickness(nsPresContext*  aPresContext,
         lineThickness = defaultThickness - onePixel;
     }
     else if (aThicknessAttribute.EqualsLiteral("medium")) {
-      lineThickness = NSToCoordRound(defaultThickness * MEDIUM_FRACTION_LINE);
-      minimumThickness = onePixel * MEDIUM_FRACTION_LINE_MINIMUM_PIXELS;
-      // should visually increase by at least one pixel
-      if (lineThickness < defaultThickness + onePixel)
-        lineThickness = defaultThickness + onePixel;
+      // medium is default
     }
     else if (aThicknessAttribute.EqualsLiteral("thick")) {
       lineThickness = NSToCoordCeil(defaultThickness * THICK_FRACTION_LINE);
       minimumThickness = onePixel * THICK_FRACTION_LINE_MINIMUM_PIXELS;
-      // should visually increase by at least two pixels
-      if (lineThickness < defaultThickness + 2*onePixel)
-        lineThickness = defaultThickness + 2*onePixel;
+      // should visually increase by at least one pixel
+      if (lineThickness < defaultThickness + onePixel)
+        lineThickness = defaultThickness + onePixel;
     }
     else { // see if it is a plain number, or a percentage, or a h/v-unit like 1ex, 2px, 1em
       nsCSSValue cssValue;
@@ -213,7 +185,7 @@ nsMathMLmfracFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
 }
 
 /* virtual */ nsresult
-nsMathMLmfracFrame::MeasureForWidth(nsIRenderingContext& aRenderingContext,
+nsMathMLmfracFrame::MeasureForWidth(nsRenderingContext& aRenderingContext,
                                     nsHTMLReflowMetrics& aDesiredSize)
 {
   return PlaceInternal(aRenderingContext,
@@ -233,7 +205,7 @@ nsMathMLmfracFrame::FixInterFrameSpacing(nsHTMLReflowMetrics& aDesiredSize)
 }
 
 /* virtual */ nsresult
-nsMathMLmfracFrame::Place(nsIRenderingContext& aRenderingContext,
+nsMathMLmfracFrame::Place(nsRenderingContext& aRenderingContext,
                           PRBool               aPlaceOrigin,
                           nsHTMLReflowMetrics& aDesiredSize)
 {
@@ -244,7 +216,7 @@ nsMathMLmfracFrame::Place(nsIRenderingContext& aRenderingContext,
 }
 
 nsresult
-nsMathMLmfracFrame::PlaceInternal(nsIRenderingContext& aRenderingContext,
+nsMathMLmfracFrame::PlaceInternal(nsRenderingContext& aRenderingContext,
                                   PRBool               aPlaceOrigin,
                                   nsHTMLReflowMetrics& aDesiredSize,
                                   PRBool               aWidthOnly)
@@ -268,10 +240,9 @@ nsMathMLmfracFrame::PlaceInternal(nsIRenderingContext& aRenderingContext,
   nsPresContext* presContext = PresContext();
   nscoord onePixel = nsPresContext::CSSPixelsToAppUnits(1);
 
-  aRenderingContext.SetFont(GetStyleFont()->mFont,
-                            presContext->GetUserFontSet());
-  nsCOMPtr<nsIFontMetrics> fm;
-  aRenderingContext.GetFontMetrics(*getter_AddRefs(fm));
+  nsRefPtr<nsFontMetrics> fm;
+  nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm));
+  aRenderingContext.SetFont(fm);
 
   nscoord defaultRuleThickness, axisHeight;
   GetRuleThickness(aRenderingContext, fm, defaultRuleThickness);
@@ -287,6 +258,11 @@ nsMathMLmfracFrame::PlaceInternal(nsIRenderingContext& aRenderingContext,
 
   mLineThickness = CalcLineThickness(presContext, mStyleContext, value,
                                      onePixel, defaultRuleThickness);
+
+  // bevelled attribute
+  GetAttribute(mContent, mPresentationData.mstyle, nsGkAtoms::bevelled_,
+               value);
+  mIsBevelled = value.EqualsLiteral("true");
 
   if (!mIsBevelled) {
     mLineRect.height = mLineThickness;
@@ -438,8 +414,7 @@ nsMathMLmfracFrame::PlaceInternal(nsIRenderingContext& aRenderingContext,
     nscoord slashRatio = 3;
 
     // Define the constant used in the expression of the maximum width
-    nscoord em;
-    fm->GetEmHeight(em);
+    nscoord em = fm->EmHeight();
     nscoord slashMaxWidthConstant = 2 * em;
 
     // For large line thicknesses the minimum slash height is limited to the
@@ -479,8 +454,7 @@ nsMathMLmfracFrame::PlaceInternal(nsIRenderingContext& aRenderingContext,
       numShift += delta;
       denShift += delta;
     } else {
-      nscoord xHeight = 0;
-      fm->GetXHeight (xHeight);
+      nscoord xHeight = fm->XHeight();
       numShift += xHeight / 2;
       denShift += xHeight / 4;
     }
@@ -547,18 +521,6 @@ nsMathMLmfracFrame::PlaceInternal(nsIRenderingContext& aRenderingContext,
 }
 
 NS_IMETHODIMP
-nsMathMLmfracFrame::AttributeChanged(PRInt32         aNameSpaceID,
-                                     nsIAtom*        aAttribute,
-                                     PRInt32         aModType)
-{
-  if (nsGkAtoms::bevelled_ == aAttribute) {
-    mIsBevelled = IsBevelled();
-  }
-  return nsMathMLContainerFrame::
-         AttributeChanged(aNameSpaceID, aAttribute, aModType);
-}
-
-NS_IMETHODIMP
 nsMathMLmfracFrame::UpdatePresentationDataFromChildAt(PRInt32         aFirstIndex,
                                                       PRInt32         aLastIndex,
                                                       PRUint32        aFlagsValues,
@@ -597,7 +559,7 @@ public:
   }
 #endif
 
-  virtual void Paint(nsDisplayListBuilder* aBuilder, nsIRenderingContext* aCtx);
+  virtual void Paint(nsDisplayListBuilder* aBuilder, nsRenderingContext* aCtx);
   NS_DISPLAY_DECL_NAME("MathMLSlash", TYPE_MATHML_SLASH)
 
 private:
@@ -606,7 +568,7 @@ private:
 };
 
 void nsDisplayMathMLSlash::Paint(nsDisplayListBuilder* aBuilder,
-                                 nsIRenderingContext* aCtx)
+                                 nsRenderingContext* aCtx)
 {
   // get the gfxRect
   nsPresContext* presContext = mFrame->PresContext();
@@ -617,7 +579,7 @@ void nsDisplayMathMLSlash::Paint(nsDisplayListBuilder* aBuilder,
  
   // draw the slash as a parallelogram 
   gfxContext *gfxCtx = aCtx->ThebesContext();
-  gfxSize delta = gfxSize(presContext->AppUnitsToGfxUnits(mThickness), 0);
+  gfxPoint delta = gfxPoint(presContext->AppUnitsToGfxUnits(mThickness), 0);
   gfxCtx->NewPath();
   gfxCtx->MoveTo(rect.BottomLeft());
   gfxCtx->LineTo(rect.BottomLeft() + delta);

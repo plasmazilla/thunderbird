@@ -38,6 +38,7 @@
 
 #include "nsIMemoryReporter.h"
 #include "nsMemory.h"
+#include "CheckedInt.h"
 
 #include "gfxASurface.h"
 #include "gfxContext.h"
@@ -83,6 +84,8 @@
 #include "nsCOMPtr.h"
 #include "nsIConsoleService.h"
 #include "nsServiceManagerUtils.h"
+
+using mozilla::CheckedInt;
 
 static cairo_user_data_key_t gfxasurface_pointer_key;
 
@@ -142,12 +145,16 @@ gfxASurface::SurfaceDestroyFunc(void *data) {
 gfxASurface*
 gfxASurface::GetSurfaceWrapper(cairo_surface_t *csurf)
 {
+    if (!csurf)
+        return NULL;
     return (gfxASurface*) cairo_surface_get_user_data(csurf, &gfxasurface_pointer_key);
 }
 
 void
 gfxASurface::SetSurfaceWrapper(cairo_surface_t *csurf, gfxASurface *asurf)
 {
+    if (!csurf)
+        return;
     cairo_surface_set_user_data(csurf, &gfxasurface_pointer_key, asurf, SurfaceDestroyFunc);
 }
 
@@ -262,6 +269,8 @@ gfxASurface::GetContentType() const
 void
 gfxASurface::SetDeviceOffset(const gfxPoint& offset)
 {
+    if (!mSurfaceValid)
+        return;
     cairo_surface_set_device_offset(mSurface,
                                     offset.x, offset.y);
 }
@@ -269,6 +278,8 @@ gfxASurface::SetDeviceOffset(const gfxPoint& offset)
 gfxPoint
 gfxASurface::GetDeviceOffset() const
 {
+    if (!mSurfaceValid)
+        return gfxPoint(0.0, 0.0);
     gfxPoint pt;
     cairo_surface_get_device_offset(mSurface, &pt.x, &pt.y);
     return pt;
@@ -277,21 +288,27 @@ gfxASurface::GetDeviceOffset() const
 void
 gfxASurface::Flush() const
 {
+    if (!mSurfaceValid)
+        return;
     cairo_surface_flush(mSurface);
 }
 
 void
 gfxASurface::MarkDirty()
 {
+    if (!mSurfaceValid)
+        return;
     cairo_surface_mark_dirty(mSurface);
 }
 
 void
 gfxASurface::MarkDirty(const gfxRect& r)
 {
+    if (!mSurfaceValid)
+        return;
     cairo_surface_mark_dirty_rectangle(mSurface,
-                                       (int) r.pos.x, (int) r.pos.y,
-                                       (int) r.size.width, (int) r.size.height);
+                                       (int) r.X(), (int) r.Y(),
+                                       (int) r.Width(), (int) r.Height());
 }
 
 void
@@ -299,18 +316,23 @@ gfxASurface::SetData(const cairo_user_data_key_t *key,
                      void *user_data,
                      thebes_destroy_func_t destroy)
 {
+    if (!mSurfaceValid)
+        return;
     cairo_surface_set_user_data(mSurface, key, user_data, destroy);
 }
 
 void *
 gfxASurface::GetData(const cairo_user_data_key_t *key)
 {
+    if (!mSurfaceValid)
+        return NULL;
     return cairo_surface_get_user_data(mSurface, key);
 }
 
 void
 gfxASurface::Finish()
 {
+    // null surfaces are allowed here
     cairo_surface_finish(mSurface);
 }
 
@@ -353,32 +375,36 @@ gfxASurface::CheckSurfaceSize(const gfxIntSize& sz, PRInt32 limit)
         return PR_FALSE;
     }
 
+    // reject images with sides bigger than limit
+    if (limit && (sz.width > limit || sz.height > limit)) {
+        NS_WARNING("Surface size too large (exceeds caller's limit)!");
+        return PR_FALSE;
+    }
+
 #if defined(XP_MACOSX)
-    // CoreGraphics is limited to images < 32K in *height*, so clamp all surfaces on the Mac to that height
+    // CoreGraphics is limited to images < 32K in *height*,
+    // so clamp all surfaces on the Mac to that height
     if (sz.height > SHRT_MAX) {
-        NS_WARNING("Surface size too large (would overflow)!");
+        NS_WARNING("Surface size too large (exceeds CoreGraphics limit)!");
         return PR_FALSE;
     }
 #endif
 
-    // check to make sure we don't overflow a 32-bit
-    PRInt32 tmp = sz.width * sz.height;
-    if (tmp && tmp / sz.height != sz.width) {
+    // make sure the surface area doesn't overflow a PRInt32
+    CheckedInt<PRInt32> tmp = sz.width;
+    tmp *= sz.height;
+    if (!tmp.valid()) {
         NS_WARNING("Surface size too large (would overflow)!");
         return PR_FALSE;
     }
 
-    // always assume 4-byte stride
-    tmp = tmp * 4;
-    if (tmp && tmp / 4 != sz.width * sz.height) {
-        NS_WARNING("Surface size too large (would overflow)!");
+    // assuming 4-byte stride, make sure the allocation size
+    // doesn't overflow a PRInt32 either
+    tmp *= 4;
+    if (!tmp.valid()) {
+        NS_WARNING("Allocation too large (would overflow)!");
         return PR_FALSE;
     }
-
-    // reject images with sides bigger than limit
-    if (limit &&
-        (sz.width > limit || sz.height > limit))
-        return PR_FALSE;
 
     return PR_TRUE;
 }
@@ -476,6 +502,12 @@ gfxASurface::GetSubpixelAntialiasingEnabled()
 #endif
 }
 
+gfxASurface::MemoryLocation
+gfxASurface::GetMemoryLocation() const
+{
+    return MEMORY_IN_PROCESS_HEAP;
+}
+
 PRInt32
 gfxASurface::BytePerPixelFromFormat(gfxImageFormat format)
 {
@@ -494,15 +526,12 @@ gfxASurface::BytePerPixelFromFormat(gfxImageFormat format)
 }
 
 void
-gfxASurface::MovePixels(const nsIntRect& aSourceRect,
-                        const nsIntPoint& aDestTopLeft)
+gfxASurface::FastMovePixels(const nsIntRect& aSourceRect,
+                            const nsIntPoint& aDestTopLeft)
 {
-    gfxIntSize size = GetSize();
+    // Used when the backend can internally handle self copies.
     nsIntRect dest(aDestTopLeft, aSourceRect.Size());
-    // Assume that our cairo backend already knows how to properly
-    // self-copy.  gfxASurface subtypes whose backend can't self-copy
-    // need their own implementations, or their backends need to be
-    // fixed.
+    
     nsRefPtr<gfxContext> ctx = new gfxContext(this);
     ctx->SetOperator(gfxContext::OPERATOR_SOURCE);
     nsIntPoint srcOrigin = dest.TopLeft() - aSourceRect.TopLeft();
@@ -511,49 +540,99 @@ gfxASurface::MovePixels(const nsIntRect& aSourceRect,
     ctx->Fill();
 }
 
+void
+gfxASurface::MovePixels(const nsIntRect& aSourceRect,
+                        const nsIntPoint& aDestTopLeft)
+{
+    // Assume the backend can't handle self copying well and allocate
+    // a temporary surface instead.
+    nsRefPtr<gfxASurface> tmp = 
+      CreateSimilarSurface(GetContentType(), 
+                           gfxIntSize(aSourceRect.width, aSourceRect.height));
+    nsRefPtr<gfxContext> ctx = new gfxContext(tmp);
+    ctx->SetOperator(gfxContext::OPERATOR_SOURCE);
+    ctx->SetSource(this, gfxPoint(-aSourceRect.x, -aSourceRect.y));
+    ctx->Paint();
+
+    ctx = new gfxContext(this);
+    ctx->SetOperator(gfxContext::OPERATOR_SOURCE);
+    ctx->SetSource(tmp, gfxPoint(aDestTopLeft.x, aDestTopLeft.y));
+    ctx->Rectangle(gfxRect(aDestTopLeft.x, 
+                           aDestTopLeft.y, 
+                           aSourceRect.width, 
+                           aSourceRect.height));
+    ctx->Fill();
+}
+
 /** Memory reporting **/
 
-static const char *sSurfaceNamesForSurfaceType[] = {
-    "gfx/surface/image",
-    "gfx/surface/pdf",
-    "gfx/surface/ps",
-    "gfx/surface/xlib",
-    "gfx/surface/xcb",
-    "gfx/surface/glitz",
-    "gfx/surface/quartz",
-    "gfx/surface/win32",
-    "gfx/surface/beos",
-    "gfx/surface/directfb",
-    "gfx/surface/svg",
-    "gfx/surface/os2",
-    "gfx/surface/win32printing",
-    "gfx/surface/quartzimage",
-    "gfx/surface/script",
-    "gfx/surface/qpainter",
-    "gfx/surface/recording",
-    "gfx/surface/vg",
-    "gfx/surface/gl",
-    "gfx/surface/drm",
-    "gfx/surface/tee",
-    "gfx/surface/xml",
-    "gfx/surface/skia",
-    "gfx/surface/d2d"
+static const char *sDefaultSurfaceDescription =
+    "Memory used by gfx surface of the given type.";
+
+struct SurfaceMemoryReporterAttrs {
+  const char *name;
+  const char *description;
 };
 
-PR_STATIC_ASSERT(NS_ARRAY_LENGTH(sSurfaceNamesForSurfaceType) == gfxASurface::SurfaceTypeMax);
+static const SurfaceMemoryReporterAttrs sSurfaceMemoryReporterAttrs[] = {
+    {"gfx-surface-image", nsnull},
+    {"gfx-surface-pdf", nsnull},
+    {"gfx-surface-ps", nsnull},
+    {"gfx-surface-xlib",
+     "Memory used by xlib surfaces to store pixmaps. This memory lives in "
+     "the X server's process rather than in this application, so the bytes "
+     "accounted for here aren't counted in vsize, resident, explicit, or any of "
+     "the other measurements on this page."},
+    {"gfx-surface-xcb", nsnull},
+    {"gfx-surface-glitz", nsnull},
+    {"gfx-surface-quartz", nsnull},
+    {"gfx-surface-win32", nsnull},
+    {"gfx-surface-beos", nsnull},
+    {"gfx-surface-directfb", nsnull},
+    {"gfx-surface-svg", nsnull},
+    {"gfx-surface-os2", nsnull},
+    {"gfx-surface-win32printing", nsnull},
+    {"gfx-surface-quartzimage", nsnull},
+    {"gfx-surface-script", nsnull},
+    {"gfx-surface-qpainter", nsnull},
+    {"gfx-surface-recording", nsnull},
+    {"gfx-surface-vg", nsnull},
+    {"gfx-surface-gl", nsnull},
+    {"gfx-surface-drm", nsnull},
+    {"gfx-surface-tee", nsnull},
+    {"gfx-surface-xml", nsnull},
+    {"gfx-surface-skia", nsnull},
+    {"gfx-surface-subsurface", nsnull},
+    {"gfx-surface-d2d", nsnull},
+};
+
+PR_STATIC_ASSERT(NS_ARRAY_LENGTH(sSurfaceMemoryReporterAttrs) ==
+                 gfxASurface::SurfaceTypeMax);
 #ifdef CAIRO_HAS_D2D_SURFACE
-PR_STATIC_ASSERT(PRUint32(CAIRO_SURFACE_TYPE_D2D) == PRUint32(gfxASurface::SurfaceTypeD2D));
+PR_STATIC_ASSERT(PRUint32(CAIRO_SURFACE_TYPE_D2D) ==
+                 PRUint32(gfxASurface::SurfaceTypeD2D));
 #endif
-PR_STATIC_ASSERT(PRUint32(CAIRO_SURFACE_TYPE_SKIA) == PRUint32(gfxASurface::SurfaceTypeSkia));
+PR_STATIC_ASSERT(PRUint32(CAIRO_SURFACE_TYPE_SKIA) ==
+                 PRUint32(gfxASurface::SurfaceTypeSkia));
 
 static const char *
 SurfaceMemoryReporterPathForType(gfxASurface::gfxSurfaceType aType)
 {
     if (aType < 0 ||
         aType >= gfxASurface::SurfaceTypeMax)
-        return "gfx/surface/unknown";
+        return "gfx-surface-unknown";
 
-    return sSurfaceNamesForSurfaceType[aType];
+    return sSurfaceMemoryReporterAttrs[aType].name;
+}
+
+static const char *
+SurfaceMemoryReporterDescriptionForType(gfxASurface::gfxSurfaceType aType)
+{
+    if (aType >= 0 && aType < gfxASurface::SurfaceTypeMax &&
+        sSurfaceMemoryReporterAttrs[aType].description)
+        return sSurfaceMemoryReporterAttrs[aType].description;
+
+    return sDefaultSurfaceDescription;
 }
 
 /* Surface size memory reporting */
@@ -570,18 +649,33 @@ public:
 
     NS_DECL_ISUPPORTS
 
-    NS_IMETHOD GetPath(char **memoryPath) {
-        *memoryPath = strdup(SurfaceMemoryReporterPathForType(mType));
+    NS_IMETHOD GetProcess(nsACString &process) {
+        process.Truncate();
         return NS_OK;
     }
 
-    NS_IMETHOD GetDescription(char **desc) {
-        *desc = strdup("Memory used by gfx surface of given type.");
+    NS_IMETHOD GetPath(nsACString &path) {
+        path.Assign(SurfaceMemoryReporterPathForType(mType));
         return NS_OK;
     }
 
-    NS_IMETHOD GetMemoryUsed(PRInt64 *memoryUsed) {
-        *memoryUsed = gSurfaceMemoryUsed[mType];
+    NS_IMETHOD GetKind(PRInt32 *kind) {
+        *kind = KIND_OTHER;
+        return NS_OK;
+    }
+    
+    NS_IMETHOD GetUnits(PRInt32 *units) {
+        *units = UNITS_BYTES;
+        return NS_OK;
+    }
+
+    NS_IMETHOD GetAmount(PRInt64 *amount) {
+        *amount = gSurfaceMemoryUsed[mType];
+        return NS_OK;
+    }
+
+    NS_IMETHOD GetDescription(nsACString &desc) {
+        desc.Assign(SurfaceMemoryReporterDescriptionForType(mType));
         return NS_OK;
     }
 

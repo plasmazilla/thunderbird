@@ -49,12 +49,15 @@
 
 #include "nsGtkIMModule.h"
 #include "nsWindow.h"
+#include "mozilla/Preferences.h"
 
 #ifdef MOZ_PLATFORM_MAEMO
 #include "nsServiceManagerUtils.h"
 #include "nsIObserverService.h"
 #include "mozilla/Services.h"
 #endif
+
+using namespace mozilla;
 
 #ifdef PR_LOGGING
 PRLogModuleInfo* gGtkIMLog = nsnull;
@@ -232,14 +235,14 @@ nsGtkIMModule::OnDestroyWindow(nsWindow* aWindow)
     if (mContext) {
         PrepareToDestroyContext(mContext);
         gtk_im_context_set_client_window(mContext, nsnull);
-        g_object_unref(G_OBJECT(mContext));
+        g_object_unref(mContext);
         mContext = nsnull;
     }
 
 #ifndef NS_IME_ENABLED_ON_PASSWORD_FIELD
     if (mSimpleContext) {
         gtk_im_context_set_client_window(mSimpleContext, nsnull);
-        g_object_unref(G_OBJECT(mSimpleContext));
+        g_object_unref(mSimpleContext);
         mSimpleContext = nsnull;
     }
 #endif // NS_IME_ENABLED_ON_PASSWORD_FIELD
@@ -248,7 +251,7 @@ nsGtkIMModule::OnDestroyWindow(nsWindow* aWindow)
         // mContext and mDummyContext have the same slaveType and signal_data
         // so no need for another workaround_gtk_im_display_closed.
         gtk_im_context_set_client_window(mDummyContext, nsnull);
-        g_object_unref(G_OBJECT(mDummyContext));
+        g_object_unref(mDummyContext);
         mDummyContext = nsnull;
     }
 
@@ -339,7 +342,7 @@ nsGtkIMModule::OnFocusWindow(nsWindow* aWindow)
 
     PR_LOG(gGtkIMLog, PR_LOG_ALWAYS,
         ("GtkIMModule(%p): OnFocusWindow, aWindow=%p, mLastFocusedWindow=%p",
-         this, aWindow));
+         this, aWindow, mLastFocusedWindow));
     mLastFocusedWindow = aWindow;
     Focus();
 }
@@ -547,7 +550,8 @@ nsGtkIMModule::SetInputMode(nsWindow* aCaller, const IMEContext* aContext)
 
     PR_LOG(gGtkIMLog, PR_LOG_ALWAYS,
         ("GtkIMModule(%p): SetInputMode, aCaller=%p, aState=%s mHTMLInputType=%s",
-         this, aCaller, GetEnabledStateName(aContext->mStatus), aContext->mHTMLInputType.get()));
+         this, aCaller, GetEnabledStateName(aContext->mStatus),
+         NS_ConvertUTF16toUTF8(aContext->mHTMLInputType).get()));
 
     if (aCaller != mLastFocusedWindow) {
         PR_LOG(gGtkIMLog, PR_LOG_ALWAYS,
@@ -588,11 +592,24 @@ nsGtkIMModule::SetInputMode(nsWindow* aCaller, const IMEContext* aContext)
     GtkIMContext *im = GetContext();
     if (im) {
         if (IsEnabled()) {
+            // Ensure that opening the virtual keyboard is allowed for this specific
+            // IMEContext depending on the content.ime.strict.policy pref
+            if (mIMEContext.mStatus != nsIWidget::IME_STATUS_DISABLED && 
+                mIMEContext.mStatus != nsIWidget::IME_STATUS_PLUGIN) {
+
+                PRBool useStrictPolicy =
+                    Preferences::GetBool("content.ime.strict_policy", PR_FALSE);
+                if (useStrictPolicy && !mIMEContext.FocusMovedByUser() && 
+                    mIMEContext.FocusMovedInContentProcess()) {
+                    return NS_OK;
+                }
+            }
+
             // It is not desired that the hildon's autocomplete mechanism displays
             // user previous entered passwds, so lets make completions invisible
             // in these cases.
             int mode;
-            g_object_get(G_OBJECT(im), "hildon-input-mode", &mode, NULL);
+            g_object_get(im, "hildon-input-mode", &mode, NULL);
 
             if (mIMEContext.mStatus == nsIWidget::IME_STATUS_ENABLED ||
                 mIMEContext.mStatus == nsIWidget::IME_STATUS_PLUGIN) {
@@ -607,7 +624,7 @@ nsGtkIMModule::SetInputMode(nsWindow* aCaller, const IMEContext* aContext)
             // Turn off predictive dictionaries for editboxes
             mode &= ~HILDON_GTK_INPUT_MODE_DICTIONARY;
 
-            g_object_set(G_OBJECT(im), "hildon-input-mode",
+            g_object_set(im, "hildon-input-mode",
                          (HildonGtkInputMode)mode, NULL);
             gIsVirtualKeyboardOpened = PR_TRUE;
             hildon_gtk_im_context_show(im);
@@ -710,8 +727,7 @@ nsGtkIMModule::Focus()
     GtkIMContext *im = GetContext();
     if (!im) {
         PR_LOG(gGtkIMLog, PR_LOG_ALWAYS,
-            ("    FAILED, there are no context",
-             this));
+            ("    FAILED, there are no context"));
         return;
     }
 
@@ -1103,7 +1119,7 @@ nsGtkIMModule::DispatchCompositionStart()
     }
 
     PR_LOG(gGtkIMLog, PR_LOG_ALWAYS,
-        ("    mCompositionStart=%lu", mCompositionStart));
+        ("    mCompositionStart=%u", mCompositionStart));
     mIsComposing = PR_TRUE;
     nsCompositionEvent compEvent(PR_TRUE, NS_COMPOSITION_START,
                                  mLastFocusedWindow);
@@ -1313,7 +1329,7 @@ nsGtkIMModule::SetTextRangeList(nsTArray<nsTextRange> &aTextRangeList)
         aTextRangeList.AppendElement(range);
 
         PR_LOG(gGtkIMLog, PR_LOG_ALWAYS,
-            ("    mStartOffset=%lu, mEndOffset=%lu, mRangeType=%s",
+            ("    mStartOffset=%u, mEndOffset=%u, mRangeType=%s",
              range.mStartOffset, range.mEndOffset,
              GetRangeTypeName(range.mRangeType)));
     } while (pango_attr_iterator_next(iter));
@@ -1331,7 +1347,7 @@ nsGtkIMModule::SetTextRangeList(nsTArray<nsTextRange> &aTextRangeList)
     aTextRangeList.AppendElement(range);
 
     PR_LOG(gGtkIMLog, PR_LOG_ALWAYS,
-        ("    mStartOffset=%lu, mEndOffset=%lu, mRangeType=%s",
+        ("    mStartOffset=%u, mEndOffset=%u, mRangeType=%s",
          range.mStartOffset, range.mEndOffset,
          GetRangeTypeName(range.mRangeType)));
 
@@ -1344,7 +1360,7 @@ void
 nsGtkIMModule::SetCursorPosition(PRUint32 aTargetOffset)
 {
     PR_LOG(gGtkIMLog, PR_LOG_ALWAYS,
-        ("GtkIMModule(%p): SetCursorPosition, aTargetOffset=%lu",
+        ("GtkIMModule(%p): SetCursorPosition, aTargetOffset=%u",
          this, aTargetOffset));
 
     if (aTargetOffset == PR_UINT32_MAX) {

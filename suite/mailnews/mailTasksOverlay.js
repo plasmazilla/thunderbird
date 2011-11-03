@@ -224,16 +224,12 @@ function MailTasksOnLoad(aEvent)
     return;
 
   // initialize biff state
-  const kObserverService = Components.classes["@mozilla.org/observer-service;1"]
-                                     .getService(Components.interfaces.nsIObserverService);
-  kObserverService.addObserver(biffObserver, BIFF_TOPIC, false);
+  Services.obs.addObserver(biffObserver, BIFF_TOPIC, false);
   biffObserver.observe(null, BIFF_TOPIC, null); // init mini-mail icon
   addEventListener("unload", MailTasksOnUnload, false);
 
   // don't try to biff if offline, but do so silently
-  const kIOService = Components.classes["@mozilla.org/network/io-service;1"]
-                               .getService(Components.interfaces.nsIIOService);
-  if (kIOService.offline)
+  if (Services.io.offline)
     return;
 
   // Performing biff here will mean performing it for all new windows opened!
@@ -246,9 +242,7 @@ function MailTasksOnLoad(aEvent)
 
   // The MailNews main window will perform biff later in its onload handler,
   // so we don't need to do this here.
-  if (Components.classes["@mozilla.org/appshell/window-mediator;1"]
-                .getService(Components.interfaces.nsIWindowMediator)
-                .getMostRecentWindow("mail:3pane"))
+  if (Services.wm.getMostRecentWindow("mail:3pane"))
     return;
 
   // If we already have a defined biff-state set on the mini-mail icon,
@@ -265,9 +259,7 @@ function MailTasksOnLoad(aEvent)
 
 function MailTasksOnUnload(aEvent)
 {
-  var observerService = Components.classes["@mozilla.org/observer-service;1"]
-                                  .getService(Components.interfaces.nsIObserverService);
-  observerService.removeObserver(biffObserver, BIFF_TOPIC);
+  Services.obs.removeObserver(biffObserver, BIFF_TOPIC);
 }
 
 /**

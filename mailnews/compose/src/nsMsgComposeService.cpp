@@ -294,7 +294,7 @@ nsMsgComposeService::OpenComposeWindowWithParams(const char *chrome,
           /* We need to save the window pointer as OnReopen will call nsMsgComposeService::InitCompose which will
              clear the cache entry if everything goes well
           */
-          nsCOMPtr<nsIDOMWindowInternal> domWindow(mCachedWindows[i].window);
+          nsCOMPtr<nsIDOMWindow> domWindow(mCachedWindows[i].window);
           rv = ShowCachedComposeWindow(domWindow, PR_TRUE);
           if (NS_SUCCEEDED(rv))
           {
@@ -326,7 +326,7 @@ nsMsgComposeService::OpenComposeWindowWithParams(const char *chrome,
   return rv;
 }
 
-void nsMsgComposeService::CloseHiddenCachedWindow(nsIDOMWindowInternal *domWindow)
+void nsMsgComposeService::CloseHiddenCachedWindow(nsIDOMWindow *domWindow)
 {
   if (domWindow)
   {
@@ -759,17 +759,19 @@ NS_IMETHODIMP nsMsgComposeService::GetParamsForMailto(nsIURI * aURI, nsIMsgCompo
   return NS_ERROR_FAILURE;
 }
 
-NS_IMETHODIMP nsMsgComposeService::OpenComposeWindowWithURI(const char * aMsgComposeWindowURL, nsIURI * aURI)
+NS_IMETHODIMP nsMsgComposeService::OpenComposeWindowWithURI(const char * aMsgComposeWindowURL, nsIURI * aURI, nsIMsgIdentity *identity)
 {
   nsCOMPtr<nsIMsgComposeParams> pMsgComposeParams;
   nsresult rv = GetParamsForMailto(aURI, getter_AddRefs(pMsgComposeParams));
-  if (NS_SUCCEEDED(rv))
+  if (NS_SUCCEEDED(rv)) {
+    pMsgComposeParams->SetIdentity(identity);
     rv = OpenComposeWindowWithParams(aMsgComposeWindowURL, pMsgComposeParams);
+  }
   return rv;
 }
 
 NS_IMETHODIMP nsMsgComposeService::InitCompose(nsIMsgComposeParams *aParams,
-                                               nsIDOMWindowInternal *aWindow,
+                                               nsIDOMWindow *aWindow,
                                                nsIDocShell *aDocShell,
                                                nsIMsgCompose **_retval)
 {
@@ -851,7 +853,7 @@ NS_IMETHODIMP nsMsgComposeService::TimeStamp(const char * label, PRBool resetTim
 }
 
 NS_IMETHODIMP
-nsMsgComposeService::IsCachedWindow(nsIDOMWindowInternal *aCachedWindow, PRBool *aIsCachedWindow)
+nsMsgComposeService::IsCachedWindow(nsIDOMWindow *aCachedWindow, PRBool *aIsCachedWindow)
 {
   NS_ENSURE_ARG_POINTER(aCachedWindow);
   NS_ENSURE_ARG_POINTER(aIsCachedWindow);
@@ -869,7 +871,7 @@ nsMsgComposeService::IsCachedWindow(nsIDOMWindowInternal *aCachedWindow, PRBool 
 }
 
 NS_IMETHODIMP
-nsMsgComposeService::CacheWindow(nsIDOMWindowInternal *aWindow, PRBool aComposeHTML, nsIMsgComposeRecyclingListener * aListener)
+nsMsgComposeService::CacheWindow(nsIDOMWindow *aWindow, PRBool aComposeHTML, nsIMsgComposeRecyclingListener * aListener)
 {
   NS_ENSURE_ARG_POINTER(aWindow);
   NS_ENSURE_ARG_POINTER(aListener);
@@ -968,7 +970,7 @@ NS_IMETHODIMP nsMsgTemplateReplyHelper::OnStopRunningUrl(nsIURI *aUrl, nsresult 
 
   NS_ENSURE_SUCCESS(aExitCode, aExitCode);
   nsresult rv;
-  nsCOMPtr<nsIDOMWindowInternal> parentWindow;
+  nsCOMPtr<nsIDOMWindow> parentWindow;
   if (mMsgWindow)
   {
     nsCOMPtr<nsIDocShell> docShell;
@@ -1254,7 +1256,7 @@ nsMsgComposeService::ForwardMessage(const nsAString &forwardTo,
                                       PR_TRUE, forwardTo,
                                       PR_FALSE, aMsgWindow);
 
-  nsCOMPtr<nsIDOMWindowInternal> parentWindow;
+  nsCOMPtr<nsIDOMWindow> parentWindow;
   if (aMsgWindow)
   {
     nsCOMPtr<nsIDocShell> docShell;
@@ -1294,7 +1296,7 @@ nsMsgComposeService::ForwardMessage(const nsAString &forwardTo,
   return folder->AddMessageDispositionState(aMsgHdr, nsIMsgFolder::nsMsgDispositionState_Forwarded);
 }
 
-nsresult nsMsgComposeService::ShowCachedComposeWindow(nsIDOMWindowInternal *aComposeWindow, PRBool aShow)
+nsresult nsMsgComposeService::ShowCachedComposeWindow(nsIDOMWindow *aComposeWindow, PRBool aShow)
 {
   nsresult rv = NS_OK;
 

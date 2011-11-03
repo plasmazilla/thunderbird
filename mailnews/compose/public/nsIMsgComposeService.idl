@@ -47,7 +47,7 @@ interface nsIMsgIdentity;
 interface nsIMsgIncomingServer;
 interface nsIMsgDBHdr;
 
-[scriptable, uuid(b73dae1e-7e97-45aa-8669-dacbb7e9fbd0)]
+[scriptable, uuid(8de65170-a452-11e0-8264-0800200c9a66)]
 interface nsIMsgComposeService : nsISupports {
 
   /* we need a msg window because when we forward inline we may need progress */
@@ -59,12 +59,20 @@ interface nsIMsgComposeService : nsISupports {
                          in nsIMsgIdentity identity, 
                          in nsIMsgWindow aMsgWindow);
 
-    /* use this method to invoke a compose window given a mailto url.
-     aMsgComposeWindowURL --> can be null in most cases. If you have your own chrome
-     url you want to use in brining up a compose window, pass it in here. 
-     aURI --> the mailto url you want to use as the foundation for the data inside
-     the compose window  */
-  void OpenComposeWindowWithURI(in string msgComposeWindowURL, in nsIURI aURI);
+  /**
+   * Open a compose window given a mailto url and (optionally) an identity.
+   *
+   * @param aMsgComposeWindowURL Can be null in most cases. If you have your
+   *                             own chrome url you want to use in bringing up a
+   *                             compose window, pass it in here.
+   * @param aURI                 The mailto url you want to use as the
+   *                             foundation for the data inside the compose
+   *                             window.
+   * @param aIdentity            An optional identity to send the message from.
+   */
+  void OpenComposeWindowWithURI(in string msgComposeWindowURL,
+                                in nsIURI aURI,
+                                [optional] in nsIMsgIdentity aIdentity);
 
   /* ... */
   void OpenComposeWindowWithParams(in string msgComposeWindowURL, in nsIMsgComposeParams params);
@@ -80,7 +88,7 @@ interface nsIMsgComposeService : nsISupports {
    *                  for composing.
    */
   nsIMsgCompose initCompose(in nsIMsgComposeParams aParams,
-                            [optional] in nsIDOMWindowInternal aWindow, 
+                            [optional] in nsIDOMWindow aWindow, 
                             [optional] in nsIDocShell aDocShell);
 
   /**
@@ -97,8 +105,8 @@ interface nsIMsgComposeService : nsISupports {
   readonly attribute boolean logComposePerformance;
 
   [noscript] boolean determineComposeHTML(in nsIMsgIdentity aIdentity, in MSG_ComposeFormat aFormat);
-  [noscript] void cacheWindow(in nsIDOMWindowInternal aWindow, in boolean aComposeHTML, in nsIMsgComposeRecyclingListener listener);
-  boolean isCachedWindow(in nsIDOMWindowInternal aWindow);
+  [noscript] void cacheWindow(in nsIDOMWindow aWindow, in boolean aComposeHTML, in nsIMsgComposeRecyclingListener listener);
+  boolean isCachedWindow(in nsIDOMWindow aWindow);
 
   /** 
    * given a mailto url, parse the attributes and turn them into a nsIMsgComposeParams object

@@ -49,7 +49,6 @@
 #include "nsIURI.h"
 #include "nsStyleStruct.h"
 #include "nsIPresShell.h"
-#include "nsISVGGlyphFragmentLeaf.h"
 #include "nsNetUtil.h"
 #include "nsFrameList.h"
 #include "nsISVGChildFrame.h"
@@ -78,7 +77,6 @@
 #include "gfxImageSurface.h"
 #include "gfxPlatform.h"
 #include "nsSVGForeignObjectFrame.h"
-#include "nsIFontMetrics.h"
 #include "nsIDOMSVGUnitTypes.h"
 #include "nsSVGEffects.h"
 #include "nsMathUtils.h"
@@ -90,6 +88,7 @@
 #include "prdtoa.h"
 #include "mozilla/dom/Element.h"
 #include "gfxUtils.h"
+#include "mozilla/Preferences.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -177,7 +176,7 @@ static const char SMIL_PREF_STR[] = "svg.smil.enabled";
 static int
 SMILPrefChanged(const char *aPref, void *aClosure)
 {
-  PRBool prefVal = nsContentUtils::GetBoolPref(SMIL_PREF_STR);
+  PRBool prefVal = Preferences::GetBool(SMIL_PREF_STR);
   gSMILEnabled = prefVal;
   return 0;
 }
@@ -189,8 +188,8 @@ NS_SMILEnabled()
   
   if (!sInitialized) {
     /* check and register ourselves with the pref */
-    gSMILEnabled = nsContentUtils::GetBoolPref(SMIL_PREF_STR);
-    nsContentUtils::RegisterPrefCallback(SMIL_PREF_STR, SMILPrefChanged, nsnull);
+    gSMILEnabled = Preferences::GetBool(SMIL_PREF_STR);
+    Preferences::RegisterCallback(SMILPrefChanged, SMIL_PREF_STR);
 
     sInitialized = PR_TRUE;
   }
@@ -288,7 +287,7 @@ nsSVGUtils::GetFontXHeight(nsStyleContext *aStyleContext)
   nsPresContext *presContext = aStyleContext->PresContext();
   NS_ABORT_IF_FALSE(presContext, "NULL pres context in GetFontXHeight");
 
-  nsCOMPtr<nsIFontMetrics> fontMetrics;
+  nsRefPtr<nsFontMetrics> fontMetrics;
   nsLayoutUtils::GetFontMetricsForStyleContext(aStyleContext,
                                                getter_AddRefs(fontMetrics));
 
@@ -298,8 +297,7 @@ nsSVGUtils::GetFontXHeight(nsStyleContext *aStyleContext)
     return 1.0f;
   }
 
-  nscoord xHeight;
-  fontMetrics->GetXHeight(xHeight);
+  nscoord xHeight = fontMetrics->XHeight();
   return nsPresContext::AppUnitsToFloatCSSPixels(xHeight) /
          presContext->TextZoom();
 }
@@ -751,7 +749,7 @@ nsSVGUtils::GetOuterSVGFrameAndCoveredRegion(nsIFrame* aFrame, nsRect* aRect)
 }
 
 gfxMatrix
-nsSVGUtils::GetViewBoxTransform(nsSVGElement* aElement,
+nsSVGUtils::GetViewBoxTransform(const nsSVGElement* aElement,
                                 float aViewportWidth, float aViewportHeight,
                                 float aViewboxX, float aViewboxY,
                                 float aViewboxWidth, float aViewboxHeight,
@@ -765,7 +763,7 @@ nsSVGUtils::GetViewBoxTransform(nsSVGElement* aElement,
 }
 
 gfxMatrix
-nsSVGUtils::GetViewBoxTransform(nsSVGElement* aElement,
+nsSVGUtils::GetViewBoxTransform(const nsSVGElement* aElement,
                                 float aViewportWidth, float aViewportHeight,
                                 float aViewboxX, float aViewboxY,
                                 float aViewboxWidth, float aViewboxHeight,
@@ -1142,6 +1140,26 @@ nsSVGUtils::ToAppPixelRect(nsPresContext *aPresContext, const gfxRect& rect)
                 aPresContext->DevPixelsToAppUnits(NSToIntCeil(rect.YMost()) - NSToIntFloor(rect.Y())));
 }
 
+gfxIntSize
+nsSVGUtils::ConvertToSurfaceSize(const gfxSize& aSize,
+                                 PRBool *aResultOverflows)
+{
+  gfxIntSize surfaceSize(ClampToInt(aSize.width), ClampToInt(aSize.height));
+
+  *aResultOverflows = surfaceSize.width != NS_round(aSize.width) ||
+    surfaceSize.height != NS_round(aSize.height);
+
+  if (!gfxASurface::CheckSurfaceSize(surfaceSize)) {
+    surfaceSize.width = NS_MIN(NS_SVG_OFFSCREEN_MAX_DIMENSION,
+                               surfaceSize.width);
+    surfaceSize.height = NS_MIN(NS_SVG_OFFSCREEN_MAX_DIMENSION,
+                                surfaceSize.height);
+    *aResultOverflows = PR_TRUE;
+  }
+
+  return surfaceSize;
+}
+
 gfxMatrix
 nsSVGUtils::ConvertSVGMatrixToThebes(nsIDOMSVGMatrix *aMatrix)
 {
@@ -1195,19 +1213,19 @@ nsSVGUtils::GetClipRectForFrame(nsIFrame *aFrame,
       gfxRect(clipPxRect.x, clipPxRect.y, clipPxRect.width, clipPxRect.height);
 
     if (NS_STYLE_CLIP_RIGHT_AUTO & disp->mClipFlags) {
-      clipRect.size.width = aWidth - clipRect.X();
+      clipRect.width = aWidth - clipRect.X();
     }
     if (NS_STYLE_CLIP_BOTTOM_AUTO & disp->mClipFlags) {
-      clipRect.size.height = aHeight - clipRect.Y();
+      clipRect.height = aHeight - clipRect.Y();
     }
 
     if (disp->mOverflowX != NS_STYLE_OVERFLOW_HIDDEN) {
-      clipRect.pos.x = aX;
-      clipRect.size.width = aWidth;
+      clipRect.x = aX;
+      clipRect.width = aWidth;
     }
     if (disp->mOverflowY != NS_STYLE_OVERFLOW_HIDDEN) {
-      clipRect.pos.y = aY;
-      clipRect.size.height = aHeight;
+      clipRect.y = aY;
+      clipRect.height = aHeight;
     }
      
     return clipRect;
@@ -1282,7 +1300,7 @@ nsSVGUtils::GetBBox(nsIFrame *aFrame)
   if (svg) {
     // It is possible to apply a gradient, pattern, clipping path, mask or
     // filter to text. When one of these facilities is applied to text
-    // the bounding box is the entire ‘text’ element in all
+    // the bounding box is the entire text element in all
     // cases.
     nsSVGTextContainerFrame* metrics = do_QueryFrame(
       GetFirstNonAAncestorFrame(aFrame));
@@ -1440,13 +1458,13 @@ nsSVGUtils::PathExtentsToMaxStrokeExtents(const gfxRect& aPathExtents,
   double dy = style_expansion * (fabs(ctm.yy) + fabs(ctm.yx));
 
   gfxRect strokeExtents = aPathExtents;
-  strokeExtents.Outset(dy, dx, dy, dx);
+  strokeExtents.Inflate(dx, dy);
   return strokeExtents;
 }
 
 // ----------------------------------------------------------------------
 
-nsSVGRenderState::nsSVGRenderState(nsIRenderingContext *aContext) :
+nsSVGRenderState::nsSVGRenderState(nsRenderingContext *aContext) :
   mRenderMode(NORMAL), mRenderingContext(aContext), mPaintingToWindow(PR_FALSE)
 {
   mGfxContext = aContext->ThebesContext();
@@ -1463,15 +1481,13 @@ nsSVGRenderState::nsSVGRenderState(gfxASurface *aSurface) :
   mGfxContext = new gfxContext(aSurface);
 }
 
-nsIRenderingContext*
+nsRenderingContext*
 nsSVGRenderState::GetRenderingContext(nsIFrame *aFrame)
 {
   if (!mRenderingContext) {
-    nsIDeviceContext* devCtx = aFrame->PresContext()->DeviceContext();
-    devCtx->CreateRenderingContextInstance(*getter_AddRefs(mRenderingContext));
-    if (!mRenderingContext)
-      return nsnull;
-    mRenderingContext->Init(devCtx, mGfxContext);
+    mRenderingContext = new nsRenderingContext();
+    mRenderingContext->Init(aFrame->PresContext()->DeviceContext(),
+                            mGfxContext);
   }
   return mRenderingContext;
 }

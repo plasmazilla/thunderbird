@@ -39,6 +39,8 @@
 #include "CTypes.h"
 #include "Library.h"
 #include "jsnum.h"
+#include "jscompartment.h"
+#include "jsobjinlines.h"
 #include <limits>
 
 #include <math.h>
@@ -456,6 +458,7 @@ static JSFunctionSpec sUInt64Functions[] = {
 static JSFunctionSpec sModuleFunctions[] = {
   JS_FN("open", Library::Open, 1, CTYPESFN_FLAGS),
   JS_FN("cast", CData::Cast, 2, CTYPESFN_FLAGS),
+  JS_FN("getRuntime", CData::GetRuntime, 1, CTYPESFN_FLAGS),
   JS_FN("libraryName", Library::Name, 1, CTYPESFN_FLAGS),
   JS_FS_END
 };
@@ -1839,7 +1842,7 @@ ImplicitConvert(JSContext* cx,
       case TYPE_unsigned_char: {
         // Convert from UTF-16 to UTF-8.
         size_t nbytes =
-          js_GetDeflatedUTF8StringLength(cx, sourceChars, sourceLength);
+          GetDeflatedUTF8StringLength(cx, sourceChars, sourceLength);
         if (nbytes == (size_t) -1)
           return false;
 
@@ -1850,7 +1853,7 @@ ImplicitConvert(JSContext* cx,
           return false;
         }
 
-        ASSERT_OK(js_DeflateStringToUTF8Buffer(cx, sourceChars, sourceLength,
+        ASSERT_OK(DeflateStringToUTF8Buffer(cx, sourceChars, sourceLength,
                     *charBuffer, &nbytes));
         (*charBuffer)[nbytes] = 0;
         *freePointer = true;
@@ -1896,7 +1899,7 @@ ImplicitConvert(JSContext* cx,
       case TYPE_unsigned_char: {
         // Convert from UTF-16 to UTF-8.
         size_t nbytes =
-          js_GetDeflatedUTF8StringLength(cx, sourceChars, sourceLength);
+          GetDeflatedUTF8StringLength(cx, sourceChars, sourceLength);
         if (nbytes == (size_t) -1)
           return false;
 
@@ -1906,7 +1909,7 @@ ImplicitConvert(JSContext* cx,
         }
 
         char* charBuffer = static_cast<char*>(buffer);
-        ASSERT_OK(js_DeflateStringToUTF8Buffer(cx, sourceChars, sourceLength,
+        ASSERT_OK(DeflateStringToUTF8Buffer(cx, sourceChars, sourceLength,
                     charBuffer, &nbytes));
 
         if (targetLength > nbytes)
@@ -2753,8 +2756,6 @@ CType::FinalizeProtoClass(JSContext* cx, JSObject* obj)
 void
 CType::Trace(JSTracer* trc, JSObject* obj)
 {
-  JSContext* cx = trc->context;
-
   // Make sure our TypeCode slot is legit. If it's not, bail.
   jsval slot = js::Jsvalify(obj->getSlot(SLOT_TYPECODE));
   if (JSVAL_IS_VOID(slot))
@@ -2763,7 +2764,7 @@ CType::Trace(JSTracer* trc, JSObject* obj)
   // The contents of our slots depends on what kind of type we are.
   switch (TypeCode(JSVAL_TO_INT(slot))) {
   case TYPE_struct: {
-    ASSERT_OK(JS_GetReservedSlot(cx, obj, SLOT_FIELDINFO, &slot));
+    slot = Jsvalify(obj->getReservedSlot(SLOT_FIELDINFO));
     if (JSVAL_IS_VOID(slot))
       return;
 
@@ -2778,7 +2779,7 @@ CType::Trace(JSTracer* trc, JSObject* obj)
   }
   case TYPE_function: {
     // Check if we have a FunctionInfo.
-    ASSERT_OK(JS_GetReservedSlot(cx, obj, SLOT_FNINFO, &slot));
+    slot = Jsvalify(obj->getReservedSlot(SLOT_FNINFO));
     if (JSVAL_IS_VOID(slot))
       return;
 
@@ -3583,7 +3584,7 @@ ArrayType::ConstructData(JSContext* cx,
       case TYPE_signed_char:
       case TYPE_unsigned_char: {
         // Determine the UTF-8 length.
-        length = js_GetDeflatedUTF8StringLength(cx, sourceChars, sourceLength);
+        length = GetDeflatedUTF8StringLength(cx, sourceChars, sourceLength);
         if (length == (size_t) -1)
           return false;
 
@@ -4547,6 +4548,11 @@ GetABI(JSContext* cx, jsval abiType, ffi_abi* result)
 #if (defined(_WIN32) && !defined(_WIN64)) || defined(_OS2)
     *result = FFI_STDCALL;
     return true;
+#elif (defined(_WIN64))
+    // We'd like the same code to work across Win32 and Win64, so stdcall_api
+    // and winapi_abi become aliases to the lone Win64 ABI.
+    *result = FFI_WIN64;
+    return true;
 #endif
   case INVALID_ABI:
     break;
@@ -4691,6 +4697,7 @@ FunctionType::BuildSymbolName(JSContext* cx,
     break;
 
   case ABI_STDCALL: {
+#if (defined(_WIN32) && !defined(_WIN64)) || defined(_OS2)
     // On WIN32, stdcall functions look like:
     //   _foo@40
     // where 'foo' is the function name, and '40' is the aligned size of the
@@ -4707,6 +4714,11 @@ FunctionType::BuildSymbolName(JSContext* cx,
     }
 
     IntegerToString(size, 10, result);
+#elif defined(_WIN64)
+    // On Win64, stdcall is an alias to the default ABI for compatibility, so no
+    // mangling is done.
+    AppendString(result, name);
+#endif
     break;
   }
 
@@ -5680,6 +5692,38 @@ CData::Cast(JSContext* cx, uintN argc, jsval* vp)
 }
 
 JSBool
+CData::GetRuntime(JSContext* cx, uintN argc, jsval* vp)
+{
+  if (argc != 1) {
+    JS_ReportError(cx, "getRuntime takes one argument");
+    return JS_FALSE;
+  }
+
+  jsval* argv = JS_ARGV(cx, vp);
+  if (JSVAL_IS_PRIMITIVE(argv[0]) ||
+      !CType::IsCType(cx, JSVAL_TO_OBJECT(argv[0]))) {
+    JS_ReportError(cx, "first argument must be a CType");
+    return JS_FALSE;
+  }
+
+  JSObject* targetType = JSVAL_TO_OBJECT(argv[0]);
+  size_t targetSize;
+  if (!CType::GetSafeSize(cx, targetType, &targetSize) ||
+      targetSize != sizeof(void*)) {
+    JS_ReportError(cx, "target CType has non-pointer size");
+    return JS_FALSE;
+  }
+
+  void* data = static_cast<void*>(cx->runtime);
+  JSObject* result = CData::Create(cx, targetType, NULL, &data, true);
+  if (!result)
+    return JS_FALSE;
+
+  JS_SET_RVAL(cx, vp, OBJECT_TO_JSVAL(result));
+  return JS_TRUE;
+}
+
+JSBool
 CData::ReadString(JSContext* cx, uintN argc, jsval* vp)
 {
   if (argc != 0) {
@@ -5733,7 +5777,7 @@ CData::ReadString(JSContext* cx, uintN argc, jsval* vp)
 
     // Determine the length.
     size_t dstlen;
-    if (!js_InflateUTF8StringToBuffer(cx, bytes, length, NULL, &dstlen))
+    if (!InflateUTF8StringToBuffer(cx, bytes, length, NULL, &dstlen))
       return JS_FALSE;
 
     jschar* dst =
@@ -5741,7 +5785,7 @@ CData::ReadString(JSContext* cx, uintN argc, jsval* vp)
     if (!dst)
       return JS_FALSE;
 
-    ASSERT_OK(js_InflateUTF8StringToBuffer(cx, bytes, length, dst, &dstlen));
+    ASSERT_OK(InflateUTF8StringToBuffer(cx, bytes, length, dst, &dstlen));
     dst[dstlen] = 0;
 
     result = JS_NewUCString(cx, dst, dstlen);

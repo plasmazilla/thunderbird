@@ -1,6 +1,5 @@
-/* -*- Mode: C++; tab-width: 40; indent-tabs-mode: nil; c-basic-offset: 4 -*-
- *
- * ***** BEGIN LICENSE BLOCK *****
+/* -*- Mode: C++; tab-width: 40; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+/* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
  * The contents of this file are subject to the Mozilla Public License Version
@@ -44,8 +43,10 @@
 #include "CheckedInt.h"
 #include "nsMathUtils.h"
 
-typedef nsresult (NS_STDCALL nsIDOMCanvasRenderingContext2D::*CanvasStyleSetterType)(const nsAString &, nsISupports *);
-typedef nsresult (NS_STDCALL nsIDOMCanvasRenderingContext2D::*CanvasStyleGetterType)(nsAString &, nsISupports **, PRInt32 *);
+typedef NS_STDCALL_FUNCPROTO(nsresult, CanvasStyleSetterType, nsIDOMCanvasRenderingContext2D,
+                             SetStrokeStyle_multi, (const nsAString &, nsISupports *));
+typedef NS_STDCALL_FUNCPROTO(nsresult, CanvasStyleGetterType, nsIDOMCanvasRenderingContext2D,
+                             GetStrokeStyle_multi, (nsAString &, nsISupports **, PRInt32 *));
 
 static JSBool
 Canvas2D_SetStyleHelper(JSContext *cx, JSObject *obj, jsid id, jsval *vp,
@@ -58,8 +59,7 @@ Canvas2D_SetStyleHelper(JSContext *cx, JSObject *obj, jsid id, jsval *vp,
     if (!xpc_qsUnwrapThis(cx, obj, nsnull, &self, &selfref.ptr, tvr.jsval_addr(), nsnull))
         return JS_FALSE;
 
-    nsresult rv;
-
+    nsresult rv = NS_OK;
     if (JSVAL_IS_STRING(*vp)) {
         xpc_qsDOMString arg0(cx, *vp, vp,
                              xpc_qsDOMString::eDefaultNullBehavior,
@@ -187,13 +187,13 @@ CreateImageData(JSContext* cx,
     }
 
     if (self) {
-        js::TypedArray* tdest = js::TypedArray::fromJSObject(darray);
+        JSObject *tdest = js::TypedArray::getTypedArray(darray);
 
         // make the call
         nsresult rv =
             self->GetImageData_explicit(x, y, w, h,
-                                        static_cast<PRUint8*>(tdest->data),
-                                        tdest->byteLength);
+                                        static_cast<PRUint8*>(JS_GetTypedArrayData(tdest)),
+                                        JS_GetTypedArrayByteLength(tdest));
         if (NS_FAILED(rv)) {
             return xpc_qsThrowMethodFailed(cx, rv, vp);
         }
@@ -287,8 +287,8 @@ nsIDOMCanvasRenderingContext2D_CreateImageData(JSContext *cx, uintN argc, jsval 
     int32 wi = JS_DoubleToInt32(width);
     int32 hi = JS_DoubleToInt32(height);
 
-    uint32 w = PR_ABS(wi);
-    uint32 h = PR_ABS(hi);
+    uint32 w = NS_ABS(wi);
+    uint32 h = NS_ABS(hi);
     return CreateImageData(cx, w, h, NULL, 0, 0, vp);
 }
 
@@ -416,11 +416,11 @@ nsIDOMCanvasRenderingContext2D_PutImageData(JSContext *cx, uintN argc, jsval *vp
 
     js::AutoValueRooter tsrc_tvr(cx);
 
-    js::TypedArray *tsrc = NULL;
+    JSObject *tsrc = NULL;
     if (darray->getClass() == &js::TypedArray::fastClasses[js::TypedArray::TYPE_UINT8] ||
         darray->getClass() == &js::TypedArray::fastClasses[js::TypedArray::TYPE_UINT8_CLAMPED])
     {
-        tsrc = js::TypedArray::fromJSObject(darray);
+        tsrc = js::TypedArray::getTypedArray(darray);
     } else if (JS_IsArrayObject(cx, darray) || js_IsTypedArray(darray)) {
         // ugh, this isn't a uint8 typed array, someone made their own object; convert it to a typed array
         JSObject *nobj = js_CreateTypedArrayWithArray(cx, js::TypedArray::TYPE_UINT8, darray);
@@ -428,14 +428,14 @@ nsIDOMCanvasRenderingContext2D_PutImageData(JSContext *cx, uintN argc, jsval *vp
             return JS_FALSE;
 
         *tsrc_tvr.jsval_addr() = OBJECT_TO_JSVAL(nobj);
-        tsrc = js::TypedArray::fromJSObject(nobj);
+        tsrc = js::TypedArray::getTypedArray(nobj);
     } else {
         // yeah, no.
         return xpc_qsThrow(cx, NS_ERROR_DOM_TYPE_MISMATCH_ERR);
     }
 
     // make the call
-    rv = self->PutImageData_explicit(x, y, w, h, (PRUint8*) tsrc->data, tsrc->byteLength, hasDirtyRect, dirtyX, dirtyY, dirtyWidth, dirtyHeight);
+    rv = self->PutImageData_explicit(x, y, w, h, (PRUint8*) JS_GetTypedArrayData(tsrc), JS_GetTypedArrayByteLength(tsrc), hasDirtyRect, dirtyX, dirtyY, dirtyWidth, dirtyHeight);
     if (NS_FAILED(rv))
         return xpc_qsThrowMethodFailed(cx, rv, vp);
 

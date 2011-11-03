@@ -49,6 +49,13 @@
 
 class nsIDocShellTreeItem;
 class nsPIDOMWindow;
+
+namespace mozilla {
+namespace dom {
+  class TabParent;
+}
+}
+
 struct nsDelayedBlurOrFocusEvent;
 
 /**
@@ -122,6 +129,13 @@ public:
    * followup work.
    */
   static nsIContent* GetRedirectedFocus(nsIContent* aContent);
+
+  /**
+   * Returns a flag indicating the source and/or reason of the focus change.
+   * This is used to indicate to the IME code if the focus come from a user 
+   * input or a script for example.
+   */
+  static PRUint32 GetFocusMoveReason(PRUint32 aFlags);
 
   static PRBool sMouseFocusesFormControl;
 
@@ -418,6 +432,12 @@ protected:
                               PRBool aCheckVisibility);
 
   /**
+   * Get the TabParent associated with aContent if it is a remote browser,
+   * or null in all other cases.
+   */
+  mozilla::dom::TabParent* GetRemoteForContent(nsIContent* aContent);
+
+  /**
    * Get the last docshell child of aItem and return it in aResult.
    */
   void GetLastDocShell(nsIDocShellTreeItem* aItem,
@@ -459,6 +479,19 @@ protected:
                            nsIContent* aStartSelection,
                            nsIContent* aEndSelection,
                            nsIContent** aFocusedContent);
+
+private:
+  // Notify that the focus state of aContent has changed.  Note that
+  // we need to pass in whether the window should show a focus ring
+  // before the SetFocusedNode call on it happened when losing focus
+  // and after the SetFocusedNode call when gaining focus, which is
+  // why that information needs to be an explicit argument instead of
+  // just passing in the window and asking it whether it should show
+  // focus rings: in the losing focus case that information could be
+  // wrong..
+  static void NotifyFocusStateChange(nsIContent* aContent,
+                                     PRBool aWindowShouldShowFocusRing,
+                                     PRBool aGettingFocus);
 
   // the currently active and front-most top-most window
   nsCOMPtr<nsPIDOMWindow> mActiveWindow;

@@ -1,8 +1,54 @@
 // -*- Mode: js2; tab-width: 2; indent-tabs-mode: nil; js2-basic-offset: 2; js2-skip-preprocessor-directives: t; -*-
+/*
+ * ***** BEGIN LICENSE BLOCK *****
+ * Version: MPL 1.1/GPL 2.0/LGPL 2.1
+ *
+ * The contents of this file are subject to the Mozilla Public License Version
+ * 1.1 (the "License"); you may not use this file except in compliance with
+ * the License. You may obtain a copy of the License at
+ * http://www.mozilla.org/MPL/
+ *
+ * Software distributed under the License is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ * for the specific language governing rights and limitations under the
+ * License.
+ *
+ * The Original Code is Mozilla Mobile Browser.
+ *
+ * The Initial Developer of the Original Code is
+ * Mozilla Corporation.
+ * Portions created by the Initial Developer are Copyright (C) 2011
+ * the Initial Developer. All Rights Reserved.
+ *
+ * Contributor(s):
+ *
+ * Alternatively, the contents of this file may be used under the terms of
+ * either the GNU General Public License Version 2 or later (the "GPL"), or
+ * the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ * in which case the provisions of the GPL or the LGPL are applicable instead
+ * of those above. If you wish to allow use of your version of this file only
+ * under the terms of either the GPL or the LGPL, and not to allow others to
+ * use your version of this file under the terms of the MPL, indicate your
+ * decision by deleting the provisions above and replace them with the notice
+ * and other provisions required by the GPL or the LGPL. If you do not delete
+ * the provisions above, a recipient may use your version of this file under
+ * the terms of any one of the MPL, the GPL or the LGPL.
+ *
+ * ***** END LICENSE BLOCK ***** */
+
+const kBrowserFormZoomLevelMin = 0.8;
+const kBrowserFormZoomLevelMax = 2.0;
+
 var BrowserSearch = {
   get _popup() {
+    let popup = document.getElementById("search-engines-popup");
+    popup.addEventListener("TapSingle", function(aEvent) {
+      popup.hidden = true;
+      BrowserUI.doOpenSearch(aEvent.target.getAttribute("label"));
+    }, false);
+
     delete this._popup;
-    return this._popup = document.getElementById("search-engines-popup");
+    return this._popup = popup;
   },
 
   get _list() {
@@ -34,11 +80,7 @@ var BrowserSearch = {
       button.setAttribute("label", aEngine.name);
       button.setAttribute("crop", "end");
       button.setAttribute("pack", "start");
-      button.setAttribute("image", aEngine.iconURI ? aEngine.iconURI.spec : null);
-      button.onclick = function() {
-        popup.hidden = true;
-        BrowserUI.doOpenSearch(aEngine.name);
-      }
+      button.setAttribute("image", aEngine.iconURI ? aEngine.iconURI.spec : "");
       list.appendChild(button);
     });
 
@@ -156,7 +198,8 @@ var PageActions = {
   updateSiteMenu: function updateSiteMenu() {
     this._handlers.forEach(function(action) {
       let node = document.getElementById(action.id);
-      node.hidden = !action.callback.call(action.obj, node);
+      if (node)
+        node.hidden = !action.callback.call(action.obj, node);
     });
     this._updateAttributes();
   },
@@ -393,7 +436,17 @@ var NewTabPopup = {
     setTimeout((function() {
       let boxRect = this.box.getBoundingClientRect();
       this.box.top = tabRect.top + (tabRect.height / 2) - (boxRect.height / 2);
-      this.box.anchorTo(aTab);
+
+      let tabs = document.getElementById("tabs");
+
+      // We don't use anchorTo() here because the tab
+      // being anchored to might be overflowing the tabs
+      // scrollbox which confuses the dynamic arrow direction
+      // calculation (see bug 662520).
+      if (tabs.getBoundingClientRect().left < 0)
+        this.box.pointLeftAt(aTab);
+      else
+        this.box.pointRightAt(aTab);
     }).bind(this), 0);
 
     if (this._timeout)
@@ -563,7 +616,11 @@ var FindHelperUI = {
 
     if (Browser.selectedTab.allowZoom) {
       let zoomLevel = Browser._getZoomLevelForRect(aElementRect);
-      zoomLevel = Math.min(Math.max(kBrowserFormZoomLevelMin, zoomLevel), kBrowserFormZoomLevelMax);
+
+      // Clamp the zoom level relatively to the default zoom level of the page
+      let defaultZoomLevel = Browser.selectedTab.getDefaultZoomLevel();
+      zoomLevel = Util.clamp(zoomLevel, (defaultZoomLevel * kBrowserFormZoomLevelMin),
+                                        (defaultZoomLevel * kBrowserFormZoomLevelMax));
       zoomLevel = Browser.selectedTab.clampZoomLevel(zoomLevel);
 
       let zoomRect = Browser._getZoomRectForPoint(aElementRect.center().x, aElementRect.y, zoomLevel);
@@ -599,7 +656,6 @@ var FormHelperUI = {
 
   init: function formHelperInit() {
     this._container = document.getElementById("content-navigator");
-    this._suggestionsContainer = document.getElementById("form-helper-suggestions-container");
     this._cmdPrevious = document.getElementById(this.commands.previous);
     this._cmdNext = document.getElementById(this.commands.next);
 
@@ -626,31 +682,45 @@ var FormHelperUI = {
     window.addEventListener("keyup", this, true);
     window.addEventListener("keypress", this, true);
 
-    // Listen some events to show/hide the autocomplete box
+    // Listen some events to show/hide arrows
     Elements.browsers.addEventListener("PanBegin", this, false);
     Elements.browsers.addEventListener("PanFinished", this, false);
-    window.addEventListener("AnimatedZoomBegin", this, false);
-    window.addEventListener("AnimatedZoomEnd", this, false);
-    window.addEventListener("MozBeforeResize", this, true);
-    window.addEventListener("resize", this, false);
+
+    // Dynamically enabled/disabled the form helper if needed depending on
+    // the size of the screen
+    let mode = Services.prefs.getIntPref("formhelper.mode");
+    let state = (mode == 2) ? !Util.isTablet() : !!mode;
+    Services.prefs.setBoolPref("formhelper.enabled", state);
   },
 
   _currentBrowser: null,
   show: function formHelperShow(aElement, aHasPrevious, aHasNext) {
+    // Delay the operation until all resize operations generated by the
+    // keyboard apparition are done. This avoid doing unuseful zooming
+    // operations.
+    if (aElement.editable && !ViewableAreaObserver.isKeyboardOpened) {
+      this._waitForKeyboard(aElement, aHasPrevious, aHasNext);
+      return;
+    }
+
     this._currentBrowser = Browser.selectedBrowser;
     this._currentCaretRect = null;
 
+#ifndef ANDROID
     // Update the next/previous commands
     this._cmdPrevious.setAttribute("disabled", !aHasPrevious);
     this._cmdNext.setAttribute("disabled", !aHasNext);
 
     // If both next and previous are disabled don't bother showing arrows
-    if (!aHasNext && !aHasPrevious)
-      this._container.setAttribute("disabled", "true");
-    else
+    if (aHasNext || aHasPrevious)
       this._container.removeAttribute("disabled");
+    else
+      this._container.setAttribute("disabled", "true");
+#else
+    // Always hide the arrows on Android
+    this._container.setAttribute("disabled", "true");
+#endif
 
-    this._hasSuggestions = false;
     this._open = true;
 
     let lastElement = this._currentElement || null;
@@ -686,7 +756,6 @@ var FormHelperUI = {
     this._currentCaretRect = null;
 
     this._updateContainerForSelect(this._currentElement, null);
-    this._resetSuggestions();
 
     this._currentBrowser.messageManager.sendAsyncMessage("FormAssist:Closed", { });
     this._open = false;
@@ -711,28 +780,11 @@ var FormHelperUI = {
         // manual dblClick and navigation between the fields by clicking the
         // buttons
         this._container.style.visibility = "hidden";
-
-      case "AnimatedZoomBegin":
-        // Changing the hidden attribute here create bugs with the scrollbox
-        // arrows because the binding will miss some underflow events
-        if (this._hasSuggestions) {
-          // Because the suggestions container could be big in terms of width
-          // (but never bigger than the screen) it's position needs to be
-          // resetted to the left to ensure it does not push the content to
-          // the right and misplaced sidebars as a result
-          this._suggestionsContainer.left = 0;
-          this._suggestionsContainer.style.visibility = "hidden";
-        }
         break;
+
 
       case "PanFinished":
         this._container.style.visibility = "visible";
-
-      case "AnimatedZoomEnd":
-        if (this._hasSuggestions) {
-          this._suggestionsContainer.style.visibility = "visible";
-          this._ensureSuggestionsVisible();
-        }
         break;
 
       case "URLChanged":
@@ -766,39 +818,44 @@ var FormHelperUI = {
           self._zoom(self._currentElementRect, self._currentCaretRect);
         }, 0, this);
         break;
-
-      case "MozBeforeResize":
-        if (this._hasSuggestions)
-          this._suggestionsContainer.left = 0;
-        break;
-
-      case "resize":
-        if (this._hasSuggestions)
-          this._ensureSuggestionsVisible();
-        break;
     }
   },
 
   receiveMessage: function formHelperReceiveMessage(aMessage) {
-    if (!this._open && aMessage.name != "FormAssist:Show" && aMessage.name != "FormAssist:Hide")
+    let allowedMessages = ["FormAssist:Show", "FormAssist:Hide", "FormAssist:AutoComplete"];
+    if (!this._open && allowedMessages.indexOf(aMessage.name) == -1)
       return;
 
     let json = aMessage.json;
     switch (aMessage.name) {
       case "FormAssist:Show":
         // if the user has manually disabled the Form Assistant UI we still
-        // want to show a UI for <select /> element but not managed by
-        // FormHelperUI
-        this.enabled ? this.show(json.current, json.hasPrevious, json.hasNext)
-                     : SelectHelperUI.show(json.current.choices, json.current.title);
+        // want to show a UI for <select /> element and still want to show
+        // autocomplete suggestions but not managed by FormHelperUI
+        if (this.enabled) {
+          this.show(json.current, json.hasPrevious, json.hasNext)
+        } else if (json.current.choices) {
+          SelectHelperUI.show(json.current.choices, json.current.title);
+        } else {
+          this._currentElementRect = Rect.fromRect(json.current.rect);
+          this._currentBrowser = getBrowser();
+          this._updateSuggestionsFor(json.current);
+        }
         break;
 
       case "FormAssist:Hide":
-        this.enabled ? this.hide()
-                     : SelectHelperUI.hide();
+        if (this.enabled) {
+          this.hide();
+        } else {
+          SelectHelperUI.hide();
+          ContentPopupHelper.popup = null;
+        }
         break;
 
       case "FormAssist:Resize":
+        if (!ViewableAreaObserver.isKeyboardOpened)
+          return;
+
         let element = json.current;
         this._zoom(Rect.fromRect(element.rect), Rect.fromRect(element.caretRect));
         break;
@@ -808,6 +865,9 @@ var FormHelperUI = {
         break;
 
        case "FormAssist:Update":
+        if (!ViewableAreaObserver.isKeyboardOpened)
+          return;
+
         Browser.hideSidebars();
         Browser.hideTitlebar();
         this._zoom(null, Rect.fromRect(json.caretRect));
@@ -835,8 +895,11 @@ var FormHelperUI = {
 
   doAutoComplete: function formHelperDoAutoComplete(aElement) {
     // Suggestions are only in <label>s. Ignore the rest.
-    if (aElement instanceof Ci.nsIDOMXULLabelElement)
-      this._currentBrowser.messageManager.sendAsyncMessage("FormAssist:AutoComplete", { value: aElement.getAttribute("data") });
+    if (!(aElement instanceof Ci.nsIDOMXULLabelElement))
+      return;
+
+    this._currentBrowser.messageManager.sendAsyncMessage("FormAssist:AutoComplete", { value: aElement.getAttribute("data") });
+    ContentPopupHelper.popup = null;
   },
 
   get _open() {
@@ -856,6 +919,7 @@ var FormHelperUI = {
       this._currentElement = null;
       this._container.hide(this);
 
+      ContentPopupHelper.popup = null;
       this._container.removeAttribute("disabled");
 
       // Since the style is overrided when a popup is shown, it needs to be
@@ -868,35 +932,25 @@ var FormHelperUI = {
     this._container.dispatchEvent(evt);
   },
 
-  _hasSuggestions: false,
-  _updateSuggestionsFor: function _formHelperUpdateAutocompleteFor(aElement) {
+  _updateSuggestionsFor: function _formHelperUpdateSuggestionsFor(aElement) {
     let suggestions = this._getAutocompleteSuggestions(aElement);
     if (!suggestions.length) {
-      this._resetSuggestions();
+      ContentPopupHelper.popup = null;
       return;
     }
-    // Keeps the suggestions element hidden while is it not positionned to the
-    // correct place
-    let suggestionsContainer = this._suggestionsContainer;
-    suggestionsContainer.style.visibility = "hidden";
-    suggestionsContainer.hidden = false;
-    suggestionsContainer.left = 0;
 
     // the scrollX/scrollY position can change because of the animated zoom so
     // delay the suggestions positioning
     if (AnimatedZoom.isZooming()) {
       let self = this;
-      window.addEventListener("AnimatedZoomEnd", function() {
-        window.removeEventListener("AnimatedZoomEnd", arguments.callee, true);
-          // Ensure the current element has not changed during this interval
-          if (self._currentElement != aElement)
-            return;
-
-          self._updateSuggestionsFor(aElement);
-      }, true);
+      this._waitForZoom(function() {
+        self._updateSuggestionsFor(aElement);
+      });
       return;
     }
 
+    // Declare which box is going to be the inside container of the content popup helper
+    let suggestionsContainer = document.getElementById("form-helper-suggestions-container");
     let container = suggestionsContainer.firstChild;
     while (container.hasChildNodes())
       container.removeChild(container.lastChild);
@@ -912,8 +966,8 @@ var FormHelperUI = {
     }
     container.appendChild(fragment);
 
-    this._hasSuggestions = true;
-    this._ensureSuggestionsVisible();
+    ContentPopupHelper.popup = suggestionsContainer;
+    ContentPopupHelper.anchorTo(this._currentElementRect);
   },
 
   /** Retrieve the autocomplete list from the autocomplete service for an element */
@@ -944,108 +998,6 @@ var FormHelperUI = {
       suggestions.push(options[i]);
 
     return suggestions;
-  },
-
-  _resetSuggestions: function _formHelperResetAutocomplete() {
-    this._suggestionsContainer.hidden = true;
-    this._hasSuggestions = false;
-  },
-
-  /**
-   * This method positionned the list of suggestions on the screen using
-   * a 'virtual' element as referrer that match the real content element
-   * This method called element.getBoundingClientRect() many times and can be
-   * expensive, do not called it too many times.
-   */
-  _ensureSuggestionsVisible: function _formHelperEnsureSuggestionsVisible() {
-    let container = this._suggestionsContainer;
-
-    // Calculate the maximum size of the arrowpanel by allowing it to live only
-    // on the visible browser area
-    let [leftVis, rightVis, leftW, rightW] = Browser.computeSidebarVisibility();
-    let leftOffset = leftVis * leftW;
-    let rightOffset = rightVis * rightW;
-    let visibleAreaWidth = window.innerWidth - leftOffset - rightOffset;
-    container.firstChild.style.maxWidth = (visibleAreaWidth * 0.75) + "px";
-
-    let browser = getBrowser();
-    let rect = this._currentElementRect.clone().scale(browser.scale, browser.scale);
-    let scroll = browser.getRootView().getPosition();
-
-    // The sidebars scroll needs to be taken into account, otherwise the arrows
-    // can be misplaced if the sidebars are open
-    let topOffset = (BrowserUI.toolbarH - Browser.getScrollboxPosition(Browser.pageScrollboxScroller).y);
-    let virtualContentRect = {
-      width: rect.width,
-      height: rect.height,
-      left: Math.ceil(rect.left - scroll.x + leftOffset - rightOffset),
-      right: Math.floor(rect.left + rect.width - scroll.x + leftOffset - rightOffset),
-      top: Math.ceil(rect.top - scroll.y + topOffset),
-      bottom: Math.floor(rect.top + rect.height - scroll.y + topOffset)
-    };
-
-    // Translate the virtual rect inside the bounds of the viewable area if it
-    // overflow
-    if (virtualContentRect.left + virtualContentRect.width > visibleAreaWidth) {
-      let offsetX = visibleAreaWidth - (virtualContentRect.left + virtualContentRect.width);
-      virtualContentRect.width += offsetX;
-      virtualContentRect.right -= offsetX;
-    }
-
-    if (virtualContentRect.left < leftOffset) {
-      let offsetX = (virtualContentRect.right - virtualContentRect.width);
-      virtualContentRect.width += offsetX;
-      virtualContentRect.left -= offsetX;
-    }
-
-    // If the suggestions are out of view there is no need to display it
-    let browserRect = Rect.fromRect(browser.getBoundingClientRect());
-    if (BrowserUI.isToolbarLocked()) {
-      // If the toolbar is locked, it can appear over the field in such a way
-      // that the field is hidden
-      let toolbarH = BrowserUI.toolbarH;
-      browserRect = new Rect(leftOffset - rightOffset, Math.max(0, browserRect.top - toolbarH) + toolbarH,
-                             browserRect.width + leftOffset - rightOffset, browserRect.height - toolbarH);
-    }
-
-    if (browserRect.intersect(Rect.fromRect(virtualContentRect)).isEmpty()) {
-      container.style.visibility = "hidden";
-      return;
-    }
-
-    // Adding rect.height to the top moves the arrowbox below the virtual field
-    let left = rect.left - scroll.x + leftOffset - rightOffset;
-    let top = rect.top - scroll.y + topOffset + (rect.height);
-
-    // Ensure parts of the arrowbox are not outside the window
-    let arrowboxRect = Rect.fromRect(container.getBoundingClientRect());
-    if (left + arrowboxRect.width > window.innerWidth)
-      left -= (left + arrowboxRect.width - window.innerWidth);
-    else if (left < leftOffset)
-      left += (leftOffset - left);
-    container.left = left;
-
-    // Do not position the suggestions over the navigation buttons
-    let buttonsHeight = this._container.getBoundingClientRect().height;
-    if (top + arrowboxRect.height >= window.innerHeight - buttonsHeight)
-      top -= (rect.height + arrowboxRect.height);
-    container.top = top;
-
-    // Create a virtual element to point to
-    let virtualContentElement = {
-      getBoundingClientRect: function() {
-        return virtualContentRect;
-      }
-    };
-    container.anchorTo(virtualContentElement);
-    container.style.visibility = "visible";
-  },
-
-  /** Update the form helper container to reflect new element user is editing. */
-  _updateContainer: function _formHelperUpdateContainer(aLastElement, aCurrentElement) {
-    this._updateContainerForSelect(aLastElement, aCurrentElement);
-
-    this._container.contentHasChanged();
   },
 
   /** Helper for _updateContainer that handles the case where the new element is a select. */
@@ -1093,16 +1045,10 @@ var FormHelperUI = {
     // the scrollX/scrollY position can change because of the animated zoom so
     // delay the caret adjustment
     if (AnimatedZoom.isZooming()) {
-      let currentElement = this._currentElement;
       let self = this;
-      window.addEventListener("AnimatedZoomEnd", function() {
-        window.removeEventListener("AnimatedZoomEnd", arguments.callee, true);
-          // Ensure the current element has not changed during this interval
-          if (self._currentElement != currentElement)
-            return;
-
-          self._ensureCaretVisible(aCaretRect);
-      }, true);
+      this._waitForZoom(function() {
+        self._ensureCaretVisible(aCaretRect);
+      });
       return;
     }
 
@@ -1147,10 +1093,27 @@ var FormHelperUI = {
     Browser.pageScrollboxScroller.scrollTo(restore.pageScrollOffset.x, restore.pageScrollOffset.y);
   },
 
+  _waitForZoom: function _formHelperWaitForZoom(aCallback) {
+    let currentElement = this._currentElement;
+    let self = this;
+    window.addEventListener("AnimatedZoomEnd", function() {
+      window.removeEventListener("AnimatedZoomEnd", arguments.callee, true);
+      // Ensure the current element has not changed during this interval
+      if (self._currentElement != currentElement)
+        return;
+
+      aCallback();
+    }, true);
+  },
+
   _getZoomLevelForRect: function _getZoomLevelForRect(aRect) {
     const margin = 30;
     let zoomLevel = getBrowser().getBoundingClientRect().width / (aRect.width + margin);
-    return Util.clamp(zoomLevel, kBrowserFormZoomLevelMin, kBrowserFormZoomLevelMax);
+
+    // Clamp the zoom level relatively to the default zoom level of the page
+    let defaultZoomLevel = Browser.selectedTab.getDefaultZoomLevel();
+    return Util.clamp(zoomLevel, (defaultZoomLevel * kBrowserFormZoomLevelMin),
+                                 (defaultZoomLevel * kBrowserFormZoomLevelMax));
   },
 
   _getOffsetForCaret: function _formHelperGetOffsetForCaret(aCaretRect, aRect) {
@@ -1169,6 +1132,22 @@ var FormHelperUI = {
       deltaY = aCaretRect.top - aRect.top;
 
     return [deltaX, deltaY];
+  },
+
+  _waitForKeyboard: function formHelperWaitForKeyboard(aElement, aHasPrevious, aHasNext) {
+    let self = this;
+    window.addEventListener("KeyboardChanged", function(aEvent) {
+      window.removeEventListener("KeyboardChanged", arguments.callee, false);
+
+      if (AnimatedZoom.isZooming()) {
+        self._waitForZoom(function() {
+          self.show(aElement, aHasPrevious, aHasNext);
+        });
+        return;
+      }
+
+      self.show(aElement, aHasPrevious, aHasNext);
+    }, false);
   }
 };
 
@@ -1220,11 +1199,11 @@ var ContextHelper = {
     let label = document.getElementById("context-hint");
     label.value = this.popupState.label || "";
 
+    this.sizeToContent();
     this._panel.hidden = false;
     window.addEventListener("resize", this, true);
     window.addEventListener("keypress", this, true);
 
-    this.sizeToContent();
     BrowserUI.pushPopup(this, [this._popup]);
 
     let event = document.createEvent("Events");
@@ -1246,7 +1225,8 @@ var ContextHelper = {
   },
 
   sizeToContent: function sizeToContent() {
-    this._popup.maxWidth = window.innerWidth * 0.75;
+    let style = document.defaultView.getComputedStyle(this._panel, null);
+    this._popup.width = window.innerWidth - (parseInt(style.paddingLeft) + parseInt(style.paddingRight));
   },
 
   handleEvent: function handleEvent(aEvent) {
@@ -1261,6 +1241,172 @@ var ContextHelper = {
         if (aEvent.keyCode != aEvent.DOM_VK_ESCAPE)
           this.hide();
         break;
+    }
+  }
+};
+
+var SelectionHelper = {
+  enabled: true,
+  popupState: null,
+  target: null,
+  deltaX: -1,
+  deltaY: -1,
+
+  get _start() {
+    delete this._start;
+    return this._start = document.getElementById("selectionhandle-start");
+  },
+
+  get _end() {
+    delete this._end;
+    return this._end = document.getElementById("selectionhandle-end");
+  },
+
+  showPopup: function sh_showPopup(aMessage) {
+    if (!this.enabled || aMessage.json.types.indexOf("content-text") == -1)
+      return false;
+
+    this.popupState = aMessage.json;
+    this.popupState.target = aMessage.target;
+
+    this._start.customDragger = {
+      isDraggable: function isDraggable(target, content) { return { x: true, y: false }; },
+      dragStart: function dragStart(cx, cy, target, scroller) {},
+      dragStop: function dragStop(dx, dy, scroller) { return false; },
+      dragMove: function dragMove(dx, dy, scroller) { return false; }
+    };
+
+    this._end.customDragger = {
+      isDraggable: function isDraggable(target, content) { return { x: true, y: false }; },
+      dragStart: function dragStart(cx, cy, target, scroller) {},
+      dragStop: function dragStop(dx, dy, scroller) { return false; },
+      dragMove: function dragMove(dx, dy, scroller) { return false; }
+    };
+
+    this._start.addEventListener("TapUp", this, true);
+    this._end.addEventListener("TapUp", this, true);
+
+    messageManager.addMessageListener("Browser:SelectionRange", this);
+    messageManager.addMessageListener("Browser:SelectionCopied", this);
+
+    this.popupState.target.messageManager.sendAsyncMessage("Browser:SelectionStart", { x: this.popupState.x, y: this.popupState.y });
+
+    // Hide the selection handles
+    window.addEventListener("TapDown", this, true);
+    window.addEventListener("resize", this, true);
+    window.addEventListener("keypress", this, true);
+    Elements.browsers.addEventListener("URLChanged", this, true);
+    Elements.browsers.addEventListener("SizeChanged", this, true);
+    Elements.browsers.addEventListener("ZoomChanged", this, true);
+
+    let event = document.createEvent("Events");
+    event.initEvent("CancelTouchSequence", true, false);
+    this.popupState.target.dispatchEvent(event);
+
+    return true;
+  },
+
+  hide: function sh_hide(aEvent) {
+    if (this._start.hidden)
+      return;
+
+    let pos = this.popupState.target.transformClientToBrowser(aEvent.clientX || 0, aEvent.clientY || 0);
+    let json = {
+      x: pos.x,
+      y: pos.y
+    };
+
+    try {
+      this.popupState.target.messageManager.sendAsyncMessage("Browser:SelectionEnd", json);
+    } catch (e) {
+      Cu.reportError(e);
+    }
+
+    this.popupState = null;
+
+    this._start.hidden = true;
+    this._end.hidden = true;
+
+    this._start.removeEventListener("TapUp", this, true);
+    this._end.removeEventListener("TapUp", this, true);
+
+    messageManager.removeMessageListener("Browser:SelectionRange", this);
+
+    window.removeEventListener("TapDown", this, true);
+    window.removeEventListener("resize", this, true);
+    window.removeEventListener("keypress", this, true);
+    Elements.browsers.removeEventListener("URLChanged", this, true);
+    Elements.browsers.removeEventListener("SizeChanged", this, true);
+    Elements.browsers.removeEventListener("ZoomChanged", this, true);
+  },
+
+  handleEvent: function handleEvent(aEvent) {
+    switch (aEvent.type) {
+      case "TapDown":
+        if (aEvent.target == this._start || aEvent.target == this._end) {
+          this.target = aEvent.target;
+          this.deltaX = (aEvent.clientX - this.target.left);
+          this.deltaY = (aEvent.clientY - this.target.top);
+          window.addEventListener("TapMove", this, true);
+        } else {
+          this.hide(aEvent);
+        }
+        break;
+      case "TapUp":
+        window.removeEventListener("TapMove", this, true);
+        this.target = null;
+        this.deltaX = -1;
+        this.deltaY = -1;
+        break;
+      case "TapMove":
+        if (this.target) {
+          this.target.left = aEvent.clientX - this.deltaX;
+          this.target.top = aEvent.clientY - this.deltaY;
+          let rect = this.target.getBoundingClientRect();
+          let data = this.target == this._start ? { x: rect.right, y: rect.top, type: "start" } : { x: rect.left, y: rect.top, type: "end" };
+          let pos = this.popupState.target.transformClientToBrowser(data.x || 0, data.y || 0);
+          let json = {
+            type: data.type,
+            x: pos.x,
+            y: pos.y
+          };
+          this.popupState.target.messageManager.sendAsyncMessage("Browser:SelectionMove", json);
+        }
+        break;
+      case "resize":
+      case "keypress":
+      case "URLChanged":
+      case "SizeChanged":
+      case "ZoomChanged":
+        this.hide(aEvent);
+        break;
+    }
+  },
+
+  receiveMessage: function sh_receiveMessage(aMessage) {
+    let json = aMessage.json;
+    switch (aMessage.name) {
+      case "Browser:SelectionRange": {
+        let pos = this.popupState.target.transformBrowserToClient(json.start.x || 0, json.start.y || 0);
+        this._start.left = pos.x - 32;
+        this._start.top = pos.y + this.deltaY;
+        this._start.hidden = false;
+
+        pos = this.popupState.target.transformBrowserToClient(json.end.x || 0, json.end.y || 0);
+        this._end.left = pos.x;
+        this._end.top = pos.y;
+        this._end.hidden = false;
+        break;
+      }
+
+      case "Browser:SelectionCopied": {
+        messageManager.removeMessageListener("Browser:SelectionCopied", this);
+        if (json.succeeded) {
+          let toaster = Cc["@mozilla.org/toaster-alerts-service;1"].getService(Ci.nsIAlertsService);
+          toaster.showAlertNotification(null, Strings.browser.GetStringFromName("selectionHelper.textCopied"), "", false, "", null);
+        }
+        break;
+      }
     }
   }
 };
@@ -1312,7 +1458,16 @@ var BadgeHandlers = {
       aPopup.registerBadgeHandler(handlers[i].url, handlers[i]);
   },
 
+  get _pk11DB() {
+    delete this._pk11DB;
+    return this._pk11DB = Cc["@mozilla.org/security/pk11tokendb;1"].getService(Ci.nsIPK11TokenDB);
+  },
+
   getLogin: function(aURL) {
+    let token = this._pk11DB.getInternalKeyToken();
+    if (!token.isLoggedIn())
+      return {username: "", password: ""};
+
     let lm = Cc["@mozilla.org/login-manager;1"].getService(Ci.nsILoginManager);
     let logins = lm.findLogins({}, aURL, aURL, null);
     let username = logins.length > 0 ? logins[0].username : "";
@@ -1426,7 +1581,7 @@ var FullScreenVideo = {
         this._dispatchMouseEvent("Browser:MouseDown", aEvent.clientX, aEvent.clientY);
         break;
       case "TapSingle":
-        this._dispatchMouseEvent("Browser:MouseUp", aEvent.clientX, aEvent.clientY);
+        this._dispatchMouseEvent("Browser:MouseClick", aEvent.clientX, aEvent.clientY);
         break;
     }
   },
@@ -1460,6 +1615,7 @@ var CharsetMenu = {
     if (pref == "true") {
       let charset = getBrowser().documentCharsetInfo.forcedCharset;
       if (charset) {
+        charset = charset.toString();
         charset = charset.trim().toLowerCase();
         aNode.setAttribute("description", this.strings.GetStringFromName(charset + ".title"));
       } else if (aNode.hasAttribute("description")) {
@@ -1503,6 +1659,7 @@ var CharsetMenu = {
     let currentCharset = getBrowser().documentCharsetInfo.forcedCharset;
     
     if (currentCharset) {
+      currentCharset = currentCharset.toString();
       currentCharset = currentCharset.trim().toLowerCase();
       if (charsets.indexOf(currentCharset) == -1)
         charsets.splice(0, 0, currentCharset);
@@ -1524,4 +1681,141 @@ var CharsetMenu = {
     history.setCharsetForURI(browser.documentURI, aCharset);
   }
 
+};
+
+var WebappsUI = {
+  _dialog: null,
+  _manifest: null,
+  _perms: [],
+  
+  checkBox: function(aEvent) {
+    let elem = aEvent.originalTarget;
+    let perm = elem.getAttribute("perm");
+    if (this._manifest.capabilities && this._manifest.capabilities.indexOf(perm) != -1) {
+      if (elem.checked) {
+        elem.classList.remove("webapps-noperm");
+        elem.classList.add("webapps-perm");
+      } else {
+        elem.classList.remove("webapps-perm");
+        elem.classList.add("webapps-noperm");
+      }
+    }
+  },
+
+  show: function show(aManifest) {
+    if (!aManifest) {
+      // Try every way to get an icon
+      let browser = Browser.selectedBrowser;
+      let icon = browser.appIcon.href;
+      if (!icon)
+        icon = browser.mIconURL;
+      if (!icon) 
+        icon = gFaviconService.getFaviconImageForPage(browser.currentURI).spec;
+
+      // Create a simple manifest
+      aManifest = {
+        uri: browser.currentURI.spec,
+        name: browser.contentTitle,
+        icon: icon,
+        capabilities: [],
+      };
+    }
+
+    this._manifest = aManifest;
+    this._dialog = importDialog(window, "chrome://browser/content/webapps.xul", null);
+
+    if (aManifest.name)
+      document.getElementById("webapps-title").value = aManifest.name;
+    if (aManifest.icon)
+      document.getElementById("webapps-icon").src = aManifest.icon;  
+
+    let uri = Services.io.newURI(aManifest.uri, null, null);
+
+    let perms = [["offline", "offline-app"], ["geoloc", "geo"], ["notifications", "desktop-notification"]];
+    let self = this;
+    perms.forEach(function(tuple) {
+      let elem = document.getElementById("webapps-" + tuple[0] + "-checkbox");
+      let currentPerm = Services.perms.testExactPermission(uri, tuple[1]);
+      self._perms[tuple[1]] = (currentPerm == Ci.nsIPermissionManager.ALLOW_ACTION);
+      if ((aManifest.capabilities && (aManifest.capabilities.indexOf(tuple[1]) != -1)) || (currentPerm == Ci.nsIPermissionManager.ALLOW_ACTION))
+        elem.checked = true;
+      else
+        elem.checked = (currentPerm == Ci.nsIPermissionManager.ALLOW_ACTION);
+      elem.classList.remove("webapps-noperm");
+      elem.classList.add("webapps-perm");
+    });
+
+    BrowserUI.pushPopup(this, this._dialog);
+
+    // Force a modal dialog
+    this._dialog.waitForClose();
+  },
+
+  hide: function hide() {
+    this._dialog.close();
+    this._dialog = null;
+    BrowserUI.popPopup(this);
+  },
+
+  _updatePermission: function updatePermission(aId, aPerm) {
+    try {
+      let uri = Services.io.newURI(this._manifest.uri, null, null);
+      let currentState = document.getElementById(aId).checked;
+      if (currentState != this._perms[aPerm])
+        Services.perms.add(uri, aPerm, currentState ? Ci.nsIPermissionManager.ALLOW_ACTION : Ci.nsIPermissionManager.DENY_ACTION);
+    } catch(e) {
+      Cu.reportError(e);
+    }
+  },
+  
+  launch: function launch() {
+    let title = document.getElementById("webapps-title").value;
+    if (!title)
+      return;
+
+    this._updatePermission("webapps-offline-checkbox", "offline-app");
+    this._updatePermission("webapps-geoloc-checkbox", "geo");
+    this._updatePermission("webapps-notifications-checkbox", "desktop-notification");
+
+    this.hide();
+    this.install(this._manifest.uri, title, this._manifest.icon);
+  },
+  
+  updateWebappsInstall: function updateWebappsInstall(aNode) {
+    if (document.getElementById("main-window").hasAttribute("webapp"))
+      return false;
+
+    let browser = Browser.selectedBrowser;
+
+    let webapp = Cc["@mozilla.org/webapps/support;1"].getService(Ci.nsIWebappsSupport);
+    return !(webapp && webapp.isApplicationInstalled(browser.currentURI.spec));
+  },
+  
+  install: function(aURI, aTitle, aIcon) {
+    const kIconSize = 64;
+    
+    let canvas = document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+    canvas.setAttribute("style", "display: none");
+
+    let self = this;
+    let image = new Image();
+    image.onload = function() {
+      canvas.width = canvas.height = kIconSize; // clears the canvas
+      let ctx = canvas.getContext("2d");
+      ctx.drawImage(image, 0, 0, kIconSize, kIconSize);
+      let data = canvas.toDataURL("image/png", "");
+      canvas = null;
+      try {
+        let webapp = Cc["@mozilla.org/webapps/support;1"].getService(Ci.nsIWebappsSupport);
+        webapp.installApplication(aTitle, aURI, aIcon, data);
+      } catch(e) {
+        Cu.reportError(e);
+      }
+    }
+    image.onerror = function() {
+      // can't load the icon (bad URI) : fallback to the default one from chrome
+      self.install(aURI, aTitle, "chrome://browser/skin/images/favicon-default-30.png");
+    }
+    image.src = aIcon;
+  }
 };

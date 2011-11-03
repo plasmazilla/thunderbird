@@ -123,10 +123,12 @@ function run_next_test() {
       onVisit: function() {},
       onTitleChanged: function() {},
       onBeforeDeleteURI: function() {},
-      onDeleteURI: function(aURI) {
+      onDeleteURI: function(aURI, aGUID, aReason) {
         gCurrentTest.receivedNotifications++;
         // Check this uri was not bookmarked.
         do_check_eq(gCurrentTest.bookmarks.indexOf(aURI.spec), -1);
+        do_check_valid_places_guid(aGUID);
+        do_check_eq(aReason, Ci.nsINavHistoryObserver.REASON_EXPIRED);
       },
       onPageChanged: function() {},
       onDeleteVisits: function(aURI, aTime) { },
@@ -146,7 +148,7 @@ function run_next_test() {
     os.addObserver(observer, PlacesUtils.TOPIC_EXPIRATION_FINISHED, false);
 
     // Expire now, observers will check results.
-    force_expiration_step();
+    force_expiration_step(-1);
   }
   else {
     clearMaxPages();

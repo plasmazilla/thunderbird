@@ -25,6 +25,7 @@
    -   Peter Annema <disttsc@bart.nl>
    -   Jeremy M. Dolan <jmd@pobox.com>
    -   Ehsan Akhgari <ehsan.akhgari@gmail.com>
+   -   Ian Neal <iann_bugzilla@blueyonder.co.uk>
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -50,6 +51,8 @@
 <!DOCTYPE overlay [
 <!ENTITY % navigatorDTD SYSTEM "chrome://navigator/locale/navigator.dtd" >
 %navigatorDTD;
+<!ENTITY % navigatorOverlayDTD SYSTEM "chrome://navigator/locale/navigatorOverlay.dtd">
+%navigatorOverlayDTD;
 <!ENTITY % contentAreaCommandsDTD SYSTEM "chrome://communicator/locale/contentAreaCommands.dtd" >
 %contentAreaCommandsDTD;
 ]>
@@ -101,11 +104,7 @@
     <key id="key_viewPrevSidebarPanel" keycode="VK_PAGE_UP"  oncommand="SidebarGetRelativePanel(-1);"  modifiers="alt" />
 
     <!-- Search Menu -->  
-    <key id="key_find"       key="&findOnCmd.commandkey;"         command="Browser:Find"      modifiers="accel"/>
-    <key id="key_findAgain"  key="&findAgainCmd.commandkey;"      command="Browser:FindAgain" modifiers="accel"/>
-    <key id="key_findPrev"   key="&findPrevCmd.commandkey;"       command="Browser:FindPrev"  modifiers="accel,shift"/>
-    <key keycode="&findAgainCmd.commandkey2;" command="Browser:FindAgain"/>
-    <key keycode="&findPrevCmd.commandkey2;"  command="Browser:FindPrev" modifiers="shift"/>
+    <keyset id="findKeys"/>
     <key id="key_findTypeText"/>
     <key id="key_findTypeLinks"/>
 
@@ -178,9 +177,15 @@
     <command id="cmd_CustomizeToolbars" oncommand="goCustomizeToolbar(getNavToolbox());"/>
  
     <!-- Search Menu -->
-    <command id="Browser:Find" oncommand="BrowserFind();" observes="isImage"/>
-    <command id="Browser:FindAgain" oncommand="BrowserFindAgain(false);" observes="isImage"/>
-    <command id="Browser:FindPrev"  oncommand="BrowserFindAgain(true);"  observes="isImage"/>
+    <command id="cmd_find"
+             oncommand="BrowserFind();"
+             observes="isImage"/>
+    <command id="cmd_findNext"
+             oncommand="BrowserFindAgain(false);"
+             observes="isImage"/>
+    <command id="cmd_findPrev"
+             oncommand="BrowserFindAgain(true);"
+             observes="isImage"/>
     <command id="cmd_findTypeText" observes="isImage"/>
     <command id="cmd_findTypeLinks" observes="isImage"/>
 
@@ -192,10 +197,10 @@
              label="&addCurPageAsCmd.label;" accesskey="&addCurPageAsCmd.accesskey;"
              oncommand="PlacesCommandHook.bookmarkPageAs(gBrowser.selectedBrowser, PlacesUtils.bookmarksMenuFolderId);"/>
     <!-- The command is disabled for the hidden window. Otherwise its enabled
-         state is handled by gBookmarkAllTabsHandler. -->
+         state is handled by BookmarksEventHandler.onPopupShowing. -->
     <command id="Browser:BookmarkAllTabs"
              label="&addCurTabsAsCmd.label;" accesskey="&addCurTabsAsCmd.accesskey;"
-             oncommand="gBookmarkAllTabsHandler.doCommand();"
+             oncommand="PlacesCommandHook.bookmarkCurrentPages();"
              disabled="true"/>
     <command id="Browser:ManageBookmark"
              label="&manBookmarksCmd.label;" accesskey="&manBookmarksCmd.accesskey;"
@@ -258,12 +263,6 @@
                   accesskey="&openFileCmd.accesskey;"
                   key="openFileKb"
                   command="Browser:OpenFile"/>
-        <menu label="&recentTabs.label;" accesskey="&recentTabs.accesskey;" id="menu_recentTabs">
-          <menupopup id="menu_recentTabsPopup" onpopupshowing="updateRecentTabs(this);" oncommand="gBrowser.undoCloseTab(event.target.value);"/>
-        </menu>
-        <menu label="&recentWindows.label;" accesskey="&recentWindows.accesskey;" id="menu_recentWindows">
-          <menupopup id="menu_recentWindowsPopup" onpopupshowing="updateRecentWindows(this);" oncommand="undoCloseWindow(event.target.value);"/>
-        </menu>
         <menuitem id="menu_close"/>
         <menuitem id="menu_closeOtherTabs" command="cmd_closeOtherTabs" label="&closeOtherTabs.label;" accesskey="&closeOtherTabs.accesskey;"/>
         <menuitem id="menu_closeWindow" hidden="true" command="cmd_closeWindow" key="key_closeWindow" label="&closeWindow.label;" accesskey="&closeWindow.accesskey;"/>
@@ -297,9 +296,9 @@
         <menuseparator/>
         <menuitem id="menu_selectAll"/>
         <menuseparator/>
-        <menuitem id="menu_find" label="&findOnCmd.label;" accesskey="&findOnCmd.accesskey;" key="key_find" command="Browser:Find"/>
-        <menuitem id="menu_findAgain" label="&findAgainCmd.label;" accesskey="&findAgainCmd.accesskey;" key="key_findAgain" command="Browser:FindAgain"/>
-        <menuitem id="menu_findPrev"  label="&findPrevCmd.label;"  accesskey="&findPrevCmd.accesskey;" key="key_findPrev" command="Browser:FindPrev"/>
+        <menuitem id="menu_find" label="&findOnCmd.label;"/>
+        <menuitem id="menu_findNext"/>
+        <menuitem id="menu_findPrev"/>
         <menuseparator/> 
         <menuitem id="menu_findTypeLinks"/>
         <menuitem id="menu_findTypeText"/>
@@ -368,7 +367,12 @@
           <menupopup id="menu_ViewApplyTheme_Popup"
                      onpopupshowing="checkTheme(this);"
                      oncommand="applyTheme(event.target);">
-            <menuitem label="&getNewThemesCmd.label;" accesskey="&getNewThemesCmd.accesskey;" oncommand="getNewThemes();"/>
+            <menuitem label="&getNewThemesCmd.label;"
+                      accesskey="&getNewThemesCmd.accesskey;"
+                      oncommand="getNewThemes();"/>
+            <menuitem label="&getPersonasCmd.label;"
+                      accesskey="&getPersonasCmd.accesskey;"
+                      oncommand="getPersonas();"/>
             <menuseparator/>
           </menupopup>
         </menu>
@@ -408,6 +412,21 @@
                   onclick="checkForMiddleClick(this, event);"
                   key="goHome"/>
         <menuseparator/>
+        <menu id="menu_recentTabs"
+              label="&recentTabs.label;"
+              accesskey="&recentTabs.accesskey;">
+          <menupopup id="menu_recentTabsPopup"
+                     onpopupshowing="updateRecentTabs(this);"
+                     oncommand="gBrowser.undoCloseTab(event.target.value);"/>
+        </menu>
+        <menu id="menu_recentWindows"
+              label="&recentWindows.label;"
+              accesskey="&recentWindows.accesskey;">
+          <menupopup id="menu_recentWindowsPopup"
+                     onpopupshowing="updateRecentWindows(this);"
+                     oncommand="undoCloseWindow(event.target.value);"/>
+        </menu>
+        <menuseparator/>
         <menuitem id="menu_showAllHistory"
                   label="&historyCmd.label;"
                   accesskey="&historyCmd.accesskey;"
@@ -439,8 +458,7 @@
                  openInTabs="children"
                  oncommand="BookmarksEventHandler.onCommand(event);"
                  onclick="BookmarksEventHandler.onClick(event);"
-                 onpopupshowing="if (!document.getElementById('bookmarksMenu')._placesView)
-                                   new PlacesMenu(event, 'place:folder=BOOKMARKS_MENU');"
+                 onpopupshowing="BookmarksEventHandler.onPopupShowing(event);"
                  tooltip="bhTooltip" popupsinherittooltip="true">
         <menuitem id="menu_bookmarkThisPage"
                   command="Browser:AddBookmark"
@@ -486,6 +504,96 @@
                   label="&translateMenu.label;"
                   accesskey="&translateMenu.accesskey;"
                   oncommand="Translate();"/>
+        <menu id="menu_cookieManager"
+              label="&cookieCookieManager.label;"
+              accesskey="&cookieCookieManager.accesskey;"
+              oncommand="if (event.target.id) CookieImageAction(event.target);
+                         else toDataManager('|cookies');">
+          <menupopup onpopupshowing="CheckPermissionsMenu('cookie', this);">
+            <menuitem id="cookie_deny"
+                      label="&cookieBlockCookiesCmd.label;"
+                      accesskey="&cookieBlockCookiesCmd.accesskey;"
+                      title="&cookieMessageTitle.label;"
+                      msg="&cookieBlockCookiesMsg.label;"
+                      type="radio"
+                      name="cookie"/>
+            <menuitem id="cookie_default"
+                      label="&cookieCookiesDefaultCmd.label;"
+                      accesskey="&cookieCookiesDefaultCmd.accesskey;"
+                      title="&cookieMessageTitle.label;"
+                      msg="&cookieCookiesDefaultMsg.label;"
+                      type="radio"
+                      name="cookie"/>
+            <menuitem id="cookie_session"
+                      label="&cookieAllowSessionCookiesCmd.label;"
+                      accesskey="&cookieAllowSessionCookiesCmd.accesskey;"
+                      title="&cookieMessageTitle.label;"
+                      msg="&cookieAllowSessionCookiesMsg.label;"
+                      type="radio"
+                      name="cookie"/>
+            <menuitem id="cookie_allow"
+                      label="&cookieAllowCookiesCmd.label;"
+                      accesskey="&cookieAllowCookiesCmd.accesskey;"
+                      title="&cookieMessageTitle.label;"
+                      msg="&cookieAllowCookiesMsg.label;"
+                      type="radio"
+                      name="cookie"/>
+            <menuseparator/>
+            <menuitem label="&cookieDisplayCookiesCmd.label;"
+                      accesskey="&cookieDisplayCookiesCmd.accesskey;"/>
+          </menupopup>
+        </menu>
+        <menu id="menu_imageManager"
+              label="&cookieImageManager.label;"
+              accesskey="&cookieImageManager.accesskey;"
+              oncommand="if (event.target.id) CookieImageAction(event.target);
+                         else toDataManager('|permissions');">
+          <menupopup onpopupshowing="CheckPermissionsMenu('image', this);">
+            <menuitem id="image_deny"
+                      label="&cookieBlockImagesCmd.label;"
+                      accesskey="&cookieBlockImagesCmd.accesskey;"
+                      title="&cookieImageMessageTitle.label;"
+                      msg="&cookieBlockImagesMsg.label;"
+                      type="radio"
+                      name="image"/>
+            <menuitem id="image_default"
+                      label="&cookieImagesDefaultCmd.label;"
+                      accesskey="&cookieImagesDefaultCmd.accesskey;"
+                      title="&cookieImageMessageTitle.label;"
+                      msg="&cookieImagesDefaultMsg.label;"
+                      type="radio"
+                      name="image"/>
+            <menuitem id="image_allow"
+                      label="&cookieAllowImagesCmd.label;"
+                      accesskey="&cookieAllowImagesCmd.accesskey;"
+                      title="&cookieImageMessageTitle.label;"
+                      msg="&cookieAllowImagesMsg.label;"
+                      type="radio"
+                      name="image"/>
+            <menuseparator/>
+            <menuitem label="&cookieDisplayImagesCmd.label;"
+                      accesskey="&cookieDisplayImagesCmd.accesskey;"/>
+          </menupopup>
+        </menu>
+        <menu id="menu_popupManager"
+              label="&cookiePopupManager.label;"
+              accesskey="&cookiePopupManager.accesskey;"
+              oncommand="popupBlockerMenuCommand(event.target);">
+          <menupopup onpopupshowing="CheckForVisibility(event);">
+            <menuitem id="AllowPopups"
+                      label="&cookieAllowPopupsCmd.label;"
+                      accesskey="&cookieAllowPopupsCmd.accesskey;"
+                      oncommand="toDataManager(popupHost() + '|permissions|add|popup');"/>
+            <menuitem id="ManagePopups"
+                      label="&cookieManagePopups.label;"
+                      accesskey="&cookieManagePopups.accesskey;"
+                      oncommand="toDataManager('|permissions');"
+                      hidden="true"/>
+            <menuseparator id="popupMenuSeparator" hidden="true"/>
+            <!-- Additional items are generated (except for mac - bug 533097)
+                 by popupBlockerMenuShowing() in navigator.js. -->
+          </menupopup>
+        </menu>
         <menuseparator id="navBeginGlobalItems"/>
         <menuitem id="sanitizeItem"
                   accesskey="&clearPrivateDataCmd.accesskey;"

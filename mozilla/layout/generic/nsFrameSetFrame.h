@@ -45,12 +45,11 @@
 #include "nsColor.h"
 #include "nsIObserver.h"
 #include "nsWeakPtr.h"
-#include "nsIFrameSetElement.h"
 
 class  nsIContent;
 class  nsIFrame;
 class  nsPresContext;
-class  nsIRenderingContext;
+class  nsRenderingContext;
 struct nsRect;
 struct nsHTMLReflowState;
 struct nsSize;
@@ -60,6 +59,9 @@ class  nsGUIEvent;
 class  nsHTMLFramesetFrame;
 
 #define NO_COLOR 0xFFFFFFFA
+
+// defined at nsHTMLFrameSetElement.h
+struct nsFramesetSpec;
 
 struct nsBorderColor 
 {

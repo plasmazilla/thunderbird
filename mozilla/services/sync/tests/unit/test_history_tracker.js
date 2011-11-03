@@ -1,5 +1,6 @@
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://services-sync/engines.js");
+Cu.import("resource://services-sync/constants.js");
 Cu.import("resource://services-sync/engines/history.js");
 Cu.import("resource://services-sync/util.js");
 
@@ -14,91 +15,133 @@ function onScoreUpdated(callback) {
   });
 }
 
-function run_test() {
-  Engines.register(HistoryEngine);
-  let engine = Engines.get("history");
-  let tracker = engine._tracker;
+Engines.register(HistoryEngine);
+let engine = Engines.get("history");
+let tracker = engine._tracker;
 
+let _counter = 0;
+function addVisit() {
+  let uri = Utils.makeURI("http://getfirefox.com/" + _counter);
+  PlacesUtils.history.addVisit(uri, Date.now() * 1000, null, 1, false, 0);
+  _counter++;
+  return uri;
+}
+
+
+function run_test() {
+  run_next_test();
+}
+
+add_test(function test_empty() {
   _("Verify we've got an empty tracker to work with.");
   do_check_eq([id for (id in tracker.changedIDs)].length, 0);
+  do_check_eq(tracker.score, 0);
+  run_next_test();
+});
 
-  let _counter = 0;
-  function addVisit() {
-    Svc.History.addVisit(Utils.makeURI("http://getfirefox.com/" + _counter),
-                         Date.now() * 1000, null, 1, false, 0);
-    _counter += 1;
-  }
+add_test(function test_not_tracking(next) {
+  _("Create history item. Won't show because we haven't started tracking yet");
+  addVisit();
+  Utils.nextTick(function() {
+    do_check_eq([id for (id in tracker.changedIDs)].length, 0);
+    do_check_eq(tracker.score, 0);
+    run_next_test();
+  });
+});
 
-  do_test_pending();
-  asyncChainTests(function (next) {
+add_test(function test_start_tracking() {
+  _("Tell the tracker to start tracking changes.");
+  onScoreUpdated(function() {
+    do_check_eq([id for (id in tracker.changedIDs)].length, 1);
+    do_check_eq(tracker.score, SCORE_INCREMENT_SMALL);
+    run_next_test();
+  });
+  Svc.Obs.notify("weave:engine:start-tracking");
+  addVisit();
+});
 
-    _("Create history item. Won't show because we haven't started tracking yet");
-    addVisit();
-    Utils.delay(function() {
-      do_check_eq([id for (id in tracker.changedIDs)].length, 0);
-      next();
-    }, 0);
+add_test(function test_start_tracking_twice() {
+  _("Notifying twice won't do any harm.");
+  onScoreUpdated(function() {
+    do_check_eq([id for (id in tracker.changedIDs)].length, 2);
+    do_check_eq(tracker.score, 2 * SCORE_INCREMENT_SMALL);
+    run_next_test();
+  });
+  Svc.Obs.notify("weave:engine:start-tracking");
+  addVisit();
+});
 
-  }, function (next) {
+add_test(function test_track_delete() {
+  _("Deletions are tracked.");
+  let uri = Utils.makeURI("http://getfirefox.com/0");
+  let guid = engine._store.GUIDForUri(uri);
+  do_check_false(guid in tracker.changedIDs);
 
-    _("Tell the tracker to start tracking changes.");
-    onScoreUpdated(function() {
-      do_check_eq([id for (id in tracker.changedIDs)].length, 1);
-      next();
-    });
-    Svc.Obs.notify("weave:engine:start-tracking");
-    addVisit();
+  onScoreUpdated(function() {
+    do_check_true(guid in tracker.changedIDs);
+    do_check_eq([id for (id in tracker.changedIDs)].length, 3);
+    do_check_eq(tracker.score, SCORE_INCREMENT_XLARGE + 2 * SCORE_INCREMENT_SMALL);
+    run_next_test();
+  });
+  do_check_eq(tracker.score, 2 * SCORE_INCREMENT_SMALL);
+  PlacesUtils.history.removePage(uri);
+});
 
-  }, function (next) {
+add_test(function test_dont_track_expiration() {
+  _("Expirations are not tracked.");
+  let uriToExpire = addVisit();
+  let guidToExpire = engine._store.GUIDForUri(uriToExpire);
+  let uriToRemove = addVisit();
+  let guidToRemove = engine._store.GUIDForUri(uriToRemove);
 
-    _("Notifying twice won't do any harm.");
-    onScoreUpdated(function() {
-      do_check_eq([id for (id in tracker.changedIDs)].length, 2);
-      next();
-    });
-    Svc.Obs.notify("weave:engine:start-tracking");
-    addVisit();
+  tracker.clearChangedIDs();
+  do_check_false(guidToExpire in tracker.changedIDs);
+  do_check_false(guidToRemove in tracker.changedIDs);
 
-  }, function (next) {
+  onScoreUpdated(function() {
+    do_check_false(guidToExpire in tracker.changedIDs);
+    do_check_true(guidToRemove in tracker.changedIDs);
+    do_check_eq([id for (id in tracker.changedIDs)].length, 1);
+    run_next_test();
+  });
 
-    _("Deletions are tracked.");
-    let uri = Utils.makeURI("http://getfirefox.com/0");
-    let guid = engine._store.GUIDForUri(uri);
-    do_check_false(guid in tracker.changedIDs);
+  // Observe expiration.
+  Services.obs.addObserver(function onExpiration(aSubject, aTopic, aData) {
+    Services.obs.removeObserver(onExpiration, aTopic);
+    // Remove the remaining page to update its score.
+    PlacesUtils.history.removePage(uriToRemove);
+  }, PlacesUtils.TOPIC_EXPIRATION_FINISHED, false);
 
-    onScoreUpdated(function() {
-      do_check_true(guid in tracker.changedIDs);
-      do_check_eq([id for (id in tracker.changedIDs)].length, 3);
-      next();
-    });
-    Svc.History.removePage(uri);
+  // Force expiration of 1 entry.
+  Services.prefs.setIntPref("places.history.expiration.max_pages", 0);
+  Cc["@mozilla.org/places/expiration;1"]
+    .getService(Ci.nsIObserver)
+    .observe(null, "places-debug-start-expiration", 1);
+});
 
-  }, function (next) {
+add_test(function test_stop_tracking() {
+  _("Let's stop tracking again.");
+  tracker.clearChangedIDs();
+  Svc.Obs.notify("weave:engine:stop-tracking");
+  addVisit();
+  Utils.nextTick(function() {
+    do_check_eq([id for (id in tracker.changedIDs)].length, 0);
+    run_next_test();
+  });
+});
 
-    _("Let's stop tracking again.");
-    tracker.clearChangedIDs();
-    Svc.Obs.notify("weave:engine:stop-tracking");
-    addVisit();
-    Utils.delay(function() {
-      do_check_eq([id for (id in tracker.changedIDs)].length, 0);
-      next();
-    }, 0);
+add_test(function test_stop_tracking_twice() {
+  _("Notifying twice won't do any harm.");
+  Svc.Obs.notify("weave:engine:stop-tracking");
+  addVisit();
+  Utils.nextTick(function() {
+    do_check_eq([id for (id in tracker.changedIDs)].length, 0);
+    run_next_test();
+  });
+});
 
-  }, function (next) {
-
-    _("Notifying twice won't do any harm.");
-    Svc.Obs.notify("weave:engine:stop-tracking");
-    addVisit();
-    Utils.delay(function() {
-      do_check_eq([id for (id in tracker.changedIDs)].length, 0);
-      next();
-    }, 0);
-
-  }, function (next) {
-
-    _("Clean up.");
-    Svc.History.removeAllPages();
-    do_test_finished();
-
-  })();
-}
+add_test(function cleanup() {
+   _("Clean up.");
+  PlacesUtils.history.removeAllPages();
+  run_next_test();
+});

@@ -39,100 +39,53 @@
 #define NSPOINT_H
 
 #include "nsCoord.h"
+#include "mozilla/gfx/BaseSize.h"
+#include "mozilla/gfx/BasePoint.h"
+#include "nsSize.h"
 
 struct nsIntPoint;
 
-struct nsPoint {
-  nscoord x, y;
+struct nsPoint : public mozilla::gfx::BasePoint<nscoord, nsPoint> {
+  typedef mozilla::gfx::BasePoint<nscoord, nsPoint> Super;
 
-  // Constructors
-  nsPoint() {}
-  nsPoint(const nsPoint& aPoint) { x = aPoint.x; y = aPoint.y;}
-  nsPoint(nscoord aX, nscoord aY) { VERIFY_COORD(aX); VERIFY_COORD(aY); x = aX; y = aY;}
+  nsPoint() : Super() {}
+  nsPoint(const nsPoint& aPoint) : Super(aPoint) {}
+  nsPoint(nscoord aX, nscoord aY) : Super(aX, aY) {}
 
-  void MoveTo(nscoord aX, nscoord aY) {x = aX; y = aY;}
-  void MoveBy(nscoord aDx, nscoord aDy) {x += aDx; y += aDy;}
-
-  // Overloaded operators. Note that '=' isn't defined so we'll get the
-  // compiler generated default assignment operator
-  PRBool   operator==(const nsPoint& aPoint) const {
-    return (PRBool) ((x == aPoint.x) && (y == aPoint.y));
-  }
-  PRBool   operator!=(const nsPoint& aPoint) const {
-    return (PRBool) ((x != aPoint.x) || (y != aPoint.y));
-  }
-  nsPoint operator+(const nsPoint& aPoint) const {
-    return nsPoint(x + aPoint.x, y + aPoint.y);
-  }
-  nsPoint operator-(const nsPoint& aPoint) const {
-    return nsPoint(x - aPoint.x, y - aPoint.y);
-  }
-  nsPoint& operator+=(const nsPoint& aPoint) {
-    x += aPoint.x;
-    y += aPoint.y;
-    return *this;
-  }
-  nsPoint& operator-=(const nsPoint& aPoint) {
-    x -= aPoint.x;
-    y -= aPoint.y;
-    return *this;
-  }
-
-  nsPoint operator-() const {
-    return nsPoint(-x, -y);
-  }
-
+  inline nsIntPoint ScaleToNearestPixels(float aXScale, float aYScale,
+                                         nscoord aAppUnitsPerPixel) const;
   inline nsIntPoint ToNearestPixels(nscoord aAppUnitsPerPixel) const;
 
   // Converts this point from aFromAPP, an appunits per pixel ratio, to aToAPP.
   inline nsPoint ConvertAppUnits(PRInt32 aFromAPP, PRInt32 aToAPP) const;
 };
 
-struct nsIntPoint {
-  PRInt32 x, y;
+struct nsIntPoint : public mozilla::gfx::BasePoint<PRInt32, nsIntPoint> {
+  typedef mozilla::gfx::BasePoint<PRInt32, nsIntPoint> Super;
 
-  // Constructors
-  nsIntPoint() {}
-  nsIntPoint(const nsIntPoint& aPoint) { x = aPoint.x; y = aPoint.y;}
-  nsIntPoint(PRInt32 aX, PRInt32 aY) { x = aX; y = aY;}
-
-  PRBool   operator==(const nsIntPoint& aPoint) const {
-    return (PRBool) ((x == aPoint.x) && (y == aPoint.y));
-  }
-  PRBool   operator!=(const nsIntPoint& aPoint) const {
-    return (PRBool) ((x != aPoint.x) || (y != aPoint.y));
-  }
-  nsIntPoint operator+(const nsIntPoint& aPoint) const {
-    return nsIntPoint(x + aPoint.x, y + aPoint.y);
-  }
-  nsIntPoint operator-(const nsIntPoint& aPoint) const {
-    return nsIntPoint(x - aPoint.x, y - aPoint.y);
-  }
-  nsIntPoint& operator+=(const nsIntPoint& aPoint) {
-    x += aPoint.x;
-    y += aPoint.y;
-    return *this;
-  }
-  nsIntPoint& operator-=(const nsIntPoint& aPoint) {
-    x -= aPoint.x;
-    y -= aPoint.y;
-    return *this;
-  }
-  nsIntPoint operator-() const {
-    return nsIntPoint(-x, -y);
-  }
-  void MoveTo(PRInt32 aX, PRInt32 aY) {x = aX; y = aY;}
+  nsIntPoint() : Super() {}
+  nsIntPoint(const nsIntPoint& aPoint) : Super(aPoint) {}
+  nsIntPoint(PRInt32 aX, PRInt32 aY) : Super(aX, aY) {}
 };
 
 inline nsIntPoint
-nsPoint::ToNearestPixels(nscoord aAppUnitsPerPixel) const {
+nsPoint::ScaleToNearestPixels(float aXScale, float aYScale,
+                              nscoord aAppUnitsPerPixel) const
+{
   return nsIntPoint(
-      NSToIntRoundUp(NSAppUnitsToDoublePixels(x, aAppUnitsPerPixel)),
-      NSToIntRoundUp(NSAppUnitsToDoublePixels(y, aAppUnitsPerPixel)));
+      NSToIntRoundUp(NSAppUnitsToDoublePixels(x, aAppUnitsPerPixel) * aXScale),
+      NSToIntRoundUp(NSAppUnitsToDoublePixels(y, aAppUnitsPerPixel) * aYScale));
+}
+
+inline nsIntPoint
+nsPoint::ToNearestPixels(nscoord aAppUnitsPerPixel) const
+{
+  return ScaleToNearestPixels(1.0f, 1.0f, aAppUnitsPerPixel);
 }
 
 inline nsPoint
-nsPoint::ConvertAppUnits(PRInt32 aFromAPP, PRInt32 aToAPP) const {
+nsPoint::ConvertAppUnits(PRInt32 aFromAPP, PRInt32 aToAPP) const
+{
   if (aFromAPP != aToAPP) {
     nsPoint point;
     point.x = NSToCoordRound(NSCoordScale(x, aFromAPP, aToAPP));

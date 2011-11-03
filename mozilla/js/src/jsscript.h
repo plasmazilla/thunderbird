@@ -266,24 +266,15 @@ class Bindings {
     }
 
     /*
-     * Function and macros to work with local names as an array of words.
-     * getLocalNameArray returns the array, or null if we are out of memory.
-     * This function must be called only when hasLocalNames().
+     * This method returns the local variable, argument, etc. names used by a
+     * script.  This function must be called only when hasLocalNames().
      *
-     * The supplied pool is used to allocate the returned array, so the caller
-     * is obligated to mark and release to free it.
-     *
-     * The elements of the array with index less than nargs correspond to the
-     * the names of arguments. An index >= nargs addresses a var binding. Use
-     * JS_LOCAL_NAME_TO_ATOM to convert array's element to an atom pointer.
-     * This pointer can be null when the element is for an argument
+     * The elements of the vector with index less than nargs correspond to the
+     * the names of arguments. An index >= nargs addresses a var binding.
+     * The name at an element will be null when the element is for an argument
      * corresponding to a destructuring pattern.
-     *
-     * If nameWord does not name an argument, use JS_LOCAL_NAME_IS_CONST to
-     * check if nameWord corresponds to the const declaration.
      */
-    jsuword *
-    getLocalNameArray(JSContext *cx, JSArenaPool *pool);
+    bool getLocalNameArray(JSContext *cx, Vector<JSAtom *> *namesp);
 
     /*
      * Returns the slot where the sharp array is stored, or a value < 0 if no
@@ -330,7 +321,7 @@ class Bindings {
      *
      * (In fact, some JSScripts we do use against multiple global objects (see
      * bug 618497), and using the fixed shapes isn't sound there.)
-     * 
+     *
      * In deciding whether a call or block has any extensible parents, we
      * actually only need to consider enclosing calls; blocks are never
      * extensible, and the other sorts of objects that appear in the scope
@@ -353,9 +344,7 @@ class Bindings {
      * oldest (i.e., last or right-most to first or left-most in source order).
      *
      * Sometimes iteration order must be from oldest to youngest, however. For
-     * such cases, use js::Bindings::getLocalNameArray. The RAII class
-     * js::AutoLocalNameArray, defined in jscntxt.h, should be used where
-     * possible instead of direct calls to getLocalNameArray.
+     * such cases, use js::Bindings::getLocalNameArray.
      */
     const js::Shape *lastArgument() const;
     const js::Shape *lastVariable() const;
@@ -395,6 +384,47 @@ struct JITScript;
 }
 #endif
 
+class JSPCCounters {
+    size_t numBytecodes;
+    int *counts;
+
+ public:
+    JSPCCounters() : numBytecodes(0), counts(NULL) {
+    }
+
+    ~JSPCCounters() {
+        JS_ASSERT(!counts);
+    }
+
+    bool init(JSContext *cx, size_t numBytecodes);
+    void destroy(JSContext *cx);
+
+    // Boolean conversion, for 'if (counters) ...'
+    operator void*() const {
+        return counts;
+    }
+
+    int *get(int runmode) {
+        JS_ASSERT(runmode >= 0 && runmode < JSRUNMODE_COUNT);
+        return counts ? &counts[numBytecodes * runmode] : NULL;
+    }
+
+    int& get(int runmode, size_t offset) {
+        JS_ASSERT(offset < numBytecodes);
+        JS_ASSERT(counts);
+        return get(runmode)[offset];
+    }
+
+    size_t numRunmodes() const {
+        return JSRUNMODE_COUNT;
+    }
+};
+
+static const uint32 JS_SCRIPT_COOKIE = 0xc00cee;
+
+static JSObject * const JS_NEW_SCRIPT = (JSObject *)0x12345678;
+static JSObject * const JS_CACHED_SCRIPT = (JSObject *)0x12341234;
+
 struct JSScript {
     /*
      * Two successively less primitive ways to make a new JSScript.  The first
@@ -419,19 +449,24 @@ struct JSScript {
     jsbytecode      *code;      /* bytecodes and their immediate operands */
     uint32          length;     /* length of code vector */
 
+#ifdef JS_CRASH_DIAGNOSTICS
+    uint32          cookie1;
+#endif
+
   private:
     uint16          version;    /* JS version under which script was compiled */
-
-    size_t          callCount_; /* Number of times the script has been called. */
 
   public:
     uint16          nfixed;     /* number of slots besides stack operands in
                                    slot array */
+  private:
+    size_t          callCount_; /* Number of times the script has been called. */
 
     /*
      * Offsets to various array structures from the end of this script, or
      * JSScript::INVALID_OFFSET if the array has length 0.
      */
+  public:
     uint8           objectsOffset;  /* offset to the array of nested function,
                                        block, scope, xml and one-time regexps
                                        objects */
@@ -445,7 +480,7 @@ struct JSScript {
 
     bool            noScriptRval:1; /* no need for result value of last
                                        expression statement */
-    bool            savedCallerFun:1; /* object 0 is caller function */
+    bool            savedCallerFun:1; /* can call getCallerFunction() */
     bool            hasSharps:1;      /* script uses sharp variables */
     bool            strictModeCode:1; /* code is in strict mode */
     bool            compileAndGo:1;   /* script was compiled with TCF_COMPILE_N_GO */
@@ -472,6 +507,14 @@ struct JSScript {
     js::Bindings    bindings;   /* names of top-level variables in this script
                                    (and arguments if this is a function script) */
     JSPrincipals    *principals;/* principals for this script */
+    jschar          *sourceMap; /* source map file or null */
+
+#ifdef JS_CRASH_DIAGNOSTICS
+    JSObject        *ownerObject;
+#endif
+
+    void setOwnerObject(JSObject *owner);
+
     union {
         /*
          * A script object of class js_ScriptClass, to ensure the script is GC'd.
@@ -482,12 +525,6 @@ struct JSScript {
          * - Temporary scripts created by obj_eval, JS_EvaluateScript, and
          *   similar functions never have these objects; such scripts are
          *   explicitly destroyed by the code that created them.
-         * Debugging API functions (JSDebugHooks::newScriptHook;
-         * JS_GetFunctionScript) may reveal sans-script-object Function and
-         * temporary scripts to clients, but clients must never call
-         * JS_NewScriptObject on such scripts: doing so would double-free them,
-         * once from the explicit call to js_DestroyScript, and once when the
-         * script object is garbage collected.
          */
         JSObject    *object;
         JSScript    *nextToGC;  /* next to GC in rt->scriptsToGC list */
@@ -498,6 +535,13 @@ struct JSScript {
 #endif
 
     uint32          *closedSlots; /* vector of closed slots; args first, then vars. */
+
+    /* array of execution counters for every JSOp in the script, by runmode */
+    JSPCCounters    pcCounters;
+
+#ifdef JS_CRASH_DIAGNOSTICS
+    uint32          cookie2;
+#endif
 
   public:
 #ifdef JS_METHODJIT
@@ -535,7 +579,13 @@ struct JSScript {
             return JITScript_Invalid;
         return JITScript_Valid;
     }
+
+    // This method is implemented in MethodJIT.h.
+    JS_FRIEND_API(size_t) jitDataSize();/* Size of the JITScript and all sections */
 #endif
+
+    JS_FRIEND_API(size_t) totalSize();  /* Size of the JSScript and all sections */
+    uint32 numNotes();                  /* Number of srcnote slots in the srcnotes section */
 
     /* Script notes are allocated right after the code. */
     jssrcnote *notes() { return (jssrcnote *)(code + length); }
@@ -545,32 +595,32 @@ struct JSScript {
 
     JSObjectArray *objects() {
         JS_ASSERT(isValidOffset(objectsOffset));
-        return (JSObjectArray *)((uint8 *) (this + 1) + objectsOffset);
+        return reinterpret_cast<JSObjectArray *>(uintptr_t(this + 1) + objectsOffset);
     }
 
     JSUpvarArray *upvars() {
         JS_ASSERT(isValidOffset(upvarsOffset));
-        return (JSUpvarArray *) ((uint8 *) (this + 1) + upvarsOffset);
+        return reinterpret_cast<JSUpvarArray *>(uintptr_t(this + 1) + upvarsOffset);
     }
 
     JSObjectArray *regexps() {
         JS_ASSERT(isValidOffset(regexpsOffset));
-        return (JSObjectArray *) ((uint8 *) (this + 1) + regexpsOffset);
+        return reinterpret_cast<JSObjectArray *>(uintptr_t(this + 1) + regexpsOffset);
     }
 
     JSTryNoteArray *trynotes() {
         JS_ASSERT(isValidOffset(trynotesOffset));
-        return (JSTryNoteArray *) ((uint8 *) (this + 1) + trynotesOffset);
+        return reinterpret_cast<JSTryNoteArray *>(uintptr_t(this + 1) + trynotesOffset);
     }
 
     js::GlobalSlotArray *globals() {
         JS_ASSERT(isValidOffset(globalsOffset));
-        return (js::GlobalSlotArray *) ((uint8 *) (this + 1) + globalsOffset);
+        return reinterpret_cast<js::GlobalSlotArray *>(uintptr_t(this + 1) + globalsOffset);
     }
 
     JSConstArray *consts() {
         JS_ASSERT(isValidOffset(constOffset));
-        return (JSConstArray *) ((uint8 *) (this + 1) + constOffset);
+        return reinterpret_cast<JSConstArray *>(uintptr_t(this + 1) + constOffset);
     }
 
     JSAtom *getAtom(size_t index) {
@@ -601,6 +651,7 @@ struct JSScript {
     }
 
     inline JSFunction *getFunction(size_t index);
+    inline JSFunction *getCallerFunction();
 
     inline JSObject *getRegExp(size_t index);
 
@@ -649,7 +700,7 @@ StackDepth(JSScript *script)
         if ((pc_) < (script_)->code ||                                        \
             (script_)->code + (script_)->length <= (pc_)) {                   \
             JS_ASSERT((size_t)(index) < js_common_atom_count);                \
-            (atom) = COMMON_ATOMS_START(&cx->runtime->atomState)[index];      \
+            (atom) = cx->runtime->atomState.commonAtomsStart()[index];        \
         } else {                                                              \
             (atom) = script_->getAtom(index);                                 \
         }                                                                     \
@@ -660,30 +711,11 @@ extern JS_FRIEND_DATA(js::Class) js_ScriptClass;
 extern JSObject *
 js_InitScriptClass(JSContext *cx, JSObject *obj);
 
-/*
- * On first new context in rt, initialize script runtime state, specifically
- * the script filename table and its lock.
- */
-extern JSBool
-js_InitRuntimeScriptState(JSRuntime *rt);
-
-/*
- * On JS_DestroyRuntime(rt), forcibly free script filename prefixes and any
- * script filename table entries that have not been GC'd.
- *
- * This allows script filename prefixes to outlive any context in rt.
- */
-extern void
-js_FreeRuntimeScriptState(JSRuntime *rt);
-
 extern void
 js_MarkScriptFilename(const char *filename);
 
 extern void
-js_MarkScriptFilenames(JSRuntime *rt);
-
-extern void
-js_SweepScriptFilenames(JSRuntime *rt);
+js_SweepScriptFilenames(JSCompartment *comp);
 
 /*
  * New-script-hook calling is factored from js_NewScriptFromCG so that it
@@ -702,10 +734,10 @@ js_CallDestroyScriptHook(JSContext *cx, JSScript *script);
  * only on the current thread.
  */
 extern void
-js_DestroyScript(JSContext *cx, JSScript *script);
+js_DestroyScript(JSContext *cx, JSScript *script, uint32 caller);
 
 extern void
-js_DestroyScriptFromGC(JSContext *cx, JSScript *script);
+js_DestroyScriptFromGC(JSContext *cx, JSScript *script, JSObject *owner);
 
 /*
  * Script objects may be cached and reused, in which case their JSD-visible
@@ -717,7 +749,7 @@ extern void
 js_DestroyCachedScript(JSContext *cx, JSScript *script);
 
 extern void
-js_TraceScript(JSTracer *trc, JSScript *script);
+js_TraceScript(JSTracer *trc, JSScript *script, JSObject *owner);
 
 extern JSObject *
 js_NewScriptObject(JSContext *cx, JSScript *script);
@@ -738,7 +770,7 @@ js_GetSrcNoteCached(JSContext *cx, JSScript *script, jsbytecode *pc);
  * fp->imacpc may be non-null, indicating an active imacro.
  */
 extern uintN
-js_FramePCToLineNumber(JSContext *cx, JSStackFrame *fp);
+js_FramePCToLineNumber(JSContext *cx, js::StackFrame *fp, jsbytecode *pc);
 
 extern uintN
 js_PCToLineNumber(JSContext *cx, JSScript *script, jsbytecode *pc);
@@ -748,6 +780,30 @@ js_LineNumberToPC(JSScript *script, uintN lineno);
 
 extern JS_FRIEND_API(uintN)
 js_GetScriptLineExtent(JSScript *script);
+
+namespace js {
+
+extern uintN
+CurrentLine(JSContext *cx);
+
+/*
+ * This function returns the file and line number of the script currently
+ * executing on cx. If there is no current script executing on cx (e.g., a
+ * native called directly through JSAPI (e.g., by setTimeout)), NULL and 0 are
+ * returned as the file and line. Additionally, this function avoids the full
+ * linear scan to compute line number when the caller guarnatees that the
+ * script compilation occurs at a JSOP_EVAL.
+ */
+
+enum LineOption {
+    CALLED_FROM_JSOP_EVAL,
+    NOT_CALLED_FROM_JSOP_EVAL
+};
+
+inline const char *
+CurrentScriptFileAndLine(JSContext *cx, uintN *linenop, LineOption = NOT_CALLED_FROM_JSOP_EVAL);
+
+}
 
 static JS_INLINE JSOp
 js_GetOpcode(JSContext *cx, JSScript *script, jsbytecode *pc)

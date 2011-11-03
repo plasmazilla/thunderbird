@@ -1268,6 +1268,11 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::SetAccessKey(const nsAString &aAccessKey
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetAccessKeyLabel(nsAString &aAccessKey)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
 NS_IMETHODIMP nsEudoraHTMLImageElement::Blur()
 {
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -1302,12 +1307,21 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::GetAlign(nsAString & aAlign)
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-
 NS_IMETHODIMP nsEudoraHTMLImageElement::SetAlign(const nsAString & aAlign)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+// attribute DOMString crossOrigin
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetCrossOrigin(nsAString & aCrossOrigin)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetCrossOrigin(const nsAString & aCrossOrigin)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
 
 // attribute DOMString alt
 NS_IMETHODIMP nsEudoraHTMLImageElement::GetAlt(nsAString & aAlt)
@@ -1338,28 +1352,16 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::GetComplete(PRBool *aResult)
 }
 
 // readonly attribute long naturalWidth
-NS_IMETHODIMP nsEudoraHTMLImageElement::GetNaturalWidth(PRInt32 *aResult)
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetNaturalWidth(PRUint32 *aResult)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 // readonly attribute long naturalHeight
-NS_IMETHODIMP nsEudoraHTMLImageElement::GetNaturalHeight(PRInt32 *aResult)
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetNaturalHeight(PRUint32 *aResult)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
-
-// readonly attribute long x
-NS_IMETHODIMP nsEudoraHTMLImageElement::GetX(PRInt32 *aResult)
-{
-  return NS_ERROR_NOT_IMPLEMENTED;
-}
-// readonly attribute long y
-NS_IMETHODIMP nsEudoraHTMLImageElement::GetY(PRInt32 *aResult)
-{
-  return NS_ERROR_NOT_IMPLEMENTED;
-}
-
 
 // attribute DOMString border
 NS_IMETHODIMP nsEudoraHTMLImageElement::GetBorder(nsAString & aBorder)
@@ -1375,13 +1377,13 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::SetBorder(const nsAString & aBorder)
 
 
 // attribute long height
-NS_IMETHODIMP nsEudoraHTMLImageElement::GetHeight(PRInt32 *aHeight)
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetHeight(PRUint32 *aHeight)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 
-NS_IMETHODIMP nsEudoraHTMLImageElement::SetHeight(PRInt32 aHeight)
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetHeight(PRUint32 aHeight)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -1474,13 +1476,69 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::SetVspace(PRInt32 aVspace)
 
 
 // attribute long width
-NS_IMETHODIMP nsEudoraHTMLImageElement::GetWidth(PRInt32 *aWidth)
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetWidth(PRUint32 *aWidth)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 
-NS_IMETHODIMP nsEudoraHTMLImageElement::SetWidth(PRInt32 aWidth)
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetWidth(PRUint32 aWidth)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetDOMBaseURI(nsAString &aBaseURI)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::CompareDocumentPosition(nsIDOMNode *other, PRUint16 *_retval NS_OUTPARAM)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetTextContent(nsAString & aTextContent)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetTextContent(const nsAString & aTextContent)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::IsSameNode(nsIDOMNode *other, PRBool *_retval NS_OUTPARAM)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::LookupPrefix(const nsAString & namespaceURI, nsAString & _retval NS_OUTPARAM)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::IsDefaultNamespace(const nsAString & namespaceURI, PRBool *_retval NS_OUTPARAM)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::LookupNamespaceURI(const nsAString & prefix, nsAString & _retval NS_OUTPARAM)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::IsEqualNode(nsIDOMNode *arg, PRBool *_retval NS_OUTPARAM)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetUserData(const nsAString & key, nsIVariant *data,
+                          nsIDOMUserDataHandler *handler, nsIVariant **_retval NS_OUTPARAM)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetUserData(const nsAString & key, nsIVariant **_retval NS_OUTPARAM)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }

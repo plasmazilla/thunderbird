@@ -70,6 +70,13 @@
 #include "nsPIDOMWindow.h"
 #include "nsPIWindowRoot.h"
 #include "nsFrameManager.h"
+#include "nsIObserverService.h"
+#include "mozilla/Services.h"
+
+#define FLAG_ALT        0x01
+#define FLAG_CONTROL    0x02
+#define FLAG_SHIFT      0x04
+#define FLAG_META       0x08
 
 const nsNavigationDirection DirectionFromKeyCodeTable[2][6] = {
   {
@@ -130,19 +137,24 @@ void nsMenuChainItem::Detach(nsMenuChainItem** aRoot)
 }
 
 NS_IMPL_ISUPPORTS4(nsXULPopupManager,
-                   nsIDOMKeyListener,
                    nsIDOMEventListener,
                    nsIMenuRollup,
-                   nsITimerCallback)
+                   nsITimerCallback,
+                   nsIObserver)
 
 nsXULPopupManager::nsXULPopupManager() :
   mRangeOffset(0),
   mCachedMousePoint(0, 0),
+  mCachedModifiers(0),
   mActiveMenuBar(nsnull),
   mPopups(nsnull),
   mNoHidePanels(nsnull),
   mTimerMenu(nsnull)
 {
+  nsCOMPtr<nsIObserverService> obs = mozilla::services::GetObserverService();
+  if (obs) {
+    obs->AddObserver(this, "xpcom-shutdown", PR_FALSE);
+  }
 }
 
 nsXULPopupManager::~nsXULPopupManager() 
@@ -163,6 +175,29 @@ void
 nsXULPopupManager::Shutdown()
 {
   NS_IF_RELEASE(sInstance);
+}
+
+NS_IMETHODIMP
+nsXULPopupManager::Observe(nsISupports *aSubject,
+                           const char *aTopic,
+                           const PRUnichar *aData)
+{
+  if (!nsCRT::strcmp(aTopic, "xpcom-shutdown")) {
+    if (mKeyListener) {
+      mKeyListener->RemoveEventListener(NS_LITERAL_STRING("keypress"), this, PR_TRUE);
+      mKeyListener->RemoveEventListener(NS_LITERAL_STRING("keydown"), this, PR_TRUE);
+      mKeyListener->RemoveEventListener(NS_LITERAL_STRING("keyup"), this, PR_TRUE);
+      mKeyListener = nsnull;
+    }
+    mRangeParent = nsnull;
+    // mOpeningPopup is cleared explicitly soon after using it.
+    nsCOMPtr<nsIObserverService> obs = mozilla::services::GetObserverService();
+    if (obs) {
+      obs->RemoveObserver(this, "xpcom-shutdown");
+    }
+  }
+
+  return NS_OK;
 }
 
 nsXULPopupManager*
@@ -433,6 +468,8 @@ nsXULPopupManager::InitTriggerEvent(nsIDOMEvent* aEvent, nsIContent* aPopup,
     }
   }
 
+  mCachedModifiers = 0;
+
   nsCOMPtr<nsIDOMNSUIEvent> uiEvent = do_QueryInterface(aEvent);
   if (uiEvent) {
     uiEvent->GetRangeParent(getter_AddRefs(mRangeParent));
@@ -446,6 +483,22 @@ nsXULPopupManager::InitTriggerEvent(nsIDOMEvent* aEvent, nsIContent* aPopup,
       nsEvent* event;
       event = privateEvent->GetInternalNSEvent();
       if (event) {
+        if (event->eventStructType == NS_MOUSE_EVENT ||
+            event->eventStructType == NS_KEY_EVENT) {
+          nsInputEvent* inputEvent = static_cast<nsInputEvent*>(event);
+          if (inputEvent->isAlt) {
+            mCachedModifiers |= FLAG_ALT;
+          }
+          if (inputEvent->isControl) {
+            mCachedModifiers |= FLAG_CONTROL;
+          }
+          if (inputEvent->isShift) {
+            mCachedModifiers |= FLAG_SHIFT;
+          }
+          if (inputEvent->isMeta) {
+            mCachedModifiers |= FLAG_META;
+          }
+        }
         nsIDocument* doc = aPopup->GetCurrentDoc();
         if (doc) {
           nsIPresShell* presShell = doc->GetShell();
@@ -665,11 +718,9 @@ CheckCaretDrawingState() {
     if (!window)
       return;
 
-    nsCOMPtr<nsIDOMWindowInternal> windowInternal = do_QueryInterface(window);
-
     nsCOMPtr<nsIDOMDocument> domDoc;
     nsCOMPtr<nsIDocument> focusedDoc;
-    windowInternal->GetDocument(getter_AddRefs(domDoc));
+    window->GetDocument(getter_AddRefs(domDoc));
     focusedDoc = do_QueryInterface(domDoc);
     if (!focusedDoc)
       return;
@@ -1158,9 +1209,18 @@ nsXULPopupManager::FirePopupShowingEvent(nsIContent* aPopup,
   }
 
   event.refPoint = mCachedMousePoint;
+
+  event.isAlt = !!(mCachedModifiers & FLAG_ALT);
+  event.isControl = !!(mCachedModifiers & FLAG_CONTROL);
+  event.isShift = !!(mCachedModifiers & FLAG_SHIFT);
+  event.isMeta = !!(mCachedModifiers & FLAG_META);
+
   nsEventDispatcher::Dispatch(popup, presContext, &event, nsnull, &status);
+
   mCachedMousePoint = nsIntPoint(0, 0);
   mOpeningPopup = nsnull;
+
+  mCachedModifiers = 0;
 
   // if a panel, blur whatever has focus so that the panel can take the focus.
   // This is done after the popupshowing event in case that event is cancelled.
@@ -1731,6 +1791,13 @@ nsXULPopupManager::CancelMenuTimer(nsMenuParent* aMenuParent)
   }
 }
 
+static nsGUIEvent* DOMKeyEventToGUIEvent(nsIDOMEvent* aEvent)
+{
+  nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(aEvent));
+  nsEvent* evt = privateEvent ? privateEvent->GetInternalNSEvent() : nsnull;
+  return (evt->eventStructType == NS_KEY_EVENT) ? static_cast<nsGUIEvent *>(evt) : nsnull;
+}
+
 PRBool
 nsXULPopupManager::HandleShortcutNavigation(nsIDOMKeyEvent* aKeyEvent,
                                             nsMenuPopupFrame* aFrame)
@@ -1745,7 +1812,8 @@ nsXULPopupManager::HandleShortcutNavigation(nsIDOMKeyEvent* aKeyEvent,
     if (result) {
       aFrame->ChangeMenuItem(result, PR_FALSE);
       if (action) {
-        nsMenuFrame* menuToOpen = result->Enter();
+        nsGUIEvent* evt = DOMKeyEventToGUIEvent(aKeyEvent);
+        nsMenuFrame* menuToOpen = result->Enter(evt);
         if (menuToOpen) {
           nsCOMPtr<nsIContent> content = menuToOpen->GetContent();
           ShowMenu(content, PR_TRUE, PR_FALSE);
@@ -2022,7 +2090,7 @@ nsXULPopupManager::IsValidMenuItem(nsPresContext* aPresContext,
     return PR_FALSE;
   }
 
-  PRBool skipNavigatingDisabledMenuItem = PR_TRUE;
+  PRInt32 skipNavigatingDisabledMenuItem = PR_TRUE;
   if (aOnPopup) {
     aPresContext->LookAndFeel()->
       GetMetric(nsILookAndFeel::eMetric_SkipNavigatingDisabledMenuItem,
@@ -2035,7 +2103,30 @@ nsXULPopupManager::IsValidMenuItem(nsPresContext* aPresContext,
 }
 
 nsresult
-nsXULPopupManager::KeyUp(nsIDOMEvent* aKeyEvent)
+nsXULPopupManager::HandleEvent(nsIDOMEvent* aEvent)
+{
+  nsCOMPtr<nsIDOMKeyEvent> keyEvent = do_QueryInterface(aEvent);
+  NS_ENSURE_TRUE(keyEvent, NS_ERROR_UNEXPECTED);
+
+  nsAutoString eventType;
+  keyEvent->GetType(eventType);
+  if (eventType.EqualsLiteral("keyup")) {
+    return KeyUp(keyEvent);
+  }
+  if (eventType.EqualsLiteral("keydown")) {
+    return KeyDown(keyEvent);
+  }
+  if (eventType.EqualsLiteral("keypress")) {
+    return KeyPress(keyEvent);
+  }
+
+  NS_ABORT();
+
+  return NS_OK;
+}
+
+nsresult
+nsXULPopupManager::KeyUp(nsIDOMKeyEvent* aKeyEvent)
 {
   // don't do anything if a menu isn't open or a menubar isn't active
   if (!mActiveMenuBar) {
@@ -2051,7 +2142,7 @@ nsXULPopupManager::KeyUp(nsIDOMEvent* aKeyEvent)
 }
 
 nsresult
-nsXULPopupManager::KeyDown(nsIDOMEvent* aKeyEvent)
+nsXULPopupManager::KeyDown(nsIDOMKeyEvent* aKeyEvent)
 {
   nsMenuChainItem* item = GetTopVisibleMenu();
   if (item && item->Frame()->IsMenuLocked())
@@ -2069,22 +2160,21 @@ nsXULPopupManager::KeyDown(nsIDOMEvent* aKeyEvent)
   nsMenuBarListener::GetMenuAccessKey(&menuAccessKey);
   if (menuAccessKey) {
     PRUint32 theChar;
-    nsCOMPtr<nsIDOMKeyEvent> keyEvent = do_QueryInterface(aKeyEvent);
-    keyEvent->GetKeyCode(&theChar);
+    aKeyEvent->GetKeyCode(&theChar);
 
     if (theChar == (PRUint32)menuAccessKey) {
       PRBool ctrl = PR_FALSE;
       if (menuAccessKey != nsIDOMKeyEvent::DOM_VK_CONTROL)
-        keyEvent->GetCtrlKey(&ctrl);
+        aKeyEvent->GetCtrlKey(&ctrl);
       PRBool alt=PR_FALSE;
       if (menuAccessKey != nsIDOMKeyEvent::DOM_VK_ALT)
-        keyEvent->GetAltKey(&alt);
+        aKeyEvent->GetAltKey(&alt);
       PRBool shift=PR_FALSE;
       if (menuAccessKey != nsIDOMKeyEvent::DOM_VK_SHIFT)
-        keyEvent->GetShiftKey(&shift);
+        aKeyEvent->GetShiftKey(&shift);
       PRBool meta=PR_FALSE;
       if (menuAccessKey != nsIDOMKeyEvent::DOM_VK_META)
-        keyEvent->GetMetaKey(&meta);
+        aKeyEvent->GetMetaKey(&meta);
       if (!(ctrl || alt || shift || meta)) {
         // The access key just went down and no other
         // modifiers are already down.
@@ -2104,7 +2194,7 @@ nsXULPopupManager::KeyDown(nsIDOMEvent* aKeyEvent)
 }
 
 nsresult
-nsXULPopupManager::KeyPress(nsIDOMEvent* aKeyEvent)
+nsXULPopupManager::KeyPress(nsIDOMKeyEvent* aKeyEvent)
 {
   // Don't check prevent default flag -- menus always get first shot at key events.
   // When a menu is open, the prevent default flag on a keypress is always set, so
@@ -2126,6 +2216,7 @@ nsXULPopupManager::KeyPress(nsIDOMEvent* aKeyEvent)
     return NS_OK;
 
   nsCOMPtr<nsIDOMKeyEvent> keyEvent = do_QueryInterface(aKeyEvent);
+  NS_ENSURE_TRUE(keyEvent, NS_ERROR_UNEXPECTED);
   PRUint32 theChar;
   keyEvent->GetKeyCode(&theChar);
 
@@ -2178,10 +2269,11 @@ nsXULPopupManager::KeyPress(nsIDOMEvent* aKeyEvent)
     // Enter method will return a menu if one needs to be opened as a result.
     nsMenuFrame* menuToOpen = nsnull;
     nsMenuChainItem* item = GetTopVisibleMenu();
+    nsGUIEvent* evt = DOMKeyEventToGUIEvent(aKeyEvent);
     if (item)
-      menuToOpen = item->Frame()->Enter();
+      menuToOpen = item->Frame()->Enter(evt);
     else if (mActiveMenuBar)
-      menuToOpen = mActiveMenuBar->Enter();
+      menuToOpen = mActiveMenuBar->Enter(evt);
     if (menuToOpen) {
       nsCOMPtr<nsIContent> content = menuToOpen->GetContent();
       ShowMenu(content, PR_TRUE, PR_FALSE);

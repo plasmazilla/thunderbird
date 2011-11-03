@@ -5,7 +5,6 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=238987
 -->
 <head>
   <title>Test for Bug 238987</title>
-  <script type="text/javascript" src="/MochiKit/packed.js"></script>
   <script type="text/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>        
   <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css" />
 </head>
@@ -41,9 +40,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=238987
     var prefs = Components.classes[prefSvcContractID].getService(prefSvcIID)
                                                      .getBranch("accessibility.");
     if (!newValue) {
-      try {
-        prefs.clearUserPref("tabfocus");
-      } catch(ex) {}
+      prefs.clearUserPref("tabfocus");
     } else {
       prefs.setIntPref("tabfocus", newValue);
     }
@@ -138,7 +135,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=238987
       setOrRestoreTabFocus(0);
       SimpleTest.finish();
     } else {
-      setTimeout(tab, 50);
+      setTimeout(tab, 0);
     }
   }
 
@@ -163,7 +160,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=238987
 
   function doTest() {
     setOrRestoreTabFocus(7);
-    setTimeout(start, 100);
+    setTimeout(start, 0);
   }
 
   SimpleTest.waitForExplicitFinish();

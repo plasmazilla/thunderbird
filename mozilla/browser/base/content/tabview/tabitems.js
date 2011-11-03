@@ -112,68 +112,9 @@ function TabItem(tab, options) {
 
   // ___ drag/drop
   // override dropOptions with custom tabitem methods
-  // This is mostly to support the phantom groupItems.
   this.dropOptions.drop = function(e) {
-    var $target = this.$container;
-    this.isDropTarget = false;
-
-    var phantom = $target.data("phantomGroupItem");
-
-    var groupItem = drag.info.item.parent;
-    if (groupItem) {
-      groupItem.add(drag.info.$el);
-    } else {
-      phantom.removeClass("phantom acceptsDrop");
-      new GroupItem([$target, drag.info.$el], {container:phantom, bounds:phantom.bounds()});
-    }
-  };
-
-  this.dropOptions.over = function(e) {
-    var $target = this.$container;
-    this.isDropTarget = true;
-
-    $target.removeClass("acceptsDrop");
-
-    var phantomMargin = 40;
-
-    var groupItemBounds = this.getBounds();
-    groupItemBounds.inset(-phantomMargin, -phantomMargin);
-
-    iQ(".phantom").remove();
-    var phantom = iQ("<div>")
-      .addClass("groupItem phantom acceptsDrop")
-      .css({
-        position: "absolute",
-        zIndex: -99
-      })
-      .css(groupItemBounds)
-      .hide()
-      .appendTo("body");
-
-    var defaultRadius = Trenches.defaultRadius;
-    // Extend the margin so that it covers the case where the target tab item
-    // is right next to a trench.
-    Trenches.defaultRadius = phantomMargin + 1;
-    var updatedBounds = drag.info.snapBounds(groupItemBounds,'none');
-    Trenches.defaultRadius = defaultRadius;
-
-    // Utils.log('updatedBounds:',updatedBounds);
-    if (updatedBounds)
-      phantom.css(updatedBounds);
-
-    phantom.fadeIn();
-
-    $target.data("phantomGroupItem", phantom);
-  };
-
-  this.dropOptions.out = function(e) {
-    this.isDropTarget = false;
-    var phantom = this.$container.data("phantomGroupItem");
-    if (phantom) {
-      phantom.fadeOut(function() {
-        iQ(this).remove();
-      });
-    }
+    let groupItem = drag.info.item.parent;
+    groupItem.add(drag.info.$el);
   };
 
   this.draggable();
@@ -200,7 +141,6 @@ function TabItem(tab, options) {
     }
   });
 
-  this.setResizable(true, options.immediately);
   this.droppable(true);
 
   TabItems.register(this);
@@ -288,8 +228,6 @@ TabItem.prototype = Utils.extend(new Item(), new Subscribable(), {
     }
 
     return {
-      bounds: this.getBounds(),
-      userSize: (Utils.isPoint(this.userSize) ? new Point(this.userSize) : null),
       url: this.tab.linkedBrowser.currentURI.spec,
       groupID: (this.parent ? this.parent.id : 0),
       imageData: imageData,
@@ -327,8 +265,11 @@ TabItem.prototype = Utils.extend(new Item(), new Subscribable(), {
     let tabData = null;
     let self = this;
     let imageDataCb = function(imageData) {
+      // we could have been unlinked while waiting for the thumbnail to load
+      if (!self.tab)
+        return;
+
       Utils.assertThrow(tabData, "tabData");
-      
       tabData.imageData = imageData;
 
       let currentUrl = self.tab.linkedBrowser.currentURI.spec;
@@ -347,47 +288,33 @@ TabItem.prototype = Utils.extend(new Item(), new Subscribable(), {
       if (self.parent)
         self.parent.remove(self, {immediately: true});
 
-      self.setBounds(tabData.bounds, true);
-
-      if (Utils.isPoint(tabData.userSize))
-        self.userSize = new Point(tabData.userSize);
+      let groupItem;
 
       if (tabData.groupID) {
-        var groupItem = GroupItems.groupItem(tabData.groupID);
-        if (groupItem) {
-          groupItem.add(self, {immediately: true});
-
-          // if it matches the selected tab or no active tab and the browser
-          // tab is hidden, the active group item would be set.
-          if (self.tab == gBrowser.selectedTab ||
-              (!GroupItems.getActiveGroupItem() && !self.tab.hidden))
-            GroupItems.setActiveGroupItem(self.parent);
-        }
+        groupItem = GroupItems.groupItem(tabData.groupID);
       } else {
-        // When duplicating a non-blank orphaned tab, create a group including both of them.
-        // This prevents overlaid tabs in Tab View (only one tab appears to be there).
-        // In addition, as only one active orphaned tab is shown when Tab View is hidden
-        // and there are two tabs shown after the duplication, it also prevents
-        // the inactive tab to suddenly disappear when toggling Tab View twice.
-        //
-        // Fixes:
-        //   Bug 645653 - Middle-click on reload button to duplicate orphan tabs does not create a group
-        //   Bug 643119 - Ctrl+Drag to duplicate does not work for orphaned tabs
-        //   ... (and any other way of duplicating a non-blank orphaned tab).
-        if (GroupItems.getActiveGroupItem() == null)
-          GroupItems.newTab(self, {immediately: true});
+        groupItem = new GroupItem([], {immediately: true, bounds: tabData.bounds});
+      }
+
+      if (groupItem) {
+        groupItem.add(self, {immediately: true});
+
+        // if it matches the selected tab or no active tab and the browser
+        // tab is hidden, the active group item would be set.
+        if (self.tab == gBrowser.selectedTab ||
+            (!GroupItems.getActiveGroupItem() && !self.tab.hidden))
+          UI.setActive(self.parent);
       }
     } else {
-      // create tab by double click is handled in UI_init().
-      if (!TabItems.creatingNewOrphanTab)
-        GroupItems.newTab(self, {immediately: true});
+      // create tab group by double click is handled in UI_init().
+      GroupItems.newTab(self, {immediately: true});
     }
 
     self._reconnected = true;
     self.save();
     self._sendToSubscribers("reconnected");
   },
-  
+
   // ----------
   // Function: setHidden
   // Hide/unhide this item
@@ -418,10 +345,7 @@ TabItem.prototype = Utils.extend(new Item(), new Subscribable(), {
   // Possible options:
   //   force - true to always update the DOM even if the bounds haven't changed; default false
   setBounds: function TabItem_setBounds(inRect, immediately, options) {
-    if (!Utils.isRect(inRect)) {
-      Utils.trace('TabItem.setBounds: rect is not a real rectangle!', inRect);
-      return;
-    }
+    Utils.assert(Utils.isRect(inRect), 'TabItem.setBounds: rect is not a real rectangle!');
 
     if (!options)
       options = {};
@@ -526,8 +450,7 @@ TabItem.prototype = Utils.extend(new Item(), new Subscribable(), {
 
     rect = this.getBounds(); // ensure that it's a <Rect>
 
-    if (!Utils.isRect(this.bounds))
-      Utils.trace('TabItem.setBounds: this.bounds is not a real rectangle!', this.bounds);
+    Utils.assert(Utils.isRect(this.bounds), 'TabItem.setBounds: this.bounds is not a real rectangle!');
 
     if (!this.parent && this.tab.parentNode != null)
       this.setTrenches(rect);
@@ -555,6 +478,7 @@ TabItem.prototype = Utils.extend(new Item(), new Subscribable(), {
     // closing tab doesn't belong to a group and no empty group, create a new 
     // one for the new tab.
     if (!groupClose && gBrowser.tabs.length == 1) {
+      let group;
       if (this.tab._tabViewTabItem.parent) {
         group = this.tab._tabViewTabItem.parent;
       } else {
@@ -563,7 +487,7 @@ TabItem.prototype = Utils.extend(new Item(), new Subscribable(), {
         });
         group = (emptyGroups.length ? emptyGroups[0] : GroupItems.newGroup());
       }
-      group.newTab();
+      group.newTab(null, { closedLastTab: true });
     }
     // when "TabClose" event is fired, the browser tab is about to close and our 
     // item "close" is fired before the browser tab actually get closed. 
@@ -591,24 +515,6 @@ TabItem.prototype = Utils.extend(new Item(), new Subscribable(), {
   // Removes the specified CSS class from this item's container DOM element.
   removeClass: function TabItem_removeClass(className) {
     this.$container.removeClass(className);
-  },
-
-  // ----------
-  // Function: setResizable
-  // If value is true, makes this item resizable, otherwise non-resizable.
-  // Shows/hides a visible resize handle as appropriate.
-  setResizable: function TabItem_setResizable(value, immediately) {
-    var $resizer = iQ('.expander', this.container);
-
-    if (value) {
-      this.resizeOptions.minWidth = TabItems.minTabWidth;
-      this.resizeOptions.minHeight = TabItems.minTabHeight;
-      immediately ? $resizer.show() : $resizer.fadeIn();
-      this.resizable(true);
-    } else {
-      immediately ? $resizer.hide() : $resizer.fadeOut();
-      this.resizable(false);
-    }
   },
 
   // ----------
@@ -643,9 +549,7 @@ TabItem.prototype = Utils.extend(new Item(), new Subscribable(), {
     let $tabEl = this.$container;
     let $canvas = this.$canvas;
 
-    UI.setActiveTab(this);
-    GroupItems.setActiveGroupItem(this.parent);
-
+    UI.setActive(this);
     TabItems._update(this.tab, {force: true});
 
     // Zoom in!
@@ -667,6 +571,8 @@ TabItem.prototype = Utils.extend(new Item(), new Subscribable(), {
       }
       if (self.parent && self.parent.expanded)
         self.parent.collapse();
+
+      self._sendToSubscribers("zoomedIn");
     }
 
     let animateZoom = gPrefBranch.getBoolPref("animate_zoom");
@@ -714,15 +620,10 @@ TabItem.prototype = Utils.extend(new Item(), new Subscribable(), {
         complete();
     };
 
-    UI.setActiveTab(this);
+    UI.setActive(this);
     TabItems._update(this.tab, {force: true});
 
     $tab.addClass("front");
-
-    // If we're in a stacked group, make sure we become the
-    // topChild now so that we show the zoom animation correctly.
-    if (this.parent && this.parent.isStacked())
-      this.parent.setTopChild(this);
 
     let animateZoom = gPrefBranch.getBoolPref("animate_zoom");
     if (animateZoom) {
@@ -810,7 +711,6 @@ let TabItems = {
   _lastUpdateTime: Date.now(),
   _eventListeners: [],
   _pauseUpdateForTest: false,
-  creatingNewOrphanTab: false,
   tempCanvas: null,
   _reconnectingPaused: false,
   tabItemPadding: {},
@@ -917,8 +817,7 @@ let TabItems = {
             "<img class='cached-thumb' style='display:none'/><canvas moz-opaque/></div>" +
             "<div class='favicon'><img/></div>" +
             "<span class='tab-title'>&nbsp;</span>" +
-            "<div class='close'></div>" +
-            "<div class='expander'></div>";
+            "<div class='close'></div>";
     this._fragment = document.createDocumentFragment();
     this._fragment.appendChild(div);
 
@@ -990,12 +889,10 @@ let TabItems = {
       // Even if the page hasn't loaded, display the favicon and title
 
       // ___ icon
-      if (this.shouldLoadFavIcon(tab.linkedBrowser)) {
-        let iconUrl = tab.image;
-        if (!iconUrl)
-          iconUrl = Utils.defaultFaviconURL;
+      if (UI.shouldLoadFavIcon(tab.linkedBrowser)) {
+        let iconUrl = UI.getFavIconUrlForTab(tab);
 
-        if (iconUrl != tabItem.$favImage[0].src)
+        if (tabItem.$favImage[0].src != iconUrl)
           tabItem.$favImage[0].src = iconUrl;
 
         iQ(tabItem.$fav[0]).show();
@@ -1058,14 +955,6 @@ let TabItems = {
   },
 
   // ----------
-  // Function: shouldLoadFavIcon
-  // Takes a xul:browser and checks whether we should display a favicon for it.
-  shouldLoadFavIcon: function TabItems_shouldLoadFavIcon(browser) {
-    return !(browser.contentDocument instanceof window.ImageDocument) &&
-           gBrowser.shouldLoadFavIcon(browser.contentDocument.documentURIObject);
-  },
-
-  // ----------
   // Function: link
   // Takes in a xul:tab, creates a TabItem for it and adds it to the scene. 
   link: function TabItems_link(tab, options) {
@@ -1088,15 +977,15 @@ let TabItems = {
       Utils.assertThrow(tab._tabViewTabItem, "should already be linked");
       // note that it's ok to unlink an app tab; see .handleTabUnpin
 
-      if (tab._tabViewTabItem == UI.getActiveOrphanTab())
-        UI.setActiveTab(null);
-
       this.unregister(tab._tabViewTabItem);
       tab._tabViewTabItem._sendToSubscribers("close");
       tab._tabViewTabItem.$container.remove();
       tab._tabViewTabItem.removeTrenches();
       Items.unsquish(null, tab._tabViewTabItem);
 
+      tab._tabViewTabItem.tab = null;
+      tab._tabViewTabItem.tabCanvas.tab = null;
+      tab._tabViewTabItem.tabCanvas = null;
       tab._tabViewTabItem = null;
       Storage.saveTab(tab, null);
 
@@ -1143,8 +1032,14 @@ let TabItems = {
   _checkHeartbeat: function TabItems__checkHeartbeat() {
     this._heartbeat = null;
 
-    if (this.isPaintingPaused() || !UI.isIdle)
+    if (this.isPaintingPaused())
       return;
+
+    // restart the heartbeat to update all waiting tabs once the UI becomes idle
+    if (!UI.isIdle()) {
+      this.startHeartbeat();
+      return;
+    }
 
     let accumTime = 0;
     let items = this._tabsWaitingForUpdate.getItems();
@@ -1271,15 +1166,9 @@ let TabItems = {
   // Function: storageSanity
   // Checks the specified data (as returned by TabItem.getStorageData or loaded from storage)
   // and returns true if it looks valid.
-  // TODO: check everything
+  // TODO: this is a stub, please implement
   storageSanity: function TabItems_storageSanity(data) {
-    var sane = true;
-    if (!Utils.isRect(data.bounds)) {
-      Utils.log('TabItems.storageSanity: bad bounds', data.bounds);
-      sane = false;
-    }
-
-    return sane;
+    return true;
   },
 
   // ----------
@@ -1569,6 +1458,6 @@ TabCanvas.prototype = {
   // ----------
   // Function: toImageData
   toImageData: function TabCanvas_toImageData() {
-    return this.canvas.toDataURL("image/png", "");
+    return this.canvas.toDataURL("image/png");
   }
 };

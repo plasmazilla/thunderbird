@@ -5,7 +5,6 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=596333
 -->
 <head>
   <title>Test for Bug 596333</title>
-  <script type="application/javascript" src="/MochiKit/packed.js"></script>
   <script type="application/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
   <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css"/>
   <script type="text/javascript" src="/tests/SimpleTest/EventUtils.js"></script>
@@ -44,6 +43,7 @@ function append(str) {
 
   var edit = document.getElementById("edit");
   edit.focus();
+  edit.selectionStart = edit.selectionEnd = edit.value.length;
   var editor = getEditor();
 
   for (var i = 0; i < str.length; ++i) {

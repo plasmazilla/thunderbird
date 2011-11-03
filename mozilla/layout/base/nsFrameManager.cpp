@@ -86,7 +86,6 @@
 #include "nsContentUtils.h"
 #include "nsReadableUtils.h"
 #include "nsUnicharUtils.h"
-#include "nsPrintfCString.h"
 #include "nsLayoutErrors.h"
 #include "nsLayoutUtils.h"
 #include "nsAutoPtr.h"
@@ -95,6 +94,7 @@
 #include "RestyleTracker.h"
 
 #include "nsFrameManager.h"
+#include "nsRuleProcessorData.h"
 
 #ifdef ACCESSIBILITY
 #include "nsAccessibilityService.h"
@@ -378,14 +378,12 @@ nsFrameManager::SetUndisplayedContent(nsIContent* aContent,
   if (! mUndisplayedMap) {
     mUndisplayedMap = new UndisplayedMap;
   }
-  if (mUndisplayedMap) {
-    nsIContent* parent = aContent->GetParent();
-    NS_ASSERTION(parent || (mPresShell && mPresShell->GetDocument() &&
-                 mPresShell->GetDocument()->GetRootElement() == aContent),
-                 "undisplayed content must have a parent, unless it's the root "
-                 "element");
-    mUndisplayedMap->AddNodeFor(parent, aContent, aStyleContext);
-  }
+  nsIContent* parent = aContent->GetParent();
+  NS_ASSERTION(parent || (mPresShell && mPresShell->GetDocument() &&
+               mPresShell->GetDocument()->GetRootElement() == aContent),
+               "undisplayed content must have a parent, unless it's the root "
+               "element");
+  mUndisplayedMap->AddNodeFor(parent, aContent, aStyleContext);
 }
 
 void
@@ -768,6 +766,34 @@ ElementForStyleContext(nsIContent* aParentContent,
   return content->AsElement();
 }
 
+static nsIFrame*
+GetPrevContinuationWithPossiblySameStyle(nsIFrame* aFrame)
+{
+  // Account for {ib} splits when looking for "prevContinuation".  In
+  // particular, for the first-continuation of a part of an {ib} split we
+  // want to use the special prevsibling of the special prevsibling of
+  // aFrame, which should have the same style context as aFrame itself.
+  // In particular, if aFrame is the first continuation of an inline part
+  // of an {ib} split then its special prevsibling is a block, and the
+  // special prevsibling of _that_ is an inline, just like aFrame.
+  // Similarly, if aFrame is the first continuation of a block part of an
+  // {ib} split (an {ib} wrapper block), then its special prevsibling is
+  // an inline and the special prevsibling of that is either another {ib}
+  // wrapper block block or null.
+  nsIFrame *prevContinuation = aFrame->GetPrevContinuation();
+  if (!prevContinuation && (aFrame->GetStateBits() & NS_FRAME_IS_SPECIAL)) {
+    // We're the first continuation, so we can just get the frame
+    // property directly
+    prevContinuation = static_cast<nsIFrame*>(
+      aFrame->Properties().Get(nsIFrame::IBSplitSpecialPrevSibling()));
+    if (prevContinuation) {
+      prevContinuation = static_cast<nsIFrame*>(
+        prevContinuation->Properties().Get(nsIFrame::IBSplitSpecialPrevSibling()));
+    }
+  }
+  return prevContinuation;
+}
+
 nsresult
 nsFrameManager::ReparentStyleContext(nsIFrame* aFrame)
 {
@@ -833,7 +859,8 @@ nsFrameManager::ReparentStyleContext(nsIFrame* aFrame)
     }
 #endif
 
-    nsIFrame *prevContinuation = aFrame->GetPrevContinuation();
+    nsIFrame *prevContinuation =
+      GetPrevContinuationWithPossiblySameStyle(aFrame);
     nsStyleContext *prevContinuationContext;
     PRBool copyFromContinuation =
       prevContinuation &&
@@ -1008,7 +1035,8 @@ nsFrameManager::ReResolveStyleContext(nsPresContext     *aPresContext,
                                       nsRestyleHint      aRestyleHint,
                                       RestyleTracker&    aRestyleTracker,
                                       DesiredA11yNotifications aDesiredA11yNotifications,
-                                      nsTArray<nsIContent*>& aVisibleKidsOfHiddenElement)
+                                      nsTArray<nsIContent*>& aVisibleKidsOfHiddenElement,
+                                      TreeMatchContext &aTreeMatchContext)
 {
   if (!NS_IsHintSubset(nsChangeHint_NeedDirtyReflow, aMinChange)) {
     // If aMinChange doesn't include nsChangeHint_NeedDirtyReflow, clear out
@@ -1057,7 +1085,7 @@ nsFrameManager::ReResolveStyleContext(nsPresContext     *aPresContext,
     oldContext->AddRef();
 
 #ifdef ACCESSIBILITY
-    PRBool wasFrameVisible = mPresShell->IsAccessibilityActive() ?
+    PRBool wasFrameVisible = nsIPresShell::IsAccessibilityActive() ?
       oldContext->GetStyleVisibility()->IsVisible() : PR_FALSE;
 #endif
 
@@ -1116,7 +1144,8 @@ nsFrameManager::ReResolveStyleContext(nsPresContext     *aPresContext,
                                                    aMinChange, aRestyleHint,
                                                    aRestyleTracker,
                                                    aDesiredA11yNotifications,
-                                                   aVisibleKidsOfHiddenElement);
+                                                   aVisibleKidsOfHiddenElement,
+                                                   aTreeMatchContext);
 
       // The provider's new context becomes the parent context of
       // aFrame's context.
@@ -1147,12 +1176,35 @@ nsFrameManager::ReResolveStyleContext(nsPresContext     *aPresContext,
                        nextContinuationContext->GetParent(),
                      "continuations should have the same style context");
       }
+      // And assert the same thing for {ib} splits.  See the comments in
+      // GetPrevContinuationWithPossiblySameStyle for an explanation of
+      // why we step two forward in the special sibling chain.
+      if ((aFrame->GetStateBits() & NS_FRAME_IS_SPECIAL) &&
+          !aFrame->GetPrevContinuation()) {
+        nsIFrame *nextIBSibling = static_cast<nsIFrame*>(
+          aFrame->Properties().Get(nsIFrame::IBSplitSpecialSibling()));
+        if (nextIBSibling) {
+          nextIBSibling = static_cast<nsIFrame*>(
+            nextIBSibling->Properties().Get(nsIFrame::IBSplitSpecialSibling()));
+        }
+        if (nextIBSibling) {
+          nsStyleContext *nextIBSiblingContext =
+            nextIBSibling->GetStyleContext();
+          NS_ASSERTION(oldContext == nextIBSiblingContext ||
+                       oldContext->GetPseudo() !=
+                         nextIBSiblingContext->GetPseudo() ||
+                       oldContext->GetParent() !=
+                         nextIBSiblingContext->GetParent(),
+                       "continuations should have the same style context");
+        }
+      }
     }
 #endif
 
     // do primary context
     nsRefPtr<nsStyleContext> newContext;
-    nsIFrame *prevContinuation = aFrame->GetPrevContinuation();
+    nsIFrame *prevContinuation =
+      GetPrevContinuationWithPossiblySameStyle(aFrame);
     nsStyleContext *prevContinuationContext;
     PRBool copyFromContinuation =
       prevContinuation &&
@@ -1171,7 +1223,15 @@ nsFrameManager::ReResolveStyleContext(nsPresContext     *aPresContext,
                    "non pseudo-element frame without content node");
       newContext = styleSet->ResolveStyleForNonElement(parentContext);
     }
-    else if (!aRestyleHint) {
+    else if (!aRestyleHint && !prevContinuation) {
+      // Unfortunately, if prevContinuation is non-null then we may have
+      // already stolen the restyle tracker entry for this element while
+      // processing prevContinuation.  So we don't know whether aRestyleHint
+      // should really be 0 here or whether it should be eRestyle_Self.  Be
+      // pessimistic and force an actual reresolve in that situation.  The good
+      // news is that in the common case when prevContinuation is non-null we
+      // just used prevContinuationContext anyway and aren't reaching this code
+      // to start with.
       newContext =
         styleSet->ReparentStyleContext(oldContext, parentContext,
                                        ElementForStyleContext(aParentContent,
@@ -1191,7 +1251,8 @@ nsFrameManager::ReResolveStyleContext(nsPresContext     *aPresContext,
           // XXX what other pseudos do we need to treat like this?
           newContext = styleSet->ProbePseudoElementStyle(element,
                                                          pseudoType,
-                                                         parentContext);
+                                                         parentContext,
+                                                         aTreeMatchContext);
           if (!newContext) {
             // This pseudo should no longer exist; gotta reframe
             NS_UpdateHint(aMinChange, nsChangeHint_ReconstructFrame);
@@ -1214,14 +1275,18 @@ nsFrameManager::ReResolveStyleContext(nsPresContext     *aPresContext,
       else {
         NS_ASSERTION(localContent,
                      "non pseudo-element frame without content node");
-        newContext = styleSet->ResolveStyleFor(element, parentContext);
+        newContext = styleSet->ResolveStyleFor(element, parentContext,
+                                               aTreeMatchContext);
       }
     }
 
     NS_ASSERTION(newContext, "failed to get new style context");
     if (newContext) {
       if (!parentContext) {
-        if (oldContext->GetRuleNode() == newContext->GetRuleNode()) {
+        if (oldContext->GetRuleNode() == newContext->GetRuleNode() &&
+            oldContext->IsLinkContext() == newContext->IsLinkContext() &&
+            oldContext->RelevantLinkVisited() ==
+              newContext->RelevantLinkVisited()) {
           // We're the root of the style context tree and the new style
           // context returned has the same rule node.  This means that
           // we can use FindChildWithRules to keep a lot of the old
@@ -1334,7 +1399,8 @@ nsFrameManager::ReResolveStyleContext(nsPresContext     *aPresContext,
         if (thisChildHint) {
           undisplayedContext =
             styleSet->ResolveStyleFor(undisplayed->mContent->AsElement(),
-                                      newContext);
+                                      newContext,
+                                      aTreeMatchContext);
         } else {
           undisplayedContext =
             styleSet->ReparentStyleContext(undisplayed->mStyle, newContext,
@@ -1422,7 +1488,8 @@ nsFrameManager::ReResolveStyleContext(nsPresContext     *aPresContext,
       // Notify a11y for primary frame only if it's a root frame of visibility
       // changes or its parent frame was hidden while it stays visible and
       // it is not inside a {ib} split or is the first frame of {ib} split.
-      if (mPresShell->IsAccessibilityActive() && !aFrame->GetPrevContinuation() &&
+      if (nsIPresShell::IsAccessibilityActive() &&
+          !aFrame->GetPrevContinuation() &&
           !nsLayoutUtils::FrameIsNonFirstInIBSplit(aFrame)) {
         if (aDesiredA11yNotifications == eSendAllNotifications) {
           PRBool isFrameVisible = newContext->GetStyleVisibility()->IsVisible();
@@ -1497,7 +1564,8 @@ nsFrameManager::ReResolveStyleContext(nsPresContext     *aPresContext,
                                       childRestyleHint,
                                       aRestyleTracker,
                                       kidsDesiredA11yNotification,
-                                      aVisibleKidsOfHiddenElement);
+                                      aVisibleKidsOfHiddenElement,
+                                      aTreeMatchContext);
               } while ((outOfFlowFrame = outOfFlowFrame->GetNextContinuation()));
 
               // reresolve placeholder's context under the same parent
@@ -1507,7 +1575,8 @@ nsFrameManager::ReResolveStyleContext(nsPresContext     *aPresContext,
                                     childRestyleHint,
                                     aRestyleTracker,
                                     kidsDesiredA11yNotification,
-                                    aVisibleKidsOfHiddenElement);
+                                    aVisibleKidsOfHiddenElement,
+                                    aTreeMatchContext);
             }
             else {  // regular child frame
               if (child != resolvedChild) {
@@ -1516,7 +1585,8 @@ nsFrameManager::ReResolveStyleContext(nsPresContext     *aPresContext,
                                       childRestyleHint,
                                       aRestyleTracker,
                                       kidsDesiredA11yNotification,
-                                      aVisibleKidsOfHiddenElement);
+                                      aVisibleKidsOfHiddenElement,
+                                      aTreeMatchContext);
               } else {
                 NOISY_TRACE_FRAME("child frame already resolved as descendant, skipping",aFrame);
               }
@@ -1589,6 +1659,9 @@ nsFrameManager::ComputeStyleChangeFor(nsIFrame          *aFrame,
 
   FramePropertyTable *propTable = GetPresContext()->PropertyTable();
 
+  TreeMatchContext treeMatchContext(PR_TRUE,
+                                    nsRuleWalker::eRelevantLinkUnvisited,
+                                    mPresShell->GetDocument());
   nsTArray<nsIContent*> visibleKidsOfHiddenElement;
   do {
     // Outer loop over special siblings
@@ -1601,7 +1674,8 @@ nsFrameManager::ComputeStyleChangeFor(nsIFrame          *aFrame,
                                 eRestyle_Subtree : eRestyle_Self,
                               aRestyleTracker,
                               eSendAllNotifications,
-                              visibleKidsOfHiddenElement);
+                              visibleKidsOfHiddenElement,
+                              treeMatchContext);
       NS_UpdateHint(topLevelChange, frameChange);
 
       if (topLevelChange & nsChangeHint_ReconstructFrame) {
@@ -1856,9 +1930,6 @@ nsFrameManagerBase::UndisplayedMap::AddNodeFor(nsIContent* aParentContent,
                                                nsStyleContext* aStyle)
 {
   UndisplayedNode*  node = new UndisplayedNode(aChild, aStyle);
-  if (! node) {
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
 
   AppendNodeFor(node, aParentContent);
   return NS_OK;

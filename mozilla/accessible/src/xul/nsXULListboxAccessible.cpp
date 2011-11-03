@@ -40,12 +40,17 @@
 
 #include "nsXULListboxAccessible.h"
 
+#include "States.h"
 #include "nsAccessibilityService.h"
 #include "nsAccUtils.h"
 
 #include "nsIDOMXULPopupElement.h"
 #include "nsIDOMXULMultSelectCntrlEl.h"
 #include "nsIDOMXULSelectCntrlItemEl.h"
+#include "nsIDOMNodeList.h"
+#include "nsComponentManagerUtils.h"
+
+using namespace mozilla::a11y;
 
 ////////////////////////////////////////////////////////////////////////////////
 // nsXULColumnsAccessible
@@ -63,26 +68,10 @@ nsXULColumnsAccessible::NativeRole()
   return nsIAccessibleRole::ROLE_LIST;
 }
 
-nsresult
-nsXULColumnsAccessible::GetStateInternal(PRUint32 *aState,
-                                         PRUint32 *aExtraState)
+PRUint64
+nsXULColumnsAccessible::NativeState()
 {
-  NS_ENSURE_ARG_POINTER(aState);
-  *aState = 0;
-
-  if (IsDefunct()) {
-    if (aExtraState)
-      *aExtraState = nsIAccessibleStates::EXT_STATE_DEFUNCT;
-
-    return NS_OK_DEFUNCT_OBJECT;
-  }
-
-  *aState = nsIAccessibleStates::STATE_READONLY;
-
-  if (aExtraState)
-    *aExtraState = 0;
-
-  return NS_OK;
+  return states::READONLY;
 }
 
 
@@ -102,33 +91,16 @@ nsXULColumnItemAccessible::NativeRole()
   return nsIAccessibleRole::ROLE_COLUMNHEADER;
 }
 
-nsresult
-nsXULColumnItemAccessible::GetStateInternal(PRUint32 *aState,
-                                            PRUint32 *aExtraState)
+PRUint64
+nsXULColumnItemAccessible::NativeState()
 {
-  NS_ENSURE_ARG_POINTER(aState);
-
-  if (IsDefunct()) {
-    if (aExtraState)
-      *aExtraState = nsIAccessibleStates::EXT_STATE_DEFUNCT;
-
-    return NS_OK_DEFUNCT_OBJECT;
-  }
-
-  *aState = nsIAccessibleStates::STATE_READONLY;
-  if (aExtraState)
-    *aExtraState = 0;
-
-  return NS_OK;
+  return states::READONLY;
 }
 
-NS_IMETHODIMP
-nsXULColumnItemAccessible::GetNumActions(PRUint8 *aNumActions)
+PRUint8
+nsXULColumnItemAccessible::ActionCount()
 {
-  NS_ENSURE_ARG_POINTER(aNumActions);
-
-  *aNumActions = 1;
-  return NS_OK;
+  return 1;
 }
 
 NS_IMETHODIMP
@@ -194,28 +166,23 @@ nsXULListboxAccessible::IsMulticolumn()
 ////////////////////////////////////////////////////////////////////////////////
 // nsXULListboxAccessible. nsIAccessible
 
-nsresult
-nsXULListboxAccessible::GetStateInternal(PRUint32 *aState,
-                                         PRUint32 *aExtraState)
+PRUint64
+nsXULListboxAccessible::NativeState()
 {
   // As a nsXULListboxAccessible we can have the following states:
-  //   STATE_FOCUSED
-  //   STATE_READONLY
-  //   STATE_FOCUSABLE
+  //   FOCUSED, READONLY, FOCUSABLE
 
   // Get focus status from base class
-  nsresult rv = nsAccessible::GetStateInternal(aState, aExtraState);
-  NS_ENSURE_A11Y_SUCCESS(rv, rv);
+  PRUint64 states = nsAccessible::NativeState();
 
   // see if we are multiple select if so set ourselves as such
 
   if (mContent->AttrValueIs(kNameSpaceID_None, nsAccessibilityAtoms::seltype,
                             nsAccessibilityAtoms::multiple, eCaseMatters)) {
-      *aState |= nsIAccessibleStates::STATE_MULTISELECTABLE |
-                 nsIAccessibleStates::STATE_EXTSELECTABLE;
+      states |= states::MULTISELECTABLE | states::EXTSELECTABLE;
   }
 
-  return NS_OK;
+  return states;
 }
 
 /**
@@ -896,6 +863,15 @@ nsXULListitemAccessible::GetListAccessible()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// nsXULListitemAccessible nsAccessible
+
+void
+nsXULListitemAccessible::Description(nsString& aDesc)
+{
+  nsAccessibleWrap::Description(aDesc);
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // nsXULListitemAccessible. nsIAccessible
 
 /**
@@ -937,28 +913,13 @@ nsXULListitemAccessible::NativeRole()
   return nsIAccessibleRole::ROLE_RICH_OPTION;
 }
 
-nsresult
-nsXULListitemAccessible::GetStateInternal(PRUint32 *aState,
-                                          PRUint32 *aExtraState)
+PRUint64
+nsXULListitemAccessible::NativeState()
 {
-  if (mIsCheckbox) {
-    return nsXULMenuitemAccessible::GetStateInternal(aState, aExtraState);
-  }
+  if (mIsCheckbox)
+    return nsXULMenuitemAccessible::NativeState();
 
-  *aState = 0;
-
-  if (IsDefunct()) {
-    if (aExtraState)
-      *aExtraState = nsIAccessibleStates::EXT_STATE_DEFUNCT;
-
-    return NS_OK_DEFUNCT_OBJECT;
-  }
-
-  if (aExtraState)
-    *aExtraState = 0;
-
-  *aState = nsIAccessibleStates::STATE_FOCUSABLE |
-            nsIAccessibleStates::STATE_SELECTABLE;
+  PRUint64 states = states::FOCUSABLE | states::SELECTABLE;
 
   nsCOMPtr<nsIDOMXULSelectControlItemElement> listItem =
     do_QueryInterface(mContent);
@@ -967,25 +928,23 @@ nsXULListitemAccessible::GetStateInternal(PRUint32 *aState,
     PRBool isSelected;
     listItem->GetSelected(&isSelected);
     if (isSelected)
-      *aState |= nsIAccessibleStates::STATE_SELECTED;
+      states |= states::SELECTED;
 
     if (gLastFocusedNode == mContent)
-      *aState |= nsIAccessibleStates::STATE_FOCUSED;
+      states |= states::FOCUSED;
 
   }
 
-  return NS_OK;
+  return states;
 }
 
 NS_IMETHODIMP nsXULListitemAccessible::GetActionName(PRUint8 aIndex, nsAString& aName)
 {
   if (aIndex == eAction_Click && mIsCheckbox) {
     // check or uncheck
-    PRUint32 state;
-    nsresult rv = GetStateInternal(&state, nsnull);
-    NS_ENSURE_SUCCESS(rv, rv);
+    PRUint64 states = NativeState();
 
-    if (state & nsIAccessibleStates::STATE_CHECKED)
+    if (states & states::CHECKED)
       aName.AssignLiteral("uncheck");
     else
       aName.AssignLiteral("check");
@@ -1040,11 +999,11 @@ nsXULListCellAccessible::GetTable(nsIAccessibleTable **aTable)
   if (IsDefunct())
     return NS_ERROR_FAILURE;
 
-  nsAccessible* thisRow = GetParent();
+  nsAccessible* thisRow = Parent();
   if (!thisRow || thisRow->Role() != nsIAccessibleRole::ROLE_ROW)
     return NS_OK;
 
-  nsAccessible* table = thisRow->GetParent();
+  nsAccessible* table = thisRow->Parent();
   if (!table || table->Role() != nsIAccessibleRole::ROLE_TABLE)
     return NS_OK;
 
@@ -1061,13 +1020,13 @@ nsXULListCellAccessible::GetColumnIndex(PRInt32 *aColumnIndex)
   if (IsDefunct())
     return NS_ERROR_FAILURE;
 
-  nsAccessible* row = GetParent();
+  nsAccessible* row = Parent();
   if (!row)
     return NS_OK;
 
   *aColumnIndex = 0;
 
-  PRInt32 indexInRow = GetIndexInParent();
+  PRInt32 indexInRow = IndexInParent();
   for (PRInt32 idx = 0; idx < indexInRow; idx++) {
     nsAccessible* cell = row->GetChildAt(idx);
     PRUint32 role = cell->Role();
@@ -1090,17 +1049,17 @@ nsXULListCellAccessible::GetRowIndex(PRInt32 *aRowIndex)
   if (IsDefunct())
     return NS_ERROR_FAILURE;
 
-  nsAccessible* row = GetParent();
+  nsAccessible* row = Parent();
   if (!row)
     return NS_OK;
 
-  nsAccessible* table = row->GetParent();
+  nsAccessible* table = row->Parent();
   if (!table)
     return NS_OK;
 
   *aRowIndex = 0;
 
-  PRInt32 indexInTable = row->GetIndexInParent();
+  PRInt32 indexInTable = row->IndexInParent();
   for (PRInt32 idx = 0; idx < indexInTable; idx++) {
     row = table->GetChildAt(idx);
     if (row->Role() == nsIAccessibleRole::ROLE_ROW)

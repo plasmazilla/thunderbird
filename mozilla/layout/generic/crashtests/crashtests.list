@@ -254,7 +254,7 @@ load 461294-1.html
 load 463350-1.html
 load 463350-2.html
 load 463350-3.html
-asserts(6-8) load 463741-1.html # Bug 575011
+load 463741-1.html
 load 465651-1.html
 load 467137-1.html
 load 467213-1.html
@@ -334,9 +334,10 @@ load 570289-1.html
 load 571618-1.svg
 asserts(1) load 571975-1.html # bug 574889
 load 574958.xhtml
+asserts(0-4) load 578977.html # bug 610331
 load 580504-1.xhtml
 load 585598-1.xhtml
-asserts(11) load 586806-1.html # Bug 439258
+asserts(0-11) load 586806-1.html # Bug 439258
 load 586806-2.html
 load 586806-3.html
 load 586973-1.html
@@ -358,3 +359,13 @@ load 645072-2.html
 load 646561-1.html
 load 646983-1.html
 load 647332-1.html
+load 650499-1.html
+load 660416.html
+load text-overflow-form-elements.html
+load text-overflow-iframe.html
+load text-overflow-bug666751-1.html
+load text-overflow-bug666751-2.html
+asserts(2) load text-overflow-bug670564.xhtml # asserts(2) for bug 436470
+load text-overflow-bug671796.xhtml
+load 667025.html
+asserts(14) load 673770.html # bug 569193 and bug 459597

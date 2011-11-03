@@ -74,15 +74,17 @@ SessionStore.prototype = {
   _lastSaveTime: 0,
   _lastSessionTime: 0,
   _interval: 10000,
-  _maxTabsUndo: 5,
+  _maxTabsUndo: 1,
   _shouldRestore: false,
 
   init: function ss_init() {
     // Get file references
     this._sessionFile = Services.dirsvc.get("ProfD", Ci.nsILocalFile);
     this._sessionFileBackup = this._sessionFile.clone();
+    this._sessionCache = this._sessionFile.clone();
     this._sessionFile.append("sessionstore.js");
     this._sessionFileBackup.append("sessionstore.bak");
+    this._sessionCache.append("sessionstoreCache");
 
     this._loadState = STATE_STOPPED;
 
@@ -91,6 +93,7 @@ SessionStore.prototype = {
         this._shouldRestore = true;
         this._sessionFileBackup.remove(false);
       }
+
       if (this._sessionFile.exists()) {
         // Disable crash recovery if we have exceeded the timeout
         this._lastSessionTime = this._sessionFile.lastModifiedTime;
@@ -101,6 +104,9 @@ SessionStore.prototype = {
 
         this._sessionFile.copyTo(null, this._sessionFileBackup.leafName);
       }
+
+      if (!this._sessionCache.exists() || !this._sessionCache.isDirectory())
+        this._sessionCache.create(Ci.nsIFile.DIRECTORY_TYPE, 0700);
     } catch (ex) {
       Cu.reportError(ex); // file was write-locked?
     }
@@ -130,6 +136,37 @@ SessionStore.prototype = {
         this._sessionFileBackup.remove(false);
       } catch (ex) { dump(ex + '\n'); } // couldn't remove the file - what now?
     }
+
+    this._clearCache();
+  },
+
+  _clearCache: function ss_clearCache() {
+    // First, let's get a list of files we think should be active
+    let activeFiles = [];
+    this._forEachBrowserWindow(function(aWindow) {
+      let tabs = aWindow.Browser.tabs;
+      for (let i = 0; i < tabs.length; i++) {
+        let browser = tabs[i].browser;
+        if (browser.__SS_extdata && "thumbnail" in browser.__SS_extdata)
+          activeFiles.push(browser.__SS_extdata.thumbnail);
+      }
+    });
+
+    // Now, let's find the stale files in the cache folder
+    let staleFiles = [];
+    let cacheFiles = this._sessionCache.directoryEntries;
+    while (cacheFiles.hasMoreElements()) {
+      let file = cacheFiles.getNext().QueryInterface(Ci.nsILocalFile);
+      let fileURI = Services.io.newFileURI(file);
+      if (activeFiles.indexOf(fileURI) == -1)
+        staleFiles.push(file);
+    }
+
+    // Remove the stale files in a separate step to keep the enumerator from
+    // messing up if we remove the files as we collect them.
+    staleFiles.forEach(function(aFile) {
+      aFile.remove(false);
+    })
   },
 
   observe: function ss_observe(aSubject, aTopic, aData) {
@@ -161,7 +198,7 @@ SessionStore.prototype = {
         this.onWindowClose(aSubject);
         break;
       case "browser-lastwindow-close-granted":
-        // Force and open timer to save state
+        // If a save has been queued, kill the timer and save state now
         if (this._saveTimer) {
           this._saveTimer.cancel();
           this._saveTimer = null;
@@ -209,7 +246,7 @@ SessionStore.prototype = {
         observerService.removeObserver(this, "quit-application-granted");
         observerService.removeObserver(this, "quit-application");
 
-        // Make sure to break our cycle with the save timer
+        // If a save has been queued, kill the timer and save state now
         if (this._saveTimer) {
           this._saveTimer.cancel();
           this._saveTimer = null;
@@ -230,9 +267,8 @@ SessionStore.prototype = {
           win.closedTabs = [];
 
         if (this._loadState == STATE_RUNNING) {
-          // The next delayed save request should execute immediately
-          this._lastSaveTime -= this._interval;
-          this.saveStateDelayed();
+          // Save the purged state immediately
+          this.saveStateNow();
         }
         break;
       case "timer-callback":
@@ -290,8 +326,10 @@ SessionStore.prototype = {
       this._lastSaveTime = Date.now();
 
       // Nothing to restore, notify observers things are complete
-      if (!this._shouldRestore)
+      if (!this._shouldRestore) {
+        this._clearCache();
         Services.obs.notifyObservers(null, "sessionstore-windows-restored", "");
+      }
     }
 
     // Add tab change listeners to all already existing tabs
@@ -336,6 +374,7 @@ SessionStore.prototype = {
 
   onTabAdd: function ss_onTabAdd(aWindow, aBrowser, aNoNotification) {
     aBrowser.messageManager.addMessageListener("pageshow", this);
+    aBrowser.messageManager.addMessageListener("Content:SessionHistory", this);
 
     if (!aNoNotification)
       this.saveStateDelayed();
@@ -344,6 +383,7 @@ SessionStore.prototype = {
 
   onTabRemove: function ss_onTabRemove(aWindow, aBrowser, aNoNotification) {
     aBrowser.messageManager.removeMessageListener("pageshow", this);
+    aBrowser.messageManager.removeMessageListener("Content:SessionHistory", this);
 
     // If this browser is being restored, skip any session save activity
     if (aBrowser.__SS_restore)
@@ -377,10 +417,19 @@ SessionStore.prototype = {
     if (aBrowser.__SS_restore)
       return;
 
-    delete aBrowser.__SS_data;
-    this._collectTabData(aBrowser);
+    // Ignore a transient "about:blank"
+    if (!aBrowser.canGoBack && aBrowser.currentURI.spec == "about:blank")
+      return;
 
-    this.saveStateDelayed();
+    if (aMessage.name == "Content:SessionHistory") {
+      delete aBrowser.__SS_data;
+      this._collectTabData(aBrowser, aMessage.json);
+    }
+
+    // Save out the state as quickly as possible
+    if (aMessage.name == "pageshow")
+      this.saveStateNow();
+
     this._updateCrashReportURL(aWindow);
   },
 
@@ -392,11 +441,17 @@ SessionStore.prototype = {
     this._windows[aWindow.__SSID].selected = parseInt(index) + 1; // 1-based
 
     // Restore the resurrected browser
-    // * currently we only load the last URL into the browser
     if (aBrowser.__SS_restore) {
       let data = aBrowser.__SS_data;
-      if (data.entries.length > 0)
-        aBrowser.loadURI(data.entries[0].url, null, null);
+      if (data.entries.length > 0) {
+        let json = {
+          uri: data.entries[data.index - 1].url,
+          flags: null,
+          entries: data.entries,
+          index: data.index
+        };
+        aBrowser.messageManager.sendAsyncMessage("WebNavigation:LoadURI", json);
+      }
 
       delete aBrowser.__SS_restore;
     }
@@ -414,11 +469,19 @@ SessionStore.prototype = {
       if (delay > 0) {
         this._saveTimer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
         this._saveTimer.init(this, delay, Ci.nsITimer.TYPE_ONE_SHOT);
-      }
-      else {
+      } else {
         this.saveState();
       }
     }
+  },
+
+  saveStateNow: function ss_saveStateNow() {
+    // Kill any queued timer and save immediately
+    if (this._saveTimer) {
+      this._saveTimer.cancel();
+      this._saveTimer = null;
+    }
+    this.saveState();
   },
 
   saveState: function ss_saveState() {
@@ -441,14 +504,16 @@ SessionStore.prototype = {
     return data;
   },
 
-  _collectTabData: function ss__collectTabData(aBrowser) {
+  _collectTabData: function ss__collectTabData(aBrowser, aHistory) {
     // If this browser is being restored, skip any session save activity
     if (aBrowser.__SS_restore)
       return;
 
-    let tabData = { entries: [{}] };
-    tabData.entries[0] = { url: aBrowser.currentURI.spec, title: aBrowser.contentTitle };
-    tabData.index = 1;
+    let aHistory = aHistory || { entries: [{ url: aBrowser.currentURI.spec, title: aBrowser.contentTitle }], index: 1 };
+
+    let tabData = {};
+    tabData.entries = aHistory.entries;
+    tabData.index = aHistory.index;
     tabData.attributes = { image: aBrowser.mIconURL };
 
     aBrowser.__SS_data = tabData;
@@ -467,8 +532,8 @@ SessionStore.prototype = {
 
     let tabs = aWindow.Browser.tabs;
     for (let i = 0; i < tabs.length; i++) {
-      if (tabs[i].browser.__SS_data) {
-        let browser = tabs[i].browser;
+      let browser = tabs[i].browser;
+      if (browser.__SS_data) {
         let tabData = browser.__SS_data;
         if (browser.__SS_extdata)
           tabData.extData = browser.__SS_extdata;
@@ -510,27 +575,6 @@ SessionStore.prototype = {
         Services.obs.notifyObservers(null, "sessionstore-state-write-complete", "");
       }
     });
-  },
-
-  _readFile: function ss_readFile(aFile) {
-    try {
-      let stream = Cc["@mozilla.org/network/file-input-stream;1"].createInstance(Ci.nsIFileInputStream);
-      stream.init(aFile, 0x01, 0, 0);
-      let cvstream = Cc["@mozilla.org/intl/converter-input-stream;1"].createInstance(Ci.nsIConverterInputStream);
-
-      let fileSize = stream.available();
-      cvstream.init(stream, "UTF-8", fileSize, Ci.nsIConverterInputStream.DEFAULT_REPLACEMENT_CHARACTER);
-
-      let data = {};
-      cvstream.readString(fileSize, data);
-      let content = data.value;
-      cvstream.close();
-
-      return content.replace(/\r\n?/g, "\n");
-    } catch (ex) {
-      Cu.reportError(ex);
-    }
-    return null;
   },
 
   _updateCrashReportURL: function ss_updateCrashReportURL(aWindow) {
@@ -589,12 +633,17 @@ SessionStore.prototype = {
     let closedTab = closedTabs.splice(aIndex, 1).shift();
 
     // create a new tab and bring to front
-    let tab = aWindow.Browser.addTab(closedTab.entries[0].url, true);
+    let tab = aWindow.Browser.addTab(closedTab.entries[closedTab.index - 1].url, true);
+
+    tab.browser.messageManager.sendAsyncMessage("WebNavigation:LoadURI", {
+      uri: closedTab.entries[closedTab.index - 1].url,
+      flags: null,
+      entries: closedTab.entries,
+      index: closedTab.index
+    });
 
     // Put back the extra data
     tab.browser.__SS_extdata = closedTab.extData;
-
-    // TODO: save and restore more data (position, field values, etc)
 
     return tab.chromeTab;
   },
@@ -622,6 +671,23 @@ SessionStore.prototype = {
 
   setTabValue: function ss_setTabValue(aTab, aKey, aStringValue) {
     let browser = aTab.linkedBrowser;
+
+    // Thumbnails are actually stored in the cache, so do the save and update the URI
+    if (aKey == "thumbnail") {
+      let file = this._sessionCache.clone();
+      file.append("thumbnail-" + browser.contentWindowId);
+      file.createUnique(Ci.nsIFile.NORMAL_FILE_TYPE, 0600);
+
+      let source = Services.io.newURI(aStringValue, "UTF8", null);
+      let target = Services.io.newFileURI(file)
+
+      let persist = Cc["@mozilla.org/embedding/browser/nsWebBrowserPersist;1"].createInstance(Ci.nsIWebBrowserPersist);
+      persist.persistFlags = Ci.nsIWebBrowserPersist.PERSIST_FLAGS_REPLACE_EXISTING_FILES | Ci.nsIWebBrowserPersist.PERSIST_FLAGS_AUTODETECT_APPLY_CONVERSION;
+      persist.saveURI(source, null, null, null, null, file);
+
+      aStringValue = target.spec;
+    }
+
     if (!browser.__SS_extdata)
       browser.__SS_extdata = {};
     browser.__SS_extdata[aKey] = aStringValue;
@@ -640,57 +706,102 @@ SessionStore.prototype = {
     return this._shouldRestore;
   },
 
-  restoreLastSession: function ss_restoreLastSession() {
+  restoreLastSession: function ss_restoreLastSession(aBringToFront) {
+    let self = this;
+    function notifyObservers(aMessage) {
+      self._clearCache();
+      Services.obs.notifyObservers(null, "sessionstore-windows-restored", aMessage || "");
+    }
+
     // The previous session data has already been renamed to the backup file
-    let dirService = Cc["@mozilla.org/file/directory_service;1"].getService(Ci.nsIProperties);
-    let session = dirService.get("ProfD", Ci.nsILocalFile);
-    session.append("sessionstore.bak");
-    if (!session.exists())
-      return;
-
-    let data = JSON.parse(this._readFile(session));
-    if (!data || data.windows.length == 0) {
-      Services.obs.notifyObservers(null, "sessionstore-windows-restored", "");
+    if (!this._sessionFileBackup.exists()) {
+      notifyObservers("fail")
       return;
     }
 
-    let window = Services.wm.getMostRecentWindow("navigator:browser");
+    try {
+      let channel = NetUtil.newChannel(this._sessionFileBackup);
+      channel.contentType = "application/json";
+      NetUtil.asyncFetch(channel, function(aStream, aResult) {
+        if (!Components.isSuccessCode(aResult)) {
+          Cu.reportError("SessionStore: Could not read from sessionstore.bak file");
+          notifyObservers("fail");
+          return;
+        }
 
-    let selected = data.windows[0].selected;
-    let tabs = data.windows[0].tabs;
-    for (let i=0; i<tabs.length; i++) {
-      let tabData = tabs[i];
+        // Read session state file into a string and let observers modify the state before it's being used
+        let state = Cc["@mozilla.org/supports-string;1"].createInstance(Ci.nsISupportsString);
+        state.data = NetUtil.readInputStreamToString(aStream, aStream.available()) || "";
+        aStream.close();
 
-      // Add a tab, but don't load the URL until we need to
-      let params = { getAttention: false, delayLoad: true };
-      if (i + 1 == selected)
-        params.delayLoad = false;
+        Services.obs.notifyObservers(state, "sessionstore-state-read", "");
 
-      // We must have selected tabs as soon as possible, so we let all tabs be selected
-      // until we get the real selected tab. Then we stop selecting tabs. The end result
-      // is that the right tab is selected, but we also don't get a bunch of errors
-      let bringToFront = (i + 1 <= selected);
-      let tab = window.Browser.addTab(tabData.entries[0].url, bringToFront, null, params);
+        let data = null;
+        try {
+          data = JSON.parse(state.data);
+        } catch (ex) {
+          Cu.reportError("SessionStore: Could not parse JSON: " + ex);
+        }
 
-      // Recreate the thumbnail if we are delay loading the tab
-      if (tabData.extData && params.delayLoad) {
-          let canvas = tab.chromeTab.thumbnail;
-          canvas.setAttribute("restored", "true");
+        if (!data || data.windows.length == 0) {
+          notifyObservers("fail");
+          return;
+        }
 
-          let image = new window.Image();
-          image.onload = function() {
-            if (canvas)
-              canvas.getContext("2d").drawImage(image, 0, 0);
-          };
-          image.src = tabData.extData.thumbnail;
-      }
+        let window = Services.wm.getMostRecentWindow("navigator:browser");
 
-      tab.browser.__SS_data = tabData;
-      tab.browser.__SS_extdata = tabData.extData;
-      tab.browser.__SS_restore = params.delayLoad;
+        let tabs = data.windows[0].tabs;
+        let selected = data.windows[0].selected;
+        if (selected > tabs.length) // Clamp the selected index if it's bogus
+          selected = 1;
+
+        for (let i=0; i<tabs.length; i++) {
+          let tabData = tabs[i];
+
+          // Add a tab, but don't load the URL until we need to
+          let params = { getAttention: false, delayLoad: true };
+
+          // We must have selected tabs as soon as possible, so we let all tabs be selected
+          // until we get the real selected tab. Then we stop selecting tabs. The end result
+          // is that the right tab is selected, but we also don't get a bunch of errors
+          let bringToFront = (i + 1 <= selected) && aBringToFront;
+          let tab = window.Browser.addTab(tabData.entries[tabData.index - 1].url, bringToFront, null, params);
+
+          // Start a real load for the selected tab
+          if (i + 1 == selected) {
+            let json = {
+              uri: tabData.entries[tabData.index - 1].url,
+              flags: null,
+              entries: tabData.entries,
+              index: tabData.index
+            };
+            tab.browser.messageManager.sendAsyncMessage("WebNavigation:LoadURI", json);
+          } else {
+            // Make sure the browser has its session data for the delay reload
+            tab.browser.__SS_data = tabData;
+            tab.browser.__SS_restore = true;
+
+            // Recreate the thumbnail if we are delay loading the tab
+            let canvas = tab.chromeTab.thumbnail;
+            canvas.setAttribute("restored", "true");
+  
+            let image = new window.Image();
+            image.onload = function() {
+              if (canvas)
+                canvas.getContext("2d").drawImage(image, 0, 0);
+            };
+            image.src = tabData.extData.thumbnail;
+          }
+
+          tab.browser.__SS_extdata = tabData.extData;
+        }
+    
+        notifyObservers();
+      });
+    } catch (ex) {
+      Cu.reportError("SessionStore: Could not read from sessionstore.bak file: " + ex);
+      notifyObservers("fail");
     }
-
-    Services.obs.notifyObservers(null, "sessionstore-windows-restored", "");
   }
 };
 

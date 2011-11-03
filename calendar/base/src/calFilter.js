@@ -19,6 +19,7 @@
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
+ *   Matthew Mecca <matthew.mecca@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -81,6 +82,7 @@ calFilter.prototype = {
     mEndDate: null,
     mTextFilterField: null,
     mPropertyFilter: filterAll,
+    mSelectedDate: null,
 
     // a number of prefined Filters for properties
     mPropertyFilterBag: { 
@@ -105,6 +107,16 @@ calFilter.prototype = {
         },
         repeating: function cF_filterRepeating(item) {
             return (item.recurrenceInfo != null);
+        },
+        throughcurrent: function cF_filterThroughCurrent(item) {
+            if (!item.completedDate) {
+                return true;
+            }
+            // filter out tasks completed earlier than today
+            let today = cal.now();
+            today.isDate = true;
+
+            return (today.compare(item.completedDate) <= 0);
         }
     },
 
@@ -122,7 +134,7 @@ calFilter.prototype = {
 
     set endDate(aEndDate) {
         return (this.mEndDate = aEndDate);
-    },    
+    },
 
     set textFilterField(aId) {
         return (this.mTextFilterField = aId);
@@ -130,6 +142,14 @@ calFilter.prototype = {
 
     get textFilterField() {
         return this.mTextFilterField;
+    },
+
+    get selectedDate() {
+        return this.mSelectedDate;
+    },
+
+    set selectedDate(aSelectedDate) {
+        return (this.mSelectedDate = aSelectedDate);
     },
 
     // checks if the item contains the text of mTextFilterField
@@ -176,7 +196,7 @@ calFilter.prototype = {
 
     // set's the startDate and the endDate by using getDatesForFilter 
     setDateFilter: function cF_setDateFilter(aFilter) {
-      var [startDate, endDate] = getDatesForFilter(aFilter);
+      var [startDate, endDate] = getDatesForFilter(aFilter, this.mSelectedDate);
       this.mStartDate = startDate;
       this.mEndDate = endDate;
       return [this.mStartdate, this.mEndDate];
@@ -194,17 +214,20 @@ calFilter.prototype = {
 };
 
 /**
- * @param aFilter a String describing the filter, it should met a regEx to call 
- *                duration from filter otherwise a costumized filter is called
+ * @param aFilter         a String describing the filter, it should met a regEx to call 
+ *                        duration from filter otherwise a costumized filter is called
+ * @param aSelectedDate   Optional - the selected date to use for filters that require it.
+ *                        The selected day of the current view will be used by default.
  * @return        [startDate, endDate]
  */
 
-function getDatesForFilter(aFilter) {
+function getDatesForFilter(aFilter, aSelectedDate) {
     let endDate = cal.createDateTime();
     let startDate = cal.createDateTime();
     let duration = cal.createDuration();
     let oneDay = cal.createDuration();
     oneDay.days = 1;
+    let selectedDate = aSelectedDate || currentView().selectedDay;
 
     let durFilterReg = /next|last\d+\D+$/
     if (durFilterReg.exec(aFilter)) {
@@ -244,8 +267,7 @@ function getDatesForFilter(aFilter) {
             break;
 
         case "current":
-            let selectedDate = currentView().selectedDay;
-            startDate = selectedDate.clone();
+            startDate = selectedDate ? selectedDate.clone() : cal.now();
             startDate.isDate = true;
             endDate = startDate.clone();
             endDate.addDuration(oneDay);
@@ -257,7 +279,7 @@ function getDatesForFilter(aFilter) {
         case "completed":
         case "notstarted":
             // use the later of the current date or the selected date of the current view
-            endDate = currentView().selectedDay.clone();
+            endDate = selectedDate ? selectedDate.clone() : cal.now();
             if (endDate.jsDate < cal.now().jsDate) {
                 endDate = cal.now();
             }

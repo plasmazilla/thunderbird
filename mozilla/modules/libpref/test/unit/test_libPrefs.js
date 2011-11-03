@@ -100,8 +100,7 @@ function run_test() {
   // Nonexisting user preferences
 
   do_check_eq(pb.prefHasUserValue("UserPref.nonexistent.hasUserValue"), false);
-  do_check_throws(function() {
-    pb.clearUserPref("UserPref.nonexistent.clearUserPref");},  Cr.NS_ERROR_UNEXPECTED);
+  pb.clearUserPref("UserPref.nonexistent.clearUserPref"); // shouldn't throw
   do_check_eq(pb.getPrefType("UserPref.nonexistent.getPrefType"), PREF_INVALID);
   do_check_eq(pb.root, "");
 
@@ -360,6 +359,8 @@ function run_test() {
 
   // loading our former savePrefFile should allow us to read former prefs
   ps.readUserPrefs(savePrefFile);
+  // cleanup the file now we don't need it
+  savePrefFile.remove(false);
   do_check_eq(ps.getBoolPref("ReadPref.bool"), true);
   do_check_eq(ps.getIntPref("ReadPref.int"), 230);
   do_check_eq(ps.getCharPref("ReadPref.char"), "hello");

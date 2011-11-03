@@ -65,7 +65,7 @@
     <modevbox id="today-pane-panel"
               mode="mail,calendar,task" modewidths="200,200,200" modesplitterstates="open,open,open"
               refcontrol="calendar_toggle_todaypane_command"
-              broadcaster="modeBroadcaster" persist="modewidths modesplitterstates">
+              broadcaster="modeBroadcaster" persist="modewidths">
       <sidebarheader align="center">
         <label id ="today-pane-header"/>
         <spacer flex="1"/>
@@ -179,7 +179,7 @@
                     <toolbarbutton id="miniday-dropdown-button"
                                    tooltiptext="&showselectedday.tooltip;"
                                    type="menu">
-                      <panel id="miniday-month-panel" position="after_start">
+                      <panel id="miniday-month-panel" position="after_end">
                         <minimonth id="todayMinimonth"
                                    flex="1"
                                    onchange="TodayPane.setDaywithjsDate(this.value);

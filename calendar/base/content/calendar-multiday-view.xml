@@ -1347,6 +1347,31 @@
         ]]></body>
       </method>
 
+      <method name="onEventSweepKeypress">
+        <parameter name="event"/>
+        <body><![CDATA[
+          let col = document.calendarEventColumnDragging;
+          if (col && event.keyCode == event.DOM_VK_ESCAPE) {
+              window.removeEventListener("mousemove", col.onEventSweepMouseMove, false);
+              window.removeEventListener("mouseup", col.onEventSweepMouseUp, false);
+              window.removeEventListener("keypress", col.onEventSweepKeypress, false);
+
+              let lateralColumns = col.firstLastShadowColumns();
+              let column = lateralColumns.firstCol;
+              let index = lateralColumns.firstIndex;
+              while (column && index < col.mDragState.shadows) {
+                  column.fgboxes.dragbox.removeAttribute("dragging");
+                  column.fgboxes.box.removeAttribute("dragging");
+                  column = column.nextSibling;
+                  index++;
+              }
+
+              col.mDragState = null;
+              document.calendarEventColumnDragging = null;
+          }
+        ]]></body>
+      </method>
+
       <!--
          - Event sweep handlers
         -->
@@ -1376,6 +1401,7 @@
 
               window.removeEventListener("mousemove", col.onEventSweepMouseMove, false);
               window.removeEventListener("mouseup", col.onEventSweepMouseUp, false);
+              window.removeEventListener("keypress", col.onEventSweepKeypress, false);
               document.calendarEventColumnDragging = null;
               col.mDragState = null;
 
@@ -1544,6 +1570,7 @@
 
           window.removeEventListener("mousemove", col.onEventSweepMouseMove, false);
           window.removeEventListener("mouseup", col.onEventSweepMouseUp, false);
+          window.removeEventListener("keypress", col.onEventSweepKeypress, false);
 
           document.calendarEventColumnDragging = null;
 
@@ -1588,8 +1615,8 @@
               // tweaking. We could just do this for every event but
               // getInTimezone is slow, so it's much better to only do this
               // when the timezones actually differ from the view's.
-              if (this.mTimezone != newStart.timezone ||
-                  this.mTimezone != newEnd.timezone) {
+              if (col.mTimezone != newStart.timezone ||
+                  col.mTimezone != newEnd.timezone) {
                   startTZ = newStart.timezone;
                   endTZ = newEnd.timezone;
                   newStart = newStart.getInTimezone(col.calendarView.mTimezone);
@@ -1705,7 +1732,8 @@
               dragOccurrence: aOccurrence,
               mouseOffset: 0,
               offset: null,
-              shadows: null
+              shadows: null,
+              limitStartMin: null
           };
 
           // snap interval: 15 minutes or 1 minute if modifier key is pressed
@@ -1817,6 +1845,7 @@
 
           window.addEventListener("mousemove", this.onEventSweepMouseMove, false);
           window.addEventListener("mouseup", this.onEventSweepMouseUp, false);
+          window.addEventListener("keypress", this.onEventSweepKeypress, false);
         ]]></body>
       </method>
 
@@ -1933,9 +1962,9 @@
         this.calendarView.selectedDay = this.mDate;
 
         // If the selected calendar is readOnly, we don't want any sweeping.
-        let cal = getSelectedCalendar();
-        if (!isCalendarWritable(cal) ||
-            cal.getProperty("capabilities.events.supported") === false) {
+        let calendar = getSelectedCalendar();
+        if (!isCalendarWritable(calendar) ||
+            calendar.getProperty("capabilities.events.supported") === false) {
             return;
         }
 
@@ -1949,7 +1978,8 @@
             dragType: "new",
             mouseOffset: 0,
             offset: null,
-            shadows: null
+            shadows: null,
+            limitStartMin: null
         };
 
         // snap interval: 15 minutes or 1 minute if modifier key is pressed
@@ -1965,7 +1995,7 @@
             this.fgboxes.dragspacer.setAttribute("height", this.mDragState.origMin * this.mPixPerMin);
         } else {
             this.mDragState.origLoc = event.screenX;
-            this.mDragState.origMin = Math.floor((event.screenY - this.parentNode.boxObject.screenY)/interval) * snapIntMin;
+            this.mDragState.origMin = Math.floor((event.screenX - this.parentNode.boxObject.screenX)/interval) * snapIntMin;
             this.fgboxes.dragspacer.setAttribute("width", this.mDragState.origMin * this.mPixPerMin);
         }
 
@@ -1973,9 +2003,8 @@
 
         window.addEventListener("mousemove", this.onEventSweepMouseMove, false);
         window.addEventListener("mouseup", this.onEventSweepMouseUp, false);
+        window.addEventListener("keypress", this.onEventSweepKeypress, false);
       ]]></handler>
-
-
     </handlers>
   </binding>
 
@@ -2065,7 +2094,7 @@
       <method name="selectOccurrence">
         <parameter name="aItem"/>
         <body><![CDATA[
-          for each (itemBox in this.mItemBoxes) {
+          for each (let itemBox in this.mItemBoxes) {
             if (aItem && (itemBox.occurrence.hashId == aItem.hashId)) {
               itemBox.selected = true;
             }
@@ -2396,14 +2425,14 @@
     <implementation implements="calICalendarView">
       <constructor><![CDATA[
         // get day start/end hour from prefs and set on the view
-        this.setDayStartEndMinutes(getPrefSafe("calendar.view.daystarthour", 8) * 60,
-                                   getPrefSafe("calendar.view.dayendhour", 17) * 60);
+        this.setDayStartEndMinutes(cal.getPrefSafe("calendar.view.daystarthour", 8) * 60,
+                                   cal.getPrefSafe("calendar.view.dayendhour", 17) * 60);
 
         // initially scroll to the day start hour in the view
         this.scrollToMinute(this.mDayStartMin);
 
         // get visible hours from prefs and set on the view
-        let visibleMinutes = getPrefSafe("calendar.view.visiblehours", 9) * 60;
+        let visibleMinutes = cal.getPrefSafe("calendar.view.visiblehours", 9) * 60;
         this.setVisibleMinutes(visibleMinutes);
 
         var self = this;
@@ -2492,7 +2521,6 @@
       <field name="mDateList">null</field>
       <!-- array of { date: calIDatetime, column: colbox, header: hdrbox }  -->
       <field name="mDateColumns">null</field>
-      <field name="mBatchCount">0</field>
       <field name="mPixPerMin">0.6</field>
       <field name="mMinPixelsPerMinute">0.1</field>
       <field name="mSelectedDayCol">null</field>
@@ -2508,8 +2536,8 @@
         <parameter name="aAlarmItem"/>
         <parameter name="aStop"/>
         <body><![CDATA[
-          var showIndicator = getPrefSafe("calendar.alarms.indicator.show", true);
-          var totaltime = getPrefSafe("calendar.alarms.indicator.totaltime", 3600);
+          var showIndicator = cal.getPrefSafe("calendar.alarms.indicator.show", true);
+          var totaltime = cal.getPrefSafe("calendar.alarms.indicator.totaltime", 3600);
 
           if (!aStop && (!showIndicator || totaltime < 1)) {
             // No need to animate if the indicator should not be shown.
@@ -3204,7 +3232,7 @@
 
           // fix pixels-per-minute
           this.onResize();
-          for each (col in this.mDateColumns) {
+          for each (let col in this.mDateColumns) {
                col.column.endLayoutBatchChange();
           }
 
@@ -3419,15 +3447,13 @@
       <method name="deleteItemsFromCalendar">
         <parameter name="aCalendar"/>
         <body><![CDATA[
-          let deleteHash = {};
           for each (let col in this.mDateColumns) {
               // get all-day events in column header and events within the column
               let colEvents = [ box.occurrence for each (box in col.header.mItemBoxes) ]
                               .concat([ info.event for each (info in col.column.mEventInfos) ]);
 
               for each (let event in colEvents) {
-                  if (!(event.hashId in deleteHash) && event.calendar.id == aCalendar.id) {
-                      deleteHash[event.hashId] = true;
+                  if (event.calendar.id == aCalendar.id) {
                       this.doDeleteItem(event);
                   }
               }
@@ -3548,7 +3574,7 @@
       <method name="zoomIn">
         <parameter name="aLevel"/>
         <body><![CDATA[
-          let visibleHours = getPrefSafe("calendar.view.visiblehours", 9);
+          let visibleHours = cal.getPrefSafe("calendar.view.visiblehours", 9);
           visibleHours += (aLevel || 1);
 
           cal.setPref("calendar.view.visiblehours", Math.min(visibleHours, 24));
@@ -3557,7 +3583,7 @@
       <method name="zoomOut">
         <parameter name="aLevel"/>
         <body><![CDATA[
-          let visibleHours = getPrefSafe("calendar.view.visiblehours", 9);
+          let visibleHours = cal.getPrefSafe("calendar.view.visiblehours", 9);
           visibleHours -= (aLevel || 1);
 
           cal.setPref("calendar.view.visiblehours", Math.max(1, visibleHours));

@@ -54,48 +54,19 @@
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 function nsContextMenu(aXulMenu, aBrowser) {
-  this.target            = null;
-  this.browser           = null;
-  this.menu              = null;
-  this.popupURL          = null;
-  this.onTextInput       = false;
-  this.onKeywordField    = false;
-  this.onImage           = false;
-  this.onLoadedImage     = false;
-  this.onCanvas          = false;
-  this.onVideo           = false;
-  this.onAudio           = false;
-  this.onLink            = false;
-  this.onMailtoLink      = false;
-  this.onSaveableLink    = false;
-  this.onMetaDataItem    = false;
-  this.onMathML          = false;
-  this.link              = false;
-  this.linkURL           = "";
-  this.linkURI           = null;
-  this.linkProtocol      = null;
-  this.inFrame           = false;
-  this.hasBGImage        = false;
-  this.isTextSelected    = false;
-  this.isContentSelected = false;
-  this.inDirList         = false;
-  this.shouldDisplay     = true;
-  this.autoDownload      = false;
-
-  // Initialize new menu.
-  this.initMenu(aXulMenu, aBrowser);
+  this.shouldDisplay = true;
+  this.initMenu();
 }
 
 // Prototype for nsContextMenu "class."
 nsContextMenu.prototype = {
-  // Initialize context menu.
-  initMenu: function(aPopup, aBrowser) {
-    this.menu = aPopup;
-    this.browser = aBrowser;
-
+  initMenu: function() {
     // Get contextual info.
     this.setTarget(document.popupNode, document.popupRangeParent,
                    document.popupRangeOffset);
+
+    if (!this.shouldDisplay)
+      return;
 
     this.isTextSelected = this.isTextSelection();
     this.isContentSelected = this.isContentSelection();
@@ -238,6 +209,36 @@ nsContextMenu.prototype = {
     this.showItem("context-viewbgimage", showView && !this.onStandaloneImage);
     this.showItem("context-sep-viewbgimage", showView && !this.onStandaloneImage);
     this.setItemAttr("context-viewbgimage", "disabled", this.hasBGImage ? null : "true");
+
+    // Hide Block and Unblock menuitems.
+    this.showItem("context-blockimage", false);
+    this.showItem("context-unblockimage", false);
+
+    // Block image depends on whether an image was clicked on.
+    if (this.onImage) {
+      var uri = Services.io.newURI(this.mediaURL, null, null);
+      if (uri instanceof Components.interfaces.nsIURL && uri.host) {
+        var serverLabel = uri.host;
+        // Limit length to max 15 characters.
+        serverLabel = serverLabel.replace(/^www\./i, "");
+        if (serverLabel.length > 15)
+          serverLabel = serverLabel.substr(0, 15) + this.ellipsis;
+
+        // Set label and accesskey for appropriate action and unhide menuitem.
+        var id = "context-blockimage";
+        var attr = "blockImage";
+        if (Services.perms.testPermission(uri, "image") == Services.perms.DENY_ACTION) {
+          id = "context-unblockimage";
+          attr = "unblockImage";
+        }
+        const bundle = document.getElementById("contentAreaCommandsBundle");
+        this.setItemAttr(id, "label",
+                         bundle.getFormattedString(attr, [serverLabel]));
+        this.setItemAttr(id, "accesskey",
+                         bundle.getString(attr + ".accesskey"));
+        this.showItem(id, true);
+      }
+    }
   },
 
   initMiscItems: function() {
@@ -289,10 +290,9 @@ nsContextMenu.prototype = {
     // suggestion list
     this.showItem("spell-add-separator", onMisspelling);
     this.showItem("spell-suggestions-separator", onMisspelling);
-    var menu = document.getElementById("contentAreaContextMenu");
-    if (onMisspelling && menu) {
+    if (onMisspelling) {
       var suggestionsSeparator = document.getElementById("spell-add-separator");
-      var numsug = InlineSpellCheckerUI.addSuggestionsToMenu(menu, suggestionsSeparator, 5);
+      var numsug = InlineSpellCheckerUI.addSuggestionsToMenu(suggestionsSeparator.parentNode, suggestionsSeparator, 5);
       this.showItem("spell-no-suggestions", numsug == 0);
     } else {
       this.showItem("spell-no-suggestions", false);
@@ -397,10 +397,6 @@ nsContextMenu.prototype = {
   // Set various context menu attributes based on the state of the world.
   setTarget: function(aNode, aRangeParent, aRangeOffset) {
     const xulNS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
-    if (aNode.namespaceURI == xulNS) {
-      this.shouldDisplay = false;
-      return;
-    }
 
     // Initialize contextual info.
     this.onImage               = false;
@@ -414,6 +410,10 @@ nsContextMenu.prototype = {
     this.onKeywordField        = false;
     this.mediaURL              = "";
     this.onLink                = false;
+    this.onMailtoLink          = false;
+    this.onSaveableLink        = false;
+    this.inDirList             = false;
+    this.link                  = null;
     this.linkURL               = "";
     this.linkURI               = null;
     this.linkProtocol          = "";
@@ -421,14 +421,14 @@ nsContextMenu.prototype = {
     this.inFrame               = false;
     this.hasBGImage            = false;
     this.bgImageURL            = "";
+    this.popupURL              = null;
+    this.autoDownload          = false;
+    this.isTextSelected        = false;
+    this.isContentSelected     = false;
     this.possibleSpellChecking = false;
 
     // Remember the node that was clicked.
     this.target = aNode;
-
-    this.autoDownload = Components.classes["@mozilla.org/preferences-service;1"]
-                                  .getService(Components.interfaces.nsIPrefBranch)
-                                  .getBoolPref("browser.download.useDownloadDir");
 
     // Clear any old spellchecking items from the menu, this used to
     // be in the menu hiding code but wasn't getting called in all
@@ -440,13 +440,24 @@ nsContextMenu.prototype = {
 
     InlineSpellCheckerUI.uninit();
 
+    if (aNode.namespaceURI == xulNS || this.isTargetAFormControl(aNode)) {
+      this.shouldDisplay = false;
+      return;
+    }
+
+    this.autoDownload = Components.classes["@mozilla.org/preferences-service;1"]
+                                  .getService(Components.interfaces.nsIPrefBranch)
+                                  .getBoolPref("browser.download.useDownloadDir");
+
     // if the document is editable, show context menu like in text inputs
     var win = this.target.ownerDocument.defaultView;
     if (win) {
-      var editingSession = win.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-                              .getInterface(Components.interfaces.nsIWebNavigation)
-                              .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-                              .getInterface(Components.interfaces.nsIEditingSession);
+      var webNav = win.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+                      .getInterface(Components.interfaces.nsIWebNavigation);
+      this.browser = webNav.QueryInterface(Components.interfaces.nsIDocShell)
+                           .chromeEventHandler;
+      var editingSession = webNav.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
+                                 .getInterface(Components.interfaces.nsIEditingSession);
       if (editingSession.windowIsEditable(win) && this.isTargetEditable()) {
         this.onTextInput           = true;
         this.possibleSpellChecking = true;
@@ -510,7 +521,7 @@ nsContextMenu.prototype = {
           var computedURL = this.getComputedURL(bodyElt, "background-image");
           if (computedURL) {
             this.hasBGImage = true;
-            this.bgImageURL = this.makeURLAbsolute(bodyElt.baseURI, computedURL);
+            this.bgImageURL = makeURLAbsolute(bodyElt.baseURI, computedURL);
           }
         }
       }
@@ -620,7 +631,7 @@ nsContextMenu.prototype = {
           var bgImgUrl = this.getComputedURL(elem, "background-image");
           if (bgImgUrl) {
             this.hasBGImage = true;
-            this.bgImageURL = this.makeURLAbsolute(elem.baseURI, bgImgUrl);
+            this.bgImageURL = makeURLAbsolute(elem.baseURI, bgImgUrl);
           }
         }
       }
@@ -652,13 +663,7 @@ nsContextMenu.prototype = {
       }
       if (show) {
         // initialize popupURL
-        const IOS = Components.classes["@mozilla.org/network/io-service;1"]
-                    .getService(CI.nsIIOService);
-        this.popupURL = IOS.newURI(window.content.opener.location.href, null, null);
-
-        // but cancel if it's an unsuitable URL
-        const PM = Components.classes["@mozilla.org/PopupWindowManager;1"]
-                   .getService(CI.nsIPopupWindowManager);
+        this.popupURL = Services.io.newURI(window.content.opener.location.href, null, null);
       }
     } catch(e) {
     }
@@ -687,13 +692,8 @@ nsContextMenu.prototype = {
 
   // Returns true if clicked-on link targets a resource that can be saved.
   isLinkSaveable: function() {
-    // We don't do the Right Thing for news/snews yet, so turn them off
-    // until we do.
-    return this.linkProtocol && !(
-           this.linkProtocol == "mailto"     ||
-           this.linkProtocol == "javascript" ||
-           this.linkProtocol == "news"       ||
-           this.linkProtocol == "snews"      );
+    return this.linkProtocol && this.linkProtocol != "mailto" &&
+           this.linkProtocol != "javascript";
   },
 
   // Block popup windows
@@ -701,11 +701,8 @@ nsContextMenu.prototype = {
     const PM = Components.classes["@mozilla.org/PopupWindowManager;1"]
                .getService(Components.interfaces.nsIPopupWindowManager);
     PM.add(this.popupURL, false);
-    if (aAndClose) {
-      const OS = Components.classes["@mozilla.org/observer-service;1"]
-                 .getService(Components.interfaces.nsIObserverService);
-      OS.notifyObservers(window, "popup-perm-close", this.popupURL.spec);
-    }
+    if (aAndClose)
+      Services.obs.notifyObservers(window, "popup-perm-close", this.popupURL.spec);
   },
 
   // Unblock popup windows
@@ -713,6 +710,15 @@ nsContextMenu.prototype = {
     const PM = Components.classes["@mozilla.org/PopupWindowManager;1"]
                .getService(Components.interfaces.nsIPopupWindowManager);
     PM.add(this.popupURL, true);
+  },
+
+  // Block/Unblock image from loading in the future.
+  toggleImageBlocking: function(aBlock) {
+  const uri = Services.io.newURI(this.mediaURL, null, null);
+  if (aBlock)
+    Services.perms.add(uri, "image", Services.perms.DENY_ACTION);
+  else
+    Services.perms.remove(uri.host, "image");
   },
 
   // Open linked-to URL in a new window.
@@ -844,19 +850,18 @@ nsContextMenu.prototype = {
 
   setWallpaper: function() {
     // Confirm since it's annoying if you hit this accidentally.
-    var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                                  .getService(Components.interfaces.nsIPromptService);
     var navigatorBundle = document.getElementById("bundle_navigator");
     var promptTitle = navigatorBundle.getString("wallpaperConfirmTitle");
     var promptMsg = navigatorBundle.getString("wallpaperConfirmMsg");
     var promptConfirmButton = navigatorBundle.getString("wallpaperConfirmButton");
 
-    var buttonPressed = promptService.confirmEx(window, promptTitle, promptMsg,
-                                                (promptService.BUTTON_TITLE_IS_STRING * promptService.BUTTON_POS_0) +
-                                                (promptService.BUTTON_TITLE_CANCEL    * promptService.BUTTON_POS_1),
-                                                promptConfirmButton, null, null, null, {value:0});
-
-    if (buttonPressed != 0)
+    if (Services.prompt.confirmEx(window, promptTitle, promptMsg,
+                                  (Services.prompt.BUTTON_TITLE_IS_STRING *
+                                   Services.prompt.BUTTON_POS_0) +
+                                  (Services.prompt.BUTTON_TITLE_CANCEL *
+                                   Services.prompt.BUTTON_POS_1),
+                                  promptConfirmButton, null, null, null,
+                                  {value: false}) != 0)
       return;
 
     const nsIShellService = Components.interfaces.nsIShellService;
@@ -902,17 +907,13 @@ nsContextMenu.prototype = {
         // some other error occured; notify the user...
         if (!Components.isSuccessCode(aRequest.status)) {
           try {
-            const sbs = Components.classes["@mozilla.org/intl/stringbundle;1"]
-                                  .getService(Components.interfaces.nsIStringBundleService);
-            const bundle = sbs.createBundle(
+            const bundle = Services.strings.createBundle(
                     "chrome://mozapps/locale/downloads/downloads.properties");
 
             const title = bundle.GetStringFromName("downloadErrorAlertTitle");
             const msg = bundle.GetStringFromName("downloadErrorGeneric");
 
-            const promptSvc = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                                        .getService(Components.interfaces.nsIPromptService);
-            promptSvc.alert(doc.defaultView, title, msg);
+            Services.prompt.alert(doc.defaultView, title, msg);
           } catch (ex) {}
           return;
         }
@@ -968,9 +969,7 @@ nsContextMenu.prototype = {
     }
 
     // set up a channel to do the saving
-    var ioService = Components.classes["@mozilla.org/network/io-service;1"]
-                              .getService(Components.interfaces.nsIIOService);
-    var channel = ioService.newChannel(linkURL, null, null);
+    var channel = Services.io.newChannel(linkURL, null, null);
     channel.notificationCallbacks = new Callbacks();
     channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE |
                          Components.interfaces.nsIChannel.LOAD_CALL_CONTENT_SNIFFERS;
@@ -1190,7 +1189,7 @@ nsContextMenu.prototype = {
           else {
             text = getAttributeNS("http://www.w3.org/1999/xlink", "href");
             if (text && text.match(/\S/)) {
-              text = this.makeURLAbsolute(this.link.baseURI, text);
+              text = makeURLAbsolute(this.link.baseURI, text);
             }
           }
         }
@@ -1266,16 +1265,6 @@ nsContextMenu.prototype = {
     return false;
   },
 
-  // Convert relative URL to absolute, using document's <base>.
-  makeURLAbsolute: function(aBase, aUrl) {
-    // Construct nsIURL.
-    var ioService = Components.classes["@mozilla.org/network/io-service;1"]
-                              .getService(Components.interfaces.nsIIOService);
-    var baseURI  = ioService.newURI(aBase, null, null);
-
-    return ioService.newURI(baseURI.resolve(aUrl), null, null).spec;
-  },
-
   toString: function() {
     return "contextMenu.target     = " + this.target + "\n" +
            "contextMenu.onImage    = " + this.onImage + "\n" +
@@ -1286,6 +1275,7 @@ nsContextMenu.prototype = {
   },
 
   // Returns true if aNode is a form control (except text boxes and images).
+  // This is used to disable the context menu for form controls.
   isTargetAFormControl: function(aNode) {
     if (aNode instanceof HTMLInputElement)
       return (!aNode.mozIsTextField(false) && aNode.type != "image");
@@ -1329,16 +1319,6 @@ nsContextMenu.prototype = {
       }
     }
     return false;
-  },
-
-  addDictionaries: function() {
-    try {
-      var formatter = Components.classes["@mozilla.org/toolkit/URLFormatterService;1"]
-                                .getService(Components.interfaces.nsIURLFormatter);
-      var url = formatter.formatURLPref("spellchecker.dictionaries.download.url");
-      window.openDialog(getBrowserURL(), "_blank", "chrome,all,dialog=no", url);
-    }
-    catch (ex) {}
   },
 
   mediaCommand: function(aCommand) {

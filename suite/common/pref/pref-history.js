@@ -43,16 +43,11 @@ function Startup()
   try {
     var isBtnDisabled = lastUrlPref.locked;
     if (!isBtnDisabled && !lastUrlPref.hasUserValue) {
-      var file = Components.classes["@mozilla.org/file/directory_service;1"]
-                           .getService(Components.interfaces.nsIProperties)
-                           .get("ProfD", Components.interfaces.nsIFile);
-      file.append("urlbarhistory.sqlite");
+      var file = GetUrlbarHistoryFile();
       if (!file.exists())
         isBtnDisabled = true;
       else {
-        var connection = Components.classes["@mozilla.org/storage/service;1"]
-                                   .getService(Components.interfaces.mozIStorageService)
-                                   .openDatabase(file);
+        var connection = Services.storage.openDatabase(file);
         isBtnDisabled = !connection.tableExists("urlbarhistory");
         connection.close();
       }
@@ -79,10 +74,7 @@ function prefClearGlobalHistory()
 function prefClearUrlbarHistory()
 {
   document.getElementById("general.open_location.last_url").valueFromPreferences = "";
-  var file = Components.classes["@mozilla.org/file/directory_service;1"]
-                       .getService(Components.interfaces.nsIProperties)
-                       .get("ProfD", Components.interfaces.nsIFile);
-  file.append("urlbarhistory.sqlite");
+  var file = GetUrlbarHistoryFile();
   if (file.exists())
     file.remove(false);
 }

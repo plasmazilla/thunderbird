@@ -42,6 +42,7 @@ Components.utils.import("resource://gre/modules/AddonManager.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://calendar/modules/calIteratorUtils.jsm");
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 var g_stringBundle = null;
 
@@ -55,6 +56,12 @@ function calIntrinsicTimezone(tzid, component, latitude, longitude) {
     this.longitude = longitude;
 }
 calIntrinsicTimezone.prototype = {
+    QueryInterface: function QueryInterface(aIID) {
+        return cal.doQueryInterface(this, calIntrinsicTimezone, aIID, [
+            Components.interfaces.calITimezone,
+            Components.interfaces.nsISupports
+        ]);
+    },
     toString: function calIntrinsicTimezone_toString() {
         return (this.component ? this.component.toString() : this.tzid);
     },
@@ -62,8 +69,8 @@ calIntrinsicTimezone.prototype = {
     get icalComponent() {
         var comp = this.mComponent;
         if (comp && (typeof(comp) == "string")) {
-            this.mComponent = getIcsService().parseICS("BEGIN:VCALENDAR\r\n" + comp + "END:VCALENDAR\r\n", null)
-                                             .getFirstSubcomponent("VTIMEZONE");
+            this.mComponent = cal.getIcsService().parseICS("BEGIN:VCALENDAR\r\n" + comp + "END:VCALENDAR\r\n", null)
+                                                 .getFirstSubcomponent("VTIMEZONE");
         }
         return this.mComponent;
     },
@@ -106,26 +113,16 @@ calStringEnumerator.prototype = {
 function calTimezoneService() {
     this.wrappedJSObject = this;
 
-    // floating
-    this.floating = new calIntrinsicTimezone("floating", null, "", "");
-    this.floating.isFloating = true;
-    // UTC
-    this.UTC = new calIntrinsicTimezone("UTC", null, "", "");
-    this.UTC.isUTC = true;
-
     this.mTimezoneCache = {};
     this.mBlacklist = {};
-    this.mTimezoneCache.floating = this.floating;
-    this.mTimezoneCache.UTC = this.UTC;
-    this.mTimezoneCache.utc = this.UTC;
 }
 calTimezoneService.prototype = {
     mTimezoneCache: null,
     mBlacklist: null,
     mDefaultTimezone: null,
     mHasSetupObservers: false,
-    floating: null,
-    UTC: null,
+    mFloating: null,
+    mUTC: null,
     mDb: null,
 
 
@@ -141,7 +138,7 @@ calTimezoneService.prototype = {
     },
     classDescription: "Calendar Timezone Service",
     contractID: "@mozilla.org/calendar/timezone-service;1",
-    classID: Components.ID("{1a23ace4-a0dd-43b4-96a8-b3cd419a14a5}"),
+    classID: Components.ID("{e736f2bd-7640-4715-ab35-887dc866c587}"),
     getHelperForLanguage: function calTimezoneService_getHelperForLanguage(language) {
         return null;
     },
@@ -149,7 +146,7 @@ calTimezoneService.prototype = {
     flags: Components.interfaces.nsIClassInfo.SINGLETON,
 
     QueryInterface: function calTimezoneService_QueryInterface(aIID) {
-        return doQueryInterface(this, calTimezoneService.prototype, aIID, null, this);
+        return cal.doQueryInterface(this, calTimezoneService.prototype, aIID, null, this);
     },
 
     createStatement: function calTimezoneService_createStatement(sql) {
@@ -176,6 +173,27 @@ calTimezoneService.prototype = {
         }
 
         aCompleteListener.onResult(null, Components.results.NS_OK);
+    },
+
+    get UTC() {
+        if (!this.mUTC) {
+            this.mUTC = new calIntrinsicTimezone("UTC", null, "", "");
+            this.mUTC.isUTC = true;
+            this.mTimezoneCache.UTC = this.mUTC;
+            this.mTimezoneCache.utc = this.mUTC;
+        }
+
+        return this.mUTC;
+    },
+
+    get floating() {
+        if (!this.mFloating) {
+            this.mFloating = new calIntrinsicTimezone("floating", null, "", "");
+            this.mFloating.isFloating = true;
+            this.mTimezoneCache.floating = this.mFloating;
+        }
+
+        return this.mFloating;
     },
 
     ensureInitialized: function(aCompleteListener) {
@@ -223,7 +241,7 @@ calTimezoneService.prototype = {
                 let handler = cal.getIOService().getProtocolHandler("resource")
                                  .QueryInterface(Components.interfaces.nsIResProtocolHandler);
                 let newUriSpec;
-                try { 
+                try {
                     newUriSpec = handler.resolveURI(uri);
                 } catch (e) {
                     // Possibly the resource location is not registered, return
@@ -249,11 +267,11 @@ calTimezoneService.prototype = {
 
             return canInit;
         }
-            
+
         // First, lets try getting the file from our timezone extension
         let canInit = tryTzUri("resource://calendar-timezones/timezones.sqlite");
         let bundleURL = "chrome://calendar-timezones/locale/timezones.properties";
-                               
+
         if (!canInit) {
             // If that fails, we might have the file bundled
             canInit = tryTzUri("resource://calendar/timezones.sqlite");
@@ -267,8 +285,12 @@ calTimezoneService.prototype = {
             // Otherwise, we have to give up. Show an error and fail hard!
             let msg = cal.calGetString("calendar", "missingCalendarTimezonesError");
             cal.ERROR(msg);
-            showError(msg);
+            cal.showError(msg);
         }
+
+        // Make sure UTC and floating are cached by calling their getters
+        this.UTC;
+        this.floating;
 
         if (aCompleteListener) {
             aCompleteListener.onResult(null, Components.results.NS_OK);
@@ -278,6 +300,10 @@ calTimezoneService.prototype = {
     // calITimezoneProvider:
     getTimezone: function calTimezoneService_getTimezone(tzid) {
         this.ensureInitialized();
+        if (!tzid) {
+            cal.ERROR("Unknown timezone requested\n" + cal.STACK(10));
+            return null;
+        }
         if (tzid.indexOf("/mozilla.org/") == 0) {
             // We know that our former tzids look like "/mozilla.org/<dtstamp>/continent/..."
             // The ending of the mozilla prefix is the index of that slash before the
@@ -333,16 +359,21 @@ calTimezoneService.prototype = {
 
     get defaultTimezone() {
         if (!this.mDefaultTimezone) {
-            var prefTzid = getPrefSafe("calendar.timezone.local", null);
+            var prefTzid = cal.getPrefSafe("calendar.timezone.local", null);
             var tzid = prefTzid;
             if (!tzid) {
-                tzid = guessSystemTimezone();
+                try {
+                    tzid = guessSystemTimezone();
+                } catch (e) {
+                    cal.WARN("An exception occurred guessing the system timezone, trying UTC. Exception: " + e);
+                    tzid = "UTC";
+                }
             }
             this.mDefaultTimezone = this.getTimezone(tzid);
-            ASSERT(this.mDefaultTimezone, "Timezone not found: " + tzid);
+            cal.ASSERT(this.mDefaultTimezone, "Timezone not found: " + tzid);
             // Update prefs if necessary:
             if (this.mDefaultTimezone && this.mDefaultTimezone.tzid != prefTzid) {
-                setPref("calendar.timezone.local", this.mDefaultTimezone.tzid);
+                cal.setPref("calendar.timezone.local", this.mDefaultTimezone.tzid);
             }
 
             // We need to observe the timezone preference to update the default
@@ -525,11 +556,12 @@ function guessSystemTimezone() {
         return 0;
     }
 
-    const todayUTC = createDateTime(); todayUTC.jsDate = new Date();
+    const todayUTC = cal.createDateTime();
+    todayUTC.jsDate = new Date();
     const oneYrUTC = todayUTC.clone(); oneYrUTC.year += 1;
-    const periodStartCalDate = createDateTime();
-    const periodUntilCalDate = createDateTime(); // until timezone is UTC
-    const periodCalRule = createRecurrenceRule();
+    const periodStartCalDate = cal.createDateTime();
+    const periodUntilCalDate = cal.createDateTime(); // until timezone is UTC
+    const periodCalRule = cal.createRecurrenceRule();
     const untilRegex = /UNTIL=(\d{8}T\d{6}Z)/;
 
     function findCurrentTimePeriod(tz, subComp, standardOrDaylight,
@@ -753,7 +785,7 @@ function guessSystemTimezone() {
                 // Or maybe user turned off DST in Date/Time control panel.
                 // Will look for a better matching tz, or fallback to floating.
                 // (Match OS so alarms go off at time indicated by OS clock.)
-                WARN(calProperties.formatStringFromName(
+                cal.WARN(calProperties.formatStringFromName(
                          "WarningOSTZNoMatch", [osUserTimeZone, zoneInfoIdFromOSUserTimeZone], 2));
                 break;
             case 1: case 2:
@@ -845,7 +877,7 @@ function guessSystemTimezone() {
     try {
         switch(probableTZScore) {
         case 0:
-            WARN(calProperties.GetStringFromName("warningUsingFloatingTZNoMatch"));
+            cal.WARN(calProperties.GetStringFromName("warningUsingFloatingTZNoMatch"));
             break;
         case 1: case 2:
             var tzId = probableTZId;
@@ -860,7 +892,7 @@ function guessSystemTimezone() {
                 // score 1 means has daylight time,
                 // but transitions start on different weekday from os timezone.
                 function weekday(icsDate) {
-                    var calDate = createDateTime();
+                    var calDate = cal.createDateTime();
                     calDate.icalString = icsDate;
                     calDate.timezone = tz;
                     return calDate.jsDate.toLocaleFormat("%a");
@@ -893,7 +925,7 @@ function guessSystemTimezone() {
                               ("WarningUsingGuessedTZ",
                                [tzId, offsetString, warningDetail,
                                 probableTZSource], 4));
-            WARN(warningMsg);
+            cal.WARN(warningMsg);
             break;
         }
     } catch (ex) { // don't abort if error occurs warning user
@@ -903,3 +935,5 @@ function guessSystemTimezone() {
     // return the guessed timezone
     return probableTZId;
 }
+
+var NSGetFactory = XPCOMUtils.generateNSGetFactory([calTimezoneService]);

@@ -65,7 +65,7 @@ ifdef SOURCE_REPO
 DEFINES += -DMOZ_SOURCE_REPO="$(SOURCE_REPO)"
 endif
 
-ifneq (,$(filter OS2 WINCE WINNT,$(OS_ARCH)))
+ifneq (,$(filter OS2 WINNT,$(OS_ARCH)))
 PROGRAM = $(MOZ_APP_NAME)$(BIN_SUFFIX)
 else
 PROGRAM = $(MOZ_APP_NAME)-bin$(BIN_SUFFIX)
@@ -81,34 +81,17 @@ LOCAL_INCLUDES += \
   -I$(MOZILLA_SRCDIR)/xpcom/base \
   $(NULL)
 
-ifdef BUILD_STATIC_LIBS
-ifdef _MSC_VER
-STATIC_COMPONENTS_LINKER_PATH = -LIBPATH:$(MOZDEPTH)/staticlib
-else
-STATIC_COMPONENTS_LINKER_PATH = -L$(MOZDEPTH)/staticlib
-endif
-LIBS += $(MOZDEPTH)/toolkit/xre/$(LIB_PREFIX)xulapp_s.$(LIB_SUFFIX)
-else
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 LIBS += $(DIST)/bin/XUL
 else
 EXTRA_DSO_LIBS += xul
 endif
-endif
 
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 TK_LIBS := -framework Cocoa $(TK_LIBS)
-ifdef BUILD_STATIC_LIBS
-TK_LIBS := -framework SystemConfiguration $(TK_LIBS)
-endif
 endif
 
-ifdef MOZ_ENABLE_LIBXUL
 APP_XPCOM_LIBS = $(XPCOM_GLUE_LDOPTS)
-else
-MOZILLA_INTERNAL_API = 1
-APP_XPCOM_LIBS = $(XPCOM_LIBS)
-endif
 
 LIBS += \
 	$(STATIC_COMPONENTS_LINKER_PATH) \
@@ -117,30 +100,12 @@ LIBS += \
 	$(NSPR_LIBS) \
 	$(NULL)
 
-ifdef BUILD_STATIC_LIBS
-LIBS += \
-	$(MOZ_JS_LIBS) \
-	$(TK_LIBS) \
-	$(NULL)
-
-# Add explicit X11 dependency when building against X11 toolkits
-ifneq (,$(filter gtk gtk2 xlib,$(MOZ_WIDGET_TOOLKIT)))
-LIBS += $(XLDFLAGS) $(XLIBS)
-endif
-endif
-
 ifdef MOZ_JPROF
 LIBS += -ljprof
 endif
 
 ifdef MOZ_ENABLE_DBUS
 LIBS += $(MOZ_DBUS_GLIB_LIBS)
-endif
-
-ifndef MOZ_ENABLE_LIBXUL
-ifdef MOZ_NATIVE_HUNSPELL
-LIBS += $(MOZ_HUNSPELL_LIBS)
-endif
 endif
 
 ifndef MOZ_WINCONSOLE
@@ -159,26 +124,6 @@ ifdef _MSC_VER
 WIN32_EXE_LDFLAGS += -ENTRY:wmainCRTStartup
 endif
 
-ifdef BUILD_STATIC_LIBS
-
-ifneq (,$(filter windows cocoa gtk2, $(MOZ_WIDGET_TOOLKIT)))
-LIBS += ../shell/src/$(LIB_PREFIX)shellservice_s.$(LIB_SUFFIX)
-endif
-
-include $(topsrcdir)/config/static-config.mk
-
-EXTRA_DEPS	+= \
-	$(STATIC_EXTRA_DEPS) \
-	$(NULL)
-DEFINES		+= $(STATIC_DEFINES)
-CPPSRCS		+= $(STATIC_CPPSRCS)
-EXTRA_DSO_LIBS	+= $(STATIC_EXTRA_DSO_LIBS)
-EXTRA_LIBS	+= \
-	$(STATIC_EXTRA_LIBS) \
-	$(MOZ_HARFBUZZ_LIBS) \
-	$(NULL)
-endif
-
 # OpenGL is required by (mozilla/)content/canvas: see (mozilla/)layout/build/Makefile.in.
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 OS_LIBS += -framework OpenGL
@@ -192,25 +137,15 @@ RCFLAGS += -DMOZ_SUITE -I$(srcdir)
 else
 RCFLAGS += -DMOZ_SUITE --include-dir $(srcdir)
 endif
-ifdef BUILD_STATIC_LIBS
-OS_LIBS += $(call EXPAND_LIBNAME, msimg32 shlwapi)
-RCFLAGS += -DMOZ_STATIC_BUILD
-endif
 endif
 
 ifeq ($(OS_ARCH),BeOS)
 BEOS_PROGRAM_RESOURCE = apprunner-beos.rsrc
-ifdef BUILD_STATIC_LIBS
-OS_LIBS += -ltracker -lgame
-endif
 endif
 
 ifeq ($(OS_ARCH),OS2)
 RESFILE = splashos2.res
 RCFLAGS += -i $(MOZILLA_SRCDIR)/toolkit/xre
-ifdef BUILD_STATIC_LIBS
-RCFLAGS += -DMOZ_STATIC_BUILD -i $(DIST)/include
-endif
 RCFLAGS += -DSEAMONKEY_ICO=\"$(DIST)/branding/seamonkey.ico\"
 endif
 
@@ -222,14 +157,7 @@ ifdef MOZILLA_OFFICIAL
 DEFINES += -DMOZILLA_OFFICIAL
 endif
 
-ifdef BUILD_STATIC_LIBS
-include $(topsrcdir)/config/static-rules.mk
-endif
-
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
-ifdef BUILD_STATIC_LIBS
-LIBS	+= -lcups
-endif
 LIBS	+= -framework CoreAudio -framework AudioToolbox -framework AudioUnit -framework Carbon
 endif
 
@@ -282,13 +210,6 @@ ifeq ($(MOZ_WIDGET_TOOLKIT),photon)
 LIBS += -lphexlib
 endif
 
-ifdef WINCE
-ifdef MOZ_FASTSTART
-libs::
-	cp -f $(DIST)/bin/faststartstub.exe $(DIST)/bin/$(MOZ_APP_NAME)faststart.exe
-endif
-endif
-
 libs::
 ifeq ($(OS_ARCH),WINNT)
 	$(EXIT_ON_ERROR) \
@@ -299,6 +220,18 @@ endif
 
 libs:: blocklist.xml
 	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin
+
+ifdef ENABLE_TESTS
+# XXX This is a hack to ensure that we get the right xpcshell.ini for our tests
+# and that we can share the core mozilla-central xpcshell.ini.
+# mozilla-central does this in testing/xpcshell-tests which means that it is
+# very hard for anyone to specify anything else.
+libs::
+	$(NSINSTALL) -D $(MOZDEPTH)/_tests/xpcshell
+	cp $(MOZILLA_SRCDIR)/testing/xpcshell/xpcshell.ini $(MOZDEPTH)/_tests/xpcshell/xpcshell-core.ini
+	$(INSTALL) $(topsrcdir)/suite/test/xpcshell.ini $(MOZDEPTH)/_tests/xpcshell
+	cp $(topsrcdir)/suite/test/xpcshell.ini $(MOZDEPTH)/_tests/xpcshell/all-test-dirs.list
+endif
 
 ifdef MOZ_OMNIJAR
 # Make extensions end up as XPIs instead of flat chrome when doing omni.jar.

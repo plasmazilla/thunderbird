@@ -55,17 +55,16 @@
 #include <ctype.h>
 
 #if defined(XP_WIN)
-#  include "nsIWin32Locale.h"
+#  include "nsWin32Locale.h"
 #elif defined(XP_OS2)
 #  include "unidef.h"
 #  include "nsIOS2Locale.h"
 #elif defined(XP_MACOSX)
 #  include <Carbon/Carbon.h>
-#  include "nsIMacLocale.h"
 #elif defined(XP_UNIX)
 #  include <locale.h>
 #  include <stdlib.h>
-#  include "nsIPosixLocale.h"
+#  include "nsPosixLocale.h"
 #endif
 
 //
@@ -138,85 +137,67 @@ nsLocaleService::nsLocaleService(void)
     : mSystemLocale(0), mApplicationLocale(0)
 {
 #ifdef XP_WIN
-    nsCOMPtr<nsIWin32Locale> win32Converter = do_GetService(NS_WIN32LOCALE_CONTRACTID);
-
-    NS_ASSERTION(win32Converter, "nsLocaleService: can't get win32 converter\n");
-
     nsAutoString        xpLocale;
-    if (win32Converter) {
-        
-        nsresult result;
-        //
-        // get the system LCID
-        //
-        LCID win_lcid = GetSystemDefaultLCID();
-        if (win_lcid==0) { return;}
-            result = win32Converter->GetXPLocale(win_lcid, xpLocale);
-        if (NS_FAILED(result)) { return;}
-            result = NewLocale(xpLocale, getter_AddRefs(mSystemLocale));
-        if (NS_FAILED(result)) { return;}
+    //
+    // get the system LCID
+    //
+    LCID win_lcid = GetSystemDefaultLCID();
+    NS_ENSURE_TRUE(win_lcid, );
+    nsWin32Locale::GetXPLocale(win_lcid, xpLocale);
+    nsresult rv = NewLocale(xpLocale, getter_AddRefs(mSystemLocale));
+    NS_ENSURE_SUCCESS(rv, );
 
-        //
-        // get the application LCID
-        //
-        win_lcid = GetUserDefaultLCID();
-        if (win_lcid==0) { return;}
-            result = win32Converter->GetXPLocale(win_lcid, xpLocale);
-        if (NS_FAILED(result)) { return;}
-            result = NewLocale(xpLocale, getter_AddRefs(mApplicationLocale));
-        if (NS_FAILED(result)) { return;}
-    }
+    //
+    // get the application LCID
+    //
+    win_lcid = GetUserDefaultLCID();
+    NS_ENSURE_TRUE(win_lcid, );
+    nsWin32Locale::GetXPLocale(win_lcid, xpLocale);
+    rv = NewLocale(xpLocale, getter_AddRefs(mApplicationLocale));
+    NS_ENSURE_SUCCESS(rv, );
 #endif
 #if defined(XP_UNIX) && !defined(XP_MACOSX)
-    nsCOMPtr<nsIPosixLocale> posixConverter = do_GetService(NS_POSIXLOCALE_CONTRACTID);
-
-    nsAutoString xpLocale, platformLocale;
-    if (posixConverter) {
-        nsAutoString category, category_platform;
-        int i;
-
-        nsRefPtr<nsLocale> resultLocale(new nsLocale());
-        if ( resultLocale == NULL ) { 
-            return; 
-        }
-
+    nsRefPtr<nsLocale> resultLocale(new nsLocale());
+    NS_ENSURE_TRUE(resultLocale, );
 
 #ifdef MOZ_WIDGET_QT
-        const char* lang = QLocale::system().name().toAscii();
+    const char* lang = QLocale::system().name().toAscii();
 #else
-        // Get system configuration
-        const char* lang = getenv("LANG");
+    // Get system configuration
+    const char* lang = getenv("LANG");
 #endif
 
-        for( i = 0; i < LocaleListLength; i++ ) {
-            nsresult result;
-            // setlocale( , "") evaluates LC_* and LANG
-            char* lc_temp = setlocale(posix_locale_category[i], "");
-            CopyASCIItoUTF16(LocaleList[i], category);
-            category_platform = category;
-            category_platform.AppendLiteral("##PLATFORM");
-            if (lc_temp != nsnull) {
-                result = posixConverter->GetXPLocale(lc_temp, xpLocale);
-                CopyASCIItoUTF16(lc_temp, platformLocale);
+    nsAutoString xpLocale, platformLocale;
+    nsAutoString category, category_platform;
+    int i;
+
+    for( i = 0; i < LocaleListLength; i++ ) {
+        nsresult result;
+        // setlocale( , "") evaluates LC_* and LANG
+        char* lc_temp = setlocale(posix_locale_category[i], "");
+        CopyASCIItoUTF16(LocaleList[i], category);
+        category_platform = category;
+        category_platform.AppendLiteral("##PLATFORM");
+        if (lc_temp != nsnull) {
+            result = nsPosixLocale::GetXPLocale(lc_temp, xpLocale);
+            CopyASCIItoUTF16(lc_temp, platformLocale);
+        } else {
+            if ( lang == nsnull ) {
+                platformLocale.AssignLiteral("en_US");
+                result = nsPosixLocale::GetXPLocale("en-US", xpLocale);
             } else {
-                if ( lang == nsnull ) {
-                    platformLocale.AssignLiteral("en_US");
-                    result = posixConverter->GetXPLocale("en-US", xpLocale);
-                }
-                else {
-                    CopyASCIItoUTF16(lang, platformLocale);
-                    result = posixConverter->GetXPLocale(lang, xpLocale);
-                }
+                CopyASCIItoUTF16(lang, platformLocale);
+                result = nsPosixLocale::GetXPLocale(lang, xpLocale);
             }
-            if (NS_FAILED(result)) {
-                return;
-            }
-            resultLocale->AddCategory(category, xpLocale);
-            resultLocale->AddCategory(category_platform, platformLocale);
         }
-        mSystemLocale = do_QueryInterface(resultLocale);
-        mApplicationLocale = do_QueryInterface(resultLocale);
-    }  // if ( NS_SUCCEEDED )...
+        if (NS_FAILED(result)) {
+            return;
+        }
+        resultLocale->AddCategory(category, xpLocale);
+        resultLocale->AddCategory(category_platform, platformLocale);
+    }
+    mSystemLocale = do_QueryInterface(resultLocale);
+    mApplicationLocale = do_QueryInterface(resultLocale);
        
 #endif // XP_UNIX
 #ifdef XP_OS2

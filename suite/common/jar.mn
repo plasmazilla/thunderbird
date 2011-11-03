@@ -3,8 +3,6 @@ comm.jar:
 % override chrome://global/content/license.html chrome://communicator/content/license.html
 % override chrome://mozapps/content/profile/profileSelection.xul chrome://communicator/content/profile/profileSelection.xul
 % override chrome://mozapps/skin/places/defaultFavicon.png chrome://communicator/skin/bookmarks/bookmark-item.png
-% overlay chrome://communicator/content/contentAreaContextOverlay.xul chrome://communicator/content/permissions/imageContextOverlay.xul
-% overlay chrome://navigator/content/navigatorOverlay.xul chrome://communicator/content/permissions/permissionsNavigatorOverlay.xul
 % overlay chrome://global/content/console.xul chrome://communicator/content/consoleOverlay.xul
 % overlay chrome://global/content/viewSource.xul chrome://communicator/content/viewSourceOverlay.xul
 % overlay chrome://global/content/viewPartialSource.xul chrome://communicator/content/viewSourceOverlay.xul
@@ -151,10 +149,8 @@ comm.jar:
 *  content/communicator/history/utils.js                            (history/utils.js)
    content/communicator/permissions/cookieViewer.js                 (permissions/cookieViewer.js)
    content/communicator/permissions/cookieViewer.xul                (permissions/cookieViewer.xul)
-   content/communicator/permissions/imageContextOverlay.xul         (permissions/imageContextOverlay.xul)
    content/communicator/permissions/permissionsManager.js           (permissions/permissionsManager.js)
    content/communicator/permissions/permissionsManager.xul          (permissions/permissionsManager.xul)
-   content/communicator/permissions/permissionsNavigatorOverlay.xul (permissions/permissionsNavigatorOverlay.xul)
    content/communicator/permissions/treeUtils.js                    (permissions/treeUtils.js)
 *  content/communicator/places/browserPlacesViews.js                (places/browserPlacesViews.js)
    content/communicator/places/controller.js                        (places/controller.js)
@@ -175,7 +171,6 @@ comm.jar:
 *  content/communicator/pref/pref-applications.js                   (pref/pref-applications.js)
 *  content/communicator/pref/pref-applicationManager.js             (pref/pref-applicationManager.js)
    content/communicator/pref/pref-applicationManager.xul            (pref/pref-applicationManager.xul)
-   content/communicator/pref/overrideHandler.js                     (pref/overrideHandler.js)
    content/communicator/pref/pref-cache.js                          (pref/pref-cache.js)
    content/communicator/pref/pref-cache.xul                         (pref/pref-cache.xul)
    content/communicator/pref/pref-colors.js                         (pref/pref-colors.js)

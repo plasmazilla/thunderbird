@@ -20,10 +20,7 @@ let store = engine._store;
 // Clean up after other tests. Only necessary in XULRunner.
 store.wipe();
 
-function makeEngine() {
-  return new BookmarksEngine();
-}
-var syncTesting = new SyncTestingInfrastructure(makeEngine);
+var syncTesting = new SyncTestingInfrastructure();
 
 function newSmartBookmark(parent, uri, position, title, queryID) {
   let id = PlacesUtils.bookmarks.insertBookmark(parent, uri, position, title);
@@ -37,22 +34,22 @@ function smartBookmarkCount() {
   // We do it this way because PlacesUtils.annotations.getItemsWithAnnotation
   // doesn't work the same (or at all?) between 3.6 and 4.0.
   let out = {};
-  Svc.Annos.getItemsWithAnnotation(SMART_BOOKMARKS_ANNO, out);
+  PlacesUtils.annotations.getItemsWithAnnotation(SMART_BOOKMARKS_ANNO, out);
   return out.value;
 }
 
 function clearBookmarks() {
   _("Cleaning up existing items.");
-  Svc.Bookmark.removeFolderChildren(Svc.Bookmark.bookmarksMenuFolder);
-  Svc.Bookmark.removeFolderChildren(Svc.Bookmark.tagsFolder);
-  Svc.Bookmark.removeFolderChildren(Svc.Bookmark.toolbarFolder);
-  Svc.Bookmark.removeFolderChildren(Svc.Bookmark.unfiledBookmarksFolder);
+  PlacesUtils.bookmarks.removeFolderChildren(PlacesUtils.bookmarks.bookmarksMenuFolder);
+  PlacesUtils.bookmarks.removeFolderChildren(PlacesUtils.bookmarks.tagsFolder);
+  PlacesUtils.bookmarks.removeFolderChildren(PlacesUtils.bookmarks.toolbarFolder);
+  PlacesUtils.bookmarks.removeFolderChildren(PlacesUtils.bookmarks.unfiledBookmarksFolder);
   startCount = smartBookmarkCount();
 }
   
 // Verify that Places smart bookmarks have their annotation uploaded and
 // handled locally.
-function test_annotation_uploaded() {
+add_test(function test_annotation_uploaded() {
   let startCount = smartBookmarkCount();
   
   _("Start count is " + startCount);
@@ -78,7 +75,7 @@ function test_annotation_uploaded() {
   _("New item ID: " + mostVisitedID);
   do_check_true(!!mostVisitedID);
 
-  let annoValue = Svc.Annos.getItemAnnotation(mostVisitedID,
+  let annoValue = PlacesUtils.annotations.getItemAnnotation(mostVisitedID,
                                               SMART_BOOKMARKS_ANNO);
   _("Anno: " + annoValue);
   do_check_eq("MostVisited", annoValue);
@@ -135,11 +132,12 @@ function test_annotation_uploaded() {
     
     // "Clear" by changing attributes: if we delete it, apparently it sticks
     // around as a deleted record...
-    Svc.Bookmark.setItemGUID(mostVisitedID, "abcdefabcdef");
-    Svc.Bookmark.setItemTitle(mostVisitedID, "Not Most Visited");
-    Svc.Bookmark.changeBookmarkURI(mostVisitedID,
-                                   Utils.makeURI("http://something/else"));
-    Svc.Annos.removeItemAnnotation(mostVisitedID, SMART_BOOKMARKS_ANNO);
+    PlacesUtils.bookmarks.setItemGUID(mostVisitedID, "abcdefabcdef");
+    PlacesUtils.bookmarks.setItemTitle(mostVisitedID, "Not Most Visited");
+    PlacesUtils.bookmarks.changeBookmarkURI(
+      mostVisitedID, Utils.makeURI("http://something/else"));
+    PlacesUtils.annotations.removeItemAnnotation(mostVisitedID,
+                                                 SMART_BOOKMARKS_ANNO);
     store.wipe();
     engine.resetClient();
     do_check_eq(smartBookmarkCount(), startCount);
@@ -153,29 +151,30 @@ function test_annotation_uploaded() {
 
     _("Find by GUID and verify that it's annotated.");
     let newID = store.idForGUID(serverGUID);
-    let newAnnoValue = Svc.Annos.getItemAnnotation(newID, SMART_BOOKMARKS_ANNO);
+    let newAnnoValue = PlacesUtils.annotations.getItemAnnotation(
+      newID, SMART_BOOKMARKS_ANNO);
     do_check_eq(newAnnoValue, "MostVisited");
-    do_check_eq(Svc.Bookmark.getBookmarkURI(newID).spec, uri.spec);
+    do_check_eq(PlacesUtils.bookmarks.getBookmarkURI(newID).spec, uri.spec);
     
     _("Test updating.");
     let newRecord = store.createRecord(serverGUID);
     do_check_eq(newRecord.queryId, newAnnoValue);
     newRecord.queryId = "LeastVisited";
     store.update(newRecord);
-    do_check_eq("LeastVisited",
-                Svc.Annos.getItemAnnotation(newID, SMART_BOOKMARKS_ANNO));
+    do_check_eq("LeastVisited", PlacesUtils.annotations.getItemAnnotation(
+      newID, SMART_BOOKMARKS_ANNO));
     
 
   } finally {
     // Clean up.
     store.wipe();
-    server.stop(do_test_finished);
     Svc.Prefs.resetBranch("");
     Records.clearCache();
+    server.stop(run_next_test);
   }
-}
+});
 
-function test_smart_bookmarks_duped() {
+add_test(function test_smart_bookmarks_duped() {
   let parent = PlacesUtils.toolbarFolderId;
   let uri =
     Utils.makeURI("place:redirectsMode=" +
@@ -206,12 +205,13 @@ function test_smart_bookmarks_duped() {
   try {
     engine._syncStartup();
     
-    _("Verify that lazyMap uses the anno, discovering a dupe regardless of URI.");
-    do_check_eq(mostVisitedGUID, engine._lazyMap(record));
+    _("Verify that mapDupe uses the anno, discovering a dupe regardless of URI.");
+    do_check_eq(mostVisitedGUID, engine._mapDupe(record));
     
     record.bmkUri = "http://foo/";
-    do_check_eq(mostVisitedGUID, engine._lazyMap(record));
-    do_check_neq(Svc.Bookmark.getBookmarkURI(mostVisitedID).spec, record.bmkUri);
+    do_check_eq(mostVisitedGUID, engine._mapDupe(record));
+    do_check_neq(PlacesUtils.bookmarks.getBookmarkURI(mostVisitedID).spec,
+                 record.bmkUri);
     
     _("Verify that different annos don't dupe.");
     let other = new BookmarkQuery("bookmarks", "abcdefabcdef");
@@ -224,7 +224,7 @@ function test_smart_bookmarks_duped() {
     _("Handle records without a queryId entry.");
     record.bmkUri = uri;
     delete record.queryId;
-    do_check_eq(mostVisitedGUID, engine._lazyMap(record));
+    do_check_eq(mostVisitedGUID, engine._mapDupe(record));
     
     engine._syncFinish();
 
@@ -235,14 +235,13 @@ function test_smart_bookmarks_duped() {
     Svc.Prefs.resetBranch("");
     Records.clearCache();
   }
-}
+});
 
 function run_test() {
   initTestLogging("Trace");
-  Log4Moz.repository.getLogger("Engine.Bookmarks").level = Log4Moz.Level.Trace;
+  Log4Moz.repository.getLogger("Sync.Engine.Bookmarks").level = Log4Moz.Level.Trace;
 
-  CollectionKeys.generateNewKeys();
+  generateNewKeys();
 
-  test_annotation_uploaded();
-  test_smart_bookmarks_duped();
+  run_next_test();
 }

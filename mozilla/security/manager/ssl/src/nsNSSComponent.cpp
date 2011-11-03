@@ -74,10 +74,8 @@
 #include "nsDateTimeFormatCID.h"
 #include "nsIDOMEvent.h"
 #include "nsIDOMDocument.h"
-#include "nsIDOMDocumentEvent.h"
 #include "nsIDOMWindow.h"
 #include "nsIDOMWindowCollection.h"
-#include "nsIDOMWindowInternal.h"
 #include "nsIDOMSmartCardEvent.h"
 #include "nsIDOMCrypto.h"
 #include "nsThreadUtils.h"
@@ -93,7 +91,6 @@
 #include "nsReadableUtils.h"
 #include "nsIDateTimeFormat.h"
 #include "prtypes.h"
-#include "nsTime.h"
 #include "nsIEntropyCollector.h"
 #include "nsIBufEntropyCollector.h"
 #include "nsIServiceManager.h"
@@ -117,6 +114,7 @@
 #include "base64.h"
 #include "secerr.h"
 #include "sslerr.h"
+#include "cert.h"
 
 #include "nsXULAppAPI.h"
 
@@ -139,6 +137,7 @@ PRLogModuleInfo* gPIPNSSLog = nsnull;
 
 static NS_DEFINE_CID(kNSSComponentCID, NS_NSSCOMPONENT_CID);
 int nsNSSComponent::mInstanceCount = 0;
+PRBool nsNSSComponent::globalConstFlagUsePKIXVerification = PR_FALSE;
 
 // XXX tmp callback for slot password
 extern char * PR_CALLBACK 
@@ -146,7 +145,6 @@ pk11PasswordPrompt(PK11SlotInfo *slot, PRBool retry, void *arg);
 
 #define PIPNSS_STRBUNDLE_URL "chrome://pipnss/locale/pipnss.properties"
 #define NSSERR_STRBUNDLE_URL "chrome://pipnss/locale/nsserrors.properties"
-
 
 static PLHashNumber PR_CALLBACK certHashtable_keyHash(const void *key)
 {
@@ -392,7 +390,8 @@ nsNSSComponent::nsNSSComponent()
   mIsNetworkDown = PR_FALSE;
 }
 
-nsNSSComponent::~nsNSSComponent()
+void 
+nsNSSComponent::deleteBackgroundThreads()
 {
   if (mSSLThread)
   {
@@ -400,15 +399,42 @@ nsNSSComponent::~nsNSSComponent()
     delete mSSLThread;
     mSSLThread = nsnull;
   }
-  
   if (mCertVerificationThread)
   {
     mCertVerificationThread->requestExit();
     delete mCertVerificationThread;
     mCertVerificationThread = nsnull;
   }
+}
 
+void
+nsNSSComponent::createBackgroundThreads()
+{
+  NS_ASSERTION(mSSLThread == nsnull, "SSL thread already created.");
+  NS_ASSERTION(mCertVerificationThread == nsnull,
+               "Cert verification thread already created.");
+
+  mSSLThread = new nsSSLThread;
+  nsresult rv = mSSLThread->startThread();
+  if (NS_FAILED(rv)) {
+    delete mSSLThread;
+    mSSLThread = nsnull;
+    return;
+  }
+
+  mCertVerificationThread = new nsCertVerificationThread;
+  rv = mCertVerificationThread->startThread();
+  if (NS_FAILED(rv)) {
+    delete mCertVerificationThread;
+    mCertVerificationThread = nsnull;
+  }
+}
+
+nsNSSComponent::~nsNSSComponent()
+{
   PR_LOG(gPIPNSSLog, PR_LOG_DEBUG, ("nsNSSComponent::dtor\n"));
+
+  deleteBackgroundThreads();
 
   if (mUpdateTimerInitialized) {
     {
@@ -520,13 +546,13 @@ nsNSSComponent::DispatchEventToWindow(nsIDOMWindow *domWin,
   // NOTE: it's not an error to say that we aren't going to dispatch
   // the event.
   {
-    nsCOMPtr<nsIDOMWindowInternal> intWindow = do_QueryInterface(domWin);
-    if (!intWindow) {
+    nsCOMPtr<nsIDOMWindow> domWindow = domWin;
+    if (!domWindow) {
       return NS_OK; // nope, it's not an internal window
     }
 
     nsCOMPtr<nsIDOMCrypto> crypto;
-    intWindow->GetCrypto(getter_AddRefs(crypto));
+    domWindow->GetCrypto(getter_AddRefs(crypto));
     if (!crypto) {
       return NS_OK; // nope, it doesn't have a crypto property
     }
@@ -549,14 +575,9 @@ nsNSSComponent::DispatchEventToWindow(nsIDOMWindow *domWin,
   }
 
   // create the event
-  nsCOMPtr<nsIDOMDocumentEvent> docEvent = do_QueryInterface(doc, &rv);
-  if (NS_FAILED(rv)) {
-    return rv;
-  }
-
   nsCOMPtr<nsIDOMEvent> event;
-  rv = docEvent->CreateEvent(NS_LITERAL_STRING("Events"), 
-                             getter_AddRefs(event));
+  rv = doc->CreateEvent(NS_LITERAL_STRING("Events"), 
+                        getter_AddRefs(event));
   if (NS_FAILED(rv)) {
     return rv;
   }
@@ -588,8 +609,6 @@ nsNSSComponent::DispatchEventToWindow(nsIDOMWindow *domWin,
   return rv;
 }
 
-
-static void setOCSPOptions(nsIPrefBranch * pref);
 
 NS_IMETHODIMP
 nsNSSComponent::PIPBundleFormatStringFromName(const char *name,
@@ -669,24 +688,6 @@ nsNSSComponent::GetNSSBundleString(const char *name,
   }
 
   return rv;
-}
-
-
-NS_IMETHODIMP
-nsNSSComponent::SkipOcsp()
-{
-  nsNSSShutDownPreventionLock locker;
-  CERTCertDBHandle *certdb = CERT_GetDefaultCertDB();
-
-  SECStatus rv = CERT_DisableOCSPChecking(certdb);
-  return (rv == SECSuccess) ? NS_OK : NS_ERROR_FAILURE;
-}
-
-NS_IMETHODIMP
-nsNSSComponent::SkipOcspOff()
-{
-  setOCSPOptions(mPrefBranch);
-  return NS_OK;
 }
 
 void
@@ -1032,17 +1033,6 @@ typedef struct {
 } CipherPref;
 
 static CipherPref CipherPrefs[] = {
-/* SSL2 cipher suites, all use RSA and an MD5 MAC */
- {"security.ssl2.rc4_128", SSL_EN_RC4_128_WITH_MD5}, // 128-bit RC4 encryption with RSA and an MD5 MAC
- {"security.ssl2.rc2_128", SSL_EN_RC2_128_CBC_WITH_MD5}, // 128-bit RC2 encryption with RSA and an MD5 MAC
- {"security.ssl2.des_ede3_192", SSL_EN_DES_192_EDE3_CBC_WITH_MD5}, // 168-bit Triple DES encryption with RSA and MD5 MAC 
- {"security.ssl2.des_64", SSL_EN_DES_64_CBC_WITH_MD5}, // 56-bit DES encryption with RSA and an MD5 MAC
- {"security.ssl2.rc4_40", SSL_EN_RC4_128_EXPORT40_WITH_MD5}, // 40-bit RC4 encryption with RSA and an MD5 MAC (export)
- {"security.ssl2.rc2_40", SSL_EN_RC2_128_CBC_EXPORT40_WITH_MD5}, // 40-bit RC2 encryption with RSA and an MD5 MAC (export)
- /* Fortezza SSL3/TLS cipher suites, see bug 133502 */
- {"security.ssl3.fortezza_fortezza_sha", SSL_FORTEZZA_DMS_WITH_FORTEZZA_CBC_SHA},
- {"security.ssl3.fortezza_rc4_sha", SSL_FORTEZZA_DMS_WITH_RC4_128_SHA},
- {"security.ssl3.fortezza_null_sha", SSL_FORTEZZA_DMS_WITH_NULL_SHA},
  /* SSL3/TLS cipher suites*/
  {"security.ssl3.rsa_rc4_128_md5", SSL_RSA_WITH_RC4_128_MD5}, // 128-bit RC4 encryption with RSA and an MD5 MAC
  {"security.ssl3.rsa_rc4_128_sha", SSL_RSA_WITH_RC4_128_SHA}, // 128-bit RC4 encryption with RSA and a SHA1 MAC
@@ -1111,12 +1101,9 @@ nsresult nsNSSComponent::GetNSSCipherIDFromPrefString(const nsACString &aPrefStr
   return NS_ERROR_NOT_AVAILABLE;
 }
 
-static void setOCSPOptions(nsIPrefBranch * pref)
+static void
+setNonPkixOcspEnabled(PRInt32 ocspEnabled, nsIPrefBranch * pref)
 {
-  nsNSSShutDownPreventionLock locker;
-  // Set up OCSP //
-  PRInt32 ocspEnabled;
-  pref->GetIntPref("security.OCSP.enabled", &ocspEnabled);
   switch (ocspEnabled) {
   case 0:
     CERT_DisableOCSPChecking(CERT_GetDefaultCertDB());
@@ -1125,7 +1112,6 @@ static void setOCSPOptions(nsIPrefBranch * pref)
   case 1:
     CERT_EnableOCSPChecking(CERT_GetDefaultCertDB());
     CERT_DisableOCSPDefaultResponder(CERT_GetDefaultCertDB());
-    SSL_ClearSessionCache();
     break;
   case 2:
     {
@@ -1140,21 +1126,117 @@ static void setOCSPOptions(nsIPrefBranch * pref)
       CERT_EnableOCSPChecking(CERT_GetDefaultCertDB());
       CERT_SetOCSPDefaultResponder(CERT_GetDefaultCertDB(), url, signingCA);
       CERT_EnableOCSPDefaultResponder(CERT_GetDefaultCertDB());
-      SSL_ClearSessionCache();
 
       nsMemory::Free(signingCA);
       nsMemory::Free(url);
     }
     break;
   }
+}
+
+#define CRL_DOWNLOAD_DEFAULT PR_FALSE
+#define OCSP_ENABLED_DEFAULT 1
+#define OCSP_REQUIRED_DEFAULT 0
+#define FRESH_REVOCATION_REQUIRED_DEFAULT PR_FALSE
+#define MISSING_CERT_DOWNLOAD_DEFAULT PR_FALSE
+#define FIRST_REVO_METHOD_DEFAULT "ocsp"
+#define USE_NSS_LIBPKIX_DEFAULT PR_FALSE
+
+// Caller must hold a lock on nsNSSComponent::mutex when calling this function
+void nsNSSComponent::setValidationOptions(nsIPrefBranch * pref)
+{
+  nsNSSShutDownPreventionLock locker;
+  nsresult rv;
+
+  PRBool crlDownloading;
+  rv = pref->GetBoolPref("security.CRL_download.enabled", &crlDownloading);
+  if (NS_FAILED(rv))
+    crlDownloading = CRL_DOWNLOAD_DEFAULT;
+  
+  PRInt32 ocspEnabled;
+  rv = pref->GetIntPref("security.OCSP.enabled", &ocspEnabled);
+  // 0 = disabled, 1 = enabled, 
+  // 2 = enabled with given default responder
+  if (NS_FAILED(rv))
+    ocspEnabled = OCSP_ENABLED_DEFAULT;
+
   PRBool ocspRequired;
-  pref->GetBoolPref("security.OCSP.require", &ocspRequired);
-  if (ocspRequired) {
-    CERT_SetOCSPFailureMode(ocspMode_FailureIsVerificationFailure);
+  rv = pref->GetBoolPref("security.OCSP.require", &ocspRequired);
+  if (NS_FAILED(rv))
+    ocspRequired = OCSP_REQUIRED_DEFAULT;
+
+  PRBool anyFreshRequired;
+  rv = pref->GetBoolPref("security.fresh_revocation_info.require", &anyFreshRequired);
+  if (NS_FAILED(rv))
+    anyFreshRequired = FRESH_REVOCATION_REQUIRED_DEFAULT;
+  
+  PRBool aiaDownloadEnabled;
+  rv = pref->GetBoolPref("security.missing_cert_download.enabled", &aiaDownloadEnabled);
+  if (NS_FAILED(rv))
+    aiaDownloadEnabled = MISSING_CERT_DOWNLOAD_DEFAULT;
+
+  nsCString firstNetworkRevo;
+  rv = pref->GetCharPref("security.first_network_revocation_method", getter_Copies(firstNetworkRevo));
+  if (NS_FAILED(rv))
+    firstNetworkRevo = FIRST_REVO_METHOD_DEFAULT;
+  
+  setNonPkixOcspEnabled(ocspEnabled, pref);
+  
+  CERT_SetOCSPFailureMode( ocspRequired ?
+                           ocspMode_FailureIsVerificationFailure
+                           : ocspMode_FailureIsNotAVerificationFailure);
+
+  nsRefPtr<nsCERTValInParamWrapper> newCVIN = new nsCERTValInParamWrapper;
+  if (NS_SUCCEEDED(newCVIN->Construct(
+      aiaDownloadEnabled ? 
+        nsCERTValInParamWrapper::missing_cert_download_on : nsCERTValInParamWrapper::missing_cert_download_off,
+      crlDownloading ?
+        nsCERTValInParamWrapper::crl_download_allowed : nsCERTValInParamWrapper::crl_local_only,
+      ocspEnabled ? 
+        nsCERTValInParamWrapper::ocsp_on : nsCERTValInParamWrapper::ocsp_off,
+      ocspRequired ? 
+        nsCERTValInParamWrapper::ocsp_strict : nsCERTValInParamWrapper::ocsp_relaxed,
+      anyFreshRequired ?
+        nsCERTValInParamWrapper::any_revo_strict : nsCERTValInParamWrapper::any_revo_relaxed,
+      firstNetworkRevo.get()))) {
+    // Swap to new defaults, and will cause the old defaults to be released,
+    // as soon as any concurrent use of the old default objects has finished.
+    mDefaultCERTValInParam = newCVIN;
   }
-  else {
-    CERT_SetOCSPFailureMode(ocspMode_FailureIsNotAVerificationFailure);
-  }
+
+  /*
+    * The new defaults might change the validity of already established SSL sessions,
+    * let's not reuse them.
+    */
+  SSL_ClearSessionCache();
+}
+
+NS_IMETHODIMP
+nsNSSComponent::SkipOcsp()
+{
+  nsNSSShutDownPreventionLock locker;
+  CERTCertDBHandle *certdb = CERT_GetDefaultCertDB();
+
+  SECStatus rv = CERT_DisableOCSPChecking(certdb);
+  return (rv == SECSuccess) ? NS_OK : NS_ERROR_FAILURE;
+}
+
+NS_IMETHODIMP
+nsNSSComponent::SkipOcspOff()
+{
+  nsNSSShutDownPreventionLock locker;
+  PRInt32 ocspEnabled;
+  if (NS_FAILED(mPrefBranch->GetIntPref("security.OCSP.enabled", &ocspEnabled)))
+    ocspEnabled = OCSP_ENABLED_DEFAULT;
+  // 0 = disabled, 1 = enabled, 
+  // 2 = enabled with given default responder
+  
+  setNonPkixOcspEnabled(ocspEnabled, mPrefBranch);
+
+  if (ocspEnabled)
+    SSL_ClearSessionCache();
+
+  return NS_OK;
 }
 
 nsresult
@@ -1633,6 +1715,10 @@ nsNSSComponent::InitializeNSS(PRBool showWarningBox)
     TryCFM2MachOMigration(cfmSecurityPath, profilePath);
   #endif
 
+    rv = mPrefBranch->GetBoolPref("security.use_libpkix_verification", &globalConstFlagUsePKIXVerification);
+    if (NS_FAILED(rv))
+      globalConstFlagUsePKIXVerification = USE_NSS_LIBPKIX_DEFAULT;
+
     PRBool supress_warning_preference = PR_FALSE;
     rv = mPrefBranch->GetBoolPref("security.suppress_nss_rw_impossible_warning", &supress_warning_preference);
 
@@ -1705,10 +1791,9 @@ nsNSSComponent::InitializeNSS(PRBool showWarningBox)
       nsCOMPtr<nsIPrefBranch2> pbi = do_QueryInterface(mPrefBranch);
       pbi->AddObserver("security.", this, PR_FALSE);
 
+      SSL_OptionSetDefault(SSL_ENABLE_SSL2, PR_FALSE);
+      SSL_OptionSetDefault(SSL_V2_COMPATIBLE_HELLO, PR_FALSE);
       PRBool enabled;
-      mPrefBranch->GetBoolPref("security.enable_ssl2", &enabled);
-      SSL_OptionSetDefault(SSL_ENABLE_SSL2, enabled);
-      SSL_OptionSetDefault(SSL_V2_COMPATIBLE_HELLO, enabled);
       mPrefBranch->GetBoolPref("security.enable_ssl3", &enabled);
       SSL_OptionSetDefault(SSL_ENABLE_SSL3, enabled);
       mPrefBranch->GetBoolPref("security.enable_tls", &enabled);
@@ -1758,8 +1843,23 @@ nsNSSComponent::InitializeNSS(PRBool showWarningBox)
       SEC_PKCS12SetPreferredCipher(PKCS12_DES_EDE3_168, 1);
       PORT_SetUCS2_ASCIIConversionFunction(pip_ucs2_ascii_conversion_fn);
 
-      // Set up OCSP //
-      setOCSPOptions(mPrefBranch);
+      // dynamic options from prefs
+      setValidationOptions(mPrefBranch);
+
+      // static validation options for usagesarray - do not hit the network
+      mDefaultCERTValInParamLocalOnly = new nsCERTValInParamWrapper;
+      rv = mDefaultCERTValInParamLocalOnly->Construct(
+          nsCERTValInParamWrapper::missing_cert_download_off,
+          nsCERTValInParamWrapper::crl_local_only,
+          nsCERTValInParamWrapper::ocsp_off,
+          nsCERTValInParamWrapper::ocsp_relaxed,
+          nsCERTValInParamWrapper::any_revo_relaxed,
+          FIRST_REVO_METHOD_DEFAULT);
+      if (NS_FAILED(rv)) {
+        nsPSMInitPanic::SetPanic();
+        return rv;
+      }
+      
       RegisterMyOCSPAIAInfoCallback();
 
       mHttpForNSS.initTable();
@@ -1912,13 +2012,7 @@ nsNSSComponent::Init()
   if (mClientAuthRememberService)
     mClientAuthRememberService->Init();
 
-  mSSLThread = new nsSSLThread();
-  if (mSSLThread)
-    mSSLThread->startThread();
-  mCertVerificationThread = new nsCertVerificationThread();
-  if (mCertVerificationThread)
-    mCertVerificationThread->startThread();
-
+  createBackgroundThreads();
   if (!mSSLThread || !mCertVerificationThread)
   {
     PR_LOG(gPIPNSSLog, PR_LOG_DEBUG, ("NSS init, could not create threads\n"));
@@ -2221,12 +2315,7 @@ nsNSSComponent::Observe(nsISupports *aSubject, const char *aTopic,
     PRBool enabled;
     NS_ConvertUTF16toUTF8  prefName(someData);
 
-    if (prefName.Equals("security.enable_ssl2")) {
-      mPrefBranch->GetBoolPref("security.enable_ssl2", &enabled);
-      SSL_OptionSetDefault(SSL_ENABLE_SSL2, enabled);
-      SSL_OptionSetDefault(SSL_V2_COMPATIBLE_HELLO, enabled);
-      clearSessionCache = PR_TRUE;
-    } else if (prefName.Equals("security.enable_ssl3")) {
+    if (prefName.Equals("security.enable_ssl3")) {
       mPrefBranch->GetBoolPref("security.enable_ssl3", &enabled);
       SSL_OptionSetDefault(SSL_ENABLE_SSL3, enabled);
       clearSessionCache = PR_TRUE;
@@ -2264,8 +2353,13 @@ nsNSSComponent::Observe(nsISupports *aSubject, const char *aTopic,
       SSL_OptionSetDefault(SSL_ENABLE_FALSE_START, enabled);
 #endif
     } else if (prefName.Equals("security.OCSP.enabled")
+               || prefName.Equals("security.CRL_download.enabled")
+               || prefName.Equals("security.fresh_revocation_info.require")
+               || prefName.Equals("security.missing_cert_download.enabled")
+               || prefName.Equals("security.first_network_revocation_method")
                || prefName.Equals("security.OCSP.require")) {
-      setOCSPOptions(mPrefBranch);
+      MutexAutoLock lock(mutex);
+      setValidationOptions(mPrefBranch);
     } else {
       /* Look through the cipher table and set according to pref setting */
       for (CipherPref* cp = CipherPrefs; cp->pref; ++cp) {
@@ -2525,14 +2619,9 @@ nsNSSComponent::DoProfileBeforeChange(nsISupports* aSubject)
 void
 nsNSSComponent::DoProfileChangeNetRestore()
 {
-  delete mSSLThread;
-  mSSLThread = new nsSSLThread();
-  if (mSSLThread)
-    mSSLThread->startThread();
-  delete mCertVerificationThread;
-  mCertVerificationThread = new nsCertVerificationThread();
-  if (mCertVerificationThread)
-    mCertVerificationThread->startThread();
+  /* XXX this doesn't work well, since nothing expects null pointers */
+  deleteBackgroundThreads();
+  createBackgroundThreads();
   mIsNetworkDown = PR_FALSE;
 }
 
@@ -2549,6 +2638,26 @@ nsNSSComponent::IsNSSInitialized(PRBool *initialized)
 {
   MutexAutoLock lock(mutex);
   *initialized = mNSSInitialized;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsNSSComponent::GetDefaultCERTValInParam(nsRefPtr<nsCERTValInParamWrapper> &out)
+{
+  MutexAutoLock lock(mutex);
+  if (!mNSSInitialized)
+      return NS_ERROR_NOT_INITIALIZED;
+  out = mDefaultCERTValInParam;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsNSSComponent::GetDefaultCERTValInParamLocalOnly(nsRefPtr<nsCERTValInParamWrapper> &out)
+{
+  MutexAutoLock lock(mutex);
+  if (!mNSSInitialized)
+      return NS_ERROR_NOT_INITIALIZED;
+  out = mDefaultCERTValInParamLocalOnly;
   return NS_OK;
 }
 

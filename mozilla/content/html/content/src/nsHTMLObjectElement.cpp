@@ -36,20 +36,19 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "nsAutoPtr.h"
 #include "nsGenericHTMLElement.h"
 #include "nsObjectLoadingContent.h"
 #include "nsGkAtoms.h"
 #include "nsDOMError.h"
 #include "nsIDocument.h"
 #include "nsIDOMDocument.h"
-#ifdef MOZ_SVG
 #include "nsIDOMSVGDocument.h"
 #include "nsIDOMGetSVGDocument.h"
-#endif
 #include "nsIDOMHTMLObjectElement.h"
 #include "nsFormSubmission.h"
 #include "nsIObjectFrame.h"
-#include "nsIPluginInstance.h"
+#include "nsNPAPIPluginInstance.h"
 #include "nsIConstraintValidation.h"
 
 using namespace mozilla::dom;
@@ -58,9 +57,7 @@ class nsHTMLObjectElement : public nsGenericHTMLFormElement
                           , public nsObjectLoadingContent
                           , public nsIDOMHTMLObjectElement
                           , public nsIConstraintValidation
-#ifdef MOZ_SVG
                           , public nsIDOMGetSVGDocument
-#endif
 {
 public:
   using nsIConstraintValidation::GetValidationMessage;
@@ -84,10 +81,8 @@ public:
   // nsIDOMHTMLObjectElement
   NS_DECL_NSIDOMHTMLOBJECTELEMENT
 
-#ifdef MOZ_SVG
   // nsIDOMGetSVGDocument
   NS_DECL_NSIDOMGETSVGDOCUMENT
-#endif
 
   virtual nsresult BindToTree(nsIDocument *aDocument, nsIContent *aParent,
                               nsIContent *aBindingParent,
@@ -168,6 +163,9 @@ nsHTMLObjectElement::nsHTMLObjectElement(already_AddRefed<nsINodeInfo> aNodeInfo
 
   // <object> is always barred from constraint validation.
   SetBarredFromConstraintValidation(PR_TRUE);
+
+  // By default we're in the loading state
+  AddStatesSilently(NS_EVENT_STATE_LOADING);
 }
 
 nsHTMLObjectElement::~nsHTMLObjectElement()
@@ -219,9 +217,7 @@ NS_INTERFACE_TABLE_HEAD_CYCLE_COLLECTION_INHERITED(nsHTMLObjectElement)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIInterfaceRequestor)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIChannelEventSink)
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIConstraintValidation)
-#ifdef MOZ_SVG
     NS_INTERFACE_TABLE_ENTRY(nsHTMLObjectElement, nsIDOMGetSVGDocument)
-#endif
   NS_OFFSET_AND_INTERFACE_TABLE_END
   NS_HTML_CONTENT_INTERFACE_TABLE_TO_MAP_SEGUE(nsHTMLObjectElement,
                                                nsGenericHTMLFormElement)
@@ -396,8 +392,8 @@ nsHTMLObjectElement::SubmitNamesValues(nsFormSubmission *aFormSubmission)
     return NS_OK;
   }
 
-  nsCOMPtr<nsIPluginInstance> pi;
-  objFrame->GetPluginInstance(*getter_AddRefs(pi));
+  nsRefPtr<nsNPAPIPluginInstance> pi;
+  objFrame->GetPluginInstance(getter_AddRefs(pi));
   if (!pi)
     return NS_OK;
 
@@ -447,13 +443,11 @@ nsHTMLObjectElement::GetContentDocument(nsIDOMDocument **aContentDocument)
   return CallQueryInterface(sub_doc, aContentDocument);
 }
 
-#ifdef MOZ_SVG
 NS_IMETHODIMP
 nsHTMLObjectElement::GetSVGDocument(nsIDOMDocument **aResult)
 {
   return GetContentDocument(aResult);
 }
-#endif
 
 PRBool
 nsHTMLObjectElement::ParseAttribute(PRInt32 aNamespaceID,

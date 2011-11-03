@@ -93,7 +93,7 @@ TrampolineCompiler::compileTrampoline(Trampolines::TrampolinePtr *where,
 
     Label entry = masm.label();
     CHECK_RESULT(generator(masm));
-    JS_ASSERT(entry.isValid());
+    JS_ASSERT(entry.isSet());
 
     bool ok;
     JSC::LinkBuffer buffer(&masm, execAlloc, poolp, &ok);
@@ -116,22 +116,24 @@ TrampolineCompiler::compileTrampoline(Trampolines::TrampolinePtr *where,
 bool
 TrampolineCompiler::generateForceReturn(Assembler &masm)
 {
+    masm.fallibleVMCall(JS_FUNC_TO_DATA_PTR(void *, stubs::ScriptDebugEpilogue), NULL, 0);
+
     /* if (hasArgsObj() || hasCallObj()) stubs::PutActivationObjects() */
     Jump noActObjs = masm.branchTest32(Assembler::Zero, FrameFlagsAddress(),
-                                       Imm32(JSFRAME_HAS_CALL_OBJ | JSFRAME_HAS_ARGS_OBJ));
+                                       Imm32(StackFrame::HAS_CALL_OBJ | StackFrame::HAS_ARGS_OBJ));
     masm.fallibleVMCall(JS_FUNC_TO_DATA_PTR(void *, stubs::PutActivationObjects), NULL, 0);
     noActObjs.linkTo(masm.label(), &masm);
 
     /* Store any known return value */
     masm.loadValueAsComponents(UndefinedValue(), JSReturnReg_Type, JSReturnReg_Data);
     Jump rvalClear = masm.branchTest32(Assembler::Zero,
-                                       FrameFlagsAddress(), Imm32(JSFRAME_HAS_RVAL));
-    Address rvalAddress(JSFrameReg, JSStackFrame::offsetOfReturnValue());
+                                       FrameFlagsAddress(), Imm32(StackFrame::HAS_RVAL));
+    Address rvalAddress(JSFrameReg, StackFrame::offsetOfReturnValue());
     masm.loadValueAsComponents(rvalAddress, JSReturnReg_Type, JSReturnReg_Data);
     rvalClear.linkTo(masm.label(), &masm);
 
     /* Return to the caller */
-    masm.loadPtr(Address(JSFrameReg, JSStackFrame::offsetOfncode()), Registers::ReturnReg);
+    masm.loadPtr(Address(JSFrameReg, StackFrame::offsetOfNcode()), Registers::ReturnReg);
     masm.jump(Registers::ReturnReg);
     return true;
 }

@@ -39,7 +39,7 @@
 #include "nsGUIEvent.h"
 #include "nsPresContext.h"
 #include "nsIInterfaceRequestorUtils.h"
-#include "nsIDOMAbstractView.h"
+#include "nsDOMClassInfoID.h"
 
 nsDOMTimeEvent::nsDOMTimeEvent(nsPresContext* aPresContext, nsEvent* aEvent)
   : nsDOMEvent(aPresContext, aEvent ? aEvent : new nsUIEvent(PR_FALSE, 0, 0)),
@@ -63,7 +63,7 @@ nsDOMTimeEvent::nsDOMTimeEvent(nsPresContext* aPresContext, nsEvent* aEvent)
   if (mPresContext) {
     nsCOMPtr<nsISupports> container = mPresContext->GetContainer();
     if (container) {
-      nsCOMPtr<nsIDOMWindowInternal> window = do_GetInterface(container);
+      nsCOMPtr<nsIDOMWindow> window = do_GetInterface(container);
       if (window) {
         mView = do_QueryInterface(window);
       }
@@ -92,7 +92,7 @@ NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(nsDOMTimeEvent)
 NS_INTERFACE_MAP_END_INHERITING(nsDOMEvent)
 
 NS_IMETHODIMP
-nsDOMTimeEvent::GetView(nsIDOMAbstractView** aView)
+nsDOMTimeEvent::GetView(nsIDOMWindow** aView)
 {
   *aView = mView;
   NS_IF_ADDREF(*aView);
@@ -108,7 +108,7 @@ nsDOMTimeEvent::GetDetail(PRInt32* aDetail)
 
 NS_IMETHODIMP
 nsDOMTimeEvent::InitTimeEvent(const nsAString& aTypeArg,
-                              nsIDOMAbstractView* aViewArg,
+                              nsIDOMWindow* aViewArg,
                               PRInt32 aDetailArg)
 {
   nsresult rv = nsDOMEvent::InitEvent(aTypeArg, PR_FALSE /*doesn't bubble*/,

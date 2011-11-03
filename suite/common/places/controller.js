@@ -205,10 +205,6 @@ PlacesController.prototype = {
           !PlacesUtils.nodeIsLivemarkItem(selectedNode))
         return true;
       return false;
-    case "placesCmd_reloadMicrosummary":
-      var selectedNode = this._view.selectedNode;
-      return selectedNode && PlacesUtils.nodeIsBookmark(selectedNode) &&
-             PlacesUtils.microsummaries.hasMicrosummary(selectedNode.itemId);
     case "placesCmd_reload":
       // Livemark containers
       var selectedNode = this._view.selectedNode;
@@ -286,16 +282,17 @@ PlacesController.prototype = {
       this.newSeparator();
       break;
     case "placesCmd_show:info":
-      this.showBookmarkPropertiesForSelection();
+      var dd = document.getElementById("detailsDeck");
+      if (dd)
+        dd.collapsed = false;
+      else
+        this.showBookmarkPropertiesForSelection();
       break;
     case "placesCmd_moveBookmarks":
       this.moveSelectedBookmarks();
       break;
     case "placesCmd_reload":
       this.reloadSelectedLivemark();
-      break;
-    case "placesCmd_reloadMicrosummary":
-      this.reloadSelectedMicrosummary();
       break;
     case "placesCmd_sortBy:name":
       this.sortFolderByName();
@@ -497,9 +494,6 @@ PlacesController.prototype = {
           if (PlacesUtils.nodeIsBookmark(node)) {
             nodeData["bookmark"] = true;
             PlacesUtils.nodeIsTagQuery(node.parent)
-            var mss = PlacesUtils.microsummaries;
-            if (mss.hasMicrosummary(node.itemId))
-              nodeData["microsummary"] = true;
 
             var parentNode = node.parent;
             if (parentNode) {
@@ -724,16 +718,6 @@ PlacesController.prototype = {
     var selectedNode = this._view.selectedNode;
     if (selectedNode && PlacesUtils.nodeIsLivemarkContainer(selectedNode))
       PlacesUtils.livemarks.reloadLivemarkFolder(selectedNode.itemId);
-  },
-
-  /**
-   * Reload the microsummary associated with the selection
-   */
-  reloadSelectedMicrosummary: function PC_reloadSelectedMicrosummary() {
-    var selectedNode = this._view.selectedNode;
-    var mss = PlacesUtils.microsummaries;
-    if (mss.hasMicrosummary(selectedNode.itemId))
-      mss.refreshMicrosummary(selectedNode.itemId);
   },
 
   /**
@@ -1618,7 +1602,6 @@ function goUpdatePlacesCommands() {
   updatePlacesCommand("placesCmd_show:info");
   updatePlacesCommand("placesCmd_moveBookmarks");
   updatePlacesCommand("placesCmd_reload");
-  updatePlacesCommand("placesCmd_reloadMicrosummary");
   updatePlacesCommand("placesCmd_sortBy:name");
   updatePlacesCommand("placesCmd_cut");
   updatePlacesCommand("placesCmd_copy");

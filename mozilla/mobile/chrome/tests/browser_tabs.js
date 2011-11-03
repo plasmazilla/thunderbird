@@ -83,6 +83,8 @@ function tab_switch_02() {
 
   //Add new tab
   new_tab_03 = Browser.addTab(testURL_03, true, new_tab_01);
+  new_tab_04 = Browser.addTab(testURL_03, false, new_tab_01);
+
   checkExpectedSize();
   new_tab_03.browser.addEventListener("load", tab_switch_03, true);
 }
@@ -93,7 +95,11 @@ function tab_switch_03() {
   is(Browser.selectedTab.notification, Elements.browsers.selectedPanel, "Deck has correct browser");
 
   Browser.closeTab(new_tab_03, { forceClose: true });
-  is(Browser.selectedTab, new_tab_01, "Closing tab 03 returns to owner");
+  is(Browser.selectedTab, new_tab_04, "Closing tab 03 goes to sibling");
+  is(Browser.selectedTab.notification, Elements.browsers.selectedPanel, "Deck has correct browser");
+
+  Browser.closeTab(new_tab_04, { forceClose: true });
+  is(Browser.selectedTab, new_tab_01, "Closing tab 04 returns to owner");
   is(Browser.selectedTab.notification, Elements.browsers.selectedPanel, "Deck has correct browser");
 
   new_tab_03 = Browser.addTab(testURL_03, true, new_tab_01);
@@ -111,14 +117,20 @@ function tab_switch_04() {
   is(new_tab_03.owner, null, "Closing tab 01 nulls tab3 owner");
   is(Browser.selectedTab.notification, Elements.browsers.selectedPanel, "Deck has correct browser");
 
-  // Add a tab then close it
-  new_tab_04 = Browser.addTab("about:home", true);
-  checkExpectedSize();
-  new_tab_04.browser.addEventListener("load", function() {
+  function callback() {
     new_tab_04.browser.removeEventListener("load", arguments.callee, true);
     Browser.closeTab(new_tab_04, { forceClose: true });
     tab_undo();
-  }, true);
+  };
+
+  // Add a tab then close it
+  new_tab_04 = Browser.addTab("about:home", true);
+  waitFor(callback, function() {
+    // Ensure the tab is not empty
+    return !new_tab_04.chromeTab.thumbnail.hasAttribute("empty");
+  });
+
+  checkExpectedSize();
 }
 
 function tab_undo() {
@@ -136,14 +148,15 @@ function tab_on_undo() {
   let undoBox = document.getElementById("tabs")._tabsUndo;
   is(undoBox.firstChild, null, "It should be no tab in the undo box");
 
-  Browser.loadURI("about:firstrun");
+  Browser.loadURI("about:home");
   is(undoBox.firstChild, null, "It should be no tab in the undo box when opening a new local page");
 
-  Browser.closeTab(new_tab_01, { forceClose: true });
-  Browser.closeTab(new_tab_02, { forceClose: true });
-  Browser.closeTab(new_tab_03, { forceClose: true });
-  Browser.closeTab(new_tab_04, { forceClose: true });
-  Browser.closeTab(new_tab_05, { forceClose: true });
+  // loadURI will open a new tab so ensure new_tab_05 point to the newly opened tab
+  new_tab_05 = Browser.selectedTab;
+
+  let tabs = [new_tab_01, new_tab_02, new_tab_03, new_tab_04, new_tab_05];
+  while (tabs.length)
+    Browser.closeTab(tabs.shift(), { forceClose: true });
   checkExpectedSize();
 
   tab_about_empty();

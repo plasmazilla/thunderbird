@@ -47,6 +47,10 @@
 
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 
+#attachmentBucket {
+  width: 15em;
+}
+
 /* :::: Toolbar :::: */
 
 #compose-toolbox {
@@ -87,20 +91,19 @@ toolbar:not(:-moz-lwtheme) {
 .toolbarbutton-menubutton-button,
 .toolbarbutton-menubutton-dropmarker,
 .toolbarbutton-1,
-#headers-box menulist {
+menulist {
   -moz-appearance: none;
   padding: 1px 5px !important;
   background: rgba(151, 152, 153, .05)
               -moz-linear-gradient(rgba(251, 252, 253, .95),
               rgba(246, 247, 248, .47) 49%, rgba(231, 232, 233, .45) 51%,
-              rgba(225,226,229,.3));
-  border-radius: 4.5px;
+              rgba(225, 226, 229, .3));
+  border-radius: 3.5px;
   border: 1px solid;
-  border-color: rgba(0,0,0,.12) rgba(0,0,0,.19) rgba(0,0,0,.38);
+  border-color: rgba(0, 0, 0, .12) rgba(0, 0, 0, .19) rgba(0, 0, 0, .38);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, .3) inset,
-              0 0 0 2px rgba(255, 255, 255, .1) inset,
-              0 1px 0 rgba(0, 0, 0, .15);
-  color: black;
+              0 0 0 2px rgba(255, 255, 255, .1) inset;
+  color: ButtonText;
   text-shadow: 0 0 3px white;
 }
 
@@ -161,7 +164,7 @@ toolbar[iconsize="small"][mode="icons"] toolbarbutton[type="menu-button"] {
   opacity: .8;
 }
 
-#headers-box menulist[disabled="true"] {
+menulist[disabled="true"] {
   opacity: .6;
 }
 
@@ -174,14 +177,13 @@ toolbar[iconsize="small"][mode="icons"] toolbarbutton[type="menu-button"] {
 toolbarbutton[type="menu-button"]:not([open="true"]):not(:active):hover >
                   .toolbarbutton-menubutton-dropmarker:not([disabled="true"]),
 .toolbarbutton-1:not([disabled="true"]):not([checked="true"]):not(:active):hover,
-#headers-box menulist:not([disabled="true"]):not([open="true"]):hover {
+menulist:not([disabled="true"]):not([open="true"]):hover {
   background-color: hsla(190, 60%, 70%, .5);
   border-color: hsla(190, 50%, 65%, .8) hsla(190, 50%, 50%, .8)
                 hsla(190, 50%, 40%, .8);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.3) inset,
-              0 0 0 2px rgba(255,255,255,.1) inset,
-              0 1px 0 rgba(0,0,0,.1),
-              0 0 5px hsl(190,90%,80%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .3) inset,
+              0 0 0 2px rgba(255, 255, 255, .1) inset,
+              0 0 5px hsl(190, 90%, 80%);
   -moz-transition: background-color .4s ease-in,
                    border-color .3s ease-in,
                    box-shadow .3s ease-in;
@@ -195,7 +197,7 @@ toolbarbutton[type="menu-button"][open="true"] >
 .toolbarbutton-1:not([disabled="true"]):hover:active,
 .toolbarbutton-1[checked="true"],
 .toolbarbutton-1[open="true"],
-#headers-box menulist[open="true"] {
+menulist[open="true"] {
   background-color: transparent;
   border-color: rgba(0, 0, 0, .65) rgba(0, 0, 0, .55) rgba(0, 0, 0, .5);
   box-shadow: 0 0 9px rgba(0, 0, 0, .4) inset,
@@ -236,17 +238,17 @@ toolbar[iconsize="small"] .toolbarbutton-1 > .toolbarbutton-icon {
   height: auto !important;
 }
 
-toolbar[iconsize="small"] .toolbarbutton-menubutton-button > .toolbarbutton-text,
-toolbar[iconsize="small"] .toolbarbutton-1 > .toolbarbutton-text {
-  margin: 0 !important;
-}
-
 toolbox[labelalign="end"] > toolbar[mode="full"] .toolbarbutton-1 .toolbarbutton-text {
   -moz-padding-start: 2px;
 }
 
 toolbox[labelalign="end"] > toolbar[mode="full"] deck .toolbarbutton-text {
   text-align: start;
+}
+
+#headers-box,
+#FormatToolbox {
+  border-top-width: 0;
 }
 
 @media all and (-moz-windows-compositor) {
@@ -276,14 +278,61 @@ toolbox[labelalign="end"] > toolbar[mode="full"] deck .toolbarbutton-text {
                       rgba(255, 255, 255, 0));
   }
 
-  #menubar-items:not(:-moz-lwtheme):not(:-moz-window-inactive) {
-    background-color: rgba(255, 255, 255, .3);
+  #sidebar-splitter:not([hidden="true"]) + vbox >
+      #headers-box:-moz-locale-dir(ltr) {
+    border-top-left-radius: 0;
+  }
+
+  #sidebar-splitter:not([hidden="true"]) + vbox >
+      #headers-box:-moz-locale-dir(rtl) {
+    border-top-right-radius: 0;
+  }
+
+  #menubar-items:not(:-moz-lwtheme) {
+    background-color: rgba(255, 255, 255, .5);
     border-radius: 4px;
+  }
+
+  menubar > menu:-moz-window-inactive {
+    color: MenuText;
+  }
+
+  /* lesser transparency on Glass background */
+  .toolbarbutton-menubutton-button:not(:-moz-lwtheme),
+  .toolbarbutton-menubutton-dropmarker:not(:-moz-lwtheme),
+  .toolbarbutton-1:not(:-moz-lwtheme),
+  menulist:not(:-moz-lwtheme):not([open="true"]) {
+    background-color: rgba(227, 237, 246, .7);
+  }
+
+  /* lesser transparency on Glass background */
+  .toolbarbutton-menubutton-button:not(:-moz-lwtheme):not([disabled="true"]):not(:active):hover,
+  toolbarbutton[type="menu-button"]:not(:-moz-lwtheme):not([open="true"]):not(:active):hover >
+                    .toolbarbutton-menubutton-dropmarker:not([disabled="true"]),
+  .toolbarbutton-1:not(:-moz-lwtheme):not([disabled="true"]):not([checked="true"]):not(:active):hover,
+  menulist:not(:-moz-lwtheme):not([open="true"]):hover {
+    background-color: rgba(136, 197, 213, .85);
   }
 
   .toolbarbutton-menubutton-button[disabled="true"],
   .toolbarbutton-menubutton-dropmarker[disabled="true"] {
     opacity: 1 !important;
+  }
+
+  #msgcomposeWindow[sizemode=normal] #compose-toolbox + hbox {
+    border: 1px solid rgba(10%, 10%, 10%, .4);
+    border-top: none;
+    border-radius: 3.5px 3.5px 0 0;
+    background-clip: padding-box;
+  }
+
+  #msgcomposeWindow[sizemode=normal] statusbar {
+    -moz-appearance: none;
+    margin-top: -1px;
+    border: 1px solid rgba(10%, 10%, 10%, .4);
+    border-top-color: threedshadow;
+    border-radius: 1px 1px 0 0;
+    background-clip: padding-box;
   }
 }
 
@@ -338,13 +387,19 @@ toolbox[labelalign="end"] > toolbar[mode="full"] deck .toolbarbutton-text {
 
 #appcontent {
   border-top: 1px solid ThreeDShadow;
-  border-left: 1px solid ThreeDShadow;
-  border-right: 1px solid ThreeDHighlight;
 }
 
 #attachmentbucket-sizer {
-  border-top: none;
-  border-bottom: none;
+  position: relative;
+  z-index: 10;
+  min-width: 0;
+  width: 5px;
+  -moz-margin-end: -4px;
+  -moz-border-end-width: 0;
+  -moz-border-start: 2px solid ThreeDShadow;
+  -moz-border-left-colors: none;
+  -moz-border-right-colors: none; /* for rtl -moz-border-start */
+  background-color: transparent;
 }
 
 /* ::::: attachment reminder ::::: */
@@ -377,10 +432,14 @@ toolbox[labelalign="end"] > toolbar[mode="full"] deck .toolbarbutton-text {
 }
 
 #compose-toolbar-sizer {
-  border-top-width: 1px;
-  border-left: none;
-  border-right: none;
-  -moz-border-top-colors: ThreeDHighlight;
+  position: relative;
+  z-index: 10;
+  min-height: 0;
+  height: 5px;
+  margin-top: -5px;
+  border-top-width: 0;
+  border-bottom-width: 0;
+  background-color: transparent;
 }
 
 #msgSubject {
@@ -458,7 +517,7 @@ toolbox[labelalign="end"] > toolbar[mode="full"] deck .toolbarbutton-text {
 /* ::::: format toolbar ::::: */
 
 #FormatToolbar {
-  padding-top: 3px;
+  border-top: 1px solid ThreeDShadow !important;
 }
 
 toolbarbutton.formatting-button {
@@ -713,11 +772,31 @@ toolbarbutton.formatting-button {
 }
 
 /* ::::: address book sidebar ::::: */
+
+@media all and (-moz-windows-default-theme) {
+  sidebarheader {
+    -moz-appearance: none;
+    background-color: #F8F8F8;
+    border-top: 0;
+    border-bottom: 1px solid #A9B1B8;
+  }
+}
+
+@media all and (-moz-windows-compositor) {
+  sidebarheader:-moz-locale-dir(ltr) {
+    border-top-left-radius: 3.5px;
+  }
+
+  sidebarheader:-moz-locale-dir(rtl) {
+    border-top-right-radius: 3.5px;
+  }
+}
+
 .ab-closebutton {
-  list-style-image: url("chrome://messenger/skin/icons/close-button.png");
-  -moz-image-region: rect(0 16px 16px 0);
+  list-style-image: url("chrome://global/skin/icons/close.png");
+  -moz-image-region: rect(0 64px 16px 48px);
   -moz-appearance: none;
-  border: none !important;
+  border: none;
   padding: 2px;
 }
 
@@ -734,5 +813,16 @@ toolbarbutton.formatting-button {
 }
 
 #sidebar {
-  background-color: Window;
+  background-color: -moz-Dialog;
+}
+
+#sidebar-splitter {
+  -moz-border-end: none;
+  -moz-border-start: 1px solid #A9B7C9;
+  min-width: 0;
+  width: 5px;
+  background-color: transparent;
+  -moz-margin-end: -5px;
+  position: relative;
+  z-index: 10;
 }

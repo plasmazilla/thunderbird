@@ -43,6 +43,8 @@
  * that loading this file twice in the same scope will throw errors.
  */
 
+Components.utils.import("resource:///modules/Services.jsm");
+
 /**
  * Returns a clean new calIEvent
  *
@@ -133,7 +135,7 @@ function createRelation() {
     return Components.classes["@mozilla.org/calendar/relation;1"].
            createInstance(Components.interfaces.calIRelation);
 }
- 
+
 /* Shortcut to the console service */
 function getConsoleService() {
     return Components.classes["@mozilla.org/consoleservice;1"]
@@ -235,8 +237,8 @@ function calendarDefaultTimezone() {
  *              in most fonts (in case user edits PROFILE/prefs.js).
  *            CSS class names in Gecko 1.8 seem to require lowercase,
  *              no punctuation, and of course no spaces.
- *   nmchar		[_a-zA-Z0-9-]|{nonascii}|{escape}
- *   name		{nmchar}+
+ *   nmchar            [_a-zA-Z0-9-]|{nonascii}|{escape}
+ *   name              {nmchar}+
  *   http://www.w3.org/TR/CSS21/grammar.html#scanner
  *
  * @param aString       The unicode string to format
@@ -293,6 +295,7 @@ function isCalendarWritable(aCalendar) {
     return (!aCalendar.getProperty("disabled") &&
             !aCalendar.readOnly &&
             (!getIOService().offline ||
+             aCalendar.getProperty("cache.enabled") ||
              aCalendar.getProperty("requiresNetwork") === false));
 }
 
@@ -1671,7 +1674,7 @@ calPropertyBag.prototype = {
     },
     getProperty: function cpb_getProperty(aName) {
         // avoid strict undefined property warning
-        return (aName in this.mData ? this.mData[aName] : null);      
+        return (aName in this.mData ? this.mData[aName] : null);
     },
     getAllProperties: function cpb_getAllProperties(aOutKeys, aOutValues) {
         var keys = [];
@@ -1820,21 +1823,24 @@ function binarySearch(itemArray, newItem, comptor) {
  * @param parentNode           The parent node underneath the new node should be inserted.
  * @param inserNode            The node to insert
  * @param aItem                The calendar item to add a widget for.
- * @param comptor              A comparison function that can compare two nodes.
+ * @param comptor              A comparison function that can compare two items (not DOM Nodes!)
  * @param discardDuplicates    Use the comptor function to check if the item in
  *                               question is already in the array. If so, the
  *                               new item is not inserted.
+ * @param itemAccessor         [optional] A function that receives a DOM node and returns the associated item
+ *                               If null, this function will be used: function(n) n.item
  */
-function binaryInsertNode(parentNode, insertNode, aItem, comptor, discardDuplicates) {
+function binaryInsertNode(parentNode, insertNode, aItem, comptor, discardDuplicates, itemAccessor) {
+    let accessor = itemAccessor || binaryInsertNode.defaultAccessor;
 
     // Get the index of the node before which the inserNode will be inserted
-    var newIndex = binarySearch(parentNode.childNodes, aItem, comptor);
+    let newIndex = binarySearch(Array.map(parentNode.childNodes, accessor), aItem, comptor);
 
     if (newIndex < 0) {
         parentNode.appendChild(insertNode);
         newIndex = 0;
     } else if (!discardDuplicates ||
-        comptor(parentNode.childNodes[Math.min(newIndex, parentNode.childNodes.length - 1)], insertNode) >= 0) {
+        comptor(accessor(parentNode.childNodes[Math.min(newIndex, parentNode.childNodes.length - 1)]), aItem) >= 0) {
 
         // Only add the node if duplicates should not be discarded, or if
         // they should and the childNode[newIndex] == node.
@@ -1843,6 +1849,7 @@ function binaryInsertNode(parentNode, insertNode, aItem, comptor, discardDuplica
     }
     return newIndex;
 }
+binaryInsertNode.defaultAccessor = function(n) n.item;
 
 /**
  * Insert an item into the given array, using binary search. See binarySearch
@@ -1871,6 +1878,15 @@ function binaryInsert(itemArray, item, comptor, discardDuplicates) {
     return newIndex;
 }
 
+/**
+ * Gets the cached instance of the composite calendar.
+ *
+ * WARNING: Great care should be taken how this function is called. If it is
+ * called as "cal.getCompositeCalendar()" then it is called through calUtils.jsm
+ * which means there will be one instance per app. If called as
+ * "getCompositeCalendar()" from chrome code, then it will get a window-specific
+ * composite calendar, which is often what is wanted
+ */
 function getCompositeCalendar() {
     if (getCompositeCalendar.mObject === undefined) {
         getCompositeCalendar.mObject = Components.classes["@mozilla.org/calendar/calendar;1?type=composite"]
@@ -1888,4 +1904,22 @@ function getCompositeCalendar() {
         }
     }
     return getCompositeCalendar.mObject;
+}
+
+/**
+ * Search for already open item dialog.
+ *
+ * @param aItem     The item of the dialog to search for.
+ */
+function findItemWindow(aItem){
+    let list = Services.wm.getEnumerator("Calendar:EventDialog");
+    while (list.hasMoreElements()) {
+        let dlg = list.getNext();
+        if (dlg.calendarItem &&
+            dlg.mode == "modify" &&
+            dlg.calendarItem.hashId == aItem.hashId) {
+            return dlg;
+        }
+    }
+    return null;
 }
