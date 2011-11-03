@@ -1,6 +1,7 @@
 /*
  * Test suite for mailto: URLs
  */
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 const nsIMailtoUrl = Components.interfaces.nsIMailtoUrl;
 const COMPOSE_HTML = Components.interfaces.nsIMsgCompFormat.HTML;
@@ -9,9 +10,7 @@ const COMPOSE_DEFAULT = Components.interfaces.nsIMsgCompFormat.Default;
 function run_test() {
 
   function test(aTest) {
-    var ios = Components.classes["@mozilla.org/network/io-service;1"]
-                        .getService(Components.interfaces.nsIIOService);
-    var uri = ios.newURI(aTest.url, null, null);
+    var uri = Services.io.newURI(aTest.url, null, null);
     uri = uri.QueryInterface(Components.interfaces.nsIMailtoUrl);
 
     var to = {}, cc = {}, bcc = {}, subject = {}, body = {}, html = {},
@@ -39,6 +38,14 @@ function run_test() {
   for (var i = 0; i < tests.length; i++)
     test(tests[i]);
 
+  // Test cloning reparses the url by checking the to field.
+  let uriToClone = Services.io.newURI(tests[0].url, null, null);
+  let clonedUrl = uriToClone.clone().QueryInterface(Components.interfaces.nsIMailtoUrl);
+  var to = {}, cc = {}, bcc = {}, subject = {}, body = {}, html = {},
+      reference = {}, newsgroup = {}, composeformat = {};
+  clonedUrl.GetMessageContents(to, cc, bcc, subject, body, html, reference,
+                         newsgroup, composeformat);
+  do_check_eq(to.value, tests[0].to);
 };
 
 const tests = [
@@ -693,5 +700,59 @@ const tests = [
     replyto: "",
     priority: "",
     newshost: "news.example.org"
+  },
+  {
+    url: "mailto:?%74%4F=to&%73%55%62%4A%65%43%74=subject&%62%4F%64%59=body&%63%43=cc&%62%43%63=bcc",
+    to: "to",
+    cc: "cc",
+    bcc: "bcc",
+    subject: "subject",
+    body: "body",
+    html: "",
+    reference: "",
+    newsgroup: "",
+    composeformat: COMPOSE_DEFAULT,
+    from: "",
+    followupto: "",
+    organization: "",
+    replyto: "",
+    priority: "",
+    newshost: ""
+  },
+  {
+    url: "mailto:to1?%74%4F=to2&to=to3&subject=&%73%55%62%4A%65%43%74=subject&%62%4F%64%59=line1&body=line2&%63%43=cc1&cc=cc2&%62%43%63=bcc1&bcc=bcc2",
+    to: "to1, to2, to3",
+    cc: "cc1, cc2",
+    bcc: "bcc1, bcc2",
+    subject: "subject",
+    body: "line1\nline2",
+    html: "",
+    reference: "",
+    newsgroup: "",
+    composeformat: COMPOSE_DEFAULT,
+    from: "",
+    followupto: "",
+    organization: "",
+    replyto: "",
+    priority: "",
+    newshost: ""
+  },
+  {
+    url: "mailto:?nto=1&nsubject=2&nbody=3&ncc=4&nbcc=5",
+    to: "",
+    cc: "",
+    bcc: "",
+    subject: "",
+    body: "",
+    html: "",
+    reference: "",
+    newsgroup: "",
+    composeformat: COMPOSE_DEFAULT,
+    from: "",
+    followupto: "",
+    organization: "",
+    replyto: "",
+    priority: "",
+    newshost: ""
   }
 ];

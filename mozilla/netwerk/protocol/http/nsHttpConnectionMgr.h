@@ -44,9 +44,10 @@
 #include "nsHttpTransaction.h"
 #include "nsTArray.h"
 #include "nsThreadUtils.h"
-#include "nsHashtable.h"
+#include "nsClassHashtable.h"
 #include "nsAutoPtr.h"
-#include "mozilla/Monitor.h"
+#include "mozilla/ReentrantMonitor.h"
+#include "nsISocketTransportService.h"
 
 #include "nsIObserver.h"
 #include "nsITimer.h"
@@ -112,6 +113,10 @@ public:
     // connections.
     nsresult PruneDeadConnections();
 
+    // Close all idle persistent connections and prevent any active connections
+    // from being reused.
+    nsresult ClosePersistentConnections();
+
     // called to get a reference to the socket transport service.  the socket
     // transport service is not available when the connection manager is down.
     nsresult GetSocketThreadTarget(nsIEventTarget **);
@@ -137,9 +142,15 @@ public:
     // preference to the specified connection.
     nsresult ProcessPendingQ(nsHttpConnectionInfo *);
 
+    // This is used to force an idle connection to be closed and removed from
+    // the idle connection list. It is called when the idle connection detects
+    // that the network peer has closed the transport.
+    nsresult CloseIdleConnection(nsHttpConnection *);
+
 private:
     virtual ~nsHttpConnectionMgr();
-
+    class nsHalfOpenSocket;
+    
     // nsConnectionEntry
     //
     // mCT maps connection info hash key to nsConnectionEntry object, which
@@ -159,6 +170,7 @@ private:
         nsTArray<nsHttpTransaction*> mPendingQ;    // pending transaction queue
         nsTArray<nsHttpConnection*>  mActiveConns; // active connections
         nsTArray<nsHttpConnection*>  mIdleConns;   // idle persistent connections
+        nsTArray<nsHalfOpenSocket*>  mHalfOpens;
     };
 
     // nsConnectionHandle
@@ -182,12 +194,57 @@ private:
         nsHttpConnection *mConn;
     };
 
+    // nsHalfOpenSocket is used to hold the state of an opening TCP socket
+    // while we wait for it to establish and bind it to a connection
+
+    class nsHalfOpenSocket : public nsIOutputStreamCallback,
+                             public nsITransportEventSink,
+                             public nsIInterfaceRequestor,
+                             public nsITimerCallback
+    {
+    public:
+        NS_DECL_ISUPPORTS
+        NS_DECL_NSIOUTPUTSTREAMCALLBACK
+        NS_DECL_NSITRANSPORTEVENTSINK
+        NS_DECL_NSIINTERFACEREQUESTOR
+        NS_DECL_NSITIMERCALLBACK
+
+        nsHalfOpenSocket(nsConnectionEntry *ent,
+                         nsHttpTransaction *trans);
+        ~nsHalfOpenSocket();
+        
+        nsresult SetupStreams(nsISocketTransport **,
+                              nsIAsyncInputStream **,
+                              nsIAsyncOutputStream **,
+                              PRBool isBackup);
+        nsresult SetupPrimaryStreams();
+        nsresult SetupBackupStreams();
+        void     SetupBackupTimer();
+        void     Abandon();
+        
+        nsHttpTransaction *Transaction() { return mTransaction; }
+
+    private:
+        nsConnectionEntry              *mEnt;
+        nsRefPtr<nsHttpTransaction>    mTransaction;
+        nsCOMPtr<nsISocketTransport>   mSocketTransport;
+        nsCOMPtr<nsIAsyncOutputStream> mStreamOut;
+        nsCOMPtr<nsIAsyncInputStream>  mStreamIn;
+
+        // for syn retry
+        nsCOMPtr<nsITimer>             mSynTimer;
+        nsCOMPtr<nsISocketTransport>   mBackupTransport;
+        nsCOMPtr<nsIAsyncOutputStream> mBackupStreamOut;
+        nsCOMPtr<nsIAsyncInputStream>  mBackupStreamIn;
+    };
+    friend class nsHalfOpenSocket;
+
     //-------------------------------------------------------------------------
-    // NOTE: these members may be accessed from any thread (use mMonitor)
+    // NOTE: these members may be accessed from any thread (use mReentrantMonitor)
     //-------------------------------------------------------------------------
 
     PRInt32                      mRef;
-    mozilla::Monitor             mMonitor;
+    mozilla::ReentrantMonitor    mReentrantMonitor;
     nsCOMPtr<nsIEventTarget>     mSocketThreadTarget;
 
     // connection limits
@@ -205,20 +262,27 @@ private:
     // NOTE: these members are only accessed on the socket transport thread
     //-------------------------------------------------------------------------
 
-    static PRIntn ProcessOneTransactionCB(nsHashKey *, void *, void *);
-    static PRIntn PurgeOneIdleConnectionCB(nsHashKey *, void *, void *);
-    static PRIntn PruneDeadConnectionsCB(nsHashKey *, void *, void *);
-    static PRIntn ShutdownPassCB(nsHashKey *, void *, void *);
+    static PLDHashOperator ProcessOneTransactionCB(const nsACString &, nsAutoPtr<nsConnectionEntry> &, void *);
 
+    static PLDHashOperator PruneDeadConnectionsCB(const nsACString &, nsAutoPtr<nsConnectionEntry> &, void *);
+    static PLDHashOperator ShutdownPassCB(const nsACString &, nsAutoPtr<nsConnectionEntry> &, void *);
+    static PLDHashOperator PurgeExcessIdleConnectionsCB(const nsACString &, nsAutoPtr<nsConnectionEntry> &, void *);
+    static PLDHashOperator ClosePersistentConnectionsCB(const nsACString &, nsAutoPtr<nsConnectionEntry> &, void *);
     PRBool   ProcessPendingQForEntry(nsConnectionEntry *);
     PRBool   AtActiveConnectionLimit(nsConnectionEntry *, PRUint8 caps);
-    void     GetConnection(nsConnectionEntry *, PRUint8 caps, nsHttpConnection **);
+    void     GetConnection(nsConnectionEntry *, nsHttpTransaction *,
+                           PRBool, nsHttpConnection **);
     nsresult DispatchTransaction(nsConnectionEntry *, nsAHttpTransaction *,
                                  PRUint8 caps, nsHttpConnection *);
     PRBool   BuildPipeline(nsConnectionEntry *, nsAHttpTransaction *, nsHttpPipeline **);
     nsresult ProcessNewTransaction(nsHttpTransaction *);
     nsresult EnsureSocketThreadTargetIfOnline();
-
+    void     ClosePersistentConnections(nsConnectionEntry *ent);
+    nsresult CreateTransport(nsConnectionEntry *, nsHttpTransaction *);
+    void     AddActiveConn(nsHttpConnection *, nsConnectionEntry *);
+    void     StartedConnect();
+    void     RecvdConnect();
+    
     // message handlers have this signature
     typedef void (nsHttpConnectionMgr:: *nsConnEventHandler)(PRInt32, void *);
 
@@ -275,6 +339,7 @@ private:
     void OnMsgPruneDeadConnections (PRInt32, void *);
     void OnMsgReclaimConnection    (PRInt32, void *);
     void OnMsgUpdateParam          (PRInt32, void *);
+    void OnMsgClosePersistentConnections (PRInt32, void *);
 
     // Total number of active connections in all of the ConnectionEntry objects
     // that are accessed from mCT connection table.
@@ -292,9 +357,9 @@ private:
     // the connection table
     //
     // this table is indexed by connection key.  each entry is a
-    // ConnectionEntry object.
+    // nsConnectionEntry object.
     //
-    nsHashtable mCT;
+    nsClassHashtable<nsCStringHashKey, nsConnectionEntry> mCT;
 };
 
 #endif // !nsHttpConnectionMgr_h__

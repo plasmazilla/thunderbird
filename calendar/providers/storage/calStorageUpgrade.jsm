@@ -98,14 +98,15 @@
  * please file a bug.
  */
 
+Components.utils.import("resource:///modules/Services.jsm");
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://calendar/modules/calStorageHelpers.jsm");
 
 // The current database version. Be sure to increment this when you create a new
 // updater.
-var DB_SCHEMA_VERSION = 19;
+var DB_SCHEMA_VERSION = 20;
 
-var EXPORTED_SYMBOLS = ["DB_SCHEMA_VERSION", "getSql", "getAllSql", "getSqlTable", "upgradeDB"];
+var EXPORTED_SYMBOLS = ["DB_SCHEMA_VERSION", "getSql", "getAllSql", "getSqlTable", "upgradeDB", "backupDB"];
 
 /**
  * Gets the SQL for the given table data and table name. This can be both a real
@@ -206,6 +207,29 @@ function getVersion(db) {
 }
 
 /**
+ * Backup the database and notify the user via error console of the process
+ */
+function backupDB(db, currentVersion) {
+    cal.LOG("Storage: Backing up current database...");
+    try {
+        // Prepare filenames and path
+        let backupFilename = "local.v" + currentVersion + ".sqlite";
+        let backupPath = cal.getCalendarDirectory();
+        backupPath.append("backup");
+        if (!backupPath.exists()) {
+            backupPath.create(Components.interfaces.nsIFile.DIRECTORY_TYPE, parseInt("0755", 8));
+        }
+
+        // Create a backup file and notify the user via WARN, since LOG will not
+        // be visible unless a pref is set.
+        let file = Services.storage.backupDatabaseFile(db.databaseFile, backupFilename, backupPath);
+        cal.WARN("Storage: Upgrading to v" + DB_SCHEMA_VERSION + ", a backup was written to: " + file.path);
+    } catch (e) {
+        cal.ERROR("Storage: Error creating backup file: " + e);
+    }
+}
+
+/**
  * Upgrade the passed database.
  *
  * @param db        The database to bring up to date.
@@ -224,6 +248,10 @@ function upgradeDB(db) {
     } else {
         let version = getVersion(db);
         if (version < DB_SCHEMA_VERSION) {
+            // First, create a backup
+            backupDB(db, version);
+
+            // Then start the latest upgrader
             cal.LOG("Storage: Preparing to upgrade v" + version +
                     " to v" + DB_SCHEMA_VERSION);
             upgrade["v" + DB_SCHEMA_VERSION](db, version);
@@ -382,7 +410,8 @@ function ensureUpdatedTimezones(db) {
 
     if (versionComp < 0) {
         // A timezones downgrade has happened!
-        throw Components.interfaces.calIErrors.STORAGE_UNKNOWN_TIMEZONES_ERROR;
+        throw new Components.Exception("Attempt to downgrade timezones",
+                                       Components.interfaces.calIErrors.STORAGE_UNKNOWN_TIMEZONES_ERROR);
     } else if (versionComp > 0) {
         cal.LOG("Timezones have been updated, updating calendar data.");
 
@@ -1302,3 +1331,24 @@ upgrade.v19 = function upgrade_v19(db, version) {
 
     return tbl;
 };
+
+/**
+ * Bug 380060 - Offline Sync feature for calendar
+ * Setting a offline_journal column in cal_events tables
+ * r=philipp, p=redDragon
+ */
+upgrade.v20 = function upgrade_v20(db,version){
+    let tbl = upgrade.v19(version<19 && db, version);
+    LOGdb(db, "Storage: Upgrading to v20");
+    beginTransaction(db);
+    try{
+        //Adding a offline_journal column
+        for each (let tblName in ["cal_events", "cal_todos"]) {
+            addColumn(tbl, tblName, ["offline_journal"], "INTEGER", db);
+        }
+        setDbVersionAndCommit(db, 20);
+    } catch (e) {
+        throw reportErrorAndRollback(db,e);
+    }
+    return tbl;
+}

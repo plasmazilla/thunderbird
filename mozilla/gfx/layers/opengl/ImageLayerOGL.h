@@ -207,6 +207,12 @@ public:
            mTextures[2].IsAllocated();
   }
 
+  PRUint8* AllocateBuffer(PRUint32 aSize) {
+    return mRecycleBin->GetBuffer(aSize);
+  }
+
+  PRUint32 GetDataSize() { return mBuffer ? mBufferSize : 0; }
+
   nsAutoArrayPtr<PRUint8> mBuffer;
   PRUint32 mBufferSize;
   nsRefPtr<RecycleBin> mRecycleBin;
@@ -214,7 +220,6 @@ public:
   Data mData;
   gfxIntSize mSize;
   PRPackedBool mHasData;
-  gfx::YUVType mType; 
 };
 
 
@@ -233,6 +238,9 @@ public:
 #if defined(MOZ_WIDGET_GTK2) && !defined(MOZ_PLATFORM_MAEMO)
   nsRefPtr<gfxASurface> mSurface;
 #endif
+  void SetTiling(bool aTiling);
+private:
+  bool mTiling;
 };
 
 class ShadowImageLayerOGL : public ShadowImageLayer,
@@ -245,10 +253,9 @@ public:
   virtual ~ShadowImageLayerOGL();
 
   // ShadowImageLayer impl
-  virtual PRBool Init(gfxSharedImageSurface* aFront, const nsIntSize& aSize);
+  virtual PRBool Init(const SharedImage& aFront, const nsIntSize& aSize);
 
-  virtual already_AddRefed<gfxSharedImageSurface>
-  Swap(gfxSharedImageSurface* aNewFront);
+  virtual void Swap(const SharedImage& aFront, SharedImage* aNewBack);
 
   virtual void DestroyFrontBuffer();
 
@@ -264,12 +271,9 @@ public:
 
 private:
   nsRefPtr<TextureImage> mTexImage;
-
-
-  // XXX FIXME holding to free
-  nsRefPtr<gfxSharedImageSurface> mDeadweight;
-
-
+  GLTexture mYUVTexture[3];
+  gfxIntSize mSize;
+  nsIntRect mPictureRect;
 };
 
 } /* layers */

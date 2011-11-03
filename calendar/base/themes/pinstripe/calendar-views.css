@@ -543,6 +543,7 @@ calendar-editable-item[selected="true"] .calendar-event-selection {
 
 .calendar-category-box-gradient {
     list-style-image: url("chrome://calendar/skin/category-overlay.png");
+    width: 7px;
 }
 
 calendar-event-gripbar {
@@ -678,7 +679,8 @@ calendar-editable-item[invitation-status="TENTATIVE"],
 calendar-month-day-box-item[invitation-status="TENTATIVE"],
 calendar-event-box[status="TENTATIVE"],
 calendar-editable-item[status="TENTATIVE"],
-calendar-month-day-box-item[status="TENTATIVE"] {
+calendar-month-day-box-item[status="TENTATIVE"],
+agenda-richlist-item[status="TENTATIVE"] {
     opacity: 0.5;
 }
 
@@ -687,12 +689,15 @@ calendar-editable-item[invitation-status="DECLINED"],
 calendar-month-day-box-item[invitation-status="DECLINED"],
 calendar-event-box[status="CANCELLED"],
 calendar-editable-item[status="CANCELLED"],
-calendar-month-day-box-item[status="CANCELLED"] {
+calendar-month-day-box-item[status="CANCELLED"],
+agenda-richlist-item[status="CANCELLED"] {
     opacity: 0.5;
 }
 
 calendar-month-day-box-item[status="CANCELLED"] .calendar-color-box,
-calendar-event-box[status="CANCELLED"] .calendar-color-box {
+calendar-event-box[status="CANCELLED"] .calendar-color-box,
+calendar-editable-item[status="CANCELLED"] .calendar-color-box,
+agenda-richlist-item[status="CANCELLED"] .agenda-container-box {
     text-decoration: line-through;
 }
 
@@ -723,8 +728,13 @@ calendar-event-box[status="CANCELLED"] .calendar-color-box {
     padding-right: 20px;
 }
 
+#view-tabbox {
+    margin: 0;
+}
+
 .calview-tabs {
     margin-bottom: 0;
+    padding: 0;
 }
 
 tab[calview] {

@@ -36,7 +36,6 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "gfxMatrix.h"
-#include "gfx3DMatrix.h"
 #include "cairo.h"
 
 #define CAIRO_MATRIX(x) reinterpret_cast<cairo_matrix_t*>((x))
@@ -110,7 +109,7 @@ gfxMatrix::Transform(const gfxSize& size) const
 gfxRect
 gfxMatrix::Transform(const gfxRect& rect) const
 {
-    return gfxRect(Transform(rect.pos), Transform(rect.size));
+    return gfxRect(Transform(rect.TopLeft()), Transform(rect.Size()));
 }
 
 gfxRect
@@ -122,20 +121,20 @@ gfxMatrix::TransformBounds(const gfxRect& rect) const
     double min_x, max_x;
     double min_y, max_y;
 
-    quad_x[0] = rect.pos.x;
-    quad_y[0] = rect.pos.y;
+    quad_x[0] = rect.X();
+    quad_y[0] = rect.Y();
     cairo_matrix_transform_point (CONST_CAIRO_MATRIX(this), &quad_x[0], &quad_y[0]);
 
-    quad_x[1] = rect.pos.x + rect.size.width;
-    quad_y[1] = rect.pos.y;
+    quad_x[1] = rect.XMost();
+    quad_y[1] = rect.Y();
     cairo_matrix_transform_point (CONST_CAIRO_MATRIX(this), &quad_x[1], &quad_y[1]);
 
-    quad_x[2] = rect.pos.x;
-    quad_y[2] = rect.pos.y + rect.size.height;
+    quad_x[2] = rect.X();
+    quad_y[2] = rect.YMost();
     cairo_matrix_transform_point (CONST_CAIRO_MATRIX(this), &quad_x[2], &quad_y[2]);
 
-    quad_x[3] = rect.pos.x + rect.size.width;
-    quad_y[3] = rect.pos.y + rect.size.height;
+    quad_x[3] = rect.XMost();
+    quad_y[3] = rect.YMost();
     cairo_matrix_transform_point (CONST_CAIRO_MATRIX(this), &quad_x[3], &quad_y[3]);
 
     min_x = max_x = quad_x[0];
@@ -153,46 +152,9 @@ gfxMatrix::TransformBounds(const gfxRect& rect) const
             max_y = quad_y[i];
     }
 
-    // we don't compute this now
-#if 0
-    if (is_tight) {
-        /* it's tight if and only if the four corner points form an axis-aligned
-           rectangle.
-           And that's true if and only if we can derive corners 0 and 3 from
-           corners 1 and 2 in one of two straightforward ways...
-           We could use a tolerance here but for now we'll fall back to FALSE in the case
-           of floating point error.
-        */
-        *is_tight =
-            (quad_x[1] == quad_x[0] && quad_y[1] == quad_y[3] &&
-             quad_x[2] == quad_x[3] && quad_y[2] == quad_y[0]) ||
-            (quad_x[1] == quad_x[3] && quad_y[1] == quad_y[0] &&
-             quad_x[2] == quad_x[0] && quad_y[2] == quad_y[3]);
-    }
-#endif
-
     return gfxRect(min_x, min_y, max_x - min_x, max_y - min_y);
 }
 
-PRBool
-gfx3DMatrix::Is2D(gfxMatrix* aMatrix) const
-{
-  if (_13 != 0.0f || _14 != 0.0f ||
-      _23 != 0.0f || _24 != 0.0f ||
-      _31 != 0.0f || _32 != 0.0f || _33 != 1.0f || _34 != 0.0f ||
-      _43 != 0.0f || _44 != 1.0f) {
-    return PR_FALSE;
-  }
-  if (aMatrix) {
-    aMatrix->xx = _11;
-    aMatrix->yx = _12;
-    aMatrix->xy = _21;
-    aMatrix->yy = _22;
-    aMatrix->x0 = _41;
-    aMatrix->y0 = _42;
-  }
-  return PR_TRUE;
-}
 
 static void NudgeToInteger(double *aVal)
 {

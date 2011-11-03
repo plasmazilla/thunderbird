@@ -39,7 +39,6 @@
 
 #include "nsCOMPtr.h"
 #include "nsFrameSetFrame.h"
-#include "nsContentUtils.h"
 #include "nsGenericHTMLElement.h"
 #include "nsLeafFrame.h"
 #include "nsHTMLContainerFrame.h"
@@ -62,7 +61,7 @@
 #include "nsWidgetsCID.h"
 #include "nsIComponentManager.h"
 #include "nsGUIEvent.h"
-#include "nsIRenderingContext.h"
+#include "nsRenderingContext.h"
 #include "nsIServiceManager.h"
 #include "nsIDOMMutationEvent.h"
 #include "nsINameSpaceManager.h"
@@ -73,6 +72,10 @@
 #include "nsDisplayList.h"
 #include "nsNodeUtils.h"
 #include "mozAutoDocUpdate.h"
+#include "mozilla/Preferences.h"
+#include "nsHTMLFrameSetElement.h"
+
+using namespace mozilla;
 
 // masks for mEdgeVisibility
 #define LEFT_VIS   0x0001
@@ -143,7 +146,7 @@ public:
   void SetVisibility(PRBool aVisibility);
   void SetColor(nscolor aColor);
 
-  void PaintBorder(nsIRenderingContext& aRenderingContext, nsPoint aPt);
+  void PaintBorder(nsRenderingContext& aRenderingContext, nsPoint aPt);
 
 protected:
   nsHTMLFramesetBorderFrame(nsStyleContext* aContext, PRInt32 aWidth, PRBool aVertical, PRBool aVisible);
@@ -238,8 +241,8 @@ nsHTMLFramesetFrame::~nsHTMLFramesetFrame()
   delete[] mChildFrameborder;
   delete[] mChildBorderColors;
 
-  nsContentUtils::UnregisterPrefCallback(kFrameResizePref,
-                                         FrameResizePrefCallback, this);
+  Preferences::UnregisterCallback(FrameResizePrefCallback,
+                                  kFrameResizePref, this);
 }
 
 NS_QUERYFRAME_HEAD(nsHTMLFramesetFrame)
@@ -263,8 +266,7 @@ nsHTMLFramesetFrame::FrameResizePrefCallback(const char* aPref, void* aClosure)
   }
 
   frame->mForceFrameResizability =
-    nsContentUtils::GetBoolPref(kFrameResizePref,
-                                frame->mForceFrameResizability);
+    Preferences::GetBool(kFrameResizePref, frame->mForceFrameResizability);
 
   frame->RecalculateBorderResize();
   if (doc) {
@@ -309,7 +311,7 @@ nsHTMLFramesetFrame::Init(nsIContent*      aContent,
   nscolor borderColor = GetBorderColor();
  
   // Get the rows= cols= data
-  nsCOMPtr<nsIFrameSetElement> ourContent(do_QueryInterface(mContent));
+  nsHTMLFrameSetElement* ourContent = nsHTMLFrameSetElement::FromContent(mContent);
   NS_ASSERTION(ourContent, "Someone gave us a broken frameset element!");
   const nsFramesetSpec* rowSpecs = nsnull;
   const nsFramesetSpec* colSpecs = nsnull;
@@ -972,10 +974,9 @@ nsHTMLFramesetFrame::Reflow(nsPresContext*          aPresContext,
 
   PRBool firstTime = (GetStateBits() & NS_FRAME_FIRST_REFLOW) != 0;
   if (firstTime) {
-    nsContentUtils::RegisterPrefCallback(kFrameResizePref,
-                                         FrameResizePrefCallback, this);
-    mForceFrameResizability =
-      nsContentUtils::GetBoolPref(kFrameResizePref);
+    Preferences::RegisterCallback(FrameResizePrefCallback,
+                                  kFrameResizePref, this);
+    mForceFrameResizability = Preferences::GetBool(kFrameResizePref);
   }
   
   // subtract out the width of all of the potential borders. There are
@@ -989,7 +990,7 @@ nsHTMLFramesetFrame::Reflow(nsPresContext*          aPresContext,
   height -= (mNumRows - 1) * borderWidth;
   if (height < 0) height = 0;
 
-  nsCOMPtr<nsIFrameSetElement> ourContent(do_QueryInterface(mContent));
+  nsHTMLFrameSetElement* ourContent = nsHTMLFrameSetElement::FromContent(mContent);
   NS_ASSERTION(ourContent, "Someone gave us a broken frameset element!");
   const nsFramesetSpec* rowSpecs = nsnull;
   const nsFramesetSpec* colSpecs = nsnull;
@@ -1500,7 +1501,7 @@ nsHTMLFramesetFrame::MouseDrag(nsPresContext* aPresContext,
     if (change != 0) {
       // Recompute the specs from the new sizes.
       nscoord width = mRect.width - (mNumCols - 1) * GetBorderWidth(aPresContext, PR_TRUE);
-      nsCOMPtr<nsIFrameSetElement> ourContent(do_QueryInterface(mContent));
+      nsHTMLFrameSetElement* ourContent = nsHTMLFrameSetElement::FromContent(mContent);
       NS_ASSERTION(ourContent, "Someone gave us a broken frameset element!");
       const nsFramesetSpec* colSpecs = nsnull;
       ourContent->GetColSpec(&mNumCols, &colSpecs);
@@ -1523,7 +1524,7 @@ nsHTMLFramesetFrame::MouseDrag(nsPresContext* aPresContext,
     if (change != 0) {
       // Recompute the specs from the new sizes.
       nscoord height = mRect.height - (mNumRows - 1) * GetBorderWidth(aPresContext, PR_TRUE);
-      nsCOMPtr<nsIFrameSetElement> ourContent(do_QueryInterface(mContent));
+      nsHTMLFrameSetElement* ourContent = nsHTMLFrameSetElement::FromContent(mContent);
       NS_ASSERTION(ourContent, "Someone gave us a broken frameset element!");
       const nsFramesetSpec* rowSpecs = nsnull;
       ourContent->GetRowSpec(&mNumRows, &rowSpecs);
@@ -1660,12 +1661,12 @@ public:
     aOutFrames->AppendElement(mFrame);
   }
   virtual void Paint(nsDisplayListBuilder* aBuilder,
-                     nsIRenderingContext* aCtx);
+                     nsRenderingContext* aCtx);
   NS_DISPLAY_DECL_NAME("FramesetBorder", TYPE_FRAMESET_BORDER)
 };
 
 void nsDisplayFramesetBorder::Paint(nsDisplayListBuilder* aBuilder,
-                                    nsIRenderingContext* aCtx)
+                                    nsRenderingContext* aCtx)
 {
   static_cast<nsHTMLFramesetBorderFrame*>(mFrame)->
     PaintBorder(*aCtx, ToReferenceFrame());
@@ -1680,7 +1681,7 @@ nsHTMLFramesetBorderFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
       new (aBuilder) nsDisplayFramesetBorder(aBuilder, this));
 }
 
-void nsHTMLFramesetBorderFrame::PaintBorder(nsIRenderingContext& aRenderingContext,
+void nsHTMLFramesetBorderFrame::PaintBorder(nsRenderingContext& aRenderingContext,
                                             nsPoint aPt)
 {
   nscolor WHITE    = NS_RGB(255, 255, 255);
@@ -1689,8 +1690,8 @@ void nsHTMLFramesetBorderFrame::PaintBorder(nsIRenderingContext& aRenderingConte
   nscolor hltColor = NS_RGB(255,255,255);
   nscolor sdwColor = NS_RGB(128,128,128);
 
-  nsIRenderingContext::AutoPushTranslation
-    translate(&aRenderingContext, aPt.x, aPt.y);
+  nsRenderingContext::AutoPushTranslation
+    translate(&aRenderingContext, aPt);
 
   {
     nsCOMPtr<nsILookAndFeel> lookAndFeel = do_GetService(kLookAndFeelCID);
@@ -1708,10 +1709,8 @@ void nsHTMLFramesetBorderFrame::PaintBorder(nsIRenderingContext& aRenderingConte
   if (widthInPixels <= 0)
     return;
 
-  nscoord x0 = 0;
-  nscoord y0 = 0;
-  nscoord x1 = (mVertical) ? 0 : mRect.width;
-  nscoord y1 = (mVertical) ? mRect.height : 0;
+  nsPoint start(0,0);
+  nsPoint end((mVertical) ? 0 : mRect.width, (mVertical) ? mRect.height : 0);
 
   nscolor color = WHITE;
   if (mVisibility || mVisibilityOverride) {
@@ -1720,13 +1719,13 @@ void nsHTMLFramesetBorderFrame::PaintBorder(nsIRenderingContext& aRenderingConte
   aRenderingContext.SetColor(color);
   // draw grey or white first
   for (int i = 0; i < widthInPixels; i++) {
-    aRenderingContext.DrawLine (x0, y0, x1, y1);
+    aRenderingContext.DrawLine (start, end);
     if (mVertical) {
-      x0 += pixelWidth;
-      x1 =  x0;
+      start.x += pixelWidth;
+      end.x =  start.x;
     } else {
-      y0 += pixelWidth;
-      y1 =  y0;
+      start.y += pixelWidth;
+      end.y =  start.y;
     }
   }
 
@@ -1735,29 +1734,29 @@ void nsHTMLFramesetBorderFrame::PaintBorder(nsIRenderingContext& aRenderingConte
 
   if (widthInPixels >= 5) {
     aRenderingContext.SetColor(hltColor);
-    x0 = (mVertical) ? pixelWidth : 0;
-    y0 = (mVertical) ? 0 : pixelWidth;
-    x1 = (mVertical) ? x0 : mRect.width;
-    y1 = (mVertical) ? mRect.height : y0;
-    aRenderingContext.DrawLine(x0, y0, x1, y1);
+    start.x = (mVertical) ? pixelWidth : 0;
+    start.y = (mVertical) ? 0 : pixelWidth;
+    end.x   = (mVertical) ? start.x : mRect.width;
+    end.y   = (mVertical) ? mRect.height : start.y;
+    aRenderingContext.DrawLine(start, end);
   }
 
   if (widthInPixels >= 2) {
     aRenderingContext.SetColor(sdwColor);
-    x0 = (mVertical) ? mRect.width - (2 * pixelWidth) : 0;
-    y0 = (mVertical) ? 0 : mRect.height - (2 * pixelWidth);
-    x1 = (mVertical) ? x0 : mRect.width;
-    y1 = (mVertical) ? mRect.height : y0;
-    aRenderingContext.DrawLine(x0, y0, x1, y1);
+    start.x = (mVertical) ? mRect.width - (2 * pixelWidth) : 0;
+    start.y = (mVertical) ? 0 : mRect.height - (2 * pixelWidth);
+    end.x   = (mVertical) ? start.x : mRect.width;
+    end.y   = (mVertical) ? mRect.height : start.y;
+    aRenderingContext.DrawLine(start, end);
   }
 
   if (widthInPixels >= 1) {
     aRenderingContext.SetColor(fgColor);
-    x0 = (mVertical) ? mRect.width - pixelWidth : 0;
-    y0 = (mVertical) ? 0 : mRect.height - pixelWidth;
-    x1 = (mVertical) ? x0 : mRect.width;
-    y1 = (mVertical) ? mRect.height : y0;
-    aRenderingContext.DrawLine(x0, y0, x1, y1);
+    start.x = (mVertical) ? mRect.width - pixelWidth : 0;
+    start.y = (mVertical) ? 0 : mRect.height - pixelWidth;
+    end.x   = (mVertical) ? start.x : mRect.width;
+    end.y   = (mVertical) ? mRect.height : start.y;
+    aRenderingContext.DrawLine(start, end);
   }
 }
 
@@ -1859,12 +1858,12 @@ public:
   }
 #endif
 
-  virtual void Paint(nsDisplayListBuilder* aBuilder, nsIRenderingContext* aCtx);
+  virtual void Paint(nsDisplayListBuilder* aBuilder, nsRenderingContext* aCtx);
   NS_DISPLAY_DECL_NAME("FramesetBlank", TYPE_FRAMESET_BLANK)
 };
 
 void nsDisplayFramesetBlank::Paint(nsDisplayListBuilder* aBuilder,
-                                   nsIRenderingContext* aCtx)
+                                   nsRenderingContext* aCtx)
 {
   nscolor white = NS_RGB(255,255,255);
   aCtx->SetColor(white);

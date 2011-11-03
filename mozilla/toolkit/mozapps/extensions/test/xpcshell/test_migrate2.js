@@ -139,6 +139,12 @@ function run_test() {
   db.close();
 
   startupManager();
+  check_startup_changes("installed", []);
+  check_startup_changes("updated", []);
+  check_startup_changes("uninstalled", []);
+  check_startup_changes("disabled", []);
+  check_startup_changes("enabled", []);
+
   AddonManager.getAddonsByIDs(["addon1@tests.mozilla.org",
                                "addon2@tests.mozilla.org",
                                "addon3@tests.mozilla.org",
@@ -171,7 +177,6 @@ function run_test() {
     do_check_false(a5.userDisabled);
     do_check_false(a5.appDisabled);
     do_check_true(a5.isActive);
-    do_test_finished();
     // addon6 was disabled and compatible but a new version has been installed
     // since, it should still be disabled but should be incompatible
     do_check_neq(a6, null);

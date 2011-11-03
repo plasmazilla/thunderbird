@@ -35,6 +35,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+"use strict";
+
 var EXPORTED_SYMBOLS = ["LightweightThemeManager"];
 
 const Cc = Components.classes;
@@ -48,6 +50,10 @@ const PREF_LWTHEME_TO_SELECT = "extensions.lwThemeToSelect";
 const PREF_GENERAL_SKINS_SELECTEDSKIN = "general.skins.selectedSkin";
 const PREF_EM_DSS_ENABLED    = "extensions.dss.enabled";
 const ADDON_TYPE             = "theme";
+
+const URI_EXTENSION_STRINGS  = "chrome://mozapps/locale/extensions/extensions.properties";
+
+const STRING_TYPE_NAME       = "type.%ID%.name";
 
 const DEFAULT_MAX_USED_THEMES_COUNT = 30;
 
@@ -550,6 +556,10 @@ AddonWrapper.prototype = {
     return AddonManager.SCOPE_PROFILE;
   },
 
+  get foreignInstall() {
+    return false;
+  },
+
   // Lightweight themes are always compatible
   isCompatibleWith: function(appVersion, platformVersion) {
     return true;
@@ -803,4 +813,8 @@ function _persistProgressListener(successCallback) {
   };
 }
 
-AddonManagerPrivate.registerProvider(LightweightThemeManager);
+AddonManagerPrivate.registerProvider(LightweightThemeManager, [
+  new AddonManagerPrivate.AddonType("theme", URI_EXTENSION_STRINGS,
+                                    STRING_TYPE_NAME,
+                                    AddonManager.VIEW_TYPE_LIST, 5000)
+]);

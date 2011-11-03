@@ -322,4 +322,13 @@ patch -p3 < solaris.patch
 patch -p1 < xcode4.patch
 
 # Patch to fix data race on global function pointers
-patch -p1 < bug640935.patch
+patch -p3 < bug640935.patch
+
+# Patch to avoid text relocations on ARM
+patch -p3 < bug646815.patch
+
+# Patch to fix alignment problems with using ARM asm in Thumb mode.
+patch -p3 < bug666931.patch
+
+# Patch to make chroma planes 16-byte aligned.
+patch -p3 < bug671818.patch

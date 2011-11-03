@@ -67,7 +67,6 @@ const kProxyManual = ["network.proxy.ftp",
 const kExistingWindow = Components.interfaces.nsIBrowserDOMWindow.OPEN_CURRENTWINDOW;
 const kNewWindow = Components.interfaces.nsIBrowserDOMWindow.OPEN_NEWWINDOW;
 const kNewTab = Components.interfaces.nsIBrowserDOMWindow.OPEN_NEWTAB;
-const nsIPrefLocalizedString = Components.interfaces.nsIPrefLocalizedString;
 var TAB_DROP_TYPE = "application/x-moz-tabbrowser-tab";
 var gShowBiDi = false;
 var gUtilityBundle = null;
@@ -183,6 +182,49 @@ function GetStringPref(name)
                Components.interfaces.nsISupportsString).data;
   } catch (e) {}
   return "";
+}
+
+function GetLocalizedStringPref(aPrefName, aDefaultValue)
+{
+  try {
+    return Services.prefs.getComplexValue(aPrefName,
+               Components.interfaces.nsIPrefLocalizedString).data;
+  } catch (e) {
+    Components.utils.reportError("Couldn't get " + aPrefName + " pref: " + e);
+  }
+  return aDefaultValue;
+}
+
+function GetLocalFilePref(aName)
+{
+  try {
+    return Services.prefs.getComplexValue(aName,
+               Components.interfaces.nsILocalFile);
+  } catch (e) {}
+  return null;
+}
+
+/**
+  * Returns the Desktop folder.
+  */
+function GetDesktopFolder()
+{
+  return Services.dirsvc.get("Desk", Components.interfaces.nsILocalFile);
+}
+
+/**
+  * Returns the relevant nsIFile directory.
+  */
+function GetSpecialDirectory(aName)
+{
+  return Services.dirsvc.get(aName, Components.interfaces.nsIFile);
+}
+
+function GetUrlbarHistoryFile()
+{
+  var profileDir = GetSpecialDirectory("ProfD");
+  profileDir.append("urlbarhistory.sqlite");
+  return profileDir;
 }
 
 function setOfflineUI(offline)
@@ -539,13 +581,7 @@ function toolboxCustomizeChange(toolbox, event)
 
 function goClickThrobber(urlPref, aEvent)
 {
-  var url;
-  try {
-    url = Services.prefs.getComplexValue(urlPref, nsIPrefLocalizedString).data;
-  }
-  catch(e) {
-    url = null;
-  }
+  var url = GetLocalizedStringPref(urlPref);
 
   if (url) {
     var where = whereToOpenLink(aEvent, false, true, true);
@@ -635,11 +671,19 @@ function goReleaseNotes()
 {
   // get release notes URL from prefs
   try {
-    var formatter = Components.classes["@mozilla.org/toolkit/URLFormatterService;1"]
-                              .getService(Components.interfaces.nsIURLFormatter);
-    openUILink(formatter.formatURLPref("app.releaseNotesURL"));
+    openUILink(Services.urlFormatter.formatURLPref("app.releaseNotesURL"));
   }
   catch (ex) { dump(ex); }
+}
+
+function openDictionaryList()
+{
+  try {
+    openAsExternal(Services.urlFormatter.formatURLPref("spellchecker.dictionaries.download.url"));
+  }
+  catch (ex) {
+    dump(ex);
+  }
 }
 
 // Prompt user to restart the browser in safe mode 
@@ -926,6 +970,13 @@ function isElementVisible(aElement)
   return (bo.height > 0 && bo.width > 0);
 }
 
+function makeURLAbsolute(aBase, aUrl)
+{
+  // Construct nsIURL.
+  return Services.io.newURI(aUrl, null,
+                            Services.io.newURI(aBase, null, null)).spec;
+}
+
 function openAsExternal(aURL)
 {
   var loadType = Services.prefs.getIntPref("browser.link.open_external");
@@ -1089,14 +1140,8 @@ function BrowserOnCommand(event)
     }
     else if (ot.getAttribute('anonid') == 'getMeOutOfHereButton') {
       // Redirect them to a known-functioning page, default start page
-      var url = "about:blank";
-      try {
-        url = Services.prefs.getComplexValue("browser.startup.homepage",
-                                             nsIPrefLocalizedString).data;
-      } catch(e) {
-        Components.utils.reportError("Couldn't get homepage pref: " + e);
-      }
-      content.location = url;
+      content.location = GetLocalizedStringPref("browser.startup.homepage",
+                                                "about:blank");
     }
   }
 }
@@ -1530,6 +1575,26 @@ function subscribeToFeedMiddleClick(href, event) {
   }
 }
 
+function OpenSearchEngineManager() {
+  var window = Services.wm.getMostRecentWindow("Browser:SearchManager");
+  if (window)
+    window.focus();
+  else {
+    var arg = { value: false };
+    openDialog("chrome://communicator/content/search/engineManager.xul",
+               "_blank", "chrome,dialog,modal,centerscreen,resizable", arg);
+    if (arg.value)
+      loadAddSearchEngines();
+  }
+}
+
+function loadAddSearchEngines() {
+  var newWindowPref = Services.prefs.getIntPref("browser.link.open_newwindow");
+  var where = newWindowPref == kNewTab ? "tabfocused" : "window";
+  var searchEnginesURL = Services.urlFormatter.formatURLPref("browser.search.searchEnginesURL");
+  openUILinkIn(searchEnginesURL, where);
+}
+
 function FillInHTMLTooltip(tipElement)
 {
   if (tipElement.namespaceURI == "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul")
@@ -1554,4 +1619,17 @@ function FillInHTMLTooltip(tipElement)
   }
 
   return false;
+}
+
+function GetFileFromString(aString)
+{
+  // If empty string just return null.
+  if (!aString)
+    return null;
+
+  let commandLine = Components.classes["@mozilla.org/toolkit/command-line;1"]
+                              .createInstance(Components.interfaces.nsICommandLine);
+  let uri = commandLine.resolveURI(aString);
+  return uri instanceof Components.interfaces.nsIFileURL ?
+         uri.file.QueryInterface(Components.interfaces.nsILocalFile) : null;
 }

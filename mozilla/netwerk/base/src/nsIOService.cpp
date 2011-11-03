@@ -61,7 +61,6 @@
 #include "nsISupportsPrimitives.h"
 #include "nsIProxiedProtocolHandler.h"
 #include "nsIProxyInfo.h"
-#include "nsITimelineService.h"
 #include "nsEscape.h"
 #include "nsNetCID.h"
 #include "nsIRecyclingAllocator.h"
@@ -182,6 +181,7 @@ nsIOService::nsIOService()
     , mShutdown(PR_FALSE)
     , mChannelEventSinks(NS_CHANNEL_EVENT_SINK_CATEGORY)
     , mContentSniffers(NS_CONTENT_SNIFFER_CATEGORY)
+    , mAutoDialEnabled(PR_FALSE)
 {
 }
 
@@ -304,6 +304,7 @@ nsIOService::InitializeSocketTransportService()
     if (mSocketTransportService) {
         rv = mSocketTransportService->Init();
         NS_ASSERTION(NS_SUCCEEDED(rv), "socket transport service init failed");
+        mSocketTransportService->SetAutodialEnabled(mAutoDialEnabled);
     }
 
     return rv;
@@ -427,7 +428,6 @@ nsIOService::GetProtocolHandler(const char* scheme, nsIProtocolHandler* *result)
         return rv;
 
     PRBool externalProtocol = PR_FALSE;
-    PRBool listedProtocol   = PR_TRUE;
     nsCOMPtr<nsIPrefBranch2> prefBranch;
     GetPrefBranch(getter_AddRefs(prefBranch));
     if (prefBranch) {
@@ -436,7 +436,6 @@ nsIOService::GetProtocolHandler(const char* scheme, nsIProtocolHandler* *result)
         rv = prefBranch->GetBoolPref(externalProtocolPref.get(), &externalProtocol);
         if (NS_FAILED(rv)) {
             externalProtocol = PR_FALSE;
-            listedProtocol   = PR_FALSE;
         }
     }
 
@@ -594,9 +593,17 @@ nsIOService::NewFileURI(nsIFile *file, nsIURI **result)
 NS_IMETHODIMP
 nsIOService::NewChannelFromURI(nsIURI *aURI, nsIChannel **result)
 {
+    return NewChannelFromURIWithProxyFlags(aURI, nsnull, 0, result);
+}
+
+NS_IMETHODIMP
+nsIOService::NewChannelFromURIWithProxyFlags(nsIURI *aURI,
+                                             nsIURI *aProxyURI,
+                                             PRUint32 proxyFlags,
+                                             nsIChannel **result)
+{
     nsresult rv;
     NS_ENSURE_ARG_POINTER(aURI);
-    NS_TIMELINE_MARK_URI("nsIOService::NewChannelFromURI(%s)", aURI);
 
     nsCAutoString scheme;
     rv = aURI->GetScheme(scheme);
@@ -623,7 +630,8 @@ nsIOService::NewChannelFromURI(nsIURI *aURI, nsIChannel **result)
                 NS_WARNING("failed to get protocol proxy service");
         }
         if (mProxyService) {
-            rv = mProxyService->Resolve(aURI, 0, getter_AddRefs(pi));
+            rv = mProxyService->Resolve(aProxyURI ? aProxyURI : aURI,
+                                        proxyFlags, getter_AddRefs(pi));
             if (NS_FAILED(rv))
                 pi = nsnull;
         }
@@ -850,6 +858,7 @@ nsIOService::PrefsChanged(nsIPrefBranch *prefs, const char *pref)
         PRBool enableAutodial = PR_FALSE;
         nsresult rv = prefs->GetBoolPref(AUTODIAL_PREF, &enableAutodial);
         // If pref not found, default to disabled.
+        mAutoDialEnabled = enableAutodial;
         if (NS_SUCCEEDED(rv)) {
             if (mSocketTransportService)
                 mSocketTransportService->SetAutodialEnabled(enableAutodial);

@@ -42,6 +42,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+Components.utils.import("resource://gre/modules/Geometry.jsm");
+
 // Maximum delay in ms between the two taps of a double-tap
 const kDoubleClickInterval = 400;
 
@@ -64,7 +66,8 @@ const kStateActive = 0x00000001;
 // a pan in 300 milliseconds.
 const kStopKineticPanOnDragTimeout = 300;
 
-// Max velocity of a pan. This is in pixels/millisecond.
+// Min/max velocity of kinetic panning. This is in pixels/millisecond.
+const kMinVelocity = 0.4;
 const kMaxVelocity = 6;
 
 /**
@@ -115,7 +118,7 @@ function MouseModule() {
   this._mouseOverTimeout = new Util.Timeout(this._doMouseOver.bind(this));
   this._longClickTimeout = new Util.Timeout(this._doLongClick.bind(this));
 
-  this._doubleClickRadius = Util.getWindowUtils(window).displayDPI * kDoubleClickRadius;
+  this._doubleClickRadius = Util.displayDPI * kDoubleClickRadius;
 
   window.addEventListener("mousedown", this, true);
   window.addEventListener("mouseup", this, true);
@@ -126,6 +129,13 @@ function MouseModule() {
 
 
 MouseModule.prototype = {
+  _initMouseEventFromEvent: function _initMouseEventFromEvent(aDestEvent, aSrcEvent, aType, aCanBubble, aCancellable) {
+    aDestEvent.initMouseEvent(aType, aCanBubble, aCancellable, window, aSrcEvent.detail,
+                              aSrcEvent.screenX, aSrcEvent.screenY, aSrcEvent.clientX, aSrcEvent.clientY,
+                              aSrcEvent.ctrlKey, aSrcEvent.altKey, aSrcEvent.shiftKey, aSrcEvent.metaKey,
+                              aSrcEvent.button, aSrcEvent.relatedTarget);
+  },
+
   handleEvent: function handleEvent(aEvent) {
     switch (aEvent.type) {
       case "contextmenu":
@@ -213,10 +223,8 @@ MouseModule.prototype = {
 
     // Do tap
     if (!this._kinetic.isActive()) {
-      let event = document.createEvent("Events");
-      event.initEvent("TapDown", true, true);
-      event.clientX = aEvent.clientX;
-      event.clientY = aEvent.clientY;
+      let event = document.createEvent("MouseEvent");
+      this._initMouseEventFromEvent(event, aEvent, "TapDown", true, true);
       let success = aEvent.target.dispatchEvent(event);
       if (success) {
         this._recordEvent(aEvent);
@@ -268,10 +276,8 @@ MouseModule.prototype = {
     if (this._target) {
       let isClick = dragData.isClick();
 
-      let event = document.createEvent("Events");
-      event.initEvent("TapUp", true, true);
-      event.clientX = aEvent.clientX
-      event.clientY = aEvent.clientY;
+      let event = document.createEvent("MouseEvents");
+      this._initMouseEventFromEvent(event, aEvent, "TapUp", true, true);
       event.isClick = isClick;
 
       let success = aEvent.target.dispatchEvent(event);
@@ -335,10 +341,13 @@ MouseModule.prototype = {
       this.dY += dragData.prevPanY - sY;
 
       if (dragData.isPan()) {
+        this.sendMove(aEvent);
+
         // Only pan when mouse event isn't part of a click. Prevent jittering on tap.
         this._kinetic.addData(sX - dragData.prevPanX, sY - dragData.prevPanY);
+
+        // dragBy will reset dX and dY values to 0
         this._dragBy(this.dX, this.dY);
-        // dragBy will reset dX and dY values to 0.
 
         // Let everyone know when mousemove begins a pan
         if (!oldIsPan && dragData.isPan()) {
@@ -358,6 +367,12 @@ MouseModule.prototype = {
       if (dragData.isPan())
         this._longClickTimeout.clear();
     }
+  },
+
+  sendMove: function(aEvent) {
+    let event = document.createEvent("MouseEvents");
+    this._initMouseEventFromEvent(event, aEvent, "TapMove", true, true);
+    aEvent.target.dispatchEvent(event);
   },
 
   /**
@@ -555,7 +570,7 @@ MouseModule.prototype = {
 var ScrollUtils = {
   // threshold in pixels for sensing a tap as opposed to a pan
   get tapRadius() {
-    let dpi = Util.getWindowUtils(window).displayDPI;
+    let dpi = Util.displayDPI;
 
     delete this.tapRadius;
     return this.tapRadius = Services.prefs.getIntPref("ui.dragThresholdX") / 240 * dpi;
@@ -671,7 +686,7 @@ var ScrollUtils = {
  */
 function DragData() {
   this._domUtils = Cc["@mozilla.org/inspector/dom-utils;1"].getService(Ci.inIDOMUtils);
-  this._lockRevertThreshold = Util.getWindowUtils(window).displayDPI * kAxisLockRevertThreshold;
+  this._lockRevertThreshold = Util.displayDPI * kAxisLockRevertThreshold;
   this.reset();
 };
 
@@ -982,8 +997,13 @@ KineticController.prototype = {
       currentVelocityY = 0;
 
     let swipeTime = Math.min(swipeLength, lastTime - mb[0].t);
-    this._velocity.x = clampFromZero((distanceX / swipeTime) + currentVelocityX, Math.abs(currentVelocityX), 6);
-    this._velocity.y = clampFromZero((distanceY / swipeTime) + currentVelocityY, Math.abs(currentVelocityY), 6);
+    this._velocity.x = clampFromZero((distanceX / swipeTime) + currentVelocityX, Math.abs(currentVelocityX), kMaxVelocity);
+    this._velocity.y = clampFromZero((distanceY / swipeTime) + currentVelocityY, Math.abs(currentVelocityY), kMaxVelocity);
+
+    if (Math.abs(this._velocity.x) < kMinVelocity)
+      this._velocity.x = 0;
+    if (Math.abs(this._velocity.y) < kMinVelocity)
+      this._velocity.y = 0;
 
     // Set acceleration vector to opposite signs of velocity
     this._acceleration.set(this._velocity.clone().map(sign).scale(-this._polynomialC));
@@ -1246,4 +1266,3 @@ GestureModule.prototype = {
     return r0.translate(offsetX, offsetY);
   }
 };
-

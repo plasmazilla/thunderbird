@@ -171,9 +171,11 @@ nsHttpHandler::nsHttpHandler()
     , mCapabilities(NS_HTTP_ALLOW_KEEPALIVE)
     , mProxyCapabilities(NS_HTTP_ALLOW_KEEPALIVE)
     , mReferrerLevel(0xff) // by default we always send a referrer
+    , mFastFallbackToIPv4(PR_FALSE)
     , mIdleTimeout(10)
     , mMaxRequestAttempts(10)
     , mMaxRequestDelay(10)
+    , mIdleSynTimeout(250)
     , mMaxConnections(24)
     , mMaxConnectionsPerServer(8)
     , mMaxPersistentConnectionsPerServer(2)
@@ -699,13 +701,11 @@ nsHttpHandler::InitUserAgentComponents()
     else if (os2ver == 45)
         mOscpu.AssignLiteral("Warp 4.5");
 
-#elif defined(WINCE) || defined(XP_WIN)
+#elif defined(XP_WIN)
     OSVERSIONINFO info = { sizeof(OSVERSIONINFO) };
     if (GetVersionEx(&info)) {
         const char *format;
-#ifdef WINCE
-        format = "WindowsCE %ld.%ld";
-#elif defined _M_IA64
+#if defined _M_IA64
         format = WNT_BASE W64_PREFIX "; IA64";
 #elif defined _M_X64 || defined _M_AMD64
         format = WNT_BASE W64_PREFIX "; x64";
@@ -843,7 +843,11 @@ nsHttpHandler::PrefsChanged(nsIPrefBranch *prefs, const char *pref)
     if (PREF_CHANGED(HTTP_PREF("max-connections"))) {
         rv = prefs->GetIntPref(HTTP_PREF("max-connections"), &val);
         if (NS_SUCCEEDED(rv)) {
-            mMaxConnections = (PRUint16) NS_CLAMP(val, 1, NS_SOCKET_MAX_COUNT);
+            PR_CallOnce(&nsSocketTransportService::gMaxCountInitOnce,
+                        nsSocketTransportService::DiscoverMaxCount);
+            mMaxConnections =
+                (PRUint16) NS_CLAMP((PRUint32)val, 1,
+                                    nsSocketTransportService::gMaxCount);
             if (mConnMgr)
                 mConnMgr->UpdateParam(nsHttpConnectionMgr::MAX_CONNECTIONS,
                                       mMaxConnections);
@@ -893,6 +897,18 @@ nsHttpHandler::PrefsChanged(nsIPrefBranch *prefs, const char *pref)
         rv = prefs->GetIntPref(HTTP_PREF("redirection-limit"), &val);
         if (NS_SUCCEEDED(rv))
             mRedirectionLimit = (PRUint8) NS_CLAMP(val, 0, 0xff);
+    }
+
+    if (PREF_CHANGED(HTTP_PREF("connection-retry-timeout"))) {
+        rv = prefs->GetIntPref(HTTP_PREF("connection-retry-timeout"), &val);
+        if (NS_SUCCEEDED(rv))
+            mIdleSynTimeout = (PRUint16) NS_CLAMP(val, 0, 3000);
+    }
+
+    if (PREF_CHANGED(HTTP_PREF("fast-fallback-to-IPv4"))) {
+        rv = prefs->GetBoolPref(HTTP_PREF("fast-fallback-to-IPv4"), &cVar);
+        if (NS_SUCCEEDED(rv))
+            mFastFallbackToIPv4 = cVar;
     }
 
     if (PREF_CHANGED(HTTP_PREF("version"))) {
@@ -1587,6 +1603,8 @@ nsHttpHandler::Observe(nsISupports *subject,
             mInPrivateBrowsingMode = PRIVATE_BROWSING_ON;
         else if (NS_LITERAL_STRING(NS_PRIVATE_BROWSING_LEAVE).Equals(data))
             mInPrivateBrowsingMode = PRIVATE_BROWSING_OFF;
+        if (mConnMgr)
+            mConnMgr->ClosePersistentConnections();
     }
     else if (strcmp(topic, "net:prune-dead-connections") == 0) {
         if (mConnMgr) {

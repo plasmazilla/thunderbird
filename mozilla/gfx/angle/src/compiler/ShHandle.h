@@ -57,6 +57,7 @@ public:
     TInfoSink& getInfoSink() { return infoSink; }
     const TVariableInfoList& getAttribs() const { return attribs; }
     const TVariableInfoList& getUniforms() const { return uniforms; }
+    int getMappedNameMaxLength() const;
 
 protected:
     ShShaderType getShaderType() const { return shaderType; }
@@ -65,11 +66,15 @@ protected:
     bool InitBuiltInSymbolTable(const ShBuiltInResources& resources);
     // Clears the results from the previous compilation.
     void clearResults();
+    // Return true if function recursion is detected.
+    bool detectRecursion(TIntermNode* root);
     // Returns true if the given shader does not exceed the minimum
     // functionality mandated in GLSL 1.0 spec Appendix A.
     bool validateLimitations(TIntermNode* root);
     // Collect info for all attribs and uniforms.
     void collectAttribsUniforms(TIntermNode* root);
+    // Map long variable names into shorter ones.
+    void mapLongVariableNames(TIntermNode* root);
     // Translate to object code.
     virtual void translate(TIntermNode* root) = 0;
 
@@ -87,6 +92,9 @@ private:
     TInfoSink infoSink;  // Output sink.
     TVariableInfoList attribs;  // Active attributes in the compiled shader.
     TVariableInfoList uniforms;  // Active uniforms in the compiled shader.
+
+    // Pair of long varying varibale name <originalName, mappedName>.
+    TMap<TString, TString> varyingLongNameMap;
 };
 
 //

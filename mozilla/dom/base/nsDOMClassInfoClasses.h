@@ -45,6 +45,9 @@ DOMCI_CLASS(MimeType)
 DOMCI_CLASS(MimeTypeArray)
 DOMCI_CLASS(BarProp)
 DOMCI_CLASS(History)
+DOMCI_CLASS(PerformanceTiming)
+DOMCI_CLASS(PerformanceNavigation)
+DOMCI_CLASS(Performance)
 DOMCI_CLASS(Screen)
 DOMCI_CLASS(DOMPrototype)
 DOMCI_CLASS(DOMConstructor)
@@ -63,7 +66,6 @@ DOMCI_CLASS(Text)
 DOMCI_CLASS(Comment)
 DOMCI_CLASS(CDATASection)
 DOMCI_CLASS(ProcessingInstruction)
-DOMCI_CLASS(Notation)
 DOMCI_CLASS(NodeList)
 DOMCI_CLASS(NamedNodeMap)
 
@@ -76,7 +78,10 @@ DOMCI_CLASS(MouseScrollEvent)
 DOMCI_CLASS(DragEvent)
 DOMCI_CLASS(KeyboardEvent)
 DOMCI_CLASS(PopupBlockedEvent)
-DOMCI_CLASS(OrientationEvent)
+DOMCI_CLASS(DeviceOrientationEvent)
+DOMCI_CLASS(DeviceMotionEvent)
+DOMCI_CLASS(DeviceAcceleration)
+DOMCI_CLASS(DeviceRotationRate)
 
 // HTML classes
 DOMCI_CLASS(HTMLDocument)
@@ -94,7 +99,6 @@ DOMCI_CLASS(HTMLBodyElement)
 DOMCI_CLASS(HTMLButtonElement)
 DOMCI_CLASS(HTMLDataListElement)
 DOMCI_CLASS(HTMLDListElement)
-DOMCI_CLASS(HTMLDelElement)
 DOMCI_CLASS(HTMLDirectoryElement)
 DOMCI_CLASS(HTMLDivElement)
 DOMCI_CLASS(HTMLEmbedElement)
@@ -110,15 +114,15 @@ DOMCI_CLASS(HTMLHtmlElement)
 DOMCI_CLASS(HTMLIFrameElement)
 DOMCI_CLASS(HTMLImageElement)
 DOMCI_CLASS(HTMLInputElement)
-DOMCI_CLASS(HTMLInsElement)
-DOMCI_CLASS(HTMLIsIndexElement)
 DOMCI_CLASS(HTMLLIElement)
 DOMCI_CLASS(HTMLLabelElement)
 DOMCI_CLASS(HTMLLegendElement)
 DOMCI_CLASS(HTMLLinkElement)
 DOMCI_CLASS(HTMLMapElement)
 DOMCI_CLASS(HTMLMenuElement)
+DOMCI_CLASS(HTMLMenuItemElement)
 DOMCI_CLASS(HTMLMetaElement)
+DOMCI_CLASS(HTMLModElement)
 DOMCI_CLASS(HTMLOListElement)
 DOMCI_CLASS(HTMLObjectElement)
 DOMCI_CLASS(HTMLOptGroupElement)
@@ -127,6 +131,7 @@ DOMCI_CLASS(HTMLOutputElement)
 DOMCI_CLASS(HTMLParagraphElement)
 DOMCI_CLASS(HTMLParamElement)
 DOMCI_CLASS(HTMLPreElement)
+DOMCI_CLASS(HTMLProgressElement)
 DOMCI_CLASS(HTMLQuoteElement)
 DOMCI_CLASS(HTMLScriptElement)
 DOMCI_CLASS(HTMLSelectElement)
@@ -156,7 +161,6 @@ DOMCI_CLASS(MediaList)
 DOMCI_CLASS(StyleSheetList)
 DOMCI_CLASS(CSSStyleSheet)
 DOMCI_CLASS(CSSStyleDeclaration)
-DOMCI_CLASS(ComputedCSSStyleDeclaration)
 DOMCI_CLASS(ROCSSPrimitiveValue)
 
 // Range classes
@@ -226,7 +230,6 @@ DOMCI_CLASS(CSSMozDocumentRule)
 
 DOMCI_CLASS(BeforeUnloadEvent)
 
-#ifdef MOZ_SVG
 // The SVG document
 DOMCI_CLASS(SVGDocument)
 
@@ -344,7 +347,6 @@ DOMCI_CLASS(SVGRect)
 DOMCI_CLASS(SVGTransform)
 DOMCI_CLASS(SVGTransformList)
 DOMCI_CLASS(SVGZoomEvent)
-#endif // MOZ_SVG
 
 // Canvas
 DOMCI_CLASS(HTMLCanvasElement)
@@ -388,12 +390,13 @@ DOMCI_CLASS(XMLSerializer)
 DOMCI_CLASS(XMLHttpProgressEvent)
 DOMCI_CLASS(XMLHttpRequest)
 
+// Server-sent events
+DOMCI_CLASS(EventSource)
+
 DOMCI_CLASS(ClientRect)
 DOMCI_CLASS(ClientRectList)
 
-#ifdef MOZ_SVG
 DOMCI_CLASS(SVGForeignObjectElement)
-#endif
 
 DOMCI_CLASS(XULCommandEvent)
 DOMCI_CLASS(CommandEvent)
@@ -406,6 +409,9 @@ DOMCI_CLASS(FileException)
 DOMCI_CLASS(FileError)
 DOMCI_CLASS(FileReader)
 DOMCI_CLASS(MozURLProperty)
+DOMCI_CLASS(MozBlobBuilder)
+
+DOMCI_CLASS(DOMStringMap)
 
 // DOM modal content window class, almost identical to Window
 DOMCI_CLASS(ModalContentWindow)
@@ -454,12 +460,7 @@ DOMCI_CLASS(SimpleGestureEvent)
 
 DOMCI_CLASS(MozTouchEvent)
 
-#ifdef MOZ_MATHML
 DOMCI_CLASS(MathMLElement)
-#endif
-
-DOMCI_CLASS(Worker)
-DOMCI_CLASS(ChromeWorker)
 
 // WebGL
 DOMCI_CLASS(WebGLRenderingContext)
@@ -471,20 +472,19 @@ DOMCI_CLASS(WebGLFramebuffer)
 DOMCI_CLASS(WebGLRenderbuffer)
 DOMCI_CLASS(WebGLUniformLocation)
 DOMCI_CLASS(WebGLActiveInfo)
+DOMCI_CLASS(WebGLExtension)
 
-// WebGL Buffers
 DOMCI_CLASS(PaintRequest)
 DOMCI_CLASS(PaintRequestList)
 
 DOMCI_CLASS(ScrollAreaEvent)
 DOMCI_CLASS(PopStateEvent)
+DOMCI_CLASS(HashChangeEvent)
 
 DOMCI_CLASS(EventListenerInfo)
 
 DOMCI_CLASS(TransitionEvent)
-#ifdef MOZ_CSS_ANIMATIONS
 DOMCI_CLASS(AnimationEvent)
-#endif
 
 DOMCI_CLASS(ContentFrameMessageManager)
 
@@ -494,7 +494,7 @@ DOMCI_CLASS(DesktopNotification)
 DOMCI_CLASS(DesktopNotificationCenter)
 
 // WebSocket
-DOMCI_CLASS(WebSocket)
+DOMCI_CLASS(MozWebSocket)
 DOMCI_CLASS(CloseEvent)
 
 DOMCI_CLASS(IDBFactory)
@@ -512,7 +512,12 @@ DOMCI_CLASS(IDBDatabaseException)
 
 DOMCI_CLASS(EventException)
 
-#ifdef MOZ_CSS_ANIMATIONS
+DOMCI_CLASS(Touch)
+DOMCI_CLASS(TouchList)
+DOMCI_CLASS(TouchEvent)
+
 DOMCI_CLASS(MozCSSKeyframeRule)
 DOMCI_CLASS(MozCSSKeyframesRule)
-#endif
+
+DOMCI_CLASS(MediaQueryList)
+DOMCI_CLASS(CustomEvent)

@@ -26,8 +26,8 @@ BEGIN_TEST(testDebugger_bug519719)
          "function f(g) { for (var i = 0; i < 9; i++) call(g); }\n"
          "f(Math.sin);\n"    // record loop, starting in f
          "f(Math.cos);\n");  // side exit in f -> call
-    CHECK(callCount[0] == 20);
-    CHECK(callCount[1] == 20);
+    CHECK_EQUAL(callCount[0], 20);
+    CHECK_EQUAL(callCount[1], 20);
     return true;
 }
 END_TEST(testDebugger_bug519719)
@@ -103,3 +103,152 @@ BEGIN_TEST(testDebugger_getThisStrict)
     return true;
 }
 END_TEST(testDebugger_getThisStrict)
+
+bool called = false;
+
+static JSTrapStatus
+ThrowHook(JSContext *cx, JSScript *, jsbytecode *, jsval *rval, void *closure)
+{
+    called = true;
+
+    JSObject *global = JS_GetGlobalForScopeChain(cx);
+
+    char text[] = "new Error()";
+    jsval _;
+    JS_EvaluateScript(cx, global, text, strlen(text), "", 0, &_);
+
+    return JSTRAP_CONTINUE;
+}
+
+BEGIN_TEST(testDebugger_throwHook)
+{
+    uint32 newopts = JS_GetOptions(cx) | JSOPTION_METHODJIT | JSOPTION_METHODJIT_ALWAYS;
+    uint32 oldopts = JS_SetOptions(cx, newopts);
+
+    JSDebugHooks hooks = { 0 };
+    hooks.throwHook = ThrowHook;
+    JSDebugHooks *old = JS_SetContextDebugHooks(cx, &hooks);
+    EXEC("function foo() { throw 3 };\n"
+         "for (var i = 0; i < 10; ++i) { \n"
+         "  var x = <tag></tag>;\n"
+         "  try {\n"
+         "    foo(); \n"
+         "  } catch(e) {}\n"
+         "}\n");
+    CHECK(called);
+
+    JS_SetContextDebugHooks(cx, old);
+    JS_SetOptions(cx, oldopts);
+    return true;
+}
+END_TEST(testDebugger_throwHook)
+
+BEGIN_TEST(testDebugger_debuggerObjectVsDebugMode)
+{
+    CHECK(JS_DefineDebuggerObject(cx, global));
+    JSObject *debuggee = JS_NewCompartmentAndGlobalObject(cx, getGlobalClass(), NULL);
+    CHECK(debuggee);
+
+    {
+        JSAutoEnterCompartment ae;
+        CHECK(ae.enter(cx, debuggee));
+        CHECK(JS_SetDebugMode(cx, true));
+        CHECK(JS_InitStandardClasses(cx, debuggee));
+    }
+
+    JSObject *debuggeeWrapper = debuggee;
+    CHECK(JS_WrapObject(cx, &debuggeeWrapper));
+    jsval v = OBJECT_TO_JSVAL(debuggeeWrapper);
+    CHECK(JS_SetProperty(cx, global, "debuggee", &v));
+
+    EVAL("var dbg = new Debugger(debuggee);\n"
+         "var hits = 0;\n"
+         "dbg.onDebuggerStatement = function () { hits++; };\n"
+         "debuggee.eval('debugger;');\n"
+         "hits;\n",
+         &v);
+    CHECK_SAME(v, JSVAL_ONE);
+
+    {
+        JSAutoEnterCompartment ae;
+        CHECK(ae.enter(cx, debuggee));
+        CHECK(JS_SetDebugMode(cx, false));
+    }
+
+    EVAL("debuggee.eval('debugger; debugger; debugger;');\n"
+         "hits;\n",
+         &v);
+    CHECK_SAME(v, INT_TO_JSVAL(4));
+    
+    return true;
+}
+END_TEST(testDebugger_debuggerObjectVsDebugMode)
+
+BEGIN_TEST(testDebugger_newScriptHook)
+{
+    // Test that top-level indirect eval fires the newScript hook.
+    CHECK(JS_DefineDebuggerObject(cx, global));
+    JSObject *g1, *g2;
+    g1 = JS_NewCompartmentAndGlobalObject(cx, getGlobalClass(), NULL);
+    CHECK(g1);
+    {
+        JSAutoEnterCompartment ae;
+        CHECK(ae.enter(cx, g1));
+        CHECK(JS_InitStandardClasses(cx, g1));
+        g2 = JS_NewGlobalObject(cx, getGlobalClass());
+        CHECK(g2);
+        CHECK(JS_InitStandardClasses(cx, g2));
+    }
+
+    JSObject *g1Wrapper = g1;
+    CHECK(JS_WrapObject(cx, &g1Wrapper));
+    jsval v = OBJECT_TO_JSVAL(g1Wrapper);
+    CHECK(JS_SetProperty(cx, global, "g1", &v));
+
+    JSObject *g2Wrapper = g2;
+    CHECK(JS_WrapObject(cx, &g2Wrapper));
+    v = OBJECT_TO_JSVAL(g2Wrapper);
+    CHECK(JS_SetProperty(cx, global, "g2", &v));
+
+    EXEC("var dbg = Debugger(g1);\n"
+         "var hits = 0;\n"
+         "dbg.onNewScript = function (s) {\n"
+         "    hits += Number(s instanceof Debugger.Script);\n"
+         "};\n");
+
+    // Since g1 is a debuggee and g2 is not, g1.eval should trigger newScript
+    // and g2.eval should not, regardless of what scope object we use to enter
+    // the compartment.
+    //
+    // (Not all scripts are permanently associated with specific global
+    // objects, but eval scripts are, so we deliver them only to debuggers that
+    // are watching that particular global.)
+    //
+    bool ok = true;
+    ok = ok && testIndirectEval(g1, g1, "Math.abs(0)", 1);
+    ok = ok && testIndirectEval(g2, g1, "Math.abs(1)", 1);
+    ok = ok && testIndirectEval(g1, g2, "Math.abs(-1)", 0);
+    ok = ok && testIndirectEval(g2, g2, "Math.abs(-2)", 0);
+    return ok;
+}
+
+bool testIndirectEval(JSObject *scope, JSObject *g, const char *code, int expectedHits)
+{
+    EXEC("hits = 0;");
+
+    {
+        JSAutoEnterCompartment ae;
+        CHECK(ae.enter(cx, scope));
+        JSString *codestr = JS_NewStringCopyZ(cx, code);
+        CHECK(codestr);
+        jsval argv[1] = { STRING_TO_JSVAL(codestr) };
+        jsval v;
+        CHECK(JS_CallFunctionName(cx, g, "eval", 1, argv, &v));
+    }
+
+    jsval hitsv;
+    EVAL("hits", &hitsv);
+    CHECK_SAME(hitsv, INT_TO_JSVAL(expectedHits));
+    return true;
+}
+END_TEST(testDebugger_newScriptHook)

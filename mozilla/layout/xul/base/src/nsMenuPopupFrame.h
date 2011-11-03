@@ -234,7 +234,7 @@ public:
   // that menu, or null if no menu should be opened. Also, calling Enter will
   // reset the current incremental search string, calculated in
   // FindMenuWithShortcut.
-  nsMenuFrame* Enter();
+  nsMenuFrame* Enter(nsGUIEvent* aEvent);
 
   nsPopupType PopupType() const { return mPopupType; }
   PRBool IsMenu() { return mPopupType == ePopupTypeMenu; }
@@ -400,6 +400,10 @@ protected:
       : GetStyleVisibility()->mDirection == NS_STYLE_DIRECTION_RTL;
   }
 
+  // Create a popup view for this frame. The view is added a child of the root
+  // view, and is initially hidden.
+  nsresult CreatePopupViewForFrame();
+
   nsString     mIncrementalString;  // for incremental typing navigation
 
   // the content that the popup is anchored to, if any, which may be in a
@@ -431,6 +435,8 @@ protected:
   // popup alignment relative to the anchor node
   PRInt8 mPopupAlignment;
   PRInt8 mPopupAnchor;
+  // One of nsIPopupBoxObject::ROLLUP_DEFAULT/ROLLUP_CONSUME/ROLLUP_NO_CONSUME
+  PRInt8 mConsumeRollupEvent;
   PRPackedBool mFlipBoth; // flip in both directions
 
   PRPackedBool mIsOpenChanged; // true if the open state changed since the last layout
@@ -441,7 +447,6 @@ protected:
 
   PRPackedBool mMenuCanOverlapOSBar;    // can we appear over the taskbar/menubar?
   PRPackedBool mShouldAutoPosition; // Should SetPopupPosition be allowed to auto position popup?
-  PRPackedBool mConsumeRollupEvent; // Should the rollup event be consumed?
   PRPackedBool mInContentShell; // True if the popup is in a content shell
   PRPackedBool mIsMenuLocked; // Should events inside this menu be ignored?
 

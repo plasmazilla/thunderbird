@@ -56,8 +56,6 @@
 #include "nsPIDOMWindow.h"
 #include "nsIDOMEventTarget.h"
 #include "nsIPrivateDOMEvent.h"
-#include "nsIEventListenerManager.h"
-#include "nsIDOMFocusListener.h"
 #include "nsIWebNavigation.h"
 #include "nsIWindowWatcher.h"
 
@@ -170,7 +168,7 @@ nsresult nsWebShellWindow::Initialize(nsIXULWindow* aParent,
                                   &mOpenerScreenRect.width,
                                   &mOpenerScreenRect.height);
     if (NS_FAILED(rv)) {
-      mOpenerScreenRect.Empty();
+      mOpenerScreenRect.SetEmpty();
     } else {
       initialX = mOpenerScreenRect.x;
       initialY = mOpenerScreenRect.y;
@@ -382,13 +380,16 @@ nsWebShellWindow::HandleEvent(nsGUIEvent *aEvent)
         eventWindow->SetPersistenceTimer(PAD_MISC);
         result = nsEventStatus_eConsumeDoDefault;
 
-        // min, max, and normal are all the same to apps, but for
-        // fullscreen we need to let them know so they can update
-        // their ui. 
-        if (modeEvent->mSizeMode == nsSizeMode_Fullscreen) {
-          nsCOMPtr<nsIDOMWindowInternal> ourWindow = do_GetInterface(docShell);
-          if (ourWindow)
+        nsCOMPtr<nsPIDOMWindow> ourWindow = do_GetInterface(docShell);
+        if (ourWindow) {
+          // Let the application know if it's in fullscreen mode so it
+          // can update its UI.
+          if (modeEvent->mSizeMode == nsSizeMode_Fullscreen) {
             ourWindow->SetFullScreen(PR_TRUE);
+          }
+
+          // And always fire a user-defined sizemodechange event on the window
+          ourWindow->DispatchCustomEvent("sizemodechange");
         }
 
         // Note the current implementation of SetSizeMode just stores
@@ -744,7 +745,7 @@ PRBool nsWebShellWindow::ExecuteCloseHandler()
   nsCOMPtr<nsIXULWindow> kungFuDeathGrip(this);
 
   nsCOMPtr<nsPIDOMWindow> window(do_GetInterface(mDocShell));
-  nsCOMPtr<nsPIDOMEventTarget> eventTarget = do_QueryInterface(window);
+  nsCOMPtr<nsIDOMEventTarget> eventTarget = do_QueryInterface(window);
 
   if (eventTarget) {
     nsCOMPtr<nsIContentViewer> contentViewer;
@@ -787,7 +788,7 @@ void nsWebShellWindow::ConstrainToOpenerScreen(PRInt32* aX, PRInt32* aY)
                              getter_AddRefs(screen));
     if (screen) {
       screen->GetAvailRect(&left, &top, &width, &height);
-      if (*aX < left || *aY > left + width) {
+      if (*aX < left || *aX > left + width) {
         *aX = left;
       }
       if (*aY < top || *aY > top + height) {

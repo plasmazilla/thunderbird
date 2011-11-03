@@ -293,6 +293,17 @@ nsresult nsMsgLocalMailFolder::CreateChildFromURI(const nsCString &uri, nsIMsgFo
   return NS_OK;
 }
 
+NS_IMETHODIMP nsMsgLocalMailFolder::CreateLocalSubfolder(const nsAString &aName,
+                                                         nsIMsgFolder **aChild)
+{
+  nsresult rv = CreateSubfolderInternal(aName, nsnull, aChild);
+  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsIMsgFolderNotificationService> notifier(do_GetService(NS_MSGNOTIFICATIONSERVICE_CONTRACTID));
+  if (notifier)
+    notifier->NotifyFolderAdded(*aChild);
+  return rv;
+}
+
 NS_IMETHODIMP nsMsgLocalMailFolder::AddSubfolder(const nsAString &name,
                                                  nsIMsgFolder **child)
 {
@@ -570,7 +581,7 @@ NS_IMETHODIMP nsMsgLocalMailFolder::GetDatabaseWithReparse(nsIUrlListener *aRepa
     }
     else if (folderOpen == NS_MSG_ERROR_FOLDER_SUMMARY_MISSING)
     {
-      msgDBService->CreateNewDB(this, getter_AddRefs(mDatabase));
+      rv = msgDBService->CreateNewDB(this, getter_AddRefs(mDatabase));
     }
 
     if (mDatabase)
@@ -3010,7 +3021,11 @@ nsresult nsMsgLocalMailFolder::CopyMessagesTo(nsIArray *messages, nsTArray<nsMsg
     nsCOMPtr <nsIMsgLocalMailFolder> srcLocalFolder = do_QueryInterface(srcFolder);
     if (srcLocalFolder)
       StartMessage();
-    rv = mCopyState->m_messageService->CopyMessages(keyArray, srcFolder, streamListener, isMove, nsnull, aMsgWindow, nsnull);
+    rv = mCopyState->m_messageService->CopyMessages(keyArray.Length(),
+                                                    keyArray.Elements(),
+                                                    srcFolder, streamListener,
+                                                    isMove, nsnull, aMsgWindow,
+                                                    nsnull);
   }
   return rv;
 }

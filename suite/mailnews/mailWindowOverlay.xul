@@ -170,7 +170,7 @@
 
 <commandset id="mailEditMenuItems"
             commandupdater="true"
-            events="create-menu-edit"
+            events="create-menu-edit, message-header-pane"
             oncommandupdate="goUpdateMailMenuItems(this)">
 
   <command id="cmd_undo"
@@ -209,7 +209,9 @@
          valueFolder="&folderPropsFolderCmd.label;"
          valueGeneric="&folderPropsCmd.label;"/>
   <command id="cmd_find" oncommand="goDoCommand('cmd_find')" disabled="true"/>
-  <command id="cmd_findAgain" oncommand="goDoCommand('cmd_findAgain')" disabled="true"/>
+  <command id="cmd_findNext"
+           oncommand="goDoCommand('cmd_findNext');"
+           disabled="true"/>
   <command id="cmd_findPrev"  oncommand="goDoCommand('cmd_findPrev')"  disabled="true"/>
   <command id="cmd_findTypeText"/>
   <command id="cmd_findTypeLinks"/>
@@ -396,11 +398,7 @@
        key="&getAllNewMsgCmd2.key;"
        oncommand="goDoCommand('cmd_getMsgsForAuthAccounts');"
        modifiers="accel, shift"/>
-  <key id="key_find" key="&findCmd.key;"  oncommand="goDoCommand('cmd_find')" modifiers="accel"/>
-  <key id="key_findAgain" key="&findAgainCmd.key;"   oncommand="goDoCommand('cmd_findAgain')" modifiers="accel"/>
-  <key id="key_findPrev"  key="&findPrevCmd.key;"    oncommand="goDoCommand('cmd_findPrev')"  modifiers="accel, shift"/>
-  <key keycode="&findAgainCmd.key2;"   oncommand="goDoCommand('cmd_findAgain')"/>
-  <key keycode="&findPrevCmd.key2;"    oncommand="goDoCommand('cmd_findPrev')"  modifiers="shift"/>
+  <keyset id="findKeys"/>
   <key id="key_findTypeText"/>
   <key id="key_findTypeLinks"/>
   <key id="key_stop" keycode="VK_ESCAPE" command="cmd_stop"/>
@@ -555,14 +553,8 @@
               accesskey="&openLinkCmd.accesskey;"
               oncommand="gContextMenu.openLink();"/>
     <menuseparator id="mailContext-sep-link"/>
-    <menuitem id="context-selectall"
-              label="&selectAllCmd.label;"
-              accesskey="&selectAllCmd.accesskey;"
-              command="cmd_selectAll"/>
-    <menuitem id="context-copy"
-              label="&copyCmd.label;"
-              accesskey="&copyCmd.accesskey;"
-              command="cmd_copy"/>
+    <menuitem id="context-selectall"/>
+    <menuitem id="context-copy"/>
     <menuitem id="context-searchselect"
               oncommand="MsgOpenSearch(gContextMenu.searchSelected(), event);"/>
     <menuitem id="mailContext-openNewTab"
@@ -574,14 +566,14 @@
               accesskey="&contextOpenNewWindow.accesskey;"
               oncommand="MsgOpenNewWindowForMessage();"/>
     <menuseparator id="mailContext-sep-open"/>
-    <menuitem id="mailContext-replySender"
-              label="&contextReplySender.label;"
-              accesskey="&contextReplySender.accesskey;"
-              oncommand="MsgReplySender(event);"/>
     <menuitem id="mailContext-replyNewsgroup"
               label="&contextReplyNewsgroup.label;"
               accesskey="&contextReplyNewsgroup.accesskey;"
               oncommand="MsgReplyGroup(event);"/>
+    <menuitem id="mailContext-replySender"
+              label="&contextReplySender.label;"
+              accesskey="&contextReplySender.accesskey;"
+              oncommand="MsgReplySender(event);"/>
     <menuitem id="mailContext-replySenderAndNewsgroup"
               label="&contextReplySenderAndNewsgroup.label;"
               accesskey="&contextReplySenderAndNewsgroup.accesskey;"
@@ -900,6 +892,10 @@
               label="&viewImageCmd.label;"
               accesskey="&viewImageCmd.accesskey;"
               oncommand="gContextMenu.viewMedia();"/>
+    <menuitem id="context-blockimage"
+              oncommand="gContextMenu.toggleImageBlocking(true);"/>
+    <menuitem id="context-unblockimage"
+              oncommand="gContextMenu.toggleImageBlocking(false);"/>
     <menuitem id="context-addemail"
               label="&AddToAddressBook.label;"
               accesskey="&AddToAddressBook.accesskey;"
@@ -1101,7 +1097,7 @@
       <menu id="menu_select" label="&selectMenu.label;"
             accesskey="&selectMenu.accesskey;">
         <menupopup id="menu_SelectPopup">
-          <menuitem id="menu_SelectAll"
+          <menuitem id="menu_mailSelectAll"
                     label="&all.label;"
                     accesskey="&all.accesskey;" key="key_selectAll"
                     command="cmd_selectAll"/>
@@ -1117,20 +1113,9 @@
         </menupopup>
       </menu>
       <menuseparator id="editMenuAfterSelectSeparator"/>
-      <menuitem id="menu_find"
-                label="&findCmd.label;"
-                key="key_find" accesskey="&findCmd.accesskey;"
-                command="cmd_find"/>
-      <menuitem id="menu_findAgain"
-                label="&findAgainCmd.label;"
-                key="key_findAgain"
-                accesskey="&findAgainCmd.accesskey;"
-                command="cmd_findAgain"/>
-      <menuitem id="menu_findPrev"
-                label="&findPrevCmd.label;"
-                key="key_findPrev"
-                accesskey="&findPrevCmd.accesskey;"
-                command="cmd_findPrev"/>
+      <menuitem id="menu_find" label="&findCmd.label;"/>
+      <menuitem id="menu_findNext"/>
+      <menuitem id="menu_findPrev"/>
       <menuseparator id="editMenuAfterFindSeparator"/>
       <menuitem id="menu_findTypeLinks"/>
       <menuitem id="menu_findTypeText"/>
@@ -1303,6 +1288,12 @@
                     label="&bodyAsPlaintext.label;"
                     accesskey="&bodyAsPlaintext.accesskey;"
                     oncommand="MsgBodyAsPlaintext()"/>
+          <menuitem id="bodyAllParts"
+                    type="radio"
+                    name="bodyPlaintextVsHTMLPref"
+                    label="&bodyAllParts.label;"
+                    accesskey="&bodyAllParts.accesskey;"
+                    oncommand="MsgBodyAllParts();"/>
         </menupopup>
       </menu>
       <menu id="viewFeedSummary" 
@@ -1499,15 +1490,15 @@
                 accesskey="&replyMsgCmd.accesskey;"
                 key="key_reply"
                 command="cmd_reply"/>
-      <menuitem id="replySenderMainMenu"
-                label="&replySenderCmd.label;"
-                accesskey="&replySenderCmd.accesskey;"
-                command="cmd_replySender"/>
       <menuitem id="replyNewsgroupMainMenu"
                 label="&replyNewsgroupCmd.label;"
                 accesskey="&replyNewsgroupCmd.accesskey;"
                 key="key_reply"
                 command="cmd_replyGroup"/>
+      <menuitem id="replySenderMainMenu"
+                label="&replySenderCmd.label;"
+                accesskey="&replySenderCmd.accesskey;"
+                command="cmd_replySender"/>
       <menuitem id="replyallMainMenu"
                 label="&replyToAllMsgCmd.label;"
                 accesskey="&replyToAllMsgCmd.accesskey;"
@@ -1985,13 +1976,13 @@
                    observes="button_reply"
                    oncommand="MsgReplyMessage(event)">
       <menupopup id="button-replyPopup">
-        <menuitem label="&replySenderCmd.label;"
-                  accesskey="&replySenderCmd.accesskey;"
-                  command="cmd_replySender"/>
         <menuitem label="&replyNewsgroupCmd.label;"
                   accesskey="&replyNewsgroupCmd.accesskey;"
                   command="cmd_replyGroup"
                   default="true"/>
+        <menuitem label="&replySenderCmd.label;"
+                  accesskey="&replySenderCmd.accesskey;"
+                  command="cmd_replySender"/>
       </menupopup>
     </toolbarbutton>
     <toolbarbutton id="button-replyall"

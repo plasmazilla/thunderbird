@@ -39,10 +39,6 @@
 #ifndef GFX_WINDOWS_PLATFORM_H
 #define GFX_WINDOWS_PLATFORM_H
 
-#if defined(WINCE)
-#define MOZ_FT2_FONTS 1
-#endif
-
 
 /**
  * XXX to get CAIRO_HAS_D2D_SURFACE, CAIRO_HAS_DWRITE_FONT
@@ -53,22 +49,14 @@
 #include "gfxFontUtils.h"
 #include "gfxWindowsSurface.h"
 #include "gfxFont.h"
-#ifdef MOZ_FT2_FONTS
-#include "gfxFT2Fonts.h"
-#else
 #ifdef CAIRO_HAS_DWRITE_FONT
 #include "gfxDWriteFonts.h"
-#endif
 #endif
 #include "gfxPlatform.h"
 #include "gfxContext.h"
 
 #include "nsTArray.h"
 #include "nsDataHashtable.h"
-
-#ifdef MOZ_FT2_FONTS
-typedef struct FT_LibraryRec_ *FT_Library;
-#endif
 
 #include <windows.h>
 #include <objbase.h>
@@ -114,6 +102,19 @@ struct DCFromContext {
     PRBool needsRelease;
 };
 
+// ClearType parameters set by running ClearType tuner
+struct ClearTypeParameterInfo {
+    ClearTypeParameterInfo() :
+        gamma(-1), pixelStructure(-1), clearTypeLevel(-1), enhancedContrast(-1)
+    { }
+
+    nsString    displayName;  // typically just 'DISPLAY1'
+    PRInt32     gamma;
+    PRInt32     pixelStructure;
+    PRInt32     clearTypeLevel;
+    PRInt32     enhancedContrast;
+};
+
 class THEBES_API gfxWindowsPlatform : public gfxPlatform {
 public:
     gfxWindowsPlatform();
@@ -126,6 +127,10 @@ public:
 
     already_AddRefed<gfxASurface> CreateOffscreenSurface(const gfxIntSize& size,
                                                          gfxASurface::gfxContentType contentType);
+    virtual mozilla::RefPtr<mozilla::gfx::ScaledFont>
+      GetScaledFontForFont(gfxFont *aFont);
+    virtual already_AddRefed<gfxASurface>
+      GetThebesSurfaceForDrawTarget(mozilla::gfx::DrawTarget *aTarget);
 
     enum RenderMode {
         /* Use GDI and windows surfaces */
@@ -136,15 +141,6 @@ public:
 
         /* Use 32bpp image surfaces, and do 32->24 conversion before calling StretchDIBits */
         RENDER_IMAGE_STRETCH24,
-
-        /* Use DirectDraw on Windows CE */
-        RENDER_DDRAW,
-
-        /* Use 24bpp image surfaces, with final DirectDraw 16bpp blt on Windows CE */
-        RENDER_IMAGE_DDRAW16,
-
-        /* Use DirectDraw with OpenGL on Windows CE */
-        RENDER_DDRAW_GL,
 
         /* Use Direct2D rendering */
         RENDER_DIRECT2D,
@@ -236,23 +232,23 @@ public:
 
     static void GetDLLVersion(const PRUnichar *aDLLPath, nsAString& aVersion);
 
-    static void GetFontCacheSize(nsAString& aSize);
+    // returns ClearType tuning information for each display
+    static void GetCleartypeParams(nsTArray<ClearTypeParameterInfo>& aParams);
 
-    virtual void FontsPrefsChanged(nsIPrefBranch *aPrefBranch, const char *aPref);
+    virtual void FontsPrefsChanged(const char *aPref);
+
+    void SetupClearTypeParams();
 
 #ifdef CAIRO_HAS_DWRITE_FONT
     IDWriteFactory *GetDWriteFactory() { return mDWriteFactory; }
     inline PRBool DWriteEnabled() { return mUseDirectWrite; }
+    inline DWRITE_MEASURING_MODE DWriteMeasuringMode() { return mMeasuringMode; }
 #else
     inline PRBool DWriteEnabled() { return PR_FALSE; }
 #endif
 #ifdef CAIRO_HAS_D2D_SURFACE
     cairo_device_t *GetD2DDevice() { return mD2DDevice; }
     ID3D10Device1 *GetD3D10Device() { return mD2DDevice ? cairo_d2d_device_get_device(mD2DDevice) : nsnull; }
-#endif
-
-#ifdef MOZ_FT2_FONTS
-    FT_Library GetFTLibrary();
 #endif
 
     static bool IsOptimus();
@@ -272,6 +268,7 @@ private:
 
 #ifdef CAIRO_HAS_DWRITE_FONT
     nsRefPtr<IDWriteFactory> mDWriteFactory;
+    DWRITE_MEASURING_MODE mMeasuringMode;
 #endif
 #ifdef CAIRO_HAS_D2D_SURFACE
     cairo_device_t *mD2DDevice;

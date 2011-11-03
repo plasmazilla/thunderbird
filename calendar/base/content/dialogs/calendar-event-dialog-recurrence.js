@@ -216,6 +216,10 @@ function initializeControls(rule) {
             setElementValue("yearly-ordinal", ruleInfo.ordinal);
             setElementValue("yearly-weekday", ruleInfo.weekday);
             setElementValue("yearly-month-rule", byMonthRuleComponent[0]);
+        } else if (byMonthRuleComponent.length > 0) {
+            document.getElementById("yearly-group").selectedIndex = 0;
+            setElementValue("yearly-month-ordinal", byMonthRuleComponent[0]);
+            setElementValue("yearly-days", startDate.day);
         }
     }
 
@@ -758,8 +762,11 @@ function changeOrderForElements(aPropKey, aPropParams) {
     // Add elements in the right order, removing them from their old parent
     for (var i = 0; i < aPropParams.length; i++) {
         var newEl = document.getElementById(localeOrder[i]);
-        parents[i].appendChild(newEl.parentNode.removeChild(newEl));
-
+        if (newEl) {
+            parents[i].appendChild(newEl.parentNode.removeChild(newEl));
+        } else {
+            cal.ERROR("Localization error, could not find node '" + localeOrder[i] + "'. Please have your localizer check the string '" + aPropKey + "'");
+        }
     }
 }
 

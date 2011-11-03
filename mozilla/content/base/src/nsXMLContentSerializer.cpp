@@ -45,13 +45,9 @@
 #include "nsXMLContentSerializer.h"
 
 #include "nsGkAtoms.h"
-#include "nsIDOMText.h"
-#include "nsIDOMCDATASection.h"
 #include "nsIDOMProcessingInstruction.h"
 #include "nsIDOMComment.h"
-#include "nsIDOMDocument.h"
 #include "nsIDOMDocumentType.h"
-#include "nsIDOMElement.h"
 #include "nsIContent.h"
 #include "nsIDocument.h"
 #include "nsIDocumentEncoder.h"
@@ -65,6 +61,7 @@
 #include "nsAttrName.h"
 #include "nsILineBreaker.h"
 #include "mozilla/dom/Element.h"
+#include "nsParserConstants.h"
 
 using namespace mozilla::dom;
 
@@ -933,7 +930,7 @@ nsXMLContentSerializer::AppendElementStart(Element* aElement,
 
   nsAutoString tagPrefix, tagLocalName, tagNamespaceURI;
   aElement->NodeInfo()->GetPrefix(tagPrefix);
-  aElement->NodeInfo()->GetLocalName(tagLocalName);
+  aElement->NodeInfo()->GetName(tagLocalName);
   aElement->NodeInfo()->GetNamespaceURI(tagNamespaceURI);
 
   PRUint32 skipAttr = ScanNamespaceDeclarations(content,
@@ -1044,7 +1041,7 @@ nsXMLContentSerializer::AppendElementEnd(Element* aElement,
   nsAutoString tagPrefix, tagLocalName, tagNamespaceURI;
   
   aElement->NodeInfo()->GetPrefix(tagPrefix);
-  aElement->NodeInfo()->GetLocalName(tagLocalName);
+  aElement->NodeInfo()->GetName(tagLocalName);
   aElement->NodeInfo()->GetNamespaceURI(tagNamespaceURI);
 
 #ifdef DEBUG
@@ -1319,7 +1316,8 @@ void
 nsXMLContentSerializer::IncrIndentation(nsIAtom* aName)
 {
   // we want to keep the source readable
-  if(mDoWrap && mIndent.Length() >= mMaxColumn - MIN_INDENTED_LINE_LENGTH) {
+  if (mDoWrap &&
+      mIndent.Length() >= PRUint32(mMaxColumn) - MIN_INDENTED_LINE_LENGTH) {
     ++mIndentOverflow;
   }
   else {
@@ -1658,7 +1656,7 @@ nsXMLContentSerializer::AppendToStringFormatedWrapped(const nsASingleFragmentStr
   PRBool mayIgnoreStartOfLineWhitespaceSequence =
     (!mColPos || (mIsIndentationAddedOnCurrentLine &&
                   sequenceStartAfterAWhitespace &&
-                  mColPos == mIndent.Length()));
+                  PRUint32(mColPos) == mIndent.Length()));
 
   while (pos < end) {
     sequenceStart = pos;

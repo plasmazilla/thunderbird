@@ -38,7 +38,6 @@
 
 let WeaveGlue = {
   setupData: null,
-  autoConnect: false,
   jpake: null,
 
   init: function init() {
@@ -55,8 +54,7 @@ let WeaveGlue = {
 
     // Generating keypairs is expensive on mobile, so disable it
     if (Weave.Status.checkSetup() != Weave.CLIENT_NOT_CONFIGURED) {
-      this.autoConnect = Services.prefs.getBoolPref("services.sync.autoconnect");
-      if (enableSync && this.autoConnect) {
+      if (enableSync) {
         // Put the settings UI into a state of "connecting..." if we are going to auto-connect
         this._elements.connect.firstChild.disabled = true;
         this._elements.connect.setAttribute("title", this._bundle.GetStringFromName("connecting.label"));
@@ -124,6 +122,7 @@ let WeaveGlue = {
       },
 
       onComplete: function onComplete(aCredentials) {
+        self.jpake = null;
         self.close();
         self.setupData = aCredentials;
         self.connect();
@@ -132,9 +131,10 @@ let WeaveGlue = {
       onAbort: function onAbort(aError) {
         self.jpake = null;
 
-        // No error means manual abort. Ignore.
-        if (!aError || container.hidden)
+        if (aError == "jpake.error.userabort" || container.hidden) {
+          Services.obs.notifyObservers(null, "browser:sync:setup:userabort", "");
           return;
+        }
 
         // Automatically go to manual setup if we couldn't acquire a channel.
         let brandShortName = Strings.brand.GetStringFromName("brandShortName");
@@ -302,8 +302,11 @@ let WeaveGlue = {
 
     // Sync will use the account value and munge it into a username, as needed
     Weave.Service.account = this.setupData.account;
-    Weave.Service.login(Weave.Service.username, this.setupData.password, this.setupData.synckey);
+    Weave.Service.password = this.setupData.password;
+    Weave.Service.passphrase = this.setupData.synckey;
     Weave.Service.persistLogin();
+    Weave.Svc.Obs.notify("weave:service:setup-complete");
+    setTimeout(function () { Weave.Service.sync(); }, 0);
   },
 
   disconnect: function disconnect() {
@@ -340,7 +343,8 @@ let WeaveGlue = {
   },
 
   _addListeners: function _addListeners() {
-    let topics = ["weave:service:sync:start", "weave:service:sync:finish",
+    let topics = ["weave:service:setup-complete",
+      "weave:service:sync:start", "weave:service:sync:finish",
       "weave:service:sync:error", "weave:service:login:start",
       "weave:service:login:finish", "weave:service:login:error",
       "weave:service:logout:finish"];
@@ -382,12 +386,6 @@ let WeaveGlue = {
   },
 
   observe: function observe(aSubject, aTopic, aData) {
-    let loggedIn = Weave.Service.isLoggedIn;
-
-    // If we are going to auto-connect anyway, fake the settings UI to make it
-    // look like we are connecting
-    loggedIn = loggedIn || this.autoConnect;
-
     // Make sure we're online when connecting/syncing
     Util.forceOnline();
 
@@ -404,7 +402,13 @@ let WeaveGlue = {
     let disconnect = this._elements.disconnect;
     let sync = this._elements.sync;
 
-    let syncEnabled = this._elements.autosync.value;
+    let syncEnabled = autosync.value;
+    let loggedIn = Weave.Service.isLoggedIn;
+
+    // Sync may successfully log in after it was temporarily disabled by a
+    // canceled master password entry.  If so, then re-enable it.
+    if (loggedIn && !syncEnabled)
+      syncEnabled = autosync.value = true;
 
     // If Sync is not enabled, hide the connection row visibility
     if (syncEnabled) {
@@ -435,7 +439,7 @@ let WeaveGlue = {
           connect.setAttribute("title", self._bundle.GetStringFromName("connecting.label"));
 
         if (aTopic == "weave:service:sync:start")
-          sync.setAttribute("title", self._bundle.GetStringFromName("lastSyncInProgress.label"));
+          sync.setAttribute("title", self._bundle.GetStringFromName("lastSyncInProgress2.label"));
       } else {
         connect.firstChild.disabled = false;
         sync.firstChild.disabled = false;
@@ -450,23 +454,27 @@ let WeaveGlue = {
     let lastSync = Weave.Svc.Prefs.get("lastSync");
     if (lastSync != null) {
       let syncDate = new Date(lastSync).toLocaleFormat("%a %R");
-      let dateStr = this._bundle.formatStringFromName("lastSync.label", [syncDate], 1);
+      let dateStr = this._bundle.formatStringFromName("lastSync2.label", [syncDate], 1);
       sync.setAttribute("title", dateStr);
     }
 
     // Show what went wrong with login if necessary
-    if (aTopic == "weave:service:login:error")
-      connect.setAttribute("desc", Weave.Utils.getErrorString(Weave.Status.login));
-    else
+    if (aTopic == "weave:service:login:error") {
+      if (Weave.Status.login == "service.master_password_locked") {
+        // Disable sync temporarily. Sync will try again after a set interval,
+        // or if the user presses the button to enable it again.
+        autosync.value = false;
+        this.toggleSyncEnabled();
+      } else {
+        connect.setAttribute("desc", Weave.Utils.getErrorString(Weave.Status.login));
+      }
+    } else {
       connect.removeAttribute("desc");
+    }
 
-    // Init the setup data if we just logged in from an autoConnect
-    if (!this.setupData && this.autoConnect && aTopic == "weave:service:login:finish")
+    // Init the setup data if we just logged in
+    if (!this.setupData && aTopic == "weave:service:login:finish")
       this.loadSetupData();
-
-    // Reset the auto-connect flag after the first attempted login
-    if (aTopic == "weave:service:login:finish" || aTopic == "weave:service:login:error")
-      this.autoConnect = false;
 
     // Check for a storage format update, update the user and load the Sync update page
     if (aTopic =="weave:service:sync:error") {

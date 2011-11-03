@@ -54,7 +54,7 @@
 #include "nsIDirectoryService.h"
 #include "nsIWindowWatcher.h"
 #include "nsIWindowMediator.h"
-#include "nsIDOMWindowInternal.h"
+#include "nsIDOMWindow.h"
 #include "nsPIDOMWindow.h"
 #include "nsIDocShell.h"
 #include "nsIBaseWindow.h"
@@ -112,7 +112,7 @@ static void openMailWindow(const nsACString& aFolderUri)
         windowCommands->SelectFolder(aFolderUri);
     }
 
-    nsCOMPtr<nsIDOMWindowInternal> domWindow;
+    nsCOMPtr<nsIDOMWindow> domWindow;
     topMostMsgWindow->GetDomWindow(getter_AddRefs(domWindow));
     domWindow->Focus();
   }
@@ -692,6 +692,23 @@ nsresult nsMessengerUnixIntegration::GetFirstFolderWithNewMail(nsACString& aFold
       nsCOMPtr<nsIMsgFolder> msgFolder = do_QueryElementAt(allFolders, j);
 
       if (!msgFolder)
+        continue;
+
+      PRUint32 flags;
+      rv = msgFolder->GetFlags(&flags);
+
+      if (NS_FAILED(rv))
+        continue;
+
+      // Unless we're dealing with an Inbox, we don't care
+      // about Drafts, Queue, SentMail, Template, or Junk folders
+      if (!(flags & nsMsgFolderFlags::Inbox) &&
+          (flags & nsMsgFolderFlags::Drafts ||
+           flags & nsMsgFolderFlags::Queue ||
+           flags & nsMsgFolderFlags::SentMail ||
+           flags & nsMsgFolderFlags::Templates ||
+           flags & nsMsgFolderFlags::Junk ||
+           flags & nsMsgFolderFlags::Archive))
         continue;
 
       nsCString folderURI;

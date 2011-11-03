@@ -113,6 +113,7 @@
 #include "nsArrayUtils.h"
 #include "nsIMsgWindow.h"
 #include "nsITextToSubURI.h"
+#include "nsIAbManager.h"
 
 static void GetReplyHeaderInfo(PRInt32* reply_header_type,
                                nsString& reply_header_locale,
@@ -777,7 +778,7 @@ nsMsgCompose::GetQuotingToFollow(PRBool* quotingToFollow)
 
 NS_IMETHODIMP
 nsMsgCompose::Initialize(nsIMsgComposeParams *aParams,
-                         nsIDOMWindowInternal *aWindow,
+                         nsIDOMWindow *aWindow,
                          nsIDocShell *aDocShell)
 {
   NS_ENSURE_ARG_POINTER(aParams);
@@ -1037,7 +1038,7 @@ nsresult nsMsgCompose::_SendMsg(MSG_DeliverMode deliverMode, nsIMsgIdentity *ide
                     nsnull,                             // const struct nsMsgAttachmentData  *attachments,
                     nsnull,                             // const struct nsMsgAttachedFile    *preloaded_attachments,
                     nsnull,                             // nsMsgSendPart                     *relatedPart,
-                    m_window,                           // nsIDOMWindowInternal              *parentWindow;
+                    m_window,                           // nsIDOMWindow                      *parentWindow;
                     mProgress,                          // nsIMsgProgress                    *progress,
                     sendListener,                       // listener
                     mSmtpPassword.get(),
@@ -1529,7 +1530,7 @@ nsresult nsMsgCompose::SetBodyModified(PRBool modified)
 }
 
 NS_IMETHODIMP
-nsMsgCompose::GetDomWindow(nsIDOMWindowInternal * *aDomWindow)
+nsMsgCompose::GetDomWindow(nsIDOMWindow * *aDomWindow)
 {
   NS_IF_ADDREF(*aDomWindow = m_window);
   return NS_OK;
@@ -1751,7 +1752,7 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
       m_compFields->SetReferences(reference.get());
     }
 
-    return rv;
+    return NS_OK;
   }
 
   char *uriList = PL_strdup(originalMsgURI);
@@ -2094,6 +2095,11 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
               }
               else
                 sanitizedSubj.Assign(subject);
+
+              // set the file size
+              PRUint32 messageSize;
+              msgHdr->GetMessageSize(&messageSize);
+              attachment->SetSize(messageSize);
 
               // change all '.' to '_'  see bug #271211
               MsgReplaceChar(sanitizedSubj, ".", '_');
@@ -2665,7 +2671,7 @@ NS_IMETHODIMP QuotingOutputStreamListener::OnStopRequest(nsIRequest *request, ns
           // Handle "followup-to: poster" magic keyword here
           if (followUpTo.EqualsLiteral("poster"))
           {
-            nsCOMPtr<nsIDOMWindowInternal> composeWindow;
+            nsCOMPtr<nsIDOMWindow> composeWindow;
             nsCOMPtr<nsIPrompt> prompt;
             compose->GetDomWindow(getter_AddRefs(composeWindow));
             if (composeWindow)
@@ -3076,12 +3082,7 @@ nsMsgCompose::QuoteMessage(const char *msgURI)
                                     mHtmlToQuote);
 
   if (!mQuoteStreamListener)
-  {
-#ifdef NS_DEBUG
-    printf("Failed to create mQuoteStreamListener\n");
-#endif
     return NS_ERROR_FAILURE;
-  }
   NS_ADDREF(mQuoteStreamListener);
 
   mQuoteStreamListener->SetComposeObj(this);
@@ -3120,12 +3121,7 @@ nsMsgCompose::QuoteOriginalMessage(const char *originalMsgURI, PRInt32 what) // 
                                     mQuoteCharset.get(), mCharsetOverride, PR_TRUE, mHtmlToQuote);
 
   if (!mQuoteStreamListener)
-  {
-#ifdef NS_DEBUG
-    printf("Failed to create mQuoteStreamListener\n");
-#endif
     return NS_ERROR_FAILURE;
-  }
   NS_ADDREF(mQuoteStreamListener);
 
   mQuoteStreamListener->SetComposeObj(this);
@@ -3509,9 +3505,6 @@ nsresult nsMsgComposeSendListener::OnStopSending(const char *aMsgID, nsresult aS
 
     if (NS_SUCCEEDED(aStatus))
     {
-#ifdef NS_DEBUG
-      printf("nsMsgComposeSendListener: Success on the message send operation!\n");
-#endif
       nsCOMPtr<nsIMsgCompFields> compFields;
       msgCompose->GetCompFields(getter_AddRefs(compFields));
 
@@ -3520,7 +3513,7 @@ nsresult nsMsgComposeSendListener::OnStopSending(const char *aMsgID, nsresult aS
       
       // See if there is a composer window
       PRBool hasDomWindow = PR_TRUE;
-      nsCOMPtr<nsIDOMWindowInternal> domWindow;
+      nsCOMPtr<nsIDOMWindow> domWindow;
       rv = msgCompose->GetDomWindow(getter_AddRefs(domWindow));
       if (NS_FAILED(rv) || !domWindow)
         hasDomWindow = PR_FALSE;
@@ -3565,9 +3558,6 @@ nsresult nsMsgComposeSendListener::OnStopSending(const char *aMsgID, nsresult aS
     }
     else
     {
-#ifdef NS_DEBUG
-      printf("nsMsgComposeSendListener: the message send operation failed!\n");
-#endif
       msgCompose->NotifyStateListeners(nsIMsgComposeNotificationType::ComposeProcessDone, aStatus);
       if (progress)
       {
@@ -3600,19 +3590,12 @@ nsMsgComposeSendListener::OnGetDraftFolderURI(const char *aFolderURI)
 nsresult
 nsMsgComposeSendListener::OnStartCopy()
 {
-#ifdef NS_DEBUG
-  printf("nsMsgComposeSendListener::OnStartCopy()\n");
-#endif
-
   return NS_OK;
 }
 
 nsresult
 nsMsgComposeSendListener::OnProgress(PRUint32 aProgress, PRUint32 aProgressMax)
 {
-#ifdef NS_DEBUG
-  printf("nsMsgComposeSendListener::OnProgress() - COPY\n");
-#endif
   return NS_OK;
 }
 
@@ -3647,9 +3630,6 @@ nsMsgComposeSendListener::OnStopCopy(nsresult aStatus)
 
     if (NS_SUCCEEDED(aStatus))
     {
-#ifdef NS_DEBUG
-      printf("nsMsgComposeSendListener: Success on the message copy operation!\n");
-#endif
       // We should only close the window if we are done. Things like templates
       // and drafts aren't done so their windows should stay open
       if (mDeliverMode == nsIMsgSend::nsMsgSaveAsDraft ||
@@ -3672,10 +3652,6 @@ nsMsgComposeSendListener::OnStopCopy(nsresult aStatus)
         msgCompose->CloseWindow(PR_TRUE);
       }
     }
-#ifdef NS_DEBUG
-    else
-      printf("nsMsgComposeSendListener: the message copy operation failed!\n");
-#endif
   }
 
   return rv;
@@ -4496,7 +4472,6 @@ nsresult nsMsgCompose::AttachmentPrettyName(const nsACString & scheme, const cha
 }
 
 nsresult nsMsgCompose::GetABDirectories(const nsACString& aDirUri,
-                                        nsIRDFService *aRDFService,
                                         nsCOMArray<nsIAbDirectory> &aDirArray)
 {
   static PRBool collectedAddressbookFound;
@@ -4504,12 +4479,11 @@ nsresult nsMsgCompose::GetABDirectories(const nsACString& aDirUri,
     collectedAddressbookFound = PR_FALSE;
 
   nsresult rv;
-  nsCOMPtr<nsIRDFResource> resource;
-  rv = aRDFService->GetResource(aDirUri, getter_AddRefs(resource));
+  nsCOMPtr<nsIAbManager> abManager = do_GetService(NS_ABMANAGER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // query interface
-  nsCOMPtr<nsIAbDirectory> directory(do_QueryInterface(resource, &rv));
+  nsCOMPtr<nsIAbDirectory> directory;
+  rv = abManager->GetDirectory(aDirUri, getter_AddRefs(directory));
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsISimpleEnumerator> subDirectories;
@@ -4555,7 +4529,7 @@ nsresult nsMsgCompose::GetABDirectories(const nsACString& aDirUri,
           }
 
           aDirArray.InsertObjectAt(directory, pos);
-          rv = GetABDirectories(uri, aRDFService, aDirArray);
+          rv = GetABDirectories(uri, aDirArray);
         }
       }
     }
@@ -4691,11 +4665,8 @@ nsMsgCompose::CheckAndPopulateRecipients(PRBool aPopulateMailList,
   nsCOMPtr<nsISupportsArray> mailListArray(do_CreateInstance(NS_SUPPORTSARRAY_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsIRDFService> rdfService(do_GetService("@mozilla.org/rdf/rdf-service;1", &rv));
-  NS_ENSURE_SUCCESS(rv, rv);
-
   nsCOMArray<nsIAbDirectory> addrbookDirArray;
-  rv = GetABDirectories(NS_LITERAL_CSTRING(kAllDirectoryRoot), rdfService,
+  rv = GetABDirectories(NS_LITERAL_CSTRING(kAllDirectoryRoot),
                         addrbookDirArray);
   if (NS_SUCCEEDED(rv))
   {

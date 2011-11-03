@@ -57,10 +57,15 @@ const NS_NETWORK_PROTOCOL_CONTRACTID_PREFIX =
           "@mozilla.org/network/protocol;1?name=";
 const NS_XREAPPINFO_CONTRACTID =
           "@mozilla.org/xre/app-info;1";
+const NS_DIRECTORY_SERVICE_CONTRACTID =
+          "@mozilla.org/file/directory_service;1";
+const NS_OBSERVER_SERVICE_CONTRACTID =
+          "@mozilla.org/observer-service;1";
 
 var gLoadTimeout = 0;
 var gTimeoutHook = null;
 var gRemote = false;
+var gIgnoreWindowSize = false;
 var gTotalChunks = 0;
 var gThisChunk = 0;
 
@@ -115,6 +120,11 @@ var gSlowestTestURL;
 
 var gDrawWindowFlags;
 
+var gExpectingProcessCrash = false;
+var gExpectedCrashDumpFiles = [];
+var gUnexpectedCrashDumpFiles = { };
+var gCrashDumpDir;
+
 const TYPE_REFTEST_EQUAL = '==';
 const TYPE_REFTEST_NOTEQUAL = '!=';
 const TYPE_LOAD = 'load';     // test without a reference (just test that it does
@@ -147,6 +157,7 @@ var gRecycledCanvases = new Array();
 
 // By default we just log to stdout
 var gDumpLog = dump;
+var gVerbose = false;
 
 // Only dump the sandbox once, because it doesn't depend on the
 // manifest URL (yet!).
@@ -160,14 +171,18 @@ function LogWarning(str)
 
 function LogInfo(str)
 {
-//    gDumpLog("REFTEST INFO | " + str + "\n");
+    if (gVerbose)
+        gDumpLog("REFTEST INFO | " + str + "\n");
     gTestLog.push(str);
 }
 
 function FlushTestLog()
 {
-    for (var i = 0; i < gTestLog.length; ++i) {
-        gDumpLog("REFTEST INFO | Saved log: " + gTestLog[i] + "\n");
+    if (!gVerbose) {
+        // In verbose mode, we've dumped all these messages already.
+        for (var i = 0; i < gTestLog.length; ++i) {
+            gDumpLog("REFTEST INFO | Saved log: " + gTestLog[i] + "\n");
+        }
     }
     gTestLog = [];
 }
@@ -205,6 +220,15 @@ function IDForEventTarget(event)
 
 function OnRefTestLoad()
 {
+    gCrashDumpDir = CC[NS_DIRECTORY_SERVICE_CONTRACTID]
+                    .getService(CI.nsIProperties)
+                    .get("ProfD", CI.nsIFile);
+    gCrashDumpDir.append("minidumps");
+    
+    var env = CC["@mozilla.org/process/environment;1"].
+              getService(CI.nsIEnvironment);
+    gVerbose = !!env.get("MOZ_REFTEST_VERBOSE");
+
     var prefs = Components.classes["@mozilla.org/preferences-service;1"].
                 getService(Components.interfaces.nsIPrefBranch2);
     try {
@@ -240,9 +264,9 @@ function InitAndStartRefTests()
       logFile = prefs.getCharPref("reftest.logFile");
       if (logFile) {
         try {
-          MozillaFileLogger.init(logFile);
+          var mfl = new MozillaFileLogger(logFile);
           // Set to mirror to stdout as well as the file
-          gDumpLog = function (msg) {dump(msg); MozillaFileLogger.log(msg);};
+          gDumpLog = function (msg) {dump(msg); mfl.log(msg);};
         }
         catch(e) {
           // If there is a problem, just use stdout
@@ -250,6 +274,7 @@ function InitAndStartRefTests()
         }
       }
       gRemote = prefs.getBoolPref("reftest.remote");
+      gIgnoreWindowSize = prefs.getBoolPref("reftest.ignoreWindowSize");
     }
     catch(e) {
       gLoadTimeout = 5 * 60 * 1000; //5 minutes as per bug 479518
@@ -278,7 +303,9 @@ function InitAndStartRefTests()
 
     gIOService = CC[IO_SERVICE_CONTRACTID].getService(CI.nsIIOService);
     gDebug = CC[DEBUG_CONTRACTID].getService(CI.nsIDebug2);
-    
+
+    RegisterProcessCrashObservers();
+
     if (gRemote) {
       gServer = null;
     } else {
@@ -531,7 +558,7 @@ function ReadManifest(aURL, inherited_status)
     }
     var streamBuf = getStreamContent(inputStream);
     inputStream.close();
-    var lines = streamBuf.split(/(\n|\r|\r\n)/);
+    var lines = streamBuf.split(/\n|\r|\r\n/);
 
     // Build the sandbox for fails-if(), etc., condition evaluation.
     var sandbox = BuildConditionSandbox(aURL);
@@ -565,7 +592,7 @@ function ReadManifest(aURL, inherited_status)
         var needs_focus = false;
         var slow = false;
         
-        while (items[0].match(/^(fails|needs-focus|random|skip|asserts|slow|silentfail)/)) {
+        while (items[0].match(/^(fails|needs-focus|random|skip|asserts|slow|require-or|silentfail)/)) {
             var item = items.shift();
             var stat;
             var cond;
@@ -596,6 +623,30 @@ function ReadManifest(aURL, inherited_status)
             } else if (item == "slow") {
                 cond = false;
                 slow = true;
+            } else if ((m = item.match(/^require-or\((.*?)\)$/))) {
+                var args = m[1].split(/,/);
+                if (args.length != 2) {
+                    throw "Error 7 in manifest file " + aURL.spec + " line " + lineNo + ": wrong number of args to require-or";
+                }
+                var [precondition_str, fallback_action] = args;
+                var preconditions = precondition_str.split(/&&/);
+                cond = false;
+                for each (var precondition in preconditions) {
+                    if (precondition === "debugMode") {
+                        // Currently unimplemented. Requires asynchronous
+                        // JSD call + getting an event while no JS is running
+                        stat = fallback_action;
+                        cond = true;
+                        break;
+                    } else if (precondition === "true") {
+                        // For testing
+                    } else {
+                        // Unknown precondition. Assume it is unimplemented.
+                        stat = fallback_action;
+                        cond = true;
+                        break;
+                    }
+                }
             } else if ((m = item.match(/^slow-if\((.*?)\)$/))) {
                 cond = false;
                 if (Components.utils.evalInSandbox("(" + m[1] + ")", sandbox))
@@ -950,16 +1001,17 @@ function DoDrawWindow(ctx, x, y, w, h)
 {
     var flags = ctx.DRAWWINDOW_DRAW_CARET | ctx.DRAWWINDOW_DRAW_VIEW;
     var testRect = gBrowser.getBoundingClientRect();
-    if (0 <= testRect.left &&
-        0 <= testRect.top &&
-        window.innerWidth >= testRect.right &&
-        window.innerHeight >= testRect.bottom) {
+    if (gIgnoreWindowSize ||
+        (0 <= testRect.left &&
+         0 <= testRect.top &&
+         window.innerWidth >= testRect.right &&
+         window.innerHeight >= testRect.bottom)) {
         // We can use the window's retained layer manager
         // because the window is big enough to display the entire
         // browser element
         flags |= ctx.DRAWWINDOW_USE_WIDGET_LAYERS;
     } else if (gBrowserIsRemote) {
-        gDumpLog("REFTEST TEST-UNEXPECTED-FAIL | | can't drawWindow remote content\n");
+        gDumpLog("REFTEST TEST-UNEXPECTED-FAIL | " + gCurrentURL + " | can't drawWindow remote content\n");
         ++gTestResults.Exception;
     }
 
@@ -1141,6 +1193,7 @@ function RecordResult(testRunTime, errorMsg, scriptResults)
             // First document has been loaded.
             // Proceed to load the second document.
 
+            CleanUpCrashDumpFiles();
             StartCurrentURI(2);
             break;
         case 2:
@@ -1201,6 +1254,7 @@ function RecordResult(testRunTime, errorMsg, scriptResults)
             UpdateCanvasCache(gURLs[0].url1, gCanvas1);
             UpdateCanvasCache(gURLs[0].url2, gCanvas2);
 
+            CleanUpCrashDumpFiles();
             FinishTestItem();
             break;
         default:
@@ -1215,6 +1269,55 @@ function LoadFailed(why)
          gURLs[0]["url" + gState].spec + " | load failed: " + why + "\n");
     FlushTestLog();
     FinishTestItem();
+}
+
+function RemoveExpectedCrashDumpFiles()
+{
+    if (gExpectingProcessCrash) {
+        for each (let crashFilename in gExpectedCrashDumpFiles) {
+            let file = gCrashDumpDir.clone();
+            file.append(crashFilename);
+            if (file.exists()) {
+                file.remove(false);
+            }
+        }
+    }
+    gExpectedCrashDumpFiles.length = 0;
+}
+
+function FindUnexpectedCrashDumpFiles()
+{
+    if (!gCrashDumpDir.exists()) {
+        return;
+    }
+
+    let entries = gCrashDumpDir.directoryEntries;
+    if (!entries) {
+        return;
+    }
+
+    let foundCrashDumpFile = false;
+    while (entries.hasMoreElements()) {
+        let file = entries.getNext().QueryInterface(CI.nsIFile);
+        let path = String(file.path);
+        if (path.match(/\.(dmp|extra)$/) && !gUnexpectedCrashDumpFiles[path]) {
+            if (!foundCrashDumpFile) {
+                foundCrashDumpFile = true;
+                gDumpLog("REFTEST TEST-UNEXPECTED-FAIL | " + gCurrentURL +
+                         " | This test left crash dumps behind, but we weren't expecting it to!\n");
+            }
+            gDumpLog("REFTEST INFO | Found unexpected crash dump file" + path +
+                     ".\n");
+            gUnexpectedCrashDumpFiles[path] = true;
+        }
+    }
+}
+
+function CleanUpCrashDumpFiles()
+{
+    RemoveExpectedCrashDumpFiles();
+    FindUnexpectedCrashDumpFiles();
+    gExpectingProcessCrash = false;
 }
 
 function FinishTestItem()
@@ -1316,6 +1419,10 @@ function RegisterMessageListenersAndLoadContentScript()
         "reftest:UpdateCanvasForInvalidation",
         function (m) { RecvUpdateCanvasForInvalidation(m.json.rects); }
     );
+    gBrowserMessageManager.addMessageListener(
+        "reftest:ExpectProcessCrash",
+        function (m) { RecvExpectProcessCrash(); }
+    );
 
     gBrowserMessageManager.loadFrameScript("chrome://reftest/content/reftest-content.js", true);
 }
@@ -1374,6 +1481,34 @@ function RecvTestDone(runtimeMs)
 function RecvUpdateCanvasForInvalidation(rects)
 {
     UpdateCurrentCanvasForInvalidation(rects);
+}
+
+function OnProcessCrashed(subject, topic, data)
+{
+    var id;
+    subject = subject.QueryInterface(CI.nsIPropertyBag2);
+    if (topic == "plugin-crashed") {
+        id = subject.getPropertyAsAString("pluginDumpID");
+    } else if (topic == "ipc:content-shutdown") {
+        id = subject.getPropertyAsAString("dumpID");
+    }
+    if (id) {
+        gExpectedCrashDumpFiles.push(id + ".dmp");
+        gExpectedCrashDumpFiles.push(id + ".extra");
+    }
+}
+
+function RegisterProcessCrashObservers()
+{
+    var os = CC[NS_OBSERVER_SERVICE_CONTRACTID]
+             .getService(CI.nsIObserverService);
+    os.addObserver(OnProcessCrashed, "plugin-crashed", false);
+    os.addObserver(OnProcessCrashed, "ipc:content-shutdown", false);
+}
+
+function RecvExpectProcessCrash()
+{
+    gExpectingProcessCrash = true;
 }
 
 function SendClear()

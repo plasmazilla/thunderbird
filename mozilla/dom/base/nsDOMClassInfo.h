@@ -72,7 +72,7 @@ class nsIDOMSVGTransformList;
 class nsIDOMWindow;
 class nsIForm;
 class nsIHTMLDocument;
-class nsIPluginInstance;
+class nsNPAPIPluginInstance;
 class nsSVGTransformList;
 
 struct nsDOMClassInfoData;
@@ -98,7 +98,8 @@ struct nsDOMClassInfoData
   PRUint32 mScriptableFlags : 31; // flags must not use more than 31 bits!
   PRUint32 mHasClassInterface : 1;
   PRUint32 mInterfacesBitmap;
-  PRBool mChromeOnly;
+  PRPackedBool mChromeOnly;
+  PRPackedBool mDisabled;
 #ifdef NS_DEBUG
   PRUint32 mDebugID;
 #endif
@@ -201,8 +202,7 @@ protected:
 
   static inline PRBool IsReadonlyReplaceable(jsid id)
   {
-    return (id == sTop_id          ||
-            id == sParent_id       ||
+    return (id == sParent_id       ||
             id == sScrollbars_id   ||
             id == sContent_id      ||
             id == sMenubar_id      ||
@@ -245,7 +245,6 @@ protected:
   static PRBool sDisableGlobalScopePollutionSupport;
 
 public:
-  static jsid sTop_id;
   static jsid sParent_id;
   static jsid sScrollbars_id;
   static jsid sLocation_id;
@@ -268,50 +267,10 @@ public:
   static jsid sScreenY_id;
   static jsid sStatus_id;
   static jsid sName_id;
-  static jsid sOnmousedown_id;
-  static jsid sOnmouseup_id;
-  static jsid sOnclick_id;
-  static jsid sOndblclick_id;
-  static jsid sOncontextmenu_id;
-  static jsid sOnmouseover_id;
-  static jsid sOnmouseout_id;
-  static jsid sOnkeydown_id;
-  static jsid sOnkeyup_id;
-  static jsid sOnkeypress_id;
-  static jsid sOnmousemove_id;
-  static jsid sOnfocus_id;
-  static jsid sOnblur_id;
-  static jsid sOnsubmit_id;
-  static jsid sOnreset_id;
-  static jsid sOnchange_id;
-  static jsid sOninput_id;
-  static jsid sOninvalid_id;
-  static jsid sOnselect_id;
-  static jsid sOnload_id;
-  static jsid sOnpopstate_id;
-  static jsid sOnbeforeunload_id;
-  static jsid sOnunload_id;
-  static jsid sOnhashchange_id;
-  static jsid sOnreadystatechange_id;
-  static jsid sOnpageshow_id;
-  static jsid sOnpagehide_id;
-  static jsid sOnabort_id;
-  static jsid sOnerror_id;
-  static jsid sOnpaint_id;
-  static jsid sOnresize_id;
-  static jsid sOnscroll_id;
-  static jsid sOndrag_id;
-  static jsid sOndragend_id;
-  static jsid sOndragenter_id;
-  static jsid sOndragleave_id;
-  static jsid sOndragover_id;
-  static jsid sOndragstart_id;
-  static jsid sOndrop_id;
   static jsid sScrollX_id;
   static jsid sScrollY_id;
   static jsid sScrollMaxX_id;
   static jsid sScrollMaxY_id;
-  static jsid sOpen_id;
   static jsid sItem_id;
   static jsid sNamedItem_id;
   static jsid sEnumerate_id;
@@ -326,40 +285,23 @@ public:
   static jsid sBaseURIObject_id;
   static jsid sNodePrincipal_id;
   static jsid sDocumentURIObject_id;
-  static jsid sOncopy_id;
-  static jsid sOncut_id;
-  static jsid sOnpaste_id;
   static jsid sJava_id;
   static jsid sPackages_id;
-  static jsid sOnloadstart_id;
-  static jsid sOnprogress_id;
-  static jsid sOnsuspend_id;
-  static jsid sOnemptied_id;
-  static jsid sOnstalled_id;
-  static jsid sOnplay_id;
-  static jsid sOnpause_id;
-  static jsid sOnloadedmetadata_id;
-  static jsid sOnloadeddata_id;
-  static jsid sOnwaiting_id;
-  static jsid sOnplaying_id;
-  static jsid sOncanplay_id;
-  static jsid sOncanplaythrough_id;
-  static jsid sOnseeking_id;
-  static jsid sOnseeked_id;
-  static jsid sOntimeupdate_id;
-  static jsid sOnended_id;
-  static jsid sOnratechange_id;
-  static jsid sOndurationchange_id;
-  static jsid sOnvolumechange_id;
-  static jsid sOnmessage_id;
-  static jsid sOnbeforescriptexecute_id;
-  static jsid sOnafterscriptexecute_id;
   static jsid sWrappedJSObject_id;
   static jsid sURL_id;
   static jsid sKeyPath_id;
   static jsid sAutoIncrement_id;
   static jsid sUnique_id;
 
+#define EVENT(name_, id_, type_, struct_)       \
+  static jsid sOn##name_##_id;
+#define WINDOW_ONLY_EVENT EVENT
+#define TOUCH_EVENT EVENT
+#include "nsEventNameList.h"
+#undef TOUCH_EVENT
+#undef WINDOW_ONLY_EVENT
+#undef EVENT
+  
 protected:
   static JSPropertyOp sXPCNativeWrapperGetPropertyOp;
   static JSPropertyOp sXrayWrapperPropertyHolderGetPropertyOp;
@@ -888,6 +830,43 @@ public:
 };
 
 
+// DOMStringMap helper for .dataset property on elements.
+
+class nsDOMStringMapSH : public nsDOMGenericSH
+{
+public:
+  nsDOMStringMapSH(nsDOMClassInfoData* aData) : nsDOMGenericSH(aData)
+  {
+  }
+
+  virtual ~nsDOMStringMapSH()
+  {
+  }
+
+public:
+  NS_IMETHOD NewResolve(nsIXPConnectWrappedNative *wrapper, JSContext *cx,
+                        JSObject *obj, jsid id, PRUint32 flags,
+                        JSObject **objp, PRBool *_retval);
+  NS_IMETHOD Enumerate(nsIXPConnectWrappedNative *wrapper, JSContext *cx,
+                       JSObject *obj, PRBool *_retval);
+  NS_IMETHOD PreCreate(nsISupports *nativeObj, JSContext *cx,
+                       JSObject *globalObj, JSObject **parentObj);
+  NS_IMETHOD DelProperty(nsIXPConnectWrappedNative *wrapper,
+                         JSContext *cx, JSObject *obj, jsid id,
+                         jsval *vp, PRBool *_retval);
+  NS_IMETHOD GetProperty(nsIXPConnectWrappedNative *wrapper, JSContext *cx,
+                         JSObject *obj, jsid id, jsval *vp, PRBool *_retval);
+  NS_IMETHOD SetProperty(nsIXPConnectWrappedNative *wrapper, JSContext *cx,
+                         JSObject *obj, jsid id, jsval *vp, PRBool *_retval);
+
+  bool JSIDToProp(const jsid& aId, nsAString& aResult);
+
+  static nsIClassInfo *doCreate(nsDOMClassInfoData* aData)
+  {
+    return new nsDOMStringMapSH(aData);
+  }
+};
+
 
 // Document helper, for document.location and document.on*
 
@@ -934,7 +913,6 @@ protected:
   {
   }
 
-  static JSBool DocumentOpen(JSContext *cx, uintN argc, jsval *vp);
   static JSBool GetDocumentAllNodeList(JSContext *cx, JSObject *obj,
                                        nsDocument *doc,
                                        nsContentList **nodeList);
@@ -1085,10 +1063,10 @@ protected:
 
   static nsresult GetPluginInstanceIfSafe(nsIXPConnectWrappedNative *aWrapper,
                                           JSObject *obj,
-                                          nsIPluginInstance **aResult);
+                                          nsNPAPIPluginInstance **aResult);
 
   static nsresult GetPluginJSObject(JSContext *cx, JSObject *obj,
-                                    nsIPluginInstance *plugin_inst,
+                                    nsNPAPIPluginInstance *plugin_inst,
                                     JSObject **plugin_obj,
                                     JSObject **plugin_proto);
 
@@ -1504,6 +1482,26 @@ public:
   }
 };
 
+class nsDOMTouchListSH : public nsArraySH
+{
+protected:
+  nsDOMTouchListSH(nsDOMClassInfoData* aData) : nsArraySH(aData)
+  {
+  }
+
+  virtual ~nsDOMTouchListSH()
+  {
+  }
+
+  virtual nsISupports* GetItemAt(nsISupports *aNative, PRUint32 aIndex,
+                                 nsWrapperCache **aCache, nsresult *aResult);
+
+public:
+  static nsIClassInfo* doCreate(nsDOMClassInfoData* aData)
+  {
+    return new nsDOMTouchListSH(aData);
+  }
+};
 
 #ifdef MOZ_XUL
 // TreeColumns helper

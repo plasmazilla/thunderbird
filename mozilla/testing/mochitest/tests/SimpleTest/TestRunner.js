@@ -4,6 +4,13 @@
  * type = eventName (QuitApplication, LoggerInit, LoggerClose, Logger, GetPref, SetPref)
  * data = json object {"filename":filename} <- for LoggerInit
  */
+function getElement(id) {
+    return ((typeof(id) == "string") ?
+        document.getElementById(id) : id); 
+};   
+
+this.$ = this.getElement;
+
 function contentDispatchEvent(type, data, sync) {
   if (typeof(data) == "undefined") {
     data = {};
@@ -25,6 +32,39 @@ function contentAsyncEvent(type, data) {
   contentDispatchEvent(type, data, 0);
 }
 
+/* Helper Function */
+function extend(obj, /* optional */skip) {        
+    // Extend an array with an array-like object starting
+    // from the skip index
+    if (!skip) {
+        skip = 0;
+    }
+    if (obj) {
+        var l = obj.length;
+        var ret = [];
+        for (var i = skip; i < l; i++) {
+            ret.push(obj[i]);
+        }
+    }
+    return ret;
+};
+
+function flattenArguments(lst/* ...*/) {
+    var res = [];
+    var args = extend(arguments);
+    while (args.length) {
+        var o = args.shift();
+        if (o && typeof(o) == "object" && typeof(o.length) == "number") {
+            for (var i = o.length - 1; i >= 0; i--) {
+                args.unshift(o[i]);
+            }
+        } else {
+            res.push(o);
+        }
+    }
+    return res;
+};
+
 /**
  * TestRunner: A test runner for SimpleTest
  * TODO:
@@ -37,20 +77,14 @@ var TestRunner = {};
 TestRunner.logEnabled = false;
 TestRunner._currentTest = 0;
 TestRunner.currentTestURL = "";
+TestRunner.originalTestURL = "";
 TestRunner._urls = [];
 
 TestRunner.timeout = 5 * 60 * 1000; // 5 minutes.
 TestRunner.maxTimeouts = 4; // halt testing after too many timeouts
 
-TestRunner.ipcMode = false; // running in e10s build and need to use IPC?
-try {
-  netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
-  var ipcsanity = Components.classes["@mozilla.org/preferences-service;1"]
-                    .getService(Components.interfaces.nsIPrefBranch);
-  ipcsanity.setIntPref("mochitest.ipcmode", 0);
-} catch (e) {
-  TestRunner.ipcMode = true;
-}
+TestRunner.ipcMode = SpecialPowers.hasContentProcesses();
+TestRunner._expectingProcessCrash = false;
 
 /**
  * Make sure the tests don't hang indefinitely.
@@ -84,13 +118,19 @@ TestRunner._checkForHangs = function() {
         return;
     }
 
-    TestRunner.deferred = callLater(30, TestRunner._checkForHangs);
+    setTimeout(TestRunner._checkForHangs, 30000);
   }
 }
 
 TestRunner.requestLongerTimeout = function(factor) {
     TestRunner._timeoutFactor = factor;
 }
+
+/**
+ * This is used to loop tests
+**/
+TestRunner.loops = 0;
+TestRunner._currentLoop = 0;
 
 /**
  * This function is called after generating the summary.
@@ -100,7 +140,23 @@ TestRunner.onComplete = null;
 /**
  * If logEnabled is true, this is the logger that will be used.
 **/
-TestRunner.logger = MochiKit.Logging.logger;
+TestRunner.logger = LogController;
+
+TestRunner.log = function(msg) {
+    if (TestRunner.logEnabled) {
+        TestRunner.logger.log(msg);
+    } else {
+        dump(msg + "\n");
+    }
+};
+
+TestRunner.error = function(msg) {
+    if (TestRunner.logEnabled) {
+        TestRunner.logger.error(msg);
+    } else {
+        dump(msg + "\n");
+    }
+};
 
 /**
  * Toggle element visibility
@@ -114,7 +170,6 @@ TestRunner._toggle = function(el) {
         el.style.cssText = "width:0px; height:0px; border:0px;";
     }
 };
-
 
 /**
  * Creates the iframe that contains a test
@@ -137,9 +192,7 @@ TestRunner._makeIframe = function (url, retry) {
             return;
         }
 
-        if (TestRunner.logEnabled) {
-            TestRunner.logger.log("Error: Unable to restore focus, expect failures and timeouts.");
-        }
+        TestRunner.log("Error: Unable to restore focus, expect failures and timeouts.");
     }
     window.scrollTo(0, $('indicator').offsetTop);
     iframe.src = url;
@@ -155,8 +208,10 @@ TestRunner._makeIframe = function (url, retry) {
  *
 **/
 TestRunner.runTests = function (/*url...*/) {
-    if (TestRunner.logEnabled)
-        TestRunner.logger.log("SimpleTest START");
+    TestRunner.log("SimpleTest START");
+    TestRunner.originalTestURL = $("current-test").innerHTML;
+
+    SpecialPowers.registerProcessCrashObservers();
 
     TestRunner._urls = flattenArguments(arguments);
     $('testframe').src="";
@@ -166,6 +221,49 @@ TestRunner.runTests = function (/*url...*/) {
     TestRunner.runNextTest();
 };
 
+/**
+ * Used for running a set of tests in a loop for debugging purposes
+ * Takes an array of URLs
+**/
+TestRunner.resetTests = function(listURLs) {
+  TestRunner._currentTest = 0;
+  // Reset our "Current-test" line - functionality depends on it
+  $("current-test").innerHTML = TestRunner.originalTestURL;
+  if (TestRunner.logEnabled)
+    TestRunner.log("SimpleTest START Loop " + TestRunner._currentLoop);
+
+  TestRunner._urls = listURLs;
+  $('testframe').src="";
+  TestRunner._checkForHangs();
+  window.focus();
+  $('testframe').focus();
+  TestRunner.runNextTest();
+}
+
+/*
+ * Used to run a single test in a loop and update the UI with the results
+ */
+TestRunner.loopTest = function(testPath){
+ var numLoops = TestRunner.loops;
+  while(numLoops >= 0){
+    //must set the following line so that TestHarness.updateUI finds the right div to update
+    $("current-test-path").innerHTML = testPath;
+    function checkComplete() {
+      var testWindow = window.open(testPath, 'test window');
+      if (testWindow.document.readyState == "complete") {
+        TestRunner.currentTestURL = testPath;
+        TestRunner.updateUI(testWindow.SimpleTest._tests);
+        testWindow.close();
+      } else {
+        setTimeout(checkComplete, 1000);
+      }
+    }
+    checkComplete();
+    numLoops--;
+  }
+}
+
+/**
 /**
  * Run the next test. If no test remains, calls onComplete().
  **/
@@ -182,8 +280,7 @@ TestRunner.runNextTest = function() {
         TestRunner._currentTestStartTime = new Date().valueOf();
         TestRunner._timeoutFactor = 1;
 
-        if (TestRunner.logEnabled)
-            TestRunner.logger.log("TEST-START | " + url); // used by automation.py
+        TestRunner.log("TEST-START | " + url); // used by automation.py
 
         TestRunner._makeIframe(url, 0);
     } else {
@@ -196,8 +293,7 @@ TestRunner.runNextTest = function() {
         {
           // No |$('testframe').contentWindow|, so manually update: ...
           // ... the log,
-          if (TestRunner.logEnabled)
-            TestRunner.logger.error("TEST-UNEXPECTED-FAIL | (SimpleTest/TestRunner.js) | No checks actually run.");
+          TestRunner.error("TEST-UNEXPECTED-FAIL | (SimpleTest/TestRunner.js) | No checks actually run.");
           // ... the count,
           $("fail-count").innerHTML = 1;
           // ... the indicator.
@@ -206,34 +302,80 @@ TestRunner.runNextTest = function() {
           indicator.style.backgroundColor = "red";
         }
 
-        if (TestRunner.logEnabled) {
-            TestRunner.logger.log("TEST-START | Shutdown"); // used by automation.py
-            TestRunner.logger.log("Passed: " + $("pass-count").innerHTML);
-            TestRunner.logger.log("Failed: " + $("fail-count").innerHTML);
-            TestRunner.logger.log("Todo:   " + $("todo-count").innerHTML);
-            TestRunner.logger.log("SimpleTest FINISHED");
-        }
+        TestRunner.log("TEST-START | Shutdown"); // used by automation.py
+        TestRunner.log("Passed: " + $("pass-count").innerHTML);
+        TestRunner.log("Failed: " + $("fail-count").innerHTML);
+        TestRunner.log("Todo:   " + $("todo-count").innerHTML);
+        // If we are looping, don't send this cause it closes the log file
+        if (TestRunner.loops == 0)
+          TestRunner.log("SimpleTest FINISHED");
 
-        if (TestRunner.onComplete) {
+        if (TestRunner.loops == 0 && TestRunner.onComplete) {
+             TestRunner.onComplete();
+         }
+ 
+        if (TestRunner._currentLoop < TestRunner.loops){
+          TestRunner._currentLoop++;
+          TestRunner.resetTests(TestRunner._urls);
+        } else {
+          // Loops are finished
+          if (TestRunner.logEnabled) {
+            TestRunner.log("TEST-INFO | Ran " + TestRunner._currentLoop + " Loops");
+            TestRunner.log("SimpleTest FINISHED");
+          }
+
+          if (TestRunner.onComplete)
             TestRunner.onComplete();
-        }
+       }
     }
+};
+
+TestRunner.expectChildProcessCrash = function() {
+    TestRunner._expectingProcessCrash = true;
 };
 
 /**
  * This stub is called by SimpleTest when a test is finished.
 **/
 TestRunner.testFinished = function(tests) {
-    if (TestRunner.logEnabled) {
-        var runtime = new Date().valueOf() - TestRunner._currentTestStartTime;
-        TestRunner.logger.log("TEST-END | " +
-                              TestRunner._urls[TestRunner._currentTest] +
-                              " | finished in " + runtime + "ms");
+    function cleanUpCrashDumpFiles() {
+        if (!SpecialPowers.removeExpectedCrashDumpFiles(TestRunner._expectingProcessCrash)) {
+            TestRunner.error("TEST-UNEXPECTED-FAIL | " +
+                             TestRunner.currentTestURL +
+                             " | This test did not leave any crash dumps behind, but we were expecting some!");
+            tests.push({ result: false });
+        }
+        var unexpectedCrashDumpFiles =
+            SpecialPowers.findUnexpectedCrashDumpFiles();
+        TestRunner._expectingProcessCrash = false;
+        if (unexpectedCrashDumpFiles.length) {
+            TestRunner.error("TEST-UNEXPECTED-FAIL | " +
+                             TestRunner.currentTestURL +
+                             " | This test left crash dumps behind, but we " +
+                             "weren't expecting it to!");
+            tests.push({ result: false });
+            unexpectedCrashDumpFiles.sort().forEach(function(aFilename) {
+                TestRunner.log("TEST-INFO | Found unexpected crash dump file " +
+                               aFilename + ".");
+            });
+        }
     }
 
-    TestRunner.updateUI(tests);
-    TestRunner._currentTest++;
-    TestRunner.runNextTest();
+    function runNextTest() {
+        var runtime = new Date().valueOf() - TestRunner._currentTestStartTime;
+        TestRunner.log("TEST-END | " +
+                       TestRunner._urls[TestRunner._currentTest] +
+                       " | finished in " + runtime + "ms");
+
+        TestRunner.updateUI(tests);
+        TestRunner._currentTest++;
+        TestRunner.runNextTest();
+    }
+
+    SpecialPowers.executeAfterFlushingMessageQueue(function() {
+        cleanUpCrashDumpFiles();
+        runNextTest();
+    });
 };
 
 /**
@@ -254,6 +396,47 @@ TestRunner.countResults = function(tests) {
     }
   }
   return {"OK": nOK, "notOK": nNotOK, "todo": nTodo};
+}
+
+/**
+ * Print out table of any error messages found during looped run
+ */
+TestRunner.displayLoopErrors = function(tableName, tests) {
+  if(TestRunner.countResults(tests).notOK >0){
+    var table = $(tableName);
+    var curtest;
+    if (table.rows.length == 0) {
+      //if table headers are not yet generated, make them
+      var row = table.insertRow(table.rows.length); 
+      var cell = row.insertCell(0);
+      var textNode = document.createTextNode("Test File Name:");
+      cell.appendChild(textNode);
+      cell = row.insertCell(1);
+      textNode = document.createTextNode("Test:");
+      cell.appendChild(textNode);
+      cell = row.insertCell(2);
+      textNode = document.createTextNode("Error message:");
+      cell.appendChild(textNode);
+    }
+  
+    //find the broken test
+    for (var testnum in tests){
+      curtest = tests[testnum];
+      if( !((curtest.todo && !curtest.result) || (curtest.result && !curtest.todo)) ){
+        //this is a failed test or the result of todo test. Display the related message
+        row = table.insertRow(table.rows.length); 
+        cell = row.insertCell(0);
+        textNode = document.createTextNode(TestRunner.currentTestURL);
+        cell.appendChild(textNode);
+        cell = row.insertCell(1);
+        textNode = document.createTextNode(curtest.name);
+        cell.appendChild(textNode);
+        cell = row.insertCell(2);
+        textNode = document.createTextNode((curtest.diag ? curtest.diag : "" ));
+        cell.appendChild(textNode);
+      }
+    }
+  }
 }
 
 TestRunner.updateUI = function(tests) {
@@ -283,9 +466,14 @@ TestRunner.updateUI = function(tests) {
   var row = $(trID);
   var tds = row.getElementsByTagName("td");
   tds[0].style.backgroundColor = "#0d0";
-  tds[0].innerHTML = results.OK;
+  tds[0].innerHTML = parseInt(tds[0].innerHTML) + parseInt(results.OK);
   tds[1].style.backgroundColor = results.notOK > 0 ? "red" : "#0d0";
-  tds[1].innerHTML = results.notOK;
+  tds[1].innerHTML = parseInt(tds[1].innerHTML) + parseInt(results.notOK);
   tds[2].style.backgroundColor = results.todo > 0 ? "orange" : "#0d0";
-  tds[2].innerHTML = results.todo;
+  tds[2].innerHTML = parseInt(tds[2].innerHTML) + parseInt(results.todo);
+
+  //if we ran in a loop, display any found errors
+  if(TestRunner.loops > 0){
+    TestRunner.displayLoopErrors('fail-table', tests);
+  }
 }

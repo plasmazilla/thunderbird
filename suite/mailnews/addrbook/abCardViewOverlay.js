@@ -46,11 +46,9 @@ gPrefs = gPrefs.QueryInterface(Components.interfaces.nsIPrefBranch);
 
 var gProfileDirURL;
 
-var gMapItURLFormat = gPrefs.getComplexValue("mail.addr_book.mapit_url.format", 
-                                              Components.interfaces.nsIPrefLocalizedString).data;
+var gMapItURLFormat = GetLocalizedStringPref("mail.addr_book.mapit_url.format");
 
-var gIOService = Components.classes["@mozilla.org/network/io-service;1"].getService(Components.interfaces.nsIIOService);
-var gFileHandler = gIOService.getProtocolHandler("file").QueryInterface(Components.interfaces.nsIFileProtocolHandler);
+var gFileHandler = Services.io.getProtocolHandler("file").QueryInterface(Components.interfaces.nsIFileProtocolHandler);
 
 var zListName;
 var zPrimaryEmail;
@@ -369,10 +367,7 @@ function setBuddyIcon(card, buddyIcon)
     if (myScreenName && card.primaryEmail) {
       if (!gProfileDirURL) {
         // lazily create these file urls, and keep them around
-        var dirService = Components.classes["@mozilla.org/file/directory_service;1"]
-            .getService(Components.interfaces.nsIProperties);
-        var profileDir = dirService.get("ProfD", Components.interfaces.nsIFile);
-        gProfileDirURL = gIOService.newFileURI(profileDir);
+        gProfileDirURL = Services.io.newFileURI(GetSpecialDirectory("ProfD"));
       }
 
       // if we did have a buddy icon on disk for this screenname, this would be the file url spec for it

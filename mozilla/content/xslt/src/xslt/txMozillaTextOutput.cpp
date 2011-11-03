@@ -42,12 +42,8 @@
 #include "nsIDocument.h"
 #include "nsIDOMDocument.h"
 #include "nsIDOMDocumentFragment.h"
-#include "nsIDOMElement.h"
-#include "nsIDOMHTMLElement.h"
-#include "nsIDOMText.h"
 #include "nsIDocumentTransformer.h"
 #include "nsNetUtil.h"
-#include "nsIDOMNSDocument.h"
 #include "nsIParser.h"
 #include "nsICharsetAlias.h"
 #include "nsIPrincipal.h"
@@ -150,11 +146,8 @@ txMozillaTextOutput::startDocument()
 }
 
 nsresult
-txMozillaTextOutput::createResultDocument(nsIDOMDocument* aSourceDocument,
-                                          nsIDOMDocument* aResultDocument)
+txMozillaTextOutput::createResultDocument(nsIDOMDocument* aSourceDocument)
 {
-    nsresult rv = NS_OK;
-
     /*
      * Create an XHTML document to hold the text.
      *
@@ -171,21 +164,16 @@ txMozillaTextOutput::createResultDocument(nsIDOMDocument* aSourceDocument,
      * <transformiix:result> * The text comes here * </transformiix:result>
      */
 
-    if (!aResultDocument) {
-        // Create the document
-        rv = NS_NewXMLDocument(getter_AddRefs(mDocument));
-        NS_ENSURE_SUCCESS(rv, rv);
-        nsCOMPtr<nsIDocument> source = do_QueryInterface(aSourceDocument);
-        NS_ENSURE_STATE(source);
-        PRBool hasHadScriptObject = PR_FALSE;
-        nsIScriptGlobalObject* sgo =
-          source->GetScriptHandlingObject(hasHadScriptObject);
-        NS_ENSURE_STATE(sgo || !hasHadScriptObject);
-        mDocument->SetScriptHandlingObject(sgo);
-    }
-    else {
-        mDocument = do_QueryInterface(aResultDocument);
-    }
+    // Create the document
+    nsresult rv = NS_NewXMLDocument(getter_AddRefs(mDocument));
+    NS_ENSURE_SUCCESS(rv, rv);
+    nsCOMPtr<nsIDocument> source = do_QueryInterface(aSourceDocument);
+    NS_ENSURE_STATE(source);
+    PRBool hasHadScriptObject = PR_FALSE;
+    nsIScriptGlobalObject* sgo =
+      source->GetScriptHandlingObject(hasHadScriptObject);
+    NS_ENSURE_STATE(sgo || !hasHadScriptObject);
+    mDocument->SetScriptHandlingObject(sgo);
 
     NS_ASSERTION(mDocument, "Need document");
 
@@ -217,9 +205,7 @@ txMozillaTextOutput::createResultDocument(nsIDOMDocument* aSourceDocument,
 
     // When transforming into a non-displayed document (i.e. when there is no
     // observer) we only create a transformiix:result root element.
-    // Don't do this when called through nsIXSLTProcessorObsolete (i.e. when
-    // aResultDocument is set) for compability reasons
-    if (!aResultDocument && !observer) {
+    if (!observer) {
         PRInt32 namespaceID;
         rv = nsContentUtils::NameSpaceManager()->
             RegisterNameSpace(NS_LITERAL_STRING(kTXNameSpaceURI), namespaceID);
@@ -296,7 +282,8 @@ txMozillaTextOutput::createXHTMLElement(nsIAtom* aName,
 
     nsCOMPtr<nsINodeInfo> ni;
     ni = mDocument->NodeInfoManager()->
-        GetNodeInfo(aName, nsnull, kNameSpaceID_XHTML);
+        GetNodeInfo(aName, nsnull, kNameSpaceID_XHTML,
+                    nsIDOMNode::ELEMENT_NODE);
     NS_ENSURE_TRUE(ni, NS_ERROR_OUT_OF_MEMORY);
 
     return NS_NewHTMLElement(aResult, ni.forget(), NOT_FROM_PARSER);

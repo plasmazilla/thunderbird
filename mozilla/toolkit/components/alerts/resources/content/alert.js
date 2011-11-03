@@ -127,14 +127,6 @@ function onAlertLoad()
   var alertBox = document.getElementById("alertBox");
   alertBox.orient = (gOrigin & NS_ALERT_HORIZONTAL) ? "vertical" : "horizontal";
 
-  // The above doesn't cause the labels in alertTextBox to reflow,
-  // see bug 311557. As the theme's -moz-box-align css rule gets ignored,
-  // we work around the bug by setting the align property.
-  if (gOrigin & NS_ALERT_HORIZONTAL)
-  {
-    document.getElementById("alertTextBox").align = "center";
-  }
-
   sizeToContent();
 
   // Work around a bug where sizeToContent() leaves a border outside of the content
@@ -142,7 +134,6 @@ function onAlertLoad()
   if (window.innerWidth == contentDim.width + 1)
     --window.innerWidth;
 
-#ifndef WINCE
   // Start with a 1px width/height, because 0 causes trouble with gtk1/2
   gCurrentSize = 1;
 
@@ -157,7 +148,6 @@ function onAlertLoad()
     gFinalSize = window.outerHeight;
     window.outerHeight = gCurrentSize;
   }
-#endif
 
   // Determine position
   var x = gOrigin & NS_ALERT_LEFT ? screen.availLeft :
@@ -173,11 +163,7 @@ function onAlertLoad()
 
   window.moveTo(x, y);
 
-#ifndef WINCE
   setTimeout(animateAlert, gSlideTime);
-#else
-  setTimeout(closeAlert, gOpenTime);
-#endif
 }
 
 function animate(step)

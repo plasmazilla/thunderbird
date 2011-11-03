@@ -80,8 +80,13 @@ mjit::Compiler::tryBinaryConstantFold(JSContext *cx, FrameState &frame, JSOp op,
         needInt = (L.isInt32() && R.isInt32() &&
                    L.toInt32() >= 0 && R.toInt32() > 0);
         break;
-
+      
       case JSOP_RSH:
+      case JSOP_URSH:
+      case JSOP_LSH:
+      case JSOP_BITOR:
+      case JSOP_BITXOR:
+      case JSOP_BITAND:
         needInt = true;
         break;
 
@@ -98,11 +103,11 @@ mjit::Compiler::tryBinaryConstantFold(JSContext *cx, FrameState &frame, JSOp op,
      * is infallible.
      */
     if (needInt) {
-        ValueToECMAInt32(cx, L, &nL);
-        ValueToECMAInt32(cx, R, &nR);
+        JS_ALWAYS_TRUE(ValueToECMAInt32(cx, L, &nL));
+        JS_ALWAYS_TRUE(ValueToECMAInt32(cx, R, &nR));
     } else {
-        ValueToNumber(cx, L, &dL);
-        ValueToNumber(cx, R, &dR);
+        JS_ALWAYS_TRUE(ToNumber(cx, L, &dL));
+        JS_ALWAYS_TRUE(ToNumber(cx, R, &dR));
     }
 
     switch (op) {
@@ -143,6 +148,29 @@ mjit::Compiler::tryBinaryConstantFold(JSContext *cx, FrameState &frame, JSOp op,
 
       case JSOP_RSH:
         nL >>= (nR & 31);
+        break;
+      
+      case JSOP_URSH:
+        uint32_t uL;
+        ValueToECMAUint32(cx, L, &uL);        
+        dL = (double)uint32(uL >> (nR & 31));
+        needInt = false;
+        break;
+      
+      case JSOP_LSH:
+        nL <<= nR;
+        break;
+        
+      case JSOP_BITOR:
+        nL |= nR;
+        break;
+    
+      case JSOP_BITXOR:
+        nL ^= nR;
+        break;
+        
+      case JSOP_BITAND:
+        nL &= nR;
         break;
 
       default:
@@ -219,12 +247,8 @@ mjit::Compiler::jsop_binary(JSOp op, VoidStub stub)
      */
     if ((op == JSOP_MOD) ||
         (lhs->isTypeKnown() && (lhs->getKnownType() > JSVAL_UPPER_INCL_TYPE_OF_NUMBER_SET)) ||
-        (rhs->isTypeKnown() && (rhs->getKnownType() > JSVAL_UPPER_INCL_TYPE_OF_NUMBER_SET)) 
-#if defined(JS_CPU_ARM)
-        /* ARM cannot detect integer overflow with multiplication. */
-        || op == JSOP_MUL
-#endif /* JS_CPU_ARM */
-    ) {
+        (rhs->isTypeKnown() && (rhs->getKnownType() > JSVAL_UPPER_INCL_TYPE_OF_NUMBER_SET)))
+    {
         bool isStringResult = (op == JSOP_ADD) &&
                               (lhs->isType(JSVAL_TYPE_STRING) ||
                                rhs->isType(JSVAL_TYPE_STRING));
@@ -417,11 +441,9 @@ mjit::Compiler::jsop_binary_full_simple(FrameEntry *fe, JSOp op, VoidStub stub)
         overflow = masm.branchSub32(Assembler::Overflow, regs.result, regs.result);
         break;
 
-#if !defined(JS_CPU_ARM)
       case JSOP_MUL:
         overflow = masm.branchMul32(Assembler::Overflow, regs.result, regs.result);
         break;
-#endif
 
       default:
         JS_NOT_REACHED("unrecognized op");
@@ -601,7 +623,6 @@ mjit::Compiler::jsop_binary_full(FrameEntry *lhs, FrameEntry *rhs, JSOp op, Void
             overflow = masm.branchSub32(Assembler::Overflow, Imm32(value), regs.result);
         break;
 
-#if !defined(JS_CPU_ARM)
       case JSOP_MUL:
       {
         JS_ASSERT(reg.isSet());
@@ -654,7 +675,6 @@ mjit::Compiler::jsop_binary_full(FrameEntry *lhs, FrameEntry *rhs, JSOp op, Void
         }
         break;
       }
-#endif
 
       default:
         JS_NOT_REACHED("unrecognized op");
@@ -771,7 +791,7 @@ mjit::Compiler::jsop_neg()
 #if defined JS_CPU_X86 || defined JS_CPU_X64
         masm.loadDouble(&DoubleNegMask, FPRegisters::Second);
         masm.xorDouble(FPRegisters::Second, fpreg);
-#elif defined JS_CPU_ARM
+#elif defined JS_CPU_ARM || defined JS_CPU_SPARC
         masm.negDouble(fpreg, fpreg);
 #endif
 
@@ -831,7 +851,7 @@ mjit::Compiler::jsop_neg()
 void
 mjit::Compiler::jsop_mod()
 {
-#if defined(JS_CPU_X86)
+#if defined(JS_CPU_X86) || defined(JS_CPU_X64)
     FrameEntry *lhs = frame.peek(-2);
     FrameEntry *rhs = frame.peek(-1);
 
@@ -849,7 +869,7 @@ mjit::Compiler::jsop_mod()
         return;
     }
 
-#if defined(JS_CPU_X86)
+#if defined(JS_CPU_X86) || defined(JS_CPU_X64)
     if (!lhs->isTypeKnown()) {
         Jump j = frame.testInt32(Assembler::NotEqual, lhs);
         stubcc.linkExit(j, Uses(2));

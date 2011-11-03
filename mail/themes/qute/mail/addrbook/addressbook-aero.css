@@ -87,14 +87,13 @@ toolbox > toolbar:last-of-type:not(:-moz-lwtheme) {
   background: rgba(151, 152, 153, .05)
               -moz-linear-gradient(rgba(251, 252, 253, .95),
               rgba(246, 247, 248, .47) 49%, rgba(231, 232, 233, .45) 51%,
-              rgba(225,226,229,.3));
-  border-radius: 4.5px;
+              rgba(225, 226, 229, .3));
+  border-radius: 3.5px;
   border: 1px solid;
-  border-color: rgba(0,0,0,.12) rgba(0,0,0,.19) rgba(0,0,0,.38);
+  border-color: rgba(0, 0, 0, .12) rgba(0, 0, 0, .19) rgba(0, 0, 0, .38);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, .3) inset,
-              0 0 0 2px rgba(255, 255, 255, .1) inset,
-              0 1px 0 rgba(0, 0, 0, .15);
-  color: black;
+              0 0 0 2px rgba(255, 255, 255, .1) inset;
+  color: ButtonText;
   text-shadow: 0 0 3px white;
 }
 
@@ -167,10 +166,9 @@ toolbarbutton[type="menu-button"]:not([open="true"]):not(:active):hover >
   background-color: hsla(190, 60%, 70%, .5);
   border-color: hsla(190, 50%, 65%, .8) hsla(190, 50%, 50%, .8)
                 hsla(190, 50%, 40%, .8);
-  box-shadow: 0 0 0 1px rgba(255,255,255,.3) inset,
-              0 0 0 2px rgba(255,255,255,.1) inset,
-              0 1px 0 rgba(0,0,0,.1),
-              0 0 5px hsl(190,90%,80%);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .3) inset,
+              0 0 0 2px rgba(255, 255, 255, .1) inset,
+              0 0 5px hsl(190, 90%, 80%);
   -moz-transition: background-color .4s ease-in,
                    border-color .3s ease-in,
                    box-shadow .3s ease-in;
@@ -223,11 +221,6 @@ toolbar[iconsize="small"] .toolbarbutton-1 > .toolbarbutton-icon {
   height: auto !important;
 }
 
-toolbar[iconsize="small"] .toolbarbutton-menubutton-button > .toolbarbutton-text,
-toolbar[iconsize="small"] .toolbarbutton-1 > .toolbarbutton-text {
-  margin: 0 !important;
-}
-
 toolbox[labelalign="end"] > toolbar[mode="full"] .toolbarbutton-1 .toolbarbutton-text {
   -moz-padding-start: 2px;
 }
@@ -255,9 +248,28 @@ toolbox[labelalign="end"] > toolbar[mode="full"] deck .toolbarbutton-text {
     text-shadow: 0 0 .7em white, 0 0 .7em white, 0 1px 0 rgba(255, 255, 255, .4);
   }
 
-  #menubar-items:not(:-moz-lwtheme):not(:-moz-window-inactive) {
-    background-color: rgba(255, 255, 255, .3);
+  #menubar-items:not(:-moz-lwtheme) {
+    background-color: rgba(255, 255, 255, .5);
     border-radius: 4px;
+  }
+
+  menubar > menu:-moz-window-inactive {
+    color: MenuText;
+  }
+
+  /* lesser transparency on Glass background */
+  .toolbarbutton-menubutton-button:not(:-moz-lwtheme),
+  .toolbarbutton-menubutton-dropmarker:not(:-moz-lwtheme),
+  .toolbarbutton-1:not(:-moz-lwtheme) {
+    background-color: rgba(227, 237, 246, .7);
+  }
+
+  /* lesser transparency on Glass background */
+  .toolbarbutton-menubutton-button:not(:-moz-lwtheme):not([disabled="true"]):not(:active):hover,
+  toolbarbutton[type="menu-button"]:not(:-moz-lwtheme):not([open="true"]):not(:active):hover >
+                    .toolbarbutton-menubutton-dropmarker:not([disabled="true"]),
+  .toolbarbutton-1:not(:-moz-lwtheme):not([disabled="true"]):not([checked="true"]):not(:active):hover {
+    background-color: rgba(136, 197, 213, .85);
   }
 
   .toolbarbutton-menubutton-button[disabled="true"],
@@ -324,13 +336,18 @@ toolbox[labelalign="end"] > toolbar[mode="full"] deck .toolbarbutton-text {
   -moz-appearance: none;
   background-clip: padding-box;
   border: 1px solid ThreeDDarkShadow;
-  border-radius: 4px;
-  box-shadow: 0 1px 0 rgba(0, 0, 0, .1) inset, 0 1px 0 rgba(255, 255, 255, .4);
+  border-radius: 3.5px;
 }
 
 @media all and (-moz-windows-default-theme) {
   #peopleSearchInput {
-    border-color: rgba(0, 0, 0, .25) rgba(0, 0, 0, .32) rgba(0, 0, 0, .37);
+    border-color:rgba(0, 0, 0, .32);
+  }
+
+  #peopleSearchInput:-moz-lwtheme {
+    background-color: rgba(255, 255, 255, .8);
+    border-color: rgba(0, 0, 0, .32);
+    color: black;
   }
 }
 

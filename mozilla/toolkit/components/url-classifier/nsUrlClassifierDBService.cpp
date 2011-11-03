@@ -54,6 +54,7 @@
 #include "nsIDirectoryService.h"
 #include "nsIKeyModule.h"
 #include "nsIObserverService.h"
+#include "nsIPermissionManager.h"
 #include "nsIPrefBranch.h"
 #include "nsIPrefBranch2.h"
 #include "nsIPrefService.h"
@@ -61,6 +62,7 @@
 #include "nsIProxyObjectManager.h"
 #include "nsToolkitCompsCID.h"
 #include "nsIUrlClassifierUtils.h"
+#include "nsIRandomGenerator.h"
 #include "nsUrlClassifierDBService.h"
 #include "nsUrlClassifierUtils.h"
 #include "nsURILoader.h"
@@ -479,10 +481,6 @@ public:
                             PRBool before,
                             nsTArray<nsUrlClassifierEntry> &entries);
 
-  // Ask the db for a random number.  This is temporary, and should be
-  // replaced with nsIRandomGenerator when 419739 is fixed.
-  nsresult RandomNumber(PRInt64 *randomNum);
-
 protected:
   nsresult ReadEntries(mozIStorageStatement *statement,
                        nsTArray<nsUrlClassifierEntry>& entries);
@@ -500,8 +498,6 @@ protected:
   nsCOMPtr<mozIStorageStatement> mPartialEntriesAfterStatement;
   nsCOMPtr<mozIStorageStatement> mLastPartialEntriesStatement;
   nsCOMPtr<mozIStorageStatement> mPartialEntriesBeforeStatement;
-
-  nsCOMPtr<mozIStorageStatement> mRandomStatement;
 };
 
 nsresult
@@ -558,11 +554,6 @@ nsUrlClassifierStore::Init(nsUrlClassifierDBServiceWorker *worker,
      getter_AddRefs(mPartialEntriesBeforeStatement));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = mConnection->CreateStatement
-    (NS_LITERAL_CSTRING("SELECT abs(random())"),
-     getter_AddRefs(mRandomStatement));
-  NS_ENSURE_SUCCESS(rv, rv);
-
   return NS_OK;
 }
 
@@ -580,7 +571,6 @@ nsUrlClassifierStore::Close()
   mPartialEntriesAfterStatement = nsnull;
   mPartialEntriesBeforeStatement = nsnull;
   mLastPartialEntriesStatement = nsnull;
-  mRandomStatement = nsnull;
 
   mConnection = nsnull;
 }
@@ -761,21 +751,6 @@ nsUrlClassifierStore::ReadNoiseEntries(PRInt64 rowID,
   NS_ENSURE_SUCCESS(rv, rv);
 
   return ReadEntries(wraparoundStatement, entries);
-}
-
-nsresult
-nsUrlClassifierStore::RandomNumber(PRInt64 *randomNum)
-{
-  mozStorageStatementScoper randScoper(mRandomStatement);
-  PRBool exists;
-  nsresult rv = mRandomStatement->ExecuteStep(&exists);
-  NS_ENSURE_SUCCESS(rv, rv);
-  if (!exists)
-    return NS_ERROR_NOT_AVAILABLE;
-
-  *randomNum = mRandomStatement->AsInt64(0);
-
-  return NS_OK;
 }
 
 // -------------------------------------------------------------------------
@@ -1450,23 +1425,25 @@ nsUrlClassifierDBServiceWorker::GetLookupFragments(const nsACString& spec,
    * a) The exact hostname of the url
    * b) The 4 hostnames formed by starting with the last 5 components and
    *    successivly removing the leading component.  The top-level component
-   *    can be skipped.
+   *    can be skipped. This is not done if the hostname is a numerical IP.
    */
   nsTArray<nsCString> hosts;
   hosts.AppendElement(host);
 
-  host.BeginReading(begin);
-  host.EndReading(end);
-  int numComponents = 0;
-  while (RFindInReadable(NS_LITERAL_CSTRING("."), begin, end) &&
-         numComponents < MAX_HOST_COMPONENTS) {
-    // don't bother checking toplevel domains
-    if (++numComponents >= 2) {
-      host.EndReading(iter);
-      hosts.AppendElement(Substring(end, iter));
-    }
-    end = begin;
+  if (!IsCanonicalizedIP(host)) {
     host.BeginReading(begin);
+    host.EndReading(end);
+    int numHostComponents = 0;
+    while (RFindInReadable(NS_LITERAL_CSTRING("."), begin, end) &&
+           numHostComponents < MAX_HOST_COMPONENTS) {
+      // don't bother checking toplevel domains
+      if (++numHostComponents >= 2) {
+        host.EndReading(iter);
+        hosts.AppendElement(Substring(end, iter));
+      }
+      end = begin;
+      host.BeginReading(begin);
+    }
   }
 
   /**
@@ -1482,29 +1459,33 @@ nsUrlClassifierDBServiceWorker::GetLookupFragments(const nsACString& spec,
    *    appended that was not present in the original url.
    */
   nsTArray<nsCString> paths;
-  paths.AppendElement(path);
+  nsCAutoString pathToAdd;
 
-  path.BeginReading(iter);
-  path.EndReading(end);
-  if (FindCharInReadable('?', iter, end)) {
-    path.BeginReading(begin);
-    path = Substring(begin, iter);
-    paths.AppendElement(path);
-  }
-
-  // Check an empty path (for whole-domain blacklist entries)
-  paths.AppendElement(EmptyCString());
-
-  numComponents = 1;
   path.BeginReading(begin);
   path.EndReading(end);
   iter = begin;
-  while (FindCharInReadable('/', iter, end) &&
-         numComponents < MAX_PATH_COMPONENTS) {
-    iter++;
-    paths.AppendElement(Substring(begin, iter));
-    numComponents++;
+  if (FindCharInReadable('?', iter, end)) {
+    pathToAdd = Substring(begin, iter);
+    paths.AppendElement(pathToAdd);
+    end = iter;
   }
+
+  int numPathComponents = 1;
+  iter = begin;
+  while (FindCharInReadable('/', iter, end) &&
+         numPathComponents < MAX_PATH_COMPONENTS) {
+    iter++;
+    pathToAdd.Assign(Substring(begin, iter));
+    paths.AppendElement(pathToAdd);
+    numPathComponents++;
+  }
+
+  // If we haven't already done so, add the full path
+  if (!pathToAdd.Equals(path)) {
+    paths.AppendElement(path);
+  }
+  // Check an empty path (for whole-domain blacklist entries)
+  paths.AppendElement(EmptyCString());
 
   for (PRUint32 hostIndex = 0; hostIndex < hosts.Length(); hostIndex++) {
     for (PRUint32 pathIndex = 0; pathIndex < paths.Length(); pathIndex++) {
@@ -1745,9 +1726,16 @@ nsUrlClassifierDBServiceWorker::AddNoise(PRInt64 nearID,
     return NS_OK;
   }
 
-  PRInt64 randomNum;
-  nsresult rv = mMainStore.RandomNumber(&randomNum);
+  nsCOMPtr<nsIRandomGenerator> rg =
+    do_GetService("@mozilla.org/security/random-generator;1");
+  NS_ENSURE_STATE(rg);
+
+  PRInt32 randomNum;
+  PRUint8 *temp;
+  nsresult rv = rg->GenerateRandomBytes(sizeof(randomNum), &temp);
   NS_ENSURE_SUCCESS(rv, rv);
+  memcpy(&randomNum, temp, sizeof(randomNum));
+  NS_Free(temp);
 
   PRInt32 numBefore = randomNum % count;
 
@@ -4024,6 +4012,17 @@ nsUrlClassifierDBService::LookupURI(nsIURI* uri,
     PRBool clean;
     rv = mWorker->CheckCleanHost(key, &clean);
     NS_ENSURE_SUCCESS(rv, rv);
+
+    if (!clean) {
+      nsCOMPtr<nsIPermissionManager> permissionManager =
+        do_GetService(NS_PERMISSIONMANAGER_CONTRACTID);
+
+      if (permissionManager) {
+        PRUint32 perm;
+        permissionManager->TestPermission(uri, "safe-browsing", &perm);
+        clean |= (perm == nsIPermissionManager::ALLOW_ACTION);
+      }
+    }
 
     *didLookup = !clean;
     if (clean) {

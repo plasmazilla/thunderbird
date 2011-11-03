@@ -61,8 +61,6 @@
 #include "nsICacheEntryDescriptor.h"
 #include "nsIPermissionManager.h"
 #include "nsIPrincipal.h"
-#include "nsIPrefBranch.h"
-#include "nsIPrefService.h"
 #include "nsNetCID.h"
 #include "nsNetUtil.h"
 #include "nsServiceManagerUtils.h"
@@ -71,8 +69,11 @@
 #include "nsProxyRelease.h"
 #include "prlog.h"
 #include "nsIAsyncVerifyRedirectCallback.h"
+#include "mozilla/Preferences.h"
 
 #include "nsXULAppAPI.h"
+
+using namespace mozilla;
 
 static const PRUint32 kRescheduleLimit = 3;
 
@@ -104,13 +105,9 @@ private:
 static nsresult
 DropReferenceFromURL(nsIURI * aURI)
 {
-    nsCOMPtr<nsIURL> url = do_QueryInterface(aURI);
-    if (url) {
-        nsresult rv = url->SetRef(EmptyCString());
-        NS_ENSURE_SUCCESS(rv, rv);
-    }
-
-    return NS_OK;
+    // XXXdholbert If this SetRef fails, callers of this method probably
+    // want to call aURI->CloneIgnoringRef() and use the result of that.
+    return aURI->SetRef(EmptyCString());
 }
 
 //-----------------------------------------------------------------------------
@@ -512,8 +509,6 @@ nsOfflineCacheUpdateItem::AsyncOnChannelRedirect(nsIChannel *aOldChannel,
     if (NS_FAILED(rv))
         return rv;
 
-    nsCOMPtr<nsICachingChannel> oldCachingChannel =
-        do_QueryInterface(aOldChannel);
     nsCOMPtr<nsICachingChannel> newCachingChannel =
         do_QueryInterface(aNewChannel);
     if (newCachingChannel) {
@@ -1035,11 +1030,8 @@ nsOfflineManifestItem::CheckNewManifestContentHash(nsIRequest *aRequest)
 void
 nsOfflineManifestItem::ReadStrictFileOriginPolicyPref()
 {
-    nsCOMPtr<nsIPrefBranch> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID);
     mStrictFileOriginPolicy =
-        (!prefs ||
-         NS_FAILED(prefs->GetBoolPref("security.fileuri.strict_origin_policy",
-                                      &mStrictFileOriginPolicy)));
+        Preferences::GetBool("security.fileuri.strict_origin_policy", PR_TRUE);
 }
 
 NS_IMETHODIMP
@@ -1163,14 +1155,8 @@ nsOfflineCacheUpdate::GetCacheKey(nsIURI *aURI, nsACString &aKey)
     aKey.Truncate();
 
     nsCOMPtr<nsIURI> newURI;
-    nsresult rv = aURI->Clone(getter_AddRefs(newURI));
+    nsresult rv = aURI->CloneIgnoringRef(getter_AddRefs(newURI));
     NS_ENSURE_SUCCESS(rv, rv);
-
-    nsCOMPtr<nsIURL> newURL;
-    newURL = do_QueryInterface(newURI);
-    if (newURL) {
-        newURL->SetRef(EmptyCString());
-    }
 
     rv = newURI->GetAsciiSpec(aKey);
     NS_ENSURE_SUCCESS(rv, rv);

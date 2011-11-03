@@ -48,8 +48,6 @@
 #include "nsDOMError.h"
 #include "nsNodeInfoManager.h"
 
-#include "nsIRenderingContext.h"
-
 #include "nsICanvasRenderingContextInternal.h"
 #include "nsICanvasElementExternal.h"
 #include "nsIDOMCanvasRenderingContext2D.h"
@@ -70,6 +68,13 @@ public:
   nsHTMLCanvasElement(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsHTMLCanvasElement();
 
+  static nsHTMLCanvasElement* FromContent(nsIContent* aPossibleCanvas)
+  {
+    if (!aPossibleCanvas || !aPossibleCanvas->IsHTML(nsGkAtoms::canvas)) {
+      return nsnull;
+    }
+    return static_cast<nsHTMLCanvasElement*>(aPossibleCanvas);
+  }
   // nsISupports
   NS_DECL_ISUPPORTS_INHERITED
 
@@ -86,8 +91,8 @@ public:
   NS_DECL_NSIDOMHTMLCANVASELEMENT
 
   // CC
-  NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED_NO_UNLINK(nsHTMLCanvasElement,
-                                                     nsGenericHTMLElement)
+  NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(nsHTMLCanvasElement,
+                                           nsGenericHTMLElement)
 
   /**
    * Ask the canvas Element to return the primary frame, if any
@@ -165,6 +170,10 @@ public:
   already_AddRefed<CanvasLayer> GetCanvasLayer(nsDisplayListBuilder* aBuilder,
                                                CanvasLayer *aOldLayer,
                                                LayerManager *aManager);
+  // Should return true if the canvas layer should always be marked inactive.
+  // We should return true here if we can't do accelerated compositing with
+  // a non-BasicCanvasLayer.
+  PRBool ShouldForceInactiveLayer(LayerManager *aManager);
 
   // Call this whenever we need future changes to the canvas
   // to trigger fresh invalidation requests. This needs to be called
@@ -179,16 +188,16 @@ protected:
   nsresult UpdateContext(nsIPropertyBag *aNewContextOptions = nsnull);
   nsresult ExtractData(const nsAString& aType,
                        const nsAString& aOptions,
-                       char*& aData,
-                       PRUint32& aSize,
+                       nsIInputStream** aStream,
                        bool& aFellBackToPNG);
   nsresult ToDataURLImpl(const nsAString& aMimeType,
-                         const nsAString& aEncoderOptions,
+                         nsIVariant* aEncoderOptions,
                          nsAString& aDataURL);
   nsresult MozGetAsFileImpl(const nsAString& aName,
                             const nsAString& aType,
                             nsIDOMFile** aResult);
   nsresult GetContextHelper(const nsAString& aContextId,
+                            PRBool aForceThebes,
                             nsICanvasRenderingContextInternal **aContext);
 
   nsString mCurrentContextId;

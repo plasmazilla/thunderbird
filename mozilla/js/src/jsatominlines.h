@@ -40,8 +40,11 @@
 #ifndef jsatominlines_h___
 #define jsatominlines_h___
 
+#include "mozilla/RangedPtr.h"
+
 #include "jsatom.h"
 #include "jsnum.h"
+#include "jsobj.h"
 
 inline bool
 js_ValueToAtom(JSContext *cx, const js::Value &v, JSAtom **atomp)
@@ -51,7 +54,7 @@ js_ValueToAtom(JSContext *cx, const js::Value &v, JSAtom **atomp)
         if (!str)
             return false;
         JS::Anchor<JSString *> anchor(str);
-        *atomp = js_AtomizeString(cx, str, 0);
+        *atomp = js_AtomizeString(cx, str);
         return !!*atomp;
     }
 
@@ -61,7 +64,7 @@ js_ValueToAtom(JSContext *cx, const js::Value &v, JSAtom **atomp)
         return true;
     }
 
-    *atomp = js_AtomizeString(cx, str, 0);
+    *atomp = js_AtomizeString(cx, str);
     return !!*atomp;
 }
 
@@ -129,5 +132,60 @@ js_Int32ToId(JSContext* cx, int32 index, jsid* id)
 
     return js_ValueToStringId(cx, js::StringValue(str), id);
 }
+
+namespace js {
+
+/*
+ * Write out character representing |index| to the memory just before |end|.
+ * Thus |*end| is not touched, but |end[-1]| and earlier are modified as
+ * appropriate.  There must be at least js::UINT32_CHAR_BUFFER_LENGTH elements
+ * before |end| to avoid buffer underflow.  The start of the characters written
+ * is returned and is necessarily before |end|.
+ */
+template <typename T>
+inline mozilla::RangedPtr<T>
+BackfillIndexInCharBuffer(uint32 index, mozilla::RangedPtr<T> end)
+{
+#ifdef DEBUG
+    /*
+     * Assert that the buffer we're filling will hold as many characters as we
+     * could write out, by dereferencing the index that would hold the most
+     * significant digit.
+     */
+    (void) *(end - UINT32_CHAR_BUFFER_LENGTH);
+#endif
+
+    do {
+        uint32 next = index / 10, digit = index % 10;
+        *--end = '0' + digit;
+        index = next;
+    } while (index > 0);
+
+    return end;
+}
+
+inline bool
+IndexToId(JSContext *cx, uint32 index, jsid *idp)
+{
+    if (index <= JSID_INT_MAX) {
+        *idp = INT_TO_JSID(index);
+        return true;
+    }
+
+    extern bool IndexToIdSlow(JSContext *cx, uint32 index, jsid *idp);
+    return IndexToIdSlow(cx, index, idp);
+}
+
+static JS_ALWAYS_INLINE JSString *
+IdToString(JSContext *cx, jsid id)
+{
+    if (JSID_IS_STRING(id))
+        return JSID_TO_STRING(id);
+    if (JS_LIKELY(JSID_IS_INT(id)))
+        return js_IntToString(cx, JSID_TO_INT(id));
+    return js_ValueToString(cx, IdToValue(id));
+}
+
+} // namespace js
 
 #endif /* jsatominlines_h___ */

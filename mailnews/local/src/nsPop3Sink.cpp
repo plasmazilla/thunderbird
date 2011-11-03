@@ -67,7 +67,7 @@
 #include "nsIInterfaceRequestor.h"
 #include "nsIInterfaceRequestorUtils.h"
 #include "nsIDocShell.h"
-#include "nsIDOMWindowInternal.h"
+#include "nsIDOMWindow.h"
 #include "nsEmbedCID.h"
 #include "nsMsgUtils.h"
 #include "nsMsgBaseCID.h"
@@ -328,10 +328,9 @@ nsPop3Sink::BeginMailDelivery(PRBool uidlDownload, nsIMsgWindow *aMsgWindow, PRB
       rv = MsgGetFileStream(m_tmpDownloadFile, getter_AddRefs(m_outFileStream));
       NS_ENSURE_SUCCESS(rv, rv);
     }
-    nsCOMPtr<nsIOutputStream> inboxOutputStream;
-    rv = MsgGetFileStream(path, getter_AddRefs(inboxOutputStream));
+    rv = MsgGetFileStream(path, getter_AddRefs(m_inboxOutputStream));
     NS_ENSURE_SUCCESS(rv, rv);
-    inboxInputStream = do_QueryInterface(inboxOutputStream);
+    inboxInputStream = do_QueryInterface(m_inboxOutputStream);
   }
   else
   {
@@ -420,6 +419,11 @@ nsPop3Sink::EndMailDelivery(nsIPop3Protocol *protocol)
   {
     m_outFileStream->Close();
     m_outFileStream = 0;
+  }
+  if (m_inboxOutputStream)
+  {
+    m_inboxOutputStream->Close();
+    m_inboxOutputStream = nsnull;
   }
 
   if (m_downloadingToTempFile)
@@ -547,6 +551,11 @@ nsPop3Sink::AbortMailDelivery(nsIPop3Protocol *protocol)
   {
     m_outFileStream->Close();
     m_outFileStream = 0;
+  }
+  if (m_inboxOutputStream)
+  {
+    m_inboxOutputStream->Close();
+    m_inboxOutputStream = nsnull;
   }
 
   if (m_downloadingToTempFile && m_tmpDownloadFile)
@@ -766,7 +775,7 @@ nsresult nsPop3Sink::HandleTempDownloadFailed(nsIMsgWindow *msgWindow)
   m_newMailParser->m_newMsgHdr->GetMime2DecodedAuthor(fromStr);
   const PRUnichar *params[] = { fromStr.get(), subjectStr.get() };
   bundle->FormatStringFromID(POP3_TMP_DOWNLOAD_FAILED, params, 2, getter_Copies(confirmString));
-  nsCOMPtr<nsIDOMWindowInternal> parentWindow;
+  nsCOMPtr<nsIDOMWindow> parentWindow;
   nsCOMPtr<nsIPromptService> promptService = do_GetService(NS_PROMPTSERVICE_CONTRACTID);
   nsCOMPtr<nsIDocShell> docShell;
   if (msgWindow)

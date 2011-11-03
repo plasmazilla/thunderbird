@@ -93,9 +93,7 @@ public:
 
   // nsIAccessible
   NS_IMETHOD GetName(nsAString& aName);
-  NS_IMETHOD GetDescription(nsAString& aDescription);
   NS_IMETHOD GetAttributes(nsIPersistentProperties **aAttributes);
-  NS_IMETHOD GetFocusedChild(nsIAccessible **aFocusedChild);
   NS_IMETHOD TakeFocus(void);
 
   // nsIScrollPositionListener
@@ -109,14 +107,16 @@ public:
   virtual PRBool Init();
   virtual void Shutdown();
   virtual nsIFrame* GetFrame() const;
-  virtual PRBool IsDefunct();
+  virtual bool IsDefunct() const;
   virtual nsINode* GetNode() const { return mDocument; }
   virtual nsIDocument* GetDocumentNode() const { return mDocument; }
 
   // nsAccessible
+  virtual void Description(nsString& aDescription);
+  virtual nsAccessible* FocusedChild();
   virtual PRUint32 NativeRole();
-  virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
-  virtual nsresult GetARIAState(PRUint32 *aState, PRUint32 *aExtraState);
+  virtual PRUint64 NativeState();
+  virtual void ApplyARIAState(PRUint64* aState);
 
   virtual void SetRoleMapEntry(nsRoleMapEntry* aRoleMapEntry);
 
@@ -134,19 +134,34 @@ public:
    */
   PRBool IsContentLoaded() const
   {
+    // eDOMLoaded flag check is used for error pages as workaround to make this
+    // method return correct result since error pages do not receive 'pageshow'
+    // event and as consequence nsIDocument::IsShowing() returns false.
     return mDocument && mDocument->IsVisible() &&
-      (mDocument->IsShowing() || mIsLoaded);
+      (mDocument->IsShowing() || HasLoadState(eDOMLoaded));
   }
 
   /**
-   * Marks this document as loaded or loading, used to expose busy state.
-   * The loaded flag has special meaning for error pages and used as workaround
-   * to make IsContentLoaded() return correct result since these pages do not
-   * receive pageshow event and as consequence nsIDocument::IsShowing() returns
-   * false.
+   * Document load states.
    */
-  void MarkAsLoaded() { mIsLoaded = PR_TRUE; }
-  void MarkAsLoading() { mIsLoaded = PR_FALSE; }
+  enum LoadState {
+    // initial tree construction is pending
+    eTreeConstructionPending = 0,
+    // initial tree construction done
+    eTreeConstructed = 1,
+    // DOM document is loaded.
+    eDOMLoaded = 1 << 1,
+    // document is ready
+    eReady = eTreeConstructed | eDOMLoaded,
+    // document and all its subdocuments are ready
+    eCompletelyLoaded = eReady | 1 << 2
+  };
+
+  /**
+   * Return true if the document has given document state.
+   */
+  bool HasLoadState(LoadState aState) const
+    { return (mLoadState & aState) == aState; }
 
   /**
    * Return a native window handler or pointer depending on platform.
@@ -235,9 +250,19 @@ public:
   /**
    * Return whether the given DOM node has an accessible or not.
    */
-  inline bool HasAccessible(nsINode* aNode)
+  inline bool HasAccessible(nsINode* aNode) const
+    { return GetAccessible(aNode); }
+
+  /**
+   * Return true if the given accessible is in document.
+   */
+  inline bool IsInDocument(nsAccessible* aAccessible) const
   {
-    return GetAccessible(aNode);
+    nsAccessible* acc = aAccessible;
+    while (acc && !acc->IsPrimaryForNode())
+      acc = acc->Parent();
+
+    return acc ? mNodeToAccessibleMap.Get(acc->GetNode()) : false;
   }
 
   /**
@@ -316,7 +341,8 @@ public:
   {
     NS_ASSERTION(mNotificationController, "The document was shut down!");
 
-    if (mNotificationController)
+    // Ignore the notification if initial tree construction hasn't been done yet.
+    if (mNotificationController && HasLoadState(eTreeConstructed))
       mNotificationController->ScheduleTextUpdate(aTextNode);
   }
 
@@ -324,17 +350,6 @@ public:
    * Recreate an accessible, results in hide/show events pair.
    */
   void RecreateAccessible(nsIContent* aContent);
-
-  /**
-   * Used to notify the document that the accessible caching is started or
-   * finished.
-   *
-   * While children are cached we may encounter the case there's no accessible
-   * for referred content by related accessible. Keep the caching root and
-   * these related nodes to invalidate their containers after root caching.
-   */
-  void NotifyOfCachingStart(nsAccessible* aAccessible);
-  void NotifyOfCachingEnd(nsAccessible* aAccessible);
 
 protected:
 
@@ -347,10 +362,29 @@ protected:
     virtual nsresult RemoveEventListeners();
 
   /**
-   * Notify this document that was bound to the accessible document tree.
+   * Marks this document as loaded or loading.
+   */
+  inline void NotifyOfLoad(PRUint32 aLoadEventType)
+  {
+    mLoadState |= eDOMLoaded;
+    mLoadEventType = aLoadEventType;
+  }
+
+  void NotifyOfLoading(bool aIsReloading);
+
+  friend class nsAccDocManager;
+
+  /**
+   * Perform initial update (create accessible tree).
    * Can be overridden by wrappers to prepare initialization work.
    */
-  virtual void NotifyOfInitialUpdate();
+  virtual void DoInitialUpdate();
+
+  /**
+   * Process document load notification, fire document load and state busy
+   * events if applicable.
+   */
+  void ProcessLoad();
 
     void AddScrollListener();
     void RemoveScrollListener();
@@ -440,6 +474,15 @@ protected:
                               const nsTArray<nsCOMPtr<nsIContent> >* aInsertedContent);
 
   /**
+   * Used to notify the document to make it process the invalidation list.
+   *
+   * While children are cached we may encounter the case there's no accessible
+   * for referred content by related accessible. Store these related nodes to
+   * invalidate their containers later.
+   */
+  void ProcessInvalidationList();
+
+  /**
    * Update the accessible tree for content insertion or removal.
    */
   void UpdateTree(nsAccessible* aContainer, nsIContent* aChildNode,
@@ -476,12 +519,32 @@ protected:
   void ShutdownChildrenInSubtree(nsAccessible *aAccessible);
 
   /**
+   * Return true if accessibility events accompanying document accessible
+   * loading should be fired.
+   *
+   * The rules are: do not fire events for root chrome document accessibles and
+   * for sub document accessibles (like HTML frame of iframe) of the loading
+   * document accessible.
+   *
+   * XXX: in general AT expect events for document accessible loading into
+   * tabbrowser, events from other document accessibles may break AT. We need to
+   * figure out what AT wants to know about loading page (for example, some of
+   * them have separate processing of iframe documents on the page and therefore
+   * they need a way to distinguish sub documents from page document). Ideally
+   * we should make events firing for any loaded document and provide additional
+   * info AT are needing.
+   */
+  bool IsLoadEventTarget() const;
+
+  /**
    * Used to fire scrolling end event after page scroll.
    *
    * @param aTimer    [in] the timer object
    * @param aClosure  [in] the document accessible where scrolling happens
    */
   static void ScrollTimerCallback(nsITimer* aTimer, void* aClosure);
+
+protected:
 
   /**
    * Cache of accessibles within this document accessible.
@@ -494,14 +557,21 @@ protected:
     nsCOMPtr<nsITimer> mScrollWatchTimer;
     PRUint16 mScrollPositionChangedTicks; // Used for tracking scroll events
 
-protected:
+  /**
+   * Bit mask of document load states (@see LoadState).
+   */
+  PRUint32 mLoadState;
 
   /**
-   * Specifies if the document was loaded, used for error pages only.
+   * Type of document load event fired after the document is loaded completely.
    */
-  PRPackedBool mIsLoaded;
+  PRUint32 mLoadEventType;
 
-    static PRUint32 gLastFocusedAccessiblesState;
+  /**
+   * Keep the ARIA attribute old value that is initialized by
+   * AttributeWillChange and used by AttributeChanged notifications.
+   */
+  nsIAtom* mARIAAttrOldValue;
 
   nsTArray<nsRefPtr<nsDocAccessible> > mChildDocuments;
 
@@ -532,15 +602,12 @@ protected:
   friend class RelatedAccIterator;
 
   /**
-   * Used for our caching algorithm. We store the root of the tree that needs
-   * caching, the list of nodes that should be invalidated, and whether we are
-   * processing the invalidation list.
+   * Used for our caching algorithm. We store the list of nodes that should be
+   * invalidated.
    *
-   * @see NotifyOfCachingStart/NotifyOfCachingEnd
+   * @see ProcessInvalidationList
    */
-  nsAccessible* mCacheRoot;
   nsTArray<nsIContent*> mInvalidationList;
-  PRBool mIsPostCacheProcessing;
 
   /**
    * Used to process notification from core and accessible events.
@@ -551,5 +618,12 @@ protected:
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsDocAccessible,
                               NS_DOCACCESSIBLE_IMPL_CID)
+
+inline nsDocAccessible*
+nsAccessible::AsDoc()
+{
+  return mFlags & eDocAccessible ?
+    static_cast<nsDocAccessible*>(this) : nsnull;
+}
 
 #endif

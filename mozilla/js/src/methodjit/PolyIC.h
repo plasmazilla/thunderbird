@@ -84,17 +84,17 @@ struct BaseIC : public MacroAssemblerTypedefs {
     // Slow path stub call.
     CodeLocationCall slowPathCall;
 
+    // Offset from start of stub to jump target of second shape guard as Nitro
+    // asm data location. This is 0 if there is only one shape guard in the
+    // last stub.
+    int32 secondShapeGuard;
+
     // Whether or not the callsite has been hit at least once.
     bool hit : 1;
     bool slowCallPatched : 1;
 
     // Number of stubs generated.
     uint32 stubsGenerated : 5;
-
-    // Offset from start of stub to jump target of second shape guard as Nitro
-    // asm data location. This is 0 if there is only one shape guard in the
-    // last stub.
-    int secondShapeGuard : 11;
 
     // Opcode this was compiled for.
     JSOp op : 9;
@@ -255,9 +255,9 @@ struct GetElementIC : public BasePolyIC {
     // These offsets are used for string-key dependent stubs, such as named
     // property accesses. They are separated from the int-key dependent stubs,
     // in order to guarantee that the id type needs only one guard per type.
-    int atomGuard : 8;          // optional, non-zero if present
-    int firstShapeGuard : 8;    // always set
-    int secondShapeGuard : 8;   // optional, non-zero if present
+    int32 atomGuard : 8;          // optional, non-zero if present
+    int32 firstShapeGuard : 11;    // always set
+    int32 secondShapeGuard : 11;   // optional, non-zero if present
 
     bool hasLastStringStub : 1;
     JITCode lastStringStub;
@@ -295,6 +295,8 @@ struct GetElementIC : public BasePolyIC {
     void purge(Repatcher &repatcher);
     LookupStatus update(JSContext *cx, JSObject *obj, const Value &v, jsid id, Value *vp);
     LookupStatus attachGetProp(JSContext *cx, JSObject *obj, const Value &v, jsid id,
+                               Value *vp);
+    LookupStatus attachArguments(JSContext *cx, JSObject *obj, const Value &v, jsid id,
                                Value *vp);
     LookupStatus attachTypedArray(JSContext *cx, JSObject *obj, const Value &v, jsid id,
                                   Value *vp);
@@ -336,7 +338,7 @@ struct SetElementIC : public BaseIC {
 
     // A bitmask of registers that are volatile and must be preserved across
     // stub calls inside the IC.
-    uint32 volatileMask : 16;
+    uint32 volatileMask;
 
     // If true, then keyValue contains a constant index value >= 0. Otherwise,
     // keyReg contains a dynamic integer index in any range.
@@ -383,7 +385,8 @@ struct PICInfo : public BasePolyIC {
         SETMETHOD,  // JSOP_SETMETHOD
         NAME,       // JSOP_NAME
         BIND,       // JSOP_BINDNAME
-        XNAME       // JSOP_GETXPROP
+        XNAME,      // JSOP_GETXPROP
+        CALLNAME    // JSOP_CALLNAME
     };
 
     union {
@@ -460,7 +463,7 @@ struct PICInfo : public BasePolyIC {
         return kind == BIND;
     }
     inline bool isScopeName() const {
-        return kind == NAME || kind == XNAME;
+        return kind == NAME || kind == CALLNAME || kind == XNAME;
     }
     inline RegisterID typeReg() {
         JS_ASSERT(isGet());
@@ -503,7 +506,7 @@ struct PICInfo : public BasePolyIC {
         bindNameLabels_ = labels;
     }
     void setLabels(const ic::ScopeNameLabels &labels) {
-        JS_ASSERT(kind == NAME || kind == XNAME);
+        JS_ASSERT(kind == NAME || kind == CALLNAME || kind == XNAME);
         scopeNameLabels_ = labels;
     }
 #endif
@@ -521,7 +524,7 @@ struct PICInfo : public BasePolyIC {
         return bindNameLabels_;
     }
     ScopeNameLabels &scopeNameLabels() {
-        JS_ASSERT(kind == NAME || kind == XNAME);
+        JS_ASSERT(kind == NAME || kind == CALLNAME || kind == XNAME);
         return scopeNameLabels_;
     }
 
@@ -546,6 +549,7 @@ void JS_FASTCALL GetProp(VMFrame &f, ic::PICInfo *);
 void JS_FASTCALL SetProp(VMFrame &f, ic::PICInfo *);
 void JS_FASTCALL CallProp(VMFrame &f, ic::PICInfo *);
 void JS_FASTCALL Name(VMFrame &f, ic::PICInfo *);
+void JS_FASTCALL CallName(VMFrame &f, ic::PICInfo *);
 void JS_FASTCALL XName(VMFrame &f, ic::PICInfo *);
 void JS_FASTCALL BindName(VMFrame &f, ic::PICInfo *);
 void JS_FASTCALL GetElement(VMFrame &f, ic::GetElementIC *);

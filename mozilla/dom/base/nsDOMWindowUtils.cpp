@@ -46,7 +46,6 @@
 #include "nsGlobalWindow.h"
 #include "nsIDocument.h"
 #include "nsFocusManager.h"
-#include "nsIEventStateManager.h"
 #include "nsEventStateManager.h"
 #include "nsFrameManager.h"
 #include "nsRefreshDriver.h"
@@ -82,6 +81,7 @@
 #include "jsobj.h"
 
 #include "Layers.h"
+#include "nsIIOService.h"
 
 #include "mozilla/dom/Element.h"
 
@@ -300,7 +300,7 @@ nsDOMWindowUtils::SetDisplayPortForElement(float aXPx, float aYPx,
 
   nsRect lastDisplayPort;
   if (nsLayoutUtils::GetDisplayPort(content, &lastDisplayPort) &&
-      displayport == lastDisplayPort) {
+      displayport.IsEqualInterior(lastDisplayPort)) {
     return NS_OK;
   }
 
@@ -721,6 +721,19 @@ nsDOMWindowUtils::GarbageCollect(nsICycleCollectorListener *aListener)
   return NS_OK;
 }
 
+NS_IMETHODIMP
+nsDOMWindowUtils::CycleCollect(nsICycleCollectorListener *aListener)
+{
+  // Always permit this in debug builds.
+#ifndef DEBUG
+  if (!IsUniversalXPConnectCapable()) {
+    return NS_ERROR_DOM_SECURITY_ERR;
+  }
+#endif
+
+  nsJSContext::CycleCollectNow(aListener);
+  return NS_OK;
+}
 
 NS_IMETHODIMP
 nsDOMWindowUtils::ProcessUpdates()
@@ -1772,6 +1785,30 @@ nsDOMWindowUtils::GetCursorType(PRInt16 *aCursor)
 }
 
 NS_IMETHODIMP
+nsDOMWindowUtils::GoOnline()
+{
+  // This is only allowed from about:neterror, which is unprivileged, so it
+  // can't access the io-service itself.
+  NS_ENSURE_TRUE(mWindow, NS_ERROR_FAILURE);
+  nsCOMPtr<nsIDocument> doc(do_QueryInterface(mWindow->GetExtantDocument()));
+  NS_ENSURE_TRUE(doc, NS_ERROR_FAILURE);
+  nsCOMPtr<nsIURI> documentURI;
+  documentURI = doc->GetDocumentURI();
+
+  nsCAutoString spec;
+  documentURI->GetSpec(spec);
+  if (!StringBeginsWith(spec,  NS_LITERAL_CSTRING("about:neterror?")))
+    return NS_ERROR_DOM_SECURITY_ERR;
+
+  nsCOMPtr<nsIIOService> ios = do_GetService("@mozilla.org/network/io-service;1");
+  if (ios) {
+    ios->SetOffline(PR_FALSE); // !offline
+    return NS_OK;
+  }
+  return NS_ERROR_NOT_AVAILABLE;
+}
+
+NS_IMETHODIMP
 nsDOMWindowUtils::GetDisplayDPI(float *aDPI)
 {
   nsCOMPtr<nsIWidget> widget = GetWidget();
@@ -1862,3 +1899,16 @@ nsDOMWindowUtils::LeafLayersPartitionWindow(PRBool* aResult)
 #endif
   return NS_OK;
 }
+
+NS_IMETHODIMP
+nsDOMWindowUtils::GetMayHaveTouchEventListeners(PRBool* aResult)
+{
+  if (!IsUniversalXPConnectCapable()) {
+    return NS_ERROR_DOM_SECURITY_ERR;
+  }
+
+  nsPIDOMWindow* innerWindow = mWindow->GetCurrentInnerWindow();
+  *aResult = innerWindow ? innerWindow->HasTouchEventListeners() : PR_FALSE;
+  return NS_OK;
+}
+

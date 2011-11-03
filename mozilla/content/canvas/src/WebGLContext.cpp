@@ -40,7 +40,6 @@
 #include "WebGLContext.h"
 
 #include "nsIConsoleService.h"
-#include "nsIPrefService.h"
 #include "nsServiceManagerUtils.h"
 #include "nsIClassInfoImpl.h"
 #include "nsContentUtils.h"
@@ -64,15 +63,143 @@
 
 #include "gfxCrashReporterUtils.h"
 
-#ifdef MOZ_SVG
 #include "nsSVGEffects.h"
-#endif
 
 #include "prenv.h"
+
+#include "mozilla/Preferences.h"
 
 using namespace mozilla;
 using namespace mozilla::gl;
 using namespace mozilla::layers;
+
+WebGLMemoryReporter* WebGLMemoryReporter::sUniqueInstance = nsnull;
+
+NS_MEMORY_REPORTER_IMPLEMENT(WebGLTextureMemoryUsed,
+                             "webgl-texture-memory",
+                             KIND_OTHER,
+                             UNITS_BYTES,
+                             WebGLMemoryReporter::GetTextureMemoryUsed,
+                             "Memory used by WebGL textures. The OpenGL implementation is free to store these textures in either video memory or main memory. This measurement is only a lower bound, actual memory usage may be higher for example if the storage is strided.")
+
+NS_MEMORY_REPORTER_IMPLEMENT(WebGLTextureCount,
+                             "webgl-texture-count",
+                             KIND_OTHER,
+                             UNITS_COUNT,
+                             WebGLMemoryReporter::GetTextureCount,
+                             "Number of WebGL textures.")
+
+NS_MEMORY_REPORTER_IMPLEMENT(WebGLBufferMemoryUsed,
+                             "webgl-buffer-memory",
+                             KIND_OTHER,
+                             UNITS_BYTES,
+                             WebGLMemoryReporter::GetBufferMemoryUsed,
+                             "Memory used by WebGL buffers. The OpenGL implementation is free to store these buffers in either video memory or main memory. This measurement is only a lower bound, actual memory usage may be higher for example if the storage is strided.")
+
+NS_MEMORY_REPORTER_IMPLEMENT(WebGLBufferCacheMemoryUsed,
+                             "explicit/webgl/buffer-cache-memory",
+                             KIND_HEAP,
+                             UNITS_BYTES,
+                             WebGLMemoryReporter::GetBufferCacheMemoryUsed,
+                             "Memory used by WebGL buffer caches. The WebGL implementation caches the contents of element array buffers only. This adds up with the webgl-buffer-memory value, but contrary to it, this one represents bytes on the heap, not managed by OpenGL.")
+
+NS_MEMORY_REPORTER_IMPLEMENT(WebGLBufferCount,
+                             "webgl-buffer-count",
+                             KIND_OTHER,
+                             UNITS_COUNT,
+                             WebGLMemoryReporter::GetBufferCount,
+                             "Number of WebGL buffers.")
+
+NS_MEMORY_REPORTER_IMPLEMENT(WebGLRenderbufferMemoryUsed,
+                             "webgl-renderbuffer-memory",
+                             KIND_OTHER,
+                             UNITS_BYTES,
+                             WebGLMemoryReporter::GetRenderbufferMemoryUsed,
+                             "Memory used by WebGL renderbuffers. The OpenGL implementation is free to store these renderbuffers in either video memory or main memory. This measurement is only a lower bound, actual memory usage may be higher for example if the storage is strided.")
+
+NS_MEMORY_REPORTER_IMPLEMENT(WebGLRenderbufferCount,
+                             "webgl-renderbuffer-count",
+                             KIND_OTHER,
+                             UNITS_COUNT,
+                             WebGLMemoryReporter::GetRenderbufferCount,
+                             "Number of WebGL renderbuffers.")
+
+NS_MEMORY_REPORTER_IMPLEMENT(WebGLShaderSourcesSize,
+                             "explicit/webgl/shader-sources-size",
+                             KIND_HEAP,
+                             UNITS_BYTES,
+                             WebGLMemoryReporter::GetShaderSourcesSize,
+                             "Combined size of WebGL shader ASCII sources, cached on the heap. This should always be at most a few kilobytes, or dozen kilobytes for very shader-intensive WebGL demos.")
+
+NS_MEMORY_REPORTER_IMPLEMENT(WebGLShaderTranslationLogsSize,
+                             "explicit/webgl/shader-translationlogs-size",
+                             KIND_HEAP,
+                             UNITS_BYTES,
+                             WebGLMemoryReporter::GetShaderTranslationLogsSize,
+                             "Combined size of WebGL shader ASCII translation logs, cached on the heap.")
+
+NS_MEMORY_REPORTER_IMPLEMENT(WebGLShaderCount,
+                             "webgl-shader-count",
+                             KIND_OTHER,
+                             UNITS_COUNT,
+                             WebGLMemoryReporter::GetShaderCount,
+                             "Number of WebGL shaders.")
+
+NS_MEMORY_REPORTER_IMPLEMENT(WebGLContextCount,
+                             "webgl-context-count",
+                             KIND_OTHER,
+                             UNITS_COUNT,
+                             WebGLMemoryReporter::GetContextCount,
+                             "Number of WebGL contexts.")
+
+WebGLMemoryReporter* WebGLMemoryReporter::UniqueInstance()
+{
+    if (!sUniqueInstance) {
+        sUniqueInstance = new WebGLMemoryReporter;
+    }
+    return sUniqueInstance;
+}
+
+WebGLMemoryReporter::WebGLMemoryReporter()
+    : mTextureMemoryUsageReporter(new NS_MEMORY_REPORTER_NAME(WebGLTextureMemoryUsed))
+    , mTextureCountReporter(new NS_MEMORY_REPORTER_NAME(WebGLTextureCount))
+    , mBufferMemoryUsageReporter(new NS_MEMORY_REPORTER_NAME(WebGLBufferMemoryUsed))
+    , mBufferCacheMemoryUsageReporter(new NS_MEMORY_REPORTER_NAME(WebGLBufferCacheMemoryUsed))
+    , mBufferCountReporter(new NS_MEMORY_REPORTER_NAME(WebGLBufferCount))
+    , mRenderbufferMemoryUsageReporter(new NS_MEMORY_REPORTER_NAME(WebGLRenderbufferMemoryUsed))
+    , mRenderbufferCountReporter(new NS_MEMORY_REPORTER_NAME(WebGLRenderbufferCount))
+    , mShaderSourcesSizeReporter(new NS_MEMORY_REPORTER_NAME(WebGLShaderSourcesSize))
+    , mShaderTranslationLogsSizeReporter(new NS_MEMORY_REPORTER_NAME(WebGLShaderTranslationLogsSize))
+    , mShaderCountReporter(new NS_MEMORY_REPORTER_NAME(WebGLShaderCount))
+    , mContextCountReporter(new NS_MEMORY_REPORTER_NAME(WebGLContextCount))
+{
+    NS_RegisterMemoryReporter(mTextureMemoryUsageReporter);
+    NS_RegisterMemoryReporter(mTextureCountReporter);
+    NS_RegisterMemoryReporter(mBufferMemoryUsageReporter);
+    NS_RegisterMemoryReporter(mBufferCacheMemoryUsageReporter);    
+    NS_RegisterMemoryReporter(mBufferCountReporter);
+    NS_RegisterMemoryReporter(mRenderbufferMemoryUsageReporter);
+    NS_RegisterMemoryReporter(mRenderbufferCountReporter);
+    NS_RegisterMemoryReporter(mShaderSourcesSizeReporter);
+    NS_RegisterMemoryReporter(mShaderTranslationLogsSizeReporter);
+    NS_RegisterMemoryReporter(mShaderCountReporter);
+    NS_RegisterMemoryReporter(mContextCountReporter);
+}
+
+WebGLMemoryReporter::~WebGLMemoryReporter()
+{
+    NS_UnregisterMemoryReporter(mTextureMemoryUsageReporter);
+    NS_UnregisterMemoryReporter(mTextureCountReporter);
+    NS_UnregisterMemoryReporter(mBufferMemoryUsageReporter);
+    NS_UnregisterMemoryReporter(mBufferCacheMemoryUsageReporter);
+    NS_UnregisterMemoryReporter(mBufferCountReporter);
+    NS_UnregisterMemoryReporter(mRenderbufferMemoryUsageReporter);
+    NS_UnregisterMemoryReporter(mRenderbufferCountReporter);
+    NS_UnregisterMemoryReporter(mShaderSourcesSizeReporter);
+    NS_UnregisterMemoryReporter(mShaderTranslationLogsSizeReporter);
+    NS_UnregisterMemoryReporter(mShaderCountReporter);
+    NS_UnregisterMemoryReporter(mContextCountReporter);
+}
 
 nsresult NS_NewCanvasRenderingContextWebGL(nsIDOMWebGLRenderingContext** aResult);
 
@@ -99,7 +226,7 @@ WebGLContext::WebGLContext()
     mOptionsFrozen = PR_FALSE;
 
     mActiveTexture = 0;
-    mSynthesizedGLError = LOCAL_GL_NO_ERROR;
+    mWebGLError = LOCAL_GL_NO_ERROR;
     mPixelStoreFlipY = PR_FALSE;
     mPixelStorePremultiplyAlpha = PR_FALSE;
     mPixelStoreColorspaceConversion = BROWSER_DEFAULT_WEBGL;
@@ -127,11 +254,53 @@ WebGLContext::WebGLContext()
     mFakeVertexAttrib0BufferObjectSize = 0;
     mFakeVertexAttrib0BufferObject = 0;
     mFakeVertexAttrib0BufferStatus = VertexAttrib0Status::Default;
+
+    // these are de default values, see 6.2 State tables in the OpenGL ES 2.0.25 spec
+    mColorWriteMask[0] = 1;
+    mColorWriteMask[1] = 1;
+    mColorWriteMask[2] = 1;
+    mColorWriteMask[3] = 1;
+    mDepthWriteMask = 1;
+    mColorClearValue[0] = 0.f;
+    mColorClearValue[1] = 0.f;
+    mColorClearValue[2] = 0.f;
+    mColorClearValue[3] = 0.f;
+    mDepthClearValue = 1.f;
+    mStencilClearValue = 0;
+    mStencilRefFront = 0;
+    mStencilRefBack = 0;
+    mStencilValueMaskFront = 0xffffffff;
+    mStencilValueMaskBack  = 0xffffffff;
+    mStencilWriteMaskFront = 0xffffffff;
+    mStencilWriteMaskBack  = 0xffffffff;
+
+    mScissorTestEnabled = 0;
+    mDitherEnabled = 1;
+    mBackbufferClearingStatus = BackbufferClearingStatus::NotClearedSinceLastPresented;
+    
+    // initialize some GL values: we're going to get them from the GL and use them as the sizes of arrays,
+    // so in case glGetIntegerv leaves them uninitialized because of a GL bug, we would have very weird crashes.
+    mGLMaxVertexAttribs = 0;
+    mGLMaxTextureUnits = 0;
+    mGLMaxTextureSize = 0;
+    mGLMaxCubeMapTextureSize = 0;
+    mGLMaxTextureImageUnits = 0;
+    mGLMaxVertexTextureImageUnits = 0;
+    mGLMaxVaryingVectors = 0;
+    mGLMaxFragmentUniformVectors = 0;
+    mGLMaxVertexUniformVectors = 0;
+    
+    // See OpenGL ES 2.0.25 spec, 6.2 State Tables, table 6.13
+    mPixelStorePackAlignment = 4;
+    mPixelStoreUnpackAlignment = 4;
+    
+    WebGLMemoryReporter::AddWebGLContext(this);
 }
 
 WebGLContext::~WebGLContext()
 {
     DestroyResourcesAndContext();
+    WebGLMemoryReporter::RemoveWebGLContext(this);
 }
 
 static PLDHashOperator
@@ -254,9 +423,7 @@ WebGLContext::Invalidate()
     if (!mCanvasElement)
         return;
 
-#ifdef MOZ_SVG
     nsSVGEffects::InvalidateDirectRenderingObservers(HTMLCanvasElement());
-#endif
 
     mInvalidated = PR_TRUE;
     HTMLCanvasElement()->InvalidateCanvasContent(nsnull);
@@ -278,9 +445,6 @@ WebGLContext::GetCanvas(nsIDOMHTMLCanvasElement **canvas)
 NS_IMETHODIMP
 WebGLContext::SetCanvasElement(nsHTMLCanvasElement* aParentCanvas)
 {
-    if (aParentCanvas && !SafeToCreateCanvas3DContext(aParentCanvas))
-        return NS_ERROR_FAILURE;
-
     mCanvasElement = aParentCanvas;
 
     return NS_OK;
@@ -312,31 +476,24 @@ WebGLContext::SetContextOptions(nsIPropertyBag *aOptions)
 
     WebGLContextOptions newOpts;
 
-    // defaults are: yes: depth, alpha, premultipliedAlpha; no: stencil
-    if (!GetBoolFromPropertyBag(aOptions, "stencil", &newOpts.stencil))
-        newOpts.stencil = false;
-
-    if (!GetBoolFromPropertyBag(aOptions, "depth", &newOpts.depth))
-        newOpts.depth = true;
-
-    if (!GetBoolFromPropertyBag(aOptions, "alpha", &newOpts.alpha))
-        newOpts.alpha = true;
-
-    if (!GetBoolFromPropertyBag(aOptions, "premultipliedAlpha", &newOpts.premultipliedAlpha))
-        newOpts.premultipliedAlpha = true;
-
-    GetBoolFromPropertyBag(aOptions, "antialiasHint", &newOpts.antialiasHint);
+    GetBoolFromPropertyBag(aOptions, "stencil", &newOpts.stencil);
+    GetBoolFromPropertyBag(aOptions, "depth", &newOpts.depth);
+    GetBoolFromPropertyBag(aOptions, "alpha", &newOpts.alpha);
+    GetBoolFromPropertyBag(aOptions, "premultipliedAlpha", &newOpts.premultipliedAlpha);
+    GetBoolFromPropertyBag(aOptions, "antialias", &newOpts.antialias);
+    GetBoolFromPropertyBag(aOptions, "preserveDrawingBuffer", &newOpts.preserveDrawingBuffer);
 
     // enforce that if stencil is specified, we also give back depth
     newOpts.depth |= newOpts.stencil;
 
 #if 0
-    LogMessage("aaHint: %d stencil: %d depth: %d alpha: %d premult: %d\n",
-               newOpts.antialiasHint ? 1 : 0,
+    LogMessage("aaHint: %d stencil: %d depth: %d alpha: %d premult: %d preserve: %d\n",
+               newOpts.antialias ? 1 : 0,
                newOpts.stencil ? 1 : 0,
                newOpts.depth ? 1 : 0,
                newOpts.alpha ? 1 : 0,
-               newOpts.premultipliedAlpha ? 1 : 0);
+               newOpts.premultipliedAlpha ? 1 : 0,
+               newOpts.preserveDrawingBuffer ? 1 : 0);
 #endif
 
     if (mOptionsFrozen && newOpts != mOptions) {
@@ -352,12 +509,20 @@ WebGLContext::SetContextOptions(nsIPropertyBag *aOptions)
 NS_IMETHODIMP
 WebGLContext::SetDimensions(PRInt32 width, PRInt32 height)
 {
+    /*** early success return cases ***/
+  
     if (mCanvasElement) {
         HTMLCanvasElement()->InvalidateCanvas();
     }
 
     if (gl && mWidth == width && mHeight == height)
         return NS_OK;
+
+    // Zero-sized surfaces can cause problems.
+    if (width == 0 || height == 0) {
+        width = 1;
+        height = 1;
+    }
 
     // If we already have a gl context, then we just need to resize
     // FB0.
@@ -371,7 +536,34 @@ WebGLContext::SetDimensions(PRInt32 width, PRInt32 height)
         return NS_OK;
     }
 
+    /*** end of early success return cases ***/
+
     ScopedGfxFeatureReporter reporter("WebGL");
+
+    // At this point we know that the old context is not going to survive, even though we still don't
+    // know if creating the new context will succeed.
+    DestroyResourcesAndContext();
+
+    // Get some prefs for some preferred/overriden things
+    NS_ENSURE_TRUE(Preferences::GetRootBranch(), NS_ERROR_FAILURE);
+
+    PRBool forceOSMesa =
+        Preferences::GetBool("webgl.force_osmesa", PR_FALSE);
+    PRBool preferEGL =
+        Preferences::GetBool("webgl.prefer-egl", PR_FALSE);
+    PRBool preferOpenGL =
+        Preferences::GetBool("webgl.prefer-native-gl", PR_FALSE);
+    PRBool forceEnabled =
+        Preferences::GetBool("webgl.force-enabled", PR_FALSE);
+    PRBool disabled =
+        Preferences::GetBool("webgl.disabled", PR_FALSE);
+    PRBool verbose =
+        Preferences::GetBool("webgl.verbose", PR_FALSE);
+
+    if (disabled)
+        return NS_ERROR_FAILURE;
+
+    mVerbose = verbose;
 
     // We're going to create an entirely new context.  If our
     // generation is not 0 right now (that is, if this isn't the first
@@ -383,10 +575,6 @@ WebGLContext::SetDimensions(PRInt32 width, PRInt32 height)
     // resource handles created from older context generations.
     if (!(mGeneration+1).valid())
         return NS_ERROR_FAILURE; // exit without changing the value of mGeneration
-
-    // We're going to recreate our context, so make sure we clean up
-    // after ourselves.
-    DestroyResourcesAndContext();
 
     gl::ContextFormat format(gl::ContextFormat::BasicRGBA32);
     if (mOptions.depth) {
@@ -410,22 +598,6 @@ WebGLContext::SetDimensions(PRInt32 width, PRInt32 height)
         format.minAlpha = 0;
     }
 
-    nsCOMPtr<nsIPrefBranch> prefService = do_GetService(NS_PREFSERVICE_CONTRACTID);
-    NS_ENSURE_TRUE(prefService != nsnull, NS_ERROR_FAILURE);
-
-    PRBool verbose = PR_FALSE;
-    prefService->GetBoolPref("webgl.verbose", &verbose);
-    mVerbose = verbose;
-
-    // Get some prefs for some preferred/overriden things
-    PRBool forceOSMesa = PR_FALSE;
-    PRBool preferEGL = PR_FALSE;
-    PRBool preferOpenGL = PR_FALSE;
-    PRBool forceEnabled = PR_FALSE;
-    prefService->GetBoolPref("webgl.force_osmesa", &forceOSMesa);
-    prefService->GetBoolPref("webgl.prefer-egl", &preferEGL);
-    prefService->GetBoolPref("webgl.prefer-native-gl", &preferOpenGL);
-    prefService->GetBoolPref("webgl.force-enabled", &forceEnabled);
     if (PR_GetEnv("MOZ_WEBGL_PREFER_EGL")) {
         preferEGL = PR_TRUE;
     }
@@ -697,6 +869,8 @@ WebGLContext::GetCanvasLayer(nsDisplayListBuilder* aBuilder,
 
     mResetLayer = PR_FALSE;
 
+    mBackbufferClearingStatus = BackbufferClearingStatus::NotClearedSinceLastPresented;
+
     return canvasLayer.forget().get();
 }
 
@@ -725,6 +899,9 @@ WebGLContext::GetContextAttributes(jsval *aResult)
                            NULL, NULL, JSPROP_ENUMERATE) ||
         !JS_DefineProperty(cx, obj, "premultipliedAlpha",
                            mOptions.premultipliedAlpha ? JSVAL_TRUE : JSVAL_FALSE,
+                           NULL, NULL, JSPROP_ENUMERATE) ||
+        !JS_DefineProperty(cx, obj, "preserveDrawingBuffer",
+                           mOptions.preserveDrawingBuffer ? JSVAL_TRUE : JSVAL_FALSE,
                            NULL, NULL, JSPROP_ENUMERATE))
     {
         *aResult = JSVAL_VOID;
@@ -760,6 +937,129 @@ WebGLContext::MozGetUnderlyingParamString(PRUint32 pname, nsAString& retval)
     return NS_OK;
 }
 
+bool WebGLContext::IsExtensionSupported(WebGLExtensionID ei)
+{
+    if (ei == WebGL_OES_texture_float) {
+        MakeContextCurrent();
+        return gl->IsExtensionSupported(gl->IsGLES2() ? GLContext::OES_texture_float
+                                                      : GLContext::ARB_texture_float);
+    }
+    return false;
+}
+
+NS_IMETHODIMP
+WebGLContext::GetExtension(const nsAString& aName, nsIWebGLExtension **retval)
+{
+    *retval = nsnull;
+
+    // handle simple extensions that don't need custom objects first
+    WebGLExtensionID ei = WebGLExtensionID_Max;
+    if (aName.EqualsLiteral("OES_texture_float")) {
+        if (IsExtensionSupported(WebGL_OES_texture_float))
+            ei = WebGL_OES_texture_float;
+    }
+
+    // create a WebGLExtension object for extensions that don't
+    // have any additional tokens or methods
+    if (ei != WebGLExtensionID_Max) {
+        if (!IsExtensionEnabled(ei)) {
+            mEnabledExtensions[ei] = new WebGLExtension(this);
+        }
+        NS_ADDREF(*retval = mEnabledExtensions[ei]);
+    }
+
+    return NS_OK;
+}
+
+void
+WebGLContext::ForceClearFramebufferWithDefaultValues(PRUint32 mask, const nsIntRect& viewportRect)
+{
+    MakeContextCurrent();
+
+    PRBool initializeColorBuffer = 0 != (mask & LOCAL_GL_COLOR_BUFFER_BIT);
+    PRBool initializeDepthBuffer = 0 != (mask & LOCAL_GL_DEPTH_BUFFER_BIT);
+    PRBool initializeStencilBuffer = 0 != (mask & LOCAL_GL_STENCIL_BUFFER_BIT);
+
+    // prepare GL state for clearing
+    gl->fDisable(LOCAL_GL_SCISSOR_TEST);
+    gl->fDisable(LOCAL_GL_DITHER);
+    gl->PushViewportRect(viewportRect);
+
+    if (initializeColorBuffer) {
+        gl->fColorMask(1, 1, 1, 1);
+        gl->fClearColor(0.f, 0.f, 0.f, 0.f);
+    }
+
+    if (initializeDepthBuffer) {
+        gl->fDepthMask(1);
+        gl->fClearDepth(1.0f);
+    }
+
+    if (initializeStencilBuffer) {
+        gl->fStencilMask(0xffffffff);
+        gl->fClearStencil(0);
+    }
+
+    // do clear
+    gl->fClear(mask);
+
+    // restore GL state after clearing
+    if (initializeColorBuffer) {
+        gl->fColorMask(mColorWriteMask[0],
+                       mColorWriteMask[1],
+                       mColorWriteMask[2],
+                       mColorWriteMask[3]);
+        gl->fClearColor(mColorClearValue[0],
+                        mColorClearValue[1],
+                        mColorClearValue[2],
+                        mColorClearValue[3]);
+    }
+
+    if (initializeDepthBuffer) {
+        gl->fDepthMask(mDepthWriteMask);
+        gl->fClearDepth(mDepthClearValue);
+    }
+
+    if (initializeStencilBuffer) {
+        gl->fStencilMaskSeparate(LOCAL_GL_FRONT, mStencilWriteMaskFront);
+        gl->fStencilMaskSeparate(LOCAL_GL_BACK, mStencilWriteMaskBack);
+        gl->fClearStencil(mStencilClearValue);
+    }
+
+    gl->PopViewportRect();
+
+    if (mDitherEnabled)
+        gl->fEnable(LOCAL_GL_DITHER);
+    else
+        gl->fDisable(LOCAL_GL_DITHER);
+
+    if (mScissorTestEnabled)
+        gl->fEnable(LOCAL_GL_SCISSOR_TEST);
+    else
+        gl->fDisable(LOCAL_GL_SCISSOR_TEST);
+}
+
+void
+WebGLContext::EnsureBackbufferClearedAsNeeded()
+{
+    if (mOptions.preserveDrawingBuffer)
+        return;
+
+    NS_ABORT_IF_FALSE(!mBoundFramebuffer,
+                      "EnsureBackbufferClearedAsNeeded must not be called when a FBO is bound");
+
+    if (mBackbufferClearingStatus != BackbufferClearingStatus::NotClearedSinceLastPresented)
+        return;
+
+    mBackbufferClearingStatus = BackbufferClearingStatus::ClearedToDefaultValues;
+
+    ForceClearFramebufferWithDefaultValues(LOCAL_GL_COLOR_BUFFER_BIT |
+                                           LOCAL_GL_DEPTH_BUFFER_BIT |
+                                           LOCAL_GL_STENCIL_BUFFER_BIT,
+                                           nsIntRect(0, 0, mWidth, mHeight));
+
+    Invalidate();
+}
 
 //
 // XPCOM goop
@@ -895,6 +1195,18 @@ NAME_NOT_SUPPORTED(WebGLShader)
 NAME_NOT_SUPPORTED(WebGLFramebuffer)
 NAME_NOT_SUPPORTED(WebGLRenderbuffer)
 
+NS_IMPL_ADDREF(WebGLExtension)
+NS_IMPL_RELEASE(WebGLExtension)
+
+DOMCI_DATA(WebGLExtension, WebGLExtension)
+
+NS_INTERFACE_MAP_BEGIN(WebGLExtension)
+  NS_INTERFACE_MAP_ENTRY(WebGLExtension)
+  NS_INTERFACE_MAP_ENTRY(nsIWebGLExtension)
+  NS_INTERFACE_MAP_ENTRY(nsISupports)
+  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(WebGLExtension)
+NS_INTERFACE_MAP_END
+
 /* [noscript] attribute WebGLint location; */
 NS_IMETHODIMP
 WebGLUniformLocation::GetLocation(WebGLint *aLocation)
@@ -940,7 +1252,8 @@ WebGLContext::GetSupportedExtensions(nsIVariant **retval)
 
     nsTArray<const char *> extList;
 
-    /* no extensions to add to extList */
+    if (IsExtensionSupported(WebGL_OES_texture_float))
+        extList.InsertElementAt(extList.Length(), "OES_texture_float");
 
     nsresult rv;
     if (extList.Length() > 0) {
@@ -963,9 +1276,3 @@ WebGLContext::IsContextLost(WebGLboolean *retval)
     return NS_OK;
 }
 
-NS_IMETHODIMP
-WebGLContext::GetExtension(const nsAString& aName, nsISupports **retval)
-{
-    *retval = nsnull;
-    return NS_OK;
-}

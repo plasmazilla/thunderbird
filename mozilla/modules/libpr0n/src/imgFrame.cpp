@@ -50,11 +50,9 @@ static PRBool gDisableOptimize = PR_FALSE;
 
 #include "cairo.h"
 
-#if defined(XP_WIN) || defined(WINCE)
-#include "gfxWindowsPlatform.h"
-#endif
+#if defined(XP_WIN)
 
-#if defined(XP_WIN) && !defined(WINCE)
+#include "gfxWindowsPlatform.h"
 
 /* Whether to use the windows surface; only for desktop win32 */
 #define USE_WIN_SURFACE 1
@@ -71,9 +69,6 @@ static PRUint32 gTotalDDBSize = 0;
 // Returns true if an image of aWidth x aHeight is allowed and legal.
 static PRBool AllowedImageSize(PRInt32 aWidth, PRInt32 aHeight)
 {
-  NS_ASSERTION(aWidth > 0, "invalid image width");
-  NS_ASSERTION(aHeight > 0, "invalid image height");
-
   // reject over-wide or over-tall images
   const PRInt32 k64KLimit = 0x0000FFFF;
   if (NS_UNLIKELY(aWidth > k64KLimit || aHeight > k64KLimit )) {
@@ -81,9 +76,8 @@ static PRBool AllowedImageSize(PRInt32 aWidth, PRInt32 aHeight)
     return PR_FALSE;
   }
 
-  // protect against division by zero - this really shouldn't happen
-  // if our consumers were well behaved, but they aren't (bug 368427)
-  if (NS_UNLIKELY(aHeight == 0)) {
+  // protect against invalid sizes
+  if (NS_UNLIKELY(aHeight <= 0 || aWidth <= 0)) {
     return PR_FALSE;
   }
 
@@ -112,14 +106,7 @@ static PRBool AllowedImageSize(PRInt32 aWidth, PRInt32 aHeight)
 // optimized platform-specific surfaces.
 static PRBool ShouldUseImageSurfaces()
 {
-#if defined(WINCE)
-  // There is no test on windows mobile to check for Gui resources.
-  // Allocate, until we run out of memory.
-  gfxWindowsPlatform::RenderMode rmode = gfxWindowsPlatform::GetPlatform()->GetRenderMode();
-  return rmode != gfxWindowsPlatform::RENDER_DDRAW &&
-      rmode != gfxWindowsPlatform::RENDER_DDRAW_GL;
-
-#elif defined(USE_WIN_SURFACE)
+#if defined(USE_WIN_SURFACE)
   static const DWORD kGDIObjectsHighWaterMark = 7000;
 
   if (gfxWindowsPlatform::GetPlatform()->GetRenderMode() ==
@@ -181,7 +168,7 @@ imgFrame::~imgFrame()
 }
 
 nsresult imgFrame::Init(PRInt32 aX, PRInt32 aY, PRInt32 aWidth, PRInt32 aHeight, 
-                        gfxASurface::gfxImageFormat aFormat, PRInt8 aPaletteDepth /* = 0 */)
+                        gfxASurface::gfxImageFormat aFormat, PRUint8 aPaletteDepth /* = 0 */)
 {
   // assert for properties that should be verified by decoders, warn for properties related to bad content
   if (!AllowedImageSize(aWidth, aHeight))
@@ -764,7 +751,7 @@ void imgFrame::SetBlendMethod(PRInt32 aBlendMethod)
 
 PRBool imgFrame::ImageComplete() const
 {
-  return mDecoded == nsIntRect(mOffset, mSize);
+  return mDecoded.IsEqualInterior(nsIntRect(mOffset, mSize));
 }
 
 // A hint from the image decoders that this image has no alpha, even
@@ -791,39 +778,35 @@ void imgFrame::SetCompositingFailed(PRBool val)
   mCompositingFailed = val;
 }
 
-PRUint32 imgFrame::EstimateMemoryUsed() const
+PRUint32
+imgFrame::EstimateMemoryUsed(gfxASurface::MemoryLocation aLocation) const
 {
   PRUint32 size = 0;
 
-  if (mSinglePixel) {
+  if (mSinglePixel && aLocation == gfxASurface::MEMORY_IN_PROCESS_HEAP) {
     size += sizeof(gfxRGBA);
   }
 
-  if (mPalettedImageData) {
+  if (mPalettedImageData && aLocation == gfxASurface::MEMORY_IN_PROCESS_HEAP) {
     size += GetImageDataLength() + PaletteDataLength();
   }
 
 #ifdef USE_WIN_SURFACE
-  if (mWinSurface) {
+  if (mWinSurface && aLocation == mWinSurface->GetMemoryLocation()) {
     size += mWinSurface->KnownMemoryUsed();
   } else
 #endif
 #ifdef XP_MACOSX
-  if (mQuartzSurface) {
+  if (mQuartzSurface && aLocation == gfxASurface::MEMORY_IN_PROCESS_HEAP) {
     size += mSize.width * mSize.height * 4;
   } else
 #endif
-  if (mImageSurface) {
+  if (mImageSurface && aLocation == mImageSurface->GetMemoryLocation()) {
     size += mImageSurface->KnownMemoryUsed();
   }
 
-  if (mOptSurface) {
+  if (mOptSurface && aLocation == mOptSurface->GetMemoryLocation()) {
     size += mOptSurface->KnownMemoryUsed();
-  }
-
-  // fall back to pessimistic/approximate size
-  if (size == 0) {
-    size = mSize.width * mSize.height * 4;
   }
 
   return size;

@@ -62,7 +62,7 @@
 #include "nsPLDOMEvent.h"
 
 #include "nsIPresShell.h"
-#include "nsIEventStateManager.h"
+#include "nsEventStates.h"
 #include "nsGUIEvent.h"
 
 #include "nsIChannel.h"
@@ -76,11 +76,10 @@
 #include "nsContentPolicyUtils.h"
 #include "nsEventDispatcher.h"
 #include "nsDOMClassInfo.h"
-#ifdef MOZ_SVG
 #include "nsSVGEffects.h"
-#endif
 
 #include "mozAutoDocUpdate.h"
+#include "mozilla/dom/Element.h"
 
 #ifdef DEBUG_chb
 static void PrintReqURL(imgIRequest* req) {
@@ -358,10 +357,8 @@ nsImageLoadingContent::OnStopDecode(imgIRequest* aRequest,
     FireEvent(NS_LITERAL_STRING("error"));
   }
 
-#ifdef MOZ_SVG
   nsCOMPtr<nsINode> thisNode = do_QueryInterface(this);
   nsSVGEffects::InvalidateDirectRenderingObservers(thisNode->AsElement());
-#endif
 
   return NS_OK;
 }
@@ -723,13 +720,21 @@ nsImageLoadingContent::LoadImage(nsIURI* aNewURI,
     return NS_OK;
   }
 
+  nsLoadFlags loadFlags = aLoadFlags;
+  PRInt32 corsmode = GetCORSMode();
+  if (corsmode == nsImageLoadingContent::CORS_ANONYMOUS) {
+    loadFlags |= imgILoader::LOAD_CORS_ANONYMOUS;
+  } else if (corsmode == nsImageLoadingContent::CORS_USE_CREDENTIALS) {
+    loadFlags |= imgILoader::LOAD_CORS_USE_CREDENTIALS;
+  }
+
   // Not blocked. Do the load.
   nsCOMPtr<imgIRequest>& req = PrepareNextRequest();
   nsresult rv;
   rv = nsContentUtils::LoadImage(aNewURI, aDocument,
                                  aDocument->NodePrincipal(),
                                  aDocument->GetDocumentURI(),
-                                 this, aLoadFlags,
+                                 this, loadFlags,
                                  getter_AddRefs(req));
   if (NS_SUCCEEDED(rv)) {
     TrackImage(req);
@@ -798,8 +803,6 @@ nsImageLoadingContent::UpdateImageState(PRBool aNotify)
     return;
   }
 
-  nsEventStates oldState = ImageState();
-
   mLoading = mBroken = mUserDisabled = mSuppressed = PR_FALSE;
   
   // If we were blocked by server-based content policy, we claim to be
@@ -822,17 +825,8 @@ nsImageLoadingContent::UpdateImageState(PRBool aNotify)
     }
   }
 
-  if (aNotify) {
-    nsIDocument* doc = thisContent->GetCurrentDoc();
-    if (doc) {
-      NS_ASSERTION(thisContent->IsInDoc(), "Something is confused");
-      nsEventStates changedBits = oldState ^ ImageState();
-      if (!changedBits.IsEmpty()) {
-        mozAutoDocUpdate upd(doc, UPDATE_CONTENT_STATE, PR_TRUE);
-        doc->ContentStateChanged(thisContent, changedBits);
-      }
-    }
-  }
+  NS_ASSERTION(thisContent->IsElement(), "Not an element?");
+  thisContent->AsElement()->UpdateState(aNotify);
 }
 
 void
@@ -1101,3 +1095,8 @@ nsImageLoadingContent::CreateStaticImageClone(nsImageLoadingContent* aDest) cons
   aDest->mSuppressed = mSuppressed;
 }
 
+nsImageLoadingContent::CORSMode
+nsImageLoadingContent::GetCORSMode()
+{
+  return CORS_NONE;
+}

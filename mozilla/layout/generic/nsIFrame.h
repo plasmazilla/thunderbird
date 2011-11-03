@@ -85,13 +85,13 @@ class nsHTMLReflowCommand;
 class nsIAtom;
 class nsPresContext;
 class nsIPresShell;
-class nsIRenderingContext;
+class nsRenderingContext;
 class nsIView;
 class nsIWidget;
 class nsIDOMRange;
 class nsISelectionController;
 class nsBoxLayoutState;
-class nsIBoxLayout;
+class nsBoxLayout;
 class nsILineIterator;
 #ifdef ACCESSIBILITY
 class nsAccessible;
@@ -894,6 +894,10 @@ public:
   NS_DECLARE_FRAME_PROPERTY(UsedPaddingProperty, DestroyMargin)
   NS_DECLARE_FRAME_PROPERTY(UsedBorderProperty, DestroyMargin)
 
+  NS_DECLARE_FRAME_PROPERTY(ScrollLayerCount, nsnull)
+
+  NS_DECLARE_FRAME_PROPERTY(LineBaselineOffset, nsnull)
+
   /**
    * Return the distance between the border edge of the frame and the
    * margin edge of the frame.  Like GetRect(), returns the dimensions
@@ -941,7 +945,9 @@ public:
    * other rectangles of the frame, in app units, relative to the parent.
    */
   nsRect GetPaddingRect() const;
+  nsRect GetPaddingRectRelativeToSelf() const;
   nsRect GetContentRect() const;
+  nsRect GetContentRectRelativeToSelf() const;
 
   /**
    * Get the size, in app units, of the border radii. It returns FALSE iff all
@@ -1406,7 +1412,7 @@ public:
    *
    * This method must not return a negative value.
    */
-  virtual nscoord GetMinWidth(nsIRenderingContext *aRenderingContext) = 0;
+  virtual nscoord GetMinWidth(nsRenderingContext *aRenderingContext) = 0;
 
   /**
    * Get the intrinsic width of the frame.  This must be greater than or
@@ -1414,7 +1420,7 @@ public:
    *
    * Otherwise, all the comments for |GetMinWidth| above apply.
    */
-  virtual nscoord GetPrefWidth(nsIRenderingContext *aRenderingContext) = 0;
+  virtual nscoord GetPrefWidth(nsRenderingContext *aRenderingContext) = 0;
 
   /**
    * |InlineIntrinsicWidth| represents the intrinsic width information
@@ -1471,11 +1477,11 @@ public:
     // current line total is negative.  When it is, we need to ignore
     // optional breaks to prevent min-width from ending up bigger than
     // pref-width.
-    void ForceBreak(nsIRenderingContext *aRenderingContext);
+    void ForceBreak(nsRenderingContext *aRenderingContext);
 
     // If the break here is actually taken, aHyphenWidth must be added to the
     // width of the current line.
-    void OptionallyBreak(nsIRenderingContext *aRenderingContext,
+    void OptionallyBreak(nsRenderingContext *aRenderingContext,
                          nscoord aHyphenWidth = 0);
 
     // The last text frame processed so far in the current line, when
@@ -1490,7 +1496,7 @@ public:
   };
 
   struct InlinePrefWidthData : public InlineIntrinsicWidthData {
-    void ForceBreak(nsIRenderingContext *aRenderingContext);
+    void ForceBreak(nsRenderingContext *aRenderingContext);
   };
 
   /**
@@ -1513,7 +1519,7 @@ public:
    * which calls |GetMinWidth|.
    */
   virtual void
-  AddInlineMinWidth(nsIRenderingContext *aRenderingContext,
+  AddInlineMinWidth(nsRenderingContext *aRenderingContext,
                     InlineMinWidthData *aData) = 0;
 
   /**
@@ -1527,7 +1533,7 @@ public:
    * based on using all *mandatory* breakpoints within the frame.
    */
   virtual void
-  AddInlinePrefWidth(nsIRenderingContext *aRenderingContext,
+  AddInlinePrefWidth(nsRenderingContext *aRenderingContext,
                      InlinePrefWidthData *aData) = 0;
 
   /**
@@ -1544,7 +1550,7 @@ public:
     {}
   };
   virtual IntrinsicWidthOffsetData
-    IntrinsicWidthOffsets(nsIRenderingContext* aRenderingContext) = 0;
+    IntrinsicWidthOffsets(nsRenderingContext* aRenderingContext) = 0;
 
   /*
    * For replaced elements only. Gets the intrinsic dimensions of this element.
@@ -1625,7 +1631,7 @@ public:
    *                     it's floating, absolutely positioned, or
    *                     inline-block).
    */
-  virtual nsSize ComputeSize(nsIRenderingContext *aRenderingContext,
+  virtual nsSize ComputeSize(nsRenderingContext *aRenderingContext,
                              nsSize aCBSize, nscoord aAvailableWidth,
                              nsSize aMargin, nsSize aBorder, nsSize aPadding,
                              PRBool aShrinkWrap) = 0;
@@ -1891,7 +1897,7 @@ public:
    * @return A gfxMatrix that converts points in this frame's coordinate space into
    *         points in aOutAncestor's coordinate space.
    */
-  virtual gfxMatrix GetTransformMatrix(nsIFrame **aOutAncestor);
+  virtual gfx3DMatrix GetTransformMatrix(nsIFrame **aOutAncestor);
 
   /**
    * Bit-flags to pass to IsFrameOfType()
@@ -1988,14 +1994,25 @@ public:
    * after a short period. This call does no immediate invalidation,
    * but when the mark times out, we'll invalidate the frame's overflow
    * area.
+   * @param aChangeHint nsChangeHint_UpdateTransformLayer or
+   * nsChangeHint_UpdateOpacityLayer or 0, depending on whether the change
+   * triggering the activity is a changing transform, changing opacity, or
+   * something else.
    */
-  void MarkLayersActive();
-
+  void MarkLayersActive(nsChangeHint aHint);
   /**
    * Return true if this frame is marked as needing active layers.
    */
   PRBool AreLayersMarkedActive();
-  
+  /**
+   * Return true if this frame is marked as needing active layers.
+   * @param aChangeHint nsChangeHint_UpdateTransformLayer or
+   * nsChangeHint_UpdateOpacityLayer. We return true only if
+   * a change in the transform or opacity has been recorded while layers have
+   * been marked active for this frame.
+   */
+  PRBool AreLayersMarkedActive(nsChangeHint aChangeHint);
+
   /**
    * @param aFlags see InvalidateInternal below
    */
@@ -2013,14 +2030,6 @@ public:
    */
   void Invalidate(const nsRect& aDamageRect)
   { return InvalidateWithFlags(aDamageRect, 0); }
-
-#ifndef MOZ_ENABLE_LIBXUL
-  /**
-   * Same as InvalidateOverflowRect, just for non-libxul builds.
-   */
-  virtual void InvalidateOverflowRectExternal()
-  { return InvalidateOverflowRect(); }
-#endif
 
   /**
    * As Invalidate above, except that this should be called when the
@@ -2588,8 +2597,8 @@ NS_PTR_TO_INT32(frame->Properties().Get(nsIFrame::EmbeddingLevelProperty()))
   NS_IMETHOD GetBorder(nsMargin& aBorder)=0;
   NS_IMETHOD GetPadding(nsMargin& aBorderAndPadding)=0;
   NS_IMETHOD GetMargin(nsMargin& aMargin)=0;
-  NS_IMETHOD SetLayoutManager(nsIBoxLayout* aLayout)=0;
-  NS_IMETHOD GetLayoutManager(nsIBoxLayout** aLayout)=0;
+  virtual void SetLayoutManager(nsBoxLayout* aLayout) { }
+  virtual nsBoxLayout* GetLayoutManager() { return nsnull; }
   NS_HIDDEN_(nsresult) GetClientRect(nsRect& aContentRect);
 
   // For nsSprocketLayout

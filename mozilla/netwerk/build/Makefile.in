@@ -72,11 +72,6 @@ ifeq ($(OS_ARCH),WINNT)
         ../system/win32/$(LIB_PREFIX)neckosystem_s.$(LIB_SUFFIX)
 endif
 
-ifeq ($(OS_ARCH),WINCE)
-    SHARED_LIBRARY_LIBS += \
-        ../system/wince/$(LIB_PREFIX)neckosystem_s.$(LIB_SUFFIX)
-endif
-
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
     SHARED_LIBRARY_LIBS += \
         ../system/mac/$(LIB_PREFIX)neckosystem_s.$(LIB_SUFFIX)
@@ -114,10 +109,6 @@ ifeq ($(OS_ARCH),WINNT)
     LOCAL_INCLUDES += -I$(srcdir)/../system/win32
 endif
 
-ifeq ($(OS_ARCH),WINCE)
-    LOCAL_INCLUDES += -I$(srcdir)/../system/wince
-endif
-
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
     LOCAL_INCLUDES += -I$(srcdir)/../system/mac
 endif
@@ -147,53 +138,13 @@ SHARED_LIBRARY_LIBS += \
   $(NULL)
 LOCAL_INCLUDES += -I$(srcdir)/../wifi
 
-ifeq ($(OS_ARCH),SunOS)
-OS_LIBS += $(GLIB_LIBS)
-endif
-
 endif
 
 
-ifdef MOZ_STORAGE
 DEFINES += -DNECKO_OFFLINE_CACHE
-endif
-
-EXTRA_DSO_LDOPTS = \
-  $(LIBS_DIR) \
-  $(EXTRA_DSO_LIBS) \
-  $(MOZ_UNICHARUTIL_LIBS) \
-  $(MOZ_COMPONENT_LIBS) \
-  $(ZLIB_LIBS) \
-  $(NULL)
-
-ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
-EXTRA_DSO_LDOPTS += \
-  -framework SystemConfiguration \
-  $(TK_LIBS) \
-  $(NULL)
-endif
-
-ifdef MOZ_ENABLE_LIBCONIC
-EXTRA_DSO_LDOPTS += \
-  $(LIBCONIC_LIBS) \
-  $(MOZ_DBUS_LIBS) \
-  $(NULL)
-endif
-
-ifeq ($(OS_ARCH),AIX)
-EXTRA_DSO_LDOPTS += -lodm -lcfg
-endif
 
 include $(topsrcdir)/config/config.mk
 include $(topsrcdir)/ipc/chromium/chromium-config.mk
 include $(topsrcdir)/config/rules.mk
-
-ifeq ($(OS_ARCH),WINNT)
-OS_LIBS += $(call EXPAND_LIBNAME,ole32 shell32)
-endif
-
-ifeq ($(OS_ARCH),WINCE)
-OS_LIBS += $(call EXPAND_LIBNAME,cellcore ws2)
-endif
 
 DEFINES += -DIMPL_NS_NET

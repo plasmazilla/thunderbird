@@ -42,7 +42,8 @@ class nsIDOMElement;
 class nsHTMLCanvasElement;
 class imgIRequest;
 class gfxASurface;
-struct gfxIntSize;
+
+#include "gfxPoint.h"
 
 namespace mozilla {
 
@@ -68,8 +69,6 @@ public:
   static gfxASurface* Lookup(nsIDOMElement* aImage,
                              nsHTMLCanvasElement* aCanvas,
                              gfxIntSize* aSize);
-
-  static void Shutdown();
 };
 
 }

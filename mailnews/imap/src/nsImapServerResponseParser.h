@@ -45,6 +45,7 @@
 #include "MailNewsTypes.h"
 #include "nsTArray.h"
 #include "nsImapUtils.h"
+#include "nsAutoPtr.h"
 
 class nsIMAPNamespace;
 class nsIMAPNamespaceList;
@@ -236,7 +237,7 @@ private:
   PRPackedBool    fCurrentCommandIsSingleMessageFetch;
   PRPackedBool    fGotPermanentFlags;
   imapMessageFlagsType   fSavedFlagInfo;
-  nsCStringArray  fCustomFlags;
+  nsTArray<nsCString> fCustomFlags;
 
   PRUint16  fSupportsUserDefinedFlags;
   PRUint16  fSettablePermanentFlags;
@@ -289,7 +290,7 @@ private:
   PRBool fLastChunk;
 
   // points to the current body shell, if any
-  nsIMAPBodyShell         *m_shell;
+  nsRefPtr<nsIMAPBodyShell> m_shell;
 
   // The connection object
   nsImapProtocol &fServerConnection;

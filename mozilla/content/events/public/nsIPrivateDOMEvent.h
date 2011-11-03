@@ -90,19 +90,19 @@ NS_NewDOMMutationEvent(nsIDOMEvent** aResult NS_OUTPARAM, nsPresContext* aPresCo
 nsresult
 NS_NewDOMPopupBlockedEvent(nsIDOMEvent** aResult, nsPresContext* aPresContext, nsEvent* aEvent);
 nsresult
-NS_NewDOMOrientationEvent(nsIDOMEvent** aResult, nsPresContext* aPresContext, nsEvent* aEvent);
+NS_NewDOMDeviceOrientationEvent(nsIDOMEvent** aResult, nsPresContext* aPresContext, nsEvent* aEvent);
+nsresult
+NS_NewDOMDeviceMotionEvent(nsIDOMEvent** aResult, nsPresContext* aPresContext, nsEvent* aEvent);
 nsresult
 NS_NewDOMTextEvent(nsIDOMEvent** aResult, nsPresContext* aPresContext, class nsTextEvent* aEvent);
 nsresult
 NS_NewDOMBeforeUnloadEvent(nsIDOMEvent** aResult, nsPresContext* aPresContext, nsEvent* aEvent);
 nsresult
 NS_NewDOMPageTransitionEvent(nsIDOMEvent** aResult, nsPresContext* aPresContext, nsEvent* aEvent);
-#ifdef MOZ_SVG
 nsresult
 NS_NewDOMSVGEvent(nsIDOMEvent** aResult, nsPresContext* aPresContext, class nsEvent* aEvent);
 nsresult
 NS_NewDOMSVGZoomEvent(nsIDOMEvent** aResult, nsPresContext* aPresContext, class nsGUIEvent* aEvent);
-#endif // MOZ_SVG
 #ifdef MOZ_SMIL
 nsresult
 NS_NewDOMTimeEvent(nsIDOMEvent** aResult, nsPresContext* aPresContext, class nsEvent* aEvent);
@@ -134,12 +134,14 @@ nsresult
 NS_NewDOMScrollAreaEvent(nsIDOMEvent** aInstancePtrResult, nsPresContext* aPresContext, class nsScrollAreaEvent* aEvent);
 nsresult
 NS_NewDOMTransitionEvent(nsIDOMEvent** aInstancePtrResult, nsPresContext* aPresContext, class nsTransitionEvent* aEvent);
-#ifdef MOZ_CSS_ANIMATIONS
 nsresult
 NS_NewDOMAnimationEvent(nsIDOMEvent** aInstancePtrResult, nsPresContext* aPresContext, class nsAnimationEvent* aEvent);
-#endif
 nsresult
 NS_NewDOMCloseEvent(nsIDOMEvent** aInstancePtrResult, nsPresContext* aPresContext, class nsEvent* aEvent);
 nsresult
 NS_NewDOMMozTouchEvent(nsIDOMEvent** aInstancePtrResult, nsPresContext* aPresContext, class nsMozTouchEvent* aEvent);
+nsresult
+NS_NewDOMTouchEvent(nsIDOMEvent** aInstancePtrResult, nsPresContext* aPresContext, class nsInputEvent *aEvent);
+nsresult
+NS_NewDOMCustomEvent(nsIDOMEvent** aInstancePtrResult, nsPresContext* aPresContext, nsEvent* aEvent);
 #endif // nsIPrivateDOMEvent_h__

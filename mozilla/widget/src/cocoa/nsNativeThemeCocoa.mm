@@ -42,7 +42,7 @@
 
 #include "nsNativeThemeCocoa.h"
 #include "nsObjCExceptions.h"
-#include "nsIRenderingContext.h"
+#include "nsRenderingContext.h"
 #include "nsRect.h"
 #include "nsSize.h"
 #include "nsThemeConstants.h"
@@ -52,7 +52,7 @@
 #include "nsIDocument.h"
 #include "nsIFrame.h"
 #include "nsIAtom.h"
-#include "nsIEventStateManager.h"
+#include "nsEventStates.h"
 #include "nsINameSpaceManager.h"
 #include "nsPresContext.h"
 #include "nsILookAndFeel.h"
@@ -61,6 +61,7 @@
 #include "nsCocoaWindow.h"
 #include "nsNativeThemeColors.h"
 #include "nsIScrollableFrame.h"
+#include "nsIDOMHTMLProgressElement.h"
 
 #include "gfxContext.h"
 #include "gfxQuartzSurface.h"
@@ -106,6 +107,108 @@ extern "C" {
 - (NSText*)currentEditor
 {
   return nil;
+}
+
+@end
+
+/**
+ * NSProgressBarCell is used to draw progress bars of any size.
+ */
+@interface NSProgressBarCell : NSCell
+{
+    /*All instance variables are private*/
+    double mValue;
+    double mMax;
+    bool   mIsIndeterminate;
+    bool   mIsHorizontal;
+}
+
+- (void)setValue:(double)value;
+- (double)value;
+- (void)setMax:(double)max;
+- (double)max;
+- (void)setIndeterminate:(bool)aIndeterminate;
+- (bool)isIndeterminate;
+- (void)setHorizontal:(bool)aIsHorizontal;
+- (bool)isHorizontal;
+- (void)drawWithFrame:(NSRect)cellFrame inView:(NSView *)controlView;
+@end
+
+@implementation NSProgressBarCell
+
+- (void)setMax:(double)aMax
+{
+  mMax = aMax;
+}
+
+- (double)max
+{
+  return mMax;
+}
+
+- (void)setValue:(double)aValue
+{
+  mValue = aValue;
+}
+
+- (double)value
+{
+  return mValue;
+}
+
+- (void)setIndeterminate:(bool)aIndeterminate
+{
+  mIsIndeterminate = aIndeterminate;
+}
+
+- (bool)isIndeterminate
+{
+  return mIsIndeterminate;
+}
+
+- (void)setHorizontal:(bool)aIsHorizontal
+{
+  mIsHorizontal = aIsHorizontal;
+}
+
+- (bool)isHorizontal
+{
+  return mIsHorizontal;
+}
+
+- (void)drawWithFrame:(NSRect)cellFrame inView:(NSView *)controlView
+{
+  CGContext* cgContext = (CGContextRef)[[NSGraphicsContext currentContext] graphicsPort];
+
+  HIThemeTrackDrawInfo tdi;
+
+  tdi.version = 0;
+  tdi.min = 0;
+
+  tdi.value = PR_INT32_MAX * (mValue / mMax);
+  tdi.max = PR_INT32_MAX;
+  tdi.bounds = NSRectToCGRect(cellFrame);
+  tdi.attributes = mIsHorizontal ? kThemeTrackHorizontal : 0;
+  tdi.enableState = [self controlTint] == NSClearControlTint ? kThemeTrackInactive
+                                                             : kThemeTrackActive;
+
+  NSControlSize size = [self controlSize];
+  if (size == NSRegularControlSize) {
+    tdi.kind = mIsIndeterminate ? kThemeLargeIndeterminateBar
+                                : kThemeLargeProgressBar;
+  } else {
+    NS_ASSERTION(size == NSSmallControlSize,
+                 "We shouldn't have another size than small and regular for the moment");
+    tdi.kind = mIsIndeterminate ? kThemeMediumIndeterminateBar
+                                : kThemeMediumProgressBar;
+  }
+
+  PRInt32 stepsPerSecond = mIsIndeterminate ? 60 : 30;
+  PRInt32 milliSecondsPerStep = 1000 / stepsPerSecond;
+  tdi.trackInfo.progress.phase = PR_IntervalToMilliseconds(PR_IntervalNow()) /
+                                 milliSecondsPerStep % 32;
+
+  HIThemeDrawTrack(&tdi, NULL, cgContext, kHIThemeOrientationNormal);
 }
 
 @end
@@ -177,6 +280,25 @@ static int EnumSizeForCocoaSize(NSControlSize cocoaControlSize) {
     return regularControlSize;
 }
 
+static NSControlSize CocoaSizeForEnum(PRInt32 enumControlSize) {
+  if (enumControlSize == miniControlSize)
+    return NSMiniControlSize;
+  else if (enumControlSize == smallControlSize)
+    return NSSmallControlSize;
+  else
+    return NSRegularControlSize;
+}
+
+static NSString* CUIControlSizeForCocoaSize(NSControlSize aControlSize)
+{
+  if (aControlSize == NSRegularControlSize)
+    return @"regular";
+  else if (aControlSize == NSSmallControlSize)
+    return @"small";
+  else
+    return @"mini";
+}
+
 static void InflateControlRect(NSRect* rect, NSControlSize cocoaControlSize, const float marginSet[][3][4])
 {
   if (!marginSet)
@@ -226,6 +348,15 @@ static BOOL FrameIsInActiveWindow(nsIFrame* aFrame)
   return [win isMainWindow] && ![win attachedSheet];
 }
 
+// Toolbar controls and content controls respond to different window
+// activeness states.
+static BOOL IsActive(nsIFrame* aFrame, BOOL aIsToolbarControl)
+{
+  if (aIsToolbarControl)
+    return [NativeWindowForFrame(aFrame) isMainWindow] || ![NSView focusView];
+  return FrameIsInActiveWindow(aFrame);
+}
+
 NS_IMPL_ISUPPORTS_INHERITED1(nsNativeThemeCocoa, nsNativeTheme, nsITheme)
 
 
@@ -265,6 +396,8 @@ nsNativeThemeCocoa::nsNativeThemeCocoa()
   [mComboBoxCell setEditable:YES];
   [mComboBoxCell setFocusRingType:NSFocusRingTypeExterior];
 
+  mProgressBarCell = [[NSProgressBarCell alloc] init];
+
   mCellDrawView = [[CellDrawView alloc] init];
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
@@ -274,6 +407,7 @@ nsNativeThemeCocoa::~nsNativeThemeCocoa()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
+  [mProgressBarCell release];
   [mPushButtonCell release];
   [mRadioButtonCell release];
   [mCheckboxCell release];
@@ -451,6 +585,49 @@ struct CellRenderSettings {
 };
 
 /*
+ * This is a helper method that returns the required NSControlSize given a size
+ * and the size of the three controls plus a tolerance.
+ * size - The width or the height of the element to draw.
+ * sizes - An array with the all the width/height of the element for its
+ *         different sizes.
+ * tolerance - The tolerance as passed to DrawCellWithSnapping.
+ * NOTE: returns NSRegularControlSize if all values in 'sizes' are zero.
+ */
+static NSControlSize FindControlSize(CGFloat size, const CGFloat* sizes, CGFloat tolerance)
+{
+  for (PRUint32 i = miniControlSize; i <= regularControlSize; ++i) {
+    if (sizes[i] == 0) {
+      continue;
+    }
+
+    CGFloat next = 0;
+    // Find next value.
+    for (PRUint32 j = i+1; j <= regularControlSize; ++j) {
+      if (sizes[j] != 0) {
+        next = sizes[j];
+        break;
+      }
+    }
+
+    // If it's the latest value, we pick it.
+    if (next == 0) {
+      return CocoaSizeForEnum(i);
+    }
+
+    if (size <= sizes[i] + tolerance && size < next) {
+      return CocoaSizeForEnum(i);
+    }
+  }
+
+  // If we are here, that means sizes[] was an array with only empty values
+  // or the algorithm above is wrong.
+  // The former can happen but the later would be wrong.
+  NS_ASSERTION(sizes[0] == 0 && sizes[1] == 0 && sizes[2] == 0,
+               "We found no control! We shouldn't be there!");
+  return CocoaSizeForEnum(regularControlSize);
+}
+
+/*
  * Draw the given NSCell into the given cgContext with a nice control size.
  *
  * This function is similar to DrawCellWithScaling, but it decides what
@@ -477,18 +654,12 @@ static void DrawCellWithSnapping(NSCell *cell,
   const NSSize smallSize = sizes[EnumSizeForCocoaSize(NSSmallControlSize)];
   const NSSize regularSize = sizes[EnumSizeForCocoaSize(NSRegularControlSize)];
 
-  NSControlSize controlSizeX = NSRegularControlSize, controlSizeY = NSRegularControlSize;
   HIRect drawRect = destRect;
 
-  if (rectWidth <= miniSize.width + snapTolerance && rectWidth < smallSize.width)
-    controlSizeX = NSMiniControlSize;
-  else if(rectWidth <= smallSize.width + snapTolerance && rectWidth < regularSize.width)
-    controlSizeX = NSSmallControlSize;
-
-  if (rectHeight <= miniSize.height + snapTolerance && rectHeight < smallSize.height)
-    controlSizeY = NSMiniControlSize;
-  else if(rectHeight <= smallSize.height + snapTolerance && rectHeight < regularSize.height)
-    controlSizeY = NSSmallControlSize;
+  CGFloat controlWidths[3] = { miniSize.width, smallSize.width, regularSize.width };
+  NSControlSize controlSizeX = FindControlSize(rectWidth, controlWidths, snapTolerance);
+  CGFloat controlHeights[3] = { miniSize.height, smallSize.height, regularSize.height };
+  NSControlSize controlSizeY = FindControlSize(rectHeight, controlHeights, snapTolerance);
 
   NSControlSize controlSize = NSRegularControlSize;
   int sizeIndex = 0;
@@ -622,7 +793,7 @@ nsNativeThemeCocoa::DrawCheckboxOrRadio(CGContextRef cgContext, PRBool inCheckbo
   [cell setControlTint:(FrameIsInActiveWindow(aFrame) ? [NSColor currentControlTint] : NSClearControlTint)];
 
   // Ensure that the control is square.
-  float length = PR_MIN(inBoxRect.size.width, inBoxRect.size.height);
+  float length = NS_MIN(inBoxRect.size.width, inBoxRect.size.height);
   HIRect drawRect = CGRectMake(inBoxRect.origin.x + (int)((inBoxRect.size.width - length) / 2.0f),
                                inBoxRect.origin.y + (int)((inBoxRect.size.height - length) / 2.0f),
                                length, length);
@@ -1031,40 +1202,108 @@ nsNativeThemeCocoa::DrawFrame(CGContextRef cgContext, HIThemeFrameKind inKind,
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
-static void
-RenderProgress(CGContextRef cgContext, const HIRect& aRenderRect, void* aData)
-{
-  HIThemeTrackDrawInfo* tdi = (HIThemeTrackDrawInfo*)aData;
-  tdi->bounds = aRenderRect;
-  HIThemeDrawTrack(tdi, NULL, cgContext, kHIThemeOrientationNormal);
-}
+static const CellRenderSettings progressSettings[2][2] = {
+  // Vertical progress bar.
+  {
+    // Determined settings.
+    {
+      {
+        NSZeroSize, // mini
+        NSMakeSize(10, 0), // small
+        NSMakeSize(16, 0)  // regular
+      },
+      {
+        NSZeroSize, NSZeroSize, NSZeroSize
+      },
+      {
+        { // Leopard
+          {0, 0, 0, 0},     // mini
+          {1, 1, 1, 1},     // small
+          {1, 1, 1, 1}      // regular
+        }
+      }
+    },
+    // There is no horizontal margin in regular undetermined size.
+    {
+      {
+        NSZeroSize, // mini
+        NSMakeSize(10, 0), // small
+        NSMakeSize(16, 0)  // regular
+      },
+      {
+        NSZeroSize, NSZeroSize, NSZeroSize
+      },
+      {
+        { // Leopard
+          {0, 0, 0, 0},     // mini
+          {1, 1, 1, 1},     // small
+          {1, 0, 1, 0}      // regular
+        }
+      }
+    }
+  },
+  // Horizontal progress bar.
+  {
+    // Determined settings.
+    {
+      {
+        NSZeroSize, // mini
+        NSMakeSize(0, 10), // small
+        NSMakeSize(0, 16)  // regular
+      },
+      {
+        NSZeroSize, NSZeroSize, NSZeroSize
+      },
+      {
+        { // Leopard
+          {0, 0, 0, 0},     // mini
+          {1, 1, 1, 1},     // small
+          {1, 1, 1, 1}      // regular
+        }
+      }
+    },
+    // There is no horizontal margin in regular undetermined size.
+    {
+      {
+        NSZeroSize, // mini
+        NSMakeSize(0, 10), // small
+        NSMakeSize(0, 16)  // regular
+      },
+      {
+        NSZeroSize, NSZeroSize, NSZeroSize
+      },
+      {
+        { // Leopard
+          {0, 0, 0, 0},     // mini
+          {1, 1, 1, 1},     // small
+          {0, 1, 0, 1}      // regular
+        }
+      }
+    }
+  }
+};
 
 void
 nsNativeThemeCocoa::DrawProgress(CGContextRef cgContext, const HIRect& inBoxRect,
                                  PRBool inIsIndeterminate, PRBool inIsHorizontal,
-                                 PRInt32 inValue, PRInt32 inMaxValue,
+                                 double inValue, double inMaxValue,
                                  nsIFrame* aFrame)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
-  HIThemeTrackDrawInfo tdi;
+  NSProgressBarCell* cell = mProgressBarCell;
 
-  PRInt32 stepsPerSecond = inIsIndeterminate ? 60 : 30;
-  PRInt32 milliSecondsPerStep = 1000 / stepsPerSecond;
+  [cell setValue:inValue];
+  [cell setMax:inMaxValue];
+  [cell setIndeterminate:inIsIndeterminate];
+  [cell setHorizontal:inIsHorizontal];
+  [cell setControlTint:(FrameIsInActiveWindow(aFrame) ? [NSColor currentControlTint]
+                                                      : NSClearControlTint)];
 
-  tdi.version = 0;
-  tdi.kind = inIsIndeterminate ? kThemeMediumIndeterminateBar: kThemeMediumProgressBar;
-  tdi.bounds = inBoxRect;
-  tdi.min = 0;
-  tdi.max = inMaxValue;
-  tdi.value = inValue;
-  tdi.attributes = inIsHorizontal ? kThemeTrackHorizontal : 0;
-  tdi.enableState = FrameIsInActiveWindow(aFrame) ? kThemeTrackActive : kThemeTrackInactive;
-  tdi.trackInfo.progress.phase = PR_IntervalToMilliseconds(PR_IntervalNow()) /
-                                 milliSecondsPerStep % 16;
-
-  RenderTransformedHIThemeControl(cgContext, inBoxRect, RenderProgress, &tdi,
-                                  IsFrameRTL(aFrame));
+  DrawCellWithSnapping(cell, cgContext, inBoxRect,
+                       progressSettings[inIsHorizontal][inIsIndeterminate],
+                       VerticalAlignFactor(aFrame), mCellDrawView,
+                       IsFrameRTL(aFrame));
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
@@ -1124,86 +1363,107 @@ nsNativeThemeCocoa::DrawScale(CGContextRef cgContext, const HIRect& inBoxRect,
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
 
-#define NATURAL_MINI_TAB_BUTTON_HEIGHT    17
-#define NATURAL_SMALL_TAB_BUTTON_HEIGHT   20
-#define NATURAL_REGULAR_TAB_BUTTON_HEIGHT 23
+nsIFrame*
+nsNativeThemeCocoa::SeparatorResponsibility(nsIFrame* aBefore, nsIFrame* aAfter)
+{
+  // Usually a separator is drawn by the segment to the right of the
+  // separator, but pressed and selected segments have higher priority.
+  if (!aBefore || !aAfter)
+    return nsnull;
+  if (IsSelectedButton(aAfter))
+    return aAfter;
+  if (IsSelectedButton(aBefore) || IsPressedButton(aBefore))
+    return aBefore;
+  return aAfter;
+}
+
+CGRect
+nsNativeThemeCocoa::SeparatorAdjustedRect(CGRect aRect, nsIFrame* aLeft,
+                                          nsIFrame* aCurrent, nsIFrame* aRight)
+{
+  // A separator between two segments should always be located in the leftmost
+  // pixel column of the segment to the right of the separator, regardless of
+  // who ends up drawing it.
+  // CoreUI draws the separators inside the drawing rect.
+  if (aLeft && SeparatorResponsibility(aLeft, aCurrent) == aLeft) {
+    // The left button draws the separator, so we need to make room for it.
+    aRect.origin.x += 1;
+    aRect.size.width -= 1;
+  }
+  if (SeparatorResponsibility(aCurrent, aRight) == aCurrent) {
+    // We draw the right separator, so we need to extend the draw rect into the
+    // segment to our right.
+    aRect.size.width += 1;
+  }
+  return aRect;
+}
+
+static NSString* ToolbarButtonPosition(BOOL aIsFirst, BOOL aIsLast)
+{
+  if (aIsFirst) {
+    if (aIsLast)
+      return @"kCUISegmentPositionOnly";
+    return @"kCUISegmentPositionFirst";
+  }
+  if (aIsLast)
+    return @"kCUISegmentPositionLast";
+  return @"kCUISegmentPositionMiddle";
+}
+
+struct SegmentedControlRenderSettings {
+  const CGFloat* heights;
+  const NSString* widgetName;
+  const BOOL ignoresPressedWhenSelected;
+  const BOOL isToolbarControl;
+};
+
+static const CGFloat tabHeights[3] = { 17, 20, 23 };
+
+static const SegmentedControlRenderSettings tabRenderSettings = {
+  tabHeights, @"tab", YES, NO
+};
+
+static const CGFloat toolbarButtonHeights[3] = { 15, 18, 22 };
+
+static const SegmentedControlRenderSettings toolbarButtonRenderSettings = {
+  toolbarButtonHeights, @"kCUIWidgetButtonSegmentedSCurve", NO, YES
+};
 
 void
-nsNativeThemeCocoa::DrawTab(CGContextRef cgContext, HIRect inBoxRect,
-                            nsEventStates inState, nsIFrame* aFrame)
+nsNativeThemeCocoa::DrawSegment(CGContextRef cgContext, const HIRect& inBoxRect,
+                                nsEventStates inState, nsIFrame* aFrame,
+                                const SegmentedControlRenderSettings& aSettings)
 {
-  NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
-
-  HIThemeTabDrawInfo tdi;
-  tdi.version = 1;
-  tdi.kind = kHIThemeTabKindNormal;
-
-  PRBool isSelected = IsSelectedTab(aFrame);
-  PRBool isDisabled = IsDisabled(aFrame, inState);
-
-  if (isSelected) {
-    if (isDisabled)
-      tdi.style = kThemeTabFrontUnavailable;
-    else
-      tdi.style = FrameIsInActiveWindow(aFrame) ? kThemeTabFront : kThemeTabFrontInactive;
-  } else {
-    if (isDisabled)
-      tdi.style = kThemeTabNonFrontUnavailable;
-    else if (inState.HasAllStates(NS_EVENT_STATE_ACTIVE | NS_EVENT_STATE_HOVER))
-      tdi.style = kThemeTabNonFrontPressed;
-    else
-      tdi.style = FrameIsInActiveWindow(aFrame) ? kThemeTabNonFront : kThemeTabNonFrontInactive;
+  BOOL isActive = IsActive(aFrame, aSettings.isToolbarControl);
+  BOOL isFocused = inState.HasState(NS_EVENT_STATE_FOCUS);
+  BOOL isSelected = IsSelectedButton(aFrame);
+  BOOL isPressed = IsPressedButton(aFrame);
+  if (isSelected && aSettings.ignoresPressedWhenSelected) {
+    isPressed = NO;
   }
 
-  tdi.direction = kThemeTabNorth;
-  tdi.size = kHIThemeTabSizeNormal;
-  if (inBoxRect.size.height < NATURAL_REGULAR_TAB_BUTTON_HEIGHT)
-    tdi.size = kHIThemeTabSizeSmall;
-  if (inBoxRect.size.height < NATURAL_SMALL_TAB_BUTTON_HEIGHT)
-    tdi.size = kHIThemeTabSizeMini;
+  BOOL isRTL = IsFrameRTL(aFrame);
+  nsIFrame* left = GetAdjacentSiblingFrameWithSameAppearance(aFrame, isRTL);
+  nsIFrame* right = GetAdjacentSiblingFrameWithSameAppearance(aFrame, !isRTL);
+  CGRect drawRect = SeparatorAdjustedRect(inBoxRect, left, aFrame, right);
+  BOOL drawLeftSeparator = SeparatorResponsibility(left, aFrame) == aFrame;
+  BOOL drawRightSeparator = SeparatorResponsibility(aFrame, right) == aFrame;
+  NSControlSize controlSize = FindControlSize(drawRect.size.height, aSettings.heights, 4.0f);
 
-  PRBool isRTL = IsFrameRTL(aFrame);
-  PRBool isFirst = isRTL ? IsLastTab(aFrame) : IsFirstTab(aFrame);
-  PRBool isLast = isRTL ? IsFirstTab(aFrame) : IsLastTab(aFrame);
-
-  if (isFirst && isLast)
-    tdi.position = kHIThemeTabPositionOnly;
-  else if (isFirst)
-    tdi.position = kHIThemeTabPositionFirst;
-  else if (isLast)
-    tdi.position = kHIThemeTabPositionLast;
-  else
-    tdi.position = kHIThemeTabPositionMiddle;
-
-  // Tab separator management:
-  // Normal tabs only draw their left separator, in the leftmost pixel row of
-  // their frame. Selected tabs additionally draw their right separator, outside
-  // of their frame. To prevent overlapping, the tab to the right of the
-  // selected tab shouldn't draw its left separator.
-  tdi.adornment = kHIThemeTabAdornmentNone;
-  if (isRTL ? IsBeforeSelectedTab(aFrame) : IsAfterSelectedTab(aFrame)) {
-    // On Leopard, the tab's left edge must be shifted 1px to the right.
-    // On Tiger, this happens automatically when no leading separator is drawn.
-    inBoxRect.origin.x += 1;
-    inBoxRect.size.width -= 1;
-  }
-  else {
-    tdi.adornment = kHIThemeTabAdornmentLeadingSeparator;
-  }
-
-  if (isSelected && !isLast) {
-    tdi.adornment |= kHIThemeTabAdornmentTrailingSeparator;
-    // On Tiger, the right separator is drawn outside of the frame.
-    // On Leopard, the right edge must be shifted 1px to the right.
-    inBoxRect.size.width += 1;
-  }
-  
-  if (inState.HasState(NS_EVENT_STATE_FOCUS))
-    tdi.adornment |= kThemeAdornmentFocus;
-
-  HIThemeDrawTab(&inBoxRect, &tdi, cgContext, HITHEME_ORIENTATION, NULL);
-
-  NS_OBJC_END_TRY_ABORT_BLOCK;
+  CUIDraw([NSWindow coreUIRenderer], drawRect, cgContext,
+          (CFDictionaryRef)[NSDictionary dictionaryWithObjectsAndKeys:
+            aSettings.widgetName, @"widget",
+            ToolbarButtonPosition(!left, !right), @"kCUIPositionKey",
+            [NSNumber numberWithBool:drawLeftSeparator], @"kCUISegmentLeadingSeparatorKey",
+            [NSNumber numberWithBool:drawRightSeparator], @"kCUISegmentTrailingSeparatorKey",
+            [NSNumber numberWithBool:isSelected], @"value",
+            (isPressed ? @"pressed" : (isActive ? @"normal" : @"inactive")), @"state",
+            [NSNumber numberWithBool:isFocused], @"focus",
+            CUIControlSizeForCocoaSize(controlSize), @"size",
+            [NSNumber numberWithBool:YES], @"is.flipped",
+            @"up", @"direction",
+            nil],
+          nil);
 }
 
 static inline UInt8
@@ -1376,71 +1636,28 @@ nsNativeThemeCocoa::DrawUnifiedToolbar(CGContextRef cgContext, const HIRect& inB
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
   float titlebarHeight = [(ToolbarWindow*)aWindow titlebarHeight];
+  float unifiedHeight = titlebarHeight + inBoxRect.size.height;
 
   BOOL isMain = [aWindow isMainWindow] || ![NSView focusView];
 
-  // Draw the gradient
-  UnifiedGradientInfo info = { titlebarHeight, inBoxRect.size.height, isMain, NO };
-  struct CGFunctionCallbacks callbacks = { 0, nsCocoaWindow::UnifiedShading, NULL };
-  CGFunctionRef function = CGFunctionCreate(&info, 1,  NULL, 4, NULL, &callbacks);
-  float srcY = inBoxRect.origin.y;
-  float dstY = srcY + inBoxRect.size.height - 1;
-  CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-  CGShadingRef shading = CGShadingCreateAxial(colorSpace,
-                                              CGPointMake(0, srcY),
-                                              CGPointMake(0, dstY), function,
-                                              NO, NO);
-  CGColorSpaceRelease(colorSpace);
-  CGFunctionRelease(function);
+  CGContextSaveGState(cgContext);
   CGContextClipToRect(cgContext, inBoxRect);
-  CGContextDrawShading(cgContext, shading);
-  CGShadingRelease(shading);
 
-  // Draw the border at the bottom of the toolbar.
-  CGRect borderRect = CGRectMake(inBoxRect.origin.x, inBoxRect.origin.y +
-                                 inBoxRect.size.height - 1.0f,
-                                 inBoxRect.size.width, 1.0f);
-  DrawNativeGreyColorInRect(cgContext, headerBorderGrey, borderRect, isMain);
+  CGRect drawRect = CGRectOffset(inBoxRect, 0, -titlebarHeight);
+  CUIDraw([NSWindow coreUIRenderer], drawRect, cgContext,
+          (CFDictionaryRef)[NSDictionary dictionaryWithObjectsAndKeys:
+            @"kCUIWidgetWindowFrame", @"widget",
+            @"regularwin", @"windowtype",
+            (isMain ? @"normal" : @"inactive"), @"state",
+            [NSNumber numberWithInt:unifiedHeight], @"kCUIWindowFrameUnifiedTitleBarHeightKey",
+            [NSNumber numberWithBool:YES], @"kCUIWindowFrameDrawTitleSeparatorKey",
+            [NSNumber numberWithBool:YES], @"is.flipped",
+            nil],
+          nil);
+
+  CGContextRestoreGState(cgContext);
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
-}
-
-struct GreyGradientInfo {
-  float startGrey;
-  float endGrey;
-};
-
-static void GreyGradientCallback(void* aInfo, const CGFloat* aIn, CGFloat* aOut)
-{
-  GreyGradientInfo* info = static_cast<GreyGradientInfo*>(aInfo);
-  CGFloat result = (1.0f - *aIn) * info->startGrey + *aIn * info->endGrey;
-  aOut[0] = result;
-  aOut[1] = result;
-  aOut[2] = result;
-  aOut[3] = 1.0f;
-}
-
-static void DrawGreyGradient(CGContextRef cgContext, const HIRect& rect,
-                             float startGrey, float endGrey)
-{
-  if (rect.size.height <= 0.0f)
-    return;
-
-  GreyGradientInfo info = { startGrey, endGrey };
-  struct CGFunctionCallbacks callbacks = { 0, GreyGradientCallback, NULL };
-  CGFunctionRef function = CGFunctionCreate(&info, 1,  NULL, 4, NULL, &callbacks);
-  CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
-  CGShadingRef shading = CGShadingCreateAxial(colorSpace,
-                                              CGPointMake(0, CGRectGetMinY(rect)),
-                                              CGPointMake(0, CGRectGetMaxY(rect)),
-                                              function, false, false);
-  CGColorSpaceRelease(colorSpace);
-  CGFunctionRelease(function);
-  CGContextSaveGState(cgContext);
-  CGContextClipToRect(cgContext, rect);
-  CGContextDrawShading(cgContext, shading);
-  CGContextRestoreGState(cgContext);
-  CGShadingRelease(shading);
 }
 
 void
@@ -1452,20 +1669,28 @@ nsNativeThemeCocoa::DrawStatusBar(CGContextRef cgContext, const HIRect& inBoxRec
   if (inBoxRect.size.height < 2.0f)
     return;
 
-  BOOL isMain = [NativeWindowForFrame(aFrame) isMainWindow] || ![NSView focusView];
+  CGContextSaveGState(cgContext);
+  CGContextClipToRect(cgContext, inBoxRect);
 
-  // Draw the borders at the top of the statusbar.
-  CGRect rect = CGRectMake(inBoxRect.origin.x, inBoxRect.origin.y,
-                           inBoxRect.size.width, 1.0f);
-  DrawNativeGreyColorInRect(cgContext, statusbarFirstTopBorderGrey, rect, isMain);
-  rect.origin.y += 1.0f;
-  DrawNativeGreyColorInRect(cgContext, statusbarSecondTopBorderGrey, rect, isMain);
+  // kCUIWidgetWindowFrame draws a complete window frame with both title bar
+  // and bottom bar. We only want the bottom bar, so we extend the draw rect
+  // upwards to make space for the title bar, and then we clip it away.
+  CGRect drawRect = inBoxRect;
+  const int extendUpwards = 40;
+  drawRect.origin.y -= extendUpwards;
+  drawRect.size.height += extendUpwards;
+  CUIDraw([NSWindow coreUIRenderer], drawRect, cgContext,
+          (CFDictionaryRef)[NSDictionary dictionaryWithObjectsAndKeys:
+            @"kCUIWidgetWindowFrame", @"widget",
+            @"regularwin", @"windowtype",
+            (IsActive(aFrame, YES) ? @"normal" : @"inactive"), @"state",
+            [NSNumber numberWithInt:inBoxRect.size.height], @"kCUIWindowFrameBottomBarHeightKey",
+            [NSNumber numberWithBool:YES], @"kCUIWindowFrameDrawBottomBarSeparatorKey",
+            [NSNumber numberWithBool:YES], @"is.flipped",
+            nil],
+          nil);
 
-  // Draw the gradient.
-  DrawGreyGradient(cgContext, CGRectMake(inBoxRect.origin.x, inBoxRect.origin.y + 2.0f,
-                                         inBoxRect.size.width, inBoxRect.size.height - 2.0f),
-                   NativeGreyColorAsFloat(statusbarGradientStartGrey, isMain),
-                   NativeGreyColorAsFloat(statusbarGradientEndGrey, isMain));
+  CGContextRestoreGState(cgContext);
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
@@ -1497,18 +1722,19 @@ nsNativeThemeCocoa::DrawResizer(CGContextRef cgContext, const HIRect& aRect,
 }
 
 NS_IMETHODIMP
-nsNativeThemeCocoa::DrawWidgetBackground(nsIRenderingContext* aContext, nsIFrame* aFrame,
-                                         PRUint8 aWidgetType, const nsRect& aRect,
+nsNativeThemeCocoa::DrawWidgetBackground(nsRenderingContext* aContext,
+                                         nsIFrame* aFrame,
+                                         PRUint8 aWidgetType,
+                                         const nsRect& aRect,
                                          const nsRect& aDirtyRect)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
   // setup to draw into the correct port
-  nsCOMPtr<nsIDeviceContext> dctx;
-  aContext->GetDeviceContext(*getter_AddRefs(dctx));
-  PRInt32 p2a = dctx->AppUnitsPerDevPixel();
+  PRInt32 p2a = aContext->AppUnitsPerDevPixel();
 
-  gfxRect nativeDirtyRect(aDirtyRect.x, aDirtyRect.y, aDirtyRect.width, aDirtyRect.height);
+  gfxRect nativeDirtyRect(aDirtyRect.x, aDirtyRect.y,
+                          aDirtyRect.width, aDirtyRect.height);
   gfxRect nativeWidgetRect(aRect.x, aRect.y, aRect.width, aRect.height);
   nativeWidgetRect.ScaleInverse(gfxFloat(p2a));
   nativeDirtyRect.ScaleInverse(gfxFloat(p2a));
@@ -1516,7 +1742,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsIRenderingContext* aContext, nsIFrame
   if (nativeWidgetRect.IsEmpty())
     return NS_OK; // Don't attempt to draw invisible widgets.
 
-  nsRefPtr<gfxContext> thebesCtx = aContext->ThebesContext();
+  gfxContext* thebesCtx = aContext->ThebesContext();
   if (!thebesCtx)
     return NS_ERROR_FAILURE;
 
@@ -1571,8 +1797,9 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsIRenderingContext* aContext, nsIFrame
     case NS_THEME_MENUPOPUP: {
       HIThemeMenuDrawInfo mdi = {
         version: 0,
-        menuType: IsDisabled(aFrame, eventState) ? kThemeMenuTypeInactive
-                                                 : kThemeMenuTypePopUp
+        menuType: IsDisabled(aFrame, eventState) ?
+            static_cast<ThemeMenuType>(kThemeMenuTypeInactive) :
+            static_cast<ThemeMenuType>(kThemeMenuTypePopUp)
       };
 
       PRBool isLeftOfParent = PR_FALSE;
@@ -1595,9 +1822,10 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsIRenderingContext* aContext, nsIFrame
       HIThemeMenuItemDrawInfo drawInfo = {
         version: 0,
         itemType: kThemeMenuItemPlain,
-        state: (IsDisabled(aFrame, eventState) ? kThemeMenuDisabled :
-                 CheckBooleanAttr(aFrame, nsWidgetAtoms::mozmenuactive) ? kThemeMenuSelected :
-                 kThemeMenuActive)
+        state: (IsDisabled(aFrame, eventState) ? static_cast<ThemeMenuState>(kThemeMenuDisabled) :
+                 CheckBooleanAttr(aFrame, nsWidgetAtoms::mozmenuactive) ?
+                    static_cast<ThemeMenuState>(kThemeMenuSelected) :
+                    static_cast<ThemeMenuState>(kThemeMenuActive))
       };
 
       // XXX pass in the menu rect instead of always using the item rect
@@ -1672,9 +1900,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsIRenderingContext* aContext, nsIFrame
       break;
 
     case NS_THEME_TOOLBAR_BUTTON:
-      DrawButton(cgContext, kThemePushButton, macRect,
-                 IsDefaultButton(aFrame), kThemeButtonOn, kThemeAdornmentNone,
-                 eventState, aFrame);
+      DrawSegment(cgContext, macRect, eventState, aFrame, toolbarButtonRenderSettings);
       break;
 
     case NS_THEME_TOOLBAR_SEPARATOR: {
@@ -1700,12 +1926,12 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsIRenderingContext* aContext, nsIFrame
       // background
       drawRect.origin.y += drawRect.size.height;
       drawRect.size.height = macRect.size.height - 2.0f;
-      DrawNativeGreyColorInRect(cgContext, headerEndGrey, drawRect, isMain);
+      DrawNativeGreyColorInRect(cgContext, toolbarFillGrey, drawRect, isMain);
 
       // bottom border
       drawRect.origin.y += drawRect.size.height;
       drawRect.size.height = 1.0f;
-      DrawNativeGreyColorInRect(cgContext, headerBorderGrey, drawRect, isMain);
+      DrawNativeGreyColorInRect(cgContext, toolbarBottomBorderGrey, drawRect, isMain);
     }
       break;
 
@@ -1761,13 +1987,13 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsIRenderingContext* aContext, nsIFrame
       if (!QueueAnimatedContentForRefresh(aFrame->GetContent(), 30)) {
         NS_WARNING("Unable to animate progressbar!");
       }
-      DrawProgress(cgContext, macRect, IsIndeterminateProgress(aFrame),
-                   PR_TRUE, GetProgressValue(aFrame),
-                   GetProgressMaxValue(aFrame), aFrame);
+      DrawProgress(cgContext, macRect, IsIndeterminateProgress(aFrame, eventState),
+                   aFrame->GetStyleDisplay()->mOrient != NS_STYLE_ORIENT_VERTICAL,
+		   GetProgressValue(aFrame), GetProgressMaxValue(aFrame), aFrame);
       break;
 
     case NS_THEME_PROGRESSBAR_VERTICAL:
-      DrawProgress(cgContext, macRect, IsIndeterminateProgress(aFrame),
+      DrawProgress(cgContext, macRect, IsIndeterminateProgress(aFrame, eventState),
                    PR_FALSE, GetProgressValue(aFrame),
                    GetProgressMaxValue(aFrame), aFrame);
       break;
@@ -1921,7 +2147,7 @@ nsNativeThemeCocoa::DrawWidgetBackground(nsIRenderingContext* aContext, nsIFrame
       break;
     
     case NS_THEME_TAB:
-      DrawTab(cgContext, macRect, eventState, aFrame);
+      DrawSegment(cgContext, macRect, eventState, aFrame, tabRenderSettings);
       break;
 
     case NS_THEME_TAB_PANELS:
@@ -1954,7 +2180,7 @@ static const nsIntMargin kAquaComboboxBorder(4, 3, 20, 3);
 static const nsIntMargin kAquaSearchfieldBorder(19, 3, 5, 2);
 
 NS_IMETHODIMP
-nsNativeThemeCocoa::GetWidgetBorder(nsIDeviceContext* aContext, 
+nsNativeThemeCocoa::GetWidgetBorder(nsDeviceContext* aContext, 
                                     nsIFrame* aFrame,
                                     PRUint8 aWidgetType,
                                     nsIntMargin* aResult)
@@ -1971,6 +2197,12 @@ nsNativeThemeCocoa::GetWidgetBorder(nsIDeviceContext* aContext,
       } else {
         aResult->SizeTo(7, 1, 7, 3);
       }
+      break;
+    }
+
+    case NS_THEME_TOOLBAR_BUTTON:
+    {
+      aResult->SizeTo(4, 1, 4, 1);
       break;
     }
 
@@ -2064,7 +2296,7 @@ nsNativeThemeCocoa::GetWidgetBorder(nsIDeviceContext* aContext,
 // whatever values you want in GetWidgetBorder and only use this to return PR_TRUE
 // if you want to override CSS padding values.
 PRBool
-nsNativeThemeCocoa::GetWidgetPadding(nsIDeviceContext* aContext, 
+nsNativeThemeCocoa::GetWidgetPadding(nsDeviceContext* aContext, 
                                      nsIFrame* aFrame,
                                      PRUint8 aWidgetType,
                                      nsIntMargin* aResult)
@@ -2085,11 +2317,12 @@ nsNativeThemeCocoa::GetWidgetPadding(nsIDeviceContext* aContext,
 }
 
 PRBool
-nsNativeThemeCocoa::GetWidgetOverflow(nsIDeviceContext* aContext, nsIFrame* aFrame,
+nsNativeThemeCocoa::GetWidgetOverflow(nsDeviceContext* aContext, nsIFrame* aFrame,
                                       PRUint8 aWidgetType, nsRect* aOverflowRect)
 {
   switch (aWidgetType) {
     case NS_THEME_BUTTON:
+    case NS_THEME_TOOLBAR_BUTTON:
     case NS_THEME_TEXTFIELD:
     case NS_THEME_TEXTFIELD_MULTILINE:
     case NS_THEME_SEARCHFIELD:
@@ -2121,7 +2354,7 @@ static const PRInt32 kRegularScrollbarThumbMinSize = 22;
 static const PRInt32 kSmallScrollbarThumbMinSize = 19;
 
 NS_IMETHODIMP
-nsNativeThemeCocoa::GetMinimumWidgetSize(nsIRenderingContext* aContext,
+nsNativeThemeCocoa::GetMinimumWidgetSize(nsRenderingContext* aContext,
                                          nsIFrame* aFrame,
                                          PRUint8 aWidgetType,
                                          nsIntSize* aResult,
@@ -2137,6 +2370,12 @@ nsNativeThemeCocoa::GetMinimumWidgetSize(nsIRenderingContext* aContext,
     {
       aResult->SizeTo(pushButtonSettings.minimumSizes[miniControlSize].width,
                       pushButtonSettings.naturalSizes[miniControlSize].height);
+      break;
+    }
+
+    case NS_THEME_TOOLBAR_BUTTON:
+    {
+      aResult->SizeTo(0, toolbarButtonHeights[miniControlSize]);
       break;
     }
 
@@ -2200,7 +2439,7 @@ nsNativeThemeCocoa::GetMinimumWidgetSize(nsIRenderingContext* aContext,
 
     case NS_THEME_TAB:
     {
-      aResult->SizeTo(0, NATURAL_MINI_TAB_BUTTON_HEIGHT);
+      aResult->SizeTo(0, tabHeights[miniControlSize]);
       break;
     }
 
@@ -2323,7 +2562,6 @@ nsNativeThemeCocoa::WidgetStateChanged(nsIFrame* aFrame, PRUint8 aWidgetType,
     case NS_THEME_TOOLBOX:
     case NS_THEME_TOOLBAR:
     case NS_THEME_MOZ_MAC_UNIFIED_TOOLBAR:
-    case NS_THEME_TOOLBAR_BUTTON:
     case NS_THEME_SCROLLBAR_TRACK_VERTICAL: 
     case NS_THEME_SCROLLBAR_TRACK_HORIZONTAL:
     case NS_THEME_STATUSBAR:
@@ -2409,6 +2647,7 @@ nsNativeThemeCocoa::ThemeSupportsWidget(nsPresContext* aPresContext, nsIFrame* a
     case NS_THEME_GROUPBOX:
     case NS_THEME_BUTTON:
     case NS_THEME_BUTTON_BEVEL:
+    case NS_THEME_TOOLBAR_BUTTON:
     case NS_THEME_SPINNER:
     case NS_THEME_TOOLBAR:
     case NS_THEME_MOZ_MAC_UNIFIED_TOOLBAR:
@@ -2531,4 +2770,40 @@ nsNativeThemeCocoa::GetWidgetTransparency(nsIFrame* aFrame, PRUint8 aWidgetType)
   default:
     return eUnknownTransparency;
   }
+}
+
+double
+nsNativeThemeCocoa::GetProgressValue(nsIFrame* aFrame)
+{
+  // When we are using the HTML progress element,
+  // we can get the value from the IDL property.
+  if (aFrame) {
+    nsCOMPtr<nsIDOMHTMLProgressElement> progress =
+      do_QueryInterface(aFrame->GetContent());
+    if (progress) {
+      double value;
+      progress->GetValue(&value);
+      return value;
+    }
+  }
+
+  return (double)CheckIntAttr(aFrame, nsWidgetAtoms::value, 0);
+}
+
+double
+nsNativeThemeCocoa::GetProgressMaxValue(nsIFrame* aFrame)
+{
+  // When we are using the HTML progress element,
+  // we can get the max from the IDL property.
+  if (aFrame) {
+    nsCOMPtr<nsIDOMHTMLProgressElement> progress =
+      do_QueryInterface(aFrame->GetContent());
+    if (progress) {
+      double max;
+      progress->GetMax(&max);
+      return max;
+    }
+  }
+
+  return (double)NS_MAX(CheckIntAttr(aFrame, nsWidgetAtoms::max, 100), 1);
 }

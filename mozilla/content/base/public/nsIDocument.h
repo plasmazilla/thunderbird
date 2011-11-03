@@ -20,6 +20,7 @@
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
+ *   Ms2ger <ms2ger@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -67,6 +68,9 @@
 #include "nsIDocumentEncoder.h"
 #include "nsIAnimationFrameListener.h"
 #include "nsEventStates.h"
+#include "nsIStructuredCloneContainer.h"
+#include "nsIBFCacheEntry.h"
+#include "nsDOMMemoryReporter.h"
 
 class nsIContent;
 class nsPresContext;
@@ -79,7 +83,7 @@ class nsCSSStyleSheet;
 class nsIViewManager;
 class nsIDOMEvent;
 class nsIDOMEventTarget;
-class nsIDeviceContext;
+class nsDeviceContext;
 class nsIParser;
 class nsIDOMNode;
 class nsIDOMElement;
@@ -93,7 +97,6 @@ class nsIDOMDocument;
 class nsIDOMDocumentType;
 class nsScriptLoader;
 class nsIContentSink;
-class nsIScriptEventManager;
 class nsHTMLStyleSheet;
 class nsHTMLCSSStyleSheet;
 class nsILayoutHistoryState;
@@ -109,6 +112,7 @@ class nsFrameLoader;
 class nsIBoxObject;
 class imgIRequest;
 class nsISHEntry;
+class nsDOMNavigationTiming;
 
 namespace mozilla {
 namespace css {
@@ -123,8 +127,8 @@ class Element;
 
 
 #define NS_IDOCUMENT_IID      \
-{ 0x2c6ad63f, 0xb7b9, 0x42f8, \
- { 0xbd, 0xde, 0x76, 0x0a, 0x83, 0xe3, 0xb0, 0x49 } }
+{ 0x455e4d79, 0x756b, 0x4f73,  \
+ { 0x95, 0xea, 0x3f, 0xf6, 0x0c, 0x6a, 0x8c, 0xa6 } }
 
 // Flag for AddStyleSheet().
 #define NS_STYLESHEET_FROM_CATALOG                (1 << 0)
@@ -147,6 +151,7 @@ public:
 
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_IDOCUMENT_IID)
   NS_DECL_AND_IMPL_ZEROING_OPERATOR_NEW
+  NS_DECL_DOM_MEMORY_REPORTER_SIZEOF
 
 #ifdef MOZILLA_INTERNAL_API
   nsIDocument()
@@ -360,7 +365,7 @@ public:
   /**
    * Get the Content-Type of this document.
    * (This will always return NS_OK, but has this signature to be compatible
-   *  with nsIDOMNSDocument::GetContentType())
+   *  with nsIDOMDocument::GetContentType())
    */
   NS_IMETHOD GetContentType(nsAString& aContentType) = 0;
 
@@ -476,13 +481,15 @@ public:
     return GetBFCacheEntry() ? nsnull : mPresShell;
   }
 
-  void SetBFCacheEntry(nsISHEntry* aSHEntry) {
-    mSHEntry = aSHEntry;
-    // Doing this just to keep binary compat for the gecko 2.0 release
-    mShellIsHidden = !!aSHEntry;
+  void SetBFCacheEntry(nsIBFCacheEntry* aEntry)
+  {
+    mBFCacheEntry = aEntry;
   }
 
-  nsISHEntry* GetBFCacheEntry() const { return mSHEntry; }
+  nsIBFCacheEntry* GetBFCacheEntry() const
+  {
+    return mBFCacheEntry;
+  }
 
   /**
    * Return the parent document of this document. Will return null
@@ -757,7 +764,8 @@ public:
   virtual void SetReadyStateInternal(ReadyState rs) = 0;
   virtual ReadyState GetReadyStateEnum() = 0;
 
-  // notify that a content node changed state
+  // notify that a content node changed state.  This must happen under
+  // a scriptblocker but NOT within a begin/end update.
   virtual void ContentStateChanged(nsIContent* aContent,
                                    nsEventStates aStateMask) = 0;
 
@@ -837,8 +845,6 @@ public:
     return container;
   }
 
-  virtual nsIScriptEventManager* GetScriptEventManager() = 0;
-
   /**
    * Set and get XML declaration. If aVersion is null there is no declaration.
    * aStandalone takes values -1, 0 and 1 indicating respectively that there
@@ -863,7 +869,7 @@ public:
 
   virtual PRBool IsScriptEnabled() = 0;
 
-  virtual nsresult AddXMLEventsContent(nsIContent * aXMLEventsElement) = 0;
+  virtual void AddXMLEventsContent(nsIContent * aXMLEventsElement) = 0;
 
   /**
    * Create an element with the specified name, prefix and namespace ID.
@@ -1078,7 +1084,7 @@ public:
                                      nsIDOMNodeList** aResult) = 0;
 
   /**
-   * Helper for nsIDOMNSDocument::elementFromPoint implementation that allows
+   * Helper for nsIDOMDocument::elementFromPoint implementation that allows
    * ignoring the scroll frame and/or avoiding layout flushes.
    *
    * @see nsIDOMWindowUtils::elementFromPoint
@@ -1144,16 +1150,6 @@ public:
   void SetMayStartLayout(PRBool aMayStartLayout)
   {
     mMayStartLayout = aMayStartLayout;
-  }
-
-  // This method should return an addrefed nsIParser* or nsnull. Implementations
-  // should transfer ownership of the parser to the caller.
-  virtual already_AddRefed<nsIParser> GetFragmentParser() {
-    return nsnull;
-  }
-
-  virtual void SetFragmentParser(nsIParser* aParser) {
-    // Do nothing.
   }
 
   already_AddRefed<nsIDocumentEncoder> GetCachedEncoder()
@@ -1335,6 +1331,10 @@ public:
 
   PRUint32 EventHandlingSuppressed() const { return mEventsSuppressed; }
 
+  bool IsEventHandlingEnabled() {
+    return !EventHandlingSuppressed() && mScriptGlobalObject;
+  }
+
   /**
    * Increment the number of external scripts being evaluated.
    */
@@ -1385,7 +1385,8 @@ public:
    * to nsPreloadURIs::PreloadURIs() in file nsParser.cpp whenever the
    * parser-module is linked with gklayout-module.
    */
-  virtual void MaybePreLoadImage(nsIURI* uri) = 0;
+  virtual void MaybePreLoadImage(nsIURI* uri,
+                                 const nsAString& aCrossOriginAttr) = 0;
 
   /**
    * Called by nsParser to preload style sheets.  Can also be merged into
@@ -1422,12 +1423,13 @@ public:
   };
 
   /**
-   * Set the document's pending state object (as serialized to JSON).
+   * Set the document's pending state object (as serialized using structured
+   * clone).
    */
-  void SetCurrentStateObject(nsAString &obj)
+  void SetStateObject(nsIStructuredCloneContainer *scContainer)
   {
-    mCurrentStateObject.Assign(obj);
-    mCurrentStateObjectCached = nsnull;
+    mStateObjectContainer = scContainer;
+    mStateObjectCached = nsnull;
   }
 
   /**
@@ -1515,7 +1517,24 @@ public:
   // state is unlocked/false.
   virtual nsresult SetImageLockingState(PRBool aLocked) = 0;
 
-  virtual nsresult GetMozCurrentStateObject(nsIVariant** aResult) = 0;
+  virtual nsresult GetStateObject(nsIVariant** aResult) = 0;
+
+  virtual nsDOMNavigationTiming* GetNavigationTiming() const = 0;
+
+  virtual nsresult SetNavigationTiming(nsDOMNavigationTiming* aTiming) = 0;
+
+  virtual Element* FindImageMap(const nsAString& aNormalizedMapName) = 0;
+
+#define DEPRECATED_OPERATION(_op) e##_op,
+  enum DeprecatedOperations {
+#include "nsDeprecatedOperationList.h"
+    eDeprecatedOperationCount
+  };
+#undef DEPRECATED_OPERATION
+  void WarnOnceAbout(DeprecatedOperations aOperation);
+
+private:
+  PRUint32 mWarnedAbout;
 
 protected:
   ~nsIDocument()
@@ -1619,10 +1638,6 @@ protected:
   // document in it.
   PRPackedBool mIsInitialDocumentInWindow;
 
-  // True if we're currently bfcached. This is only here for binary compat.
-  // Remove once the gecko 2.0 has branched and just use mSHEntry instead.
-  PRPackedBool mShellIsHidden;
-
   PRPackedBool mIsRegularHTML;
   PRPackedBool mIsXUL;
 
@@ -1677,6 +1692,10 @@ protected:
   // True if we're an SVG document being used as an image.
   PRPackedBool mIsBeingUsedAsImage;
 
+  // True is this document is synthetic : stand alone image, video, audio
+  // file, etc.
+  PRPackedBool mIsSyntheticDocument;
+
   // The document's script global object, the object from which the
   // document can get its script context and scope. This is the
   // *inner* window object.
@@ -1724,8 +1743,6 @@ protected:
    */
   PRUint32 mExternalScriptsBeingEvaluated;
 
-  nsString mCurrentStateObject;
-
   // Weak reference to mScriptGlobalObject QI:d to nsPIDOMWindow,
   // updated on every set of mSecriptGlobalObject.
   nsPIDOMWindow *mWindow;
@@ -1734,14 +1751,15 @@ protected:
 
   AnimationListenerList mAnimationFrameListeners;
 
-  // The session history entry in which we're currently bf-cached. Non-null
-  // if and only if we're currently in the bfcache.
-  nsISHEntry* mSHEntry;
+  // This object allows us to evict ourself from the back/forward cache.  The
+  // pointer is non-null iff we're currently in the bfcache.
+  nsIBFCacheEntry *mBFCacheEntry;
 
   // Our base target.
   nsString mBaseTarget;
 
-  nsCOMPtr<nsIVariant> mCurrentStateObjectCached;
+  nsCOMPtr<nsIStructuredCloneContainer> mStateObjectContainer;
+  nsCOMPtr<nsIVariant> mStateObjectCached;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIDocument, NS_IDOCUMENT_IID)
@@ -1795,10 +1813,8 @@ NS_NewHTMLDocument(nsIDocument** aInstancePtrResult);
 nsresult
 NS_NewXMLDocument(nsIDocument** aInstancePtrResult);
 
-#ifdef MOZ_SVG
 nsresult
 NS_NewSVGDocument(nsIDocument** aInstancePtrResult);
-#endif
 
 nsresult
 NS_NewImageDocument(nsIDocument** aInstancePtrResult);

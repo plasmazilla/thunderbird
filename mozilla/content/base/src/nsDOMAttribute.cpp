@@ -20,6 +20,7 @@
  * the Initial Developer. All Rights Reserved.
  *
  * Contributor(s):
+ *   Ms2ger <ms2ger@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -49,16 +50,17 @@
 #include "nsDOMString.h"
 #include "nsIDocument.h"
 #include "nsIDOMDocument.h"
-#include "nsIDOM3Attr.h"
 #include "nsIDOMUserDataHandler.h"
 #include "nsEventDispatcher.h"
 #include "nsGkAtoms.h"
 #include "nsCOMArray.h"
 #include "nsNodeUtils.h"
-#include "nsIEventListenerManager.h"
+#include "nsEventListenerManager.h"
 #include "nsTextNode.h"
 #include "mozAutoDocUpdate.h"
 #include "nsMutationEvent.h"
+#include "nsPLDOMEvent.h"
+#include "nsContentUtils.h" // NS_IMPL_CYCLE_COLLECTION_UNLINK_LISTENERMANAGER
 
 using namespace mozilla::dom;
 
@@ -71,7 +73,8 @@ nsDOMAttribute::nsDOMAttribute(nsDOMAttributeMap *aAttrMap,
   : nsIAttribute(aAttrMap, aNodeInfo, aNsAware), mValue(aValue), mChild(nsnull)
 {
   NS_ABORT_IF_FALSE(mNodeInfo, "We must get a nodeinfo here!");
-
+  NS_ABORT_IF_FALSE(mNodeInfo->NodeType() == nsIDOMNode::ATTRIBUTE_NODE,
+                    "Wrong nodeType");
 
   // We don't add a reference to our content. It will tell us
   // to drop our reference when it goes away.
@@ -128,18 +131,11 @@ DOMCI_NODE_DATA(Attr, nsDOMAttribute)
 // QueryInterface implementation for nsDOMAttribute
 NS_INTERFACE_TABLE_HEAD(nsDOMAttribute)
   NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
-  NS_NODE_INTERFACE_TABLE6(nsDOMAttribute, nsIDOMAttr, nsIAttribute, nsIDOMNode,
-                           nsIDOM3Attr, nsPIDOMEventTarget, nsIMutationObserver)
+  NS_NODE_INTERFACE_TABLE5(nsDOMAttribute, nsIDOMAttr, nsIAttribute, nsIDOMNode,
+                           nsIDOMEventTarget, nsIMutationObserver)
   NS_INTERFACE_MAP_ENTRIES_CYCLE_COLLECTION(nsDOMAttribute)
   NS_INTERFACE_MAP_ENTRY_TEAROFF(nsISupportsWeakReference,
                                  new nsNodeSupportsWeakRefTearoff(this))
-  NS_INTERFACE_MAP_ENTRY_TEAROFF(nsIDOMEventTarget,
-                                 nsDOMEventRTTearoff::Create(this))
-  NS_INTERFACE_MAP_ENTRY_TEAROFF(nsIDOM3EventTarget,
-                                 nsDOMEventRTTearoff::Create(this))
-  NS_INTERFACE_MAP_ENTRY_TEAROFF(nsIDOMNSEventTarget,
-                                 nsDOMEventRTTearoff::Create(this))
-  NS_INTERFACE_MAP_ENTRY_TEAROFF(nsIDOM3Node, new nsNode3Tearoff(this))
   NS_INTERFACE_MAP_ENTRY_TEAROFF(nsIDOMXPathNSResolver,
                                  new nsNode3Tearoff(this))
   NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(Attr)
@@ -192,7 +188,8 @@ nsDOMAttribute::SetOwnerDocument(nsIDocument* aDocument)
   nsCOMPtr<nsINodeInfo> newNodeInfo;
   newNodeInfo = aDocument->NodeInfoManager()->
     GetNodeInfo(mNodeInfo->NameAtom(), mNodeInfo->GetPrefixAtom(),
-                mNodeInfo->NamespaceID());
+                mNodeInfo->NamespaceID(),
+                nsIDOMNode::ATTRIBUTE_NODE);
   NS_ENSURE_TRUE(newNodeInfo, NS_ERROR_OUT_OF_MEMORY);
   NS_ASSERTION(newNodeInfo, "GetNodeInfo lies");
   mNodeInfo.swap(newNodeInfo);
@@ -203,7 +200,7 @@ nsDOMAttribute::SetOwnerDocument(nsIDocument* aDocument)
 NS_IMETHODIMP
 nsDOMAttribute::GetName(nsAString& aName)
 {
-  mNodeInfo->GetQualifiedName(aName);
+  aName = NodeName();
   return NS_OK;
 }
 
@@ -273,10 +270,15 @@ nsDOMAttribute::SetValue(const nsAString& aValue)
   return rv;
 }
 
+
 NS_IMETHODIMP
 nsDOMAttribute::GetSpecified(PRBool* aSpecified)
 {
   NS_ENSURE_ARG_POINTER(aSpecified);
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eSpecified);
+  }
   *aSpecified = PR_TRUE;
   return NS_OK;
 }
@@ -285,6 +287,11 @@ NS_IMETHODIMP
 nsDOMAttribute::GetOwnerElement(nsIDOMElement** aOwnerElement)
 {
   NS_ENSURE_ARG_POINTER(aOwnerElement);
+
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eOwnerElement);
+  }
 
   nsIContent* content = GetContentInternal();
   if (content) {
@@ -299,18 +306,33 @@ nsDOMAttribute::GetOwnerElement(nsIDOMElement** aOwnerElement)
 NS_IMETHODIMP
 nsDOMAttribute::GetNodeName(nsAString& aNodeName)
 {
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eNodeName);
+  }
+
   return GetName(aNodeName);
 }
 
 NS_IMETHODIMP
 nsDOMAttribute::GetNodeValue(nsAString& aNodeValue)
 {
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eNodeValue);
+  }
+
   return GetValue(aNodeValue);
 }
 
 NS_IMETHODIMP
 nsDOMAttribute::SetNodeValue(const nsAString& aNodeValue)
 {
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eNodeValue);
+  }
+
   return SetValue(aNodeValue);
 }
 
@@ -318,6 +340,11 @@ NS_IMETHODIMP
 nsDOMAttribute::GetNodeType(PRUint16* aNodeType)
 {
   NS_ENSURE_ARG_POINTER(aNodeType);
+
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eNodeType);
+  }
 
   *aNodeType = (PRUint16)nsIDOMNode::ATTRIBUTE_NODE;
   return NS_OK;
@@ -328,6 +355,11 @@ nsDOMAttribute::GetParentNode(nsIDOMNode** aParentNode)
 {
   NS_ENSURE_ARG_POINTER(aParentNode);
 
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eParentNode);
+  }
+
   *aParentNode = nsnull;
   return NS_OK;
 }
@@ -335,12 +367,22 @@ nsDOMAttribute::GetParentNode(nsIDOMNode** aParentNode)
 NS_IMETHODIMP
 nsDOMAttribute::GetChildNodes(nsIDOMNodeList** aChildNodes)
 {
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eChildNodes);
+  }
+
   return nsINode::GetChildNodes(aChildNodes);
 }
 
 NS_IMETHODIMP
 nsDOMAttribute::HasChildNodes(PRBool* aHasChildNodes)
 {
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eHasChildNodes);
+  }
+
   *aHasChildNodes = mFirstChild != nsnull;
 
   return NS_OK;
@@ -350,6 +392,11 @@ NS_IMETHODIMP
 nsDOMAttribute::HasAttributes(PRBool* aHasAttributes)
 {
   NS_ENSURE_ARG_POINTER(aHasAttributes);
+
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eHasAttributes);
+  }
 
   *aHasAttributes = PR_FALSE;
 
@@ -361,6 +408,11 @@ nsDOMAttribute::GetFirstChild(nsIDOMNode** aFirstChild)
 {
   *aFirstChild = nsnull;
 
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eFirstChild);
+  }
+
   if (mFirstChild) {
     CallQueryInterface(mFirstChild, aFirstChild);
   }
@@ -371,6 +423,10 @@ nsDOMAttribute::GetFirstChild(nsIDOMNode** aFirstChild)
 NS_IMETHODIMP
 nsDOMAttribute::GetLastChild(nsIDOMNode** aLastChild)
 {
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eLastChild);
+  }
   return GetFirstChild(aLastChild);
 }
 
@@ -378,6 +434,11 @@ NS_IMETHODIMP
 nsDOMAttribute::GetPreviousSibling(nsIDOMNode** aPreviousSibling)
 {
   NS_ENSURE_ARG_POINTER(aPreviousSibling);
+
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::ePreviousSibling);
+  }
 
   *aPreviousSibling = nsnull;
   return NS_OK;
@@ -388,6 +449,11 @@ nsDOMAttribute::GetNextSibling(nsIDOMNode** aNextSibling)
 {
   NS_ENSURE_ARG_POINTER(aNextSibling);
 
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eNextSibling);
+  }
+
   *aNextSibling = nsnull;
   return NS_OK;
 }
@@ -397,6 +463,11 @@ nsDOMAttribute::GetAttributes(nsIDOMNamedNodeMap** aAttributes)
 {
   NS_ENSURE_ARG_POINTER(aAttributes);
 
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eAttributes);
+  }
+
   *aAttributes = nsnull;
   return NS_OK;
 }
@@ -404,24 +475,44 @@ nsDOMAttribute::GetAttributes(nsIDOMNamedNodeMap** aAttributes)
 NS_IMETHODIMP
 nsDOMAttribute::InsertBefore(nsIDOMNode* aNewChild, nsIDOMNode* aRefChild, nsIDOMNode** aReturn)
 {
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eInsertBefore);
+  }
+
   return ReplaceOrInsertBefore(PR_FALSE, aNewChild, aRefChild, aReturn);
 }
 
 NS_IMETHODIMP
 nsDOMAttribute::ReplaceChild(nsIDOMNode* aNewChild, nsIDOMNode* aOldChild, nsIDOMNode** aReturn)
 {
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eReplaceChild);
+  }
+
   return ReplaceOrInsertBefore(PR_TRUE, aNewChild, aOldChild, aReturn);
 }
 
 NS_IMETHODIMP
 nsDOMAttribute::RemoveChild(nsIDOMNode* aOldChild, nsIDOMNode** aReturn)
 {
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eRemoveChild);
+  }
+
   return nsINode::RemoveChild(aOldChild, aReturn);
 }
 
 NS_IMETHODIMP
 nsDOMAttribute::AppendChild(nsIDOMNode* aNewChild, nsIDOMNode** aReturn)
 {
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eAppendChild);
+  }
+
   return InsertBefore(aNewChild, nsnull, aReturn);
 }
 
@@ -445,12 +536,22 @@ nsDOMAttribute::Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const
 NS_IMETHODIMP
 nsDOMAttribute::CloneNode(PRBool aDeep, nsIDOMNode** aResult)
 {
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eCloneNode);
+  }
+
   return nsNodeUtils::CloneNodeImpl(this, aDeep, PR_TRUE, aResult);
 }
 
 NS_IMETHODIMP
 nsDOMAttribute::GetOwnerDocument(nsIDOMDocument** aOwnerDocument)
 {
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eOwnerDocument);
+  }
+
   return nsINode::GetOwnerDocument(aOwnerDocument);
 }
 
@@ -470,13 +571,18 @@ nsDOMAttribute::GetPrefix(nsAString& aPrefix)
 NS_IMETHODIMP
 nsDOMAttribute::GetLocalName(nsAString& aLocalName)
 {
-  mNodeInfo->GetLocalName(aLocalName);
+  mNodeInfo->GetName(aLocalName);
   return NS_OK;
 }
 
 NS_IMETHODIMP
 nsDOMAttribute::Normalize()
 {
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eNormalize);
+  }
+
   // Nothing to do here
   return NS_OK;
 }
@@ -486,6 +592,10 @@ nsDOMAttribute::IsSupported(const nsAString& aFeature,
                             const nsAString& aVersion,
                             PRBool* aReturn)
 {
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eIsSupported);
+  }
   return nsGenericElement::InternalIsSupported(static_cast<nsIDOMAttr*>(this), 
                                                aFeature, aVersion, aReturn);
 }
@@ -498,40 +608,93 @@ nsDOMAttribute::GetBaseURI() const
   return parent ? parent->GetBaseURI() : nsnull;
 }
 
-PRBool
-nsDOMAttribute::IsEqualNode(nsINode* aOther)
+NS_IMETHODIMP
+nsDOMAttribute::GetDOMBaseURI(nsAString &aURI)
 {
-  if (!aOther || !aOther->IsNodeOfType(eATTRIBUTE))
-    return PR_FALSE;
-
-  nsDOMAttribute *other = static_cast<nsDOMAttribute*>(aOther);
-
-  // Prefix, namespace URI, local name, node name check.
-  if (!mNodeInfo->Equals(other->NodeInfo())) {
-    return PR_FALSE;
-  }
-
-  // Value check
-  // Checks not needed:  Child nodes, attributes.
-  nsAutoString ourValue, otherValue;
-  GetValue(ourValue);
-  other->GetValue(otherValue);
-
-  return ourValue.Equals(otherValue);
+  return nsINode::GetDOMBaseURI(aURI);
 }
 
-void
+NS_IMETHODIMP
+nsDOMAttribute::CompareDocumentPosition(nsIDOMNode *other,
+                                        PRUint16 *aResult)
+{
+  return nsINode::CompareDocumentPosition(other, aResult);
+}
+
+NS_IMETHODIMP
+nsDOMAttribute::IsEqualNode(nsIDOMNode* aOther, PRBool* aResult)
+{
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eIsEqualNode);
+  }
+  return nsINode::IsEqualNode(aOther, aResult);
+}
+
+NS_IMETHODIMP
 nsDOMAttribute::GetTextContent(nsAString &aTextContent)
 {
-  GetNodeValue(aTextContent);
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eTextContent);
+  }
+  return GetNodeValue(aTextContent);
 }
 
-nsresult
+NS_IMETHODIMP
 nsDOMAttribute::SetTextContent(const nsAString& aTextContent)
 {
+  nsIDocument* document = GetOwnerDoc();
+  if (document) {
+    document->WarnOnceAbout(nsIDocument::eTextContent);
+  }
   return SetNodeValue(aTextContent);
 }
 
+NS_IMETHODIMP
+nsDOMAttribute::IsSameNode(nsIDOMNode *other, PRBool *aResult)
+{
+  *aResult = other == this;
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDOMAttribute::LookupPrefix(const nsAString & namespaceURI,
+                             nsAString & aResult)
+{
+  SetDOMStringToNull(aResult);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDOMAttribute::IsDefaultNamespace(const nsAString & namespaceURI,
+                                   PRBool *aResult)
+{
+  *aResult = namespaceURI.IsEmpty();
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDOMAttribute::LookupNamespaceURI(const nsAString & prefix,
+                              nsAString & aResult)
+{
+  SetDOMStringToNull(aResult);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsDOMAttribute::SetUserData(const nsAString & key,
+                            nsIVariant *data, nsIDOMUserDataHandler *handler,
+                            nsIVariant **aResult)
+{
+  return nsINode::SetUserData(key, data, handler, aResult);
+}
+
+NS_IMETHODIMP
+nsDOMAttribute::GetUserData(const nsAString & key, nsIVariant **aResult)
+{
+  return nsINode::GetUserData(key, aResult);
+}
 
 NS_IMETHODIMP
 nsDOMAttribute::GetIsId(PRBool* aReturn)
@@ -552,12 +715,6 @@ nsDOMAttribute::GetIsId(PRBool* aReturn)
 
   *aReturn = mNodeInfo->Equals(idAtom, kNameSpaceID_None);
   return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDOMAttribute::GetSchemaTypeInfo(nsIDOM3TypeInfo** aReturn)
-{
-  return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 PRBool
@@ -609,9 +766,8 @@ nsDOMAttribute::AppendChildTo(nsIContent* aKid, PRBool aNotify)
 }
 
 nsresult
-nsDOMAttribute::RemoveChildAt(PRUint32 aIndex, PRBool aNotify, PRBool aMutationEvent)
+nsDOMAttribute::RemoveChildAt(PRUint32 aIndex, PRBool aNotify)
 {
-  NS_ASSERTION(aMutationEvent, "Someone tried to inhibit mutations on attribute child removal.");
   if (aIndex != 0 || !mChild) {
     return NS_OK;
   }
@@ -620,23 +776,6 @@ nsDOMAttribute::RemoveChildAt(PRUint32 aIndex, PRBool aNotify, PRBool aMutationE
     nsCOMPtr<nsIContent> child = mChild;
     nsMutationGuard::DidMutate();
     mozAutoDocUpdate updateBatch(GetOwnerDoc(), UPDATE_CONTENT_MODEL, aNotify);
-    nsMutationGuard guard;
-  
-    mozAutoSubtreeModified subtree(nsnull, nsnull);
-    if (aNotify &&
-        nsContentUtils::HasMutationListeners(mChild,
-                                             NS_EVENT_BITS_MUTATION_NODEREMOVED,
-                                             this)) {
-      mozAutoRemovableBlockerRemover blockerRemover(GetOwnerDoc());
-      nsMutationEvent mutation(PR_TRUE, NS_MUTATION_NODEREMOVED);
-      mutation.mRelatedNode =
-        do_QueryInterface(static_cast<nsIAttribute*>(this));
-      subtree.UpdateTarget(GetOwnerDoc(), this);
-      nsEventDispatcher::Dispatch(mChild, nsnull, &mutation);
-    }
-    if (guard.Mutated(0) && mChild != child) {
-      return NS_OK;
-    }
 
     doRemoveChild(aNotify);
   }
@@ -652,55 +791,6 @@ nsDOMAttribute::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
 {
   aVisitor.mCanHandle = PR_TRUE;
   return NS_OK;
-}
-
-nsresult
-nsDOMAttribute::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
-{
-  return NS_OK;
-}
-
-nsresult
-nsDOMAttribute::DispatchDOMEvent(nsEvent* aEvent, nsIDOMEvent* aDOMEvent,
-                                 nsPresContext* aPresContext,
-                                 nsEventStatus* aEventStatus)
-{
-  return nsEventDispatcher::DispatchDOMEvent(static_cast<nsINode*>(this),
-                                             aEvent, aDOMEvent,
-                                             aPresContext, aEventStatus);
-}
-
-nsIEventListenerManager*
-nsDOMAttribute::GetListenerManager(PRBool aCreateIfNotFound)
-{
-  return nsContentUtils::GetListenerManager(this, aCreateIfNotFound);
-}
-
-nsresult
-nsDOMAttribute::AddEventListenerByIID(nsIDOMEventListener *aListener,
-                                      const nsIID& aIID)
-{
-  nsIEventListenerManager* elm = GetListenerManager(PR_TRUE);
-  NS_ENSURE_STATE(elm);
-  return elm->AddEventListenerByIID(aListener, aIID, NS_EVENT_FLAG_BUBBLE);
-}
-
-nsresult
-nsDOMAttribute::RemoveEventListenerByIID(nsIDOMEventListener *aListener,
-                                         const nsIID& aIID)
-{
-  nsIEventListenerManager* elm = GetListenerManager(PR_FALSE);
-  return elm ? 
-    elm->RemoveEventListenerByIID(aListener, aIID, NS_EVENT_FLAG_BUBBLE) :
-    NS_OK;
-}
-
-nsresult
-nsDOMAttribute::GetSystemEventGroup(nsIDOMEventGroup** aGroup)
-{
-  nsIEventListenerManager* elm = GetListenerManager(PR_TRUE);
-  NS_ENSURE_STATE(elm);
-  return elm->GetSystemEventGroupLM(aGroup);
 }
 
 void

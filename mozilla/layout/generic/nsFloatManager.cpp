@@ -338,14 +338,13 @@ nsFloatManager::GetRegionFor(nsIFrame* aFloat)
   return region;
 }
 
-nsresult
+void
 nsFloatManager::StoreRegionFor(nsIFrame* aFloat,
                                nsRect&   aRegion)
 {
-  nsresult rv = NS_OK;
   nsRect rect = aFloat->GetRect();
   FrameProperties props = aFloat->Properties();
-  if (aRegion == rect) {
+  if (aRegion.IsEqualEdges(rect)) {
     props.Delete(FloatRegionProperty());
   }
   else {
@@ -357,7 +356,6 @@ nsFloatManager::StoreRegionFor(nsIFrame* aFloat,
     }
     *storedMargin = aRegion - rect;
   }
-  return rv;
 }
 
 nsresult

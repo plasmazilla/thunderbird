@@ -1522,26 +1522,38 @@ function ComposeStartup(recycled, aParams)
         composeFields.subject = args.subject;
       if (args.attachment)
       {
-        var attachmentList = args.attachment.split(",");
-        var attachment;
-        var localFile = Components.classes["@mozilla.org/file/local;1"].createInstance(Components.interfaces.nsILocalFile);
-        var ioService = Components.classes["@mozilla.org/network/io-service;1"]
-        ioService = ioService.getService(Components.interfaces.nsIIOService);
-        var fileHandler = ioService.getProtocolHandler("file").QueryInterface(Components.interfaces.nsIFileProtocolHandler);
-        for (let i = 0; i < attachmentList.length; i++)
+        let attachmentList = args.attachment.split(",");
+        let commandLine = Components.classes["@mozilla.org/toolkit/command-line;1"]
+                                    .createInstance();
+        for (let [,attachmentName] in Iterator(attachmentList))
         {
-          var attachmentStr = attachmentList[i];
-          attachment = Components.classes["@mozilla.org/messengercompose/attachment;1"].createInstance(Components.interfaces.nsIMsgAttachment);
-          if (/^file:\/\//i.test(attachmentStr))
+          // resolveURI does all the magic around working out what the
+          // attachment is, including web pages, and generating the correct uri.
+          let uri = commandLine.resolveURI(attachmentName);
+          let attachment = Components.classes["@mozilla.org/messengercompose/attachment;1"]
+                                     .createInstance(Components.interfaces.nsIMsgAttachment);
+          // If uri is for a file and it exists set the attachment size.
+          if (uri instanceof Components.interfaces.nsIFileURL)
           {
-            attachment.url = encodeURI(attachmentStr);
+            if (uri.file.exists())
+              attachment.size = uri.file.fileSize;
+            else
+              attachment = null;
+          }
+
+          // Only want to attach if a file that exists or it is not a file.
+          if (attachment)
+          {
+            attachment.url = uri.spec;
+            composeFields.addAttachment(attachment);
           }
           else
           {
-            localFile.initWithPath(attachmentList[i]);
-            attachment.url = fileHandler.getURLSpecFromFile(localFile);;
+            let title = gComposeBundle.getString("errorFileAttachTitle");
+            let msg = gComposeBundle.getFormattedString("errorFileAttachMessage",
+                                                        [attachmentName]);
+            gPromptService.alert(window, title, msg);
           }
-          composeFields.addAttachment(attachment);
         }
       }
       if (args.newshost)
@@ -1930,6 +1942,12 @@ function GetCharsetUIString()
   return "";
 }
 
+// Add-ons can override this to customize the behavior.
+function DoSpellCheckBeforeSend()
+{
+  return getPref("mail.SpellCheckBeforeSend");
+}
+
 function GenericSendMessage( msgType )
 {
   if (gMsgCompose != null)
@@ -1947,7 +1965,7 @@ function GenericSendMessage( msgType )
           msgType == nsIMsgCompDeliverMode.Background)
       {
         //Do we need to check the spelling?
-        if (getPref("mail.SpellCheckBeforeSend"))
+        if (DoSpellCheckBeforeSend())
         {
           // We disable spellcheck for the following -subject line, attachment pane, identity and addressing widget
           // therefore we need to explicitly focus on the mail body when we have to do a spellcheck.
@@ -2918,27 +2936,17 @@ function AddUrlAttachment(attachment)
     attachment.name = gComposeBundle.getString("partAttachmentSafeName");
 
   var bucket = document.getElementById("attachmentBucket");
-  var item;
+  var item = bucket.appendItem(attachment);
   if (attachment.size != -1)
-  {
-    var size = gMessenger.formatFileSize(attachment.size);
-    var nameAndSize = gComposeBundle.getFormattedString(
-      "attachmentNameAndSize", [attachment.name, size]);
-    item = bucket.appendItem(nameAndSize, "");
     gAttachmentsSize += attachment.size;
-  }
-  else
-    item = bucket.appendItem(attachment.name, "");
 
-  item.attachment = attachment; // Full attachment object stored here.
   try {
     item.setAttribute("tooltiptext", decodeURI(attachment.url));
   }
   catch(e) {
     item.setAttribute("tooltiptext", attachment.url);
   }
-  item.setAttribute("class", "listitem-iconic");
-  item.setAttribute("crop", "center");
+  item.addEventListener("command", OpenSelectedAttachment, false);
 
   // For local file urls, we are better off using the full file url because
   // moz-icon will actually resolve the file url and get the right icon from
@@ -3109,21 +3117,11 @@ function RenameSelectedAttachment()
                      null,
                      {value: 0}))
   {
-    var modifiedAttachmentName = attachmentName.value;
-    if (modifiedAttachmentName == "")
+    if (attachmentName.value == "")
       return; // name was not filled, bail out
 
-    var nameAndSize = modifiedAttachmentName;
-    if (item.attachment.size != -1)
-    {
-      var size = gMessenger.formatFileSize(item.attachment.size);
-      item.label = gComposeBundle.getFormattedString(
-          "attachmentNameAndSize", [modifiedAttachmentName, size]);
-    }
-    else
-      item.label = modifiedAttachmentName;
-
-    item.attachment.name = modifiedAttachmentName;
+    item.attachment.name = attachmentName.value;
+    item.setAttribute("name", attachmentName.value);
     gContentChanged = true;
   }
 }
@@ -3215,7 +3213,7 @@ nsAttachmentOpener.prototype =
 
   getInterface: function(iid)
   {
-    if (iid.equals(Components.interfaces.nsIDOMWindowInternal))
+    if (iid.equals(Components.interfaces.nsIDOMWindow))
       return window;
     else
       return this.QueryInterface(iid);
@@ -3502,13 +3500,9 @@ function subjectKeyPress(event)
 
 function AttachmentBucketClicked(event)
 {
-  if (event.button != 0)
-    return;
-
-  if (event.originalTarget.localName == "listboxbody")
+  let boundTarget = document.getBindingParent(event.originalTarget);
+  if (event.button == 0 && boundTarget.localName == "scrollbox")
     goDoCommand('cmd_attachFile');
-  else if (event.originalTarget.localName == "listitem" && event.detail == 2)
-    OpenSelectedAttachment();
 }
 
 // we can drag and drop addresses, files, messages and urls into the compose envelope

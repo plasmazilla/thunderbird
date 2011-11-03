@@ -52,13 +52,14 @@
 #include "nsIDOMKeyEvent.h"
 #include "nsIDOMNSMouseEvent.h"
 #include "nsIDOMDataTransfer.h"
-#include "nsPIDOMEventTarget.h"
+#include "nsIDOMEventTarget.h"
 #include "nsWeakPtr.h"
 #include "nsIWidget.h"
 #include "nsTArray.h"
 #include "nsTraceRefcnt.h"
 #include "nsITransferable.h"
 #include "nsIVariant.h"
+#include "nsStyleConsts.h"
 
 namespace mozilla {
 namespace dom {
@@ -70,7 +71,7 @@ namespace dom {
 #ifdef ACCESSIBILITY
 class nsAccessible;
 #endif
-class nsIRenderingContext;
+class nsRenderingContext;
 class nsIMenuItem;
 class nsIContent;
 class nsIURI;
@@ -102,15 +103,11 @@ class nsHashKey;
 #define NS_COMMAND_EVENT                  24
 #define NS_SCROLLAREA_EVENT               25
 #define NS_TRANSITION_EVENT               26
-#ifdef MOZ_CSS_ANIMATIONS
 #define NS_ANIMATION_EVENT                27
-#endif
 
 #define NS_UI_EVENT                       28
-#ifdef MOZ_SVG
 #define NS_SVG_EVENT                      30
 #define NS_SVGZOOM_EVENT                  31
-#endif // MOZ_SVG
 #ifdef MOZ_SMIL
 #define NS_SMIL_TIME_EVENT                32
 #endif // MOZ_SMIL
@@ -125,6 +122,7 @@ class nsHashKey;
 #define NS_GESTURENOTIFY_EVENT            40
 #define NS_UISTATECHANGE_EVENT            41
 #define NS_MOZTOUCH_EVENT                 42
+#define NS_PLUGIN_EVENT                   43
 
 // These flags are sort of a mess. They're sort of shared between event
 // listener flags and event flags, but only some of them. You've been
@@ -159,7 +157,9 @@ class nsHashKey;
 
 #define NS_EVENT_FLAG_EXCEPTION_THROWN    0x10000
 
-#define NS_EVENT_FLAG_PREVENT_ANCHOR_ACTIONS 0x20000
+#define NS_EVENT_FLAG_PREVENT_MULTIPLE_ACTIONS 0x20000
+
+#define NS_EVENT_RETARGET_TO_NON_NATIVE_ANONYMOUS 0x40000
 
 #define NS_EVENT_CAPTURE_MASK             (~(NS_EVENT_FLAG_BUBBLE | NS_EVENT_FLAG_NO_CONTENT_DISPATCH))
 #define NS_EVENT_BUBBLE_MASK              (~(NS_EVENT_FLAG_CAPTURE | NS_EVENT_FLAG_NO_CONTENT_DISPATCH))
@@ -358,7 +358,6 @@ class nsHashKey;
 #define NS_PAGE_SHOW               (NS_PAGETRANSITION_START + 1)
 #define NS_PAGE_HIDE               (NS_PAGETRANSITION_START + 2)
 
-#ifdef MOZ_SVG
 // SVG events
 #define NS_SVG_EVENT_START              2800
 #define NS_SVG_LOAD                     (NS_SVG_EVENT_START)
@@ -371,7 +370,6 @@ class nsHashKey;
 // SVG Zoom events
 #define NS_SVGZOOM_EVENT_START          2900
 #define NS_SVG_ZOOM                     (NS_SVGZOOM_EVENT_START)
-#endif // MOZ_SVG
 
 // XUL command events
 #define NS_XULCOMMAND_EVENT_START       3000
@@ -413,9 +411,14 @@ class nsHashKey;
 // Query if the DOM element under nsEvent::refPoint belongs to our widget
 // or not.
 #define NS_QUERY_DOM_WIDGET_HITTEST     (NS_QUERY_CONTENT_EVENT_START + 9)
+// Query for some information about mouse wheel event's target
+// XXX This is used only for supporting high resolution mouse scroll on Windows
+//     and it's going to be reimplemented with another approach.  At that time,
+//     this even is going to be removed. Therefore,  DON'T use this event for
+//     other purpose.
+#define NS_QUERY_SCROLL_TARGET_INFO     (NS_QUERY_CONTENT_EVENT_START + 99)
 
 // Video events
-#ifdef MOZ_MEDIA
 #define NS_MEDIA_EVENT_START            3300
 #define NS_LOADSTART           (NS_MEDIA_EVENT_START)
 #define NS_PROGRESS            (NS_MEDIA_EVENT_START+1)
@@ -438,7 +441,6 @@ class nsHashKey;
 #define NS_DURATIONCHANGE      (NS_MEDIA_EVENT_START+18)
 #define NS_VOLUMECHANGE        (NS_MEDIA_EVENT_START+19)
 #define NS_MOZAUDIOAVAILABLE   (NS_MEDIA_EVENT_START+20)
-#endif // MOZ_MEDIA
 
 // paint notification events
 #define NS_NOTIFYPAINT_START    3400
@@ -457,10 +459,10 @@ class nsHashKey;
 #define NS_SIMPLE_GESTURE_TAP            (NS_SIMPLE_GESTURE_EVENT_START+7)
 #define NS_SIMPLE_GESTURE_PRESSTAP       (NS_SIMPLE_GESTURE_EVENT_START+8)
 
-// These are used to send events to plugins.
-#define NS_PLUGIN_EVENT_START   3600
-#define NS_PLUGIN_EVENT                 (NS_PLUGIN_EVENT_START)
-#define NS_NON_RETARGETED_PLUGIN_EVENT  (NS_PLUGIN_EVENT_START+1)
+// These are used to send native events to plugins.
+#define NS_PLUGIN_EVENT_START            3600
+#define NS_PLUGIN_INPUT_EVENT            (NS_PLUGIN_EVENT_START)
+#define NS_PLUGIN_FOCUS_EVENT            (NS_PLUGIN_EVENT_START+1)
 
 // Events to manipulate selection (nsSelectionEvent)
 #define NS_SELECTION_EVENT_START        3700
@@ -495,12 +497,10 @@ class nsHashKey;
 #define NS_TRANSITION_EVENT_START    4200
 #define NS_TRANSITION_END            (NS_TRANSITION_EVENT_START)
 
-#ifdef MOZ_CSS_ANIMATIONS
 #define NS_ANIMATION_EVENT_START     4250
 #define NS_ANIMATION_START           (NS_ANIMATION_EVENT_START)
 #define NS_ANIMATION_END             (NS_ANIMATION_EVENT_START + 1)
 #define NS_ANIMATION_ITERATION       (NS_ANIMATION_EVENT_START + 2)
-#endif
 
 #ifdef MOZ_SMIL
 #define NS_SMIL_TIME_EVENT_START     4300
@@ -515,9 +515,28 @@ class nsHashKey;
 #define NS_MOZTOUCH_UP               (NS_MOZTOUCH_EVENT_START+2)
 
 // script notification events
-#define NS_NOTIFYSCRIPT_START    4500
-#define NS_BEFORE_SCRIPT_EXECUTE (NS_NOTIFYSCRIPT_START)
-#define NS_AFTER_SCRIPT_EXECUTE  (NS_NOTIFYSCRIPT_START+1)
+#define NS_NOTIFYSCRIPT_START        4500
+#define NS_BEFORE_SCRIPT_EXECUTE     (NS_NOTIFYSCRIPT_START)
+#define NS_AFTER_SCRIPT_EXECUTE      (NS_NOTIFYSCRIPT_START+1)
+
+#define NS_PRINT_EVENT_START         4600
+#define NS_BEFOREPRINT               (NS_PRINT_EVENT_START)
+#define NS_AFTERPRINT                (NS_PRINT_EVENT_START + 1)
+
+#define NS_MESSAGE_EVENT_START       4700
+#define NS_MESSAGE                   (NS_MESSAGE_EVENT_START)
+
+// Open and close events
+#define NS_OPENCLOSE_EVENT_START     4800
+#define NS_OPEN                      (NS_OPENCLOSE_EVENT_START)
+#define NS_CLOSE                     (NS_OPENCLOSE_EVENT_START+1)
+
+// Device motion and orientation
+#define NS_DEVICE_ORIENTATION_START  4900
+#define NS_DEVICE_ORIENTATION        (NS_DEVICE_ORIENTATION_START)
+#define NS_DEVICE_MOTION             (NS_DEVICE_ORIENTATION_START+1)
+
+#define NS_SHOW_EVENT                5000
 
 /**
  * Return status for event processors, nsEventStatus, is defined in
@@ -588,9 +607,9 @@ public:
   // Additional type info for user defined events
   nsCOMPtr<nsIAtom>     userType;
   // Event targets, needed by DOM Events
-  nsCOMPtr<nsPIDOMEventTarget> target;
-  nsCOMPtr<nsPIDOMEventTarget> currentTarget;
-  nsCOMPtr<nsPIDOMEventTarget> originalTarget;
+  nsCOMPtr<nsIDOMEventTarget> target;
+  nsCOMPtr<nsIDOMEventTarget> currentTarget;
+  nsCOMPtr<nsIDOMEventTarget> originalTarget;
 };
 
 /**
@@ -802,7 +821,16 @@ public:
 
 class nsMouseEvent_base : public nsInputEvent
 {
+private:
+  friend class mozilla::dom::PBrowserParent;
+  friend class mozilla::dom::PBrowserChild;
+
 public:
+
+  nsMouseEvent_base()
+  {
+  }
+
   nsMouseEvent_base(PRBool isTrusted, PRUint32 msg, nsIWidget *w, PRUint8 type)
   : nsInputEvent(isTrusted, msg, w, type), button(0), pressure(0),
     inputSource(nsIDOMNSMouseEvent::MOZ_SOURCE_MOUSE) {}
@@ -822,11 +850,19 @@ public:
 
 class nsMouseEvent : public nsMouseEvent_base
 {
+private:
+  friend class mozilla::dom::PBrowserParent;
+  friend class mozilla::dom::PBrowserChild;
+
 public:
   enum buttonType  { eLeftButton = 0, eMiddleButton = 1, eRightButton = 2 };
   enum reasonType  { eReal, eSynthesized };
   enum contextType { eNormal, eContextMenuKey };
   enum exitType    { eChild, eTopLevel };
+
+  nsMouseEvent()
+  {
+  }
 
 protected:
   nsMouseEvent(PRBool isTrusted, PRUint32 msg, nsIWidget *w,
@@ -934,7 +970,15 @@ struct nsAlternativeCharCode {
 
 class nsKeyEvent : public nsInputEvent
 {
+private:
+  friend class mozilla::dom::PBrowserParent;
+  friend class mozilla::dom::PBrowserChild;
+
 public:
+  nsKeyEvent()
+  {
+  }
+
   nsKeyEvent(PRBool isTrusted, PRUint32 msg, nsIWidget *w)
     : nsInputEvent(isTrusted, msg, w, NS_KEY_EVENT),
       keyCode(0), charCode(0), isChar(0)
@@ -959,12 +1003,12 @@ public:
 struct nsTextRangeStyle
 {
   enum {
-    LINESTYLE_NONE   = 0,
-    LINESTYLE_SOLID  = 1,
-    LINESTYLE_DOTTED = 2,
-    LINESTYLE_DASHED = 3,
-    LINESTYLE_DOUBLE = 4,
-    LINESTYLE_WAVY   = 5
+    LINESTYLE_NONE   = NS_STYLE_TEXT_DECORATION_STYLE_NONE,
+    LINESTYLE_SOLID  = NS_STYLE_TEXT_DECORATION_STYLE_SOLID,
+    LINESTYLE_DOTTED = NS_STYLE_TEXT_DECORATION_STYLE_DOTTED,
+    LINESTYLE_DASHED = NS_STYLE_TEXT_DECORATION_STYLE_DASHED,
+    LINESTYLE_DOUBLE = NS_STYLE_TEXT_DECORATION_STYLE_DOUBLE,
+    LINESTYLE_WAVY   = NS_STYLE_TEXT_DECORATION_STYLE_WAVY
   };
 
   enum {
@@ -1161,6 +1205,14 @@ public:
 
 class nsMouseScrollEvent : public nsMouseEvent_base
 {
+private:
+  friend class mozilla::dom::PBrowserParent;
+  friend class mozilla::dom::PBrowserChild;
+
+  nsMouseScrollEvent()
+  {
+  }
+
 public:
   enum nsMouseScrollFlags {
     kIsFullPage =   1 << 0,
@@ -1182,9 +1234,11 @@ public:
                             // as needed.
     kNoDefer =      1 << 5, // For scrollable views, indicates scroll should not
                             // occur asynchronously.
-    kIsMomentum =   1 << 6  // Marks scroll events that aren't controlled by the
+    kIsMomentum =   1 << 6, // Marks scroll events that aren't controlled by the
                             // user but fire automatically as the result of a
                             // "momentum" scroll.
+    kAllowSmoothScroll = 1 << 7 // Allow smooth scroll for the pixel scroll
+                                // event.
   };
 
   nsMouseScrollEvent(PRBool isTrusted, PRUint32 msg, nsIWidget *w)
@@ -1279,6 +1333,13 @@ public:
     refPoint = aPoint;
   }
 
+  void InitForQueryScrollTargetInfo(nsMouseScrollEvent* aEvent)
+  {
+    NS_ASSERTION(message == NS_QUERY_SCROLL_TARGET_INFO,
+                 "wrong initializer is called");
+    mInput.mMouseScrollEvent = aEvent;
+  }
+
   PRUint32 GetSelectionStart(void) const
   {
     NS_ASSERTION(message == NS_QUERY_SELECTED_TEXT,
@@ -1298,6 +1359,8 @@ public:
   struct {
     PRUint32 mOffset;
     PRUint32 mLength;
+    // used by NS_QUERY_SCROLL_TARGET_INFO
+    nsMouseScrollEvent* mMouseScrollEvent;
   } mInput;
   struct {
     void* mContentsRoot;
@@ -1311,10 +1374,29 @@ public:
     PRPackedBool mWidgetIsHit; // true if DOM element under mouse belongs to widget
     // used by NS_QUERY_SELECTION_AS_TRANSFERABLE
     nsCOMPtr<nsITransferable> mTransferable;
+    // used by NS_QUERY_SCROLL_TARGET_INFO
+    PRInt32 mLineHeight;
+    PRInt32 mPageWidth;
+    PRInt32 mPageHeight;
+    // used by NS_QUERY_SCROLL_TARGET_INFO
+    // the mouse wheel scrolling amount may be overridden by prefs or
+    // overriding system scrolling speed mechanism.
+    // If mMouseScrollEvent is a line scroll event, the unit of this value is
+    // line.  If mMouseScrollEvent is a page scroll event, the unit of this
+    // value is page.
+    PRInt32 mComputedScrollAmount;
+    PRInt32 mComputedScrollAction;
   } mReply;
 
   enum {
     NOT_FOUND = PR_UINT32_MAX
+  };
+
+  // values of mComputedScrollAction
+  enum {
+    SCROLL_ACTION_NONE,
+    SCROLL_ACTION_LINE,
+    SCROLL_ACTION_PAGE
   };
 };
 
@@ -1496,7 +1578,6 @@ public:
   float elapsedTime;
 };
 
-#ifdef MOZ_CSS_ANIMATIONS
 class nsAnimationEvent : public nsEvent
 {
 public:
@@ -1510,7 +1591,6 @@ public:
   nsString animationName;
   float elapsedTime;
 };
-#endif
 
 class nsUIStateChangeEvent : public nsGUIEvent
 {
@@ -1524,6 +1604,25 @@ public:
 
   UIStateChangeType showAccelerators;
   UIStateChangeType showFocusRings;
+};
+
+/**
+ * Native event pluginEvent for plugins.
+ */
+
+class nsPluginEvent : public nsGUIEvent
+{
+public:
+  nsPluginEvent(PRBool isTrusted, PRUint32 msg, nsIWidget *w)
+    : nsGUIEvent(isTrusted, msg, w, NS_PLUGIN_EVENT),
+      retargetToFocusedDocument(PR_FALSE)
+  {
+  }
+
+  // If TRUE, this event needs to be retargeted to focused document.
+  // Otherwise, never retargeted.
+  // Defaults to false.
+  PRBool retargetToFocusedDocument;
 };
 
 /**
@@ -1595,15 +1694,7 @@ enum nsDragDropEventStatus {
         ((evnt)->message == NS_PLUGIN_FOCUS))
 
 #define NS_IS_QUERY_CONTENT_EVENT(evnt) \
-       (((evnt)->message == NS_QUERY_SELECTED_TEXT) || \
-        ((evnt)->message == NS_QUERY_TEXT_CONTENT) || \
-        ((evnt)->message == NS_QUERY_CARET_RECT) || \
-        ((evnt)->message == NS_QUERY_TEXT_RECT) || \
-        ((evnt)->message == NS_QUERY_EDITOR_RECT) || \
-        ((evnt)->message == NS_QUERY_CONTENT_STATE) || \
-        ((evnt)->message == NS_QUERY_SELECTION_AS_TRANSFERABLE) || \
-        ((evnt)->message == NS_QUERY_CHARACTER_AT_POINT) || \
-        ((evnt)->message == NS_QUERY_DOM_WIDGET_HITTEST))
+       ((evnt)->eventStructType == NS_QUERY_CONTENT_EVENT)
 
 #define NS_IS_SELECTION_EVENT(evnt) \
        (((evnt)->message == NS_SELECTION_SET))
@@ -1612,10 +1703,16 @@ enum nsDragDropEventStatus {
        ((evnt)->eventStructType == NS_CONTENT_COMMAND_EVENT)
 
 #define NS_IS_PLUGIN_EVENT(evnt) \
-       (((evnt)->message == NS_PLUGIN_EVENT))
+       (((evnt)->message == NS_PLUGIN_INPUT_EVENT) || \
+        ((evnt)->message == NS_PLUGIN_FOCUS_EVENT))
+
+#define NS_IS_RETARGETED_PLUGIN_EVENT(evnt) \
+       (NS_IS_PLUGIN_EVENT(evnt) && \
+        (static_cast<nsPluginEvent*>(evnt)->retargetToFocusedDocument))
 
 #define NS_IS_NON_RETARGETED_PLUGIN_EVENT(evnt) \
-       (((evnt)->message == NS_NON_RETARGETED_PLUGIN_EVENT))
+       (NS_IS_PLUGIN_EVENT(evnt) && \
+        !(static_cast<nsPluginEvent*>(evnt)->retargetToFocusedDocument))
 
 #define NS_IS_TRUSTED_EVENT(event) \
   (((event)->flags & NS_EVENT_FLAG_TRUSTED) != 0)
@@ -1639,7 +1736,8 @@ enum nsDragDropEventStatus {
 // cases, you should use NS_IS_IME_RELATED_EVENT instead.
 #define NS_IS_IME_RELATED_EVENT(evnt) \
   (NS_IS_IME_EVENT(evnt) || \
-   NS_IS_QUERY_CONTENT_EVENT(evnt) || \
+   (NS_IS_QUERY_CONTENT_EVENT(evnt) && \
+    evnt->message != NS_QUERY_SCROLL_TARGET_INFO) || \
    NS_IS_SELECTION_EVENT(evnt))
 
 /*
@@ -1805,7 +1903,7 @@ inline PRBool NS_IsEventUsingCoordinates(nsEvent* aEvent)
 {
   return !NS_IS_KEY_EVENT(aEvent) && !NS_IS_IME_RELATED_EVENT(aEvent) &&
          !NS_IS_CONTEXT_MENU_KEY(aEvent) && !NS_IS_ACTIVATION_EVENT(aEvent) &&
-         !NS_IS_PLUGIN_EVENT(aEvent) && !NS_IS_NON_RETARGETED_PLUGIN_EVENT(aEvent) &&
+         !NS_IS_PLUGIN_EVENT(aEvent) &&
          !NS_IS_CONTENT_COMMAND_EVENT(aEvent) &&
          aEvent->eventStructType != NS_ACCESSIBLE_EVENT;
 }
@@ -1825,7 +1923,9 @@ inline PRBool NS_IsEventUsingCoordinates(nsEvent* aEvent)
 inline PRBool NS_IsEventTargetedAtFocusedWindow(nsEvent* aEvent)
 {
   return NS_IS_KEY_EVENT(aEvent) || NS_IS_IME_RELATED_EVENT(aEvent) ||
-         NS_IS_CONTEXT_MENU_KEY(aEvent) || NS_IS_CONTENT_COMMAND_EVENT(aEvent);
+         NS_IS_CONTEXT_MENU_KEY(aEvent) ||
+         NS_IS_CONTENT_COMMAND_EVENT(aEvent) ||
+         NS_IS_RETARGETED_PLUGIN_EVENT(aEvent);
 }
 
 /**
@@ -1842,7 +1942,8 @@ inline PRBool NS_IsEventTargetedAtFocusedWindow(nsEvent* aEvent)
 inline PRBool NS_IsEventTargetedAtFocusedContent(nsEvent* aEvent)
 {
   return NS_IS_KEY_EVENT(aEvent) || NS_IS_IME_RELATED_EVENT(aEvent) ||
-         NS_IS_CONTEXT_MENU_KEY(aEvent) || NS_IS_PLUGIN_EVENT(aEvent);
+         NS_IS_CONTEXT_MENU_KEY(aEvent) ||
+         NS_IS_RETARGETED_PLUGIN_EVENT(aEvent);
 }
 
 #endif // nsGUIEvent_h__

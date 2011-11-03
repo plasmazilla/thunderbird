@@ -47,12 +47,11 @@ MODULE		= addrbook
 LIBRARY_NAME	= addrbook_s
 ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
 MOZILLA_INTERNAL_API = 1
+LIBXUL_LIBRARY = 1
 endif
 
 CPPSRCS		= \
 		nsAbManager.cpp \
-		nsAbRDFDataSource.cpp \
-		nsDirectoryDataSource.cpp \
 		nsAbCardProperty.cpp \
 		nsDirPrefs.cpp \
 		nsAddrDatabase.cpp \
@@ -69,7 +68,6 @@ CPPSRCS		= \
                 nsAbDirectoryQuery.cpp    \
                 nsAbDirectoryQueryProxy.cpp    \
                 nsAbBooleanExpression.cpp \
-                nsAbDirectoryRDFResource.cpp \
                 nsAbQueryStringToExpression.cpp \
                 nsAbView.cpp \
                 nsVCard.cpp \

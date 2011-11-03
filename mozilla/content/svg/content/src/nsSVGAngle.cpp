@@ -39,6 +39,8 @@
 #include "nsTextFormatter.h"
 #include "nsSVGUtils.h"
 #include "nsSVGMarkerElement.h"
+#include "nsMathUtils.h"
+#include "nsContentUtils.h" // NS_ENSURE_FINITE
 #ifdef MOZ_SMIL
 #include "nsSMILValue.h"
 #include "SVGOrientSMILType.h"
@@ -225,7 +227,7 @@ GetValueFromString(const nsAString &aValueAsString,
   
   char *rest;
   *aValue = float(PR_strtod(str, &rest));
-  if (rest != str && NS_FloatIsFinite(*aValue)) {
+  if (rest != str && NS_finite(*aValue)) {
     *aUnitType = GetUnitTypeForString(rest);
     if (IsValidUnitType(*aUnitType)) {
       return NS_OK;
@@ -337,8 +339,8 @@ nsSVGAngle::SetBaseValueString(const nsAString &aValueAsString,
                                nsSVGElement *aSVGElement,
                                PRBool aDoSetAttr)
 {
-  float value;
-  PRUint16 unitType;
+  float value = 0;
+  PRUint16 unitType = 0;
   
   nsresult rv = GetValueFromString(aValueAsString, &value, &unitType);
   if (NS_FAILED(rv)) {

@@ -161,6 +161,14 @@ FindFunctionSymbol(const char *name)
     return result;
 }
 
+static PRBool HasChar(FcPattern *aFont, FcChar32 wc)
+{
+    FcCharSet *charset = NULL;
+    FcPatternGetCharSet(aFont, FC_CHARSET, 0, &charset);
+
+    return charset && FcCharSetHasChar(charset, wc);
+}
+
 /**
  * gfxFcFontEntry:
  *
@@ -190,6 +198,26 @@ public:
             (cairo_font_face_get_user_data(aFace, &sFontEntryKey));
     }
 
+    // override the default impl in gfxFontEntry because we don't organize
+    // gfxFcFontEntries in families; just read the name from fontconfig
+    virtual nsString FamilyName() const;
+
+    // override the gfxFontEntry impl to read the name from fontconfig
+    // instead of trying to get the 'name' table, as we don't implement
+    // GetFontTable() here
+    virtual nsString RealFaceName();
+
+    // This is needed to make gfxFontEntry::HasCharacter(aCh) work.
+    virtual PRBool TestCharacterMap(PRUint32 aCh)
+    {
+        for (PRUint32 i = 0; i < mPatterns.Length(); ++i) {
+            if (HasChar(mPatterns[i], aCh)) {
+                return PR_TRUE;
+            }
+        }
+        return PR_FALSE;
+    }
+
 protected:
     gfxFcFontEntry(const nsAString& aName)
         : gfxFontEntry(aName),
@@ -207,6 +235,46 @@ protected:
 };
 
 cairo_user_data_key_t gfxFcFontEntry::sFontEntryKey;
+
+nsString
+gfxFcFontEntry::FamilyName() const
+{
+    if (mIsUserFont) {
+        // for user fonts, we want the name of the family
+        // as specified in the user font set
+        return gfxFontEntry::FamilyName();
+    }
+    FcChar8 *familyname;
+    if (!mPatterns.IsEmpty() &&
+        FcPatternGetString(mPatterns[0],
+                           FC_FAMILY, 0, &familyname) == FcResultMatch) {
+        return NS_ConvertUTF8toUTF16((const char*)familyname);
+    }
+    return gfxFontEntry::FamilyName();
+}
+
+nsString
+gfxFcFontEntry::RealFaceName()
+{
+    FcChar8 *name;
+    if (!mPatterns.IsEmpty()) {
+        if (FcPatternGetString(mPatterns[0],
+                               FC_FULLNAME, 0, &name) == FcResultMatch) {
+            return NS_ConvertUTF8toUTF16((const char*)name);
+        }
+        if (FcPatternGetString(mPatterns[0],
+                               FC_FAMILY, 0, &name) == FcResultMatch) {
+            NS_ConvertUTF8toUTF16 result((const char*)name);
+            if (FcPatternGetString(mPatterns[0],
+                                   FC_STYLE, 0, &name) == FcResultMatch) {
+                result.AppendLiteral(" ");
+                AppendUTF8toUTF16((const char*)name, result);
+            }
+            return result;
+        }
+    }
+    return gfxFontEntry::RealFaceName();
+}
 
 PRBool
 gfxFcFontEntry::ShouldUseHarfBuzz(PRInt32 aRunScript) {
@@ -1585,14 +1653,6 @@ gfxFcFontSet::GetFontPatternAt(PRUint32 i)
     return mFonts[i].mPattern;
 }
 
-static PRBool HasChar(FcPattern *aFont, FcChar32 wc)
-{
-    FcCharSet *charset = NULL;
-    FcPatternGetCharSet(aFont, FC_CHARSET, 0, &charset);
-
-    return charset && FcCharSetHasChar(charset, wc);
-}
-
 /**
  * gfxPangoFontMap: An implementation of a PangoFontMap.
  *
@@ -1756,7 +1816,7 @@ FFRECountHyphens (const nsAString &aFFREName)
 
 static PRBool
 FamilyCallback (const nsAString& fontName, const nsACString& genericName,
-                void *closure)
+                PRBool aUseFontSet, void *closure)
 {
     FamilyCallbackData *data = static_cast<FamilyCallbackData*>(closure);
     nsTArray<nsString> *list = data->mFcFamilyList;
@@ -1794,7 +1854,7 @@ FamilyCallback (const nsAString& fontName, const nsACString& genericName,
         // longer includes the family name for matching against system fonts.
         //
         const gfxUserFontSet *userFontSet = data->mUserFontSet;
-        if (genericName.Length() == 0 &&
+        if (aUseFontSet && genericName.Length() == 0 &&
             userFontSet && userFontSet->HasFamily(fontName)) {
             nsAutoString userFontName =
                 NS_LITERAL_STRING(FONT_FACE_FAMILY_PREFIX) + fontName;
@@ -1840,7 +1900,7 @@ gfxPangoFontGroup::GetFcFamilies(nsTArray<nsString> *aFcFamilyList,
     FamilyCallbackData data(aFcFamilyList, mUserFontSet);
     // Leave non-existing fonts in the list so that fontconfig can get the
     // best match.
-    ForEachFontInternal(mFamilies, aLanguage, PR_TRUE, PR_FALSE,
+    ForEachFontInternal(mFamilies, aLanguage, PR_TRUE, PR_FALSE, PR_TRUE,
                         FamilyCallback, &data);
 }
 
@@ -1951,7 +2011,8 @@ gfxPangoFontGroup::GetFontSet(PangoLanguage *aLang)
 already_AddRefed<gfxFont>
 gfxPangoFontGroup::FindFontForChar(PRUint32 aCh, PRUint32 aPrevCh,
                                    PRInt32 aRunScript,
-                                   gfxFont *aPrevMatchedFont)
+                                   gfxFont *aPrevMatchedFont,
+                                   PRUint8 *aMatchType)
 {
     if (aPrevMatchedFont) {
         PRUint8 category = gfxUnicodeProperties::GetGeneralCategory(aCh);
@@ -2015,6 +2076,7 @@ gfxPangoFontGroup::FindFontForChar(PRUint32 aCh, PRUint32 aPrevCh,
     if (!mStyle.systemFont && mPangoLanguage) {
         basePattern = fontSet->GetFontPatternAt(0);
         if (HasChar(basePattern, aCh)) {
+            *aMatchType = gfxTextRange::kFontGroup;
             return nsRefPtr<gfxFont>(GetBaseFont()).forget();
         }
 
@@ -2041,6 +2103,7 @@ gfxPangoFontGroup::FindFontForChar(PRUint32 aCh, PRUint32 aPrevCh,
         }
 
         if (HasChar(pattern, aCh)) {
+            *aMatchType = gfxTextRange::kFontGroup;
             return nsRefPtr<gfxFont>(fontSet->GetFontAt(i)).forget();
         }
     }

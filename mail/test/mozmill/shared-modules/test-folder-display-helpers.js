@@ -435,8 +435,18 @@ function create_thread(aCount) {
  * @param {Object} aArgs An arguments object to be passed to
  *                       MessageGenerator.makeMessage()
  */
- function create_message(aArgs) {
+function create_message(aArgs) {
   return msgGen.makeMessage(aArgs);
+}
+
+/**
+ * Create and return a SyntheticMessage object.
+ *
+ * @param {Object} aArgs An arguments object to be passed to
+ *                       MessageGenerator.makeEncryptedSMimeMessage()
+ */
+function create_encrypted_smime_message(aArgs) {
+  return msgGen.makeEncryptedSMimeMessage(aArgs);
 }
 
 /**
@@ -2199,7 +2209,7 @@ function remove_from_toolbar(aToolbarElement, aElementId) {
 }
 
 var RECOGNIZED_WINDOWS = ["messagepane", "multimessage"];
-var RECOGNIZED_ELEMENTS = ["folderTree", "threadTree"];
+var RECOGNIZED_ELEMENTS = ["folderTree", "threadTree", "attachmentList"];
 
 /**
  * Focus an element.
@@ -2309,6 +2319,13 @@ function assert_message_pane_focused() {
  */
 function assert_multimessage_pane_focused() {
   _assert_thing_focused("multimessage");
+}
+
+/**
+ * Assert that the attachment list is focused.
+ */
+function assert_attachment_list_focused() {
+  _assert_thing_focused("attachmentList");
 }
 
 
@@ -2469,6 +2486,14 @@ function assert_folder_tree_view_row_count(aCount) {
   if (mc.folderTreeView.rowCount != aCount)
     throw new Error("The folder tree view's row count should be " + aCount +
                     ", but is actually " + mc.folderTreeView.rowCount);
+}
+
+/**
+ * Assert that the displayed text of the folder at index n equals to str.
+ */
+function assert_folder_at_index_as(n, str) {
+  let folderN = mc.window.gFolderTreeView.getFTVItemForIndex(n);
+  assert_equals(folderN.text, str)
 }
 
 /**

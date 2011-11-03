@@ -292,7 +292,7 @@ Script::analyze(JSContext *cx, JSScript *script)
     JS_ASSERT(!code && !locals);
     this->script = script;
 
-    JS_InitArenaPool(&pool, "script_analyze", 256, 8, NULL);
+    JS_InitArenaPool(&pool, "script_analyze", 256, 8);
 
     unsigned length = script->length;
     unsigned nfixed = localCount();
@@ -315,7 +315,7 @@ Script::analyze(JSContext *cx, JSScript *script)
      * by debug code or by eval, or if they could be accessed by an inner script.
      */
 
-    if (script->usesEval || cx->compartment->debugMode) {
+    if (script->usesEval || cx->compartment->debugMode()) {
         for (uint32 i = 0; i < nfixed; i++)
             setLocal(i, LOCAL_USE_BEFORE_DEF);
     }
@@ -330,7 +330,7 @@ Script::analyze(JSContext *cx, JSScript *script)
      * If the script is in debug mode, JS_SetFrameReturnValue can be called at
      * any safe point.
      */
-    if (cx->compartment->debugMode)
+    if (cx->compartment->debugMode())
         usesRval = true;
 
     /*
@@ -457,14 +457,13 @@ Script::analyze(JSContext *cx, JSScript *script)
           case JSOP_DECNAME:
           case JSOP_NAMEINC:
           case JSOP_NAMEDEC:
-          case JSOP_FORNAME:
             usesScope = true;
             break;
 
           /* Watch for opcodes the method JIT doesn't compile. */
           case JSOP_GOSUB:
           case JSOP_GOSUBX:
-          case JSOP_IFPRIMTOP:
+          case JSOP_IFCANTCALLTOP:
           case JSOP_FILTER:
           case JSOP_ENDFILTER:
           case JSOP_TABLESWITCHX:
@@ -579,8 +578,7 @@ Script::analyze(JSContext *cx, JSScript *script)
             break;
           }
 
-          case JSOP_SETLOCAL:
-          case JSOP_FORLOCAL: {
+          case JSOP_SETLOCAL: {
             uint32 local = GET_SLOTNO(pc);
 
             /*

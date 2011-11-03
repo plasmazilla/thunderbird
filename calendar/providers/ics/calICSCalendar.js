@@ -102,7 +102,7 @@ calICSCalendar.prototype = {
     QueryInterface: function (aIID) {
         return cal.doQueryInterface(this, calICSCalendar.prototype, aIID, null, this);
     },
-    
+
     initICSCalendar: function() {
         this.mMemoryCalendar = Components.classes["@mozilla.org/calendar/calendar;1?type=memory"]
                                          .createInstance(Components.interfaces.calICalendar);
@@ -150,11 +150,11 @@ calICSCalendar.prototype = {
         var channel = cal.getIOService().newChannelFromURI(this.mUri);
 
         if (calInstanceOf(channel, Components.interfaces.nsIHttpChannel)) {
-            this.mHooks = new httpHooks();
+            this.mHooks = new httpHooks(this);
         } else if (calInstanceOf(channel, Components.interfaces.nsIFileChannel)) {
-            this.mHooks = new fileHooks();
+            this.mHooks = new fileHooks(this);
         } else {
-            this.mHooks = new dummyHooks();
+            this.mHooks = new dummyHooks(this);
         }
     },
 
@@ -216,6 +216,7 @@ calICSCalendar.prototype = {
             channel.asyncOpen(streamLoader, prbForce);
         } catch(e) {
             // File not found: a new calendar. No problem.
+            cal.LOG("[calICSCalendar] Error occurred opening channel: " + e);
             this.unlock();
         }
     },
@@ -232,11 +233,23 @@ calICSCalendar.prototype = {
     onStreamComplete: function(loader, ctxt, status, resultLength, result)
     {
         let forceRefresh = ctxt.QueryInterface(Components.interfaces.nsISupportsPRBool).data;
+        let cont = false;
 
-        // Allow the hook to get needed data (like an etag) of the channel
-        let cont = this.mHooks.onAfterGet(forceRefresh);
+        if (Components.isSuccessCode(status)) {
+            // Allow the hook to get needed data (like an etag) of the channel
+            cont = this.mHooks.onAfterGet(loader.request, forceRefresh);
+            cal.LOG("[calICSCalendar] Loading ICS succeeded, needs further processing: " + cont);
+        } else {
+            // Failure may be due to temporary connection issue, keep old data to
+            // prevent potential data loss if it becomes available again.
+            cal.LOG("[calICSCalendar] Unable to load stream - status: " + status);
+        }
+
         if (!cont) {
             // no need to process further, we can use the previous data
+            // HACK Sorry, but offline support requires the items to be signaled
+            // even if nothing has changed (especially at startup)
+            this.mObserver.onLoad(this);
             this.unlock();
             return;
         }
@@ -285,8 +298,9 @@ calICSCalendar.prototype = {
                     }
                     this_.unmappedComponents = parser_.getComponents({});
                     this_.unmappedProperties = parser_.getProperties({});
+                    cal.LOG("[calICSCalendar] Parsing ICS succeeded for " + this_.uri.spec);
                 } catch (exc) {
-                    cal.LOG("Parsing the file failed: " + exc);
+                    cal.LOG("[calICSCalendar] Parsing ICS failed for " + "\nException: "+ exc);
                     this_.mObserver.onError(this_.superCalendar, exc.result, exc.toString());
                     this_.mObserver.onError(this_.superCalendar, calIErrors.READ_FAILED, "");
                 }
@@ -299,12 +313,14 @@ calICSCalendar.prototype = {
                 // the views from being notified.
                 this_.mMemoryCalendar.addObserver(this_.mObserver);
                 this_.unlock();
+
             }
         };
         parser.parseString(str, null, listener);
     },
 
     writeICS: function () {
+        cal.LOG("[calICSCalendar] Commencing write of ICS Calendar " + this.name);
         this.lock();
         try {
             if (!this.mUri)
@@ -318,6 +334,7 @@ calICSCalendar.prototype = {
     },
 
     doWriteICS: function () {
+        cal.LOG("[calICSCalendar] Writing ICS File " + this.uri.spec);
         var savedthis = this;
         var appStartup = Components.classes["@mozilla.org/toolkit/app-startup;1"]
                                    .getService(Components.interfaces.nsIAppStartup);
@@ -411,7 +428,7 @@ calICSCalendar.prototype = {
     onDataAvailable: function(request, ctxt, inStream, sourceOffset, count) {
          // All data must be consumed. For an upload channel, there is
          // no meaningfull data. So it gets read and then ignored
-         var scriptableInputStream = 
+         let scriptableInputStream =
              Components.classes["@mozilla.org/scriptableinputstream;1"]
                        .createInstance(Components.interfaces.nsIScriptableInputStream);
          scriptableInputStream.init(inStream);
@@ -420,18 +437,18 @@ calICSCalendar.prototype = {
     onStopRequest: function(request, ctxt, status, errorMsg)
     {
         ctxt = ctxt.wrappedJSObject;
-        var channel;
+        let httpChannel;
         try {
-            channel = request.QueryInterface(Components.interfaces.nsIHttpChannel);
-            LOG("calICSCalendar channel.requestSucceeded: " + channel.requestSucceeded);
+            httpChannel = request.QueryInterface(Components.interfaces.nsIHttpChannel);
+            cal.LOG("[calICSCalendar] channel.requestSucceeded: " + httpChannel.requestSucceeded);
         } catch(e) {
         }
 
         let appStartup = Components.classes["@mozilla.org/toolkit/app-startup;1"]
                                    .getService(Components.interfaces.nsIAppStartup);
 
-        if ((channel && !channel.requestSucceeded) ||
-            (!channel && !Components.isSuccessCode(request.status))) {
+        if ((httpChannel && !httpChannel.requestSucceeded) ||
+            (!httpChannel && !Components.isSuccessCode(request.status))) {
             ctxt.mObserver.onError(this.superCalendar,
                                    Components.isSuccessCode(request.status)
                                    ? calIErrors.DAV_PUT_ERROR
@@ -448,7 +465,8 @@ calICSCalendar.prototype = {
         }
 
         // Allow the hook to grab data of the channel, like the new etag
-        ctxt.mHooks.onAfterPut(channel,
+
+        ctxt.mHooks.onAfterPut(request,
                                function() {
                                    ctxt.unlock();
                                    appStartup.exitLastWindowClosingSurvivalArea();
@@ -559,8 +577,9 @@ calICSCalendar.prototype = {
                 this.queue.unshift(refreshAction);
             }
             this.writeICS();
-        }
-        else if (refreshAction) {
+        } else if (refreshAction) {
+            cal.LOG("[calICSCalendar] Refreshing " + this.name +
+                    (refreshAction.forceRefresh ? " (forced)" : ""));
             this.doRefresh(refreshAction.forceRefresh);
         }
     },
@@ -591,7 +610,7 @@ calICSCalendar.prototype = {
         this.locked = false;
         this.processQueue();
     },
-    
+
     isLocked: function () {
         return this.locked;
     },
@@ -632,12 +651,12 @@ calICSCalendar.prototype = {
         function makeName(type) {
             return 'calBackupData_'+pseudoID+'_'+type+'.ics';
         }
-        
+
         // This is a bit messy. createUnique creates an empty file,
         // but we don't use that file. All we want is a filename, to be used
         // in the call to copyTo later. So we create a file, get the filename,
         // and never use the file again, but write over it.
-        // Using createUnique anyway, because I don't feel like 
+        // Using createUnique anyway, because I don't feel like
         // re-implementing it
         function makeDailyFileName() {
             var dailyBackupFile = backupDir.clone();
@@ -659,7 +678,7 @@ calICSCalendar.prototype = {
         function purgeBackupsByType(files, type) {
             // filter out backups of the type we care about.
             var filteredFiles = files.filter(
-                function f(v) { 
+                function f(v) {
                     return (v.name.indexOf("calBackupData_"+pseudoID+"_"+type) != -1)
                 });
             // Sort by lastmodifed
@@ -702,18 +721,18 @@ calICSCalendar.prototype = {
 
             return;
         }
-        
+
         function copyToOverwriting(oldFile, newParentDir, newName) {
             try {
                 var newFile = newParentDir.clone();
                 newFile.append(newName);
-            
+
                 if (newFile.exists()) {
                     newFile.remove(false);
                 }
                 oldFile.copyTo(newParentDir, newName);
             } catch(e) {
-                Components.utils.reportError("Backup failed, no copy:"+e);
+                cal.ERROR("[calICSCalendar] Backup failed, no copy: " + e);
                 // Error in making a daily/initial backup.
                 // not fatal, so just continue
             }
@@ -731,7 +750,7 @@ calICSCalendar.prototype = {
         } catch(e) {
             // Backup dir wasn't found. Likely because we are running in
             // xpcshell. Don't die, but continue the upload.
-            LOG("Backup failed, no backupdir:"+e);
+            cal.ERROR("[calICSCalendar] Backup failed, no backupdir:" + e);
             aCallback.call(this);
             return;
         }
@@ -745,7 +764,7 @@ calICSCalendar.prototype = {
         } catch(e) {
             // calendarmgr not found. Likely because we are running in
             // xpcshell. Don't die, but continue the upload.
-            LOG("Backup failed, no calendarmanager:"+e);
+            cal.ERROR("[calICSCalendar] Backup failed, no calendarmanager:" + e);
             aCallback.call(this);
             return;
         }
@@ -773,7 +792,7 @@ calICSCalendar.prototype = {
         var backupFile = backupDir.clone();
         backupFile.append(makeName('edit'));
         backupFile.createUnique(CI.nsIFile.NORMAL_FILE_TYPE, parseInt("0600", 8));
-        
+
         purgeOldBackups();
 
         // Now go download the remote file, and store it somewhere local.
@@ -802,7 +821,7 @@ calICSCalendar.prototype = {
         } catch(e) {
             // For local files, asyncOpen throws on new (calendar) files
             // No problem, go and upload something
-            LOG("Backup failed in asyncOpen:"+e);
+            cal.ERROR("[calICSCalendar] Backup failed in asyncOpen:" + e);
             aCallback.call(this);
             return;
         }
@@ -867,41 +886,41 @@ calICSObserver.prototype = {
 
 // dummyHooks are for transport types that don't have hooks of their own.
 // Also serves as poor-mans interface definition.
-function dummyHooks() {
+function dummyHooks(calendar) {
+    this.mCalendar = calendar;
 }
 
 dummyHooks.prototype = {
     onBeforeGet: function(aChannel, aForceRefresh) {
         return true;
     },
-    
+
     /**
      * @return
      *     a boolean, false if the previous data should be used (the datastore
      *     didn't change, there might be no data in this GET), true in all
      *     other cases
      */
-    onAfterGet: function(aForceRefresh) {
+    onAfterGet: function(aChannel, aForceRefresh) {
         return true;
     },
 
     onBeforePut: function(aChannel) {
         return true;
     },
-    
+
     onAfterPut: function(aChannel, aRespFunc) {
         aRespFunc();
         return true;
     }
 };
 
-function httpHooks() {
-    this.mChannel = null;
+function httpHooks(calendar) {
+    this.mCalendar = calendar;
 }
 
 httpHooks.prototype = {
     onBeforeGet: function(aChannel, aForceRefresh) {
-        this.mChannel = aChannel;
         if (this.mEtag && !aForceRefresh) {
             var httpchannel = aChannel.QueryInterface(Components.interfaces.nsIHttpChannel);
             // Somehow the webdav header 'If' doesn't work on apache when
@@ -911,21 +930,41 @@ httpHooks.prototype = {
 
         return true;
     },
-    
-    onAfterGet: function(aForceRefresh) {
-        var httpchannel = this.mChannel.QueryInterface(Components.interfaces.nsIHttpChannel);
 
-        // 304: Not Modified
-        // Can use the old data, so tell the caller that it can skip parsing.
-        if (httpchannel.responseStatus == 304) {
+    onAfterGet: function(aChannel, aForceRefresh) {
+        let httpchannel = aChannel.QueryInterface(Components.interfaces.nsIHttpChannel);
+        let responseStatus = 0;
+
+        try {
+            responseStatus = httpchannel.responseStatus;
+        } catch(e) {
+            // Error might have been a temporary connection issue, keep old data to
+            // prevent potential data loss if it becomes available again.
+            cal.LOG("[calICSCalendar] Unable to get response status.");
             return false;
         }
 
-        // 404: Not Found
-        // This is a new calendar. Shouldn't try to parse it. But it also
-        // isn't a failure, so don't throw.
-        if (httpchannel.responseStatus == 404) {
-            return false;
+        switch (responseStatus) {
+            case 304:
+                // 304: Not Modified
+                // Can use the old data, so tell the caller that it can skip parsing.
+                cal.LOG("[calICSCalendar] Response status 304: Not Modified. Using the existing data.");
+                return false;
+            case 404:
+                // 404: Not Found
+                // This is a new calendar. Shouldn't try to parse it. But it also
+                // isn't a failure, so don't throw.
+                cal.LOG("[calICSCalendar] Response status 404: Not Found. This is a new calendar.");
+                return false;
+
+            case 401:
+            case 403:
+                // 401/403: Not Authorized
+                // The user likely cancelled the login dialog.
+                cal.LOG("[calICSCalendar] Response status 401/403: Not Authorized. Login dialog cancelled.");
+                this.mCalendar.setProperty("disabled", "true");
+                this.mCalendar.setProperty("auto-enabled", "true");
+                return false;
         }
 
         try {
@@ -934,7 +973,6 @@ httpHooks.prototype = {
             // No etag header. Now what?
             this.mEtag = null;
         }
-        this.mChannel = null;
         return true;
     },
 
@@ -948,7 +986,7 @@ httpHooks.prototype = {
         }
         return true;
     },
-    
+
     onAfterPut: function(aChannel, aRespFunc) {
         var httpchannel = aChannel.QueryInterface(Components.interfaces.nsIHttpChannel);
         try {
@@ -962,7 +1000,7 @@ httpHooks.prototype = {
             // Try to do the best we can, by immediatly getting the etag.
 
             var etagListener = {};
-            var thisCalendar = this; // need to reference in callback
+            var thisHook = this; // need to reference in callback
 
             etagListener.onStreamComplete =
                 function ics_etLoSC(aLoader, aContext, aStatus, aResultLength,
@@ -976,13 +1014,13 @@ httpHooks.prototype = {
                 try {
                     str = resultConverter.convertFromByteArray(aResult, aResultLength);
                 } catch (e) {
-                    LOG("Failed to fetch channel etag");
+                    cal.LOG("[calICSCalendar] Failed to fetch channel etag");
                 }
                 var multistatus = cal.safeNewXML(str);
                 try {
-                    thisCalendar.mEtag = multistatus..D::getetag;
+                    thisHook.mEtag = multistatus..D::getetag;
                 } catch (e) {
-                    thisCalendar.mEtag = null;
+                    thisHook.mEtag = null;
                 }
                 aRespFunc();
             }
@@ -1015,20 +1053,18 @@ httpHooks.prototype = {
     getInterface: function(aIid) {
         if (aIid.equals(Components.interfaces.nsIProgressEventSink)) {
             return this;
-        } else {    
+        } else {
             throw Components.results.NS_ERROR_NO_INTERFACE;
         }
     }
 };
 
-function fileHooks() {
-    this.mChannel = null;
+function fileHooks(calendar) {
+    this.mCalendar = calendar;
 }
 
 fileHooks.prototype = {
     onBeforeGet: function fH_onBeforeGet(aChannel, aForceRefresh) {
-        this.mChannel = aChannel;
-        let fileChannel = this.mChannel.QueryInterface(Components.interfaces.nsIFileChannel);
         return true;
     },
 
@@ -1038,8 +1074,8 @@ fileHooks.prototype = {
      *     didn't change, there might be no data in this GET), true in all
      *     other cases
      */
-    onAfterGet: function fH_onAfterGet(aForceRefresh) {
-        let filechannel = this.mChannel.QueryInterface(Components.interfaces.nsIFileChannel);
+    onAfterGet: function fH_onAfterGet(aChannel, aForceRefresh) {
+        let filechannel = aChannel.QueryInterface(Components.interfaces.nsIFileChannel);
         if (this.mtime) {
             let newMtime = filechannel.file.lastModifiedTime;
             if (this.mtime == newMtime && !aForceRefresh) {
@@ -1064,7 +1100,7 @@ fileHooks.prototype = {
     },
 
     onAfterPut: function fH_onAfterPut(aChannel, aRespFunc) {
-        let filechannel = this.mChannel.QueryInterface(Components.interfaces.nsIFileChannel);
+        let filechannel = aChannel.QueryInterface(Components.interfaces.nsIFileChannel);
         this.mtime = filechannel.file.lastModifiedTime;
         aRespFunc();
         return true;

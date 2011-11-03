@@ -74,7 +74,7 @@ public:
 
   // nsAccessible
   virtual PRUint32 NativeRole();
-  virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
+  virtual PRUint64 NativeState();
 
   // SelectAccessible
   virtual bool IsSelect();
@@ -108,17 +108,19 @@ public:
   // nsIAccessible
   NS_IMETHOD DoAction(PRUint8 index);
   NS_IMETHOD GetActionName(PRUint8 aIndex, nsAString& aName);
-  NS_IMETHOD GetNumActions(PRUint8 *_retval);
   NS_IMETHOD SetSelected(PRBool aSelect);
 
   // nsAccessible
   virtual nsresult GetNameInternal(nsAString& aName);
   virtual PRUint32 NativeRole();
-  virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
+  virtual PRUint64 NativeState();
 
   virtual PRInt32 GetLevelInternal();
   virtual void GetPositionAndSizeInternal(PRInt32 *aPosInSet,
                                           PRInt32 *aSetSize);
+
+  // ActionAccessible
+  virtual PRUint8 ActionCount();
 
   /**
    * Return focused option if any.
@@ -136,10 +138,9 @@ private:
   /**
    * Get Select element's accessible state
    * @param aState, Select element state
-   * @param aExtraState, Select element extra state
    * @return Select element content, returns null if not avaliable
    */ 
-  nsIContent* GetSelectState(PRUint32* aState, PRUint32* aExtraState = nsnull);
+  nsIContent* GetSelectState(PRUint64* aState);
 };
 
 /*
@@ -155,11 +156,13 @@ public:
   // nsIAccessible
   NS_IMETHOD DoAction(PRUint8 index);  
   NS_IMETHOD GetActionName(PRUint8 aIndex, nsAString& aName);
-  NS_IMETHOD GetNumActions(PRUint8 *_retval);
 
   // nsAccessible
   virtual PRUint32 NativeRole();
-  virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
+  virtual PRUint64 NativeState();
+
+  // ActionAccessible
+  virtual PRUint8 ActionCount();
 
 protected:
   // nsAccessible
@@ -185,18 +188,20 @@ public:
 
   // nsIAccessible
   NS_IMETHOD GetValue(nsAString& _retval);
-  NS_IMETHOD GetDescription(nsAString& aDescription);
   NS_IMETHOD DoAction(PRUint8 index);
-  NS_IMETHOD GetNumActions(PRUint8 *aNumActions);
   NS_IMETHOD GetActionName(PRUint8 aIndex, nsAString& aName);
 
   // nsAccessNode
   virtual void Shutdown();
 
   // nsAccessible
+  virtual void Description(nsString& aDescription);
   virtual PRUint32 NativeRole();
-  virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
+  virtual PRUint64 NativeState();
   virtual void InvalidateChildren();
+
+  // ActionAccessible
+  virtual PRUint8 ActionCount();
 
 protected:
   // nsAccessible
@@ -232,7 +237,7 @@ public:
   virtual bool IsPrimaryForNode() const;
 
   // nsAccessible
-  virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
+  virtual PRUint64 NativeState();
   virtual void GetBoundsRect(nsRect& aBounds, nsIFrame** aBoundingFrame);
 };
 

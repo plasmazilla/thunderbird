@@ -62,22 +62,26 @@ function test() {
                  AddonManager.PERM_CAN_UPGRADE
   }, {
     id: "addon4@tests.mozilla.org",
+    blocklistURL: "http://example.com/addon4@tests.mozilla.org",
     name: "Test add-on 4",
     _userDisabled: true,
     isActive: false,
     blocklistState: Ci.nsIBlocklistService.STATE_SOFTBLOCKED
   }, {
     id: "addon5@tests.mozilla.org",
+    blocklistURL: "http://example.com/addon5@tests.mozilla.org",
     name: "Test add-on 5",
     isActive: false,
     blocklistState: Ci.nsIBlocklistService.STATE_BLOCKED,
     appDisabled: true
   }, {
     id: "addon6@tests.mozilla.org",
+    blocklistURL: "http://example.com/addon6@tests.mozilla.org",
     name: "Test add-on 6",
     operationsRequiringRestart: AddonManager.OP_NEEDS_RESTART_NONE
   }, {
     id: "addon7@tests.mozilla.org",
+    blocklistURL: "http://example.com/addon7@tests.mozilla.org",
     name: "Test add-on 7",
     blocklistState: Ci.nsIBlocklistService.STATE_OUTDATED,
   }]);
@@ -135,7 +139,7 @@ add_test(function() {
     is(get_node(addon, "description").value, "A test add-on", "Description should be correct");
     is_element_hidden(get_class_node(addon, "disabled-postfix"), "Disabled postfix should be hidden");
     is_element_hidden(get_class_node(addon, "update-postfix"), "Update postfix should be hidden");
-    is(Date.parse(get_node(addon, "date-updated").value), gDate.getTime(), "Update date should be correct");
+    is(get_node(addon, "date-updated").value, formatDate(gDate), "Update date should be correct");
 
     is_element_hidden(get_node(addon, "preferences-btn"), "Preferences button should be hidden");
     is_element_hidden(get_node(addon, "enable-btn"), "Enable button should be hidden");
@@ -230,7 +234,7 @@ add_test(function() {
     is(get_node(addon, "warning").textContent, "Test add-on 4 is known to cause security or stability issues.", "Warning message should be correct");
     is_element_visible(get_node(addon, "warning-link"), "Warning link should be visible");
     is(get_node(addon, "warning-link").value, "More Information", "Warning link text should be correct");
-    is(get_node(addon, "warning-link").href, gBlocklistURL, "Warning link should be correct");
+    is(get_node(addon, "warning-link").href, "http://example.com/addon4@tests.mozilla.org", "Warning link should be correct");
     is_element_hidden(get_node(addon, "error"), "Error message should be hidden");
     is_element_hidden(get_node(addon, "error-link"), "Error link should be hidden");
     is_element_hidden(get_node(addon, "pending"), "Pending message should be hidden");
@@ -265,7 +269,7 @@ add_test(function() {
     is(get_node(addon, "error").textContent, "Test add-on 5 has been disabled due to security or stability issues.", "Error message should be correct");
     is_element_visible(get_node(addon, "error-link"), "Error link should be visible");
     is(get_node(addon, "error-link").value, "More Information", "Error link text should be correct");
-    is(get_node(addon, "error-link").href, gBlocklistURL, "Error link should be correct");
+    is(get_node(addon, "error-link").href, "http://example.com/addon5@tests.mozilla.org", "Error link should be correct");
     is_element_hidden(get_node(addon, "pending"), "Pending message should be hidden");
 
     info("Addon 6");
@@ -370,7 +374,7 @@ add_test(function() {
       is(get_node(addon, "description").value, "A test add-on", "Description should be correct");
       is_element_hidden(get_class_node(addon, "disabled-postfix"), "Disabled postfix should be hidden");
       is_element_hidden(get_class_node(addon, "update-postfix"), "Update postfix should be hidden");
-      is(Date.parse(get_node(addon, "date-updated").value), gDate.getTime(), "Update date should be correct");
+      is(get_node(addon, "date-updated").value, formatDate(gDate), "Update date should be correct");
 
       is_element_hidden(get_node(addon, "preferences-btn"), "Preferences button should be hidden");
       is_element_visible(get_node(addon, "enable-btn"), "Enable button should be visible");
@@ -461,7 +465,7 @@ add_test(function() {
       is(get_node(addon, "warning").textContent, "Test add-on 4 is known to cause security or stability issues.", "Warning message should be correct");
       is_element_visible(get_node(addon, "warning-link"), "Warning link should be visible");
       is(get_node(addon, "warning-link").value, "More Information", "Warning link text should be correct");
-      is(get_node(addon, "warning-link").href, gBlocklistURL, "Warning link should be correct");
+      is(get_node(addon, "warning-link").href, "http://example.com/addon4@tests.mozilla.org", "Warning link should be correct");
       is_element_hidden(get_node(addon, "error"), "Error message should be hidden");
       is_element_hidden(get_node(addon, "error-link"), "Error link should be hidden");
       is_element_hidden(get_node(addon, "pending"), "Pending message should be hidden");
@@ -573,7 +577,7 @@ add_test(function() {
   is(get_node(addon, "description").value, "A test add-on with a new description", "Description should be correct");
   is_element_hidden(get_class_node(addon, "disabled-postfix"), "Disabled postfix should be hidden");
   is_element_hidden(get_class_node(addon, "update-postfix"), "Update postfix should be hidden");
-  is(Date.parse(get_node(addon, "date-updated").value), gDate.getTime(), "Update date should be correct");
+  is(get_node(addon, "date-updated").value, formatDate(gDate), "Update date should be correct");
 
   is_element_hidden(get_node(addon, "preferences-btn"), "Preferences button should be hidden");
   is_element_hidden(get_node(addon, "enable-btn"), "Enable button should be hidden");

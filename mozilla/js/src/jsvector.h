@@ -41,8 +41,10 @@
 #ifndef jsvector_h_
 #define jsvector_h_
 
+#include "jsalloc.h"
 #include "jstl.h"
 #include "jsprvtd.h"
+#include "jsutil.h"
 
 /* Silence dire "bugs in previous versions of MSVC have been fixed" warnings */
 #ifdef _MSC_VER
@@ -82,6 +84,16 @@ struct VectorImpl
     }
 
     /*
+     * Move-constructs objects in the uninitialized range
+     * [dst, dst+(srcend-srcbeg)) from the range [srcbeg, srcend).
+     */
+    template <class U>
+    static inline void moveConstruct(T *dst, const U *srcbeg, const U *srcend) {
+        for (const U *p = srcbeg; p != srcend; ++p, ++dst)
+            new(dst) T(Move(*p));
+    }
+
+    /*
      * Copy-constructs objects in the uninitialized range [dst, dst+n) from the
      * same object u.
      */
@@ -103,7 +115,7 @@ struct VectorImpl
         if (!newbuf)
             return false;
         for (T *dst = newbuf, *src = v.beginNoCheck(); src != v.endNoCheck(); ++dst, ++src)
-            new(dst) T(*src);
+            new(dst) T(Move(*src));
         VectorImpl::destroy(v.beginNoCheck(), v.endNoCheck());
         v.free_(v.mBegin);
         v.mBegin = newbuf;
@@ -149,6 +161,11 @@ struct VectorImpl<T, N, AP, true>
             *dst = *p;
     }
 
+    template <class U>
+    static inline void moveConstruct(T *dst, const U *srcbeg, const U *srcend) {
+        copyConstruct(dst, srcbeg, srcend);
+    }
+
     static inline void copyConstructN(T *dst, size_t n, const T &t) {
         for (T *p = dst, *end = dst + n; p != end; ++p)
             *p = t;
@@ -157,7 +174,8 @@ struct VectorImpl<T, N, AP, true>
     static inline bool growTo(Vector<T,N,AP> &v, size_t newcap) {
         JS_ASSERT(!v.usingInlineStorage());
         size_t bytes = sizeof(T) * newcap;
-        T *newbuf = reinterpret_cast<T *>(v.realloc_(v.mBegin, bytes));
+        size_t oldBytes = sizeof(T) * v.mCapacity;
+        T *newbuf = reinterpret_cast<T *>(v.realloc_(v.mBegin, oldBytes, bytes));
         if (!newbuf)
             return false;
         v.mBegin = newbuf;
@@ -180,7 +198,7 @@ struct VectorImpl<T, N, AP, true>
  * N requirements:
  *  - any value, however, N is clamped to min/max values
  * AllocPolicy:
- *  - see "Allocation policies" in jstl.h (default ContextAllocPolicy)
+ *  - see "Allocation policies" in jsalloc.h (default js::TempAllocPolicy)
  *
  * N.B: Vector is not reentrant: T member functions called during Vector member
  *      functions must not call back into the same object.
@@ -207,12 +225,30 @@ class Vector : private AllocPolicy
 
     /* compute constants */
 
+    /*
+     * Consider element size to be 1 for buffer sizing if there are
+     * 0 inline elements. This allows us to compile when the definition
+     * of the element type is not visible here.
+     *
+     * Explicit specialization is only allowed at namespace scope, so
+     * in order to keep everything here, we use a dummy template
+     * parameter with partial specialization.
+     */
+    template <int M, int Dummy>
+    struct ElemSize {
+        static const size_t result = sizeof(T);
+    };
+    template <int Dummy>
+    struct ElemSize<0, Dummy> {
+        static const size_t result = 1;
+    };
+
     static const size_t sInlineCapacity =
-        tl::Min<N, sMaxInlineBytes / sizeof(T)>::result;
+        tl::Min<N, sMaxInlineBytes / ElemSize<N, 0>::result>::result;
 
     /* Calculate inline buffer size; avoid 0-sized array. */
     static const size_t sInlineBytes =
-        tl::Max<1, sInlineCapacity * sizeof(T)>::result;
+        tl::Max<1, sInlineCapacity * ElemSize<N, 0>::result>::result;
 
     /* member data */
 
@@ -267,7 +303,7 @@ class Vector : private AllocPolicy
 #endif
 
     /* Append operations guaranteed to succeed due to pre-reserved space. */
-    void internalAppend(const T &t);
+    template <class U> void internalAppend(U t);
     void internalAppendN(const T &t, size_t n);
     template <class U> void internalAppend(const U *begin, size_t length);
     template <class U, size_t O, class BP> void internalAppend(const Vector<U,O,BP> &other);
@@ -278,11 +314,17 @@ class Vector : private AllocPolicy
     typedef T ElementType;
 
     Vector(AllocPolicy = AllocPolicy());
+    Vector(MoveRef<Vector>); /* Move constructor. */
+    Vector &operator=(MoveRef<Vector>); /* Move assignment. */
     ~Vector();
 
     /* accessors */
 
     const AllocPolicy &allocPolicy() const {
+        return *this;
+    }
+
+    AllocPolicy &allocPolicy() {
         return *this;
     }
 
@@ -359,8 +401,18 @@ class Vector : private AllocPolicy
     /* Shorthand for shrinkBy(length()). */
     void clear();
 
-    /* Potentially fallible append operations. */
-    bool append(const T &t);
+    /* Clears and releases any heap-allocated storage. */
+    void clearAndFree();
+
+    /*
+     * Potentially fallible append operations.
+     *
+     * The function templates that take an unspecified type U require a
+     * const T & or a MoveRef<T>. The MoveRef<T> variants move their
+     * operands into the vector, instead of copying them. If they fail, the
+     * operand is left unmoved.
+     */
+    template <class U> bool append(U t);
     bool appendN(const T &t, size_t n);
     template <class U> bool append(const U *begin, const U *end);
     template <class U> bool append(const U *begin, size_t length);
@@ -439,6 +491,51 @@ Vector<T,N,AllocPolicy>::Vector(AllocPolicy ap)
   , mReserved(0), entered(false)
 #endif
 {}
+
+/* Move constructor. */
+template <class T, size_t N, class AllocPolicy>
+JS_ALWAYS_INLINE
+Vector<T, N, AllocPolicy>::Vector(MoveRef<Vector> rhs)
+    : AllocPolicy(rhs)
+{
+    mLength = rhs->mLength;
+    mCapacity = rhs->mCapacity;
+#ifdef DEBUG
+    mReserved = rhs->mReserved;
+#endif
+
+    if (rhs->usingInlineStorage()) {
+        /* We can't move the buffer over in this case, so copy elements. */
+        Impl::moveConstruct(mBegin, rhs->beginNoCheck(), rhs->endNoCheck());
+        /*
+         * Leave rhs's mLength, mBegin, mCapacity, and mReserved as they are.
+         * The elements in its in-line storage still need to be destroyed.
+         */
+    } else {
+        /*
+         * Take src's buffer, and turn src into an empty vector using
+         * in-line storage.
+         */
+        mBegin = rhs->mBegin;
+        rhs->mBegin = (T *) rhs->storage.addr();
+        rhs->mCapacity = sInlineCapacity;
+        rhs->mLength = 0;
+#ifdef DEBUG
+        rhs->mReserved = 0;
+#endif
+    }
+}
+
+/* Move assignment. */
+template <class T, size_t N, class AP>
+JS_ALWAYS_INLINE
+Vector<T, N, AP> &
+Vector<T, N, AP>::operator=(MoveRef<Vector> rhs)
+{
+    this->~Vector();
+    new(this) Vector(rhs);
+    return *this;
+}
 
 template <class T, size_t N, class AP>
 JS_ALWAYS_INLINE
@@ -520,7 +617,7 @@ Vector<T,N,AP>::convertToHeapStorage(size_t lengthInc)
         return false;
 
     /* Copy inline elements into heap buffer. */
-    Impl::copyConstruct(newBuf, beginNoCheck(), endNoCheck());
+    Impl::moveConstruct(newBuf, beginNoCheck(), endNoCheck());
     Impl::destroy(beginNoCheck(), endNoCheck());
 
     /* Switch in heap buffer. */
@@ -545,16 +642,16 @@ inline bool
 Vector<T,N,AP>::reserve(size_t request)
 {
     REENTRANCY_GUARD_ET_AL;
-    if (request <= mCapacity || growStorageBy(request - mLength)) {
+    if (request > mCapacity && !growStorageBy(request - mLength))
+        return false;
+
 #ifdef DEBUG
-        if (request > mReserved)
-            mReserved = request;
-        JS_ASSERT(mLength <= mReserved);
-        JS_ASSERT(mReserved <= mCapacity);
+    if (request > mReserved)
+        mReserved = request;
+    JS_ASSERT(mLength <= mReserved);
+    JS_ASSERT(mReserved <= mCapacity);
 #endif
-        return true;
-    }
-    return false;
+    return true;
 }
 
 template <class T, size_t N, class AP>
@@ -635,8 +732,26 @@ Vector<T,N,AP>::clear()
 }
 
 template <class T, size_t N, class AP>
+inline void
+Vector<T,N,AP>::clearAndFree()
+{
+    clear();
+
+    if (usingInlineStorage())
+        return;
+
+    this->free_(beginNoCheck());
+    mBegin = (T *)storage.addr();
+    mCapacity = sInlineCapacity;
+#ifdef DEBUG
+    mReserved = 0;
+#endif
+}
+
+template <class T, size_t N, class AP>
+template <class U>
 JS_ALWAYS_INLINE bool
-Vector<T,N,AP>::append(const T &t)
+Vector<T,N,AP>::append(U t)
 {
     REENTRANCY_GUARD_ET_AL;
     if (mLength == mCapacity && !growStorageBy(1))
@@ -651,8 +766,9 @@ Vector<T,N,AP>::append(const T &t)
 }
 
 template <class T, size_t N, class AP>
+template <class U>
 JS_ALWAYS_INLINE void
-Vector<T,N,AP>::internalAppend(const T &t)
+Vector<T,N,AP>::internalAppend(U t)
 {
     JS_ASSERT(mLength + 1 <= mReserved);
     JS_ASSERT(mReserved <= mCapacity);
@@ -837,7 +953,7 @@ Vector<T,N,AP>::replaceRawBuffer(T *p, size_t length)
         mBegin = (T *)storage.addr();
         mLength = length;
         mCapacity = sInlineCapacity;
-        Impl::copyConstruct(mBegin, p, p + length);
+        Impl::moveConstruct(mBegin, p, p + length);
         Impl::destroy(p, p + length);
         this->free_(p);
     } else {

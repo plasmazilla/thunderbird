@@ -45,11 +45,8 @@
 #include "nsPresContext.h"
 #include "nsStyleContext.h"
 #include "nsStyleConsts.h"
-#include "nsIRenderingContext.h"
-#include "nsIFontMetrics.h"
+#include "nsRenderingContext.h"
 #include "nsContentUtils.h"
-
-#include "nsIDOMText.h"
 
 #include "nsMathMLmoFrame.h"
 
@@ -394,8 +391,8 @@ nsMathMLmoFrame::ProcessOperatorData()
       // cache the default values of lspace & rspace that we get from the dictionary.
       // since these values are relative to the 'em' unit, convert to twips now
       nscoord em;
-      nsCOMPtr<nsIFontMetrics> fm =
-	presContext->GetMetricsFor(GetStyleFont()->mFont);
+      nsRefPtr<nsFontMetrics> fm;
+      nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm));
       GetEmHeight(fm, em);
 
       mEmbellishData.leftSpace = NSToCoordRound(lspace * em);
@@ -624,7 +621,7 @@ GetStretchHint(nsOperatorFlags aFlags, nsPresentationData aPresentationData,
 //       On input  - it contains our current size
 //       On output - the same size or the new size that we want
 NS_IMETHODIMP
-nsMathMLmoFrame::Stretch(nsIRenderingContext& aRenderingContext,
+nsMathMLmoFrame::Stretch(nsRenderingContext& aRenderingContext,
                          nsStretchDirection   aStretchDirection,
                          nsBoundingMetrics&   aContainerSize,
                          nsHTMLReflowMetrics& aDesiredStretchSize)
@@ -638,15 +635,14 @@ nsMathMLmoFrame::Stretch(nsIRenderingContext& aRenderingContext,
   nsIFrame* firstChild = mFrames.FirstChild();
 
   // get the axis height;
-  nsCOMPtr<nsIFontMetrics> fm;
-  aRenderingContext.SetFont(GetStyleFont()->mFont,
-                            PresContext()->GetUserFontSet());
-  aRenderingContext.GetFontMetrics(*getter_AddRefs(fm));
+  nsRefPtr<nsFontMetrics> fm;
+  nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm));
+  aRenderingContext.SetFont(fm);
   nscoord axisHeight, height;
   GetAxisHeight(aRenderingContext, fm, axisHeight);
 
   // get the leading to be left at the top and the bottom of the stretched char
-  // this seems more reliable than using fm->GetLeading() on suspicious fonts               
+  // this seems more reliable than using fm->GetLeading() on suspicious fonts
   nscoord em;
   GetEmHeight(fm, em);
   nscoord leading = NSToCoordRound(0.2f * em);
@@ -856,9 +852,8 @@ nsMathMLmoFrame::Stretch(nsIRenderingContext& aRenderingContext,
     firstChild->SetPosition(firstChild->GetPosition() - nsPoint(0, dy));
   }
   else if (useMathMLChar) {
-    nscoord ascent, descent;
-    fm->GetMaxAscent(ascent);
-    fm->GetMaxDescent(descent);
+    nscoord ascent = fm->MaxAscent();
+    nscoord descent = fm->MaxDescent();
     aDesiredStretchSize.ascent = NS_MAX(mBoundingMetrics.ascent + leading, ascent);
     aDesiredStretchSize.height = aDesiredStretchSize.ascent +
                                  NS_MAX(mBoundingMetrics.descent + leading, descent);
@@ -969,7 +964,7 @@ nsMathMLmoFrame::Reflow(nsPresContext*          aPresContext,
     aDesiredSize.width = 0;
     aDesiredSize.height = 0;
     aDesiredSize.ascent = 0;
-    aDesiredSize.mBoundingMetrics.Clear();
+    aDesiredSize.mBoundingMetrics = nsBoundingMetrics();
     aStatus = NS_FRAME_COMPLETE;
 
     NS_FRAME_SET_TRUNCATION(aStatus, aReflowState, aDesiredSize);
@@ -1006,7 +1001,7 @@ nsMathMLmoFrame::MarkIntrinsicWidthsDirty()
 }
 
 /* virtual */ nscoord
-nsMathMLmoFrame::GetIntrinsicWidth(nsIRenderingContext *aRenderingContext)
+nsMathMLmoFrame::GetIntrinsicWidth(nsRenderingContext *aRenderingContext)
 {
   ProcessOperatorData();
   nscoord width;

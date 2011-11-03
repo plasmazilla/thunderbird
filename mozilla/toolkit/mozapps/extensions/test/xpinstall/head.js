@@ -26,9 +26,6 @@ function extractChromeRoot(path) {
   return chromeRootPath;
 }
 
-Components.utils.import("resource://gre/modules/AddonManager.jsm");
-Components.utils.import("resource://gre/modules/Services.jsm");
-
 /**
  * This is a test harness designed to handle responding to UI during the process
  * of installing an XPI. A test can set callbacks to hear about specific parts
@@ -246,7 +243,7 @@ var Harness = {
 
   onOpenWindow: function(window) {
     var domwindow = window.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-                          .getInterface(Components.interfaces.nsIDOMWindowInternal);
+                          .getInterface(Components.interfaces.nsIDOMWindow);
     var self = this;
     waitForFocus(function() {
       self.windowReady(domwindow);
@@ -363,12 +360,7 @@ var Harness = {
     }
   },
 
-  QueryInterface: function(iid) {
-    if (iid.equals(Components.interfaces.nsIObserver) ||
-        iid.equals(Components.interfaces.nsIWindowMediatorListener) ||
-        iid.equals(Components.interfaces.nsISupports))
-      return this;
-
-    throw Components.results.NS_ERROR_NO_INTERFACE;
-  }
+  QueryInterface: XPCOMUtils.generateQI([Ci.nsIObserver,
+                                         Ci.nsIWindowMediatorListener,
+                                         Ci.nsISupports])
 }

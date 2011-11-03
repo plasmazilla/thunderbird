@@ -114,6 +114,8 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
         # disable extension stuffs
         'extensions.update.enabled'    : False,
         'extensions.update.notifyUser' : False,
+        # don't warn about third party extensions in profile or elsewhere.
+        'extensions.autoDisableScopes': 10,
         # do not ask about being the default mail client
         'mail.shell.checkDefaultClient': False,
         # do not tell us about the greatness that is mozilla (about:rights)
@@ -134,8 +136,8 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
         # Do not allow check new mail to be set
         'mail.startup.enabledMailCheckOnce' :  True,
         # Disable compatibility checking
-        'extensions.checkCompatibility.5.0b': False,
-        'extensions.checkCompatibility.5.0': False,
+        'extensions.checkCompatibility.8.0a': False,
+        'extensions.checkCompatibility.8.0': False,
         # In case a developer is working on a laptop without a network
         # connection, don't detect offline mode; hence we'll still startup
         # online which is what mozmill currently requires. It'll also protect us
@@ -187,6 +189,7 @@ class ThunderTestProfile(mozrunner.ThunderbirdProfile):
         'mail.server.server2.name' :  "tinderbox@invalid.com",
         'mail.server.server2.type' :  "pop3",
         'mail.server.server2.userName' :  "tinderbox",
+        'mail.server.server2.whiteListAbURI': "",
         'mail.smtp.defaultserver' :  "smtp1",
         'mail.smtpserver.smtp1.hostname' :  "tinderbox",
         'mail.smtpserver.smtp1.username' :  "tinderbox",

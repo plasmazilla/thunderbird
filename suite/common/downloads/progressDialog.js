@@ -61,9 +61,7 @@ var gRetrying = false;
 function progressStartup() {
   gDownload = window.arguments[0].QueryInterface(Components.interfaces.nsIDownload);
 
-  var wm = Components.classes["@mozilla.org/appshell/window-mediator;1"]
-                     .getService(Components.interfaces.nsIWindowMediator);
-  var recentDMWindow = wm.getMostRecentWindow("Download:Manager");
+  var recentDMWindow = Services.wm.getMostRecentWindow("Download:Manager");
   if (recentDMWindow && recentDMWindow.gDownloadTreeView.rowCount > 0) {
     // we have been opened by a download manager, get the end time from there
     let dmtree = recentDMWindow.gDownloadTreeView;
@@ -126,9 +124,7 @@ function progressStartup() {
 
   // Send a notification that we finished
   setTimeout(function()
-    Components.classes["@mozilla.org/observer-service;1"]
-              .getService(Components.interfaces.nsIObserverService)
-              .notifyObservers(window, "download-manager-ui-done", null), 0);
+    Services.obs.notifyObservers(window, "download-manager-ui-done", null), 0);
 }
 
 function progressShutdown() {
@@ -194,7 +190,7 @@ function updateDownload() {
       statusString = gDownloadBundle.getString("notStarted");
       break;
   }
-  var file = getLocalFileFromNativePathOrUrl(gDownload.target.spec);
+  var file = GetFileFromString(gDownload.target.spec);
   if (gDownload.size > 0) {
     document.title = gDownloadBundle.getFormattedString("progressTitlePercent",
                                                         [gDownload.percentComplete,

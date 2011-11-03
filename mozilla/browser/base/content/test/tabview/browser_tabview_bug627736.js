@@ -20,7 +20,7 @@ function onTabViewWindowLoaded(win) {
       immediately: true,
       bounds: {left: 20, top: 20, width: 400, height: 400}
     });
-    contentWindow.GroupItems.setActiveGroupItem(group);
+    contentWindow.UI.setActive(group);
     win.gBrowser.loadOneTab('about:blank', {inBackground: true});
   
     is(group.getChildren().length, 1, "The group has one child now.");
@@ -28,10 +28,10 @@ function onTabViewWindowLoaded(win) {
   
     function check() {
       if (groupOrTab == 'group') {
-        group.removeSubscriber(group, "groupHidden", check);
+        group.removeSubscriber("groupHidden", check);
         group.closeHidden();
       } else
-        tab.removeSubscriber(tab, "tabRemoved", check);
+        tab.removeSubscriber("tabRemoved", check);
   
       is(contentWindow.GroupItems.getActiveGroupItem(), originalGroup,
         "The original group is active.");
@@ -42,10 +42,10 @@ function onTabViewWindowLoaded(win) {
     }
   
     if (groupOrTab == 'group') {
-      group.addSubscriber(group, "groupHidden", check);
+      group.addSubscriber("groupHidden", check);
       group.closeAll();
     } else {
-      tab.addSubscriber(tab, "tabRemoved", check);
+      tab.addSubscriber("tabRemoved", check);
       tab.close();
     }
   }

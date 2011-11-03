@@ -390,7 +390,10 @@ nsresult nsProfileLock::LockWithSymlink(const nsACString& lockFilePath, PRBool a
             if (!setupPidLockCleanup++)
             {
                 // Clean up on normal termination.
-                atexit(RemovePidLockFilesExiting);
+                // This instanciates a dummy class, and will trigger the class
+                // destructor when libxul is unloaded. This is equivalent to atexit(),
+                // but gracefully handles dlclose().
+                static RemovePidLockFilesExiting r;
 
                 // Clean up on abnormal termination, using POSIX sigaction.
                 // Don't arm a handler if the signal is being ignored, e.g.,
@@ -591,23 +594,13 @@ nsresult nsProfileLock::Lock(nsILocalFile* aProfileDir,
     rv = lockFile->GetPath(filePath);
     if (NS_FAILED(rv))
         return rv;
-#ifdef WINCE
-    // WinCE doesn't have FILE_FLAG_DELETE_ON_CLOSE, so let's just try
-    // to delete the file first before creating it.  This will fail
-    // if it's already open.
-    DeleteFileW(filePath.get());
-#endif
 
     mLockFileHandle = CreateFileW(filePath.get(),
                                   GENERIC_READ | GENERIC_WRITE,
                                   0, // no sharing - of course
                                   nsnull,
                                   OPEN_ALWAYS,
-#ifndef WINCE
                                   FILE_FLAG_DELETE_ON_CLOSE,
-#else
-                                  FILE_ATTRIBUTE_NORMAL,
-#endif
                                   nsnull);
     if (mLockFileHandle == INVALID_HANDLE_VALUE) {
         // XXXbsmedberg: provide a profile-unlocker here!

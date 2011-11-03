@@ -37,10 +37,10 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "nsHistory.h"
+
 #include "nsCOMPtr.h"
 #include "nscore.h"
-#include "nsHistory.h"
-#include "nsIDOMWindowInternal.h"
 #include "nsPIDOMWindow.h"
 #include "nsIScriptGlobalObject.h"
 #include "nsIDOMDocument.h"
@@ -58,8 +58,10 @@
 #include "nsReadableUtils.h"
 #include "nsDOMClassInfo.h"
 #include "nsContentUtils.h"
-#include "nsIDOMNSDocument.h"
 #include "nsISHistoryInternal.h"
+#include "mozilla/Preferences.h"
+
+using namespace mozilla;
 
 static const char* sAllowPushStatePrefStr  =
   "browser.history.allowPushState";
@@ -287,8 +289,9 @@ nsHistory::PushState(nsIVariant *aData, const nsAString& aTitle,
                      const nsAString& aURL, JSContext* aCx)
 {
   // Check that PushState hasn't been pref'ed off.
-  if (!nsContentUtils::GetBoolPref(sAllowPushStatePrefStr, PR_FALSE))
+  if (!Preferences::GetBool(sAllowPushStatePrefStr, PR_FALSE)) {
     return NS_OK;
+  }
 
   nsCOMPtr<nsPIDOMWindow> win(do_QueryReferent(mInnerWindow));
   if (!win)
@@ -316,8 +319,9 @@ nsHistory::ReplaceState(nsIVariant *aData, const nsAString& aTitle,
                         const nsAString& aURL, JSContext* aCx)
 {
   // Check that ReplaceState hasn't been pref'ed off
-  if (!nsContentUtils::GetBoolPref(sAllowReplaceStatePrefStr, PR_FALSE))
+  if (!Preferences::GetBool(sAllowReplaceStatePrefStr, PR_FALSE)) {
     return NS_OK;
+  }
 
   nsCOMPtr<nsPIDOMWindow> win(do_QueryReferent(mInnerWindow));
   if (!win)
@@ -354,7 +358,7 @@ nsHistory::GetState(nsIVariant **aState)
   if (!doc)
     return NS_ERROR_NOT_AVAILABLE;
 
-  return doc->GetMozCurrentStateObject(aState);
+  return doc->GetStateObject(aState);
 }
 
 NS_IMETHODIMP

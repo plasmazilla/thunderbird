@@ -50,11 +50,11 @@ LIBRARY_NAME	= pipnss
 IS_COMPONENT	= 1
 MODULE_NAME	= NSS
 EXPORT_LIBRARY	= 1
-META_COMPONENT	= crypto
 GRE_MODULE	= 1
 LIBXUL_LIBRARY	= 1
 
 CPPSRCS = 				\
+	nsCERTValInParamWrapper.cpp     \
 	nsNSSCleaner.cpp                \
 	nsCertOverrideService.cpp   \
 	nsRecentBadCerts.cpp \
@@ -120,13 +120,6 @@ DEFINES += -DNSS_ENABLE_ECC
 # Use local includes because they are inserted before INCLUDES
 # so that Mozilla's nss.h is used, not glibc's
 LOCAL_INCLUDES += $(NSS_CFLAGS)
-
-EXTRA_DSO_LDOPTS += \
-		$(MOZ_UNICHARUTIL_LIBS) \
-		$(MOZ_COMPONENT_LIBS) \
-		$(MOZ_JS_LIBS) \
-		$(NSS_LIBS) \
-		$(NULL)
 
 include $(topsrcdir)/config/rules.mk
 

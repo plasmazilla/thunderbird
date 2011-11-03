@@ -60,7 +60,11 @@
 #include "nsISimpleEnumerator.h"
 #include "nsIWindowsRegKey.h"
 
+#include "mozilla/Telemetry.h"
+
 #include <usp10.h>
+
+using namespace mozilla;
 
 #define ROUND(x) floor((x) + 0.5)
 
@@ -215,7 +219,6 @@ GDIFontEntry::GDIFontEntry(const nsAString& aFaceName, gfxWindowsFontType aFontT
     mWindowsFamily(0), mWindowsPitch(0),
     mFontType(aFontType),
     mForceGDI(PR_FALSE), mUnknownCMAP(PR_FALSE),
-    mUnicodeFont(PR_FALSE),
     mCharset(), mUnicodeRanges()
 {
     mUserFontData = aUserFontData;
@@ -254,7 +257,6 @@ GDIFontEntry::ReadCMAP()
     nsresult rv = gfxFontUtils::ReadCMAP(cmap, buffer.Length(),
                                          mCharacterMap, mUVSOffset,
                                          unicodeFont, symbolFont);
-    mUnicodeFont = unicodeFont;
     mSymbolFont = symbolFont;
     mHasCmapTable = NS_SUCCEEDED(rv);
 
@@ -263,6 +265,14 @@ GDIFontEntry::ReadCMAP()
                   NS_ConvertUTF16toUTF8(mName).get(), mCharacterMap.GetSize()));
 #endif
     return rv;
+}
+
+PRBool
+GDIFontEntry::IsSymbolFont()
+{
+    // initialize cmap first
+    HasCmapTable();
+    return mSymbolFont;  
 }
 
 gfxFont *
@@ -334,10 +344,6 @@ PRBool
 GDIFontEntry::TestCharacterMap(PRUint32 aCh)
 {
     if (ReadCMAP() != NS_OK) {
-        // Type1 fonts aren't necessarily Unicode but
-        // this is the best guess we can make here
-        mUnicodeFont = IsType1();
-
         // For fonts where we failed to read the character map,
         // we can take a slow path to look up glyphs character by character
         mUnknownCMAP = PR_TRUE;
@@ -432,7 +438,7 @@ GDIFontEntry::InitLogFont(const nsAString& aName,
     mLogFont.lfItalic         = mItalic;
     mLogFont.lfWeight         = mWeight;
 
-    int len = PR_MIN(aName.Length(), LF_FACESIZE - 1);
+    int len = NS_MIN<int>(aName.Length(), LF_FACESIZE - 1);
     memcpy(&mLogFont.lfFaceName, nsPromiseFlatString(aName).get(), len * 2);
     mLogFont.lfFaceName[len] = '\0';
 }
@@ -446,20 +452,6 @@ GDIFontEntry::CreateFontEntry(const nsAString& aName, gfxWindowsFontType aFontTy
 
     GDIFontEntry *fe = new GDIFontEntry(aName, aFontType, aItalic, aWeight,
                                         aUserFontData);
-
-    // ReadCMAP may change the values of mUnicodeFont and mSymbolFont
-    if (NS_FAILED(fe->ReadCMAP())) {
-        // Type1 fonts aren't necessarily Unicode but
-        // this is the best guess we can make here
-        if (fe->IsType1())
-            fe->mUnicodeFont = PR_TRUE;
-        else
-            fe->mUnicodeFont = PR_FALSE;
-
-        // For fonts where we failed to read the character map,
-        // we can take a slow path to look up glyphs character by character
-        fe->mUnknownCMAP = PR_TRUE;
-    } 
 
     return fe;
 }
@@ -480,7 +472,7 @@ GDIFontFamily::FamilyAddStylesProc(const ENUMLOGFONTEXW *lpelfe,
     GDIFontFamily *ff = reinterpret_cast<GDIFontFamily*>(data);
 
     // Some fonts claim to support things > 900, but we don't so clamp the sizes
-    logFont.lfWeight = PR_MAX(PR_MIN(logFont.lfWeight, 900), 100);
+    logFont.lfWeight = NS_MAX<LONG>(NS_MIN<LONG>(logFont.lfWeight, 900), 100);
 
     gfxWindowsFontType feType = GDIFontEntry::DetermineFontType(metrics, fontType);
 
@@ -563,7 +555,7 @@ GDIFontFamily::FindStyleVariations()
     memset(&logFont, 0, sizeof(LOGFONTW));
     logFont.lfCharSet = DEFAULT_CHARSET;
     logFont.lfPitchAndFamily = 0;
-    PRUint32 l = PR_MIN(mName.Length(), LF_FACESIZE - 1);
+    PRUint32 l = NS_MIN<PRUint32>(mName.Length(), LF_FACESIZE - 1);
     memcpy(logFont.lfFaceName,
            nsPromiseFlatString(mName).get(),
            l * sizeof(PRUnichar));
@@ -660,6 +652,7 @@ gfxGDIFontList::GetFontSubstitutes()
 nsresult
 gfxGDIFontList::InitFontList()
 {
+    Telemetry::AutoTimer<Telemetry::GDI_INITFONTLIST_TOTAL> timer;
     gfxFontCache *fc = gfxFontCache::GetCache();
     if (fc)
         fc->AgeAllGenerations();
@@ -832,7 +825,7 @@ public:
 
         while (mCurrentChunk < mNumChunks && bytesLeft) {
             FontDataChunk& currentChunk = mDataChunks[mCurrentChunk];
-            PRUint32 bytesToCopy = PR_MIN(bytesLeft, 
+            PRUint32 bytesToCopy = NS_MIN(bytesLeft, 
                                           currentChunk.mLength - mChunkOffset);
             memcpy(out, currentChunk.mData + mChunkOffset, bytesToCopy);
             bytesLeft -= bytesToCopy;
@@ -900,8 +893,8 @@ gfxGDIFontList::MakePlatformFont(const gfxProxyFontEntry *aProxyEntry,
         PRUint32 eotlen;
 
         isEmbedded = PR_TRUE;
-        PRUint32 nameLen = PR_MIN(uniqueName.Length(), LF_FACESIZE - 1);
-        nsPromiseFlatString fontName(Substring(uniqueName, 0, nameLen));
+        PRUint32 nameLen = NS_MIN<PRUint32>(uniqueName.Length(), LF_FACESIZE - 1);
+        nsAutoString fontName(Substring(uniqueName, 0, nameLen));
         
         FontDataOverlay overlayNameData = {0, 0, 0};
 

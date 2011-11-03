@@ -40,6 +40,7 @@
 #include "nsObjCExceptions.h"
 #include "nsIServiceManager.h"
 #include "nsNativeThemeColors.h"
+#include "nsStyleConsts.h"
 
 #import <Cocoa/Cocoa.h>
 
@@ -246,7 +247,7 @@ nsresult nsLookAndFeel::NativeGetColor(const nsColorID aID, nscolor &aColor)
       break;
     case eColor__moz_mac_chrome_active:
     case eColor__moz_mac_chrome_inactive: {
-      int grey = NativeGreyColorAsInt(headerEndGrey, (aID == eColor__moz_mac_chrome_active));
+      int grey = NativeGreyColorAsInt(toolbarFillGrey, (aID == eColor__moz_mac_chrome_active));
       aColor = NS_RGB(grey, grey, grey);
     }
       break;
@@ -420,10 +421,10 @@ NS_IMETHODIMP nsLookAndFeel::GetMetric(const nsMetricID aID, PRInt32 & aMetric)
     case eMetric_IMEConvertedTextUnderlineStyle:
     case eMetric_IMESelectedRawTextUnderlineStyle:
     case eMetric_IMESelectedConvertedTextUnderline:
-      aMetric = NS_UNDERLINE_STYLE_SOLID;
+      aMetric = NS_STYLE_TEXT_DECORATION_STYLE_SOLID;
       break;
     case eMetric_SpellCheckerUnderlineStyle:
-      aMetric = NS_UNDERLINE_STYLE_DOTTED;
+      aMetric = NS_STYLE_TEXT_DECORATION_STYLE_DOTTED;
       break;
     default:
       aMetric = 0;

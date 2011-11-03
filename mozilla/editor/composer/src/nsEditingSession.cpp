@@ -42,8 +42,7 @@
 
 #include "nsPIDOMWindow.h"
 #include "nsIDOMWindowUtils.h"
-#include "nsIDOMWindowInternal.h"
-#include "nsIDOMNSHTMLDocument.h"
+#include "nsIDOMHTMLDocument.h"
 #include "nsIDocument.h"
 #include "nsIHTMLDocument.h"
 #include "nsIDOMDocument.h"
@@ -78,7 +77,6 @@
 #include "nsIPlaintextEditor.h"
 #include "nsIEditor.h"
 
-#include "nsIDOMNSDocument.h"
 #include "nsIScriptContext.h"
 #include "imgIContainer.h"
 
@@ -349,37 +347,38 @@ nsEditingSession::SetupEditorOnWindow(nsIDOMWindow *aWindow)
   //then lets check the mime type
   if (NS_SUCCEEDED(aWindow->GetDocument(getter_AddRefs(doc))) && doc)
   {
-    nsCOMPtr<nsIDOMNSDocument> nsdoc = do_QueryInterface(doc);
-    if (nsdoc)
+    nsAutoString mimeType;
+    if (NS_SUCCEEDED(doc->GetContentType(mimeType)))
+      AppendUTF16toUTF8(mimeType, mimeCType);
+
+    if (IsSupportedTextType(mimeCType.get()))
     {
-      nsAutoString mimeType;
-      if (NS_SUCCEEDED(nsdoc->GetContentType(mimeType)))
-        AppendUTF16toUTF8(mimeType, mimeCType);
+      mEditorType.AssignLiteral("text");
+      mimeCType = "text/plain";
+    }
+    else if (!mimeCType.EqualsLiteral("text/html") &&
+             !mimeCType.EqualsLiteral("application/xhtml+xml"))
+    {
+      // Neither an acceptable text or html type.
+      mEditorStatus = eEditorErrorCantEditMimeType;
 
-      if (IsSupportedTextType(mimeCType.get()))
-      {
-        mEditorType.AssignLiteral("text");
-        mimeCType = "text/plain";
-      }
-      else if (!mimeCType.EqualsLiteral("text/html") &&
-               !mimeCType.EqualsLiteral("application/xhtml+xml"))
-      {
-        // Neither an acceptable text or html type.
-        mEditorStatus = eEditorErrorCantEditMimeType;
-
-        // Turn editor into HTML -- we will load blank page later
-        mEditorType.AssignLiteral("html");
-        mimeCType.AssignLiteral("text/html");
-      }
+      // Turn editor into HTML -- we will load blank page later
+      mEditorType.AssignLiteral("html");
+      mimeCType.AssignLiteral("text/html");
     }
 
     // Flush out frame construction to make sure that the subframe's
     // presshell is set up if it needs to be.
-    nsCOMPtr<nsIDocument> document(do_QueryInterface(doc));
+    nsCOMPtr<nsIDocument> document = do_QueryInterface(doc);
     if (document) {
       document->FlushPendingNotifications(Flush_Frames);
       if (mMakeWholeDocumentEditable) {
         document->SetEditableFlag(PR_TRUE);
+        nsCOMPtr<nsIHTMLDocument> htmlDocument = do_QueryInterface(document);
+        if (htmlDocument) {
+          // Enable usage of the execCommand API
+          htmlDocument->SetEditingState(nsIHTMLDocument::eDesignMode);
+        }
       }
     }
   }
@@ -558,7 +557,9 @@ nsEditingSession::RemoveListenersAndControllers(nsIDOMWindow *aWindow,
 NS_IMETHODIMP
 nsEditingSession::TearDownEditorOnWindow(nsIDOMWindow *aWindow)
 {
-  NS_ENSURE_TRUE(mDoneSetup, NS_OK);
+  if (!mDoneSetup) {
+    return NS_OK;
+  }
 
   NS_ENSURE_TRUE(aWindow, NS_ERROR_NULL_POINTER);
 
@@ -617,6 +618,10 @@ nsEditingSession::TearDownEditorOnWindow(nsIDOMWindow *aWindow)
       NS_ENSURE_SUCCESS(rv, rv);
 
       doc->SetEditableFlag(PR_FALSE);
+      nsCOMPtr<nsIHTMLDocument> htmlDocument = do_QueryInterface(doc);
+      if (htmlDocument) {
+        htmlDocument->SetEditingState(nsIHTMLDocument::eOff);
+      }
     }
   }
 
@@ -640,10 +645,6 @@ nsEditingSession::GetEditorForWindow(nsIDOMWindow *aWindow,
   
   return editorDocShell->GetEditor(outEditor);
 }
-
-#ifdef XP_MAC
-#pragma mark -
-#endif
 
 /*---------------------------------------------------------------------------
 
@@ -723,9 +724,8 @@ nsEditingSession::OnStateChange(nsIWebProgress *aWebProgress,
 
         if (htmlDoc && htmlDoc->IsWriting())
         {
-          nsCOMPtr<nsIDOMNSHTMLDocument> htmlDomDoc(do_QueryInterface(doc));
+          nsCOMPtr<nsIDOMHTMLDocument> htmlDomDoc = do_QueryInterface(doc);
           nsAutoString designMode;
-
           htmlDomDoc->GetDesignMode(designMode);
 
           if (designMode.EqualsLiteral("on"))
@@ -892,11 +892,6 @@ nsEditingSession::OnSecurityChange(nsIWebProgress *aWebProgress,
     NS_NOTREACHED("notification excluded in AddProgressListener(...)");
     return NS_OK;
 }
-
-
-#ifdef XP_MAC
-#pragma mark -
-#endif
 
 
 /*---------------------------------------------------------------------------
@@ -1149,11 +1144,6 @@ nsEditingSession::EndPageLoad(nsIWebProgress *aWebProgress,
 #endif
 }
 
-
-#ifdef XP_MAC
-#pragma mark -
-#endif
-
 /*---------------------------------------------------------------------------
 
   GetDocShellFromWindow
@@ -1234,21 +1224,15 @@ nsEditingSession::SetupEditorCommandController(
   NS_ENSURE_ARG_POINTER(aWindow);
   NS_ENSURE_ARG_POINTER(aContext);
   NS_ENSURE_ARG_POINTER(aControllerId);
-
-  nsresult rv;
-  nsCOMPtr<nsIDOMWindowInternal> domWindowInt =
-                                    do_QueryInterface(aWindow, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
   
   nsCOMPtr<nsIControllers> controllers;      
-  rv = domWindowInt->GetControllers(getter_AddRefs(controllers));
+  nsresult rv = aWindow->GetControllers(getter_AddRefs(controllers));
   NS_ENSURE_SUCCESS(rv, rv);
 
   // We only have to create each singleton controller once
   // We know this has happened once we have a controllerId value
   if (!*aControllerId)
   {
-    nsresult rv;
     nsCOMPtr<nsIController> controller;
     controller = do_CreateInstance(aControllerClassName, &rv);
     NS_ENSURE_SUCCESS(rv, rv);  
@@ -1278,15 +1262,10 @@ NS_IMETHODIMP
 nsEditingSession::SetEditorOnControllers(nsIDOMWindow *aWindow,
                                          nsIEditor* aEditor)
 {
-  nsresult rv;
-  
-  // set the editor on the controller
-  nsCOMPtr<nsIDOMWindowInternal> domWindowInt =
-                                     do_QueryInterface(aWindow, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_TRUE(aWindow, NS_ERROR_NULL_POINTER);
   
   nsCOMPtr<nsIControllers> controllers;      
-  rv = domWindowInt->GetControllers(getter_AddRefs(controllers));
+  nsresult rv = aWindow->GetControllers(getter_AddRefs(controllers));
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsISupports> editorAsISupports = do_QueryInterface(aEditor);
@@ -1335,11 +1314,10 @@ nsEditingSession::RemoveEditorControllers(nsIDOMWindow *aWindow)
 {
   // Remove editor controllers from the aWindow, call when we're 
   // tearing down/detaching editor.
-  nsCOMPtr<nsIDOMWindowInternal> domWindowInt(do_QueryInterface(aWindow));
 
   nsCOMPtr<nsIControllers> controllers;
-  if (domWindowInt)
-    domWindowInt->GetControllers(getter_AddRefs(controllers));
+  if (aWindow)
+    aWindow->GetControllers(getter_AddRefs(controllers));
 
   if (controllers)
   {

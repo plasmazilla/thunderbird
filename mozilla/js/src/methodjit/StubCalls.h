@@ -57,7 +57,7 @@ void JS_FASTCALL This(VMFrame &f);
 JSObject * JS_FASTCALL NewInitArray(VMFrame &f, uint32 count);
 JSObject * JS_FASTCALL NewInitObject(VMFrame &f, JSObject *base);
 void JS_FASTCALL Trap(VMFrame &f, uint32 trapTypes);
-void JS_FASTCALL Debugger(VMFrame &f, jsbytecode *pc);
+void JS_FASTCALL DebuggerStatement(VMFrame &f, jsbytecode *pc);
 void JS_FASTCALL Interrupt(VMFrame &f, jsbytecode *pc);
 void JS_FASTCALL InitElem(VMFrame &f, uint32 last);
 void JS_FASTCALL InitProp(VMFrame &f, JSAtom *atom);
@@ -73,6 +73,8 @@ void * JS_FASTCALL UncachedCall(VMFrame &f, uint32 argc);
 void JS_FASTCALL Eval(VMFrame &f, uint32 argc);
 void JS_FASTCALL ScriptDebugPrologue(VMFrame &f);
 void JS_FASTCALL ScriptDebugEpilogue(VMFrame &f);
+void JS_FASTCALL ScriptProbeOnlyPrologue(VMFrame &f);
+void JS_FASTCALL ScriptProbeOnlyEpilogue(VMFrame &f);
 
 /*
  * Result struct for UncachedXHelper.
@@ -204,7 +206,7 @@ void JS_FASTCALL StrictEq(VMFrame &f);
 void JS_FASTCALL StrictNe(VMFrame &f);
 
 void JS_FASTCALL Iter(VMFrame &f, uint32 flags);
-void JS_FASTCALL IterNext(VMFrame &f);
+void JS_FASTCALL IterNext(VMFrame &f, int32 offset);
 JSBool JS_FASTCALL IterMore(VMFrame &f);
 void JS_FASTCALL EndIter(VMFrame &f);
 

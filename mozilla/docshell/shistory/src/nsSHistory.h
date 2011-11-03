@@ -53,7 +53,6 @@
 #include "nsISHistoryListener.h"
 #include "nsIHistoryEntry.h"
 #include "nsIObserver.h"
-#include "nsIPrefBranch2.h"
 
 // Needed to maintain global list of all SHistory objects
 #include "prclist.h"
@@ -62,7 +61,7 @@ class nsIDocShell;
 class nsSHEnumerator;
 class nsSHistoryObserver;
 class nsSHistory: public PRCList,
-                  public nsISHistory_2_0_BRANCH,
+                  public nsISHistory,
                   public nsISHistoryInternal,
                   public nsIWebNavigation
 {
@@ -73,11 +72,11 @@ public:
   NS_DECL_NSISHISTORY
   NS_DECL_NSISHISTORYINTERNAL
   NS_DECL_NSIWEBNAVIGATION
-  NS_DECL_NSISHISTORY_2_0_BRANCH
 
   // One time initialization method called upon docshell module construction
   static nsresult Startup();
-  static void UpdatePrefs(nsIPrefBranch *aPrefBranch);
+  static void Shutdown();
+  static void UpdatePrefs();
 
   // Max number of total cached content viewers.  If the pref
   // browser.sessionhistory.max_total_viewers is negative, then
@@ -102,12 +101,11 @@ protected:
    nsresult PrintHistory();
 #endif
 
-  // Evict the viewers at indices between aStartIndex and aEndIndex,
-  // including aStartIndex but not aEndIndex.
-  void EvictContentViewersInRange(PRInt32 aStartIndex, PRInt32 aEndIndex);
-  void EvictWindowContentViewers(PRInt32 aFromIndex, PRInt32 aToIndex);
-  static void EvictGlobalContentViewer();
-  static void EvictAllContentViewersGlobally();
+  // Evict content viewers in this window which don't lie in the "safe" range
+  // around aIndex.
+  void EvictOutOfRangeWindowContentViewers(PRInt32 aIndex);
+  static void GloballyEvictContentViewers();
+  static void GloballyEvictAllContentViewers();
 
   // Calculates a max number of total
   // content viewers to cache, based on amount of total memory

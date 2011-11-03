@@ -870,10 +870,7 @@ function check_for_missing_panels() {
     if (!currTab.is_excluded()) {
       if (currHeader.hasAttribute("prereq") && currHeader.getAttribute("prereq") != "") {
         var prereq_file = currHeader.getAttribute("prereq");
-        var ioService = Components.classes["@mozilla.org/network/io-service;1"]
-                                  .getService(Components.interfaces.nsIIOService);      
-        var uri = ioService.newURI(prereq_file, null, null);
-        var channel = ioService.newChannelFromURI(uri);
+        var channel = Services.io.newChannel(prereq_file, null, null);
         try {
           channel.open();
         }
@@ -896,15 +893,12 @@ function check_for_missing_panels() {
 
 function sidebar_get_panels_file() {
   try {
-    var locator_service = Components.classes["@mozilla.org/file/directory_service;1"].getService();
-    if (locator_service)
-      locator_service = locator_service.QueryInterface(Components.interfaces.nsIProperties);
     // Use the fileLocator to look in the profile directory to find
     // 'panels.rdf', which is the database of the user's currently
     // selected panels.
     // If <profile>/panels.rdf doesn't exist, GetFileLocation() will copy
     // bin/defaults/profile/panels.rdf to <profile>/panels.rdf
-    var sidebar_file = locator_service.get(PANELS_RDF_FILE, Components.interfaces.nsIFile);
+    var sidebar_file = GetSpecialDirectory(PANELS_RDF_FILE);
     if (!sidebar_file.exists()) {
       // This should not happen, as GetFileLocation() should copy
       // defaults/panels.rdf to the users profile directory
@@ -943,8 +937,7 @@ function get_sidebar_datasource_uri() {
   try {
     var sidebar_file = sidebar_get_panels_file();
     
-    var ioService = Components.classes["@mozilla.org/network/io-service;1"].getService(Components.interfaces.nsIIOService);
-    var fileHandler = ioService.getProtocolHandler("file").QueryInterface(Components.interfaces.nsIFileProtocolHandler);
+    var fileHandler = Services.io.getProtocolHandler("file").QueryInterface(Components.interfaces.nsIFileProtocolHandler);
     
     return fileHandler.getURLSpecFromFile(sidebar_file);
   } catch (ex) {
@@ -959,20 +952,15 @@ function get_sidebar_datasource_uri() {
 //     %LOCALE%  -->  Application locale (e.g. en-US).
 //     %SIDEBAR_VERSION% --> Sidebar file format version (e.g. 0.1).
 function get_remote_datasource_url() {
-  let url;
-  try {
-    // Can't use formatURLPref(): replace() needs to be done before formatURL(),
-    // otherwise the latter reports an (ignorable) error.
-    url = prefs.getComplexValue("sidebar.customize.all_panels.url",
-                                Components.interfaces.nsISupportsString)
-               .data
-               .replace(/%SIDEBAR_VERSION%/g, SIDEBAR_VERSION);
-    url = urlFormatter.formatURL(url);
+  // Can't use formatURLPref(): replace() needs to be done before formatURL(),
+  // otherwise the latter reports an (ignorable) error.
+  // "about:blank": formatURLPref() default value.
+  let url = GetStringPref("sidebar.customize.all_panels.url") || "about:blank";
+  if (url != "about:blank") {
+    url = url.replace(/%SIDEBAR_VERSION%/g, SIDEBAR_VERSION);
+    url = Services.urlFormatter.formatURL(url);
     // Convert the %LOCALE% value (in the url) to lower case (e.g. en-us).
     url = url.toLowerCase();
-  } catch(ex) {
-    // "about:blank": formatURLPref() default value.
-    url = "about:blank";
   }
 
   debug("Remote url is " + url);
@@ -1109,11 +1097,7 @@ function enable_customize() {
 // Bring up the Sidebar customize dialog.
 function SidebarCustomize() {
   // Use a single sidebar customize dialog
-  var cwindowManager = Components.classes['@mozilla.org/appshell/window-mediator;1'].getService();
-  var iwindowManager = Components.interfaces.nsIWindowMediator;
-  var windowManager  = cwindowManager.QueryInterface(iwindowManager);
-
-  var customizeWindow = windowManager.getMostRecentWindow('sidebar:customize');
+  var customizeWindow = Services.wm.getMostRecentWindow('sidebar:customize');
 
   if (customizeWindow) {
     debug("Reuse existing customize dialog");

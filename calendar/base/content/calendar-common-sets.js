@@ -83,6 +83,7 @@ var calendarController = {
         "calendar_month-view_command": true,
 
         "calendar_task_filter_command": true,
+        "calendar_task_filter_todaypane_command": true,
         "calendar_reload_remote_calendars": true,
         "calendar_show_unifinder_command": true,
         "calendar_toggle_completed_command": true,
@@ -477,7 +478,8 @@ var calendarController = {
                 if (item.calendar.readOnly) {
                     selected_events_readonly++;
                 }
-                if (item.calendar.getProperty("requiresNetwork")) {
+                if (item.calendar.getProperty("requiresNetwork") &&
+                    !item.calendar.getProperty("cache.enabled")) {
                     selected_events_requires_network++;
                 }
 
@@ -525,8 +527,10 @@ var calendarController = {
      */
     get writable() {
         return !this.all_readonly &&
-               (!this.offline || (this.has_local_calendars &&
-               !this.all_local_calendars_readonly));
+               (!this.offline ||
+                this.has_cached_calendars ||
+                (this.has_local_calendars &&
+                 !this.all_local_calendars_readonly));
     },
 
     /**
@@ -562,6 +566,21 @@ var calendarController = {
     },
 
     /**
+     * Returns a boolean indicating if there are cached calendars and thus that don't require
+     * network access.
+     */
+    get has_cached_calendars() {
+        let calMgr = getCalendarManager();
+        let calendars = calMgr.getCalendars({});
+        for each (let calendar in calendars) {
+            if (calendar.getProperty("cache.enabled")) {
+                return true;
+            }
+        }
+        return false;
+    },
+
+    /**
      * Returns a boolean indicating that there is only one calendar left.
      */
     get last_calendar() {
@@ -574,10 +593,10 @@ var calendarController = {
     get all_local_calendars_readonly() {
         // We might want to speed this part up by keeping track of this in the
         // calendar manager.
-        var cals = getCalendarManager().getCalendars({});
-        var count = cals.length;
-        for each (var cal in cals) {
-            if (!isCalendarWritable(cal)) {
+        var calendars = getCalendarManager().getCalendars({});
+        var count = calendars.length;
+        for each (var calendar in calendars) {
+            if (!isCalendarWritable(calendar)) {
                 count--;
             }
         }
@@ -603,9 +622,9 @@ var calendarController = {
         // XXX We might want to cache this
         var calendars = getCalendarManager().getCalendars({});
 
-        for each (var cal in calendars) {
-            if (isCalendarWritable(cal) &&
-                cal.getProperty("capabilities.tasks.supported") !== false) {
+        for each (var calendar in calendars) {
+            if (isCalendarWritable(calendar) &&
+                calendar.getProperty("capabilities.tasks.supported") !== false) {
                 return true;
             }
         }
@@ -621,9 +640,9 @@ var calendarController = {
         // XXX We might want to cache this
         var calendars = getCalendarManager().getCalendars({});
 
-        for each (var cal in calendars) {
-            if (isCalendarWritable(cal) &&
-                cal.getProperty("capabilities.events.supported") !== false) {
+        for each (var calendar in calendars) {
+            if (isCalendarWritable(calendar) &&
+                calendar.getProperty("capabilities.events.supported") !== false) {
                 return true;
             }
         }

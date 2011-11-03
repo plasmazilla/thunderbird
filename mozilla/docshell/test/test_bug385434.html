@@ -5,7 +5,6 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=385434
 -->
 <head>
   <title>Test for Bug 385434</title>
-  <script type="application/javascript" src="/MochiKit/packed.js"></script>
   <script type="application/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
   <script type="application/javascript" src="/tests/SimpleTest/EventUtils.js"></script>
   <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css"/>
@@ -135,10 +134,6 @@ function run_test() {
   yield;
   eventExpected("Going forward should trigger a hashchange.");
 
-  frameCw.window.location.hash = "";
-  yield;
-  eventExpected("Changing window.location.hash should trigger a hashchange.");
-
   // window.location has a trailing '#' right now, so we append "link1", not
   // "#link1".
   frameCw.window.location = frameCw.window.location + "link1";
@@ -187,8 +182,8 @@ function run_test() {
      "Event type should be 'hashchange'.");
   is(gSampleEvent.cancelable, false,
      "The hashchange event shouldn't be cancelable.");
-  is(gSampleEvent.bubbles, false,
-     "The hashchange event shouldn't bubble.");
+  is(gSampleEvent.bubbles, true,
+     "The hashchange event should bubble.");
 
   /*
    * TEST 3 tests that:

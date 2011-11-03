@@ -1,3 +1,4 @@
+/* -*- indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -79,7 +80,6 @@ const kMsgNotificationMDN = 4;
 Components.utils.import("resource:///modules/MailUtils.js");
 Components.utils.import("resource:///modules/MailConsts.js");
 
-var gMessengerBundle;
 var gPrefBranch = Components.classes["@mozilla.org/preferences-service;1"]
                             .getService(Components.interfaces.nsIPrefService)
                             .getBranch(null);
@@ -110,9 +110,6 @@ function menu_new_init()
   if (!folder)
     return;
 
-  if (!gMessengerBundle)
-    gMessengerBundle = document.getElementById("bundle_messenger");
-
   if (gPrefBranch.prefIsLocked("mail.disable_new_account_addition"))
     document.getElementById("newAccountMenuItem").setAttribute("disabled", "true");
 
@@ -125,9 +122,12 @@ function menu_new_init()
 
   EnableMenuItem("menu_newFolder", folder.server.type != "imap" || MailOfflineMgr.isOnline());
   if (showNew)
+  {
+    var bundle = document.getElementById("bundle_messenger");
     // Change "New Folder..." menu according to the context.
-    SetMenuItemLabel("menu_newFolder", gMessengerBundle.getString(
+    SetMenuItemLabel("menu_newFolder", bundle.getString(
       (folder.isServer || isInbox) ? "newFolderMenuItem" : "newSubfolderMenuItem"));
+  }
 }
 
 function goUpdateMailMenuItems(commandset)
@@ -182,9 +182,6 @@ function InitGoMessagesMenu()
 function view_init()
 {
   var isFeed = gFolderDisplay.selectedMessageIsFeed;
-
-  if (!gMessengerBundle)
-    gMessengerBundle = document.getElementById("bundle_messenger");
 
   let accountCentralDisplayed = gFolderDisplay.isAccountCentralDisplayed;
   var messagePaneMenuItem = document.getElementById("menu_showMessage");
@@ -411,10 +408,12 @@ function initMoveToFolderAgainMenu(aMenuItem)
   if (lastFolderURI)
   {
     var destMsgFolder = GetMsgFolderFromUri(lastFolderURI);
-    aMenuItem.label = gMessengerBundle.getFormattedString(isMove ?
-      "moveToFolderAgain" : "copyToFolderAgain", [destMsgFolder.prettyName], 1);
-    aMenuItem.accesskey = gMessengerBundle.getString(isMove ?
-      "moveToFolderAgainAccessKey" : "copyToFolderAgainAccessKey");
+    var bundle = document.getElementById("bundle_messenger");
+    var stringName = isMove ? "moveToFolderAgain" : "copyToFolderAgain";
+    aMenuItem.label = bundle.getFormattedString(stringName,
+                                                [destMsgFolder.prettyName], 1);
+    // This gives us moveToFolderAgainAccessKey and copyToFolderAgainAccessKey.
+    aMenuItem.accesskey = bundle.getString(stringName + "AccessKey");
   }
 }
 
@@ -448,7 +447,8 @@ function InitViewBodyMenu()
   var isFeed = gFolderDisplay.selectedMessageIsFeed;
   const defaultIDs = ["bodyAllowHTML",
                       "bodySanitized",
-                      "bodyAsPlaintext"];
+                      "bodyAsPlaintext",
+                      "bodyAllParts"];
   const rssIDs = ["bodyFeedSummaryAllowHTML",
                   "bodyFeedSummarySanitized",
                   "bodyFeedSummaryAsPlaintext"];
@@ -479,7 +479,12 @@ function InitViewBodyMenu()
   var AllowHTML_menuitem = document.getElementById(menuIDs[0]);
   var Sanitized_menuitem = document.getElementById(menuIDs[1]);
   var AsPlaintext_menuitem = document.getElementById(menuIDs[2]);
+  var AllBodyParts_menuitem = menuIDs[3] ? document.getElementById(menuIDs[3])
+        : null;
 
+  document.getElementById("bodyAllParts").hidden = 
+    ! pref.getBoolPref("mailnews.display.show_all_body_parts_menu");
+      
   if (!prefer_plaintext && !html_as && !disallow_classes &&
       AllowHTML_menuitem)
     AllowHTML_menuitem.setAttribute("checked", true);
@@ -489,6 +494,9 @@ function InitViewBodyMenu()
   else if (prefer_plaintext && html_as == 1 && disallow_classes > 0 &&
       AsPlaintext_menuitem)
     AsPlaintext_menuitem.setAttribute("checked", true);
+  else if (!prefer_plaintext && html_as == 4 && !disallow_classes &&
+      AllBodyParts_menuitem)
+    AllBodyParts_menuitem.setAttribute("checked", true);
   // else (the user edited prefs/user.js) check none of the radio menu items
 
   if (isFeed) {
@@ -552,30 +560,27 @@ function RemoveAllMessageTags()
   OnTagsChange();
 }
 
-function ToggleMessageTagKey(index)
+/**
+ * Toggle the state of a message tag on the selected messages (based on the
+ * state of the first selected message, like for starring).
+ *
+ * @param keyNumber the number (1 through 9) associated with the tag
+ */
+function ToggleMessageTagKey(keyNumber)
 {
-  if (GetNumSelectedMessages() < 1)
+  let msgHdr = gFolderDisplay.selectedMessage;
+  if (!msgHdr)
     return;
-  // set the tag state based upon that of the first selected message,
-  // just like we do for markAsRead etc.
-  var msgHdr = gFolderDisplay.selectedMessage;
-  var tagService = Components.classes["@mozilla.org/messenger/tagservice;1"]
-                             .getService(Components.interfaces.nsIMsgTagService);
-  var tagArray = tagService.getAllTags({});
-  for (var i = 0; i < tagArray.length; ++i)
-  {
-    var key = tagArray[i].key;
-    if (!--index)
-    {
-      // found the key, now toggle its state
-      var curKeys = msgHdr.getStringProperty("keywords");
-      if (msgHdr.label)
-        curKeys += " $label" + msgHdr.label;
-      var addKey  = (" " + curKeys + " ").indexOf(" " + key + " ") < 0;
-      ToggleMessageTag(key, addKey);
-      return;
-    }
-  }
+
+  let tagArray = MailServices.tags.getAllTags({});
+  let key = tagArray[keyNumber-1].key;
+
+  let curKeys = msgHdr.getStringProperty("keywords").split(" ");
+  if (msgHdr.label)
+    curKeys.push("$label" + msgHdr.label);
+  let addKey = curKeys.indexOf(key) < 0;
+
+  ToggleMessageTag(key, addKey);
 }
 
 function ToggleMessageTagMenu(target)
@@ -659,8 +664,9 @@ function SetMessageTagLabel(menuitem, index, name)
   var accesskey = shortcutkey ? shortcutkey.getAttribute("key") : "";
   if (accesskey)
     menuitem.setAttribute("accesskey", accesskey);
-  var label = gMessengerBundle.getFormattedString("mailnews.tags.format",
-                                                  [accesskey, name]);
+  var label = document.getElementById("bundle_messenger")
+                      .getFormattedString("mailnews.tags.format",
+                                          [accesskey, name]);
   menuitem.setAttribute("label", label);
 }
 
@@ -676,7 +682,8 @@ function InitMessageTags(menuPopup)
     menuPopup.removeChild(menuPopup.lastChild);
 
   // create label and accesskey for the static remove item
-  var tagRemoveLabel = gMessengerBundle.getString("mailnews.tags.remove");
+  var tagRemoveLabel = document.getElementById("bundle_messenger")
+                               .getString("mailnews.tags.remove");
   SetMessageTagLabel(menuPopup.lastChild.previousSibling, 0, tagRemoveLabel);
 
   // now rebuild the list
@@ -736,7 +743,8 @@ function InitRecentlyClosedTabsPopup(menuPopup)
   menuPopup.appendChild(document.createElement("menuseparator"));
   
   let menuItem = document.createElement("menuitem");
-  menuItem.setAttribute("label",gMessengerBundle.getString("restoreAllTabs"));
+  menuItem.setAttribute("label", document.getElementById("bundle_messenger")
+                                         .getString("restoreAllTabs"));
   menuItem.setAttribute("oncommand","goRestoreAllTabs();");
   menuPopup.appendChild(menuItem);
 }
@@ -979,64 +987,53 @@ function UpdateReplyButtons()
   if (!gFolderDisplay.selectedMessage)
     return;
 
-  let showReplyAll = IsReplyAllEnabled();
-  let showReplyList = IsReplyListEnabled();
-
-  // If we're in a news item, we should default to Reply.
+  let buttonToShow;
   if (gFolderDisplay.selectedMessageIsNews)
   {
-    showReplyAll = false;
-    showReplyList = false;
+    // News messages always default to the "reply" dual-button.
+    buttonToShow = "reply";
+  }
+  else if (gFolderDisplay.selectedMessageIsFeed)
+  {
+    // RSS items hide all the reply buttons.
+    buttonToShow = null;
+  }
+  else
+  {
+    // Mail messages show the "reply" button (not the dual-button) and
+    // possibly the "reply all" and "reply list" buttons.
+    if (IsReplyListEnabled())
+      buttonToShow = "replyList";
+    else if (IsReplyAllEnabled())
+      buttonToShow = "replyAll";
+    else
+      buttonToShow = "replyOnly";
   }
 
-  let buttonToShow = "reply";
-  if (showReplyList)
-    buttonToShow = "replyList";
-  else if (showReplyAll)
-    buttonToShow = "replyAll";
-
   let smartReplyButton = document.getElementById("hdrSmartReplyButton");
-  let replyButton = document.getElementById("hdrReplyButton");
-  let replyAllButton = document.getElementById("hdrReplyAllButton");
-  let replyAllSubButton = document.getElementById("hdrReplyAllSubButton");
-  let replyAllSubButtonSep = document.getElementById("hdrReplyAllSubButtonSep");
-  let replyListButton = document.getElementById("hdrReplyListButton");
-  let replyToSenderButton = document.getElementById("hdrReplyToSenderButton");
-
   if (smartReplyButton)
   {
+    let replyOnlyButton = document.getElementById("hdrReplyOnlyButton");
+    let replyButton = document.getElementById("hdrReplyButton");
+    let replyAllButton = document.getElementById("hdrReplyAllButton");
+    let replyListButton = document.getElementById("hdrReplyListButton");
+
+    replyOnlyButton.hidden = (buttonToShow != "replyOnly");
     replyButton.hidden = (buttonToShow != "reply");
     replyAllButton.hidden = (buttonToShow != "replyAll");
     replyListButton.hidden = (buttonToShow != "replyList");
-    if (gFolderDisplay.selectedMessageIsNews)
-    {
-      // If it's a news item, show the ReplyAll sub-button and separator.
-      replyAllSubButton.hidden = false;
-      replyAllSubButtonSep.hidden = false;
-     }
-    else if (gFolderDisplay.selectedMessageIsFeed)
-    {
-      // otherwise, if it's an rss item, hide all the Reply buttons.
-      replyButton.hidden = true;
-      replyAllButton.hidden = true;
-      replyListButton.hidden = true;
-      replyAllSubButton.hidden = true;
-      replyAllSubButtonSep.hidden = true;
-    }
-    else
-    {
-      // otherwise, hide the ReplyAll sub-buttons.
-      replyAllSubButton.hidden = true;
-      replyAllSubButtonSep.hidden = true;
-    }
   }
 
+  let replyToSenderButton = document.getElementById("hdrReplyToSenderButton");
   if (replyToSenderButton)
   {
     if (gFolderDisplay.selectedMessageIsFeed)
       replyToSenderButton.hidden = true;
+    else if (smartReplyButton)
+      replyToSenderButton.hidden = buttonToShow == "reply" ||
+                                   buttonToShow == "replyOnly";
     else
-      replyToSenderButton.hidden = (replyButton && !replyButton.hidden);
+      replyToSenderButton.hidden = false;
   }
 
   goUpdateCommand("button_reply");
@@ -1734,14 +1731,11 @@ function MsgSubscribe()
  */
 function ConfirmUnsubscribe(folders)
 {
-  if (!gMessengerBundle)
-    gMessengerBundle = document.getElementById("bundle_messenger");
-
-  var titleMsg = gMessengerBundle.getString("confirmUnsubscribeTitle");
+  var bundle = document.getElementById("bundle_messenger");
+  var titleMsg = bundle.getString("confirmUnsubscribeTitle");
   var dialogMsg = (folders.length == 1) ?
-    gMessengerBundle.getFormattedString("confirmUnsubscribeText",
-                                        [folders[0].name], 1) :
-    gMessengerBundle.getString("confirmUnsubscribeManyText");
+    bundle.getFormattedString("confirmUnsubscribeText", [folders[0].name], 1) :
+    bundle.getString("confirmUnsubscribeManyText");
 
   var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
                                 .getService(Components.interfaces.nsIPromptService);
@@ -1861,11 +1855,9 @@ function MsgOpenFromFile()
   var fp = Components.classes["@mozilla.org/filepicker;1"]
                      .createInstance(nsIFilePicker);
 
-  var strBundleService = Components.classes["@mozilla.org/intl/stringbundle;1"].getService();
-  strBundleService = strBundleService.QueryInterface(Components.interfaces.nsIStringBundleService);
-  var extbundle = strBundleService.createBundle("chrome://messenger/locale/messenger.properties");
-  var filterLabel = extbundle.GetStringFromName("EMLFiles");
-  var windowTitle = extbundle.GetStringFromName("OpenEMLFiles");
+  var bundle = document.getElementById("bundle_messenger");
+  var filterLabel = bundle.getString("EMLFiles");
+  var windowTitle = bundle.getString("OpenEMLFiles");
 
   fp.init(window, windowTitle, nsIFilePicker.modeOpen);
   fp.appendFilter(filterLabel, "*.eml");
@@ -2178,6 +2170,14 @@ function MsgBodyAsPlaintext()
   ReloadMessage();
 }
 
+function MsgBodyAllParts()
+{
+  gPrefBranch.setBoolPref("mailnews.display.prefer_plaintext", false);
+  gPrefBranch.setIntPref("mailnews.display.html_as", 4);
+  gPrefBranch.setIntPref("mailnews.display.disallow_mime_handlers", 0);
+  ReloadMessage();
+}
+
 function MsgFeedBodyRenderPrefs(plaintext, html, mime)
 {
   gPrefBranch.setBoolPref("rss.display.prefer_plaintext", plaintext);
@@ -2257,9 +2257,9 @@ function IsGetNextNMessagesEnabled()
   var menuItem = document.getElementById("menu_getnextnmsg");
   if (folder && !folder.isServer &&
       folder.server instanceof Components.interfaces.nsINntpIncomingServer) {
-    var menuLabel = gMessengerBundle.getFormattedString("getNextNMessages",
-                                                        [folder.server.maxArticles]);
-    menuItem.setAttribute("label", menuLabel);
+    menuitem.label = document.getElementById("bundle_messenger")
+                             .getFormattedString("getNextNMessages",
+                                                 [folder.server.maxArticles]);
     menuItem.removeAttribute("hidden");
     return true;
   }
@@ -2286,16 +2286,21 @@ function MsgSynchronizeOffline()
 
 function SpaceHit(event)
 {
-  var contentWindow = document.commandDispatcher.focusedWindow;
   // If focus is in chrome, we want to scroll the content window, unless
-  // the focus is on the otherActionsButton popup; if focus is on a
-  // non-link content element like a button, bail so we don't scroll
-  // when the element is going to do something else.
+  // the focus is on an important chrome button like the otherActionsButton
+  // popup; if focus is on a non-link content element like a button, bail so we
+  // don't scroll when the element is going to do something else.
+
+  var contentWindow = document.commandDispatcher.focusedWindow;
   let focusedElement = document.commandDispatcher.focusedElement;
 
-  if (contentWindow.top == window) {
-    contentWindow = content;
-    if (focusedElement && focusedElement.id == "otherActionsButton")
+  if (!gMessageDisplay.singleMessageDisplay) {
+    contentWindow = document.getElementById("multimessage").contentWindow;
+  } else if (contentWindow.top == window) {
+    // These elements should always take priority over scrolling.
+    const importantElements = ["otherActionsButton", "attachmentToggle"];
+    contentWindow = window.content;
+    if (focusedElement && importantElements.indexOf(focusedElement.id) != -1)
       return;
   }
   else if (focusedElement && !hRefForClickEvent(event))
@@ -2304,7 +2309,7 @@ function SpaceHit(event)
   var rssiframe = contentWindow.document.getElementById('_mailrssiframe');
   // If we are displaying an RSS article, we really want to scroll
   // the nested iframe.
-  if (contentWindow == content && rssiframe)
+  if (contentWindow == window.content && rssiframe)
     contentWindow = rssiframe.contentWindow;
 
   if (event && event.shiftKey) {
@@ -2636,9 +2641,10 @@ var gMessageNotificationBar =
     var headerParser = Components.classes["@mozilla.org/messenger/headerparser;1"]
                                  .getService(Components.interfaces.nsIMsgHeaderParser);
     var emailAddress = headerParser.extractHeaderAddressMailboxes(aMsgHdr.author);
-    document.getElementById('allowRemoteContentForAuthorDesc').value =
-      gMessengerBundle.getFormattedString('alwaysLoadRemoteContentForSender2',
-                         [emailAddress ? emailAddress : aMsgHdr.author]);
+    var desc = document.getElementById("bundle_messenger")
+                       .getFormattedString("alwaysLoadRemoteContentForSender2",
+                                           [emailAddress ? emailAddress : aMsgHdr.author]);
+    document.getElementById("allowRemoteContentForAuthorDesc").value = desc;
     this.updateMsgNotificationBar(kMsgNotificationRemoteImages, true);
   },
 
@@ -2666,18 +2672,16 @@ var gMessageNotificationBar =
     if (mdnBarMsg.firstChild) // might have to remove old text first
      mdnBarMsg.removeChild(mdnBarMsg.firstChild);
 
+    var bundle = document.getElementById("bundle_messenger");
+    var barMsg;
     // If the return receipt doesn't go to the sender address, note that in the
     // notification.
     if (mdnAddr != fromAddr)
-    {
-      mdnBarMsg.appendChild(document.createTextNode(gMessengerBundle.
-        getFormattedString("mdnBarMessageAddressDiffers", [authorName, mdnAddr])));
-    }
+      barMsg = bundle.getFormattedString("mdnBarMessageAddressDiffers",
+                                         [authorName, mdnAddr]);
     else
-    {
-      mdnBarMsg.appendChild(document.createTextNode(gMessengerBundle.
-        getFormattedString("mdnBarMessageNormal", [authorName])));
-    }
+      barMsg = bundle.getFormattedString("mdnBarMessageNormal", [authorName]);
+    mdnBarMsg.appendChild(document.createTextNode(barMsg));
     this.updateMsgNotificationBar(kMsgNotificationMDN, true);
   },
 
@@ -2881,7 +2885,7 @@ function OnMsgParsed(aUrl)
   var imgs = doc.getElementsByTagName("img");
   for each (var img in imgs)
   {
-    if (img.className == "moz-attached-image" && img.naturalWidth > doc.width)
+    if (img.className == "moz-attached-image" && img.naturalWidth > doc.body.clientWidth)
     {
       if (img.hasAttribute("shrinktofit"))
         img.setAttribute("isshrunk", "true");

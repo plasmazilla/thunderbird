@@ -46,8 +46,7 @@
 #include "nsStyleContext.h"
 #include "nsIPresShell.h"
 #include "nsPresContext.h"
-#include "nsIRenderingContext.h"
-#include "nsIFontMetrics.h"
+#include "nsRenderingContext.h"
 #include "nsAbsoluteContainingBlock.h"
 #include "nsCSSAnonBoxes.h"
 #include "nsAutoPtr.h"
@@ -204,21 +203,21 @@ nsInlineFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
 // Reflow methods
 
 /* virtual */ void
-nsInlineFrame::AddInlineMinWidth(nsIRenderingContext *aRenderingContext,
+nsInlineFrame::AddInlineMinWidth(nsRenderingContext *aRenderingContext,
                                  nsIFrame::InlineMinWidthData *aData)
 {
   DoInlineIntrinsicWidth(aRenderingContext, aData, nsLayoutUtils::MIN_WIDTH);
 }
 
 /* virtual */ void
-nsInlineFrame::AddInlinePrefWidth(nsIRenderingContext *aRenderingContext,
+nsInlineFrame::AddInlinePrefWidth(nsRenderingContext *aRenderingContext,
                                   nsIFrame::InlinePrefWidthData *aData)
 {
   DoInlineIntrinsicWidth(aRenderingContext, aData, nsLayoutUtils::PREF_WIDTH);
 }
 
 /* virtual */ nsSize
-nsInlineFrame::ComputeSize(nsIRenderingContext *aRenderingContext,
+nsInlineFrame::ComputeSize(nsRenderingContext *aRenderingContext,
                            nsSize aCBSize, nscoord aAvailableWidth,
                            nsSize aMargin, nsSize aBorder, nsSize aPadding,
                            PRBool aShrinkWrap)
@@ -231,8 +230,9 @@ nsRect
 nsInlineFrame::ComputeTightBounds(gfxContext* aContext) const
 {
   // be conservative
-  if (GetStyleContext()->HasTextDecorations())
+  if (GetStyleContext()->HasTextDecorationLines()) {
     return GetVisualOverflowRect();
+  }
   return ComputeSimpleTightBounds(aContext);
 }
 
@@ -329,9 +329,9 @@ nsInlineFrame::Reflow(nsPresContext*          aPresContext,
     if (prevOverflowFrames) {
       // When pushing and pulling frames we need to check for whether any
       // views need to be reparented.
-      nsHTMLContainerFrame::ReparentFrameViewList(aPresContext,
-                                                  *prevOverflowFrames,
-                                                  prevInFlow, this);
+      nsContainerFrame::ReparentFrameViewList(aPresContext,
+                                              *prevOverflowFrames,
+                                              prevInFlow, this);
 
       // Check if we should do the lazilySetParentPointer optimization.
       // Only do it in simple cases where we're being reflowed for the
@@ -437,9 +437,9 @@ nsInlineFrame::PullOverflowsFromPrevInFlow()
     nsAutoPtr<nsFrameList> prevOverflowFrames(prevInFlow->StealOverflowFrames());
     if (prevOverflowFrames) {
       // Assume that our prev-in-flow has the same line container that we do.
-      nsHTMLContainerFrame::ReparentFrameViewList(PresContext(),
-                                                  *prevOverflowFrames,
-                                                  prevInFlow, this);
+      nsContainerFrame::ReparentFrameViewList(PresContext(),
+                                              *prevOverflowFrames,
+                                              prevInFlow, this);
       mFrames.InsertFrames(this, nsnull, *prevOverflowFrames);
     }
   }
@@ -474,7 +474,8 @@ nsInlineFrame::ReflowFrames(nsPresContext* aPresContext,
   availableWidth -= leftEdge;
   availableWidth -= ltr ? aReflowState.mComputedBorderPadding.right
                         : aReflowState.mComputedBorderPadding.left;
-  lineLayout->BeginSpan(this, &aReflowState, leftEdge, leftEdge + availableWidth);
+  lineLayout->BeginSpan(this, &aReflowState, leftEdge,
+                        leftEdge + availableWidth, &mBaseline);
 
   // First reflow our current children
   nsIFrame* frame = mFrames.FirstChild();
@@ -643,9 +644,9 @@ nsInlineFrame::ReflowFrames(nsPresContext* aPresContext,
                           : aReflowState.mComputedBorderPadding.left;
   }
 
-  nsLayoutUtils::SetFontFromStyle(aReflowState.rendContext, mStyleContext);
-  nsCOMPtr<nsIFontMetrics> fm;
-  aReflowState.rendContext->GetFontMetrics(*getter_AddRefs(fm));
+  nsRefPtr<nsFontMetrics> fm;
+  nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm));
+  aReflowState.rendContext->SetFont(fm);
 
   if (fm) {
     // Compute final height of the frame.
@@ -658,8 +659,8 @@ nsInlineFrame::ReflowFrames(nsPresContext* aPresContext,
     // The height of our box is the sum of our font size plus the top
     // and bottom border and padding. The height of children do not
     // affect our height.
-    fm->GetMaxAscent(aMetrics.ascent);
-    fm->GetHeight(aMetrics.height);
+    aMetrics.ascent = fm->MaxAscent();
+    aMetrics.height = fm->MaxHeight();
   } else {
     NS_WARNING("Cannot get font metrics - defaulting sizes to 0");
     aMetrics.ascent = aMetrics.height = 0;
@@ -818,7 +819,7 @@ nsInlineFrame::PullOneFrame(nsPresContext* aPresContext,
       if (irs.mLineLayout) {
         irs.mLineLayout->SetDirtyNextLine();
       }
-      nsHTMLContainerFrame::ReparentFrameView(aPresContext, frame, nextInFlow, this);
+      nsContainerFrame::ReparentFrameView(aPresContext, frame, nextInFlow, this);
       break;
     }
     nextInFlow = (nsInlineFrame*) nextInFlow->GetNextInFlow();
@@ -914,12 +915,7 @@ nsInlineFrame::GetSkipSides() const
 nscoord
 nsInlineFrame::GetBaseline() const
 {
-  nscoord ascent = 0;
-  nsCOMPtr<nsIFontMetrics> fm;
-  if (NS_SUCCEEDED(nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm)))) {
-    fm->GetMaxAscent(ascent);
-  }
-  return NS_MIN(mRect.height, ascent + GetUsedBorderAndPadding().top);
+  return mBaseline;
 }
 
 #ifdef ACCESSIBILITY

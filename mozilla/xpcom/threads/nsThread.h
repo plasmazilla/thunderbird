@@ -48,17 +48,17 @@
 #include "nsTObserverArray.h"
 
 // A native thread
-class nsThread : public nsIThreadInternal2, public nsISupportsPriority
+class nsThread : public nsIThreadInternal, public nsISupportsPriority
 {
 public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIEVENTTARGET
   NS_DECL_NSITHREAD
   NS_DECL_NSITHREADINTERNAL
-  NS_DECL_NSITHREADINTERNAL2
   NS_DECL_NSISUPPORTSPRIORITY
 
   nsThread();
+  nsThread(PRUint32 aStackSize);
 
   // Initialize this as a wrapper for a new PRThread.
   nsresult Init();
@@ -139,6 +139,7 @@ private:
   PRInt32   mPriority;
   PRThread *mThread;
   PRUint32  mRunningEvent;  // counter
+  PRUint32  mStackSize;
 
   struct nsThreadShutdownContext *mShutdownContext;
 

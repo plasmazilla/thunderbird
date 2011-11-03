@@ -53,6 +53,7 @@ var gMainPane = {
     window.addEventListener("focus", this._updateUseCurrentButton, false);
 
     this.updateBrowserStartupLastSession();
+    this.startupPagePrefChanged();
 
     // Notify observers that the UI is now ready
     Components.classes["@mozilla.org/observer-service;1"]
@@ -80,6 +81,16 @@ var gMainPane = {
    *   selected and doesn't change the UI for this preference, the deprecated
    *   option is preserved.
    */
+
+  /**
+   * Enables/Disables the restore on demand checkbox.
+   */
+  startupPagePrefChanged: function ()
+  {
+    let startupPref = document.getElementById("browser.startup.page");
+    let restoreOnDemandPref = document.getElementById("browser.sessionstore.restore_on_demand");
+    restoreOnDemandPref.disabled = startupPref.value != 3;
+  },
 
   syncFromHomePref: function ()
   {
@@ -129,16 +140,10 @@ var gMainPane = {
 
     if (win) {
       var homePage = document.getElementById("browser.startup.homepage");
-      var browser = win.document.getElementById("content");
-
-      var newVal = browser.browsers[0].currentURI.spec;
-      if (browser.browsers.length > 1) {
-        // XXX using dangerous "|" joiner!
-        for (var i = 1; i < browser.browsers.length; i++)
-          newVal += "|" + browser.browsers[i].currentURI.spec;
-      }
-
-      homePage.value = newVal;
+      var tabs = win.gBrowser.visibleTabs;
+      function getTabURI(t) t.linkedBrowser.currentURI.spec;
+      // FIXME Bug 244192: using dangerous "|" joiner!
+      homePage.value = tabs.map(getTabURI).join("|");
     }
   },
 

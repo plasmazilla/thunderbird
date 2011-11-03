@@ -67,10 +67,9 @@ NS_CYCLE_COLLECTION_CLASSNAME(nsXPCWrappedJS)::Traverse
                         tmp->GetClass()->GetInterfaceName());
         else
             JS_snprintf(name, sizeof(name), "nsXPCWrappedJS");
-        cb.DescribeNode(RefCounted, refcnt, sizeof(nsXPCWrappedJS), name);
+        cb.DescribeRefCountedNode(refcnt, sizeof(nsXPCWrappedJS), name);
     } else {
-        cb.DescribeNode(RefCounted, refcnt, sizeof(nsXPCWrappedJS),
-                        "nsXPCWrappedJS");
+        NS_IMPL_CYCLE_COLLECTION_DESCRIBE(nsXPCWrappedJS, refcnt)
     }
 
     // nsXPCWrappedJS keeps its own refcount artificially at or above 1, see the
@@ -247,8 +246,8 @@ nsXPCWrappedJS::PrintTraceName(JSTracer* trc, char *buf, size_t bufsize)
 {
     const nsXPCWrappedJS* self = static_cast<const nsXPCWrappedJS*>
                                             (trc->debugPrintArg);
-    JS_snprintf(buf, bufsize, "nsXPCWrappedJS[%s,0x%p].mJSObj",
-                self->GetClass()->GetInterfaceName(), self);
+    JS_snprintf(buf, bufsize, "nsXPCWrappedJS[%s,0x%p:0x%p].mJSObj",
+                self->GetClass()->GetInterfaceName(), self, self->mXPTCStub);
 }
 #endif
 

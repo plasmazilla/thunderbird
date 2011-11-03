@@ -31,6 +31,7 @@
    -   Philipp Kewisch <mozilla@kewis.ch>
    -   Lars Wohlfahrt <thetux.moz@googlemail.com>
    -   Fred Jendrzejewski <fred.jen@web.de>
+   -   Matthew Mecca <matthew.mecca@gmail.com>
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -574,7 +575,7 @@
               this.binding.sortItems();
               if (selectedItems != undefined) {
                   this.tree.view.selection.clearSelection();
-                  for each (item in selectedItems){
+                  for each (let item in selectedItems){
                       let index = this.binding.mHash2Index[item.hashId];
                       this.tree.view.selection.toggleSelect(index);
                   }
@@ -820,7 +821,6 @@
       <field name="mTaskTreeObserver"><![CDATA[
       ({
           binding: this,
-          mBatchCount: 0,
 
           QueryInterface: function tTO_QueryInterface(aIID) {
               return doQueryInterface(this, null, aIID,
@@ -832,26 +832,17 @@
            * calIObserver methods and properties
            */
           onStartBatch: function tTO_onStartBatch() {
-              this.mBatchCount++;
           },
 
           onEndBatch: function tTO_onEndBatch() {
-              this.mBatchCount--;
-              if (this.mBatchCount == 0) {
-                  this.binding.refresh();
-              }
           },
 
           onLoad: function tTO_onLoad() {
-              if (this.mBatchCount == 0) {
-                  this.binding.refresh();
-              }
+              this.binding.refresh();
           },
 
           onAddItem: function tTO_onAddItem(aItem) {
-              if (cal.isToDo(aItem) &&
-                  !this.mBatchCount) { 
-
+              if (cal.isToDo(aItem)) {
                   // get occurrences of repeating items
                   let occs;
                   if (this.binding.mFilter.endDate) {
@@ -870,8 +861,7 @@
           },
 
           onModifyItem: function tTO_onModifyItem(aNewItem, aOldItem) {
-              if ((cal.isToDo(aNewItem) || cal.isToDo(aOldItem))
-                  && !this.mBatchCount) {
+              if ((cal.isToDo(aNewItem) || cal.isToDo(aOldItem))) {
 
                   if ((this.binding.mFilter.endDate) &&
                       (aOldItem.recurrenceInfo || aNewItem.recurrenceInfo)) {
@@ -892,7 +882,7 @@
           },
 
           onDeleteItem: function tTO_onDeleteItem(aDeletedItem) {
-              if (cal.isToDo(aDeletedItem) && !this.mBatchCount) {
+              if (cal.isToDo(aDeletedItem)) {
 
                   // get occurrences of repeating items
                   let occs;
@@ -1082,19 +1072,23 @@
           // immediately start the next job on the queue.
           this.popRefreshQueue();
 
-          var tree = document.getAnonymousNodes(this)[0];
-          if(this.mTreeView.selectedColumn) {
+          if (this.mTreeView.selectedColumn) {
               this.sortItems();
           } else {
               this.recreateHashTable();
           }
 
-          var tree = document.getAnonymousElementByAttribute(
+          let tree = document.getAnonymousElementByAttribute(
               this, "anonid", "calendar-task-tree");
           tree.view = this.mTreeView;
 
+          // make sure the tree's current index is still valid
+          if (tree.currentIndex >= this.mTaskArray.length) {
+              tree.currentIndex = (this.mTaskArray.length - 1);
+          }
+
           // we also need to notify potential listeners.
-          var event = document.createEvent('Events');
+          let event = document.createEvent('Events');
           event.initEvent('select', true, false);
           this.dispatchEvent(event);
         ]]></body>
@@ -1159,6 +1153,26 @@
         ]]></body>
       </method>
 
+      <method name="updateFocus">
+        <body><![CDATA[
+            let tree = document.getAnonymousElementByAttribute(this, "anonid", "calendar-task-tree");
+            let menuOpen = false;
+
+            // we need to consider the tree focused if the context menu is open.
+            if (this.hasAttribute("context")) {
+                let context = document.getElementById(this.getAttribute("context"));
+                if (context && context.state) {
+                    menuOpen = (context.state == "open") || (context.state == "showing");
+                }
+            }
+
+            let focused = (document.activeElement == tree) || menuOpen;
+
+            calendarController.onSelectionChanged({detail:(focused ? this.selectedTasks : [])});
+            calendarController.todo_tasktree_focused = focused;
+        ]]></body>
+      </method>
+
     </implementation>
 
     <handlers>
@@ -1172,12 +1186,10 @@
         this.mTreeView.onDoubleClick(event);
       ]]></handler>
       <handler event="focus"><![CDATA[
-        calendarController.onSelectionChanged({detail:this.selectedTasks});
-        calendarController.todo_tasktree_focused = true;
+        this.updateFocus();
       ]]></handler>
       <handler event="blur"><![CDATA[
-        calendarController.onSelectionChanged({detail:[]});
-        calendarController.todo_tasktree_focused = false;
+        this.updateFocus();
       ]]></handler>
       <handler event="keypress"><![CDATA[
         this.mTreeView.onKeyPress(event);
@@ -1238,6 +1250,18 @@
               let initialDate = agendaListbox.today ? agendaListbox.today.start : now();
               return initialDate ? initialDate : now();
             ]]></body>
+      </method>
+      <method name="updateFilter">
+        <parameter name="aFilter"/>
+        <body><![CDATA[
+            this.mFilter.selectedDate = agendaListbox.today && agendaListbox.today.start ? 
+                                        agendaListbox.today.start : now();
+            this.mFilter.propertyFilter = aFilter || this.mFilter.propertyFilter || "all";
+            this.mDateRangeFilter = aFilter || this.mDateRangeFilter || "all";
+            this.mFilter.setDateFilter(this.mDateRangeFilter);
+
+            this.refresh();
+        ]]></body>
       </method>
     </implementation>    
   </binding>

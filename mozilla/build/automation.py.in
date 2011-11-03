@@ -334,6 +334,8 @@ class Automation(object):
     part = """\
 user_pref("browser.console.showInPanel", true);
 user_pref("browser.dom.window.dump.enabled", true);
+user_pref("browser.firstrun.show.localepicker", false);
+user_pref("browser.firstrun.show.uidiscovery", false);
 user_pref("dom.allow_scripts_to_close_windows", true);
 user_pref("dom.disable_open_during_load", false);
 user_pref("dom.max_script_run_time", 0); // no slow script dialogs
@@ -364,6 +366,8 @@ user_pref("media.cache_size", 100);
 user_pref("security.warn_viewing_mixed", false);
 user_pref("app.update.enabled", false);
 user_pref("browser.panorama.experienced_first_run", true); // Assume experienced
+user_pref("dom.w3c_touch_events.enabled", true);
+user_pref("toolkit.telemetry.prompted", true);
 
 // Only load extensions from the application and user profile
 // AddonManager.SCOPE_PROFILE + AddonManager.SCOPE_APPLICATION
@@ -440,20 +444,23 @@ function FindProxyForURL(url, host)
   var isHttp = matches[1] == 'http';
   var isHttps = matches[1] == 'https';
   var isWebSocket = matches[1] == 'ws';
+  var isWebSocketSSL = matches[1] == 'wss';
   if (!matches[3])
   {
     if (isHttp | isWebSocket) matches[3] = '80';
-    if (isHttps) matches[3] = '443';
+    if (isHttps | isWebSocketSSL) matches[3] = '443';
   }
   if (isWebSocket)
     matches[1] = 'http';
+  if (isWebSocketSSL)
+    matches[1] = 'https';
 
   var origin = matches[1] + '://' + matches[2] + ':' + matches[3];
   if (origins.indexOf(origin) < 0)
     return 'DIRECT';
   if (isHttp)
     return 'PROXY %(remote)s:%(httpport)s';
-  if (isHttps || isWebSocket)
+  if (isHttps || isWebSocket || isWebSocketSSL)
     return 'PROXY %(remote)s:%(sslport)s';
   return 'DIRECT';
 }""" % { "origins": origins,
@@ -634,10 +641,7 @@ user_pref("camino.use_system_proxy_settings", false); // Camino-only, harmless t
       pExitCode = ctypes.wintypes.DWORD()
       ctypes.windll.kernel32.GetExitCodeProcess(pHandle, ctypes.byref(pExitCode))
       ctypes.windll.kernel32.CloseHandle(pHandle)
-      if (pExitCode.value == STILL_ACTIVE):
-        return True
-      else:
-        return False
+      return pExitCode.value == STILL_ACTIVE
 
     def killPid(self, pid):
       PROCESS_TERMINATE = 0x0001
@@ -668,10 +672,7 @@ user_pref("camino.use_system_proxy_settings", false); // Camino-only, harmless t
         # Wait on it to see if it's a zombie. This can throw OSError.ECHILD if
         # the process terminates before we get to this point.
         wpid, wstatus = os.waitpid(pid, os.WNOHANG)
-        if wpid == 0:
-          return True
-
-        return False
+        return wpid == 0
       except OSError, err:
         # Catch the errors we might expect from os.kill/os.waitpid, 
         # and re-raise any others
@@ -729,6 +730,7 @@ user_pref("camino.use_system_proxy_settings", false); // Camino-only, harmless t
     stackFixerProcess = None
     stackFixerFunction = None
     didTimeout = False
+    hitMaxTime = False
     if proc.stdout is None:
       self.log.info("TEST-INFO: Not logging stdout or stderr due to debugger connection")
     else:
@@ -756,13 +758,12 @@ user_pref("camino.use_system_proxy_settings", false); // Camino-only, harmless t
         logsource = stackFixerProcess.stdout
 
       (line, didTimeout) = self.readWithTimeout(logsource, timeout)
-      hitMaxTime = False
       while line != "" and not didTimeout:
         if "TEST-START" in line and "|" in line:
           self.lastTestSeen = line.split("|")[1].strip()
         if stackFixerFunction:
           line = stackFixerFunction(line)
-        self.log.info(line.rstrip())
+        self.log.info(line.rstrip().decode("UTF-8", "ignore"))
         if self.UNIXISH and not debuggerInfo and not self.haveDumpedScreen and "TEST-UNEXPECTED-FAIL" in line and "Test timed out" in line:
           self.dumpScreen(utilityPath)
 
@@ -917,49 +918,35 @@ user_pref("camino.use_system_proxy_settings", false); // Camino-only, harmless t
 
     return status
 
-  """ 
-   Copies an "installed" extension into the extensions directory of the given profile
-   extensionSource - the source location of the extension files.  This can be either 
+  """
+   Copies an extension into the extensions directory of the given profile.
+   extensionSource - the source location of the extension files.  This can be either
                      a directory or a path to an xpi file.
    profileDir      - the profile directory we are copying into.  We will create the
-                     "extensions" directory there if it doesn't exist
+                     "extensions" directory there if it doesn't exist.
    extensionID     - the id of the extension to be used as the containing directory for the
-                     extension, i.e.
+                     extension, if extensionSource is a directory, i.e.
                  this is the name of the folder in the <profileDir>/extensions/<extensionID>
   """
-  def installExtension(self, extensionSource, profileDir, extensionID):
-    if (not os.path.exists(extensionSource)):
-      self.log.info("INFO | automation.py | Cannot install extension no source at: %s", extensionSource) 
-      return
-      
-    if (not os.path.exists(profileDir)):
-      self.log.info("INFO | automation.py | Cannot install extension invalid profileDir at: %s", profileDir)
+  def installExtension(self, extensionSource, profileDir, extensionID = None):
+    if not os.path.isdir(profileDir):
+      self.log.info("INFO | automation.py | Cannot install extension, invalid profileDir at: %s", profileDir)
       return
 
-    # See if we have an XPI or a directory
-    if (os.path.isfile(extensionSource)):
-      tmpd = tempfile.mkdtemp()
-      extrootdir = self.extractZip(extensionSource, tmpd)
+    extnsdir = os.path.join(profileDir, "extensions", "staged")
+
+    if os.path.isfile(extensionSource):
+      # Copy extension xpi directly.
+      # "destination file is created or overwritten".
+      shutil.copy2(extensionSource, extnsdir)
+    elif os.path.isdir(extensionSource):
+      if extensionID == None:
+        self.log.info("INFO | automation.py | Cannot install extension, missing extensionID")
+        return
+
+      # Copy extension tree into its own directory.
+      # "destination directory must not already exist".
+      shutil.copytree(extensionSource, os.path.join(extnsdir, extensionID))
     else:
-      extrootdir = extensionSource 
-    extnsdir = os.path.join(profileDir, "extensions")
-    extnshome = os.path.join(extnsdir, extensionID)
-
-    # Now we copy the extension source into the extnshome
-    shutil.copytree(extrootdir, extnshome)
-
-  def extractZip(self, filename, dest):
-    z = zipfile.ZipFile(filename, 'r')
-    for n in z.namelist():
-      fullpath = os.path.join(dest, n)
-      parentdir = os.path.dirname(fullpath)
-      if not os.path.isdir(parentdir):
-        os.makedirs(parentdir)
-      if (not n.endswith(os.sep)):
-        data = z.read(n)
-        f = open(fullpath, 'w')
-        f.write(data)
-        f.close()
-    z.close()
-    return dest
-
+      self.log.info("INFO | automation.py | Cannot install extension, invalid extensionSource at: %s", extensionSource)
+      return

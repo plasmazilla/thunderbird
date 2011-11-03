@@ -63,20 +63,15 @@
 #include "nsNodeUtils.h"
 #include "nsIContent.h"
 #include "mozilla/dom/Element.h"
+#include "mozilla/Preferences.h"
 
 #include "nsGenericHTMLElement.h"
 
-#include "nsIDOMText.h"
-#include "nsIDOMComment.h"
 #include "nsIDOMDocument.h"
-#include "nsIDOMNSDocument.h"
-#include "nsIDOMDOMImplementation.h"
 #include "nsIDOMDocumentType.h"
-#include "nsIDOMHTMLScriptElement.h"
 #include "nsIScriptElement.h"
 
 #include "nsIDOMHTMLFormElement.h"
-#include "nsIDOMHTMLTextAreaElement.h"
 #include "nsIFormControl.h"
 #include "nsIForm.h"
 
@@ -122,6 +117,7 @@
 #include "nsContentCreatorFunctions.h"
 #include "mozAutoDocUpdate.h"
 
+using namespace mozilla;
 using namespace mozilla::dom;
 
 #ifdef NS_DEBUG
@@ -344,7 +340,6 @@ public:
   nsresult FlushTags();
 
   PRBool   IsCurrentContainer(nsHTMLTag mType);
-  PRBool   IsAncestorContainer(nsHTMLTag mType);
 
   void DidAddContent(nsIContent* aContent);
   void UpdateChildCounts();
@@ -534,7 +529,8 @@ HTMLContentSink::CreateContentObject(const nsIParserNode& aNode,
     nsAutoString lower;
     nsContentUtils::ASCIIToLower(aNode.GetText(), lower);
     nsCOMPtr<nsIAtom> name = do_GetAtom(lower);
-    nodeInfo = mNodeInfoManager->GetNodeInfo(name, nsnull, kNameSpaceID_XHTML);
+    nodeInfo = mNodeInfoManager->GetNodeInfo(name, nsnull, kNameSpaceID_XHTML,
+                                             nsIDOMNode::ELEMENT_NODE);
   }
   else if (mNodeInfoCache[aNodeType]) {
     nodeInfo = mNodeInfoCache[aNodeType];
@@ -547,7 +543,8 @@ HTMLContentSink::CreateContentObject(const nsIParserNode& aNode,
     nsIAtom *name = parserService->HTMLIdToAtomTag(aNodeType);
     NS_ASSERTION(name, "What? Reverse mapping of id to string broken!!!");
 
-    nodeInfo = mNodeInfoManager->GetNodeInfo(name, nsnull, kNameSpaceID_XHTML);
+    nodeInfo = mNodeInfoManager->GetNodeInfo(name, nsnull, kNameSpaceID_XHTML,
+                                             nsIDOMNode::ELEMENT_NODE);
     NS_IF_ADDREF(mNodeInfoCache[aNodeType] = nodeInfo);
   }
 
@@ -659,21 +656,6 @@ SinkContext::IsCurrentContainer(nsHTMLTag aTag)
 {
   if (aTag == mStack[mStackPos - 1].mType) {
     return PR_TRUE;
-  }
-
-  return PR_FALSE;
-}
-
-PRBool
-SinkContext::IsAncestorContainer(nsHTMLTag aTag)
-{
-  PRInt32 stackPos = mStackPos - 1;
-
-  while (stackPos >= 0) {
-    if (aTag == mStack[stackPos].mType) {
-      return PR_TRUE;
-    }
-    stackPos--;
   }
 
   return PR_FALSE;
@@ -1034,7 +1016,10 @@ SinkContext::AddLeaf(const nsIParserNode& aNode)
 
       case eHTMLTag_input:
         content->DoneCreatingElement();
+        break;
 
+      case eHTMLTag_menuitem:
+        content->DoneCreatingElement();
         break;
 
       default:
@@ -1613,11 +1598,12 @@ HTMLContentSink::Init(nsIDocument* aDoc,
 
   // Changed from 8192 to greatly improve page loading performance on
   // large pages.  See bugzilla bug 77540.
-  mMaxTextRun = nsContentUtils::GetIntPref("content.maxtextrun", 8191);
+  mMaxTextRun = Preferences::GetInt("content.maxtextrun", 8191);
 
   nsCOMPtr<nsINodeInfo> nodeInfo;
   nodeInfo = mNodeInfoManager->GetNodeInfo(nsGkAtoms::html, nsnull,
-                                           kNameSpaceID_XHTML);
+                                           kNameSpaceID_XHTML,
+                                           nsIDOMNode::ELEMENT_NODE);
   NS_ENSURE_TRUE(nodeInfo, NS_ERROR_OUT_OF_MEMORY);
 
   // Make root part
@@ -1633,7 +1619,8 @@ HTMLContentSink::Init(nsIDocument* aDoc,
 
   // Make head part
   nodeInfo = mNodeInfoManager->GetNodeInfo(nsGkAtoms::head,
-                                           nsnull, kNameSpaceID_XHTML);
+                                           nsnull, kNameSpaceID_XHTML,
+                                           nsIDOMNode::ELEMENT_NODE);
   NS_ENSURE_TRUE(nodeInfo, NS_ERROR_OUT_OF_MEMORY);
 
   mHead = NS_NewHTMLHeadElement(nodeInfo.forget());
@@ -2465,9 +2452,8 @@ HTMLContentSink::AddDocTypeDecl(const nsIParserNode& aNode)
     nsAutoString voidString;
     voidString.SetIsVoid(PR_TRUE);
     rv = NS_NewDOMDocumentType(getter_AddRefs(docType),
-                               mDocument->NodeInfoManager(), nsnull,
-                               nameAtom, nsnull, nsnull, publicId, systemId,
-                               voidString);
+                               mDocument->NodeInfoManager(), nsnull, nameAtom,
+                               publicId, systemId, voidString);
     NS_ENSURE_SUCCESS(rv, rv);
 
     if (oldDocType) {
@@ -2611,7 +2597,9 @@ HTMLContentSink::ProcessLINKTag(const nsIParserNode& aNode)
     // Create content object
     nsCOMPtr<nsIContent> element;
     nsCOMPtr<nsINodeInfo> nodeInfo;
-    nodeInfo = mNodeInfoManager->GetNodeInfo(nsGkAtoms::link, nsnull, kNameSpaceID_XHTML);
+    nodeInfo = mNodeInfoManager->GetNodeInfo(nsGkAtoms::link, nsnull,
+                                             kNameSpaceID_XHTML,
+                                             nsIDOMNode::ELEMENT_NODE);
 
     result = NS_NewHTMLElement(getter_AddRefs(element), nodeInfo.forget(),
                                NOT_FROM_PARSER);
@@ -2642,8 +2630,10 @@ HTMLContentSink::ProcessLINKTag(const nsIParserNode& aNode)
       ssle->SetEnableUpdates(PR_TRUE);
       PRBool willNotify;
       PRBool isAlternate;
-      result = ssle->UpdateStyleSheet(this, &willNotify, &isAlternate);
-      if (NS_SUCCEEDED(result) && willNotify && !isAlternate) {
+      result = ssle->UpdateStyleSheet(mFragmentMode ? nsnull : this,
+                                      &willNotify,
+                                      &isAlternate);
+      if (NS_SUCCEEDED(result) && willNotify && !isAlternate && !mFragmentMode) {
         ++mPendingSheetCount;
         mScriptLoader->AddExecuteBlocker();
       }
@@ -2855,8 +2845,10 @@ HTMLContentSink::ProcessSTYLEEndTag(nsGenericHTMLElement* content)
     ssle->SetEnableUpdates(PR_TRUE);
     PRBool willNotify;
     PRBool isAlternate;
-    rv = ssle->UpdateStyleSheet(this, &willNotify, &isAlternate);
-    if (NS_SUCCEEDED(rv) && willNotify && !isAlternate) {
+    rv = ssle->UpdateStyleSheet(mFragmentMode ? nsnull : this,
+                                &willNotify,
+                                &isAlternate);
+    if (NS_SUCCEEDED(rv) && willNotify && !isAlternate && !mFragmentMode) {
       ++mPendingSheetCount;
       mScriptLoader->AddExecuteBlocker();
     }

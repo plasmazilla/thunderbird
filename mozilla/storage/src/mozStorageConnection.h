@@ -46,7 +46,6 @@
 #include "mozilla/Mutex.h"
 #include "nsIInterfaceRequestor.h"
 
-#include "nsString.h"
 #include "nsDataHashtable.h"
 #include "mozIStorageProgressHandler.h"
 #include "SQLiteMutex.h"
@@ -65,6 +64,8 @@ class nsIMemoryReporter;
 
 namespace mozilla {
 namespace storage {
+
+class StorageMemoryReporter;
 
 class Connection : public mozIStorageConnection
                  , public nsIInterfaceRequestor
@@ -203,7 +204,7 @@ private:
   sqlite3 *mDBConn;
   nsCOMPtr<nsIFile> mDatabaseFile;
 
-  nsTArray<nsCOMPtr<nsIMemoryReporter> > mMemoryReporters;
+  nsTArray<nsRefPtr<StorageMemoryReporter> > mMemoryReporters;
 
   /**
    * Lazily created thread for asynchronous statement execution.  Consumers

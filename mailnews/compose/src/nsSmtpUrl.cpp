@@ -49,6 +49,7 @@
 #include "nsComponentManagerUtils.h"
 #include "nsServiceManagerUtils.h"
 #include "nsCRT.h"
+#include "nsAutoPtr.h"
 
 /////////////////////////////////////////////////////////////////////////////////////
 // mailto url definition
@@ -109,7 +110,10 @@ nsresult nsMailtoUrl::ParseMailtoUrl(char * searchPart)
         *eq = 0;
       }
 
-      switch (NS_ToUpper(*token))
+      nsCString decodedName;
+      MsgUnescapeString(nsDependentCString(token), 0, decodedName);
+
+      switch (NS_ToUpper(decodedName.First()))
       {
         /* DO NOT support attachment= in mailto urls. This poses a security fire hole!!! 
                           case 'A':
@@ -118,7 +122,7 @@ nsresult nsMailtoUrl::ParseMailtoUrl(char * searchPart)
                           break;
                      */
       case 'B':
-        if (!PL_strcasecmp (token, "bcc"))
+        if (decodedName.LowerCaseEqualsLiteral("bcc"))
         {
           if (!escapedBccPart.IsEmpty())
           {
@@ -128,7 +132,7 @@ nsresult nsMailtoUrl::ParseMailtoUrl(char * searchPart)
           else
             escapedBccPart = value; 
         }
-        else if (!PL_strcasecmp (token, "body"))
+        else if (decodedName.LowerCaseEqualsLiteral("body"))
         {
           if (!escapedBodyPart.IsEmpty())
           {
@@ -140,7 +144,7 @@ nsresult nsMailtoUrl::ParseMailtoUrl(char * searchPart)
         }
         break;
       case 'C': 
-        if (!PL_strcasecmp  (token, "cc"))
+        if (decodedName.LowerCaseEqualsLiteral("cc"))
         {
           if (!escapedCcPart.IsEmpty())
           {
@@ -152,14 +156,14 @@ nsresult nsMailtoUrl::ParseMailtoUrl(char * searchPart)
         }
         break;
       case 'F': 
-        if (!PL_strcasecmp (token, "followup-to"))
+        if (decodedName.LowerCaseEqualsLiteral("followup-to"))
           escapedFollowUpToPart = value;
-        else if (!PL_strcasecmp (token, "from"))
+        else if (decodedName.LowerCaseEqualsLiteral("from"))
           escapedFromPart = value;
         break;
       case 'H':
-        if (!PL_strcasecmp(token, "html-part") ||
-            !PL_strcasecmp(token, "html-body"))
+        if (decodedName.LowerCaseEqualsLiteral("html-part") ||
+            decodedName.LowerCaseEqualsLiteral("html-body"))
         {
           // escapedHtmlPart holds the body for both html-part and html-body.
           escapedHtmlPart = value;
@@ -167,36 +171,36 @@ nsresult nsMailtoUrl::ParseMailtoUrl(char * searchPart)
         }
         break;
       case 'I':
-        if (!PL_strcasecmp (token, "in-reply-to"))
+        if (decodedName.LowerCaseEqualsLiteral("in-reply-to"))
           escapedInReplyToPart = value;
         break;
 
       case 'N':
-        if (!PL_strcasecmp (token, "newsgroups"))
+        if (decodedName.LowerCaseEqualsLiteral("newsgroups"))
           escapedNewsgroupPart = value;
-        else if (!PL_strcasecmp (token, "newshost"))
+        else if (decodedName.LowerCaseEqualsLiteral("newshost"))
           escapedNewsHostPart = value;
         break;
       case 'O':
-        if (!PL_strcasecmp (token, "organization"))
+        if (decodedName.LowerCaseEqualsLiteral("organization"))
           escapedOrganizationPart = value;
         break;
       case 'R':
-        if (!PL_strcasecmp (token, "references"))
+        if (decodedName.LowerCaseEqualsLiteral("references"))
           escapedReferencePart = value;
-        else if (!PL_strcasecmp (token, "reply-to"))
+        else if (decodedName.LowerCaseEqualsLiteral("reply-to"))
           escapedReplyToPart = value;
         break;
       case 'S':
-        if(!PL_strcasecmp (token, "subject"))
+        if(decodedName.LowerCaseEqualsLiteral("subject"))
           escapedSubjectPart = value;
         break;
       case 'P':
-        if (!PL_strcasecmp (token, "priority"))
+        if (decodedName.LowerCaseEqualsLiteral("priority"))
           escapedPriorityPart = PL_strdup(value);
         break;
       case 'T':
-        if (!PL_strcasecmp (token, "to"))
+        if (decodedName.LowerCaseEqualsLiteral("to"))
         {
           if (!escapedToPart.IsEmpty())
           {
@@ -657,7 +661,19 @@ NS_IMETHODIMP nsMailtoUrl::Equals(nsIURI *other, PRBool *_retval)
 
 NS_IMETHODIMP nsMailtoUrl::Clone(nsIURI **_retval)
 {
-	return m_baseURL->Clone(_retval);
+  NS_ENSURE_ARG_POINTER(_retval);
+
+  nsRefPtr<nsMailtoUrl> clone = new nsMailtoUrl();
+
+  if (!clone)
+    return NS_ERROR_OUT_OF_MEMORY;
+
+  nsresult rv = m_baseURL->Clone(getter_AddRefs(clone->m_baseURL));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  clone->ParseUrl();
+  *_retval = clone.forget().get();
+  return NS_OK;
 }	
 
 NS_IMETHODIMP nsMailtoUrl::Resolve(const nsACString &relativePath, nsACString &result) 
@@ -665,8 +681,53 @@ NS_IMETHODIMP nsMailtoUrl::Resolve(const nsACString &relativePath, nsACString &r
 	return m_baseURL->Resolve(relativePath, result);
 }
 
+NS_IMETHODIMP nsMailtoUrl::SetRef(const nsACString &aRef)
+{
+  return m_baseURL->SetRef(aRef);
+}
 
+NS_IMETHODIMP
+nsMailtoUrl::GetRef(nsACString &result)
+{
+  return m_baseURL->GetRef(result);
+}
 
+NS_IMETHODIMP nsMailtoUrl::EqualsExceptRef(nsIURI *other, PRBool *result)
+{
+  // The passed-in URI might be an nsMailtoUrl. Pass our inner URL to its
+  // Equals method. The other nsMailtoUrl will then pass its inner URL to
+  // to the Equals method of our inner URL. Other URIs will return false.
+  if (other)
+    return other->EqualsExceptRef(m_baseURL, result);
+
+  return m_baseURL->EqualsExceptRef(other, result);
+}
+
+NS_IMETHODIMP
+nsMailtoUrl::CloneIgnoringRef(nsIURI** result)
+{
+  nsCOMPtr<nsIURI> clone;
+  nsresult rv = Clone(getter_AddRefs(clone));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = clone->SetRef(EmptyCString());
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  clone.forget(result);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsMailtoUrl::GetSpecIgnoringRef(nsACString &result)
+{
+  return m_baseURL->GetSpecIgnoringRef(result);
+}
+
+NS_IMETHODIMP
+nsMailtoUrl::GetHasRef(PRBool *result)
+{
+  return m_baseURL->GetHasRef(result);
+}
 
 /////////////////////////////////////////////////////////////////////////////////////
 // smtp url definition

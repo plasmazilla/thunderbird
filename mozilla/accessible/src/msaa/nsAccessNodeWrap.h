@@ -61,9 +61,6 @@
 #include "OLEIDL.H"
 #include "OLEACC.H"
 #include <winuser.h>
-#ifndef WINABLEAPI
-#include <winable.h>
-#endif
 #ifdef MOZ_CRASHREPORTER
 #include "nsICrashReporter.h"
 #endif
@@ -184,8 +181,6 @@ protected:
    * @note ISimpleDOMNode is returned addrefed
    */
   ISimpleDOMNode *MakeAccessNode(nsINode *aNode);
-
-    static PRBool gIsEnumVariantSupportDisabled;
 
     /**
      * Used to determine whether an IAccessible2 compatible screen reader is

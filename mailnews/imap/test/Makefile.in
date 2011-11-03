@@ -45,18 +45,6 @@ relativesrcdir = mailnews/imap/test
 
 include $(DEPTH)/config/autoconf.mk
 
-ifndef MOZ_ENABLE_LIBXUL
-ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
-MOZILLA_INTERNAL_API = 1
-endif
-
-# XXX This needs functions exporting in the libxul case.
-CPP_UNIT_TESTS = \
-		TestImapHdrXferInfo.cpp \
-		TestImapFlagAndUidState.cpp \
-		$(NULL)
-endif
-
 include $(topsrcdir)/config/config.mk
 
 XPCSHELL_TESTS = unit
@@ -75,17 +63,7 @@ endif
 
 LIBS += 	\
 		../src/$(LIB_PREFIX)msgimap_s.$(LIB_SUFFIX) \
-		$(NULL)
-
-ifdef MOZ_STATIC_MAIL_BUILD
-LIBS +=		\
 		../../base/util/$(LIB_PREFIX)msgbsutl_s.$(LIB_SUFFIX) \
-		$(NULL)
-else
-LIBS +=		$(call EXPAND_LIBNAME_PATH,msgbaseutil,../../base/util)
-endif
-
-LIBS +=		\
 		$(XPCOM_LIBS) \
 		$(NSPR_LIBS) \
 		$(ZLIB_LIBS) \

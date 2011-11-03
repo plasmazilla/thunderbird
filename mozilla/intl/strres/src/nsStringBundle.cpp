@@ -61,7 +61,6 @@
 #include "nsCOMArray.h"
 #include "nsTextFormatter.h"
 #include "nsIErrorService.h"
-#include "nsITimelineService.h"
 #include "nsICategoryManager.h"
 
 #include "nsPrintfCString.h"
@@ -87,7 +86,7 @@ nsStringBundle::nsStringBundle(const char* aURLSpec,
                                nsIStringBundleOverride* aOverrideStrings) :
   mPropertiesURL(aURLSpec),
   mOverrideStrings(aOverrideStrings),
-  mMonitor("nsStringBundle.mMonitor"),
+  mReentrantMonitor("nsStringBundle.mReentrantMonitor"),
   mAttemptedLoad(PR_FALSE),
   mLoaded(PR_FALSE)
 {
@@ -128,8 +127,6 @@ nsStringBundle::LoadProperties()
   rv = channel->Open(getter_AddRefs(in));
   if (NS_FAILED(rv)) return rv;
 
-  NS_TIMELINE_MARK_FUNCTION("loading properties");
-
   NS_ASSERTION(NS_SUCCEEDED(rv) && in, "Error in OpenBlockingStream");
   NS_ENSURE_TRUE(NS_SUCCEEDED(rv) && in, NS_ERROR_FAILURE);
     
@@ -148,7 +145,7 @@ nsStringBundle::LoadProperties()
 nsresult
 nsStringBundle::GetStringFromID(PRInt32 aID, nsAString& aResult)
 {  
-  MonitorAutoEnter automon(mMonitor);
+  ReentrantMonitorAutoEnter automon(mReentrantMonitor);
   nsCAutoString name;
   name.AppendInt(aID, 10);
 
@@ -269,7 +266,7 @@ nsStringBundle::GetStringFromName(const PRUnichar *aName, PRUnichar **aResult)
   rv = LoadProperties();
   if (NS_FAILED(rv)) return rv;
 
-  MonitorAutoEnter automon(mMonitor);
+  ReentrantMonitorAutoEnter automon(mReentrantMonitor);
   *aResult = nsnull;
   nsAutoString tmpstr;
   rv = GetStringFromName(nsDependentString(aName), tmpstr);

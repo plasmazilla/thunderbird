@@ -50,7 +50,7 @@
 #if defined(__cplusplus)
 #  include <new>
 #endif
-
+#include "xpcom-config.h"
 
 #define MOZALLOC_HAVE_XMALLOC
 
@@ -162,7 +162,7 @@ MOZALLOC_EXPORT void* moz_memalign(size_t boundary, size_t size)
 #endif /* if defined(HAVE_MEMALIGN) */
 
 
-#if defined(HAVE_VALLOC)
+#if defined(HAVE_VALLOC) || defined(HAVE_JEMALLOC_VALLOC)
 MOZALLOC_EXPORT void* moz_xvalloc(size_t size)
     NS_ATTR_MALLOC NS_WARN_UNUSED_RESULT;
 

@@ -3821,11 +3821,7 @@ nsTextServicesDocument::NodeHasOffsetEntry(nsTArray<OffsetEntry*> *aOffsetTable,
 }
 
 // Spellchecker code has this. See bug 211343
-#ifdef XP_MAC
-#define IS_NBSP_CHAR(c) (((unsigned char)0xca)==(c))
-#else
 #define IS_NBSP_CHAR(c) (((unsigned char)0xa0)==(c))
-#endif
 
 nsresult
 nsTextServicesDocument::FindWordBounds(nsTArray<OffsetEntry*> *aOffsetTable,
@@ -3989,31 +3985,14 @@ void
 nsTextServicesDocument::PrintContentNode(nsIContent *aContent)
 {
   nsString tmpStr, str;
-  nsresult result;
 
   aContent->Tag()->ToString(tmpStr);
   printf("%s", NS_LossyConvertUTF16toASCII(tmpStr).get());
 
-  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(aContent);
-
-  if (node)
+  if (nsIDOMNode::TEXT_NODE == aContent->NodeType())
   {
-    PRUint16 type;
-
-    result = node->GetNodeType(&type);
-
-    if (NS_FAILED(result))
-      return;
-
-    if (nsIDOMNode::TEXT_NODE == type)
-    {
-      result = node->GetNodeValue(str);
-
-      if (NS_FAILED(result))
-        return;
-
-      printf(":  \"%s\"", NS_LossyConvertUTF16toASCII(str).get());
-    }
+    aContent->AppendTextTo(str);
+    printf(":  \"%s\"", NS_LossyConvertUTF16toASCII(str).get());
   }
 
   printf("\n");

@@ -35,9 +35,11 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
+
+#include "nsMediaStream.h"
+
 #include "mozilla/Mutex.h"
 #include "nsDebug.h"
-#include "nsMediaStream.h"
 #include "nsMediaDecoder.h"
 #include "nsNetUtil.h"
 #include "nsThreadUtils.h"
@@ -57,6 +59,8 @@
 #include "nsICachingChannel.h"
 #include "nsURILoader.h"
 #include "nsIAsyncVerifyRedirectCallback.h"
+#include "mozilla/Util.h" // for DebugOnly
+#include "nsContentUtils.h"
 
 #define HTTP_OK_CODE 200
 #define HTTP_PARTIAL_RESPONSE_CODE 206
@@ -222,8 +226,10 @@ nsMediaChannelStream::OnStartRequest(nsIRequest* aRequest)
       if (NS_SUCCEEDED(rv)) {
         double duration = durationText.ToDouble(&ec);
         if (ec == NS_OK && duration >= 0) {
-          mDecoder->SetDuration(PRInt64(NS_round(duration*1000)));
+          mDecoder->SetDuration(duration);
         }
+      } else {
+        mDecoder->SetInfinite(PR_TRUE);
       }
     }
 
@@ -255,6 +261,10 @@ nsMediaChannelStream::OnStartRequest(nsIRequest* aRequest)
     // support seeking.
     seekable =
       responseStatus == HTTP_PARTIAL_RESPONSE_CODE || acceptsRanges;
+
+    if (seekable) {
+      mDecoder->SetInfinite(PR_FALSE);
+    }
   }
   mDecoder->SetSeekable(seekable);
   mCacheStream.SetSeekable(seekable);
@@ -331,7 +341,7 @@ nsMediaChannelStream::OnStopRequest(nsIRequest* aRequest, nsresult aStatus)
       mLoadInBackground = PR_FALSE;
 
       nsLoadFlags loadFlags;
-      nsresult rv = mChannel->GetLoadFlags(&loadFlags);
+      DebugOnly<nsresult> rv = mChannel->GetLoadFlags(&loadFlags);
       NS_ASSERTION(NS_SUCCEEDED(rv), "GetLoadFlags() failed!");
 
       loadFlags &= ~nsIRequest::LOAD_BACKGROUND;
@@ -938,7 +948,7 @@ public:
   {
     return (aOffset < mSize) ? aOffset : -1;
   }
-  virtual PRInt64 GetCachedDataEnd(PRInt64 aOffset) { return PR_MAX(aOffset, mSize); }
+  virtual PRInt64 GetCachedDataEnd(PRInt64 aOffset) { return NS_MAX(aOffset, mSize); }
   virtual PRBool  IsDataCachedToEndOfStream(PRInt64 aOffset) { return PR_TRUE; }
   virtual PRBool  IsSuspendedByCache() { return PR_FALSE; }
   virtual PRBool  IsSuspended() { return PR_FALSE; }
@@ -1004,7 +1014,7 @@ nsresult nsMediaFileStream::Open(nsIStreamListener** aStreamListener)
     *aStreamListener = nsnull;
   }
 
-  nsresult rv;
+  nsresult rv = NS_OK;
   if (aStreamListener) {
     // The channel is already open. We need a synchronous stream that
     // implements nsISeekableStream, so we have to find the underlying

@@ -5,7 +5,10 @@
       android:installLocation="auto"
       android:versionCode="@ANDROID_VERSION_CODE@"
       android:versionName="@MOZ_APP_VERSION@"
-      android:sharedUserId="@MOZ_ANDROID_SHARED_ID@">
+#ifdef MOZ_ANDROID_SHARED_ID
+      android:sharedUserId="@MOZ_ANDROID_SHARED_ID@"
+#endif
+      >
     <uses-sdk android:minSdkVersion="5"
               android:targetSdkVersion="5"/>
 
@@ -21,14 +24,11 @@
 
     <application android:label="@MOZ_APP_DISPLAYNAME@"
 		 android:icon="@drawable/icon"
+#if MOZILLA_OFFICIAL
+		 android:debuggable="false">
+#else
 		 android:debuggable="true">
-
-        <!-- for network link status -->
-        <receiver android:name="org.mozilla.gecko.GeckoConnectivityReceiver">
-            <intent-filter>
-                <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
-            </intent-filter>
-        </receiver>
+#endif
 
         <activity android:name="App"
                   android:label="@MOZ_APP_DISPLAYNAME@"
@@ -55,6 +55,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="file" />
                 <data android:scheme="http" />
                 <data android:scheme="https" />
                 <data android:mimeType="text/html"/>
@@ -91,6 +92,7 @@
             <action android:name="org.mozilla.gecko.restart"/>
           </intent-filter>
         </activity>
+
 #if MOZ_CRASHREPORTER
 	<activity android:name="CrashReporter"
                   android:label="@string/crash_reporter_title"
@@ -100,5 +102,14 @@
           </intent-filter>
 	</activity>
 #endif
+
+        <activity android:name="LauncherShortcuts"
+                  android:label="@string/launcher_shortcuts_title">
+            <!--  This intent-filter allows your shortcuts to be created in the launcher. -->
+            <intent-filter>
+                <action android:name="android.intent.action.CREATE_SHORTCUT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest> 

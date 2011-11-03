@@ -40,6 +40,9 @@
 
 #include "mozilla/dom/PBrowserChild.h"
 #include "BasicLayers.h"
+#if defined(MOZ_ENABLE_D3D10_LAYER)
+# include "LayerManagerD3D10.h"
+#endif
 
 #include "gfxPlatform.h"
 #include "PuppetWidget.h"
@@ -108,7 +111,7 @@ PuppetWidget::Create(nsIWidget        *aParent,
                      nsNativeWidget   aNativeParent,
                      const nsIntRect  &aRect,
                      EVENT_CALLBACK   aHandleEventFunction,
-                     nsIDeviceContext *aContext,
+                     nsDeviceContext *aContext,
                      nsIAppShell      *aAppShell,
                      nsIToolkit       *aToolkit,
                      nsWidgetInitData *aInitData)
@@ -148,7 +151,7 @@ PuppetWidget::Create(nsIWidget        *aParent,
 already_AddRefed<nsIWidget>
 PuppetWidget::CreateChild(const nsIntRect  &aRect,
                           EVENT_CALLBACK   aHandleEventFunction,
-                          nsIDeviceContext *aContext,
+                          nsDeviceContext *aContext,
                           nsIAppShell      *aAppShell,
                           nsIToolkit       *aToolkit,
                           nsWidgetInitData *aInitData,
@@ -215,7 +218,7 @@ PuppetWidget::Resize(PRInt32 aWidth,
     InvalidateRegion(this, dirty);
   }
 
-  if (oldBounds != mBounds) {
+  if (!oldBounds.IsEqualEdges(mBounds)) {
     DispatchResizeEvent();
   }
 
@@ -330,10 +333,27 @@ PuppetWidget::DispatchEvent(nsGUIEvent* event, nsEventStatus& aStatus)
 }
 
 LayerManager*
-PuppetWidget::GetLayerManager(LayerManagerPersistence, bool* aAllowRetaining)
+PuppetWidget::GetLayerManager(PLayersChild* aShadowManager,
+                              LayersBackend aBackendHint,
+                              LayerManagerPersistence aPersistence,
+                              bool* aAllowRetaining)
 {
   if (!mLayerManager) {
-    mLayerManager = new BasicShadowLayerManager(this);
+    // The backend hint is a temporary placeholder until Azure, when
+    // all content-process layer managers will be BasicLayerManagers.
+#if defined(MOZ_ENABLE_D3D10_LAYER)
+    if (LayerManager::LAYERS_D3D10 == aBackendHint) {
+      nsRefPtr<LayerManagerD3D10> m = new LayerManagerD3D10(this);
+      m->AsShadowForwarder()->SetShadowManager(aShadowManager);
+      if (m->Initialize()) {
+        mLayerManager = m;
+      }
+    }
+#endif
+    if (!mLayerManager) {
+      mLayerManager = new BasicShadowLayerManager(this);
+      mLayerManager->AsShadowForwarder()->SetShadowManager(aShadowManager);
+    }
   }
   if (aAllowRetaining) {
     *aAllowRetaining = true;
@@ -398,7 +418,8 @@ NS_IMETHODIMP
 PuppetWidget::SetInputMode(const IMEContext& aContext)
 {
   if (mTabChild &&
-      mTabChild->SendSetInputMode(aContext.mStatus, aContext.mHTMLInputType, aContext.mActionHint))
+      mTabChild->SendSetInputMode(aContext.mStatus, aContext.mHTMLInputType,
+                                  aContext.mActionHint, aContext.mReason))
     return NS_OK;
   return NS_ERROR_FAILURE;
 }
@@ -504,6 +525,16 @@ PuppetWidget::OnIMESelectionChange(void)
   return NS_OK;
 }
 
+NS_IMETHODIMP
+PuppetWidget::SetCursor(nsCursor aCursor)
+{
+  if (!mTabChild ||
+      !mTabChild->SendSetCursor(aCursor)) {
+    return NS_ERROR_FAILURE;
+  }
+  return NS_OK;
+}
+
 nsresult
 PuppetWidget::DispatchPaintEvent()
 {
@@ -527,10 +558,15 @@ PuppetWidget::DispatchPaintEvent()
                          nsCAutoString("PuppetWidget"), nsnull);
 #endif
 
-    nsRefPtr<gfxContext> ctx = new gfxContext(mSurface);
-    AutoLayerManagerSetup setupLayerManager(this, ctx,
-                                            BasicLayerManager::BUFFER_NONE);
-    DispatchEvent(&event, status);  
+    LayerManager* lm = GetLayerManager();
+    if (LayerManager::LAYERS_D3D10 == mLayerManager->GetBackendType()) {
+      DispatchEvent(&event, status);
+    } else {
+      nsRefPtr<gfxContext> ctx = new gfxContext(mSurface);
+      AutoLayerManagerSetup setupLayerManager(this, ctx,
+                                              BasicLayerManager::BUFFER_NONE);
+      DispatchEvent(&event, status);  
+    }
   }
 
   nsPaintEvent didPaintEvent(PR_TRUE, NS_DID_PAINT, this);

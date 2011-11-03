@@ -75,12 +75,16 @@
  *   The resulting nsIThread object.
  * @param initialEvent
  *   The initial event to run on this thread.  This parameter may be null.
+ * @param stackSize
+ *   The size in bytes to reserve for the thread's stack.
  *
  * @returns NS_ERROR_INVALID_ARG
  *   Indicates that the given name is not unique.
  */
 extern NS_COM_GLUE NS_METHOD
-NS_NewThread(nsIThread **result, nsIRunnable *initialEvent = nsnull);
+NS_NewThread(nsIThread **result,
+             nsIRunnable *initialEvent = nsnull,
+             PRUint32 stackSize = nsIThreadManager::DEFAULT_STACK_SIZE);
 
 /**
  * Get a reference to the current thread.
@@ -106,14 +110,10 @@ NS_COM bool NS_IsMainThread();
 // This is defined in nsThreadManager.cpp and initialized to `Main` for the
 // main thread by nsThreadManager::Init.
 extern NS_TLS mozilla::threads::ID gTLSThreadID;
-#ifdef MOZ_ENABLE_LIBXUL
 inline bool NS_IsMainThread()
 {
   return gTLSThreadID == mozilla::threads::Main;
 }
-#else
-NS_COM bool NS_IsMainThread();
-#endif
 #else
 /**
  * Test to see if the current thread is the main thread.

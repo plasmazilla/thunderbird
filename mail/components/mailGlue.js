@@ -42,6 +42,7 @@ const Cu = Components.utils;
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://gre/modules/AddonManager.jsm");
 
 /**
  * Glue code that should be executed before any windows are opened. Any
@@ -92,11 +93,30 @@ MailGlue.prototype = {
   },
 
   _onMailStartupDone: function MailGlue__onMailStartupDone() {
-    // On Windows (effectively 7 and up), perform shortcut maintenance
-    let shellService = Cc["@mozilla.org/mail/shell-service;1"].getService();
-    if ("nsIWindowsShellService" in Ci &&
-        shellService instanceof Ci.nsIWindowsShellService)
-      shellService.shortcutMaintenance();
+    // On Windows 7 and above, initialize the jump list module.
+    const WINTASKBAR_CONTRACTID = "@mozilla.org/windows-taskbar;1";
+    if (WINTASKBAR_CONTRACTID in Cc &&
+        Cc[WINTASKBAR_CONTRACTID].getService(Ci.nsIWinTaskbar).available) {
+      Cu.import("resource:///modules/windowsJumpLists.js");
+      WinTaskbarJumpList.startup();
+    }
+
+    // For any add-ons that were installed disabled and can be enabled, offer
+    // them to the user.
+    var win = Services.wm.getMostRecentWindow("mail:3pane");
+    var tabmail = win.document.getElementById("tabmail");
+    var changedIDs = AddonManager.getStartupChanges(AddonManager.STARTUP_CHANGE_INSTALLED);
+    AddonManager.getAddonsByIDs(changedIDs, function (aAddons) {
+      aAddons.forEach(function(aAddon) {
+        // If the add-on isn't user disabled or can't be enabled then skip it.
+        if (!aAddon.userDisabled || !(aAddon.permissions & AddonManager.PERM_CAN_ENABLE))
+          return;
+
+        tabmail.openTab("contentTab",
+                        { contentPage: "about:newaddon?id=" + aAddon.id,
+                          clickHandler: null });
+      });
+    });
   },
 
   // for XPCOM

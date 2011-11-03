@@ -65,12 +65,9 @@ ifeq (,$(filter-out Linux,$(OS_TARGET)))
 EXTRA_DSO_LDOPTS += -lpthread
 endif
 endif
+ifeq ($(OS_ARCH),Darwin)
+EXTRA_DSO_LDOPTS += -L$(DIST)/lib -ljemalloc
 endif
-
-ifeq (,$(filter-out WINCE,$(OS_ARCH)))
-# mozalloc gets its allocation methods from the shunt, which gets their 
-# implementation by direcly linking with jemalloc.obj
-OS_LIBS		=
 endif
 
 ifeq (,$(filter-out OS2,$(OS_ARCH)))
@@ -114,10 +111,12 @@ endif #}
 endif #}
 endif #}
 
-ifneq (,$(filter OS2 WINCE WINNT,$(OS_ARCH)))
+ifneq (,$(filter OS2 WINNT,$(OS_ARCH)))
 SDK_LIBRARY = $(IMPORT_LIBRARY)
 else
 SDK_LIBRARY = $(SHARED_LIBRARY)
 endif
+
+LOCAL_INCLUDES += -I$(DEPTH)/xpcom
 
 include $(topsrcdir)/config/rules.mk

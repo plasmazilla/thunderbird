@@ -37,6 +37,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "nsHTMLInputElement.h"
+
 #include "nsIDOMHTMLInputElement.h"
 #include "nsITextControlElement.h"
 #include "nsIDOMNSEditableElement.h"
@@ -49,7 +51,6 @@
 #include "nsContentCID.h"
 #include "nsIComponentManager.h"
 #include "nsIDOMHTMLFormElement.h"
-#include "nsIDOMEventTarget.h"
 #include "nsGkAtoms.h"
 #include "nsStyleConsts.h"
 #include "nsPresContext.h"
@@ -63,7 +64,7 @@
 #include "nsIFormControlFrame.h"
 #include "nsITextControlFrame.h"
 #include "nsIFrame.h"
-#include "nsIEventStateManager.h"
+#include "nsEventStates.h"
 #include "nsIServiceManager.h"
 #include "nsIScriptSecurityManager.h"
 #include "nsDOMError.h"
@@ -71,6 +72,7 @@
 #include "nsIEditor.h"
 #include "nsGUIEvent.h"
 #include "nsIIOService.h"
+#include "nsDocument.h"
 
 #include "nsPresState.h"
 #include "nsLayoutErrors.h"
@@ -89,7 +91,7 @@
 #include "nsIDOMMutationEvent.h"
 #include "nsIDOMEventTarget.h"
 #include "nsMutationEvent.h"
-#include "nsIEventListenerManager.h"
+#include "nsEventListenerManager.h"
 
 #include "nsRuleData.h"
 
@@ -111,21 +113,12 @@
 
 // input type=image
 #include "nsImageLoadingContent.h"
-#include "nsIDOMWindowInternal.h"
 
 #include "mozAutoDocUpdate.h"
 #include "nsContentCreatorFunctions.h"
 #include "nsCharSeparatedTokenizer.h"
 #include "nsContentUtils.h"
 #include "nsRadioVisitor.h"
-
-#include "nsTextEditRules.h"
-
-// JS headers are needed for the pattern attribute.
-#include "jsapi.h"
-#include "jscntxt.h"
-
-#include "nsHTMLInputElement.h"
 
 using namespace mozilla::dom;
 
@@ -268,7 +261,7 @@ AsyncClickHandler::Run()
 {
   nsresult rv;
 
-  // Get parent nsIDOMWindowInternal object.
+  // Get parent nsPIDOMWindow object.
   nsCOMPtr<nsIDocument> doc = mInput->GetOwnerDoc();
   if (!doc)
     return NS_ERROR_FAILURE;
@@ -404,7 +397,7 @@ AsyncClickHandler::Run()
         rv = localFile->GetPath(unicodePath);
         if (!unicodePath.IsEmpty()) {
           nsCOMPtr<nsIDOMFile> domFile =
-            do_QueryObject(new nsDOMFile(localFile));
+            do_QueryObject(new nsDOMFileFile(localFile));
           newFiles.AppendObject(domFile);
         }
         if (!prefSaved) {
@@ -424,7 +417,7 @@ AsyncClickHandler::Run()
       rv = localFile->GetPath(unicodePath);
       if (!unicodePath.IsEmpty()) {
         nsCOMPtr<nsIDOMFile> domFile=
-          do_QueryObject(new nsDOMFile(localFile));
+          do_QueryObject(new nsDOMFileFile(localFile));
         newFiles.AppendObject(domFile);
       }
       // Store the last used directory using the content pref service
@@ -630,6 +623,15 @@ nsHTMLInputElement::nsHTMLInputElement(already_AddRefed<nsINodeInfo> aNodeInfo,
   
   if (!gUploadLastDir)
     nsHTMLInputElement::InitUploadLastDir();
+
+  // Set up our default state.  By default we're enabled (since we're
+  // a control type that can be disabled but not actually disabled
+  // right now), optional, and valid.  We are NOT readwrite by default
+  // until someone calls UpdateEditableState on us, apparently!  Also
+  // by default we don't have to show validity UI and so forth.
+  AddStatesSilently(NS_EVENT_STATE_ENABLED |
+                    NS_EVENT_STATE_OPTIONAL |
+                    NS_EVENT_STATE_VALID);
 }
 
 nsHTMLInputElement::~nsHTMLInputElement()
@@ -673,8 +675,18 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(nsHTMLInputElement,
   if (tmp->IsSingleLineTextControl(PR_FALSE)) {
     NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NATIVE_MEMBER(mInputData.mState, nsTextEditorState)
   }
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMARRAY(mFiles)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mFileList)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
+NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(nsHTMLInputElement,
+                                                  nsGenericHTMLFormElement)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mControllers)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMARRAY(mFiles)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mFileList);
+  //XXX should unlink more?
+NS_IMPL_CYCLE_COLLECTION_UNLINK_END
+                                                              
 NS_IMPL_ADDREF_INHERITED(nsHTMLInputElement, nsGenericElement) 
 NS_IMPL_RELEASE_INHERITED(nsHTMLInputElement, nsGenericElement) 
 
@@ -799,9 +811,6 @@ nsHTMLInputElement::AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
                                  const nsAString* aValue,
                                  PRBool aNotify)
 {
-  // States changes that have to be passed to ContentStateChanged().
-  nsEventStates states;
-
   if (aNameSpaceID == kNameSpaceID_None) {
     //
     // When name or type changes, radio should be added to radio group.
@@ -814,8 +823,6 @@ nsHTMLInputElement::AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
         (mForm || !(GET_BOOLBIT(mBitField, BF_PARSER_CREATING)))) {
       AddedToRadioGroup();
       UpdateValueMissingValidityStateForRadio(false);
-      states |= NS_EVENT_STATE_VALID | NS_EVENT_STATE_INVALID |
-                NS_EVENT_STATE_REQUIRED | NS_EVENT_STATE_OPTIONAL;
     }
 
     // If @value is changed and BF_VALUE_CHANGED is false, @value is the value
@@ -854,21 +861,6 @@ nsHTMLInputElement::AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
 
       UpdateBarredFromConstraintValidation();
 
-      // If we are changing type from File/Text/Tel/Passwd to other input types
-      // we need save the mValue into value attribute
-      if (mInputData.mValue &&
-          mType != NS_FORM_INPUT_EMAIL &&
-          mType != NS_FORM_INPUT_TEXT &&
-          mType != NS_FORM_INPUT_SEARCH &&
-          mType != NS_FORM_INPUT_PASSWORD &&
-          mType != NS_FORM_INPUT_TEL &&
-          mType != NS_FORM_INPUT_URL &&
-          mType != NS_FORM_INPUT_FILE) {
-        SetAttr(kNameSpaceID_None, nsGkAtoms::value,
-                NS_ConvertUTF8toUTF16(mInputData.mValue), PR_FALSE);
-        FreeData();
-      }
-
       if (mType != NS_FORM_INPUT_IMAGE) {
         // We're no longer an image input.  Cancel our image requests, if we have
         // any.  Note that doing this when we already weren't an image is ok --
@@ -882,39 +874,14 @@ nsHTMLInputElement::AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
           LoadImage(src, PR_FALSE, aNotify);
         }
       }
-
-      // Changing type affects the applicability of some states.  Just notify
-      // on them all now, just in case.  Note that we can't rely on the
-      // notifications LoadImage or CancelImageRequests might have sent, because
-      // those didn't include all the possibly-changed states in the mask. We
-      // have to do this here because we just updated mType, so the code in
-      // nsGenericElement::SetAttrAndNotify didn't see the new states.
-      states |= NS_EVENT_STATE_CHECKED |
-                NS_EVENT_STATE_DEFAULT |
-                NS_EVENT_STATE_BROKEN |
-                NS_EVENT_STATE_USERDISABLED |
-                NS_EVENT_STATE_SUPPRESSED |
-                NS_EVENT_STATE_LOADING |
-                NS_EVENT_STATE_MOZ_READONLY |
-                NS_EVENT_STATE_MOZ_READWRITE |
-                NS_EVENT_STATE_REQUIRED |
-                NS_EVENT_STATE_OPTIONAL |
-                NS_EVENT_STATE_VALID |
-                NS_EVENT_STATE_INVALID |
-                NS_EVENT_STATE_MOZ_UI_VALID |
-                NS_EVENT_STATE_MOZ_UI_INVALID |
-                NS_EVENT_STATE_INDETERMINATE |
-                NS_EVENT_STATE_MOZ_PLACEHOLDER |
-                NS_EVENT_STATE_MOZ_SUBMITINVALID;
     }
 
     if (mType == NS_FORM_INPUT_RADIO && aName == nsGkAtoms::required) {
-      nsCOMPtr<nsIRadioGroupContainer> c = GetRadioGroupContainer();
-      nsCOMPtr<nsIRadioGroupContainer_MOZILLA_2_0_BRANCH> container =
-        do_QueryInterface(c);
-      nsAutoString name;
+      nsCOMPtr<nsIRadioGroupContainer> container = GetRadioGroupContainer();
 
-      if (container && GetNameIfExists(name)) {
+      if (container) {
+        nsAutoString name;
+        GetAttr(kNameSpaceID_None, nsGkAtoms::name, name);
         container->RadioRequiredChanged(name, this);
       }
     }
@@ -927,35 +894,16 @@ nsHTMLInputElement::AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
       if (aName == nsGkAtoms::readonly || aName == nsGkAtoms::disabled) {
         UpdateBarredFromConstraintValidation();
       }
-
-      states |= NS_EVENT_STATE_REQUIRED | NS_EVENT_STATE_OPTIONAL |
-                NS_EVENT_STATE_VALID | NS_EVENT_STATE_INVALID |
-                NS_EVENT_STATE_MOZ_UI_VALID | NS_EVENT_STATE_MOZ_UI_INVALID;
     } else if (MaxLengthApplies() && aName == nsGkAtoms::maxlength) {
       UpdateTooLongValidityState();
-      states |= NS_EVENT_STATE_VALID | NS_EVENT_STATE_INVALID |
-                NS_EVENT_STATE_MOZ_UI_VALID | NS_EVENT_STATE_MOZ_UI_INVALID;
     } else if (aName == nsGkAtoms::pattern) {
       UpdatePatternMismatchValidityState();
-      states |= NS_EVENT_STATE_VALID | NS_EVENT_STATE_INVALID |
-                NS_EVENT_STATE_MOZ_UI_VALID | NS_EVENT_STATE_MOZ_UI_INVALID;
+    } else if (aName == nsGkAtoms::multiple) {
+      UpdateTypeMismatchValidityState();
     }
 
-    if (aNotify) {
-      nsIDocument* doc = GetCurrentDoc();
-
-      if (aName == nsGkAtoms::type) {
-        UpdateEditableState();
-      } else if (IsSingleLineTextControl(PR_FALSE) && aName == nsGkAtoms::readonly) {
-        UpdateEditableState();
-        states |= NS_EVENT_STATE_MOZ_READONLY | NS_EVENT_STATE_MOZ_READWRITE;
-      }
-
-      if (doc && !states.IsEmpty()) {
-        MOZ_AUTO_DOC_UPDATE(doc, UPDATE_CONTENT_STATE, PR_TRUE);
-        doc->ContentStateChanged(this, states);
-      }
-    }
+    UpdateEditableState(aNotify);
+    UpdateState(aNotify);
   }
 
   return nsGenericHTMLFormElement::AfterSetAttr(aNameSpaceID, aName,
@@ -1022,12 +970,7 @@ nsHTMLInputElement::SetIndeterminateInternal(PRBool aValue,
       frame->InvalidateFrameSubtree();
   }
 
-  // Notify the document so it can update :indeterminate pseudoclass rules
-  nsIDocument* document = GetCurrentDoc();
-  if (document) {
-    mozAutoDocUpdate upd(document, UPDATE_CONTENT_STATE, PR_TRUE);
-    document->ContentStateChanged(this, NS_EVENT_STATE_INDETERMINATE);
-  }
+  UpdateState(true);
 
   return NS_OK;
 }
@@ -1047,37 +990,42 @@ nsHTMLInputElement::GetValue(nsAString& aValue)
 nsresult
 nsHTMLInputElement::GetValueInternal(nsAString& aValue) const
 {
-  nsTextEditorState* state = GetEditorState();
-  if (state) {
-    state->GetValue(aValue, PR_TRUE);
-    return NS_OK;
+  switch (GetValueMode()) {
+    case VALUE_MODE_VALUE:
+      mInputData.mState->GetValue(aValue, PR_TRUE);
+      return NS_OK;
+
+    case VALUE_MODE_FILENAME:
+      if (nsContentUtils::IsCallerTrustedForCapability("UniversalFileRead")) {
+        if (mFiles.Count()) {
+          return mFiles[0]->GetMozFullPath(aValue);
+        }
+        else {
+          aValue.Truncate();
+        }
+      } else {
+        // Just return the leaf name
+        if (mFiles.Count() == 0 || NS_FAILED(mFiles[0]->GetName(aValue))) {
+          aValue.Truncate();
+        }
+      }
+
+      return NS_OK;
+
+    case VALUE_MODE_DEFAULT:
+      // Treat defaultValue as value.
+      GetAttr(kNameSpaceID_None, nsGkAtoms::value, aValue);
+      return NS_OK;
+
+    case VALUE_MODE_DEFAULT_ON:
+      // Treat default value as value and returns "on" if no value.
+      if (!GetAttr(kNameSpaceID_None, nsGkAtoms::value, aValue)) {
+        aValue.AssignLiteral("on");
+      }
+      return NS_OK;
   }
 
-  if (mType == NS_FORM_INPUT_FILE) {
-    if (nsContentUtils::IsCallerTrustedForCapability("UniversalFileRead")) {
-      if (mFiles.Count()) {
-        return mFiles[0]->GetMozFullPath(aValue);
-      }
-      else {
-        aValue.Truncate();
-      }
-    } else {
-      // Just return the leaf name
-      if (mFiles.Count() == 0 || NS_FAILED(mFiles[0]->GetName(aValue))) {
-        aValue.Truncate();
-      }
-    }
-    
-    return NS_OK;
-  }
-
-  // Treat value == defaultValue for other input elements
-  if (!GetAttr(kNameSpaceID_None, nsGkAtoms::value, aValue) &&
-      (mType == NS_FORM_INPUT_RADIO || mType == NS_FORM_INPUT_CHECKBOX)) {
-    // The default value of a radio or checkbox input is "on".
-    aValue.AssignLiteral("on");
-  }
-
+  // This return statement is required for some compilers.
   return NS_OK;
 }
 
@@ -1192,7 +1140,7 @@ nsHTMLInputElement::MozSetFileNameArray(const PRUnichar **aFileNames, PRUint32 a
     }
 
     if (file) {
-      nsCOMPtr<nsIDOMFile> domFile = new nsDOMFile(file);
+      nsCOMPtr<nsIDOMFile> domFile = new nsDOMFileFile(file);
       files.AppendObject(domFile);
     } else {
       continue; // Not much we can do if the file doesn't exist
@@ -1370,6 +1318,31 @@ nsHTMLInputElement::SetFiles(const nsCOMArray<nsIDOMFile>& aFiles,
   mFiles.Clear();
   mFiles.AppendObjects(aFiles);
 
+  AfterSetFiles(aSetValueChanged);
+}
+
+void
+nsHTMLInputElement::SetFiles(nsIDOMFileList* aFiles,
+                             bool aSetValueChanged)
+{
+  mFiles.Clear();
+
+  if (aFiles) {
+    PRUint32 listLength;
+    aFiles->GetLength(&listLength);
+    for (PRUint32 i = 0; i < listLength; i++) {
+      nsCOMPtr<nsIDOMFile> file;
+      aFiles->Item(i, getter_AddRefs(file));
+      mFiles.AppendObject(file);
+    }
+  }
+
+  AfterSetFiles(aSetValueChanged);
+}
+
+void
+nsHTMLInputElement::AfterSetFiles(bool aSetValueChanged)
+{
   // No need to flush here, if there's no frame at this point we
   // don't need to force creation of one just to tell it about this
   // new value.  We just want the display to update as needed.
@@ -1417,52 +1390,61 @@ nsHTMLInputElement::SetValueInternal(const nsAString& aValue,
                                      PRBool aUserInput,
                                      PRBool aSetValueChanged)
 {
-  NS_PRECONDITION(mType != NS_FORM_INPUT_FILE,
+  NS_PRECONDITION(GetValueMode() != VALUE_MODE_FILENAME,
                   "Don't call SetValueInternal for file inputs");
 
-  if (mType == NS_FORM_INPUT_FILE) {
-    return NS_ERROR_UNEXPECTED;
-  }
+  switch (GetValueMode()) {
+    case VALUE_MODE_VALUE:
+    {
+      // At the moment, only single line text control have to sanitize their value
+      // Because we have to create a new string for that, we should prevent doing
+      // it if it's useless.
+      nsAutoString value(aValue);
 
-  if (IsSingleLineTextControl(PR_FALSE)) {
-    // At the moment, only single line text control have to sanitize their value
-    // Because we have to create a new string for that, we should prevent doing
-    // it if it's useless.
-    nsAutoString value(aValue);
-    if (!GET_BOOLBIT(mBitField, BF_PARSER_CREATING)) {
-      SanitizeValue(value);
-    }
-
-    if (aSetValueChanged) {
-      SetValueChanged(PR_TRUE);
-    }
-    mInputData.mState->SetValue(value, aUserInput);
-
-    if (PlaceholderApplies() &&
-        HasAttr(kNameSpaceID_None, nsGkAtoms::placeholder)) {
-      nsIDocument* doc = GetCurrentDoc();
-      if (doc) {
-        mozAutoDocUpdate upd(doc, UPDATE_CONTENT_STATE, PR_TRUE);
-        doc->ContentStateChanged(this, NS_EVENT_STATE_MOZ_PLACEHOLDER);
+      if (!GET_BOOLBIT(mBitField, BF_PARSER_CREATING)) {
+        SanitizeValue(value);
       }
+
+      if (aSetValueChanged) {
+        SetValueChanged(PR_TRUE);
+      }
+
+      mInputData.mState->SetValue(value, aUserInput);
+
+      // This call might be useless in some situations because if the element is
+      // a single line text control, nsTextEditorState::SetValue will call
+      // nsHTMLInputElement::OnValueChanged which is going to call UpdateState()
+      // if the element is focused. This bug 665547.
+      if (PlaceholderApplies() &&
+          HasAttr(kNameSpaceID_None, nsGkAtoms::placeholder)) {
+        UpdateState(true);
+      }
+
+      return NS_OK;
     }
 
-    return NS_OK;
+    case VALUE_MODE_DEFAULT:
+    case VALUE_MODE_DEFAULT_ON:
+      // If the value of a hidden input was changed, we mark it changed so that we
+      // will know we need to save / restore the value.  Yes, we are overloading
+      // the meaning of ValueChanged just a teensy bit to save a measly byte of
+      // storage space in nsHTMLInputElement.  Yes, you are free to make a new flag,
+      // NEED_TO_SAVE_VALUE, at such time as mBitField becomes a 16-bit value.
+      if (mType == NS_FORM_INPUT_HIDDEN) {
+        SetValueChanged(PR_TRUE);
+      }
+
+      // Treat value == defaultValue for other input elements.
+      return nsGenericHTMLFormElement::SetAttr(kNameSpaceID_None,
+                                               nsGkAtoms::value, aValue,
+                                               PR_TRUE);
+
+    case VALUE_MODE_FILENAME:
+      return NS_ERROR_UNEXPECTED;
   }
 
-  // If the value of a hidden input was changed, we mark it changed so that we
-  // will know we need to save / restore the value.  Yes, we are overloading
-  // the meaning of ValueChanged just a teensy bit to save a measly byte of
-  // storage space in nsHTMLInputElement.  Yes, you are free to make a new flag,
-  // NEED_TO_SAVE_VALUE, at such time as mBitField becomes a 16-bit value.
-  if (mType == NS_FORM_INPUT_HIDDEN) {
-    SetValueChanged(PR_TRUE);
-  }
-
-  // Treat value == defaultValue for other input elements.
-  return nsGenericHTMLFormElement::SetAttr(kNameSpaceID_None,
-                                           nsGkAtoms::value, aValue,
-                                           PR_TRUE);
+  // This return statement is required for some compilers.
+  return NS_OK;
 }
 
 NS_IMETHODIMP
@@ -1472,19 +1454,8 @@ nsHTMLInputElement::SetValueChanged(PRBool aValueChanged)
 
   SET_BOOLBIT(mBitField, BF_VALUE_CHANGED, aValueChanged);
 
-  if (!aValueChanged) {
-    if (!IsSingleLineTextControl(PR_FALSE)) {
-      FreeData();
-    }
-  }
-
   if (valueChangedBefore != aValueChanged) {
-    nsIDocument* doc = GetCurrentDoc();
-    if (doc) {
-      mozAutoDocUpdate upd(doc, UPDATE_CONTENT_STATE, PR_TRUE);
-      doc->ContentStateChanged(this, NS_EVENT_STATE_MOZ_UI_VALID |
-                                     NS_EVENT_STATE_MOZ_UI_INVALID);
-    }
+    UpdateState(true);
   }
 
   return NS_OK;
@@ -1528,13 +1499,7 @@ nsHTMLInputElement::SetCheckedChangedInternal(PRBool aCheckedChanged)
   // This method can't be called when we are not authorized to notify
   // so we do not need a aNotify parameter.
   if (checkedChangedBefore != aCheckedChanged) {
-    nsIDocument* document = GetCurrentDoc();
-    if (document) {
-      mozAutoDocUpdate upd(document, UPDATE_CONTENT_STATE, PR_TRUE);
-      document->ContentStateChanged(this,
-                                    NS_EVENT_STATE_MOZ_UI_VALID |
-                                    NS_EVENT_STATE_MOZ_UI_INVALID);
-    }
+    UpdateState(true);
   }
 }
 
@@ -1576,12 +1541,11 @@ nsHTMLInputElement::DoSetChecked(PRBool aChecked, PRBool aNotify,
     if (aChecked) {
       rv = RadioSetChecked(aNotify);
     } else {
-      nsCOMPtr<nsIRadioGroupContainer> container = GetRadioGroupContainer();
+      nsIRadioGroupContainer* container = GetRadioGroupContainer();
       if (container) {
         nsAutoString name;
-        if (GetNameIfExists(name)) {
-          container->SetCurrentRadioButton(name, nsnull);
-        }
+        GetAttr(kNameSpaceID_None, nsGkAtoms::name, name);
+        container->SetCurrentRadioButton(name, nsnull);
       }
       // SetCheckedInternal is going to ask all radios to update their
       // validity state. We have to be sure the radio group container knows
@@ -1618,9 +1582,10 @@ nsHTMLInputElement::RadioSetChecked(PRBool aNotify)
   //
   // Let the group know that we are now the One True Radio Button
   //
-  nsCOMPtr<nsIRadioGroupContainer> container = GetRadioGroupContainer();
-  nsAutoString name;
-  if (container && GetNameIfExists(name)) {
+  nsIRadioGroupContainer* container = GetRadioGroupContainer();
+  if (container) {
+    nsAutoString name;
+    GetAttr(kNameSpaceID_None, nsGkAtoms::name, name);
     rv = container->SetCurrentRadioButton(name, this);
   }
 
@@ -1634,35 +1599,38 @@ nsHTMLInputElement::RadioSetChecked(PRBool aNotify)
   return rv;
 }
 
-/* virtual */ already_AddRefed<nsIRadioGroupContainer>
-nsHTMLInputElement::GetRadioGroupContainer()
+nsIRadioGroupContainer*
+nsHTMLInputElement::GetRadioGroupContainer() const
 {
-  nsIRadioGroupContainer* retval = nsnull;
-  if (mForm) {
-    CallQueryInterface(mForm, &retval);
-  } else {
-    nsIDocument* currentDoc = GetCurrentDoc();
-    if (currentDoc) {
-      CallQueryInterface(currentDoc, &retval);
-    }
+  NS_ASSERTION(mType == NS_FORM_INPUT_RADIO,
+               "GetRadioGroupContainer should only be called when type='radio'");
+
+  nsAutoString name;
+  GetAttr(kNameSpaceID_None, nsGkAtoms::name, name);
+
+  if (name.IsEmpty()) {
+    return nsnull;
   }
-  return retval;
+
+  if (mForm) {
+    return mForm;
+  }
+
+  return static_cast<nsDocument*>(GetCurrentDoc());
 }
 
 already_AddRefed<nsIDOMHTMLInputElement>
 nsHTMLInputElement::GetSelectedRadioButton()
 {
   nsIDOMHTMLInputElement* selected;
-  nsCOMPtr<nsIRadioGroupContainer> container = GetRadioGroupContainer();
+  nsIRadioGroupContainer* container = GetRadioGroupContainer();
 
   if (!container) {
     return nsnull;
   }
 
   nsAutoString name;
-  if (!GetNameIfExists(name)) {
-    return nsnull;
-  }
+  GetAttr(kNameSpaceID_None, nsGkAtoms::name, name);
 
   container->GetCurrentRadioButton(name, &selected);
   return selected;
@@ -1725,23 +1693,11 @@ nsHTMLInputElement::SetCheckedInternal(PRBool aChecked, PRBool aNotify)
     }
   }
 
+  UpdateAllValidityStates(aNotify);
+
   // Notify the document that the CSS :checked pseudoclass for this element
   // has changed state.
-  if (aNotify) {
-    nsIDocument* document = GetCurrentDoc();
-    if (document) {
-      mozAutoDocUpdate upd(document, UPDATE_CONTENT_STATE, aNotify);
-      document->ContentStateChanged(this, NS_EVENT_STATE_CHECKED);
-    }
-  }
-
-  if (mType == NS_FORM_INPUT_CHECKBOX) {
-    UpdateAllValidityStates(aNotify);
-  }
-
-  if (mType == NS_FORM_INPUT_RADIO) {
-    UpdateValueMissingValidityState();
-  }
+  UpdateState(aNotify);
 }
 
 NS_IMETHODIMP
@@ -1890,22 +1846,8 @@ nsHTMLInputElement::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
 {
   // Do not process any DOM events if the element is disabled
   aVisitor.mCanHandle = PR_FALSE;
-  if (IsDisabled()) {
+  if (IsElementDisabledForEvents(aVisitor.mEvent->message, GetPrimaryFrame())) {
     return NS_OK;
-  }
-
-  // For some reason or another we also need to check if the style shows us
-  // as disabled.
-  {
-    nsIFrame* frame = GetPrimaryFrame();
-    if (frame) {
-      const nsStyleUserInterface* uiStyle = frame->GetStyleUserInterface();
-
-      if (uiStyle->mUserInput == NS_STYLE_USER_INPUT_NONE ||
-          uiStyle->mUserInput == NS_STYLE_USER_INPUT_DISABLED) {
-        return NS_OK;
-      }
-    }
   }
 
   // Initialize the editor if needed.
@@ -2059,30 +2001,10 @@ nsHTMLInputElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
 
   if (aVisitor.mEvent->message == NS_FOCUS_CONTENT ||
       aVisitor.mEvent->message == NS_BLUR_CONTENT) {
-    nsEventStates states;
 
-    if (aVisitor.mEvent->message == NS_FOCUS_CONTENT) {
-      UpdateValidityUIBits(true);
+    UpdateValidityUIBits(aVisitor.mEvent->message == NS_FOCUS_CONTENT);
 
-      // We don't have to update NS_EVENT_STATE_MOZ_UI_INVALID nor
-      // NS_EVENT_STATE_MOZ_UI_VALID given that the states should not change.
-    } else { // NS_BLUR_CONTENT
-      UpdateValidityUIBits(false);
-      states |= NS_EVENT_STATE_MOZ_UI_VALID | NS_EVENT_STATE_MOZ_UI_INVALID;
-    }
-
-    if (PlaceholderApplies() &&
-        HasAttr(kNameSpaceID_None, nsGkAtoms::placeholder)) {
-        // TODO: checking if the value is empty could be a good idea but we do not
-      // have a simple way to do that, see bug 585100
-      states |= NS_EVENT_STATE_MOZ_PLACEHOLDER;
-    }
-
-    nsIDocument* doc = GetCurrentDoc();
-    if (doc) {
-      MOZ_AUTO_DOC_UPDATE(doc, UPDATE_CONTENT_STATE, PR_TRUE);
-      doc->ContentStateChanged(this, states);
-    }
+    UpdateState(true);
   }
 
   // ignore the activate event fired by the "Browse..." button
@@ -2279,29 +2201,28 @@ nsHTMLInputElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
               case NS_VK_DOWN:
               case NS_VK_RIGHT:
               // Arrow key pressed, focus+select prev/next radio button
-              nsCOMPtr<nsIRadioGroupContainer> container = GetRadioGroupContainer();
+              nsIRadioGroupContainer* container = GetRadioGroupContainer();
               if (container) {
                 nsAutoString name;
-                if (GetNameIfExists(name)) {
-                  nsCOMPtr<nsIDOMHTMLInputElement> selectedRadioButton;
-                  container->GetNextRadioButton(name, isMovingBack, this,
-                                                getter_AddRefs(selectedRadioButton));
-                  nsCOMPtr<nsIContent> radioContent =
-                    do_QueryInterface(selectedRadioButton);
-                  if (radioContent) {
-                    rv = selectedRadioButton->Focus();
+                GetAttr(kNameSpaceID_None, nsGkAtoms::name, name);
+                nsCOMPtr<nsIDOMHTMLInputElement> selectedRadioButton;
+                container->GetNextRadioButton(name, isMovingBack, this,
+                                              getter_AddRefs(selectedRadioButton));
+                nsCOMPtr<nsIContent> radioContent =
+                  do_QueryInterface(selectedRadioButton);
+                if (radioContent) {
+                  rv = selectedRadioButton->Focus();
+                  if (NS_SUCCEEDED(rv)) {
+                    nsEventStatus status = nsEventStatus_eIgnore;
+                    nsMouseEvent event(NS_IS_TRUSTED_EVENT(aVisitor.mEvent),
+                                       NS_MOUSE_CLICK, nsnull,
+                                       nsMouseEvent::eReal);
+                    event.inputSource = nsIDOMNSMouseEvent::MOZ_SOURCE_KEYBOARD;
+                    rv = nsEventDispatcher::Dispatch(radioContent,
+                                                     aVisitor.mPresContext,
+                                                     &event, nsnull, &status);
                     if (NS_SUCCEEDED(rv)) {
-                      nsEventStatus status = nsEventStatus_eIgnore;
-                      nsMouseEvent event(NS_IS_TRUSTED_EVENT(aVisitor.mEvent),
-                                         NS_MOUSE_CLICK, nsnull,
-                                         nsMouseEvent::eReal);
-                      event.inputSource = nsIDOMNSMouseEvent::MOZ_SOURCE_KEYBOARD;
-                      rv = nsEventDispatcher::Dispatch(radioContent,
-                                                       aVisitor.mPresContext,
-                                                       &event, nsnull, &status);
-                      if (NS_SUCCEEDED(rv)) {
-                        aVisitor.mEventStatus = nsEventStatus_eConsumeNoDefault;
-                      }
+                      aVisitor.mEventStatus = nsEventStatus_eConsumeNoDefault;
                     }
                   }
                 }
@@ -2310,8 +2231,7 @@ nsHTMLInputElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
           }
 
           /*
-           * If this is input type=text, and the user hit enter, fire onChange
-           * and submit the form (if we are in one)
+           * For some input types, if the user hits enter, the form is submitted.
            *
            * Bug 99920, bug 109463 and bug 147850:
            * (a) if there is a submit control in the form, click the first
@@ -2325,42 +2245,19 @@ nsHTMLInputElement::PostHandleEvent(nsEventChainPostVisitor& aVisitor)
           if (aVisitor.mEvent->message == NS_KEY_PRESS &&
               (keyEvent->keyCode == NS_VK_RETURN ||
                keyEvent->keyCode == NS_VK_ENTER) &&
-              (mType == NS_FORM_INPUT_TEXT ||
-               mType == NS_FORM_INPUT_EMAIL ||
-               mType == NS_FORM_INPUT_SEARCH ||
-               mType == NS_FORM_INPUT_PASSWORD ||
-               mType == NS_FORM_INPUT_TEL ||
-               mType == NS_FORM_INPUT_URL ||
-               mType == NS_FORM_INPUT_FILE)) {
+               IsSingleLineTextControl(PR_FALSE, mType)) {
+            nsIFrame* primaryFrame = GetPrimaryFrame();
+            if (primaryFrame) {
+              nsITextControlFrame* textFrame = do_QueryFrame(primaryFrame);
 
-            PRBool isButton = PR_FALSE;
-            // If this is an enter on the button of a file input, don't submit
-            // -- that's supposed to put up the filepicker
-            if (mType == NS_FORM_INPUT_FILE) {
-              nsCOMPtr<nsIContent> maybeButton =
-                do_QueryInterface(aVisitor.mEvent->originalTarget);
-              if (maybeButton) {
-                isButton = maybeButton->AttrValueIs(kNameSpaceID_None,
-                                                    nsGkAtoms::type,
-                                                    nsGkAtoms::button,
-                                                    eCaseMatters);
+              // Fire onChange (if necessary)
+              if (textFrame) {
+                textFrame->CheckFireOnChange();
               }
             }
 
-            if (!isButton) {
-              nsIFrame* primaryFrame = GetPrimaryFrame();
-              if (primaryFrame) {
-                nsITextControlFrame* textFrame = do_QueryFrame(primaryFrame);
-              
-                // Fire onChange (if necessary)
-                if (textFrame) {
-                  textFrame->CheckFireOnChange();
-                }
-              }
-
-              rv = MaybeSubmitForm(aVisitor.mPresContext);
-              NS_ENSURE_SUCCESS(rv, rv);
-            }
+            rv = MaybeSubmitForm(aVisitor.mPresContext);
+            NS_ENSURE_SUCCESS(rv, rv);
           }
 
         } break; // NS_KEY_PRESS || NS_KEY_UP
@@ -2482,7 +2379,10 @@ nsHTMLInputElement::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
     // Our base URI may have changed; claim that our URI changed, and the
     // nsImageLoadingContent will decide whether a new image load is warranted.
     if (HasAttr(kNameSpaceID_None, nsGkAtoms::src)) {
+      // FIXME: Bug 660963 it would be nice if we could just have
+      // ClearBrokenState update our state and do it fast...
       ClearBrokenState();
+      RemoveStatesSilently(NS_EVENT_STATE_BROKEN);
       nsContentUtils::AddScriptRunner(
         NS_NewRunnableMethod(this, &nsHTMLInputElement::MaybeLoadImage));
     }
@@ -2502,6 +2402,9 @@ nsHTMLInputElement::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
   // barred from constraint validation and can't suffer from value missing
   // (call done before).
   UpdateBarredFromConstraintValidation();
+
+  // And now make sure our state is up to date
+  UpdateState(false);
 
   return rv;
 }
@@ -2525,6 +2428,9 @@ nsHTMLInputElement::UnbindFromTree(PRBool aDeep, PRBool aNullParent)
   UpdateValueMissingValidityState();
   // We might be no longer disabled because of parent chain changed.
   UpdateBarredFromConstraintValidation();
+
+  // And now make sure our state is up to date
+  UpdateState(false);
 }
 
 void
@@ -2811,7 +2717,8 @@ nsHTMLInputElement::GetTextLength(PRInt32* aTextLength)
 
 NS_IMETHODIMP
 nsHTMLInputElement::SetSelectionRange(PRInt32 aSelectionStart,
-                                      PRInt32 aSelectionEnd)
+                                      PRInt32 aSelectionEnd,
+                                      const nsAString& aDirection)
 {
   nsresult rv = NS_ERROR_FAILURE;
   nsIFormControlFrame* formControlFrame = GetFormControlFrame(PR_TRUE);
@@ -2819,7 +2726,15 @@ nsHTMLInputElement::SetSelectionRange(PRInt32 aSelectionStart,
   if (formControlFrame) {
     nsITextControlFrame* textControlFrame = do_QueryFrame(formControlFrame);
     if (textControlFrame) {
-      rv = textControlFrame->SetSelectionRange(aSelectionStart, aSelectionEnd);
+      // Default to forward, even if not specified.
+      // Note that we don't currently support directionless selections, so
+      // "none" is treated like "forward".
+      nsITextControlFrame::SelectionDirection dir = nsITextControlFrame::eForward;
+      if (aDirection.EqualsLiteral("backward")) {
+        dir = nsITextControlFrame::eBackward;
+      }
+
+      rv = textControlFrame->SetSelectionRange(aSelectionStart, aSelectionEnd, dir);
       if (NS_SUCCEEDED(rv)) {
         rv = textControlFrame->ScrollSelectionIntoView();
       }
@@ -2833,7 +2748,13 @@ NS_IMETHODIMP
 nsHTMLInputElement::GetSelectionStart(PRInt32* aSelectionStart)
 {
   NS_ENSURE_ARG_POINTER(aSelectionStart);
-  
+
+  nsTextEditorState *state = GetEditorState();
+  if (state && state->IsSelectionCached()) {
+    *aSelectionStart = state->GetSelectionProperties().mStart;
+    return NS_OK;
+  }
+
   PRInt32 selEnd;
   return GetSelectionRange(aSelectionStart, &selEnd);
 }
@@ -2841,27 +2762,36 @@ nsHTMLInputElement::GetSelectionStart(PRInt32* aSelectionStart)
 NS_IMETHODIMP
 nsHTMLInputElement::SetSelectionStart(PRInt32 aSelectionStart)
 {
-  nsresult rv = NS_ERROR_FAILURE;
-  nsIFormControlFrame* formControlFrame = GetFormControlFrame(PR_TRUE);
-
-  if (formControlFrame) {
-    nsITextControlFrame* textControlFrame = do_QueryFrame(formControlFrame);
-    if (textControlFrame) {
-      rv = textControlFrame->SetSelectionStart(aSelectionStart);
-      if (NS_SUCCEEDED(rv)) {
-        rv = textControlFrame->ScrollSelectionIntoView();
-      }
-    }
+  nsTextEditorState *state = GetEditorState();
+  if (state && state->IsSelectionCached()) {
+    state->GetSelectionProperties().mStart = aSelectionStart;
+    return NS_OK;
   }
 
-  return rv;
+  nsAutoString direction;
+  nsresult rv = GetSelectionDirection(direction);
+  NS_ENSURE_SUCCESS(rv, rv);
+  PRInt32 start, end;
+  rv = GetSelectionRange(&start, &end);
+  NS_ENSURE_SUCCESS(rv, rv);
+  start = aSelectionStart;
+  if (end < start) {
+    end = start;
+  }
+  return SetSelectionRange(start, end, direction);
 }
 
 NS_IMETHODIMP
 nsHTMLInputElement::GetSelectionEnd(PRInt32* aSelectionEnd)
 {
   NS_ENSURE_ARG_POINTER(aSelectionEnd);
-  
+
+  nsTextEditorState *state = GetEditorState();
+  if (state && state->IsSelectionCached()) {
+    *aSelectionEnd = state->GetSelectionProperties().mEnd;
+    return NS_OK;
+  }
+
   PRInt32 selStart;
   return GetSelectionRange(&selStart, aSelectionEnd);
 }
@@ -2870,20 +2800,23 @@ nsHTMLInputElement::GetSelectionEnd(PRInt32* aSelectionEnd)
 NS_IMETHODIMP
 nsHTMLInputElement::SetSelectionEnd(PRInt32 aSelectionEnd)
 {
-  nsresult rv = NS_ERROR_FAILURE;
-  nsIFormControlFrame* formControlFrame = GetFormControlFrame(PR_TRUE);
-
-  if (formControlFrame) {
-    nsITextControlFrame* textControlFrame = do_QueryFrame(formControlFrame);
-    if (textControlFrame) {
-      rv = textControlFrame->SetSelectionEnd(aSelectionEnd);
-      if (NS_SUCCEEDED(rv)) {
-        rv = textControlFrame->ScrollSelectionIntoView();
-      }
-    }
+  nsTextEditorState *state = GetEditorState();
+  if (state && state->IsSelectionCached()) {
+    state->GetSelectionProperties().mEnd = aSelectionEnd;
+    return NS_OK;
   }
 
-  return rv;
+  nsAutoString direction;
+  nsresult rv = GetSelectionDirection(direction);
+  NS_ENSURE_SUCCESS(rv, rv);
+  PRInt32 start, end;
+  rv = GetSelectionRange(&start, &end);
+  NS_ENSURE_SUCCESS(rv, rv);
+  end = aSelectionEnd;
+  if (start > end) {
+    start = end;
+  }
+  return SetSelectionRange(start, end, direction);
 }
 
 NS_IMETHODIMP
@@ -2918,6 +2851,69 @@ nsHTMLInputElement::GetSelectionRange(PRInt32* aSelectionStart,
     nsITextControlFrame* textControlFrame = do_QueryFrame(formControlFrame);
     if (textControlFrame)
       rv = textControlFrame->GetSelectionRange(aSelectionStart, aSelectionEnd);
+  }
+
+  return rv;
+}
+
+static void
+DirectionToName(nsITextControlFrame::SelectionDirection dir, nsAString& aDirection)
+{
+  if (dir == nsITextControlFrame::eNone) {
+    aDirection.AssignLiteral("none");
+  } else if (dir == nsITextControlFrame::eForward) {
+    aDirection.AssignLiteral("forward");
+  } else if (dir == nsITextControlFrame::eBackward) {
+    aDirection.AssignLiteral("backward");
+  } else {
+    NS_NOTREACHED("Invalid SelectionDirection value");
+  }
+}
+
+NS_IMETHODIMP
+nsHTMLInputElement::GetSelectionDirection(nsAString& aDirection)
+{
+  nsTextEditorState *state = GetEditorState();
+  if (state && state->IsSelectionCached()) {
+    DirectionToName(state->GetSelectionProperties().mDirection, aDirection);
+    return NS_OK;
+  }
+
+  nsresult rv = NS_ERROR_FAILURE;
+  nsIFormControlFrame* formControlFrame = GetFormControlFrame(PR_TRUE);
+
+  if (formControlFrame) {
+    nsITextControlFrame* textControlFrame = do_QueryFrame(formControlFrame);
+    if (textControlFrame) {
+      nsITextControlFrame::SelectionDirection dir;
+      rv = textControlFrame->GetSelectionRange(nsnull, nsnull, &dir);
+      if (NS_SUCCEEDED(rv)) {
+        DirectionToName(dir, aDirection);
+      }
+    }
+  }
+
+  return rv;
+}
+
+NS_IMETHODIMP
+nsHTMLInputElement::SetSelectionDirection(const nsAString& aDirection) {
+  nsTextEditorState *state = GetEditorState();
+  if (state && state->IsSelectionCached()) {
+    nsITextControlFrame::SelectionDirection dir = nsITextControlFrame::eNone;
+    if (aDirection.EqualsLiteral("forward")) {
+      dir = nsITextControlFrame::eForward;
+    } else if (aDirection.EqualsLiteral("backward")) {
+      dir = nsITextControlFrame::eBackward;
+    }
+    state->GetSelectionProperties().mDirection = dir;
+    return NS_OK;
+  }
+
+  PRInt32 start, end;
+  nsresult rv = GetSelectionRange(&start, &end);
+  if (NS_SUCCEEDED(rv)) {
+    rv = SetSelectionRange(start, end, aDirection);
   }
 
   return rv;
@@ -3021,7 +3017,7 @@ nsHTMLInputElement::SubmitNamesValues(nsFormSubmission* aFormSubmission)
 
   // Get the name
   nsAutoString name;
-  PRBool nameThere = GetNameIfExists(name);
+  GetAttr(kNameSpaceID_None, nsGkAtoms::name, name);
 
   // Submit .x, .y for input type=image
   if (mType == NS_FORM_INPUT_IMAGE) {
@@ -3059,7 +3055,7 @@ nsHTMLInputElement::SubmitNamesValues(nsFormSubmission* aFormSubmission)
   //
 
   // If name not there, don't submit
-  if (!nameThere) {
+  if (name.IsEmpty()) {
     return NS_OK;
   }
 
@@ -3131,19 +3127,13 @@ nsHTMLInputElement::SaveState()
     case NS_FORM_INPUT_CHECKBOX:
     case NS_FORM_INPUT_RADIO:
       {
-        PRBool checked = GetChecked();
-        PRBool defaultChecked = PR_FALSE;
-        GetDefaultChecked(&defaultChecked);
-        // Only save if checked != defaultChecked (bug 62713)
-        // (always save if it's a radio button so that the checked
-        // state of all radio buttons is restored)
-        if (mType == NS_FORM_INPUT_RADIO || checked != defaultChecked) {
+        if (GetCheckedChanged()) {
           inputState = new nsHTMLInputElementState();
           if (!inputState) {
             return NS_ERROR_OUT_OF_MEMORY;
           }
 
-          inputState->SetChecked(checked);
+          inputState->SetChecked(GetChecked());
         }
         break;
       }
@@ -3430,69 +3420,38 @@ nsHTMLInputElement::AddedToRadioGroup()
   nsCOMPtr<nsIRadioGroupContainer> container = GetRadioGroupContainer();
   if (container) {
     nsAutoString name;
-    if (GetNameIfExists(name)) {
-      container->AddToRadioGroup(name, static_cast<nsIFormControl*>(this));
+    GetAttr(kNameSpaceID_None, nsGkAtoms::name, name);
+    container->AddToRadioGroup(name, static_cast<nsIFormControl*>(this));
 
-      // We initialize the validity of the element to the validity of the group
-      // because we assume UpdateValueMissingState() will be called after.
-      nsCOMPtr<nsIRadioGroupContainer_MOZILLA_2_0_BRANCH> container2 =
-        do_QueryInterface(container);
-      SetValidityState(VALIDITY_STATE_VALUE_MISSING,
-                       container2->GetValueMissingState(name));
-    }
+    // We initialize the validity of the element to the validity of the group
+    // because we assume UpdateValueMissingState() will be called after.
+    SetValidityState(VALIDITY_STATE_VALUE_MISSING,
+                     container->GetValueMissingState(name));
   }
 }
 
 void
 nsHTMLInputElement::WillRemoveFromRadioGroup()
 {
-  //
-  // If the input element is not in a form and
-  // not in a document, we just need to return.
-  //
-  if (!mForm && !(IsInDoc() && GetParent())) {
+  nsIRadioGroupContainer* container = GetRadioGroupContainer();
+  if (!container) {
     return;
   }
 
-  //
+  nsAutoString name;
+  GetAttr(kNameSpaceID_None, nsGkAtoms::name, name);
+
   // If this button was checked, we need to notify the group that there is no
   // longer a selected radio button
-  //
-  nsAutoString name;
-  PRBool gotName = PR_FALSE;
   if (GetChecked()) {
-    if (!gotName) {
-      if (!GetNameIfExists(name)) {
-        // If the name doesn't exist, nothing is going to happen anyway
-        return;
-      }
-      gotName = PR_TRUE;
-    }
-
-    nsCOMPtr<nsIRadioGroupContainer> container = GetRadioGroupContainer();
-    if (container) {
-      container->SetCurrentRadioButton(name, nsnull);
-    }
+    container->SetCurrentRadioButton(name, nsnull);
   }
 
-  //
-  // Remove this radio from its group in the container
-  //
-  nsCOMPtr<nsIRadioGroupContainer> container = GetRadioGroupContainer();
-  if (container) {
-    if (!gotName) {
-      if (!GetNameIfExists(name)) {
-        // If the name doesn't exist, nothing is going to happen anyway
-        return;
-      }
-      gotName = PR_TRUE;
-    }
-
-    UpdateValueMissingValidityStateForRadio(true);
-
-    container->RemoveFromRadioGroup(name,
-                                    static_cast<nsIFormControl*>(this));
-  }
+  // Remove this radio from its group in the container.
+  // We need to call UpdateValueMissingValidityStateForRadio before to make sure
+  // the group validity is updated (with this element being ignored).
+  UpdateValueMissingValidityStateForRadio(true);
+  container->RemoveFromRadioGroup(name, static_cast<nsIFormControl*>(this));
 }
 
 PRBool
@@ -3553,12 +3512,14 @@ nsHTMLInputElement::IsHTMLFocusable(PRBool aWithMouse, PRBool *aIsFocusable, PRI
 
   // Current radio button is not selected.
   // But make it tabbable if nothing in group is selected.
-  nsCOMPtr<nsIRadioGroupContainer> container = GetRadioGroupContainer();
-  nsAutoString name;
-  if (!container || !GetNameIfExists(name)) {
+  nsIRadioGroupContainer* container = GetRadioGroupContainer();
+  if (!container) {
     *aIsFocusable = defaultFocusable;
     return PR_FALSE;
   }
+
+  nsAutoString name;
+  GetAttr(kNameSpaceID_None, nsGkAtoms::name, name);
 
   nsCOMPtr<nsIDOMHTMLInputElement> currentRadio;
   container->GetCurrentRadioButton(name, getter_AddRefs(currentRadio));
@@ -3572,19 +3533,15 @@ nsHTMLInputElement::IsHTMLFocusable(PRBool aWithMouse, PRBool *aIsFocusable, PRI
 nsresult
 nsHTMLInputElement::VisitGroup(nsIRadioVisitor* aVisitor, PRBool aFlushContent)
 {
-  nsresult rv = NS_OK;
-  nsCOMPtr<nsIRadioGroupContainer> container = GetRadioGroupContainer();
+  nsIRadioGroupContainer* container = GetRadioGroupContainer();
   if (container) {
     nsAutoString name;
-    if (GetNameIfExists(name)) {
-      rv = container->WalkRadioGroup(name, aVisitor, aFlushContent);
-    } else {
-      aVisitor->Visit(this);
-    }
-  } else {
-    aVisitor->Visit(this);
+    GetAttr(kNameSpaceID_None, nsGkAtoms::name, name);
+    return container->WalkRadioGroup(name, aVisitor, aFlushContent);
   }
-  return rv;
+
+  aVisitor->Visit(this);
+  return NS_OK;
 }
 
 nsHTMLInputElement::ValueModeType
@@ -3712,14 +3669,7 @@ nsHTMLInputElement::SetCustomValidity(const nsAString& aError)
 {
   nsIConstraintValidation::SetCustomValidity(aError);
 
-  nsIDocument* doc = GetCurrentDoc();
-  if (doc) {
-    MOZ_AUTO_DOC_UPDATE(doc, UPDATE_CONTENT_STATE, PR_TRUE);
-    doc->ContentStateChanged(this, NS_EVENT_STATE_INVALID |
-                                   NS_EVENT_STATE_VALID |
-                                   NS_EVENT_STATE_MOZ_UI_INVALID |
-                                   NS_EVENT_STATE_MOZ_UI_VALID);
-  }
+  UpdateState(true);
 
   return NS_OK;
 }
@@ -3837,7 +3787,7 @@ nsHTMLInputElement::HasPatternMismatch() const
     return PR_FALSE;
   }
 
-  return !IsPatternMatching(value, pattern, doc);
+  return !nsContentUtils::IsPatternMatching(value, pattern, doc);
 }
 
 void
@@ -3863,15 +3813,19 @@ nsHTMLInputElement::UpdateValueMissingValidityStateForRadio(bool aIgnoreSelf)
                               : HasAttr(kNameSpaceID_None, nsGkAtoms::required);
   bool valueMissing = false;
 
-  nsCOMPtr<nsIRadioGroupContainer> c = GetRadioGroupContainer();
-  nsCOMPtr<nsIRadioGroupContainer_MOZILLA_2_0_BRANCH> container =
-    do_QueryInterface(c);
+  nsCOMPtr<nsIRadioGroupContainer> container = GetRadioGroupContainer();
+
+  if (!container) {
+    SetValidityState(VALIDITY_STATE_VALUE_MISSING, required && !selected);
+    return;
+  }
+
   nsAutoString name;
-  GetNameIfExists(name);
+  GetAttr(kNameSpaceID_None, nsGkAtoms::name, name);
 
   // If the current radio is required and not ignored, we can assume the entire
   // group is required.
-  if (!required && container && !name.IsEmpty()) {
+  if (!required) {
     required = (aIgnoreSelf && HasAttr(kNameSpaceID_None, nsGkAtoms::required))
                  ? container->GetRequiredRadioCount(name) - 1
                  : container->GetRequiredRadioCount(name);
@@ -3879,18 +3833,16 @@ nsHTMLInputElement::UpdateValueMissingValidityStateForRadio(bool aIgnoreSelf)
 
   valueMissing = required && !selected;
 
-  if (container && !name.IsEmpty()) {
-    if (container->GetValueMissingState(name) != valueMissing) {
-      container->SetValueMissingState(name, valueMissing);
+  if (container->GetValueMissingState(name) != valueMissing) {
+    container->SetValueMissingState(name, valueMissing);
 
-      SetValidityState(VALIDITY_STATE_VALUE_MISSING, valueMissing);
-
-      nsCOMPtr<nsIRadioVisitor> visitor =
-        new nsRadioSetValueMissingState(this, valueMissing, notify);
-      VisitGroup(visitor, notify);
-    }
-  } else {
     SetValidityState(VALIDITY_STATE_VALUE_MISSING, valueMissing);
+
+    // nsRadioSetValueMissingState will call ContentStateChanged while visiting.
+    nsAutoScriptBlocker scriptBlocker;
+    nsCOMPtr<nsIRadioVisitor> visitor =
+      new nsRadioSetValueMissingState(this, valueMissing, notify);
+    VisitGroup(visitor, notify);
   }
 }
 
@@ -3926,15 +3878,8 @@ nsHTMLInputElement::UpdateAllValidityStates(PRBool aNotify)
   UpdateTypeMismatchValidityState();
   UpdatePatternMismatchValidityState();
 
-  if (validBefore != IsValid() && aNotify) {
-    nsIDocument* doc = GetCurrentDoc();
-    if (doc) {
-      MOZ_AUTO_DOC_UPDATE(doc, UPDATE_CONTENT_STATE, PR_TRUE);
-      doc->ContentStateChanged(this,
-                               NS_EVENT_STATE_VALID | NS_EVENT_STATE_INVALID |
-                               NS_EVENT_STATE_MOZ_UI_VALID |
-                               NS_EVENT_STATE_MOZ_UI_INVALID);
-    }
+  if (validBefore != IsValid()) {
+    UpdateState(aNotify);
   }
 }
 
@@ -4119,40 +4064,6 @@ nsHTMLInputElement::IsValidEmailAddress(const nsAString& aValue)
   return PR_TRUE;
 }
 
-//static
-PRBool
-nsHTMLInputElement::IsPatternMatching(nsAString& aValue, nsAString& aPattern,
-                                      nsIDocument* aDocument)
-{
-  NS_ASSERTION(aDocument, "aDocument should be a valid pointer (not null)");
-  NS_ENSURE_TRUE(aDocument->GetScriptGlobalObject(), PR_TRUE);
-
-  JSContext* ctx = (JSContext*) aDocument->GetScriptGlobalObject()->
-                                  GetContext()->GetNativeContext();
-  NS_ENSURE_TRUE(ctx, PR_TRUE);
-
-  JSAutoRequest ar(ctx);
-
-  // The pattern has to match the entire value.
-  aPattern.Insert(NS_LITERAL_STRING("^(?:"), 0);
-  aPattern.Append(NS_LITERAL_STRING(")$"));
-
-  JSObject* re = JS_NewUCRegExpObjectNoStatics(ctx, reinterpret_cast<jschar*>
-                                                 (aPattern.BeginWriting()),
-                                                aPattern.Length(), 0);
-  NS_ENSURE_TRUE(re, PR_TRUE);
-
-  jsval rval = JSVAL_NULL;
-  size_t idx = 0;
-  JSBool res;
-
-  res = JS_ExecuteRegExpNoStatics(ctx, re, reinterpret_cast<jschar*>
-                                    (aValue.BeginWriting()),
-                                  aValue.Length(), &idx, JS_TRUE, &rval);
-
-  return res == JS_FALSE || rval != JSVAL_NULL;
-}
-
 NS_IMETHODIMP_(PRBool)
 nsHTMLInputElement::IsSingleLineTextControl() const
 {
@@ -4261,26 +4172,36 @@ nsHTMLInputElement::OnValueChanged(PRBool aNotify)
 
   // :-moz-placeholder pseudo-class may change when the value changes.
   // However, we don't want to waste cycles if the state doesn't apply.
-  if (aNotify && PlaceholderApplies()
+  if (PlaceholderApplies()
       && HasAttr(kNameSpaceID_None, nsGkAtoms::placeholder)
       && !nsContentUtils::IsFocusedContent((nsIContent*)(this))) {
-    nsIDocument* doc = GetCurrentDoc();
-    if (doc) {
-      MOZ_AUTO_DOC_UPDATE(doc, UPDATE_CONTENT_STATE, PR_TRUE);
-      doc->ContentStateChanged(this, NS_EVENT_STATE_MOZ_PLACEHOLDER);
-    }
+    UpdateState(aNotify);
   }
 }
 
+NS_IMETHODIMP_(PRBool)
+nsHTMLInputElement::HasCachedSelection()
+{
+  PRBool isCached = PR_FALSE;
+  nsTextEditorState *state = GetEditorState();
+  if (state) {
+    isCached = state->IsSelectionCached() &&
+               state->HasNeverInitializedBefore() &&
+               !state->GetSelectionProperties().IsDefault();
+    if (isCached) {
+      state->WillInitEagerly();
+    }
+  }
+  return isCached;
+}
+
 void
-nsHTMLInputElement::FieldSetDisabledChanged(nsEventStates aStates, PRBool aNotify)
+nsHTMLInputElement::FieldSetDisabledChanged(PRBool aNotify)
 {
   UpdateValueMissingValidityState();
   UpdateBarredFromConstraintValidation();
 
-  aStates |= NS_EVENT_STATE_VALID | NS_EVENT_STATE_INVALID |
-             NS_EVENT_STATE_MOZ_UI_VALID | NS_EVENT_STATE_MOZ_UI_INVALID;
-  nsGenericHTMLFormElement::FieldSetDisabledChanged(aStates, aNotify);
+  nsGenericHTMLFormElement::FieldSetDisabledChanged(aNotify);
 }
 
 PRInt32

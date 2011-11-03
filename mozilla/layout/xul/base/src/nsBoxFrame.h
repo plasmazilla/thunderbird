@@ -48,6 +48,8 @@
 
 #include "nsCOMPtr.h"
 #include "nsContainerFrame.h"
+#include "nsBoxLayout.h"
+
 class nsBoxLayoutState;
 
 // flags from box
@@ -69,7 +71,7 @@ class nsBoxLayoutState;
 nsIFrame* NS_NewBoxFrame(nsIPresShell* aPresShell,
                          nsStyleContext* aContext,
                          PRBool aIsRoot,
-                         nsIBoxLayout* aLayoutManager);
+                         nsBoxLayout* aLayoutManager);
 nsIFrame* NS_NewBoxFrame(nsIPresShell* aPresShell,
                          nsStyleContext* aContext);
 
@@ -81,7 +83,7 @@ public:
   friend nsIFrame* NS_NewBoxFrame(nsIPresShell* aPresShell, 
                                   nsStyleContext* aContext,
                                   PRBool aIsRoot,
-                                  nsIBoxLayout* aLayoutManager);
+                                  nsBoxLayout* aLayoutManager);
   friend nsIFrame* NS_NewBoxFrame(nsIPresShell* aPresShell,
                                   nsStyleContext* aContext);
 
@@ -89,8 +91,9 @@ public:
   // call this method to get the rect so you don't draw on the debug border or outer border.
 
   // ------ nsIBox -------------
-  NS_IMETHOD SetLayoutManager(nsIBoxLayout* aLayout);
-  NS_IMETHOD GetLayoutManager(nsIBoxLayout** aLayout);
+  virtual void SetLayoutManager(nsBoxLayout* aLayout) { mLayoutManager = aLayout; }
+  virtual nsBoxLayout* GetLayoutManager() { return mLayoutManager; }
+
   NS_IMETHOD RelayoutChildAtOrdinal(nsBoxLayoutState& aState, nsIBox* aChild);
 
   virtual nsSize GetPrefSize(nsBoxLayoutState& aBoxLayoutState);
@@ -122,8 +125,8 @@ public:
                               PRInt32         aModType);
 
   virtual void MarkIntrinsicWidthsDirty();
-  virtual nscoord GetMinWidth(nsIRenderingContext *aRenderingContext);
-  virtual nscoord GetPrefWidth(nsIRenderingContext *aRenderingContext);
+  virtual nscoord GetMinWidth(nsRenderingContext *aRenderingContext);
+  virtual nscoord GetPrefWidth(nsRenderingContext *aRenderingContext);
 
   NS_IMETHOD Reflow(nsPresContext*          aPresContext,
                     nsHTMLReflowMetrics&     aDesiredSize,
@@ -178,15 +181,7 @@ public:
 
   virtual ~nsBoxFrame();
   
-  nsBoxFrame(nsIPresShell* aPresShell, nsStyleContext* aContext, PRBool aIsRoot = PR_FALSE, nsIBoxLayout* aLayoutManager = nsnull);
-
-  // if aIsPopup is true, then the view is for a popup. In this case,
-  // the view is added a child of the root view, and is initially hidden
-  static nsresult CreateViewForFrame(nsPresContext* aPresContext,
-                                     nsIFrame* aChild,
-                                     nsStyleContext* aStyleContext,
-                                     PRBool aForce,
-                                     PRBool aIsPopup = PR_FALSE);
+  nsBoxFrame(nsIPresShell* aPresShell, nsStyleContext* aContext, PRBool aIsRoot = PR_FALSE, nsBoxLayout* aLayoutManager = nsnull);
 
   // virtual so nsStackFrame, nsButtonBoxFrame, nsSliderFrame and nsMenuFrame
   // can override it
@@ -224,9 +219,9 @@ public:
 protected:
 #ifdef DEBUG_LAYOUT
     virtual void GetBoxName(nsAutoString& aName);
-    void PaintXULDebugBackground(nsIRenderingContext& aRenderingContext,
+    void PaintXULDebugBackground(nsRenderingContext& aRenderingContext,
                                  nsPoint aPt);
-    void PaintXULDebugOverlay(nsIRenderingContext& aRenderingContext,
+    void PaintXULDebugOverlay(nsRenderingContext& aRenderingContext,
                               nsPoint aPt);
 #endif
 
@@ -245,7 +240,7 @@ protected:
     nscoord mFlex;
     nscoord mAscent;
 
-    nsCOMPtr<nsIBoxLayout> mLayoutManager;
+    nsCOMPtr<nsBoxLayout> mLayoutManager;
 
 protected:
     nsresult RegUnregAccessKey(PRBool aDoReg);
@@ -269,9 +264,9 @@ private:
 
     void GetValue(nsPresContext* aPresContext, const nsSize& a, const nsSize& b, char* value);
     void GetValue(nsPresContext* aPresContext, PRInt32 a, PRInt32 b, char* value);
-    void DrawSpacer(nsPresContext* aPresContext, nsIRenderingContext& aRenderingContext, PRBool aHorizontal, PRInt32 flex, nscoord x, nscoord y, nscoord size, nscoord spacerSize);
-    void DrawLine(nsIRenderingContext& aRenderingContext,  PRBool aHorizontal, nscoord x1, nscoord y1, nscoord x2, nscoord y2);
-    void FillRect(nsIRenderingContext& aRenderingContext,  PRBool aHorizontal, nscoord x, nscoord y, nscoord width, nscoord height);
+    void DrawSpacer(nsPresContext* aPresContext, nsRenderingContext& aRenderingContext, PRBool aHorizontal, PRInt32 flex, nscoord x, nscoord y, nscoord size, nscoord spacerSize);
+    void DrawLine(nsRenderingContext& aRenderingContext,  PRBool aHorizontal, nscoord x1, nscoord y1, nscoord x2, nscoord y2);
+    void FillRect(nsRenderingContext& aRenderingContext,  PRBool aHorizontal, nscoord x, nscoord y, nscoord width, nscoord height);
 #endif
     virtual void UpdateMouseThrough();
 

@@ -57,7 +57,6 @@ EXTRA_JS_MODULES = \
 	content/openLocationLastURL.jsm \
 	content/NetworkPrioritizer.jsm \
 	content/domplate.jsm \
-	content/stylePanel.jsm \
 	$(NULL)
 
 include $(topsrcdir)/config/rules.mk
@@ -75,9 +74,7 @@ DEFINES += -DHAVE_SHELL_SERVICE=1
 endif
 
 ifneq (,$(filter windows cocoa gtk2, $(MOZ_WIDGET_TOOLKIT)))
-ifneq ($(OS_ARCH),WINCE)
 DEFINES += -DCONTEXT_COPY_IMAGE_CONTENTS=1
-endif
 endif
 
 ifneq (,$(filter windows, $(MOZ_WIDGET_TOOLKIT)))

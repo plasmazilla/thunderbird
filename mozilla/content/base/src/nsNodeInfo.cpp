@@ -55,6 +55,8 @@
 #include NEW_H
 #include "nsFixedSizeAllocator.h"
 #include "prprf.h"
+#include "nsIDocument.h"
+#include "nsGkAtoms.h"
 
 static const size_t kNodeInfoPoolSizes[] = {
   sizeof(nsNodeInfo)
@@ -68,7 +70,9 @@ nsFixedSizeAllocator* nsNodeInfo::sNodeInfoPool = nsnull;
 
 // static
 nsNodeInfo*
-nsNodeInfo::Create()
+nsNodeInfo::Create(nsIAtom *aName, nsIAtom *aPrefix, PRInt32 aNamespaceID,
+                   PRUint16 aNodeType, nsIAtom *aExtraName,
+                   nsNodeInfoManager *aOwnerManager)
 {
   if (!sNodeInfoPool) {
     sNodeInfoPool = new nsFixedSizeAllocator();
@@ -86,46 +90,82 @@ nsNodeInfo::Create()
 
   // Create a new one
   void* place = sNodeInfoPool->Alloc(sizeof(nsNodeInfo));
-  return place ? new (place) nsNodeInfo() : nsnull;
-}
-
-nsNodeInfo::nsNodeInfo()
-{
+  return place ?
+    new (place) nsNodeInfo(aName, aPrefix, aNamespaceID, aNodeType, aExtraName,
+                           aOwnerManager) :
+    nsnull;
 }
 
 nsNodeInfo::~nsNodeInfo()
 {
-  if (mOwnerManager) {
-    mOwnerManager->RemoveNodeInfo(this);
-    NS_RELEASE(mOwnerManager);
-  }
+  mOwnerManager->RemoveNodeInfo(this);
+  NS_RELEASE(mOwnerManager);
 
-  NS_IF_RELEASE(mInner.mName);
+  NS_RELEASE(mInner.mName);
   NS_IF_RELEASE(mInner.mPrefix);
+  NS_IF_RELEASE(mInner.mExtraName);
 }
 
 
-nsresult
-nsNodeInfo::Init(nsIAtom *aName, nsIAtom *aPrefix, PRInt32 aNamespaceID,
-                 nsNodeInfoManager *aOwnerManager)
+nsNodeInfo::nsNodeInfo(nsIAtom *aName, nsIAtom *aPrefix, PRInt32 aNamespaceID,
+                       PRUint16 aNodeType, nsIAtom* aExtraName,
+                       nsNodeInfoManager *aOwnerManager)
 {
-  NS_ENSURE_TRUE(!mInner.mName && !mInner.mPrefix && !mOwnerManager,
-                 NS_ERROR_ALREADY_INITIALIZED);
-  NS_ENSURE_ARG_POINTER(aName);
-  NS_ENSURE_ARG_POINTER(aOwnerManager);
+  CHECK_VALID_NODEINFO(aNodeType, aName, aNamespaceID, aExtraName);
+  NS_ABORT_IF_FALSE(aOwnerManager, "Invalid aOwnerManager");
 
-  mInner.mName = aName;
-  NS_ADDREF(mInner.mName);
-
-  mInner.mPrefix = aPrefix;
-  NS_IF_ADDREF(mInner.mPrefix);
-
+  // Initialize mInner
+  NS_ADDREF(mInner.mName = aName);
+  NS_IF_ADDREF(mInner.mPrefix = aPrefix);
   mInner.mNamespaceID = aNamespaceID;
+  mInner.mNodeType = aNodeType;
+  NS_ADDREF(mOwnerManager = aOwnerManager);
+  NS_IF_ADDREF(mInner.mExtraName = aExtraName);
 
-  mOwnerManager = aOwnerManager;
-  NS_ADDREF(mOwnerManager);
+  mDocument = aOwnerManager->GetDocument();
 
-  return NS_OK;
+  // Now compute our cached members.
+
+  // Qualified name.  If we have no prefix, use ToString on
+  // mInner.mName so that we get to share its buffer.
+  if (aPrefix) {
+    mQualifiedName = nsDependentAtomString(mInner.mPrefix) +
+                     NS_LITERAL_STRING(":") +
+                     nsDependentAtomString(mInner.mName);
+  } else {
+    mInner.mName->ToString(mQualifiedName);
+  }
+
+  switch (aNodeType) {
+    case nsIDOMNode::ELEMENT_NODE:
+    case nsIDOMNode::ATTRIBUTE_NODE:
+      // Correct the case for HTML
+      if (aNodeType == nsIDOMNode::ELEMENT_NODE &&
+          aNamespaceID == kNameSpaceID_XHTML && GetDocument() &&
+          GetDocument()->IsHTML()) {
+        nsContentUtils::ASCIIToUpper(mQualifiedName, mNodeName);
+      } else {
+        mNodeName = mQualifiedName;
+      }
+      mInner.mName->ToString(mLocalName);
+      break;
+    case nsIDOMNode::TEXT_NODE:
+    case nsIDOMNode::CDATA_SECTION_NODE:
+    case nsIDOMNode::COMMENT_NODE:
+    case nsIDOMNode::DOCUMENT_NODE:
+    case nsIDOMNode::DOCUMENT_FRAGMENT_NODE:
+      mInner.mName->ToString(mNodeName);
+      SetDOMStringToNull(mLocalName);
+      break;
+    case nsIDOMNode::PROCESSING_INSTRUCTION_NODE:
+    case nsIDOMNode::DOCUMENT_TYPE_NODE:
+      mInner.mExtraName->ToString(mNodeName);
+      SetDOMStringToNull(mLocalName);
+      break;
+    default:
+      NS_ABORT_IF_FALSE(aNodeType == PR_UINT16_MAX,
+                        "Unknown node type");
+  }
 }
 
 
@@ -160,11 +200,10 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INTERNAL(nsNodeInfo)
       PR_snprintf(name, sizeof(name), "nsNodeInfo %s", localName.get());
     }
 
-    cb.DescribeNode(RefCounted, tmp->mRefCnt.get(), sizeof(nsNodeInfo), name);
+    cb.DescribeRefCountedNode(tmp->mRefCnt.get(), sizeof(nsNodeInfo), name);
   }
   else {
-    cb.DescribeNode(RefCounted, tmp->mRefCnt.get(), sizeof(nsNodeInfo),
-                    "nsNodeInfo");
+    NS_IMPL_CYCLE_COLLECTION_DESCRIBE(nsNodeInfo, tmp->mRefCnt.get())
   }
 
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NATIVE_MEMBER(mOwnerManager,
@@ -179,39 +218,6 @@ NS_INTERFACE_TABLE_HEAD(nsNodeInfo)
 NS_INTERFACE_MAP_END
 
 // nsINodeInfo
-
-void
-nsNodeInfo::GetQualifiedName(nsAString& aQualifiedName) const
-{
-  if (mInner.mPrefix) {
-    mInner.mPrefix->ToString(aQualifiedName);
-
-    aQualifiedName.Append(PRUnichar(':'));
-  } else {
-    aQualifiedName.Truncate();
-  }
-
-  nsAutoString name;
-  mInner.mName->ToString(name);
-
-  aQualifiedName.Append(name);
-}
-
-
-void
-nsNodeInfo::GetLocalName(nsAString& aLocalName) const
-{
-#ifdef STRICT_DOM_LEVEL2_LOCALNAME
-  if (mInner.mNamespaceID > 0) {
-    mInner.mName->ToString(aLocalName);
-  } else {
-    SetDOMStringToNull(aLocalName);
-  }
-#else
-  mInner.mName->ToString(aLocalName);
-#endif
-}
-
 
 nsresult
 nsNodeInfo::GetNamespaceURI(nsAString& aNameSpaceURI) const
@@ -230,93 +236,12 @@ nsNodeInfo::GetNamespaceURI(nsAString& aNameSpaceURI) const
 
 
 PRBool
-nsNodeInfo::Equals(const nsAString& aName) const
-{
-  return mInner.mName->Equals(aName);
-}
-
-
-PRBool
-nsNodeInfo::Equals(const nsAString& aName, const nsAString& aPrefix) const
-{
-  if (!mInner.mName->Equals(aName)) {
-    return PR_FALSE;
-  }
-
-  if (!mInner.mPrefix) {
-    return aPrefix.IsEmpty();
-  }
-
-  return mInner.mPrefix->Equals(aPrefix);
-}
-
-
-PRBool
-nsNodeInfo::Equals(const nsAString& aName, PRInt32 aNamespaceID) const
-{
-  return mInner.mNamespaceID == aNamespaceID &&
-    mInner.mName->Equals(aName);
-}
-
-
-PRBool
-nsNodeInfo::Equals(const nsAString& aName, const nsAString& aPrefix,
-                   PRInt32 aNamespaceID) const
-{
-  if (!mInner.mNamespaceID == aNamespaceID ||
-      !mInner.mName->Equals(aName))
-    return PR_FALSE;
-
-  return mInner.mPrefix ? mInner.mPrefix->Equals(aPrefix) :
-    aPrefix.IsEmpty();
-}
-
-
-PRBool
 nsNodeInfo::NamespaceEquals(const nsAString& aNamespaceURI) const
 {
   PRInt32 nsid =
     nsContentUtils::NameSpaceManager()->GetNameSpaceID(aNamespaceURI);
 
   return nsINodeInfo::NamespaceEquals(nsid);
-}
-
-PRBool
-nsNodeInfo::QualifiedNameEqualsInternal(const nsAString& aQualifiedName) const
-{
-  NS_PRECONDITION(mInner.mPrefix, "Must have prefix");
-  
-  nsAString::const_iterator start;
-  aQualifiedName.BeginReading(start);
-
-  nsAString::const_iterator colon(start);
-
-  nsDependentAtomString prefix(mInner.mPrefix);
-
-  if (prefix.Length() >= aQualifiedName.Length()) {
-    return PR_FALSE;
-  }
-
-  colon.advance(prefix.Length());
-
-  // If the character at the prefix length index is not a colon,
-  // aQualifiedName is not equal to this string.
-  if (*colon != ':') {
-    return PR_FALSE;
-  }
-
-  // Compare the prefix to the string from the start to the colon
-  if (!prefix.Equals(Substring(start, colon)))
-    return PR_FALSE;
-
-  ++colon; // Skip the ':'
-
-  nsAString::const_iterator end;
-  aQualifiedName.EndReading(end);
-
-  // Compare the local name to the string between the colon and the
-  // end of aQualifiedName
-  return mInner.mName->Equals(Substring(colon, end));
 }
 
 // static

@@ -45,17 +45,11 @@
 #define jsutil_h___
 
 #include "jstypes.h"
+#include "mozilla/Util.h"
 #include <stdlib.h>
 #include <string.h>
 
 JS_BEGIN_EXTERN_C
-
-/*
- * JS_Assert is present even in release builds, for the benefit of applications
- * that build DEBUG and link against a non-DEBUG SpiderMonkey library.
- */
-extern JS_PUBLIC_API(void)
-JS_Assert(const char *s, const char *file, JSIntn ln);
 
 #define JS_CRASH_UNLESS(__cond)                                                 \
     JS_BEGIN_MACRO                                                              \
@@ -64,6 +58,26 @@ JS_Assert(const char *s, const char *file, JSIntn ln);
             ((void(*)())0)(); /* More reliable, but doesn't say CCADBEEF */     \
         }                                                                       \
     JS_END_MACRO
+
+#define JS_FREE_PATTERN 0xDA
+
+#ifdef JS_CRASH_DIAGNOSTICS
+
+#define JS_POISON(p, val, size) memset((p), (val), (size))
+
+#define JS_OPT_ASSERT(expr)                                                   \
+    ((expr) ? (void)0 : JS_Assert(#expr, __FILE__, __LINE__))
+
+#define JS_OPT_ASSERT_IF(cond, expr)                                          \
+    ((!(cond) || (expr)) ? (void)0 : JS_Assert(#expr, __FILE__, __LINE__))
+
+#else
+
+#define JS_POISON(p, val, size) ((void) 0)
+#define JS_OPT_ASSERT(expr) ((void) 0)
+#define JS_OPT_ASSERT_IF(cond, expr) ((void) 0)
+
+#endif /* JS_CRASH_DIAGNOSTICS */
 
 #ifdef DEBUG
 
@@ -134,10 +148,6 @@ extern JS_PUBLIC_API(void) JS_Abort(void);
 
 #ifdef DEBUG
 # define JS_BASIC_STATS 1
-#endif
-
-#ifdef DEBUG_brendan
-# define JS_SCOPE_DEPTH_METER 1
 #endif
 
 #ifdef JS_BASIC_STATS
@@ -266,13 +276,13 @@ JS_END_EXTERN_C
  *
  *   Allocation:
  *   - Prefer to allocate using JSContext:
- *       cx->{malloc_,realloc_,calloc_,new_,new_array}
+ *       cx->{malloc_,realloc_,calloc_,new_,array_new}
  *
  *   - If no JSContext is available, use a JSRuntime:
- *       rt->{malloc_,realloc_,calloc_,new_,new_array}
+ *       rt->{malloc_,realloc_,calloc_,new_,array_new}
  *
  *   - As a last resort, use unaccounted allocation ("OffTheBooks"):
- *       js::OffTheBooks::{malloc_,realloc_,calloc_,new_,new_array}
+ *       js::OffTheBooks::{malloc_,realloc_,calloc_,new_,array_new}
  *
  *   Deallocation:
  *   - When the deallocation occurs on a slow path, use:
@@ -358,62 +368,62 @@ JS_END_EXTERN_C
     }\
 \
     template <class T, class P1>\
-    QUALIFIERS T *new_(const P1 &p1) {\
+    QUALIFIERS T *new_(P1 p1) {\
         JS_NEW_BODY(ALLOCATOR, T, (p1))\
     }\
 \
     template <class T, class P1, class P2>\
-    QUALIFIERS T *new_(const P1 &p1, const P2 &p2) {\
+    QUALIFIERS T *new_(P1 p1, P2 p2) {\
         JS_NEW_BODY(ALLOCATOR, T, (p1, p2))\
     }\
 \
     template <class T, class P1, class P2, class P3>\
-    QUALIFIERS T *new_(const P1 &p1, const P2 &p2, const P3 &p3) {\
+    QUALIFIERS T *new_(P1 p1, P2 p2, P3 p3) {\
         JS_NEW_BODY(ALLOCATOR, T, (p1, p2, p3))\
     }\
 \
     template <class T, class P1, class P2, class P3, class P4>\
-    QUALIFIERS T *new_(const P1 &p1, const P2 &p2, const P3 &p3, const P4 &p4) {\
+    QUALIFIERS T *new_(P1 p1, P2 p2, P3 p3, P4 p4) {\
         JS_NEW_BODY(ALLOCATOR, T, (p1, p2, p3, p4))\
     }\
 \
     template <class T, class P1, class P2, class P3, class P4, class P5>\
-    QUALIFIERS T *new_(const P1 &p1, const P2 &p2, const P3 &p3, const P4 &p4, const P5 &p5) {\
+    QUALIFIERS T *new_(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5) {\
         JS_NEW_BODY(ALLOCATOR, T, (p1, p2, p3, p4, p5))\
     }\
 \
     template <class T, class P1, class P2, class P3, class P4, class P5, class P6>\
-    QUALIFIERS T *new_(const P1 &p1, const P2 &p2, const P3 &p3, const P4 &p4, const P5 &p5, const P6 &p6) {\
+    QUALIFIERS T *new_(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6) {\
         JS_NEW_BODY(ALLOCATOR, T, (p1, p2, p3, p4, p5, p6))\
     }\
 \
     template <class T, class P1, class P2, class P3, class P4, class P5, class P6, class P7>\
-    QUALIFIERS T *new_(const P1 &p1, const P2 &p2, const P3 &p3, const P4 &p4, const P5 &p5, const P6 &p6, const P7 &p7) {\
+    QUALIFIERS T *new_(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7) {\
         JS_NEW_BODY(ALLOCATOR, T, (p1, p2, p3, p4, p5, p6, p7))\
     }\
 \
     template <class T, class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8>\
-    QUALIFIERS T *new_(const P1 &p1, const P2 &p2, const P3 &p3, const P4 &p4, const P5 &p5, const P6 &p6, const P7 &p7, const P8 &p8) {\
+    QUALIFIERS T *new_(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8) {\
         JS_NEW_BODY(ALLOCATOR, T, (p1, p2, p3, p4, p5, p6, p7, p8))\
     }\
 \
     template <class T, class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9>\
-    QUALIFIERS T *new_(const P1 &p1, const P2 &p2, const P3 &p3, const P4 &p4, const P5 &p5, const P6 &p6, const P7 &p7, const P8 &p8, const P9 &p9) {\
+    QUALIFIERS T *new_(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9) {\
         JS_NEW_BODY(ALLOCATOR, T, (p1, p2, p3, p4, p5, p6, p7, p8, p9))\
     }\
 \
     template <class T, class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9, class P10>\
-    QUALIFIERS T *new_(const P1 &p1, const P2 &p2, const P3 &p3, const P4 &p4, const P5 &p5, const P6 &p6, const P7 &p7, const P8 &p8, const P9 &p9, const P10 &p10) {\
+    QUALIFIERS T *new_(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10) {\
         JS_NEW_BODY(ALLOCATOR, T, (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10))\
     }\
 \
     template <class T, class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9, class P10, class P11>\
-    QUALIFIERS T *new_(const P1 &p1, const P2 &p2, const P3 &p3, const P4 &p4, const P5 &p5, const P6 &p6, const P7 &p7, const P8 &p8, const P9 &p9, const P10 &p10, const P11 &p11) {\
+    QUALIFIERS T *new_(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11) {\
         JS_NEW_BODY(ALLOCATOR, T, (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11))\
     }\
 \
     template <class T, class P1, class P2, class P3, class P4, class P5, class P6, class P7, class P8, class P9, class P10, class P11, class P12>\
-    QUALIFIERS T *new_(const P1 &p1, const P2 &p2, const P3 &p3, const P4 &p4, const P5 &p5, const P6 &p6, const P7 &p7, const P8 &p8, const P9 &p9, const P10 &p10, const P11 &p11, const P12 &p12) {\
+    QUALIFIERS T *new_(P1 p1, P2 p2, P3 p3, P4 p4, P5 p5, P6 p6, P7 p7, P8 p8, P9 p9, P10 p10, P11 p11, P12 p12) {\
         JS_NEW_BODY(ALLOCATOR, T, (p1, p2, p3, p4, p5, p6, p7, p8, p9, p10, p11, p12))\
     }\
     static const int JSMinAlignment = 8;\
@@ -463,6 +473,9 @@ JS_END_EXTERN_C
  * be used, though this is undesirable.
  */
 namespace js {
+/* Import common mfbt declarations into "js". */
+using namespace mozilla;
+
 class OffTheBooks {
 public:
     JS_DECLARE_NEW_METHODS(::js_malloc, JS_ALWAYS_INLINE static)
@@ -674,6 +687,131 @@ PodEqual(T *one, T *two, size_t len)
 
     return !memcmp(one, two, len * sizeof(T));
 }
+
+
+/*
+ * Ordinarily, a function taking a JSContext* 'cx' paremter reports errors on
+ * the context. In some cases, functions optionally report and indicate this by
+ * taking a nullable 'maybecx' parameter. In some cases, though, a function
+ * always needs a 'cx', but optionally reports. This option is presented by the
+ * MaybeReportError.
+ */
+enum MaybeReportError { REPORT_ERROR = true, DONT_REPORT_ERROR = false };
+
+/*
+ * "Move" References
+ *
+ * Some types can be copied much more efficiently if we know the original's
+ * value need not be preserved --- that is, if we are doing a "move", not a
+ * "copy". For example, if we have:
+ *
+ *   Vector<T> u;
+ *   Vector<T> v(u);
+ * 
+ * the constructor for v must apply a copy constructor to each element of u ---
+ * taking time linear in the length of u. However, if we know we will not need u
+ * any more once v has been initialized, then we could initialize v very
+ * efficiently simply by stealing u's dynamically allocated buffer and giving it
+ * to v --- a constant-time operation, regardless of the size of u.
+ *
+ * Moves often appear in container implementations. For example, when we append
+ * to a vector, we may need to resize its buffer. This entails moving each of
+ * its extant elements from the old, smaller buffer to the new, larger buffer.
+ * But once the elements have been migrated, we're just going to throw away the
+ * old buffer; we don't care if they still have their values. So if the vector's
+ * element type can implement "move" more efficiently than "copy", the vector
+ * resizing should by all means use a "move" operation. Hash tables also need to
+ * be resized.
+ *
+ * The details of the optimization, and whether it's worth applying, vary from
+ * one type to the next. And while some constructor calls are moves, many really
+ * are copies, and can't be optimized this way. So we need:
+ *
+ * 1) a way for a particular invocation of a copy constructor to say that it's
+ *    really a move, and that the value of the original isn't important
+ *    afterwards (althought it must still be safe to destroy); and
+ *
+ * 2) a way for a type (like Vector) to announce that it can be moved more
+ *    efficiently than it can be copied, and provide an implementation of that
+ *    move operation.
+ *
+ * The Move(T &) function takes a reference to a T, and returns an MoveRef<T>
+ * referring to the same value; that's 1). An MoveRef<T> is simply a reference
+ * to a T, annotated to say that a copy constructor applied to it may move that
+ * T, instead of copying it. Finally, a constructor that accepts an MoveRef<T>
+ * should perform a more efficient move, instead of a copy, providing 2).
+ *
+ * So, where we might define a copy constructor for a class C like this:
+ *
+ *   C(const C &rhs) { ... copy rhs to this ... }
+ *
+ * we would declare a move constructor like this:
+ *
+ *   C(MoveRef<C> rhs) { ... move rhs to this ... }
+ *
+ * And where we might perform a copy like this:
+ *
+ *   C c2(c1);
+ *
+ * we would perform a move like this:
+ *
+ *   C c2(Move(c1))
+ * 
+ * Note that MoveRef<T> implicitly converts to T &, so you can pass an
+ * MoveRef<T> to an ordinary copy constructor for a type that doesn't support a
+ * special move constructor, and you'll just get a copy. This means that
+ * templates can use Move whenever they know they won't use the original value
+ * any more, even if they're not sure whether the type at hand has a specialized
+ * move constructor. If it doesn't, the MoveRef<T> will just convert to a T &,
+ * and the ordinary copy constructor will apply.
+ *
+ * A class with a move constructor can also provide a move assignment operator,
+ * which runs this's destructor, and then applies the move constructor to
+ * *this's memory. A typical definition:
+ *
+ *   C &operator=(MoveRef<C> rhs) {
+ *     this->~C();
+ *     new(this) C(rhs);
+ *     return *this;
+ *   }
+ *
+ * With that in place, one can write move assignments like this:
+ *
+ *   c2 = Move(c1);
+ *
+ * This destroys c1, moves c1's value to c2, and leaves c1 in an undefined but
+ * destructible state.
+ *
+ * This header file defines MoveRef and Move in the js namespace. It's up to
+ * individual containers to annotate moves as such, by calling Move; and it's up
+ * to individual types to define move constructors.
+ *
+ * One hint: if you're writing a move constructor where the type has members
+ * that should be moved themselves, it's much nicer to write this:
+ *
+ *   C(MoveRef<C> c) : x(c->x), y(c->y) { }
+ *
+ * than the equivalent:
+ *
+ *   C(MoveRef<C> c) { new(&x) X(c->x); new(&y) Y(c->y); }
+ *
+ * especially since GNU C++ fails to notice that this does indeed initialize x
+ * and y, which may matter if they're const.
+ */
+template<typename T>
+class MoveRef {
+  public:
+    typedef T Referent;
+    explicit MoveRef(T &t) : pointer(&t) { }
+    T &operator*()  const { return *pointer; }
+    T *operator->() const { return  pointer; }
+    operator T &()  const { return *pointer; }
+  private:
+    T *pointer;
+};
+
+template<typename T>
+MoveRef<T> Move(T &t) { return MoveRef<T>(t); }
 
 } /* namespace js */
 

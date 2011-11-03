@@ -1,5 +1,6 @@
 #filter substitution
 calendar.jar:
+% resource calendar .
 % content calendar %content/calendar/
     content/calendar/agenda-listbox.js                     (content/agenda-listbox.js)
     content/calendar/agenda-listbox.xml                    (content/agenda-listbox.xml)
@@ -40,6 +41,7 @@ calendar.jar:
     content/calendar/today-pane.js                         (content/today-pane.js)
     content/calendar/calendar-alarm-dialog.js              (content/dialogs/calendar-alarm-dialog.js)
     content/calendar/calendar-alarm-dialog.xul             (content/dialogs/calendar-alarm-dialog.xul)
+    content/calendar/calendar-conflicts-dialog.xul         (content/dialogs/calendar-conflicts-dialog.xul)
     content/calendar/calendar-creation.js                  (content/dialogs/calendar-creation.js)
     content/calendar/calendar-dialog-utils.js              (content/dialogs/calendar-dialog-utils.js)
     content/calendar/calendar-error-prompt.xul             (content/dialogs/calendar-error-prompt.xul)
@@ -64,7 +66,7 @@ calendar.jar:
 *   content/calendar/calendar-migration-dialog.js          (content/dialogs/calendar-migration-dialog.js)
     content/calendar/calendar-migration-dialog.xul         (content/dialogs/calendar-migration-dialog.xul)
     content/calendar/calendar-occurrence-prompt.xul        (content/dialogs/calendar-occurrence-prompt.xul)
-*   content/calendar/calendar-print-dialog.js              (content/dialogs/calendar-print-dialog.js)
+    content/calendar/calendar-print-dialog.js              (content/dialogs/calendar-print-dialog.js)
     content/calendar/calendar-print-dialog.xul             (content/dialogs/calendar-print-dialog.xul)
     content/calendar/calendar-properties-dialog.xul        (content/dialogs/calendar-properties-dialog.xul)
     content/calendar/calendar-properties-dialog.js         (content/dialogs/calendar-properties-dialog.js)
@@ -126,43 +128,52 @@ calendar.jar:
     skin/calendar/event-grippy-right.png                   (themes/common/images/event-grippy-right.png)
     skin/calendar/event-grippy-top.png                     (themes/common/images/event-grippy-top.png)
     skin/calendar/gradient-overlay.png                     (themes/common/images/gradient-overlay.png)
-    skin/calendar/mini-day-background.png                  (themes/common/images/mini-day-background.png)
     skin/calendar/task-images.png                          (themes/common/images/task-images.png)
     skin/calendar/timezone_map.png                         (themes/common/images/timezone_map.png)
     skin/calendar/timezones.png                            (themes/common/images/timezones.png)
-    skin/calendar/widgets/minimonth.css                    (themes/common/widgets/minimonth.css)
-    skin/calendar/widgets/nav-buttons.png                  (themes/common/widgets/images/nav-buttons.png)
+    skin/calendar/widgets/nav-arrow.svg                    (themes/common/widgets/images/nav-arrow.svg)
+    skin/calendar/widgets/nav-today.svg                    (themes/common/widgets/images/nav-today.svg)
+    skin/calendar/widgets/nav-today-hov.svg                (themes/common/widgets/images/nav-today-hov.svg)
     skin/calendar/widgets/view-navigation.png              (themes/common/widgets/images/view-navigation.png)
     skin/calendar/cal-icon32.png                           (themes/@THEME@/images/cal-icon32.png)
     skin/calendar/calendar-alarm-dialog.css                (themes/@THEME@/dialogs/calendar-alarm-dialog.css)
     skin/calendar/calendar-daypicker.css                   (themes/@THEME@/calendar-daypicker.css)
     skin/calendar/calendar-event-dialog.css                (themes/@THEME@/dialogs/calendar-event-dialog.css)
     skin/calendar/calendar-event-dialog-attendees.png      (themes/@THEME@/dialogs/images/calendar-event-dialog-attendees.png)
-    skin/calendar/calendar-event-dialog-toolbar.png        (themes/@THEME@/dialogs/images/calendar-event-dialog-toolbar.png)
-    skin/calendar/calendar-event-dialog-toolbar-small.png  (themes/@THEME@/dialogs/calendar-event-dialog-toolbar-small.png)
     skin/calendar/calendar-event-dialog.png                (themes/@THEME@/dialogs/images/calendar-event-dialog.png)
     skin/calendar/calendar-invitations-dialog-button-images.png  (themes/@THEME@/dialogs/images/calendar-invitations-dialog-button-images.png)
     skin/calendar/calendar-invitations-dialog-list-images.png  (themes/@THEME@/dialogs/images/calendar-invitations-dialog-list-images.png)
     skin/calendar/calendar-management.css                  (themes/@THEME@/calendar-management.css)
-    skin/calendar/calendar-occurrence-prompt.png           (themes/@THEME@/images/calendar-occurrence-prompt.png)
     skin/calendar/calendar-task-tree.css                   (themes/@THEME@/calendar-task-tree.css)
     skin/calendar/calendar-task-view.css                   (themes/@THEME@/calendar-task-view.css)
     skin/calendar/calendar-unifinder.css                   (themes/@THEME@/calendar-unifinder.css)
     skin/calendar/calendar-views.css                       (themes/@THEME@/calendar-views.css)
     skin/calendar/checkbox-images.png                      (themes/@THEME@/images/checkbox-images.png)
     skin/calendar/ok-cancel.png                            (themes/@THEME@/images/ok-cancel.png)
-    skin/calendar/tasks-actions.png                        (themes/@THEME@/images/tasks-actions.png)
     skin/calendar/today-pane.css                           (themes/@THEME@/today-pane.css)
+    skin/calendar/widgets/calendar-widgets.css             (themes/@THEME@/widgets/calendar-widgets.css)
+    skin/calendar/widgets/minimonth.css                    (themes/@THEME@/widgets/minimonth.css)
+    skin/calendar/calendar-event-dialog-toolbar.png        (themes/@THEME@/dialogs/images/calendar-event-dialog-toolbar.png)
+    skin/calendar/calendar-event-dialog-toolbar-small.png  (themes/@THEME@/dialogs/images/calendar-event-dialog-toolbar-small.png)
+    skin/calendar/calendar-occurrence-prompt.png           (themes/@THEME@/images/calendar-occurrence-prompt.png)
+    skin/calendar/tasks-actions.png                        (themes/@THEME@/images/tasks-actions.png)
     skin/calendar/toolbar-large.png                        (themes/@THEME@/images/toolbar-large.png)
     skin/calendar/toolbar-small.png                        (themes/@THEME@/images/toolbar-small.png)
-    skin/calendar/widgets/calendar-widgets.css             (themes/@THEME@/widgets/calendar-widgets.css)
+
+# Following files only add for OSX.
+#ifdef XP_MACOSX
+    skin/calendar/sidebar-item.png                         (themes/@THEME@/images/sidebar-item.png)
+#endif
+
 # The following files are added for aero support on windows.
 #ifdef XP_WIN
 % style chrome://calendar/content/calendar-common-sets.xul chrome://calendar/skin/calendar-aero.css os=WINNT osversion>=6
+% style chrome://calendar/content/calendar-event-dialog.xul chrome://calendar/skin/calendar-aero.css os=WINNT osversion>=6
+% style chrome://calendar/content/calendar-occurrence-prompt.xul chrome://calendar/skin/calendar-aero.css os=WINNT osversion>=6
     skin/calendar/calendar-aero.css                        (themes/@THEME@/calendar-aero.css)
+    skin/calendar/calendar-event-dialog-toolbar-aero.png   (themes/@THEME@/dialogs/images/calendar-event-dialog-toolbar-aero.png)
+    skin/calendar/calendar-occurrence-prompt-aero.png      (themes/@THEME@/images/calendar-occurrence-prompt-aero.png)
     skin/calendar/tasks-actions-aero.png                   (themes/@THEME@/images/tasks-actions-aero.png)
-#endif
-
-#ifdef XP_MACOSX
-    skin/calendar/sidebar-item.png                         (themes/@THEME@/images/sidebar-item.png)
+    skin/calendar/toolbar-large-aero.png                   (themes/@THEME@/images/toolbar-large-aero.png)
+    skin/calendar/toolbar-small-aero.png                   (themes/@THEME@/images/toolbar-small-aero.png)
 #endif

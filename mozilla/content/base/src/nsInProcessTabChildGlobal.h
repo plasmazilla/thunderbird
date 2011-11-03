@@ -78,6 +78,11 @@ public:
     return mMessageManager ? mMessageManager->Dump(aStr) : NS_OK;
   }
   NS_IMETHOD PrivateNoteIntentionalCrash();
+  NS_IMETHOD Btoa(const nsAString& aBinaryData,
+                  nsAString& aAsciiBase64String);
+  NS_IMETHOD Atob(const nsAString& aAsciiString,
+                  nsAString& aBinaryData);
+
   NS_DECL_NSIINPROCESSCONTENTFRAMEMESSAGEMANAGER
 
   virtual nsresult PreHandleEvent(nsEventChainPreVisitor& aVisitor);
@@ -87,7 +92,7 @@ public:
   {
     // By default add listeners only for trusted events!
     return nsDOMEventTargetHelper::AddEventListener(aType, aListener,
-                                                    aUseCapture, PR_FALSE, 1);
+                                                    aUseCapture, PR_FALSE, 2);
   }
   NS_IMETHOD AddEventListener(const nsAString& aType,
                               nsIDOMEventListener* aListener,

@@ -53,10 +53,6 @@
 
  ******/
 
-#ifdef WINCE
-#undef small
-#endif
-
 EDITOR_ATOM(a, "a")
 EDITOR_ATOM(abbr, "abbr")
 EDITOR_ATOM(acronym, "acronym")
@@ -151,6 +147,7 @@ EDITOR_ATOM(legend, "legend")
 EDITOR_ATOM(li, "li")
 EDITOR_ATOM(map, "map")
 EDITOR_ATOM(mark, "mark")
+EDITOR_ATOM(menuitem, "menuitem")
 EDITOR_ATOM(mozdirty, "_moz_dirty")
 EDITOR_ATOM(mozEditorBogusNode, "_moz_editor_bogus_node")
 EDITOR_ATOM(name, "name")
@@ -161,6 +158,7 @@ EDITOR_ATOM(ol, "ol")
 EDITOR_ATOM(output, "output")
 EDITOR_ATOM(p, "p")
 EDITOR_ATOM(pre, "pre")
+EDITOR_ATOM(progress, "progress")
 EDITOR_ATOM(q, "q")
 EDITOR_ATOM(samp, "samp")
 EDITOR_ATOM(script, "script")

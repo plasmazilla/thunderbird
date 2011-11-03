@@ -40,6 +40,12 @@
 
 #include <stdio.h>
 
+#ifdef XRE_WANT_DLL_BLOCKLIST
+#define XRE_SetupDllBlocklist SetupDllBlocklist
+#else
+#include "nsXULAppAPI.h"
+#endif
+
 #include "nsAutoPtr.h"
 
 #include "prlog.h"
@@ -56,12 +62,6 @@
 // define this for very verbose dll load debug spew
 #undef DEBUG_very_verbose
 
-// The signature for LdrLoadDll changed at some point, with the second arg
-// becoming a PULONG instead of a ULONG.  This should only matter on 64-bit
-// systems, for which there was no support earlier -- on 32-bit systems,
-// they should be the same size.
-PR_STATIC_ASSERT(sizeof(PULONG) == sizeof(ULONG));
-
 typedef NTSTATUS (NTAPI *LdrLoadDll_func) (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileName, PHANDLE handle);
 
 static LdrLoadDll_func stub_LdrLoadDll = 0;
@@ -72,6 +72,8 @@ patched_LdrLoadDll (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileNam
   // We have UCS2 (UTF16?), we want ASCII, but we also just want the filename portion
 #define DLLNAME_MAX 128
   char dllName[DLLNAME_MAX+1];
+  wchar_t *dll_part;
+  DllBlockInfo *info;
 
   int len = moduleFileName->Length / 2;
   wchar_t *fname = moduleFileName->Buffer;
@@ -89,7 +91,7 @@ patched_LdrLoadDll (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileNam
     goto continue_loading;
   }
 
-  wchar_t *dll_part = wcsrchr(fname, L'\\');
+  dll_part = wcsrchr(fname, L'\\');
   if (dll_part) {
     dll_part = dll_part + 1;
     len -= dll_part - fname;
@@ -135,7 +137,7 @@ patched_LdrLoadDll (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileNam
 #endif
 
   // then compare to everything on the blocklist
-  DllBlockInfo *info = &sWindowsDllBlocklist[0];
+  info = &sWindowsDllBlocklist[0];
   while (info->name) {
     if (strcmp(info->name, dllName) == 0)
       break;
@@ -151,8 +153,14 @@ patched_LdrLoadDll (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileNam
 #endif
 
     if (info->maxVersion != ALL_VERSIONS) {
+      // In Windows 8, the first parameter seems to be used for more than just the
+      // path name.  For example, its numerical value can be 1.  Passing a non-valid
+      // pointer to SearchPathW will cause a crash, so we need to check to see if we
+      // are handed a valid pointer, and otherwise just pass NULL to SearchPathW.
+      PWCHAR sanitizedFilePath = (intptr_t(filePath) < 1024) ? NULL : filePath;
+
       // figure out the length of the string that we need
-      DWORD pathlen = SearchPathW(filePath, fname, L".dll", 0, NULL, NULL);
+      DWORD pathlen = SearchPathW(sanitizedFilePath, fname, L".dll", 0, NULL, NULL);
       if (pathlen == 0) {
         // uh, we couldn't find the DLL at all, so...
         printf_stderr("LdrLoadDll: Blocking load of '%s' (SearchPathW didn't find it?)\n", dllName);
@@ -166,7 +174,7 @@ patched_LdrLoadDll (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileNam
       }
 
       // now actually grab it
-      SearchPathW(filePath, fname, L".dll", pathlen+1, full_fname, NULL);
+      SearchPathW(sanitizedFilePath, fname, L".dll", pathlen+1, full_fname, NULL);
 
       DWORD zero;
       DWORD infoSize = GetFileVersionInfoSizeW(full_fname, &zero);
@@ -174,7 +182,7 @@ patched_LdrLoadDll (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileNam
       // If we failed to get the version information, we block.
 
       if (infoSize != 0) {
-        nsAutoArrayPtr<unsigned char> infoData = new unsigned char[infoSize];
+        nsAutoArrayPtr<unsigned char> infoData(new unsigned char[infoSize]);
         VS_FIXEDFILEINFO *vInfo;
         UINT vInfoLen;
 
@@ -214,11 +222,11 @@ continue_loading:
 WindowsDllInterceptor NtDllIntercept;
 
 void
-SetupDllBlocklist()
+XRE_SetupDllBlocklist()
 {
   NtDllIntercept.Init("ntdll.dll");
 
-  bool ok = NtDllIntercept.AddHook("LdrLoadDll", patched_LdrLoadDll, (void**) &stub_LdrLoadDll);
+  bool ok = NtDllIntercept.AddHook("LdrLoadDll", reinterpret_cast<intptr_t>(patched_LdrLoadDll), (void**) &stub_LdrLoadDll);
 
 #ifdef DEBUG
   if (!ok)

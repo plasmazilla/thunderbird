@@ -21,6 +21,7 @@
  *
  * Contributor(s):
  *   Original Author: Daniel Glazman <glazman@netscape.com>
+ *   Ms2ger <ms2ger@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -39,15 +40,11 @@
 #include "nsHTMLEditor.h"
 #include "nsCOMPtr.h"
 #include "nsHTMLEditUtils.h"
-#include "nsIPrefBranch.h"
-#include "nsIPrefService.h"
-#include "nsIServiceManager.h"
 #include "nsEditProperty.h"
 #include "ChangeCSSInlineStyleTxn.h"
 #include "nsIDOMElement.h"
 #include "nsIDOMElementCSSInlineStyle.h"
 #include "nsIDOMDocument.h"
-#include "nsIDOMDocumentView.h"
 #include "nsIContent.h"
 #include "nsIAtom.h"
 #include "nsTextEditUtils.h"
@@ -57,6 +54,9 @@
 #include "nsColor.h"
 #include "nsAttrName.h"
 #include "nsAutoPtr.h"
+#include "mozilla/Preferences.h"
+
+using namespace mozilla;
 
 static
 void ProcessBValue(const nsAString * aInputString, nsAString & aOutputString,
@@ -297,29 +297,16 @@ const nsHTMLCSSUtils::CSSEquivTable hrAlignEquivTable[] = {
   { nsHTMLCSSUtils::eCSSEditableProperty_NONE, 0 }
 };
 
-nsHTMLCSSUtils::nsHTMLCSSUtils()
-: mIsCSSPrefChecked(PR_FALSE)
+nsHTMLCSSUtils::nsHTMLCSSUtils(nsHTMLEditor* aEditor)
+  : mHTMLEditor(aEditor)
+  , mIsCSSPrefChecked(PR_FALSE)
 {
+  // let's retrieve the value of the "CSS editing" pref
+  mIsCSSPrefChecked = Preferences::GetBool("editor.use_css", mIsCSSPrefChecked);
 }
 
 nsHTMLCSSUtils::~nsHTMLCSSUtils()
 {
-}
-
-nsresult
-nsHTMLCSSUtils::Init(nsHTMLEditor *aEditor)
-{
-  nsresult result = NS_OK;
-  mHTMLEditor = static_cast<nsHTMLEditor*>(aEditor);
-
-  // let's retrieve the value of the "CSS editing" pref
-  nsCOMPtr<nsIPrefBranch> prefBranch =
-    do_GetService(NS_PREFSERVICE_CONTRACTID, &result);
-  if (NS_SUCCEEDED(result) && prefBranch) {
-    result = prefBranch->GetBoolPref("editor.use_css", &mIsCSSPrefChecked);
-    NS_ENSURE_SUCCESS(result, result);
-  }
-  return result;
 }
 
 // Answers true if we have some CSS equivalence for the HTML style defined
@@ -538,35 +525,36 @@ nsresult
 nsHTMLCSSUtils::GetComputedProperty(nsIDOMNode *aNode, nsIAtom *aProperty,
                                     nsAString & aValue)
 {
-  nsCOMPtr<nsIDOMViewCSS> viewCSS = nsnull;
-  nsresult res = GetDefaultViewCSS(aNode, getter_AddRefs(viewCSS));
+  nsCOMPtr<nsIDOMWindow> window;
+  nsresult res = GetDefaultViewCSS(aNode, getter_AddRefs(window));
   NS_ENSURE_SUCCESS(res, res);
 
-  return GetCSSInlinePropertyBase(aNode, aProperty, aValue, viewCSS, COMPUTED_STYLE_TYPE);
+  return GetCSSInlinePropertyBase(aNode, aProperty, aValue, window, COMPUTED_STYLE_TYPE);
 }
 
 nsresult
 nsHTMLCSSUtils::GetCSSInlinePropertyBase(nsIDOMNode *aNode, nsIAtom *aProperty,
-                                        nsAString &aValue,
-                                        nsIDOMViewCSS *aViewCSS,
-                                        PRUint8 aStyleType)
+                                         nsAString& aValue,
+                                         nsIDOMWindow* aWindow,
+                                         PRUint8 aStyleType)
 {
   aValue.Truncate();
   NS_ENSURE_TRUE(aProperty, NS_ERROR_NULL_POINTER);
 
-  nsCOMPtr<nsIDOMElement>element;
+  nsCOMPtr<nsIDOMElement> element;
   nsresult res = GetElementContainerOrSelf(aNode, getter_AddRefs(element));
   NS_ENSURE_SUCCESS(res, res);
 
   switch (aStyleType) {
     case COMPUTED_STYLE_TYPE:
-      if (element && aViewCSS) {
+      if (element && aWindow) {
         nsAutoString value, propString;
         nsCOMPtr<nsIDOMCSSStyleDeclaration> cssDecl;
         aProperty->ToString(propString);
         // Get the all the computed css styles attached to the element node
-        res = aViewCSS->GetComputedStyle(element, EmptyString(), getter_AddRefs(cssDecl));
-        if (NS_FAILED(res) || !cssDecl) return res;
+        res = aWindow->GetComputedStyle(element, EmptyString(), getter_AddRefs(cssDecl));
+        if (NS_FAILED(res) || !cssDecl)
+          return res;
         // from these declarations, get the one we want and that one only
         res = cssDecl->GetPropertyValue(propString, value);
         NS_ENSURE_SUCCESS(res, res);
@@ -591,47 +579,30 @@ nsHTMLCSSUtils::GetCSSInlinePropertyBase(nsIDOMNode *aNode, nsIAtom *aProperty,
 }
 
 nsresult
-nsHTMLCSSUtils::GetDefaultViewCSS(nsIDOMNode *aNode, nsIDOMViewCSS **aViewCSS)
+nsHTMLCSSUtils::GetDefaultViewCSS(nsIDOMNode *aNode, nsIDOMWindow **aViewCSS)
 {
-  nsCOMPtr<nsIDOMElement>element;
+  nsCOMPtr<nsIDOMElement> element;
   nsresult res = GetElementContainerOrSelf(aNode, getter_AddRefs(element));
   NS_ENSURE_SUCCESS(res, res);
 
-  // if we have an element node
-  if (element) {
-    // find the owner document
-    nsCOMPtr<nsIDOMDocument> doc;
-    nsCOMPtr<nsIDOMNode> node = do_QueryInterface(element);
-    res = node->GetOwnerDocument(getter_AddRefs(doc));
-    NS_ENSURE_SUCCESS(res, res);
-    if (doc) {
-      nsCOMPtr<nsIDOMDocumentView> documentView = do_QueryInterface(doc);
-      nsCOMPtr<nsIDOMAbstractView> abstractView;
-      // from the document, get the abtractView
-      res = documentView->GetDefaultView(getter_AddRefs(abstractView));
-      NS_ENSURE_SUCCESS(res, res);
-      if (abstractView) {
-        // from the abstractView, get the CSS view
-        CallQueryInterface(abstractView, aViewCSS);
-        return NS_OK;
-      }
-    }
-  }
+  // TODO: move this initialization to the top of the function
   *aViewCSS = nsnull;
-  return NS_OK;
-}
-
-nsresult
-NS_NewHTMLCSSUtils(nsHTMLCSSUtils** aInstancePtrResult)
-{
-  nsHTMLCSSUtils * rules = new nsHTMLCSSUtils();
-  if (rules) {
-    *aInstancePtrResult = rules;
+  if (!element) {
     return NS_OK;
   }
-
-  *aInstancePtrResult = nsnull;
-  return NS_ERROR_OUT_OF_MEMORY;
+  // find the owner document
+  nsCOMPtr<nsIDOMDocument> doc;
+  nsCOMPtr<nsIDOMNode> node = do_QueryInterface(element);
+  res = node->GetOwnerDocument(getter_AddRefs(doc));
+  NS_ENSURE_SUCCESS(res, res);
+  if (!doc) {
+    return NS_OK;
+  }
+  nsCOMPtr<nsIDOMWindow> window;
+  res = doc->GetDefaultView(getter_AddRefs(window));
+  NS_ENSURE_SUCCESS(res, res);
+  window.forget(aViewCSS);
+  return NS_OK;
 }
 
 // remove the CSS style "aProperty : aPropertyValue" and possibly remove the whole node
@@ -674,60 +645,42 @@ nsHTMLCSSUtils::IsCSSInvertable(nsIAtom *aProperty, const nsAString *aAttribute)
 }
 
 // Get the default browser background color if we need it for GetCSSBackgroundColorState
-nsresult
+void
 nsHTMLCSSUtils::GetDefaultBackgroundColor(nsAString & aColor)
 {
-  nsresult result;
-  nsCOMPtr<nsIPrefBranch> prefBranch =
-    do_GetService(NS_PREFSERVICE_CONTRACTID, &result);
-  NS_ENSURE_SUCCESS(result, result);
-  aColor.AssignLiteral("#ffffff");
-  nsXPIDLCString returnColor;
-  if (prefBranch) {
-    PRBool useCustomColors;
-    result = prefBranch->GetBoolPref("editor.use_custom_colors", &useCustomColors);
-    NS_ENSURE_SUCCESS(result, result);
-    if (useCustomColors) {
-      result = prefBranch->GetCharPref("editor.background_color",
-                                       getter_Copies(returnColor));
-      NS_ENSURE_SUCCESS(result, result);
+  if (Preferences::GetBool("editor.use_custom_colors", PR_FALSE)) {
+    nsresult rv = Preferences::GetString("editor.background_color", &aColor);
+    // XXX Why don't you validate the pref value?
+    if (NS_FAILED(rv)) {
+      NS_WARNING("failed to get editor.background_color");
+      aColor.AssignLiteral("#ffffff");  // Default to white
     }
-    else {
-      PRBool useSystemColors;
-      result = prefBranch->GetBoolPref("browser.display.use_system_colors", &useSystemColors);
-      NS_ENSURE_SUCCESS(result, result);
-      if (!useSystemColors) {
-        result = prefBranch->GetCharPref("browser.display.background_color",
-                                         getter_Copies(returnColor));
-        NS_ENSURE_SUCCESS(result, result);
-      }
-    }
+    return;
   }
-  if (returnColor) {
-    CopyASCIItoUTF16(returnColor, aColor);
+
+  if (Preferences::GetBool("browser.display.use_system_colors", PR_FALSE)) {
+    return;
   }
-  return NS_OK;
+
+  nsresult rv =
+    Preferences::GetString("browser.display.background_color", &aColor);
+  // XXX Why don't you validate the pref value?
+  if (NS_FAILED(rv)) {
+    NS_WARNING("failed to get browser.display.background_color");
+    aColor.AssignLiteral("#ffffff");  // Default to white
+  }
 }
 
 // Get the default length unit used for CSS Indent/Outdent
-nsresult
+void
 nsHTMLCSSUtils::GetDefaultLengthUnit(nsAString & aLengthUnit)
 {
-  nsresult result;
-  nsCOMPtr<nsIPrefBranch> prefBranch =
-    do_GetService(NS_PREFSERVICE_CONTRACTID, &result);
-  NS_ENSURE_SUCCESS(result, result);
-  aLengthUnit.AssignLiteral("px");
-  if (NS_SUCCEEDED(result) && prefBranch) {
-    nsXPIDLCString returnLengthUnit;
-    result = prefBranch->GetCharPref("editor.css.default_length_unit",
-                                     getter_Copies(returnLengthUnit));
-    NS_ENSURE_SUCCESS(result, result);
-    if (returnLengthUnit) {
-      CopyASCIItoUTF16(returnLengthUnit, aLengthUnit);
-    }
+  nsresult rv =
+    Preferences::GetString("editor.css.default_length_unit", &aLengthUnit);
+  // XXX Why don't you validate the pref value?
+  if (NS_FAILED(rv)) {
+    aLengthUnit.AssignLiteral("px");
   }
-  return NS_OK;
 }
 
 // Unfortunately, CSSStyleDeclaration::GetPropertyCSSValue is not yet implemented...
@@ -1087,9 +1040,9 @@ nsHTMLCSSUtils::GetCSSEquivalentToHTMLInlineStyleSet(nsIDOMNode * aNode,
   if (theElement && IsCSSEditableProperty(theElement, aHTMLProperty, aAttribute)) {
     // Yes, the requested HTML style has a CSS equivalence in this implementation
     // Retrieve the default ViewCSS if we are asked for computed styles
-    nsCOMPtr<nsIDOMViewCSS> viewCSS = nsnull;
+    nsCOMPtr<nsIDOMWindow> window;
     if (COMPUTED_STYLE_TYPE == aStyleType) {
-      res = GetDefaultViewCSS(theElement, getter_AddRefs(viewCSS));
+      res = GetDefaultViewCSS(theElement, getter_AddRefs(window));
       NS_ENSURE_SUCCESS(res, res);
     }
     nsTArray<nsIAtom*> cssPropertyArray;
@@ -1104,7 +1057,7 @@ nsHTMLCSSUtils::GetCSSEquivalentToHTMLInlineStyleSet(nsIDOMNode * aNode,
       nsAutoString valueString;
       // retrieve the specified/computed value of the property
       res = GetCSSInlinePropertyBase(theElement, cssPropertyArray[index],
-                                     valueString, viewCSS, aStyleType);
+                                     valueString, window, aStyleType);
       NS_ENSURE_SUCCESS(res, res);
       // append the value to aValueString (possibly with a leading whitespace)
       if (index) aValueString.Append(PRUnichar(' '));

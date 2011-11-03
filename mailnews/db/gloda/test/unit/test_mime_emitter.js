@@ -82,6 +82,28 @@ var partEnriched = new SyntheticPartLeaf(
 var partAlternative = new SyntheticPartMultiAlternative([partText, partHtml]);
 var partMailingListFooter = new SyntheticPartLeaf("I am an annoying footer!");
 
+// This is an external attachment, i.e. a mime part that basically says "go find
+// the attachment on disk, assuming it still exists, here's the path to the file
+// on disk". It turns out feed enclosures are presented in the exact same way,
+// so this covers this case as well.
+var tachExternal = {
+  body:
+    'You deleted an attachment from this message. The original MIME headers for the attachment were:\n'+
+    'Content-Type: image/png;\n'+
+    ' name="conversations-bug1.png"\n'+
+    'Content-Transfer-Encoding: base64\n'+
+    'Content-Disposition: attachment;\n'+
+    ' filename="conversations-bug1.png"',
+  contentType: 'image/png',
+  filename: "conversations-bug1.png",
+  charset: null,
+  format: null,
+  encoding: 'base64',
+  extraHeaders: {
+    'X-Mozilla-External-Attachment-URL': 'file:///tmp/conversations-bug1.png',
+    'X-Mozilla-Altered': 'AttachmentDetached; date="Wed Aug 03 11:11:33 2011"',
+  },
+};
 var tachText = {filename: 'bob.txt', body: 'I like cheese!'};
 var partTachText = new SyntheticPartLeaf(tachText.body, tachText);
 var tachInlineText = {filename: 'foo.txt', body: 'Rock the mic',
@@ -434,16 +456,30 @@ function test_sane_bodies() {
 // allUserAttachments representation
 
 var partTachNestedMessages = [
-  msgGen.makeMessage(),
+  // Looks like the synthetic part generator appends the charset=ISO-8859-1 part
+  // all by itself. That allows us to create a non-UTF-8 subject, and ensure the
+  // resulting attachment name is indeed São Paulo.eml.
+  msgGen.makeMessage({
+    subject: "S"+String.fromCharCode(0xe3)+"o Paulo",
+    bodyPart: new SyntheticPartLeaf(
+      "<html><head></head><body>I am HTML! Woo! </body></html>",
+      {
+        contentType: 'text/html',
+      }
+    )
+  }),
   msgGen.makeMessage({
       attachments: [tachImage]
     }),
   msgGen.makeMessage({
       attachments: [tachImage, tachApplication]
-    })
+    }),
 ];
 
 var attMessagesParams = [
+  {
+    attachments: [tachExternal],
+  },
   {
     name: 'attached rfc822',
     bodyPart: new SyntheticPartMultiMixed([partAlternative,
@@ -459,13 +495,18 @@ var attMessagesParams = [
     bodyPart: new SyntheticPartMultiMixed([partAlternative,
                                            partTachApplication,
                                            partTachNestedMessages[2]]),
-  }
+  },
 ];
 
 var expectedAttachmentsInfo = [
   {
+    allAttachmentsContentTypes: ["image/png"],
+    allUserAttachmentsContentTypes: ["image/png"],
+  },
+  {
     allAttachmentsContentTypes: [],
-    allUserAttachmentsContentTypes: ["message/rfc822"]
+    allUserAttachmentsContentTypes: ["message/rfc822"],
+    firstAttachmentName: "S\u00e3o Paulo.eml",
   },
   {
     allAttachmentsContentTypes: ["image/png"],
@@ -484,10 +525,17 @@ function test_attachments_correctness () {
     yield add_sets_to_folder(gInbox, [synSet]);
 
     let msgHdr = synSet.getMsgHdr(0);
+    // dump(synMsg.toMboxString()+"\n\n");
 
     MsgHdrToMimeMessage(msgHdr, null, function(aMsgHdr, aMimeMsg) {
       try {
         let expected = expectedAttachmentsInfo[i];
+        if ("firstAttachmentName" in expected) {
+          let att = aMimeMsg.allUserAttachments[0];
+          do_check_eq(att.name.length, expected.firstAttachmentName.length);
+          for (let i = 0; i < att.name.length; ++i)
+            do_check_eq(att.name.charCodeAt(i), expected.firstAttachmentName.charCodeAt(i));
+        }
 
         do_check_eq(aMimeMsg.allAttachments.length, expected.allAttachmentsContentTypes.length);
         for each (let [j, att] in Iterator(aMimeMsg.allAttachments))
@@ -508,12 +556,51 @@ function test_attachments_correctness () {
   }
 }
 
+var bogusMessage = msgGen.makeMessage({ body: { body: "whatever" } });
+bogusMessage._contentType = "woooooo"; // Breaking abstraction boundaries. Bad.
+
+let weirdMessageInfos = [
+  // This message has a malformed part as an attachment, so it will end up as a
+  // MimeUnknown part. Previously, libmime would emit notifications for this to
+  // be treated as an attachment, name Part 1.2. Now it's not the case anymore,
+  // so we should ensure this message has no attachments.
+  {
+    name: 'MimeUnknown attachment (actually, a message)',
+    bodyPart: new SyntheticPartMultiMixed([
+      partHtml,
+      bogusMessage,
+    ]),
+  },
+];
+
+function test_part12_not_an_attachment() {
+  let synMsg = gMessageGenerator.makeMessage(weirdMessageInfos[0]);
+  let synSet = new SyntheticMessageSet([synMsg]);
+  yield add_sets_to_folder(gInbox, [synSet]);
+
+  let msgHdr = synSet.getMsgHdr(0);
+  // dump(synMsg.toMboxString());
+
+  MsgHdrToMimeMessage(msgHdr, null, function(aMsgHdr, aMimeMsg) {
+    try {
+      do_check_true(aMimeMsg.allUserAttachments.length == 0);
+      do_check_true(aMimeMsg.allAttachments.length == 0);
+    } catch (e) {
+      do_throw(e);
+    }
+    async_driver();
+  });
+
+  yield false;
+}
+
 /* ===== Driver ===== */
 
 var tests = [
   parameterizeTest(test_stream_message, messageInfos),
   test_sane_bodies,
   test_attachments_correctness,
+  test_part12_not_an_attachment,
 ];
 
 var gInbox;

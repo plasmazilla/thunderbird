@@ -56,12 +56,11 @@
 #include "nsIContentSink.h"
 #include "nsIHTMLContentSink.h"
 #include "nsHTMLTokenizer.h"
-#include "nsIPrefService.h"
-#include "nsIPrefBranch.h"
 #include "nsUnicharUtils.h"
 #include "nsPrintfCString.h"
 #include "nsNetUtil.h"
 #include "nsHTMLEntities.h"
+#include "nsParserConstants.h"
 
 #include "nsIServiceManager.h"
 
@@ -73,12 +72,14 @@
 #include "plstr.h"
 #include "prmem.h"
 
+#include "mozilla/Preferences.h"
+
 #ifdef RAPTOR_PERF_METRICS
 #include "stopwatch.h"
 Stopwatch vsTimer;
 #endif
 
-
+using namespace mozilla;
 
 // Define this to dump the viewsource stuff to a file
 //#define DUMP_TO_FILE
@@ -196,22 +197,12 @@ static const char* const kDumpFileAfterText[] = {
  */
 CViewSourceHTML::CViewSourceHTML()
 {
-  mSyntaxHighlight = PR_FALSE;
-  mWrapLongLines = PR_FALSE;
-  mTabSize = -1;
-  nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID));
-  if (prefBranch) {
-    PRBool temp;
-    nsresult rv;
-    rv = prefBranch->GetBoolPref("view_source.syntax_highlight", &temp);
-    mSyntaxHighlight = NS_SUCCEEDED(rv) ? temp : PR_TRUE;
+  mSyntaxHighlight =
+    Preferences::GetBool("view_source.syntax_highlight", PR_TRUE);
 
-    rv = prefBranch->GetBoolPref("view_source.wrap_long_lines", &temp);
-    mWrapLongLines = NS_SUCCEEDED(rv) ? temp : PR_FALSE;
+  mWrapLongLines = Preferences::GetBool("view_source.wrap_long_lines", PR_FALSE);
 
-    rv = prefBranch->GetIntPref("view_source.tab_size", &temp);
-    mTabSize = NS_SUCCEEDED(rv) ? temp : -1;
-  }
+  mTabSize = Preferences::GetInt("view_source.tab_size", -1);
 
   mSink = 0;
   mLineNumber = 1;
@@ -1078,7 +1069,7 @@ nsresult CViewSourceHTML::CreateViewSourceURL(const nsAString& linkUrl,
     viewSourceUrl.AssignLiteral("view-source:");    
   }
 
-  viewSourceUrl.AppendWithConversion(absoluteLinkUrl);
+  AppendUTF8toUTF16(absoluteLinkUrl, viewSourceUrl);
 
   return NS_OK;
 }

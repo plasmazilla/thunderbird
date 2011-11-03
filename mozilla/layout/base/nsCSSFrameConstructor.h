@@ -53,6 +53,7 @@
 #include "nsPageContentFrame.h"
 #include "nsCSSPseudoElements.h"
 #include "RestyleTracker.h"
+#include "nsIAnonymousContentCreator.h"
 
 class nsIDocument;
 struct nsFrameItems;
@@ -677,12 +678,10 @@ private:
      frame.  If this is not set, the frame will be pushed as the
      absolute containing block as needed, based on its style */
 #define FCDATA_FORCE_NULL_ABSPOS_CONTAINER 0x10
-#ifdef MOZ_MATHML
   /* If FCDATA_WRAP_KIDS_IN_BLOCKS is set, the inline kids of the frame
      will be wrapped in blocks.  This is only usable for MathML at the
      moment. */
 #define FCDATA_WRAP_KIDS_IN_BLOCKS 0x20
-#endif /* MOZ_MATHML */
   /* If FCDATA_SUPPRESS_FRAME is set, no frame should be created for the
      content.  If this bit is set, nothing else in the struct needs to be
      set. */
@@ -698,40 +697,35 @@ private:
   /* If FCDATA_SKIP_ABSPOS_PUSH is set, don't push this frame as an
      absolute containing block, no matter what its style says. */
 #define FCDATA_SKIP_ABSPOS_PUSH 0x200
-  /* If FCDATA_FORCE_VIEW is set, then force creation of a view for the frame.
-     this is only used if a scrollframe is not created and a full constructor
-     isn't used, so this flag shouldn't be used with
-     FCDATA_MAY_NEED_SCROLLFRAME or FCDATA_FUNC_IS_FULL_CTOR.  */
-#define FCDATA_FORCE_VIEW 0x400
   /* If FCDATA_DISALLOW_GENERATED_CONTENT is set, then don't allow generated
      content when processing kids of this frame.  This should not be used with
      FCDATA_FUNC_IS_FULL_CTOR */
-#define FCDATA_DISALLOW_GENERATED_CONTENT 0x800
+#define FCDATA_DISALLOW_GENERATED_CONTENT 0x400
   /* If FCDATA_IS_TABLE_PART is set, then the frame is some sort of
      table-related thing and we should not attempt to fetch a table-cell parent
      for it if it's inside another table-related frame. */
-#define FCDATA_IS_TABLE_PART 0x1000
+#define FCDATA_IS_TABLE_PART 0x800
   /* If FCDATA_IS_INLINE is set, then the frame is a non-replaced CSS
      inline box. */
-#define FCDATA_IS_INLINE 0x2000
+#define FCDATA_IS_INLINE 0x1000
   /* If FCDATA_IS_LINE_PARTICIPANT is set, the frame is something that will
      return true for IsFrameOfType(nsIFrame::eLineParticipant) */
-#define FCDATA_IS_LINE_PARTICIPANT 0x4000
+#define FCDATA_IS_LINE_PARTICIPANT 0x2000
   /* If FCDATA_IS_LINE_BREAK is set, the frame is something that will
      induce a line break boundary before and after itself. */
-#define FCDATA_IS_LINE_BREAK 0x8000
+#define FCDATA_IS_LINE_BREAK 0x4000
   /* If FCDATA_ALLOW_BLOCK_STYLES is set, allow block styles when processing
      children.  This should not be used with FCDATA_FUNC_IS_FULL_CTOR. */
-#define FCDATA_ALLOW_BLOCK_STYLES 0x10000
+#define FCDATA_ALLOW_BLOCK_STYLES 0x8000
   /* If FCDATA_USE_CHILD_ITEMS is set, then use the mChildItems in the relevant
      FrameConstructionItem instead of trying to process the content's children.
      This can be used with or without FCDATA_FUNC_IS_FULL_CTOR.
      The child items might still need table pseudo processing. */
-#define FCDATA_USE_CHILD_ITEMS 0x20000
+#define FCDATA_USE_CHILD_ITEMS 0x10000
   /* If FCDATA_FORCED_NON_SCROLLABLE_BLOCK is set, then this block
      would have been scrollable but has been forced to be
      non-scrollable due to being in a paginated context. */
-#define FCDATA_FORCED_NON_SCROLLABLE_BLOCK 0x40000
+#define FCDATA_FORCED_NON_SCROLLABLE_BLOCK 0x20000
 
   /* Structure representing information about how a frame should be
      constructed.  */
@@ -862,14 +856,9 @@ private:
         new FrameConstructionItem(aFCData, aContent, aTag, aNameSpaceID,
                                   aPendingBinding, aStyleContext,
                                   aSuppressWhiteSpaceOptimizations);
-      if (item) {
-        PR_APPEND_LINK(item, &mItems);
-        ++mItemCount;
-        ++mDesiredParentCounts[item->DesiredParentType()];
-      } else {
-        // Clean up the style context
-        nsRefPtr<nsStyleContext> sc(aStyleContext);
-      }
+      PR_APPEND_LINK(item, &mItems);
+      ++mItemCount;
+      ++mDesiredParentCounts[item->DesiredParentType()];
       return item;
     }
 
@@ -1272,10 +1261,9 @@ private:
 
   nsresult GetAnonymousContent(nsIContent* aParent,
                                nsIFrame* aParentFrame,
-                               nsTArray<nsIContent*>& aAnonContent);
+                               nsTArray<nsIAnonymousContentCreator::ContentInfo>& aAnonContent);
 
 //MathML Mod - RBS
-#ifdef MOZ_MATHML
   /**
    * Takes the frames in aBlockItems and wraps them in a new anonymous block
    * frame whose content is aContent and whose parent will be aParentFrame.
@@ -1293,7 +1281,6 @@ private:
                                                      nsIAtom* aTag,
                                                      PRInt32 aNameSpaceID,
                                                      nsStyleContext* aStyleContext);
-#endif
 
   // Function to find FrameConstructionData for aContent.  Will return
   // null if aContent is not XUL.
@@ -1332,7 +1319,6 @@ private:
                        nsStyleContext* aStyleContext);
 
 // SVG - rods
-#ifdef MOZ_SVG
   static const FrameConstructionData* FindSVGData(Element* aElement,
                                                   nsIAtom* aTag,
                                                   PRInt32 aNameSpaceID,
@@ -1345,7 +1331,6 @@ private:
                                           const nsStyleDisplay* aStyleDisplay,
                                           nsFrameItems& aFrameItems,
                                           nsIFrame** aNewFrame);
-#endif
 
   /* Not static because it does PropagateScrollToViewport.  If this
      changes, make this static */
@@ -1456,6 +1441,8 @@ private:
                             nsIFrame* aScrolledFrame);
 
   // InitializeSelectFrame puts scrollFrame in aFrameItems if aBuildCombobox is false
+  // aBuildCombobox indicates if we are building a combobox that has a dropdown
+  // popup widget or not.
   nsresult
   InitializeSelectFrame(nsFrameConstructorState& aState,
                         nsIFrame*                scrollFrame,

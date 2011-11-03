@@ -52,10 +52,8 @@
 #include "mozilla/css/Loader.h"
 #include "nsIDOMMutationEvent.h"
 #include "nsXULElement.h"
-
-#ifdef MOZ_SVG
 #include "nsIDOMSVGStylable.h"
-#endif
+#include "nsContentUtils.h"
 
 namespace css = mozilla::css;
 
@@ -136,7 +134,7 @@ nsStyledElementNotElementCSSInlineStyle::UnsetAttr(PRInt32 aNameSpaceID,
                                                    nsIAtom* aAttribute,
                                                    PRBool aNotify)
 {
-  nsAutoRemovableScriptBlocker scriptBlocker;
+  nsAutoScriptBlocker scriptBlocker;
   if (aAttribute == nsGkAtoms::id && aNameSpaceID == kNameSpaceID_None) {
     // Have to do this before clearing flag. See RemoveFromIdTable
     RemoveFromIdTable();
@@ -332,18 +330,17 @@ nsStyledElementNotElementCSSInlineStyle::ParseStyleAttribute(const nsAString& aV
     if (isCSS) {
       css::Loader* cssLoader = doc->CSSLoader();
       nsCSSParser cssParser(cssLoader);
-      if (cssParser) {
-        nsCOMPtr<nsIURI> baseURI = GetBaseURI();
 
-        nsRefPtr<css::StyleRule> rule;
-        cssParser.ParseStyleAttribute(aValue, doc->GetDocumentURI(),
-                                      baseURI,
-                                      NodePrincipal(),
-                                      getter_AddRefs(rule));
-        if (rule) {
-          aResult.SetTo(rule, &aValue);
-          return;
-        }
+      nsCOMPtr<nsIURI> baseURI = GetBaseURI();
+
+      nsRefPtr<css::StyleRule> rule;
+      cssParser.ParseStyleAttribute(aValue, doc->GetDocumentURI(),
+                                    baseURI,
+                                    NodePrincipal(),
+                                    getter_AddRefs(rule));
+      if (rule) {
+        aResult.SetTo(rule, &aValue);
+        return;
       }
     }
   }

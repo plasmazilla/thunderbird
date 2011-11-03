@@ -5,12 +5,11 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=561636
 -->
 <head>
   <title>Test for Bug 561636</title>
-  <script type="application/javascript" src="/MochiKit/packed.js"></script>
   <script type="application/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
   <script type="application/javascript" src="/tests/SimpleTest/EventUtils.js"></script>
   <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css"/>
 </head>
-<body onload="runTest();">
+<body>
 <a target="_blank" href="https://bugzilla.mozilla.org/show_bug.cgi?id=561636">Mozilla Bug 561636</a>
 <p id="display"></p>
 <iframe style='width:50px; height: 50px;' name='t'></iframe>
@@ -41,6 +40,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=561636
 /** Test for Bug 561636 **/
 
 SimpleTest.waitForExplicitFinish();
+addLoadEvent(runTest);
 
 function runTest()
 {
