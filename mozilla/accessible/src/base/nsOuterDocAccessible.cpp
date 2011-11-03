@@ -38,8 +38,11 @@
 
 #include "nsOuterDocAccessible.h"
 
+#include "States.h"
 #include "nsAccUtils.h"
 #include "nsDocAccessible.h"
+
+using namespace mozilla::a11y;
 
 ////////////////////////////////////////////////////////////////////////////////
 // nsOuterDocAccessible
@@ -66,19 +69,15 @@ nsOuterDocAccessible::NativeRole()
   return nsIAccessibleRole::ROLE_INTERNAL_FRAME;
 }
 
-nsresult
-nsOuterDocAccessible::GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState)
+PRUint64
+nsOuterDocAccessible::NativeState()
 {
-  nsresult rv = nsAccessible::GetStateInternal(aState, aExtraState);
-  NS_ENSURE_A11Y_SUCCESS(rv, rv);
-
-  *aState &= ~nsIAccessibleStates::STATE_FOCUSABLE;
-  return NS_OK;
+  return nsAccessible::NativeState() & ~states::FOCUSABLE;
 }
 
 nsAccessible*
-nsOuterDocAccessible::GetChildAtPoint(PRInt32 aX, PRInt32 aY,
-                                      EWhichChildAtPoint aWhichChild)
+nsOuterDocAccessible::ChildAtPoint(PRInt32 aX, PRInt32 aY,
+                                   EWhichChildAtPoint aWhichChild)
 {
   PRInt32 docX = 0, docY = 0, docWidth = 0, docHeight = 0;
   nsresult rv = GetBounds(&docX, &docY, &docWidth, &docHeight);
@@ -93,7 +92,7 @@ nsOuterDocAccessible::GetChildAtPoint(PRInt32 aX, PRInt32 aY,
   NS_ENSURE_TRUE(child, nsnull);
 
   if (aWhichChild == eDeepestChild)
-    return child->GetChildAtPoint(aX, aY, eDeepestChild);
+    return child->ChildAtPoint(aX, aY, eDeepestChild);
   return child;
 }
 
@@ -113,14 +112,11 @@ nsOuterDocAccessible::GetAttributesInternal(nsIPersistentProperties *aAttributes
 ////////////////////////////////////////////////////////////////////////////////
 // nsIAccessible
 
-NS_IMETHODIMP
-nsOuterDocAccessible::GetNumActions(PRUint8 *aNumActions)
+PRUint8
+nsOuterDocAccessible::ActionCount()
 {
-  NS_ENSURE_ARG_POINTER(aNumActions);
-  *aNumActions = 0;
-
   // Internal frame, which is the doc's parent, should not have a click action.
-  return NS_OK;
+  return 0;
 }
 
 NS_IMETHODIMP
@@ -216,8 +212,8 @@ nsOuterDocAccessible::RemoveChild(nsAccessible *aAccessible)
     return PR_FALSE;
   }
 
-  NS_LOG_ACCDOCDESTROY("remove document from outerdoc",
-                       child->GetDocumentNode())
+  NS_LOG_ACCDOCDESTROY_FOR("remove document from outerdoc",
+                           child->GetDocumentNode(), child)
   NS_LOG_ACCDOCDESTROY_ACCADDRESS("outerdoc", this)
 
   PRBool wasRemoved = nsAccessible::RemoveChild(child);

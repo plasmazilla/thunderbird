@@ -128,9 +128,8 @@ const TAB_EVENTS = ["TabOpen", "TabClose", "TabSelect", "TabShow", "TabHide"];
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
 Components.utils.import("resource://gre/modules/NetUtil.jsm");
-
-XPCOMUtils.defineLazyServiceGetter(this, "cm",
-  "@mozilla.org/cookiemanager;1", "nsICookieManager2");
+// debug.js adds NS_ASSERT. cf. bug 669196
+Components.utils.import("resource://gre/modules/debug.js");
 
 #ifdef MOZ_CRASH_REPORTER
 XPCOMUtils.defineLazyServiceGetter(this, "CrashReporter",
@@ -266,32 +265,30 @@ SessionStoreService.prototype = {
     this._sessionFileBackup.append("sessionstore.bak");
 
     // get string containing session state
-    var iniString;
     var ss = Components.classes["@mozilla.org/suite/sessionstartup;1"]
                        .getService(Components.interfaces.nsISessionStartup);
     try {
-      if (ss._sessionType != Components.interfaces.nsISessionStartup.NO_SESSION)
-        iniString = ss.state;
+      if (ss.sessionType != Components.interfaces.nsISessionStartup.NO_SESSION)
+        this._initialState = ss.state;
     }
     catch(ex) { dump(ex + "\n"); } // no state to restore, which is ok
 
-    if (iniString) {
+    if (this._initialState) {
       try {
         // If we're doing a DEFERRED session, then we want to pull pinned tabs
         // out so they can be restored.
         if (ss.sessionType == Components.interfaces.nsISessionStartup.DEFER_SESSION) {
-          let [iniState, remainingState] = this._prepDataForDeferredRestore(iniString);
+          let [iniState, remainingState] = this._prepDataForDeferredRestore(this._initialState);
           // If we have a iniState with windows, that means that we have windows
           // with app tabs to restore.
           if (iniState.windows.length)
             this._initialState = iniState;
+          else
+            this._initialState = null;
           if (remainingState.windows.length)
             this._lastSessionState = remainingState;
         }
         else {
-          // parse the session state into JS objects
-          this._initialState = JSON.parse(iniString);
-
           let lastSessionCrashed =
             this._initialState.session && this._initialState.session.state &&
             this._initialState.session.state == STATE_RUNNING_STR;
@@ -303,7 +300,7 @@ SessionStoreService.prototype = {
               // replace the crashed session with a restore-page-only session
               let pageData = {
                 url: "about:sessionrestore",
-                formdata: { "#sessionData": iniString }
+                formdata: { "#sessionData": JSON.stringify(this._initialState) }
               };
               this._initialState = { windows: [{ tabs: [{ entries: [pageData] }] }] };
             }
@@ -643,7 +640,7 @@ SessionStoreService.prototype = {
           // We'll cheat a little bit and reuse _prepDataForDeferredRestore
           // even though it wasn't built exactly for this.
           let [appTabsState, normalTabsState] =
-            this._prepDataForDeferredRestore(JSON.stringify({ windows: [closedWindowState] }));
+            this._prepDataForDeferredRestore({ windows: [closedWindowState] });
 
           // These are our pinned tabs, which we should restore
           if (appTabsState.windows.length) {
@@ -1488,10 +1485,31 @@ SessionStoreService.prototype = {
       tabData.index = history.index + 1;
     }
     else if (history && history.count > 0) {
-      for (var j = 0; j < history.count; j++) {
-        let entry = this._serializeHistoryEntry(history.getEntryAtIndex(j, false),
-                                                aFullData, false);
-        tabData.entries.push(entry);
+      try {
+        for (var j = 0; j < history.count; j++) {
+          let entry = this._serializeHistoryEntry(history.getEntryAtIndex(j, false),
+                                                  aFullData, aTab.pinned);
+          tabData.entries.push(entry);
+        }
+        // If we make it through the for loop, then we're ok and we should clear
+        // any indicator of brokenness.
+        delete aTab.__SS_broken_history;
+      }
+      catch (ex) {
+        // In some cases, getEntryAtIndex will throw. This seems to be due to
+        // history.count being higher than it should be. By doing this in a
+        // try-catch, we'll update history to where it breaks, assert for
+        // non-release builds, and still save sessionstore.js. We'll track if
+        // we've shown the assert for this tab so we only show it once.
+        // cf. bug 669196.
+        if (!aTab.__SS_broken_history) {
+          // First Focus the window & tab we're having trouble with.
+          aTab.ownerDocument.defaultView.focus();
+          aTab.ownerDocument.defaultView.getBrowser().selectedTab = aTab;
+          NS_ASSERT(false, "SessionStore failed gathering complete history " +
+                           "for the focused window/tab. See bug 669196.");
+          aTab.__SS_broken_history = true;
+        }
       }
       tabData.index = history.index + 1;
 
@@ -1641,12 +1659,11 @@ SessionStoreService.prototype = {
       catch (ex) { debug(ex); }
     }
 
-    if (aEntry.docIdentifier) {
-      entry.docIdentifier = aEntry.docIdentifier;
-    }
+    entry.docIdentifier = aEntry.BFCacheEntry.ID;
 
     if (aEntry.stateData) {
-      entry.stateData = aEntry.stateData;
+      entry.structuredCloneState = aEntry.stateData.getDataAsBase64();
+      entry.structuredCloneVersion = aEntry.stateData.formatVersion;
     }
 
     if (!(aEntry instanceof Components.interfaces.nsISHContainer)) {
@@ -1658,8 +1675,7 @@ SessionStoreService.prototype = {
       for (var i = 0; i < aEntry.childCount; i++) {
         var child = aEntry.GetChildAt(i);
         if (child) {
-          entry.children.push(this._serializeHistoryEntry(child, aFullData,
-                                                          aIsPinned));
+          entry.children.push(this._serializeHistoryEntry(child, aFullData, aIsPinned));
         }
         else { // to maintain the correct frame order, insert a dummy entry
           entry.children.push({ url: "about:blank" });
@@ -1694,7 +1710,15 @@ SessionStoreService.prototype = {
     let hasContent = false;
 
     for (let i = 0; i < aHistory.count; i++) {
-      let uri = aHistory.getEntryAtIndex(i, false).URI;
+      let uri;
+      try {
+        uri = aHistory.getEntryAtIndex(i, false).URI;
+      }
+      catch (ex) {
+        // Chances are that this is getEntryAtIndex throwing, as seen in bug 669196.
+        // We've already asserted in _collectTabData, so we won't show that again.
+        continue;
+      }
       // sessionStorage is saved per origin (cf. nsDocShell::GetSessionStorageForURI)
       let domain = uri.spec;
       try {
@@ -2023,36 +2047,41 @@ SessionStoreService.prototype = {
       if (!aWindow._hosts)
         return;
       for (var [host, isPinned] in Iterator(aWindow._hosts)) {
-        var list = cm.getCookiesFromHost(host);
-        while (list.hasMoreElements()) {
-          var cookie = list.getNext().QueryInterface(Components.interfaces.nsICookie2);
-          // aWindow._hosts will only have hosts with the right privacy rules,
-          // so there is no need to do anything special with this call to
-          // _checkPrivacyLevel.
-          if (cookie.isSession && _this._checkPrivacyLevel(cookie.isSecure, isPinned)) {
-            // use the cookie's host, path, and name as keys into a hash,
-            // to make sure we serialize each cookie only once
+        try {
+          var list = Services.cookies.getCookiesFromHost(host);
+          while (list.hasMoreElements()) {
+            var cookie = list.getNext().QueryInterface(Components.interfaces.nsICookie2);
+            // aWindow._hosts will only have hosts with the right privacy rules,
+            // so there is no need to do anything special with this call to
+            // _checkPrivacyLevel.
+            if (cookie.isSession && _this._checkPrivacyLevel(cookie.isSecure, isPinned)) {
+              // use the cookie's host, path, and name as keys into a hash,
+              // to make sure we serialize each cookie only once
 
-            // lazily build up a 3-dimensional hash, with
-            // host, path, and name as keys
-            if (!jscookies[cookie.host])
-              jscookies[cookie.host] = {};
-            if (!jscookies[cookie.host][cookie.path])
-              jscookies[cookie.host][cookie.path] = {};
+              // lazily build up a 3-dimensional hash, with
+              // host, path, and name as keys
+              if (!jscookies[cookie.host])
+                jscookies[cookie.host] = {};
+              if (!jscookies[cookie.host][cookie.path])
+                jscookies[cookie.host][cookie.path] = {};
 
-            if (!jscookies[cookie.host][cookie.path][cookie.name]) {
-              var jscookie = { "host": cookie.host, "value": cookie.value };
-              // only add attributes with non-default values (saving a few bits)
-              if (cookie.path) jscookie.path = cookie.path;
-              if (cookie.name) jscookie.name = cookie.name;
-              if (cookie.isSecure) jscookie.secure = true;
-              if (cookie.isHttpOnly) jscookie.httponly = true;
-              if (cookie.expiry < MAX_EXPIRY) jscookie.expiry = cookie.expiry;
-  
-              jscookies[cookie.host][cookie.path][cookie.name] = jscookie;
+              if (!jscookies[cookie.host][cookie.path][cookie.name]) {
+                var jscookie = { "host": cookie.host, "value": cookie.value };
+                // only add attributes with non-default values (saving a few bits)
+                if (cookie.path) jscookie.path = cookie.path;
+                if (cookie.name) jscookie.name = cookie.name;
+                if (cookie.isSecure) jscookie.secure = true;
+                if (cookie.isHttpOnly) jscookie.httponly = true;
+                if (cookie.expiry < MAX_EXPIRY) jscookie.expiry = cookie.expiry;
+
+                jscookies[cookie.host][cookie.path][cookie.name] = jscookie;
+              }
+              aWindow.cookies.push(jscookies[cookie.host][cookie.path][cookie.name]);
             }
-            aWindow.cookies.push(jscookies[cookie.host][cookie.path][cookie.name]);
           }
+        }
+        catch (ex) {
+          debug("getCookiesFromHost failed. Host: " + host);
         }
       }
     });
@@ -2674,6 +2703,10 @@ SessionStoreService.prototype = {
 
     // Attach data that will be restored on "load" event, after tab is restored.
     if (activeIndex > -1) {
+      let curSHEntry = browser.webNavigation.sessionHistory
+                              .getEntryAtIndex(activeIndex, false)
+                              .QueryInterface(Components.interfaces.nsISHEntry);
+
       // restore those aspects of the currently active documents which are not
       // preserved in the plain history entries (mainly scroll state and text data)
       browser.__SS_restore_data = tabData.entries[activeIndex] || {};
@@ -2684,11 +2717,8 @@ SessionStoreService.prototype = {
       try {
         // In order to work around certain issues in session history, we need to
         // force session history to update its internal index and call reload
-        // instead of gotoIndex. c.f. bug 597315
+        // instead of gotoIndex. See bug 597315.
         var sessionHistory = browser.webNavigation.sessionHistory;
-        // delete this after 2.0
-        sessionHistory.QueryInterface(Components.interfaces.nsISHistory_2_0_BRANCH);
-
         sessionHistory.getEntryAtIndex(activeIndex, true);
         sessionHistory.reloadCurrentEntry();
       }
@@ -2808,8 +2838,13 @@ SessionStoreService.prototype = {
     if (aEntry.docshellID)
       shEntry.docshellID = aEntry.docshellID;
 
-    if (aEntry.stateData) {
-      shEntry.stateData = aEntry.stateData;
+    if (aEntry.structuredCloneState && aEntry.structuredCloneVersion) {
+      shEntry.stateData =
+        Components.classes["@mozilla.org/docshell/structured-clone-container;1"]
+                  .createInstance(Components.interfaces.nsIStructuredCloneContainer);
+
+      shEntry.stateData.initFromBase64(aEntry.structuredCloneState,
+                                       aEntry.structuredCloneVersion);
     }
 
     if (aEntry.scroll) {
@@ -2827,23 +2862,16 @@ SessionStoreService.prototype = {
     }
 
     if (aEntry.docIdentifier) {
-      // Get a new document identifier for this entry to ensure that history
-      // entries after a session restore are considered to have different
-      // documents from the history entries before the session restore.
-      // Document identifiers are 64-bit ints, so JS will loose precision and
-      // start assigning all entries the same doc identifier if these ever get
-      // large enough.
-      //
-      // It's a potential security issue if document identifiers aren't
-      // globally unique, but shEntry.setUniqueDocIdentifier() below guarantees
-      // that we won't re-use a doc identifier within a given instance of the
-      // application.
-      if (!aDocIdentMap[aEntry.docIdentifier]) {
-        shEntry.setUniqueDocIdentifier();
-        aDocIdentMap[aEntry.docIdentifier] = shEntry.docIdentifier;
+      // If we have a serialized document identifier, try to find an SHEntry
+      // which matches that doc identifier and adopt that SHEntry's
+      // BFCacheEntry.  If we don't find a match, insert shEntry as the match
+      // for the document identifier.
+      let matchingEntry = aDocIdentMap[aEntry.docIdentifier];
+      if (!matchingEntry) {
+        aDocIdentMap[aEntry.docIdentifier] = shEntry;
       }
       else {
-        shEntry.docIdentifier = aDocIdentMap[aEntry.docIdentifier];
+        shEntry.adoptBFCacheEntry(matchingEntry);
       }
     }
 
@@ -3078,9 +3106,10 @@ SessionStoreService.prototype = {
     for (let i = 0; i < aCookies.length; i++) {
       var cookie = aCookies[i];
       try {
-        cm.add(cookie.host, cookie.path || "", cookie.name || "",
-                      cookie.value, !!cookie.secure, !!cookie.httponly, true,
-                      "expiry" in cookie ? cookie.expiry : MAX_EXPIRY);
+        Services.cookies.add(cookie.host, cookie.path || "", cookie.name || "",
+                             cookie.value, !!cookie.secure, !!cookie.httponly,
+                             true,
+                             "expiry" in cookie ? cookie.expiry : MAX_EXPIRY);
       }
       catch (ex) { Components.utils.reportError(ex); } // don't let a single cookie stop recovering
     }
@@ -3473,12 +3502,11 @@ SessionStoreService.prototype = {
    * this._lastSessionState and will be kept in case the user explicitly wants
    * to restore the previous session (publicly exposed as restoreLastSession).
    *
-   * @param stateString
-   *        The state string, presumably from nsISessionStartup.state
+   * @param state
+   *        The state, presumably from nsISessionStartup.state
    * @returns [defaultState, state]
    */
-  _prepDataForDeferredRestore: function sss_prepDataForDeferredRestore(stateString) {
-    let state = JSON.parse(stateString);
+  _prepDataForDeferredRestore: function sss__prepDataForDeferredRestore(state) {
     let defaultState = { windows: [], selectedWindow: 1 };
 
     state.selectedWindow = state.selectedWindow || 1;

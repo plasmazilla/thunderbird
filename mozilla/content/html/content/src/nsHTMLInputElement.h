@@ -161,7 +161,7 @@ public:
   virtual PRBool RestoreState(nsPresState* aState);
   virtual PRBool AllowDrop();
 
-  virtual void FieldSetDisabledChanged(nsEventStates aStates, PRBool aNotify);
+  virtual void FieldSetDisabledChanged(PRBool aNotify);
 
   // nsIContent
   virtual PRBool IsHTMLFocusable(PRBool aWithMouse, PRBool *aIsFocusable, PRInt32 *aTabIndex);
@@ -214,10 +214,12 @@ public:
   NS_IMETHOD_(void) SetPlaceholderClass(PRBool aVisible, PRBool aNotify);
   NS_IMETHOD_(void) InitializeKeyboardEventListeners();
   NS_IMETHOD_(void) OnValueChanged(PRBool aNotify);
+  NS_IMETHOD_(PRBool) HasCachedSelection();
 
   void GetDisplayFileName(nsAString& aFileName) const;
   const nsCOMArray<nsIDOMFile>& GetFiles() const;
   void SetFiles(const nsCOMArray<nsIDOMFile>& aFiles, bool aSetValueChanged);
+  void SetFiles(nsIDOMFileList* aFiles, bool aSetValueChanged);
 
   void SetCheckedChangedInternal(PRBool aCheckedChanged);
   PRBool GetCheckedChanged() const {
@@ -225,11 +227,6 @@ public:
   }
   void AddedToRadioGroup();
   void WillRemoveFromRadioGroup();
-  /**
-   * Get the radio group container for this button (form or document)
-   * @return the radio group container (or null if no form or document)
-   */
-  virtual already_AddRefed<nsIRadioGroupContainer> GetRadioGroupContainer();
 
  /**
    * Helper function returning the currently selected button in the radio group.
@@ -244,13 +241,13 @@ public:
 
   NS_IMETHOD FireAsyncClickHandler();
 
-  virtual void UpdateEditableState()
+  virtual void UpdateEditableState(PRBool aNotify)
   {
-    return UpdateEditableFormControlState();
+    return UpdateEditableFormControlState(aNotify);
   }
 
-  NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED_NO_UNLINK(nsHTMLInputElement,
-                                                     nsGenericHTMLFormElement)
+  NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(nsHTMLInputElement,
+                                           nsGenericHTMLFormElement)
 
   static UploadLastDir* gUploadLastDir;
   // create and destroy the static UploadLastDir object for remembering
@@ -368,23 +365,6 @@ protected:
    */
   static PRBool IsValidEmailAddressList(const nsAString& aValue);
 
-  /**
-   * This helper method returns true if the aPattern pattern matches aValue.
-   * aPattern should not contain leading and trailing slashes (/).
-   * The pattern has to match the entire value not just a subset.
-   * aDocument must be a valid pointer (not null).
-   *
-   * This is following the HTML5 specification:
-   * http://dev.w3.org/html5/spec/forms.html#attr-input-pattern
-   *
-   * @param aValue    the string to check.
-   * @param aPattern  the string defining the pattern.
-   * @param aDocument the owner document of the element.
-   * @result          whether the given string is matches the pattern.
-   */
-  static PRBool IsPatternMatching(nsAString& aValue, nsAString& aPattern,
-                                  nsIDocument* aDocument);
-
   // Helper method
   nsresult SetValueInternal(const nsAString& aValue,
                             PRBool aUserInput,
@@ -408,16 +388,6 @@ protected:
                                     PRBool aShouldInvalidate);
 
   nsresult GetSelectionRange(PRInt32* aSelectionStart, PRInt32* aSelectionEnd);
-
-  /**
-   * Get the name if it exists and return whether it did exist
-   * @param aName the name returned [OUT]
-   * @param true if the name is empty, false otherwise
-   */
-  PRBool GetNameIfExists(nsAString& aName) {
-    GetAttr(kNameSpaceID_None, nsGkAtoms::name, aName);
-    return !aName.IsEmpty();
-  }
 
   /**
    * Called when an attribute is about to be changed
@@ -488,6 +458,11 @@ protected:
    * Update mFileList with the currently selected file.
    */
   nsresult UpdateFileList();
+
+  /**
+   * Called after calling one of the SetFiles() functions.
+   */
+  void AfterSetFiles(bool aSetValueChanged);
 
   /**
    * Determine whether the editor needs to be initialized explicitly for
@@ -593,6 +568,14 @@ protected:
         return false;
     }
   }
+
+  /**
+   * Returns the radio group container if the element has one, null otherwise.
+   * The radio group container will be the form owner if there is one.
+   * The current document otherwise.
+   * @return the radio group container if the element has one, null otherwise.
+   */
+  nsIRadioGroupContainer* GetRadioGroupContainer() const;
 
   nsCOMPtr<nsIControllers> mControllers;
 

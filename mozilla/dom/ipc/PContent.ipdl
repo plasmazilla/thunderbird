@@ -123,11 +123,16 @@ child:
     // nsIPermissionManager messages
     AddPermission(Permission permission);
 
-    AccelerationChanged(double x, double y, double z);
+    DeviceMotionChanged(long type, double x, double y, double z);
 
     ScreenSizeChanged(gfxIntSize size);
 
     FlushMemory(nsString reason);
+
+    /**
+     * Start accessibility engine in content process.
+     */
+    ActivateA11y();
 
 parent:
     PNecko();
@@ -144,7 +149,7 @@ parent:
     async SetURITitle(URI uri, nsString title);
     
     // filepicker remoting
-    sync ShowFilePicker(PRInt16 mode, PRInt16 selectedType, 
+    sync ShowFilePicker(PRInt16 mode, PRInt16 selectedType, PRBool addToRecentDocs,
                         nsString title, nsString defaultFile, nsString defaultExtension,
                         nsString[] filters, nsString[] filterNames)
         returns (nsString[] files, PRInt16 retValue, nsresult result);
@@ -172,8 +177,8 @@ parent:
     
     AddGeolocationListener();
     RemoveGeolocationListener();
-    AddAccelerometerListener();
-    RemoveAccelerometerListener();
+    AddDeviceMotionListener();
+    RemoveDeviceMotionListener();
 
     ConsoleMessage(nsString message);
     ScriptError(nsString message, nsString sourceName, nsString sourceLine,
@@ -183,6 +188,8 @@ parent:
     // nsIPermissionManager messages
     sync ReadPermissions() returns (Permission[] permissions);
 
+    sync GetIndexedDBDirectory() returns (nsString directory);
+
     // These clipboard methods are only really used on Android since
     // the clipboard is not available in the content process.
     SetClipboardText(nsString text, PRInt32 whichClipboard);
@@ -191,6 +198,15 @@ parent:
     EmptyClipboard();
     sync ClipboardHasText()
         returns (PRBool hasText);
+
+    sync GetSystemColors(PRUint32 colorsCount)
+        returns (PRUint32[] colors);
+
+    sync GetIconForExtension(nsCString aFileExt, PRUint32 aIconSize)
+        returns (PRUint8[] bits);
+
+    sync GetShowPasswordSetting()
+        returns (PRBool showPassword);
 
 both:
      AsyncMessage(nsString aMessage, nsString aJSON);

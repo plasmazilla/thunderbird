@@ -1,9 +1,11 @@
 // Test timeout (seconds)
 const TIMEOUT_SECONDS = 30;
+var gConfig;
 
 if (Cc === undefined) {
   var Cc = Components.classes;
   var Ci = Components.interfaces;
+  var Cu = Components.utils;
 }
 window.addEventListener("load", testOnLoad, false);
 
@@ -17,15 +19,18 @@ function testOnLoad() {
     return;
 
   prefs.setBoolPref("testing.browserTestHarness.running", true);
+  gConfig = readConfig();
 
-  var ww = Cc["@mozilla.org/embedcomp/window-watcher;1"].
-           getService(Ci.nsIWindowWatcher);
-  var sstring = Cc["@mozilla.org/supports-string;1"].
-                createInstance(Ci.nsISupportsString);
-  sstring.data = location.search;
+  if (gConfig.testRoot == "browser") {
+    var ww = Cc["@mozilla.org/embedcomp/window-watcher;1"].
+             getService(Ci.nsIWindowWatcher);
+    var sstring = Cc["@mozilla.org/supports-string;1"].
+                  createInstance(Ci.nsISupportsString);
+    sstring.data = location.search;
 
-  ww.openWindow(window, "chrome://mochikit/content/browser-harness.xul", "browserTest",
-                "chrome,centerscreen,dialog=no,resizable,titlebar,toolbar=no,width=800,height=600", sstring);
+    ww.openWindow(window, "chrome://mochikit/content/browser-harness.xul", "browserTest",
+                  "chrome,centerscreen,dialog=no,resizable,titlebar,toolbar=no,width=800,height=600", sstring);
+  }
 }
 
 function Tester(aTests, aDumper, aCallback) {
@@ -42,9 +47,7 @@ function Tester(aTests, aDumper, aCallback) {
   this._scriptLoader = Cc["@mozilla.org/moz/jssubscript-loader;1"].
                        getService(Ci.mozIJSSubScriptLoader);
   this._scriptLoader.loadSubScript("chrome://mochikit/content/tests/SimpleTest/EventUtils.js", this.EventUtils);
-  // Avoid polluting this scope with packed.js contents.
   var simpleTestScope = {};
-  this._scriptLoader.loadSubScript("chrome://mochikit/content/MochiKit/packed.js", simpleTestScope);
   this._scriptLoader.loadSubScript("chrome://mochikit/content/tests/SimpleTest/SimpleTest.js", simpleTestScope);
   this._scriptLoader.loadSubScript("chrome://mochikit/content/chrome-harness.js", simpleTestScope);
   this.SimpleTest = simpleTestScope.SimpleTest;
@@ -53,6 +56,7 @@ Tester.prototype = {
   EventUtils: {},
   SimpleTest: {},
 
+  loops: 0,
   checker: null,
   currentTestIndex: -1,
   lastStartTime: null,
@@ -64,6 +68,10 @@ Tester.prototype = {
   },
 
   start: function Tester_start() {
+    //if testOnLoad was not called, then gConfig is not defined
+    if(!gConfig)
+      gConfig = readConfig();
+    this.loops = gConfig.loops;
     this.dumper.dump("*** Start BrowserChrome Test Results ***\n");
     this._cs.registerListener(this);
 
@@ -115,40 +123,44 @@ Tester.prototype = {
     }
 
     // Make sure the window is raised before each test.
-    let self = this;
-    this.SimpleTest.waitForFocus(function() {
-      aCallback.apply(self);
-    });
+    this.SimpleTest.waitForFocus(aCallback);
   },
 
   finish: function Tester_finish(aSkipSummary) {
-    this._cs.unregisterListener(this);
-
-    this.dumper.dump("\nINFO TEST-START | Shutdown\n");
-    if (this.tests.length) {
-      this.dumper.dump("Browser Chrome Test Summary\n");
-
-      function sum(a,b) a+b;
-      var passCount = this.tests.map(function (f) f.passCount).reduce(sum);
-      var failCount = this.tests.map(function (f) f.failCount).reduce(sum);
-      var todoCount = this.tests.map(function (f) f.todoCount).reduce(sum);
-
-      this.dumper.dump("\tPassed: " + passCount + "\n" +
-                       "\tFailed: " + failCount + "\n" +
-                       "\tTodo: " + todoCount + "\n");
-    } else {
-      this.dumper.dump("TEST-UNEXPECTED-FAIL | (browser-test.js) | " +
-                       "No tests to run. Did you pass an invalid --test-path?");
+    if(this.loops > 0){
+      --this.loops;
+      this.currentTestIndex = -1;
+      this.nextTest();
     }
-
-    this.dumper.dump("\n*** End BrowserChrome Test Results ***\n");
-
-    this.dumper.done();
-
-    // Tests complete, notify the callback and return
-    this.callback(this.tests);
-    this.callback = null;
-    this.tests = null;
+    else{
+      this._cs.unregisterListener(this);
+  
+      this.dumper.dump("\nINFO TEST-START | Shutdown\n");
+      if (this.tests.length) {
+        this.dumper.dump("Browser Chrome Test Summary\n");
+  
+        function sum(a,b) a+b;
+        var passCount = this.tests.map(function (f) f.passCount).reduce(sum);
+        var failCount = this.tests.map(function (f) f.failCount).reduce(sum);
+        var todoCount = this.tests.map(function (f) f.todoCount).reduce(sum);
+  
+        this.dumper.dump("\tPassed: " + passCount + "\n" +
+                         "\tFailed: " + failCount + "\n" +
+                         "\tTodo: " + todoCount + "\n");
+      } else {
+        this.dumper.dump("TEST-UNEXPECTED-FAIL | (browser-test.js) | " +
+                         "No tests to run. Did you pass an invalid --test-path?");
+      }
+  
+      this.dumper.dump("\n*** End BrowserChrome Test Results ***\n");
+  
+      this.dumper.done();
+  
+      // Tests complete, notify the callback and return
+      this.callback(this.tests);
+      this.callback = null;
+      this.tests = null;
+    }
   },
 
   observe: function Tester_observe(aConsoleMessage) {
@@ -188,22 +200,32 @@ Tester.prototype = {
       let time = Date.now() - this.lastStartTime;
       this.dumper.dump("INFO TEST-END | " + this.currentTest.path + " | finished in " + time + "ms\n");
       this.currentTest.setDuration(time);
+
+      testScope.destroy();
+      this.currentTest.scope = null;
     }
 
     // Check the window state for the current test before moving to the next one.
     // This also causes us to check before starting any tests, since nextTest()
     // is invoked to start the tests.
-    this.waitForWindowsState(this.realNextTest);
-  },
+    this.waitForWindowsState((function () {
+      if (this.done) {
+        // Schedule GC and CC runs before finishing in order to detect
+        // DOM windows leaked by our tests or the tested code.
+        Cu.schedulePreciseGC((function () {
+          let winutils = window.QueryInterface(Ci.nsIInterfaceRequestor)
+                               .getInterface(Ci.nsIDOMWindowUtils);
+          winutils.garbageCollect();
+          winutils.garbageCollect();
+          winutils.garbageCollect();
+          this.finish();
+        }).bind(this));
+        return;
+      }
 
-  realNextTest: function Test_realNextTest() {
-    if (this.done) {
-      this.finish();
-      return;
-    }
-
-    this.currentTestIndex++;
-    this.execTest();
+      this.currentTestIndex++;
+      this.execTest();
+    }).bind(this));
   },
 
   execTest: function Tester_execTest() {
@@ -396,8 +418,8 @@ function testScope(aTester, aTest) {
     self.SimpleTest.waitForFocus(callback, targetWindow, expectBlankPage);
   };
 
-  this.waitForClipboard = function test_waitForClipboard(expected, setup, success, failure) {
-    self.SimpleTest.waitForClipboard(expected, setup, success, failure);
+  this.waitForClipboard = function test_waitForClipboard(expected, setup, success, failure, flavor) {
+    self.SimpleTest.waitForClipboard(expected, setup, success, failure, flavor);
   };
 
   this.registerCleanupFunction = function test_registerCleanupFunction(aFunction) {
@@ -412,8 +434,15 @@ function testScope(aTester, aTest) {
     self.SimpleTest.copyToProfile(filename);
   };
 
+  this.expectUncaughtException = function test_expectUncaughtException() {
+    self.SimpleTest.expectUncaughtException();
+  };
+
   this.finish = function test_finish() {
     self.__done = true;
+    if (self.SimpleTest._expectingUncaughtException) {
+      self.ok(false, "expectUncaughtException was called but no uncaught exception was detected!");
+    }
     if (self.__waitTimer) {
       self.executeSoon(function() {
         if (self.__done && self.__waitTimer) {
@@ -433,5 +462,10 @@ testScope.prototype = {
   __timeoutFactor: 1,
 
   EventUtils: {},
-  SimpleTest: {}
+  SimpleTest: {},
+
+  destroy: function test_destroy() {
+    for (let prop in this)
+      delete this[prop];
+  }
 };

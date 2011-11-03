@@ -43,8 +43,8 @@
 ]>
 
 <?xml-stylesheet href="chrome://messenger/skin/messageHeader.css" type="text/css"?>
-<overlay xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul"
-         xmlns:html="http://www.w3.org/1999/xhtml">
+<?xml-stylesheet href="chrome://messenger/skin/attachmentList.css" type="text/css"?>
+<overlay xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
 <script type="application/javascript"
         src="chrome://messenger/content/msgHdrViewOverlay.js"/>
@@ -74,9 +74,9 @@
                        CopyMessageId(messageId);"/>
 </menupopup>
 
-<menupopup id="attachmentListContext"
-           onpopupshowing="return onShowAttachmentContextMenu();"
-           onpopuphiding="return onHideAttachmentContextMenu();">
+<menupopup id="attachmentItemContext"
+           onpopupshowing="return onShowAttachmentItemContextMenu();"
+           onpopuphiding="return onHideAttachmentItemContextMenu();">
   <menuitem id="context-openAttachment"
             label="&openAttachmentCmd.label;"
             accesskey="&openAttachmentCmd.accesskey;"
@@ -94,6 +94,10 @@
             label="&deleteAttachmentCmd.label;"
             accesskey="&deleteAttachmentCmd.accesskey;"
             oncommand="HandleMultipleAttachments(this.parentNode.attachments, 'delete');"/>
+</menupopup>
+
+<menupopup id="attachmentListContext"
+           onpopupshowing="return onShowAttachmentListContextMenu(event);">
   <menuitem id="context-openAllAttachments"
             label="&openAllAttachmentsCmd.label;"
             accesskey="&openAllAttachmentsCmd.accesskey;"
@@ -162,7 +166,11 @@
       <!-- a convenience box for ease of extension overlaying -->
       <vbox id="expandedHeadersBox" flex="1">
 
-        <html:div id="expandedHeadersTopBox" flex="1">
+        <!-- This hbox has display:block set to imbue it with the HTML layout
+             model. This lets us float the message header toolbar to the right
+             so we don't waste space when the From field and the toolbar could
+             fit alongside each other. -->
+        <hbox id="expandedHeadersTopBox" flex="1">
 
           <toolbox id="header-view-toolbox"
                    class="inline-toolbox"
@@ -208,7 +216,18 @@
                              oncommand="MsgReplyMessage(event);RestoreFocusAfterHdrButton();"
                              observes="button_reply"
                              class="toolbarbutton-1 msgHeaderView-button hdrReplyToSenderButton"/>
-              <toolbaritem id="hdrSmartReplyButton">
+              <toolbaritem id="hdrSmartReplyButton" label="&hdrSmartReplyButton.label;">
+                <!-- This button is a dummy and should only be shown when
+                     customizing the toolbar to distinguish the smart reply
+                     button from the reply to sender button. -->
+                <toolbarbutton id="hdrDummyReplyButton" label="&hdrSmartReplyButton.label;"
+                               hidden="true"
+                               class="toolbarbutton-1 msgHeaderView-button hdrDummyReplyButton"/>
+                <toolbarbutton id="hdrReplyOnlyButton" label="&hdrReplyButton.label;"
+                               tooltiptext="&hdrReplyButton.tooltip;"
+                               oncommand="MsgReplyMessage(event);RestoreFocusAfterHdrButton();"
+                               observes="button_reply"
+                               class="toolbarbutton-1 msgHeaderView-button hdrReplyOnlyButton"/>
                 <toolbarbutton id="hdrReplyButton" label="&hdrReplyButton.label;"
                                tooltiptext="&hdrReplyButton.tooltip;"
                                oncommand="MsgReplyMessage(event);RestoreFocusAfterHdrButton();"
@@ -216,12 +235,12 @@
                                class="toolbarbutton-1 msgHeaderView-button hdrReplyButton"
                                type="menu-button">
                   <menupopup id="hdrReplyDropdown">
-                    <menuitem id="hdrReplySubButton"
+                    <menuitem id="hdrReply_ReplySubButton"
                               label="&hdrReplyButton.label;"
                               tooltiptext="&hdrReplyButton.tooltip;"
                               observes="button_reply"/>
-                    <menuseparator id="hdrReplyAllSubButtonSep"/>
-                    <menuitem id="hdrReplyAllSubButton"
+                    <menuseparator id="hdrReplySubSeparator"/>
+                    <menuitem id="hdrReply_ReplyAllSubButton"
                               label="&hdrReplyAllButton.label;"
                               tooltiptext="&hdrReplyAllButton.tooltip;"
                               observes="button_replyall"
@@ -238,7 +257,7 @@
                                type="menu-button"
                                hidden="true">
                   <menupopup id="hdrReplyAllDropdown">
-                    <menuitem id="hdrReplyAllSubButton"
+                    <menuitem id="hdrReplyAll_ReplyAllSubButton"
                               label="&hdrReplyAllButton.label;"
                               tooltiptext="&hdrReplyAllButton.tooltip;"
                               observes="button_replyall"/>
@@ -260,18 +279,18 @@
                                type="menu-button"
                                hidden="true">
                   <menupopup id="hdrReplyListDropdown">
-                    <menuitem id="hdrReplyListSubButton"
+                    <menuitem id="hdrReplyList_ReplyListSubButton"
                               label="&hdrReplyListButton.label;"
                               tooltiptext="&hdrReplyListButton.tooltip;"
                               observes="button_replylist"/>
                     <menuseparator id="hdrReplyListSubSeparator"/>
-                    <menuitem id="hdrReplyAllSubButton"
+                    <menuitem id="hdrRelplyList_ReplyAllSubButton"
                               label="&hdrReplyAllButton.label;"
                               tooltiptext="&hdrReplyAllButton.tooltip;"
                               observes="button_replyall"
                               oncommand="MsgReplyToAllMessage(event); event.stopPropagation();
                                          RestoreFocusAfterHdrButton();"/>
-                    <menuitem id="hdrReplySubButton"
+                    <menuitem id="hdrReplyList_ReplySubButton"
                               label="&hdrReplyButton.label;"
                               tooltiptext="&hdrReplyButton.tooltip;"
                               observes="button_reply"
@@ -288,6 +307,12 @@
                      defaulticonsize="small" defaultmode="full"
                      defaultset="hdrReplyToSenderButton,hdrSmartReplyButton,hdrForwardButton,hdrArchiveButton,hdrJunkButton,hdrTrashButton"/>
           </toolbox>
+
+          <!-- This box ensures that the expandedHeaders grid below is aligned
+               with the bottom of the message header toolbar. Like the
+               expandedHeadersTopBox, this uses display:block to give us HTML
+               layouting. -->
+          <box id="expandedBoxSpacer"/>
 
           <!-- Theoretically, we should be able to replace this grid with just
                an hbox.  Unfortunately, doing that makes it very hard to sync
@@ -310,8 +335,7 @@
               </row>
             </rows>
           </grid>
-
-        </html:div>
+        </hbox>
 
         <hbox id="expandedHeadersBottomBox">
 
@@ -487,14 +511,15 @@
 <vbox id="attachmentView" collapsed="true">
   <hbox align="center" id="attachmentBar"
         context="attachment-toolbar-context-menu"
-        onclick="if (event.button == 0 &amp;&amp; event.originalTarget.id == 'attachmentBar') toggleAttachmentList();">
+        onclick="if (event.button == 0 &amp;&amp; event.originalTarget.id == 'attachmentBar') toggleAttachmentList(undefined, true);">
     <button type="checkbox" id="attachmentToggle"
-            oncommand="toggleAttachmentList(this.checked);"/>
+            onmousedown="event.preventDefault();"
+            oncommand="toggleAttachmentList(this.checked, true);"/>
     <image id="attachmentIcon"/>
     <label id="attachmentCount"/>
     <label id="attachmentName" crop="center" flex="1"
-           context="attachmentListContext"
-           onclick="if (event.button == 0) { HandleAllAttachments('open'); RestoreFocusAfterHdrButton(); }"
+           context="attachmentItemContext"
+           onclick="if (event.button == 0) { TryHandleAllAttachments('open'); RestoreFocusAfterHdrButton(); }"
            ondraggesture="nsDragAndDrop.startDrag(event,attachmentNameDNDObserver);"/>
     <label id="attachmentSize"/>
     <!-- Use a very large flex value here so that attachmentCount doesn't take
@@ -510,29 +535,31 @@
              defaultmode="full"
              inlinetoolbox="true">
       <toolbarpalette id="attachment-view-toolbar-palette">
-        <toolbaritem id="attachmentSaveAll">
+        <toolbaritem id="attachmentSaveAll"
+                     title="&saveAllAttachmentsButton.label;">
           <toolbarbutton type="menu-button" id="attachmentSaveAllSingle"
                          class="toolbarbutton-1 msgHeaderView-button"
                          label="&saveAttachmentButton.label;"
                          tooltiptext="&saveAttachmentButton.tooltip;"
-                         oncommand="HandleAllAttachments('saveAs'); RestoreFocusAfterHdrButton();"
+                         oncommand="TryHandleAllAttachments('saveAs'); RestoreFocusAfterHdrButton();"
                          hidden="true">
-            <menupopup onpopupshowing="onShowSaveAttachmentMenuSingle();">
+            <menupopup id="attachmentSaveAllSingleMenu"
+                       onpopupshowing="onShowSaveAttachmentMenuSingle();">
               <menuitem id="button-openAttachment"
-                        oncommand="HandleAllAttachments('open'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
+                        oncommand="TryHandleAllAttachments('open'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
                         label="&openAttachmentMenuItem.label;"
                         accesskey="&openAttachmentMenuItem.accesskey;"/>
               <menuitem id="button-saveAttachment"
-                        oncommand="HandleAllAttachments('saveAs'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
+                        oncommand="TryHandleAllAttachments('saveAs'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
                         label="&saveAsAttachmentMenuItem.label;"
                         accesskey="&saveAsAttachmentMenuItem.accesskey;"/>
               <menuseparator id="button-menu-separator"/>
               <menuitem id="button-detachAttachment"
-                        oncommand="HandleAllAttachments('detach'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
+                        oncommand="TryHandleAllAttachments('detach'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
                         label="&detachAttachmentMenuItem.label;"
                         accesskey="&detachAttachmentMenuItem.accesskey;"/>
               <menuitem id="button-deleteAttachment"
-                        oncommand="HandleAllAttachments('delete'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
+                        oncommand="TryHandleAllAttachments('delete'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
                         label="&deleteAttachmentMenuItem.label;"
                         accesskey="&deleteAttachmentMenuItem.accesskey;"/>
             </menupopup>
@@ -541,24 +568,24 @@
                          class="toolbarbutton-1 msgHeaderView-button"
                          label="&saveAllAttachmentsButton.label;"
                          tooltiptext="&saveAllAttachmentsButton.tooltip;"
-                         oncommand="HandleAllAttachments('save'); RestoreFocusAfterHdrButton();"
-                         hidden="true">
-            <menupopup onpopupshowing="onShowSaveAttachmentMenuMultiple();">
+                         oncommand="TryHandleAllAttachments('save'); RestoreFocusAfterHdrButton();">
+            <menupopup id="attachmentSaveAllMultipleMenu"
+                       onpopupshowing="onShowSaveAttachmentMenuMultiple();">
               <menuitem id="button-openAllAttachments"
-                        oncommand="HandleAllAttachments('open'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
+                        oncommand="TryHandleAllAttachments('open'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
                         label="&openAllAttachmentsMenuItem.label;"
                         accesskey="&openAllAttachmentsMenuItem.accesskey;"/>
               <menuitem id="button-saveAllAttachments"
-                        oncommand="HandleAllAttachments('save'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
+                        oncommand="TryHandleAllAttachments('save'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
                         label="&saveAllAttachmentsMenuItem.label;"
                         accesskey="&saveAllAttachmentsMenuItem.accesskey;"/>
               <menuseparator id="button-menu-separator-all"/>
               <menuitem id="button-detachAllAttachments"
-                        oncommand="HandleAllAttachments('detach'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
+                        oncommand="TryHandleAllAttachments('detach'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
                         label="&detachAllAttachmentsMenuItem.label;"
                         accesskey="&detachAllAttachmentsMenuItem.accesskey;"/>
               <menuitem id="button-deleteAllAttachments"
-                        oncommand="HandleAllAttachments('delete'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
+                        oncommand="TryHandleAllAttachments('delete'); event.stopPropagation(); RestoreFocusAfterHdrButton();"
                         label="&deleteAllAttachmentsMenuItem.label;"
                         accesskey="&deleteAllAttachmentsMenuItem.accesskey;"/>
             </menupopup>
@@ -572,14 +599,11 @@
                defaultset="attachmentSaveAll"/>
     </toolbox>
   </hbox>
-  <box id="attachmentListWrapper" flex="1" collapsed="true">
-    <description selectable="true" id="attachmentList" flex="1"
-                 seltype="multiple" context="attachmentListContext"
-                 onclick="attachmentListClick(event);"
-                 ondraggesture="nsDragAndDrop.startDrag(event,attachmentListDNDObserver);"
-                 ondragover="nsDragAndDrop.dragOver(event, attachmentListDNDObserver);">
-    </description>
-  </box>
+  <attachmentlist orient="horizontal" id="attachmentList" flex="1"
+                  seltype="multiple" context="attachmentListContext"
+                  itemcontext="attachmentItemContext"
+                  ondraggesture="nsDragAndDrop.startDrag(event,attachmentListDNDObserver);"
+                  ondragover="nsDragAndDrop.dragOver(event, attachmentListDNDObserver);"/>
 </vbox>
 
 </overlay>

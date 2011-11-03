@@ -61,7 +61,6 @@ EXPORTS		= \
 		nsIAnonymousContentCreator.h \
 		nsIFrame.h \
 		nsIFrameUtil.h \
-		nsIImageFrame.h \
 		nsILineIterator.h \
 		nsIObjectFrame.h \
 		nsIPageSequenceFrame.h \
@@ -69,14 +68,8 @@ EXPORTS		= \
 		nsIStatefulFrame.h \
 		nsFrameSelection.h \
 		nsSubDocumentFrame.h \
+		nsObjectFrame.h \
 		$(NULL)
-
-ifdef IBMBIDI
-EXPORTS		+= \
-		nsBidiFrames.h      \
-		$(NULL)
-endif
-
 
 CPPSRCS		= \
 		nsAbsoluteContainingBlock.cpp \
@@ -116,6 +109,7 @@ CPPSRCS		= \
 		nsSubDocumentFrame.cpp \
 		nsTextFrameThebes.cpp \
 		nsTextFrameUtils.cpp \
+		TextOverflow.cpp \
 		nsTextRunTransformations.cpp \
 		nsViewportFrame.cpp \
 		$(NULL)
@@ -123,12 +117,6 @@ CPPSRCS		= \
 ifdef MOZ_MEDIA
 CPPSRCS		+= \
 		nsVideoFrame.cpp \
-		$(NULL)
-endif
-
-ifdef IBMBIDI
-CPPSRCS		+= \
-		nsBidiFrames.cpp \
 		$(NULL)
 endif
 
@@ -159,7 +147,7 @@ LOCAL_INCLUDES += \
 		-I$(srcdir)/../../content/base/src \
 		-I$(srcdir)/../../content/html/content/src \
 		-I$(srcdir)/../../dom/base \
-		-I$(srcdir)/../../modules/plugin/base/src \
+		-I$(srcdir)/../../dom/plugins/base \
 		$(MOZ_CAIRO_CFLAGS) \
 		$(NULL)
 

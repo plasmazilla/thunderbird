@@ -37,17 +37,13 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsXMLElement.h"
+#include "nsContentUtils.h" // nsAutoScriptBlocker
 
 nsresult
 NS_NewXMLElement(nsIContent** aInstancePtrResult, already_AddRefed<nsINodeInfo> aNodeInfo)
 {
   nsXMLElement* it = new nsXMLElement(aNodeInfo);
-  if (!it) {
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
-
   NS_ADDREF(*aInstancePtrResult = it);
-
   return NS_OK;
 }
 
@@ -72,7 +68,7 @@ nsresult
 nsXMLElement::UnsetAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
                         PRBool aNotify)
 {
-  nsAutoRemovableScriptBlocker scriptBlocker;
+  nsAutoScriptBlocker scriptBlocker;
   PRBool isId = PR_FALSE;
   if (aAttribute == GetIDAttributeName() &&
       aNameSpaceID == kNameSpaceID_None) {

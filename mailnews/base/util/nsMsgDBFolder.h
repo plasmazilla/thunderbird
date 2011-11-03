@@ -112,6 +112,7 @@ public:
   nsresult CreateBackupDirectory(nsILocalFile **result);
   nsresult GetBackupSummaryFile(nsILocalFile **result, const nsACString& newName);
   nsresult GetMsgPreviewTextFromStream(nsIMsgDBHdr *msgHdr, nsIInputStream *stream);
+  nsresult HandleAutoCompactEvent(nsIMsgWindow *aMsgWindow);
 protected:
   
   // this is a little helper function that is not part of the public interface. 
@@ -168,6 +169,8 @@ protected:
   nsresult GetPurgeThreshold(PRInt32 *aThreshold);
   nsresult ApplyRetentionSettings(PRBool deleteViaFolder);
   PRBool   VerifyOfflineMessage(nsIMsgDBHdr *msgHdr, nsIInputStream *fileStream);
+  nsresult AddMarkAllReadUndoAction(nsIMsgWindow *msgWindow,
+                                    nsMsgKey *thoseMarked, PRUint32 numMarked);
 
   nsresult PerformBiffNotifications(void); // if there are new, non spam messages, do biff
   nsresult CloseDBIfFolderNotOpen();

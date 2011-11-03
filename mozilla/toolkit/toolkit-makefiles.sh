@@ -40,11 +40,7 @@
 
 MAKEFILES_db="
   db/Makefile
-  db/mdb/Makefile
-  db/mdb/public/Makefile
-  db/mork/Makefile
-  db/mork/build/Makefile
-  db/mork/src/Makefile
+  db/sqlite3/src/Makefile
 "
 
 MAKEFILES_dom="
@@ -53,7 +49,6 @@ MAKEFILES_dom="
   ipc/glue/Makefile
   ipc/ipdl/Makefile
   dom/Makefile
-  dom/public/coreEvents/Makefile
   dom/interfaces/base/Makefile
   dom/interfaces/canvas/Makefile
   dom/interfaces/core/Makefile
@@ -68,9 +63,8 @@ MAKEFILES_dom="
   dom/interfaces/sidebar/Makefile
   dom/interfaces/storage/Makefile
   dom/interfaces/stylesheets/Makefile
-  dom/interfaces/threads/Makefile
+  dom/interfaces/svg/Makefile
   dom/interfaces/traversal/Makefile
-  dom/interfaces/views/Makefile
   dom/interfaces/xbl/Makefile
   dom/interfaces/xpath/Makefile
   dom/interfaces/xul/Makefile
@@ -82,9 +76,12 @@ MAKEFILES_dom="
   dom/src/json/Makefile
   dom/src/offline/Makefile
   dom/src/storage/Makefile
-  dom/src/threads/Makefile
   dom/locales/Makefile
-  dom/plugins/Makefile
+  dom/plugins/base/Makefile
+  dom/plugins/ipc/Makefile
+  dom/plugins/test/Makefile
+  dom/plugins/test/mochitest/Makefile
+  dom/plugins/test/testplugin/Makefile
   js/jetpack/Makefile
 "
 
@@ -171,6 +168,7 @@ MAKEFILES_intl="
   intl/locale/src/os2/Makefile
   intl/locale/src/windows/Makefile
   intl/locale/tests/Makefile
+  intl/locales/Makefile
   intl/lwbrk/Makefile
   intl/lwbrk/idl/Makefile
   intl/lwbrk/src/Makefile
@@ -232,6 +230,11 @@ MAKEFILES_content="
   content/html/document/Makefile
   content/html/document/public/Makefile
   content/html/document/src/Makefile
+  content/svg/Makefile
+  content/svg/document/Makefile
+  content/svg/document/src/Makefile
+  content/svg/content/Makefile
+  content/svg/content/src/Makefile
   content/xml/Makefile
   content/xml/content/Makefile
   content/xml/content/src/Makefile
@@ -280,6 +283,7 @@ MAKEFILES_layout="
   layout/style/Makefile
   layout/style/xbl-marquee/Makefile
   layout/tables/Makefile
+  layout/svg/base/src/Makefile
   layout/xul/base/public/Makefile
   layout/xul/base/src/Makefile
   layout/xul/base/src/grid/Makefile
@@ -300,7 +304,6 @@ MAKEFILES_libreg="
   modules/libreg/Makefile
   modules/libreg/include/Makefile
   modules/libreg/src/Makefile
-  modules/libreg/standalone/Makefile
 "
 
 MAKEFILES_libpref="
@@ -353,10 +356,11 @@ MAKEFILES_libnestegg="
   media/libnestegg/src/Makefile
 "
 
-MAKEFILES_plugin="
-  modules/plugin/Makefile
-  modules/plugin/base/src/Makefile
-  modules/plugin/base/public/Makefile
+MAKEFILES_mathml="
+  content/mathml/Makefile
+  content/mathml/content/Makefile
+  content/mathml/content/src/Makefile
+  layout/mathml/Makefile
 "
 
 MAKEFILES_netwerk="
@@ -389,6 +393,14 @@ MAKEFILES_netwerk="
   netwerk/system/Makefile
   netwerk/system/mac/Makefile
   netwerk/system/win32/Makefile
+"
+
+MAKEFILES_storage="
+  storage/Makefile
+  storage/public/Makefile
+  storage/src/Makefile
+  storage/build/Makefile
+  storage/test/Makefile
 "
 
 MAKEFILES_uriloader="
@@ -547,11 +559,6 @@ MAKEFILES_embedding="
   embedding/Makefile
   embedding/base/Makefile
   embedding/browser/Makefile
-  embedding/browser/activex/src/Makefile
-  embedding/browser/activex/src/common/Makefile
-  embedding/browser/activex/src/control/Makefile
-  embedding/browser/activex/src/control_kicker/Makefile
-  embedding/browser/activex/src/plugin/Makefile
   embedding/browser/build/Makefile
   embedding/browser/webBrowser/Makefile
   embedding/components/Makefile
@@ -629,7 +636,6 @@ MAKEFILES_xulapp="
   toolkit/components/printing/Makefile
   toolkit/components/satchel/Makefile
   toolkit/components/search/Makefile
-  toolkit/spatial-navigation/Makefile
   toolkit/components/startup/Makefile
   toolkit/components/startup/public/Makefile
   toolkit/components/statusfilter/Makefile
@@ -675,6 +681,10 @@ MAKEFILES_jsctypes="
   toolkit/components/ctypes/tests/Makefile
 "
 
+MAKEFILES_jsreflect="
+  toolkit/components/reflect/Makefile
+"
+
 MAKEFILES_libpr0n="
   modules/libpr0n/Makefile
   modules/libpr0n/build/Makefile
@@ -716,10 +726,6 @@ MAKEFILES_libmar="
   modules/libmar/tool/Makefile
 "
 
-MAKEFILES_lib7z="
-  modules/lib7z/Makefile
-"
-
 MAKEFILES_extensions="
   extensions/cookie/Makefile
   extensions/permissions/Makefile
@@ -745,14 +751,17 @@ add_makefiles "
   $MAKEFILES_jsipc
   $MAKEFILES_jsdebugger
   $MAKEFILES_jsctypes
+  $MAKEFILES_jsreflect
   $MAKEFILES_content
   $MAKEFILES_layout
   $MAKEFILES_libimg
   $MAKEFILES_libjar
   $MAKEFILES_libreg
   $MAKEFILES_libpref
+  $MAKEFILES_mathml
   $MAKEFILES_plugin
   $MAKEFILES_netwerk
+  $MAKEFILES_storage
   $MAKEFILES_uriloader
   $MAKEFILES_profile
   $MAKEFILES_rdf
@@ -771,7 +780,6 @@ add_makefiles "
   $MAKEFILES_accessible
   $MAKEFILES_zlib
   $MAKEFILES_libmar
-  $MAKEFILES_lib7z
   $MAKEFILES_extensions
   $MAKEFILES_startupcache
 "
@@ -803,7 +811,6 @@ if [ "$ENABLE_TESTS" ]; then
     docshell/test/navigation/Makefile
     dom/src/json/test/Makefile
     dom/src/jsurl/test/Makefile
-    dom/src/threads/test/Makefile
     dom/tests/Makefile
     dom/tests/mochitest/Makefile
     dom/tests/mochitest/ajax/Makefile
@@ -855,7 +862,6 @@ if [ "$ENABLE_TESTS" ]; then
     embedding/test/Makefile
     extensions/cookie/test/Makefile
     extensions/pref/Makefile
-    intl/locale/tests_multilocale/Makefile
     js/src/xpconnect/tests/mochitest/Makefile
     layout/forms/test/Makefile
     layout/generic/test/Makefile
@@ -873,9 +879,6 @@ if [ "$ENABLE_TESTS" ]; then
     modules/libpr0n/test/Makefile
     modules/libpr0n/test/mochitest/Makefile
     modules/libpref/test/Makefile
-    modules/plugin/test/Makefile
-    modules/plugin/test/mochitest/Makefile
-    modules/plugin/test/testplugin/Makefile
     netwerk/test/httpserver/Makefile
     parser/htmlparser/tests/mochitest/Makefile
     parser/xml/test/Makefile
@@ -924,7 +927,6 @@ if [ "$ENABLE_TESTS" ]; then
     toolkit/mozapps/extensions/test/Makefile
     toolkit/mozapps/plugins/tests/Makefile
     toolkit/mozapps/update/test/Makefile
-    toolkit/spatial-navigation/tests/Makefile
     toolkit/xre/test/Makefile
     uriloader/exthandler/tests/mochitest/Makefile
     widget/tests/Makefile
@@ -939,19 +941,6 @@ if [ "$MOZ_ZIPWRITER" ]; then
     modules/libjar/zipwriter/public/Makefile
     modules/libjar/zipwriter/src/Makefile
     modules/libjar/zipwriter/test/Makefile
-  "
-fi
-
-if [ "$MOZ_STORAGE" ]; then
-  add_makefiles "
-    db/sqlite3/src/Makefile
-    db/morkreader/Makefile
-    db/morkreader/external/Makefile
-    storage/Makefile
-    storage/public/Makefile
-    storage/src/Makefile
-    storage/build/Makefile
-    storage/test/Makefile
   "
 fi
 
@@ -1105,27 +1094,6 @@ if [ "$MOZ_MAPINFO" ]; then
   "
 fi
 
-if [ "$MOZ_MATHML" ]; then
-  add_makefiles "
-    content/mathml/Makefile
-    content/mathml/content/Makefile
-    content/mathml/content/src/Makefile
-    layout/mathml/Makefile
-  "
-fi
-
-if [ "$MOZ_SVG" ]; then
-  add_makefiles "
-    content/svg/Makefile
-    content/svg/document/Makefile
-    content/svg/document/src/Makefile
-    content/svg/content/Makefile
-    content/svg/content/src/Makefile
-    dom/interfaces/svg/Makefile
-    layout/svg/base/src/Makefile
-  "
-fi
-
 if [ "$MOZ_SMIL" ]; then
   add_makefiles "
     content/smil/Makefile
@@ -1138,12 +1106,6 @@ if [ "$MOZ_XTF" ]; then
     content/xtf/Makefile
     content/xtf/public/Makefile
     content/xtf/src/Makefile
-  "
-fi
-
-if [ "$MOZ_STATIC_COMPONENTS" ]; then
-  add_makefiles "
-    modules/staticmod/Makefile
   "
 fi
 

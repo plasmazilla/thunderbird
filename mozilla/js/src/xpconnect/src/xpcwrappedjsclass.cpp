@@ -166,8 +166,9 @@ nsXPCWrappedJSClass::GetNewOrUsed(XPCCallContext& ccx, REFNSIID aIID,
         ccx.GetXPConnect()->GetInfoForIID(&aIID, getter_AddRefs(info));
         if(info)
         {
-            PRBool canScript;
+            PRBool canScript, isBuiltin;
             if(NS_SUCCEEDED(info->IsScriptable(&canScript)) && canScript &&
+               NS_SUCCEEDED(info->IsBuiltinClass(&isBuiltin)) && !isBuiltin &&
                nsXPConnect::IsISupportsDescendant(info))
             {
                 clazz = new nsXPCWrappedJSClass(ccx, aIID, info);
@@ -295,8 +296,9 @@ nsXPCWrappedJSClass::CallQueryInterfaceOnJSObject(XPCCallContext& ccx,
         ccx.GetXPConnect()->GetInfoForIID(&aIID, getter_AddRefs(info));
         if(!info)
             return nsnull;
-        PRBool canScript;
-        if(NS_FAILED(info->IsScriptable(&canScript)) || !canScript)
+        PRBool canScript, isBuiltin;
+        if(NS_FAILED(info->IsScriptable(&canScript)) || !canScript ||
+           NS_FAILED(info->IsBuiltinClass(&isBuiltin)) || isBuiltin)
             return nsnull;
     }
 
@@ -575,14 +577,13 @@ GetContextFromObject(JSObject *obj)
     if(xpcc)
     {
         JSContext *cx = xpcc->GetJSContext();
-        if(cx->thread->id == js_CurrentThreadId())
+        if(cx->thread()->id == js_CurrentThreadId())
             return cx;
     }
 
     return nsnull;
 }
 
-#ifndef XPCONNECT_STANDALONE
 class SameOriginCheckedComponent : public nsISecurityCheckedComponent
 {
 public:
@@ -641,8 +642,6 @@ SameOriginCheckedComponent::CanSetProperty(const nsIID * iid,
     return *_retval ? NS_OK : NS_ERROR_OUT_OF_MEMORY;
 }
 
-#endif
-
 NS_IMETHODIMP
 nsXPCWrappedJSClass::DelegatedQueryInterface(nsXPCWrappedJS* self,
                                              REFNSIID aIID,
@@ -664,13 +663,6 @@ nsXPCWrappedJSClass::DelegatedQueryInterface(nsXPCWrappedJS* self,
         return NS_OK;
     }
 
-#ifdef XPC_IDISPATCH_SUPPORT
-    // If IDispatch is enabled and we're QI'ing to IDispatch
-    if(nsXPConnect::IsIDispatchEnabled() && aIID.Equals(NSID_IDISPATCH))
-    {
-        return XPCIDispatchExtension::IDispatchQIWrappedJS(self, aInstancePtr);
-    }
-#endif
     if(aIID.Equals(NS_GET_IID(nsIPropertyBag)))
     {
         // We only want to expose one implementation from our aggregate.
@@ -744,7 +736,6 @@ nsXPCWrappedJSClass::DelegatedQueryInterface(nsXPCWrappedJS* self,
 
     // else we do the more expensive stuff...
 
-#ifndef XPCONNECT_STANDALONE
     // Before calling out, ensure that we're not about to claim to implement
     // nsISecurityCheckedComponent for an untrusted object. Doing so causes
     // problems. See bug 352882.
@@ -795,7 +786,6 @@ nsXPCWrappedJSClass::DelegatedQueryInterface(nsXPCWrappedJS* self,
             return NS_OK;
         }
     }
-#endif
 
     // check if the JSObject claims to implement this interface
     JSObject* jsobj = CallQueryInterfaceOnJSObject(ccx, self->GetJSObject(),

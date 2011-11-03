@@ -41,6 +41,7 @@
 
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
 Components.utils.import("resource://calendar/modules/calAlarmUtils.jsm");
+Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 
 const kHoursBetweenUpdates = 6;
 
@@ -68,6 +69,8 @@ function calAlarmService() {
     this.calendarObserver = {
         alarmService: this,
 
+        QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calIObserver]),
+
         // calIObserver:
         onStartBatch: function() { },
         onEndBatch: function() { },
@@ -80,23 +83,8 @@ function calAlarmService() {
             }
         },
 
-        getOccurrencesInRange: function(aItem) {
-            if (aItem && aItem.recurrenceInfo) {
-                let start = this.alarmService.mRangeEnd.clone();
-                // We search 1 month in each direction for alarms.  Therefore,
-                // we need to go back 2 months from the end to get this right.
-                start.month -= 2;
-                return aItem.recurrenceInfo.getOccurrences(start, this.alarmService.mRangeEnd, 0, {});
-            } else {
-                return [aItem];
-            }
-        },
         onAddItem: function(aItem) {
-            let occs = this.getOccurrencesInRange(aItem);
-
-            // Add an alarm for each occurrence
-            occs.forEach(this.alarmService.addAlarmsForItem,
-                         this.alarmService);
+            this.alarmService.addAlarmsForOccurrences(aItem);
         },
         onModifyItem: function(aNewItem, aOldItem) {
             if (!aNewItem.recurrenceId) {
@@ -108,11 +96,7 @@ function calAlarmService() {
             this.onAddItem(aNewItem);
         },
         onDeleteItem: function(aDeletedItem) {
-            let occs = this.getOccurrencesInRange(aDeletedItem);
-
-            // Remove alarm for each occurrence
-            occs.forEach(this.alarmService.removeAlarmsForItem,
-                         this.alarmService);
+            this.alarmService.removeAlarmsForOccurrences(aDeletedItem);
         },
         onError: function(aCalendar, aErrNo, aMessage) {},
         onPropertyChanged: function(aCalendar, aName, aValue, aOldValue) {
@@ -130,6 +114,8 @@ function calAlarmService() {
 
     this.calendarManagerObserver = {
         alarmService: this,
+
+        QueryInterface: XPCOMUtils.generateQI([Components.interfaces.calICalendarManagerObserver]),
 
         onCalendarRegistered: function(aCalendar) {
             this.alarmService.observeCalendar(aCalendar);
@@ -410,8 +396,11 @@ calAlarmService.prototype = {
                 snoozeDate = cal.createDateTime(snoozeDate);
             }
 
-            // If the alarm was snoozed, the snooze time is more important.
-            alarmDate = snoozeDate || alarmDate;
+            // an alarm can only be snoozed to a later time, if earlier it's from another alarm.
+            if (snoozeDate && snoozeDate.compare(alarmDate) > 0) {
+                // If the alarm was snoozed, the snooze time is more important.
+                alarmDate = snoozeDate;
+            }
 
             let now = nowUTC();
             if (alarmDate.timezone.isFloating) {
@@ -449,11 +438,37 @@ calAlarmService.prototype = {
 
     removeAlarmsForItem: function cAS_removeAlarmsForItem(aItem) {
         // make sure already fired alarms are purged out of the alarm window:
-        this.mObservers.notify("onRemoveAlarmsByItem", [aItem.parentItem]);
+        this.mObservers.notify("onRemoveAlarmsByItem", [aItem]);
         // Purge alarms specifically for this item (i.e exception)
         for each (let alarm in aItem.getAlarms({})) {
             this.removeTimer(aItem, alarm);
         }
+    },
+
+    getOccurrencesInRange: function cAS_getOccurrencesInRange(aItem) {
+        if (aItem && aItem.recurrenceInfo) {
+            let start = this.mRangeEnd.clone();
+            // We search 1 month in each direction for alarms.  Therefore,
+            // we need to go back 2 months from the end to get this right.
+            start.month -= 2;
+            return aItem.recurrenceInfo.getOccurrences(start, this.mRangeEnd, 0, {});
+        } else {
+            return [aItem];
+        }
+    },
+
+    addAlarmsForOccurrences: function cAS_addAlarmsForOccurrences(aParentItem) {
+        let occs = this.getOccurrencesInRange(aParentItem);
+
+        // Add an alarm for each occurrence
+        occs.forEach(this.addAlarmsForItem, this);
+    },
+
+    removeAlarmsForOccurrences: function cAS_removeAlarmsForOccurrences(aParentItem) {
+        let occs = this.getOccurrencesInRange(aParentItem);
+
+        // Remove alarm for each occurrence
+        occs.forEach(this.removeAlarmsForItem, this);
     },
 
     addTimer: function cAS_addTimer(aItem, aAlarm, aTimeout) {

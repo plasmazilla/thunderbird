@@ -254,7 +254,7 @@ DownloadTreeView.prototype = {
         if (dl.isActive)
           // fake an nsIDownload with the properties needed by that function
           cancelDownload({id: dl.dlid,
-                          targetFile: getLocalFileFromNativePathOrUrl(dl.file)});
+                          targetFile: GetFileFromString(dl.file)});
         else
           removeDownload(dl.dlid);
         break;
@@ -403,11 +403,11 @@ DownloadTreeView.prototype = {
       "FROM moz_downloads " +
       "ORDER BY isActive ASC, endTime ASC, startTime ASC, id DESC");
 
-    this._statement.bindInt32Parameter(0, nsIDownloadManager.DOWNLOAD_NOTSTARTED);
-    this._statement.bindInt32Parameter(1, nsIDownloadManager.DOWNLOAD_DOWNLOADING);
-    this._statement.bindInt32Parameter(2, nsIDownloadManager.DOWNLOAD_PAUSED);
-    this._statement.bindInt32Parameter(3, nsIDownloadManager.DOWNLOAD_QUEUED);
-    this._statement.bindInt32Parameter(4, nsIDownloadManager.DOWNLOAD_SCANNING);
+    this._statement.bindByIndex(0, nsIDownloadManager.DOWNLOAD_NOTSTARTED);
+    this._statement.bindByIndex(1, nsIDownloadManager.DOWNLOAD_DOWNLOADING);
+    this._statement.bindByIndex(2, nsIDownloadManager.DOWNLOAD_PAUSED);
+    this._statement.bindByIndex(3, nsIDownloadManager.DOWNLOAD_QUEUED);
+    this._statement.bindByIndex(4, nsIDownloadManager.DOWNLOAD_SCANNING);
 
     while (this._statement.executeStep()) {
       // Try to get the attribute values from the statement
@@ -473,9 +473,7 @@ DownloadTreeView.prototype = {
 
     // Send a notification that we finished
     setTimeout(function()
-      Components.classes["@mozilla.org/observer-service;1"]
-                .getService(Components.interfaces.nsIObserverService)
-                .notifyObservers(window, "download-manager-ui-done", null), 0);
+      Services.obs.notifyObservers(window, "download-manager-ui-done", null), 0);
   },
 
   searchView: function(aInput) {

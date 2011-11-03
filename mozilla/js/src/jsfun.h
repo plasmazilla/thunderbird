@@ -107,7 +107,7 @@
 #define FUN_INTERPRETED(fun) (FUN_KIND(fun) >= JSFUN_INTERPRETED)
 #define FUN_FLAT_CLOSURE(fun)(FUN_KIND(fun) == JSFUN_FLAT_CLOSURE)
 #define FUN_NULL_CLOSURE(fun)(FUN_KIND(fun) == JSFUN_NULL_CLOSURE)
-#define FUN_SCRIPT(fun)      (FUN_INTERPRETED(fun) ? (fun)->u.i.script : NULL)
+#define FUN_SCRIPT(fun)      (FUN_INTERPRETED(fun) ? (fun)->script() : NULL)
 #define FUN_CLASP(fun)       (JS_ASSERT(!FUN_INTERPRETED(fun)),               \
                               fun->u.n.clasp)
 #define FUN_TRCINFO(fun)     (JS_ASSERT(!FUN_INTERPRETED(fun)),               \
@@ -146,18 +146,15 @@ struct JSFunction : public JSObject_Slots2
     JSAtom          *atom;        /* name for diagnostics and decompiling */
 
     bool optimizedClosure()  const { return FUN_KIND(this) > JSFUN_INTERPRETED; }
-    bool needsWrapper()      const { return FUN_NULL_CLOSURE(this) && u.i.skipmin != 0; }
     bool isInterpreted()     const { return FUN_INTERPRETED(this); }
     bool isNative()          const { return !FUN_INTERPRETED(this); }
     bool isConstructor()     const { return flags & JSFUN_CONSTRUCTOR; }
     bool isHeavyweight()     const { return JSFUN_HEAVYWEIGHT_TEST(flags); }
     bool isFlatClosure()     const { return FUN_KIND(this) == JSFUN_FLAT_CLOSURE; }
-
     bool isFunctionPrototype() const { return flags & JSFUN_PROTOTYPE; }
-
+    bool isInterpretedConstructor() const { return isInterpreted() && !isFunctionPrototype(); }
     /* Returns the strictness of this function, which must be interpreted. */
     inline bool inStrictMode() const;
-
     void setArgCount(uint16 nargs) {
         JS_ASSERT(this->nargs == 0);
         this->nargs = nargs;
@@ -193,11 +190,7 @@ struct JSFunction : public JSObject_Slots2
     };
 
   public:
-    void setJoinable() {
-        JS_ASSERT(FUN_INTERPRETED(this));
-        getSlotRef(METHOD_ATOM_SLOT).setNull();
-        flags |= JSFUN_JOINABLE;
-    }
+    inline void setJoinable();
 
     /*
      * Method name imputed from property uniquely assigned to or initialized,
@@ -210,18 +203,20 @@ struct JSFunction : public JSObject_Slots2
                : NULL;
     }
 
-    void setMethodAtom(JSAtom *atom) {
-        JS_ASSERT(joinable());
-        getSlotRef(METHOD_ATOM_SLOT).setString(atom);
-    }
-
-    js::Native maybeNative() const {
-        return isInterpreted() ? NULL : u.n.native;
-    }
+    inline void setMethodAtom(JSAtom *atom);
 
     JSScript *script() const {
         JS_ASSERT(isInterpreted());
         return u.i.script;
+    }
+
+    js::Native native() const {
+        JS_ASSERT(isNative());
+        return u.n.native;
+    }
+
+    js::Native maybeNative() const {
+        return isInterpreted() ? NULL : native();
     }
 
     static uintN offsetOfNativeOrScript() {
@@ -249,56 +244,9 @@ struct JSFunction : public JSObject_Slots2
     JS_FN(name, fastcall, nargs, flags)
 #endif
 
-/*
- * NB: the Arguments classes are uninitialized internal classes that masquerade
- * (according to Object.prototype.toString.call(arguments)) as "Arguments",
- * while having Object.getPrototypeOf(arguments) === Object.prototype.
- *
- * WARNING (to alert embedders reading this private .h file): arguments objects
- * are *not* thread-safe and should not be used concurrently -- they should be
- * used by only one thread at a time, preferably by only one thread over their
- * lifetime (a JS worker that migrates from one OS thread to another but shares
- * nothing is ok).
- *
- * Yes, this is an incompatible change, which prefigures the impending move to
- * single-threaded objects and GC heaps.
- */
-extern js::Class js_ArgumentsClass;
-
-namespace js {
-
-extern Class StrictArgumentsClass;
-
-struct ArgumentsData {
-    js::Value   callee;
-    js::Value   slots[1];
-};
-
-}
-
-inline bool
-JSObject::isNormalArguments() const
-{
-    return getClass() == &js_ArgumentsClass;
-}
-
-inline bool
-JSObject::isStrictArguments() const
-{
-    return getClass() == &js::StrictArgumentsClass;
-}
-
-inline bool
-JSObject::isArguments() const
-{
-    return isNormalArguments() || isStrictArguments();
-}
-
-#define JS_ARGUMENTS_OBJECT_ON_TRACE ((void *)0xa126)
-
 extern JS_PUBLIC_DATA(js::Class) js_CallClass;
 extern JS_PUBLIC_DATA(js::Class) js_FunctionClass;
-extern js::Class js_DeclEnvClass;
+extern JS_FRIEND_DATA(js::Class) js_DeclEnvClass;
 
 inline bool
 JSObject::isCall() const
@@ -340,13 +288,62 @@ IsFunctionObject(const js::Value &v, JSObject **funobj)
 }
 
 static JS_ALWAYS_INLINE bool
+IsFunctionObject(const js::Value &v, JSObject **funobj, JSFunction **fun)
+{
+    bool b = IsFunctionObject(v, funobj);
+    if (b)
+        *fun = (*funobj)->getFunctionPrivate();
+    return b;
+}
+
+static JS_ALWAYS_INLINE bool
 IsFunctionObject(const js::Value &v, JSFunction **fun)
 {
     JSObject *funobj;
-    bool b = IsFunctionObject(v, &funobj);
-    if (b)
-        *fun = funobj->getFunctionPrivate();
-    return b;
+    return IsFunctionObject(v, &funobj, fun);
+}
+
+static JS_ALWAYS_INLINE bool
+IsNativeFunction(const js::Value &v)
+{
+    JSFunction *fun;
+    return IsFunctionObject(v, &fun) && fun->isNative();
+}
+
+static JS_ALWAYS_INLINE bool
+IsNativeFunction(const js::Value &v, JSFunction **fun)
+{
+    return IsFunctionObject(v, fun) && (*fun)->isNative();
+}
+
+static JS_ALWAYS_INLINE bool
+IsNativeFunction(const js::Value &v, Native native)
+{
+    JSFunction *fun;
+    return IsFunctionObject(v, &fun) && fun->maybeNative() == native;
+}
+
+/*
+ * When we have an object of a builtin class, we don't quite know what its
+ * valueOf/toString methods are, since these methods may have been overwritten
+ * or shadowed. However, we can still do better than js_TryMethod by
+ * hard-coding the necessary properties for us to find the native we expect.
+ *
+ * TODO: a per-thread shape-based cache would be faster and simpler.
+ */
+static JS_ALWAYS_INLINE bool
+ClassMethodIsNative(JSContext *cx, JSObject *obj, Class *clasp, jsid methodid, Native native)
+{
+    JS_ASSERT(obj->getClass() == clasp);
+
+    Value v;
+    if (!HasDataProperty(obj, methodid, &v)) {
+        JSObject *proto = obj->getProto();
+        if (!proto || proto->getClass() != clasp || !HasDataProperty(proto, methodid, &v))
+            return false;
+    }
+
+    return js::IsNativeFunction(v, native);
 }
 
 extern JS_ALWAYS_INLINE bool
@@ -454,9 +451,6 @@ extern JSObject *
 js_InitArgumentsClass(JSContext *cx, JSObject *obj);
 
 extern void
-js_TraceFunction(JSTracer *trc, JSFunction *fun);
-
-extern void
 js_FinalizeFunction(JSContext *cx, JSFunction *fun);
 
 extern JSObject * JS_FASTCALL
@@ -479,19 +473,14 @@ js_AllocFlatClosure(JSContext *cx, JSFunction *fun, JSObject *scopeChain);
 extern JSObject *
 js_NewFlatClosure(JSContext *cx, JSFunction *fun, JSOp op, size_t oplen);
 
-extern JS_REQUIRES_STACK JSObject *
-js_NewDebuggableFlatClosure(JSContext *cx, JSFunction *fun);
-
 extern JSFunction *
 js_DefineFunction(JSContext *cx, JSObject *obj, jsid id, js::Native native,
                   uintN nargs, uintN flags);
 
 /*
- * Flags for js_ValueToFunction and js_ReportIsNotFunction.  We depend on the
- * fact that JSINVOKE_CONSTRUCT (aka JSFRAME_CONSTRUCTING) is 1, and test that
- * with #if/#error in jsfun.c.
+ * Flags for js_ValueToFunction and js_ReportIsNotFunction.
  */
-#define JSV2F_CONSTRUCT         JSINVOKE_CONSTRUCT
+#define JSV2F_CONSTRUCT         CONSTRUCT
 #define JSV2F_SEARCH_STACK      0x10000
 
 extern JSFunction *
@@ -510,32 +499,25 @@ extern JSObject * JS_FASTCALL
 js_CreateCallObjectOnTrace(JSContext *cx, JSFunction *fun, JSObject *callee, JSObject *scopeChain);
 
 extern void
-js_PutCallObject(JSContext *cx, JSStackFrame *fp);
+js_PutCallObject(js::StackFrame *fp);
 
 extern JSBool JS_FASTCALL
-js_PutCallObjectOnTrace(JSContext *cx, JSObject *scopeChain, uint32 nargs,
-                        js::Value *argv, uint32 nvars, js::Value *slots);
+js_PutCallObjectOnTrace(JSObject *scopeChain, uint32 nargs, js::Value *argv,
+                        uint32 nvars, js::Value *slots);
 
 namespace js {
 
 JSObject *
-CreateFunCallObject(JSContext *cx, JSStackFrame *fp);
+CreateFunCallObject(JSContext *cx, StackFrame *fp);
 
 JSObject *
-CreateEvalCallObject(JSContext *cx, JSStackFrame *fp);
+CreateEvalCallObject(JSContext *cx, StackFrame *fp);
 
 extern JSBool
 GetCallArg(JSContext *cx, JSObject *obj, jsid id, js::Value *vp);
 
 extern JSBool
 GetCallVar(JSContext *cx, JSObject *obj, jsid id, js::Value *vp);
-
-/*
- * Slower version of js_GetCallVar used when call_resolve detects an attempt to
- * leak an optimized closure via indirect or debugger eval.
- */
-extern JSBool
-GetCallVarChecked(JSContext *cx, JSObject *obj, jsid id, js::Value *vp);
 
 extern JSBool
 GetCallUpvar(JSContext *cx, JSObject *obj, jsid id, js::Value *vp);
@@ -552,10 +534,10 @@ SetCallUpvar(JSContext *cx, JSObject *obj, jsid id, JSBool strict, js::Value *vp
 } // namespace js
 
 extern JSBool
-js_GetArgsValue(JSContext *cx, JSStackFrame *fp, js::Value *vp);
+js_GetArgsValue(JSContext *cx, js::StackFrame *fp, js::Value *vp);
 
 extern JSBool
-js_GetArgsProperty(JSContext *cx, JSStackFrame *fp, jsid id, js::Value *vp);
+js_GetArgsProperty(JSContext *cx, js::StackFrame *fp, jsid id, js::Value *vp);
 
 /*
  * Get the arguments object for the given frame.  If the frame is strict mode
@@ -568,32 +550,13 @@ js_GetArgsProperty(JSContext *cx, JSStackFrame *fp, jsid id, js::Value *vp);
  *     function.
  */
 extern JSObject *
-js_GetArgsObject(JSContext *cx, JSStackFrame *fp);
+js_GetArgsObject(JSContext *cx, js::StackFrame *fp);
 
 extern void
-js_PutArgsObject(JSContext *cx, JSStackFrame *fp);
+js_PutArgsObject(js::StackFrame *fp);
 
 inline bool
 js_IsNamedLambda(JSFunction *fun) { return (fun->flags & JSFUN_LAMBDA) && fun->atom; }
-
-/*
- * Maximum supported value of arguments.length. It bounds the maximum number of
- * arguments that can be supplied via the second (so-called |argArray|) param
- * to Function.prototype.apply. This value also bounds the number of elements
- * parsed in an array initialiser.
- *
- * The thread's stack is the limiting factor for this number. It is currently
- * 2MB, which fits a little less than 2^19 arguments (once the stack frame,
- * callstack, etc. are included). Pick a max args length that is a little less.
- */
-const uint32 JS_ARGS_LENGTH_MAX = JS_BIT(19) - 1024;
-
-/*
- * JSSLOT_ARGS_LENGTH stores ((argc << 1) | overwritten_flag) as an Int32
- * Value.  Thus (JS_ARGS_LENGTH_MAX << 1) | 1 must be less than JSVAL_INT_MAX.
- */
-JS_STATIC_ASSERT(JS_ARGS_LENGTH_MAX <= JS_BIT(30));
-JS_STATIC_ASSERT(((JS_ARGS_LENGTH_MAX << 1) | 1) <= JSVAL_INT_MAX);
 
 extern JSBool
 js_XDRFunctionObject(JSXDRState *xdr, JSObject **objp);

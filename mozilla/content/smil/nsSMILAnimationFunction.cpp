@@ -187,7 +187,9 @@ nsSMILAnimationFunction::SampleAt(nsSMILTime aSampleTime,
     !IsValueFixedForSimpleDuration();
 
   // Are we on a new repeat and accumulating across repeats?
-  mHasChanged |= (mRepeatIteration != aRepeatIteration) && GetAccumulate();
+  if (!mErrorFlags) { // (can't call GetAccumulate() if we've had parse errors)
+    mHasChanged |= (mRepeatIteration != aRepeatIteration) && GetAccumulate();
+  }
 
   mSampleTime       = aSampleTime;
   mSimpleDuration   = aSimpleDuration;
@@ -395,6 +397,10 @@ nsSMILAnimationFunction::InterpolateResult(const nsSMILValueArray& aValues,
     return NS_ERROR_FAILURE;
   }
 
+  if (IsToAnimation() && aBaseValue.IsNull()) {
+    return NS_ERROR_FAILURE;
+  }
+
   // Get the normalised progress through the simple duration.
   //
   // If we have an indefinite simple duration, just set the progress to be
@@ -428,19 +434,15 @@ nsSMILAnimationFunction::InterpolateResult(const nsSMILValueArray& aValues,
     // NS_ABORT_IF_FALSE that tests that intervalProgress is in range will fail.
     double intervalProgress = -1.f;
     if (IsToAnimation()) {
-      if (aBaseValue.IsNull()) {
-        rv = NS_ERROR_FAILURE;
+      from = &aBaseValue;
+      to = &aValues[0];
+      if (calcMode == CALC_PACED) {
+        // Note: key[Times/Splines/Points] are ignored for calcMode="paced"
+        intervalProgress = simpleProgress;
       } else {
-        from = &aBaseValue;
-        to = &aValues[0];
-        if (calcMode == CALC_PACED) {
-          // Note: key[Times/Splines/Points] are ignored for calcMode="paced"
-          intervalProgress = simpleProgress;
-        } else {
-          double scaledSimpleProgress =
-            ScaleSimpleProgress(simpleProgress, calcMode);
-          intervalProgress = ScaleIntervalProgress(scaledSimpleProgress, 0);
-        }
+        double scaledSimpleProgress =
+          ScaleSimpleProgress(simpleProgress, calcMode);
+        intervalProgress = ScaleIntervalProgress(scaledSimpleProgress, 0);
       }
     } else if (calcMode == CALC_PACED) {
       rv = ComputePacedPosition(aValues, simpleProgress,
@@ -474,13 +476,16 @@ nsSMILAnimationFunction::InterpolateResult(const nsSMILValueArray& aValues,
   // Note: If interpolation failed (isn't supported for this type), the SVG
   // spec says to force discrete mode.
   if (calcMode == CALC_DISCRETE || NS_FAILED(rv)) {
+    double scaledSimpleProgress =
+      ScaleSimpleProgress(simpleProgress, CALC_DISCRETE);
     if (IsToAnimation()) {
-      // SMIL 3, 12.6.4: Since a to animation has only 1 value, a discrete to
-      // animation will simply set the to value for the simple duration.
-      aResult = aValues[0];
+      // We don't follow SMIL 3, 12.6.4, where discrete to animations
+      // are the same as <set> animations.  Instead, we treat it as a
+      // discrete animation with two values (the underlying value and
+      // the to="" value), and honor keyTimes="" as well.
+      PRUint32 index = (PRUint32)floor(scaledSimpleProgress * 2);
+      aResult = index == 0 ? aBaseValue : aValues[0];
     } else {
-      double scaledSimpleProgress =
-        ScaleSimpleProgress(simpleProgress, CALC_DISCRETE);
       PRUint32 index = (PRUint32)floor(scaledSimpleProgress * aValues.Length());
       aResult = aValues[index];
     }
@@ -865,11 +870,9 @@ nsSMILAnimationFunction::CheckKeyTimes(PRUint32 aNumValues)
   }
 
   // no. keyTimes == no. values
-  // For to-animation the number of values is considered to be 2 unless it's
-  // discrete to-animation in which case either 1 or 2 is acceptable.
-  PRBool matchingNumOfValues = IsToAnimation() ?
-      calcMode == CALC_DISCRETE ? numKeyTimes <= 2 : numKeyTimes == 2 :
-      numKeyTimes == aNumValues;
+  // For to-animation the number of values is considered to be 2.
+  PRBool matchingNumOfValues =
+    numKeyTimes == (IsToAnimation() ? 2 : aNumValues);
   if (!matchingNumOfValues) {
     SetKeyTimesErrorFlag(PR_TRUE);
     return;

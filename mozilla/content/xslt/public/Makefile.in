@@ -47,13 +47,11 @@ XPIDL_MODULE = content_xslt
 
 EXPORTS		= \
 		nsIDocumentTransformer.h \
-		txDouble.h \
 		$(NULL)
 
 XPIDLSRCS	= \
 		nsIXSLTException.idl  \
 		nsIXSLTProcessor.idl  \
-		nsIXSLTProcessorObsolete.idl  \
 		nsIXSLTProcessorPrivate.idl  \
 		txIFunctionEvaluationContext.idl  \
 		txINodeSet.idl  \

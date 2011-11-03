@@ -45,6 +45,12 @@ LOCAL_INCLUDES += \
 
 OS_LIBS += $(LIBICONV)
 
+ifdef MOZ_MEMORY
+ifeq ($(OS_ARCH),Darwin)
+EXTRA_DSO_LDOPTS += -L$(DIST)/lib -ljemalloc
+endif
+endif
+
 DEFINES += \
 	-D_IMPL_NS_COM \
 	-D_IMPL_NS_STRINGAPI \
@@ -55,14 +61,5 @@ DEFINES += \
 	$(NULL)
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),windows)
-ifneq ($(OS_ARCH),WINCE)
 OS_LIBS += $(call EXPAND_LIBNAME,usp10 oleaut32)
 endif
-endif
-
-export:: dlldeps.cpp
-
-dlldeps.cpp: $(topsrcdir)/xpcom/build/dlldeps.cpp
-	$(INSTALL) $^ .
-
-GARBAGE += dlldeps.cpp

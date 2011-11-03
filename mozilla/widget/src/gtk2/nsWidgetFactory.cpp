@@ -62,13 +62,14 @@
 #include "nsDeviceContextSpecG.h"
 #endif
 
-#include "nsIPrefService.h"
-#include "nsIPrefBranch.h"
+#include "mozilla/Preferences.h"
+
 #include "nsImageToPixbuf.h"
 #include "nsPrintDialogGTK.h"
 
 #if defined(MOZ_X11)
 #include "nsIdleServiceGTK.h"
+#include "GfxInfoX11.h"
 #endif
 
 #ifdef NATIVE_THEME_SUPPORT
@@ -79,6 +80,8 @@
 #include "nsComponentManagerUtils.h"
 #include "nsAutoPtr.h"
 #include <gtk/gtk.h>
+
+using namespace mozilla;
 
 /* from nsFilePicker.js */
 #define XULFILEPICKER_CID \
@@ -138,6 +141,12 @@ nsNativeThemeGTKConstructor(nsISupports *aOuter, REFNSIID aIID,
 
 #if defined(MOZ_X11)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsIdleServiceGTK)
+namespace mozilla {
+namespace widget {
+// This constructor should really be shared with all platforms.
+NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(GfxInfo, Init)
+}
+}
 #endif
 
 #ifdef NS_PRINTING
@@ -157,17 +166,9 @@ nsFilePickerConstructor(nsISupports *aOuter, REFNSIID aIID,
     return NS_ERROR_NO_AGGREGATION;
   }
 
-  PRBool allowPlatformPicker = PR_TRUE;
-  nsCOMPtr<nsIPrefBranch> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID);
-  if (prefs) {
-    PRBool prefAllow;
-    nsresult rv = prefs->GetBoolPref("ui.allow_platform_file_picker",
-                                     &prefAllow);
-    if (NS_SUCCEEDED(rv)) {
-        allowPlatformPicker = prefAllow;
-    }
-  }
-  
+  PRBool allowPlatformPicker =
+      Preferences::GetBool("ui.allow_platform_file_picker", PR_TRUE);
+
   nsCOMPtr<nsIFilePicker> picker;
   if (allowPlatformPicker && gtk_check_version(2,6,3) == NULL) {
       picker = new nsFilePicker;
@@ -257,6 +258,7 @@ NS_DEFINE_NAMED_CID(NS_PRINTDIALOGSERVICE_CID);
 NS_DEFINE_NAMED_CID(NS_IMAGE_TO_PIXBUF_CID);
 #if defined(MOZ_X11)
 NS_DEFINE_NAMED_CID(NS_IDLE_SERVICE_CID);
+NS_DEFINE_NAMED_CID(NS_GFXINFO_CID);
 #endif
 
 
@@ -292,6 +294,7 @@ static const mozilla::Module::CIDEntry kWidgetCIDs[] = {
     { &kNS_IMAGE_TO_PIXBUF_CID, false, NULL, nsImageToPixbufConstructor },
 #if defined(MOZ_X11)
     { &kNS_IDLE_SERVICE_CID, false, NULL, nsIdleServiceGTKConstructor },
+    { &kNS_GFXINFO_CID, false, NULL, mozilla::widget::GfxInfoConstructor },
 #endif
     { NULL }
 };
@@ -328,6 +331,7 @@ static const mozilla::Module::ContractIDEntry kWidgetContracts[] = {
     { "@mozilla.org/widget/image-to-gdk-pixbuf;1", &kNS_IMAGE_TO_PIXBUF_CID },
 #if defined(MOZ_X11)
     { "@mozilla.org/widget/idleservice;1", &kNS_IDLE_SERVICE_CID },
+    { "@mozilla.org/gfx/info;1", &kNS_GFXINFO_CID },
 #endif
     { NULL }
 };

@@ -1,4 +1,5 @@
 /* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+ * vim: set ts=4 sw=4 et tw=79:
  *
  * ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
@@ -47,14 +48,19 @@
 PRBool
 xpc::PtrAndPrincipalHashKey::KeyEquals(const PtrAndPrincipalHashKey* aKey) const
 {
-  if(aKey->mPtr != mPtr)
-    return PR_FALSE;
+    if(aKey->mPtr != mPtr)
+        return PR_FALSE;
+    if(aKey->mPrincipal == mPrincipal)
+        return PR_TRUE;
 
-  if(!mURI || !aKey->mURI)
-      return mURI == aKey->mURI;
+    PRBool equals;
+    if(NS_FAILED(mPrincipal->EqualsIgnoringDomain(aKey->mPrincipal, &equals)))
+    {
+        NS_ERROR("we failed, guessing!");
+        return PR_FALSE;
+    }
 
-  nsIScriptSecurityManager *ssm = nsXPConnect::gScriptSecurityManager;
-  return !ssm || NS_SUCCEEDED(ssm->CheckSameOriginURI(mURI, aKey->mURI, PR_FALSE));
+    return equals;
 }
 
 inline void
@@ -116,16 +122,6 @@ XPCCallContext::GetJSContext() const
 {
     CHECK_STATE(HAVE_CONTEXT);
     return mJSContext;
-}
-
-inline JSContext*
-XPCCallContext::GetSafeJSContext() const
-{
-    CHECK_STATE(HAVE_CONTEXT);
-    JSContext* cx;
-    if(NS_SUCCEEDED(mThreadData->GetJSContextStack()->GetSafeJSContext(&cx)))
-        return cx;
-    return nsnull;
 }
 
 inline JSBool
@@ -265,11 +261,7 @@ XPCCallContext::GetMember() const
 inline JSBool
 XPCCallContext::HasInterfaceAndMember() const
 {
-    return mState >= HAVE_NAME && mInterface && (mMember
-#ifdef XPC_IDISPATCH_SUPPORT
-        || mIDispatchMember
-#endif
-        );
+    return mState >= HAVE_NAME && mInterface && mMember;
 }
 
 inline jsid
@@ -606,65 +598,19 @@ inline void XPCNativeSet::ASSERT_NotMarked()
 inline
 JSObject* XPCWrappedNativeTearOff::GetJSObject() const
 {
-#ifdef XPC_IDISPATCH_SUPPORT
-    if(IsIDispatch())
-    {
-        XPCDispInterface * iface = GetIDispatchInfo();
-        return iface ? iface->GetJSObject() : nsnull;
-    }
-#endif
     return mJSObject;
 }
 
 inline
 void XPCWrappedNativeTearOff::SetJSObject(JSObject*  JSObj)
 {
-#ifdef XPC_IDISPATCH_SUPPORT
-    if(IsIDispatch())
-    {
-        XPCDispInterface* iface = GetIDispatchInfo();
-        if(iface)
-            iface->SetJSObject(JSObj);
-    }
-    else
-#endif
         mJSObject = JSObj;
 }
-
-#ifdef XPC_IDISPATCH_SUPPORT
-inline void
-XPCWrappedNativeTearOff::SetIDispatch(JSContext* cx)
-{
-    mJSObject = (JSObject*)(((jsword)
-        ::XPCDispInterface::NewInstance(cx,
-                                          mNative)) | 2);
-}
-
-inline XPCDispInterface* 
-XPCWrappedNativeTearOff::GetIDispatchInfo() const
-{
-    NS_ASSERTION((jsword)mJSObject & 2, "XPCWrappedNativeTearOff::GetIDispatchInfo "
-                                "called on a non IDispatch interface");
-    return reinterpret_cast<XPCDispInterface*>
-                           ((((jsword)mJSObject) & ~JSOBJECT_MASK));
-}
-
-inline JSBool
-XPCWrappedNativeTearOff::IsIDispatch() const
-{
-    return (JSBool)(((jsword)mJSObject) & IDISPATCH_BIT);
-}
-
-#endif
 
 inline
 XPCWrappedNativeTearOff::~XPCWrappedNativeTearOff()
 {
     NS_ASSERTION(!(GetInterface()||GetNative()||GetJSObject()), "tearoff not empty in dtor");
-#ifdef XPC_IDISPATCH_SUPPORT
-    if(IsIDispatch())
-        delete GetIDispatchInfo();
-#endif
 }
 
 /***************************************************************************/
@@ -732,27 +678,6 @@ xpc_NewSystemInheritingJSObject(JSContext *cx, JSClass *clasp, JSObject *proto,
     if (obj && JS_IsSystemObject(cx, parent) && !JS_MakeSystemObject(cx, obj))
         obj = NULL;
     return obj;
-}
-
-inline JSBool
-xpc_SameScope(XPCWrappedNativeScope *objectscope, XPCWrappedNativeScope *xpcscope,
-              JSBool *sameOrigin)
-{
-    if (objectscope == xpcscope)
-    {
-        *sameOrigin = JS_TRUE;
-        return JS_TRUE;
-    }
-
-    nsIPrincipal *objectprincipal = objectscope->GetPrincipal();
-    nsIPrincipal *xpcprincipal = xpcscope->GetPrincipal();
-    if(!objectprincipal || !xpcprincipal ||
-       NS_FAILED(objectprincipal->Equals(xpcprincipal, sameOrigin)))
-    {
-        *sameOrigin = JS_FALSE;
-    }
-
-    return JS_FALSE;
 }
 
 inline jsid

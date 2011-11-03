@@ -44,7 +44,6 @@
 #include "nsIDOMDocument.h"
 #include "nsIDOMDocumentType.h"
 #include "nsIScriptElement.h"
-#include "nsIDOMNSDocument.h"
 #include "nsIParser.h"
 #include "nsIRefreshURI.h"
 #include "nsPIDOMWindow.h"
@@ -344,7 +343,8 @@ txMozillaXMLOutput::endElement()
             }
         } else if (ns == kNameSpaceID_XHTML &&
                    (localName == nsGkAtoms::input ||
-                    localName == nsGkAtoms::button)) {
+                    localName == nsGkAtoms::button ||
+                    localName == nsGkAtoms::menuitem)) {
           element->DoneCreatingElement();
         }
     }
@@ -562,7 +562,8 @@ txMozillaXMLOutput::startElementInternal(nsIAtom* aPrefix,
 
     // Create the element
     nsCOMPtr<nsINodeInfo> ni;
-    ni = mNodeInfoManager->GetNodeInfo(aLocalName, aPrefix, aNsID);
+    ni = mNodeInfoManager->GetNodeInfo(aLocalName, aPrefix, aNsID,
+                                       nsIDOMNode::ELEMENT_NODE);
     NS_ENSURE_TRUE(ni, NS_ERROR_OUT_OF_MEMORY);
 
     NS_NewElement(getter_AddRefs(mOpenedElement), aNsID, ni.forget(),
@@ -685,7 +686,7 @@ txMozillaXMLOutput::createTxWrapper()
             // The new documentElement should go after the document type.
             // This is needed for cases when there is no existing
             // documentElement in the document.
-            rootLocation = PR_MAX(rootLocation, j + 1);
+            rootLocation = NS_MAX(rootLocation, j + 1);
 #endif
             ++j;
         }
@@ -821,36 +822,30 @@ void txMozillaXMLOutput::processHTTPEquiv(nsIAtom* aHeader, const nsString& aVal
 
 nsresult
 txMozillaXMLOutput::createResultDocument(const nsSubstring& aName, PRInt32 aNsID,
-                                         nsIDOMDocument* aSourceDocument,
-                                         nsIDOMDocument* aResultDocument)
+                                         nsIDOMDocument* aSourceDocument)
 {
     nsresult rv;
 
-    if (!aResultDocument) {
-        // Create the document
-        if (mOutputFormat.mMethod == eHTMLOutput) {
-            rv = NS_NewHTMLDocument(getter_AddRefs(mDocument));
-            NS_ENSURE_SUCCESS(rv, rv);
-        }
-        else {
-            // We should check the root name/namespace here and create the
-            // appropriate document
-            rv = NS_NewXMLDocument(getter_AddRefs(mDocument));
-            NS_ENSURE_SUCCESS(rv, rv);
-        }
-        // This should really be handled by nsIDocument::BeginLoad
-        mDocument->SetReadyStateInternal(nsIDocument::READYSTATE_LOADING);
-        nsCOMPtr<nsIDocument> source = do_QueryInterface(aSourceDocument);
-        NS_ENSURE_STATE(source);
-        PRBool hasHadScriptObject = PR_FALSE;
-        nsIScriptGlobalObject* sgo =
-          source->GetScriptHandlingObject(hasHadScriptObject);
-        NS_ENSURE_STATE(sgo || !hasHadScriptObject);
-        mDocument->SetScriptHandlingObject(sgo);
+    // Create the document
+    if (mOutputFormat.mMethod == eHTMLOutput) {
+        rv = NS_NewHTMLDocument(getter_AddRefs(mDocument));
+        NS_ENSURE_SUCCESS(rv, rv);
     }
     else {
-        mDocument = do_QueryInterface(aResultDocument);
+        // We should check the root name/namespace here and create the
+        // appropriate document
+        rv = NS_NewXMLDocument(getter_AddRefs(mDocument));
+        NS_ENSURE_SUCCESS(rv, rv);
     }
+    // This should really be handled by nsIDocument::BeginLoad
+    mDocument->SetReadyStateInternal(nsIDocument::READYSTATE_LOADING);
+    nsCOMPtr<nsIDocument> source = do_QueryInterface(aSourceDocument);
+    NS_ENSURE_STATE(source);
+    PRBool hasHadScriptObject = PR_FALSE;
+    nsIScriptGlobalObject* sgo =
+      source->GetScriptHandlingObject(hasHadScriptObject);
+    NS_ENSURE_STATE(sgo || !hasHadScriptObject);
+    mDocument->SetScriptHandlingObject(sgo);
 
     mCurrentNode = mDocument;
     mNodeInfoManager = mDocument->NodeInfoManager();
@@ -949,7 +944,7 @@ txMozillaXMLOutput::createResultDocument(const nsSubstring& aName, PRInt32 aNsID
             voidString.SetIsVoid(PR_TRUE);
             rv = NS_NewDOMDocumentType(getter_AddRefs(documentType),
                                        mNodeInfoManager, nsnull,
-                                       doctypeName, nsnull, nsnull,
+                                       doctypeName,
                                        mOutputFormat.mPublicId,
                                        mOutputFormat.mSystemId,
                                        voidString);
@@ -975,7 +970,8 @@ txMozillaXMLOutput::createHTMLElement(nsIAtom* aName,
 
     nsCOMPtr<nsINodeInfo> ni;
     ni = mNodeInfoManager->GetNodeInfo(aName, nsnull,
-                                       kNameSpaceID_XHTML);
+                                       kNameSpaceID_XHTML,
+                                       nsIDOMNode::ELEMENT_NODE);
     NS_ENSURE_TRUE(ni, NS_ERROR_OUT_OF_MEMORY);
 
     return NS_NewHTMLElement(aResult, ni.forget(), mCreatingNewDocument ?
@@ -1085,8 +1081,9 @@ txTransformNotifier::SetOutputDocument(nsIDocument* aDocument)
 void
 txTransformNotifier::SignalTransformEnd(nsresult aResult)
 {
-    if (mInTransform || (NS_SUCCEEDED(aResult) &&
-        mScriptElements.Count() > 0 || mPendingStylesheetCount > 0)) {
+    if (mInTransform ||
+        (NS_SUCCEEDED(aResult) &&
+         (mScriptElements.Count() > 0 || mPendingStylesheetCount > 0))) {
         return;
     }
 

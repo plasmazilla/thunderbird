@@ -39,15 +39,17 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+Components.utils.import("resource:///modules/mailServices.js");
+
 const nsIAbListener = Components.interfaces.nsIAbListener;
 const kPrefMailAddrBookLastNameFirst = "mail.addr_book.lastnamefirst";
+const kPersistCollapseMapStorage = "directoryTree.json";
 
 var cvPrefs = 0;
 var gSearchTimer = null;
 var gStatusText = null;
 var gQueryURIFormat = null;
 var gSearchInput;
-var gDirTree;
 var gSearchBox;
 var gCardViewBox;
 var gCardViewBoxEmail1;
@@ -93,7 +95,7 @@ var gAddressBookAbListener = {
             --gPreviousDirTreeIndex;
 
           // Now get the parent of the row.
-          var newRow = dirTree.view.getParentIndex(gPreviousDirTreeIndex);
+          var newRow = gDirTree.view.getParentIndex(gPreviousDirTreeIndex);
 
           // if we have no parent (i.e. we are an address book), use the
           // previous index.
@@ -101,11 +103,11 @@ var gAddressBookAbListener = {
             newRow = gPreviousDirTreeIndex;
 
           // Fall back to the first address book if we're not in a valid range
-          if (newRow >= dirTree.view.rowCount)
+          if (newRow >= gDirTree.view.rowCount)
             newRow = 0;
 
           // Now select the new item.
-          dirTree.view.selection.select(newRow);
+          gDirTree.view.selection.select(newRow);
         }
       }
     }
@@ -118,10 +120,13 @@ var gAddressBookAbListener = {
 };
 
 function OnUnloadAddressBook()
-{  
-  Components.classes["@mozilla.org/abmanager;1"]
-            .getService(Components.interfaces.nsIAbManager)
-            .removeAddressBookListener(gAddressBookAbListener);
+{
+  MailServices.ab.removeAddressBookListener(gAddressBookAbListener);
+  MailServices.ab.removeAddressBookListener(gDirectoryTreeView);
+
+  // Shutdown the tree view - this will also save the open/collapsed
+  // state of the tree view to a JSON file.
+  gDirectoryTreeView.shutdown(kPersistCollapseMapStorage);
 
   CloseAbView();
 }
@@ -161,8 +166,10 @@ function OnLoadAddressBook()
   abToolbox.customizeDone = AbToolboxCustomizeDone;
   abToolbox.customizeChange = AbToolboxCustomizeChange;
 
-  //workaround - add setTimeout to make sure dynamic overlays get loaded first
-  setTimeout(OnLoadDirTree, 0);
+  // Initialize the Address Book tree view
+  gDirectoryTreeView.init(gDirTree, kPersistCollapseMapStorage);
+
+  SelectFirstAddressBook();
 
   // if the pref is locked disable the menuitem New->LDAP directory
   if (gPrefs.prefIsLocked("ldap_2.disable_button_add"))
@@ -173,28 +180,18 @@ function OnLoadAddressBook()
   // directory item is/are removed. In the case of directory items, we are
   // only really interested in mailing list changes and not cards but we have
   // to have both.
-  Components.classes["@mozilla.org/abmanager;1"]
-            .getService(Components.interfaces.nsIAbManager)
-            .addAddressBookListener(gAddressBookAbListener,
-                                    nsIAbListener.directoryRemoved |
-                                    nsIAbListener.directoryItemRemoved);
+  MailServices.ab.addAddressBookListener(gAddressBookAbListener,
+                                         nsIAbListener.directoryRemoved,
+                                         nsIAbListener.directoryItemRemoved);
+  MailServices.ab.addAddressBookListener(gDirectoryTreeView, nsIAbListener.all);
 
-  var dirTree = GetDirTree();
-  dirTree.addEventListener("click",DirPaneClick,true);
-  dirTree.controllers.appendController(DirPaneController);
+  gDirTree.controllers.appendController(DirPaneController);
 
   // Ensure we don't load xul error pages into the main window
   window.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
         .getInterface(Components.interfaces.nsIWebNavigation)
         .QueryInterface(Components.interfaces.nsIDocShell)
         .useErrorPages = false;
-}
-
-function OnLoadDirTree() {
-  var treeBuilder = dirTree.builder.QueryInterface(Components.interfaces.nsIXULTreeBuilder);
-  treeBuilder.addObserver(abDirTreeObserver);
-
-  SelectFirstAddressBook();
 }
 
 function GetCurrentPrefs()
@@ -225,12 +222,8 @@ function GetCurrentPrefs()
 	if ( menuitem )
 		menuitem.setAttribute('checked', 'true');
 
-  // initialize phonetic 
-  var showPhoneticFields =
-        gPrefs.getComplexValue("mail.addr_book.show_phonetic_fields", 
-                               Components.interfaces.nsIPrefLocalizedString).data;
   // show phonetic fields if indicated by the pref
-  if (showPhoneticFields == "true")
+  if (GetLocalizedStringPref("mail.addr_book.show_phonetic_fields") == "true")
     document.getElementById("cmd_SortBy_PhoneticName")
             .setAttribute("hidden", "false");
 }
@@ -390,31 +383,25 @@ function AbExport()
     if (!selectedABURI) return;
     
     var directory = GetDirectoryFromURI(selectedABURI);
-    Components.classes["@mozilla.org/abmanager;1"]
-              .getService(Components.interfaces.nsIAbManager)
-              .exportAddressBook(window, directory);
+    MailServices.ab.exportAddressBook(window, directory);
   }
   catch (ex) {
-    var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"].getService(Components.interfaces.nsIPromptService);
-
-    if (promptService) {
-      var message;
-      switch (ex.result) {
-        case Components.results.NS_ERROR_FILE_ACCESS_DENIED:
-          message = gAddressBookBundle.getString("failedToExportMessageFileAccessDenied");
-          break;
-        case Components.results.NS_ERROR_FILE_NO_DEVICE_SPACE:
-          message = gAddressBookBundle.getString("failedToExportMessageNoDeviceSpace");
-          break;
-        default:
-          message = ex.message;
-          break;
-      }
-
-      promptService.alert(window,
-        gAddressBookBundle.getString("failedToExportTitle"), 
-        message);
+    var message;
+    switch (ex.result) {
+      case Components.results.NS_ERROR_FILE_ACCESS_DENIED:
+        message = gAddressBookBundle.getString("failedToExportMessageFileAccessDenied");
+        break;
+      case Components.results.NS_ERROR_FILE_NO_DEVICE_SPACE:
+        message = gAddressBookBundle.getString("failedToExportMessageNoDeviceSpace");
+        break;
+      default:
+        message = ex.message;
+        break;
     }
+
+    Services.prompt.alert(window,
+      gAddressBookBundle.getString("failedToExportTitle"), 
+      message);
   }
 }
 
@@ -457,9 +444,7 @@ function onAdvancedAbSearch()
   var selectedABURI = GetSelectedDirectory();
   if (!selectedABURI) return;
 
-  var windowManager = Components.classes['@mozilla.org/appshell/window-mediator;1'].
-                                 getService(Components.interfaces.nsIWindowMediator);
-  var existingSearchWindow = windowManager.getMostRecentWindow("mailnews:absearch");
+  var existingSearchWindow = Services.wm.getMostRecentWindow("mailnews:absearch");
   if (existingSearchWindow)
     existingSearchWindow.focus();
   else
@@ -473,8 +458,7 @@ function onEnterInSearchBar()
   ClearCardViewPane();  
 
   if (!gQueryURIFormat)
-    gQueryURIFormat = gPrefs.getComplexValue("mail.addr_book.quicksearchquery.format", 
-                                              Components.interfaces.nsIPrefLocalizedString).data;
+    gQueryURIFormat = GetLocalizedStringPref("mail.addr_book.quicksearchquery.format");
 
   var searchURI = GetSelectedDirectory();
   if (!searchURI) return;

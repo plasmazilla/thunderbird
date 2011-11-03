@@ -5,7 +5,6 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=147777
 -->
 <head>
   <title>Test for Bug 147777</title>
-  <script type="application/javascript" src="/MochiKit/packed.js"></script>
   <script type="application/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
   <script type="application/javascript" src="/tests/SimpleTest/WindowSnapshot.js"></script>
   <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css"/>
@@ -80,6 +79,7 @@ var gTests = [
   // part of the test don't work right when the link becomes visited.
   //"== first-line-1.html first-line-1-ref.html",
   "== white-to-transparent-1.html white-to-transparent-1-ref.html",
+  "== link-root-1.xhtml link-root-1-ref.xhtml",
 ];
 
 // Maintain a reference count of how many things we're waiting for until

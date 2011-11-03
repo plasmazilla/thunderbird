@@ -71,16 +71,18 @@ enum {
 // (depending on the type of nsGlyphTable where this comes from). The 'font' is a
 // numeric identifier given to the font to which the glyph belongs.
 struct nsGlyphCode {
-  PRUnichar code; 
+  PRUnichar code[2]; 
   PRInt32   font;
 
+  PRInt32 Length() { return (code[1] == PRUnichar('\0') ? 1 : 2); }
   PRBool Exists() const
   {
-    return (code != 0);
+    return (code[0] != 0);
   }
   PRBool operator==(const nsGlyphCode& other) const
   {
-    return other.code == code && other.font == font;
+    return (other.code[0] == code[0] && other.code[1] == code[1] && 
+            other.font == font);
   }
   PRBool operator!=(const nsGlyphCode& other) const
   {
@@ -131,7 +133,7 @@ public:
           const nsRect*           aSelectedRect = nsnull);
           
   void PaintForeground(nsPresContext* aPresContext,
-                       nsIRenderingContext& aRenderingContext,
+                       nsRenderingContext& aRenderingContext,
                        nsPoint aPt,
                        PRBool aIsSelected);
 
@@ -140,7 +142,7 @@ public:
   // @param aDesiredStretchSize - OUT - the size that the char wants
   nsresult
   Stretch(nsPresContext*           aPresContext,
-          nsIRenderingContext&     aRenderingContext,
+          nsRenderingContext&     aRenderingContext,
           nsStretchDirection       aStretchDirection,
           const nsBoundingMetrics& aContainerSize,
           nsBoundingMetrics&       aDesiredStretchSize,
@@ -201,7 +203,7 @@ public:
   // value in app units (PR_TRUE) or a multiplier of the base size (PR_FALSE).
   nscoord
   GetMaxWidth(nsPresContext* aPresContext,
-              nsIRenderingContext& aRenderingContext,
+              nsRenderingContext& aRenderingContext,
               PRUint32 aStretchHint = NS_STRETCH_NORMAL,
               float aMaxSize = NS_MATHML_OPERATOR_SIZE_INFINITY,
               // Perhaps just nsOperatorFlags aFlags.
@@ -263,7 +265,7 @@ private:
   // helper methods
   nsresult
   StretchInternal(nsPresContext*           aPresContext,
-                  nsIRenderingContext&     aRenderingContext,
+                  nsRenderingContext&     aRenderingContext,
                   nsStretchDirection&      aStretchDirection,
                   const nsBoundingMetrics& aContainerSize,
                   nsBoundingMetrics&       aDesiredStretchSize,
@@ -273,7 +275,7 @@ private:
 
   nsresult
   ComposeChildren(nsPresContext*       aPresContext,
-                  nsIRenderingContext& aRenderingContext,
+                  nsRenderingContext& aRenderingContext,
                   nsGlyphTable*        aGlyphTable,
                   nscoord              aTargetSize,
                   nsBoundingMetrics&   aCompositeSize,
@@ -281,7 +283,7 @@ private:
 
   nsresult
   PaintVertically(nsPresContext*       aPresContext,
-                  nsIRenderingContext& aRenderingContext,
+                  nsRenderingContext& aRenderingContext,
                   nsFont&              aFont,
                   nsStyleContext*      aStyleContext,
                   nsGlyphTable*        aGlyphTable,
@@ -289,14 +291,14 @@ private:
 
   nsresult
   PaintHorizontally(nsPresContext*       aPresContext,
-                    nsIRenderingContext& aRenderingContext,
+                    nsRenderingContext& aRenderingContext,
                     nsFont&              aFont,
                     nsStyleContext*      aStyleContext,
                     nsGlyphTable*        aGlyphTable,
                     nsRect&              aRect);
 
   void
-  ApplyTransforms(nsIRenderingContext& aRenderingContext, nsRect &r);
+  ApplyTransforms(nsRenderingContext& aRenderingContext, nsRect &r);
 };
 
 #endif /* nsMathMLChar_h___ */

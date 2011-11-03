@@ -56,7 +56,6 @@
 #include "nsIDOMNode.h"
 #include "nsIDOMElement.h"
 #include "nsIDOMNodeList.h"
-#include "nsIDOMWindowInternal.h"
 #include "nsIDOMXULElement.h"
 #include "nsIXULBrowserWindow.h"
 
@@ -354,6 +353,13 @@ nsChromeTreeOwner::GetPersistence(PRBool* aPersistPosition,
   if (aPersistSizeMode)
     *aPersistSizeMode = persistString.Find(gLiterals->kSizemode) > kNotFound;
 
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsChromeTreeOwner::GetTargetableShellCount(PRUint32* aResult)
+{
+  *aResult = 0;
   return NS_OK;
 }
 

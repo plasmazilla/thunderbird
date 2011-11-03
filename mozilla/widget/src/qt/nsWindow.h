@@ -127,7 +127,7 @@ public:
                               nsNativeWidget   aNativeParent,
                               const nsIntRect  &aRect,
                               EVENT_CALLBACK   aHandleEventFunction,
-                              nsIDeviceContext *aContext,
+                              nsDeviceContext *aContext,
                               nsIAppShell      *aAppShell,
                               nsIToolkit       *aToolkit,
                               nsWidgetInitData *aInitData);
@@ -135,7 +135,7 @@ public:
     virtual already_AddRefed<nsIWidget>
     CreateChild(const nsIntRect&  aRect,
                 EVENT_CALLBACK    aHandleEventFunction,
-                nsIDeviceContext* aContext,
+                nsDeviceContext* aContext,
                 nsIAppShell*      aAppShell = nsnull,
                 nsIToolkit*       aToolkit = nsnull,
                 nsWidgetInitData* aInitData = nsnull,
@@ -345,7 +345,8 @@ private:
     nsresult           SetWindowIconList(const nsTArray<nsCString> &aIconList);
     void               SetDefaultIcon(void);
     void               InitButtonEvent(nsMouseEvent &event, QGraphicsSceneMouseEvent *aEvent, int aClickCount = 1);
-    PRBool             DispatchCommandEvent(nsIAtom* aCommand);
+    nsEventStatus      DispatchCommandEvent(nsIAtom* aCommand);
+    nsEventStatus      DispatchContentCommandEvent(PRInt32 aMsg);
     MozQWidget*        createQWidget(MozQWidget *parent, nsWidgetInitData *aInitData);
 
     PRBool             IsAcceleratedQView(QGraphicsView* aView);

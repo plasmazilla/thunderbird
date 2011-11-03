@@ -45,7 +45,7 @@
 #include "nsIMutationObserver2.h"
 #include "nsIDocument.h"
 #include "nsIDOMUserDataHandler.h"
-#include "nsIEventListenerManager.h"
+#include "nsEventListenerManager.h"
 #include "nsIAttribute.h"
 #include "nsIXPConnect.h"
 #include "nsGenericElement.h"
@@ -287,7 +287,7 @@ nsNodeUtils::LastRelease(nsINode* aNode)
   if (aNode->HasFlag(NODE_HAS_LISTENERMANAGER)) {
 #ifdef DEBUG
     if (nsContentUtils::IsInitialized()) {
-      nsIEventListenerManager* manager =
+      nsEventListenerManager* manager =
         nsContentUtils::GetListenerManager(aNode, PR_FALSE);
       if (!manager) {
         NS_ERROR("Huh, our bit says we have a listener manager list, "
@@ -363,6 +363,16 @@ nsNodeUtils::CallUserDataHandlers(nsCOMArray<nsINode> &aNodesWithProperties,
   NS_PRECONDITION(!aCloned || (aNodesWithProperties.Count() % 2 == 0),
                   "Expected aNodesWithProperties to contain original and "
                   "cloned nodes.");
+
+  if (!nsContentUtils::IsSafeToRunScript()) {
+    if (nsContentUtils::IsChromeDoc(aOwnerDocument)) {
+      NS_WARNING("Fix the caller! Userdata callback disabled.");
+    } else {
+      NS_ERROR("This is unsafe! Fix the caller! Userdata callback disabled.");
+    }
+
+    return NS_OK;
+  }
 
   nsPropertyTable *table = aOwnerDocument->PropertyTable(DOM_USER_DATA_HANDLER);
 
@@ -492,7 +502,9 @@ nsNodeUtils::CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
 
     newNodeInfo = nodeInfoManager->GetNodeInfo(nodeInfo->NameAtom(),
                                                nodeInfo->GetPrefixAtom(),
-                                               nodeInfo->NamespaceID());
+                                               nodeInfo->NamespaceID(),
+                                               nodeInfo->NodeType(),
+                                               nodeInfo->GetExtraName());
     NS_ENSURE_TRUE(newNodeInfo, NS_ERROR_OUT_OF_MEMORY);
 
     nodeInfo = newNodeInfo;
@@ -503,7 +515,6 @@ nsNodeUtils::CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
                            nsnull;
 
   nsCOMPtr<nsINode> clone;
-  PRBool isDeepDocumentClone = PR_FALSE;
   if (aClone) {
     rv = aNode->Clone(nodeInfo, getter_AddRefs(clone));
     NS_ENSURE_SUCCESS(rv, rv);
@@ -516,7 +527,6 @@ nsNodeUtils::CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
       NS_ENSURE_SUCCESS(rv, rv);
     }
     else if (aDeep && clone->IsNodeOfType(nsINode::eDOCUMENT)) {
-      isDeepDocumentClone = PR_TRUE;
       // After cloning the document itself, we want to clone the children into
       // the cloned document (somewhat like cloning and importing them into the
       // cloned document).
@@ -547,7 +557,7 @@ nsNodeUtils::CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
 
       nsPIDOMWindow* window = newDoc->GetInnerWindow();
       if (window) {
-        nsIEventListenerManager* elm = aNode->GetListenerManager(PR_FALSE);
+        nsEventListenerManager* elm = aNode->GetListenerManager(PR_FALSE);
         if (elm) {
           window->SetMutationListeners(elm->MutationListenerBits());
           if (elm->MayHavePaintEventListener()) {
@@ -558,6 +568,9 @@ nsNodeUtils::CloneAndAdopt(nsINode *aNode, PRBool aClone, PRBool aDeep,
             window->SetHasAudioAvailableEventListeners();
           }
 #endif
+          if (elm->MayHaveTouchEventListener()) {
+            window->SetHasTouchEventListeners();
+          }
         }
       }
     }

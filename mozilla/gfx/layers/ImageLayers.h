@@ -43,8 +43,9 @@
 #include "gfxPattern.h"
 #include "nsThreadUtils.h"
 #include "nsCoreAnimationSupport.h"
-#include "mozilla/Monitor.h"
+#include "mozilla/ReentrantMonitor.h"
 #include "mozilla/TimeStamp.h"
+#include "mozilla/mozalloc.h"
 
 namespace mozilla {
 namespace layers {
@@ -134,7 +135,7 @@ class THEBES_API ImageContainer {
 
 public:
   ImageContainer() :
-    mMonitor("ImageContainer"),
+    mReentrantMonitor("ImageContainer.mReentrantMonitor"),
     mPaintCount(0),
     mPreviousImagePainted(PR_FALSE)
   {}
@@ -146,8 +147,8 @@ public:
    * Picks the "best" format from the list and creates an Image of that
    * format.
    * Returns null if this backend does not support any of the formats.
-   * Can be called on any thread. This method takes mMonitor when accessing
-   * thread-shared state.
+   * Can be called on any thread. This method takes mReentrantMonitor
+   * when accessing thread-shared state.
    */
   virtual already_AddRefed<Image> CreateImage(const Image::Format* aFormats,
                                               PRUint32 aNumFormats) = 0;
@@ -155,22 +156,28 @@ public:
   /**
    * Set an Image as the current image to display. The Image must have
    * been created by this ImageContainer.
-   * Can be called on any thread. This method takes mMonitor when accessing
-   * thread-shared state.
+   * Can be called on any thread. This method takes mReentrantMonitor
+   * when accessing thread-shared state.
    * 
    * The Image data must not be modified after this method is called!
    */
   virtual void SetCurrentImage(Image* aImage) = 0;
 
   /**
+   * Ask any PlanarYCbCr images created by this container to delay
+   * YUV -> RGB conversion until draw time. See PlanarYCbCrImage::SetDelayedConversion.
+   */
+  virtual void SetDelayedConversion(PRBool aDelayed) {}
+
+  /**
    * Get the current Image.
    * This has to add a reference since otherwise there are race conditions
    * where the current image is destroyed before the caller can add
    * a reference.
-   * Can be called on any thread. This method takes mMonitor when accessing
-   * thread-shared state.
-   * Implementations must call CurrentImageChanged() while holding mMonitor.
-   *
+   * Can be called on any thread. This method takes mReentrantMonitor
+   * when accessing thread-shared state.
+   * Implementations must call CurrentImageChanged() while holding
+   * mReentrantMonitor.
    */
   virtual already_AddRefed<Image> GetCurrentImage() = 0;
 
@@ -186,8 +193,8 @@ public:
    * Returns the size in aSize.
    * The returned surface will never be modified. The caller must not
    * modify it.
-   * Can be called on any thread. This method takes mMonitor when accessing
-   * thread-shared state.
+   * Can be called on any thread. This method takes mReentrantMonitor
+   * when accessing thread-shared state.
    */
   virtual already_AddRefed<gfxASurface> GetCurrentAsSurface(gfxIntSize* aSizeResult) = 0;
 
@@ -204,7 +211,7 @@ public:
 
   /**
    * Returns the size of the image in pixels.
-   * Can be called on any thread. This method takes mMonitor when accessing
+   * Can be called on any thread. This method takes mReentrantMonitor when accessing
    * thread-shared state.
    */
   virtual gfxIntSize GetCurrentSize() = 0;
@@ -220,8 +227,8 @@ public:
    * Sets a size that the image is expected to be rendered at.
    * This is a hint for image backends to optimize scaling.
    * Default implementation in this class is to ignore the hint.
-   * Can be called on any thread. This method takes mMonitor when accessing
-   * thread-shared state.
+   * Can be called on any thread. This method takes mReentrantMonitor
+   * when accessing thread-shared state.
    */
   virtual void SetScaleHint(const gfxIntSize& /* aScaleHint */) { }
 
@@ -239,7 +246,7 @@ public:
    * has not yet been painted.  Can be called from any thread.
    */
   TimeStamp GetPaintTime() {
-    MonitorAutoEnter mon(mMonitor);
+    ReentrantMonitorAutoEnter mon(mReentrantMonitor);
     return mPaintTime;
   }
 
@@ -248,7 +255,7 @@ public:
    * and painted at least once.  Can be called from any thread.
    */
   PRUint32 GetPaintCount() {
-    MonitorAutoEnter mon(mMonitor);
+    ReentrantMonitorAutoEnter mon(mReentrantMonitor);
     return mPaintCount;
   }
 
@@ -258,7 +265,7 @@ public:
    * current image.  Can be called from any thread.
    */
   void NotifyPaintedImage(Image* aPainted) {
-    MonitorAutoEnter mon(mMonitor);
+    ReentrantMonitorAutoEnter mon(mReentrantMonitor);
     nsRefPtr<Image> current = GetCurrentImage();
     if (aPainted == current) {
       if (mPaintTime.IsNull()) {
@@ -275,25 +282,25 @@ public:
   }
 
 protected:
-  typedef mozilla::Monitor Monitor;
+  typedef mozilla::ReentrantMonitor ReentrantMonitor;
   LayerManager* mManager;
 
-  // Monitor to protect thread safe access to the "current image", and any
-  // other state which is shared between threads.
-  Monitor mMonitor;
+  // ReentrantMonitor to protect thread safe access to the "current
+  // image", and any other state which is shared between threads.
+  ReentrantMonitor mReentrantMonitor;
 
   ImageContainer(LayerManager* aManager) :
     mManager(aManager),
-    mMonitor("ImageContainer"),
+    mReentrantMonitor("ImageContainer.mReentrantMonitor"),
     mPaintCount(0),
     mPreviousImagePainted(PR_FALSE)
   {}
 
   // Performs necessary housekeeping to ensure the painted frame statistics
   // are accurate. Must be called by SetCurrentImage() implementations with
-  // mMonitor held.
+  // mReentrantMonitor held.
   void CurrentImageChanged() {
-    mMonitor.AssertCurrentThreadIn();
+    mReentrantMonitor.AssertCurrentThreadIn();
     mPreviousImagePainted = !mPaintTime.IsNull();
     mPaintTime = TimeStamp();
   }
@@ -344,7 +351,7 @@ public:
     gfxRect snap(0, 0, 0, 0);
     if (mContainer) {
       gfxIntSize size = mContainer->GetCurrentSize();
-      snap.size = gfxSize(size.width, size.height);
+      snap.SizeTo(gfxSize(size.width, size.height));
     }
     // Snap our local transform first, and snap the inherited transform as well.
     // This makes our snapping equivalent to what would happen if our content
@@ -401,6 +408,12 @@ public:
     PRUint32 mPicY;
     gfxIntSize mPicSize;
     StereoMode mStereoMode;
+
+    nsIntRect GetPictureRect() const {
+      return nsIntRect(mPicX, mPicY,
+                       mPicSize.width,
+                       mPicSize.height);
+    }
   };
 
   enum {
@@ -414,6 +427,37 @@ public:
    * does YCbCr conversion here anyway.
    */
   virtual void SetData(const Data& aData) = 0;
+
+  /**
+   * Ask this Image to not convert YUV to RGB during SetData, and make
+   * the original data available through GetData. This is optional,
+   * and not all PlanarYCbCrImages will support it.
+   */
+  virtual void SetDelayedConversion(PRBool aDelayed) { }
+
+  /**
+   * Grab the original YUV data. This is optional.
+   */
+  virtual const Data* GetData() { return nsnull; }
+
+  /**
+   * Make a copy of the YCbCr data.
+   *
+   * @param aDest           Data object to store the plane data in.
+   * @param aDestSize       Size of the Y plane that was copied.
+   * @param aDestBufferSize Number of bytes allocated for storage.
+   * @param aData           Input image data.
+   * @return                Raw data pointer for the planes or nsnull on failure.
+   */
+  PRUint8 *CopyData(Data& aDest, gfxIntSize& aDestSize,
+                    PRUint32& aDestBufferSize, const Data& aData);
+
+  virtual PRUint8* AllocateBuffer(PRUint32 aSize);
+
+  /**
+   * Return the number of bytes of heap memory used to store this image.
+   */
+  virtual PRUint32 GetDataSize() = 0;
 
 protected:
   PlanarYCbCrImage(void* aImplData) : Image(aImplData, PLANAR_YCBCR) {}

@@ -54,7 +54,6 @@
 #include "prlink.h"
 
 #include "nsFilePicker.h"
-#include "nsAccessibilityHelper.h"
 
 #if (MOZ_PLATFORM_MAEMO == 5)
 #include <hildon-fm-2/hildon/hildon-file-chooser-dialog.h>
@@ -136,19 +135,30 @@ UpdateFilePreviewWidget(GtkFileChooser *file_chooser,
     return;
   }
 
-  // We do this so GTK scales down images that are too big, but not scale up images that are too small
-  GdkPixbuf *preview_pixbuf = gdk_pixbuf_new_from_file(image_filename, NULL);
-  if (!preview_pixbuf) {
+  gint preview_width = 0;
+  gint preview_height = 0;
+  GdkPixbufFormat *preview_format = gdk_pixbuf_get_file_info(image_filename,
+                                                             &preview_width,
+                                                             &preview_height);
+  if (!preview_format) {
     g_free(image_filename);
     gtk_file_chooser_set_preview_widget_active(file_chooser, FALSE);
     return;
   }
-  if (gdk_pixbuf_get_width(preview_pixbuf) > MAX_PREVIEW_SIZE || gdk_pixbuf_get_height(preview_pixbuf) > MAX_PREVIEW_SIZE) {
-    g_object_unref(preview_pixbuf);
-    preview_pixbuf = gdk_pixbuf_new_from_file_at_size(image_filename, MAX_PREVIEW_SIZE, MAX_PREVIEW_SIZE, NULL);
+
+  GdkPixbuf *preview_pixbuf;
+  // Only scale down images that are too big
+  if (preview_width > MAX_PREVIEW_SIZE || preview_height > MAX_PREVIEW_SIZE) {
+    preview_pixbuf = gdk_pixbuf_new_from_file_at_size(image_filename,
+                                                      MAX_PREVIEW_SIZE,
+                                                      MAX_PREVIEW_SIZE, NULL);
+  }
+  else {
+    preview_pixbuf = gdk_pixbuf_new_from_file(image_filename, NULL);
   }
 
   g_free(image_filename);
+
   if (!preview_pixbuf) {
     gtk_file_chooser_set_preview_widget_active(file_chooser, FALSE);
     return;
@@ -414,7 +424,7 @@ confirm_overwrite_file(GtkWidget *parent, nsILocalFile* file)
     gtk_window_group_add_window(parent_window->group, GTK_WINDOW(dialog));
   }
 
-  PRBool result = (RunDialog(GTK_DIALOG(dialog)) == GTK_RESPONSE_YES);
+  PRBool result = (gtk_dialog_run(GTK_DIALOG(dialog)) == GTK_RESPONSE_YES);
 
   gtk_widget_destroy(dialog);
 
@@ -539,7 +549,7 @@ nsFilePicker::Show(PRInt16 *aReturn)
   }
 
   gtk_file_chooser_set_do_overwrite_confirmation(GTK_FILE_CHOOSER(file_chooser), PR_TRUE);
-  gint response = RunDialog(GTK_DIALOG(file_chooser));
+  gint response = gtk_dialog_run(GTK_DIALOG(file_chooser));
 
   switch (response) {
     case GTK_RESPONSE_OK:

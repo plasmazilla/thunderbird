@@ -110,6 +110,8 @@ components/xptitemp.dat
 components/myspell/en-US.dic
 components/myspell/en-US.aff
 components/myspell/
+D3DCompiler_42.dll
+d3dx9_42.dll
 defaults/isp/dotmac.rdf
 defaults/isp/movemail.rdf
 defaults/isp/rss.rdf
@@ -226,6 +228,7 @@ mozilla-runtime@BIN_SUFFIX@
   ../Plug-Ins/PrintPDE.plugin/Contents/Resources/English.lproj/PrintPDE.nib/objects.xib
 #endif
 plugins/
+README.txt
 res/bloatcycle.html
 res/broken-image.gif
 res/cmessage.txt
@@ -284,7 +287,13 @@ uninstall/uninstall.exe
 #endif
 .autoreg
 component.reg
+#ifdef XP_MACOSX
+#ifndef MOZ_MEMORY_DARWIN
 @DLL_PREFIX@jemalloc@DLL_SUFFIX@
+#endif
+#else
+@DLL_PREFIX@jemalloc@DLL_SUFFIX@
+#endif
 #ifdef XP_WIN
   #ifdef MOZ_MEMORY
     Microsoft.VC80.CRT.manifest

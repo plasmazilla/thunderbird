@@ -74,9 +74,7 @@
 #include "nsDragService.h"
 #include "nsGfxCIID.h"
 #include "nsHashKeys.h"
-#include "nsIDeviceContext.h"
 #include "nsIMenuRollup.h"
-#include "nsIPrefService.h"
 #include "nsIRollupListener.h"
 #include "nsIScreenManager.h"
 #include "nsOS2Uni.h"
@@ -84,6 +82,10 @@
 #include "nsToolkit.h"
 #include "nsWidgetAtoms.h"
 #include "wdgtos2rc.h"
+
+#include "mozilla/Preferences.h"
+
+using namespace mozilla;
 
 //=============================================================================
 //  Macros
@@ -310,14 +312,8 @@ void nsWindow::InitGlobals()
   // it scroll messages. Needless to say, no Mozilla window has real scroll
   // bars. So if you have the "os2.trackpoint" preference set, we put an
   // invisible scroll bar on every child window so we can scroll.
-  nsresult rv;
-  nsCOMPtr<nsIPrefBranch> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
-  if (NS_SUCCEEDED(rv) && prefs) {
-    PRBool isTrackPoint = PR_FALSE;
-    prefs->GetBoolPref("os2.trackpoint", &isTrackPoint);
-    if (isTrackPoint) {
-      gOS2Flags |= kIsTrackPoint;
-    }
+  if (Preferences::GetBool("os2.trackpoint", PR_FALSE)) {
+    gOS2Flags |= kIsTrackPoint;
   }
 }
 
@@ -339,7 +335,7 @@ NS_METHOD nsWindow::Create(nsIWidget* aParent,
                            nsNativeWidget aNativeParent,
                            const nsIntRect& aRect,
                            EVENT_CALLBACK aHandleEventFunction,
-                           nsIDeviceContext* aContext,
+                           nsDeviceContext* aContext,
                            nsIAppShell* aAppShell,
                            nsIToolkit* aToolkit,
                            nsWidgetInitData* aInitData)
@@ -364,32 +360,9 @@ NS_METHOD nsWindow::Create(nsIWidget* aParent,
     }
   }
 
-  // Save the event callback function.
-  mEventCallback = aHandleEventFunction;
+  BaseCreate(aParent, aRect, aHandleEventFunction,
+             aContext, aAppShell, aToolkit, aInitData);
 
-  // Make sure a device context exists.
-  if (aContext) {
-    mContext = aContext;
-    NS_ADDREF(mContext);
-  } else {
-    static NS_DEFINE_IID(kDeviceContextCID, NS_DEVICE_CONTEXT_CID);
-    nsresult rv = CallCreateInstance(kDeviceContextCID, &mContext);
-    NS_ENSURE_SUCCESS(rv, rv);
-    mContext->Init(nsnull);
-  }
-
-  // XXX Toolkit is obsolete & will be removed.
-  if (!mToolkit) {
-    if (aToolkit) {
-      mToolkit = aToolkit;
-    } else if (pParent) {
-      mToolkit = pParent->GetToolkit();
-    } else {
-      mToolkit = new nsToolkit;
-      mToolkit->Init(PR_GetCurrentThread());
-    }
-    NS_ADDREF(mToolkit);
-  }
 
 #ifdef DEBUG_FOCUS
   mWindowIdentifier = currentWindowIdentifier;
@@ -398,9 +371,6 @@ NS_METHOD nsWindow::Create(nsIWidget* aParent,
 
   // Some basic initialization.
   if (aInitData) {
-    mWindowType = aInitData->mWindowType;
-    mBorderStyle = aInitData->mBorderStyle;
-
     // Suppress creation of a Thebes surface for windows that will never
     // be painted because they're always covered by another window.
     if (mWindowType == eWindowType_toplevel ||
@@ -1045,7 +1015,7 @@ void nsWindow::SetPluginClipRegion(const Configuration& aConfiguration)
 
   // If nothing has changed, exit.
   if (!StoreWindowClipRegion(aConfiguration.mClipRegion) &&
-      mBounds == aConfiguration.mBounds) {
+      mBounds.IsEqualInterior(aConfiguration.mBounds)) {
     return;
   }
 

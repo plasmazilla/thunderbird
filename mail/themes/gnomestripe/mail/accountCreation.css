@@ -1,27 +1,16 @@
 /* ::::: BUTTONS ::::: */
 
-.larger-button {
-  font-size: 1.1em;
-}
-
-.smaller-button {
-  font-size: 0.85em;
-}
-
-#back_button {
-  border: none;
-  -moz-appearance: none;
-  color: -moz-nativehyperlinktext;
-  text-decoration: underline;
-  background-color: inherit;
-  cursor: pointer;
+.important-button {
+  font-weight: bold;
 }
 
 .errordescription {
+  color: InfoText;
   background-color: InfoBackground;
   border-radius: 4px;
   margin-top: 3px;
   -moz-padding-start: 3px;
+  -moz-padding-end: 3px;
 }
 
 .initialDesc, .columnHeader {

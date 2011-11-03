@@ -43,7 +43,7 @@
 
 Components.utils.import("resource:///modules/mailServices.js");
 
-var gDirTree = 0;
+var gDirTree;
 var abList = 0;
 var gAbResultsTree = null;
 var gAbView = null;
@@ -302,20 +302,23 @@ function AbDelete()
 
   var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"].getService(Components.interfaces.nsIPromptService);
   // If at least one mailing list is selected then prompt users for deletion.
-  if (types != kCardsOnly)
-  {
-    var confirmDeleteMessage;
-    if (types == kListsAndCards)
-      confirmDeleteMessage = gAddressBookBundle.getString("confirmDeleteListsAndContacts");
-    else if (types == kMultipleListsOnly)
-      confirmDeleteMessage = gAddressBookBundle.getString("confirmDeleteMailingLists");
+
+  var confirmDeleteMessage;
+  if (types == kListsAndCards)
+    confirmDeleteMessage = gAddressBookBundle.getString("confirmDeleteListsAndContacts");
+  else if (types == kMultipleListsOnly)
+    confirmDeleteMessage = gAddressBookBundle.getString("confirmDeleteMailingLists");
+  else if (types == kSingleListOnly)
+    confirmDeleteMessage = gAddressBookBundle.getString("confirmDeleteMailingList");
+  else if (types == kCardsOnly && gAbView && gAbView.selection) {
+    if (gAbView.selection.count < 2)
+      confirmDeleteMessage = gAddressBookBundle.getString("confirmDeleteContact");
     else
-      confirmDeleteMessage = gAddressBookBundle.getString("confirmDeleteMailingList");
-    if (!promptService.confirm(window, null, confirmDeleteMessage))
-      return;
+      confirmDeleteMessage = gAddressBookBundle.getString("confirmDeleteContacts");
   }
 
-  gAbView.deleteSelectedCards();
+  if (confirmDeleteMessage && promptService.confirm(window, null, confirmDeleteMessage))
+    gAbView.deleteSelectedCards();
 }
 
 function AbNewCard()
@@ -354,9 +357,31 @@ function AbNewMessage()
     if (composeFields)
     {
       if (DirPaneHasFocus())
-        composeFields.to = GetSelectedAddressesFromDirTree();
+      {
+        var directory = gDirectoryTreeView.getDirectoryAtIndex(gDirTree.currentIndex);
+        var hidesRecipients = false;
+
+        try {
+          // This is a bit of hackery so that extensions can have mailing lists
+          // where recipients are sent messages via BCC.
+          hidesRecipients = directory.getBoolValue("HidesRecipients", false);
+        } catch(e) {
+          // Standard Thunderbird mailing lists do not have preferences
+          // associated with them, so we'll silently eat the error.
+        }
+
+        if (directory && directory.isMailList && hidesRecipients)
+          // Bug 669301 (https://bugzilla.mozilla.org/show_bug.cgi?id=669301)
+          // We're using BCC right now to hide recipients from one another.
+          // We should probably use group syntax, but that's broken
+          // right now, so this will have to do.
+          composeFields.bcc = GetSelectedAddressesFromDirTree();
+        else
+          composeFields.to = GetSelectedAddressesFromDirTree();
+      }
       else
         composeFields.to = GetSelectedAddresses();
+
       params.composeFields = composeFields;
       msgComposeService.OpenComposeWindowWithParams(null, params);
     }
@@ -623,15 +648,20 @@ function GetSelectedDirectory()
 
 function onAbClearSearch()
 {
-  gSearchInput.value = "";
+  var searchInput = document.getElementById("peopleSearchInput");
+  if (searchInput)
+    searchInput.value = "";
   onEnterInSearchBar();
 }
 
 // sets focus into the quick search box
 function QuickSearchFocus()
 {
-  gSearchInput.focus();
-  gSearchInput.select();
+  var searchInput = document.getElementById("peopleSearchInput");
+  if (searchInput) {
+    searchInput.focus();
+    searchInput.select();
+  }
 }
 
 var gQuickSearchFocusEl = null;
@@ -970,7 +1000,8 @@ function saveStreamToFile(aIStream, aFile) {
  *
  * @return An nsIFile representation of the photo.
  */
-function savePhoto(aUri) {
+function storePhoto(aUri)
+{
   if (!aUri)
     return false;
 
@@ -1032,3 +1063,5 @@ function makePhotoFile(aDir, aExtension) {
   } while (newFile.exists());
   return newFile;
 }
+
+

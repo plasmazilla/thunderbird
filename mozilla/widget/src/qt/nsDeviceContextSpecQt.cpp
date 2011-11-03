@@ -56,11 +56,8 @@
 
 #include "nsDeviceContextSpecQt.h"
 
-#include "nsIPrefService.h"
-#include "nsIPrefBranch.h"
 #include "prenv.h" /* for PR_GetEnv */
 
-#include "nsPrintfCString.h"
 #include "nsReadableUtils.h"
 #include "nsStringEnumerator.h"
 #include "nsIServiceManager.h"

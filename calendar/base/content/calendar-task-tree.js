@@ -29,6 +29,7 @@
  *                 Michael Buettner <michael.buettner@sun.com>
  *                 Philipp Kewisch <mozilla@kewis.ch>
  *                 Berend Cornelius <berend.cornelius@sun.com>
+ *                 Matthew Mecca <matthew.mecca@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -96,6 +97,8 @@ function addCategoryNames(aEvent) {
  * @param aEvent    The popupshowing event of the opening menu.
  */
 function changeContextMenuForTask(aEvent) {
+    handleTaskContextMenuStateChange(aEvent);
+
     let idnode = document.popupNode.id;
     let sunbird = cal.isSunbird();
     let items = getSelectedTasks(aEvent);
@@ -107,6 +110,11 @@ function changeContextMenuForTask(aEvent) {
         (idnode == "calendar-task-tree" || sunbird);
     document.getElementById("task-context-menu-modify-todaypane").hidden =
         (idnode == "calendar-task-tree" || sunbird);
+    document.getElementById("task-context-menu-filter-todaypane").hidden =
+        (idnode == "calendar-task-tree" || sunbird);
+    document.getElementById("task-context-menu-separator-filter").hidden =
+        (idnode == "calendar-task-tree" || sunbird);
+
     let tasksSelected = (items.length > 0);
     applyAttributeToMenuChildren(aEvent.target, "disabled", (!tasksSelected));
     if (calendarController.isCommandEnabled("calendar_new_todo_command") &&
@@ -118,10 +126,28 @@ function changeContextMenuForTask(aEvent) {
         document.getElementById("calendar_new_todo_todaypane_command").setAttribute("disabled", "true");
     }
 
+    // make sure the filter menu is enabled
+    document.getElementById("task-context-menu-filter-todaypane").removeAttribute("disabled");
+    applyAttributeToMenuChildren(document.getElementById("task-context-menu-filter-todaypane-popup"),
+                                 "disabled", false);
+
     changeMenuForTask(aEvent);
 
     let menu = document.getElementById("task-context-menu-attendance-menu");
     setupAttendanceMenu(menu, items);
+}
+
+/**
+ * Notify the task tree that the context menu open state has changed.
+ *
+ * @param aEvent    The popupshowing or popuphiding event of the menu.
+ */
+function handleTaskContextMenuStateChange(aEvent) {
+    let tree = document.popupNode;
+
+    if (tree) {
+        tree.updateFocus();
+    }
 }
 
 /**

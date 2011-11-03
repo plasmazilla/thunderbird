@@ -89,6 +89,7 @@
 #include "prio.h"
 #include "mozilla/FunctionTimer.h"
 #include "ManifestParser.h"
+#include "mozilla/Services.h"
 
 #include "nsManifestLineReader.h"
 #include "mozilla/GenericFactory.h"
@@ -173,8 +174,6 @@ NS_DEFINE_CID(kCategoryManagerCID, NS_CATEGORYMANAGER_CID);
 #define COMPMGR_TIME_FUNCTION_CID(cid) do {} while (0)
 #define COMPMGR_TIME_FUNCTION_CONTRACTID(cid) do {} while (0)
 #endif
-
-#define kOMNIJAR_PREFIX  NS_LITERAL_CSTRING("resource:///")
 
 nsresult
 nsGetServiceFromCategory::operator()(const nsIID& aIID, void** aInstancePtr) const
@@ -308,11 +307,9 @@ nsComponentManagerImpl::InitializeStaticModules()
         return;
 
     sStaticModules = new nsTArray<const mozilla::Module*>;
-#ifdef MOZ_ENABLE_LIBXUL
     for (const mozilla::Module *const *const *staticModules = kPStaticModules;
          *staticModules; ++staticModules)
         sStaticModules->AppendElement(**staticModules);
-#endif
 }
 
 nsTArray<nsComponentManagerImpl::ComponentLocation>*
@@ -385,14 +382,20 @@ nsresult nsComponentManagerImpl::Init()
     for (PRUint32 i = 0; i < sStaticModules->Length(); ++i)
         RegisterModule((*sStaticModules)[i], NULL);
 
-#ifdef MOZ_OMNIJAR
-    if (mozilla::OmnijarPath()) {
-        nsCOMPtr<nsIZipReader> omnijarReader = new nsJAR();
-        rv = omnijarReader->Open(mozilla::OmnijarPath());
-        if (NS_SUCCEEDED(rv))
-            RegisterJarManifest(omnijarReader, "chrome.manifest", false);
+    nsCOMPtr<nsIFile> appOmnijar = mozilla::Omnijar::GetPath(mozilla::Omnijar::APP);
+    if (appOmnijar) {
+        cl = sModuleLocations->InsertElementAt(1); // Insert after greDir
+        cl->type = NS_COMPONENT_LOCATION;
+        cl->location = do_QueryInterface(appOmnijar);
+        cl->jar = true;
     }
-#endif
+    nsCOMPtr<nsIFile> greOmnijar = mozilla::Omnijar::GetPath(mozilla::Omnijar::GRE);
+    if (greOmnijar) {
+        cl = sModuleLocations->InsertElementAt(0);
+        cl->type = NS_COMPONENT_LOCATION;
+        cl->location = do_QueryInterface(greOmnijar);
+        cl->jar = true;
+    }
 
     for (PRUint32 i = 0; i < sModuleLocations->Length(); ++i) {
         ComponentLocation& l = sModuleLocations->ElementAt(i);
@@ -404,17 +407,8 @@ nsresult nsComponentManagerImpl::Init()
         nsCOMPtr<nsIZipReader> reader = do_CreateInstance(kZipReaderCID, &rv);
         rv = reader->Open(l.location);
         if (NS_SUCCEEDED(rv))
-            RegisterJarManifest(reader, "chrome.manifest", false);
+            RegisterJarManifest(l.type, reader, "chrome.manifest", false);
     }
-
-#ifdef MOZ_OMNIJAR
-    if (mozilla::OmnijarPath()) {
-        cl = sModuleLocations->InsertElementAt(0);
-        cl->type = NS_COMPONENT_LOCATION;
-        cl->location = mozilla::OmnijarPath();
-        cl->jar = true;
-    }
-#endif
 
     nsCategoryManager::GetSingleton()->SuppressNotifications(false);
 
@@ -427,7 +421,7 @@ void
 nsComponentManagerImpl::RegisterModule(const mozilla::Module* aModule,
                                        nsILocalFile* aFile)
 {
-    MonitorAutoEnter mon(mMon);
+    ReentrantMonitorAutoEnter mon(mMon);
 
     KnownModule* m = new KnownModule(aModule, aFile);
     if (aFile) {
@@ -549,7 +543,7 @@ LoadEntry(nsIZipReader* aReader, const char* aName)
 }
 
 void
-nsComponentManagerImpl::RegisterJarManifest(nsIZipReader* aReader,
+nsComponentManagerImpl::RegisterJarManifest(NSLocationType aType, nsIZipReader* aReader,
                                             const char* aPath, bool aChromeOnly)
 {
     nsCOMPtr<nsIInputStream> is = LoadEntry(aReader, aPath);
@@ -583,7 +577,7 @@ nsComponentManagerImpl::RegisterJarManifest(nsIZipReader* aReader,
 
     whole[flen] = '\0';
 
-    ParseManifest(NS_COMPONENT_LOCATION, aReader, aPath,
+    ParseManifest(aType, aReader, aPath,
                   whole, aChromeOnly);
 }
 
@@ -681,7 +675,7 @@ nsComponentManagerImpl::ManifestManifest(ManifestProcessingContext& cx, int line
         nsCAutoString manifest(cx.mPath);
         AppendFileToManifestPath(manifest, file);
 
-        RegisterJarManifest(cx.mReader, manifest.get(), cx.mChromeOnly);
+        RegisterJarManifest(cx.mType, cx.mReader, manifest.get(), cx.mChromeOnly);
     }
     else {
 #ifdef TRANSLATE_SLASHES
@@ -737,6 +731,7 @@ nsComponentManagerImpl::ManifestBinaryComponent(ManifestProcessingContext& cx, i
     }
 
     const mozilla::Module* m = mNativeModuleLoader.LoadModule(clfile);
+    // The native module loader should report an error here, we don't have to
     if (!m)
         return;
 
@@ -794,7 +789,7 @@ nsComponentManagerImpl::ManifestComponent(ManifestProcessingContext& cx, int lin
         return;
     }
 
-    MonitorAutoEnter mon(mMon);
+    ReentrantMonitorAutoEnter mon(mMon);
     nsFactoryEntry* f = mFactories.Get(cid);
     if (f) {
         char idstr[NSID_LENGTH];
@@ -879,7 +874,7 @@ nsComponentManagerImpl::ManifestContract(ManifestProcessingContext& cx, int line
         return;
     }
 
-    MonitorAutoEnter mon(mMon);
+    ReentrantMonitorAutoEnter mon(mMon);
     nsFactoryEntry* f = mFactories.Get(cid);
     if (!f) {
         LogMessageWithContext(cx.mFile, cx.mPath, lineno,
@@ -917,7 +912,7 @@ nsComponentManagerImpl::RereadChromeManifests()
         if (NS_SUCCEEDED(rv))
             rv = reader->Open(l.location);
         if (NS_SUCCEEDED(rv))
-            RegisterJarManifest(reader, "chrome.manifest", true);
+            RegisterJarManifest(l.type, reader, "chrome.manifest", true);
     }
 }
 
@@ -1056,7 +1051,7 @@ nsFactoryEntry *
 nsComponentManagerImpl::GetFactoryEntry(const char *aContractID,
                                         PRUint32 aContractIDLen)
 {
-    MonitorAutoEnter mon(mMon);
+    ReentrantMonitorAutoEnter mon(mMon);
     return mContractIDs.Get(nsDependentCString(aContractID, aContractIDLen));
 }
 
@@ -1064,7 +1059,7 @@ nsComponentManagerImpl::GetFactoryEntry(const char *aContractID,
 nsFactoryEntry *
 nsComponentManagerImpl::GetFactoryEntry(const nsCID &aClass)
 {
-    MonitorAutoEnter mon(mMon);
+    ReentrantMonitorAutoEnter mon(mMon);
     return mFactories.Get(aClass);
 }
 
@@ -1381,24 +1376,24 @@ nsComponentManagerImpl::GetPendingServiceThread(const nsCID& aServiceCID) const
 }
 
 // GetService() wants to manually Exit()/Enter() a monitor which is
-// wrapped in MonitorAutoEnter, which nsAutoMonitor used to allow.
+// wrapped in ReentrantMonitorAutoEnter, which nsAutoReentrantMonitor used to allow.
 // One use is block-scoped Exit()/Enter(), which could be supported
 // with something like a MonitoAutoExit, but that's not a well-defined
 // operation in general so that helper doesn't exist.  The other use
 // is early-Exit() for perf reasons.  This code is probably hot enough
 // to warrant special considerations.
 //
-// We could use bare mozilla::Monitor, but that's error prone.
+// We could use bare mozilla::ReentrantMonitor, but that's error prone.
 // Instead, we just add a hacky wrapper here that acts like the old
-// nsAutoMonitor.
-struct NS_STACK_CLASS AutoMonitor
+// nsAutoReentrantMonitor.
+struct NS_STACK_CLASS AutoReentrantMonitor
 {
-    AutoMonitor(Monitor& aMonitor) : mMonitor(&aMonitor), mEnterCount(0)
+    AutoReentrantMonitor(ReentrantMonitor& aReentrantMonitor) : mReentrantMonitor(&aReentrantMonitor), mEnterCount(0)
     {
         Enter();
     }
 
-    ~AutoMonitor()
+    ~AutoReentrantMonitor()
     {
         if (mEnterCount) {
             Exit();
@@ -1407,17 +1402,17 @@ struct NS_STACK_CLASS AutoMonitor
 
     void Enter()
     {
-        mMonitor->Enter();
+        mReentrantMonitor->Enter();
         ++mEnterCount;
     }
 
     void Exit()
     {
         --mEnterCount;
-        mMonitor->Exit();
+        mReentrantMonitor->Exit();
     }
 
-    Monitor* mMonitor;
+    ReentrantMonitor* mReentrantMonitor;
     PRInt32 mEnterCount;
 };
 
@@ -1441,7 +1436,7 @@ nsComponentManagerImpl::GetService(const nsCID& aClass,
         return NS_ERROR_UNEXPECTED;
     }
 
-    AutoMonitor mon(mMon);
+    AutoReentrantMonitor mon(mMon);
 
     nsFactoryEntry* entry = mFactories.Get(aClass);
     if (!entry)
@@ -1560,7 +1555,7 @@ nsComponentManagerImpl::IsServiceInstantiated(const nsCID & aClass,
     nsFactoryEntry* entry;
 
     {
-        MonitorAutoEnter mon(mMon);
+        ReentrantMonitorAutoEnter mon(mMon);
         entry = mFactories.Get(aClass);
     }
 
@@ -1599,7 +1594,7 @@ NS_IMETHODIMP nsComponentManagerImpl::IsServiceInstantiatedByContractID(const ch
     nsresult rv = NS_ERROR_SERVICE_NOT_AVAILABLE;
     nsFactoryEntry *entry;
     {
-        MonitorAutoEnter mon(mMon);
+        ReentrantMonitorAutoEnter mon(mMon);
         entry = mContractIDs.Get(nsDependentCString(aContractID));
     }
 
@@ -1631,7 +1626,7 @@ nsComponentManagerImpl::GetServiceByContractID(const char* aContractID,
         return NS_ERROR_UNEXPECTED;
     }
 
-    AutoMonitor mon(mMon);
+    AutoReentrantMonitor mon(mMon);
 
     nsFactoryEntry *entry = mContractIDs.Get(nsDependentCString(aContractID));
     if (!entry)
@@ -1751,7 +1746,7 @@ nsComponentManagerImpl::RegisterFactory(const nsCID& aClass,
         if (!aContractID)
             return NS_ERROR_INVALID_ARG;
 
-        MonitorAutoEnter mon(mMon);
+        ReentrantMonitorAutoEnter mon(mMon);
         nsFactoryEntry* oldf = mFactories.Get(aClass);
         if (!oldf)
             return NS_ERROR_FACTORY_NOT_REGISTERED;
@@ -1762,7 +1757,7 @@ nsComponentManagerImpl::RegisterFactory(const nsCID& aClass,
 
     nsAutoPtr<nsFactoryEntry> f(new nsFactoryEntry(aClass, aFactory));
 
-    MonitorAutoEnter mon(mMon);
+    ReentrantMonitorAutoEnter mon(mMon);
     nsFactoryEntry* oldf = mFactories.Get(aClass);
     if (oldf)
         return NS_ERROR_FACTORY_EXISTS;
@@ -1785,7 +1780,7 @@ nsComponentManagerImpl::UnregisterFactory(const nsCID& aClass,
     nsCOMPtr<nsISupports> dyingServiceObject;
 
     {
-        MonitorAutoEnter mon(mMon);
+        ReentrantMonitorAutoEnter mon(mMon);
         nsFactoryEntry* f = mFactories.Get(aClass);
         if (!f || f->mFactory != aFactory)
             return NS_ERROR_FACTORY_NOT_REGISTERED;
@@ -1920,7 +1915,7 @@ nsComponentManagerImpl::ContractIDToCID(const char *aContractID,
                                         nsCID * *_retval)
 {
     {
-        MonitorAutoEnter mon(mMon);
+        ReentrantMonitorAutoEnter mon(mMon);
         nsFactoryEntry* entry = mContractIDs.Get(nsDependentCString(aContractID));
         if (entry) {
             *_retval = (nsCID*) NS_Alloc(sizeof(nsCID));
@@ -2042,6 +2037,57 @@ XRE_AddStaticComponent(const mozilla::Module* aComponent)
     return NS_OK;
 }
 
+NS_IMETHODIMP
+nsComponentManagerImpl::AddBootstrappedManifestLocation(nsILocalFile* aLocation)
+{
+  nsString path;
+  nsresult rv = aLocation->GetPath(path);
+  if (NS_FAILED(rv))
+    return rv;
+
+  if (Substring(path, path.Length() - 4).Equals(NS_LITERAL_STRING(".xpi"))) {
+    return XRE_AddJarManifestLocation(NS_BOOTSTRAPPED_LOCATION, aLocation);
+  }
+
+  nsCOMPtr<nsILocalFile> manifest =
+    CloneAndAppend(aLocation, NS_LITERAL_CSTRING("chrome.manifest"));
+  return XRE_AddManifestLocation(NS_BOOTSTRAPPED_LOCATION, manifest);
+}
+
+NS_IMETHODIMP
+nsComponentManagerImpl::RemoveBootstrappedManifestLocation(nsILocalFile* aLocation)
+{
+  nsCOMPtr<nsIChromeRegistry> cr = mozilla::services::GetChromeRegistryService();
+  if (!cr)
+    return NS_ERROR_FAILURE;
+
+  bool isJar = false;
+  nsCOMPtr<nsILocalFile> manifest;
+  nsString path;
+  nsresult rv = aLocation->GetPath(path);
+  if (NS_FAILED(rv))
+    return rv;
+
+  if (Substring(path, path.Length() - 4).Equals(NS_LITERAL_STRING(".xpi"))) {
+    isJar = true;
+    manifest = aLocation;
+  } else {
+    manifest = CloneAndAppend(aLocation, NS_LITERAL_CSTRING("chrome.manifest"));
+  }
+
+  nsComponentManagerImpl::ComponentLocation elem = {
+    NS_BOOTSTRAPPED_LOCATION,
+    manifest,
+    isJar
+  };
+
+  // Remove reference.
+  nsComponentManagerImpl::sModuleLocations->RemoveElement(elem, ComponentLocationComparator());
+
+  rv = cr->CheckForNewChrome();
+  return rv;
+}
+
 EXPORT_XPCOM_API(nsresult)
 XRE_AddManifestLocation(NSLocationType aType, nsILocalFile* aLocation)
 {
@@ -2079,7 +2125,7 @@ XRE_AddJarManifestLocation(NSLocationType aType, nsILocalFile* aLocation)
 
     rv = reader->Open(c->location);
     if (NS_SUCCEEDED(rv))
-        nsComponentManagerImpl::gComponentManager->RegisterJarManifest(reader, "chrome.manifest", false);
+        nsComponentManagerImpl::gComponentManager->RegisterJarManifest(aType, reader, "chrome.manifest", false);
 
     return NS_OK;
 }

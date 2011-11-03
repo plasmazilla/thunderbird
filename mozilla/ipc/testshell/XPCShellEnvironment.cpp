@@ -46,8 +46,6 @@
 #include "base/basictypes.h"
 
 #include "jsapi.h"
-#include "jscntxt.h"
-#include "jsdbgapi.h"
 #include "jsprf.h"
 
 #include "xpcpublic.h"
@@ -410,19 +408,12 @@ GC(JSContext *cx,
    jsval *vp)
 {
     JSRuntime *rt;
-    uint32 preBytes;
+    uint32 preBytes, postBytes;
 
-    rt = cx->runtime;
-    preBytes = rt->gcBytes;
+    rt = JS_GetRuntime(cx);
+    preBytes = JS_GetGCParameter(rt, JSGC_BYTES);
     JS_GC(cx);
-    fprintf(stdout, "before %lu, after %lu, break %08lx\n",
-           (unsigned long)preBytes, (unsigned long)rt->gcBytes,
-#ifdef XP_UNIX
-           (unsigned long)sbrk(0)
-#else
-           0
-#endif
-           );
+    postBytes = JS_GetGCParameter(rt, JSGC_BYTES);
 #ifdef JS_GCMETER
     js_DumpGCStats(rt, stdout);
 #endif
@@ -442,7 +433,7 @@ GCZeal(JSContext *cx,
   if (!JS_ValueToECMAUint32(cx, argv[0], &zeal))
     return JS_FALSE;
 
-  JS_SetGCZeal(cx, PRUint8(zeal));
+  JS_SetGCZeal(cx, PRUint8(zeal), JS_DEFAULT_ZEAL_FREQ, JS_FALSE);
   return JS_TRUE;
 }
 #endif
@@ -568,11 +559,6 @@ JSFunctionSpec gGlobalFunctions[] =
 #ifdef DEBUG
     {"dumpHeap",        DumpHeap,       5,0},
 #endif
-#ifdef MOZ_CALLGRIND
-    {"startCallgrind",  js_StartCallgrind,  0,0},
-    {"stopCallgrind",   js_StopCallgrind,   0,0},
-    {"dumpCallgrind",   js_DumpCallgrind,   1,0},
-#endif
     {nsnull,nsnull,0,0}
 };
 
@@ -674,7 +660,7 @@ ProcessFile(JSContext *cx,
             }
             bufp += strlen(bufp);
             lineno++;
-        } while (!JS_BufferIsCompilableUnit(cx, obj, buffer, strlen(buffer)));
+        } while (!JS_BufferIsCompilableUnit(cx, JS_FALSE, obj, buffer, strlen(buffer)));
 
         /* Clear any pending exception from previous failed compiles.  */
         JS_ClearPendingException(cx);

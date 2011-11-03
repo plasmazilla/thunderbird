@@ -38,7 +38,7 @@
 #include "nsRadioVisitor.h"
 #include "nsAutoPtr.h"
 #include "nsHTMLInputElement.h"
-#include "nsIEventStateManager.h"
+#include "nsEventStates.h"
 #include "nsIDocument.h"
 #include "nsIConstraintValidation.h"
 
@@ -83,13 +83,7 @@ nsRadioSetValueMissingState::Visit(nsIFormControl* aRadio)
   input->SetValidityState(nsIConstraintValidation::VALIDITY_STATE_VALUE_MISSING,
                           mValidity);
 
-  nsIDocument* doc = input->GetCurrentDoc();
-  if (mNotify && doc) {
-    doc->ContentStateChanged(input, NS_EVENT_STATE_VALID |
-                                    NS_EVENT_STATE_INVALID |
-                                    NS_EVENT_STATE_MOZ_UI_VALID |
-                                    NS_EVENT_STATE_MOZ_UI_INVALID);
-  }
+  input->UpdateState(true);
 
   return PR_TRUE;
 }

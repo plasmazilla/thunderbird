@@ -37,7 +37,7 @@ browser.jar:
   skin/classic/browser/setDesktopBackground.css
   skin/classic/browser/Toolbar.png
   skin/classic/browser/Toolbar-small.png
-  skin/classic/browser/urlbar-favicon-glow.png
+  skin/classic/browser/urlbar-arrow.png
   skin/classic/browser/feeds/feedIcon.png             (feeds/feedIcon.png)
   skin/classic/browser/feeds/feedIcon16.png           (feeds/feedIcon16.png)
   skin/classic/browser/feeds/videoFeedIcon.png        (feeds/videoFeedIcon.png)
@@ -63,6 +63,7 @@ browser.jar:
   skin/classic/browser/places/tag.png                 (places/tag.png)
   skin/classic/browser/places/toolbarDropMarker.png   (places/toolbarDropMarker.png)
   skin/classic/browser/places/unsortedBookmarks.png   (places/unsortedBookmarks.png)
+  skin/classic/browser/places/downloads.png           (places/downloads.png)
   skin/classic/browser/preferences/alwaysAsk.png      (preferences/alwaysAsk.png)
   skin/classic/browser/preferences/mail.png           (preferences/mail.png)
   skin/classic/browser/preferences/Options.png        (preferences/Options.png)
@@ -71,6 +72,7 @@ browser.jar:
 #endif
 * skin/classic/browser/preferences/preferences.css    (preferences/preferences.css)
   skin/classic/browser/preferences/applications.css   (preferences/applications.css)
+  skin/classic/browser/preferences/aboutPermissions.css (preferences/aboutPermissions.css)
   skin/classic/browser/tabbrowser/alltabs.png          (tabbrowser/alltabs.png)
   skin/classic/browser/tabbrowser/connecting.png      (tabbrowser/connecting.png)
   skin/classic/browser/tabbrowser/loading.png         (tabbrowser/loading.png)
@@ -78,7 +80,6 @@ browser.jar:
   skin/classic/browser/tabbrowser/tab-overflow-border.png (tabbrowser/tab-overflow-border.png)
   skin/classic/browser/tabbrowser/tabDragIndicator.png (tabbrowser/tabDragIndicator.png)
   skin/classic/browser/tabview/edit-light.png         (tabview/edit-light.png)
-  skin/classic/browser/tabview/new-tab.png            (tabview/new-tab.png)
   skin/classic/browser/tabview/search.png             (tabview/search.png)  
   skin/classic/browser/tabview/stack-expander.png     (tabview/stack-expander.png)
   skin/classic/browser/tabview/tabview.png            (tabview/tabview.png)
@@ -91,6 +92,7 @@ browser.jar:
   skin/classic/browser/sync-bg.png
   skin/classic/browser/sync-desktopIcon.png
   skin/classic/browser/sync-mobileIcon.png
+  skin/classic/browser/sync-notification-24.png
   skin/classic/browser/syncSetup.css
   skin/classic/browser/syncCommon.css
   skin/classic/browser/syncQuota.css

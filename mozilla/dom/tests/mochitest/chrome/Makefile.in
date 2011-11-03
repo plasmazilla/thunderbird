@@ -66,7 +66,17 @@ _TEST_FILES = \
 		DOMWindowCreated_chrome.xul \
 		DOMWindowCreated_content.html \
 		test_sandbox_image.xul \
+		test_cyclecollector.xul \
+		test_resize_move_windows.xul \
+		test_popup_blocker_chrome.xul \
 		$(NULL)
+
+ifeq (WINNT,$(OS_ARCH))
+_TEST_FILES += \
+		test_sizemode_attribute.xul \
+		sizemode_attribute.xul \
+		$(NULL)
+endif
 
 libs:: $(_TEST_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/chrome/$(relativesrcdir)

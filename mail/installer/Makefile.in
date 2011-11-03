@@ -86,10 +86,8 @@ ifdef MOZ_UPDATER
 DEFINES += -DMOZ_UPDATER=1
 endif
 
-ifdef MOZ_IPC
 include $(MOZILLA_SRCDIR)/ipc/app/defs.mk
 DEFINES += -DMOZ_CHILD_PROCESS_NAME=$(MOZ_CHILD_PROCESS_NAME)
-endif
 
 ifdef MOZ_PKG_MANIFEST_P
 MOZ_PKG_MANIFEST = package-manifest
@@ -105,15 +103,13 @@ MOZ_PKG_MAC_ICON=branding/disk.icns
 MOZ_PKG_MAC_EXTRA=--symlink "/Applications:/ "
 endif
 
-ifndef MOZ_ENABLE_LIBXUL
-$(error you need an "--enable-libxul" build to package a build)
-endif
-
 NON_OMNIJAR_FILES = defaults/messenger/mailViews.dat
 
 ifndef LIBXUL_SDK
 INSTALL_SDK = 1
 endif
+
+GENERATE_CACHE=1
 
 include $(MOZILLA_SRCDIR)/toolkit/mozapps/installer/packager.mk
 

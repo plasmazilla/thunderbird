@@ -51,6 +51,7 @@ const XULNS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
 
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://gre/modules/AddonManager.jsm");
 
 XPCOMUtils.defineLazyGetter(this, "NetUtil", function() {
   Cu.import("resource://gre/modules/NetUtil.jsm");
@@ -62,7 +63,6 @@ XPCOMUtils.defineLazyGetter(this, "PlacesUtils", function() {
   return PlacesUtils;
 });
 
-const PREF_EM_NEW_ADDONS_LIST = "extensions.newAddons";
 const PREF_PLUGINS_NOTIFYUSER = "plugins.update.notifyUser";
 const PREF_PLUGINS_UPDATEURL  = "plugins.update.url";
 
@@ -152,9 +152,8 @@ BrowserGlue.prototype = {
     }
     delay = delay <= MAX_DELAY ? delay : MAX_DELAY;
 
-    let syncTemp = {};
-    Cu.import("resource://services-sync/service.js", syncTemp);
-    syncTemp.Weave.Service.delayedAutoConnect(delay);
+    Cu.import("resource://services-sync/main.js");
+    Weave.SyncScheduler.delayedAutoConnect(delay);
   },
 #endif
 
@@ -261,6 +260,14 @@ BrowserGlue.prototype = {
         else if (data == "force-ui-migration") {
           this._migrateUI();
         }
+        else if (data == "force-distribution-customization") {
+          this._distributionCustomizer.applyPrefDefaults();
+          this._distributionCustomizer.applyCustomizations();
+          // To apply distribution bookmarks use "places-init-complete".
+        }
+        else if (data == "force-places-init") {
+          this._initPlaces();
+        }
         break;
     }
   }, 
@@ -343,26 +350,12 @@ BrowserGlue.prototype = {
     // handle any UI migration
     this._migrateUI();
 
-    // if ioService is managing the offline status, then ioservice.offline
-    // is already set correctly. We will continue to allow the ioService
-    // to manage its offline state until the user uses the "Work Offline" UI.
-    if (!Services.io.manageOfflineStatus) {
-      // set the initial state
-      try {
-        Services.io.offline = Services.prefs.getBoolPref("browser.offline");
-      }
-      catch (e) {
-        Services.io.offline = false;
-      }
-    }
-
     Services.obs.notifyObservers(null, "browser-ui-startup-complete", "");
   },
 
   // the first browser window has finished initializing
   _onFirstWindowLoaded: function BG__onFirstWindowLoaded() {
 #ifdef XP_WIN
-#ifndef WINCE
     // For windows seven, initialize the jump list module.
     const WINTASKBAR_CONTRACTID = "@mozilla.org/windows-taskbar;1";
     if (WINTASKBAR_CONTRACTID in Cc &&
@@ -372,25 +365,10 @@ BrowserGlue.prototype = {
       temp.WinTaskbarJumpList.startup();
     }
 #endif
-#endif
   },
 
   // profile shutdown handler (contains profile cleanup routines)
   _onProfileShutdown: function BG__onProfileShutdown() {
-#ifdef MOZ_UPDATER
-#ifdef WINCE
-    // If there's a pending update, clear cache to free up disk space.
-    try {
-      let um = Cc["@mozilla.org/updates/update-manager;1"].
-               getService(Ci.nsIUpdateManager);
-      if (um.activeUpdate && um.activeUpdate.state == "pending") {
-        let cacheService = Cc["@mozilla.org/network/cache-service;1"].
-                           getService(Ci.nsICacheService);
-        cacheService.evictEntries(Ci.nsICache.STORE_ANYWHERE);
-      }
-    } catch (e) { }
-#endif
-#endif
     this._shutdownPlaces();
     this._sanitizer.onShutdown();
   },
@@ -398,30 +376,19 @@ BrowserGlue.prototype = {
   // Browser startup complete. All initial windows have opened.
   _onBrowserStartup: function BG__onBrowserStartup() {
     // Show about:rights notification, if needed.
-    if (this._shouldShowRights())
+    if (this._shouldShowRights()) {
       this._showRightsNotification();
+#ifdef MOZ_TELEMETRY_REPORTING
+    } else {
+      // Only show telemetry notification when about:rights notification is not shown.
+      this._showTelemetryNotification();
+#endif
+    }
+
 
     // Show update notification, if needed.
     if (Services.prefs.prefHasUserValue("app.update.postupdate"))
       this._showUpdateNotification();
-
-    // If new add-ons were installed during startup open the add-ons manager.
-    if (Services.prefs.prefHasUserValue(PREF_EM_NEW_ADDONS_LIST)) {
-      var args = Cc["@mozilla.org/supports-array;1"].
-                 createInstance(Ci.nsISupportsArray);
-      var str = Cc["@mozilla.org/supports-string;1"].
-                createInstance(Ci.nsISupportsString);
-      str.data = "";
-      args.AppendElement(str);
-      var str = Cc["@mozilla.org/supports-string;1"].
-                createInstance(Ci.nsISupportsString);
-      str.data = Services.prefs.getCharPref(PREF_EM_NEW_ADDONS_LIST);
-      args.AppendElement(str);
-      const EMURL = "chrome://mozapps/content/extensions/extensions.xul";
-      const EMFEATURES = "chrome,menubar,extra-chrome,toolbar,dialog=no,resizable";
-      Services.ww.openWindow(null, EMURL, "_blank", EMFEATURES, args);
-      Services.prefs.clearUserPref(PREF_EM_NEW_ADDONS_LIST);
-    }
 
     // Load the "more info" page for a locked places.sqlite
     // This property is set earlier by places-database-locked topic.
@@ -433,6 +400,21 @@ BrowserGlue.prototype = {
     // been warned about them yet, open the plugins update page.
     if (Services.prefs.getBoolPref(PREF_PLUGINS_NOTIFYUSER))
       this._showPluginUpdatePage();
+
+    // For any add-ons that were installed disabled and can be enabled offer
+    // them to the user
+    var win = this.getMostRecentBrowserWindow();
+    var browser = win.gBrowser;
+    var changedIDs = AddonManager.getStartupChanges(AddonManager.STARTUP_CHANGE_INSTALLED);
+    AddonManager.getAddonsByIDs(changedIDs, function(aAddons) {
+      aAddons.forEach(function(aAddon) {
+        // If the add-on isn't user disabled or can't be enabled then skip it
+        if (!aAddon.userDisabled || !(aAddon.permissions & AddonManager.PERM_CAN_ENABLE))
+          return;
+
+        browser.selectedTab = browser.addTab("about:newaddon?id=" + aAddon.id);
+      })
+    });
   },
 
   _onQuitRequest: function BG__onQuitRequest(aCancelQuit, aQuitType) {
@@ -774,6 +756,74 @@ BrowserGlue.prototype = {
     catch (e) {
     }
   },
+
+#ifdef MOZ_TELEMETRY_REPORTING
+  _showTelemetryNotification: function BG__showTelemetryNotification() {
+    const PREF_TELEMETRY_PROMPTED = "toolkit.telemetry.prompted";
+    const PREF_TELEMETRY_ENABLED  = "toolkit.telemetry.enabled";
+    const PREF_TELEMETRY_INFOURL  = "toolkit.telemetry.infoURL";
+    const PREF_TELEMETRY_SERVER_OWNER = "toolkit.telemetry.server_owner";
+
+    try {
+      // If the user hasn't already been prompted, ask if they want to
+      // send telemetry data.
+      if (Services.prefs.getBoolPref(PREF_TELEMETRY_ENABLED) ||
+          Services.prefs.getBoolPref(PREF_TELEMETRY_PROMPTED))
+         return;
+    } catch(e) {}
+
+    // Stick the notification onto the selected tab of the active browser window.
+    var win = this.getMostRecentBrowserWindow();
+    var browser = win.gBrowser; // for closure in notification bar callback
+    var notifyBox = browser.getNotificationBox();
+
+    var browserBundle   = Services.strings.createBundle("chrome://browser/locale/browser.properties");
+    var brandBundle     = Services.strings.createBundle("chrome://branding/locale/brand.properties");
+
+    var productName        = brandBundle.GetStringFromName("brandFullName");
+    var serverOwner        = Services.prefs.getCharPref(PREF_TELEMETRY_SERVER_OWNER);
+    var telemetryText      = browserBundle.formatStringFromName("telemetryText", [productName, serverOwner], 2);
+
+    var buttons = [
+                    {
+                      label:     browserBundle.GetStringFromName("telemetryYesButtonLabel"),
+                      accessKey: browserBundle.GetStringFromName("telemetryYesButtonAccessKey"),
+                      popup:     null,
+                      callback:  function(aNotificationBar, aButton) {
+                        Services.prefs.setBoolPref(PREF_TELEMETRY_ENABLED, true);
+                      }
+                    },
+                    {
+                      label:     browserBundle.GetStringFromName("telemetryNoButtonLabel"),
+                      accessKey: browserBundle.GetStringFromName("telemetryNoButtonAccessKey"),
+                      popup:     null,
+                      callback:  function(aNotificationBar, aButton) {}
+                    }
+                  ];
+
+    // Set pref to indicate we've shown the notification.
+    Services.prefs.setBoolPref(PREF_TELEMETRY_PROMPTED, true);
+
+    var notification = notifyBox.appendNotification(telemetryText, "telemetry", null, notifyBox.PRIORITY_INFO_LOW, buttons);
+    notification.persistence = 6; // arbitrary number, just so bar sticks around for a bit
+
+    let XULNS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
+    let link = notification.ownerDocument.createElementNS(XULNS, "label");
+    link.className = "text-link telemetry-text-link";
+    link.setAttribute("value", browserBundle.GetStringFromName("telemetryLinkLabel"));
+    link.addEventListener('click', function() {
+      // Open the learn more url in a new tab
+      browser.selectedTab = browser.addTab(Services.prefs.getCharPref(PREF_TELEMETRY_INFOURL));
+      // Remove the notification on which the user clicked
+      notification.parentNode.removeNotification(notification, true);
+      // Add a new notification to that tab, with no "Learn more" link
+      var notifyBox = browser.getNotificationBox();
+      notifyBox.appendNotification(telemetryText, "telemetry", null, notifyBox.PRIORITY_INFO_LOW, buttons);
+    }, false);
+    let description = notification.ownerDocument.getAnonymousElementByAttribute(notification, "anonid", "messageText");
+    description.appendChild(link);
+  },
+#endif
 
   _showPluginUpdatePage: function BG__showPluginUpdatePage() {
     Services.prefs.setBoolPref(PREF_PLUGINS_NOTIFYUSER, false);

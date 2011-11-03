@@ -42,9 +42,6 @@
 #include "gfxQtPlatform.h"
 #define gfxToolkitPlatform gfxQtPlatform
 #elif defined(XP_WIN)
-#ifdef WINCE
-#define SHGetSpecialFolderPathW SHGetSpecialFolderPath
-#endif
 #include "gfxWindowsPlatform.h"
 #define gfxToolkitPlatform gfxWindowsPlatform
 #include "gfxFT2FontList.h"
@@ -67,13 +64,15 @@
 #include "gfxAtoms.h"
 #include "nsTArray.h"
 #include "nsUnicodeRange.h"
-#include "nsIPrefService.h"
-#include "nsIPrefLocalizedString.h"
-#include "nsServiceManagerUtils.h"
 #include "nsCRT.h"
 
 #include "prlog.h"
 #include "prinit.h"
+
+#include "mozilla/Preferences.h"
+
+using namespace mozilla;
+
 static PRLogModuleInfo *gFontLog = PR_NewLogModule("ft2fonts");
 
 static const char *sCJKLangGroup[] = {
@@ -112,7 +111,7 @@ FontEntry::~FontEntry()
 
 gfxFont*
 FontEntry::CreateFontInstance(const gfxFontStyle *aFontStyle, PRBool aNeedsBold) {
-    already_AddRefed<gfxFT2Font> font = gfxFT2Font::GetOrMakeFont(this, aFontStyle);
+    already_AddRefed<gfxFT2Font> font = gfxFT2Font::GetOrMakeFont(this, aFontStyle, aNeedsBold);
     return font.get();
 }
 
@@ -258,31 +257,42 @@ FontEntry::ReadCMAP()
     // attempt this once, if errors occur leave a blank cmap
     mCmapInitialized = PR_TRUE;
 
+    AutoFallibleTArray<PRUint8,16384> buffer;
+    nsresult rv = GetFontTable(TTAG_cmap, buffer);
+    
+    if (NS_SUCCEEDED(rv)) {
+        PRPackedBool unicodeFont;
+        PRPackedBool symbolFont;
+        rv = gfxFontUtils::ReadCMAP(buffer.Elements(), buffer.Length(),
+                                    mCharacterMap, mUVSOffset,
+                                    unicodeFont, symbolFont);
+    }
+
+    mHasCmapTable = NS_SUCCEEDED(rv);
+    return rv;
+}
+
+nsresult
+FontEntry::GetFontTable(PRUint32 aTableTag, FallibleTArray<PRUint8>& aBuffer)
+{
     // Ensure existence of mFTFace
     CairoFontFace();
     NS_ENSURE_TRUE(mFTFace, NS_ERROR_FAILURE);
 
     FT_Error status;
     FT_ULong len = 0;
-    status = FT_Load_Sfnt_Table(mFTFace, TTAG_cmap, 0, nsnull, &len);
+    status = FT_Load_Sfnt_Table(mFTFace, aTableTag, 0, nsnull, &len);
     NS_ENSURE_TRUE(status == 0, NS_ERROR_FAILURE);
     NS_ENSURE_TRUE(len != 0, NS_ERROR_FAILURE);
 
-    AutoFallibleTArray<PRUint8,16384> buffer;
-    if (!buffer.AppendElements(len)) {
-        return NS_ERROR_FAILURE;
+    if (!aBuffer.SetLength(len)) {
+        return NS_ERROR_OUT_OF_MEMORY;
     }
-    PRUint8 *buf = buffer.Elements();
-
-    status = FT_Load_Sfnt_Table(mFTFace, TTAG_cmap, 0, buf, &len);
+    PRUint8 *buf = aBuffer.Elements();
+    status = FT_Load_Sfnt_Table(mFTFace, aTableTag, 0, buf, &len);
     NS_ENSURE_TRUE(status == 0, NS_ERROR_FAILURE);
 
-    PRPackedBool unicodeFont;
-    PRPackedBool symbolFont;
-    nsresult rv = gfxFontUtils::ReadCMAP(buf, len, mCharacterMap, mUVSOffset,
-                                         unicodeFont, symbolFont);
-    mHasCmapTable = NS_SUCCEEDED(rv);
-    return rv;
+    return NS_OK;
 }
 
 FontEntry *
@@ -329,8 +339,9 @@ FontFamily::FindStyleVariations()
 
 PRBool
 gfxFT2FontGroup::FontCallback(const nsAString& fontName,
-                             const nsACString& genericName,
-                             void *closure)
+                              const nsACString& genericName,
+                              PRBool aUseFontSet,
+                              void *closure)
 {
     nsTArray<nsString> *sa = static_cast<nsTArray<nsString>*>(closure);
 
@@ -439,6 +450,7 @@ PRUint32 getUTF8CharAndNext(const PRUint8 *aString, PRUint8 *aLength)
 static PRBool
 AddFontNameToArray(const nsAString& aName,
                    const nsACString& aGenericName,
+                   PRBool aUseFontSet,
                    void *aClosure)
 {
     if (!aName.IsEmpty()) {
@@ -510,25 +522,9 @@ void gfxFT2FontGroup::GetCJKPrefFonts(nsTArray<nsRefPtr<gfxFontEntry> >& aFontEn
     key.AppendInt(mStyle.weight);
 
     if (!platform->GetPrefFontEntries(key, &aFontEntryList)) {
-        nsCOMPtr<nsIPrefService> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID);
-        if (!prefs)
-            return;
-
-        nsCOMPtr<nsIPrefBranch> prefBranch;
-        prefs->GetBranch(0, getter_AddRefs(prefBranch));
-        if (!prefBranch)
-            return;
-
+        NS_ENSURE_TRUE(Preferences::GetRootBranch(), );
         // Add the CJK pref fonts from accept languages, the order should be same order
-        nsCAutoString list;
-        nsCOMPtr<nsIPrefLocalizedString> val;
-        nsresult rv = prefBranch->GetComplexValue("intl.accept_languages", NS_GET_IID(nsIPrefLocalizedString),
-                                                  getter_AddRefs(val));
-        if (NS_SUCCEEDED(rv) && val) {
-            nsAutoString temp;
-            val->ToString(getter_Copies(temp));
-            LossyCopyUTF16toASCII(temp, list);
-        }
+        nsAdoptingCString list = Preferences::GetLocalizedCString("intl.accept_languages");
         if (!list.IsEmpty()) {
             const char kComma = ',';
             const char *p, *p_end;
@@ -701,6 +697,7 @@ gfxFT2Font::InitTextRun(gfxContext *aContext,
     }
 
     if (!ok) {
+        aTextRun->AdjustAdvancesForSyntheticBold(aRunStart, aRunLength);
         AddRange(aTextRun, aString, aRunStart, aRunLength);
     }
 
@@ -721,7 +718,6 @@ gfxFT2Font::AddRange(gfxTextRun *aTextRun, const PRUnichar *str, PRUint32 offset
 
     FT_UInt spaceGlyph = GetSpaceGlyph();
 
-    aTextRun->AddGlyphRun(this, offset);
     for (PRUint32 i = 0; i < len; i++) {
         PRUint32 ch = str[offset + i];
 
@@ -808,11 +804,14 @@ gfxFT2Font::AddRange(gfxTextRun *aTextRun, const PRUnichar *str, PRUint32 offset
 
 gfxFT2Font::gfxFT2Font(cairo_scaled_font_t *aCairoFont,
                        FontEntry *aFontEntry,
-                       const gfxFontStyle *aFontStyle)
+                       const gfxFontStyle *aFontStyle,
+                       PRBool aNeedsBold)
     : gfxFT2FontBase(aCairoFont, aFontEntry, aFontStyle)
 {
     NS_ASSERTION(mFontEntry, "Unable to find font entry for font.  Something is whack.");
-
+    if (aNeedsBold) {
+        mSyntheticBoldOffset = 1.0;
+    }
     mCharGlyphCache.Init(64);
 }
 
@@ -823,10 +822,6 @@ gfxFT2Font::~gfxFT2Font()
 cairo_font_face_t *
 gfxFT2Font::CairoFontFace()
 {
-    // XXX we need to handle fake bold here (or by having a sepaerate font entry)
-    if (mStyle.weight >= 600 && mFontEntry->mWeight < 600) {
-        //printf("** We want fake weight\n");
-    }
     return GetFontEntry()->CairoFontFace();
 }
 
@@ -882,7 +877,7 @@ CreateScaledFont(FontEntry *aFontEntry, const gfxFontStyle *aStyle)
  * except for OOM in which case we do nothing and return null.
  */
 already_AddRefed<gfxFT2Font>
-gfxFT2Font::GetOrMakeFont(const nsAString& aName, const gfxFontStyle *aStyle)
+gfxFT2Font::GetOrMakeFont(const nsAString& aName, const gfxFontStyle *aStyle, PRBool aNeedsBold)
 {
     FontEntry *fe = static_cast<FontEntry*>
         (gfxToolkitPlatform::GetPlatform()->FindFontEntry(aName, *aStyle));
@@ -891,17 +886,17 @@ gfxFT2Font::GetOrMakeFont(const nsAString& aName, const gfxFontStyle *aStyle)
         return nsnull;
     }
 
-    nsRefPtr<gfxFT2Font> font = GetOrMakeFont(fe, aStyle);
+    nsRefPtr<gfxFT2Font> font = GetOrMakeFont(fe, aStyle, aNeedsBold);
     return font.forget();
 }
 
 already_AddRefed<gfxFT2Font>
-gfxFT2Font::GetOrMakeFont(FontEntry *aFontEntry, const gfxFontStyle *aStyle)
+gfxFT2Font::GetOrMakeFont(FontEntry *aFontEntry, const gfxFontStyle *aStyle, PRBool aNeedsBold)
 {
     nsRefPtr<gfxFont> font = gfxFontCache::GetCache()->Lookup(aFontEntry, aStyle);
     if (!font) {
         cairo_scaled_font_t *scaledFont = CreateScaledFont(aFontEntry, aStyle);
-        font = new gfxFT2Font(scaledFont, aFontEntry, aStyle);
+        font = new gfxFT2Font(scaledFont, aFontEntry, aStyle, aNeedsBold);
         cairo_scaled_font_destroy(scaledFont);
         if (!font)
             return nsnull;

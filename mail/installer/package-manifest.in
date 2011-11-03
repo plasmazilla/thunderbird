@@ -29,6 +29,7 @@
 @BINPATH@/chrome/@AB_CD@.manifest
 @BINPATH@/@PREF_DIR@/all-l10n.js
 @BINPATH@/dictionaries/*
+@BINPATH@/hyphenation/*
 #ifdef XP_WIN32
 @BINPATH@/uninstall/helper.exe
 #endif
@@ -65,17 +66,19 @@
 #endif
 #endif
 @BINPATH@/@DLL_PREFIX@mozalloc@DLL_SUFFIX@
+#ifdef MOZ_MEMORY_DARWIN
+@BINPATH@/@DLL_PREFIX@jemalloc@DLL_SUFFIX@
+#endif
 #ifdef XP_MACOSX
 @BINPATH@/XUL
 #else
 @BINPATH@/@DLL_PREFIX@xul@DLL_SUFFIX@
 #endif
-#ifdef MOZ_IPC
 #ifdef XP_MACOSX
 @BINPATH@/@MOZ_CHILD_PROCESS_NAME@.app/
+@BINPATH@/@DLL_PREFIX@plugin_child_interpose@DLL_SUFFIX@
 #else
 @BINPATH@/@MOZ_CHILD_PROCESS_NAME@
-#endif
 #endif
 ; ANGLE GLES-on-D3D rendering library
 #ifdef MOZ_ANGLE
@@ -107,7 +110,6 @@
 @BINPATH@/application.ini
 @BINPATH@/blocklist.xml
 @BINPATH@/platform.ini
-@BINPATH@/README.txt
 #ifdef XP_OS2
 @BINPATH@/@DLL_PREFIX@mozsqlt3@DLL_SUFFIX@
 #else
@@ -144,9 +146,7 @@
 ; interfaces.manifest doesn't get packaged because it is dynamically
 ; re-created at packaging time when linking the xpts that will actually
 ; go into the package, so the test related interfaces aren't included.
-#ifdef MOZ_IPC
 @BINPATH@/components/jetpack.xpt
-#endif
 @BINPATH@/components/mime.xpt
 @BINPATH@/components/steel.xpt
 @BINPATH@/components/msgAsyncPrompter.js
@@ -162,10 +162,8 @@
 @BINPATH@/components/impComm4xMail.xpt
 @BINPATH@/components/mailview.xpt
 @BINPATH@/components/mailprofilemigration.xpt
-#ifdef MOZ_IPC
 @BINPATH@/components/messageWakeupService.js
 @BINPATH@/components/messageWakeupService.manifest
-#endif
 @BINPATH@/components/nsActivity.js
 @BINPATH@/components/nsActivityManager.js
 @BINPATH@/components/nsActivityManagerUI.js
@@ -315,9 +313,7 @@
 @BINPATH@/components/phishing.manifest
 @BINPATH@/components/nsPhishingProtectionApplication.js
 @BINPATH@/components/nsUrlClassifierListManager.js
-#ifndef MOZILLA_5_0_BRANCH
 @BINPATH@/components/nsUrlClassifierHashCompleter.js
-#endif
 @BINPATH@/components/nsUrlClassifierLib.js
 @BINPATH@/components/nsURLClassifier.manifest
 @BINPATH@/components/url-classifier.xpt
@@ -357,7 +353,6 @@
 @BINPATH@/components/content_events.xpt
 @BINPATH@/components/content_html.xpt
 @BINPATH@/components/content_htmldoc.xpt
-@BINPATH@/components/content_xmldoc.xpt
 @BINPATH@/components/content_xslt.xpt
 @BINPATH@/components/content_xtf.xpt
 @BINPATH@/components/htmlparser.xpt
@@ -418,7 +413,6 @@
 @BINPATH@/components/nsFormHistory.js
 @BINPATH@/components/nsInputListAutoComplete.js
 @BINPATH@/components/nsLivemarkService.js
-@BINPATH@/components/nsMicrosummaryService.js
 @BINPATH@/components/nsPlacesAutoComplete.js
 @BINPATH@/components/nsPlacesAutoComplete.manifest
 @BINPATH@/components/nsPlacesExpiration.js
@@ -428,6 +422,8 @@
 @BINPATH@/components/nsSearchSuggestions.js
 @BINPATH@/components/nsTaggingService.js
 @BINPATH@/components/PlacesCategoriesStarter.js
+@BINPATH@/components/TelemetryPing.js
+@BINPATH@/components/TelemetryPing.manifest
 @BINPATH@/components/toolkitplaces.manifest
 @BINPATH@/components/toolkitsearch.manifest
 #ifdef XP_MACOSX
@@ -474,9 +470,7 @@
 #endif
 @BINPATH@/components/dom_storage.xpt
 @BINPATH@/components/dom_stylesheets.xpt
-@BINPATH@/components/dom_threads.xpt
 @BINPATH@/components/dom_traversal.xpt
-@BINPATH@/components/dom_views.xpt
 @BINPATH@/components/dom_xbl.xpt
 @BINPATH@/components/dom_xul.xpt
 @BINPATH@/components/dom_loadsave.xpt
@@ -509,6 +503,7 @@
 @BINPATH@/components/necko_cookie.xpt
 @BINPATH@/components/necko_socket.xpt
 @BINPATH@/components/necko_viewsource.xpt
+@BINPATH@/components/necko_websocket.xpt
 @BINPATH@/components/necko_wifi.xpt
 @BINPATH@/components/necko_wyciwyg.xpt
 @BINPATH@/components/nsProxyAutoConfig.js
@@ -537,9 +532,6 @@
 @BINPATH@/components/urlformatter.xpt
 @BINPATH@/components/nsContentPrefService.js
 @BINPATH@/components/nsContentPrefService.manifest
-
-; plugins
-@BINPATH@/components/plugin.xpt
 
 ; [Personal Security Manager]
 @BINPATH@/@DLL_PREFIX@nssckbi@DLL_SUFFIX@
@@ -602,7 +594,6 @@
 @BINPATH@/components/exthandler.xpt
 @BINPATH@/components/exthelper.xpt
 @BINPATH@/components/embed_base.xpt
-@BINPATH@/components/webshell_idls.xpt
 @BINPATH@/components/windowds.xpt
 @BINPATH@/components/dom_xpath.xpt
 @BINPATH@/components/lwbrk.xpt
@@ -618,6 +609,7 @@
 @BINPATH@/components/satchel.manifest
 @BINPATH@/components/satchel.xpt
 @BINPATH@/components/shistory.xpt
+@BINPATH@/components/telemetry.xpt
 @BINPATH@/components/zipwriter.xpt
 @BINPATH@/components/nsBadCertHandler.js
 @BINPATH@/components/nsBadCertHandler.manifest

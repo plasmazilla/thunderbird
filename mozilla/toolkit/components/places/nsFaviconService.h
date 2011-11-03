@@ -39,11 +39,13 @@
 #ifndef nsFaviconService_h_
 #define nsFaviconService_h_
 
-#include "nsCOMPtr.h"
-#include "nsDataHashtable.h"
 #include "nsIFaviconService.h"
-#include "nsServiceManagerUtils.h"
+#include "mozIAsyncFavicons.h"
+
+#include "nsCOMPtr.h"
 #include "nsString.h"
+#include "nsDataHashtable.h"
+#include "nsServiceManagerUtils.h"
 
 #include "nsToolkitCompsCID.h"
 
@@ -65,6 +67,7 @@ class mozIStorageStatementCallback;
 class FaviconLoadListener;
 
 class nsFaviconService : public nsIFaviconService
+                       , public mozIAsyncFavicons
 {
 public:
   nsFaviconService();
@@ -141,7 +144,18 @@ public:
    */
   nsresult FinalizeStatements();
 
-  void SendFaviconNotifications(nsIURI* aPage, nsIURI* aFaviconURI);
+  /**
+   * Call to send out favicon changed notifications. Should only be called
+   * when there is data loaded for the favicon.
+   * @param aPageURI
+   *        The URI of the page to notify about.
+   * @param aFaviconURI
+   *        The moz-anno:favicon URI of the icon.
+   * @param aGUID
+   *        The unique ID associated with the page.
+   */
+  void SendFaviconNotifications(nsIURI* aPageURI, nsIURI* aFaviconURI,
+                                const nsACString& aGUID);
 
   /**
    * This cache should be used only for background thread statements.
@@ -152,6 +166,7 @@ public:
 
   NS_DECL_ISUPPORTS
   NS_DECL_NSIFAVICONSERVICE
+  NS_DECL_MOZIASYNCFAVICONS
 
 private:
   ~nsFaviconService();

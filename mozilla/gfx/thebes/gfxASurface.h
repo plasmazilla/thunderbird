@@ -98,6 +98,7 @@ public:
         SurfaceTypeTee,
         SurfaceTypeXML,
         SurfaceTypeSkia,
+        SurfaceTypeSubsurface,
         SurfaceTypeD2D,
         SurfaceTypeMax
     } gfxSurfaceType;
@@ -125,6 +126,8 @@ public:
 
     void SetDeviceOffset(const gfxPoint& offset);
     gfxPoint GetDeviceOffset() const;
+
+    virtual PRBool GetRotateForLandscape() { return PR_FALSE; }
 
     void Flush() const;
     void MarkDirty();
@@ -203,7 +206,24 @@ public:
     void RecordMemoryUsed(PRInt32 aBytes);
     void RecordMemoryFreed();
 
-    PRInt32 KnownMemoryUsed() { return mBytesRecorded; }
+    virtual PRInt32 KnownMemoryUsed() { return mBytesRecorded; }
+
+    /**
+     * The memory used by this surface (as reported by KnownMemoryUsed()) can
+     * either live in this process's heap, in this process but outside the
+     * heap, or in another process altogether.
+     */
+    enum MemoryLocation {
+      MEMORY_IN_PROCESS_HEAP,
+      MEMORY_IN_PROCESS_NONHEAP,
+      MEMORY_OUT_OF_PROCESS
+    };
+
+    /**
+     * Where does this surface's memory live?  By default, we say it's in this
+     * process's heap.
+     */
+    virtual MemoryLocation GetMemoryLocation() const;
 
     static PRInt32 BytePerPixelFromFormat(gfxImageFormat format);
 
@@ -255,6 +275,14 @@ protected:
 
     static gfxASurface* GetSurfaceWrapper(cairo_surface_t *csurf);
     static void SetSurfaceWrapper(cairo_surface_t *csurf, gfxASurface *asurf);
+
+    /**
+     * An implementation of MovePixels that assumes the backend can
+     * internally handle this operation and doesn't allocate any
+     * temporary surfaces.
+     */
+    void FastMovePixels(const nsIntRect& aSourceRect,
+                        const nsIntPoint& aDestTopLeft);
 
     // NB: Init() *must* be called from within subclass's
     // constructors.  It's unsafe to call it after the ctor finishes;

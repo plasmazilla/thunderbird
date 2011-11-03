@@ -38,9 +38,12 @@
 
 #include "CanvasLayerD3D10.h"
 
+#include "../d3d9/Nv3DVUtils.h"
 #include "gfxImageSurface.h"
 #include "gfxWindowsSurface.h"
 #include "gfxWindowsPlatform.h"
+
+using namespace mozilla::gfx;
 
 namespace mozilla {
 namespace layers {
@@ -56,8 +59,8 @@ CanvasLayerD3D10::Initialize(const Data& aData)
 
   if (aData.mSurface) {
     mSurface = aData.mSurface;
-    NS_ASSERTION(aData.mGLContext == nsnull,
-                 "CanvasLayer can't have both surface and GLContext");
+    NS_ASSERTION(aData.mGLContext == nsnull && !aData.mDrawTarget,
+                 "CanvasLayer can't have both surface and GLContext/DrawTarget");
     mNeedsYFlip = PR_FALSE;
     mDataIsPremultiplied = PR_TRUE;
   } else if (aData.mGLContext) {
@@ -66,8 +69,29 @@ CanvasLayerD3D10::Initialize(const Data& aData)
     mCanvasFramebuffer = mGLContext->GetOffscreenFBO();
     mDataIsPremultiplied = aData.mGLBufferIsPremultiplied;
     mNeedsYFlip = PR_TRUE;
+  } else if (aData.mDrawTarget) {
+    mDrawTarget = aData.mDrawTarget;
+    void *texture = mDrawTarget->GetNativeSurface(NATIVE_SURFACE_D3D10_TEXTURE);
+
+    if (!texture) {
+      // XXX - Once we have non-D2D drawtargets we should do something more sensible here.
+      NS_WARNING("Failed to get D3D10 texture from DrawTarget.");
+      return;
+    }
+
+    mTexture = static_cast<ID3D10Texture2D*>(texture);
+
+    NS_ASSERTION(aData.mGLContext == nsnull && aData.mSurface == nsnull,
+                 "CanvasLayer can't have both surface and GLContext/Surface");
+
+    mNeedsYFlip = PR_FALSE;
+    mDataIsPremultiplied = PR_TRUE;
+
+    mBounds.SetRect(0, 0, aData.mSize.width, aData.mSize.height);
+    device()->CreateShaderResourceView(mTexture, NULL, getter_AddRefs(mSRView));
+    return;
   } else {
-    NS_ERROR("CanvasLayer created without mSurface or mGLContext?");
+    NS_ERROR("CanvasLayer created without mSurface, mDrawTarget or mGLContext?");
   }
 
   mBounds.SetRect(0, 0, aData.mSize.width, aData.mSize.height);
@@ -90,15 +114,13 @@ CanvasLayerD3D10::Initialize(const Data& aData)
   HANDLE shareHandle = mGLContext ? mGLContext->GetD3DShareHandle() : nsnull;
   if (shareHandle) {
     HRESULT hr = device()->OpenSharedResource(shareHandle, __uuidof(ID3D10Texture2D), getter_AddRefs(mTexture));
-    if (SUCCEEDED(hr)) {
+    if (SUCCEEDED(hr))
       mUsingSharedTexture = PR_TRUE;
-      // XXX for ANGLE, it's already the right-way up.  If we start using NV GL-D3D interop
-      // however, we'll need to do the right thing.
-      mNeedsYFlip = PR_FALSE;
-    }
   }
 
-  if (!mUsingSharedTexture) {
+  if (mUsingSharedTexture) {
+    mNeedsYFlip = PR_FALSE;
+  } else {
     CD3D10_TEXTURE2D_DESC desc(DXGI_FORMAT_B8G8R8A8_UNORM, mBounds.width, mBounds.height, 1, 1);
     desc.Usage = D3D10_USAGE_DYNAMIC;
     desc.CPUAccessFlags = D3D10_CPU_ACCESS_WRITE;
@@ -119,6 +141,11 @@ CanvasLayerD3D10::UpdateSurface()
   if (!mDirty)
     return;
   mDirty = PR_FALSE;
+
+  if (mDrawTarget) {
+    mDrawTarget->Flush();
+    return;
+  }
 
   if (mIsD2DTexture) {
     mSurface->Flush();

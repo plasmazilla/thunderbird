@@ -189,10 +189,6 @@ pref("browser.urlbar.restrict.typed", "~");
 pref("browser.urlbar.match.title", "#");
 pref("browser.urlbar.match.url", "@");
 
-// Whether or not microsummary and generator updates are enabled.
-pref("browser.microsummary.enabled", true);
-pref("browser.microsummary.updateGenerators", true);
-
 pref("browser.history.grouping", "day");
 pref("browser.sessionhistory.max_entries", 50);
 
@@ -331,6 +327,9 @@ pref("browser.zoom.siteSpecific", true);
 // Whether or not to update background tabs to the current zoom level
 // once they come to the foreground (i.e. get activated).
 pref("browser.zoom.updateBackgroundTabs", true);
+
+// Zoom levels for View > Zoom and Ctrl +/- keyboard shortcuts
+pref("toolkit.zoomManager.zoomValues", "0.5,0.67,0.8,0.9,1,1.1,1.2,1.33,1.5,1.7,2,2.4");
 
 pref("javascript.options.showInConsole",    true);
 
@@ -516,13 +515,14 @@ pref("app.update.cert.maxErrors", 5);
 // |app.update.url.override| preference for update checking.
 pref("app.update.certs.1.issuerName", "OU=Equifax Secure Certificate Authority,O=Equifax,C=US");
 pref("app.update.certs.1.commonName", "aus2-community.mozilla.org");
+pref("app.update.certs.2.issuerName", "CN=GeoTrust SSL CA,O=\"GeoTrust, Inc.\",C=US");
+pref("app.update.certs.2.commonName", "aus2-community.mozilla.org");
+pref("app.update.certs.3.issuerName", "CN=Thawte SSL CA,O=\"Thawte, Inc.\",C=US");
+pref("app.update.certs.3.commonName", "aus2-community.mozilla.org");
 
 // Interval: Time between checks for a new version (in seconds)
 //           default=1 day
 pref("app.update.interval", 86400);
-// Interval: Time before prompting the user again to restart to install the
-//           latest download (in seconds) default=1 day
-pref("app.update.nagTimer.restart", 86400);
 // The minimum delay in seconds for the timer to fire.
 // default=2 minutes
 pref("app.update.timerMinimumDelay", 120);
@@ -551,8 +551,12 @@ pref("extensions.logging.enabled", false);
 // Blocklist preferences
 pref("extensions.blocklist.enabled", true);
 pref("extensions.blocklist.interval", 86400);
+// Controls what level the blocklist switches from warning about items to forcibly
+// blocking them.
+pref("extensions.blocklist.level", 2);
 pref("extensions.blocklist.url", "https://addons.mozilla.org/blocklist/3/%APP_ID%/%APP_VERSION%/%PRODUCT%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/%PING_COUNT%/%TOTAL_PING_COUNT%/%DAYS_SINCE_LAST_PING%/");
 pref("extensions.blocklist.detailsURL", "https://www.mozilla.com/%LOCALE%/blocklist/");
+pref("extensions.blocklist.itemURL", "https://addons.mozilla.org/%LOCALE%/%APP%/blocked/%blockID%");
 
 // Update preferences for installed Extensions and Themes.
 // Symmetric (can be overridden by individual extensions),
@@ -578,6 +582,7 @@ pref("extensions.webservice.discoverURL", "https://services.addons.mozilla.org/%
 
 // getMoreThemes is used by our UI under our switch theme menu
 pref("extensions.getMoreThemesURL", "chrome://branding/locale/brand.properties");
+pref("extensions.getPersonasURL", "chrome://branding/locale/brand.properties");
 pref("extensions.dss.enabled", false);          // Dynamic Skin Switching
 pref("extensions.dss.switchPending", false);    // Non-dynamic switch pending after next
                                                 // restart.
@@ -600,14 +605,12 @@ pref("custtoolbar.personal_toolbar_folder", "");
 pref("toolbar.customization.usesheet", false);
 
 #ifdef XP_WIN
-#ifndef WINCE
 pref("browser.taskbar.lists.enabled", true);
 pref("browser.taskbar.lists.frequent.enabled", true);
 pref("browser.taskbar.lists.recent.enabled", false);
 pref("browser.taskbar.lists.maxListItemCount", 7);
 pref("browser.taskbar.lists.tasks.enabled", true);
-pref("browser.taskbar.lists.refreshInSeconds", 30);
-#endif
+pref("browser.taskbar.lists.refreshInSeconds", 120);
 #endif
 
 pref("sidebar.customize.all_panels.url", "http://sidebar-rdf.netscape.com/%LOCALE%/sidebar-rdf/%SIDEBAR_VERSION%/all-panels.rdf");
@@ -686,10 +689,17 @@ pref("dom.ipc.plugins.enabled.i386.javaplugin2_npapi.plugin", true);
 pref("dom.ipc.plugins.enabled.i386.javaappletplugin.plugin", true);
 // x86_64 ipc preferences
 pref("dom.ipc.plugins.enabled.x86_64", true);
-#elifdef MOZ_IPC
-pref("dom.ipc.plugins.enabled", true);
+
+// This pref governs whether we attempt to work around problems caused by
+// plugins using OS calls to manipulate the cursor while running out-of-
+// process.  These workarounds all involve intercepting (hooking) certain
+// OS calls in the plugin process, then arranging to make certain OS calls
+// in the browser process.  Eventually plugins will be required to use the
+// NPAPI to manipulate the cursor, and these workarounds will be removed.
+// See bug 621117.
+pref("dom.ipc.plugins.nativeCursorSupport", true);
 #else
-pref("dom.ipc.plugins.enabled", false);
+pref("dom.ipc.plugins.enabled", true);
 #endif
 
 // plugin finder service url
@@ -700,22 +710,16 @@ pref("plugins.hide_infobar_for_outdated_plugin", false);
 pref("plugins.hide_infobar_for_carbon_failure_plugin", false);
 pref("plugins.hide_infobar_for_missing_plugin", false);
 
+#ifdef XP_MACOSX
+pref("plugins.use_layers", true);
+#endif
+
 #ifndef XP_MACOSX
 // Restore the spinner that was removed in bug 481359
 pref("ui.use_activity_cursor", true);
 #endif
 
 #ifdef XP_MACOSX
-// determines the behavior upon starting a download.
-//  0 - open the download manager
-//  1 - open a progress dialog
-//  2 - do nothing
-
-pref("browser.download.manager.behavior", 1);
-
-// Turn on click-and-hold contextual menus
-pref("ui.click_hold_context_menus", true);
-
 // Use a sheet instead of a popup window for the customize toolbar UI
 pref("toolbar.customization.usesheet", true);
 #endif

@@ -43,7 +43,7 @@
   It is designed to be used as inline input to nsWidgetAtoms.cpp *only*
   through the magic of C preprocessing.
 
-  All entires must be enclosed in the macro WIDGET_ATOM which will have cruel
+  All entries must be enclosed in the macro WIDGET_ATOM which will have cruel
   and unusual things done to it
 
   It is recommended (but not strictly necessary) to keep all entries
@@ -104,6 +104,7 @@ WIDGET_ATOM(open, "open") // Whether or not a menu, tree, etc. is open
 WIDGET_ATOM(orient, "orient")
 WIDGET_ATOM(pageincrement, "pageincrement")
 WIDGET_ATOM(parentfocused, "parentfocused")
+WIDGET_ATOM(progress, "progress")
 WIDGET_ATOM(radio, "radio")
 WIDGET_ATOM(readonly, "readonly")
 WIDGET_ATOM(Reload, "Reload")

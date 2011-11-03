@@ -67,7 +67,6 @@ static nsIMM32Handler* gIMM32Handler = nsnull;
 PRLogModuleInfo* gIMM32Log = nsnull;
 #endif
 
-#ifdef ENABLE_IME_MOUSE_HANDLING
 static UINT sWM_MSIME_MOUSE = 0; // mouse message for MSIME 98/2000
 
 //-------------------------------------------------------------------------
@@ -86,16 +85,12 @@ static UINT sWM_MSIME_MOUSE = 0; // mouse message for MSIME 98/2000
 #define IMEMOUSE_WUP        0x10    // wheel up
 #define IMEMOUSE_WDOWN      0x20    // wheel down
 
-#endif
-
 PRPackedBool nsIMM32Handler::sIsStatusChanged = PR_FALSE;
 PRPackedBool nsIMM32Handler::sIsIME = PR_TRUE;
 PRPackedBool nsIMM32Handler::sIsIMEOpening = PR_FALSE;
 
-#ifndef WINCE
 UINT nsIMM32Handler::sCodePage = 0;
 DWORD nsIMM32Handler::sIMEProperty = 0;
-#endif
 
 /* static */ void
 nsIMM32Handler::EnsureHandlerInstance()
@@ -113,12 +108,9 @@ nsIMM32Handler::Initialize()
     gIMM32Log = PR_NewLogModule("nsIMM32HandlerWidgets");
 #endif
 
-#ifdef ENABLE_IME_MOUSE_HANDLING
   if (!sWM_MSIME_MOUSE) {
     sWM_MSIME_MOUSE = ::RegisterWindowMessage(RWM_MOUSE);
   }
-#endif
-
   InitKeyboardLayout(::GetKeyboardLayout(0));
 }
 
@@ -197,22 +189,16 @@ nsIMM32Handler::IsDoingKakuteiUndo(HWND aWnd)
 /* static */ PRBool
 nsIMM32Handler::ShouldDrawCompositionStringOurselves()
 {
-#ifdef WINCE
-  // We are not sure we should use native IME behavior...
-  return PR_TRUE;
-#else
   // If current IME has special UI or its composition window should not
   // positioned to caret position, we should now draw composition string
   // ourselves.
   return !(sIMEProperty & IME_PROP_SPECIAL_UI) &&
           (sIMEProperty & IME_PROP_AT_CARET);
-#endif
 }
 
 /* static */ void
 nsIMM32Handler::InitKeyboardLayout(HKL aKeyboardLayout)
 {
-#ifndef WINCE
   WORD langID = LOWORD(aKeyboardLayout);
   ::GetLocaleInfoW(MAKELCID(langID, SORT_DEFAULT),
                    LOCALE_IDEFAULTANSICODEPAGE | LOCALE_RETURN_NUMBER,
@@ -222,32 +208,23 @@ nsIMM32Handler::InitKeyboardLayout(HKL aKeyboardLayout)
   PR_LOG(gIMM32Log, PR_LOG_ALWAYS,
     ("IMM32: InitKeyboardLayout, aKeyboardLayout=%08x, sCodePage=%lu, sIMEProperty=%08x sIsIME=%s\n",
      aKeyboardLayout, sCodePage, sIMEProperty, sIsIME ? "TRUE" : "FALSE"));
-#endif
 }
 
 /* static */ UINT
 nsIMM32Handler::GetKeyboardCodePage()
 {
-#ifdef WINCE
-  return ::GetACP();
-#else
   return sCodePage;
-#endif
 }
 
 /* static */ PRBool
 nsIMM32Handler::CanOptimizeKeyAndIMEMessages(MSG *aNextKeyOrIMEMessage)
 {
-#ifdef WINCE
-  return PR_TRUE;
-#else
   // If IME is opening right now, we shouldn't optimize the key and IME message
   // order because ATOK (Japanese IME of third party) has some problem with the
   // optimization.  When it finishes opening completely, it eats all key
   // messages in the message queue.  And it causes starting composition.  So,
   // we shouldn't eat the key messages before ATOK.
   return !sIsIMEOpening;
-#endif
 }
 
 
@@ -316,10 +293,20 @@ nsIMM32Handler::CommitComposition(nsWindow* aWindow, PRBool aForce)
   if (!aForce && !IsComposingWindow(aWindow)) {
     return;
   }
+
+  PRBool associated = aWindow->AssociateDefaultIMC(PR_TRUE);
+  PR_LOG(gIMM32Log, PR_LOG_ALWAYS,
+    ("IMM32: CommitComposition, associated=%s\n",
+     associated ? "YES" : "NO"));
+
   nsIMEContext IMEContext(aWindow->GetWindowHandle());
   if (IMEContext.IsValid()) {
     ::ImmNotifyIME(IMEContext.get(), NI_COMPOSITIONSTR, CPS_COMPLETE, 0);
     ::ImmNotifyIME(IMEContext.get(), NI_COMPOSITIONSTR, CPS_CANCEL, 0);
+  }
+
+  if (associated) {
+    aWindow->AssociateDefaultIMC(PR_FALSE);
   }
 }
 
@@ -337,9 +324,19 @@ nsIMM32Handler::CancelComposition(nsWindow* aWindow, PRBool aForce)
   if (!aForce && !IsComposingWindow(aWindow)) {
     return;
   }
+
+  PRBool associated = aWindow->AssociateDefaultIMC(PR_TRUE);
+  PR_LOG(gIMM32Log, PR_LOG_ALWAYS,
+    ("IMM32: CancelComposition, associated=%s\n",
+     associated ? "YES" : "NO"));
+
   nsIMEContext IMEContext(aWindow->GetWindowHandle());
   if (IMEContext.IsValid()) {
     ::ImmNotifyIME(IMEContext.get(), NI_COMPOSITIONSTR, CPS_CANCEL, 0);
+  }
+
+  if (associated) {
+    aWindow->AssociateDefaultIMC(PR_FALSE);
   }
 }
 
@@ -399,7 +396,6 @@ nsIMM32Handler::ProcessMessage(nsWindow* aWindow, UINT msg,
 
   *aRetValue = 0;
   switch (msg) {
-#ifdef ENABLE_IME_MOUSE_HANDLING
     case WM_LBUTTONDOWN:
     case WM_MBUTTONDOWN:
     case WM_RBUTTONDOWN: {
@@ -415,7 +411,6 @@ nsIMM32Handler::ProcessMessage(nsWindow* aWindow, UINT msg,
       aEatMessage = PR_FALSE;
       return PR_TRUE;
     }
-#endif // ENABLE_IME_MOUSE_HANDLING
     case WM_INPUTLANGCHANGE:
       return ProcessInputLangChangeMessage(aWindow, wParam, lParam,
                                            aRetValue, aEatMessage);
@@ -1189,7 +1184,6 @@ nsIMM32Handler::HandleComposition(nsWindow* aWindow,
     nsresult rv = EnsureClauseArray(clauseArrayLength);
     NS_ENSURE_SUCCESS(rv, PR_FALSE);
 
-#ifndef WINCE
     // Intelligent ABC IME (Simplified Chinese IME, the code page is 936)
     // will crash in ImmGetCompositionStringW for GCS_COMPCLAUSE (bug 424663).
     // See comment 35 of the bug for the detail. Therefore, we should use A
@@ -1199,15 +1193,12 @@ nsIMM32Handler::HandleComposition(nsWindow* aWindow,
     PR_LOG(gIMM32Log, PR_LOG_ALWAYS,
       ("IMM32: HandleComposition, GCS_COMPCLAUSE, useA_API=%s\n",
        useA_API ? "TRUE" : "FALSE"));
-#endif
 
     long clauseArrayLength2 = 
-#ifndef WINCE
       useA_API ?
         ::ImmGetCompositionStringA(aIMEContext.get(), GCS_COMPCLAUSE,
                                    mClauseArray.Elements(),
                                    mClauseArray.Capacity() * sizeof(PRUint32)) :
-#endif
         ::ImmGetCompositionStringW(aIMEContext.get(), GCS_COMPCLAUSE,
                                    mClauseArray.Elements(),
                                    mClauseArray.Capacity() * sizeof(PRUint32));
@@ -1221,7 +1212,6 @@ nsIMM32Handler::HandleComposition(nsWindow* aWindow,
         clauseArrayLength = clauseArrayLength2;
     }
 
-#ifndef WINCE
     if (useA_API) {
       // Convert each values of sIMECompClauseArray. The values mean offset of
       // the clauses in ANSI string. But we need the values in Unicode string.
@@ -1231,7 +1221,7 @@ nsIMM32Handler::HandleComposition(nsWindow* aWindow,
         PRUint32 maxlen = compANSIStr.Length();
         mClauseArray[0] = 0; // first value must be 0
         for (PRInt32 i = 1; i < clauseArrayLength; i++) {
-          PRUint32 len = PR_MIN(mClauseArray[i], maxlen);
+          PRUint32 len = NS_MIN(mClauseArray[i], maxlen);
           mClauseArray[i] = ::MultiByteToWideChar(GetKeyboardCodePage(), 
                                                   MB_PRECOMPOSED,
                                                   (LPCSTR)compANSIStr.get(),
@@ -1239,11 +1229,10 @@ nsIMM32Handler::HandleComposition(nsWindow* aWindow,
         }
       }
     }
-#endif
   }
   // compClauseArrayLength may be negative. I.e., ImmGetCompositionStringW
   // may return an error code.
-  mClauseArray.SetLength(PR_MAX(0, clauseArrayLength));
+  mClauseArray.SetLength(NS_MAX<long>(0, clauseArrayLength));
 
   PR_LOG(gIMM32Log, PR_LOG_ALWAYS,
     ("IMM32: HandleComposition, GCS_COMPCLAUSE, mClauseLength=%ld\n",
@@ -1269,7 +1258,7 @@ nsIMM32Handler::HandleComposition(nsWindow* aWindow,
 
   // attrStrLen may be negative. I.e., ImmGetCompositionStringW may return an
   // error code.
-  mAttributeArray.SetLength(PR_MAX(0, attrArrayLength));
+  mAttributeArray.SetLength(NS_MAX<long>(0, attrArrayLength));
 
   PR_LOG(gIMM32Log, PR_LOG_ALWAYS,
     ("IMM32: HandleComposition, GCS_COMPATTR, mAttributeLength=%ld\n",
@@ -1887,7 +1876,7 @@ nsIMM32Handler::GetCharacterRectOfSelectedTextAt(nsWindow* aWindow,
     useCaretRect = PR_FALSE;
     if (mCursorPosition != NO_IME_CARET) {
       PRUint32 cursorPosition =
-        PR_MIN(PRUint32(mCursorPosition), mCompositionString.Length());
+        NS_MIN<PRUint32>(mCursorPosition, mCompositionString.Length());
       offset -= cursorPosition;
       NS_ASSERTION(offset >= 0, "offset is negative!");
     }
@@ -2052,9 +2041,6 @@ nsIMM32Handler::ResolveIMECaretPos(nsIWidget* aReferenceWidget,
     aOutRect.MoveBy(-aNewOriginWidget->WidgetToScreenOffset());
 }
 
-
-#ifdef ENABLE_IME_MOUSE_HANDLING
-
 PRBool
 nsIMM32Handler::OnMouseEvent(nsWindow* aWindow, LPARAM lParam, int aAction)
 {
@@ -2101,8 +2087,6 @@ nsIMM32Handler::OnMouseEvent(nsWindow* aWindow, LPARAM lParam, int aAction)
                         MAKELONG(MAKEWORD(aAction, positioning), offset),
                         (LPARAM) IMEContext.get()) == 1;
 }
-
-#endif // ENABLE_IME_MOUSE_HANDLING
 
 /* static */ PRBool
 nsIMM32Handler::OnKeyDownEvent(nsWindow* aWindow, WPARAM wParam, LPARAM lParam,

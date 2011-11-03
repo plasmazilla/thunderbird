@@ -46,6 +46,7 @@ MODULE		= impOutlk
 LIBRARY_NAME   = impOutlk_s
 ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
 MOZILLA_INTERNAL_API = 1
+LIBXUL_LIBRARY = 1
 endif
 
 
@@ -59,6 +60,9 @@ CPPSRCS		= \
 		MapiMessage.cpp			\
 		MapiMimeTypes.cpp		\
 		nsOutlookCompose.cpp		\
+		rtfDecoder.cpp		\
+		rtfMailDecoder.cpp		\
+		nsOutlookEditor.cpp		\
 		$(NULL)
 
 # we don't want the shared lib, but we want to force the creation of a static lib.

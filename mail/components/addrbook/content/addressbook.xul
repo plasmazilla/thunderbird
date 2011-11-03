@@ -259,7 +259,8 @@
          iconsize="small"
          defaulticonsize="small"
 #endif
-         labelalign="end">
+         labelalign="end"
+         defaultlabelalign="end">
   <toolbar type="menubar" id="addrbook-toolbar-menubar2" class="chromeclass-menubar" customizable="true"
 #ifdef XP_MACOSX
            defaultset="menubar-items"
@@ -579,7 +580,9 @@
                      tooltiptext="&deleteButton2.tooltip;"
                      oncommand="goDoCommand('button_delete');"/>
 
-      <toolbaritem id="search-container" title="&searchItem.title;" align="center" class="chromeclass-toolbar-additional">
+      <toolbaritem id="search-container" title="&searchItem.title;"
+                   align="center" flex="1"
+                   class="chromeclass-toolbar-additional">
         <textbox id="peopleSearchInput" flex="1" timeout="800"
                  type="search"
                  placeholder="&SearchNameOrEmail.label;"
@@ -606,7 +609,7 @@
   <!-- The main address book three pane -->
   <hbox id="abContent" flex="1">
     <vbox id="dirTreeBox" persist="width collapsed">
-      <sidebarheader id="abDirTreeHeader" align="center">
+      <sidebarheader id="abDirTreeHeader" hidden="true" align="center">
         <label id="abDirTreeHeader-title" value="&dirTreeHeader.label;" control="dirTree"/>
       </sidebarheader>
 

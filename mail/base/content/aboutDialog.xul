@@ -79,59 +79,56 @@
         <label id="distribution" class="text-blurb"/>
         <label id="distributionId" class="text-blurb"/>
 
-        <!-- Make sure the selectedIndex attribute is always set so that the CSS
-             selectors for transitions work -->        
-        <deck id="contentDeck" selectedIndex="0">
-          <vbox id="detailsBox" aria-describedby="communityDesc contributeDesc">
-            <vbox id="updateBox">
+        <vbox id="detailsBox" aria-describedby="communityDesc contributeDesc">
+          <vbox id="updateBox">
 #ifdef MOZ_UPDATER
-              <deck id="updateDeck" orient="vertical">
-                <hbox id="updateButtonBox" align="center">
-                  <button id="updateButton" align="start"
-                          oncommand="gAppUpdater.buttonOnCommand();"/>
-                  <spacer flex="1"/>
-                </hbox>
-                <hbox id="checkingForUpdates" align="center">
-                  <image class="update-throbber"/><label>&update.checkingForUpdates;</label>
-                </hbox>
-                <hbox id="checkingAddonCompat" align="center">
-                  <image class="update-throbber"/><label>&update.checkingAddonCompat;</label>
-                </hbox>
-                <hbox id="downloading" align="center">
-                  <image class="update-throbber"/><label>&update.downloading.start;</label><label id="downloadStatus"/><label>&update.downloading.end;</label>
-                </hbox>
-                <hbox id="downloadFailed" align="center">
-                  <label>&update.failed.start;</label><label id="failedLink" class="text-link">&update.failed.linkText;</label><label>&update.failed.end;</label>
-                </hbox>
-                <hbox id="adminDisabled" align="center">
-                  <label>&update.adminDisabled;</label>
-                </hbox>
-                <hbox id="noUpdatesFound" align="center">
-                  <label>&update.noUpdatesFound;</label>
-                </hbox>
-                <hbox id="manualUpdate" align="center">
-                  <label>&update.manual.start;</label><label id="manualLink"
-                    class="text-link">&update.manual.linkText;</label><label>&update.manual.end;</label>
-                </hbox>
-              </deck>
+            <deck id="updateDeck" orient="vertical">
+              <hbox id="updateButtonBox" align="center">
+                <button id="updateButton" align="start"
+                        oncommand="gAppUpdater.buttonOnCommand();"/>
+                <spacer flex="1"/>
+              </hbox>
+              <hbox id="checkingForUpdates" align="center">
+                <image class="update-throbber"/><label>&update.checkingForUpdates;</label>
+              </hbox>
+              <hbox id="checkingAddonCompat" align="center">
+                <image class="update-throbber"/><label>&update.checkingAddonCompat;</label>
+              </hbox>
+              <hbox id="downloading" align="center">
+                <image class="update-throbber"/><label>&update.downloading.start;</label><label id="downloadStatus"/><label>&update.downloading.end;</label>
+              </hbox>
+              <hbox id="downloadFailed" align="center">
+                <label>&update.failed.start;</label><label id="failedLink" class="text-link">&update.failed.linkText;</label><label>&update.failed.end;</label>
+              </hbox>
+              <hbox id="adminDisabled" align="center">
+                <label>&update.adminDisabled;</label>
+              </hbox>
+              <hbox id="noUpdatesFound" align="center">
+                <label>&update.noUpdatesFound;</label>
+              </hbox>
+              <hbox id="manualUpdate" align="center">
+                <label>&update.manual.start;</label><label id="manualLink" class="text-link">&update.manual.linkText;</label><label>&update.manual.end;</label>
+              </hbox>
+            </deck>
 #endif
-            </vbox>
-
-            <description class="text-blurb" id="communityDesc">
-              &community.start2;<label class="text-link" onclick="openURL('http://www.mozilla.org/');" oncommand="openUILink(this.getAttribute('href'), event);">&community.mozillaLink;</label>&community.middle2;<label class="text-link" onclick="openAboutTab('about:credits');">&community.creditsLink;</label>&community.end2;
-            </description>
-            <description class="text-blurb" id="contributeDesc">
-              &contribute.start;<label class="text-link" onclick="openURL('http://www.mozilla.org/contribute/');">&contribute.getInvolvedLink;</label>&contribute.end;
-            </description>
           </vbox>
-       </deck>
-      </vbox>
+          <description class="text-blurb" id="currentChannelText">
+            &channel.description.start;<label id="currentChannel"/>&channel.description.end;
+          </description>
+          <description class="text-blurb" id="communityDesc">
+            &community.start2;<label class="text-link" onclick="openURL('http://www.mozilla.org/');" oncommand="openUILink(this.getAttribute('href'), event);">&community.mozillaLink;</label>&community.middle2;<label class="text-link" onclick="openAboutTab('about:credits');">&community.creditsLink;</label>&community.end2;
+          </description>
+          <description class="text-blurb" id="contributeDesc">
+            &contribute.start;<label class="text-link" onclick="openURL('http://www.mozilla.org/contribute/');">&contribute.getInvolvedLink;</label>&contribute.end;
+          </description>
+       </vbox>
+     </vbox>
     </hbox>
     <vbox id="bottomBox">
       <hbox pack="center">
         <label class="text-link bottom-link" onclick="openAboutTab('about:license');">&bottomLinks.license;</label>
         <label class="text-link bottom-link" onclick="openAboutTab('about:rights');">&bottomLinks.rights;</label>
-        <label hidden="true" class="text-link bottom-link" onclick="openURL('http://www.mozilla.com/legal/privacy/');">&bottomLinks.privacy;</label>
+        <label class="text-link bottom-link" onclick="openURL('https://www.mozilla.org/en-US/thunderbird/legal/privacy/');">&bottomLinks.privacy;</label>
       </hbox>
       <description id="trademark">
         <label class="trademark-label">&trademarkInfo.part1;</label>

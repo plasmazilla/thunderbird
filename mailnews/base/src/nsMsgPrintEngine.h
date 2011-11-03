@@ -87,7 +87,7 @@ public:
 protected:
 
   PRBool      FirePrintEvent();
-  PRBool      FireStartNextEvent();
+  nsresult    FireStartNextEvent();
   nsresult    FireThatLoadOperationStartup(const nsString& uri);
   nsresult    FireThatLoadOperation(const nsString& uri);
   void        InitializeDisplayCharset();
@@ -97,8 +97,8 @@ protected:
   nsresult    ShowProgressDialog(PRBool aIsForPrinting, PRBool& aDoNotify);
 
   nsCOMPtr<nsIDocShell>       mDocShell;
-  nsCOMPtr<nsIDOMWindowInternal>      mWindow;
-  nsCOMPtr<nsIDOMWindowInternal>      mParentWindow;
+  nsCOMPtr<nsIDOMWindow>      mWindow;
+  nsCOMPtr<nsIDOMWindow>      mParentWindow;
   PRInt32                     mURICount;
   nsTArray<nsString>          mURIArray;
   PRInt32                     mCurrentlyPrintingURI;

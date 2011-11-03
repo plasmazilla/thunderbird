@@ -44,11 +44,14 @@
   %syncBrandDTD;
   <!ENTITY % syncKeyDTD SYSTEM "chrome://browser/locale/syncKey.dtd">
   %syncKeyDTD;
+  <!ENTITY % globalDTD SYSTEM "chrome://global/locale/global.dtd" >
+  %globalDTD;
 ]>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
   <title>&syncKey.page.title;</title>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+  <meta name="robots" content="noindex"/>
   <style type="text/css">
     #synckey { font-size: 150% }
     footer { font-size: 70% }
@@ -57,10 +60,10 @@
   </style>
 </head>
 
-<body>
+<body dir="&locale.dir;">
 <h1>&syncKey.page.title;</h1>
 
-<p id="synckey">SYNCKEY</p>
+<p id="synckey" dir="ltr">SYNCKEY</p>
 
 <p>&syncKey.page.description;</p>
 

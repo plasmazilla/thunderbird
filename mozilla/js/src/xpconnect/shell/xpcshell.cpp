@@ -89,10 +89,8 @@
 #include <unistd.h>
 #endif
 
-#ifndef XPCONNECT_STANDALONE
 #include "nsIScriptSecurityManager.h"
 #include "nsIPrincipal.h"
-#endif
 
 // all this crap is needed to do the interactive shell stuff
 #include <stdlib.h>
@@ -267,10 +265,10 @@ GetLine(JSContext *cx, char *bufp, FILE *file, const char *prompt) {
     } else
 #endif
     {
-        char line[256];
+        char line[256] = { '\0' };
         fputs(prompt, gOutFile);
         fflush(gOutFile);
-        if (!fgets(line, sizeof line, file))
+        if (!fgets(line, sizeof line, file) && errno != EINTR || feof(file))
             return JS_FALSE;
         strcpy(bufp, line);
     }
@@ -550,14 +548,6 @@ GC(JSContext *cx, uintN argc, jsval *vp)
     rt = cx->runtime;
     preBytes = rt->gcBytes;
     JS_GC(cx);
-    fprintf(gOutFile, "before %lu, after %lu, break %08lx\n",
-           (unsigned long)preBytes, (unsigned long)rt->gcBytes,
-#if defined(XP_UNIX) && !defined(__SYMBIAN32__)
-           (unsigned long)sbrk(0)
-#else
-           0
-#endif
-           );
 #ifdef JS_GCMETER
     js_DumpGCStats(rt, stdout);
 #endif
@@ -573,7 +563,7 @@ GCZeal(JSContext *cx, uintN argc, jsval *vp)
     if (!JS_ValueToECMAUint32(cx, argc ? JS_ARGV(cx, vp)[0] : JSVAL_VOID, &zeal))
         return JS_FALSE;
 
-    JS_SetGCZeal(cx, (PRUint8)zeal);
+    JS_SetGCZeal(cx, (PRUint8)zeal, JS_DEFAULT_ZEAL_FREQ, JS_FALSE);
     JS_SET_RVAL(cx, vp, JSVAL_VOID);
     return JS_TRUE;
 }
@@ -730,7 +720,6 @@ static const struct {
     const char  *name;
     uint32      flag;
 } js_options[] = {
-    {"anonfunfix",      JSOPTION_ANONFUNFIX},
     {"atline",          JSOPTION_ATLINE},
     {"jit",             JSOPTION_JIT},
     {"relimit",         JSOPTION_RELIMIT},
@@ -858,11 +847,6 @@ static JSFunctionSpec glob_functions[] = {
 #endif
     {"sendCommand",     SendCommand,    1,0},
     {"getChildGlobalObject", GetChildGlobalObject, 0,0},
-#ifdef MOZ_CALLGRIND
-    {"startCallgrind",  js_StartCallgrind,  0,0},
-    {"stopCallgrind",   js_StopCallgrind,   0,0},
-    {"dumpCallgrind",   js_DumpCallgrind,   1,0},
-#endif
     {nsnull,nsnull,0,0}
 };
 
@@ -1094,7 +1078,7 @@ ProcessFile(JSContext *cx, JSObject *obj, const char *filename, FILE *file,
             }
             bufp += strlen(bufp);
             lineno++;
-        } while (!JS_BufferIsCompilableUnit(cx, obj, buffer, strlen(buffer)));
+        } while (!JS_BufferIsCompilableUnit(cx, JS_FALSE, obj, buffer, strlen(buffer)));
 
         DoBeginRequest(cx);
         /* Clear any pending exception from previous failed compiles.  */
@@ -1152,7 +1136,7 @@ static int
 usage(void)
 {
     fprintf(gErrFile, "%s\n", JS_GetImplementationVersion());
-    fprintf(gErrFile, "usage: xpcshell [-g gredir] [-r manifest]... [-PsSwWxCij] [-v version] [-f scriptfile] [-e script] [scriptfile] [scriptarg...]\n");
+    fprintf(gErrFile, "usage: xpcshell [-g gredir] [-a appdir] [-r manifest]... [-PsSwWxCij] [-v version] [-f scriptfile] [-e script] [scriptfile] [scriptarg...]\n");
     return 2;
 }
 
@@ -1163,7 +1147,7 @@ ProcessArgs(JSContext *cx, JSObject *obj, char **argv, int argc)
 {
     const char rcfilename[] = "xpcshell.js";
     FILE *rcfile;
-    int i, j, length;
+    int i;
     JSObject *argsObj;
     char *filename = NULL;
     JSBool isInteractive = JS_TRUE;
@@ -1209,8 +1193,7 @@ ProcessArgs(JSContext *cx, JSObject *obj, char **argv, int argc)
         return 1;
     }
 
-    length = argc - i;
-    for (j = 0; j < length; j++) {
+    for (size_t j = 0, length = argc - i; j < length; j++) {
         JSString *str = JS_NewStringCopyZ(cx, argv[i++]);
         if (!str)
             return 1;
@@ -1318,37 +1301,27 @@ ProcessArgs(JSContext *cx, JSObject *obj, char **argv, int argc)
 /***************************************************************************/
 
 class FullTrustSecMan
-#ifndef XPCONNECT_STANDALONE
   : public nsIScriptSecurityManager
-#else
-  : public nsIXPCSecurityManager
-#endif
 {
 public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIXPCSECURITYMANAGER
-#ifndef XPCONNECT_STANDALONE
   NS_DECL_NSISCRIPTSECURITYMANAGER
-#endif
 
   FullTrustSecMan();
   virtual ~FullTrustSecMan();
 
-#ifndef XPCONNECT_STANDALONE
   void SetSystemPrincipal(nsIPrincipal *aPrincipal) {
     mSystemPrincipal = aPrincipal;
   }
 
 private:
   nsCOMPtr<nsIPrincipal> mSystemPrincipal;
-#endif
 };
 
 NS_INTERFACE_MAP_BEGIN(FullTrustSecMan)
   NS_INTERFACE_MAP_ENTRY(nsIXPCSecurityManager)
-#ifndef XPCONNECT_STANDALONE
   NS_INTERFACE_MAP_ENTRY(nsIScriptSecurityManager)
-#endif
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIXPCSecurityManager)
 NS_INTERFACE_MAP_END
 
@@ -1357,9 +1330,7 @@ NS_IMPL_RELEASE(FullTrustSecMan)
 
 FullTrustSecMan::FullTrustSecMan()
 {
-#ifndef XPCONNECT_STANDALONE
   mSystemPrincipal = nsnull;
-#endif
 }
 
 FullTrustSecMan::~FullTrustSecMan()
@@ -1386,7 +1357,6 @@ FullTrustSecMan::CanGetService(JSContext * aJSContext, const nsCID & aCID)
     return NS_OK;
 }
 
-#ifndef XPCONNECT_STANDALONE
 /* void CanAccess (in PRUint32 aAction, in nsIXPCNativeCallContext aCallContext, in JSContextPtr aJSContext, in JSObjectPtr aJSObject, in nsISupports aObj, in nsIClassInfo aClassInfo, in jsval aName, inout voidPtr aPolicy); */
 NS_IMETHODIMP
 FullTrustSecMan::CanAccess(PRUint32 aAction,
@@ -1630,8 +1600,6 @@ FullTrustSecMan::GetCxSubjectPrincipalAndFrame(JSContext *cx, JSStackFrame **fp)
     return mSystemPrincipal;
 }
 
-#endif
-
 /***************************************************************************/
 
 // #define TEST_InitClassesWithNewWrappedGlobal
@@ -1770,6 +1738,12 @@ GetCurrentWorkingDirectory(nsAString& workingDirectory)
     return true;
 }
 
+static JSPrincipals *
+FindObjectPrincipals(JSContext *cx, JSObject *obj)
+{
+    return gJSPrincipals;
+}
+
 int
 main(int argc, char **argv, char **envp)
 {
@@ -1821,6 +1795,23 @@ main(int argc, char **argv, char **envp)
         argv += 2;
     }
 
+    if (argc > 1 && !strcmp(argv[1], "-a")) {
+        if (argc < 3)
+            return usage();
+
+        nsCOMPtr<nsILocalFile> dir;
+        rv = XRE_GetFileFromPath(argv[2], getter_AddRefs(dir));
+        if (NS_SUCCEEDED(rv)) {
+            appDir = do_QueryInterface(dir, &rv);
+        }
+        if (NS_FAILED(rv)) {
+            printf("Couldn't use given appdir.\n");
+            return 1;
+        }
+        argc -= 2;
+        argv += 2;
+    }
+
     while (argc > 1 && !strcmp(argv[1], "-r")) {
         if (argc < 3)
             return usage();
@@ -1838,6 +1829,21 @@ main(int argc, char **argv, char **envp)
     }
 
     {
+        if (argc > 1 && !strcmp(argv[1], "--greomni")) {
+            nsCOMPtr<nsILocalFile> greOmni;
+            nsCOMPtr<nsILocalFile> appOmni;
+            XRE_GetFileFromPath(argv[2], getter_AddRefs(greOmni));
+            if (argc > 3 && !strcmp(argv[3], "--appomni")) {
+                XRE_GetFileFromPath(argv[4], getter_AddRefs(appOmni));
+                argc-=2;
+                argv+=2;
+            } 
+            
+            XRE_InitOmnijar(greOmni, appOmni);
+            argc-=2;
+            argv+=2;
+        }
+
         nsCOMPtr<nsIServiceManager> servMan;
         rv = NS_InitXPCOM2(getter_AddRefs(servMan), appDir, &dirprovider);
         if (NS_FAILED(rv)) {
@@ -1865,9 +1871,7 @@ main(int argc, char **argv, char **envp)
             return 1;
         }
 
-#ifdef MOZ_ENABLE_LIBXUL
         xpc_LocalizeContext(cx);
-#endif
 
         nsCOMPtr<nsIXPConnect> xpc = do_GetService(nsIXPConnect::GetCID());
         if (!xpc) {
@@ -1880,7 +1884,6 @@ main(int argc, char **argv, char **envp)
         nsRefPtr<FullTrustSecMan> secman = new FullTrustSecMan();
         xpc->SetSecurityManagerForJSContext(cx, secman, 0xFFFF);
 
-#ifndef XPCONNECT_STANDALONE
         nsCOMPtr<nsIPrincipal> systemprincipal;
 
         // Fetch the system principal and store it away in a global, to use for
@@ -1906,7 +1909,11 @@ main(int argc, char **argv, char **envp)
                 fprintf(gErrFile, "+++ Failed to get ScriptSecurityManager service, running without principals");
             }
         }
-#endif
+
+        JSSecurityCallbacks *cb = JS_GetRuntimeSecurityCallbacks(rt);
+        NS_ASSERTION(cb, "We are assuming that nsScriptSecurityManager::Init() has been run");
+        NS_ASSERTION(!cb->findObjectPrincipals, "Your pigeon is in my hole!");
+        cb->findObjectPrincipals = FindObjectPrincipals;
 
 #ifdef TEST_TranslateThis
         nsCOMPtr<nsIXPCFunctionThisTranslator>
@@ -2074,7 +2081,15 @@ XPCShellDirProvider::GetFile(const char *prop, PRBool *persistent,
 {
     if (mGREDir && !strcmp(prop, NS_GRE_DIR)) {
         *persistent = PR_TRUE;
-        NS_ADDREF(*result = mGREDir);
+        return mGREDir->Clone(result);
+    } else if (mGREDir && !strcmp(prop, NS_APP_PREF_DEFAULTS_50_DIR)) {
+        nsCOMPtr<nsIFile> file;
+        *persistent = PR_TRUE;
+        if (NS_FAILED(mGREDir->Clone(getter_AddRefs(file))) ||
+            NS_FAILED(file->AppendNative(NS_LITERAL_CSTRING("defaults"))) ||
+            NS_FAILED(file->AppendNative(NS_LITERAL_CSTRING("pref"))))
+            return NS_ERROR_FAILURE;
+        NS_ADDREF(*result = file);
         return NS_OK;
     }
 
@@ -2097,6 +2112,18 @@ XPCShellDirProvider::GetFiles(const char *prop, nsISimpleEnumerator* *result)
         if (NS_SUCCEEDED(rv))
             dirs.AppendObject(file);
 
+        return NS_NewArrayEnumerator(result, dirs);
+    } else if (!strcmp(prop, NS_APP_PREFS_DEFAULTS_DIR_LIST)) {
+        nsCOMArray<nsIFile> dirs;
+
+        nsCOMPtr<nsIFile> file;
+        if (NS_FAILED(NS_GetSpecialDirectory(NS_XPCOM_CURRENT_PROCESS_DIR,
+                                             getter_AddRefs(file))) ||
+            NS_FAILED(file->AppendNative(NS_LITERAL_CSTRING("defaults"))) ||
+            NS_FAILED(file->AppendNative(NS_LITERAL_CSTRING("preferences"))))
+            return NS_ERROR_FAILURE;
+
+        dirs.AppendObject(file);
         return NS_NewArrayEnumerator(result, dirs);
     }
     return NS_ERROR_FAILURE;

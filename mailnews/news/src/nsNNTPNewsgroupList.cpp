@@ -53,7 +53,7 @@
 #include "nsINewsDatabase.h"
 #include "nsIMsgStatusFeedback.h"
 #include "nsCOMPtr.h"
-#include "nsIDOMWindowInternal.h"
+#include "nsIDOMWindow.h"
 #include "nsIMsgMailNewsUrl.h"
 #include "nsIMsgAccountManager.h"
 #include "nsIMsgIncomingServer.h"
@@ -259,7 +259,7 @@ openWindow(nsIMsgWindow *aMsgWindow, const char *chromeURL,
   if (NS_FAILED(rv))
       return rv;
 
-  nsCOMPtr<nsIDOMWindowInternal> parentWindow(do_GetInterface(docShell));
+  nsCOMPtr<nsIDOMWindow> parentWindow(do_GetInterface(docShell));
   NS_ENSURE_TRUE(parentWindow, NS_ERROR_FAILURE);
 
   nsCOMPtr<nsISupportsInterfacePointer> ifptr = do_CreateInstance(NS_SUPPORTS_INTERFACE_POINTER_CONTRACTID, &rv);
@@ -1212,13 +1212,13 @@ nsNNTPNewsgroupList::CallFilters()
     {
       rv = m_filterList->ApplyFiltersToHdr(nsMsgFilterType::NewsRule,
           m_newMsgHdr, folder, m_newsDB, fullHeaders.get(),
-          fullHeaders.Length(), this, m_msgWindow, nsnull);
+          fullHeaders.Length(), this, m_msgWindow);
     }
     if (serverFilterCount)
     {
       rv = m_serverFilterList->ApplyFiltersToHdr(nsMsgFilterType::NewsRule,
           m_newMsgHdr, folder, m_newsDB, fullHeaders.get(),
-          fullHeaders.Length(), this, m_msgWindow, nsnull);
+          fullHeaders.Length(), this, m_msgWindow);
     }
 
     NS_ENSURE_SUCCESS(rv,rv);

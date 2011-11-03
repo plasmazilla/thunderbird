@@ -56,16 +56,12 @@
 #include "nsIController.h"
 #include "nsIControllers.h"
 #include "nsIDOMDOMImplementation.h"
-#include "nsIDOMEventGroup.h"
 #include "nsIDOMRange.h"
 #include "nsIDocument.h"
 #include "nsIDocumentEncoder.h"
 #include "nsIDocumentViewer.h"
-#include "nsIEventListenerManager.h"
 #include "nsIFactory.h"
-#include "nsFrameSelection.h"
 #include "nsIFrameUtil.h"
-#include "nsIFragmentContentSink.h"
 #include "nsHTMLStyleSheet.h"
 #include "nsIHTMLToTextSink.h"
 #include "nsILayoutDebugger.h"
@@ -86,17 +82,15 @@
 #include "nsRuleNode.h"
 #include "nsContentAreaDragDrop.h"
 #include "nsContentList.h"
-#include "nsSyncLoadService.h"
 #include "nsBox.h"
 #include "nsIFrameTraversal.h"
 #include "nsLayoutCID.h"
-#include "nsILanguageAtomService.h"
 #include "nsStyleSheetService.h"
 #include "nsXULPopupManager.h"
 #include "nsFocusManager.h"
-#include "nsIContentUtils.h"
 #include "ThirdPartyUtil.h"
 #include "mozilla/Services.h"
+#include "nsStructuredCloneContainer.h"
 
 #include "nsIEventListenerService.h"
 #include "nsIFrameMessageManager.h"
@@ -111,7 +105,7 @@
 #include "nsXMLHttpRequest.h"
 #include "nsChannelPolicy.h"
 #include "nsWebSocket.h"
-#include "nsDOMWorker.h"
+#include "nsEventSource.h"
 
 // view stuff
 #include "nsViewsCID.h"
@@ -291,7 +285,7 @@ static void Shutdown();
     defined(_WINDOWS)   || \
     defined(machintosh) || \
     defined(android)
-#include "nsAccelerometerSystem.h"
+#include "nsDeviceMotionSystem.h"
 #endif
 #include "nsCSPService.h"
 
@@ -309,9 +303,8 @@ NS_GENERIC_AGGREGATED_CONSTRUCTOR_INIT(nsXPathEvaluator, Init)
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(txNodeSetAdaptor, Init)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsDOMSerializer)
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsXMLHttpRequest, Init)
+NS_GENERIC_FACTORY_CONSTRUCTOR(nsEventSource)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsWebSocket)
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsWSProtocolHandler)
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsWSSProtocolHandler)
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsDOMFileReader, Init)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsFormData)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsFileDataProtocolHandler)
@@ -325,10 +318,9 @@ NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(IndexedDatabaseManager,
     defined(_WINDOWS)   || \
     defined(machintosh) || \
     defined(android)
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsAccelerometerSystem)
+NS_GENERIC_FACTORY_CONSTRUCTOR(nsDeviceMotionSystem)
 #endif
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(ThirdPartyUtil, Init)
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsWorkerFactory)
 #if defined(ANDROID) || defined(MOZ_PLATFORM_MAEMO)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsHapticFeedback)
 #endif
@@ -355,8 +347,10 @@ LayoutShutdownObserver::Observe(nsISupports *aSubject,
                                 const char *aTopic,
                                 const PRUnichar *someData)
 {
-  if (!strcmp(aTopic, NS_XPCOM_SHUTDOWN_OBSERVER_ID))
+  if (!strcmp(aTopic, NS_XPCOM_SHUTDOWN_OBSERVER_ID)) {
     Shutdown();
+    nsContentUtils::XPCOMShutdown();
+  }
   return NS_OK;
 }
 
@@ -445,11 +439,11 @@ nsresult NS_NewTreeBoxObject(nsIBoxObject** aResult);
 #endif
 
 nsresult NS_NewCanvasRenderingContext2D(nsIDOMCanvasRenderingContext2D** aResult);
+nsresult NS_NewCanvasRenderingContext2DThebes(nsIDOMCanvasRenderingContext2D** aResult);
 nsresult NS_NewCanvasRenderingContextWebGL(nsIDOMWebGLRenderingContext** aResult);
 
 nsresult NS_CreateFrameTraversal(nsIFrameTraversal** aResult);
 
-nsresult NS_NewSelection(nsFrameSelection** aResult);
 nsresult NS_NewDomSelection(nsISelection** aResult);
 nsresult NS_NewDocumentViewer(nsIDocumentViewer** aResult);
 nsresult NS_NewRange(nsIDOMRange** aResult);
@@ -464,7 +458,6 @@ nsresult NS_NewHTMLCopyTextEncoder(nsIDocumentEncoder** aResult);
 nsresult NS_NewTextEncoder(nsIDocumentEncoder** aResult);
 nsresult NS_NewXBLService(nsIXBLService** aResult);
 nsresult NS_NewContentPolicy(nsIContentPolicy** aResult);
-nsresult NS_NewDOMEventGroup(nsIDOMEventGroup** aResult);
 
 nsresult NS_NewEventListenerService(nsIEventListenerService** aResult);
 nsresult NS_NewGlobalMessageManager(nsIChromeFrameMessageManager** aResult);
@@ -516,18 +509,13 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(inCSSValueSearch)
 NS_GENERIC_FACTORY_CONSTRUCTOR(inDOMUtils)
 
 MAKE_CTOR(CreateNameSpaceManager,         nsINameSpaceManager,         NS_GetNameSpaceManager)
-MAKE_CTOR(CreateEventListenerManager,     nsIEventListenerManager,     NS_NewEventListenerManager)
-MAKE_CTOR(CreateDOMEventGroup,            nsIDOMEventGroup,            NS_NewDOMEventGroup)
 MAKE_CTOR(CreateDocumentViewer,           nsIDocumentViewer,           NS_NewDocumentViewer)
 MAKE_CTOR(CreateHTMLDocument,             nsIDocument,                 NS_NewHTMLDocument)
 MAKE_CTOR(CreateDOMImplementation,        nsIDOMDOMImplementation,     NS_NewDOMImplementation)
 MAKE_CTOR(CreateXMLDocument,              nsIDocument,                 NS_NewXMLDocument)
-#ifdef MOZ_SVG
 MAKE_CTOR(CreateSVGDocument,              nsIDocument,                 NS_NewSVGDocument)
-#endif
 MAKE_CTOR(CreateImageDocument,            nsIDocument,                 NS_NewImageDocument)
 MAKE_CTOR(CreateDOMSelection,             nsISelection,                NS_NewDomSelection)
-MAKE_CTOR(CreateSelection,                nsFrameSelection,            NS_NewSelection)
 MAKE_CTOR(CreateRange,                    nsIDOMRange,                 NS_NewRange)
 MAKE_CTOR(CreateRangeUtils,               nsIRangeUtils,               NS_NewRangeUtils)
 MAKE_CTOR(CreateContentIterator,          nsIContentIterator,          NS_NewContentIterator)
@@ -542,14 +530,6 @@ MAKE_CTOR(CreateXMLContentSerializer,     nsIContentSerializer,        NS_NewXML
 MAKE_CTOR(CreateHTMLContentSerializer,    nsIContentSerializer,        NS_NewHTMLContentSerializer)
 MAKE_CTOR(CreateXHTMLContentSerializer,   nsIContentSerializer,        NS_NewXHTMLContentSerializer)
 MAKE_CTOR(CreatePlainTextSerializer,      nsIContentSerializer,        NS_NewPlainTextSerializer)
-MAKE_CTOR(CreateHTMLFragmentSink,         nsIFragmentContentSink,      NS_NewHTMLFragmentContentSink)
-MAKE_CTOR(CreateHTMLFragmentSink2,        nsIFragmentContentSink,      NS_NewHTMLFragmentContentSink2)
-MAKE_CTOR(CreateHTMLParanoidFragmentSink, nsIFragmentContentSink,      NS_NewHTMLParanoidFragmentSink)
-MAKE_CTOR(CreateHTMLParanoidFragmentSink2,nsIFragmentContentSink,      NS_NewHTMLParanoidFragmentSink2)
-MAKE_CTOR(CreateXMLFragmentSink,          nsIFragmentContentSink,      NS_NewXMLFragmentContentSink)
-MAKE_CTOR(CreateXMLFragmentSink2,         nsIFragmentContentSink,      NS_NewXMLFragmentContentSink2)
-MAKE_CTOR(CreateXHTMLParanoidFragmentSink,nsIFragmentContentSink,      NS_NewXHTMLParanoidFragmentSink)
-MAKE_CTOR(CreateXHTMLParanoidFragmentSink2,nsIFragmentContentSink,     NS_NewXHTMLParanoidFragmentSink2)
 MAKE_CTOR(CreateSanitizingHTMLSerializer, nsIContentSerializer,        NS_NewSanitizingHTMLSerializer)
 MAKE_CTOR(CreateXBLService,               nsIXBLService,               NS_NewXBLService)
 MAKE_CTOR(CreateContentPolicy,            nsIContentPolicy,            NS_NewContentPolicy)
@@ -573,17 +553,14 @@ MAKE_CTOR(CreateParentMessageManager,     nsIFrameMessageManager,NS_NewParentPro
 MAKE_CTOR(CreateChildMessageManager,     nsISyncMessageSender,NS_NewChildProcessMessageManager)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsDataDocumentContentPolicy)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsNoDataProtocolContentPolicy)
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsSyncLoadService)
 MAKE_CTOR(CreatePluginDocument,           nsIDocument,                 NS_NewPluginDocument)
 #ifdef MOZ_MEDIA
 MAKE_CTOR(CreateVideoDocument,            nsIDocument,                 NS_NewVideoDocument)
 #endif
 MAKE_CTOR(CreateFocusManager,             nsIFocusManager,      NS_NewFocusManager)
 
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsIContentUtils)
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsIContentUtils2)
-
 MAKE_CTOR(CreateCanvasRenderingContext2D, nsIDOMCanvasRenderingContext2D, NS_NewCanvasRenderingContext2D)
+MAKE_CTOR(CreateCanvasRenderingContext2DThebes, nsIDOMCanvasRenderingContext2D, NS_NewCanvasRenderingContext2DThebes)
 MAKE_CTOR(CreateCanvasRenderingContextWebGL, nsIDOMWebGLRenderingContext, NS_NewCanvasRenderingContextWebGL)
 
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsStyleSheetService, Init)
@@ -727,6 +704,7 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsSecurityNameSet)
 NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsSystemPrincipal,
     nsScriptSecurityManager::SystemPrincipalSingletonConstructor)
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsNullPrincipal, Init)
+NS_GENERIC_FACTORY_CONSTRUCTOR(nsStructuredCloneContainer)
 
 static nsresult
 Construct_nsIScriptSecurityManager(nsISupports *aOuter, REFNSIID aIID, 
@@ -768,18 +746,13 @@ NS_DEFINE_NAMED_CID(IN_FLASHER_CID);
 NS_DEFINE_NAMED_CID(IN_CSSVALUESEARCH_CID);
 NS_DEFINE_NAMED_CID(IN_DOMUTILS_CID);
 NS_DEFINE_NAMED_CID(NS_NAMESPACEMANAGER_CID);
-NS_DEFINE_NAMED_CID(NS_EVENTLISTENERMANAGER_CID);
-NS_DEFINE_NAMED_CID(NS_DOMEVENTGROUP_CID);
 NS_DEFINE_NAMED_CID(NS_DOCUMENT_VIEWER_CID);
 NS_DEFINE_NAMED_CID(NS_HTMLDOCUMENT_CID);
 NS_DEFINE_NAMED_CID(NS_DOM_IMPLEMENTATION_CID);
 NS_DEFINE_NAMED_CID(NS_XMLDOCUMENT_CID);
-#ifdef MOZ_SVG
 NS_DEFINE_NAMED_CID(NS_SVGDOCUMENT_CID);
-#endif
 NS_DEFINE_NAMED_CID(NS_IMAGEDOCUMENT_CID);
 NS_DEFINE_NAMED_CID(NS_DOMSELECTION_CID);
-NS_DEFINE_NAMED_CID(NS_FRAMESELECTION_CID);
 NS_DEFINE_NAMED_CID(NS_RANGE_CID);
 NS_DEFINE_NAMED_CID(NS_RANGEUTILS_CID);
 NS_DEFINE_NAMED_CID(NS_CONTENTITERATOR_CID);
@@ -791,6 +764,8 @@ NS_DEFINE_NAMED_CID(NS_HTMLOPTIONELEMENT_CID);
 NS_DEFINE_NAMED_CID(NS_HTMLAUDIOELEMENT_CID);
 #endif
 NS_DEFINE_NAMED_CID(NS_CANVASRENDERINGCONTEXT2D_CID);
+NS_DEFINE_NAMED_CID(NS_CANVASRENDERINGCONTEXT2DTHEBES_CID);
+NS_DEFINE_NAMED_CID(NS_CANVASRENDERINGCONTEXT2DAZURE_CID);
 NS_DEFINE_NAMED_CID(NS_CANVASRENDERINGCONTEXTWEBGL_CID);
 NS_DEFINE_NAMED_CID(NS_TEXT_ENCODER_CID);
 NS_DEFINE_NAMED_CID(NS_HTMLCOPY_TEXT_ENCODER_CID);
@@ -798,15 +773,7 @@ NS_DEFINE_NAMED_CID(NS_XMLCONTENTSERIALIZER_CID);
 NS_DEFINE_NAMED_CID(NS_XHTMLCONTENTSERIALIZER_CID);
 NS_DEFINE_NAMED_CID(NS_HTMLCONTENTSERIALIZER_CID);
 NS_DEFINE_NAMED_CID(NS_PLAINTEXTSERIALIZER_CID);
-NS_DEFINE_NAMED_CID(NS_HTMLFRAGMENTSINK_CID);
-NS_DEFINE_NAMED_CID(NS_HTMLFRAGMENTSINK2_CID);
-NS_DEFINE_NAMED_CID(NS_HTMLPARANOIDFRAGMENTSINK_CID);
-NS_DEFINE_NAMED_CID(NS_HTMLPARANOIDFRAGMENTSINK2_CID);
 NS_DEFINE_NAMED_CID(MOZ_SANITIZINGHTMLSERIALIZER_CID);
-NS_DEFINE_NAMED_CID(NS_XMLFRAGMENTSINK_CID);
-NS_DEFINE_NAMED_CID(NS_XMLFRAGMENTSINK2_CID);
-NS_DEFINE_NAMED_CID(NS_XHTMLPARANOIDFRAGMENTSINK_CID);
-NS_DEFINE_NAMED_CID(NS_XHTMLPARANOIDFRAGMENTSINK2_CID);
 NS_DEFINE_NAMED_CID(NS_XBLSERVICE_CID);
 NS_DEFINE_NAMED_CID(NS_CONTENTPOLICY_CID);
 NS_DEFINE_NAMED_CID(NS_DATADOCUMENTCONTENTPOLICY_CID);
@@ -825,7 +792,6 @@ NS_DEFINE_NAMED_CID(NS_XTFSERVICE_CID);
 NS_DEFINE_NAMED_CID(NS_XMLCONTENTBUILDER_CID);
 #endif
 NS_DEFINE_NAMED_CID(NS_CONTENT_DOCUMENT_LOADER_FACTORY_CID);
-NS_DEFINE_NAMED_CID(NS_SYNCLOADDOMSERVICE_CID);
 NS_DEFINE_NAMED_CID(NS_DOM_SCRIPT_OBJECT_FACTORY_CID);
 NS_DEFINE_NAMED_CID(NS_BASE_DOM_EXCEPTION_CID);
 NS_DEFINE_NAMED_CID(NS_JSPROTOCOLHANDLER_CID);
@@ -847,9 +813,8 @@ NS_DEFINE_NAMED_CID(NS_FILEREADER_CID);
 NS_DEFINE_NAMED_CID(NS_FORMDATA_CID);
 NS_DEFINE_NAMED_CID(NS_FILEDATAPROTOCOLHANDLER_CID);
 NS_DEFINE_NAMED_CID(NS_XMLHTTPREQUEST_CID);
+NS_DEFINE_NAMED_CID(NS_EVENTSOURCE_CID);
 NS_DEFINE_NAMED_CID(NS_WEBSOCKET_CID);
-NS_DEFINE_NAMED_CID(NS_WSPROTOCOLHANDLER_CID);
-NS_DEFINE_NAMED_CID(NS_WSSPROTOCOLHANDLER_CID);
 NS_DEFINE_NAMED_CID(NS_DOMPARSER_CID);
 NS_DEFINE_NAMED_CID(NS_DOMSTORAGE_CID);
 NS_DEFINE_NAMED_CID(NS_DOMSTORAGE2_CID);
@@ -868,8 +833,6 @@ NS_DEFINE_NAMED_CID(NS_TEXTSERVICESDOCUMENT_CID);
 NS_DEFINE_NAMED_CID(NS_GEOLOCATION_SERVICE_CID);
 NS_DEFINE_NAMED_CID(NS_GEOLOCATION_CID);
 NS_DEFINE_NAMED_CID(NS_FOCUSMANAGER_CID);
-NS_DEFINE_NAMED_CID(NS_ICONTENTUTILS_CID);
-NS_DEFINE_NAMED_CID(NS_ICONTENTUTILS2_CID);
 NS_DEFINE_NAMED_CID(CSPSERVICE_CID);
 NS_DEFINE_NAMED_CID(NS_EVENTLISTENERSERVICE_CID);
 NS_DEFINE_NAMED_CID(NS_GLOBALMESSAGEMANAGER_CID);
@@ -882,13 +845,13 @@ NS_DEFINE_NAMED_CID(NS_SYSTEMPRINCIPAL_CID);
 NS_DEFINE_NAMED_CID(NS_NULLPRINCIPAL_CID);
 NS_DEFINE_NAMED_CID(NS_SECURITYNAMESET_CID);
 NS_DEFINE_NAMED_CID(THIRDPARTYUTIL_CID);
-NS_DEFINE_NAMED_CID(NS_WORKERFACTORY_CID);
+NS_DEFINE_NAMED_CID(NS_STRUCTUREDCLONECONTAINER_CID);
 
 #if defined(XP_UNIX)    || \
     defined(_WINDOWS)   || \
     defined(machintosh) || \
     defined(android)
-NS_DEFINE_NAMED_CID(NS_ACCELEROMETER_CID);
+NS_DEFINE_NAMED_CID(NS_DEVICE_MOTION_CID);
 #endif
 #if defined(ANDROID) || defined(MOZ_PLATFORM_MAEMO)
 NS_DEFINE_NAMED_CID(NS_HAPTICFEEDBACK_CID);
@@ -919,18 +882,13 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
   { &kIN_CSSVALUESEARCH_CID, false, NULL, inCSSValueSearchConstructor },
   { &kIN_DOMUTILS_CID, false, NULL, inDOMUtilsConstructor },
   { &kNS_NAMESPACEMANAGER_CID, false, NULL, CreateNameSpaceManager },
-  { &kNS_EVENTLISTENERMANAGER_CID, false, NULL, CreateEventListenerManager },
-  { &kNS_DOMEVENTGROUP_CID, false, NULL, CreateDOMEventGroup },
   { &kNS_DOCUMENT_VIEWER_CID, false, NULL, CreateDocumentViewer },
   { &kNS_HTMLDOCUMENT_CID, false, NULL, CreateHTMLDocument },
   { &kNS_DOM_IMPLEMENTATION_CID, false, NULL, CreateDOMImplementation },
   { &kNS_XMLDOCUMENT_CID, false, NULL, CreateXMLDocument },
-#ifdef MOZ_SVG
   { &kNS_SVGDOCUMENT_CID, false, NULL, CreateSVGDocument },
-#endif
   { &kNS_IMAGEDOCUMENT_CID, false, NULL, CreateImageDocument },
   { &kNS_DOMSELECTION_CID, false, NULL, CreateDOMSelection },
-  { &kNS_FRAMESELECTION_CID, false, NULL, CreateSelection },
   { &kNS_RANGE_CID, false, NULL, CreateRange },
   { &kNS_RANGEUTILS_CID, false, NULL, CreateRangeUtils },
   { &kNS_CONTENTITERATOR_CID, false, NULL, CreateContentIterator },
@@ -941,6 +899,7 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
 #ifdef MOZ_MEDIA
   { &kNS_HTMLAUDIOELEMENT_CID, false, NULL, CreateHTMLAudioElement },
 #endif
+  { &kNS_CANVASRENDERINGCONTEXT2DTHEBES_CID, false, NULL, CreateCanvasRenderingContext2DThebes },
   { &kNS_CANVASRENDERINGCONTEXT2D_CID, false, NULL, CreateCanvasRenderingContext2D },
   { &kNS_CANVASRENDERINGCONTEXTWEBGL_CID, false, NULL, CreateCanvasRenderingContextWebGL },
   { &kNS_TEXT_ENCODER_CID, false, NULL, CreateTextEncoder },
@@ -949,15 +908,7 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
   { &kNS_HTMLCONTENTSERIALIZER_CID, false, NULL, CreateHTMLContentSerializer },
   { &kNS_XHTMLCONTENTSERIALIZER_CID, false, NULL, CreateXHTMLContentSerializer },
   { &kNS_PLAINTEXTSERIALIZER_CID, false, NULL, CreatePlainTextSerializer },
-  { &kNS_HTMLFRAGMENTSINK_CID, false, NULL, CreateHTMLFragmentSink },
-  { &kNS_HTMLFRAGMENTSINK2_CID, false, NULL, CreateHTMLFragmentSink2 },
-  { &kNS_HTMLPARANOIDFRAGMENTSINK_CID, false, NULL, CreateHTMLParanoidFragmentSink },
-  { &kNS_HTMLPARANOIDFRAGMENTSINK2_CID, false, NULL, CreateHTMLParanoidFragmentSink2 },
   { &kMOZ_SANITIZINGHTMLSERIALIZER_CID, false, NULL, CreateSanitizingHTMLSerializer },
-  { &kNS_XMLFRAGMENTSINK_CID, false, NULL, CreateXMLFragmentSink },
-  { &kNS_XMLFRAGMENTSINK2_CID, false, NULL, CreateXMLFragmentSink2 },
-  { &kNS_XHTMLPARANOIDFRAGMENTSINK_CID, false, NULL, CreateXHTMLParanoidFragmentSink },
-  { &kNS_XHTMLPARANOIDFRAGMENTSINK2_CID, false, NULL, CreateXHTMLParanoidFragmentSink2 },
   { &kNS_XBLSERVICE_CID, false, NULL, CreateXBLService },
   { &kNS_CONTENTPOLICY_CID, false, NULL, CreateContentPolicy },
   { &kNS_DATADOCUMENTCONTENTPOLICY_CID, false, NULL, nsDataDocumentContentPolicyConstructor },
@@ -976,7 +927,6 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
   { &kNS_XMLCONTENTBUILDER_CID, false, NULL, CreateXMLContentBuilder },
 #endif
   { &kNS_CONTENT_DOCUMENT_LOADER_FACTORY_CID, false, NULL, CreateContentDLF },
-  { &kNS_SYNCLOADDOMSERVICE_CID, false, NULL, nsSyncLoadServiceConstructor },
   { &kNS_DOM_SCRIPT_OBJECT_FACTORY_CID, false, NULL, nsDOMScriptObjectFactoryConstructor },
   { &kNS_BASE_DOM_EXCEPTION_CID, false, NULL, nsBaseDOMExceptionConstructor },
   { &kNS_JSPROTOCOLHANDLER_CID, false, NULL, nsJSProtocolHandler::Create },
@@ -998,9 +948,8 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
   { &kNS_FORMDATA_CID, false, NULL, nsFormDataConstructor },
   { &kNS_FILEDATAPROTOCOLHANDLER_CID, false, NULL, nsFileDataProtocolHandlerConstructor },
   { &kNS_XMLHTTPREQUEST_CID, false, NULL, nsXMLHttpRequestConstructor },
+  { &kNS_EVENTSOURCE_CID, false, NULL, nsEventSourceConstructor },
   { &kNS_WEBSOCKET_CID, false, NULL, nsWebSocketConstructor },
-  { &kNS_WSPROTOCOLHANDLER_CID, false, NULL, nsWSProtocolHandlerConstructor },
-  { &kNS_WSSPROTOCOLHANDLER_CID, false, NULL, nsWSSProtocolHandlerConstructor },
   { &kNS_DOMPARSER_CID, false, NULL, nsDOMParserConstructor },
   { &kNS_DOMSTORAGE_CID, false, NULL, NS_NewDOMStorage },
   { &kNS_DOMSTORAGE2_CID, false, NULL, NS_NewDOMStorage2 },
@@ -1019,8 +968,6 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
   { &kNS_GEOLOCATION_SERVICE_CID, false, NULL, nsGeolocationServiceConstructor },
   { &kNS_GEOLOCATION_CID, false, NULL, nsGeolocationConstructor },
   { &kNS_FOCUSMANAGER_CID, false, NULL, CreateFocusManager },
-  { &kNS_ICONTENTUTILS_CID, false, NULL, nsIContentUtilsConstructor },
-  { &kNS_ICONTENTUTILS2_CID, false, NULL, nsIContentUtils2Constructor },
   { &kCSPSERVICE_CID, false, NULL, CSPServiceConstructor },
   { &kNS_EVENTLISTENERSERVICE_CID, false, NULL, CreateEventListenerService },
   { &kNS_GLOBALMESSAGEMANAGER_CID, false, NULL, CreateGlobalMessageManager },
@@ -1036,13 +983,13 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
     defined(_WINDOWS)   || \
     defined(machintosh) || \
     defined(android)
-  { &kNS_ACCELEROMETER_CID, false, NULL, nsAccelerometerSystemConstructor },
+  { &kNS_DEVICE_MOTION_CID, false, NULL, nsDeviceMotionSystemConstructor },
 #endif
 #if defined(ANDROID) || defined(MOZ_PLATFORM_MAEMO)
   { &kNS_HAPTICFEEDBACK_CID, false, NULL, nsHapticFeedbackConstructor },
 #endif
   { &kTHIRDPARTYUTIL_CID, false, NULL, ThirdPartyUtilConstructor },
-  { &kNS_WORKERFACTORY_CID, false, NULL, nsWorkerFactoryConstructor },
+  { &kNS_STRUCTUREDCLONECONTAINER_CID, false, NULL, nsStructuredCloneContainerConstructor },
   { NULL }
 };
 
@@ -1066,9 +1013,7 @@ static const mozilla::Module::ContractIDEntry kLayoutContracts[] = {
   { "@mozilla.org/inspector/dom-utils;1", &kIN_DOMUTILS_CID },
   { NS_NAMESPACEMANAGER_CONTRACTID, &kNS_NAMESPACEMANAGER_CID },
   { "@mozilla.org/xml/xml-document;1", &kNS_XMLDOCUMENT_CID },
-#ifdef MOZ_SVG
   { "@mozilla.org/svg/svg-document;1", &kNS_SVGDOCUMENT_CID },
-#endif
   { "@mozilla.org/content/dom-selection;1", &kNS_DOMSELECTION_CID },
   { "@mozilla.org/content/range;1", &kNS_RANGE_CID },
   { "@mozilla.org/content/range-utils;1", &kNS_RANGEUTILS_CID },
@@ -1081,36 +1026,25 @@ static const mozilla::Module::ContractIDEntry kLayoutContracts[] = {
   { NS_HTMLAUDIOELEMENT_CONTRACTID, &kNS_HTMLAUDIOELEMENT_CID },
 #endif
   { "@mozilla.org/content/canvas-rendering-context;1?id=2d", &kNS_CANVASRENDERINGCONTEXT2D_CID },
+  { "@mozilla.org/content/2dthebes-canvas-rendering-context;1", &kNS_CANVASRENDERINGCONTEXT2DTHEBES_CID },
   { "@mozilla.org/content/canvas-rendering-context;1?id=moz-webgl", &kNS_CANVASRENDERINGCONTEXTWEBGL_CID },
   { "@mozilla.org/content/canvas-rendering-context;1?id=experimental-webgl", &kNS_CANVASRENDERINGCONTEXTWEBGL_CID },
   { NS_DOC_ENCODER_CONTRACTID_BASE "text/xml", &kNS_TEXT_ENCODER_CID },
   { NS_DOC_ENCODER_CONTRACTID_BASE "application/xml", &kNS_TEXT_ENCODER_CID },
   { NS_DOC_ENCODER_CONTRACTID_BASE "application/xhtml+xml", &kNS_TEXT_ENCODER_CID },
-#ifdef MOZ_SVG
   { NS_DOC_ENCODER_CONTRACTID_BASE "image/svg+xml", &kNS_TEXT_ENCODER_CID },
-#endif
   { NS_DOC_ENCODER_CONTRACTID_BASE "text/html", &kNS_TEXT_ENCODER_CID },
   { NS_DOC_ENCODER_CONTRACTID_BASE "text/plain", &kNS_TEXT_ENCODER_CID },
   { NS_HTMLCOPY_ENCODER_CONTRACTID, &kNS_HTMLCOPY_TEXT_ENCODER_CID },
   { NS_CONTENTSERIALIZER_CONTRACTID_PREFIX "text/xml", &kNS_XMLCONTENTSERIALIZER_CID },
   { NS_CONTENTSERIALIZER_CONTRACTID_PREFIX "application/xml", &kNS_XMLCONTENTSERIALIZER_CID },
   { NS_CONTENTSERIALIZER_CONTRACTID_PREFIX "application/xhtml+xml", &kNS_XHTMLCONTENTSERIALIZER_CID },
-#ifdef MOZ_SVG
   { NS_CONTENTSERIALIZER_CONTRACTID_PREFIX "image/svg+xml", &kNS_XMLCONTENTSERIALIZER_CID },
-#endif
   { NS_CONTENTSERIALIZER_CONTRACTID_PREFIX "text/html", &kNS_HTMLCONTENTSERIALIZER_CID },
   { NS_CONTENTSERIALIZER_CONTRACTID_PREFIX "application/vnd.mozilla.xul+xml", &kNS_XMLCONTENTSERIALIZER_CID },
   { NS_CONTENTSERIALIZER_CONTRACTID_PREFIX "text/plain", &kNS_PLAINTEXTSERIALIZER_CID },
   { NS_PLAINTEXTSINK_CONTRACTID, &kNS_PLAINTEXTSERIALIZER_CID },
-  { NS_HTMLFRAGMENTSINK_CONTRACTID, &kNS_HTMLFRAGMENTSINK_CID },
-  { NS_HTMLFRAGMENTSINK2_CONTRACTID, &kNS_HTMLFRAGMENTSINK2_CID },
-  { NS_HTMLPARANOIDFRAGMENTSINK_CONTRACTID, &kNS_HTMLPARANOIDFRAGMENTSINK_CID },
-  { NS_HTMLPARANOIDFRAGMENTSINK2_CONTRACTID, &kNS_HTMLPARANOIDFRAGMENTSINK2_CID },
   { MOZ_SANITIZINGHTMLSERIALIZER_CONTRACTID, &kMOZ_SANITIZINGHTMLSERIALIZER_CID },
-  { NS_XMLFRAGMENTSINK_CONTRACTID, &kNS_XMLFRAGMENTSINK_CID },
-  { NS_XMLFRAGMENTSINK2_CONTRACTID, &kNS_XMLFRAGMENTSINK2_CID },
-  { NS_XHTMLPARANOIDFRAGMENTSINK_CONTRACTID, &kNS_XHTMLPARANOIDFRAGMENTSINK_CID },
-  { NS_XHTMLPARANOIDFRAGMENTSINK2_CONTRACTID, &kNS_XHTMLPARANOIDFRAGMENTSINK2_CID },
   { "@mozilla.org/xbl;1", &kNS_XBLSERVICE_CID },
   { NS_CONTENTPOLICY_CONTRACTID, &kNS_CONTENTPOLICY_CID },
   { NS_DATADOCUMENTCONTENTPOLICY_CONTRACTID, &kNS_DATADOCUMENTCONTENTPOLICY_CID },
@@ -1129,7 +1063,6 @@ static const mozilla::Module::ContractIDEntry kLayoutContracts[] = {
   { NS_XMLCONTENTBUILDER_CONTRACTID, &kNS_XMLCONTENTBUILDER_CID },
 #endif
   { CONTENT_DLF_CONTRACTID, &kNS_CONTENT_DOCUMENT_LOADER_FACTORY_CID },
-  { NS_SYNCLOADDOMSERVICE_CONTRACTID, &kNS_SYNCLOADDOMSERVICE_CID },
   { NS_JSPROTOCOLHANDLER_CONTRACTID, &kNS_JSPROTOCOLHANDLER_CID },
   { NS_WINDOWCONTROLLER_CONTRACTID, &kNS_WINDOWCONTROLLER_CID },
   { "@mozilla.org/view-manager;1", &kNS_VIEW_MANAGER_CID },
@@ -1143,9 +1076,8 @@ static const mozilla::Module::ContractIDEntry kLayoutContracts[] = {
   { NS_FORMDATA_CONTRACTID, &kNS_FORMDATA_CID },
   { NS_NETWORK_PROTOCOL_CONTRACTID_PREFIX FILEDATA_SCHEME, &kNS_FILEDATAPROTOCOLHANDLER_CID },
   { NS_XMLHTTPREQUEST_CONTRACTID, &kNS_XMLHTTPREQUEST_CID },
+  { NS_EVENTSOURCE_CONTRACTID, &kNS_EVENTSOURCE_CID },
   { NS_WEBSOCKET_CONTRACTID, &kNS_WEBSOCKET_CID },
-  { NS_WSPROTOCOLHANDLER_CONTRACTID, &kNS_WSPROTOCOLHANDLER_CID },
-  { NS_WSSPROTOCOLHANDLER_CONTRACTID, &kNS_WSSPROTOCOLHANDLER_CID },
   { NS_DOMPARSER_CONTRACTID, &kNS_DOMPARSER_CID },
   { "@mozilla.org/dom/storage;1", &kNS_DOMSTORAGE_CID },
   { "@mozilla.org/dom/storage;2", &kNS_DOMSTORAGE2_CID },
@@ -1164,8 +1096,6 @@ static const mozilla::Module::ContractIDEntry kLayoutContracts[] = {
   { "@mozilla.org/geolocation/service;1", &kNS_GEOLOCATION_SERVICE_CID },
   { "@mozilla.org/geolocation;1", &kNS_GEOLOCATION_CID },
   { "@mozilla.org/focus-manager;1", &kNS_FOCUSMANAGER_CID },
-  { "@mozilla.org/content/contentutils;1", &kNS_ICONTENTUTILS_CID },
-  { "@mozilla.org/content/contentutils2;1", &kNS_ICONTENTUTILS2_CID },
   { CSPSERVICE_CONTRACTID, &kCSPSERVICE_CID },
   { NS_EVENTLISTENERSERVICE_CONTRACTID, &kNS_EVENTLISTENERSERVICE_CID },
   { NS_GLOBALMESSAGEMANAGER_CONTRACTID, &kNS_GLOBALMESSAGEMANAGER_CID },
@@ -1182,13 +1112,13 @@ static const mozilla::Module::ContractIDEntry kLayoutContracts[] = {
     defined(_WINDOWS)   || \
     defined(machintosh) || \
     defined(android)
-  { NS_ACCELEROMETER_CONTRACTID, &kNS_ACCELEROMETER_CID },
+  { NS_DEVICE_MOTION_CONTRACTID, &kNS_DEVICE_MOTION_CID },
 #endif
 #if defined(ANDROID) || defined(MOZ_PLATFORM_MAEMO)
   { "@mozilla.org/widget/hapticfeedback;1", &kNS_HAPTICFEEDBACK_CID },
 #endif
   { THIRDPARTYUTIL_CONTRACTID, &kTHIRDPARTYUTIL_CID },
-  { NS_WORKERFACTORY_CONTRACTID, &kNS_WORKERFACTORY_CID },
+  { NS_STRUCTUREDCLONECONTAINER_CONTRACTID, &kNS_STRUCTUREDCLONECONTAINER_CID },
   { NULL }
 };
 

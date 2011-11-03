@@ -35,9 +35,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-const ss = Cc["@mozilla.org/browser/sessionstore;1"].
-           getService(Ci.nsISessionStore);
-
 const stateBackup = ss.getBrowserState();
 const testState = {
   windows: [{
@@ -79,19 +76,6 @@ function runNextTest() {
     executeSoon(finish);
   }
 }
-
-// helper, works only for single window
-function waitForBrowserState(aState, aSetStateCallback) {
-  let tabsRestored = 0;
-  gBrowser.tabContainer.addEventListener("SSTabRestored", function() {
-    if (++tabsRestored == aState.windows[0].tabs.length) {
-      gBrowser.tabContainer.removeEventListener("SSTabRestored", arguments.callee, true);
-      executeSoon(aSetStateCallback);
-    }
-  }, true);
-  ss.setBrowserState(JSON.stringify(aState));
-}
-
 
 function test_setup() {
   function onSSTabRestored(aEvent) {

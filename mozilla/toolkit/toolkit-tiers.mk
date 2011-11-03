@@ -58,11 +58,8 @@ ifndef MOZ_NATIVE_ZLIB
 tier_platform_dirs += modules/zlib
 endif
 
-ifndef WINCE
-tier_platform_dirs += modules/libreg
-endif
-
 tier_platform_dirs += \
+		modules/libreg \
 		modules/libpref \
 		intl \
 		netwerk \
@@ -95,10 +92,6 @@ endif
 
 tier_platform_dirs	+= gfx/qcms
 
-ifeq ($(OS_ARCH),WINCE)
-tier_platform_dirs += modules/lib7z
-endif
-
 #
 # "gecko" - core components
 #
@@ -119,6 +112,7 @@ endif
 tier_platform_dirs	+= \
 		modules/libjar \
 		db \
+		storage \
 		$(NULL)
 
 ifdef MOZ_PERMISSIONS
@@ -126,10 +120,6 @@ tier_platform_dirs += \
 		extensions/cookie \
 		extensions/permissions \
 		$(NULL)
-endif
-
-ifdef MOZ_STORAGE
-tier_platform_dirs += storage
 endif
 
 ifdef MOZ_RDF
@@ -179,7 +169,6 @@ tier_platform_dirs	+= \
 		parser \
 		gfx \
 		modules/libpr0n \
-		modules/plugin \
 		dom \
 		view \
 		widget \
@@ -234,11 +223,8 @@ endif
 
 tier_platform_dirs += services/crypto/component
 
-ifdef MOZ_ENABLE_LIBXUL
 tier_platform_dirs += startupcache
-endif
 
-ifndef BUILD_STATIC_LIBS
 ifdef APP_LIBXUL_STATICDIRS
 # Applications can cheat and ask for code to be
 # built before libxul so libxul can be linked against it.
@@ -251,11 +237,8 @@ tier_platform_dirs += $(APP_LIBXUL_DIRS)
 endif
 
 tier_platform_dirs += toolkit/library
-endif
 
-ifdef MOZ_ENABLE_LIBXUL
 tier_platform_dirs += xpcom/stub
-endif
 
 ifdef NS_TRACE_MALLOC
 tier_platform_dirs += tools/trace-malloc

@@ -82,6 +82,7 @@
 #include "nsTArray.h"
 #include "nsIFrame.h"
 #include "nsStringBuffer.h"
+#include "mozilla/dom/Element.h"
 
 nsresult NS_NewDomSelection(nsISelection **aDomSelection);
 
@@ -377,9 +378,7 @@ nsDocumentEncoder::SerializeNodeStart(nsINode* aNode,
     return NS_OK;
   }
 
-  PRUint16 type;
-  node->GetNodeType(&type);
-  switch (type) {
+  switch (node->NodeType()) {
     case nsIDOMNode::TEXT_NODE:
     {
       mSerializer->AppendText(static_cast<nsIContent*>(node),

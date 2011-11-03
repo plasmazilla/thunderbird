@@ -40,24 +40,20 @@
 #include "nsCOMPtr.h"
 #include "nsWindowRoot.h"
 #include "nsPIDOMWindow.h"
-#include "nsIDOMWindow.h"
 #include "nsIDOMDocument.h"
 #include "nsIDocument.h"
-#include "nsIEventListenerManager.h"
+#include "nsEventListenerManager.h"
 #include "nsPresContext.h"
 #include "nsLayoutCID.h"
 #include "nsContentCID.h"
-#include "nsIEventStateManager.h"
 #include "nsIPrivateDOMEvent.h"
-#include "nsIDOMWindowInternal.h"
 #include "nsString.h"
 #include "nsEventDispatcher.h"
-#include "nsIProgrammingLanguage.h"
 #include "nsGUIEvent.h"
 #include "nsGlobalWindow.h"
 #include "nsFocusManager.h"
 #include "nsIDOMHTMLInputElement.h"
-#include "nsIDOMNSHTMLTextAreaElement.h"
+#include "nsIDOMHTMLTextAreaElement.h"
 #include "nsIControllers.h"
 
 #include "nsCycleCollectionParticipant.h"
@@ -80,40 +76,49 @@ nsWindowRoot::~nsWindowRoot()
   }
 }
 
-NS_IMPL_CYCLE_COLLECTION_3(nsWindowRoot, mListenerManager, mPopupNode,
-                           mParent)
+NS_IMPL_CYCLE_COLLECTION_CLASS(nsWindowRoot)
+
+NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsWindowRoot)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NATIVE_MEMBER(mListenerManager,
+                                                  nsEventListenerManager)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mPopupNode)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mParent)
+NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
+
+NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsWindowRoot)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mListenerManager)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mPopupNode)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mParent)
+NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsWindowRoot)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMEventTarget)
-  NS_INTERFACE_MAP_ENTRY(nsPIDOMEventTarget)
   NS_INTERFACE_MAP_ENTRY(nsPIWindowRoot)
   NS_INTERFACE_MAP_ENTRY(nsIDOMEventTarget)
-  NS_INTERFACE_MAP_ENTRY(nsIDOM3EventTarget)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMNSEventTarget)
 NS_INTERFACE_MAP_END
 
 NS_IMPL_CYCLE_COLLECTING_ADDREF(nsWindowRoot)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(nsWindowRoot)
 
-NS_IMETHODIMP
-nsWindowRoot::AddEventListener(const nsAString& aType, nsIDOMEventListener* aListener, PRBool aUseCapture)
-{
-  return AddEventListener(aType, aListener, aUseCapture, PR_FALSE, 0);
-}
+NS_IMPL_DOMTARGET_DEFAULTS(nsWindowRoot)
 
 NS_IMETHODIMP
 nsWindowRoot::RemoveEventListener(const nsAString& aType, nsIDOMEventListener* aListener, PRBool aUseCapture)
 {
-  return RemoveGroupedEventListener(aType, aListener, aUseCapture, nsnull);
+  nsRefPtr<nsEventListenerManager> elm = GetListenerManager(PR_FALSE);
+  if (elm) {
+    elm->RemoveEventListener(aType, aListener, aUseCapture);
+  }
+  return NS_OK;
 }
 
 NS_IMETHODIMP
-nsWindowRoot::DispatchEvent(nsIDOMEvent* aEvt, PRBool *_retval)
+nsWindowRoot::DispatchEvent(nsIDOMEvent* aEvt, PRBool *aRetVal)
 {
   nsEventStatus status = nsEventStatus_eIgnore;
   nsresult rv =  nsEventDispatcher::DispatchDOMEvent(
-    static_cast<nsPIDOMEventTarget*>(this), nsnull, aEvt, nsnull, &status);
-  *_retval = (status != nsEventStatus_eConsumeNoDefault);
+    static_cast<nsIDOMEventTarget*>(this), nsnull, aEvt, nsnull, &status);
+  *aRetVal = (status != nsEventStatus_eConsumeNoDefault);
   return rv;
 }
 
@@ -123,113 +128,44 @@ nsWindowRoot::DispatchDOMEvent(nsEvent* aEvent,
                                nsPresContext* aPresContext,
                                nsEventStatus* aEventStatus)
 {
-  return nsEventDispatcher::DispatchDOMEvent(static_cast<nsPIDOMEventTarget*>(this),
+  return nsEventDispatcher::DispatchDOMEvent(static_cast<nsIDOMEventTarget*>(this),
                                              aEvent, aDOMEvent,
                                              aPresContext, aEventStatus);
-}
-
-NS_IMETHODIMP
-nsWindowRoot::AddGroupedEventListener(const nsAString & aType, nsIDOMEventListener *aListener, 
-                                          PRBool aUseCapture, nsIDOMEventGroup *aEvtGrp)
-{
-  nsCOMPtr<nsIEventListenerManager> manager = GetListenerManager(PR_TRUE);
-  NS_ENSURE_STATE(manager);
-  PRInt32 flags = aUseCapture ? NS_EVENT_FLAG_CAPTURE : NS_EVENT_FLAG_BUBBLE;
-  return manager->AddEventListenerByType(aListener, aType, flags, aEvtGrp);
-}
-
-NS_IMETHODIMP
-nsWindowRoot::RemoveGroupedEventListener(const nsAString & aType, nsIDOMEventListener *aListener, 
-                                             PRBool aUseCapture, nsIDOMEventGroup *aEvtGrp)
-{
-  if (mListenerManager) {
-    PRInt32 flags = aUseCapture ? NS_EVENT_FLAG_CAPTURE : NS_EVENT_FLAG_BUBBLE;
-    return mListenerManager->RemoveEventListenerByType(aListener, aType, flags,
-                                                       aEvtGrp);
-  }
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsWindowRoot::CanTrigger(const nsAString & type, PRBool *_retval)
-{
-  return NS_ERROR_NOT_IMPLEMENTED;
-}
-
-NS_IMETHODIMP
-nsWindowRoot::IsRegisteredHere(const nsAString & type, PRBool *_retval)
-{
-  return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 NS_IMETHODIMP
 nsWindowRoot::AddEventListener(const nsAString& aType,
                                nsIDOMEventListener *aListener,
                                PRBool aUseCapture, PRBool aWantsUntrusted,
-                               PRUint8 optional_argc)
+                               PRUint8 aOptionalArgc)
 {
-  NS_ASSERTION(!aWantsUntrusted || optional_argc > 0,
+  NS_ASSERTION(!aWantsUntrusted || aOptionalArgc > 1,
                "Won't check if this is chrome, you want to set "
                "aWantsUntrusted to PR_FALSE or make the aWantsUntrusted "
                "explicit by making optional_argc non-zero.");
 
-  nsIEventListenerManager* manager = GetListenerManager(PR_TRUE);
-  NS_ENSURE_STATE(manager);
-
-  PRInt32 flags = aUseCapture ? NS_EVENT_FLAG_CAPTURE : NS_EVENT_FLAG_BUBBLE;
-
-  if (aWantsUntrusted) {
-    flags |= NS_PRIV_EVENT_UNTRUSTED_PERMITTED;
-  }
-
-  return manager->AddEventListenerByType(aListener, aType, flags, nsnull);
+  nsEventListenerManager* elm = GetListenerManager(PR_TRUE);
+  NS_ENSURE_STATE(elm);
+  return elm->AddEventListener(aType, aListener, aUseCapture, aWantsUntrusted);
 }
 
-nsresult
-nsWindowRoot::AddEventListenerByIID(nsIDOMEventListener *aListener, const nsIID& aIID)
-{
-  nsIEventListenerManager* manager = GetListenerManager(PR_TRUE);
-  NS_ENSURE_STATE(manager);
-  return manager->AddEventListenerByIID(aListener, aIID, NS_EVENT_FLAG_BUBBLE);
-}
-  
-nsresult
-nsWindowRoot::RemoveEventListenerByIID(nsIDOMEventListener *aListener, const nsIID& aIID)
-{
-  nsIEventListenerManager* manager = GetListenerManager(PR_TRUE);
-  if (manager) {
-    return manager->RemoveEventListenerByIID(aListener, aIID,
-                                             NS_EVENT_FLAG_BUBBLE);
-  }
-  return NS_OK;
-}
-
-nsIEventListenerManager*
+nsEventListenerManager*
 nsWindowRoot::GetListenerManager(PRBool aCreateIfNotFound)
 {
-  if (!mListenerManager) {
-    if (!aCreateIfNotFound) {
-      return nsnull;
-    }
-
-    mListenerManager = do_CreateInstance(kEventListenerManagerCID);
-    if (mListenerManager) {
-      mListenerManager->SetListenerTarget(
-        static_cast<nsPIDOMEventTarget*>(this));
-    }
+  if (!mListenerManager && aCreateIfNotFound) {
+    mListenerManager =
+      new nsEventListenerManager(static_cast<nsIDOMEventTarget*>(this));
   }
 
   return mListenerManager;
 }
 
-nsresult
-nsWindowRoot::GetSystemEventGroup(nsIDOMEventGroup **aGroup)
+nsIScriptContext*
+nsWindowRoot::GetContextForEventHandlers(nsresult* aRv)
 {
-  nsIEventListenerManager* manager = GetListenerManager(PR_TRUE);
-  NS_ENSURE_STATE(manager);
-  return manager->GetSystemEventGroupLM(aGroup);
+  *aRv = NS_OK;
+  return nsnull;
 }
-
 
 nsresult
 nsWindowRoot::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
@@ -254,20 +190,6 @@ nsWindowRoot::GetWindow()
   return mWindow;
 }
 
-NS_IMETHODIMP
-nsWindowRoot::GetScriptTypeID(PRUint32 *aScriptType)
-{
-    NS_ERROR("No default script type here - ask some element");
-    return nsIProgrammingLanguage::UNKNOWN;
-}
-
-NS_IMETHODIMP
-nsWindowRoot::SetScriptTypeID(PRUint32 aScriptType)
-{
-    NS_ERROR("Can't change default script type for a document");
-    return NS_ERROR_NOT_IMPLEMENTED;
-}
-
 nsresult
 nsWindowRoot::GetControllers(nsIControllers** aResult)
 {
@@ -287,7 +209,7 @@ nsWindowRoot::GetControllers(nsIControllers** aResult)
       return xulElement->GetControllers(aResult);
 #endif
 
-    nsCOMPtr<nsIDOMNSHTMLTextAreaElement> htmlTextArea =
+    nsCOMPtr<nsIDOMHTMLTextAreaElement> htmlTextArea =
       do_QueryInterface(focusedContent);
     if (htmlTextArea)
       return htmlTextArea->GetControllers(aResult);
@@ -301,7 +223,7 @@ nsWindowRoot::GetControllers(nsIControllers** aResult)
       return focusedWindow->GetControllers(aResult);
   }
   else {
-    nsCOMPtr<nsIDOMWindowInternal> domWindow = do_QueryInterface(focusedWindow);
+    nsCOMPtr<nsIDOMWindow> domWindow = do_QueryInterface(focusedWindow);
     if (domWindow)
       return domWindow->GetControllers(aResult);
   }
@@ -331,7 +253,7 @@ nsWindowRoot::GetControllerForCommand(const char * aCommand,
   nsCOMPtr<nsPIDOMWindow> focusedWindow;
   nsFocusManager::GetFocusedDescendant(mWindow, PR_TRUE, getter_AddRefs(focusedWindow));
   while (focusedWindow) {
-    nsCOMPtr<nsIDOMWindowInternal> domWindow(do_QueryInterface(focusedWindow));
+    nsCOMPtr<nsIDOMWindow> domWindow(do_QueryInterface(focusedWindow));
 
     nsCOMPtr<nsIControllers> controllers2;
     domWindow->GetControllers(getter_AddRefs(controllers2));
@@ -348,7 +270,7 @@ nsWindowRoot::GetControllerForCommand(const char * aCommand,
     nsCOMPtr<nsPIDOMWindow> piWindow = do_QueryInterface(focusedWindow); 
     nsGlobalWindow *win =
       static_cast<nsGlobalWindow *>
-                 (static_cast<nsIDOMWindowInternal *>(piWindow));
+                 (static_cast<nsIDOMWindow*>(piWindow));
     focusedWindow = win->GetPrivateParent();
   }
   
@@ -370,7 +292,7 @@ nsWindowRoot::SetPopupNode(nsIDOMNode* aNode)
 ///////////////////////////////////////////////////////////////////////////////////
 
 nsresult
-NS_NewWindowRoot(nsPIDOMWindow* aWindow, nsPIDOMEventTarget** aResult)
+NS_NewWindowRoot(nsPIDOMWindow* aWindow, nsIDOMEventTarget** aResult)
 {
   *aResult = new nsWindowRoot(aWindow);
   if (!*aResult)

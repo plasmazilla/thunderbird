@@ -93,6 +93,15 @@ enum LayerState {
  * corresponds to the (pixel-snapped) top-left of the aActiveScrolledRoot.
  * It sets up ContainerLayers so that 0,0 in the container layer
  * corresponds to the snapped top-left of the display list reference frame.
+ *
+ * When we construct a container layer, we know the transform that will be
+ * applied to the layer. If the transform scales the content, we can get
+ * better results when intermediate buffers are used by pushing some scale
+ * from the container's transform down to the children. For ThebesLayer
+ * children, the scaling can be achieved by changing the size of the layer
+ * and drawing into it with increased or decreased resolution. By convention,
+ * integer types (nsIntPoint/nsIntSize/nsIntRect/nsIntRegion) are all in layer
+ * coordinates, post-scaling, whereas appunit types are all pre-scaling.
  */
 class FrameLayerBuilder {
 public:
@@ -132,6 +141,22 @@ public:
    */
   void DidEndTransaction(LayerManager* aManager);
 
+  struct ContainerParameters {
+    ContainerParameters() :
+      mXScale(1), mYScale(1),
+      mInTransformedSubtree(false), mInActiveTransformedSubtree(false) {}
+    ContainerParameters(float aXScale, float aYScale) :
+      mXScale(aXScale), mYScale(aYScale),
+      mInTransformedSubtree(false), mInActiveTransformedSubtree(false) {}
+    ContainerParameters(float aXScale, float aYScale,
+                        const ContainerParameters& aParent) :
+      mXScale(aXScale), mYScale(aYScale),
+      mInTransformedSubtree(aParent.mInTransformedSubtree),
+      mInActiveTransformedSubtree(aParent.mInActiveTransformedSubtree) {}
+    float mXScale, mYScale;
+    bool mInTransformedSubtree;
+    bool mInActiveTransformedSubtree;
+  };
   /**
    * Build a container layer for a display item that contains a child
    * list, either reusing an existing one or creating a new one. It
@@ -146,13 +171,17 @@ public:
    * Returns a layer with clip rect cleared; it is the
    * caller's responsibility to add any clip rect. The visible region
    * is set based on what's in the layer.
+   * The container layer is transformed by aTransform (if non-null), and
+   * the result is transformed by the scale factors in aContainerParameters.
    */
   already_AddRefed<ContainerLayer>
   BuildContainerLayerFor(nsDisplayListBuilder* aBuilder,
                          LayerManager* aManager,
                          nsIFrame* aContainerFrame,
                          nsDisplayItem* aContainerItem,
-                         const nsDisplayList& aChildren);
+                         const nsDisplayList& aChildren,
+                         const ContainerParameters& aContainerParameters,
+                         const gfx3DMatrix* aTransform);
 
   /**
    * Get a retained layer for a display item that needs to create its own
@@ -226,7 +255,7 @@ public:
    */
   void AddLayerDisplayItem(Layer* aLayer,
                            nsDisplayItem* aItem,
-                           LayerState aLayerState = LAYER_ACTIVE);
+                           LayerState aLayerState);
 
   /**
    * Record aItem as a display item that is rendered by the ThebesLayer
@@ -299,6 +328,18 @@ public:
   static PRBool HasRetainedLayerFor(nsIFrame* aFrame, PRUint32 aDisplayItemKey);
 
   /**
+   * Save transform that was in aLayer when we last painted. It must be an integer
+   * translation.
+   */
+  void SaveLastPaintOffset(ThebesLayer* aLayer);
+  /**
+   * Get the translation transform that was in aLayer when we last painted. It's either
+   * the transform saved by SaveLastPaintTransform, or else the transform
+   * that's currently in the layer (which must be an integer translation).
+   */
+  nsIntPoint GetLastPaintOffset(ThebesLayer* aLayer);
+
+  /**
    * Clip represents the intersection of an optional rectangle with a
    * list of rounded rectangles.
    */
@@ -309,7 +350,7 @@ public:
       nscoord mRadii[8];
 
       bool operator==(const RoundedRect& aOther) const {
-        if (mRect != aOther.mRect) {
+        if (!mRect.IsEqualInterior(aOther.mRect)) {
           return false;
         }
 
@@ -356,7 +397,7 @@ public:
 
     bool operator==(const Clip& aOther) const {
       return mHaveClipRect == aOther.mHaveClipRect &&
-             (!mHaveClipRect || mClipRect == aOther.mClipRect) &&
+             (!mHaveClipRect || mClipRect.IsEqualInterior(aOther.mClipRect)) &&
              mRoundedClipRects == aOther.mRoundedClipRects;
     }
     bool operator!=(const Clip& aOther) const {
@@ -441,7 +482,9 @@ protected:
    */
   class ThebesLayerItemsEntry : public nsPtrHashKey<ThebesLayer> {
   public:
-    ThebesLayerItemsEntry(const ThebesLayer *key) : nsPtrHashKey<ThebesLayer>(key) {}
+    ThebesLayerItemsEntry(const ThebesLayer *key) :
+        nsPtrHashKey<ThebesLayer>(key), mContainerLayerFrame(nsnull),
+        mHasExplicitLastPaintOffset(PR_FALSE) {}
     ThebesLayerItemsEntry(const ThebesLayerItemsEntry &toCopy) :
       nsPtrHashKey<ThebesLayer>(toCopy.mKey), mItems(toCopy.mItems)
     {
@@ -450,6 +493,10 @@ protected:
 
     nsTArray<ClippedDisplayItem> mItems;
     nsIFrame* mContainerLayerFrame;
+    // The translation set on this ThebesLayer before we started updating the
+    // layer tree.
+    nsIntPoint mLastPaintOffset;
+    PRPackedBool mHasExplicitLastPaintOffset;
 
     enum { ALLOW_MEMMOVE = PR_TRUE };
   };

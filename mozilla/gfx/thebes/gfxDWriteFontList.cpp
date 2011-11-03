@@ -42,17 +42,16 @@
 #include "gfxDWriteFonts.h"
 #include "nsUnicharUtils.h"
 #include "nsILocaleService.h"
-#include "nsIPrefService.h"
-#include "nsIPrefBranch2.h"
 #include "nsServiceManagerUtils.h"
+#include "nsCharSeparatedTokenizer.h"
+#include "mozilla/Preferences.h"
+#include "mozilla/Telemetry.h"
 
 #include "gfxGDIFontList.h"
 
 #include "nsIWindowsRegKey.h"
 
 using namespace mozilla;
-
-#ifdef PR_LOGGING
 
 #define LOG_FONTLIST(args) PR_LOG(gfxPlatform::GetLog(eGfxLog_fontlist), \
                                PR_LOG_DEBUG, args)
@@ -65,8 +64,6 @@ using namespace mozilla;
 #define LOG_FONTINIT_ENABLED() PR_LOG_TEST( \
                                    gfxPlatform::GetLog(eGfxLog_fontinit), \
                                    PR_LOG_DEBUG)
-
-#endif // PR_LOGGING
 
 // font info loader constants
 
@@ -156,6 +153,7 @@ gfxDWriteFontFamily::FindStyleVariations()
          */
         gfxDWriteFontEntry *fe = 
             new gfxDWriteFontEntry(fullID, font);
+        fe->SetForceGDIClassic(mForceGDIClassic);
         AddFontEntry(fe);
 
 #ifdef PR_LOGGING
@@ -497,7 +495,7 @@ gfxDWriteFontEntry::IsCJKFont()
 // gfxDWriteFontList
 
 gfxDWriteFontList::gfxDWriteFontList()
-    : mInitialized(PR_FALSE)
+    : mInitialized(PR_FALSE), mForceGDIClassicMaxFontSize(0.0)
 {
     mFontSubstitutes.Init();
 }
@@ -550,13 +548,14 @@ gfxDWriteFontList::LookupLocalFont(const gfxProxyFontEntry *aProxyEntry,
     {
         return nsnull;
     }
-    gfxFontEntry *fe = 
+    gfxDWriteFontEntry* dwriteLookup = static_cast<gfxDWriteFontEntry*>(lookup);
+    gfxDWriteFontEntry *fe =
         new gfxDWriteFontEntry(lookup->Name(),
-                               static_cast<gfxDWriteFontEntry*>(lookup)->mFont,
+                               dwriteLookup->mFont,
                                aProxyEntry->Weight(),
                                aProxyEntry->Stretch(),
                                aProxyEntry->IsItalic());
-
+    fe->SetForceGDIClassic(dwriteLookup->GetForceGDIClassic());
     return fe;
 }
 
@@ -671,7 +670,6 @@ gfxDWriteFontList::InitFontList()
 
     mInitialized = PR_FALSE;
 
-#ifdef PR_LOGGING
     LARGE_INTEGER frequency;        // ticks per second
     LARGE_INTEGER t1, t2, t3;           // ticks
     double elapsedTime, upTime;
@@ -681,11 +679,10 @@ gfxDWriteFontList::InitFontList()
         GetTimeFormat(LOCALE_INVARIANT, TIME_FORCE24HOURFORMAT, 
                       NULL, NULL, nowTime, 256);
         GetDateFormat(LOCALE_INVARIANT, NULL, NULL, NULL, nowDate, 256);
-        upTime = (double) GetTickCount();
-        QueryPerformanceFrequency(&frequency);
-        QueryPerformanceCounter(&t1);
     }
-#endif
+    upTime = (double) GetTickCount();
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&t1);
 
     HRESULT hr;
     gfxFontCache *fc = gfxFontCache::GetCache();
@@ -693,26 +690,14 @@ gfxDWriteFontList::InitFontList()
         fc->AgeAllGenerations();
     }
 
-    nsCOMPtr<nsIPrefBranch2> pref = do_GetService(NS_PREFSERVICE_CONTRACTID);
-    nsresult rv;
-
-    rv = pref->GetBoolPref(
-             "gfx.font_rendering.directwrite.use_gdi_table_loading", 
-             &mGDIFontTableAccess);
-    if (NS_FAILED(rv)) {
-        mGDIFontTableAccess = PR_FALSE;
-    }
+    mGDIFontTableAccess = Preferences::GetBool("gfx.font_rendering.directwrite.use_gdi_table_loading", PR_FALSE);
 
     gfxPlatformFontList::InitFontList();
 
     mFontSubstitutes.Clear();
     mNonExistingFonts.Clear();
 
-#ifdef PR_LOGGING
-    if (LOG_FONTINIT_ENABLED()) {
-        QueryPerformanceCounter(&t2);
-    }
-#endif
+    QueryPerformanceCounter(&t2);
 
     hr = gfxWindowsPlatform::GetPlatform()->GetDWriteFactory()->
         GetGdiInterop(getter_AddRefs(mGDIInterop));
@@ -722,27 +707,28 @@ gfxDWriteFontList::InitFontList()
 
     LOGREGISTRY(L"InitFontList end");
 
-#ifdef PR_LOGGING
-    if (LOG_FONTINIT_ENABLED()) {
-        QueryPerformanceCounter(&t3);
+    QueryPerformanceCounter(&t3);
 
+    if (LOG_FONTINIT_ENABLED()) {
         // determine dwrite version
         nsAutoString dwriteVers;
-        gfxWindowsPlatform::GetPlatform()->GetDLLVersion(L"dwrite.dll",
-                                                         dwriteVers);
+        gfxWindowsPlatform::GetDLLVersion(L"dwrite.dll", dwriteVers);
         LOG_FONTINIT(("InitFontList\n"));
         LOG_FONTINIT(("Start: %s %s\n", nowDate, nowTime));
         LOG_FONTINIT(("Uptime: %9.3f s\n", upTime/1000));
         LOG_FONTINIT(("dwrite version: %s\n", 
                       NS_ConvertUTF16toUTF8(dwriteVers).get()));
-        elapsedTime = (t3.QuadPart - t1.QuadPart) * 1000.0 / frequency.QuadPart;
-        LOG_FONTINIT(("Total time in InitFontList:    %9.3f ms\n", elapsedTime));
-        elapsedTime = (t2.QuadPart - t1.QuadPart) * 1000.0 / frequency.QuadPart;
-        LOG_FONTINIT((" --- gfxPlatformFontList init: %9.3f ms\n", elapsedTime));
-        elapsedTime = (t3.QuadPart - t2.QuadPart) * 1000.0 / frequency.QuadPart;
-        LOG_FONTINIT((" --- GdiInterop object:        %9.3f ms\n", elapsedTime));
     }
-#endif
+
+    elapsedTime = (t3.QuadPart - t1.QuadPart) * 1000.0 / frequency.QuadPart;
+    Telemetry::Accumulate(Telemetry::DWRITEFONT_INITFONTLIST_TOTAL, elapsedTime);
+    LOG_FONTINIT(("Total time in InitFontList:    %9.3f ms\n", elapsedTime));
+    elapsedTime = (t2.QuadPart - t1.QuadPart) * 1000.0 / frequency.QuadPart;
+    Telemetry::Accumulate(Telemetry::DWRITEFONT_INITFONTLIST_INIT, elapsedTime);
+    LOG_FONTINIT((" --- gfxPlatformFontList init: %9.3f ms\n", elapsedTime));
+    elapsedTime = (t3.QuadPart - t2.QuadPart) * 1000.0 / frequency.QuadPart;
+    Telemetry::Accumulate(Telemetry::DWRITEFONT_INITFONTLIST_GDI, elapsedTime);
+    LOG_FONTINIT((" --- GdiInterop object:        %9.3f ms\n", elapsedTime));
 
     return NS_OK;
 }
@@ -752,7 +738,6 @@ gfxDWriteFontList::DelayedInitFontList()
 {
     LOGREGISTRY(L"DelayedInitFontList start");
 
-#ifdef PR_LOGGING
     LARGE_INTEGER frequency;        // ticks per second
     LARGE_INTEGER t1, t2, t3;           // ticks
     double elapsedTime, upTime;
@@ -762,11 +747,11 @@ gfxDWriteFontList::DelayedInitFontList()
         GetTimeFormat(LOCALE_INVARIANT, TIME_FORCE24HOURFORMAT, 
                       NULL, NULL, nowTime, 256);
         GetDateFormat(LOCALE_INVARIANT, NULL, NULL, NULL, nowDate, 256);
-        upTime = (double) GetTickCount();
-        QueryPerformanceFrequency(&frequency);
-        QueryPerformanceCounter(&t1);
     }
-#endif
+
+    upTime = (double) GetTickCount();
+    QueryPerformanceFrequency(&frequency);
+    QueryPerformanceCounter(&t1);
 
     HRESULT hr;
 
@@ -781,11 +766,7 @@ gfxDWriteFontList::DelayedInitFontList()
         return NS_ERROR_FAILURE;
     }
 
-#ifdef PR_LOGGING
-    if (LOG_FONTINIT_ENABLED()) {
-        QueryPerformanceCounter(&t2);
-    }
-#endif
+    QueryPerformanceCounter(&t2);
 
     for (UINT32 i = 0; i < systemFonts->GetFontFamilyCount(); i++) {
         nsRefPtr<IDWriteFontFamily> family;
@@ -951,34 +932,57 @@ gfxDWriteFontList::DelayedInitFontList()
         }
     }
 
+    nsAdoptingCString classicFamilies =
+        Preferences::GetCString("gfx.font_rendering.cleartype_params.force_gdi_classic_for_families");
+    if (classicFamilies) {
+        nsCCharSeparatedTokenizer tokenizer(classicFamilies, ',');
+        while (tokenizer.hasMoreTokens()) {
+            NS_ConvertUTF8toUTF16 name(tokenizer.nextToken());
+            BuildKeyNameFromFontName(name);
+            gfxFontFamily *family = mFontFamilies.GetWeak(name);
+            if (family) {
+                static_cast<gfxDWriteFontFamily*>(family)->SetForceGDIClassic(true);
+            }
+        }
+    }
+    mForceGDIClassicMaxFontSize =
+        Preferences::GetInt("gfx.font_rendering.cleartype_params.force_gdi_classic_max_size",
+                            mForceGDIClassicMaxFontSize);
+
     StartLoader(kDelayBeforeLoadingFonts, kIntervalBetweenLoadingFonts);
 
     LOGREGISTRY(L"DelayedInitFontList end");
 
-#ifdef PR_LOGGING
-    if (LOG_FONTINIT_ENABLED()) {
-        QueryPerformanceCounter(&t3);
+    QueryPerformanceCounter(&t3);
 
+    if (LOG_FONTINIT_ENABLED()) {
         // determine dwrite version
         nsAutoString dwriteVers;
-        gfxWindowsPlatform::GetPlatform()->GetDLLVersion(L"dwrite.dll",
-                                                         dwriteVers);
+        gfxWindowsPlatform::GetDLLVersion(L"dwrite.dll", dwriteVers);
         LOG_FONTINIT(("DelayedInitFontList\n"));
         LOG_FONTINIT(("Start: %s %s\n", nowDate, nowTime));
         LOG_FONTINIT(("Uptime: %9.3f s\n", upTime/1000));
         LOG_FONTINIT(("dwrite version: %s\n", 
                       NS_ConvertUTF16toUTF8(dwriteVers).get()));
-        elapsedTime = (t3.QuadPart - t1.QuadPart) * 1000.0 / frequency.QuadPart;
-        LOG_FONTINIT((
-          "Total time in DelayedInitFontList:    %9.3f ms (families: %d, %s)\n",
-          elapsedTime, systemFonts->GetFontFamilyCount(),
-          (mGDIFontTableAccess ? "gdi table access" : "dwrite table access")));
-        elapsedTime = (t2.QuadPart - t1.QuadPart) * 1000.0 / frequency.QuadPart;
-        LOG_FONTINIT((" --- GetSystemFontCollection:  %9.3f ms\n", elapsedTime));
-        elapsedTime = (t3.QuadPart - t2.QuadPart) * 1000.0 / frequency.QuadPart;
-        LOG_FONTINIT((" --- iterate over families:    %9.3f ms\n", elapsedTime));
     }
-#endif
+
+    elapsedTime = (t3.QuadPart - t1.QuadPart) * 1000.0 / frequency.QuadPart;
+    Telemetry::Accumulate(Telemetry::DWRITEFONT_DELAYEDINITFONTLIST_TOTAL, elapsedTime);
+    Telemetry::Accumulate(Telemetry::DWRITEFONT_DELAYEDINITFONTLIST_COUNT,
+                          systemFonts->GetFontFamilyCount());
+    Telemetry::Accumulate(Telemetry::DWRITEFONT_DELAYEDINITFONTLIST_GDI_TABLE, mGDIFontTableAccess);
+    LOG_FONTINIT((
+       "Total time in DelayedInitFontList:    %9.3f ms (families: %d, %s)\n",
+       elapsedTime, systemFonts->GetFontFamilyCount(),
+       (mGDIFontTableAccess ? "gdi table access" : "dwrite table access")));
+
+    elapsedTime = (t2.QuadPart - t1.QuadPart) * 1000.0 / frequency.QuadPart;
+    Telemetry::Accumulate(Telemetry::DWRITEFONT_DELAYEDINITFONTLIST_COLLECT, elapsedTime);
+    LOG_FONTINIT((" --- GetSystemFontCollection:  %9.3f ms\n", elapsedTime));
+
+    elapsedTime = (t3.QuadPart - t2.QuadPart) * 1000.0 / frequency.QuadPart;
+    Telemetry::Accumulate(Telemetry::DWRITEFONT_DELAYEDINITFONTLIST_ITERATE, elapsedTime);
+    LOG_FONTINIT((" --- iterate over families:    %9.3f ms\n", elapsedTime));
 
     return NS_OK;
 }
@@ -1100,6 +1104,17 @@ gfxFontFamily* gfxDWriteFontList::FindFamily(const nsAString& aFamily)
     }
 
     return gfxPlatformFontList::FindFamily(aFamily);
+}
+
+void
+gfxDWriteFontList::GetFontFamilyList(nsTArray<nsRefPtr<gfxFontFamily> >& aFamilyArray)
+{
+    if (!mInitialized) {
+        mInitialized = PR_TRUE;
+        DelayedInitFontList();
+    }
+
+    return gfxPlatformFontList::GetFontFamilyList(aFamilyArray);
 }
 
 PRBool 

@@ -117,6 +117,8 @@ function FillMailContextMenu(aTarget)
 {
   var inThreadPane = InThreadPane();
   gContextMenu = new nsContextMenu(aTarget, getBrowser());
+  // Need to call nsContextMenu's initItems to hide what is not used.
+  gContextMenu.initItems();
   var numSelected = GetNumSelectedMessages();
   var oneOrMore = (numSelected > 0);
   var single = (numSelected == 1);
@@ -351,14 +353,11 @@ function SetupNewMenuItem(folder, numSelected, isServer, serverType, specialFold
 {
   var isInbox = specialFolder == "Inbox";
 
-  const ioService = Components.classes["@mozilla.org/network/io-service;1"]
-                              .getService(Components.interfaces.nsIIOService);
-
   let showNew = (numSelected <= 1 && serverType != "nntp" &&
                  folder.canCreateSubfolders) || isInbox;
   ShowMenuItem("folderPaneContext-new", showNew);
   EnableMenuItem("folderPaneContext-new",
-                 folder.server.type != "imap" || !ioService.offline);
+                 folder.server.type != "imap" || !Services.io.offline);
   if (showNew)
   {
     if (isServer || isInbox)
@@ -503,12 +502,9 @@ function GetMessageIdFromNode(messageIdNode, cleanMessageId)
 // to open it in a browser window (%mid is replaced by the message id)
 function OpenBrowserWithMessageId(messageId)
 {
-  var browserURL = pref.getComplexValue("mailnews.messageid_browser.url",
-                                        Components.interfaces.nsIPrefLocalizedString).data;
-
-  browserURL = browserURL.replace(/%mid/, messageId);
+  var browserURL = GetLocalizedStringPref("mailnews.messageid_browser.url");
   if (browserURL)
-    openAsExternal(browserURL);
+    openAsExternal(browserURL.replace(/%mid/, messageId));
 }
 
 // take the message id from the messageIdNode, search for the
@@ -557,10 +553,7 @@ function OpenMessageForMessageId(messageId)
     var errorTitle   = gMessengerBundle.getString("errorOpenMessageForMessageIdTitle");
     var errorMessage = gMessengerBundle.getFormattedString("errorOpenMessageForMessageIdMessage",
                                                            [messageIdStr]);
-    var promptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                                  .getService(Components.interfaces.nsIPromptService);
-
-    promptService.alert(window, errorTitle, errorMessage);
+    Services.prompt.alert(window, errorTitle, errorMessage);
   }
 }
 

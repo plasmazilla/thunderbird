@@ -44,8 +44,6 @@ var gLastHostname;
 var gLastDomain;
 var gSearchBox;
 var gPrefService;
-var gIOService;
-var gETLDService;
 var gDeleteByHostname;
 var gDeleteByDomain;
 var gHistoryStatus;
@@ -98,21 +96,14 @@ function historyOnSelect()
     if (PlacesUtils.nodeIsURI(selectedNode)) {
       try {
         url = selectedNode.uri;
-        if (!gIOService)
-          gIOService = Components.classes["@mozilla.org/network/io-service;1"]
-                                 .getService(Components.interfaces.nsIIOService);
-        gLastHostname = gIOService.newURI(url, null, null).host;
+        gLastHostname = Services.io.newURI(url, null, null).host;
       } catch (e) {}
     } else if (PlacesUtils.nodeIsHost(selectedNode)) {
       gLastHostname = selectedNode.title;
     }
     if (gLastHostname) {
       try {
-        if (!gETLDService)
-          gETLDService =
-            Components.classes["@mozilla.org/network/effective-tld-service;1"]
-                      .getService(Components.interfaces.nsIEffectiveTLDService);
-        gLastDomain = gETLDService.getBaseDomainFromHost(gLastHostname);
+        gLastDomain = Services.eTLD.getBaseDomainFromHost(gLastHostname);
       } catch (e) {}
     }
   }

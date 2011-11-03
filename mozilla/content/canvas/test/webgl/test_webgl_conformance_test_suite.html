@@ -5,7 +5,6 @@
 <title>
 Mochitest version of the WebGL Conformance Test Suite
 </title>
-<script type="application/javascript" src="/MochiKit/packed.js"></script>
 <script type="application/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
 <link rel="stylesheet" type="text/css" href="/tests/SimpleTest/test.css"/>
 <script type="text/javascript" src="resources/webgl-test-harness.js"></script>
@@ -234,7 +233,7 @@ function start() {
   Reporter.prototype.finishedTestSuite = function() {
       for (var i = 0; i < testsExpectedToFail.length; ++i)
         if (testsSuccessful.indexOf(testsExpectedToFail[i]) != -1)
-          ok(false, 'Test expected to fail, but passed: ' + testsExpectedToFail[i]);
+          todo(true, 'Test expected to fail, but passed: ' + testsExpectedToFail[i]);
       statusTextNode.textContent = 'Finished';
       SimpleTest.finish();
   }

@@ -39,8 +39,8 @@
  * Implementation of DOM Core's nsIDOMDocumentType node.
  */
 
-#ifndef nsDOMDocumentType_h___
-#define nsDOMDocumentType_h___
+#ifndef nsDOMDocumentType_h
+#define nsDOMDocumentType_h
 
 #include "nsCOMPtr.h"
 #include "nsIDOMDocumentType.h"
@@ -53,14 +53,23 @@
 // data. This is done simply for convenience and should be changed if
 // this restricts what should be done for character data.
 
-class nsDOMDocumentType : public nsGenericDOMDataNode,
-                          public nsIDOMDocumentType
+class nsDOMDocumentTypeForward : public nsGenericDOMDataNode,
+                                 public nsIDOMDocumentType
+{
+public:
+  nsDOMDocumentTypeForward(already_AddRefed<nsINodeInfo> aNodeInfo)
+    : nsGenericDOMDataNode(aNodeInfo)
+  {
+  }
+
+  // nsIDOMNode
+  NS_FORWARD_NSIDOMNODE(nsGenericDOMDataNode::)
+};
+
+class nsDOMDocumentType : public nsDOMDocumentTypeForward
 {
 public:
   nsDOMDocumentType(already_AddRefed<nsINodeInfo> aNodeInfo,
-                    nsIAtom *aName,
-                    nsIDOMNamedNodeMap *aEntities,
-                    nsIDOMNamedNodeMap *aNotations,
                     const nsAString& aPublicId,
                     const nsAString& aSystemId,
                     const nsAString& aInternalSubset);
@@ -71,23 +80,36 @@ public:
   NS_DECL_ISUPPORTS_INHERITED
 
   // nsIDOMNode
-  NS_IMPL_NSIDOMNODE_USING_GENERIC_DOM_DATA
+  // Forwarded by base class
 
   // nsIDOMDocumentType
   NS_DECL_NSIDOMDOCUMENTTYPE
 
-  // nsIContent overrides
+  NS_IMETHODIMP GetNodeValue(nsAString& aNodeValue)
+  {
+    SetDOMStringToNull(aNodeValue);
+  
+    return NS_OK;
+  }
+  NS_IMETHODIMP SetNodeValue(const nsAString& aNodeValue)
+  {
+    return NS_OK;
+  }
+
+  // nsINode
   virtual PRBool IsNodeOfType(PRUint32 aFlags) const;
+
+  // nsIContent overrides
   virtual const nsTextFragment* GetText();
   virtual nsresult BindToTree(nsIDocument *aDocument, nsIContent *aParent,
                               nsIContent *aBindingParent,
                               PRBool aCompileEventHandlers);
 
+  virtual nsGenericDOMDataNode* CloneDataNode(nsINodeInfo *aNodeInfo,
+                                              PRBool aCloneText) const;
+
   virtual nsXPCClassInfo* GetClassInfo();
 protected:
-  nsCOMPtr<nsIAtom> mName;
-  nsCOMPtr<nsIDOMNamedNodeMap> mEntities;
-  nsCOMPtr<nsIDOMNamedNodeMap> mNotations;
   nsString mPublicId;
   nsString mSystemId;
   nsString mInternalSubset;
@@ -98,10 +120,8 @@ NS_NewDOMDocumentType(nsIDOMDocumentType** aDocType,
                       nsNodeInfoManager *aOwnerDoc,
                       nsIPrincipal *aPrincipal,
                       nsIAtom *aName,
-                      nsIDOMNamedNodeMap *aEntities,
-                      nsIDOMNamedNodeMap *aNotations,
                       const nsAString& aPublicId,
                       const nsAString& aSystemId,
                       const nsAString& aInternalSubset);
 
-#endif // nsDOMDocument_h___
+#endif // nsDOMDocumentType_h

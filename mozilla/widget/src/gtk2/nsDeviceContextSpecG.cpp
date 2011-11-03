@@ -53,8 +53,6 @@
 
 #include "nsDeviceContextSpecG.h"
 
-#include "nsIPrefService.h"
-#include "nsIPrefBranch.h"
 #include "prenv.h" /* for PR_GetEnv */
 
 #include "nsPrintfCString.h"
@@ -71,9 +69,13 @@
 #include "nsILocalFile.h"
 #include "nsTArray.h"
 
+#include "mozilla/Preferences.h"
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+
+using namespace mozilla;
 
 /* Ensure that the result is always equal to either PR_TRUE or PR_FALSE */
 #define MAKE_PR_BOOL(val) ((val)?(PR_TRUE):(PR_FALSE))
@@ -193,30 +195,34 @@ private:
   void SetCharValue(  const char *tagname, const char *value );
 
   nsXPIDLCString          mPrinterName;
-  nsCOMPtr<nsIPrefBranch> mPrefs;
 };
 
 void nsPrinterFeatures::SetBoolValue( const char *tagname, PRBool value )
 {
-  mPrefs->SetBoolPref(nsPrintfCString(256, PRINTERFEATURES_PREF ".%s.%s", mPrinterName.get(), tagname).get(), value);
+  nsPrintfCString prefName(256, PRINTERFEATURES_PREF ".%s.%s",
+                           mPrinterName.get(), tagname);
+  Preferences::SetBool(prefName.get(), value);
 }
 
 void nsPrinterFeatures::SetIntValue(  const char *tagname, PRInt32 value )
 {
-  mPrefs->SetIntPref(nsPrintfCString(256, PRINTERFEATURES_PREF ".%s.%s", mPrinterName.get(), tagname).get(), value);
+  nsPrintfCString prefName(256, PRINTERFEATURES_PREF ".%s.%s",
+                           mPrinterName.get(), tagname);
+  Preferences::SetInt(prefName.get(), value);
 }
 
 void nsPrinterFeatures::SetCharValue(  const char *tagname, const char *value )
 {
-  mPrefs->SetCharPref(nsPrintfCString(256, PRINTERFEATURES_PREF ".%s.%s", mPrinterName.get(), tagname).get(), value);
+  nsPrintfCString prefName(256, PRINTERFEATURES_PREF ".%s.%s",
+                           mPrinterName.get(), tagname);
+  Preferences::SetCString(prefName.get(), value);
 }
 
 nsPrinterFeatures::nsPrinterFeatures( const char *printername )
 {
   DO_PR_DEBUG_LOG(("nsPrinterFeatures::nsPrinterFeatures('%s')\n", printername));
   mPrinterName.Assign(printername);
-  mPrefs = do_GetService(NS_PREFSERVICE_CONTRACTID);
- 
+
   SetBoolValue("has_special_printerfeatures", PR_TRUE);
 }
 
@@ -419,16 +425,6 @@ NS_IMETHODIMP nsDeviceContextSpecGTK::GetSurfaceForPrinter(gfxASurface **aSurfac
   double width, height;
   mPrintSettings->GetEffectivePageSize(&width, &height);
 
-  // If we're in landscape mode, we'll be rotating the output --
-  // need to swap width & height.
-  PRInt32 orientation;
-  mPrintSettings->GetOrientation(&orientation);
-  if (nsIPrintSettings::kLandscapeOrientation == orientation) {
-    double tmp = width;
-    width = height;
-    height = tmp;
-  }
-
   // convert twips to points
   width  /= TWIPS_PER_POINT_FLOAT;
   height /= TWIPS_PER_POINT_FLOAT;
@@ -501,7 +497,13 @@ NS_IMETHODIMP nsDeviceContextSpecGTK::GetSurfaceForPrinter(gfxASurface **aSurfac
   if (format == nsIPrintSettings::kOutputFormatPDF) {
     surface = new gfxPDFSurface(stream, surfaceSize);
   } else {
-    surface = new gfxPSSurface(stream, surfaceSize);
+    PRInt32 orientation;
+    mPrintSettings->GetOrientation(&orientation);
+    if (nsIPrintSettings::kPortraitOrientation == orientation) {
+      surface = new gfxPSSurface(stream, surfaceSize, gfxPSSurface::PORTRAIT);
+    } else {
+      surface = new gfxPSSurface(stream, surfaceSize, gfxPSSurface::LANDSCAPE);
+    }
   }
 
   if (!surface)
@@ -659,8 +661,8 @@ NS_IMETHODIMP nsDeviceContextSpecGTK::EndDocument()
  * - Get prefs
  */
 static
-nsresult CopyPrinterCharPref(nsIPrefBranch *pref, const char *modulename, const char *printername,
-                             const char *prefname, nsXPIDLCString &return_buf)
+nsresult CopyPrinterCharPref(const char *modulename, const char *printername,
+                             const char *prefname, nsCString &return_buf)
 {
   DO_PR_DEBUG_LOG(("CopyPrinterCharPref('%s', '%s', '%s')\n", modulename, printername, prefname));
 
@@ -670,7 +672,7 @@ nsresult CopyPrinterCharPref(nsIPrefBranch *pref, const char *modulename, const 
     /* Get prefs per printer name and module name */
     nsPrintfCString name(512, "print.%s.printer_%s.%s", modulename, printername, prefname);
     DO_PR_DEBUG_LOG(("trying to get '%s'\n", name.get()));
-    rv = pref->GetCharPref(name.get(), getter_Copies(return_buf));
+    rv = Preferences::GetCString(name.get(), &return_buf);
   }
   
   if (NS_FAILED(rv)) { 
@@ -678,7 +680,7 @@ nsresult CopyPrinterCharPref(nsIPrefBranch *pref, const char *modulename, const 
       /* Get prefs per printer name */
       nsPrintfCString name(512, "print.printer_%s.%s", printername, prefname);
       DO_PR_DEBUG_LOG(("trying to get '%s'\n", name.get()));
-      rv = pref->GetCharPref(name.get(), getter_Copies(return_buf));
+      rv = Preferences::GetCString(name.get(), &return_buf);
     }
 
     if (NS_FAILED(rv)) {
@@ -686,14 +688,14 @@ nsresult CopyPrinterCharPref(nsIPrefBranch *pref, const char *modulename, const 
         /* Get prefs per module name */
         nsPrintfCString name(512, "print.%s.%s", modulename, prefname);
         DO_PR_DEBUG_LOG(("trying to get '%s'\n", name.get()));
-        rv = pref->GetCharPref(name.get(), getter_Copies(return_buf));
+        rv = Preferences::GetCString(name.get(), &return_buf);
       }
       
       if (NS_FAILED(rv)) {
         /* Get prefs */
         nsPrintfCString name(512, "print.%s", prefname);
         DO_PR_DEBUG_LOG(("trying to get '%s'\n", name.get()));
-        rv = pref->GetCharPref(name.get(), getter_Copies(return_buf));
+        rv = Preferences::GetCString(name.get(), &return_buf);
       }
     }
   }
@@ -769,10 +771,6 @@ NS_IMETHODIMP nsPrinterEnumeratorGTK::InitPrintSettingsFromPrinter(const PRUnich
   NS_ENSURE_TRUE(*aPrinterName, NS_ERROR_FAILURE);
   NS_ENSURE_TRUE(aPrintSettings, NS_ERROR_FAILURE);
 
-  nsCOMPtr<nsIPrefBranch> pPrefs = do_GetService(NS_PREFSERVICE_CONTRACTID, &rv);
-  if (NS_FAILED(rv))
-    return rv;
-
   nsXPIDLCString fullPrinterName, /* Full name of printer incl. driver-specific prefix */ 
                  printerName;     /* "Stripped" name of printer */
   fullPrinterName.Assign(NS_ConvertUTF16toUTF8(aPrinterName));
@@ -795,13 +793,16 @@ NS_IMETHODIMP nsPrinterEnumeratorGTK::InitPrintSettingsFromPrinter(const PRUnich
 
 #ifdef SET_PRINTER_FEATURES_VIA_PREFS
   /* Defaults to FALSE */
-  pPrefs->SetBoolPref(nsPrintfCString(256, PRINTERFEATURES_PREF ".%s.has_special_printerfeatures", fullPrinterName.get()).get(), PR_FALSE);
+  nsPrintfCString  prefName(256,
+    PRINTERFEATURES_PREF ".%s.has_special_printerfeatures",
+    fullPrinterName.get());
+  Preferences::SetBool(prefName.get(), PR_FALSE);
 #endif /* SET_PRINTER_FEATURES_VIA_PREFS */
 
   
   /* Set filename */
-  nsXPIDLCString filename;
-  if (NS_FAILED(CopyPrinterCharPref(pPrefs, nsnull, printerName, "filename", filename))) {
+  nsCAutoString filename;
+  if (NS_FAILED(CopyPrinterCharPref(nsnull, printerName, "filename", filename))) {
     const char *path;
   
     if (!(path = PR_GetEnv("PWD")))
@@ -834,8 +835,9 @@ NS_IMETHODIMP nsPrinterEnumeratorGTK::InitPrintSettingsFromPrinter(const PRUnich
     printerFeatures.SetCanChangeOrientation(PR_TRUE);
 #endif /* SET_PRINTER_FEATURES_VIA_PREFS */
 
-    nsXPIDLCString orientation;
-    if (NS_SUCCEEDED(CopyPrinterCharPref(pPrefs, "postscript", printerName, "orientation", orientation))) {
+    nsCAutoString orientation;
+    if (NS_SUCCEEDED(CopyPrinterCharPref("postscript", printerName,
+                                         "orientation", orientation))) {
       if (orientation.LowerCaseEqualsLiteral("portrait")) {
         DO_PR_DEBUG_LOG(("setting default orientation to 'portrait'\n"));
         aPrintSettings->SetOrientation(nsIPrintSettings::kPortraitOrientation);
@@ -891,11 +893,12 @@ NS_IMETHODIMP nsPrinterEnumeratorGTK::InitPrintSettingsFromPrinter(const PRUnich
 #ifdef SET_PRINTER_FEATURES_VIA_PREFS
     printerFeatures.SetCanChangePaperSize(PR_TRUE);
 #endif /* SET_PRINTER_FEATURES_VIA_PREFS */
-    nsXPIDLCString papername;
-    if (NS_SUCCEEDED(CopyPrinterCharPref(pPrefs, "postscript", printerName, "paper_size", papername))) {
+    nsCAutoString papername;
+    if (NS_SUCCEEDED(CopyPrinterCharPref("postscript", printerName,
+                                         "paper_size", papername))) {
       nsPaperSizePS paper;
 
-      if (paper.Find(papername)) {
+      if (paper.Find(papername.get())) {
         DO_PR_DEBUG_LOG(("setting default paper size to '%s' (%g mm/%g mm)\n",
               paper.Name(), paper.Width_mm(), paper.Height_mm()));
 	aPrintSettings->SetPaperSizeUnit(nsIPrintSettings::kPaperSizeMillimeters);
@@ -938,8 +941,8 @@ NS_IMETHODIMP nsPrinterEnumeratorGTK::InitPrintSettingsFromPrinter(const PRUnich
 #endif /* SET_PRINTER_FEATURES_VIA_PREFS */
 
     if (hasSpoolerCmd) {
-      nsXPIDLCString command;
-      if (NS_SUCCEEDED(CopyPrinterCharPref(pPrefs, "postscript",
+      nsCAutoString command;
+      if (NS_SUCCEEDED(CopyPrinterCharPref("postscript",
             printerName, "print_command", command))) {
         DO_PR_DEBUG_LOG(("setting default print command to '%s'\n",
             command.get()));
@@ -973,11 +976,6 @@ nsresult GlobalPrinters::InitializeGlobalPrinters ()
   if (!mGlobalPrinterList) 
     return NS_ERROR_OUT_OF_MEMORY;
 
-  nsresult rv;
-  nsCOMPtr<nsIPrefBranch> pPrefs = do_GetService(NS_PREFSERVICE_CONTRACTID, &rv);
-  if (NS_FAILED(rv))
-    return rv;
-      
   nsPSPrinterList psMgr;
   if (NS_SUCCEEDED(psMgr.Init()) && psMgr.Enabled()) {
     /* Get the list of PostScript-module printers */

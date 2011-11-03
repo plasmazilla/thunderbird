@@ -60,7 +60,6 @@ using namespace mozilla::dom;
 namespace mozilla {
 namespace imagelib {
 
-#ifdef MOZ_ENABLE_LIBXUL
 // Helper-class: SVGRootRenderingObserver
 class SVGRootRenderingObserver : public nsSVGRenderingObserver {
 public:
@@ -124,7 +123,6 @@ protected:
   nsRefPtr<SVGDocumentWrapper> mDocWrapper;
   VectorImage* mVectorImage;   // Raw pointer because it owns me.
 };
-#endif // MOZ_ENABLE_LIBXUL
 
 // Helper-class: SVGDrawingCallback
 class SVGDrawingCallback : public gfxDrawingCallback {
@@ -159,7 +157,7 @@ SVGDrawingCallback::operator()(gfxContext* aContext,
   nsCOMPtr<nsIPresShell> presShell;
   if (NS_FAILED(mSVGDocumentWrapper->GetPresShell(getter_AddRefs(presShell)))) {
     NS_WARNING("Unable to draw -- presShell lookup failed");
-    return NS_ERROR_FAILURE;
+    return PR_FALSE;
   }
   NS_ABORT_IF_FALSE(presShell, "GetPresShell succeeded but returned null");
 
@@ -251,14 +249,26 @@ VectorImage::GetCurrentFrameRect(nsIntRect& aRect)
 }
 
 PRUint32
-VectorImage::GetDecodedDataSize()
+VectorImage::GetDecodedHeapSize()
 {
   // XXXdholbert TODO: return num bytes used by helper SVG doc. (bug 590790)
   return sizeof(*this);
 }
 
 PRUint32
-VectorImage::GetSourceDataSize()
+VectorImage::GetDecodedNonheapSize()
+{
+  return 0;
+}
+
+PRUint32
+VectorImage::GetDecodedOutOfProcessSize()
+{
+  return 0;
+}
+
+PRUint32
+VectorImage::GetSourceHeapSize()
 {
   // We're not storing the source data -- we just feed that directly to
   // our helper SVG document as we receive it, for it to parse.
@@ -291,7 +301,7 @@ VectorImage::StopAnimation()
   return NS_OK;
 }
 
-PRBool
+bool
 VectorImage::ShouldAnimate()
 {
   return Image::ShouldAnimate() && mIsFullyLoaded && mHaveAnimations;
@@ -575,6 +585,9 @@ VectorImage::Draw(gfxContext* aContext,
 nsIFrame*
 VectorImage::GetRootLayoutFrame()
 {
+  if (mError)
+    return nsnull;
+
   return mSVGDocumentWrapper->GetRootLayoutFrame();
 }
 
@@ -669,10 +682,8 @@ VectorImage::OnStopRequest(nsIRequest* aRequest, nsISupports* aCtxt,
   mIsFullyLoaded = PR_TRUE;
   mHaveAnimations = mSVGDocumentWrapper->IsAnimated();
 
-#ifdef MOZ_ENABLE_LIBXUL
   // Start listening to our image for rendering updates
   mRenderingObserver = new SVGRootRenderingObserver(mSVGDocumentWrapper, this);
-#endif // MOZ_ENABLE_LIBXUL
 
   // Tell *our* observers that we're done loading
   nsCOMPtr<imgIDecoderObserver> observer = do_QueryReferent(mObserver);
@@ -701,6 +712,9 @@ VectorImage::OnDataAvailable(nsIRequest* aRequest, nsISupports* aCtxt,
                              nsIInputStream* aInStr, PRUint32 aSourceOffset,
                              PRUint32 aCount)
 {
+  if (mError)
+    return NS_ERROR_FAILURE;
+
   return mSVGDocumentWrapper->OnDataAvailable(aRequest, aCtxt, aInStr,
                                               aSourceOffset, aCount);
 }
@@ -711,9 +725,17 @@ VectorImage::OnDataAvailable(nsIRequest* aRequest, nsISupports* aCtxt,
 void
 VectorImage::InvalidateObserver()
 {
-  nsCOMPtr<imgIContainerObserver> observer(do_QueryReferent(mObserver));
-  if (observer) {
-    observer->FrameChanged(this, &nsIntRect::GetMaxSizedIntRect());
+  if (!mObserver)
+    return;
+
+  nsCOMPtr<imgIContainerObserver> containerObs(do_QueryReferent(mObserver));
+  if (containerObs) {
+    containerObs->FrameChanged(this, &nsIntRect::GetMaxSizedIntRect());
+  }
+
+  nsCOMPtr<imgIDecoderObserver> decoderObs(do_QueryReferent(mObserver));
+  if (decoderObs) {
+    decoderObs->OnStopFrame(nsnull, imgIContainer::FRAME_CURRENT);
   }
 }
 

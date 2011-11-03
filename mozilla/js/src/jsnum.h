@@ -41,16 +41,12 @@
 #define jsnum_h___
 
 #include <math.h>
-#if defined(XP_WIN) || defined(XP_OS2)
+#ifdef WIN32
 #include <float.h>
-#endif
-#ifdef SOLARIS
-#include <ieeefp.h>
 #endif
 #include "jsvalue.h"
 
 #include "jsstdint.h"
-#include "jsstr.h"
 #include "jsobj.h"
 
 /*
@@ -85,37 +81,37 @@ typedef union jsdpun {
     jsdouble d;
 } jsdpun;
 
+/* Low-level floating-point predicates. See bug 640494. */
+
 static inline int
 JSDOUBLE_IS_NaN(jsdouble d)
 {
+/* Visual Studio PGO miscompiles the bitwise version, so keep using _isnan
+ * from float.h until we figure out what's going on. */
 #ifdef WIN32
     return _isnan(d);
 #else
-    return isnan(d);
+    jsdpun u;
+    u.d = d;
+    return (u.u64 & ~JSDOUBLE_SIGNBIT) > JSDOUBLE_EXPMASK;
 #endif
 }
 
 static inline int
 JSDOUBLE_IS_FINITE(jsdouble d)
 {
-#ifdef WIN32
-    return _finite(d);
-#else
-    return finite(d);
-#endif
+    /* -0 is finite. NaNs are not. */
+    jsdpun u;
+    u.d = d;
+    return (u.u64 & JSDOUBLE_EXPMASK) != JSDOUBLE_EXPMASK;
 }
 
 static inline int
 JSDOUBLE_IS_INFINITE(jsdouble d)
 {
-#ifdef WIN32
-    int c = _fpclass(d);
-    return c == _FPCLASS_NINF || c == _FPCLASS_PINF;
-#elif defined(SOLARIS)
-    return !finite(d) && !isnan(d);
-#else
-    return isinf(d);
-#endif
+    jsdpun u;
+    u.d = d;
+    return (u.u64 & ~JSDOUBLE_SIGNBIT) == JSDOUBLE_EXPMASK;
 }
 
 #define JSDOUBLE_HI32_SIGNBIT   0x80000000
@@ -127,13 +123,9 @@ JSDOUBLE_IS_INFINITE(jsdouble d)
 static inline bool
 JSDOUBLE_IS_NEG(jsdouble d)
 {
-#ifdef WIN32
-    return JSDOUBLE_IS_NEGZERO(d) || d < 0;
-#elif defined(SOLARIS)
-    return copysign(1, d) < 0;
-#else
-    return signbit(d);
-#endif
+    jsdpun u;
+    u.d = d;
+    return (u.s.hi & JSDOUBLE_HI32_SIGNBIT) != 0;
 }
 
 static inline uint32
@@ -157,12 +149,15 @@ extern jsdouble js_NaN;
 extern jsdouble js_PositiveInfinity;
 extern jsdouble js_NegativeInfinity;
 
-/* Initialize number constants and runtime state for the first context. */
-extern JSBool
-js_InitRuntimeNumberState(JSContext *cx);
+namespace js {
+
+extern bool
+InitRuntimeNumberState(JSRuntime *rt);
 
 extern void
-js_FinishRuntimeNumberState(JSContext *cx);
+FinishRuntimeNumberState(JSRuntime *rt);
+
+} /* namespace js */
 
 /* Initialize the Number class, returning its prototype object. */
 extern js::Class js_NumberClass;
@@ -185,6 +180,9 @@ extern const char js_isNaN_str[];
 extern const char js_isFinite_str[];
 extern const char js_parseFloat_str[];
 extern const char js_parseInt_str[];
+
+class JSString;
+class JSFixedString;
 
 extern JSString * JS_FASTCALL
 js_IntToString(JSContext *cx, jsint i);
@@ -209,6 +207,9 @@ NumberValueToStringBuffer(JSContext *cx, const Value &v, StringBuffer &sb);
 /* Same as js_NumberToString, different signature. */
 extern JSFixedString *
 NumberToString(JSContext *cx, jsdouble d);
+
+extern JSFixedString *
+IndexToString(JSContext *cx, uint32 index);
 
 /*
  * Usually a small amount of static storage is enough, but sometimes we need
@@ -261,30 +262,27 @@ extern bool
 GetPrefixInteger(JSContext *cx, const jschar *start, const jschar *end, int base,
                  const jschar **endp, jsdouble *dp);
 
-/*
- * Convert a value to a number, returning the converted value in 'out' if the
- * conversion succeeds.
- */
+/* ES5 9.3 ToNumber. */
 JS_ALWAYS_INLINE bool
-ValueToNumber(JSContext *cx, const js::Value &v, double *out)
+ToNumber(JSContext *cx, const Value &v, double *out)
 {
     if (v.isNumber()) {
         *out = v.toNumber();
         return true;
     }
-    extern bool ValueToNumberSlow(JSContext *, js::Value, double *);
-    return ValueToNumberSlow(cx, v, out);
+    extern bool ToNumberSlow(JSContext *cx, js::Value v, double *dp);
+    return ToNumberSlow(cx, v, out);
 }
 
-/* Convert a value to a number, replacing 'vp' with the converted value. */
+/* ES5 9.3 ToNumber, overwriting *vp with the appropriate number value. */
 JS_ALWAYS_INLINE bool
-ValueToNumber(JSContext *cx, js::Value *vp)
+ToNumber(JSContext *cx, Value *vp)
 {
     if (vp->isNumber())
         return true;
     double d;
-    extern bool ValueToNumberSlow(JSContext *, js::Value, double *);
-    if (!ValueToNumberSlow(cx, *vp, &d))
+    extern bool ToNumberSlow(JSContext *cx, js::Value v, double *dp);
+    if (!ToNumberSlow(cx, *vp, &d))
         return false;
     vp->setNumber(d);
     return true;
@@ -476,7 +474,7 @@ js_DoubleToECMAInt32(jsdouble d)
     // bit-shifted left by the (decoded) exponent. Note that because the r1[20]
     // is the bit with value '1', r1 is effectively already shifted (left) by
     // 20 bits, and r0 is already shifted by 52 bits.
-    
+
     // Adjust the exponent to remove the encoding offset. If the decoded
     // exponent is negative, quickly bail out with '0' as such values round to
     // zero anyway. This also catches +/-0 and subnormals.
@@ -634,75 +632,25 @@ ValueFitsInInt32(const Value &v, int32_t *pi)
     return v.isDouble() && JSDOUBLE_IS_INT32(v.toDouble(), pi);
 }
 
-template<typename T> struct NumberTraits { };
-template<> struct NumberTraits<int32> {
-  static JS_ALWAYS_INLINE int32 NaN() { return 0; }
-  static JS_ALWAYS_INLINE int32 toSelfType(int32 i) { return i; }
-  static JS_ALWAYS_INLINE int32 toSelfType(jsdouble d) { return js_DoubleToECMAUint32(d); }
-};
-template<> struct NumberTraits<jsdouble> {
-  static JS_ALWAYS_INLINE jsdouble NaN() { return js_NaN; }
-  static JS_ALWAYS_INLINE jsdouble toSelfType(int32 i) { return i; }
-  static JS_ALWAYS_INLINE jsdouble toSelfType(jsdouble d) { return d; }
-};
-
-template<typename T>
-static JS_ALWAYS_INLINE bool
-StringToNumberType(JSContext *cx, JSString *str, T *result)
+/* ES5 9.4 ToInteger. */
+static inline bool
+ToInteger(JSContext *cx, const js::Value &v, jsdouble *dp)
 {
-    size_t length = str->length();
-    const jschar *chars = str->getChars(NULL);
-    if (!chars)
-        return false;
-
-    if (length == 1) {
-        jschar c = chars[0];
-        if ('0' <= c && c <= '9') {
-            *result = NumberTraits<T>::toSelfType(T(c - '0'));
-            return true;
-        }
-        if (JS_ISSPACE(c)) {
-            *result = NumberTraits<T>::toSelfType(T(0));
-            return true;
-        }
-        *result = NumberTraits<T>::NaN();
+    if (v.isInt32()) {
+        *dp = v.toInt32();
         return true;
     }
-
-    const jschar *bp = chars;
-    const jschar *end = chars + length;
-    bp = js_SkipWhiteSpace(bp, end);
-
-    /* ECMA doesn't allow signed hex numbers (bug 273467). */
-    if (end - bp >= 2 && bp[0] == '0' && (bp[1] == 'x' || bp[1] == 'X')) {
-        /* Looks like a hex number. */
-        const jschar *endptr;
-        double d;
-        if (!GetPrefixInteger(cx, bp + 2, end, 16, &endptr, &d) ||
-            js_SkipWhiteSpace(endptr, end) != end) {
-            *result = NumberTraits<T>::NaN();
-            return true;
-        }
-        *result = NumberTraits<T>::toSelfType(d);
-        return true;
+    if (v.isDouble()) {
+        *dp = v.toDouble();
+    } else {
+        extern bool ToNumberSlow(JSContext *cx, Value v, double *dp);
+        if (!ToNumberSlow(cx, v, dp))
+            return false;
     }
-
-    /*
-     * Note that ECMA doesn't treat a string beginning with a '0' as
-     * an octal number here. This works because all such numbers will
-     * be interpreted as decimal by js_strtod.  Also, any hex numbers
-     * that have made it here (which can only be negative ones) will
-     * be treated as 0 without consuming the 'x' by js_strtod.
-     */
-    const jschar *ep;
-    double d;
-    if (!js_strtod(cx, bp, end, &ep, &d) || js_SkipWhiteSpace(ep, end) != end) {
-        *result = NumberTraits<T>::NaN();
-        return true;
-    }
-    *result = NumberTraits<T>::toSelfType(d);
+    *dp = js_DoubleToInteger(*dp);
     return true;
 }
-}
+
+} /* namespace js */
 
 #endif /* jsnum_h___ */

@@ -35,6 +35,8 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
+
+#include <tchar.h>
 #include "nsWabAddressBook.h"
 #include "prlog.h"
 
@@ -61,10 +63,30 @@ BOOL nsWabAddressBook::LoadWabLibrary(void)
     DWORD keyType = 0 ;
     ULONG byteCount = sizeof(wabDLLPath) ;
     HKEY keyHandle = NULL ;
-    
     wabDLLPath [MAX_PATH - 1] = 0 ;
     if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, WAB_DLL_PATH_KEY, 0, KEY_READ, &keyHandle) == ERROR_SUCCESS) {
         RegQueryValueEx(keyHandle, "", NULL, &keyType, (LPBYTE) wabDLLPath, &byteCount) ;
+        if (keyType == REG_EXPAND_SZ) {
+            // Expand the environment variables
+            DWORD bufferSize = ExpandEnvironmentStrings(wabDLLPath, NULL, 0);
+            if (bufferSize && bufferSize < MAX_PATH) {
+                TCHAR tmp[MAX_PATH];
+                ExpandEnvironmentStrings(wabDLLPath, tmp, bufferSize);
+                _tcscpy(wabDLLPath, tmp);
+            }
+            else {
+                return FALSE;
+            }
+        }
+    }
+    else {
+        if (GetSystemDirectory(wabDLLPath, MAX_PATH)) {
+            _tcsncat(wabDLLPath, WAB_DLL_NAME,
+                     NS_MIN(_tcslen(WAB_DLL_NAME), MAX_PATH - _tcslen(wabDLLPath) - 1));
+        }
+        else {
+            return FALSE;
+        }
     }
     if (keyHandle) { RegCloseKey(keyHandle) ; }
     mLibrary = LoadLibrary( (lstrlen(wabDLLPath)) ? wabDLLPath : WAB_DLL_NAME );
@@ -103,7 +125,7 @@ nsWabAddressBook::nsWabAddressBook(void)
 
 nsWabAddressBook::~nsWabAddressBook(void)
 {
-    MutexAutoLock guard(mMutex) ;
+    MutexAutoLock guard(*mMutex) ;
     FreeWabLibrary() ;
     MOZ_COUNT_DTOR(nsWabAddressBook) ;
 }
@@ -111,7 +133,7 @@ nsWabAddressBook::~nsWabAddressBook(void)
 BOOL nsWabAddressBook::Initialize(void)
 {
     if (mAddressBook) { return TRUE ; }
-    MutexAutoLock guard(mMutex) ;
+    MutexAutoLock guard(*mMutex) ;
 
     if (!LoadWabLibrary()) {
         PRINTF(("Cannot load library.\n")) ;

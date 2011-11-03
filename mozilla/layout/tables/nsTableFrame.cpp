@@ -39,7 +39,7 @@
  * ***** END LICENSE BLOCK ***** */
 #include "nsCOMPtr.h"
 #include "nsTableFrame.h"
-#include "nsIRenderingContext.h"
+#include "nsRenderingContext.h"
 #include "nsStyleContext.h"
 #include "nsStyleConsts.h"
 #include "nsIContent.h"
@@ -1134,13 +1134,13 @@ public:
 #endif
 
   virtual void Paint(nsDisplayListBuilder* aBuilder,
-                     nsIRenderingContext* aCtx);
+                     nsRenderingContext* aCtx);
   NS_DISPLAY_DECL_NAME("TableBorderBackground", TYPE_TABLE_BORDER_BACKGROUND)
 };
 
 void
 nsDisplayTableBorderBackground::Paint(nsDisplayListBuilder* aBuilder,
-                                      nsIRenderingContext* aCtx)
+                                      nsRenderingContext* aCtx)
 {
   static_cast<nsTableFrame*>(mFrame)->
     PaintTableBorderBackground(*aCtx, mVisibleRect,
@@ -1308,7 +1308,7 @@ nsTableFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     // If 'deflate' is (0,0,0,0) then we can paint the table background
     // in its own display item, so do that to take advantage of
     // opacity and visibility optimizations
-    if (deflate.IsZero()) {
+    if (deflate == nsMargin(0, 0, 0, 0)) {
       nsresult rv = DisplayBackgroundUnconditional(aBuilder, aLists, PR_FALSE);
       NS_ENSURE_SUCCESS(rv, rv);
     }
@@ -1344,7 +1344,7 @@ nsTableFrame::GetDeflationForBackground(nsPresContext* aPresContext) const
 // XXX We don't put the borders and backgrounds in tree order like we should.
 // That requires some major surgery which we aren't going to do right now.
 void
-nsTableFrame::PaintTableBorderBackground(nsIRenderingContext& aRenderingContext,
+nsTableFrame::PaintTableBorderBackground(nsRenderingContext& aRenderingContext,
                                          const nsRect& aDirtyRect,
                                          nsPoint aPt, PRUint32 aBGPaintFlags)
 {
@@ -1356,7 +1356,7 @@ nsTableFrame::PaintTableBorderBackground(nsIRenderingContext& aRenderingContext,
   nsMargin deflate = GetDeflationForBackground(presContext);
   // If 'deflate' is (0,0,0,0) then we'll paint the table background
   // in a separate display item, so don't do it here.
-  nsresult rv = painter.PaintTable(this, deflate, !deflate.IsZero());
+  nsresult rv = painter.PaintTable(this, deflate, deflate != nsMargin(0, 0, 0, 0));
   if (NS_FAILED(rv)) return;
 
   if (GetStyleVisibility()->IsVisible()) {
@@ -1369,7 +1369,7 @@ nsTableFrame::PaintTableBorderBackground(nsIRenderingContext& aRenderingContext,
     else {
       // XXX we should probably get rid of this translation at some stage
       // But that would mean modifying PaintBCBorders, ugh
-      nsIRenderingContext::AutoPushTranslation translate(&aRenderingContext, aPt.x, aPt.y);
+      nsRenderingContext::AutoPushTranslation translate(&aRenderingContext, aPt);
       PaintBCBorders(aRenderingContext, aDirtyRect - aPt);
     }
   }
@@ -1492,7 +1492,7 @@ nsTableFrame::MarkIntrinsicWidthsDirty()
 }
 
 /* virtual */ nscoord
-nsTableFrame::GetMinWidth(nsIRenderingContext *aRenderingContext)
+nsTableFrame::GetMinWidth(nsRenderingContext *aRenderingContext)
 {
   if (NeedToCalcBCBorders())
     CalcBCBorders();
@@ -1503,7 +1503,7 @@ nsTableFrame::GetMinWidth(nsIRenderingContext *aRenderingContext)
 }
 
 /* virtual */ nscoord
-nsTableFrame::GetPrefWidth(nsIRenderingContext *aRenderingContext)
+nsTableFrame::GetPrefWidth(nsRenderingContext *aRenderingContext)
 {
   if (NeedToCalcBCBorders())
     CalcBCBorders();
@@ -1514,7 +1514,7 @@ nsTableFrame::GetPrefWidth(nsIRenderingContext *aRenderingContext)
 }
 
 /* virtual */ nsIFrame::IntrinsicWidthOffsetData
-nsTableFrame::IntrinsicWidthOffsets(nsIRenderingContext* aRenderingContext)
+nsTableFrame::IntrinsicWidthOffsets(nsRenderingContext* aRenderingContext)
 {
   IntrinsicWidthOffsetData result =
     nsHTMLContainerFrame::IntrinsicWidthOffsets(aRenderingContext);
@@ -1531,7 +1531,7 @@ nsTableFrame::IntrinsicWidthOffsets(nsIRenderingContext* aRenderingContext)
 }
 
 /* virtual */ nsSize
-nsTableFrame::ComputeSize(nsIRenderingContext *aRenderingContext,
+nsTableFrame::ComputeSize(nsRenderingContext *aRenderingContext,
                           nsSize aCBSize, nscoord aAvailableWidth,
                           nsSize aMargin, nsSize aBorder, nsSize aPadding,
                           PRBool aShrinkWrap)
@@ -1550,7 +1550,7 @@ nsTableFrame::ComputeSize(nsIRenderingContext *aRenderingContext,
 }
 
 nscoord
-nsTableFrame::TableShrinkWidthToFit(nsIRenderingContext *aRenderingContext,
+nsTableFrame::TableShrinkWidthToFit(nsRenderingContext *aRenderingContext,
                                     nscoord aWidthInCB)
 {
   nscoord result;
@@ -1577,7 +1577,7 @@ nsTableFrame::TableShrinkWidthToFit(nsIRenderingContext *aRenderingContext,
 }
 
 /* virtual */ nsSize
-nsTableFrame::ComputeAutoSize(nsIRenderingContext *aRenderingContext,
+nsTableFrame::ComputeAutoSize(nsRenderingContext *aRenderingContext,
                               nsSize aCBSize, nscoord aAvailableWidth,
                               nsSize aMargin, nsSize aBorder, nsSize aPadding,
                               PRBool aShrinkWrap)
@@ -2682,8 +2682,12 @@ nsTableFrame::ReflowChildren(nsTableReflowState& aReflowState,
 
   nsPresContext* presContext = PresContext();
   // XXXldb Should we be checking constrained height instead?
+  // tables are not able to pull back children from its next inflow, so even
+  // under paginated contexts tables are should not paginate if they are inside
+  // column set
   PRBool isPaginated = presContext->IsPaginated() &&
-                       NS_UNCONSTRAINEDSIZE != aReflowState.availSize.height;
+                       NS_UNCONSTRAINEDSIZE != aReflowState.availSize.height &&
+                       aReflowState.reflowState.mFlags.mTableIsSplittable;
 
   aOverflowAreas.Clear();
 
@@ -2730,10 +2734,13 @@ nsTableFrame::ReflowChildren(nsTableReflowState& aReflowState,
          (isPaginated || (kidFrame->GetStateBits() &
                           NS_FRAME_CONTAINS_RELATIVE_HEIGHT)))) {
       if (pageBreak) {
-        PushChildren(rowGroups, childX);
         if (allowRepeatedFooter) {
           PlaceRepeatedFooter(aReflowState, tfoot, footerHeight);
         }
+        else if (tfoot && tfoot->IsRepeatable()) {
+          tfoot->SetRepeatable(PR_FALSE);
+        }
+        PushChildren(rowGroups, childX);
         aStatus = NS_FRAME_NOT_COMPLETE;
         break;
       }
@@ -2812,6 +2819,9 @@ nsTableFrame::ReflowChildren(nsTableReflowState& aReflowState,
               if (allowRepeatedFooter) {
                 PlaceRepeatedFooter(aReflowState, tfoot, footerHeight);
               }
+              else if (tfoot && tfoot->IsRepeatable()) {
+                tfoot->SetRepeatable(PR_FALSE);
+              }
               aStatus = NS_FRAME_NOT_COMPLETE;
               PushChildren(rowGroups, childX + 1);
               aLastChildReflowed = kidFrame;
@@ -2824,9 +2834,22 @@ nsTableFrame::ReflowChildren(nsTableReflowState& aReflowState,
             if (allowRepeatedFooter) {
               PlaceRepeatedFooter(aReflowState, tfoot, footerHeight);
             }
+            else if (tfoot && tfoot->IsRepeatable()) {
+              tfoot->SetRepeatable(PR_FALSE);
+            }
             aStatus = NS_FRAME_NOT_COMPLETE;
             PushChildren(rowGroups, childX);
             aLastChildReflowed = prevKidFrame;
+            break;
+          }
+          else { // we can't push so lets make clear how much space we need
+            PlaceChild(aReflowState, kidFrame, desiredSize, oldKidRect,
+                                     oldKidVisualOverflow);
+            aLastChildReflowed = kidFrame;
+            if (allowRepeatedFooter) {
+              PlaceRepeatedFooter(aReflowState, tfoot, footerHeight);
+              aLastChildReflowed = tfoot;
+            }
             break;
           }
         }
@@ -2878,12 +2901,15 @@ nsTableFrame::ReflowChildren(nsTableReflowState& aReflowState,
 
         // We've used up all of our available space so push the remaining
         // children to the next-in-flow
+        if (allowRepeatedFooter) {
+          PlaceRepeatedFooter(aReflowState, tfoot, footerHeight);
+        }
+        else if (tfoot && tfoot->IsRepeatable()) {
+          tfoot->SetRepeatable(PR_FALSE);
+        }
         nsIFrame* nextSibling = kidFrame->GetNextSibling();
         if (nsnull != nextSibling) {
           PushChildren(rowGroups, childX + 1);
-        }
-        if (allowRepeatedFooter) {
-          PlaceRepeatedFooter(aReflowState, tfoot, footerHeight);
         }
         break;
       }
@@ -2919,7 +2945,7 @@ nsTableFrame::ReflowChildren(nsTableReflowState& aReflowState,
 }
 
 void
-nsTableFrame::ReflowColGroups(nsIRenderingContext *aRenderingContext)
+nsTableFrame::ReflowColGroups(nsRenderingContext *aRenderingContext)
 {
   if (!GetPrevInFlow() && !HaveReflowedColGroups()) {
     nsHTMLReflowMetrics kidMet;
@@ -5934,7 +5960,7 @@ struct BCVerticalSeg
 
 
    void Paint(BCPaintBorderIterator& aIter,
-              nsIRenderingContext&   aRenderingContext,
+              nsRenderingContext&   aRenderingContext,
               BCPixelSize            aHorSegHeight);
   void AdvanceOffsetY();
   void IncludeCurrentBorder(BCPaintBorderIterator& aIter);
@@ -5985,7 +6011,7 @@ struct BCHorizontalSeg
    void AdvanceOffsetX(PRInt32 aIncrement);
    void IncludeCurrentBorder(BCPaintBorderIterator& aIter);
    void Paint(BCPaintBorderIterator& aIter,
-              nsIRenderingContext&   aRenderingContext);
+              nsRenderingContext&   aRenderingContext);
 
   nscoord            mOffsetX;       // x-offset with respect to the table edge
   nscoord            mOffsetY;       // y-offset with respect to the table edge
@@ -6025,8 +6051,8 @@ public:
   PRBool SetDamageArea(nsRect aDirtyRect);
   void First();
   void Next();
-  void AccumulateOrPaintHorizontalSegment(nsIRenderingContext& aRenderingContext);
-  void AccumulateOrPaintVerticalSegment(nsIRenderingContext& aRenderingContext);
+  void AccumulateOrPaintHorizontalSegment(nsRenderingContext& aRenderingContext);
+  void AccumulateOrPaintVerticalSegment(nsRenderingContext& aRenderingContext);
   void ResetVerInfo();
   void StoreColumnWidth(PRInt32 aIndex);
   PRBool VerticalSegmentOwnsCorner();
@@ -6272,7 +6298,7 @@ BCPaintBorderIterator::SetDamageArea(nsRect aDirtyRect)
   if (!haveIntersect)
     return PR_FALSE;
   mDamageArea = nsRect(startColIndex, startRowIndex,
-                       1 + PR_ABS(PRInt32(endColIndex - startColIndex)),
+                       1 + NS_ABS(PRInt32(endColIndex - startColIndex)),
                        1 + endRowIndex - startRowIndex);
 
   Reset();
@@ -6611,7 +6637,7 @@ BCVerticalSeg::Start(BCPaintBorderIterator& aIter,
                                aIter.mBCData->GetCorner(ownerSide, bevel) : 0;
 
   PRBool  topBevel        = (aVerSegWidth > 0) ? bevel : PR_FALSE;
-  BCPixelSize maxHorSegHeight = PR_MAX(aIter.mPrevHorSegHeight, aHorSegHeight);
+  BCPixelSize maxHorSegHeight = NS_MAX(aIter.mPrevHorSegHeight, aHorSegHeight);
   nscoord offset          = CalcVerCornerOffset(ownerSide, cornerSubWidth,
                                                 maxHorSegHeight, PR_TRUE,
                                                 topBevel);
@@ -6673,7 +6699,7 @@ BCVerticalSeg::GetBottomCorner(BCPaintBorderIterator& aIter,
      cornerSubWidth = aIter.mBCData->GetCorner(ownerSide, bevel);
    }
    mIsBottomBevel = (mWidth > 0) ? bevel : PR_FALSE;
-   mBottomHorSegHeight = PR_MAX(aIter.mPrevHorSegHeight, aHorSegHeight);
+   mBottomHorSegHeight = NS_MAX(aIter.mPrevHorSegHeight, aHorSegHeight);
    mBottomOffset = CalcVerCornerOffset(ownerSide, cornerSubWidth,
                                     mBottomHorSegHeight,
                                     PR_FALSE, mIsBottomBevel);
@@ -6689,7 +6715,7 @@ BCVerticalSeg::GetBottomCorner(BCPaintBorderIterator& aIter,
  */
 void
 BCVerticalSeg::Paint(BCPaintBorderIterator& aIter,
-                     nsIRenderingContext&   aRenderingContext,
+                     nsRenderingContext&   aRenderingContext,
                      BCPixelSize            aHorSegHeight)
 {
   // get the border style, color and paint the segment
@@ -6815,7 +6841,7 @@ BCHorizontalSeg::Start(BCPaintBorderIterator& aIter,
 
   PRBool  leftBevel = (aHorSegHeight > 0) ? bevel : PR_FALSE;
   PRInt32 relColIndex = aIter.GetRelativeColIndex();
-  nscoord maxVerSegWidth = PR_MAX(aIter.mVerInfo[relColIndex].mWidth,
+  nscoord maxVerSegWidth = NS_MAX(aIter.mVerInfo[relColIndex].mWidth,
                                   aBottomVerSegWidth);
   nscoord offset = CalcHorCornerOffset(cornerOwnerSide, cornerSubWidth,
                                        maxVerSegWidth, PR_TRUE, leftBevel,
@@ -6855,7 +6881,7 @@ BCHorizontalSeg::GetRightCorner(BCPaintBorderIterator& aIter,
 
   mIsRightBevel = (mWidth > 0) ? bevel : 0;
   PRInt32 relColIndex = aIter.GetRelativeColIndex();
-  nscoord verWidth = PR_MAX(aIter.mVerInfo[relColIndex].mWidth, aLeftSegWidth);
+  nscoord verWidth = NS_MAX(aIter.mVerInfo[relColIndex].mWidth, aLeftSegWidth);
   mEndOffset = CalcHorCornerOffset(ownerSide, cornerSubWidth, verWidth,
                                    PR_FALSE, mIsRightBevel, aIter.mTableIsLTR);
   mLength += mEndOffset;
@@ -6871,7 +6897,7 @@ BCHorizontalSeg::GetRightCorner(BCPaintBorderIterator& aIter,
  */
 void
 BCHorizontalSeg::Paint(BCPaintBorderIterator& aIter,
-                       nsIRenderingContext&   aRenderingContext)
+                       nsRenderingContext&   aRenderingContext)
 {
   // get the border style, color and paint the segment
   mozilla::css::Side side = (aIter.IsDamageAreaBottomMost()) ? NS_SIDE_BOTTOM :
@@ -7013,7 +7039,7 @@ BCPaintBorderIterator::VerticalSegmentOwnsCorner()
  * @param aRenderingContext - the rendering context
  */
 void
-BCPaintBorderIterator::AccumulateOrPaintHorizontalSegment(nsIRenderingContext& aRenderingContext)
+BCPaintBorderIterator::AccumulateOrPaintHorizontalSegment(nsRenderingContext& aRenderingContext)
 {
 
   PRInt32 relColIndex = GetRelativeColIndex();
@@ -7061,7 +7087,7 @@ BCPaintBorderIterator::AccumulateOrPaintHorizontalSegment(nsIRenderingContext& a
  * @param aRenderingContext - the rendering context
  */
 void
-BCPaintBorderIterator::AccumulateOrPaintVerticalSegment(nsIRenderingContext& aRenderingContext)
+BCPaintBorderIterator::AccumulateOrPaintVerticalSegment(nsRenderingContext& aRenderingContext)
 {
   BCBorderOwner borderOwner = eCellOwner;
   BCBorderOwner ignoreBorderOwner;
@@ -7120,7 +7146,7 @@ BCPaintBorderIterator::ResetVerInfo()
  * @param aDirtyRect        - inside this rectangle the BC Borders will redrawn
  */
 void
-nsTableFrame::PaintBCBorders(nsIRenderingContext& aRenderingContext,
+nsTableFrame::PaintBCBorders(nsRenderingContext& aRenderingContext,
                              const nsRect&        aDirtyRect)
 {
   // We first transfer the aDirtyRect into cellmap coordinates to compute which

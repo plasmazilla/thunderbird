@@ -71,10 +71,10 @@ EXPORTS		= \
 		nsCSSValue.h \
 		nsDOMCSSAttrDeclaration.h \
 		nsDOMCSSDeclaration.h \
+		nsDOMMediaQueryList.h \
 		nsICSSDeclaration.h \
 		nsICSSLoaderObserver.h \
 		nsICSSPseudoComparator.h \
-		nsICSSRule.h \
 		nsICSSRuleList.h \
 		nsICSSStyleRuleDOMWrapper.h \
 		nsIStyleRule.h \
@@ -102,6 +102,7 @@ EXPORTS_mozilla/css = \
 		ImportRule.h \
 		Loader.h \
 		NameSpaceRule.h \
+		Rule.h \
 		StyleRule.h \
 		$(NULL)
 
@@ -112,6 +113,7 @@ CPPSRCS		= \
 		Declaration.cpp \
 		nsCSSKeywords.cpp \
 		Loader.cpp \
+		nsAnimationManager.cpp \
 		nsCSSParser.cpp \
 		nsCSSProps.cpp \
 		nsCSSPseudoClasses.cpp \
@@ -127,6 +129,7 @@ CPPSRCS		= \
 		nsDOMCSSRGBColor.cpp \
 		nsDOMCSSRect.cpp \
 		nsDOMCSSValueList.cpp \
+		nsDOMMediaQueryList.cpp \
 		nsFontFaceLoader.cpp \
 		nsHTMLCSSStyleSheet.cpp \
 		nsHTMLStyleSheet.cpp \
@@ -146,12 +149,6 @@ CPPSRCS		= \
 		nsTransitionManager.cpp \
 		StyleRule.cpp \
 		$(NULL)
-
-ifdef MOZ_CSS_ANIMATIONS
-CPPSRCS		+= \
-		nsAnimationManager.cpp \
-		$(NULL)
-endif
 
 FORCE_STATIC_LIB = 1
 

@@ -53,18 +53,13 @@
 #include "nsINameSpaceManager.h"
 #include "nsMenuPopupFrame.h"
 #include "nsMenuBarFrame.h"
-#include "nsIView.h"
 #include "nsIDocument.h"
-#include "nsIDOMNSDocument.h"
-#include "nsIDOMDocument.h"
 #include "nsIDOMElement.h"
-#include "nsIDOMText.h"
 #include "nsILookAndFeel.h"
 #include "nsIComponentManager.h"
 #include "nsWidgetsCID.h"
 #include "nsBoxLayoutState.h"
 #include "nsIScrollableFrame.h"
-#include "nsIViewManager.h"
 #include "nsBindingManager.h"
 #include "nsIServiceManager.h"
 #include "nsCSSFrameConstructor.h"
@@ -83,6 +78,9 @@
 #include "nsEventStateManager.h"
 #include "nsIDOMXULMenuListElement.h"
 #include "mozilla/Services.h"
+#include "mozilla/Preferences.h"
+
+using namespace mozilla;
 
 #define NS_MENU_POPUP_LIST_INDEX 0
 
@@ -94,12 +92,6 @@ static PRInt32 gEatMouseMove = PR_FALSE;
 
 static NS_DEFINE_IID(kLookAndFeelCID, NS_LOOKANDFEEL_CID);
 
-nsrefcnt nsMenuFrame::gRefCnt = 0;
-nsString *nsMenuFrame::gShiftText = nsnull;
-nsString *nsMenuFrame::gControlText = nsnull;
-nsString *nsMenuFrame::gMetaText = nsnull;
-nsString *nsMenuFrame::gAltText = nsnull;
-nsString *nsMenuFrame::gModifierSeparator = nsnull;
 const PRInt32 kBlinkDelay = 67; // milliseconds
 
 // this class is used for dispatching menu activation events asynchronously.
@@ -215,7 +207,7 @@ NS_NewMenuItemFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
 NS_IMPL_FRAMEARENA_HELPERS(nsMenuFrame)
 
 NS_QUERYFRAME_HEAD(nsMenuFrame)
-  NS_QUERYFRAME_ENTRY(nsIMenuFrame)
+  NS_QUERYFRAME_ENTRY(nsMenuFrame)
 NS_QUERYFRAME_TAIL_INHERITING(nsBoxFrame)
 
 //
@@ -302,62 +294,11 @@ nsMenuFrame::Init(nsIContent*      aContent,
 
   InitMenuParent(aParent);
 
-  //load the display strings for the keyboard accelerators, but only once
-  if (gRefCnt++ == 0) {
-    nsCOMPtr<nsIStringBundleService> bundleService =
-      mozilla::services::GetStringBundleService();
-    nsCOMPtr<nsIStringBundle> bundle;
-    if (bundleService) {
-      rv = bundleService->CreateBundle( "chrome://global-platform/locale/platformKeys.properties",
-                                        getter_AddRefs(bundle));
-    }
-    
-    NS_ASSERTION(NS_SUCCEEDED(rv) && bundle, "chrome://global/locale/platformKeys.properties could not be loaded");
-    nsXPIDLString shiftModifier;
-    nsXPIDLString metaModifier;
-    nsXPIDLString altModifier;
-    nsXPIDLString controlModifier;
-    nsXPIDLString modifierSeparator;
-    if (NS_SUCCEEDED(rv) && bundle) {
-      //macs use symbols for each modifier key, so fetch each from the bundle, which also covers i18n
-      rv = bundle->GetStringFromName(NS_LITERAL_STRING("VK_SHIFT").get(), getter_Copies(shiftModifier));
-      rv = bundle->GetStringFromName(NS_LITERAL_STRING("VK_META").get(), getter_Copies(metaModifier));
-      rv = bundle->GetStringFromName(NS_LITERAL_STRING("VK_ALT").get(), getter_Copies(altModifier));
-      rv = bundle->GetStringFromName(NS_LITERAL_STRING("VK_CONTROL").get(), getter_Copies(controlModifier));
-      rv = bundle->GetStringFromName(NS_LITERAL_STRING("MODIFIER_SEPARATOR").get(), getter_Copies(modifierSeparator));
-    } else {
-      rv = NS_ERROR_NOT_AVAILABLE;
-    }
-    //if any of these don't exist, we get  an empty string
-    gShiftText = new nsString(shiftModifier);
-    gMetaText = new nsString(metaModifier);
-    gAltText = new nsString(altModifier);
-    gControlText = new nsString(controlModifier);
-    gModifierSeparator = new nsString(modifierSeparator);    
-  }
-
   BuildAcceleratorText(PR_FALSE);
   nsIReflowCallback* cb = new nsASyncMenuInitialization(this);
   NS_ENSURE_TRUE(cb, NS_ERROR_OUT_OF_MEMORY);
   PresContext()->PresShell()->PostReflowCallback(cb);
   return rv;
-}
-
-nsMenuFrame::~nsMenuFrame()
-{
-  // Clean up shared statics
-  if (--gRefCnt == 0) {
-    delete gShiftText;
-    gShiftText = nsnull;
-    delete gControlText;  
-    gControlText = nsnull;
-    delete gMetaText;  
-    gMetaText = nsnull;
-    delete gAltText;  
-    gAltText = nsnull;
-    delete gModifierSeparator;
-    gModifierSeparator = nsnull;
-  }
 }
 
 // The following methods are all overridden to ensure that the menupopup frame
@@ -832,7 +773,7 @@ nsMenuFrame::SetDebug(nsBoxLayoutState& aState, nsIFrame* aList, PRBool aDebug)
 // In either case, do nothing if the item is disabled.
 //
 nsMenuFrame*
-nsMenuFrame::Enter()
+nsMenuFrame::Enter(nsGUIEvent *aEvent)
 {
   if (IsDisabled()) {
 #ifdef XP_WIN
@@ -853,7 +794,7 @@ nsMenuFrame::Enter()
   if (!IsOpen()) {
     // The enter key press applies to us.
     if (!IsMenu() && mMenuParent)
-      Execute(0);          // Execute our event handler
+      Execute(aEvent);          // Execute our event handler
     else
       return this;
   }
@@ -871,6 +812,24 @@ PRBool
 nsMenuFrame::IsMenu()
 {
   return mIsMenu;
+}
+
+nsMenuListType
+nsMenuFrame::GetParentMenuListType()
+{
+  if (mMenuParent && mMenuParent->IsMenu()) {
+    nsMenuPopupFrame* popupFrame = static_cast<nsMenuPopupFrame*>(mMenuParent);
+    nsIFrame* parentMenu = popupFrame->GetParent();
+    if (parentMenu) {
+      nsCOMPtr<nsIDOMXULMenuListElement> menulist = do_QueryInterface(parentMenu->GetContent());
+      if (menulist) {
+        PRBool isEditable = PR_FALSE;
+        menulist->GetEditable(&isEditable);
+        return isEditable ? eEditableMenuList : eReadonlyMenuList;
+      }
+    }
+  }
+  return eNotMenuList;
 }
 
 nsresult
@@ -1118,7 +1077,7 @@ nsMenuFrame::BuildAcceleratorText(PRBool aNotify)
 #endif
 
     // Get the accelerator key value from prefs, overriding the default:
-    accelKey = nsContentUtils::GetIntPref("ui.key.accelKey", accelKey);
+    accelKey = Preferences::GetInt("ui.key.accelKey", accelKey);
   }
 
   nsAutoString modifiers;
@@ -1127,35 +1086,48 @@ nsMenuFrame::BuildAcceleratorText(PRBool aNotify)
   char* str = ToNewCString(modifiers);
   char* newStr;
   char* token = nsCRT::strtok(str, ", \t", &newStr);
+
+  nsAutoString shiftText;
+  nsAutoString altText;
+  nsAutoString metaText;
+  nsAutoString controlText;
+  nsAutoString modifierSeparator;
+
+  nsContentUtils::GetShiftText(shiftText);
+  nsContentUtils::GetAltText(altText);
+  nsContentUtils::GetMetaText(metaText);
+  nsContentUtils::GetControlText(controlText);
+  nsContentUtils::GetModifierSeparatorText(modifierSeparator);
+
   while (token) {
       
     if (PL_strcmp(token, "shift") == 0)
-      accelText += *gShiftText;
+      accelText += shiftText;
     else if (PL_strcmp(token, "alt") == 0) 
-      accelText += *gAltText; 
+      accelText += altText; 
     else if (PL_strcmp(token, "meta") == 0) 
-      accelText += *gMetaText; 
+      accelText += metaText; 
     else if (PL_strcmp(token, "control") == 0) 
-      accelText += *gControlText; 
+      accelText += controlText; 
     else if (PL_strcmp(token, "accel") == 0) {
       switch (accelKey)
       {
         case nsIDOMKeyEvent::DOM_VK_META:
-          accelText += *gMetaText;
+          accelText += metaText;
           break;
 
         case nsIDOMKeyEvent::DOM_VK_ALT:
-          accelText += *gAltText;
+          accelText += altText;
           break;
 
         case nsIDOMKeyEvent::DOM_VK_CONTROL:
         default:
-          accelText += *gControlText;
+          accelText += controlText;
           break;
       }
     }
     
-    accelText += *gModifierSeparator;
+    accelText += modifierSeparator;
 
     token = nsCRT::strtok(newStr, ", \t", &newStr);
   }
@@ -1200,18 +1172,9 @@ nsMenuFrame::ShouldBlink()
     return PR_FALSE;
 
   // Don't blink in editable menulists.
-  if (mMenuParent && mMenuParent->IsMenu()) {
-    nsMenuPopupFrame* popupFrame = static_cast<nsMenuPopupFrame*>(mMenuParent);
-    nsIFrame* parentMenu = popupFrame->GetParent();
-    if (parentMenu) {
-      nsCOMPtr<nsIDOMXULMenuListElement> menulist = do_QueryInterface(parentMenu->GetContent());
-      if (menulist) {
-        PRBool isEditable = PR_FALSE;
-        menulist->GetEditable(&isEditable);
-        return !isEditable;
-      }
-    }
-  }
+  if (GetParentMenuListType() == eEditableMenuList)
+    return PR_FALSE;
+
   return PR_TRUE;
 }
 
@@ -1377,13 +1340,26 @@ nsMenuFrame::SizeToPopup(nsBoxLayoutState& aState, nsSize& aSize)
       if (!mPopupFrame)
         return PR_FALSE;
       tmpSize = mPopupFrame->GetPrefSize(aState);
-      aSize.width = tmpSize.width;
+
+      // Produce a size such that:
+      //  (1) the menu and its popup can be the same width
+      //  (2) there's enough room in the menu for the content and its
+      //      border-padding
+      //  (3) there's enough room in the popup for the content and its
+      //      scrollbar
+      nsMargin borderPadding;
+      GetBorderAndPadding(borderPadding);
 
       // if there is a scroll frame, add the desired width of the scrollbar as well
       nsIScrollableFrame* scrollFrame = do_QueryFrame(mPopupFrame->GetFirstChild(nsnull));
+      nscoord scrollbarWidth = 0;
       if (scrollFrame) {
-        aSize.width += scrollFrame->GetDesiredScrollbarSizes(&aState).LeftRight();
+        scrollbarWidth =
+          scrollFrame->GetDesiredScrollbarSizes(&aState).LeftRight();
       }
+
+      aSize.width =
+        tmpSize.width + NS_MAX(borderPadding.LeftRight(), scrollbarWidth);
 
       return PR_TRUE;
     }

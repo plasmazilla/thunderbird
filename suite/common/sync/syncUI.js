@@ -40,6 +40,21 @@
  * ***** END LICENSE BLOCK ***** */
 
 let gSyncUI = {
+  _obs: ["weave:service:sync:start",
+         "weave:service:sync:finish",
+         "weave:service:sync:error",
+         "weave:service:sync:delayed",
+         "weave:service:quota:remaining",
+         "weave:service:setup-complete",
+         "weave:service:login:start",
+         "weave:service:login:finish",
+         "weave:service:login:error",
+         "weave:service:logout:finish",
+         "weave:service:start-over",
+         "weave:notification:added"],
+
+  _unloaded: false,
+
   init: function SUI_init() {
     // Update the Tools menu according to whether Sync is set up or not.
     let taskPopup = document.getElementById("taskPopup");
@@ -50,29 +65,28 @@ let gSyncUI = {
     // We can set up everything else later.
     Services.obs.addObserver(this, "weave:service:ready", true);
 
+    // The above notification is only sent once per session, i.e.
+    // it only works for the window that triggered the init.
+    if (Weave.Status.ready)
+      this.initUI();
+
     // Remove the observer if the window is closed before the observer
     // was triggered.
     window.addEventListener("unload", function SUI_unload() {
+      gSyncUI._unloaded = true;
       window.removeEventListener("unload", SUI_unload, false);
       Services.obs.removeObserver(gSyncUI, "weave:service:ready");
+
+      if (Weave.Status.ready) {
+        gSyncUI._obs.forEach(function(topic) {
+          Services.obs.removeObserver(gSyncUI, topic);
+        });
+      }
     }, false);
   },
 
   initUI: function SUI_initUI() {
-    let obs = ["weave:service:sync:start",
-               "weave:service:sync:finish",
-               "weave:service:sync:error",
-               "weave:service:sync:delayed",
-               "weave:service:quota:remaining",
-               "weave:service:setup-complete",
-               "weave:service:login:start",
-               "weave:service:login:finish",
-               "weave:service:login:error",
-               "weave:service:logout:finish",
-               "weave:service:start-over",
-               "weave:notification:added"];
-
-    obs.forEach(function(topic) {
+    this._obs.forEach(function(topic) {
       Services.obs.addObserver(this, topic, true);
     }, this);
 
@@ -316,7 +330,7 @@ let gSyncUI = {
     // Show the day-of-week and time (HH:MM) of last sync
     let lastSyncDate = new Date(lastSync).toLocaleFormat("%a %H:%M");
     let lastSyncLabel =
-      this._stringBundle.formatStringFromName("lastSync.label", [lastSyncDate], 1);
+      this._stringBundle.formatStringFromName("lastSync2.label", [lastSyncDate], 1);
     syncButton.setAttribute("tooltiptext", lastSyncLabel);
   },
 
@@ -396,6 +410,9 @@ let gSyncUI = {
   },
 
   observe: function SUI_observe(subject, topic, data) {
+    if (this._unloaded)
+      throw "SyncUI observer called after unload: " + topic;
+
     switch (topic) {
       case "weave:service:sync:start":
         this.onActivityStart();

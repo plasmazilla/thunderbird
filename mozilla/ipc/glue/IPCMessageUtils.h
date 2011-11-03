@@ -42,6 +42,8 @@
 #include "chrome/common/ipc_message_utils.h"
 
 #include "prtypes.h"
+#include "nsID.h"
+#include "nsMemory.h"
 #include "nsStringGlue.h"
 #include "nsTArray.h"
 #include "gfx3DMatrix.h"
@@ -73,6 +75,11 @@ namespace mozilla {
 typedef gfxPattern::GraphicsFilter GraphicsFilterType;
 typedef gfxASurface::gfxSurfaceType gfxSurfaceType;
 typedef LayerManager::LayersBackend LayersBackend;
+typedef gfxASurface::gfxImageFormat PixelFormat;
+
+// This is a cross-platform approximation to HANDLE, which we expect
+// to be typedef'd to void* or thereabouts.
+typedef uintptr_t WindowsHandle;
 
 // XXX there are out of place and might be generally useful.  Could
 // move to nscore.h or something.
@@ -502,19 +509,19 @@ struct ParamTraits<mozilla::gfxSurfaceType>
   }
 };
 
- template<>
+template<>
 struct ParamTraits<mozilla::LayersBackend>
 {
   typedef mozilla::LayersBackend paramType;
 
   static void Write(Message* msg, const paramType& param)
   {
-    if (LayerManager::LAYERS_NONE < param &&
+    if (LayerManager::LAYERS_NONE <= param &&
         param < LayerManager::LAYERS_LAST) {
       WriteParam(msg, int32(param));
       return;
     }
-    NS_RUNTIMEABORT("surface type not reached");
+    NS_RUNTIMEABORT("backend type not reached");
   }
 
   static bool Read(const Message* msg, void** iter, paramType* result)
@@ -523,12 +530,44 @@ struct ParamTraits<mozilla::LayersBackend>
     if (!ReadParam(msg, iter, &type))
       return false;
 
-    if (LayerManager::LAYERS_NONE < type &&
+    if (LayerManager::LAYERS_NONE <= type &&
         type < LayerManager::LAYERS_LAST) {
       *result = paramType(type);
       return true;
     }
     return false;
+  }
+};
+
+template<>
+struct ParamTraits<mozilla::PixelFormat>
+{
+  typedef mozilla::PixelFormat paramType;
+
+  static bool IsLegalPixelFormat(const paramType& format)
+  {
+    return (gfxASurface::ImageFormatARGB32 <= format &&
+            format < gfxASurface::ImageFormatUnknown);
+  }
+
+  static void Write(Message* msg, const paramType& param)
+  {
+    if (!IsLegalPixelFormat(param)) {
+      NS_RUNTIMEABORT("Unknown pixel format");
+    }
+    WriteParam(msg, int32(param));
+    return;
+  }
+
+  static bool Read(const Message* msg, void** iter, paramType* result)
+  {
+    int32 format;
+    if (!ReadParam(msg, iter, &format) ||
+        !IsLegalPixelFormat(paramType(format))) {
+      return false;
+    }
+    *result = paramType(format);
+    return true;
   }
 };
 
@@ -688,20 +727,44 @@ struct ParamTraits<nsRect>
 };
 
 template<>
-struct ParamTraits<gfxIntSize>
+struct ParamTraits<nsID>
 {
-  typedef gfxIntSize paramType;
-  
-  static void Write(Message* msg, const paramType& param)
+  typedef nsID paramType;
+
+  static void Write(Message* aMsg, const paramType& aParam)
   {
-    WriteParam(msg, param.width);
-    WriteParam(msg, param.height); 
+    WriteParam(aMsg, aParam.m0);
+    WriteParam(aMsg, aParam.m1);
+    WriteParam(aMsg, aParam.m2);
+    for (unsigned int i = 0; i < NS_ARRAY_LENGTH(aParam.m3); i++) {
+      WriteParam(aMsg, aParam.m3[i]);
+    }
   }
 
-  static bool Read(const Message* msg, void** iter, paramType* result)
+  static bool Read(const Message* aMsg, void** aIter, paramType* aResult)
   {
-    return (ReadParam(msg, iter, &result->width) &&
-            ReadParam(msg, iter, &result->height));
+    if(!ReadParam(aMsg, aIter, &(aResult->m0)) ||
+       !ReadParam(aMsg, aIter, &(aResult->m1)) ||
+       !ReadParam(aMsg, aIter, &(aResult->m2)))
+      return false;
+
+    for (unsigned int i = 0; i < NS_ARRAY_LENGTH(aResult->m3); i++)
+      if (!ReadParam(aMsg, aIter, &(aResult->m3[i])))
+        return false;
+
+    return true;
+  }
+
+  static void Log(const paramType& aParam, std::wstring* aLog)
+  {
+    aLog->append(L"{");
+    aLog->append(StringPrintf(L"%8.8X-%4.4X-%4.4X-",
+                              aParam.m0,
+                              aParam.m1,
+                              aParam.m2));
+    for (unsigned int i = 0; i < NS_ARRAY_LENGTH(aParam.m3); i++)
+      aLog->append(StringPrintf(L"%2.2X", aParam.m3[i]));
+    aLog->append(L"}");
   }
 };
 

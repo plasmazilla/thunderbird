@@ -55,9 +55,9 @@
 const DEBUG = false; /* set to false to suppress debug messages */
 const PANELS_RDF_FILE  = "UPnls"; /* directory services property to find panels.rdf */
 
+const SIDEBAR_CONTRACTID   = "@mozilla.org/sidebar;1";
 const SIDEBAR_CID      = Components.ID("{22117140-9c6e-11d3-aaf1-00805f8a4905}");
 const CONTAINER_CONTRACTID = "@mozilla.org/rdf/container;1";
-const DIR_SERV_CONTRACTID  = "@mozilla.org/file/directory_service;1"
 const NETSEARCH_CONTRACTID = "@mozilla.org/rdf/datasource;1?name=internetsearch"
 const nsISupports      = Components.interfaces.nsISupports;
 const nsISidebar       = Components.interfaces.nsISidebar;
@@ -66,7 +66,7 @@ const nsIRDFContainer  = Components.interfaces.nsIRDFContainer;
 const nsIProperties    = Components.interfaces.nsIProperties;
 const nsIFileURL       = Components.interfaces.nsIFileURL;
 const nsIRDFRemoteDataSource = Components.interfaces.nsIRDFRemoteDataSource;
-const nsIClassInfo = Components.interfaces.nsIClassInfo;
+const nsIClassInfo     = Components.interfaces.nsIClassInfo;
 
 // File extension for Sherlock search plugin description files
 const SHERLOCK_FILE_EXT_REGEXP = /\.src$/i;
@@ -334,24 +334,15 @@ function (aSearchURL)
   return 0;
 }
 
-// property of nsIClassInfo
-nsSidebar.prototype.flags = nsIClassInfo.DOM_OBJECT;
-
-// property of nsIClassInfo
-nsSidebar.prototype.classDescription = "Sidebar";
-
-// method of nsIClassInfo
-nsSidebar.prototype.getInterfaces = function(count) {
-    var interfaceList = [nsISidebar, nsISidebarExternal, nsIClassInfo];
-    count.value = interfaceList.length;
-    return interfaceList;
-}
-
-// method of nsIClassInfo
-nsSidebar.prototype.getHelperForLanguage = function(count) {return null;}
+nsSidebar.prototype.classInfo = XPCOMUtils.generateCI({
+    classID: SIDEBAR_CID,
+    contractID: SIDEBAR_CONTRACTID,
+    classDescription: "Sidebar",
+    interfaces: [nsISidebar, nsISidebarExternal],
+    flags: nsIClassInfo.DOM_OBJECT});
 
 nsSidebar.prototype.QueryInterface =
-    XPCOMUtils.generateQI([nsISidebar, nsISidebarExternal, nsIClassInfo]);
+    XPCOMUtils.generateQI([nsISidebar, nsISidebarExternal]);
 
 nsSidebar.prototype.classID = SIDEBAR_CID;
 
@@ -369,12 +360,11 @@ function getSidebarDatasourceURI(panels_file_id)
     {
         /* use the fileLocator to look in the profile directory
          * to find 'panels.rdf', which is the
-         * database of the user's currently selected panels. */
-        var directory_service = Components.classes[DIR_SERV_CONTRACTID].getService(Components.interfaces.nsIProperties);
-
-        /* if <profile>/panels.rdf doesn't exist, get will copy
+         * database of the user's currently selected panels.
+         * if <profile>/panels.rdf doesn't exist, get will copy
          *bin/defaults/profile/panels.rdf to <profile>/panels.rdf */
-        var sidebar_file = directory_service.get(panels_file_id, Components.interfaces.nsIFile);
+        var sidebar_file = Services.dirsvc.get(panels_file_id,
+                                               Components.interfaces.nsIFile);
 
         if (!sidebar_file.exists())
         {

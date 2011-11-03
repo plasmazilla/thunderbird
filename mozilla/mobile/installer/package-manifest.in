@@ -32,10 +32,9 @@
 @BINPATH@/updater.ini
 #endif
 @BINPATH@/dictionaries/*
+@BINPATH@/hyphenation/*
 #ifdef XP_WIN32
-#ifndef WINCE
 @BINPATH@/uninstall/helper.exe
-#endif
 #endif
 
 [xpcom]
@@ -58,9 +57,7 @@
 #else
 @BINPATH@/@MOZ_CHILD_PROCESS_NAME@
 #endif
-#ifdef WINCE
-@BINPATH@/mozce_shunt.dll
-#elifdef XP_WIN32
+#ifdef XP_WIN32
 #ifndef MOZ_MEMORY
 #if _MSC_VER == 1400
 @BINPATH@/Microsoft.VC80.CRT.manifest
@@ -106,16 +103,12 @@
 #else
 @BINPATH@/mozsqlt3@DLL_SUFFIX@
 #endif
-@BINPATH@/README.txt
 @BINPATH@/blocklist.xml
 #ifdef XP_UNIX
 @BINPATH@/run-mozilla.sh
 #ifndef XP_MACOSX
 @BINPATH@/mozilla-xremote-client
 #endif
-#endif
-#ifdef MOZ_SPLASHSCREEN
-@BINPATH@/splash.bmp
 #endif
 
 ; [Components]
@@ -145,7 +138,6 @@
 @BINPATH@/components/content_canvas.xpt
 @BINPATH@/components/content_htmldoc.xpt
 @BINPATH@/components/content_html.xpt
-@BINPATH@/components/content_xmldoc.xpt
 @BINPATH@/components/content_xslt.xpt
 @BINPATH@/components/content_xtf.xpt
 @BINPATH@/components/cookie.xpt
@@ -205,9 +197,7 @@
 @BINPATH@/components/layout_xul.xpt
 @BINPATH@/components/locale.xpt
 @BINPATH@/components/lwbrk.xpt
-#ifndef WINCE
 @BINPATH@/components/migration.xpt
-#endif
 @BINPATH@/components/mimetype.xpt
 @BINPATH@/components/mozfind.xpt
 @BINPATH@/components/necko_about.xpt
@@ -244,6 +234,7 @@
 @BINPATH@/components/shistory.xpt
 @BINPATH@/components/spellchecker.xpt
 @BINPATH@/components/storage.xpt
+@BINPATH@/components/telemetry.xpt
 @BINPATH@/components/toolkitprofile.xpt
 #ifdef MOZ_ENABLE_XREMOTE
 @BINPATH@/components/toolkitremote.xpt
@@ -278,9 +269,11 @@
 @BINPATH@/components/xpcom_xpti.xpt
 @BINPATH@/components/xpconnect.xpt
 @BINPATH@/components/xulapp.xpt
+@BINPATH@/components/xul.xpt
 @BINPATH@/components/xuldoc.xpt
 @BINPATH@/components/xultmpl.xpt
 @BINPATH@/components/zipwriter.xpt
+@BINPATH@/components/webapps.xpt
 
 ; JavaScript components
 @BINPATH@/components/ConsoleAPI.manifest
@@ -298,7 +291,6 @@
 @BINPATH@/components/nsBrowserGlue.js
 @BINPATH@/components/nsSetDefaultBrowser.manifest
 @BINPATH@/components/nsSetDefaultBrowser.js
-@BINPATH@/components/nsMicrosummaryService.js
 @BINPATH@/components/BrowserPlaces.manifest
 @BINPATH@/components/nsPrivateBrowsingService.manifest
 @BINPATH@/components/nsPrivateBrowsingService.js
@@ -337,6 +329,7 @@
 @BINPATH@/components/amContentHandler.js
 @BINPATH@/components/amWebInstallListener.js
 @BINPATH@/components/nsBlocklistService.js
+
 #ifdef MOZ_UPDATER
 @BINPATH@/components/nsUpdateService.manifest
 @BINPATH@/components/nsUpdateService.js
@@ -406,14 +399,15 @@
 @BINPATH@/components/WeaveCrypto.manifest
 @BINPATH@/components/WeaveCrypto.js
 #endif
+@BINPATH@/components/TelemetryPing.js
+@BINPATH@/components/TelemetryPing.manifest
 
 ; Modules
 @BINPATH@/modules/*
 
 ; Safe Browsing
-@BINPATH@/components/nsSafebrowsingApplication.manifest
-@BINPATH@/components/nsSafebrowsingApplication.js
 @BINPATH@/components/nsURLClassifier.manifest
+@BINPATH@/components/nsUrlClassifierHashCompleter.js
 @BINPATH@/components/nsUrlClassifierListManager.js
 @BINPATH@/components/nsUrlClassifierLib.js
 @BINPATH@/components/url-classifier.xpt
@@ -583,25 +577,6 @@ bin/libfreebl_32int64_3.so
 bin/components/@DLL_PREFIX@nkgnomevfs@DLL_SUFFIX@
 #endif
 
-; [ActiveX]
-#ifdef WINCE
-#ifndef MOZ_NO_ACTIVEX_SUPPORT
-@BINPATH@/components/nsAxSecurityPolicy.js
-@BINPATH@/@PREF_DIR@/activex.js
-@BINPATH@/plugins/npmozax.dll
-@BINPATH@/plugins/nsIMozAxPlugin.xpt
-#endif
-#endif
-
-; [FastStart]
-#ifdef WINCE
-#ifdef MOZ_FASTSTART
-@BINPATH@/firefoxfaststart.exe
-@BINPATH@/components/FastStartup.manifest
-@BINPATH@/components/FastStartup.js
-#endif
-#endif
-
 ; [OS/2]
 #ifdef XP_OS2
 @BINPATH@/MozSounds.cmd
@@ -631,9 +606,13 @@ bin/components/@DLL_PREFIX@nkgnomevfs@DLL_SUFFIX@
 @BINPATH@/components/PromptService.js
 @BINPATH@/components/SessionStore.js
 @BINPATH@/components/Sidebar.js
+#ifdef MOZ_SAFE_BROWSING
+@BINPATH@/components/SafeBrowsing.js
+#endif
 #ifdef MOZ_UPDATER
 @BINPATH@/components/UpdatePrompt.js
 #endif
+@BINPATH@/components/WebappsSupport.js
 @BINPATH@/components/XPIDialogService.js
 @BINPATH@/components/browsercomps.xpt
 @BINPATH@/extensions/feedback@mobile.mozilla.org.xpi

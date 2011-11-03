@@ -55,14 +55,25 @@ function calItemBase() {
 }
 
 calItemBase.prototype = {
+    mProperties: null,
     mPropertyParams: null,
+
     mIsProxy: false,
-    mAlarms: null,
     mHashId: null,
     mImmutable: false,
     mDirty: false,
-    mAlarmLastAck: null,
     mCalendar: null,
+    mParentItem: null,
+    mRecurrenceInfo: null,
+    mOrganizer: null,
+
+    mAlarms: null,
+    mAlarmLastAck: null,
+
+    mAttendees: null,
+    mAttachments: null,
+    mRelations: null,
+    mCategories: null,
 
     /**
      * Initialize the base item's attributes. Can be called from inheriting
@@ -91,11 +102,11 @@ calItemBase.prototype = {
     get hashId() {
         if (this.mHashId === null) {
             var rid = this.recurrenceId;
-            var cal = this.calendar;
+            var calendar = this.calendar;
             // some unused delim character:
             this.mHashId = [encodeURIComponent(this.id),
                             rid ? rid.getInTimezone(UTC()).icalString : "",
-                            cal ? encodeURIComponent(cal.id) : ""].join("#");
+                            calendar ? encodeURIComponent(calendar.id) : ""].join("#");
         }
         return this.mHashId;
     },
@@ -132,7 +143,6 @@ calItemBase.prototype = {
     },
 
     // attribute calIItemBase parentItem;
-    mParentItem: null,
     get parentItem() {
         return (this.mParentItem || this);
     },
@@ -735,7 +745,8 @@ calItemBase.prototype = {
         "CATEGORIES": true,
         "ORGANIZER": true,
         "RECURRENCE-ID": true,
-        "X-MOZ-LASTACK": true
+        "X-MOZ-LASTACK": true,
+        "RELATED-TO": true
     },
 
     /**

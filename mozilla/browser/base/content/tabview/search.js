@@ -132,7 +132,7 @@ var TabUtils = {
     // of active Panoramas as well as for windows in which
     // Panorama has yet to be activated. We uses object sniffing to
     // determine the type of tab and then returns its name.     
-    return tab.label != undefined ? tab.label : tab.$tabTitle[0].innerHTML;
+    return tab.label != undefined ? tab.label : tab.$tabTitle[0].textContent;
   },
   
   // ---------
@@ -210,7 +210,7 @@ TabMatcher.prototype = {
   _filterForUnmatches: function TabMatcher__filterForUnmatches(tabs) {
     var self = this;
     return tabs.filter(function(tab) {
-      var name = tab.$tabTitle[0].innerHTML;
+      let name = tab.$tabTitle[0].textContent;
       let url = TabUtils.URLOf(tab);
       return !name.match(self.term, "i") && !url.match(self.term, "i");
     });
@@ -218,43 +218,30 @@ TabMatcher.prototype = {
   
   // ---------
   // Function: _getTabsForOtherWindows
-  // Returns an array of <TabItem>s and <xul:tabs>s representing that
-  // tabs from all windows but the currently focused window. <TabItem>s
-  // will be returned for windows in which Panorama has been activated at
-  // least once, while <xul:tab>s will be return for windows in which
-  // Panorama has never been activated.
-  _getTabsForOtherWindows: function TabMatcher__getTabsForOtherWindows(){
-    var wm = Components.classes["@mozilla.org/appshell/window-mediator;1"]
-                       .getService(Components.interfaces.nsIWindowMediator);
-    var enumerator = wm.getEnumerator("navigator:browser");    
-    var currentWindow = wm.getMostRecentWindow("navigator:browser");
-    
-    var allTabs = [];    
+  // Returns an array of <TabItem>s and <xul:tabs>s representing tabs
+  // from all windows but the current window. <TabItem>s will be returned
+  // for windows in which Panorama has been activated at least once, while
+  // <xul:tab>s will be returned for windows in which Panorama has never
+  // been activated.
+  _getTabsForOtherWindows: function TabMatcher__getTabsForOtherWindows() {
+    var enumerator = Services.wm.getEnumerator("navigator:browser");
+    var allTabs = [];
+
     while (enumerator.hasMoreElements()) {
       var win = enumerator.getNext();
-      // This function gets tabs from other windows: not the one you currently
-      // have focused.
-      if (win != currentWindow) {
-        // If TabView is around iterate over all tabs, else get the currently
-        // shown tabs...
-        
-        let tvWindow = win.TabView.getContentWindow();
-        if (tvWindow)
-          allTabs = allTabs.concat( tvWindow.TabItems.getItems() );
-        else
-          // win.gBrowser.tabs isn't a proper array, so we can't use concat
-          for (var i=0; i<win.gBrowser.tabs.length; i++) allTabs.push( win.gBrowser.tabs[i] );
-      } 
+      // This function gets tabs from other windows, not from the current window
+      if (win != gWindow)
+        allTabs.push.apply(allTabs, win.gBrowser.tabs);
     }
-    return allTabs;    
+    return allTabs;
   },
   
   // ----------
   // Function: matchedTabsFromOtherWindows
   // Returns an array of <TabItem>s and <xul:tab>s that match the search term
-  // from all windows but the currently focused window. <TabItem>s will be
-  // returned for windows in which Panorama has been activated at least once,
-  // while <xul:tab>s will be return for windows in which Panorama has never
+  // from all windows but the current window. <TabItem>s will be returned for
+  // windows in which Panorama has been activated at least once, while
+  // <xul:tab>s will be returned for windows in which Panorama has never
   // been activated.
   // (new TabMatcher("app")).matchedTabsFromOtherWindows();
   matchedTabsFromOtherWindows: function TabMatcher_matchedTabsFromOtherWindows(){
@@ -598,8 +585,7 @@ function ensureSearchShown(activatedByKeypress) {
 
     // NOTE: when this function is called by keydown handler, next keypress
     // event or composition events of IME will be fired on the focused editor.
-
-    function dispatchTabViewSearchEnabledEvent() {
+    let dispatchTabViewSearchEnabledEvent = function dispatchTabViewSearchEnabledEvent() {
       let newEvent = document.createEvent("Events");
       newEvent.initEvent("tabviewsearchenabled", false, false);
       dispatchEvent(newEvent);
@@ -608,7 +594,7 @@ function ensureSearchShown(activatedByKeypress) {
     if (activatedByKeypress) {
       // set the focus so key strokes are entered into the textbox.
       $searchbox[0].focus();
-      dispatchTabViewSearchEnabledEvent(); 
+      dispatchTabViewSearchEnabledEvent();
     } else {
       // marshal the focusing, otherwise it ends up with searchbox[0].focus gets
       // called before the search button gets the focus after being pressed.

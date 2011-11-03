@@ -1,4 +1,3 @@
-/* -*- Mode: C; tab-width: 8; indent-tabs-mode: t; c-basic-offset: 4 -*- */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -38,7 +37,7 @@
 /*
  * Base64 decoding (ascii to binary).
  *
- * $Id: nssb64d.c,v 1.7 2008/10/05 20:59:26 nelson%bolyard.com Exp $
+ * $Id: nssb64d.c,v 1.7.32.1 2011/05/07 18:20:53 kaie%kuix.de Exp $
  */
 
 #include "nssb64.h"
@@ -563,13 +562,10 @@ PL_Base64DecodeBuffer (const char *src, PRUint32 srclen, unsigned char *dest,
     PLBase64Decoder *data = NULL;
     PRStatus status;
 
+    PR_ASSERT(srclen > 0);
     if (srclen == 0) {
-	*output_destlen = 0;
-	if (dest == NULL) {
-	    /* PR_Malloc(0) is undefined */
-	    return (unsigned char *) PR_Malloc(1);
-	}
-	return dest;
+	PR_SetError(PR_INVALID_ARGUMENT_ERROR, 0);
+	return NULL;
     }
 
     /*
@@ -753,17 +749,21 @@ SECItem *
 NSSBase64_DecodeBuffer (PRArenaPool *arenaOpt, SECItem *outItemOpt,
 			const char *inStr, unsigned int inLen)
 {
-    SECItem *out_item = outItemOpt;
-    PRUint32 max_out_len = PL_Base64MaxDecodedLength (inLen);
+    SECItem *out_item = NULL;
+    PRUint32 max_out_len = 0;
     PRUint32 out_len;
     void *mark = NULL;
     unsigned char *dummy;
 
-    PORT_Assert(outItemOpt == NULL || outItemOpt->data == NULL);
+    if ((outItemOpt != NULL && outItemOpt->data != NULL) || inLen == 0) {
+	PORT_SetError (SEC_ERROR_INVALID_ARGS);
+	return NULL;
+    }
 
     if (arenaOpt != NULL)
 	mark = PORT_ArenaMark (arenaOpt);
 
+    max_out_len = PL_Base64MaxDecodedLength (inLen);
     out_item = SECITEM_AllocItem (arenaOpt, outItemOpt, max_out_len);
     if (out_item == NULL) {
 	if (arenaOpt != NULL)

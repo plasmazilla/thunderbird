@@ -43,12 +43,13 @@
 #include "nsChangeHint.h"
 #include "nsINode.h"
 #include "nsIDocument.h" // for IsInHTMLDocument
+#include "nsDOMMemoryReporter.h"
 
 // Forward declarations
 class nsIAtom;
 class nsIDOMEvent;
 class nsIContent;
-class nsIEventListenerManager;
+class nsEventListenerManager;
 class nsIURI;
 class nsRuleWalker;
 class nsAttrValue;
@@ -76,8 +77,8 @@ enum nsLinkState {
 
 // IID for the nsIContent interface
 #define NS_ICONTENT_IID       \
-{ 0x32b94ba0, 0x1ebc, 0x4dfc, \
- { 0xba, 0x8c, 0x5f, 0x24, 0x2b, 0xcb, 0xaf, 0xce } }
+{ 0x4aad2c06, 0xd6c3, 0x4f44, \
+ { 0x94, 0xf9, 0xd5, 0xac, 0xe5, 0x04, 0x67, 0xec } }
 
 /**
  * A node of content in a document's content model. This interface
@@ -99,6 +100,8 @@ public:
 #endif // MOZILLA_INTERNAL_API
 
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_ICONTENT_IID)
+
+  NS_DECL_AND_IMPL_DOM_MEMORY_REPORTER_SIZEOF(nsIContent, nsINode);
 
   /**
    * Bind this content node to a tree.  If this method throws, the caller must
@@ -787,14 +790,6 @@ public:
   }
 
   /**
-   * Method to get the _intrinsic_ content state of this content node.  This is
-   * the state that is independent of the node's presentation.  To get the full
-   * content state, use nsIEventStateManager.  Also see nsIEventStateManager
-   * for the possible bits that could be set here.
-   */
-  virtual nsEventStates IntrinsicState() const;
-
-  /**
    * Get the ID of this content node (the atom corresponding to the
    * value of the null-namespace attribute whose name is given by
    * GetIDAttributeName().  This may be null if there is no ID.
@@ -864,9 +859,10 @@ public:
   /**
    * Should be called when the node can become editable or when it can stop
    * being editable (for example when its contentEditable attribute changes,
-   * when it is moved into an editable parent, ...).
+   * when it is moved into an editable parent, ...).  If aNotify is true and
+   * the node is an element, this will notify the state change.
    */
-  virtual void UpdateEditableState();
+  virtual void UpdateEditableState(PRBool aNotify);
 
   /**
    * Destroy this node and its children. Ideally this shouldn't be needed
@@ -935,12 +931,6 @@ public:
   nsresult LookupNamespaceURI(const nsAString& aNamespacePrefix,
                               nsAString& aNamespaceURI) const;
 
-  nsIAtom* LookupPrefix(const nsAString& aNamespaceURI);
-
-  PRBool IsEqual(nsIContent *aOther);
-
-  virtual PRBool IsEqualNode(nsINode* aOther);
-
   /**
    * If this content has independent selection, e.g., if this is input field
    * or textarea, this return TRUE.  Otherwise, false.
@@ -956,6 +946,8 @@ public:
 
   // Overloaded from nsINode
   virtual already_AddRefed<nsIURI> GetBaseURI() const;
+
+  virtual nsresult PreHandleEvent(nsEventChainPreVisitor& aVisitor);
 
 protected:
   /**

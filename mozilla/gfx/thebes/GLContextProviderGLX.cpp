@@ -180,62 +180,26 @@ GLXLibrary::EnsureInitialized()
     }
 
     Display *display = DefaultXDisplay();
-    PRBool ignoreBlacklist = PR_GetEnv("MOZ_GLX_IGNORE_BLACKLIST") != nsnull;
-    if (!ignoreBlacklist) {
-        // ATI's libGL (at least the one provided with 11.2 drivers) segfaults
-        // when querying server info if the server does not have the
-        // ATIFGLEXTENSION extension.
-        const char *clientVendor = xGetClientString(display, GLX_VENDOR);
-        if (clientVendor && strcmp(clientVendor, "ATI") == 0) {
-            printf("[GLX] The ATI proprietary libGL.so.1 is currently "
-                   "blacklisted to avoid crashes that happen in some "
-                   "situations. If you would like to bypass this, set the "
-                   "MOZ_GLX_IGNORE_BLACKLIST environment variable.\n");
-            return PR_FALSE;
-        }
-    }
 
     int screen = DefaultScreen(display);
     const char *serverVendor = NULL;
     const char *serverVersionStr = NULL;
     const char *extensionsStr = NULL;
 
-    // This scope is covered by a ScopedXErrorHandler to catch X errors in GLX
-    // calls.  See bug 632867 comment 3: Mesa versions up to 7.10 cause a
-    // BadLength error during the first GLX call that communicates with the
-    // server when the server GLX version < 1.3.
-    {
-        ScopedXErrorHandler xErrorHandler;
-
-        if (!xQueryVersion(display, &gGLXMajorVersion, &gGLXMinorVersion)) {
-            gGLXMajorVersion = 0;
-            gGLXMinorVersion = 0;
-            return PR_FALSE;
-        }
-
-        serverVendor = xQueryServerString(display, screen, GLX_VENDOR);
-        serverVersionStr = xQueryServerString(display, screen, GLX_VERSION);
-
-        PRBool IsDriverBlacklisted = !serverVendor ||   // it's been reported that a VNC X server was returning serverVendor=null
-                                     !serverVersionStr ||
-                                     strcmp(serverVendor, "NVIDIA Corporation");
-
-        if (IsDriverBlacklisted && !ignoreBlacklist)
-        {
-          printf("[GLX] your GL driver is currently blocked. If you would like to bypass this, "
-                  "define the MOZ_GLX_IGNORE_BLACKLIST environment variable.\n");
-          return PR_FALSE;
-        }
-
-        if (!GLXVersionCheck(1, 1))
-            // Not possible to query for extensions.
-            return PR_FALSE;
-
-        extensionsStr = xQueryExtensionsString(display, screen);
-
-        if (xErrorHandler.GetError())
-          return PR_FALSE;
+    if (!xQueryVersion(display, &gGLXMajorVersion, &gGLXMinorVersion)) {
+        gGLXMajorVersion = 0;
+        gGLXMinorVersion = 0;
+        return PR_FALSE;
     }
+
+    serverVendor = xQueryServerString(display, screen, GLX_VENDOR);
+    serverVersionStr = xQueryServerString(display, screen, GLX_VERSION);
+
+    if (!GLXVersionCheck(1, 1))
+        // Not possible to query for extensions.
+        return PR_FALSE;
+
+    extensionsStr = xQueryExtensionsString(display, screen);
 
     LibrarySymbolLoader::SymLoadStruct *sym13;
     if (!GLXVersionCheck(1, 3)) {
@@ -270,9 +234,12 @@ GLXLibrary::EnsureInitialized()
     }
 
     if (HasExtension(extensionsStr, "GLX_EXT_texture_from_pixmap") &&
-        LibrarySymbolLoader::LoadSymbols(mOGLLibrary, symbols_texturefrompixmap))
+        LibrarySymbolLoader::LoadSymbols(mOGLLibrary, symbols_texturefrompixmap, 
+                                         (LibrarySymbolLoader::PlatformLookupFunction)xGetProcAddress))
     {
         mHasTextureFromPixmap = PR_TRUE;
+    } else {
+        NS_WARNING("Texture from pixmap disabled");
     }
 
     gIsATI = serverVendor && DoesVendorStringMatch(serverVendor, "ATI");
@@ -285,14 +252,24 @@ GLXLibrary::EnsureInitialized()
     return PR_TRUE;
 }
 
+PRBool
+GLXLibrary::SupportsTextureFromPixmap(gfxASurface* aSurface)
+{
+    if (!EnsureInitialized()) {
+        return PR_FALSE;
+    }
+    
+    if (aSurface->GetType() != gfxASurface::SurfaceTypeXlib || !mHasTextureFromPixmap) {
+        return PR_FALSE;
+    }
+
+    return PR_TRUE;
+}
+
 GLXPixmap 
 GLXLibrary::CreatePixmap(gfxASurface* aSurface)
 {
-    if (aSurface->GetType() != gfxASurface::SurfaceTypeXlib || !mHasTextureFromPixmap) {
-        return 0;
-    }
-
-    if (!EnsureInitialized()) {
+    if (!SupportsTextureFromPixmap(aSurface)) {
         return 0;
     }
 
@@ -439,6 +416,14 @@ TRY_AGAIN_NO_SHARING:
     {
         MarkDestroyed();
 
+        // see bug 659842 comment 76
+#ifdef DEBUG
+        bool success =
+#endif
+        sGLXLibrary.xMakeCurrent(mDisplay, None, nsnull);
+        NS_ABORT_IF_FALSE(success,
+            "glXMakeCurrent failed to release GL context before we call glXDestroyContext!");
+
         sGLXLibrary.xDestroyContext(mDisplay, mContext);
 
         if (mDeleteDrawable) {
@@ -580,11 +565,12 @@ public:
         mInUpdate = PR_FALSE;
     }
 
-    virtual bool DirectUpdate(gfxASurface* aSurface, const nsIntRegion& aRegion)
+
+    virtual bool DirectUpdate(gfxASurface* aSurface, const nsIntRegion& aRegion, const nsIntPoint& aFrom)
     {
         nsRefPtr<gfxContext> ctx = new gfxContext(mUpdateSurface);
         gfxUtils::ClipToRegion(ctx, aRegion);
-        ctx->SetSource(aSurface);
+        ctx->SetSource(aSurface, aFrom);
         ctx->SetOperator(gfxContext::OPERATOR_SOURCE);
         ctx->Paint();
         return true;
@@ -593,7 +579,7 @@ public:
     virtual void BindTexture(GLenum aTextureUnit)
     {
         mGLContext->fActiveTexture(aTextureUnit);
-        mGLContext->fBindTexture(LOCAL_GL_TEXTURE_2D, Texture());
+        mGLContext->fBindTexture(LOCAL_GL_TEXTURE_2D, mTexture);
         sGLXLibrary.BindTexImage(mPixmap);
         mGLContext->fActiveTexture(LOCAL_GL_TEXTURE0);
     }
@@ -609,7 +595,11 @@ public:
         return mUpdateSurface.get();
     }
 
-    virtual PRBool InUpdate() const { return !mInUpdate; }
+    virtual PRBool InUpdate() const { return mInUpdate; }
+
+    virtual GLuint GetTextureID() {
+        return mTexture;
+    };
 
 private:
    TextureImageGLX(GLuint aTexture,
@@ -619,11 +609,12 @@ private:
                    GLContext* aContext,
                    gfxASurface* aSurface,
                    GLXPixmap aPixmap)
-        : TextureImage(aTexture, aSize, aWrapMode, aContentType)
+        : TextureImage(aSize, aWrapMode, aContentType)
         , mGLContext(aContext)
         , mUpdateSurface(aSurface)
         , mPixmap(aPixmap)
         , mInUpdate(PR_FALSE)
+        , mTexture(aTexture)
     {
         if (aSurface->GetContentType() == gfxASurface::CONTENT_COLOR_ALPHA) {
             mShaderType = gl::RGBALayerProgramType;
@@ -636,6 +627,7 @@ private:
     nsRefPtr<gfxASurface> mUpdateSurface;
     GLXPixmap mPixmap;
     PRPackedBool mInUpdate;
+    GLuint mTexture;
 };
 
 already_AddRefed<TextureImage>

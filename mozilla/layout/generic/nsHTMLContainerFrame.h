@@ -41,8 +41,8 @@
 #define nsHTMLContainerFrame_h___
 
 #include "nsContainerFrame.h"
+#include "nsDisplayList.h"
 #include "gfxPoint.h"
-#include "nsIDeviceContext.h"
 
 class nsString;
 class nsAbsoluteFrame;
@@ -55,38 +55,22 @@ class nsLineBox;
 
 // Some macros for container classes to do sanity checking on
 // width/height/x/y values computed during reflow.
+// NOTE: AppUnitsPerCSSPixel value hardwired here to remove the
+// dependency on nsDeviceContext.h.  It doesn't matter if it's a
+// little off.
 #ifdef DEBUG
-#define CRAZY_W (1000000*nsIDeviceContext::AppUnitsPerCSSPixel())
+#define CRAZY_W (1000000*60)
 #define CRAZY_H CRAZY_W
 
 #define CRAZY_WIDTH(_x) (((_x) < -CRAZY_W) || ((_x) > CRAZY_W))
 #define CRAZY_HEIGHT(_y) (((_y) < -CRAZY_H) || ((_y) > CRAZY_H))
 #endif
 
-class nsDisplayTextDecoration;
-
 // Base class for html container frames that provides common
 // functionality.
 class nsHTMLContainerFrame : public nsContainerFrame {
 public:
   NS_DECL_FRAMEARENA_HELPERS
-
-  /**
-   * Helper method to wrap views around frames. Used by containers
-   * under special circumstances (can be used by leaf frames as well)
-   */
-  static nsresult CreateViewForFrame(nsIFrame* aFrame,
-                                     PRBool aForce);
-
-  static nsresult ReparentFrameView(nsPresContext* aPresContext,
-                                    nsIFrame*       aChildFrame,
-                                    nsIFrame*       aOldParentFrame,
-                                    nsIFrame*       aNewParentFrame);
-
-  static nsresult ReparentFrameViewList(nsPresContext*     aPresContext,
-                                        const nsFrameList& aChildFrameList,
-                                        nsIFrame*          aOldParentFrame,
-                                        nsIFrame*          aNewParentFrame);
 
   /**
    * Helper method to create next-in-flows if necessary. If aFrame
@@ -113,81 +97,9 @@ public:
   NS_IMETHOD BuildDisplayList(nsDisplayListBuilder*   aBuilder,
                               const nsRect&           aDirtyRect,
                               const nsDisplayListSet& aLists);
-                              
-  nsresult DisplayTextDecorations(nsDisplayListBuilder* aBuilder,
-                                  nsDisplayList* aBelowTextDecorations,
-                                  nsDisplayList* aAboveTextDecorations,
-                                  nsLineBox* aLine);
 
 protected:
   nsHTMLContainerFrame(nsStyleContext *aContext) : nsContainerFrame(aContext) {}
-
-  /**
-   * Displays the below-children decorations, then the children, then
-   * the above-children decorations, with the decorations going in the
-   * Content() list. This is suitable for inline elements and elements
-   * that behave like inline elements (e.g. MathML containers).
-   */
-  nsresult DisplayTextDecorationsAndChildren(nsDisplayListBuilder* aBuilder, 
-                                             const nsRect& aDirtyRect,
-                                             const nsDisplayListSet& aLists);
-
-  /**
-   * Fetch the text decorations for this frame. 
-   *  @param aIsBlock      whether |this| is a block frame or no.
-   *  @param aDecorations  mask with all decorations. 
-   *                         See bug 1777 and 20163 to understand how a
-   *                         frame can end up with several decorations.
-   *  @param aUnderColor   The color of underline if the appropriate bit 
-   *                         in aDecoration is set. It is undefined otherwise.
-   *  @param aOverColor    The color of overline if the appropriate bit 
-   *                         in aDecoration is set. It is undefined otherwise.
-   *  @param aStrikeColor  The color of strike-through if the appropriate bit 
-   *                         in aDecoration is set. It is undefined otherwise.
-   *  NOTE: This function assigns NS_STYLE_TEXT_DECORATION_NONE to
-   *        aDecorations for text-less frames.  See bug 20163 for
-   *        details.
-   */
-  void GetTextDecorations(nsPresContext* aPresContext, 
-                          PRBool aIsBlock,
-                          PRUint8& aDecorations, 
-                          nscolor& aUnderColor, 
-                          nscolor& aOverColor, 
-                          nscolor& aStrikeColor);
-
-  /** 
-   * Function that does the actual drawing of the textdecoration. 
-   *   input:
-   *    @param aCtx               the Thebes graphics context to draw on
-   *    @param aLine              the line, or nsnull if this is an inline frame
-   *    @param aColor             the color of the text-decoration
-   *    @param aAscent            ascent of the font from which the
-   *                                text-decoration was derived. 
-   *    @param aOffset            distance *above* baseline where the
-   *                                text-decoration should be drawn,
-   *                                i.e. negative offsets draws *below*
-   *                                the baseline.
-   *    @param aSize              the thickness of the line
-   *    @param aDecoration        which line will be painted
-   *                                i.e., NS_STYLE_TEXT_DECORATION_UNDERLINE or
-   *                                      NS_STYLE_TEXT_DECORATION_OVERLINE or
-   *                                      NS_STYLE_TEXT_DECORATION_LINE_THROUGH.
-   */
-  virtual void PaintTextDecorationLine(gfxContext* aCtx,
-                                       const nsPoint& aPt,
-                                       nsLineBox* aLine,
-                                       nscolor aColor,
-                                       gfxFloat aOffset,
-                                       gfxFloat aAscent,
-                                       gfxFloat aSize,
-                                       const PRUint8 aDecoration);
-
-  virtual void AdjustForTextIndent(const nsLineBox* aLine,
-                                   nscoord& start,
-                                   nscoord& width);
-
-  friend class nsDisplayTextDecoration;
-  friend class nsDisplayTextShadow;
 };
 
 #endif /* nsHTMLContainerFrame_h___ */

@@ -56,6 +56,10 @@
  *    to invoke the original function (so address of trampoline is
  *    returned).
  * 
+ * When the WindowsDllInterceptor class is destructed, OrigFunction is
+ * patched again to jump directly to the trampoline instead of going
+ * through the hook function. As such, re-intercepting the same function
+ * won't work, as jump instructions are not supported.
  */
 
 class WindowsDllInterceptor
@@ -69,6 +73,39 @@ public:
 
   WindowsDllInterceptor(const char *modulename, int nhooks = 0) {
     Init(modulename, nhooks);
+  }
+
+  ~WindowsDllInterceptor() {
+    int i;
+    byteptr_t p;
+    for (i = 0, p = mHookPage; i < mCurHooks; i++, p += kHookSize) {
+#if defined(_M_IX86)
+      size_t nBytes = 1 + sizeof(intptr_t);
+#elif defined(_M_X64)
+      size_t nBytes = 2 + sizeof(intptr_t);
+#else
+#error "Unknown processor type"
+#endif
+      byteptr_t origBytes = *((byteptr_t *)p);
+      // ensure we can modify the original code
+      DWORD op;
+      if (!VirtualProtectEx(GetCurrentProcess(), origBytes, nBytes, PAGE_EXECUTE_READWRITE, &op)) {
+        //printf ("VirtualProtectEx failed! %d\n", GetLastError());
+        continue;
+      }
+      // Remove the hook by making the original function jump directly
+      // in the trampoline.
+      intptr_t dest = (intptr_t)(p + sizeof(void *));
+#if defined(_M_IX86)
+      *((intptr_t*)(origBytes+1)) = dest - (intptr_t)(origBytes+5); // target displacement
+#elif defined(_M_X64)
+      *((intptr_t*)(origBytes+2)) = dest;
+#else
+#error "Unknown processor type"
+#endif
+      // restore protection; if this fails we can't really do anything about it
+      VirtualProtectEx(GetCurrentProcess(), origBytes, nBytes, op, &op);
+    }
   }
 
   void Init(const char *modulename, int nhooks = 0) {
@@ -109,7 +146,7 @@ public:
   }
 
   bool AddHook(const char *pname,
-         void *hookDest,
+         intptr_t hookDest,
          void **origFunc)
   {
     if (!mModule)
@@ -142,7 +179,7 @@ protected:
   int mCurHooks;
 
   byteptr_t CreateTrampoline(void *origFunction,
-           void *dest)
+           intptr_t dest)
   {
     byteptr_t tramp = FindTrampolineSpace();
     if (!tramp)
@@ -151,6 +188,7 @@ protected:
     byteptr_t origBytes = (byteptr_t) origFunction;
 
     int nBytes = 0;
+#if defined(_M_IX86)
     while (nBytes < 5) {
       // Understand some simple instructions that might be found in a
       // prologue; we might need to extend this as necessary.
@@ -183,19 +221,162 @@ protected:
         return 0;
       }
     }
+#elif defined(_M_X64)
+    int pJmp32 = -1;
+
+    while (nBytes < 13) {
+
+      // if found JMP 32bit offset, next bytes must be NOP 
+      if (pJmp32 >= 0) {
+        if (origBytes[nBytes++] != 0x90)
+          return 0;
+
+        continue;
+      } 
+        
+      if (origBytes[nBytes] == 0x41) {
+        // REX.B
+        nBytes++;
+
+        if ((origBytes[nBytes] & 0xf0) == 0x50) {
+          // push/pop with Rx register
+          nBytes++;
+        } else if (origBytes[nBytes] >= 0xb8 && origBytes[nBytes] <= 0xbf) {
+          // mov r32, imm32
+          nBytes += 5;
+        } else {
+          return 0;
+        }
+      } else if (origBytes[nBytes] == 0x45) {
+        // REX.R & REX.B
+        nBytes++;
+
+        if (origBytes[nBytes] == 0x33) {
+          // xor r32, r32
+          nBytes += 2;
+        } else {
+          return 0;
+        }
+      } else if (origBytes[nBytes] == 0x48) {
+        // REX.W
+        nBytes++;
+
+        if (origBytes[nBytes] == 0x81 && (origBytes[nBytes+1] & 0xf8) == 0xe8) {
+          // sub r, dword
+          nBytes += 6;
+        } else if (origBytes[nBytes] == 0x83 &&
+                  (origBytes[nBytes+1] & 0xf8) == 0xe8) {
+          // sub r, byte
+          nBytes += 3;
+        } else if (origBytes[nBytes] == 0x83 &&
+                  (origBytes[nBytes+1] & 0xf8) == 0x60) {
+          // and [r+d], imm8
+          nBytes += 5;
+        } else if (origBytes[nBytes] == 0x89) {
+          // MOV r/m64, r64
+          if ((origBytes[nBytes+1] & 0xc0) == 0x40) {
+            if ((origBytes[nBytes+1] & 0x7) == 0x04) {
+              // mov [SIB+disp8], r64
+              nBytes += 4;
+            } else {
+              // mov [r64+disp8], r64
+              nBytes += 3;
+            }
+          } else {
+            // complex mov
+            return 0;
+          }
+        } else if (origBytes[nBytes] == 0x8b) {
+          // mov r64, r/m64
+          if ((origBytes[nBytes+1] & 0xc0) == 0x40) {
+            if ((origBytes[nBytes+1] & 0x7) == 0x04) {
+              // mov r64, [SIB+disp8]
+              nBytes += 4;
+            } else {
+              // mov r64, [r64+disp8]
+              nBytes += 3;
+            }
+          } else if ((origBytes[nBytes+1] & 0xc0) == 0xc0) {
+            // MOV r64, r64
+            nBytes += 2;
+          } else {
+            // complex MOV
+            return 0;
+          }
+        } else {
+          // not support yet!
+          return 0;
+        }
+      } else if ((origBytes[nBytes] & 0xf0) == 0x50) {
+        // 1-byte push/pop
+        nBytes++;
+      } else if (origBytes[nBytes] == 0x90) {
+        // nop
+        nBytes++;
+      } else if (origBytes[nBytes] == 0xe9) {
+        pJmp32 = nBytes;
+        // jmp 32bit offset
+        nBytes += 5;
+      } else if (origBytes[nBytes] == 0xff) {
+        nBytes++;
+        if ((origBytes[nBytes] & 0xf8) == 0xf0) {
+          // push r64
+          nBytes++;
+        } else {
+          return 0;
+        }
+      } else {
+        return 0;
+      }
+    }
+#else
+#error "Unknown processor type"
+#endif
 
     if (nBytes > 100) {
       //printf ("Too big!");
       return 0;
     }
 
+    // We keep the address of the original function in the first bytes of
+    // the trampoline buffer
+    *((void **)tramp) = origFunction;
+    tramp += sizeof(void *);
+
     memcpy(tramp, origFunction, nBytes);
 
     // OrigFunction+N, the target of the trampoline
     byteptr_t trampDest = origBytes + nBytes;
 
+#if defined(_M_IX86)
     tramp[nBytes] = 0xE9; // jmp
     *((intptr_t*)(tramp+nBytes+1)) = (intptr_t)trampDest - (intptr_t)(tramp+nBytes+5); // target displacement
+#elif defined(_M_X64)
+    // If JMP32 opcode found, we don't insert to trampoline jump 
+    if (pJmp32 >= 0) {
+      // convert JMP 32bit offset to JMP 64bit direct
+      byteptr_t directJmpAddr = origBytes + pJmp32 + 5 + (*((LONG*)(origBytes+pJmp32+1)));
+      // mov r11, address
+      tramp[pJmp32]   = 0x49;
+      tramp[pJmp32+1] = 0xbb;
+      *((intptr_t*)(tramp+pJmp32+2)) = (intptr_t)directJmpAddr;
+
+      // jmp r11
+      tramp[pJmp32+10] = 0x41;
+      tramp[pJmp32+11] = 0xff;
+      tramp[pJmp32+12] = 0xe3;
+    } else {
+      // mov r11, address
+      tramp[nBytes] = 0x49;
+      tramp[nBytes+1] = 0xbb;
+      *((intptr_t*)(tramp+nBytes+2)) = (intptr_t)trampDest;
+
+      // jmp r11
+      tramp[nBytes+10] = 0x41;
+      tramp[nBytes+11] = 0xff;
+      tramp[nBytes+12] = 0xe3;
+    }
+#endif
 
     // ensure we can modify the original code
     DWORD op;
@@ -204,9 +385,22 @@ protected:
       return 0;
     }
 
+#if defined(_M_IX86)
     // now modify the original bytes
     origBytes[0] = 0xE9; // jmp
-    *((intptr_t*)(origBytes+1)) = (intptr_t)dest - (intptr_t)(origBytes+5); // target displacement
+    *((intptr_t*)(origBytes+1)) = dest - (intptr_t)(origBytes+5); // target displacement
+#elif defined(_M_X64)
+    // mov r11, address
+    origBytes[0] = 0x49;
+    origBytes[1] = 0xbb;
+
+    *((intptr_t*)(origBytes+2)) = dest;
+
+    // jmp r11
+    origBytes[10] = 0x41;
+    origBytes[11] = 0xff;
+    origBytes[12] = 0xe3;
+#endif
 
     // restore protection; if this fails we can't really do anything about it
     VirtualProtectEx(GetCurrentProcess(), origFunction, nBytes, op, &op);

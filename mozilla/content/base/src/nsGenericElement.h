@@ -49,13 +49,8 @@
 #include "mozilla/dom/Element.h"
 #include "nsIDOMElement.h"
 #include "nsIDOMDocumentFragment.h"
-#include "nsIDOMEventTarget.h"
-#include "nsIDOM3EventTarget.h"
-#include "nsIDOM3Node.h"
-#include "nsIDOMNSEventTarget.h"
 #include "nsIDOMNSElement.h"
 #include "nsILinkHandler.h"
-#include "nsContentUtils.h"
 #include "nsNodeUtils.h"
 #include "nsAttrAndChildArray.h"
 #include "mozFlushType.h"
@@ -66,6 +61,9 @@
 #include "nsIDOMNodeSelector.h"
 #include "nsIDOMXPathNSResolver.h"
 #include "nsPresContext.h"
+#include "nsIDOMDOMStringMap.h"
+#include "nsContentList.h"
+#include "nsDOMClassInfoID.h" // DOMCI_DATA
 
 #ifdef MOZ_SMIL
 #include "nsISMILAttr.h"
@@ -80,8 +78,7 @@ class nsIDOMCSSStyleDeclaration;
 class nsIURI;
 class nsINodeInfo;
 class nsIControllers;
-class nsIDOMNSFeatureFactory;
-class nsIEventListenerManager;
+class nsEventListenerManager;
 class nsIScrollableFrame;
 class nsContentList;
 class nsDOMTokenList;
@@ -95,8 +92,7 @@ typedef PRUptrdiff PtrBits;
  * and Item to its existing child list.
  * @see nsIDOMNodeList
  */
-class nsChildContentList : public nsINodeList,
-                           public nsWrapperCache
+class nsChildContentList : public nsINodeList
 {
 public:
   nsChildContentList(nsINode* aNode)
@@ -118,25 +114,9 @@ public:
     mNode = nsnull;
   }
 
-  nsINode* GetParentObject()
+  virtual nsINode* GetParentObject()
   {
     return mNode;
-  }
-
-  static nsChildContentList* FromSupports(nsISupports* aSupports)
-  {
-    nsINodeList* list = static_cast<nsINodeList*>(aSupports);
-#ifdef DEBUG
-    {
-      nsCOMPtr<nsINodeList> list_qi = do_QueryInterface(aSupports);
-
-      // If this assertion fires the QI implementation for the object in
-      // question doesn't use the nsINodeList pointer as the nsISupports
-      // pointer. That must be fixed, or we'll crash...
-      NS_ASSERTION(list_qi == list, "Uh, fix QI!");
-    }
-#endif
-    return static_cast<nsChildContentList*>(list);
   }
 
 private:
@@ -147,14 +127,14 @@ private:
 /**
  * A tearoff class for nsGenericElement to implement additional interfaces
  */
-class nsNode3Tearoff : public nsIDOM3Node, public nsIDOMXPathNSResolver
+class nsNode3Tearoff : public nsIDOMXPathNSResolver
 {
 public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
 
-  NS_DECL_NSIDOM3NODE
+  NS_DECL_CYCLE_COLLECTION_CLASS(nsNode3Tearoff)
 
-  NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(nsNode3Tearoff, nsIDOM3Node)
+  NS_DECL_NSIDOMXPATHNSRESOLVER
 
   nsNode3Tearoff(nsINode *aNode) : mNode(aNode)
   {
@@ -222,77 +202,6 @@ private:
 #define NS_EVENT_TEAROFF_CACHE_SIZE 4
 
 /**
- * nsDOMEventRTTearoff is a tearoff class used by nsGenericElement and
- * nsGenericDOMDataNode classes for implementing the interfaces
- * nsIDOMEventTarget, nsIDOM3EventTarget and nsIDOMNSEventTarget.
- *
- * Use the method nsDOMEventRTTearoff::Create() to create one of these babies.
- * @see nsDOMEventRTTearoff::Create
- */
-
-class nsDOMEventRTTearoff : public nsIDOMEventTarget,
-                            public nsIDOM3EventTarget,
-                            public nsIDOMNSEventTarget
-{
-private:
-  // This class uses a caching scheme so we don't let users of this
-  // class create new instances with 'new', in stead the callers
-  // should use the static method
-  // nsDOMEventRTTearoff::Create(). That's why the constructor and
-  // destrucor of this class is private.
-
-  nsDOMEventRTTearoff(nsINode *aNode);
-
-  static nsDOMEventRTTearoff *mCachedEventTearoff[NS_EVENT_TEAROFF_CACHE_SIZE];
-  static PRUint32 mCachedEventTearoffCount;
-
-  /**
-   * This method gets called by Release() when it's time to delete the
-   * this object, in stead of always deleting the object we'll put the
-   * object in the cache if unless the cache is already full.
-   */
-  void LastRelease();
-
-  nsresult GetDOM3EventTarget(nsIDOM3EventTarget **aTarget);
-
-public:
-  virtual ~nsDOMEventRTTearoff();
-
-  /**
-   * Use this static method to create instances of nsDOMEventRTTearoff.
-   * @param aContent the content to create a tearoff for
-   */
-  static nsDOMEventRTTearoff *Create(nsINode *aNode);
-
-  /**
-   * Call before shutdown to clear the cache and free memory for this class.
-   */
-  static void Shutdown();
-
-  // nsISupports
-  NS_DECL_CYCLE_COLLECTING_ISUPPORTS
-
-  // nsIDOMEventTarget
-  NS_DECL_NSIDOMEVENTTARGET
-
-  // nsIDOM3EventTarget
-  NS_DECL_NSIDOM3EVENTTARGET
-
-  // nsIDOMNSEventTarget
-  NS_DECL_NSIDOMNSEVENTTARGET
-
-  NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(nsDOMEventRTTearoff,
-                                           nsIDOMEventTarget)
-
-private:
-  /**
-   * Strong reference back to the content object from where an instance of this
-   * class was 'torn off'
-   */
-  nsCOMPtr<nsINode> mNode;
-};
-
-/**
  * A tearoff class for nsGenericElement to implement NodeSelector
  */
 class nsNodeSelectorTearoff : public nsIDOMNodeSelector
@@ -332,6 +241,8 @@ public:
 
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
 
+  NS_DECL_DOM_MEMORY_REPORTER_SIZEOF
+
   /**
    * Called during QueryInterface to give the binding manager a chance to
    * get an interface for this element.
@@ -345,34 +256,13 @@ public:
   virtual PRInt32 IndexOf(nsINode* aPossibleChild) const;
   virtual nsresult InsertChildAt(nsIContent* aKid, PRUint32 aIndex,
                                  PRBool aNotify);
-  virtual nsresult RemoveChildAt(PRUint32 aIndex, PRBool aNotify, PRBool aMutationEvent = PR_TRUE);
-  virtual nsresult PreHandleEvent(nsEventChainPreVisitor& aVisitor);
-  virtual nsresult PostHandleEvent(nsEventChainPostVisitor& aVisitor);
-  virtual nsresult DispatchDOMEvent(nsEvent* aEvent, nsIDOMEvent* aDOMEvent,
-                                    nsPresContext* aPresContext,
-                                    nsEventStatus* aEventStatus);
-  virtual nsIEventListenerManager* GetListenerManager(PRBool aCreateIfNotFound);
-  virtual nsresult AddEventListenerByIID(nsIDOMEventListener *aListener,
-                                         const nsIID& aIID);
-  virtual nsresult RemoveEventListenerByIID(nsIDOMEventListener *aListener,
-                                            const nsIID& aIID);
-  virtual nsresult GetSystemEventGroup(nsIDOMEventGroup** aGroup);
-  virtual nsIScriptContext* GetContextForEventHandlers(nsresult* aRv)
-  {
-    return nsContentUtils::GetContextForEventHandlers(this, aRv);
-  }
-  virtual void GetTextContent(nsAString &aTextContent)
-  {
-    nsContentUtils::GetNodeTextContent(this, PR_TRUE, aTextContent);
-  }
-  virtual nsresult SetTextContent(const nsAString& aTextContent)
-  {
-    // Batch possible DOMSubtreeModified events.
-    mozAutoSubtreeModified subtree(GetOwnerDoc(), nsnull);
-    return nsContentUtils::SetNodeTextContent(this, aTextContent, PR_FALSE);
-  }
+  virtual nsresult RemoveChildAt(PRUint32 aIndex, PRBool aNotify);
+  NS_IMETHOD GetTextContent(nsAString &aTextContent);
+  NS_IMETHOD SetTextContent(const nsAString& aTextContent);
 
   // nsIContent interface methods
+  virtual void UpdateEditableState(PRBool aNotify);
+
   virtual nsresult BindToTree(nsIDocument* aDocument, nsIContent* aParent,
                               nsIContent* aBindingParent,
                               PRBool aCompileEventHandlers);
@@ -506,7 +396,6 @@ public:
   NS_IMETHOD GetAttributes(nsIDOMNamedNodeMap** aAttributes);
   NS_IMETHOD GetNamespaceURI(nsAString& aNamespaceURI);
   NS_IMETHOD GetPrefix(nsAString& aPrefix);
-  NS_IMETHOD Normalize();
   NS_IMETHOD IsSupported(const nsAString& aFeature,
                          const nsAString& aVersion, PRBool* aReturn);
   NS_IMETHOD HasAttributes(PRBool* aHasAttributes);
@@ -586,14 +475,6 @@ public:
   nsresult LeaveLink(nsPresContext* aPresContext);
 
   /**
-   * Take two text nodes and append the second to the first.
-   * @param aFirst the node which will contain first + second [INOUT]
-   * @param aSecond the node which will be appended
-   */
-  nsresult JoinTextNodes(nsIContent* aFirst,
-                         nsIContent* aSecond);
-
-  /**
    * Check whether a spec feature/version is supported.
    * @param aObject the object, which should support the feature,
    *        for example nsIDOMNode or nsIDOMDOMImplementation
@@ -614,7 +495,7 @@ public:
    */
   static void FireNodeInserted(nsIDocument* aDoc,
                                nsINode* aParent,
-                               nsCOMArray<nsIContent>& aNodes);
+                               nsTArray<nsCOMPtr<nsIContent> >& aNodes);
 
   /**
    * Helper methods for implementing querySelector/querySelectorAll
@@ -624,12 +505,6 @@ public:
   static nsresult doQuerySelectorAll(nsINode* aRoot,
                                      const nsAString& aSelector,
                                      nsIDOMNodeList **aReturn);
-
-  /**
-   * Default event prehandling for content objects. Handles event retargeting.
-   */
-  static nsresult doPreHandleEvent(nsIContent* aContent,
-                                   nsEventChainPreVisitor& aVisitor);
 
   /**
    * Method to create and dispatch a left-click event loosely based on
@@ -642,6 +517,7 @@ public:
                                      nsInputEvent* aSourceEvent,
                                      nsIContent* aTarget,
                                      PRBool aFullDispatch,
+                                     PRUint32 aFlags,
                                      nsEventStatus* aStatus);
 
   /**
@@ -651,6 +527,7 @@ public:
    * event.
    * If aPresContext is nsnull, this does nothing.
    */
+  using nsIContent::DispatchEvent;
   static nsresult DispatchEvent(nsPresContext* aPresContext,
                                 nsEvent* aEvent,
                                 nsIContent* aTarget,
@@ -707,10 +584,7 @@ public:
 
   // nsIDOMNSElement methods
   nsresult GetElementsByClassName(const nsAString& aClasses,
-                                  nsIDOMNodeList** aReturn)
-  {
-    return nsContentUtils::GetElementsByClassName(this, aClasses, aReturn);
-  }
+                                  nsIDOMNodeList** aReturn);
   nsresult GetClientRects(nsIDOMClientRectList** aResult);
   nsresult GetBoundingClientRect(nsIDOMClientRect** aResult);
   PRInt32 GetScrollTop();
@@ -785,6 +659,11 @@ public:
   virtual void NodeInfoChanged(nsINodeInfo* aOldNodeInfo)
   {
   }
+
+  /**
+   * Fire a DOMNodeRemoved mutation event for all children of this node
+   */
+  void FireNodeRemovedForChildren();
 
 protected:
   /**
@@ -876,7 +755,7 @@ protected:
    * Hook that is called by nsGenericElement::SetAttr to allow subclasses to
    * deal with attribute sets.  This will only be called after we have called
    * SetAndTakeAttr and AttributeChanged (that is, after we have actually set
-   * the attr).
+   * the attr).  It will always be called under a scriptblocker.
    *
    * @param aNamespaceID the namespace of the attr being set
    * @param aName the localname of the attribute being set
@@ -893,13 +772,11 @@ protected:
   }
 
   /**
-   * Hook to allow subclasses to produce a different nsIEventListenerManager if
+   * Hook to allow subclasses to produce a different nsEventListenerManager if
    * needed for attachment of attribute-defined handlers
    */
-  virtual nsresult
-    GetEventListenerManagerForAttr(nsIEventListenerManager** aManager,
-                                   nsISupports** aTarget,
-                                   PRBool* aDefer);
+  virtual nsEventListenerManager*
+    GetEventListenerManagerForAttr(PRBool* aDefer);
 
   /**
    * Copy attributes and state to another element
@@ -948,8 +825,15 @@ public:
     /**
      * The .style attribute (an interface that forwards to the actual
      * style rules)
-     * @see nsGenericHTMLElement::GetStyle */
+     * @see nsGenericHTMLElement::GetStyle
+     */
     nsCOMPtr<nsICSSDeclaration> mStyle;
+
+    /**
+     * The .dataset attribute.
+     * @see nsGenericHTMLElement::GetDataset
+     */
+    nsIDOMDOMStringMap* mDataset; // [Weak]
 
     /**
      * SMIL Overridde style rules (for SMIL animation of CSS properties)

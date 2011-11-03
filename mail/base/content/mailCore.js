@@ -258,8 +258,6 @@ function MailToolboxCustomizeDone(aEvent, customizePopupId)
         popup.removeChild(popup.lastChild);
     }
   }
-  UpdateJunkButton();
-  UpdateReplyButtons();
 }
 
 function onViewToolbarCommand(aEvent, toolboxId)
@@ -474,11 +472,12 @@ function openAboutDialog()
     return;
   }
 
-#ifdef XP_MACOSX
+#ifdef XP_WIN
+  var features = "chrome,centerscreen,dependent";
+#elifdef XP_MACOSX
   var features = "chrome,resizable=no,minimizable=no";
 #else
-  // XXX Should have dependent as well?
-  var features = "chrome,centerscreen,resizable=no";
+  var features = "chrome,centerscreen,dependent,dialog=no";
 #endif
   window.openDialog("chrome://messenger/content/aboutDialog.xul", "About", features);
 }
@@ -580,6 +579,26 @@ function getMostRecentMailWindow() {
 }
 
 /**
+ * Create a sanitized display name for an attachment in order to help prevent
+ * people from hiding malicious extensions behind a run of spaces, etc. To do
+ * this, we strip leading/trailing whitespace and collapse long runs of either
+ * whitespace or identical characters. Windows especially will drop trailing
+ * dots and whitespace from filename extensions.
+ *
+ * @param aAttachment the AttachmentInfo object
+ * @return a sanitized display name for the attachment
+ */
+function SanitizeAttachmentDisplayName(aAttachment)
+{
+  let displayName = aAttachment.name.trim();
+  return displayName.replace(/\s+/g, " ")
+#ifdef XP_WIN
+                    .replace(/[ \.]+$/, "")
+#endif
+                    .replace(/(.)\1{9,}/g, "$1…$1");
+}
+
+/**
  * Create a TransferData object for a message attachment, either from the
  * message reader or the composer.
  *
@@ -662,7 +681,8 @@ nsFlavorDataProvider.prototype =
       // call our code for saving attachments
       if (attachment)
       {
-        var destFilePath = messenger.saveAttachmentToFolder(attachment.contentType, attachment.url, encodeURIComponent(attachment.displayName), attachment.uri, destDirectory);
+        var name = attachment.name || attachment.displayName;
+        var destFilePath = messenger.saveAttachmentToFolder(attachment.contentType, attachment.url, encodeURIComponent(name), attachment.uri, destDirectory);
         aData.value = destFilePath.QueryInterface(Components.interfaces.nsISupports);
         aDataLen.value = 4;
       }

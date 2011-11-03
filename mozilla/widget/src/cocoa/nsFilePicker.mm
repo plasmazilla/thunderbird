@@ -53,16 +53,32 @@
 #include "nsIURL.h"
 #include "nsArrayEnumerator.h"
 #include "nsIStringBundle.h"
-#include "nsIPrefService.h"
-#include "nsIPrefBranch.h"
 #include "nsCocoaUtils.h"
+#include "nsToolkit.h"
+#include "mozilla/Preferences.h"
+
+using namespace mozilla;
 
 const float kAccessoryViewPadding = 5;
 const int   kSaveTypeControlTag = 1;
-const char  kLastTypeIndexPref[] = "filepicker.lastTypeIndex";
 
 static PRBool gCallSecretHiddenFileAPI = PR_FALSE;
 const char kShowHiddenFilesPref[] = "filepicker.showHiddenFiles";
+
+/**
+ * This class is an observer of NSPopUpButton selection change.
+ */
+@interface NSPopUpButtonObserver : NSObject
+{
+  NSPopUpButton* mPopUpButton;
+  NSOpenPanel*   mOpenPanel;
+  nsFilePicker*  mFilePicker;
+}
+- (void) setPopUpButton:(NSPopUpButton*)aPopUpButton;
+- (void) setOpenPanel:(NSOpenPanel*)aOpenPanel;
+- (void) setFilePicker:(nsFilePicker*)aFilePicker;
+- (void) menuChangedItem:(NSNotification*)aSender;
+@end
 
 NS_IMPL_ISUPPORTS1(nsFilePicker, nsIFilePicker)
 
@@ -76,11 +92,8 @@ static void SetShowHiddenFileState(NSSavePanel* panel)
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
   PRBool show = PR_FALSE;
-  nsCOMPtr<nsIPrefBranch> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID);
-  if (prefs) {
-    nsresult rv = prefs->GetBoolPref(kShowHiddenFilesPref, &show);
-    if (NS_SUCCEEDED(rv))
-      gCallSecretHiddenFileAPI = PR_TRUE;
+  if (NS_SUCCEEDED(Preferences::GetBool(kShowHiddenFilesPref, &show))) {
+    gCallSecretHiddenFileAPI = PR_TRUE;
   }
 
   if (gCallSecretHiddenFileAPI) {
@@ -129,14 +142,6 @@ nsFilePicker::InitNative(nsIWidget *aParent, const nsAString& aTitle,
 {
   mTitle = aTitle;
   mMode = aMode;
-
-  // read in initial type index from prefs
-  nsCOMPtr<nsIPrefBranch> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID);
-  if (prefs) {
-    int prefIndex;
-    if (NS_SUCCEEDED(prefs->GetIntPref(kLastTypeIndexPref, &prefIndex)))
-      mSelectedTypeIndex = prefIndex;
-  }
 }
 
 NSView* nsFilePicker::GetAccessoryView()
@@ -145,16 +150,20 @@ NSView* nsFilePicker::GetAccessoryView()
 
   NSView* accessoryView = [[[NSView alloc] initWithFrame:NSMakeRect(0, 0, 0, 0)] autorelease];
 
-  // get the localized string for "Save As:"
-  NSString* saveAsLabel = @"Save As:"; // backup in case we can't get a localized string
+  // Set a label's default value.
+  NSString* label = @"Format:";
+
+  // Try to get the localized string.
   nsCOMPtr<nsIStringBundleService> sbs = do_GetService(NS_STRINGBUNDLE_CONTRACTID);
   nsCOMPtr<nsIStringBundle> bundle;
   nsresult rv = sbs->CreateBundle("chrome://global/locale/filepicker.properties", getter_AddRefs(bundle));
   if (NS_SUCCEEDED(rv)) {
-    nsXPIDLString label;
-    bundle->GetStringFromName(NS_LITERAL_STRING("saveAsLabel").get(), getter_Copies(label));
-    if (label)
-      saveAsLabel = [NSString stringWithCharacters:label.get() length:label.Length()];
+    nsXPIDLString locaLabel;
+    bundle->GetStringFromName(NS_LITERAL_STRING("formatLabel").get(),
+			      getter_Copies(locaLabel));
+    if (locaLabel) {
+      label = [NSString stringWithCharacters:locaLabel.get() length:locaLabel.Length()];
+    }
   }
 
   // set up label text field
@@ -165,7 +174,7 @@ NSView* nsFilePicker::GetAccessoryView()
   [textField setBezeled:NO];
   [textField setBordered:NO];
   [textField setFont:[NSFont labelFontOfSize:13.0]];
-  [textField setStringValue:saveAsLabel];
+  [textField setStringValue:label];
   [textField setTag:0];
   [textField sizeToFit];
 
@@ -243,11 +252,11 @@ NS_IMETHODIMP nsFilePicker::Show(PRInt16 *retval)
   switch (mMode)
   {
     case modeOpen:
-      userClicksOK = GetLocalFiles(mTitle, mDefault, PR_FALSE, mFiles);
+      userClicksOK = GetLocalFiles(mTitle, PR_FALSE, mFiles);
       break;
     
     case modeOpenMultiple:
-      userClicksOK = GetLocalFiles(mTitle, mDefault, PR_TRUE, mFiles);
+      userClicksOK = GetLocalFiles(mTitle, PR_TRUE, mFiles);
       break;
       
     case modeSave:
@@ -270,9 +279,49 @@ NS_IMETHODIMP nsFilePicker::Show(PRInt16 *retval)
   return NS_OK;
 }
 
+static
+void UpdatePanelFileTypes(NSOpenPanel* aPanel, NSArray* aFilters)
+{
+  // If we show all file types, also "expose" bundles' contents.
+  [aPanel setTreatsFilePackagesAsDirectories:!aFilters];
+
+  [aPanel setAllowedFileTypes:aFilters];
+}
+
+@implementation NSPopUpButtonObserver
+- (void) setPopUpButton:(NSPopUpButton*)aPopUpButton
+{
+  mPopUpButton = aPopUpButton;
+}
+
+- (void) setOpenPanel:(NSOpenPanel*)aOpenPanel
+{
+  mOpenPanel = aOpenPanel;
+}
+
+- (void) setFilePicker:(nsFilePicker*)aFilePicker
+{
+  mFilePicker = aFilePicker;
+}
+
+- (void) menuChangedItem:(NSNotification *)aSender
+{
+  NS_OBJC_BEGIN_TRY_ABORT_BLOCK_RETURN;
+  PRInt32 selectedItem = [mPopUpButton indexOfSelectedItem];
+  if (selectedItem < 0) {
+    return;
+  }
+
+  mFilePicker->SetFilterIndex(selectedItem);
+  UpdatePanelFileTypes(mOpenPanel, mFilePicker->GetFilterList());
+
+  NS_OBJC_END_TRY_ABORT_BLOCK_RETURN();
+}
+@end
+
 // Use OpenPanel to do a GetFile. Returns |returnOK| if the user presses OK in the dialog. 
 PRInt16
-nsFilePicker::GetLocalFiles(const nsString& inTitle, const nsString& inDefaultName, PRBool inAllowMultiple, nsCOMArray<nsILocalFile>& outFiles)
+nsFilePicker::GetLocalFiles(const nsString& inTitle, PRBool inAllowMultiple, nsCOMArray<nsILocalFile>& outFiles)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_RETURN;
 
@@ -280,10 +329,6 @@ nsFilePicker::GetLocalFiles(const nsString& inTitle, const nsString& inDefaultNa
   NSOpenPanel *thePanel = [NSOpenPanel openPanel];
 
   SetShowHiddenFileState(thePanel);
-
-  // Get filters
-  // filters may be null, if we should allow all file types.
-  NSArray *filters = GenerateFilterList();
 
   // Set the options for how the get file dialog will appear
   SetDialogTitle(inTitle, thePanel);
@@ -293,12 +338,9 @@ nsFilePicker::GetLocalFiles(const nsString& inTitle, const nsString& inDefaultNa
   [thePanel setCanChooseFiles:YES];
   [thePanel setResolvesAliases:YES];        //this is default - probably doesn't need to be set
   
-  // if we show all file types, also "expose" bundles' contents.
-  if (!filters)
-    [thePanel setTreatsFilePackagesAsDirectories:NO];       
-
-  // set up default file name
-  NSString* defaultFilename = [NSString stringWithCharacters:(const unichar*)inDefaultName.get() length:inDefaultName.Length()];
+  // Get filters
+  // filters may be null, if we should allow all file types.
+  NSArray *filters = GetFilterList();
 
   // set up default directory
   NSString *theDir = PanelDefaultDirectory();
@@ -310,23 +352,63 @@ nsFilePicker::GetLocalFiles(const nsString& inTitle, const nsString& inDefaultNa
     theDir = @"/Applications/";
   }
 
+  // On 10.6+, we let users change the filters. Unfortunately, some methods
+  // are not available on 10.5 and without using them it happens to be buggy.
+  int result;
   nsCocoaUtils::PrepareForNativeAppModalDialog();
-  int result = [thePanel runModalForDirectory:theDir file:defaultFilename
-                types:filters];
+  if (mFilters.Length() > 1 && nsToolkit::OnSnowLeopardOrLater()) {
+    // [NSURL initWithString:] (below) throws an exception if URLString is nil.
+    if (!theDir) {
+      theDir = @"";
+    }
+
+    NSPopUpButtonObserver* observer = [[NSPopUpButtonObserver alloc] init];
+
+    NSView* accessoryView = GetAccessoryView();
+    [thePanel setAccessoryView:accessoryView];
+
+    [observer setPopUpButton:[accessoryView viewWithTag:kSaveTypeControlTag]];
+    [observer setOpenPanel:thePanel];
+    [observer setFilePicker:this];
+
+    [[NSNotificationCenter defaultCenter]
+      addObserver:observer
+      selector:@selector(menuChangedItem:)
+      name:NSMenuWillSendActionNotification object:nil];
+
+    [thePanel setDirectoryURL:[[NSURL alloc] initWithString:theDir]];
+    UpdatePanelFileTypes(thePanel, filters);
+    result = [thePanel runModal];
+
+    [[NSNotificationCenter defaultCenter] removeObserver:observer];
+    [observer release];
+  } else {
+    // If we show all file types, also "expose" bundles' contents.
+    if (!filters) {
+      [thePanel setTreatsFilePackagesAsDirectories:YES];
+    }
+    result = [thePanel runModalForDirectory:theDir file:nil types:filters];
+  }
   nsCocoaUtils::CleanUpAfterNativeAppModalDialog();
   
   if (result == NSFileHandlingPanelCancelButton)
     return retVal;
-  
-  // append each chosen file to our list
-  for (unsigned int i = 0; i < [[thePanel URLs] count]; i++) {
-    NSURL *theURL = [[thePanel URLs] objectAtIndex:i];
-    if (theURL) {
-      nsCOMPtr<nsILocalFile> localFile;
-      NS_NewLocalFile(EmptyString(), PR_TRUE, getter_AddRefs(localFile));
-      nsCOMPtr<nsILocalFileMac> macLocalFile = do_QueryInterface(localFile);
-      if (macLocalFile && NS_SUCCEEDED(macLocalFile->InitWithCFURL((CFURLRef)theURL)))
-        outFiles.AppendObject(localFile);
+
+  // Converts data from a NSArray of NSURL to the returned format.
+  // We should be careful to not call [thePanel URLs] more than once given that
+  // it creates a new array each time.
+  // We are using Fast Enumeration, thus the NSURL array is created once then
+  // iterated.
+  for (NSURL* url in [thePanel URLs]) {
+    if (!url) {
+      continue;
+    }
+
+    nsCOMPtr<nsILocalFile> localFile;
+    NS_NewLocalFile(EmptyString(), PR_TRUE, getter_AddRefs(localFile));
+    nsCOMPtr<nsILocalFileMac> macLocalFile = do_QueryInterface(localFile);
+    if (macLocalFile && NS_SUCCEEDED(macLocalFile->InitWithCFURL((CFURLRef)url))) {
+      outFiles.AppendObject(localFile);
     }
   }
 
@@ -424,10 +506,6 @@ nsFilePicker::PutLocalFile(const nsString& inTitle, const nsString& inDefaultNam
   NSPopUpButton* popupButton = [accessoryView viewWithTag:kSaveTypeControlTag];
   if (popupButton) {
     mSelectedTypeIndex = [popupButton indexOfSelectedItem];
-    // save out to prefs for initializing other file picker instances
-    nsCOMPtr<nsIPrefBranch> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID);
-    if (prefs)
-      prefs->SetIntPref(kLastTypeIndexPref, mSelectedTypeIndex);
   }
 
   NSURL* fileURL = [thePanel URL];
@@ -452,15 +530,18 @@ nsFilePicker::PutLocalFile(const nsString& inTitle, const nsString& inDefaultNam
   NS_OBJC_END_TRY_ABORT_BLOCK_RETURN(0);
 }
 
-// Returns the current filter list in a format accepted by NSOpenPanel.
-// Returns nil if no filter currently apply.
 NSArray *
-nsFilePicker::GenerateFilterList()
+nsFilePicker::GetFilterList()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NIL;
 
-  if (mFilters.Length() <= (PRUint32)mSelectedTypeIndex) {
+  if (!mFilters.Length()) {
     return nil;
+  }
+
+  if (mFilters.Length() <= (PRUint32)mSelectedTypeIndex) {
+    NS_WARNING("An out of range index has been selected. Using the first index instead.");
+    mSelectedTypeIndex = 0;
   }
 
   const nsString& filterWide = mFilters[mSelectedTypeIndex];

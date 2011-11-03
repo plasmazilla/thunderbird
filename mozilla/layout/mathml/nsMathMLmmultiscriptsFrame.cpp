@@ -44,8 +44,7 @@
 #include "nsPresContext.h"
 #include "nsStyleContext.h"
 #include "nsStyleConsts.h"
-#include "nsIRenderingContext.h"
-#include "nsIFontMetrics.h"
+#include "nsRenderingContext.h"
 
 #include "nsMathMLmmultiscriptsFrame.h"
 
@@ -143,7 +142,7 @@ nsMathMLmmultiscriptsFrame::ProcessAttributes()
 }
 
 /* virtual */ nsresult
-nsMathMLmmultiscriptsFrame::Place(nsIRenderingContext& aRenderingContext,
+nsMathMLmmultiscriptsFrame::Place(nsRenderingContext& aRenderingContext,
                                   PRBool               aPlaceOrigin,
                                   nsHTMLReflowMetrics& aDesiredSize)
 {
@@ -161,13 +160,11 @@ nsMathMLmmultiscriptsFrame::Place(nsIRenderingContext& aRenderingContext,
 
   // get x-height (an ex)
   const nsStyleFont* font = GetStyleFont();
-  aRenderingContext.SetFont(font->mFont,
-                            PresContext()->GetUserFontSet());
-  nsCOMPtr<nsIFontMetrics> fm;
-  aRenderingContext.GetFontMetrics(*getter_AddRefs(fm));
+  nsRefPtr<nsFontMetrics> fm;
+  nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm));
+  aRenderingContext.SetFont(fm);
 
-  nscoord xHeight;
-  fm->GetXHeight (xHeight);
+  nscoord xHeight = fm->XHeight();
 
   nscoord ruleSize;
   GetRuleThickness (aRenderingContext, fm, ruleSize);

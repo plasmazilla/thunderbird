@@ -92,13 +92,13 @@ function run_test()
   // all the operations.
   do_test_pending();
 
-  gCopyDest = gLocalInboxFolder.addSubfolder("copyDest");
+  gCopyDest = gLocalInboxFolder.createLocalSubfolder("copyDest");
   // build up a diverse list of messages
   let messages = [];
   messages = messages.concat(scenarioFactory.directReply(10));
-  writeMessagesToMbox(messages, gProfileDir,
-                      "Mail", "Local Folders", "copySource");
-  gCopySource = gLocalIncomingServer.rootMsgFolder.addSubfolder("copySource");
+  gCopySource = gLocalIncomingServer.rootMsgFolder.createLocalSubfolder("copySource");
+  addMessagesToFolder(messages, gCopySource);
+
   updateFolderAndNotify(gCopySource, doTest);
   return true;
 }

@@ -41,6 +41,7 @@
 #include "nsAccessibilityService.h"
 #include "nsAccUtils.h"
 #include "nsXULFormControlAccessible.h"
+#include "States.h"
 
 #include "nsIDOMElement.h"
 #include "nsIDOMXULElement.h"
@@ -49,8 +50,6 @@
 #include "nsIDOMXULSelectCntrlItemEl.h"
 #include "nsIDOMXULMultSelectCntrlEl.h"
 #include "nsIDOMKeyEvent.h"
-#include "nsIPrefService.h"
-#include "nsIPrefBranch.h"
 #include "nsIServiceManager.h"
 #include "nsIPresShell.h"
 #include "nsIContent.h"
@@ -58,6 +57,11 @@
 #include "nsILookAndFeel.h"
 #include "nsWidgetsCID.h"
 
+#include "mozilla/Preferences.h"
+#include "mozilla/dom/Element.h"
+
+using namespace mozilla;
+using namespace mozilla::a11y;
 
 static NS_DEFINE_CID(kLookAndFeelCID, NS_LOOKANDFEEL_CID);
 
@@ -279,36 +283,24 @@ nsXULMenuitemAccessible::
 {
 }
 
-PRBool
-nsXULMenuitemAccessible::Init()
+PRUint64
+nsXULMenuitemAccessible::NativeState()
 {
-  if (!nsAccessibleWrap::Init())
-    return PR_FALSE;
-
-  nsCoreUtils::GeneratePopupTree(mContent);
-  return PR_TRUE;
-}
-
-nsresult
-nsXULMenuitemAccessible::GetStateInternal(PRUint32 *aState,
-                                          PRUint32 *aExtraState)
-{
-  nsresult rv = nsAccessible::GetStateInternal(aState, aExtraState);
-  NS_ENSURE_A11Y_SUCCESS(rv, rv);
+  PRUint64 state = nsAccessible::NativeState();
 
   // Focused?
   if (mContent->HasAttr(kNameSpaceID_None,
                         nsAccessibilityAtoms::_moz_menuactive))
-    *aState |= nsIAccessibleStates::STATE_FOCUSED;
+    state |= states::FOCUSED;
 
   // Has Popup?
   if (mContent->NodeInfo()->Equals(nsAccessibilityAtoms::menu,
                                    kNameSpaceID_XUL)) {
-    *aState |= nsIAccessibleStates::STATE_HASPOPUP;
+    state |= states::HASPOPUP;
     if (mContent->HasAttr(kNameSpaceID_None, nsAccessibilityAtoms::open))
-      *aState |= nsIAccessibleStates::STATE_EXPANDED;
+      state |= states::EXPANDED;
     else
-      *aState |= nsIAccessibleStates::STATE_COLLAPSED;
+      state |= states::COLLAPSED;
   }
 
   // Checkable/checked?
@@ -320,12 +312,12 @@ nsXULMenuitemAccessible::GetStateInternal(PRUint32 *aState,
                                 strings, eCaseMatters) >= 0) {
 
     // Checkable?
-    *aState |= nsIAccessibleStates::STATE_CHECKABLE;
+    state |= states::CHECKABLE;
 
     // Checked?
     if (mContent->AttrValueIs(kNameSpaceID_None, nsAccessibilityAtoms::checked,
                               nsAccessibilityAtoms::_true, eCaseMatters))
-      *aState |= nsIAccessibleStates::STATE_CHECKED;
+      state |= states::CHECKED;
   }
 
   // Combo box listitem
@@ -335,42 +327,38 @@ nsXULMenuitemAccessible::GetStateInternal(PRUint32 *aState,
     PRBool isSelected = PR_FALSE;
     nsCOMPtr<nsIDOMXULSelectControlItemElement>
       item(do_QueryInterface(mContent));
-    NS_ENSURE_TRUE(item, NS_ERROR_FAILURE);
+    NS_ENSURE_TRUE(item, state);
     item->GetSelected(&isSelected);
 
     // Is collapsed?
     PRBool isCollapsed = PR_FALSE;
-    nsAccessible* parentAcc = GetParent();
-    if (nsAccUtils::State(parentAcc) & nsIAccessibleStates::STATE_INVISIBLE)
+    nsAccessible* parent = Parent();
+    if (parent && parent->State() & states::INVISIBLE)
       isCollapsed = PR_TRUE;
 
     if (isSelected) {
-      *aState |= nsIAccessibleStates::STATE_SELECTED;
+      state |= states::SELECTED;
 
       // Selected and collapsed?
       if (isCollapsed) {
         // Set selected option offscreen/invisible according to combobox state
-        nsAccessible* grandParentAcc = parentAcc->GetParent();
-        NS_ENSURE_TRUE(grandParentAcc, NS_ERROR_FAILURE);
-        NS_ASSERTION(grandParentAcc->Role() == nsIAccessibleRole::ROLE_COMBOBOX,
+        nsAccessible* grandParent = parent->Parent();
+        if (!grandParent)
+          return state;
+        NS_ASSERTION(grandParent->Role() == nsIAccessibleRole::ROLE_COMBOBOX,
                      "grandparent of combobox listitem is not combobox");
-        PRUint32 grandParentState, grandParentExtState;
-        grandParentAcc->GetState(&grandParentState, &grandParentExtState);
-        *aState &= ~(nsIAccessibleStates::STATE_OFFSCREEN |
-                     nsIAccessibleStates::STATE_INVISIBLE);
-        *aState |= (grandParentState & nsIAccessibleStates::STATE_OFFSCREEN) |
-                   (grandParentState & nsIAccessibleStates::STATE_INVISIBLE);
-        if (aExtraState) {
-          *aExtraState |=
-            grandParentExtState & nsIAccessibleStates::EXT_STATE_OPAQUE;
-        }
+        PRUint64 grandParentState = grandParent->State();
+        state &= ~(states::OFFSCREEN | states::INVISIBLE);
+        state |= (grandParentState & states::OFFSCREEN) |
+                 (grandParentState & states::INVISIBLE) |
+                 (grandParentState & states::OPAQUE1);
       } // isCollapsed
     } // isSelected
   } // ROLE_COMBOBOX_OPTION
 
   // Set focusable and selectable for items that are available
   // and whose metric setting does allow disabled items to be focused.
-  if (*aState & nsIAccessibleStates::STATE_UNAVAILABLE) {
+  if (state & states::UNAVAILABLE) {
     // Honour the LookAndFeel metric.
     nsCOMPtr<nsILookAndFeel> lookNFeel(do_GetService(kLookAndFeelCID));
     PRInt32 skipDisabledMenuItems = 0;
@@ -379,13 +367,12 @@ nsXULMenuitemAccessible::GetStateInternal(PRUint32 *aState,
     // We don't want the focusable and selectable states for combobox items,
     // so exclude them here as well.
     if (skipDisabledMenuItems || isComboboxOption) {
-      return NS_OK;
+      return state;
     }
   }
-  *aState|= (nsIAccessibleStates::STATE_FOCUSABLE |
-             nsIAccessibleStates::STATE_SELECTABLE);
+  state |= (states::FOCUSABLE | states::SELECTABLE);
 
-  return NS_OK;
+  return state;
 }
 
 nsresult
@@ -395,87 +382,122 @@ nsXULMenuitemAccessible::GetNameInternal(nsAString& aName)
   return NS_OK;
 }
 
-NS_IMETHODIMP
-nsXULMenuitemAccessible::GetDescription(nsAString& aDescription)
+void
+nsXULMenuitemAccessible::Description(nsString& aDescription)
 {
-  if (IsDefunct())
-    return NS_ERROR_FAILURE;
-
   mContent->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::description,
                     aDescription);
-
-  return NS_OK;
 }
 
-//return menu accesskey: N or Alt+F
-NS_IMETHODIMP
-nsXULMenuitemAccessible::GetKeyboardShortcut(nsAString& aAccessKey)
+KeyBinding
+nsXULMenuitemAccessible::AccessKey() const
 {
-  aAccessKey.Truncate();
-  if (IsDefunct())
-    return NS_ERROR_FAILURE;
-
+  // Return menu accesskey: N or Alt+F.
   static PRInt32 gMenuAccesskeyModifier = -1;  // magic value of -1 indicates unitialized state
 
   // We do not use nsCoreUtils::GetAccesskeyFor() because accesskeys for
-  // menu are't registered by nsIEventStateManager.
+  // menu are't registered by nsEventStateManager.
   nsAutoString accesskey;
   mContent->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::accesskey,
                     accesskey);
   if (accesskey.IsEmpty())
-    return NS_OK;
+    return KeyBinding();
 
-  nsAccessible* parentAcc = GetParent();
+  PRUint32 modifierKey = 0;
+
+  nsAccessible* parentAcc = Parent();
   if (parentAcc) {
     if (parentAcc->NativeRole() == nsIAccessibleRole::ROLE_MENUBAR) {
       // If top level menu item, add Alt+ or whatever modifier text to string
       // No need to cache pref service, this happens rarely
       if (gMenuAccesskeyModifier == -1) {
         // Need to initialize cached global accesskey pref
-        gMenuAccesskeyModifier = 0;
-        nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID));
-        if (prefBranch)
-          prefBranch->GetIntPref("ui.key.menuAccessKey", &gMenuAccesskeyModifier);
+        gMenuAccesskeyModifier = Preferences::GetInt("ui.key.menuAccessKey", 0);
       }
 
-      nsAutoString propertyKey;
       switch (gMenuAccesskeyModifier) {
         case nsIDOMKeyEvent::DOM_VK_CONTROL:
-          propertyKey.AssignLiteral("VK_CONTROL");
+          modifierKey = KeyBinding::kControl;
           break;
         case nsIDOMKeyEvent::DOM_VK_ALT:
-          propertyKey.AssignLiteral("VK_ALT");
+          modifierKey = KeyBinding::kAlt;
           break;
         case nsIDOMKeyEvent::DOM_VK_META:
-          propertyKey.AssignLiteral("VK_META");
+          modifierKey = KeyBinding::kMeta;
           break;
       }
-
-      if (!propertyKey.IsEmpty())
-        nsAccessible::GetFullKeyName(propertyKey, accesskey, aAccessKey);
     }
   }
 
-  if (aAccessKey.IsEmpty())
-    aAccessKey = accesskey;
-
-  return NS_OK;
+  return KeyBinding(accesskey[0], modifierKey);
 }
 
-//return menu shortcut: Ctrl+F or Ctrl+Shift+L
-NS_IMETHODIMP
-nsXULMenuitemAccessible::GetDefaultKeyBinding(nsAString& aKeyBinding)
+KeyBinding
+nsXULMenuitemAccessible::KeyboardShortcut() const
 {
-  aKeyBinding.Truncate();
+  nsAutoString keyElmId;
+  mContent->GetAttr(kNameSpaceID_None, nsGkAtoms::key, keyElmId);
+  if (keyElmId.IsEmpty())
+    return KeyBinding();
 
-  if (IsDefunct())
-    return NS_ERROR_FAILURE;
+  nsIDocument* document = mContent->GetOwnerDoc();
+  if (!document)
+    return KeyBinding();
 
-  nsAutoString accelText;
-  mContent->GetAttr(kNameSpaceID_None, nsAccessibilityAtoms::acceltext,
-                    aKeyBinding);
+  nsIContent* keyElm = document->GetElementById(keyElmId);
+  if (!keyElm)
+    return KeyBinding();
 
-  return NS_OK;
+  PRUint32 key = 0;
+
+  nsAutoString keyStr;
+  keyElm->GetAttr(kNameSpaceID_None, nsGkAtoms::key, keyStr);
+  if (keyStr.IsEmpty()) {
+    nsAutoString keyCodeStr;
+    keyElm->GetAttr(kNameSpaceID_None, nsGkAtoms::keycode, keyCodeStr);
+    PRUint32 errorCode;
+    key = keyStr.ToInteger(&errorCode, kAutoDetect);
+  } else {
+    key = keyStr[0];
+  }
+
+  nsAutoString modifiersStr;
+  keyElm->GetAttr(kNameSpaceID_None, nsGkAtoms::modifiers, modifiersStr);
+
+  PRUint32 modifierMask = 0;
+  if (modifiersStr.Find("shift") != -1)
+    modifierMask |= KeyBinding::kShift;
+  if (modifiersStr.Find("alt") != -1)
+    modifierMask |= KeyBinding::kAlt;
+  if (modifiersStr.Find("meta") != -1)
+    modifierMask |= KeyBinding::kMeta;
+  if (modifiersStr.Find("control") != -1)
+    modifierMask |= KeyBinding::kControl;
+  if (modifiersStr.Find("accel") != -1) {
+    // Get the accelerator key value from prefs, overriding the default.
+    switch (Preferences::GetInt("ui.key.accelKey", 0)) {
+      case nsIDOMKeyEvent::DOM_VK_META:
+        modifierMask |= KeyBinding::kMeta;
+        break;
+
+      case nsIDOMKeyEvent::DOM_VK_ALT:
+        modifierMask |= KeyBinding::kAlt;
+        break;
+
+      case nsIDOMKeyEvent::DOM_VK_CONTROL:
+        modifierMask |= KeyBinding::kControl;
+        break;
+
+      default:
+#ifdef XP_MACOSX
+        modifierMask |= KeyBinding::kMeta;
+#else
+        modifierMask |= KeyBinding::kControl;
+#endif
+    }
+  }
+
+  return KeyBinding(key, modifierMask);
 }
 
 PRUint32
@@ -543,10 +565,10 @@ NS_IMETHODIMP nsXULMenuitemAccessible::GetActionName(PRUint8 aIndex, nsAString& 
   return NS_ERROR_INVALID_ARG;
 }
 
-NS_IMETHODIMP nsXULMenuitemAccessible::GetNumActions(PRUint8 *_retval)
+PRUint8
+nsXULMenuitemAccessible::ActionCount()
 {
-  *_retval = 1;
-  return NS_OK;
+  return 1;
 }
 
 
@@ -560,18 +582,12 @@ nsXULMenuSeparatorAccessible::
 {
 }
 
-nsresult
-nsXULMenuSeparatorAccessible::GetStateInternal(PRUint32 *aState,
-                                               PRUint32 *aExtraState)
+PRUint64
+nsXULMenuSeparatorAccessible::NativeState()
 {
   // Isn't focusable, but can be offscreen/invisible -- only copy those states
-  nsresult rv = nsXULMenuitemAccessible::GetStateInternal(aState, aExtraState);
-  NS_ENSURE_A11Y_SUCCESS(rv, rv);
-
-  *aState &= (nsIAccessibleStates::STATE_OFFSCREEN | 
-              nsIAccessibleStates::STATE_INVISIBLE);
-
-  return NS_OK;
+  return nsXULMenuitemAccessible::NativeState() &
+    (states::OFFSCREEN | states::INVISIBLE);
 }
 
 nsresult
@@ -596,11 +612,11 @@ NS_IMETHODIMP nsXULMenuSeparatorAccessible::GetActionName(PRUint8 aIndex, nsAStr
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-NS_IMETHODIMP nsXULMenuSeparatorAccessible::GetNumActions(PRUint8 *_retval)
+PRUint8
+nsXULMenuSeparatorAccessible::ActionCount()
 {
-  return NS_ERROR_NOT_IMPLEMENTED;
+  return 0;
 }
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // nsXULMenupopupAccessible
@@ -614,37 +630,35 @@ nsXULMenupopupAccessible::
   mSelectControl = do_QueryInterface(mContent->GetParent());
 }
 
-nsresult
-nsXULMenupopupAccessible::GetStateInternal(PRUint32 *aState,
-                                           PRUint32 *aExtraState)
+PRUint64
+nsXULMenupopupAccessible::NativeState()
 {
-  nsresult rv = nsAccessible::GetStateInternal(aState, aExtraState);
-  NS_ENSURE_A11Y_SUCCESS(rv, rv);
+  PRUint64 state = nsAccessible::NativeState();
 
 #ifdef DEBUG_A11Y
   // We are onscreen if our parent is active
   PRBool isActive = mContent->HasAttr(kNameSpaceID_None,
                                       nsAccessibilityAtoms::menuactive);
   if (!isActive) {
-    nsAccessible* parent(GetParent());
-    NS_ENSURE_STATE(parent);
+    nsAccessible* parent = Parent();
+    if (!parent)
+      return state;
 
     nsIContent *parentContent = parnet->GetContent();
-    NS_ENSURE_STATE(parentContent);
+    NS_ENSURE_TRUE(parentContent, state);
 
     isActive = parentContent->HasAttr(kNameSpaceID_None,
                                       nsAccessibilityAtoms::open);
   }
 
-  NS_ASSERTION(isActive || *aState & nsIAccessibleStates::STATE_INVISIBLE,
-               "XULMenupopup doesn't have STATE_INVISIBLE when it's inactive");
+  NS_ASSERTION(isActive || states & states::INVISIBLE,
+               "XULMenupopup doesn't have INVISIBLE when it's inactive");
 #endif
 
-  if (*aState & nsIAccessibleStates::STATE_INVISIBLE)
-    *aState |= (nsIAccessibleStates::STATE_OFFSCREEN |
-                nsIAccessibleStates::STATE_COLLAPSED);
+  if (state & states::INVISIBLE)
+    state |= states::OFFSCREEN | states::COLLAPSED;
 
-  return NS_OK;
+  return state;
 }
 
 nsresult
@@ -673,7 +687,7 @@ nsXULMenupopupAccessible::NativeRole()
 
     if (role == nsIAccessibleRole::ROLE_PUSHBUTTON) {
       // Some widgets like the search bar have several popups, owned by buttons.
-      nsAccessible* grandParent = mParent->GetParent();
+      nsAccessible* grandParent = mParent->Parent();
       if (grandParent &&
           grandParent->Role() == nsIAccessibleRole::ROLE_AUTOCOMPLETE)
         return nsIAccessibleRole::ROLE_COMBOBOX_LIST;
@@ -694,16 +708,14 @@ nsXULMenubarAccessible::
 {
 }
 
-nsresult
-nsXULMenubarAccessible::GetStateInternal(PRUint32 *aState,
-                                         PRUint32 *aExtraState)
+PRUint64
+nsXULMenubarAccessible::NativeState()
 {
-  nsresult rv = nsAccessible::GetStateInternal(aState, aExtraState);
-  NS_ENSURE_A11Y_SUCCESS(rv, rv);
+  PRUint64 state = nsAccessible::NativeState();
 
-  // Menu bar iteself is not actually focusable
-  *aState &= ~nsIAccessibleStates::STATE_FOCUSABLE;
-  return rv;
+  // Menu bar itself is not actually focusable
+  state &= ~states::FOCUSABLE;
+  return state;
 }
 
 

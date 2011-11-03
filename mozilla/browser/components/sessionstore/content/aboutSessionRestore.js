@@ -48,12 +48,8 @@ window.onload = function() {
   // (for when the tab is closed or the session crashes right again)
   var sessionData = document.getElementById("sessionData");
   if (!sessionData.value) {
-    var ss = Cc["@mozilla.org/browser/sessionstartup;1"].getService(Ci.nsISessionStartup);
-    sessionData.value = ss.state;
-    if (!sessionData.value) {
-      document.getElementById("errorTryAgain").disabled = true;
-      return;
-    }
+    document.getElementById("errorTryAgain").disabled = true;
+    return;
   }
 
   // remove unneeded braces (added for compatibility with Firefox 2.0 and 3.0)
@@ -182,8 +178,10 @@ function onListClick(aEvent) {
 #endif
     if ((aEvent.button == 1 || aEvent.button == 0 && aEvent.detail == 2 || accelKey) &&
         col.value.id == "title" &&
-        !treeView.isContainer(row.value))
+        !treeView.isContainer(row.value)) {
       restoreSingleTab(row.value, aEvent.shiftKey);
+      aEvent.stopPropagation();
+    }
     else if (col.value.id == "restore")
       toggleRowChecked(row.value);
   }
@@ -287,6 +285,7 @@ var treeView = {
   isSeparator: function(idx)         { return false; },
   isSorted: function()               { return false; },
   isEditable: function(idx, column)  { return false; },
+  canDrop: function(idx, orientation, dt) { return false; },
   getLevel: function(idx)            { return this.isContainer(idx) ? 0 : 1; },
 
   getParentIndex: function(idx) {

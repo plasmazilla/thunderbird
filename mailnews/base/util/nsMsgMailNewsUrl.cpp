@@ -67,7 +67,6 @@ nsMsgMailNewsUrl::nsMsgMailNewsUrl()
   m_msgIsInLocalCache = PR_FALSE;
   m_suppressErrorMsgs = PR_FALSE;
   mMaxProgress = -1;
-  
   m_baseURL = do_CreateInstance(NS_STANDARDURL_CONTRACTID);
 }
 
@@ -516,17 +515,50 @@ NS_IMETHODIMP nsMsgMailNewsUrl::GetBaseURI(nsIURI **aBaseURI)
 
 NS_IMETHODIMP nsMsgMailNewsUrl::Equals(nsIURI *other, PRBool *_retval)
 {
-  nsCOMPtr <nsIMsgMailNewsUrl> mailUrl = do_QueryInterface(other);
-  // we really want to compare the base uris to each other, not our base URI
-  // with the other's real URI.
-  if (mailUrl)
-  {
-    nsCOMPtr <nsIURI> baseURI;
-    mailUrl->GetBaseURI(getter_AddRefs(baseURI));
-    if (baseURI)
-      return m_baseURL->Equals(baseURI, _retval);
-  }
+  // The passed-in URI might be a mail news url. Pass our inner URL to its
+  // Equals method. The other mail news url will then pass its inner URL to
+  // to the Equals method of our inner URL. Other URIs will return false.
+  if (other)
+    return other->Equals(m_baseURL, _retval);
+
   return m_baseURL->Equals(other, _retval);
+}
+
+NS_IMETHODIMP nsMsgMailNewsUrl::EqualsExceptRef(nsIURI *other, PRBool *result)
+{
+  // The passed-in URI might be a mail news url. Pass our inner URL to its
+  // Equals method. The other mail news url will then pass its inner URL to
+  // to the Equals method of our inner URL. Other URIs will return false.
+  if (other)
+    return other->EqualsExceptRef(m_baseURL, result);
+
+  return m_baseURL->EqualsExceptRef(other, result);
+}
+
+NS_IMETHODIMP
+nsMsgMailNewsUrl::CloneIgnoringRef(nsIURI** result)
+{
+  nsCOMPtr<nsIURI> clone;
+  nsresult rv = Clone(getter_AddRefs(clone));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  rv = clone->SetRef(EmptyCString());
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  clone.forget(result);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsMsgMailNewsUrl::GetSpecIgnoringRef(nsACString &result)
+{
+  return m_baseURL->GetSpecIgnoringRef(result);
+}
+
+NS_IMETHODIMP
+nsMsgMailNewsUrl::GetHasRef(PRBool *result)
+{
+  return m_baseURL->GetHasRef(result);
 }
 
 NS_IMETHODIMP nsMsgMailNewsUrl::SchemeIs(const char *aScheme, PRBool *_retval)
@@ -866,6 +898,11 @@ NS_IMETHODIMP nsMsgSaveAsListener::OnDataAvailable(nsIRequest* request,
       m_dataBuffer[m_leftOver] = '\0';
 
       start = m_dataBuffer;
+      // make sure we don't insert another LF, accidentally, by ignoring
+      // second half of CRLF spanning blocks.
+      if (lastCharInPrevBuf == '\r' && *start == '\n')
+        start++;
+
       end = PL_strchr(start, '\r');
       if (!end)
           end = PL_strchr(start, '\n');
@@ -881,10 +918,6 @@ NS_IMETHODIMP nsMsgSaveAsListener::OnDataAvailable(nsIRequest* request,
       if (!end && count > maxReadCount)
           // must be a very very long line; sorry cannot handle it
           return NS_ERROR_FAILURE;
-
-      // make sure we don't insert another LF, accidentally
-      if (lastCharInPrevBuf == '\r' && *start == '\n')
-          start++;
 
       while (start && end)
       {

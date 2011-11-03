@@ -8,12 +8,8 @@ Components.utils.import("resource://gre/modules/Services.jsm");
 
 // Happens to match what's used in Data Manager itself.
 var gLocSvc = {
-  cookie: Components.classes["@mozilla.org/cookiemanager;1"]
-                    .getService(Components.interfaces.nsICookieManager2),
   fhist: Components.classes["@mozilla.org/satchel/form-history;1"]
                    .getService(Components.interfaces.nsIFormHistory2),
-  pwd: Components.classes["@mozilla.org/login-manager;1"]
-                 .getService(Components.interfaces.nsILoginManager),
   idn: Components.classes["@mozilla.org/network/idn-service;1"]
                  .getService(Components.interfaces.nsIIDNService),
 };
@@ -37,17 +33,21 @@ function test() {
   let now_epoch = parseInt(Date.now() / 1000);
 
   // Add cookie: not secure, non-HTTPOnly, session
-  gLocSvc.cookie.add("bar.geckoisgecko.org", "", "name0", "value0",
-                     false, false, true, now_epoch + 600);
+  Services.cookies.add("bar.geckoisgecko.org", "", "name0", "value0",
+                       false, false, true, now_epoch + 600);
   // Add cookie: not secure, HTTPOnly, session
-  gLocSvc.cookie.add("foo.geckoisgecko.org", "", "name1", "value1",
-                     false, true, true, now_epoch + 600);
+  Services.cookies.add("foo.geckoisgecko.org", "", "name1", "value1",
+                       false, true, true, now_epoch + 600);
   // Add cookie: secure, HTTPOnly, session
-  gLocSvc.cookie.add("secure.geckoisgecko.org", "", "name2", "value2",
-                     true, true, true, now_epoch + 600);
+  Services.cookies.add("secure.geckoisgecko.org", "", "name2", "value2",
+                       true, true, true, now_epoch + 600);
   // Add cookie: secure, non-HTTPOnly, expiry in an hour
-  gLocSvc.cookie.add("drumbeat.org", "", "name3", "value3",
-                     true, false, false, now_epoch + 3600);
+  Services.cookies.add("drumbeat.org", "", "name3", "value3",
+                       true, false, false, now_epoch + 3600);
+
+  // Add a cookie for a pure IPv6 address.
+  Services.cookies.add("::1", "", "name4", "value4",
+                       false, false, true, now_epoch + 600);
 
   // Add a few form history entries
   gLocSvc.fhist.addEntry("akey", "value0");
@@ -62,12 +62,17 @@ function test() {
                              .createInstance(Components.interfaces.nsILoginInfo);
   loginInfo1.init("http://www.geckoisgecko.org", "http://www.geckoisgecko.org", null,
                   "dataman", "mysecret", "user", "pwd");
-  gLocSvc.pwd.addLogin(loginInfo1);
+  Services.logins.addLogin(loginInfo1);
   let loginInfo2 = Components.classes["@mozilla.org/login-manager/loginInfo;1"]
                              .createInstance(Components.interfaces.nsILoginInfo);
   loginInfo2.init("gopher://geckoisgecko.org:4711", null, "foo",
                   "dataman", "mysecret", "", "");
-  gLocSvc.pwd.addLogin(loginInfo2);
+  Services.logins.addLogin(loginInfo2);
+  let loginInfo3 = Components.classes["@mozilla.org/login-manager/loginInfo;1"]
+                             .createInstance(Components.interfaces.nsILoginInfo);
+  loginInfo3.init("https://[::1]", null, "foo",
+                  "dataman", "mysecret", "", "");
+  Services.logins.addLogin(loginInfo3);
 
   //Services.prefs.setBoolPref("data_manager.debug", true);
 
@@ -93,14 +98,14 @@ function test() {
         // TEST_DONE triggered, run next test
         info("run test #" + (testIndex + 1) + " of " + testFuncs.length +
              " (" + testFuncs[testIndex].name + ")");
-        testFuncs[testIndex++](win);
+        setTimeout(testFuncs[testIndex++], 0, win);
 
         if (testIndex >= testFuncs.length) {
           // Finish this up!
           Services.obs.removeObserver(testObs, TEST_DONE);
-          gLocSvc.cookie.removeAll();
+          Services.cookies.removeAll();
           gLocSvc.fhist.removeAllEntries();
-          finish();
+          setTimeout(finish, 0);
         }
       }
     }
@@ -113,7 +118,7 @@ var testFuncs = [
 function test_open_state(aWin) {
   is(aWin.document.documentElement.id, "dataman-page",
      "The active tab is the Data Manager");
-  is(aWin.gDomains.tree.view.rowCount, gPreexistingDomains + 5,
+  is(aWin.gDomains.tree.view.rowCount, gPreexistingDomains + 6,
      "The correct number of domains is listed");
   is(aWin.gTabs.activePanel, "formdataPanel",
      "Form data panel is selected");
@@ -132,12 +137,37 @@ function test_open_state(aWin) {
   aWin.gDomains.tree.view.selection.select(0);
   aWin.document.getElementById("domainSearch").value = "";
   aWin.document.getElementById("domainSearch").doCommand();
-  is(aWin.gDomains.tree.view.rowCount, gPreexistingDomains + 5,
+  is(aWin.gDomains.tree.view.rowCount, gPreexistingDomains + 6,
      "After search, the correct number of domains is listed");
   is(aWin.gDomains.tree.view.selection.count, 1,
      "After search, number of selections is correct");
   is(aWin.gDomains.selectedDomain.title, "mochi.test",
      "After search, matching selection is kept correctly");
+  Services.obs.notifyObservers(window, TEST_DONE, null);
+},
+
+function test_forget_ipv6(aWin) {
+  // The main purpose of IPv6 entries is that things load, delete them ASAP.
+  // Better forget panel tests (more checks) are in test_prefs_panel below.
+  aWin.gDomains.tree.view.selection.select(1);
+  is(aWin.gDomains.selectedDomain.title, "[::1]",
+     "IPv6 domain is selected");
+  aWin.document.getElementById("domain-context-forget").click();
+  is(aWin.gTabs.activePanel, "forgetPanel",
+     "Forget panel is selected");
+
+  aWin.document.getElementById("forgetCookies").click();
+  aWin.document.getElementById("forgetPasswords").click();
+  aWin.document.getElementById("forgetButton").click();
+  is(aWin.document.getElementById("forgetTab").hidden, true,
+     "Forget tab is hidden again");
+  is(aWin.document.getElementById("forgetTab").disabled, true,
+     "Forget panel is disabled again");
+
+  is(aWin.gDomains.tree.view.rowCount, gPreexistingDomains + 5,
+     "The IPv6 domain has been removed from the list");
+  is(aWin.gDomains.tree.view.selection.count, 0,
+     "No domain is selected");
 
   aWin.gDomains.tree.view.selection.select(0);
   is(aWin.gDomains.selectedDomain.title, "*",
@@ -262,7 +292,7 @@ function test_cookies_panel(aWin) {
   aWin.document.getElementById("cookies-context-selectall").click();
   is(aWin.document.getElementById("cookieInfoSendType").value,
      "Encrypted connections only",
-     "Correct send type for third cookie");
+     "Correct send type for fourth cookie");
   isnot(aWin.document.getElementById("cookieInfoExpires").value,
         "At end of session",
         "Expiry label for this cookie is not session");
@@ -304,7 +334,7 @@ function test_permissions_panel(aWin) {
                      "test", Services.perms.DENY_ACTION);
   Services.perms.add(Services.io.newURI("http://xul.getpersonas.com/", null, null),
                      "allowXULXBL", Services.perms.ALLOW_ACTION);
-  gLocSvc.pwd.setLoginSavingEnabled("password.getpersonas.com", false);
+  Services.logins.setLoginSavingEnabled("password.getpersonas.com", false);
   is(aWin.gPerms.list.children.length, 10,
      "The correct number of permissions is displayed in the list");
   for (let i = 1; i < aWin.gPerms.list.children.length; i++) {
@@ -618,8 +648,8 @@ function test_idn(aWin) {
   let idnDomain = gLocSvc.idn.convertToDisplayIDN(testDomain, {});
   isnot(testDomain, idnDomain, "Using a valid IDN domain");
   // Add IDN cookie.
-  gLocSvc.cookie.add(testDomain, "", "name0", "value0",
-                     false, false, true, parseInt(Date.now() / 1000) + 600);
+  Services.cookies.add(testDomain, "", "name0", "value0",
+                       false, false, true, parseInt(Date.now() / 1000) + 600);
 
   aWin.document.getElementById("domainSearch").value = "xn--";
   aWin.document.getElementById("domainSearch").doCommand();
@@ -683,7 +713,7 @@ function test_idn(aWin) {
                              .createInstance(Components.interfaces.nsILoginInfo);
   loginInfo1.init("http://" + idnDomain, "http://" + idnDomain, null,
                   "dataman", "mysecret", "user", "pwd");
-  gLocSvc.pwd.addLogin(loginInfo1);
+  Services.logins.addLogin(loginInfo1);
   aWin.gTabs.tabbox.selectedTab = aWin.document.getElementById("passwordsTab");
   is(aWin.gTabs.activePanel, "passwordsPanel",
      "Successfully switched to passwords panel for IDN tests");

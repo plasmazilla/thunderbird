@@ -170,7 +170,11 @@
     <!-- Bookmarks and history tooltip -->
     <tooltip id="bhTooltip"/>
 
-    <panel id="notification-popup" type="arrow" position="after_start" hidden="true"/>
+    <panel id="notification-popup"
+           type="arrow"
+           position="after_start"
+           hidden="true"
+           role="alert"/>
 
     <menupopup id="popupBlockerMenu"
                oncommand="popupBlockerMenuCommand(event.target);"
@@ -418,8 +422,7 @@
                    oncommand="BookmarksEventHandler.onCommand(event);"
                    onclick="BookmarksEventHandler.onClick(event);"
                    onpopupshowing="BookmarksMenuButton.onPopupShowing(event);
-                                   if (!this.parentNode._placesView)
-                                     new PlacesMenu(event, 'place:folder=BOOKMARKS_MENU');"
+                                   BookmarksEventHandler.onPopupShowing(event);"
                    tooltip="bhTooltip" popupsinherittooltip="true">
           <menuitem command="Browser:AddBookmark"/>
           <menuitem command="Browser:AddBookmarkAs"/>
@@ -514,7 +517,7 @@
                     onnewtab="BrowserOpenTab();"
                     onnewtabclick="checkForMiddleClick(this, event);"
                     autocompletepopup="PopupAutoComplete"
-                    onbookmarkgroup="gBookmarkAllTabsHandler.doCommand();"
+                    onbookmarkgroup="PlacesCommandHook.bookmarkCurrentPages();"
                     onclick="return contentAreaClick(event);"
                     oncommand="BrowserOnCommand(event);"/>
         <!-- The oncommand listener above lets us fix bugs like 401575 which

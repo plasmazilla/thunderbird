@@ -54,6 +54,9 @@ var epsilon;
 var isWindows;
 var filePrefix;
 
+var os = {};
+Components.utils.import('resource://mozmill/stdlib/os.js', os);
+
 const rawAttachment =
   "Can't make the frug contest, Helen; stomach's upset. I'll fix you, " +
   "Ubik! Ubik drops you back in the thick of things fast. Taken as " +
@@ -95,6 +98,8 @@ function setupModule(module) {
 
   // create some messages that have various types of attachments
   let messages = [
+    // no attachment
+    {},
     // raw attachment
     { attachments: [{ body: rawAttachment,
                       filename: 'ubik.txt',
@@ -120,16 +125,16 @@ function setupModule(module) {
  */
 function check_attachment_size(controller, index, expectedSize) {
   let bucket = controller.e('attachmentBucket');
-  let node = bucket.getElementsByTagName('listitem')[index];
+  let node = bucket.getElementsByTagName('attachmentitem')[index];
 
-  // First, let's check that the 'attachmentSize' attribute is correct
+  // First, let's check that the attachment size is correct
   let size = node.attachment.size;
   if (Math.abs(size - expectedSize) > epsilon)
     throw new Error('Reported attachment size ('+size+') not within epsilon ' +
                     'of actual attachment size ('+expectedSize+')');
 
   // Next, make sure that the formatted size in the label is correct
-  let formattedSize = /\((.*?)\)$/.exec(node.getAttribute('label'))[1];
+  let formattedSize = node.getAttribute('size');
   let expectedFormattedSize = messenger.formatFileSize(size);
   if (formattedSize != expectedFormattedSize)
     throw new Error('Formatted attachment size ('+formattedSize+') does not ' +
@@ -143,12 +148,12 @@ function check_attachment_size(controller, index, expectedSize) {
  */
 function check_no_attachment_size(controller, index) {
   let bucket = controller.e('attachmentBucket');
-  let node = bucket.getElementsByTagName('listitem')[index];
+  let node = bucket.getElementsByTagName('attachmentitem')[index];
 
   if (node.attachment.size != -1)
     throw new Error('attachment.size attribute should be -1!');
 
-  if (/\((.*?)\)$/.exec(node.getAttribute('label')))
+  if (node.getAttribute('size') != '')
     throw new Error('Attachment size should not be displayed!');
 }
 
@@ -159,7 +164,7 @@ function check_no_attachment_size(controller, index) {
  */
 function check_total_attachment_size(controller, count) {
   let bucket = controller.e("attachmentBucket");
-  let nodes = bucket.getElementsByTagName("listitem");
+  let nodes = bucket.getElementsByTagName("attachmentitem");
   let sizeNode = controller.e("attachmentBucketSize");
 
   if (nodes.length != count)
@@ -189,6 +194,8 @@ function test_file_attachment() {
   add_attachment(cwc, url, size);
   check_attachment_size(cwc, 0, size);
   check_total_attachment_size(cwc, 1);
+
+  close_compose_window(cwc);
 }
 
 function test_webpage_attachment() {
@@ -197,6 +204,8 @@ function test_webpage_attachment() {
   add_attachment(cwc, "http://www.mozillamessaging.com/");
   check_no_attachment_size(cwc, 0);
   check_total_attachment_size(cwc, 1);
+
+  close_compose_window(cwc);
 }
 
 function test_multiple_attachments() {
@@ -211,6 +220,7 @@ function test_multiple_attachments() {
   }
 
   check_total_attachment_size(cwc, files.length);
+  close_compose_window(cwc);
 }
 
 function test_delete_attachments() {
@@ -226,6 +236,8 @@ function test_delete_attachments() {
 
   delete_attachment(cwc, 0);
   check_total_attachment_size(cwc, files.length-1);
+
+  close_compose_window(cwc);
 }
 
 function subtest_rename_attachment(cwc) {
@@ -243,31 +255,90 @@ function test_rename_attachment() {
 
   // Now, rename the attachment.
   let bucket = cwc.e("attachmentBucket");
-  let node = bucket.getElementsByTagName("listitem")[0];
+  let node = bucket.getElementsByTagName("attachmentitem")[0];
   cwc.click(new elib.Elem(node));
   plan_for_modal_dialog("commonDialog", subtest_rename_attachment);
   cwc.window.RenameSelectedAttachment();
   wait_for_modal_dialog("commonDialog");
 
+  assert_equals(node.getAttribute("name"), "renamed.txt");
+
   check_attachment_size(cwc, 0, size);
   check_total_attachment_size(cwc, 1);
+
+  close_compose_window(cwc);
+}
+
+function subtest_open_attachment(cwc) {
+  cwc.window.document.documentElement.getButton("cancel").doCommand();
+}
+
+function test_open_attachment() {
+  let cwc = open_compose_new_mail();
+
+  // set up our external file for attaching
+  let thisFilePath = os.getFileForPath(__file__);
+  let file = os.getFileForPath(os.abspath("./attachment.txt", thisFilePath));
+  let fileHandler = Services.io.getProtocolHandler("file")
+                            .QueryInterface(Ci.nsIFileProtocolHandler);
+  let url = fileHandler.getURLSpecFromFile(file);
+  let size = file.fileSize;
+
+  add_attachment(cwc, url, size);
+
+  // Now, open the attachment.
+  let bucket = cwc.e("attachmentBucket");
+  let node = bucket.getElementsByTagName("attachmentitem")[0];
+  plan_for_modal_dialog("unknownContentType", subtest_open_attachment);
+  cwc.doubleClick(new elib.Elem(node));
+  wait_for_modal_dialog("unknownContentType");
+
+  close_compose_window(cwc);
 }
 
 function test_forward_raw_attachment() {
   be_in_folder(folder);
-  let curMessage = select_click_row(0);
+  let curMessage = select_click_row(1);
 
   let cwc = open_compose_with_forward();
   check_attachment_size(cwc, 0, rawAttachment.length);
+  check_total_attachment_size(cwc, 1);
+
+  close_compose_window(cwc);
 }
 
 function test_forward_b64_attachment() {
   be_in_folder(folder);
-  let curMessage = select_click_row(1);
+  let curMessage = select_click_row(2);
 
   let cwc = open_compose_with_forward();
   check_attachment_size(cwc, 0, b64Size);
+  check_total_attachment_size(cwc, 1);
+
+  close_compose_window(cwc);
 }
 
-// XXX: Test attached emails and files pulled from other emails (this probably
-// requires better drag-and-drop support from Mozmill)
+function test_forward_message_as_attachment() {
+  be_in_folder(folder);
+  let curMessage = select_click_row(0);
+
+  let cwc = open_compose_with_forward_as_attachments();
+  check_attachment_size(cwc, 0, curMessage.messageSize);
+  check_total_attachment_size(cwc, 1);
+
+  close_compose_window(cwc);
+}
+
+function test_forward_message_with_attachments_as_attachment() {
+  be_in_folder(folder);
+  let curMessage = select_click_row(1);
+
+  let cwc = open_compose_with_forward_as_attachments();
+  check_attachment_size(cwc, 0, curMessage.messageSize);
+  check_total_attachment_size(cwc, 1);
+
+  close_compose_window(cwc);
+}
+
+// XXX: Test attached emails dragged onto composer and files pulled from other
+// emails (this probably requires better drag-and-drop support from Mozmill)

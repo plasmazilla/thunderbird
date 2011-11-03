@@ -51,12 +51,6 @@ const IS_WIN = true;
 const IS_WIN = false;
 #endif
 
-#ifdef WINCE
-const IS_WINCE = true;
-#else
-const IS_WINCE = false;
-#endif
-
 #ifdef XP_OS2
 const IS_OS2 = true;
 #else
@@ -65,6 +59,11 @@ const IS_OS2 = false;
 
 #ifdef XP_MACOSX
 const IS_MACOSX = true;
+#ifdef MOZ_SHARK
+const IS_SHARK = true;
+#else
+const IS_SHARK = false;
+#endif
 #else
 const IS_MACOSX = false;
 #endif
@@ -492,10 +491,27 @@ function waitForHelperFinished() {
     do_timeout(TEST_HELPER_TIMEOUT, waitForHelperFinished);
     return;
   }
-  output.remove(false);
-  let input = getApplyDirFile("a/b/input", true);
-  if (input.exists()) {
-    input.remove(false);
+  // Give the lock file process time to unlock the file before deleting the
+  // input and output files.
+  do_timeout(TEST_HELPER_TIMEOUT, waitForHelperFinishFileUnlock);
+}
+
+function waitForHelperFinishFileUnlock() {
+  try {
+    let output = getApplyDirFile("a/b/output", true);
+    if (output.exists()) {
+      output.remove(false);
+    }
+    let input = getApplyDirFile("a/b/input", true);
+    if (input.exists()) {
+      input.remove(false);
+    }
+  }
+  catch (e) {
+    // Give the lock file process time to unlock the file before deleting the
+    // input and output files.
+    do_timeout(TEST_HELPER_TIMEOUT, waitForHelperFinishFileUnlock);
+    return;
   }
   do_timeout(TEST_HELPER_TIMEOUT, checkUpdate);
 }
@@ -561,7 +577,7 @@ function setupUpdaterTest(aMarFile) {
         writeFile(testFile, aTestFile.originalContents);
       }
 
-      // Skip these tests on Windows (includes WinCE) and OS/2 since their
+      // Skip these tests on Windows and OS/2 since their
       // implementaions of chmod doesn't really set permissions.
       if (!IS_WIN && !IS_OS2 && aTestFile.originalPerms) {
         testFile.permissions = aTestFile.originalPerms;
@@ -661,10 +677,6 @@ function cleanupUpdaterTest() {
  * update log after a successful update.
  */
 function checkUpdateLogContents(aCompareLogFile) {
-  // Skip this test on Windows CE since it doesn't use relative paths.
-  if (IS_WINCE)
-    return;
-
   let updateLog = do_get_file(TEST_ID + UPDATES_DIR_SUFFIX, true);
   updateLog.append(FILE_UPDATE_LOG);
   // Skip the first two lines since they contain absolute paths.
@@ -677,7 +689,6 @@ function checkUpdateLogContents(aCompareLogFile) {
   // The FindFile results when enumerating the filesystem on Windows is not
   // determistic so the results matching the following need to be ignored.
   updateLogContents = updateLogContents.replace(/.* a\/b\/7\/7text.*\n/g, "");
-
 
   let compareLog = do_get_file(aCompareLogFile);
   let compareLogContents = readFileBytes(compareLog);
@@ -704,7 +715,7 @@ function checkFilesAfterUpdateSuccess() {
     if (aTestFile.compareFile || aTestFile.compareContents) {
       do_check_true(testFile.exists());
 
-      // Skip these tests on Windows (includes WinCE) and OS/2 since their
+      // Skip these tests on Windows and OS/2 since their
       // implementaions of chmod doesn't really set permissions.
       if (!IS_WIN && !IS_OS2 && aTestFile.comparePerms) {
         // Check if the permssions as set in the complete mar file are correct.
@@ -788,7 +799,7 @@ function checkFilesAfterUpdateFailure() {
     if (aTestFile.compareFile || aTestFile.compareContents) {
       do_check_true(testFile.exists());
 
-      // Skip these tests on Windows (includes WinCE) and OS/2 since their
+      // Skip these tests on Windows and OS/2 since their
       // implementaions of chmod doesn't really set permissions.
       if (!IS_WIN && !IS_OS2 && aTestFile.comparePerms) {
         // Check the original permssions are retained on the file.
@@ -964,6 +975,11 @@ function overrideXHR(callback) {
  * Bare bones XMLHttpRequest implementation for testing onprogress, onerror,
  * and onload nsIDomEventListener handleEvent.
  */
+function makeHandler(val) {
+  if (typeof val == "function")
+    return ({ handleEvent: val });
+  return val;
+}
 function xhr() {
 }
 xhr.prototype = {
@@ -983,20 +999,19 @@ xhr.prototype = {
     do_execute_soon(gXHRCallback); // Use a timeout so the XHR completes
   },
   _onprogress: null,
-  set onprogress(val) { gXHR._onprogress = val; },
+  set onprogress(val) { gXHR._onprogress = makeHandler(val); },
   get onprogress() { return gXHR._onprogress; },
   _onerror: null,
-  set onerror(val) { gXHR._onerror = val; },
+  set onerror(val) { gXHR._onerror = makeHandler(val); },
   get onerror() { return gXHR._onerror; },
   _onload: null,
-  set onload(val) { gXHR._onload = val; },
+  set onload(val) { gXHR._onload = makeHandler(val); },
   get onload() { return gXHR._onload; },
   flags: AUS_Ci.nsIClassInfo.SINGLETON,
   implementationLanguage: AUS_Ci.nsIProgrammingLanguage.JAVASCRIPT,
   getHelperForLanguage: function(language) null,
   getInterfaces: function(count) {
-    var interfaces = [AUS_Ci.nsIXMLHttpRequest, AUS_Ci.nsIJSXMLHttpRequest,
-                      AUS_Ci.nsIXMLHttpRequestEventTarget];
+    var interfaces = [AUS_Ci.nsISupports];
     count.value = interfaces.length;
     return interfaces;
   },
@@ -1009,14 +1024,12 @@ xhr.prototype = {
     throw AUS_Cr.NS_ERROR_NO_AGGREGATION;
   },
   QueryInterface: function(aIID) {
-    if (aIID.equals(AUS_Ci.nsIXMLHttpRequest) ||
-        aIID.equals(AUS_Ci.nsIJSXMLHttpRequest) ||
-        aIID.equals(AUS_Ci.nsIXMLHttpRequestEventTarget) ||
-        aIID.equals(AUS_Ci.nsIClassInfo) ||
+    if (aIID.equals(AUS_Ci.nsIClassInfo) ||
         aIID.equals(AUS_Ci.nsISupports))
       return gXHR;
     throw AUS_Cr.NS_ERROR_NO_INTERFACE;
-  }
+  },
+  get wrappedJSObject() { return this; }
 };
 
 /* Update check listener */

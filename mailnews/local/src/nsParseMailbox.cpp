@@ -1,4 +1,4 @@
-/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
+/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -81,7 +81,6 @@
 #include "nsIInterfaceRequestorUtils.h"
 #include "nsIDocShell.h"
 #include "nsIMsgCompose.h"
-#include "nsIDOMWindowInternal.h"
 #include "nsIPrefBranch.h"
 #include "nsIPrefService.h"
 #include "nsIMsgComposeService.h"
@@ -1066,14 +1065,6 @@ int nsParseMailMessageState::ParseHeaders ()
     }
 
     buf = colon + 1;
-    // eliminate trailing blanks after the colon
-    while (*buf == ' ' || *buf == '\t')
-      buf++;
-
-    value = buf;
-    if (header)
-      header->value = value;
-
     PRUint32 writeOffset = 0; // number of characters replaced with a folded space
 
 SEARCH_NEWLINE:
@@ -1109,15 +1100,22 @@ SEARCH_NEWLINE:
       while (buf < buf_end &&
               (*buf == '\n' || *buf == '\r' || *buf == ' ' || *buf == '\t'))
       {
-        *buf++;
+        buf++;
         writeOffset++;
       }
       goto SEARCH_NEWLINE;
     }
 
     if (header)
-      header->length = buf - header->value - writeOffset;
+    {
+      value = colon + 1;
+      // eliminate trailing blanks after the colon
+      while (*value == ' ' || *value == '\t')
+        value++;
 
+      header->value = value;
+      header->length = buf - header->value - writeOffset;
+    }
     if (*buf == '\r' || *buf == '\n')
     {
       char *last = buf - writeOffset;
@@ -1956,11 +1954,11 @@ void nsParseNewMailState::ApplyFilters(PRBool *pMoved, nsIMsgWindow *msgWindow, 
       nsresult matchTermStatus;
       if (m_filterList)
         matchTermStatus = m_filterList->ApplyFiltersToHdr(nsMsgFilterType::InboxRule,
-                    msgHdr, downloadFolder, m_mailDB, headers, headersSize, this, msgWindow, m_inboxFile);
+                    msgHdr, downloadFolder, m_mailDB, headers, headersSize, this, msgWindow);
       if (!m_msgMovedByFilter && m_deferredToServerFilterList)
       {
         matchTermStatus = m_deferredToServerFilterList->ApplyFiltersToHdr(nsMsgFilterType::InboxRule,
-                    msgHdr, downloadFolder, m_mailDB, headers, headersSize, this, msgWindow, m_inboxFile);
+                    msgHdr, downloadFolder, m_mailDB, headers, headersSize, this, msgWindow);
       }
     }
   }
@@ -2156,7 +2154,7 @@ NS_IMETHODIMP nsParseNewMailState::ApplyFilterHit(nsIMsgFilter *filter, nsIMsgWi
         {
           nsCString forwardTo;
           filterAction->GetStrValue(forwardTo);
-          m_forwardTo.AppendCString(forwardTo);
+          m_forwardTo.AppendElement(forwardTo);
           m_msgToForwardOrReply = msgHdr;
         }
         break;
@@ -2164,7 +2162,7 @@ NS_IMETHODIMP nsParseNewMailState::ApplyFilterHit(nsIMsgFilter *filter, nsIMsgWi
         {
           nsCString replyTemplateUri;
           filterAction->GetStrValue(replyTemplateUri);
-          m_replyTemplateUri.AppendCString(replyTemplateUri);
+          m_replyTemplateUri.AppendElement(replyTemplateUri);
           m_msgToForwardOrReply = msgHdr;
         }
         break;
@@ -2268,13 +2266,14 @@ nsresult nsParseNewMailState::ApplyForwardAndReplyFilter(nsIMsgWindow *msgWindow
   nsresult rv = NS_OK;
   nsCOMPtr <nsIMsgIncomingServer> server;
 
-  PRInt32 i;
-  for (i = 0; i < m_forwardTo.Count(); i++)
+  PRUint32 i;
+  PRUint32 count = m_forwardTo.Length();
+  for (i = 0; i < count; i++)
   {
-    if (!m_forwardTo[i]->IsEmpty())
+    if (!m_forwardTo[i].IsEmpty())
     {
       nsAutoString forwardStr;
-      CopyASCIItoUTF16(*(m_forwardTo[i]), forwardStr);
+      CopyASCIItoUTF16(m_forwardTo[i], forwardStr);
       rv = m_rootFolder->GetServer(getter_AddRefs(server));
       NS_ENSURE_SUCCESS(rv, rv);
       {
@@ -2289,18 +2288,20 @@ nsresult nsParseNewMailState::ApplyForwardAndReplyFilter(nsIMsgWindow *msgWindow
   }
   m_forwardTo.Clear();
 
-  for (i = 0; i < m_replyTemplateUri.Count(); i++)
+  count = m_replyTemplateUri.Length();
+  for (i = 0; i < count; i++)
   {
-    if (!m_replyTemplateUri[i]->IsEmpty())
+    if (!m_replyTemplateUri[i].IsEmpty())
     {
       // copy this and truncate the original, so we don't accidentally re-use it on the next hdr.
-      nsCAutoString replyTemplateUri(*m_replyTemplateUri[i]);
       rv = m_rootFolder->GetServer(getter_AddRefs(server));
-      if (server && !replyTemplateUri.IsEmpty())
+      if (server)
       {
         nsCOMPtr <nsIMsgComposeService> compService = do_GetService (NS_MSGCOMPOSESERVICE_CONTRACTID) ;
         if (compService)
-          rv = compService->ReplyWithTemplate(m_msgToForwardOrReply, replyTemplateUri.get(), msgWindow, server);
+          rv = compService->ReplyWithTemplate(m_msgToForwardOrReply,
+                                              m_replyTemplateUri[i].get(),
+                                              msgWindow, server);
       }
     }
   }

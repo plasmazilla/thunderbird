@@ -346,16 +346,10 @@ function getBrowser()
 function getHomePage()
 {
   var URIs = [];
-  try {
-    URIs[0] = Services.prefs.getComplexValue("browser.startup.homepage",
-                                             nsIPrefLocalizedString).data;
-    var count = Services.prefs.getIntPref("browser.startup.homepage.count");
-    for (var i = 1; i < count; ++i) {
-      URIs[i] = Services.prefs.getComplexValue("browser.startup.homepage." + i,
-                                               nsIPrefLocalizedString).data;
-    }
-  } catch(e) {
-  }
+  URIs[0] = GetLocalizedStringPref("browser.startup.homepage");
+  var count = Services.prefs.getIntPref("browser.startup.homepage.count");
+  for (var i = 1; i < count; ++i)
+    URIs[i] = GetLocalizedStringPref("browser.startup.homepage." + i);
 
   return URIs;
 }
@@ -721,9 +715,6 @@ function Startup()
 
   PlacesToolbarHelper.init();
 
-  // bookmark-all-tabs command
-  gBookmarkAllTabsHandler.init();
-
   gBrowser.mPanelContainer.addEventListener("InstallBrowserTheme", LightWeightThemeWebInstaller, false, true);
   gBrowser.mPanelContainer.addEventListener("PreviewBrowserTheme", LightWeightThemeWebInstaller, false, true);
   gBrowser.mPanelContainer.addEventListener("ResetBrowserThemePreview", LightWeightThemeWebInstaller, false, true);
@@ -735,6 +726,9 @@ function Startup()
 
   // initialize the session-restore service
   setTimeout(InitSessionStoreCallback, 0);
+
+  // initialize the livemark service
+  setTimeout(function() { PlacesUtils.livemarks.start(); }, 5000);
 }
 
 function UpdateNavBar()
@@ -833,18 +827,77 @@ function Shutdown()
 
 function Translate()
 {
-  var service = Services.prefs.getComplexValue("browser.translation.service",
-                                               nsIPrefLocalizedString).data;
-  var serviceDomain = Services.prefs.getComplexValue("browser.translation.serviceDomain",
-                                                     nsIPrefLocalizedString).data;
+  var service = GetLocalizedStringPref("browser.translation.service");
+  var serviceDomain = GetLocalizedStringPref("browser.translation.serviceDomain");
   var targetURI = getWebNavigation().currentURI.spec;
 
   // if we're already viewing a translated page, then just reload
   if (targetURI.indexOf(serviceDomain) >= 0)
     BrowserReload();
   else {
-    loadURI(encodeURI(service + targetURI));
+    loadURI(encodeURI(service) + encodeURIComponent(targetURI));
   }
+}
+
+function GetTypePermFromId(aId)
+{
+  // Get type and action from splitting id, first is type, second is action.
+  var [type, action] = aId.split("_");
+  var perm = "ACCESS_" + action.toUpperCase();
+  return [type, Components.interfaces.nsICookiePermission[perm]];
+}
+
+function CheckForVisibility(aEvent)
+{
+  var uri = getBrowser().currentURI;
+  var policy = Services.prefs.getBoolPref("dom.disable_open_during_load");
+  document.getElementById("ManagePopups").hidden = !policy;
+
+  var element = document.getElementById("AllowPopups");
+  if (policy && (Services.perms.testPermission(uri, "popup") != Services.perms.ALLOW_ACTION))
+    element.removeAttribute("disabled");
+  else
+    element.setAttribute("disabled", "true");
+
+  if (!/Mac/.test(navigator.platform))
+    popupBlockerMenuShowing(aEvent);
+}
+
+// Determine current state and check/uncheck the appropriate menu items.
+function CheckPermissionsMenu(aType, aNode)
+{
+  var currentPerm = Services.perms.testPermission(getBrowser().currentURI, aType);
+  var items = aNode.getElementsByAttribute("name", aType);
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    // Get type and perm from id.
+    var [type, perm] = GetTypePermFromId(item.id);
+    item.setAttribute("checked", perm == currentPerm);
+  }
+}
+
+// Perform a Cookie or Image action.
+function CookieImageAction(aElement)
+{
+  var uri = getBrowser().currentURI;
+  // Get type and perm from id.
+  var [type, perm] = GetTypePermFromId(aElement.id);
+  if (Services.perms.testPermission(uri, type) == perm)
+    return;
+
+  Services.perms.add(uri, type, perm);
+
+  Services.prompt.alert(window, aElement.getAttribute("title"),
+                        aElement.getAttribute("msg"));
+}
+
+function popupHost()
+{
+  var hostPort = "";
+  try {
+    hostPort = getBrowser().currentURI.hostPort;
+  } catch (e) {}
+  return hostPort;
 }
 
 function OpenSessionHistoryIn(aWhere, aDelta, aTab)
@@ -1042,35 +1095,6 @@ function BrowserHome(aEvent)
   openUILinkArrayIn(homePage, where);
 }
 
-/**
- * This also takes care of updating the command enabled-state when tabs are
- * created or removed.
- */
-var gBookmarkAllTabsHandler = {
-  init: function () {
-    this._command = document.getElementById("Browser:BookmarkAllTabs");
-    gBrowser.tabContainer.addEventListener("TabOpen", this, true);
-    gBrowser.tabContainer.addEventListener("TabClose", this, true);
-  },
-
-  _updateCommandState: function BATH__updateCommandState(aTabClose) {
-    // The TabClose event is fired before the tab is removed from the DOM.
-    // So the only interesting cases are when the number of tabs has just
-    // increased to 2, or is just about to decrease from 2.
-    if (getBrowser().tabs.length == 2)
-      this._command.setAttribute("disabled", aTabClose);
-  },
-
-  doCommand: function BATH_doCommand() {
-    PlacesCommandHook.bookmarkCurrentPages();
-  },
-
-  // nsIDOMEventListener
-  handleEvent: function(aEvent) {
-    this._updateCommandState(aEvent.type == "TabClose");
-  }
-};
-
 const BrowserSearch = {
   addEngine: function(engine, targetDoc) {
     if (!this.searchBar)
@@ -1224,14 +1248,13 @@ const BrowserSearch = {
    * Returns the search sidebar element if it is present in the toolbar, null otherwise.
    */
   get searchSidebar() {
-    return document.getElementById("urn:sidebar:panel:search");
+    var panel = sidebarObj.panels.get_panel_from_id("urn:sidebar:panel:search");
+    return panel &&
+       panel.get_iframe().contentDocument.getElementById("sidebar-search-text");
   },
 
   loadAddEngines: function BrowserSearch_loadAddEngines() {
-    var newWindowPref = Services.prefs.getIntPref("browser.link.open_newwindow");
-    var where = newWindowPref == 3 ? "tabfocused" : "window";
-    var searchEnginesURL = Services.urlFormatter.formatURLPref("browser.search.searchEnginesURL");
-    openUILinkIn(searchEnginesURL, where);
+    loadAddSearchEngines(); // for compatibility
   },
 
   /**
@@ -1308,7 +1331,7 @@ function QualifySearchTerm()
 function BrowserOpenWindow()
 {
   //opens a window where users can select a web location to open
-  var params = { browser: window, action: null, url: "" };
+  var params = { action: "0", url: "" };
   openDialog("chrome://communicator/content/openLocation.xul", "_blank", "chrome,modal,titlebar", params);
   var postData = { };
   var url = getShortcutOrURI(params.url, postData);
@@ -1340,8 +1363,7 @@ function BrowserOpenTab()
           uriToLoad = "about:blank";
           break;
         case 1:
-          uriToLoad = Services.prefs.getComplexValue("browser.startup.homepage",
-                                                     nsIPrefLocalizedString).data;
+          uriToLoad = GetLocalizedStringPref("browser.startup.homepage");
           break;
         case 2:
           uriToLoad = gBrowser ? getWebNavigation().currentURI.spec
@@ -1759,6 +1781,21 @@ function getShortcutOrURI(aURL, aPostDataRef)
   return shortcutURL;
 }
 
+function getPostDataStream(aStringData, aKeyword, aEncKeyword, aType)
+{
+  var dataStream = Components.classes["@mozilla.org/io/string-input-stream;1"]
+                             .createInstance(Components.interfaces.nsIStringInputStream);
+  aStringData = aStringData.replace(/%s/g, aEncKeyword).replace(/%S/g, aKeyword);
+  dataStream.data = aStringData;
+
+  var mimeStream = Components.classes["@mozilla.org/network/mime-input-stream;1"]
+                             .createInstance(Components.interfaces.nsIMIMEInputStream);
+  mimeStream.addHeader("Content-Type", aType);
+  mimeStream.addContentLength = true;
+  mimeStream.setData(dataStream);
+  return mimeStream.QueryInterface(Components.interfaces.nsIInputStream);
+}
+
 function handleDroppedLink(event, url, name)
 {
   var postData = { };
@@ -1889,13 +1926,13 @@ function hiddenWindowStartup()
                        'Browser:AddBookmark', 'Browser:AddBookmarkAs',
                        'cmd_undo', 'cmd_redo', 'cmd_cut', 'cmd_copy',
                        'cmd_paste', 'cmd_delete', 'cmd_selectAll',
-                       'cmd_findTypeText', 'cmd_findTypeLinks', 'Browser:Find',
-                       'Browser:FindAgain', 'Browser:FindPrev', 'menu_Toolbars',
+                       'cmd_findTypeText', 'cmd_findTypeLinks', 'cmd_find',
+                       'cmd_findNext', 'cmd_findPrev', 'menu_Toolbars',
                        'menuitem_reload', 'menu_UseStyleSheet', 'charsetMenu',
                        'View:PageSource', 'View:PageInfo', 'menu_translate',
-                       'BlockCookies', 'UseCookiesDefault',
-                       'AllowSessionCookies', 'AllowCookies', 'BlockImages',
-                       'UseImagesDefault', 'AllowImages', 'AllowPopups',
+                       'cookie_deny', 'cookie_default', 'View:FullScreen',
+                       'cookie_session', 'cookie_allow', 'image_deny',
+                       'image_default', 'image_allow', 'AllowPopups',
                        'menu_zoom', 'cmd_minimizeWindow', 'cmd_zoomWindow'];
   var broadcaster;
 
@@ -2200,11 +2237,22 @@ function getNewThemes()
 {
   // get URL for more themes from prefs
   try {
-    var formatter = Components.classes["@mozilla.org/toolkit/URLFormatterService;1"]
-                              .getService(Components.interfaces.nsIURLFormatter);
-    openTopWin(formatter.formatURLPref("extensions.getMoreThemesURL"));
+    openTopWin(Services.urlFormatter.formatURLPref("extensions.getMoreThemesURL"));
   }
   catch (ex) {
+    dump(ex);
+  }
+}
+
+function getPersonas()
+{
+  // get URL for more themes from prefs
+  try
+  {
+    openTopWin(Services.urlFormatter.formatURLPref("extensions.getPersonasURL"));
+  }
+  catch (ex)
+  {
     dump(ex);
   }
 }
@@ -2760,110 +2808,34 @@ var LightWeightThemeWebInstaller = {
       return;
     }
 
-    var allowButtonText =
-      gNavigatorBundle.getString("lwthemeInstallRequest.allowButton");
-    var allowButtonAccesskey =
-      gNavigatorBundle.getString("lwthemeInstallRequest.allowButton.accesskey");
-    var message =
-      gNavigatorBundle.getFormattedString("lwthemeInstallRequest.message",
-                                          [node.ownerDocument.location.host]);
-    var buttons = [{
-      label: allowButtonText,
-      accessKey: allowButtonAccesskey,
-      callback: function () {
-        return LightWeightThemeWebInstaller._install(data);
-      }
-    }];
-
     this._removePreviousNotifications();
-
-    var notificationBox = gBrowser.getNotificationBox();
-    var notificationBar =
-      notificationBox.appendNotification(message, "lwtheme-install-request", "",
-                                         notificationBox.PRIORITY_INFO_MEDIUM,
-                                         buttons);
-    notificationBar.persistence = 1;
+    getBrowser().getNotificationBox().lwthemeInstallRequest(
+        node.ownerDocument.location.host,
+        this._install.bind(this, data));
   },
 
   _install: function (newTheme) {
+    this._removePreviousNotifications();
+
     var previousTheme = this._manager.currentTheme;
     this._manager.currentTheme = newTheme;
     if (this._manager.currentTheme &&
         this._manager.currentTheme.id == newTheme.id)
-      this._postInstallNotification(newTheme, previousTheme);
+      getBrowser().getNotificationBox().lwthemeInstallNotification(function() {
+        LightWeightThemeWebInstaller._manager.forgetUsedTheme(newTheme.id);
+        LightWeightThemeWebInstaller._manager.currentTheme = previousTheme;
+      });
     else
-      this._postRestartNotification(newTheme);
+      getBrowser().getNotificationBox().lwthemeNeedsRestart(newTheme.name);
 
-    // Posting the notification destroys the permission notification,
+    // We've already destroyed the permission notification,
     // so tell the former that it's closed already.
     return true;
   },
 
-  _postInstallNotification: function (newTheme, previousTheme) {
-    function text(id) {
-      return gNavigatorBundle.getString("lwthemePostInstallNotification." + id);
-    }
-
-    var buttons = [{
-      label: text("undoButton"),
-      accessKey: text("undoButton.accesskey"),
-      callback: function () {
-        LightWeightThemeWebInstaller._manager.forgetUsedTheme(newTheme.id);
-        LightWeightThemeWebInstaller._manager.currentTheme = previousTheme;
-      }
-    }, {
-      label: text("manageButton"),
-      accessKey: text("manageButton.accesskey"),
-      callback: function () {
-        toEM("addons://list/theme");
-      }
-    }];
-
-    this._removePreviousNotifications();
-
-    var notificationBox = gBrowser.getNotificationBox();
-    var notificationBar =
-      notificationBox.appendNotification(text("message"),
-                                         "lwtheme-install-notification", "",
-                                         notificationBox.PRIORITY_INFO_MEDIUM,
-                                         buttons);
-    notificationBar.persistence = 1;
-    notificationBar.timeout = Date.now() + 20000; // 20 seconds
-  },
-
-  _postRestartNotification: function (newTheme) {
-    var message = gNavigatorBundle.getFormattedString("lwthemeNeedsRestart.message",
-                                                      [newTheme.name]);
-
-    var buttons = [{
-      label: gNavigatorBundle.getString("lwthemeNeedsRestart.restartButton"),
-      accessKey: gNavigatorBundle.getString("lwthemeNeedsRestart.restartButton.accesskey"),
-      callback: function () {
-        Application.restart();
-      }
-    }];
-
-    this._removePreviousNotifications();
-
-    var notificationBox = gBrowser.getNotificationBox();
-    var notificationBar =
-      notificationBox.appendNotification(message,
-                                         "lwtheme-install-notification", "",
-                                         notificationBox.PRIORITY_INFO_MEDIUM,
-                                         buttons);
-    notificationBar.persistence = 1;
-    notificationBar.timeout = Date.now() + 20000; // 20 seconds
-  },
-
   _removePreviousNotifications: function () {
-    var box = gBrowser.getNotificationBox();
-
-    ["lwtheme-install-request",
-     "lwtheme-install-notification"].forEach(function (value) {
-        var notification = box.getNotificationWithValue(value);
-        if (notification)
-          box.removeNotification(notification);
-      });
+    getBrowser().getNotificationBox().removeNotifications(
+        ["lwtheme-install-request", "lwtheme-install-notification"]);
   },
 
   _previewWindow: null,

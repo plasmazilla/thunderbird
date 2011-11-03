@@ -56,7 +56,6 @@ public:
 
   // nsIAccessible
   NS_IMETHOD GetValue(nsAString& aValue);
-  NS_IMETHOD GetNumActions(PRUint8 *aCount);
   NS_IMETHOD GetActionName(PRUint8 aIndex, nsAString& aName);
   NS_IMETHOD DoAction(PRUint8 aIndex);
 
@@ -65,8 +64,11 @@ public:
 
   // nsAccessible
   virtual PRUint32 NativeRole();
-  virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
+  virtual PRUint64 NativeState();
   virtual PRBool GetAllowsAnonChildAccessibles();
+
+  // ActionAccessible
+  virtual PRUint8 ActionCount();
 
 protected:
   already_AddRefed<nsIContent> GetSliderNode();

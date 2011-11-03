@@ -89,7 +89,6 @@
 #include "nsIOutputStream.h"
 #include "nsIDocShell.h"
 #include "nsIDocShellLoadInfo.h"
-#include "nsIDOMWindowInternal.h"
 #include "nsIMessengerWindowService.h"
 #include "nsIWindowMediator.h"
 #include "nsIPrompt.h"
@@ -396,7 +395,8 @@ NS_IMETHODIMP nsImapService::OpenAttachment(const char *aContentType,
         if (mailUrl)
         {
           mailUrl->SetSpec(urlSpec);
-          mailUrl->SetFileName(nsDependentCString(aFileName));
+          if (aFileName)
+            mailUrl->SetFileName(nsDependentCString(aFileName));
         }
         rv =  FetchMimePart(imapUrl, nsIImapUrl::nsImapOpenMimePart, folder, imapMessageSink,
                             nsnull, aDisplayConsumer, msgKey, uriMimePart);
@@ -769,15 +769,17 @@ NS_IMETHODIMP nsImapService::CopyMessage(const char *aSrcMailboxURI,
   return rv;
 }
 
-NS_IMETHODIMP nsImapService::CopyMessages(nsTArray<nsMsgKey> &keys, 
-                                          nsIMsgFolder *srcFolder, 
-                                          nsIStreamListener *aMailboxCopy, 
+NS_IMETHODIMP nsImapService::CopyMessages(PRUint32 aNumKeys,
+                                          nsMsgKey*aKeys,
+                                          nsIMsgFolder *srcFolder,
+                                          nsIStreamListener *aMailboxCopy,
                                           PRBool moveMessage,
-                                          nsIUrlListener *aUrlListener, 
+                                          nsIUrlListener *aUrlListener,
                                           nsIMsgWindow *aMsgWindow, 
                                           nsIURI **aURL)
 {
   NS_ENSURE_ARG_POINTER(aMailboxCopy);
+  NS_ENSURE_ARG_POINTER(aKeys);
 
   nsresult rv;
   nsCOMPtr<nsISupports> streamSupport = do_QueryInterface(aMailboxCopy, &rv);
@@ -795,11 +797,10 @@ NS_IMETHODIMP nsImapService::CopyMessages(nsTArray<nsMsgKey> &keys,
       // GetMessage in nsCopyMessageStreamListener will get an unescaped username
       // and be able to find the msg hdr. See bug 259656 for details
       nsCString uri;
-      srcFolder->GenerateMessageURI(keys[0], uri);
+      srcFolder->GenerateMessageURI(aKeys[0], uri);
 
       nsCString messageIds;
-      PRUint32 numKeys = keys.Length();
-      AllocateImapUidString(keys.Elements(), numKeys, nsnull, messageIds);
+      AllocateImapUidString(aKeys, aNumKeys, nsnull, messageIds);
       nsCOMPtr<nsIImapUrl> imapUrl;
       nsCAutoString urlSpec;
       char hierarchyDelimiter = GetHierarchyDelimiter(folder);
@@ -1187,9 +1188,14 @@ NS_IMETHODIMP nsImapService::StreamMessage(const char *aMessageURI,
       // This option is used by the JS Mime Emitter, in case we want a cheap
       // streaming, for example, if we just want a quick look at some header,
       // without having to download all the attachments...
+
+      PRUint32 messageSize = 0;
+      imapMessageSink->GetMessageSizeFromDB(msgKey.get(), &messageSize);
       nsCAutoString additionalHeader(aAdditionalHeader);
-      PRInt32 fetchOnDemand = additionalHeader.Find("&fetchCompleteMessage=false");
-      imapUrl->SetFetchPartsOnDemand(fetchOnDemand != kNotFound);
+      PRBool fetchOnDemand =
+        additionalHeader.Find("&fetchCompleteMessage=false") != kNotFound &&
+          messageSize > (PRUint32) gMIMEOnDemandThreshold;
+      imapUrl->SetFetchPartsOnDemand(fetchOnDemand);
 
       // We need to add the fetch command here for the cache lookup to behave correctly
       rv = AddImapFetchToUrl(url, folder, msgKey, additionalHeader);
@@ -2438,7 +2444,11 @@ NS_IMETHODIMP nsImapService::GetDefaultPort(PRInt32 *aDefaultPort)
 NS_IMETHODIMP nsImapService::GetProtocolFlags(PRUint32 *result)
 {
   *result = URI_STD | URI_FORBIDS_AUTOMATIC_DOCUMENT_REPLACEMENT |
-  URI_DANGEROUS_TO_LOAD | ALLOWS_PROXY;
+  URI_DANGEROUS_TO_LOAD | ALLOWS_PROXY
+#ifdef IS_ORIGIN_IS_FULL_SPEC_DEFINED
+  | ORIGIN_IS_FULL_SPEC
+#endif
+  ;
   return NS_OK;
 }
 

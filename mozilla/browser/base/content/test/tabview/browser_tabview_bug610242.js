@@ -21,7 +21,7 @@ function onTabViewWindowLoaded(win) {
   let box = new contentWindow.Rect(100, 100, 370, 370);
   let group = new contentWindow.GroupItem([], { bounds: box });
   ok(group.isEmpty(), "This group is empty");
-  contentWindow.GroupItems.setActiveGroupItem(group);
+  contentWindow.UI.setActive(group);
   is(contentWindow.GroupItems.getActiveGroupItem(), group, "new group is active");
   
   // Create a bunch of tabs in the group
@@ -36,12 +36,12 @@ function onTabViewWindowLoaded(win) {
   ok(!group.shouldStack(group._children.length), "Group should not stack.");
   
   // PREPARE FINISH:
-  group.addSubscriber(group, "close", function() {
-    group.removeSubscriber(group, "close");
+  group.addSubscriber("close", function onClose() {
+    group.removeSubscriber("close", onClose);
 
     ok(group.isEmpty(), "The group is empty again");
 
-    contentWindow.GroupItems.setActiveGroupItem(currentGroup);
+    contentWindow.UI.setActive(currentGroup);
     isnot(contentWindow.GroupItems.getActiveGroupItem(), null, "There is an active group");
     is(win.gBrowser.tabs.length, 1, "There is only one tab left");
     is(win.gBrowser.visibleTabs.length, 1, "There is also only one visible tab");
@@ -71,18 +71,14 @@ function onTabViewWindowLoaded(win) {
     afterAllTabItemsUpdated(function() {
       check(datatext, "datatext", false);
       check(datahtml, "datahtml", false);
-      check(mozilla, "about:mozilla", false);
+      check(mozilla, "about:mozilla", true);
       check(html, "html", true);
       check(png, "png", false);
       check(svg, "svg", true);
   
       // Get rid of the group and its children
       // The group close will trigger a finish().
-      group.addSubscriber(group, "groupHidden", function() {
-        group.removeSubscriber(group, "groupHidden");
-        group.closeHidden();
-      });
-      group.closeAll();
+      closeGroupItem(group);
     }, win);  
   }, win);
 }

@@ -69,6 +69,7 @@
 #include "nsIMsgFolderCacheElement.h"
 #include "MailNewsTypes2.h"
 #include "nsMsgUtils.h"
+#include "nsMsgKeyArray.h"
 #include "nsIMutableArray.h"
 #include "nsComponentManagerUtils.h"
 #include "nsServiceManagerUtils.h"
@@ -1998,8 +1999,11 @@ nsresult nsMsgDatabase::RemoveHeaderFromDB(nsMsgHdr *msgHdr)
   if (UseCorrectThreading())
     RemoveMsgRefsFromHash(msgHdr);
   nsIMdbRow* row = msgHdr->GetMDBRow();
-  ret = m_mdbAllMsgHeadersTable->CutRow(GetEnv(), row);
-  row->CutAllColumns(GetEnv());
+  if (row)
+  {
+    ret = m_mdbAllMsgHeadersTable->CutRow(GetEnv(), row);
+    row->CutAllColumns(GetEnv());
+  }
   msgHdr->m_initedValues = 0; // invalidate cached values.
   return ret;
 }
@@ -2163,35 +2167,41 @@ NS_IMETHODIMP nsMsgDatabase::MarkHasAttachments(nsMsgKey key, PRBool bHasAttachm
 }
 
 NS_IMETHODIMP
-nsMsgDatabase::MarkThreadRead(nsIMsgThread *thread, nsIDBChangeListener *instigator, nsTArray<nsMsgKey> *thoseMarked)
+nsMsgDatabase::MarkThreadRead(nsIMsgThread *thread, nsIDBChangeListener *instigator,
+                              PRUint32 *aNumMarked, nsMsgKey **aThoseMarked)
 {
-  if (!thread)
-    return NS_ERROR_NULL_POINTER;
+  NS_ENSURE_ARG_POINTER(thread);
+  NS_ENSURE_ARG_POINTER(aNumMarked);
+  NS_ENSURE_ARG_POINTER(aThoseMarked);
   nsresult rv = NS_OK;
 
   PRUint32 numChildren;
+  nsTArray<nsMsgKey> thoseMarked;
   thread->GetNumChildren(&numChildren);
   for (PRUint32 curChildIndex = 0; curChildIndex < numChildren; curChildIndex++)
   {
     nsCOMPtr <nsIMsgDBHdr> child;
 
-    rv = thread->GetChildAt(curChildIndex, getter_AddRefs(child));
+    rv = thread->GetChildHdrAt(curChildIndex, getter_AddRefs(child));
     if (NS_SUCCEEDED(rv) && child)
     {
       PRBool isRead = PR_TRUE;
       IsHeaderRead(child, &isRead);
       if (!isRead)
       {
-        if (thoseMarked)
-        {
-          nsMsgKey key;
-          if (NS_SUCCEEDED(child->GetMessageKey(&key)))
-            thoseMarked->AppendElement(key);
-        }
+        nsMsgKey key;
+        if (NS_SUCCEEDED(child->GetMessageKey(&key)))
+          thoseMarked.AppendElement(key);
         MarkHdrRead(child, PR_TRUE, instigator);
       }
     }
   }
+  *aThoseMarked =
+    (nsMsgKey *) nsMemory::Clone(&thoseMarked[0],
+                                 thoseMarked.Length() * sizeof(nsMsgKey));
+  *aNumMarked = thoseMarked.Length();
+  if (!*aThoseMarked)
+    return NS_ERROR_OUT_OF_MEMORY;
 
   return rv;
 }
@@ -2587,13 +2597,15 @@ nsMsgDatabase::MarkHdrNotNew(nsIMsgDBHdr *aMsgHdr,
   return SetMsgHdrFlag(aMsgHdr, PR_FALSE, nsMsgMessageFlags::New, aInstigator);
 }
 
-NS_IMETHODIMP nsMsgDatabase::MarkAllRead(nsTArray<nsMsgKey> *thoseMarked)
+NS_IMETHODIMP nsMsgDatabase::MarkAllRead(PRUint32 *aNumKeys, nsMsgKey **aThoseMarked)
 {
-  nsresult    rv;
+  NS_ENSURE_ARG_POINTER(aNumKeys);
+  NS_ENSURE_ARG_POINTER(aThoseMarked);
   nsMsgHdr  *pHeader;
 
-  nsCOMPtr <nsISimpleEnumerator> hdrs;
-  rv = EnumerateMessages(getter_AddRefs(hdrs));
+  nsCOMPtr<nsISimpleEnumerator> hdrs;
+  nsTArray<nsMsgKey> thoseMarked;
+  nsresult rv = EnumerateMessages(getter_AddRefs(hdrs));
   if (NS_FAILED(rv))
     return rv;
   PRBool hasMore = PR_FALSE;
@@ -2610,16 +2622,18 @@ NS_IMETHODIMP nsMsgDatabase::MarkAllRead(nsTArray<nsMsgKey> *thoseMarked)
 
     if (!isRead)
     {
-      if (thoseMarked)
-      {
-        nsMsgKey key;
-        (void)pHeader->GetMessageKey(&key);
-        thoseMarked->AppendElement(key);
-      }
+      nsMsgKey key;
+      (void)pHeader->GetMessageKey(&key);
+      thoseMarked.AppendElement(key);
       rv = MarkHdrRead(pHeader, PR_TRUE, nsnull);   // ### dmb - blow off error?
     }
     NS_RELEASE(pHeader);
   }
+  *aThoseMarked = (nsMsgKey *) nsMemory::Clone(&thoseMarked[0],
+                                       thoseMarked.Length() * sizeof(nsMsgKey));
+  if (!*aThoseMarked)
+    return NS_ERROR_OUT_OF_MEMORY;
+  *aNumKeys = thoseMarked.Length();
 
   // force num new to 0.
   PRInt32 numUnreadMessages;
@@ -2630,50 +2644,6 @@ NS_IMETHODIMP nsMsgDatabase::MarkAllRead(nsTArray<nsMsgKey> *thoseMarked)
   // caller will Commit the db, so no need to do it here.
   return rv;
 }
-
-NS_IMETHODIMP nsMsgDatabase::MarkReadByDate (PRTime startDate, PRTime endDate, nsTArray<nsMsgKey> *markedIds)
-{
-  nsresult rv;
-  nsMsgHdr  *pHeader;
-  PRInt32 numChanged = 0;
-
-  nsISimpleEnumerator* hdrs;
-  rv = EnumerateMessages(&hdrs);
-  if (NS_FAILED(rv))
-    return rv;
-
-  PRBool hasMore = PR_FALSE;
-
-  while (NS_SUCCEEDED(rv = hdrs->HasMoreElements(&hasMore)) && hasMore)
-  {
-    rv = hdrs->GetNext((nsISupports**)&pHeader);
-    NS_ASSERTION(NS_SUCCEEDED(rv), "nsMsgDBEnumerator broken");
-    if (NS_FAILED(rv)) break;
-
-    PRTime headerDate;
-    (void)pHeader->GetDate(&headerDate);
-
-    if (headerDate > startDate && headerDate <= endDate)
-    {
-      PRBool isRead;
-      nsMsgKey key;
-      (void)pHeader->GetMessageKey(&key);
-      IsRead(key, &isRead);
-      if (!isRead)
-      {
-        numChanged++;
-        if (markedIds)
-          markedIds->AppendElement(key);
-        rv = MarkHdrRead(pHeader, PR_TRUE, NULL);  // ### dmb - blow off error?
-      }
-    }
-    NS_RELEASE(pHeader);
-  }
-  if (numChanged > 0)
-    Commit(nsMsgDBCommitType::kSmallCommit);
-  return rv;
-}
-
 
 NS_IMETHODIMP nsMsgDatabase::AddToNewList(nsMsgKey key)
 {
@@ -3078,31 +3048,34 @@ nsMsgDatabase::SyncCounts()
   return NS_OK;
 }
 
-
 // resulting output array is sorted by key.
-NS_IMETHODIMP nsMsgDatabase::ListAllKeys(nsTArray<nsMsgKey> &outputKeys)
+NS_IMETHODIMP nsMsgDatabase::ListAllKeys(nsIMsgKeyArray *aKeys)
 {
-  nsresult  err = NS_OK;
-  nsIMdbTableRowCursor *rowCursor;
+  NS_ENSURE_ARG_POINTER(aKeys);
+  nsresult  rv = NS_OK;
+  nsCOMPtr<nsIMdbTableRowCursor> rowCursor;
   if (m_mdbAllMsgHeadersTable)
   {
-    err = m_mdbAllMsgHeadersTable->GetTableRowCursor(GetEnv(), -1, &rowCursor);
-    while (err == NS_OK && rowCursor)
+    PRUint32 numMsgs = 0;
+    m_mdbAllMsgHeadersTable->GetCount(GetEnv(), &numMsgs);
+    aKeys->SetCapacity(numMsgs);
+    rv = m_mdbAllMsgHeadersTable->GetTableRowCursor(GetEnv(), -1,
+                                                     getter_AddRefs(rowCursor));
+    while (NS_SUCCEEDED(rv) && rowCursor)
     {
       mdbOid outOid;
       mdb_pos  outPos;
 
-      err = rowCursor->NextRowOid(GetEnv(), &outOid, &outPos);
+      rv = rowCursor->NextRowOid(GetEnv(), &outOid, &outPos);
       // is this right? Mork is returning a 0 id, but that should valid.
       if (outPos < 0 || outOid.mOid_Id == (mdb_id) -1)
         break;
-      if (err == NS_OK)
-        outputKeys.AppendElement(outOid.mOid_Id);
+      if (NS_SUCCEEDED(rv))
+        aKeys->AppendElement(outOid.mOid_Id);
     }
-    rowCursor->Release();
+    aKeys->Sort();
   }
-  outputKeys.Sort();
-  return err;
+  return rv;
 }
 
 class nsMsgDBThreadEnumerator : public nsISimpleEnumerator, public nsIDBChangeListener
@@ -3251,7 +3224,7 @@ NS_IMETHODIMP nsMsgDBThreadEnumerator::GetNext(nsISupports **aItem)
 nsresult nsMsgDBThreadEnumerator::PrefetchNext()
 {
   nsresult rv;
-  nsIMdbTable *table = nsnull;
+  nsCOMPtr<nsIMdbTable> table;
 
   if (!mDB)
     return NS_ERROR_NULL_POINTER;
@@ -3266,7 +3239,7 @@ nsresult nsMsgDBThreadEnumerator::PrefetchNext()
   {
     NS_IF_RELEASE(mResultThread);
     mResultThread = nsnull;
-    rv = mTableCursor->NextTable(mDB->GetEnv(), &table);
+    rv = mTableCursor->NextTable(mDB->GetEnv(), getter_AddRefs(table));
     if (!table)
     {
       mDone = PR_TRUE;
@@ -3287,6 +3260,7 @@ nsresult nsMsgDBThreadEnumerator::PrefetchNext()
     mResultThread = mDB->FindExistingThread(tableId.mOid_Id);
     if (!mResultThread)
       mResultThread = new nsMsgThread(mDB, table);
+
     if (mResultThread)
     {
       PRUint32 numChildren = 0;
@@ -3573,7 +3547,7 @@ nsresult nsMsgDatabase::RowCellColumnToAddressCollationKey(nsIMdbRow *row, mdb_t
                                                      name);
 
   if (NS_SUCCEEDED(rv))
-    return CreateCollationKey(NS_ConvertUTF8toUTF16(name), result, len);
+    return CreateCollationKey(NS_ConvertUTF8toUTF16(name), len, result);
 
   return rv;
 }
@@ -3636,14 +3610,15 @@ nsresult nsMsgDatabase::RowCellColumnToCollationKey(nsIMdbRow *row, mdb_token co
         charSet.get(), characterSetOverride, PR_TRUE,
         getter_Copies(decodedStr));
       if (NS_SUCCEEDED(err))
-        err = CreateCollationKey(NS_ConvertUTF8toUTF16(decodedStr), result, len);
+        err = CreateCollationKey(NS_ConvertUTF8toUTF16(decodedStr), len, result);
     }
   }
   return err;
 }
 
 NS_IMETHODIMP
-nsMsgDatabase::CompareCollationKeys(PRUint8 *key1, PRUint32 len1, PRUint8 *key2, PRUint32 len2, PRInt32 *result)
+nsMsgDatabase::CompareCollationKeys(PRUint32 len1, PRUint8 *key1, PRUint32 len2,
+                                    PRUint8 *key2, PRInt32 *result)
 {
   nsresult rv = GetCollationKeyGenerator();
   NS_ENSURE_SUCCESS(rv,rv);
@@ -3655,7 +3630,8 @@ nsMsgDatabase::CompareCollationKeys(PRUint8 *key1, PRUint32 len1, PRUint8 *key2,
 }
 
 NS_IMETHODIMP
-nsMsgDatabase::CreateCollationKey(const nsAString& sourceString, PRUint8 **result, PRUint32 *len)
+nsMsgDatabase::CreateCollationKey(const nsAString& sourceString, PRUint32 *len,
+                                  PRUint8 **result)
 {
   nsresult err = GetCollationKeyGenerator();
   NS_ENSURE_SUCCESS(err,err);
@@ -4239,7 +4215,7 @@ nsresult nsMsgDatabase::InitRefHash()
 nsresult nsMsgDatabase::CreateNewThread(nsMsgKey threadId, const char *subject, nsMsgThread **pnewThread)
 {
   nsresult  err = NS_OK;
-  nsIMdbTable    *threadTable;
+  nsCOMPtr<nsIMdbTable> threadTable;
   struct mdbOid threadTableOID;
   struct mdbOid allThreadsTableOID;
 
@@ -4251,13 +4227,12 @@ nsresult nsMsgDatabase::CreateNewThread(nsMsgKey threadId, const char *subject, 
 
   // Under some circumstances, mork seems to reuse an old table when we create one.
   // Prevent problems from that by finding any old table first, and deleting its rows.
-  mdb_err res = GetStore()->GetTable(GetEnv(), &threadTableOID, &threadTable);
+  mdb_err res = GetStore()->GetTable(GetEnv(), &threadTableOID, getter_AddRefs(threadTable));
   if (NS_SUCCEEDED(res) && threadTable)
     threadTable->CutAllRows(GetEnv());
-  NS_IF_RELEASE(threadTable);
 
   err  = GetStore()->NewTableWithOid(GetEnv(), &threadTableOID, m_threadTableKindToken,
-    PR_FALSE, nsnull, &threadTable);
+    PR_FALSE, nsnull, getter_AddRefs(threadTable));
   if (NS_FAILED(err))
     return err;
 
@@ -4266,18 +4241,19 @@ nsresult nsMsgDatabase::CreateNewThread(nsMsgKey threadId, const char *subject, 
 
   // add a row for this thread in the table of all threads that we'll use
   // to do our mapping between subject strings and threads.
-  nsIMdbRow *threadRow = nsnull;
+  nsCOMPtr<nsIMdbRow> threadRow;
 
-  err = m_mdbStore->GetRow(GetEnv(), &allThreadsTableOID, &threadRow);
+  err = m_mdbStore->GetRow(GetEnv(), &allThreadsTableOID,
+                           getter_AddRefs(threadRow));
   if (!threadRow)
   {
-    err  = m_mdbStore->NewRowWithOid(GetEnv(), &allThreadsTableOID, &threadRow);
+    err  = m_mdbStore->NewRowWithOid(GetEnv(), &allThreadsTableOID,
+                                     getter_AddRefs(threadRow));
     if (NS_SUCCEEDED(err) && threadRow)
     {
       if (m_mdbAllThreadsTable)
         m_mdbAllThreadsTable->AddRow(GetEnv(), threadRow);
       err = CharPtrToRowCellColumn(threadRow, m_threadSubjectColumnToken, subject);
-      threadRow->Release();
     }
   }
   else
@@ -4292,7 +4268,6 @@ nsresult nsMsgDatabase::CreateNewThread(nsMsgKey threadId, const char *subject, 
       metaRow->CutAllColumns(GetEnv());
 
     CharPtrToRowCellColumn(threadRow, m_threadSubjectColumnToken, subject);
-    threadRow->Release();
   }
 
 
@@ -4367,36 +4342,32 @@ nsIMsgThread *  nsMsgDatabase::GetThreadForSubject(nsCString &subject)
     else
     {
       nsresult  rv;
-      nsMsgThread *pThread;
+      nsRefPtr<nsMsgThread> pThread;
 
       nsCOMPtr <nsIMdbPortTableCursor> tableCursor;
-      m_mdbStore->GetPortTableCursor(GetEnv(),   m_hdrRowScopeToken, m_threadTableKindToken,
-        getter_AddRefs(tableCursor));
+      m_mdbStore->GetPortTableCursor(GetEnv(), m_hdrRowScopeToken, m_threadTableKindToken,
+                                     getter_AddRefs(tableCursor));
 
-
-        nsIMdbTable *table;
+        nsCOMPtr<nsIMdbTable> table;
 
         while (PR_TRUE)
         {
-          rv = tableCursor->NextTable(GetEnv(), &table);
+          rv = tableCursor->NextTable(GetEnv(), getter_AddRefs(table));
           if (!table)
             break;
           if (NS_FAILED(rv))
             break;
 
           pThread = new nsMsgThread(this, table);
-          if(pThread)
+          if (pThread)
           {
-            // thread object assumes ref for table.
-            NS_ADDREF(pThread);
             nsCString curSubject;
             pThread->GetSubject(curSubject);
             if (subject.Equals(curSubject))
             {
-              NS_ASSERTION(PR_FALSE, "thread with subject exists, but FindRow didn't find it\n");
+              NS_ERROR("thread with subject exists, but FindRow didn't find it\n");
               break;
             }
-            NS_IF_RELEASE (pThread);
           }
           else
             break;
@@ -4539,15 +4510,16 @@ nsMsgHdr * nsMsgDatabase::GetMsgHdrForReference(nsCString &reference)
   return nsnull;
 }
 
-NS_IMETHODIMP nsMsgDatabase::GetMsgHdrForMessageID(const char *msgID, nsIMsgDBHdr **aHdr)
+NS_IMETHODIMP nsMsgDatabase::GetMsgHdrForMessageID(const char *aMsgID, nsIMsgDBHdr **aHdr)
 {
   NS_ENSURE_ARG_POINTER(aHdr);
+  NS_ENSURE_ARG_POINTER(aMsgID);
   nsIMsgDBHdr  *msgHdr = nsnull;
   nsresult rv = NS_OK;
   mdbYarn  messageIdYarn;
 
-  messageIdYarn.mYarn_Buf = (void *) msgID;
-  messageIdYarn.mYarn_Fill = PL_strlen(msgID);
+  messageIdYarn.mYarn_Buf = (void *) aMsgID;
+  messageIdYarn.mYarn_Fill = PL_strlen(aMsgID);
   messageIdYarn.mYarn_Form = 0;
   messageIdYarn.mYarn_Size = messageIdYarn.mYarn_Fill;
 
@@ -4664,8 +4636,9 @@ nsIMsgThread *  nsMsgDatabase::GetThreadForThreadId(nsMsgKey threadId)
     tableId.mOid_Id = threadId;
     tableId.mOid_Scope = m_hdrRowScopeToken;
 
-    nsIMdbTable *threadTable;
-    mdb_err res = m_mdbStore->GetTable(GetEnv(), &tableId, &threadTable);
+    nsCOMPtr<nsIMdbTable> threadTable;
+    mdb_err res = m_mdbStore->GetTable(GetEnv(), &tableId,
+                                       getter_AddRefs(threadTable));
 
     if (NS_SUCCEEDED(res) && threadTable)
     {
@@ -4806,8 +4779,9 @@ NS_IMETHODIMP  nsMsgDatabase::RemoveOfflineOp(nsIMsgOfflineImapOperation *op)
 }
 
 
-NS_IMETHODIMP nsMsgDatabase::ListAllOfflineMsgs(nsTArray<nsMsgKey> *outputKeys)
+NS_IMETHODIMP nsMsgDatabase::ListAllOfflineMsgs(nsIMsgKeyArray *aKeys)
 {
+  NS_ENSURE_ARG_POINTER(aKeys);
   nsCOMPtr <nsISimpleEnumerator> enumerator;
   PRUint32 flag = nsMsgMessageFlags::Offline;
   // if we change this routine to return an enumerator that generates the keys
@@ -4830,12 +4804,11 @@ NS_IMETHODIMP nsMsgDatabase::ListAllOfflineMsgs(nsTArray<nsMsgKey> *outputKeys)
       {
         nsMsgKey msgKey;
         dbMessage->GetMessageKey(&msgKey);
-        outputKeys->AppendElement(msgKey);
+        aKeys->AppendElement(msgKey);
       }
     }
   }
-  outputKeys->Sort();
-
+  aKeys->Sort();
   return rv;
 }
 
@@ -4913,10 +4886,14 @@ nsresult nsMsgDatabase::DumpContents()
   nsMsgKey key;
   PRUint32 i;
 
-  nsTArray<nsMsgKey> keys;
+  nsRefPtr<nsMsgKeyArray> keys = new nsMsgKeyArray;
+  if (!keys)
+    return NS_ERROR_OUT_OF_MEMORY;
   nsresult rv = ListAllKeys(keys);
-  for (i = 0; i < keys.Length(); i++) {
-    key = keys[i];
+  PRUint32 numKeys;
+  keys->GetLength(&numKeys);
+  for (i = 0; i < numKeys; i++) {
+    key = keys->m_keys[i];
     nsIMsgDBHdr *msg = NULL;
     rv = GetMsgHdrForKey(key, &msg);
     nsMsgHdr* msgHdr = static_cast<nsMsgHdr*>(msg);      // closed system, cast ok

@@ -38,8 +38,6 @@
    -
    - ***** END LICENSE BLOCK ***** -->
 
-<?xml-stylesheet href="chrome://communicator/skin/" type="text/css"?>
-
 <!DOCTYPE overlay SYSTEM "chrome://communicator/locale/pref/pref-search.dtd">
 <overlay xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
   <prefpane id="search_pane"
@@ -49,7 +47,7 @@
     <preferences id="search_preferences">
       <preference id="browser.search.defaultenginename"
                   name="browser.search.defaultenginename"
-                  type="string"/>
+                  type="wstring"/>
       <preference id="browser.search.openintab"
                   name="browser.search.openintab"
                   type="bool"/>
@@ -74,7 +72,7 @@
       <hbox pack="end">
         <button id="managerButton"
                 label="&engineManager.label;"
-                oncommand="OpenManager();"/>
+                oncommand="OpenSearchEngineManager();"/>
       </hbox>
     </groupbox>
 

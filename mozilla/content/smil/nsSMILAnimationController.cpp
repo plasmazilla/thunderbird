@@ -94,8 +94,8 @@ nsSMILAnimationController::Disconnect()
   NS_ABORT_IF_FALSE(mDocument, "disconnecting when we weren't connected...?");
   NS_ABORT_IF_FALSE(mRefCnt.get() == 1,
                     "Expecting to disconnect when doc is sole remaining owner");
-  NS_ABORT_IF_FALSE(mPauseState & nsSMILTimeContainer::PAUSE_PAGEHIDE,
-                    "Expecting to be paused for pagehide before disconnect");
+  NS_ASSERTION(mPauseState & nsSMILTimeContainer::PAUSE_PAGEHIDE,
+               "Expecting to be paused for pagehide before disconnect");
 
   StopSampling(GetRefreshDriver());
 
@@ -579,7 +579,7 @@ nsSMILAnimationController::DoMilestoneSamples()
     // Because we're only performing this clamping at the last moment, the
     // animations will still all get sampled in the correct order and
     // dependencies will be appropriately resolved.
-    sampleTime = PR_MAX(nextMilestone.mTime, sampleTime);
+    sampleTime = NS_MAX(nextMilestone.mTime, sampleTime);
 
     for (PRUint32 i = 0; i < length; ++i) {
       nsISMILAnimationElement* elem = params.mElements[i].get();
@@ -596,7 +596,7 @@ nsSMILAnimationController::DoMilestoneSamples()
         continue;
 
       // Clamp the converted container time to non-negative values.
-      nsSMILTime containerTime = PR_MAX(0, containerTimeValue.GetMillis());
+      nsSMILTime containerTime = NS_MAX<nsSMILTime>(0, containerTimeValue.GetMillis());
 
       if (nextMilestone.mIsEnd) {
         elem->TimedElement().SampleEndAt(containerTime);

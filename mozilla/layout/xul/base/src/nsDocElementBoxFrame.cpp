@@ -39,13 +39,10 @@
 #include "nsCSSRendering.h"
 #include "nsIDocument.h"
 #include "nsPageFrame.h"
-#include "nsIRenderingContext.h"
 #include "nsGUIEvent.h"
 #include "nsIDOMEvent.h"
 #include "nsStyleConsts.h"
 #include "nsGkAtoms.h"
-#include "nsIEventStateManager.h"
-#include "nsIDeviceContext.h"
 #include "nsIPresShell.h"
 #include "nsBoxFrame.h"
 #include "nsStackLayout.h"
@@ -74,7 +71,7 @@ public:
   NS_DECL_FRAMEARENA_HELPERS
 
   // nsIAnonymousContentCreator
-  virtual nsresult CreateAnonymousContent(nsTArray<nsIContent*>& aElements);
+  virtual nsresult CreateAnonymousContent(nsTArray<ContentInfo>& aElements);
   virtual void AppendAnonymousContentTo(nsBaseContentList& aElements,
                                         PRUint32 aFilter);
 
@@ -113,7 +110,7 @@ nsDocElementBoxFrame::DestroyFrom(nsIFrame* aDestructRoot)
 }
 
 nsresult
-nsDocElementBoxFrame::CreateAnonymousContent(nsTArray<nsIContent*>& aElements)
+nsDocElementBoxFrame::CreateAnonymousContent(nsTArray<ContentInfo>& aElements)
 {
   nsIDocument* doc = mContent->GetDocument();
   if (!doc) {
@@ -125,7 +122,8 @@ nsDocElementBoxFrame::CreateAnonymousContent(nsTArray<nsIContent*>& aElements)
   // create the top-secret popupgroup node. shhhhh!
   nsCOMPtr<nsINodeInfo> nodeInfo;
   nodeInfo = nodeInfoManager->GetNodeInfo(nsGkAtoms::popupgroup,
-                                          nsnull, kNameSpaceID_XUL);
+                                          nsnull, kNameSpaceID_XUL,
+                                          nsIDOMNode::ELEMENT_NODE);
   NS_ENSURE_TRUE(nodeInfo, NS_ERROR_OUT_OF_MEMORY);
 
   nsresult rv = NS_NewXULElement(getter_AddRefs(mPopupgroupContent),
@@ -137,7 +135,8 @@ nsDocElementBoxFrame::CreateAnonymousContent(nsTArray<nsIContent*>& aElements)
 
   // create the top-secret default tooltip node. shhhhh!
   nodeInfo = nodeInfoManager->GetNodeInfo(nsGkAtoms::tooltip, nsnull,
-                                          kNameSpaceID_XUL);
+                                          kNameSpaceID_XUL,
+                                          nsIDOMNode::ELEMENT_NODE);
   NS_ENSURE_TRUE(nodeInfo, NS_ERROR_OUT_OF_MEMORY);
 
   rv = NS_NewXULElement(getter_AddRefs(mTooltipContent), nodeInfo.forget());

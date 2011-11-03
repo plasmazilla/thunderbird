@@ -45,11 +45,7 @@
 #include <stdio.h>
 #include <tchar.h>
 
-#ifdef WINCE
-#define MOZ_LOADLIBRARY_FLAGS 0
-#else
 #define MOZ_LOADLIBRARY_FLAGS LOAD_WITH_ALTERED_SEARCH_PATH
-#endif
 
 struct DependentLib
 {
@@ -74,10 +70,33 @@ AppendDependentLib(HINSTANCE libHandle)
 }
 
 static void
-ReadDependentCB(const char *aDependentLib)
+preload(LPCWSTR dll)
+{
+    HANDLE fd = CreateFileW(dll, GENERIC_READ, FILE_SHARE_READ,
+                            NULL, OPEN_EXISTING, FILE_FLAG_SEQUENTIAL_SCAN, NULL);
+    char buf[64 * 1024];
+
+    if (fd == INVALID_HANDLE_VALUE)
+        return;
+  
+    DWORD dwBytesRead;
+    // Do dummy reads to trigger kernel-side readhead via FILE_FLAG_SEQUENTIAL_SCAN.
+    // Abort when underfilling because during testing the buffers are read fully
+    // A buffer that's not keeping up would imply that readahead isn't working right
+    while (ReadFile(fd, buf, sizeof(buf), &dwBytesRead, NULL) && dwBytesRead == sizeof(buf))
+        /* Nothing */;
+  
+    CloseHandle(fd);
+}
+
+static void
+ReadDependentCB(const char *aDependentLib, PRBool do_preload)
 {
     wchar_t wideDependentLib[MAX_PATH];
     MultiByteToWideChar(CP_UTF8, 0, aDependentLib, -1, wideDependentLib, MAX_PATH);
+
+    if (do_preload)
+        preload(wideDependentLib);
 
     HINSTANCE h =
         LoadLibraryExW(wideDependentLib, NULL, MOZ_LOADLIBRARY_FLAGS);
@@ -125,15 +144,7 @@ ns_wcspbrk(wchar_t *string, const wchar_t *strCharSet)
 
 bool ns_isRelPath(wchar_t* path)
 {
-#ifdef WINCE
-    if (path[0] == '\\')
-        return false;
-#else
-    if (path[1] == ':')
-        return false;
-#endif
-    return true;
-    
+    return !(path[1] == ':');
 }
 
 nsresult

@@ -54,7 +54,7 @@
 #include "nsBoxFrame.h"
 #include "nsBoxFrame.h"
 
-nsIBoxLayout* nsSprocketLayout::gInstance = nsnull;
+nsBoxLayout* nsSprocketLayout::gInstance = nsnull;
 
 //#define DEBUG_GROW
 
@@ -64,7 +64,7 @@ nsIBoxLayout* nsSprocketLayout::gInstance = nsnull;
 
 
 nsresult
-NS_NewSprocketLayout( nsIPresShell* aPresShell, nsCOMPtr<nsIBoxLayout>& aNewLayout)
+NS_NewSprocketLayout( nsIPresShell* aPresShell, nsCOMPtr<nsBoxLayout>& aNewLayout)
 {
   if (!nsSprocketLayout::gInstance) {
     nsSprocketLayout::gInstance = new nsSprocketLayout();
@@ -524,7 +524,7 @@ nsSprocketLayout::Layout(nsIBox* aBox, nsBoxLayoutState& aState)
       // We have to check for this.
       nsRect newChildRect(child->GetRect());
 
-      if (newChildRect != childRect) {
+      if (!newChildRect.IsEqualInterior(childRect)) {
 #ifdef DEBUG_GROW
         child->DumpBox(stdout);
         printf(" GREW from (%d,%d) -> (%d,%d)\n", childRect.width, childRect.height, newChildRect.width, newChildRect.height);
@@ -1163,7 +1163,7 @@ nsSprocketLayout::ChildResized(nsIBox* aBox,
       if (recompute)
             ComputeChildSizes(aBox, aState, containingWidth, aBoxSizes, aComputedBoxSizes);
 
-      if (childCurrentRect != aChildActualRect) {
+      if (!childCurrentRect.IsEqualInterior(aChildActualRect)) {
         // the childRect includes the margin
         // make sure we remove it before setting 
         // the bounds.

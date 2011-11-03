@@ -5,7 +5,6 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=478911
 -->
 <head>
   <title>Test for watchPosition and clearWatch</title>
-  <script type="text/javascript" src="/MochiKit/packed.js"></script>
   <script type="text/javascript" src="/tests/SimpleTest/SimpleTest.js"></script>
   <script type="text/javascript" src="geolocation_common.js"></script>
 
@@ -36,11 +35,13 @@ function successCallback(position) {
   if (hasBeenCleared == true) {
     successWasCalledAfterClear = true;
   }
+  SimpleTest.executeSoon(clearWatch);
 }
 
 function clearWatch() {
   navigator.geolocation.clearWatch(watchID);
   hasBeenCleared = true;
+  SimpleTest.executeSoon(testAccepted);
 }
 
 function testAccepted() {
@@ -51,10 +52,6 @@ function testAccepted() {
 
 
 watchID = navigator.geolocation.watchPosition(successCallback, failureCallback, null);
-
-setTimeout(clearWatch, 250);
-
-setTimeout(testAccepted, 2000);
 
 </script>
 </pre>

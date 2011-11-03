@@ -40,9 +40,6 @@
  the terms of any one of the MPL, the GPL or the LGPL.
 
  ***** END LICENSE BLOCK ***** -->
-<?xml-stylesheet href="chrome://communicator/skin/" type="text/css"?>
-<?xml-stylesheet href="chrome://communicator/skin/prefpanels.css" type="text/css"?>
-
 <!DOCTYPE overlay SYSTEM "chrome://communicator/locale/pref/pref-fonts.dtd">
 
 <overlay xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
@@ -60,8 +57,6 @@
                   name="browser.display.languageList"
                   type="wstring"/>
     </preferences>
-    <stringbundle id="bundleFontsPreferences"
-                  src="chrome://communicator/locale/pref/prefutilities.properties"/>
  
     <groupbox>
       <caption align="center">

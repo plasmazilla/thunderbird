@@ -43,18 +43,21 @@
 #include "nsApplicationAccessible.h"
 #include "nsOuterDocAccessible.h"
 #include "nsRootAccessibleWrap.h"
+#include "States.h"
 
 #include "nsCURILoader.h"
 #include "nsDocShellLoadTypes.h"
 #include "nsIChannel.h"
 #include "nsIContentViewer.h"
 #include "nsIDOMDocument.h"
-#include "nsIEventListenerManager.h"
+#include "nsEventListenerManager.h"
 #include "nsIDOMEventTarget.h"
 #include "nsIDOMWindow.h"
 #include "nsIInterfaceRequestorUtils.h"
 #include "nsIWebNavigation.h"
 #include "nsServiceManagerUtils.h"
+
+using namespace mozilla::a11y;
 
 ////////////////////////////////////////////////////////////////////////////////
 // nsAccDocManager
@@ -187,9 +190,6 @@ nsAccDocManager::OnStateChange(nsIWebProgress *aWebProgress,
   NS_LOG_ACCDOCLOAD("start document loading", aWebProgress, aRequest,
                     aStateFlags)
 
-  if (!IsEventTargetDocument(document))
-    return NS_OK;
-
   nsDocAccessible* docAcc = mDocAccessibleCache.GetWeak(document);
   if (!docAcc)
     return NS_OK;
@@ -198,33 +198,17 @@ nsAccDocManager::OnStateChange(nsIWebProgress *aWebProgress,
   nsCOMPtr<nsIDocShell> docShell(do_QueryInterface(webNav));
   NS_ENSURE_STATE(docShell);
 
-  // Fire reload and state busy events on existing document accessible while
-  // event from user input flag can be calculated properly and accessible
-  // is alive. When new document gets loaded then this one is destroyed.
+  bool isReloading = false;
   PRUint32 loadType;
   docShell->GetLoadType(&loadType);
   if (loadType == LOAD_RELOAD_NORMAL ||
       loadType == LOAD_RELOAD_BYPASS_CACHE ||
       loadType == LOAD_RELOAD_BYPASS_PROXY ||
       loadType == LOAD_RELOAD_BYPASS_PROXY_AND_CACHE) {
-
-    // Fire reload event.
-    nsRefPtr<AccEvent> reloadEvent =
-      new AccEvent(nsIAccessibleEvent::EVENT_DOCUMENT_RELOAD, docAcc);
-    nsEventShell::FireEvent(reloadEvent);
+    isReloading = true;
   }
 
-  // Mark the document accessible as loading, if it stays alive then we'll mark
-  // it as loaded when we receive proper notification.
-  docAcc->MarkAsLoading();
-
-  // Fire state busy change event. Use delayed event since we don't care
-  // actually if event isn't delivered when the document goes away like a shot.
-  nsRefPtr<AccEvent> stateEvent =
-    new AccStateChangeEvent(document, nsIAccessibleStates::STATE_BUSY,
-                            PR_FALSE, PR_TRUE);
-  docAcc->FireDelayedAccessibleEvent(stateEvent);
-
+  docAcc->NotifyOfLoading(isReloading);
   return NS_OK;
 }
 
@@ -336,55 +320,7 @@ nsAccDocManager::HandleDOMDocumentLoad(nsIDocument *aDocument,
       return;
   }
 
-  // Mark the document as loaded to drop off the busy state flag on it.
-  docAcc->MarkAsLoaded();
-
-  // Do not fire document complete/stop events for root chrome document
-  // accessibles and for frame/iframe documents because
-  // a) screen readers start working on focus event in the case of root chrome
-  // documents
-  // b) document load event on sub documents causes screen readers to act is if
-  // entire page is reloaded.
-  if (!IsEventTargetDocument(aDocument))
-    return;
-
-  // Fire complete/load stopped if the load event type is given.
-  if (aLoadEventType) {
-    nsRefPtr<AccEvent> loadEvent = new AccEvent(aLoadEventType, aDocument);
-    docAcc->FireDelayedAccessibleEvent(loadEvent);
-  }
-
-  // Fire busy state change event.
-  nsRefPtr<AccEvent> stateEvent =
-    new AccStateChangeEvent(aDocument, nsIAccessibleStates::STATE_BUSY,
-                            PR_FALSE, PR_FALSE);
-  docAcc->FireDelayedAccessibleEvent(stateEvent);
-}
-
-PRBool
-nsAccDocManager::IsEventTargetDocument(nsIDocument *aDocument) const
-{
-  nsCOMPtr<nsISupports> container = aDocument->GetContainer();
-  nsCOMPtr<nsIDocShellTreeItem> docShellTreeItem =
-    do_QueryInterface(container);
-  NS_ASSERTION(docShellTreeItem, "No document shell for document!");
-
-  nsCOMPtr<nsIDocShellTreeItem> parentTreeItem;
-  docShellTreeItem->GetParent(getter_AddRefs(parentTreeItem));
-
-  // It's not a root document.
-  if (parentTreeItem) {
-    nsCOMPtr<nsIDocShellTreeItem> sameTypeRoot;
-    docShellTreeItem->GetSameTypeRootTreeItem(getter_AddRefs(sameTypeRoot));
-
-    // It's not a sub document, i.e. a frame or iframe.
-    return (sameTypeRoot == docShellTreeItem);
-  }
-
-  // It's not chrome root document.
-  PRInt32 contentType;
-  docShellTreeItem->GetItemType(&contentType);
-  return (contentType == nsIDocShellTreeItem::typeContent);
+  docAcc->NotifyOfLoad(aLoadEventType);
 }
 
 void
@@ -392,16 +328,16 @@ nsAccDocManager::AddListeners(nsIDocument *aDocument,
                               PRBool aAddDOMContentLoadedListener)
 {
   nsPIDOMWindow *window = aDocument->GetWindow();
-  nsPIDOMEventTarget *target = window->GetChromeEventHandler();
-  nsIEventListenerManager* elm = target->GetListenerManager(PR_TRUE);
+  nsIDOMEventTarget *target = window->GetChromeEventHandler();
+  nsEventListenerManager* elm = target->GetListenerManager(PR_TRUE);
   elm->AddEventListenerByType(this, NS_LITERAL_STRING("pagehide"),
-                              NS_EVENT_FLAG_CAPTURE, nsnull);
+                              NS_EVENT_FLAG_CAPTURE);
 
   NS_LOG_ACCDOCCREATE_TEXT("  added 'pagehide' listener")
 
   if (aAddDOMContentLoadedListener) {
     elm->AddEventListenerByType(this, NS_LITERAL_STRING("DOMContentLoaded"),
-                                NS_EVENT_FLAG_CAPTURE, nsnull);
+                                NS_EVENT_FLAG_CAPTURE);
     NS_LOG_ACCDOCCREATE_TEXT("  added 'DOMContentLoaded' listener")
   }
 }
@@ -469,12 +405,13 @@ nsAccDocManager::CreateDocOrRootAccessible(nsIDocument *aDocument)
     }
 
     // Fire reorder event to notify new accessible document has been attached to
-    // the tree.
+    // the tree. The reorder event is delivered after the document tree is
+    // constructed because event processing and tree construction are done by
+    // the same document.
     nsRefPtr<AccEvent> reorderEvent =
       new AccEvent(nsIAccessibleEvent::EVENT_REORDER, appAcc, eAutoDetect,
                    AccEvent::eCoalesceFromSameSubtree);
-    if (reorderEvent)
-      docAcc->FireDelayedAccessibleEvent(reorderEvent);
+    docAcc->FireDelayedAccessibleEvent(reorderEvent);
 
   } else {
     parentDocAcc->BindChildDocument(docAcc);

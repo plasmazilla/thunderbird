@@ -9,7 +9,7 @@ Cu.import("resource://services-sync/engines/tabs.js");
 Cu.import("resource://services-sync/engines/history.js");
 Cu.import("resource://services-sync/log4moz.js");
   
-function test_locally_changed_keys() {
+add_test(function test_locally_changed_keys() {
   let passphrase = "abcdeabcdeabcdeabcdeabcdea";
 
   // Tracking info/collections.
@@ -33,7 +33,6 @@ function test_locally_changed_keys() {
   
   Weave.Service.handleHMACEvent = counting(Weave.Service.handleHMACEvent);
   
-  do_test_pending();
   let server = httpd_setup({
     // Special.
     "/1.1/johndoe/storage/meta/global": upd("meta", meta_global.handler()),
@@ -101,7 +100,7 @@ function test_locally_changed_keys() {
     _("New meta/global: " + JSON.stringify(meta_global));
     
     // Upload keys.
-    CollectionKeys.generateNewKeys();
+    generateNewKeys();
     let serverKeys = CollectionKeys.asWBO("crypto", "keys");
     serverKeys.encrypt(Weave.Service.syncKeyBundle);
     do_check_true(serverKeys.upload(Weave.Service.cryptoKeysURL).success);
@@ -118,7 +117,7 @@ function test_locally_changed_keys() {
     do_check_true(!!collections.tabs);
     do_check_true(collections.tabs > 0);
     
-    let coll_modified = CollectionKeys._lastModified;
+    let coll_modified = CollectionKeys.lastModified;
     
     // Let's create some server side history records.
     let liveKeys = CollectionKeys.keyForCollection("history");
@@ -227,18 +226,15 @@ function test_locally_changed_keys() {
     do_check_false(store.urlExists("http://foo/bar?record-no--8"));
     do_check_false(store.urlExists("http://foo/bar?record-no--9"));
     
-    // Clean up.
-    Weave.Service.startOver();
-    
   } finally {
     Weave.Svc.Prefs.resetBranch("");
-    server.stop(do_test_finished);
+    server.stop(run_next_test);
   }
-}
+});
 
 function run_test() {
   let logger = Log4Moz.repository.rootLogger;
   Log4Moz.repository.rootLogger.addAppender(new Log4Moz.DumpAppender());
   
-  test_locally_changed_keys();
+  run_next_test();
 }

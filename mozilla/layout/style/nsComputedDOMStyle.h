@@ -107,8 +107,7 @@ public:
   virtual mozilla::css::Declaration* GetCSSDeclaration(PRBool);
   virtual nsresult SetCSSDeclaration(mozilla::css::Declaration*);
   virtual nsIDocument* DocToUpdate();
-  virtual nsresult GetCSSParsingEnvironment(nsIURI**, nsIURI**, nsIPrincipal**,
-                                            mozilla::css::Loader**);
+  virtual void GetCSSParsingEnvironment(CSSParsingEnvironment& aCSSParseEnv);
 
 private:
   void AssertFlushedPendingReflows() {
@@ -308,14 +307,20 @@ private:
   /* Text Properties */
   nsIDOMCSSValue* DoGetLineHeight();
   nsIDOMCSSValue* DoGetTextAlign();
+  nsIDOMCSSValue* DoGetMozTextBlink();
   nsIDOMCSSValue* DoGetTextDecoration();
+  nsIDOMCSSValue* DoGetMozTextDecorationColor();
+  nsIDOMCSSValue* DoGetMozTextDecorationLine();
+  nsIDOMCSSValue* DoGetMozTextDecorationStyle();
   nsIDOMCSSValue* DoGetTextIndent();
+  nsIDOMCSSValue* DoGetTextOverflow();
   nsIDOMCSSValue* DoGetTextTransform();
   nsIDOMCSSValue* DoGetTextShadow();
   nsIDOMCSSValue* DoGetLetterSpacing();
   nsIDOMCSSValue* DoGetWordSpacing();
   nsIDOMCSSValue* DoGetWhiteSpace();
   nsIDOMCSSValue* DoGetWordWrap();
+  nsIDOMCSSValue* DoGetHyphens();
   nsIDOMCSSValue* DoGetMozTabSize();
 
   /* Visibility properties */
@@ -342,6 +347,10 @@ private:
   nsIDOMCSSValue* DoGetPageBreakBefore();
   nsIDOMCSSValue* DoGetMozTransform();
   nsIDOMCSSValue* DoGetMozTransformOrigin();
+  nsIDOMCSSValue* DoGetMozPerspective();
+  nsIDOMCSSValue* DoGetMozBackfaceVisibility();
+  nsIDOMCSSValue* DoGetMozPerspectiveOrigin();
+  nsIDOMCSSValue* DoGetOrient();
 
   /* User interface properties */
   nsIDOMCSSValue* DoGetCursor();
@@ -366,7 +375,6 @@ private:
   nsIDOMCSSValue* DoGetTransitionDelay();
   nsIDOMCSSValue* DoGetTransitionTimingFunction();
 
-#ifdef MOZ_CSS_ANIMATIONS
   /* CSS Animations */
   nsIDOMCSSValue* DoGetAnimationName();
   nsIDOMCSSValue* DoGetAnimationDuration();
@@ -376,7 +384,6 @@ private:
   nsIDOMCSSValue* DoGetAnimationFillMode();
   nsIDOMCSSValue* DoGetAnimationIterationCount();
   nsIDOMCSSValue* DoGetAnimationPlayState();
-#endif
 
   /* SVG properties */
   nsIDOMCSSValue* DoGetFill();

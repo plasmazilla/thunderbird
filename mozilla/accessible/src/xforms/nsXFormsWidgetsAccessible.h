@@ -55,13 +55,15 @@ public:
                                      nsIWeakReference *aShell);
 
   // nsIAccessible
-  NS_IMETHOD GetNumActions(PRUint8 *aCount);
   NS_IMETHOD GetActionName(PRUint8 aIndex, nsAString& aName);
   NS_IMETHOD DoAction(PRUint8 aIndex);
 
   // nsAccessible
   virtual PRUint32 NativeRole();
-  virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
+  virtual PRUint64 NativeState();
+
+  // ActionAccessible
+  virtual PRUint8 ActionCount();
 };
 
 
@@ -91,12 +93,12 @@ public:
 
   // nsIAccessible
   NS_IMETHOD GetValue(nsAString& aValue);
-  NS_IMETHOD GetDescription(nsAString& aDescription);
 
   // nsAccessible
+  virtual void Description(nsString& aDescription);
   virtual nsresult GetNameInternal(nsAString& aName);
   virtual PRUint32 NativeRole();
-  virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
+  virtual PRUint64 NativeState();
 
 protected:
   // nsAccessible

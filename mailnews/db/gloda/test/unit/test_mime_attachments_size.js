@@ -118,6 +118,10 @@ var yencText =
 var partYencText = new SyntheticPartLeaf("I am text! Woo!\n\n"+yencText,
   { contentType: '' } );
 
+var partUUText = new SyntheticPartLeaf(
+  "I am text! With uuencode... noes...\n\n"+uuText,
+  { contentType: '' });
+
 var tachText = {filename: 'bob.txt', body: originalText};
 
 var tachInlineText = {filename: 'foo.txt', body: originalText,
@@ -147,9 +151,21 @@ var relImage = {contentType: 'image/png',
                 encoding: 'base64', charset: null, format: null,
                 contentId: 'part1.foo@bar.com',
                 body: b64Text};
+
+var tachVCard = {filename: 'bob.vcf', contentType: 'text/x-vcard',
+                 encoding: '7bit', body: 'begin:vcard\nfn:Bob\nend:vcard\n'};
+var partTachVCard = new SyntheticPartLeaf(tachVCard.body, tachVCard);
+
 var partRelImage = new SyntheticPartLeaf(relImage.body, relImage);
 
 var messageInfos = [
+  {
+    name: 'uuencode inline',
+    bodyPart: partUUText,
+    subject: "duh",
+    epsilon: 4,
+    checkTotalSize: false,
+  },
   // encoding type specific to newsgroups, not interested, gloda doesn't even
   // treat this as an attachment (probably because gloda requires an attachment
   // to have a content-type, which these yencoded parts don't have), but size IS
@@ -184,7 +200,7 @@ var messageInfos = [
   },
 ];
 
-function check_attachments(aMimeMsg, epsilon) {
+function check_attachments(aMimeMsg, epsilon, checkTotalSize) {
   if (aMimeMsg == null)
     do_throw("We really should have gotten a result!");
 
@@ -234,7 +250,9 @@ function check_attachments(aMimeMsg, epsilon) {
     totalSize += att.size;
   }
 
-  do_check_true(Math.abs(aMimeMsg.size - totalSize) <= epsilon);
+  // undefined means true
+  if (checkTotalSize !== false)
+    do_check_true(Math.abs(aMimeMsg.size - totalSize) <= epsilon);
 
   async_driver();
 }
@@ -249,7 +267,7 @@ function test_message_attachments(info) {
 
   MsgHdrToMimeMessage(msgHdr, null, function(aMsgHdr, aMimeMsg) {
     try {
-      check_attachments(aMimeMsg, info.epsilon);
+      check_attachments(aMimeMsg, info.epsilon, info.checkTotalSize);
     } catch (e) {
       do_throw(e);
     }
@@ -262,19 +280,6 @@ var bogusMessage = msgGen.makeMessage({ body: { body: originalText } });
 bogusMessage._contentType = "woooooo"; // Breaking abstraction boundaries. Bad.
 
 var bogusMessageInfos = [
-  // This message has a malformed part as an attachment, so it will end up as a
-  // MimeUnknown part. However, because that part precisely happens to be an
-  // attachment, it will have its size counted, so we do a specific count to
-  // make sure the size matches.
-  {
-    name: 'MimeUnknown attachment (actually, a message)',
-    bodyPart: new SyntheticPartMultiMixed([
-      partHtml,
-      bogusMessage,
-    ]),
-    epsilon: 6,
-    checkSize: true,
-  },
   // In this case, the wooooo part is not an attachment, so its bytes won't be
   // counted (size will end up being 0 bytes). We don't check the size, but
   // check_bogus_parts makes sure we're able to come up with a resulting size
@@ -354,11 +359,41 @@ function test_bogus_messages(info) {
   yield false;
 }
 
+// The goal here is to explicitly check that these messages have attachments.
+var messageHaveAttachmentsInfos = [
+  {
+    name: 'multipart/related',
+    bodyPart: new SyntheticPartMultiMixed([partHtml, partTachVCard]),
+    number: 1,
+  },
+];
+
+function test_have_attachments(info) {
+  let synMsg = gMessageGenerator.makeMessage(info);
+  let synSet = new SyntheticMessageSet([synMsg]);
+  yield add_sets_to_folder(gInbox, [synSet]);
+
+  let msgHdr = synSet.getMsgHdr(0);
+  // dump(synMsg.toMboxString());
+
+  MsgHdrToMimeMessage(msgHdr, null, function(aMsgHdr, aMimeMsg) {
+    try {
+      do_check_eq(aMimeMsg.allUserAttachments.length, info.number);
+      async_driver();
+    } catch (e) {
+      do_throw(e);
+    }
+  });
+
+  yield false;
+}
+
 /* ===== Driver ===== */
 
 var tests = [
   parameterizeTest(test_message_attachments, messageInfos),
   parameterizeTest(test_bogus_messages, bogusMessageInfos),
+  parameterizeTest(test_have_attachments, messageHaveAttachmentsInfos),
 ];
 
 var gInbox;

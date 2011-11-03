@@ -63,7 +63,7 @@
 
 #include "mozilla/Omnijar.h"
 
-class nsIDOMWindowInternal;
+class nsIDOMWindow;
 class nsIURL;
 
 // The chrome registry is actually split between nsChromeRegistryChrome and
@@ -116,7 +116,7 @@ protected:
 
   // Update the selected locale used by the chrome registry, and fire a
   // notification about this change
-  virtual void UpdateSelectedLocale() = 0;
+  virtual nsresult UpdateSelectedLocale() = 0;
 
   static void LogMessage(const char* aMsg, ...);
   static void LogMessageWithContext(nsIURI* aURL, PRUint32 aLineNumber, PRUint32 flags,
@@ -130,7 +130,7 @@ protected:
 
   nsresult SelectLocaleFromPref(nsIPrefBranch* prefs);
 
-  static nsresult RefreshWindow(nsIDOMWindowInternal* aWindow);
+  static nsresult RefreshWindow(nsIDOMWindow* aWindow);
   static nsresult GetProviderAndPath(nsIURL* aChromeURL,
                                      nsACString& aProvider, nsACString& aPath);
 

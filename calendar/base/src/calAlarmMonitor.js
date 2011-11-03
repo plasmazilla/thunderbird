@@ -52,6 +52,9 @@ function peekAlarmWindow() {
 function calAlarmMonitor() {
     this.wrappedJSObject = this;
     this.mAlarms = [];
+
+    this.mSound = Components.classes["@mozilla.org/sound;1"]
+                            .createInstance(Components.interfaces.nsISound);
 }
 
 calAlarmMonitor.prototype = {
@@ -61,6 +64,9 @@ calAlarmMonitor.prototype = {
     // we call openWindow and when it appears via getMostRecentWindow.  If an
     // alarm is fired in that time-frame, it will actually end up in another window.
     mWindowOpening: null,
+
+    // nsISound instance used for playing all sounds
+    mSound: null,
 
     QueryInterface: function cAM_QueryInterface(aIID) {
         return cal.doQueryInterface(this, calAlarmMonitor.prototype, aIID, null, this);
@@ -141,14 +147,11 @@ calAlarmMonitor.prototype = {
                 // Only ring the alarm sound if we haven't hit the max count.
                 try {
                     let soundURL = getPrefSafe("calendar.alarms.soundURL", null);
-                    let sound = Components.classes["@mozilla.org/sound;1"]
-                                          .createInstance(Components.interfaces.nsISound);
-                    sound.init();
                     if (soundURL && soundURL.length > 0) {
                         soundURL = makeURL(soundURL);
-                        sound.play(soundURL);
+                        this.mSound.play(soundURL);
                     } else {
-                        sound.beep();
+                        this.mSound.beep();
                     }
                 } catch (exc) {
                     cal.ERROR("Error playing alarm sound: " + exc);
@@ -179,8 +182,14 @@ calAlarmMonitor.prototype = {
     window_onLoad: function cAM_window_onLoad() {
         let calAlarmWindow = this.mWindowOpening;
         this.mWindowOpening = null;
-        for each (let [item, alarm] in this.mAlarms) {
-            calAlarmWindow.addWidgetFor(item, alarm);
+        if (this.mAlarms.length > 0) {
+            for each (let [item, alarm] in this.mAlarms) {
+                calAlarmWindow.addWidgetFor(item, alarm);
+            }
+        } else {
+            // Uh oh, it seems the alarms were removed even before the window
+            // finished loading. Looks like we can close it again
+            calAlarmWindow.closeIfEmpty();
         }
     },
 
@@ -188,7 +197,7 @@ calAlarmMonitor.prototype = {
         let calAlarmWindow = peekAlarmWindow();
         this.mAlarms = this.mAlarms.filter(function(itemAlarm) {
             let [thisItem, alarm] = itemAlarm;
-            let ret = (aItem.hashId != thisItem.parentItem.hashId);
+            let ret = (aItem.hashId != thisItem.hashId);
             if (!ret && calAlarmWindow) { // window is open
                 calAlarmWindow.removeWidgetFor(thisItem, alarm);
             }

@@ -227,37 +227,9 @@ endif # NS_TRACE_MALLOC
 endif # MOZ_DEBUG
 endif # WINNT && !GNU_CC
 
-#
-# Build using PIC by default
-# Do not use PIC if not building a shared lib (see exceptions below)
-#
-
-ifndef BUILD_STATIC_LIBS
-_ENABLE_PIC=1
-endif
-ifneq (,$(FORCE_SHARED_LIB)$(FORCE_USE_PIC))
-_ENABLE_PIC=1
-endif
-
-# If module is going to be merged into the nsStaticModule, 
-# make sure that the entry points are translated and 
-# the module is built static.
-
-ifdef IS_COMPONENT
-ifdef EXPORT_LIBRARY
-ifneq (,$(BUILD_STATIC_LIBS))
-ifdef MODULE_NAME
-DEFINES += -DXPCOM_TRANSLATE_NSGM_ENTRY_POINT=1
-FORCE_STATIC_LIB=1
-endif
-endif
-endif
-endif
-
 # Determine if module being compiled is destined 
 # to be merged into libxul
 
-ifdef MOZ_ENABLE_LIBXUL
 ifdef LIBXUL_LIBRARY
 ifdef IS_COMPONENT
 ifdef MODULE_NAME
@@ -267,9 +239,7 @@ $(error Component makefile does not specify MODULE_NAME.)
 endif
 endif
 FORCE_STATIC_LIB=1
-_ENABLE_PIC=1
 SHORT_LIBNAME=
-endif
 endif
 
 # If we are building this component into an extension/xulapp, it cannot be
@@ -277,24 +247,10 @@ endif
 # build option.
 
 ifdef XPI_NAME
-_ENABLE_PIC=1
 ifdef IS_COMPONENT
 EXPORT_LIBRARY=
 FORCE_STATIC_LIB=
 FORCE_SHARED_LIB=1
-endif
-endif
-
-#
-# Disable PIC if necessary
-#
-
-ifndef _ENABLE_PIC
-DSO_CFLAGS=
-ifeq ($(OS_ARCH)_$(HAVE_GCC3_ABI),Darwin_1)
-DSO_PIC_CFLAGS=-mdynamic-no-pic
-else
-DSO_PIC_CFLAGS=
 endif
 endif
 
@@ -353,7 +309,6 @@ endif
 
 # Force XPCOM/widget/gfx methods to be _declspec(dllexport) when we're
 # building libxul libraries
-ifdef MOZ_ENABLE_LIBXUL
 ifdef LIBXUL_LIBRARY
 DEFINES += \
 		-D_IMPL_NS_COM \
@@ -368,20 +323,6 @@ DEFINES += \
 
 ifndef MOZ_NATIVE_ZLIB
 DEFINES += -DZLIB_INTERNAL
-endif
-endif
-endif
-
-# Force _all_ exported methods to be |_declspec(dllexport)| when we're
-# building them into the executable.
-
-ifeq (,$(filter-out WINNT WINCE OS2, $(OS_ARCH)))
-ifdef BUILD_STATIC_LIBS
-DEFINES += \
-        -D_IMPL_NS_GFX \
-        -D_IMPL_NS_MSG_BASE \
-        -D_IMPL_NS_WIDGET \
-        $(NULL)
 endif
 endif
 
@@ -420,23 +361,14 @@ MY_RULES	:= $(DEPTH)/config/myrules.mk
 # Default command macros; can be overridden in <arch>.mk.
 #
 CCC		= $(CXX)
-NFSPWD		= $(CONFIG_TOOLS)/nfspwd
 PURIFY		= purify $(PURIFYOPTIONS)
 QUANTIFY	= quantify $(QUANTIFYOPTIONS)
 ifdef CROSS_COMPILE
 XPIDL_COMPILE 	= $(CYGWIN_WRAPPER) $(LIBXUL_DIST)/host/bin/host_xpidl$(HOST_BIN_SUFFIX)
-ifdef MOZILLA_5_0_BRANCH
-XPIDL_LINK	= $(CYGWIN_WRAPPER) $(LIBXUL_DIST)/host/bin/host_xpt_link$(HOST_BIN_SUFFIX)
-endif
 else
 XPIDL_COMPILE 	= $(CYGWIN_WRAPPER) $(LIBXUL_DIST)/bin/xpidl$(BIN_SUFFIX)
-ifdef MOZILLA_5_0_BRANCH
-XPIDL_LINK	= $(CYGWIN_WRAPPER) $(LIBXUL_DIST)/bin/xpt_link$(BIN_SUFFIX)
 endif
-endif
-ifndef MOZILLA_5_0_BRANCH
 XPIDL_LINK = $(PYTHON) $(SDK_BIN_DIR)/xpt.py link
-endif
 
 INCLUDES = \
   $(LOCAL_INCLUDES) \
@@ -612,13 +544,6 @@ ifeq (2,$(MOZ_OPTIMIZE))
 PBBUILD_SETTINGS += GCC_MODEL_TUNING= OPTIMIZATION_CFLAGS="$(MOZ_OPTIMIZE_FLAGS)"
 endif # MOZ_OPTIMIZE=2
 endif # MOZ_OPTIMIZE
-ifeq (1,$(HAS_XCODE_2_1))
-# Xcode 2.1 puts its build products in a directory corresponding to the
-# selected build style/configuration.
-XCODE_PRODUCT_DIR = build/$(BUILDSTYLE)
-else
-XCODE_PRODUCT_DIR = build
-endif # HAS_XCODE_2_1=1
 endif # OS_ARCH=Darwin
 
 
@@ -700,36 +625,37 @@ NSINSTALL	= $(CONFIG_TOOLS)/nsinstall$(HOST_BIN_SUFFIX)
 endif # OS2
 endif # NSINSTALL_BIN
 
-
 ifeq (,$(CROSS_COMPILE)$(filter-out WINNT OS2, $(OS_ARCH)))
 INSTALL		= $(NSINSTALL)
 else
-ifeq ($(NSDISTMODE),copy)
-# copy files, but preserve source mtime
-INSTALL		= $(NSINSTALL) -t
-else
-ifeq ($(NSDISTMODE),absolute_symlink)
-# install using absolute symbolic links
-ifeq ($(OS_ARCH),Darwin)
-INSTALL		= $(NSINSTALL) -L $(PWD)
-else
-INSTALL		= $(NSINSTALL) -L `$(NFSPWD)`
-endif # Darwin
-else
-# install using relative symbolic links
-INSTALL		= $(NSINSTALL) -R
-endif # absolute_symlink
-endif # copy
+
+# This isn't laid out as conditional directives so that NSDISTMODE can be
+# target-specific.
+INSTALL         = $(if $(filter copy, $(NSDISTMODE)), $(NSINSTALL) -t, $(if $(filter absolute_symlink, $(NSDISTMODE)), $(NSINSTALL) -L $(PWD), $(NSINSTALL) -R))
+
 endif # WINNT/OS2
 
 # Use nsinstall in copy mode to install files on the system
 SYSINSTALL	= $(NSINSTALL) -t
+
+# Directory nsinstall. Windows and OS/2 nsinstall can't recursively copy
+# directories.
+ifneq (,$(filter WINNT os2-emx,$(HOST_OS_ARCH)))
+DIR_INSTALL = $(PYTHON) $(MOZILLA_SRCDIR)/config/nsinstall.py
+else
+DIR_INSTALL = $(INSTALL)
+endif # WINNT
 
 ifeq ($(OS_ARCH),WINNT)
 ifneq (,$(CYGDRIVE_MOUNT))
 export CYGDRIVE_MOUNT
 endif
 endif
+
+# png to ico converter. The function takes 5 arguments, in order: source png
+# file, left, top, size, output ico file.
+png2ico = $(PYTHON) $(MOZILLA_DIR)/config/pythonpath.py \
+  -I$(topsrcdir)/build/pypng $(topsrcdir)/build/png2ico.py $(1) $(2) $(3) $(4) $(5)
 
 #
 # Localization build automation

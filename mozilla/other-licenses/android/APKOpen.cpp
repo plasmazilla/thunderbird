@@ -121,7 +121,7 @@ struct cdir_end {
 
 static size_t zip_size;
 static int zip_fd;
-static struct mapping_info * lib_mapping;
+static struct mapping_info * lib_mapping = NULL;
 
 NS_EXPORT const struct mapping_info *
 getLibraryMapping()
@@ -239,6 +239,7 @@ SHELL_WRAPPER0(onLowMemory)
 SHELL_WRAPPER3(callObserver, jstring, jstring, jstring)
 SHELL_WRAPPER1(removeObserver, jstring)
 SHELL_WRAPPER1(onChangeNetworkLinkStatus, jstring)
+SHELL_WRAPPER1(reportJavaCrash, jstring)
 
 static void * xul_handle = NULL;
 static time_t apk_mtime = 0;
@@ -248,11 +249,6 @@ extern "C" int extractLibs = 1;
 extern "C" int extractLibs = 0;
 #endif
 
-#ifdef DEBUG
-#define DEBUG_EXTRACT_LIBS 1
-#endif
-
-#ifdef DEBUG_EXTRACT_LIBS
 static uint32_t simple_write(int fd, const void *buf, uint32_t count)
 {
   uint32_t out_offset = 0;
@@ -332,7 +328,6 @@ extractFile(const char * path, const struct cdir_entry *entry, void * data)
   close(fd);
   munmap(buf, 4096);
 }
-#endif
 
 static void
 extractLib(const struct cdir_entry *entry, void * data, void * dest)
@@ -453,7 +448,6 @@ static void * mozload(const char * path, void *zip,
   void * data = ((void *)&file->data) + letoh16(file->filename_size) + letoh16(file->extra_field_size);
   void * handle;
 
-#ifdef DEBUG_EXTRACT_LIBS
   if (extractLibs) {
     char fullpath[PATH_MAX];
     snprintf(fullpath, PATH_MAX, "%s/%s", getenv("CACHE_PATH"), path + 4);
@@ -472,7 +466,7 @@ static void * mozload(const char * path, void *zip,
 #endif
     return handle;
   }
-#endif
+
   size_t offset = letoh32(entry->offset) + sizeof(*file) + letoh16(file->filename_size) + letoh16(file->extra_field_size);
   bool skipLibCache = false;
   int fd = zip_fd;
@@ -646,8 +640,8 @@ loadLibs(const char *apkName)
 
   struct cdir_entry *cdir_start = (struct cdir_entry *)(zip + cdir_offset);
 
-#ifdef MOZ_CRASHREPORTER
   lib_mapping = (struct mapping_info *)calloc(MAX_MAPPING_INFO, sizeof(*lib_mapping));
+#ifdef MOZ_CRASHREPORTER
   file_ids = (char *)extractBuf("lib.id", zip, cdir_start, cdir_entries);
 #endif
 
@@ -688,12 +682,15 @@ loadLibs(const char *apkName)
   GETFUNC(callObserver);
   GETFUNC(removeObserver);
   GETFUNC(onChangeNetworkLinkStatus);
+  GETFUNC(reportJavaCrash);
 #undef GETFUNC
   gettimeofday(&t1, 0);
   struct rusage usage2;
   getrusage(RUSAGE_SELF, &usage2);
-  __android_log_print(ANDROID_LOG_ERROR, "GeckoLibLoad", "Loaded libs in %dms total, %d faults",
+  __android_log_print(ANDROID_LOG_ERROR, "GeckoLibLoad", "Loaded libs in %dms total, %dms user, %dms system, %d faults",
                       (t1.tv_sec - t0.tv_sec)*1000 + (t1.tv_usec - t0.tv_usec)/1000, 
+                      (usage2.ru_utime.tv_sec - usage1.ru_utime.tv_sec)*1000 + (usage2.ru_utime.tv_usec - usage1.ru_utime.tv_usec)/1000,
+                      (usage2.ru_stime.tv_sec - usage1.ru_stime.tv_sec)*1000 + (usage2.ru_stime.tv_usec - usage1.ru_stime.tv_usec)/1000,
                       usage2.ru_majflt-usage1.ru_majflt);
 }
 
@@ -767,7 +764,7 @@ ChildProcessInit(int argc, char* argv[])
 {
   int i;
   for (i = 0; i < (argc - 1); i++) {
-    if (strcmp(argv[i], "-omnijar"))
+    if (strcmp(argv[i], "-greomni"))
       continue;
 
     i = i + 1;

@@ -106,8 +106,8 @@ var gCalendarManagerAddonListener = {
         const features = "chrome,titlebar,resizable,modal";
         let calMgr = cal.getCalendarManager();
         let affectedCalendars =
-            [ cal for each (cal in calMgr.getCalendars({}))
-              if (cal.providerID == aAddon.id) ];
+            [ calendar for each (calendar in calMgr.getCalendars({}))
+              if (calendar.providerID == aAddon.id) ];
         if (!affectedCalendars.length) {
             // If no calendars are affected, then everything is fine.
             return true;
@@ -192,12 +192,18 @@ calCalendarManager.prototype = {
 
         Services.obs.addObserver(this, "http-on-modify-request", false);
 
+        // We only add the observer if the pref is set and only check for the
+        // pref on startup to avoid checking for every http request
+        if (cal.getPrefSafe("calendar.network.multirealm", false)) {
+            Services.obs.addObserver(this, "http-on-examine-response", false);
+        }
+
         aCompleteListener.onResult(null, Components.results.NS_OK);
     },
 
     shutdown: function ccm_shutdown(aCompleteListener) {
-        for each (var cal in this.mCache) {
-            cal.removeObserver(this.mCalObservers[cal.id]);
+        for each (var calendar in this.mCache) {
+            calendar.removeObserver(this.mCalObservers[calendar.id]);
         }
 
         this.cleanupOfflineObservers();
@@ -205,7 +211,15 @@ calCalendarManager.prototype = {
         Services.obs.removeObserver(this, "profile-after-change");
         Services.obs.removeObserver(this, "profile-before-change");
         Services.obs.removeObserver(this, "http-on-modify-request");
+
         AddonManager.removeAddonListener(gCalendarManagerAddonListener);
+
+        // Remove the observer if the pref is set. This might fail when the
+        // user flips the pref, but we assume he is going to restart anyway
+        // afterwards.
+        if (cal.getPrefSafe("calendar.network.multirealm", false)) {
+            Services.obs.removeObserver(this, "http-on-examine-response");
+        }
 
         aCompleteListener.onResult(null, Components.results.NS_OK);
     },
@@ -248,9 +262,9 @@ calCalendarManager.prototype = {
             case "timer-callback":
                 // Refresh all the calendars that can be refreshed.
                 var cals = this.getCalendars({});
-                for each (var cal in cals) {
-                    if (!cal.getProperty("disabled") && cal.canRefresh) {
-                        cal.refresh();
+                for each (var calendar in cals) {
+                    if (!calendar.getProperty("disabled") && calendar.canRefresh) {
+                        calendar.refresh();
                     }
                 }
                 break;
@@ -259,6 +273,32 @@ calCalendarManager.prototype = {
                     if (calendar instanceof calCachedCalendar) {
                         calendar.onOfflineStatusChanged(aData == "offline");
                     }
+                }
+                break;
+            case "http-on-examine-response":
+                try {
+                    let channel = aSubject.QueryInterface(Components.interfaces.nsIHttpChannel);
+                    if (channel.notificationCallbacks) {
+                        // We use the notification callbacks to get the calendar interface,
+                        // which likely works for our requests since getInterface is called
+                        // from the calendar provider context.
+                        let authHeader = channel.getResponseHeader("WWW-Authenticate");
+                        let calendar = channel.notificationCallbacks
+                                              .getInterface(Components.interfaces.calICalendar);
+                        if (calendar && !calendar.getProperty("capabilities.realmrewrite.disabled")) {
+                            // The provider may choose to explicitly disable the
+                            // rewriting, for example if all calendars on a
+                            // domain have the same credentials
+                            authHeader = authHeader.replace(/realm="(.*)"/, 'realm="$1 (' + calendar.name + ')"');
+                            channel.setResponseHeader("WWW-Authenticate", authHeader, false);
+                        }
+                    }
+                } catch (e if e.result == Components.results.NS_NOINTERFACE ||
+                              e.result == Components.results.NS_ERROR_NOT_AVAILABLE) {
+                    // Possible reasons we got here:
+                    // - Its not a http channel (wtf? Oh well)
+                    // - The owner is not a calICalendar (looks like its not our deal)
+                    // - The WWW-Authenticate header is missing (thats ok)
                 }
                 break;
             case "http-on-modify-request":
@@ -753,8 +793,8 @@ calCalendarManager.prototype = {
     getCalendars: function cmgr_getCalendars(count) {
         this.assureCache();
         var calendars = [];
-        for each (var cal in this.mCache) {
-            calendars.push(cal);
+        for each (var calendar in this.mCache) {
+            calendars.push(calendar);
         }
         count.value = calendars.length;
         return calendars;

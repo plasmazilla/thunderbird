@@ -48,7 +48,6 @@
 #include "nsReadableUtils.h"
 #include "nsLocaleCID.h"
 #include "nsIServiceManager.h"
-#include "nsITimelineService.h"
 #include "nsPlatformCharset.h"
 
 static const char* kOS2Charsets[][3] = {
@@ -59,17 +58,13 @@ NS_IMPL_ISUPPORTS1(nsPlatformCharset, nsIPlatformCharset)
 
 nsPlatformCharset::nsPlatformCharset()
 {
-  NS_TIMELINE_START_TIMER("nsPlatformCharset()");
-
   UINT acp = ::WinQueryCp(HMQ_CURRENT);
   PRInt32 acpint = (PRInt32)(acp & 0x00FFFF);
   nsAutoString acpKey(NS_LITERAL_STRING("os2."));
   acpKey.AppendInt(acpint, 10);
   nsresult res = MapToCharset(acpKey, mCharset);
+}
 
-  NS_TIMELINE_STOP_TIMER("nsPlatformCharset()");
-  NS_TIMELINE_MARK_TIMER("nsPlatformCharset()");
-          }
 nsPlatformCharset::~nsPlatformCharset()
 {
 }
@@ -139,12 +134,6 @@ nsPlatformCharset::GetDefaultCharsetForLocale(const nsAString& localeName, nsACS
 
 NS_IMETHODIMP 
 nsPlatformCharset::Init()
-{
-  return NS_OK;
-}
-
-nsresult 
-nsPlatformCharset::MapToCharset(short script, short region, nsACString& outCharset)
 {
   return NS_OK;
 }

@@ -165,8 +165,8 @@ function nsMsgDBViewCommandUpdater()
 function UpdateStandAloneMessageCounts()
 {
   // hook for extra toolbar items
-  var observerService = Components.classes["@mozilla.org/observer-service;1"].getService(Components.interfaces.nsIObserverService);
-  observerService.notifyObservers(window, "mail:updateStandAloneMessageCounts", "");
+  Services.obs.notifyObservers(window,
+                               "mail:updateStandAloneMessageCounts", "");
 }
 
 nsMsgDBViewCommandUpdater.prototype = 
@@ -427,8 +427,7 @@ function CreateView(originalView)
   SetUpToolbarButtons(uri);
 
   // hook for extra toolbar items
-  var observerService = Components.classes["@mozilla.org/observer-service;1"].getService(Components.interfaces.nsIObserverService);
-  observerService.notifyObservers(window, "mail:setupToolbarItems", uri);
+  Services.obs.notifyObservers(window, "mail:setupToolbarItems", uri);
 }
 
 function extractMsgKeyFromURI()
@@ -581,8 +580,7 @@ function RerootFolderForStandAlone(uri)
   UpdateMailToolbar("reroot folder in stand alone window");
   
   // hook for extra toolbar items
-  var observerService = Components.classes["@mozilla.org/observer-service;1"].getService(Components.interfaces.nsIObserverService);
-  observerService.notifyObservers(window, "mail:setupToolbarItems", uri);
+  Services.obs.notifyObservers(window, "mail:setupToolbarItems", uri);
 } 
 
 function GetMsgHdrFromUri(messageUri)
@@ -666,7 +664,7 @@ var MessageWindowController =
       case "cmd_editAsNew":
       case "cmd_getNextNMessages":
       case "cmd_find":
-      case "cmd_findAgain":
+      case "cmd_findNext":
       case "cmd_findPrev":
       case "button_search":
       case "cmd_search":
@@ -686,7 +684,7 @@ var MessageWindowController =
       case "cmd_synchronizeOffline":
       case "cmd_downloadFlagged":
       case "cmd_downloadSelected":
-        return CheckOnline();
+        return !Services.io.offline;
       default:
         return false;
     }
@@ -773,7 +771,7 @@ var MessageWindowController =
 			case "cmd_downloadFlagged":
 			case "cmd_downloadSelected":
       case "cmd_synchronizeOffline":
-                return CheckOnline();
+        return !Services.io.offline;
 			case "cmd_settingsOffline":
                 return IsAccountOfflineEnabled();
 			case "cmd_close":
@@ -787,7 +785,7 @@ var MessageWindowController =
       case "cmd_previousFlaggedMsg":
       case "cmd_applyFiltersToSelection":
 				return true;
-			case "cmd_findAgain":
+      case "cmd_findNext":
 			case "cmd_findPrev":
 				return MsgCanFindAgain();
       case "cmd_goBack":
@@ -917,7 +915,7 @@ var MessageWindowController =
 			case "cmd_find":
 				MsgFind();
 				break;
-			case "cmd_findAgain":
+      case "cmd_findNext":
 				MsgFindAgain(false);
 				break;
 			case "cmd_findPrev":

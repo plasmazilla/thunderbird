@@ -258,11 +258,11 @@
  * Deprecated declarations.
  */
 #if (__GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ >= 1))
-# define NS_DEPRECATED __attribute__((deprecated))
+# define MOZ_DEPRECATED __attribute__((deprecated))
 #elif defined(_MSC_VER) && (_MSC_VER >= 1300)
-# define NS_DEPRECATED __declspec(deprecated)
+# define MOZ_DEPRECATED __declspec(deprecated)
 #else
-# define NS_DEPRECATED
+# define MOZ_DEPRECATED
 #endif
 
 /**
@@ -295,15 +295,7 @@
 #define XPCOM_API(type) IMPORT_XPCOM_API(type)
 #endif
 
-#ifdef MOZ_ENABLE_LIBXUL
 #define NS_COM
-#elif defined(_IMPL_NS_COM)
-#define NS_COM NS_EXPORT
-#elif defined(XPCOM_GLUE)
-#define NS_COM
-#else
-#define NS_COM NS_IMPORT
-#endif
 
 #ifdef MOZILLA_INTERNAL_API
 #  define NS_COM_GLUE NS_COM

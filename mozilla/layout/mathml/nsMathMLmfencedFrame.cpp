@@ -24,6 +24,7 @@
  *   David J. Fiddes <D.J.Fiddes@hw.ac.uk>
  *   Pierre Phaneuf <pp@ludusdesign.com>
  *   Frederic Wang <fred.wang@free.fr>
+ *   Florian Scholz <elchi3@elchi3.de>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -45,8 +46,7 @@
 #include "nsPresContext.h"
 #include "nsStyleContext.h"
 #include "nsStyleConsts.h"
-#include "nsIRenderingContext.h"
-#include "nsIFontMetrics.h"
+#include "nsRenderingContext.h"
 
 #include "nsMathMLmfencedFrame.h"
 
@@ -75,6 +75,9 @@ nsMathMLmfencedFrame::InheritAutomaticData(nsIFrame* aParent)
 
   mPresentationData.flags |= NS_MATHML_STRETCH_ALL_CHILDREN_VERTICALLY;
 
+  RemoveFencesAndSeparators();
+  CreateFencesAndSeparators(PresContext());
+
   return NS_OK;
 }
 
@@ -86,6 +89,10 @@ nsMathMLmfencedFrame::SetInitialChildList(nsIAtom*        aListName,
   nsresult rv = nsMathMLContainerFrame::SetInitialChildList(aListName, aChildList);
   if (NS_FAILED(rv)) return rv;
 
+  // InheritAutomaticData will not get called if our parent is not a mathml
+  // frame, so initialize NS_MATHML_STRETCH_ALL_CHILDREN_VERTICALLY for
+  // GetPreferredStretchSize() from Reflow().
+  mPresentationData.flags |= NS_MATHML_STRETCH_ALL_CHILDREN_VERTICALLY;
   // No need to track the style contexts given to our MathML chars. 
   // The Style System will use Get/SetAdditionalStyleContext() to keep them
   // up-to-date if dynamic changes arise.
@@ -117,8 +124,8 @@ nsMathMLmfencedFrame::ChildListChanged(PRInt32 aModType)
 void
 nsMathMLmfencedFrame::RemoveFencesAndSeparators()
 {
-  if (mOpenChar) delete mOpenChar;
-  if (mCloseChar) delete mCloseChar;
+  delete mOpenChar;
+  delete mCloseChar;
   if (mSeparatorsChar) delete[] mSeparatorsChar;
 
   mOpenChar = nsnull;
@@ -239,14 +246,13 @@ nsMathMLmfencedFrame::Reflow(nsPresContext*          aPresContext,
   nsresult rv;
   aDesiredSize.width = aDesiredSize.height = 0;
   aDesiredSize.ascent = 0;
-  aDesiredSize.mBoundingMetrics.Clear();
+  aDesiredSize.mBoundingMetrics = nsBoundingMetrics();
 
   PRInt32 i;
-  nsCOMPtr<nsIFontMetrics> fm;
   const nsStyleFont* font = GetStyleFont();
-  aReflowState.rendContext->SetFont(font->mFont,
-                                    aPresContext->GetUserFontSet());
-  aReflowState.rendContext->GetFontMetrics(*getter_AddRefs(fm));
+  nsRefPtr<nsFontMetrics> fm;
+  nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm));
+  aReflowState.rendContext->SetFont(fm);
   nscoord axisHeight, em;
   GetAxisHeight(*aReflowState.rendContext, fm, axisHeight);
   GetEmHeight(fm, em);
@@ -271,10 +277,11 @@ nsMathMLmfencedFrame::Reflow(nsPresContext*          aPresContext,
   nsIFrame* childFrame = firstChild;
   nscoord ascent = 0, descent = 0;
   if (firstChild || mOpenChar || mCloseChar || mSeparatorsCount > 0) {
-    // We use the ASCII metrics to get our minimum height. This way, if we have
-    // borders or a background, they will fit better with other elements on the line
-    fm->GetMaxAscent(ascent);
-    fm->GetMaxDescent(descent);
+    // We use the ASCII metrics to get our minimum height. This way,
+    // if we have borders or a background, they will fit better with
+    // other elements on the line.
+    ascent = fm->MaxAscent();
+    descent = fm->MaxDescent();
   }
   while (childFrame) {
     nsHTMLReflowMetrics childDesiredSize(aDesiredSize.mFlags
@@ -308,8 +315,6 @@ nsMathMLmfencedFrame::Reflow(nsPresContext*          aPresContext,
   nsBoundingMetrics containerSize;
   nsStretchDirection stretchDir = NS_STRETCH_DIRECTION_VERTICAL;
 
-  nsPresentationData presentationData;
-  GetPresentationData(presentationData);
   GetPreferredStretchSize(*aReflowState.rendContext,
                           0, /* i.e., without embellishments */
                           stretchDir, containerSize);
@@ -347,12 +352,10 @@ nsMathMLmfencedFrame::Reflow(nsPresContext*          aPresContext,
   // adjust the origin of children.
 
   // we need to center around the axis
-  if (firstChild) { // do nothing for an empty <mfenced></mfenced>
-    nscoord delta = NS_MAX(containerSize.ascent - axisHeight, 
-                           containerSize.descent + axisHeight);
-    containerSize.ascent = delta + axisHeight;
-    containerSize.descent = delta - axisHeight;
-  }
+  nscoord delta = NS_MAX(containerSize.ascent - axisHeight, 
+                         containerSize.descent + axisHeight);
+  containerSize.ascent = delta + axisHeight;
+  containerSize.descent = delta - axisHeight;
 
   /////////////////
   // opening fence ...
@@ -468,7 +471,7 @@ GetCharSpacing(nsMathMLChar*        aMathMLChar,
 // helper functions to perform the common task of formatting our chars
 /*static*/ nsresult
 nsMathMLmfencedFrame::ReflowChar(nsPresContext*      aPresContext,
-                                 nsIRenderingContext& aRenderingContext,
+                                 nsRenderingContext& aRenderingContext,
                                  nsMathMLChar*        aMathMLChar,
                                  nsOperatorFlags      aForm,
                                  PRInt32              aScriptLevel,
@@ -503,11 +506,11 @@ nsMathMLmfencedFrame::ReflowChar(nsPresContext*      aPresContext,
       if (NS_FAILED(res)) {
         nsAutoString data;
         aMathMLChar->GetData(data);
-        nsTextDimensions dimensions;
-        aRenderingContext.GetTextDimensions(data.get(), data.Length(), dimensions);
-        charSize.ascent = dimensions.ascent;
-        charSize.descent = dimensions.descent;
-        charSize.width = dimensions.width;
+        nsBoundingMetrics metrics =
+          aRenderingContext.GetBoundingMetrics(data.get(), data.Length());
+        charSize.ascent = metrics.ascent;
+        charSize.descent = metrics.descent;
+        charSize.width = metrics.width;
         // Set this as the bounding metrics of the MathMLChar to leave
         // the necessary room to paint the char.
         aMathMLChar->SetBoundingMetrics(charSize);
@@ -565,7 +568,7 @@ nsMathMLmfencedFrame::PlaceChar(nsMathMLChar*      aMathMLChar,
 
 static nscoord
 GetMaxCharWidth(nsPresContext*       aPresContext,
-                nsIRenderingContext* aRenderingContext,
+                nsRenderingContext* aRenderingContext,
                 nsMathMLChar*        aMathMLChar,
                 nsOperatorFlags      aForm,
                 PRInt32              aScriptLevel,
@@ -585,13 +588,14 @@ GetMaxCharWidth(nsPresContext*       aPresContext,
 }
 
 /* virtual */ nscoord
-nsMathMLmfencedFrame::GetIntrinsicWidth(nsIRenderingContext* aRenderingContext)
+nsMathMLmfencedFrame::GetIntrinsicWidth(nsRenderingContext* aRenderingContext)
 {
   nscoord width = 0;
 
   nsPresContext* presContext = PresContext();
   const nsStyleFont* font = GetStyleFont();
-  nsCOMPtr<nsIFontMetrics> fm = presContext->GetMetricsFor(font->mFont);
+  nsRefPtr<nsFontMetrics> fm;
+  nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm));
   nscoord em;
   GetEmHeight(fm, em);
 

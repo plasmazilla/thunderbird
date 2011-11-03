@@ -203,7 +203,7 @@ class NodeBuilder
             Value funv;
 
             const char *name = callbackNames[i];
-            JSAtom *atom = js_Atomize(cx, name, strlen(name), 0);
+            JSAtom *atom = js_Atomize(cx, name, strlen(name));
             if (!atom || !GetPropertyDefault(cx, userobj, ATOM_TO_JSID(atom), NullValue(), &funv))
                 return false;
 
@@ -313,7 +313,7 @@ class NodeBuilder
         /*
          * Bug 575416: instead of js_Atomize, lookup constant atoms in tbl file
          */
-        JSAtom *atom = js_Atomize(cx, s, strlen(s), 0);
+        JSAtom *atom = js_Atomize(cx, s, strlen(s));
         if (!atom)
             return false;
 
@@ -425,7 +425,7 @@ class NodeBuilder
         /*
          * Bug 575416: instead of js_Atomize, lookup constant atoms in tbl file
          */
-        JSAtom *atom = js_Atomize(cx, name, strlen(name), 0);
+        JSAtom *atom = js_Atomize(cx, name, strlen(name));
         if (!atom)
             return false;
 
@@ -907,29 +907,20 @@ bool
 NodeBuilder::tryStatement(Value body, NodeVector &catches, Value finally,
                           TokenPos *pos, Value *dst)
 {
-    Value handler;
+    Value handlers;
 
     Value cb = callbacks[AST_TRY_STMT];
     if (!cb.isNull()) {
-        return newArray(catches, &handler) &&
-               callback(cb, body, handler, opt(finally), pos, dst);
+        return newArray(catches, &handlers) &&
+               callback(cb, body, handlers, opt(finally), pos, dst);
     }
 
-    switch (catches.length()) {
-      case 0:
-        handler.setNull();
-        break;
-      case 1:
-        handler = catches[0];
-        break;
-      default:
-        if (!newArray(catches, &handler))
-            return false;
-    }
+    if (!newArray(catches, &handlers))
+        return false;
 
     return newNode(AST_TRY_STMT, pos,
                    "block", body,
-                   "handler", handler,
+                   "handlers", handlers,
                    "finalizer", finally,
                    dst);
 }
@@ -1624,7 +1615,6 @@ class ASTSerializer
     bool expressions(JSParseNode *pn, NodeVector &elts);
     bool xmls(JSParseNode *pn, NodeVector &elts);
     bool leftAssociate(JSParseNode *pn, Value *dst);
-    bool binaryOperands(JSParseNode *pn, NodeVector &elts);
     bool functionArgs(JSParseNode *pn, JSParseNode *pnargs, JSParseNode *pndestruct,
                       JSParseNode *pnbody, NodeVector &args);
 
@@ -1892,10 +1882,7 @@ ASTSerializer::blockStatement(JSParseNode *pn, Value *dst)
 bool
 ASTSerializer::program(JSParseNode *pn, Value *dst)
 {
-    JS_ASSERT(pn);
-
-    /* Workaround for bug 588061: parser's reported start position is always 0:0. */
-    pn->pn_pos.begin.lineno = lineno;
+    JS_ASSERT(pn->pn_pos.begin.lineno == lineno);
 
     NodeVector stmts(cx);
     return statements(pn, stmts) &&
@@ -1971,7 +1958,7 @@ ASTSerializer::variableDeclarator(JSParseNode *pn, VarDeclKind *pkind, Value *ds
 
     if (PN_TYPE(pn) == TOK_NAME) {
         pnleft = pn;
-        pnright = pn->pn_expr;
+        pnright = pn->pn_used ? NULL : pn->pn_expr;
     } else {
         JS_ASSERT(PN_TYPE(pn) == TOK_ASSIGN);
         pnleft = pn->pn_left;
@@ -2108,6 +2095,7 @@ ASTSerializer::forInit(JSParseNode *pn, Value *dst)
 bool
 ASTSerializer::statement(JSParseNode *pn, Value *dst)
 {
+    JS_CHECK_RECURSION(cx, return false);
     switch (PN_TYPE(pn)) {
       case TOK_FUNCTION:
       case TOK_VAR:
@@ -2194,12 +2182,12 @@ ASTSerializer::statement(JSParseNode *pn, Value *dst)
         if (PN_TYPE(head) == TOK_IN) {
             Value var, expr;
 
-            return (PN_TYPE(head->pn_left) == TOK_VAR
-                    ? variableDeclaration(head->pn_left, false, &var)
-                    : PN_TYPE(head->pn_left) == TOK_LET
-                    ? variableDeclaration(head->pn_left, true, &var)
-                    : pattern(head->pn_left, NULL, &var)) &&
-                   expression(head->pn_right, &expr) &&
+            return (!head->pn_kid1
+                    ? pattern(head->pn_kid2, NULL, &var)
+                    : variableDeclaration(head->pn_kid1,
+                                          PN_TYPE(head->pn_kid1) == TOK_LET,
+                                          &var)) &&
+                   expression(head->pn_kid3, &expr) &&
                    builder.forInStatement(var, expr, stmt, isForEach, &pn->pn_pos, dst);
         }
 
@@ -2217,40 +2205,13 @@ ASTSerializer::statement(JSParseNode *pn, Value *dst)
         LOCAL_ASSERT(pn->pn_count == 2);
 
         JSParseNode *prelude = pn->pn_head;
-        JSParseNode *body = prelude->pn_next;
+        JSParseNode *loop = prelude->pn_next;
 
-        LOCAL_ASSERT((PN_TYPE(prelude) == TOK_VAR && PN_TYPE(body) == TOK_FOR) ||
-                     (PN_TYPE(prelude) == TOK_SEMI && PN_TYPE(body) == TOK_LEXICALSCOPE));
+        LOCAL_ASSERT(PN_TYPE(prelude) == TOK_VAR && PN_TYPE(loop) == TOK_FOR);
 
-        JSParseNode *loop;
         Value var;
-
-        if (PN_TYPE(prelude) == TOK_VAR) {
-            loop = body;
-
-            if (!variableDeclaration(prelude, false, &var))
-                return false;
-        } else {
-            loop = body->pn_expr;
-
-            LOCAL_ASSERT(PN_TYPE(loop->pn_left) == TOK_IN &&
-                         PN_TYPE(loop->pn_left->pn_left) == TOK_LET &&
-                         loop->pn_left->pn_left->pn_count == 1);
-
-            JSParseNode *pnlet = loop->pn_left->pn_left;
-
-            VarDeclKind kind = VARDECL_LET;
-            NodeVector dtors(cx);
-            Value patt, init, dtor;
-
-            if (!pattern(pnlet->pn_head, &kind, &patt) ||
-                !expression(prelude->pn_kid, &init) ||
-                !builder.variableDeclarator(patt, init, &pnlet->pn_pos, &dtor) ||
-                !dtors.append(dtor) ||
-                !builder.variableDeclaration(dtors, kind, &pnlet->pn_pos, &var)) {
-                return false;
-            }
-        }
+        if (!variableDeclaration(prelude, false, &var))
+            return false;
 
         JSParseNode *head = loop->pn_left;
         JS_ASSERT(PN_TYPE(head) == TOK_IN);
@@ -2259,7 +2220,7 @@ ASTSerializer::statement(JSParseNode *pn, Value *dst)
 
         Value expr, stmt;
 
-        return expression(head->pn_right, &expr) &&
+        return expression(head->pn_kid3, &expr) &&
                statement(loop->pn_right, &stmt) &&
                builder.forInStatement(var, expr, stmt, isForEach, &pn->pn_pos, dst);
       }
@@ -2353,23 +2314,6 @@ ASTSerializer::leftAssociate(JSParseNode *pn, Value *dst)
 }
 
 bool
-ASTSerializer::binaryOperands(JSParseNode *pn, NodeVector &elts)
-{
-    if (pn->pn_arity == PN_BINARY) {
-        Value left, right;
-
-        return expression(pn->pn_left, &left) &&
-               elts.append(left) &&
-               expression(pn->pn_right, &right) &&
-               elts.append(right);
-    }
-
-    LOCAL_ASSERT(pn->pn_arity == PN_LIST);
-
-    return expressions(pn, elts);
-}
-
-bool
 ASTSerializer::comprehensionBlock(JSParseNode *pn, Value *dst)
 {
     LOCAL_ASSERT(pn->pn_arity == PN_BINARY);
@@ -2381,8 +2325,8 @@ ASTSerializer::comprehensionBlock(JSParseNode *pn, Value *dst)
     bool isForEach = pn->pn_iflags & JSITER_FOREACH;
 
     Value patt, src;
-    return pattern(in->pn_left, NULL, &patt) &&
-           expression(in->pn_right, &src) &&
+    return pattern(in->pn_kid2, NULL, &patt) &&
+           expression(in->pn_kid3, &src) &&
            builder.comprehensionBlock(patt, src, isForEach, &in->pn_pos, dst);
 }
 
@@ -2457,6 +2401,7 @@ ASTSerializer::generatorExpression(JSParseNode *pn, Value *dst)
 bool
 ASTSerializer::expression(JSParseNode *pn, Value *dst)
 {
+    JS_CHECK_RECURSION(cx, return false);
     switch (PN_TYPE(pn)) {
       case TOK_FUNCTION:
         return function(pn, AST_FUNC_EXPR, dst);
@@ -2753,6 +2698,7 @@ ASTSerializer::expression(JSParseNode *pn, Value *dst)
 bool
 ASTSerializer::xml(JSParseNode *pn, Value *dst)
 {
+    JS_CHECK_RECURSION(cx, return false);
     switch (PN_TYPE(pn)) {
 #ifdef JS_HAS_XML_SUPPORT
       case TOK_LC:
@@ -2975,6 +2921,7 @@ ASTSerializer::objectPattern(JSParseNode *pn, VarDeclKind *pkind, Value *dst)
 bool
 ASTSerializer::pattern(JSParseNode *pn, VarDeclKind *pkind, Value *dst)
 {
+    JS_CHECK_RECURSION(cx, return false);
     switch (PN_TYPE(pn)) {
       case TOK_RC:
         return objectPattern(pn, pkind, dst);
@@ -3162,20 +3109,6 @@ ASTSerializer::functionBody(JSParseNode *pn, TokenPos *pos, Value *dst)
 
 } /* namespace js */
 
-/* Reflect class */
-
-Class js_ReflectClass = {
-    js_Reflect_str,
-    JSCLASS_HAS_CACHED_PROTO(JSProto_Reflect),
-    PropertyStub,
-    PropertyStub,
-    PropertyStub,
-    StrictPropertyStub,
-    EnumerateStub,
-    ResolveStub,
-    ConvertStub
-};
-
 static JSBool
 reflect_parse(JSContext *cx, uint32 argc, jsval *vp)
 {
@@ -3234,7 +3167,7 @@ reflect_parse(JSContext *cx, uint32 argc, jsval *vp)
                 if (!chars)
                     return JS_FALSE;
 
-                filename = js_DeflateString(cx, chars, length);
+                filename = DeflateString(cx, chars, length);
                 if (!filename)
                     return JS_FALSE;
                 filenamep.reset(filename);
@@ -3274,7 +3207,7 @@ reflect_parse(JSContext *cx, uint32 argc, jsval *vp)
     if (!chars)
         return JS_FALSE;
 
-    Parser parser(cx);
+    Parser parser(cx, NULL, NULL, false);
 
     if (!parser.init(chars, length, filename, lineno, cx->findVersion()))
         return JS_FALSE;
@@ -3299,14 +3232,16 @@ static JSFunctionSpec static_methods[] = {
 };
 
 
-JSObject *
-js_InitReflectClass(JSContext *cx, JSObject *obj)
+JS_BEGIN_EXTERN_C
+
+JS_PUBLIC_API(JSObject *)
+JS_InitReflect(JSContext *cx, JSObject *obj)
 {
-    JSObject *Reflect = NewNonFunction<WithProto::Class>(cx, &js_ReflectClass, NULL, obj);
+    JSObject *Reflect = NewNonFunction<WithProto::Class>(cx, &js_ObjectClass, NULL, obj);
     if (!Reflect)
         return NULL;
 
-    if (!JS_DefineProperty(cx, obj, js_Reflect_str, OBJECT_TO_JSVAL(Reflect),
+    if (!JS_DefineProperty(cx, obj, "Reflect", OBJECT_TO_JSVAL(Reflect),
                            JS_PropertyStub, JS_StrictPropertyStub, 0)) {
         return NULL;
     }
@@ -3316,3 +3251,5 @@ js_InitReflectClass(JSContext *cx, JSObject *obj)
 
     return Reflect;
 }
+
+JS_END_EXTERN_C

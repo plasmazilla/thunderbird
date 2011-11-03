@@ -275,13 +275,8 @@
     }
 
     // Open or create the urlbar history database.
-    var file = Components.classes["@mozilla.org/file/directory_service;1"]
-                         .getService(Components.interfaces.nsIProperties)
-                         .get("ProfD", Components.interfaces.nsIFile);
-    file.append("urlbarhistory.sqlite");
-    var connection = Components.classes["@mozilla.org/storage/service;1"]
-                               .getService(Components.interfaces.mozIStorageService)
-                               .openDatabase(file);
+    var file = GetUrlbarHistoryFile();
+    var connection = Services.storage.openDatabase(file);
     connection.beginTransaction();
     if (!connection.tableExists("urlbarhistory"))
       connection.createTable("urlbarhistory", "url TEXT");
@@ -290,14 +285,14 @@
     // its current position. It is then reinserted at the top of the list.
     var statement = connection.createStatement(
         "DELETE FROM urlbarhistory WHERE LOWER(url) = LOWER(?1)");
-    statement.bindStringParameter(0, aUrlToAdd);
+    statement.bindByIndex(0, aUrlToAdd);
     statement.execute();
     statement.finalize();
 
     // Put the value as it was typed by the user in to urlbar history
     statement = connection.createStatement(
         "INSERT INTO urlbarhistory (url) VALUES (?1)");
-    statement.bindStringParameter(0, aUrlToAdd);
+    statement.bindByIndex(0, aUrlToAdd);
     statement.execute();
     statement.finalize();
 
@@ -308,14 +303,4 @@
           "(SELECT ROWID FROM urlbarhistory ORDER BY ROWID DESC LIMIT 30)");
     connection.commitTransaction();
     connection.close();
-  }
-
-  function makeURLAbsolute(base, url)
-  {
-    // Construct nsIURL.
-    var ioService = Components.classes["@mozilla.org/network/io-service;1"]
-                              .getService(Components.interfaces.nsIIOService);
-    var baseURI  = ioService.newURI(base, null, null);
-
-    return ioService.newURI(baseURI.resolve(url), null, null).spec;
   }

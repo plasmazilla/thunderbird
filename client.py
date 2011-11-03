@@ -17,6 +17,7 @@ DEFAULTS = {
 
   # URL of the default hg repository to clone for ChatZilla.
   'CHATZILLA_REPO': 'http://hg.mozilla.org/chatzilla/',
+  'CHATZILLA_REV': 'SEA_2_5_BASE',
 
   # URL of the default hg repository to clone for DOM Inspector.
   'INSPECTOR_REPO': 'http://hg.mozilla.org/dom-inspector/',
@@ -25,7 +26,13 @@ DEFAULTS = {
   'VENKMAN_REPO': 'http://hg.mozilla.org/venkman/',
 
   # URL of the default hg repository to clone for Mozilla.
-  'MOZILLA_REPO': 'http://hg.mozilla.org/releases/mozilla-miramar/',
+  'MOZILLA_REPO': 'http://hg.mozilla.org/releases/mozilla-beta/',
+}
+
+REPO_SHORT_NAMES = {
+'mozilla-central':  'moz',
+'dom-inspector':    'dom',
+'ldap-sdks':        'ldap',
 }
 
 def get_DEFAULT_tag(index):
@@ -72,6 +79,8 @@ del pyver
 import os
 import datetime
 from optparse import OptionParser, OptionValueError
+import urllib2
+import re
 
 topsrcdir = os.path.dirname(__file__)
 if topsrcdir == '':
@@ -90,6 +99,26 @@ except ImportError:
             if cmd is None:
                 cmd = popenargs[0]
                 raise Exception("Command '%s' returned non-zero exit status %i" % (cmd, retcode))
+
+try:
+    from subprocess import check_output
+except ImportError:
+    import subprocess
+    def check_output(*popenargs, **kwargs):
+        if 'stdout' in kwargs:
+            raise ValueError('stdout argument not allowed, it will be overridden.')
+        process = subprocess.Popen(stdout=subprocess.PIPE, *popenargs, **kwargs)
+        output, unused_err = process.communicate()
+        retcode = process.poll()
+        if retcode:
+            cmd = kwargs.get("args")
+            if cmd is None:
+                cmd = popenargs[0]
+            raise CalledProcessError(retcode, cmd, output=output)
+        return output
+
+def check_call_output(cmd, *args, **kwargs):
+    return check_output(cmd, *args, **kwargs)
 
 def check_call_noisy(cmd, retryMax=0, *args, **kwargs):
   """Wrapper around execute_check_call() to allow retries before failing.
@@ -309,6 +338,17 @@ def do_hg_pull(dir, repository, hg, rev):
     check_call([hg, 'parent', '-R', fulldir,
                 '--template=Updated to revision {node}.\n'])
 
+    if options.tinderbox_print and dir != '.':
+        got_rev = check_call_output([hg, 'parent', '-R', fulldir,
+                    '--template={node|short}'])
+
+        url = check_call_output([hg, 'paths', 'default', '-R', fulldir ]).rstrip().rstrip('/')
+        repo_name = url.split('/')[-1]
+        repo_short_name = REPO_SHORT_NAMES.get(repo_name, repo_name)
+
+        print "TinderboxPrint:<a href=%s/rev/%s title='Built from %s revision %s'>%s:%s</a>"  % ( url, got_rev, repo_name, got_rev, repo_short_name, got_rev)
+
+
 def check_retries_option(option, opt_str, value, parser):
   if value < 0:
     raise OptionValueError("%s option value needs to be positive (not '%d')" % (opt_str, value))
@@ -364,6 +404,9 @@ o.add_option("--skip-mozilla", dest="skip_mozilla",
 o.add_option("--mozilla-rev", dest="mozilla_rev",
              default=None,
              help="Revision of Mozilla repository to update to. Default: \"" + get_DEFAULT_tag('MOZILLA_REV') + "\"")
+o.add_option("--known-good", dest="known_good",
+             action="store_true", default=False,
+             help="Use the last known-good Mozilla repository revision.")
 
 o.add_option("--inspector-repo", dest="inspector_repo",
              default=None,
@@ -426,6 +469,10 @@ o.add_option("-r", "--rev", dest = "default_rev",
 o.add_option("--apply-patches", dest="apply_patches",
              action="store_true", default=False,
              help="Look for and apply local patches (repo*.patch)")
+
+o.add_option("--tinderbox-print", dest="tinderbox_print",
+             action="store_true", default=False,
+             help="Print repo revisions for Tinderbox")
 
 def fixup_comm_repo_options(options):
     """Check options.comm_repo value.
@@ -521,6 +568,17 @@ def fixup_ldap_repo_options(options):
     if options.ldap_rev is None:
         options.ldap_rev = get_DEFAULT_tag("LDAPSDKS_REV")
 
+def get_last_known_good_mozilla_rev():
+    kg_url = "http://build.mozillamessaging.com/buildbot/production/known-good-revisions/mozilla-central.txt"
+    try:
+        rev = urllib2.urlopen(kg_url).read().strip()
+    except IOError, err:
+        sys.exit("Error: could not fetch '%s' (%s)" % (kg_url, err))
+    if re.search(r'^[a-f0-9]+$', rev) and len(rev) == 12:
+        return rev
+    else:
+        sys.exit("Error: invalid contents fetched from %s: '%s'" % (kg_url, rev))
+
 try:
     (options, (action,)) = o.parse_args()
 except ValueError:
@@ -546,6 +604,11 @@ if action in ('checkout', 'co'):
         do_hg_pull('.', options.comm_repo, options.hg, options.comm_rev)
 
     if not options.skip_mozilla:
+        if options.known_good and options.mozilla_rev is None:
+            print "Fetching last known good mozilla revision" 
+            options.mozilla_rev = get_last_known_good_mozilla_rev()
+            print "Setting mozilla_rev to '%s'" % options.mozilla_rev
+            
         fixup_mozilla_repo_options(options)
         do_hg_pull('mozilla', options.mozilla_repo, options.hg, options.mozilla_rev)
 

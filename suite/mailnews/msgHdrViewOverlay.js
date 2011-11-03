@@ -71,7 +71,6 @@ var gMessengerBundle;
 
 // Globals for setFromBuddyIcon().
 var gFileHandler;
-var gIOService = null;
 var gProfileDirURL;
 
 var gExtraExpandedHeaders;
@@ -476,18 +475,11 @@ var messageHeaderSink = {
       var size = null;
       if (isExternalAttachment)
       {
-        var fileHandler = Components.classes["@mozilla.org/network/io-service;1"]
-                                    .getService(Components.interfaces.nsIIOService)
-                                    .getProtocolHandler("file")
-                                    .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
-        try
-        {
-          size = fileHandler.getFileFromURLSpec(url).fileSize;
-        }
-        catch(e)
-        {
+        var file = GetFileFromString(url);
+        if (file && file.exists())
+          size = file.fileSize;
+        else
           dump("Couldn't open external attachment!");
-        }
       }
 
       currentAttachments.push(new createNewAttachmentInfo(contentType,
@@ -607,6 +599,11 @@ var messageHeaderSink = {
         this.mProperties = Components.classes["@mozilla.org/hash-property-bag;1"].
           createInstance(Components.interfaces.nsIWritablePropertyBag2);
       return this.mProperties;
+    },
+
+    resetProperties: function()
+    {
+      this.mProperties = null;
     }
 };
 
@@ -962,6 +959,8 @@ function ShowMessageHeaderPane()
     el.setAttribute("style", el.getAttribute("style"));
     gFolderJustSwitched = false;    
   }
+
+  document.commandDispatcher.updateCommands("message-header-pane");
 }
 
 function HideMessageHeaderPane()
@@ -978,6 +977,8 @@ function HideMessageHeaderPane()
   node = document.getElementById("msgAttachmentMenu");
   if (node)
     node.setAttribute("disabled", "true");
+
+  document.commandDispatcher.updateCommands("message-header-pane");
 }
 
 function OutputNewsgroups(headerEntry, headerValue)
@@ -1068,16 +1069,12 @@ function setFromBuddyIcon(email)
       if (iconURLStr)
       {
         // Lazily create these globals.
-        if (!gIOService) {
-          gIOService = Components.classes["@mozilla.org/network/io-service;1"]
-                                 .getService(Components.interfaces.nsIIOService);
-          gFileHandler = gIOService.getProtocolHandler("file")
-                                   .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
+        if (!gFileHandler)
+        {
+          gFileHandler = Services.io.getProtocolHandler("file")
+                                    .QueryInterface(Components.interfaces.nsIFileProtocolHandler);
 
-          var profileDir = Components.classes["@mozilla.org/file/directory_service;1"]
-                                     .getService(Components.interfaces.nsIProperties)
-                                     .get("ProfD", Components.interfaces.nsIFile);
-          gProfileDirURL = gIOService.newFileURI(profileDir);
+          gProfileDirURL = Services.io.newFileURI(GetSpecialDirectory("ProfD"));
         }
 
         // If we did have a buddy icon on disk for this screenname,
@@ -1225,8 +1222,20 @@ createNewAttachmentInfo.prototype.viewAttachment = function viewAttachment()
 
 createNewAttachmentInfo.prototype.openAttachment = function openAttachment()
 {
-  if (this.contentType == "text/x-moz-deleted")
-    return;
+  switch (this.contentType)
+  {
+    // As of bug 599119, isTypeSupported returns true for messages, but
+    // attached messages don't open reliably in the browser, so pretend
+    // they're not supported and open a message window for them instead.
+    case "message/rfc822":
+      var url = this.url + "&type=application/x-message-display";
+      window.openDialog("chrome://messenger/content/messageWindow.xul",
+                        "_blank", "all,dialog=no",
+                        Services.io.newURI(url, null, null));
+      return;
+    case "text/x-moz-deleted":
+      return;
+  }
 
   var webNavigationInfo =
         Components.classes["@mozilla.org/webnavigation-info;1"]
@@ -1273,7 +1282,8 @@ createNewAttachmentInfo.prototype.detachAttachment = function detachAttachment()
 function CanDetachAttachments()
 {
   var uri = GetLoadedMessage();
-  var canDetach = !IsNewsMessage(uri) && (!IsImapMessage(uri) || CheckOnline());
+  var canDetach = !IsNewsMessage(uri) &&
+                  (!IsImapMessage(uri) || !Services.io.offline);
   if (canDetach && ("content-type" in currentHeaderData))
     canDetach = !ContentTypeIsSMIME(currentHeaderData["content-type"].headerValue);
   return canDetach;

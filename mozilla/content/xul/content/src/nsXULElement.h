@@ -49,7 +49,7 @@
 #ifndef nsXULElement_h__
 #define nsXULElement_h__
 
-// XXX because nsIEventListenerManager has broken includes
+// XXX because nsEventListenerManager has broken includes
 #include "nsIDOMEvent.h"
 #include "nsIServiceManager.h"
 #include "nsIAtom.h"
@@ -57,10 +57,9 @@
 #include "nsIControllers.h"
 #include "nsIDOMElement.h"
 #include "nsIDOMEventTarget.h"
-#include "nsIDOM3EventTarget.h"
 #include "nsIDOMXULElement.h"
 #include "nsIDOMXULMultSelectCntrlEl.h"
-#include "nsIEventListenerManager.h"
+#include "nsEventListenerManager.h"
 #include "nsIRDFCompositeDataSource.h"
 #include "nsIRDFResource.h"
 #include "nsIScriptObjectOwner.h"
@@ -92,8 +91,6 @@ namespace css {
 class StyleRule;
 }
 }
-
-static NS_DEFINE_CID(kCSSParserCID, NS_CSSPARSER_CID);
 
 ////////////////////////////////////////////////////////////////////////
 
@@ -336,14 +333,7 @@ public:
                      nsIDocument* aDocument,
                      nsIScriptGlobalObjectOwner* aGlobalOwner);
 
-    void UnlinkJSObjects()
-    {
-        if (mScriptObject.mObject) {
-            nsContentUtils::DropScriptObjects(mScriptObject.mLangID, this,
-                                              &NS_CYCLE_COLLECTION_NAME(nsXULPrototypeNode));
-            mScriptObject.mObject = nsnull;
-        }
-    }
+    void UnlinkJSObjects();
 
     void Set(nsScriptObjectHolder &aHolder)
     {
@@ -353,23 +343,7 @@ public:
         mScriptObject.mLangID = aHolder.getScriptTypeID();
         Set((void*)aHolder);
     }
-    void Set(void *aObject)
-    {
-        NS_ASSERTION(!mScriptObject.mObject, "Leaking script object.");
-        if (!aObject) {
-            mScriptObject.mObject = nsnull;
-
-            return;
-        }
-
-        nsresult rv = nsContentUtils::HoldScriptObject(mScriptObject.mLangID,
-                                                       this,
-                                                       &NS_CYCLE_COLLECTION_NAME(nsXULPrototypeNode),
-                                                       aObject, PR_FALSE);
-        if (NS_SUCCEEDED(rv)) {
-            mScriptObject.mObject = aObject;
-        }
-    }
+    void Set(void *aObject);
 
     struct ScriptObjectHolder
     {
@@ -507,7 +481,7 @@ public:
                                 nsIContent* aBindingParent,
                                 PRBool aCompileEventHandlers);
     virtual void UnbindFromTree(PRBool aDeep, PRBool aNullParent);
-    virtual nsresult RemoveChildAt(PRUint32 aIndex, PRBool aNotify, PRBool aMutationEvent = PR_TRUE);
+    virtual nsresult RemoveChildAt(PRUint32 aIndex, PRBool aNotify);
     virtual PRBool GetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
                            nsAString& aResult) const;
     virtual PRBool HasAttr(PRInt32 aNameSpaceID, nsIAtom* aName) const;
@@ -653,15 +627,15 @@ protected:
     virtual nsresult AfterSetAttr(PRInt32 aNamespaceID, nsIAtom* aName,
                                   const nsAString* aValue, PRBool aNotify);
 
+    virtual void UpdateEditableState(PRBool aNotify);
+
     virtual PRBool ParseAttribute(PRInt32 aNamespaceID,
                                   nsIAtom* aAttribute,
                                   const nsAString& aValue,
                                   nsAttrValue& aResult);
 
-    virtual nsresult
-      GetEventListenerManagerForAttr(nsIEventListenerManager** aManager,
-                                     nsISupports** aTarget,
-                                     PRBool* aDefer);
+    virtual nsEventListenerManager*
+      GetEventListenerManagerForAttr(PRBool* aDefer);
   
     /**
      * Return our prototype's attribute, if one exists.
@@ -710,6 +684,15 @@ protected:
            PRBool aIsScriptable);
 
     friend class nsScriptEventHandlerOwnerTearoff;
+
+    bool IsReadWriteTextElement() const
+    {
+        const nsIAtom* tag = Tag();
+        return
+            GetNameSpaceID() == kNameSpaceID_XUL &&
+            (tag == nsGkAtoms::textbox || tag == nsGkAtoms::textarea) &&
+            !HasAttr(kNameSpaceID_None, nsGkAtoms::readonly);
+    }
 };
 
 #endif // nsXULElement_h__

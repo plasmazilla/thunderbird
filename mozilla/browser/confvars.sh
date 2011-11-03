@@ -36,19 +36,18 @@
 #
 # ***** END LICENSE BLOCK *****
 
-MOZ_APP_NAME=firefox
+MOZ_APP_BASENAME=Firefox
+MOZ_APP_VENDOR=Mozilla
 MOZ_UPDATER=1
 MOZ_PHOENIX=1
 
-MOZ_ENABLE_LIBXUL=1
 MOZ_CHROME_FILE_FORMAT=omni
-MOZ_STATIC_BUILD_UNSUPPORTED=1
-# always enabled for form history
-MOZ_MORKREADER=1
 MOZ_SAFE_BROWSING=1
 MOZ_SERVICES_SYNC=1
 MOZ_APP_VERSION=$FIREFOX_VERSION
 MOZ_EXTENSIONS_DEFAULT=" gnomevfs"
 # MOZ_APP_DISPLAYNAME will be set by branding/configure.sh
+# Changing either of these values requires a clobber to ensure correct results,
+# because branding dependencies are broken.
 MOZ_BRANDING_DIRECTORY=browser/branding/aurora
-MOZ_OFFICIAL_BRANDING_DIRECTORY=other-licenses/branding/firefox
+MOZ_OFFICIAL_BRANDING_DIRECTORY=browser/branding/official

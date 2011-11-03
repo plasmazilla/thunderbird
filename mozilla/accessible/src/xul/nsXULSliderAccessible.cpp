@@ -39,10 +39,13 @@
 #include "nsXULSliderAccessible.h"
 
 #include "nsAccessibilityAtoms.h"
+#include "States.h"
 
 #include "nsIDOMDocument.h"
 #include "nsIDOMDocumentXBL.h"
 #include "nsIFrame.h"
+
+using namespace mozilla::a11y;
 
 ////////////////////////////////////////////////////////////////////////////////
 // nsXULSliderAccessible
@@ -68,24 +71,22 @@ nsXULSliderAccessible::NativeRole()
   return nsIAccessibleRole::ROLE_SLIDER;
 }
 
-nsresult
-nsXULSliderAccessible::GetStateInternal(PRUint32 *aState,
-                                        PRUint32 *aExtraState)
+PRUint64
+nsXULSliderAccessible::NativeState()
 {
-  nsresult rv = nsAccessibleWrap::GetStateInternal(aState, aExtraState);
-  NS_ENSURE_A11Y_SUCCESS(rv, rv);
+  PRUint64 states = nsAccessibleWrap::NativeState();
 
   nsCOMPtr<nsIContent> sliderContent(GetSliderNode());
   NS_ENSURE_STATE(sliderContent);
 
   nsIFrame *frame = sliderContent->GetPrimaryFrame();
   if (frame && frame->IsFocusable())
-    *aState |= nsIAccessibleStates::STATE_FOCUSABLE;
+    states |= states::FOCUSABLE;
 
   if (gLastFocusedNode == mContent)
-    *aState |= nsIAccessibleStates::STATE_FOCUSED;
+    states |= states::FOCUSED;
 
-  return NS_OK;
+  return states;
 }
 
 // nsIAccessible
@@ -96,13 +97,10 @@ nsXULSliderAccessible::GetValue(nsAString& aValue)
   return GetSliderAttr(nsAccessibilityAtoms::curpos, aValue);
 }
 
-NS_IMETHODIMP
-nsXULSliderAccessible::GetNumActions(PRUint8 *aCount)
+PRUint8
+nsXULSliderAccessible::ActionCount()
 {
-  NS_ENSURE_ARG_POINTER(aCount);
-
-  *aCount = 1;
-  return NS_OK;
+  return 1;
 }
 
 NS_IMETHODIMP

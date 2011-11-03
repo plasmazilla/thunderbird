@@ -1,3 +1,4 @@
+/* -*- indent-tabs-mode: nil; js-indent-level: 2 -*- */
 /* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -192,8 +193,7 @@ let gFolderTreeView = {
 
         sstream.close();
         fstream.close();
-        let JSON = Cc["@mozilla.org/dom/json;1"].createInstance(Ci.nsIJSON);
-        this._persistOpenMap = JSON.decode(data);
+        this._persistOpenMap = JSON.parse(data);
       }
     }
 
@@ -223,8 +223,7 @@ let gFolderTreeView = {
 
     if (aJSONFile) {
       // Write out our json file...
-      let JSON = Cc["@mozilla.org/dom/json;1"].createInstance(Ci.nsIJSON);
-      let data = JSON.encode(this._persistOpenMap);
+      let data = JSON.stringify(this._persistOpenMap);
       let file = Cc["@mozilla.org/file/directory_service;1"]
                     .getService(Ci.nsIProperties).get("ProfD", Ci.nsIFile);
       file.append(aJSONFile);
@@ -771,11 +770,7 @@ let gFolderTreeView = {
    * the child lists
    */
   getParentIndex: function ftv_getParentIndex(aIndex) {
-    for (let i = 0; i < this._rowMap.length; i++) {
-      if (this._rowMap[i] == this._rowMap[aIndex]._parent)
-        return i;
-    }
-    return -1;
+    return this._rowMap.indexOf(this._rowMap[aIndex]._parent);
   },
 
   /**
@@ -879,9 +874,8 @@ let gFolderTreeView = {
 
       // Note that these children may have been open when we were last closed,
       // and if they are, we also have to add those grandchildren to the map
-      let tree = this;
       let oldCount = this._rowMap.length;
-      function recursivelyAddToMap(aChild, aNewIndex) {
+      function recursivelyAddToMap(aChild, aNewIndex, tree) {
         // When we add sub-children, we're going to need to increase our index
         // for the next add item at our own level
         let count = 0;
@@ -891,7 +885,7 @@ let gFolderTreeView = {
             var index = Number(aNewIndex) + Number(i) + 1;
             tree._rowMap.splice(index, 0, child);
 
-            let kidsAdded = recursivelyAddToMap(child, index);
+            let kidsAdded = recursivelyAddToMap(child, index, tree);
             count += kidsAdded;
             // Somehow the aNewIndex turns into a string without this
             aNewIndex = Number(aNewIndex) + kidsAdded;
@@ -899,7 +893,8 @@ let gFolderTreeView = {
         }
         return count;
       }
-      recursivelyAddToMap(this._rowMap[aIndex], aIndex);
+      // work around bug 658534 by passing in "this" instead of let tree = this;
+      recursivelyAddToMap(this._rowMap[aIndex], aIndex, this);
 
       // Add this folder to the persist map
       if (!this._persistOpenMap[this.mode])
@@ -909,8 +904,10 @@ let gFolderTreeView = {
         this._persistOpenMap[this.mode].push(id);
 
       // Notify the tree of changes
-      if (this._tree)
+      if (this._tree) {
         this._tree.rowCountChanged(aIndex + 1, this._rowMap.length - oldCount);
+        this._tree.invalidateRow(aIndex);
+      }
       // if this was a server that was expanded, let it update its counts
       let folder = this._rowMap[aIndex]._folder;
       if (aExpandServer) {
@@ -1330,10 +1327,18 @@ let gFolderTreeView = {
 
         // There are no children in this view!
         // And we want to display the account name to distinguish folders w/
-        // the same name.
-        for each (let folder in faves) {
-          folder.__defineGetter__("children", function() []);
-          folder.addServerName = true;
+        // the same name. (only for folders with duplicated names)
+        let uniqueNames = new Object();
+        for each (let item in faves) {
+          let name = item._folder.abbreviatedName.toLowerCase();
+          item.__defineGetter__("children", function() []);
+          if (!uniqueNames[name])
+            uniqueNames[name] = 0;
+          uniqueNames[name]++;
+        }
+        for each (let item in faves) {
+          let name = item._folder.abbreviatedName.toLowerCase();
+          item.addServerName = (uniqueNames[name] > 1) ? true : false;
         }
         sortFolderItems(faves);
         return faves;

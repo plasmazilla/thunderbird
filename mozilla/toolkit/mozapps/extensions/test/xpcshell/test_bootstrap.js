@@ -73,6 +73,46 @@ function getUninstallReason() {
   return Services.prefs.getIntPref("bootstraptest.uninstall_reason");
 }
 
+function manuallyInstall(aXPIFile, aInstallLocation, aID) {
+  if (TEST_UNPACKED) {
+    let dir = aInstallLocation.clone();
+    dir.append(aID);
+    dir.create(AM_Ci.nsIFile.DIRECTORY_TYPE, 0755);
+    let zip = AM_Cc["@mozilla.org/libjar/zip-reader;1"].
+              createInstance(AM_Ci.nsIZipReader);
+    zip.open(aXPIFile);
+    let entries = zip.findEntries(null);
+    while (entries.hasMore()) {
+      let entry = entries.getNext();
+      let target = dir.clone();
+      entry.split("/").forEach(function(aPart) {
+        target.append(aPart);
+      });
+      zip.extract(entry, target);
+    }
+    zip.close();
+
+    return dir;
+  }
+  else {
+    let target = aInstallLocation.clone();
+    target.append(aID + ".xpi");
+    aXPIFile.copyTo(target.parent, target.leafName);
+    return target;
+  }
+}
+
+function manuallyUninstall(aInstallLocation, aID) {
+  let file = getFileForAddon(aInstallLocation, aID);
+
+  // In reality because the app is restarted a flush isn't necessary for XPIs
+  // removed outside the app, but for testing we must flush manually.
+  if (file.isFile())
+    Services.obs.notifyObservers(file, "flush-cache-entry", null);
+
+  file.remove(true);
+}
+
 function run_test() {
   do_test_pending();
 
@@ -369,18 +409,8 @@ function check_test_7() {
 function run_test_8() {
   shutdownManager();
 
-  let dir = profileDir.clone();
-  dir.append("bootstrap1@tests.mozilla.org");
-  dir.create(AM_Ci.nsIFile.DIRECTORY_TYPE, 0755);
-  let zip = AM_Cc["@mozilla.org/libjar/zip-reader;1"].
-            createInstance(AM_Ci.nsIZipReader);
-  zip.open(do_get_addon("test_bootstrap1_1"));
-  dir.append("install.rdf");
-  zip.extract("install.rdf", dir);
-  dir = dir.parent;
-  dir.append("bootstrap.js");
-  zip.extract("bootstrap.js", dir);
-  zip.close();
+  manuallyInstall(do_get_addon("test_bootstrap1_1"), profileDir,
+                  "bootstrap1@tests.mozilla.org");
 
   startupManager(false);
 
@@ -403,9 +433,8 @@ function run_test_8() {
 function run_test_9() {
   shutdownManager();
 
-  let dir = profileDir.clone();
-  dir.append("bootstrap1@tests.mozilla.org");
-  dir.remove(true);
+  manuallyUninstall(profileDir, "bootstrap1@tests.mozilla.org");
+
   startupManager(false);
 
   AddonManager.getAddonByID("bootstrap1@tests.mozilla.org", function(b1) {
@@ -548,18 +577,8 @@ function check_test_11() {
 function run_test_12() {
   shutdownManager();
 
-  let dir = profileDir.clone();
-  dir.append("bootstrap1@tests.mozilla.org");
-  dir.create(AM_Ci.nsIFile.DIRECTORY_TYPE, 0755);
-  let zip = AM_Cc["@mozilla.org/libjar/zip-reader;1"].
-            createInstance(AM_Ci.nsIZipReader);
-  zip.open(do_get_addon("test_bootstrap1_1"));
-  dir.append("install.rdf");
-  zip.extract("install.rdf", dir);
-  dir = dir.parent;
-  dir.append("bootstrap.js");
-  zip.extract("bootstrap.js", dir);
-  zip.close();
+  manuallyInstall(do_get_addon("test_bootstrap1_1"), profileDir,
+                  "bootstrap1@tests.mozilla.org");
 
   startupManager(true);
 
@@ -654,18 +673,8 @@ function check_test_13() {
 function run_test_14() {
   shutdownManager();
 
-  let dir = profileDir.clone();
-  dir.append("bootstrap1@tests.mozilla.org");
-  dir.create(AM_Ci.nsIFile.DIRECTORY_TYPE, 0755);
-  let zip = AM_Cc["@mozilla.org/libjar/zip-reader;1"].
-            createInstance(AM_Ci.nsIZipReader);
-  zip.open(do_get_addon("test_bootstrap1_3"));
-  dir.append("install.rdf");
-  zip.extract("install.rdf", dir);
-  dir = dir.parent;
-  dir.append("bootstrap.js");
-  zip.extract("bootstrap.js", dir);
-  zip.close();
+  manuallyInstall(do_get_addon("test_bootstrap1_3"), profileDir,
+                  "bootstrap1@tests.mozilla.org");
 
   startupManager(false);
 
@@ -808,18 +817,8 @@ function run_test_16() {
 function run_test_17() {
   shutdownManager();
 
-  let dir = userExtDir.clone();
-  dir.append("bootstrap1@tests.mozilla.org");
-  dir.create(AM_Ci.nsIFile.DIRECTORY_TYPE, 0755);
-  let zip = AM_Cc["@mozilla.org/libjar/zip-reader;1"].
-            createInstance(AM_Ci.nsIZipReader);
-  zip.open(do_get_addon("test_bootstrap1_1"));
-  dir.append("install.rdf");
-  zip.extract("install.rdf", dir);
-  dir = dir.parent;
-  dir.append("bootstrap.js");
-  zip.extract("bootstrap.js", dir);
-  zip.close();
+  manuallyInstall(do_get_addon("test_bootstrap1_1"), userExtDir,
+                  "bootstrap1@tests.mozilla.org");
 
   resetPrefs();
   startupManager();
@@ -902,18 +901,8 @@ function run_test_20() {
   resetPrefs();
   shutdownManager();
 
-  let dir = profileDir.clone();
-  dir.append("bootstrap1@tests.mozilla.org");
-  dir.create(AM_Ci.nsIFile.DIRECTORY_TYPE, 0755);
-  let zip = AM_Cc["@mozilla.org/libjar/zip-reader;1"].
-            createInstance(AM_Ci.nsIZipReader);
-  zip.open(do_get_addon("test_bootstrap1_2"));
-  dir.append("install.rdf");
-  zip.extract("install.rdf", dir);
-  dir = dir.parent;
-  dir.append("bootstrap.js");
-  zip.extract("bootstrap.js", dir);
-  zip.close();
+  manuallyInstall(do_get_addon("test_bootstrap1_2"), profileDir,
+                  "bootstrap1@tests.mozilla.org");
 
   startupManager();
 
@@ -939,9 +928,7 @@ function run_test_21() {
   resetPrefs();
   shutdownManager();
 
-  let dir = profileDir.clone();
-  dir.append("bootstrap1@tests.mozilla.org");
-  dir.remove(true);
+  manuallyUninstall(profileDir, "bootstrap1@tests.mozilla.org");
 
   startupManager();
 
@@ -964,9 +951,7 @@ function run_test_21() {
 
     do_check_eq(getStartupReason(), APP_STARTUP);
 
-    dir = userExtDir.clone();
-    dir.append("bootstrap1@tests.mozilla.org");
-    dir.remove(true);
+    manuallyUninstall(userExtDir, "bootstrap1@tests.mozilla.org");
 
     restartManager();
 
@@ -978,21 +963,11 @@ function run_test_21() {
 function run_test_22() {
   shutdownManager();
 
-  let dir = profileDir.clone();
-  dir.append("bootstrap1@tests.mozilla.org");
-  dir.create(AM_Ci.nsIFile.DIRECTORY_TYPE, 0755);
-  let zip = AM_Cc["@mozilla.org/libjar/zip-reader;1"].
-            createInstance(AM_Ci.nsIZipReader);
-  zip.open(do_get_addon("test_bootstrap1_1"));
-  dir.append("install.rdf");
-  zip.extract("install.rdf", dir);
-  dir = dir.parent;
-  dir.append("bootstrap.js");
-  zip.extract("bootstrap.js", dir);
-  zip.close();
+  let file = manuallyInstall(do_get_addon("test_bootstrap1_1"), profileDir,
+                             "bootstrap1@tests.mozilla.org");
 
   // Make it look old so changes are detected
-  setExtensionModifiedTime(dir.parent, dir.parent.lastModifiedTime - 5000);
+  setExtensionModifiedTime(file, file.lastModifiedTime - 5000);
 
   startupManager();
 
@@ -1007,18 +982,9 @@ function run_test_22() {
     resetPrefs();
     shutdownManager();
 
-    dir = dir.parent;
-    dir.remove(true);
-    dir.create(AM_Ci.nsIFile.DIRECTORY_TYPE, 0755);
-    let zip = AM_Cc["@mozilla.org/libjar/zip-reader;1"].
-              createInstance(AM_Ci.nsIZipReader);
-    zip.open(do_get_addon("test_bootstrap1_2"));
-    dir.append("install.rdf");
-    zip.extract("install.rdf", dir);
-    dir = dir.parent;
-    dir.append("bootstrap.js");
-    zip.extract("bootstrap.js", dir);
-    zip.close();
+    manuallyUninstall(profileDir, "bootstrap1@tests.mozilla.org");
+    manuallyInstall(do_get_addon("test_bootstrap1_2"), profileDir,
+                    "bootstrap1@tests.mozilla.org");
 
     startupManager();
 
@@ -1073,7 +1039,7 @@ function run_test_23() {
       do_check_eq(install.addon.operationsRequiringRestart &
                   AddonManager.OP_NEEDS_RESTART_INSTALL, 0);
       do_check_not_in_crash_annotation("bootstrap1@tests.mozilla.org", "1.0");
-  
+
       let addon = install.addon;
       prepare_test({
         "bootstrap1@tests.mozilla.org": [
@@ -1119,10 +1085,12 @@ function check_test_23() {
         do_check_eq(list.length, 0);
 
         restartManager();
-        b1.uninstall();
-        restartManager();
+        AddonManager.getAddonByID("bootstrap1@tests.mozilla.org", function(b1) {
+          b1.uninstall();
+          restartManager();
 
-        testserver.stop(run_test_24);
+          testserver.stop(run_test_24);
+        });
       });
     });
   });
@@ -1166,6 +1134,152 @@ function run_test_24() {
     do_check_eq(getInstalledVersion2(), -1);
     do_check_eq(getActiveVersion2(), 1);
 
-    do_test_finished();
+    run_test_25();
+  });
+}
+
+// Tests that updating from a bootstrappable add-on to a normal add-on calls
+// the uninstall method
+function run_test_25() {
+  installAllFiles([do_get_addon("test_bootstrap1_1")], function() {
+    do_check_eq(getInstalledVersion(), 1);
+    do_check_eq(getActiveVersion(), 1);
+
+    installAllFiles([do_get_addon("test_bootstrap1_4")], function() {
+      // Needs a restart to complete this so the old version stays running
+      do_check_eq(getInstalledVersion(), 1);
+      do_check_eq(getActiveVersion(), 1);
+
+      AddonManager.getAddonByID("bootstrap1@tests.mozilla.org", function(b1) {
+        do_check_neq(b1, null);
+        do_check_eq(b1.version, "1.0");
+        do_check_true(b1.isActive);
+        do_check_true(hasFlag(b1.pendingOperations, AddonManager.PENDING_UPGRADE));
+
+        restartManager();
+
+        do_check_eq(getInstalledVersion(), 0);
+        do_check_eq(getUninstallReason(), ADDON_UPGRADE);
+        do_check_eq(getActiveVersion(), 0);
+
+        AddonManager.getAddonByID("bootstrap1@tests.mozilla.org", function(b1) {
+          do_check_neq(b1, null);
+          do_check_eq(b1.version, "4.0");
+          do_check_true(b1.isActive);
+          do_check_eq(b1.pendingOperations, AddonManager.PENDING_NONE);
+
+          run_test_26();
+        });
+      });
+    });
+  });
+}
+
+// Tests that updating from a normal add-on to a bootstrappable add-on calls
+// the install method
+function run_test_26() {
+  installAllFiles([do_get_addon("test_bootstrap1_1")], function() {
+    // Needs a restart to complete this
+    do_check_eq(getInstalledVersion(), 0);
+    do_check_eq(getActiveVersion(), 0);
+
+    AddonManager.getAddonByID("bootstrap1@tests.mozilla.org", function(b1) {
+      do_check_neq(b1, null);
+      do_check_eq(b1.version, "4.0");
+      do_check_true(b1.isActive);
+      do_check_true(hasFlag(b1.pendingOperations, AddonManager.PENDING_UPGRADE));
+
+      restartManager();
+
+      do_check_eq(getInstalledVersion(), 1);
+      do_check_eq(getInstallReason(), ADDON_DOWNGRADE);
+      do_check_eq(getActiveVersion(), 1);
+
+      AddonManager.getAddonByID("bootstrap1@tests.mozilla.org", function(b1) {
+        do_check_neq(b1, null);
+        do_check_eq(b1.version, "1.0");
+        do_check_true(b1.isActive);
+        do_check_eq(b1.pendingOperations, AddonManager.PENDING_NONE);
+
+        run_test_27();
+      });
+    });
+  });
+}
+
+// Tests that updating from a bootstrappable add-on to a normal add-on while
+// disabled calls the uninstall method
+function run_test_27() {
+  AddonManager.getAddonByID("bootstrap1@tests.mozilla.org", function(b1) {
+    do_check_neq(b1, null);
+    b1.userDisabled = true;
+    do_check_eq(b1.version, "1.0");
+    do_check_false(b1.isActive);
+    do_check_eq(b1.pendingOperations, AddonManager.PENDING_NONE);
+    do_check_eq(getInstalledVersion(), 1);
+    do_check_eq(getActiveVersion(), 0);
+
+    installAllFiles([do_get_addon("test_bootstrap1_4")], function() {
+      // Updating disabled things happens immediately
+      do_check_eq(getInstalledVersion(), 0);
+      do_check_eq(getUninstallReason(), ADDON_UPGRADE);
+      do_check_eq(getActiveVersion(), 0);
+
+      AddonManager.getAddonByID("bootstrap1@tests.mozilla.org", function(b1) {
+        do_check_neq(b1, null);
+        do_check_eq(b1.version, "4.0");
+        do_check_false(b1.isActive);
+        do_check_eq(b1.pendingOperations, AddonManager.PENDING_NONE);
+
+        restartManager();
+
+        do_check_eq(getInstalledVersion(), 0);
+        do_check_eq(getActiveVersion(), 0);
+
+        AddonManager.getAddonByID("bootstrap1@tests.mozilla.org", function(b1) {
+          do_check_neq(b1, null);
+          do_check_eq(b1.version, "4.0");
+          do_check_false(b1.isActive);
+          do_check_eq(b1.pendingOperations, AddonManager.PENDING_NONE);
+
+          run_test_28();
+        });
+      });
+    });
+  });
+}
+
+// Tests that updating from a normal add-on to a bootstrappable add-on when
+// disabled calls the install method
+function run_test_28() {
+  installAllFiles([do_get_addon("test_bootstrap1_1")], function() {
+    // Doesn't need a restart to complete this
+    do_check_eq(getInstalledVersion(), 1);
+    do_check_eq(getInstallReason(), ADDON_DOWNGRADE);
+    do_check_eq(getActiveVersion(), 0);
+
+    AddonManager.getAddonByID("bootstrap1@tests.mozilla.org", function(b1) {
+      do_check_neq(b1, null);
+      do_check_eq(b1.version, "1.0");
+      do_check_false(b1.isActive);
+      do_check_eq(b1.pendingOperations, AddonManager.PENDING_NONE);
+
+      restartManager();
+
+      do_check_eq(getInstalledVersion(), 1);
+      do_check_eq(getActiveVersion(), 0);
+
+      AddonManager.getAddonByID("bootstrap1@tests.mozilla.org", function(b1) {
+        do_check_neq(b1, null);
+        b1.userDisabled = false;
+        do_check_eq(b1.version, "1.0");
+        do_check_true(b1.isActive);
+        do_check_eq(b1.pendingOperations, AddonManager.PENDING_NONE);
+        do_check_eq(getInstalledVersion(), 1);
+        do_check_eq(getActiveVersion(), 1);
+
+        do_test_finished();
+      });
+    });
   });
 }

@@ -43,6 +43,10 @@ panel[for="urlbar"] {
   -moz-binding: url("chrome://navigator/content/urlbarBindings.xml#autocomplete-result-popup") !important;
 }
 
+panel[nomatch="true"] > .autocomplete-tree {
+  visibility: collapse;
+}
+
 .autocomplete-search-box {
   -moz-binding: url("chrome://navigator/content/urlbarBindings.xml#autocomplete-search-box");
 }

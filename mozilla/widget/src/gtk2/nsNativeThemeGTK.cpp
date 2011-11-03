@@ -49,16 +49,15 @@
 #include "nsIPresShell.h"
 #include "nsIDocument.h"
 #include "nsIContent.h"
-#include "nsIEventStateManager.h"
 #include "nsIViewManager.h"
 #include "nsINameSpaceManager.h"
 #include "nsILookAndFeel.h"
-#include "nsIDeviceContext.h"
 #include "nsGfxCIID.h"
 #include "nsTransform2D.h"
-#include "nsIMenuFrame.h"
+#include "nsMenuFrame.h"
 #include "prlink.h"
 #include "nsIDOMHTMLInputElement.h"
+#include "nsRenderingContext.h"
 #include "nsWidgetAtoms.h"
 #include "mozilla/Services.h"
 
@@ -187,8 +186,8 @@ nsNativeThemeGTK::GetTabMarginPixels(nsIFrame* aFrame)
     IsBottomTab(aFrame) ? aFrame->GetUsedMargin().top
     : aFrame->GetUsedMargin().bottom;
 
-  return PR_MIN(MOZ_GTK_TAB_MARGIN_MASK,
-                PR_MAX(0,
+  return NS_MIN<gint>(MOZ_GTK_TAB_MARGIN_MASK,
+                NS_MAX(0,
                        aFrame->PresContext()->AppUnitsToDevPixels(-margin)));
 }
 
@@ -333,7 +332,7 @@ nsNativeThemeGTK::GetGtkWidgetAndState(PRUint8 aWidgetType, nsIFrame* aFrame,
             aWidgetType == NS_THEME_MENUSEPARATOR ||
             aWidgetType == NS_THEME_MENUARROW) {
           PRBool isTopLevel = PR_FALSE;
-          nsIMenuFrame *menuFrame = do_QueryFrame(aFrame);
+          nsMenuFrame *menuFrame = do_QueryFrame(aFrame);
           if (menuFrame) {
             isTopLevel = menuFrame->IsOnMenuBar();
           }
@@ -567,7 +566,16 @@ nsNativeThemeGTK::GetGtkWidgetAndState(PRUint8 aWidgetType, nsIFrame* aFrame,
     break;
   case NS_THEME_PROGRESSBAR_CHUNK:
   case NS_THEME_PROGRESSBAR_CHUNK_VERTICAL:
-    aGtkWidgetType = MOZ_GTK_PROGRESS_CHUNK;
+    {
+      nsIFrame* stateFrame = aFrame->GetParent();
+      nsEventStates eventStates = GetContentState(stateFrame, aWidgetType);
+
+      aGtkWidgetType = IsIndeterminateProgress(stateFrame, eventStates)
+                         ? (stateFrame->GetStyleDisplay()->mOrient == NS_STYLE_ORIENT_VERTICAL)
+                           ? MOZ_GTK_PROGRESS_CHUNK_VERTICAL_INDETERMINATE
+                           : MOZ_GTK_PROGRESS_CHUNK_INDETERMINATE
+                         : MOZ_GTK_PROGRESS_CHUNK;
+    }
     break;
   case NS_THEME_TAB_SCROLLARROW_BACK:
   case NS_THEME_TAB_SCROLLARROW_FORWARD:
@@ -756,7 +764,7 @@ nsNativeThemeGTK::GetExtraSizeForWidget(nsIFrame* aFrame, PRUint8 aWidgetType,
 }
 
 NS_IMETHODIMP
-nsNativeThemeGTK::DrawWidgetBackground(nsIRenderingContext* aContext,
+nsNativeThemeGTK::DrawWidgetBackground(nsRenderingContext* aContext,
                                        nsIFrame* aFrame,
                                        PRUint8 aWidgetType,
                                        const nsRect& aRect,
@@ -787,7 +795,7 @@ nsNativeThemeGTK::DrawWidgetBackground(nsIRenderingContext* aContext,
   }
 
   // Translate the dirty rect so that it is wrt the widget top-left.
-  dirtyRect.MoveBy(-rect.pos);
+  dirtyRect.MoveBy(-rect.TopLeft());
   // Round out the dirty rect to gdk pixels to ensure that gtk draws
   // enough pixels for interpolation to device pixels.
   dirtyRect.RoundOut();
@@ -836,7 +844,7 @@ nsNativeThemeGTK::DrawWidgetBackground(nsIRenderingContext* aContext,
     // Rects are in device coords.
     ctx->IdentityMatrix(); 
   }
-  ctx->Translate(rect.pos + gfxPoint(drawingRect.x, drawingRect.y));
+  ctx->Translate(rect.TopLeft() + gfxPoint(drawingRect.x, drawingRect.y));
 
   NS_ASSERTION(!IsWidgetTypeDisabled(mDisabledWidgetTypes, aWidgetType),
                "Trying to render an unsafe widget!");
@@ -874,11 +882,19 @@ nsNativeThemeGTK::DrawWidgetBackground(nsIRenderingContext* aContext,
     }
   }
 
+  // Indeterminate progress bar are animated.
+  if (gtkWidgetType == MOZ_GTK_PROGRESS_CHUNK_INDETERMINATE ||
+      gtkWidgetType == MOZ_GTK_PROGRESS_CHUNK_VERTICAL_INDETERMINATE) {
+    if (!QueueAnimatedContentForRefresh(aFrame->GetContent(), 30)) {
+      NS_WARNING("unable to animate widget!");
+    }
+  }
+
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsNativeThemeGTK::GetWidgetBorder(nsIDeviceContext* aContext, nsIFrame* aFrame,
+nsNativeThemeGTK::GetWidgetBorder(nsDeviceContext* aContext, nsIFrame* aFrame,
                                   PRUint8 aWidgetType, nsIntMargin* aResult)
 {
   GtkTextDirection direction = GetTextDirection(aFrame);
@@ -915,21 +931,30 @@ nsNativeThemeGTK::GetWidgetBorder(nsIDeviceContext* aContext, nsIFrame* aFrame,
     else
         aResult->bottom = 0;
     break;
+  case NS_THEME_MENUITEM:
+  case NS_THEME_CHECKMENUITEM:
+  case NS_THEME_RADIOMENUITEM:
+    // For regular menuitems, we will be using GetWidgetPadding instead of
+    // GetWidgetBorder to pad up the widget's internals; other menuitems
+    // will need to fall through and use the default case as before.
+    if (IsRegularMenuItem(aFrame))
+      break;
   default:
     {
       GtkThemeWidgetType gtkWidgetType;
       if (GetGtkWidgetAndState(aWidgetType, aFrame, gtkWidgetType, nsnull,
-                               nsnull))
+                               nsnull)) {
         moz_gtk_get_widget_border(gtkWidgetType, &aResult->left, &aResult->top,
                                   &aResult->right, &aResult->bottom, direction,
                                   IsFrameContentNodeInNamespace(aFrame, kNameSpaceID_XHTML));
+      }
     }
   }
   return NS_OK;
 }
 
 PRBool
-nsNativeThemeGTK::GetWidgetPadding(nsIDeviceContext* aContext,
+nsNativeThemeGTK::GetWidgetPadding(nsDeviceContext* aContext,
                                    nsIFrame* aFrame, PRUint8 aWidgetType,
                                    nsIntMargin* aResult)
 {
@@ -952,13 +977,42 @@ nsNativeThemeGTK::GetWidgetPadding(nsIDeviceContext* aContext,
     case NS_THEME_RADIO:
       aResult->SizeTo(0, 0, 0, 0);
       return PR_TRUE;
+    case NS_THEME_MENUITEM:
+    case NS_THEME_CHECKMENUITEM:
+    case NS_THEME_RADIOMENUITEM:
+      {
+        // Menubar and menulist have their padding specified in CSS.
+        if (!IsRegularMenuItem(aFrame))
+          return PR_FALSE;
+
+        aResult->SizeTo(0, 0, 0, 0);
+        GtkThemeWidgetType gtkWidgetType;
+        if (GetGtkWidgetAndState(aWidgetType, aFrame, gtkWidgetType, nsnull,
+                                 nsnull)) {
+          moz_gtk_get_widget_border(gtkWidgetType, &aResult->left, &aResult->top,
+                                    &aResult->right, &aResult->bottom, GetTextDirection(aFrame),
+                                    IsFrameContentNodeInNamespace(aFrame, kNameSpaceID_XHTML));
+        }
+
+        gint horizontal_padding;
+
+        if (aWidgetType == NS_THEME_MENUITEM)
+          moz_gtk_menuitem_get_horizontal_padding(&horizontal_padding);
+        else
+          moz_gtk_checkmenuitem_get_horizontal_padding(&horizontal_padding);
+
+        aResult->left += horizontal_padding;
+        aResult->right += horizontal_padding;
+
+        return PR_TRUE;
+      }
   }
 
   return PR_FALSE;
 }
 
 PRBool
-nsNativeThemeGTK::GetWidgetOverflow(nsIDeviceContext* aContext,
+nsNativeThemeGTK::GetWidgetOverflow(nsDeviceContext* aContext,
                                     nsIFrame* aFrame, PRUint8 aWidgetType,
                                     nsRect* aOverflowRect)
 {
@@ -979,7 +1033,7 @@ nsNativeThemeGTK::GetWidgetOverflow(nsIDeviceContext* aContext,
 }
 
 NS_IMETHODIMP
-nsNativeThemeGTK::GetMinimumWidgetSize(nsIRenderingContext* aContext,
+nsNativeThemeGTK::GetMinimumWidgetSize(nsRenderingContext* aContext,
                                        nsIFrame* aFrame, PRUint8 aWidgetType,
                                        nsIntSize* aResult, PRBool* aIsOverridable)
 {
@@ -1024,6 +1078,25 @@ nsNativeThemeGTK::GetMinimumWidgetSize(nsIRenderingContext* aContext,
       *aIsOverridable = PR_FALSE;
     }
     break;
+    case NS_THEME_SCROLLBAR_TRACK_HORIZONTAL:
+    case NS_THEME_SCROLLBAR_TRACK_VERTICAL:
+    {
+      /* While we enforce a minimum size for the thumb, this is ignored
+       * for the some scrollbars if buttons are hidden (bug 513006) because
+       * the thumb isn't a direct child of the scrollbar, unlike the buttons
+       * or track. So add a minimum size to the track as well to prevent a
+       * 0-width scrollbar. */
+      MozGtkScrollbarMetrics metrics;
+      moz_gtk_get_scrollbar_metrics(&metrics);
+
+      if (aWidgetType == NS_THEME_SCROLLBAR_TRACK_VERTICAL)
+        aResult->width = metrics.slider_width;
+      else
+        aResult->height = metrics.slider_width;
+
+      *aIsOverridable = PR_FALSE;
+    }
+    break;
     case NS_THEME_SCROLLBAR_THUMB_VERTICAL:
     case NS_THEME_SCROLLBAR_THUMB_HORIZONTAL:
       {
@@ -1045,11 +1118,11 @@ nsNativeThemeGTK::GetMinimumWidgetSize(nsIRenderingContext* aContext,
 
         if (aWidgetType == NS_THEME_SCROLLBAR_THUMB_VERTICAL) {
           aResult->width = metrics.slider_width;
-          aResult->height = PR_MIN(NSAppUnitsToIntPixels(rect.height, p2a),
+          aResult->height = NS_MIN(NSAppUnitsToIntPixels(rect.height, p2a),
                                    metrics.min_slider_size);
         } else {
           aResult->height = metrics.slider_width;
-          aResult->width = PR_MIN(NSAppUnitsToIntPixels(rect.width, p2a),
+          aResult->width = NS_MIN(NSAppUnitsToIntPixels(rect.width, p2a),
                                   metrics.min_slider_size);
         }
 
@@ -1135,12 +1208,9 @@ nsNativeThemeGTK::GetMinimumWidgetSize(nsIRenderingContext* aContext,
   case NS_THEME_TREEVIEW_HEADER_CELL:
     {
       // Just include our border, and let the box code augment the size.
-
-      nsCOMPtr<nsIDeviceContext> dc;
-      aContext->GetDeviceContext(*getter_AddRefs(dc));
-
       nsIntMargin border;
-      nsNativeThemeGTK::GetWidgetBorder(dc, aFrame, aWidgetType, &border);
+      nsNativeThemeGTK::GetWidgetBorder(aContext->DeviceContext(),
+                                        aFrame, aWidgetType, &border);
       aResult->width = border.left + border.right;
       aResult->height = border.top + border.bottom;
     }
@@ -1248,11 +1318,7 @@ nsNativeThemeGTK::WidgetStateChanged(nsIFrame* aFrame, PRUint8 aWidgetType,
 NS_IMETHODIMP
 nsNativeThemeGTK::ThemeChanged()
 {
-  // this totally sucks.  this method is really supposed to be
-  // static, which is why we can call it without any initialization.
-  static NS_DEFINE_CID(kDeviceContextCID, NS_DEVICE_CONTEXT_CID);
-  nsCOMPtr<nsIDeviceContext> dctx = do_CreateInstance(kDeviceContextCID);
-  dctx->ClearCachedSystemFonts();
+  nsDeviceContext::ClearCachedSystemFonts();
 
   memset(mDisabledWidgetTypes, 0, sizeof(mDisabledWidgetTypes));
   return NS_OK;

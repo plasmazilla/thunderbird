@@ -34,6 +34,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "mozilla/ipc/DocumentRendererChild.h"
+
 #include "base/basictypes.h"
 
 #include "gfxImageSurface.h"
@@ -53,8 +55,7 @@
 #include "gfxContext.h"
 #include "gfxImageSurface.h"
 #include "nsLayoutUtils.h"
-
-#include "mozilla/ipc/DocumentRendererChild.h"
+#include "nsContentUtils.h"
 
 using namespace mozilla::ipc;
 
@@ -90,8 +91,7 @@ DocumentRendererChild::RenderDocument(nsIDOMWindow *window,
 
     nscolor bgColor;
     nsCSSParser parser;
-    nsresult rv = parser.ParseColorString(PromiseFlatString(bgcolor),
-                                          nsnull, 0, &bgColor);
+    nsresult rv = parser.ParseColorString(bgcolor, nsnull, 0, &bgColor);
     if (NS_FAILED(rv))
         return false;
 

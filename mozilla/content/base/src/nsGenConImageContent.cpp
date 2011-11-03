@@ -46,7 +46,7 @@
 #include "nsXMLElement.h"
 #include "nsImageLoadingContent.h"
 #include "imgIRequest.h"
-#include "nsIEventStateManager.h"
+#include "nsEventStates.h"
 
 class nsGenConImageContent : public nsXMLElement,
                              public nsImageLoadingContent
@@ -55,6 +55,9 @@ public:
   nsGenConImageContent(already_AddRefed<nsINodeInfo> aNodeInfo)
     : nsXMLElement(aNodeInfo)
   {
+    // nsImageLoadingContent starts out broken, so we start out
+    // suppressed to match it.
+    AddStatesSilently(NS_EVENT_STATE_SUPPRESSED);
   }
 
   nsresult Init(imgIRequest* aImageRequest)

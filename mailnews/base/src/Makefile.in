@@ -46,6 +46,7 @@ MODULE		= msgbase
 LIBRARY_NAME	= msgbase_s
 ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
 MOZILLA_INTERNAL_API = 1
+LIBXUL_LIBRARY = 1
 endif
 
 CPPSRCS		= \
@@ -101,10 +102,6 @@ CMMSRCS = nsMessengerOSXIntegration.mm
 endif
 
 ifeq ($(OS_ARCH),WINNT)
-ifdef BUILD_STATIC_LIBS
-DEFINES	+= -DMOZ_STATIC_BUILD
-endif
-
 CPPSRCS		+= nsMessengerWinIntegration.cpp 
 endif
 

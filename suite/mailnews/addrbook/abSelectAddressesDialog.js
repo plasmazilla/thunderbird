@@ -44,8 +44,6 @@ var composeWindow = 0;
 var msgCompFields = 0;
 var editCardCallback = 0;
 
-var gPromptService = GetPromptService();
-
 var gSearchInput;
 var gSearchTimer = null;
 var gQueryURIFormat = null;
@@ -260,10 +258,9 @@ function AddAddressIntoBucket(prefix, address, email)
 {
   if (email == "")
   {
-    if (gPromptService)
-        gPromptService.alert(window,
-                             gAddressBookBundle.getString("emptyEmailAddCardTitle"),
-                             gAddressBookBundle.getString("emptyEmailAddCard"));
+    Services.prompt.alert(window,
+                          gAddressBookBundle.getString("emptyEmailAddCardTitle"),
+                          gAddressBookBundle.getString("emptyEmailAddCard"));
   }
   else
   {
@@ -400,8 +397,7 @@ function onEnterInSearchBar()
     return;
 
   if (!gQueryURIFormat) {
-    gQueryURIFormat = gPrefs.getComplexValue("mail.addr_book.quicksearchquery.format", 
-                                              Components.interfaces.nsIPrefLocalizedString).data;
+    gQueryURIFormat = GetLocalizedStringPref("mail.addr_book.quicksearchquery.format");
   }
   
   var searchURI = selectedNode.value;
@@ -422,16 +418,5 @@ function DirPaneSelectionChangeMenulist()
       onEnterInSearchBar();
     else
       ChangeDirectoryByURI(abList.value);
-  }
-}
-
-function GetPromptService()
-{
-  try {
-    return Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                     .getService(Components.interfaces.nsIPromptService);
-  }
-  catch (e) {
-    return null;
   }
 }

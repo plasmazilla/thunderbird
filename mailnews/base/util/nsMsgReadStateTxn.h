@@ -62,8 +62,9 @@ public:
   nsMsgReadStateTxn();
   virtual ~nsMsgReadStateTxn();
 
-  nsresult Init(nsIMsgFolder *aParentFolder, 
-                nsTArray<nsMsgKey> & aMsgKeyArray);
+  nsresult Init(nsIMsgFolder *aParentFolder,
+                PRUint32 aNumKeys,
+                nsMsgKey *aMsgKeyArray);
   NS_IMETHOD UndoTransaction();
   NS_IMETHOD RedoTransaction();
 

@@ -68,7 +68,10 @@ const ElementTouchHelper = {
 
   /* Retrieve the closest element to a point by looking at borders position */
   getClosest: function getClosest(aWindowUtils, aX, aY) {
-    let dpiRatio = aWindowUtils.displayDPI / kReferenceDpi;
+    if (!this.dpiRatio)
+      this.dpiRatio = aWindowUtils.displayDPI / kReferenceDpi;
+
+    let dpiRatio = this.dpiRatio;
 
     let target = aWindowUtils.elementFromPoint(aX, aY,
                                                true,   /* ignore root scroll frame*/
@@ -262,7 +265,7 @@ let Content = {
     addMessageListener("Browser:MouseOver", this);
     addMessageListener("Browser:MouseLong", this);
     addMessageListener("Browser:MouseDown", this);
-    addMessageListener("Browser:MouseUp", this);
+    addMessageListener("Browser:MouseClick", this);
     addMessageListener("Browser:MouseCancel", this);
     addMessageListener("Browser:SaveAs", this);
     addMessageListener("Browser:ZoomToPoint", this);
@@ -270,14 +273,21 @@ let Content = {
     addMessageListener("Browser:SetCharset", this);
     addMessageListener("Browser:ContextCommand", this);
     addMessageListener("Browser:CanUnload", this);
+    addMessageListener("Browser:CanCaptureMouse", this);
 
     if (Util.isParentProcess())
       addEventListener("DOMActivate", this, true);
 
     addEventListener("MozApplicationManifest", this, false);
-    addEventListener("command", this, false);
+    addEventListener("DOMContentLoaded", this, false);
     addEventListener("pagehide", this, false);
     addEventListener("keypress", this, false, false);
+
+    // Attach a listener to watch for "click" events bubbling up from error
+    // pages and other similar page. This lets us fix bugs like 401575 which
+    // require error page UI to do privileged things, without letting error
+    // pages have any privilege themselves.
+    addEventListener("click", this, false);
 
     docShell.QueryInterface(Ci.nsIDocShellHistory).useGlobalHistory = true;
   },
@@ -327,7 +337,7 @@ let Content = {
         break;
       }
 
-      case "command": {
+      case "click": {
         // Don't trust synthetic events
         if (!aEvent.isTrusted)
           return;
@@ -343,19 +353,41 @@ let Content = {
           if (ot == temp || ot == perm) {
             let action = (ot == perm ? "permanent" : "temporary");
             sendAsyncMessage("Browser:CertException", { url: errorDoc.location.href, action: action });
-          }
-          else if (ot == errorDoc.getElementById("getMeOutOfHereButton")) {
+          } else if (ot == errorDoc.getElementById("getMeOutOfHereButton")) {
             sendAsyncMessage("Browser:CertException", { url: errorDoc.location.href, action: "leave" });
           }
-        }
-        else if (/^about:neterror\?e=netOffline/.test(errorDoc.documentURI)) {
-          if (ot == errorDoc.getElementById("errorTryAgain")) {
-            // Make sure we're online before attempting to load
-            Util.forceOnline();
+        } else if (/^about:blocked/.test(errorDoc.documentURI)) {
+          // The event came from a button on a malware/phishing block page
+          // First check whether it's malware or phishing, so that we can
+          // use the right strings/links
+          let isMalware = /e=malwareBlocked/.test(errorDoc.documentURI);
+    
+          if (ot == errorDoc.getElementById("getMeOutButton")) {
+            sendAsyncMessage("Browser:BlockedSite", { url: errorDoc.location.href, action: "leave" });
+          } else if (ot == errorDoc.getElementById("reportButton")) {
+            // This is the "Why is this site blocked" button.  For malware,
+            // we can fetch a site-specific report, for phishing, we redirect
+            // to the generic page describing phishing protection.
+            let action = isMalware ? "report-malware" : "report-phising";
+            sendAsyncMessage("Browser:BlockedSite", { url: errorDoc.location.href, action: action });
+          } else if (ot == errorDoc.getElementById("ignoreWarningButton")) {
+            // Allow users to override and continue through to the site,
+            // but add a notify bar as a reminder, so that they don't lose
+            // track after, e.g., tab switching.
+            let webNav = docShell.QueryInterface(Ci.nsIWebNavigation);
+            webNav.loadURI(content.location, Ci.nsIWebNavigation.LOAD_FLAGS_BYPASS_CLASSIFIER, null, null, null);
+            
+            // TODO: We'll need to impl notifications in the parent process and use the preference code found here:
+            //       http://hg.mozilla.org/mozilla-central/file/855e5cd3c884/browser/base/content/browser.js#l2672
+            //       http://hg.mozilla.org/mozilla-central/file/855e5cd3c884/browser/components/safebrowsing/content/globalstore.js
           }
         }
         break;
       }
+
+      case "DOMContentLoaded":
+        this._maybeNotifyErroPage();
+        break;
 
       case "pagehide":
         if (aEvent.target == content.document)
@@ -373,7 +405,7 @@ let Content = {
     switch (aMessage.name) {
       case "Browser:ContextCommand": {
         let wrappedTarget = elementFromPoint(x, y);
-        if (!wrappedTarget)
+        if (!wrappedTarget || !(wrappedTarget instanceof Ci.nsIDOMNSEditableElement))
           break;
         let target = wrappedTarget.QueryInterface(Ci.nsIDOMNSEditableElement);
         if (!target)
@@ -446,15 +478,17 @@ let Content = {
 
         ContextHandler.messageId = json.messageId;
 
-        let event = content.document.createEvent("PopupEvents");
-        event.initEvent("contextmenu", true, true);
+        let event = content.document.createEvent("MouseEvent");
+        event.initMouseEvent("contextmenu", true, true, content,
+                             0, x, y, x, y, false, false, false, false,
+                             0, null);
         event.x = x;
         event.y = y;
         element.dispatchEvent(event);
         break;
       }
 
-      case "Browser:MouseUp": {
+      case "Browser:MouseClick": {
         this._formAssistant.focusSync = true;
         let element = elementFromPoint(x, y);
         if (modifiers == Ci.nsIDOMNSEvent.CONTROL_MASK) {
@@ -563,7 +597,22 @@ let Content = {
         webNav.reload(Ci.nsIWebNavigation.LOAD_FLAGS_CHARSET_CHANGE);
         break;
       }
+
+      case "Browser:CanCaptureMouse": {
+        sendAsyncMessage("Browser:CanCaptureMouse:Return", {
+          contentMightCaptureMouse: content.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils).mayHaveTouchEventListeners
+        });
+        break;
+      }
     }
+  },
+
+  _maybeNotifyErroPage: function _maybeNotifyErroPage() {
+    // Notify browser that an error page is being shown instead
+    // of the target location. Necessary to get proper thumbnail
+    // updates on chrome for error pages.
+    if (content.location.href !== content.document.documentURI)
+      sendAsyncMessage("Browser:ErrorPage", null);
   },
 
   _resetFontSize: function _resetFontSize() {
@@ -585,21 +634,29 @@ let Content = {
 
   _sendMouseEvent: function _sendMouseEvent(aName, aElement, aX, aY, aButton) {
     // the element can be out of the aX/aY point because of the touch radius
+    // if outside, we gracefully move the touch point to the center of the element
     if (!(aElement instanceof HTMLHtmlElement)) {
       let isTouchClick = true;
       let rects = getContentClientRects(aElement);
       for (let i = 0; i < rects.length; i++) {
         let rect = rects[i];
-        if ((aX > rect.left && aX < (rect.left + rect.width)) &&
-            (aY > rect.top && aY < (rect.top + rect.height))) {
+        // We might be able to deal with fractional pixels, but mouse events won't.
+        // Deflate the bounds in by 1 pixel to deal with any fractional scroll offset issues.
+        let inBounds = 
+          (aX > rect.left + 1 && aX < (rect.left + rect.width - 1)) &&
+          (aY > rect.top + 1 && aY < (rect.top + rect.height - 1));
+        if (inBounds) {
           isTouchClick = false;
           break;
         }
       }
 
       if (isTouchClick) {
-        let rect = rects[0];
-        let point = (new Rect(rect.left, rect.top, rect.width, rect.height)).center();
+        let rect = new Rect(rects[0].left, rects[0].top, rects[0].width, rects[0].height);
+        if (rect.isEmpty())
+          return;
+
+        let point = rect.center();
         aX = point.x;
         aY = point.y;
       }
@@ -612,7 +669,7 @@ let Content = {
   },
 
   _setMinFontSize: function _setMinFontSize(aSize) {
-    let viewer = docShell.contentViewer.QueryInterface(Ci.nsIMarkupDocumentViewer_MOZILLA_2_0_BRANCH);
+    let viewer = docShell.contentViewer.QueryInterface(Ci.nsIMarkupDocumentViewer);
     if (viewer)
       viewer.minFontSize = aSize;
   }
@@ -874,6 +931,14 @@ var ContextHandler = {
           if (hasData && !elem.readOnly)
             state.types.push("paste");
           break;
+        } else if (elem instanceof Ci.nsIDOMHTMLParagraphElement ||
+                   elem instanceof Ci.nsIDOMHTMLDivElement ||
+                   elem instanceof Ci.nsIDOMHTMLLIElement ||
+                   elem instanceof Ci.nsIDOMHTMLPreElement ||
+                   elem instanceof Ci.nsIDOMHTMLHeadingElement ||
+                   elem instanceof Ci.nsIDOMHTMLTableCellElement) {
+          state.types.push("content-text");
+          break;
         }
       }
 
@@ -954,7 +1019,7 @@ ContextHandler.registerType("link-shareable", function(aState, aElement) {
 });
 
 ContextHandler.registerType("input-text", function(aState, aElement) {
-    return aElement instanceof Ci.nsIDOMHTMLInputElement;
+    return (aElement instanceof Ci.nsIDOMHTMLInputElement && aElement.mozIsTextField(false)) || aElement instanceof Ci.nsIDOMHTMLTextAreaElement;
 });
 
 ["image", "video"].forEach(function(aType) {
@@ -1115,6 +1180,20 @@ var ConsoleAPIObserver = {
       let consoleMsg = Cc["@mozilla.org/scripterror;1"].createInstance(Ci.nsIScriptError);
       consoleMsg.init(joinedArguments, null, null, 0, 0, flag, "content javascript");
       Services.console.logMessage(consoleMsg);
+    } else if (aMessage.level == "trace") {
+      let bundle = Services.strings.createBundle("chrome://global/locale/headsUpDisplay.properties");
+      let args = aMessage.arguments;
+      let filename = this.abbreviateSourceURL(args[0].filename);
+      let functionName = args[0].functionName || bundle.GetStringFromName("stacktrace.anonymousFunction");
+      let lineNumber = args[0].lineNumber;
+
+      let body = bundle.formatStringFromName("stacktrace.outputMessage", [filename, functionName, lineNumber], 3);
+      body += "\n";
+      args.forEach(function(aFrame) {
+        body += aFrame.filename + " :: " + aFrame.functionName + " :: " + aFrame.lineNumber + "\n";
+      });
+
+      Services.console.logStringMessage(body);
     } else {
       Services.console.logStringMessage(joinedArguments);
     }
@@ -1156,7 +1235,291 @@ var ConsoleAPIObserver = {
     }
 
     return output;
+  },
+
+  abbreviateSourceURL: function abbreviateSourceURL(aSourceURL) {
+    // Remove any query parameters.
+    let hookIndex = aSourceURL.indexOf("?");
+    if (hookIndex > -1)
+      aSourceURL = aSourceURL.substring(0, hookIndex);
+
+    // Remove a trailing "/".
+    if (aSourceURL[aSourceURL.length - 1] == "/")
+      aSourceURL = aSourceURL.substring(0, aSourceURL.length - 1);
+
+    // Remove all but the last path component.
+    let slashIndex = aSourceURL.lastIndexOf("/");
+    if (slashIndex > -1)
+      aSourceURL = aSourceURL.substring(slashIndex + 1);
+
+    return aSourceURL;
   }
 };
 
 ConsoleAPIObserver.init();
+
+var TouchEventHandler = {
+  element: null,
+  isCancellable: true,
+
+  init: function() {
+    addMessageListener("Browser:MouseUp", this);
+    addMessageListener("Browser:MouseDown", this);
+    addMessageListener("Browser:MouseMove", this);
+  },
+
+  receiveMessage: function(aMessage) {
+    let json = aMessage.json;
+    if (Util.isParentProcess())
+      return;
+
+    if (!content.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils).mayHaveTouchEventListeners) {
+      sendAsyncMessage("Browser:CaptureEvents", {
+        messageId: json.messageId,
+        click: false, panning: false,
+        contentMightCaptureMouse: false
+      });
+      return;
+    }
+
+    let type;
+    switch (aMessage.name) {
+      case "Browser:MouseDown":
+        this.isCancellable = true;
+        this.element = elementFromPoint(json.x, json.y);
+        type = "touchstart";
+        break;
+
+      case "Browser:MouseUp":
+        this.isCancellable = false;
+        type = "touchend";
+        break;
+
+      case "Browser:MouseMove":
+        type = "touchmove";
+        break;
+    }
+
+    if (!this.element)
+      return;
+
+    let cancelled = !this.sendEvent(type, json, this.element);
+    if (type == "touchend")
+      this.element = null;
+
+    if (this.isCancellable) {
+      sendAsyncMessage("Browser:CaptureEvents", { messageId: json.messageId,
+                                                  type: type,
+                                                  contentMightCaptureMouse: true,
+                                                  click: cancelled && aMessage.name == "Browser:MouseDown",
+                                                  panning: cancelled });
+      // Panning can be cancelled only during the "touchstart" event and the
+      // first "touchmove" event.  After it's cancelled, it stays cancelled
+      // until the next touchstart event.
+      if (cancelled || aMessage.name == "Browser:MouseMove")
+        this.isCancellable = false;
+    }
+  },
+
+  sendEvent: function(aName, aData, aElement) {
+    if (!Services.prefs.getBoolPref("dom.w3c_touch_events.enabled"))
+      return true;
+
+    let evt = content.document.createEvent("touchevent");
+    let point = content.document.createTouch(content, aElement, 0,
+                                             aData.x, aData.y, aData.x, aData.y, aData.x, aData.y,
+                                             1, 1, 0, 0);
+    let touches = content.document.createTouchList(point);
+    if (aName == "touchend") {
+      let empty = content.document.createTouchList();
+      evt.initTouchEvent(aName, true, true, content, 0, true, true, true, true, empty, empty, touches);      
+    } else {
+      evt.initTouchEvent(aName, true, true, content, 0, true, true, true, true, touches, touches, touches);
+    }
+    return aElement.dispatchEvent(evt);
+  }
+};
+
+TouchEventHandler.init();
+
+var SelectionHandler = {
+  cache: {},
+  selectedText: "",
+  contentWindow: null,
+  
+  init: function sh_init() {
+    addMessageListener("Browser:SelectionStart", this);
+    addMessageListener("Browser:SelectionEnd", this);
+    addMessageListener("Browser:SelectionMove", this);
+  },
+
+  receiveMessage: function sh_receiveMessage(aMessage) {
+    let scrollOffset = ContentScroll.getScrollOffset(content);
+    let utils = Util.getWindowUtils(content);
+    let json = aMessage.json;
+
+    switch (aMessage.name) {
+      case "Browser:SelectionStart": {
+        // Clear out the text cache
+        this.selectedText = "";
+
+        // if this is an iframe, dig down to find the document that was clicked
+        let x = json.x - scrollOffset.x;
+        let y = json.y - scrollOffset.y;
+        let offset = scrollOffset;
+        let elem = utils.elementFromPoint(x, y, true, false);
+        while (elem && (elem instanceof HTMLIFrameElement || elem instanceof HTMLFrameElement)) {
+          // adjust client coordinates' origin to be top left of iframe viewport
+          let rect = elem.getBoundingClientRect();
+          scrollOffset = ContentScroll.getScrollOffset(elem.ownerDocument.defaultView);
+          offset.x += rect.left;
+          x -= rect.left;
+
+          offset.y += rect.top + scrollOffset.y;
+          y -= rect.top + scrollOffset.y;
+          utils = elem.contentDocument.defaultView.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils);
+          elem = utils.elementFromPoint(x, y, true, false);
+        }
+        if (!elem)
+          return;
+
+        let contentWindow = elem.ownerDocument.defaultView;
+        let currentDocShell = contentWindow.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIWebNavigation).QueryInterface(Ci.nsIDocShell);
+
+        // Remove any previous selected or created ranges. Tapping anywhere on a
+        // page will create an empty range.
+        let selection = contentWindow.getSelection();
+        selection.removeAllRanges();
+
+        // Position the caret using a fake mouse click
+        utils.sendMouseEventToWindow("mousedown", x, y, 0, 1, 0, true);
+        utils.sendMouseEventToWindow("mouseup", x, y, 0, 1, 0, true);
+
+        // Select the word nearest the caret
+        try {
+          let selcon = currentDocShell.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsISelectionDisplay).QueryInterface(Ci.nsISelectionController);
+          selcon.wordMove(false, false);
+          selcon.wordMove(true, true);
+        } catch(e) {
+          // If we couldn't select the word at the given point, bail
+          return;
+        }
+
+        // Find the selected text rect and send it back so the handles can position correctly
+        if (selection.rangeCount == 0)
+          return;
+
+        let range = selection.getRangeAt(0).QueryInterface(Ci.nsIDOMNSRange);
+        if (!range)
+          return;
+
+        // Cache the selected text since the selection might be gone by the time we get the "end" message
+        this.selectedText = selection.toString().trim();
+
+        // If the range didn't have any text, let's bail
+        if (!this.selectedText.length) {
+          selection.collapseToStart();
+          return;
+        }
+
+        this.cache = this._extractFromRange(range, offset);
+        this.contentWindow = contentWindow;
+
+        sendAsyncMessage("Browser:SelectionRange", this.cache);
+        break;
+      }
+
+      case "Browser:SelectionEnd": {
+        let tap = { x: json.x - this.cache.offset.x, y: json.y - this.cache.offset.y };
+        pointInSelection = (tap.x > this.cache.rect.left && tap.x < this.cache.rect.right) && (tap.y > this.cache.rect.top && tap.y < this.cache.rect.bottom);
+
+        try {
+          // The selection might already be gone
+          if (this.contentWindow)
+            this.contentWindow.getSelection().removeAllRanges();
+          this.contentWindow = null;
+        } catch(e) {}
+
+        if (pointInSelection && this.selectedText.length) {
+          let clipboard = Cc["@mozilla.org/widget/clipboardhelper;1"].getService(Ci.nsIClipboardHelper);
+          clipboard.copyString(this.selectedText);
+          sendAsyncMessage("Browser:SelectionCopied", { succeeded: true });
+        } else {
+          sendAsyncMessage("Browser:SelectionCopied", { succeeded: false });
+        }
+        break;
+      }
+
+      case "Browser:SelectionMove":
+        if (!this.contentWindow)
+          return;
+
+        // Hack to avoid setting focus in a textbox [Bugs 654352 & 667243]
+        let elemUnder = elementFromPoint(json.x - scrollOffset.x, json.y - scrollOffset.y);
+        if (elemUnder && elemUnder instanceof Ci.nsIDOMHTMLInputElement || elemUnder instanceof Ci.nsIDOMHTMLTextAreaElement)
+          return;
+
+        // Limit the selection to the initial content window (don't leave or enter iframes)
+        if (elemUnder && elemUnder.ownerDocument.defaultView != this.contentWindow)
+          return;
+
+        // Use fake mouse events to update the selection
+        if (json.type == "end") {
+          // Keep the cache in "client" coordinates, but translate for the mouse event
+          this.cache.end = { x: json.x, y: json.y };
+          let end = { x: this.cache.end.x - scrollOffset.x, y: this.cache.end.y - scrollOffset.y };
+          utils.sendMouseEventToWindow("mousedown", end.x, end.y, 0, 1, Ci.nsIDOMNSEvent.SHIFT_MASK, true);
+          utils.sendMouseEventToWindow("mouseup", end.x, end.y, 0, 1, Ci.nsIDOMNSEvent.SHIFT_MASK, true);
+        } else {
+          // Keep the cache in "client" coordinates, but translate for the mouse event
+          this.cache.start = { x: json.x, y: json.y };
+          let start = { x: this.cache.start.x - scrollOffset.x, y: this.cache.start.y - scrollOffset.y };
+          let end = { x: this.cache.end.x - scrollOffset.x, y: this.cache.end.y - scrollOffset.y };
+
+          utils.sendMouseEventToWindow("mousedown", start.x, start.y, 0, 0, 0, true);
+          utils.sendMouseEventToWindow("mouseup", start.x, start.y, 0, 0, 0, true);
+
+          utils.sendMouseEventToWindow("mousedown", end.x, end.y, 0, 1, Ci.nsIDOMNSEvent.SHIFT_MASK, true);
+          utils.sendMouseEventToWindow("mouseup", end.x, end.y, 0, 1, Ci.nsIDOMNSEvent.SHIFT_MASK, true);
+        }
+
+        // Cache the selected text since the selection might be gone by the time we get the "end" message
+        let selection = this.contentWindow.getSelection()
+        this.selectedText = selection.toString().trim();
+
+        // Update the rect we use to test when finishing the clipboard operation
+        let range = selection.getRangeAt(0).QueryInterface(Ci.nsIDOMNSRange);
+        this.cache.rect = this._extractFromRange(range, this.cache.offset).rect;
+        break;
+    }
+  },
+
+  _extractFromRange: function sh_extractFromRange(aRange, aOffset) {
+    let cache = { start: {}, end: {}, rect: { left: Number.MAX_VALUE, top: Number.MAX_VALUE, right: 0, bottom: 0 } };
+    let rects = aRange.getClientRects();
+    for (let i=0; i<rects.length; i++) {
+      if (i == 0) {
+        cache.start.x = rects[i].left + aOffset.x;
+        cache.start.y = rects[i].bottom + aOffset.y;
+      }
+      cache.end.x = rects[i].right + aOffset.x;
+      cache.end.y = rects[i].bottom + aOffset.y;
+    }
+
+    // Keep the handles from being positioned completely out of the selection range
+    const HANDLE_VERTICAL_MARGIN = 4;
+    cache.start.y -= HANDLE_VERTICAL_MARGIN;
+    cache.end.y -= HANDLE_VERTICAL_MARGIN;
+
+    cache.rect = aRange.getBoundingClientRect();
+    cache.rect.left += aOffset.x;
+    cache.rect.top += aOffset.y;
+    cache.rect.right += aOffset.x;
+    cache.rect.bottom += aOffset.y;
+    cache.offset = aOffset;
+
+    return cache;
+  }
+};
+
+SelectionHandler.init();

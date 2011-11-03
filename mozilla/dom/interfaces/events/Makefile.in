@@ -47,13 +47,9 @@ XPIDL_MODULE	= dom_events
 GRE_MODULE	= 1
 
 SDK_XPIDLSRCS =                                 \
-	nsIDOMDocumentEvent.idl			\
 	nsIDOMEvent.idl				\
 	nsIDOMEventTarget.idl			\
 	nsIDOMEventListener.idl			\
-	nsIDOM3DocumentEvent.idl		\
-	nsIDOM3EventTarget.idl			\
-	nsIDOMEventGroup.idl			\
 	nsIDOMMouseEvent.idl			\
 	nsIDOMMouseScrollEvent.idl      \
 	nsIDOMUIEvent.idl			\
@@ -70,7 +66,6 @@ XPIDLSRCS =					\
 	nsIDOMDataTransfer.idl  			\
 	nsIDOMPopupBlockedEvent.idl		\
 	nsIDOMBeforeUnloadEvent.idl		\
-	nsIDOMNSEventTarget.idl			\
 	nsIDOMSmartCardEvent.idl                \
 	nsIDOMPageTransitionEvent.idl		\
 	nsIDOMCommandEvent.idl			\
@@ -82,18 +77,17 @@ XPIDLSRCS =					\
 	nsIDOMSimpleGestureEvent.idl		\
 	nsIDOMNSMouseEvent.idl			\
 	nsIDOMMozTouchEvent.idl			\
-	nsIDOMOrientationEvent.idl              \
+	nsIDOMDeviceOrientationEvent.idl\
+	nsIDOMDeviceMotionEvent.idl		\
 	nsIDOMScrollAreaEvent.idl		\
 	nsIDOMTransitionEvent.idl		\
+	nsIDOMAnimationEvent.idl		\
 	nsIDOMPopStateEvent.idl			\
 	nsIDOMCloseEvent.idl			\
 	nsIDOMEventException.idl		\
+	nsIDOMTouchEvent.idl			\
+	nsIDOMHashChangeEvent.idl		\
+	nsIDOMCustomEvent.idl			\
 	$(NULL)
-
-ifdef MOZ_CSS_ANIMATIONS
-XPIDLSRCS +=					\
-	nsIDOMAnimationEvent.idl		\
-	$(NULL)
-endif
 
 include $(topsrcdir)/config/rules.mk

@@ -47,19 +47,65 @@
 #include "gfxCoreTextShaper.h"
 #include "gfxUserFontSet.h"
 
-#include "nsIPrefBranch.h"
-#include "nsIPrefService.h"
-#include "nsIPrefLocalizedString.h"
-#include "nsServiceManagerUtils.h"
 #include "nsCRT.h"
 #include "nsTArray.h"
 #include "nsUnicodeRange.h"
 
+#include "mozilla/Preferences.h"
+
 #include "qcms.h"
+
+#include <dlfcn.h>
+
+using namespace mozilla;
+
+// cribbed from CTFontManager.h
+enum {
+   kAutoActivationDisabled = 1
+};
+typedef uint32_t AutoActivationSetting;
+
+// bug 567552 - disable auto-activation of fonts
+
+static void 
+DisableFontActivation()
+{
+    // get the main bundle identifier
+    CFBundleRef mainBundle = ::CFBundleGetMainBundle();
+    CFStringRef mainBundleID = NULL;
+
+    if (mainBundle) {
+        mainBundleID = ::CFBundleGetIdentifier(mainBundle);
+    }
+
+    // if possible, fetch CTFontManagerSetAutoActivationSetting
+    void (*CTFontManagerSetAutoActivationSettingPtr)
+            (CFStringRef, AutoActivationSetting);
+    CTFontManagerSetAutoActivationSettingPtr =
+        (void (*)(CFStringRef, AutoActivationSetting))
+        dlsym(RTLD_DEFAULT, "CTFontManagerSetAutoActivationSetting");
+
+    // bug 567552 - disable auto-activation of fonts
+    if (CTFontManagerSetAutoActivationSettingPtr) {
+        CTFontManagerSetAutoActivationSettingPtr(mainBundleID,
+                                                 kAutoActivationDisabled);
+    }
+
+    if (mainBundleID) {
+        ::CFRelease(mainBundleID);
+    }
+    if (mainBundle) {
+        ::CFRelease(mainBundle);
+    }
+}
 
 gfxPlatformMac::gfxPlatformMac()
 {
     mOSXVersion = 0;
+    OSXVersion();
+    if (mOSXVersion >= MAC_OS_X_VERSION_10_6_HEX) {
+        DisableFontActivation();
+    }
     mFontAntiAliasingThreshold = ReadAntiAliasingThreshold();
 }
 
@@ -224,17 +270,8 @@ gfxPlatformMac::ReadAntiAliasingThreshold()
     PRUint32 threshold = 0;  // default == no threshold
     
     // first read prefs flag to determine whether to use the setting or not
-    PRBool useAntiAliasingThreshold = PR_FALSE;
-    nsCOMPtr<nsIPrefBranch> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID);
-    if (prefs) {
-        PRBool enabled;
-        nsresult rv =
-            prefs->GetBoolPref("gfx.use_text_smoothing_setting", &enabled);
-        if (NS_SUCCEEDED(rv)) {
-            useAntiAliasingThreshold = enabled;
-        }
-    }
-    
+    PRBool useAntiAliasingThreshold = Preferences::GetBool("gfx.use_text_smoothing_setting", PR_FALSE);
+
     // if the pref setting is disabled, return 0 which effectively disables this feature
     if (!useAntiAliasingThreshold)
         return threshold;

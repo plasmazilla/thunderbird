@@ -76,6 +76,7 @@
 #include "nsIURI.h"
 #include "nsNetCID.h"
 #include "nsIMsgWindow.h"
+#include "nsIMimeMiscStatus.h"
 #include "nsMsgUtils.h"
 #include "nsIChannel.h"
 #include "nsICacheEntryDescriptor.h"
@@ -437,6 +438,9 @@ GenerateAttachmentData(MimeObject *object, const char *aMessageURL, MimeDisplayO
   // Now, do the right thing with the name!
   if (!tmp->real_name && PL_strcasecmp(tmp->real_type, MESSAGE_RFC822))
   {
+    // Keep in mind that the name was provided by us and this is probably not a
+    // real attachment.
+    tmp->hasFilename = PR_FALSE;
     /* If this attachment doesn't have a name, just give it one... */
     tmp->real_name = MimeGetStringByID(MIME_MSG_DEFAULT_ATTACHMENT_NAME);
     if (tmp->real_name)
@@ -450,6 +454,8 @@ GenerateAttachmentData(MimeObject *object, const char *aMessageURL, MimeDisplayO
     }
     else
       tmp->real_name = mime_part_address(object);
+  } else {
+    tmp->hasFilename = PR_TRUE;
   }
   nsCString urlString(urlSpec);
 
@@ -465,6 +471,10 @@ GenerateAttachmentData(MimeObject *object, const char *aMessageURL, MimeDisplayO
     if (tmp->real_type && !strcmp(tmp->real_type, "message/rfc822") &&
            !StringEndsWith(urlString, NS_LITERAL_CSTRING(".eml"), nsCaseInsensitiveCStringComparator()))
       urlString.Append(".eml");
+  } else if (tmp->isExternalAttachment) {
+    // Allows the JS mime emitter to figure out the part information.
+    urlString.Append("?part=");
+    urlString.Append(part);
   }
   nsresult rv = nsMimeNewURI(&(tmp->url), urlString.get(), nsnull);
 
@@ -509,32 +519,43 @@ BuildAttachmentList(MimeObject *anObject, nsMsgAttachmentData *aAttachData, cons
   for (i = 0; i < cobj->nchildren ; i++)
   {
     MimeObject    *child = cobj->children[i];
+    char          *ct = child->content_type;
 
     // Skip attachments that are not being output
     if (! child->output_p)
       continue;
     
-    // Skip the first child that's being output if it's in fact a message body
-    PRBool first_output = !found_output;
-    found_output = PR_TRUE;
-    if (first_output)                                   // it's the first child being output
-      if (child->content_type)                          // and it's content-type is one of folowing...
-        if (!PL_strcasecmp (child->content_type, TEXT_PLAIN) ||
-            !PL_strcasecmp (child->content_type, TEXT_HTML) ||
-            !PL_strcasecmp (child->content_type, TEXT_MDL))
-        {
-                              // and it doesn't have a filename
-          if (child->headers) // and finally, be sure it doesn't have a content-disposition: attachment
-          {
-            char * disp = MimeHeaders_get (child->headers, HEADER_CONTENT_DISPOSITION, PR_TRUE, PR_FALSE);
-            if (!MimeHeaders_get_name(child->headers, nsnull) &&
-                (!disp || PL_strcasecmp(disp, "attachment")))
-              continue;
-          }
-          else
-            continue;
-        }
+    // Skip the first child that's being output if it's in fact a message body.
+    // Start by assuming that it is, until proven otherwise in the code below.
+    PRBool skip = PR_TRUE;
+    if (found_output)
+      // not first child being output
+      skip = PR_FALSE;
+    else if (! ct)
+      // no content type so can't be message body
+      skip = PR_FALSE;
+    else if (PL_strcasecmp (ct, TEXT_PLAIN) &&
+             PL_strcasecmp (ct, TEXT_HTML) &&
+             PL_strcasecmp (ct, TEXT_MDL))
+      // not a type we recognize as a message body
+      skip = PR_FALSE;
+    // we're displaying all body parts
+    if (child->options->html_as_p == 4)
+        skip = PR_FALSE;
+    if (skip && child->headers)
+    {
+      char * disp = MimeHeaders_get (child->headers,
+                                     HEADER_CONTENT_DISPOSITION,
+                                     PR_TRUE, PR_FALSE);
+      if (MimeHeaders_get_name(child->headers, nsnull) &&
+          (!disp || PL_strcasecmp(disp, "attachment")))
+        // it has a filename and isn't being displayed inline
+        skip = PR_FALSE;
+    }
 
+    found_output = PR_TRUE;
+    if (skip)
+      continue;
 
     // We should generate an attachment for leaf object only but...
     PRBool isALeafObject = mime_subclass_p(child->clazz, (MimeObjectClass *) &mimeLeafClass);
@@ -664,7 +685,7 @@ NotifyEmittersOfAttachmentList(MimeDisplayOptions     *opt,
 
   while (tmp->url)
   {
-    if (!tmp->real_name)
+    if (!tmp->real_name || (!tmp->hasFilename && (opt->html_as_p != 4 || opt->metadata_only)))
     {
       ++i;
       ++tmp;
@@ -764,6 +785,25 @@ SetMailCharacterSetToMsgWindow(MimeObject *obj, const char *aCharacterSet)
   }
 
   return rv;
+}
+
+static void ResetMsgHeaderSinkProps(nsIURI *uri)
+{
+  nsCOMPtr<nsIMsgMailNewsUrl> msgurl(do_QueryInterface(uri));
+  if (!msgurl)
+    return;
+
+  nsCOMPtr<nsIMsgWindow> msgWindow;
+  msgurl->GetMsgWindow(getter_AddRefs(msgWindow));
+  if (!msgWindow)
+    return;
+
+  nsCOMPtr<nsIMsgHeaderSink> msgHeaderSink;
+  msgWindow->GetMsgHeaderSink(getter_AddRefs(msgHeaderSink));
+  if (!msgHeaderSink)
+    return;
+
+  msgHeaderSink->ResetProperties();
 }
 
 static char *
@@ -1639,6 +1679,7 @@ mime_bridge_create_display_stream(
     msd->options->m_prefBranch->GetBoolPref("mail.force_user_charset", &(msd->options->force_user_charset));
     msd->options->m_prefBranch->GetBoolPref("mail.inline_attachments", &(msd->options->show_attachment_inline_p));
     msd->options->m_prefBranch->GetBoolPref("mail.reply_quote_inline", &(msd->options->quote_attachment_inline_p));
+    msd->options->m_prefBranch->GetIntPref("mailnews.display.html_as", &(msd->options->html_as_p));
   }
   /* This pref is written down in with the
      opposite sense of what we like to use... */
@@ -1668,7 +1709,7 @@ mime_bridge_create_display_stream(
 
   msd->options->output_fn             = mime_output_fn;
 
-  msd->options->whattodo         = whattodo;
+  msd->options->whattodo              = whattodo;
   msd->options->charset_conversion_fn = mime_convert_charset;
   msd->options->rfc1522_conversion_p  = PR_TRUE;
   msd->options->file_type_fn          = mime_file_type;
@@ -1709,6 +1750,8 @@ mime_bridge_create_display_stream(
     PR_Free(obj);
     return 0;
   }
+
+  ResetMsgHeaderSinkProps(uri);
 
   memset (stream, 0, sizeof (*stream));
   stream->name           = "MIME Conversion Stream";

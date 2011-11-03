@@ -46,7 +46,6 @@
 #include "nsCOMPtr.h"
 #include "nsContentUtils.h"
 #include "nsDOMString.h"
-#include "nsIDOM3Node.h"
 #include "nsNodeInfoManager.h"
 #include "nsIDocument.h"
 #include "nsIXPConnect.h"
@@ -58,8 +57,6 @@ NS_NewDOMDocumentType(nsIDOMDocumentType** aDocType,
                       nsNodeInfoManager *aNodeInfoManager,
                       nsIPrincipal *aPrincipal,
                       nsIAtom *aName,
-                      nsIDOMNamedNodeMap *aEntities,
-                      nsIDOMNamedNodeMap *aNotations,
                       const nsAString& aPublicId,
                       const nsAString& aSystemId,
                       const nsAString& aInternalSubset)
@@ -69,53 +66,43 @@ NS_NewDOMDocumentType(nsIDOMDocumentType** aDocType,
   NS_ENSURE_ARG_POINTER(aDocType);
   NS_ENSURE_ARG_POINTER(aName);
 
-  nsresult rv;
-
   nsRefPtr<nsNodeInfoManager> nimgr;
   if (aNodeInfoManager) {
     nimgr = aNodeInfoManager;
   }
   else {
     nimgr = new nsNodeInfoManager();
-    NS_ENSURE_TRUE(nimgr, NS_ERROR_OUT_OF_MEMORY);
-    
-    rv = nimgr->Init(nsnull);
+    nsresult rv = nimgr->Init(nsnull);
     NS_ENSURE_SUCCESS(rv, rv);
 
     nimgr->SetDocumentPrincipal(aPrincipal);
   }
 
-  nsCOMPtr<nsINodeInfo> ni;
-  ni = nimgr->GetNodeInfo(nsGkAtoms::documentTypeNodeName, nsnull,
-                          kNameSpaceID_None);
+  nsCOMPtr<nsINodeInfo> ni =
+    nimgr->GetNodeInfo(nsGkAtoms::documentTypeNodeName, nsnull,
+                       kNameSpaceID_None,
+                       nsIDOMNode::DOCUMENT_TYPE_NODE,
+                       aName);
   NS_ENSURE_TRUE(ni, NS_ERROR_OUT_OF_MEMORY);
 
-  *aDocType = new nsDOMDocumentType(ni.forget(), aName, aEntities, aNotations,
-                                    aPublicId, aSystemId, aInternalSubset);
-  if (!*aDocType) {
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
-
+  *aDocType = new nsDOMDocumentType(ni.forget(), aPublicId, aSystemId,
+                                    aInternalSubset);
   NS_ADDREF(*aDocType);
 
   return NS_OK;
 }
 
 nsDOMDocumentType::nsDOMDocumentType(already_AddRefed<nsINodeInfo> aNodeInfo,
-                                     nsIAtom *aName,
-                                     nsIDOMNamedNodeMap *aEntities,
-                                     nsIDOMNamedNodeMap *aNotations,
                                      const nsAString& aPublicId,
                                      const nsAString& aSystemId,
                                      const nsAString& aInternalSubset) :
-  nsGenericDOMDataNode(aNodeInfo),
-  mName(aName),
-  mEntities(aEntities),
-  mNotations(aNotations),
+  nsDOMDocumentTypeForward(aNodeInfo),
   mPublicId(aPublicId),
   mSystemId(aSystemId),
   mInternalSubset(aInternalSubset)
 {
+  NS_ABORT_IF_FALSE(mNodeInfo->NodeType() == nsIDOMNode::DOCUMENT_TYPE_NODE,
+                    "Bad NodeType in aNodeInfo");
 }
 
 nsDOMDocumentType::~nsDOMDocumentType()
@@ -154,31 +141,7 @@ nsDOMDocumentType::GetText()
 NS_IMETHODIMP    
 nsDOMDocumentType::GetName(nsAString& aName)
 {
-  mName->ToString(aName);
-  return NS_OK;
-}
-
-NS_IMETHODIMP    
-nsDOMDocumentType::GetEntities(nsIDOMNamedNodeMap** aEntities)
-{
-  NS_ENSURE_ARG_POINTER(aEntities);
-
-  *aEntities = mEntities;
-
-  NS_IF_ADDREF(*aEntities);
-
-  return NS_OK;
-}
-
-NS_IMETHODIMP    
-nsDOMDocumentType::GetNotations(nsIDOMNamedNodeMap** aNotations)
-{
-  NS_ENSURE_ARG_POINTER(aNotations);
-
-  *aNotations = mNotations;
-
-  NS_IF_ADDREF(*aNotations);
-
+  aName = NodeName();
   return NS_OK;
 }
 
@@ -205,41 +168,12 @@ nsDOMDocumentType::GetInternalSubset(nsAString& aInternalSubset)
   return NS_OK;
 }
 
-NS_IMETHODIMP
-nsDOMDocumentType::GetNodeName(nsAString& aNodeName)
-{
-  mName->ToString(aNodeName);
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDOMDocumentType::GetNodeValue(nsAString& aNodeValue)
-{
-  SetDOMStringToNull(aNodeValue);
-
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDOMDocumentType::SetNodeValue(const nsAString& aNodeValue)
-{
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsDOMDocumentType::GetNodeType(PRUint16* aNodeType)
-{
-  *aNodeType = nsIDOMNode::DOCUMENT_TYPE_NODE;
-
-  return NS_OK;
-}
-
 nsGenericDOMDataNode*
 nsDOMDocumentType::CloneDataNode(nsINodeInfo *aNodeInfo, PRBool aCloneText) const
 {
   nsCOMPtr<nsINodeInfo> ni = aNodeInfo;
-  return new nsDOMDocumentType(ni.forget(), mName, mEntities, mNotations,
-                               mPublicId, mSystemId, mInternalSubset);
+  return new nsDOMDocumentType(ni.forget(), mPublicId, mSystemId,
+                               mInternalSubset);
 }
 
 nsresult
@@ -264,7 +198,9 @@ nsDOMDocumentType::BindToTree(nsIDocument *aDocument, nsIContent *aParent,
     nsCOMPtr<nsINodeInfo> newNodeInfo;
     newNodeInfo = nimgr->GetNodeInfo(mNodeInfo->NameAtom(),
                                      mNodeInfo->GetPrefixAtom(),
-                                     mNodeInfo->NamespaceID());
+                                     mNodeInfo->NamespaceID(),
+                                     nsIDOMNode::DOCUMENT_TYPE_NODE,
+                                     mNodeInfo->GetExtraName());
     NS_ENSURE_TRUE(newNodeInfo, NS_ERROR_OUT_OF_MEMORY);
 
     mNodeInfo.swap(newNodeInfo);

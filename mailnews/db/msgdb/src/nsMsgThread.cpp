@@ -56,10 +56,7 @@ nsMsgThread::nsMsgThread(nsMsgDatabase *db, nsIMdbTable *table)
   m_mdbTable = table;
   m_mdbDB = db;
   if (db)
-  {
-    db->AddRef();
     db->m_threads.AppendElement(this);
-  }
   else
     NS_ERROR("no db for thread");
 #ifdef DEBUG_David_Bienvenu
@@ -68,7 +65,7 @@ nsMsgThread::nsMsgThread(nsMsgDatabase *db, nsIMdbTable *table)
 #endif
   if (table && db)
   {
-    table->GetMetaRow(db->GetEnv(), nsnull, nsnull, &m_metaRow);
+    table->GetMetaRow(db->GetEnv(), nsnull, nsnull, getter_AddRefs(m_metaRow));
     InitCachedValues();
   }
 }
@@ -80,13 +77,9 @@ void nsMsgThread::Init()
   m_numChildren = 0;
   m_numUnreadChildren = 0;
   m_flags = 0;
-  m_mdbTable = nsnull;
-  m_mdbDB = nsnull;
-  m_metaRow = nsnull;
   m_newestMsgDate = 0;
   m_cachedValuesInitialized = PR_FALSE;
 }
-
 
 nsMsgThread::~nsMsgThread()
 {
@@ -103,9 +96,9 @@ nsMsgThread::~nsMsgThread()
 
 void nsMsgThread::Clear()
 {
-  NS_IF_RELEASE(m_mdbTable);
-  NS_IF_RELEASE(m_metaRow);
-  NS_IF_RELEASE(m_mdbDB);
+  m_mdbTable = nsnull;
+  m_metaRow = nsnull;
+  m_mdbDB = nsnull;
 }
 
 nsresult nsMsgThread::InitCachedValues()
@@ -487,17 +480,19 @@ NS_IMETHODIMP nsMsgThread::GetChildKeyAt(PRInt32 aIndex, nsMsgKey *aResult)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMsgThread::GetChildAt(PRInt32 aIndex, nsIMsgDBHdr **result)
+NS_IMETHODIMP nsMsgThread::GetChildHdrAt(PRInt32 aIndex, nsIMsgDBHdr **result)
 {
-  nsresult rv;
-
+  // mork doesn't seem to handle this correctly, so deal with going off
+  // the end here.
+  if (aIndex < 0 || PRUint32(aIndex) >= m_numChildren)
+    return NS_MSG_MESSAGE_NOT_FOUND;
   mdbOid oid;
-  rv = m_mdbTable->PosToOid( m_mdbDB->GetEnv(), aIndex, &oid);
+  nsresult rv = m_mdbTable->PosToOid( m_mdbDB->GetEnv(), aIndex, &oid);
   NS_ENSURE_SUCCESS(rv, NS_MSG_MESSAGE_NOT_FOUND);
   nsIMdbRow *hdrRow = nsnull;
-  //do I have to release hdrRow?
   rv = m_mdbTable->PosToRow(m_mdbDB->GetEnv(), aIndex, &hdrRow);
   NS_ENSURE_TRUE(NS_SUCCEEDED(rv) && hdrRow, NS_ERROR_FAILURE);
+  // CreateMsgHdr takes ownership of the hdrRow reference.
   rv = m_mdbDB->CreateMsgHdr(hdrRow,  oid.mOid_Id , result);
   return (NS_SUCCEEDED(rv)) ? NS_OK : NS_MSG_MESSAGE_NOT_FOUND;
 }
@@ -528,46 +523,10 @@ NS_IMETHODIMP nsMsgThread::GetChild(nsMsgKey msgKey, nsIMsgDBHdr **result)
   return rv;
 }
 
-
-NS_IMETHODIMP nsMsgThread::GetChildHdrAt(PRInt32 aIndex, nsIMsgDBHdr **result)
-{
-  nsresult rv;
-
-  nsIMdbRow* resultRow;
-  mdb_pos pos = aIndex - 1;
-
-  NS_ENSURE_ARG_POINTER(result);
-
-  *result = nsnull;
-  // mork doesn't seem to handle this correctly, so deal with going off
-  // the end here.
-  if (aIndex > (PRInt32) m_numChildren)
-    return NS_OK;
-
-  nsIMdbTableRowCursor *rowCursor;
-  rv = m_mdbTable->GetTableRowCursor(m_mdbDB->GetEnv(), pos, &rowCursor);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  rv = rowCursor->NextRow(m_mdbDB->GetEnv(), &resultRow, &pos);
-  NS_RELEASE(rowCursor);
-  if (NS_FAILED(rv) || !resultRow)
-    return rv;
-
-  //Get key from row
-  mdbOid outOid;
-  nsMsgKey key=0;
-  if (resultRow->GetOid(m_mdbDB->GetEnv(), &outOid) == NS_OK)
-    key = outOid.mOid_Id;
-
-  return m_mdbDB->CreateMsgHdr(resultRow, key, result);
-}
-
-
 NS_IMETHODIMP nsMsgThread::RemoveChildAt(PRInt32 aIndex)
 {
   return NS_OK;
 }
-
 
 nsresult nsMsgThread::RemoveChild(nsMsgKey msgKey)
 {
@@ -1022,6 +981,8 @@ NS_IMETHODIMP nsMsgThread::GetRootHdr(PRInt32 *resultIndex, nsIMsgDBHdr **result
       *resultIndex = 0;
     rv = GetChildHdrAt(0, result);
   }
+  if (!*result)
+    return rv;
   // Check that the thread id of the message is this thread.
   nsMsgKey threadId = nsMsgKey_None;
   (void)(*result)->GetThreadId(&threadId);

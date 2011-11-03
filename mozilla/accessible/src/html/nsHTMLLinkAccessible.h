@@ -52,17 +52,19 @@ public:
   // nsIAccessible
   NS_IMETHOD GetValue(nsAString& aValue);
 
-  NS_IMETHOD GetNumActions(PRUint8 *aNumActions);
   NS_IMETHOD GetActionName(PRUint8 aIndex, nsAString& aName);
   NS_IMETHOD DoAction(PRUint8 aIndex);
 
   // nsAccessible
   virtual PRUint32 NativeRole();
-  virtual nsresult GetStateInternal(PRUint32 *aState, PRUint32 *aExtraState);
+  virtual PRUint64 NativeState();
+
+  // ActionAccessible
+  virtual PRUint8 ActionCount();
 
   // HyperLinkAccessible
-  virtual bool IsHyperLink();
-  virtual already_AddRefed<nsIURI> GetAnchorURI(PRUint32 aAnchorIndex);
+  virtual bool IsLink();
+  virtual already_AddRefed<nsIURI> AnchorURIAt(PRUint32 aAnchorIndex);
 
 protected:
   enum { eAction_Jump = 0 };

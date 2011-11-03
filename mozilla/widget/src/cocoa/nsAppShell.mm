@@ -43,6 +43,8 @@
 #import <Cocoa/Cocoa.h>
 #include <dlfcn.h>
 
+#include "CustomCocoaEvents.h"
+#include "mozilla/WidgetTraceEvent.h"
 #include "nsAppShell.h"
 #include "nsCOMPtr.h"
 #include "nsIFile.h"
@@ -59,13 +61,15 @@
 #include "nsCocoaUtils.h"
 #include "nsChildView.h"
 #include "nsToolkit.h"
+#include "TextInputHandler.h"
 
 #include "npapi.h"
+
+using namespace mozilla::widget;
 
 // defined in nsChildView.mm
 extern nsIRollupListener * gRollupListener;
 extern nsIWidget         * gRollupWidget;
-extern PRUint32          gLastModifierState;
 
 // defined in nsCocoaWindow.mm
 extern PRInt32             gXULModalLevel;
@@ -168,6 +172,27 @@ PRBool nsCocoaAppModalWindowList::GeckoModalAboveCocoaModal()
 
   return (topItem.mWidget != nsnull);
 }
+
+// GeckoNSApplication
+//
+// Subclass of NSApplication for filtering out certain events.
+@interface GeckoNSApplication : NSApplication
+{
+}
+@end
+
+@implementation GeckoNSApplication
+- (void)sendEvent:(NSEvent *)anEvent
+{
+  if ([anEvent type] == NSApplicationDefined &&
+      [anEvent subtype] == kEventSubtypeTrace) {
+    mozilla::SignalTracerThread();
+    return;
+  }
+  [super sendEvent:anEvent];
+}
+@end
+
 
 // AppShellDelegate
 //
@@ -286,7 +311,7 @@ nsAppShell::Init()
   [NSBundle loadNibFile:
                      [NSString stringWithUTF8String:(const char*)nibPath.get()]
       externalNameTable:
-           [NSDictionary dictionaryWithObject:[NSApplication sharedApplication]
+           [NSDictionary dictionaryWithObject:[GeckoNSApplication sharedApplication]
                                        forKey:@"NSOwner"]
                withZone:NSDefaultMallocZone()];
 
@@ -314,7 +339,7 @@ nsAppShell::Init()
   rv = nsBaseAppShell::Init();
 
 #ifndef NP_NO_CARBON
-  NS_InstallPluginKeyEventsHandler();
+  TextInputHandler::InstallPluginKeyEventsHandler();
 #endif
 
   gCocoaAppModalWindowList = new nsCocoaAppModalWindowList;
@@ -388,7 +413,7 @@ nsAppShell::ProcessGeckoEvents(void* aInfo)
                                        timestamp:0
                                     windowNumber:0
                                          context:NULL
-                                         subtype:0
+                                         subtype:kEventSubtypeNone
                                            data1:0
                                            data2:0]
              atStart:NO];
@@ -410,7 +435,7 @@ nsAppShell::ProcessGeckoEvents(void* aInfo)
                                      timestamp:0
                                   windowNumber:0
                                        context:NULL
-                                       subtype:0
+                                       subtype:kEventSubtypeNone
                                          data1:0
                                          data2:0]
            atStart:NO];
@@ -769,7 +794,7 @@ nsAppShell::Exit(void)
   gCocoaAppModalWindowList = NULL;
 
 #ifndef NP_NO_CARBON
-  NS_RemovePluginKeyEventsHandler();
+  TextInputHandler::RemovePluginKeyEventsHandler();
 #endif
 
   // Quoting from Apple's doc on the [NSApplication stop:] method (from their
@@ -924,8 +949,9 @@ nsAppShell::AfterProcessNextEvent(nsIThreadInternal *aThread,
 
 // applicationDidBecomeActive
 //
-// Make sure gLastModifierState is updated when we become active (since we
-// won't have received [ChildView flagsChanged:] messages while inactive).
+// Make sure TextInputHandler::sLastModifierState is updated when we become
+// active (since we won't have received [ChildView flagsChanged:] messages
+// while inactive).
 - (void)applicationDidBecomeActive:(NSNotification*)aNotification
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
@@ -934,7 +960,8 @@ nsAppShell::AfterProcessNextEvent(nsIThreadInternal *aThread,
   // to worry about getting an NSInternalInconsistencyException here.
   NSEvent* currentEvent = [NSApp currentEvent];
   if (currentEvent) {
-    gLastModifierState = [currentEvent modifierFlags] & NSDeviceIndependentModifierFlagsMask;
+    TextInputHandler::sLastModifierState =
+      [currentEvent modifierFlags] & NSDeviceIndependentModifierFlagsMask;
   }
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
