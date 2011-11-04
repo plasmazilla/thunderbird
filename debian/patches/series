@@ -33,3 +33,4 @@ porting/Allow-ipc-code-to-build-on-GNU-hurd.patch
 debian-hacks/get-ride-of-default-debian-hardering-options.patch
 fixes/packager-fails-when-MOZILLA_DIR-is-a-relative-path.patch
 iceowl/Change-extension-s-name-to-Iceowl.patch
+iceowl/Install-calendar-timezones-mode-0644-not-0755.patch
