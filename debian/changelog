@@ -1,3 +1,43 @@
+icedove (8.0~b4-1) experimental; urgency=low
+
+  * [4e90977] New Upstream Version 8.0b4 (Closes: #591771, #638161)
+  * [955423a] replace duplicate .so files in icedove and icedove-dev with
+    symlinks
+  * [6ffb325] remove obsolete cdbs rule to extract tarball
+  * [f98837b] build against libnotify4 (libnotify-dev >= 0.7)(Closes: #637194)
+  * [66f72bc] Build-depend on libjpeg-dev instead of libjpeg62-dev
+  * [8af21a2] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/get-ride-of-default-debian-hardering-options.patch
+    - fixes/packager-fails-when-MOZILLA_DIR-is-a-relative-path.patch
+    modified patches:
+    - icedove/save-a-copy-of-a-attached-file-when-sending-from-OOo.patch
+    obsolete patches (fixed upstream):
+    - debian-hacks/bzXXX-ftbfs-static-with-system-hunspell.patch
+    - fixes/Bug-626035-Modify-the-way-arm-compiler-flags-are-set.patch
+    - fixes/Bug-639554-Install-sdk-bin-with-make-install.-r-bsme.patch
+    - fixes/Bug-640494-part-1-Get-rid-of-STL-algorithm-use-in-js.patch
+    - fixes/Bug-640494-part-2-Use-bitwise-operations-in-JSDOUBLE.patch
+    - fixes/Bug-652139-Use-an-integer-type-in-DocumentViewerImpl.patch
+    - fixes/Bug-662224-Define-NS_ATTR_MALLOC-and-NS_WARN_UNUSED_.patch
+    - fixes/Bug-668906-Do-not-call-openUnsharedDatabase-with-a-n.patch
+    - fixes/Bug-671564-Initialize-NS_XPCOM_LIBRARY_FILE-from-NS_.patch
+    - fixes/Disable-building-embedded-libjpeg-turbo-when-buildin.patch
+    - porting/Allow-to-build-yuv_convert_arm.cpp-on-armv4t.patch
+    - porting/Bug-638056-Avoid-The-cacheFlush-support-is-missing-o.patch
+    - porting/Fix-FTBFS-in-IPC-on-Linux-PPC.patch
+    - porting/Fix-FTBFS-in-xpcom-base-on-armv4t.patch
+    - system-libs/libxul-linking-error-with-enable-system-ffi-and-stat.patch
+  * [5f6e50f] add Japanese translation for desktop menu entry. Thanks to
+    Hideki Yamane <henrich@debian.org> (Closes: #640679)
+  * [591f76c] add build depends unzip
+  * [0af372f] remove upstream integrated CFLAGS and CXXFLAGS '-g -std=gnu++0x'
+  * [a4c8b2f] adjust install and links file to new upstream
+  * [332b7a8] Revert "override libtheora embedded-library error" no longer
+    needed
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 05 Nov 2011 20:31:29 +0100
+
 icedove (5.0-2) experimental; urgency=low
 
   * [7f92927] fix FTBFS on ia64: use gcc with -O2 instead of -Os
