@@ -1,1 +1,0 @@
-@DEB_MOZ_APPLICATION@-dev: embedded-library usr/lib/@DEB_MOZ_APPLICATION@-devel/sdk/lib/libxul.so: libtheora
