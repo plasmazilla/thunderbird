@@ -35,8 +35,7 @@ Build-Depends: bzip2,
 	libffi-dev,
 	libevent-dev (>= 1.4.1),
 	libvpx-dev,
-	mesa-common-dev,
-	unzip
+	mesa-common-dev
 Vcs-Git: git://git.debian.org/pkg-mozilla/icedove.git
 Vcs-Browser: http://git.debian.org/?p=pkg-mozilla/icedove.git;a=summary
 Standards-Version: 3.9.2
