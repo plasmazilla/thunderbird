@@ -1,3 +1,17 @@
+icedove (8.0~b4-2) experimental; urgency=low
+
+  [ Guido Günther ]
+  * [5d043ec] Install calendar extension
+  * [07feb49] Change extension's name to Iceowl
+  * [c597212] iceowl-extension: don't ignore errors in postinst
+  * [30ec51d] Disable patch numbers
+  * [73f80ed] Don't install timezones file mode 0755
+
+  [ Christoph Goehre ]
+  * [0fa13be] remove duplicate build depends unzip
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 08 Nov 2011 22:29:19 +0100
+
 icedove (8.0~b4-1) experimental; urgency=low
 
   * [4e90977] New Upstream Version 8.0b4 (Closes: #591771, #638161)
