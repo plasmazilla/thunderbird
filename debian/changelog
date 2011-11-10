@@ -1,3 +1,15 @@
+icedove (3.0.11-1+squeeze6) stable-security; urgency=high
+
+  * [6f96c16] backported patches from xulrunner fixes mfsa2011-{46,47,49}
+    - MFSA 2011-46 aka CVE-2011-3647: loadSubScript unwraps XPCNativeWrapper
+      scope parameter
+    - MFSA 2011-47 aka CVE-2011-3648: Potential XSS against sites using
+      Shift-JIS
+    - MFSA 2011-49 aka CVE-2011-3650: Memory corruption while profiling using
+      Firebug
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 10 Nov 2011 21:15:08 +0100
+
 icedove (3.0.11-1+squeeze5) stable-security; urgency=high
 
   * [44577f9] backported patches from xulrunner fixes mfsa2011-{36-40}
