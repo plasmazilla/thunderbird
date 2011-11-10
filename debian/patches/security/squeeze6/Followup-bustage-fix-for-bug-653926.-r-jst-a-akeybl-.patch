@@ -1,0 +1,28 @@
+From: Blake Kaplan <mrbkap@gmail.com>
+Date: Mon, 31 Oct 2011 14:37:04 -0700
+Subject: Followup bustage fix for bug 653926. r=jst a=akeybl for checkin into
+ a CLOSED TREE
+
+---
+ js/src/xpconnect/loader/mozJSSubScriptLoader.cpp |    8 +++++++-
+ 1 files changed, 7 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/js/src/xpconnect/loader/mozJSSubScriptLoader.cpp b/mozilla/js/src/xpconnect/loader/mozJSSubScriptLoader.cpp
+index 37b00da..ff79767 100644
+--- a/mozilla/js/src/xpconnect/loader/mozJSSubScriptLoader.cpp
++++ b/mozilla/js/src/xpconnect/loader/mozJSSubScriptLoader.cpp
+@@ -159,7 +159,13 @@ mozJSSubScriptLoader::LoadSubScript (const PRUnichar * /*url*/
+     nsCOMPtr<nsIPrincipal> principal = mSystemPrincipal;
+     JSObject *result_obj = target_obj;
+ 
+-    target_obj = target_obj ? XPCWrapper::Unwrap(cx, target_obj) : nsnull;
++    // This is very hacky: we know that our caller must be chrome here, and
++    // therefore if XPCWrappe::Unwrap returns null, then the object that we
++    // passed in was not a security wrapper (and not that it was an object
++    // that we couldn't access). In that case, we can use the original object
++    // without any changes.
++    if (target_obj && !(target_obj = XPCWrapper::Unwrap(cx, target_obj)))
++        target_obj = result_obj;
+ 
+     if (!target_obj)
+     {

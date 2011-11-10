@@ -147,3 +147,10 @@ security/squeeze5/Bug-684815-Fix-a-crash-a-LegNeato.patch
 security/squeeze5/Fix-for-bug-660453-Don-t-use-txExecutionState-if-ini.patch
 security/squeeze5/Bug-662215-r-bz-a-dveditz.patch
 security/squeeze5/Bug-655389-CRLF-Injection-and-the-parsing-of-HTTP-he.patch
+security/squeeze6/Bug-679572-Check-each-next-in-flow-if-it-s-an-overfl.patch
+security/squeeze6/Resynchronize-the-Shift_JIS-converter-after-unrecogn.patch
+security/squeeze6/Bug-667907.-For-HTTP-0.9-on-non-default-ports-be-mor.patch
+security/squeeze6/Bug-674776-Fix-trap-problem-in-js_GetOpcode-r-jorend.patch
+security/squeeze6/Bug-657462-don-t-select-the-first-item-in-the-downlo.patch
+security/squeeze6/Fix-bug-653926.-r-jst-a-LegNeato.patch
+security/squeeze6/Followup-bustage-fix-for-bug-653926.-r-jst-a-akeybl-.patch

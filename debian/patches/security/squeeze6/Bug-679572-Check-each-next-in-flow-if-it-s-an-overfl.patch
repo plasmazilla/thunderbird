@@ -1,0 +1,154 @@
+From: Mats Palmgren <matspal@gmail.com>
+Date: Tue, 27 Sep 2011 00:32:07 +0200
+Subject: Bug 679572 - Check each next-in-flow if it's an overflow container
+ (back-porting bug 564968). r=roc a1.9.2.24=dveditz
+
+---
+ layout/generic/crashtests/564968.xhtml    |   30 +++++++++++++++
+ layout/generic/crashtests/679572.html     |   57 +++++++++++++++++++++++++++++
+ layout/generic/crashtests/crashtests.list |    2 +
+ layout/generic/nsBlockFrame.cpp           |   12 ++++++-
+ 4 files changed, 100 insertions(+), 1 deletions(-)
+ create mode 100644 layout/generic/crashtests/564968.xhtml
+ create mode 100644 layout/generic/crashtests/679572.html
+
+diff --git a/mozilla/layout/generic/crashtests/564968.xhtml b/mozilla/layout/generic/crashtests/564968.xhtml
+new file mode 100644
+index 0000000..4a81a45
+--- /dev/null
++++ b/mozilla/layout/generic/crashtests/564968.xhtml
+@@ -0,0 +1,30 @@
++<html xmlns="http://www.w3.org/1999/xhtml">
++<head>
++<style>
++    .container {
++      height: 1em;
++    }
++    .overflow {
++      height: 8em;
++    }
++    body {
++      font-family: monospace;
++      height: 8em;
++      line-height: 1em;
++      -moz-column-count: 2;
++      -moz-column-gap: 0;
++    }
++</style>
++<script>
++    function boom()
++    {
++      document.documentElement.offsetHeight;
++      document.getElementById('x').style.display = 'none';
++      document.documentElement.offsetHeight;
++      document.getElementById('y').style.display = 'none';
++    }
++</script>
++</head>
++
++<body style="width: 17ch;" onload="boom();"><div id="x" class="container"></div>This paragraph must be in the first column.<div class="container" id="y"><div class="overflow"></div></div></body>
++</html>
+diff --git a/mozilla/layout/generic/crashtests/679572.html b/mozilla/layout/generic/crashtests/679572.html
+new file mode 100644
+index 0000000..2bc8fa8
+--- /dev/null
++++ b/mozilla/layout/generic/crashtests/679572.html
+@@ -0,0 +1,57 @@
++<html>
++	<STYLE>
++		dd{
++			-moz-column-width: 0;
++		}
++	</STYLE>
++		<li>
++		<STYLE>
++			li{	
++				padding-bottom: 1000em;
++			}
++		</STYLE>
++		CC</li>
++		<li>
++			<pre>
++				<dd>
++					<ul>
++						<STYLE>
++							ul{
++								height: 0;	
++							}
++						</STYLE>
++					</ul>
++		<strike>
++			<ol>handler</ol>
++<figcaption>
++			<li>
++			uu
++
++			nav
++
++			label
++
++		</strike>
++<ul>
++	<dd>
++		<STYLE>
++		dd{
++			position: fixed;	
++		}
++
++		dd:last-child{
++			width: 100;
++		}
++		</STYLE>
++P</dd>
++	<ul>
++		<li></li>
++	</ul>
++
++		</p>
++		</pre>
++</ul>
++
++</figcaption>
++</li>
++</html>
+\ No newline at end of file
+diff --git a/mozilla/layout/generic/crashtests/crashtests.list b/mozilla/layout/generic/crashtests/crashtests.list
+index 934cf6a..626a385 100644
+--- a/mozilla/layout/generic/crashtests/crashtests.list
++++ b/mozilla/layout/generic/crashtests/crashtests.list
+@@ -214,3 +214,5 @@ load 603490-1.html
+ load 603510-1.html
+ load 604843.html
+ load 605340.html
++load 564968.xhtml
++load 679572.html 
+diff --git a/mozilla/layout/generic/nsBlockFrame.cpp b/mozilla/layout/generic/nsBlockFrame.cpp
+index f045fc9..adb8799 100644
+--- a/mozilla/layout/generic/nsBlockFrame.cpp
++++ b/mozilla/layout/generic/nsBlockFrame.cpp
+@@ -25,7 +25,7 @@
+  *   Robert O'Callahan <roc+moz@cs.cmu.edu>
+  *   L. David Baron <dbaron@dbaron.org>
+  *   IBM Corporation
+- *   Mats Palmgren <mats.palmgren@bredband.net>
++ *   Mats Palmgren <matspal@gmail.com>
+  *
+  * Alternatively, the contents of this file may be used under the terms of
+  * either of the GNU General Public License Version 2 or later (the "GPL"),
+@@ -5456,6 +5456,16 @@ found_frame:;
+     printf(" prevSibling=%p deletedNextContinuation=%p\n", prevSibling, deletedNextContinuation);
+ #endif
+ 
++    // If next-in-flow is an overflow container, must remove it first.
++    if (deletedNextContinuation &&
++        (deletedNextContinuation->GetStateBits() & NS_FRAME_IS_OVERFLOW_CONTAINER)) {
++      NS_ASSERTION(!(aFlags & PRESERVE_REMOVED_FRAMES),
++                   "We can't not destroy overflow containers");
++      static_cast<nsContainerFrame*>(deletedNextContinuation->GetParent())
++        ->DeleteNextInFlowChild(presContext, deletedNextContinuation, PR_FALSE);
++      deletedNextContinuation = nsnull;
++    }
++
+     if (aFlags & PRESERVE_REMOVED_FRAMES) {
+       aDeletedFrame->SetNextSibling(nsnull);
+     } else {

@@ -1,0 +1,21 @@
+From: Gavin Sharp <gavin@gavinsharp.com>
+Date: Fri, 30 Sep 2011 09:51:17 -0700
+Subject: Bug 657462: don't select the first item in the download manager
+ automatically, r=dolske, a=LegNeato
+
+---
+ toolkit/mozapps/downloads/content/downloads.js |    1 -
+ 1 files changed, 0 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/toolkit/mozapps/downloads/content/downloads.js b/mozilla/toolkit/mozapps/downloads/content/downloads.js
+index 6748920..fc7e7da 100644
+--- a/mozilla/toolkit/mozapps/downloads/content/downloads.js
++++ b/mozilla/toolkit/mozapps/downloads/content/downloads.js
+@@ -1169,7 +1169,6 @@ function buildDownloadList(aForceBuild)
+   gBuilder = setTimeout(function() {
+     // Start building the list and select the first item
+     stepListBuilder(1);
+-    gDownloadsView.selectedIndex = 0;
+ 
+     // We just tried to add a single item, so we probably need to enable
+     updateClearListButton();

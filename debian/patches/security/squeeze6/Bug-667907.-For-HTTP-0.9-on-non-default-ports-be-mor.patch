@@ -1,0 +1,115 @@
+From: Boris Zbarsky <bzbarsky@mit.edu>
+Date: Thu, 7 Jul 2011 14:17:13 -0400
+Subject: Bug 667907. For HTTP 0.9 on non-default ports, be more conservative.
+ r=jduell, a=legneato
+
+---
+ netwerk/protocol/http/src/nsHttpChannel.cpp |    4 +
+ netwerk/test/unit/test_bug667907.js         |   81 +++++++++++++++++++++++++++
+ 2 files changed, 85 insertions(+), 0 deletions(-)
+ create mode 100644 netwerk/test/unit/test_bug667907.js
+
+diff --git a/mozilla/netwerk/protocol/http/src/nsHttpChannel.cpp b/mozilla/netwerk/protocol/http/src/nsHttpChannel.cpp
+index 052b13c..af87708 100644
+--- a/mozilla/netwerk/protocol/http/src/nsHttpChannel.cpp
++++ b/mozilla/netwerk/protocol/http/src/nsHttpChannel.cpp
+@@ -788,8 +788,12 @@ nsHttpChannel::CallOnStartRequest()
+     mTracingEnabled = PR_FALSE;
+ 
+     if (mResponseHead && mResponseHead->ContentType().IsEmpty()) {
++        NS_ASSERTION(mConnectionInfo, "Should have connection info here");
+         if (!mContentTypeHint.IsEmpty())
+             mResponseHead->SetContentType(mContentTypeHint);
++        else if (mResponseHead->Version() == NS_HTTP_VERSION_0_9 &&
++                 mConnectionInfo->Port() != mConnectionInfo->DefaultPort())
++            mResponseHead->SetContentType(NS_LITERAL_CSTRING(TEXT_PLAIN));
+         else {
+             // Uh-oh.  We had better find out what type we are!
+ 
+diff --git a/mozilla/netwerk/test/unit/test_bug667907.js b/mozilla/netwerk/test/unit/test_bug667907.js
+new file mode 100644
+index 0000000..8f87470
+--- /dev/null
++++ b/mozilla/netwerk/test/unit/test_bug667907.js
+@@ -0,0 +1,81 @@
++do_load_httpd_js();
++
++var httpserver = null;
++var simplePath = "/simple";
++var normalPath = "/normal";
++var httpbody = "<html></html>";
++var uri1 = "http://localhost:4444" + simplePath;
++var uri2 = "http://localhost:4444" + normalPath;
++
++function make_channel(url) {
++  var ios = Cc["@mozilla.org/network/io-service;1"].
++            getService(Ci.nsIIOService);
++  return ios.newChannel(url, "", null);
++}
++
++var listener_proto = {
++  QueryInterface: function(iid) {
++    if (iid.equals(Components.interfaces.nsIStreamListener) ||
++        iid.equals(Components.interfaces.nsIRequestObserver) ||
++        iid.equals(Components.interfaces.nsISupports))
++      return this;
++    throw Components.results.NS_ERROR_NO_INTERFACE;
++  },
++
++  onStartRequest: function(request, context) {
++    do_check_eq(request.QueryInterface(Ci.nsIChannel).contentType,
++		this.contentType);
++    request.cancel(Cr.NS_BINDING_ABORTED);
++  },
++
++  onDataAvailable: function(request, context, stream, offset, count) {
++    do_throw("Unexpected onDataAvailable");
++  },
++
++  onStopRequest: function(request, context, status) {
++    do_check_eq(status, Cr.NS_BINDING_ABORTED);
++    this.termination_func();
++  }  
++};
++
++function listener(contentType, termination_func) {
++  this.contentType = contentType;
++  this.termination_func = termination_func;
++}
++listener.prototype = listener_proto;
++
++function run_test()
++{
++  httpserver = new nsHttpServer();
++  httpserver.registerPathHandler(simplePath, simpleHandler);
++  httpserver.registerPathHandler(normalPath, normalHandler);
++  httpserver.start(4444);
++  
++  var channel = make_channel(uri1);
++  channel.asyncOpen(new listener("text/plain", function() {
++	run_test2();
++      }), null);
++
++  do_test_pending();
++}
++
++function run_test2()
++{
++  var channel = make_channel(uri2);
++  channel.asyncOpen(new listener("text/html", function() {
++	httpserver.stop(do_test_finished);
++      }), null);
++}
++
++function simpleHandler(metadata, response)
++{
++  response.seizePower();
++  response.bodyOutputStream.write(httpbody, httpbody.length);
++  response.finish();
++}
++
++function normalHandler(metadata, response)
++{
++  response.bodyOutputStream.write(httpbody, httpbody.length);
++  response.finish();
++}

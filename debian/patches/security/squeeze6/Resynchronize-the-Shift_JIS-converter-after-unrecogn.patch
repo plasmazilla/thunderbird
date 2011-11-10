@@ -1,0 +1,105 @@
+From: Simon Montagu <smontagu@smontagu.org>
+Date: Wed, 19 Oct 2011 07:58:41 +0200
+Subject: Resynchronize the Shift_JIS converter after unrecognized sequences.
+ Bug 690225, r=emk, a1.9.2.24=dveditz
+
+---
+ intl/uconv/tests/unit/test_bug116882.js  |    2 +-
+ intl/uconv/ucvja/nsJapaneseToUnicode.cpp |   19 +++++++++++++++----
+ layout/reftests/bugs/116882-1-ref.html   |    2 +-
+ 3 files changed, 17 insertions(+), 6 deletions(-)
+
+diff --git a/mozilla/intl/uconv/tests/unit/test_bug116882.js b/mozilla/intl/uconv/tests/unit/test_bug116882.js
+index 95097ea..9330ed3 100644
+--- a/mozilla/intl/uconv/tests/unit/test_bug116882.js
++++ b/mozilla/intl/uconv/tests/unit/test_bug116882.js
+@@ -3,7 +3,7 @@
+  */
+ 
+ const inText = "\xfd\xfe\xff\x81\x20\x81\x3f\x86\x3c";
+-const expectedText = "\uf8f1\uf8f2\uf8f3\u30fb\u30fb\u30fb";
++const expectedText = "\uf8f1\uf8f2\uf8f3\ufffd \ufffd?\ufffd<";
+ const charset = "Shift_JIS";
+     
+ function run_test() {
+diff --git a/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp b/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp
+index 9ce854c..b38fb0b 100644
+--- a/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp
++++ b/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp
+@@ -50,6 +50,7 @@ static NS_DEFINE_CID(kCharsetConverterManagerCID, NS_ICHARSETCONVERTERMANAGER_CI
+ #define SJIS_INDEX mMapIndex[0]
+ #define JIS0208_INDEX mMapIndex[1]
+ #define JIS0212_INDEX gJIS0212Index
++#define UNICODE_REPLACEMENT_CHARACTER 0xfffd
+ 
+ void nsJapaneseToUnicode::setMapMode()
+ {
+@@ -177,8 +178,15 @@ NS_IMETHODIMP nsShiftJISToUnicode::Convert(
+           case 1: // Index to table
+           {
+             PRUint8 off = sbIdx[*src];
++
++            // Error handling: in the case where the second octet is not in the
++            // valid ranges 0x40-0x7E 0x80-0xFC, unconsume the invalid octet and
++            // interpret it as the ASCII value. In the case where the second
++            // octet is in the valid range but there is no mapping for the
++            // 2-octet sequence, do not unconsume.
+             if(0xFF == off) {
+-               *dest++ = 0x30FB;
++               src--;
++               *dest++ = UNICODE_REPLACEMENT_CHARACTER;
+             } else {
+                PRUnichar ch = gJapaneseMap[mData+off];
+                if(ch == 0xfffd) 
+@@ -194,8 +202,11 @@ NS_IMETHODIMP nsShiftJISToUnicode::Convert(
+           case 2: // EUDC
+           {
+             PRUint8 off = sbIdx[*src];
++
++            // Error handling as in case 1
+             if(0xFF == off) {
+-               *dest++ = 0x30fb;
++               src--;
++               *dest++ = UNICODE_REPLACEMENT_CHARACTER;
+             } else {
+                *dest++ = mData + off;
+             }
+@@ -320,12 +331,12 @@ NS_IMETHODIMP nsEUCJPToUnicodeV2::Convert(
+           {
+             PRUint8 off = sbIdx[*src];
+             if(0xFF == off) {
+-              *dest++ = 0xFFFD;
+                // if the first byte is valid for EUC-JP but the second 
+                // is not while being a valid US-ASCII, save it
+                // instead of eating it up !
+               if ( (PRUint8)*src < (PRUint8)0x7f )
+                 --src;
++              *dest++ = 0xFFFD;
+             } else {
+                *dest++ = gJapaneseMap[mData+off];
+             }
+@@ -340,11 +351,11 @@ NS_IMETHODIMP nsEUCJPToUnicodeV2::Convert(
+             if((0xA1 <= *src) && (*src <= 0xDF)) {
+               *dest++ = (0xFF61-0x00A1) + *src;
+             } else {
+-              *dest++ = 0xFFFD;             
+               // if 0x8e is not followed by a valid JIS X 0201 byte
+               // but by a valid US-ASCII, save it instead of eating it up.
+               if ( (PRUint8)*src < (PRUint8)0x7f )
+                 --src;
++              *dest++ = 0xFFFD;
+             }
+             mState = 0;
+             if(dest >= destEnd)
+diff --git a/mozilla/layout/reftests/bugs/116882-1-ref.html b/mozilla/layout/reftests/bugs/116882-1-ref.html
+index 1fdc3ef..d89fc51 100644
+--- a/mozilla/layout/reftests/bugs/116882-1-ref.html
++++ b/mozilla/layout/reftests/bugs/116882-1-ref.html
+@@ -6,6 +6,6 @@
+   <meta HTTP-equiv="content-type" content="text/html; charset=shift_jis">
+  </head>
+  <body>
+-  <p>&#xf8f1;&#xf8f2;&#xf8f3;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;&#x30fb;</p>
++  <p>&#xf8f1;&#xf8f2;&#xf8f3;&#xfffd; &#xfffd;!&#xfffd;"&#xfffd;#&#xfffd;$&#xfffd;%&#xfffd;&amp;&#xfffd;'&#xfffd;(&#xfffd;)&#xfffd;*&#xfffd;+&#xfffd;,&#xfffd;-&#xfffd;.&#xfffd;/&#xfffd;0&#xfffd;1&#xfffd;2&#xfffd;3&#xfffd;4&#xfffd;5&#xfffd;6&#xfffd;7&#xfffd;8&#xfffd;9&#xfffd;:&#xfffd;;&#xfffd;&lt;&#xfffd;=&#xfffd;&gt;&#xfffd;?&#x30fb;</p>
+  </body>
+ </html>
