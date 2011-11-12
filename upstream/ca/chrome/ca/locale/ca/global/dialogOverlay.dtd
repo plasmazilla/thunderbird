@@ -1,10 +1,7 @@
 <!-- -*- Mode: HTML -*-
 -->
-
-<!-- Catalan Translation: Projecte Mozilla en català - Softcatalà - http://www.softcatala.org/projectes/mozilla/ -->
-
 <!-- OK Cancel Buttons -->
-<!ENTITY okButton.label "D'acord">
-<!ENTITY cancelButton.label "Canceŀla">
-<!ENTITY helpButton.label "Ajuda">
 
+<!ENTITY okButton.label      "D'acord">
+<!ENTITY cancelButton.label  "Cancel·la">
+<!ENTITY helpButton.label    "Ajuda">

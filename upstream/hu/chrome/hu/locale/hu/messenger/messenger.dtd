@@ -9,9 +9,6 @@
 <!ENTITY closeTabCmd2.accesskey "L">
 <!ENTITY closeOtherTabsCmd2.label "Többi lap bezárása">
 <!ENTITY closeOtherTabsCmd2.accesskey "T">
-<!-- LOCALIZATION NOTE (undoCloseTabCmd.label):
-     Menu option to attempt to re-open a recently closed tab.
-     -->
 <!ENTITY recentlyClosedTabsCmd.label "Nemrég bezárt lapok">
 <!ENTITY recentlyClosedTabsCmd.accesskey "N">
 
@@ -227,6 +224,8 @@
 <!ENTITY bodySanitized.accesskey "E">
 <!ENTITY bodyAsPlaintext.label "Normál szöveg">
 <!ENTITY bodyAsPlaintext.accesskey "S">
+<!ENTITY bodyAllParts.label "Minden elem a levéltörzsből">
+<!ENTITY bodyAllParts.accesskey "M">
 
 <!ENTITY bodyMenuFeed.label "Hír üzenettörzse, mint">
 <!ENTITY bodyMenuFeed.accesskey "H">
@@ -551,7 +550,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderSizeColumn.label "Méret">
 
 <!-- Folder Pane Context Menu -->
-<!ENTITY folderContextGetMessages.label "Üzenetek letöltése ">
+<!ENTITY folderContextGetMessages.label "Üzenetek letöltése">
 <!ENTITY folderContextGetMessages.accesskey "z">
 <!ENTITY folderContextOpenNewWindow.label "Megnyitás">
 <!ENTITY folderContextOpenNewWindow.accesskey "n">

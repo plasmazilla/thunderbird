@@ -1,0 +1,19 @@
+<!ENTITY editContactPanelDeleteContact.label "Hapus">
+<!ENTITY editContactPanelDeleteContact.accesskey "H">
+
+<!ENTITY editContactName.label "Nama:">
+<!ENTITY editContactName.accesskey "N">
+
+<!ENTITY editContactEmail.label "Email:">
+<!ENTITY editContactEmail.accesskey "E">
+
+<!ENTITY editContactAddressBook.label "Buku Alamat:">
+<!ENTITY editContactAddressBook.accesskey "A">
+
+<!ENTITY editContactPanelCancel.label "Batal">
+<!ENTITY editContactPanelCancel.accesskey "B">
+
+<!ENTITY editContactPanelDone.label "Selesai">
+<!ENTITY editContactPanelDone.accesskey "S">
+
+<!ENTITY contactMoveDisabledWarning.description "Anda tidak dapat mengubah buku alamat karena kontak ada dalam milis.">

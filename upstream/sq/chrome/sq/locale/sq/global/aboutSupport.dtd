@@ -38,3 +38,4 @@ variant of aboutSupport.show.label.  This allows us to use the preferred
 <!ENTITY aboutSupport.updateHistoryTitle "Historik Përditësimesh">
 
 <!ENTITY aboutSupport.copyToClipboard.label "Kopjoje krejt në të papastër">
+<!ENTITY aboutSupport.appBasicsCrashIDs "Crash Reports">

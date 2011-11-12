@@ -216,6 +216,8 @@
 <!ENTITY bodySanitized.accesskey "S">
 <!ENTITY bodyAsPlaintext.label "සාමාන්‍ය පාඨ (Plain Text)">
 <!ENTITY bodyAsPlaintext.accesskey "P">
+<!ENTITY bodyAllParts.label "ලිපියේ බඳේ සියළු කොටස්">
+<!ENTITY bodyAllParts.accesskey "A">
 
 <!ENTITY bodyMenuFeed.label "Feed Message Body As">
 <!ENTITY bodyMenuFeed.accesskey "B">
@@ -828,7 +830,7 @@ Entities below were automatically added by compare-locales,
 <!ENTITY moveToNewWindow.accesskey "W">
 <!ENTITY recentlyClosedTabsCmd.label "මෑතදී වැසූ ටැබ්">
 <!ENTITY goRecentlyClosedTabs.label "මෑතදී වැසූ ටැබ්">
-<!ENTITY mdnBarSendButton2.label "Send Return Receipt">
+<!ENTITY mdnBarSendButton2.label "ලදුපත් යවන්න">
 <!ENTITY spellAddDictionaries.accesskey "A">
 <!ENTITY moveToNewWindow.label "නව නවුළුවකට යන්න">
 <!ENTITY folderMenu.accesskey "O">

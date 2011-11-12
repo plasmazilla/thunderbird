@@ -1,0 +1,10 @@
+<!--null-->
+<!ENTITY contact.heading "Επαφή">
+<!ENTITY home.heading "Οικία">
+<!ENTITY other.heading "Άλλο">
+<!ENTITY phone.heading "Τηλέφωνο">
+<!ENTITY work.heading "Εργασία">
+<!ENTITY description.heading "Περιγραφή">
+<!ENTITY addresses.heading "Διευθύνσεις">
+<!ENTITY mapItButton.label "Λήψη χάρτη">
+<!ENTITY mapIt.tooltip "Προβολή χάρτη της διεύθυνσης από τον ιστό">

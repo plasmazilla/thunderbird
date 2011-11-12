@@ -8,7 +8,7 @@
 <!ENTITY quickFilterBar.starred.label "Speciali">
 <!ENTITY quickFilterBar.starred.tooltip "Mostra solo i messaggi con attributo 'speciale'">
 <!ENTITY quickFilterBar.inaddrbook.label "In rubrica">
-<!ENTITY quickFilterBar.inaddrbook.tooltip "Mostra solo i messaggi delle persone presenti in rubrica">
+<!ENTITY quickFilterBar.inaddrbook.tooltip "Mostra solo i messaggi dei contatti presenti in rubrica">
 <!ENTITY quickFilterBar.tags.label "Etichette">
 <!ENTITY quickFilterBar.tags.tooltip "Mostra solo i messaggi con un'etichetta applicata">
 <!ENTITY quickFilterBar.attachment.label "Allegati">
@@ -17,8 +17,9 @@
 <!ENTITY quickFilterBar.resultsLabel.none "Nessun risultato">
 <!ENTITY quickFilterBar.resultsLabel.minWidth "100">
 <!ENTITY quickFilterBar.textbox.emptyText.base "Filtra questi messaggi… #1">
-<!ENTITY quickFilterBar.textbox.emptyText.keyLabel.nonmac "&lt;Ctrl+F&gt;">
-<!ENTITY quickFilterBar.textbox.emptyText.keyLabel1.mac "&lt;⌘F&gt;">
+<!ENTITY quickFilterBar.show.key2 "k">
+<!ENTITY quickFilterBar.textbox.emptyText.keyLabel2.nonmac "&lt;Ctrl+Maiusc+K&gt;">
+<!ENTITY quickFilterBar.textbox.emptyText.keyLabel2.mac "&lt;⇧⌘K&gt;">
 <!ENTITY quickFilterBar.textbox.idealWidth "320">
 <!ENTITY quickFilterBar.textbox.minWidth "280">
 <!ENTITY quickFilterBar.textFilter.explanation.label "Filtra i messaggi per:">

@@ -9,9 +9,6 @@
 <!ENTITY closeTabCmd2.accesskey "D">
 <!ENTITY closeOtherTabsCmd2.label "Dún Cluaisíní Eile">
 <!ENTITY closeOtherTabsCmd2.accesskey "E">
-<!-- LOCALIZATION NOTE (undoCloseTabCmd.label):
-     Menu option to attempt to re-open a recently closed tab.
-     -->
 <!ENTITY recentlyClosedTabsCmd.label "Cluaisíní a Dúnadh le Déanaí">
 <!ENTITY recentlyClosedTabsCmd.accesskey "D">
 
@@ -227,6 +224,8 @@
 <!ENTITY bodySanitized.accesskey "S">
 <!ENTITY bodyAsPlaintext.label "Gnáth-Théacs">
 <!ENTITY bodyAsPlaintext.accesskey "G">
+<!ENTITY bodyAllParts.label "Gach Cuid den Chorp">
+<!ENTITY bodyAllParts.accesskey "a">
 
 <!ENTITY bodyMenuFeed.label "Fothaigh corp na teachtaireachta mar">
 <!ENTITY bodyMenuFeed.accesskey "c">

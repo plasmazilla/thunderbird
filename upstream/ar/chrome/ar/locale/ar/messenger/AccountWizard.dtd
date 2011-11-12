@@ -54,10 +54,13 @@
 <!-- LOCALIZATION NOTE (popType.label) : Do not translate "POP" in below line -->
 <!ENTITY popType.label "POP">
 <!ENTITY popType.accesskey "P">
+<!ENTITY leaveMsgsOnSrvr.label "اترك الرسائل على الخادوم">
+<!ENTITY leaveMsgsOnSrvr.accesskey "ك">
 <!-- LOCALIZATION NOTE (haveSmtp1.prefix and haveSmtp1.suffix2) : Do not translate "SMTP" and "&quot;" in
      these variables. Also, translate haveSmtp1.prefix and haveSmtp1.suffix2 as a single sentence, inserting
      text after the "&quot;" entity in haveSmtp1.suffix2, if required grammatically.
 -->
+
 
 <!ENTITY haveSmtp1.prefix "سيُستخدم خادوم (SMTP) المصدِّر الموجود مسبقًا، &quot;">
 <!ENTITY haveSmtp1.suffix2 "&quot;. يمكنك تغيير الخادمات المصدِّرة في إعدادات الحسابات.">
@@ -104,7 +107,7 @@
 <!ENTITY newsServerNamePrefix.label "اسم خادوم الأخبار (NNTP):‏">
 <!ENTITY downloadOnLogin.label "نزِّل الرّسائل الآن">
 <!ENTITY downloadOnLogin.accesskey "ن">
-<!ENTITY deferStorageDesc.label "أزل الإشارة من مربّع الاختيار هذا لتخزين بريد هذا الحساب في دليله الخاص. سيجعل ذلك من الحساب يبدو أنّه حساب أعلى مستوى. بغير ذلك، سيصبح جزءًا من الأدلة المحليّة لحساب صندوق الوارد العام.">
+<!ENTITY deferStorageDesc.label "أزل الإشارة من مربّع الاختيار هذا لتخزين بريد هذا الحساب في مجلده الخاص. سيجعل ذلك من الحساب يبدو أنّه حساب أعلى مستوى. بغير ذلك، سيصبح جزءًا من المجلدات المحليّة لحساب صندوق الوارد العام.">
 <!ENTITY deferStorage.label "استخدم صندوق الوارد العامّ (تخزين البريد في المجلّدات المحليّة)">
 <!ENTITY deferStorage.accesskey "ع">
 <!ENTITY clickFinish.label "اضغط &quot;أنهِ&quot; لحفظ هذه الإعدادات و إنهاء مرشد الحسابات.">

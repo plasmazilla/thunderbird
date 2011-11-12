@@ -145,3 +145,4 @@
 <!ENTITY CopyMessageId.label "İleti kimliğini kopyala">
 <!ENTITY OpenMessageForMsgId.label "Bu kimliği taşıyan iletiyi aç">
 <!ENTITY OpenBrowserWithMsgId.label "Tarayıcıyı bu kimlik numarasıyla aç">
+<!ENTITY hdrSmartReplyButton.label "smart reply">

@@ -179,7 +179,7 @@
 <!ENTITY sortBySubjectCmd.accesskey "b">
 <!ENTITY sortByFromCmd.label "Da">
 <!ENTITY sortByFromCmd.accesskey "a">
-<!ENTITY sortByRecipientCmd.label "Receptur">
+<!ENTITY sortByRecipientCmd.label "Destinatur">
 <!ENTITY sortByRecipientCmd.accesskey "c">
 <!ENTITY sortByUnreadCmd.label "Legì">
 <!ENTITY sortByUnreadCmd.accesskey "L">
@@ -230,6 +230,8 @@
 <!ENTITY bodySanitized.accesskey "S">
 <!ENTITY bodyAsPlaintext.label "Text senza formataziun">
 <!ENTITY bodyAsPlaintext.accesskey "T">
+<!ENTITY bodyAllParts.label "Tut las parts dal corp">
+<!ENTITY bodyAllParts.accesskey "A">
 
 <!ENTITY bodyMenuFeed.label "Feed cun il text dal messadi sco">
 <!ENTITY bodyMenuFeed.accesskey "B">
@@ -608,7 +610,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- Thread Pane -->
 <!ENTITY threadColumn.label "Tema">
 <!ENTITY fromColumn.label "Da">
-<!ENTITY recipientColumn.label "Receptur">
+<!ENTITY recipientColumn.label "Destinatur">
 <!ENTITY subjectColumn.label "Object">
 <!ENTITY dateColumn.label "Data">
 <!ENTITY priorityColumn.label "Prioritad">

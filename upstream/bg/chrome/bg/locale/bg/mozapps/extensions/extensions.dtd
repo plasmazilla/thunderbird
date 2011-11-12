@@ -22,15 +22,14 @@
 <!ENTITY warning.updatesecurity.label "Проверката за безопасност на обновяването на добавки е изключена. Възможно е системата да се компрометира от добавки.">
 <!ENTITY warning.updatesecurity.enable.label "Активиране">
 <!ENTITY warning.updatesecurity.enable.tooltip "Активиране на проверката за безопасност на обновяването на добавки">
+<!-- global informations -->
+
+<!ENTITY info.plugincheck.label "Проверка дали вашите приставки са с последна версия">
+<!ENTITY info.plugincheck.tooltip "Проверка дали вашите приставки са с последна версия">
 <!-- categories / views -->
 
 <!ENTITY view.search.label "Търсене">
 <!ENTITY view.discover.label "Изтегляне на добавки">
-<!ENTITY view.locales.label "Languages">
-<!ENTITY view.searchengines.label "Search Engines">
-<!ENTITY view.features.label "Extensions">
-<!ENTITY view.appearance2.label "Appearance">
-<!ENTITY view.plugins.label "Plugins">
 <!ENTITY view.recentUpdates.label "Скорошни обновявания">
 <!ENTITY view.availableUpdates.label "Налични обновявания">
 <!-- addon updates -->
@@ -197,3 +196,5 @@
 <!ENTITY eula.width "560px">
 <!ENTITY eula.height "400px">
 <!ENTITY eula.accept "Приемане и инсталиране…">
+
+<!ENTITY settings.path.button.label "Разглеждане…">

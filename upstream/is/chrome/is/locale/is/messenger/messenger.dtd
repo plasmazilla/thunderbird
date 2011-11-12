@@ -8,9 +8,6 @@
 <!ENTITY closeTabCmd2.accesskey "L">
 <!ENTITY closeOtherTabsCmd2.label "Loka öðrum flipum">
 <!ENTITY closeOtherTabsCmd2.accesskey "o">
-<!-- LOCALIZATION NOTE (undoCloseTabCmd.label):
-     Menu option to attempt to re-open a recently closed tab.
-     -->
 <!ENTITY recentlyClosedTabsCmd.label "Nýlega lokaðir flipar">
 <!ENTITY recentlyClosedTabsCmd.accesskey "r">
 <!ENTITY undoCloseTabCmd.commandkey "T">
@@ -219,6 +216,8 @@
 <!ENTITY bodySanitized.accesskey "E">
 <!ENTITY bodyAsPlaintext.label "Ósniðinn texti">
 <!ENTITY bodyAsPlaintext.accesskey "s">
+<!ENTITY bodyAllParts.label "Allir meginmálshlutir">
+<!ENTITY bodyAllParts.accesskey "A">
 <!ENTITY bodyMenuFeed.label "Meginmál straums sem">
 <!ENTITY bodyMenuFeed.accesskey "M">
 <!ENTITY viewFeedWebPage.label "Vefsíða">

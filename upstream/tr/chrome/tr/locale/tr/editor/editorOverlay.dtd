@@ -80,8 +80,8 @@
 
 <!ENTITY editMenu.label "Düzenle">
 <!ENTITY editMenu.accesskey "z">
-<!ENTITY pasteNoFormatting.label "Paste Without Formatting">
-<!ENTITY pasteNoFormatting.accesskey "n">
+<!ENTITY pasteNoFormatting.label "Biçimlendirme olmadan yapıştır">
+<!ENTITY pasteNoFormatting.accesskey "y">
 <!ENTITY pasteNoFormatting.key "V">
 <!ENTITY pasteAs.label "Farklı yapıştır">
 <!ENTITY pasteAs.accesskey "a">
@@ -452,3 +452,6 @@
 <!ENTITY removeTOC.accesskey "S">
 <!ENTITY tocMenu.label "İçerik tablosu…">
 <!ENTITY tocMenu.accesskey "k">
+<!ENTITY copyToolbarCmd.tooltip "Copy">
+<!ENTITY cutToolbarCmd.tooltip "Cut">
+<!ENTITY pasteToolbarCmd.tooltip "Paste">

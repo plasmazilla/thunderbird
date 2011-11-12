@@ -2,7 +2,7 @@
 <!ENTITY itemPhishing.label      "Fraudes de correo">
 <!ENTITY itemPasswords.label     "Contraseñas">
 <!ENTITY itemAntiVirus.label     "Antivirus">
-<!ENTITY itemCookies.label       "Contenido Web">
+<!ENTITY itemCookies.label       "Contenido web">
 
 <!-- Junk Mail Controls -->
 <!ENTITY junkMail.intro "Configuración predeterminada de correo basura. Las configuraciones específicas de cada cuenta deben ser realizadas en Configuración de cuentas.">
@@ -50,7 +50,7 @@
 <!ENTITY keepUntil.label                "Mantener hasta:">
 <!ENTITY keepUntil.accesskey            "M">
 <!ENTITY expire.label                   "que expiren">
-<!ENTITY close.label                    "Cierre &brandShortName;">
+<!ENTITY close.label                    "cierre &brandShortName;">
 <!ENTITY askEachTime.label              "preguntarme cada vez">
 <!ENTITY cookieExceptions.label         "Excepciones…">
 <!ENTITY cookieExceptions.accesskey     "E">

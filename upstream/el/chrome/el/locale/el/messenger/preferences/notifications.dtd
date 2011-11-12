@@ -1,0 +1,9 @@
+<!ENTITY notificationsDialog2.title "Προσαρμογή ειδοποίησης νέου μηνύματος">
+<!ENTITY window.width "39em">
+<!ENTITY alertCustomization.intro "Επιλέξτε τα πεδία που θα εμφανίζονται στην ειδοποίηση:">
+<!ENTITY previewText.label "Προεπισκόπηση κειμένου μηνύματος">
+<!ENTITY previewText.accesskey "μ">
+<!ENTITY subject.label "Θέμα">
+<!ENTITY subject.accesskey "Θ">
+<!ENTITY sender.label "Αποστολέας">
+<!ENTITY sender.accesskey "π">

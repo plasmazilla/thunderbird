@@ -1,0 +1,58 @@
+<!ENTITY autoconfigWizard.title "Наладка паштовага рахунку">
+<!ENTITY name.label "Ваша імя:">
+<!ENTITY name.accesskey "і">
+<!ENTITY name.placeholder "Імя Прозвішча">
+<!ENTITY name.text "Ваша імя для іншых людзей">
+<!ENTITY email.label "Адрас э-пошты:">
+<!ENTITY email.accesskey "А">
+<!ENTITY email.placeholder "email@example.com">
+<!ENTITY password.label "Пароль:">
+<!ENTITY password.accesskey "П">
+<!ENTITY password.placeholder "Пароль">
+<!ENTITY password.text "Неабавязковы, патрэбны толькі для спраўджання імя карыстальніка">
+<!ENTITY rememberPassword.label "Памятаць пароль">
+<!ENTITY rememberPassword.accesskey "м">
+<!ENTITY imapLong.label "IMAP (адлеглыя папкі)">
+<!ENTITY pop3Long.label "POP3 (утрымліваць пошту на вашым кампутары)">
+<!ENTITY incoming.label "Уваходны:">
+<!ENTITY outgoing.label "Выходны:">
+<!ENTITY username.label "Імя карыстальніка:">
+<!ENTITY hostname.label "Назва трымальніка паслугача">
+<!ENTITY port.label "Порт">
+<!ENTITY ssl.label "SSL">
+<!ENTITY auth.label "Апазнаванне">
+<!ENTITY imap.label "IMAP">
+<!ENTITY pop3.label "POP3">
+<!ENTITY smtp.label "SMTP">
+<!ENTITY autodetect.label "Самавызначэнне">
+<!ENTITY noEncryption.label "Няма">
+<!ENTITY starttls.label "STARTTLS">
+<!ENTITY sslTls.label "SSL/TLS">
+<!ENTITY advancedSetup.label "Удасканаленая наладка">
+<!ENTITY advancedSetup.accesskey "У">
+<!ENTITY cancel.label "Скасаваць">
+<!ENTITY cancel.accesskey "к">
+<!ENTITY continue.label "Працягнуць">
+<!ENTITY continue.accesskey "П">
+<!ENTITY stop.label "Спыніць">
+<!ENTITY stop.accesskey "С">
+<!ENTITY half-manual-test.label "Пераправерыць">
+<!ENTITY half-manual-test.accesskey "е">
+<!ENTITY manual-edit.label "Ручная наладка">
+<!ENTITY manual-edit.accesskey "Р">
+<!ENTITY warning.label "Увага!">
+<!ENTITY incomingSettings.label "Уваходныя наладжванні:">
+<!ENTITY outgoingSettings.label "Выходныя наладжванні:">
+<!ENTITY technicaldetails.label "Тэхнічныя падрабязнасці.">
+<!ENTITY confirmWarning.label "Я разумею рызыку.">
+<!ENTITY confirmWarning.accesskey "р">
+<!ENTITY createAccount.label "Стварыць рахунак">
+<!ENTITY createAccount.accesskey "С">
+<!ENTITY changeSettings.label "Змяніць наладжванні">
+<!ENTITY changeSettings.accesskey "З">
+<!ENTITY contactYourProvider.description "&brandShortName; можа дазволіць вам карыстацца вашай поштай з дамамогаю гэтых наладжванняў. Тым не менш, вы павінны паведаміць вашаму спраўніку ці дастаўшчыку э-пошты пра гэтыя няспраўныя злучэнні. Больш падрабязныя звесткі можна атрымаць у Thunderbird FAQ.">
+<!ENTITY insecureServer.tooltip.title "Увага! Гэта небяспечны паслугач.">
+<!ENTITY insecureServer.tooltip.details "Пстрыкніце круг, каб атрымаць падрабязныя звесткі.">
+<!ENTITY insecureUnencrypted.description "Вашы э-пошта і здаткі апазнавання будуць дасылацца незашыфраванымі, таму іншыя людзі могуць лёгка прачытаць вашы лісты і пароль. &brandShortName; дазволіць вам атрымліваць вашу пошту, але вам трэба папрасіць вашага дастаўшчыка э-пошты наладзіць паслугач ужываць бяспечнае злучэнне.">
+<!ENTITY insecureSelfSigned.description "Паслугач ужывае пасведчанне, якому нельга давяраць, таму нельга быць упэўненым, што хтосьці не перарывае рух паміж &brandShortName; і вашым паслугачом. &brandShortName; &brandShortName; дазволіць вам карыстацца вашый поштай, але вы абавязкова павінны дамовіцца з вашым дастаўшчыком э-пошты пра наладжванне паслуга даверным пасведчаннем.">
+<!ENTITY secureServer.description "Віншаванні! Гэта бяспечны паслугач.">

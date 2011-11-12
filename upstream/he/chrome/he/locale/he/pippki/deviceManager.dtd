@@ -1,3 +1,9 @@
+<!--
+# Reviewer(s):
+#
+# http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
+#
+-->
 <!-- ***** BEGIN LICENSE BLOCK *****
    - Version: MPL 1.1/GPL 2.0/LGPL 2.1
    -
@@ -49,7 +55,7 @@
 <!ENTITY devmgr.button.login.accesskey          "ח">
 <!ENTITY devmgr.button.logout.label             "התנתק">
 <!ENTITY devmgr.button.logout.accesskey         "נ">
-<!ENTITY devmgr.button.changepw.label           "שנה סיסמה">
+<!ENTITY devmgr.button.changepw.label           "שנה ססמה">
 <!ENTITY devmgr.button.changepw.accesskey       "ס">
 <!ENTITY devmgr.button.load.label               "טען">
 <!ENTITY devmgr.button.load.accesskey           "ט">
@@ -67,3 +73,5 @@
 <!ENTITY loaddevice.browse.accesskey            "ע">
 
 <!ENTITY loaddevice.title                       "PKCS#11 טען התקן">
+
+

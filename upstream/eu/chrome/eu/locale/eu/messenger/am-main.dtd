@@ -14,7 +14,7 @@
 <!ENTITY organization.label "Erakundea:">
 <!ENTITY organization.accesskey "E">
 <!ENTITY signatureText.label "Sinadura-testua:">
-<!ENTITY signatureText.accesskey "s">
+<!ENTITY signatureText.accesskey "S">
 <!ENTITY signatureHtml.label "Erabili HTML (adib., &lt;b&gt;bold&lt;/b&gt;)">
 <!ENTITY signatureHtml.accesskey "M">
 <!ENTITY signatureFile.label "Erantsi sinadura fitxategitik (testua, HTML edo irudia):">

@@ -1,3 +1,9 @@
+<!--
+# Reviewer(s):
+#
+# http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
+#
+-->
 <!-- ***** BEGIN LICENSE BLOCK *****
  Version: MPL 1.1/GPL 2.0/LGPL 2.1
 
@@ -45,7 +51,7 @@ LOCALIZATION NOTE : Do not translate any of the occurrences of the word
 -->
 
 <!ENTITY importDialog.windowTitle "יבוא">
-<!ENTITY importAll.label          "יבא הכל">
+<!ENTITY importAll.label          "יבא הכול">
 <!ENTITY importAll.accesskey      "כ">
 <!ENTITY importMail.label         "דואר">
 <!ENTITY importMail.accesskey     "ד">
@@ -62,7 +68,7 @@ LOCALIZATION NOTE : Do not translate any of the occurrences of the word
 <!ENTITY importTitle.label        "אשף יבוא הדואר של &brandShortName;">
 <!ENTITY importShortDesc.label    "יבא דואר, פנקסי כתובות, הגדרות ומסננים מתוכנות אחרות">
 
-<!ENTITY importDescription1.label "אשף זה ייבא את כל הודעות הדואר, פריטים מפנקס הכתובות, העדפות ו/או מסננים מתוכנות דואר אחרות ומבני פנקסי כתובות מקובלים לתוך &brandShortName;.">
+<!ENTITY importDescription1.label "אשף זה יבא את כל הודעות הדואר, פריטים מפנקס הכתובות, העדפות ו/או מסננים מתוכנות דואר אחרות ומבני פנקסי כתובות מקובלים לתוך &brandShortName;.">
 <!ENTITY importDescription2.label "לאחר שהם ייובאו, תוכל לגשת אליהם מתוך הדואר ו/או פנקס הכתובות של &brandShortName;.">
 
 <!ENTITY selectDescription.label  "אנא בחר את התוכנה שמתוכה ברצונך לייבא:">
@@ -77,3 +83,5 @@ LOCALIZATION NOTE : Do not translate any of the occurrences of the word
 
 <!ENTITY title.label              "תפקיד">
 <!ENTITY processing.label         "מייבא...">
+
+

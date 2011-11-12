@@ -1,8 +1,8 @@
 <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd">
 %brandDTD;
 
-<!ENTITY loadError.label   "Błąd wczytywania strony">
-<!ENTITY retry.label       "Spróbuj ponownie">
+<!ENTITY loadError.label "Błąd wczytywania strony">
+<!ENTITY retry.label     "Spróbuj ponownie">
 
 <!ENTITY connectionFailure.title    "Nie udało się nawiązać połączenia">
 <!ENTITY connectionFailure.longDesc "&sharedLongDesc;">
@@ -42,10 +42,10 @@
 <!ENTITY netInterrupt.title    "Połączenie zostało przerwane">
 <!ENTITY netInterrupt.longDesc "&sharedLongDesc;">
 
-<!ENTITY netOffline.title    "Tryb offline">
-<!ENTITY netOffline.longDesc "
+<!ENTITY netOffline.title     "Tryb offline">
+<!ENTITY netOffline.longDesc2 "
 <ul>
-  <li>Odznacz opcję „Pracuj w trybie offline” w menu Plik i spróbuj ponownie.</li>
+ <li>Wybierz „Spróbuj ponownie”, aby przejść do trybu online i spróbować ponownie wczytać stronę.</li>
 </ul>
 ">
 
@@ -143,8 +143,14 @@
 <p>Tego rodzaju fałszerstwa określa się mianem phishingu. Atak ten polega na utworzeniu przez przestępców podrobionej strony lub wiadomości udającej źródło godne zaufania.</p>
 ">
 
-<!ENTITY cspFrameAncestorBlocked.title         "Zablokowane przez politykę bezpieczeństwa treści">
-<!ENTITY cspFrameAncestorBlocked.longDesc      "<p>Program &brandShortName; uniemożliwił tej stronie wczytanie treści w ten sposób, ponieważ strona posiada politykę bezpieczeństwa treści, która na to nie pozwala.</p>">
+<!ENTITY cspFrameAncestorBlocked.title    "Zablokowane przez politykę bezpieczeństwa treści">
+<!ENTITY cspFrameAncestorBlocked.longDesc "<p>Program &brandShortName; uniemożliwił tej stronie wczytanie treści w ten sposób, ponieważ strona posiada politykę bezpieczeństwa treści, która na to nie pozwala.</p>">
+
+<!ENTITY corruptedContentError.title    "Uszkodzona zawartość">
+<!ENTITY corruptedContentError.longDesc "<p>Żądana treść nie może zostać wyświetlona, ponieważ wystąpił błąd podczas transmisji danych.</p>
+<ul>
+ <li>Należy skontaktować się z odpowiedzialnymi w celu poinformowania ich o problemie.</li>
+</ul>">
 
 <!ENTITY securityOverride.linkText             "Możesz także dodać wyjątek…">
 <!ENTITY securityOverride.getMeOutOfHereButton "Zabierz mnie stąd">

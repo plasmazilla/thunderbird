@@ -59,6 +59,7 @@
 <!ENTITY editMessageButton.label "Rediger…">
 <!ENTITY hdrArchiveButton.label "Arkiver">
 <!ENTITY hdrArchiveButton.tooltip "Arkiver denne meddelelse">
+<!ENTITY hdrSmartReplyButton.label "Smart svar">
 <!ENTITY hdrReplyButton.label "Svar">
 <!ENTITY hdrReplyButton.tooltip "Svar på denne meddelelse">
 <!ENTITY hdrReplyAllButton.label "Svar til alle">
@@ -68,7 +69,7 @@
 <!ENTITY hdrForwardButton.label "Videresend">
 <!ENTITY hdrForwardButton.tooltip "Videresend denne meddelelse">
 <!ENTITY hdrJunkButton.label "Spam">
-<!ENTITY hdrJunkButton.tooltip "Marker denne meddelelse">
+<!ENTITY hdrJunkButton.tooltip "Marker denne meddelelse som spam">
 <!ENTITY hdrTrashButton.label "Slet">
 <!ENTITY hdrTrashButton.tooltip "Slet denne meddelelse">
 

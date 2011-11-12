@@ -412,3 +412,6 @@
 <!ENTITY tocMenu.label            "Përmbajtje…">
 <!ENTITY tocMenu.accesskey        "m">
 
+<!ENTITY copyToolbarCmd.tooltip "Copy">
+<!ENTITY cutToolbarCmd.tooltip "Cut">
+<!ENTITY pasteToolbarCmd.tooltip "Paste">

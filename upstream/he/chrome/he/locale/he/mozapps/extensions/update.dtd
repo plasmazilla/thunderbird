@@ -1,3 +1,11 @@
+<!--
+# Translator(s):
+#
+# http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
+# amire80 <amir.aharoni@mail.huji.ac.il>
+# Yaron <sh.yaron@gmail.com>
+#
+-->
 <!ENTITY  updateWizard.title              "&brandShortName; עדכון">
 
 <!ENTITY  offline.title                   "&brandShortName; נמצא במצב לא־מקוון">
@@ -7,7 +15,7 @@
 
 <!ENTITY  mismatch.win.title              "תוספת לא תואמת">
 <!ENTITY  mismatch.top.label              "התוספות הבאות אינן תואמות עם גרסה זו של &brandShortName; ולכן נוטרלו:">
-<!ENTITY  mismatch.bottom.label           "&brandShortName; יכול לבדוק אם ישנן גירסאות תואמות של תוספות אלו זמינות.">
+<!ENTITY  mismatch.bottom.label           "&brandShortName; יכול לבדוק אם ישנן גרסאות תואמות של תוספות אלו זמינות.">
 
 <!ENTITY  checking.wizard.title           "בודק עבור תוספות תואמות">
 <!ENTITY  checking.top.label              "בודק עדכונים עבור תוספות לא תואמות…">
@@ -24,7 +32,7 @@
 
 <!ENTITY  noupdates.wizard.title          "לא נמצאו תוספות תואמות">
 <!ENTITY  noupdates.intro.desc            "&brandShortName; לא הצליח לחפש עדכונים להרחבות הלא תואמות שברשותך.">
-<!ENTITY  noupdates.error.desc            "בעיה כלשהי אירעה בנסיון לחפש עדכונים.">
+<!ENTITY  noupdates.error.desc            "בעיה כלשהי אירעה בניסיון לחפש עדכונים.">
 <!ENTITY  noupdates.checkEnabled.desc     "&brandShortName; יבדוק באופן תדיר ויודיע לך כאשר עדכונים תואמים להרחבות אלו זמינים.">
 
 <!ENTITY  finished.wizard.title           "תוספות תואמות עודכנו">
@@ -46,3 +54,5 @@
 <!ENTITY  clickFinish.label               "לחץ סיים להמשך ההפעלה של &brandShortName;">
 <!ENTITY  clickFinish.labelMac            "לחץ סיום כדי להתחיל להמשיך בהפעלת &brandShortName;.">
 <!ENTITY  enableChecking.label            "אפשר ל־&brandShortName; לבדוק עדכונים.">
+
+

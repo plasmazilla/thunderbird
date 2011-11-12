@@ -1,3 +1,7 @@
+<!--
+-->
+<!--
+-->
 <!-- ***** BEGIN LICENSE BLOCK *****
    - Version: MPL 1.1/GPL 2.0/LGPL 2.1
    -
@@ -41,7 +45,7 @@
 <!ENTITY errLine.label   "שורה:">
 <!ENTITY errColumn.label "עמודה:">
 
-<!ENTITY all.label          "הכל">
+<!ENTITY all.label          "הכול">
 <!ENTITY all.accesskey      "ה">
 <!ENTITY errors.label       "שגיאות">
 <!ENTITY errors.accesskey   "ש">
@@ -66,3 +70,5 @@
 <!ENTITY closeCmd.commandkey "w">  
 <!ENTITY focus1.commandkey   "l">  
 <!ENTITY focus2.commandkey   "d">  
+
+

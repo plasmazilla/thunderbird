@@ -227,6 +227,8 @@
 <!ENTITY bodySanitized.accesskey "S">
 <!ENTITY bodyAsPlaintext.label "Ren tekst">
 <!ENTITY bodyAsPlaintext.accesskey "R">
+<!ENTITY bodyAllParts.label "Al indhold">
+<!ENTITY bodyAllParts.accesskey "l">
 
 <!ENTITY bodyMenuFeed.label "Feed-meddelelsens indhold som">
 <!ENTITY bodyMenuFeed.accesskey "F">
@@ -409,7 +411,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY toggleReadCmd.key "m">
 <!ENTITY markAsReadCmd.label "Som læst">
 <!ENTITY markAsReadCmd.accesskey "l">
-<!ENTITY markAsUnreadCmd.label "marker som ulæst">
+<!ENTITY markAsUnreadCmd.label "Som ulæst">
 <!ENTITY markAsUnreadCmd.accesskey "u">
 <!ENTITY markThreadAsReadCmd.label "Tråden som læst">
 <!ENTITY markThreadAsReadCmd.accesskey "T">

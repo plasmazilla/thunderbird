@@ -459,3 +459,6 @@ Entities below were automatically added by compare-locales,
 
 <!ENTITY newToolbarCmd.label "New">
 <!ENTITY pasteAsQuotationCmd.key "o">
+<!ENTITY copyToolbarCmd.tooltip "Copy">
+<!ENTITY cutToolbarCmd.tooltip "Cut">
+<!ENTITY pasteToolbarCmd.tooltip "Paste">

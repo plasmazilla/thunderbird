@@ -1,0 +1,27 @@
+<!--
+# Translator(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+# stas <stas@nerd.ro>
+#
+-->
+<!--LOCALIZATION NOTE msgViewPickerOverlay.dtd UI for showing various views on a folder -->
+
+<!ENTITY viewPicker.label "Vizualizare:">
+<!ENTITY viewPicker.accesskey "i">
+<!ENTITY viewAll.label "Tot">
+<!ENTITY viewAll.accesskey "T">
+<!ENTITY viewUnread.label "Necitit">
+<!ENTITY viewUnread.accesskey "N">
+<!ENTITY viewNotDeleted.label "Nu este șters">
+<!ENTITY viewNotDeleted.accesskey "N">
+<!ENTITY viewTags.label "Tag-uri">
+<!ENTITY viewTags.accesskey "T">
+<!ENTITY viewCustomViews.label "Vederi personalizate">
+<!ENTITY viewCustomViews.accesskey "V">
+<!ENTITY viewVirtualFolder.label "Salvează vederea ca un dosar…">
+<!ENTITY viewVirtualFolder.accesskey "S">
+<!ENTITY viewCustomizeView.label "Personalizare…">
+<!ENTITY viewCustomizeView.accesskey "P">
+
+

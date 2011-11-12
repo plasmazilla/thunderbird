@@ -48,7 +48,7 @@
 <!ENTITY focusFilter.key "f">
 
 <!-- Columns -->
-<!ENTITY prefColumn.label "Ім’я налаштування">
+<!ENTITY prefColumn.label "Назва налаштування">
 <!ENTITY lockColumn.label "Стан">
 <!ENTITY typeColumn.label "Тип">
 <!ENTITY valueColumn.label "Значення">
@@ -61,7 +61,7 @@
 <!ENTITY copyPref.key "C">
 <!ENTITY copyPref.label "Копіювати">
 <!ENTITY copyPref.accesskey "К">
-<!ENTITY copyName.label "Копіювати ім’я">
+<!ENTITY copyName.label "Копіювати назву">
 <!ENTITY copyName.accesskey "о">
 <!ENTITY copyValue.label "Копіювати значення">
 <!ENTITY copyValue.accesskey "о">

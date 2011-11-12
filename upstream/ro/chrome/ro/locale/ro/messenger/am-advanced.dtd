@@ -1,0 +1,39 @@
+<!--
+# Translator(s):
+#
+# Laudatti <Laudatti@gmail.com>
+# janimo <jani@ubuntu.com>
+# Alexandru Szasz <alexxed@gmail.com>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+#
+-->
+<!-- extracted from am-advanced.xul -->
+
+<!-- LOCALIZATION NOTE (smtpServer.label): do not translate "SMTP" in below line -->
+<!ENTITY smtpServer.label "Setările serverului de trimitere (SMTP)">
+
+<!-- LOCALIZATION NOTE (smtpDesc.label): do not translate "SMTP" in below line -->
+<!ENTITY smtpDesc.label "Deși puteți specifica mai multe servere de trimitere (SMTP), aceasta se recomandă doar utilizatorilor avansați. Definirea mai multor servere de trimitere poate cauza erori la trimiterea mesajelor.">
+
+<!ENTITY smtpListAdd.label  "Adaugă…">
+<!ENTITY smtpListAdd.accesskey  "A">
+<!ENTITY smtpListEdit.label "Editează">
+<!ENTITY smtpListEdit.accesskey "E">
+<!ENTITY smtpListDelete.label "Elimină">
+<!ENTITY smtpListDelete.accesskey "n">
+<!ENTITY smtpListSetDefault.label "Stabilește ca implicită">
+<!ENTITY smtpListSetDefault.accesskey "i">
+
+<!ENTITY serverDescription.label "Descriere:">
+<!ENTITY serverName.label "Nume server:">
+<!ENTITY serverPort.label "Port:">
+<!ENTITY userName.label   "Nume utilizator:">
+<!ENTITY connectionSecurity.label "Securitatea conexiunii: ">
+<!ENTITY authMethod.label   "Metodă de autentificare: ">
+
+

@@ -1,0 +1,66 @@
+<!--
+# Translator(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+# evinteler <emil_vinteler2000@yahoo.com>
+# janimo <jani@ubuntu.com>
+# nicubunu <nicubunu@gmail.com>
+# Laudatti <Laudatti@gmail.com>
+# secarica <orice@secarica.ro>
+# anonymous <anonymous@n.a>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+#
+-->
+<!ENTITY itemFormatting.label             "Formatare">
+<!ENTITY itemTags.label                   "Etichete">
+
+<!ENTITY style.label                      "Stil">
+<!ENTITY style.accesskey                  "S">
+<!ENTITY regularStyle.label               "Normal">
+<!ENTITY bold.label                       "Îngroșat">
+<!ENTITY italic.label                     "Înclinat">
+<!ENTITY boldItalic.label                 "Îngroșat și înclinat">
+<!ENTITY size.label                       "Mărime">
+<!ENTITY size.accesskey                   "M">
+<!ENTITY regularSize.label                "Normal">
+<!ENTITY bigger.label                     "Mai mare">
+<!ENTITY smaller.label                    "Mai mic">
+<!ENTITY color.label                      "Stabilire culori">
+<!ENTITY color.accesskey                  "c">
+<!ENTITY displayWidth.label               "Mesaje text">
+<!ENTITY displayText.label                "Pentru afișarea mesajelor text citate:">
+<!ENTITY colors.label                     "Culori">
+<!ENTITY overrideColors.label             "Culori folosite la afișarea mesajelor:">
+<!ENTITY textColor.label                  "Culoare text:">
+<!ENTITY textColor.accesskey              "t">
+<!ENTITY backgroundColor.label            "Culoare fundal:">
+<!ENTITY backgroundColor.accesskey        "C">
+
+<!-- LOCALIZATION NOTE : (emoticonsAndStructs.label) 'Emoticons' are also known as 'Smileys', e.g. :-)   -->
+<!ENTITY convertEmoticons.label        "Arată simbolurile emotive ca imagini">
+<!ENTITY convertEmoticons.accesskey    "A">
+
+<!-- labels -->
+<!ENTITY displayTagsText.label     "Etichetele pot fi folosite pentru a organiza mesajele dumneavoastră pe categorii și după priorități. ">
+<!ENTITY addTagButton.label        "Adauga">
+<!ENTITY addTagButton.accesskey    "A">
+<!ENTITY editTagButton.label       "Editare">
+<!ENTITY editTagButton.accesskey   "E">
+<!ENTITY removeTagButton.label     "Șterge">
+<!ENTITY removeTagButton.accesskey "t">
+
+<!-- Fonts -->
+<!ENTITY fontsAndColors.label    "Fonturi ">
+<!ENTITY defaultFont.label       "Font implicit:">
+<!ENTITY defaultFont.accesskey   "F">
+<!ENTITY defaultSize.label       "Mărime">
+<!ENTITY defaultSize.accesskey   "M">
+<!ENTITY fontOptions.accesskey   "F">
+<!ENTITY fontOptions.label       "Fonturi…">
+
+

@@ -1,0 +1,13 @@
+<!ENTITY accountManagerTitle.label "Ρυθμίσεις λογαριασμών αλληλογραφίας">
+<!ENTITY accountActionsButton.label "Ενέργειες λογαριασμού">
+<!ENTITY accountActionsButton.accesskey "ν">
+<!ENTITY addMailAccountButton.label "Προσθήκη λογαριασμού αλληλογραφίας...">
+<!ENTITY addMailAccountButton.accesskey "θ">
+<!ENTITY addOtherAccountButton.label "Προσθήκη άλλου λογαριασμού...">
+<!ENTITY addOtherAccountButton.accesskey "λ">
+<!ENTITY setDefaultButton.label "Ορισμός ως προεπιλεγμένου">
+<!ENTITY setDefaultButton.accesskey "π">
+<!ENTITY removeButton.label "Διαγραφή λογαριασμού">
+<!ENTITY removeButton.accesskey "Δ">
+<!ENTITY accountManager.size "width: 75em; height: 48em;">
+<!ENTITY accountTree.width "width: 21em;">

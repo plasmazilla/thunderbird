@@ -1,0 +1,19 @@
+<!--
+# Translator(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+# Nicu <kneekoo@yahoo.com>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+#
+-->
+<!ENTITY appManager.title     "Detaliile aplicației">
+<!ENTITY appManager.style     "width: 30em; min-height: 20em;">
+<!ENTITY remove.label         "Ștergere">
+<!ENTITY remove.accesskey     "e">
+
+

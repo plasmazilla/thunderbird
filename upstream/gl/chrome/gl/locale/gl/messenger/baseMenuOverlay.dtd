@@ -9,7 +9,7 @@
 <!ENTITY helpTroubleshootingInfo.accesskey "I">
 <!ENTITY helpSafeMode.label     "Reiniciar cos complementos desactivados…">
 <!ENTITY helpSafeMode.accesskey "R">
-<!ENTITY releaseCmd2.label "Notas de lanzamento">
+<!ENTITY releaseCmd2.label "Notas do lanzamento">
 <!ENTITY releaseCmd2.accesskey "z">
 <!ENTITY whatsNewCmd.label "Novidades">
 <!ENTITY whatsNewCmd.accesskey "N">

@@ -75,7 +75,7 @@
 <!ENTITY showOffline.accesskey         "O">
 
 <!ENTITY Diskspace "Prostor na disku">
-<!ENTITY offlineCompact.label "Strni mape,  kadar bo to prihranilo več kot">
+<!ENTITY offlineCompact.label "Strni mape, kadar bo to prihranilo več kot">
 <!ENTITY offlineCompact.accesskey "a">
 <!ENTITY mb.label "MB">
 

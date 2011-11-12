@@ -214,8 +214,8 @@
 <!ENTITY headersMenu.accesskey "H">
 <!ENTITY headersAllCmd.label "Všetky">
 <!ENTITY headersAllCmd.accesskey "V">
-<!ENTITY headersNormalCmd.label "Normálne">
-<!ENTITY headersNormalCmd.accesskey "N">
+<!ENTITY headersNormalCmd.label "Klasické">
+<!ENTITY headersNormalCmd.accesskey "K">
 <!ENTITY bodyMenu.label "Telo správy ako">
 <!ENTITY bodyMenu.accesskey "T">
 <!ENTITY bodyAllowHTML.label "Pôvodné HTML">
@@ -224,6 +224,8 @@
 <!ENTITY bodySanitized.accesskey "H">
 <!ENTITY bodyAsPlaintext.label "Iba text">
 <!ENTITY bodyAsPlaintext.accesskey "b">
+<!ENTITY bodyAllParts.label "Celá správa">
+<!ENTITY bodyAllParts.accesskey "C">
 
 <!ENTITY bodyMenuFeed.label "Správu informačného kanála ako">
 <!ENTITY bodyMenuFeed.accesskey "n">

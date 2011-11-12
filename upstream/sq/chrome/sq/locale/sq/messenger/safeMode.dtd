@@ -36,16 +36,16 @@
 #endif
    - ***** END LICENSE BLOCK ***** -->
 
-<!ENTITY safeModeDialog.title             "&brandShortName; Mënyrë e Sigurt">
+<!ENTITY safeModeDialog.title             "&brandShortName; nën Mënyrë të Sigurt">
 <!ENTITY window.width                     "37em">
 
-<!ENTITY safeModeDescription.label        "&brandShortName;-i tani po xhiron nën Mënyrën e Sigurt, e cila çaktivizon përkohësisht rregullimet tuaja të personalizuara, temat dhe zgjerimet.">
-<!ENTITY safeModeDescription2.label       "Disa ose krejt nga këto ndryshime mund t'i kaloni të përhershme:">
+<!ENTITY safeModeDescription.label        "&brandShortName;-i tani po xhiron nën Mënyrën e Sigurt, me të cilën çaktivizohen përkohësisht rregullimet tuaja të personalizuara, temat, dhe zgjerimet.">
+<!ENTITY safeModeDescription2.label       "Disa, ose krejt këto ndryshime, mund t'i kaloni si të përhershme:">
 
-<!ENTITY disableAddons.label              "Çaktivizoji krejt shtesat">
+<!ENTITY disableAddons.label              "Çaktivizo krejt shtesat">
 <!ENTITY disableAddons.accesskey          "Ç">
 
-<!ENTITY resetToolbars.label              "Rirregullo panelet dhe kontrollet">
+<!ENTITY resetToolbars.label              "Rikthe te parazgjedhje panelet dhe kontrollet">
 <!ENTITY resetToolbars.accesskey          "R">
 
 <!ENTITY changeAndRestartButton.label     "Bëj Ndryshimet dhe Rinisu">

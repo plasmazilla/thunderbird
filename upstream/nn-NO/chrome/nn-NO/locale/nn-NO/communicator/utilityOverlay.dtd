@@ -7,8 +7,8 @@
 <!ENTITY newMenu.label            "Ny">
 <!ENTITY newMenu.accesskey          "N">
 
-<!ENTITY editMenu.label          "Endre">
-<!ENTITY editMenu.accesskey        "E">
+<!ENTITY editMenu.label          "Rediger">
+<!ENTITY editMenu.accesskey        "R">
 <!ENTITY undoCmd.label            "Angre">
 <!ENTITY undoCmd.key            "Z">
 <!ENTITY undoCmd.accesskey          "A">
@@ -36,7 +36,7 @@
 
 <!ENTITY viewMenu.label          "Vis">
 <!ENTITY viewMenu.accesskey        "V">
-<!ENTITY viewToolbarsMenu.label        "Verktøylinjer">
+<!ENTITY viewToolbarsMenu.label        "Verktylinjer">
 <!ENTITY viewToolbarsMenu.accesskey      "V">
 <!ENTITY showTaskbarCmd.label          "Statuslinje">
 <!ENTITY showTaskbarCmd.accesskey        "a">
