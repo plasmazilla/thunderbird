@@ -19,13 +19,13 @@
 <!ENTITY attachPageCmd.label "Spletno stran…">
 <!ENTITY attachPageCmd.accesskey "L">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
-<!ENTITY attachVCardCmd.label "Vizitka (vCard)">
+<!ENTITY attachVCardCmd.label "Vizitko(vCard)">
 <!ENTITY attachVCardCmd.accesskey "V">
 <!ENTITY closeCmd.label "Izhod">
 <!ENTITY closeCmd.key "W">
 <!ENTITY closeCmd.accesskey "h">
 <!ENTITY saveCmd.label "Shrani">
-<!ENTITY saveCmd.key "b">
+<!ENTITY saveCmd.key "s">
 <!ENTITY saveCmd.accesskey "s">
 <!ENTITY saveAsCmd.label "Shrani kot">
 <!ENTITY saveAsCmd.accesskey "N">

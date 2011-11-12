@@ -1,3 +1,16 @@
+<!--
+# Translator(s):
+#
+# Yaron <sh.yaron@gmail.com>
+# http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
+#
+-->
 <!-- ***** BEGIN LICENSE BLOCK *****
    - Version: MPL 1.1/GPL 2.0/LGPL 2.1
    -
@@ -66,16 +79,13 @@
 <!ENTITY publishCmd.key "S">
 <!ENTITY publishAsCmd.label "פרסם בשם...">
 <!ENTITY publishAsCmd.accesskey "ר">
-<!ENTITY saveAsChangeEncodingCmd.label "שמור ושנה קידוד תוים">
+<!ENTITY saveAsChangeEncodingCmd.label "שמור ושנה קידוד תווים">
 <!ENTITY saveAsChangeEncodingCmd.accesskey "E">
 <!ENTITY printSetupCmd.label "הגדרות דף...">
 <!ENTITY printSetupCmd.accesskey "u">
 <!ENTITY printCmd.label "הדפסה…">
 <!ENTITY printCmd.accesskey "p">
 <!ENTITY printCmd.key "p">
-<!ENTITY closeCmd.label "סגירה">
-<!ENTITY closeCmd.accesskey "ס">
-<!ENTITY closeCmd.key "w">
 
 <!-- Edit menu items -->
 <!ENTITY editMenu.label "עריכה">
@@ -91,17 +101,6 @@
 <!ENTITY pasteAsQuotationCmd.accesskey "q">
 <!ENTITY pasteAsQuotationCmd.key "o">
 <!ENTITY findCmd.label "מצא והחלף...">
-<!ENTITY findCmd.accesskey "f">
-<!ENTITY findCmd.key "f">
-<!ENTITY findCmd.key2 "VK_F19">
-<!ENTITY findAgainCmd.label "מצא שוב">
-<!ENTITY findAgainCmd.accesskey "g">
-<!ENTITY findAgainCmd.key "g">
-<!ENTITY findAgainCmd.key2 "VK_F3">
-<!ENTITY findPrevCmd.label "מצא את הקודם">
-<!ENTITY findPrevCmd.accesskey "v">
-<!ENTITY findPrevCmd.key "g">
-<!ENTITY findPrevCmd.key2 "VK_F3">
 <!ENTITY enableInlineSpellChecker.label "בדוק איות תוך כדי הקלדה">
 <!ENTITY enableInlineSpellChecker.accesskey "ב">
 <!ENTITY checkSpellingCmd2.label "בדיקת איות">
@@ -124,7 +123,7 @@
 <!ENTITY insertTableCmd.accesskey "t">
 <!ENTITY insertHTMLCmd.label "...HTML">
 <!ENTITY insertHTMLCmd.accesskey "H">
-<!ENTITY insertCharsCmd.label "תוים וסמלים...">
+<!ENTITY insertCharsCmd.label "תווים וסמלים...">
 <!ENTITY insertCharsCmd.accesskey "C">
 <!ENTITY insertBreakAllCmd.label "שבור מתחת לתמונה(ות)">
 <!ENTITY insertBreakAllCmd.accesskey "k">
@@ -139,23 +138,6 @@
 <!ENTITY createLinkCmd.accesskey "k">
 <!ENTITY editLinkCmd.label "ערוך קישור ב־Composer חדש">
 <!ENTITY editLinkCmd.accesskey "C">
-<!-- (Toplevel Edit menu uses utilityOverlay) -->
-<!ENTITY undoCmd.label "בטל">
-<!ENTITY undoCmd.accesskey "u">
-<!ENTITY redoCmd.label "בצע שוב">
-<!ENTITY redoCmd.accesskey "r">
-<!ENTITY cutCmd.label "גזור">
-<!ENTITY cutCmd.accesskey "t">
-<!ENTITY copyCmd.label "העתק">
-<!ENTITY copyCmd.accesskey "c">
-<!ENTITY pasteCmd.label "הדבק">
-<!ENTITY pasteCmd.accesskey "p">
-<!ENTITY deleteCmd.label "מחק">
-<!ENTITY deleteCmd.accesskey "d">
-<!ENTITY clearCmd.label "ניקוי">
-<!ENTITY clearCmd.accesskey "l">
-<!ENTITY selectAllCmd.label "בחר הכל">
-<!ENTITY selectAllCmd.accesskey "a">
 
 <!-- Font Face SubMenu -->
 <!ENTITY FontFaceSelect.tooltip "בחר גופן">
@@ -181,7 +163,7 @@
 <!ENTITY increaseFontSize.label "גדול יותר">
 <!ENTITY increaseFontSize.accesskey "g">
 <!ENTITY increaseFontSize.key "+">
-<!ENTITY increaseFontSize.key2 "="> <!-- + is above this key on many keyboards -->
+<!-- + is above this key on many keyboards --><!ENTITY increaseFontSize.key2 "="> 
 
 <!ENTITY fontSizeMenu.label "גודל ">
 <!ENTITY fontSizeMenu.accesskey "z">
@@ -378,8 +360,8 @@
      the access key must exist in both of those strings
      But value must be set here for accesskey to draw properly
 -->
-<!ENTITY tableJoinCells.label "j">
-<!ENTITY tableJoinCells.accesskey "j">
+<!ENTITY tableJoinCells.label "א">
+<!ENTITY tableJoinCells.accesskey "א">
 <!ENTITY tableSplitCell.label "פצל תא">
 <!ENTITY tableSplitCell.accesskey "c">
 <!ENTITY convertToTable.label "צור טבלה מקטע נבחר">
@@ -396,6 +378,9 @@
 <!ENTITY openToolbarCmd.tooltip "פתח קובץ מקומי">
 <!ENTITY saveToolbarCmd.tooltip "שמור קובץ למיקום מקומי">
 <!ENTITY publishToolbarCmd.tooltip "העלה קובץ למיקום מרוחק">
+  <!ENTITY cutToolbarCmd.tooltip "גזירה">
+  <!ENTITY copyToolbarCmd.tooltip "העתקה">
+  <!ENTITY pasteToolbarCmd.tooltip "הדבקה">
 <!ENTITY printToolbarCmd.label "הדפסה">
 <!ENTITY printToolbarCmd.tooltip "הדפס דף זה">
 <!ENTITY findToolbarCmd.label "מצא">
@@ -451,3 +436,5 @@
 <!ENTITY removeTOC.accesskey      "r">
 <!ENTITY tocMenu.label            "תוכן עניינים…">
 <!ENTITY tocMenu.accesskey        "b">
+
+

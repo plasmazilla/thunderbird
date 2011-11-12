@@ -4,7 +4,7 @@
 <!ENTITY editContactName.label "Nome:">
 <!ENTITY editContactName.accesskey "N">
 
-<!ENTITY editContactEmail.label "Correo-e:">
+<!ENTITY editContactEmail.label "Correo:">
 <!ENTITY editContactEmail.accesskey "e">
 
 <!ENTITY editContactAddressBook.label "Axenda de enderezos:">

@@ -1,0 +1,42 @@
+<!ENTITY window.title "Aturan Filter">
+<!ENTITY filterEditorDialog.dimensions "width: 100ch;">
+
+<!ENTITY filterName.label "Nama filter:">
+<!ENTITY filterName.accesskey "i">
+
+<!ENTITY junk.label "Junk">
+<!ENTITY notJunk.label "Bukan Junk">
+
+<!ENTITY lowestPriorityCmd.label "Terendah">
+<!ENTITY lowPriorityCmd.label "Rendah">
+<!ENTITY normalPriorityCmd.label "Normal">
+<!ENTITY highPriorityCmd.label "Tinggi">
+<!ENTITY highestPriorityCmd.label "Tertinggi">
+
+<!ENTITY contextDesc.label "Terapkan filter ketika:">
+<!ENTITY contextDesc.accesskey "p">
+<!ENTITY contextIncoming.label "Memeriksa Email">
+<!ENTITY contextManual.label "Dijalankan Manual">
+<!ENTITY contextBoth.label "Memeriksa Email atau Dijalankan Manual">
+<!ENTITY contextPostPlugin.label "Memeriksa Email (setelah klasifikasi)">
+<!ENTITY contextPostPluginBoth.label "Memeriksa Email (setelah klasifikasi) atau Dijalankan Manual">
+<!ENTITY filterActionDesc.label "Lakukan aksi berikut:">
+<!ENTITY filterActionDesc.accesskey "L">
+
+<!-- New Style Filter Rule Actions -->
+<!ENTITY moveMessage.label "Pindahkan Pesan ke">
+<!ENTITY copyMessage.label "Salin Pesan ke">
+<!ENTITY forwardTo.label "Teruskan Pesan ke">
+<!ENTITY replyWithTemplate.label "Balas Menggunakan Templat">
+<!ENTITY markMessageRead.label "Tandai Sudah Dibaca">
+<!ENTITY markMessageStarred.label "Tambahkan Bintang">
+<!ENTITY setPriority.label "Terapkan Prioritas">
+<!ENTITY addTag.label "Tambahkan Tag pada Pesan">
+<!ENTITY setJunkScore.label "Terapkan Status Junk pada">
+<!ENTITY deleteMessage.label "Hapus Pesan">
+<!ENTITY deleteFromPOP.label "Hapus dari Server POP">
+<!ENTITY fetchFromPOP.label "Ambil dari Server POP">
+<!ENTITY ignoreThread.label "Abaikan Utas">
+<!ENTITY ignoreSubthread.label "Abaikan Sub Utas">
+<!ENTITY watchThread.label "Monitor Utas">
+<!ENTITY stopExecution.label "Hentikan Proses Pemfilteran">

@@ -1,3 +1,18 @@
+<!--
+# Translator(s):
+#
+# http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
+# Yaron <sh.yaron@gmail.com>
+# elad <el.il@doom.co.il>
+# hatul <amiadb@gmail.com>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
+#
+-->
 <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd">
 %brandDTD;
 
@@ -6,7 +21,7 @@
 
 <!-- Specific error messages -->
 
-<!ENTITY connectionFailure.title "כשלון בהתחברות">
+<!ENTITY connectionFailure.title "כישלון בהתחברות">
 <!ENTITY connectionFailure.longDesc "&sharedLongDesc;">
 
 <!ENTITY deniedPortAccess.title "כתובת זו מוגבלת">
@@ -17,8 +32,8 @@
 <ul>
   <li>בדוק כי הכתובת הוקלדה ללא שגיאות כגון
     <strong>ww</strong>.example.com במקום <strong>www</strong>.example.com</li>
-  <li>במידה ואינך יכול לטעון כל דף, בדוק את החיבור לרשת של המחשב.</li>
-  <li>אם המחשב או הרשת מוגנים בחומת אש או שרת מתווך, וודאי כי &brandShortName; מורשה לגישה לרשת.</li>
+  <li>אם אינך יכול לטעון שום דף, בדוק את החיבור לרשת של המחשב.</li>
+  <li>אם המחשב או הרשת מוגנים בחומת אש או בשרת מתווך, ודא כי &brandShortName; מורשה לגשת לרשת.</li>
 </ul>
 ">
 
@@ -30,7 +45,6 @@
 </ul>
 ">
 
-
 <!ENTITY generic.title "שגיאה כללית">
 <!ENTITY generic.longDesc "
 <p>&brandShortName; אינו יכול לטעון דף זה מסיבה לא ידועה.</p>
@@ -40,7 +54,7 @@
 <!ENTITY malformedURI.longDesc "<ul>
   <li>כתובות אתרים מכתבות בדרך־כלל בתבנית של 
     <strong>http://www.example.com/</strong></li>
-  <li>וודא שאתה משתמש בלוכסן קדמי (&quot;<strong>/</strong>&quot;).</li>
+  <li>ודא שאתה משתמש בלוכסן קדמי (&quot;<strong>/</strong>&quot;).</li>
 </ul>
              ">
 
@@ -48,16 +62,16 @@
 <!ENTITY netInterrupt.longDesc "&sharedLongDesc;">
 
 <!ENTITY netOffline.title "מצב לא־מקוון">
-<!ENTITY netOffline.longDesc "
+<!ENTITY netOffline.longDesc2 "
 <ul>
-  <li>העבר את &brandShortName; למצב מקוון ונסה שוב.</li>
+ <li>לחץ &quot;נסה שוב&quot; כדי לעבור למצב מקוון ולטעון מחדש את הדף.</li>
 </ul>
 ">
 
 <!ENTITY contentEncodingError.title "שגיאה בקידוד תוכן">
 <!ENTITY contentEncodingError.longDesc "
 <ul>
-  <li>אנא צור קשר עם בעלי האתר בכדי ליידע אותם על בעיה זו.</li>
+  <li>אנא צור קשר עם בעלי האתר כדי ליידע אותם על בעיה זו.</li>
 </ul>">
 
 <!ENTITY unsafeContentType.title "סוג קובץ מסוכן">
@@ -83,15 +97,15 @@
 <!ENTITY proxyConnectFailure.longDesc "
 <ul>
   <li>בדוק כי הגדרות השרת המתווך שלך נכונות.</li>
-  <li>צור קשר עם מנהל הרשת שלך וודא כי השרת המתווך מתפקד</li>
+  <li>צור קשר עם מנהל הרשת שלך ודא כי השרת המתווך מתפקד</li>
 </ul>">
 
 <!ENTITY proxyResolveFailure.title "שרת מתווך לא נמצא">
 <!ENTITY proxyResolveFailure.longDesc "
 <ul>
   <li>בדוק כי הגדרות השרת המתווך שלך נכונות.</li>
-  <li>וודא כי חיבור המחשב שלך לרשת פעיל.</li>
-  <li>אם המחשב או הרשת שלך מוגנים באמצעות חומת אש או שרת מתווך, וודא כי &brandShortName; מורשה לגישה לרשת.</li>
+  <li>ודא כי חיבור המחשב שלך לרשת פעיל.</li>
+  <li>אם המחשב או הרשת שלך מוגנים באמצעות חומת אש או שרת מתווך, ודא כי &brandShortName; מורשה לגישה לרשת.</li>
 </ul>
 ">
 
@@ -105,7 +119,7 @@
 <!ENTITY unknownSocketType.title "תגובה לא צפויה מהשרת">
 <!ENTITY unknownSocketType.longDesc "
 <ul>
-  <li>וודא כי מותקן על המערכת שלך מנהל האבטחה האישי.</li>
+  <li>ודא כי מותקן על המערכת שלך מנהל האבטחה האישי.</li>
   <li>ייכתן וההגדרות השרת אינן תקניות</li>
 </ul>
 ">
@@ -129,7 +143,7 @@
 <ul>
   <li>האתר איננו זמין כרגע או שהוא עמוס מידי. אנא נסה שוב בעוד מספר רגעים.</li>
   <li>אם אינך מצליח לטעון דפים כלשהם, בדוק את הקישוריות של המחשב שלך לרשת.</li>
-  <li>במידה והמחשב או הרשת שלך מוגנים באמצעות חומת אש או שרת מתווך, וודא כי &brandShortName; מורשה לגישה לרשת.</li>
+  <li>אם המחשב או הרשת שלך מוגנים באמצעות חומת אש או שרת מתווך, ודא כי &brandShortName; מורשה לגישה לרשת.</li>
 </ul>
 ">
 
@@ -147,6 +161,9 @@
 <!ENTITY cspFrameAncestorBlocked.title "נחסם בהתאם למדיניות האבטחה של התוכן">
 <!ENTITY cspFrameAncestorBlocked.longDesc "<p>&brandShortName; מונע מדף זה להיטען בצורה זו מאחר שהדף כולל מדיניות אבטחת תוכן שמונעת זאת.</p>">
 
+<!ENTITY corruptedContentError.title "שגיאת תוכן פגום">
+<!ENTITY corruptedContentError.longDesc "<p>התוכן בו אתה מנסה לצפות בו אינו ניתן להצגה בגלל שהתגלתה שגיאה בהעברת הנתונים.</p><ul><li>אנא צור קשר עם בעלי התוכן והודע על בעיה זו.</li></ul>">
+
 <!ENTITY securityOverride.linkText "באפשרותך גם להוסיף חריגה…">
 <!ENTITY securityOverride.getMeOutOfHereButton "תוציא אותי מכאן!">
 <!ENTITY securityOverride.exceptionButtonLabel "הוסף חריגה…">
@@ -154,7 +171,7 @@
 <!-- LOCALIZATION NOTE (securityOverride.warningContent) - Do not translate the
 contents of the <button> tags. It uses strings already defined above. The
 button is included here (instead of netError.xhtml) because it exposes
-functionality specific to firefox. -->
+functionality specific to thunderbird. -->
 
 <!ENTITY securityOverride.warningContent "<p>מומלץ שלא להוסיף חריגה אם אתה משתמש בחיבור רשת בלתי מהימן לחלוטין או אם אינך רגיל לראות אזהרות עבור שרת זה.</p>
 
@@ -164,3 +181,5 @@ functionality specific to firefox. -->
 
 <!ENTITY remoteXUL.title "XUL מרוחק">
 <!ENTITY remoteXUL.longDesc "<p><ul><li>פנה אל בעלי האתר כדי ליידע אותם על הבעיה.</li></ul></p>">
+
+

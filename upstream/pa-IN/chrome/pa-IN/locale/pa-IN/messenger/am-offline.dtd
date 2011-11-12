@@ -42,7 +42,7 @@
 
   &ageAutosyncBefore.label [textbox for autosync value] &ageAutosyncMiddle.label; [dropdown for autosync interval] &ageAutosyncAfter.label;
 -->
-<!ENTITY allAutosync.label               "Synchronize all messages locally regardless of age">
+<!ENTITY allAutosync.label               "ਬਿਨਾਂ ਉਮਰ ਦੇ ਸਭ ਸੁਨੇਹੇ ਲੋਕਲ ਸੈਕਰੋਨਾਈਜ਼ ਕਰੋ">
 <!ENTITY allAutosync.accesskey           "c">
 <!ENTITY ageAutosyncBefore.label         "ਸਭ ਤੋਂ ਤਾਜ਼ਾ ਸੈਕਰੋਨਾਈਜ਼ ਕਰੋ">
 <!ENTITY ageAutosync.accesskey           "z">

@@ -9,7 +9,7 @@
 <!ENTITY password.label                  "Password:">
 <!ENTITY password.accesskey              "P">
 <!ENTITY password.placeholder            "Password">
-<!ENTITY password.text                   "Optional, will only be used to validate the username">
+<!ENTITY password.text                   "Optional, will only be used to validate the user name">
 <!ENTITY rememberPassword.label          "Remember password">
 <!ENTITY rememberPassword.accesskey      "m">
 
@@ -18,13 +18,14 @@
 
 <!ENTITY incoming.label                  "Incoming:">
 <!ENTITY outgoing.label                  "Outgoing:">
+<!ENTITY noEncryption.label              "None">
 <!ENTITY username.label                  "Username:">
 <!ENTITY hostname.label                  "Server hostname">
 <!ENTITY port.label                      "Port">
 <!ENTITY ssl.label                       "SSL">
 <!ENTITY auth.label                      "Authentication">
 <!ENTITY imap.label                      "IMAP">
-<!ENTITY pop3.label                       "POP3">
+<!ENTITY pop3.label                      "POP3">
 <!ENTITY smtp.label                      "SMTP">
 <!ENTITY autodetect.label                "Autodetect">
 <!-- LOCALIZATION NOTE(noEncryption.label): Neither SSL/TLS nor STARTTLS.

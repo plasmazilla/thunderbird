@@ -3,20 +3,20 @@
 
 <!ENTITY style.label                      "ਸਟਾਇਲ:">
 <!ENTITY style.accesskey                  "y">
-<!ENTITY regularStyle.label               "ਨਿਯਮਤ">
-<!ENTITY bold.label                       "ਗੂੜਾ">
+<!ENTITY regularStyle.label               "ਰੈਗੂਲਰ">
+<!ENTITY bold.label                       "ਗੂੜ੍ਹਾ">
 <!ENTITY italic.label                     "ਤਿਰਛਾ">
 <!ENTITY boldItalic.label                 "ਗੂੜ੍ਹਾ ਤਿਰਛਾ">
 <!ENTITY size.label                       "ਆਕਾਰ:">
 <!ENTITY size.accesskey                   "s">
 <!ENTITY regularSize.label                "ਨਿਯਮਤ">
-<!ENTITY bigger.label                     "ਹੋਰ ਵੱਡਾ">
-<!ENTITY smaller.label                    "ਹੋਰ ਛੋਟਾ">
+<!ENTITY bigger.label                     "ਵੱਡਾ">
+<!ENTITY smaller.label                    "ਛੋਟਾ">
 <!ENTITY color.label                      "ਰੰਗ:">
 <!ENTITY color.accesskey                  "c">
-<!ENTITY displayWidth.label               "ਪਲੇਨ ਟੈਕਸਟ ਸੁਨੇਹਾ">
+<!ENTITY displayWidth.label               "ਪਲੇਨ ਟੈਕਸਟ ਸੁਨੇਹੇ">
 <!ENTITY displayText.label                "When displaying quoted plain text messages:">
-<!ENTITY colors.label                     "Colors">
+<!ENTITY colors.label                     "ਰੰਗ">
 <!ENTITY overrideColors.label             "When displaying messages, use the following colors:">
 <!ENTITY textColor.label                  "ਟੈਕਸਟ ਰੰਗ:">
 <!ENTITY textColor.accesskey              "T">

@@ -41,15 +41,15 @@
 <!ENTITY continue.accesskey              "N">
 <!ENTITY stop.label                      "Ustavi">
 <!ENTITY stop.accesskey                  "U">
-
 <!-- LOCALIZATION NOTE (half-manual-test.label): This is the text that is
      displayed on the button in manual edit mode which will re-guess
      the account configuration, taking into account the settings that
      the user has manually changed. -->
-<!ENTITY half-manual-test.label          "Ponovno preveri">
-<!ENTITY half-manual-test.accesskey      "P">
-<!ENTITY manual-edit.label               "Ročno konfiguriranje">
-<!ENTITY manual-edit.accesskey           "R">
+<!ENTITY half-manual-test.label                    "Ponovno preveri">
+<!ENTITY half-manual-test.accesskey                "P">
+<!ENTITY manual-edit.label                      "Uredi ročno">
+<!ENTITY manual-edit.accesskey           "U">
+
 
 <!ENTITY warning.label                   "Opozorilo!">
 <!ENTITY incomingSettings.label          "Nastavitve za prihajajočo pošto:">

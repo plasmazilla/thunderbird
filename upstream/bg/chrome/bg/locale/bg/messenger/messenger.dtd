@@ -9,9 +9,6 @@
 <!ENTITY closeTabCmd2.accesskey "т">
 <!ENTITY closeOtherTabsCmd2.label "Затваряне на другите подпрозорци">
 <!ENTITY closeOtherTabsCmd2.accesskey "в">
-<!-- LOCALIZATION NOTE (undoCloseTabCmd.label):
-     Menu option to attempt to re-open a recently closed tab.
-     -->
 <!ENTITY recentlyClosedTabsCmd.label "Наскоро затворени подпрозорци">
 <!ENTITY recentlyClosedTabsCmd.accesskey "Н">
 
@@ -227,6 +224,8 @@
 <!ENTITY bodySanitized.accesskey "О">
 <!ENTITY bodyAsPlaintext.label "Обикновен текст">
 <!ENTITY bodyAsPlaintext.accesskey "б">
+<!ENTITY bodyAllParts.label "Всички части на тялото">
+<!ENTITY bodyAllParts.accesskey "В">
 
 <!ENTITY bodyMenuFeed.label "Текста на емисията като">
 <!ENTITY bodyMenuFeed.accesskey "Т">

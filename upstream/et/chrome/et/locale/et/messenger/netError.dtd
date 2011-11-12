@@ -15,7 +15,7 @@
 <!ENTITY dnsNotFound.title                     "Serverit ei leitud">
 <!ENTITY dnsNotFound.longDesc                  "
 <ul>
-  <li>Kontrolli, kas aadressis pole trükkimise vigu nagu
+  <li>Kontrolli, kas aadressis pole kirjavigu nagu
     <strong>www</strong>.eesti.ee asemel hoopis
     <strong>ww</strong>.eesti.ee.</li>
   <li>Kui sa ei saa avada ühtegi lehte, siis kontrolli oma arvuti
@@ -28,7 +28,7 @@
 <!ENTITY fileNotFound.title                    "Faili ei leitud">
 <!ENTITY fileNotFound.longDesc                 "
 <ul>
-  <li>Kontrolli faili nimes olevaid suurtähti või muid trükkimise vigu.</li>
+  <li>Kontrolli faili nimes olevaid suurtähti või muid kirjavigu.</li>
   <li>Kontrolli, kas faili on liigutatud, ümber nimetatud või on see kustutatud.</li>
 </ul>
 ">
@@ -52,9 +52,9 @@
 <!ENTITY netInterrupt.longDesc                 "&sharedLongDesc;">
 
 <!ENTITY netOffline.title                      "Võrguta režiim">
-<!ENTITY netOffline.longDesc                   "
+<!ENTITY netOffline.longDesc2                  "
 <ul>
-  <li>Lülita &quot;Tööta võrguta&quot; Fail menüüst välja ning proovi siis uuesti.</li>
+  <li>Vajuta &quot;Proovi uuesti&quot;, et lülituda võrgurežiimi ning laadida leht uuesti.</li>
 </ul>
 ">
 
@@ -81,14 +81,14 @@
 <!ENTITY protocolNotFound.title                "Aadress jäi arusaamatuks">
 <!ENTITY protocolNotFound.longDesc             "
 <ul>
-  <li>Sa peaksid võib-olla paigaldama lisa tarkvara, et avada see aadress.</li>
+  <li>Sa peaksid võib-olla paigaldama lisatarkvara, et avada see aadress.</li>
 </ul>
 ">
 
 <!ENTITY proxyConnectFailure.title             "Puhverserver keeldub ühendustest">
 <!ENTITY proxyConnectFailure.longDesc          "
 <ul>
-  <li>Kontrolli puhverserveri sätteid, et teha kindlaks, et need on õiged.</li>
+  <li>Kontrolli puhverserveri sätteid, et teha kindlaks, kas need on õiged.</li>
   <li>Kontakteeru oma võrguadministraatoriga, et teha kindlaks, kas puhverserver
     töötab korralikult.</li>
 </ul>
@@ -107,8 +107,8 @@
 <!ENTITY redirectLoop.title                    "Veebileht pole korralikult ümber suunatud">
 <!ENTITY redirectLoop.longDesc                 "
 <ul>
-  <li>Probleem võib mõnikord olla põhjustatud küpsistest keeldumisest või nende üldisest
-    keelamisest.</li>
+  <li>Probleemi võib mõnikord põhjustada küpsistest keeldumine või nende üldine
+    keelamine.</li>
 </ul>
 ">
 
@@ -164,6 +164,9 @@ ja sa võid hiljem uuesti proovida.</li>
 
 <!ENTITY cspFrameAncestorBlocked.title         "Blokeeritud sisu turvalisuse reegliga">
 <!ENTITY cspFrameAncestorBlocked.longDesc      "<p>&brandShortName; keeldus selle lehe laadimisest antud kujul, sest leht on kaitstud sisu turvalisuse reegliga, mis selle keelab.</p>">
+
+<!ENTITY corruptedContentError.title           "Vigane sisu">
+<!ENTITY corruptedContentError.longDesc        "<p>Lehte, mida üritad vaadata, ei saa kuvada, sest andmete edastamisel tuvastati viga.</p><ul><li>Palun võta ühendust veebilehe omanikega, et teavitada neid sellest probleemist.</li></ul>">
 
 <!ENTITY securityOverride.linkText             "Või võid ka lisada erandi...">
 <!ENTITY securityOverride.getMeOutOfHereButton "Aita mind siit välja!">

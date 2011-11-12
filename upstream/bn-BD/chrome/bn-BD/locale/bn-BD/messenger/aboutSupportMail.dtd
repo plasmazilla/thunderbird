@@ -1,0 +1,15 @@
+<!ENTITY aboutSupport.appBasicsAppBuildID "অ্যাপ্লিকেশন বিল্ড আইডি">
+
+<!ENTITY aboutSupport.accountsTitle "মেইল এবং নতুন অ্যাকাউন্ট">
+<!ENTITY aboutSupport.showPrivateData.mainText "অ্যাকাউন্ট নামসহ">
+<!ENTITY aboutSupport.showPrivateData.explanationText "(সম্ভবত তথ্য সনাক্ত করা হচ্ছে)">
+<!ENTITY aboutSupport.accountsID "আইডি">
+<!ENTITY aboutSupport.accountsName "নাম">
+<!ENTITY aboutSupport.accountsIncomingServer "ইনকামিং সার্ভার">
+<!ENTITY aboutSupport.accountsOutgoingServers "আউটগোয়িং সার্ভার">
+<!ENTITY aboutSupport.accountsServerName "Name">
+<!ENTITY aboutSupport.accountsConnSecurity "সংযোগ নিরাপত্তা">
+<!ENTITY aboutSupport.accountsAuthMethod "প্রমানীকরণ পদ্ধতি">
+<!ENTITY aboutSupport.accountsDefault "পূর্বনির্ধারিত?">
+
+<!ENTITY aboutSupport.sendViaEmail.label "ইমেইলের সাহায্যে প্রেরণ">

@@ -44,8 +44,8 @@
 <!ENTITY netInterrupt.longDesc "&sharedLongDesc;">
 
 <!ENTITY netOffline.title "Режим без мрежа">
-<!ENTITY netOffline.longDesc "<ul> 
-<li>Поставете &brandShortName; в свързан режим и опитайте пак.</li> 
+<!ENTITY netOffline.longDesc2 "<ul> 
+<li>Натиснете &quot;Отново&quot;, за да превключите в режим на линия и да презаредите страницата.</li> 
 </ul>">
 
 <!ENTITY contentEncodingError.title "Грешка в кодирането на съдържанието">
@@ -130,6 +130,9 @@
 
 <!ENTITY cspFrameAncestorBlocked.title "Блокирано от Политика за Защитено Съдържание">
 <!ENTITY cspFrameAncestorBlocked.longDesc "<p>&brandShortName; предотврати зареждането на страницата по този начин, понеже тя съдържа политика за защитено съдържание, което не позволява това.</p>">
+
+<!ENTITY corruptedContentError.title "Грешка поради повредено съдържание">
+<!ENTITY corruptedContentError.longDesc "<p>Това съдържание не може да бъде показано поради възникнала грешка при прехвърлнето на данните.</p><ul><li>Моля, свържете се със притежателите му, за да ги уведомите за проблема.</li></ul>">
 
 <!ENTITY securityOverride.linkText "Или можете да добавите изключение…">
 <!ENTITY securityOverride.getMeOutOfHereButton "Махам се оттук!">

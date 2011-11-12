@@ -1,0 +1,24 @@
+locale messenger zh-CN chrome/zh-CN/locale/zh-CN/messenger/
+locale messenger-mapi zh-CN chrome/zh-CN/locale/zh-CN/messenger-mapi/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale communicator zh-CN chrome/zh-CN/locale/zh-CN/communicator/
+locale global-region zh-CN chrome/zh-CN/locale/zh-CN/global-region/
+locale mozapps zh-CN chrome/zh-CN/locale/zh-CN/mozapps/
+locale messenger-newsblog zh-CN chrome/zh-CN/locale/zh-CN/messenger-newsblog/
+manifest chrome/zh-CN.manifest
+locale alerts zh-CN chrome/zh-CN/locale/zh-CN/alerts/
+locale passwordmgr zh-CN chrome/zh-CN/locale/zh-CN/passwordmgr/
+locale editor zh-CN chrome/zh-CN/locale/zh-CN/editor/
+locale global-platform zh-CN chrome/zh-CN/locale/zh-CN/global-platform/
+locale cookie zh-CN chrome/zh-CN/locale/zh-CN/cookie/
+locale messenger-region zh-CN chrome/zh-CN/locale/zh-CN/messenger-region/
+locale messenger-smime zh-CN chrome/zh-CN/locale/zh-CN/messenger-smime/
+locale pipnss zh-CN chrome/zh-CN/locale/zh-CN/pipnss/
+locale mozldap zh-CN chrome/zh-CN/locale/zh-CN/mozldap/
+locale necko zh-CN chrome/zh-CN/locale/zh-CN/necko/
+locale global zh-CN chrome/zh-CN/locale/zh-CN/global/
+locale places zh-CN chrome/zh-CN/locale/zh-CN/places/
+locale pippki zh-CN chrome/zh-CN/locale/zh-CN/pippki/
+locale branding zh-CN chrome/zh-CN/locale/zh-CN/branding/
+locale autoconfig zh-CN chrome/zh-CN/locale/zh-CN/autoconfig/

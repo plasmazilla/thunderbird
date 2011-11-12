@@ -8,20 +8,18 @@
 <!ENTITY closeTabCmd2.label "Mbylle Skedën">
 <!ENTITY closeTabCmd2.accesskey "M">
 <!ENTITY closeOtherTabsCmd2.label "Mbylli Skedat e Tjera">
-<!ENTITY closeOtherTabsCmd2.accesskey "b">
-<!-- LOCALIZATION NOTE (undoCloseTabCmd.label):
-     Menu option to attempt to re-open a recently closed tab.
-     -->
+<!ENTITY closeOtherTabsCmd2.accesskey "T">
 <!ENTITY recentlyClosedTabsCmd.label "Skeda të Mbyllura Së Fundmi">
-<!ENTITY recentlyClosedTabsCmd.accesskey "S">
+<!ENTITY recentlyClosedTabsCmd.accesskey "F">
+<!ENTITY undoCloseTabCmd.commandkey "Z">
 
-<!ENTITY undoCloseTabCmd.commandkey "T">
 <!-- LOCALIZATION NOTE (moveToNewWindow.label):
      Menu option to cause the current tab to be migrated to a new Thunderbird
      window.
      -->
 <!ENTITY moveToNewWindow.label "Kaloje në Dritare të Re">
 <!ENTITY moveToNewWindow.accesskey "j">
+
 <!ENTITY newVirtualFolderCmd.label "Kërkim i Ruajtur…">
 <!ENTITY newVirtualFolderCmd.accesskey "K">
 <!ENTITY newOtherAccountsCmd.label "Tjetër Llogari…">
@@ -865,3 +863,5 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY hideOtherAppsCmdMac.commandkey "F">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Shfaqi të Tëra">
+<!ENTITY bodyAllParts.accesskey "A">
+<!ENTITY bodyAllParts.label "All Body Parts">

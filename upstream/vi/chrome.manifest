@@ -1,0 +1,24 @@
+locale messenger-mapi vi chrome/vi/locale/vi/messenger-mapi/
+locale messenger vi chrome/vi/locale/vi/messenger/
+locale global vi chrome/vi/locale/vi/global/
+locale pippki vi chrome/vi/locale/vi/pippki/
+locale editor vi chrome/vi/locale/vi/editor/
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale necko vi chrome/vi/locale/vi/necko/
+locale passwordmgr vi chrome/vi/locale/vi/passwordmgr/
+locale communicator vi chrome/vi/locale/vi/communicator/
+manifest chrome/vi.manifest
+locale autoconfig vi chrome/vi/locale/vi/autoconfig/
+locale messenger-smime vi chrome/vi/locale/vi/messenger-smime/
+locale messenger-region vi chrome/vi/locale/vi/messenger-region/
+locale mozapps vi chrome/vi/locale/vi/mozapps/
+locale alerts vi chrome/vi/locale/vi/alerts/
+locale branding vi chrome/vi/locale/vi/branding/
+locale messenger-newsblog vi chrome/vi/locale/vi/messenger-newsblog/
+locale global-region vi chrome/vi/locale/vi/global-region/
+locale pipnss vi chrome/vi/locale/vi/pipnss/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+locale mozldap vi chrome/vi/locale/vi/mozldap/
+locale places vi chrome/vi/locale/vi/places/
+locale global-platform vi chrome/vi/locale/vi/global-platform/
+locale cookie vi chrome/vi/locale/vi/cookie/

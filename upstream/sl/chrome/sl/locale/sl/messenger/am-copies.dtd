@@ -22,8 +22,8 @@
 <!ENTITY sentInOtherFolder.label "Drugo:">
 <!ENTITY sentInOtherFolder.accesskey "O">
 <!-- LOCALIZATION NOTE (archivesFolderOn.label): OK to translate this, bug #57440 -->
-<!ENTITY archivesTitle.label "Arhivi sporočil">
-<!ENTITY keepArchives.label "Hrani arhive za sporočila v:">
+<!ENTITY archivesTitle.label "Arhivi za sporočila">
+<!ENTITY keepArchives.label "Arhive za sporočila hraniti v:">
 <!ENTITY keepArchives.accesskey "H">
 <!ENTITY archiveHierarchyButton.label "Možnosti za arhive…">
 <!ENTITY archiveHierarchyButton.accesskey "M">
@@ -31,13 +31,11 @@
 <!ENTITY archivesFolderOn.accesskey "A">
 <!ENTITY archiveInOtherFolder.label "Drugo:">
 <!ENTITY archiveInOtherFolder.accesskey "d">
-
 <!-- LOCALIZATION NOTE (draftsFolderOn.label): OK to translate this, bug #57440 -->
 <!ENTITY draftsFolderOn.label "mapa &quot;Osnutki&quot; na:">
 <!ENTITY draftsFolderOn.accesskey "O">
 <!ENTITY draftInOtherFolder.label "Drugo:">
 <!ENTITY draftInOtherFolder.accesskey "u">
-
 <!-- LOCALIZATION NOTE (templatesFolderOn.label): OK to translate this, bug #57440 -->
 <!ENTITY templatesFolderOn.label "mapa &quot;Predloge&quot; na:">
 <!ENTITY templatesFolderOn.accesskey "m">

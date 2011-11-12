@@ -21,7 +21,7 @@
   <li>Si no puede cargar ninguna página, verifique la conexión a la red de su
     computadora.</li>
   <li>Si su computadora o red está protegida por un firewall o proxy, asegúrese
-    que &brandShortName; tenga permiso de acceder a la Web.</li>
+    que &brandShortName; tenga permiso de acceder a la web.</li>
 </ul>
 ">
 
@@ -53,9 +53,9 @@
 <!ENTITY netInterrupt.longDesc "&sharedLongDesc;">
 
 <!ENTITY netOffline.title "Modo sin conexión a la red">
-<!ENTITY netOffline.longDesc "
+<!ENTITY netOffline.longDesc2 "
 <ul>
-  <li>Ponga &brandShortName; en modo con conexión e intente nuevamente.</li>
+  <li>Presione &quot;Intente nuevamente&quot; para volver al modo con conexión y recargar la página.</li>
 </ul>
 ">
 
@@ -101,7 +101,7 @@
   <li>Verifique las opciones de proxy para confirmar que están correctas.</li>
   <li>Asegúrese que su computadora tenga una conexión de red en funcionamiento.</li>
   <li>Si su computadora o red están protegidas por un firewall o proxy, asegúrese
-    que &brandShortName; tenga permiso de acceder a la Web.</li>
+    que &brandShortName; tenga permiso de acceder a la web.</li>
 </ul>
 ">
 
@@ -147,7 +147,7 @@ ser temporal y puede inentarlo nuevamente más tarde.</li>
   <li>Si no puede cargar ninguna página, verifique la conexión de su computadora
     a la red.</li>
   <li>Si su computadora o red están protegidas por un firewall o proxy, asegúrese
-    que &brandShortName; tiene permiso para acceder a la Web.</li>
+    que &brandShortName; tiene permiso para acceder a la web.</li>
 </ul>
 ">
 
@@ -165,6 +165,9 @@ ser temporal y puede inentarlo nuevamente más tarde.</li>
 
 <!ENTITY cspFrameAncestorBlocked.title "Bloqueado por política de seguridad de contenido">
 <!ENTITY cspFrameAncestorBlocked.longDesc "<p>&brandShortName; evitó que se cargue esta página de esta forma porque tiene una política de seguridad de contenido que no lo permite.</p>">
+
+<!ENTITY corruptedContentError.title "Error de contenido corrupto">
+<!ENTITY corruptedContentError.longDesc "<p>El contenido que está tratando de ver no puede mostrarse porque se detectó un error en la transmisión de los datos.</p><ul><li>Contacte a los dueños para inormarles de este problema.</li></ul>">
 
 <!ENTITY securityOverride.linkText "O puede agregar una excepción…">
 <!ENTITY securityOverride.getMeOutOfHereButton "Sáquenme de aquí">

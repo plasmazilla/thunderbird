@@ -9,9 +9,6 @@
 <!ENTITY closeTabCmd2.accesskey "I">
 <!ENTITY closeOtherTabsCmd2.label "Itxi beste fitxak">
 <!ENTITY closeOtherTabsCmd2.accesskey "t">
-<!-- LOCALIZATION NOTE (undoCloseTabCmd.label):
-     Menu option to attempt to re-open a recently closed tab.
-     -->
 <!ENTITY recentlyClosedTabsCmd.label "Azkenaldian itxitako fitxak">
 <!ENTITY recentlyClosedTabsCmd.accesskey "A">
 
@@ -227,6 +224,8 @@
 <!ENTITY bodySanitized.accesskey "s">
 <!ENTITY bodyAsPlaintext.label "Testu arrunta">
 <!ENTITY bodyAsPlaintext.accesskey "T">
+<!ENTITY bodyAllParts.label "Gorputzaren zati guztiak">
+<!ENTITY bodyAllParts.accesskey "a">
 
 <!ENTITY bodyMenuFeed.label "Jarioko mezuaren gorputza honela">
 <!ENTITY bodyMenuFeed.accesskey "o">
@@ -352,11 +351,11 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyToAllMsgCmd.label "Erantzun denei">
 <!ENTITY replyToAllMsgCmd.accesskey  "E">
 <!ENTITY replyToAllMsgCmd.key  "r">
-<!ENTITY replyToListMsgCmd.label "Erantzun zerrendara">
+<!ENTITY replyToListMsgCmd.label "Erantzun zerrendari">
 <!ENTITY replyToListMsgCmd.accesskey  "z">
 <!ENTITY replyToListMsgCmd.key  "l">
-<!ENTITY forwardMsgCmd.label "Aurrera">
-<!ENTITY forwardMsgCmd.accesskey "A">
+<!ENTITY forwardMsgCmd.label "Birbidali">
+<!ENTITY forwardMsgCmd.accesskey "B">
 <!ENTITY forwardMsgCmd.key  "l">
 <!ENTITY forwardAsMenu.label "Birbidali honela">
 <!ENTITY forwardAsMenu.accesskey "i">
@@ -655,7 +654,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
      textcontext.dtd from toolkit. Right now, both menu items can't be visible
      at the same time, but should someone enable copy/paste of message, this key
      would probably need to be changed. -->
-<!ENTITY contextOpenNewTab.label "Ireki mezu fitxa berrian">
+<!ENTITY contextOpenNewTab.label "Ireki mezua fitxa berrian">
 <!ENTITY contextOpenNewTab.accesskey "t">
 <!ENTITY contextOpenConversation.label "Ireki mezua hizketaldian">
 <!ENTITY contextOpenConversation.accesskey "k">
@@ -671,8 +670,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextReplyAll.accesskey "a">
 <!ENTITY contextReplyList.label "Erantzun zerrendari">
 <!ENTITY contextReplyList.accesskey "z">
-<!ENTITY contextForward.label "Aurrera">
-<!ENTITY contextForward.accesskey "A">
+<!ENTITY contextForward.label "Birbidali">
+<!ENTITY contextForward.accesskey "B">
 <!ENTITY contextForwardAsAttachment.label "Birbidali eranskin gisa">
 <!ENTITY contextForwardAsAttachment.accesskey "i">
 <!ENTITY contextMoveMsgMenu.label "Eraman hona">

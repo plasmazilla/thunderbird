@@ -1,3 +1,9 @@
+<!--
+# Translator(s):
+#
+# http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
+#
+-->
 <!-- ***** BEGIN LICENSE BLOCK *****
    - Version: MPL 1.1/GPL 2.0/LGPL 2.1
    -
@@ -47,11 +53,11 @@
 <!ENTITY suggestions.accessKey "צ">
 <!ENTITY ignoreButton.label "התעלם">
 <!ENTITY ignoreButton.accessKey "ת">
-<!ENTITY ignoreAllButton.label "התעלם מהכל">
+<!ENTITY ignoreAllButton.label "התעלם מהכול">
 <!ENTITY ignoreAllButton.accessKey "מ">
 <!ENTITY replaceButton.label "החלף">
 <!ENTITY replaceButton.accessKey "ח">
-<!ENTITY replaceAllButton.label "החלף הכל">
+<!ENTITY replaceAllButton.label "החלף הכול">
 <!ENTITY replaceAllButton.accessKey "כ">
 <!ENTITY stopButton.label "עצור">
 <!ENTITY stopButton.accessKey "ע">
@@ -69,3 +75,5 @@
 <!ENTITY sendButton.accessKey "ש">
 <!ENTITY languagePopup.label "שפה:">
 <!ENTITY languagePopup.accessKey "פ">
+
+

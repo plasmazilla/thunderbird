@@ -1,0 +1,31 @@
+<!ENTITY accountTitle.label "Οδηγός λογαριασμού">
+<!ENTITY accountName.label "Όνομα λογαριασμού:">
+<!ENTITY accountName.accesskey "ν">
+<!ENTITY identityTitle.label "Ταυτότητα">
+<!ENTITY identityDesc.label "Ο κάθε λογαριασμός μπορεί να έχει τη δική του ταυτότητα, και παρέχει τις πληροφορίες που βλέπουν τρίτοι όταν διαβάζουν τα μηνύματα σας.">
+<!ENTITY name.label "Όνομα:">
+<!ENTITY name.accesskey "μ">
+<!ENTITY email.label "Διεύθυνση Email:">
+<!ENTITY email.accesskey "E">
+<!ENTITY replyTo.label "Διεύθυνση για απαντήσεις:">
+<!ENTITY replyTo.accesskey "σ">
+<!ENTITY organization.label "Οργανισμός:">
+<!ENTITY organization.accesskey "Ο">
+<!ENTITY signatureText.label "Κείμενο υπογραφής:">
+<!ENTITY signatureText.accesskey "μ">
+<!ENTITY signatureHtml.label "Χρήση HTML (π.χ., &lt;b&gt;bold&lt;/b&gt;)">
+<!ENTITY signatureHtml.accesskey "L">
+<!ENTITY signatureFile.label "Επισύναψη υπογραφής από αρχείο (κείμενο, HTML, ή εικόνα):">
+<!ENTITY signatureFile.accesskey "ψ">
+<!ENTITY edit.label "Επεξεργασία...">
+<!ENTITY choose.label "Επιλογή...">
+<!ENTITY choose.accesskey "λ">
+<!ENTITY editVCard.label "Επεξεργασία καρτέλας...">
+<!ENTITY editVCard.accesskey "ξ">
+<!ENTITY attachVCard.label "Επισύναψη της vCard μου στα μηνύματα">
+<!ENTITY attachVCard.accesskey "v">
+<!ENTITY manageIdentities.label "Διαχείριση ταυτοτήτων...">
+<!ENTITY manageIdentities.accesskey "Δ">
+<!ENTITY smtpName.label "Διακομιστής εξερχομένων (SMTP):">
+<!ENTITY smtpName.accesskey "χ">
+<!ENTITY smtpDefaultServer.label "Χρήση προεπιλεγμένου διακομιστή">

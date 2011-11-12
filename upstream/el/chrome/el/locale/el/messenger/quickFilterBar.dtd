@@ -1,0 +1,47 @@
+<!ENTITY quickFilterBar.toggleBarVisibility.menu.label "Μπάρα γρήγορης αναζήτησης">
+<!ENTITY quickFilterBar.toggleBarVisibility.menu.accesskey "γ">
+<!ENTITY quickFilterBar.toggleBarVisibility.button.tooltip "Εναλλαγή εμφάνισης της γρήγορης αναζήτησης.">
+<!ENTITY quickFilterBar.sticky.tooltip "Διατήρηση φίλτρων αναζήτησης κατά την αλλαγή φακέλων;">
+<!ENTITY quickFilterBar.barLabel.label "Γρήγορη αναζήτηση:">
+<!ENTITY quickFilterBar.unread.label "Μη αναγνωσμένα">
+<!ENTITY quickFilterBar.unread.tooltip "Προβολή μόνο των μη αναγνωσμένων μηνυμάτων.">
+<!ENTITY quickFilterBar.starred.label "Με αστέρι">
+<!ENTITY quickFilterBar.starred.tooltip "Προβολή μόνο των μηνυμάτων με αστέρι.">
+<!ENTITY quickFilterBar.inaddrbook.label "Επαφές">
+<!ENTITY quickFilterBar.inaddrbook.tooltip "Προβολή μόνο των μηνυμάτων από ανθρώπους που βρίσκονται στο ευρετήριο σας.">
+<!ENTITY quickFilterBar.tags.label "Ετικέτες">
+<!ENTITY quickFilterBar.tags.tooltip "Προβολή μόνο των μηνυμάτων που έχουν ετικέτες.">
+<!ENTITY quickFilterBar.attachment.label "Συνημμένα">
+<!ENTITY quickFilterBar.attachment.tooltip "Προβολή μόνο των μηνυμάτων με συνημμένα.">
+<!ENTITY quickFilterBar.resultsLabel.some.formatString "#1 μήνυμα;#1 μηνύματα">
+<!ENTITY quickFilterBar.resultsLabel.none "Δεν υπάρχουν αποτελέσματα">
+<!ENTITY quickFilterBar.resultsLabel.minWidth "100">
+<!ENTITY quickFilterBar.textbox.emptyText.base "Αναζήτηση σε αυτά τα μηνύματα... #1">
+<!ENTITY quickFilterBar.textbox.idealWidth "320">
+<!ENTITY quickFilterBar.textbox.minWidth "280">
+<!ENTITY quickFilterBar.textFilter.explanation.label "Φιλτράρισμα μηνυμάτων κατά:">
+<!ENTITY quickFilterBar.textFilter.sender.label "Αποστολέας">
+<!ENTITY quickFilterBar.textFilter.recipients.label "Παραλήπτες">
+<!ENTITY quickFilterBar.textFilter.subject.label "Θέμα">
+<!ENTITY quickFilterBar.textFilter.body.label "Σώμα μηνύματος">
+<!ENTITY quickFilterBar.glodaUpsell.continueSearch "Συνέχεια της αναζήτησης σε όλους τους φακέλους">
+<!ENTITY quickFilterBar.glodaUpsell.pressEnterAndCurrent "Πατήστε 'Enter' ξανά για αν συνεχίσετε την αναζήτηση σας για: #1">
+<!-- LOCALIZATION NOTE (quickFilterBar.show.key2):
+     This is the key used to show the quick filter bar. -->
+<!ENTITY quickFilterBar.show.key2
+         "k">
+
+<!-- LOCALIZATION NOTE (quickFilterBar.textbox.emptyText.keyLabel.mac):
+     The description of the key-binding to get into the box on mac systems.
+     This should match the value of quickFilterBar.show.key above.
+     -->
+<!ENTITY quickFilterBar.textbox.emptyText.keyLabel2.mac
+         "&lt;&#x21E7;&#x2318;K&gt;">
+<!-- LOCALIZATION NOTE (quickFilterBar.textbox.emptyText.keyLabel.nonmac):
+     The description of the key-binding to get into the box on windows and
+     linux (which use the control key).  This should match the value of
+     quickFilterBar.show.key above.
+     -->
+<!ENTITY quickFilterBar.textbox.emptyText.keyLabel2.nonmac
+         "&lt;Ctrl+Shift+K&gt;">
+

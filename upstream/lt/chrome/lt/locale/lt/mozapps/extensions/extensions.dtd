@@ -53,14 +53,13 @@
 <!ENTITY warning.updatesecurity.enable.label       "Tikrinti">
 <!ENTITY warning.updatesecurity.enable.tooltip     "Įjungti priedų naujinimų saugumo tikrinimą">
 
+<!-- global informations -->
+<!ENTITY info.plugincheck.label               "Spustelėkite, kad būtų patikrinta, ar Jūsų naudojami papildiniai nepasenę">
+<!ENTITY info.plugincheck.tooltip             "Spustelėkite, kad būtų patikrinta, ar Jūsų naudojami papildiniai nepasenę">
+
 <!-- categories / views -->
 <!ENTITY view.search.label                    "Paieška">
 <!ENTITY view.discover.label                  "Parsisiųsti priedų">
-<!ENTITY view.locales.label                   "Kalbos">
-<!ENTITY view.searchengines.label             "Ieškyklės">
-<!ENTITY view.features.label                  "Plėtiniai">
-<!ENTITY view.appearance2.label               "Programos išvaizda">
-<!ENTITY view.plugins.label                   "Papildiniai">
 <!ENTITY view.recentUpdates.label             "Paskiausiai atnaujinti">
 <!ENTITY view.availableUpdates.label          "Galimi naujinimai">
 
@@ -204,9 +203,11 @@
 <!ENTITY addon.loadingReleaseNotes.label      "Įkeliama…">
 <!ENTITY addon.errorLoadingReleaseNotes.label "Atsiprašome, bet įkeliant laidos apžvalgą, įvyko klaida.">
 
-<!ENTITY addon.createdBy.label                "priedą kūrė ">
+<!ENTITY addon.createdBy.label                "priedą sukūrė ">
 
 <!ENTITY eula.title                           "Licencijos sutartis">
 <!ENTITY eula.width                           "560px">
 <!ENTITY eula.height                          "400px">
 <!ENTITY eula.accept                          "Sutikti su licencija ir įdiegti priedą…">
+
+<!ENTITY settings.path.button.label           "Parinkti…">

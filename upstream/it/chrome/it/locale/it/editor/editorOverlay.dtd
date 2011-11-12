@@ -25,7 +25,6 @@
    -   Ryan Cassin (rcassin@supernova.org)
    -   Daniel Glazman (glazman@netscape.com)
    -   Stephen Donner (technutz@netscape.net)
-   -   Giacomo Magnini <giacomo.magnini@mozillaitalia.org>
    -   
    -
    - Alternatively, the contents of this file may be used under the terms of
@@ -66,13 +65,10 @@
 <!ENTITY saveAsChangeEncodingCmd.label "Salva e cambia codifica caratteri">
 <!ENTITY saveAsChangeEncodingCmd.accesskey "d">
 <!ENTITY printSetupCmd.label "Imposta pagina…">
-<!ENTITY printSetupCmd.accesskey "p">
+<!ENTITY printSetupCmd.accesskey "I">
 <!ENTITY printCmd.label "Stampa…">
-<!ENTITY printCmd.accesskey "a">
 <!ENTITY printCmd.key "P">
-<!ENTITY closeCmd.label "Chiudi">
-<!ENTITY closeCmd.accesskey "h">
-<!ENTITY closeCmd.key "W">
+<!ENTITY printCmd.accesskey "a">
 <!ENTITY editMenu.label "Modifica">
 <!ENTITY editMenu.accesskey "M">
 <!ENTITY pasteNoFormatting.label "Incolla senza formattazione">
@@ -86,26 +82,15 @@
 <!ENTITY pasteAsQuotationCmd.accesskey "n">
 <!ENTITY pasteAsQuotationCmd.key "o">
 <!ENTITY findCmd.label "Trova e sostituisci…">
-<!ENTITY findCmd.accesskey "v">
-<!ENTITY findCmd.key "F">
-<!ENTITY findCmd.key2 "VK_F19">
-<!ENTITY findAgainCmd.label "Trova successivo">
-<!ENTITY findAgainCmd.accesskey "u">
-<!ENTITY findAgainCmd.key "G">
-<!ENTITY findAgainCmd.key2 "VK_F3">
-<!ENTITY findPrevCmd.label "Trova precedente">
-<!ENTITY findPrevCmd.accesskey "d">
-<!ENTITY findPrevCmd.key "G">
-<!ENTITY findPrevCmd.key2 "VK_F3">
 <!ENTITY enableInlineSpellChecker.label "Controllo ortografico durante la digitazione">
 <!ENTITY enableInlineSpellChecker.accesskey "z">
 <!ENTITY checkSpellingCmd2.label "Controlla ortografia">
-<!ENTITY checkSpellingCmd2.accesskey "o">
+<!ENTITY checkSpellingCmd2.accesskey "C">
 <!ENTITY checkSpellingCmd2.key "p">
 <!ENTITY insertMenu.label "Inserisci">
 <!ENTITY insertMenu.accesskey "I">
 <!ENTITY insertLinkCmd.label "Collegamento…">
-<!ENTITY insertLinkCmd.accesskey "m">
+<!ENTITY insertLinkCmd.accesskey "C">
 <!ENTITY insertLinkCmd.key "L">
 <!ENTITY insertAnchorCmd.label "Ancora…">
 <!ENTITY insertAnchorCmd.accesskey "A">
@@ -130,29 +115,13 @@
 <!ENTITY createLinkCmd.accesskey "o">
 <!ENTITY editLinkCmd.label "Modifica collegamento in Composer">
 <!ENTITY editLinkCmd.accesskey "l">
-<!ENTITY undoCmd.label "Annulla">
-<!ENTITY undoCmd.accesskey "A">
-<!ENTITY redoCmd.label "Ripeti">
-<!ENTITY redoCmd.accesskey "R">
-<!ENTITY cutCmd.label "Taglia">
-<!ENTITY cutCmd.accesskey "T">
-<!ENTITY copyCmd.label "Copia">
-<!ENTITY copyCmd.accesskey "C">
-<!ENTITY pasteCmd.label "Incolla">
-<!ENTITY pasteCmd.accesskey "n">
-<!ENTITY deleteCmd.label "Elimina">
-<!ENTITY deleteCmd.accesskey "E">
-<!ENTITY clearCmd.label "Pulisci">
-<!ENTITY clearCmd.accesskey "P">
-<!ENTITY selectAllCmd.label "Seleziona tutto">
-<!ENTITY selectAllCmd.accesskey "z">
 <!ENTITY FontFaceSelect.tooltip "Scegli il tipo di carattere">
 <!ENTITY fontfaceMenu.label "Carattere">
 <!ENTITY fontfaceMenu.accesskey "C">
 <!ENTITY fontVarWidth.label "Larghezza variabile">
 <!ENTITY fontVarWidth.accesskey "v">
 <!ENTITY fontFixedWidth.label "Larghezza fissa">
-<!ENTITY fontFixedWidth.accesskey "z">
+<!ENTITY fontFixedWidth.accesskey "L">
 <!ENTITY fontFixedWidth.key "T">
 <!ENTITY fontHelvetica.label "Helvetica, Arial">
 <!ENTITY fontHelvetica.accesskey "H">
@@ -216,7 +185,7 @@
 <!ENTITY styleCode.label "Codice sorgente">
 <!ENTITY styleCode.accesskey "d">
 <!ENTITY styleSamp.label "Esempio">
-<!ENTITY styleSamp.accesskey "i">
+<!ENTITY styleSamp.accesskey "m">
 <!ENTITY styleVar.label "Variabile">
 <!ENTITY styleVar.accesskey "V">
 <!ENTITY formatFontColor.label "Colore testo…">
@@ -226,7 +195,7 @@
 <!ENTITY formatRemoveStyles.key "Y">
 <!ENTITY formatRemoveLinks.key "K">
 <!ENTITY formatRemoveNamedAnchors.label "Rimuovi ancora con nome">
-<!ENTITY formatRemoveNamedAnchors.accesskey "n">
+<!ENTITY formatRemoveNamedAnchors.accesskey "R">
 <!ENTITY formatRemoveNamedAnchors.key "A">
 <!ENTITY paragraphMenu.label "Paragrafo">
 <!ENTITY paragraphMenu.accesskey "P">
@@ -266,7 +235,7 @@
 <!ENTITY bodyTextCmd.label "Corpo del testo">
 <!ENTITY bodyTextCmd.accesskey "C">
 <!ENTITY advancedPropertiesCmd.label "Proprietà avanzate">
-<!ENTITY advancedPropertiesCmd.accesskey "v">
+<!ENTITY advancedPropertiesCmd.accesskey "P">
 <!ENTITY alignMenu.label "Allinea">
 <!ENTITY alignMenu.accesskey "A">
 <!ENTITY alignLeft.label "Sinistra">
@@ -333,8 +302,8 @@
 <!ENTITY tableCellAfter.accesskey "u">
 <!ENTITY tableDeleteMenu.label "Elimina">
 <!ENTITY tableDeleteMenu.accesskey "E">
-<!ENTITY tableJoinCells.label "j">
-<!ENTITY tableJoinCells.accesskey "j">
+<!ENTITY tableJoinCells.label "U">
+<!ENTITY tableJoinCells.accesskey "U">
 <!ENTITY tableSplitCell.label "Dividi cella">
 <!ENTITY tableSplitCell.accesskey "D">
 <!ENTITY convertToTable.label "Crea tabella da selezione">
@@ -349,6 +318,9 @@
 <!ENTITY openToolbarCmd.tooltip "Carica una pagina locale">
 <!ENTITY saveToolbarCmd.tooltip "Salva la pagina localmente">
 <!ENTITY publishToolbarCmd.tooltip "Memorizza i file presso un indirizzo remoto">
+<!ENTITY cutToolbarCmd.tooltip "Taglia">
+<!ENTITY copyToolbarCmd.tooltip "Copia">
+<!ENTITY pasteToolbarCmd.tooltip "Incolla">
 <!ENTITY printToolbarCmd.label "Stampa">
 <!ENTITY printToolbarCmd.tooltip "Stampa la pagina">
 <!ENTITY findToolbarCmd.label "Trova">

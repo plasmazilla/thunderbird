@@ -9,9 +9,6 @@
 <!ENTITY closeTabCmd2.accesskey "C">
 <!ENTITY closeOtherTabsCmd2.label "關閉其他分頁">
 <!ENTITY closeOtherTabsCmd2.accesskey "o">
-<!-- LOCALIZATION NOTE (undoCloseTabCmd.label):
-     Menu option to attempt to re-open a recently closed tab.
-     -->
 <!ENTITY recentlyClosedTabsCmd.label "最近關閉的分頁">
 <!ENTITY recentlyClosedTabsCmd.accesskey "R">
 
@@ -64,7 +61,7 @@
 <!ENTITY offlineMenu.accesskey "l">
 <!ENTITY offlineGoOfflineCmd.label "離線模式">
 <!ENTITY offlineGoOfflineCmd.accesskey "W">
-<!ENTITY synchronizeOfflineCmd.label "立刻下載或同步">
+<!ENTITY synchronizeOfflineCmd.label "立刻下載／同步…">
 <!ENTITY synchronizeOfflineCmd.accesskey "S">
 <!ENTITY settingsOfflineCmd.label "離線模式設定…">
 <!ENTITY settingsOfflineCmd.accesskey "e">
@@ -227,6 +224,8 @@
 <!ENTITY bodySanitized.accesskey "S">
 <!ENTITY bodyAsPlaintext.label "純文字">
 <!ENTITY bodyAsPlaintext.accesskey "P">
+<!ENTITY bodyAllParts.label "所有內文部分">
+<!ENTITY bodyAllParts.accesskey "A">
 
 <!ENTITY bodyMenuFeed.label "設定來源內文顯示為">
 <!ENTITY bodyMenuFeed.accesskey "B">
@@ -529,8 +528,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY archiveButton.tooltip "將選取的郵件備存">
 <!ENTITY nextButton.tooltip "移至下一封未讀郵件">
 <!ENTITY previousButton.tooltip "移至上一封未讀郵件">
-<!ENTITY goForwardButton.tooltip "前往下一頁">
-<!ENTITY goBackButton.tooltip "回到上一頁">
+<!ENTITY goForwardButton.tooltip "下一封郵件">
+<!ENTITY goBackButton.tooltip "上一封郵件">
 <!ENTITY deleteButton.tooltip "刪除已選的郵件或資料夾">
 <!ENTITY undeleteButton.tooltip "還原選取的郵件">
 <!ENTITY markButton.tooltip "標示郵件">
@@ -750,7 +749,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY junkInfoButton.label "？">
 
 <!-- Remote Content Bar -->
-<!ENTITY remoteContentMessage2.label "為保護您的隱私，&brandShortName;已阻擋來自遠端的內容。">
+<!ENTITY remoteContentMessage2.label "為保護您的隱私，&brandShortName; 已阻擋來自遠端的內容。">
 <!ENTITY loadRemoteContentButton3.label "顯示遠端內容">
 
 <!-- Phishing Bar -->

@@ -1,0 +1,75 @@
+<!--
+# Translator(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+# janimo <jani@ubuntu.com>
+# Lucian Oprea <oprea.luci@gmail.com>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+#
+-->
+<!-- these things need to move into utilityOverlay.xul -->
+
+<!-- LOCALIZATION NOTE : FILE This file contains the global menu items -->
+
+<!ENTITY fileMenu.label          "Fişier">
+<!ENTITY fileMenu.accesskey        "F">
+<!ENTITY newMenu.label            "Adaugă">
+<!ENTITY newMenu.accesskey          "A">
+
+<!ENTITY editMenu.label          "Editare">
+<!ENTITY editMenu.accesskey        "E">
+<!ENTITY undoCmd.label            "Înapoi">
+<!ENTITY undoCmd.key            "Z">
+<!ENTITY undoCmd.accesskey          "n">
+<!ENTITY redoCmd.label            "Refacere">
+<!ENTITY redoCmd.key            "Y">
+<!ENTITY redoCmd.accesskey          "R">
+<!ENTITY cutCmd.label            "Tăiere">
+<!ENTITY cutCmd.key              "X">
+<!ENTITY cutCmd.accesskey          "T">
+<!ENTITY copyCmd.label            "Copiați">
+<!ENTITY copyCmd.key            "C">
+<!ENTITY copyCmd.accesskey          "C">
+<!ENTITY pasteCmd.label            "Lipeşte">
+<!ENTITY pasteCmd.key            "v">
+<!ENTITY pasteCmd.accesskey          "L">
+<!ENTITY deleteCmd.label          "Șterge">
+<!ENTITY deleteCmd.accesskey        "g">
+<!ENTITY selectAllCmd.label          "Selectează _tot">
+<!ENTITY selectAllCmd.key          "A">
+<!ENTITY selectAllCmd.accesskey        "o">
+<!ENTITY preferencesCmd.label        "Opțiuni…">
+<!ENTITY preferencesCmd.accesskey      "O">
+<!ENTITY preferencesCmdUnix.label       "Preferinţe">
+<!ENTITY preferencesCmdUnix.accesskey     "e">
+
+<!ENTITY viewMenu.label          "Vizualizați">
+<!ENTITY viewMenu.accesskey        "V">
+<!ENTITY viewToolbarsMenu.label        "Bare de unelte">
+<!ENTITY viewToolbarsMenu.accesskey      "B">
+<!ENTITY showTaskbarCmd.label          "Bară de _stare">
+<!ENTITY showTaskbarCmd.accesskey        "s">
+
+<!ENTITY proxy.label                                    "Configurare proxy…">
+<!ENTITY proxy.accesskey                                "C">
+
+<!ENTITY closeCmd.label      "Închide">
+<!ENTITY closeCmd.key      "w">
+<!ENTITY closeCmd.accesskey    "c">
+
+<!ENTITY quitApplicationCmd.label  "Ieşire">
+<!ENTITY quitApplicationCmd.key    "Q">
+<!ENTITY quitApplicationCmd.accesskey  "I">
+
+<!ENTITY quitApplicationCmdUnix.label  "Ieși">
+<!ENTITY quitApplicationCmdUnix.accesskey  "e">
+
+<!ENTITY quitApplicationCmdMac.label  "Ieșire">
+<!ENTITY quitApplicationCmdMac.accesskey  "I">
+
+

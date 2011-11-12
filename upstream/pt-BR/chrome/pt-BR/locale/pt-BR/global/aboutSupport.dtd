@@ -20,6 +20,7 @@
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Plugins ativos">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Configuração da compilação">
 <!ENTITY aboutSupport.appBasicsUserAgent "User Agent">
+<!ENTITY aboutSupport.appBasicsCrashIDs "Relatórios de travamento">
 
 <!ENTITY aboutSupport.show.label "Abrir pasta">
 
@@ -37,4 +38,4 @@ variant of aboutSupport.show.label.  This allows us to use the preferred
 <!ENTITY aboutSupport.installationHistoryTitle "Histórico de instalações">
 <!ENTITY aboutSupport.updateHistoryTitle "Histórico de atualizações">
 
-<!ENTITY aboutSupport.copyToClipboard.label "Copiar tudo para a área de transferência">
+<!ENTITY aboutSupport.copyToClipboard.label "Copiar tudo para área de transferência">

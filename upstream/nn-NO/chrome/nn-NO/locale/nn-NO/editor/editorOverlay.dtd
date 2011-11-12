@@ -73,13 +73,10 @@
 <!ENTITY printCmd.label "Skriv ut …">
 <!ENTITY printCmd.accesskey "S">
 <!ENTITY printCmd.key "P">
-<!ENTITY closeCmd.label "Lat att">
-<!ENTITY closeCmd.accesskey "L">
-<!ENTITY closeCmd.key "W">
 
 <!-- Edit menu items -->
-<!ENTITY editMenu.label "Endre">
-<!ENTITY editMenu.accesskey "E">
+<!ENTITY editMenu.label "Rediger">
+<!ENTITY editMenu.accesskey "R">
 <!ENTITY pasteNoFormatting.label "Lim inn utan formatering">
 <!ENTITY pasteNoFormatting.accesskey "o">
 <!ENTITY pasteNoFormatting.key "V">
@@ -91,17 +88,6 @@
 <!ENTITY pasteAsQuotationCmd.accesskey "s">
 <!ENTITY pasteAsQuotationCmd.key "o">
 <!ENTITY findCmd.label "Søk og erstatt …">
-<!ENTITY findCmd.accesskey "S">
-<!ENTITY findCmd.key "F">
-<!ENTITY findCmd.key2 "VK_F19">
-<!ENTITY findAgainCmd.label "Søk etter neste">
-<!ENTITY findAgainCmd.accesskey "n">
-<!ENTITY findAgainCmd.key "G">
-<!ENTITY findAgainCmd.key2 "VK_F3">
-<!ENTITY findPrevCmd.label "Søk etter førre">
-<!ENTITY findPrevCmd.accesskey "f">
-<!ENTITY findPrevCmd.key "G">
-<!ENTITY findPrevCmd.key2 "VK_F3">
 <!ENTITY enableInlineSpellChecker.label "Stavekontroll medan du skriv">
 <!ENTITY enableInlineSpellChecker.accesskey "S">
 <!ENTITY checkSpellingCmd2.label "Kontroller staving">
@@ -137,25 +123,8 @@
 <!ENTITY spellCheckAddToDictionary.accesskey "e">
 <!ENTITY createLinkCmd.label "Lag lenkje …">
 <!ENTITY createLinkCmd.accesskey "l">
-<!ENTITY editLinkCmd.label "Endre lenkje i nytt nettsideutviklar-vindauge">
+<!ENTITY editLinkCmd.label "Rediger lenkje i nytt nettsideutviklar-vindauge">
 <!ENTITY editLinkCmd.accesskey "i">
-<!-- (Toplevel Edit menu uses utilityOverlay) -->
-<!ENTITY undoCmd.label "Angre">
-<!ENTITY undoCmd.accesskey "A">
-<!ENTITY redoCmd.label "Gjer om">
-<!ENTITY redoCmd.accesskey "G">
-<!ENTITY cutCmd.label "Klipp ut">
-<!ENTITY cutCmd.accesskey "u">
-<!ENTITY copyCmd.label "Kopier">
-<!ENTITY copyCmd.accesskey "K">
-<!ENTITY pasteCmd.label "Lim inn">
-<!ENTITY pasteCmd.accesskey "L">
-<!ENTITY deleteCmd.label "Slett">
-<!ENTITY deleteCmd.accesskey "S">
-<!ENTITY clearCmd.label "Tøm">
-<!ENTITY clearCmd.accesskey "T">
-<!ENTITY selectAllCmd.label "Merk alt">
-<!ENTITY selectAllCmd.accesskey "a">
 
 <!-- Font Face SubMenu -->
 <!ENTITY FontFaceSelect.tooltip "Vel skrifttype">
@@ -389,13 +358,16 @@
 
 <!-- Toolbar-only items -->
 <!ENTITY menuBar.tooltip "Menylinje">
-<!ENTITY formatToolbar.tooltip "Formateringsverktøylinje">
+<!ENTITY formatToolbar.tooltip "Formateringsverktylinje">
 <!ENTITY newToolbarCmd.label "Ny">
 <!ENTITY newToolbarCmd.tooltip "Lag ei ny nettsideutviklar-side">
 <!ENTITY openToolbarCmd.label "Opne">
 <!ENTITY openToolbarCmd.tooltip "Opne ei lokal fil">
 <!ENTITY saveToolbarCmd.tooltip "Lagre fil lokalt">
 <!ENTITY publishToolbarCmd.tooltip "Last opp fil til eksternt område">
+<!ENTITY cutToolbarCmd.tooltip "Klipp ut">
+<!ENTITY copyToolbarCmd.tooltip "Kopier">
+<!ENTITY pasteToolbarCmd.tooltip "Lim inn">
 <!ENTITY printToolbarCmd.label "Skriv ut">
 <!ENTITY printToolbarCmd.tooltip "Skriv ut denne sida">
 <!ENTITY findToolbarCmd.label "Søk">
@@ -403,15 +375,15 @@
 <!ENTITY spellToolbarCmd.label "Stavekontroll">
 <!ENTITY spellToolbarCmd.tooltip "Kontroller merkt område eller heile sida for stavefeil">
 <!ENTITY imageToolbarCmd.label "Bilete">
-<!ENTITY imageToolbarCmd.tooltip "Set inn nytt bilete eller endre eigenskapane til det valde biletet">
+<!ENTITY imageToolbarCmd.tooltip "Set inn nytt bilete eller rediger eigenskapane til det valde biletet">
 <!ENTITY hruleToolbarCmd.label "Horisontal linje">
-<!ENTITY hruleToolbarCmd.tooltip "Set inn horisontal linje eller endre eigenskapane til den valde linja">
+<!ENTITY hruleToolbarCmd.tooltip "Set inn horisontal linje eller rediger eigenskapane til den valde linja">
 <!ENTITY tableToolbarCmd.label "Tabell">
-<!ENTITY tableToolbarCmd.tooltip "Set inn ny tabell eller endre eigenskapane til den valde tabellen">
+<!ENTITY tableToolbarCmd.tooltip "Set inn ny tabell eller rediger eigenskapane til den valde tabellen">
 <!ENTITY linkToolbarCmd.label "Lenkje">
-<!ENTITY linkToolbarCmd.tooltip "Set inn ny lenkje eller endre eigenskapane til den valde lenkja">
+<!ENTITY linkToolbarCmd.tooltip "Set inn ny lenkje eller rediger eigenskapane til den valde lenkja">
 <!ENTITY anchorToolbarCmd.label "Anker">
-<!ENTITY anchorToolbarCmd.tooltip "Set inn nytt namngjeve anker eller endre eigenskapane til det valde ankeret">
+<!ENTITY anchorToolbarCmd.tooltip "Set inn nytt namngjeve anker eller rediger eigenskapane til det valde ankeret">
 <!ENTITY TextColorButton.tooltip "Vel tekstfarge">
 <!ENTITY BackgroundColorButton.tooltip "Vel bakgrunnsfarge">
 <!ENTITY throbber.tooltip "Gå til heimesida til &vendorShortName;">
@@ -437,9 +409,9 @@
 <!-- Structure Toolbar Context Menu items -->
 <!ENTITY structSelect.label         "Vel">
 <!ENTITY structSelect.accesskey     "V">
-<!ENTITY structRemoveTag.label      "Fjern merkelapp">
+<!ENTITY structRemoveTag.label      "Fjern tagg">
 <!ENTITY structRemoveTag.accesskey  "F">
-<!ENTITY structChangeTag.label      "Endre merkelapp">
+<!ENTITY structChangeTag.label      "Endre tagg">
 <!ENTITY structChangeTag.accesskey  "E">
 
 <!-- TOC manipulation -->

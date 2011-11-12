@@ -206,3 +206,23 @@
      -->
 
 <!ENTITY quickFilterBar.glodaUpsell.pressEnterAndCurrent "Press 'Enter' again to continue your search for: #1">
+
+<!-- LOCALIZATION NOTE (quickFilterBar.show.key2):
+     This is the key used to show the quick filter bar. -->
+<!ENTITY quickFilterBar.show.key2
+         "k">
+
+<!-- LOCALIZATION NOTE (quickFilterBar.textbox.emptyText.keyLabel.mac):
+     The description of the key-binding to get into the box on mac systems.
+     This should match the value of quickFilterBar.show.key above.
+     -->
+<!ENTITY quickFilterBar.textbox.emptyText.keyLabel2.mac
+         "&lt;&#x21E7;&#x2318;K&gt;">
+
+<!-- LOCALIZATION NOTE (quickFilterBar.textbox.emptyText.keyLabel.nonmac):
+     The description of the key-binding to get into the box on windows and
+     linux (which use the control key).  This should match the value of
+     quickFilterBar.show.key above.
+     -->
+<!ENTITY quickFilterBar.textbox.emptyText.keyLabel2.nonmac
+         "&lt;Ctrl+Shift+K&gt;">

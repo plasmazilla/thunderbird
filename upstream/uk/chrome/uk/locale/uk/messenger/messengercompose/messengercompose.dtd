@@ -4,8 +4,8 @@
 <!-- File Menu -->
 <!ENTITY fileMenu.label "Файл"> 
 <!ENTITY fileMenu.accesskey "Ф">
-<!ENTITY newMenu.label "Створити">
-<!ENTITY newMenu.accesskey "С">
+<!ENTITY newMenu.label "Новий">
+<!ENTITY newMenu.accesskey "Н">
 <!ENTITY newMessage.label "Лист">
 <!ENTITY newMessage.key "M">
 <!ENTITY newMessageCmd2.key "N">
@@ -48,9 +48,9 @@
 <!ENTITY printCmd.accesskey "Д">
 
 <!-- Edit Menu -->
-<!ENTITY editMenu.label "Правка"> 
-<!ENTITY editMenu.accesskey "П">
-<!ENTITY undoCmd.label "Повернути">
+<!ENTITY editMenu.label "Редагування"> 
+<!ENTITY editMenu.accesskey "Р">
+<!ENTITY undoCmd.label "Скасувати">
 <!ENTITY undoCmd.key "Z">
 <!ENTITY undoCmd.accesskey "н"> 
 <!ENTITY redoCmd.label "Повторити">
@@ -115,7 +115,7 @@
 <!ENTITY checkSpellingCmd2.key "p">
 <!ENTITY checkSpellingCmd2.key2 "VK_F7">
 <!ENTITY checkSpellingCmd2.accesskey "г">
-<!ENTITY enableInlineSpellChecker.label "Перевірка орфографії при наборі тексту">
+<!ENTITY enableInlineSpellChecker.label "Перевірка орфографії під час набору тексту">
 <!ENTITY enableInlineSpellChecker.accesskey "б">
 <!ENTITY quoteCmd.label "Цитувати лист">
 <!ENTITY quoteCmd.accesskey "Ц">
@@ -210,7 +210,6 @@
 <!ENTITY bccAddr.label "Прих. копія:"> 
 <!ENTITY replyAddr.label "Зворотна адреса:"> 
 <!ENTITY newsgroupsAddr.label "Група новин:"> 
-<!-- FIXME -->
 <!ENTITY followupAddr.label "Followup-To:"> 
 <!ENTITY subject.label "Тема:">
 <!ENTITY subject.accesskey "Т">
@@ -219,23 +218,23 @@
 <!ENTITY attachments.accesskey "В">
 
 <!-- Format Toolbar, imported from editorAppShell.xul -->
-<!ENTITY SmileButton.tooltip "Вставити смайлік">
-<!ENTITY smiley1Cmd.label "Усмішка">
-<!ENTITY smiley2Cmd.label "Насупленість">
-<!ENTITY smiley3Cmd.label "Підморгування">
-<!ENTITY smiley4Cmd.label "Показати язик">
-<!ENTITY smiley5Cmd.label "Сміх">
+<!ENTITY SmileButton.tooltip "Вставити смайлик">
+<!ENTITY smiley1Cmd.label "Посміхаюся">
+<!ENTITY smiley2Cmd.label "Сумую">
+<!ENTITY smiley3Cmd.label "Підморгую">
+<!ENTITY smiley4Cmd.label "Показую язика">
+<!ENTITY smiley5Cmd.label "Сміюся">
 <!ENTITY smiley6Cmd.label "Збентеження">
 <!ENTITY smiley7Cmd.label "Невизначеність">
-<!ENTITY smiley8Cmd.label "Сюрприз">
-<!ENTITY smiley9Cmd.label "Поцілунок">
-<!ENTITY smiley10Cmd.label "Крик">
-<!ENTITY smiley11Cmd.label "Кльовий">
-<!ENTITY smiley12Cmd.label "Багата усмішка">
-<!ENTITY smiley13Cmd.label "Нога в роті">
+<!ENTITY smiley8Cmd.label "Здивованість">
+<!ENTITY smiley9Cmd.label "Цілую">
+<!ENTITY smiley10Cmd.label "Кричу">
+<!ENTITY smiley11Cmd.label "Я крутько">
+<!ENTITY smiley12Cmd.label "Купа грошей">
+<!ENTITY smiley13Cmd.label "Немає слів">
 <!ENTITY smiley14Cmd.label "Невинність">
-<!ENTITY smiley15Cmd.label "Плач">
-<!ENTITY smiley16Cmd.label "Запечатані губи">
+<!ENTITY smiley15Cmd.label "Плачу">
+<!ENTITY smiley16Cmd.label "Язик за зубами">
 
 <!-- Message Pane Context Menu -->
 <!ENTITY spellCheckNoSuggestions.label "Припущень не знайдено">
@@ -243,7 +242,7 @@
 <!ENTITY spellCheckIgnoreWord.accesskey "П">
 <!ENTITY spellCheckAddToDictionary.label "Додати в словник">
 <!ENTITY spellCheckAddToDictionary.accesskey "с">
-<!ENTITY undo.label "Повернути">
+<!ENTITY undo.label "Скасувати">
 <!ENTITY undo.accesskey "н">
 <!ENTITY cut.label "Вирізати">
 <!ENTITY cut.accesskey "р">

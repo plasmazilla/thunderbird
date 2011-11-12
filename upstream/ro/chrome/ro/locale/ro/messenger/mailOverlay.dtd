@@ -1,0 +1,21 @@
+<!--
+# Translator(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+#
+-->
+<!ENTITY  newMessageCmd2.key              "N">
+<!ENTITY  newMessageCmd.key               "M">
+<!ENTITY  newMessageCmd.label             "Mesaj">
+<!ENTITY  newMessageCmd.accesskey         "m">
+ 
+<!ENTITY  newContactCmd.label             "Contact în agendă…">
+<!ENTITY  newContactCmd.accesskey         "C">
+
+

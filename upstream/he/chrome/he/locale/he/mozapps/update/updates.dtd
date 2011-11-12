@@ -1,14 +1,23 @@
+<!--
+# Translator(s):
+#
+# http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
+# elad <el.il@doom.co.il>
+# hatul <amiadb@gmail.com>
+# Yaron <sh.yaron@gmail.com>
+#
+-->
 <!ENTITY  updateWizard.title              "עדכוני תוכנה">
 
 <!ENTITY  checking.title                  "בודק אם קיימים עדכונים">
 <!ENTITY  updateCheck.label               "מחפש גרסה חדשה יותר של &brandShortName;…">
 
 <!ENTITY  pluginupdatesfound.title        "נמצאו עדכונים לתוספים">
-<!ENTITY  pluginupdatesfound.label        "נמצאו גירסאות חדשות יותר של אחד או יותר מהתוספים שלך.">
+<!ENTITY  pluginupdatesfound.label        "נמצאו גרסאות חדשות יותר של אחד או יותר מהתוספים שלך.">
 <!ENTITY  pluginupdateslink.label         "ראה כיצד לעדכן את התוספים שלך.">
 
 <!ENTITY  noupdatesfound.title            "לא נמצאו עדכונים">
-<!ENTITY  noupdatesautoenabled.intro      "אין עדכונים זמינים. &brandShortName; יבדוק מידי פעם אם ישנם עדכונים חדשים.">
+<!ENTITY  noupdatesautoenabled.intro      "אין עדכונים זמינים. &brandShortName; יבדוק מדי פעם אם ישנם עדכונים חדשים.">
 <!ENTITY  noupdatesautodisabled.intro     "אין עדכונים זמינים. בבקשה נסה שוב מאוחר יותר או אפשר את העדכונים האוטומטיים של &brandShortName;.">
 
 <!ENTITY  manualUpdate.title              "לא ניתן לעדכן">
@@ -17,9 +26,9 @@
 <!ENTITY  manualUpdateGetMsg.label        "באפשרותך לקבל תמיד את הגרסה החדשה ביותר של &brandShortName; בכתובת:">
 
 <!ENTITY  incompatibleCheck.title         "בודק תאימות תוספות">
-<!ENTITY  incompatibleCheck.label         "מחפש גירסאות עדכניות לתוספות שלך…">
+<!ENTITY  incompatibleCheck.label         "מחפש גרסאות עדכניות לתוספות שלך…">
 
-<!ENTITY  clickHere.label                 "הצג מידע נוסף אודות עדכון זה">
+<!ENTITY  clickHere.label                 "הצג מידע נוסף על עדכון זה">
 
 <!ENTITY  evangelism.desc                 "מומלץ כי תפעיל את עדכון זה עבור &brandShortName; בהקדם האפשרי.">
 
@@ -73,8 +82,10 @@
 
 <!ENTITY  installed.title                 "העדכון הותקן">
 <!ENTITY  installed.intro                 "העדכון הותקן בהצלחה.">
-<!ENTITY  whatsnew.label                  "קרא עוד אודות מה חדש…">
+<!ENTITY  whatsnew.label                  "קרא עוד על מה חדש…">
 
 <!ENTITY  update.details.label            "פרטים">
 <!ENTITY  update.installedOn.label        "הותקן בתאריך:">
 <!ENTITY  update.status.label             "מצב:">
+
+

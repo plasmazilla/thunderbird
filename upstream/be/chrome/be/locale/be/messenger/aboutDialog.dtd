@@ -1,0 +1,27 @@
+<!ENTITY aboutDialog.title "Пра &brandFullName;">
+<!ENTITY community.start2 "&brandShortName; распрацаваны ">
+<!ENTITY community.mozillaLink "&vendorShortName;">
+<!ENTITY community.middle2 ", ">
+<!ENTITY community.creditsLink "сусветным згуртаваннем">
+<!ENTITY community.end2 ", якое працуе разам, каб зрабіць Інтэрнэт лепшым. Мы верым, што Інтэрнэт павінны быць адкрытым, прылюдным і даступным кожнаму без любых абмежаванняў.">
+<!ENTITY contribute.start "Цікава?">
+<!ENTITY contribute.getInvolvedLink "Уцягвайцеся!">
+<!ENTITY contribute.end "">
+<!ENTITY bottomLinks.license "Звесткі пра ліцэнзію">
+<!ENTITY bottomLinks.rights "Правы канчатковага карыстальніка">
+<!ENTITY bottomLinks.privacy "Палітыка адасаблення">
+<!ENTITY update.checkingForUpdates "Праверка існавання абнаўленняў…">
+<!ENTITY update.checkingAddonCompat "Праверка сумяшчальнасці дадаткаў…">
+<!ENTITY update.noUpdatesFound "&brandShortName; абноўлены">
+<!ENTITY update.adminDisabled "Абнаўленні забаронены вашым сістэмным спраўнікам">
+<!ENTITY update.failed.start "Няўдача абнаўлення.">
+<!ENTITY update.failed.linkText "Сцягванне апошняй версіі">
+<!ENTITY update.failed.end "">
+<!ENTITY update.manual.start "Сцязгнуць ">
+<!ENTITY update.manual.linkText "апошнюю версію">
+<!ENTITY update.manual.end "">
+<!ENTITY update.downloading.start "Сцягванне абнаўлення — ">
+<!ENTITY update.downloading.end "">
+<!ENTITY channel.description.start "Зараз вы на ">
+<!ENTITY channel.description.end " канал абнаўленняў.">
+<!ENTITY cmdCloseMac.commandKey "w">

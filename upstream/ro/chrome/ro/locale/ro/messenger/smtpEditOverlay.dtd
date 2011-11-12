@@ -1,0 +1,37 @@
+<!--
+# Translator(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+# janimo <jani@ubuntu.com>
+# Laudatti <Laudatti@gmail.com>
+# rz <rz@r2dev.ro>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+#
+-->
+<!ENTITY settings.caption "Setări">
+<!ENTITY security.caption "Securitate și autentificare">
+<!ENTITY serverName.label "Nume server:">
+<!ENTITY serverName.accesskey "s">
+<!ENTITY serverDescription.label "Descriere:">
+<!ENTITY serverDescription.accesskey "D">
+<!ENTITY serverPort.label "Port:">
+<!ENTITY serverPort.accesskey "P">
+<!ENTITY userName.label "Nume Utilizator:">
+<!ENTITY userName.accesskey "u">
+<!ENTITY connectionSecurity.label "Securitatea conexiunii:">
+<!ENTITY connectionSecurity.accesskey "n">
+<!ENTITY connectionSecurityType-0.label "Niciuna">
+<!ENTITY connectionSecurityType-1.label "STARTTLS, dacă e disponibil">
+<!ENTITY connectionSecurityType-2.label "STARTTLS">
+<!ENTITY connectionSecurityType-3.label "SSL/TLS">
+<!ENTITY smtpEditTitle.label "Server SMTP">
+<!ENTITY serverPortDefault.label "Implicit:">
+<!ENTITY authMethod.label "Metoda de autentificare:">
+<!ENTITY authMethod.accesskey "i">
+
+

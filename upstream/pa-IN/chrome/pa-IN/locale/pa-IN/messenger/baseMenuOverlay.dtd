@@ -5,7 +5,7 @@
                        for the help button in the menubar but Gnome does not.   -->
 <!ENTITY helpMenuWin.label "ਮੱਦਦ">
 <!ENTITY helpMenuWin.accesskey "H">
-<!ENTITY helpTroubleshootingInfo.label     "ਸਮੱਸਿਆ-ਨਿਪਟਾਰਾ ਜਾਣਕਾਰੀ">
+<!ENTITY helpTroubleshootingInfo.label     "ਸਮੱਸਿਆ ਨਿਪਟਾਰਾ ਜਾਣਕਾਰੀ">
 <!ENTITY helpTroubleshootingInfo.accesskey "T">
 <!ENTITY helpSafeMode.label     "ਐਡ-ਆਨ ਬੰਦ ਕਰਕੇ ਮੁੜ-ਚਾਲੂ ਕਰੋ…">
 <!ENTITY helpSafeMode.accesskey "R">

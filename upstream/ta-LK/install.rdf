@@ -1,6 +1,3 @@
-
-
-
 <?xml version="1.0"?>
 <!--
 
@@ -10,16 +7,16 @@
      xmlns:em="http://www.mozilla.org/2004/em-rdf#">
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-ta-LK@thunderbird.mozilla.org"
-               em:name="Tamil (Sri Lanka) Language Pack"
-               em:version="5.0"
+               em:name="Tamil (Sri Lanka) Language Pack"
+               em:version="8.0"
                em:type="8"
-               em:creator="mozilla.org">
+               em:creator="mozilla.org">
     <em:contributor>Kengatharaiyer Sarveswaran</em:contributor> <em:contributor>Mohamed Nimshath</em:contributor> <em:contributor>Kavitha Logan</em:contributor> <em:contributor>Balanithy Murugaiah </em:contributor><em:contributor>Mohamed Rila</em:contributor> <em:contributor>Rohana Dasanayaka</em:contributor>
     <em:targetApplication>
       <Description>
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-        <em:minVersion>5.0</em:minVersion>
-        <em:maxVersion>5.0</em:maxVersion>
+        <em:minVersion>8.0</em:minVersion>
+        <em:maxVersion>8.0</em:maxVersion>
       </Description>
     </em:targetApplication>
   </Description>

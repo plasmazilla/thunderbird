@@ -13,7 +13,14 @@
 <!ENTITY deniedPortAccess.longDesc "">
 
 <!ENTITY dnsNotFound.title "Freastalaí gan aimsiú">
-<!ENTITY dnsNotFound.longDesc "<ul> <li>Scrúdaigh an seoladh le haghaidh botún cosúil le <strong>ww</strong>.sampla.com in áit <strong>www</strong>.sampla.com</li> <li>Mura bhfuil tú in ann leathanach ar bith a luchtú, déan seiceáil ar cheangal líonra do ríomhaire.</li>  <li>Má tá do ríomhaire nó do líonra á chosaint ag balla dóiteáin nó seachfhreastalaí, cinntigh go bhfuil cead ag &brandShortName; an Gréasán a rochtain.</li></ul>">
+<!ENTITY dnsNotFound.longDesc "<ul> 
+<li>Scrúdaigh an seoladh le haghaidh botún cosúil le 
+<strong>ww</strong>.sampla.com in áit 
+<strong>www</strong>.sampla.com</li> 
+<li>Mura bhfuil tú in ann leathanach ar bith a luchtú, déan seiceáil ar cheangal líonra do ríomhaire.</li> 
+<li>Má tá do ríomhaire nó do líonra á chosaint ag balla dóiteáin nó seachfhreastalaí, cinntigh 
+go bhfuil cead ag &brandShortName; an Gréasán a rochtain.</li> 
+</ul>">
 
 <!ENTITY fileNotFound.title "Comhad gan aimsiú">
 <!ENTITY fileNotFound.longDesc "<ul> <li>Scrúdaigh an t-ainm comhaid le haghaidh botúin chlóscríofa sna litreacha móra srl.</li> <li>Féach an bhfuil an comhad bogtha, athainmnithe nó scriosta.</li></ul>">
@@ -28,8 +35,8 @@
 <!ENTITY netInterrupt.longDesc "&sharedLongDesc;">
 
 <!ENTITY netOffline.title "Mód as líne">
-<!ENTITY netOffline.longDesc "<ul> 
-<li>Cuir &brandShortName; sa mhód ar líne, agus bain triail eile as.</li> 
+<!ENTITY netOffline.longDesc2 "<ul> 
+<li>Brúigh &quot;Déan Iarracht Arís&quot; chun dul ar líne agus an leathanach a luchtú arís.</li> 
 </ul>">
 
 <!ENTITY contentEncodingError.title "Earráid ionchódaithe inneachair">
@@ -79,6 +86,9 @@
 
 <!ENTITY cspFrameAncestorBlocked.title "Bactha ag an Polasaí Slándala Inneachair">
 <!ENTITY cspFrameAncestorBlocked.longDesc "<p>Chuir &brandShortName; stad ar luchtú an leathanaigh seo toisc go bhfuil polasaí slándála inneachair ag an leathanach a dhícheadaíonn é.</p>">
+
+<!ENTITY corruptedContentError.title "Earráid: Ábhar Truaillithe">
+<!ENTITY corruptedContentError.longDesc "<p>An t-ábhar atá tú ag iarraidh a amharc, ní féidir é a thaispeáint toisc gur tharla earráid agus na sonraí á seoladh.</p><ul><li>Téigh i dteagmháil le húinéir an tsuímh agus inis dóibh faoin fhadhb seo.</li></ul>">
 
 <!ENTITY securityOverride.linkText "Nó is féidir leat eisceacht a chruthú…">
 <!ENTITY securityOverride.getMeOutOfHereButton "Amach as seo liom!">

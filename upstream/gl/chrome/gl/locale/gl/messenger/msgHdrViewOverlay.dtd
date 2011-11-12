@@ -59,6 +59,7 @@
 <!ENTITY editMessageButton.label "Editar…">
 <!ENTITY hdrArchiveButton.label "arquivar">
 <!ENTITY hdrArchiveButton.tooltip "arquivar esta mensaxe">
+<!ENTITY hdrSmartReplyButton.label "resposta intelixente">
 <!ENTITY hdrReplyButton.label "responder">
 <!ENTITY hdrReplyButton.tooltip "responder a esta mensaxe">
 <!ENTITY hdrReplyAllButton.label "responder a todos">
@@ -131,7 +132,7 @@
 <!ENTITY deleteAttachmentMenuItem.label    "borrar">
 <!ENTITY deleteAttachmentMenuItem.accesskey    "o">
 <!ENTITY openAllAttachmentsMenuItem.label    "abrir todo…">
-<!ENTITY openAllAttachmentsMenuItem.accesskey    "a">
+<!ENTITY openAllAttachmentsMenuItem.accesskey    "t">
 <!ENTITY saveAllAttachmentsMenuItem.label    "gardar todo…">
 <!ENTITY saveAllAttachmentsMenuItem.accesskey    "g">
 <!ENTITY detachAllAttachmentsMenuItem.label    "desanexar todo…">

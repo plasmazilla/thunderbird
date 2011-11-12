@@ -9,28 +9,27 @@
 <!ENTITY listEmpty.button.label               "Les meir om utvidingar">
 <!ENTITY installAddonFromFile.label           "Installer utviding frå fil …">
 <!ENTITY installAddonFromFile.accesskey       "I">
-<!ENTITY toolsMenu.tooltip                    "Verktøy for alle utvidingane">
+<!ENTITY toolsMenu.tooltip                    "Verkty for alle utvidingane">
 
 <!ENTITY cmd.back.tooltip                     "Gå tilbake ei side">
 <!ENTITY cmd.forward.tooltip                  "Gå fram ei side">
 
 <!-- global warnings -->
-<!ENTITY warning.safemode.label                    "Alle utvidingar er slått av av trygg modus.">
-<!ENTITY warning.checkcompatibility.label          "Kompatiblitetskonroll er slått av. Du kan ha ikkje-kompatible utvidingar.">
+<!ENTITY warning.safemode.label                    "Alle utvidingar er avslått av trygg modus.">
+<!ENTITY warning.checkcompatibility.label          "Kompatiblitetskonroll er slått av. Du har kanskje ukompatible utvidingar.">
 <!ENTITY warning.checkcompatibility.enable.label   "Slå på">
 <!ENTITY warning.checkcompatibility.enable.tooltip "Slå på kompatibilitetskontroll">
-<!ENTITY warning.updatesecurity.label              "Tryggingskontroll av utvidingsoppdateringar er slått av. Tryggleiken din kan verte sett i fare av oppdateringar.">
+<!ENTITY warning.updatesecurity.label              "Tryggingskontroll av utvidingsoppdateringar er slått av. Tryggleiken din kan bli sett i fare av oppdateringar.">
 <!ENTITY warning.updatesecurity.enable.label       "Slå på">
 <!ENTITY warning.updatesecurity.enable.tooltip     "Slå på tryggingskontroll av utvidingsoppdateringar">
+
+<!-- global informations -->
+<!ENTITY info.plugincheck.label                 "Kontroller om programtillegga dine er oppdaterte">
+<!ENTITY info.plugincheck.tooltip               "Kontroller om programtillegga dine er oppdaterte">
 
 <!-- categories / views -->
 <!ENTITY view.search.label                    "Søk">
 <!ENTITY view.discover.label                  "Last ned utvidingar">
-<!ENTITY view.locales.label                   "Språk">
-<!ENTITY view.searchengines.label             "Søkjemotorar">
-<!ENTITY view.features.label                  "Utvidingar">
-<!ENTITY view.appearance2.label               "Utsjånad">
-<!ENTITY view.plugins.label                   "Programtillegg">
 <!ENTITY view.recentUpdates.label             "Nyleg oppdatert">
 <!ENTITY view.availableUpdates.label          "Tilgjengelege oppdateringar">
 
@@ -171,7 +170,7 @@
 <!-- LOCALIZATION NOTE (addon.disabled.postfix): This is used in a normal list
      to signify that an add-on is disabled, in the form
      "<Addon name> <1.0> (disabled)" -->
-<!ENTITY addon.disabled.postfix               "(slått av)">
+<!ENTITY addon.disabled.postfix               "(avslått)">
 <!-- LOCALIZATION NOTE (addon.update.postfix): This is used in the available
      updates list to signify that an item is an update, in the form
      "<Addon name> <1.1> Update". It is fine to use constructs like brackets if
@@ -193,9 +192,11 @@
 <!ENTITY addon.loadingReleaseNotes.label      "Lastar …">
 <!ENTITY addon.errorLoadingReleaseNotes.label "Beklagar, men ein feil oppstod under lasting av versjonsnotatet.">
 
-<!ENTITY addon.createdBy.label                "Av">
+<!ENTITY addon.createdBy.label                "Av ">
 
 <!ENTITY eula.title                           "Sluttbrukaravtale">
 <!ENTITY eula.width                           "560px">
 <!ENTITY eula.height                          "400px">
 <!ENTITY eula.accept                          "Godta og installer …">
+
+<!ENTITY settings.path.button.label           "Bla gjennom …">

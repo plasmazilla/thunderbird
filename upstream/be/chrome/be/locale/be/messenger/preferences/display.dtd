@@ -1,0 +1,39 @@
+<!ENTITY itemFormatting.label "Фарматаванне">
+<!ENTITY itemTags.label "Меткі">
+<!ENTITY style.label "Стыль:">
+<!ENTITY style.accesskey "С">
+<!ENTITY regularStyle.label "Звычайны">
+<!ENTITY bold.label "Выразны">
+<!ENTITY italic.label "Рукапісны">
+<!ENTITY boldItalic.label "Выразны рукапісны">
+<!ENTITY size.label "Памер:">
+<!ENTITY size.accesskey "П">
+<!ENTITY regularSize.label "Звычайны">
+<!ENTITY bigger.label "Большы">
+<!ENTITY smaller.label "Меншы">
+<!ENTITY color.label "Колер:">
+<!ENTITY color.accesskey "К">
+<!ENTITY displayWidth.label "Простатэкставыя лісты">
+<!ENTITY displayText.label "Калі адлюстроўваюцца цытаваныя простатэкставыя лісты:">
+<!ENTITY colors.label "Колеры">
+<!ENTITY overrideColors.label "Падчас адлюстравання лістоў ужываць наступныя колеры:">
+<!ENTITY textColor.label "Колер тэксту:">
+<!ENTITY textColor.accesskey "т">
+<!ENTITY backgroundColor.label "Колер фону:">
+<!ENTITY backgroundColor.accesskey "ф">
+<!ENTITY convertEmoticons.label "Адлюстроўваць пачуццезнакі графічна">
+<!ENTITY convertEmoticons.accesskey "ч">
+<!ENTITY displayTagsText.label "Меткі могуць ужывацца для размеркавання вашых лістоў па катэгорыям і надання ім прыярытэтаў.">
+<!ENTITY addTagButton.label "Дадаць">
+<!ENTITY addTagButton.accesskey "Д">
+<!ENTITY editTagButton.label "Правіць">
+<!ENTITY editTagButton.accesskey "П">
+<!ENTITY removeTagButton.label "Выдаліць">
+<!ENTITY removeTagButton.accesskey "В">
+<!ENTITY fontsAndColors.label "Шрыфты">
+<!ENTITY defaultFont.label "Змоўчны шрыфт:">
+<!ENTITY defaultFont.accesskey "З">
+<!ENTITY defaultSize.label "Памер:">
+<!ENTITY defaultSize.accesskey "П">
+<!ENTITY fontOptions.accesskey "ш">
+<!ENTITY fontOptions.label "Пашыраны…">

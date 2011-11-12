@@ -73,9 +73,6 @@
 <!ENTITY printCmd.label "Imprimer…">
 <!ENTITY printCmd.accesskey "I">
 <!ENTITY printCmd.key "P">
-<!ENTITY closeCmd.label "Fermer">
-<!ENTITY closeCmd.accesskey "F">
-<!ENTITY closeCmd.key "W">
 
 <!-- Edit menu items -->
 <!ENTITY editMenu.label "Édition">
@@ -92,17 +89,6 @@
 <!ENTITY pasteAsQuotationCmd.accesskey "i">
 <!ENTITY pasteAsQuotationCmd.key "o">
 <!ENTITY findCmd.label "Rechercher…">
-<!ENTITY findCmd.accesskey "h">
-<!ENTITY findCmd.key "F">
-<!ENTITY findCmd.key2 "VK_F19">
-<!ENTITY findAgainCmd.label "Rechercher le suivant">
-<!ENTITY findAgainCmd.accesskey "n">
-<!ENTITY findAgainCmd.key "G">
-<!ENTITY findAgainCmd.key2 "VK_F3">
-<!ENTITY findPrevCmd.label "Rechercher le précédent">
-<!ENTITY findPrevCmd.accesskey "p">
-<!ENTITY findPrevCmd.key "G">
-<!ENTITY findPrevCmd.key2 "VK_F3">
 <!ENTITY enableInlineSpellChecker.label "Vérifier l'orthographe pendant la saisie">
 <!ENTITY enableInlineSpellChecker.accesskey "A">
 <!ENTITY checkSpellingCmd2.label "Vérifier l'orthographe">
@@ -140,23 +126,6 @@
 <!ENTITY createLinkCmd.accesskey "l">
 <!ENTITY editLinkCmd.label "Modifier le lien dans un nouveau Composeur">
 <!ENTITY editLinkCmd.accesskey "M">
-<!-- (Toplevel Edit menu uses utilityOverlay) -->
-<!ENTITY undoCmd.label "Annuler">
-<!ENTITY undoCmd.accesskey "u">
-<!ENTITY redoCmd.label "Rétablir">
-<!ENTITY redoCmd.accesskey "R">
-<!ENTITY cutCmd.label "Couper">
-<!ENTITY cutCmd.accesskey "C">
-<!ENTITY copyCmd.label "Copier">
-<!ENTITY copyCmd.accesskey "p">
-<!ENTITY pasteCmd.label "Coller">
-<!ENTITY pasteCmd.accesskey "o">
-<!ENTITY deleteCmd.label "Supprimer">
-<!ENTITY deleteCmd.accesskey "E">
-<!ENTITY clearCmd.label "Effacer">
-<!ENTITY clearCmd.accesskey "a">
-<!ENTITY selectAllCmd.label "Tout sélectionner">
-<!ENTITY selectAllCmd.accesskey "T">
 
 <!-- Font Face SubMenu -->
 <!ENTITY FontFaceSelect.tooltip "Choisir une police">
@@ -396,6 +365,9 @@
 <!ENTITY openToolbarCmd.tooltip "Ouvrir un fichier">
 <!ENTITY saveToolbarCmd.tooltip "Enregistrer le fichier">
 <!ENTITY publishToolbarCmd.tooltip "Envoyer le fichier à une adresse distante">
+<!ENTITY cutToolbarCmd.tooltip "Couper">
+<!ENTITY copyToolbarCmd.tooltip "Copier">
+<!ENTITY pasteToolbarCmd.tooltip "Coller">
 <!ENTITY printToolbarCmd.label "Imprimer">
 <!ENTITY printToolbarCmd.tooltip "Imprimer la page">
 <!ENTITY findToolbarCmd.label "Rechercher">

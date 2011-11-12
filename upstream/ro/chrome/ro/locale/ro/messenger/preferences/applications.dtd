@@ -1,0 +1,27 @@
+<!--
+# Reviewer(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+#
+-->
+<!ENTITY  typeColumn.label            "Tip de conținut">
+<!ENTITY  typeColumn.accesskey        "T">
+
+<!ENTITY  actionColumn2.label         "Acţiune">
+<!ENTITY  actionColumn2.accesskey     "A">
+
+<!ENTITY  focusSearch1.key            "f">
+<!ENTITY  focusSearch2.key            "k">
+
+<!ENTITY  filter.placeholder          "Căutare">
+
+<!ENTITY saveTo.label                 "Salvează fișierele în">
+<!ENTITY saveTo.accesskey             "S">
+<!ENTITY alwaysAsk.label              "Întreabă-mă întotdeauna unde să fie salvate fișierele">
+<!ENTITY alwaysAsk.accesskey          "a">
+<!ENTITY chooseFolderWin.label        "Răsfoiește...">
+<!ENTITY chooseFolderWin.accesskey    "R">
+<!ENTITY chooseFolderMac.label        "Alege…">
+<!ENTITY chooseFolderMac.accesskey    "A">
+
+

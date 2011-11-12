@@ -1,3 +1,10 @@
+<!--
+# Translator(s):
+#
+# http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
+# Yaron <sh.yaron@gmail.com>
+#
+-->
 <!-- ***** BEGIN LICENSE BLOCK *****
    - Version: MPL 1.1/GPL 2.0/LGPL 2.1
    -
@@ -111,7 +118,7 @@
 <!ENTITY certmgr.editca.accesskey             "א">
 <!ENTITY certmgr.add.label                    "הוסף">
 <!ENTITY certmgr.add.accesskey                "ה">
-<!ENTITY certmgr.export.label                 "ייצא…">
+<!ENTITY certmgr.export.label                 "יצא…">
 <!ENTITY certmgr.export.accesskey             "י">
 <!ENTITY certmgr.delete2.label                "מחק…">
 <!ENTITY certmgr.delete2.accesskey            "מ">
@@ -119,9 +126,9 @@
 <!ENTITY certmgr.delete_builtin.accesskey     "מ">
 <!ENTITY certmgr.backup2.label                "גבה…">
 <!ENTITY certmgr.backup2.accesskey            "ג">
-<!ENTITY certmgr.backupall2.label             "גבה הכל…">
+<!ENTITY certmgr.backupall2.label             "גבה הכול…">
 <!ENTITY certmgr.backupall2.accesskey         "כ">
-<!ENTITY certmgr.restore2.label               "ייבא…">
+<!ENTITY certmgr.restore2.label               "יבא…">
 <!ENTITY certmgr.restore2.accesskey           "י">
 <!ENTITY certmgr.details.label                "שדות האישור">
 <!ENTITY certmgr.details.accesskey            "פ">
@@ -145,3 +152,5 @@
 <!ENTITY exceptionMgr.certstatus.accesskey    "ה">
 <!ENTITY exceptionMgr.permanent.label         "שמור חריגה זו לתמיד">
 <!ENTITY exceptionMgr.permanent.accesskey     "ש">
+
+

@@ -26,7 +26,7 @@
 <!ENTITY pasteCmd.accesskey          "ה">
 <!ENTITY deleteCmd.label          "מחק">
 <!ENTITY deleteCmd.accesskey        "ח">
-<!ENTITY selectAllCmd.label          "בחר הכל">
+<!ENTITY selectAllCmd.label          "בחר הכול">
 <!ENTITY selectAllCmd.key          "A">
 <!ENTITY selectAllCmd.accesskey        "ב">
 <!ENTITY preferencesCmd.label        "אפשרויות...">
@@ -57,3 +57,5 @@
 
 <!ENTITY quitApplicationCmdMac.label  "יציאה מ־&brandShortName;">
 <!ENTITY quitApplicationCmdMac.accesskey  "q">
+
+

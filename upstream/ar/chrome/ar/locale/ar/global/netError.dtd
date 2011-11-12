@@ -25,8 +25,7 @@
 <!ENTITY netInterrupt.longDesc "<p>اتصل المتصفح بنجاح، لكن قطع الاتصال أثناء نقل البيانات. من فضلك أعد المحاولة.</p><ul><li>ألا تستطيع تصفح المواقع الأخرى؟ راجع اتصال الحاسوب بالشبكة</li><li>أمازلت تواجه مشاكل؟ راجع مدير الشبكة أو مزود الخدمة للمساعدة</li></ul>">
 
 <!ENTITY netOffline.title "وضع بدون اتصال">
-<!ENTITY netOffline.longDesc "<p>يعمل المتصفح بدون اتصال ولا يستطيع الاتصال بالعنصر المطلوب.</p><ul><li>هل الحاسوب متصل بشبكة تعمل؟</li><li>ضع المتصفح في وضع الاتصال وأعد المحاولة.</li></ul>">
-<!ENTITY netOffline.overrideLongDesc "<p>يعمل المتصفح في نمط اللا اتصال ولا يستطيع الاتصال بالعنصر المطلوب.</p><ul><li>هل الحاسوب متصل بشبكة نشطة؟</li><li>ضع المتصفح في نمط الاتصال ثم حاول مجددًا.</li></ul>">
+<!ENTITY netOffline.longDesc2 "<p>المتصفح يعمل في وضع اللا اتصال ولا يستطيع تحميل العنصر المطلوب.</p><ul><li>هل الحاسوب متصل بشبكة نشِطة؟</li><li>اضغط على &quot;حاول مجددًا&quot; للتبديل إلى وضع الاتصال وإعادة تحميل الصفحة.</li></ul>">
 
 <!ENTITY contentEncodingError.title "ترميز محتوى خاطئ">
 <!ENTITY contentEncodingError.longDesc "<p>الصفحة التي تحاول فتحها لا يمكن عرضها لأنها تستخدم صيغة ضغط غير سليمة أو غير مدعومة.</p><ul><li>الرجاء الاتصال أصحاب الموقع لإخبارهم بهذه المشكلة. </li></ul>">
@@ -66,19 +65,19 @@
 
 <!ENTITY phishingBlocked.title "خداع وِب مُشتبه">
 <!ENTITY phishingBlocked.longDesc "<p>قد ينتج عن إدخال بيانات في هذه الصفحة سرقة الهوية أو أي احتيال آخر.</p> <p>تستخدم طرق التّزوير هذه في خدع تعرف بهجمات التزوير، و فيها تستخدم صفحات و رسائل مزوّرة لتقليد مصادر تثق بها.</p>">
-<!-- Include app-specific error messages - do not change this in localization!
-     Some applications might override netErrorApp.dtd with their specific version,
-     this inclusion needs to be intact for that approach to work correctly. -->
 
 <!ENTITY cspFrameAncestorBlocked.title "حجبتها سياسة أمن المحتوى">
 <!ENTITY cspFrameAncestorBlocked.longDesc "<p>منع المتصفح هذه الصفحة من التحميل بهذه الطريقة لأنها تملك سياسة أمن للمحتوى لا تسمح بذلك.</p>">
 
+<!ENTITY corruptedContentError.title "خطأ: محتوى فاسد">
+<!ENTITY corruptedContentError.longDesc "<p>تعذر عرض الصفحة التي تريد مشاهدتها بسبب خطأ أثناء نقل البيانات.</p><ul><li>الرجاء التواصل مع مالك الموقع لإبلاغه بهذه المشكلة.</li></ul>">
+
 <!ENTITY remoteXUL.title "XUL بعيد">
 <!ENTITY remoteXUL.longDesc "<p><ul><li>الرجاء التواصل مع مالك الموقع لإبلاغه بهذه المشكلة.</li></ul></p>">
-
 <!-- Include app-specific error messages - do not change this in localization!
      Some applications might override netErrorApp.dtd with their specific version,
      this inclusion needs to be intact for that approach to work correctly.
      Please, try to keep this at the end of the file. -->
+
 <!ENTITY % netErrorAppDTD SYSTEM "chrome://global/locale/netErrorApp.dtd">
 %netErrorAppDTD;

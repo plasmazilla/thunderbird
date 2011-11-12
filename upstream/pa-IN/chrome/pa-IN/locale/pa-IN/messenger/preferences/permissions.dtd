@@ -3,11 +3,11 @@
 
 <!ENTITY treehead.sitename.label      "ਸਾਈਟ">
 <!ENTITY treehead.status.label        "ਹਾਲਤ">
-<!ENTITY removepermission.label       "ਸਾਈਟ ਹਟਆਓ">
+<!ENTITY removepermission.label       "ਸਾਈਟ ਹਟਾਓ">
 <!ENTITY removepermission.accesskey   "R">
-<!ENTITY removeallpermissions.label   "ਸਭ ਸਾਈਟਾਂ ਹਟਆਓ">
+<!ENTITY removeallpermissions.label   "ਸਭ ਸਾਈਟਾਂ ਹਟਾਓ">
 <!ENTITY removeallpermissions.accesskey "e">
-<!ENTITY address.label                "ਵੈੱਬ ਸਾਈਟ ਦਾ ਐਡਰੈੱਸ:">
+<!ENTITY address.label                "ਵੈੱਬ ਸਾਈਟ ਦਾ ਐਡਰੈਸ:">
 <!ENTITY address.accesskey            "d">
 <!ENTITY block.label                  "ਪਾਬੰਦੀ">
 <!ENTITY block.accesskey              "B">

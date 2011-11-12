@@ -1,0 +1,34 @@
+<!--
+# Translator(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+# rsandu <razvan.sandu@zando.ro>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+#
+-->
+<!-- extracted from am-archiveoptions.xul -->
+
+<!ENTITY dialogTitle.label "Opțiuni de arhivare">
+<!ENTITY archiveGranularityPrefix.label "Când se arhivează mesaje, plasează-le în:">
+<!ENTITY archiveFlat.label "Un singur folder">
+<!ENTITY archiveFlat.accesskey "s">
+<!ENTITY archiveYearly.label "Foldere de arhivă anuale">
+<!ENTITY archiveYearly.accesskey "F">
+<!ENTITY archiveMonthly.label "Foldere de arhivă lunare">
+<!ENTITY archiveMonthly.accesskey "F">
+<!ENTITY keepFolderStructure.label "Păstrează structura de foldere existentă în mesajele arhivate">
+<!ENTITY keepFolderStructure.accesskey "P">
+<!ENTITY archiveExample.label "Exemplu">
+<!-- LOCALIZATION NOTE (archiveFolderName.label): this should match the default
+     name for the "Archives" folder -->
+<!ENTITY archiveFolderName.label "Arhive">
+<!-- LOCALIZATION NOTE (inboxFolderName.label): this should match the default
+     name for the "Inbox" folder -->
+<!ENTITY inboxFolderName.label "Mesaje primite">
+
+

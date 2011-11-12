@@ -1,0 +1,34 @@
+<!--
+# Translator(s):
+#
+# turcan <nicturcan@gmail.com>
+# Alexandru Szasz <alexxed@gmail.com>
+# secarica <orice@secarica.ro>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+#
+-->
+<!ENTITY virtualFolderProperties.title "Dosar nou pentru o căutare salvată">
+<!ENTITY name.label                 "Numele:">
+<!ENTITY name.accesskey             "N">
+<!ENTITY description.label          "Creează ca dosar sub:">
+<!ENTITY description.accesskey      "C">
+
+<!ENTITY searchTermCaption.label "Configurați criteriul de căutare folosit pentru acest dosar:">
+
+<!ENTITY folderSelectionCaption.label "Selectați dosarele în care se caută:">
+<!ENTITY chooseFoldersButton.label "Alege…">
+<!ENTITY chooseFoldersButton.accesskey "A">
+
+<!ENTITY searchOnline.label "Caută online (rezultatele sunt obținute de pe server pentru dosare IMAP și News dar timpul de deschidere al dosarului crește)">
+<!ENTITY searchOnline.accesskey "o">
+<!ENTITY newFolderButton.label       "Crează">
+<!ENTITY newFolderButton.accesskey   "r">
+<!ENTITY editFolderButton.label      "Împrospătare">
+<!ENTITY editFolderButton.accesskey  "m">
+
+
