@@ -25,7 +25,7 @@
  *   Robert O'Callahan <roc+moz@cs.cmu.edu>
  *   L. David Baron <dbaron@dbaron.org>
  *   IBM Corporation
- *   Mats Palmgren <mats.palmgren@bredband.net>
+ *   Mats Palmgren <matspal@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -5561,6 +5561,16 @@ found_frame:;
     nsFrame::ListTag(stdout, aDeletedFrame);
     printf(" prevSibling=%p deletedNextContinuation=%p\n", prevSibling, deletedNextContinuation);
 #endif
+
+    // If next-in-flow is an overflow container, must remove it first.
+    if (deletedNextContinuation &&
+        (deletedNextContinuation->GetStateBits() & NS_FRAME_IS_OVERFLOW_CONTAINER)) {
+      NS_ASSERTION(!(aFlags & PRESERVE_REMOVED_FRAMES),
+                   "We can't not destroy overflow containers");
+      static_cast<nsContainerFrame*>(deletedNextContinuation->GetParent())
+        ->DeleteNextInFlowChild(presContext, deletedNextContinuation, PR_FALSE);
+      deletedNextContinuation = nsnull;
+    }
 
     if (aFlags & PRESERVE_REMOVED_FRAMES) {
       aDeletedFrame->SetNextSibling(nsnull);
