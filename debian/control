@@ -103,7 +103,7 @@ Recommends: calendar-google-provider
 Suggests: ttf-lyx
 Description: Calendar Extension for Thunderbird/Icedove
  Iceowl Extension is a Calendar extension for Thunderbird
- and Icedove based on iceowl - the Mozilla Based Standalone
+ and Icedove based on Sunbird - the Mozilla Based Standalone
  Calendar application.
 
 Package: calendar-google-provider
