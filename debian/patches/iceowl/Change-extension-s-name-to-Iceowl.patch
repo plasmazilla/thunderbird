@@ -10,7 +10,7 @@ Subject: Change extension's name to Iceowl
  4 files changed, 7 insertions(+), 7 deletions(-)
 
 diff --git a/calendar/lightning/install.rdf b/calendar/lightning/install.rdf
-index 6a4622f..51c4695 100644
+index 5f8bcc5..4c4b758 100644
 --- a/calendar/lightning/install.rdf
 +++ b/calendar/lightning/install.rdf
 @@ -26,7 +26,7 @@

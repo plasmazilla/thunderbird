@@ -32,5 +32,14 @@ debian-hacks/Fix-tracejit-to-build-against-nanojit-headers-in-dis.patch
 porting/Allow-ipc-code-to-build-on-GNU-hurd.patch
 debian-hacks/get-ride-of-default-debian-hardering-options.patch
 fixes/packager-fails-when-MOZILLA_DIR-is-a-relative-path.patch
+fixes/Bug-670719-Only-add-DENABLE_JIT-1-to-CXXFLAGS-if-any.patch
+fixes/Bug-680642-Don-t-enable-YARR-JIT-on-MIPS-as-the-impl.patch
+porting/Bug-589735-Allow-static-JS-strings-to-be-turned-off-.patch
+porting/Bug-589735-Allocate-memory-with-an-address-with-high.patch
+porting/Bug-680917-Use-a-pool-size-of-16kB-on-ia64-for-bump-.patch
+porting/Revert-bz-164580.patch
+porting/Bug-694533-LDRH-STRH-LDRSB-STRSB-are-supported-on-AR.patch
+porting/Bug-696393-Reimplement-NS_InvokeByIndex-in-C-on-S390.patch
+debian-hacks/Statically-link-jemalloc-to-all-programs.patch
 iceowl/Change-extension-s-name-to-Iceowl.patch
 iceowl/Install-calendar-timezones-mode-0644-not-0755.patch
