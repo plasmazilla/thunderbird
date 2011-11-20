@@ -3171,7 +3171,7 @@ function SwitchInsertCharToAnotherEditorOrClose()
     {
       var  tempWindow = enumerator.getNext();
       if (tempWindow != window && tempWindow != window.InsertCharWindow &&
-          "GetCurrentEditor" in tempWindow && tmpWindow.GetCurrentEditor())
+          "GetCurrentEditor" in tempWindow && tempWindow.GetCurrentEditor())
       {
         tempWindow.InsertCharWindow = window.InsertCharWindow;
         window.InsertCharWindow = null;

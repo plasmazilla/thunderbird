@@ -50,6 +50,7 @@ var ltnImipBar = {
 
     actionFunc: null,
     itipItem: null,
+    foundItems: null,
 
     /**
      * Thunderbird Message listener interface, hide the bar before we begin
@@ -138,13 +139,14 @@ var ltnImipBar = {
         ltnImipBar.itipItem = null;
     },
 
-    setupOptions: function setupOptions(itipItem, rc, actionFunc) {
+    setupOptions: function setupOptions(itipItem, rc, actionFunc, foundItems) {
         let imipBar =  document.getElementById("imip-bar");
         let data = cal.itip.getOptionsText(itipItem, rc, actionFunc);
 
         if (Components.isSuccessCode(rc)) {
             ltnImipBar.itipItem = itipItem;
             ltnImipBar.actionFunc = actionFunc;
+            ltnImipBar.foundItems = foundItems;
         }
 
         imipBar.setAttribute("label", data.label);
@@ -161,7 +163,13 @@ var ltnImipBar = {
     },
 
     executeAction: function ltnExecAction(partStat) {
-        if (cal.itip.promptCalendar(ltnImipBar.actionFunc.method, ltnImipBar.itipItem, window)) {
+        if (partStat == "X-SHOWDETAILS") {
+            let items = ltnImipBar.foundItems;
+            if (items && items.length) {
+                let item = items[0].isMutable ? items[0] : items[0].clone();
+                modifyEventWithDialog(item);
+            }
+        } else if (cal.itip.promptCalendar(ltnImipBar.actionFunc.method, ltnImipBar.itipItem, window)) {
             // hide the buttons now, to disable pressing them twice...
             hideElement("imip-button1");
             hideElement("imip-button2");
