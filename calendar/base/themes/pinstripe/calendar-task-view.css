@@ -37,10 +37,6 @@
  * ***** END LICENSE BLOCK ***** */
 
 #calendar-task-details-container {
-    border-top: 1px solid ThreeDShadow;
-    border-left: 1px solid ThreeDShadow;
-    border-right: 0px;
-    border-bottom: 0px;
     overflow: hidden;
 }
 
@@ -49,12 +45,16 @@
     -moz-padding-start: 0.1em;
 }
 
-#calendar-task-details-grid,
-#other-actions-box {
-    padding: 0.1em;
+#calendar-task-details-grid {
+    padding-top: 1px;
     -moz-padding-start: 0;
     -moz-padding-end: 0;
     padding-bottom: 0.2em;
+}
+
+#other-actions-box {
+    -moz-margin-end: 3px;
+    padding-bottom: 0.3em;
 }
 
 #calendar-task-details {
@@ -65,6 +65,7 @@
     border-left: 1px solid ThreeDShadow;
     border-right: 0px;
     border-bottom: 1px solid ThreeDShadow;
+    background: -moz-linear-gradient(top, #eaeaea, #d1d1d1);
 }
 
 #calendar-task-details-description {
@@ -180,7 +181,7 @@ window[toolboxId="task-actions-toolbox"] #modelist menuitem:first-child {
 
 #task-actions-toolbox[doCustomization] #task-actions-toolbar {
     min-width: 100px;
-    min-height: 10px;
+    min-height: 24px;
 }
 
 #task-actions-category {
