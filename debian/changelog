@@ -1,3 +1,28 @@
+icedove (8.0-1) experimental; urgency=low
+
+  [ Guido Günther ]
+  * [17a7a80] Add x-scheme-handler/mailto to. Thanks to Michael Biebl for the
+    patch (Closes: #645556)
+
+  [ Christoph Goehre ]
+  * [4066038] New Upstream version 8.0
+  * [aa9105e] update autoconfig for e-mail accounts from riseup.net
+    (Closes: #648907)
+  * [decc1ac] fix wrong description text in iceowl-extension (Closes: #649073)
+  * [c97dda6] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/Statically-link-jemalloc-to-all-programs.patch
+    - fixes/Bug-670719-Only-add-DENABLE_JIT-1-to-CXXFLAGS-if-any.patch
+    - fixes/Bug-680642-Don-t-enable-YARR-JIT-on-MIPS-as-the-impl.patch
+    - porting/Bug-589735-Allocate-memory-with-an-address-with-high.patch
+    - porting/Bug-589735-Allow-static-JS-strings-to-be-turned-off-.patch
+    - porting/Bug-680917-Use-a-pool-size-of-16kB-on-ia64-for-bump-.patch
+    - porting/Bug-694533-LDRH-STRH-LDRSB-STRSB-are-supported-on-AR.patch
+    - porting/Bug-696393-Reimplement-NS_InvokeByIndex-in-C-on-S390.patch
+    - porting/Revert-bz-164580.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 20 Nov 2011 19:58:37 +0100
+
 icedove (8.0~b4-2) experimental; urgency=low
 
   [ Guido Günther ]
