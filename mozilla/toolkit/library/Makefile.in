@@ -286,6 +286,11 @@ ifdef MOZ_ENABLE_QT
 EXTRA_DSO_LDOPTS += $(MOZ_QT_LDFLAGS)
 endif
 
+ifeq ($(OS_ARCH),OpenBSD)
+# Needed by nsAuthGSSAPI
+OS_LIBS += -lkrb5 -lcrypto
+endif
+
 ifdef MOZ_JAVAXPCOM
 dlldeps-javaxpcom.cpp: $(topsrcdir)/extensions/java/xpcom/src/dlldeps-javaxpcom.cpp
 	$(INSTALL) $^ .

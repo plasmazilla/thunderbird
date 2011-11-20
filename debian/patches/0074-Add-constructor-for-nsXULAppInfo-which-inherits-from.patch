@@ -1,4 +1,5 @@
-From: =?UTF-8?q?Rafael=20=C3=81vila=20de=20Esp=C3=ADndola?= <respindola@mozilla.com>
+From: =?UTF-8?q?Rafael=20=C3=81vila=20de=20Esp=C3=ADndola?=
+ <respindola@mozilla.com>
 Date: Thu, 24 Mar 2011 19:29:29 -0400
 Subject: Add constructor for nsXULAppInfo (which inherits from nsIXULAppInfo)
  to placate CLang

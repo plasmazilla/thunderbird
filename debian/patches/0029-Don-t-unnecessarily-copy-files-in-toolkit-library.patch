@@ -8,7 +8,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=546664
  1 files changed, 6 insertions(+), 3 deletions(-)
 
 diff --git a/mozilla/toolkit/library/Makefile.in b/mozilla/toolkit/library/Makefile.in
-index fe3165b..525006d 100644
+index 26e2163..f4327ed 100644
 --- a/mozilla/toolkit/library/Makefile.in
 +++ b/mozilla/toolkit/library/Makefile.in
 @@ -148,6 +148,9 @@ GARBAGE	+= \

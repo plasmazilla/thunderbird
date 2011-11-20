@@ -1,3 +1,40 @@
+icedove (3.1.16-1) unstable; urgency=high
+
+  * New Upstream Version
+    - MFSA 2011-46 aka CVE-2011-3647: loadSubScript unwraps XPCNativeWrapper
+      scope parameter
+    - MFSA 2011-47 aka CVE-2011-3648: Potential XSS against sites using
+      Shift-JIS
+    - MFSA 2011-49 aka CVE-2011-3650: Memory corruption while profiling using
+      Firebug
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Mon, 14 Nov 2011 18:53:40 +0100
+
+icedove (3.1.15-1) unstable; urgency=high
+
+  * New Upstream Version
+    - MFSA 2011-36 aka CVE-2011-2995: Miscellaneous memory safety hazards
+      (rv:7.0 / rv:1.9.2.23)
+    - MFSA 2011-37 aka CVE-2011-2998: Integer underflow when using JavaScript
+      RegExp
+    - MFSA 2011-38 aka CVE-2011-2999: XSS via plugins and shadowed
+      window.location object
+    - MFSA 2011-39 aka CVE-2011-3000: Defense against multiple Location
+      headers due to CRLF Injection
+    - MFSA 2011-40 aka CVE-2011-2372, CVE-2011-3001: Code installation through
+      holding down Enter
+  * [ba1f4d3] add Japanese translation for desktop menu entry.
+    Thanks to Hideki Yamane <henrich@debian.org> (Closes: #640679)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 05 Oct 2011 20:05:08 +0200
+
+icedove (3.1.13-1) unstable; urgency=high
+
+  * New Upstream Version
+    - MFSA 2011-34 Protection against fraudulent DigiNotar certificates
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 31 Aug 2011 20:58:14 +0200
+
 icedove (3.1.12-1~bpo60+1) squeeze-backports; urgency=low
 
   * Rebuild for squeeze-backports.
