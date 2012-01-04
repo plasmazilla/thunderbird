@@ -1,3 +1,10 @@
+icedove (8.0-2) unstable; urgency=low
+
+  * Upload to unstable
+  * [b02c21d] fix crash in xpcshell on sparc linux
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 04 Jan 2012 18:09:14 +0100
+
 icedove (8.0-1) experimental; urgency=low
 
   [ Guido Günther ]
