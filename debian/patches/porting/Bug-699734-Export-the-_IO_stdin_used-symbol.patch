@@ -1,0 +1,20 @@
+From: Mike Hommey <mh+mozilla@glandium.org>
+Date: Fri, 4 Nov 2011 09:10:01 +0100
+Subject: Bug 699734 - Export the _IO_stdin_used symbol
+
+---
+ .../jemalloc-standalone-linkage-version-script     |    1 +
+ 1 files changed, 1 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/build/unix/gnu-ld-scripts/jemalloc-standalone-linkage-version-script b/mozilla/build/unix/gnu-ld-scripts/jemalloc-standalone-linkage-version-script
+index 59b3a4c..184e599 100644
+--- a/mozilla/build/unix/gnu-ld-scripts/jemalloc-standalone-linkage-version-script
++++ b/mozilla/build/unix/gnu-ld-scripts/jemalloc-standalone-linkage-version-script
+@@ -15,5 +15,6 @@
+ 		__malloc_hook;
+ 		__realloc_hook;
+ 		__memalign_hook;
++		_IO_stdin_used;
+    local: *;
+ };
+-- 

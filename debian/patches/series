@@ -43,3 +43,4 @@ porting/Bug-696393-Reimplement-NS_InvokeByIndex-in-C-on-S390.patch
 debian-hacks/Statically-link-jemalloc-to-all-programs.patch
 iceowl/Change-extension-s-name-to-Iceowl.patch
 iceowl/Install-calendar-timezones-mode-0644-not-0755.patch
+porting/Bug-699734-Export-the-_IO_stdin_used-symbol.patch
