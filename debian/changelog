@@ -1,3 +1,9 @@
+icedove-l10n (1:8.0-2) unstable; urgency=low
+
+  * Upload to unstable
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 04 Jan 2012 18:40:13 +0100
+
 icedove-l10n (1:8.0-1) experimental; urgency=low
 
   * New Upstream Version (Closes: #648168, #640990)
