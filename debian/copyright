@@ -4,7 +4,8 @@ Name: Iceweasel
 Source: http://ftp.mozilla.org/pub/mozilla.org/thunderbird/
 Disclaimer: The original upstream tarball is modified from upstream by
  removing a set of sourceless binary, non-free, and VCS-related files. You
- can find a remove.nonfree script in the debian directory doing this cleanup.
+ can find a repack.py script in the debian directory doing this cleanup,
+ using filtering data present in a source.filter file in the same directory.
  If this file is incomplete, which I'm pretty sure is the case, because it's
  difficult not to forget anything in this huge amount of data, please file
  a bug or contact me.
