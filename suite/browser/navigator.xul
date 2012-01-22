@@ -43,11 +43,9 @@
 <?xml-stylesheet href="chrome://communicator/content/places/places.css" type="text/css"?>
 
 <?xul-overlay href="chrome://navigator/content/navigatorOverlay.xul"?>
-<?xul-overlay href="chrome://navigator/content/mailNavigatorOverlay.xul"?>
 <?xul-overlay href="chrome://navigator/content/linkToolbarOverlay.xul"?>
 <?xul-overlay href="chrome://communicator/content/contentAreaContextOverlay.xul"?>
 <?xul-overlay href="chrome://communicator/content/sidebar/sidebarOverlay.xul"?>
-<?xul-overlay href="chrome://communicator/content/bookmarks/placesOverlay.xul"?>
 
 
 <!DOCTYPE window [
@@ -87,37 +85,23 @@
 
   <!-- Navigator -->
   <script type="application/javascript" src="chrome://navigator/content/fullScreen.js"/>
-  <script type="application/javascript" src="chrome://navigator/content/browser.js"/>
-  <script type="application/javascript" src="chrome://navigator/content/navigator.js"/>
   <script type="application/javascript" src="chrome://navigator/content/navigatorDD.js"/>
   <script type="application/javascript" src="chrome://navigator/content/sessionHistoryUI.js"/>
 
   <!-- Places Bookmarks Utilities -->
-  <script type="application/javascript" src="chrome://communicator/content/places/browserPlacesViews.js"/>
-  <script type="application/javascript" src="chrome://communicator/content/bookmarks/browser-places.js"/>
   <script type="application/javascript" src="chrome://communicator/content/bookmarks/editBookmarkOverlay.js"/>
 
   <!-- hook for stringbundle overlays -->
   <stringbundleset id="stringbundleset">
-    <stringbundle id="bundle_navigator" src="chrome://navigator/locale/navigator.properties"/>
-    <stringbundle id="bundle_brand" src="chrome://branding/locale/brand.properties"/>
-    <stringbundle id="bundle_navigator_region" src="chrome://navigator-region/locale/region.properties"/>
     <stringbundle id="findBundle" src="chrome://global/locale/finddialog.properties"/>
   </stringbundleset>
 
   <commandset id="commands">
     <commandset id="findTypeMenuItems"/>
-    <commandset id="globalEditMenuItems"/>
-    <commandset id="selectEditMenuItems"/>
-    <commandset id="undoEditMenuItems"/>
-    <commandset id="clipboardEditMenuItems"/>
-    <!-- <command id="cmd_pageSetup"/> -->
     <command id="toggleSidebar"/>
   </commandset>
 
   <commandset id="mainCommandSet"/> <!-- Firefox extension compatibility -->
-
-  <commandset id="placesCommands"/>
 
   <!-- broadcasters are appended from the overlay -->
   <broadcasterset id="navBroadcasters"/>
@@ -387,18 +371,9 @@
         <searchbar id="searchbar" flex="1"/>
       </toolbaritem>
 
-      <toolbarbutton id="print-button" type="menu-button"
-                     class="toolbarbutton-1 chromeclass-toolbar-additional"
+      <toolbarbutton id="print-button"
                      label="&printButton.label;"
-                     oncommand="if (event.target==this) PrintUtils.print();"
-                     tooltiptext="&printButton.tooltip;">
-        <menupopup id="printMenu">
-          <menuitem id="printMenuItemToolbar" label="&printCmd.label;" accesskey="&printCmd.accesskey;"
-                    default="true" oncommand="PrintUtils.print()"/>
-          <menuitem id="printPreviewMenuItemToolbar" label="&printPreviewCmd.label;" accesskey="&printPreviewCmd.accesskey;"
-                    oncommand="setTimeout(BrowserPrintPreview, 0);"/>
-        </menupopup>
-      </toolbarbutton>
+                     tooltiptext="&printButton.tooltip;"/>
 
       <toolbaritem id="throbber-box" align="center">
         <button id="navigator-throbber"

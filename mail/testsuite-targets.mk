@@ -4,6 +4,12 @@ include $(topsrcdir)/mailnews/testsuite-targets.mk
 # Instructions below this line are for mail/ specific tests.
 
 MOZMILLDIR=$(DEPTH)/mozilla/_tests/mozmill
+ifeq ($(OS_ARCH),WINNT)
+VIRTUALENV_BIN = $(MOZMILLDIR)/../mozmill-virtualenv/Scripts
+else
+VIRTUALENV_BIN = $(MOZMILLDIR)/../mozmill-virtualenv/bin
+endif
+MOZMILLPYTHON = $(call core_abspath,$(VIRTUALENV_BIN)/python$(BIN_SUFFIX))
 
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
 # Mac options
@@ -17,16 +23,24 @@ else
 PROGRAM = ../../../$(DIST)/bin/thunderbird$(BIN_SUFFIX)
 endif
 
-mozmill::
-	cd $(MOZMILLDIR) && MACOSX_DEPLOYMENT_TARGET= $(PYTHON) \
-	runtestlist.py --list=mozmilltests.list --binary=$(PROGRAM) \
+check-no-solo = $(foreach solo,SOLO_TEST SOLO_FILE,$(if $($(solo)),$(error $(subst SOLOVAR,$(solo),$(1)))))
+find-solo-test = $(if $(and $(SOLO_TEST),$(SOLO_FILE)),$(error Both SOLO_TEST and SOLO_FILE are specified. You may only specify one.),$(if $(SOLO_TEST),$(SOLO_TEST),$(if $(SOLO_FILE),$(SOLO_FILE),$(error SOLO_TEST or SOLO_FILE needs to be specified.))))
+
+# PYTHONHOME messes very badly with virtualenv setups, so unset it.
+mozmill:
+	$(call check-no-solo,SOLOVAR is specified. Perhaps you meant mozmill-one.)
+	unset PYTHONHOME && cd $(MOZMILLDIR) && MACOSX_DEPLOYMENT_TARGET= \
+	$(MOZMILLPYTHON) runtestlist.py --list=mozmilltests.list \
+	--binary=$(PROGRAM) \
 	--dir=$(call core_abspath,$(topsrcdir))/mail/test/mozmill \
 	--symbols-path=$(call core_abspath,$(DIST)/crashreporter-symbols) \
 	$(MOZMILL_EXTRA)
 
-mozmill-one::
-	cd $(MOZMILLDIR) && MACOSX_DEPLOYMENT_TARGET= $(PYTHON) runtest.py \
-	--test=$(call core_abspath,$(topsrcdir))/mail/test/mozmill/$(SOLO_TEST) \
+mozmill-one: solo-test = $(find-solo-test)
+mozmill-one:
+	unset PYTHONHOME && cd $(MOZMILLDIR) && MACOSX_DEPLOYMENT_TARGET= \
+	$(MOZMILLPYTHON) runtest.py \
+	--test=$(call core_abspath,$(topsrcdir))/mail/test/mozmill/$(solo-test) \
 	--binary=$(PROGRAM) \
 	--symbols-path=$(call core_abspath,$(DIST)/crashreporter-symbols) \
 	$(MOZMILL_EXTRA)

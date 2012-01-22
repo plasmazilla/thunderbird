@@ -611,7 +611,7 @@
         <body><![CDATA[
           if (this.mLongWeekdayTotalPixels <= 0) {
               let maxDayWidth = 0;
-              for each(let label in this.labeldaybox.childNodes) {
+              for each (let label in this.labeldaybox.childNodes) {
                   if (label.localName && label.localName == "calendar-day-label") {
                       label.shortWeekNames = false;
                       let curPixelLength = label.getLongWeekdayPixels();

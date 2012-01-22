@@ -1049,8 +1049,7 @@ function UpdateDeleteToolbarButton()
 
   // Never show "Undelete" in the 3-pane for folders, when delete would
   // apply to the selected folder.
-  if (this.WhichPaneHasFocus &&
-      WhichPaneHasFocus() == document.getElementById("folderTree") &&
+  if (gFolderDisplay.focusedPane == document.getElementById("folderTree") &&
       GetNumSelectedMessages() == 0)
     deleteButtonDeck.selectedIndex = 0;
   else
@@ -2257,7 +2256,7 @@ function IsGetNextNMessagesEnabled()
   var menuItem = document.getElementById("menu_getnextnmsg");
   if (folder && !folder.isServer &&
       folder.server instanceof Components.interfaces.nsINntpIncomingServer) {
-    menuitem.label = document.getElementById("bundle_messenger")
+    menuItem.label = document.getElementById("bundle_messenger")
                              .getFormattedString("getNextNMessages",
                                                  [folder.server.maxArticles]);
     menuItem.removeAttribute("hidden");

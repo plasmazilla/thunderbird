@@ -54,7 +54,7 @@
 <!ENTITY fileRecentMenu.label "Recent Pages">
 <!ENTITY fileRecentMenu.accesskey "R">
 <!ENTITY fileRevert.label "Revert">
-<!ENTITY fileRevert.accesskey "v">
+<!ENTITY fileRevert.accesskey "t">
 <!ENTITY saveCmd.label "Save">
 <!ENTITY saveCmd.accesskey "S">
 <!ENTITY saveCmd.key "S">
@@ -68,11 +68,6 @@
 <!ENTITY publishAsCmd.accesskey "h">
 <!ENTITY saveAsChangeEncodingCmd.label "Save And Change Character Encoding">
 <!ENTITY saveAsChangeEncodingCmd.accesskey "E">
-<!ENTITY printSetupCmd.label "Page Setup…">
-<!ENTITY printSetupCmd.accesskey "u">
-<!ENTITY printCmd.label "Print…">
-<!ENTITY printCmd.accesskey "P">
-<!ENTITY printCmd.key "P">
 
 <!-- Edit menu items -->
 <!ENTITY editMenu.label "Edit">

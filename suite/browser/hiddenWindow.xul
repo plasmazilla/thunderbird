@@ -38,7 +38,6 @@
  ***** END LICENSE BLOCK ***** -->
 
 <?xul-overlay href="chrome://navigator/content/navigatorOverlay.xul"?>
-<?xul-overlay href="chrome://communicator/content/bookmarks/placesOverlay.xul"?>
 
 <!-- hiddenwindow is a "minimal" XUL window intended for creating the,
      er, hidden window.  This window is never shown, but on platforms
@@ -68,36 +67,13 @@
   onload="hiddenWindowStartup();"
   onunload="Shutdown();">
 
-  <!-- JS from navigator.xul, to handle the menu commands -->
-  <script type="application/javascript" src="chrome://navigator/content/browser.js"/>
-  <script type="application/javascript" src="chrome://navigator/content/navigator.js"/>
-
-  <!-- Places Bookmarks Utilities -->
-  <script type="application/javascript" src="chrome://communicator/content/places/browserPlacesViews.js"/>
-  <script type="application/javascript" src="chrome://communicator/content/bookmarks/browser-places.js"/>
-
-  <stringbundleset id="stringbundleset">
-    <stringbundle id="bundle_navigator" src="chrome://navigator/locale/navigator.properties"/>
-    <stringbundle id="bundle_brand" src="chrome://branding/locale/brand.properties"/>
-    <stringbundle id="bundle_navigator_region" src="chrome://navigator-region/locale/region.properties"/>
-  </stringbundleset>
+  <stringbundleset id="stringbundleset"/>
 
   <!-- keys are appended from the overlay -->
-  <keyset id="tasksKeys">
-    <keyset id="navKeys">
-      <key id="showHideSidebar"/>
-    </keyset>
-  </keyset>
+  <keyset id="navKeys"/>
 
   <!-- commands are appended from the overlay -->
-  <commandset id="commands">
-    <commandset id="tasksCommands"/>
-    <commandset id="globalEditMenuItems"/>
-    <commandset id="selectEditMenuItems"/>
-    <commandset id="undoEditMenuItems"/>
-    <commandset id="clipboardEditMenuItems"/>
-    <commandset id="placesCommands"/>
-  </commandset>
+  <commandset id="commands"/>
 
   <broadcasterset id="navBroadcasters"/>
 

@@ -776,15 +776,8 @@ function sidebar_overlay_init() {
       debug("sidebarObj.resource = " + sidebarObj.resource);
       debug("sidebarObj.datasource_uri = " + sidebarObj.datasource_uri);
 
-      // Obtain the pref for limiting the number of tabs in view
-      try
-      {
-        gNumTabsInViewPref = prefs.getIntPref("sidebar.num_tabs_in_view");
-      }
-      catch (ex)
-      {
-        gNumTabsInViewPref = 8; // failover default
-      }
+      // Obtain the pref for limiting the number of tabs in view, defaults to 8.
+      gNumTabsInViewPref = GetIntPref("sidebar.num_tabs_in_view", 8);
 
       // Show the header for the panels area. Use a splitter if there
       // is stuff over the panels area.
@@ -1226,6 +1219,19 @@ function SidebarShowHide() {
   document.persist('sidebar-title-box', 'hidden');
   PersistWidth();
   window.content.focus();
+}
+
+function SidebarGetState() {
+  if (sidebar_is_hidden())
+    return "hidden";
+  if (sidebar_is_collapsed())
+    return "collapsed";
+  return "visible";
+}
+
+function SidebarSetState(aState) {
+  document.getElementById("sidebar-box").hidden = aState != "visible";
+  document.getElementById("sidebar-splitter").hidden = aState == "hidden";
 }
 
 function SidebarBuildPickerPopup() {

@@ -45,7 +45,6 @@
 @BINPATH@/@DLL_PREFIX@mozjs@DLL_SUFFIX@
 #endif
 #ifdef XP_WIN32
-#ifndef MOZ_MEMORY
 #if _MSC_VER == 1400
 @BINPATH@/Microsoft.VC80.CRT.manifest
 @BINPATH@/msvcm80.dll
@@ -60,15 +59,9 @@
 @BINPATH@/msvcp100.dll
 @BINPATH@/msvcr100.dll
 #endif
-#else
-@BINPATH@/mozcrt19.dll
-@BINPATH@/mozcpp19.dll
-#endif
 #endif
 @BINPATH@/@DLL_PREFIX@mozalloc@DLL_SUFFIX@
-#ifdef MOZ_MEMORY_DARWIN
-@BINPATH@/@DLL_PREFIX@jemalloc@DLL_SUFFIX@
-#endif
+@BINPATH@/@DLL_PREFIX@mozutils@DLL_SUFFIX@
 #ifdef XP_MACOSX
 @BINPATH@/XUL
 #else
@@ -198,6 +191,9 @@
 @BINPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/icon.png
 @BINPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/preview.png
 @BINPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/chrome.manifest
+#ifdef SHIP_FEEDBACK
+@BINPATH@/distribution/extensions/tbtestpilot@labs.mozilla.com.xpi
+#endif
 
 ; Gloda
 @BINPATH@/chrome/gloda@JAREXT@
@@ -574,6 +570,7 @@
 @BINPATH@/components/autocomplete.xpt
 @BINPATH@/components/alerts.xpt
 @BINPATH@/components/jsdservice.xpt
+@BINPATH@/components/jsdebugger.xpt
 @BINPATH@/components/fastfind.xpt
 @BINPATH@/components/find.xpt
 @BINPATH@/components/chardet.xpt

@@ -474,11 +474,15 @@ function test_tag_keys_disabled_in_content_tab() {
   mc.sleep(0);
 
   let tab = mc.tabmail.currentTabInfo;
-  wait_for_content_tab_load(tab);
-  assert_content_tab_has_url(tab, 'about:addons');
+  wait_for_content_tab_load(tab, 'about:addons');
 
   // Make sure pressing the "1" key in a content tab doesn't tag a message
   check_tag_in_message(curMessage, tagArray[0], false);
   mc.keypress(null, "1", {});
   check_tag_in_message(curMessage, tagArray[0], false);
+}
+
+function teardownModule() {
+  // Make sure archiving is enabled at the end
+  enable_archiving(true);
 }

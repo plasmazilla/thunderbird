@@ -109,7 +109,7 @@ endif
 PERL ?= perl
 PYTHON ?= python
 
-CONFIG_GUESS_SCRIPT := $(wildcard $(TOPSRCDIR)/mozilla/build/autoconf/config.guess)
+CONFIG_GUESS_SCRIPT := $(wildcard $(TOPSRCDIR)/build/autoconf/config.guess)
 ifdef CONFIG_GUESS_SCRIPT
   CONFIG_GUESS = $(shell $(CONFIG_GUESS_SCRIPT))
 endif
@@ -132,9 +132,9 @@ endif
 
 # See build pages, http://www.mozilla.org/build/ for how to set up mozconfig.
 
-MOZCONFIG_LOADER := mozilla/build/autoconf/mozconfig2client-mk
-MOZCONFIG_FINDER := mozilla/build/autoconf/mozconfig-find
-MOZCONFIG_MODULES := mozilla/build/unix/uniq.pl
+MOZCONFIG_LOADER := build/autoconf/mozconfig2client-mk
+MOZCONFIG_FINDER := build/autoconf/mozconfig-find
+MOZCONFIG_MODULES := build/unix/uniq.pl
 
 run_for_side_effects := \
   $(shell $(TOPSRCDIR)/$(MOZCONFIG_LOADER) $(TOPSRCDIR) $(TOPSRCDIR)/.mozconfig.mk > $(TOPSRCDIR)/.mozconfig.out)
@@ -173,6 +173,15 @@ CONFIGURES += $(TOPSRCDIR)/mozilla/js/src/configure
 
 # The default rule is build
 build::
+
+# These targets are candidates for auto-running client.py
+ifdef  ALWAYS_RUN_CLIENT_PY
+ifeq (0,${MAKELEVEL})
+build::                      run_client_py
+configure::                  run_client_py
+endif
+endif
+
 
 # Print out any options loaded from mozconfig.
 all build clean depend distclean export libs install realclean::
@@ -268,6 +277,7 @@ else
 ####################################
 # Configure
 
+MAKEFILE      = $(wildcard $(OBJDIR)/Makefile)
 CONFIG_STATUS = $(wildcard $(OBJDIR)/config.status)
 CONFIG_CACHE  = $(wildcard $(OBJDIR)/config.cache)
 
@@ -316,7 +326,13 @@ endif
                \"$(MAKE) -f client.mk build\"" && exit 1 )
 	@touch $(OBJDIR)/Makefile
 
-$(OBJDIR)/Makefile $(OBJDIR)/config.status: $(CONFIG_STATUS_DEPS)
+ifneq (,$(MAKEFILE))
+$(OBJDIR)/Makefile: $(OBJDIR)/config.status
+
+$(OBJDIR)/config.status: $(CONFIG_STATUS_DEPS)
+else
+$(OBJDIR)/Makefile: $(CONFIG_STATUS_DEPS)
+endif
 	@$(MAKE) -f $(TOPSRCDIR)/client.mk configure
 
 ifneq (,$(CONFIG_STATUS))
@@ -407,9 +423,14 @@ cleansrcdir:
 echo-variable-%:
 	@echo $($*)
 
+checkout co: run_client_py
+
+run_client_py:
+	$(PYTHON) $(TOPSRCDIR)/client.py checkout $(CLIENT_PY_ARGS)
+
 # This makefile doesn't support parallel execution. It does pass
 # MOZ_MAKE_FLAGS to sub-make processes, so they will correctly execute
 # in parallel.
 .NOTPARALLEL:
 
-.PHONY: checkout real_checkout depend build profiledbuild maybe_clobber_profiledbuild export libs alldep install clean realclean distclean cleansrcdir pull_all build_all clobber clobber_all pull_and_build_all everything configure preflight_all preflight postflight postflight_all
+.PHONY: checkout co real_checkout depend build profiledbuild maybe_clobber_profiledbuild export libs alldep install clean realclean distclean cleansrcdir pull_all build_all clobber clobber_all pull_and_build_all everything configure preflight_all preflight postflight postflight_all

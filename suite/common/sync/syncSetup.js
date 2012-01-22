@@ -55,6 +55,11 @@ const OPTIONS_PAGE                  = 6;
 const OPTIONS_CONFIRM_PAGE          = 7;
 const SETUP_SUCCESS_PAGE            = 8;
 
+// Broader than we'd like, but after this changed from api-secure.recaptcha.net
+// we had no choice. At least we only do this for the duration of setup.
+// See discussion in Bugs 508112 and 653307.
+const RECAPTCHA_DOMAIN = "https://www.google.com";
+
 Cu.import("resource://services-sync/main.js");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
@@ -69,13 +74,14 @@ var gSyncSetup = {
   captchaBrowser: null,
   wizard: null,
   _disabledSites: [],
-  _remoteSites: [Weave.Service.serverURL, "https://api-secure.recaptcha.net"],
 
   status: {
     password: false,
     email: false,
     server: true
   },
+
+  get _remoteSites() [Weave.Service.serverURL, RECAPTCHA_DOMAIN],
 
   get _usingMainServers() {
     if (this._settingUpNew)
@@ -86,9 +92,9 @@ var gSyncSetup = {
   init: function () {
     let obs = [
       ["weave:service:changepph:finish", "onResetPassphrase"],
-      ["weave:service:verify-login:start",  "onLoginStart"],
-      ["weave:service:verify-login:error",  "onLoginEnd"],
-      ["weave:service:verify-login:finish", "onLoginEnd"]];
+      ["weave:service:login:start",  "onLoginStart"],
+      ["weave:service:login:error",  "onLoginEnd"],
+      ["weave:service:login:finish", "onLoginEnd"]];
 
     // Add the observers now and remove them on unload
     let self = this;
@@ -104,6 +110,12 @@ var gSyncSetup = {
     };
     addRem(true);
     window.addEventListener("unload", function() addRem(false), false);
+
+    setTimeout(function () {
+      // Force Service to be loaded so that engines are registered.
+      // See Bug 670082.
+      Weave.Service;
+    }, 0);
 
     this.captchaBrowser = document.getElementById("captcha");
     this.wizard = document.getElementById("accountSetup");
@@ -145,10 +157,41 @@ var gSyncSetup = {
     this.wizard.pageIndex = EXISTING_ACCOUNT_CONNECT_PAGE;
   },
 
+  resetPassphrase: function resetPassphrase() {
+    // Apply the existing form fields so that
+    // Weave.Service.changePassphrase() has the necessary credentials.
+    Weave.Service.account = document.getElementById("existingAccountName").value;
+    Weave.Service.password = document.getElementById("existingPassword").value;
+
+    // Generate a new passphrase so that Weave.Service.login() will
+    // actually do something.
+    let passphrase = Weave.Utils.generatePassphrase();
+    Weave.Service.passphrase = passphrase;
+
+    // Only open the dialog if username + password are actually correct.
+    Weave.Service.login();
+    if ([Weave.LOGIN_FAILED_INVALID_PASSPHRASE,
+         Weave.LOGIN_FAILED_NO_PASSPHRASE,
+         Weave.LOGIN_SUCCEEDED].indexOf(Weave.Status.login) == -1)
+      return;
+
+    // Hide any errors about the passphrase, we know it's not right.
+    let feedback = document.getElementById("existingPassphraseFeedbackRow");
+    feedback.hidden = true;
+    let el = document.getElementById("existingPassphrase");
+    el.value = Weave.Utils.hyphenatePassphrase(passphrase);
+
+    // changePassphrase() will sync, make sure we set the "firstSync" pref
+    // according to the user's pref.
+    Weave.Svc.Prefs.reset("firstSync");
+    this.setupInitialSync();
+    gSyncUtils.resetPassphrase(true);
+  },
+
   onResetPassphrase: function () {
     document.getElementById("existingPassphrase").value =
       Weave.Utils.hyphenatePassphrase(Weave.Service.passphrase);
-
+    this.checkFields();
     this.wizard.advance();
   },
 
@@ -178,6 +221,8 @@ var gSyncSetup = {
         feedback = server;
         break;
       case Weave.LOGIN_FAILED_LOGIN_REJECTED:
+      case Weave.LOGIN_FAILED_NO_USERNAME:
+      case Weave.LOGIN_FAILED_NO_PASSWORD:
         feedback = password;
         break;
       case Weave.LOGIN_FAILED_INVALID_PASSPHRASE:
@@ -249,7 +294,8 @@ var gSyncSetup = {
 
   checkAccount: function() {
     delete this._checkAccountTimer;
-    let value = document.getElementById("weaveEmail").value;
+    let value = Weave.Utils.normalizeAccount(
+      document.getElementById("weaveEmail").value);
     if (!value) {
       this.status.email = false;
       this.checkFields();
@@ -287,7 +333,7 @@ var gSyncSetup = {
     if (password.value == document.getElementById("weavePassphrase").value) {
       // xxxmpc - hack, sigh
       valid = false;
-      str = Weave.Utils.getErrorString("change.password.pwSameAsSyncKey");
+      str = Weave.Utils.getErrorString("change.password.pwSameAsRecoveryKey");
     }
     else {
       let pwconfirm = document.getElementById("weavePasswordConfirm");
@@ -413,7 +459,8 @@ var gSyncSetup = {
         feedback.hidden = false;
 
         let password = document.getElementById("weavePassword").value;
-        let email    = document.getElementById("weaveEmail").value;
+        let email = Weave.Utils.normalizeAccount(
+          document.getElementById("weaveEmail").value);
         let challenge = getField("challenge");
         let response = getField("response");
 
@@ -438,7 +485,8 @@ var gSyncSetup = {
         this.captchaBrowser.loadURI(Weave.Service.miscAPI + "captcha_html");
         break;
       case EXISTING_ACCOUNT_LOGIN_PAGE:
-        Weave.Service.account = document.getElementById("existingAccountName").value;
+        Weave.Service.account = Weave.Utils.normalizeAccount(
+          document.getElementById("existingAccountName").value);
         Weave.Service.password = document.getElementById("existingPassword").value;
         let pp = document.getElementById("existingPassphrase").value;
         Weave.Service.passphrase = Weave.Utils.normalizePassphrase(pp);
@@ -548,6 +596,9 @@ var gSyncSetup = {
     if (this._jpakeclient)
       return;
 
+    // When onAbort is called, Weave may already be gone.
+    const JPAKE_ERROR_USERABORT = Weave.JPAKE_ERROR_USERABORT;
+  
     let self = this;
     this._jpakeclient = new Weave.JPAKEClient({
       displayPIN: function displayPIN(pin) {
@@ -567,8 +618,8 @@ var gSyncSetup = {
       onAbort: function onAbort(error) {
         delete self._jpakeclient;
 
-        // No error means manual abort, e.g. wizard is aborted. Ignore.
-        if (!error)
+        // Ignore if wizard is aborted.
+        if (error == JPAKE_ERROR_USERABORT)
           return;
 
         // Automatically go to manual setup if we couldn't acquire a channel.
@@ -901,7 +952,6 @@ var gSyncSetup = {
     }
     this._setFeedback(element, success, str);
   },
-
 
   onStateChange: function(webProgress, request, stateFlags, status) {
     // We're only looking for the end of the frame load

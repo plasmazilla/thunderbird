@@ -46,6 +46,11 @@
 
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 
+#msgcomposeWindow:-moz-lwtheme {
+  background-repeat: no-repeat;
+  background-position: top right;
+}
+
 #attachmentBucket {
   width: 15em;
 }
@@ -315,6 +320,12 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
 
 /* ::::: special toolbar colors ::::: */
 
+#MsgHeadersToolbar {
+  color: -moz-DialogText;
+  text-shadow: none;
+  background-color: -moz-Dialog;
+}
+
 #appcontent {
   border-top: 1px solid ThreeDShadow;
   border-left: 1px solid ThreeDShadow;
@@ -363,6 +374,7 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
   border-left: none;
   border-right: none;
   -moz-border-top-colors: ThreeDHighlight;
+  background-color: ThreeDFace;
 }
 
 #msgSubject {
@@ -454,6 +466,7 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
 
 #FormatToolbox {
   border-top-width: 0;
+  background-color: -moz-Dialog;
 }
 
 #FormatToolbar {
@@ -736,6 +749,14 @@ toolbarbutton.formatting-button {
 }
 
 /* ::::: address book sidebar ::::: */
+
+#sidebar-box sidebarheader {
+  -moz-appearance: toolbox;
+  color: -moz-DialogText;
+  text-shadow: none;
+  background-color: -moz-Dialog;
+}
+
 .ab-closebutton {
   list-style-image: url("chrome://messenger/skin/icons/close-button.png");
   -moz-image-region: rect(0 16px 16px 0);
@@ -758,4 +779,8 @@ toolbarbutton.formatting-button {
 
 #sidebar {
   background-color: Window;
+}
+
+#sidebar-splitter {
+  background-color: ThreeDFace;
 }

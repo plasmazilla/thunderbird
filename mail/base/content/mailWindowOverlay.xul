@@ -82,6 +82,7 @@
 <script type="application/javascript" src="chrome://messenger/content/mail-offline.js"/>
 <script type="application/javascript" src="chrome://global/content/printUtils.js"/>
 <script type="application/javascript" src="chrome://messenger/content/msgViewPickerOverlay.js"/>
+<script type="application/javascript" src="chrome://messenger/content/plugins.js"/>
 <script type="application/javascript" src="chrome://global/content/viewZoomOverlay.js"/>
 
 <stringbundleset id="stringbundleset">
@@ -432,10 +433,21 @@
   <key id="key_print" key="&printCmd.key;"                           oncommand="goDoCommand('cmd_print')" modifiers="accel"/>
   <key id="key_saveAsFile" key="&saveAsFileCmd.key;"                 oncommand="goDoCommand('cmd_saveAsFile')" modifiers="accel"/>
   <key id="key_viewPageSource" key="&pageSourceCmd.key;"             oncommand="goDoCommand('cmd_viewPageSource')" modifiers="accel"/>
+#ifdef XP_MACOSX
+  <key id="key_getNewMessagesAlt" keycode="VK_F5"
+       oncommand="goDoCommand('cmd_getNewMessages');"/>
+  <key id="key_getAllNewMessagesAlt" keycode="VK_F5" modifiers="shift"
+       oncommand="goDoCommand('cmd_getMsgsForAuthAccounts');"/>
+  <key id="key_getNewMessages" key="&getNewMessagesCmd.key;" modifiers="accel"
+       oncommand="goDoCommand('cmd_getNewMessages');"/>
+  <key id="key_getAllNewMessages" key="&getAllNewMessagesCmd.key;" modifiers="accel, shift"
+       oncommand="goDoCommand('cmd_getMsgsForAuthAccounts');"/>
+#else
   <key id="key_getNewMessages" keycode="VK_F5"
        oncommand="goDoCommand('cmd_getNewMessages');"/>
   <key id="key_getAllNewMessages" keycode="VK_F5" modifiers="shift"
        oncommand="goDoCommand('cmd_getMsgsForAuthAccounts');"/>
+#endif
 #ifdef XP_GNOME
   <key id="key_getNewMessages2" keycode="VK_F9"
        oncommand="goDoCommand('cmd_getNewMessages');"/>
@@ -945,6 +957,10 @@
            defaultset="menubar-items"
 #else
           defaultset="menubar-items,spring,throbber-box"
+#endif
+#ifdef XP_WIN
+          toolbarname="&menubarCmd.label;"
+          accesskey="&menubarCmd.accesskey;"
 #endif
           context="toolbar-context-menu" mode="icons">
     <toolbaritem id="menubar-items" align="center">
@@ -1779,7 +1795,7 @@
                    oncommand="goDoCommand('button_next')"
                    tooltiptext="&nextButton.tooltip;"
                    observes="button_next"/>
-    <toolbaritem id="button-junk">
+    <toolbaritem id="button-junk" title="&junkItem.title;">
       <deck id="junk-deck" observes="button_junk">
         <toolbarbutton id="button-isJunk"
                        class="toolbarbutton-1 junk-button"
@@ -1795,20 +1811,20 @@
                        oncommand="goDoCommand('button_junk')"/>
       </deck>
     </toolbaritem>
-    <toolbaritem id="button-delete">
+    <toolbaritem id="button-delete" title="&deleteItem.title;">
       <deck id="delete-deck" observes="button_delete">
          <toolbarbutton id="button-mark-deleted"
                         class="toolbarbutton-1 delete-button"
                         label="&deleteButton.label;"
                         tooltiptext="&deleteButton.tooltip;"
                         observes="button_delete"
-                        oncommand="goDoCommand(event.shiftKey ? 'cmd_shiftDelete' : 'cmd_delete')"/>
+                        oncommand="goDoCommand(event.shiftKey ? 'button_shiftDelete' : 'button_delete')"/>
          <toolbarbutton id="button-mark-undelete"
                         class="toolbarbutton-1 delete-button"
                         label="&undeleteButton.label;"
                         tooltiptext="&undeleteButton.tooltip;"
                         observes="button_delete"
-                        oncommand="goDoCommand('cmd_delete')"/>
+                        oncommand="goDoCommand('button_delete')"/>
       </deck>
     </toolbaritem>
 #ifdef XP_MACOSX

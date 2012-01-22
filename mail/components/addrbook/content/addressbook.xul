@@ -63,7 +63,9 @@
     persist="width height screenX screenY sizemode"
     toggletoolbar="true"
     onload="OnLoadAddressBook()"
-    onunload="OnUnloadAddressBook()">
+    onunload="OnUnloadAddressBook()"
+    lightweightthemes="true"
+    lightweightthemesfooter="status-bar">
 
   <stringbundleset id="stringbundleset">
     <stringbundle id="bundle_addressBook" src="chrome://messenger/locale/addressbook/addressBook.properties"/>
@@ -266,6 +268,10 @@
            defaultset="menubar-items"
 #else
           defaultset="menubar-items,spring"
+#endif
+#ifdef XP_WIN
+          toolbarname="&menubarCmd.label;"
+          accesskey="&menubarCmd.accesskey;"
 #endif
            context="toolbar-context-menu" mode="icons">
 
