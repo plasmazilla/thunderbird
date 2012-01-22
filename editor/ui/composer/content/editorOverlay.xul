@@ -64,7 +64,7 @@
     <key id="openremoteeditorkb"
          key="&openRemoteCmd.key;"
          command="cmd_openRemote"  modifiers="accel,shift"/>
-    <key id="savekb"
+    <key id="key_save"
          key="&saveCmd.key;"
          command="cmd_save"
          modifiers="accel"/>
@@ -72,10 +72,7 @@
          key="&publishCmd.key;"
          command="cmd_publish"
          modifiers="accel,shift"/>
-    <key id="printkb"
-         key="&printCmd.key;"
-         command="cmd_print"
-         modifiers="accel"/>
+    <key id="key_print"/>
     <key id="key_close"/>
     <key id="key_quit"/>
     <key id="key_undo"/>
@@ -84,6 +81,7 @@
     <key id="key_copy"/>
     <key id="key_paste"/>
     <key id="key_delete"/>
+    <key id="key_delete2"/>
     <key id="key_selectAll"/>
     <key id="pastequotationkb"
          key="&pasteAsQuotationCmd.key;"
@@ -94,11 +92,10 @@
          command="cmd_pasteNoFormatting"
          modifiers="accel, shift"/>
     <keyset id="findKeys"/>
-    <key id="checkspellingkb"
+    <key id="key_checkspelling"
          key="&checkSpellingCmd2.key;"
          command="cmd_spelling"
-         modifiers="accel,shift"
-         disabled="true"/>
+         modifiers="accel,shift"/>
 
     <key id="boldkb"
          key="&styleBoldCmd.key;"
@@ -171,6 +168,7 @@
     <command id="cmd_open"                                          oncommand="goDoCommand('cmd_open')"/>
     <command id="cmd_openRemote"   label="&openRemoteCmd.label;"    oncommand="goDoCommand('cmd_openRemote')"/>
     <command id="cmd_printSetup"   oncommand="goDoCommand('cmd_printSetup')"/>
+    <command id="cmd_printpreview" oncommand="goDoCommand('cmd_printpreview');"/>
     <command id="cmd_print"        oncommand="goDoCommand('cmd_print')"/>
     <command id="cmd_close"        oncommand="goDoCommand('cmd_close');"/>
     <command id="cmd_quit"         oncommand="goDoCommand('cmd_quit')"/>
@@ -243,7 +241,10 @@
     <command id="cmd_findPrev"      oncommand="goDoCommand('cmd_findPrev');"/>
     <command id="cmd_spelling"      oncommand="goDoCommand('cmd_spelling')"/>
     <command id="cmd_checkLinks"    oncommand="goDoCommand('cmd_checkLinks')"/>
-    <command id="cmd_pasteQuote"    oncommand="goDoCommand('cmd_pasteQuote')" label="&pasteAsQuotationCmd.label;"/>
+    <command id="cmd_pasteQuote"
+             label="&pasteAsQuotationCmd.label;"
+             accesskey="&pasteAsQuotationCmd.accesskey;"
+             oncommand="goDoCommand('cmd_pasteQuote');"/>
     <command id="cmd_publishSettings"
              oncommand="goDoCommand('cmd_publishSettings');"/>
   </commandset>
@@ -386,7 +387,7 @@
       <menuseparator id="fileMenuAfterCloseSeparator"/>
       <menuitem id="saveMenuitem"
                 accesskey="&saveCmd.accesskey;"
-                key="savekb"
+                key="key_save"
                 command="cmd_save"/>
       <menuitem id="menu_saveAs"
                 accesskey="&saveAsCmd.accesskey;"
@@ -408,15 +409,9 @@
                 command="cmd_revert"/>
       <menuseparator id="fileMenuAfterFileRevertSeparator"/>
       <!-- menuitems are merged in here from composerOverlay.xul -->
-      <menuitem id="printSetupMenuItem"
-                label="&printSetupCmd.label;"
-                accesskey="&printSetupCmd.accesskey;"
-                command="cmd_printSetup"/>
-      <menuitem id="printMenuItem"
-                label="&printCmd.label;"
-                accesskey="&printCmd.accesskey;"
-                key="printkb"
-                command="cmd_print"/>
+      <menuitem id="menu_printSetup"/>
+      <menuitem id="menu_printPreview"/>
+      <menuitem id="menu_print"/>
       <!-- The Exit/Quit item is merged from platformGlobalOverlay.xul -->
     </menupopup>
   </menu>
@@ -444,9 +439,8 @@
       <menuitem id="menu_checkspelling"
                 label="&checkSpellingCmd2.label;"
                 accesskey="&checkSpellingCmd2.accesskey;"
-                key="checkspellingkb"
-                command="cmd_spelling"
-                disabled="true"/>
+                key="key_checkspelling"
+                command="cmd_spelling"/>
       <menuitem id="menu_inlinespellcheck"
                 type="checkbox"
                 label="&enableInlineSpellChecker.label;"
@@ -1142,17 +1136,11 @@
                  command="cmd_paste"
                  tooltiptext="&pasteToolbarCmd.tooltip;"/>
 
-  <toolbarbutton id="printButton" type="menu-button" class="toolbarbutton-1"
+  <toolbarbutton id="print-button"
                  label="&printToolbarCmd.label;"
-                 tooltiptext="&printToolbarCmd.tooltip;"
-                 oncommand="if (event.target==this) goDoCommand('cmd_print');">
-    <menupopup id="printMenu">
-      <menuitem id="printMenuItemToolbar" accesskey="&printCmd.accesskey;" label="&printCmd.label;" default="true"
-                oncommand="goDoCommand('cmd_print');"/>
+                 tooltiptext="&printToolbarCmd.tooltip;"/>
       <!-- 'printSetupToolbar' is merged in here from platformGlobalOverlay.xul -->
-    </menupopup>
-  </toolbarbutton>
-    
+
   <toolbarbutton id="findButton"
                  class="toolbarbutton-1"
                  label="&findToolbarCmd.label;"
@@ -1160,7 +1148,6 @@
                  tooltiptext="&findToolbarCmd.tooltip;"/>
   <toolbarbutton id="spellingButton"
                  class="toolbarbutton-1"
-                 disabled="true"
                  label="&spellToolbarCmd.label;"
                  command="cmd_spelling"
                  tooltiptext="&spellToolbarCmd.tooltip;"/>
@@ -1405,7 +1392,7 @@
   <!-- Paste as quotation is used by mail compose,
        but in composer it has to go in the debug menu
    -->
-  <menuitem id="menu_pasteQuote" accesskey="&pasteAsQuotationCmd.accesskey;"
+  <menuitem id="menu_pasteQuote"
             command="cmd_pasteQuote" key="pastequotationkb"/>
 
 </overlay>

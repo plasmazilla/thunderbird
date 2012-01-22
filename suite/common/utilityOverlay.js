@@ -148,16 +148,12 @@ function InitProxyMenu()
     networkProxyPac.setAttribute("disabled", "true");
   }
 
-  var networkProxyType;
-  try {
-    networkProxyType = Services.prefs.getIntPref("network.proxy.type");
-  } catch(e) {}
-
   // The pref value 3 for network.proxy.type is unused to maintain
   // backwards compatibility. Treat 3 equally to 0. See bug 115720.
   var networkProxyStatus = [networkProxyNo, networkProxyManual, networkProxyPac,
                             networkProxyNo, networkProxyWpad,
                             networkProxySystem];
+  var networkProxyType = GetIntPref("network.proxy.type", 0);
   networkProxyStatus[networkProxyType].setAttribute("checked", "true");
 }
 
@@ -167,12 +163,19 @@ function setProxyTypeUI()
   if (!panel)
     return;
 
-  try {
-    var networkProxyType = Services.prefs.getIntPref("network.proxy.type");
-  } catch(e) {}
-
-  var onlineTooltip = "onlineTooltip" + networkProxyType;
+  var onlineTooltip = "onlineTooltip" + GetIntPref("network.proxy.type", 0);
   panel.setAttribute("tooltiptext", gUtilityBundle.getString(onlineTooltip));
+}
+
+function SetStringPref(aPref, aValue)
+{
+  const nsISupportsString = Components.interfaces.nsISupportsString;
+  try {
+    var str = Components.classes["@mozilla.org/supports-string;1"]
+                        .createInstance(nsISupportsString);
+    str.data = aValue;
+    Services.prefs.setComplexValue(aPref, nsISupportsString, str);
+  } catch (e) {}
 }
 
 function GetStringPref(name)
@@ -235,11 +238,8 @@ function setOfflineUI(offline)
 
   // Checking for a preference "network.online", if it's locked, disabling
   // network icon and menu item
-  var offlineLocked = Services.prefs.prefIsLocked("network.online");
-
-  if (offlineLocked ) {
-      broadcaster.setAttribute("disabled","true");
-  }
+  if (Services.prefs.prefIsLocked("network.online"))
+    broadcaster.setAttribute("disabled", "true");
 
   if (offline)
     {
@@ -253,11 +253,7 @@ function setOfflineUI(offline)
       broadcaster.removeAttribute("offline");
       broadcaster.removeAttribute("checked");
       panel.setAttribute("context", "networkProperties");
-      try {
-        var networkProxyType = Services.prefs.getIntPref("network.proxy.type");
-      } catch(e) {}
-      var onlineTooltip = "onlineTooltip" + networkProxyType;
-      panel.setAttribute("tooltiptext", gUtilityBundle.getString(onlineTooltip));
+      setProxyTypeUI();
     }
 }
 
@@ -325,7 +321,7 @@ function goCustomizeToolbar(toolbox)
 
   var customizeURL = "chrome://global/content/customizeToolbar.xul";
 
-  gCustomizeSheet = getBoolPref("toolbar.customization.usesheet", false);
+  gCustomizeSheet = GetBoolPref("toolbar.customization.usesheet", false);
 
   if (gCustomizeSheet) {
     var sheetFrame = document.getElementById("customizeToolbarSheetIFrame");
@@ -1119,16 +1115,12 @@ function BrowserOnCommand(event)
     if (ot.getAttribute('anonid') == 'exceptionDialogButton') {
       var params = { exceptionAdded : false };
 
-      try {
-        switch (Services.prefs.getIntPref("browser.ssl_override_behavior")) {
-          case 2 : // Pre-fetch & pre-populate.
-            params.prefetchCert = true;
-            // Fall through.
-          case 1 : // Pre-populate.
-            params.location = ownerDoc.location.href;
-        }
-      } catch (e) {
-        Components.utils.reportError("Couldn't get ssl_override pref: " + e);
+      switch (GetIntPref("browser.ssl_override_behavior", 2)) {
+        case 2 : // Pre-fetch & pre-populate.
+          params.prefetchCert = true;
+          // Fall through.
+        case 1 : // Pre-populate.
+          params.location = ownerDoc.location.href;
       }
 
       window.openDialog('chrome://pippki/content/exceptionDialog.xul',
@@ -1277,14 +1269,22 @@ function closeMenus(node)
   }
 }
 
-function getBoolPref(prefname, def)
+function GetBoolPref(aPrefName, aDefaultValue)
 {
   try {
-    return Services.prefs.getBoolPref(prefname);
+    return Services.prefs.getBoolPref(aPrefName);
+  } catch (e) {}
+  return aDefaultValue;
+}
+
+function GetIntPref(aPrefName, aDefaultValue)
+{
+  try {
+    return Services.prefs.getIntPref(aPrefName);
+  } catch (e) {
+    Components.utils.reportError("Couldn't get " + aPrefName + " pref: " + e);
   }
-  catch (er) {
-    return def;
-  }
+  return aDefaultValue;
 }
 
 // openUILink handles clicks on UI elements that cause URLs to load.
@@ -1323,16 +1323,15 @@ function whereToOpenLink(e, ignoreButton, ignoreSave, ignoreBackground)
   var middle = !ignoreButton && e.button == 1;
 
   if (meta || ctrl || middle) {
-    if (getBoolPref("browser.tabs.opentabfor.middleclick", true))
+    if (GetBoolPref("browser.tabs.opentabfor.middleclick", true))
       return ignoreBackground ? "tabfocused" : shift ? "tabshifted" : "tab";
-    if (getBoolPref("middlemouse.openNewWindow", true))
+    if (GetBoolPref("middlemouse.openNewWindow", true))
       return "window";
     if (middle)
       return null;
   }
   if (!ignoreSave) {
-    var saveKey = getBoolPref("ui.key.saveLink.shift", true) ? shift : alt;
-    if (saveKey)
+    if (GetBoolPref("ui.key.saveLink.shift", true) ? shift : alt)
       return "save";
   }
   if (alt || shift || meta || ctrl)
@@ -1389,7 +1388,7 @@ function openUILinkIn(url, where, aAllowThirdPartyFixup, aPostData, aReferrerURI
                              null, null, aPostData, aAllowThirdPartyFixup);
   }
 
-  var loadInBackground = getBoolPref("browser.tabs.loadInBackground", false);
+  var loadInBackground = GetBoolPref("browser.tabs.loadInBackground", false);
 
   // reuse the browser if its current tab is empty
   if (isBrowserEmpty(w.getBrowser()))
@@ -1446,7 +1445,7 @@ function openUILinkArrayIn(urlArray, where, allowThirdPartyFixup)
                              null, null, null, allowThirdPartyFixup);
   }
 
-  var loadInBackground = getBoolPref("browser.tabs.loadInBackground", false);
+  var loadInBackground = GetBoolPref("browser.tabs.loadInBackground", false);
 
   var browser = w.getBrowser();
   switch (where) {

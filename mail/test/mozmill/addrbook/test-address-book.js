@@ -127,13 +127,6 @@ var gMockPromptServiceFactory = {
   }
 };
 
-/* Helper function to open a new address book window, and return an
- * augmented controller for it.
- */
-function get_augmented_address_book_window() {
-  return windowHelper.augment_controller(open_address_book_window());
-}
-
 function setupModule(module)
 {
   let fdh = collector.getModule('folder-display-helpers');
@@ -148,7 +141,7 @@ function setupModule(module)
   windowHelper = collector.getModule('window-helpers');
 
   // Open the address book main window
-  abController = get_augmented_address_book_window();
+  abController = open_address_book_window();
 
   // Let's add some new address books.  I'll add them
   // out of order to properly test the alphabetical
@@ -174,8 +167,10 @@ function setupModule(module)
   // There are 7 address books (Personal, AB 1, AB 2, AB 3, AB 4, LDAP Book
   // and Collected Address Book.  So let's ensure that those address books
   // exist in the tree view before executing our tests.
-  abController.waitForEval("subject.window.gDirectoryTreeView.rowCount == 7",
-                           1000, 10, abController);
+  abController.waitFor(
+    function () (abController.window.gDirectoryTreeView.rowCount == 7),
+    "Timeout waiting for all 7 address books to show up in the tree view",
+    1000, 10);
 }
 
 /* Test that the address book manager automatically sorts
@@ -230,7 +225,7 @@ function test_persist_collapsed_and_expanded_states()
 
   // Now close and re-open the address book
   abController.window.close();
-  abController = get_augmented_address_book_window();
+  abController = open_address_book_window();
 
   assert_true(is_address_book_collapsed(addrBook2));
   assert_true(!is_address_book_collapsed(addrBook1));
@@ -243,7 +238,7 @@ function test_persist_collapsed_and_expanded_states()
 
   // Now close and re-open the address book
   abController.window.close();
-  abController = get_augmented_address_book_window();
+  abController = open_address_book_window();
 
   assert_true(!is_address_book_collapsed(addrBook2));
   assert_true(is_address_book_collapsed(addrBook1));

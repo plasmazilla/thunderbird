@@ -674,6 +674,24 @@ NS_IMETHODIMP nsMsgProtocol::SetContentCharset(const nsACString &aContentCharset
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+NS_IMETHODIMP
+nsMsgProtocol::GetContentDisposition(PRUint32 *aContentDisposition)
+{
+  return NS_ERROR_NOT_AVAILABLE;
+}
+
+NS_IMETHODIMP
+nsMsgProtocol::GetContentDispositionFilename(nsAString &aContentDispositionFilename)
+{
+  return NS_ERROR_NOT_AVAILABLE;
+}
+
+NS_IMETHODIMP
+nsMsgProtocol::GetContentDispositionHeader(nsACString &aContentDispositionHeader)
+{
+  return NS_ERROR_NOT_AVAILABLE;
+}
+
 NS_IMETHODIMP nsMsgProtocol::GetContentLength(PRInt32 *aContentLength)
 {
   *aContentLength = mContentLength;

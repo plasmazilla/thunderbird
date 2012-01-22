@@ -51,7 +51,6 @@
 #include "nsAbUtils.h"
 #include "nsAbBaseCID.h"
 #include "nsStringGlue.h"
-#include "nsIProxyObjectManager.h"
 #include "prprf.h"
 #include "nsServiceManagerUtils.h"
 #include "nsComponentManagerUtils.h"
@@ -243,17 +242,7 @@ nsresult nsAbQueryLDAPMessageListener::DoTask()
   mOperation = do_CreateInstance(NS_LDAPOPERATION_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  nsCOMPtr<nsIProxyObjectManager> proxyObjMgr = do_GetService(NS_XPCOMPROXY_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCOMPtr<nsILDAPMessageListener> proxyListener;
-  rv = proxyObjMgr->GetProxyForObject(NS_PROXY_TO_MAIN_THREAD,
-                            NS_GET_IID(nsILDAPMessageListener),
-                            this, NS_PROXY_SYNC | NS_PROXY_ALWAYS,
-                            getter_AddRefs(proxyListener));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  rv = mOperation->Init(mConnection, proxyListener, nsnull);
+  rv = mOperation->Init(mConnection, this, nsnull);
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCAutoString dn;
@@ -509,7 +498,7 @@ NS_IMETHODIMP nsAbLDAPDirectoryQuery::DoQuery(nsIAbDirectory *aDirectory,
   // no need to AND in an empty search term, so leave prefix and suffix empty
   
   nsCAutoString searchFilter;
-  if (urlFilter.Length() && !urlFilter.Equals(NS_LITERAL_CSTRING("(objectclass=*)"))) 
+  if (urlFilter.Length() && !urlFilter.EqualsLiteral("(objectclass=*)"))
   {
     // if urlFilter isn't parenthesized, we need to add in parens so that
     // the filter works as a term to &

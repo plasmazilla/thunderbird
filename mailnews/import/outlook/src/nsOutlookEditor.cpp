@@ -125,6 +125,11 @@ NS_IMETHODIMP nsOutlookEditor::GetIsDocumentEditable(PRBool *aIsDocumentEditable
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+NS_IMETHODIMP nsOutlookEditor::GetIsSelectionEditable(PRBool *aIsSelectionEditable)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
 // readonly attribute nsIDOMDocument document
 NS_IMETHODIMP nsOutlookEditor::GetDocument(nsIDOMDocument * *aDocument)
 {
@@ -686,6 +691,12 @@ NS_IMETHODIMP nsOutlookHTMLImageElement::GetParentNode(nsIDOMNode * *aParentNode
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+// readonly attribute nsIDOMNode parentElement
+NS_IMETHODIMP nsOutlookHTMLImageElement::GetParentElement(nsIDOMElement * *aParentElement)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
 // readonly attribute nsIDOMNodeList childNodes
 NS_IMETHODIMP nsOutlookHTMLImageElement::GetChildNodes(nsIDOMNodeList * *aChildNodes)
 {
@@ -1185,6 +1196,11 @@ NS_IMETHODIMP nsOutlookHTMLImageElement::SetTextContent(const nsAString & aTextC
 }
 
 NS_IMETHODIMP nsOutlookHTMLImageElement::IsSameNode(nsIDOMNode *other, PRBool *_retval NS_OUTPARAM)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsOutlookHTMLImageElement::Contains(nsIDOMNode* aOther, PRBool* aReturn)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }

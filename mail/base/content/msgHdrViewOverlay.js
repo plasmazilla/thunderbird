@@ -1937,7 +1937,6 @@ var AttachmentListController =
       case "cmd_selectAll":
       case "cmd_delete":
       case "cmd_shiftDelete":
-      case "button_delete":
       case "cmd_saveAsFile":
         return true;
       default:
@@ -1952,7 +1951,6 @@ var AttachmentListController =
       case "cmd_selectAll":
       case "cmd_delete":
       case "cmd_shiftDelete":
-      case "button_delete":
       case "cmd_saveAsFile":
         return true;
       default:
@@ -1976,7 +1974,6 @@ var AttachmentListController =
         return;
       case "cmd_delete":
       case "cmd_shiftDelete":
-      case "button_delete":
         HandleSelectedAttachments('delete');
         return;
       case "cmd_saveAsFile":

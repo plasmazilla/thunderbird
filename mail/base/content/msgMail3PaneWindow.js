@@ -199,6 +199,8 @@ function UpdateMailPaneConfig(aMsgWindowInitialized) {
   const dynamicIds = ["messagesBox", "mailContent", "threadPaneBox"];
   const layouts = ["standard", "wide", "vertical"];
   var layoutView = gPrefBranch.getIntPref("mail.pane_config.dynamic");
+  // Ensure valid value; hard fail if not.
+  layoutView = dynamicIds[layoutView] ? layoutView : kStandardPaneConfig;
   var desiredId = dynamicIds[layoutView];
   document.getElementById("mailContent")
           .setAttribute("layout", layouts[layoutView]);
@@ -393,6 +395,8 @@ function OnLoadMessenger()
     panelcontainer.addEventListener("ResetBrowserThemePreview",
                                     LightWeightThemeWebInstaller, false, true);
   }
+
+  Services.obs.addObserver(gPluginHandler.pluginCrashed, "plugin-crashed", false);
 
   // This also registers the contentTabType ("contentTab")
   specialTabs.openSpecialTabsOnStartup();
@@ -589,6 +593,8 @@ function OnUnloadMessenger()
   mailSession.RemoveFolderListener(folderListener);
 
   gPhishingDetector.shutdown();
+
+  Services.obs.removeObserver(gPluginHandler.pluginCrashed, "plugin-crashed");
 
   // FIX ME - later we will be able to use onload from the overlay
   OnUnloadMsgHeaderPane();

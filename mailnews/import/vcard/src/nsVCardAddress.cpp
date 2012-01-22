@@ -89,16 +89,15 @@ nsresult nsVCardAddress::ImportAddresses(
   nsCOMPtr<nsILineInputStream> lineStream(do_QueryInterface(inputStream, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
 
+  nsCOMPtr<nsIAbManager> ab = do_GetService(NS_ABMANAGER_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
   PRBool more = PR_TRUE;
   nsCString record;
   while (!(*pAbort) && more && NS_SUCCEEDED(rv)) {
     rv = ReadRecord(lineStream, record, &more);
     if (NS_SUCCEEDED(rv)) {
       // Parse the vCard and build an nsIAbCard from it
-      nsCOMPtr<nsIAbManager> ab =
-        do_GetService(NS_ABMANAGER_CONTRACTID, &rv);
-      NS_ENSURE_SUCCESS(rv, rv);
-
       nsCOMPtr<nsIAbCard> cardFromVCard;
       rv = ab->EscapedVCardToAbCard(record.get(), getter_AddRefs(cardFromVCard));
       NS_ENSURE_SUCCESS(rv, rv);
@@ -139,8 +138,7 @@ nsresult nsVCardAddress::ReadRecord(
 
   // read BEGIN:VCARD
   rv = aLineStream->ReadLine(line, &more);
-  if (!line.Equals(NS_LITERAL_CSTRING("BEGIN:VCARD"),
-                   nsCaseInsensitiveCStringComparator())) {
+  if (!line.LowerCaseEqualsLiteral("begin:vcard")) {
     IMPORT_LOG0("*** Expected case-insensitive BEGIN:VCARD at start of vCard\n");
     rv = NS_ERROR_FAILURE;
     *aMore = more;
@@ -158,8 +156,7 @@ nsresult nsVCardAddress::ReadRecord(
     rv = aLineStream->ReadLine(line, &more);
     aRecord.AppendLiteral(MSG_LINEBREAK);
     aRecord.Append(line);
-  } while (!line.Equals(NS_LITERAL_CSTRING("END:VCARD"),
-                        nsCaseInsensitiveCStringComparator()));
+  } while (!line.LowerCaseEqualsLiteral("end:vcard"));
 
   *aMore = more;
   return rv;

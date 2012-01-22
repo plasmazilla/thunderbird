@@ -64,6 +64,7 @@ treechildren::-moz-tree-twisty {
 
 #tabmail:-moz-lwtheme {
   text-shadow: none;
+  color: -moz-DialogText;
 }
 
 #folderPaneBox {
@@ -485,16 +486,22 @@ splitter {
 }
 
 #quotaMeter {
+  -moz-appearance: none;
   min-width: 4em;
   max-width: 4em;
+  border: 1px solid #8B8B8B;
+}
+#quotaPanel .progress-bar {
+  -moz-appearance: none;
+  background-color: #88AAFF;
+  opacity: .5;
 }
 #quotaPanel[alert="warning"] .progress-bar {
   background-color: orange;
-  -moz-appearance: none;
 }
 #quotaPanel[alert="critical"] .progress-bar {
   background-color: red;
-  -moz-appearance: none;
+  opacity: .6;
 }
 #quotaLabel {
   text-align: center;
@@ -502,4 +509,8 @@ splitter {
 
 .tabmail-tab[type="message"] {
   list-style-image: url("chrome://messenger/skin/icons/message-mail.png");
+}
+
+.telemetry-text-link {
+  color: #fff;
 }

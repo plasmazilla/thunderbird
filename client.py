@@ -17,7 +17,7 @@ DEFAULTS = {
 
   # URL of the default hg repository to clone for ChatZilla.
   'CHATZILLA_REPO': 'http://hg.mozilla.org/chatzilla/',
-  'CHATZILLA_REV': 'SEA_2_5_BASE',
+  'CHATZILLA_REV': 'SEA_2_6_BASE',
 
   # URL of the default hg repository to clone for DOM Inspector.
   'INSPECTOR_REPO': 'http://hg.mozilla.org/dom-inspector/',

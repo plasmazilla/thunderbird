@@ -54,7 +54,7 @@ let gSyncUtils = {
     input.value = Weave.Clients.localName;
   },
 
-  openChange: function openChange(type) {
+  openChange: function openChange(type, duringSetup) {
     // Just re-show the dialog if it's already open
     let openedDialog = Services.wm.getMostRecentWindow("Sync:" + type);
     if (openedDialog != null) {
@@ -65,7 +65,8 @@ let gSyncUtils = {
     // Open up the change dialog
     let changeXUL = "chrome://communicator/content/sync/syncGenericChange.xul";
     let changeOpt = "centerscreen,chrome,dialog,modal,resizable=no";
-    Services.ww.activeWindow.openDialog(changeXUL, "", changeOpt, type);
+    Services.ww.activeWindow.openDialog(changeXUL, "", changeOpt,
+                                        type, duringSetup);
   },
 
   changePassword: function () {
@@ -73,9 +74,9 @@ let gSyncUtils = {
       this.openChange("ChangePassword");
   },
 
-  resetPassphrase: function () {
+  resetPassphrase: function (duringSetup) {
     if (Weave.Utils.ensureMPUnlocked())
-      this.openChange("ResetPassphrase");
+      this.openChange("ResetPassphrase", duringSetup);
   },
 
   updatePassphrase: function () {
@@ -187,13 +188,14 @@ let gSyncUtils = {
    * @param elid : ID of the form element containing the passphrase.
    */
   passphraseSave: function(elid) {
-    let dialogTitle = this._stringBundle.GetStringFromName("save.synckey.title");
+    let dialogTitle = this._stringBundle.GetStringFromName("save.recoverykey.title");
+    let defaultSaveName = this._stringBundle.GetStringFromName("save.recoverykey.defaultfilename");
     this._preparePPiframe(elid, function(iframe) {
       let filepicker = Cc["@mozilla.org/filepicker;1"]
                          .createInstance(Ci.nsIFilePicker);
       filepicker.init(window, dialogTitle, Ci.nsIFilePicker.modeSave);
       filepicker.appendFilters(Ci.nsIFilePicker.filterHTML);
-      filepicker.defaultString = "SeaMonkey Sync Key.xhtml";
+      filepicker.defaultString = defaultSaveName;
       let rv = filepicker.show();
       if (rv == Ci.nsIFilePicker.returnOK
           || rv == Ci.nsIFilePicker.returnReplace) {
@@ -236,7 +238,7 @@ let gSyncUtils = {
     else if (val1 && val1 == Weave.Service.password)
       error = "change.password.pwSameAsPassword";
     else if (val1 && val1 == Weave.Service.passphrase)
-      error = "change.password.pwSameAsSyncKey";
+      error = "change.password.pwSameAsRecoveryKey";
     else if (val1 && val2) {
       if (val1 == val2 && val1.length >= Weave.MIN_PASS_LENGTH)
         valid = true;

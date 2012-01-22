@@ -69,7 +69,7 @@ class BloatRunTestOptions(optparse.OptionParser):
         self.add_option("--brand",
                         action = "store", type = "string", dest = "brand",
                         help = "The current branding, including Debug if necessary")
-        defaults["brand"] = "Shredder"
+        defaults["brand"] = "Daily"
 
         self.add_option("--symbols-path",
                         action = "store", type = "string", dest = "symbols",
@@ -124,7 +124,7 @@ if os.path.exists(PROFILE):
   shutil.rmtree(PROFILE)
 os.mkdir(PROFILE)
 
-defaultEnv = dict(os.environ)
+defaultEnv = automation.environment()
 defaultEnv['NO_EM_RESTART'] = '1'
 if (not "XPCOM_DEBUG_BREAK" in defaultEnv):
   defaultEnv['XPCOM_DEBUG_BREAK'] = 'stack'

@@ -47,6 +47,11 @@
 
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 
+#msgcomposeWindow:-moz-lwtheme {
+  background-repeat: no-repeat;
+  background-position: top right;
+}
+
 #attachmentBucket {
   width: 15em;
 }
@@ -84,6 +89,15 @@ toolbar:not(:-moz-lwtheme) {
 
 #MsgHeadersToolbar {
   min-height: 132px;
+  text-shadow: none;
+  color: -moz-DialogText;
+  background-color: -moz-Dialog;
+}
+
+@media all and (-moz-windows-default-theme) {
+  #MsgHeadersToolbar  {
+    background-color: rgb(207, 219, 236);
+  }
 }
 
 /* ::::: primary toolbar buttons ::::: */
@@ -518,6 +532,13 @@ toolbox[labelalign="end"] > toolbar[mode="full"] deck .toolbarbutton-text {
 
 #FormatToolbar {
   border-top: 1px solid ThreeDShadow !important;
+  background-color: -moz-Dialog;
+}
+
+@media all and (-moz-windows-default-theme) {
+  #FormatToolbar  {
+    background-color: rgb(207, 219, 236);
+  }
 }
 
 toolbarbutton.formatting-button {
@@ -773,8 +794,17 @@ toolbarbutton.formatting-button {
 
 /* ::::: address book sidebar ::::: */
 
+#sidebar-box sidebarheader {
+  -moz-appearance: toolbox;
+  color: -moz-DialogText;
+  text-shadow: none;
+  border-bottom: 1px solid ThreeDShadow;
+  border-top: 1px solid ThreeDHighlight;
+  background-color: -moz-Dialog;
+}
+
 @media all and (-moz-windows-default-theme) {
-  sidebarheader {
+  #sidebar-box sidebarheader {
     -moz-appearance: none;
     background-color: #F8F8F8;
     border-top: 0;

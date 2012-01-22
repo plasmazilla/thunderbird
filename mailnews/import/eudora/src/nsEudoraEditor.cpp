@@ -168,6 +168,10 @@ NS_IMETHODIMP nsEudoraEditor::GetIsDocumentEditable(PRBool *aIsDocumentEditable)
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+NS_IMETHODIMP nsEudoraEditor::GetIsSelectionEditable(PRBool *aIsSelectionEditable)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
 
 // readonly attribute nsIDOMDocument document
 NS_IMETHODIMP nsEudoraEditor::GetDocument(nsIDOMDocument * *aDocument)
@@ -949,6 +953,11 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::GetParentNode(nsIDOMNode * *aParentNode)
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+// readonly attribute nsIDOMNode parentElement
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetParentElement(nsIDOMElement * *aParentElement)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
 
 // readonly attribute nsIDOMNodeList childNodes
 NS_IMETHODIMP nsEudoraHTMLImageElement::GetChildNodes(nsIDOMNodeList * *aChildNodes)
@@ -1508,6 +1517,11 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::SetTextContent(const nsAString & aTextCo
 }
 
 NS_IMETHODIMP nsEudoraHTMLImageElement::IsSameNode(nsIDOMNode *other, PRBool *_retval NS_OUTPARAM)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::Contains(nsIDOMNode* aOther, PRBool* aReturn)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }

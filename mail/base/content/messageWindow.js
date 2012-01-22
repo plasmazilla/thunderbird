@@ -677,21 +677,6 @@ function ReloadMessage()
     gFolderDisplay.view.dbView.reloadMessage();
 }
 
-function MsgDeleteMessageFromMessageWindow(reallyDelete, fromToolbar)
-{
-  // if from the toolbar, return right away if this is a news message
-  // only allow cancel from the menu:  "Edit | Cancel / Delete Message"
-  if (fromToolbar && gFolderDisplay.view.isNewsFolder)
-      return;
-
-  gFolderDisplay.hintAboutToDeleteMessages();
-
-  if (reallyDelete)
-    gFolderDisplay.doCommand(nsMsgViewCommandType.deleteNoTrash);
-  else
-    gFolderDisplay.doCommand(nsMsgViewCommandType.deleteMsg);
-}
-
 // MessageWindowController object (handles commands when one of the trees does not have focus)
 var MessageWindowController =
 {
@@ -707,6 +692,7 @@ var MessageWindowController =
       case "button_delete":
       case "button_junk":
       case "cmd_shiftDelete":
+      case "button_shiftDelete":
       case "cmd_tag":
       case "cmd_removeTags":
       case "cmd_tag1":
@@ -821,6 +807,7 @@ var MessageWindowController =
         UpdateDeleteToolbarButton();
         return gFolderDisplay.getCommandStatus(nsMsgViewCommandType.deleteMsg);
       case "cmd_shiftDelete":
+      case "button_shiftDelete":
         return gFolderDisplay.getCommandStatus(nsMsgViewCommandType.deleteNoTrash);
       case "button_junk":
         UpdateJunkToolbarButton();
@@ -1021,17 +1008,16 @@ var MessageWindowController =
       case "cmd_createFilterFromMenu":
         MsgCreateFilter();
         break;
+      case "button_delete":
       case "cmd_delete":
-        MsgDeleteMessageFromMessageWindow(false, false);
+        gFolderDisplay.doCommand(nsMsgViewCommandType.deleteMsg);
         break;
+      case "button_shiftDelete":
       case "cmd_shiftDelete":
-        MsgDeleteMessageFromMessageWindow(true, false);
+        gFolderDisplay.doCommand(nsMsgViewCommandType.deleteNoTrash);
         break;
       case "button_junk":
         MsgJunk();
-        break;
-      case "button_delete":
-        MsgDeleteMessageFromMessageWindow(false, true);
         break;
       case "cmd_printSetup":
         PrintUtils.showPageSetup();

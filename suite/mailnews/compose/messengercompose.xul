@@ -56,6 +56,7 @@
 <?xul-overlay href="chrome://editor/content/editorOverlay.xul"?>
 <?xul-overlay href="chrome://editor/content/editorSmileyOverlay.xul"?>
 <?xul-overlay href="chrome://messenger/content/messengercompose/mailComposeExtrasOverlay.xul"?>
+<?xul-overlay href="chrome://messenger/content/mailOverlay.xul"?>
 
 <!DOCTYPE window [
 <!ENTITY % messengercomposeDTD SYSTEM "chrome://messenger/locale/messengercompose/messengercompose.dtd" >
@@ -118,11 +119,10 @@
   <commandset id="composerListMenuItems"/>
   <commandset id="tasksCommands"/>
   <!-- File Menu -->
-  <command id="cmd_new" oncommand="goDoCommand('cmd_newMessage')"/>
   <command id="cmd_attachFile" oncommand="goDoCommand('cmd_attachFile')"/>
   <command id="cmd_attachPage" oncommand="goDoCommand('cmd_attachPage')"/>
   <command id="cmd_attachVCard" checked="false" oncommand="ToggleAttachVCard(event.target)"/>
-  <command id="cmd_saveDefault" oncommand="goDoCommand('cmd_saveDefault')"/>
+  <command id="cmd_save" oncommand="goDoCommand('cmd_save')"/>
   <command id="cmd_saveAsFile" oncommand="goDoCommand('cmd_saveAsFile')"/>
   <command id="cmd_saveAsDraft" oncommand="goDoCommand('cmd_saveAsDraft')"/>
   <command id="cmd_saveAsTemplate" oncommand="goDoCommand('cmd_saveAsTemplate')"/>
@@ -157,24 +157,14 @@
 
 <keyset id="tasksKeys">
   <!-- File Menu -->
-  <key id="key_close"/>
-  <key id="key_save"  key="&saveCmd.key;" command="cmd_saveDefault" modifiers="accel"/>
   <key id="key_send" keycode="&sendCmd.keycode;" observes="cmd_sendWithCheck" modifiers="accel"/>
   <key id="key_sendLater" keycode="&sendLaterCmd.keycode;" observes="cmd_sendLater" modifiers="accel, shift"/>
-  <key id="key_print"  key="&printCmd.key;" command="cmd_print" modifiers="accel"/>
 
   <!-- Edit Menu -->
   <key id="key_rewrap" key="&editRewrapCmd.key;" command="cmd_rewrap" modifiers="accel"/>
-  <key id="key_delete2"/>
-  <keyset id="findKeys"/>
 
   <!-- Options Menu -->
   <!-- key id="key_selectAddresses" key="&selectAddressCmd.key;" command="cmd_selectAddress"/ -->
-  <key id="key_checkspelling"
-       key="&checkSpellingCmd2.key;"
-       command="cmd_spelling"
-       modifiers="accel,shift"
-  />
 
   <key id="showHideSidebar"/>
   <!-- Tab/F6 Keys -->
@@ -243,12 +233,9 @@
             <menupopup id="menu_FilePopup">
               <menu id="menu_New">
                 <menupopup id="menu_NewPopup">
-                  <menuitem id="menu_NewMessage"
-                            label="&newMessage.label;"
-                            accesskey="&newMessage.accesskey;"
-                            key="key_newMessage"
-                            oncommand="goOpenNewMessage();"/>
+                  <menuitem id="menu_newMessage"/>
                   <menuseparator id="menuNewPopupSeparator"/>
+                  <menuitem id="menu_newCard"/>
                   <menuitem id="menu_newNavigator"/>
                   <menuitem id="menu_newEditor"/>
                 </menupopup>
@@ -279,7 +266,7 @@
                         label="&saveCmd.label;"
                         accesskey="&saveCmd.accesskey;"
                         key="key_save"
-                        command="cmd_saveDefault"/>
+                        command="cmd_save"/>
               <menu id="menu_SaveAsCmd"
                     label="&saveAsCmd.label;"
                     accesskey="&saveAsCmd.accesskey;">
@@ -310,14 +297,8 @@
                         key="key_sendLater"
                         command="cmd_sendLater"/>
               <menuseparator id="menuFileAfterSendLaterSeparator"/>
-              <menuitem id="printSetupMenuItem"
-                        label="&printSetupCmd.label;"
-                        accesskey="&printSetupCmd.accesskey;"
-                        command="cmd_printSetup"/>
-              <menuitem id="printMenuItem"
-                        label="&printCmd.label;"
-                        accesskey="&printCmd.accesskey;"
-                        key="key_print" command="cmd_print"/>
+              <menuitem id="menu_printSetup"/>
+              <menuitem id="menu_print"/>
             </menupopup>
           </menu>
           <menu id="menu_Edit">
@@ -654,7 +635,7 @@
                      class="toolbarbutton-1"
                      label="&saveButton.label;"
                      tooltiptext="&saveButton.tooltip;"
-                     command="cmd_saveDefault">
+                     command="cmd_save">
         <menupopup id="button-savePopup">
           <menuitem id="button-saveAsFile"
                     label="&saveAsFileCmd.label;"

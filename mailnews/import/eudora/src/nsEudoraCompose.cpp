@@ -71,6 +71,7 @@
 #include "nsMsgUtils.h"
 #include "nsNetUtil.h"
 #include "nsAutoPtr.h"
+#include "nsIMutableArray.h"
 
 static NS_DEFINE_CID( kMsgSendCID, NS_MSGSEND_CID);
 static NS_DEFINE_CID( kMsgCompFieldsCID, NS_MSGCOMPFIELDS_CID);
@@ -193,8 +194,6 @@ nsEudoraCompose::nsEudoraCompose()
   m_pIOService = nsnull;
   m_pAttachments = nsnull;
   m_pListener = nsnull;
-  m_pMsgSend = nsnull;
-  m_pSendProxy = nsnull;
   m_pMsgFields = nsnull;
   m_pHeaders = p_test_headers;
   if (m_pHeaders)
@@ -213,9 +212,7 @@ nsEudoraCompose::nsEudoraCompose()
 
 nsEudoraCompose::~nsEudoraCompose()
 {
-  NS_IF_RELEASE( m_pSendProxy);
   NS_IF_RELEASE( m_pIOService);
-  NS_IF_RELEASE( m_pMsgSend);
   NS_IF_RELEASE( m_pListener);
   NS_IF_RELEASE( m_pMsgFields);
 }
@@ -273,23 +270,10 @@ nsresult nsEudoraCompose::CreateComponents( void)
   }
 
   NS_IF_RELEASE( m_pMsgFields);
-  if (!m_pMsgSend) {
-    rv = CallCreateInstance( kMsgSendCID, &m_pMsgSend);
-    if (NS_SUCCEEDED( rv) && m_pMsgSend) {
-      rv = NS_GetProxyForObject( NS_PROXY_TO_MAIN_THREAD, NS_GET_IID(nsIMsgSend),
-                  m_pMsgSend, NS_PROXY_SYNC, (void**)&m_pSendProxy);
-      if (NS_FAILED( rv)) {
-        m_pSendProxy = nsnull;
-        NS_RELEASE( m_pMsgSend);
-        m_pMsgSend = nsnull;
-      }
-    }
-  }
-  if (!m_pListener && NS_SUCCEEDED( rv)) {
+  if (!m_pListener && NS_SUCCEEDED( rv))
     rv = EudoraSendListener::CreateSendListener( &m_pListener);
-  }
 
-  if (NS_SUCCEEDED(rv) && m_pMsgSend) {
+  if (NS_SUCCEEDED(rv)) {
       rv = CallCreateInstance( kMsgCompFieldsCID, &m_pMsgFields);
     if (NS_SUCCEEDED(rv) && m_pMsgFields) {
       // IMPORT_LOG0( "nsOutlookCompose - CreateComponents succeeded\n");
@@ -527,70 +511,54 @@ void nsEudoraCompose::ExtractType( nsString& str)
   }
 }
 
-void nsEudoraCompose::CleanUpAttach( nsMsgAttachedFile *a, PRInt32 count)
-{
-  for (PRInt32 i = 0; i < count; i++) {
-    a[i].orig_url=nsnull;
-    if (a[i].type)
-      NS_Free( a[i].type);
-    if (a[i].description)
-      NS_Free( a[i].description);
-    if (a[i].encoding)
-      NS_Free( a[i].encoding);
-  }
-  delete [] a;
-}
-
-nsMsgAttachedFile * nsEudoraCompose::GetLocalAttachments( void)
+nsresult nsEudoraCompose::GetLocalAttachments(nsIArray **aArray)
 {
   /*
   nsIURI      *url = nsnull;
   */
-
+  nsresult rv;
+  nsCOMPtr<nsIMutableArray> attachments (do_CreateInstance(NS_ARRAY_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+  NS_IF_ADDREF(*aArray = attachments);
   PRInt32 count = 0;
   if (m_pAttachments)
     count = m_pAttachments->Count();
   if (!count)
-    return( nsnull);
-
-  nsMsgAttachedFile *a = (nsMsgAttachedFile *) new nsMsgAttachedFile[count + 1];
-  if (!a)
-    return( nsnull);
-  memset(a, 0, sizeof(nsMsgAttachedFile) * (count + 1));
+    return NS_OK;
 
   nsCString urlStr;
   ImportAttachment * pAttach;
 
   for (PRInt32 i = 0; i < count; i++) {
+    nsCOMPtr<nsIMsgAttachedFile> a(do_CreateInstance(NS_MSGATTACHEDFILE_CONTRACTID, &rv));
+    NS_ENSURE_SUCCESS(rv, rv);
     // nsMsgNewURL(&url, "file://C:/boxster.jpg");
     // a[i].orig_url = url;
 
     // NS_PRECONDITION( PR_FALSE, "Forced Break");
 
     pAttach = (ImportAttachment *) m_pAttachments->ElementAt( i);
-                a[i].tmp_file = do_QueryInterface(pAttach->pAttachment);
+    nsCOMPtr<nsILocalFile> tmpFile = do_QueryInterface(pAttach->pAttachment);
+    a->SetTmpFile(tmpFile);
     urlStr.Adopt(0);
 
     nsCOMPtr <nsIURI> uri;
     nsresult rv = NS_NewFileURI(getter_AddRefs(uri), pAttach->pAttachment);
     NS_ENSURE_SUCCESS(rv, nsnull);
     uri->GetSpec(urlStr);
-    if (urlStr.IsEmpty()) {
-      CleanUpAttach( a, count);
-      return( nsnull);
-    }
-    rv = m_pIOService->NewURI( urlStr, nsnull, nsnull, getter_AddRefs(a[i].orig_url));
-    if (NS_FAILED( rv)) {
-      CleanUpAttach( a, count);
-      return( nsnull);
-    }
+    if (urlStr.IsEmpty())
+      return NS_ERROR_FAILURE;
 
-    a[i].type = strdup( pAttach->mimeType);
-    a[i].real_name = strdup( pAttach->description);
-    a[i].encoding = strdup( ENCODING_BINARY);
+    nsCOMPtr<nsIURI> origUrl;
+    rv = m_pIOService->NewURI( urlStr, nsnull, nsnull, getter_AddRefs(origUrl));
+    NS_ENSURE_SUCCESS(rv, rv);
+    a->SetOrigUrl(origUrl);
+    a->SetType(nsDependentCString(pAttach->mimeType));
+    a->SetRealName(nsDependentCString(pAttach->description));
+    a->SetEncoding(NS_LITERAL_CSTRING(ENCODING_BINARY));
+    attachments->AppendElement(a, PR_FALSE);
   }
-
-  return( a);
+  return NS_OK;
 }
 
 // Test a message send????
@@ -661,8 +629,8 @@ nsresult nsEudoraCompose::SendTheMessage(nsIFile *pMailImportLocation, nsIFile *
     pMimeType = ToNewCString(m_bodyType);
 
   // IMPORT_LOG0( "Outlook compose calling CreateAndSendMessage\n");
-  nsMsgAttachedFile *pAttach = GetLocalAttachments();
-
+  nsCOMPtr<nsIArray> pAttach;
+  GetLocalAttachments(getter_AddRefs(pAttach));
 
   /*
     l10n - I have the body of the message in the system charset,
@@ -714,60 +682,19 @@ nsresult nsEudoraCompose::SendTheMessage(nsIFile *pMailImportLocation, nsIFile *
     // There's embedded content that we need to import, so query for the editor interface
     pEudoraEditor->QueryInterface( NS_GET_IID(nsIEditor), getter_AddRefs(pEditor) );
 
-  if (NS_FAILED( rv)) {
+  nsCOMPtr<nsIImportService> impService(do_GetService(NS_IMPORTSERVICE_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+  impService->ProxySend(pEditor,                       // pseudo editor shell when there's embedded content
+                        s_pIdentity,                  // dummy identity
+                        m_pMsgFields,                 // message fields
+                        mode,                         // mode
+                        pMimeType,                    // body type
+                        body.get(),                   // body pointer
+                        body.Length(),                // body length
+                        pAttach,                      // local attachments
+                        m_pListener);              // originalMsgURI
 
-    rv = m_pSendProxy->CreateAndSendMessage(
-                          pEditor.get(),                // pseudo editor shell when there's embedded content
-                          s_pIdentity,                  // dummy identity
-                          nsnull,                       // account key
-                          m_pMsgFields,                 // message fields
-                          PR_FALSE,                     // digest = NO
-                          PR_TRUE,                      // dont_deliver = YES, make a file
-                          mode,                         // mode
-                          nsnull,                       // no message to replace
-                          pMimeType,                    // body type
-                          m_pBody,                      // body pointer
-                          m_bodyLen,                    // body length
-                          nsnull,                       // remote attachment data
-                          pAttach,                      // local attachments
-                          nsnull,                       // related part
-                          nsnull,                       // parent window
-                          nsnull,                       // progress listener
-                          m_pListener,                  // listener
-                          nsnull,                       // password
-                          EmptyCString(),               // originalMsgURI
-                          nsnull);                      // message compose type
-
-  }
-  else {
-    rv = m_pSendProxy->CreateAndSendMessage(
-                          pEditor.get(),                // pseudo editor shell when there's embedded content
-                          s_pIdentity,                  // dummy identity
-                          nsnull,                       // account key
-                          m_pMsgFields,                 // message fields
-                          PR_FALSE,                     // digest = NO
-                          PR_TRUE,                      // dont_deliver = YES, make a file
-                          mode,                         // mode
-                          nsnull,                       // no message to replace
-                          pMimeType,                    // body type
-                          body.get(),                   // body pointer
-                          body.Length(),                // body length
-                          nsnull,                       // remote attachment data
-                          pAttach,                      // local attachments
-                          nsnull,                       // related part
-                          nsnull,                       // parent window
-                          nsnull,                       // progress listener
-                          m_pListener,                  // listener
-                          nsnull,                       // password
-                          EmptyCString(),               // originalMsgURI
-                          nsnull);                      // message compose type
-
-  }
-
-  // IMPORT_LOG0( "Returned from CreateAndSendMessage\n");
-
-  if (pAttach)
-    delete [] pAttach;
+  // IMPORT_LOG0( "Returned from ProxySend\n");
 
   EudoraSendListener *pListen = (EudoraSendListener *)m_pListener;
   if (NS_FAILED( rv)) {

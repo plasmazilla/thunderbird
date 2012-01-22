@@ -12,8 +12,9 @@
 user_pref("app.update.lastUpdateTime.addon-background-update-timer", 1273257684);
 user_pref("app.update.lastUpdateTime.background-update-timer", 1273257684);
 user_pref("app.update.lastUpdateTime.blocklist-background-update-timer", 1273257684);
-user_pref("extensions.checkCompatibility.8.0a", false);
-user_pref("extensions.checkCompatibility.8.0", false);
+user_pref("extensions.checkCompatibility.9.0a", false);
+user_pref("extensions.checkCompatibility.9.0", false);
+user_pref("extensions.testpilot.lastversion", "1.0");
 user_pref("extensions.autoDisableScopes", 10);
 user_pref("intl.charsetmenu.mailview.cache", "windows-1252, ISO-8859-1, UTF-8");
 user_pref("ldap_2.prefs_migrated", true);
@@ -104,4 +105,5 @@ user_pref("mailnews.tags.$label5.tag", "Later");
 user_pref("mailnews.tags.version", 2);
 user_pref("mailnews.ui.threadpane.version", 5);
 user_pref("pref.downloads.disable_button.edit_actions", false);
+user_pref("toolkit.telemetry.prompted", true);
 user_pref("wallet.caveat", true);
