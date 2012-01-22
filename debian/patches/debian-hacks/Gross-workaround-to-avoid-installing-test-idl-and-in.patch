@@ -6,15 +6,15 @@ Subject: Gross workaround to avoid installing test idl and include files in
 https://bugzilla.mozilla.org/show_bug.cgi?id=542749
 
 ---
- mozilla/config/rules.mk        |   12 +++++++++++-
- mozilla/js/src/config/rules.mk |   12 +++++++++++-
- 2 files changed, 22 insertions(+), 2 deletions(-)
+ mozilla/config/rules.mk        |   14 ++++++++++++--
+ mozilla/js/src/config/rules.mk |   14 ++++++++++++--
+ 2 files changed, 24 insertions(+), 4 deletions(-)
 
 diff --git a/mozilla/config/rules.mk b/mozilla/config/rules.mk
-index 4243d4f..97ce4ff 100644
+index e9d9414..52f0325 100644
 --- a/mozilla/config/rules.mk
 +++ b/mozilla/config/rules.mk
-@@ -62,6 +62,16 @@ ifdef SDK_HEADERS
+@@ -64,6 +64,16 @@ ifdef SDK_HEADERS
  EXPORTS += $(SDK_HEADERS)
  endif
  
@@ -31,20 +31,22 @@ index 4243d4f..97ce4ff 100644
  REPORT_BUILD = @echo $(notdir $<)
  
  ifeq ($(OS_ARCH),OS2)
-@@ -1584,7 +1594,7 @@ ifndef NO_DIST_INSTALL
+@@ -1514,8 +1524,8 @@ ifndef NO_DIST_INSTALL
  export:: $(XPIDLSRCS) $(IDL_DIR)
  	$(INSTALL) $(IFLAGS1) $^
  
 -export:: $(patsubst %.idl,$(XPIDL_GEN_DIR)/%.h, $(XPIDLSRCS)) $(DIST)/include
+-	$(INSTALL) $(IFLAGS1) $^
 +export:: $(patsubst %.idl,$(XPIDL_GEN_DIR)/%.h, $(XPIDLSRCS)) $(INCLUDE_DIR)
- 	$(INSTALL) $(IFLAGS1) $^ 
++	$(INSTALL) $(IFLAGS1) $^ 
  endif # NO_DIST_INSTALL
  
+ endif # XPIDLSRCS
 diff --git a/mozilla/js/src/config/rules.mk b/mozilla/js/src/config/rules.mk
-index 4243d4f..97ce4ff 100644
+index e9d9414..52f0325 100644
 --- a/mozilla/js/src/config/rules.mk
 +++ b/mozilla/js/src/config/rules.mk
-@@ -62,6 +62,16 @@ ifdef SDK_HEADERS
+@@ -64,6 +64,16 @@ ifdef SDK_HEADERS
  EXPORTS += $(SDK_HEADERS)
  endif
  
@@ -61,13 +63,15 @@ index 4243d4f..97ce4ff 100644
  REPORT_BUILD = @echo $(notdir $<)
  
  ifeq ($(OS_ARCH),OS2)
-@@ -1584,7 +1594,7 @@ ifndef NO_DIST_INSTALL
+@@ -1514,8 +1524,8 @@ ifndef NO_DIST_INSTALL
  export:: $(XPIDLSRCS) $(IDL_DIR)
  	$(INSTALL) $(IFLAGS1) $^
  
 -export:: $(patsubst %.idl,$(XPIDL_GEN_DIR)/%.h, $(XPIDLSRCS)) $(DIST)/include
+-	$(INSTALL) $(IFLAGS1) $^
 +export:: $(patsubst %.idl,$(XPIDL_GEN_DIR)/%.h, $(XPIDLSRCS)) $(INCLUDE_DIR)
- 	$(INSTALL) $(IFLAGS1) $^ 
++	$(INSTALL) $(IFLAGS1) $^ 
  endif # NO_DIST_INSTALL
  
+ endif # XPIDLSRCS
 -- 

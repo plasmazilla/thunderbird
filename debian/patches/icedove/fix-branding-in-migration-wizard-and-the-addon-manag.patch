@@ -7,14 +7,13 @@ Update %APP% with the respective Mozilla names so
 addon-checking/installing/updating will work
 
 Closes: #565559
-
 ---
  mail/app/profile/all-thunderbird.js                |   20 ++++++++++----------
  .../en-US/chrome/messenger/accountCreation.dtd     |    2 +-
  2 files changed, 11 insertions(+), 11 deletions(-)
 
 diff --git a/mail/app/profile/all-thunderbird.js b/mail/app/profile/all-thunderbird.js
-index fb04605..6dd01dd 100644
+index 2c71a0a..b3a019a 100644
 --- a/mail/app/profile/all-thunderbird.js
 +++ b/mail/app/profile/all-thunderbird.js
 @@ -102,7 +102,7 @@ pref("app.update.url", "https://aus2.mozillamessaging.com/update/3/%PRODUCT%/%VE
@@ -63,7 +62,7 @@ index fb04605..6dd01dd 100644
  pref("extensions.dss.enabled", false);          // Dynamic Skin Switching                                               
  pref("extensions.dss.switchPending", false);    // Non-dynamic switch pending after next
  
-@@ -358,7 +358,7 @@ pref("javascript.options.showInConsole",    true);
+@@ -361,7 +361,7 @@ pref("javascript.options.showInConsole",    true);
  
  pref("spellchecker.dictionary", "");
  // Dictionary download preference
@@ -72,7 +71,7 @@ index fb04605..6dd01dd 100644
  
  // profile.force.migration can be used to bypass the migration wizard, forcing migration from a particular
  // mail application without any user intervention. Possible values are: 
-@@ -495,7 +495,7 @@ pref("mailnews.database.global.indexer.enabled", true);
+@@ -498,7 +498,7 @@ pref("mailnews.database.global.indexer.enabled", true);
  pref("mailnews.database.global.logging.console", true);
  
  // page to load to find good header add-ons

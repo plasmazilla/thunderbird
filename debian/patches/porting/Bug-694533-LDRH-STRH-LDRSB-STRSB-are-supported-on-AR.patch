@@ -7,12 +7,12 @@ Subject: Bug 694533 - LDRH/STRH/LDRSB/STRSB are supported on ARMv5-
  1 files changed, 0 insertions(+), 6 deletions(-)
 
 diff --git a/mozilla/js/src/assembler/assembler/ARMAssembler.h b/mozilla/js/src/assembler/assembler/ARMAssembler.h
-index 15681f8..8dd0a5b 100644
+index 7a512a1..cd0d540 100644
 --- a/mozilla/js/src/assembler/assembler/ARMAssembler.h
 +++ b/mozilla/js/src/assembler/assembler/ARMAssembler.h
-@@ -196,11 +196,9 @@ namespace JSC {
-             MUL = 0x00000090,
-             MULL = 0x00c00090,
+@@ -205,11 +205,9 @@ namespace JSC {
+             FCMPD = 0x0eb40b40,
+             FSQRTD = 0x0eb10bc0,
              DTR = 0x05000000,
 -#if WTF_ARM_ARCH_VERSION >= 5
              LDRH = 0x00100090,
@@ -22,7 +22,7 @@ index 15681f8..8dd0a5b 100644
              STMDB = 0x09200000,
              LDMIA = 0x08b00000,
              B = 0x0a000000,
-@@ -575,8 +573,6 @@ namespace JSC {
+@@ -597,8 +595,6 @@ namespace JSC {
                           (posOffset ? DT_UP : 0), rd, rb, offset);
              } else {
                  /* All 16 bit ops and 8 bit unsigned use the newer encoding.*/
@@ -31,7 +31,7 @@ index 15681f8..8dd0a5b 100644
                  emitInst(static_cast<ARMWord>(cc) | DTRH | HDT_IMM | DT_PRE |
                           (isLoad ? DT_LOAD : 0) |
                           (size == 16 ? HDT_UH : 0) |
-@@ -615,7 +611,6 @@ namespace JSC {
+@@ -637,7 +633,6 @@ namespace JSC {
                           OP2_OFSREG, rd, rb, rm);
              } else {
                  /* All 16 bit ops and 8 bit unsigned use the newer encoding.*/
@@ -39,7 +39,7 @@ index 15681f8..8dd0a5b 100644
                  emitInst(static_cast<ARMWord>(cc) | DTRH | DT_PRE |
                           (isLoad ? DT_LOAD : 0) |
                           (size == 16 ? HDT_UH : 0) |
-@@ -715,7 +710,6 @@ namespace JSC {
+@@ -737,7 +732,6 @@ namespace JSC {
          // Data transfers like this:
          //  LDRSB rd, [rb, #-offset]
          //  STRSB rd, [rb, #-offset]

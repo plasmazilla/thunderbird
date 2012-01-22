@@ -11,7 +11,7 @@ loaded in most cases.
  1 files changed, 2 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/xulrunner/app/Makefile.in b/mozilla/xulrunner/app/Makefile.in
-index 10ebe16..187809b 100644
+index d6efcbb..eae02da 100644
 --- a/mozilla/xulrunner/app/Makefile.in
 +++ b/mozilla/xulrunner/app/Makefile.in
 @@ -83,7 +83,9 @@ endif

@@ -3,7 +3,6 @@ Date: Fri, 4 Nov 2011 12:59:40 +0100
 Subject: Install calendar timezones mode 0644 not 0755
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=699894
-
 ---
  calendar/lightning/Makefile.in |    2 +-
  calendar/timezones/Makefile.in |    2 +-

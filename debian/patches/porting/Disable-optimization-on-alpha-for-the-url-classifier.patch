@@ -9,10 +9,10 @@ The use of this component leads to crashes when built with optimizations.
  1 files changed, 4 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/toolkit/components/url-classifier/Makefile.in b/mozilla/toolkit/components/url-classifier/Makefile.in
-index 52aab01..33bd155 100644
+index 7d69023..eaacf2c 100644
 --- a/mozilla/toolkit/components/url-classifier/Makefile.in
 +++ b/mozilla/toolkit/components/url-classifier/Makefile.in
-@@ -83,4 +83,8 @@ ifdef ENABLE_TESTS
+@@ -86,4 +86,8 @@ ifdef ENABLE_TESTS
  TOOL_DIRS += tests
  endif
  

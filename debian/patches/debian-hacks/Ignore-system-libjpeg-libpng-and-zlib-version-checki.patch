@@ -11,10 +11,10 @@ internal version, which makes system library not used even though
  1 files changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 140a358..9c892ba 100644
+index cf849e1..da82a90 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
-@@ -4541,7 +4541,7 @@ else
+@@ -4120,7 +4120,7 @@ else
      AC_CHECK_LIB(jpeg, jpeg_destroy_compress, [SYSTEM_JPEG=1 JPEG_LIBS="-ljpeg $JPEG_LIBS"], SYSTEM_JPEG=, $JPEG_LIBS)
  fi
  
@@ -23,8 +23,8 @@ index 140a358..9c892ba 100644
      LIBS="$JPEG_LIBS $LIBS"
      AC_TRY_COMPILE([ #include <stdio.h>
                       #include <sys/types.h>
-@@ -4581,7 +4581,7 @@ else
-     AC_CHECK_LIB(z, gzread, [SYSTEM_ZLIB=1 ZLIB_LIBS="-lz $ZLIB_LIBS"], 
+@@ -4160,7 +4160,7 @@ else
+     AC_CHECK_LIB(z, gzread, [SYSTEM_ZLIB=1 ZLIB_LIBS="-lz $ZLIB_LIBS"],
  	[SYSTEM_ZLIB= ZLIB_CFLAGS= ZLIB_LIBS=], $ZLIB_LIBS)
  fi
 -if test "$SYSTEM_ZLIB" = 1; then
@@ -32,7 +32,7 @@ index 140a358..9c892ba 100644
      LIBS="$ZLIB_LIBS $LIBS"
      AC_TRY_COMPILE([ #include <stdio.h>
                       #include <string.h>
-@@ -4657,7 +4657,7 @@ else
+@@ -4236,7 +4236,7 @@ else
                   AC_MSG_ERROR([--with-system-png won't work because the system's libpng doesn't have APNG support]),
                   $_SAVE_PNG_LIBS)
  fi

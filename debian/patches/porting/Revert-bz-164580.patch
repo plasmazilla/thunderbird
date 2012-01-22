@@ -3,7 +3,6 @@ Date: Fri, 27 May 2011 16:50:37 -0400
 Subject: Revert bz#164580
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=164580
-
 ---
  mozilla/xpcom/glue/nsID.h |   14 +++++++++++---
  1 files changed, 11 insertions(+), 3 deletions(-)

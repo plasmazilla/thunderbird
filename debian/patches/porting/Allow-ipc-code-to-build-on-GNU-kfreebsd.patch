@@ -9,12 +9,12 @@ Subject: Allow ipc code to build on GNU/kfreebsd
  3 files changed, 6 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
-index 3789715..7cdbd63 100644
+index e3f49c7..f1d3b2f 100644
 --- a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
 +++ b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
-@@ -34,7 +34,11 @@ PlatformThreadId PlatformThread::CurrentId() {
- #if defined(OS_MACOSX)
-   return mach_thread_self();
+@@ -37,7 +37,11 @@ PlatformThreadId PlatformThread::CurrentId() {
+   // TODO(BSD): find a better thread ID
+   return (intptr_t)(pthread_self());
  #elif defined(OS_LINUX)
 +#ifdef __NR_gettid
    return syscall(__NR_gettid);
@@ -25,7 +25,7 @@ index 3789715..7cdbd63 100644
  }
  
 diff --git a/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h b/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h
-index d54f0d1..54fc498 100644
+index ef40994..30fef1b 100644
 --- a/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h
 +++ b/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h
 @@ -34,7 +34,7 @@
@@ -35,10 +35,10 @@ index d54f0d1..54fc498 100644
 -#elif defined(__linux__) || defined(ANDROID)
 +#elif defined(__linux__) || defined(ANDROID) || defined(__GLIBC__)
  #include "base/third_party/nspr/prcpucfg_linux.h"
- #else
- #error Provide a prcpucfg.h appropriate for your platform
+ #elif defined(__OpenBSD__)
+ #include "base/third_party/nspr/prcpucfg_openbsd.h"
 diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h
-index 3536d1c..65a72a3 100644
+index eaf1962..14ea695 100644
 --- a/mozilla/ipc/chromium/src/build/build_config.h
 +++ b/mozilla/ipc/chromium/src/build/build_config.h
 @@ -17,7 +17,7 @@
@@ -48,6 +48,6 @@ index 3536d1c..65a72a3 100644
 -#elif defined(__linux__) || defined(ANDROID)
 +#elif defined(__linux__) || defined(ANDROID) || defined(__GLIBC__)
  #define OS_LINUX 1
- #elif defined(_WIN32)
- #define OS_WIN 1
+ #elif defined(__OpenBSD__)
+ #define OS_OPENBSD 1
 -- 

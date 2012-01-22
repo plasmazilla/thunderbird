@@ -7,7 +7,7 @@ Subject: Set javascript.options.showInConsole
  1 files changed, 1 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/modules/libpref/src/init/all.js b/mozilla/modules/libpref/src/init/all.js
-index 3beaf66..ae54f45 100644
+index 5574f35..227c80f 100644
 --- a/mozilla/modules/libpref/src/init/all.js
 +++ b/mozilla/modules/libpref/src/init/all.js
 @@ -617,6 +617,7 @@ pref("javascript.options.strict",           false);

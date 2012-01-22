@@ -13,10 +13,10 @@ Ported to icedove by Christoph Goehre <chris@sigxcpu.org>
  3 files changed, 24 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/xpcom/base/nscore.h b/mozilla/xpcom/base/nscore.h
-index 938b2aa..8dc4022 100644
+index 5f656e4..22c256e 100644
 --- a/mozilla/xpcom/base/nscore.h
 +++ b/mozilla/xpcom/base/nscore.h
-@@ -410,6 +410,28 @@ typedef PRUint32 nsrefcnt;
+@@ -391,6 +391,28 @@ typedef PRUint32 nsrefcnt;
    #define HAVE_CPP_2BYTE_WCHAR_T
  #endif
  
