@@ -1,3 +1,20 @@
+icedove (9.0.1-1) experimental; urgency=low
+
+  * [e2002b8] New Upstream version 9.0.1 (Closes: #653266, #653556)
+  * [9c14e8b] replace dfsg cleanup script with Mike's repack.py
+  * [2a34bd8] rebuild patch queue from patch-queue branch
+    added patches:
+    - porting/Bug-698923-Don-t-require-16-bytes-alignment-for-VMFr.patch
+    - porting/Bug-703531-Fix-ARMAssembler-getOp2RegScale-on-ARMv5.patch
+    - porting/Bug-703833-Avoid-invalid-conversion-from-const-size_.patch
+    - porting/Bug-703842-Avoid-R_SPARC_WDISP22-relocation-in-Tramp.patch
+    - porting/Bug-711353-Add-support-for-GNU-kFreeBSD-and-GNU-Hurd.patch
+    - porting/Fix-GNU-non-Linux-failure-to-build-because-of-ipc-ch.patch
+  * [03ed85d] remove Build-Depends python-ply, it's shipped and searched in
+    mozilla/other-licenses
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 24 Jan 2012 19:13:30 +0100
+
 icedove (8.0-2) unstable; urgency=low
 
   * Upload to unstable
