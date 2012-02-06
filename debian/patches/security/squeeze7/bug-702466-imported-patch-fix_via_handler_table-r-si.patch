@@ -1,0 +1,22 @@
+From: John Schoenick <jschoenick@mozilla.com>
+Date: Fri, 27 Jan 2012 19:38:01 -0800
+Subject: bug 702466, imported patch fix_via_handler_table, r=sicking,
+ a=dveditz
+
+---
+ .../xslt/src/xslt/txStylesheetCompileHandlers.cpp  |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/content/xslt/src/xslt/txStylesheetCompileHandlers.cpp b/mozilla/content/xslt/src/xslt/txStylesheetCompileHandlers.cpp
+index 37e668e..1de5e98 100644
+--- a/mozilla/content/xslt/src/xslt/txStylesheetCompileHandlers.cpp
++++ b/mozilla/content/xslt/src/xslt/txStylesheetCompileHandlers.cpp
+@@ -2786,7 +2786,7 @@ const txHandlerTableData gTxEmbedTableData = {
+   // Other
+   { 0, 0, txFnStartEmbed, txFnEndEmbed },
+   // LRE
+-  { 0, 0, txFnStartElementIgnore, txFnEndElementIgnore },
++  { 0, 0, txFnStartEmbed, txFnEndEmbed },
+   // Text
+   txFnTextIgnore
+ };

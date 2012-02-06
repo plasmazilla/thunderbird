@@ -1,0 +1,29 @@
+From: Henri Sivonen <hsivonen@iki.fi>
+Date: Mon, 23 Jan 2012 16:52:33 -0800
+Subject: Bug 693399 - r=bzbarsky, backport=dveditz, a=dveditz
+
+---
+ content/html/document/src/nsHTMLDocument.cpp |   10 ++++++++++
+ 1 files changed, 10 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/content/html/document/src/nsHTMLDocument.cpp b/mozilla/content/html/document/src/nsHTMLDocument.cpp
+index c0e3bc8..f29abd5 100644
+--- a/mozilla/content/html/document/src/nsHTMLDocument.cpp
++++ b/mozilla/content/html/document/src/nsHTMLDocument.cpp
+@@ -1806,6 +1806,16 @@ nsHTMLDocument::OpenCommon(const nsACString& aContentType, PRBool aReplace)
+     return NS_ERROR_DOM_NOT_SUPPORTED_ERR;
+   }
+ 
++  // No calling document.open() without a script global object
++  if (!mScriptGlobalObject) {
++    return NS_OK;
++  }
++
++  nsPIDOMWindow* outer = GetWindow();
++  if (!outer || (GetInnerWindow() != outer->GetCurrentInnerWindow())) {
++    return NS_OK;
++  }
++
+   // check whether we're in the middle of unload.  If so, ignore this call.
+   nsCOMPtr<nsIDocShell> shell = do_QueryReferent(mDocumentContainer);
+   if (!shell) {

@@ -1,0 +1,277 @@
+From: John Schoenick <john@pointysoftware.net>
+Date: Fri, 27 Jan 2012 23:00:07 -0800
+Subject: bug702466 - Validate stack usage in xslt compiler r=sicking,
+ a=dveditz
+
+---
+ .../xslt/src/xslt/txStylesheetCompileHandlers.cpp  |   30 ++++++++++---------
+ content/xslt/src/xslt/txStylesheetCompiler.cpp     |   30 +++++++++++++------
+ content/xslt/src/xslt/txStylesheetCompiler.h       |   17 ++++++++++-
+ 3 files changed, 51 insertions(+), 26 deletions(-)
+
+diff --git a/mozilla/content/xslt/src/xslt/txStylesheetCompileHandlers.cpp b/mozilla/content/xslt/src/xslt/txStylesheetCompileHandlers.cpp
+index 96f8b6a..37e668e 100644
+--- a/mozilla/content/xslt/src/xslt/txStylesheetCompileHandlers.cpp
++++ b/mozilla/content/xslt/src/xslt/txStylesheetCompileHandlers.cpp
+@@ -1203,7 +1203,7 @@ txFnStartTopVariable(PRInt32 aNamespaceID,
+     NS_ENSURE_TRUE(var, NS_ERROR_OUT_OF_MEMORY);
+ 
+     aState.openInstructionContainer(var);
+-    rv = aState.pushPtr(var);
++    rv = aState.pushPtr(var, aState.eVariableItem);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+     if (var->mValue) {
+@@ -1229,7 +1229,8 @@ txFnEndTopVariable(txStylesheetCompilerState& aState)
+ {
+     txHandlerTable* prev = aState.mHandlerTable;
+     aState.popHandlerTable();
+-    txVariableItem* var = static_cast<txVariableItem*>(aState.popPtr());
++    txVariableItem* var =
++        static_cast<txVariableItem*>(aState.popPtr(aState.eVariableItem));
+ 
+     if (prev == gTxTopVariableHandler) {
+         // No children were found.
+@@ -1731,7 +1732,7 @@ txFnStartCopy(PRInt32 aNamespaceID,
+     nsAutoPtr<txCopy> copy(new txCopy);
+     NS_ENSURE_TRUE(copy, NS_ERROR_OUT_OF_MEMORY);
+ 
+-    nsresult rv = aState.pushPtr(copy);
++    nsresult rv = aState.pushPtr(copy, aState.eCopy);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+     nsAutoPtr<txInstruction> instr(copy.forget());
+@@ -1753,7 +1754,7 @@ txFnEndCopy(txStylesheetCompilerState& aState)
+     nsresult rv = aState.addInstruction(instr);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+-    txCopy* copy = static_cast<txCopy*>(aState.popPtr());
++    txCopy* copy = static_cast<txCopy*>(aState.popPtr(aState.eCopy));
+     rv = aState.addGotoTarget(&copy->mBailTarget);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+@@ -1904,7 +1905,7 @@ txFnStartForEach(PRInt32 aNamespaceID,
+     nsAutoPtr<txPushNewContext> pushcontext(new txPushNewContext(select));
+     NS_ENSURE_TRUE(pushcontext, NS_ERROR_OUT_OF_MEMORY);
+ 
+-    rv = aState.pushPtr(pushcontext);
++    rv = aState.pushPtr(pushcontext, aState.ePushNewContext);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+     rv = aState.pushSorter(pushcontext);
+@@ -1917,7 +1918,7 @@ txFnStartForEach(PRInt32 aNamespaceID,
+     instr = new txPushNullTemplateRule;
+     NS_ENSURE_TRUE(instr, NS_ERROR_OUT_OF_MEMORY);
+ 
+-    rv = aState.pushPtr(instr);
++    rv = aState.pushPtr(instr, aState.ePushNullTemplateRule);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+     rv = aState.addInstruction(instr);
+@@ -1933,7 +1934,7 @@ txFnEndForEach(txStylesheetCompilerState& aState)
+ 
+     // This is a txPushNullTemplateRule
+     txInstruction* pnullrule =
+-        static_cast<txInstruction*>(aState.popPtr());
++        static_cast<txInstruction*>(aState.popPtr(aState.ePushNullTemplateRule));
+ 
+     nsAutoPtr<txInstruction> instr(new txLoopNodeSet(pnullrule));
+     nsresult rv = aState.addInstruction(instr);
+@@ -1941,7 +1942,7 @@ txFnEndForEach(txStylesheetCompilerState& aState)
+ 
+     aState.popSorter();
+     txPushNewContext* pushcontext =
+-        static_cast<txPushNewContext*>(aState.popPtr());
++        static_cast<txPushNewContext*>(aState.popPtr(aState.ePushNewContext));
+     aState.addGotoTarget(&pushcontext->mBailTarget);
+ 
+     return NS_OK;
+@@ -1996,7 +1997,7 @@ txFnStartIf(PRInt32 aNamespaceID,
+     nsAutoPtr<txConditionalGoto> condGoto(new txConditionalGoto(test, nsnull));
+     NS_ENSURE_TRUE(condGoto, NS_ERROR_OUT_OF_MEMORY);
+ 
+-    rv = aState.pushPtr(condGoto);
++    rv = aState.pushPtr(condGoto, aState.eConditionalGoto);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+     nsAutoPtr<txInstruction> instr(condGoto.forget());
+@@ -2010,7 +2011,7 @@ nsresult
+ txFnEndIf(txStylesheetCompilerState& aState)
+ {
+     txConditionalGoto* condGoto =
+-        static_cast<txConditionalGoto*>(aState.popPtr());
++        static_cast<txConditionalGoto*>(aState.popPtr(aState.eConditionalGoto));
+     return aState.addGotoTarget(&condGoto->mTarget);
+ }
+ 
+@@ -2203,7 +2204,7 @@ txFnStartParam(PRInt32 aNamespaceID,
+     nsAutoPtr<txCheckParam> checkParam(new txCheckParam(name));
+     NS_ENSURE_SUCCESS(rv, rv);
+     
+-    rv = aState.pushPtr(checkParam);
++    rv = aState.pushPtr(checkParam, aState.eCheckParam);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+     nsAutoPtr<txInstruction> instr(checkParam.forget());
+@@ -2259,7 +2260,8 @@ txFnEndParam(txStylesheetCompilerState& aState)
+     rv = aState.addInstruction(instr);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+-    txCheckParam* checkParam = static_cast<txCheckParam*>(aState.popPtr());
++    txCheckParam* checkParam =
++        static_cast<txCheckParam*>(aState.popPtr(aState.eCheckParam));
+     aState.addGotoTarget(&checkParam->mBailTarget);
+ 
+     return NS_OK;
+@@ -2600,7 +2602,7 @@ txFnStartWhen(PRInt32 aNamespaceID,
+     nsAutoPtr<txConditionalGoto> condGoto(new txConditionalGoto(test, nsnull));
+     NS_ENSURE_TRUE(condGoto, NS_ERROR_OUT_OF_MEMORY);
+ 
+-    rv = aState.pushPtr(condGoto);
++    rv = aState.pushPtr(condGoto, aState.eConditionalGoto);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+     nsAutoPtr<txInstruction> instr(condGoto.forget());
+@@ -2625,7 +2627,7 @@ txFnEndWhen(txStylesheetCompilerState& aState)
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+     txConditionalGoto* condGoto =
+-        static_cast<txConditionalGoto*>(aState.popPtr());
++        static_cast<txConditionalGoto*>(aState.popPtr(aState.eConditionalGoto));
+     rv = aState.addGotoTarget(&condGoto->mTarget);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+diff --git a/mozilla/content/xslt/src/xslt/txStylesheetCompiler.cpp b/mozilla/content/xslt/src/xslt/txStylesheetCompiler.cpp
+index b8bde51..9c11cec 100644
+--- a/mozilla/content/xslt/src/xslt/txStylesheetCompiler.cpp
++++ b/mozilla/content/xslt/src/xslt/txStylesheetCompiler.cpp
+@@ -360,7 +360,7 @@ txStylesheetCompiler::startElementInternal(PRInt32 aNamespaceID,
+         }
+     }
+ 
+-    rv = pushPtr(const_cast<txElementHandler*>(handler));
++    rv = pushPtr(const_cast<txElementHandler*>(handler), eElementHandler);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+     mElementContext->mDepth++;
+@@ -398,7 +398,7 @@ txStylesheetCompiler::endElement()
+ 
+     const txElementHandler* handler =
+         const_cast<const txElementHandler*>
+-                  (static_cast<txElementHandler*>(popPtr()));
++                  (static_cast<txElementHandler*>(popPtr(eElementHandler)));
+     rv = (handler->mEndFunction)(*this);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+@@ -655,7 +655,7 @@ txStylesheetCompilerState::~txStylesheetCompilerState()
+ nsresult
+ txStylesheetCompilerState::pushHandlerTable(txHandlerTable* aTable)
+ {
+-    nsresult rv = pushPtr(mHandlerTable);
++    nsresult rv = pushPtr(mHandlerTable, eHandlerTable);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+     mHandlerTable = aTable;
+@@ -666,13 +666,13 @@ txStylesheetCompilerState::pushHandlerTable(txHandlerTable* aTable)
+ void
+ txStylesheetCompilerState::popHandlerTable()
+ {
+-    mHandlerTable = static_cast<txHandlerTable*>(popPtr());
++    mHandlerTable = static_cast<txHandlerTable*>(popPtr(eHandlerTable));
+ }
+ 
+ nsresult
+ txStylesheetCompilerState::pushSorter(txPushNewContext* aSorter)
+ {
+-    nsresult rv = pushPtr(mSorter);
++    nsresult rv = pushPtr(mSorter, ePushNewContext);
+     NS_ENSURE_SUCCESS(rv, rv);
+ 
+     mSorter = aSorter;
+@@ -683,7 +683,7 @@ txStylesheetCompilerState::pushSorter(txPushNewContext* aSorter)
+ void
+ txStylesheetCompilerState::popSorter()
+ {
+-    mSorter = static_cast<txPushNewContext*>(popPtr());
++    mSorter = static_cast<txPushNewContext*>(popPtr(ePushNewContext));
+ }
+ 
+ nsresult
+@@ -719,21 +719,31 @@ txStylesheetCompilerState::popObject()
+ }
+ 
+ nsresult
+-txStylesheetCompilerState::pushPtr(void* aPtr)
++txStylesheetCompilerState::pushPtr(void* aPtr, enumStackType aType)
+ {
+ #ifdef TX_DEBUG_STACK
+-    PR_LOG(txLog::xslt, PR_LOG_DEBUG, ("pushPtr: %d\n", aPtr));
++    PR_LOG(txLog::xslt, PR_LOG_DEBUG, ("pushPtr: 0x%x type %u\n", aPtr, aType));
+ #endif
++    mTypeStack.AppendElement(aType);
+     return mOtherStack.push(aPtr);
+ }
+ 
+ void*
+-txStylesheetCompilerState::popPtr()
++txStylesheetCompilerState::popPtr(enumStackType aType)
+ {
++    PRUint32 stacklen = mTypeStack.Length();
++    NS_ABORT_IF_FALSE(stacklen > 0,
++                      "Attempt to pop when type stack is empty\n");
++    enumStackType type = mTypeStack.ElementAt(stacklen - 1);
++    mTypeStack.RemoveElementAt(stacklen - 1);
+     void* value = mOtherStack.pop();
++    
+ #ifdef TX_DEBUG_STACK
+-    PR_LOG(txLog::xslt, PR_LOG_DEBUG, ("popPtr: %d\n", value));
++    PR_LOG(txLog::xslt, PR_LOG_DEBUG, ("popPtr: 0x%x type %u requested %u\n", value, type, aType));
+ #endif
++    
++    NS_ABORT_IF_FALSE(type == aType,
++                      "Expected type does not match top element type on stack");
+     return value;
+ }
+ 
+diff --git a/mozilla/content/xslt/src/xslt/txStylesheetCompiler.h b/mozilla/content/xslt/src/xslt/txStylesheetCompiler.h
+index fc1173d..164478b 100644
+--- a/mozilla/content/xslt/src/xslt/txStylesheetCompiler.h
++++ b/mozilla/content/xslt/src/xslt/txStylesheetCompiler.h
+@@ -116,6 +116,18 @@ public:
+     }
+ 
+     // Stack functions
++    enum enumStackType
++    {
++      eElementHandler,
++      eHandlerTable,
++      eVariableItem,
++      eCopy,
++      eInstruction,
++      ePushNewContext,
++      eConditionalGoto,
++      eCheckParam,
++      ePushNullTemplateRule
++    };
+     nsresult pushHandlerTable(txHandlerTable* aTable);
+     void popHandlerTable();
+     nsresult pushSorter(txPushNewContext* aSorter);
+@@ -124,8 +136,8 @@ public:
+     void popChooseGotoList();
+     nsresult pushObject(TxObject* aObject);
+     TxObject* popObject();
+-    nsresult pushPtr(void* aPtr);
+-    void* popPtr();
++    nsresult pushPtr(void* aPtr, enumStackType aType);
++    void* popPtr(enumStackType aType);
+ 
+     // stylesheet functions
+     nsresult addToplevelItem(txToplevelItem* aItem);
+@@ -185,6 +197,7 @@ protected:
+     PRPackedBool mDoneWithThisStylesheet;
+     txStack mObjectStack;
+     txStack mOtherStack;
++    nsTArray<enumStackType> mTypeStack;
+ 
+ private:
+     txInstruction** mNextInstrPtr;

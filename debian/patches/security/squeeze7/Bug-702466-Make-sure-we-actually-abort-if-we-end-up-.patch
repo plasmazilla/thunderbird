@@ -1,0 +1,39 @@
+From: Jonas Sicking <jonas@sicking.cc>
+Date: Sat, 28 Jan 2012 16:23:12 -0800
+Subject: Bug 702466: Make sure we actually abort if we end up with unbalanced
+ stacks. r=dbaron, a=dveditz
+
+---
+ content/xslt/src/xslt/txStylesheetCompiler.cpp |   12 ++++++++----
+ 1 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/mozilla/content/xslt/src/xslt/txStylesheetCompiler.cpp b/mozilla/content/xslt/src/xslt/txStylesheetCompiler.cpp
+index 9c11cec..ed45642 100644
+--- a/mozilla/content/xslt/src/xslt/txStylesheetCompiler.cpp
++++ b/mozilla/content/xslt/src/xslt/txStylesheetCompiler.cpp
+@@ -732,8 +732,10 @@ void*
+ txStylesheetCompilerState::popPtr(enumStackType aType)
+ {
+     PRUint32 stacklen = mTypeStack.Length();
+-    NS_ABORT_IF_FALSE(stacklen > 0,
+-                      "Attempt to pop when type stack is empty\n");
++    if (stacklen == 0) {
++        NS_RUNTIMEABORT("Attempt to pop when type stack is empty");
++    }
++
+     enumStackType type = mTypeStack.ElementAt(stacklen - 1);
+     mTypeStack.RemoveElementAt(stacklen - 1);
+     void* value = mOtherStack.pop();
+@@ -742,8 +744,10 @@ txStylesheetCompilerState::popPtr(enumStackType aType)
+     PR_LOG(txLog::xslt, PR_LOG_DEBUG, ("popPtr: 0x%x type %u requested %u\n", value, type, aType));
+ #endif
+     
+-    NS_ABORT_IF_FALSE(type == aType,
+-                      "Expected type does not match top element type on stack");
++    if (type != aType) {
++        NS_RUNTIMEABORT("Expected type does not match top element type");
++    }
++
+     return value;
+ }
+ 

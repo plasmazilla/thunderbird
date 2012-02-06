@@ -1,0 +1,30 @@
+From: Mike Hommey <glandium@debian.org>
+Date: Tue, 31 Jan 2012 16:00:16 +0100
+Subject: [PATCH] Fixup for bug 702466
+
+---
+ content/xslt/src/xslt/txStylesheetCompiler.cpp |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/content/xslt/src/xslt/txStylesheetCompiler.cpp b/mozilla/content/xslt/src/xslt/txStylesheetCompiler.cpp
+index ed45642..153bc6a 100644
+--- a/mozilla/content/xslt/src/xslt/txStylesheetCompiler.cpp
++++ b/mozilla/content/xslt/src/xslt/txStylesheetCompiler.cpp
+@@ -733,7 +733,7 @@ txStylesheetCompilerState::popPtr(enumStackType aType)
+ {
+     PRUint32 stacklen = mTypeStack.Length();
+     if (stacklen == 0) {
+-        NS_RUNTIMEABORT("Attempt to pop when type stack is empty");
++        NS_DebugBreak(NS_DEBUG_ABORT, "Attempt to pop when type stack is empty", nsnull, __FILE__, __LINE__);
+     }
+ 
+     enumStackType type = mTypeStack.ElementAt(stacklen - 1);
+@@ -745,7 +745,7 @@ txStylesheetCompilerState::popPtr(enumStackType aType)
+ #endif
+     
+     if (type != aType) {
+-        NS_RUNTIMEABORT("Expected type does not match top element type");
++        NS_DebugBreak(NS_DEBUG_ABORT, "Expected type does not match top element type", nsnull, __FILE__, __LINE__);
+     }
+ 
+     return value;

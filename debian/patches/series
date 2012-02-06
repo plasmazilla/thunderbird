@@ -154,3 +154,10 @@ security/squeeze6/Bug-674776-Fix-trap-problem-in-js_GetOpcode-r-jorend.patch
 security/squeeze6/Bug-657462-don-t-select-the-first-item-in-the-downlo.patch
 security/squeeze6/Fix-bug-653926.-r-jst-a-LegNeato.patch
 security/squeeze6/Followup-bustage-fix-for-bug-653926.-r-jst-a-akeybl-.patch
+security/squeeze7/Bug-504014-Enforce-RFC-3986-syntax-for-IPv6-literals.patch
+security/squeeze7/Bug-719612-Update-libvorbis.-r-kinetik-a-akeybl.patch
+security/squeeze7/Bug-693399-r-bzbarsky-backport-dveditz-a-dveditz.patch
+security/squeeze7/bug702466-Validate-stack-usage-in-xslt-compiler-r-si.patch
+security/squeeze7/Bug-702466-Make-sure-we-actually-abort-if-we-end-up-.patch
+security/squeeze7/bug-702466-imported-patch-fix_via_handler_table-r-si.patch
+security/squeeze7/Fixup-for-bug-702466.patch
