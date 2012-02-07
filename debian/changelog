@@ -1,3 +1,16 @@
+icedove (3.0.11-1+squeeze7) stable-security; urgency=low
+
+  * [d8a8858] backported patches from xulrunner fixes mfsa2012-{01,02,07,08}
+    - MFSA 2012-01 aka CVE-2012-0442: Miscellaneous memory safety hazards
+      (rv:10.0/ rv:1.9.2.26)
+    - MFSA 2012-02 aka CVE-2011-3670: Overly permissive IPv6 literal syntax
+    - MFSA 2012-07 aka CVE-2012-0444: Potential Memory Corruption When
+      Decoding Ogg Vorbis files
+    - MFSA 2012-08 aka CVE-2012-0449: Crash with malformed embedded XSLT
+      stylesheets
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 07 Feb 2012 18:38:47 +0100
+
 icedove (3.0.11-1+squeeze6) stable-security; urgency=high
 
   * [6f96c16] backported patches from xulrunner fixes mfsa2011-{46,47,49}
