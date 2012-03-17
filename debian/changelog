@@ -1,3 +1,16 @@
+icedove (3.0.11-1+squeeze8) stable-security; urgency=high
+
+  * [ee15c08] backported patches from xulrunner fixes mfsa2012-{13,14,16,19}
+    - MFSA 2012-13 aka CVE-2012-0455: XSS with Drag and Drop and Javascript:
+      URL
+    - MFSA 2012-14 aka CVE-2012-0456: SVG issues found with Address Sanitizer
+    - MFSA 2012-16 aka CVE-2012-0458: Escalation of privilege with Javascript:
+      URL as home page
+    - MFSA 2012-19 aka CVE-2012-0461: Miscellaneous memory safety hazards
+      (rv:11.0/ rv:10.0.3 / rv:1.9.2.28)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 17 Mar 2012 16:16:20 +0100
+
 icedove (3.0.11-1+squeeze7) stable-security; urgency=low
 
   * [d8a8858] backported patches from xulrunner fixes mfsa2012-{01,02,07,08}
