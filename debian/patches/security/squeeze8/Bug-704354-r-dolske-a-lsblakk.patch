@@ -1,0 +1,35 @@
+From: Gavin Sharp <gavin@gavinsharp.com>
+Date: Mon, 5 Mar 2012 16:24:40 -0800
+Subject: Bug 704354: r=dolske, a=lsblakk
+
+---
+ browser/base/content/browser.js     |    2 +-
+ browser/base/content/tabbrowser.xml |    2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/browser/base/content/browser.js b/mozilla/browser/base/content/browser.js
+index 3c7ff1c..4de359d 100644
+--- a/mozilla/browser/base/content/browser.js
++++ b/mozilla/browser/base/content/browser.js
+@@ -5074,7 +5074,7 @@ var contentAreaDNDObserver = {
+       // isn't a valid url, or if it's a javascript: or data: url,
+       // bail out
+       if (!url || !url.length || url.indexOf(" ", 0) != -1 ||
+-          /^\s*(javascript|data):/.test(url))
++          /^\s*(javascript|data):/i.test(url))
+         return;
+ 
+       nsDragAndDrop.dragDropSecurityCheck(aEvent, aDragSession, url);
+diff --git a/mozilla/browser/base/content/tabbrowser.xml b/mozilla/browser/base/content/tabbrowser.xml
+index 209dc7c..2ccfbea 100644
+--- a/mozilla/browser/base/content/tabbrowser.xml
++++ b/mozilla/browser/base/content/tabbrowser.xml
+@@ -2214,7 +2214,7 @@
+               // valid urls don't contain spaces ' '; if we have a space it isn't a valid url.
+               // Also disallow dropping javascript: or data: urls--bail out
+               if (!url || !url.length || url.indexOf(" ", 0) != -1 ||
+-                  /^\s*(javascript|data):/.test(url))
++                  /^\s*(javascript|data):/i.test(url))
+                 return;
+ 
+               // XXXmano: temporary fix until dragDropSecurityCheck make the

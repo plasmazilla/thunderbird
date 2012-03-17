@@ -161,3 +161,9 @@ security/squeeze7/bug702466-Validate-stack-usage-in-xslt-compiler-r-si.patch
 security/squeeze7/Bug-702466-Make-sure-we-actually-abort-if-we-end-up-.patch
 security/squeeze7/bug-702466-imported-patch-fix_via_handler_table-r-si.patch
 security/squeeze7/Fixup-for-bug-702466.patch
+security/squeeze8/Bug-711653-In-SVG-lighting-calculations-when-input-s.patch
+security/squeeze8/Fix-Bug-708186.-r-dholbert-jwatt-a-dveditz.patch
+security/squeeze8/Bug-730425-Perform-an-additional-range-checks-in-str.patch
+security/squeeze8/Bug-723808-disallow-inheriting-of-system-principal-i.patch
+security/squeeze8/Bug-704354-r-dolske-a-lsblakk.patch
+security/squeeze8/Bug-723808-followup-fix-shared-builds-by-avoiding-us.patch

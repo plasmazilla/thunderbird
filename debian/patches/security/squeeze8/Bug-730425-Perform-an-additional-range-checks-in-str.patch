@@ -1,0 +1,73 @@
+From: Matthew Gregan <kinetik@flim.org>
+Date: Fri, 2 Mar 2012 13:59:32 +1300
+Subject: Bug 730425 - Perform an additional range checks in stream read
+ functions. r=roc a=lsblakk
+
+---
+ content/media/video/src/nsMediaCache.cpp |   18 ++++++++++++------
+ 1 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/mozilla/content/media/video/src/nsMediaCache.cpp b/mozilla/content/media/video/src/nsMediaCache.cpp
+index 718c7b2..7a5eda0 100644
+--- a/mozilla/content/media/video/src/nsMediaCache.cpp
++++ b/mozilla/content/media/video/src/nsMediaCache.cpp
+@@ -1768,7 +1768,7 @@ nsMediaCacheStream::Read(char* aBuffer, PRUint32 aCount, PRUint32* aBytes)
+     PRUint32 streamBlock = PRUint32(mStreamOffset/BLOCK_SIZE);
+     PRUint32 offsetInStreamBlock =
+       PRUint32(mStreamOffset - streamBlock*BLOCK_SIZE);
+-    PRInt32 size = PR_MIN(aCount - count, BLOCK_SIZE - offsetInStreamBlock);
++    PRInt64 size = PR_MIN(aCount - count, BLOCK_SIZE - offsetInStreamBlock);
+ 
+     if (mStreamLength >= 0) {
+       // Don't try to read beyond the end of the stream
+@@ -1777,7 +1777,9 @@ nsMediaCacheStream::Read(char* aBuffer, PRUint32 aCount, PRUint32* aBytes)
+         // Get out of here and return NS_OK
+         break;
+       }
+-      size = PR_MIN(size, PRInt32(bytesRemaining));
++      size = PR_MIN(size, bytesRemaining);
++      // Clamp size until 64-bit file size issues (bug 500784) are fixed.
++      size = PR_MIN(size, PRInt64(PR_INT32_MAX));
+     }
+ 
+     PRInt32 bytes;
+@@ -1815,7 +1817,8 @@ nsMediaCacheStream::Read(char* aBuffer, PRUint32 aCount, PRUint32* aBytes)
+       gMediaCache->NoteBlockUsage(cacheBlock, mCurrentMode, TimeStamp::Now());
+ 
+       PRInt64 offset = cacheBlock*BLOCK_SIZE + offsetInStreamBlock;
+-      nsresult rv = gMediaCache->ReadCacheFile(offset, aBuffer + count, size, &bytes);
++      NS_ABORT_IF_FALSE(size >= 0 && size <= PR_INT32_MAX, "Size out of range.");
++      nsresult rv = gMediaCache->ReadCacheFile(offset, aBuffer + count, PRInt32(size), &bytes);
+       if (NS_FAILED(rv)) {
+         if (count == 0)
+           return rv;
+@@ -1854,7 +1857,7 @@ nsMediaCacheStream::ReadFromCache(char* aBuffer,
+     PRUint32 streamBlock = PRUint32(streamOffset/BLOCK_SIZE);
+     PRUint32 offsetInStreamBlock =
+       PRUint32(streamOffset - streamBlock*BLOCK_SIZE);
+-    PRInt32 size = PR_MIN(aCount - count, BLOCK_SIZE - offsetInStreamBlock);
++    PRInt64 size = PR_MIN(aCount - count, BLOCK_SIZE - offsetInStreamBlock);
+ 
+     if (mStreamLength >= 0) {
+       // Don't try to read beyond the end of the stream
+@@ -1862,7 +1865,9 @@ nsMediaCacheStream::ReadFromCache(char* aBuffer,
+       if (bytesRemaining <= 0) {
+         return NS_ERROR_FAILURE;
+       }
+-      size = PR_MIN(size, PRInt32(bytesRemaining));
++      size = PR_MIN(size, bytesRemaining);
++      // Clamp size until 64-bit file size issues (bug 500784) are fixed.
++      size = PR_MIN(size, PRInt64(PR_INT32_MAX));
+     }
+ 
+     PRInt32 bytes;
+@@ -1881,7 +1886,8 @@ nsMediaCacheStream::ReadFromCache(char* aBuffer,
+         return NS_ERROR_FAILURE;
+       }
+       PRInt64 offset = cacheBlock*BLOCK_SIZE + offsetInStreamBlock;
+-      nsresult rv = gMediaCache->ReadCacheFile(offset, aBuffer + count, size, &bytes);
++      NS_ABORT_IF_FALSE(size >= 0 && size <= PR_INT32_MAX, "Size out of range.");
++      nsresult rv = gMediaCache->ReadCacheFile(offset, aBuffer + count, PRInt32(size), &bytes);
+       if (NS_FAILED(rv)) {
+         return rv;
+       }

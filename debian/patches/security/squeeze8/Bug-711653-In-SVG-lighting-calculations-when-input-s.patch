@@ -1,0 +1,30 @@
+From: Robert Longson <longsonr@gmail.com>
+Date: Mon, 13 Feb 2012 14:04:19 -0800
+Subject: Bug 711653: In SVG lighting calculations, when input surface is 1px
+ wide, use a normal vector that points straight out of the page.
+ r=dholbert a=lsblakk
+
+---
+ content/svg/content/src/nsSVGFilters.cpp |    9 +++++++++
+ 1 files changed, 9 insertions(+), 0 deletions(-)
+
+diff --git a/mozilla/content/svg/content/src/nsSVGFilters.cpp b/mozilla/content/svg/content/src/nsSVGFilters.cpp
+index e8ecaf9..ecfc8ec 100644
+--- a/mozilla/content/svg/content/src/nsSVGFilters.cpp
++++ b/mozilla/content/svg/content/src/nsSVGFilters.cpp
+@@ -4685,6 +4685,15 @@ GenerateNormal(float *N, const PRUint8 *data, PRInt32 stride,
+       { 1.0 / 3.0, 1.0 / 4.0, 1.0 / 3.0 },
+       { 2.0 / 3.0, 1.0 / 2.0, 2.0 / 3.0 } };
+ 
++  // degenerate cases
++  if (surfaceWidth == 1 || surfaceHeight == 1) {
++    // just return a unit vector pointing towards the viewer
++    N[0] = 0;
++    N[1] = 0;
++    N[2] = 255;
++    return;
++  }
++
+   PRInt8 xflag, yflag;
+   if (x == 0) {
+     xflag = 0;

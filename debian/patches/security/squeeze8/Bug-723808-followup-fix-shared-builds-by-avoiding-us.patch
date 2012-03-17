@@ -1,0 +1,35 @@
+From: Gavin Sharp <gavin@gavinsharp.com>
+Date: Tue, 6 Mar 2012 11:19:40 -0800
+Subject: Bug 723808 followup: fix shared builds by avoiding use of
+ nsContentUtils::IsSystemPrincipal, r=bz, a=bustage
+
+---
+ docshell/base/nsDocShell.cpp |   15 +++++++++++----
+ 1 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/mozilla/docshell/base/nsDocShell.cpp b/mozilla/docshell/base/nsDocShell.cpp
+index 1edf23a..8d08a22 100644
+--- a/mozilla/docshell/base/nsDocShell.cpp
++++ b/mozilla/docshell/base/nsDocShell.cpp
+@@ -7568,10 +7568,17 @@ nsDocShell::GetInheritedPrincipal(PRBool aConsiderCurrentDocument)
+ 
+         // Don't allow loads in typeContent docShells to inherit the system
+         // principal from existing documents.
+-        if (inheritedFromCurrent &&
+-            mItemType == typeContent &&
+-            nsContentUtils::IsSystemPrincipal(docPrincipal)) {
+-            return nsnull;
++        if (inheritedFromCurrent && mItemType == typeContent) {
++            PRBool isSystem;
++            nsresult rv;
++            nsCOMPtr<nsIScriptSecurityManager> secMan =
++                do_GetService(NS_SCRIPTSECURITYMANAGER_CONTRACTID, &rv);
++            NS_ENSURE_SUCCESS(rv, nsnull);
++            rv = secMan->IsSystemPrincipal(docPrincipal, &isSystem);
++            NS_ENSURE_SUCCESS(rv, nsnull);
++
++            if (isSystem)
++                return nsnull;
+         }
+ 
+         return docPrincipal;
