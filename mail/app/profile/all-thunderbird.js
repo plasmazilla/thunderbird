@@ -106,14 +106,9 @@ pref("app.update.url.details", "http://www.mozillamessaging.com/%LOCALE%/%APP%/r
 // User-settable override to app.update.url for testing purposes.
 //pref("app.update.url.override", "");
 
-// Interval: Time before prompting the user again to restart to install the
-//           latest download (in seconds) default=1 day
-pref("app.update.nagTimer.restart", 86400);
-// Interval: When all registered timers should be checked (in milliseconds)
-//           default=10 minutes
-pref("app.update.timer", 600000);
-// Give the user x seconds to react before showing the big UI. default=12 hrs
-pref("app.update.promptWaitTime", 43200);
+// app.update.interval is in branding section
+// app.update.promptWaitTime is in branding section
+
 // Show the Update Checking/Ready UI when the user was idle for x seconds
 pref("app.update.idletime", 60);
 
@@ -133,6 +128,13 @@ pref("app.support.baseURL", "http://support.live.mozillamessaging.com/%LOCALE%/%
 // Controls enabling of the extension system logging (can reduce performance)
 pref("extensions.logging.enabled", false);
 
+// Disables strict compatibility, making addons compatible-by-default.
+pref("extensions.strictCompatibility", false);
+
+// Specifies a minimum maxVersion an addon needs to say it's compatible with
+// for it to be compatible by default.
+pref("extensions.minCompatibleAppVersion", "5.0");
+
 pref("extensions.update.autoUpdateDefault", true);
 
 // Disable add-ons installed into the shared user and shared system areas by
@@ -145,7 +147,7 @@ pref("extensions.getAddons.cache.enabled", true);
 pref("extensions.getAddons.maxResults", 15);
 pref("extensions.getAddons.get.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/guid:%IDS%?src=thunderbird&appOS=%OS%&appVersion=%VERSION%&tMain=%TIME_MAIN%&tFirstPaint=%TIME_FIRST_PAINT%&tSessionRestored=%TIME_SESSION_RESTORED%");
 pref("extensions.getAddons.search.browseURL", "https://addons.mozilla.org/%LOCALE%/%APP%/search?q=%TERMS%");
-pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/%TERMS%/all/%MAX_RESULTS%/%OS%/%VERSION%?src=thunderbird");
+pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/%TERMS%/all/%MAX_RESULTS%/%OS%/%VERSION%/%COMPATIBILITY_MODE%?src=thunderbird");
 pref("extensions.webservice.discoverURL", "https://services.addons.mozilla.org/%LOCALE%/%APP%/discovery/pane/%VERSION%/%OS%");
 
 // Blocklist preferences
@@ -166,7 +168,7 @@ pref("extensions.logging.enabled", false);
 //  .. etc ..
 //
 pref("extensions.update.enabled", true);
-pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%");
+pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%&compatMode=%COMPATIBILITY_MODE%");
 
 pref("extensions.update.interval", 86400);  // Check for updates to Extensions and 
                                             // Themes every day
@@ -331,6 +333,7 @@ pref("view_source.syntax_highlight", false);
 
 pref("toolkit.telemetry.infoURL", "http://www.mozilla.org/thunderbird/legal/privacy/#telemetry");
 
+pref("mousewheel.withcontrolkey.action", 3);
 /////////////////////////////////////////////////////////////////
 // End core all.js pref overrides
 ///////////////////////////////////////////////////////////////// 
@@ -736,3 +739,24 @@ pref("layers.acceleration.disabled", true);
 // and direct2d support on Windows
 pref("gfx.direct2d.disabled", true);
 #endif
+
+// Account provisioner.
+pref("mail.provider.providerList", "https://broker-live.mozillamessaging.com/provider/list");
+pref("mail.provider.suggestFromName", "https://broker-live.mozillamessaging.com/provider/suggest");
+pref("mail.provider.enabled", false);
+
+pref("mail.websearch.open_externally", false);
+
+// Pointer to the default engine name.
+pref("browser.search.defaultenginename", "chrome://messenger-region/locale/region.properties");
+
+// Ordering of search engines in the engine list.
+pref("browser.search.order.1", "chrome://messenger-region/locale/region.properties");
+pref("browser.search.order.2", "chrome://messenger-region/locale/region.properties");
+pref("browser.search.order.3", "chrome://messenger-region/locale/region.properties");
+
+// XXX Don't update yet, until we've verified how that affects us.
+pref("browser.search.update", false);
+
+// Check whether we need to perform engine updates every 6 hours
+pref("browser.search.update.interval", 21600);

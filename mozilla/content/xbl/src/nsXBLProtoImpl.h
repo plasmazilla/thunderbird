@@ -95,17 +95,36 @@ public:
 
   // Resolve all the fields for this implementation on the object |obj| False
   // return means a JS exception was set.
-  PRBool ResolveAllFields(JSContext *cx, JSObject *obj) const;
+  bool ResolveAllFields(JSContext *cx, JSObject *obj) const;
 
   // Undefine all our fields from object |obj| (which should be a
   // JSObject for a bound element).
   void UndefineFields(JSContext* cx, JSObject* obj) const;
 
-  PRBool CompiledMembers() const {
+  bool CompiledMembers() const {
     return mClassObject != nsnull;
   }
 
+  nsresult Read(nsIScriptContext* aContext,
+                nsIObjectInputStream* aStream,
+                nsXBLPrototypeBinding* aBinding,
+                nsIScriptGlobalObject* aGlobal);
+  nsresult Write(nsIScriptContext* aContext,
+                 nsIObjectOutputStream* aStream,
+                 nsXBLPrototypeBinding* aBinding);
+
 protected:
+  // used by Read to add each member
+  nsXBLProtoImplMember* AddMember(nsXBLProtoImplMember* aMember,
+                                  nsXBLProtoImplMember* aPreviousMember)
+  {
+    if (aPreviousMember)
+      aPreviousMember->SetNext(aMember);
+    else
+      mMembers = aMember;
+    return aMember;
+  }
+
   void DestroyMembers();
   
 public:

@@ -50,7 +50,7 @@
 interface nsIDOMDOMSettableTokenList;
 interface nsIDOMValidityState;
 
-[scriptable, uuid(a930fee7-dd3a-4d57-9ea7-79cfba343fde)]
+[scriptable, uuid(7d1fb2a9-7678-409e-8eb5-9216c47c233b)]
 interface nsIDOMHTMLOutputElement : nsIDOMHTMLElement
 {
   readonly attribute nsIDOMDOMSettableTokenList htmlFor;

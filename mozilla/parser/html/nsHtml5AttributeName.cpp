@@ -33,17 +33,13 @@
 #include "nsString.h"
 #include "nsINameSpaceManager.h"
 #include "nsIContent.h"
-#include "nsIDocument.h"
 #include "nsTraceRefcnt.h"
 #include "jArray.h"
-#include "nsHtml5DocumentMode.h"
 #include "nsHtml5ArrayCopy.h"
-#include "nsHtml5NamedCharacters.h"
-#include "nsHtml5NamedCharactersAccel.h"
+#include "nsAHtml5TreeBuilderState.h"
 #include "nsHtml5Atoms.h"
 #include "nsHtml5ByteReadable.h"
 #include "nsIUnicodeDecoder.h"
-#include "nsAHtml5TreeBuilderState.h"
 #include "nsHtml5Macros.h"
 
 #include "nsHtml5Tokenizer.h"
@@ -193,7 +189,7 @@ nsHtml5AttributeName::getPrefix(PRInt32 mode)
   return prefix[mode];
 }
 
-PRBool 
+bool 
 nsHtml5AttributeName::equalsAnother(nsHtml5AttributeName* another)
 {
   return this->getLocal(NS_HTML5ATTRIBUTE_NAME_HTML) == another->getLocal(NS_HTML5ATTRIBUTE_NAME_HTML);

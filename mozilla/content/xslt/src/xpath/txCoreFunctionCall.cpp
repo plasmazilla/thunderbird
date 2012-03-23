@@ -36,6 +36,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "mozilla/Util.h"
+
 #include "txExpr.h"
 #include "nsAutoPtr.h"
 #include "txNodeSet.h"
@@ -46,6 +48,8 @@
 #include <math.h>
 #include "txStringUtils.h"
 #include "txXMLUtils.h"
+
+using namespace mozilla;
 
 struct txCoreFunctionDescriptor
 {
@@ -270,7 +274,7 @@ txCoreFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
             NS_ENSURE_SUCCESS(rv, rv);
 
             if (arg2.IsEmpty()) {
-                aContext->recycler()->getBoolResult(PR_TRUE, aResult);
+                aContext->recycler()->getBoolResult(true, aResult);
             }
             else {
                 nsAutoString arg1;
@@ -329,9 +333,9 @@ txCoreFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
             rv = mParams[1]->evaluateToString(aContext, arg2);
             NS_ENSURE_SUCCESS(rv, rv);
 
-            PRBool result = PR_FALSE;
+            bool result = false;
             if (arg2.IsEmpty()) {
-                result = PR_TRUE;
+                result = true;
             }
             else {
                 nsAutoString arg1;
@@ -615,7 +619,7 @@ txCoreFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
         
         case BOOLEAN:
         {
-            PRBool result;
+            bool result;
             nsresult rv = mParams[0]->evaluateToBool(aContext, result);
             NS_ENSURE_SUCCESS(rv, rv);
 
@@ -625,7 +629,7 @@ txCoreFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
         }
         case _FALSE:
         {
-            aContext->recycler()->getBoolResult(PR_FALSE, aResult);
+            aContext->recycler()->getBoolResult(false, aResult);
 
             return NS_OK;
         }
@@ -634,14 +638,14 @@ txCoreFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
             txXPathTreeWalker walker(aContext->getContextNode());
 
             nsAutoString lang;
-            PRBool found;
+            bool found;
             do {
                 found = walker.getAttr(nsGkAtoms::lang, kNameSpaceID_XML,
                                        lang);
             } while (!found && walker.moveToParent());
 
             if (!found) {
-                aContext->recycler()->getBoolResult(PR_FALSE, aResult);
+                aContext->recycler()->getBoolResult(false, aResult);
 
                 return NS_OK;
             }
@@ -650,7 +654,7 @@ txCoreFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
             rv = mParams[0]->evaluateToString(aContext, arg);
             NS_ENSURE_SUCCESS(rv, rv);
 
-            PRBool result =
+            bool result =
                 StringBeginsWith(lang, arg,
                                  txCaseInsensitiveStringComparator()) &&
                 (lang.Length() == arg.Length() ||
@@ -662,7 +666,7 @@ txCoreFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
         }
         case _NOT:
         {
-            PRBool result;
+            bool result;
             rv = mParams[0]->evaluateToBool(aContext, result);
             NS_ENSURE_SUCCESS(rv, rv);
 
@@ -672,7 +676,7 @@ txCoreFunctionCall::evaluate(txIEvalContext* aContext, txAExprResult** aResult)
         }
         case _TRUE:
         {
-            aContext->recycler()->getBoolResult(PR_TRUE, aResult);
+            aContext->recycler()->getBoolResult(true, aResult);
 
             return NS_OK;
         }
@@ -689,7 +693,7 @@ txCoreFunctionCall::getReturnType()
     return descriptTable[mType].mReturnType;
 }
 
-PRBool
+bool
 txCoreFunctionCall::isSensitiveTo(ContextSensitivity aContext)
 {
     switch (mType) {
@@ -746,23 +750,23 @@ txCoreFunctionCall::isSensitiveTo(ContextSensitivity aContext)
     }
 
     NS_NOTREACHED("how'd we get here?");
-    return PR_TRUE;
+    return true;
 }
 
 // static
-PRBool
+bool
 txCoreFunctionCall::getTypeFromAtom(nsIAtom* aName, eType& aType)
 {
     PRUint32 i;
-    for (i = 0; i < NS_ARRAY_LENGTH(descriptTable); ++i) {
+    for (i = 0; i < ArrayLength(descriptTable); ++i) {
         if (aName == *descriptTable[i].mName) {
             aType = static_cast<eType>(i);
 
-            return PR_TRUE;
+            return true;
         }
     }
 
-    return PR_FALSE;
+    return false;
 }
 
 #ifdef TX_TO_STRING

@@ -75,7 +75,8 @@ nsContextMenu.prototype = {
       return;
 
     this.hasPageMenu = false;
-    if (!aIsShift && aXulMenu.hasAttribute("pagemenu"))
+    if (!aIsShift && this.browser.docShell.allowJavascript &&
+        Services.prefs.getBoolPref("javascript.enabled"))
       this.hasPageMenu = PageMenu.maybeBuildAndAttachMenu(this.target,
                                                           aXulMenu);
 
@@ -156,6 +157,7 @@ nsContextMenu.prototype = {
     this.showItem("context-saveimage", showSave);
     this.showItem("context-savevideo", this.onVideo);
     this.showItem("context-saveaudio", this.onAudio);
+    this.showItem("context-video-saveimage", this.onVideo);
     if (this.onVideo)
       this.setItemAttr("context-savevideo", "disabled", !this.mediaURL);
     if (this.onAudio)
@@ -394,6 +396,14 @@ nsContextMenu.prototype = {
     this.showItem("context-media-showcontrols", onMedia && !this.target.controls);
     this.showItem("context-media-hidecontrols", onMedia && this.target.controls);
     this.showItem("context-video-fullscreen", this.onVideo);
+
+    var statsShowing = this.onVideo &&
+                       this.target.wrappedJSObject.mozMediaStatisticsShowing;
+    this.showItem("context-video-showstats",
+                  this.onVideo && this.target.controls && !statsShowing);
+    this.showItem("context-video-hidestats",
+                  this.onVideo && this.target.controls && statsShowing);
+
     // Disable them when there isn't a valid media source loaded.
     if (onMedia) {
       var hasError = this.target.error != null ||
@@ -404,8 +414,13 @@ nsContextMenu.prototype = {
       this.setItemAttr("context-media-unmute", "disabled", hasError);
       this.setItemAttr("context-media-showcontrols", "disabled", hasError);
       this.setItemAttr("context-media-hidecontrols", "disabled", hasError);
-      if (this.onVideo)
-        this.setItemAttr("context-video-fullscreen",  "disabled", hasError);
+      if (this.onVideo) {
+        let canSave = this.target.readyState >= this.target.HAVE_CURRENT_DATA;
+        this.setItemAttr("context-video-saveimage", "disabled", !canSave);
+        this.setItemAttr("context-video-fullscreen", "disabled", hasError);
+        this.setItemAttr("context-video-showstats", "disabled", hasError);
+        this.setItemAttr("context-video-hidestats", "disabled", hasError);
+      }
     }
     this.showItem("context-media-sep-commands", onMedia);
   },
@@ -843,6 +858,27 @@ nsContextMenu.prototype = {
       openUILinkIn(viewURL, where, null, null, doc.documentURIObject);
   },
 
+  saveVideoFrameAsImage: function () {
+    urlSecurityCheck(this.mediaURL, this.browser.contentPrincipal,
+                     Components.interfaces.nsIScriptSecurityManager.DISALLOW_SCRIPT);
+    var name = "snapshot.jpg";
+    try {
+      let uri = makeURI(this.mediaURL);
+      let url = uri.QueryInterface(Components.interfaces.nsIURL);
+      if (url.fileBaseName)
+        name = url.fileBaseName + ".jpg";
+    } catch (e) { }
+    var video = this.target;
+    var canvas = document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    var ctxDraw = canvas.getContext("2d");
+    ctxDraw.drawImage(video, 0, 0);
+    saveImageURL(canvas.toDataURL("image/jpeg", ""), name, "SaveImageTitle",
+                                  true, true,
+                                  this.target.ownerDocument.documentURIObject);
+  },
+
   // Full screen video playback
   fullScreenVideo: function() {
     var isPaused = this.target.paused && this.target.currentTime > 0;
@@ -895,13 +931,16 @@ nsContextMenu.prototype = {
 
   // Save URL of clicked-on link.
   saveLink: function() {
-    // canonical def in nsURILoader.h
-    const NS_ERROR_SAVE_LINK_AS_TIMEOUT = 0x805d0020;
-
     var doc = this.target.ownerDocument;
     urlSecurityCheck(this.linkURL, this.target.nodePrincipal);
-    var linkText = this.linkText();
-    var linkURL = this.linkURL;
+    this.saveHelper(this.linkURL, this.linkText(), null, true, doc);
+  },
+
+  // Helper function to wait for appropriate MIME-type headers and
+  // then prompt the user with a file picker
+  saveHelper: function(linkURL, linkText, dialogTitle, bypassCache, doc) {
+    // canonical def in nsURILoader.h
+    const NS_ERROR_SAVE_LINK_AS_TIMEOUT = 0x805d0020;
 
     // an object to proxy the data through to
     // nsIExternalHelperAppService.doContent, which will wait for the
@@ -947,7 +986,7 @@ nsContextMenu.prototype = {
         if (aStatusCode == NS_ERROR_SAVE_LINK_AS_TIMEOUT) {
           // Do it the old fashioned way, which will pick the best filename
           // it can without waiting.
-          saveURL(linkURL, linkText, null, true, true, doc.documentURIObject);
+          saveURL(linkURL, linkText, dialogTitle, bypassCache, true, doc.documentURIObject);
         }
         if (this.extListener)
           this.extListener.onStopRequest(aRequest, aContext, aStatusCode);
@@ -987,8 +1026,17 @@ nsContextMenu.prototype = {
     // set up a channel to do the saving
     var channel = Services.io.newChannel(linkURL, null, null);
     channel.notificationCallbacks = new Callbacks();
-    channel.loadFlags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE |
-                         Components.interfaces.nsIChannel.LOAD_CALL_CONTENT_SNIFFERS;
+
+    var flags = Components.interfaces.nsIChannel.LOAD_CALL_CONTENT_SNIFFERS;
+
+    if (bypassCache)
+      flags |= Components.interfaces.nsIRequest.LOAD_BYPASS_CACHE;
+
+    if (channel instanceof Components.interfaces.nsICachingChannel)
+      flags |= Components.interfaces.nsICachingChannel.LOAD_BYPASS_LOCAL_CACHE_IF_BUSY;
+
+    channel.loadFlags |= flags;
+
     if (channel instanceof Components.interfaces.nsIHttpChannel) {
       channel.referrer = doc.documentURIObject;
       if (channel instanceof Components.interfaces.nsIHttpChannelInternal)
@@ -1016,8 +1064,8 @@ nsContextMenu.prototype = {
                    this.target.ownerDocument.documentURIObject);
     else if (this.onVideo || this.onAudio) {
       var dialogTitle = this.onVideo ? "SaveVideoTitle" : "SaveAudioTitle";
-      saveURL(this.mediaURL, null, dialogTitle, false, true,
-              this.target.ownerDocument.documentURIObject);
+      this.saveHelper(this.mediaURL, null, dialogTitle, false,
+                      this.target.ownerDocument);
     }
   },
 
@@ -1232,7 +1280,9 @@ nsContextMenu.prototype = {
     // Use the current engine if it's a browser window and the search bar is
     // visible, the default engine otherwise.
     var engineName = "";
-    if (window.BrowserSearch && isElementVisible(BrowserSearch.searchBar))
+    if (window.BrowserSearch &&
+        (isElementVisible(BrowserSearch.searchBar) ||
+         BrowserSearch.searchSidebar))
       engineName = Services.search.currentEngine.name;
     else
       engineName = Services.search.defaultEngine.name;
@@ -1276,7 +1326,7 @@ nsContextMenu.prototype = {
       return true;
 
     for (var node = this.target; node; node = node.parentNode)
-      if (node instanceof Components.interfaces.nsIDOMNSHTMLElement)
+      if (node instanceof Components.interfaces.nsIDOMHTMLElement)
         return node.isContentEditable;
     return false;
   },
@@ -1320,7 +1370,7 @@ nsContextMenu.prototype = {
     return form.method == "get" || (form.method == "post" &&
            form.enctype == "application/x-www-form-urlencoded");
   },
-  
+
   // Determines whether or not the separator with the specified ID should be
   // shown or not by determining if there are any non-hidden items between it
   // and the previous separator.
@@ -1358,6 +1408,16 @@ nsContextMenu.prototype = {
         break;
       case "showcontrols":
         media.setAttribute("controls", "true");
+        break;
+      case "showstats":
+        var event = document.createEvent("CustomEvent");
+        event.initCustomEvent("media-showStatistics", false, true, true);
+        media.dispatchEvent(event);
+        break;
+      case "hidestats":
+        var event = document.createEvent("CustomEvent");
+        event.initCustomEvent("media-showStatistics", false, true, false);
+        media.dispatchEvent(event);
         break;
     }
   },

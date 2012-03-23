@@ -21,7 +21,8 @@ var gInstallDate;
 var gInstall = null;
 
 // The test extension uses an insecure update url.
-Services.prefs.setBoolPref("extensions.checkUpdateSecurity", false);
+Services.prefs.setBoolPref(PREF_EM_CHECK_UPDATE_SECURITY, false);
+Services.prefs.setBoolPref(PREF_EM_STRICT_COMPATIBILITY, false);
 
 const profileDir = gProfD.clone();
 profileDir.append("extensions");
@@ -671,14 +672,14 @@ function run_test_11() {
     do_check_true(hasFlag(installs[1].addon.operationsRequiringRestart,
                           AddonManager.OP_NEEDS_RESTART_INSTALL));
 
-    // Comes from addon6.xpi and is incompatible
+    // Comes from addon6.xpi and would be incompatible with strict compat enabled
     do_check_eq(installs[2].sourceURI, install.sourceURI);
     do_check_eq(installs[2].addon.id, "addon6@tests.mozilla.org");
-    do_check_true(installs[2].addon.appDisabled);
+    do_check_false(installs[2].addon.appDisabled);
     do_check_eq(installs[2].version, "2.0");
     do_check_eq(installs[2].name, "Multi Test 3");
     do_check_eq(installs[2].state, AddonManager.STATE_DOWNLOADED);
-    do_check_false(hasFlag(installs[2].addon.operationsRequiringRestart,
+    do_check_true(hasFlag(installs[2].addon.operationsRequiringRestart,
                            AddonManager.OP_NEEDS_RESTART_INSTALL));
 
     // Comes from addon7.jar and is made compatible by an update check
@@ -702,8 +703,7 @@ function run_test_11() {
           "onInstalling"
         ],
         "addon6@tests.mozilla.org": [
-          ["onInstalling", false],
-          "onInstalled"
+          "onInstalling"
         ],
         "addon7@tests.mozilla.org": [
           "onInstalling"
@@ -787,8 +787,7 @@ function run_test_12() {
         "onInstalling"
       ],
       "addon6@tests.mozilla.org": [
-        ["onInstalling", false],
-        "onInstalled"
+        "onInstalling"
       ],
       "addon7@tests.mozilla.org": [
         "onInstalling"
@@ -851,10 +850,10 @@ function check_test_12() {
   do_check_eq(installs[1].name, "Multi Test 2");
   do_check_eq(installs[1].state, AddonManager.STATE_INSTALLED);
 
-  // Comes from addon6.xpi and is incompatible
+  // Comes from addon6.xpi and would be incompatible with strict compat enabled
   do_check_eq(installs[2].sourceURI, gInstall.sourceURI);
   do_check_eq(installs[2].addon.id, "addon6@tests.mozilla.org");
-  do_check_true(installs[2].addon.appDisabled);
+  do_check_false(installs[2].addon.appDisabled);
   do_check_eq(installs[2].version, "2.0");
   do_check_eq(installs[2].name, "Multi Test 3");
   do_check_eq(installs[2].state, AddonManager.STATE_INSTALLED);
@@ -1619,5 +1618,103 @@ function finish_test_27(aInstall) {
 
   ensure_test_completed();
 
-  do_test_finished();
+  run_test_28();
+}
+
+// Tests that an install that isn't strictly compatible and has
+// binary components correctly has appDisabled set (see bug 702868).
+function run_test_28() {
+  prepare_test({ }, [
+    "onNewInstall"
+  ]);
+
+  let url = "http://localhost:4444/addons/test_install5.xpi";
+  AddonManager.getInstallForURL(url, function(install) {
+    ensure_test_completed();
+
+    do_check_neq(install, null);
+    do_check_eq(install.version, "1.0");
+    do_check_eq(install.name, "Real Test 5");
+    do_check_eq(install.state, AddonManager.STATE_AVAILABLE);
+
+    AddonManager.getInstallsByTypes(null, function(activeInstalls) {
+      do_check_eq(activeInstalls.length, 1);
+      do_check_eq(activeInstalls[0], install);
+
+      prepare_test({}, [
+        "onDownloadStarted",
+        "onDownloadEnded",
+        "onInstallStarted"
+      ], check_test_28);
+      install.install();
+    });
+  }, "application/x-xpinstall", null, "Real Test 5", null, "1.0");
+}
+
+function check_test_28(install) {
+  ensure_test_completed();
+  do_check_eq(install.version, "1.0");
+  do_check_eq(install.name, "Real Test 5");
+  do_check_eq(install.state, AddonManager.STATE_INSTALLING);
+  do_check_eq(install.existingAddon, null);
+  do_check_false(install.addon.isCompatible);
+  do_check_true(install.addon.appDisabled);
+
+  prepare_test({}, [
+    "onInstallCancelled"
+  ], finish_test_28);
+  return false;
+}
+
+function finish_test_28(install) {
+  prepare_test({}, [
+    "onDownloadCancelled"
+  ], run_test_29);
+
+  install.cancel();
+}
+
+// Tests that an install with a matching compatibility override has appDisabled
+// set correctly.
+function run_test_29() {
+  Services.prefs.setBoolPref("extensions.getAddons.cache.enabled", true);
+
+  prepare_test({ }, [
+    "onNewInstall"
+  ]);
+
+  let url = "http://localhost:4444/addons/test_install6.xpi";
+  AddonManager.getInstallForURL(url, function(install) {
+    ensure_test_completed();
+
+    do_check_neq(install, null);
+    do_check_eq(install.version, "1.0");
+    do_check_eq(install.name, "Addon Test 6");
+    do_check_eq(install.state, AddonManager.STATE_AVAILABLE);
+
+    AddonManager.getInstallsByTypes(null, function(activeInstalls) {
+      do_check_eq(activeInstalls.length, 1);
+      do_check_eq(activeInstalls[0], install);
+
+      prepare_test({}, [
+        "onDownloadStarted",
+        "onDownloadEnded"
+      ], check_test_29);
+      install.install();
+    });
+  }, "application/x-xpinstall", null, "Addon Test 6", null, "1.0");
+}
+
+function check_test_29(install) {
+  //ensure_test_completed();
+  do_check_eq(install.state, AddonManager.STATE_DOWNLOADED);
+  do_check_neq(install.addon, null);
+  do_check_false(install.addon.isCompatible);
+  do_check_true(install.addon.appDisabled);
+
+  prepare_test({}, [
+    "onDownloadCancelled"
+  ], do_test_finished);
+  install.cancel();
+  return false;
 }

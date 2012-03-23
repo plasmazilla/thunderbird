@@ -212,6 +212,11 @@ EmailConfigWizard.prototype =
     e("incoming_port").value = gStringsBundle.getString("port_auto");
     this.fillPortDropdown("smtp");
 
+    // If the account provisioner is preffed off, don't display
+    // the account provisioner button.
+    if (!Services.prefs.getBoolPref("mail.provider.enabled"))
+      _hide("provisioner_button");
+
     // Populate SMTP server dropdown with already configured SMTP servers from
     // other accounts.
     var menulist = e("outgoing_hostname");
@@ -1322,6 +1327,25 @@ EmailConfigWizard.prototype =
     } else {
       this.switchToMode("manual-edit");
     }
+  },
+
+  /**
+   * [Switch to provisioner] button click handler. Always active, allows
+   * one to switch to the account provisioner screen.
+   */
+  onSwitchToProvisioner : function ()
+  {
+    // We have to close this window first, otherwise msgNewMailAccount
+    // in accountUtils.js will think that this window still
+    // exists when it's called from the account provisioner window.
+    // This is because the account provisioner window is modal,
+    // and therefore blocks.  Therefore, we override the _okCallback
+    // with a function that spawns the account provisioner, and then
+    // close the window.
+    this._okCallback = function() {
+      NewMailAccountProvisioner(window.arguments[0].msgWindow, window.arguments[0].extraData);
+    }
+    window.close();
   },
 
   /**

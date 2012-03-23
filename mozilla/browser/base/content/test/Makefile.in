@@ -40,10 +40,6 @@ srcdir		= @srcdir@
 VPATH		= @srcdir@
 relativesrcdir  = browser/base/content/test
 
-DIRS += \
-		tabview \
-		$(NULL)
-
 include $(DEPTH)/config/autoconf.mk
 include $(topsrcdir)/config/rules.mk
 
@@ -170,6 +166,7 @@ _BROWSER_FILES = \
                  browser_bug664672.js \
                  browser_canonizeURL.js \
                  browser_findbarClose.js \
+                 browser_homeDrop.js \
                  browser_keywordBookmarklets.js \
                  browser_contextSearchTabPosition.js \
                  browser_ctrlTab.js \
@@ -181,6 +178,7 @@ _BROWSER_FILES = \
                  browser_getshortcutoruri.js \
                  browser_hide_removing.js \
                  browser_overflowScroll.js \
+                 browser_locationBarCommand.js \
                  browser_locationBarExternalLoad.js \
                  browser_pageInfo.js \
                  browser_page_style_menu.js \
@@ -209,6 +207,7 @@ _BROWSER_FILES = \
                  browser_tabs_isActive.js \
                  browser_tabs_owner.js \
                  browser_urlbarCopying.js \
+                 browser_urlbarEnter.js \
                  browser_urlbarTrimURLs.js \
                  browser_urlHighlight.js \
                  browser_visibleFindSelection.js \
@@ -248,6 +247,9 @@ _BROWSER_FILES = \
                  test_wyciwyg_copying.html \
                  authenticate.sjs \
                  browser_minimize.js \
+                 browser_aboutSyncProgress.js \
+                 browser_middleMouse_inherit.js \
+                 browser_tabDrop.js \
                  $(NULL)
 
 ifneq (cocoa,$(MOZ_WIDGET_TOOLKIT))

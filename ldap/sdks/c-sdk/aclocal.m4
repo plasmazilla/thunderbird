@@ -40,3 +40,4 @@ builtin(include, config/autoconf/nspr.m4)dnl
 builtin(include, config/autoconf/nss.m4)dnl
 builtin(include, config/autoconf/svrcore.m4)dnl
 builtin(include, config/autoconf/sasl.m4)dnl
+builtin(include, config/autoconf/acwinpaths.m4)dnl

@@ -108,11 +108,6 @@
 #else
 @BINPATH@/@DLL_PREFIX@mozsqlite3@DLL_SUFFIX@
 #endif
-#ifdef UNIX_BUT_NOT_MAC
-@BINPATH@/README
-#else
-@BINPATH@/README.txt
-#endif
 @BINPATH@/license.txt
 @BINPATH@/blocklist.xml
 #ifdef UNIX_BUT_NOT_MAC
@@ -161,6 +156,7 @@
 @BINPATH@/components/docshell.xpt
 @BINPATH@/components/dom.xpt
 @BINPATH@/components/dom_base.xpt
+@BINPATH@/components/dom_battery.xpt
 @BINPATH@/components/dom_canvas.xpt
 @BINPATH@/components/dom_core.xpt
 @BINPATH@/components/dom_css.xpt
@@ -180,7 +176,6 @@
 @BINPATH@/components/dom_storage.xpt
 @BINPATH@/components/dom_stylesheets.xpt
 @BINPATH@/components/dom_svg.xpt
-@BINPATH@/components/dom_threads.xpt
 @BINPATH@/components/dom_traversal.xpt
 @BINPATH@/components/dom_xbl.xpt
 @BINPATH@/components/dom_xpath.xpt
@@ -235,6 +230,7 @@
 @BINPATH@/components/necko_socket.xpt
 @BINPATH@/components/necko_strconv.xpt
 @BINPATH@/components/necko_viewsource.xpt
+@BINPATH@/components/necko_websocket.xpt
 @BINPATH@/components/necko_wifi.xpt
 @BINPATH@/components/necko_wyciwyg.xpt
 #ifdef MOZ_ENABLE_GNOMEVFS
@@ -384,8 +380,6 @@
 @BINPATH@/components/nsSetDefault.manifest
 #endif
 @BINPATH@/components/nsTaggingService.js
-@BINPATH@/components/nsTryToClose.js
-@BINPATH@/components/nsTryToClose.manifest
 @BINPATH@/components/nsTypeAheadFind.js
 #ifdef MOZ_UPDATER
 @BINPATH@/components/nsUpdateService.js

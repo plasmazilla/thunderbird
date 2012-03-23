@@ -56,12 +56,11 @@
 
 #folderTree {
   border-bottom: 1px solid ThreeDShadow;
-  -moz-border-start: 1px solid ThreeDShadow;
   background-color: -moz-OddTreeRow;
 }
 
 #threadTree {
-  -moz-border-end: 1px solid ThreeDShadow;
+  border-bottom: 1px solid ThreeDShadow;
 }
 
 #mailContent {
@@ -129,11 +128,16 @@ treechildren::-moz-tree-cell-text(container, closed, hasUnread, read) {
 
 /* ::::: message column icons ::::: */
 
+/* ..... column picker ..... */
+
+.tree-columnpicker-icon  {
+  list-style-image: url("chrome://messenger/skin/icons/columnpicker.svg");
+}
+
 /* ..... thread column ..... */
 
 treecol.threadColumnHeader {
-  list-style-image: url("chrome://messenger/skin/icons/thread-col.png");
-  -moz-padding-end: 3px; 
+  list-style-image: url("chrome://messenger/skin/icons/thread-col.svg");
 }
 
 treechildren::-moz-tree-image(threadCol, container) {
@@ -155,9 +159,8 @@ treechildren::-moz-tree-image(news, threadCol, ignoreSubthread) {
 /* ..... read column ..... */
 
 treecol.readColumnHeader {
-  list-style-image: url("chrome://messenger/skin/icons/readcol.png");
-  -moz-padding-end: 5px;
-  padding-bottom: 5px;
+  list-style-image: url("chrome://messenger/skin/icons/readcol.svg");
+  -moz-padding-end: 3px;
 }
 
 treechildren::-moz-tree-image(unreadButtonColHeader) {
@@ -176,25 +179,27 @@ treechildren::-moz-tree-image(unreadButtonColHeader, unread) {
 /* ..... attachment column ..... */
 
 treecol.attachmentColumnHeader {
-  list-style-image: url("chrome://messenger/skin/icons/attachment-col.png");
-  -moz-padding-end: 5px; 
+  list-style-image: url("chrome://messenger/skin/icons/attachment-col.svg");
+  -moz-padding-end: 3px;
 }
 
 treechildren::-moz-tree-image(attachmentCol, attach) {
   list-style-image: url("chrome://messenger/skin/icons/message-list.png");
   -moz-image-region: rect(160px 16px 176px 0px); /* message-attachment.png */
+  -moz-padding-start: 2px;
 }
 
 /* ..... flag column ..... */
 
 treecol.flagColumnHeader {
-  list-style-image: url("chrome://messenger/skin/icons/flag-col.png");
-  -moz-padding-end: 5px; 
+  list-style-image: url("chrome://messenger/skin/icons/flag-col.svg");
+  -moz-padding-end: 3px;
 }
 
 treechildren::-moz-tree-image(flaggedCol) {
   list-style-image: url("chrome://messenger/skin/icons/message-list.png");
   -moz-image-region: rect(96px 16px 112px 0px); /* message-unstarred.png */
+  -moz-padding-end: 3px;
 }
 
 treechildren::-moz-tree-image(flaggedCol, dummy) {
@@ -203,13 +208,14 @@ treechildren::-moz-tree-image(flaggedCol, dummy) {
 
 treechildren::-moz-tree-image(flaggedCol, flagged) {
   -moz-image-region: rect(80px 16px 96px 0px); /* message-starred.png */
+  -moz-padding-end: 3px;
 }
 
 /* ..... junkStatus column ..... */
 
 treecol.junkStatusHeader {
-  list-style-image: url("chrome://messenger/skin/icons/junk-col.png");
-  -moz-padding-end: 5px; 
+  list-style-image: url("chrome://messenger/skin/icons/junk-col.svg");
+  -moz-padding-end: 3px;
 }
 
 /* "unknown" now looks like "not junk".  see bug #182386 */
@@ -231,7 +237,16 @@ treechildren::-moz-tree-image(junkStatusCol, notjunk) {
   -moz-image-region: rect(0px 16px 16px 0px); /* message-read.png */
   -moz-padding-start: 0px;
 }
+
 /* ..... subject column ..... */
+
+#subjectCol {
+  -moz-padding-start: 16px;
+}
+
+#subjectCol[primary="true"] {
+  -moz-padding-start: 26px;
+}
 
 treechildren::-moz-tree-image(subjectCol) {
   -moz-margin-end: 2px;
@@ -268,6 +283,9 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
   -moz-image-region: rect(0 80px 16px 64px);
 }
 
+treechildren::-moz-tree-cell-text(subjectCol) {
+  -moz-padding-start: 0;
+}
 
 #sizeCol,
 #unreadCol,
@@ -375,17 +393,22 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
   border-bottom: 4px solid highlight;
 }
 
+#messagesBox {
+  /* For some reason, the thread/message panes overlap the folder pane splitter
+     by 1px because of the CSS above. Fix this. */
+  -moz-margin-start: 1px;
+}
+
 /* ..... tree adjustments ..... */
 
 #accountCentralBox { 
-  border: 1px solid ThreeDShadow; 
+  border-bottom: 1px solid ThreeDShadow;
 }
 
 /* ..... message pane adjustments ..... */
 
 #messagepanebox {
   border-bottom: 1px solid ThreeDShadow;
-  -moz-border-end: 1px solid ThreeDShadow;
 }
 
 /* ..... status bar adjustments ..... */

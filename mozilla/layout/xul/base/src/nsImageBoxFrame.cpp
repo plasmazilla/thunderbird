@@ -101,12 +101,7 @@ private:
 NS_IMETHODIMP
 nsImageBoxFrameEvent::Run()
 {
-  nsIDocument* doc = mContent->GetOwnerDoc();
-  if (!doc) {
-    return NS_OK;
-  }
-
-  nsIPresShell *pres_shell = doc->GetShell();
+  nsIPresShell *pres_shell = mContent->OwnerDoc()->GetShell();
   if (!pres_shell) {
     return NS_OK;
   }
@@ -117,7 +112,7 @@ nsImageBoxFrameEvent::Run()
   }
 
   nsEventStatus status = nsEventStatus_eIgnore;
-  nsEvent event(PR_TRUE, mMessage);
+  nsEvent event(true, mMessage);
 
   event.flags |= NS_EVENT_FLAG_CANT_BUBBLE;
   nsEventDispatcher::Dispatch(mContent, pres_context, &event, nsnull, &status);
@@ -179,8 +174,8 @@ nsImageBoxFrame::nsImageBoxFrame(nsIPresShell* aShell, nsStyleContext* aContext)
   nsLeafBoxFrame(aShell, aContext),
   mIntrinsicSize(0,0),
   mLoadFlags(nsIRequest::LOAD_NORMAL),
-  mUseSrcAttr(PR_FALSE),
-  mSuppressStyleCheck(PR_FALSE)
+  mUseSrcAttr(false),
+  mSuppressStyleCheck(false)
 {
   MarkIntrinsicWidthsDirty();
 }
@@ -224,9 +219,9 @@ nsImageBoxFrame::Init(nsIContent*      aContent,
     NS_RELEASE(listener);
   }
 
-  mSuppressStyleCheck = PR_TRUE;
+  mSuppressStyleCheck = true;
   nsresult rv = nsLeafBoxFrame::Init(aContent, aParent, aPrevInFlow);
-  mSuppressStyleCheck = PR_FALSE;
+  mSuppressStyleCheck = false;
 
   UpdateLoadFlags();
   UpdateImage();
@@ -269,7 +264,7 @@ nsImageBoxFrame::UpdateImage()
     // Only get the list-style-image if we aren't being drawn
     // by a native theme.
     PRUint8 appearance = GetStyleDisplay()->mAppearance;
-    if (!(appearance && nsBox::gTheme && 
+    if (!(appearance && nsBox::gTheme &&
           nsBox::gTheme->ThemeSupportsWidget(nsnull, this, appearance))) {
       // get the list-style-image
       imgIRequest *styleRequest = GetStyleList()->GetListStyleImage();
@@ -342,7 +337,7 @@ NS_IMETHODIMP
 nsImageBoxFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
                                   const nsRect&           aDirtyRect,
                                   const nsDisplayListSet& aLists)
-{       
+{
   nsresult rv = nsLeafBoxFrame::BuildDisplayList(aBuilder, aDirtyRect, aLists);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -382,7 +377,7 @@ nsImageBoxFrame::PaintImage(nsRenderingContext& aRenderingContext,
   mImageRequest->GetImage(getter_AddRefs(imgCon));
 
   if (imgCon) {
-    PRBool hasSubRect = !mUseSrcAttr && (mSubRect.width > 0 || mSubRect.height > 0);
+    bool hasSubRect = !mUseSrcAttr && (mSubRect.width > 0 || mSubRect.height > 0);
     nsLayoutUtils::DrawSingleImage(&aRenderingContext, imgCon,
         nsLayoutUtils::GetGraphicsFilterForFrame(this),
         rect, dirty, aFlags, hasSubRect ? &mSubRect : nsnull);
@@ -409,7 +404,7 @@ nsImageBoxFrame::DidSetStyleContext(nsStyleContext* aOldStyleContext)
 
   // If we're using a native theme implementation, we shouldn't draw anything.
   const nsStyleDisplay* disp = GetStyleDisplay();
-  if (disp->mAppearance && nsBox::gTheme && 
+  if (disp->mAppearance && nsBox::gTheme &&
       nsBox::gTheme->ThemeSupportsWidget(nsnull, this, disp->mAppearance))
     return;
 
@@ -419,7 +414,7 @@ nsImageBoxFrame::DidSetStyleContext(nsStyleContext* aOldStyleContext)
     mImageRequest->GetURI(getter_AddRefs(oldURI));
   if (myList->GetListStyleImage())
     myList->GetListStyleImage()->GetURI(getter_AddRefs(newURI));
-  PRBool equal;
+  bool equal;
   if (newURI == oldURI ||   // handles null==null
       (newURI && oldURI &&
        NS_SUCCEEDED(newURI->Equals(oldURI, &equal)) && equal))
@@ -463,10 +458,10 @@ nsImageBoxFrame::GetPrefSize(nsBoxLayoutState& aState)
   size.width += borderPadding.LeftRight();
   size.height += borderPadding.TopBottom();
 
-  PRBool widthSet, heightSet;
+  bool widthSet, heightSet;
   nsIBox::AddCSSPrefSize(this, size, widthSet, heightSet);
   NS_ASSERTION(size.width != NS_INTRINSICSIZE && size.height != NS_INTRINSICSIZE,
-               "non-nintrinsic size expected");
+               "non-intrinsic size expected");
 
   nsSize minSize = GetMinSize(aState);
   nsSize maxSize = GetMaxSize(aState);
@@ -485,7 +480,7 @@ nsImageBoxFrame::GetPrefSize(nsBoxLayoutState& aState)
                                                                  maxSize.width, maxSize.height,
                                                                  intrinsicSize.width, intrinsicSize.height);
     NS_ASSERTION(size.width != NS_INTRINSICSIZE && size.height != NS_INTRINSICSIZE,
-                 "non-nintrinsic size expected");
+                 "non-intrinsic size expected");
     size.width += borderPadding.LeftRight();
     size.height += borderPadding.TopBottom();
     return size;
@@ -528,7 +523,7 @@ nsImageBoxFrame::GetMinSize(nsBoxLayoutState& aState)
   nsSize size(0,0);
   DISPLAY_MIN_SIZE(this, size);
   AddBorderAndPadding(size);
-  PRBool widthSet, heightSet;
+  bool widthSet, heightSet;
   nsIBox::AddCSSMinSize(aState, this, size, widthSet, heightSet);
   return size;
 }

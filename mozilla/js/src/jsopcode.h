@@ -46,7 +46,6 @@
 #include "jsprvtd.h"
 #include "jspubtd.h"
 #include "jsutil.h"
-#include "jsarena.h"
 
 JS_BEGIN_EXTERN_C
 
@@ -135,7 +134,7 @@ typedef enum JSOp {
 
 #define JOF_SHARPSLOT    (1U<<24) /* first immediate is uint16 stack slot no.
                                      that needs fixup when in global code (see
-                                     Compiler::compileScript) */
+                                     js::frontend::CompileScript) */
 #define JOF_GNAME        (1U<<25) /* predicted global name */
 #define JOF_TYPESET      (1U<<26) /* has an entry in a script's type sets */
 #define JOF_DECOMPOSE    (1U<<27) /* followed by an equivalent decomposed
@@ -178,7 +177,8 @@ typedef enum JSOp {
  * When a short jump won't hold a relative offset, its 2-byte immediate offset
  * operand is an unsigned index of a span-dependency record, maintained until
  * code generation finishes -- after which some (but we hope not nearly all)
- * span-dependent jumps must be extended (see OptimizeSpanDeps in jsemit.c).
+ * span-dependent jumps must be extended (see js::frontend::OptimizeSpanDeps in
+ * frontend/BytecodeEmitter.cpp).
  *
  * If the span-dependency record index overflows SPANDEP_INDEX_MAX, the jump
  * offset will contain SPANDEP_INDEX_HUGE, indicating that the record must be
@@ -245,7 +245,7 @@ typedef enum JSOp {
                                  (pc)[3] = (jsbytecode)((uint32)(i) >> 8),    \
                                  (pc)[4] = (jsbytecode)(uint32)(i))
 
-/* Index limit is determined by SN_3BYTE_OFFSET_FLAG, see jsemit.h. */
+/* Index limit is determined by SN_3BYTE_OFFSET_FLAG, see frontend/BytecodeEmitter.h. */
 #define INDEX_LIMIT_LOG2        23
 #define INDEX_LIMIT             ((uint32)1 << INDEX_LIMIT_LOG2)
 
@@ -505,7 +505,7 @@ DecompileValueGenerator(JSContext *cx, intN spindex, const Value &v,
  */
 struct Sprinter {
     JSContext       *context;       /* context executing the decompiler */
-    JSArenaPool     *pool;          /* string allocation pool */
+    LifoAlloc       *pool;          /* string allocation pool */
     char            *base;          /* base address of buffer in pool */
     size_t          size;           /* size of buffer allocated at base */
     ptrdiff_t       offset;         /* offset of next free char in buffer */
@@ -563,6 +563,24 @@ FlowsIntoNext(JSOp op)
     return op != JSOP_STOP && op != JSOP_RETURN && op != JSOP_RETRVAL && op != JSOP_THROW &&
            op != JSOP_GOTO && op != JSOP_GOTOX && op != JSOP_RETSUB;
 }
+
+/*
+ * AutoScriptUntrapper mutates the given script in place to replace JSOP_TRAP
+ * opcodes with the original opcode they replaced. The destructor mutates the
+ * script back into its original state.
+ */
+class AutoScriptUntrapper
+{
+    JSContext *cx;
+    JSScript *origScript;
+    jsbytecode *origCode;
+    size_t nbytes;
+    bool saveOriginal(JSScript *script);
+  public:
+    AutoScriptUntrapper();
+    bool untrap(JSContext *cx, JSScript *script);
+    ~AutoScriptUntrapper();
+};
 
 }
 #endif

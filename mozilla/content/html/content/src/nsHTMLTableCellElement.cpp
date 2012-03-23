@@ -34,6 +34,9 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
+
+#include "mozilla/Util.h"
+
 #include "nsIDOMHTMLTableCellElement.h"
 #include "nsIDOMHTMLTableRowElement.h"
 #include "nsHTMLTableElement.h"
@@ -48,6 +51,8 @@
 #include "nsRuleWalker.h"
 #include "nsIDocument.h"
 #include "celldata.h"
+
+using namespace mozilla;
 
 class nsHTMLTableCellElement : public nsGenericHTMLElement,
                                public nsIDOMHTMLTableCellElement
@@ -71,13 +76,13 @@ public:
   // nsIDOMHTMLTableCellElement
   NS_DECL_NSIDOMHTMLTABLECELLELEMENT
 
-  virtual PRBool ParseAttribute(PRInt32 aNamespaceID,
+  virtual bool ParseAttribute(PRInt32 aNamespaceID,
                                 nsIAtom* aAttribute,
                                 const nsAString& aValue,
                                 nsAttrValue& aResult);
   virtual nsMapRuleToAttributesFunc GetAttributeMappingFunction() const;
   NS_IMETHOD WalkContentStyleRules(nsRuleWalker* aRuleWalker);
-  NS_IMETHOD_(PRBool) IsAttributeMapped(const nsIAtom* aAttribute) const;
+  NS_IMETHOD_(bool) IsAttributeMapped(const nsIAtom* aAttribute) const;
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
 
@@ -182,7 +187,7 @@ nsHTMLTableCellElement::GetCellIndex(PRInt32* aCellIndex)
   PRUint32 numCells;
   cells->GetLength(&numCells);
 
-  PRBool found = PR_FALSE;
+  bool found = false;
   PRUint32 i;
 
   for (i = 0; (i < numCells) && !found; i++) {
@@ -191,7 +196,7 @@ nsHTMLTableCellElement::GetCellIndex(PRInt32* aCellIndex)
 
     if (node.get() == static_cast<nsIDOMNode *>(this)) {
       *aCellIndex = i;
-      found = PR_TRUE;
+      found = true;
     }
   }
 
@@ -252,7 +257,7 @@ nsHTMLTableCellElement::GetAlign(nsAString& aValue)
 NS_IMETHODIMP
 nsHTMLTableCellElement::SetAlign(const nsAString& aValue)
 {
-  return SetAttr(kNameSpaceID_None, nsGkAtoms::align, aValue, PR_TRUE);
+  return SetAttr(kNameSpaceID_None, nsGkAtoms::align, aValue, true);
 }
 
 
@@ -264,7 +269,7 @@ static const nsAttrValue::EnumTable kCellScopeTable[] = {
   { 0 }
 };
 
-PRBool
+bool
 nsHTMLTableCellElement::ParseAttribute(PRInt32 aNamespaceID,
                                        nsIAtom* aAttribute,
                                        const nsAString& aValue,
@@ -279,24 +284,24 @@ nsHTMLTableCellElement::ParseAttribute(PRInt32 aNamespaceID,
       return aResult.ParseIntWithBounds(aValue, 0);
     }
     if (aAttribute == nsGkAtoms::colspan) {
-      PRBool res = aResult.ParseIntWithBounds(aValue, -1);
+      bool res = aResult.ParseIntWithBounds(aValue, -1);
       if (res) {
         PRInt32 val = aResult.GetIntegerValue();
         // reset large colspan values as IE and opera do
         // quirks mode does not honor the special html 4 value of 0
         if (val > MAX_COLSPAN || val < 0 ||
-            (0 == val && InNavQuirksMode(GetOwnerDoc()))) {
+            (0 == val && InNavQuirksMode(OwnerDoc()))) {
           aResult.SetTo(1);
         }
       }
       return res;
     }
     if (aAttribute == nsGkAtoms::rowspan) {
-      PRBool res = aResult.ParseIntWithBounds(aValue, -1, MAX_ROWSPAN);
+      bool res = aResult.ParseIntWithBounds(aValue, -1, MAX_ROWSPAN);
       if (res) {
         PRInt32 val = aResult.GetIntegerValue();
         // quirks mode does not honor the special html 4 value of 0
-        if (val < 0 || (0 == val && InNavQuirksMode(GetOwnerDoc()))) {
+        if (val < 0 || (0 == val && InNavQuirksMode(OwnerDoc()))) {
           aResult.SetTo(1);
         }
       }
@@ -315,7 +320,7 @@ nsHTMLTableCellElement::ParseAttribute(PRInt32 aNamespaceID,
       return aResult.ParseColor(aValue);
     }
     if (aAttribute == nsGkAtoms::scope) {
-      return aResult.ParseEnumValue(aValue, kCellScopeTable, PR_FALSE);
+      return aResult.ParseEnumValue(aValue, kCellScopeTable, false);
     }
     if (aAttribute == nsGkAtoms::valign) {
       return ParseTableVAlignValue(aValue, aResult);
@@ -401,7 +406,7 @@ void MapAttributesIntoRule(const nsMappedAttributes* aAttributes,
   nsGenericHTMLElement::MapCommonAttributesInto(aAttributes, aData);
 }
 
-NS_IMETHODIMP_(PRBool)
+NS_IMETHODIMP_(bool)
 nsHTMLTableCellElement::IsAttributeMapped(const nsIAtom* aAttribute) const
 {
   static const MappedAttributeEntry attributes[] = {
@@ -427,7 +432,7 @@ nsHTMLTableCellElement::IsAttributeMapped(const nsIAtom* aAttribute) const
     sBackgroundAttributeMap,
   };
 
-  return FindAttributeDependence(aAttribute, map, NS_ARRAY_LENGTH(map));
+  return FindAttributeDependence(aAttribute, map, ArrayLength(map));
 }
 
 nsMapRuleToAttributesFunc

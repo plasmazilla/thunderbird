@@ -43,28 +43,15 @@
 #define jsinfer_h___
 
 #include "jsalloc.h"
-#include "jsarena.h"
 #include "jscell.h"
-#include "jstl.h"
+#include "jsfriendapi.h"
 #include "jsprvtd.h"
-#include "jshashtable.h"
 
-namespace js {
-    class CallArgs;
-    namespace analyze {
-        class ScriptAnalysis;
-    }
-    class GlobalObject;
-}
+#include "ds/LifoAlloc.h"
+#include "js/HashTable.h"
 
 namespace js {
 namespace types {
-
-/* Forward declarations. */
-class TypeSet;
-struct TypeCallsite;
-struct TypeObject;
-struct TypeCompartment;
 
 /* Type set entry for either a JSObject with singleton type or a non-singleton TypeObject. */
 struct TypeObjectKey {
@@ -314,37 +301,40 @@ enum {
      * Some objects are not dense arrays, or are dense arrays whose length
      * property does not fit in an int32.
      */
-    OBJECT_FLAG_NON_DENSE_ARRAY       = 0x0010000,
+    OBJECT_FLAG_NON_DENSE_ARRAY       = 0x00010000,
 
     /* Whether any objects this represents are not packed arrays. */
-    OBJECT_FLAG_NON_PACKED_ARRAY      = 0x0020000,
+    OBJECT_FLAG_NON_PACKED_ARRAY      = 0x00020000,
 
     /* Whether any objects this represents are not typed arrays. */
-    OBJECT_FLAG_NON_TYPED_ARRAY       = 0x0040000,
+    OBJECT_FLAG_NON_TYPED_ARRAY       = 0x00040000,
 
     /* Whether any represented script has had arguments objects created. */
-    OBJECT_FLAG_CREATED_ARGUMENTS     = 0x0080000,
+    OBJECT_FLAG_CREATED_ARGUMENTS     = 0x00080000,
 
     /* Whether any represented script is considered uninlineable. */
-    OBJECT_FLAG_UNINLINEABLE          = 0x0100000,
+    OBJECT_FLAG_UNINLINEABLE          = 0x00100000,
 
     /* Whether any objects have an equality hook. */
-    OBJECT_FLAG_SPECIAL_EQUALITY      = 0x0200000,
+    OBJECT_FLAG_SPECIAL_EQUALITY      = 0x00200000,
 
     /* Whether any objects have been iterated over. */
-    OBJECT_FLAG_ITERATED              = 0x0400000,
+    OBJECT_FLAG_ITERATED              = 0x00400000,
 
     /* Outer function which has been marked reentrant. */
-    OBJECT_FLAG_REENTRANT_FUNCTION    = 0x0800000,
+    OBJECT_FLAG_REENTRANT_FUNCTION    = 0x00800000,
+
+    /* For a global object, whether flags were set on the RegExpStatics. */
+    OBJECT_FLAG_REGEXP_FLAGS_SET      = 0x01000000,
 
     /* Flags which indicate dynamic properties of represented objects. */
-    OBJECT_FLAG_DYNAMIC_MASK          = 0x0ff0000,
+    OBJECT_FLAG_DYNAMIC_MASK          = 0x01ff0000,
 
     /*
      * Whether all properties of this object are considered unknown.
      * If set, all flags in DYNAMIC_MASK will also be set.
      */
-    OBJECT_FLAG_UNKNOWN_PROPERTIES    = 0x1000000,
+    OBJECT_FLAG_UNKNOWN_PROPERTIES    = 0x80000000,
 
     /* Mask for objects created with unknown properties. */
     OBJECT_FLAG_UNKNOWN_MASK =
@@ -500,6 +490,9 @@ class TypeSet
 
     /* Get whether this type set is non-empty. */
     bool knownNonEmpty(JSContext *cx);
+
+    /* Get whether this type set is known to be a subset of other. */
+    bool knownSubset(JSContext *cx, TypeSet *other);
 
     /*
      * Get the typed array type of all objects in this set. Returns
@@ -878,6 +871,10 @@ struct TypeObject : gc::Cell
   private:
     inline uint32 basePropertyCount() const;
     inline void setBasePropertyCount(uint32 count);
+
+    static void staticAsserts() {
+        JS_STATIC_ASSERT(offsetof(TypeObject, proto) == offsetof(js::shadow::TypeObject, proto));
+    }
 };
 
 /* Global singleton for the generic type of objects with no prototype. */
@@ -1025,10 +1022,10 @@ class TypeScript
     /* Global object for the script, if compileAndGo. */
     js::GlobalObject *global;
 
+  public:
+
     /* Nesting state for outer or inner function scripts. */
     TypeScriptNesting *nesting;
-
-  public:
 
     /* Dynamic types generated at points within this script. */
     TypeResult *dynamicList;

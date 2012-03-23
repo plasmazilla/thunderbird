@@ -1,5 +1,23 @@
 %include mailWindow1.css
 
+#subjectCol {
+  -moz-padding-start: 20px;
+}
+
+#subjectCol[primary="true"] {
+  -moz-padding-start: 30px;
+}
+
+@media not all and (-moz-windows-default-theme) {
+  #subjectCol {
+    -moz-padding-start: 17px;
+  }
+
+  #subjectCol[primary="true"] {
+    -moz-padding-start: 27px;
+  }
+}
+
 treecol.threadColumnHeader {
   -moz-padding-end: 2px;
 }
@@ -66,6 +84,12 @@ treechildren::-moz-tree-image(news, threadCol, watch) {
 #threadpane-splitter[state="collapsed"]:hover,
 #attachment-splitter[state="collapsed"]:hover {
   border-bottom: 4px solid highlight;
+}
+
+#messagesBox {
+  /* For some reason, the thread/message panes overlap the folder pane splitter
+     by 1px because of the CSS above. Fix this. */
+  -moz-margin-start: 1px;
 }
 
 #accountCentralBox,

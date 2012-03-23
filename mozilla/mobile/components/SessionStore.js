@@ -42,7 +42,7 @@ const Cr = Components.results;
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 
-#ifdef MOZ_CRASH_REPORTER
+#ifdef MOZ_CRASHREPORTER
 XPCOMUtils.defineLazyServiceGetter(this, "CrashReporter",
   "@mozilla.org/xre/app-info;1", "nsICrashReporter");
 #endif
@@ -578,7 +578,7 @@ SessionStore.prototype = {
   },
 
   _updateCrashReportURL: function ss_updateCrashReportURL(aWindow) {
-#ifdef MOZ_CRASH_REPORTER
+#ifdef MOZ_CRASHREPORTER
     try {
       let currentURI = aWindow.Browser.selectedBrowser.currentURI.clone();
       // if the current URI contains a username/password, remove it
@@ -787,12 +787,12 @@ SessionStore.prototype = {
             // Recreate the thumbnail if we are delay loading the tab
             let canvas = tab.chromeTab.thumbnail;
             canvas.setAttribute("restored", "true");
+            canvas.removeAttribute("empty");
   
             let image = new window.Image();
             image.onload = function() {
               if (canvas) {
                 canvas.getContext("2d").drawImage(image, 0, 0);
-                canvas.removeAttribute("empty");
               }
             };
             image.src = tabData.extData.thumbnail;

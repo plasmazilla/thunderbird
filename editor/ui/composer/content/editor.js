@@ -224,8 +224,6 @@ function EditorOnLoad()
       }
     }
 
-    window.tryToClose = EditorCanClose;
-
     // Continue with normal startup.
     EditorStartup();
 
@@ -393,7 +391,7 @@ var gEditorDocumentObserver =
         if (IsWebComposer())
         {
           InlineSpellCheckerUI.init(editor);
-          document.getElementById('menu_inlinespellcheck').setAttribute('disabled', !InlineSpellCheckerUI.canSpellCheck);
+          document.getElementById('menu_inlineSpellCheck').setAttribute('disabled', !InlineSpellCheckerUI.canSpellCheck);
 
           editor.returnInParagraphCreatesNewParagraph = gPrefs.getBoolPref(kCRInParagraphsPref);
 
@@ -553,6 +551,8 @@ function EditorStartup()
 
   gCSSPrefListener = new nsPrefListener(kUseCssPref);
   gReturnInParagraphPrefListener = new nsPrefListener(kCRInParagraphsPref);
+  Services.obs.addObserver(EditorCanClose, "quit-application-requested", false);
+
 
   // hide Highlight button if we are in an HTML editor with CSS mode off
   // and tell the editor if a CR in a paragraph creates a new paragraph
@@ -754,6 +754,8 @@ function EditorResetFontAndColorAttributes()
 
 function EditorShutdown()
 {
+  Services.obs.removeObserver(EditorCanClose, "quit-application-requested");
+
   gEditorToolbarPrefListener.shutdown();
   gCSSPrefListener.shutdown();
   gReturnInParagraphPrefListener.shutdown();
@@ -900,8 +902,13 @@ function CheckAndSaveDocument(command, allowDontSave)
 
 // Check for changes to document and allow saving before closing
 // This is hooked up to the OS's window close widget (e.g., "X" for Windows)
-function EditorCanClose()
+function EditorCanClose(aCancelQuit, aTopic, aData)
 {
+  if (aTopic == "quit-application-requested" &&
+      aCancelQuit instanceof Components.interfaces.nsISupportsPRBool &&
+      aCancelQuit.data)
+    return false;
+
   // Returns FALSE only if user cancels save action
 
   // "true" means allow "Don't Save" button
@@ -913,6 +920,9 @@ function EditorCanClose()
   //   editor or close any non-modal windows now
   if (canClose && "InsertCharWindow" in window && window.InsertCharWindow)
     SwitchInsertCharToAnotherEditorOrClose();
+
+  if (!canClose && aTopic == "quit-application-requested")
+    aCancelQuit.data = true;
 
   return canClose;
 }
@@ -933,19 +943,6 @@ function EditorSetDocumentCharacterSet(aCharset)
       EditorLoadUrl(docUrl);
     }
   } catch (e) {}
-}
-
-// ------------------------------------------------------------------
-function updateCharsetPopupMenu(menuPopup)
-{
-  if (IsDocumentModified() && !IsDocumentEmpty())
-  {
-    for (var i = 0; i < menuPopup.childNodes.length; i++)
-    {
-      var menuItem = menuPopup.childNodes[i];
-      menuItem.setAttribute('disabled', 'true');
-    }
-  }
 }
 
 // --------------------------- Text style ---------------------------
@@ -1766,7 +1763,7 @@ function SetEditMode(mode)
 
   // must have editor if here!
   var editor = GetCurrentEditor();
-  var inlineSpellCheckItem = document.getElementById('menu_inlinespellcheck');
+  var inlineSpellCheckItem = document.getElementById('menu_inlineSpellCheck');
 
   // Switch the UI mode before inserting contents
   //   so user can't type in source window while new window is being filled
@@ -2090,45 +2087,6 @@ function UpdateWindowTitle()
   } catch (e) { dump(e); }
 }
 
-function BuildRecentPagesMenu()
-{
-  var editor = GetCurrentEditor();
-  if (!editor || !gPrefs)
-    return;
-
-  var popup = document.getElementById("menupopup_RecentFiles");
-  if (!popup || !editor.document)
-    return;
-
-  // Delete existing menu
-  while (popup.firstChild)
-    popup.removeChild(popup.firstChild);
-
-  // Current page is the "0" item in the list we save in prefs,
-  //  but we don't include it in the menu.
-  var curUrl = StripPassword(GetDocumentUrl());
-  var historyCount = 10;
-  try {
-    historyCount = gPrefs.getIntPref("editor.history.url_maximum");
-  } catch(e) {}
-  var menuIndex = 1;
-
-  for (var i = 0; i < historyCount; i++)
-  {
-    var url = GetUnicharPref("editor.history_url_"+i);
-
-    // Skip over current url
-    if (url && url != curUrl)
-    {
-      // Build the menu
-      var title = GetUnicharPref("editor.history_title_"+i);
-      var fileType = GetUnicharPref("editor.history_type_" + i);
-      AppendRecentMenuitem(popup, title, url, fileType, menuIndex);
-      menuIndex++;
-    }
-  }
-}
-
 function SaveRecentFilesPrefs(aTitle, aFileType)
 {
   // Can't do anything if no prefs
@@ -2176,69 +2134,6 @@ function SaveRecentFilesPrefs(aTitle, aFileType)
     SetUnicharPref("editor.history_url_"+i, urlArray[i]);
     SetUnicharPref("editor.history_type_" + i, typeArray[i]);
   }
-}
-
-function AppendRecentMenuitem(menupopup, title, url, aFileType, menuIndex)
-{
-  if (menupopup)
-  {
-    var menuItem = document.createElementNS(XUL_NS, "menuitem");
-    if (menuItem)
-    {
-      var accessKey;
-      if (menuIndex <= 9)
-        accessKey = String(menuIndex);
-      else if (menuIndex == 10)
-        accessKey = "0";
-      else
-        accessKey = " ";
-
-      var itemString = accessKey+" ";
-
-      // Show "title [url]" or just the URL
-      if (title)
-      {
-       itemString += title;
-       itemString += " [";
-      }
-      itemString += url;
-      if (title)
-        itemString += "]";
-
-      menuItem.setAttribute("label", itemString);
-      menuItem.setAttribute("crop", "center");
-      menuItem.setAttribute("tooltiptext", url);
-      menuItem.setAttribute("value", url);
-      menuItem.setAttribute("fileType", aFileType);
-      if (accessKey != " ")
-        menuItem.setAttribute("accesskey", accessKey);
-      menupopup.appendChild(menuItem);
-    }
-  }
-}
-
-function EditorInitFileMenu()
-{
-  // Disable "Save" menuitem when editing remote url. User should use "Save As"
-  var docUrl = GetDocumentUrl();
-  var scheme = GetScheme(docUrl);
-  if (scheme && scheme != "file")
-    SetElementEnabledById("saveMenuitem", false);
-
-  // Enable recent pages submenu if there are any history entries in prefs
-  var historyUrl = "";
-
-  var historyCount = 10;
-  try { historyCount = gPrefs.getIntPref("editor.history.url_maximum"); } catch(e) {}
-  if (historyCount)
-  {
-    historyUrl = GetUnicharPref("editor.history_url_0");
-    
-    // See if there's more if current file is only entry in history list
-    if (historyUrl && historyUrl == docUrl)
-      historyUrl = GetUnicharPref("editor.history_url_1");
-  }
-  SetElementEnabledById("menu_RecentFiles", historyUrl != "");
 }
 
 function EditorInitFormatMenu()

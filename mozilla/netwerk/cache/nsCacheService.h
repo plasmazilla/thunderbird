@@ -89,14 +89,14 @@ public:
     static nsresult  OpenCacheEntry(nsCacheSession *           session,
                                     const nsACString &         key,
                                     nsCacheAccessMode          accessRequested,
-                                    PRBool                     blockingMode,
+                                    bool                       blockingMode,
                                     nsICacheListener *         listener,
                                     nsICacheEntryDescriptor ** result);
 
     static nsresult  EvictEntriesForSession(nsCacheSession *   session);
 
     static nsresult  IsStorageEnabledForPolicy(nsCacheStoragePolicy  storagePolicy,
-                                               PRBool *              result);
+                                               bool *              result);
 
     /**
      * Methods called by nsCacheEntryDescriptor
@@ -136,7 +136,7 @@ public:
     
     static nsresult  DoomEntry(nsCacheEntry * entry);
 
-    static PRBool    IsStorageEnabledForPolicy_Locked(nsCacheStoragePolicy policy);
+    static bool      IsStorageEnabledForPolicy_Locked(nsCacheStoragePolicy policy);
 
     // This method may be called to release an object while the cache service
     // lock is being held.  If a non-null target is specified and the target
@@ -157,10 +157,10 @@ public:
     /**
      * Methods called by nsCacheProfilePrefObserver
      */
-    static void      OnProfileShutdown(PRBool cleanse);
+    static void      OnProfileShutdown(bool cleanse);
     static void      OnProfileChanged();
 
-    static void      SetDiskCacheEnabled(PRBool  enabled);
+    static void      SetDiskCacheEnabled(bool    enabled);
     // Sets the disk cache capacity (in kilobytes)
     static void      SetDiskCacheCapacity(PRInt32  capacity);
     // Set max size for a disk-cache entry (in KB). -1 disables limit up to
@@ -170,13 +170,16 @@ public:
     // limit up to 90% of memory cache size
     static void      SetMemoryCacheMaxEntrySize(PRInt32  maxSize);
 
-    static void      SetOfflineCacheEnabled(PRBool  enabled);
+    static void      SetOfflineCacheEnabled(bool    enabled);
     // Sets the offline cache capacity (in kilobytes)
     static void      SetOfflineCacheCapacity(PRInt32  capacity);
 
     static void      SetMemoryCache();
 
     static void      OnEnterExitPrivateBrowsing();
+
+    // Starts smart cache size computation if disk device is available
+    static nsresult  SetDiskSmartSize();
 
     nsresult         Init();
     void             Shutdown();
@@ -205,12 +208,12 @@ private:
     nsresult         CreateRequest(nsCacheSession *   session,
                                    const nsACString & clientKey,
                                    nsCacheAccessMode  accessRequested,
-                                   PRBool             blockingMode,
+                                   bool               blockingMode,
                                    nsICacheListener * listener,
                                    nsCacheRequest **  request);
 
     nsresult         DoomEntry_Internal(nsCacheEntry * entry,
-                                        PRBool doProcessPendingRequests);
+                                        bool doProcessPendingRequests);
 
     nsresult         EvictEntriesForClient(const char *          clientID,
                                            nsCacheStoragePolicy  storagePolicy);
@@ -229,12 +232,12 @@ private:
 
     nsCacheDevice *  EnsureEntryHasDevice(nsCacheEntry * entry);
 
-    nsCacheEntry *   SearchCacheDevices(nsCString * key, nsCacheStoragePolicy policy, PRBool *collision);
+    nsCacheEntry *   SearchCacheDevices(nsCString * key, nsCacheStoragePolicy policy, bool *collision);
 
     void             DeactivateEntry(nsCacheEntry * entry);
 
     nsresult         ProcessRequest(nsCacheRequest *           request,
-                                    PRBool                     calledFromOpenCacheEntry,
+                                    bool                       calledFromOpenCacheEntry,
                                     nsICacheEntryDescriptor ** result);
 
     nsresult         ProcessPendingRequests(nsCacheEntry * entry);
@@ -258,6 +261,8 @@ private:
     void LogCacheStatistics();
 #endif
 
+    nsresult         SetDiskSmartSize_Locked(bool checkPref);
+
     /**
      *  Data Members
      */
@@ -273,11 +278,11 @@ private:
 
     nsTArray<nsISupports*>          mDoomedObjects;
     
-    PRBool                          mInitialized;
+    bool                            mInitialized;
     
-    PRBool                          mEnableMemoryDevice;
-    PRBool                          mEnableDiskDevice;
-    PRBool                          mEnableOfflineDevice;
+    bool                            mEnableMemoryDevice;
+    bool                            mEnableDiskDevice;
+    bool                            mEnableOfflineDevice;
 
     nsMemoryCacheDevice *           mMemoryDevice;
     nsDiskCacheDevice *             mDiskDevice;

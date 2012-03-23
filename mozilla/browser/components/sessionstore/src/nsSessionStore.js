@@ -140,10 +140,15 @@ XPCOMUtils.defineLazyGetter(this, "NetUtil", function() {
   return NetUtil;
 });
 
+XPCOMUtils.defineLazyGetter(this, "ScratchpadManager", function() {
+  Cu.import("resource:///modules/devtools/scratchpad-manager.jsm");
+  return ScratchpadManager;
+});
+
 XPCOMUtils.defineLazyServiceGetter(this, "CookieSvc",
   "@mozilla.org/cookiemanager;1", "nsICookieManager2");
 
-#ifdef MOZ_CRASH_REPORTER
+#ifdef MOZ_CRASHREPORTER
 XPCOMUtils.defineLazyServiceGetter(this, "CrashReporter",
   "@mozilla.org/xre/app-info;1", "nsICrashReporter");
 #endif
@@ -1582,6 +1587,10 @@ SessionStoreService.prototype = {
       this._capClosedWindows();
     }
 
+    if (lastSessionState.scratchpads) {
+      ScratchpadManager.restoreSession(lastSessionState.scratchpads);
+    }
+
     // Set data that persists between sessions
     this._recentCrashes = lastSessionState.session &&
                           lastSessionState.session.recentCrashes || 0;
@@ -2497,7 +2506,23 @@ SessionStoreService.prototype = {
     if (ix != -1 && total[ix] && total[ix].sizemode == "minimized")
       ix = -1;
 
-    return { windows: total, selectedWindow: ix + 1, _closedWindows: lastClosedWindowsCopy };
+    let session = {
+      state: this._loadState == STATE_RUNNING ? STATE_RUNNING_STR : STATE_STOPPED_STR,
+      lastUpdate: Date.now(),
+      startTime: this._sessionStartTime,
+      recentCrashes: this._recentCrashes
+    };
+    
+    // get open Scratchpad window states too
+    var scratchpads = ScratchpadManager.getSessionState();
+
+    return {
+      windows: total,
+      selectedWindow: ix + 1,
+      _closedWindows: lastClosedWindowsCopy,
+      session: session,
+      scratchpads: scratchpads
+    };
   },
 
   /**
@@ -2581,7 +2606,7 @@ SessionStoreService.prototype = {
       this._closedWindows = root._closedWindows;
 
     var winData;
-    if (!root.selectedWindow) {
+    if (!root.selectedWindow || root.selectedWindow > root.windows.length) {
       root.selectedWindow = 0;
     } else {
       // put the selected window at the beginning of the array to ensure that
@@ -2703,6 +2728,10 @@ SessionStoreService.prototype = {
     
     this.restoreHistoryPrecursor(aWindow, tabs, winData.tabs,
       (aOverwriteTabs ? (parseInt(winData.selected) || 1) : 0), 0, 0);
+
+    if (aState.scratchpads) {
+      ScratchpadManager.restoreSession(aState.scratchpads);
+    }
 
     // This will force the keypress listener that Panorama has to attach if it
     // isn't already. This will be the case if tab view wasn't entered or there
@@ -3556,14 +3585,6 @@ SessionStoreService.prototype = {
       }
     }
 
-    oState.session = {
-      state: this._loadState == STATE_RUNNING ? STATE_RUNNING_STR : STATE_STOPPED_STR,
-      lastUpdate: Date.now(),
-      startTime: this._sessionStartTime
-    };
-    if (this._recentCrashes)
-      oState.session.recentCrashes = this._recentCrashes;
-
     // Persist the last session if we deferred restoring it
     if (this._lastSessionState)
       oState.lastSessionState = this._lastSessionState;
@@ -3831,7 +3852,7 @@ SessionStoreService.prototype = {
    * Annotate a breakpad crash report with the currently selected tab's URL.
    */
   _updateCrashReportURL: function sss_updateCrashReportURL(aWindow) {
-#ifdef MOZ_CRASH_REPORTER
+#ifdef MOZ_CRASHREPORTER
     try {
       var currentURI = aWindow.gBrowser.currentURI.clone();
       // if the current URI contains a username/password, remove it

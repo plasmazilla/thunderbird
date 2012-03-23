@@ -53,7 +53,8 @@ JAVAFILES = \
   GeckoSurfaceView.java \
   GeckoInputConnection.java \
   AlertNotification.java \
-  SurfaceLockInfo.java \
+  SurfaceInfo.java \
+  GeckoBatteryManager.java \
   VideoPlayer.java \
   $(NULL)
 

@@ -238,7 +238,8 @@ toolbar[iconsize="small"] #paste-button[disabled="true"] {
 /* ::::: special toolbar colors ::::: */
 
 #appcontent {
-  border: 1px solid ThreeDShadow;
+  border-top: 1px solid ThreeDShadow;
+  border-bottom: 1px solid ThreeDShadow;
 }
 
 #attachmentbucket-sizer {
@@ -502,6 +503,12 @@ toolbarbutton.formatting-button {
 }
 
 /* ..... smiley menu ..... */
+
+#smileButtonMenu .menu-iconic-left {
+  /* Ensure that the smileys are visible even if the Gnome theme says menus
+     shouldn't have icons. */
+  visibility: visible;
+}
 
 #smileySmile > .menu-iconic-left {
   list-style-image: url("chrome://communicator/skin/icons/smileys/smiley-smile.png");

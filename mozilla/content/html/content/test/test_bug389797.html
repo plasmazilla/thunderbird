@@ -33,7 +33,6 @@ function HTML_TAG(aTagName, aImplClass) {
   interfaces[aTagName] =
     [ "nsIDOMNSElement",
       "nsIDOMEventTarget",
-      "nsIDOMNSHTMLElement",
       "nsIDOMElementCSSInlineStyle",
       "nsIDOMNodeSelector",
       "nsITouchEventReceiver",
@@ -159,7 +158,7 @@ HTML_TAG("hgroup", "")
 HTML_TAG("hr", "HR");
 HTML_TAG("html", "Html");
 HTML_TAG("i", "");
-HTML_TAG("iframe", "IFrame", [ "nsIDOMNSHTMLFrameElement", "nsIDOMGetSVGDocument" ],
+HTML_TAG("iframe", "IFrame", [ "nsIDOMGetSVGDocument" ],
                              [ "nsIFrameLoaderOwner" ]);
 HTML_TAG("image", "Span");
 HTML_TAG("img", "Image", [], [ "imgIDecoderObserver",

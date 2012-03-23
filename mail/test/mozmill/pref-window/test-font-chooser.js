@@ -142,9 +142,13 @@ function test_font_name_displayed() {
   // Pick the first font for each font type and set it.
   let expected = {};
   for (let [fontType, fontList] in Iterator(gRealFontLists)) {
+    // Work around bug 698238 (on Windows, Courier is returned by the enumerator but
+    // substituted with Courier New) by getting the standard (substituted) family
+    // name for each font.
+    let standardFamily = gFontEnumerator.getStandardFamilyName(fontList[0]);
     gPrefBranch.setCharPref("font.name." + fontType + "." + kLanguage,
-                            fontList[0]);
-    expected[fontType] = fontList[0];
+                            standardFamily);
+    expected[fontType] = standardFamily;
   }
 
   _verify_fonts_displayed.apply(null, [expected[k]

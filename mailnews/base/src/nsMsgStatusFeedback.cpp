@@ -40,7 +40,6 @@
 #include "nsIWebProgress.h"
 #include "nsIXULBrowserWindow.h"
 #include "nsMsgStatusFeedback.h"
-#include "nsIDocumentViewer.h"
 #include "nsIDocument.h"
 #include "nsIDOMElement.h"
 #include "nsIDocShell.h"
@@ -147,7 +146,7 @@ nsMsgStatusFeedback::OnStateChange(nsIWebProgress* aWebProgress,
         if (mailnewsUrl)
         {
           // get the url type
-          PRBool messageDisplayUrl;
+          bool messageDisplayUrl;
           mailnewsUrl->IsUrlType(nsIMsgMailNewsUrl::eDisplay, &messageDisplayUrl);
 
           if (messageDisplayUrl)

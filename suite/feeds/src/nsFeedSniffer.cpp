@@ -120,57 +120,24 @@ nsFeedSniffer::ConvertEncodedData(nsIRequest* request,
 }
 
 template<int N>
-static PRBool
+static bool
 StringBeginsWithLowercaseLiteral(nsAString& aString,
                                  const char (&aSubstring)[N])
 {
   return StringHead(aString, N).LowerCaseEqualsLiteral(aSubstring);
 }
 
-// XXXsayrer put this in here to get on the branch with minimal delay.
-// Trunk really needs to factor this out. This is the third usage.
-PRBool
+bool
 HasAttachmentDisposition(nsIHttpChannel* httpChannel)
 {
   if (!httpChannel)
     return PR_FALSE;
 
-  nsCAutoString contentDisposition;
-  nsresult rv =
-    httpChannel->GetResponseHeader(NS_LITERAL_CSTRING("content-disposition"),
-                                   contentDisposition);
+  PRUint32 disp;
+  nsresult rv = httpChannel->GetContentDisposition(&disp);
 
-  if (NS_SUCCEEDED(rv) && !contentDisposition.IsEmpty()) {
-    nsCOMPtr<nsIURI> uri;
-    httpChannel->GetURI(getter_AddRefs(uri));
-    nsCOMPtr<nsIMIMEHeaderParam> mimehdrpar =
-      do_GetService(NS_MIMEHEADERPARAM_CONTRACTID, &rv);
-    if (NS_SUCCEEDED(rv))
-    {
-      nsCAutoString fallbackCharset;
-      if (uri)
-        uri->GetOriginCharset(fallbackCharset);
-      nsAutoString dispToken;
-      // Get the disposition type
-      rv = mimehdrpar->GetParameter(contentDisposition, "", fallbackCharset,
-                                    PR_TRUE, nsnull, dispToken);
-      // RFC 2183, section 2.8 says that an unknown disposition
-      // value should be treated as "attachment"
-      // XXXbz this code is duplicated in GetFilenameAndExtensionFromChannel in
-      // nsExternalHelperAppService.  Factor it out!
-      if (NS_FAILED(rv) ||
-          (!dispToken.IsEmpty() &&
-           !StringBeginsWithLowercaseLiteral(dispToken, "inline") &&
-           // Broken sites just send
-           // Content-Disposition: filename="file"
-           // without a disposition token... screen those out.
-           !StringBeginsWithLowercaseLiteral(dispToken, "filename") &&
-           // Also in use is Content-Disposition: name="file"
-           !StringBeginsWithLowercaseLiteral(dispToken, "name")))
-        // We have a content-disposition of "attachment" or unknown
-        return PR_TRUE;
-    }
-  }
+  if (NS_SUCCEEDED(rv) && disp == nsIChannel::DISPOSITION_ATTACHMENT)
+    return PR_TRUE;
 
   return PR_FALSE;
 }
@@ -203,7 +170,7 @@ FindChar(char c, const char *begin, const char *end)
  * @returns PR_TRUE if the found substring is the documentElement, PR_FALSE
  *          otherwise.
  */
-static PRBool
+static bool
 IsDocumentElement(const char *start, const char* end)
 {
   // For every tag in the buffer, check to see if it's a PI, Doctype or
@@ -241,7 +208,7 @@ IsDocumentElement(const char *start, const char* end)
  * @returns PR_TRUE if the substring exists and is the documentElement, PR_FALSE
  *          otherwise.
  */
-static PRBool
+static bool
 ContainsTopLevelSubstring(nsACString& dataString, const char *substring)
 {
   PRInt32 offset = dataString.Find(substring);
@@ -295,7 +262,7 @@ nsFeedSniffer::GetMIMETypeFromContent(nsIRequest* request,
   // doing.
   nsCAutoString contentType;
   channel->GetContentType(contentType);
-  PRBool noSniff = contentType.EqualsLiteral(TYPE_RSS) ||
+  bool noSniff = contentType.EqualsLiteral(TYPE_RSS) ||
                    contentType.EqualsLiteral(TYPE_ATOM);
 
   // Check to see if this was a feed request from the location bar or from
@@ -357,7 +324,7 @@ nsFeedSniffer::GetMIMETypeFromContent(nsIRequest* request,
   // Thus begins the actual sniffing.
   nsDependentCSubstring dataString((const char*)testData, length);
 
-  PRBool isFeed = PR_FALSE;
+  bool isFeed = false;
 
   // RSS 0.91/0.92/2.0
   isFeed = ContainsTopLevelSubstring(dataString, "<rss");

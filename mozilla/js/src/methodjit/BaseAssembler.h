@@ -42,7 +42,6 @@
 #define jsjaeger_baseassembler_h__
 
 #include "jscntxt.h"
-#include "jstl.h"
 #include "assembler/assembler/MacroAssemblerCodeRef.h"
 #include "assembler/assembler/MacroAssembler.h"
 #include "assembler/assembler/LinkBuffer.h"
@@ -561,6 +560,16 @@ static const JSC::MacroAssembler::RegisterID JSParamReg_Argc  = JSC::SparcRegist
     //
     // After callWithABI(), the call state is reset, so a new call may begin.
     Call callWithABI(void *fun, bool canThrow) {
+#ifdef JS_CPU_ARM
+        // the repatcher requires that these instructions are adjacent in
+        // memory, make sure that they are in fact adjacent.
+        // Theoretically, this requires only 12 bytes of space, however
+        // there are at least a couple of off-by-one errors that I've noticed
+        // that make 12 insufficent.  In case 16 is also insufficent, I've bumped
+        // it to 20.
+        ensureSpace(20);
+        int initFlushCount = flushCount();
+#endif
         // [Bug 614953]: This can only be made conditional once the ARM back-end
         // is able to distinguish and patch both call sequences. Other
         // architecutres are unaffected regardless.
@@ -575,7 +584,9 @@ static const JSC::MacroAssembler::RegisterID JSParamReg_Argc  = JSC::SparcRegist
 
         Call cl = call();
         callPatches.append(CallPatch(cl, fun));
-
+#ifdef JS_CPU_ARM
+        JS_ASSERT(initFlushCount == flushCount());
+#endif
         if (stackAdjust)
             addPtr(Imm32(stackAdjust), stackPointerRegister);
 
@@ -1306,10 +1317,15 @@ static const JSC::MacroAssembler::RegisterID JSParamReg_Argc  = JSC::SparcRegist
         storePtr(ImmPtr((void *) templateObject->capacity), Address(result, offsetof(JSObject, capacity)));
         storePtr(ImmPtr(templateObject->type()), Address(result, JSObject::offsetOfType()));
 
-        /* Fixed slots of non-array objects are required to be initialized. */
+        /*
+         * Fixed slots of non-array objects are required to be initialized;
+         * Use the values currently in the template object.
+         */
         if (!templateObject->isDenseArray()) {
-            for (unsigned i = 0; i < templateObject->numFixedSlots(); i++)
-                storeValue(UndefinedValue(), Address(result, JSObject::getFixedSlotOffset(i)));
+            for (unsigned i = 0; i < templateObject->numFixedSlots(); i++) {
+                storeValue(templateObject->getFixedSlot(i),
+                           Address(result, JSObject::getFixedSlotOffset(i)));
+            }
         }
 
         return jump;

@@ -113,11 +113,6 @@ void UncachedNewHelper(VMFrame &f, uint32 argc, UncachedCallResult *ucr);
 
 void JS_FASTCALL CreateThis(VMFrame &f, JSObject *proto);
 void JS_FASTCALL Throw(VMFrame &f);
-#if JS_MONOIC
-void * JS_FASTCALL InvokeTracer(VMFrame &f, ic::TraceICInfo *tic);
-#else
-void * JS_FASTCALL InvokeTracer(VMFrame &f);
-#endif
 
 void * JS_FASTCALL LookupSwitch(VMFrame &f, jsbytecode *pc);
 void * JS_FASTCALL TableSwitch(VMFrame &f, jsbytecode *origPc);
@@ -152,7 +147,7 @@ void JS_FASTCALL SetConst(VMFrame &f, JSAtom *atom);
 template<JSBool strict> void JS_FASTCALL DefFun(VMFrame &f, JSFunction *fun);
 JSObject * JS_FASTCALL DefLocalFun(VMFrame &f, JSFunction *fun);
 JSObject * JS_FASTCALL DefLocalFun_FC(VMFrame &f, JSFunction *fun);
-JSObject * JS_FASTCALL RegExp(VMFrame &f, JSObject *regex);
+void JS_FASTCALL RegExp(VMFrame &f, JSObject *regex);
 JSObject * JS_FASTCALL Lambda(VMFrame &f, JSFunction *fun);
 JSObject * JS_FASTCALL LambdaJoinableForInit(VMFrame &f, JSFunction *fun);
 JSObject * JS_FASTCALL LambdaJoinableForSet(VMFrame &f, JSFunction *fun);
@@ -160,7 +155,6 @@ JSObject * JS_FASTCALL LambdaJoinableForCall(VMFrame &f, JSFunction *fun);
 JSObject * JS_FASTCALL LambdaJoinableForNull(VMFrame &f, JSFunction *fun);
 JSObject * JS_FASTCALL FlatLambda(VMFrame &f, JSFunction *fun);
 void JS_FASTCALL Arguments(VMFrame &f);
-void JS_FASTCALL ArgSub(VMFrame &f, uint32 n);
 void JS_FASTCALL EnterBlock(VMFrame &f, JSObject *obj);
 void JS_FASTCALL LeaveBlock(VMFrame &f, JSObject *blockChain);
 
@@ -198,7 +192,6 @@ JSBool JS_FASTCALL ValueToBoolean(VMFrame &f);
 JSString * JS_FASTCALL TypeOf(VMFrame &f);
 JSBool JS_FASTCALL InstanceOf(VMFrame &f);
 void JS_FASTCALL FastInstanceOf(VMFrame &f);
-void JS_FASTCALL ArgCnt(VMFrame &f);
 void JS_FASTCALL Unbrand(VMFrame &f);
 void JS_FASTCALL UnbrandThis(VMFrame &f);
 
@@ -234,6 +227,9 @@ void JS_FASTCALL AnyFrameEpilogue(VMFrame &f);
 
 JSObject * JS_FASTCALL
 NewDenseUnallocatedArray(VMFrame &f, uint32 length);
+
+void JS_FASTCALL ArrayConcatTwoArrays(VMFrame &f);
+void JS_FASTCALL ArrayShift(VMFrame &f);
 
 } /* namespace stubs */
 

@@ -59,6 +59,7 @@
 #include "mozilla/unused.h"
 #include "mozilla/Util.h"
 #include "nsContentUtils.h"
+#include "nsIMemoryReporter.h"
 
 // Initial size for the cache holding visited status observers.
 #define VISIT_OBSERVERS_INITIAL_CACHE_SIZE 128
@@ -92,8 +93,8 @@ struct VisitData {
   , visitTime(0)
   , titleChanged(false)
   {
-    guid.SetIsVoid(PR_TRUE);
-    title.SetIsVoid(PR_TRUE);
+    guid.SetIsVoid(true);
+    title.SetIsVoid(true);
   }
 
   VisitData(nsIURI* aURI,
@@ -112,8 +113,8 @@ struct VisitData {
     if (aReferrer) {
       (void)aReferrer->GetSpec(referrerSpec);
     }
-    guid.SetIsVoid(PR_TRUE);
-    title.SetIsVoid(PR_TRUE);
+    guid.SetIsVoid(true);
+    title.SetIsVoid(true);
   }
 
   /**
@@ -239,7 +240,7 @@ GetStringFromJSObject(JSContext* aCtx,
   JSBool rc = JS_GetProperty(aCtx, aObject, aProperty, &val);
   if (!rc || JSVAL_IS_VOID(val) ||
       !(JSVAL_IS_NULL(val) || JSVAL_IS_STRING(val))) {
-    _string.SetIsVoid(PR_TRUE);
+    _string.SetIsVoid(true);
     return;
   }
   // |null| in JS maps to the empty string.
@@ -251,7 +252,7 @@ GetStringFromJSObject(JSContext* aCtx,
   const jschar* chars =
     JS_GetStringCharsZAndLength(aCtx, JSVAL_TO_STRING(val), &length);
   if (!chars) {
-    _string.SetIsVoid(PR_TRUE);
+    _string.SetIsVoid(true);
     return;
   }
   _string.Assign(static_cast<const PRUnichar*>(chars), length);
@@ -610,7 +611,7 @@ public:
       // Also dispatch an event to release the reference to the callback after
       // we have run.
       nsCOMPtr<nsIThread> mainThread = do_GetMainThread();
-      (void)NS_ProxyRelease(mainThread, mCallback, PR_TRUE);
+      (void)NS_ProxyRelease(mainThread, mCallback, true);
     }
     return NS_OK;
   }
@@ -645,7 +646,7 @@ CanAddURI(nsIURI* aURI,
   nsNavHistory* navHistory = nsNavHistory::GetHistoryService();
   NS_ENSURE_TRUE(navHistory, false);
 
-  PRBool canAdd;
+  bool canAdd;
   nsresult rv = navHistory->CanAddURI(aURI, &canAdd);
   if (NS_SUCCEEDED(rv) && canAdd) {
     return true;
@@ -667,7 +668,7 @@ CanAddURI(nsIURI* aURI,
     // Also dispatch an event to release our reference to the callback after
     // NotifyVisitInfoCallback has run.
     nsCOMPtr<nsIThread> mainThread = do_GetMainThread();
-    (void)NS_ProxyRelease(mainThread, aCallback, PR_TRUE);
+    (void)NS_ProxyRelease(mainThread, aCallback, true);
   }
 
   return false;
@@ -714,7 +715,7 @@ public:
     NS_PRECONDITION(!NS_IsMainThread(),
                     "This should not be called on the main thread");
 
-    mozStorageTransaction transaction(mDBConn, PR_FALSE,
+    mozStorageTransaction transaction(mDBConn, false,
                                       mozIStorageConnection::TRANSACTION_IMMEDIATE);
 
     VisitData* lastPlace = NULL;
@@ -813,7 +814,7 @@ private:
   {
     if (mCallback) {
       nsCOMPtr<nsIThread> mainThread = do_GetMainThread();
-      (void)NS_ProxyRelease(mainThread, mCallback, PR_TRUE);
+      (void)NS_ProxyRelease(mainThread, mCallback, true);
     }
   }
 
@@ -888,7 +889,7 @@ private:
     nsCOMPtr<mozIStorageStatement> stmt;
     // If we have a visitTime, we want information on that specific visit.
     if (_place.visitTime) {
-      stmt = mHistory->syncStatements.GetCachedStatement(
+      stmt = mHistory->GetStatement(
         "SELECT id, session, visit_date "
         "FROM moz_historyvisits "
         "WHERE place_id = (SELECT id FROM moz_places WHERE url = :page_url) "
@@ -905,7 +906,7 @@ private:
     }
     // Otherwise, we want information about the most recent visit.
     else {
-      stmt = mHistory->syncStatements.GetCachedStatement(
+      stmt = mHistory->GetStatement(
         "SELECT id, session, visit_date "
         "FROM moz_historyvisits "
         "WHERE place_id = (SELECT id FROM moz_places WHERE url = :page_url) "
@@ -919,7 +920,7 @@ private:
                                   _place.spec);
     NS_ENSURE_SUCCESS(rv, false);
 
-    PRBool hasResult;
+    bool hasResult;
     rv = stmt->ExecuteStep(&hasResult);
     NS_ENSURE_SUCCESS(rv, false);
     if (!hasResult) {
@@ -994,7 +995,7 @@ private:
     nsresult rv;
     nsCOMPtr<mozIStorageStatement> stmt;
     if (_place.placeId) {
-      stmt = mHistory->syncStatements.GetCachedStatement(
+      stmt = mHistory->GetStatement(
         "INSERT INTO moz_historyvisits "
           "(from_visit, place_id, visit_date, visit_type, session) "
         "VALUES (:from_visit, :page_id, :visit_date, :visit_type, :session) "
@@ -1004,7 +1005,7 @@ private:
       NS_ENSURE_SUCCESS(rv, rv);
     }
     else {
-      stmt = mHistory->syncStatements.GetCachedStatement(
+      stmt = mHistory->GetStatement(
         "INSERT INTO moz_historyvisits "
           "(from_visit, place_id, visit_date, visit_type, session) "
         "VALUES (:from_visit, (SELECT id FROM moz_places WHERE url = :page_url), :visit_date, :visit_type, :session) "
@@ -1053,7 +1054,7 @@ private:
     { // First, set our frecency to the proper value.
       nsCOMPtr<mozIStorageStatement> stmt;
       if (aPlace.placeId) {
-        stmt = mHistory->syncStatements.GetCachedStatement(
+        stmt = mHistory->GetStatement(
           "UPDATE moz_places "
           "SET frecency = CALCULATE_FRECENCY(:page_id) "
           "WHERE id = :page_id"
@@ -1063,7 +1064,7 @@ private:
         NS_ENSURE_SUCCESS(rv, rv);
       }
       else {
-        stmt = mHistory->syncStatements.GetCachedStatement(
+        stmt = mHistory->GetStatement(
           "UPDATE moz_places "
           "SET frecency = CALCULATE_FRECENCY(id) "
           "WHERE url = :page_url"
@@ -1082,7 +1083,7 @@ private:
       // nonzero.
       nsCOMPtr<mozIStorageStatement> stmt;
       if (aPlace.placeId) {
-        stmt = mHistory->syncStatements.GetCachedStatement(
+        stmt = mHistory->GetStatement(
           "UPDATE moz_places "
           "SET hidden = 0 "
           "WHERE id = :page_id AND frecency <> 0"
@@ -1092,7 +1093,7 @@ private:
         NS_ENSURE_SUCCESS(rv, rv);
       }
       else {
-        stmt = mHistory->syncStatements.GetCachedStatement(
+        stmt = mHistory->GetStatement(
           "UPDATE moz_places "
           "SET hidden = 0 "
           "WHERE url = :page_url AND frecency <> 0"
@@ -1186,7 +1187,7 @@ public:
 
     // Now we can update our database record.
     nsCOMPtr<mozIStorageStatement> stmt =
-      mHistory->syncStatements.GetCachedStatement(
+      mHistory->GetStatement(
         "UPDATE moz_places "
         "SET title = :page_title "
         "WHERE id = :page_id "
@@ -1276,13 +1277,29 @@ StoreAndNotifyEmbedVisit(VisitData& aPlace,
     // Also dispatch an event to release our reference to the callback after
     // NotifyVisitInfoCallback has run.
     nsCOMPtr<nsIThread> mainThread = do_GetMainThread();
-    (void)NS_ProxyRelease(mainThread, aCallback, PR_TRUE);
+    (void)NS_ProxyRelease(mainThread, aCallback, true);
   }
 
   VisitData noReferrer;
   nsCOMPtr<nsIRunnable> event = new NotifyVisitObservers(aPlace, noReferrer);
   (void)NS_DispatchToMainThread(event);
 }
+
+PRInt64 GetHistoryObserversSize()
+{
+  History* history = History::GetService();
+  if (!history)
+    return 0;
+  return sizeof(*history) + history->SizeOf();
+}
+
+NS_MEMORY_REPORTER_IMPLEMENT(HistoryService,
+    "explicit/history-links-hashtable",
+    KIND_HEAP,
+    UNITS_BYTES,
+    GetHistoryObserversSize,
+    "Memory used by the hashtable of observers Places uses to notify objects of "
+    "changes to links' visited state.")
 
 } // anonymous namespace
 
@@ -1292,8 +1309,7 @@ StoreAndNotifyEmbedVisit(VisitData& aPlace,
 History* History::gService = NULL;
 
 History::History()
-  : syncStatements(mDBConn)
-  , mShuttingDown(false)
+  : mShuttingDown(false)
 {
   NS_ASSERTION(!gService, "Ruh-roh!  This service has already been created!");
   gService = this;
@@ -1301,8 +1317,10 @@ History::History()
   nsCOMPtr<nsIObserverService> os = services::GetObserverService();
   NS_WARN_IF_FALSE(os, "Observer service was not found!");
   if (os) {
-    (void)os->AddObserver(this, TOPIC_PLACES_SHUTDOWN, PR_FALSE);
+    (void)os->AddObserver(this, TOPIC_PLACES_SHUTDOWN, false);
   }
+
+  NS_RegisterMemoryReporter(new NS_MEMORY_REPORTER_NAME(HistoryService));
 }
 
 History::~History()
@@ -1375,7 +1393,7 @@ History::GetIsVisitedStatement()
     mozIStorageConnection* dbConn = GetDBConn();
     NS_ENSURE_TRUE(dbConn, nsnull);
 
-    (void)dbConn->Clone(PR_TRUE, getter_AddRefs(mReadOnlyDBConn));
+    (void)dbConn->Clone(true, getter_AddRefs(mReadOnlyDBConn));
     NS_ENSURE_TRUE(mReadOnlyDBConn, nsnull);
   }
 
@@ -1396,7 +1414,7 @@ History::InsertPlace(const VisitData& aPlace)
   NS_PRECONDITION(aPlace.placeId == 0, "should not have a valid place id!");
   NS_PRECONDITION(!NS_IsMainThread(), "must be called off of the main thread!");
 
-  nsCOMPtr<mozIStorageStatement> stmt = syncStatements.GetCachedStatement(
+  nsCOMPtr<mozIStorageStatement> stmt = GetStatement(
       "INSERT INTO moz_places "
         "(url, title, rev_host, hidden, typed, guid) "
       "VALUES (:url, :title, :rev_host, :hidden, :typed, :guid) "
@@ -1442,7 +1460,7 @@ History::UpdatePlace(const VisitData& aPlace)
   NS_PRECONDITION(aPlace.placeId > 0, "must have a valid place id!");
   NS_PRECONDITION(!aPlace.guid.IsVoid(), "must have a guid!");
 
-  nsCOMPtr<mozIStorageStatement> stmt = syncStatements.GetCachedStatement(
+  nsCOMPtr<mozIStorageStatement> stmt = GetStatement(
       "UPDATE moz_places "
       "SET title = :title, "
           "hidden = :hidden, "
@@ -1484,7 +1502,7 @@ History::FetchPageInfo(VisitData& _place)
   NS_PRECONDITION(!_place.spec.IsEmpty(), "must have a non-empty spec!");
   NS_PRECONDITION(!NS_IsMainThread(), "must be called off of the main thread!");
 
-  nsCOMPtr<mozIStorageStatement> stmt = syncStatements.GetCachedStatement(
+  nsCOMPtr<mozIStorageStatement> stmt = GetStatement(
       "SELECT id, title, hidden, typed, guid "
       "FROM moz_places "
       "WHERE url = :page_url "
@@ -1496,7 +1514,7 @@ History::FetchPageInfo(VisitData& _place)
                                 _place.spec);
   NS_ENSURE_SUCCESS(rv, false);
 
-  PRBool hasResult;
+  bool hasResult;
   rv = stmt->ExecuteStep(&hasResult);
   NS_ENSURE_SUCCESS(rv, false);
   if (!hasResult) {
@@ -1550,6 +1568,27 @@ History::FetchPageInfo(VisitData& _place)
   return true;
 }
 
+PLDHashOperator
+History::SizeOfEnumerator(KeyClass* aEntry, void* aArg)
+{
+  PRInt64 *size = reinterpret_cast<PRInt64*>(aArg);
+
+  // Don't add in sizeof(*aEntry); that's already accounted for in
+  // mObservers.SizeOf().
+  *size += aEntry->array.SizeOf();
+  return PL_DHASH_NEXT;
+}
+
+PRInt64
+History::SizeOf()
+{
+  PRInt64 size = mObservers.SizeOf();
+  if (mObservers.IsInitialized()) {
+    mObservers.EnumerateEntries(SizeOfEnumerator, &size);
+  }
+  return size;
+}
+
 /* static */
 History*
 History::GetService()
@@ -1581,17 +1620,11 @@ History::GetSingleton()
 mozIStorageConnection*
 History::GetDBConn()
 {
-  if (mDBConn) {
-    return mDBConn;
+  if (!mDB) {
+    mDB = Database::GetDatabase();
+    NS_ENSURE_TRUE(mDB, nsnull);
   }
-
-  nsNavHistory* navHistory = nsNavHistory::GetHistoryService();
-  NS_ENSURE_TRUE(navHistory, nsnull);
-
-  nsresult rv = navHistory->GetDBConnection(getter_AddRefs(mDBConn));
-  NS_ENSURE_SUCCESS(rv, nsnull);
-
-  return mDBConn;
+  return mDB->MainConn();
 }
 
 void
@@ -1600,15 +1633,6 @@ History::Shutdown()
   NS_ASSERTION(!mShuttingDown, "Shutdown was called more than once!");
 
   mShuttingDown = true;
-
-  // Clean up our statements and connection.
-  nsISupports* obj = static_cast<IHistory*>(this);
-  nsCOMPtr<nsIRunnable> event =
-    new FinalizeStatementCacheProxy<mozIStorageStatement>(syncStatements, obj);
-  nsCOMPtr<nsIEventTarget> target = do_GetInterface(mDBConn);
-  if (target) {
-    (void)target->Dispatch(event, NS_DISPATCH_NORMAL);
-  }
 
   if (mReadOnlyDBConn) {
     if (mIsVisitedStatement) {
@@ -1643,7 +1667,7 @@ History::VisitURI(nsIURI* aURI,
   NS_ENSURE_TRUE(navHistory, NS_ERROR_OUT_OF_MEMORY);
 
   // Silently return if URI is something we shouldn't add to DB.
-  PRBool canAdd;
+  bool canAdd;
   nsresult rv = navHistory->CanAddURI(aURI, &canAdd);
   NS_ENSURE_SUCCESS(rv, rv);
   if (!canAdd) {
@@ -1651,7 +1675,7 @@ History::VisitURI(nsIURI* aURI,
   }
 
   if (aLastVisitedURI) {
-    PRBool same;
+    bool same;
     rv = aURI->Equals(aLastVisitedURI, &same);
     NS_ENSURE_SUCCESS(rv, rv);
     if (same) {
@@ -1849,7 +1873,7 @@ History::SetURITitle(nsIURI* aURI, const nsAString& aTitle)
   //
   NS_ENSURE_TRUE(navHistory, NS_ERROR_FAILURE);
 
-  PRBool canAdd;
+  bool canAdd;
   nsresult rv = navHistory->CanAddURI(aURI, &canAdd);
   NS_ENSURE_SUCCESS(rv, rv);
   if (!canAdd) {
@@ -1910,7 +1934,7 @@ History::UpdatePlaces(const jsval& aPlaceInfos,
       nsString fatGUID;
       GetStringFromJSObject(aCtx, info, "guid", fatGUID);
       if (fatGUID.IsVoid()) {
-        guid.SetIsVoid(PR_TRUE);
+        guid.SetIsVoid(true);
       }
       else {
         guid = NS_ConvertUTF16toUTF8(fatGUID);

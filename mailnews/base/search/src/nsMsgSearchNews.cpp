@@ -87,7 +87,7 @@ nsresult nsMsgSearchNews::ValidateTerms ()
 }
 
 
-nsresult nsMsgSearchNews::Search (PRBool *aDone)
+nsresult nsMsgSearchNews::Search (bool *aDone)
 {
   // the state machine runs in the news: handler
   nsresult err = NS_ERROR_NOT_IMPLEMENTED;
@@ -157,8 +157,8 @@ char *nsMsgSearchNews::EncodeTerm (nsIMsgSearchTerm *term)
   }
 
   // Build a string to represent the string pattern
-  PRBool leadingStar = PR_FALSE;
-  PRBool trailingStar = PR_FALSE;
+  bool leadingStar = false;
+  bool trailingStar = false;
   int overhead = 1; // null terminator
   nsMsgSearchOpValue op;
   term->GetOp(&op);
@@ -284,7 +284,7 @@ nsresult nsMsgSearchNews::Encode (nsCString *outEncoding)
                                (void **)getter_AddRefs(pTerm));
       // set boolean OR term if any of the search terms are an OR...this only works if we are using
       // homogeneous boolean operators.
-      PRBool isBooleanOpAnd;
+      bool isBooleanOpAnd;
       pTerm->GetBooleanAnd(&isBooleanOpAnd);
       m_ORSearch = !isBooleanOpAnd;
 
@@ -536,7 +536,7 @@ nsresult nsMsgSearchValidityManager::InitNewsFilterTable()
     m_newsFilterTable->SetEnabled   (nsMsgSearchAttrib::Date, nsMsgSearchOp::Is, 1);
     m_newsFilterTable->SetAvailable (nsMsgSearchAttrib::Date, nsMsgSearchOp::Isnt, 1);
     m_newsFilterTable->SetEnabled   (nsMsgSearchAttrib::Date, nsMsgSearchOp::Isnt, 1);
-  
+
     m_newsFilterTable->SetAvailable (nsMsgSearchAttrib::Size, nsMsgSearchOp::IsGreaterThan, 1);
     m_newsFilterTable->SetEnabled   (nsMsgSearchAttrib::Size, nsMsgSearchOp::IsGreaterThan, 1);
     m_newsFilterTable->SetAvailable (nsMsgSearchAttrib::Size, nsMsgSearchOp::IsLessThan, 1);
@@ -544,8 +544,12 @@ nsresult nsMsgSearchValidityManager::InitNewsFilterTable()
 
     m_newsFilterTable->SetAvailable (nsMsgSearchAttrib::OtherHeader, nsMsgSearchOp::Contains, 1);
     m_newsFilterTable->SetEnabled   (nsMsgSearchAttrib::OtherHeader, nsMsgSearchOp::Contains, 1);
+    m_newsFilterTable->SetAvailable (nsMsgSearchAttrib::OtherHeader, nsMsgSearchOp::DoesntContain, 1);
+    m_newsFilterTable->SetEnabled   (nsMsgSearchAttrib::OtherHeader, nsMsgSearchOp::DoesntContain, 1);
     m_newsFilterTable->SetAvailable (nsMsgSearchAttrib::OtherHeader, nsMsgSearchOp::Is, 1);
     m_newsFilterTable->SetEnabled   (nsMsgSearchAttrib::OtherHeader, nsMsgSearchOp::Is, 1);
+    m_newsFilterTable->SetAvailable (nsMsgSearchAttrib::OtherHeader, nsMsgSearchOp::Isnt, 1);
+    m_newsFilterTable->SetEnabled   (nsMsgSearchAttrib::OtherHeader, nsMsgSearchOp::Isnt, 1);
     m_newsFilterTable->SetAvailable (nsMsgSearchAttrib::OtherHeader, nsMsgSearchOp::BeginsWith, 1);
     m_newsFilterTable->SetEnabled   (nsMsgSearchAttrib::OtherHeader, nsMsgSearchOp::BeginsWith, 1);
     m_newsFilterTable->SetAvailable (nsMsgSearchAttrib::OtherHeader, nsMsgSearchOp::EndsWith, 1);

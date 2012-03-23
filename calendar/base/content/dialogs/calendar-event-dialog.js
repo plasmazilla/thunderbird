@@ -42,6 +42,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 Components.utils.import("resource://calendar/modules/calUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 // the following variables are constructed if the jsContext this file
 // belongs to gets constructed. all those variables are meant to be accessed
@@ -60,6 +61,17 @@ var gConfirmCancel = true;
 var gLastRepeatSelection = 0;
 var gIgnoreUpdate = false;
 var gShowTimeAs = null;
+
+var eventDialogQuitObserver = {
+  observe: function(aSubject, aTopic, aData) {
+    // Check whether or not we want to veto the quit request (unless another
+    // observer already did.
+    if (aTopic == "quit-application-requested" &&
+        (aSubject instanceof Components.interfaces.nsISupportsPRBool) &&
+        !aSubject.data)
+      aSubject.data = !onCancel();
+  }
+};
 
 /**
  * Checks if the given calendar supports notifying attendees. The item is needed
@@ -211,7 +223,11 @@ function onLoad() {
     if (parentItem.parentItem != parentItem) {
         parentItem = parentItem.parentItem;
     }
-    window.recurrenceInfo = parentItem.recurrenceInfo;
+
+    window.recurrenceInfo = null;
+    if (parentItem.recurrenceInfo) {
+        window.recurrenceInfo = parentItem.recurrenceInfo.clone();
+    }
 
     document.documentElement.getButton("accept")
             .setAttribute("collapsed", "true");
@@ -236,12 +252,18 @@ function onLoad() {
 
     // This causes the app to ask if the window should be closed when the
     // application is closed.
-    window.tryToClose = onCancel;
+    Services.obs.addObserver(eventDialogQuitObserver,
+                             "quit-application-requested", false);
 
     // Normally, Enter closes a <dialog>. We want this to rather on Ctrl+Enter.
     // Stopping event propagation doesn't seem to work, so just overwrite the
     // function that does this.
     document.documentElement._hitEnter = function() {};
+}
+
+function onEventDialogUnload() {
+  Services.obs.removeObserver(eventDialogQuitObserver,
+                              "quit-application-requested");
 }
 
 /**
@@ -1904,6 +1926,12 @@ function updateCalendar() {
 
     gIsReadOnly = calendar.readOnly;
 
+    // We might have to change the organizer, let's see
+    if (window.organizer) {
+      window.organizer.id = calendar.getProperty("organizerId");
+      window.organizer.commonName = calendar.getProperty("organizerCN");
+    }
+
     if (!canNotifyAttendees(calendar, item) && calendar.getProperty("imip.identity")) {
         enableElement("notify-attendees-checkbox");
     } else {
@@ -2206,7 +2234,7 @@ function updateToDoStatus(status, passedInCompletedDate) {
           enableElement("percent-complete-textbox");
           enableElement("percent-complete-label");
           // if there isn't a completedDate, set it to the previous value
-          if (!completedDate) { 
+          if (!completedDate) {
               completedDate = oldCompletedDate;
           }
           break;
@@ -2272,6 +2300,19 @@ function saveItem() {
         }
     }
 
+    // We check if the organizerID is different from our
+    // calendar-user-address-set. The organzerID is the owner of the calendar.
+    // If it's different, that is because someone is acting on behalf of
+    // the organizer.
+    if (item.organizer && item.calendar.aclEntry) {
+        let userAddresses = item.calendar.aclEntry.getUserAddresses({});
+        if (userAddresses.length > 0
+            && !cal.attendeeMatchesAddresses(item.organizer, userAddresses)) {
+            let organizer = item.organizer.clone();
+            organizer.setProperty("SENT-BY", userAddresses[0]);
+            item.organizer = organizer;
+        }
+    }
     return item;
 }
 
@@ -2392,7 +2433,7 @@ function onCommandDeleteItem() {
             let newItem = window.calendarItem.parentItem.clone();
             newItem.recurrenceInfo.removeOccurrenceAt(window.calendarItem.recurrenceId);
 
-            window.opener.doTransaction("modify", newItem, newItem.calendar, 
+            window.opener.doTransaction("modify", newItem, newItem.calendar,
                                         window.calendarItem.parentItem, deleteListener);
         } else {
             window.opener.doTransaction("delete", window.calendarItem, window.calendarItem.calendar,

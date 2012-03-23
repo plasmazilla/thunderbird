@@ -37,6 +37,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "mozilla/Util.h"
+
 #include "jsversion.h"
 
 #if JS_HAS_XDR
@@ -58,6 +60,7 @@
 
 #include "jsobjinlines.h"
 
+using namespace mozilla;
 using namespace js;
 
 #ifdef DEBUG
@@ -641,12 +644,13 @@ js_XDRAtom(JSXDRState *xdr, JSAtom **atomp)
         return JS_FALSE;
     atom = NULL;
     cx = xdr->cx;
-    if (nchars <= JS_ARRAY_LENGTH(stackChars)) {
+    if (nchars <= ArrayLength(stackChars)) {
         chars = stackChars;
     } else {
         /*
-         * This is very uncommon. Don't use the tempPool arena for this as
-         * most allocations here will be bigger than tempPool's arenasize.
+         * This is very uncommon. Don't use the tempLifoAlloc arena for this as
+         * most allocations here will be bigger than tempLifoAlloc's default
+         * chunk size.
          */
         chars = (jschar *) cx->malloc_(nchars * sizeof(jschar));
         if (!chars)
@@ -679,6 +683,25 @@ XDRScriptState::~XDRScriptState()
     xdr->state = NULL;
     if (xdr->mode == JSXDR_DECODE && filename && !filenameSaved)
         xdr->cx->free_((void *)filename);
+}
+
+JS_PUBLIC_API(JSBool)
+JS_XDRFunctionObject(JSXDRState *xdr, JSObject **objp)
+{
+    XDRScriptState fstate(xdr);
+
+    if (xdr->mode == JSXDR_ENCODE) {
+        JSFunction* fun = (*objp)->getFunctionPrivate();
+        if (!fun)
+            return false;
+
+        fstate.filename = fun->script()->filename;
+    }
+
+    if (!JS_XDRCStringOrNull(xdr, (char **) &fstate.filename))
+        return false;
+
+    return js_XDRFunctionObject(xdr, objp);
 }
 
 JS_PUBLIC_API(JSBool)
@@ -718,10 +741,10 @@ JS_XDRScript(JSXDRState *xdr, JSScript **scriptp)
         return false;
 
     if (xdr->mode == JSXDR_DECODE) {
-        if (!js_NewScriptObject(xdr->cx, script))
-            return false;
+        JS_ASSERT(!script->compileAndGo);
+        script->u.globalObject = GetCurrentGlobal(xdr->cx);
         js_CallNewScriptHook(xdr->cx, script, NULL);
-        Debugger::onNewScript(xdr->cx, script, script->u.object, Debugger::NewHeldScript);
+        Debugger::onNewScript(xdr->cx, script, NULL);
         *scriptp = script;
     }
 

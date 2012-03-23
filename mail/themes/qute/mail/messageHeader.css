@@ -46,7 +46,7 @@
 .main-header-area {
   color: WindowText;
   background-color: ButtonFace;
-  border-bottom: 2px groove ThreeDLightShadow;
+  border-bottom: 1px solid ThreeDDarkShadow;
   padding: 0.4ex;
 }
 
@@ -91,6 +91,7 @@
 .inline-toolbox {
   border-top-width: 0;
   -moz-appearance: none;
+  background-color: transparent;
 }
 
 /* toolbars are optimized to look like OS-provided widgets; override this */
@@ -205,7 +206,10 @@
 }
 
 .dateLabel {
-  -moz-padding-end: 3px;
+  line-height: 1.5em;
+  margin: 0;
+  padding: .1em 0;
+  -moz-padding-end: 8px;
   -moz-user-select: text;
   -moz-user-focus: normal;
   cursor: text;
@@ -464,7 +468,8 @@ toolbarpaletteitem .msgHeaderView-button {
 }
 
 .headerName {
-  color: #888a85; /* lower contrast */
+  color: windowtext;
+  opacity: 0.5; /* lower contrast */
   text-align: right;
   background-color: transparent;
   padding: 0px;

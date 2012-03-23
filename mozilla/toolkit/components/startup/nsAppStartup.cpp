@@ -122,8 +122,8 @@ public:
     mService->mAppShell->Exit();
 
     // We're done "shutting down".
-    mService->mShuttingDown = PR_FALSE;
-    mService->mRunning = PR_FALSE;
+    mService->mShuttingDown = false;
+    mService->mRunning = false;
     return NS_OK;
   }
 };
@@ -134,11 +134,11 @@ public:
 
 nsAppStartup::nsAppStartup() :
   mConsiderQuitStopper(0),
-  mRunning(PR_FALSE),
-  mShuttingDown(PR_FALSE),
-  mAttemptingQuit(PR_FALSE),
-  mRestart(PR_FALSE),
-  mInterrupted(PR_FALSE)
+  mRunning(false),
+  mShuttingDown(false),
+  mAttemptingQuit(false),
+  mRestart(false),
+  mInterrupted(false)
 { }
 
 
@@ -161,11 +161,11 @@ nsAppStartup::Init()
 
   NS_TIME_FUNCTION_MARK("Got Observer service");
 
-  os->AddObserver(this, "quit-application-forced", PR_TRUE);
-  os->AddObserver(this, "sessionstore-windows-restored", PR_TRUE);
-  os->AddObserver(this, "profile-change-teardown", PR_TRUE);
-  os->AddObserver(this, "xul-window-registered", PR_TRUE);
-  os->AddObserver(this, "xul-window-destroyed", PR_TRUE);
+  os->AddObserver(this, "quit-application-forced", true);
+  os->AddObserver(this, "sessionstore-windows-restored", true);
+  os->AddObserver(this, "profile-change-teardown", true);
+  os->AddObserver(this, "xul-window-registered", true);
+  os->AddObserver(this, "xul-window-destroyed", true);
 
   return NS_OK;
 }
@@ -194,7 +194,7 @@ nsAppStartup::CreateHiddenWindow()
     (do_GetService(NS_APPSHELLSERVICE_CONTRACTID));
   NS_ENSURE_TRUE(appShellService, NS_ERROR_FAILURE);
 
-  return appShellService->CreateHiddenWindow(mAppShell);
+  return appShellService->CreateHiddenWindow();
 }
 
 
@@ -223,7 +223,7 @@ nsAppStartup::Run(void)
     EnterLastWindowClosingSurvivalArea();
 #endif
 
-    mRunning = PR_TRUE;
+    mRunning = true;
 
     nsresult rv = mAppShell->Run();
     if (NS_FAILED(rv))
@@ -243,7 +243,7 @@ nsAppStartup::Quit(PRUint32 aMode)
   // Exit() method via nsAppExitEvent to allow one last pass
   // through any events in the queue. This guarantees a tidy cleanup.
   nsresult rv = NS_OK;
-  PRBool postedExitEvent = PR_FALSE;
+  bool postedExitEvent = false;
 
   if (mShuttingDown)
     return NS_OK;
@@ -264,7 +264,7 @@ nsAppStartup::Quit(PRUint32 aMode)
       if (!appShell)
         return NS_OK;
 
-      PRBool usefulHiddenWindow;
+      bool usefulHiddenWindow;
       appShell->GetApplicationProvidedHiddenWindow(&usefulHiddenWindow);
       nsCOMPtr<nsIXULWindow> hiddenWindow;
       appShell->GetHiddenWindow(getter_AddRefs(hiddenWindow));
@@ -285,7 +285,7 @@ nsAppStartup::Quit(PRUint32 aMode)
     if (mediator) {
       mediator->GetEnumerator(nsnull, getter_AddRefs(windowEnumerator));
       if (windowEnumerator) {
-        PRBool more;
+        bool more;
         while (windowEnumerator->HasMoreElements(&more), more) {
           nsCOMPtr<nsISupports> window;
           windowEnumerator->GetNext(getter_AddRefs(window));
@@ -298,7 +298,7 @@ nsAppStartup::Quit(PRUint32 aMode)
       }
     }
 
-    mShuttingDown = PR_TRUE;
+    mShuttingDown = true;
     if (!mRestart) {
       mRestart = (aMode & eRestart) != 0;
       gRestartMode = (aMode & 0xF0);
@@ -312,7 +312,7 @@ nsAppStartup::Quit(PRUint32 aMode)
     obsService = mozilla::services::GetObserverService();
 
     if (!mAttemptingQuit) {
-      mAttemptingQuit = PR_TRUE;
+      mAttemptingQuit = true;
 #ifdef XP_MACOSX
       // now even the Mac wants to quit when the last window is closed
       ExitLastWindowClosingSurvivalArea();
@@ -339,7 +339,7 @@ nsAppStartup::Quit(PRUint32 aMode)
            closed. */
         mediator->GetEnumerator(nsnull, getter_AddRefs(windowEnumerator));
         if (windowEnumerator) {
-          PRBool more;
+          bool more;
           while (windowEnumerator->HasMoreElements(&more), more) {
             /* we can't quit immediately. we'll try again as the last window
                finally closes. */
@@ -348,7 +348,7 @@ nsAppStartup::Quit(PRUint32 aMode)
             windowEnumerator->GetNext(getter_AddRefs(window));
             nsCOMPtr<nsIDOMWindow> domWindow = do_QueryInterface(window);
             if (domWindow) {
-              PRBool closed = PR_FALSE;
+              bool closed = false;
               domWindow->GetClosed(&closed);
               if (!closed) {
                 rv = NS_ERROR_FAILURE;
@@ -374,7 +374,7 @@ nsAppStartup::Quit(PRUint32 aMode)
     }
 
     if (!mRunning) {
-      postedExitEvent = PR_TRUE;
+      postedExitEvent = true;
     }
     else {
       // no matter what, make sure we send the exit event.  If
@@ -383,7 +383,7 @@ nsAppStartup::Quit(PRUint32 aMode)
       nsCOMPtr<nsIRunnable> event = new nsAppExitEvent(this);
       rv = NS_DispatchToCurrentThread(event);
       if (NS_SUCCEEDED(rv)) {
-        postedExitEvent = PR_TRUE;
+        postedExitEvent = true;
       }
       else {
         NS_WARNING("failed to dispatch nsAppExitEvent");
@@ -394,7 +394,7 @@ nsAppStartup::Quit(PRUint32 aMode)
   // turn off the reentrancy check flag, but not if we have
   // more asynchronous work to do still.
   if (!postedExitEvent)
-    mShuttingDown = PR_FALSE;
+    mShuttingDown = false;
   return rv;
 }
 
@@ -412,7 +412,7 @@ nsAppStartup::CloseAllWindows()
   if (!windowEnumerator)
     return;
 
-  PRBool more;
+  bool more;
   while (NS_SUCCEEDED(windowEnumerator->HasMoreElements(&more)) && more) {
     nsCOMPtr<nsISupports> isupports;
     if (NS_FAILED(windowEnumerator->GetNext(getter_AddRefs(isupports))))
@@ -450,21 +450,21 @@ nsAppStartup::ExitLastWindowClosingSurvivalArea(void)
 //
 
 NS_IMETHODIMP
-nsAppStartup::GetShuttingDown(PRBool *aResult)
+nsAppStartup::GetShuttingDown(bool *aResult)
 {
   *aResult = mShuttingDown;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsAppStartup::SetInterrupted(PRBool aInterrupted)
+nsAppStartup::SetInterrupted(bool aInterrupted)
 {
   mInterrupted = aInterrupted;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsAppStartup::GetInterrupted(PRBool *aInterrupted)
+nsAppStartup::GetInterrupted(bool *aInterrupted)
 {
   *aInterrupted = mInterrupted;
   return NS_OK;
@@ -479,7 +479,7 @@ nsAppStartup::CreateChromeWindow(nsIWebBrowserChrome *aParent,
                                  PRUint32 aChromeFlags,
                                  nsIWebBrowserChrome **_retval)
 {
-  PRBool cancel;
+  bool cancel;
   return CreateChromeWindow2(aParent, aChromeFlags, 0, 0, &cancel, _retval);
 }
 
@@ -493,12 +493,12 @@ nsAppStartup::CreateChromeWindow2(nsIWebBrowserChrome *aParent,
                                   PRUint32 aChromeFlags,
                                   PRUint32 aContextFlags,
                                   nsIURI *aURI,
-                                  PRBool *aCancel,
+                                  bool *aCancel,
                                   nsIWebBrowserChrome **_retval)
 {
   NS_ENSURE_ARG_POINTER(aCancel);
   NS_ENSURE_ARG_POINTER(_retval);
-  *aCancel = PR_FALSE;
+  *aCancel = false;
   *_retval = 0;
 
   // Non-modal windows cannot be opened if we are attempting to quit
@@ -512,7 +512,7 @@ nsAppStartup::CreateChromeWindow2(nsIWebBrowserChrome *aParent,
     NS_ASSERTION(xulParent, "window created using non-XUL parent. that's unexpected, but may work.");
 
     if (xulParent)
-      xulParent->CreateNewWindow(aChromeFlags, mAppShell, getter_AddRefs(newWindow));
+      xulParent->CreateNewWindow(aChromeFlags, getter_AddRefs(newWindow));
     // And if it fails, don't try again without a parent. It could fail
     // intentionally (bug 115969).
   } else { // try using basic methods:
@@ -529,7 +529,7 @@ nsAppStartup::CreateChromeWindow2(nsIWebBrowserChrome *aParent,
     appShell->CreateTopLevelWindow(0, 0, aChromeFlags,
                                    nsIAppShellService::SIZE_TO_CONTENT,
                                    nsIAppShellService::SIZE_TO_CONTENT,
-                                   mAppShell, getter_AddRefs(newWindow));
+                                   getter_AddRefs(newWindow));
   }
 
   // if anybody gave us anything to work with, use it
@@ -554,7 +554,7 @@ nsAppStartup::Observe(nsISupports *aSubject,
 {
   NS_ASSERTION(mAppShell, "appshell service notified before appshell built");
   if (!strcmp(aTopic, "quit-application-forced")) {
-    mShuttingDown = PR_TRUE;
+    mShuttingDown = true;
   }
   else if (!strcmp(aTopic, "profile-change-teardown")) {
     if (!mShuttingDown) {
@@ -738,7 +738,7 @@ nsAppStartup::GetStartupInfo()
   ncc->GetRetValPtr(&retvalPtr);
 
   *retvalPtr = JSVAL_NULL;
-  ncc->SetReturnValueWasSet(PR_TRUE);
+  ncc->SetReturnValueWasSet(true);
 
   JSContext *cx = nsnull;
   rv = ncc->GetJSContext(&cx);
@@ -746,7 +746,7 @@ nsAppStartup::GetStartupInfo()
 
   JSObject *obj = JS_NewObject(cx, NULL, NULL, NULL);
   *retvalPtr = OBJECT_TO_JSVAL(obj);
-  ncc->SetReturnValueWasSet(PR_TRUE);
+  ncc->SetReturnValueWasSet(true);
 
   char *moz_app_restart = PR_GetEnv("MOZ_APP_RESTART");
   if (moz_app_restart) {
@@ -762,11 +762,12 @@ nsAppStartup::GetStartupInfo()
 
   MaybeDefineProperty(cx, obj, "process", gProcessCreationTimestamp);
 
-  if (gXRE_mainTimestamp >= gProcessCreationTimestamp)
-    MaybeDefineProperty(cx, obj, "main", gXRE_mainTimestamp);
-  else
+  if (gXRE_mainTimestamp < gProcessCreationTimestamp)
     Telemetry::Accumulate(Telemetry::STARTUP_MEASUREMENT_ERRORS, INVALID_MAIN);
 
+  // always define main to aid with bug 689256
+  MaybeDefineProperty(cx, obj, "main", gXRE_mainTimestamp);
+  
   if (gCreateTopLevelWindowTimestamp >= gProcessCreationTimestamp)
     MaybeDefineProperty(cx, obj, "createTopLevelWindow", gCreateTopLevelWindowTimestamp);
   else

@@ -575,7 +575,7 @@ RegisterAllocation *
 FrameState::computeAllocation(jsbytecode *target)
 {
     JS_ASSERT(cx->typeInferenceEnabled());
-    RegisterAllocation *alloc = ArenaNew<RegisterAllocation>(cx->compartment->pool, false);
+    RegisterAllocation *alloc = cx->typeLifoAlloc().new_<RegisterAllocation>(false);
     if (!alloc)
         return NULL;
 
@@ -853,7 +853,7 @@ FrameState::discardForJoin(RegisterAllocation *&alloc, uint32 stackDepth)
          * This shows up for loop entries which are not reachable from the
          * loop head, and for exception, switch target and trap safe points.
          */
-        alloc = ArenaNew<RegisterAllocation>(cx->compartment->pool, false);
+        alloc = cx->typeLifoAlloc().new_<RegisterAllocation>(false);
         if (!alloc)
             return false;
     }
@@ -882,8 +882,11 @@ FrameState::discardForJoin(RegisterAllocation *&alloc, uint32 stackDepth)
         }
 
         regstate(reg).associate(fe, RematInfo::DATA);
-        if (!alloc->synced(reg))
+        if (!alloc->synced(reg)) {
             fe->data.unsync();
+            if (!reg.isReg())
+                fe->type.unsync();
+        }
     }
 
     a->sp = a->spBase + stackDepth;
@@ -1265,13 +1268,13 @@ FrameState::assertValidRegisterState() const
 
 #if defined JS_NUNBOX32
 void
-FrameState::syncFancy(Assembler &masm, Registers avail, FrameEntry *resumeAt,
-                      FrameEntry *bottom) const
+FrameState::syncFancy(Assembler &masm, Registers avail, int trackerIndex) const
 {
-    reifier.reset(&masm, avail, resumeAt, bottom);
+    reifier.reset(&masm, avail, a->sp, entries);
 
-    for (FrameEntry *fe = resumeAt; fe >= bottom; fe--) {
-        if (!fe->isTracked())
+    for (; trackerIndex >= 0; trackerIndex--) {
+        FrameEntry *fe = tracker[trackerIndex];
+        if (fe >= a->sp)
             continue;
 
         reifier.sync(fe);
@@ -1325,12 +1328,11 @@ FrameState::sync(Assembler &masm, Uses uses) const
     Registers avail(freeRegs.freeMask & Registers::AvailRegs);
     Registers temp(Registers::TempAnyRegs);
 
-    FrameEntry *bottom = (cx->typeInferenceEnabled() || cx->compartment->debugMode())
-        ? entries
-        : a->sp - uses.nuses;
-
-    for (FrameEntry *fe = a->sp - 1; fe >= bottom; fe--) {
-        if (!fe->isTracked())
+    unsigned nentries = tracker.nentries;
+    for (int trackerIndex = nentries - 1; trackerIndex >= 0; trackerIndex--) {
+        JS_ASSERT(tracker.nentries == nentries);
+        FrameEntry *fe = tracker[trackerIndex];
+        if (fe >= a->sp)
             continue;
 
         if (fe->isType(JSVAL_TYPE_DOUBLE)) {
@@ -1379,7 +1381,7 @@ FrameState::sync(Assembler &masm, Uses uses) const
             /* Fall back to a slower sync algorithm if load required. */
             if ((!fe->type.synced() && backing->type.inMemory()) ||
                 (!fe->data.synced() && backing->data.inMemory())) {
-                syncFancy(masm, avail, fe, bottom);
+                syncFancy(masm, avail, trackerIndex);
                 return;
             }
 #endif
@@ -1458,19 +1460,13 @@ FrameState::syncAndKill(Registers kill, Uses uses, Uses ignore)
 #endif
     }
 
-    uint32 maxvisits = tracker.nentries;
 
-    FrameEntry *bottom = (cx->typeInferenceEnabled() || cx->compartment->debugMode())
-        ? entries
-        : a->sp - uses.nuses;
+    unsigned nentries = tracker.nentries;
+    for (int trackerIndex = nentries - 1; trackerIndex >= 0; trackerIndex--) {
+        JS_ASSERT(tracker.nentries == nentries);
+        FrameEntry *fe = tracker[trackerIndex];
 
-    for (FrameEntry *fe = a->sp - 1; fe >= bottom && maxvisits; fe--) {
-        if (!fe->isTracked())
-            continue;
-
-        maxvisits--;
-
-        if (deadEntry(fe, ignore.nuses))
+        if (fe >= a->sp || deadEntry(fe, ignore.nuses))
             continue;
 
         syncFe(fe);

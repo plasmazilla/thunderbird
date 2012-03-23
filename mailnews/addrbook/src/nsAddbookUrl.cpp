@@ -193,12 +193,12 @@ NS_IMETHODIMP nsAddbookUrl::GetOriginCharset(nsACString &aOriginCharset)
     return m_baseURL->GetOriginCharset(aOriginCharset);
 }
 
-NS_IMETHODIMP nsAddbookUrl::SchemeIs(const char *aScheme, PRBool *_retval)
+NS_IMETHODIMP nsAddbookUrl::SchemeIs(const char *aScheme, bool *_retval)
 {
 	return m_baseURL->SchemeIs(aScheme, _retval);
 }
 
-NS_IMETHODIMP nsAddbookUrl::Equals(nsIURI *other, PRBool *_retval)
+NS_IMETHODIMP nsAddbookUrl::Equals(nsIURI *other, bool *_retval)
 {
   // The passed-in URI might be an nsMailtoUrl. Pass our inner URL to its
   // Equals method. The other nsMailtoUrl will then pass its inner URL to
@@ -220,7 +220,7 @@ NS_IMETHODIMP nsAddbookUrl::Clone(nsIURI **_retval)
 
   nsresult rv = m_baseURL->Clone(getter_AddRefs(clone->m_baseURL));
   NS_ENSURE_SUCCESS(rv, rv);
-
+  clone->ParseUrl();
   *_retval = clone.forget().get();
   return NS_OK;
 }	
@@ -243,7 +243,7 @@ nsAddbookUrl::SetRef(const nsACString &aRef)
   return ParseUrl();
 }
 
-NS_IMETHODIMP nsAddbookUrl::EqualsExceptRef(nsIURI *other, PRBool *_retval)
+NS_IMETHODIMP nsAddbookUrl::EqualsExceptRef(nsIURI *other, bool *_retval)
 {
   // The passed-in URI might be an nsMailtoUrl. Pass our inner URL to its
   // Equals method. The other nsMailtoUrl will then pass its inner URL to
@@ -266,7 +266,7 @@ nsAddbookUrl::CloneIgnoringRef(nsIURI** _retval)
 
   nsresult rv = m_baseURL->CloneIgnoringRef(getter_AddRefs(clone->m_baseURL));
   NS_ENSURE_SUCCESS(rv, rv);
-
+  clone->ParseUrl();
   *_retval = clone.forget().get();
   return NS_OK;
 }
@@ -278,7 +278,7 @@ nsAddbookUrl::GetSpecIgnoringRef(nsACString &result)
 }
 
 NS_IMETHODIMP
-nsAddbookUrl::GetHasRef(PRBool *result)
+nsAddbookUrl::GetHasRef(bool *result)
 {
   return m_baseURL->GetHasRef(result);
 }

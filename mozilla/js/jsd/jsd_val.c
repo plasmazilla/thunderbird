@@ -228,7 +228,7 @@ jsd_GetValueString(JSDContext* jsdc, JSDValue* jsdval)
     JS_BeginRequest(cx);
 
     /* Objects call JS_ValueToString in their own compartment. */
-    scopeObj = JSVAL_IS_OBJECT(jsdval->val) ? JSVAL_TO_OBJECT(jsdval->val) : jsdc->glob;
+    scopeObj = !JSVAL_IS_PRIMITIVE(jsdval->val) ? JSVAL_TO_OBJECT(jsdval->val) : jsdc->glob;
     call = JS_EnterCrossCompartmentCall(cx, scopeObj);
     if(!call) {
         JS_EndRequest(cx);
@@ -383,7 +383,7 @@ jsd_GetValueWrappedJSVal(JSDContext* jsdc, JSDValue* jsdval)
     jsval val = jsdval->val;
     if (!JSVAL_IS_PRIMITIVE(val)) {
         cx = JSD_GetDefaultJSContext(jsdc);
-        obj = js_ObjectToOuterObject(cx, JSVAL_TO_OBJECT(val));
+        obj = JS_ObjectToOuterObject(cx, JSVAL_TO_OBJECT(val));
         if (!obj)
         {
             JS_ClearPendingException(cx);

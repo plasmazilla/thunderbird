@@ -89,7 +89,7 @@ WaitForStartupTimer() {
     = do_GetService("@mozilla.org/startupcache/cache;1");
   PR_Sleep(10 * PR_TicksPerSecond());
   
-  PRBool complete;
+  bool complete;
   while (true) {
     NS_ProcessPendingEvents(nsnull);
     rv = sc->StartupWriteComplete(&complete);
@@ -214,7 +214,7 @@ TestWriteObject() {
     return rv;
   }
   nsCOMPtr<nsISupports> objQI(do_QueryInterface(obj));
-  rv = objectOutput->WriteObject(objQI, PR_TRUE);
+  rv = objectOutput->WriteObject(objQI, true);
   if (NS_FAILED(rv)) {
     fail("failed to write object");
     return rv;
@@ -253,13 +253,13 @@ TestWriteObject() {
   buf2.forget();
 
   nsCOMPtr<nsISupports> deserialized;
-  rv = objectInput->ReadObject(PR_TRUE, getter_AddRefs(deserialized));
+  rv = objectInput->ReadObject(true, getter_AddRefs(deserialized));
   if (NS_FAILED(rv)) {
     fail("failed to read object");
     return rv;
   }
   
-  PRBool match = false;
+  bool match = false;
   nsCOMPtr<nsIURI> uri(do_QueryInterface(deserialized));
   if (uri) {
     nsCString outSpec;

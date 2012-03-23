@@ -34,6 +34,9 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
+
+#include "mozilla/Util.h"
+
 #include "nsIDOMHTMLTableSectionElem.h"
 #include "nsIDOMEventTarget.h"
 #include "nsMappedAttributes.h"
@@ -46,6 +49,8 @@
 #include "nsDOMError.h"
 #include "nsIDocument.h"
 #include "nsContentUtils.h"
+
+using namespace mozilla;
 
 // you will see the phrases "rowgroup" and "section" used interchangably
 
@@ -70,12 +75,12 @@ public:
   // nsIDOMHTMLTableSectionElement
   NS_DECL_NSIDOMHTMLTABLESECTIONELEMENT
 
-  virtual PRBool ParseAttribute(PRInt32 aNamespaceID,
+  virtual bool ParseAttribute(PRInt32 aNamespaceID,
                                 nsIAtom* aAttribute,
                                 const nsAString& aValue,
                                 nsAttrValue& aResult);
   virtual nsMapRuleToAttributesFunc GetAttributeMappingFunction() const;
-  NS_IMETHOD_(PRBool) IsAttributeMapped(const nsIAtom* aAttribute) const;
+  NS_IMETHOD_(bool) IsAttributeMapped(const nsIAtom* aAttribute) const;
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
 
@@ -137,7 +142,7 @@ nsHTMLTableSectionElement::GetRows(nsIDOMHTMLCollection** aValue)
                               mNodeInfo->NamespaceID(),
                               nsGkAtoms::tr,
                               nsGkAtoms::tr,
-                              PR_FALSE);
+                              false);
 
     NS_ENSURE_TRUE(mRows, NS_ERROR_OUT_OF_MEMORY);
   }
@@ -167,7 +172,7 @@ nsHTMLTableSectionElement::InsertRow(PRInt32 aIndex,
     return NS_ERROR_DOM_INDEX_SIZE_ERR;
   }
 
-  PRBool doInsert = (aIndex < PRInt32(rowCount)) && (aIndex != -1);
+  bool doInsert = (aIndex < PRInt32(rowCount)) && (aIndex != -1);
 
   // create the row
   nsCOMPtr<nsINodeInfo> nodeInfo;
@@ -239,7 +244,7 @@ nsHTMLTableSectionElement::DeleteRow(PRInt32 aValue)
   return RemoveChild(row, getter_AddRefs(retChild));
 }
 
-PRBool
+bool
 nsHTMLTableSectionElement::ParseAttribute(PRInt32 aNamespaceID,
                                           nsIAtom* aAttribute,
                                           const nsAString& aValue,
@@ -305,7 +310,7 @@ void MapAttributesIntoRule(const nsMappedAttributes* aAttributes, nsRuleData* aD
   nsGenericHTMLElement::MapCommonAttributesInto(aAttributes, aData);
 }
 
-NS_IMETHODIMP_(PRBool)
+NS_IMETHODIMP_(bool)
 nsHTMLTableSectionElement::IsAttributeMapped(const nsIAtom* aAttribute) const
 {
   static const MappedAttributeEntry attributes[] = {
@@ -321,7 +326,7 @@ nsHTMLTableSectionElement::IsAttributeMapped(const nsIAtom* aAttribute) const
     sBackgroundAttributeMap,
   };
 
-  return FindAttributeDependence(aAttribute, map, NS_ARRAY_LENGTH(map));
+  return FindAttributeDependence(aAttribute, map, ArrayLength(map));
 }
 
 

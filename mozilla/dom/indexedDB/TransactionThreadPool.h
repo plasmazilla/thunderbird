@@ -123,12 +123,6 @@ protected:
 
   struct DatabaseTransactionInfo
   {
-    DatabaseTransactionInfo()
-    : locked(false), lockPending(false)
-    { }
-
-    bool locked;
-    bool lockPending;
     nsTArray<TransactionInfo> transactions;
     nsTArray<nsString> storesReading;
     nsTArray<nsString> storesWriting;
@@ -174,7 +168,7 @@ protected:
 
   nsCOMPtr<nsIThreadPool> mThreadPool;
 
-  nsClassHashtable<nsUint32HashKey, DatabaseTransactionInfo>
+  nsClassHashtable<nsISupportsHashKey, DatabaseTransactionInfo>
     mTransactionsInProgress;
 
   nsTArray<QueuedDispatchInfo> mDelayedDispatchQueue;

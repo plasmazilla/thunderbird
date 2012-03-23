@@ -221,6 +221,12 @@ public:
    */
   const PRUint8* GetData(nsZipItem* aItem);
 
+  /**
+   * Gets the amount of memory taken up by the archive's mapping.
+   * @return the size
+   */
+  PRInt64 SizeOfMapping();
+
 private:
   //--- private members ---
 
@@ -254,7 +260,7 @@ private:
 class nsZipFind
 {
 public:
-  nsZipFind(nsZipArchive* aZip, char* aPattern, PRBool regExp);
+  nsZipFind(nsZipArchive* aZip, char* aPattern, bool regExp);
   ~nsZipFind();
 
   nsresult      FindNext(const char** aResult, PRUint16* aNameLen);
@@ -264,7 +270,7 @@ private:
   char*         mPattern;
   nsZipItem*    mItem;
   PRUint16      mSlot;
-  PRPackedBool  mRegExp;
+  bool          mRegExp;
 
   //-- prevent copies and assignments
   nsZipFind& operator=(const nsZipFind& rhs);
@@ -381,6 +387,8 @@ public:
 
   NS_METHOD_(nsrefcnt) AddRef(void);
   NS_METHOD_(nsrefcnt) Release(void);
+
+  PRInt64 SizeOfMapping();
 
 protected:
   const PRUint8 * mFileData; /* pointer to mmaped file */

@@ -598,9 +598,7 @@ function Startup()
           uriArray = getHomePage();
           break;
         case 2:
-          var history = Components.classes["@mozilla.org/browser/global-history;2"]
-                                  .getService(Components.interfaces.nsIBrowserHistory);
-          uriArray = [history.lastPageVisited];
+          uriArray = [GetStringPref("browser.history.last_page_visited")];
           break;
       }
     }
@@ -1142,7 +1140,7 @@ const BrowserSearch = {
     if (isElementVisible(this.searchBar)) {
       this.searchBar.select();
       this.searchBar.focus();
-    } else if (isElementVisible(this.searchSidebar)) {
+    } else if (this.searchSidebar) {
       this.searchSidebar.focus();
     } else {
       loadURI(Services.search.defaultEngine.searchForm);
@@ -1171,7 +1169,7 @@ const BrowserSearch = {
     // If the search bar is visible, use the current engine, otherwise, fall
     // back to the default engine.
     if (isElementVisible(this.searchBar) ||
-        isElementVisible(this.searchSidebar))
+        this.searchSidebar)
       engine = Services.search.currentEngine;
     else
       engine = Services.search.defaultEngine;
@@ -1211,12 +1209,14 @@ const BrowserSearch = {
   },
 
   /**
-   * Returns the search sidebar element if it is present in the toolbar, null otherwise.
+   * Returns the search sidebar textbox if the search sidebar is present in
+   * the sidebar and selected, null otherwise.
    */
   get searchSidebar() {
     var panel = sidebarObj.panels.get_panel_from_id("urn:sidebar:panel:search");
-    return panel &&
-       panel.get_iframe().contentDocument.getElementById("sidebar-search-text");
+    return panel && isElementVisible(panel.get_iframe()) &&
+           panel.get_iframe()
+                .contentDocument.getElementById("sidebar-search-text");
   },
 
   loadAddEngines: function BrowserSearch_loadAddEngines() {
@@ -1331,10 +1331,7 @@ function BrowserOpenTab()
         uriToLoad = GetLocalizedStringPref("browser.startup.homepage");
         break;
       case 2:
-        uriToLoad = gBrowser ? getWebNavigation().currentURI.spec
-                             : Components.classes["@mozilla.org/browser/global-history;2"]
-                                         .getService(Components.interfaces.nsIBrowserHistory)
-                                         .lastPageVisited;
+        uriToLoad = GetStringPref("browser.history.last_page_visited");
         break;
     }
 
@@ -1404,8 +1401,6 @@ function BrowserOpenFileWindow()
 function updateCloseItems()
 {
   var browser = getBrowser();
-  var ss = Components.classes["@mozilla.org/suite/sessionstore;1"]
-                     .getService(Components.interfaces.nsISessionStore);
 
   var hideCloseWindow = Services.prefs.getBoolPref("browser.tabs.closeWindowWithLastTab") &&
                         (!browser || browser.tabContainer.childNodes.length <= 1);
@@ -1423,6 +1418,13 @@ function updateCloseItems()
   document.getElementById("menu_closeOtherTabs").hidden = hideCloseOtherTabs;
   if (!hideCloseOtherTabs)
     document.getElementById("cmd_closeOtherTabs").setAttribute("disabled", hideCloseWindow);
+}
+
+function updateRecentMenuItems()
+{
+  var browser = getBrowser();
+  var ss = Components.classes["@mozilla.org/suite/sessionstore;1"]
+                     .getService(Components.interfaces.nsISessionStore);
 
   var recentTabsItem = document.getElementById("menu_recentTabs");
   recentTabsItem.setAttribute("disabled", !browser || browser.getUndoList().length == 0);

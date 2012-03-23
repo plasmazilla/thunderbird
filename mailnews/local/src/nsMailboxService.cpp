@@ -114,7 +114,7 @@ nsresult nsMailboxService::ParseMailbox(nsIMsgWindow *aMsgWindow, nsILocalFile *
 
 nsresult nsMailboxService::CopyMessage(const char * aSrcMailboxURI,
                               nsIStreamListener * aMailboxCopyHandler,
-                              PRBool moveMessage,
+                              bool moveMessage,
                               nsIUrlListener * aUrlListener,
                               nsIMsgWindow *aMsgWindow,
                               nsIURI **aURL)
@@ -129,7 +129,7 @@ nsresult nsMailboxService::CopyMessages(PRUint32 aNumKeys,
                                         nsMsgKey* aMsgKeys,
                                         nsIMsgFolder *srcFolder,
                                         nsIStreamListener * aMailboxCopyHandler,
-                                        PRBool moveMessage,
+                                        bool moveMessage,
                                         nsIUrlListener * aUrlListener,
                                         nsIMsgWindow *aMsgWindow,
                                         nsIURI **aURL)
@@ -311,9 +311,9 @@ nsMailboxService::StreamMessage(const char *aMessageURI,
                                 nsISupports *aConsumer,
                                 nsIMsgWindow *aMsgWindow,
                                 nsIUrlListener *aUrlListener,
-                                PRBool /* aConvertData */,
+                                bool /* aConvertData */,
                                 const nsACString &aAdditionalHeader,
-                                PRBool aLocalOnly,
+                                bool aLocalOnly,
                                 nsIURI **aURL)
 {
     // The mailbox protocol object will look for "header=filter" or
@@ -332,10 +332,34 @@ nsMailboxService::StreamMessage(const char *aMessageURI,
                                         nsIMailboxUrl::ActionFetchMessage, nsnull, aURL);
 }
 
+NS_IMETHODIMP nsMailboxService::StreamHeaders(const char *aMessageURI,
+                                              nsIStreamListener *aConsumer,
+                                              nsIUrlListener *aUrlListener,
+                                              bool aLocalOnly,
+                                              nsIURI **aURL)
+{
+  NS_ENSURE_ARG_POINTER(aMessageURI);
+  NS_ENSURE_ARG_POINTER(aConsumer);
+  nsCAutoString folderURI;
+  nsMsgKey msgKey;
+  nsCOMPtr<nsIMsgFolder> folder;
+  nsresult rv = DecomposeMailboxURI(aMessageURI, getter_AddRefs(folder), &msgKey);
+  if (msgKey == nsMsgKey_None)
+    return NS_MSG_MESSAGE_NOT_FOUND;
+
+  nsCOMPtr<nsIInputStream> inputStream;
+  PRUint64 messageOffset;
+  PRUint32 messageSize;
+  rv = folder->GetOfflineFileStream(msgKey, &messageOffset, &messageSize, getter_AddRefs(inputStream));
+  NS_ENSURE_SUCCESS(rv, rv);
+  return MsgStreamMsgHeaders(inputStream, aConsumer);
+}
+
+
 NS_IMETHODIMP nsMailboxService::IsMsgInMemCache(nsIURI *aUrl,
                                                 nsIMsgFolder *aFolder,
                                                 nsICacheEntryDescriptor **aCacheEntry,
-                                                PRBool *aResult)
+                                                bool *aResult)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -382,10 +406,10 @@ NS_IMETHODIMP nsMailboxService::OpenAttachment(const char *aContentType,
 NS_IMETHODIMP
 nsMailboxService::SaveMessageToDisk(const char *aMessageURI,
                                     nsIFile *aFile,
-                                    PRBool aAddDummyEnvelope,
+                                    bool aAddDummyEnvelope,
                                     nsIUrlListener *aUrlListener,
                                     nsIURI **aURL,
-                                    PRBool canonicalLineEnding,
+                                    bool canonicalLineEnding,
                                     nsIMsgWindow *aMsgWindow)
 {
   nsresult rv = NS_OK;
@@ -526,7 +550,7 @@ NS_IMETHODIMP nsMailboxService::GetDefaultPort(PRInt32 *aDefaultPort)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsMailboxService::AllowPort(PRInt32 port, const char *scheme, PRBool *_retval)
+NS_IMETHODIMP nsMailboxService::AllowPort(PRInt32 port, const char *scheme, bool *_retval)
 {
   NS_ENSURE_ARG_POINTER(_retval);
   // don't override anything.

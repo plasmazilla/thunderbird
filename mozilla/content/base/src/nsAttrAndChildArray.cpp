@@ -470,7 +470,7 @@ nsAttrAndChildArray::RemoveAttrAt(PRUint32 aPos, nsAttrValue& aValue)
     }
 
     nsRefPtr<nsMappedAttributes> mapped;
-    nsresult rv = GetModifiableMapped(nsnull, nsnull, PR_FALSE,
+    nsresult rv = GetModifiableMapped(nsnull, nsnull, false,
                                       getter_AddRefs(mapped));
     NS_ENSURE_SUCCESS(rv, rv);
 
@@ -585,7 +585,7 @@ nsAttrAndChildArray::SetAndTakeMappedAttr(nsIAtom* aLocalName,
 {
   nsRefPtr<nsMappedAttributes> mapped;
 
-  PRBool willAdd = PR_TRUE;
+  bool willAdd = true;
   if (mImpl && mImpl->mMappedAttrs) {
     willAdd = mImpl->mMappedAttrs->GetAttr(aLocalName) == nsnull;
   }
@@ -609,7 +609,7 @@ nsAttrAndChildArray::SetMappedAttrStyleSheet(nsHTMLStyleSheet* aSheet)
   }
 
   nsRefPtr<nsMappedAttributes> mapped;
-  nsresult rv = GetModifiableMapped(nsnull, nsnull, PR_FALSE, 
+  nsresult rv = GetModifiableMapped(nsnull, nsnull, false, 
                                     getter_AddRefs(mapped));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -679,9 +679,9 @@ nsAttrAndChildArray::Clear()
   PRUint32 end = slotCount * ATTRSIZE + ChildCount();
   for (i = slotCount * ATTRSIZE; i < end; ++i) {
     nsIContent* child = static_cast<nsIContent*>(mImpl->mBuffer[i]);
-    // making this PR_FALSE so tree teardown doesn't end up being
+    // making this false so tree teardown doesn't end up being
     // O(N*D) (number of nodes times average depth of tree).
-    child->UnbindFromTree(PR_FALSE); // XXX is it better to let the owner do this?
+    child->UnbindFromTree(false); // XXX is it better to let the owner do this?
     // Make sure to unlink our kids from each other, since someone
     // else could stil be holding references to some of them.
 
@@ -724,7 +724,7 @@ nsAttrAndChildArray::MappedAttrCount() const
 nsresult
 nsAttrAndChildArray::GetModifiableMapped(nsMappedAttributeElement* aContent,
                                          nsHTMLStyleSheet* aSheet,
-                                         PRBool aWillAddAttr,
+                                         bool aWillAddAttr,
                                          nsMappedAttributes** aModifiable)
 {
   *aModifiable = nsnull;
@@ -786,7 +786,7 @@ nsAttrAndChildArray::MakeMappedUnique(nsMappedAttributes* aAttributes)
 }
 
 
-PRBool
+bool
 nsAttrAndChildArray::GrowBy(PRUint32 aGrowSize)
 {
   PRUint32 size = mImpl ? mImpl->mBufferSize + NS_IMPL_EXTRA_SIZE : 0;
@@ -801,9 +801,9 @@ nsAttrAndChildArray::GrowBy(PRUint32 aGrowSize)
     size = PR_BIT(PR_CeilingLog2(minSize));
   }
 
-  PRBool needToInitialize = !mImpl;
+  bool needToInitialize = !mImpl;
   Impl* newImpl = static_cast<Impl*>(PR_Realloc(mImpl, size * sizeof(void*)));
-  NS_ENSURE_TRUE(newImpl, PR_FALSE);
+  NS_ENSURE_TRUE(newImpl, false);
 
   mImpl = newImpl;
 
@@ -815,10 +815,10 @@ nsAttrAndChildArray::GrowBy(PRUint32 aGrowSize)
 
   mImpl->mBufferSize = size - NS_IMPL_EXTRA_SIZE;
 
-  return PR_TRUE;
+  return true;
 }
 
-PRBool
+bool
 nsAttrAndChildArray::AddAttrSlot()
 {
   PRUint32 slotCount = AttrSlotCount();
@@ -827,7 +827,7 @@ nsAttrAndChildArray::AddAttrSlot()
   // Grow buffer if needed
   if (!(mImpl && mImpl->mBufferSize >= (slotCount + 1) * ATTRSIZE + childCount) &&
       !GrowBy(ATTRSIZE)) {
-    return PR_FALSE;
+    return false;
   }
   void** offset = mImpl->mBuffer + slotCount * ATTRSIZE;
 
@@ -840,7 +840,7 @@ nsAttrAndChildArray::AddAttrSlot()
   offset[0] = nsnull;
   offset[1] = nsnull;
 
-  return PR_TRUE;
+  return true;
 }
 
 inline void

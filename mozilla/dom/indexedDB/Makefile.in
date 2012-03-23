@@ -67,6 +67,7 @@ CPPSRCS = \
   IDBFactory.cpp \
   IndexedDatabaseManager.cpp \
   LazyIdleThread.cpp \
+  OpenDatabaseHelper.cpp \
   TransactionThreadPool.cpp \
   $(NULL)
 
@@ -92,12 +93,13 @@ LOCAL_INCLUDES = \
   -I$(topsrcdir)/dom/src/storage \
   -I$(topsrcdir)/content/base/src \
   -I$(topsrcdir)/content/events/src \
+  -I$(topsrcdir)/js/xpconnect/src \
   $(NULL)
 
 DEFINES += -D_IMPL_NS_LAYOUT
 
 # Make sure to quickstub as much as possible here! See
-# js/src/xpconnect/src/dom_quickstubs.qsconf.
+# js/xpconnect/src/dom_quickstubs.qsconf.
 XPIDLSRCS = \
   nsIIDBCursor.idl \
   nsIIDBCursorWithValue.idl \
@@ -110,7 +112,7 @@ XPIDLSRCS = \
   nsIIDBRequest.idl \
   nsIIDBTransaction.idl \
   nsIIDBVersionChangeEvent.idl \
-  nsIIDBVersionChangeRequest.idl \
+  nsIIDBOpenDBRequest.idl \
   nsIIndexedDatabaseManager.idl \
   $(NULL)
 

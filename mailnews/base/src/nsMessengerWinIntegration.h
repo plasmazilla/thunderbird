@@ -55,11 +55,22 @@
 #include "nsISupportsArray.h"
 #include "nsIObserver.h"
 
+typedef enum tagMOZ_QUERY_USER_NOTIFICATION_STATE {
+    QUNS_NOT_PRESENT = 1,
+    QUNS_BUSY = 2,
+    QUNS_RUNNING_D3D_FULL_SCREEN = 3,
+    QUNS_PRESENTATION_MODE = 4,
+    QUNS_ACCEPTS_NOTIFICATIONS = 5,
+    QUNS_QUIET_TIME = 6
+} MOZ_QUERY_USER_NOTIFICATION_STATE;
+
 // this function is exported by shell32.dll version 5.60 or later (Windows XP or greater)
 extern "C"
 {
 typedef HRESULT (__stdcall *fnSHSetUnreadMailCount)(LPCWSTR pszMailAddress, DWORD dwCount, LPCWSTR pszShellExecuteCommand);
 typedef HRESULT (__stdcall *fnSHEnumerateUnreadMailAccounts)(HKEY hKeyUser, DWORD dwIndex, LPCWSTR pszMailAddress, int cchMailAddress);
+// Vista or later
+typedef HRESULT (__stdcall *fnSHQueryUserNotificationState)(MOZ_QUERY_USER_NOTIFICATION_STATE *pquns);
 }
 
 #define NS_MESSENGERWININTEGRATION_CID \
@@ -83,7 +94,7 @@ public:
   NS_DECL_NSIOBSERVER
 
 #ifdef MOZ_THUNDERBIRD
-  nsresult ShowNewAlertNotification(PRBool aUserInitiated, const nsString& aAlertTitle, const nsString& aAlertText);
+  nsresult ShowNewAlertNotification(bool aUserInitiated, const nsString& aAlertTitle, const nsString& aAlertText);
 #else
   nsresult ShowAlertMessage(const nsString& aAlertTitle, const nsString& aAlertText, const nsACString& aFolderURI);
 #endif
@@ -104,19 +115,19 @@ private:
   nsCOMPtr<nsIAtom> mBiffStateAtom;
   PRUint32 mCurrentBiffState;
 
-  PRPackedBool mStoreUnreadCounts;   // for windows XP, we do a lot of work to store the last unread count for the inbox
+  bool mStoreUnreadCounts;   // for windows XP, we do a lot of work to store the last unread count for the inbox
                                      // this flag is set to true when we are doing that
-  PRPackedBool mBiffIconVisible;
-  PRPackedBool mBiffIconInitialized;
-  PRPackedBool mSuppressBiffIcon;
-  PRPackedBool mAlertInProgress;
+  bool mBiffIconVisible;
+  bool mBiffIconInitialized;
+  bool mSuppressBiffIcon;
+  bool mAlertInProgress;
   
   // "might" because we don't know until we check 
   // what type of server is associated with the default account
-  PRPackedBool    mDefaultAccountMightHaveAnInbox;
+  bool            mDefaultAccountMightHaveAnInbox;
 
   // True if the timer is running
-  PRPackedBool mUnreadTimerActive;
+  bool mUnreadTimerActive;
 
   nsresult ResetCurrent();
   nsresult RemoveCurrentFromRegistry();
@@ -133,6 +144,7 @@ private:
 
   fnSHSetUnreadMailCount mSHSetUnreadMailCount;
   fnSHEnumerateUnreadMailAccounts mSHEnumerateUnreadMailAccounts;
+  fnSHQueryUserNotificationState mSHQueryUserNotificationState;
 
   nsCString mInboxURI;
   nsCString mEmail;

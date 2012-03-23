@@ -295,7 +295,7 @@ public:
     // This event is first dispatched to the background thread to ensure that
     // all pending asynchronous events are completed, and then back to the
     // calling thread to actually close and notify.
-    PRBool onCallingThread = PR_FALSE;
+    bool onCallingThread = false;
     (void)mCallingThread->IsOnCurrentThread(&onCallingThread);
     if (!onCallingThread) {
       (void)mCallingThread->Dispatch(this, NS_DISPATCH_NORMAL);
@@ -454,7 +454,7 @@ Connection::Connection(Service *aService,
 , threadOpenedOn(do_GetCurrentThread())
 , mDBConn(nsnull)
 , mAsyncExecutionThreadShuttingDown(false)
-, mTransactionInProgress(PR_FALSE)
+, mTransactionInProgress(false)
 , mProgressHandler(nsnull)
 , mFlags(aFlags)
 , mStorageService(aService)
@@ -638,7 +638,7 @@ Connection::initialize(nsIFile *aDatabaseFile,
 nsresult
 Connection::databaseElementExists(enum DatabaseElementType aElementType,
                                   const nsACString &aElementName,
-                                  PRBool *_exists)
+                                  bool *_exists)
 {
   if (!mDBConn) return NS_ERROR_NOT_INITIALIZED;
 
@@ -665,11 +665,11 @@ Connection::databaseElementExists(enum DatabaseElementType aElementType,
   (void)::sqlite3_finalize(stmt);
 
   if (srv == SQLITE_ROW) {
-    *_exists = PR_TRUE;
+    *_exists = true;
     return NS_OK;
   }
   if (srv == SQLITE_DONE) {
-    *_exists = PR_FALSE;
+    *_exists = false;
     return NS_OK;
   }
 
@@ -697,7 +697,7 @@ Connection::progressHandler()
 {
   sharedDBMutex.assertCurrentThreadOwns();
   if (mProgressHandler) {
-    PRBool result;
+    bool result;
     nsresult rv = mProgressHandler->OnProgress(this, &result);
     if (NS_FAILED(rv)) return 0; // Don't break request
     return result ? 1 : 0;
@@ -709,7 +709,7 @@ nsresult
 Connection::setClosedState()
 {
   // Ensure that we are on the correct thread to close the database.
-  PRBool onOpenedThread;
+  bool onOpenedThread;
   nsresult rv = threadOpenedOn->IsOnCurrentThread(&onOpenedThread);
   NS_ENSURE_SUCCESS(rv, rv);
   if (!onOpenedThread) {
@@ -742,7 +742,7 @@ Connection::internalClose()
   }
 
   { // Ensure that we are being called on the thread we were opened with.
-    PRBool onOpenedThread = PR_FALSE;
+    bool onOpenedThread = false;
     (void)threadOpenedOn->IsOnCurrentThread(&onOpenedThread);
     NS_ASSERTION(onOpenedThread,
                  "Not called on the thread the database was opened on!");
@@ -861,7 +861,7 @@ Connection::AsyncClose(mozIStorageCompletionCallback *aCallback)
 }
 
 NS_IMETHODIMP
-Connection::Clone(PRBool aReadOnly,
+Connection::Clone(bool aReadOnly,
                   mozIStorageConnection **_connection)
 {
   if (!mDBConn)
@@ -882,6 +882,36 @@ Connection::Clone(PRBool aReadOnly,
   nsresult rv = clone->initialize(mDatabaseFile);
   NS_ENSURE_SUCCESS(rv, rv);
 
+  // Copy over pragmas from the original connection.
+  static const char * pragmas[] = {
+    "cache_size",
+    "temp_store",
+    "foreign_keys",
+    "journal_size_limit",
+    "synchronous",
+    "wal_autocheckpoint",
+  };
+  for (PRUint32 i = 0; i < ArrayLength(pragmas); ++i) {
+    // Read-only connections just need cache_size and temp_store pragmas.
+    if (aReadOnly && ::strcmp(pragmas[i], "cache_size") != 0 &&
+                     ::strcmp(pragmas[i], "temp_store") != 0) {
+      continue;
+    }
+
+    nsCAutoString pragmaQuery("PRAGMA ");
+    pragmaQuery.Append(pragmas[i]);
+    nsCOMPtr<mozIStorageStatement> stmt;
+    rv = CreateStatement(pragmaQuery, getter_AddRefs(stmt));
+    MOZ_ASSERT(NS_SUCCEEDED(rv));
+    bool hasResult = false;
+    if (stmt && NS_SUCCEEDED(stmt->ExecuteStep(&hasResult)) && hasResult) {
+      pragmaQuery.AppendLiteral(" = ");
+      pragmaQuery.AppendInt(stmt->AsInt32(0));
+      rv = clone->ExecuteSimpleSQL(pragmaQuery);
+      MOZ_ASSERT(NS_SUCCEEDED(rv));
+    }
+  }
+
   // Copy any functions that have been added to this connection.
   (void)mFunctions.EnumerateRead(copyFunctionEnumerator, clone);
 
@@ -890,7 +920,7 @@ Connection::Clone(PRBool aReadOnly,
 }
 
 NS_IMETHODIMP
-Connection::GetConnectionReady(PRBool *_ready)
+Connection::GetConnectionReady(bool *_ready)
 {
   *_ready = (mDBConn != nsnull);
   return NS_OK;
@@ -949,7 +979,7 @@ Connection::GetSchemaVersion(PRInt32 *_version)
   NS_ENSURE_TRUE(stmt, NS_ERROR_OUT_OF_MEMORY);
 
   *_version = 0;
-  PRBool hasResult;
+  bool hasResult;
   if (NS_SUCCEEDED(stmt->ExecuteStep(&hasResult)) && hasResult)
     *_version = stmt->AsInt32(0);
 
@@ -1044,20 +1074,20 @@ Connection::ExecuteAsync(mozIStorageBaseStatement **aStatements,
 
 NS_IMETHODIMP
 Connection::TableExists(const nsACString &aTableName,
-                        PRBool *_exists)
+                        bool *_exists)
 {
     return databaseElementExists(TABLE, aTableName, _exists);
 }
 
 NS_IMETHODIMP
 Connection::IndexExists(const nsACString &aIndexName,
-                        PRBool* _exists)
+                        bool* _exists)
 {
     return databaseElementExists(INDEX, aIndexName, _exists);
 }
 
 NS_IMETHODIMP
-Connection::GetTransactionInProgress(PRBool *_inProgress)
+Connection::GetTransactionInProgress(bool *_inProgress)
 {
   if (!mDBConn) return NS_ERROR_NOT_INITIALIZED;
 
@@ -1095,7 +1125,7 @@ Connection::BeginTransactionAs(PRInt32 aTransactionType)
       return NS_ERROR_ILLEGAL_VALUE;
   }
   if (NS_SUCCEEDED(rv))
-    mTransactionInProgress = PR_TRUE;
+    mTransactionInProgress = true;
   return rv;
 }
 
@@ -1111,7 +1141,7 @@ Connection::CommitTransaction()
 
   nsresult rv = ExecuteSimpleSQL(NS_LITERAL_CSTRING("COMMIT TRANSACTION"));
   if (NS_SUCCEEDED(rv))
-    mTransactionInProgress = PR_FALSE;
+    mTransactionInProgress = false;
   return rv;
 }
 
@@ -1127,7 +1157,7 @@ Connection::RollbackTransaction()
 
   nsresult rv = ExecuteSimpleSQL(NS_LITERAL_CSTRING("ROLLBACK TRANSACTION"));
   if (NS_SUCCEEDED(rv))
-    mTransactionInProgress = PR_FALSE;
+    mTransactionInProgress = false;
   return rv;
 }
 

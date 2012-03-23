@@ -74,8 +74,8 @@ NS_DEFINE_STATIC_IID_ACCESSOR(nsIScriptContextPrincipal,
                               NS_ISCRIPTCONTEXTPRINCIPAL_IID)
 
 #define NS_ISCRIPTCONTEXT_IID \
-{ 0x827d1e82, 0x5aab, 0x4e3a, \
-  { 0x88, 0x76, 0x53, 0xf7, 0xed, 0x1e, 0x3f, 0xbe } }
+{ 0x2e583bf4, 0x3c1f, 0x432d, \
+  { 0x82, 0x83, 0x8d, 0xee, 0x7e, 0xcc, 0xc8, 0x8b } }
 
 /* This MUST match JSVERSION_DEFAULT.  This version stuff if we don't
    know what language we have is a little silly... */
@@ -113,13 +113,13 @@ public:
    *
    **/
   virtual nsresult EvaluateString(const nsAString& aScript,
-                                  void *aScopeObject,
+                                  JSObject* aScopeObject,
                                   nsIPrincipal *aPrincipal,
                                   const char *aURL,
                                   PRUint32 aLineNo,
                                   PRUint32 aVersion,
                                   nsAString *aRetValue,
-                                  PRBool* aIsUndefined) = 0;
+                                  bool* aIsUndefined) = 0;
 
   // Note JS bigotry remains here - 'void *aRetValue' is assumed to be a
   // jsval.  This must move to JSObject before it can be made agnostic.
@@ -130,7 +130,7 @@ public:
                                            PRUint32 aLineNo,
                                            PRUint32 aVersion,
                                            void* aRetValue,
-                                           PRBool* aIsUndefined) = 0;
+                                           bool* aIsUndefined) = 0;
 
   /**
    * Compile a script.
@@ -172,10 +172,10 @@ public:
    * @return NS_OK if the script was valid and got executed
    *
    */
-  virtual nsresult ExecuteScript(void* aScriptObject,
-                                 void* aScopeObject,
+  virtual nsresult ExecuteScript(JSScript* aScriptObject,
+                                 JSObject* aScopeObject,
                                  nsAString* aRetValue,
-                                 PRBool* aIsUndefined) = 0;
+                                 bool* aIsUndefined) = 0;
 
   /**
    * Compile the event handler named by atom aName, with function body aBody
@@ -226,7 +226,7 @@ public:
    * @param rval out parameter returning result
    **/
   virtual nsresult CallEventHandler(nsISupports* aTarget,
-                                    void *aScope, void* aHandler,
+                                    JSObject* aScope, void* aHandler,
                                     nsIArray *argv, nsIVariant **rval) = 0;
 
   /**
@@ -251,7 +251,7 @@ public:
    * @return NS_OK if the function was successfully bound
    */
   virtual nsresult BindCompiledEventHandler(nsISupports* aTarget,
-                                            void *aScope,
+                                            JSObject* aScope,
                                             void* aHandler,
                                             nsScriptObjectHolder& aBoundHandler) = 0;
 
@@ -270,7 +270,7 @@ public:
                                    const char* aURL,
                                    PRUint32 aLineNo,
                                    PRUint32 aVersion,
-                                   PRBool aShared,
+                                   bool aShared,
                                    void **aFunctionObject) = 0;
 
   /**
@@ -296,7 +296,7 @@ public:
    * Return the native global object for this context.
    *
    **/
-  virtual void *GetNativeGlobal() = 0;
+  virtual JSObject* GetNativeGlobal() = 0;
 
   /**
    * Create a new global object that will be used for an inner window.
@@ -305,7 +305,7 @@ public:
    */
   virtual nsresult CreateNativeGlobalForInner(
                                       nsIScriptGlobalObject *aNewInner,
-                                      PRBool aIsChrome,
+                                      bool aIsChrome,
                                       nsIPrincipal *aPrincipal,
                                       void **aNativeGlobal,
                                       nsISupports **aHolder) = 0;
@@ -347,10 +347,10 @@ public:
    * Check to see if context is as yet intialized. Used to prevent
    * reentrancy issues during the initialization process.
    *
-   * @return PR_TRUE if initialized, PR_FALSE if not
+   * @return true if initialized, false if not
    *
    */
-  virtual PRBool IsContextInitialized() = 0;
+  virtual bool IsContextInitialized() = 0;
 
   /**
    * Called as the global object discards its reference to the context.
@@ -377,10 +377,10 @@ public:
    *    calls to the termination function.
    * @return NS_OK if the method is successful
    */
-  virtual void ScriptEvaluated(PRBool aTerminated) = 0;
+  virtual void ScriptEvaluated(bool aTerminated) = 0;
 
   virtual nsresult Serialize(nsIObjectOutputStream* aStream,
-                             void *aScriptObject) = 0;
+                             JSScript* aScriptObject) = 0;
   
   /* Deserialize a script from a stream.
    */
@@ -403,8 +403,8 @@ public:
   /**
    * Called to disable/enable script execution in this context.
    */
-  virtual PRBool GetScriptsEnabled() = 0;
-  virtual void SetScriptsEnabled(PRBool aEnabled, PRBool aFireTimeouts) = 0;
+  virtual bool GetScriptsEnabled() = 0;
+  virtual void SetScriptsEnabled(bool aEnabled, bool aFireTimeouts) = 0;
 
   // SetProperty is suspect and jst believes should not be needed.  Currenly
   // used only for "arguments".
@@ -413,19 +413,19 @@ public:
    * Called to set/get information if the script context is
    * currently processing a script tag
    */
-  virtual PRBool GetProcessingScriptTag() = 0;
-  virtual void SetProcessingScriptTag(PRBool aResult) = 0;
+  virtual bool GetProcessingScriptTag() = 0;
+  virtual void SetProcessingScriptTag(bool aResult) = 0;
 
   /**
    * Called to find out if this script context might be executing script.
    */
-  virtual PRBool GetExecutingScript() = 0;
+  virtual bool GetExecutingScript() = 0;
 
   /**
    * Tell the context whether or not to GC when destroyed.  An optimization
    * used when the window is a [i]frame, so GC will happen anyway.
    */
-  virtual void SetGCOnDestruction(PRBool aGCOnDestruction) = 0;
+  virtual void SetGCOnDestruction(bool aGCOnDestruction) = 0;
 
   /**
    * Initialize DOM classes on aGlobalObj, always call
@@ -447,7 +447,7 @@ public:
    * windows, and needs to stay with inner windows that we're keeping
    * around.
    */
-  virtual void ClearScope(void* aGlobalObj, PRBool aClearFromProtoChain) = 0;
+  virtual void ClearScope(void* aGlobalObj, bool aClearFromProtoChain) = 0;
 
   /**
    * Tell the context we're about to be reinitialize it.
@@ -458,13 +458,6 @@ public:
    * Tell the context we're done reinitializing it.
    */
   virtual void DidInitializeContext() = 0;
-
-  /**
-   * Tell the context our global has a new document, and the scope
-   * used by it.  Use nsISupports to avoid dependency issues - but expect
-   * a QI for nsIDOMDocument and/or nsIDocument.
-   */
-  virtual void DidSetDocument(nsISupports *aDoc, void *aGlobal) = 0;
 
   /* Memory managment for script objects.  Used by the implementation of
    * nsScriptObjectHolder to manage the lifetimes of the held script objects.

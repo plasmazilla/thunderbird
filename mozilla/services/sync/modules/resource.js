@@ -270,7 +270,7 @@ AsyncResource.prototype = {
   _doRequest: function _doRequest(action, data, callback) {
     this._log.trace("In _doRequest.");
     this._callback = callback;
-    let channel = this._channel = this._createRequest();
+    let channel = this._createRequest();
 
     if ("undefined" != typeof(data))
       this._data = data;
@@ -303,7 +303,7 @@ AsyncResource.prototype = {
     channel.asyncOpen(listener, null);
   },
 
-  _onComplete: function _onComplete(error, data) {
+  _onComplete: function _onComplete(error, data, channel) {
     this._log.trace("In _onComplete. Error is " + error + ".");
 
     if (error) {
@@ -312,7 +312,6 @@ AsyncResource.prototype = {
     }
 
     this._data = data;
-    let channel = this._channel;
     let action = channel.requestMethod;
 
     this._log.trace("Channel: " + channel);
@@ -387,7 +386,18 @@ AsyncResource.prototype = {
     // Make a lazy getter to convert the json response into an object.
     // Note that this can cause a parse error to be thrown far away from the
     // actual fetch, so be warned!
-    XPCOMUtils.defineLazyGetter(ret, "obj", function() JSON.parse(ret));
+    XPCOMUtils.defineLazyGetter(ret, "obj", function() {
+      try {
+        return JSON.parse(ret);
+      } catch (ex) {
+        this._log.warn("Got exception parsing response body: \"" + Utils.exceptionStr(ex));
+        // Stringify to avoid possibly printing non-printable characters.
+        this._log.debug("Parse fail: Response body starts: \"" +
+                        JSON.stringify((ret + "").slice(0, 100)) +
+                        "\".");
+        throw ex;
+      }
+    }.bind(this));
 
     this._callback(null, ret);
   },
@@ -528,29 +538,29 @@ ChannelListener.prototype = {
     // Clear the abort timer now that the channel is done.
     this.abortTimer.clear();
 
-    let success = Components.isSuccessCode(status);
+    let statusSuccess = Components.isSuccessCode(status);
     let uri = channel && channel.URI && channel.URI.spec || "<unknown>";
-    this._log.trace("Channel for " + channel.requestMethod + " " +
-                    uri + ": isSuccessCode(" + status + ")? " +
-                    success);
+    this._log.trace("Channel for " + channel.requestMethod + " " + uri + ": " +
+                    "isSuccessCode(" + status + ")? " + statusSuccess);
 
-    if (this._data == '')
+    if (this._data == '') {
       this._data = null;
+    }
 
-    // Throw the failure code and stop execution.  Use Components.Exception()
+    // Pass back the failure code and stop execution. Use Components.Exception()
     // instead of Error() so the exception is QI-able and can be passed across
     // XPCOM borders while preserving the status code.
-    if (!success) {
+    if (!statusSuccess) {
       let message = Components.Exception("", status).name;
-      let error = Components.Exception(message, status);
-      this._onComplete(error);
+      let error   = Components.Exception(message, status);
+      this._onComplete(error, undefined, channel);
       return;
     }
 
     this._log.trace("Channel: flags = " + channel.loadFlags +
                     ", URI = " + uri +
                     ", HTTP success? " + channel.requestSucceeded);
-    this._onComplete(null, this._data);
+    this._onComplete(null, this._data, channel);
   },
 
   onDataAvailable: function Channel_onDataAvail(req, cb, stream, off, count) {

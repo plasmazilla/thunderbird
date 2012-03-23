@@ -61,7 +61,7 @@
      -->
     <menupopup id="contentAreaContextMenu"
                pagemenu="start"
-               onpopupshowing="if (event.target != this) return true; gContextMenu = new nsContextMenu(this, gBrowser, event.shiftKey); return gContextMenu.shouldDisplay;"
+               onpopupshowing="if (event.target != this) return true; gContextMenu = new nsContextMenu(this, null, event.shiftKey); return gContextMenu.shouldDisplay;"
                onpopuphiding="if (event.target == this) gContextMenu = null;">
       <menuseparator id="page-menu-separator"/>
       <menuitem id="popupwindow-reject"
@@ -138,9 +138,17 @@
                 label="&mediaHideControls.label;"
                 accesskey="&mediaHideControls.accesskey;"
                 oncommand="gContextMenu.mediaCommand('hidecontrols');"/>
+      <menuitem id="context-video-showstats"
+                label="&videoShowStats.label;"
+                accesskey="&videoShowStats.accesskey;"
+                oncommand="gContextMenu.mediaCommand('showstats');"/>
+      <menuitem id="context-video-hidestats"
+                label="&videoHideStats.label;"
+                accesskey="&videoHideStats.accesskey;"
+                oncommand="gContextMenu.mediaCommand('hidestats');"/>
       <menuitem id="context-video-fullscreen"
-                accesskey="&videoFullScreen.accesskey;"
                 label="&videoFullScreen.label;"
+                accesskey="&videoFullScreen.accesskey;"
                 oncommand="gContextMenu.fullScreenVideo();"/>
       <menuseparator id="context-media-sep-commands"/>
       <menuitem id="context-fitimage"
@@ -196,6 +204,10 @@
                 label="&saveAudioCmd.label;"
                 accesskey="&saveAudioCmd.accesskey;"
                 oncommand="gContextMenu.saveMedia();"/>
+      <menuitem id="context-video-saveimage"
+                label="&videoSaveImage.label;"
+                accesskey="&videoSaveImage.accesskey;"
+                oncommand="gContextMenu.saveVideoFrameAsImage();"/>
       <menuseparator id="context-sep-image"/>
       <menuitem id="context-back"
                 label="&goBackCmd.label;"

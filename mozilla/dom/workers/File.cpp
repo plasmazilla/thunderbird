@@ -44,11 +44,12 @@
 #include "jsapi.h"
 #include "jsatom.h"
 #include "jscntxt.h"
+#include "jsfriendapi.h"
 #include "nsCOMPtr.h"
 #include "nsJSUtils.h"
 #include "nsStringGlue.h"
 #include "xpcprivate.h"
-#include "xpcquickstubs.h"
+#include "XPCQuickStubs.h"
 
 #include "Exceptions.h"
 #include "WorkerInlines.h"

@@ -106,7 +106,7 @@ nsProfileMigrator::Migrate(nsIProfileStartup* aStartup)
     if (!bpm) return NS_ERROR_FAILURE;
   }
 
-  PRBool sourceExists;
+  bool sourceExists;
   bpm->GetSourceExists(&sourceExists);
   if (!sourceExists) {
 #ifdef XP_WIN
@@ -226,7 +226,7 @@ nsProfileMigrator::GetDefaultBrowserMigratorKey(nsACString& aKey,
   // VERSIONINFO segment, but we just assume the first one). 
 
   nsCOMPtr<nsILocalFile> lf;
-  NS_NewLocalFile(filePath, PR_TRUE, getter_AddRefs(lf));
+  NS_NewLocalFile(filePath, true, getter_AddRefs(lf));
   if (!lf)
     return NS_ERROR_FAILURE;
 
@@ -248,7 +248,7 @@ nsProfileMigrator::GetDefaultBrowserMigratorKey(nsACString& aKey,
   }
 
 #else
-  PRBool exists = PR_FALSE;
+  bool exists = false;
 #define CHECK_MIGRATOR(browser) do {\
   bpm = do_CreateInstance(NS_BROWSERPROFILEMIGRATOR_CONTRACTID_PREFIX browser);\
   if (bpm)\
@@ -268,42 +268,42 @@ nsProfileMigrator::GetDefaultBrowserMigratorKey(nsACString& aKey,
   return NS_ERROR_FAILURE;
 }
 
-PRBool
+bool
 nsProfileMigrator::ImportRegistryProfiles(const nsACString& aAppName)
 {
   nsresult rv;
 
   nsCOMPtr<nsIToolkitProfileService> profileSvc
     (do_GetService(NS_PROFILESERVICE_CONTRACTID));
-  NS_ENSURE_TRUE(profileSvc, PR_FALSE);
+  NS_ENSURE_TRUE(profileSvc, false);
 
   nsCOMPtr<nsIProperties> dirService
     (do_GetService("@mozilla.org/file/directory_service;1"));
-  NS_ENSURE_TRUE(dirService, PR_FALSE);
+  NS_ENSURE_TRUE(dirService, false);
 
   nsCOMPtr<nsILocalFile> regFile;
 #ifdef XP_WIN
   rv = dirService->Get(NS_WIN_APPDATA_DIR, NS_GET_IID(nsILocalFile),
                        getter_AddRefs(regFile));
-  NS_ENSURE_SUCCESS(rv, PR_FALSE);
+  NS_ENSURE_SUCCESS(rv, false);
   regFile->AppendNative(aAppName);
   regFile->AppendNative(NS_LITERAL_CSTRING("registry.dat"));
 #elif defined(XP_MACOSX)
   rv = dirService->Get(NS_MAC_USER_LIB_DIR, NS_GET_IID(nsILocalFile),
                        getter_AddRefs(regFile));
-  NS_ENSURE_SUCCESS(rv, PR_FALSE);
+  NS_ENSURE_SUCCESS(rv, false);
   regFile->AppendNative(aAppName);
   regFile->AppendNative(NS_LITERAL_CSTRING("Application Registry"));
 #elif defined(XP_OS2)
   rv = dirService->Get(NS_OS2_HOME_DIR, NS_GET_IID(nsILocalFile),
                        getter_AddRefs(regFile));
-  NS_ENSURE_SUCCESS(rv, PR_FALSE);
+  NS_ENSURE_SUCCESS(rv, false);
   regFile->AppendNative(aAppName);
   regFile->AppendNative(NS_LITERAL_CSTRING("registry.dat"));
 #else
   rv = dirService->Get(NS_UNIX_HOME_DIR, NS_GET_IID(nsILocalFile),
                        getter_AddRefs(regFile));
-  NS_ENSURE_SUCCESS(rv, PR_FALSE);
+  NS_ENSURE_SUCCESS(rv, false);
   nsCAutoString dotAppName;
   ToLowerCase(aAppName, dotAppName);
   dotAppName.Insert('.', 0);
@@ -314,12 +314,12 @@ nsProfileMigrator::ImportRegistryProfiles(const nsACString& aAppName)
 
   nsCAutoString path;
   rv = regFile->GetNativePath(path);
-  NS_ENSURE_SUCCESS(rv, PR_FALSE);
+  NS_ENSURE_SUCCESS(rv, false);
 
   if (NR_StartupRegistry())
-    return PR_FALSE;
+    return false;
 
-  PRBool migrated = PR_FALSE;
+  bool migrated = false;
   HREG reg = nsnull;
   RKEY profiles = 0;
   REGENUM enumstate = 0;
@@ -365,7 +365,7 @@ nsProfileMigrator::ImportRegistryProfiles(const nsACString& aAppName)
     profileSvc->CreateProfile(profileFile, nsnull,
                               nsDependentCString(profileName),
                               getter_AddRefs(tprofile));
-    migrated = PR_TRUE;
+    migrated = true;
   }
 
 cleanup:

@@ -97,10 +97,15 @@ var gMarkViewedMessageAsReadTimer = null;
 var gDisallow_classes_no_html = 1;
 
 // Disable the new account menu item if the account preference is locked.
-// Two other affected areas are the account central and the account manager
-// dialog.
+// The other affected areas are the account central, the account manager
+// dialog, and the account provisioner window.
 function menu_new_init()
 {
+  // If the account provisioner is pref'd off, we shouldn't display the menu
+  // item.
+  ShowMenuItem("newCreateEmailAccountMenuItem",
+               gPrefBranch.getBoolPref("mail.provider.enabled"));
+
   // If we don't have a gFolderDisplay, just get out of here and leave the menu
   // as it is.
   if (!gFolderDisplay)
@@ -184,11 +189,16 @@ function view_init()
   var isFeed = gFolderDisplay.selectedMessageIsFeed;
 
   let accountCentralDisplayed = gFolderDisplay.isAccountCentralDisplayed;
-  var messagePaneMenuItem = document.getElementById("menu_showMessage");
+  let messagePaneMenuItem = document.getElementById("menu_showMessage");
   if (!messagePaneMenuItem.hidden) { // Hidden in the standalone msg window.
     messagePaneMenuItem.setAttribute("checked",
       accountCentralDisplayed ? false : gMessageDisplay.visible);
     messagePaneMenuItem.disabled = accountCentralDisplayed;
+  }
+
+  let folderPaneMenuItem = document.getElementById("menu_showFolderPane");
+  if (!folderPaneMenuItem.hidden) { // Hidden in the standalone msg window.
+    folderPaneMenuItem.setAttribute("checked", gFolderDisplay.folderPaneVisible);
   }
 
   // Disable some menus if account manager is showing
@@ -200,9 +210,6 @@ function view_init()
   // visible.
   var viewsToolbarButton = document.getElementById("mailviews-container");
   document.getElementById('viewMessageViewMenu').hidden = !viewsToolbarButton;
-
-  // ... and also the separator.
-  document.getElementById("viewMenuAfterTaskbarSeparator").hidden = !viewsToolbarButton;
 
   // Initialize the Message Body menuitem
   document.getElementById('viewBodyMenu').hidden = isFeed;
@@ -505,6 +512,34 @@ function InitViewBodyMenu()
     AsPlaintext_menuitem.hidden = !gShowFeedSummary;
     document.getElementById("viewFeedSummarySeparator").hidden = !gShowFeedSummary;
   }
+}
+
+/**
+ * Expand or collapse the folder pane.
+ */
+function MsgToggleFolderPane()
+{
+  // Bail without doing anything if we are not a folder tab.
+  let currentTabInfo = document.getElementById("tabmail").currentTabInfo;
+  if (currentTabInfo.mode.name != "folder")
+    return;
+
+  togglePaneSplitter("folderpane_splitter");
+}
+
+/**
+ * Expand or collapse the message preview pane.
+ */
+function MsgToggleMessagePane()
+{
+  // Bail without doing anything if we are not a folder tab.
+  let currentTabInfo = document.getElementById("tabmail").currentTabInfo;
+  if (currentTabInfo.mode.name != "folder")
+    return;
+
+  togglePaneSplitter("threadpane-splitter");
+  ChangeMessagePaneVisibility(IsMessagePaneCollapsed());
+  SetFocusThreadPaneIfNotOnMessagePane();
 }
 
 function SetMenuItemLabel(menuItemId, customLabel)

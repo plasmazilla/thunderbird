@@ -13,11 +13,13 @@ html|applet:not([height]), html|applet[height=""] {
 }
 
 :-moz-type-unsupported .mainBox,
+:-moz-handler-clicktoplay .mainBox,
 :-moz-handler-disabled .mainBox,
 :-moz-handler-blocked .mainBox {
   -moz-user-focus: normal;
 }
 :-moz-type-unsupported .mainBox:focus,
+:-moz-handler-clicktoplay .mainBox:focus,
 :-moz-handler-disabled .mainBox:focus,
 :-moz-handler-blocked .mainBox:focus {
   outline: 1px dotted;
@@ -40,10 +42,12 @@ html|applet:not([height]), html|applet[height=""] {
 }
 
 :-moz-type-unsupported .msgUnsupported,
+:-moz-handler-clicktoplay .msgClickToPlay,
 :-moz-handler-disabled .msgDisabled,
 :-moz-handler-disabled .msgManagePlugins,
 :-moz-handler-blocked .msgBlocked,
-:-moz-handler-crashed .msgCrashed {
+:-moz-handler-crashed .msgCrashed,
+:-moz-handler-crashed .msgReload {
   display: block;
 }
 
@@ -52,18 +56,12 @@ html|applet:not([height]), html|applet[height=""] {
 }
 
 .submitStatus[status="noReport"]   .msgNoCrashReport,
-.submitStatus[status="please"]     .msgPleaseSubmit,
 .submitStatus[status="noSubmit"]   .msgNotSubmitted,
 .submitStatus[status="submitting"] .msgSubmitting,
 .submitStatus[status="success"]    .msgSubmitted,
 .submitStatus[status="failed"]     .msgSubmitFailed,
-.submitStatus[status]:not([status="please"]) .msgReload {
+.submitStatus[status="please"]     .msgSubmitPlease {
   display: block;
-}
-.submitStatus[status="please"] .msgReload {
-  /* Take up space when invisible, so stuff doesn't shift upon reveal. */
-  display: block;
-  visibility: hidden;
 }
 
 .helpIcon {

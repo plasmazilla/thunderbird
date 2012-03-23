@@ -43,6 +43,7 @@ const XULNS = "http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul";
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource://gre/modules/AddonManager.jsm");
 Components.utils.import("resource:///modules/Sanitizer.jsm");
 Components.utils.import("resource:///modules/mailnewsMigrator.js");
 
@@ -189,6 +190,38 @@ SuiteGlue.prototype = {
     }
   },
 
+  // nsIWebProgressListener partial implementation
+  onLocationChange: function(aWebProgress, aRequest, aLocation)
+  {
+    if (aWebProgress.DOMWindow.top == aWebProgress.DOMWindow &&
+        aWebProgress instanceof Components.interfaces.nsIDocShell &&
+        aWebProgress.loadType & Components.interfaces.nsIDocShell.LOAD_CMD_NORMAL &&
+        aWebProgress instanceof Components.interfaces.nsIDocShellHistory &&
+        aWebProgress.useGlobalHistory) {
+      switch (aLocation.scheme) {
+        case "about":
+        case "imap":
+        case "news":
+        case "mailbox":
+        case "moz-anno":
+        case "view-source":
+        case "chrome":
+        case "resource":
+        case "data":
+        case "wyciwyg":
+        case "javascript":
+          break;
+        default:
+          var str = Components.classes["@mozilla.org/supports-string;1"]
+                              .createInstance(Components.interfaces.nsISupportsString);
+          str.data = aLocation.spec;
+          Services.prefs.setComplexValue("browser.history.last_page_visited",
+                                         Components.interfaces.nsISupportsString, str);
+          break;
+      }
+    }
+  },
+
   // initialization (called on application startup)
   _init: function()
   {
@@ -211,12 +244,9 @@ SuiteGlue.prototype = {
     this._isPlacesLockedObserver = true;
     Services.obs.addObserver(this, "places-shutdown", false);
     this._isPlacesShutdownObserver = true;
-    try {
-      tryToClose = Components.classes["@mozilla.org/appshell/trytoclose;1"]
-                             .getService(Components.interfaces.nsIObserver);
-      Services.obs.removeObserver(tryToClose, "quit-application-requested");
-      Services.obs.addObserver(tryToClose, "quit-application-requested", true);
-    } catch (e) {}
+    Components.classes['@mozilla.org/docloaderservice;1']
+              .getService(Components.interfaces.nsIWebProgress)
+              .addProgressListener(this, Components.interfaces.nsIWebProgress.NOTIFY_LOCATION);
   },
 
   // cleanup (called on application shutdown)
@@ -280,7 +310,21 @@ SuiteGlue.prototype = {
     if (Services.prefs.getBoolPref("plugins.update.notifyUser"))
       this._showPluginUpdatePage(aWindow);
 
-    var notifyBox = aWindow.getBrowser().getNotificationBox();
+    // For any add-ons that were installed disabled and can be enabled offer
+    // them to the user.
+    var browser = aWindow.getBrowser();
+    var changedIDs = AddonManager.getStartupChanges(AddonManager.STARTUP_CHANGE_INSTALLED);
+    AddonManager.getAddonsByIDs(changedIDs, function(aAddons) {
+      aAddons.forEach(function(aAddon) {
+        // If the add-on isn't user disabled or can't be enabled then skip it.
+        if (!aAddon.userDisabled || !(aAddon.permissions & AddonManager.PERM_CAN_ENABLE))
+          return;
+
+        browser.selectedTab = browser.addTab("about:newaddon?id=" + aAddon.id);
+      })
+    });
+
+    var notifyBox = browser.getNotificationBox();
 
     // Show about:rights notification, if needed.
     if (this._shouldShowRights())
@@ -990,6 +1034,7 @@ SuiteGlue.prototype = {
   classID: Components.ID("{bbbbe845-5a1b-40ee-813c-f84b8faaa07c}"),
 
   QueryInterface: XPCOMUtils.generateQI([Components.interfaces.nsIObserver,
+                                         Components.interfaces.nsIWebProgressListener,
                                          Components.interfaces.nsISupportsWeakReference,
                                          Components.interfaces.nsISuiteGlue])
 

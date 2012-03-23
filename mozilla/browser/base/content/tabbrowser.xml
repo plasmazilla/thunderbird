@@ -566,10 +566,10 @@
                 if (this.mTab.hasAttribute("busy")) {
                   this.mTab.removeAttribute("busy");
                   this.mTabBrowser._tabAttrModified(this.mTab);
+                  if (!this.mTab.selected)
+                    this.mTab.setAttribute("unread", "true");
                 }
                 this.mTab.removeAttribute("progress");
-                if (!this.mTab.selected)
-                  this.mTab.setAttribute("unread", "true");
 
                 var location = aRequest.QueryInterface(nsIChannel).URI;
 
@@ -813,12 +813,6 @@
               }
             } catch (e) {}
 
-            if ("TabView" in window) {
-              let groupName = TabView.getActiveGroupName();
-              if (groupName)
-                newTitle = groupName + sep + newTitle;
-            }
-
             return newTitle;
           ]]>
         </body>
@@ -876,8 +870,11 @@
               (window.windowState != window.STATE_MINIMIZED);
             this.mCurrentBrowser = newBrowser;
             this.mCurrentTab = this.selectedTab;
-            this.mCurrentTab.removeAttribute("unread");
             this.showTab(this.mCurrentTab);
+
+            var backForwardContainer = document.getElementById("unified-back-forward-button");
+            if (backForwardContainer)
+              backForwardContainer.setAttribute("switchingtabs", "true");
 
             if (updatePageReport)
               this.mCurrentBrowser.updatePageReport();
@@ -909,8 +906,9 @@
                                           true, false);
             }
 
-            // Don't switch the fast find or update the titlebar (bug 540248) - this tab switch is temporary
             if (!this._previewMode) {
+              this.mCurrentTab.removeAttribute("unread");
+
 #ifdef MOZ_E10S_COMPAT
               // Bug 666816 - TypeAheadFind support for e10s
 #else
@@ -944,6 +942,9 @@
                                            nsIWebProgressListener.STATE_IS_NETWORK, 0],
                                           true, false);
             }
+
+            if (backForwardContainer)
+              backForwardContainer.removeAttribute("switchingtabs");
 
             if (this.mCurrentTab.selected)
               this._setCloseKeyState(!this.mCurrentTab.pinned);
@@ -1107,6 +1108,7 @@
           <![CDATA[
             var aFromExternal;
             var aRelatedToCurrent;
+            var aIsUTF8;
             if (arguments.length == 2 &&
                 typeof arguments[1] == "object" &&
                 !(arguments[1] instanceof Ci.nsIURI)) {
@@ -1118,6 +1120,7 @@
               aAllowThirdPartyFixup = params.allowThirdPartyFixup;
               aFromExternal         = params.fromExternal;
               aRelatedToCurrent     = params.relatedToCurrent;
+              aIsUTF8               = params.isUTF8;
             }
 
             var bgLoad = (aLoadInBackground != null) ? aLoadInBackground :
@@ -1130,7 +1133,8 @@
                                   ownerTab: owner,
                                   allowThirdPartyFixup: aAllowThirdPartyFixup,
                                   fromExternal: aFromExternal,
-                                  relatedToCurrent: aRelatedToCurrent});
+                                  relatedToCurrent: aRelatedToCurrent,
+                                  isUTF8: aIsUTF8});
             if (!bgLoad)
               this.selectedTab = tab;
 
@@ -1203,6 +1207,7 @@
             var aFromExternal;
             var aRelatedToCurrent;
             var aSkipAnimation;
+            var aIsUTF8;
             if (arguments.length == 2 &&
                 typeof arguments[1] == "object" &&
                 !(arguments[1] instanceof Ci.nsIURI)) {
@@ -1215,6 +1220,7 @@
               aFromExternal         = params.fromExternal;
               aRelatedToCurrent     = params.relatedToCurrent;
               aSkipAnimation        = params.skipAnimation;
+              aIsUTF8               = params.isUTF8;
             }
 
             this._browsers = null; // invalidate cache
@@ -1362,6 +1368,8 @@
                 flags |= Ci.nsIWebNavigation.LOAD_FLAGS_ALLOW_THIRD_PARTY_FIXUP;
               if (aFromExternal)
                 flags |= Ci.nsIWebNavigation.LOAD_FLAGS_FROM_EXTERNAL;
+              if (aIsUTF8)
+                flags |= Ci.nsIWebNavigation.LOAD_FLAGS_URI_IS_UTF8;
               try {
                 b.loadURIWithFlags(aURI, flags, aReferrerURI, aCharset, aPostData);
               } catch (ex) {
@@ -2431,7 +2439,7 @@
 #else
           if (aEvent.ctrlKey && !aEvent.shiftKey && !aEvent.metaKey &&
               aEvent.keyCode == KeyEvent.DOM_VK_F4 &&
-              this.mTabBox.handleCtrlPageUpDown) {
+              !this.mCurrentTab.pinned) {
             this.removeCurrentTab({animate: true});
             aEvent.stopPropagation();
             aEvent.preventDefault();
@@ -3506,12 +3514,14 @@
           // it triggers will correctly update our URL bar.
           this.tabbrowser.selectedTab = newTab;
         } else {
-          let url = browserDragAndDrop.drop(event, { });
+          // Pass true to disallow dropping javascript: or data: urls
+          let url;
+          try {
+            url = browserDragAndDrop.drop(event, { }, true);
+          } catch (ex) {}
 
           // valid urls don't contain spaces ' '; if we have a space it isn't a valid url.
-          // Also disallow dropping javascript: or data: urls--bail out
-          if (!url || !url.length || url.indexOf(" ", 0) != -1 ||
-              /^\s*(javascript|data):/.test(url))
+          if (!url || url.indexOf(" ") != -1)
             return;
 
           let bgLoad = Services.prefs.getBoolPref("browser.tabs.loadInBackground");

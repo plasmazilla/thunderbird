@@ -60,6 +60,10 @@ class nsWindow;
 
 namespace mozilla {
 
+namespace hal {
+class BatteryInformation;
+} // namespace hal
+
 // The order and number of the members in this structure must correspond
 // to the attrsAppearance array in GeckoAppShell.getSystemColors()
 typedef struct AndroidSystemColors {
@@ -117,9 +121,9 @@ public:
     // SetMainThread should be called which will create the JNIEnv for
     // us to use.  toolkit/xre/nsAndroidStartup.cpp calls
     // SetMainThread.
-    PRBool SetMainThread(void *thr);
+    bool SetMainThread(void *thr);
 
-    JNIEnv* AttachThread(PRBool asDaemon = PR_TRUE);
+    JNIEnv* AttachThread(bool asDaemon = true);
 
     /* These are all implemented in Java */
     static void NotifyIME(int aType, int aState);
@@ -146,17 +150,17 @@ public:
     void SetSurfaceView(jobject jobj);
     AndroidGeckoSurfaceView& SurfaceView() { return mSurfaceView; }
 
-    PRBool GetHandlersForURL(const char *aURL, 
+    bool GetHandlersForURL(const char *aURL, 
                              nsIMutableArray* handlersArray = nsnull,
                              nsIHandlerApp **aDefaultApp = nsnull,
                              const nsAString& aAction = EmptyString());
 
-    PRBool GetHandlersForMimeType(const char *aMimeType,
+    bool GetHandlersForMimeType(const char *aMimeType,
                                   nsIMutableArray* handlersArray = nsnull,
                                   nsIHandlerApp **aDefaultApp = nsnull,
                                   const nsAString& aAction = EmptyString());
 
-    PRBool OpenUriExternal(const nsACString& aUriSpec, const nsACString& aMimeType,
+    bool OpenUriExternal(const nsACString& aUriSpec, const nsACString& aMimeType,
                            const nsAString& aPackageName = EmptyString(),
                            const nsAString& aClassName = EmptyString(),
                            const nsAString& aAction = EmptyString(),
@@ -193,9 +197,9 @@ public:
 
     void ShowFilePicker(nsAString& aFilePath, nsAString& aFilters);
 
-    void PerformHapticFeedback(PRBool aIsLongPress);
+    void PerformHapticFeedback(bool aIsLongPress);
 
-    void SetFullScreen(PRBool aFullScreen);
+    void SetFullScreen(bool aFullScreen);
 
     void ShowInputMethodPicker();
 
@@ -212,6 +216,8 @@ public:
     void GetIconForExtension(const nsACString& aFileExt, PRUint32 aIconSize, PRUint8 * const aBuf);
 
     bool GetShowPasswordSetting();
+
+    void FireAndWaitForTracerEvent();
 
     struct AutoLocalJNIFrame {
         AutoLocalJNIFrame(int nEntries = 128) : mEntries(nEntries) {
@@ -261,7 +267,7 @@ public:
 
     void UnlockBitmap(jobject bitmap);
 
-    void PostToJavaThread(nsIRunnable* aRunnable, PRBool aMainThread = PR_FALSE);
+    void PostToJavaThread(nsIRunnable* aRunnable, bool aMainThread = false);
 
     void ExecuteNextRunnable();
 
@@ -285,6 +291,12 @@ public:
 
     void CloseCamera();
 
+    void EnableBatteryNotifications();
+    void DisableBatteryNotifications();
+    void GetCurrentBatteryInformation(hal::BatteryInformation* aBatteryInfo);
+
+    bool IsTablet();
+
 protected:
     static AndroidBridge *sBridge;
 
@@ -302,7 +314,7 @@ protected:
     jclass mGeckoAppShellClass;
 
     AndroidBridge() { }
-    PRBool Init(JNIEnv *jEnv, jclass jGeckoApp);
+    bool Init(JNIEnv *jEnv, jclass jGeckoApp);
 
     void EnsureJNIThread();
 
@@ -350,11 +362,16 @@ protected:
     jmethodID jScanMedia;
     jmethodID jGetSystemColors;
     jmethodID jGetIconForExtension;
+    jmethodID jFireAndWaitForTracerEvent;
     jmethodID jCreateShortcut;
     jmethodID jGetShowPasswordSetting;
     jmethodID jPostToJavaThread;
     jmethodID jInitCamera;
     jmethodID jCloseCamera;
+    jmethodID jIsTablet;
+    jmethodID jEnableBatteryNotifications;
+    jmethodID jDisableBatteryNotifications;
+    jmethodID jGetCurrentBatteryInformation;
 
     // stuff we need for CallEglCreateWindowSurface
     jclass jEGLSurfaceImplClass;
@@ -380,7 +397,7 @@ protected:
 }
 
 extern "C" JNIEnv * GetJNIForThread();
-extern PRBool mozilla_AndroidBridge_SetMainThread(void *);
+extern bool mozilla_AndroidBridge_SetMainThread(void *);
 extern jclass GetGeckoAppShellClass();
 
 #endif /* AndroidBridge_h__ */

@@ -188,6 +188,10 @@ SessionStoreService.prototype = {
   // time in milliseconds (Date.now()) when the session was last written to file
   _lastSaveTime: 0,
 
+  // time in milliseconds when the session was started (saved across sessions),
+  // defaults to now if no session was restored or timestamp doesn't exist
+  _sessionStartTime: Date.now(),
+
   // states for all currently opened windows
   _windows: {},
 
@@ -305,6 +309,11 @@ SessionStoreService.prototype = {
               this._initialState = { windows: [{ tabs: [{ entries: [pageData] }] }] };
             }
           }
+
+          // Load the session start time from the previous state
+          this._sessionStartTime = this._initialState.session &&
+                                   this._initialState.session.startTime ||
+                                   this._sessionStartTime;
 
           // make sure that at least the first window doesn't have anything hidden
           delete this._initialState.windows[0].hidden;
@@ -445,6 +454,10 @@ SessionStoreService.prototype = {
       this._lastSessionState = null;
       let openWindows = {};
       this._forEachBrowserWindow(function(aWindow) {
+        //Hide "Restore Last Session" menu item
+        let restoreItem = aWindow.document.getElementById("historyRestoreLastSession");
+        restoreItem.setAttribute("disabled", "true");
+
         Array.forEach(aWindow.getBrowser().tabs, function(aTab) {
           delete aTab.linkedBrowser.__SS_data;
           if (aTab.linkedBrowser.__SS_restoreState)
@@ -474,7 +487,7 @@ SessionStoreService.prototype = {
       // preserved update our internal states to match that max
       case "sessionstore.max_tabs_undo":
         for (let ix in this._windows) {
-          this._windows[ix]._closedTabs.splice(this._prefBranch.getIntPref("sessionstore.max_tabs_undo"));
+          this._windows[ix]._closedTabs.splice(this._prefBranch.getIntPref("sessionstore.max_tabs_undo"), this._windows[ix]._closedTabs.length);
         }
         break;
       case "sessionstore.max_windows_undo":
@@ -1316,7 +1329,7 @@ SessionStoreService.prototype = {
         if (winState._closedTabs && winState._closedTabs.length) {
           let curWinState = this._windows[windowToUse.__SSi];
           curWinState._closedTabs = curWinState._closedTabs.concat(winState._closedTabs);
-          curWinState._closedTabs.splice(this._prefBranch.getIntPref("sessionstore.max_tabs_undo"));
+          curWinState._closedTabs.splice(this._prefBranch.getIntPref("sessionstore.max_tabs_undo"), curWinState._closedTabs.length);
         }
 
         // Restore into that window - pretend it's a followup since we'll already
@@ -1338,9 +1351,13 @@ SessionStoreService.prototype = {
       this._closedWindows = this._closedWindows.concat(lastSessionState._closedWindows);
       this._capClosedWindows();
     }
-    // Set recent crashes
+
+    // Set data that persists between sessions
     this._recentCrashes = lastSessionState.session &&
                           lastSessionState.session.recentCrashes || 0;
+    this._sessionStartTime = lastSessionState.session &&
+                             lastSessionState.session.startTime ||
+                             this._sessionStartTime;
 
     this._lastSessionState = null;
   },
@@ -2193,7 +2210,19 @@ SessionStoreService.prototype = {
     if (ix != -1 && total[ix].sizemode == "minimized")
       ix = -1;
 
-    return { windows: total, selectedWindow: ix + 1, _closedWindows: lastClosedWindowsCopy };
+    let session = {
+      state: this._loadState == STATE_RUNNING ? STATE_RUNNING_STR : STATE_STOPPED_STR,
+      lastUpdate: Date.now(),
+      startTime: this._sessionStartTime,
+      recentCrashes: this._recentCrashes
+    };
+
+    return {
+      windows: total,
+      selectedWindow: ix + 1,
+      _closedWindows: lastClosedWindowsCopy,
+      session: session
+    };
   },
 
   /**
@@ -2277,7 +2306,7 @@ SessionStoreService.prototype = {
       this._closedWindows = root._closedWindows;
 
     var winData;
-    if (!aState.selectedWindow) {
+    if (!aState.selectedWindow || aState.selectedWindow > aState.windows.length) {
       aState.selectedWindow = 0;
     }
     // open new windows for all further window entries of a multi-window session
@@ -2862,6 +2891,7 @@ SessionStoreService.prototype = {
       shEntry.postData = stream;
     }
 
+    let childDocIdents = {};
     if (aEntry.docIdentifier) {
       // If we have a serialized document identifier, try to find an SHEntry
       // which matches that doc identifier and adopt that SHEntry's
@@ -2869,10 +2899,12 @@ SessionStoreService.prototype = {
       // for the document identifier.
       let matchingEntry = aDocIdentMap[aEntry.docIdentifier];
       if (!matchingEntry) {
-        aDocIdentMap[aEntry.docIdentifier] = shEntry;
+        matchingEntry = {shEntry: shEntry, childDocIdents: childDocIdents};
+        aDocIdentMap[aEntry.docIdentifier] = matchingEntry;
       }
       else {
-        shEntry.adoptBFCacheEntry(matchingEntry);
+        shEntry.adoptBFCacheEntry(matchingEntry.shEntry);
+        childDocIdents = matchingEntry.childDocIdents;
       }
     }
 
@@ -2894,8 +2926,24 @@ SessionStoreService.prototype = {
         //XXXzpao Wallpaper patch for bug 509315
         if (!aEntry.children[i].url)
           continue;
+
+        // We're mysteriously getting sessionrestore.js files with a cycle in
+        // the doc-identifier graph.  (That is, we have an entry where doc
+        // identifier A is an ancestor of doc identifier B, and another entry
+        // where doc identifier B is an ancestor of A.)
+        //
+        // If we were to respect these doc identifiers, we'd create a cycle in
+        // the SHEntries themselves, which causes the docshell to loop forever
+        // when it looks for the root SHEntry.
+        //
+        // So as a hack to fix this, we restrict the scope of a doc identifier
+        // to be a node's siblings and cousins, and pass childDocIdents, not
+        // aDocIdents, to _deserializeHistoryEntry.  That is, we say that two
+        // SHEntries with the same doc identifier have the same document iff
+        // they have the same parent or their parents have the same document.
+
         shEntry.AddChild(this._deserializeHistoryEntry(aEntry.children[i], aIdMap,
-                                                       aDocIdentMap), i);
+                                                       childDocIdents), i);
       }
     }
 
@@ -3164,13 +3212,6 @@ SessionStoreService.prototype = {
     var oState = this._getCurrentState(aUpdateAll);
     if (!oState)
       return;
-
-    oState.session = {
-      state: this._loadState == STATE_RUNNING ? STATE_RUNNING_STR : STATE_STOPPED_STR,
-      lastUpdate: Date.now()
-    };
-    if (this._recentCrashes)
-      oState.session.recentCrashes = this._recentCrashes;
 
     this._saveStateObject(oState);
   },
@@ -3719,7 +3760,7 @@ SessionStoreService.prototype = {
     if (normalWindowIndex >= maxWindowsUndo)
       spliceTo = normalWindowIndex + 1;
 #endif
-    this._closedWindows.splice(spliceTo);
+    this._closedWindows.splice(spliceTo, this._closedWindows.length);
   },
 
   /**

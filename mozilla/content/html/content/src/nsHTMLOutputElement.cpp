@@ -77,18 +77,18 @@ public:
   NS_IMETHOD Reset();
   NS_IMETHOD SubmitNamesValues(nsFormSubmission* aFormSubmission);
 
-  virtual bool IsDisabled() const { return PR_FALSE; }
+  virtual bool IsDisabled() const { return false; }
 
   nsresult Clone(nsINodeInfo* aNodeInfo, nsINode** aResult) const;
 
-  PRBool ParseAttribute(PRInt32 aNamespaceID, nsIAtom* aAttribute,
+  bool ParseAttribute(PRInt32 aNamespaceID, nsIAtom* aAttribute,
                         const nsAString& aValue, nsAttrValue& aResult);
 
   nsEventStates IntrinsicState() const;
 
   virtual nsresult BindToTree(nsIDocument* aDocument, nsIContent* aParent,
                                nsIContent* aBindingParent,
-                               PRBool aCompileEventHandlers);
+                               bool aCompileEventHandlers);
 
   // This function is called when a callback function from nsIMutationObserver
   // has to be used to update the defaultValue attribute.
@@ -174,7 +174,7 @@ nsHTMLOutputElement::Reset()
 {
   mValueModeFlag = eModeDefault;
   nsresult rv = nsContentUtils::SetNodeTextContent(this, mDefaultValue,
-                                                   PR_TRUE);
+                                                   true);
   return rv;
 }
 
@@ -185,14 +185,14 @@ nsHTMLOutputElement::SubmitNamesValues(nsFormSubmission* aFormSubmission)
   return NS_OK;
 }
 
-PRBool
+bool
 nsHTMLOutputElement::ParseAttribute(PRInt32 aNamespaceID, nsIAtom* aAttribute,
                                     const nsAString& aValue, nsAttrValue& aResult)
 {
   if (aNamespaceID == kNameSpaceID_None) {
     if (aAttribute == nsGkAtoms::_for) {
       aResult.ParseAtomArray(aValue);
-      return PR_TRUE;
+      return true;
     }
   }
 
@@ -225,7 +225,7 @@ nsHTMLOutputElement::IntrinsicState() const
 nsresult
 nsHTMLOutputElement::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
                                 nsIContent* aBindingParent,
-                                PRBool aCompileEventHandlers)
+                                bool aCompileEventHandlers)
 {
   nsresult rv = nsGenericHTMLFormElement::BindToTree(aDocument, aParent,
                                                      aBindingParent,
@@ -258,7 +258,7 @@ nsHTMLOutputElement::GetType(nsAString& aType)
 NS_IMETHODIMP
 nsHTMLOutputElement::GetValue(nsAString& aValue)
 {
-  nsContentUtils::GetNodeTextContent(this, PR_TRUE, aValue);
+  nsContentUtils::GetNodeTextContent(this, true, aValue);
   return NS_OK;
 }
 
@@ -266,7 +266,7 @@ NS_IMETHODIMP
 nsHTMLOutputElement::SetValue(const nsAString& aValue)
 {
   mValueModeFlag = eModeValue;
-  return nsContentUtils::SetNodeTextContent(this, aValue, PR_TRUE);
+  return nsContentUtils::SetNodeTextContent(this, aValue, true);
 }
 
 NS_IMETHODIMP
@@ -281,7 +281,7 @@ nsHTMLOutputElement::SetDefaultValue(const nsAString& aDefaultValue)
 {
   mDefaultValue = aDefaultValue;
   if (mValueModeFlag == eModeDefault) {
-    return nsContentUtils::SetNodeTextContent(this, mDefaultValue, PR_TRUE);
+    return nsContentUtils::SetNodeTextContent(this, mDefaultValue, true);
   }
 
   return NS_OK;
@@ -302,7 +302,7 @@ nsHTMLOutputElement::GetHtmlFor(nsIDOMDOMSettableTokenList** aResult)
 void nsHTMLOutputElement::DescendantsChanged()
 {
   if (mValueModeFlag == eModeDefault) {
-    nsContentUtils::GetNodeTextContent(this, PR_TRUE, mDefaultValue);
+    nsContentUtils::GetNodeTextContent(this, true, mDefaultValue);
   }
 }
 

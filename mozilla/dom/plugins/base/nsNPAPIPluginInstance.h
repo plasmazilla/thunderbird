@@ -50,8 +50,15 @@
 #include "nsInterfaceHashtable.h"
 #include "nsHashKeys.h"
 
+#include "gfxASurface.h"
+#include "gfxImageSurface.h"
+
 #include "mozilla/TimeStamp.h"
 #include "mozilla/PluginLibrary.h"
+
+#ifdef ANDROID
+#include "mozilla/Mutex.h"
+#endif
 
 struct JSObject;
 
@@ -68,7 +75,7 @@ public:
   uint32_t id;
   nsCOMPtr<nsITimer> timer;
   void (*callback)(NPP npp, uint32_t timerID);
-  PRBool inCallback;
+  bool inCallback;
 };
 
 class nsNPAPIPluginInstance : public nsISupports
@@ -92,22 +99,22 @@ public:
   nsresult HandleEvent(void* event, PRInt16* result);
   nsresult GetValueFromPlugin(NPPVariable variable, void* value);
   nsresult GetDrawingModel(PRInt32* aModel);
-  nsresult IsRemoteDrawingCoreAnimation(PRBool* aDrawing);
+  nsresult IsRemoteDrawingCoreAnimation(bool* aDrawing);
   nsresult GetJSObject(JSContext *cx, JSObject** outObject);
   nsresult DefineJavaProperties();
-  PRBool ShouldCache();
-  nsresult IsWindowless(PRBool* isWindowless);
+  bool ShouldCache();
+  nsresult IsWindowless(bool* isWindowless);
   nsresult AsyncSetWindow(NPWindow* window);
   nsresult GetImage(ImageContainer* aContainer, Image** aImage);
   nsresult GetImageSize(nsIntSize* aSize);
   nsresult NotifyPainted(void);
-  nsresult UseAsyncPainting(PRBool* aIsAsync);
+  nsresult UseAsyncPainting(bool* aIsAsync);
   nsresult SetBackgroundUnknown();
   nsresult BeginUpdateBackground(nsIntRect* aRect, gfxContext** aContext);
   nsresult EndUpdateBackground(gfxContext* aContext, nsIntRect* aRect);
-  nsresult IsTransparent(PRBool* isTransparent);
+  nsresult IsTransparent(bool* isTransparent);
   nsresult GetFormValue(nsAString& aValue);
-  nsresult PushPopupsEnabledState(PRBool aEnabled);
+  nsresult PushPopupsEnabledState(bool aEnabled);
   nsresult PopPopupsEnabledState();
   nsresult GetPluginAPIVersion(PRUint16* version);
   nsresult InvalidateRect(NPRect *invalidRect);
@@ -130,16 +137,16 @@ public:
   void SetURI(nsIURI* uri);
   nsIURI* GetURI();
 
-  NPError SetWindowless(PRBool aWindowless);
+  NPError SetWindowless(bool aWindowless);
 
-  NPError SetWindowlessLocal(PRBool aWindowlessLocal);
+  NPError SetWindowlessLocal(bool aWindowlessLocal);
 
-  NPError SetTransparent(PRBool aTransparent);
+  NPError SetTransparent(bool aTransparent);
 
-  NPError SetWantsAllNetworkStreams(PRBool aWantsAllNetworkStreams);
+  NPError SetWantsAllNetworkStreams(bool aWantsAllNetworkStreams);
 
-  NPError SetUsesDOMForCursor(PRBool aUsesDOMForCursor);
-  PRBool UsesDOMForCursor();
+  NPError SetUsesDOMForCursor(bool aUsesDOMForCursor);
+  bool UsesDOMForCursor();
 
 #ifdef XP_MACOSX
   void SetDrawingModel(NPDrawingModel aModel);
@@ -149,6 +156,13 @@ public:
 #ifdef ANDROID
   void SetDrawingModel(PRUint32 aModel);
   void* GetJavaSurface();
+
+  gfxImageSurface* LockTargetSurface();
+  gfxImageSurface* LockTargetSurface(PRUint32 aWidth, PRUint32 aHeight, gfxASurface::gfxImageFormat aFormat,
+                                     NPRect* aRect);
+  void UnlockTargetSurface(bool aInvalidate);
+
+  static nsNPAPIPluginInstance* FindByJavaSurface(void* aJavaSurface);
 #endif
 
   nsresult NewStreamListener(const char* aURL, void* notifyData,
@@ -178,7 +192,7 @@ public:
   mozilla::TimeStamp StopTime();
 
   // cache this NPAPI plugin
-  nsresult SetCached(PRBool aCache);
+  nsresult SetCached(bool aCache);
 
   already_AddRefed<nsPIDOMWindow> GetDOMWindow();
 
@@ -236,15 +250,15 @@ protected:
 
   // these are used to store the windowless properties
   // which the browser will later query
-  PRPackedBool mWindowless;
-  PRPackedBool mWindowlessLocal;
-  PRPackedBool mTransparent;
-  PRPackedBool mCached;
-  PRPackedBool mUsesDOMForCursor;
+  bool mWindowless;
+  bool mWindowlessLocal;
+  bool mTransparent;
+  bool mCached;
+  bool mUsesDOMForCursor;
 
 public:
   // True while creating the plugin, or calling NPP_SetWindow() on it.
-  PRPackedBool mInPluginInitCall;
+  bool mInPluginInitCall;
 
   nsXPIDLCString mFakeURL;
 
@@ -274,9 +288,14 @@ private:
 
   nsCOMPtr<nsIURI> mURI;
 
-  PRPackedBool mUsePluginLayersPref;
+  bool mUsePluginLayersPref;
 #ifdef ANDROID
+  void InvalidateTargetRect();
+  
   void* mSurface;
+  gfxImageSurface *mTargetSurface;
+  mozilla::Mutex* mTargetSurfaceLock;
+  NPRect mTargetLockRect;
 #endif
 };
 

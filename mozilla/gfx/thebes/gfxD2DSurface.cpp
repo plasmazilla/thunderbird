@@ -64,7 +64,7 @@ gfxD2DSurface::gfxD2DSurface(ID3D10Texture2D *texture, gfxContentType aContent)
 
 gfxD2DSurface::gfxD2DSurface(cairo_surface_t *csurf)
 {
-    Init(csurf, PR_TRUE);
+    Init(csurf, true);
 }
 
 gfxD2DSurface::gfxD2DSurface(const gfxIntSize& size,
@@ -104,7 +104,7 @@ gfxD2DSurface::GetTexture()
 }
 
 HDC
-gfxD2DSurface::GetDC(PRBool aRetainContents)
+gfxD2DSurface::GetDC(bool aRetainContents)
 {
     return cairo_d2d_get_dc(CairoSurface(), aRetainContents);
 }

@@ -76,7 +76,7 @@ nsSMILTimeValueSpec::EventListener::HandleEvent(nsIDOMEvent* aEvent)
 #pragma warning(disable:4355)
 #endif
 nsSMILTimeValueSpec::nsSMILTimeValueSpec(nsSMILTimedElement& aOwner,
-                                         PRBool aIsBegin)
+                                         bool aIsBegin)
   : mOwner(&aOwner),
     mIsBegin(aIsBegin),
     mReferencedElement(this)
@@ -159,12 +159,12 @@ nsSMILTimeValueSpec::ResolveReferences(nsIContent* aContextNode)
     NS_ABORT_IF_FALSE(doc, "We are in the document but current doc is null");
     mReferencedElement.ResetWithElement(doc->GetRootElement());
   } else {
-    NS_ABORT_IF_FALSE(PR_FALSE, "Syncbase or repeat spec without ID");
+    NS_ABORT_IF_FALSE(false, "Syncbase or repeat spec without ID");
   }
   UpdateReferencedElement(oldReferencedElement, mReferencedElement.get());
 }
 
-PRBool
+bool
 nsSMILTimeValueSpec::IsEventBased() const
 {
   return mParams.mType == nsSMILTimeValueSpecParams::EVENT ||
@@ -207,7 +207,7 @@ nsSMILTimeValueSpec::HandleChangedInstanceTime(
     const nsSMILInstanceTime& aBaseTime,
     const nsSMILTimeContainer* aSrcContainer,
     nsSMILInstanceTime& aInstanceTimeToUpdate,
-    PRBool aObjectChanged)
+    bool aObjectChanged)
 {
   // If the instance time is fixed (e.g. because it's being used as the begin
   // time of an active or postactive interval) we just ignore the change.
@@ -237,7 +237,7 @@ nsSMILTimeValueSpec::HandleDeletedInstanceTime(
   mOwner->RemoveInstanceTime(&aInstanceTime, mIsBegin);
 }
 
-PRBool
+bool
 nsSMILTimeValueSpec::DependsOnBegin() const
 {
   return mParams.mSyncBegin;
@@ -322,12 +322,12 @@ nsSMILTimeValueSpec::GetTimedElement(Element* aElement)
 
 // Indicates whether we're allowed to register an event-listener
 // when scripting is disabled.
-PRBool
+bool
 nsSMILTimeValueSpec::IsWhitelistedEvent()
 {
   // The category of (SMIL-specific) "repeat(n)" events are allowed.
   if (mParams.mType == nsSMILTimeValueSpecParams::REPEAT) {
-    return PR_TRUE;
+    return true;
   }
 
   // A specific list of other SMIL-related events are allowed, too.
@@ -336,10 +336,10 @@ nsSMILTimeValueSpec::IsWhitelistedEvent()
        mParams.mEventSymbol == nsGkAtoms::repeatEvent ||
        mParams.mEventSymbol == nsGkAtoms::beginEvent ||
        mParams.mEventSymbol == nsGkAtoms::endEvent)) {
-    return PR_TRUE;
+    return true;
   }
 
-  return PR_FALSE;
+  return false;
 }
 
 void
@@ -413,7 +413,7 @@ nsSMILTimeValueSpec::GetEventListenerManager(Element* aTarget)
   if (!target)
     return nsnull;
 
-  return target->GetListenerManager(PR_TRUE);
+  return target->GetListenerManager(true);
 }
 
 void
@@ -442,7 +442,7 @@ nsSMILTimeValueSpec::HandleEvent(nsIDOMEvent* aEvent)
   mOwner->AddInstanceTime(newInstance, mIsBegin);
 }
 
-PRBool
+bool
 nsSMILTimeValueSpec::CheckEventDetail(nsIDOMEvent *aEvent)
 {
   switch (mParams.mType)
@@ -455,17 +455,17 @@ nsSMILTimeValueSpec::CheckEventDetail(nsIDOMEvent *aEvent)
 
   default:
     // nothing to check
-    return PR_TRUE;
+    return true;
   }
 }
 
-PRBool
+bool
 nsSMILTimeValueSpec::CheckRepeatEventDetail(nsIDOMEvent *aEvent)
 {
   nsCOMPtr<nsIDOMTimeEvent> timeEvent = do_QueryInterface(aEvent);
   if (!timeEvent) {
     NS_WARNING("Received a repeat event that was not a DOMTimeEvent");
-    return PR_FALSE;
+    return false;
   }
 
   PRInt32 detail;
@@ -473,24 +473,24 @@ nsSMILTimeValueSpec::CheckRepeatEventDetail(nsIDOMEvent *aEvent)
   return detail > 0 && (PRUint32)detail == mParams.mRepeatIterationOrAccessKey;
 }
 
-PRBool
+bool
 nsSMILTimeValueSpec::CheckAccessKeyEventDetail(nsIDOMEvent *aEvent)
 {
   nsCOMPtr<nsIDOMKeyEvent> keyEvent = do_QueryInterface(aEvent);
   if (!keyEvent) {
     NS_WARNING("Received an accesskey event that was not a DOMKeyEvent");
-    return PR_FALSE;
+    return false;
   }
 
   // Ignore the key event if any modifier keys are pressed UNLESS we're matching
   // on the charCode in which case we ignore the state of the shift and alt keys
   // since they might be needed to generate the character in question.
-  PRBool isCtrl;
-  PRBool isMeta;
+  bool isCtrl;
+  bool isMeta;
   keyEvent->GetCtrlKey(&isCtrl);
   keyEvent->GetMetaKey(&isMeta);
   if (isCtrl || isMeta)
-    return PR_FALSE;
+    return false;
 
   PRUint32 code;
   keyEvent->GetCharCode(&code);
@@ -501,12 +501,12 @@ nsSMILTimeValueSpec::CheckAccessKeyEventDetail(nsIDOMEvent *aEvent)
   // does not produce a charCode.
   // In this case we can safely bail out if either alt or shift is pressed since
   // they won't already be incorporated into the keyCode unlike the charCode.
-  PRBool isAlt;
-  PRBool isShift;
+  bool isAlt;
+  bool isShift;
   keyEvent->GetAltKey(&isAlt);
   keyEvent->GetShiftKey(&isShift);
   if (isAlt || isShift)
-    return PR_FALSE;
+    return false;
 
   keyEvent->GetKeyCode(&code);
   switch (code)
@@ -526,7 +526,7 @@ nsSMILTimeValueSpec::CheckAccessKeyEventDetail(nsIDOMEvent *aEvent)
     return mParams.mRepeatIterationOrAccessKey == 0x7F;
 
   default:
-    return PR_FALSE;
+    return false;
   }
 }
 

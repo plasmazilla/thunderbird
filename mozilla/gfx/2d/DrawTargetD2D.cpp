@@ -666,6 +666,8 @@ DrawTargetD2D::DrawSurfaceWithShadow(SourceSurface *aSurface,
 void
 DrawTargetD2D::ClearRect(const Rect &aRect)
 {
+  MarkChanged();
+
   mRT->SetTransform(D2DMatrix(mTransform));
   PopAllClips();
 
@@ -694,6 +696,8 @@ DrawTargetD2D::CopySurface(SourceSurface *aSurface,
                            const IntRect &aSourceRect,
                            const IntPoint &aDestination)
 {
+  MarkChanged();
+
   Rect srcRect(Float(aSourceRect.x), Float(aSourceRect.y),
                Float(aSourceRect.width), Float(aSourceRect.height));
   Rect dstRect(Float(aDestination.x), Float(aDestination.y),

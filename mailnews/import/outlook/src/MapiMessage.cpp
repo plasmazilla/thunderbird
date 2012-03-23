@@ -86,14 +86,12 @@ static const char *sMonths[12] = {
 };
 
 CMapiMessage::CMapiMessage( LPMESSAGE lpMsg)
-  : m_lpMsg(lpMsg), m_pIOService(0), m_dldStateHeadersOnly(false), m_msgFlags(0)
+  : m_lpMsg(lpMsg), m_dldStateHeadersOnly(false), m_msgFlags(0)
 {
   nsresult rv;
-  NS_WITH_PROXIED_SERVICE(nsIIOService, service, NS_IOSERVICE_CONTRACTID,
-                          NS_PROXY_TO_MAIN_THREAD, &rv);
+  m_pIOService = do_GetService(NS_IOSERVICE_CONTRACTID, &rv);
   if (NS_FAILED(rv))
     return;
-  NS_IF_ADDREF(m_pIOService = service);
 
   FetchHeaders();
   if (ValidState()) {
@@ -112,7 +110,6 @@ CMapiMessage::~CMapiMessage()
   ClearAttachments();
   if (m_lpMsg)
     m_lpMsg->Release();
-  NS_IF_RELEASE(m_pIOService);
 }
 
 void CMapiMessage::FormatDateTime(SYSTEMTIME& tm, nsCString& s, bool includeTZ)
@@ -1048,8 +1045,8 @@ bool CMapiMessage::AddAttachment(DWORD aNum)
       bResult = data->tmp_file;
 
     if (bResult) {
-      PRBool isFile = PR_FALSE;
-      PRBool exists = PR_FALSE;
+      bool isFile = false;
+      bool exists = false;
       data->tmp_file->Exists(&exists);
       data->tmp_file->IsFile(&isFile);
 

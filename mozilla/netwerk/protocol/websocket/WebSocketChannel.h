@@ -70,6 +70,10 @@ namespace mozilla { namespace net {
 class nsPostMessage;
 class nsWSAdmissionManager;
 class nsWSCompression;
+class CallOnMessageAvailable;
+class CallOnStop;
+class CallOnServerClose;
+class CallAcknowledge;
 
 class WebSocketChannel : public BaseWebSocketChannel,
                          public nsIHttpUpgradeListener,
@@ -129,6 +133,10 @@ protected:
 private:
   friend class nsPostMessage;
   friend class nsWSAdmissionManager;
+  friend class CallOnMessageAvailable;
+  friend class CallOnStop;
+  friend class CallOnServerClose;
+  friend class CallAcknowledge;
 
   void SendMsgInternal(nsCString *aMsg, PRInt32 datalen);
   void PrimeNewOutgoingMessage();
@@ -150,7 +158,7 @@ private:
   void EnsureHdrOut(PRUint32 size);
   void ApplyMask(PRUint32 mask, PRUint8 *data, PRUint64 len);
 
-  PRBool   IsPersistentFramePtr();
+  bool     IsPersistentFramePtr();
   nsresult ProcessInput(PRUint8 *buffer, PRUint32 count);
   PRUint32 UpdateReadBuffer(PRUint8 *buffer, PRUint32 count,
                             PRUint32 accumulatedFragments);
@@ -159,15 +167,15 @@ private:
   {
   public:
     OutboundMessage (nsCString *str)
-      : mMsg(str), mIsControl(PR_FALSE), mBinaryLen(-1)
+      : mMsg(str), mIsControl(false), mBinaryLen(-1)
     { MOZ_COUNT_CTOR(WebSocketOutboundMessage); }
 
     OutboundMessage (nsCString *str, PRInt32 dataLen)
-      : mMsg(str), mIsControl(PR_FALSE), mBinaryLen(dataLen)
+      : mMsg(str), mIsControl(false), mBinaryLen(dataLen)
     { MOZ_COUNT_CTOR(WebSocketOutboundMessage); }
 
     OutboundMessage ()
-      : mMsg(nsnull), mIsControl(PR_TRUE), mBinaryLen(-1)
+      : mMsg(nsnull), mIsControl(true), mBinaryLen(-1)
     { MOZ_COUNT_CTOR(WebSocketOutboundMessage); }
 
     ~OutboundMessage()
@@ -176,7 +184,7 @@ private:
       delete mMsg;
     }
 
-    PRBool IsControl()  { return mIsControl; }
+    bool IsControl()  { return mIsControl; }
     const nsCString *Msg()  { return mMsg; }
     PRInt32 BinaryLen() { return mBinaryLen; }
     PRInt32 Length()
@@ -194,7 +202,7 @@ private:
 
   private:
     nsCString *mMsg;
-    PRBool     mIsControl;
+    bool       mIsControl;
     PRInt32    mBinaryLen;
   };
 
@@ -280,7 +288,7 @@ private:
 class WebSocketSSLChannel : public WebSocketChannel
 {
 public:
-    WebSocketSSLChannel() { BaseWebSocketChannel::mEncrypted = PR_TRUE; }
+    WebSocketSSLChannel() { BaseWebSocketChannel::mEncrypted = true; }
 protected:
     virtual ~WebSocketSSLChannel() {}
 };

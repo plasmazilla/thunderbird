@@ -51,6 +51,7 @@
 #include "nsTArray.h"
 #include "nsThreadUtils.h"
 #include "mozilla/Mutex.h"
+#include "mozilla/Telemetry.h"
 #include "mozilla/FileUtils.h"
 #include "prlog.h"
 
@@ -63,7 +64,7 @@ static const PRLogModuleInfo *gUrlClassifierPrefixSetLog = nsnull;
 #define LOG_ENABLED() PR_LOG_TEST(gUrlClassifierPrefixSetLog, 4)
 #else
 #define LOG(args)
-#define LOG_ENABLED() (PR_FALSE)
+#define LOG_ENABLED() (false)
 #endif
 
 NS_IMPL_THREADSAFE_ISUPPORTS1(nsUrlClassifierPrefixSet, nsIUrlClassifierPrefixSet)
@@ -71,7 +72,7 @@ NS_IMPL_THREADSAFE_ISUPPORTS1(nsUrlClassifierPrefixSet, nsIUrlClassifierPrefixSe
 nsUrlClassifierPrefixSet::nsUrlClassifierPrefixSet()
   : mPrefixSetLock("mPrefixSetLock"),
     mSetIsReady(mPrefixSetLock, "mSetIsReady"),
-    mHasPrefixes(PR_FALSE),
+    mHasPrefixes(false),
     mRandomKey(0)
 {
 #if defined(PR_LOGGING)
@@ -113,7 +114,7 @@ nsUrlClassifierPrefixSet::SetPrefixes(const PRUint32 * aArray, PRUint32 aLength)
       mDeltas.Clear();
       mIndexPrefixes.Clear();
       mIndexStarts.Clear();
-      mHasPrefixes = PR_FALSE;
+      mHasPrefixes = false;
     }
   }
   if (aLength > 0) {
@@ -171,7 +172,7 @@ nsUrlClassifierPrefixSet::AddPrefixes(const PRUint32 * prefixes, PRUint32 aLengt
   mIndexStarts.SwapElements(mNewIndexStarts);
   mDeltas.SwapElements(mNewDeltas);
 
-  mHasPrefixes = PR_TRUE;
+  mHasPrefixes = true;
   mSetIsReady.NotifyAll();
 
   return NS_OK;
@@ -196,9 +197,9 @@ PRUint32 nsUrlClassifierPrefixSet::BinSearch(PRUint32 start,
 }
 
 NS_IMETHODIMP
-nsUrlClassifierPrefixSet::Contains(PRUint32 aPrefix, PRBool * aFound)
+nsUrlClassifierPrefixSet::Contains(PRUint32 aPrefix, bool * aFound)
 {
-  *aFound = PR_FALSE;
+  *aFound = false;
 
   if (!mHasPrefixes) {
     return NS_OK;
@@ -243,7 +244,7 @@ nsUrlClassifierPrefixSet::Contains(PRUint32 aPrefix, PRBool * aFound)
   }
 
   if (diff == 0) {
-    *aFound = PR_TRUE;
+    *aFound = true;
   }
 
   return NS_OK;
@@ -253,7 +254,7 @@ NS_IMETHODIMP
 nsUrlClassifierPrefixSet::EstimateSize(PRUint32 * aSize)
 {
   MutexAutoLock lock(mPrefixSetLock);
-  *aSize = sizeof(PRBool);
+  *aSize = sizeof(bool);
   if (mHasPrefixes) {
     *aSize += sizeof(PRUint16) * mDeltas.Length();
     *aSize += sizeof(PRUint32) * mIndexPrefixes.Length();
@@ -263,7 +264,7 @@ nsUrlClassifierPrefixSet::EstimateSize(PRUint32 * aSize)
 }
 
 NS_IMETHODIMP
-nsUrlClassifierPrefixSet::IsEmpty(PRBool * aEmpty)
+nsUrlClassifierPrefixSet::IsEmpty(bool * aEmpty)
 {
   MutexAutoLock lock(mPrefixSetLock);
   *aEmpty = !mHasPrefixes;
@@ -280,9 +281,11 @@ nsUrlClassifierPrefixSet::GetKey(PRUint32 * aKey)
 
 NS_IMETHODIMP
 nsUrlClassifierPrefixSet::Probe(PRUint32 aPrefix, PRUint32 aKey,
-                                PRBool* aReady, PRBool* aFound)
+                                bool* aReady, bool* aFound)
 {
   MutexAutoLock lock(mPrefixSetLock);
+
+  *aFound = false;
 
   // We might have raced here with a LoadPrefixSet call,
   // loading a saved PrefixSet with another key than the one used to probe us.
@@ -291,7 +294,7 @@ nsUrlClassifierPrefixSet::Probe(PRUint32 aPrefix, PRUint32 aKey,
   // Claim we are still busy loading instead.
   if (aKey != mRandomKey) {
     LOG(("Potential race condition detected, avoiding"));
-    *aReady = PR_FALSE;
+    *aReady = false;
     return NS_OK;
   }
 
@@ -305,7 +308,7 @@ nsUrlClassifierPrefixSet::Probe(PRUint32 aPrefix, PRUint32 aKey,
   } else {
     // opportunistic probe -> check if set is loaded
     if (mHasPrefixes) {
-      *aReady = PR_TRUE;
+      *aReady = true;
     } else {
       return NS_OK;
     }
@@ -371,7 +374,7 @@ nsUrlClassifierPrefixSet::LoadFromFd(AutoFDClose & fileFd)
     mIndexStarts.SwapElements(mNewIndexStarts);
     mDeltas.SwapElements(mNewDeltas);
 
-    mHasPrefixes = PR_TRUE;
+    mHasPrefixes = true;
     mSetIsReady.NotifyAll();
   } else {
     LOG(("Version magic mismatch, not loading"));
@@ -391,7 +394,7 @@ nsUrlClassifierPrefixSet::LoadFromFile(nsIFile * aFile)
   NS_ENSURE_SUCCESS(rv, rv);
 
   AutoFDClose fileFd;
-  rv = file->OpenNSPRFileDesc(PR_RDONLY, 0, &fileFd);
+  rv = file->OpenNSPRFileDesc(PR_RDONLY | nsILocalFile::OS_READAHEAD, 0, &fileFd);
   NS_ENSURE_SUCCESS(rv, rv);
 
   return LoadFromFd(fileFd);
@@ -400,6 +403,15 @@ nsUrlClassifierPrefixSet::LoadFromFile(nsIFile * aFile)
 nsresult
 nsUrlClassifierPrefixSet::StoreToFd(AutoFDClose & fileFd)
 {
+  {
+      Telemetry::AutoTimer<Telemetry::URLCLASSIFIER_PS_FALLOCATE_TIME> timer;
+      PRInt64 size = 4 * sizeof(PRUint32);
+      size += 2 * mIndexStarts.Length() * sizeof(PRUint32);
+      size +=     mDeltas.Length() * sizeof(PRUint16);
+
+      mozilla::fallocate(fileFd, size);
+  }
+
   PRInt32 written;
   PRUint32 magic = PREFIXSET_VERSION_MAGIC;
   written = PR_Write(fileFd, &magic, sizeof(PRUint32));

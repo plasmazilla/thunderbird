@@ -1,5 +1,9 @@
 %include messenger.css
 
+treechildren::-moz-tree-cell-text {
+  -moz-padding-start: 2px;
+}
+
 .toolbar-primary {
   -moz-appearance: none;
 }
@@ -12,6 +16,9 @@
   background-clip: padding-box;
   border: 1px solid ThreeDDarkShadow;
   -moz-border-radius: 3.5px;
+  min-height: 24px;
+  margin-top: 1px;
+  margin-bottom: 1px;
 }
 
 .foldersTree {

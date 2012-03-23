@@ -87,7 +87,7 @@ nsHttpConnectionMgr::nsHttpConnectionMgr()
     , mMaxConnsPerProxy(0)
     , mMaxPersistConnsPerHost(0)
     , mMaxPersistConnsPerProxy(0)
-    , mIsShuttingDown(PR_FALSE)
+    , mIsShuttingDown(false)
     , mNumActiveConns(0)
     , mNumIdleConns(0)
     , mTimeOfNextWakeUp(LL_MAXUINT)
@@ -108,7 +108,7 @@ nsHttpConnectionMgr::EnsureSocketThreadTargetIfOnline()
     nsCOMPtr<nsIEventTarget> sts;
     nsCOMPtr<nsIIOService> ioService = do_GetIOService(&rv);
     if (NS_SUCCEEDED(rv)) {
-        PRBool offline = PR_TRUE;
+        bool offline = true;
         ioService->GetOffline(&offline);
 
         if (!offline) {
@@ -149,7 +149,7 @@ nsHttpConnectionMgr::Init(PRUint16 maxConns,
         mMaxRequestDelay = maxRequestDelay;
         mMaxPipelinedRequests = maxPipelinedRequests;
 
-        mIsShuttingDown = PR_FALSE;
+        mIsShuttingDown = false;
     }
 
     return EnsureSocketThreadTargetIfOnline();
@@ -171,7 +171,7 @@ nsHttpConnectionMgr::Shutdown()
     // release our reference to the STS to prevent further events
     // from being posted.  this is how we indicate that we are
     // shutting down.
-    mIsShuttingDown = PR_TRUE;
+    mIsShuttingDown = true;
     mSocketThreadTarget = 0;
 
     if (NS_FAILED(rv)) {
@@ -579,7 +579,7 @@ nsHttpConnectionMgr::ShutdownPassCB(const nsACString &key,
 
 //-----------------------------------------------------------------------------
 
-PRBool
+bool
 nsHttpConnectionMgr::ProcessPendingQForEntry(nsConnectionEntry *ent)
 {
     LOG(("nsHttpConnectionMgr::ProcessPendingQForEntry [ci=%s]\n",
@@ -598,10 +598,10 @@ nsHttpConnectionMgr::ProcessPendingQForEntry(nsConnectionEntry *ent)
             // connections from being established and bound to this
             // transaction. Allow only use of an idle persistent connection
             // (if found) for transactions referred by a half-open connection.
-            PRBool alreadyHalfOpen = PR_FALSE;
+            bool alreadyHalfOpen = false;
             for (PRInt32 j = 0; j < ((PRInt32) ent->mHalfOpens.Length()); j++) {
                 if (ent->mHalfOpens[j]->Transaction() == trans) {
-                    alreadyHalfOpen = PR_TRUE;
+                    alreadyHalfOpen = true;
                     break;
                 }
             }
@@ -628,17 +628,17 @@ nsHttpConnectionMgr::ProcessPendingQForEntry(nsConnectionEntry *ent)
             }
 
             NS_RELEASE(conn);
-            return PR_TRUE;
+            return true;
         }
     }
-    return PR_FALSE;
+    return false;
 }
 
 // we're at the active connection limit if any one of the following conditions is true:
 //  (1) at max-connections
 //  (2) keep-alive enabled and at max-persistent-connections-per-server/proxy
 //  (3) keep-alive disabled and at max-connections-per-server
-PRBool
+bool
 nsHttpConnectionMgr::AtActiveConnectionLimit(nsConnectionEntry *ent, PRUint8 caps)
 {
     nsHttpConnectionInfo *ci = ent->mConnInfo;
@@ -646,11 +646,21 @@ nsHttpConnectionMgr::AtActiveConnectionLimit(nsConnectionEntry *ent, PRUint8 cap
     LOG(("nsHttpConnectionMgr::AtActiveConnectionLimit [ci=%s caps=%x]\n",
         ci->HashKey().get(), caps));
 
+    // update maxconns if potentially limited by the max socket count
+    // this requires a dynamic reduction in the max socket count to a point
+    // lower than the max-connections pref.
+    PRUint32 maxSocketCount = gHttpHandler->MaxSocketCount();
+    if (mMaxConns > maxSocketCount) {
+        mMaxConns = maxSocketCount;
+        LOG(("nsHttpConnectionMgr %p mMaxConns dynamically reduced to %u",
+             this, mMaxConns));
+    }
+
     // If there are more active connections than the global limit, then we're
     // done. Purging idle connections won't get us below it.
     if (mNumActiveConns >= mMaxConns) {
         LOG(("  num active conns == max conns\n"));
-        return PR_TRUE;
+        return true;
     }
 
     nsHttpConnection *conn;
@@ -720,7 +730,7 @@ nsHttpConnectionMgr::ClosePersistentConnectionsCB(const nsACString &key,
 void
 nsHttpConnectionMgr::GetConnection(nsConnectionEntry *ent,
                                    nsHttpTransaction *trans,
-                                   PRBool onlyReusedConnection,
+                                   bool onlyReusedConnection,
                                    nsHttpConnection **result)
 {
     LOG(("nsHttpConnectionMgr::GetConnection [ci=%s caps=%x]\n",
@@ -834,7 +844,6 @@ nsHttpConnectionMgr::CreateTransport(nsConnectionEntry *ent,
     nsresult rv = sock->SetupPrimaryStreams();
     NS_ENSURE_SUCCESS(rv, rv);
 
-    sock->SetupBackupTimer();
     ent->mHalfOpens.AppendElement(sock);
     return NS_OK;
 }
@@ -886,13 +895,13 @@ nsHttpConnectionMgr::DispatchTransaction(nsConnectionEntry *ent,
     return rv;
 }
 
-PRBool
+bool
 nsHttpConnectionMgr::BuildPipeline(nsConnectionEntry *ent,
                                    nsAHttpTransaction *firstTrans,
                                    nsHttpPipeline **result)
 {
     if (mMaxPipelinedRequests < 2)
-        return PR_FALSE;
+        return false;
 
     nsHttpPipeline *pipeline = nsnull;
     nsHttpTransaction *trans;
@@ -904,7 +913,7 @@ nsHttpConnectionMgr::BuildPipeline(nsConnectionEntry *ent,
             if (numAdded == 0) {
                 pipeline = new nsHttpPipeline;
                 if (!pipeline)
-                    return PR_FALSE;
+                    return false;
                 pipeline->AddTransaction(firstTrans);
                 numAdded = 1;
             }
@@ -922,11 +931,11 @@ nsHttpConnectionMgr::BuildPipeline(nsConnectionEntry *ent,
     }
 
     if (numAdded == 0)
-        return PR_FALSE;
+        return false;
 
     LOG(("  pipelined %u transactions\n", numAdded));
     NS_ADDREF(*result = pipeline);
-    return PR_TRUE;
+    return true;
 }
 
 nsresult
@@ -978,7 +987,7 @@ nsHttpConnectionMgr::ProcessNewTransaction(nsHttpTransaction *trans)
         trans->SetConnection(nsnull);
     }
     else
-        GetConnection(ent, trans, PR_FALSE, &conn);
+        GetConnection(ent, trans, false, &conn);
 
     nsresult rv;
     if (!conn) {
@@ -1231,7 +1240,7 @@ nsresult
 nsHttpConnectionMgr::nsConnectionHandle::OnHeadersAvailable(nsAHttpTransaction *trans,
                                                             nsHttpRequestHead *req,
                                                             nsHttpResponseHead *resp,
-                                                            PRBool *reset)
+                                                            bool *reset)
 {
     return mConn->OnHeadersAvailable(trans, req, resp, reset);
 }
@@ -1275,13 +1284,13 @@ nsHttpConnectionMgr::nsConnectionHandle::GetSecurityInfo(nsISupports **result)
     mConn->GetSecurityInfo(result);
 }
 
-PRBool
+bool
 nsHttpConnectionMgr::nsConnectionHandle::IsPersistent()
 {
     return mConn->IsPersistent();
 }
 
-PRBool
+bool
 nsHttpConnectionMgr::nsConnectionHandle::IsReused()
 {
     return mConn->IsReused();
@@ -1334,7 +1343,7 @@ nsHttpConnectionMgr::
 nsHalfOpenSocket::SetupStreams(nsISocketTransport **transport,
                                nsIAsyncInputStream **instream,
                                nsIAsyncOutputStream **outstream,
-                               PRBool isBackup)
+                               bool isBackup)
 {
     nsresult rv;
 
@@ -1410,7 +1419,7 @@ nsHttpConnectionMgr::nsHalfOpenSocket::SetupPrimaryStreams()
     nsresult rv = SetupStreams(getter_AddRefs(mSocketTransport),
                                getter_AddRefs(mStreamIn),
                                getter_AddRefs(mStreamOut),
-                               PR_FALSE);
+                               false);
     LOG(("nsHalfOpenSocket::SetupPrimaryStream [this=%p ent=%s rv=%x]",
          this, mEnt->mConnInfo->Host(), rv));
     if (NS_FAILED(rv)) {
@@ -1429,7 +1438,7 @@ nsHttpConnectionMgr::nsHalfOpenSocket::SetupBackupStreams()
     nsresult rv = SetupStreams(getter_AddRefs(mBackupTransport),
                                getter_AddRefs(mBackupStreamIn),
                                getter_AddRefs(mBackupStreamOut),
-                               PR_TRUE);
+                               true);
     LOG(("nsHalfOpenSocket::SetupBackupStream [this=%p ent=%s rv=%x]",
          this, mEnt->mConnInfo->Host(), rv));
     if (NS_FAILED(rv)) {
@@ -1457,9 +1466,24 @@ nsHttpConnectionMgr::nsHalfOpenSocket::SetupBackupTimer()
         // so don't return an error in that case.
         nsresult rv;
         mSynTimer = do_CreateInstance(NS_TIMER_CONTRACTID, &rv);
-        if (NS_SUCCEEDED(rv))
+        if (NS_SUCCEEDED(rv)) {
             mSynTimer->InitWithCallback(this, timeout, nsITimer::TYPE_ONE_SHOT);
+            LOG(("nsHalfOpenSocket::SetupBackupTimer()"));
+        }
     }
+}
+
+void
+nsHttpConnectionMgr::nsHalfOpenSocket::CancelBackupTimer()
+{
+    // If the syntimer is still armed, we can cancel it because no backup
+    // socket should be formed at this point
+    if (!mSynTimer)
+        return;
+
+    LOG(("nsHalfOpenSocket::CancelBackupTimer()"));
+    mSynTimer->Cancel();
+    mSynTimer = nsnull;
 }
 
 void
@@ -1467,6 +1491,9 @@ nsHttpConnectionMgr::nsHalfOpenSocket::Abandon()
 {
     LOG(("nsHalfOpenSocket::Abandon [this=%p ent=%s]",
          this, mEnt->mConnInfo->Host()));
+
+    NS_ABORT_IF_FALSE(PR_GetCurrentThread() == gSocketThread, "wrong thread");
+
     nsRefPtr<nsHalfOpenSocket> deleteProtector(this);
 
     if (mStreamOut) {
@@ -1479,10 +1506,8 @@ nsHttpConnectionMgr::nsHalfOpenSocket::Abandon()
         mBackupStreamOut->AsyncWait(nsnull, 0, 0, nsnull);
         mBackupStreamOut = nsnull;
     }
-    if (mSynTimer) {
-        mSynTimer->Cancel();
-        mSynTimer = nsnull;
-    }
+
+    CancelBackupTimer();
 
     mEnt = nsnull;
 }
@@ -1493,11 +1518,12 @@ nsHttpConnectionMgr::nsHalfOpenSocket::Notify(nsITimer *timer)
     NS_ABORT_IF_FALSE(PR_GetCurrentThread() == gSocketThread, "wrong thread");
     NS_ABORT_IF_FALSE(timer == mSynTimer, "wrong timer");
 
-    mSynTimer = nsnull;
     if (!gHttpHandler->ConnMgr()->
         AtActiveConnectionLimit(mEnt, mTransaction->Caps())) {
         SetupBackupStreams();
     }
+
+    mSynTimer = nsnull;
     return NS_OK;
 }
 
@@ -1517,15 +1543,7 @@ nsHalfOpenSocket::OnOutputStreamReady(nsIAsyncOutputStream *out)
     
     gHttpHandler->ConnMgr()->RecvdConnect();
 
-    // If the syntimer is still armed, we can cancel it because no backup
-    // socket should be formed at this point
-    if (mSynTimer) {
-        NS_ABORT_IF_FALSE (out == mStreamOut, "timer for non existant stream");
-        LOG(("nsHalfOpenSocket::OnOutputStreamReady "
-             "Backup connection timer canceled\n"));
-        mSynTimer->Cancel();
-        mSynTimer = nsnull;
-    }
+    CancelBackupTimer();
 
     // assign the new socket to the http connection
     nsRefPtr<nsHttpConnection> conn = new nsHttpConnection();
@@ -1604,7 +1622,35 @@ nsHttpConnectionMgr::nsHalfOpenSocket::OnTransportStatus(nsITransport *trans,
                                                          PRUint64 progressMax)
 {
     if (mTransaction)
-      mTransaction->OnTransportStatus(trans, status, progress);
+        mTransaction->OnTransportStatus(trans, status, progress);
+
+    if (trans != mSocketTransport)
+        return NS_OK;
+
+    switch (status) {
+    case nsISocketTransport::STATUS_CONNECTING_TO:
+        // Passed DNS resolution, now trying to connect, start the backup timer
+        // only prevent creating another backup transport.
+        // We also check for mEnt presence to not instantiate the timer after
+        // this half open socket has already been abandoned.  It may happen
+        // when we get this notification right between main-thread calls to
+        // nsHttpConnectionMgr::Shutdown and nsSocketTransportService::Shutdown
+        // where the first abandones all half open socket instances and only
+        // after that the second stops the socket thread.
+        if (mEnt && !mBackupTransport && !mSynTimer)
+            SetupBackupTimer();
+        break;
+
+    case nsISocketTransport::STATUS_CONNECTED_TO:
+        // TCP connection's up, now transfer or SSL negotiantion starts,
+        // no need for backup socket
+        CancelBackupTimer();
+        break;
+
+    default:
+        break;
+    }
+
     return NS_OK;
 }
 
@@ -1635,7 +1681,7 @@ nsHttpConnectionMgr::nsConnectionHandle::TakeHttpConnection()
     return conn;
 }
 
-PRBool
+bool
 nsHttpConnectionMgr::nsConnectionHandle::LastTransactionExpectedNoContent()
 {
     return mConn->LastTransactionExpectedNoContent();
@@ -1643,7 +1689,7 @@ nsHttpConnectionMgr::nsConnectionHandle::LastTransactionExpectedNoContent()
 
 void
 nsHttpConnectionMgr::
-nsConnectionHandle::SetLastTransactionExpectedNoContent(PRBool val)
+nsConnectionHandle::SetLastTransactionExpectedNoContent(bool val)
 {
      mConn->SetLastTransactionExpectedNoContent(val);
 }

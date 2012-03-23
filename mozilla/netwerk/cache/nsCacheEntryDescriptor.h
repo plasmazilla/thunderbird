@@ -105,7 +105,7 @@ private:
          nsCacheEntryDescriptor    * mDescriptor;
          nsCOMPtr<nsIInputStream>    mInput;
          PRUint32                    mStartOffset;
-         PRBool                      mInitialized;
+         bool                        mInitialized;
      public:
          NS_DECL_ISUPPORTS
          NS_DECL_NSIINPUTSTREAM
@@ -113,7 +113,7 @@ private:
          nsInputStreamWrapper(nsCacheEntryDescriptor * desc, PRUint32 off)
              : mDescriptor(desc)
              , mStartOffset(off)
-             , mInitialized(PR_FALSE)
+             , mInitialized(false)
          {
              NS_ADDREF(mDescriptor);
          }
@@ -140,7 +140,7 @@ private:
          nsCacheEntryDescriptor *    mDescriptor;
          nsCOMPtr<nsIOutputStream>   mOutput;
          PRUint32                    mStartOffset;
-         PRBool                      mInitialized;
+         bool                        mInitialized;
      public:
          NS_DECL_ISUPPORTS
          NS_DECL_NSIOUTPUTSTREAM
@@ -148,7 +148,7 @@ private:
          nsOutputStreamWrapper(nsCacheEntryDescriptor * desc, PRUint32 off)
              : mDescriptor(desc)
              , mStartOffset(off)
-             , mInitialized(PR_FALSE)
+             , mInitialized(false)
          {
              NS_ADDREF(mDescriptor); // owning ref
          }

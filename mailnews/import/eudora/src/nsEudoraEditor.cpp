@@ -109,14 +109,14 @@ NS_IMETHODIMP nsEudoraEditor::Init(nsIDOMDocument *doc, nsIContent * aRoot, nsIS
 
 
 // void setAttributeOrEquivalent (in nsIDOMElement element, in AString sourceAttrName, in AString sourceAttrValue, in boolean aSuppressTransaction)
-NS_IMETHODIMP nsEudoraEditor::SetAttributeOrEquivalent(nsIDOMElement *element, const nsAString & sourceAttrName, const nsAString & sourceAttrValue, PRBool aSuppressTransaction)
+NS_IMETHODIMP nsEudoraEditor::SetAttributeOrEquivalent(nsIDOMElement *element, const nsAString & sourceAttrName, const nsAString & sourceAttrValue, bool aSuppressTransaction)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 
 // void removeAttributeOrEquivalent (in nsIDOMElement element, in DOMString sourceAttrName, in boolean aSuppressTransaction)
-NS_IMETHODIMP nsEudoraEditor::RemoveAttributeOrEquivalent(nsIDOMElement *element, const nsAString & sourceAttrName, PRBool aSuppressTransaction)
+NS_IMETHODIMP nsEudoraEditor::RemoveAttributeOrEquivalent(nsIDOMElement *element, const nsAString & sourceAttrName, bool aSuppressTransaction)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -130,7 +130,7 @@ NS_IMETHODIMP nsEudoraEditor::PostCreate()
 
 
 // void preDestroy (in boolean aDestroyingFrames)
-NS_IMETHODIMP nsEudoraEditor::PreDestroy(PRBool aDestroyingFrames)
+NS_IMETHODIMP nsEudoraEditor::PreDestroy(bool aDestroyingFrames)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -163,12 +163,12 @@ NS_IMETHODIMP nsEudoraEditor::SetContentsMIMEType(const char * aContentsMIMEType
 
 
 // readonly attribute boolean isDocumentEditable
-NS_IMETHODIMP nsEudoraEditor::GetIsDocumentEditable(PRBool *aIsDocumentEditable)
+NS_IMETHODIMP nsEudoraEditor::GetIsDocumentEditable(bool *aIsDocumentEditable)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-NS_IMETHODIMP nsEudoraEditor::GetIsSelectionEditable(PRBool *aIsSelectionEditable)
+NS_IMETHODIMP nsEudoraEditor::GetIsSelectionEditable(bool *aIsSelectionEditable)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -202,14 +202,14 @@ NS_IMETHODIMP nsEudoraEditor::DeleteSelection(PRInt16 action)
 
 
 // readonly attribute boolean documentIsEmpty
-NS_IMETHODIMP nsEudoraEditor::GetDocumentIsEmpty(PRBool *aDocumentIsEmpty)
+NS_IMETHODIMP nsEudoraEditor::GetDocumentIsEmpty(bool *aDocumentIsEmpty)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 
 // readonly attribute boolean documentModified
-NS_IMETHODIMP nsEudoraEditor::GetDocumentModified(PRBool *aDocumentModified)
+NS_IMETHODIMP nsEudoraEditor::GetDocumentModified(bool *aDocumentModified)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -269,7 +269,7 @@ NS_IMETHODIMP nsEudoraEditor::DoTransaction(nsITransaction *txn)
 
 
 // void enableUndo (in boolean enable)
-NS_IMETHODIMP nsEudoraEditor::EnableUndo(PRBool enable)
+NS_IMETHODIMP nsEudoraEditor::EnableUndo(bool enable)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -283,7 +283,7 @@ NS_IMETHODIMP nsEudoraEditor::Undo(PRUint32 count)
 
 
 // void canUndo (out boolean isEnabled, out boolean canUndo)
-NS_IMETHODIMP nsEudoraEditor::CanUndo(PRBool *isEnabled, PRBool *canUndo)
+NS_IMETHODIMP nsEudoraEditor::CanUndo(bool *isEnabled, bool *canUndo)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -297,7 +297,7 @@ NS_IMETHODIMP nsEudoraEditor::Redo(PRUint32 count)
 
 
 // void canRedo (out boolean isEnabled, out boolean canRedo)
-NS_IMETHODIMP nsEudoraEditor::CanRedo(PRBool *isEnabled, PRBool *canRedo)
+NS_IMETHODIMP nsEudoraEditor::CanRedo(bool *isEnabled, bool *canRedo)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -332,21 +332,21 @@ NS_IMETHODIMP nsEudoraEditor::EndPlaceHolderTransaction()
 
 
 // boolean shouldTxnSetSelection ()
-NS_IMETHODIMP nsEudoraEditor::ShouldTxnSetSelection(PRBool *_retval)
+NS_IMETHODIMP nsEudoraEditor::ShouldTxnSetSelection(bool *_retval)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 
 // void setShouldTxnSetSelection (in boolean should)
-NS_IMETHODIMP nsEudoraEditor::SetShouldTxnSetSelection(PRBool should)
+NS_IMETHODIMP nsEudoraEditor::SetShouldTxnSetSelection(bool should)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 
 // readonly attribute nsIInlineSpellChecker inlineSpellChecker
-NS_IMETHODIMP nsEudoraEditor::GetInlineSpellChecker(PRBool autoCreate, nsIInlineSpellChecker * *aInlineSpellChecker)
+NS_IMETHODIMP nsEudoraEditor::GetInlineSpellChecker(bool autoCreate, nsIInlineSpellChecker * *aInlineSpellChecker)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -357,12 +357,12 @@ NS_IMETHODIMP nsEudoraEditor::SyncRealTimeSpell()
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-NS_IMETHODIMP nsEudoraEditor::SetSpellcheckUserOverride(PRBool enable)
+NS_IMETHODIMP nsEudoraEditor::SetSpellcheckUserOverride(bool enable)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-PRBool
+bool
 nsEudoraEditor::IsModifiableNode(nsIDOMNode *aNode)
 {
   return PR_TRUE;
@@ -375,7 +375,7 @@ NS_IMETHODIMP nsEudoraEditor::Cut()
 
 
 // boolean canCut ()
-NS_IMETHODIMP nsEudoraEditor::CanCut(PRBool *_retval)
+NS_IMETHODIMP nsEudoraEditor::CanCut(bool *_retval)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -389,7 +389,7 @@ NS_IMETHODIMP nsEudoraEditor::Copy()
 
 
 // boolean canCopy ()
-NS_IMETHODIMP nsEudoraEditor::CanCopy(PRBool *_retval)
+NS_IMETHODIMP nsEudoraEditor::CanCopy(bool *_retval)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -403,7 +403,7 @@ NS_IMETHODIMP nsEudoraEditor::Paste(PRInt32 aSelectionType)
 
 
 // boolean canPaste (in long aSelectionType)
-NS_IMETHODIMP nsEudoraEditor::CanPaste(PRInt32 aSelectionType, PRBool *_retval)
+NS_IMETHODIMP nsEudoraEditor::CanPaste(PRInt32 aSelectionType, bool *_retval)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -419,7 +419,7 @@ NS_IMETHODIMP nsEudoraEditor::PasteTransferable(nsITransferable *aTransferable)
 
 
 // boolean canPasteTransferable([optional] in nsITransferable aTransferable)
-NS_IMETHODIMP nsEudoraEditor::CanPasteTransferable(nsITransferable *aTransferable, PRBool *aCanPaste)
+NS_IMETHODIMP nsEudoraEditor::CanPasteTransferable(nsITransferable *aTransferable, bool *aCanPaste)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -447,7 +447,7 @@ NS_IMETHODIMP nsEudoraEditor::EndOfDocument()
 
 
 // boolean canDrag (in nsIDOMEvent aEvent)
-NS_IMETHODIMP nsEudoraEditor::CanDrag(nsIDOMEvent *aEvent, PRBool *_retval)
+NS_IMETHODIMP nsEudoraEditor::CanDrag(nsIDOMEvent *aEvent, bool *_retval)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -474,7 +474,7 @@ NS_IMETHODIMP nsEudoraEditor::SetAttribute(nsIDOMElement *aElement, const nsAStr
 }
 
 /* boolean getAttributeValue (in nsIDOMElement aElement, in AString attributestr, out AString resultValue); */
-NS_IMETHODIMP nsEudoraEditor::GetAttributeValue(nsIDOMElement *aElement, const nsAString & attributestr, nsAString & resultValue, PRBool *_retval)
+NS_IMETHODIMP nsEudoraEditor::GetAttributeValue(nsIDOMElement *aElement, const nsAString & attributestr, nsAString & resultValue, bool *_retval)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -625,7 +625,7 @@ NS_IMETHODIMP nsEudoraEditor::DebugUnitTests(PRInt32 *outNumTests, PRInt32 *outN
 }
 
 //  readonly attribute boolean transactionManager
-NS_IMETHODIMP nsEudoraEditor::GetLastKeypressEventTrusted(PRBool *aResult)
+NS_IMETHODIMP nsEudoraEditor::GetLastKeypressEventTrusted(bool *aResult)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -659,14 +659,14 @@ NS_IMETHODIMP nsEudoraEditor::PasteAsCitedQuotation(const nsAString & aCitation,
 
 
 // nsIDOMNode insertAsCitedQuotation (in AString aQuotedText, in AString aCitation, in boolean aInsertHTML)
-NS_IMETHODIMP nsEudoraEditor::InsertAsCitedQuotation(const nsAString & aQuotedText, const nsAString & aCitation, PRBool aInsertHTML, nsIDOMNode **_retval)
+NS_IMETHODIMP nsEudoraEditor::InsertAsCitedQuotation(const nsAString & aQuotedText, const nsAString & aCitation, bool aInsertHTML, nsIDOMNode **_retval)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 
 // void rewrap (in boolean aRespectNewlines)
-NS_IMETHODIMP nsEudoraEditor::Rewrap(PRBool aRespectNewlines)
+NS_IMETHODIMP nsEudoraEditor::Rewrap(bool aRespectNewlines)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -721,7 +721,7 @@ NS_IMETHODIMP nsEudoraEditor::GetEmbeddedObjects(nsISupportsArray ** aNodeList)
   PRInt32     startLastClosingTag = m_body.RFind("</");
   if (startLastClosingTag == kNotFound)
     startLastClosingTag = 0;
-  PRBool      foundEmbeddedContentLines = PR_FALSE;
+  bool        foundEmbeddedContentLines = false;
 
   // Search for various translations of "Embedded Content" - as of this writing only
   // one that I know of, but then again I didn't realize that Eudora translators had
@@ -749,8 +749,8 @@ NS_IMETHODIMP nsEudoraEditor::GetEmbeddedObjects(nsISupportsArray ** aNodeList)
       embeddedImageSpec->Append(fileName);
 
       // Verify that the embedded image spec exists and is a file
-      PRBool    isFile = PR_FALSE;
-      PRBool    exists = PR_FALSE;
+      bool      isFile = false;
+      bool      exists = false;
       if ( NS_FAILED(embeddedImageSpec->Exists( &exists)) || NS_FAILED(embeddedImageSpec->IsFile(&isFile)) )
         continue;
       if (!exists || !isFile)
@@ -812,9 +812,9 @@ NS_IMETHODIMP nsEudoraEditor::GetEmbeddedObjects(nsISupportsArray ** aNodeList)
   return NS_OK;
 }
 
-PRBool nsEudoraEditor::UpdateEmbeddedImageReference(PRUint32 aCIDHash, const nsAString & aOldRef, const nsAString & aUpdatedRef)
+bool nsEudoraEditor::UpdateEmbeddedImageReference(PRUint32 aCIDHash, const nsAString & aOldRef, const nsAString & aUpdatedRef)
 {
-  PRBool    foundMatch = PR_FALSE;
+  bool      foundMatch = false;
   PRInt32   startImageTag = 0;
   PRInt32   closeImageTag = 0;
 
@@ -891,10 +891,10 @@ PRBool nsEudoraEditor::UpdateEmbeddedImageReference(PRUint32 aCIDHash, const nsA
 }
 
 
-PRBool nsEudoraEditor::HasEmbeddedContent()
+bool nsEudoraEditor::HasEmbeddedContent()
 {
   // Simple quick test to see if there's any embedded content lines
-  PRBool   bHasEmbeddedContent = PR_FALSE;
+  bool     bHasEmbeddedContent = false;
 
   for (PRInt32 i = 0; *sEudoraEmbeddedContentLines[i] != '\0'; i++)
   {
@@ -1037,14 +1037,14 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::AppendChild(nsIDOMNode *newChild, nsIDOM
 
 
 // boolean hasChildNodes ()
-NS_IMETHODIMP nsEudoraHTMLImageElement::HasChildNodes(PRBool *_retval)
+NS_IMETHODIMP nsEudoraHTMLImageElement::HasChildNodes(bool *_retval)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 
 // nsIDOMNode cloneNode (in boolean deep)
-NS_IMETHODIMP nsEudoraHTMLImageElement::CloneNode(PRBool deep, nsIDOMNode **_retval)
+NS_IMETHODIMP nsEudoraHTMLImageElement::CloneNode(bool deep, nsIDOMNode **_retval)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -1058,7 +1058,7 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::Normalize()
 
 
 // boolean isSupported (in DOMString feature, in DOMString version)
-NS_IMETHODIMP nsEudoraHTMLImageElement::IsSupported(const nsAString & feature, const nsAString & version, PRBool *_retval)
+NS_IMETHODIMP nsEudoraHTMLImageElement::IsSupported(const nsAString & feature, const nsAString & version, bool *_retval)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -1085,7 +1085,7 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::GetLocalName(nsAString & aLocalName)
 
 
 // boolean hasAttributes ()
-NS_IMETHODIMP nsEudoraHTMLImageElement::HasAttributes(PRBool *_retval)
+NS_IMETHODIMP nsEudoraHTMLImageElement::HasAttributes(bool *_retval)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -1190,25 +1190,43 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::GetElementsByTagNameNS(const nsAString &
 
 
 // boolean hasAttribute (in DOMString name)
-NS_IMETHODIMP nsEudoraHTMLImageElement::HasAttribute(const nsAString & name, PRBool *_retval)
+NS_IMETHODIMP nsEudoraHTMLImageElement::HasAttribute(const nsAString & name, bool *_retval)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 
 // boolean hasAttributeNS (in DOMString namespaceURI, in DOMString localName)
-NS_IMETHODIMP nsEudoraHTMLImageElement::HasAttributeNS(const nsAString & namespaceURI, const nsAString & localName, PRBool *_retval)
+NS_IMETHODIMP nsEudoraHTMLImageElement::HasAttributeNS(const nsAString & namespaceURI, const nsAString & localName, bool *_retval)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetOnmouseenter(JSContext *cx, JS::Value *ret)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetOnmouseenter(JSContext *cx, const JS::Value &aMouseEnter)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetOnmouseleave(JSContext *cx, JS::Value *ret)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetOnmouseleave(JSContext *cx, const JS::Value &aMouseLeave)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
 
 // attribute DOMString id
 NS_IMETHODIMP nsEudoraHTMLImageElement::GetId(nsAString & aId)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
-
 
 NS_IMETHODIMP nsEudoraHTMLImageElement::SetId(const nsAString & aId)
 {
@@ -1222,7 +1240,6 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::GetTitle(nsAString & aTitle)
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-
 NS_IMETHODIMP nsEudoraHTMLImageElement::SetTitle(const nsAString & aTitle)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -1234,7 +1251,6 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::GetLang(nsAString & aLang)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
-
 
 NS_IMETHODIMP nsEudoraHTMLImageElement::SetLang(const nsAString & aLang)
 {
@@ -1248,7 +1264,6 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::GetDir(nsAString & aDir)
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-
 NS_IMETHODIMP nsEudoraHTMLImageElement::SetDir(const nsAString & aDir)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
@@ -1261,41 +1276,200 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::GetClassName(nsAString & aClassName)
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-
 NS_IMETHODIMP nsEudoraHTMLImageElement::SetClassName(const nsAString & aClassName)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-NS_IMETHODIMP nsEudoraHTMLImageElement::GetAccessKey(nsAString &aAccessKey)
+
+// readonly attribute nsIDOMDOMStringMap dataset
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetDataset(nsIDOMDOMStringMap * *aDataset)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-NS_IMETHODIMP nsEudoraHTMLImageElement::SetAccessKey(const nsAString &aAccessKey)
+
+// attribute boolean hidden
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetHidden(bool *aHidden)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-NS_IMETHODIMP nsEudoraHTMLImageElement::GetAccessKeyLabel(nsAString &aAccessKey)
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetHidden(bool aHidden)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-NS_IMETHODIMP nsEudoraHTMLImageElement::Blur()
+
+// void click ()
+NS_IMETHODIMP nsEudoraHTMLImageElement::Click()
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
+
+// attribute long tabIndex
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetTabIndex(PRInt32 *aTabIndex)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetTabIndex(PRInt32 aTabIndex)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// void focus ()
 NS_IMETHODIMP nsEudoraHTMLImageElement::Focus()
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-NS_IMETHODIMP nsEudoraHTMLImageElement::Click()
+
+// void blur ()
+NS_IMETHODIMP nsEudoraHTMLImageElement::Blur()
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
+
+
+// attribute DOMString accessKey
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetAccessKey(nsAString & aAccessKey)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetAccessKey(const nsAString & aAccessKey)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// readonly attribute DOMString accessKeyLabel
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetAccessKeyLabel(nsAString & aAccessKeyLabel)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// attribute boolean draggable
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetDraggable(bool *aDraggable)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetDraggable(bool aDraggable)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// attribute DOMString contentEditable
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetContentEditable(nsAString & aContentEditable)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetContentEditable(const nsAString & aContentEditable)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// readonly attribute boolean isContentEditable
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetIsContentEditable(bool *aIsContentEditable)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// readonly attribute nsIDOMHTMLMenuElement contextMenu
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetContextMenu(nsIDOMHTMLMenuElement * *aContextMenu)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// attribute boolean spellcheck
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetSpellcheck(bool *aSpellcheck)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetSpellcheck(bool aSpellcheck)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// attribute DOMString innerHTML
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetInnerHTML(nsAString & aInnerHTML)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetInnerHTML(const nsAString & aInnerHTML)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// void insertAdjacentHTML (in DOMString position, in DOMString text)
+NS_IMETHODIMP nsEudoraHTMLImageElement::InsertAdjacentHTML(const nsAString & position, const nsAString & text)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// [optional_argc] void scrollIntoView ([optional] in boolean top)
+NS_IMETHODIMP nsEudoraHTMLImageElement::ScrollIntoView(bool top, PRUint8 _argc)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// readonly attribute nsIDOMElement offsetParent
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetOffsetParent(nsIDOMElement * *aOffsetParent)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// readonly attribute long offsetTop
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetOffsetTop(PRInt32 *aOffsetTop)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// readonly attribute long offsetLeft
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetOffsetLeft(PRInt32 *aOffsetLeft)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// readonly attribute long offsetWidth
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetOffsetWidth(PRInt32 *aOffsetWidth)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// readonly attribute long offsetHeight
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetOffsetHeight(PRInt32 *aOffsetHeight)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+
+// void mozRequestFullScreen ()
+NS_IMETHODIMP nsEudoraHTMLImageElement::MozRequestFullScreen()
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
 
 // attribute DOMString name
 NS_IMETHODIMP nsEudoraHTMLImageElement::GetName(nsAString & aName)
@@ -1355,7 +1529,7 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::SetLowsrc(const nsAString &aResult)
 }
 
 // readonly attribute DOMString complete
-NS_IMETHODIMP nsEudoraHTMLImageElement::GetComplete(PRBool *aResult)
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetComplete(bool *aResult)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -1412,13 +1586,13 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::SetHspace(PRInt32 aHspace)
 
 
 // attribute boolean isMap
-NS_IMETHODIMP nsEudoraHTMLImageElement::GetIsMap(PRBool *aIsMap)
+NS_IMETHODIMP nsEudoraHTMLImageElement::GetIsMap(bool *aIsMap)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 
-NS_IMETHODIMP nsEudoraHTMLImageElement::SetIsMap(PRBool aIsMap)
+NS_IMETHODIMP nsEudoraHTMLImageElement::SetIsMap(bool aIsMap)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -1516,12 +1690,7 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::SetTextContent(const nsAString & aTextCo
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-NS_IMETHODIMP nsEudoraHTMLImageElement::IsSameNode(nsIDOMNode *other, PRBool *_retval NS_OUTPARAM)
-{
-  return NS_ERROR_NOT_IMPLEMENTED;
-}
-
-NS_IMETHODIMP nsEudoraHTMLImageElement::Contains(nsIDOMNode* aOther, PRBool* aReturn)
+NS_IMETHODIMP nsEudoraHTMLImageElement::Contains(nsIDOMNode* aOther, bool* aReturn)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -1531,7 +1700,7 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::LookupPrefix(const nsAString & namespace
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-NS_IMETHODIMP nsEudoraHTMLImageElement::IsDefaultNamespace(const nsAString & namespaceURI, PRBool *_retval NS_OUTPARAM)
+NS_IMETHODIMP nsEudoraHTMLImageElement::IsDefaultNamespace(const nsAString & namespaceURI, bool *_retval NS_OUTPARAM)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -1541,7 +1710,7 @@ NS_IMETHODIMP nsEudoraHTMLImageElement::LookupNamespaceURI(const nsAString & pre
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
-NS_IMETHODIMP nsEudoraHTMLImageElement::IsEqualNode(nsIDOMNode *arg, PRBool *_retval NS_OUTPARAM)
+NS_IMETHODIMP nsEudoraHTMLImageElement::IsEqualNode(nsIDOMNode *arg, bool *_retval NS_OUTPARAM)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }

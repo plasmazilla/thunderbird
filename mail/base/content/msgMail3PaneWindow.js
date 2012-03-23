@@ -43,7 +43,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-Components.utils.import("resource://gre/modules/folderUtils.jsm");
+Components.utils.import("resource:///modules/folderUtils.jsm");
 Components.utils.import("resource:///modules/activity/activityModules.js");
 Components.utils.import("resource:///modules/jsTreeSelection.js");
 Components.utils.import("resource:///modules/MailConsts.js");
@@ -68,6 +68,9 @@ const kNumFolderViews = 4; // total number of folder views
 
 /** widget with id=messagepanebox, initialized by GetMessagePane() */
 var gMessagePane;
+
+/** widget with id=messagepaneboxwrapper, initialized by GetMessagePaneWrapper() */
+var gMessagePaneWrapper;
 
 var gThreadAndMessagePaneSplitter = null;
 /**
@@ -204,8 +207,8 @@ function UpdateMailPaneConfig(aMsgWindowInitialized) {
   var desiredId = dynamicIds[layoutView];
   document.getElementById("mailContent")
           .setAttribute("layout", layouts[layoutView]);
-  var messagePane = GetMessagePane();
-  if (messagePane.parentNode.id != desiredId) {
+  var messagePaneBoxWrapper = GetMessagePaneWrapper();
+  if (messagePaneBoxWrapper.parentNode.id != desiredId) {
     ClearAttachmentList();
     var hdrToolbox = document.getElementById("header-view-toolbox");
     var hdrToolbar = document.getElementById("header-view-toolbar");
@@ -233,12 +236,12 @@ function UpdateMailPaneConfig(aMsgWindowInitialized) {
     }
 
     // See Bug 381992. The ctor for the browser element will fire again when we
-    // re-insert the messagePaneBox back into the document.  But the dtor
+    // re-insert the messagePaneBoxWrapper back into the document.  But the dtor
     // doesn't fire when the element is removed from the document.  Manually
     // call destroy here to avoid a nasty leak.
     document.getElementById("messagepane").destroy();
     desiredParent.appendChild(messagePaneSplitter);
-    desiredParent.appendChild(messagePane);
+    desiredParent.appendChild(messagePaneBoxWrapper);
     hdrToolbox.palette  = cloneToolboxPalette;
     hdrToolbox.toolbarset = cloneToolbarset;
     hdrToolbar = document.getElementById("header-view-toolbar");
@@ -311,9 +314,22 @@ const MailPrefObserver = {
   }
 };
 
+/**
+ * Called on startup if there are no accounts.
+ */
 function AutoConfigWizard(okCallback)
 {
-  NewMailAccount(msgWindow, okCallback);
+  if (gPrefBranch.getBoolPref("mail.provider.enabled")) {
+    // We need to let the event loop pump a little so that the 3pane finishes
+    // opening - so we use setTimeout. The 100ms is a bit arbitrary, but seems
+    // to be enough time to let the 3pane do it's thing, and not pull focus
+    // when the Account Provisioner modal window closes.
+    setTimeout(function() {
+      NewMailAccountProvisioner(msgWindow, { okCallback: okCallback });
+    }, 100);
+  }
+  else
+    NewMailAccount(msgWindow, okCallback);
 }
 
 /**
@@ -354,7 +370,7 @@ function OnLoadMessenger()
 
   MailOfflineMgr.init();
   CreateMailWindowGlobals();
-  GetMessagePane().collapsed = true;
+  GetMessagePaneWrapper().collapsed = true;
 
   // This needs to be before we throw up the account wizard on first run.
   try {
@@ -400,6 +416,7 @@ function OnLoadMessenger()
 
   // This also registers the contentTabType ("contentTab")
   specialTabs.openSpecialTabsOnStartup();
+  tabmail.registerTabType(webSearchTabType);
 
   window.addEventListener("AppCommand", HandleAppCommandEvent, true);
 }
@@ -935,6 +952,13 @@ function GetMessagePane()
   if (!gMessagePane)
     gMessagePane = document.getElementById("messagepanebox");
   return gMessagePane;
+}
+
+function GetMessagePaneWrapper()
+{
+  if (!gMessagePaneWrapper)
+    gMessagePaneWrapper = document.getElementById("messagepaneboxwrapper");
+  return gMessagePaneWrapper;
 }
 
 function GetMessagePaneFrame()
