@@ -36,11 +36,10 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#ifndef TOOLKIT_H      
-#define TOOLKIT_H
+#ifndef nsToolkit_h__
+#define nsToolkit_h__
 
 #include "nsdefs.h"
-#include "nsIToolkit.h"
 
 #include "nsITimer.h"
 #include "nsCOMPtr.h"
@@ -55,9 +54,6 @@
 #define GET_Y_LPARAM(pt) (short(HIWORD(pt)))
 #endif
 
-class nsIEventQueue;
-class MouseTrailer;
-
 // we used to use MAX_PATH
 // which works great for one file
 // but for multiple files, the format is
@@ -66,56 +62,6 @@ class MouseTrailer;
 // see bug #172001 for more details
 #define FILE_BUFFER_SIZE 4096 
 
-
-/**
- * Wrapper around the thread running the message pump.
- * The toolkit abstraction is necessary because the message pump must
- * execute within the same thread that created the widget under Win32.
- */ 
-
-class nsToolkit : public nsIToolkit
-{
-
-  public:
-
-            NS_DECL_ISUPPORTS
-
-                            nsToolkit();
-            NS_IMETHOD      Init(PRThread *aThread);
-            void            CreateInternalWindow(PRThread *aThread);
-
-private:
-                            ~nsToolkit();
-            void            CreateUIThread(void);
-
-public:
-    // Window procedure for the internal window
-    static LRESULT CALLBACK WindowProc(HWND hWnd, 
-                                        UINT Msg, 
-                                        WPARAM WParam, 
-                                        LPARAM lParam);
-
-protected:
-    // Handle of the window used to receive dispatch messages.
-    HWND        mDispatchWnd;
-    // Thread Id of the "main" Gui thread.
-    PRThread    *mGuiThread;
-    nsCOMPtr<nsITimer> mD3D9Timer;
-
-public:
-    static HINSTANCE mDllInstance;
-    // OS flag
-    static PRBool    mIsWinXP;
-
-    static PRBool InitVersionInfo();
-    static void Startup(HINSTANCE hModule);
-    static void Shutdown();
-    static void StartAllowingD3D9();
-
-    static MouseTrailer *gMouseTrailer;
-};
-
-class  nsWindow;
 
 /**
  * Makes sure exit/enter mouse messages are always dispatched.
@@ -132,8 +78,8 @@ public:
 
     void                  SetMouseTrailerWindow(HWND aWnd);
     void                  SetCaptureWindow(HWND aWnd);
-    void                  Disable() { mEnabled = PR_FALSE; DestroyTimer(); }
-    void                  Enable() { mEnabled = PR_TRUE; CreateTimer(); }
+    void                  Disable() { mEnabled = false; DestroyTimer(); }
+    void                  Enable() { mEnabled = true; CreateTimer(); }
     void                  DestroyTimer();
 
                           MouseTrailer();
@@ -147,9 +93,40 @@ private:
     // Information for mouse enter/exit events
     HWND                  mMouseTrailerWindow;
     HWND                  mCaptureWindow;
-    PRBool                mIsInCaptureMode;
-    PRBool                mEnabled;
+    bool                  mIsInCaptureMode;
+    bool                  mEnabled;
     nsCOMPtr<nsITimer>    mTimer;
+};
+
+/**
+ * Wrapper around the thread running the message pump.
+ * The toolkit abstraction is necessary because the message pump must
+ * execute within the same thread that created the widget under Win32.
+ */ 
+
+class nsToolkit
+{
+public:
+    nsToolkit();
+
+private:
+    ~nsToolkit();
+
+public:
+    static nsToolkit* GetToolkit();
+
+    static HINSTANCE mDllInstance;
+    static MouseTrailer *gMouseTrailer;
+
+    static void Startup(HMODULE hModule);
+    static void Shutdown();
+    static void StartAllowingD3D9();
+
+protected:
+    static nsToolkit* gToolkit;
+
+    nsCOMPtr<nsITimer> mD3D9Timer;
+    MouseTrailer mMouseTrailer;
 };
 
 #endif  // TOOLKIT_H

@@ -106,10 +106,10 @@ class AutoPtrComparator
   typedef T* B;
 
 public:
-  PRBool Equals(const A& a, const B& b) const {
+  bool Equals(const A& a, const B& b) const {
     return a && b ? *a == *b : !a && !b ? true : false;
   }
-  PRBool LessThan(const A& a, const B& b) const {
+  bool LessThan(const A& a, const B& b) const {
     return a && b ? *a < *b : b ? true : false;
   }
 };
@@ -242,7 +242,7 @@ struct WorkerStructuredCloneCallbacks
         {
           // File should not be mutable.
           nsCOMPtr<nsIMutable> mutableFile = do_QueryInterface(file);
-          PRBool isMutable;
+          bool isMutable;
           NS_ASSERTION(NS_SUCCEEDED(mutableFile->GetMutable(&isMutable)) &&
                        !isMutable,
                        "Only immutable file should be passed to worker");
@@ -267,7 +267,7 @@ struct WorkerStructuredCloneCallbacks
         {
           // Blob should not be mutable.
           nsCOMPtr<nsIMutable> mutableBlob = do_QueryInterface(blob);
-          PRBool isMutable;
+          bool isMutable;
           NS_ASSERTION(NS_SUCCEEDED(mutableBlob->GetMutable(&isMutable)) &&
                        !isMutable,
                        "Only immutable blob should be passed to worker");
@@ -312,7 +312,7 @@ struct WorkerStructuredCloneCallbacks
       nsIDOMBlob* blob = file::GetDOMBlobFromJSObject(aCx, aObj);
       if (blob) {
         nsCOMPtr<nsIMutable> mutableBlob = do_QueryInterface(blob);
-        if (mutableBlob && NS_SUCCEEDED(mutableBlob->SetMutable(PR_FALSE)) &&
+        if (mutableBlob && NS_SUCCEEDED(mutableBlob->SetMutable(false)) &&
             JS_WriteUint32Pair(aWriter, DOMWORKER_SCTAG_BLOB, 0) &&
             JS_WriteBytes(aWriter, &blob, sizeof(blob))) {
           clonedObjects->AppendElement(blob);
@@ -358,7 +358,7 @@ struct MainThreadWorkerStructuredCloneCallbacks
         {
           // File should not be mutable.
           nsCOMPtr<nsIMutable> mutableFile = do_QueryInterface(file);
-          PRBool isMutable;
+          bool isMutable;
           NS_ASSERTION(NS_SUCCEEDED(mutableFile->GetMutable(&isMutable)) &&
                        !isMutable,
                        "Only immutable file should be passed to worker");
@@ -391,7 +391,7 @@ struct MainThreadWorkerStructuredCloneCallbacks
         {
           // Blob should not be mutable.
           nsCOMPtr<nsIMutable> mutableBlob = do_QueryInterface(blob);
-          PRBool isMutable;
+          bool isMutable;
           NS_ASSERTION(NS_SUCCEEDED(mutableBlob->GetMutable(&isMutable)) &&
                        !isMutable,
                        "Only immutable blob should be passed to worker");
@@ -449,7 +449,7 @@ struct MainThreadWorkerStructuredCloneCallbacks
       nsCOMPtr<nsIDOMFile> file = do_QueryInterface(wrappedObject);
       if (file) {
         nsCOMPtr<nsIMutable> mutableFile = do_QueryInterface(file);
-        if (mutableFile && NS_SUCCEEDED(mutableFile->SetMutable(PR_FALSE))) {
+        if (mutableFile && NS_SUCCEEDED(mutableFile->SetMutable(false))) {
           nsIDOMFile* filePtr = file;
           if (JS_WriteUint32Pair(aWriter, DOMWORKER_SCTAG_FILE, 0) &&
               JS_WriteBytes(aWriter, &filePtr, sizeof(filePtr))) {
@@ -463,7 +463,7 @@ struct MainThreadWorkerStructuredCloneCallbacks
       nsCOMPtr<nsIDOMBlob> blob = do_QueryInterface(wrappedObject);
       if (blob) {
         nsCOMPtr<nsIMutable> mutableBlob = do_QueryInterface(blob);
-        if (mutableBlob && NS_SUCCEEDED(mutableBlob->SetMutable(PR_FALSE))) {
+        if (mutableBlob && NS_SUCCEEDED(mutableBlob->SetMutable(false))) {
           nsIDOMBlob* blobPtr = blob;
           if (JS_WriteUint32Pair(aWriter, DOMWORKER_SCTAG_BLOB, 0) &&
               JS_WriteBytes(aWriter, &blobPtr, sizeof(blobPtr))) {
@@ -538,6 +538,13 @@ struct MainThreadChromeWorkerStructuredCloneCallbacks
     AssertIsOnMainThread();
 
     JSObject* clone =
+      MainThreadWorkerStructuredCloneCallbacks::Read(aCx, aReader, aTag, aData,
+                                                     aClosure);
+    if (clone) {
+      return clone;
+    }
+
+    clone =
       ChromeWorkerStructuredCloneCallbacks::Read(aCx, aReader, aTag, aData,
                                                  aClosure);
     if (clone) {
@@ -554,14 +561,15 @@ struct MainThreadChromeWorkerStructuredCloneCallbacks
   {
     AssertIsOnMainThread();
 
-    JSBool ok =
-      ChromeWorkerStructuredCloneCallbacks::Write(aCx, aWriter, aObj, aClosure);
-    if (ok) {
-      return ok;
+    if (MainThreadWorkerStructuredCloneCallbacks::Write(aCx, aWriter, aObj,
+                                                        aClosure) ||
+        ChromeWorkerStructuredCloneCallbacks::Write(aCx, aWriter, aObj,
+                                                    aClosure) ||
+        NS_DOMWriteStructuredClone(aCx, aWriter, aObj, nsnull)) {
+      return true;
     }
 
-    JS_ClearPendingException(aCx);
-    return NS_DOMWriteStructuredClone(aCx, aWriter, aObj, nsnull);
+    return false;
   }
 
   static void
@@ -1217,7 +1225,7 @@ public:
   }
 
   NS_IMETHOD
-  IsOnCurrentThread(PRBool* aIsOnCurrentThread)
+  IsOnCurrentThread(bool* aIsOnCurrentThread)
   {
     *aIsOnCurrentThread = false;
     return NS_OK;
@@ -1335,6 +1343,25 @@ public:
   WorkerRun(JSContext* aCx, WorkerPrivate* aWorkerPrivate)
   {
     aWorkerPrivate->UpdateJSContextOptionsInternal(aCx, mOptions);
+    return true;
+  }
+};
+
+class UpdateJSRuntimeHeapSizeRunnable : public WorkerControlRunnable
+{
+  PRUint32 mJSRuntimeHeapSize;
+
+public:
+  UpdateJSRuntimeHeapSizeRunnable(WorkerPrivate* aWorkerPrivate,
+                                  PRUint32 aJSRuntimeHeapSize)
+  : WorkerControlRunnable(aWorkerPrivate, WorkerThread, UnchangedBusyCount),
+    mJSRuntimeHeapSize(aJSRuntimeHeapSize)
+  { }
+
+  bool
+  WorkerRun(JSContext* aCx, WorkerPrivate* aWorkerPrivate)
+  {
+    aWorkerPrivate->UpdateJSRuntimeHeapSizeInternal(aCx, mJSRuntimeHeapSize);
     return true;
   }
 };
@@ -1694,7 +1721,8 @@ WorkerPrivateParent<Derived>::WorkerPrivateParent(
   mCondVar(mMutex, "WorkerPrivateParent CondVar"),
   mJSObject(aObject), mParent(aParent), mParentJSContext(aParentJSContext),
   mScriptURL(aScriptURL), mDomain(aDomain), mBusyCount(0),
-  mParentStatus(Pending), mJSObjectRooted(false), mParentSuspended(false),
+  mParentStatus(Pending), mJSContextOptions(0), mJSRuntimeHeapSize(0),
+  mGCZeal(0), mJSObjectRooted(false), mParentSuspended(false),
   mIsChromeWorker(aIsChromeWorker), mPrincipalIsSystem(false)
 {
   MOZ_COUNT_CTOR(mozilla::dom::workers::WorkerPrivateParent);
@@ -1715,6 +1743,12 @@ WorkerPrivateParent<Derived>::WorkerPrivateParent(
     NS_ASSERTION(JS_GetOptions(aCx) == aParent->GetJSContextOptions(),
                  "Options mismatch!");
     mJSContextOptions = aParent->GetJSContextOptions();
+
+    NS_ASSERTION(JS_GetGCParameter(JS_GetRuntime(aCx), JSGC_MAX_BYTES) ==
+                 aParent->GetJSRuntimeHeapSize(),
+                 "Runtime heap size mismatch!");
+    mJSRuntimeHeapSize = aParent->GetJSRuntimeHeapSize();
+
 #ifdef JS_GC_ZEAL
     mGCZeal = aParent->GetGCZeal();
 #endif
@@ -1723,6 +1757,7 @@ WorkerPrivateParent<Derived>::WorkerPrivateParent(
     AssertIsOnMainThread();
 
     mJSContextOptions = RuntimeService::GetDefaultJSContextOptions();
+    mJSRuntimeHeapSize = RuntimeService::GetDefaultJSRuntimeHeapSize();
 #ifdef JS_GC_ZEAL
     mGCZeal = RuntimeService::GetDefaultGCZeal();
 #endif
@@ -2063,6 +2098,23 @@ WorkerPrivateParent<Derived>::UpdateJSContextOptions(JSContext* aCx,
   }
 }
 
+template <class Derived>
+void
+WorkerPrivateParent<Derived>::UpdateJSRuntimeHeapSize(JSContext* aCx,
+                                                      PRUint32 aMaxBytes)
+{
+  AssertIsOnParentThread();
+
+  mJSRuntimeHeapSize = aMaxBytes;
+
+  nsRefPtr<UpdateJSRuntimeHeapSizeRunnable> runnable =
+    new UpdateJSRuntimeHeapSizeRunnable(ParentAsWorkerPrivate(), aMaxBytes);
+  if (!runnable->Dispatch(aCx)) {
+    NS_WARNING("Failed to update worker heap size!");
+    JS_ClearPendingException(aCx);
+  }
+}
+
 #ifdef JS_GC_ZEAL
 template <class Derived>
 void
@@ -2239,10 +2291,10 @@ WorkerPrivate::Create(JSContext* aCx, JSObject* aObj, WorkerPrivate* aParent,
     nsIScriptSecurityManager* ssm = nsContentUtils::GetSecurityManager();
     NS_ASSERTION(ssm, "This should never be null!");
 
-    PRBool isChrome;
+    bool isChrome;
     if (NS_FAILED(ssm->IsCapabilityEnabled("UniversalXPConnect", &isChrome))) {
       NS_WARNING("IsCapabilityEnabled failed!");
-      isChrome = PR_FALSE;
+      isChrome = false;
     }
 
     // First check to make sure the caller has permission to make a
@@ -2315,7 +2367,7 @@ WorkerPrivate::Create(JSContext* aCx, JSObject* aObj, WorkerPrivate* aParent,
 
         NS_NAMED_LITERAL_CSTRING(file, "file");
 
-        PRBool isFile;
+        bool isFile;
         if (NS_FAILED(codebase->SchemeIs(file.get(), &isFile))) {
           JS_ReportError(aCx, "Could not determine if codebase is file!");
           return nsnull;
@@ -2326,7 +2378,7 @@ WorkerPrivate::Create(JSContext* aCx, JSObject* aObj, WorkerPrivate* aParent,
           domain = file;
         }
         else {
-          nsCOMPtr<mozIThirdPartyUtil_BRANCH> thirdPartyUtil =
+          nsCOMPtr<mozIThirdPartyUtil> thirdPartyUtil =
             do_GetService(THIRDPARTYUTIL_CONTRACTID);
           if (!thirdPartyUtil) {
             JS_ReportError(aCx, "Could not get third party helper service!");
@@ -3176,12 +3228,6 @@ WorkerPrivate::ReportError(JSContext* aCx, const char* aMessage,
   PRUint32 lineNumber, columnNumber, flags, errorNumber;
 
   if (aReport) {
-    // Can't do anything here if we're out of memory.
-    if (aReport->errorNumber == JSMSG_OUT_OF_MEMORY) {
-      NS_WARNING("Out of memory!");
-      return;
-    }
-
     if (aReport->ucmessage) {
       message = aReport->ucmessage;
     }
@@ -3204,9 +3250,10 @@ WorkerPrivate::ReportError(JSContext* aCx, const char* aMessage,
   mErrorHandlerRecursionCount++;
 
   // Don't want to run the scope's error handler if this is a recursive error or
-  // if there was an error in the close handler.
+  // if there was an error in the close handler or if we ran out of memory.
   bool fireAtScope = mErrorHandlerRecursionCount == 1 &&
-                     !mCloseHandlerStarted;
+                     !mCloseHandlerStarted &&
+                     errorNumber != JSMSG_OUT_OF_MEMORY;
 
   if (!ReportErrorRunnable::ReportError(aCx, this, fireAtScope, nsnull, message,
                                         filename, line, lineNumber,
@@ -3518,6 +3565,19 @@ WorkerPrivate::UpdateJSContextOptionsInternal(JSContext* aCx, PRUint32 aOptions)
   }
 }
 
+void
+WorkerPrivate::UpdateJSRuntimeHeapSizeInternal(JSContext* aCx,
+                                               PRUint32 aMaxBytes)
+{
+  AssertIsOnWorkerThread();
+
+  JS_SetGCParameter(JS_GetRuntime(aCx), JSGC_MAX_BYTES, aMaxBytes);
+
+  for (PRUint32 index = 0; index < mChildWorkers.Length(); index++) {
+    mChildWorkers[index]->UpdateJSRuntimeHeapSize(aCx, aMaxBytes);
+  }
+}
+
 #ifdef JS_GC_ZEAL
 void
 WorkerPrivate::UpdateGCZealInternal(JSContext* aCx, PRUint8 aGCZeal)
@@ -3568,7 +3628,7 @@ void
 WorkerPrivate::AssertIsOnWorkerThread() const
 {
   if (mThread) {
-    PRBool current;
+    bool current;
     if (NS_FAILED(mThread->IsOnCurrentThread(&current)) || !current) {
       NS_ERROR("Wrong thread!");
     }

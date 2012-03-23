@@ -50,8 +50,8 @@ class nsRegion;
 class nsIntRegion;
 
 #define NS_IVIEWOBSERVER_IID  \
-  { 0xdc283a18, 0x61cb, 0x468c, \
-    { 0x8d, 0xb8, 0x9b, 0x81, 0xf7, 0xc9, 0x33, 0x25 } }
+  { 0xac6eec35, 0x65d2, 0x4fe8, \
+    { 0xa1, 0x37, 0x1a, 0xc3, 0xf6, 0x51, 0x52, 0x56 } }
 
 class nsIViewObserver : public nsISupports
 {
@@ -83,8 +83,8 @@ public:
                    nsIWidget*         aWidgetToPaint,
                    const nsRegion&    aDirtyRegion,
                    const nsIntRegion& aIntDirtyRegion,
-                   PRBool             aPaintDefaultBackground,
-                   PRBool             aWillSendDidPaint) = 0;
+                   bool               aPaintDefaultBackground,
+                   bool               aWillSendDidPaint) = 0;
 
   /* called when the observer needs to handle an event
    * @param aView  - where to start processing the event; the root view,
@@ -99,7 +99,7 @@ public:
    */
   NS_IMETHOD HandleEvent(nsIView*       aView,
                          nsGUIEvent*    aEvent,
-                         PRBool         aDontRetargetEvents,
+                         bool           aDontRetargetEvents,
                          nsEventStatus* aEventStatus) = 0;
 
   /* called when the view has been resized and the
@@ -115,14 +115,14 @@ public:
    * because painting is suppressed. It will invalidate everything when it
    * unsuppresses.
    */
-  NS_IMETHOD_(PRBool) ShouldIgnoreInvalidation() = 0;
+  NS_IMETHOD_(bool) ShouldIgnoreInvalidation() = 0;
 
   /**
    * Notify the observer that we're about to start painting.  This
    * gives the observer a chance to make some last-minute invalidates
    * and geometry changes if it wants to.
    */
-  NS_IMETHOD_(void) WillPaint(PRBool aWillSendDidPaint) = 0;
+  NS_IMETHOD_(void) WillPaint(bool aWillSendDidPaint) = 0;
 
   /**
    * Notify the observer that we finished painting.  This
@@ -137,13 +137,18 @@ public:
    * any restyles.
    */
   NS_IMETHOD_(void) DispatchSynthMouseMove(nsGUIEvent *aEvent,
-                                           PRBool aFlushOnHoverChange) = 0;
+                                           bool aFlushOnHoverChange) = 0;
 
   /**
    * If something within aView is capturing the mouse, clear the capture.
    * if aView is null, clear the mouse capture no matter what is capturing it.
    */
   NS_IMETHOD_(void) ClearMouseCapture(nsIView* aView) = 0;
+
+  /**
+   * Returns true if the view observer is visible in some way. Otherwise false.
+   */
+  NS_IMETHOD_(bool) IsVisible() = 0;
 
 };
 

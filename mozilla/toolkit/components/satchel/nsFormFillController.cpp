@@ -83,11 +83,11 @@ nsFormFillController::nsFormFillController() :
   mTimeout(50),
   mMinResultsForPopup(1),
   mMaxRows(0),
-  mDisableAutoComplete(PR_FALSE),
-  mCompleteDefaultIndex(PR_FALSE),
-  mCompleteSelectedIndex(PR_FALSE),
-  mForceComplete(PR_FALSE),
-  mSuppressOnInput(PR_FALSE)
+  mDisableAutoComplete(false),
+  mCompleteDefaultIndex(false),
+  mCompleteSelectedIndex(false),
+  mForceComplete(false),
+  mSuppressOnInput(false)
 {
   mController = do_GetService("@mozilla.org/autocomplete/controller;1");
   mDocShells = do_CreateInstance("@mozilla.org/supports-array;1");
@@ -257,17 +257,17 @@ nsFormFillController::GetController(nsIAutoCompleteController **aController)
 }
 
 NS_IMETHODIMP
-nsFormFillController::GetPopupOpen(PRBool *aPopupOpen)
+nsFormFillController::GetPopupOpen(bool *aPopupOpen)
 {
   if (mFocusedPopup)
     mFocusedPopup->GetPopupOpen(aPopupOpen);
   else
-    *aPopupOpen = PR_FALSE;
+    *aPopupOpen = false;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsFormFillController::SetPopupOpen(PRBool aPopupOpen)
+nsFormFillController::SetPopupOpen(bool aPopupOpen)
 {
   if (mFocusedPopup) {
     if (aPopupOpen) {
@@ -294,55 +294,55 @@ nsFormFillController::SetPopupOpen(PRBool aPopupOpen)
 }
 
 NS_IMETHODIMP
-nsFormFillController::GetDisableAutoComplete(PRBool *aDisableAutoComplete)
+nsFormFillController::GetDisableAutoComplete(bool *aDisableAutoComplete)
 {
   *aDisableAutoComplete = mDisableAutoComplete;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsFormFillController::SetDisableAutoComplete(PRBool aDisableAutoComplete)
+nsFormFillController::SetDisableAutoComplete(bool aDisableAutoComplete)
 {
   mDisableAutoComplete = aDisableAutoComplete;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsFormFillController::GetCompleteDefaultIndex(PRBool *aCompleteDefaultIndex)
+nsFormFillController::GetCompleteDefaultIndex(bool *aCompleteDefaultIndex)
 {
   *aCompleteDefaultIndex = mCompleteDefaultIndex;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsFormFillController::SetCompleteDefaultIndex(PRBool aCompleteDefaultIndex)
+nsFormFillController::SetCompleteDefaultIndex(bool aCompleteDefaultIndex)
 {
   mCompleteDefaultIndex = aCompleteDefaultIndex;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsFormFillController::GetCompleteSelectedIndex(PRBool *aCompleteSelectedIndex)
+nsFormFillController::GetCompleteSelectedIndex(bool *aCompleteSelectedIndex)
 {
   *aCompleteSelectedIndex = mCompleteSelectedIndex;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsFormFillController::SetCompleteSelectedIndex(PRBool aCompleteSelectedIndex)
+nsFormFillController::SetCompleteSelectedIndex(bool aCompleteSelectedIndex)
 {
   mCompleteSelectedIndex = aCompleteSelectedIndex;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsFormFillController::GetForceComplete(PRBool *aForceComplete)
+nsFormFillController::GetForceComplete(bool *aForceComplete)
 {
   *aForceComplete = mForceComplete;
   return NS_OK;
 }
 
-NS_IMETHODIMP nsFormFillController::SetForceComplete(PRBool aForceComplete)
+NS_IMETHODIMP nsFormFillController::SetForceComplete(bool aForceComplete)
 {
   mForceComplete = aForceComplete;
   return NS_OK;
@@ -376,26 +376,26 @@ nsFormFillController::SetMaxRows(PRUint32 aMaxRows)
 }
 
 NS_IMETHODIMP
-nsFormFillController::GetShowImageColumn(PRBool *aShowImageColumn)
+nsFormFillController::GetShowImageColumn(bool *aShowImageColumn)
 {
-  *aShowImageColumn = PR_FALSE;
+  *aShowImageColumn = false;
   return NS_OK;
 }
 
-NS_IMETHODIMP nsFormFillController::SetShowImageColumn(PRBool aShowImageColumn)
+NS_IMETHODIMP nsFormFillController::SetShowImageColumn(bool aShowImageColumn)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 
 NS_IMETHODIMP
-nsFormFillController::GetShowCommentColumn(PRBool *aShowCommentColumn)
+nsFormFillController::GetShowCommentColumn(bool *aShowCommentColumn)
 {
-  *aShowCommentColumn = PR_FALSE;
+  *aShowCommentColumn = false;
   return NS_OK;
 }
 
-NS_IMETHODIMP nsFormFillController::SetShowCommentColumn(PRBool aShowCommentColumn)
+NS_IMETHODIMP nsFormFillController::SetShowCommentColumn(bool aShowCommentColumn)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -464,9 +464,9 @@ nsFormFillController::SetTextValue(const nsAString & aTextValue)
 {
   nsCOMPtr<nsIDOMNSEditableElement> editable = do_QueryInterface(mFocusedInput);
   if (editable) {
-    mSuppressOnInput = PR_TRUE;
+    mSuppressOnInput = true;
     editable->SetUserInput(aTextValue);
-    mSuppressOnInput = PR_FALSE;
+    mSuppressOnInput = false;
   }
   return NS_OK;
 }
@@ -508,7 +508,7 @@ nsFormFillController::OnSearchComplete()
 }
 
 NS_IMETHODIMP
-nsFormFillController::OnTextEntered(PRBool* aPrevent)
+nsFormFillController::OnTextEntered(bool* aPrevent)
 {
   NS_ENSURE_ARG(aPrevent);
   NS_ENSURE_TRUE(mFocusedInput, NS_OK);
@@ -522,31 +522,31 @@ nsFormFillController::OnTextEntered(PRBool* aPrevent)
   nsCOMPtr<nsIPrivateDOMEvent> privateEvent(do_QueryInterface(event));
   NS_ENSURE_STATE(privateEvent);
 
-  event->InitEvent(NS_LITERAL_STRING("DOMAutoComplete"), PR_TRUE, PR_TRUE);
+  event->InitEvent(NS_LITERAL_STRING("DOMAutoComplete"), true, true);
 
   // XXXjst: We mark this event as a trusted event, it's up to the
   // callers of this to ensure that it's only called from trusted
   // code.
-  privateEvent->SetTrusted(PR_TRUE);
+  privateEvent->SetTrusted(true);
 
   nsCOMPtr<nsIDOMEventTarget> targ = do_QueryInterface(mFocusedInput);
 
-  PRBool defaultActionEnabled;
+  bool defaultActionEnabled;
   targ->DispatchEvent(event, &defaultActionEnabled);
   *aPrevent = !defaultActionEnabled;
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsFormFillController::OnTextReverted(PRBool *_retval)
+nsFormFillController::OnTextReverted(bool *_retval)
 {
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsFormFillController::GetConsumeRollupEvent(PRBool *aConsumeRollupEvent)
+nsFormFillController::GetConsumeRollupEvent(bool *aConsumeRollupEvent)
 {
-  *aConsumeRollupEvent = PR_FALSE;
+  *aConsumeRollupEvent = false;
   return NS_OK;
 }
 
@@ -756,19 +756,19 @@ nsFormFillController::Focus(nsIDOMEvent* aEvent)
   if (!input)
     return NS_OK;
 
-  PRBool isReadOnly = PR_FALSE;
+  bool isReadOnly = false;
   input->GetReadOnly(&isReadOnly);
 
   nsAutoString autocomplete;
   input->GetAttribute(NS_LITERAL_STRING("autocomplete"), autocomplete);
 
   PRInt32 dummy;
-  PRBool isPwmgrInput = PR_FALSE;
+  bool isPwmgrInput = false;
   if (mPwmgrInputs.Get(input, &dummy))
-      isPwmgrInput = PR_TRUE;
+      isPwmgrInput = true;
 
   nsCOMPtr<nsIFormControl> formControl = do_QueryInterface(input);
-  if (formControl && formControl->IsSingleLineTextControl(PR_TRUE) &&
+  if (formControl && formControl->IsSingleLineTextControl(true) &&
       !isReadOnly || isPwmgrInput) {
     StartControllingInput(input);
   }
@@ -776,10 +776,10 @@ nsFormFillController::Focus(nsIDOMEvent* aEvent)
   return NS_OK;
 }
 
-PRBool
+bool
 nsFormFillController::IsInputAutoCompleteOff()
 {
-  PRBool autoCompleteOff = PR_FALSE;
+  bool autoCompleteOff = false;
 
   if (mFocusedInput) {
     nsAutoString autocomplete;
@@ -787,7 +787,7 @@ nsFormFillController::IsInputAutoCompleteOff()
 
     // Check the input for autocomplete="off", then the form
     if (autocomplete.LowerCaseEqualsLiteral("off")) {
-      autoCompleteOff = PR_TRUE;
+      autoCompleteOff = true;
     } else {
 
       nsCOMPtr<nsIDOMHTMLFormElement> form;
@@ -812,7 +812,7 @@ nsFormFillController::KeyPress(nsIDOMEvent* aEvent)
   if (!keyEvent)
     return NS_ERROR_FAILURE;
 
-  PRBool cancel = PR_FALSE;
+  bool cancel = false;
 
   PRUint32 k;
   keyEvent->GetKeyCode(&k);
@@ -827,7 +827,7 @@ nsFormFillController::KeyPress(nsIDOMEvent* aEvent)
 #else
   case nsIDOMKeyEvent::DOM_VK_BACK_SPACE:
     {
-      PRBool isShift = PR_FALSE;
+      bool isShift = false;
       keyEvent->GetShiftKey(&isShift);
 
       if (isShift)
@@ -841,7 +841,7 @@ nsFormFillController::KeyPress(nsIDOMEvent* aEvent)
   case nsIDOMKeyEvent::DOM_VK_PAGE_UP:
   case nsIDOMKeyEvent::DOM_VK_PAGE_DOWN:
     {
-      PRBool isCtrl, isAlt, isMeta;
+      bool isCtrl, isAlt, isMeta;
       keyEvent->GetCtrlKey(&isCtrl);
       keyEvent->GetAltKey(&isAlt);
       keyEvent->GetMetaKey(&isMeta);
@@ -860,10 +860,10 @@ nsFormFillController::KeyPress(nsIDOMEvent* aEvent)
     break;
   case nsIDOMKeyEvent::DOM_VK_TAB:
     mController->HandleTab();
-    cancel = PR_FALSE;
+    cancel = false;
     break;
   case nsIDOMKeyEvent::DOM_VK_RETURN:
-    mController->HandleEnter(PR_FALSE, &cancel);
+    mController->HandleEnter(false, &cancel);
     break;
   }
 
@@ -892,7 +892,7 @@ nsFormFillController::MouseDown(nsIDOMEvent* aEvent)
   if (button != 0)
     return NS_OK;
 
-  PRBool isOpen = PR_FALSE;
+  bool isOpen = false;
   GetPopupOpen(&isOpen);
   if (isOpen)
     return NS_OK;
@@ -911,7 +911,7 @@ nsFormFillController::MouseDown(nsIDOMEvent* aEvent)
   } else {
     // Show the popup with the complete result set.  Can't use HandleText()
     // because it doesn't display the popup if the input is blank.
-    PRBool cancel = PR_FALSE;
+    bool cancel = false;
     mController->HandleKeyNavigation(nsIDOMKeyEvent::DOM_VK_DOWN, &cancel);
   }
 
@@ -936,21 +936,21 @@ nsFormFillController::AddWindowListeners(nsIDOMWindow *aWindow)
     return;
 
   target->AddEventListener(NS_LITERAL_STRING("focus"), this,
-                           PR_TRUE, PR_FALSE);
+                           true, false);
   target->AddEventListener(NS_LITERAL_STRING("blur"), this,
-                           PR_TRUE, PR_FALSE);
+                           true, false);
   target->AddEventListener(NS_LITERAL_STRING("pagehide"), this,
-                           PR_TRUE, PR_FALSE);
+                           true, false);
   target->AddEventListener(NS_LITERAL_STRING("mousedown"), this,
-                           PR_TRUE, PR_FALSE);
+                           true, false);
   target->AddEventListener(NS_LITERAL_STRING("input"), this,
-                           PR_TRUE, PR_FALSE);
+                           true, false);
   target->AddEventListener(NS_LITERAL_STRING("compositionstart"), this,
-                           PR_TRUE, PR_FALSE);
+                           true, false);
   target->AddEventListener(NS_LITERAL_STRING("compositionend"), this,
-                           PR_TRUE, PR_FALSE);
+                           true, false);
   target->AddEventListener(NS_LITERAL_STRING("contextmenu"), this,
-                           PR_TRUE, PR_FALSE);
+                           true, false);
 
   // Note that any additional listeners added should ensure that they ignore
   // untrusted events, which might be sent by content that's up to no good.
@@ -976,16 +976,16 @@ nsFormFillController::RemoveWindowListeners(nsIDOMWindow *aWindow)
   if (!target)
     return;
 
-  target->RemoveEventListener(NS_LITERAL_STRING("focus"), this, PR_TRUE);
-  target->RemoveEventListener(NS_LITERAL_STRING("blur"), this, PR_TRUE);
-  target->RemoveEventListener(NS_LITERAL_STRING("pagehide"), this, PR_TRUE);
-  target->RemoveEventListener(NS_LITERAL_STRING("mousedown"), this, PR_TRUE);
-  target->RemoveEventListener(NS_LITERAL_STRING("input"), this, PR_TRUE);
+  target->RemoveEventListener(NS_LITERAL_STRING("focus"), this, true);
+  target->RemoveEventListener(NS_LITERAL_STRING("blur"), this, true);
+  target->RemoveEventListener(NS_LITERAL_STRING("pagehide"), this, true);
+  target->RemoveEventListener(NS_LITERAL_STRING("mousedown"), this, true);
+  target->RemoveEventListener(NS_LITERAL_STRING("input"), this, true);
   target->RemoveEventListener(NS_LITERAL_STRING("compositionstart"), this,
-                              PR_TRUE);
+                              true);
   target->RemoveEventListener(NS_LITERAL_STRING("compositionend"), this,
-                              PR_TRUE);
-  target->RemoveEventListener(NS_LITERAL_STRING("contextmenu"), this, PR_TRUE);
+                              true);
+  target->RemoveEventListener(NS_LITERAL_STRING("contextmenu"), this, true);
 }
 
 void
@@ -997,7 +997,7 @@ nsFormFillController::AddKeyListener(nsIDOMHTMLInputElement *aInput)
   nsCOMPtr<nsIDOMEventTarget> target = do_QueryInterface(aInput);
 
   target->AddEventListener(NS_LITERAL_STRING("keypress"), this,
-                           PR_TRUE, PR_FALSE);
+                           true, false);
 }
 
 void
@@ -1007,7 +1007,7 @@ nsFormFillController::RemoveKeyListener()
     return;
 
   nsCOMPtr<nsIDOMEventTarget> target = do_QueryInterface(mFocusedInput);
-  target->RemoveEventListener(NS_LITERAL_STRING("keypress"), this, PR_TRUE);
+  target->RemoveEventListener(NS_LITERAL_STRING("keypress"), this, true);
 }
 
 void

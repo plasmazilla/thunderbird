@@ -49,9 +49,7 @@ extern const NSString *kTopLevelUIElementAttribute;   // NSAccessibilityTopLevel
                                                            NSAccessibilityTitleAttribute,
                                                            NSAccessibilityValueAttribute, // required
                                                            NSAccessibilitySubroleAttribute,
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
                                                            NSAccessibilityRoleDescriptionAttribute,
-#endif
                                                            NSAccessibilityPositionAttribute, // required
                                                            NSAccessibilitySizeAttribute, // required
                                                            NSAccessibilityWindowAttribute, // required
@@ -82,7 +80,11 @@ extern const NSString *kTopLevelUIElementAttribute;   // NSAccessibilityTopLevel
     return [self selectedTextRange];
   if ([attribute isEqualToString:NSAccessibilitySelectedTextAttribute])
     return [self selectedText];
-  
+  // Apple's SpeechSynthesisServer expects AXValue to return an AXStaticText
+  // object's AXSelectedText attribute.  See bug 674612.
+  if ([attribute isEqualToString:NSAccessibilityValueAttribute])
+    return [self selectedText];
+
   // let mozAccessible handle all other attributes
   return [super accessibilityAttributeValue:attribute];
 
@@ -245,9 +247,7 @@ extern const NSString *kTopLevelUIElementAttribute;   // NSAccessibilityTopLevel
                                                            NSAccessibilityTitleAttribute,
                                                            NSAccessibilityValueAttribute, // required
                                                            NSAccessibilityHelpAttribute,
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
                                                            NSAccessibilityRoleDescriptionAttribute,
-#endif
                                                            NSAccessibilityPositionAttribute, // required
                                                            NSAccessibilitySizeAttribute, // required
                                                            NSAccessibilityWindowAttribute, // required
@@ -277,9 +277,7 @@ extern const NSString *kTopLevelUIElementAttribute;   // NSAccessibilityTopLevel
 
   if ([self isEnabled]) {
     return [NSArray arrayWithObjects:NSAccessibilityConfirmAction,
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
                                      NSAccessibilityShowMenuAction,
-#endif
                                      nil];
   }
   return nil;
@@ -291,10 +289,8 @@ extern const NSString *kTopLevelUIElementAttribute;   // NSAccessibilityTopLevel
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NIL;
 
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
   if ([action isEqualToString:NSAccessibilityShowMenuAction])
     return @"show menu";
-#endif
   if ([action isEqualToString:NSAccessibilityConfirmAction])
     return @"confirm";
     
@@ -309,10 +305,8 @@ extern const NSString *kTopLevelUIElementAttribute;   // NSAccessibilityTopLevel
 
   // both the ShowMenu and Click action do the same thing.
   if ([self isEnabled]) {
-#if MAC_OS_X_VERSION_MAX_ALLOWED >= MAC_OS_X_VERSION_10_4
     if ([action isEqualToString:NSAccessibilityShowMenuAction])
       [self showMenu];
-#endif
     if ([action isEqualToString:NSAccessibilityConfirmAction])
       [self confirm];
   }

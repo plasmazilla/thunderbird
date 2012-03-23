@@ -42,7 +42,6 @@
 
 #include "jsanalyze.h"
 #include "jscntxt.h"
-#include "jstl.h"
 #include "MethodJIT.h"
 #include "CodeGenIncludes.h"
 #include "BaseCompiler.h"
@@ -125,19 +124,6 @@ class Compiler : public BaseCompiler
         ValueRemat lvr, rvr;
         Assembler::Condition cond;
         JSC::MacroAssembler::RegisterID tempReg;
-    };
-    
-    struct TraceGenInfo {
-        bool initialized;
-        Label stubEntry;
-        DataLabelPtr addrLabel;
-        jsbytecode *jumpTarget;
-        bool fastTrampoline;
-        Label trampolineStart;
-        Jump traceHint;
-        MaybeJump slowTraceHint;
-
-        TraceGenInfo() : initialized(false) {}
     };
 
     /* InlineFrameAssembler wants to see this. */
@@ -391,6 +377,7 @@ class Compiler : public BaseCompiler
      * the outermost script.
      */
 
+public:
     struct ActiveFrame {
         ActiveFrame *parent;
         jsbytecode *parentPC;
@@ -405,6 +392,11 @@ class Compiler : public BaseCompiler
 
         /* Current types for non-escaping vars in the script. */
         VarType *varTypes;
+
+        /* JIT code generation tracking state */
+        size_t mainCodeStart;
+        size_t stubCodeStart;
+        size_t inlinePCOffset;
 
         /* State for managing return from inlined frames. */
         bool needReturnValue;          /* Return value will be used. */
@@ -424,6 +416,8 @@ class Compiler : public BaseCompiler
         ActiveFrame(JSContext *cx);
         ~ActiveFrame();
     };
+
+private:
     ActiveFrame *a;
     ActiveFrame *outer;
 
@@ -442,7 +436,6 @@ class Compiler : public BaseCompiler
     js::Vector<SetGlobalNameICInfo, 16, CompilerAllocPolicy> setGlobalNames;
     js::Vector<CallGenInfo, 64, CompilerAllocPolicy> callICs;
     js::Vector<EqualityGenInfo, 64, CompilerAllocPolicy> equalityICs;
-    js::Vector<TraceGenInfo, 64, CompilerAllocPolicy> traceICs;
 #endif
 #if defined JS_POLYIC
     js::Vector<PICGenInfo, 16, CompilerAllocPolicy> pics;
@@ -457,7 +450,6 @@ class Compiler : public BaseCompiler
     js::Vector<JumpTable, 16> jumpTables;
     js::Vector<uint32, 16> jumpTableOffsets;
     js::Vector<LoopEntry, 16> loopEntries;
-    js::Vector<JSObject *, 0, CompilerAllocPolicy> rootedObjects;
     StubCompiler stubcc;
     Label invokeLabel;
     Label arityLabel;
@@ -468,7 +460,6 @@ class Compiler : public BaseCompiler
     Jump argsCheckJump;
 #endif
     bool debugMode_;
-    bool addTraceHints;
     bool inlining_;
     bool hasGlobalReallocation;
     bool oomInVector;       // True if we have OOM'd appending to a vector. 
@@ -543,6 +534,7 @@ class Compiler : public BaseCompiler
     /* Analysis helpers. */
     CompileStatus prepareInferenceTypes(JSScript *script, ActiveFrame *a);
     void ensureDoubleArguments();
+    void markUndefinedLocals();
     void fixDoubleTypes(jsbytecode *target);
     void watchGlobalReallocation();
     void updateVarType();
@@ -608,6 +600,12 @@ class Compiler : public BaseCompiler
 
     /* Convert fe from a double to integer (per ValueToECMAInt32) in place. */
     void truncateDoubleToInt32(FrameEntry *fe, Uses uses);
+
+    /*
+     * Try to convert a double fe to an integer, with no truncation performed,
+     * or jump to the slow path per uses.
+     */
+    void tryConvertInteger(FrameEntry *fe, Uses uses);
 
     /* Opcode handlers. */
     bool jumpAndTrace(Jump j, jsbytecode *target, Jump *slow = NULL, bool *trampoline = NULL);
@@ -704,6 +702,7 @@ class Compiler : public BaseCompiler
     bool jsop_arginc(JSOp op, uint32 slot);
     bool jsop_localinc(JSOp op, uint32 slot);
     bool jsop_newinit();
+    void jsop_regexp();
     void jsop_initmethod();
     void jsop_initprop();
     void jsop_initelem();
@@ -723,6 +722,7 @@ class Compiler : public BaseCompiler
     bool isCacheableBaseAndIndex(FrameEntry *obj, FrameEntry *id);
     void jsop_stricteq(JSOp op);
     bool jsop_equality(JSOp op, BoolStub stub, jsbytecode *target, JSOp fused);
+    CompileStatus jsop_equality_obj_obj(JSOp op, jsbytecode *target, JSOp fused);
     bool jsop_equality_int_string(JSOp op, BoolStub stub, jsbytecode *target, JSOp fused);
     void jsop_pos();
 
@@ -739,8 +739,10 @@ class Compiler : public BaseCompiler
             return ifeq ? Assembler::GreaterThanOrEqual : Assembler::LessThan;
           case JSOP_LE:
             return ifeq ? Assembler::GreaterThan : Assembler::LessThanOrEqual;
+          case JSOP_STRICTEQ:
           case JSOP_EQ:
             return ifeq ? Assembler::NotEqual : Assembler::Equal;
+          case JSOP_STRICTNE:
           case JSOP_NE:
             return ifeq ? Assembler::Equal : Assembler::NotEqual;
           default:
@@ -769,7 +771,9 @@ class Compiler : public BaseCompiler
                                        Assembler::Condition cond);                                       
     CompileStatus compileMathPowSimple(FrameEntry *arg1, FrameEntry *arg2);
     CompileStatus compileArrayPush(FrameEntry *thisv, FrameEntry *arg);
-    CompileStatus compileArrayPop(FrameEntry *thisv, bool isPacked);
+    CompileStatus compileArrayConcat(types::TypeSet *thisTypes, types::TypeSet *argTypes,
+                                     FrameEntry *thisValue, FrameEntry *argValue);
+    CompileStatus compileArrayPopShift(FrameEntry *thisv, bool isPacked, bool isArrayPop);
     CompileStatus compileArrayWithLength(uint32 argc);
     CompileStatus compileArrayWithArgs(uint32 argc);
 
@@ -778,6 +782,8 @@ class Compiler : public BaseCompiler
 
     enum GetCharMode { GetChar, GetCharCode };
     CompileStatus compileGetChar(FrameEntry *thisValue, FrameEntry *arg, GetCharMode mode);
+    
+    CompileStatus compileStringFromCode(FrameEntry *arg);
 
     void prepareStubCall(Uses uses);
     Call emitStubCall(void *ptr, DataLabelPtr *pinline);

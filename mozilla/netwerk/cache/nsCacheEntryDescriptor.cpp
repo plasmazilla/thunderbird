@@ -177,7 +177,7 @@ nsCacheEntryDescriptor::SetExpirationTime(PRUint32 expirationTime)
 }
 
 
-NS_IMETHODIMP nsCacheEntryDescriptor::IsStreamBased(PRBool *result)
+NS_IMETHODIMP nsCacheEntryDescriptor::IsStreamBased(bool *result)
 {
     NS_ENSURE_ARG_POINTER(result);
     nsCacheServiceAutoLock lock;
@@ -360,7 +360,7 @@ nsCacheEntryDescriptor::SetStoragePolicy(nsCacheStoragePolicy policy)
     if (!mCacheEntry)  return NS_ERROR_NOT_AVAILABLE;
     // XXX validate policy against session?
     
-    PRBool      storageEnabled = PR_FALSE;
+    bool        storageEnabled = false;
     storageEnabled = nsCacheService::IsStorageEnabledForPolicy_Locked(policy);
     if (!storageEnabled)    return NS_ERROR_FAILURE;
 
@@ -538,7 +538,7 @@ nsInputStreamWrapper::LazyInit()
                                                  getter_AddRefs(mInput));
     if (NS_FAILED(rv)) return rv;
 
-    mInitialized = PR_TRUE;
+    mInitialized = true;
     return NS_OK;
 }
 
@@ -578,10 +578,10 @@ nsInputStreamWrapper::ReadSegments(nsWriteSegmentFun writer, void *closure,
 }
 
 nsresult nsCacheEntryDescriptor::
-nsInputStreamWrapper::IsNonBlocking(PRBool *result)
+nsInputStreamWrapper::IsNonBlocking(bool *result)
 {
     // cache streams will never return NS_BASE_STREAM_WOULD_BLOCK
-    *result = PR_FALSE;
+    *result = false;
     return NS_OK;
 }
 
@@ -637,7 +637,7 @@ nsOutputStreamWrapper::LazyInit()
 
     // ... otherwise, set members and mark initialized
     mDescriptor->mOutput = mOutput = stream;
-    mInitialized = PR_TRUE;
+    mInitialized = true;
     return NS_OK;
 }
 
@@ -698,9 +698,9 @@ nsOutputStreamWrapper::WriteSegments(nsReadSegmentFun  reader,
 }
 
 NS_IMETHODIMP nsCacheEntryDescriptor::
-nsOutputStreamWrapper::IsNonBlocking(PRBool *result)
+nsOutputStreamWrapper::IsNonBlocking(bool *result)
 {
     // cache streams will never return NS_BASE_STREAM_WOULD_BLOCK
-    *result = PR_FALSE;
+    *result = false;
     return NS_OK;
 }

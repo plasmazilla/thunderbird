@@ -52,7 +52,6 @@
 #include "nsISSLSocketControl.h"
 #include "nsSSLStatus.h"
 #include "nsISSLStatusProvider.h"
-#include "nsIIdentityInfo.h"
 #include "nsIAssociatedContentSecurity.h"
 #include "nsXPIDLString.h"
 #include "nsNSSShutDown.h"
@@ -75,7 +74,7 @@ public:
   nsSSLSocketThreadData();
   ~nsSSLSocketThreadData();
 
-  PRBool ensure_buffer_size(PRInt32 amount);
+  bool ensure_buffer_size(PRInt32 amount);
   
   enum ssl_state { 
     ssl_invalid,       // used for initializating, should never occur
@@ -122,7 +121,7 @@ public:
   // to allow us to restore the original file descriptor layering.
   PRFileDesc *mReplacedSSLFileDesc;
 
-  PRBool mOneBytePendingFromEarlierWrite;
+  bool mOneBytePendingFromEarlierWrite;
   unsigned char mThePendingByte;
   PRInt32 mOriginalRequestedTransferAmount;
 };
@@ -131,7 +130,6 @@ class nsNSSSocketInfo : public nsITransportSecurityInfo,
                         public nsISSLSocketControl,
                         public nsIInterfaceRequestor,
                         public nsISSLStatusProvider,
-                        public nsIIdentityInfo,
                         public nsIAssociatedContentSecurity,
                         public nsISerializable,
                         public nsIClassInfo,
@@ -148,7 +146,6 @@ public:
   NS_DECL_NSISSLSOCKETCONTROL
   NS_DECL_NSIINTERFACEREQUESTOR
   NS_DECL_NSISSLSTATUSPROVIDER
-  NS_DECL_NSIIDENTITYINFO
   NS_DECL_NSIASSOCIATEDCONTENTSECURITY
   NS_DECL_NSISERIALIZABLE
   NS_DECL_NSICLASSINFO
@@ -156,16 +153,16 @@ public:
 
   nsresult SetSecurityState(PRUint32 aState);
   nsresult SetShortSecurityDescription(const PRUnichar *aText);
-  nsresult SetErrorMessage(const PRUnichar *aText);
+  void SetErrorMessage(const PRUnichar *aText);
 
-  nsresult SetForSTARTTLS(PRBool aForSTARTTLS);
-  nsresult GetForSTARTTLS(PRBool *aForSTARTTLS);
+  nsresult SetForSTARTTLS(bool aForSTARTTLS);
+  nsresult GetForSTARTTLS(bool *aForSTARTTLS);
 
   nsresult GetFileDescPtr(PRFileDesc** aFilePtr);
   nsresult SetFileDescPtr(PRFileDesc* aFilePtr);
 
-  nsresult GetHandshakePending(PRBool *aHandshakePending);
-  nsresult SetHandshakePending(PRBool aHandshakePending);
+  nsresult GetHandshakePending(bool *aHandshakePending);
+  nsresult SetHandshakePending(bool aHandshakePending);
 
   nsresult GetHostName(char **aHostName);
   nsresult SetHostName(const char *aHostName);
@@ -173,46 +170,39 @@ public:
   nsresult GetPort(PRInt32 *aPort);
   nsresult SetPort(PRInt32 aPort);
 
-  nsresult GetCert(nsIX509Cert** _result);
-  nsresult SetCert(nsIX509Cert *aCert);
+  void GetPreviousCert(nsIX509Cert** _result);
 
-  nsresult GetPreviousCert(nsIX509Cert** _result);
-
-  void SetCanceled(PRBool aCanceled);
-  PRBool GetCanceled();
+  void SetCanceled(bool aCanceled);
+  bool GetCanceled();
   
-  void SetHasCleartextPhase(PRBool aHasCleartextPhase);
-  PRBool GetHasCleartextPhase();
+  void SetHasCleartextPhase(bool aHasCleartextPhase);
+  bool GetHasCleartextPhase();
   
-  void SetHandshakeInProgress(PRBool aIsIn);
-  PRBool GetHandshakeInProgress() { return mHandshakeInProgress; }
-  PRBool HandshakeTimeout();
+  void SetHandshakeInProgress(bool aIsIn);
+  bool GetHandshakeInProgress() { return mHandshakeInProgress; }
+  bool HandshakeTimeout();
 
-  void SetAllowTLSIntoleranceTimeout(PRBool aAllow);
+  void SetAllowTLSIntoleranceTimeout(bool aAllow);
 
-  nsresult GetExternalErrorReporting(PRBool* state);
-  nsresult SetExternalErrorReporting(PRBool aState);
+  bool GetExternalErrorReporting();
 
   nsresult RememberCAChain(CERTCertList *aCertList);
 
   /* Set SSL Status values */
   nsresult SetSSLStatus(nsSSLStatus *aSSLStatus);
   nsSSLStatus* SSLStatus() { return mSSLStatus; }
-  PRBool hasCertErrors();
   
   PRStatus CloseSocketAndDestroy();
   
-  PRBool IsCertIssuerBlacklisted() const {
+  bool IsCertIssuerBlacklisted() const {
     return mIsCertIssuerBlacklisted;
   }
   void SetCertIssuerBlacklisted() {
-    mIsCertIssuerBlacklisted = PR_TRUE;
+    mIsCertIssuerBlacklisted = true;
   }
 protected:
   nsCOMPtr<nsIInterfaceRequestor> mCallbacks;
   PRFileDesc* mFd;
-  nsCOMPtr<nsIX509Cert> mCert;
-  nsCOMPtr<nsIX509Cert> mPreviousCert; // DocShellDependent
   enum { 
     blocking_state_unknown, is_nonblocking_socket, is_blocking_socket 
   } mBlockingState;
@@ -223,15 +213,15 @@ protected:
   PRInt32 mSubRequestsNoSecurity;
   nsString mShortDesc;
   nsString mErrorMessage;
-  PRPackedBool mDocShellDependentStuffKnown;
-  PRPackedBool mExternalErrorReporting; // DocShellDependent
-  PRPackedBool mForSTARTTLS;
-  PRPackedBool mHandshakePending;
-  PRPackedBool mCanceled;
-  PRPackedBool mHasCleartextPhase;
-  PRPackedBool mHandshakeInProgress;
-  PRPackedBool mAllowTLSIntoleranceTimeout;
-  PRPackedBool mRememberClientAuthCertificate;
+  bool mDocShellDependentStuffKnown;
+  bool mExternalErrorReporting; // DocShellDependent
+  bool mForSTARTTLS;
+  bool mHandshakePending;
+  bool mCanceled;
+  bool mHasCleartextPhase;
+  bool mHandshakeInProgress;
+  bool mAllowTLSIntoleranceTimeout;
+  bool mRememberClientAuthCertificate;
   PRIntervalTime mHandshakeStartTime;
   PRInt32 mPort;
   nsXPIDLCString mHostName;
@@ -243,8 +233,6 @@ protected:
   nsresult ActivateSSL();
 
   nsSSLSocketThreadData *mThreadData;
-
-  nsresult EnsureDocShellDependentStuffKnown();
 
 private:
   virtual void virtualDestroyNSSReference();
@@ -263,9 +251,9 @@ class nsPSMRememberCertErrorsTable
 private:
   struct CertStateBits
   {
-    PRBool mIsDomainMismatch;
-    PRBool mIsNotValidAtThisTime;
-    PRBool mIsUntrusted;
+    bool mIsDomainMismatch;
+    bool mIsNotValidAtThisTime;
+    bool mIsUntrusted;
   };
   nsDataHashtableMT<nsCStringHashKey, CertStateBits> mErrorHosts;
   nsresult GetHostPortKey(nsNSSSocketInfo* infoObject, nsCAutoString& result);
@@ -286,7 +274,7 @@ public:
   static nsresult Init();
   static void Cleanup();
 
-  static PRBool nsSSLIOLayerInitialized;
+  static bool nsSSLIOLayerInitialized;
   static PRDescIdentity nsSSLIOLayerIdentity;
   static PRIOMethods nsSSLIOLayerMethods;
 
@@ -296,30 +284,30 @@ public:
   static nsPSMRememberCertErrorsTable* mHostsWithCertErrors;
 
   static nsCStringHashSet *mRenegoUnrestrictedSites;
-  static PRBool mTreatUnsafeNegotiationAsBroken;
+  static bool mTreatUnsafeNegotiationAsBroken;
   static PRInt32 mWarnLevelMissingRFC5746;
 
-  static void setTreatUnsafeNegotiationAsBroken(PRBool broken);
-  static PRBool treatUnsafeNegotiationAsBroken();
+  static void setTreatUnsafeNegotiationAsBroken(bool broken);
+  static bool treatUnsafeNegotiationAsBroken();
 
   static void setWarnLevelMissingRFC5746(PRInt32 level);
   static PRInt32 getWarnLevelMissingRFC5746();
 
   static void getSiteKey(nsNSSSocketInfo *socketInfo, nsCSubstring &key);
-  static PRBool rememberPossibleTLSProblemSite(PRFileDesc* fd, nsNSSSocketInfo *socketInfo);
+  static bool rememberPossibleTLSProblemSite(PRFileDesc* fd, nsNSSSocketInfo *socketInfo);
   static void rememberTolerantSite(PRFileDesc* ssl_layer_fd, nsNSSSocketInfo *socketInfo);
 
   static void addIntolerantSite(const nsCString &str);
   static void removeIntolerantSite(const nsCString &str);
-  static PRBool isKnownAsIntolerantSite(const nsCString &str);
+  static bool isKnownAsIntolerantSite(const nsCString &str);
 
   static void setRenegoUnrestrictedSites(const nsCString &str);
-  static PRBool isRenegoUnrestrictedSite(const nsCString &str);
+  static bool isRenegoUnrestrictedSite(const nsCString &str);
 
   static PRFileDesc *mSharedPollableEvent;
   static nsNSSSocketInfo *mSocketOwningPollableEvent;
   
-  static PRBool mPollableEventCurrentlySet;
+  static bool mPollableEventCurrentlySet;
 };
 
 nsresult nsSSLIOLayerNewSocket(PRInt32 family,
@@ -329,8 +317,8 @@ nsresult nsSSLIOLayerNewSocket(PRInt32 family,
                                PRInt32 proxyPort,
                                PRFileDesc **fd,
                                nsISupports **securityInfo,
-                               PRBool forSTARTTLS,
-                               PRBool anonymousLoad);
+                               bool forSTARTTLS,
+                               bool anonymousLoad);
 
 nsresult nsSSLIOLayerAddToSocket(PRInt32 family,
                                  const char *host,
@@ -339,8 +327,8 @@ nsresult nsSSLIOLayerAddToSocket(PRInt32 family,
                                  PRInt32 proxyPort,
                                  PRFileDesc *fd,
                                  nsISupports **securityInfo,
-                                 PRBool forSTARTTLS,
-                                 PRBool anonymousLoad);
+                                 bool forSTARTTLS,
+                                 bool anonymousLoad);
 
 nsresult nsSSLIOLayerFreeTLSIntolerantSites();
 nsresult displayUnknownCertErrorAlert(nsNSSSocketInfo *infoObject, int error);

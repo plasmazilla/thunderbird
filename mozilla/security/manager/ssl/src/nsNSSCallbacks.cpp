@@ -54,7 +54,6 @@
 #include "nsIServiceManager.h"
 #include "nsReadableUtils.h"
 #include "nsIPrompt.h"
-#include "nsProxiedService.h"
 #include "nsIInterfaceRequestor.h"
 #include "nsIInterfaceRequestorUtils.h"
 #include "nsProtectedAuthThread.h"
@@ -68,6 +67,7 @@
 #include "nsIWindowWatcher.h"
 #include "nsIPrompt.h"
 #include "nsProxyRelease.h"
+#include "PSMRunnable.h"
 #include "nsIConsoleService.h"
 
 #include "ssl.h"
@@ -78,6 +78,7 @@
 #include "sslerr.h"
 
 using namespace mozilla;
+using namespace mozilla::psm;
 
 static NS_DEFINE_CID(kNSSComponentCID, NS_NSSCOMPONENT_CID);
 NSSCleanupAutoPtrClass(CERTCertificate, CERT_DestroyCertificate)
@@ -96,11 +97,11 @@ public:
   nsNSSHttpRequestSession *mRequestSession;
   
   nsCOMPtr<nsHTTPListener> mListener;
-  PRBool mResponsibleForDoneSignal;
+  bool mResponsibleForDoneSignal;
 };
 
 nsHTTPDownloadEvent::nsHTTPDownloadEvent()
-:mResponsibleForDoneSignal(PR_TRUE)
+:mResponsibleForDoneSignal(true)
 {
 }
 
@@ -140,7 +141,7 @@ nsHTTPDownloadEvent::Run()
   {
     nsCOMPtr<nsIInputStream> uploadStream;
     rv = NS_NewPostDataStream(getter_AddRefs(uploadStream),
-                              PR_FALSE,
+                              false,
                               mRequestSession->mPostData,
                               0, ios);
     NS_ENSURE_SUCCESS(rv, rv);
@@ -160,8 +161,8 @@ nsHTTPDownloadEvent::Run()
   rv = hchan->SetRequestMethod(mRequestSession->mRequestMethod);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  mResponsibleForDoneSignal = PR_FALSE;
-  mListener->mResponsibleForDoneSignal = PR_TRUE;
+  mResponsibleForDoneSignal = false;
+  mListener->mResponsibleForDoneSignal = true;
 
   mListener->mLoadGroup = lg.get();
   NS_ADDREF(mListener->mLoadGroup);
@@ -174,8 +175,8 @@ nsHTTPDownloadEvent::Run()
     rv = hchan->AsyncOpen(mListener->mLoader, nsnull);
 
   if (NS_FAILED(rv)) {
-    mListener->mResponsibleForDoneSignal = PR_FALSE;
-    mResponsibleForDoneSignal = PR_TRUE;
+    mListener->mResponsibleForDoneSignal = false;
+    mResponsibleForDoneSignal = true;
 
     NS_RELEASE(mListener->mLoadGroup);
     mListener->mLoadGroup = nsnull;
@@ -189,7 +190,7 @@ struct nsCancelHTTPDownloadEvent : nsRunnable {
   nsCOMPtr<nsHTTPListener> mListener;
 
   NS_IMETHOD Run() {
-    mListener->FreeLoadGroup(PR_TRUE);
+    mListener->FreeLoadGroup(true);
     mListener = nsnull;
     return NS_OK;
   }
@@ -258,7 +259,7 @@ SECStatus nsNSSHttpRequestSession::setPostDataFcn(const char *http_data,
                                                   const PRUint32 http_data_len,
                                                   const char *http_content_type)
 {
-  mHasPostData = PR_TRUE;
+  mHasPostData = true;
   mPostData.Assign(http_data, http_data_len);
   mPostContentType.Assign(http_content_type);
 
@@ -278,7 +279,7 @@ SECStatus nsNSSHttpRequestSession::addHeaderFcn(const char *http_header_name,
   // The header will need to be set using 
   //   mHttpChannel->SetRequestHeader(nsDependentCString(http_header_name), 
   //                                  nsDependentCString(http_header_value), 
-  //                                  PR_FALSE)));
+  //                                  false)));
 }
 
 SECStatus nsNSSHttpRequestSession::trySendAndReceiveFcn(PRPollDesc **pPollDesc,
@@ -293,7 +294,7 @@ SECStatus nsNSSHttpRequestSession::trySendAndReceiveFcn(PRPollDesc **pPollDesc,
 
   const int max_retries = 2;
   int retry_count = 0;
-  PRBool retryable_error = PR_FALSE;
+  bool retryable_error = false;
   SECStatus result_sec_status = SECFailure;
 
   do
@@ -311,7 +312,7 @@ SECStatus nsNSSHttpRequestSession::trySendAndReceiveFcn(PRPollDesc **pPollDesc,
     }
 
     ++retry_count;
-    retryable_error = PR_FALSE;
+    retryable_error = false;
 
     result_sec_status =
       internal_send_receive_attempt(retryable_error, pPollDesc, http_response_code,
@@ -353,7 +354,7 @@ nsNSSHttpRequestSession::Release()
 }
 
 SECStatus
-nsNSSHttpRequestSession::internal_send_receive_attempt(PRBool &retryable_error,
+nsNSSHttpRequestSession::internal_send_receive_attempt(bool &retryable_error,
                                                        PRPollDesc **pPollDesc,
                                                        PRUint16 *http_response_code,
                                                        const char **http_response_content_type,
@@ -380,8 +381,8 @@ nsNSSHttpRequestSession::internal_send_receive_attempt(PRBool &retryable_error,
 
   Mutex& waitLock = mListener->mLock;
   CondVar& waitCondition = mListener->mCondition;
-  volatile PRBool &waitFlag = mListener->mWaitFlag;
-  waitFlag = PR_TRUE;
+  volatile bool &waitFlag = mListener->mWaitFlag;
+  waitFlag = true;
 
   nsRefPtr<nsHTTPDownloadEvent> event = new nsHTTPDownloadEvent;
   if (!event)
@@ -394,11 +395,11 @@ nsNSSHttpRequestSession::internal_send_receive_attempt(PRBool &retryable_error,
   nsresult rv = NS_DispatchToMainThread(event);
   if (NS_FAILED(rv))
   {
-    event->mResponsibleForDoneSignal = PR_FALSE;
+    event->mResponsibleForDoneSignal = false;
     return SECFailure;
   }
 
-  PRBool request_canceled = PR_FALSE;
+  bool request_canceled = false;
 
   {
     MutexAutoLock locker(waitLock);
@@ -406,7 +407,7 @@ nsNSSHttpRequestSession::internal_send_receive_attempt(PRBool &retryable_error,
     const PRIntervalTime start_time = PR_IntervalNow();
     PRIntervalTime wait_interval;
 
-    PRBool running_on_main_thread = NS_IsMainThread();
+    bool running_on_main_thread = NS_IsMainThread();
     if (running_on_main_thread)
     {
       // let's process events quickly
@@ -440,13 +441,13 @@ nsNSSHttpRequestSession::internal_send_receive_attempt(PRBool &retryable_error,
 
       if (!request_canceled)
       {
-        PRBool wantExit = nsSSLThread::stoppedOrStopping();
-        PRBool timeout = 
+        bool wantExit = nsSSLThread::stoppedOrStopping();
+        bool timeout = 
           (PRIntervalTime)(PR_IntervalNow() - start_time) > mTimeoutInterval;
 
         if (wantExit || timeout)
         {
-          request_canceled = PR_TRUE;
+          request_canceled = true;
 
           nsRefPtr<nsCancelHTTPDownloadEvent> cancelevent = new nsCancelHTTPDownloadEvent;
           cancelevent->mListener = mListener;
@@ -469,7 +470,7 @@ nsNSSHttpRequestSession::internal_send_receive_attempt(PRBool &retryable_error,
         ||
         mListener->mResultCode == NS_ERROR_NET_RESET)
     {
-      retryable_error = PR_TRUE;
+      retryable_error = true;
     }
     return SECFailure;
   }
@@ -519,7 +520,7 @@ SECStatus nsNSSHttpRequestSession::freeFcn()
 
 nsNSSHttpRequestSession::nsNSSHttpRequestSession()
 : mRefCount(1),
-  mHasPostData(PR_FALSE),
+  mHasPostData(false),
   mTimeoutInterval(0),
   mListener(new nsHTTPListener)
 {
@@ -561,8 +562,8 @@ nsHTTPListener::nsHTTPListener()
   mResultLen(0),
   mLock("nsHTTPListener.mLock"),
   mCondition(mLock, "nsHTTPListener.mCondition"),
-  mWaitFlag(PR_TRUE),
-  mResponsibleForDoneSignal(PR_FALSE),
+  mWaitFlag(true),
+  mResponsibleForDoneSignal(false),
   mLoadGroup(nsnull),
   mLoadGroupOwnerThread(nsnull)
 {
@@ -582,7 +583,7 @@ nsHTTPListener::~nsHTTPListener()
 NS_IMPL_THREADSAFE_ISUPPORTS1(nsHTTPListener, nsIStreamLoaderObserver)
 
 void
-nsHTTPListener::FreeLoadGroup(PRBool aCancelLoad)
+nsHTTPListener::FreeLoadGroup(bool aCancelLoad)
 {
   nsILoadGroup *lg = nsnull;
 
@@ -590,7 +591,7 @@ nsHTTPListener::FreeLoadGroup(PRBool aCancelLoad)
 
   if (mLoadGroup) {
     if (mLoadGroupOwnerThread != PR_GetCurrentThread()) {
-      NS_ASSERTION(PR_FALSE,
+      NS_ASSERTION(false,
                    "attempt to access nsHTTPDownloadEvent::mLoadGroup on multiple threads, leaking it!");
     }
     else {
@@ -616,7 +617,7 @@ nsHTTPListener::OnStreamComplete(nsIStreamLoader* aLoader,
 {
   mResultCode = aStatus;
 
-  FreeLoadGroup(PR_FALSE);
+  FreeLoadGroup(false);
 
   nsCOMPtr<nsIRequest> req;
   nsCOMPtr<nsIHttpChannel> hchan;
@@ -638,7 +639,7 @@ nsHTTPListener::OnStreamComplete(nsIStreamLoader* aLoader,
   {
     rv = hchan->GetRequestSucceeded(&mHttpRequestSucceeded);
     if (NS_FAILED(rv))
-      mHttpRequestSucceeded = PR_FALSE;
+      mHttpRequestSucceeded = false;
 
     mResultLen = stringLen;
     mResultData = string; // reference. Make sure loader lives as long as this
@@ -662,11 +663,11 @@ nsHTTPListener::OnStreamComplete(nsIStreamLoader* aLoader,
 
 void nsHTTPListener::send_done_signal()
 {
-  mResponsibleForDoneSignal = PR_FALSE;
+  mResponsibleForDoneSignal = false;
 
   {
     MutexAutoLock locker(mLock);
-    mWaitFlag = PR_FALSE;
+    mWaitFlag = false;
     mCondition.NotifyAll();
   }
 }
@@ -674,6 +675,11 @@ void nsHTTPListener::send_done_signal()
 static char*
 ShowProtectedAuthPrompt(PK11SlotInfo* slot, nsIInterfaceRequestor *ir)
 {
+  if (!NS_IsMainThread()) {
+    NS_ERROR("ShowProtectedAuthPrompt called off the main thread");
+    return nsnull;
+  }
+
   char* protAuthRetVal = nsnull;
 
   // Get protected auth dialogs
@@ -726,15 +732,31 @@ ShowProtectedAuthPrompt(PK11SlotInfo* slot, nsIInterfaceRequestor *ir)
 
   return protAuthRetVal;
 }
-  
-char* PR_CALLBACK
-PK11PasswordPrompt(PK11SlotInfo* slot, PRBool retry, void* arg) {
+
+class PK11PasswordPromptRunnable : public SyncRunnableBase
+{
+public:
+  PK11PasswordPromptRunnable(PK11SlotInfo* slot, 
+                             nsIInterfaceRequestor* ir)
+    : mResult(nsnull),
+      mSlot(slot),
+      mIR(ir)
+  {
+  }
+  char * mResult; // out
+  virtual void RunOnTargetThread();
+private:
+  PK11SlotInfo* const mSlot; // in
+  nsIInterfaceRequestor* const mIR; // in
+};
+
+void PK11PasswordPromptRunnable::RunOnTargetThread()
+{
   nsNSSShutDownPreventionLock locker;
   nsresult rv = NS_OK;
   PRUnichar *password = nsnull;
-  PRBool value = PR_FALSE;
-  nsIInterfaceRequestor *ir = static_cast<nsIInterfaceRequestor*>(arg);
-  nsCOMPtr<nsIPrompt> proxyPrompt;
+  bool value = false;
+  nsCOMPtr<nsIPrompt> prompt;
 
   /* TODO: Retry should generate a different dialog message */
 /*
@@ -742,68 +764,40 @@ PK11PasswordPrompt(PK11SlotInfo* slot, PRBool retry, void* arg) {
     return nsnull;
 */
 
-  if (!ir)
+  if (!mIR)
   {
-    nsCOMPtr<nsIWindowWatcher> wwatch(do_GetService(NS_WINDOWWATCHER_CONTRACTID));
-    if (!wwatch)
-      return nsnull;
-
-    nsCOMPtr<nsIPrompt> prompter;
-    wwatch->GetNewPrompter(0, getter_AddRefs(prompter));
-    if (!prompter)
-      return nsnull;
-
-    NS_GetProxyForObject(NS_PROXY_TO_MAIN_THREAD,
-                         NS_GET_IID(nsIPrompt),
-                         prompter, NS_PROXY_SYNC,
-                         getter_AddRefs(proxyPrompt));
-    if (!proxyPrompt)
-      return nsnull;
+    nsNSSComponent::GetNewPrompter(getter_AddRefs(prompt));
   }
   else
   {
-    // The interface requestor object may not be safe, so
-    // proxy the call to get the nsIPrompt.
-  
-    nsCOMPtr<nsIInterfaceRequestor> proxiedCallbacks;
-    NS_GetProxyForObject(NS_PROXY_TO_MAIN_THREAD,
-                         NS_GET_IID(nsIInterfaceRequestor),
-                         ir,
-                         NS_PROXY_SYNC,
-                         getter_AddRefs(proxiedCallbacks));
-  
-    // Get the desired interface
-    nsCOMPtr<nsIPrompt> prompt(do_GetInterface(proxiedCallbacks));
-    if (!prompt) {
-      NS_ASSERTION(PR_FALSE, "callbacks does not implement nsIPrompt");
-      return nsnull;
-    }
-  
-    // Finally, get a proxy for the nsIPrompt
-    NS_GetProxyForObject(NS_PROXY_TO_MAIN_THREAD,
-                         NS_GET_IID(nsIPrompt),
-                         prompt,
-                         NS_PROXY_SYNC,
-                         getter_AddRefs(proxyPrompt));
+    prompt = do_GetInterface(mIR);
+    NS_ASSERTION(prompt != nsnull, "callbacks does not implement nsIPrompt");
   }
 
-  if (PK11_ProtectedAuthenticationPath(slot))
-    return ShowProtectedAuthPrompt(slot, ir);
+  if (!prompt)
+    return;
+
+  if (PK11_ProtectedAuthenticationPath(mSlot)) {
+    mResult = ShowProtectedAuthPrompt(mSlot, mIR);
+    return;
+  }
 
   nsAutoString promptString;
   nsCOMPtr<nsINSSComponent> nssComponent(do_GetService(kNSSComponentCID, &rv));
 
   if (NS_FAILED(rv))
-    return nsnull; 
+    return; 
 
-  const PRUnichar* formatStrings[1] = { ToNewUnicode(NS_ConvertUTF8toUTF16(PK11_GetTokenName(slot))) };
+  const PRUnichar* formatStrings[1] = { 
+    ToNewUnicode(NS_ConvertUTF8toUTF16(PK11_GetTokenName(mSlot)))
+  };
   rv = nssComponent->PIPBundleFormatStringFromName("CertPassPrompt",
                                       formatStrings, 1,
                                       promptString);
   nsMemory::Free(const_cast<PRUnichar*>(formatStrings[0]));
 
   if (NS_FAILED(rv))
-    return nsnull;
+    return;
 
   {
     nsPSMUITracker tracker;
@@ -812,20 +806,27 @@ PK11PasswordPrompt(PK11SlotInfo* slot, PRBool retry, void* arg) {
     }
     else {
       // Although the exact value is ignored, we must not pass invalid
-      // PRBool values through XPConnect.
-      PRBool checkState = PR_FALSE;
-      rv = proxyPrompt->PromptPassword(nsnull, promptString.get(),
-                                       &password, nsnull, &checkState, &value);
+      // bool values through XPConnect.
+      bool checkState = false;
+      rv = prompt->PromptPassword(nsnull, promptString.get(),
+                                  &password, nsnull, &checkState, &value);
     }
   }
   
   if (NS_SUCCEEDED(rv) && value) {
-    char* str = ToNewUTF8String(nsDependentString(password));
+    mResult = ToNewUTF8String(nsDependentString(password));
     NS_Free(password);
-    return str;
   }
+}
 
-  return nsnull;
+char* PR_CALLBACK
+PK11PasswordPrompt(PK11SlotInfo* slot, PRBool retry, void* arg)
+{
+  nsRefPtr<PK11PasswordPromptRunnable> runnable = 
+    new PK11PasswordPromptRunnable(slot,
+                                   static_cast<nsIInterfaceRequestor*>(arg));
+  runnable->DispatchToMainThreadAndWait();
+  return runnable->mResult;
 }
 
 void PR_CALLBACK HandshakeCallback(PRFileDesc* fd, void* client_data) {
@@ -856,7 +857,7 @@ void PR_CALLBACK HandshakeCallback(PRFileDesc* fd, void* client_data) {
   if (SSL_HandshakeNegotiatedExtension(fd, ssl_renegotiation_info_xtn, &siteSupportsSafeRenego) != SECSuccess
       || !siteSupportsSafeRenego) {
 
-    PRBool wantWarning = (nsSSLIOLayerHelpers::getWarnLevelMissingRFC5746() > 0);
+    bool wantWarning = (nsSSLIOLayerHelpers::getWarnLevelMissingRFC5746() > 0);
 
     nsNSSSocketInfo* infoObject = (nsNSSSocketInfo*) fd->higher->secret;
     nsCOMPtr<nsIConsoleService> console;
@@ -925,36 +926,33 @@ void PR_CALLBACK HandshakeCallback(PRFileDesc* fd, void* client_data) {
       nsCOMPtr<nsIX509Cert> prevcert;
       infoObject->GetPreviousCert(getter_AddRefs(prevcert));
 
-      PRBool equals_previous = PR_FALSE;
+      bool equals_previous = false;
       if (prevcert && nssc) {
         nsresult rv = nssc->Equals(prevcert, &equals_previous);
         if (NS_FAILED(rv)) {
-          equals_previous = PR_FALSE;
+          equals_previous = false;
         }
       }
 
       if (equals_previous) {
         PR_LOG(gPIPNSSLog, PR_LOG_DEBUG,
                ("HandshakeCallback using PREV cert %p\n", prevcert.get()));
-        infoObject->SetCert(prevcert);
         status->mServerCert = prevcert;
       }
       else {
         if (status->mServerCert) {
           PR_LOG(gPIPNSSLog, PR_LOG_DEBUG,
                  ("HandshakeCallback KEEPING cert %p\n", status->mServerCert.get()));
-          infoObject->SetCert(status->mServerCert);
         }
         else {
           PR_LOG(gPIPNSSLog, PR_LOG_DEBUG,
                  ("HandshakeCallback using NEW cert %p\n", nssc.get()));
-          infoObject->SetCert(nssc);
           status->mServerCert = nssc;
         }
       }
     }
 
-    status->mHaveKeyLengthAndCipher = PR_TRUE;
+    status->mHaveKeyLengthAndCipher = true;
     status->mKeyLength = keyLength;
     status->mSecretKeyLength = encryptBits;
     status->mCipherName.Assign(cipherName);
@@ -966,7 +964,7 @@ void PR_CALLBACK HandshakeCallback(PRFileDesc* fd, void* client_data) {
 }
 
 SECStatus
-PSM_SSL_PKIX_AuthCertificate(PRFileDesc *fd, CERTCertificate *peerCert, PRBool checksig, PRBool isServer)
+PSM_SSL_PKIX_AuthCertificate(PRFileDesc *fd, CERTCertificate *peerCert, bool checksig, bool isServer)
 {
     SECStatus          rv;
     SECCertUsage       certUsage;
@@ -1051,7 +1049,7 @@ PSM_SSL_DigiNotarTreatAsRevoked(CERTCertificate * serverCert,
   // then worsen the error to revoked.
   
   PRTime cutoff = 0;
-  PRStatus status = PR_ParseTimeString("01-JUL-2011 00:00", PR_TRUE, &cutoff);
+  PRStatus status = PR_ParseTimeString("01-JUL-2011 00:00", true, &cutoff);
   if (status != PR_SUCCESS) {
     NS_ASSERTION(status == PR_SUCCESS, "PR_ParseTimeString failed");
     // be safe, assume it's afterwards, keep going
@@ -1081,7 +1079,7 @@ PRErrorCode
 PSM_SSL_BlacklistDigiNotar(CERTCertificate * serverCert,
                            CERTCertList * serverCertChain)
 {
-  PRBool isDigiNotarIssuedCert = PR_FALSE;
+  bool isDigiNotarIssuedCert = false;
 
   for (CERTCertListNode *node = CERT_LIST_HEAD(serverCertChain);
        !CERT_LIST_END(node, serverCertChain);
@@ -1090,7 +1088,7 @@ PSM_SSL_BlacklistDigiNotar(CERTCertificate * serverCert,
       continue;
 
     if (strstr(node->cert->issuerName, "CN=DigiNotar")) {
-      isDigiNotarIssuedCert = PR_TRUE;
+      isDigiNotarIssuedCert = true;
     }
   }
 
@@ -1192,7 +1190,7 @@ SECStatus PR_CALLBACK AuthCertificateCallback(void* client_data, PRFileDesc* fd,
 
     if (rv == SECSuccess) {
       if (nsc) {
-        PRBool dummyIsEV;
+        bool dummyIsEV;
         nsc->GetIsExtendedValidation(&dummyIsEV); // the nsc object will cache the status
       }
     
@@ -1224,7 +1222,7 @@ SECStatus PR_CALLBACK AuthCertificateCallback(void* client_data, PRFileDesc* fd,
           PK11SlotInfo *slot = PK11_GetInternalKeySlot();
           if (slot) {
             PK11_ImportCert(slot, node->cert, CK_INVALID_HANDLE, 
-                            nickname, PR_FALSE);
+                            nickname, false);
             PK11_FreeSlot(slot);
           }
         }
@@ -1386,7 +1384,7 @@ void cleanUpMyDefaultOCSPResponders() {
       myDefaultOCSPResponders[i].issuerName = nsnull;
     }
     if (myDefaultOCSPResponders[i].issuerKeyID) {
-      SECITEM_FreeItem(myDefaultOCSPResponders[i].issuerKeyID, PR_TRUE);
+      SECITEM_FreeItem(myDefaultOCSPResponders[i].issuerKeyID, true);
       myDefaultOCSPResponders[i].issuerKeyID = nsnull;
     }
   }

@@ -95,6 +95,8 @@
  * provide some convenience in writing out data.
  */
 
+class nsIMemoryReporter;
+
 namespace mozilla {
 namespace scache {
 
@@ -148,6 +150,8 @@ public:
   static StartupCache* GetSingleton();
   static void DeleteSingleton();
 
+  PRInt64 SizeOfMapping();
+
 private:
   StartupCache();
   ~StartupCache();
@@ -170,14 +174,16 @@ private:
   nsRefPtr<StartupCacheListener> mListener;
   nsCOMPtr<nsITimer> mTimer;
 
-  PRBool mStartupWriteInitiated;
+  bool mStartupWriteInitiated;
 
   static StartupCache *gStartupCache;
-  static PRBool gShutdownInitiated;
+  static bool gShutdownInitiated;
   PRThread *mWriteThread;
 #ifdef DEBUG
   nsTHashtable<nsISupportsHashKey> mWriteObjectMap;
 #endif
+
+  nsIMemoryReporter* mMemoryReporter;
 };
 
 // This debug outputstream attempts to detect if clients are writing multiple
@@ -197,7 +203,7 @@ class StartupCacheDebugOutputStream
   NS_FORWARD_SAFE_NSIBINARYOUTPUTSTREAM(mBinaryStream)
   NS_FORWARD_SAFE_NSIOUTPUTSTREAM(mBinaryStream)
   
-  PRBool CheckReferences(nsISupports* aObject);
+  bool CheckReferences(nsISupports* aObject);
   
   nsCOMPtr<nsIObjectOutputStream> mBinaryStream;
   nsTHashtable<nsISupportsHashKey> *mObjectMap;

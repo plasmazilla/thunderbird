@@ -86,6 +86,8 @@ const PREF_PARTNER_BRANCH                 = "app.partner.";
 const PREF_APP_DISTRIBUTION               = "distribution.id";
 const PREF_APP_DISTRIBUTION_VERSION       = "distribution.version";
 
+const PREF_EM_HOTFIX_ID                   = "extensions.hotfix.id";
+
 const URI_UPDATE_PROMPT_DIALOG  = "chrome://mozapps/content/update/updates.xul";
 const URI_UPDATE_HISTORY_DIALOG = "chrome://mozapps/content/update/history.xul";
 const URI_BRAND_PROPERTIES      = "chrome://branding/locale/brand.properties";
@@ -1657,6 +1659,11 @@ UpdateService.prototype = {
   },
 
   _checkAddonCompatibility: function AUS__checkAddonCompatibility() {
+    try {
+      var hotfixID = Services.prefs.getCharPref(PREF_EM_HOTFIX_ID);
+    }
+    catch (e) { }
+
     // Get all the installed add-ons
     var self = this;
     AddonManager.getAllAddons(function(addons) {
@@ -1681,9 +1688,10 @@ UpdateService.prototype = {
         // incompatible. If an addon's type equals plugin it is skipped since
         // checking plugins compatibility information isn't supported and
         // getting the scope property of a plugin breaks in some environments
-        // (see bug 566787).
+        // (see bug 566787). The hotfix add-on is also ignored as it shouldn't
+        // block the user from upgrading.
         try {
-          if (addon.type != "plugin" &&
+          if (addon.type != "plugin" && addon.id != hotfixID &&
               !addon.appDisabled && !addon.userDisabled &&
               addon.scope != AddonManager.SCOPE_APPLICATION &&
               addon.isCompatible &&
@@ -2263,9 +2271,9 @@ Checker.prototype = {
     this._request.setRequestHeader("Cache-Control", "no-cache");
 
     var self = this;
-    this._request.onerror     = function(event) { self.onError(event);    };
-    this._request.onload      = function(event) { self.onLoad(event);     };
-    this._request.onprogress  = function(event) { self.onProgress(event); };
+    this._request.addEventListener("error", function(event) { self.onError(event); } ,false);
+    this._request.addEventListener("load", function(event) { self.onLoad(event); }, false);
+    this._request.addEventListener("progress", function(event) { self.onProgress(event); }, false);
 
     LOG("Checker:checkForUpdates - sending request to: " + url);
     this._request.send(null);
@@ -2350,24 +2358,8 @@ Checker.prototype = {
     var prefs = Services.prefs;
     var certs = null;
     if (!prefs.prefHasUserValue(PREF_APP_UPDATE_URL_OVERRIDE) &&
-        getPref("getBoolPref", PREF_APP_UPDATE_CERT_CHECKATTRS, true) &&
-        prefs.getBranch(PREF_APP_UPDATE_CERTS_BRANCH).getChildList("").length) {
-      certs = [];
-      let counter = 1;
-      while (true) {
-        let prefBranchCert = prefs.getBranch(PREF_APP_UPDATE_CERTS_BRANCH +
-                                             counter + ".");
-        let prefCertAttrs = prefBranchCert.getChildList("");
-        if (prefCertAttrs.length == 0)
-          break;
-
-        let certAttrs = {};
-        for each (let prefCertAttr in prefCertAttrs)
-          certAttrs[prefCertAttr] = prefBranchCert.getCharPref(prefCertAttr);
-
-        certs.push(certAttrs);
-        counter++;
-      }
+        getPref("getBoolPref", PREF_APP_UPDATE_CERT_CHECKATTRS, true)) {
+      certs = gCertUtils.readCertPrefs(PREF_APP_UPDATE_CERTS_BRANCH);
     }
 
     try {

@@ -66,6 +66,11 @@ const scenarios = gMessageScenarioFactory = new MessageScenarioFactory(msgGen);
 
 Components.utils.import("resource:///modules/gloda/mimemsg.js");
 
+// While we're at it, we'll also test the correctness of the GlodaAttachment
+// representation, esp. its "I just need the part information to rebuild the
+// URLs" claim.
+Components.utils.import("resource:///modules/gloda/fundattr.js");
+
 var partText = new SyntheticPartLeaf("I am text! Woo!");
 var partHtml = new SyntheticPartLeaf(
   "<html><head></head><body>I am HTML! Woo! </body></html>",
@@ -81,6 +86,14 @@ var partEnriched = new SyntheticPartLeaf(
 );
 var partAlternative = new SyntheticPartMultiAlternative([partText, partHtml]);
 var partMailingListFooter = new SyntheticPartLeaf("I am an annoying footer!");
+
+// We need to make sure a part that has content-disposition: attachment, even
+// though it doesn't have any filename, still is treated as an attachment.
+var tachNoFilename = {
+  body: "I like Bordeaux wine",
+  contentType: "text/plain",
+  disposition: "attachment",
+};
 
 // This is an external attachment, i.e. a mime part that basically says "go find
 // the attachment on disk, assuming it still exists, here's the path to the file
@@ -478,6 +491,9 @@ var partTachNestedMessages = [
 
 var attMessagesParams = [
   {
+    attachments: [tachNoFilename],
+  },
+  {
     attachments: [tachExternal],
   },
   {
@@ -499,6 +515,10 @@ var attMessagesParams = [
 ];
 
 var expectedAttachmentsInfo = [
+  {
+    allAttachmentsContentTypes: ["text/plain"],
+    allUserAttachmentsContentTypes: ["text/plain"],
+  },
   {
     allAttachmentsContentTypes: ["image/png"],
     allUserAttachmentsContentTypes: ["image/png"],
@@ -544,6 +564,17 @@ function test_attachments_correctness () {
         do_check_eq(aMimeMsg.allUserAttachments.length, expected.allUserAttachmentsContentTypes.length);
         for each (let [j, att] in Iterator(aMimeMsg.allUserAttachments))
           do_check_eq(att.contentType, expected.allUserAttachmentsContentTypes[j]);
+
+        // Test
+        for each (let [, att] in Iterator(aMimeMsg.allUserAttachments)) {
+          let uri = aMsgHdr.folder.getUriForMsg(aMsgHdr);
+          let glodaAttachment =
+            GlodaFundAttr.glodaAttFromMimeAtt({ folderMessageURI: uri }, att);
+          // The GlodaAttachment appends the filename, which is not always
+          // present
+          do_check_eq(glodaAttachment.url.indexOf(att.url), 0);
+        }
+
       } catch (e) {
         dump(aMimeMsg.prettyString()+"\n");
         do_throw(e);

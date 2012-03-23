@@ -110,15 +110,15 @@ interface nsIDOMEventTarget : nsISupports
   // non-virtual so it won't affect the vtable
   nsresult AddEventListener(const nsAString& aType,
                             nsIDOMEventListener* aListener,
-                            PRBool aUseCapture)
+                            bool aUseCapture)
   {
     return AddEventListener(aType, aListener, aUseCapture, PR_FALSE, 1);
   }
   // non-virtual so it won't affect the vtable
   nsresult AddEventListener(const nsAString& aType,
                             nsIDOMEventListener* aListener,
-                            PRBool aUseCapture,
-                            PRBool aWantsUntrusted)
+                            bool aUseCapture,
+                            bool aWantsUntrusted)
   {
     return AddEventListener(aType, aListener, aUseCapture, aWantsUntrusted, 2);
   }
@@ -160,7 +160,7 @@ interface nsIDOMEventTarget : nsISupports
    * @return  Indicates whether any of the listeners which handled the 
    *          event called preventDefault. If preventDefault was called 
    *          the value is false, else the value is true.
-   * @throws  UNSPECIFIED_EVENT_TYPE_ERR: Raised if the Event's type was 
+   * @throws  INVALID_STATE_ERR: Raised if the Event's type was 
    *              not specified by initializing the event before 
    *              dispatchEvent was called. Specification of the Event's 
    *              type as null or an empty string will also trigger this 

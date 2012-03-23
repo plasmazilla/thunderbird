@@ -69,6 +69,13 @@
 #include "nsXPCOMPrivate.h" // for MAXPATHLEN and XPCOM_DLL
 
 #include "mozilla/Telemetry.h"
+#if MOZ_PLATFORM_MAEMO == 6
+#include "nsFastStartupQt.h"
+// this used by nsQAppInstance, but defined only in nsAppRunner
+// FastStartupQt using gArgc/v so we need to define it here
+int    gArgc;
+char **gArgv;
+#endif
 
 static void Output(const char *fmt, ... )
 {
@@ -89,7 +96,7 @@ static void Output(const char *fmt, ... )
 /**
  * Return true if |arg| matches the given argument name.
  */
-static PRBool IsArg(const char* arg, const char* s)
+static bool IsArg(const char* arg, const char* s)
 {
   if (*arg == '-')
   {
@@ -103,7 +110,7 @@ static PRBool IsArg(const char* arg, const char* s)
     return !strcasecmp(++arg, s);
 #endif
 
-  return PR_FALSE;
+  return false;
 }
 
 /**
@@ -143,10 +150,10 @@ static int do_main(const char *exePath, int argc, char* argv[])
 #ifdef XP_WIN
   // exePath comes from mozilla::BinaryPath::Get, which returns a UTF-8
   // encoded path, so it is safe to convert it
-  nsresult rv = NS_NewLocalFile(NS_ConvertUTF8toUTF16(exePath), PR_FALSE,
+  nsresult rv = NS_NewLocalFile(NS_ConvertUTF8toUTF16(exePath), false,
                                 getter_AddRefs(appini));
 #else
-  nsresult rv = NS_NewNativeLocalFile(nsDependentCString(exePath), PR_FALSE,
+  nsresult rv = NS_NewNativeLocalFile(nsDependentCString(exePath), false,
                                       getter_AddRefs(appini));
 #endif
   if (NS_FAILED(rv)) {
@@ -200,6 +207,25 @@ static int do_main(const char *exePath, int argc, char* argv[])
   return result;
 }
 
+#if MOZ_PLATFORM_MAEMO == 6
+static bool
+GeckoPreLoader(const char* execPath)
+{
+  nsresult rv = XPCOMGlueStartup(execPath);
+  if (NS_FAILED(rv)) {
+    Output("Couldn't load XPCOM.\n");
+    return false;
+  }
+
+  rv = XPCOMGlueLoadXULFunctions(kXULFuncs);
+  if (NS_FAILED(rv)) {
+    Output("Couldn't load XRE functions.\n");
+    return false;
+  }
+  return true;
+}
+#endif
+
 int main(int argc, char* argv[])
 {
   char exePath[MAXPATHLEN];
@@ -234,7 +260,10 @@ int main(int argc, char* argv[])
       XPCOMGlueEnablePreload();
   }
 
-
+#if MOZ_PLATFORM_MAEMO == 6
+  nsFastStartup startup;
+  startup.CreateFastStartup(argc, argv, exePath, GeckoPreLoader);
+#else
   rv = XPCOMGlueStartup(exePath);
   if (NS_FAILED(rv)) {
     Output("Couldn't load XPCOM.\n");
@@ -246,6 +275,7 @@ int main(int argc, char* argv[])
     Output("Couldn't load XRE functions.\n");
     return 255;
   }
+#endif
 
 #ifdef XRE_HAS_DLL_BLOCKLIST
   XRE_SetupDllBlocklist();

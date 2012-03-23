@@ -50,10 +50,10 @@
   text-shadow: none;
 }
 
-/* ::::: message header borders ::::: */
+/* ..... message pane adjustments ..... */
 
-#msgHeaderView {
-  border: 1px outset ThreeDFace !important;
+#messagepanebox {
+  border-bottom: 1px solid ThreeDShadow;
 }
 
 /* ..... splitter adjustments ..... */

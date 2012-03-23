@@ -58,14 +58,6 @@ JSObject::getDenseArrayInitializedLength()
     return initializedLength;
 }
 
-inline void
-JSObject::setDenseArrayInitializedLength(uint32 length)
-{
-    JS_ASSERT(isDenseArray());
-    JS_ASSERT(length <= getDenseArrayCapacity());
-    initializedLength = length;
-}
-
 inline bool
 JSObject::isPackedDenseArray()
 {
@@ -76,10 +68,6 @@ JSObject::isPackedDenseArray()
 namespace js {
 /* 2^32-2, inclusive */
 const uint32 MAX_ARRAY_INDEX = 4294967294u;
-    
-extern bool
-StringIsArrayIndex(JSLinearString *str, jsuint *indexp);
-    
 }
 
 inline JSBool
@@ -156,7 +144,7 @@ NewDenseUnallocatedArray(JSContext *cx, uint length, JSObject *proto=NULL);
 
 /* Create a dense array with a copy of vp. */
 extern JSObject *
-NewDenseCopiedArray(JSContext *cx, uint length, const Value *vp, JSObject *proto=NULL);
+NewDenseCopiedArray(JSContext *cx, uint32 length, const Value *vp, JSObject *proto = NULL);
 
 /* Create a sparse array. */
 extern JSObject *
@@ -173,13 +161,15 @@ js_SetLengthProperty(JSContext *cx, JSObject *obj, jsdouble length);
 namespace js {
 
 extern JSBool
-array_defineProperty(JSContext *cx, JSObject *obj, jsid id, const Value *value,
-                     PropertyOp getter, StrictPropertyOp setter, uintN attrs);
+array_defineElement(JSContext *cx, JSObject *obj, uint32 index, const Value *value,
+                    PropertyOp getter, StrictPropertyOp setter, uintN attrs);
 
 extern JSBool
-array_deleteProperty(JSContext *cx, JSObject *obj, jsid id, Value *rval, JSBool strict);
+array_deleteElement(JSContext *cx, JSObject *obj, uint32 index, Value *rval, JSBool strict);
 
 /*
+ * Copy 'length' elements from aobj to vp.
+ *
  * This function assumes 'length' is effectively the result of calling
  * js_GetLengthProperty on aobj.
  */
@@ -224,6 +214,12 @@ array_push(JSContext *cx, uintN argc, js::Value *vp);
 
 extern JSBool
 array_pop(JSContext *cx, uintN argc, js::Value *vp);
+
+extern JSBool
+array_concat(JSContext *cx, uintN argc, js::Value *vp);
+
+extern JSBool
+array_shift(JSContext *cx, uintN argc, js::Value *vp);
 
 } /* namespace js */
 

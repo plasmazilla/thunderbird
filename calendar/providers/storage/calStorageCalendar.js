@@ -1036,8 +1036,7 @@ calStorageCalendar.prototype = {
                 let newOfflineJournalFlag = cICL.OFFLINE_FLAG_MODIFIED_RECORD;
                 if (oldOfflineJournalFlag == cICL.OFFLINE_FLAG_CREATED_RECORD || oldOfflineJournalFlag == cICL.OFFLINE_FLAG_DELETED_RECORD) {
                     // Do nothing since a flag of "created" or "deleted" exists
-                }
-                else {
+                } else {
                     this_.setOfflineJournalFlag(aItem, newOfflineJournalFlag);
                 }
                 this_.notifyOperationComplete(aListener,
@@ -1062,8 +1061,7 @@ calStorageCalendar.prototype = {
                     // Delete item if flag is c
                     if (oldOfflineJournalFlag == cICL.OFFLINE_FLAG_CREATED_RECORD) {
                         this_.deleteItemById(aItem.id);
-                    }
-                    else if (oldOfflineJournalFlag == cICL.OFFLINE_FLAG_MODIFIED_RECORD) {
+                    } else if (oldOfflineJournalFlag == cICL.OFFLINE_FLAG_MODIFIED_RECORD) {
                         this_.setOfflineJournalFlag(aItem, cICL.OFFLINE_FLAG_DELETED_RECORD);
                     }
                 } else {
@@ -1659,9 +1657,9 @@ calStorageCalendar.prototype = {
 
         if (flags & CAL_ITEM_FLAG.HAS_ATTENDEES) {
             var selectItem = null;
-            if (item.recurrenceId == null)
+            if (item.recurrenceId == null) {
                 selectItem = this.mSelectAttendeesForItem;
-            else {
+            } else {
                 selectItem = this.mSelectAttendeesForItemWithRecurrenceId;
                 this.setDateParamHelper(selectItem.params, "recurrence_id", item.recurrenceId);
             }
@@ -1688,9 +1686,9 @@ calStorageCalendar.prototype = {
         var row;
         if (flags & CAL_ITEM_FLAG.HAS_PROPERTIES) {
             var selectItem = null;
-            if (item.recurrenceId == null)
+            if (item.recurrenceId == null) {
                 selectItem = this.mSelectPropertiesForItem;
-            else {
+            } else {
                 selectItem = this.mSelectPropertiesForItemWithRecurrenceId;
                 this.setDateParamHelper(selectItem.params, "recurrence_id", item.recurrenceId);
             }
@@ -1764,10 +1762,11 @@ calStorageCalendar.prototype = {
                             } catch (exc) {
                             }
                         } else {
-                            if (row.end_date)
+                            if (row.end_date) {
                                 ritem.untilDate = newDateTime(row.end_date, "UTC");
-                            else
+                            } else {
                                 ritem.untilDate = null;
+                            }
                         }
                         try {
                             ritem.interval = row.interval;
@@ -2053,7 +2052,7 @@ calStorageCalendar.prototype = {
         ASSERT(!item.recurrenceId, "no parent item passed!", true);
 
         try {
-            this.deleteItemById(olditem ? olditem.id : item.id);
+            this.deleteItemById(olditem ? olditem.id : item.id, !!olditem);
             this.acquireTransaction();
             this.writeItem(item, olditem);
         } catch (e) {
@@ -2311,10 +2310,11 @@ calStorageCalendar.prototype = {
                     } else if (calInstanceOf(ritem, Components.interfaces.calIRecurrenceRule)) {
                         ap.recur_type = ritem.type;
 
-                        if (ritem.isByCount)
+                        if (ritem.isByCount) {
                             ap.count = ritem.count;
-                        else
+                        } else {
                             ap.end_date = ritem.untilDate ? ritem.untilDate.nativeTime : null;
+                        }
 
                         ap.interval = ritem.interval;
 
@@ -2439,8 +2439,9 @@ calStorageCalendar.prototype = {
      * Deletes the item with the given item id.
      *
      * @param aID           The id of the item to delete.
+     * @param aIsModify     If true, then leave in metadata for the item
      */
-    deleteItemById: function cSC_deleteItemById(aID) {
+    deleteItemById: function cSC_deleteItemById(aID, aIsModify) {
         this.acquireTransaction();
         try {
             this.mDeleteAttendees(aID, this.id);
@@ -2450,8 +2451,9 @@ calStorageCalendar.prototype = {
             this.mDeleteTodo(aID, this.id);
             this.mDeleteAttachments(aID, this.id);
             this.mDeleteRelations(aID, this.id);
-            this.mDeleteMetaData(aID, this.id);
-            //this.mDeleteAllMetaData(aID, this.id);
+            if (!aIsModify) {
+                this.mDeleteMetaData(aID, this.id);
+            }
             this.mDeleteAlarms(aID, this.id);
         } catch (e) {
             this.releaseTransaction(e);
@@ -2499,14 +2501,11 @@ calStorageCalendar.prototype = {
             sp.item_id = id;
             sp.value = value;
             this.mInsertMetaData.execute();
-        } catch (e) {
+        } catch (e if e.result != Components.results.NS_ERROR_ILLEGAL_VALUE) {
             // The storage service throws an NS_ERROR_ILLEGAL_VALUE in
             // case pval is something complex (i.e not a string or
             // number). Swallow this error, leaving the value empty.
-            if (e.result != Components.results.NS_ERROR_ILLEGAL_VALUE) {
-                this.logError("Error setting metadata for id " + id + "!", e);
-                throw e;
-            }
+            this.logError("Error setting metadata for id " + id + "!", e);
         } finally {
             this.mInsertMetaData.reset();
         }

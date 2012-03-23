@@ -86,7 +86,7 @@ class GLContext;
 class LibrarySymbolLoader
 {
 public:
-    PRBool OpenLibrary(const char *library);
+    bool OpenLibrary(const char *library);
 
     typedef PRFuncPtr (GLAPIENTRY * PlatformLookupFunction) (const char *);
 
@@ -100,8 +100,8 @@ public:
         const char *symNames[MAX_SYMBOL_NAMES];
     } SymLoadStruct;
 
-    PRBool LoadSymbols(SymLoadStruct *firstStruct,
-                       PRBool tryplatform = PR_FALSE,
+    bool LoadSymbols(SymLoadStruct *firstStruct,
+                       bool tryplatform = false,
                        const char *prefix = nsnull);
 
     /*
@@ -110,7 +110,7 @@ public:
     static PRFuncPtr LookupSymbol(PRLibrary *lib,
                                   const char *symname,
                                   PlatformLookupFunction lookupFunction = nsnull);
-    static PRBool LoadSymbols(PRLibrary *lib,
+    static bool LoadSymbols(PRLibrary *lib,
                               SymLoadStruct *firstStruct,
                               PlatformLookupFunction lookupFunction = nsnull,
                               const char *prefix = nsnull);
@@ -218,8 +218,8 @@ public:
     virtual void BeginTileIteration() {
     };
 
-    virtual PRBool NextTile() {
-        return PR_FALSE;
+    virtual bool NextTile() {
+        return false;
     };
 
     virtual nsIntRect GetTileRect() {
@@ -257,6 +257,11 @@ public:
     virtual void BindTexture(GLenum aTextureUnit) = 0;
     virtual void ReleaseTexture() {};
 
+    void BindTextureAndApplyFilter(GLenum aTextureUnit) {
+        BindTexture(aTextureUnit);
+        ApplyFilter();
+    }
+
     class ScopedBindTexture
     {
     public:
@@ -275,10 +280,22 @@ public:
             }       
         }
 
-    private:
+    protected:
         TextureImage *mTexture;
     };
 
+    class ScopedBindTextureAndApplyFilter
+        : public ScopedBindTexture
+    {
+    public:
+        ScopedBindTextureAndApplyFilter(TextureImage *aTexture, GLenum aTextureUnit) :
+          ScopedBindTexture(aTexture, aTextureUnit)
+        {
+            if (mTexture) {
+                mTexture->ApplyFilter();
+            }
+        }
+    };
 
     /**
      * Returns the shader program type that should be used to render
@@ -301,10 +318,16 @@ public:
 
     const nsIntSize& GetSize() const { return mSize; }
     ContentType GetContentType() const { return mContentType; }
-    virtual PRBool InUpdate() const = 0;
+    virtual bool InUpdate() const = 0;
     GLenum GetWrapMode() const { return mWrapMode; }
 
-    PRBool IsRGB() const { return mIsRGBFormat; }
+    void SetFilter(gfxPattern::GraphicsFilter aFilter) { mFilter = aFilter; }
+
+    /**
+     * Applies this TextureImage's filter, assuming that its texture is
+     * the currently bound texture.
+     */
+    virtual void ApplyFilter() = 0;
 
 protected:
     friend class GLContext;
@@ -317,18 +340,17 @@ protected:
      */
     TextureImage(const nsIntSize& aSize,
                  GLenum aWrapMode, ContentType aContentType,
-                 PRBool aIsRGB = PR_FALSE)
+                 bool aIsRGB = false)
         : mSize(aSize)
         , mWrapMode(aWrapMode)
         , mContentType(aContentType)
-        , mIsRGBFormat(aIsRGB)
     {}
 
     nsIntSize mSize;
     GLenum mWrapMode;
     ContentType mContentType;
-    PRPackedBool mIsRGBFormat;
     ShaderProgramType mShaderType;
+    gfxPattern::GraphicsFilter mFilter;
 };
 
 /**
@@ -378,9 +400,11 @@ public:
     // Call after surface data has been uploaded to a texture.
     virtual void FinishedSurfaceUpload();
 
-    virtual PRBool InUpdate() const { return !!mUpdateSurface; }
+    virtual bool InUpdate() const { return !!mUpdateSurface; }
 
     virtual void Resize(const nsIntSize& aSize);
+
+    virtual void ApplyFilter();
 protected:
 
     GLuint mTexture;
@@ -403,7 +427,7 @@ class TiledTextureImage
 {
 public:
     TiledTextureImage(GLContext* aGL, nsIntSize aSize,
-        TextureImage::ContentType, PRBool aUseNearestFilter = PR_FALSE);
+        TextureImage::ContentType, bool aUseNearestFilter = false);
     ~TiledTextureImage();
     void DumpDiv();
     virtual gfxASurface* BeginUpdate(nsIntRegion& aRegion);
@@ -412,14 +436,15 @@ public:
     virtual void Resize(const nsIntSize& aSize);
     virtual PRUint32 GetTileCount();
     virtual void BeginTileIteration();
-    virtual PRBool NextTile();
+    virtual bool NextTile();
     virtual nsIntRect GetTileRect();
     virtual GLuint GetTextureID() {
         return mImages[mCurrentImage]->GetTextureID();
     };
     virtual bool DirectUpdate(gfxASurface* aSurf, const nsIntRegion& aRegion, const nsIntPoint& aFrom = nsIntPoint(0,0));
-    virtual PRBool InUpdate() const { return mInUpdate; };
+    virtual bool InUpdate() const { return mInUpdate; };
     virtual void BindTexture(GLenum);
+    virtual void ApplyFilter();
 protected:
     unsigned int mCurrentImage;
     nsTArray< nsRefPtr<TextureImage> > mImages;
@@ -428,7 +453,7 @@ protected:
     unsigned int mTileSize;
     unsigned int mRows, mColumns;
     GLContext* mGL;
-    PRBool mUseNearestFilter;
+    bool mUseNearestFilter;
     // A temporary surface to faciliate cross-tile updates.
     nsRefPtr<gfxASurface> mUpdateSurface;
     // The region of update requested
@@ -451,11 +476,11 @@ struct THEBES_API ContextFormat
     };
 
     ContextFormat() {
-        memset(this, 0, sizeof(*this));
+        memset(this, 0, sizeof(ContextFormat));
     }
 
     ContextFormat(const StandardContextFormat cf) {
-        memset(this, 0, sizeof(*this));
+        memset(this, 0, sizeof(ContextFormat));
         switch (cf) {
         case BasicRGBA32:
             red = green = blue = alpha = 8;
@@ -494,6 +519,7 @@ struct THEBES_API ContextFormat
     int green, minGreen;
     int blue, minBlue;
     int alpha, minAlpha;
+    int samples;
 
     int colorBits() const { return red + green + blue; }
 };
@@ -504,25 +530,28 @@ class GLContext
     THEBES_INLINE_DECL_THREADSAFE_REFCOUNTING(GLContext)
 public:
     GLContext(const ContextFormat& aFormat,
-              PRBool aIsOffscreen = PR_FALSE,
+              bool aIsOffscreen = false,
               GLContext *aSharedContext = nsnull)
-      : mInitialized(PR_FALSE),
+      : mOffscreenFBOsDirty(false),
+        mInitialized(false),
         mIsOffscreen(aIsOffscreen),
 #ifdef USE_GLES2
-        mIsGLES2(PR_TRUE),
+        mIsGLES2(true),
 #else
-        mIsGLES2(PR_FALSE),
+        mIsGLES2(false),
 #endif
-        mIsGlobalSharedContext(PR_FALSE),
+        mIsGlobalSharedContext(false),
         mVendor(-1),
         mDebugMode(0),
         mCreationFormat(aFormat),
         mSharedContext(aSharedContext),
         mOffscreenTexture(0),
-        mFlipped(PR_FALSE),
+        mFlipped(false),
         mBlitProgram(0),
         mBlitFramebuffer(0),
-        mOffscreenFBO(0),
+        mOffscreenDrawFBO(0),
+        mOffscreenReadFBO(0),
+        mOffscreenColorRB(0),
         mOffscreenDepthRB(0),
         mOffscreenStencilRB(0)
 #ifdef DEBUG
@@ -556,16 +585,16 @@ public:
 
     virtual GLContextType GetContextType() { return ContextTypeUnknown; }
 
-    virtual PRBool MakeCurrentImpl(PRBool aForce = PR_FALSE) = 0;
+    virtual bool MakeCurrentImpl(bool aForce = false) = 0;
 
-    PRBool MakeCurrent(PRBool aForce = PR_FALSE) {
+    bool MakeCurrent(bool aForce = false) {
 #ifdef DEBUG
         sCurrentGLContext = this;
 #endif
         return MakeCurrentImpl(aForce);
     }
 
-    virtual PRBool SetupLookupFunction() = 0;
+    virtual bool SetupLookupFunction() = 0;
 
     virtual void WindowDestroyed() {}
 
@@ -585,7 +614,7 @@ public:
     // the GL function pointers!
     void THEBES_API MarkDestroyed();
 
-    PRBool IsDestroyed() {
+    bool IsDestroyed() {
         // MarkDestroyed will mark all these as null.
         return mSymbols.fUseProgram == nsnull;
     }
@@ -600,8 +629,8 @@ public:
     virtual void *GetNativeData(NativeDataType aType) { return NULL; }
     GLContext *GetSharedContext() { return mSharedContext; }
 
-    PRBool IsGlobalSharedContext() { return mIsGlobalSharedContext; }
-    void SetIsGlobalSharedContext(PRBool aIsOne) { mIsGlobalSharedContext = aIsOne; }
+    bool IsGlobalSharedContext() { return mIsGlobalSharedContext; }
+    void SetIsGlobalSharedContext(bool aIsOne) { mIsGlobalSharedContext = aIsOne; }
 
     const ContextFormat& CreationFormat() { return mCreationFormat; }
     const ContextFormat& ActualFormat() { return mActualFormat; }
@@ -614,21 +643,21 @@ public:
     /**
      * If this context is double-buffered, returns TRUE.
      */
-    virtual PRBool IsDoubleBuffered() { return PR_FALSE; }
+    virtual bool IsDoubleBuffered() { return false; }
 
     /**
      * If this context is the GLES2 API, returns TRUE.
      * This means that various GLES2 restrictions might be in effect (modulo
      * extensions).
      */
-    PRBool IsGLES2() const {
+    bool IsGLES2() const {
         return mIsGLES2;
     }
     
     /**
-     * Returns PR_TRUE if either this is the GLES2 API, or had the GL_ARB_ES2_compatibility extension
+     * Returns true if either this is the GLES2 API, or had the GL_ARB_ES2_compatibility extension
      */
-    PRBool HasES2Compatibility() {
+    bool HasES2Compatibility() {
         return mIsGLES2 || IsExtensionSupported(ARB_ES2_compatibility);
     }
 
@@ -649,16 +678,22 @@ public:
      * and front buffers.  It should be assumed that after a swap, the
      * contents of the new back buffer are undefined.
      */
-    virtual PRBool SwapBuffers() { return PR_FALSE; }
+    virtual bool SwapBuffers() { return false; }
 
     /**
      * Defines a two-dimensional texture image for context target surface
      */
-    virtual PRBool BindTexImage() { return PR_FALSE; }
+    virtual bool BindTexImage() { return false; }
     /*
      * Releases a color buffer that is being used as a texture
      */
-    virtual PRBool ReleaseTexImage() { return PR_FALSE; }
+    virtual bool ReleaseTexImage() { return false; }
+
+    /**
+     * Applies aFilter to the texture currently bound to GL_TEXTURE_2D.
+     */
+    void ApplyFilterToBoundTexture(gfxPattern::GraphicsFilter aFilter);
+
 
     /*
      * Offscreen support API
@@ -679,33 +714,33 @@ public:
      * The same texture unit must be active for Bind/Unbind of a given
      * context.
      */
-    virtual PRBool BindOffscreenNeedsTexture(GLContext *aOffscreen) {
+    virtual bool BindOffscreenNeedsTexture(GLContext *aOffscreen) {
         return aOffscreen->mOffscreenTexture == 0;
     }
 
-    virtual PRBool BindTex2DOffscreen(GLContext *aOffscreen) {
+    virtual bool BindTex2DOffscreen(GLContext *aOffscreen) {
         if (aOffscreen->GetContextType() != GetContextType()) {
-          return PR_FALSE;
-        }
-
-        if (!aOffscreen->mOffscreenFBO) {
-            return PR_FALSE;
+          return false;
         }
 
         if (!aOffscreen->mSharedContext ||
             aOffscreen->mSharedContext != mSharedContext)
         {
-            return PR_FALSE;
+            return false;
+        }
+
+        if (!aOffscreen->mOffscreenTexture) {
+            return false;
         }
 
         fBindTexture(LOCAL_GL_TEXTURE_2D, aOffscreen->mOffscreenTexture);
 
-        return PR_TRUE;
+        return true;
     }
 
     virtual void UnbindTex2DOffscreen(GLContext *aOffscreen) { }
 
-    PRBool IsOffscreen() {
+    bool IsOffscreen() {
         return mIsOffscreen;
     }
 
@@ -717,10 +752,10 @@ public:
      *
      * Only valid if IsOffscreen() returns true.
      */
-    virtual PRBool ResizeOffscreen(const gfxIntSize& aNewSize) {
-        if (mOffscreenFBO)
-            return ResizeOffscreenFBO(aNewSize);
-        return PR_FALSE;
+    virtual bool ResizeOffscreen(const gfxIntSize& aNewSize) {
+        if (mOffscreenDrawFBO || mOffscreenReadFBO)
+            return ResizeOffscreenFBO(aNewSize, mOffscreenReadFBO != 0);
+        return false;
     }
 
     /*
@@ -750,10 +785,229 @@ public:
      * Only valid if IsOffscreen() returns true.
      */
     GLuint GetOffscreenFBO() {
-        return mOffscreenFBO;
+        // 0 is interpreted as (off)screen, whether for read or draw operations
+        return 0;
     }
+
     GLuint GetOffscreenTexture() {
         return mOffscreenTexture;
+    }
+
+    virtual bool SupportsFramebufferMultisample() {
+        return IsExtensionSupported(EXT_framebuffer_multisample) || IsExtensionSupported(ANGLE_framebuffer_multisample);
+    }
+
+    virtual bool SupportsOffscreenSplit() {
+        return IsExtensionSupported(EXT_framebuffer_blit) || IsExtensionSupported(ANGLE_framebuffer_blit);
+    }
+
+    GLuint GetBoundDrawFBO() {
+        GLint ret = 0;
+        if (SupportsOffscreenSplit())
+            fGetIntegerv(LOCAL_GL_DRAW_FRAMEBUFFER_BINDING_EXT, &ret);
+        else
+            fGetIntegerv(LOCAL_GL_FRAMEBUFFER_BINDING, &ret);
+        return ret;
+    }
+
+    GLuint GetBoundReadFBO() {
+        GLint ret = 0;
+        if (SupportsOffscreenSplit())
+            fGetIntegerv(LOCAL_GL_READ_FRAMEBUFFER_BINDING_EXT, &ret);
+        else
+            fGetIntegerv(LOCAL_GL_FRAMEBUFFER_BINDING, &ret);
+        return ret;
+    }
+
+    void BindDrawFBO(GLuint name) {
+        if (SupportsOffscreenSplit())
+            fBindFramebuffer(LOCAL_GL_DRAW_FRAMEBUFFER_EXT, name);
+        else
+            fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, name);
+    }
+
+    void BindReadFBO(GLuint name) {
+        if (SupportsOffscreenSplit())
+            fBindFramebuffer(LOCAL_GL_READ_FRAMEBUFFER_EXT, name);
+        else
+            fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, name);
+    }
+
+    GLuint SwapBoundDrawFBO(GLuint name) {
+        GLuint prev = GetBoundDrawFBO();
+        BindDrawFBO(name);
+        return prev;
+    }
+
+    GLuint SwapBoundReadFBO(GLuint name) {
+        GLuint prev = GetBoundReadFBO();
+        BindReadFBO(name);
+        return prev;
+    }
+
+    void BindOffscreenDrawBuffer() {
+        BindDrawFBO(mOffscreenDrawFBO);
+    }
+
+    void BindOffscreenReadBuffer() {
+        BindReadFBO(mOffscreenReadFBO);
+    }
+
+    void BindOffscreenBuffers() {
+        BindOffscreenDrawBuffer();
+        BindOffscreenReadBuffer();
+    }
+
+private:
+    GLuint mPrevDrawFBOBinding;
+    GLuint mPrevReadFBOBinding;
+    bool mOffscreenFBOsDirty;
+
+    void BeforeGLDrawCall() {
+        // Record and rebind if necessary
+        mPrevDrawFBOBinding = GetBoundDrawFBO();
+        if (mPrevDrawFBOBinding == 0) {
+            BindDrawFBO(mOffscreenDrawFBO);
+        } else if (mPrevDrawFBOBinding != mOffscreenDrawFBO)
+            return;
+
+        // Must be after binding the proper FBO
+        if (mOffscreenDrawFBO == mOffscreenReadFBO)
+            return;
+
+        // If we're already dirty, no need to set it again
+        if (mOffscreenFBOsDirty)
+            return;
+
+        mOffscreenFBOsDirty = true;
+    }
+
+    void AfterGLDrawCall() {
+        if (mPrevDrawFBOBinding == 0) {
+            BindDrawFBO(0);
+        }
+    }
+
+    void BeforeGLReadCall() {
+        // Record and rebind if necessary
+        mPrevReadFBOBinding = GetBoundReadFBO();
+        if (mPrevReadFBOBinding == 0) {
+            BindReadFBO(mOffscreenReadFBO);
+        } else if (mPrevReadFBOBinding != mOffscreenReadFBO)
+            return;
+
+        // Must be after binding the proper FBO
+        if (mOffscreenDrawFBO == mOffscreenReadFBO)
+            return;
+
+        // If we're not dirty, there's no need to blit
+        if (!mOffscreenFBOsDirty)
+            return;
+
+        const bool scissor = fIsEnabled(LOCAL_GL_SCISSOR_TEST);
+        if (scissor)
+            fDisable(LOCAL_GL_SCISSOR_TEST);
+
+        // flip read/draw for blitting
+        GLuint prevDraw = SwapBoundDrawFBO(mOffscreenReadFBO);
+        BindReadFBO(mOffscreenDrawFBO); // We know that Read must already be mOffscreenRead, so no need to write that down
+
+        GLint width = mOffscreenActualSize.width;
+        GLint height = mOffscreenActualSize.height;
+        raw_fBlitFramebuffer(0, 0, width, height,
+                             0, 0, width, height,
+                             LOCAL_GL_COLOR_BUFFER_BIT,
+                             LOCAL_GL_NEAREST);
+
+        BindDrawFBO(prevDraw);
+        BindReadFBO(mOffscreenReadFBO);
+
+        if (scissor)
+            fEnable(LOCAL_GL_SCISSOR_TEST);
+
+        mOffscreenFBOsDirty = false;
+    }
+
+    void AfterGLReadCall() {
+        if (mPrevReadFBOBinding == 0) {
+            BindReadFBO(0);
+        }
+    }
+
+public:
+    // Draw call hooks:
+    void fClear(GLbitfield mask) {
+        BeforeGLDrawCall();
+        raw_fClear(mask);
+        AfterGLDrawCall();
+    }
+
+    void fDrawArrays(GLenum mode, GLint first, GLsizei count) {
+        BeforeGLDrawCall();
+        raw_fDrawArrays(mode, first, count);
+        AfterGLDrawCall();
+    }
+
+    void fDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices) {
+        BeforeGLDrawCall();
+        raw_fDrawElements(mode, count, type, indices);
+        AfterGLDrawCall();
+    }
+
+    // Read call hooks:
+    void fReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels) {
+        BeforeGLReadCall();
+        raw_fReadPixels(x, y, width, height, format, type, pixels);
+        AfterGLReadCall();
+    }
+
+    void fCopyTexImage2D(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border) {
+        BeforeGLReadCall();
+        raw_fCopyTexImage2D(target, level, internalformat,
+                            x, y, width, height, border);
+        AfterGLReadCall();
+    }
+
+    void fCopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height) {
+        BeforeGLReadCall();
+        raw_fCopyTexSubImage2D(target, level, xoffset, yoffset,
+                               x, y, width, height);
+        AfterGLReadCall();
+    }
+
+    void ForceDirtyFBOs() {
+        GLuint draw = SwapBoundReadFBO(mOffscreenDrawFBO);
+
+        BeforeGLDrawCall();
+        // no-op; just pretend we did something
+        AfterGLDrawCall();
+
+        BindDrawFBO(draw);
+    }
+
+    void BlitDirtyFBOs() {
+        GLuint read = SwapBoundReadFBO(mOffscreenReadFBO);
+
+        BeforeGLReadCall();
+        // no-op; we just want to make sure the Read FBO is updated if it needs to be
+        AfterGLReadCall();
+
+        BindReadFBO(read);
+    }
+
+    void fFinish() {
+        BeforeGLReadCall();
+        raw_fFinish();
+        AfterGLReadCall();
+    }
+
+    // Draw/Read
+    void fBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) {
+        BeforeGLDrawCall();
+        BeforeGLReadCall();
+        raw_fBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
+        AfterGLReadCall();
+        AfterGLDrawCall();
     }
 
 #if defined(MOZ_X11) && defined(MOZ_EGL_XRENDER_COMPOSITE)
@@ -762,21 +1016,21 @@ public:
       return 0;
     };
     
-    virtual PRBool WaitNative() { return PR_FALSE; }
+    virtual bool WaitNative() { return false; }
 #endif
 
-    virtual PRBool TextureImageSupportsGetBackingSurface() {
-        return PR_FALSE;
+    virtual bool TextureImageSupportsGetBackingSurface() {
+        return false;
     }
 
-    virtual PRBool RenewSurface() { return PR_FALSE; }
+    virtual bool RenewSurface() { return false; }
 
     /**`
      * Return a valid, allocated TextureImage of |aSize| with
      * |aContentType|.  The TextureImage's texture is configured to
      * use |aWrapMode| (usually GL_CLAMP_TO_EDGE or GL_REPEAT) and by
      * default, GL_LINEAR filtering.  Specify
-     * |aUseNearestFilter=PR_TRUE| for GL_NEAREST filtering.  Return
+     * |aUseNearestFilter=true| for GL_NEAREST filtering.  Return
      * NULL if creating the TextureImage fails.
      *
      * The returned TextureImage may only be used with this GLContext.
@@ -788,7 +1042,7 @@ public:
     CreateTextureImage(const nsIntSize& aSize,
                        TextureImage::ContentType aContentType,
                        GLenum aWrapMode,
-                       PRBool aUseNearestFilter=PR_FALSE);
+                       bool aUseNearestFilter=false);
 
     /**
      * In EGL we want to use Tiled Texture Images, which we return
@@ -800,7 +1054,7 @@ public:
     virtual already_AddRefed<TextureImage>
     TileGenFunc(const nsIntSize& aSize,
                 TextureImage::ContentType aContentType,
-                PRBool aUseNearestFilter = PR_FALSE)
+                bool aUseNearestFilter = false)
     {
         return nsnull;
     };
@@ -888,7 +1142,7 @@ public:
                                              GLuint& aTexture,
                                              bool aOverwrite = false,
                                              const nsIntPoint& aSrcPoint = nsIntPoint(0, 0),
-                                             bool aPixelBuffer = PR_FALSE);
+                                             bool aPixelBuffer = false);
 
     
     void TexImage2D(GLenum target, GLint level, GLint internalformat, 
@@ -896,12 +1150,29 @@ public:
                     GLint pixelsize, GLint border, GLenum format, 
                     GLenum type, const GLvoid *pixels);
 
-
     void TexSubImage2D(GLenum target, GLint level, 
                        GLint xoffset, GLint yoffset, 
                        GLsizei width, GLsizei height, GLsizei stride,
                        GLint pixelsize, GLenum format, 
                        GLenum type, const GLvoid* pixels);
+
+    /**
+     * Uses the Khronos GL_EXT_unpack_subimage extension, working around
+     * quirks in the Tegra implementation of this extension.
+     */
+    void TexSubImage2DWithUnpackSubimageGLES(GLenum target, GLint level,
+                                             GLint xoffset, GLint yoffset,
+                                             GLsizei width, GLsizei height,
+                                             GLsizei stride, GLint pixelsize,
+                                             GLenum format, GLenum type,
+                                             const GLvoid* pixels);
+
+    void TexSubImage2DWithoutUnpackSubimage(GLenum target, GLint level,
+                                            GLint xoffset, GLint yoffset,
+                                            GLsizei width, GLsizei height,
+                                            GLsizei stride, GLint pixelsize,
+                                            GLenum format, GLenum type,
+                                            const GLvoid* pixels);
 
     /** Helper for DecomposeIntoNoRepeatTriangles
      */
@@ -981,22 +1252,30 @@ public:
         OES_texture_float,
         ARB_texture_float,
         EXT_unpack_subimage,
+        OES_standard_derivatives,
+        EXT_framebuffer_blit,
+        ANGLE_framebuffer_blit,
+        EXT_framebuffer_multisample,
+        ANGLE_framebuffer_multisample,
+        OES_rgb8_rgba8,
+        ARB_robustness,
         Extensions_Max
     };
 
-    PRBool IsExtensionSupported(GLExtensions aKnownExtension) {
+    bool IsExtensionSupported(GLExtensions aKnownExtension) {
         return mAvailableExtensions[aKnownExtension];
     }
 
     // for unknown extensions
-    PRBool IsExtensionSupported(const char *extension);
+    bool IsExtensionSupported(const char *extension);
 
     // Shared code for GL extensions and GLX extensions.
-    static PRBool ListHasExtension(const GLubyte *extensions,
+    static bool ListHasExtension(const GLubyte *extensions,
                                    const char *extension);
 
     GLint GetMaxTextureSize() { return mMaxTextureSize; }
-    void SetFlipped(PRBool aFlipped) { mFlipped = aFlipped; }
+    GLint GetMaxTextureImageSize() { return mMaxTextureImageSize; }
+    void SetFlipped(bool aFlipped) { mFlipped = aFlipped; }
 
     // this should just be a std::bitset, but that ended up breaking
     // MacOS X builds; see bug 584919.  We can replace this with one
@@ -1017,11 +1296,24 @@ public:
         bool values[setlen];
     };
 
+    /**
+     * Context reset constants.
+     * These are used to determine who is guilty when a context reset
+     * happens.
+     */
+    enum ContextResetARB {
+        CONTEXT_NO_ERROR = 0,
+        CONTEXT_GUILTY_CONTEXT_RESET_ARB = 0x8253,
+        CONTEXT_INNOCENT_CONTEXT_RESET_ARB = 0x8254,
+        CONTEXT_UNKNOWN_CONTEXT_RESET_ARB = 0x8255,
+    };
+
 protected:
-    PRPackedBool mInitialized;
-    PRPackedBool mIsOffscreen;
-    PRPackedBool mIsGLES2;
-    PRPackedBool mIsGlobalSharedContext;
+    bool mInitialized;
+    bool mIsOffscreen;
+    bool mIsGLES2;
+    bool mIsGlobalSharedContext;
+    bool mHasRobustness;
 
     PRInt32 mVendor;
 
@@ -1051,18 +1343,34 @@ protected:
     gfxIntSize mOffscreenSize;
     gfxIntSize mOffscreenActualSize;
     GLuint mOffscreenTexture;
-    PRBool mFlipped;
+    bool mFlipped;
 
     // lazy-initialized things
     GLuint mBlitProgram, mBlitFramebuffer;
     void UseBlitProgram();
     void SetBlitFramebufferForDestTexture(GLuint aTexture);
 
-    // helper to create/resize an offscreen FBO,
+    // Helper to create/resize an offscreen FBO,
     // for offscreen implementations that use FBOs.
-    PRBool ResizeOffscreenFBO(const gfxIntSize& aSize);
+    // Note that it does -not- clear the resized buffers.
+    bool ResizeOffscreenFBO(const gfxIntSize& aSize, const bool aUseReadFBO, const bool aDisableAA);
+    bool ResizeOffscreenFBO(const gfxIntSize& aSize, const bool aUseReadFBO) {
+        if (ResizeOffscreenFBO(aSize, aUseReadFBO, false))
+            return true;
+
+        if (!mCreationFormat.samples)
+            return false;
+
+        if (mDebugMode) {
+            printf_stderr("Requested level of multisampling is unavailable, continuing without multisampling\n");
+        }
+
+        return ResizeOffscreenFBO(aSize, aUseReadFBO, true);
+    }
     void DeleteOffscreenFBO();
-    GLuint mOffscreenFBO;
+    GLuint mOffscreenDrawFBO;
+    GLuint mOffscreenReadFBO;
+    GLuint mOffscreenColorRB;
     GLuint mOffscreenDepthRB;
     GLuint mOffscreenStencilRB;
 
@@ -1071,16 +1379,19 @@ protected:
     // Clear to transparent black, with 0 depth and stencil,
     // while preserving current ClearColor etc. values.
     // Useful for resizing offscreen buffers.
+public:
     void ClearSafely();
+
+protected:
 
     nsDataHashtable<nsVoidPtrHashKey, void*> mUserData;
 
-    void SetIsGLES2(PRBool aIsGLES2) {
+    void SetIsGLES2(bool aIsGLES2) {
         NS_ASSERTION(!mInitialized, "SetIsGLES2 can only be called before initialization!");
         mIsGLES2 = aIsGLES2;
     }
 
-    PRBool InitWithPrefix(const char *prefix, PRBool trygl);
+    bool InitWithPrefix(const char *prefix, bool trygl);
 
     void InitExtensions();
 
@@ -1107,6 +1418,7 @@ protected:
     nsTArray<nsIntRect> mScissorStack;
 
     GLint mMaxTextureSize;
+    GLint mMaxTextureImageSize;
     GLint mMaxRenderbufferSize;
 
 public:
@@ -1422,7 +1734,7 @@ public:
         AFTER_GL_CALL;
     }
 
-    void fClear(GLbitfield mask) {
+    void raw_fClear(GLbitfield mask) {
         BEFORE_GL_CALL;
         mSymbols.fClear(mask);
         AFTER_GL_CALL;
@@ -1482,13 +1794,13 @@ public:
         AFTER_GL_CALL;
     }
 
-    void fDrawArrays(GLenum mode, GLint first, GLsizei count) {
+    void raw_fDrawArrays(GLenum mode, GLint first, GLsizei count) {
         BEFORE_GL_CALL;
         mSymbols.fDrawArrays(mode, first, count);
         AFTER_GL_CALL;
     }
 
-    void fDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices) {
+    void raw_fDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid *indices) {
         BEFORE_GL_CALL;
         mSymbols.fDrawElements(mode, count, type, indices);
         AFTER_GL_CALL;
@@ -1506,7 +1818,7 @@ public:
         AFTER_GL_CALL;
     }
 
-    void fFinish() {
+    void raw_fFinish() {
         BEFORE_GL_CALL;
         mSymbols.fFinish();
         AFTER_GL_CALL;
@@ -1724,7 +2036,7 @@ public:
         AFTER_GL_CALL;
     }
 
-    void fReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels) {
+    void raw_fReadPixels(GLint x, GLint y, GLsizei width, GLsizei height, GLenum format, GLenum type, GLvoid *pixels) {
         BEFORE_GL_CALL;
         mSymbols.fReadPixels(x, y, width, height, format, type, pixels);
         AFTER_GL_CALL;
@@ -1970,7 +2282,7 @@ public:
         AFTER_GL_CALL;
     }
 
-    void fCopyTexImage2D(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border) {
+    void raw_fCopyTexImage2D(GLenum target, GLint level, GLenum internalformat, GLint x, GLint y, GLsizei width, GLsizei height, GLint border) {
         BEFORE_GL_CALL;
         mSymbols.fCopyTexImage2D(target, level, internalformat, 
                                  x, FixYValue(y, height),
@@ -1978,7 +2290,7 @@ public:
         AFTER_GL_CALL;
     }
 
-    void fCopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height) {
+    void raw_fCopyTexSubImage2D(GLenum target, GLint level, GLint xoffset, GLint yoffset, GLint x, GLint y, GLsizei width, GLsizei height) {
         BEFORE_GL_CALL;
         mSymbols.fCopyTexSubImage2D(target, level, xoffset, yoffset, 
                                     x, FixYValue(y, height),
@@ -2060,6 +2372,12 @@ public:
         return retval;
     }
 
+    void raw_fBlitFramebuffer(GLint srcX0, GLint srcY0, GLint srcX1, GLint srcY1, GLint dstX0, GLint dstY0, GLint dstX1, GLint dstY1, GLbitfield mask, GLenum filter) {
+        BEFORE_GL_CALL;
+        mSymbols.fBlitFramebuffer(srcX0, srcY0, srcX1, srcY1, dstX0, dstY0, dstX1, dstY1, mask, filter);
+        AFTER_GL_CALL;
+    }
+
     realGLboolean fIsRenderbuffer (GLuint renderbuffer) {
         BEFORE_GL_CALL;
         realGLboolean retval = mSymbols.fIsRenderbuffer(renderbuffer);
@@ -2070,6 +2388,12 @@ public:
     void fRenderbufferStorage(GLenum target, GLenum internalFormat, GLsizei width, GLsizei height) {
         BEFORE_GL_CALL;
         mSymbols.fRenderbufferStorage(target, internalFormat, width, height);
+        AFTER_GL_CALL;
+    }
+
+    void fRenderbufferStorageMultisample(GLenum target, GLsizei samples, GLenum internalFormat, GLsizei width, GLsizei height) {
+        BEFORE_GL_CALL;
+        mSymbols.fRenderbufferStorageMultisample(target, samples, internalFormat, width, height);
         AFTER_GL_CALL;
     }
 
@@ -2210,6 +2534,14 @@ public:
          AFTER_GL_CALL;
          TRACKING_CONTEXT(DeletedRenderbuffers(this, n, names));
      }
+
+     GLenum GLAPIENTRY fGetGraphicsResetStatus() {
+         BEFORE_GL_CALL;
+         GLenum ret = mHasRobustness ? mSymbols.fGetGraphicsResetStatus() : 0;
+         AFTER_GL_CALL;
+         return ret;
+     }
+
 #ifdef DEBUG
     void THEBES_API CreatedProgram(GLContext *aOrigin, GLuint aName);
     void THEBES_API CreatedShader(GLContext *aOrigin, GLuint aName);
@@ -2229,16 +2561,16 @@ public:
 
     struct NamedResource {
         NamedResource()
-            : origin(nsnull), name(0), originDeleted(PR_FALSE)
+            : origin(nsnull), name(0), originDeleted(false)
         { }
 
         NamedResource(GLContext *aOrigin, GLuint aName)
-            : origin(aOrigin), name(aName), originDeleted(PR_FALSE)
+            : origin(aOrigin), name(aName), originDeleted(false)
         { }
 
         GLContext *origin;
         GLuint name;
-        PRBool originDeleted;
+        bool originDeleted;
 
         // for sorting
         bool operator<(const NamedResource& aOther) const {
@@ -2265,28 +2597,28 @@ public:
 
 };
 
-inline PRBool
+inline bool
 DoesVendorStringMatch(const char* aVendorString, const char *aWantedVendor)
 {
     if (!aVendorString || !aWantedVendor)
-        return PR_FALSE;
+        return false;
 
     const char *occurrence = strstr(aVendorString, aWantedVendor);
 
     // aWantedVendor not found
     if (!occurrence)
-        return PR_FALSE;
+        return false;
 
     // aWantedVendor preceded by alpha character
     if (occurrence != aVendorString && isalpha(*(occurrence-1)))
-        return PR_FALSE;
+        return false;
 
     // aWantedVendor followed by alpha character
     const char *afterOccurrence = occurrence + strlen(aWantedVendor);
     if (isalpha(*afterOccurrence))
-        return PR_FALSE;
+        return false;
 
-    return PR_TRUE;
+    return true;
 }
 
 } /* namespace gl */

@@ -65,7 +65,8 @@ nsMsgSendPart::nsMsgSendPart(nsIMsgSend* state, const char *part_charset)
   m_charset_name[sizeof(m_charset_name)-1] = '\0';
   m_children = nsnull;
   m_numchildren = 0;
-  
+  // if we're not added as a child, the default part number will be "1".
+  m_partNum = "1";
   SetMimeDeliveryState(state);
 
   m_parent = nsnull;
@@ -181,7 +182,7 @@ int nsMsgSendPart::SetEncoderData(MimeEncoderData* data)
   return 0;
 }
 
-int nsMsgSendPart::SetMainPart(PRBool value)
+int nsMsgSendPart::SetMainPart(bool value)
 {
   m_mainpart = value;
   return 0;
@@ -199,6 +200,10 @@ int nsMsgSendPart::AddChild(nsMsgSendPart* child)
   m_children = tmp;
   m_children[m_numchildren - 1] = child;
   child->m_parent = this;
+  nsCString partNum(m_partNum);
+  partNum.Append(".");
+  partNum.AppendInt(m_numchildren);
+  child->m_partNum = partNum;
   return 0;
 }
 
@@ -468,7 +473,7 @@ nsMsgSendPart::Write()
 {
   int     status = 0;
   char    *separator = nsnull;
-  PRBool  needToWriteCRLFAfterEncodedBody  = PR_FALSE;
+  bool    needToWriteCRLFAfterEncodedBody  = false;
 
 #define PUSHLEN(str, length)                  \
   do {                            \
@@ -560,7 +565,7 @@ nsMsgSendPart::Write()
     if (!content_type_header) 
     {
       NS_ASSERTION(m_type && *m_type, "null ptr");
-      PRBool needsCharset = mime_type_needs_charset(m_type ? m_type : TEXT_PLAIN);
+      bool needsCharset = mime_type_needs_charset(m_type ? m_type : TEXT_PLAIN);
       if (needsCharset) 
       {
         content_type_header = PR_smprintf("Content-Type: %s; charset=%s" CRLF,
@@ -666,7 +671,7 @@ nsMsgSendPart::Write()
     }
 
     nsCString curLine;
-    PRBool more = PR_TRUE;
+    bool more = true;
 
     /* Kludge to avoid having to allocate memory on the toy computers... */
     if (!mime_mailto_stream_read_buffer) 
@@ -684,7 +689,7 @@ nsMsgSendPart::Write()
     {
       // We are attaching a message, so we should be careful to
       // strip out certain sensitive internal header fields.
-      PRBool skipping = PR_FALSE;
+      bool skipping = false;
       nsLineBuffer<char> *lineBuffer;
       
       rv = NS_InitLineBuffer(&lineBuffer);
@@ -774,7 +779,7 @@ nsMsgSendPart::Write()
   //
   if (m_numchildren > 0) 
   {
-    PRBool  writeSeparator = PR_TRUE;
+    bool    writeSeparator = true;
 
     for (int i = 0 ; i < m_numchildren ; i ++) 
     {

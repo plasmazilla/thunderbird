@@ -56,12 +56,6 @@
   -moz-appearance:  none;
   background-color: -moz-Field;
   color: -moz-FieldText;
-  -moz-border-left-colors: ThreeDShadow ThreeDDarkShadow;
-  -moz-border-bottom-colors: ThreeDHighlight ThreeDLightShadow;
-  -moz-border-right-colors: ThreeDHighlight ThreeDLightShadow;
-  border-left: 1px solid;
-  border-right: 1px solid;
-  border-bottom: 1px solid;
 }
 
 #mailContent {
@@ -199,6 +193,7 @@ treecol.flagColumnHeader {
 
 treechildren::-moz-tree-image(flaggedCol) {
   list-style-image: url("chrome://messenger/skin/icons/flag-empty.png");
+  -moz-padding-end: 2px;
 }
 
 treechildren::-moz-tree-image(flaggedCol, dummy) {
@@ -235,7 +230,16 @@ treechildren::-moz-tree-image(junkStatusCol, notjunk) {
   list-style-image: url("chrome://messenger/skin/icons/readmail.png");
   -moz-padding-start: 0px;
 }
+
 /* ..... subject column ..... */
+
+#subjectCol {
+  -moz-padding-start: 17px;
+}
+
+#subjectCol[primary="true"] {
+  -moz-padding-start: 30px;
+}
 
 treechildren::-moz-tree-image(subjectCol) {
   -moz-margin-end: 2px;
@@ -271,6 +275,9 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
   -moz-image-region: rect(0 80px 16px 64px);
 }
 
+treechildren::-moz-tree-cell-text(subjectCol) {
+  -moz-padding-start: 0 !important;
+}
 
 #sizeCol,
 #unreadCol,
@@ -313,28 +320,62 @@ treechildren::-moz-tree-image(subjectCol, imapdeleted) {
 
 /* ..... splitter adjustments ..... */
 
-#folderpane_splitter {
-  border-right: none;
+#mailContent[layout="standard"] #threadpane-splitter {
+  /* Overlap the folder pane splitter to make the splitters appear unified. */
+  -moz-margin-start: -1px;
 }
 
-#threadpane-splitter {
-  border: none;
-  min-height: 5px;
+#mailContent[layout="standard"] #folderpane_splitter:-moz-locale-dir(rtl) {
+  /* Don't draw the splitter's border here... */
+  border-left: 0;
 }
 
-/* ..... tree adjustments ..... */
-
-#accountCentralBox { 
-  border: 1px solid ThreeDShadow; 
+#mailContent[layout="standard"] #threadPaneBox:-moz-locale-dir(rtl),
+#mailContent[layout="standard"] #messagepanebox:-moz-locale-dir(rtl){
+  /* ... draw it here instead! (This removes the white highlight just to the
+     right of the thread pane splitter so everything looks pretty.) */
+  margin-right: -2px;
+  border-right: 2px solid;
+  -moz-border-right-colors: ThreeDHighlight ThreeDShadow;
 }
 
-/* ..... message pane adjustments ..... */
+#mailContent[layout="standard"] #threadPaneBox:-moz-locale-dir(rtl) {
+  /* Make sure we have a white dot in the top-left corner where the splitters
+     meet. */
+  margin-bottom: -2px;
+  padding-bottom: 2px;
+}
 
-#messagepanebox {
-  border-top: 1px solid ThreeDShadow;
-  border-left: 1px solid ThreeDShadow;
-  border-right: 0px;
-  border-bottom: 0px;
+#mailContent[layout="wide"] #folderpane_splitter {
+  /* Make this draw above the thread pane splitter so that we overlap its top
+     border. This will make the splitters appear unified. */
+  position: relative;
+  z-index: 2;
+  margin-bottom: -1px;
+}
+
+#mailContent[layout="wide"] #threadpane-splitter {
+  /* Don't draw the splitter's border here... */
+  border-top: 0;
+}
+
+#mailContent[layout="wide"] #threadPaneBox,
+#mailContent[layout="wide"] #folderPaneBox {
+  /* ... draw it here instead! (This removes the white highlight just below the
+     folder pane splitter so everything looks pretty.) */
+  position: relative;
+  z-index: 1;
+  margin-bottom: -2px;
+  border-bottom: 2px solid;
+  -moz-border-bottom-colors: ThreeDHighlight ThreeDShadow;
+}
+
+#mailContent[layout="wide"] #folderPaneBox:-moz-locale-dir(ltr),
+#mailContent[layout="wide"] #threadPaneBox:-moz-locale-dir(rtl) {
+  /* Make sure we have a white dot in the top-left corner where the splitters
+     meet. */
+  margin-right: -2px;
+  padding-right: 2px;
 }
 
 /* ..... status bar adjustments ..... */

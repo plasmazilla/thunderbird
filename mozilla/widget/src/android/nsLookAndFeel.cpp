@@ -45,11 +45,11 @@
 using namespace mozilla;
 using mozilla::dom::ContentChild;
 
-PRBool nsLookAndFeel::mInitializedSystemColors = PR_FALSE;
+bool nsLookAndFeel::mInitializedSystemColors = false;
 AndroidSystemColors nsLookAndFeel::mSystemColors;
 
-PRBool nsLookAndFeel::mInitializedShowPassword = PR_FALSE;
-PRBool nsLookAndFeel::mShowPassword = PR_TRUE;
+bool nsLookAndFeel::mInitializedShowPassword = false;
+bool nsLookAndFeel::mShowPassword = true;
 
 nsLookAndFeel::nsLookAndFeel()
     : nsXPLookAndFeel()
@@ -79,7 +79,7 @@ nsLookAndFeel::GetSystemColors()
 
     AndroidBridge::Bridge()->GetSystemColors(&mSystemColors);
 
-    mInitializedSystemColors = PR_TRUE;
+    mInitializedSystemColors = true;
 
     return NS_OK;
 }
@@ -105,7 +105,7 @@ nsLookAndFeel::CallRemoteGetSystemColors()
     // so just copy the memory block
     memcpy(&mSystemColors, colors.Elements(), sizeof(nscolor) * colorsCount);
 
-    mInitializedSystemColors = PR_TRUE;
+    mInitializedSystemColors = true;
 
     return NS_OK;
 }
@@ -464,7 +464,7 @@ nsLookAndFeel::GetFloatImpl(FloatID aID, float &aResult)
 }
 
 /*virtual*/
-PRBool
+bool
 nsLookAndFeel::GetEchoPasswordImpl()
 {
     if (!mInitializedShowPassword) {
@@ -476,7 +476,7 @@ nsLookAndFeel::GetEchoPasswordImpl()
         } else {
             ContentChild::GetSingleton()->SendGetShowPasswordSetting(&mShowPassword);
         }
-        mInitializedShowPassword = PR_TRUE;
+        mInitializedShowPassword = true;
     }
     return mShowPassword;
 }

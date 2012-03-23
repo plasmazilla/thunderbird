@@ -759,10 +759,10 @@ __try {
       xpAccessible->TakeSelection();
 
     if (flagsSelect & SELFLAG_ADDSELECTION)
-      xpAccessible->SetSelected(PR_TRUE);
+      xpAccessible->SetSelected(true);
 
     if (flagsSelect & SELFLAG_REMOVESELECTION)
-      xpAccessible->SetSelected(PR_FALSE);
+      xpAccessible->SetSelected(false);
 
     if (flagsSelect & SELFLAG_EXTENDSELECTION)
       xpAccessible->ExtendSelection();
@@ -1590,6 +1590,13 @@ nsAccessibleWrap::FirePlatformEvent(AccEvent* aEvent)
 
   // Fire MSAA event for client area window.
   NotifyWinEvent(winEvent, hWnd, OBJID_CLIENT, childID);
+
+  // JAWS announces collapsed combobox navigation based on focus events.
+  if (eventType == nsIAccessibleEvent::EVENT_SELECTION &&
+      accessible->Role() == nsIAccessibleRole::ROLE_COMBOBOX_OPTION &&
+      nsWinUtils::IsWindowEmulationFor(kJAWSModuleHandle)) {
+    NotifyWinEvent(EVENT_OBJECT_FOCUS, hWnd, OBJID_CLIENT, childID);
+  }
   return NS_OK;
 }
 
@@ -1617,19 +1624,21 @@ nsAccessibleWrap::GetHWNDFor(nsAccessible *aAccessible)
     nsIFrame* frame = aAccessible->GetFrame();
     if (frame) {
       nsIWidget* widget = frame->GetNearestWidget();
-      PRBool isVisible = PR_FALSE;
-      widget->IsVisible(isVisible);
-      if (isVisible) {
-        nsCOMPtr<nsIPresShell> shell(aAccessible->GetPresShell());
-        nsIViewManager* vm = shell->GetViewManager();
-        if (vm) {
-          nsCOMPtr<nsIWidget> rootWidget;
-          vm->GetRootWidget(getter_AddRefs(rootWidget));
-          // Make sure the accessible belongs to popup. If not then use
-          // document HWND (which might be different from root widget in the
-          // case of window emulation).
-          if (rootWidget != widget)
-            return static_cast<HWND>(widget->GetNativeData(NS_NATIVE_WINDOW));
+      if (widget) {
+        bool isVisible = false;
+        widget->IsVisible(isVisible);
+        if (isVisible) {
+          nsCOMPtr<nsIPresShell> shell(aAccessible->GetPresShell());
+          nsIViewManager* vm = shell->GetViewManager();
+          if (vm) {
+            nsCOMPtr<nsIWidget> rootWidget;
+            vm->GetRootWidget(getter_AddRefs(rootWidget));
+            // Make sure the accessible belongs to popup. If not then use
+            // document HWND (which might be different from root widget in the
+            // case of window emulation).
+            if (rootWidget != widget)
+              return static_cast<HWND>(widget->GetNativeData(NS_NATIVE_WINDOW));
+          }
         }
       }
     }
@@ -1662,7 +1671,7 @@ nsAccessibleWrap::ConvertToIA2Attributes(nsIPersistentProperties *aAttributes,
 
   const char kCharsToEscape[] = ":;=,\\";
 
-  PRBool hasMore = PR_FALSE;
+  bool hasMore = false;
   while (NS_SUCCEEDED(propEnum->HasMoreElements(&hasMore)) && hasMore) {
     nsCOMPtr<nsISupports> propSupports;
     propEnum->GetNext(getter_AddRefs(propSupports));

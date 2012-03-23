@@ -107,12 +107,40 @@ browser.jar:
         skin/classic/browser/tabview/tabview-inverted.png           (tabview/tabview-inverted.png)
         skin/classic/browser/tabview/tabview.css                    (tabview/tabview.css)
         skin/classic/browser/devtools/arrows.png                    (devtools/arrows.png)
-        skin/classic/browser/devtools/search.png                    (devtools/search.png)
+        skin/classic/browser/devtools/goto-mdn.png                  (devtools/goto-mdn.png)
         skin/classic/browser/devtools/csshtmltree.css               (devtools/csshtmltree.css)
+        skin/classic/browser/devtools/gcli.css                      (devtools/gcli.css)
+        skin/classic/browser/devtools/toolbarbutton-close.png       (devtools/toolbarbutton-close.png)
+        skin/classic/browser/devtools/breadcrumbs/ltr-end-pressed.png              (devtools/breadcrumbs/ltr-end-pressed.png)
+        skin/classic/browser/devtools/breadcrumbs/ltr-end-selected-pressed.png     (devtools/breadcrumbs/ltr-end-selected-pressed.png)
+        skin/classic/browser/devtools/breadcrumbs/ltr-end-selected.png             (devtools/breadcrumbs/ltr-end-selected.png)
+        skin/classic/browser/devtools/breadcrumbs/ltr-end.png                      (devtools/breadcrumbs/ltr-end.png)
+        skin/classic/browser/devtools/breadcrumbs/ltr-middle-pressed.png           (devtools/breadcrumbs/ltr-middle-pressed.png)
+        skin/classic/browser/devtools/breadcrumbs/ltr-middle-selected-pressed.png  (devtools/breadcrumbs/ltr-middle-selected-pressed.png)
+        skin/classic/browser/devtools/breadcrumbs/ltr-middle-selected.png          (devtools/breadcrumbs/ltr-middle-selected.png)
+        skin/classic/browser/devtools/breadcrumbs/ltr-middle.png                   (devtools/breadcrumbs/ltr-middle.png)
+        skin/classic/browser/devtools/breadcrumbs/ltr-start-pressed.png            (devtools/breadcrumbs/ltr-start-pressed.png)
+        skin/classic/browser/devtools/breadcrumbs/ltr-start-selected-pressed.png   (devtools/breadcrumbs/ltr-start-selected-pressed.png)
+        skin/classic/browser/devtools/breadcrumbs/ltr-start.png                    (devtools/breadcrumbs/ltr-start.png)
+        skin/classic/browser/devtools/breadcrumbs/ltr-start-selected.png           (devtools/breadcrumbs/ltr-start-selected.png)
+        skin/classic/browser/devtools/breadcrumbs/rtl-end-pressed.png              (devtools/breadcrumbs/rtl-end-pressed.png)
+        skin/classic/browser/devtools/breadcrumbs/rtl-end-selected-pressed.png     (devtools/breadcrumbs/rtl-end-selected-pressed.png)
+        skin/classic/browser/devtools/breadcrumbs/rtl-end-selected.png             (devtools/breadcrumbs/rtl-end-selected.png)
+        skin/classic/browser/devtools/breadcrumbs/rtl-end.png                      (devtools/breadcrumbs/rtl-end.png)
+        skin/classic/browser/devtools/breadcrumbs/rtl-middle-pressed.png           (devtools/breadcrumbs/rtl-middle-pressed.png)
+        skin/classic/browser/devtools/breadcrumbs/rtl-middle-selected-pressed.png  (devtools/breadcrumbs/rtl-middle-selected-pressed.png)
+        skin/classic/browser/devtools/breadcrumbs/rtl-middle-selected.png          (devtools/breadcrumbs/rtl-middle-selected.png)
+        skin/classic/browser/devtools/breadcrumbs/rtl-middle.png                   (devtools/breadcrumbs/rtl-middle.png)
+        skin/classic/browser/devtools/breadcrumbs/rtl-start-pressed.png            (devtools/breadcrumbs/rtl-start-pressed.png)
+        skin/classic/browser/devtools/breadcrumbs/rtl-start-selected-pressed.png   (devtools/breadcrumbs/rtl-start-selected-pressed.png)
+        skin/classic/browser/devtools/breadcrumbs/rtl-start.png                    (devtools/breadcrumbs/rtl-start.png)
+        skin/classic/browser/devtools/breadcrumbs/rtl-start-selected.png           (devtools/breadcrumbs/rtl-start-selected.png)
+
 #ifdef MOZ_SERVICES_SYNC
         skin/classic/browser/sync-throbber.png
         skin/classic/browser/sync-16.png
         skin/classic/browser/sync-32.png
+        skin/classic/browser/sync-128.png
         skin/classic/browser/sync-bg.png
         skin/classic/browser/sync-desktopIcon.png
         skin/classic/browser/sync-mobileIcon.png
@@ -120,6 +148,7 @@ browser.jar:
         skin/classic/browser/syncSetup.css
         skin/classic/browser/syncCommon.css
         skin/classic/browser/syncQuota.css
+        skin/classic/browser/syncProgress.css
 #endif
 
 #ifdef XP_WIN
@@ -230,12 +259,40 @@ browser.jar:
         skin/classic/aero/browser/tabview/tabview-inverted.png       (tabview/tabview-inverted.png)
         skin/classic/aero/browser/tabview/tabview.css                (tabview/tabview.css)
         skin/classic/aero/browser/devtools/arrows.png                (devtools/arrows.png)
-        skin/classic/aero/browser/devtools/search.png                (devtools/search.png)
+        skin/classic/aero/browser/devtools/goto-mdn.png              (devtools/goto-mdn.png)
         skin/classic/aero/browser/devtools/csshtmltree.css           (devtools/csshtmltree.css)
+        skin/classic/aero/browser/devtools/gcli.css                  (devtools/gcli.css)
+        skin/classic/aero/browser/devtools/toolbarbutton-close.png   (devtools/toolbarbutton-close.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/ltr-end-pressed.png              (devtools/breadcrumbs/ltr-end-pressed.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/ltr-end-selected-pressed.png     (devtools/breadcrumbs/ltr-end-selected-pressed.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/ltr-end-selected.png             (devtools/breadcrumbs/ltr-end-selected.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/ltr-end.png                      (devtools/breadcrumbs/ltr-end.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/ltr-middle-pressed.png           (devtools/breadcrumbs/ltr-middle-pressed.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/ltr-middle-selected-pressed.png  (devtools/breadcrumbs/ltr-middle-selected-pressed.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/ltr-middle-selected.png          (devtools/breadcrumbs/ltr-middle-selected.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/ltr-middle.png                   (devtools/breadcrumbs/ltr-middle.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/ltr-start-pressed.png            (devtools/breadcrumbs/ltr-start-pressed.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/ltr-start-selected-pressed.png   (devtools/breadcrumbs/ltr-start-selected-pressed.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/ltr-start.png                    (devtools/breadcrumbs/ltr-start.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/ltr-start-selected.png           (devtools/breadcrumbs/ltr-start-selected.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/rtl-end-pressed.png              (devtools/breadcrumbs/rtl-end-pressed.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/rtl-end-selected-pressed.png     (devtools/breadcrumbs/rtl-end-selected-pressed.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/rtl-end-selected.png             (devtools/breadcrumbs/rtl-end-selected.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/rtl-end.png                      (devtools/breadcrumbs/rtl-end.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/rtl-middle-pressed.png           (devtools/breadcrumbs/rtl-middle-pressed.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/rtl-middle-selected-pressed.png  (devtools/breadcrumbs/rtl-middle-selected-pressed.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/rtl-middle-selected.png          (devtools/breadcrumbs/rtl-middle-selected.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/rtl-middle.png                   (devtools/breadcrumbs/rtl-middle.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/rtl-start-pressed.png            (devtools/breadcrumbs/rtl-start-pressed.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/rtl-start-selected-pressed.png   (devtools/breadcrumbs/rtl-start-selected-pressed.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/rtl-start.png                    (devtools/breadcrumbs/rtl-start.png)
+        skin/classic/aero/browser/devtools/breadcrumbs/rtl-start-selected.png           (devtools/breadcrumbs/rtl-start-selected.png)
+
 #ifdef MOZ_SERVICES_SYNC
         skin/classic/aero/browser/sync-throbber.png
         skin/classic/aero/browser/sync-16.png
         skin/classic/aero/browser/sync-32.png
+        skin/classic/aero/browser/sync-128.png
         skin/classic/aero/browser/sync-bg.png
         skin/classic/aero/browser/sync-desktopIcon.png
         skin/classic/aero/browser/sync-mobileIcon.png
@@ -243,5 +300,6 @@ browser.jar:
         skin/classic/aero/browser/syncSetup.css
         skin/classic/aero/browser/syncCommon.css
         skin/classic/aero/browser/syncQuota.css
+        skin/classic/aero/browser/syncProgress.css
 #endif
 #endif

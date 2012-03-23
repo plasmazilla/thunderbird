@@ -51,11 +51,14 @@ XPI_PKGNAME = gdata-provider
 CALENDAR_VERSION := $(shell cat $(topsrcdir)/calendar/sunbird/config/version.txt)
 THUNDERBIRD_VERSION := $(shell cat $(topsrcdir)/mail/config/version.txt)
 SEAMONKEY_VERSION := $(shell cat $(topsrcdir)/suite/config/version.txt)
+GDATA_VERSION = $(shell $(PYTHON) $(srcdir)/makeversion.py $(CALENDAR_VERSION))
+
 DEFINES += -DAB_CD=$(AB_CD) \
            -DCALENDAR_VERSION=$(CALENDAR_VERSION) \
            -DSEAMONKEY_VERSION=$(SEAMONKEY_VERSION) \
            -DTHUNDERBIRD_VERSION=$(THUNDERBIRD_VERSION) \
            -DCOMM_BUILD=$(COMM_BUILD) \
+           -DGDATA_VERSION=$(GDATA_VERSION) \
            $(NULL)
 
 PREF_JS_EXPORTS = $(srcdir)/defaults/preferences.js

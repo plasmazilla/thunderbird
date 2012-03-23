@@ -242,7 +242,7 @@ public:
   nsSaveAllAttachmentsState *m_saveAllAttachmentsState;
 
   // rhp: For character set handling
-  PRBool        m_doCharsetConversion;
+  bool          m_doCharsetConversion;
   nsString      m_charset;
   enum {
     eUnknown,
@@ -258,10 +258,10 @@ public:
   nsCOMPtr<nsIURI> mListenerUri;
   PRInt64 mProgress;
   PRInt64 mMaxProgress;
-  PRBool  mCanceled;
-  PRBool  mInitialized;
-  PRBool  mUrlHasStopped;
-  PRBool  mRequestHasStopped;
+  bool    mCanceled;
+  bool    mInitialized;
+  bool    mUrlHasStopped;
+  bool    mRequestHasStopped;
   nsresult InitializeDownload(nsIRequest * aRequest, PRUint32 aBytesDownloaded);
 };
 
@@ -274,7 +274,7 @@ public:
                             const char **displayNameArray,
                             const char **messageUriArray,
                             const char *directoryName,
-                            PRBool detachingAttachments);
+                            bool detachingAttachments);
   virtual ~nsSaveAllAttachmentsState();
 
   PRUint32 m_count;
@@ -284,12 +284,12 @@ public:
   char** m_urlArray;
   char** m_displayNameArray;
   char** m_messageUriArray;
-  PRBool m_detachingAttachments;
+  bool m_detachingAttachments;
 
   // if detaching, do without warning? Will create unique files instead of
   //  prompting if duplicate files exist.
-  PRBool m_withoutWarning;
-  nsCStringArray m_savedFiles; // if detaching first, remember where we saved to.
+  bool m_withoutWarning;
+  nsTArray<nsCString> m_savedFiles; // if detaching first, remember where we saved to.
 };
 
 //
@@ -398,14 +398,14 @@ nsresult
 nsMessenger::PromptIfFileExists(nsILocalFile *file)
 {
   nsresult rv = NS_ERROR_FAILURE;
-  PRBool exists;
+  bool exists;
   file->Exists(&exists);
   if (exists)
   {
     nsCOMPtr<nsIPrompt> dialog(do_GetInterface(mDocShell));
     if (!dialog) return rv;
     nsAutoString path;
-    PRBool dialogResult = PR_FALSE;
+    bool dialogResult = false;
     nsString errorMessage;
 
     file->GetPath(path);
@@ -494,7 +494,7 @@ void nsMessenger::AddMsgUrlToNavigateHistory(const nsACString& aURL)
   // in which case we don't want to add the url to the history list.
   // Or if the entry at the cur history pos is the same as what we're loading, don't
   // add it to the list.
-  if (!mNavigatingToUri.Equals(aURL) && (mCurHistoryPos < 0 || !mLoadedMsgHistory[mCurHistoryPos]->Equals(aURL)))
+  if (!mNavigatingToUri.Equals(aURL) && (mCurHistoryPos < 0 || !mLoadedMsgHistory[mCurHistoryPos].Equals(aURL)))
   {
     mNavigatingToUri = aURL;
     nsCString curLoadedFolderUri;
@@ -507,8 +507,8 @@ void nsMessenger::AddMsgUrlToNavigateHistory(const nsACString& aURL)
     if (curLoadedFolder)
       curLoadedFolder->GetURI(curLoadedFolderUri);
 
-    mLoadedMsgHistory.InsertCStringAt(mNavigatingToUri, mCurHistoryPos++ + 2);
-    mLoadedMsgHistory.InsertCStringAt(curLoadedFolderUri, mCurHistoryPos++ + 2);
+    mLoadedMsgHistory.InsertElementAt(mCurHistoryPos++ + 2, mNavigatingToUri);
+    mLoadedMsgHistory.InsertElementAt(mCurHistoryPos++ + 2, curLoadedFolderUri);
     // we may want to prune this history if it gets large, but I think it's
     // more interesting to prune the back and forward menu.
   }
@@ -569,8 +569,8 @@ nsMessenger::LoadURL(nsIDOMWindow *aWin, const nsACString& aURL)
   uriString.StripChars("\r\n");
   NS_ENSURE_TRUE(!uriString.IsEmpty(), NS_ERROR_FAILURE);
 
-  PRBool loadingFromFile = PR_FALSE;
-  PRBool getDummyMsgHdr = PR_FALSE;
+  bool loadingFromFile = false;
+  bool getDummyMsgHdr = false;
   PRInt64 fileSize;
 
   if (StringBeginsWith(uriString, NS_LITERAL_STRING("file:")))
@@ -747,7 +747,7 @@ nsresult nsMessenger::SaveAttachment(nsIFile *aFile,
       NS_ENSURE_SUCCESS(rv, rv);
       nsCAutoString fileUriSpec;
       outputURI->GetSpec(fileUriSpec);
-      saveState->m_savedFiles.AppendCString(fileUriSpec);
+      saveState->m_savedFiles.AppendElement(fileUriSpec);
     }
   }
 
@@ -817,7 +817,7 @@ nsresult nsMessenger::SaveAttachment(nsIFile *aFile,
 
 NS_IMETHODIMP
 nsMessenger::OpenAttachment(const nsACString& aContentType, const nsACString& aURL,
-                            const nsACString& aDisplayName, const nsACString& aMessageUri, PRBool aIsExternalAttachment)
+                            const nsACString& aDisplayName, const nsACString& aMessageUri, bool aIsExternalAttachment)
 {
   nsresult rv = NS_OK;
 
@@ -867,7 +867,7 @@ nsMessenger::SaveAttachmentToFolder(const nsACString& contentType, const nsACStr
 
 NS_IMETHODIMP
 nsMessenger::SaveAttachment(const nsACString& aContentType, const nsACString& aURL,
-                            const nsACString& aDisplayName, const nsACString& aMessageUri, PRBool aIsExternalAttachment)
+                            const nsACString& aDisplayName, const nsACString& aMessageUri, bool aIsExternalAttachment)
 {
   // open external attachments inside our message pane which in turn should trigger the
   // helper app dialog...
@@ -883,7 +883,7 @@ nsMessenger::SaveAttachment(const nsACString& aContentType, const nsACString& aU
 nsresult
 nsMessenger::SaveOneAttachment(const char * aContentType, const char * aURL,
                                const char * aDisplayName, const char * aMessageUri,
-                               PRBool detaching)
+                               bool detaching)
 {
   nsresult rv = NS_ERROR_OUT_OF_MEMORY;
   nsCOMPtr<nsIFilePicker> filePicker =
@@ -953,7 +953,7 @@ nsMessenger::SaveAllAttachments(PRUint32 count,
                                 const char **urlArray,
                                 const char **displayNameArray,
                                 const char **messageUriArray,
-                                PRBool detaching)
+                                bool detaching)
 {
   nsresult rv = NS_ERROR_OUT_OF_MEMORY;
   nsCOMPtr<nsIFilePicker> filePicker =
@@ -1020,9 +1020,9 @@ enum MESSENGER_SAVEAS_FILE_TYPE
 #define TEXT_FILE_EXTENSION ".txt"
 
 NS_IMETHODIMP
-nsMessenger::SaveAs(const nsACString& aURI, PRBool aAsFile,
+nsMessenger::SaveAs(const nsACString& aURI, bool aAsFile,
                     nsIMsgIdentity *aIdentity, const nsAString& aMsgFilename,
-                    PRBool aBypassFilePicker)
+                    bool aBypassFilePicker)
 {
   nsCOMPtr<nsIMsgMessageService> messageService;
   nsCOMPtr<nsIUrlListener> urlListener;
@@ -1165,8 +1165,8 @@ nsMessenger::SaveAs(const nsACString& aURI, PRBool aAsFile,
     if (NS_FAILED(rv))
       goto done;
 
-    PRBool needDummyHeader = StringBeginsWith(saveListener->m_templateUri, NS_LITERAL_CSTRING("mailbox://"));
-    PRBool canonicalLineEnding = StringBeginsWith(saveListener->m_templateUri, NS_LITERAL_CSTRING("imap://"));
+    bool needDummyHeader = StringBeginsWith(saveListener->m_templateUri, NS_LITERAL_CSTRING("mailbox://"));
+    bool canonicalLineEnding = StringBeginsWith(saveListener->m_templateUri, NS_LITERAL_CSTRING("imap://"));
 
     rv = saveListener->QueryInterface(
       NS_GET_IID(nsIUrlListener),
@@ -1287,7 +1287,7 @@ nsMessenger::GetSaveAsFile(const nsAString& aMsgFilename, PRInt32 *aSaveAsFileTy
   if (dialogResult == nsIFilePicker::returnReplace)
   {
     // be extra safe and only delete when the file is really a file
-    PRBool isFile;
+    bool isFile;
     rv = localFile->IsFile(&isFile);
     if (NS_SUCCEEDED(rv) && isFile)
     {
@@ -1489,7 +1489,7 @@ NS_IMETHODIMP nsMessenger::GetUndoTransactionType(PRUint32 *txnType)
   return rv;
 }
 
-NS_IMETHODIMP nsMessenger::CanUndo(PRBool *bValue)
+NS_IMETHODIMP nsMessenger::CanUndo(bool *bValue)
 {
   NS_ENSURE_TRUE(bValue && mTxnMgr, NS_ERROR_NULL_POINTER);
 
@@ -1519,7 +1519,7 @@ NS_IMETHODIMP nsMessenger::GetRedoTransactionType(PRUint32 *txnType)
   return rv;
 }
 
-NS_IMETHODIMP nsMessenger::CanRedo(PRBool *bValue)
+NS_IMETHODIMP nsMessenger::CanRedo(bool *bValue)
 {
   NS_ENSURE_TRUE(bValue && mTxnMgr, NS_ERROR_NULL_POINTER);
 
@@ -1791,7 +1791,7 @@ nsresult nsSaveMsgListener::InitializeDownload(nsIRequest * aRequest, PRUint32 a
     // When we don't allow warnings, also don't show progress, as this
     //  is an environment (typically filters) where we don't want
     //  interruption.
-    PRBool allowProgress = PR_TRUE;
+    bool allowProgress = true;
     if (m_saveAllAttachmentsState)
       allowProgress = !m_saveAllAttachmentsState->m_withoutWarning;
     if (allowProgress && mMaxProgress != -1 &&
@@ -2062,7 +2062,7 @@ nsSaveAllAttachmentsState::nsSaveAllAttachmentsState(PRUint32 count,
                                                      const char **nameArray,
                                                      const char **uriArray,
                                                      const char *dirName,
-                                                     PRBool detachingAttachments)
+                                                     bool detachingAttachments)
     : m_withoutWarning(PR_FALSE)
 {
     PRUint32 i;
@@ -2133,7 +2133,7 @@ nsMessenger::SetLastSaveDirectory(nsILocalFile *aLocalFile)
   // otherwise, use the parent of the file as the last dir chosen.
   // IsDirectory() will return error on saving a file, as the
   // file doesn't exist yet.
-  PRBool isDirectory;
+  bool isDirectory;
   rv = file->IsDirectory(&isDirectory);
   if (NS_SUCCEEDED(rv) && isDirectory) {
     rv = prefBranch->SetComplexValue(MESSENGER_SAVE_DIR_PREF_NAME, NS_GET_IID(nsILocalFile), aLocalFile);
@@ -2158,9 +2158,9 @@ nsMessenger::SetLastSaveDirectory(nsILocalFile *aLocalFile)
 NS_IMETHODIMP nsMessenger::GetMsgUriAtNavigatePos(PRInt32 aPos, nsACString& aMsgUri)
 {
   PRInt32 desiredArrayIndex = (mCurHistoryPos + (aPos << 1));
-  if (desiredArrayIndex >= 0 && desiredArrayIndex < mLoadedMsgHistory.Count())
+  if (desiredArrayIndex >= 0 && desiredArrayIndex < (PRInt32)mLoadedMsgHistory.Length())
   {
-    mNavigatingToUri = mLoadedMsgHistory[desiredArrayIndex]->get();
+    mNavigatingToUri = mLoadedMsgHistory[desiredArrayIndex];
     aMsgUri = mNavigatingToUri;
     return NS_OK;
   }
@@ -2169,7 +2169,7 @@ NS_IMETHODIMP nsMessenger::GetMsgUriAtNavigatePos(PRInt32 aPos, nsACString& aMsg
 
 NS_IMETHODIMP nsMessenger::SetNavigatePos(PRInt32 aPos)
 {
-  if ((aPos << 1) < mLoadedMsgHistory.Count())
+  if ((aPos << 1) < (PRInt32)mLoadedMsgHistory.Length())
   {
     mCurHistoryPos = aPos << 1;
     return NS_OK;
@@ -2189,9 +2189,9 @@ NS_IMETHODIMP nsMessenger::GetNavigatePos(PRInt32 *aPos)
 NS_IMETHODIMP nsMessenger::GetFolderUriAtNavigatePos(PRInt32 aPos, nsACString& aFolderUri)
 {
   PRInt32 desiredArrayIndex = (mCurHistoryPos + (aPos << 1));
-  if (desiredArrayIndex >= 0 && desiredArrayIndex < mLoadedMsgHistory.Count())
+  if (desiredArrayIndex >= 0 && desiredArrayIndex < (PRInt32)mLoadedMsgHistory.Length())
   {
-    mNavigatingToUri = mLoadedMsgHistory[desiredArrayIndex + 1]->get();
+    mNavigatingToUri = mLoadedMsgHistory[desiredArrayIndex + 1];
     aFolderUri = mNavigatingToUri;
     return NS_OK;
   }
@@ -2204,7 +2204,7 @@ NS_IMETHODIMP nsMessenger::GetNavigateHistory(PRUint32 *aCurPos, PRUint32 *aCoun
   NS_ENSURE_ARG_POINTER(aCurPos);
 
   *aCurPos = mCurHistoryPos >> 1;
-  *aCount = mLoadedMsgHistory.Count();
+  *aCount = mLoadedMsgHistory.Length();
   // for just enabling commands, we don't need the history uris.
   if (!aHistoryUris)
     return NS_OK;
@@ -2214,7 +2214,7 @@ NS_IMETHODIMP nsMessenger::GetNavigateHistory(PRUint32 *aCurPos, PRUint32 *aCoun
   if (!outArray) return NS_ERROR_OUT_OF_MEMORY;
   for (PRUint32 i = 0; i < *aCount; i++)
   {
-    *next = ToNewCString(*(mLoadedMsgHistory[i]));
+    *next = ToNewCString(mLoadedMsgHistory[i]);
     if (!*next)
       return NS_ERROR_OUT_OF_MEMORY;
     next++;
@@ -2224,7 +2224,7 @@ NS_IMETHODIMP nsMessenger::GetNavigateHistory(PRUint32 *aCurPos, PRUint32 *aCoun
 }
 
 NS_IMETHODIMP
-nsMessenger::FormatFileSize(PRUint64 aSize, PRBool aUseKB, nsAString& aFormattedSize)
+nsMessenger::FormatFileSize(PRUint64 aSize, bool aUseKB, nsAString& aFormattedSize)
 {
   return ::FormatFileSize(aSize, aUseKB, aFormattedSize);
 }
@@ -2257,8 +2257,8 @@ NS_IMETHODIMP nsMessenger::OnItemRemoved(nsIMsgFolder *parentItem, nsISupports *
       PRInt32 uriPos = mLoadedMsgHistory.IndexOf(msgUri);
       if (uriPos != kNotFound)
       {
-        mLoadedMsgHistory.RemoveCStringAt(uriPos);
-        mLoadedMsgHistory.RemoveCStringAt(uriPos); // and the folder uri entry
+        mLoadedMsgHistory.RemoveElementAt(uriPos);
+        mLoadedMsgHistory.RemoveElementAt(uriPos); // and the folder uri entry
         if ((PRInt32) mCurHistoryPos >= uriPos)
           mCurHistoryPos -= 2;
       }
@@ -2280,7 +2280,7 @@ NS_IMETHODIMP nsMessenger::OnItemIntPropertyChanged(nsIMsgFolder *item, nsIAtom 
 }
 
 /* void OnItemBoolPropertyChanged (in nsIMsgFolder item, in nsIAtom property, in boolean oldValue, in boolean newValue); */
-NS_IMETHODIMP nsMessenger::OnItemBoolPropertyChanged(nsIMsgFolder *item, nsIAtom *property, PRBool oldValue, PRBool newValue)
+NS_IMETHODIMP nsMessenger::OnItemBoolPropertyChanged(nsIMsgFolder *item, nsIAtom *property, bool oldValue, bool newValue)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -2394,7 +2394,7 @@ struct msgAttachment
     NS_Free(mMessageUri);
   }
 
-  PRBool Init(const char * aContentType, const char * aUrl,
+  bool Init(const char * aContentType, const char * aUrl,
               const char * aDisplayName, const char * aMessageUri)
   {
     Clear();
@@ -2561,13 +2561,13 @@ public:
   nsDelAttachListener();
   virtual ~nsDelAttachListener();
   nsresult StartProcessing(nsMessenger * aMessenger, nsIMsgWindow * aMsgWindow,
-    nsAttachmentState * aAttach, PRBool aSaveFirst);
+    nsAttachmentState * aAttach, bool aSaveFirst);
   nsresult DeleteOriginalMessage();
   void SelectNewMessage();
 
 public:
   nsAttachmentState * mAttach;                      // list of attachments to process
-  PRBool mSaveFirst;                                // detach (PR_TRUE) or delete (PR_FALSE)
+  bool mSaveFirst;                                // detach (true) or delete (false)
   nsCOMPtr<nsIFile> mMsgFile;                       // temporary file (processed mail)
   nsCOMPtr<nsIOutputStream> mMsgFileStream;         // temporary file (processed mail)
   nsCOMPtr<nsIMsgMessageService> mMessageService;   // original message service
@@ -2587,9 +2587,9 @@ public:
       eSelectingNewMessage
     } m_state;
    // temp
-  PRBool mWrittenExtra;
-  PRBool mDetaching;
-  nsCStringArray mDetachedFileUris;
+  bool mWrittenExtra;
+  bool mDetaching;
+  nsTArray<nsCString> mDetachedFileUris;
 };
 
 //
@@ -2834,7 +2834,7 @@ nsDelAttachListener::~nsDelAttachListener()
 
 nsresult
 nsDelAttachListener::StartProcessing(nsMessenger * aMessenger, nsIMsgWindow * aMsgWindow,
-                                     nsAttachmentState * aAttach, PRBool detaching)
+                                     nsAttachmentState * aAttach, bool detaching)
 {
   aMessenger->QueryInterface(NS_GET_IID(nsIMessenger), getter_AddRefs(mMessenger));
   mMsgWindow = aMsgWindow;
@@ -2857,9 +2857,9 @@ nsDelAttachListener::StartProcessing(nsMessenger * aMessenger, nsIMsgWindow * aM
 
   // ensure that we can store and delete messages in this folder, if we
   // can't then we can't do attachment deleting
-  PRBool canDelete = PR_FALSE;
+  bool canDelete = false;
   mMessageFolder->GetCanDeleteMessages(&canDelete);
-  PRBool canFile = PR_FALSE;
+  bool canFile = false;
   mMessageFolder->GetCanFileMessages(&canFile);
   if (!canDelete || !canFile)
     return NS_ERROR_FAILURE;
@@ -2896,7 +2896,7 @@ nsDelAttachListener::StartProcessing(nsMessenger * aMessenger, nsIMsgWindow * aM
     nextField = PL_strchr(partId, '&');
     sHeader.Append(partId, nextField ? nextField - partId : -1);
     if (detaching)
-      detachToHeader.Append(mDetachedFileUris.CStringAt(u)->get());
+      detachToHeader.Append(mDetachedFileUris[u]);
   }
 
   if (detaching)
@@ -2922,7 +2922,7 @@ nsDelAttachListener::StartProcessing(nsMessenger * aMessenger, nsIMsgWindow * aM
 NS_IMETHODIMP
 nsMessenger::DetachAttachment(const char * aContentType, const char * aUrl,
                               const char * aDisplayName, const char * aMessageUri,
-                              PRBool aSaveFirst, PRBool withoutWarning = PR_FALSE)
+                              bool aSaveFirst, bool withoutWarning = false)
 {
   NS_ENSURE_ARG_POINTER(aContentType);
   NS_ENSURE_ARG_POINTER(aUrl);
@@ -2940,8 +2940,8 @@ nsMessenger::DetachAllAttachments(PRUint32 aCount,
                                   const char ** aUrlArray,
                                   const char ** aDisplayNameArray,
                                   const char ** aMessageUriArray,
-                                  PRBool aSaveFirst,
-                                  PRBool withoutWarning = PR_FALSE)
+                                  bool aSaveFirst,
+                                  bool withoutWarning = false)
 {
   NS_ENSURE_ARG_MIN(aCount, 1);
   NS_ENSURE_ARG_POINTER(aContentTypeArray);
@@ -2957,12 +2957,12 @@ nsMessenger::DetachAllAttachments(PRUint32 aCount,
 
 nsresult
 nsMessenger::DetachAttachments(PRUint32 aCount,
-                                  const char ** aContentTypeArray,
-                                  const char ** aUrlArray,
-                                  const char ** aDisplayNameArray,
-                                  const char ** aMessageUriArray,
-                                  nsCStringArray *saveFileUris,
-                                  PRBool withoutWarning)
+                               const char ** aContentTypeArray,
+                               const char ** aUrlArray,
+                               const char ** aDisplayNameArray,
+                               const char ** aMessageUriArray,
+                               nsTArray<nsCString> *saveFileUris,
+                               bool withoutWarning)
 {
   // if withoutWarning no dialog for user
   if (!withoutWarning && NS_FAILED(PromptIfDeleteAttachments(saveFileUris != nsnull, aCount, aDisplayNameArray)))
@@ -3041,7 +3041,7 @@ nsMessenger::DetachAttachments(PRUint32 aCount,
 }
 
 nsresult
-nsMessenger::PromptIfDeleteAttachments(PRBool aSaveFirst,
+nsMessenger::PromptIfDeleteAttachments(bool aSaveFirst,
                                        PRUint32 aCount,
                                        const char ** aDisplayNameArray)
 {
@@ -3074,7 +3074,7 @@ nsMessenger::PromptIfDeleteAttachments(PRBool aSaveFirst,
   rv = mStringBundle->FormatStringFromName(propertyName, formatStrings, 1,getter_Copies(promptMessage));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  PRBool dialogResult = PR_FALSE;
+  bool dialogResult = false;
   rv = dialog->Confirm(nsnull, promptMessage.get(), &dialogResult);
   NS_ENSURE_SUCCESS(rv, rv);
 

@@ -45,6 +45,7 @@
 #include "nsIContent.h"
 #include "nsString.h"
 #include "nsXBLProtoImplMember.h"
+#include "nsXBLSerialize.h"
 
 struct nsXBLParameter {
   nsXBLParameter* mNext;
@@ -130,7 +131,10 @@ public:
 
   virtual void Trace(TraceCallback aCallback, void *aClosure) const;
 
-  PRBool IsCompiled() const
+  nsresult Read(nsIScriptContext* aContext, nsIObjectInputStream* aStream);
+  virtual nsresult Write(nsIScriptContext* aContext, nsIObjectOutputStream* aStream);
+
+  bool IsCompiled() const
   {
     return !(mUncompiledMethod & BIT_UNCOMPILED);
   }
@@ -153,7 +157,7 @@ protected:
   };
 
 #ifdef DEBUG
-  PRBool mIsCompiled;
+  bool mIsCompiled;
 #endif
 };
 
@@ -175,6 +179,10 @@ public:
                                  const nsCString& aClassStr) {
     return NS_OK;
   }
+
+  nsresult Write(nsIScriptContext* aContext,
+                 nsIObjectOutputStream* aStream,
+                 XBLBindingSerializeDetails aType);
 };
 
 #endif // nsXBLProtoImplMethod_h__

@@ -69,13 +69,13 @@ gfxAlphaBoxBlur::Init(const gfxRect& aRect,
     if (aDirtyRect) {
         // If we get passed a dirty rect from layout, we can minimize the
         // shadow size and make painting faster.
-        mHasDirtyRect = PR_TRUE;
+        mHasDirtyRect = true;
         mDirtyRect = *aDirtyRect;
         gfxRect requiredBlurArea = mDirtyRect.Intersect(rect);
         requiredBlurArea.Inflate(aBlurRadius + aSpreadRadius);
         rect = requiredBlurArea.Intersect(rect);
     } else {
-        mHasDirtyRect = PR_FALSE;
+        mHasDirtyRect = false;
     }
 
     // Check rect empty after accounting for aDirtyRect, since that may have
@@ -144,7 +144,7 @@ BoxBlurHorizontal(unsigned char* aInput,
     NS_ASSERTION(aWidth > 0, "Can't handle zero width here");
 
     PRInt32 boxSize = aLeftLobe + aRightLobe + 1;
-    PRBool skipRectCoversWholeRow = 0 >= aSkipRect.x &&
+    bool skipRectCoversWholeRow = 0 >= aSkipRect.x &&
                                     aWidth <= aSkipRect.XMost();
     if (boxSize == 1) {
         memcpy(aOutput, aInput, aWidth*aRows);
@@ -156,7 +156,7 @@ BoxBlurHorizontal(unsigned char* aInput,
         // Check whether the skip rect intersects this row. If the skip
         // rect covers the whole surface in this row, we can avoid
         // this row entirely (and any others along the skip rect).
-        PRBool inSkipRectY = y >= aSkipRect.y &&
+        bool inSkipRectY = y >= aSkipRect.y &&
                              y < aSkipRect.YMost();
         if (inSkipRectY && skipRectCoversWholeRow) {
             y = aSkipRect.YMost() - 1;
@@ -222,7 +222,7 @@ BoxBlurVertical(unsigned char* aInput,
     NS_ASSERTION(aRows > 0, "Can't handle zero rows here");
 
     PRInt32 boxSize = aTopLobe + aBottomLobe + 1;
-    PRBool skipRectCoversWholeColumn = 0 >= aSkipRect.y &&
+    bool skipRectCoversWholeColumn = 0 >= aSkipRect.y &&
                                        aRows <= aSkipRect.YMost();
     if (boxSize == 1) {
         memcpy(aOutput, aInput, aWidth*aRows);
@@ -231,7 +231,7 @@ BoxBlurVertical(unsigned char* aInput,
     PRUint32 reciprocal = (PRUint64(1) << 32)/boxSize;
 
     for (PRInt32 x = 0; x < aWidth; x++) {
-        PRBool inSkipRectX = x >= aSkipRect.x &&
+        bool inSkipRectX = x >= aSkipRect.x &&
                              x < aSkipRect.XMost();
         if (inSkipRectX && skipRectCoversWholeColumn) {
             x = aSkipRect.XMost() - 1;
@@ -335,13 +335,13 @@ SpreadHorizontal(unsigned char* aInput,
         return;
     }
 
-    PRBool skipRectCoversWholeRow = 0 >= aSkipRect.x &&
+    bool skipRectCoversWholeRow = 0 >= aSkipRect.x &&
                                     aWidth <= aSkipRect.XMost();
     for (PRInt32 y = 0; y < aRows; y++) {
         // Check whether the skip rect intersects this row. If the skip
         // rect covers the whole surface in this row, we can avoid
         // this row entirely (and any others along the skip rect).
-        PRBool inSkipRectY = y >= aSkipRect.y &&
+        bool inSkipRectY = y >= aSkipRect.y &&
                              y < aSkipRect.YMost();
         if (inSkipRectY && skipRectCoversWholeRow) {
             y = aSkipRect.YMost() - 1;
@@ -383,10 +383,10 @@ SpreadVertical(unsigned char* aInput,
         return;
     }
 
-    PRBool skipRectCoversWholeColumn = 0 >= aSkipRect.y &&
+    bool skipRectCoversWholeColumn = 0 >= aSkipRect.y &&
                                        aRows <= aSkipRect.YMost();
     for (PRInt32 x = 0; x < aWidth; x++) {
-        PRBool inSkipRectX = x >= aSkipRect.x &&
+        bool inSkipRectX = x >= aSkipRect.x &&
                              x < aSkipRect.XMost();
         if (inSkipRectX && skipRectCoversWholeColumn) {
             x = aSkipRect.XMost() - 1;

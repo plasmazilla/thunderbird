@@ -84,6 +84,7 @@
 <script type="application/javascript" src="chrome://messenger/content/msgViewPickerOverlay.js"/>
 <script type="application/javascript" src="chrome://messenger/content/plugins.js"/>
 <script type="application/javascript" src="chrome://global/content/viewZoomOverlay.js"/>
+<script type="application/javascript" src="chrome://messenger/content/newmailaccount/uriListener.js"/>
 
 <stringbundleset id="stringbundleset">
   <stringbundle id="bundle_messenger" src="chrome://messenger/locale/messenger.properties"/>
@@ -155,6 +156,7 @@
    <command id="cmd_viewClassicMailLayout" oncommand="goDoCommand('cmd_viewClassicMailLayout')" disabled="true"/>
    <command id="cmd_viewWideMailLayout" oncommand="goDoCommand('cmd_viewWideMailLayout')" disabled="true"/>
    <command id="cmd_viewVerticalMailLayout" oncommand="goDoCommand('cmd_viewVerticalMailLayout')" disabled="true"/>
+   <command id="cmd_toggleFolderPane" oncommand="goDoCommand('cmd_toggleFolderPane')" disabled="true"/>
    <command id="cmd_toggleMessagePane" oncommand="goDoCommand('cmd_toggleMessagePane')" disabled="true"/>
    <command id="cmd_viewAllMsgs" oncommand="goDoCommand('cmd_viewAllMsgs')" disabled="true"/>
    <command id="cmd_viewUnreadMsgs" oncommand="goDoCommand('cmd_viewUnreadMsgs')" disabled="true"/>
@@ -603,11 +605,15 @@
               label="&pasteCmd.label;"
               accesskey="&pasteCmd.accesskey;"
               command="cmd_paste"/>
-    <menuseparator id="mailContext-sep-clipboard"/>
     <menuitem id="mailContext-selectall"
               label="&selectAllCmd.label;"
               accesskey="&selectAllCmd.accesskey;"
               command="cmd_selectAll"/>
+    <menuseparator id="mailContext-sep-clipboard"/>
+
+    <menuitem id="mailContext-searchTheWeb"
+              label="Search the web"
+              oncommand="openSearchTab(event.target.value)"/>
 
     <!-- Spellchecking general menu items (enable, add dictionaries...) -->
     <menuseparator id="mailContext-spell-separator"/>
@@ -981,9 +987,13 @@
                          oncommand="gFolderTreeController.newVirtualFolder();"
                          accesskey="&newVirtualFolderCmd.accesskey;"/>
               <menuseparator id="newAccountPopupMenuSeparator"/>
+              <menuitem id="newCreateEmailAccountMenuItem"
+                        label="&newCreateEmailAccountCmd.label;"
+                        accesskey="&newCreateEmailAccountCmd.accesskey;"
+                        oncommand="NewMailAccountProvisioner(msgWindow);"/>
               <menuitem id="newMailAccountMenuItem"
-                        label="&newEmailAccountCmd.label;"
-                        accesskey="&newEmailAccountCmd.accesskey;"
+                        label="&newExistingEmailAccountCmd.label;"
+                        accesskey="&newExistingEmailAccountCmd.accesskey;"
                         oncommand="NewMailAccount(msgWindow);"/>
               <menuitem id="newAccountMenuItem"
                         label="&newOtherAccountsCmd.label;"
@@ -1151,6 +1161,7 @@
       <menupopup id="menu_View_Popup" onpopupshowing="view_init();">
         <menu id="menu_Toolbars" onpopupshowing="onViewToolbarsPopupShowing(event, 'mail-toolbox');">
           <menupopup id="view_toolbars_popup">
+            <menuitem id="menu_showTaskbar" type="checkbox"/>
             <menuseparator id="viewMenuBeforeCustomizeMailToolbarsSeparator"/>
             <menuitem id="customizeMailToolbars"
                       command="cmd_CustomizeMailToolbar"
@@ -1158,8 +1169,6 @@
                       accesskey="&customizeToolbar.accesskey;"/>
           </menupopup>
         </menu>
-        <menuitem id="menu_showTaskbar" type="checkbox"/>
-        <menuseparator id="viewMenuAfterTaskbarSeparator"/>
         <menu id="menu_MessagePaneLayout" label="&messagePaneLayoutStyle.label;" accesskey="&messagePaneLayoutStyle.accesskey;">
           <menupopup id="view_layout_popup" onpopupshowing="InitViewLayoutStyleMenu(event)">
             <menuitem id="messagePaneClassic" type="radio" label="&messagePaneClassic.label;" name="viewlayoutgroup"
@@ -1169,6 +1178,8 @@
             <menuitem id="messagePaneVertical" type="radio" label="&messagePaneVertical.label;" name="viewlayoutgroup"
                       accesskey="&messagePaneVertical.accesskey;" command="cmd_viewVerticalMailLayout"/>
             <menuseparator id="viewMenuAfterPaneVerticalSeparator"/>
+            <menuitem id="menu_showFolderPane" type="checkbox" label="&showFolderPaneCmd.label;"
+                      accesskey="&showFolderPaneCmd.accesskey;" command="cmd_toggleFolderPane"/>
             <menuitem id="menu_showMessage" type="checkbox" label="&showMessageCmd.label;" key="key_toggleMessagePane"
                       accesskey="&showMessageCmd.accesskey;" command="cmd_toggleMessagePane"/>
           </menupopup>

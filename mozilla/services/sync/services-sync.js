@@ -26,7 +26,8 @@ pref("services.sync.engine.tabs.filteredUrls", "^(about:.*|chrome://weave/.*|wyc
 
 pref("services.sync.jpake.serverURL", "https://setup.services.mozilla.com/");
 pref("services.sync.jpake.pollInterval", 1000);
-pref("services.sync.jpake.firstMsgMaxTries", 300);
+pref("services.sync.jpake.firstMsgMaxTries", 300); // 5 minutes
+pref("services.sync.jpake.lastMsgMaxTries", 300);  // 5 minutes
 pref("services.sync.jpake.maxTries", 10);
 
 pref("services.sync.log.appender.console", "Warn");
@@ -37,6 +38,7 @@ pref("services.sync.log.appender.file.logOnSuccess", false);
 pref("services.sync.log.appender.file.maxErrorAge", 864000); // 10 days
 pref("services.sync.log.rootLogger", "Debug");
 pref("services.sync.log.logger.service.main", "Debug");
+pref("services.sync.log.logger.status", "Debug");
 pref("services.sync.log.logger.authenticator", "Debug");
 pref("services.sync.log.logger.network.resources", "Debug");
 pref("services.sync.log.logger.service.jpakeclient", "Debug");

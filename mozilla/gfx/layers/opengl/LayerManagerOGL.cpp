@@ -39,6 +39,9 @@
 
 #include "mozilla/layers/PLayers.h"
 
+/* This must occur *after* layers/PLayers.h to avoid typedefs conflicts. */
+#include "mozilla/Util.h"
+
 #include "LayerManagerOGL.h"
 #include "ThebesLayerOGL.h"
 #include "ContainerLayerOGL.h"
@@ -107,7 +110,7 @@ LayerManagerOGL::Destroy()
 
     CleanupResources();
 
-    mDestroyed = PR_TRUE;
+    mDestroyed = true;
   }
 }
 
@@ -169,7 +172,7 @@ LayerManagerOGL::CreateContext()
   return context.forget();
 }
 
-PRBool
+bool
 LayerManagerOGL::Initialize(nsRefPtr<GLContext> aContext)
 {
   ScopedGfxFeatureReporter reporter("GL Layers");
@@ -178,10 +181,10 @@ LayerManagerOGL::Initialize(nsRefPtr<GLContext> aContext)
   NS_ABORT_IF_FALSE(mGLContext == nsnull, "Don't reiniailize layer managers");
 
   if (!aContext)
-    return PR_FALSE;
+    return false;
 
   mGLContext = aContext;
-  mGLContext->SetFlipped(PR_TRUE);
+  mGLContext->SetFlipped(true);
 
   MakeCurrent();
 
@@ -201,7 +204,7 @@ LayerManagerOGL::Initialize(nsRefPtr<GLContext> aContext)
     ptype *p = new ptype(mGLContext);                                             \
     if (!p->Initialize(vsstr, fsstr)) {                                           \
       delete p;                                                                   \
-      return PR_FALSE;                                                            \
+      return false;                                                            \
     }                                                                             \
     mPrograms.AppendElement(p);                                                   \
   } while (0)
@@ -258,7 +261,7 @@ LayerManagerOGL::Initialize(nsRefPtr<GLContext> aContext)
 
   mFBOTextureTarget = LOCAL_GL_NONE;
 
-  for (PRUint32 i = 0; i < NS_ARRAY_LENGTH(textureTargets); i++) {
+  for (PRUint32 i = 0; i < ArrayLength(textureTargets); i++) {
     GLenum target = textureTargets[i];
     mGLContext->fGenTextures(1, &mBackBufferTexture);
     mGLContext->fBindTexture(target, mBackBufferTexture);
@@ -541,7 +544,7 @@ LayerManagerOGL::RootLayer() const
   return static_cast<LayerOGL*>(mRoot->ImplData());
 }
 
-PRBool LayerManagerOGL::sDrawFPS = PR_FALSE;
+bool LayerManagerOGL::sDrawFPS = false;
 
 /* This function tries to stick to portable C89 as much as possible
  * so that it can be easily copied into other applications */
@@ -642,6 +645,7 @@ LayerManagerOGL::FPSState::DrawFPS(GLContext* context, CopyProgram* copyprog)
   context->fEnable(LOCAL_GL_BLEND);
   context->fBlendFunc(LOCAL_GL_ONE, LOCAL_GL_SRC_COLOR);
 
+  context->fActiveTexture(LOCAL_GL_TEXTURE0);
   context->fBindTexture(LOCAL_GL_TEXTURE_2D, texture);
 
   copyprog->Activate();
@@ -765,7 +769,7 @@ LayerManagerOGL::Render()
   if (mWidgetSize.width != width ||
       mWidgetSize.height != height)
   {
-    MakeCurrent(PR_TRUE);
+    MakeCurrent(true);
 
     mWidgetSize.width = width;
     mWidgetSize.height = height;
@@ -1087,7 +1091,7 @@ LayerManagerOGL::ProgramType LayerManagerOGL::sLayerProgramTypes[] = {
 
 #define FOR_EACH_LAYER_PROGRAM(vname)                       \
   for (size_t lpindex = 0;                                  \
-       lpindex < NS_ARRAY_LENGTH(sLayerProgramTypes);       \
+       lpindex < ArrayLength(sLayerProgramTypes);           \
        ++lpindex)                                           \
   {                                                         \
     LayerProgram *vname = static_cast<LayerProgram*>        \
@@ -1164,21 +1168,6 @@ LayerManagerOGL::CreateFBOWithTexture(const nsIntRect& aRect, InitMode aInit,
 
   *aFBO = fbo;
   *aTexture = tex;
-}
-
-void 
-LayerOGL::ApplyFilter(gfxPattern::GraphicsFilter aFilter)
-{
-  if (aFilter == gfxPattern::FILTER_NEAREST) {
-    gl()->fTexParameteri(LOCAL_GL_TEXTURE_2D, LOCAL_GL_TEXTURE_MIN_FILTER, LOCAL_GL_NEAREST);
-    gl()->fTexParameteri(LOCAL_GL_TEXTURE_2D, LOCAL_GL_TEXTURE_MAG_FILTER, LOCAL_GL_NEAREST);
-  } else {
-    if (aFilter != gfxPattern::FILTER_GOOD) {
-      NS_WARNING("Unsupported filter type!");
-    }
-    gl()->fTexParameteri(LOCAL_GL_TEXTURE_2D, LOCAL_GL_TEXTURE_MIN_FILTER, LOCAL_GL_LINEAR);
-    gl()->fTexParameteri(LOCAL_GL_TEXTURE_2D, LOCAL_GL_TEXTURE_MAG_FILTER, LOCAL_GL_LINEAR);
-  }
 }
 
 already_AddRefed<ShadowThebesLayer>

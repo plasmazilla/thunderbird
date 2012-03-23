@@ -58,9 +58,9 @@ public:
     : mRoot(nsnull),
       mStartOffset(0),
       mEndOffset(0),
-      mIsPositioned(PR_FALSE),
-      mIsDetached(PR_FALSE),
-      mMaySpanAnonymousSubtrees(PR_FALSE)
+      mIsPositioned(false),
+      mIsDetached(false),
+      mMaySpanAnonymousSubtrees(false)
   {
   }
 
@@ -89,23 +89,23 @@ public:
     return mEndOffset;
   }
   
-  PRBool IsPositioned() const
+  bool IsPositioned() const
   {
     return mIsPositioned;
   }
 
-  PRBool IsDetached() const
+  bool IsDetached() const
   {
     return mIsDetached;
   }
   
-  PRBool Collapsed() const
+  bool Collapsed() const
   {
     return mIsPositioned && mStartParent == mEndParent &&
            mStartOffset == mEndOffset;
   }
 
-  void SetMaySpanAnonymousSubtrees(PRBool aMaySpanAnonymousSubtrees)
+  void SetMaySpanAnonymousSubtrees(bool aMaySpanAnonymousSubtrees)
   {
     mMaySpanAnonymousSubtrees = aMaySpanAnonymousSubtrees;
   }
@@ -135,9 +135,9 @@ protected:
   PRInt32 mStartOffset;
   PRInt32 mEndOffset;
 
-  PRPackedBool mIsPositioned;
-  PRPackedBool mIsDetached;
-  PRPackedBool mMaySpanAnonymousSubtrees;
+  bool mIsPositioned;
+  bool mIsDetached;
+  bool mMaySpanAnonymousSubtrees;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIRange, NS_IRANGE_IID)

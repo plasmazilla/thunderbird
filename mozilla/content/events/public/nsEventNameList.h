@@ -243,6 +243,14 @@ EVENT(mousedown,
       NS_MOUSE_BUTTON_DOWN,
       EventNameType_All,
       NS_MOUSE_EVENT)
+EVENT(mouseenter,
+      NS_MOUSEENTER,
+      EventNameType_All,
+      NS_MOUSE_EVENT)
+EVENT(mouseleave,
+      NS_MOUSELEAVE,
+      EventNameType_All,
+      NS_MOUSE_EVENT)
 EVENT(mousemove,
       NS_MOUSE_MOVE,
       EventNameType_All,
@@ -261,6 +269,10 @@ EVENT(mouseup,
       NS_MOUSE_EVENT)
 EVENT(mozfullscreenchange,
       NS_FULLSCREENCHANGE,
+      EventNameType_HTML,
+      NS_EVENT_NULL)
+EVENT(mozfullscreenerror,
+      NS_FULLSCREENERROR,
       EventNameType_HTML,
       NS_EVENT_NULL)
 // Not supported yet; probably never because "wheel" is a better idea.
@@ -636,7 +648,6 @@ NON_IDL_EVENT(zoom,
               NS_SVG_ZOOM,
               EventNameType_SVGSVG,
               NS_EVENT_NULL)
-#ifdef MOZ_SMIL
 NON_IDL_EVENT(begin,
               NS_SMIL_BEGIN,
               EventNameType_SMIL,
@@ -661,7 +672,6 @@ NON_IDL_EVENT(repeatEvent,
               NS_SMIL_REPEAT,
               EventNameType_None,
               NS_SMIL_TIME_EVENT)
-#endif // MOZ_SMIL
 
 NON_IDL_EVENT(MozAudioAvailable,
               NS_MOZAUDIOAVAILABLE,

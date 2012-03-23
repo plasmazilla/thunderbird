@@ -457,7 +457,7 @@ public:
 
   static nscolor GetColor(ColorID aID, nscolor aDefault = NS_RGB(0, 0, 0))
   {
-    nscolor result;
+    nscolor result = NS_RGB(0, 0, 0);
     if (NS_FAILED(GetColor(aID, &result))) {
       return aDefault;
     }
@@ -493,7 +493,7 @@ public:
    * result of GetPasswordCharacter(), GetEchoPassword() returns TRUE.
    * Otherwise, FALSE.
    */
-  static PRBool GetEchoPassword();
+  static bool GetEchoPassword();
 
   /**
    * When system look and feel is changed, Refresh() must be called.  Then,

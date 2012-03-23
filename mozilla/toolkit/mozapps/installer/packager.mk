@@ -104,6 +104,9 @@ endif
 ifeq ($(_MSC_VER),1600)
 JSSHELL_BINS += $(DIST)/bin/msvcr100.dll
 endif
+ifeq ($(_MSC_VER),1700)
+JSSHELL_BINS += $(DIST)/bin/msvcr110.dll
+endif
 else
 JSSHELL_BINS += \
   $(DIST)/bin/$(LIB_PREFIX)plds4$(DLL_SUFFIX) \
@@ -114,7 +117,7 @@ endif # MOZ_NATIVE_NSPR
 MAKE_JSSHELL  = $(ZIP) -9j $(PKG_JSSHELL) $(JSSHELL_BINS)
 endif # LIBXUL_SDK
 
-MAKE_PACKAGE	= $(error What is a $(MOZ_PKG_FORMAT) package format?);
+PREPARE_PACKAGE	= $(error What is a $(MOZ_PKG_FORMAT) package format?);
 _ABS_DIST = $(call core_abspath,$(DIST))
 JARLOG_DIR = $(call core_abspath,$(DEPTH)/jarlog/)
 JARLOG_DIR_AB_CD = $(JARLOG_DIR)/$(AB_CD)
@@ -142,6 +145,10 @@ INNER_UNMAKE_PACKAGE	= bunzip2 -c $(UNPACKAGE) | $(UNPACK_TAR)
 MAKE_SDK = $(CREATE_FINAL_TAR) - $(MOZ_APP_NAME)-sdk | bzip2 -vf > $(SDK)
 endif
 ifeq ($(MOZ_PKG_FORMAT),ZIP)
+ifdef MOZ_EXTERNAL_SIGNING_FORMAT
+# We can't use signcode on zip files
+MOZ_EXTERNAL_SIGNING_FORMAT := $(filter-out signcode,$(MOZ_EXTERNAL_SIGNING_FORMAT))
+endif
 PKG_SUFFIX	= .zip
 INNER_MAKE_PACKAGE	= $(ZIP) -r9D $(PACKAGE) $(MOZ_PKG_DIR)
 INNER_UNMAKE_PACKAGE	= $(UNZIP) $(UNPACKAGE)
@@ -306,10 +313,14 @@ include $(topsrcdir)/ipc/app/defs.mk
 
 DIST_FILES += $(MOZ_CHILD_PROCESS_NAME)
 
+ifeq ($(CPU_ARCH),x86)
+ABI_DIR = x86
+else
 ifdef MOZ_THUMB2
 ABI_DIR = armeabi-v7a
 else
 ABI_DIR = armeabi
+endif
 endif
 
 PKG_SUFFIX      = .apk
@@ -317,9 +328,8 @@ INNER_MAKE_PACKAGE	= \
   make -C ../embedding/android gecko.ap_ && \
   cp ../embedding/android/gecko.ap_ $(_ABS_DIST) && \
   ( cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && \
-    rm -rf lib && \
     mkdir -p lib/$(ABI_DIR) && \
-    mv libmozutils.so lib/$(ABI_DIR) && \
+    mv libmozutils.so $(MOZ_CHILD_PROCESS_NAME) lib/$(ABI_DIR) && \
     rm -f lib.id && \
     for SOMELIB in *.so ; \
     do \
@@ -342,11 +352,7 @@ INNER_UNMAKE_PACKAGE	= \
 endif
 ifeq ($(MOZ_PKG_FORMAT),DMG)
 ifndef _APPNAME
-ifdef MOZ_DEBUG
-_APPNAME	= $(MOZ_APP_DISPLAYNAME)Debug.app
-else
-_APPNAME	= $(MOZ_APP_DISPLAYNAME).app
-endif
+_APPNAME = $(MOZ_MACBUNDLE_NAME)
 endif
 ifndef _BINPATH
 _BINPATH	= /$(_APPNAME)/Contents/MacOS
@@ -436,11 +442,11 @@ PRECOMPILE_GRE=$$PWD
 endif
 
 GENERATE_CACHE = \
-  $(_ABS_RUN_TEST_PROGRAM) $(LIBXUL_DIST)/bin/xpcshell$(BIN_SUFFIX) -g "$(PRECOMPILE_GRE)" -a "$$PWD" -f $(call core_abspath,$(MOZILLA_DIR)/toolkit/mozapps/installer/precompile_cache.js) -e "populate_startupcache('$(PRECOMPILE_DIR)', 'omni.jar', 'startupCache.zip');" && \
+  $(_ABS_RUN_TEST_PROGRAM) $(LIBXUL_DIST)/bin/xpcshell$(BIN_SUFFIX) -g "$(PRECOMPILE_GRE)" -a "$$PWD" -f $(call core_abspath,$(MOZILLA_DIR)/toolkit/mozapps/installer/precompile_cache.js) -e "populate_startupcache('$(PRECOMPILE_DIR)', '$(OMNIJAR_NAME)', 'startupCache.zip');" && \
   rm -rf jsloader && \
   $(UNZIP) startupCache.zip && \
   rm startupCache.zip && \
-  $(ZIP) -r9m omni.jar jsloader/resource/$(PRECOMPILE_RESOURCE)
+  $(ZIP) -r9m $(OMNIJAR_NAME) jsloader/resource/$(PRECOMPILE_RESOURCE)
 else
 GENERATE_CACHE = true
 endif
@@ -459,6 +465,7 @@ OMNIJAR_FILES	= \
   defaults \
   greprefs.js \
   jsloader \
+  hyphenation \
   $(NULL)
 
 NON_OMNIJAR_FILES += \
@@ -469,39 +476,62 @@ NON_OMNIJAR_FILES += \
   $(NULL)
 
 PACK_OMNIJAR	= \
-  rm -f omni.jar components/binary.manifest && \
+  rm -f $(OMNIJAR_NAME) components/binary.manifest && \
   grep -h '^binary-component' components/*.manifest > binary.manifest ; \
   for m in components/*.manifest; do \
     sed -e 's/^binary-component/\#binary-component/' $$m > tmp.manifest && \
     mv tmp.manifest $$m; \
   done; \
-  $(ZIP) -r9m omni.jar $(OMNIJAR_FILES) -x $(NON_OMNIJAR_FILES) && \
+  $(ZIP) -r9m $(OMNIJAR_NAME) $(OMNIJAR_FILES) -x $(NON_OMNIJAR_FILES) && \
   $(GENERATE_CACHE) && \
   $(OPTIMIZE_JARS_CMD) --optimize $(JARLOG_DIR_AB_CD) ./ ./ && \
   mv binary.manifest components && \
   printf "manifest components/binary.manifest\n" > chrome.manifest
 UNPACK_OMNIJAR	= \
   $(OPTIMIZE_JARS_CMD) --deoptimize $(JARLOG_DIR_AB_CD) ./ ./ && \
-  $(UNZIP) -o omni.jar && \
+  $(UNZIP) -o $(OMNIJAR_NAME) && \
   rm -f components/binary.manifest && \
   for m in components/*.manifest; do \
     sed -e 's/^\#binary-component/binary-component/' $$m > tmp.manifest && \
     mv tmp.manifest $$m; \
   done
 
-MAKE_PACKAGE	= (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(PACK_OMNIJAR)) && \
-	              (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(CREATE_PRECOMPLETE_CMD)) && $(INNER_MAKE_PACKAGE)
+PREPARE_PACKAGE	= (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(PACK_OMNIJAR)) && \
+	              (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(CREATE_PRECOMPLETE_CMD))
 UNMAKE_PACKAGE	= $(INNER_UNMAKE_PACKAGE) && (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(UNPACK_OMNIJAR))
 else
-MAKE_PACKAGE	= (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(CREATE_PRECOMPLETE_CMD)) && $(INNER_MAKE_PACKAGE)
+PREPARE_PACKAGE	= (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(CREATE_PRECOMPLETE_CMD))
 UNMAKE_PACKAGE	= $(INNER_UNMAKE_PACKAGE)
+endif
+
+ifdef MOZ_INTERNAL_SIGNING_FORMAT
+MOZ_SIGN_PREPARED_PACKAGE_CMD=$(MOZ_SIGN_CMD) $(foreach f,$(MOZ_INTERNAL_SIGNING_FORMAT),-f $(f)) $(foreach i,$(SIGN_INCLUDES),-i $(i)) $(foreach x,$(SIGN_EXCLUDES),-x $(x)) --nsscmd "$(SIGN_CMD)"
+endif
+
+# For final GPG / authenticode signing / dmg signing if required
+ifdef MOZ_EXTERNAL_SIGNING_FORMAT
+MOZ_SIGN_PACKAGE_CMD=$(MOZ_SIGN_CMD) $(foreach f,$(MOZ_EXTERNAL_SIGNING_FORMAT),-f $(f))
+ifeq (gpg,$(findstring gpg,$(MOZ_EXTERNAL_SIGNING_FORMAT)))
+UPLOAD_EXTRA_FILES += $(PACKAGE).asc
+endif
+endif
+
+ifdef MOZ_SIGN_PREPARED_PACKAGE_CMD
+MAKE_PACKAGE    = $(PREPARE_PACKAGE) && $(MOZ_SIGN_PREPARED_PACKAGE_CMD) \
+		  $(MOZ_PKG_DIR) && $(INNER_MAKE_PACKAGE)
+else
+MAKE_PACKAGE    = $(PREPARE_PACKAGE) && $(INNER_MAKE_PACKAGE)
+endif
+
+ifdef MOZ_SIGN_PACKAGE_CMD
+MAKE_PACKAGE    += && $(MOZ_SIGN_PACKAGE_CMD) "$(PACKAGE)"
 endif
 
 # dummy macro if we don't have PSM built
 SIGN_NSS		=
 ifdef MOZ_CAN_RUN_PROGRAMS
 ifdef MOZ_PSM
-SIGN_NSS		= @echo signing nss libraries;
+SIGN_NSS		= echo signing nss libraries;
 
 NSS_DLL_SUFFIX	= $(DLL_SUFFIX)
 ifdef UNIVERSAL_BINARY
@@ -514,7 +544,7 @@ ifeq ($(OS_ARCH),OS2)
 NSS_DLL_SUFFIX	= .DLL
 SIGN_CMD	= $(MOZILLA_DIR)/toolkit/mozapps/installer/os2/sign.cmd $(DIST)
 else
-SIGN_CMD	= $(RUN_TEST_PROGRAM) $(DIST)/bin/shlibsign$(BIN_SUFFIX) -v -i
+SIGN_CMD	= $(RUN_TEST_PROGRAM) $(_ABS_DIST)/bin/shlibsign$(BIN_SUFFIX) -v -i
 endif
 endif
 
@@ -527,14 +557,15 @@ FREEBL_32INT64	= $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/$(DLL_PREFIX)free
 FREEBL_64FPU	= $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/$(DLL_PREFIX)freebl_64fpu_3$(DLL_SUFFIX)
 FREEBL_64INT	= $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/$(DLL_PREFIX)freebl_64int_3$(DLL_SUFFIX)
 
-SIGN_NSS	+= $(SIGN_CMD) $(SOFTOKN); \
-	$(SIGN_CMD) $(NSSDBM); \
-	if test -f $(FREEBL); then $(SIGN_CMD) $(FREEBL); fi; \
-	if test -f $(FREEBL_32FPU); then $(SIGN_CMD) $(FREEBL_32FPU); fi; \
-	if test -f $(FREEBL_32INT); then $(SIGN_CMD) $(FREEBL_32INT); fi; \
-	if test -f $(FREEBL_32INT64); then $(SIGN_CMD) $(FREEBL_32INT64); fi; \
-	if test -f $(FREEBL_64FPU); then $(SIGN_CMD) $(FREEBL_64FPU); fi; \
-	if test -f $(FREEBL_64INT); then $(SIGN_CMD) $(FREEBL_64INT); fi;
+SIGN_NSS	+= \
+  $(SIGN_CMD) $(SOFTOKN) && \
+  $(SIGN_CMD) $(NSSDBM) && \
+  if test -f $(FREEBL); then $(SIGN_CMD) $(FREEBL); fi && \
+  if test -f $(FREEBL_32FPU); then $(SIGN_CMD) $(FREEBL_32FPU); fi && \
+  if test -f $(FREEBL_32INT); then $(SIGN_CMD) $(FREEBL_32INT); fi && \
+  if test -f $(FREEBL_32INT64); then $(SIGN_CMD) $(FREEBL_32INT64); fi && \
+  if test -f $(FREEBL_64FPU); then $(SIGN_CMD) $(FREEBL_64FPU); fi && \
+  if test -f $(FREEBL_64INT); then $(SIGN_CMD) $(FREEBL_64INT); fi;
 
 endif # MOZ_PSM
 endif # !CROSS_COMPILE
@@ -646,6 +677,9 @@ ifdef MOZ_OPTIONAL_PKG_LIST
 		cd $(DEPTH)/installer-stage/optional/distribution/extensions/; find -maxdepth 1 -mindepth 1 -exec rm -r ../../../core/distribution/extensions/{} \; ; \
 	fi
 endif
+ifdef MOZ_SIGN_PREPARED_PACKAGE_CMD
+	$(MOZ_SIGN_PREPARED_PACKAGE_CMD) $(DEPTH)/installer-stage
+endif
 
 elfhack:
 ifdef USE_ELF_HACK
@@ -735,7 +769,7 @@ ifndef PKG_SKIP_STRIP
   endif
 endif # PKG_SKIP_STRIP
 # We always sign nss because we don't do it from security/manager anymore
-	$(SIGN_NSS)
+	@$(SIGN_NSS)
 	@echo "Removing unpackaged files..."
 ifdef NO_PKG_FILES
 	cd $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH); rm -rf $(NO_PKG_FILES)
@@ -847,10 +881,11 @@ ESCAPE_SPACE = $(subst $(space),\$(space),$(1))
 
 # This variable defines which OpenSSL algorithm to use to 
 # generate checksums for files that we upload
-CHECKSUM_ALGORITHM = 'sha512'
+CHECKSUM_ALGORITHM_PARAM = -d sha512 -d md5 -d sha1
 
 # This variable defines where the checksum file will be located
-CHECKSUM_FILE = "$(DIST)/$(PKG_PATH)/$(PKG_BASENAME).checksums"
+CHECKSUM_FILE = "$(DIST)/$(PKG_PATH)/$(CHECKSUMS_FILE_BASENAME).checksums"
+CHECKSUM_FILES = $(CHECKSUM_FILE)
 
 UPLOAD_FILES= \
   $(call QUOTED_WILDCARD,$(DIST)/$(PACKAGE)) \
@@ -865,22 +900,37 @@ UPLOAD_FILES= \
   $(call QUOTED_WILDCARD,$(PKG_JSSHELL)) \
   $(if $(UPLOAD_EXTRA_FILES), $(foreach f, $(UPLOAD_EXTRA_FILES), $(wildcard $(DIST)/$(f))))
 
+SIGN_CHECKSUM_CMD=
+ifdef MOZ_SIGN_CMD
+ifeq (gpg,$(filter gpg,$(MOZ_EXTERNAL_SIGNING_FORMAT)))
+# If we're signing with gpg, we'll have a bunch of extra detached signatures to
+# upload. We also want to sign our checksums file
+SIGN_CHECKSUM_CMD=$(MOZ_SIGN_CMD) -f gpg $(CHECKSUM_FILE)
+
+CHECKSUM_FILES += $(CHECKSUM_FILE).asc
+UPLOAD_FILES += $(call QUOTED_WILDCARD,$(DIST)/$(COMPLETE_MAR).asc)
+UPLOAD_FILES += $(call QUOTED_WILDCARD,$(wildcard $(DIST)/$(PARTIAL_MAR).asc))
+UPLOAD_FILES += $(call QUOTED_WILDCARD,$(INSTALLER_PACKAGE).asc)
+endif
+endif
+
 checksum:
 	mkdir -p `dirname $(CHECKSUM_FILE)`
 	@$(PYTHON) $(MOZILLA_DIR)/build/checksums.py \
 		-o $(CHECKSUM_FILE) \
-		-d $(CHECKSUM_ALGORITHM) \
+		$(CHECKSUM_ALGORITHM_PARAM) \
 		-s $(call QUOTED_WILDCARD,$(DIST)) \
 		$(UPLOAD_FILES)
 	@echo "CHECKSUM FILE START"
 	@cat $(CHECKSUM_FILE)
 	@echo "CHECKSUM FILE END"
+	$(SIGN_CHECKSUM_CMD)
 
 
 upload: checksum
 	$(PYTHON) $(MOZILLA_DIR)/build/upload.py --base-path $(DIST) \
 		$(UPLOAD_FILES) \
-		$(CHECKSUM_FILE)
+		$(CHECKSUM_FILES)
 
 ifeq (WINNT,$(OS_TARGET))
 CODESIGHS_PACKAGE = $(INSTALLER_PACKAGE)

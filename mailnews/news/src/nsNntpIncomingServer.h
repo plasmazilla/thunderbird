@@ -92,18 +92,16 @@ public:
 
     // override to clear all passwords associated with server
     NS_IMETHODIMP ForgetPassword();
-    NS_IMETHOD GetCanSearchMessages(PRBool *canSearchMessages);
+    NS_IMETHOD GetCanSearchMessages(bool *canSearchMessages);
     NS_IMETHOD GetOfflineSupportLevel(PRInt32 *aSupportLevel);
-    NS_IMETHOD GetDefaultCopiesAndFoldersPrefsToServer(PRBool *aCopiesAndFoldersOnServer);
-    NS_IMETHOD GetCanCreateFoldersOnServer(PRBool *aCanCreateFoldersOnServer);
-    NS_IMETHOD GetCanFileMessagesOnServer(PRBool *aCanFileMessagesOnServer);
+    NS_IMETHOD GetDefaultCopiesAndFoldersPrefsToServer(bool *aCopiesAndFoldersOnServer);
+    NS_IMETHOD GetCanCreateFoldersOnServer(bool *aCanCreateFoldersOnServer);
+    NS_IMETHOD GetCanFileMessagesOnServer(bool *aCanFileMessagesOnServer);
     NS_IMETHOD GetFilterScope(nsMsgSearchScopeValue *filterScope);
     NS_IMETHOD GetSearchScope(nsMsgSearchScopeValue *searchScope);
 
     NS_IMETHOD GetSocketType(PRInt32 *aSocketType); // override nsMsgIncomingServer impl
     NS_IMETHOD SetSocketType(PRInt32 aSocketType); // override nsMsgIncomingServer impl
-
-    nsresult AppendIfSearchMatch(nsCString& newsgroupName);
 
 protected:
    virtual nsresult CreateRootFolderFromUri(const nsCString &serverUri,
@@ -112,7 +110,7 @@ protected:
                                nsINNTPProtocol **aNntpConnection);
     nsresult CreateProtocolInstance(nsINNTPProtocol **aNntpConnection,
                                     nsIURI *url, nsIMsgWindow *window);
-    PRBool ConnectionTimeOut(nsINNTPProtocol* aNntpConnection);
+    bool ConnectionTimeOut(nsINNTPProtocol* aNntpConnection);
     nsCOMArray<nsINNTPProtocol> mConnectionCache;
     nsTArray<nsRefPtr<nsNntpMockChannel> > m_queuedChannels;
 
@@ -121,21 +119,21 @@ protected:
      */
     nsresult DownloadMail(nsIMsgWindow *aMsgWindow);
 
-    NS_IMETHOD GetServerRequiresPasswordForBiff(PRBool *aServerRequiresPasswordForBiff);
+    NS_IMETHOD GetServerRequiresPasswordForBiff(bool *aServerRequiresPasswordForBiff);
     nsresult SetupNewsrcSaveTimer();
     static void OnNewsrcSaveTimer(nsITimer *timer, void *voidIncomingServer);
     void WriteLine(nsIOutputStream *stream, nsCString &str);
 
 private:
-    nsCStringArray mSubscribedNewsgroups;
-    nsCStringArray mGroupsOnServer;
-    nsCStringArray mSubscribeSearchResult;
-    PRBool mSearchResultSortDescending;
+    nsTArray<nsCString> mSubscribedNewsgroups;
+    nsTArray<nsCString> mGroupsOnServer;
+    nsTArray<nsCString> mSubscribeSearchResult;
+    bool mSearchResultSortDescending;
     // the list of of subscribed newsgroups within a given
     // subscribed dialog session.  
     // we need to keep track of them so we know what to show as "checked"
     // in the search view
-    nsCStringArray mTempSubscribed;
+    nsTArray<nsCString> mTempSubscribed;
     nsCOMPtr<nsIAtom> mSubscribedAtom;
     nsCOMPtr<nsIAtom> mNntpAtom;
 
@@ -143,15 +141,15 @@ private:
     nsCOMPtr<nsITreeBoxObject> mTree;
     nsCOMPtr<nsITreeSelection> mTreeSelection;
 
-    PRBool   mHasSeenBeginGroups;
-    PRBool   mGetOnlyNew;
+    bool     mHasSeenBeginGroups;
+    bool     mGetOnlyNew;
     nsresult WriteHostInfoFile();
     nsresult LoadHostInfoFile();
     nsresult AddGroupOnServer(const nsACString &name);
 
-    PRBool mNewsrcHasChanged;
-    PRBool mHostInfoLoaded;
-    PRBool mHostInfoHasChanged;
+    bool mNewsrcHasChanged;
+    bool mHostInfoLoaded;
+    bool mHostInfoHasChanged;
     nsCOMPtr <nsILocalFile> mHostInfoFile;
     
     PRUint32 mLastGroupDate;
@@ -159,8 +157,8 @@ private:
     PRInt32 mUniqueId;    
     PRUint32 mLastUpdatedTime;
     PRInt32 mVersion;
-    PRBool mPostingAllowed;
-    PRBool m_userAuthenticated;
+    bool mPostingAllowed;
+    bool m_userAuthenticated;
 
     nsCOMPtr<nsITimer> mNewsrcSaveTimer;
     nsCOMPtr <nsIMsgWindow> mMsgWindow;

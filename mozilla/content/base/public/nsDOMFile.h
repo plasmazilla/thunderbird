@@ -78,7 +78,7 @@ public:
       mName(aName), mStart(0), mLength(aLength)
   {
     // Ensure non-null mContentType by default
-    mContentType.SetIsVoid(PR_FALSE);
+    mContentType.SetIsVoid(false);
   }
 
   nsDOMFileBase(const nsAString& aContentType, PRUint64 aLength)
@@ -86,7 +86,7 @@ public:
       mStart(0), mLength(aLength)
   {
     // Ensure non-null mContentType by default
-    mContentType.SetIsVoid(PR_FALSE);
+    mContentType.SetIsVoid(false);
   }
 
   nsDOMFileBase(const nsAString& aContentType,
@@ -97,7 +97,7 @@ public:
     NS_ASSERTION(aLength != PR_UINT64_MAX,
                  "Must know length when creating slice");
     // Ensure non-null mContentType by default
-    mContentType.SetIsVoid(PR_FALSE);
+    mContentType.SetIsVoid(false);
   }
 
   virtual ~nsDOMFileBase() {}
@@ -138,7 +138,7 @@ public:
   {
     NS_ASSERTION(mFile, "must have file");
     // Lazily get the content type and size
-    mContentType.SetIsVoid(PR_TRUE);
+    mContentType.SetIsVoid(true);
     mFile->GetLeafName(mName);
   }
 
@@ -158,8 +158,8 @@ public:
       mWholeFile(true)
   {
     // Lazily get the content type and size
-    mContentType.SetIsVoid(PR_TRUE);
-    mName.SetIsVoid(PR_TRUE);
+    mContentType.SetIsVoid(true);
+    mName.SetIsVoid(true);
   }
 
   NS_DECL_ISUPPORTS_INHERITED
@@ -265,9 +265,9 @@ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIDOMFILELIST
 
-  PRBool Append(nsIDOMFile *aFile) { return mFiles.AppendObject(aFile); }
+  bool Append(nsIDOMFile *aFile) { return mFiles.AppendObject(aFile); }
 
-  PRBool Remove(PRUint32 aIndex) { return mFiles.RemoveObjectAt(aIndex); }
+  bool Remove(PRUint32 aIndex) { return mFiles.RemoveObjectAt(aIndex); }
   void Clear() { return mFiles.Clear(); }
 
   nsIDOMFile* GetItemAt(PRUint32 aIndex)

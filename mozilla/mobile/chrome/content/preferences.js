@@ -110,13 +110,12 @@ var PreferencesView = {
     // Query available and selected locales
     let chrome = Cc["@mozilla.org/chrome/chrome-registry;1"].getService(Ci.nsIXULChromeRegistry);
     chrome.QueryInterface(Ci.nsIToolkitChromeRegistry);
-
+ 
     let selectedLocale = chrome.getSelectedLocale("browser");
-
     let availableLocales = chrome.getLocalesForPackage("browser");
-
+ 
     let strings = Services.strings.createBundle("chrome://browser/content/languages.properties");
-
+ 
     // Render locale menulist by iterating through the query result from getLocalesForPackage()
     let selectedItem = null;
     let localeCount = 0;

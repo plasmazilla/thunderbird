@@ -293,10 +293,11 @@ struct TraceMonitor {
 namespace mjit {
 class JaegerCompartment;
 }
-}
 
 /* Defined in jsapi.cpp */
-extern JSClass js_dummy_class;
+extern Class dummy_class;
+
+} /* namespace js */
 
 #ifndef JS_EVAL_CACHE_SHIFT
 # define JS_EVAL_CACHE_SHIFT        6
@@ -408,7 +409,8 @@ struct JS_FRIEND_API(JSCompartment) {
      * Cleared on every GC, unless the GC happens during analysis (indicated
      * by activeAnalysis, which is implied by activeInference).
      */
-    JSArenaPool                  pool;
+    static const size_t TYPE_LIFO_ALLOC_PRIMARY_CHUNK_SIZE = 128 * 1024;
+    js::LifoAlloc                typeLifoAlloc;
     bool                         activeAnalysis;
     bool                         activeInference;
 
@@ -532,7 +534,7 @@ struct JS_FRIEND_API(JSCompartment) {
     bool wrap(JSContext *cx, js::AutoIdVector &props);
 
     void markTypes(JSTracer *trc);
-    void sweep(JSContext *cx, uint32 releaseInterval);
+    void sweep(JSContext *cx, bool releaseTypes);
     void purge(JSContext *cx);
 
     void setGCLastBytes(size_t lastBytes, JSGCInvocationKind gckind);
@@ -614,7 +616,7 @@ struct JS_FRIEND_API(JSCompartment) {
 
     js::BreakpointSite *getBreakpointSite(jsbytecode *pc);
     js::BreakpointSite *getOrCreateBreakpointSite(JSContext *cx, JSScript *script, jsbytecode *pc,
-                                                  JSObject *scriptObject);
+                                                  js::GlobalObject *scriptGlobal);
     void clearBreakpointsIn(JSContext *cx, js::Debugger *dbg, JSScript *script, JSObject *handler);
     void clearTraps(JSContext *cx, JSScript *script);
     bool markTrapClosuresIteratively(JSTracer *trc);
@@ -752,7 +754,7 @@ class SwitchToCompartment : public PreserveCompartment {
         : PreserveCompartment(cx)
     {
         JS_GUARD_OBJECT_NOTIFIER_INIT;
-        cx->setCompartment(target->getCompartment());
+        cx->setCompartment(target->compartment());
     }
 
     JS_DECL_USE_GUARD_OBJECT_NOTIFIER
@@ -774,6 +776,47 @@ class AssertCompartmentUnchanged {
     }
 };
 
-}
+class AutoCompartment
+{
+  public:
+    JSContext * const context;
+    JSCompartment * const origin;
+    JSObject * const target;
+    JSCompartment * const destination;
+  private:
+    Maybe<DummyFrameGuard> frame;
+    bool entered;
+
+  public:
+    AutoCompartment(JSContext *cx, JSObject *target);
+    ~AutoCompartment();
+
+    bool enter();
+    void leave();
+
+  private:
+    // Prohibit copying.
+    AutoCompartment(const AutoCompartment &);
+    AutoCompartment & operator=(const AutoCompartment &);
+};
+
+/*
+ * Use this to change the behavior of an AutoCompartment slightly on error. If
+ * the exception happens to be an Error object, copy it to the origin compartment
+ * instead of wrapping it.
+ */
+class ErrorCopier
+{
+    AutoCompartment &ac;
+    JSObject *scope;
+
+  public:
+    ErrorCopier(AutoCompartment &ac, JSObject *scope) : ac(ac), scope(scope) {
+        JS_ASSERT(scope->compartment() == ac.origin);
+    }
+    ~ErrorCopier();
+};
+
+} /* namespace js */
 
 #endif /* jscompartment_h___ */

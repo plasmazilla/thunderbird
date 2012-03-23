@@ -190,7 +190,7 @@ SetupFallbackOrPaintColor(gfxContext *aContext, nsStyleContext *aStyleContext,
 {
   const nsStyleSVGPaint &paint = aStyleContext->GetStyleSVG()->*aFillOrStroke;
   nsStyleContext *styleIfVisited = aStyleContext->GetStyleIfVisited();
-  PRBool isServer = paint.mType == eStyleSVGPaintType_Server;
+  bool isServer = paint.mType == eStyleSVGPaintType_Server;
   nscolor color = isServer ? paint.mFallbackColor : paint.mPaint.mColor;
   if (styleIfVisited) {
     const nsStyleSVGPaint &paintIfVisited =
@@ -224,12 +224,12 @@ nsSVGGeometryFrame::MaybeOptimizeOpacity(float aFillOrStrokeOpacity)
   return aFillOrStrokeOpacity;
 }
 
-PRBool
+bool
 nsSVGGeometryFrame::SetupCairoFill(gfxContext *aContext)
 {
   const nsStyleSVG* style = GetStyleSVG();
   if (style->mFill.mType == eStyleSVGPaintType_None)
-    return PR_FALSE;
+    return false;
 
   if (style->mFillRule == NS_STYLE_FILL_RULE_EVENODD)
     aContext->SetFillRule(gfxContext::FILL_RULE_EVEN_ODD);
@@ -241,7 +241,7 @@ nsSVGGeometryFrame::SetupCairoFill(gfxContext *aContext)
   nsSVGPaintServerFrame *ps =
     GetPaintServer(&style->mFill, nsSVGEffects::FillProperty());
   if (ps && ps->SetupPaintServer(aContext, this, opacity))
-    return PR_TRUE;
+    return true;
 
   // On failure, use the fallback colour in case we have an
   // objectBoundingBox where the width or height of the object is zero.
@@ -249,10 +249,10 @@ nsSVGGeometryFrame::SetupCairoFill(gfxContext *aContext)
   SetupFallbackOrPaintColor(aContext, GetStyleContext(),
                             &nsStyleSVG::mFill, opacity);
 
-  return PR_TRUE;
+  return true;
 }
 
-PRBool
+bool
 nsSVGGeometryFrame::HasStroke()
 {
   const nsStyleSVG *style = GetStyleSVG();
@@ -312,11 +312,11 @@ nsSVGGeometryFrame::SetupCairoStrokeHitGeometry(gfxContext *aContext)
   }
 }
 
-PRBool
+bool
 nsSVGGeometryFrame::SetupCairoStroke(gfxContext *aContext)
 {
   if (!HasStroke()) {
-    return PR_FALSE;
+    return false;
   }
   SetupCairoStrokeHitGeometry(aContext);
 
@@ -326,7 +326,7 @@ nsSVGGeometryFrame::SetupCairoStroke(gfxContext *aContext)
   nsSVGPaintServerFrame *ps =
     GetPaintServer(&style->mStroke, nsSVGEffects::StrokeProperty());
   if (ps && ps->SetupPaintServer(aContext, this, opacity))
-    return PR_TRUE;
+    return true;
 
   // On failure, use the fallback colour in case we have an
   // objectBoundingBox where the width or height of the object is zero.
@@ -334,7 +334,7 @@ nsSVGGeometryFrame::SetupCairoStroke(gfxContext *aContext)
   SetupFallbackOrPaintColor(aContext, GetStyleContext(),
                             &nsStyleSVG::mStroke, opacity);
 
-  return PR_TRUE;
+  return true;
 }
 
 PRUint16

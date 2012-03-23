@@ -85,11 +85,11 @@ nsMathMLmactionFrame::~nsMathMLmactionFrame()
   //  printf("maction:%p unregistering as mouse event listener ...\n", this);
   if (mListener) {
     mContent->RemoveEventListener(NS_LITERAL_STRING("click"), mListener,
-                                  PR_FALSE);
+                                  false);
     mContent->RemoveEventListener(NS_LITERAL_STRING("mouseover"), mListener,
-                                  PR_FALSE);
+                                  false);
     mContent->RemoveEventListener(NS_LITERAL_STRING("mouseout"), mListener,
-                                  PR_FALSE);
+                                  false);
   }
 }
 
@@ -229,11 +229,11 @@ nsMathMLmactionFrame::SetInitialChildList(ChildListID     aListID,
     mListener = new nsMathMLmactionFrame::MouseListener(this);
     // printf("maction:%p registering as mouse event listener ...\n", this);
     mContent->AddEventListener(NS_LITERAL_STRING("click"), mListener,
-                               PR_FALSE, PR_FALSE);
+                               false, false);
     mContent->AddEventListener(NS_LITERAL_STRING("mouseover"), mListener,
-                               PR_FALSE, PR_FALSE);
+                               false, false);
     mContent->AddEventListener(NS_LITERAL_STRING("mouseout"), mListener,
-                               PR_FALSE, PR_FALSE);
+                               false, false);
   }
   return rv;
 }
@@ -294,7 +294,7 @@ nsMathMLmactionFrame::Reflow(nsPresContext*          aPresContext,
 // Only place the selected child ...
 /* virtual */ nsresult
 nsMathMLmactionFrame::Place(nsRenderingContext& aRenderingContext,
-                            PRBool               aPlaceOrigin,
+                            bool                 aPlaceOrigin,
                             nsHTMLReflowMetrics& aDesiredSize)
 {
   aDesiredSize.width = aDesiredSize.height = 0;
@@ -399,7 +399,7 @@ nsMathMLmactionFrame::MouseClick()
       char cbuf[10];
       PR_snprintf(cbuf, sizeof(cbuf), "%d", selection);
       value.AssignASCII(cbuf);
-      PRBool notify = PR_FALSE; // don't yet notify the document
+      bool notify = false; // don't yet notify the document
       mContent->SetAttr(kNameSpaceID_None, nsGkAtoms::selection_, value, notify);
 
       // Now trigger a content-changed reflow...

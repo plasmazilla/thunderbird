@@ -66,14 +66,14 @@ CanvasLayerD3D9::Initialize(const Data& aData)
     mSurface = aData.mSurface;
     NS_ASSERTION(aData.mGLContext == nsnull,
                  "CanvasLayer can't have both surface and GLContext");
-    mNeedsYFlip = PR_FALSE;
-    mDataIsPremultiplied = PR_TRUE;
+    mNeedsYFlip = false;
+    mDataIsPremultiplied = true;
   } else if (aData.mGLContext) {
     NS_ASSERTION(aData.mGLContext->IsOffscreen(), "canvas gl context isn't offscreen");
     mGLContext = aData.mGLContext;
     mCanvasFramebuffer = mGLContext->GetOffscreenFBO();
     mDataIsPremultiplied = aData.mGLBufferIsPremultiplied;
-    mNeedsYFlip = PR_TRUE;
+    mNeedsYFlip = true;
   } else {
     NS_ERROR("CanvasLayer created without mSurface or mGLContext?");
   }
@@ -88,7 +88,7 @@ CanvasLayerD3D9::UpdateSurface()
 {
   if (!mDirty)
     return;
-  mDirty = PR_FALSE;
+  mDirty = false;
 
   if (!mTexture) {
     CreateTexture();
@@ -112,6 +112,8 @@ CanvasLayerD3D9::UpdateSurface()
     } else {
       destination = (PRUint8*)r.pBits;
     }
+
+    mGLContext->MakeCurrent();
 
     // We have to flush to ensure that any buffered GL operations are
     // in the framebuffer before we read.
@@ -276,23 +278,29 @@ CanvasLayerD3D9::LayerManagerDestroyed()
 void
 CanvasLayerD3D9::CreateTexture()
 {
+  HRESULT hr;
   if (mD3DManager->deviceManager()->HasDynamicTextures()) {
-    device()->CreateTexture(mBounds.width, mBounds.height, 1, D3DUSAGE_DYNAMIC,
-                            D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
-                            getter_AddRefs(mTexture), NULL);    
+    hr = device()->CreateTexture(mBounds.width, mBounds.height, 1, D3DUSAGE_DYNAMIC,
+                                 D3DFMT_A8R8G8B8, D3DPOOL_DEFAULT,
+                                 getter_AddRefs(mTexture), NULL);
   } else {
     // D3DPOOL_MANAGED is fine here since we require Dynamic Textures for D3D9Ex
     // devices.
-    device()->CreateTexture(mBounds.width, mBounds.height, 1, 0,
-                            D3DFMT_A8R8G8B8, D3DPOOL_MANAGED,
-                            getter_AddRefs(mTexture), NULL);
+    hr = device()->CreateTexture(mBounds.width, mBounds.height, 1, 0,
+                                 D3DFMT_A8R8G8B8, D3DPOOL_MANAGED,
+                                 getter_AddRefs(mTexture), NULL);
+  }
+  if (FAILED(hr)) {
+    mD3DManager->ReportFailure(NS_LITERAL_CSTRING("CanvasLayerD3D9::CreateTexture() failed"),
+                                 hr);
+    return;
   }
 }
 
 ShadowCanvasLayerD3D9::ShadowCanvasLayerD3D9(LayerManagerD3D9* aManager)
   : ShadowCanvasLayer(aManager, nsnull)
   , LayerD3D9(aManager)
-  , mNeedsYFlip(PR_FALSE)
+  , mNeedsYFlip(false)
 {
   mImplData = static_cast<LayerD3D9*>(this);
 }
@@ -307,10 +315,8 @@ ShadowCanvasLayerD3D9::Initialize(const Data& aData)
 }
 
 void
-ShadowCanvasLayerD3D9::Init(const SurfaceDescriptor& aNewFront, 
-                            const nsIntSize& aSize, bool needYFlip)
+ShadowCanvasLayerD3D9::Init(bool needYFlip)
 {
-
   if (!mBuffer) {
     mBuffer = new ShadowBufferD3D9(this);
   }
@@ -319,18 +325,19 @@ ShadowCanvasLayerD3D9::Init(const SurfaceDescriptor& aNewFront,
 }
 
 void
-ShadowCanvasLayerD3D9::Swap(const SurfaceDescriptor& aNewFront,
-                           SurfaceDescriptor* aNewBack)
+ShadowCanvasLayerD3D9::Swap(const CanvasSurface& aNewFront,
+                            bool needYFlip,
+                            CanvasSurface* aNewBack)
 {
-  NS_ASSERTION(aNewFront.type() == SharedImage::TSurfaceDescriptor, 
-    "ShadowCanvasLayerD3D9::Swap expected SharedImage surface");
+  NS_ASSERTION(aNewFront.type() == CanvasSurface::TSurfaceDescriptor, 
+    "ShadowCanvasLayerD3D9::Swap expected CanvasSurface surface");
 
   nsRefPtr<gfxASurface> surf = 
     ShadowLayerForwarder::OpenDescriptor(aNewFront);
-   
-  if (mBuffer) {
-    mBuffer->Upload(surf, GetVisibleRegion().GetBounds());
+  if (!mBuffer) {
+    Init(needYFlip);
   }
+  mBuffer->Upload(surf, GetVisibleRegion().GetBounds());
 
   *aNewBack = aNewFront;
 }

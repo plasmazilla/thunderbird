@@ -85,6 +85,7 @@ function calDavCalendar() {
     // By default, support both events and todos.
     this.mGenerallySupportedItemTypes = ["VEVENT", "VTODO"];
     this.mSupportedItemTypes = this.mGenerallySupportedItemTypes.slice(0);
+    this.mACLProperties = {};
 }
 
 // some shorthand
@@ -449,6 +450,10 @@ calDavCalendar.prototype = {
     },
 
     getProperty: function caldav_getProperty(aName) {
+        if (aName in this.mACLProperties) {
+            return this.mACLProperties[aName];
+        }
+
         switch (aName) {
             case "organizerId":
                 if (this.calendarUserAddress) {
@@ -733,7 +738,7 @@ calDavCalendar.prototype = {
                 if (wasInboxItem && thisCalendar.mShouldPollInbox) {
                     thisCalendar.doDeleteItemOrUseCache(aNewItem, true, null, true, true, null);
                 }
-            } else if (status == 412) {
+            } else if (status == 412 || status == 409) {
                 thisCalendar.promptOverwrite(CALDAV_MODIFY_ITEM, aNewItem,
                                              aListener, aOldItem);
             } else if ((status >= 500 && status <= 510) && (useCache && thisCalendar.mOfflineStorage)) {
@@ -900,7 +905,7 @@ calDavCalendar.prototype = {
                     cal.LOG("CalDAV: Item deleted successfully from calendar" +
                             thisCalendar.name);
                 }
-            } else if (status == 412) {
+            } else if (status == 412 || status == 409) {
                 // item has either been modified or deleted by someone else
                 // check to see which
 
@@ -1245,7 +1250,37 @@ calDavCalendar.prototype = {
         }
     },
 
+    fillACLProperties: function caldav_fillACLProperties() {
+        this.mACLProperties["organizerId"] = this.calendarUserAddress;
+        if (this.mACLEntry && this.mACLEntry.hasAccessControl) {
+            let ownerIdentities = this.mACLEntry.getOwnerIdentities({});
+            if (ownerIdentities.length > 0) {
+                let identity = ownerIdentities[0];
+                this.mACLProperties["organizerId"] = identity.email;
+                this.mACLProperties["organizerCN"] = identity.fullName;
+                this.mACLProperties["imip.identity"] = identity;
+            }
+        }
+    },
+
     safeRefresh: function caldav_safeRefresh(aChangeLogListener) {
+        if (!this.mACLEntry) {
+            let thisCalendar = this;
+            let opListener = {
+                onGetResult: function(calendar, status, itemType, detail, count, items) {
+                    ASSERT(false, "unexpected!");
+                },
+                onOperationComplete: function(opCalendar, opStatus, opType, opId, opDetail) {
+                    thisCalendar.mACLEntry = opDetail;
+                    thisCalendar.fillACLProperties();
+                    thisCalendar.safeRefresh(aChangeLogListener);
+                }
+            };
+
+            this.aclManager.getCalendarEntry(this, opListener);
+            return;
+        }
+
         this.ensureTargetCalendar();
 
         if (this.mAuthScheme == "Digest") {
@@ -1609,7 +1644,10 @@ calDavCalendar.prototype = {
             if (supportedComponentsXml.C::comp.length() > 0) {
                 thisCalendar.mSupportedItemTypes.length = 0;
                 for each (let sc in supportedComponentsXml.C::comp) {
-                    let comp = sc.@name.toString();
+                    // accept name attribute from all namespaces to workaround Cosmo bug
+                    // see bug 605378 comment 6
+                    let comp = sc.@*::name.toString();
+
                     if (thisCalendar.mGenerallySupportedItemTypes.indexOf(comp) >= 0) {
                         cal.LOG("Adding supported item: " + comp + " for calendar: " + thisCalendar.name);
                         thisCalendar.mSupportedItemTypes.push(comp);

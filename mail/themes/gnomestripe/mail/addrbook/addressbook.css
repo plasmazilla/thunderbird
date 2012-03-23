@@ -214,7 +214,6 @@ treechildren::-moz-tree-image(DirCol, IsRemote-true, IsSecure-true) {
 
 #dirTree {
   border-bottom: 1px solid ThreeDShadow;
-  -moz-border-start: 1px solid ThreeDShadow;
 }
 
 #dirTree [sortDirection="ascending"],
@@ -250,8 +249,8 @@ treechildren::-moz-tree-image(DirCol, IsRemote-true, IsSecure-true) {
 
 /* ::::: results pane ::::: */
 
-#abResultsTree {
-  -moz-border-end: 1px solid ThreeDShadow;
+#GeneratedName {
+  -moz-padding-start: 22px;
 }
 
 treechildren::-moz-tree-image(GeneratedName) {
@@ -264,11 +263,14 @@ treechildren::-moz-tree-image(GeneratedName, MailList) {
   list-style-image: url("chrome://messenger/skin/addressbook/icons/ablist.png");
 }
 
+treechildren::-moz-tree-cell-text(GeneratedName) {
+  -moz-padding-start: 0;
+}
+
 /* ::::: card view pane ::::: */
 
 #CardViewOuterBox {
   border-bottom: 1px solid ThreeDShadow;
-  -moz-border-end: 1px solid ThreeDShadow;
 }
 
 #CardViewBox {

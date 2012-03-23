@@ -99,9 +99,6 @@ static inline void
 PushMarkStack(GCMarker *gcmarker, const Shape *thing);
 
 static inline void
-PushMarkStack(GCMarker *gcmarker, JSShortString *thing);
-
-static inline void
 PushMarkStack(GCMarker *gcmarker, JSString *thing);
 
 static inline void
@@ -186,7 +183,7 @@ MarkCrossCompartmentObject(JSTracer *trc, JSObject &obj, const char *name)
 
 void
 MarkObjectWithPrinter(JSTracer *trc, JSObject &obj, JSTraceNamePrinter printer,
-		      const void *arg, size_t index)
+                      const void *arg, size_t index)
 {
     JS_ASSERT(trc);
     JS_ASSERT(&obj);
@@ -285,15 +282,6 @@ PushMarkStack(GCMarker *gcmarker, types::TypeObject *thing)
 
     if (thing->markIfUnmarked(gcmarker->getMarkColor()))
         gcmarker->pushType(thing);
-}
-
-void
-PushMarkStack(GCMarker *gcmarker, JSShortString *thing)
-{
-    JS_OPT_ASSERT_IF(gcmarker->context->runtime->gcCurrentCompartment,
-                     thing->compartment() == gcmarker->context->runtime->gcCurrentCompartment);
-
-    (void) thing->markIfUnmarked(gcmarker->getMarkColor());
 }
 
 void
@@ -555,23 +543,27 @@ MarkRoot(JSTracer *trc, JSXML *thing, const char *name)
 }
 
 static void
+PrintPropertyId(char *buf, size_t bufsize, jsid propid, const char *label)
+{
+    JS_ASSERT(!JSID_IS_VOID(propid));
+    if (JSID_IS_ATOM(propid)) {
+        size_t n = PutEscapedString(buf, bufsize, JSID_TO_ATOM(propid), 0);
+        if (n < bufsize)
+            JS_snprintf(buf + n, bufsize - n, " %s", label);
+    } else if (JSID_IS_INT(propid)) {
+        JS_snprintf(buf, bufsize, "%d %s", JSID_TO_INT(propid), label);
+    } else {
+        JS_snprintf(buf, bufsize, "<object> %s", label);
+    }
+}
+
+static void
 PrintPropertyGetterOrSetter(JSTracer *trc, char *buf, size_t bufsize)
 {
     JS_ASSERT(trc->debugPrinter == PrintPropertyGetterOrSetter);
     Shape *shape = (Shape *)trc->debugPrintArg;
-    jsid propid = shape->propid;
-    JS_ASSERT(!JSID_IS_VOID(propid));
-    const char *name = trc->debugPrintIndex ? js_setter_str : js_getter_str;
-
-    if (JSID_IS_ATOM(propid)) {
-        size_t n = PutEscapedString(buf, bufsize, JSID_TO_ATOM(propid), 0);
-        if (n < bufsize)
-            JS_snprintf(buf + n, bufsize - n, " %s", name);
-    } else if (JSID_IS_INT(shape->propid)) {
-        JS_snprintf(buf, bufsize, "%d %s", JSID_TO_INT(propid), name);
-    } else {
-        JS_snprintf(buf, bufsize, "<object> %s", name);
-    }
+    PrintPropertyId(buf, bufsize, shape->propid,
+                    trc->debugPrintIndex ? js_setter_str : js_getter_str); 
 }
 
 static void
@@ -579,13 +571,7 @@ PrintPropertyMethod(JSTracer *trc, char *buf, size_t bufsize)
 {
     JS_ASSERT(trc->debugPrinter == PrintPropertyMethod);
     Shape *shape = (Shape *)trc->debugPrintArg;
-    jsid propid = shape->propid;
-    JS_ASSERT(!JSID_IS_VOID(propid));
-
-    JS_ASSERT(JSID_IS_ATOM(propid));
-    size_t n = PutEscapedString(buf, bufsize, JSID_TO_ATOM(propid), 0);
-    if (n < bufsize)
-        JS_snprintf(buf + n, bufsize - n, " method");
+    PrintPropertyId(buf, bufsize, shape->propid, " method");
 }
 
 static inline void
@@ -834,8 +820,8 @@ MarkChildren(JSTracer *trc, JSScript *script)
         MarkValueRange(trc, constarray->length, constarray->vector, "consts");
     }
 
-    if (!script->isCachedEval && script->u.object)
-        MarkObject(trc, *script->u.object, "object");
+    if (!script->isCachedEval && script->u.globalObject)
+        MarkObject(trc, *script->u.globalObject, "object");
 
     if (IS_GC_MARKING_TRACER(trc) && script->filename)
         js_MarkScriptFilename(script->filename);
@@ -844,19 +830,11 @@ MarkChildren(JSTracer *trc, JSScript *script)
 
     if (script->types)
         script->types->trace(trc);
-
-#ifdef JS_METHODJIT
-    if (script->jitNormal)
-        script->jitNormal->trace(trc);
-    if (script->jitCtor)
-        script->jitCtor->trace(trc);
-#endif
 }
 
-void
-MarkChildren(JSTracer *trc, const Shape *shape)
+const Shape *
+MarkShapeChildrenAcyclic(JSTracer *trc, const Shape *shape)
 {
-restart:
     MarkId(trc, shape->propid, "propid");
 
     if (shape->hasGetterValue() && shape->getter())
@@ -867,9 +845,14 @@ restart:
     if (shape->isMethod())
         MarkObjectWithPrinter(trc, shape->methodObject(), PrintPropertyMethod, shape, 0);
 
-    shape = shape->previous();
-    if (shape)
-        goto restart;
+    return shape->previous();
+}
+
+void
+MarkChildren(JSTracer *trc, const Shape *shape)
+{
+    if (const Shape *prev = MarkShapeChildrenAcyclic(trc, shape))
+        MarkShape(trc, prev, "parent");
 }
 
 static void
@@ -998,19 +981,19 @@ JS_TraceChildren(JSTracer *trc, void *thing, JSGCTraceKind kind)
 {
     switch (kind) {
       case JSTRACE_OBJECT:
-	MarkChildren(trc, static_cast<JSObject *>(thing));
+        MarkChildren(trc, static_cast<JSObject *>(thing));
         break;
 
       case JSTRACE_STRING:
-	MarkChildren(trc, static_cast<JSString *>(thing));
+        MarkChildren(trc, static_cast<JSString *>(thing));
         break;
 
       case JSTRACE_SCRIPT:
-	MarkChildren(trc, static_cast<JSScript *>(thing));
+        MarkChildren(trc, static_cast<JSScript *>(thing));
         break;
 
       case JSTRACE_SHAPE:
-	MarkChildren(trc, static_cast<Shape *>(thing));
+        MarkChildren(trc, static_cast<Shape *>(thing));
         break;
 
       case JSTRACE_TYPE_OBJECT:

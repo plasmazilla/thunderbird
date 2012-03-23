@@ -370,6 +370,9 @@ RESTRequest.prototype = {
   /*** nsIStreamListener ***/
 
   onStartRequest: function onStartRequest(channel) {
+    // Update the channel in case we got redirected.
+    this.channel = channel;
+
     if (this.status == this.ABORTED) {
       this._log.trace("Not proceeding with onStartRequest, request was aborted.");
       return;
@@ -394,6 +397,9 @@ RESTRequest.prototype = {
   },
 
   onStopRequest: function onStopRequest(channel, context, statusCode) {
+    // Update the channel in case we got redirected.
+    this.channel = channel;
+
     if (this.timeoutTimer) {
       // Clear the abort timer now that the channel is done.
       this.timeoutTimer.clear();
@@ -406,6 +412,7 @@ RESTRequest.prototype = {
     }
     this.status = this.COMPLETED;
 
+    let statusSuccess = Components.isSuccessCode(statusCode);
     let uri = channel && channel.URI && channel.URI.spec || "<unknown>";
     this._log.trace("Channel for " + channel.requestMethod + " " + uri +
                     " returned status code " + statusCode);
@@ -413,7 +420,7 @@ RESTRequest.prototype = {
     // Throw the failure code and stop execution.  Use Components.Exception()
     // instead of Error() so the exception is QI-able and can be passed across
     // XPCOM borders while preserving the status code.
-    if (!Components.isSuccessCode(statusCode)) {
+    if (!statusSuccess) {
       let message = Components.Exception("", statusCode).name;
       let error = Components.Exception(message, statusCode);
       this.onComplete(error);

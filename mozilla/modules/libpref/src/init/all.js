@@ -205,8 +205,12 @@ pref("gfx.downloadable_fonts.sanitize", true);
 // use harfbuzz for default (0x01) + arabic (0x02) + hebrew (0x04) + thai (0x40)
 pref("gfx.font_rendering.harfbuzz.scripts", 71);
 #else
+#ifdef ANDROID
+pref("gfx.font_rendering.harfbuzz.scripts", 71);
+#else
 // use harfbuzz for default (0x01) + arabic (0x02)
 pref("gfx.font_rendering.harfbuzz.scripts", 3);
+#endif
 #endif
 
 #ifdef XP_WIN
@@ -244,6 +248,8 @@ pref("ui.scrollToClick", 0);
 // Only on mac tabfocus is expected to handle UI widgets as well as web content
 pref("accessibility.tabfocus_applies_to_xul", true);
 #endif
+
+pref("focusmanager.testmode", false);
 
 pref("accessibility.usetexttospeech", "");
 pref("accessibility.usebrailledisplay", "");
@@ -595,6 +601,10 @@ pref("dom.min_timeout_value", 4);
 // And for background windows
 pref("dom.min_background_timeout_value", 1000);
 
+// Use the new DOM bindings (only affects any scopes created after the pref is
+// changed)
+pref("dom.new_bindings", true);
+
 // Parsing perf prefs. For now just mimic what the old code did.
 #ifndef XP_WIN
 pref("content.sink.pending_event_mode", 0);
@@ -617,8 +627,8 @@ pref("javascript.options.strict",           false);
 pref("javascript.options.strict.debug",     true);
 #endif
 pref("javascript.options.relimit",          true);
-pref("javascript.options.tracejit.content",  true);
-pref("javascript.options.tracejit.chrome",   true);
+pref("javascript.options.tracejit.content",  false);
+pref("javascript.options.tracejit.chrome",   false);
 pref("javascript.options.methodjit.content", true);
 pref("javascript.options.methodjit.chrome",  true);
 pref("javascript.options.jitprofiling.content", true);
@@ -717,12 +727,7 @@ pref("network.http.keep-alive.timeout", 115);
 // Note: the socket transport service will clamp the number below 256 if the OS
 // cannot allocate that many FDs, and it also always tries to reserve up to 250
 // file descriptors for things other than sockets.   
-// -- windows using lower limit until bug 692260 resolved
-#ifdef XP_WIN
-pref("network.http.max-connections", 48);
-#else
 pref("network.http.max-connections", 256);
-#endif
 
 // limit the absolute number of http connections that can be established per
 // host.  if a http proxy server is enabled, then the "server" is the proxy
@@ -788,7 +793,7 @@ pref("network.http.connection-retry-timeout", 250);
 
 // Disable IPv6 for backup connections to workaround problems about broken
 // IPv6 connectivity.
-pref("network.http.fast-fallback-to-IPv4", false);
+pref("network.http.fast-fallback-to-IPv4", true);
 
 // default values for FTP
 // in a DSCP environment this should be 40 (0x28, or AF11), per RFC-4594,
@@ -1091,7 +1096,6 @@ pref("converter.html2txt.structs",          true); // Output structured phrases 
 pref("converter.html2txt.header_strategy",  1); // 0 = no indention; 1 = indention, increased with header level; 2 = numbering and slight indention
 
 pref("intl.accept_languages",               "chrome://global/locale/intl.properties");
-pref("intl.accept_charsets",                "iso-8859-1,*,utf-8");
 pref("intl.menuitems.alwaysappendaccesskeys","chrome://global/locale/intl.properties");
 pref("intl.menuitems.insertseparatorbeforeaccesskeys","chrome://global/locale/intl.properties");
 pref("intl.charsetmenu.browser.static",     "chrome://global/locale/intl.properties");
@@ -1474,8 +1478,7 @@ pref("dom.max_script_run_time", 10);
 pref("dom.ipc.plugins.timeoutSecs", 45);
 // How long a plugin process will wait for a response from the parent
 // to a synchronous request before terminating itself. After this
-// point the child assumes the parent is hung.
-// Disabled in release builds for Aurora and up
+// point the child assumes the parent is hung. Currently disabled.
 pref("dom.ipc.plugins.parentTimeoutSecs", 0);
 // How long a plugin launch is allowed to take before
 // we consider it failed.
@@ -3286,6 +3289,10 @@ pref("webgl.force_osmesa", false);
 pref("webgl.osmesalib", "");
 pref("webgl.verbose", false);
 pref("webgl.prefer-native-gl", false);
+pref("webgl.min_capability_mode", false);
+pref("webgl.disable-extensions", false);
+pref("webgl.msaa-level", 2);
+pref("webgl.msaa-force", false);
 
 #ifdef XP_WIN
 // The default TCP send window on Windows is too small, and autotuning only occurs on receive
@@ -3325,8 +3332,6 @@ pref("geo.enabled", true);
 // Enable/Disable the orientation API for content
 pref("device.motion.enabled", true);
 
-// Enable/Disable HTML5 parser
-pref("html5.parser.enable", true);
 // Toggle which thread the HTML5 parser uses for stream parsing
 pref("html5.offmainthread", true);
 // Time in milliseconds between the time a network buffer is seen and the 
@@ -3346,6 +3351,7 @@ pref("browser.history.maxStateObjectSize", 655360);
 // XPInstall prefs
 pref("xpinstall.whitelist.required", true);
 pref("extensions.alwaysUnpack", false);
+pref("extensions.minCompatiblePlatformVersion", "2.0");
 
 pref("network.buffer.cache.count", 24);
 pref("network.buffer.cache.size",  32768);
@@ -3363,10 +3369,14 @@ pref("alerts.disableSlidingEffect", false);
 pref("full-screen-api.enabled", false);
 pref("full-screen-api.allow-trusted-requests-only", true);
 pref("full-screen-api.key-input-restricted", true);
+pref("full-screen-api.warning.enabled", true);
 
 // Time limit, in milliseconds, for nsEventStateManager::IsHandlingUserInput().
 // Used to detect long running handlers of user-generated events.
 pref("dom.event.handling-user-input-time-limit", 1000);
  
 //3D Transforms
-pref("layout.3d-transforms.enabled", false);
+pref("layout.3d-transforms.enabled", true);
+
+// Battery API
+pref("dom.battery.enabled", false);

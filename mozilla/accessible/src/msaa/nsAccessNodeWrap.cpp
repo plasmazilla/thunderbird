@@ -46,11 +46,12 @@
 #include "nsCoreUtils.h"
 #include "nsRootAccessible.h"
 #include "nsWinUtils.h"
+#include "Statistics.h"
 
 #include "nsAttrName.h"
 #include "nsIDocument.h"
 #include "nsIDOMNodeList.h"
-#include "nsIDOMNSHTMLElement.h"
+#include "nsIDOMHTMLElement.h"
 #include "nsIFrame.h"
 #include "nsINameSpaceManager.h"
 #include "nsPIDOMWindow.h"
@@ -59,6 +60,7 @@
 #include "mozilla/Preferences.h"
 
 using namespace mozilla;
+using namespace mozilla::a11y;
 
 /// the accessible library and cached methods
 HINSTANCE nsAccessNodeWrap::gmAccLib = nsnull;
@@ -69,7 +71,7 @@ LPFNNOTIFYWINEVENT nsAccessNodeWrap::gmNotifyWinEvent = nsnull;
 LPFNGETGUITHREADINFO nsAccessNodeWrap::gmGetGUIThreadInfo = nsnull;
 
 // Used to determine whether an IAccessible2 compatible screen reader is loaded.
-PRBool nsAccessNodeWrap::gIsIA2Disabled = PR_FALSE;
+bool nsAccessNodeWrap::gIsIA2Disabled = false;
 
 AccTextChangeEvent* nsAccessNodeWrap::gTextEvent = nsnull;
 
@@ -120,11 +122,14 @@ STDMETHODIMP nsAccessNodeWrap::QueryInterface(REFIID iid, void** ppv)
 {
   *ppv = nsnull;
 
-  if (IID_IUnknown == iid || IID_ISimpleDOMNode == iid)
+  if (IID_IUnknown == iid) {
     *ppv = static_cast<ISimpleDOMNode*>(this);
-
-  if (nsnull == *ppv)
+  } else if (IID_ISimpleDOMNode == iid) {
+    statistics::ISimpleDOMUsed();
+    *ppv = static_cast<ISimpleDOMNode*>(this);
+  } else {
     return E_NOINTERFACE;      //iid not supported.
+  }
    
   (reinterpret_cast<IUnknown*>(*ppv))->AddRef(); 
   return S_OK;
@@ -543,12 +548,12 @@ nsAccessNodeWrap::get_innerHTML(BSTR __RPC_FAR *aInnerHTML)
 __try {
   *aInnerHTML = nsnull;
 
-  nsCOMPtr<nsIDOMNSHTMLElement> domNSElement(do_QueryInterface(GetNode()));
-  if (!domNSElement)
+  nsCOMPtr<nsIDOMHTMLElement> htmlElement = do_QueryInterface(GetNode());
+  if (!htmlElement)
     return E_FAIL; // Node already shut down
 
   nsAutoString innerHTML;
-  domNSElement->GetInnerHTML(innerHTML);
+  htmlElement->GetInnerHTML(innerHTML);
   if (innerHTML.IsEmpty())
     return S_FALSE;
 
@@ -666,11 +671,11 @@ GetHRESULT(nsresult aResult)
   }
 }
 
-PRBool nsAccessNodeWrap::IsOnlyMsaaCompatibleJawsPresent()
+bool nsAccessNodeWrap::IsOnlyMsaaCompatibleJawsPresent()
 {
   HMODULE jhookhandle = ::GetModuleHandleW(kJAWSModuleHandle);
   if (!jhookhandle)
-    return PR_FALSE;  // No JAWS, or some other screen reader, use IA2
+    return false;  // No JAWS, or some other screen reader, use IA2
 
   PRUnichar fileName[MAX_PATH];
   ::GetModuleFileNameW(jhookhandle, fileName, MAX_PATH);
@@ -721,14 +726,14 @@ void nsAccessNodeWrap::TurnOffNewTabSwitchingForJawsAndWE()
   }
   
   // Value has never been set, set it.
-  Preferences::SetBool(CTRLTAB_DISALLOW_FOR_SCREEN_READERS_PREF, PR_TRUE);
+  Preferences::SetBool(CTRLTAB_DISALLOW_FOR_SCREEN_READERS_PREF, true);
 }
 
 void nsAccessNodeWrap::DoATSpecificProcessing()
 {
   if (IsOnlyMsaaCompatibleJawsPresent())
     // All versions below 8.0.2173 are not compatible
-    gIsIA2Disabled  = PR_TRUE;
+    gIsIA2Disabled  = true;
 
   TurnOffNewTabSwitchingForJawsAndWE();
 }
@@ -738,6 +743,10 @@ nsRefPtrHashtable<nsVoidPtrHashKey, nsDocAccessible> nsAccessNodeWrap::sHWNDCach
 LRESULT CALLBACK
 nsAccessNodeWrap::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+  // Note, this window's message handling should not invoke any call that
+  // may result in a cross-process ipc call. Doing so may violate RPC
+  // message semantics.
+
   switch (msg) {
     case WM_GETOBJECT:
     {

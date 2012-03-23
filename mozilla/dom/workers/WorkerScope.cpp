@@ -37,11 +37,12 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "mozilla/Util.h"
+
 #include "WorkerScope.h"
 
 #include "jsapi.h"
 #include "jscntxt.h"
-#include "jsobj.h"
 
 #include "nsTraceRefcnt.h"
 #include "xpcprivate.h"
@@ -69,6 +70,7 @@
 #define FUNCTION_FLAGS \
   JSPROP_ENUMERATE
 
+using namespace mozilla;
 USING_WORKERS_NAMESPACE
 
 namespace {
@@ -288,7 +290,7 @@ private:
 
     jsval rval = JSVAL_VOID;
     if (!JS_CallFunctionValue(aCx, JSVAL_TO_OBJECT(scope), listener,
-                              JS_ARRAY_LENGTH(argv), argv, &rval)) {
+                              ArrayLength(argv), argv, &rval)) {
       JS_ReportPendingException(aCx);
       return false;
     }
@@ -313,6 +315,11 @@ private:
     jsval adaptor;
     if (!scope->GetEventListenerOnEventTarget(aCx, name + 2, &adaptor)) {
       return false;
+    }
+
+    if (JSVAL_IS_VOID(adaptor)) {
+      *aVp = JSVAL_NULL;
+      return true;
     }
 
     JS_ASSERT(JSVAL_IS_OBJECT(adaptor));
@@ -892,6 +899,13 @@ CreateDedicatedWorkerGlobalScope(JSContext* aCx)
   }
 
   return global;
+}
+
+bool
+ClassIsWorkerGlobalScope(JSClass* aClass)
+{
+  return WorkerGlobalScope::Class() == aClass ||
+         DedicatedWorkerGlobalScope::Class() == aClass;
 }
 
 END_WORKERS_NAMESPACE

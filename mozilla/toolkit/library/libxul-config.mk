@@ -96,6 +96,7 @@ STATIC_LIBS += \
   ipcshell_s \
   gfx2d \
   gfxipc_s \
+  hal_s \
   $(NULL)
 
 ifdef MOZ_IPDL_TESTS
@@ -122,7 +123,7 @@ COMPONENT_LIBS += \
 	i18n \
 	chardet \
 	jar$(VERSION_NUMBER) \
-        startupcache \
+	startupcache \
 	pref \
 	htmlpars \
 	imglib2 \
@@ -144,6 +145,8 @@ COMPONENT_LIBS += \
 	telemetry \
 	jsdebugger \
 	storagecomps \
+	rdf \
+	windowds \
 	$(NULL)
 
 ifdef BUILD_CTYPES
@@ -214,13 +217,6 @@ COMPONENT_LIBS += universalchardet
 DEFINES += -DMOZ_UNIVERSALCHARDET
 endif
 
-ifdef MOZ_RDF
-COMPONENT_LIBS += \
-	rdf \
-	windowds \
-	$(NULL)
-endif
-
 ifeq (,$(filter android qt os2 cocoa windows,$(MOZ_WIDGET_TOOLKIT)))
 ifdef MOZ_XUL
 COMPONENT_LIBS += fileview
@@ -266,6 +262,10 @@ COMPONENT_LIBS += widget_android
 endif
 
 STATIC_LIBS += thebes ycbcr
+
+ifeq ($(MOZ_WIDGET_TOOLKIT),android)
+STATIC_LIBS += profiler
+endif
 
 STATIC_LIBS += angle
 
@@ -356,6 +356,10 @@ endif
 
 ifdef HAVE_CLOCK_MONOTONIC
 EXTRA_DSO_LDOPTS += $(REALTIME_LIBS)
+endif
+
+ifeq (,$(filter-out cocoa android,$(MOZ_WIDGET_TOOLKIT)))
+EXTRA_DSO_LDOPTS += $(MOZ_SKIA_LIBS)
 endif
 
 ifeq (android,$(MOZ_WIDGET_TOOLKIT))

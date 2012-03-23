@@ -93,9 +93,9 @@ NS_IMPL_DOMTARGET_DEFAULTS(nsDOMEventTargetHelper);
 NS_IMETHODIMP
 nsDOMEventTargetHelper::RemoveEventListener(const nsAString& aType,
                                             nsIDOMEventListener* aListener,
-                                            PRBool aUseCapture)
+                                            bool aUseCapture)
 {
-  nsEventListenerManager* elm = GetListenerManager(PR_FALSE);
+  nsEventListenerManager* elm = GetListenerManager(false);
   if (elm) {
     elm->RemoveEventListener(aType, aListener, aUseCapture);
   }
@@ -106,13 +106,13 @@ nsDOMEventTargetHelper::RemoveEventListener(const nsAString& aType,
 NS_IMETHODIMP
 nsDOMEventTargetHelper::AddEventListener(const nsAString& aType,
                                          nsIDOMEventListener *aListener,
-                                         PRBool aUseCapture,
-                                         PRBool aWantsUntrusted,
+                                         bool aUseCapture,
+                                         bool aWantsUntrusted,
                                          PRUint8 aOptionalArgc)
 {
   NS_ASSERTION(!aWantsUntrusted || aOptionalArgc > 1,
                "Won't check if this is chrome, you want to set "
-               "aWantsUntrusted to PR_FALSE or make the aWantsUntrusted "
+               "aWantsUntrusted to false or make the aWantsUntrusted "
                "explicit by making aOptionalArgc non-zero.");
 
   if (aOptionalArgc < 2) {
@@ -124,14 +124,14 @@ nsDOMEventTargetHelper::AddEventListener(const nsAString& aType,
     aWantsUntrusted = doc && !nsContentUtils::IsChromeDoc(doc);
   }
 
-  nsEventListenerManager* elm = GetListenerManager(PR_TRUE);
+  nsEventListenerManager* elm = GetListenerManager(true);
   NS_ENSURE_STATE(elm);
   elm->AddEventListener(aType, aListener, aUseCapture, aWantsUntrusted);
   return NS_OK;
 }
 
 NS_IMETHODIMP
-nsDOMEventTargetHelper::DispatchEvent(nsIDOMEvent* aEvent, PRBool* aRetVal)
+nsDOMEventTargetHelper::DispatchEvent(nsIDOMEvent* aEvent, bool* aRetVal)
 {
   nsEventStatus status = nsEventStatus_eIgnore;
   nsresult rv =
@@ -147,13 +147,13 @@ nsDOMEventTargetHelper::RemoveAddEventListener(const nsAString& aType,
                                                nsIDOMEventListener* aNew)
 {
   if (aCurrent) {
-    RemoveEventListener(aType, aCurrent, PR_FALSE);
+    RemoveEventListener(aType, aCurrent, false);
     aCurrent = nsnull;
   }
   if (aNew) {
     aCurrent = new nsDOMEventListenerWrapper(aNew);
     NS_ENSURE_TRUE(aCurrent, NS_ERROR_OUT_OF_MEMORY);
-    nsIDOMEventTarget::AddEventListener(aType, aCurrent, PR_FALSE);
+    nsIDOMEventTarget::AddEventListener(aType, aCurrent, false);
   }
   return NS_OK;
 }
@@ -175,7 +175,7 @@ nsDOMEventTargetHelper::GetInnerEventListener(nsRefPtr<nsDOMEventListenerWrapper
 nsresult
 nsDOMEventTargetHelper::PreHandleEvent(nsEventChainPreVisitor& aVisitor)
 {
-  aVisitor.mCanHandle = PR_TRUE;
+  aVisitor.mCanHandle = true;
   aVisitor.mParentTarget = nsnull;
   return NS_OK;
 }
@@ -198,7 +198,7 @@ nsDOMEventTargetHelper::DispatchDOMEvent(nsEvent* aEvent,
 }
 
 nsEventListenerManager*
-nsDOMEventTargetHelper::GetListenerManager(PRBool aCreateIfNotFound)
+nsDOMEventTargetHelper::GetListenerManager(bool aCreateIfNotFound)
 {
   if (!mListenerManager && aCreateIfNotFound) {
     mListenerManager = new nsEventListenerManager(this);

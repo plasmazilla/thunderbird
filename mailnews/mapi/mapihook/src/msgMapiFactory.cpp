@@ -112,7 +112,7 @@ STDMETHODIMP CMapiFactory::CreateInstance(IUnknown* aUnknownOuter,
     return hr;
 }
 
-STDMETHODIMP CMapiFactory::LockServer(PRBool aLock) 
+STDMETHODIMP CMapiFactory::LockServer(BOOL aLock) 
 {
     return S_OK ;
 }

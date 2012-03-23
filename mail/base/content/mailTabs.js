@@ -691,7 +691,7 @@ let mailTabType = {
     document.getElementById("totalMessageCount").hidden = !aLegalStates.thread;
 
     // -- message pane
-    document.getElementById("messagepanebox").collapsed =
+    document.getElementById("messagepaneboxwrapper").collapsed =
       !aLegalStates.message || !aVisibleStates.message;
 
     // we are responsible for updating the keybinding; view_init takes care of
@@ -734,6 +734,7 @@ let mailTabType = {
       case "cmd_viewClassicMailLayout":
       case "cmd_viewWideMailLayout":
       case "cmd_viewVerticalMailLayout":
+      case "cmd_toggleFolderPane":
       case "cmd_toggleMessagePane":
         return true;
 
@@ -748,6 +749,7 @@ let mailTabType = {
       case "cmd_viewClassicMailLayout":
       case "cmd_viewWideMailLayout":
       case "cmd_viewVerticalMailLayout":
+      case "cmd_toggleFolderPane":
       case "cmd_toggleMessagePane":
         // If the thread pane is illegal, these are all disabled
         if (!aTab.mode.legalPanes.thread)

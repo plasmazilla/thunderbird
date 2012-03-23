@@ -41,7 +41,6 @@
 #include "nsIAbLDAPAutoCompFormatter.h"
 #include "nsIConsoleService.h"
 #include "nsCOMPtr.h"
-#include "nsVoidArray.h"
 
 class nsAbLDAPAutoCompFormatter : public nsIAbLDAPAutoCompFormatter
 {
@@ -62,19 +61,19 @@ class nsAbLDAPAutoCompFormatter : public nsIAbLDAPAutoCompFormatter
     nsresult ProcessFormat(const nsAString & aFormat,
                            nsILDAPMessage *aMessage, 
                            nsACString *aValue,
-                           nsCStringArray *aAttrs);
+                           nsCString *aAttrs);
 
     // process a single attribute while parsing format
     nsresult ParseAttrName(const PRUnichar **aIter,  
                            const PRUnichar *aIterEnd, 
-                           PRBool aAttrRequired,
+                           bool aAttrRequired,
                            nsCOMPtr<nsIConsoleService> & aConsoleSvc,
                            nsACString & aAttrName);
 
     // append the first value associated with aAttrName in aMessage to aValue
     nsresult AppendFirstAttrValue(const nsACString &aAttrName, 
                                   nsILDAPMessage *aMessage,
-                                  PRBool aAttrRequired,
+                                  bool aAttrRequired,
                                   nsACString &aValue);
 };
 

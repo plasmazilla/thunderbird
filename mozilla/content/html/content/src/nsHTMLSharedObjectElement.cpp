@@ -36,6 +36,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "mozilla/Util.h"
+
 #include "nsGenericHTMLElement.h"
 #include "nsObjectLoadingContent.h"
 #include "nsGkAtoms.h"
@@ -55,6 +57,7 @@
 #undef GetObject
 #endif
 
+using namespace mozilla;
 using namespace mozilla::dom;
 
 class nsHTMLSharedObjectElement : public nsGenericHTMLElement
@@ -78,7 +81,24 @@ public:
   NS_FORWARD_NSIDOMELEMENT(nsGenericHTMLElement::)
 
   // nsIDOMHTMLElement
-  NS_FORWARD_NSIDOMHTMLELEMENT(nsGenericHTMLElement::)
+  NS_FORWARD_NSIDOMHTMLELEMENT_BASIC(nsGenericHTMLElement::)
+  NS_SCRIPTABLE NS_IMETHOD Click() {
+    return nsGenericHTMLElement::Click();
+  }
+  NS_SCRIPTABLE NS_IMETHOD GetTabIndex(PRInt32* aTabIndex);
+  NS_SCRIPTABLE NS_IMETHOD SetTabIndex(PRInt32 aTabIndex);
+  NS_SCRIPTABLE NS_IMETHOD Focus() {
+    return nsGenericHTMLElement::Focus();
+  }
+  NS_SCRIPTABLE NS_IMETHOD GetDraggable(bool* aDraggable) {
+    return nsGenericHTMLElement::GetDraggable(aDraggable);
+  }
+  NS_SCRIPTABLE NS_IMETHOD GetInnerHTML(nsAString& aInnerHTML) {
+    return nsGenericHTMLElement::GetInnerHTML(aInnerHTML);
+  }
+  NS_SCRIPTABLE NS_IMETHOD SetInnerHTML(const nsAString& aInnerHTML) {
+    return nsGenericHTMLElement::SetInnerHTML(aInnerHTML);
+  }
 
   // nsIDOMHTMLAppletElement
   NS_DECL_NSIDOMHTMLAPPLETELEMENT
@@ -97,27 +117,25 @@ public:
 
   virtual nsresult BindToTree(nsIDocument *aDocument, nsIContent *aParent,
                               nsIContent *aBindingParent,
-                              PRBool aCompileEventHandlers);
-  virtual void UnbindFromTree(PRBool aDeep = PR_TRUE,
-                              PRBool aNullParent = PR_TRUE);
+                              bool aCompileEventHandlers);
+  virtual void UnbindFromTree(bool aDeep = true,
+                              bool aNullParent = true);
   virtual nsresult SetAttr(PRInt32 aNameSpaceID, nsIAtom *aName,
                            nsIAtom *aPrefix, const nsAString &aValue,
-                           PRBool aNotify);
+                           bool aNotify);
 
-  NS_IMETHOD GetTabIndex(PRInt32 *aTabIndex);
-  NS_IMETHOD SetTabIndex(PRInt32 aTabIndex);
-  virtual PRBool IsHTMLFocusable(PRBool aWithMouse, PRBool *aIsFocusable, PRInt32 *aTabIndex);
+  virtual bool IsHTMLFocusable(bool aWithMouse, bool *aIsFocusable, PRInt32 *aTabIndex);
   virtual PRUint32 GetDesiredIMEState();
 
-  virtual nsresult DoneAddingChildren(PRBool aHaveNotified);
-  virtual PRBool IsDoneAddingChildren();
+  virtual nsresult DoneAddingChildren(bool aHaveNotified);
+  virtual bool IsDoneAddingChildren();
 
-  virtual PRBool ParseAttribute(PRInt32 aNamespaceID,
+  virtual bool ParseAttribute(PRInt32 aNamespaceID,
                                 nsIAtom *aAttribute,
                                 const nsAString &aValue,
                                 nsAttrValue &aResult);
   virtual nsMapRuleToAttributesFunc GetAttributeMappingFunction() const;
-  NS_IMETHOD_(PRBool) IsAttributeMapped(const nsIAtom *aAttribute) const;
+  NS_IMETHOD_(bool) IsAttributeMapped(const nsIAtom *aAttribute) const;
   virtual nsEventStates IntrinsicState() const;
   virtual void DestroyContent();
 
@@ -128,7 +146,7 @@ public:
 
   nsresult CopyInnerTo(nsGenericElement* aDest) const;
 
-  void StartObjectLoad() { StartObjectLoad(PR_TRUE); }
+  void StartObjectLoad() { StartObjectLoad(true); }
 
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED_NO_UNLINK(nsHTMLSharedObjectElement,
                                                      nsGenericHTMLElement)
@@ -142,7 +160,7 @@ private:
   /**
    * Calls LoadObject with the correct arguments to start the plugin load.
    */
-  NS_HIDDEN_(void) StartObjectLoad(PRBool aNotify);
+  NS_HIDDEN_(void) StartObjectLoad(bool aNotify);
 
   void GetTypeAttrValue(nsCString &aValue) const
   {
@@ -166,7 +184,7 @@ private:
 
   // mIsDoneAddingChildren is only really used for <applet>.  This boolean is
   // always true for <embed>, per the documentation in nsIContent.h.
-  PRPackedBool mIsDoneAddingChildren;
+  bool mIsDoneAddingChildren;
 };
 
 
@@ -191,17 +209,17 @@ nsHTMLSharedObjectElement::~nsHTMLSharedObjectElement()
   DestroyImageLoadingContent();
 }
 
-PRBool
+bool
 nsHTMLSharedObjectElement::IsDoneAddingChildren()
 {
   return mIsDoneAddingChildren;
 }
 
 nsresult
-nsHTMLSharedObjectElement::DoneAddingChildren(PRBool aHaveNotified)
+nsHTMLSharedObjectElement::DoneAddingChildren(bool aHaveNotified)
 {
   if (!mIsDoneAddingChildren) {
-    mIsDoneAddingChildren = PR_TRUE;
+    mIsDoneAddingChildren = true;
 
     // If we're already in a document, we need to trigger the load
     // Otherwise, BindToTree takes care of that.
@@ -265,7 +283,7 @@ nsresult
 nsHTMLSharedObjectElement::BindToTree(nsIDocument *aDocument,
                                       nsIContent *aParent,
                                       nsIContent *aBindingParent,
-                                      PRBool aCompileEventHandlers)
+                                      bool aCompileEventHandlers)
 {
   nsresult rv = nsGenericHTMLElement::BindToTree(aDocument, aParent,
                                                  aBindingParent,
@@ -279,12 +297,23 @@ nsHTMLSharedObjectElement::BindToTree(nsIDocument *aDocument,
     nsContentUtils::AddScriptRunner(NS_NewRunnableMethod(this, start));
   }
 
+#ifndef XP_MACOSX
+  if (aDocument &&
+      aDocument->IsFullScreenDoc() &&
+      nsContentUtils::HasPluginWithUncontrolledEventDispatch(this)) {
+    // This content contains a windowed plugin for which we don't control
+    // event dispatch, and we're in full-screen mode. Exit full-screen mode
+    // to prevent phishing attacks.
+    NS_DispatchToCurrentThread(
+      NS_NewRunnableMethod(aDocument, &nsIDocument::CancelFullScreen));
+  }
+#endif
   return NS_OK;
 }
 
 void
-nsHTMLSharedObjectElement::UnbindFromTree(PRBool aDeep,
-                                          PRBool aNullParent)
+nsHTMLSharedObjectElement::UnbindFromTree(bool aDeep,
+                                          bool aNullParent)
 {
   RemovedFromDocument();
   nsGenericHTMLElement::UnbindFromTree(aDeep, aNullParent);
@@ -295,7 +324,7 @@ nsHTMLSharedObjectElement::UnbindFromTree(PRBool aDeep,
 nsresult
 nsHTMLSharedObjectElement::SetAttr(PRInt32 aNameSpaceID, nsIAtom *aName,
                                    nsIAtom *aPrefix, const nsAString &aValue,
-                                   PRBool aNotify)
+                                   bool aNotify)
 {
   // If we plan to call LoadObject, we want to do it first so that the
   // object load kicks off _before_ the reflow triggered by the SetAttr.  But if
@@ -310,16 +339,16 @@ nsHTMLSharedObjectElement::SetAttr(PRInt32 aNameSpaceID, nsIAtom *aName,
       aNameSpaceID == kNameSpaceID_None && aName == URIAttrName()) {
     nsCAutoString type;
     GetTypeAttrValue(type);
-    LoadObject(aValue, aNotify, type, PR_TRUE);
+    LoadObject(aValue, aNotify, type, true);
   }
 
   return nsGenericHTMLElement::SetAttr(aNameSpaceID, aName, aPrefix, aValue,
                                        aNotify);
 }
 
-PRBool
-nsHTMLSharedObjectElement::IsHTMLFocusable(PRBool aWithMouse,
-                                           PRBool *aIsFocusable,
+bool
+nsHTMLSharedObjectElement::IsHTMLFocusable(bool aWithMouse,
+                                           bool *aIsFocusable,
                                            PRInt32 *aTabIndex)
 {
   if (mNodeInfo->Equals(nsGkAtoms::embed) || Type() == eType_Plugin) {
@@ -329,10 +358,10 @@ nsHTMLSharedObjectElement::IsHTMLFocusable(PRBool aWithMouse,
       GetTabIndex(aTabIndex);
     }
 
-    *aIsFocusable = PR_TRUE;
+    *aIsFocusable = true;
 
     // Let the plugin decide, so override.
-    return PR_TRUE;
+    return true;
   }
 
   return nsGenericHTMLElement::IsHTMLFocusable(aWithMouse, aIsFocusable, aTabIndex);
@@ -375,7 +404,7 @@ nsHTMLSharedObjectElement::GetSVGDocument(nsIDOMDocument **aResult)
   }
 
   // XXXbz should this use GetCurrentDoc()?  sXBL/XBL2 issue!
-  nsIDocument *sub_doc = GetOwnerDoc()->GetSubDocumentFor(this);
+  nsIDocument *sub_doc = OwnerDoc()->GetSubDocumentFor(this);
   if (!sub_doc) {
     return NS_OK;
   }
@@ -383,7 +412,7 @@ nsHTMLSharedObjectElement::GetSVGDocument(nsIDOMDocument **aResult)
   return CallQueryInterface(sub_doc, aResult);
 }
 
-PRBool
+bool
 nsHTMLSharedObjectElement::ParseAttribute(PRInt32 aNamespaceID,
                                           nsIAtom *aAttribute,
                                           const nsAString &aValue,
@@ -394,7 +423,7 @@ nsHTMLSharedObjectElement::ParseAttribute(PRInt32 aNamespaceID,
       return ParseAlignValue(aValue, aResult);
     }
     if (ParseImageAttribute(aAttribute, aValue, aResult)) {
-      return PR_TRUE;
+      return true;
     }
   }
 
@@ -428,7 +457,7 @@ EmbedMapAttributesIntoRule(const nsMappedAttributes *aAttributes,
   nsGenericHTMLElement::MapCommonAttributesExceptHiddenInto(aAttributes, aData);
 }
 
-NS_IMETHODIMP_(PRBool)
+NS_IMETHODIMP_(bool)
 nsHTMLSharedObjectElement::IsAttributeMapped(const nsIAtom *aAttribute) const
 {
   static const MappedAttributeEntry* const map[] = {
@@ -438,7 +467,7 @@ nsHTMLSharedObjectElement::IsAttributeMapped(const nsIAtom *aAttribute) const
     sImageAlignAttributeMap,
   };
 
-  return FindAttributeDependence(aAttribute, map, NS_ARRAY_LENGTH(map));
+  return FindAttributeDependence(aAttribute, map, ArrayLength(map));
 }
 
 
@@ -453,7 +482,7 @@ nsHTMLSharedObjectElement::GetAttributeMappingFunction() const
 }
 
 void
-nsHTMLSharedObjectElement::StartObjectLoad(PRBool aNotify)
+nsHTMLSharedObjectElement::StartObjectLoad(bool aNotify)
 {
   nsCAutoString type;
   GetTypeAttrValue(type);
@@ -468,7 +497,7 @@ nsHTMLSharedObjectElement::StartObjectLoad(PRBool aNotify)
   else {
     LoadObject(uri, aNotify, type);
   }
-  SetIsNetworkCreated(PR_FALSE);
+  SetIsNetworkCreated(false);
 }
 
 nsEventStates
@@ -501,7 +530,7 @@ nsHTMLSharedObjectElement::CopyInnerTo(nsGenericElement* aDest) const
   nsresult rv = nsGenericHTMLElement::CopyInnerTo(aDest);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  if (aDest->GetOwnerDoc()->IsStaticDocument()) {
+  if (aDest->OwnerDoc()->IsStaticDocument()) {
     CreateStaticClone(static_cast<nsHTMLSharedObjectElement*>(aDest));
   }
 

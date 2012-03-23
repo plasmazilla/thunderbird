@@ -101,7 +101,7 @@ pref("browser.download.progress.closeWhenDone", false);
 // the Content-Disposition filename) before giving up and falling back to
 // picking a filename without that info in hand so that the user sees some
 // feedback from their action.
-pref("browser.download.saveLinkAsFilenameTimeout", 1000);
+pref("browser.download.saveLinkAsFilenameTimeout", 4000);
 
 // Use the findbar instead of the dialog box
 pref("browser.findbar.enabled", true);
@@ -129,7 +129,7 @@ pref("browser.search.openintab", false);
 pref("browser.search.opensidebarsearchpanel", false);
 
 // Open context search results in either a new window or tab.
-pref("browser.search.opentabforcontextsearch", false);
+pref("browser.search.opentabforcontextsearch", true);
 
 // Send ping to the server to update.
 pref("browser.search.update", true);
@@ -189,17 +189,12 @@ pref("browser.urlbar.restrict.typed", "~");
 pref("browser.urlbar.match.title", "#");
 pref("browser.urlbar.match.url", "@");
 
+pref("browser.history.last_page_visited", "about:blank");
 pref("browser.history.grouping", "day");
 pref("browser.sessionhistory.max_entries", 50);
 
 // Whether history is enabled or not.
 pref("places.history.enabled", true);
-
-// The percentage of system memory that the Places database can use.  Out of the
-// allowed cache size it will at most use the size of the database file.
-// Changes to this value are effective after an application restart.
-// Acceptable values are between 0 and 50.
-pref("places.database.cache_to_memory_percentage", 6);
 
 // the (maximum) number of the recent visits to sample
 // when calculating frecency
@@ -553,6 +548,13 @@ pref("app.update.incompatible.mode", 0);
 // Enables some extra Extension System Logging (can reduce performance)
 pref("extensions.logging.enabled", false);
 
+// Disables strict compatibility, making addons compatible-by-default.
+pref("extensions.strictCompatibility", false);
+
+// Specifies a minimum maxVersion an addon needs to say it's compatible with
+// for it to be compatible by default.
+pref("extensions.minCompatibleAppVersion", "2.1");
+
 // Blocklist preferences
 pref("extensions.blocklist.enabled", true);
 pref("extensions.blocklist.interval", 86400);
@@ -573,16 +575,21 @@ pref("extensions.blocklist.itemURL", "https://addons.mozilla.org/%LOCALE%/%APP%/
 //  .. etc ..
 //
 pref("extensions.update.enabled", true);
-pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%");
+pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%&compatMode=%COMPATIBILITY_MODE%");
 pref("extensions.update.interval", 86400);         // Check daily for updates to add-ons
 pref("extensions.update.autoUpdateDefault", true); // Download and install automatically
+
+// Disable add-ons installed into the shared user and shared system areas by
+// default. This does not include the application directory. See the SCOPE
+// constants in AddonManager.jsm for values to use here.
+pref("extensions.autoDisableScopes", 15);
 
 // Preferences for AMO integration
 pref("extensions.getAddons.cache.enabled", true);  // also toggles personalized recommendations
 pref("extensions.getAddons.maxResults", 15);
 pref("extensions.getAddons.get.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/guid:%IDS%?src=seamonkey&appOS=%OS%&appVersion=%VERSION%&tMain=%TIME_MAIN%&tFirstPaint=%TIME_FIRST_PAINT%&tSessionRestored=%TIME_SESSION_RESTORED%");
 pref("extensions.getAddons.search.browseURL", "https://addons.mozilla.org/%LOCALE%/%APP%/search?q=%TERMS%");
-pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/%TERMS%/all/%MAX_RESULTS%/%OS%/%VERSION%?src=seamonkey");
+pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/%TERMS%/all/%MAX_RESULTS%/%OS%/%VERSION%/%COMPATIBILITY_MODE%?src=seamonkey");
 pref("extensions.webservice.discoverURL", "https://services.addons.mozilla.org/%LOCALE%/%APP%/discovery/pane/%VERSION%/%OS%");
 
 // getMoreThemes is used by our UI under our switch theme menu

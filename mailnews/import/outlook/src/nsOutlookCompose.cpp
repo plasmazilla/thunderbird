@@ -47,8 +47,6 @@
 #include "nsIServiceManager.h"
 #include "nsIIOService.h"
 #include "nsIURI.h"
-#include "nsIProxyObjectManager.h"
-#include "nsProxiedService.h"
 #include "nsMsgI18N.h"
 #include "nsNativeCharsetUtils.h"
 #include "nsIOutputStream.h"
@@ -186,7 +184,7 @@ public:
   void Reset() { m_done = PR_FALSE; NS_IF_RELEASE( m_location);}
 
 public:
-  PRBool m_done;
+  bool m_done;
   nsIFile * m_location;
 };
 
@@ -223,7 +221,6 @@ nsOutlookCompose::nsOutlookCompose()
 {
   m_pListener = nsnull;
   m_pMsgFields = nsnull;
-  m_pIdentity = nsnull;
 
   m_optimizationBufferSize = 16*1024;
   m_optimizationBuffer = new char[m_optimizationBufferSize];
@@ -238,8 +235,6 @@ nsOutlookCompose::~nsOutlookCompose()
     NS_ASSERTION(NS_SUCCEEDED(rv),"failed to clear values");
     if (NS_FAILED(rv))
       return;
-
-    NS_RELEASE(m_pIdentity);
   }
   delete[] m_optimizationBuffer;
   ClearReplaceCids();
@@ -251,15 +246,16 @@ void nsOutlookCompose::ClearReplaceCids()
   m_replacedCids.clear();
 }
 
+nsIMsgIdentity * nsOutlookCompose::m_pIdentity = nsnull;
+
 nsresult nsOutlookCompose::CreateIdentity( void)
 {
   if (m_pIdentity)
     return NS_OK;
 
   nsresult rv;
-  NS_WITH_PROXIED_SERVICE(nsIMsgAccountManager, accMgr,
-                          NS_MSGACCOUNTMANAGER_CONTRACTID,
-                          NS_PROXY_TO_MAIN_THREAD, &rv);
+  nsCOMPtr<nsIMsgAccountManager> accMgr =
+    do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
   rv = accMgr->CreateIdentity(&m_pIdentity);
   nsString name;
@@ -269,8 +265,12 @@ nsresult nsOutlookCompose::CreateIdentity( void)
     m_pIdentity->SetIdentityName(name);
     m_pIdentity->SetEmail(NS_LITERAL_CSTRING("import@import.service"));
   }
-
   return rv;
+}
+
+void nsOutlookCompose::ReleaseIdentity()
+{
+  NS_IF_RELEASE(m_pIdentity);
 }
 
 nsresult nsOutlookCompose::CreateComponents( void)

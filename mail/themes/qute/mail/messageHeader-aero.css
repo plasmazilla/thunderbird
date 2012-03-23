@@ -45,7 +45,7 @@
 .main-header-area {
   color: WindowText;
   background-color: ButtonFace;
-  border-bottom: 2px groove ThreeDLightShadow;
+  border-bottom: 1px solid #A9B7C9; /* The same color as the splitters */
   padding: 0.4ex;
 }
 
@@ -76,7 +76,7 @@
 
 #expandedBoxSpacer {
   display: block;
-  height: 10px;
+  height: 6px;
 }
 
 #otherActionsButton {
@@ -229,7 +229,10 @@
 }
 
 .dateLabel {
-  -moz-padding-end: 3px;
+  line-height: 1.5em;
+  margin: 0;
+  padding: .1em 0;
+  -moz-padding-end: 6px;
   -moz-user-select: text;
   -moz-user-focus: normal;
   cursor: text;
@@ -711,7 +714,7 @@ mail-headerfield > .headerValue {
 
 #header-view-toolbox {
   float: right;
-  padding-top: 3px;
+  padding-top: 1px;
 }
 
 #header-view-toolbox:-moz-locale-dir(rtl) {

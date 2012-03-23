@@ -36,6 +36,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "mozilla/Util.h"
+
 #include "ManifestParser.h"
 
 #include <string.h>
@@ -65,6 +67,8 @@
 #include "nsIScriptError.h"
 #include "nsIXULAppInfo.h"
 #include "nsIXULRuntime.h"
+
+using namespace mozilla;
 
 struct ManifestDirective
 {
@@ -435,6 +439,9 @@ ParseManifestCommon(NSLocationType aType, nsILocalFile* aFile,
   NS_NAMED_LITERAL_STRING(kOs, "os");
   NS_NAMED_LITERAL_STRING(kOsVersion, "osversion");
   NS_NAMED_LITERAL_STRING(kABI, "abi");
+#if defined(ANDROID)
+  NS_NAMED_LITERAL_STRING(kTablet, "tablet");
+#endif
 
   // Obsolete
   NS_NAMED_LITERAL_STRING(kXPCNativeWrappers, "xpcnativewrappers");
@@ -499,8 +506,10 @@ ParseManifestCommon(NSLocationType aType, nsILocalFile* aFile,
                                        gtk_major_version,
                                        gtk_minor_version);
 #elif defined(ANDROID)
+  bool isTablet = false;
   if (mozilla::AndroidBridge::Bridge()) {
     mozilla::AndroidBridge::Bridge()->GetStaticStringField("android/os/Build$VERSION", "RELEASE", osVersion);
+    isTablet = mozilla::AndroidBridge::Bridge()->IsTablet();
   }
 #endif
 
@@ -540,7 +549,7 @@ ParseManifestCommon(NSLocationType aType, nsILocalFile* aFile,
 
     const ManifestDirective* directive = NULL;
     for (const ManifestDirective* d = kParsingTable;
-	 d < kParsingTable + NS_ARRAY_LENGTH(kParsingTable);
+	 d < ArrayEnd(kParsingTable);
 	 ++d) {
       if (!strcmp(d->directive, token)) {
 	directive = d;
@@ -588,6 +597,9 @@ ParseManifestCommon(NSLocationType aType, nsILocalFile* aFile,
     TriState stOsVersion = eUnspecified;
     TriState stOs = eUnspecified;
     TriState stABI = eUnspecified;
+#if defined(ANDROID)
+    TriState stTablet = eUnspecified;
+#endif
     bool platform = false;
     bool contentAccessible = false;
 
@@ -602,6 +614,14 @@ ParseManifestCommon(NSLocationType aType, nsILocalFile* aFile,
           CheckVersionFlag(kAppVersion, wtoken, appVersion, stAppVersion) ||
           CheckVersionFlag(kGeckoVersion, wtoken, geckoVersion, stGeckoVersion))
         continue;
+
+#if defined(ANDROID)
+      bool tablet = false;
+      if (CheckFlag(kTablet, wtoken, tablet)) {
+        stTablet = (tablet == isTablet) ? eOK : eBad;
+        continue;
+      }
+#endif
 
       if (directive->contentflags &&
           (CheckFlag(kPlatform, wtoken, platform) ||
@@ -628,6 +648,9 @@ ParseManifestCommon(NSLocationType aType, nsILocalFile* aFile,
         stGeckoVersion == eBad ||
         stOs == eBad ||
         stOsVersion == eBad ||
+#ifdef ANDROID
+        stTablet == eBad ||
+#endif
         stABI == eBad)
       continue;
 

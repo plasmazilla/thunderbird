@@ -89,7 +89,8 @@ JSDOUBLE_IS_NaN(jsdouble d)
 {
     jsdpun u;
     u.d = d;
-    return (u.s.hi & JSDOUBLE_HI32_NAN) == JSDOUBLE_HI32_NAN;
+    return (u.u64 & JSDOUBLE_EXPMASK) == JSDOUBLE_EXPMASK &&
+           (u.u64 & JSDOUBLE_MANTMASK) != 0;
 }
 
 static inline int
@@ -611,6 +612,32 @@ ValueFitsInInt32(const Value &v, int32_t *pi)
         return true;
     }
     return v.isDouble() && JSDOUBLE_IS_INT32(v.toDouble(), pi);
+}
+
+/*
+ * Returns true if the given value is definitely an index: that is, the value
+ * is a number that's an unsigned 32-bit integer.
+ *
+ * This method prioritizes common-case speed over accuracy in every case.  It
+ * can produce false negatives (but not false positives): some values which are
+ * indexes will be reported not to be indexes by this method.  Users must
+ * consider this possibility when using this method.
+ */
+static JS_ALWAYS_INLINE bool
+IsDefinitelyIndex(const Value &v, uint32 *indexp)
+{
+    if (v.isInt32() && v.toInt32() >= 0) {
+        *indexp = v.toInt32();
+        return true;
+    }
+
+    int32 i;
+    if (v.isDouble() && JSDOUBLE_IS_INT32(v.toDouble(), &i) && i >= 0) {
+        *indexp = uint32(i);
+        return true;
+    }
+
+    return false;
 }
 
 /* ES5 9.4 ToInteger. */

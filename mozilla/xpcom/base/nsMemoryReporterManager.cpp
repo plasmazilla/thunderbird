@@ -42,6 +42,27 @@
 #include "nsMemoryReporterManager.h"
 #include "nsArrayEnumerator.h"
 #include "nsISimpleEnumerator.h"
+#include "mozilla/Telemetry.h"
+
+using namespace mozilla;
+
+#if defined(MOZ_MEMORY)
+#  if defined(XP_WIN) || defined(SOLARIS) || defined(ANDROID) || defined(XP_MACOSX)
+#    define HAVE_JEMALLOC_STATS 1
+#    include "jemalloc.h"
+#  elif defined(XP_LINUX)
+#    define HAVE_JEMALLOC_STATS 1
+#    include "jemalloc_types.h"
+// jemalloc is directly linked into firefox-bin; libxul doesn't link
+// with it.  So if we tried to use jemalloc_stats directly here, it
+// wouldn't be defined.  Instead, we don't include the jemalloc header
+// and weakly link against jemalloc_stats.
+extern "C" {
+extern void jemalloc_stats(jemalloc_stats_t* stats)
+  NS_VISIBILITY_DEFAULT __attribute__((weak));
+}
+#  endif  // XP_LINUX
+#endif  // MOZ_MEMORY
 
 #if defined(XP_LINUX) || defined(XP_MACOSX)
 
@@ -84,7 +105,7 @@ static PRInt64 GetProcSelfStatmField(int n)
     NS_ASSERTION(n < MAX_FIELD, "bad field number");
     FILE *f = fopen("/proc/self/statm", "r");
     if (f) {
-        int nread = fscanf(f, "%lu %lu", &fields[0], &fields[1]);
+        int nread = fscanf(f, "%zu %zu", &fields[0], &fields[1]);
         fclose(f);
         return (PRInt64) ((nread == MAX_FIELD) ? fields[n]*getpagesize() : -1);
     }
@@ -125,6 +146,20 @@ static PRInt64 GetVsize()
 
 static PRInt64 GetResident()
 {
+#ifdef HAVE_JEMALLOC_STATS
+    // If we're using jemalloc on Mac, we need to instruct jemalloc to purge
+    // the pages it has madvise(MADV_FREE)'d before we read our RSS.  The OS
+    // will take away MADV_FREE'd pages when there's memory pressure, so they
+    // shouldn't count against our RSS.
+    //
+    // Purging these pages shouldn't take more than 10ms or so, but we want to
+    // keep an eye on it since GetResident() is called on each Telemetry ping.
+    {
+      Telemetry::AutoTimer<Telemetry::MEMORY_FREE_PURGED_PAGES_MS> timer;
+      jemalloc_purge_freed_pages();
+    }
+#endif
+
     task_basic_info ti;
     return (PRInt64) (GetTaskBasicInfo(&ti) ? ti.resident_size : -1);
 }
@@ -255,24 +290,6 @@ NS_MEMORY_REPORTER_IMPLEMENT(Resident,
  ** at least -- on OSX, there are sometimes other zones in use).
  **/
 
-#if defined(MOZ_MEMORY)
-#  if defined(XP_WIN) || defined(SOLARIS) || defined(ANDROID) || defined(XP_MACOSX)
-#    define HAVE_JEMALLOC_STATS 1
-#    include "jemalloc.h"
-#  elif defined(XP_LINUX)
-#    define HAVE_JEMALLOC_STATS 1
-#    include "jemalloc_types.h"
-// jemalloc is directly linked into firefox-bin; libxul doesn't link
-// with it.  So if we tried to use jemalloc_stats directly here, it
-// wouldn't be defined.  Instead, we don't include the jemalloc header
-// and weakly link against jemalloc_stats.
-extern "C" {
-extern void jemalloc_stats(jemalloc_stats_t* stats)
-  NS_VISIBILITY_DEFAULT __attribute__((weak));
-}
-#  endif  // XP_LINUX
-#endif  // MOZ_MEMORY
-
 #if HAVE_JEMALLOC_STATS
 
 static PRInt64 GetHeapUnallocated()
@@ -296,6 +313,13 @@ static PRInt64 GetHeapCommitted()
     return (PRInt64) stats.committed;
 }
 
+static PRInt64 GetHeapCommittedUnallocatedFraction()
+{
+    jemalloc_stats_t stats;
+    jemalloc_stats(&stats);
+    return (PRInt64) 10000 * (1 - stats.allocated / (double)stats.committed);
+}
+
 static PRInt64 GetHeapDirty()
 {
     jemalloc_stats_t stats;
@@ -314,6 +338,16 @@ NS_MEMORY_REPORTER_IMPLEMENT(HeapCommitted,
     "external fragmentation; that is, the allocator allocated a large block of "
     "memory and is unable to decommit it because a small part of that block is "
     "currently in use.")
+
+NS_MEMORY_REPORTER_IMPLEMENT(HeapCommittedUnallocatedFraction,
+    "heap-committed-unallocated-fraction",
+    KIND_OTHER,
+    UNITS_PERCENTAGE,
+    GetHeapCommittedUnallocatedFraction,
+    "Fraction of committed bytes which do not correspond to an active "
+    "allocation; i.e., 1 - (heap-allocated / heap-committed).  Although the "
+    "allocator will waste some space under any circumstances, a large value here "
+    "may indicate that the heap is highly fragmented.")
 
 NS_MEMORY_REPORTER_IMPLEMENT(HeapDirty,
     "heap-dirty",
@@ -391,9 +425,7 @@ NS_MEMORY_REPORTER_IMPLEMENT(HeapUnallocated,
     GetHeapUnallocated,
     "Memory mapped by the heap allocator that is not part of an active "
     "allocation. Much of this memory may be uncommitted -- that is, it does not "
-    "take up space in physical memory or in the swap file. Committed and "
-    "unallocated memory, perhaps a result of fragmentation, is reported in "
-    "heap-dirty, if that measure is available.")
+    "take up space in physical memory or in the swap file.")
 
 NS_MEMORY_REPORTER_IMPLEMENT(HeapAllocated,
     "heap-allocated",
@@ -438,19 +470,9 @@ nsMemoryReporterManager::Init()
     REGISTER(Private);
 #endif
 
-#if defined(HAVE_JEMALLOC_STATS) && defined(XP_WIN)
-    // heap-committed is only meaningful where we have MALLOC_DECOMMIT defined
-    // (currently, just on Windows).  Elsewhere, it's the same as
-    // stats->mapped, which is heap-allocated + heap-unallocated.
-    //
-    // Ideally, we'd check for MALLOC_DECOMMIT in the #if defined above, but
-    // MALLOC_DECOMMIT is defined in jemalloc.c, not a header, so we'll just
-    // have to settle for the OS check for now.
-
-    REGISTER(HeapCommitted);
-#endif
-
 #if defined(HAVE_JEMALLOC_STATS)
+    REGISTER(HeapCommitted);
+    REGISTER(HeapCommittedUnallocatedFraction);
     REGISTER(HeapDirty);
 #elif defined(XP_MACOSX) && !defined(MOZ_MEMORY)
     REGISTER(HeapZone0Committed);
@@ -615,7 +637,7 @@ nsMemoryReporterManager::GetExplicit(PRInt64 *aExplicit)
     nsCOMPtr<nsISimpleEnumerator> e;
     EnumerateReporters(getter_AddRefs(e));
 
-    PRBool more;
+    bool more;
     while (NS_SUCCEEDED(e->HasMoreElements(&more)) && more) {
         nsCOMPtr<nsIMemoryReporter> r;
         e->GetNext(getter_AddRefs(r));

@@ -34,17 +34,13 @@
 #include "nsString.h"
 #include "nsINameSpaceManager.h"
 #include "nsIContent.h"
-#include "nsIDocument.h"
 #include "nsTraceRefcnt.h"
 #include "jArray.h"
-#include "nsHtml5DocumentMode.h"
 #include "nsHtml5ArrayCopy.h"
-#include "nsHtml5NamedCharacters.h"
-#include "nsHtml5NamedCharactersAccel.h"
+#include "nsAHtml5TreeBuilderState.h"
 #include "nsHtml5Atoms.h"
 #include "nsHtml5ByteReadable.h"
 #include "nsIUnicodeDecoder.h"
-#include "nsAHtml5TreeBuilderState.h"
 #include "nsHtml5Macros.h"
 
 class nsHtml5StreamParser;
@@ -95,7 +91,7 @@ class nsHtml5AttributeName
     PRInt32 getUri(PRInt32 mode);
     nsIAtom* getLocal(PRInt32 mode);
     nsIAtom* getPrefix(PRInt32 mode);
-    PRBool equalsAnother(nsHtml5AttributeName* another);
+    bool equalsAnother(nsHtml5AttributeName* another);
     static nsHtml5AttributeName* ATTR_D;
     static nsHtml5AttributeName* ATTR_K;
     static nsHtml5AttributeName* ATTR_R;

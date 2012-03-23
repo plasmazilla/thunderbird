@@ -47,9 +47,8 @@
 #include "nsIServiceManager.h"
 #include "nsIIOService.h"
 #include "nsIURI.h"
-#include "nsIProxyObjectManager.h"
-#include "nsProxiedService.h"
 #include "nsIOutputStream.h"
+#include "nsThreadUtils.h"
 
 #include "nsMsgBaseCID.h"
 #include "nsMsgCompCID.h"
@@ -165,7 +164,7 @@ public:
   void Reset() { m_done = PR_FALSE;  m_location = nsnull;}
 
 public:
-  PRBool m_done;
+  bool m_done;
   nsCOMPtr <nsIFile> m_location;
 };
 
@@ -191,7 +190,6 @@ nsresult EudoraSendListener::CreateSendListener( nsIMsgSendListener **ppListener
 
 nsEudoraCompose::nsEudoraCompose()
 {
-  m_pIOService = nsnull;
   m_pAttachments = nsnull;
   m_pListener = nsnull;
   m_pMsgFields = nsnull;
@@ -212,7 +210,6 @@ nsEudoraCompose::nsEudoraCompose()
 
 nsEudoraCompose::~nsEudoraCompose()
 {
-  NS_IF_RELEASE( m_pIOService);
   NS_IF_RELEASE( m_pListener);
   NS_IF_RELEASE( m_pMsgFields);
 }
@@ -222,9 +219,12 @@ nsresult nsEudoraCompose::CreateIdentity( void)
   if (s_pIdentity)
     return( NS_OK);
 
-  nsresult  rv;
-  NS_WITH_PROXIED_SERVICE(nsIMsgAccountManager, accMgr, NS_MSGACCOUNTMANAGER_CONTRACTID, NS_PROXY_TO_MAIN_THREAD, &rv);
-  if (NS_FAILED(rv)) return( rv);
+  // Should only create identity from main thread
+  NS_ENSURE_TRUE(NS_IsMainThread(), NS_ERROR_FAILURE);
+  nsresult rv;
+  nsCOMPtr<nsIMsgAccountManager> accMgr(do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+
   rv = accMgr->CreateIdentity( &s_pIdentity);
   nsString name(NS_LITERAL_STRING("Import Identity"));
   if (s_pIdentity) {
@@ -261,12 +261,9 @@ nsresult nsEudoraCompose::CreateComponents( void)
 
   if (!m_pIOService) {
     IMPORT_LOG0( "Creating nsIOService\n");
-
-    NS_WITH_PROXIED_SERVICE(nsIIOService, service, NS_IOSERVICE_CONTRACTID, NS_PROXY_TO_MAIN_THREAD, &rv);
-    if (NS_FAILED(rv))
-      return( rv);
-    m_pIOService = service;
-    NS_IF_ADDREF( m_pIOService);
+    
+    m_pIOService = do_GetService(NS_IOSERVICE_CONTRACTID, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
   }
 
   NS_IF_RELEASE( m_pMsgFields);
@@ -285,7 +282,7 @@ nsresult nsEudoraCompose::CreateComponents( void)
   return NS_ERROR_FAILURE;
 }
 
-void nsEudoraCompose::GetNthHeader( const char *pData, PRInt32 dataLen, PRInt32 n, nsCString& header, nsCString& val, PRBool unwrap)
+void nsEudoraCompose::GetNthHeader( const char *pData, PRInt32 dataLen, PRInt32 n, nsCString& header, nsCString& val, bool unwrap)
 {
   header.Truncate();
   val.Truncate();
@@ -386,7 +383,7 @@ void nsEudoraCompose::GetNthHeader( const char *pData, PRInt32 dataLen, PRInt32 
 }
 
 
-void nsEudoraCompose::GetHeaderValue( const char *pData, PRInt32 dataLen, const char *pHeader, nsCString& val, PRBool unwrap)
+void nsEudoraCompose::GetHeaderValue( const char *pData, PRInt32 dataLen, const char *pHeader, nsCString& val, bool unwrap)
 {
   val.Truncate();
   if (!pData)
@@ -565,8 +562,6 @@ nsresult nsEudoraCompose::GetLocalAttachments(nsIArray **aArray)
 nsresult nsEudoraCompose::SendTheMessage(nsIFile *pMailImportLocation, nsIFile **pMsg)
 {
   nsresult rv = CreateComponents();
-  if (NS_SUCCEEDED( rv))
-    rv = CreateIdentity();
   if (NS_FAILED( rv))
     return( rv);
 
@@ -743,7 +738,7 @@ nsresult nsEudoraCompose::SendTheMessage(nsIFile *pMailImportLocation, nsIFile *
 }
 
 
-PRBool SimpleBufferTonyRCopiedOnce::SpecialMemCpy( PRInt32 offset, const char *pData, PRInt32 len, PRInt32 *pWritten)
+bool SimpleBufferTonyRCopiedOnce::SpecialMemCpy( PRInt32 offset, const char *pData, PRInt32 len, PRInt32 *pWritten)
 {
   // Arg!!!!!  Mozilla can't handle plain CRs in any mail messages.  Particularly a
   // problem with Eudora since it doesn't give a rats a**
@@ -988,7 +983,7 @@ static const char *gReplaceHeaders[kMaxReplaceHeaders] = {
   "cc"
 };
 
-PRBool nsEudoraCompose::IsReplaceHeader( const char *pHeader)
+bool nsEudoraCompose::IsReplaceHeader( const char *pHeader)
 {
   for (int i = 0; i < kMaxReplaceHeaders; i++) {
     if (!PL_strcasecmp( pHeader, gReplaceHeaders[i]))
@@ -1026,8 +1021,8 @@ nsresult nsEudoraCompose::WriteHeaders(nsIOutputStream *pDst, SimpleBufferTonyRC
   PRUint32 written;
   nsresult rv = NS_OK; // it's ok if we don't have the first header on the predefined lists.
   PRInt32 specialHeader;
-  PRBool specials[kMaxSpecialHeaders];
-  PRBool    hasDateHeader = PR_FALSE;
+  bool specials[kMaxSpecialHeaders];
+  bool      hasDateHeader = false;
   int i;
 
   for (i = 0; i < kMaxSpecialHeaders; i++)

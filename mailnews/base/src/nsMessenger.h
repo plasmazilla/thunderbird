@@ -48,7 +48,6 @@
 #include "nsILocalFile.h"
 #include "nsWeakReference.h"
 #include "nsIDOMWindow.h"
-#include "nsVoidArray.h"
 
 class nsMessenger : public nsIMessenger, public nsSupportsWeakReference, public nsIFolderListener
 {
@@ -72,24 +71,24 @@ public:
                              const char ** aUrlArray,
                              const char ** aDisplayNameArray,
                              const char ** aMessageUriArray,
-                             nsCStringArray *saveFileUris,
-                             PRBool withoutWarning = PR_FALSE);
+                             nsTArray<nsCString> *saveFileUris,
+                             bool withoutWarning = false);
   nsresult SaveAllAttachments(PRUint32 count,
                               const char **contentTypeArray,
                               const char **urlArray,
                               const char **displayNameArray,
                               const char **messageUriArray,
-                              PRBool detaching);
+                              bool detaching);
   nsresult SaveOneAttachment(const char* aContentType,
                              const char* aURL,
                              const char* aDisplayName,
                              const char* aMessageUri,
-                             PRBool detaching);
+                             bool detaching);
 
 protected:
   void GetString(const nsString& aStringName, nsString& stringValue);
   nsresult InitStringBundle();
-  nsresult PromptIfDeleteAttachments(PRBool saveFirst, PRUint32 count, const char **displayNameArray);
+  nsresult PromptIfDeleteAttachments(bool saveFirst, PRUint32 count, const char **displayNameArray);
 
   void AddMsgUrlToNavigateHistory(const nsACString& aURL);
 
@@ -120,7 +119,7 @@ private:
   nsCString   mLastDisplayURI; // this used when the user attempts to force a charset reload of a message...we need to get the last displayed
                                // uri so we can re-display it..
   nsCString mNavigatingToUri;
-  nsCStringArray mLoadedMsgHistory;
+  nsTArray<nsCString> mLoadedMsgHistory;
   PRInt32 mCurHistoryPos;
 };
 

@@ -88,7 +88,7 @@ public:
   {
     return mKey;
   }
-  PRBool KeyEquals(KeyType aKey) const
+  bool KeyEquals(KeyType aKey) const
   {
     return mKey->Equals(*aKey);
   }
@@ -102,7 +102,7 @@ public:
   }
 
   enum { 
-    ALLOW_MEMMOVE = PR_TRUE
+    ALLOW_MEMMOVE = true
   };
 
 private:
@@ -124,7 +124,7 @@ public:
   nsresult GetNameSpaceURI(PRInt32 aNameSpaceID, nsAString& aURI);
   PRInt32 GetNameSpaceID(const nsAString& aURI);
 
-  PRBool HasElementCreator(PRInt32 aNameSpaceID);
+  bool HasElementCreator(PRInt32 aNameSpaceID);
 
 private:
   nsresult AddNameSpace(const nsAString& aURI, const PRInt32 aNameSpaceID);
@@ -256,7 +256,7 @@ NS_NewElement(nsIContent** aResult, PRInt32 aElementType,
   return NS_NewXMLElement(aResult, aNodeInfo);
 }
 
-PRBool
+bool
 NameSpaceManagerImpl::HasElementCreator(PRInt32 aNameSpaceID)
 {
   return aNameSpaceID == kNameSpaceID_XHTML ||
@@ -266,7 +266,7 @@ NameSpaceManagerImpl::HasElementCreator(PRInt32 aNameSpaceID)
          aNameSpaceID == kNameSpaceID_MathML ||
          aNameSpaceID == kNameSpaceID_SVG ||
          aNameSpaceID == kNameSpaceID_XMLEvents ||
-         PR_FALSE;
+         false;
 }
 
 nsresult NameSpaceManagerImpl::AddNameSpace(const nsAString& aURI,

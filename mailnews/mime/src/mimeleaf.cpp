@@ -52,8 +52,8 @@ static int MimeLeaf_parse_begin (MimeObject *);
 static int MimeLeaf_parse_buffer (const char *, PRInt32, MimeObject *);
 static int MimeLeaf_parse_line (const char *, PRInt32, MimeObject *);
 static int MimeLeaf_close_decoder (MimeObject *);
-static int MimeLeaf_parse_eof (MimeObject *, PRBool);
-static PRBool MimeLeaf_displayable_inline_p (MimeObjectClass *clazz,
+static int MimeLeaf_parse_eof (MimeObject *, bool);
+static bool MimeLeaf_displayable_inline_p (MimeObjectClass *clazz,
                         MimeHeaders *hdrs);
 
 static int
@@ -88,6 +88,11 @@ MimeLeaf_initialize (MimeObject *obj)
   /* This is an abstract class; it shouldn't be directly instantiated. */
   NS_ASSERTION(obj->clazz != (MimeObjectClass *) &mimeLeafClass, "1.1 <rhp@netscape.com> 19 Mar 1999 12:00");
 
+  // Initial size is -1 (meaning "unknown size") - we'll correct it in
+  // parse_buffer.
+  MimeLeaf *leaf = (MimeLeaf *) obj;
+  leaf->sizeSoFar = -1;
+
   return ((MimeObjectClass*)&MIME_SUPERCLASS)->initialize(obj);
 }
 
@@ -115,9 +120,6 @@ MimeLeaf_parse_begin (MimeObject *obj)
 {
   MimeLeaf *leaf = (MimeLeaf *) obj;
   MimeDecoderData *(*fn) (nsresult (*) (const char*, PRInt32, void*), void*) = 0;
-
-  // Initial size is zero
-  leaf->sizeSoFar = 0;
 
   /* Initialize a decoder if necessary.
    */
@@ -171,6 +173,9 @@ MimeLeaf_parse_buffer (const char *buffer, PRInt32 size, MimeObject *obj)
   return 0;
 
   int rv;
+  if (leaf->sizeSoFar == -1)
+    leaf->sizeSoFar = 0;
+
   if (leaf->decoder_data &&
       obj->options && 
       obj->options->format_out != nsMimeOutput::nsMimeMessageDecrypt
@@ -212,7 +217,7 @@ MimeLeaf_close_decoder (MimeObject *obj)
 
 
 static int
-MimeLeaf_parse_eof (MimeObject *obj, PRBool abort_p)
+MimeLeaf_parse_eof (MimeObject *obj, bool abort_p)
 {
   MimeLeaf *leaf = (MimeLeaf *) obj;
   if (obj->closed_p) return 0;
@@ -233,7 +238,7 @@ MimeLeaf_parse_eof (MimeObject *obj, PRBool abort_p)
 }
 
 
-static PRBool
+static bool
 MimeLeaf_displayable_inline_p (MimeObjectClass *clazz, MimeHeaders *hdrs)
 {
   return PR_TRUE;

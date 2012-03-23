@@ -28,6 +28,7 @@
 @BINPATH@/chrome/@AB_CD@@JAREXT@
 @BINPATH@/chrome/@AB_CD@.manifest
 @BINPATH@/@PREF_DIR@/all-l10n.js
+@BINPATH@/searchplugins/*
 @BINPATH@/dictionaries/*
 @BINPATH@/hyphenation/*
 #ifdef XP_WIN32
@@ -96,9 +97,7 @@
 @BINPATH@/@MOZ_APP_NAME@.exe
 #else
 @BINPATH@/@MOZ_APP_NAME@-bin
-#ifndef XP_MACOSX
 @BINPATH@/@MOZ_APP_NAME@
-#endif
 #endif
 @BINPATH@/application.ini
 @BINPATH@/blocklist.xml
@@ -214,6 +213,7 @@
 @BINPATH@/components/mailContentHandler.js
 @BINPATH@/components/mailGlue.js
 @BINPATH@/components/nsMailDefaultHandler.js
+@BINPATH@/components/webSearchProvider.js
 #ifndef XP_OS2
 @BINPATH@/components/nsSetDefaultMail.js
 @BINPATH@/components/shell.manifest
@@ -596,8 +596,6 @@
 @BINPATH@/components/lwbrk.xpt
 @BINPATH@/components/nsINIProcessor.js
 @BINPATH@/components/nsINIProcessor.manifest
-@BINPATH@/components/nsTryToClose.js
-@BINPATH@/components/nsTryToClose.manifest
 @BINPATH@/components/pluginGlue.manifest
 @BINPATH@/components/txEXSLTRegExFunctions.js
 @BINPATH@/components/txEXSLTRegExFunctions.manifest
@@ -612,6 +610,7 @@
 @BINPATH@/components/nsBadCertHandler.manifest
 @BINPATH@/components/cookie.xpt
 @BINPATH@/components/places.xpt
+@BINPATH@/components/plugin.xpt
 @BINPATH@/components/prefetch.xpt
 @BINPATH@/res/langGroups.properties
 @BINPATH@/res/language.properties

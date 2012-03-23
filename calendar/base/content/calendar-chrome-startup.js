@@ -67,6 +67,16 @@ function commonInitCalendar() {
 
     // Set up the category colors
     categoryManagement.initCategories();
+
+    /* Ensure the new items commands state can be setup properly even when no
+     * calendar support refreshes (i.e. the "onLoad" notification) or when none
+     * are active. In specific cases such as for file-based ICS calendars can
+     * happen, the initial "onLoad" will already have been triggered at this
+     * point (see bug 714431 comment 29). We thus inconditionnally invoke
+     * calendarUpdateNewItemsCommand until somebody writes code that enables the
+     * checking of the calendar readiness (getProperty("ready") ?).
+     */
+    calendarUpdateNewItemsCommand();
 }
 
 /**

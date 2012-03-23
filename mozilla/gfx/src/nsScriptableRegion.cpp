@@ -109,13 +109,13 @@ NS_IMETHODIMP nsScriptableRegion::SubtractRect(PRInt32 aX, PRInt32 aY, PRInt32 a
   return NS_OK;
 }
 
-NS_IMETHODIMP nsScriptableRegion::IsEmpty(PRBool *isEmpty)
+NS_IMETHODIMP nsScriptableRegion::IsEmpty(bool *isEmpty)
 {
   *isEmpty = mRegion.IsEmpty();
   return NS_OK;
 }
 
-NS_IMETHODIMP nsScriptableRegion::IsEqualRegion(nsIScriptableRegion *aRegion, PRBool *isEqual)
+NS_IMETHODIMP nsScriptableRegion::IsEqualRegion(nsIScriptableRegion *aRegion, bool *isEqual)
 {
   nsIntRegion region;
   aRegion->GetRegion(&region);
@@ -139,7 +139,7 @@ NS_IMETHODIMP nsScriptableRegion::Offset(PRInt32 aXOffset, PRInt32 aYOffset)
   return NS_OK;
 }
 
-NS_IMETHODIMP nsScriptableRegion::ContainsRect(PRInt32 aX, PRInt32 aY, PRInt32 aWidth, PRInt32 aHeight, PRBool *containsRect)
+NS_IMETHODIMP nsScriptableRegion::ContainsRect(PRInt32 aX, PRInt32 aY, PRInt32 aWidth, PRInt32 aHeight, bool *containsRect)
 {
   *containsRect = mRegion.Contains(nsIntRect(aX, aY, aWidth, aHeight));
   return NS_OK;
@@ -171,7 +171,7 @@ NS_IMETHODIMP nsScriptableRegion::GetRects() {
 
   if (!numRects) {
     *retvalPtr = JSVAL_NULL;
-    ncc->SetReturnValueWasSet(PR_TRUE);
+    ncc->SetReturnValueWasSet(true);
     return NS_OK;
   }
 
@@ -182,7 +182,7 @@ NS_IMETHODIMP nsScriptableRegion::GetRects() {
 
   JSObject *destArray = JS_NewArrayObject(cx, numRects*4, NULL);
   *retvalPtr = OBJECT_TO_JSVAL(destArray);
-  ncc->SetReturnValueWasSet(PR_TRUE);
+  ncc->SetReturnValueWasSet(true);
 
   uint32 n = 0;
   nsIntRegionRectIterator iter(mRegion);
