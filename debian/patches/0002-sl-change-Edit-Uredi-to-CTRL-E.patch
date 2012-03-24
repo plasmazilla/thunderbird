@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Mon, 5 Sep 2011 19:21:25 +0200
-Subject: sl: change Edit (Uredi) to CTRL+E
+Subject: [PATCH] sl: change Edit (Uredi) to CTRL+E
 
 Closes: #601331
 ---
@@ -8,7 +8,7 @@ Closes: #601331
  1 files changed, 1 insertions(+), 1 deletions(-)
 
 diff --git a/upstream/sl/chrome/sl/locale/sl/communicator/utilityOverlay.dtd b/upstream/sl/chrome/sl/locale/sl/communicator/utilityOverlay.dtd
-index 476933f..4798435 100644
+index 8c137f4..27db01d 100644
 --- a/upstream/sl/chrome/sl/locale/sl/communicator/utilityOverlay.dtd
 +++ b/upstream/sl/chrome/sl/locale/sl/communicator/utilityOverlay.dtd
 @@ -8,7 +8,7 @@
