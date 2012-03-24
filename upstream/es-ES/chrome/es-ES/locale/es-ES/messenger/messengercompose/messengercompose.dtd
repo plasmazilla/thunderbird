@@ -13,6 +13,7 @@
 <!ENTITY attachMenu.accesskey "t">
 <!ENTITY attachFileCmd.label "Archivo(s)…">
 <!ENTITY attachFileCmd.accesskey "v">
+<!ENTITY attachFileCmd.key "A">
 <!ENTITY attachPageCmd.label "Adjuntar página web…">
 <!ENTITY attachPageCmd.accesskey "W">
 <!ENTITY attachVCardCmd.label "Tarjeta personal (vCard)">
@@ -84,6 +85,8 @@
 <!ENTITY viewMenu.accesskey "v">
 <!ENTITY viewToolbarsMenuNew.label "Barras de herramientas">
 <!ENTITY viewToolbarsMenuNew.accesskey "h">
+<!ENTITY menubarCmd.label "Barra de menú">
+<!ENTITY menubarCmd.accesskey "M">
 <!ENTITY showCompositionToolbarCmd.label "Barra de herramientas de redacción">
 <!ENTITY showCompositionToolbarCmd.accesskey "r">
 <!ENTITY showFormattingBarCmd.label "Barra de formato">

@@ -2,3 +2,5 @@
 <!ENTITY selectedmessages.label   "নির্বাচিত বার্তা">
 <!ENTITY archive.label            "আর্কাইভ">
 <!ENTITY delete.label             "মুছে ফেলা">
+<!ENTITY archiveButton.label      "Archive">
+<!ENTITY deleteButton.label       "Delete">

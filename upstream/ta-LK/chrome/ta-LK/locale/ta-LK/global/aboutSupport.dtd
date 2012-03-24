@@ -27,3 +27,4 @@ Entities below were automatically added by compare-locales,based on en-US entiti
 <!ENTITY aboutSupport.pageTitle "தவறு கண்டுதிருத்துதலுக்கான   தகவல்">
 <!ENTITY aboutSupport.modifiedPrefsTitle "மாற்றப்பட்ட முன்னுரிமைகள்">
 <!ENTITY aboutSupport.appBasicsCrashIDs "Crash Reports">
+<!ENTITY aboutSupport.appBasicsMemoryUse "Memory Use">

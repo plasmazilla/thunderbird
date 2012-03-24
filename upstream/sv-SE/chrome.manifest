@@ -12,6 +12,7 @@ locale passwordmgr sv-SE chrome/sv-SE/locale/sv-SE/passwordmgr/
 locale messenger-region sv-SE chrome/sv-SE/locale/sv-SE/messenger-region/
 locale messenger sv-SE chrome/sv-SE/locale/sv-SE/messenger/
 locale cookie sv-SE chrome/sv-SE/locale/sv-SE/cookie/
+locale testpilot sv-SE chrome/sv-SE/locale/sv-SE/feedback/
 locale editor sv-SE chrome/sv-SE/locale/sv-SE/editor/
 locale mozapps sv-SE chrome/sv-SE/locale/sv-SE/mozapps/
 locale global-region sv-SE chrome/sv-SE/locale/sv-SE/global-region/

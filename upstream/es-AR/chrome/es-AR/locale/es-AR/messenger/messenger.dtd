@@ -26,8 +26,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "s">
 <!ENTITY newOtherAccountsCmd.label "Otras cuentas…">
 <!ENTITY newOtherAccountsCmd.accesskey "O">
-<!ENTITY newEmailAccountCmd.label "Cuenta de correo…">
-<!ENTITY newEmailAccountCmd.accesskey "a">
+<!ENTITY newCreateEmailAccountCmd.label "Obtener una nueva cuenta de correo…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "a">
+<!ENTITY newExistingEmailAccountCmd.label "Cuenta de correo existente…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "e">
 <!ENTITY openMessageFileCmd.label "Abrir mensaje guardado…">
 <!ENTITY openMessageFileCmd.accesskey "A">
 <!ENTITY openAttachmentCmd.label "Adjuntos">
@@ -124,6 +126,8 @@
 <!ENTITY redoDefaultCmd.accesskey "R">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label "Barra de menú">
+<!ENTITY menubarCmd.accesskey "m">
 <!ENTITY showMessengerToolbarCmd.label "Barra de herramientas de correo">
 <!ENTITY showMessengerToolbarCmd.accesskey "o">
 <!ENTITY customizeToolbar.label "Personalizar…">
@@ -136,7 +140,9 @@
 <!ENTITY messagePaneWide.label "Vista amplia">
 <!ENTITY messagePaneWide.accesskey "m">
 <!ENTITY messagePaneVertical.label "Vista vertical">
-<!ENTITY messagePaneVertical.accesskey "V">
+<!ENTITY messagePaneVertical.accesskey "v">
+<!ENTITY showFolderPaneCmd.label "Vista de carpetas">
+<!ENTITY showFolderPaneCmd.accesskey "s">
 <!ENTITY showMessageCmd.label "Mensaje">
 <!ENTITY showMessageCmd.accesskey "e">
 
@@ -274,6 +280,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label "Fuente del mensaje">
 <!ENTITY pageSourceCmd.accesskey "u">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label "Buscar">
@@ -501,12 +509,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY previousButton.label "Anterior">
 <!ENTITY backButton1.label "Atrás">
 <!ENTITY goForwardButton1.label "Adelante">
+<!ENTITY deleteItem.title "Borrar">
 <!ENTITY deleteButton.label "Borrar">
 <!ENTITY undeleteButton.label "Recuperar">
 <!ENTITY markButton.label "Marcar">
 <!ENTITY printButton.label "Imprimir">
 <!ENTITY stopButton.label "Detener">
 <!ENTITY throbberItem.title "Indicador de actividad">
+ <!ENTITY junkItem.title "Basura">
 <!ENTITY junkButton.label "Basura">
 <!ENTITY notJunkButton.label "No es basura">
 <!ENTITY addressBookButton.label "Direcciones">

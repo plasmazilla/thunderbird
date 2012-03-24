@@ -2,8 +2,8 @@ override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale necko nl chrome/nl/locale/nl/necko/
 locale passwordmgr nl chrome/nl/locale/nl/passwordmgr/
-locale messenger nl chrome/nl/locale/nl/messenger/
-locale messenger-region nl chrome/nl/locale/nl/messenger-region/
+locale communicator nl chrome/nl/locale/nl/communicator/
+locale testpilot nl chrome/nl/locale/nl/feedback/
 locale alerts nl chrome/nl/locale/nl/alerts/
 locale places nl chrome/nl/locale/nl/places/
 locale global-region nl chrome/nl/locale/nl/global-region/
@@ -13,12 +13,13 @@ locale mozapps nl chrome/nl/locale/nl/mozapps/
 locale messenger-mapi nl chrome/nl/locale/nl/messenger-mapi/
 locale messenger-newsblog nl chrome/nl/locale/nl/messenger-newsblog/
 locale pipnss nl chrome/nl/locale/nl/pipnss/
-locale messenger-smime nl chrome/nl/locale/nl/messenger-smime/
+locale messenger-region nl chrome/nl/locale/nl/messenger-region/
 locale pippki nl chrome/nl/locale/nl/pippki/
 locale cookie nl chrome/nl/locale/nl/cookie/
 locale global nl chrome/nl/locale/nl/global/
 locale autoconfig nl chrome/nl/locale/nl/autoconfig/
 locale editor nl chrome/nl/locale/nl/editor/
-locale communicator nl chrome/nl/locale/nl/communicator/
+locale messenger-smime nl chrome/nl/locale/nl/messenger-smime/
+locale messenger nl chrome/nl/locale/nl/messenger/
 locale global-platform nl chrome/nl/locale/nl/global-platform/
 locale mozldap nl chrome/nl/locale/nl/mozldap/

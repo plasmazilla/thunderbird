@@ -23,8 +23,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "h">
 <!ENTITY newOtherAccountsCmd.label "Drugi računi …">
 <!ENTITY newOtherAccountsCmd.accesskey "D">
-<!ENTITY newEmailAccountCmd.label "Poštni račun …">
-<!ENTITY newEmailAccountCmd.accesskey "R">
+<!ENTITY newCreateEmailAccountCmd.label "Odpri nov poštni račun …">
+<!ENTITY newCreateEmailAccountCmd.accesskey "R">
+<!ENTITY newExistingEmailAccountCmd.label "Obstoječ poštni račun…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "O">
 <!ENTITY openMessageFileCmd.label "Odpri shranjeno sporočilo …">
 <!ENTITY openMessageFileCmd.accesskey "O">
 <!ENTITY openAttachmentCmd.label "Priponke">
@@ -54,7 +56,7 @@
 <!ENTITY renameFolder.accesskey "P">
 <!ENTITY renameFolder.key "VK_F2">
 <!ENTITY compactFolders.label "Strni mape">
-<!ENTITY compactFolders.accesskey    "g">
+<!ENTITY compactFolders.accesskey    "t">
 <!ENTITY emptyTrashCmd.label "Izprazni koš">
 <!ENTITY emptyTrashCmd.accesskey    "n">
 <!ENTITY offlineMenu.label "Brez povezave">
@@ -119,6 +121,8 @@
 <!ENTITY redoDefaultCmd.accesskey "P">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label "Vrstica z menijem">
+<!ENTITY menubarCmd.accesskey "M">
 <!ENTITY showMessengerToolbarCmd.label "Orodna vrstica za pošto">
 <!ENTITY showMessengerToolbarCmd.accesskey "O">
 <!ENTITY customizeToolbar.label "Prilagodi …">
@@ -132,6 +136,8 @@
 <!ENTITY messagePaneWide.accesskey "Š">
 <!ENTITY messagePaneVertical.label "Navpična postavitev">
 <!ENTITY messagePaneVertical.accesskey "N">
+<!ENTITY showFolderPaneCmd.label "Podokno za mapo">
+<!ENTITY showFolderPaneCmd.accesskey "M">
 <!ENTITY showMessageCmd.label "Podokno za sporočila">
 <!ENTITY showMessageCmd.accesskey "P">
 
@@ -246,29 +252,31 @@ If shift key is needed with your locale popular keyboard for them,
 you can use these alternative items. Otherwise, their values should be empty.  -->
 
 <!ENTITY fullZoomEnlargeCmd.label       "Povečaj">
-<!ENTITY fullZoomEnlargeCmd.accesskey   "I">
+<!ENTITY fullZoomEnlargeCmd.accesskey   "V">
 <!ENTITY fullZoomEnlargeCmd.commandkey  "+">
 <!ENTITY fullZoomEnlargeCmd.commandkey2 "="> <!-- + is above this key on many keyboards -->
 <!ENTITY fullZoomEnlargeCmd.commandkey3 "">
 
 <!ENTITY fullZoomReduceCmd.label        "Pomanjšaj">
-<!ENTITY fullZoomReduceCmd.accesskey    "O">
+<!ENTITY fullZoomReduceCmd.accesskey    "M">
 <!ENTITY fullZoomReduceCmd.commandkey   "-">
 <!ENTITY fullZoomReduceCmd.commandkey2  "">
 
 <!ENTITY fullZoomResetCmd.label         "Ponastavi">
-<!ENTITY fullZoomResetCmd.accesskey     "D">
+<!ENTITY fullZoomResetCmd.accesskey     "N">
 <!ENTITY fullZoomResetCmd.commandkey    "0">
 <!ENTITY fullZoomResetCmd.commandkey2   "">
 
 <!ENTITY fullZoomToggleCmd.label        "Povečaj samo besedilo">
-<!ENTITY fullZoomToggleCmd.accesskey    "R">
-<!ENTITY fullZoom.label                 "Povečaj">
-<!ENTITY fullZoom.accesskey             "V">
+<!ENTITY fullZoomToggleCmd.accesskey    "B">
+<!ENTITY fullZoom.label                 "Povečava">
+<!ENTITY fullZoom.accesskey             "p">
 
 <!ENTITY pageSourceCmd.label "Izvor besedila">
 <!ENTITY pageSourceCmd.accesskey "I">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label "Poišči">
@@ -420,11 +428,11 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY markAllReadCmd.accesskey "V">
 <!ENTITY markAllReadCmd.key "v">
 <!ENTITY markStarredCmd.label "Dodaj zvezdico">
-<!ENTITY markStarredCmd.accesskey "v">
+<!ENTITY markStarredCmd.accesskey "z">
 <!ENTITY markStarredCmd.key "z">
 <!ENTITY markAsJunkCmd.label "Kot neželeno">
-<!ENTITY markAsJunkCmd.accesskey "ž">
-<!ENTITY markAsJunkCmd.key "ž">
+<!ENTITY markAsJunkCmd.accesskey "K">
+<!ENTITY markAsJunkCmd.key "K">
 <!ENTITY markAsNotJunkCmd.label "Ne kot neželeno">
 <!ENTITY markAsNotJunkCmd.accesskey "k">
 <!ENTITY markAsNotJunkCmd.key "k">
@@ -473,7 +481,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY filtersApplyToMessage.accesskey "s">
 <!ENTITY runJunkControls.label "Poženi nadzor za neželeno pošto v mapi">
 <!ENTITY runJunkControls.accesskey "ž">
-<!ENTITY deleteJunk.label "Izbriši v mapi pošto, Ki je označena kot neželena">
+<!ENTITY deleteJunk.label "Izbriši v mapi pošto, ki je označena kot neželena">
 <!ENTITY deleteJunk.accesskey "B">
 <!ENTITY importCmd.label "Uvozi …">
 <!ENTITY importCmd.accesskey "u">
@@ -498,12 +506,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY previousButton.label "Prejšnje">
 <!ENTITY backButton1.label "Nazaj">
 <!ENTITY goForwardButton1.label "Posreduj">
+<!ENTITY deleteItem.title "Izbriši">
 <!ENTITY deleteButton.label "Izbriši">
 <!ENTITY undeleteButton.label "Obnovi">
 <!ENTITY markButton.label "Označi">
 <!ENTITY printButton.label "Natisni">
 <!ENTITY stopButton.label "Ustavi">
 <!ENTITY throbberItem.title "Merilnik dejavnosti">
+<!ENTITY junkItem.title "Neželeno">
 <!ENTITY junkButton.label "Neželeno">
 <!ENTITY notJunkButton.label "Niso smeti">
 <!ENTITY addressBookButton.label "Adresar">

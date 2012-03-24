@@ -8,6 +8,7 @@ locale communicator pt-PT chrome/pt-PT/locale/pt-PT/communicator/
 locale messenger-region pt-PT chrome/pt-PT/locale/pt-PT/messenger-region/
 locale alerts pt-PT chrome/pt-PT/locale/pt-PT/alerts/
 locale messenger-mapi pt-PT chrome/pt-PT/locale/pt-PT/messenger-mapi/
+locale testpilot pt-PT chrome/pt-PT/locale/pt-PT/feedback/
 locale messenger pt-PT chrome/pt-PT/locale/pt-PT/messenger/
 locale global pt-PT chrome/pt-PT/locale/pt-PT/global/
 locale messenger-smime pt-PT chrome/pt-PT/locale/pt-PT/messenger-smime/

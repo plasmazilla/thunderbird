@@ -5,9 +5,9 @@
 <!-- Entities for Account Type page -->
 
 
-<!ENTITY accountSetupInfo.label "لتتمكن من استقبال الرّسائل، ينبغي إعداد حساب بريد أو مجموعة أخبار.">
+<!ENTITY accountSetupInfo2.label "لتتمكن من استقبال الرّسائل، ينبغي إعداد حساب بريد.">
 <!ENTITY accountTypeTitle.label "إعداد حساب جديد">
-<!ENTITY accountTypeDesc.label "سيجمع المرشد المعلومات الضرورية لإعداد حساب بريد أو مجموعة أخبار. إذا كنت لا تعرف المعلومات المطلوبة، رجاء راجع مدير نظامك أو مورد خدمة الإنترنت لك.">
+<!ENTITY accountTypeDesc2.label "سيجمع المرشد المعلومات الضرورية لإعداد حساب بريد. إذا كنت لا تعرف المعلومات المطلوبة، رجاء راجع مدير نظامك أو مورد خدمة الإنترنت لك.">
 <!ENTITY accountTypeDirections.label "حدّد نوع الحساب الذي تريد ضبطه:">
 <!ENTITY accountTypeMail.label "حساب بريد">
 <!ENTITY accountTypeMail.accesskey "ب">

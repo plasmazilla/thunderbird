@@ -275,3 +275,6 @@
 
 <!ENTITY addressesSidebarTitle.label "পরিচিতি">
 
+<!ENTITY attachFileCmd.key "A">
+<!ENTITY menubarCmd.accesskey "M">
+<!ENTITY menubarCmd.label "Menu Bar">

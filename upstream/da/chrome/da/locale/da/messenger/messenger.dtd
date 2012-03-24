@@ -26,8 +26,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "t">
 <!ENTITY newOtherAccountsCmd.label "Andre konti…">
 <!ENTITY newOtherAccountsCmd.accesskey "i">
-<!ENTITY newEmailAccountCmd.label "Mailkonto…">
-<!ENTITY newEmailAccountCmd.accesskey "o">
+<!ENTITY newCreateEmailAccountCmd.label "Ny mailkonto…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "N">
+<!ENTITY newExistingEmailAccountCmd.label "Eksisterende mailkonto…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "E">
 <!ENTITY openMessageFileCmd.label "Åbn gemt meddelelse…">
 <!ENTITY openMessageFileCmd.accesskey "g">
 <!ENTITY openAttachmentCmd.label "Åbn…">
@@ -122,6 +124,8 @@
 <!ENTITY redoDefaultCmd.accesskey "G">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label "Menulinje">
+<!ENTITY menubarCmd.accesskey "e">
 <!ENTITY showMessengerToolbarCmd.label "Maillinje">
 <!ENTITY showMessengerToolbarCmd.accesskey "M">
 <!ENTITY customizeToolbar.label "Tilpas…">
@@ -135,6 +139,8 @@
 <!ENTITY messagePaneWide.accesskey "B">
 <!ENTITY messagePaneVertical.label "Lodret udseende">
 <!ENTITY messagePaneVertical.accesskey "L">
+<!ENTITY showFolderPaneCmd.label "Mapperude">
+<!ENTITY showFolderPaneCmd.accesskey "a">
 <!ENTITY showMessageCmd.label "Meddelelsesrude">
 <!ENTITY showMessageCmd.accesskey "M">
 
@@ -272,6 +278,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label "Kildekode">
 <!ENTITY pageSourceCmd.accesskey "e">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label "Find">
@@ -287,7 +295,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY findPrevCmd.key2 "VK_F3">
 <!ENTITY searchMailCmd.label "Søg i meddelelser…">
 <!ENTITY searchMailCmd.accesskey "S">
-<!ENTITY searchMailCmd.key "f">
+<!ENTITY searchMailCmd.key "s">
 <!ENTITY searchAddressesCmd.label "Søg i adresser…">
 <!ENTITY searchAddressesCmd.accesskey "ø">
 
@@ -502,12 +510,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY backButton1.label "Tilbage">
 <!ENTITY goForwardButton1.label "Fremad">
 <!ENTITY deleteButton.label "Slet">
+<!ENTITY deleteItem.title "Slet">
 <!ENTITY undeleteButton.label "Fortryd sletning">
 <!ENTITY markButton.label "Marker">
 <!ENTITY printButton.label "Udskriv">
 <!ENTITY stopButton.label "Stop">
 <!ENTITY throbberItem.title "Aktivitetsindikator">
 <!ENTITY junkButton.label "Spam">
+<!ENTITY junkItem.title "Spam">
 <!ENTITY notJunkButton.label "Ikke-spam">
 <!ENTITY addressBookButton.label "Adressebog">
 <!ENTITY glodaSearch.title "Global søg">

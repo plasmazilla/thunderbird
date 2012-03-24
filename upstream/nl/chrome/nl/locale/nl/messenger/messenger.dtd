@@ -23,8 +23,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "O">
 <!ENTITY newOtherAccountsCmd.label "Andere accounts…">
 <!ENTITY newOtherAccountsCmd.accesskey "A">
-<!ENTITY newEmailAccountCmd.label "E-mailaccount…">
-<!ENTITY newEmailAccountCmd.accesskey "E">
+<!ENTITY newCreateEmailAccountCmd.label "Nieuw e-mailaccount ophalen…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "N">
+<!ENTITY newExistingEmailAccountCmd.label "Bestaand E-mailaccount…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "B">
 <!ENTITY openMessageFileCmd.label "Opgeslagen bericht openen…">
 <!ENTITY openMessageFileCmd.accesskey "O">
 <!ENTITY openAttachmentCmd.label "Bijlagen">
@@ -119,6 +121,8 @@
 <!ENTITY redoDefaultCmd.accesskey "u">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label "Menubalk">
+<!ENTITY menubarCmd.accesskey "M">
 <!ENTITY showMessengerToolbarCmd.label "E-mailwerkbalk">
 <!ENTITY showMessengerToolbarCmd.accesskey "E">
 <!ENTITY customizeToolbar.label "Aanpassen…">
@@ -132,6 +136,8 @@
 <!ENTITY messagePaneWide.accesskey "B">
 <!ENTITY messagePaneVertical.label "Verticaal beeld">
 <!ENTITY messagePaneVertical.accesskey "V">
+<!ENTITY showFolderPaneCmd.label "Mappenvenster">
+<!ENTITY showFolderPaneCmd.accesskey "M">
 <!ENTITY showMessageCmd.label "Berichtvenster">
 <!ENTITY showMessageCmd.accesskey "e">
 
@@ -269,6 +275,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label "Berichtbron">
 <!ENTITY pageSourceCmd.accesskey "r">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label "Zoeken">
@@ -498,12 +506,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY previousButton.label "Vorige">
 <!ENTITY backButton1.label "Terug">
 <!ENTITY goForwardButton1.label "Vooruit">
+<!ENTITY deleteItem.title "Verwijderen">
 <!ENTITY deleteButton.label "Verwijderen">
 <!ENTITY undeleteButton.label "Terugplaatsen">
 <!ENTITY markButton.label "Markeren">
 <!ENTITY printButton.label "Afdrukken">
 <!ENTITY stopButton.label "Stoppen">
 <!ENTITY throbberItem.title "Activiteitsindicator">
+<!ENTITY junkItem.title "Ongewenst">
 <!ENTITY junkButton.label "Ongewenst">
 <!ENTITY notJunkButton.label "Niet ongewenst">
 <!ENTITY addressBookButton.label "Adresboek">

@@ -1,5 +1,6 @@
 locale communicator ro chrome/ro/locale/ro/communicator/
 locale autoconfig ro chrome/ro/locale/ro/autoconfig/
+locale testpilot ro chrome/ro/locale/ro/feedback/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale branding ro chrome/ro/locale/ro/branding/

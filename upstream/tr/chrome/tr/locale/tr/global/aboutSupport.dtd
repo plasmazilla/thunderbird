@@ -1,7 +1,8 @@
 <!ENTITY aboutSupport.pageTitle "Sorun çözme bilgisi">
-<!-- LOCALIZATION NOTE (aboutSupport.pageSubtitle): don't change the 'supportLink' id. -->
 
-<!ENTITY aboutSupport.pageSubtitle "  Bu sayfa bir sorunu çözerken kullanabileceğiniz teknik bilgiler içermektedir. Eğer &brandShortName; hakkında sıkça sorulan sorulara cevap arıyorsanız <a id='supportLink'>destek sayfamızı</a> ziyaret edin.">
+<!-- LOCALIZATION NOTE (aboutSupport.pageSubtitle): don't change the 'supportLink' id. -->
+<!ENTITY aboutSupport.pageSubtitle "Bu sayfa, bir sorunu gidermeye çalışırken işinize yarabilecek teknik bilgiler içerir. &brandShortName; hakkında genel sorularla ilgili yanıt arıyorsanız <a id='supportLink'>destek sitemizi</a> ziyaret edin.
+">
 
 <!ENTITY aboutSupport.extensionsTitle "Eklentiler">
 <!ENTITY aboutSupport.extensionName "Adı">
@@ -16,12 +17,14 @@
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Devredeki yan uygulamalar">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Yapılandırma">
 <!ENTITY aboutSupport.appBasicsUserAgent "Kullanıcı aracı">
+<!ENTITY aboutSupport.appBasicsCrashIDs "Çökme Raporları">
+<!ENTITY aboutSupport.appBasicsMemoryUse "Bellek kullanımı">
 
 <!ENTITY aboutSupport.show.label "Bulunduğu dizini aç">
+
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
 variant of aboutSupport.show.label.  This allows us to use the preferred
 "Finder" terminology on Mac. -->
-
 <!ENTITY aboutSupport.showMac.label "Finder'da göster">
 
 <!ENTITY aboutSupport.modifiedPrefsTitle "Değiştirilen tercihler">
@@ -34,4 +37,4 @@ variant of aboutSupport.show.label.  This allows us to use the preferred
 <!ENTITY aboutSupport.updateHistoryTitle "Güncelleme geçmişi">
 
 <!ENTITY aboutSupport.copyToClipboard.label "Tümünü panoya kopyala">
-<!ENTITY aboutSupport.appBasicsCrashIDs "Crash Reports">
+

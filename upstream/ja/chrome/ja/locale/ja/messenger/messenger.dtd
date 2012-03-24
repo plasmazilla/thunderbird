@@ -26,8 +26,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey		"S">
 <!ENTITY newOtherAccountsCmd.label		"他のサービスのアカウント...">
 <!ENTITY newOtherAccountsCmd.accesskey		"O">
-<!ENTITY newEmailAccountCmd.label		"メールアカウント...">
-<!ENTITY newEmailAccountCmd.accesskey		"A">
+<!ENTITY newCreateEmailAccountCmd.label		"新しいメールアカウントを取得...">
+<!ENTITY newCreateEmailAccountCmd.accesskey	"G">
+<!ENTITY newExistingEmailAccountCmd.label	"既存のメールアカウント...">
+<!ENTITY newExistingEmailAccountCmd.accesskey	"E">
 <!ENTITY openMessageFileCmd.label		"メッセージファイルを開く...">
 <!ENTITY openMessageFileCmd.accesskey		"O">
 <!ENTITY openAttachmentCmd.label		"添付">
@@ -124,6 +126,8 @@
 <!ENTITY redoDefaultCmd.accesskey		"R">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label			"メニューバー">
+<!ENTITY menubarCmd.accesskey			"M">
 <!ENTITY showMessengerToolbarCmd.label		"メールツールバー">
 <!ENTITY showMessengerToolbarCmd.accesskey	"o">
 <!ENTITY customizeToolbar.label			"カスタマイズ...">
@@ -137,6 +141,8 @@
 <!ENTITY messagePaneWide.accesskey		"W">
 <!ENTITY messagePaneVertical.label		"縦表示">
 <!ENTITY messagePaneVertical.accesskey		"V">
+<!ENTITY showFolderPaneCmd.label		"フォルダペイン">
+<!ENTITY showFolderPaneCmd.accesskey		"F">
 <!ENTITY showMessageCmd.label			"メッセージペイン">
 <!ENTITY showMessageCmd.accesskey		"M">
 
@@ -274,6 +280,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label			"メッセージのソース">
 <!ENTITY pageSourceCmd.accesskey		"o">
 <!ENTITY pageSourceCmd.key			"u">
+<!ENTITY getNewMessagesCmd.key			"y">
+<!ENTITY getAllNewMessagesCmd.key		"Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label			"検索">
@@ -500,12 +508,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY previousButton.label		"前へ">
 <!ENTITY backButton1.label		"戻る">
 <!ENTITY goForwardButton1.label		"進む">
+<!ENTITY deleteItem.title		"削除">
 <!ENTITY deleteButton.label		"削除">
 <!ENTITY undeleteButton.label		"削除を元に戻す">
 <!ENTITY markButton.label		"マーク">
 <!ENTITY printButton.label		"印刷">
 <!ENTITY stopButton.label		"停止">
 <!ENTITY throbberItem.title		"アクティブインジケータ">
+<!ENTITY junkItem.title			"迷惑メール">
 <!ENTITY junkButton.label		"迷惑メール">
 <!ENTITY notJunkButton.label		"非迷惑メール">
 <!ENTITY addressBookButton.label	"アドレス帳">

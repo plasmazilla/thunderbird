@@ -1,15 +1,16 @@
-locale communicator it chrome/it/locale/it/communicator/
+locale necko it chrome/it/locale/it/necko/
+locale mozapps it chrome/it/locale/it/mozapps/
 locale messenger it chrome/it/locale/it/messenger/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 locale global-region it chrome/it/locale/it/global-region/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale messenger-region it chrome/it/locale/it/messenger-region/
-locale necko it chrome/it/locale/it/necko/
+locale testpilot it chrome/it/locale/it/feedback/
 locale messenger-mapi it chrome/it/locale/it/messenger-mapi/
 locale mozldap it chrome/it/locale/it/mozldap/
 manifest chrome/it.manifest
 locale autoconfig it chrome/it/locale/it/autoconfig/
-locale mozapps it chrome/it/locale/it/mozapps/
+locale communicator it chrome/it/locale/it/communicator/
 locale editor it chrome/it/locale/it/editor/
 locale cookie it chrome/it/locale/it/cookie/
 locale passwordmgr it chrome/it/locale/it/passwordmgr/

@@ -7,7 +7,6 @@
 <!--
 # Reviewer(s):
 #
-# raulmalea <raul.malea@gmail.com>
 # Alexandru Szasz <alexxed@gmail.com>
 #
 -->
@@ -32,5 +31,4 @@
 <!ENTITY charsetMenuUnicode.accesskey  "U">
 <!ENTITY charsetCustomize.label        "Personalizează lista...">
 <!ENTITY charsetCustomize.accesskey    "P">
-
 

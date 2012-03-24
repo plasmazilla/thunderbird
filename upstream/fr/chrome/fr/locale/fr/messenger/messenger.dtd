@@ -26,8 +26,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "v">
 <!ENTITY newOtherAccountsCmd.label "Autres comptes…">
 <!ENTITY newOtherAccountsCmd.accesskey "m">
-<!ENTITY newEmailAccountCmd.label "Compte courrier…">
-<!ENTITY newEmailAccountCmd.accesskey "o">
+<!ENTITY newCreateEmailAccountCmd.label "Obtenir un nouveau compte courrier…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "O">
+<!ENTITY newExistingEmailAccountCmd.label "Compte courrier existant…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "e">
 <!ENTITY openMessageFileCmd.label "Ouvrir un fichier…">
 <!ENTITY openMessageFileCmd.accesskey "O">
 <!ENTITY openAttachmentCmd.label "Pièces jointes">
@@ -122,6 +124,8 @@
 <!ENTITY redoDefaultCmd.accesskey "R">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label "Barre de menus">
+<!ENTITY menubarCmd.accesskey "m">
 <!ENTITY showMessengerToolbarCmd.label "Barre d'outils courrier">
 <!ENTITY showMessengerToolbarCmd.accesskey "t">
 <!ENTITY customizeToolbar.label "Personnaliser…">
@@ -135,21 +139,23 @@
 <!ENTITY messagePaneWide.accesskey "L">
 <!ENTITY messagePaneVertical.label "Verticale">
 <!ENTITY messagePaneVertical.accesskey "V">
+<!ENTITY showFolderPaneCmd.label "Panneau des dossiers">
+<!ENTITY showFolderPaneCmd.accesskey "o">
 <!ENTITY showMessageCmd.label "Panneau d'affichage des messages">
 <!ENTITY showMessageCmd.accesskey "n">
 
 <!ENTITY folderView.label "Dossiers">
 <!ENTITY folderView.accesskey "r">
-<!ENTITY unifiedFolders.label "Dossiers unifiés">
-<!ENTITY unifiedFolders.accesskey "D">
+<!ENTITY unifiedFolders.label "Unifiés">
+<!ENTITY unifiedFolders.accesskey "U">
 <!ENTITY allFolders.label "Tous">
 <!ENTITY allFolders.accesskey "T">
-<!ENTITY unreadFolders.label "Dossiers avec des non lus">
-<!ENTITY unreadFolders.accesskey "n">
-<!ENTITY favoriteFolders.label "Dossiers préférés">
-<!ENTITY favoriteFolders.accesskey "p">
-<!ENTITY recentFolders.label "Dossiers récents">
-<!ENTITY recentFolders.accesskey "r">
+<!ENTITY unreadFolders.label "Avec des messages non lus">
+<!ENTITY unreadFolders.accesskey "A">
+<!ENTITY favoriteFolders.label "Préférés">
+<!ENTITY favoriteFolders.accesskey "P">
+<!ENTITY recentFolders.label "Récents">
+<!ENTITY recentFolders.accesskey "R">
 
 <!-- Sort Menu -->
 <!ENTITY sortMenu.label "Trier par">
@@ -273,6 +279,8 @@ you can use these alternative items. Otherwise, their values should be empty.
 <!ENTITY pageSourceCmd.label "Code source du message">
 <!ENTITY pageSourceCmd.accesskey "s">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 
 <!-- Search Menu -->
 
@@ -503,12 +511,14 @@ you can use these alternative items. Otherwise, their values should be empty.
 <!ENTITY previousButton.label "Précédent">
 <!ENTITY backButton1.label "Reculer">
 <!ENTITY goForwardButton1.label "Avancer">
+<!ENTITY deleteItem.title "Supprimer">
 <!ENTITY deleteButton.label "Supprimer">
 <!ENTITY undeleteButton.label "Restaurer">
 <!ENTITY markButton.label "Marquer">
 <!ENTITY printButton.label "Imprimer">
 <!ENTITY stopButton.label "Arrêter">
 <!ENTITY throbberItem.title "Indicateur d'activité">
+<!ENTITY junkItem.title "Indésirable">
 <!ENTITY junkButton.label "Indésirable">
 <!ENTITY notJunkButton.label "Acceptable">
 <!ENTITY addressBookButton.label "Adresses">

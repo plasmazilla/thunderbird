@@ -15,8 +15,8 @@
 <!ENTITY nntpDownloadMsg.label "Kemennadennoù a zo muioc'h a">
 <!ENTITY nntpDownloadMsg.accesskey "e">
 <!ENTITY retentionCleanup.label "Evit adkavout egor kantenn ez eo posupl diverkañ kemennadennoù kozh da vat">
-<!ENTITY retentionCleanupImap.label "Evit adkavout egor kantenn ez eo posupl diverkañ kemennadennoù kozh da vat, an eiladoù lec'hel hag ar c'hemennadennoù a orin war an dafariad.">
-<!ENTITY retentionCleanupPop.label "Evit adkavout egor kantenn ez eo posupl diverkañ kemennadennoù kozh da vat, hag ar c'hemennadennoù a orin war an dafariad ivez.">
+<!ENTITY retentionCleanupImap.label "Evit adkavout egor kantenn ez eo posupl diverkañ kemennadennoù kozh da vat, an eiladoù lec'hel hag ar c'hemennadennoù orin war an dafariad.">
+<!ENTITY retentionCleanupPop.label "Evit adkavout egor kantenn ez eo posupl diverkañ kemennadennoù kozh da vat, hag ar c'hemennadennoù orin war an dafariad ivez.">
 <!ENTITY retentionKeepMsg.label "Lemel kuit kemennadennoù koshoc'h eget">
 <!ENTITY retentionKeepMsg.accesskey "L">
 <!ENTITY retentionKeepAll.label "Chom hep diverkañ kemennadennoù">
@@ -42,7 +42,7 @@
 
   &ageAutosyncBefore.label [textbox for autosync value] &ageAutosyncMiddle.label; [dropdown for autosync interval] &ageAutosyncAfter.label;
 -->
-<!ENTITY allAutosync.label               "Goubredañ an holl gemennadennoù ent-lec'hel hep dezverk oad">
+<!ENTITY allAutosync.label               "Goubredañ an holl gemennadennoù ent lec'hel hep dezverk oad">
 <!ENTITY allAutosync.accesskey           "o">
 <!ENTITY ageAutosyncBefore.label         "Goubredañ ar c'hemennadennoù nevesañ">
 <!ENTITY ageAutosync.accesskey           "n">

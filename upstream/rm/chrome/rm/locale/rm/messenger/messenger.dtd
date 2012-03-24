@@ -27,8 +27,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "S">
 <!ENTITY newOtherAccountsCmd.label "Auters contos…">
 <!ENTITY newOtherAccountsCmd.accesskey "O">
-<!ENTITY newEmailAccountCmd.label "Conto dad e-mail…">
-<!ENTITY newEmailAccountCmd.accesskey "A">
+<!ENTITY newCreateEmailAccountCmd.label "Ir per in nov conto…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "R">
+<!ENTITY newExistingEmailAccountCmd.label "In conto d'e-mail existent…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "E">
 <!ENTITY openMessageFileCmd.label "Avrir ina datoteca…">
 <!ENTITY openMessageFileCmd.accesskey "O">
 <!ENTITY openAttachmentCmd.label "Agiuntas">
@@ -46,7 +48,7 @@
 <!ENTITY getAllNewMsgCmdPopupMenu.accesskey "T">
 <!ENTITY getNewMsgCurrentAccountCmdPopupMenu.label "Conto actual">
 <!ENTITY getNewMsgCurrentAccountCmdPopupMenu.accesskey "C">
-<!ENTITY getNextNMsgCmd.label "Reschaiver ils proxims 500 messadis da novitads">
+<!ENTITY getNextNMsgCmd.label "Retschaiver ils proxims 500 messadis da novitads">
 <!ENTITY getNextNMsgCmd.accesskey "t">
 <!ENTITY sendUnsentCmd.label "Trametter ils messadis betg tramess">
 <!ENTITY sendUnsentCmd.accesskey "d">
@@ -125,6 +127,8 @@
 <!ENTITY redoDefaultCmd.accesskey "t">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label "Trav da menu">
+<!ENTITY menubarCmd.accesskey "m">
 <!ENTITY showMessengerToolbarCmd.label "Trav d'utensils da messadi">
 <!ENTITY showMessengerToolbarCmd.accesskey "u">
 <!ENTITY customizeToolbar.label "Modifitgar…">
@@ -138,6 +142,8 @@
 <!ENTITY messagePaneWide.accesskey "l">
 <!ENTITY messagePaneVertical.label "Vista a 3 colonnas">
 <!ENTITY messagePaneVertical.accesskey "3">
+<!ENTITY showFolderPaneCmd.label "Trav dad ordinaturs">
+<!ENTITY showFolderPaneCmd.accesskey "T">
 <!ENTITY showMessageCmd.label "Zona da prevista dals messadis">
 <!ENTITY showMessageCmd.accesskey "p">
 
@@ -275,6 +281,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label "Text da funtuna dal messadi">
 <!ENTITY pageSourceCmd.accesskey "f">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label "Tschertgar">
@@ -502,12 +510,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY previousButton.label "Ensi">
 <!ENTITY backButton1.label "Enavos">
 <!ENTITY goForwardButton1.label "Vinavant">
+<!ENTITY deleteItem.title "Stizzar">
 <!ENTITY deleteButton.label "Stizzar">
 <!ENTITY undeleteButton.label "Restaurar">
 <!ENTITY markButton.label "Marcar">
 <!ENTITY printButton.label "Stampar">
 <!ENTITY stopButton.label "Fermar">
 <!ENTITY throbberItem.title "Indicaziun da l'activitad">
+<!ENTITY junkItem.title "Nungiavischà">
 <!ENTITY junkButton.label "Nungiavischà">
 <!ENTITY notJunkButton.label "Betg nungiavischà">
 <!ENTITY addressBookButton.label "Cudeschet d'adressas">

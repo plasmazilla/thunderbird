@@ -23,8 +23,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey                 "S">
 <!ENTITY newOtherAccountsCmd.label                     "Muud kontod…">
 <!ENTITY newOtherAccountsCmd.accesskey                 "o">
-<!ENTITY newEmailAccountCmd.label                      "E-posti konto…">
-<!ENTITY newEmailAccountCmd.accesskey                  "E">
+<!ENTITY newCreateEmailAccountCmd.label                "Hangi uus e-posti konto…">
+<!ENTITY newCreateEmailAccountCmd.accesskey            "H">
+<!ENTITY newExistingEmailAccountCmd.label              "Olemasolev e-posti konto…">
+<!ENTITY newExistingEmailAccountCmd.accesskey          "E">
 <!ENTITY openMessageFileCmd.label                      "Ava salvestatud kiri...">
 <!ENTITY openMessageFileCmd.accesskey                  "i">
 <!ENTITY openAttachmentCmd.label                       "Manused">
@@ -119,6 +121,8 @@
 <!ENTITY redoDefaultCmd.accesskey                      "s">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label                              "Menüüriba">
+<!ENTITY menubarCmd.accesskey                          "M">
 <!ENTITY showMessengerToolbarCmd.label                 "Tööriistariba">
 <!ENTITY showMessengerToolbarCmd.accesskey             "T">
 <!ENTITY customizeToolbar.label                        "Kohanda...">
@@ -132,6 +136,8 @@
 <!ENTITY messagePaneWide.accesskey                     "L">
 <!ENTITY messagePaneVertical.label                     "Vertikaalne vaade">
 <!ENTITY messagePaneVertical.accesskey                 "V">
+<!ENTITY showFolderPaneCmd.label                       "Kaustade paneel">
+<!ENTITY showFolderPaneCmd.accesskey                   "a">
 <!ENTITY showMessageCmd.label                          "Kirja teksti paneel">
 <!ENTITY showMessageCmd.accesskey                      "i">
 
@@ -269,7 +275,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label                           "Kirja lähtekood">
 <!ENTITY pageSourceCmd.accesskey                       "K">
 <!ENTITY pageSourceCmd.key                             "u">
-
+<!ENTITY getNewMessagesCmd.key                         "y">
+<!ENTITY getAllNewMessagesCmd.key                      "Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label                                "Otsimine">
@@ -499,12 +506,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY previousButton.label                          "Eelmine">
 <!ENTITY backButton1.label                             "Tagasi">
 <!ENTITY goForwardButton1.label                        "Edasi">
+<!ENTITY deleteItem.title                              "Kustuta">
 <!ENTITY deleteButton.label                            "Kustuta">
 <!ENTITY undeleteButton.label                          "Taasta">
 <!ENTITY markButton.label                              "Märgista">
 <!ENTITY printButton.label                             "Prindi">
 <!ENTITY stopButton.label                              "Peata">
 <!ENTITY throbberItem.title                            "Aktiivsuse indikaator">
+<!ENTITY junkItem.title                                "Rämpspost">
 <!ENTITY junkButton.label                              "Rämpspost">
 <!ENTITY notJunkButton.label                           "Pole rämpspost">
 <!ENTITY addressBookButton.label                       "Aadressiraamat">

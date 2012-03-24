@@ -39,6 +39,9 @@
 <!ENTITY netInterrupt.title "连接被中断">
 <!ENTITY netInterrupt.longDesc "&sharedLongDesc;">
 
+<!ENTITY notCached.title "文档已过期">
+<!ENTITY notCached.longDesc "<p>您请求的文档已无法在缓存中找到。</p><ul><li>作为出于安全起见，&brandShortName; 不会自动重新获取敏感信息文档。</li><li>请点击重试并从网站来重新获取该文档。</li></ul>">
+
 <!ENTITY netOffline.title "脱机模式">
 <!ENTITY netOffline.longDesc2 "<ul>
   <li>按“重试”切换到在线模式并重新加载此页面。</li>
@@ -116,7 +119,7 @@
 <!ENTITY cspFrameAncestorBlocked.title "由于内容安全策略而被阻止">
 <!ENTITY cspFrameAncestorBlocked.longDesc "<p>由于内容安全策略，&brandShortName; 已阻止此页按该方式载入。</p>">
 
-<!ENTITY corruptedContentError.title "损坏的内容错误">
+<!ENTITY corruptedContentError.title "内容损坏错误">
 <!ENTITY corruptedContentError.longDesc "<p>您要查看的该页面无法显示，因为检测到数据传输错误。</p><ul><li>请联系网站所有者通知他们这个问题。</li></ul>">
 
 <!ENTITY securityOverride.linkText "或者，您可以添加一个例外…">

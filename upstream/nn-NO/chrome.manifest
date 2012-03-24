@@ -16,9 +16,10 @@ locale cookie nn-NO chrome/nn-NO/locale/nn-NO/cookie/
 locale messenger-smime nn-NO chrome/nn-NO/locale/nn-NO/messenger-smime/
 locale places nn-NO chrome/nn-NO/locale/nn-NO/places/
 locale editor nn-NO chrome/nn-NO/locale/nn-NO/editor/
-locale global-platform nn-NO chrome/nn-NO/locale/nn-NO/global-platform/
+locale passwordmgr nn-NO chrome/nn-NO/locale/nn-NO/passwordmgr/
+locale testpilot nn-NO chrome/nn-NO/locale/nn-NO/feedback/
 locale mozldap nn-NO chrome/nn-NO/locale/nn-NO/mozldap/
 locale branding nn-NO chrome/nn-NO/locale/nn-NO/branding/
 locale messenger-region nn-NO chrome/nn-NO/locale/nn-NO/messenger-region/
-locale passwordmgr nn-NO chrome/nn-NO/locale/nn-NO/passwordmgr/
+locale global-platform nn-NO chrome/nn-NO/locale/nn-NO/global-platform/
 locale messenger-mapi nn-NO chrome/nn-NO/locale/nn-NO/messenger-mapi/

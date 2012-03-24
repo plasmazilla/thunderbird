@@ -79,18 +79,26 @@
 <!ENTITY viewMenu.accesskey "V">
 <!ENTITY viewToolbarsMenu.label "Barras de herramientas">
 <!ENTITY viewToolbarsMenu.accesskey "h">
+<!ENTITY menubarCmd.label "Barra de menú">
+<!ENTITY menubarCmd.accesskey "m">
 <!ENTITY showAbToolbarCmd.label "Barra de herramientas de la libreta de direcciones">
 <!ENTITY showAbToolbarCmd.accesskey "o">
 <!ENTITY showTaskbarCmd.label "Barra de estado">
 <!ENTITY showTaskbarCmd.accesskey "s">
 <!ENTITY customizeToolbar.label "Personalizar…">
 <!ENTITY customizeToolbar.accesskey "P">
-<!ENTITY showContactPane.label                          "Vista de resumen de contactos">
-<!ENTITY showContactPane.accesskey                      "C">
+<!ENTITY layoutMenu.label                               "Disposición">
+<!ENTITY layoutMenu.accesskey                           "D">
+<!ENTITY showDirectoryPane.label                        "Vista de guía">
+<!ENTITY showDirectoryPane.accesskey                    "V">
+<!ENTITY showContactPane2.label                         "Vista de contactos">
+<!ENTITY showContactPane2.accesskey                     "c">
 <!ENTITY menu_ShowNameAs.label "Mostrar nombre como">
 <!ENTITY menu_ShowNameAs.accesskey "n">
-<!ENTITY firstLastCmd.label "Nombre, apellido">
-<!ENTITY firstLastCmd.accesskey "N">
+<!-- LOCALIZATION NOTE (firstLastCmd2.label): We're not including a comma here
+because displayed names don't have the comma in between. -->
+<!ENTITY firstLastCmd2.label                            "Nombre y apellido">
+<!ENTITY firstLastCmd2.accesskey                        "N">
 <!ENTITY lastFirstCmd.label "Apellido, nombre">
 <!ENTITY lastFirstCmd.accesskey "l">
 <!ENTITY displayNameCmd.label "Nombre mostrado">

@@ -52,11 +52,6 @@
 <!ENTITY netInterrupt.longDesc "&sharedLongDesc;">
 
 <!ENTITY netOffline.title "இணைப்பில்லா நிலை செயற்படுமுறைமை">
-<!ENTITY netOffline.longDesc "
-<ul>
-  <li>Place &brandShortName; in online mode, then try again.</li>
-</ul>
-">
 
 <!ENTITY contentEncodingError.title "குறியீடாக்கல் வழுவை கொண்டுள்ளது">
 <!ENTITY contentEncodingError.longDesc "
@@ -183,11 +178,20 @@ functionality specific to thunderbird. -->
 
 <!ENTITY remoteXUL.title "Remote XUL">
 <!ENTITY remoteXUL.longDesc "<p><ul><li>Please contact the website owners to inform them of this problem.</li></ul></p>">
-<!ENTITY corruptedContentError.longDesc "<p>The content you are trying to view cannot be shown because an error in the data transmission was detected.</p><ul><li>Please contact the owners to inform them of this problem.</li></ul>">
 
+
+<!--
+Entities below were automatically added by compare-locales,
+ based on en-US entities.
+-->
+
+<!ENTITY corruptedContentError.longDesc "<p>The content you are trying to view cannot be shown because an error in the data transmission was detected.</p><ul><li>Please contact the owners to inform them of this problem.</li></ul>">
 <!ENTITY corruptedContentError.title "Corrupted Content Error">
 <!ENTITY netOffline.longDesc2 "
 <ul>
   <li>Press &quot;Try Again&quot; to switch to online mode and reload the page.</li>
 </ul>
 ">
+<!ENTITY notCached.longDesc "<p>The requested document is not available in the cache.</p><ul><li>As a security precaution, &brandShortName; does not automatically re-request sensitive documents.</li><li>Click Try Again to re-request the document from the website.</li></ul>">
+
+<!ENTITY notCached.title "Document Expired">

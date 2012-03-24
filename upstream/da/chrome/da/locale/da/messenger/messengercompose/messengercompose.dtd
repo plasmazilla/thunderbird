@@ -16,6 +16,7 @@
 <!ENTITY attachMenu.accesskey "V">
 <!ENTITY attachFileCmd.label "Filer…">
 <!ENTITY attachFileCmd.accesskey "F">
+<!ENTITY attachFileCmd.key "A">
 <!ENTITY attachPageCmd.label "Hjemmeside…">
 <!ENTITY attachPageCmd.accesskey "H">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -92,6 +93,8 @@
 <!ENTITY viewMenu.accesskey "V">
 <!ENTITY viewToolbarsMenuNew.label "Værktøjslinjer">
 <!ENTITY viewToolbarsMenuNew.accesskey "V">
+<!ENTITY menubarCmd.label "Menulinje">
+<!ENTITY menubarCmd.accesskey "e">
 <!ENTITY showCompositionToolbarCmd.label "Maillinje">
 <!ENTITY showCompositionToolbarCmd.accesskey "M">
 <!ENTITY showFormattingBarCmd.label "Formateringslinje">

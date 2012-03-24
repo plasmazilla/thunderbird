@@ -16,8 +16,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "S">
 <!ENTITY newOtherAccountsCmd.label "Altri account…">
 <!ENTITY newOtherAccountsCmd.accesskey "t">
-<!ENTITY newEmailAccountCmd.label "Account di posta…">
-<!ENTITY newEmailAccountCmd.accesskey "A">
+<!ENTITY newCreateEmailAccountCmd.label "Crea un nuovo account e-mail">
+<!ENTITY newCreateEmailAccountCmd.accesskey "C">
+<!ENTITY newExistingEmailAccountCmd.label "Account di email già esistente…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "A">
 <!ENTITY openMessageFileCmd.label "Apri messaggio salvato…">
 <!ENTITY openMessageFileCmd.accesskey "A">
 <!ENTITY openAttachmentCmd.label "Allegati">
@@ -108,6 +110,8 @@
 <!ENTITY undoDefaultCmd.accesskey "A">
 <!ENTITY redoDefaultCmd.label "Ripeti">
 <!ENTITY redoDefaultCmd.accesskey "R">
+<!ENTITY menubarCmd.label "Barra del menu">
+<!ENTITY menubarCmd.accesskey "B">
 <!ENTITY showMessengerToolbarCmd.label "Barra dei messaggi">
 <!ENTITY showMessengerToolbarCmd.accesskey "m">
 <!ENTITY customizeToolbar.label "Personalizza…">
@@ -120,6 +124,8 @@
 <!ENTITY messagePaneWide.accesskey "e">
 <!ENTITY messagePaneVertical.label "Visualizzazione verticale">
 <!ENTITY messagePaneVertical.accesskey "V">
+<!ENTITY showFolderPaneCmd.label "Riquadro cartelle">
+<!ENTITY showFolderPaneCmd.accesskey "a">
 <!ENTITY showMessageCmd.label "Anteprima messaggio">
 <!ENTITY showMessageCmd.accesskey "A">
 <!ENTITY folderView.label "Cartelle">
@@ -240,6 +246,8 @@
 <!ENTITY pageSourceCmd.label "Sorgente del messaggio">
 <!ENTITY pageSourceCmd.accesskey "t">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 <!ENTITY findMenu.label "Trova">
 <!ENTITY findMenu.accesskey "v">
 <!ENTITY findCmd.label "Trova nel messaggio…">
@@ -455,12 +463,14 @@
 <!ENTITY previousButton.label "Precedente">
 <!ENTITY backButton1.label "Indietro">
 <!ENTITY goForwardButton1.label "Avanti">
+<!ENTITY deleteItem.title "Elimina">
 <!ENTITY deleteButton.label "Elimina">
 <!ENTITY undeleteButton.label "Ripristina">
 <!ENTITY markButton.label "Segna">
 <!ENTITY printButton.label "Stampa">
 <!ENTITY stopButton.label "Interrompi">
 <!ENTITY throbberItem.title "Indicatore di attività">
+<!ENTITY junkItem.title "Indesiderata">
 <!ENTITY junkButton.label "Indesiderata">
 <!ENTITY notJunkButton.label "Non indesiderata">
 <!ENTITY addressBookButton.label "Rubrica">
@@ -519,7 +529,7 @@
 <!ENTITY folderContextEmptyJunk.accesskey "v">
 <!ENTITY folderContextSendUnsentMessages.label "Invia messaggi ancora da inviare">
 <!ENTITY folderContextSendUnsentMessages.accesskey "S">
-<!ENTITY folderContextUnsubscribe.label "Annulla Sottoscrizione">
+<!ENTITY folderContextUnsubscribe.label "Annulla sottoscrizione">
 <!ENTITY folderContextUnsubscribe.accesskey "A">
 <!ENTITY folderContextMarkNewsgroupRead.label "Segna il gruppo di discussione come già letto">
 <!ENTITY folderContextMarkNewsgroupRead.accesskey "c">

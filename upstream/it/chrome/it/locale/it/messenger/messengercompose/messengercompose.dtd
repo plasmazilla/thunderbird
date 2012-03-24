@@ -13,6 +13,7 @@
 <!ENTITY attachMenu.accesskey "A">
 <!ENTITY attachFileCmd.label "File…">
 <!ENTITY attachFileCmd.accesskey "f">
+<!ENTITY attachFileCmd.key "A">
 <!ENTITY attachPageCmd.label "Pagina web…">
 <!ENTITY attachPageCmd.accesskey "w">
 <!ENTITY attachVCardCmd.label "Biglietto da visita elettronico (vCard)">
@@ -84,6 +85,8 @@
 <!ENTITY viewMenu.accesskey "v">
 <!ENTITY viewToolbarsMenuNew.label "Barre degli strumenti">
 <!ENTITY viewToolbarsMenuNew.accesskey "T">
+<!ENTITY menubarCmd.label "Barra del menu">
+<!ENTITY menubarCmd.accesskey "B">
 <!ENTITY showCompositionToolbarCmd.label "Barra strumenti di composizione">
 <!ENTITY showCompositionToolbarCmd.accesskey "o">
 <!ENTITY showFormattingBarCmd.label "Barra strumenti di formattazione">

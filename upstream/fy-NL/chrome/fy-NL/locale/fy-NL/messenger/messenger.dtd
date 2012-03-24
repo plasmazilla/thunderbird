@@ -20,14 +20,16 @@
      Menu option to cause the current tab to be migrated to a new Thunderbird
      window.
      -->
-<!ENTITY moveToNewWindow.label "Ferpleatse nei nij finster">
+<!ENTITY moveToNewWindow.label "Ferpleats nei nij finster">
 <!ENTITY moveToNewWindow.accesskey "F">
 <!ENTITY newVirtualFolderCmd.label "Bewarre sykopdracht…">
 <!ENTITY newVirtualFolderCmd.accesskey "s">
 <!ENTITY newOtherAccountsCmd.label "Oare accounts…">
 <!ENTITY newOtherAccountsCmd.accesskey "O">
-<!ENTITY newEmailAccountCmd.label "E-mailaccount…">
-<!ENTITY newEmailAccountCmd.accesskey "E">
+<!ENTITY newCreateEmailAccountCmd.label "Krij in nij e-mailaccount…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "K">
+<!ENTITY newExistingEmailAccountCmd.label "Besteand e-mailaccount…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "B">
 <!ENTITY openMessageFileCmd.label "Bewarre berjocht iepenje…">
 <!ENTITY openMessageFileCmd.accesskey "O">
 <!ENTITY openAttachmentCmd.label "Bylagen">
@@ -122,6 +124,8 @@
 <!ENTITY redoDefaultCmd.accesskey "n">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label "Menubalke">
+<!ENTITY menubarCmd.accesskey "M">
 <!ENTITY showMessengerToolbarCmd.label "E-mailarkbalke">
 <!ENTITY showMessengerToolbarCmd.accesskey "E">
 <!ENTITY customizeToolbar.label "Oanpasse…">
@@ -135,6 +139,8 @@
 <!ENTITY messagePaneWide.accesskey "B">
 <!ENTITY messagePaneVertical.label "Fertikaal byld">
 <!ENTITY messagePaneVertical.accesskey "F">
+<!ENTITY showFolderPaneCmd.label "Mappaniel">
+<!ENTITY showFolderPaneCmd.accesskey "M">
 <!ENTITY showMessageCmd.label "Berjochtefinster">
 <!ENTITY showMessageCmd.accesskey "e">
 
@@ -227,7 +233,7 @@
 <!ENTITY bodySanitized.accesskey "F">
 <!ENTITY bodyAsPlaintext.label "Platte tekst">
 <!ENTITY bodyAsPlaintext.accesskey "P">
-<!ENTITY bodyAllParts.label "Alle kearnparten">
+<!ENTITY bodyAllParts.label "Alle berjochtopmaak">
 <!ENTITY bodyAllParts.accesskey "A">
 
 <!ENTITY bodyMenuFeed.label "Feedberjochtopmaak as">
@@ -272,6 +278,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label "Berjochtboarne">
 <!ENTITY pageSourceCmd.accesskey "r">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label "Sykje">
@@ -501,12 +509,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY previousButton.label "Foarige">
 <!ENTITY backButton1.label "Tebek">
 <!ENTITY goForwardButton1.label "Foarút">
+<!ENTITY deleteItem.title "Fuortsmite">
 <!ENTITY deleteButton.label "Fuortsmite">
 <!ENTITY undeleteButton.label "Tebeksette">
 <!ENTITY markButton.label "Markearje">
 <!ENTITY printButton.label "Ofdrukke">
 <!ENTITY stopButton.label "Ophâlde">
 <!ENTITY throbberItem.title "Aktiviteitsyndikator">
+<!ENTITY junkItem.title "Net-winske">
 <!ENTITY junkButton.label "Net-winske">
 <!ENTITY notJunkButton.label "Winske">
 <!ENTITY addressBookButton.label "Adresboek">

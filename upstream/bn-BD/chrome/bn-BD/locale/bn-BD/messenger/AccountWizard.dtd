@@ -109,5 +109,10 @@
 <!ENTITY deferStorage.accesskey "G">
 <!ENTITY clickFinish.label "এই সেটিংগুলো সংরক্ষণ করতে এবং অ্যাকাউন্ট উইজার্ড থেকে বেরিয়ে যেতে 'সমাপ্ত' ক্লিক করুন।">
 <!ENTITY clickFinish.labelMac "এই সেটিংগুলো সংরক্ষণ করতে এবং অ্যাকাউন্ট উইজার্ড থেকে বেরিয়ে যেতে 'সম্পন্ন' ক্লিক করুন।">
+
+<!-- Entities for Account Type page -->
+
+<!ENTITY accountSetupInfo2.label "In order to receive messages, you first need to set up an account.">
+<!ENTITY accountTypeDesc2.label "This Wizard will collect the information necessary to set up an account. If you do not know the information requested, please contact your System Administrator or Internet Service Provider.">
 <!ENTITY leaveMsgsOnSrvr.accesskey "L">
 <!ENTITY leaveMsgsOnSrvr.label "Leave messages on server">

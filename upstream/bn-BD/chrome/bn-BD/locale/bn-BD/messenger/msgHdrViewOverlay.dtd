@@ -145,4 +145,64 @@
 <!ENTITY CopyMessageId.label "বার্তার ID অনুলিপি করা হবে">
 <!ENTITY OpenMessageForMsgId.label "ID এর জন্য বার্তা খোলা হবে">
 <!ENTITY OpenBrowserWithMsgId.label "বার্তা-ID সহ ব্রাউজার খোলা হবে">
-<!ENTITY hdrSmartReplyButton.label "smart reply">
+<!ENTITY bccField3.label "Bcc ">
+<!ENTITY ccField3.label "Cc ">
+<!ENTITY dateField3.label "Date ">
+<!ENTITY followupToField3.label "Followup to ">
+<!ENTITY fromField3.label "From ">
+<!ENTITY hdrArchiveButton1.label "Archive">
+<!ENTITY hdrArchiveButton1.tooltip "Archive this message">
+<!ENTITY hdrForwardButton1.label "Forward">
+<!ENTITY hdrForwardButton1.tooltip "Forward this message">
+<!ENTITY hdrJunkButton1.label "Junk">
+<!ENTITY hdrJunkButton1.tooltip "Mark this message as junk">
+<!ENTITY hdrReplyAllButton1.label "Reply All">
+<!ENTITY hdrReplyAllButton1.tooltip "Reply to sender and all recipients">
+<!ENTITY hdrReplyButton1.label "Reply">
+<!ENTITY hdrReplyButton1.tooltip "Reply to this message">
+<!ENTITY hdrReplyListButton1.label "Reply List">
+<!ENTITY hdrReplyListButton1.tooltip "Reply to mailing list">
+<!ENTITY hdrSmartReplyButton1.label "Smart Reply">
+<!ENTITY hdrTrashButton1.label "Delete">
+<!ENTITY hdrTrashButton1.tooltip "Delete this message">
+<!ENTITY inReplyToField3.label "In reply to ">
+<!ENTITY markAsReadMenuItem1.accesskey "R">
+<!ENTITY markAsReadMenuItem1.label "Mark as Read">
+<!ENTITY markAsUnreadMenuItem1.accesskey "r">
+<!ENTITY markAsUnreadMenuItem1.label "Mark as Unread">
+<!ENTITY messageIdField3.label "Message ID ">
+<!ENTITY newsgroupsField3.label "Newsgroups ">
+
+<!ENTITY openAttachment.tooltip "Open the attached file">
+<!ENTITY organizationField3.label "Organization ">
+<!ENTITY originalWebsite3.label "Website ">
+
+<!ENTITY otherActionsButton1.label "Other Actions">
+<!ENTITY otherActionsOpenConversation1.accesskey "C">
+<!ENTITY otherActionsOpenConversation1.label "Open in Conversation">
+<!ENTITY otherActionsOpenInNewTab1.accesskey "T">
+<!ENTITY otherActionsOpenInNewTab1.label "Open in New Tab">
+<!ENTITY otherActionsOpenInNewWindow1.accesskey "W">
+<!ENTITY otherActionsOpenInNewWindow1.label "Open in New Window">
+<!ENTITY otherActionsPrint1.accesskey "P">
+<!ENTITY otherActionsPrint1.label "Print…">
+<!ENTITY referencesField3.label "References ">
+<!ENTITY replyToField3.label "Reply to ">
+<!ENTITY saveAllAttachmentsButton1.label   "Save All">
+<!ENTITY saveAllAttachmentsButton1.tooltip "Save all the attached files">
+<!ENTITY saveAsMenuItem1.accesskey "S">
+<!ENTITY saveAsMenuItem1.label "Save as…">
+
+<!-- Attachment toolbar items -->
+<!ENTITY saveAttachmentButton1.label       "Save">
+<!ENTITY saveAttachmentButton1.tooltip     "Save the attached file">
+<!ENTITY senderField3.label "Sender ">
+
+<!ENTITY subjectField3.label "Subject ">
+<!ENTITY tagsHdr3.label "Tags ">
+
+
+<!ENTITY toField3.label "To ">
+<!ENTITY userAgentField3.label "User agent ">
+<!ENTITY viewSourceMenuItem1.accesskey "V">
+<!ENTITY viewSourceMenuItem1.label "View Source">

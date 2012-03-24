@@ -81,3 +81,5 @@
 <!ENTITY insecureSelfSigned.description  "The server uses a certificate that we can't trust, so we can't be sure that someone isn't intercepting the traffic between &brandShortName; and your server. &brandShortName; will let you get to your mail, but you should really get your email provider to configure the server with a trusted certificate.">
 <!ENTITY secureServer.description        "ਵਧਾਈਆਂ! ਇਹ ਸੁਰੱਖਿਅਤ ਸਰਵਰ ਹੈ।">
 
+<!ENTITY switch-to-provisioner.accesskey "G">
+<!ENTITY switch-to-provisioner.label     "Get a new account">

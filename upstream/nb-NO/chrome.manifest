@@ -1,6 +1,7 @@
 locale global-region nb-NO chrome/nb-NO/locale/nb-NO/global-region/
 locale cookie nb-NO chrome/nb-NO/locale/nb-NO/cookie/
 locale autoconfig nb-NO chrome/nb-NO/locale/nb-NO/autoconfig/
+locale testpilot nb-NO chrome/nb-NO/locale/nb-NO/feedback/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale branding nb-NO chrome/nb-NO/locale/nb-NO/branding/

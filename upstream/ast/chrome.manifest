@@ -1,0 +1,25 @@
+manifest chrome/ast.manifest
+locale messenger-mapi ast chrome/ast/locale/ast/messenger-mapi/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale global ast chrome/ast/locale/ast/global/
+locale global-platform ast chrome/ast/locale/ast/global-platform/
+locale messenger ast chrome/ast/locale/ast/messenger/
+locale communicator ast chrome/ast/locale/ast/communicator/
+locale mozldap ast chrome/ast/locale/ast/mozldap/
+locale global-region ast chrome/ast/locale/ast/global-region/
+locale messenger-newsblog ast chrome/ast/locale/ast/messenger-newsblog/
+locale editor ast chrome/ast/locale/ast/editor/
+locale messenger-smime ast chrome/ast/locale/ast/messenger-smime/
+locale mozapps ast chrome/ast/locale/ast/mozapps/
+locale testpilot ast chrome/ast/locale/ast/feedback/
+locale cookie ast chrome/ast/locale/ast/cookie/
+locale messenger-region ast chrome/ast/locale/ast/messenger-region/
+locale passwordmgr ast chrome/ast/locale/ast/passwordmgr/
+locale autoconfig ast chrome/ast/locale/ast/autoconfig/
+locale pipnss ast chrome/ast/locale/ast/pipnss/
+locale places ast chrome/ast/locale/ast/places/
+locale necko ast chrome/ast/locale/ast/necko/
+locale pippki ast chrome/ast/locale/ast/pippki/
+locale alerts ast chrome/ast/locale/ast/alerts/
+locale branding ast chrome/ast/locale/ast/branding/
