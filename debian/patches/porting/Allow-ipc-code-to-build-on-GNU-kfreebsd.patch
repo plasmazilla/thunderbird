@@ -38,7 +38,7 @@ index ef40994..30fef1b 100644
  #elif defined(__OpenBSD__)
  #include "base/third_party/nspr/prcpucfg_openbsd.h"
 diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h
-index eaf1962..14ea695 100644
+index 0952ab1..4ef0c76 100644
 --- a/mozilla/ipc/chromium/src/build/build_config.h
 +++ b/mozilla/ipc/chromium/src/build/build_config.h
 @@ -17,7 +17,7 @@
@@ -50,4 +50,3 @@ index eaf1962..14ea695 100644
  #define OS_LINUX 1
  #elif defined(__OpenBSD__)
  #define OS_OPENBSD 1
--- 

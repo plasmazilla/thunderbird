@@ -5,14 +5,14 @@ Subject: Install missing nanojit and .tbl headers from js/src
 https://bugzilla.mozilla.org/show_bug.cgi?id=542789
 
 ---
- mozilla/js/src/Makefile.in |   44 +++++++++++++++++++++++++++-----------------
- 1 files changed, 27 insertions(+), 17 deletions(-)
+ mozilla/js/src/Makefile.in |   48 ++++++++++++++++++++++++++++---------------
+ 1 files changed, 31 insertions(+), 17 deletions(-)
 
 diff --git a/mozilla/js/src/Makefile.in b/mozilla/js/src/Makefile.in
-index bb5c0d0..6715715 100644
+index 1be068f..1cd0ba7 100644
 --- a/mozilla/js/src/Makefile.in
 +++ b/mozilla/js/src/Makefile.in
-@@ -233,6 +233,7 @@ INSTALLED_HEADERS = \
+@@ -229,6 +229,7 @@ INSTALLED_HEADERS = \
  		jsxdrapi.h \
  		jsval.h \
  		prmjtime.h \
@@ -20,7 +20,7 @@ index bb5c0d0..6715715 100644
  		$(NULL)
  
  ######################################################
-@@ -278,21 +279,21 @@ VPATH		+= \
+@@ -295,21 +296,21 @@ VPATH		+= \
  
  INSTALLED_HEADERS += \
  		jsbuiltins.h    \
@@ -57,25 +57,29 @@ index bb5c0d0..6715715 100644
  		VMPI.h		\
  		Writer.h	\
  		$(NULL)
-@@ -531,7 +532,11 @@ ifeq ($(OS_ARCH),WINNT)
- INSTALLED_HEADERS += jscpucfg.h
+@@ -544,7 +545,15 @@ else
+ CPPSRCS += pm_stub.cpp
  endif
  
 -EXPORTS = $(INSTALLED_HEADERS)
 +EXPORTS = $(filter-out nanojit/%,$(INSTALLED_HEADERS))
-+ifdef ENABLE_JIT
-+EXPORTS_NAMESPACES  = nanojit
++ifeq ($(OS_ARCH),WINNT)
++INSTALLED_HEADERS += jscpucfg.h
++endif
++
++ifdef ENABLE_TRACEJIT
++EXPORTS_NAMESPACES  += nanojit
 +EXPORTS_nanojit = $(filter nanojit/%,$(INSTALLED_HEADERS))
-+endif # ENABLE_JIT
++endif # ENABLE_TRACEJIT
  
  DASH_R		= -r
  
-@@ -953,7 +958,12 @@ js-config: js-config.in Makefile $(DEPTH)/config/autoconf.mk $(topsrcdir)/config
+@@ -918,7 +927,12 @@ js-config: js-config.in Makefile $(DEPTH)/config/autoconf.mk $(topsrcdir)/config
  SCRIPTS = js-config
  SDK_BINARY = js-config
  
 -install:: $(INSTALLED_HEADERS)
-+ifdef ENABLE_JIT
++ifdef ENABLE_TRACEJIT
 +install:: $(filter nanojit/%,$(INSTALLED_HEADERS))
 +	$(SYSINSTALL) $^ $(DESTDIR)$(includedir)/$(MODULE)/nanojit
 +endif
@@ -84,4 +88,3 @@ index bb5c0d0..6715715 100644
  	$(SYSINSTALL) $^ $(DESTDIR)$(includedir)/$(MODULE)
  
  install:: $(SCRIPTS)
--- 

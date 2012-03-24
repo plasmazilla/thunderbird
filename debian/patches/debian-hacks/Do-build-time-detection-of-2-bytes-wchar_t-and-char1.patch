@@ -13,7 +13,7 @@ Ported to icedove by Christoph Goehre <chris@sigxcpu.org>
  3 files changed, 24 insertions(+), 0 deletions(-)
 
 diff --git a/mozilla/xpcom/base/nscore.h b/mozilla/xpcom/base/nscore.h
-index 5f656e4..22c256e 100644
+index 9cde77d..ca0b1be 100644
 --- a/mozilla/xpcom/base/nscore.h
 +++ b/mozilla/xpcom/base/nscore.h
 @@ -391,6 +391,28 @@ typedef PRUint32 nsrefcnt;
@@ -46,7 +46,7 @@ index 5f656e4..22c256e 100644
  #define __PRUNICHAR__
    /* For now, don't use wchar_t on Unix because it breaks the Netscape
 diff --git a/mozilla/xpcom/glue/nsStringAPI.h b/mozilla/xpcom/glue/nsStringAPI.h
-index 35183df..d516522 100644
+index 272c9eb..0590fc5 100644
 --- a/mozilla/xpcom/glue/nsStringAPI.h
 +++ b/mozilla/xpcom/glue/nsStringAPI.h
 @@ -1109,6 +1109,7 @@ private:
@@ -69,4 +69,3 @@ index 7808f24..2cf1f7b 100644
    #define NS_LL(s)                                s
    #define NS_MULTILINE_LITERAL_STRING(s)          NS_ConvertASCIItoUTF16(s, PRUint32(sizeof(s)-1))
    #define NS_MULTILINE_LITERAL_STRING_INIT(n,s)   n(s, PRUint32(sizeof(s)-1))
--- 

@@ -1,0 +1,22 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Fri, 16 Mar 2012 08:27:36 +0100
+Subject: Fixup bz#730195 for Linux ARM (use _URC_FOREIGN_EXCEPTION_CAUGHT
+ instead of _URC_NORMAL_STOP)
+
+---
+ mozilla/xpcom/base/nsStackWalk.cpp |    2 +-
+ 1 files changed, 1 insertions(+), 1 deletions(-)
+
+diff --git a/mozilla/xpcom/base/nsStackWalk.cpp b/mozilla/xpcom/base/nsStackWalk.cpp
+index 397843a..3632c41 100644
+--- a/mozilla/xpcom/base/nsStackWalk.cpp
++++ b/mozilla/xpcom/base/nsStackWalk.cpp
+@@ -1624,7 +1624,7 @@ unwind_callback (struct _Unwind_Context *context, void *closure)
+     void *pc = reinterpret_cast<void *>(_Unwind_GetIP(context));
+     if (IsCriticalAddress(pc)) {
+         printf("Aborting stack trace, PC is critical\n");
+-        return _URC_NORMAL_STOP;
++        return _URC_FOREIGN_EXCEPTION_CAUGHT;
+     }
+     if (--info->skip < 0)
+         (*info->callback)(pc, info->closure);

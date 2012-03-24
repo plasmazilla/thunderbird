@@ -24,4 +24,3 @@ index d6efcbb..eae02da 100644
    $(NSPR_LIBS) \
    $(NULL)
  
--- 

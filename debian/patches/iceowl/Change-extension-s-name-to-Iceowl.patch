@@ -10,7 +10,7 @@ Subject: Change extension's name to Iceowl
  4 files changed, 7 insertions(+), 7 deletions(-)
 
 diff --git a/calendar/lightning/install.rdf b/calendar/lightning/install.rdf
-index 77ac9d3..c2fbcc8 100644
+index 10fd7a5..3b18ba2 100644
 --- a/calendar/lightning/install.rdf
 +++ b/calendar/lightning/install.rdf
 @@ -26,7 +26,7 @@
@@ -23,7 +23,7 @@ index 77ac9d3..c2fbcc8 100644
      <em:description>An integrated calendar for Thunderbird</em:description>
  #ifdef LIGHTNING_PRERELEASE_VERSION
 diff --git a/calendar/locales/en-US/chrome/calendar/timezones.properties b/calendar/locales/en-US/chrome/calendar/timezones.properties
-index 8520a5f..d73f56c 100644
+index f7275f8..bd0f618 100644
 --- a/calendar/locales/en-US/chrome/calendar/timezones.properties
 +++ b/calendar/locales/en-US/chrome/calendar/timezones.properties
 @@ -41,7 +41,7 @@
@@ -69,4 +69,3 @@ index d5c590a..ff95fe7 100644
  
  # Task mode title
  taskModeApplicationTitle=Tasks
--- 

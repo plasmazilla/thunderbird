@@ -11,7 +11,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=542749
  2 files changed, 24 insertions(+), 4 deletions(-)
 
 diff --git a/mozilla/config/rules.mk b/mozilla/config/rules.mk
-index e9d9414..52f0325 100644
+index d1b969b..d5b1497 100644
 --- a/mozilla/config/rules.mk
 +++ b/mozilla/config/rules.mk
 @@ -64,6 +64,16 @@ ifdef SDK_HEADERS
@@ -31,7 +31,7 @@ index e9d9414..52f0325 100644
  REPORT_BUILD = @echo $(notdir $<)
  
  ifeq ($(OS_ARCH),OS2)
-@@ -1514,8 +1524,8 @@ ifndef NO_DIST_INSTALL
+@@ -1511,8 +1521,8 @@ ifndef NO_DIST_INSTALL
  export:: $(XPIDLSRCS) $(IDL_DIR)
  	$(INSTALL) $(IFLAGS1) $^
  
@@ -43,7 +43,7 @@ index e9d9414..52f0325 100644
  
  endif # XPIDLSRCS
 diff --git a/mozilla/js/src/config/rules.mk b/mozilla/js/src/config/rules.mk
-index e9d9414..52f0325 100644
+index d1b969b..d5b1497 100644
 --- a/mozilla/js/src/config/rules.mk
 +++ b/mozilla/js/src/config/rules.mk
 @@ -64,6 +64,16 @@ ifdef SDK_HEADERS
@@ -63,7 +63,7 @@ index e9d9414..52f0325 100644
  REPORT_BUILD = @echo $(notdir $<)
  
  ifeq ($(OS_ARCH),OS2)
-@@ -1514,8 +1524,8 @@ ifndef NO_DIST_INSTALL
+@@ -1511,8 +1521,8 @@ ifndef NO_DIST_INSTALL
  export:: $(XPIDLSRCS) $(IDL_DIR)
  	$(INSTALL) $(IFLAGS1) $^
  
@@ -74,4 +74,3 @@ index e9d9414..52f0325 100644
  endif # NO_DIST_INSTALL
  
  endif # XPIDLSRCS
--- 

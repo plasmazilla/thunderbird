@@ -22,7 +22,7 @@ Squashed kFreeBSD/Hurd related fixes:
  8 files changed, 36 insertions(+), 26 deletions(-)
 
 diff --git a/configure.in b/configure.in
-index eddc6d0..a4b904a 100644
+index cfe42b6..c8ef6f4 100644
 --- a/configure.in
 +++ b/configure.in
 @@ -1119,6 +1119,7 @@ if test -n "$CROSS_COMPILE"; then
@@ -42,7 +42,7 @@ index eddc6d0..a4b904a 100644
      HOST_CFLAGS="$HOST_CFLAGS -DXP_UNIX"
      HOST_NSPR_MDCPUCFG='\"md/_linux.cfg\"'
      HOST_OPTIMIZE_FLAGS="${HOST_OPTIMIZE_FLAGS=-O3}"
-@@ -2775,7 +2776,7 @@ dnl ========================================================
+@@ -2760,7 +2761,7 @@ dnl ========================================================
  dnl = Flags to strip unused symbols from .so components
  dnl ========================================================
  case "$target" in
@@ -51,7 +51,7 @@ index eddc6d0..a4b904a 100644
          MOZ_COMPONENTS_VERSION_SCRIPT_LDFLAGS='-Wl,--version-script -Wl,$(BUILD_TOOLS)/gnu-ld-scripts/components-version-script'
          ;;
      *-solaris*)
-@@ -3400,7 +3401,7 @@ then
+@@ -3385,7 +3386,7 @@ then
  			fi
  			;;
  
@@ -280,4 +280,3 @@ index b0cb6ed..16e9d59 100644
  #define EDEADLOCK       -1
  #endif
  
--- 

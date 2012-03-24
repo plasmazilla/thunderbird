@@ -1,0 +1,30 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Fri, 17 Feb 2012 09:09:22 +0100
+Subject: Bug 728136 - Port bug 528687 to comm-central
+
+---
+ configure.in |   11 ++++++++++-
+ 1 files changed, 10 insertions(+), 1 deletions(-)
+
+diff --git a/configure.in b/configure.in
+index c8ef6f4..e82b627 100644
+--- a/configure.in
++++ b/configure.in
+@@ -4062,7 +4062,16 @@ AC_CACHE_CHECK(for __thread keyword for TLS variables,
+                             ac_cv_thread_keyword=no)])
+ LDFLAGS=$_SAVE_LDFLAGS
+ if test "$ac_cv_thread_keyword" = yes; then
+-  AC_DEFINE(HAVE_THREAD_TLS_KEYWORD)
++  # mips builds fail with TLS variables because of a binutils bug.
++  # See bug 528687
++  case "${target}" in
++    mips*-*)
++      :
++      ;;
++    *)
++      AC_DEFINE(HAVE_THREAD_TLS_KEYWORD)
++      ;;
++  esac
+ fi
+ 
+ dnl Check for the existence of various allocation headers/functions

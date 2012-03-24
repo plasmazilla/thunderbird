@@ -21,4 +21,3 @@ index dacdc22..6e84774 100644
  #define ANGLE_OS_POSIX
  #else
  #error Unsupported platform.
--- 

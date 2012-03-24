@@ -16,4 +16,3 @@ index 4df10ed..725fd86 100644
  	$(INSTALL) $(IFLAGS2) $(PROGRAM) $(DEPTH)
 +
 +GARBAGE += $(DEPTH)/$(PROGRAM)
--- 

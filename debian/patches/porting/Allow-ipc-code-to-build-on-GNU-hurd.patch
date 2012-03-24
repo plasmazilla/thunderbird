@@ -4,26 +4,23 @@ Subject: Allow ipc code to build on GNU/hurd
 
 Thanks: Pino Toscano <pino@debian.org>
 ---
- mozilla/ipc/chromium/src/base/debug_util_posix.cc  |    2 ++
+ mozilla/ipc/chromium/src/base/debug_util_posix.cc  |    1 -
  .../chromium/src/base/third_party/nspr/prcpucfg.h  |    2 +-
  mozilla/ipc/chromium/src/build/build_config.h      |    2 +-
- 3 files changed, 4 insertions(+), 2 deletions(-)
+ 3 files changed, 2 insertions(+), 3 deletions(-)
 
 diff --git a/mozilla/ipc/chromium/src/base/debug_util_posix.cc b/mozilla/ipc/chromium/src/base/debug_util_posix.cc
-index 72a4ebf..f4c65df 100644
+index 72a4ebf..5a45ac9 100644
 --- a/mozilla/ipc/chromium/src/base/debug_util_posix.cc
 +++ b/mozilla/ipc/chromium/src/base/debug_util_posix.cc
-@@ -17,8 +17,10 @@
+@@ -17,7 +17,6 @@
  #include <unistd.h>
  #if MOZ_HAVE_EXECINFO_H
  #include <execinfo.h>
-+#ifndef __GNU__
- #include <sys/sysctl.h>
+-#include <sys/sysctl.h>
  #endif
-+#endif
  
  #include "base/basictypes.h"
- #include "base/eintr_wrapper.h"
 diff --git a/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h b/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h
 index 30fef1b..c7e47ba 100644
 --- a/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h
@@ -38,7 +35,7 @@ index 30fef1b..c7e47ba 100644
  #elif defined(__OpenBSD__)
  #include "base/third_party/nspr/prcpucfg_openbsd.h"
 diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h
-index 14ea695..298a3aa 100644
+index 4ef0c76..463b3d9 100644
 --- a/mozilla/ipc/chromium/src/build/build_config.h
 +++ b/mozilla/ipc/chromium/src/build/build_config.h
 @@ -17,7 +17,7 @@
@@ -50,4 +47,3 @@ index 14ea695..298a3aa 100644
  #define OS_LINUX 1
  #elif defined(__OpenBSD__)
  #define OS_OPENBSD 1
--- 

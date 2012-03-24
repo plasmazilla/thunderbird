@@ -7,10 +7,10 @@ Subject: mozilla-config.h was renamed js-confdefs.h in js/src
  1 files changed, 1 insertions(+), 1 deletions(-)
 
 diff --git a/mozilla/js/src/Makefile.in b/mozilla/js/src/Makefile.in
-index 63c95ff..bb5c0d0 100644
+index 91b207d..1be068f 100644
 --- a/mozilla/js/src/Makefile.in
 +++ b/mozilla/js/src/Makefile.in
-@@ -734,7 +734,7 @@ distclean::
+@@ -747,7 +747,7 @@ distclean::
  
  DIST_GARBAGE = config.cache config.log config.status \
     config/autoconf.mk \
@@ -19,4 +19,3 @@ index 63c95ff..bb5c0d0 100644
  
  distclean::
  	cat unallmakefiles | $(XARGS) rm -f
--- 
