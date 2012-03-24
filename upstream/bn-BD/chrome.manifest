@@ -1,3 +1,4 @@
+locale testpilot bn-BD chrome/bn-BD/locale/bn-BD/feedback/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale messenger-newsblog bn-BD chrome/bn-BD/locale/bn-BD/messenger-newsblog/
@@ -7,10 +8,10 @@ locale messenger-region bn-BD chrome/bn-BD/locale/bn-BD/messenger-region/
 locale cookie bn-BD chrome/bn-BD/locale/bn-BD/cookie/
 manifest chrome/bn-BD.manifest
 locale places bn-BD chrome/bn-BD/locale/bn-BD/places/
-locale pippki bn-BD chrome/bn-BD/locale/bn-BD/pippki/
+locale global bn-BD chrome/bn-BD/locale/bn-BD/global/
 locale necko bn-BD chrome/bn-BD/locale/bn-BD/necko/
 locale global-region bn-BD chrome/bn-BD/locale/bn-BD/global-region/
-locale global bn-BD chrome/bn-BD/locale/bn-BD/global/
+locale pippki bn-BD chrome/bn-BD/locale/bn-BD/pippki/
 locale global-platform bn-BD chrome/bn-BD/locale/bn-BD/global-platform/
 locale autoconfig bn-BD chrome/bn-BD/locale/bn-BD/autoconfig/
 locale mozldap bn-BD chrome/bn-BD/locale/bn-BD/mozldap/

@@ -5,6 +5,12 @@
 # evinteler <emil_vinteler2000@yahoo.com>
 #
 -->
+<!--
+# Reviewer(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+#
+-->
 <!-- ***** BEGIN LICENSE BLOCK *****
    - Version: MPL 1.1/GPL 2.0/LGPL 2.1
    -
@@ -108,7 +114,7 @@
 <!ENTITY pkcs12.setpassword.reminder "Important: Dacă uitați parola de siguranță pentru certificate, nu veți putea reface această copie mai târziu.  Aveți grijă să o păstrați într-un loc sigur.">
 
 <!ENTITY pkcs12.getpassword.title  "Introducere parolă">
-<!ENTITY pkcs12.getpassword.message "Vă rugăm introduceți parola cu care s-a criptat această copie de siguranță a certificatelor.">
+<!ENTITY pkcs12.getpassword.message "Introduceți parola cu care s-a criptat această copie de siguranță a certificatelor.">
 
 <!ENTITY chooseToken.title  "Alegere token">
 <!ENTITY chooseToken.message1 "Vă rugăm alegeți token.">
@@ -140,5 +146,4 @@
 <!ENTITY certErrorDlg.title "Conexiunea sigură a eșuat">
 <!ENTITY certErrorDlg.info1 "Aceasta ar putea fi o problemă în configurația serverului sau ar putea fi cineva care încearcă să pretindă că este acest server.">
 <!ENTITY certErrorDlg.info2 "Dacă v-ați mai conectat la acest server cu succes în trecut, eroarea ar putea fi temporară și puteți încerca din nou mai târziu.">
-
 

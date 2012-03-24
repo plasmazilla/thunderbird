@@ -10,8 +10,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "S">
 <!ENTITY newOtherAccountsCmd.label "වෙනත් ගිණුම්…">
 <!ENTITY newOtherAccountsCmd.accesskey "O">
-<!ENTITY newEmailAccountCmd.label "තැපැල් ගිණුමක්...">
-<!ENTITY newEmailAccountCmd.accesskey "A">
+<!ENTITY newCreateEmailAccountCmd.label "නව තැපැල් ගිණුමක් ලබාගන්න…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "G">
+<!ENTITY newExistingEmailAccountCmd.label "පවතින තැපැල් ගිණුමක්…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "E">
 <!ENTITY openMessageFileCmd.label "සුරැකූ ලිපියක් අරින්න...">
 <!ENTITY openMessageFileCmd.accesskey "O">
 <!ENTITY openAttachmentCmd.label "ඇමුණන්න">
@@ -113,6 +115,8 @@
 <!ENTITY redoDefaultCmd.accesskey "R">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label "මෙනු තීරුව">
+<!ENTITY menubarCmd.accesskey "M">
 <!ENTITY showMessengerToolbarCmd.label "ලිපි මෙවලම් තීරුව">
 <!ENTITY showMessengerToolbarCmd.accesskey "o">
 <!ENTITY customizeToolbar.label "රිසිකරණය...">
@@ -127,6 +131,8 @@
 <!ENTITY messagePaneVertical.accesskey "V">
 <!ENTITY showMessageCmd.label "ලිපි කවුළුව">
 <!ENTITY showMessageCmd.accesskey "M">
+<!ENTITY showFolderPaneCmd.label "හාලුම් සාරාංශ කවුළුව">
+<!ENTITY showFolderPaneCmd.accesskey "F">
 
 <!ENTITY folderView.label "ෆෝල්ඩර">
 <!ENTITY folderView.accesskey "F">
@@ -261,6 +267,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label "ලිපියේ මූලය">
 <!ENTITY pageSourceCmd.accesskey "o">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label "සොයන්න">
@@ -472,12 +480,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY backButton1.label "පසුපසට">
 <!ENTITY goForwardButton1.label "ඉදිරියට">
 <!ENTITY deleteButton.label "මකන්න">
+<!ENTITY deleteItem.title "මකන්න">
 <!ENTITY undeleteButton.label "අමකන්න (Undelete)">
 <!ENTITY markButton.label "සළකුණු කරන්න">
 <!ENTITY printButton.label "මුද්‍රණය">
 <!ENTITY stopButton.label "නවතන්න">
 <!ENTITY throbberItem.title "ක්‍රියාකාරීත්ව දර්ශකය">
 <!ENTITY junkButton.label "නිසරු ලිපි">
+<!ENTITY junkItem.title "නිසරු ලිපි">
 <!ENTITY notJunkButton.label "නිසරු සේ නොගැනෙන ලිපි">
 <!ENTITY addressBookButton.label "ලිපින පොත">
 <!ENTITY glodaSearch.title "Global Search">

@@ -112,18 +112,26 @@
 <!ENTITY viewMenu.accesskey                             "s">
 <!ENTITY viewToolbarsMenu.label                         "Verktygsfält"> 
 <!ENTITY viewToolbarsMenu.accesskey                     "V"> 
+<!ENTITY menubarCmd.label                               "Menyfält">
+<!ENTITY menubarCmd.accesskey                           "M">
 <!ENTITY showAbToolbarCmd.label                         "Adressbokens verktygsfält"> 
 <!ENTITY showAbToolbarCmd.accesskey                     "v">  
 <!ENTITY showTaskbarCmd.label                           "Statusfältet">  
 <!ENTITY showTaskbarCmd.accesskey                       "S"> 
 <!ENTITY customizeToolbar.label                         "Anpassa…">
 <!ENTITY customizeToolbar.accesskey                     "A">
-<!ENTITY showContactPane.label                          "Kontaktsammanfattning">
-<!ENTITY showContactPane.accesskey                      "K">
+<!ENTITY layoutMenu.label                               "Layout">
+<!ENTITY layoutMenu.accesskey                           "L">
+<!ENTITY showDirectoryPane.label                        "Katalogfältet">
+<!ENTITY showDirectoryPane.accesskey                    "K">
+<!ENTITY showContactPane2.label                         "Kontaktfältet">
+<!ENTITY showContactPane2.accesskey                     "K">
 <!ENTITY menu_ShowNameAs.label                          "Visa namn så här"> 
 <!ENTITY menu_ShowNameAs.accesskey                      "n"> 
-<!ENTITY firstLastCmd.label                             "Förnamn Efternamn">  
-<!ENTITY firstLastCmd.accesskey                         "f"> 
+<!-- LOCALIZATION NOTE (firstLastCmd2.label): We're not including a comma here
+because displayed names don't have the comma in between. -->
+<!ENTITY firstLastCmd2.label                            "Förnamn Efternamn">  
+<!ENTITY firstLastCmd2.accesskey                        "f"> 
 <!ENTITY lastFirstCmd.label                             "Efternamn, Förnamn">  
 <!ENTITY lastFirstCmd.accesskey                         "t"> 
 <!ENTITY displayNameCmd.label                           "Visa kortnamn">  

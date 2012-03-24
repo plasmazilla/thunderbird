@@ -14,6 +14,7 @@ locale messenger-region si chrome/si/locale/si/messenger-region/
 locale messenger si chrome/si/locale/si/messenger/
 locale autoconfig si chrome/si/locale/si/autoconfig/
 locale branding si chrome/si/locale/si/branding/
+locale testpilot si chrome/si/locale/si/feedback/
 locale messenger-mapi si chrome/si/locale/si/messenger-mapi/
 locale messenger-smime si chrome/si/locale/si/messenger-smime/
 locale mozapps si chrome/si/locale/si/mozapps/

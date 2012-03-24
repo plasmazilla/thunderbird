@@ -55,6 +55,10 @@
   <li>Đặt &brandShortName; vào chế độ trực tuyến, rồi thử lại.</li>
 </ul>
 ">
+<!ENTITY netOffline.longDesc2 "<ul>
+ <li>Bấm &quot;Thử lại&quot; để vào chế độ trực tuyến và tải lại trang.</li>
+</ul>
+">
 
 <!ENTITY contentEncodingError.title "Lỗi bảng mã">
 <!ENTITY contentEncodingError.longDesc "
@@ -153,6 +157,8 @@
 <!ENTITY cspFrameAncestorBlocked.title "Bị chặn bởi Chính sách Bảo vệ Nội dung">
 <!ENTITY cspFrameAncestorBlocked.longDesc "<p>&brandShortName; không tải trang này vì nó có một chính sách bảo vệ nội dung không cho phép việc tải theo cách này.</p>">
 
+<!ENTITY corruptedContentError.title "Lỗi Nội dung Hư">
+<!ENTITY corruptedContentError.longDesc "<p>Trang bạn đang cố xem không thể hiển thị vì một lỗi trong quá trình truyền tải dữ liệu đã được dò thấy.</p><ul><li>Vui lòng liên hệ với người sở hữu để báo họ vấn đề này.</li></ul>">
 
 <!ENTITY securityOverride.linkText "Hoặc bạn có thể thêm một ngoại lệ…">
 <!ENTITY securityOverride.getMeOutOfHereButton "Đưa tôi ra khỏi đây!">
@@ -171,11 +177,6 @@ functionality specific to thunderbird. -->
 
 <!ENTITY remoteXUL.title "XUL từ xa">
 <!ENTITY remoteXUL.longDesc "<p><ul><li>Vui lòng liên hệ với chủ trang web để báo họ vấn đề này.</li></ul></p>">
-<!ENTITY corruptedContentError.longDesc "<p>The content you are trying to view cannot be shown because an error in the data transmission was detected.</p><ul><li>Please contact the owners to inform them of this problem.</li></ul>">
+<!ENTITY notCached.longDesc "<p>The requested document is not available in the cache.</p><ul><li>As a security precaution, &brandShortName; does not automatically re-request sensitive documents.</li><li>Click Try Again to re-request the document from the website.</li></ul>">
 
-<!ENTITY corruptedContentError.title "Corrupted Content Error">
-<!ENTITY netOffline.longDesc2 "
-<ul>
-  <li>Press &quot;Try Again&quot; to switch to online mode and reload the page.</li>
-</ul>
-">
+<!ENTITY notCached.title "Document Expired">

@@ -23,8 +23,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "S">
 <!ENTITY newOtherAccountsCmd.label "其他帳號…">
 <!ENTITY newOtherAccountsCmd.accesskey "O">
-<!ENTITY newEmailAccountCmd.label "郵件帳號">
-<!ENTITY newEmailAccountCmd.accesskey "a">
+<!ENTITY newCreateEmailAccountCmd.label "取得全新的電子郵件帳號…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "G">
+<!ENTITY newExistingEmailAccountCmd.label "現有的電子郵件帳號…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "E">
 <!ENTITY openMessageFileCmd.label "開啟已存郵件…">
 <!ENTITY openMessageFileCmd.accesskey "O">
 <!ENTITY openAttachmentCmd.label "附件">
@@ -119,6 +121,8 @@
 <!ENTITY redoDefaultCmd.accesskey "R">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label "選單列">
+<!ENTITY menubarCmd.accesskey "M">
 <!ENTITY showMessengerToolbarCmd.label "郵件工具列">
 <!ENTITY showMessengerToolbarCmd.accesskey "o">
 <!ENTITY customizeToolbar.label "自訂…">
@@ -132,6 +136,8 @@
 <!ENTITY messagePaneWide.accesskey "W">
 <!ENTITY messagePaneVertical.label "垂直檢視">
 <!ENTITY messagePaneVertical.accesskey "V">
+<!ENTITY showFolderPaneCmd.label "資料夾窗格">
+<!ENTITY showFolderPaneCmd.accesskey "F">
 <!ENTITY showMessageCmd.label "預覽面板">
 <!ENTITY showMessageCmd.accesskey "M">
 
@@ -269,6 +275,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label "郵件原始內容">
 <!ENTITY pageSourceCmd.accesskey "o">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label "搜尋">
@@ -343,11 +351,11 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyMsgCmd.label "回覆">
 <!ENTITY replyMsgCmd.accesskey "R">
 <!ENTITY replyMsgCmd.key  "r">
-<!ENTITY replySenderCmd.label "回信給寄件者">
+<!ENTITY replySenderCmd.label "只回覆給寄件者">
 <!ENTITY replySenderCmd.accesskey "R">
 <!ENTITY replyNewsgroupCmd.label "回覆給新聞群組">
 <!ENTITY replyNewsgroupCmd.accesskey  "y">
-<!ENTITY replyToAllMsgCmd.label "回信給所有人">
+<!ENTITY replyToAllMsgCmd.label "回覆給所有人">
 <!ENTITY replyToAllMsgCmd.accesskey  "p">
 <!ENTITY replyToAllMsgCmd.key  "r">
 <!ENTITY replyToListMsgCmd.label "回覆至清單">
@@ -498,12 +506,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY previousButton.label "上一封">
 <!ENTITY backButton1.label "上一頁">
 <!ENTITY goForwardButton1.label "下一頁">
+<!ENTITY deleteItem.title "刪除">
 <!ENTITY deleteButton.label "刪除項目">
 <!ENTITY undeleteButton.label "還原">
 <!ENTITY markButton.label "標示">
 <!ENTITY printButton.label "列印">
 <!ENTITY stopButton.label "停止">
 <!ENTITY throbberItem.title "動態瀏覽指示">
+<!ENTITY junkItem.title "垃圾郵件">
 <!ENTITY junkButton.label "垃圾郵件">
 <!ENTITY notJunkButton.label "非垃圾信">
 <!ENTITY addressBookButton.label "通訊錄">
@@ -806,7 +816,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY SubscribeToNewsgroup.accesskey "N">
 <!ENTITY SendMessageTo.label "撰寫郵件給">
 <!ENTITY SendMessageTo.accesskey "s">
-<!ENTITY CopyEmailAddress.label "複製 Email 位址">
+<!ENTITY CopyEmailAddress.label "複製電子郵件地址">
 <!ENTITY CopyEmailAddress.accesskey "C">
 <!ENTITY CopyNewsgroupName.label "複製新聞群組名稱">
 <!ENTITY CopyNewsgroupName.accesskey "C">
@@ -826,11 +836,11 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY saveLinkAsCmd.accesskey "k">
 <!ENTITY saveImageAsCmd.label "圖片另存新檔…">
 <!ENTITY saveImageAsCmd.accesskey "v">
-<!ENTITY copyLinkCmd.label "複製鏈結位址">
+<!ENTITY copyLinkCmd.label "複製鏈結網址">
 <!ENTITY copyLinkCmd.accesskey "C">
 <!ENTITY copyImageAllCmd.label "複製圖片">
 <!ENTITY copyImageAllCmd.accesskey "I">
-<!ENTITY copyEmailCmd.label "複製 Email 位址">
+<!ENTITY copyEmailCmd.label "複製電子郵件地址">
 <!ENTITY copyEmailCmd.accesskey "E">
 <!ENTITY stopCmd.label "停止">
 <!ENTITY stopCmd.accesskey "S">

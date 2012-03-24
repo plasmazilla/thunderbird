@@ -18,7 +18,8 @@ manifest chrome/fr.manifest
 locale global-region fr chrome/fr/locale/fr/global-region/
 locale messenger-smime fr chrome/fr/locale/fr/messenger-smime/
 locale cookie fr chrome/fr/locale/fr/cookie/
-locale messenger-mapi fr chrome/fr/locale/fr/messenger-mapi/
+locale testpilot fr chrome/fr/locale/fr/feedback/
 locale editor fr chrome/fr/locale/fr/editor/
 locale pippki fr chrome/fr/locale/fr/pippki/
 locale messenger-newsblog fr chrome/fr/locale/fr/messenger-newsblog/
+locale messenger-mapi fr chrome/fr/locale/fr/messenger-mapi/

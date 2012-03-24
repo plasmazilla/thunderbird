@@ -6,6 +6,12 @@
 # AdiJapan <adi.japan@yahoo.com>
 #
 -->
+<!--
+# Reviewer(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+#
+-->
 <!ENTITY  updateWizard.title              "Actualizare program">
 
 <!ENTITY  checking.title                  "Căutare actualizări">
@@ -83,5 +89,4 @@
 <!ENTITY  update.details.label            "Detalii">
 <!ENTITY  update.installedOn.label        "Instalat în:">
 <!ENTITY  update.status.label             "Stare:">
-
 

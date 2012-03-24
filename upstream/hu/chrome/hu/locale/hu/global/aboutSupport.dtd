@@ -2,7 +2,8 @@
 
 <!-- LOCALIZATION NOTE (aboutSupport.pageSubtitle): don't change the 'supportLink' id. -->
 <!ENTITY aboutSupport.pageSubtitle "
-  Ez az oldal problémakeresésnél használható technikai információkat tartalmaz. Ha a &brandShortName; programmal kapcsolatos gyakori kérdésekre keresi a választ, akkor
+  Ez az oldal problémakeresésnél használható technikai információkat tartalmaz.
+   Ha a &brandShortName; programmal kapcsolatos gyakori kérdésekre keresi a választ, akkor
   nézze meg a <a id='supportLink'>támogató weboldalunkat</a>.
 ">
 
@@ -20,6 +21,7 @@
 <!ENTITY aboutSupport.appBasicsBuildConfig "Build konfiguráció">
 <!ENTITY aboutSupport.appBasicsUserAgent "User Agent">
 <!ENTITY aboutSupport.appBasicsCrashIDs "Összeomlás-bejelentés">
+<!ENTITY aboutSupport.appBasicsMemoryUse "Memóriahasználat">
 
 <!ENTITY aboutSupport.show.label "A profilkönyvtárt tartalmazó mappa megnyitása">
 

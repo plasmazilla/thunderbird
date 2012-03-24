@@ -3,7 +3,7 @@
 #
 # janimo <jani@ubuntu.com>
 # Alexandru Szasz <alexxed@gmail.com>
-# stelistcristi <stelistcristi@yahoo.com>
+# Cristian Silaghi <stelistcristi@yahoo.com>
 # raulmalea <raul.malea@gmail.com>
 # Vestitorul <vestitorul@yahoo.com>
 #
@@ -43,6 +43,9 @@
 
 <!ENTITY netInterrupt.title "Conexiunea a fost întreruptă">
 <!ENTITY netInterrupt.longDesc "&sharedLongDesc;">
+
+<!ENTITY notCached.title "Document expirat">
+<!ENTITY notCached.longDesc "<p>Documentul cerut nu e disponibil în cache.</p><ul><li>Ca o măsură de siguranță, &brandShortName; nu cere automat documente ce par a fi private.</li><li>Clic pe „încearcă din nou” pentru a cere din nou documentul de la saitul web.</li></ul>">
 
 <!ENTITY netOffline.title "Mod offline">
 <!ENTITY netOffline.longDesc2 "
@@ -136,5 +139,4 @@ functionality specific to thunderbird. -->
 
 <!ENTITY remoteXUL.title "Remote XUL">
 <!ENTITY remoteXUL.longDesc "<p><ul><li>Vă rugăm să contactați proprietarii websaitului pentru a-i informa despre această problemă.</li></ul></p>">
-
 

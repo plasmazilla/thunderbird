@@ -5,6 +5,7 @@ override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.
 locale mozapps sq chrome/sq/locale/sq/mozapps/
 manifest chrome/sq.manifest
 locale autoconfig sq chrome/sq/locale/sq/autoconfig/
+locale testpilot sq chrome/sq/locale/sq/feedback/
 locale pipnss sq chrome/sq/locale/sq/pipnss/
 locale global sq chrome/sq/locale/sq/global/
 locale branding sq chrome/sq/locale/sq/branding/

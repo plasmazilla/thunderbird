@@ -43,47 +43,14 @@
 <!-- File menu items -->
 
 
-<!ENTITY fileMenu.label "Fitxer">
-<!ENTITY fileMenu.accesskey "F">
-<!ENTITY openFileCmd.label "Obre el fitxer…">
-<!ENTITY openFileCmd.accesskey "O">
-<!ENTITY openFileCmd.key "O">
-<!ENTITY openRemoteCmd.label "Obre una ubicació web…">
-<!ENTITY openRemoteCmd.accesskey "u">
-<!ENTITY openRemoteCmd.key "L">
-<!ENTITY fileRecentMenu.label "Pàgines recents">
-<!ENTITY fileRecentMenu.accesskey "r">
-<!ENTITY fileRevert.label "Torna a la darrera versió desada">
-<!ENTITY fileRevert.accesskey "d">
-<!ENTITY saveCmd.label "Desa">
-<!ENTITY saveCmd.accesskey "s">
 <!ENTITY saveCmd.key "s">
-<!ENTITY saveAsCmd.label "Anomena i desa…">
-<!ENTITY saveAsCmd.accesskey "A">
-
-<!ENTITY publishCmd.label "Publica">
-<!ENTITY publishCmd.accesskey "P">
-<!ENTITY publishCmd.key "S">
-<!ENTITY publishAsCmd.label "Anomena i publica…">
-<!ENTITY publishAsCmd.accesskey "o">
-<!ENTITY saveAsChangeEncodingCmd.label "Desa i canvia el joc de caràcters">
-<!ENTITY saveAsChangeEncodingCmd.accesskey "e">
-<!ENTITY printSetupCmd.label "Configuració de la pàgina…">
-<!ENTITY printSetupCmd.accesskey "u">
-<!ENTITY printCmd.label "Imprimeix…">
-<!ENTITY printCmd.accesskey "p">
-<!ENTITY printCmd.key "p">
 <!-- Edit menu items -->
 
-<!ENTITY editMenu.label "Edita">
-<!ENTITY editMenu.accesskey "E">
 <!ENTITY pasteNoFormatting.label "Enganxa sense formatar">
 <!ENTITY pasteNoFormatting.accesskey "f">
 <!ENTITY pasteNoFormatting.key "V">
 <!ENTITY pasteAs.label "Enganxa com a">
 <!ENTITY pasteAs.accesskey "a">
-<!ENTITY publishSettings.label "Paràmetres del lloc de publicació…">
-<!ENTITY publishSettings.accesskey "b">
 <!ENTITY pasteAsQuotationCmd.label "Enganxa com a citació">
 <!ENTITY pasteAsQuotationCmd.accesskey "g">
 <!ENTITY pasteAsQuotationCmd.key "o">
@@ -151,7 +118,7 @@
 <!ENTITY increaseFontSize.accesskey "g">
 <!ENTITY increaseFontSize.key "+">
 <!-- + is above this key on many keyboards -->
-<!ENTITY increaseFontSize.key2 "=">
+<!ENTITY increaseFontSize.key2 "="> 
 
 <!ENTITY fontSizeMenu.label "Mida">
 <!ENTITY fontSizeMenu.accesskey "M">
@@ -216,11 +183,11 @@
 <!ENTITY formatRemoveLinks.key "K">
 <!ENTITY formatRemoveNamedAnchors.label "Suprimeix les àncores anomenades">
 <!ENTITY formatRemoveNamedAnchors.accesskey "m">
-<!ENTITY formatRemoveNamedAnchors.key "a">
+<!ENTITY formatRemoveNamedAnchors2.key "R">
 
 <!ENTITY paragraphMenu.label "Paràgraf">
 <!ENTITY paragraphMenu.accesskey "P">
-<!ENTITY paragraphParagraphCmd.label "Paràgraf">
+<!ENTITY paragraphParagraphCmd.label "Paràgraf">  
 <!ENTITY paragraphParagraphCmd.accesskey "P">
 <!ENTITY heading1Cmd.label "Encapçalament 1">
 <!ENTITY heading1Cmd.accesskey "1">

@@ -14,6 +14,7 @@ locale branding da chrome/da/locale/da/branding/
 locale passwordmgr da chrome/da/locale/da/passwordmgr/
 locale global-region da chrome/da/locale/da/global-region/
 locale messenger-smime da chrome/da/locale/da/messenger-smime/
+locale testpilot da chrome/da/locale/da/feedback/
 locale global-platform da chrome/da/locale/da/global-platform/
 locale pippki da chrome/da/locale/da/pippki/
 locale editor da chrome/da/locale/da/editor/

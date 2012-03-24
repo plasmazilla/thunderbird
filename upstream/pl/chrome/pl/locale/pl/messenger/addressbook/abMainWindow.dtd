@@ -77,18 +77,24 @@
 <!ENTITY viewMenu.accesskey         "W">
 <!ENTITY viewToolbarsMenu.label     "Paski narzędzi">
 <!ENTITY viewToolbarsMenu.accesskey "n">
+<!ENTITY menubarCmd.label           "Pasek menu">
+<!ENTITY menubarCmd.accesskey       "m">
 <!ENTITY showAbToolbarCmd.label     "Pasek narzędzi książki adresowej">
 <!ENTITY showAbToolbarCmd.accesskey "o">
 <!ENTITY showTaskbarCmd.label       "Pasek stanu">
 <!ENTITY showTaskbarCmd.accesskey   "k">
 <!ENTITY customizeToolbar.label     "Dostosuj…">
 <!ENTITY customizeToolbar.accesskey "t">
-<!ENTITY showContactPane.label      "Panel kontaktów">
-<!ENTITY showContactPane.accesskey  "P">
+<!ENTITY layoutMenu.label           "Układ">
+<!ENTITY layoutMenu.accesskey       "U">
+<!ENTITY showDirectoryPane.label      "Panel książek adresowych">
+<!ENTITY showDirectoryPane.accesskey  "P">
+<!ENTITY showContactPane2.label       "Panel kontaktu">
+<!ENTITY showContactPane2.accesskey   "k">
 <!ENTITY menu_ShowNameAs.label      "Pokazuj nazwę jako">
 <!ENTITY menu_ShowNameAs.accesskey  "z">
-<!ENTITY firstLastCmd.label         "Imię, nazwisko">
-<!ENTITY firstLastCmd.accesskey     "I">
+<!ENTITY firstLastCmd2.label        "Imię Nazwisko">
+<!ENTITY firstLastCmd2.accesskey    "I">
 <!ENTITY lastFirstCmd.label         "Nazwisko, imię">
 <!ENTITY lastFirstCmd.accesskey     "n">
 <!ENTITY displayNameCmd.label       "Wyświetlana nazwa">

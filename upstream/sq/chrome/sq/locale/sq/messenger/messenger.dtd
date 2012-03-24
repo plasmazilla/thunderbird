@@ -24,8 +24,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "K">
 <!ENTITY newOtherAccountsCmd.label "Tjetër Llogari…">
 <!ENTITY newOtherAccountsCmd.accesskey "T">
-<!ENTITY newEmailAccountCmd.label "Llogari Poste…">
-<!ENTITY newEmailAccountCmd.accesskey "L">
+<!ENTITY newCreateEmailAccountCmd.label "Hapni një Llogari të Re Poste…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "R">
+<!ENTITY newExistingEmailAccountCmd.label "Llogari Poste Ekzistuese…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "u">
 <!ENTITY openMessageFileCmd.label "Hapni Mesazh të Ruajtur…">
 <!ENTITY openMessageFileCmd.accesskey "H">
 <!ENTITY openAttachmentCmd.label "Bashkangjitje">
@@ -125,6 +127,8 @@
 <!ENTITY undoMarkAllCmd.label "Zhbëje Shënimin të Tëra Si të Lexuara">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label "Shtyllë Menush">
+<!ENTITY menubarCmd.accesskey "S">
 <!ENTITY showMessengerToolbarCmd.label "Panel Poste">
 <!ENTITY showMessengerToolbarCmd.accesskey "P">
 <!ENTITY customizeToolbar.label "Përshtatni…">
@@ -138,6 +142,8 @@
 <!ENTITY messagePaneWide.accesskey "G">
 <!ENTITY messagePaneVertical.label "Shfaqje Vertikale">
 <!ENTITY messagePaneVertical.accesskey "V">
+<!ENTITY showFolderPaneCmd.label "Kuadrat Dosjesh">
+<!ENTITY showFolderPaneCmd.accesskey "F">
 <!ENTITY showMessageCmd.label "Kuti Mesazhesh">
 <!ENTITY showMessageCmd.accesskey "M">
 
@@ -230,6 +236,8 @@
 <!ENTITY bodySanitized.accesskey "J">
 <!ENTITY bodyAsPlaintext.label "Tekst i Thjeshtë">
 <!ENTITY bodyAsPlaintext.accesskey "e">
+<!ENTITY bodyAllParts.label "Krejt Pjesët e Trupit">
+<!ENTITY bodyAllParts.accesskey "P">
 
 <!ENTITY bodyMenuFeed.label "Sille Lëndën e Mesazhit Si">
 <!ENTITY bodyMenuFeed.accesskey "S">
@@ -273,6 +281,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label "Burim Mesazhi">
 <!ENTITY pageSourceCmd.accesskey "B">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label "Gjej">
@@ -503,12 +513,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY previousButton.label "I mëparshmi">
 <!ENTITY backButton1.label "Mbrapsht">
 <!ENTITY goForwardButton1.label "Përpara">
+<!ENTITY deleteItem.title "Fshirje">
 <!ENTITY deleteButton.label "Fshije">
 <!ENTITY undeleteButton.label "Çfshije">
 <!ENTITY markButton.label "Shënoje">
 <!ENTITY printButton.label "Shtype">
 <!ENTITY stopButton.label "Ndal">
 <!ENTITY throbberItem.title "Tregues Veprimtarie">
+<!ENTITY junkItem.title "E pavlerë">
 <!ENTITY junkButton.label "E pavlerë">
 <!ENTITY notJunkButton.label "Jo e Pavlerë">
 <!ENTITY addressBookButton.label "Libër Adresash">
@@ -863,5 +875,3 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY hideOtherAppsCmdMac.commandkey "F">
 <!ENTITY hideOtherAppsCmdMac.modifiers  "accel,alt">
 <!ENTITY showAllAppsCmdMac.label        "Shfaqi të Tëra">
-<!ENTITY bodyAllParts.accesskey "A">
-<!ENTITY bodyAllParts.label "All Body Parts">

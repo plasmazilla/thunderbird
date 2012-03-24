@@ -51,7 +51,7 @@
  ***** END LICENSE BLOCK ***** -->
 
 <!ENTITY newDirectoryTitle.label           "Proprietăți server LDAP">
-<!ENTITY directoryName.label               "Nume: ">
+<!ENTITY directoryName.label               "Nume:">
 <!ENTITY directoryName.accesskey           "N">
 <!ENTITY directoryHostname.label           "Nume host:">
 <!ENTITY directoryHostname.accesskey       "h">
@@ -92,5 +92,4 @@
      to vary somewhat with the language.
 -->
 <!ENTITY newDirectoryWidth                 "38em">
-
 

@@ -23,8 +23,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "S">
 <!ENTITY newOtherAccountsCmd.label "其他帐户...">
 <!ENTITY newOtherAccountsCmd.accesskey "O">
-<!ENTITY newEmailAccountCmd.label "邮件帐户...">
-<!ENTITY newEmailAccountCmd.accesskey "A">
+<!ENTITY newCreateEmailAccountCmd.label "获取一个新的电子邮件帐号…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "G">
+<!ENTITY newExistingEmailAccountCmd.label "已有电子邮件帐号…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "E">
 <!ENTITY openMessageFileCmd.label "打开已保存消息…">
 <!ENTITY openMessageFileCmd.accesskey "O">
 <!ENTITY openAttachmentCmd.label "附件">
@@ -119,6 +121,8 @@
 <!ENTITY redoDefaultCmd.accesskey "R">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label "菜单栏">
+<!ENTITY menubarCmd.accesskey "M">
 <!ENTITY showMessengerToolbarCmd.label "邮件工具栏">
 <!ENTITY showMessengerToolbarCmd.accesskey "o">
 <!ENTITY customizeToolbar.label "自定义…">
@@ -132,6 +136,8 @@
 <!ENTITY messagePaneWide.accesskey "W">
 <!ENTITY messagePaneVertical.label "直视图">
 <!ENTITY messagePaneVertical.accesskey "V">
+<!ENTITY showFolderPaneCmd.label "文件夹面板">
+<!ENTITY showFolderPaneCmd.accesskey "F">
 <!ENTITY showMessageCmd.label "消息">
 <!ENTITY showMessageCmd.accesskey "M">
 
@@ -269,6 +275,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label "消息源代码">
 <!ENTITY pageSourceCmd.accesskey "o">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label "查找">
@@ -498,12 +506,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY previousButton.label "上一个">
 <!ENTITY backButton1.label "后退">
 <!ENTITY goForwardButton1.label "前进">
+<!ENTITY deleteItem.title "删除">
 <!ENTITY deleteButton.label "删除">
 <!ENTITY undeleteButton.label "撤消删除">
 <!ENTITY markButton.label "标记">
 <!ENTITY printButton.label "打印">
 <!ENTITY stopButton.label "停止">
 <!ENTITY throbberItem.title "活动指示器">
+<!ENTITY junkItem.title "垃圾">
 <!ENTITY junkButton.label "垃圾">
 <!ENTITY notJunkButton.label "非垃圾">
 <!ENTITY addressBookButton.label "通讯录">

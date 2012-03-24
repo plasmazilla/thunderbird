@@ -1,13 +1,14 @@
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale testpilot is chrome/is/locale/is/feedback/
 locale messenger-region is chrome/is/locale/is/messenger-region/
 locale necko is chrome/is/locale/is/necko/
 locale pippki is chrome/is/locale/is/pippki/
 locale messenger is chrome/is/locale/is/messenger/
-locale messenger-newsblog is chrome/is/locale/is/messenger-newsblog/
+locale global is chrome/is/locale/is/global/
 locale mozapps is chrome/is/locale/is/mozapps/
 locale alerts is chrome/is/locale/is/alerts/
-locale global is chrome/is/locale/is/global/
+locale messenger-newsblog is chrome/is/locale/is/messenger-newsblog/
 locale passwordmgr is chrome/is/locale/is/passwordmgr/
 locale branding is chrome/is/locale/is/branding/
 locale editor is chrome/is/locale/is/editor/

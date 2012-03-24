@@ -26,8 +26,8 @@
 <!ENTITY colorspaceInput.label "Renk boşluğu:">
 <!ENTITY colorspaceInput.accesskey "n">
 
-<!ENTITY fontsGroup.label "Yazıtipleri:">
-<!ENTITY downloadFonts.label "Yazıcı için yazıtipi indirilsin mi?">
+<!ENTITY fontsGroup.label "Yazı tipleri:">
+<!ENTITY downloadFonts.label "Yazı tiplerini yazıcıya indir">
 <!ENTITY downloadFonts.accesskey "d">
 
 <!ENTITY edgeMarginInput.label "Kenar boşluk uzunluğunun sınırı">
@@ -39,3 +39,4 @@
 <!ENTITY leftInput.accesskey "l">
 <!ENTITY rightInput.label "Sağ:">
 <!ENTITY rightInput.accesskey "S">
+

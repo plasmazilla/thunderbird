@@ -11,14 +11,15 @@ locale branding el chrome/el/locale/el/branding/
 locale messenger-mapi el chrome/el/locale/el/messenger-mapi/
 locale global-region el chrome/el/locale/el/global-region/
 locale editor el chrome/el/locale/el/editor/
-locale messenger-smime el chrome/el/locale/el/messenger-smime/
+locale mozldap el chrome/el/locale/el/mozldap/
 locale messenger-newsblog el chrome/el/locale/el/messenger-newsblog/
 locale places el chrome/el/locale/el/places/
-locale mozldap el chrome/el/locale/el/mozldap/
+locale messenger-smime el chrome/el/locale/el/messenger-smime/
+locale testpilot el chrome/el/locale/el/feedback/
 locale pippki el chrome/el/locale/el/pippki/
 locale messenger el chrome/el/locale/el/messenger/
-locale alerts el chrome/el/locale/el/alerts/
+locale global el chrome/el/locale/el/global/
 locale messenger-region el chrome/el/locale/el/messenger-region/
 locale mozapps el chrome/el/locale/el/mozapps/
 manifest chrome/el.manifest
-locale global el chrome/el/locale/el/global/
+locale alerts el chrome/el/locale/el/alerts/

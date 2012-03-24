@@ -9,7 +9,7 @@ locale passwordmgr eu chrome/eu/locale/eu/passwordmgr/
 locale messenger-smime eu chrome/eu/locale/eu/messenger-smime/
 locale cookie eu chrome/eu/locale/eu/cookie/
 manifest chrome/eu.manifest
-locale messenger-newsblog eu chrome/eu/locale/eu/messenger-newsblog/
+locale testpilot eu chrome/eu/locale/eu/feedback/
 locale editor eu chrome/eu/locale/eu/editor/
 locale places eu chrome/eu/locale/eu/places/
 locale global eu chrome/eu/locale/eu/global/
@@ -19,6 +19,7 @@ locale communicator eu chrome/eu/locale/eu/communicator/
 locale messenger-region eu chrome/eu/locale/eu/messenger-region/
 locale global-region eu chrome/eu/locale/eu/global-region/
 locale branding eu chrome/eu/locale/eu/branding/
+locale messenger-newsblog eu chrome/eu/locale/eu/messenger-newsblog/
 locale pipnss eu chrome/eu/locale/eu/pipnss/
 locale messenger-mapi eu chrome/eu/locale/eu/messenger-mapi/
 locale mozldap eu chrome/eu/locale/eu/mozldap/

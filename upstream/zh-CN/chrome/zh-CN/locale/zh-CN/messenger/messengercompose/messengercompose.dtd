@@ -16,6 +16,7 @@
 <!ENTITY attachMenu.accesskey "t">
 <!ENTITY attachFileCmd.label "文件…">
 <!ENTITY attachFileCmd.accesskey "F">
+<!ENTITY attachFileCmd.key "A">
 <!ENTITY attachPageCmd.label "网页…">
 <!ENTITY attachPageCmd.accesskey "W">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -92,6 +93,8 @@
 <!ENTITY viewMenu.accesskey "v">
 <!ENTITY viewToolbarsMenuNew.label "工具栏"> 
 <!ENTITY viewToolbarsMenuNew.accesskey "T"> 
+<!ENTITY menubarCmd.label "菜单栏">
+<!ENTITY menubarCmd.accesskey "M">
 <!ENTITY showCompositionToolbarCmd.label "编写工具栏">
 <!ENTITY showCompositionToolbarCmd.accesskey "o">
 <!ENTITY showFormattingBarCmd.label "格式栏">

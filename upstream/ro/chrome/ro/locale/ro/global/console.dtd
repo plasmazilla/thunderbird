@@ -1,5 +1,7 @@
 <!--
 -->
+<!--
+-->
 <!-- ***** BEGIN LICENSE BLOCK *****
    - Version: MPL 1.1/GPL 2.0/LGPL 2.1
    -
@@ -68,5 +70,4 @@
 <!ENTITY closeCmd.commandkey "w">  
 <!ENTITY focus1.commandkey   "l">  
 <!ENTITY focus2.commandkey   "d">  
-
 

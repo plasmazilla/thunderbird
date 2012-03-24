@@ -4,6 +4,7 @@ locale messenger ru chrome/ru/locale/ru/messenger/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale messenger-smime ru chrome/ru/locale/ru/messenger-smime/
+locale testpilot ru chrome/ru/locale/ru/feedback/
 locale messenger-mapi ru chrome/ru/locale/ru/messenger-mapi/
 locale pippki ru chrome/ru/locale/ru/pippki/
 manifest chrome/ru.manifest

@@ -16,6 +16,7 @@
 <!ENTITY attachMenu.accesskey "C">
 <!ENTITY attachFileCmd.label "Comha(i)d…">
 <!ENTITY attachFileCmd.accesskey "C">
+<!ENTITY attachFileCmd.key "A">
 <!ENTITY attachPageCmd.label "Leathanach Gréasáin…">
 <!ENTITY attachPageCmd.accesskey "L">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -92,6 +93,8 @@
 <!ENTITY viewMenu.accesskey "A">
 <!ENTITY viewToolbarsMenuNew.label "Barraí Uirlisí">
 <!ENTITY viewToolbarsMenuNew.accesskey "U">
+<!ENTITY menubarCmd.label "Barra Roghchláir">
+<!ENTITY menubarCmd.accesskey "B">
 <!ENTITY showCompositionToolbarCmd.label "Barra Cumadóireachta">
 <!ENTITY showCompositionToolbarCmd.accesskey "u">
 <!ENTITY showFormattingBarCmd.label "Barra Formáidithe">

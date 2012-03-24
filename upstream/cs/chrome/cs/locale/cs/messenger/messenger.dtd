@@ -23,8 +23,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "U">
 <!ENTITY newOtherAccountsCmd.label "Další účty…">
 <!ENTITY newOtherAccountsCmd.accesskey "D">
-<!ENTITY newEmailAccountCmd.label "Poštovní účet…">
-<!ENTITY newEmailAccountCmd.accesskey "P">
+<!ENTITY newCreateEmailAccountCmd.label "Získat nový poštovní účet…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "Z">
+<!ENTITY newExistingEmailAccountCmd.label "Existující poštovní účet…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "E">
 <!ENTITY openMessageFileCmd.label "Otevřít uloženou zprávu…">
 <!ENTITY openMessageFileCmd.accesskey "O">
 <!ENTITY openAttachmentCmd.label "Přílohy">
@@ -119,6 +121,8 @@
 <!ENTITY redoDefaultCmd.accesskey "o">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label "Lišta nabídky">
+<!ENTITY menubarCmd.accesskey "n">
 <!ENTITY showMessengerToolbarCmd.label "Lišta pošty">
 <!ENTITY showMessengerToolbarCmd.accesskey "p">
 <!ENTITY customizeToolbar.label "Vlastní…">
@@ -132,6 +136,8 @@
 <!ENTITY messagePaneWide.accesskey "r">
 <!ENTITY messagePaneVertical.label "Svislý pohled">
 <!ENTITY messagePaneVertical.accesskey "v">
+<!ENTITY showFolderPaneCmd.label "Panel složky">
+<!ENTITY showFolderPaneCmd.accesskey "s">
 <!ENTITY showMessageCmd.label "Panel zpráv">
 <!ENTITY showMessageCmd.accesskey "z">
 
@@ -269,6 +275,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label "Zdrojový kód zprávy">
 <!ENTITY pageSourceCmd.accesskey "r">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label "Najít">
@@ -498,12 +506,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY previousButton.label "Předchozí">
 <!ENTITY backButton1.label "Zpět">
 <!ENTITY goForwardButton1.label "Vpřed">
+<!ENTITY deleteItem.title "Smazat">
 <!ENTITY deleteButton.label "Smazat">
 <!ENTITY undeleteButton.label "Obnovit">
 <!ENTITY markButton.label "Označit">
 <!ENTITY printButton.label "Tisk">
 <!ENTITY stopButton.label "Zastavit">
 <!ENTITY throbberItem.title "Indikátor aktivity">
+<!ENTITY junkItem.title "Nevyžádané">
 <!ENTITY junkButton.label "Nevyžádané">
 <!ENTITY notJunkButton.label "Není nevyžádaná">
 <!ENTITY addressBookButton.label "Adresář">

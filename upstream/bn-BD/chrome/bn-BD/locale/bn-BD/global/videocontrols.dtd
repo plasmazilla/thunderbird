@@ -9,3 +9,18 @@ the 5 minute mark in a 6 hour long video, #1 would be "5:00" and #2 would be
 -->
 
 <!ENTITY scrubberScale.nameFormat "#2 এর #1 সময় অতিবাহিত">
+<!ENTITY stats.activity "Activity">
+<!ENTITY stats.activityEnded "Ended">
+<!ENTITY stats.activityPaused "Paused">
+<!ENTITY stats.activityPlaying "Playing">
+<!ENTITY stats.activitySeeking "(seeking)">
+<!ENTITY stats.channels "Channels">
+<!ENTITY stats.framesDecoded "Frames decoded">
+<!ENTITY stats.framesPainted "Frames painted">
+<!ENTITY stats.framesParsed "Frames parsed">
+<!ENTITY stats.framesPresented "Frames presented">
+
+<!ENTITY stats.media "Media">
+<!ENTITY stats.sampleRate "Sample Rate">
+<!ENTITY stats.size "Size">
+<!ENTITY stats.volume "Volume">
