@@ -3,6 +3,7 @@ locale mozldap zh-TW chrome/zh-TW/locale/zh-TW/mozldap/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 locale messenger zh-TW chrome/zh-TW/locale/zh-TW/messenger/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
+locale testpilot zh-TW chrome/zh-TW/locale/zh-TW/feedback/
 locale passwordmgr zh-TW chrome/zh-TW/locale/zh-TW/passwordmgr/
 locale alerts zh-TW chrome/zh-TW/locale/zh-TW/alerts/
 locale messenger-smime zh-TW chrome/zh-TW/locale/zh-TW/messenger-smime/

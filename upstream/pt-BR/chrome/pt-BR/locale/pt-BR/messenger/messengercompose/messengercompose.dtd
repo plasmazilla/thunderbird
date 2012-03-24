@@ -16,6 +16,7 @@
 <!ENTITY attachMenu.accesskey "x">
 <!ENTITY attachFileCmd.label "Arquivos…">
 <!ENTITY attachFileCmd.accesskey "A">
+<!ENTITY attachFileCmd.key "a">
 <!ENTITY attachPageCmd.label "Página da web…">
 <!ENTITY attachPageCmd.accesskey "w">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -92,6 +93,8 @@
 <!ENTITY viewMenu.accesskey "x">
 <!ENTITY viewToolbarsMenuNew.label "Barras de ferramentas"> 
 <!ENTITY viewToolbarsMenuNew.accesskey "B"> 
+<!ENTITY menubarCmd.label "Barra de menus">
+<!ENTITY menubarCmd.accesskey "m">
 <!ENTITY showCompositionToolbarCmd.label "Padrão">
 <!ENTITY showCompositionToolbarCmd.accesskey "a">
 <!ENTITY showFormattingBarCmd.label "Barra de formatação">

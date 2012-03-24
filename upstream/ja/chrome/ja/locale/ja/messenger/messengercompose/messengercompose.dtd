@@ -17,6 +17,7 @@
 <!ENTITY attachMenu.accesskey		"t">
 <!ENTITY attachFileCmd.label		"ファイル...">
 <!ENTITY attachFileCmd.accesskey	"F">
+<!ENTITY attachFileCmd.key		"A">
 <!ENTITY attachPageCmd.label		"Web ページ...">
 <!ENTITY attachPageCmd.accesskey	"W">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -93,6 +94,8 @@
 <!ENTITY viewMenu.accesskey			"v">
 <!ENTITY viewToolbarsMenuNew.label		"ツールバー">
 <!ENTITY viewToolbarsMenuNew.accesskey		"T">
+<!ENTITY menubarCmd.label			"メニューバー">
+<!ENTITY menubarCmd.accesskey			"M">
 <!ENTITY showCompositionToolbarCmd.label	"編集ツールバー">
 <!ENTITY showCompositionToolbarCmd.accesskey	"o">
 <!ENTITY showFormattingBarCmd.label		"書式バー">

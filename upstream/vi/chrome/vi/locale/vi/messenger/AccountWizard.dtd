@@ -54,6 +54,8 @@
 <!-- LOCALIZATION NOTE (popType.label) : Do not translate "POP" in below line -->
 <!ENTITY popType.label "POP">
 <!ENTITY popType.accesskey "P">
+<!ENTITY leaveMsgsOnSrvr.label "Để lại thư trên máy chủ">
+<!ENTITY leaveMsgsOnSrvr.accesskey "y">
 
 
 <!-- LOCALIZATION NOTE (haveSmtp1.prefix and haveSmtp1.suffix2) : Do not translate "SMTP" and "&quot;" in
@@ -110,5 +112,8 @@
 <!ENTITY deferStorage.accesskey "H">
 <!ENTITY clickFinish.label "Nhấn Hoàn Thành để lưu các thiết lập này và thoát Trình thuật sĩ Tài khoản.">
 <!ENTITY clickFinish.labelMac "Nhấn Xong để lưu các thiết lập này và thoát Trình thuật sĩ Tài khoản.">
-<!ENTITY leaveMsgsOnSrvr.accesskey "L">
-<!ENTITY leaveMsgsOnSrvr.label "Leave messages on server">
+
+<!-- Entities for Account Type page -->
+
+<!ENTITY accountSetupInfo2.label "In order to receive messages, you first need to set up an account.">
+<!ENTITY accountTypeDesc2.label "This Wizard will collect the information necessary to set up an account. If you do not know the information requested, please contact your System Administrator or Internet Service Provider.">

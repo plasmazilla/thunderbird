@@ -4,6 +4,7 @@ override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.
 locale editor ta-LK chrome/ta-LK/locale/ta-LK/editor/
 locale pipnss ta-LK chrome/ta-LK/locale/ta-LK/pipnss/
 locale alerts ta-LK chrome/ta-LK/locale/ta-LK/alerts/
+locale testpilot ta-LK chrome/ta-LK/locale/ta-LK/feedback/
 locale mozldap ta-LK chrome/ta-LK/locale/ta-LK/mozldap/
 locale messenger-region ta-LK chrome/ta-LK/locale/ta-LK/messenger-region/
 locale necko ta-LK chrome/ta-LK/locale/ta-LK/necko/

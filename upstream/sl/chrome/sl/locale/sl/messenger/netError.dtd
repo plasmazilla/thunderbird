@@ -51,6 +51,10 @@
 <!ENTITY netInterrupt.title "Povezava je bila prekinjena">
 <!ENTITY netInterrupt.longDesc "&sharedLongDesc;">
 
+
+<!ENTITY notCached.title "Dokument je potekel">
+<!ENTITY notCached.longDesc "<p>Zahtevani dokument v medpomnilniku brskalnika ni več na razpolago.</p><ul><li>Iz varnostnih razlogov &brandShortName; občutljivih dokumentov ne zahteva ponovno.</li><li>Kliknite na poskusi znova, da sdokument ponovno zahteva s spletne strani.</li></ul>">
+
 <!ENTITY netOffline.title "Brez povezave">
 <!ENTITY netOffline.longDesc2 "
 <ul>
@@ -107,8 +111,7 @@
 <!ENTITY redirectLoop.title "Stran se ne preusmerja pravilno">
 <!ENTITY redirectLoop.longDesc "
 <ul>
-  <li>Ta problem se lahko včasih nastane zaradi neveljavnosti ali zavračanja
-     piškotkov.</li>
+  <li>Ta problem se lahko včasih nastane zaradi neveljavnosti ali zavračanja piškotov.</li>
 </ul>
 ">
 
@@ -166,7 +169,7 @@ nekdo poskuša predstaviti kot strežnik.</li>
 <!ENTITY cspFrameAncestorBlocked.longDesc "<p>&brandShortName; je preprečil, da bi se to stran na ta način naložilo, kajti zanjo veljajo pravila o varnosti vsebin, ki tega ne dovoljujejo.</p>">
 
 <!ENTITY corruptedContentError.title "Napaka - okvarjena vsebina">
-<!ENTITY corruptedContentError.longDesc "<p>Vsebine, ki jo želite videti, zaradi napake pri prenosu podatkov ni mogoče prikazati.</p><ul><li>Obrnite se prosim na lastnike strani in jih obvestite o problemu.</li></ul>">
+<!ENTITY corruptedContentError.longDesc "<p>Vsebine, ki jo želite videti, zaradi napake pri prenosu podatkov ni mogoče prikazati.</p><ul><li>Obrnite se na lastnike strani in jih obvestite o problemu.</li></ul>">
 
 <!ENTITY securityOverride.linkText "Lahko pa dodate izjemo…">
 <!ENTITY securityOverride.getMeOutOfHereButton "Spravi me proč od tod!">
@@ -185,5 +188,5 @@ netError.xhtml) because it exposes functionality specific to thunderbird. -->
 ">
 
 <!ENTITY remoteXUL.title "Oddaljeni XUL">
-<!ENTITY remoteXUL.longDesc "<p><ul><li>Obrnite se prosim na lastnike spletne strani in jih obvestite o tem problemu.</li></ul></p>">
+<!ENTITY remoteXUL.longDesc "<p><ul><li>Obrnite se na lastnike spletne strani in jih obvestite o tem problemu.</li></ul></p>">
 

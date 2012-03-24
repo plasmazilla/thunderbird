@@ -16,8 +16,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "В">
 <!ENTITY newOtherAccountsCmd.label "Другие учётные записи…">
 <!ENTITY newOtherAccountsCmd.accesskey "г">
-<!ENTITY newEmailAccountCmd.label "Учётную запись почты…">
-<!ENTITY newEmailAccountCmd.accesskey "ч">
+<!ENTITY newCreateEmailAccountCmd.label "Получить новую учётную запись почты…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "л">
+<!ENTITY newExistingEmailAccountCmd.label "Существующая учётная запись почты…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "щ">
 <!ENTITY openMessageFileCmd.label "Открыть сохранённое сообщение…">
 <!ENTITY openMessageFileCmd.accesskey "с">
 <!ENTITY openAttachmentCmd.label "Вложения">
@@ -108,6 +110,8 @@
 <!ENTITY undoDefaultCmd.accesskey "О">
 <!ENTITY redoDefaultCmd.label "Повторить">
 <!ENTITY redoDefaultCmd.accesskey "П">
+<!ENTITY menubarCmd.label "Панель меню">
+<!ENTITY menubarCmd.accesskey "е">
 <!ENTITY showMessengerToolbarCmd.label "Панель инструментов почты">
 <!ENTITY showMessengerToolbarCmd.accesskey "П">
 <!ENTITY customizeToolbar.label "Настроить…">
@@ -120,6 +124,8 @@
 <!ENTITY messagePaneWide.accesskey "Ш">
 <!ENTITY messagePaneVertical.label "Вертикальный вид">
 <!ENTITY messagePaneVertical.accesskey "В">
+<!ENTITY showFolderPaneCmd.label "Панель папок">
+<!ENTITY showFolderPaneCmd.accesskey "а">
 <!ENTITY showMessageCmd.label "Область просмотра сообщений">
 <!ENTITY showMessageCmd.accesskey "О">
 <!ENTITY folderView.label "Папки">
@@ -240,6 +246,8 @@
 <!ENTITY pageSourceCmd.label "Исходный текст">
 <!ENTITY pageSourceCmd.accesskey "х">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 <!ENTITY findMenu.label "Найти">
 <!ENTITY findMenu.accesskey "й">
 <!ENTITY findCmd.label "Найти в этом сообщении…">
@@ -455,12 +463,14 @@
 <!ENTITY previousButton.label "Предыдущее">
 <!ENTITY backButton1.label "Назад">
 <!ENTITY goForwardButton1.label "Вперёд">
+<!ENTITY deleteItem.title "Удалить">
 <!ENTITY deleteButton.label "Удалить">
 <!ENTITY undeleteButton.label "Восстановить">
 <!ENTITY markButton.label "Отметить">
 <!ENTITY printButton.label "Печать">
 <!ENTITY stopButton.label "Остановить">
 <!ENTITY throbberItem.title "Индикатор активности">
+<!ENTITY junkItem.title "Спам">
 <!ENTITY junkButton.label "Спам">
 <!ENTITY notJunkButton.label "Не спам">
 <!ENTITY addressBookButton.label "Адресная книга">

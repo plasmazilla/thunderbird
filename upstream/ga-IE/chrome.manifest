@@ -11,6 +11,7 @@ locale messenger ga-IE chrome/ga-IE/locale/ga-IE/messenger/
 locale places ga-IE chrome/ga-IE/locale/ga-IE/places/
 locale pipnss ga-IE chrome/ga-IE/locale/ga-IE/pipnss/
 locale global-platform ga-IE chrome/ga-IE/locale/ga-IE/global-platform/
+locale testpilot ga-IE chrome/ga-IE/locale/ga-IE/feedback/
 locale alerts ga-IE chrome/ga-IE/locale/ga-IE/alerts/
 locale messenger-smime ga-IE chrome/ga-IE/locale/ga-IE/messenger-smime/
 locale editor ga-IE chrome/ga-IE/locale/ga-IE/editor/

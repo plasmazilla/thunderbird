@@ -13,6 +13,7 @@
 <!ENTITY attachMenu.accesskey "л">
 <!ENTITY attachFileCmd.label "Файл(ы)…">
 <!ENTITY attachFileCmd.accesskey "Ф">
+<!ENTITY attachFileCmd.key "A">
 <!ENTITY attachPageCmd.label "Старонку Сеціва…">
 <!ENTITY attachPageCmd.accesskey "С">
 <!ENTITY attachVCardCmd.label "Асабістую картку (vCard)">
@@ -84,6 +85,8 @@
 <!ENTITY viewMenu.accesskey "г">
 <!ENTITY viewToolbarsMenuNew.label "Паліцы прыладаў">
 <!ENTITY viewToolbarsMenuNew.accesskey "п">
+<!ENTITY menubarCmd.label "Паліца меню">
+<!ENTITY menubarCmd.accesskey "м">
 <!ENTITY showCompositionToolbarCmd.label "Прыладапаліца ўкладання">
 <!ENTITY showCompositionToolbarCmd.accesskey "ў">
 <!ENTITY showFormattingBarCmd.label "Прыладапаліца фарматавання">

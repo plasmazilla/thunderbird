@@ -14,6 +14,7 @@ locale autoconfig ja chrome/ja/locale/ja/autoconfig/
 locale messenger-newsblog ja chrome/ja/locale/ja/messenger-newsblog/
 locale cookie ja chrome/ja/locale/ja/cookie/
 locale global-platform ja chrome/ja/locale/ja/global-platform/
+locale testpilot ja chrome/ja/locale/ja/feedback/
 locale alerts ja chrome/ja/locale/ja/alerts/
 locale global ja chrome/ja/locale/ja/global/
 locale necko ja chrome/ja/locale/ja/necko/

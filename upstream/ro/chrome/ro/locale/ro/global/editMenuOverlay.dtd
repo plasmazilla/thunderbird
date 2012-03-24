@@ -8,6 +8,7 @@
 # Reviewer(s):
 #
 # Alexandru Szasz <alexxed@gmail.com>
+# raulmalea <raul.malea@gmail.com>
 #
 -->
 <!ENTITY editMenu.label            "Editare">
@@ -41,5 +42,4 @@
 <!ENTITY findAgainCmd.accesskey    "d">
 <!ENTITY findPreviousCmd.label     "Caută înapoi">
 <!ENTITY findPreviousCmd.accesskey "p">
-
 

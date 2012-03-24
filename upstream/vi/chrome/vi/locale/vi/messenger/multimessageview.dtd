@@ -2,3 +2,5 @@
 <!ENTITY selectedmessages.label   "Các thư Đã chọn">
 <!ENTITY archive.label            "lưu trữ">
 <!ENTITY delete.label             "xóa">
+<!ENTITY archiveButton.label      "Archive">
+<!ENTITY deleteButton.label       "Delete">

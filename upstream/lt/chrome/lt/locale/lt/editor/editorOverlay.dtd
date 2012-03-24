@@ -45,54 +45,21 @@
 <!-- Attn: Localization - some of the menus in this dialog directly affect mail also. -->
 
 <!-- File menu items -->
-<!ENTITY fileMenu.label                "Failas">
-<!ENTITY fileMenu.accesskey            "F">
-<!ENTITY openFileCmd.label             "Atverti failą…">
-<!ENTITY openFileCmd.accesskey         "A">
-<!ENTITY openFileCmd.key               "O">
-<!ENTITY openRemoteCmd.label           "Atverti tinklalapį…">
-<!ENTITY openRemoteCmd.accesskey       "v">
-<!ENTITY openRemoteCmd.key             "L">
-<!ENTITY fileRecentMenu.label          "Paskiausiai atverti tinklalapiai">
-<!ENTITY fileRecentMenu.accesskey      "P">
-<!ENTITY fileRevert.label              "Grįžti prie paskiausiai įrašyto">
-<!ENTITY fileRevert.accesskey          "G">
-<!ENTITY saveCmd.label                 "Įrašyti">
-<!ENTITY saveCmd.accesskey             "r">
 <!ENTITY saveCmd.key                   "S">
-<!ENTITY saveAsCmd.label               "Įrašyti kaip…">
-<!ENTITY saveAsCmd.accesskey           "k">
-
-<!ENTITY publishCmd.label              "Publikuoti">
-<!ENTITY publishCmd.accesskey          "P">
-<!ENTITY publishCmd.key                "S">
-<!ENTITY publishAsCmd.label            "Publikuoti kitaip…">
-<!ENTITY publishAsCmd.accesskey        "i">
-<!ENTITY saveAsChangeEncodingCmd.label "Pakeisti koduotę ir įrašyti…">
-<!ENTITY saveAsChangeEncodingCmd.accesskey "d">
-<!ENTITY printSetupCmd.label           "Puslapio nuostatos…">
-<!ENTITY printSetupCmd.accesskey       "u">
-<!ENTITY printCmd.label                "Spausdinti…">
-<!ENTITY printCmd.accesskey            "S">
-<!ENTITY printCmd.key                  "P">
 
 <!-- Edit menu items -->
-<!ENTITY editMenu.label                "Taisa">
-<!ENTITY editMenu.accesskey            "T">
 <!ENTITY pasteNoFormatting.label       "Įdėti be formatų">
 <!ENTITY pasteNoFormatting.accesskey   "f">
 <!ENTITY pasteNoFormatting.key         "V">
 <!ENTITY pasteAs.label                 "Įdėti kitaip">
 <!ENTITY pasteAs.accesskey             "t">
-<!ENTITY publishSettings.label         "Publikavimo nuostatos…">
-<!ENTITY publishSettings.accesskey     "b">
 <!ENTITY pasteAsQuotationCmd.label     "Įdėti kaip citatą">
 <!ENTITY pasteAsQuotationCmd.accesskey "c">
 <!ENTITY pasteAsQuotationCmd.key       "o">
 <!ENTITY findCmd.label                 "Ieškoti ir pakeisti…">
 <!ENTITY enableInlineSpellChecker.label "Tikrinti rašybą renkant tekstą">
 <!ENTITY enableInlineSpellChecker.accesskey "r">
-<!ENTITY checkSpellingCmd2.label       "Tikrinti rašybą">
+<!ENTITY checkSpellingCmd2.label       "Tikrinti rašybą…">
 <!ENTITY checkSpellingCmd2.accesskey   "r">
 <!ENTITY checkSpellingCmd2.key         "p">
 
@@ -217,7 +184,7 @@
 <!ENTITY formatRemoveLinks.key         "K">
 <!ENTITY formatRemoveNamedAnchors.label "Pašalinti žymes">
 <!ENTITY formatRemoveNamedAnchors.accesskey "ž">
-<!ENTITY formatRemoveNamedAnchors.key  "A">
+<!ENTITY formatRemoveNamedAnchors2.key "R">
 
 <!ENTITY paragraphMenu.label           "Pastraipa">
 <!ENTITY paragraphMenu.accesskey       "P">

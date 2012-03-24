@@ -2,14 +2,12 @@
 # Translator(s):
 #
 # Alexandru Szasz <alexxed@gmail.com>
-# stelistcristi <stelistcristi@yahoo.com>
 # raulmalea <raul.malea@gmail.com>
 #
 -->
 <!--
 # Reviewer(s):
 #
-# raulmalea <raul.malea@gmail.com>
 # Alexandru Szasz <alexxed@gmail.com>
 #
 -->
@@ -32,6 +30,7 @@
 <!ENTITY aboutSupport.appBasicsBuildConfig "Configurație de construcție">
 <!ENTITY aboutSupport.appBasicsUserAgent "Agent de utilizator">
 <!ENTITY aboutSupport.appBasicsCrashIDs "Rapoarte de defecte">
+<!ENTITY aboutSupport.appBasicsMemoryUse "Utilizare memorie">
 
 <!ENTITY aboutSupport.show.label "Deschide dosarul conținător">
 
@@ -50,5 +49,4 @@ variant of aboutSupport.show.label.  This allows us to use the preferred
 <!ENTITY aboutSupport.updateHistoryTitle "Istoricul actualizărilor">
 
 <!ENTITY aboutSupport.copyToClipboard.label "Copiază tot în memoria temporară">
-
 

@@ -1,9 +1,10 @@
+locale testpilot gd chrome/gd/locale/gd/feedback/
 locale messenger gd chrome/gd/locale/gd/messenger/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 locale passwordmgr gd chrome/gd/locale/gd/passwordmgr/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale alerts gd chrome/gd/locale/gd/alerts/
-locale autoconfig gd chrome/gd/locale/gd/autoconfig/
+locale communicator gd chrome/gd/locale/gd/communicator/
 locale global-platform gd chrome/gd/locale/gd/global-platform/
 locale messenger-newsblog gd chrome/gd/locale/gd/messenger-newsblog/
 locale places gd chrome/gd/locale/gd/places/
@@ -11,7 +12,7 @@ locale necko gd chrome/gd/locale/gd/necko/
 locale branding gd chrome/gd/locale/gd/branding/
 locale messenger-smime gd chrome/gd/locale/gd/messenger-smime/
 manifest chrome/gd.manifest
-locale global gd chrome/gd/locale/gd/global/
+locale pippki gd chrome/gd/locale/gd/pippki/
 locale cookie gd chrome/gd/locale/gd/cookie/
 locale mozldap gd chrome/gd/locale/gd/mozldap/
 locale pipnss gd chrome/gd/locale/gd/pipnss/
@@ -19,6 +20,6 @@ locale messenger-region gd chrome/gd/locale/gd/messenger-region/
 locale global-region gd chrome/gd/locale/gd/global-region/
 locale mozapps gd chrome/gd/locale/gd/mozapps/
 locale editor gd chrome/gd/locale/gd/editor/
-locale pippki gd chrome/gd/locale/gd/pippki/
-locale communicator gd chrome/gd/locale/gd/communicator/
+locale global gd chrome/gd/locale/gd/global/
+locale autoconfig gd chrome/gd/locale/gd/autoconfig/
 locale messenger-mapi gd chrome/gd/locale/gd/messenger-mapi/

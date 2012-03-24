@@ -3,10 +3,11 @@ locale branding bg chrome/bg/locale/bg/branding/
 locale passwordmgr bg chrome/bg/locale/bg/passwordmgr/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale pippki bg chrome/bg/locale/bg/pippki/
+locale pipnss bg chrome/bg/locale/bg/pipnss/
 locale global-platform bg chrome/bg/locale/bg/global-platform/
 locale cookie bg chrome/bg/locale/bg/cookie/
 locale messenger-region bg chrome/bg/locale/bg/messenger-region/
+locale testpilot bg chrome/bg/locale/bg/feedback/
 locale communicator bg chrome/bg/locale/bg/communicator/
 locale places bg chrome/bg/locale/bg/places/
 locale autoconfig bg chrome/bg/locale/bg/autoconfig/
@@ -18,7 +19,7 @@ locale messenger-smime bg chrome/bg/locale/bg/messenger-smime/
 locale alerts bg chrome/bg/locale/bg/alerts/
 locale editor bg chrome/bg/locale/bg/editor/
 locale necko bg chrome/bg/locale/bg/necko/
-locale pipnss bg chrome/bg/locale/bg/pipnss/
+locale pippki bg chrome/bg/locale/bg/pippki/
 manifest chrome/bg.manifest
 locale global bg chrome/bg/locale/bg/global/
 locale messenger bg chrome/bg/locale/bg/messenger/

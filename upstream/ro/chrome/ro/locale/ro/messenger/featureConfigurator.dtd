@@ -1,7 +1,7 @@
 <!--
 # Translator(s):
 #
-# strainu <crangasi2001@yahoo.com>
+# strainu <narro@strainu.ro>
 # rz <rz@r2dev.ro>
 # Alexandru Szasz <alexxed@gmail.com>
 # raulmalea <raul.malea@gmail.com>
@@ -45,7 +45,7 @@
 <!ENTITY featureConfigurator.addOn.installing "Instalare...">
 
 <!-- LOCALIZATION NOTE (featureConfigurator.addOn.installed): The text to display after the user installs the addon from the configurator. -->
-<!ENTITY featureConfigurator.addOn.installed "Instalate">
+<!ENTITY featureConfigurator.addOn.installed "Instalat">
 
 <!-- LOCALIZATION NOTE (featureConfigurator.addOn.failure): The text to display when there is a problem installing the addon. -->
 <!ENTITY featureConfigurator.addOn.failure "Am întâmpinat o problemă la instalarea extensiei !">
@@ -99,7 +99,7 @@
 <!ENTITY featureConfigurator.diskSpace.currentSize "Utilizare curentă de spațiu disc pentru emailuri:">
 
 <!-- LOCALIZATION NOTE (featureConfigurator.diskSpace.freeSpace): The label for the current amount of free space available on your hard disk. -->
-<!ENTITY featureConfigurator.diskSpace.freeSpace "Spaţiu liber:">
+<!ENTITY featureConfigurator.diskSpace.freeSpace "Spațiu liber:">
 
 <!-- LOCALIZATION NOTE (featureConfigurator.diskSpace.requireSpace): The label for the required amount of free space to synchronize all of your IMAP accounts. -->
 <!ENTITY featureConfigurator.diskSpace.requireSpace "Necesar:">
@@ -111,5 +111,4 @@
 <!ENTITY featureConfigurator.previousButton "Înapoi">
 <!ENTITY featureConfigurator.nextButton "Înainte">
 <!ENTITY featureConfigurator.closeButton "Închide">
-
 

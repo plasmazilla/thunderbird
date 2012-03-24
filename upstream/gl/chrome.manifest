@@ -8,12 +8,13 @@ locale places gl chrome/gl/locale/gl/places/
 locale branding gl chrome/gl/locale/gl/branding/
 locale communicator gl chrome/gl/locale/gl/communicator/
 locale mozapps gl chrome/gl/locale/gl/mozapps/
+locale cookie gl chrome/gl/locale/gl/cookie/
 locale pippki gl chrome/gl/locale/gl/pippki/
 locale messenger-smime gl chrome/gl/locale/gl/messenger-smime/
 locale pipnss gl chrome/gl/locale/gl/pipnss/
 locale global-region gl chrome/gl/locale/gl/global-region/
 locale global gl chrome/gl/locale/gl/global/
-locale cookie gl chrome/gl/locale/gl/cookie/
+locale testpilot gl chrome/gl/locale/gl/feedback/
 locale editor gl chrome/gl/locale/gl/editor/
 locale necko gl chrome/gl/locale/gl/necko/
 locale passwordmgr gl chrome/gl/locale/gl/passwordmgr/

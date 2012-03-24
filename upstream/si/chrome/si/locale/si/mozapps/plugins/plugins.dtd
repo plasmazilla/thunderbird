@@ -23,21 +23,18 @@
 <!ENTITY blockedPlugin.label                            "ඔබගේ ආරක්‍ෂාව සඳහා මෙම ප්ලගීනය අවහිර කර ඇත.">
 
 <!ENTITY missingPlugin                                "මෙම අන්තර්ගතය පෙන්වීමට ප්ලගීනයක් අවශ්‍යව ඇත.">
+<!ENTITY clickToPlayPlugin                                   "ප්ලගීනය සක්‍රීය කිරීමට මෙතනට යන්න.">
 <!ENTITY installPlugin                                       "ප්ලගීනය පිහිටුවන්න…">
 <!ENTITY managePlugins                                       "ප්ලගීන කළමනාකරණය…">
 
-
-<!--
-Entities below were automatically added by compare-locales,
- based on en-US entities.
--->
 
 <!ENTITY reloadPlugin.middle "පිටුව ප්‍රතිපූරණය කරන්න">
 <!ENTITY report.disabled "බිඳවැටුම් වාර්තා කිරිම අබල (disable) කර ඇත.">
 <!ENTITY report.failed "යැවීම අසාර්ථක විය.">
 <!ENTITY reloadPlugin.pre "">
-<!ENTITY report.unavailable "වාරතාවක් නැත.">
+<!ENTITY report.unavailable "වාර්තාවක් නැත.">
 <!ENTITY reloadPlugin.post " නැවත උත්සාහ කිරීමට.">
 <!ENTITY report.submitting "වාර්තාව යවයි…">
 <!ENTITY report.submitted "බිඳවැටුම් වාර්තාව යවන ලදී.">
-<!ENTITY report.please "බිඳවැටුම් වාර්තාව යවන්න">
+<!ENTITY report.checkbox                                     "…සහ බිඳවැටුම් වාර්තාව යවන්න">
+

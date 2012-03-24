@@ -16,6 +16,7 @@
 <!ENTITY attachMenu.accesskey "n">
 <!ENTITY attachFileCmd.label "Datoteke…">
 <!ENTITY attachFileCmd.accesskey "D">
+<!ENTITY attachFileCmd.key "A">
 <!ENTITY attachPageCmd.label "Spletno stran…">
 <!ENTITY attachPageCmd.accesskey "L">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -92,6 +93,8 @@
 <!ENTITY viewMenu.accesskey "p">
 <!ENTITY viewToolbarsMenuNew.label "Orodne vrstice"> 
 <!ENTITY viewToolbarsMenuNew.accesskey "R"> 
+<!ENTITY menubarCmd.label "Vrstica z meniji">
+<!ENTITY menubarCmd.accesskey "M">
 <!ENTITY showCompositionToolbarCmd.label "Orodna vrstica za sestavke">
 <!ENTITY showCompositionToolbarCmd.accesskey "S">
 <!ENTITY showFormattingBarCmd.label "Orodna vrstica za oblikovanje">

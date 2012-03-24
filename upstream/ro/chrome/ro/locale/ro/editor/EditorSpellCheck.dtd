@@ -5,6 +5,12 @@
 # Alexandru Szasz <alexxed@gmail.com>
 #
 -->
+<!--
+# Reviewer(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+#
+-->
 <!-- ***** BEGIN LICENSE BLOCK *****
    - Version: MPL 1.1/GPL 2.0/LGPL 2.1
    -
@@ -43,7 +49,7 @@
    - ***** END LICENSE BLOCK ***** -->
 
 <!-- Window title -->
-<!ENTITY windowTitle.label "Verificați ortografie">
+<!ENTITY windowTitle.label "Verificare ortografică">
 
 <!ENTITY misspelledWord.label "Cuvânt greșit:">
 <!ENTITY wordEditField.label "Înlocuiește cu:">
@@ -76,5 +82,4 @@
 <!ENTITY sendButton.accessKey "M">
 <!ENTITY languagePopup.label "Limbă:">
 <!ENTITY languagePopup.accessKey "L">
-
 

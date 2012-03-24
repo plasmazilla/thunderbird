@@ -90,6 +90,8 @@
 <!-- View Menu -->
 <!ENTITY viewMenu.label "நோக்கு">
 <!ENTITY viewMenu.accesskey "v">
+<!ENTITY menubarCmd.label "Menu Bar">
+<!ENTITY menubarCmd.accesskey "M">
 <!ENTITY viewToolbarsMenuNew.label "கருவிப்பட்டைகள்">
 <!ENTITY viewToolbarsMenuNew.accesskey "T">
 <!ENTITY showCompositionToolbarCmd.label "அஞ்சல் கருவிப்பட்டை">
@@ -279,3 +281,4 @@ Entities below were automatically added by compare-locales,
 <!ENTITY headersSpace.style "அகலம்: 9em;">
 <!ENTITY pasteAsQuotationCmd.key "o">
 <!ENTITY spellingButton.tooltip "தெரிவுசெய்யப்பட்ட அல்லது முழுச்செய்தியிலும் எழுத்துக்கோர்வைகளை சரிபார்க்க">
+<!ENTITY attachFileCmd.key "A">

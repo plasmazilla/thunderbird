@@ -16,6 +16,7 @@
 <!ENTITY attachMenu.accesskey                "L">
 <!ENTITY attachFileCmd.label                 "Fail(id)...">
 <!ENTITY attachFileCmd.accesskey             "F">
+<!ENTITY attachFileCmd.key                   "A">
 <!ENTITY attachPageCmd.label                 "Veebileht...">
 <!ENTITY attachPageCmd.accesskey             "e">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -92,7 +93,9 @@
 <!ENTITY viewMenu.accesskey                  "V">
 <!ENTITY viewToolbarsMenuNew.label           "Tööriistaribad">
 <!ENTITY viewToolbarsMenuNew.accesskey       "T">
-<!ENTITY showCompositionToolbarCmd.label     "Koostamise tööriistariba">
+<!ENTITY menubarCmd.label                    "Menüüriba">
+<!ENTITY menubarCmd.accesskey                "M">
+<!ENTITY showCompositionToolbarCmd.label     "Koostamisriba">
 <!ENTITY showCompositionToolbarCmd.accesskey "o">
 <!ENTITY showFormattingBarCmd.label          "Vorminguriba">
 <!ENTITY showFormattingBarCmd.accesskey      "V">

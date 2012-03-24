@@ -7,7 +7,7 @@ locale branding sl chrome/sl/locale/sl/branding/
 locale pippki sl chrome/sl/locale/sl/pippki/
 locale places sl chrome/sl/locale/sl/places/
 locale editor sl chrome/sl/locale/sl/editor/
-locale cookie sl chrome/sl/locale/sl/cookie/
+locale testpilot sl chrome/sl/locale/sl/feedback/
 locale communicator sl chrome/sl/locale/sl/communicator/
 locale global-platform sl chrome/sl/locale/sl/global-platform/
 locale messenger-mapi sl chrome/sl/locale/sl/messenger-mapi/
@@ -20,5 +20,6 @@ locale alerts sl chrome/sl/locale/sl/alerts/
 locale passwordmgr sl chrome/sl/locale/sl/passwordmgr/
 manifest chrome/sl.manifest
 locale messenger-smime sl chrome/sl/locale/sl/messenger-smime/
+locale cookie sl chrome/sl/locale/sl/cookie/
 locale mozapps sl chrome/sl/locale/sl/mozapps/
 locale pipnss sl chrome/sl/locale/sl/pipnss/

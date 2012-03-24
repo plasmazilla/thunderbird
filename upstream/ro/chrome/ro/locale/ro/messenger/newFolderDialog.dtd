@@ -1,8 +1,14 @@
 <!--
 # Translator(s):
 #
-# anonymous <anonymous@n.a>
 # rz <rz@r2dev.ro>
+# anonymous <anonymous@n.a>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
 #
 -->
 <!-- ***** BEGIN LICENSE BLOCK *****
@@ -44,8 +50,8 @@
    - ***** END LICENSE BLOCK ***** -->
    
 <!-- Labels -->
-<!ENTITY newFolderDialog.title      "Folder Nou">
-<!ENTITY name.label                 "Numele:">
+<!ENTITY newFolderDialog.title      "Dosar nou">
+<!ENTITY name.label                 "Nume:">
 <!ENTITY name.accesskey             "N">
 <!ENTITY description.label          "Creează ca dosar sub:">
 <!ENTITY description.accesskey      "C">
@@ -55,5 +61,4 @@
 <!ENTITY messagesOnly.label         "Doar mesaje">
 <!ENTITY accept.label               "Creează dosar">
 <!ENTITY accept.accesskey           "r">
-
 

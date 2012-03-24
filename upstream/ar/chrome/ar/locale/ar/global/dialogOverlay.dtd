@@ -2,6 +2,6 @@
 -->
 <!-- OK Cancel Buttons -->
 
-<!ENTITY okButton.label "موافق">
-<!ENTITY cancelButton.label "ألغِ">
-<!ENTITY helpButton.label "مساعدة">
+<!ENTITY okButton.label      "موافق">
+<!ENTITY cancelButton.label  "ألغِ">
+<!ENTITY helpButton.label    "مساعدة">

@@ -5,9 +5,9 @@
 <!-- Entities for Account Type page -->
 
 
-<!ENTITY accountSetupInfo.label "அஞ்சல்களை பெற, அஞ்சல் அல்லது செய்தித்தொகுதி கணக்கு உருவாக்கப்படுவது அவசியம்">
+<!ENTITY accountSetupInfo2.label "அஞ்சல்களை பெற, அஞ்சல் அல்லது செய்தித்தொகுதி கணக்கு உருவாக்கப்படுவது அவசியம்">
 <!ENTITY accountTypeTitle.label "புதிய கணக்கு அமைப்பு">
-<!ENTITY accountTypeDesc.label "இந்த வழிகாட்டி தன்னியக்கமாக அஞ்சல் அல்லது செய்தித்தொகுதிக் கணக்கை அமைக்கத் தேவையான விவரங்களை சேகரிக்கிறது. கேட்கப்பட்ட விவரம் தெரியாதவிடத்து, உங்கள் தொகுதி நிர்வாகி அல்லது இணைய சேவை அளிப்போரை அணுகுக.">
+<!ENTITY accountTypeDesc2.label "இந்த வழிகாட்டி தன்னியக்கமாக அஞ்சல் அல்லது செய்தித்தொகுதிக் கணக்கை அமைக்கத் தேவையான விவரங்களை சேகரிக்கிறது. கேட்கப்பட்ட விவரம் தெரியாதவிடத்து, உங்கள் தொகுதி நிர்வாகி அல்லது இணைய சேவை அளிப்போரை அணுகுக.">
 <!ENTITY accountTypeDirections.label "நீங்க அமைக்க விரும்பும் கணக்கின் வகையை தெரிவு செய்க:">
 <!ENTITY accountTypeMail.label "மின்னஞ்சல் கணக்கு">
 <!ENTITY accountTypeMail.accesskey "M">
@@ -118,5 +118,12 @@
 <!ENTITY deferStorage.accesskey "G">
 <!ENTITY clickFinish.label "இந்த அமைவுகளை சேமிக்க “முடி” என சொடுக்கிவிட்டு, கணக்கு வழிகாட்டியை விட்டு வெளியேறுக.">
 <!ENTITY clickFinish.labelMac "இந்த அமைப்புகளை சேமித்து கணக்கு வழிகாட்டியை விட்டு வெளியேற Done இனைச் சொடுக்குக.">
-<!ENTITY leaveMsgsOnSrvr.accesskey "L">
+
+
+<!--
+Entities below were automatically added by compare-locales,
+ based on en-US entities.
+-->
+
 <!ENTITY leaveMsgsOnSrvr.label "Leave messages on server">
+<!ENTITY leaveMsgsOnSrvr.accesskey "L">

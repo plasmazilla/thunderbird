@@ -14,16 +14,19 @@
 <!ENTITY moveToNewWindow.accesskey    "n">
 
 <!-- File Menu -->
-<!ENTITY newNewMsgCmd.label             "Wiadomość">
-<!ENTITY newNewMsgCmd.accesskey         "W">
-<!ENTITY newFolderCmd.label             "Folder…">
-<!ENTITY newFolderCmd.accesskey         "F">
-<!ENTITY newVirtualFolderCmd.label      "Folder wyszukiwania…">
-<!ENTITY newVirtualFolderCmd.accesskey  "e">
-<!ENTITY newEmailAccountCmd.label       "Konto pocztowe…">
-<!ENTITY newEmailAccountCmd.accesskey   "K">
-<!ENTITY newOtherAccountsCmd.label      "Konto…">
-<!ENTITY newOtherAccountsCmd.accesskey  "o">
+<!ENTITY newNewMsgCmd.label                   "Wiadomość">
+<!ENTITY newNewMsgCmd.accesskey               "W">
+<!ENTITY newFolderCmd.label                   "Folder…">
+<!ENTITY newFolderCmd.accesskey               "F">
+<!ENTITY newVirtualFolderCmd.label            "Folder wyszukiwania…">
+<!ENTITY newVirtualFolderCmd.accesskey        "e">
+<!ENTITY newCreateEmailAccountCmd.label       "Nowy adres e-mail…">
+<!ENTITY newCreateEmailAccountCmd.accesskey   "N">
+<!ENTITY newExistingEmailAccountCmd.label     "Konfigurację konta pocztowego…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "K">
+<!ENTITY newOtherAccountsCmd.label            "Konfigurację innego konta…">
+<!ENTITY newOtherAccountsCmd.accesskey        "o">
+
 <!ENTITY openMessageFileCmd.label       "Otwórz zapisaną wiadomość">
 <!ENTITY openMessageFileCmd.accesskey   "O">
 <!ENTITY openAttachmentCmd.label        "Załączniki">
@@ -123,6 +126,8 @@
 <!ENTITY redoDefaultCmd.accesskey          "P">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label                  "Pasek menu">
+<!ENTITY menubarCmd.accesskey              "m">
 <!ENTITY showMessengerToolbarCmd.label     "Pasek narzędzi poczty">
 <!ENTITY showMessengerToolbarCmd.accesskey "o">
 <!ENTITY customizeToolbar.label            "Dostosuj…">
@@ -136,6 +141,8 @@
 <!ENTITY messagePaneWide.accesskey         "S">
 <!ENTITY messagePaneVertical.label         "Pionowy">
 <!ENTITY messagePaneVertical.accesskey     "P">
+<!ENTITY showFolderPaneCmd.label           "Panel folderów">
+<!ENTITY showFolderPaneCmd.accesskey       "f">
 <!ENTITY showMessageCmd.label              "Panel wiadomości">
 <!ENTITY showMessageCmd.accesskey          "m">
 
@@ -264,6 +271,8 @@
 <!ENTITY pageSourceCmd.label     "Źródło wiadomości">
 <!ENTITY pageSourceCmd.accesskey "d">
 <!ENTITY pageSourceCmd.key       "u">
+<!ENTITY getNewMessagesCmd.key    "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label               "Znajdź">
@@ -484,12 +493,14 @@
 <!ENTITY previousButton.label   "Poprzednia">
 <!ENTITY backButton1.label      "Wstecz">
 <!ENTITY goForwardButton1.label "Dalej">
+<!ENTITY deleteItem.title       "Usuń">
 <!ENTITY deleteButton.label     "Usuń">
 <!ENTITY undeleteButton.label   "Przywróć">
 <!ENTITY markButton.label       "Oznacz">
 <!ENTITY printButton.label      "Drukuj">
 <!ENTITY stopButton.label       "Zatrzymaj">
 <!ENTITY throbberItem.title     "Wskaźnik aktywności">
+<!ENTITY junkItem.title         "Niechciana">
 <!ENTITY junkButton.label       "Niechciana">
 <!ENTITY notJunkButton.label    "Pożądana">
 <!ENTITY addressBookButton.label         "Adresy">

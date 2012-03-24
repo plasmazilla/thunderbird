@@ -83,6 +83,8 @@
 <!ENTITY viewMenu.accesskey "V">
 <!ENTITY viewToolbarsMenu.label "கருவிப்பட்டைகள்">
 <!ENTITY viewToolbarsMenu.accesskey "T">
+<!ENTITY menubarCmd.label      "Menu Bar">
+<!ENTITY menubarCmd.accesskey   "M">
 <!ENTITY showAbToolbarCmd.label "முகவரிப் புத்தக கருவிப்பட்டை">
 <!ENTITY showAbToolbarCmd.accesskey "O">
 <!ENTITY showTaskbarCmd.label "நிலைமைப் பட்டை">
@@ -208,3 +210,13 @@
 <!ENTITY minimizeWindow.label "சிறிதாக்கு">
 <!ENTITY bringAllToFront.label "அனைத்தையும் முன் கொணர்">
 <!ENTITY zoomWindow.label "பெரிதாக்கு">
+<!ENTITY firstLastCmd2.accesskey                        "f"> 
+<!-- LOCALIZATION NOTE (firstLastCmd2.label): We're not including a comma here
+because displayed names don't have the comma in between. -->
+<!ENTITY firstLastCmd2.label                            "First Last">
+<!ENTITY layoutMenu.accesskey                           "L">
+<!ENTITY layoutMenu.label                               "Layout">
+<!ENTITY showContactPane2.accesskey                     "C">
+<!ENTITY showContactPane2.label                         "Contact Pane">
+<!ENTITY showDirectoryPane.accesskey                    "D">
+<!ENTITY showDirectoryPane.label                        "Directory Pane">

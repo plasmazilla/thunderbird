@@ -13,6 +13,7 @@ locale global-region es-ES chrome/es-ES/locale/es-ES/global-region/
 locale mozapps es-ES chrome/es-ES/locale/es-ES/mozapps/
 locale messenger-newsblog es-ES chrome/es-ES/locale/es-ES/messenger-newsblog/
 locale branding es-ES chrome/es-ES/locale/es-ES/branding/
+locale testpilot es-ES chrome/es-ES/locale/es-ES/feedback/
 locale global-platform es-ES chrome/es-ES/locale/es-ES/global-platform/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale pipnss es-ES chrome/es-ES/locale/es-ES/pipnss/
