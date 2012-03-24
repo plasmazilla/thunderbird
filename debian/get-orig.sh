@@ -26,8 +26,10 @@ for XPI in $ALLXPI; do
     else
         JAR=`echo $XPI | sed --posix 's|-.*||'`.jar
     fi
-    unzip -o -q -d chrome chrome/$JAR
-    rm -f chrome/$JAR
+    if [ -f chrome/$JAR ]; then
+        unzip -o -q -d chrome chrome/$JAR
+        rm -f chrome/$JAR
+    fi
     rm $CURDIR/upstream/$XPI
     cd $CURDIR/upstream
 done
