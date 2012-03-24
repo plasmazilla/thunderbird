@@ -13,7 +13,7 @@ debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/run-mozilla.sh
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/mozilla-xremote-client
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/plugin-container
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/removed-files
-debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/omni.jar usr/share/@DEB_MOZ_APPLICATION@
+debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/omni.ja usr/share/@DEB_MOZ_APPLICATION@
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/searchplugins usr/share/@DEB_MOZ_APPLICATION@
 
 debian/tmp/usr/lib/@DEB_MOZ_APPLICATION@/components/lib*.so
