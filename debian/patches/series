@@ -49,3 +49,4 @@ fixes/Link-libldap-against-libpthread.patch
 fixes/Bug-628252-os2.cc-fails-to-compile-against-GCC-4.6-m.patch
 fixes/Bug-728136-Port-bug-528687-to-comm-central.patch
 fixes/Bug-710268-Sign-NSS-libraries-only-when-they-exist-r.patch
+fixes/Include-cstdlib-in-gfx-angle-src-compiler-Types.h-fo.patch
