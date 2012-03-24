@@ -1,3 +1,58 @@
+icedove (10.0.3-1) unstable; urgency=low
+
+  [ Christoph Goehre ]
+  * [ee4b49c] adjust source.filter list
+  * [b5f3064] New Upstream version 10.0.3 (Closes: #661115, #663897)
+  * [fd35da8] build against system python-ply
+  * [4964bb2] build against system libreadline
+  * [5412685] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/Don-t-build-example-component.patch
+    - fixes/Bug-515232-Try-getting-general.useragent.locale-as-a.patch
+    - fixes/Bug-628252-os2.cc-fails-to-compile-against-GCC-4.6-m.patch
+    - fixes/Bug-691898-Use-YARR-interpreter-instead-of-PCRE-on-p.patch
+    - fixes/Bug-696636-Block-OpenGL-1-drivers-explicitly-to-stee.patch
+    - fixes/Bug-710268-Sign-NSS-libraries-only-when-they-exist-r.patch
+    - fixes/Bug-720682-Don-t-crash-an-app-using-libxul-because-o.patch
+    - fixes/Bug-722127-Bump-required-libvpx-version-to-1.0.0.-r-.patch
+    - fixes/Bug-728136-Port-bug-528687-to-comm-central.patch
+    - fixes/Bug-728229-Allow-to-build-with-system-python-ply-lib.patch
+    - fixes/Bug-729817-Allow-the-Nouveau-driver-with-Mesa-8.0.1-.patch
+    - fixes/Bug-729817-Block-the-Nouveau-3D-driver-as-it-s-insta.patch
+    - fixes/Fixup-bz-730195-for-Linux-ARM-use-_URC_FOREIGN_EXCEP.patch
+    - fixes/Include-cstdlib-in-gfx-angle-src-compiler-Types.h-fo.patch
+    - fixes/Link-libldap-against-libpthread.patch
+    - fixes/Load-dependent-libraries-with-their-real-path-to-avo.patch
+    - porting/Bug-703534-Fix-build-failure-on-platforms-without-YA.patch
+    - prefs/Don-t-auto-disable-extensions-in-system-directories.patch
+      (Closes: #648712)
+    modified patches:
+    - debian-hacks/Install-missing-nanojit-and-.tbl-headers-from-js-src.patch
+    - fixes/Allow-.js-preference-files-to-set-locked-prefs-with-.patch
+    - fixes/Properly-launch-applications-set-in-HOME-.mailcap.patch
+    - icedove/fix-branding-in-migration-wizard-and-the-addon-manag.patch
+    - porting/Allow-ipc-code-to-build-on-GNU-hurd.patch
+    - porting/Bug-703833-Avoid-invalid-conversion-from-const-size_.patch
+    - prefs/Set-javascript.options.showInConsole.patch
+    obsolete patches (fixed upstream):
+    - debian-hacks/get-ride-of-default-debian-hardering-options.patch
+    - iceowl/Install-calendar-timezones-mode-0644-not-0755.patch
+    - porting/Add-mips-hppa-ia64-s390-and-sparc-defines-in-ipc-chr.patch
+    - porting/Bug-680917-Use-a-pool-size-of-16kB-on-ia64-for-bump-.patch
+    - porting/Bug-694533-LDRH-STRH-LDRSB-STRSB-are-supported-on-AR.patch
+    - porting/Bug-696393-Reimplement-NS_InvokeByIndex-in-C-on-S390.patch
+    - porting/Revert-bz-164580.patch
+
+  [ Michael Biebl ]
+  * [c0a3ee2] Install chrome.manifest file to ensure the various components
+    (like GNOME support module) are correctly loaded. (Closes: #658479)
+
+  [ Christoph Goehre ]
+  * [02687fc] adjust install/link files for new upstream
+  * [b551d6a] omni.jar was renamed to omni.ja
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 24 Mar 2012 23:10:47 +0100
+
 icedove (9.0.1-1) experimental; urgency=low
 
   * [e2002b8] New Upstream version 9.0.1 (Closes: #653266, #653556)
