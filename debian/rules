@@ -103,6 +103,7 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--enable-system-sqlite \
 	--enable-system-ffi \
 	--enable-system-hunspell \
+	--enable-readline \
 	--with-distribution-id=$(DEBIAN_DIST) \
 	--build=$(DEB_BUILD_GNU_TYPE) \
 	--host=$(DEB_HOST_GNU_TYPE) \
