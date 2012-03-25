@@ -55,7 +55,7 @@ DEB_AUTO_UPDATE_DEBIAN_CONTROL=0
 DEB_MOZ_EXTENSIONS=default
 DEB_DBG_PACKAGES = $(DEB_MOZ_NAME)-dbg
 
-DEB_DH_SHLIBDEPS_ARGS_ALL=-l $(DEB_DESTDIR)usr/lib/$(DEB_MOZ_APPLICATION) -Xlibmozgnome -Xlibnkgnomevfs -Xlibdbusservice
+DEB_DH_SHLIBDEPS_ARGS_ALL=-l $(DEB_DESTDIR)usr/lib/$(DEB_MOZ_APPLICATION) -Xlibmozgnome -Xlibdbusservice
 
 DEB_DH_MAKESHLIBS_ARGS_ALL=-Xlibsystem-pref.so
 
@@ -89,13 +89,14 @@ DEB_CONFIGURE_USER_FLAGS= \
 	--disable-tests \
 	--disable-mochitest \
 	--disable-updater \
+	--disable-gnomevfs \
 	--enable-pango \
 	--enable-xft \
 	--enable-xinerama \
 	--enable-svg \
 	--enable-svg-renderer=cairo \
-	--enable-gnomevfs \
 	--enable-gnomeui \
+	--enable-gio \
 	--enable-canvas \
 	--enable-crypto \
 	--enable-shared-js \
@@ -230,7 +231,7 @@ common-install-arch::
 		sh -c "set -e; cd debian/calendar-timezones/usr/lib/calendar-timezones/; unzip $(CURDIR)/mozilla/dist/xpi-stage/calendar-timezones.xpi"
 
 binary-predeb/$(DEB_MOZ_APPLICATION)::
-	LD_LIBRARY_PATH=$(DEB_DESTDIR)usr/lib/$(DEB_MOZ_APPLICATION) dpkg-shlibdeps -Tdebian/$(DEB_MOZ_APPLICATION).substvars -dDepends -pgnome $(foreach lib,dbusservice mozgnome nkgnomevfs,debian/$(DEB_MOZ_APPLICATION)/usr/lib/$(DEB_MOZ_APPLICATION)/components/lib$(lib).so)
+	LD_LIBRARY_PATH=$(DEB_DESTDIR)usr/lib/$(DEB_MOZ_APPLICATION) dpkg-shlibdeps -Tdebian/$(DEB_MOZ_APPLICATION).substvars -dDepends -pgnome $(foreach lib,dbusservice mozgnome,debian/$(DEB_MOZ_APPLICATION)/usr/lib/$(DEB_MOZ_APPLICATION)/components/lib$(lib).so)
 
 clean::
 	rm -f debian/stamp-autotools-files-moz debian/stamp-icedove-branding
