@@ -1,3 +1,23 @@
+icedove-l10n (1:10.0.2-1) unstable; urgency=low
+
+  [ Carsten Schoenert ]
+  * [5b8e156] Imported Upstream version 10.0.2
+  * [6b5998e] rebuild patch queue from patch-queue branch
+    modified patches:
+    - 0001-rebrand-all-language-packs.patch
+  * [7871a20] adding new languages for Asturia and Serbia
+  * [7f3a3e1] debian/get-orig.sh: better proofing for *.jar to extract
+    adding more flexibility to the extract of language files
+
+  [ Christoph Goehre ]
+  * [705e9dd] bump up standards version to 3.9.3 (no changes needed)
+  * [4c973fd] toggle Arabic <-> Asturian package description/depends
+  * [6b76a2d] rebuild patch queue from patch-queue branch
+    added patches:
+    - 0004-modifying-the-install.rdf-files-fit-the-version-chec.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 25 Mar 2012 13:44:11 +0200
+
 icedove-l10n (1:9.0.1-0.1) experimental; urgency=low
 
   * Non-maintainer upload.
