@@ -1,11 +1,12 @@
+locale testpilot pl chrome/pl/locale/pl/feedback/
 locale alerts pl chrome/pl/locale/pl/alerts/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale necko pl chrome/pl/locale/pl/necko/
 locale places pl chrome/pl/locale/pl/places/
-locale cookie pl chrome/pl/locale/pl/cookie/
+locale pippki pl chrome/pl/locale/pl/pippki/
 locale global-platform pl chrome/pl/locale/pl/global-platform/
 locale messenger-mapi pl chrome/pl/locale/pl/messenger-mapi/
-locale pippki pl chrome/pl/locale/pl/pippki/
+locale cookie pl chrome/pl/locale/pl/cookie/
 locale communicator pl chrome/pl/locale/pl/communicator/
 locale mozapps pl chrome/pl/locale/pl/mozapps/
 locale mozldap pl chrome/pl/locale/pl/mozldap/

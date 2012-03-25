@@ -57,8 +57,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "s">
 <!ENTITY newOtherAccountsCmd.label "Annat konto…">
 <!ENTITY newOtherAccountsCmd.accesskey "k">
-<!ENTITY newEmailAccountCmd.label "Nytt e-postkonto…">
-<!ENTITY newEmailAccountCmd.accesskey "e">
+<!ENTITY newCreateEmailAccountCmd.label "Skapa ett nytt e-postkonto…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "S">
+<!ENTITY newExistingEmailAccountCmd.label "Existerande e-postkonto…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "E">
 <!ENTITY openMessageFileCmd.label "Öppna sparat meddelande…">
 <!ENTITY openMessageFileCmd.accesskey "s">
 <!ENTITY openAttachmentCmd.label "Bilagor">
@@ -153,6 +155,8 @@
 <!ENTITY redoDefaultCmd.accesskey "G">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label "Menyfält">
+<!ENTITY menubarCmd.accesskey "M">
 <!ENTITY showMessengerToolbarCmd.label		"Meddelandeverktyg">
 <!ENTITY showMessengerToolbarCmd.accesskey	"v">
 <!ENTITY customizeToolbar.label		"Anpassa…">
@@ -166,6 +170,8 @@
 <!ENTITY messagePaneWide.accesskey "B">
 <!ENTITY messagePaneVertical.label "Vertikal vy">
 <!ENTITY messagePaneVertical.accesskey "V">
+<!ENTITY showFolderPaneCmd.label "Mappfältet">
+<!ENTITY showFolderPaneCmd.accesskey "M">
 <!ENTITY showMessageCmd.label "Förhandsgranskning">
 <!ENTITY showMessageCmd.accesskey "F">
 
@@ -303,6 +309,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label "Meddelandets källkod">
 <!ENTITY pageSourceCmd.accesskey "k">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label "Sök">
@@ -532,12 +540,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY previousButton.label "Tidigare">
 <!ENTITY backButton1.label "Bakåt">
 <!ENTITY goForwardButton1.label "Framåt">
+<!ENTITY deleteItem.title "Ta bort">
 <!ENTITY deleteButton.label "Ta bort">
 <!ENTITY undeleteButton.label "Återställ">
 <!ENTITY markButton.label "Märk">
 <!ENTITY printButton.label "Skriv ut">
 <!ENTITY stopButton.label "Stopp">
 <!ENTITY throbberItem.title "Aktivitetsindikator">
+<!ENTITY junkItem.title "Skräppost">
 <!ENTITY junkButton.label "Skräppost">
 <!ENTITY notJunkButton.label "Ej skräp">
 <!ENTITY addressBookButton.label "Adressboken">

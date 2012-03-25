@@ -1,0 +1,40 @@
+<!ENTITY aboutSupport.pageTitle "Подаци о решавању проблема">
+
+<!-- LOCALIZATION NOTE (aboutSupport.pageSubtitle): don't change the 'supportLink' id. -->
+<!ENTITY aboutSupport.pageSubtitle "   Ова страна садржи техничке податке који вам могу бити корисни када покушавате да решите неки проблем.  Ако вам требају одговори на често постављана питања о програму &brandShortName;, прегледајте наш <a id='supportLink'>веб сајт за подршку</a>.
+">
+
+<!ENTITY aboutSupport.extensionsTitle "Проширења">
+<!ENTITY aboutSupport.extensionName "Име">
+<!ENTITY aboutSupport.extensionEnabled "Омогућен">
+<!ENTITY aboutSupport.extensionVersion "Издање">
+<!ENTITY aboutSupport.extensionId "ИД">
+
+<!ENTITY aboutSupport.appBasicsTitle "Основе апликације">
+<!ENTITY aboutSupport.appBasicsName "Име">
+<!ENTITY aboutSupport.appBasicsVersion "Издање">
+<!ENTITY aboutSupport.appBasicsProfileDir "Директоријум профила">
+<!ENTITY aboutSupport.appBasicsEnabledPlugins "Активирани прикључци">
+<!ENTITY aboutSupport.appBasicsBuildConfig "Конфигурација изградње">
+<!ENTITY aboutSupport.appBasicsUserAgent "Корисник">
+<!ENTITY aboutSupport.appBasicsCrashIDs "Извештаји о рушењу">
+<!ENTITY aboutSupport.appBasicsMemoryUse "Меморија">
+
+<!ENTITY aboutSupport.show.label "Прикажи датотеку у директоријуму">
+
+<!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
+variant of aboutSupport.show.label.  This allows us to use the preferred
+"Finder" terminology on Mac. -->
+<!ENTITY aboutSupport.showMac.label "Прикажи у Налазачу (Finder)">
+
+<!ENTITY aboutSupport.modifiedPrefsTitle "Измењена подешавања">
+<!ENTITY aboutSupport.modifiedPrefsName "Име">
+<!ENTITY aboutSupport.modifiedPrefsValue "Вредност">
+
+<!ENTITY aboutSupport.graphicsTitle "Графика">
+
+<!ENTITY aboutSupport.installationHistoryTitle "Историјат инсталација">
+<!ENTITY aboutSupport.updateHistoryTitle "Историјат унапређења">
+
+<!ENTITY aboutSupport.copyToClipboard.label "Копирај све у оставу">
+

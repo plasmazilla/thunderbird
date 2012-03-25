@@ -5,15 +5,16 @@ locale branding rm chrome/rm/locale/rm/branding/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale autoconfig rm chrome/rm/locale/rm/autoconfig/
 locale pipnss rm chrome/rm/locale/rm/pipnss/
-locale necko rm chrome/rm/locale/rm/necko/
+locale testpilot rm chrome/rm/locale/rm/feedback/
 locale passwordmgr rm chrome/rm/locale/rm/passwordmgr/
-locale pippki rm chrome/rm/locale/rm/pippki/
+locale necko rm chrome/rm/locale/rm/necko/
 locale mozapps rm chrome/rm/locale/rm/mozapps/
 locale messenger rm chrome/rm/locale/rm/messenger/
 locale messenger-smime rm chrome/rm/locale/rm/messenger-smime/
 locale messenger-region rm chrome/rm/locale/rm/messenger-region/
 locale places rm chrome/rm/locale/rm/places/
 manifest chrome/rm.manifest
+locale pippki rm chrome/rm/locale/rm/pippki/
 locale global-region rm chrome/rm/locale/rm/global-region/
 locale alerts rm chrome/rm/locale/rm/alerts/
 locale global rm chrome/rm/locale/rm/global/

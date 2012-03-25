@@ -8,15 +8,16 @@ locale editor sk chrome/sk/locale/sk/editor/
 locale cookie sk chrome/sk/locale/sk/cookie/
 locale autoconfig sk chrome/sk/locale/sk/autoconfig/
 locale places sk chrome/sk/locale/sk/places/
-locale branding sk chrome/sk/locale/sk/branding/
+locale testpilot sk chrome/sk/locale/sk/feedback/
 locale mozapps sk chrome/sk/locale/sk/mozapps/
 manifest chrome/sk.manifest
 locale mozldap sk chrome/sk/locale/sk/mozldap/
 locale messenger sk chrome/sk/locale/sk/messenger/
 locale pipnss sk chrome/sk/locale/sk/pipnss/
+locale communicator sk chrome/sk/locale/sk/communicator/
 locale global-platform sk chrome/sk/locale/sk/global-platform/
 locale necko sk chrome/sk/locale/sk/necko/
-locale communicator sk chrome/sk/locale/sk/communicator/
+locale branding sk chrome/sk/locale/sk/branding/
 locale messenger-region sk chrome/sk/locale/sk/messenger-region/
 locale messenger-smime sk chrome/sk/locale/sk/messenger-smime/
 locale messenger-newsblog sk chrome/sk/locale/sk/messenger-newsblog/

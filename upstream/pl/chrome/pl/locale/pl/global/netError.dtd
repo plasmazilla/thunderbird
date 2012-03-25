@@ -24,6 +24,10 @@
 <!ENTITY netInterrupt.title "Przerwano przesyłanie danych">
 <!ENTITY netInterrupt.longDesc "<p>Przeglądarka nawiązała połączenie, ale zostało ono przerwane podczas przesyłania informacji. Należy spróbować ponownie.</p><ul><li>Nie można oglądać innych witryn? Należy sprawdzić swoje połączenie z siecią.</li><li>Jeśli nadal występują problemy, należy skonsultować się z administratorem sieci lub dostawcą usług internetowych.</li></ul>">
 
+<!ENTITY notCached.title "Dokument wygasł">
+<!ENTITY notCached.longDesc "<p>Żądany dokument nie jest dostępny w pamięci podręcznej przeglądarki.</p><ul><li>Ze względów bezpieczeństwa przeglądarka
+nie pobiera ponownie wrażliwych dokumentów automatycznie.</li><li>Kliknij przycisk Spróbuj ponownie, aby jeszcze raz pobrać dokument z witryny.</li></ul>">
+
 <!ENTITY netOffline.title "Tryb offline">
 <!ENTITY netOffline.longDesc2 "<p>Przeglądarka pracuje w trybie offline i nie może pobrać żądanego elementu.</p><ul><li>Czy komputer podłączony jest do działającej sieci?</li><li>Naciśnij „Spróbuj ponownie”, by przejść do trybu online i odświeżyć stronę.</li></ul>">
 
@@ -44,7 +48,7 @@
 <!ENTITY netTimeout.longDesc "<p>Witryna przez dłuższy czas nie odpowiedziała na żądanie połączenia i przeglądarka przestała czekać na odpowiedź.</p><ul><li>Możliwe, że serwer tymczasowo nie działa lub jest nadmiernie obciążony. Jeśli tak, należy spróbować ponownie później.</li><li>Nie można oglądać innych witryn? Należy sprawdzić swoje połączenie z siecią.</li><li>Czy ten komputer lub sieć są chronione przez serwer proxy lub zaporę sieciową? Ich nieprawidłowa konfiguracja może powodować problemy z przeglądaniem witryn internetowych.</li><li>Jeśli nadal występują problemy, należy skonsultować się z administratorem sieci lub dostawcą usług internetowych.</li></ul>">
 
 <!ENTITY protocolNotFound.title "Nieznany protokół">
-<!ENTITY protocolNotFound.longDesc "<p>Adres zawiera protokół (np. <q>wxyz://</q>), który nie jest rozpoznawany przez przeglądarkę. Nie może więc ona poprawnie połączyć się z daną witryną.</p><ul><li>Czy próbowano korzystać z multimediów lub z innych usług nie opartych na tekście? Należy sprawdzić, czy witryna nie ma dodatkowych wymagań.</li><li>Obsługa niektórych protokołów może wymagać oprogramowania lub wtyczek dostarczonych przez zewnętrznych producentów.</li></ul>">
+<!ENTITY protocolNotFound.longDesc "<p>Adres zawiera protokół (np. <q>wxyz://</q>), który nie jest rozpoznawany przez przeglądarkę. Nie może więc ona poprawnie połączyć się z daną witryną.</p><ul><li>Czy próbowano korzystać z multimediów lub z innych usług nieopartych na tekście? Należy sprawdzić, czy witryna nie ma dodatkowych wymagań.</li><li>Obsługa niektórych protokołów może wymagać oprogramowania lub wtyczek dostarczonych przez zewnętrznych producentów.</li></ul>">
 
 <!ENTITY proxyConnectFailure.title "Serwer proxy odrzucił połączenie">
 <!ENTITY proxyConnectFailure.longDesc "<p>Przeglądarka została skonfigurowana tak, by używać serwera proxy, który jednak odrzucił połączenie.</p><ul><li>Czy konfiguracja serwerów proxy w przeglądarce jest prawidłowa? Należy sprawdzić ustawienia i spróbować ponownie.</li><li>Należy upewnić się, że serwer proxy dopuszcza połączenia z sieci użytkownika.</li><li>Jeśli nadal występują problemy, należy skonsultować się z administratorem sieci lub dostawcą usług internetowych.</li></ul>">

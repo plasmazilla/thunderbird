@@ -2,7 +2,8 @@ locale messenger zh-CN chrome/zh-CN/locale/zh-CN/messenger/
 locale messenger-mapi zh-CN chrome/zh-CN/locale/zh-CN/messenger-mapi/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale communicator zh-CN chrome/zh-CN/locale/zh-CN/communicator/
+locale testpilot zh-CN chrome/zh-CN/locale/zh-CN/feedback/
+locale branding zh-CN chrome/zh-CN/locale/zh-CN/branding/
 locale global-region zh-CN chrome/zh-CN/locale/zh-CN/global-region/
 locale mozapps zh-CN chrome/zh-CN/locale/zh-CN/mozapps/
 locale messenger-newsblog zh-CN chrome/zh-CN/locale/zh-CN/messenger-newsblog/
@@ -20,5 +21,5 @@ locale necko zh-CN chrome/zh-CN/locale/zh-CN/necko/
 locale global zh-CN chrome/zh-CN/locale/zh-CN/global/
 locale places zh-CN chrome/zh-CN/locale/zh-CN/places/
 locale pippki zh-CN chrome/zh-CN/locale/zh-CN/pippki/
-locale branding zh-CN chrome/zh-CN/locale/zh-CN/branding/
 locale autoconfig zh-CN chrome/zh-CN/locale/zh-CN/autoconfig/
+locale communicator zh-CN chrome/zh-CN/locale/zh-CN/communicator/

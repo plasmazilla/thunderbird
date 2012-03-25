@@ -17,6 +17,7 @@
 <!ENTITY attachFileCmd.label "Restr(où)…">
 <!ENTITY attachFileCmd.accesskey "r">
 <!ENTITY attachPageCmd.label "Pajenn Internet …">
+<!ENTITY attachFileCmd.key "A">
 <!ENTITY attachPageCmd.accesskey "n">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
 <!ENTITY attachVCardCmd.label "Fichenn bersonel (vCard)">
@@ -92,6 +93,8 @@
 <!ENTITY viewMenu.accesskey "w">
 <!ENTITY viewToolbarsMenuNew.label "Barrennoù ostilhoù"> 
 <!ENTITY viewToolbarsMenuNew.accesskey "B"> 
+<!ENTITY menubarCmd.label "Barrenn lañser">
+<!ENTITY menubarCmd.accesskey "B">
 <!ENTITY showCompositionToolbarCmd.label "Barrenn ostilhoù ar posteloù">
 <!ENTITY showCompositionToolbarCmd.accesskey "B">
 <!ENTITY showFormattingBarCmd.label "Barrenn ostilhoù mentrezhañ">

@@ -1,45 +1,45 @@
 <!ENTITY upgrade.style               "width: 93ch; height: 448px;">
 
-<!ENTITY checking.heading            "Checking Your Add-ons">
-<!ENTITY checking.progress.label     "Checking your add-ons for compatibility with this version of &brandShortName;.">
+<!ENTITY checking.heading            "Po kontrollohen Shtesat Tuaja">
+<!ENTITY checking.progress.label     "Shtesat tuaja po kontrollohen për përputhshmëri me këtë version të &brandShortName;-it.">
 
-<!ENTITY select.heading              "Select Your Add-ons">
+<!ENTITY select.heading              "Përzgjidhni ShtesaSelect">
 <!-- LOCALIZATION NOTE (select.description): The term used for "third parties"
      here should match the string source.other in selectAddons.properties. -->
-<!ENTITY select.description          "Make &brandShortName; even faster by disabling add-ons you no longer use. Add-ons already installed by third parties will be disabled automatically unless you select them below.">
-<!ENTITY select.keep                 "Keep">
+<!ENTITY select.description          "Bëjeni &brandShortName;-in edhe më të shpejtë, duke çaktivizuar shtesat që nuk  i përdorni më. Shtesat e instaluara tashmë nga palë të treta do të çaktivizohen vetvetiu, po qe se nuk i përzgjidhni më poshtë.">
+<!ENTITY select.keep                 "Mbaje">
 <!-- LOCALIZATION NOTE (select.keep.style): Should be a width wide enough for
      the string in select.keep above. -->
 <!ENTITY select.keep.style           "width: 6ch;">
-<!ENTITY select.action               "Action">
+<!ENTITY select.action               "Veprim">
 <!-- LOCALIZATION NOTE (select.action.style): Should be a width wide enough for
      the action strings in selectAddons.properties or brandShortName. -->
 <!ENTITY select.action.style         "width: 35ch;">
-<!ENTITY select.source               "Installed By">
-<!ENTITY select.name                 "Name">
+<!ENTITY select.source               "Instaluar Nga">
+<!ENTITY select.name                 "Emër">
 <!-- LOCALIZATION NOTE (select.name.style): Should be a width small enough so
      the source column still has enough room for the source strings in
      selectAddons.properties. -->
 <!ENTITY select.name.style           "width: 33ch;">
 
-<!ENTITY confirm.heading             "Select Your Add-ons">
+<!ENTITY confirm.heading             "Përzgjidhni Shtesat Tuaja">
 <!-- LOCALIZATION NOTE (confirm.description): The term used for "third parties"
      here should match the string source.other in selectAddons.properties. -->
-<!ENTITY confirm.description         "Make &brandShortName; even faster by disabling add-ons you no longer use. Add-ons already installed by third parties will be disabled automatically unless you select them below.">
+<!ENTITY confirm.description         "Bëjeni &brandShortName;-in edhe më të shpejtë, duke çaktivizuar shtesat që nuk  i përdorni më. Shtesat e instaluara tashmë nga palë të treta do të çaktivizohen vetvetiu, po qe se nuk i përzgjidhni më poshtë.">
 
-<!ENTITY action.disable.heading      "The following add-ons will be disabled:">
-<!ENTITY action.incompatible.heading "The following add-ons are disabled, but will be enabled as soon as they are compatible:">
-<!ENTITY action.update.heading       "The following add-ons will be updated:">
-<!ENTITY action.enable.heading       "The following add-ons will be enabled:">
+<!ENTITY action.disable.heading      "Shtesat vijuese do të çaktivizohen:">
+<!ENTITY action.incompatible.heading "Shtesat vijuese janë të çaktivizuara, por do të aktivizohen sapo të jenë të përputhshme:">
+<!ENTITY action.update.heading       "Shtesat vijuese do të përditësohen:">
+<!ENTITY action.enable.heading       "Shtesat vijuese do të aktivizohen:">
 
-<!ENTITY update.heading              "Updating Your Add-ons">
-<!ENTITY update.progress.label       "Downloading and installing updates for your selected add-ons.">
+<!ENTITY update.heading              "Po përditësohen Shtesat Tuaja">
+<!ENTITY update.progress.label       "Po shkarkohen dhe instalohen përditësime për shtesat e përzgjedhura nga ju.">
 
-<!ENTITY errors.heading              "&brandShortName; could not update some of your add-ons.">
-<!ENTITY errors.description          "Installing updates for some of your add-ons failed. &brandShortName; will automatically try to update them again later.">
+<!ENTITY errors.heading              "&brandShortName;-i nuk i përditësoi dot disa nga shtesat tuaja.">
+<!ENTITY errors.description          "Instalimi i përditësimeve për disa nga shtesat tuaja dështoi. &brandShortName;-i do të riprovojë vetvetiu t&apos;i përditësojë ato më vonë.">
 
-<!ENTITY footer.label                "You can always change your add-ons by going to the Add-ons Manager.">
-<!ENTITY cancel.label                "Cancel">
-<!ENTITY back.label                  "Back">
-<!ENTITY next.label                  "Next">
-<!ENTITY done.label                  "Done">
+<!ENTITY footer.label                "Shtesat mund t&apos;i ndryshoni kur të doni, duke shkuar te Përgjegjësi i Shtesave.">
+<!ENTITY cancel.label                "Anuloje">
+<!ENTITY back.label                  "Mbrapsht">
+<!ENTITY next.label                  "Pasuesja">
+<!ENTITY done.label                  "U bë">

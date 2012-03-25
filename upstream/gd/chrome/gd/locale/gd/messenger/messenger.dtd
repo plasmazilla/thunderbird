@@ -26,8 +26,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "s">
 <!ENTITY newOtherAccountsCmd.label "Cunntasan eile…">
 <!ENTITY newOtherAccountsCmd.accesskey "C">
-<!ENTITY newEmailAccountCmd.label "Cunntas puist…">
-<!ENTITY newEmailAccountCmd.accesskey "a">
+<!ENTITY newCreateEmailAccountCmd.label "Faigh cunntas puist ùr…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "a">
+<!ENTITY newExistingEmailAccountCmd.label "Cunntas puist a tha agad mu thràth…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "u">
 <!ENTITY openMessageFileCmd.label "Fosgail teachdaireachd a chaidh a shàbhaladh…">
 <!ENTITY openMessageFileCmd.accesskey "o">
 <!ENTITY openAttachmentCmd.label "Ceanglachain">
@@ -122,6 +124,8 @@
 <!ENTITY redoDefaultCmd.accesskey "A">
 
 <!-- View Menu -->
+<!ENTITY menubarCmd.label "Bàr a' chlàir-thaice">
+<!ENTITY menubarCmd.accesskey "r">
 <!ENTITY showMessengerToolbarCmd.label "Bàr-inneil a' phuist">
 <!ENTITY showMessengerToolbarCmd.accesskey "B">
 <!ENTITY customizeToolbar.label "Gnàthaich…">
@@ -135,7 +139,9 @@
 <!ENTITY messagePaneWide.accesskey "A">
 <!ENTITY messagePaneVertical.label "Sealladh inghearach">
 <!ENTITY messagePaneVertical.accesskey "S">
-<!ENTITY showMessageCmd.label "Leòs na teachdaireachd">
+<!ENTITY showFolderPaneCmd.label "Leòsan nam pasgan">
+<!ENTITY showFolderPaneCmd.accesskey "m">
+<!ENTITY showMessageCmd.label "Leòsan na teachdaireachd">
 <!ENTITY showMessageCmd.accesskey "L">
 
 <!ENTITY folderView.label "Pasgain">
@@ -272,6 +278,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label "Bun-tùs na teachdaireachd">
 <!ENTITY pageSourceCmd.accesskey "B">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 
 <!-- Search Menu -->
 <!ENTITY findMenu.label "Lorg">
@@ -501,12 +509,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY previousButton.label "Air ais">
 <!ENTITY backButton1.label "Air ais">
 <!ENTITY goForwardButton1.label "Air adhart">
+<!ENTITY deleteItem.title "Sguab às">
 <!ENTITY deleteButton.label "Sguab às">
 <!ENTITY undeleteButton.label "Neo-dhèan an sguabadh às">
 <!ENTITY markButton.label "Cuir comharra">
 <!ENTITY printButton.label "Clò-bhuail">
 <!ENTITY stopButton.label "Sguir dheth">
 <!ENTITY throbberItem.title "Tosgair gnìomhachd">
+<!ENTITY junkItem.title "Truilleis">
 <!ENTITY junkButton.label "Truilleis">
 <!ENTITY notJunkButton.label "Post còir">
 <!ENTITY addressBookButton.label "Leabhar nan seòladh">
@@ -801,9 +811,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY AddToAddressBook.accesskey "b">
 <!ENTITY AddDirectlyToAddressBook.label "Cuir ri leabhar nan seòladh">
 <!ENTITY AddDirectlyToAddressBook.accesskey "b">
-<!ENTITY EditContact.label "Deasaich a' charaid…">
+<!ENTITY EditContact.label "Deasaich an neach-aithne…">
 <!ENTITY EditContact.accesskey "e">
-<!ENTITY ViewContact.label "Seall a' charaid">
+<!ENTITY ViewContact.label "Seall an neach-aithne">
 <!ENTITY ViewContact.accesskey "S">
 <!ENTITY SubscribeToNewsgroup.label "Fo-sgrìobh gun bhuidheann-naidheachd">
 <!ENTITY SubscribeToNewsgroup.accesskey "n">

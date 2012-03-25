@@ -79,6 +79,8 @@
 <!ENTITY viewMenu.accesskey                             "v">
 <!ENTITY viewToolbarsMenu.label                         "ਟੂਲਬਾਰ">
 <!ENTITY viewToolbarsMenu.accesskey                     "T"> 
+<!ENTITY menubarCmd.label                               "ਮੇਨੂ ਪੱਟੀ">
+<!ENTITY menubarCmd.accesskey                           "M">
 <!ENTITY showAbToolbarCmd.label                         "ਐਡਰੈੱਸ ਬੁੱਕ ਟੂਲਬਾਰ">
 <!ENTITY showAbToolbarCmd.accesskey                     "o">
 <!ENTITY showTaskbarCmd.label                           "ਹਾਲਤ-ਪੱਟੀ">
@@ -204,3 +206,13 @@
 <!ENTITY minimizeWindow.key "m">
 <!ENTITY bringAllToFront.label "ਸਭ ਤੋਂ ਅੱਗੇ ਲਿਆਓ">
 <!ENTITY zoomWindow.label "ਜ਼ੂਮ">
+<!ENTITY firstLastCmd2.accesskey                        "f"> 
+<!-- LOCALIZATION NOTE (firstLastCmd2.label): We're not including a comma here
+because displayed names don't have the comma in between. -->
+<!ENTITY firstLastCmd2.label                            "First Last">
+<!ENTITY layoutMenu.accesskey                           "L">
+<!ENTITY layoutMenu.label                               "Layout">
+<!ENTITY showContactPane2.accesskey                     "C">
+<!ENTITY showContactPane2.label                         "Contact Pane">
+<!ENTITY showDirectoryPane.accesskey                    "D">
+<!ENTITY showDirectoryPane.label                        "Directory Pane">

@@ -862,3 +862,17 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY showAllAppsCmdMac.label        "Hiện Tất Cả">
 <!ENTITY bodyAllParts.accesskey "A">
 <!ENTITY bodyAllParts.label "All Body Parts">
+<!ENTITY deleteItem.title "Delete">
+<!ENTITY getAllNewMessagesCmd.key "Y">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY junkItem.title "Junk">
+<!ENTITY menubarCmd.accesskey "M">
+
+<!-- View Menu -->
+<!ENTITY menubarCmd.label "Menu Bar">
+<!ENTITY newCreateEmailAccountCmd.accesskey "G">
+<!ENTITY newCreateEmailAccountCmd.label "Get a New Mail Account…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "E">
+<!ENTITY newExistingEmailAccountCmd.label "Existing Mail Account…">
+<!ENTITY showFolderPaneCmd.accesskey "F">
+<!ENTITY showFolderPaneCmd.label "Folder Pane">

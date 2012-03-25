@@ -43,54 +43,21 @@
 <!-- Attn: Localization - some of the menus in this dialog directly affect mail also. -->
 
 <!-- File menu items -->
-<!ENTITY fileMenu.label "Soubor">
-<!ENTITY fileMenu.accesskey "S">
-<!ENTITY openFileCmd.label "Otevřít soubor…">
-<!ENTITY openFileCmd.accesskey "O">
-<!ENTITY openFileCmd.key "O">
-<!ENTITY openRemoteCmd.label "Otevřít adresu…">
-<!ENTITY openRemoteCmd.accesskey "a">
-<!ENTITY openRemoteCmd.key "L">
-<!ENTITY fileRecentMenu.label "Poslední dokumenty">
-<!ENTITY fileRecentMenu.accesskey "d">
-<!ENTITY fileRevert.label "Zpět">
-<!ENTITY fileRevert.accesskey "Z">
-<!ENTITY saveCmd.label "Uložit">
-<!ENTITY saveCmd.accesskey "U">
 <!ENTITY saveCmd.key "S">
-<!ENTITY saveAsCmd.label "Uložit jako…">
-<!ENTITY saveAsCmd.accesskey "l">
-
-<!ENTITY publishCmd.label "Publikovat">
-<!ENTITY publishCmd.accesskey "P">
-<!ENTITY publishCmd.key "S">
-<!ENTITY publishAsCmd.label "Publikovat jako…">
-<!ENTITY publishAsCmd.accesskey "i">
-<!ENTITY saveAsChangeEncodingCmd.label "Uložit ve znakové sadě">
-<!ENTITY saveAsChangeEncodingCmd.accesskey "v">
-<!ENTITY printSetupCmd.label "Vzhled stránky…">
-<!ENTITY printSetupCmd.accesskey "r">
-<!ENTITY printCmd.label "Tisk…">
-<!ENTITY printCmd.accesskey "t">
-<!ENTITY printCmd.key "p">
 
 <!-- Edit menu items -->
-<!ENTITY editMenu.label "Úpravy">
-<!ENTITY editMenu.accesskey "a">
 <!ENTITY pasteNoFormatting.label "Vložit bez formátování">
 <!ENTITY pasteNoFormatting.accesskey "f">
 <!ENTITY pasteNoFormatting.key "V">
 <!ENTITY pasteAs.label "Vložit jako">
 <!ENTITY pasteAs.accesskey "j">
-<!ENTITY publishSettings.label "Nastavení pro publikování…">
-<!ENTITY publishSettings.accesskey "b">
 <!ENTITY pasteAsQuotationCmd.label "Vložit jako citaci">
 <!ENTITY pasteAsQuotationCmd.accesskey "c">
 <!ENTITY pasteAsQuotationCmd.key "o">
 <!ENTITY findCmd.label "Najít/nahradit…">
 <!ENTITY enableInlineSpellChecker.label "Automatická kontrola pravopisu">
 <!ENTITY enableInlineSpellChecker.accesskey "S">
-<!ENTITY checkSpellingCmd2.label "Kontrola pravopisu">
+<!ENTITY checkSpellingCmd2.label "Kontrola pravopisu…">
 <!ENTITY checkSpellingCmd2.accesskey "p">
 <!ENTITY checkSpellingCmd2.key "p">
 
@@ -215,7 +182,7 @@
 <!ENTITY formatRemoveLinks.key "k">
 <!ENTITY formatRemoveNamedAnchors.label "Odstranit cílové kotvy">
 <!ENTITY formatRemoveNamedAnchors.accesskey "c">
-<!ENTITY formatRemoveNamedAnchors.key "a">
+<!ENTITY formatRemoveNamedAnchors2.key "r">
 
 <!ENTITY paragraphMenu.label "Odstavec">
 <!ENTITY paragraphMenu.accesskey "o">

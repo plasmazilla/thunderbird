@@ -22,3 +22,4 @@ locale mozapps ko chrome/ko/locale/ko/mozapps/
 locale messenger-mapi ko chrome/ko/locale/ko/messenger-mapi/
 locale messenger-region ko chrome/ko/locale/ko/messenger-region/
 locale global ko chrome/ko/locale/ko/global/
+locale testpilot ko chrome/ko/locale/ko/feedback/

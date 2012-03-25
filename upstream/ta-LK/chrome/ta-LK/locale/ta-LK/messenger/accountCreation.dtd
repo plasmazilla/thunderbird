@@ -84,3 +84,5 @@ Entities below were automatically added by compare-locales,
 <!ENTITY password.placeholder "கடவுச்சொல்">
 <!ENTITY pop3.label "POP3">
 <!ENTITY manual-edit.accesskey "M">
+<!ENTITY switch-to-provisioner.accesskey "G">
+<!ENTITY switch-to-provisioner.label     "Get a new account">

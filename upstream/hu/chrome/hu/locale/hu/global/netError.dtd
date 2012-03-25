@@ -21,8 +21,11 @@
 <!ENTITY malformedURI.title "Érvénytelen cím">
 <!ENTITY malformedURI.longDesc "<p>A megadott cím formátuma nem felismerhető. Ellenőrizze a címsorba beírtakat, javítsa a hibákat, és próbálja meg újra.</p>">
 
-<!ENTITY netInterrupt.title "Adatátvitel megszakadt">
+<!ENTITY netInterrupt.title "Az adatátvitel megszakadt">
 <!ENTITY netInterrupt.longDesc "<p>A böngésző sikeresen csatlakozott, de a kapcsolat megszakadt az adatátvitel közben.  Próbálja újra később.</p><ul><li>Más webhelyeket sem képes elérni? Ellenőrizze a számítógép hálózati kapcsolatát.</li><li>Továbbra is fennáll a probléma? Kérjen segítséget a rendszergazdától vagy az internetszolgáltatójától.</li></ul>">
+
+<!ENTITY notCached.title "A dokumentum lejárt">
+<!ENTITY notCached.longDesc "<p>A kért dokumentum nem érhető el a böngésző gyorsítótárában.</p><ul><li>Biztonsági okokból a böngésző nem kéri le automatikusan az érzékeny adatokat tartalmazó dokumentumokat.</li><li>Kattintson a „Próbálja újra” gombra, hogy újra lekérje a dokumentumot a webhelyről.</li></ul>">
 
 <!ENTITY netOffline.title "Kapcsolat nélküli mód">
 <!ENTITY netOffline.longDesc2 "<p>A böngésző kapcsolat nélküli módban van, ezért nem tud csatlakozni a kért elemhez.</p><ul><li>Csatlakoztatva van a számítógép a hálózathoz?</li><li>Nyomja meg a &quot;Próbálja újra&quot; gombot az online módba váltáshoz és az oldal újratöltéséhez.</li></ul>">

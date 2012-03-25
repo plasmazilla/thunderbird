@@ -5,6 +5,7 @@ locale pippki vi chrome/vi/locale/vi/pippki/
 locale editor vi chrome/vi/locale/vi/editor/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale necko vi chrome/vi/locale/vi/necko/
+locale testpilot vi chrome/vi/locale/vi/feedback/
 locale passwordmgr vi chrome/vi/locale/vi/passwordmgr/
 locale communicator vi chrome/vi/locale/vi/communicator/
 manifest chrome/vi.manifest

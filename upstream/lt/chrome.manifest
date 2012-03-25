@@ -3,6 +3,7 @@ override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.
 locale editor lt chrome/lt/locale/lt/editor/
 locale global lt chrome/lt/locale/lt/global/
 locale necko lt chrome/lt/locale/lt/necko/
+locale testpilot lt chrome/lt/locale/lt/feedback/
 locale mozldap lt chrome/lt/locale/lt/mozldap/
 locale autoconfig lt chrome/lt/locale/lt/autoconfig/
 locale pipnss lt chrome/lt/locale/lt/pipnss/
@@ -18,7 +19,7 @@ locale messenger lt chrome/lt/locale/lt/messenger/
 locale branding lt chrome/lt/locale/lt/branding/
 locale global-platform lt chrome/lt/locale/lt/global-platform/
 locale messenger-newsblog lt chrome/lt/locale/lt/messenger-newsblog/
-locale passwordmgr lt chrome/lt/locale/lt/passwordmgr/
+locale messenger-smime lt chrome/lt/locale/lt/messenger-smime/
 locale mozapps lt chrome/lt/locale/lt/mozapps/
 locale places lt chrome/lt/locale/lt/places/
-locale messenger-smime lt chrome/lt/locale/lt/messenger-smime/
+locale passwordmgr lt chrome/lt/locale/lt/passwordmgr/

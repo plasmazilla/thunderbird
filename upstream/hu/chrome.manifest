@@ -1,3 +1,4 @@
+locale testpilot hu chrome/hu/locale/hu/feedback/
 locale necko hu chrome/hu/locale/hu/necko/
 locale messenger-region hu chrome/hu/locale/hu/messenger-region/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd

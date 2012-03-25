@@ -23,8 +23,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "S">
 <!ENTITY newOtherAccountsCmd.label "Cuntais Eile… ">
 <!ENTITY newOtherAccountsCmd.accesskey "C">
-<!ENTITY newEmailAccountCmd.label "Cuntas Ríomhphoist…">
-<!ENTITY newEmailAccountCmd.accesskey "a">
+<!ENTITY newCreateEmailAccountCmd.label "Faigh cuntas nua ríomhphoist…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "g">
+<!ENTITY newExistingEmailAccountCmd.label "Cuntas ríomhphoist atá ann…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "a">
 <!ENTITY openMessageFileCmd.label "Oscail Teachtaireacht Shábháilte…">
 <!ENTITY openMessageFileCmd.accesskey "O">
 <!ENTITY openAttachmentCmd.label "Iatáin">
@@ -119,6 +121,8 @@
 <!ENTITY redoDefaultCmd.accesskey "f">
 <!-- View Menu -->
 
+<!ENTITY menubarCmd.label "Barra Roghchláir">
+<!ENTITY menubarCmd.accesskey "B">
 <!ENTITY showMessengerToolbarCmd.label "Príomhbharra Uirlisí">
 <!ENTITY showMessengerToolbarCmd.accesskey "U">
 <!ENTITY customizeToolbar.label "Saincheap…">
@@ -132,6 +136,8 @@
 <!ENTITY messagePaneWide.accesskey "L">
 <!ENTITY messagePaneVertical.label "Amharc Ingearach">
 <!ENTITY messagePaneVertical.accesskey "I">
+<!ENTITY showFolderPaneCmd.label "Pána an Fhillteáin">
+<!ENTITY showFolderPaneCmd.accesskey "F">
 <!ENTITY showMessageCmd.label "Pána Teachtaireachta">
 <!ENTITY showMessageCmd.accesskey "T">
 
@@ -270,6 +276,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label "Foinse Teachtaireachtaí">
 <!ENTITY pageSourceCmd.accesskey "o">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 <!-- Search Menu -->
 
 <!ENTITY findMenu.label "Aimsigh">
@@ -499,12 +507,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY previousButton.label "Siar">
 <!ENTITY backButton1.label "Siar">
 <!ENTITY goForwardButton1.label "Ar Aghaidh">
+<!ENTITY deleteItem.title "Scrios">
 <!ENTITY deleteButton.label "Scrios">
 <!ENTITY undeleteButton.label "Díscrios">
 <!ENTITY markButton.label "Marcáil">
 <!ENTITY printButton.label "Priontáil">
 <!ENTITY stopButton.label "Stad">
 <!ENTITY throbberItem.title "Táscaire Gníomhaíochta">
+<!ENTITY junkItem.title "Dramhphost">
 <!ENTITY junkButton.label "Dramhphost">
 <!ENTITY notJunkButton.label "Post Ceart">
 <!ENTITY addressBookButton.label "Leabhar Seoltaí">

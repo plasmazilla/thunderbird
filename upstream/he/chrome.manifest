@@ -22,3 +22,4 @@ locale cookie he chrome/he/locale/he/cookie/
 locale pipnss he chrome/he/locale/he/pipnss/
 locale messenger he chrome/he/locale/he/messenger/
 locale global-region he chrome/he/locale/he/global-region/
+locale testpilot he chrome/he/locale/he/feedback/

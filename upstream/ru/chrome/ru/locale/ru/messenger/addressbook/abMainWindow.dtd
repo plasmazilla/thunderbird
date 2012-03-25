@@ -70,19 +70,25 @@
 <!ENTITY viewMenu.accesskey "В">
 <!ENTITY viewToolbarsMenu.label "Панели инструментов">
 <!ENTITY viewToolbarsMenu.accesskey "П">
+<!ENTITY menubarCmd.label "Панель меню">
+<!ENTITY menubarCmd.accesskey "е">
 <!ENTITY showAbToolbarCmd.label "Панель адресной книги">
 <!ENTITY showAbToolbarCmd.accesskey "а">
 <!ENTITY showTaskbarCmd.label "Строка состояния">
 <!ENTITY showTaskbarCmd.accesskey "С">
 <!ENTITY customizeToolbar.label "Настроить…">
 <!ENTITY customizeToolbar.accesskey "Н">
-<!ENTITY showContactPane.label "Область окна контакта">
-<!ENTITY showContactPane.accesskey "б">
+<!ENTITY layoutMenu.label "Разбивка окна">
+<!ENTITY layoutMenu.accesskey "б">
+<!ENTITY showDirectoryPane.label "Панель каталогов">
+<!ENTITY showDirectoryPane.accesskey "а">
+<!ENTITY showContactPane2.label "Панель контактов">
+<!ENTITY showContactPane2.accesskey "к">
 <!ENTITY menu_ShowNameAs.label "Показывать имя как">
 <!ENTITY menu_ShowNameAs.accesskey "П">
-<!ENTITY firstLastCmd.label "Имя, Фамилия">
-<!ENTITY firstLastCmd.accesskey "И">
-<!ENTITY lastFirstCmd.label "Фамилия, Имя">
+<!ENTITY firstLastCmd2.label "Имя Фамилия">
+<!ENTITY firstLastCmd2.accesskey "И">
+<!ENTITY lastFirstCmd.label "Фамилия Имя">
 <!ENTITY lastFirstCmd.accesskey "Ф">
 <!ENTITY displayNameCmd.label "Отображаемое имя">
 <!ENTITY displayNameCmd.accesskey "О">

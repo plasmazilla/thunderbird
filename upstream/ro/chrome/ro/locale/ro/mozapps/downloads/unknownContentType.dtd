@@ -1,3 +1,5 @@
+<!--
+-->
 <!-- -*- Mode: Java; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
 -->
 
@@ -23,5 +25,4 @@
 <!ENTITY  chooseHandler.accesskey     "R">
 
 <!ENTITY  unknownPromptText.label     "Doriți să salvați acest fișier?">
-
 

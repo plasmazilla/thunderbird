@@ -1,3 +1,9 @@
+<!--
+# Reviewer(s):
+#
+# Alexandru Szasz <alexxed@gmail.com>
+#
+-->
 <!-- ***** BEGIN LICENSE BLOCK *****
    - Version: MPL 1.1/GPL 2.0/LGPL 2.1
    -
@@ -44,18 +50,17 @@
 <!ENTITY reset.value "Resetează">
 <!ENTITY button.value "buton">
 
-<!ENTITY ButtonName.label "Numele:">
+<!ENTITY ButtonName.label "Nume:">
 <!ENTITY ButtonName.accesskey "N">
 <!ENTITY ButtonValue.label "Valoare:">
 <!ENTITY ButtonValue.accesskey "V">
 <!ENTITY tabIndex.label "Index tab:">
 <!ENTITY tabIndex.accesskey "I">
-<!ENTITY ButtonDisabled.label "Inactivat">
-<!ENTITY ButtonDisabled.accesskey "I">
+<!ENTITY ButtonDisabled.label "Dezactivat">
+<!ENTITY ButtonDisabled.accesskey "D">
 <!ENTITY AccessKey.label "Tastă acces:">
 <!ENTITY AccessKey.accesskey "a">
 
 <!ENTITY RemoveButton.label "Elimină buton">
 <!ENTITY RemoveButton.accesskey "E">
-
 

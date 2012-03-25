@@ -36,7 +36,9 @@
    - ***** END LICENSE BLOCK ***** -->
 
 <!ENTITY windowTitle.label "İsimlendirilmiş Belirteç Özellikleri">
-<!ENTITY anchorNameEditField.label "Belirteç İsmi:">
+<!ENTITY anchorNameEditField.label "Belirteç ismi:">
 <!ENTITY anchorNameEditField.accessKey "e">
 <!ENTITY nameInput.tooltip "Bu isimlendirilmiş belirteç (hedef) için benzersiz bir isim girin">
+
+
 

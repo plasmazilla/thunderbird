@@ -43,54 +43,21 @@
 <!-- Attn: Localization - some of the menus in this dialog directly affect mail also. -->
 
 <!-- File menu items -->
-<!ENTITY fileMenu.label "Bestand">
-<!ENTITY fileMenu.accesskey "B">
-<!ENTITY openFileCmd.label "Bestand openen…">
-<!ENTITY openFileCmd.accesskey "o">
-<!ENTITY openFileCmd.key "o">
-<!ENTITY openRemoteCmd.label "Weblocatie openen…">
-<!ENTITY openRemoteCmd.accesskey "l">
-<!ENTITY openRemoteCmd.key "l">
-<!ENTITY fileRecentMenu.label "Recente pagina’s">
-<!ENTITY fileRecentMenu.accesskey "R">
-<!ENTITY fileRevert.label "Terugkeren">
-<!ENTITY fileRevert.accesskey "T">
-<!ENTITY saveCmd.label "Opslaan">
-<!ENTITY saveCmd.accesskey "p">
 <!ENTITY saveCmd.key "s">
-<!ENTITY saveAsCmd.label "Opslaan als…">
-<!ENTITY saveAsCmd.accesskey "s">
-
-<!ENTITY publishCmd.label "Publiceren">
-<!ENTITY publishCmd.accesskey "u">
-<!ENTITY publishCmd.key "S">
-<!ENTITY publishAsCmd.label "Publiceren als…">
-<!ENTITY publishAsCmd.accesskey "c">
-<!ENTITY saveAsChangeEncodingCmd.label "Opslaan en tekenset wijzigen">
-<!ENTITY saveAsChangeEncodingCmd.accesskey "k">
-<!ENTITY printSetupCmd.label "Pagina-instellingen…">
-<!ENTITY printSetupCmd.accesskey "i">
-<!ENTITY printCmd.label "Afdrukken…">
-<!ENTITY printCmd.accesskey "d">
-<!ENTITY printCmd.key "p">
 
 <!-- Edit menu items -->
-<!ENTITY editMenu.label "Bewerken">
-<!ENTITY editMenu.accesskey "w">
 <!ENTITY pasteNoFormatting.label "Plakken zonder opmaak">
 <!ENTITY pasteNoFormatting.accesskey "m">
 <!ENTITY pasteNoFormatting.key "V">
 <!ENTITY pasteAs.label "Plakken als">
 <!ENTITY pasteAs.accesskey "P">
-<!ENTITY publishSettings.label "Publicatiewebsite-instellingen…">
-<!ENTITY publishSettings.accesskey "b">
 <!ENTITY pasteAsQuotationCmd.label "Plakken als citaat">
 <!ENTITY pasteAsQuotationCmd.accesskey "c">
 <!ENTITY pasteAsQuotationCmd.key "o">
 <!ENTITY findCmd.label "Zoeken en vervangen…">
 <!ENTITY enableInlineSpellChecker.label "Spelling controleren tijdens typen">
 <!ENTITY enableInlineSpellChecker.accesskey "S">
-<!ENTITY checkSpellingCmd2.label "Spelling controleren">
+<!ENTITY checkSpellingCmd2.label "Spelling controleren…">
 <!ENTITY checkSpellingCmd2.accesskey "c">
 <!ENTITY checkSpellingCmd2.key "p">
 
@@ -215,7 +182,7 @@
 <!ENTITY formatRemoveLinks.key "k">
 <!ENTITY formatRemoveNamedAnchors.label "Ankerverwijzingen verwijderen">
 <!ENTITY formatRemoveNamedAnchors.accesskey "w">
-<!ENTITY formatRemoveNamedAnchors.key "a">
+<!ENTITY formatRemoveNamedAnchors2.key "R">
 
 <!ENTITY paragraphMenu.label "Alinea">
 <!ENTITY paragraphMenu.accesskey "A">

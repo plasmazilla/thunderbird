@@ -23,8 +23,10 @@
 <!ENTITY newVirtualFolderCmd.accesskey "G">
 <!ENTITY newOtherAccountsCmd.label "Bestelako kontuak…">
 <!ENTITY newOtherAccountsCmd.accesskey "B">
-<!ENTITY newEmailAccountCmd.label "Posta-kontua…">
-<!ENTITY newEmailAccountCmd.accesskey "k">
+<!ENTITY newCreateEmailAccountCmd.label "Lortu posta-kontu berria…">
+<!ENTITY newCreateEmailAccountCmd.accesskey "L">
+<!ENTITY newExistingEmailAccountCmd.label "Badagoen posta-kontua…">
+<!ENTITY newExistingEmailAccountCmd.accesskey "B">
 <!ENTITY openMessageFileCmd.label "Ireki gordetako mezua…">
 <!ENTITY openMessageFileCmd.accesskey "I">
 <!ENTITY openAttachmentCmd.label "Eranskinak">
@@ -119,6 +121,8 @@
 <!ENTITY redoDefaultCmd.accesskey "r">
 <!-- View Menu -->
 
+<!ENTITY menubarCmd.label "Menu-barra">
+<!ENTITY menubarCmd.accesskey "M">
 <!ENTITY showMessengerToolbarCmd.label "Postaren tresna-barra">
 <!ENTITY showMessengerToolbarCmd.accesskey "o">
 <!ENTITY customizeToolbar.label "Pertsonalizatu…">
@@ -132,6 +136,8 @@
 <!ENTITY messagePaneWide.accesskey "Z">
 <!ENTITY messagePaneVertical.label "Bistaratze bertikala">
 <!ENTITY messagePaneVertical.accesskey "B">
+<!ENTITY showFolderPaneCmd.label "Karpeten panela">
+<!ENTITY showFolderPaneCmd.accesskey "K">
 <!ENTITY showMessageCmd.label "Mezuen panela">
 <!ENTITY showMessageCmd.accesskey "M">
 
@@ -270,6 +276,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY pageSourceCmd.label "Mezuaren iturburua">
 <!ENTITY pageSourceCmd.accesskey "u">
 <!ENTITY pageSourceCmd.key "u">
+<!ENTITY getNewMessagesCmd.key "y">
+<!ENTITY getAllNewMessagesCmd.key "Y">
 <!-- Search Menu -->
 
 <!ENTITY findMenu.label "Bilatu">
@@ -499,12 +507,14 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY previousButton.label "Aurrekoa">
 <!ENTITY backButton1.label "Atzera">
 <!ENTITY goForwardButton1.label "Aurrera">
+<!ENTITY deleteItem.title "Ezabatu">
 <!ENTITY deleteButton.label "Ezabatu">
 <!ENTITY undeleteButton.label "Desezabatu">
 <!ENTITY markButton.label "Markatu">
 <!ENTITY printButton.label "Inprimatu">
 <!ENTITY stopButton.label "Gelditu">
 <!ENTITY throbberItem.title "Jarduera-adierazlea">
+<!ENTITY junkItem.title "Zabor-posta">
 <!ENTITY junkButton.label "Zabor-posta">
 <!ENTITY notJunkButton.label "Ez da zaborra">
 <!ENTITY addressBookButton.label "Helbide-liburua">
@@ -815,7 +825,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY CopyNewsgroupURL.accesskey "U">
 <!ENTITY CreateFilterFrom.label "Sortu iragazkia…">
 <!ENTITY CreateFilterFrom.accesskey "S">
-<!ENTITY reportPhishingURL.label "E-posta iruzur baten berri eman">
+<!ENTITY reportPhishingURL.label "Eman posta-iruzurraren berri">
 <!ENTITY reportPhishingURL.accesskey "o">
 <!-- Spell checker context menu items -->
 

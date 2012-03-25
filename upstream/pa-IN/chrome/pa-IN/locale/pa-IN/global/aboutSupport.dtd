@@ -20,6 +20,8 @@
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "ਚਾਲੂ ਪਲੱਗਇਨ">
 <!ENTITY aboutSupport.appBasicsBuildConfig "ਬਿਲਡ ਸੰਰਚਨਾ">
 <!ENTITY aboutSupport.appBasicsUserAgent "ਯੂਜ਼ਰ ਏਜੰਟ">
+<!ENTITY aboutSupport.appBasicsCrashIDs "ਕਰੈਸ਼ ਰਿਪੋਰਟ">
+<!ENTITY aboutSupport.appBasicsMemoryUse "ਮੈਮੋਰੀ ਵਰਤੋਂ">
 
 <!ENTITY aboutSupport.show.label "ਰੱਖਣ ਵਾਲਾ ਫੋਲਡਰ ਖੋਲ੍ਹੋ">
 
@@ -38,4 +40,3 @@ variant of aboutSupport.show.label.  This allows us to use the preferred
 <!ENTITY aboutSupport.updateHistoryTitle "ਅੱਪਡੇਟ ਅਤੀਤ">
 
 <!ENTITY aboutSupport.copyToClipboard.label "ਸਭ ਕਲਿੱਪਬੋਰਡ 'ਚ ਕਾਪੀ ਕਰੋ">
-<!ENTITY aboutSupport.appBasicsCrashIDs "Crash Reports">

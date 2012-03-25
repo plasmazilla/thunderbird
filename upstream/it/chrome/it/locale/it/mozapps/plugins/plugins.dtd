@@ -14,6 +14,7 @@
 <!ENTITY pluginWizard.finalPage.moreInfo.label "Cerca altre informazioni sui plugin o cerca manualmente i plugin mancanti.">
 <!ENTITY pluginWizard.finalPage.restart.label "&brandShortName; deve essere riavviato affinché i plugin funzionino.">
 <!ENTITY missingPlugin "Per visualizzare questo contenuto è richiesto un plugin.">
+<!ENTITY clickToPlayPlugin "Tocca qui per attivare il plugin.">
 <!ENTITY disabledPlugin "Questo plugin è disattivato.">
 <!ENTITY blockedPlugin.label "Questo plugin è stato bloccato per motivi di sicurezza.">
 <!ENTITY installPlugin "Installa plugin…">
@@ -21,7 +22,7 @@
 <!ENTITY reloadPlugin.pre " ">
 <!ENTITY reloadPlugin.middle "Ricaricare la pagina">
 <!ENTITY reloadPlugin.post " per riprovare.">
-<!ENTITY report.please "Invia segnalazione">
+<!ENTITY report.checkbox "… e invia una segnalazione">
 <!ENTITY report.submitting "Invio in corso…">
 <!ENTITY report.submitted "Segnalazione inviata.">
 <!ENTITY report.disabled "Invio segnalazioni disattivato.">

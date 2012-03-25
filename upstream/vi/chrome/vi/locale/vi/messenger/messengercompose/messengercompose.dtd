@@ -275,3 +275,6 @@
 <!-- Title for the address picker panel -->
 <!ENTITY addressesSidebarTitle.label "Danh bạ">
 
+<!ENTITY attachFileCmd.key "A">
+<!ENTITY menubarCmd.accesskey "M">
+<!ENTITY menubarCmd.label "Menu Bar">

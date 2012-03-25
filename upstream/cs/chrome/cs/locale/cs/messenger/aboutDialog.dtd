@@ -5,7 +5,7 @@
 <!ENTITY community.mozillaLink "&vendorShortName;">
 <!ENTITY community.middle2 " a ">
 <!-- LOCALIZATION NOTE (community.creditsLink): This is a link title that links to about:credits. -->
-<!ENTITY community.creditsLink "globalní komunitou">
+<!ENTITY community.creditsLink "globální komunitou">
 <!ENTITY community.end2 ", která se společně snaží zlepšit Internet. Věříme, že by Internet měl být veřejně dostupný, otevřený a přístupný pro všechny bez jakýchkoliv omezení.">
 
 <!ENTITY contribute.start "Zní to zajímavě? ">
@@ -60,6 +60,6 @@
      channel.description.end create one sentence, with the current channel label inserted in between.
      example: You are currently on the _Stable_ update channel. -->
 <!ENTITY channel.description.start "Nyní používáte aktualizační kanál ">
-<!ENTITY channel.description.end " .">
+<!ENTITY channel.description.end ".">
 
 <!ENTITY cmdCloseMac.commandKey "w">
