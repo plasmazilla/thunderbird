@@ -76,7 +76,8 @@ Description: All language packages for Icedove (meta)
 Package: icedove-l10n-ar
 Architecture: all
 Depends: ${misc:Depends}, icedove (>= 10), icedove (<= 10.1)
-Description: Asturian language package for Icedove
+Recommends: hunspell-ar
+Description: Arabic language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
  application using the XUL user interface language.
@@ -86,8 +87,7 @@ Description: Asturian language package for Icedove
 Package: icedove-l10n-ast
 Architecture: all
 Depends: ${misc:Depends}, icedove (>= 10), icedove (<= 10.1)
-Recommends: hunspell-ar
-Description: Arabic language package for Icedove
+Description: Asturian language package for Icedove
  Icedove is an unbranded Thunderbird mail client suitable for free distribution.
  The goal of Thunderbird is to produce a cross platform stand-alone mail
  application using the XUL user interface language.
