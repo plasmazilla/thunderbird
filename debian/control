@@ -39,7 +39,7 @@ Build-Depends: bzip2,
 	libreadline-dev
 Vcs-Git: git://git.debian.org/pkg-mozilla/icedove.git
 Vcs-Browser: http://git.debian.org/?p=pkg-mozilla/icedove.git;a=summary
-Standards-Version: 3.9.2
+Standards-Version: 3.9.3
 
 Package: icedove
 Architecture: any
