@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Fri, 11 Mar 2011 19:16:01 +0100
-Subject: [PATCH] disable extension update - extension is managed by apt
+Subject: disable extension update - extension is managed by apt
 
 Closes: #616102
 ---
@@ -606,4 +606,3 @@ index cc02a62..4c36926 100644
 +    <em:appManaged>true</em:appManaged>
    </Description>
  </RDF>
--- 
