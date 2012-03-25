@@ -86,7 +86,7 @@ Files: debian/*
 Copyright: 2003-2009 Alexander Sack <asac@debian.org>
            2008 Fabien Tassin <fta@sofaraway.org>
            2009 Guido Günther <agx@sigxcpu.org>
-           2010-2011 Christoph Goehre <chris@sigxcpu.org>
+           2010-2012 Christoph Goehre <chris@sigxcpu.org>
 License: MPL-1.1 or GPL-2 or LGPL-2.1
 
 Files: mozilla/extensions/pref/system-pref/src/gconf/nsSystemPrefService.cpp,
@@ -151,8 +151,7 @@ Files: mozilla/dom/tests/mochitest/ajax/jquery/dist/jquery.js
 Copyright: 2008 John Resig <http://jquery.com>
 License: GPL-2 or MIT
 
-Files: aclocal.m4,
-  mozilla/aclocal.m4,
+Files: mozilla/aclocal.m4,
   mozilla/build/autoconf/freetype2.m4,
   mozilla/build/autoconf/gtk.m4,
   mozilla/build/autoconf/nspr.m4,
@@ -530,7 +529,7 @@ License: other
  SOFTWARE.
 
 Files: mozilla/gfx/cairo/libpixman/src/pixman.h,
-  gfx/cairo/libpixman/src/pixman-region.c
+  mozilla/gfx/cairo/libpixman/src/pixman-region.c
 Copyright: 1987, 1988, 1989, 1998  The Open Group
            1987, 1988, 1989 by Digital Equipment Corporation, Maynard, Massachusetts
 License: other
@@ -616,7 +615,7 @@ License: other
  Licensing details are available in modules/libimg/png/LICENSE
 
 Files: mozilla/modules/zlib/src/*,
-  security/nss/cmd/zlib/*
+  mozilla/security/nss/cmd/zlib/*
 Copyright: 1995-2004 Jean-loup Gailly and Mark Adler
 License: other
  This software is provided 'as-is', without any express or implied
@@ -653,7 +652,7 @@ Copyright: 1998, 1999, 2000 Thai Open Source Software Center Ltd
 License: MIT
 
 Files: mozilla/memory/jemalloc/jemalloc.c,
-  memory/jemalloc/tree.h
+  mozilla/memory/jemalloc/tree.h
 Copyright: 2006-2008 Jason Evans
            2002 Niels Provos
 License: BSD-2
@@ -664,41 +663,9 @@ License: other
  Licensing details are available in
  toolkit/crashreporter/google-breakpad/COPYING
 
-Files: mozilla/media/libfishsound/*,
-  media/liboggplay/*,
-  media/liboggz/*
-Copyright: 2003 CSIRO Australia
-License: BSD-3
- Redistribution and use in source and binary forms, with or without
- modification, are permitted provided that the following conditions
- are met:
- .
- - Redistributions of source code must retain the above copyright
- notice, this list of conditions and the following disclaimer.
- .
- - Redistributions in binary form must reproduce the above copyright
- notice, this list of conditions and the following disclaimer in the
- documentation and/or other materials provided with the distribution.
- .
- - Neither the name of the CSIRO nor the names of its
- contributors may be used to endorse or promote products derived from
- this software without specific prior written permission.
- .
- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
- LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
- PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE ORGANISATION OR
- CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
- EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
- PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
- LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
- NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 Files: mozilla/media/libogg/*,
-  media/libtheora/*,
-  media/libvorbis/*
+  mozilla/media/libtheora/*,
+  mozilla/media/libvorbis/*
 Copyright: 2002-2007 Xiph.org Foundation
 License: BSD-3
  Redistribution and use in source and binary forms, with or without
@@ -728,6 +695,55 @@ License: BSD-3
  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+Files: mozilla/media/libnestegg/*
+Copyright: 2010 Mozilla Foundation
+License: other
+ Permission to use, copy, modify, and distribute this software for any
+ purpose with or without fee is hereby granted, provided that the above
+ copyright notice and this permission notice appear in all copies.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+Files: mozilla/media/libnestegg/src/halloc.*,
+       mozilla/media/libnestegg/src/align.h,
+       mozilla/media/libnestegg/src/hlist.h,
+       mozilla/media/libnestegg/src/macros.h
+Copyright: 2004-2010 Alex Pankratov
+License: BSD-3
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are met:
+ .
+    * Redistributions of source code must retain the above copyright notice,
+      this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright notice,
+      this list of conditions and the following disclaimer in the documentation
+      and/or other materials provided with the distribution.
+    * Neither the name of the project nor the names of its contributors may be
+      used to endorse or promote products derived from this software without
+      specific prior written permission.
+ .
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+ FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Files: mozilla/media/libvpx/*
+Copyright: 2010 Google Inc.
+License: BSD-3
+ Licensing details are available in media/libvpx/LICENSE
+
 Files: mozilla/toolkit/components/alerts/src/mac/growl/*
 Copyright: 2004-2007 The Growl Project
 License: BSD-3
@@ -754,7 +770,8 @@ License: BSD-3
  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Files: mozilla/ipc/chromium/*
+Files: mozilla/ipc/chromium/*,
+       mozilla/gfx/ycbcr/*
 Copyright: 2006-2008 The Chromium Authors
 License: BSD-3
  Redistribution and use in source and binary forms, with or without
@@ -890,6 +907,61 @@ License: BSD-2
  OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Files: mozilla/gfx/ots/*
+Copyright: 2009 The Chromium Authors
+License: BSD-3
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+ met:
+ .
+    * Redistributions of source code must retain the above copyright
+ notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+    * Neither the name of Google Inc. nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ .
+ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+Files: mozilla/gfx/harfbuzz/*
+Copyright: 1998-2004 David Turner and Werner Lemberg<
+           2004, 2007, 2008, 2009, 2010 Red Hat, Inc.
+           2006 Behdad Esfahbod
+           2007 Chris Wilson
+           2009 Keith Stribley
+           2010 Mozilla Foundation
+License: other
+ Permission is hereby granted, without written agreement and without
+ license or royalty fees, to use, copy, modify, and distribute this
+ software and its documentation for any purpose, provided that the
+ above copyright notice and the following two paragraphs appear in
+ all copies of this software.
+ .
+ IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE TO ANY PARTY FOR
+ DIRECT, INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES
+ ARISING OUT OF THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN
+ IF THE COPYRIGHT HOLDER HAS BEEN ADVISED OF THE POSSIBILITY OF SUCH
+ DAMAGE.
+ .
+ THE COPYRIGHT HOLDER SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING,
+ BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND
+ FITNESS FOR A PARTICULAR PURPOSE.  THE SOFTWARE PROVIDED HEREUNDER IS
+ ON AN "AS IS" BASIS, AND THE COPYRIGHT HOLDER HAS NO OBLIGATION TO
+ PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
 
 Files: calendar/itip/*
 Copyright: 2007 Simdesk Technologies
