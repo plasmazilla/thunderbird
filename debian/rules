@@ -117,6 +117,10 @@ else
 	DEB_CONFIGURE_USER_FLAGS += --enable-optimize
 endif
 
+ifneq (,$(findstring debug,$(DEB_BUILD_OPTIONS)))
+	DEB_CONFIGURE_USER_FLAGS += --enable-debug
+endif
+
 ifneq (,$(filter kfreebsd-% hurd-%,$(DEB_BUILD_ARCH)))
 	DEB_CONFIGURE_USER_FLAGS += --disable-necko-wifi
 endif
