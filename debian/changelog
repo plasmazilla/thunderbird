@@ -1,3 +1,20 @@
+icedove (10.0.3-2) unstable; urgency=low
+
+  [ Christoph Goehre ]
+  * [1223204] bump up standards version to 3.9.3
+
+  [ Guido Günther ]
+  * [7d7b5f5] Don't put symlinks into iceowl/extensions
+
+  [ Christoph Goehre ]
+  * [94c07e5] update copyright file
+  * [88098a8] GNOME 3 integration: Use GIO instead of deprecated GnomeVFS.
+    Thanks to Michael Biebl <biebl@debian.org> (Closes: #658688)
+  * [9543fd1] add build depends python
+  * [ec62dcb] build a debug package, if DEB_BUILD_OPTIONS contains 'debug'
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 27 Mar 2012 18:21:52 +0200
+
 icedove (10.0.3-1) unstable; urgency=low
 
   [ Christoph Goehre ]
