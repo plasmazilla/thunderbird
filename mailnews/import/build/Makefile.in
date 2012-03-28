@@ -44,9 +44,11 @@ include $(DEPTH)/config/autoconf.mk
 
 MODULE = import
 LIBRARY_NAME = import
-EXPORT_LIBRARY = 1
 IS_COMPONENT	= 1
-ifndef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
+ifdef MOZ_INCOMPLETE_EXTERNAL_LINKAGE
+FORCE_SHARED_LIB=1
+else
+EXPORT_LIBRARY = 1
 MOZILLA_INTERNAL_API = 1
 LIBXUL_LIBRARY = 1
 endif
@@ -59,7 +61,6 @@ SHARED_LIBRARY_LIBS = \
 		../src/$(LIB_PREFIX)import_s.$(LIB_SUFFIX) \
 		../text/src/$(LIB_PREFIX)imptext_s.$(LIB_SUFFIX) \
 		../vcard/src/$(LIB_PREFIX)impvcard_s.$(LIB_SUFFIX) \
-		../comm4x/src/$(LIB_PREFIX)imp4mail_s.$(LIB_SUFFIX) \
 		$(NULL)
 
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
@@ -79,7 +80,6 @@ endif
 endif
 
 LOCAL_INCLUDES += -I$(srcdir)/../src \
-	-I$(srcdir)/../comm4x/src \
 	-I$(srcdir)/../text/src \
   -I$(srcdir)/../vcard/src \
 	$(NULL)
@@ -107,16 +107,17 @@ EXTRA_DSO_LDOPTS += \
 	$(LIBS_DIR) \
 	$(EXTRA_DSO_LIBS) \
 	$(MOZ_UNICHARUTIL_LIBS) \
-	$(MOZDEPTH)/modules/libreg/src/$(LIB_PREFIX)mozreg_s.$(LIB_SUFFIX) \
 	$(MOZ_COMPONENT_LIBS) \
 	$(NULL)
 else
-EXTRA_DSO_LDOPTS = \
+EXTRA_DSO_LDOPTS += \
 	$(LIBS_DIR) \
-	$(EXTRA_DSO_LIBS) \
+	$(ZLIB_LIBS) \
+	$(MOZ_ZLIB_LIBS) \
+	$(MOZ_JS_LIBS) \
 	$(XPCOM_GLUE_LDOPTS) \
 	$(call EXPAND_LIBNAME_PATH,unicharutil_external_s,$(LIBXUL_DIST)/lib) \
-	$(MOZDEPTH)/modules/libreg/src/$(LIB_PREFIX)mozreg_s.$(LIB_SUFFIX) \
+	$(MOZDEPTH)/rdf/util/src/$(LIB_PREFIX)rdfutil_external_s.$(LIB_SUFFIX) \
 	$(NSPR_LIBS) \
 	$(NULL)
 endif

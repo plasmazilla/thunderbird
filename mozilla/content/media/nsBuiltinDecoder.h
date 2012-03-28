@@ -344,6 +344,10 @@ public:
   // Sets the current size of the framebuffer used in MozAudioAvailable events.
   // Called on the state machine thread and the main thread.
   virtual void SetFrameBufferLength(PRUint32 aLength) = 0;
+
+  // Called when a "MozAudioAvailable" event listener is added to the media
+  // element. Called on the main thread.
+  virtual void NotifyAudioAvailableListener() = 0;
 };
 
 class nsBuiltinDecoder : public nsMediaDecoder
@@ -401,7 +405,7 @@ class nsBuiltinDecoder : public nsMediaDecoder
   virtual void SetInfinite(bool aInfinite);
   virtual bool IsInfinite();
 
-  virtual nsMediaStream* GetCurrentStream();
+  virtual nsMediaStream* GetStream();
   virtual already_AddRefed<nsIPrincipal> GetCurrentPrincipal();
 
   virtual void NotifySuspendedStatusChanged();
@@ -502,7 +506,7 @@ class nsBuiltinDecoder : public nsMediaDecoder
 
   virtual void NotifyDataArrived(const char* aBuffer, PRUint32 aLength, PRUint32 aOffset) {
     if (mDecoderStateMachine) {
-      return mDecoderStateMachine->NotifyDataArrived(aBuffer, aLength, aOffset);
+      mDecoderStateMachine->NotifyDataArrived(aBuffer, aLength, aOffset);
     }
   }
 
@@ -609,6 +613,10 @@ class nsBuiltinDecoder : public nsMediaDecoder
 
   // Drop reference to state machine.  Only called during shutdown dance.
   void ReleaseStateMachine() { mDecoderStateMachine = nsnull; }
+
+   // Called when a "MozAudioAvailable" event listener is added to the media
+   // element. Called on the main thread.
+   virtual void NotifyAudioAvailableListener();
 
 public:
   // Notifies the element that decoding has failed.

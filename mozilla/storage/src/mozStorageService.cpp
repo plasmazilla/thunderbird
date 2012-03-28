@@ -57,7 +57,13 @@
 #include "mozilla/Preferences.h"
 
 #include "sqlite3.h"
+#include "test_quota.h"
 #include "test_quota.c"
+
+#ifdef SQLITE_OS_WIN
+// "windows.h" was included and it can #define lots of things we care about...
+#undef CompareString
+#endif
 
 #include "nsIPromptService.h"
 #include "nsIMemoryReporter.h"
@@ -278,8 +284,10 @@ Service::getSynchronousPref()
 }
 
 Service::Service()
-: mMutex("Service::mMutex"),
-  mSqliteVFS(nsnull)
+: mMutex("Service::mMutex")
+, mSqliteVFS(nsnull)
+, mRegistrationMutex("Service::mRegistrationMutex")
+, mConnections()
 {
 }
 
@@ -308,12 +316,45 @@ Service::~Service()
 }
 
 void
+Service::registerConnection(Connection *aConnection)
+{
+  mRegistrationMutex.AssertNotCurrentThreadOwns();
+  MutexAutoLock mutex(mRegistrationMutex);
+  (void)mConnections.AppendElement(aConnection);
+}
+
+void
+Service::unregisterConnection(Connection *aConnection)
+{
+  // If this is the last Connection it might be the only thing keeping Service
+  // alive.  So ensure that Service is destroyed only after the Connection is
+  // cleanly unregistered and destroyed.
+  nsRefPtr<Service> kungFuDeathGrip(this);
+  {
+    mRegistrationMutex.AssertNotCurrentThreadOwns();
+    MutexAutoLock mutex(mRegistrationMutex);
+    DebugOnly<bool> removed = mConnections.RemoveElement(aConnection);
+    // Assert if we try to unregister a non-existent connection.
+    MOZ_ASSERT(removed);
+  }
+}
+
+void
+Service::getConnections(/* inout */ nsTArray<nsRefPtr<Connection> >& aConnections)
+{
+  mRegistrationMutex.AssertNotCurrentThreadOwns();
+  MutexAutoLock mutex(mRegistrationMutex);
+  aConnections.Clear();
+  aConnections.AppendElements(mConnections);
+}
+
+void
 Service::shutdown()
 {
   NS_IF_RELEASE(sXPConnect);
 }
 
-sqlite3_vfs* ConstructTelemetryVFS();
+sqlite3_vfs *ConstructTelemetryVFS();
 
 #ifdef MOZ_MEMORY
 
@@ -350,17 +391,17 @@ namespace {
 // from the standard ones -- they use int instead of size_t.  But we don't need
 // a wrapper for moz_free.
 
-static void* sqliteMemMalloc(int n)
+static void *sqliteMemMalloc(int n)
 {
   return ::moz_malloc(n);
 }
 
-static void* sqliteMemRealloc(void* p, int n)
+static void *sqliteMemRealloc(void *p, int n)
 {
   return ::moz_realloc(p, n);
 }
 
-static int sqliteMemSize(void* p)
+static int sqliteMemSize(void *p)
 {
   return ::moz_malloc_usable_size(p);
 }
@@ -375,12 +416,12 @@ static int sqliteMemRoundup(int n)
   return n <= 8 ? 8 : n;
 }
 
-static int sqliteMemInit(void* p)
+static int sqliteMemInit(void *p)
 {
   return 0;
 }
 
-static void sqliteMemShutdown(void* p)
+static void sqliteMemShutdown(void *p)
 {
 }
 
@@ -710,7 +751,7 @@ Service::SetQuotaForFilenamePattern(const nsACString &aPattern,
 }
 
 NS_IMETHODIMP
-Service::UpdateQutoaInformationForFile(nsIFile* aFile)
+Service::UpdateQuotaInformationForFile(nsIFile *aFile)
 {
   NS_ENSURE_ARG_POINTER(aFile);
 

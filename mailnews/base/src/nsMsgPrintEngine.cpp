@@ -220,7 +220,8 @@ nsMsgPrintEngine::OnProgressChange(nsIWebProgress *aWebProgress,
 NS_IMETHODIMP
 nsMsgPrintEngine::OnLocationChange(nsIWebProgress* aWebProgress,
                       nsIRequest* aRequest,
-                      nsIURI *location)
+                      nsIURI *location,
+                      PRUint32 aFlags)
 {
     NS_NOTREACHED("notification excluded in AddProgressListener(...)");
     return NS_OK;
@@ -331,6 +332,8 @@ nsMsgPrintEngine::ShowWindow(bool aShow)
 NS_IMETHODIMP
 nsMsgPrintEngine::AddPrintURI(const PRUnichar *aMsgURI)
 {
+  NS_ENSURE_ARG_POINTER(aMsgURI);
+
   mURIArray.AppendElement(nsDependentString(aMsgURI));
   return NS_OK;
 }

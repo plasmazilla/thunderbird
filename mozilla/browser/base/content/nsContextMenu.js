@@ -97,6 +97,12 @@ nsContextMenu.prototype = {
     this.initItems();
   },
 
+  hiding: function CM_hiding() {
+    InlineSpellCheckerUI.clearSuggestionsFromMenu();
+    InlineSpellCheckerUI.clearDictionaryListFromMenu();
+    InlineSpellCheckerUI.uninit();
+  },
+
   initItems: function CM_initItems() {
     this.initPageMenuSeparator();
     this.initOpenItems();
@@ -418,7 +424,7 @@ nsContextMenu.prototype = {
     this.showItem("context-media-unmute", onMedia && this.target.muted);
     this.showItem("context-media-showcontrols", onMedia && !this.target.controls);
     this.showItem("context-media-hidecontrols", onMedia && this.target.controls);
-    this.showItem("context-video-fullscreen", this.onVideo);
+    this.showItem("context-video-fullscreen", this.onVideo && this.target.ownerDocument.mozFullScreenElement == null);
     var statsShowing = this.onVideo && this.target.wrappedJSObject.mozMediaStatisticsShowing;
     this.showItem("context-video-showstats", this.onVideo && this.target.controls && !statsShowing);
     this.showItem("context-video-hidestats", this.onVideo && this.target.controls && statsShowing);
@@ -487,16 +493,6 @@ nsContextMenu.prototype = {
     this.bgImageURL        = "";
     this.onEditableArea    = false;
     this.isDesignMode      = false;
-
-    // Clear any old spellchecking items from the menu, this used to
-    // be in the menu hiding code but wasn't getting called in all
-    // situations. Here, we can ensure it gets cleaned up any time the
-    // menu is shown. Note: must be before uninit because that clears the
-    // internal vars
-    InlineSpellCheckerUI.clearSuggestionsFromMenu();
-    InlineSpellCheckerUI.clearDictionaryListFromMenu();
-
-    InlineSpellCheckerUI.uninit();
 
     // Remember the node that was clicked.
     this.target = aNode;
@@ -859,10 +855,15 @@ nsContextMenu.prototype = {
   },
 
   fullScreenVideo: function () {
-    this.target.pause();
-
-    openDialog("chrome://browser/content/fullscreen-video.xhtml",
-               "", "chrome,centerscreen,dialog=no", this.target);
+    let video = this.target;
+    if (document.mozFullScreenEnabled)
+      video.mozRequestFullScreen();
+    else {
+      // Fallback for the legacy full-screen video implementation.
+      video.pause();
+      openDialog("chrome://browser/content/fullscreen-video.xhtml",
+                  "", "chrome,centerscreen,dialog=no", video);
+    }
   },
 
   // Change current window to the URL of the background image.
@@ -1398,11 +1399,23 @@ nsContextMenu.prototype = {
     if (itemId == -1) {
       var title = doc.title;
       var description = PlacesUIUtils.getDescriptionFromDocument(doc);
-      PlacesUIUtils.showMinimalAddBookmarkUI(uri, title, description);
+      PlacesUIUtils.showBookmarkDialog({ action: "add"
+                                       , type: "bookmark"
+                                       , uri: uri
+                                       , title: title
+                                       , description: description
+                                       , hiddenRows: [ "description"
+                                                     , "location"
+                                                     , "loadInSidebar"
+                                                     , "keyword" ]
+                                       }, window.top);
     }
-    else
-      PlacesUIUtils.showItemProperties(itemId,
-                                       PlacesUtils.bookmarks.TYPE_BOOKMARK);
+    else {
+      PlacesUIUtils.showBookmarkDialog({ action: "edit"
+                                       , type: "bookmark"
+                                       , itemId: itemId
+                                       }, window.top);
+    }
   },
 
   savePageAs: function CM_savePageAs() {

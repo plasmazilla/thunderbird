@@ -43,10 +43,16 @@
 Components.utils.import("resource://gre/modules/InlineSpellChecker.jsm");
 Components.utils.import("resource:///modules/MailUtils.js");
 
+XPCOMUtils.defineLazyGetter(this, "PageMenu", function() {
+  let tmp = {};
+  Cu.import("resource://gre/modules/PageMenu.jsm", tmp);
+  return new tmp.PageMenu();
+});
+
 var gSpellChecker = new InlineSpellChecker();
 var gGlodaBundle = null;
 
-function nsContextMenu(aXulMenu) {
+function nsContextMenu(aXulMenu, aIsShift) {
   this.target         = null;
   this.menu           = null;
   this.onTextInput    = false;
@@ -76,7 +82,7 @@ function nsContextMenu(aXulMenu) {
   this.isNewsgroup = false;
   this.hideMailItems = false;
 
-  this.initMenu(aXulMenu);
+  this.initMenu(aXulMenu, aIsShift);
 }
 
 nsContextMenu.prototype = {
@@ -85,7 +91,7 @@ nsContextMenu.prototype = {
    * the world, then determine which context menu items to show based on
    * those properties.
    */
-  initMenu : function CM_initMenu(aPopup) {
+  initMenu : function CM_initMenu(aPopup, aIsShift) {
     this.menu = aPopup;
 
     // Get contextual info.
@@ -93,9 +99,16 @@ nsContextMenu.prototype = {
     this.setMessageTargets(document.popupNode);
     this.isContentSelected = this.isContentSelection();
 
+    this.hasPageMenu = false;
+    if (!aIsShift) {
+      this.hasPageMenu = PageMenu.maybeBuildAndAttachMenu(this.target,
+                                                          aPopup);
+    }
+
     this.initItems();
   },
   initItems : function CM_initItems() {
+    this.initPageMenuSeparator();
     this.initSaveItems();
     this.initClipboardItems();
     this.initMediaPlayerItems();
@@ -106,6 +119,9 @@ nsContextMenu.prototype = {
   },
   addDictionaries: function CM_addDictionaries() {
     openDictionaryList();
+  },
+  initPageMenuSeparator: function CM_initPageMenuSeparator() {
+    this.showItem("page-menu-separator", this.hasPageMenu);
   },
   initSpellingItems: function CM_initSpellingItems() {
     let canSpell = gSpellChecker.canSpellCheck;
@@ -315,7 +331,9 @@ nsContextMenu.prototype = {
     this.enableItem("mailContext-moveMenu", canMove && !this.onPlayableMedia);
 
     // Copy is available as long as something is selected.
-    this.showItem("mailContext-copyMenu", msgModifyItems);
+    let canCopy = msgModifyItems || (gMessageDisplay.isDummy &&
+                                     window.arguments[0].scheme == "file");
+    this.showItem("mailContext-copyMenu", canCopy);
 
     this.showItem("mailContext-moveToFolderAgain", msgModifyItems);
     if (msgModifyItems) {

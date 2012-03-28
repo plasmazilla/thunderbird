@@ -17,15 +17,18 @@ DEFAULTS = {
 
   # URL of the default hg repository to clone for ChatZilla.
   'CHATZILLA_REPO': 'http://hg.mozilla.org/chatzilla/',
+  'CHATZILLA_REV':  'CHATZILLA_0_9_88_1_RELEASE',
 
   # URL of the default hg repository to clone for DOM Inspector.
   'INSPECTOR_REPO': 'http://hg.mozilla.org/dom-inspector/',
+  'INSPECTOR_REV':  'DOMI_2_0_10',
 
   # URL of the default hg repository to clone for Venkman.
   'VENKMAN_REPO': 'http://hg.mozilla.org/venkman/',
+  'VENKMAN_REV':  'a38583d7164a',
 
   # URL of the default hg repository to clone for Mozilla.
-  'MOZILLA_REPO': 'http://hg.mozilla.org/releases/mozilla-esr10/',
+  'MOZILLA_REPO': 'http://hg.mozilla.org/releases/mozilla-release/',
 }
 
 REPO_SHORT_NAMES = {

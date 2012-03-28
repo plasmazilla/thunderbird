@@ -85,14 +85,9 @@ let QuickFilterBarMuxer = {
    */
   onMakeActive: function QFBM_onMakeActive(aFolderDisplay) {
     let tab = aFolderDisplay._tabInfo;
-    let appropriate = ("quickFilter" in tab._ext) &&
-                        aFolderDisplay.displayedFolder &&
-                        !aFolderDisplay.displayedFolder.isServer;
-    document.getElementById("qfb-show-filter-bar").style.visibility =
-      (appropriate ? "visible" : "hidden");
-
+    this._updateToggle(tab);
     // The case in that previous aFolderDisplay is showing a normal folder is
-    //  handled by onLoadingFolder. Here we handle the case where previous
+    // handled by onLoadingFolder. Here we handle the case where previous
     // aFolderDisplay shows an account folder instead (this cannot be done
     // in onLoadingFolder because that event is not raised).
     if (!aFolderDisplay.displayedFolder ||
@@ -104,6 +99,30 @@ let QuickFilterBarMuxer = {
       filterer.displayedFolder = null;
     }
   },
+
+  /**
+   * Based on the passed in 3pane aTabInfo, determine whether or not the
+   * quickFilter toggle should be enabled, and set it appropriately.
+   */
+  _updateToggle: function QFBM__updateToggle(aTabInfo) {
+    let folderDisplay = aTabInfo.folderDisplay;
+
+    let hasQuickFilter = "quickFilter" in aTabInfo._ext;
+    let isFolderView = (aTabInfo.mode.name == "folder" &&
+                        folderDisplay.displayedFolder &&
+                        !folderDisplay.displayedFolder.isServer);
+    let isGlodaList = aTabInfo.mode.name == "glodaList";
+    let appropriate = hasQuickFilter && (isGlodaList || isFolderView);
+
+    let qfbButton = document.getElementById("qfb-show-filter-bar");
+
+    if (qfbButton) {
+      qfbButton.style.visibility = (appropriate ? "visible" : "hidden");
+      if (!appropriate)
+        qfbButton.checked = false;
+    }
+  },
+
 
   /**
    * Clear out our state when notified the user has changed folders and re-apply
@@ -270,7 +289,9 @@ let QuickFilterBarMuxer = {
 
     document.getElementById("quick-filter-bar").collapsed =
       !aFilterer.visible;
-    document.getElementById("qfb-show-filter-bar").checked = aFilterer.visible;
+    let qfbButton = document.getElementById("qfb-show-filter-bar");
+    if (qfbButton)
+      qfbButton.checked = aFilterer.visible;
   },
 
   /**
@@ -438,6 +459,7 @@ let QuickFilterBarMuxer = {
                           modelTab._ext.quickFilter : undefined;
       aTab._ext.quickFilter = new QuickFilterState(oldFilterer);
       this.updateSearch(aTab);
+      this._updateToggle(aTab);
     }
   },
 
@@ -470,8 +492,11 @@ let QuickFilterBarMuxer = {
     let filterer = this.maybeActiveFilterer;
     if (filterer)
       this.reflectFiltererState(filterer, aTab.folderDisplay);
-    else // this only happens for tabs we are not legal on
-      document.getElementById("qfb-show-filter-bar").style.visibility = "hidden";
+    else { // this only happens for tabs we are not legal on
+      let qfbButton = document.getElementById("qfb-show-filter-bar");
+      if (qfbButton)
+        qfbButton.style.visibility = "hidden";
+    }
   },
 
   supportsCommand: function QFBM_supportsCommand(aCommand, aTab) {

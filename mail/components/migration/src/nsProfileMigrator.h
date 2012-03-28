@@ -45,7 +45,6 @@
 #include "nsCOMPtr.h"
 #include "nsDirectoryServiceDefs.h"
 
-#include "NSReg.h"
 #include "nsStringGlue.h"
 
 #define NS_THUNDERBIRD_PROFILEIMPORT_CID \
@@ -63,10 +62,4 @@ protected:
   ~nsProfileMigrator() { };
 
   nsresult GetDefaultMailMigratorKey(nsACString& key, nsCOMPtr<nsIMailProfileMigrator>& mailMigrator);
-
-  /**
-   * Import profiles from ~/.thunderbird/ 
-   * @return PR_TRUE if any profiles imported.
-   */
-  bool ImportRegistryProfiles(const nsACString& aAppName);
 };

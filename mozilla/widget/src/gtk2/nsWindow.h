@@ -170,6 +170,8 @@ public:
     NS_IMETHOD         Enable(bool aState);
     NS_IMETHOD         SetFocus(bool aRaise = false);
     NS_IMETHOD         GetScreenBounds(nsIntRect &aRect);
+    NS_IMETHOD         GetClientBounds(nsIntRect &aRect);
+    virtual nsIntPoint GetClientOffset();
     NS_IMETHOD         SetForegroundColor(const nscolor &aColor);
     NS_IMETHOD         SetBackgroundColor(const nscolor &aColor);
     NS_IMETHOD         SetCursor(nsCursor aCursor);
@@ -186,7 +188,6 @@ public:
     NS_IMETHOD         EnableDragDrop(bool aEnable);
     NS_IMETHOD         CaptureMouse(bool aCapture);
     NS_IMETHOD         CaptureRollupEvents(nsIRollupListener *aListener,
-                                           nsIMenuRollup *aMenuRollup,
                                            bool aDoCapture,
                                            bool aConsumeRollupEvent);
     NS_IMETHOD         GetAttention(PRInt32 aCycleCount);
@@ -321,8 +322,9 @@ public:
                                             bool *aIsCancelled);
 
     NS_IMETHOD ResetInputState();
-    NS_IMETHOD SetInputMode(const IMEContext& aContext);
-    NS_IMETHOD GetInputMode(IMEContext& aContext);
+    NS_IMETHOD_(void) SetInputContext(const InputContext& aContext,
+                                      const InputContextAction& aAction);
+    NS_IMETHOD_(InputContext) GetInputContext();
     NS_IMETHOD CancelIMEComposition();
     NS_IMETHOD OnIMEFocusChange(bool aFocus);
     NS_IMETHOD GetToggledKeyState(PRUint32 aKeyCode, bool* aLEDState);
@@ -345,9 +347,6 @@ public:
 #endif
     NS_IMETHOD         ReparentNativeWidget(nsIWidget* aNewParent);
 
-#ifdef ACCESSIBILITY
-    static bool        sAccessibilityEnabled;
-#endif
 protected:
     // Helper for SetParent and ReparentNativeWidget.
     void ReparentNativeWidgetInternal(nsIWidget* aNewParent,
@@ -383,7 +382,6 @@ private:
     nsWindow          *GetContainerWindow();
     void               SetUrgencyHint(GtkWidget *top_window, bool state);
     void              *SetupPluginPort(void);
-    nsresult           SetWindowIconList(const nsTArray<nsCString> &aIconList);
     void               SetDefaultIcon(void);
     void               InitButtonEvent(nsMouseEvent &aEvent, GdkEventButton *aGdkEvent);
     bool               DispatchCommandEvent(nsIAtom* aCommand);

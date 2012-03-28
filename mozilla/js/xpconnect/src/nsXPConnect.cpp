@@ -69,21 +69,20 @@
 #include "dombindings.h"
 #include "nsWrapperCacheInlines.h"
 
-NS_IMPL_THREADSAFE_ISUPPORTS8(nsXPConnect,
+NS_IMPL_THREADSAFE_ISUPPORTS7(nsXPConnect,
                               nsIXPConnect,
                               nsISupportsWeakReference,
                               nsIThreadObserver,
                               nsIJSRuntimeService,
                               nsIJSContextStack,
                               nsIThreadJSContextStack,
-                              nsIJSEngineTelemetryStats,
-                              nsIXPConnect_MOZILLA_10_BRANCH)
+                              nsIJSEngineTelemetryStats)
 
 nsXPConnect* nsXPConnect::gSelf = nsnull;
-JSBool       nsXPConnect::gOnceAliveNowDead = JS_FALSE;
+JSBool       nsXPConnect::gOnceAliveNowDead = false;
 PRUint32     nsXPConnect::gReportAllJSExceptions = 0;
-JSBool       nsXPConnect::gDebugMode = JS_FALSE;
-JSBool       nsXPConnect::gDesiredDebugMode = JS_FALSE;
+JSBool       nsXPConnect::gDebugMode = false;
+JSBool       nsXPConnect::gDesiredDebugMode = false;
 
 // Global cache of the default script security manager (QI'd to
 // nsIScriptSecurityManager)
@@ -104,8 +103,8 @@ nsXPConnect::nsXPConnect()
         mInterfaceInfoManager(do_GetService(NS_INTERFACEINFOMANAGER_SERVICE_CONTRACTID)),
         mDefaultSecurityManager(nsnull),
         mDefaultSecurityManagerFlags(0),
-        mShuttingDown(JS_FALSE),
-        mNeedGCBeforeCC(JS_TRUE),
+        mShuttingDown(false),
+        mNeedGCBeforeCC(true),
         mCycleCollectionContext(nsnull)
 {
     mRuntime = XPCJSRuntime::newXPCJSRuntime(this);
@@ -135,7 +134,7 @@ nsXPConnect::~nsXPConnect()
     }
 
     XPCPerThreadData::CleanupAllThreads();
-    mShuttingDown = JS_TRUE;
+    mShuttingDown = true;
     if (cx) {
         JS_BeginRequest(cx);
 
@@ -158,7 +157,7 @@ nsXPConnect::~nsXPConnect()
     delete mRuntime;
 
     gSelf = nsnull;
-    gOnceAliveNowDead = JS_TRUE;
+    gOnceAliveNowDead = true;
 }
 
 // static
@@ -344,7 +343,7 @@ nsXPConnect::NeedCollect()
 }
 
 void
-nsXPConnect::Collect()
+nsXPConnect::Collect(bool shrinkingGC)
 {
     // We're dividing JS objects into 2 categories:
     //
@@ -389,7 +388,7 @@ nsXPConnect::Collect()
     // To improve debugging, if DEBUG_CC is defined all JS objects are
     // traversed.
 
-    mNeedGCBeforeCC = JS_FALSE;
+    mNeedGCBeforeCC = false;
 
     XPCCallContext ccx(NATIVE_CALLER);
     if (!ccx.IsValid())
@@ -407,15 +406,18 @@ nsXPConnect::Collect()
     JS_ASSERT(!threadData.conservativeGC.requestThreshold);
     if (threadData.requestDepth == 1)
         threadData.conservativeGC.requestThreshold = 1;
-    JS_GC(cx);
+    if (shrinkingGC)
+        JS_ShrinkingGC(cx);
+    else
+        JS_GC(cx);
     if (threadData.requestDepth == 1)
         threadData.conservativeGC.requestThreshold = 0;
 }
 
 NS_IMETHODIMP
-nsXPConnect::GarbageCollect()
+nsXPConnect::GarbageCollect(bool shrinkingGC)
 {
-    Collect();
+    Collect(shrinkingGC);
     return NS_OK;
 }
 
@@ -450,6 +452,80 @@ NoteJSRoot(JSTracer *trc, void *thing, JSGCTraceKind kind)
 }
 #endif
 
+struct NoteWeakMapChildrenTracer : public JSTracer
+{
+    NoteWeakMapChildrenTracer(nsCycleCollectionTraversalCallback &cb)
+        : mCb(cb)
+    {
+    }
+    nsCycleCollectionTraversalCallback &mCb;
+    JSObject *mMap;
+    void *mKey;
+};
+
+static void
+TraceWeakMappingChild(JSTracer *trc, void *thing, JSGCTraceKind kind)
+{
+    JS_ASSERT(trc->callback == TraceWeakMappingChild);
+    NoteWeakMapChildrenTracer *tracer =
+        static_cast<NoteWeakMapChildrenTracer *>(trc);
+    if (kind == JSTRACE_STRING)
+        return;
+    if (!xpc_IsGrayGCThing(thing) && !tracer->mCb.WantAllTraces())
+        return;
+    if (AddToCCKind(kind)) {
+        tracer->mCb.NoteWeakMapping(tracer->mMap, tracer->mKey, thing);
+    } else {
+        JS_TraceChildren(trc, thing, kind);
+    }
+}
+
+struct NoteWeakMapsTracer : public js::WeakMapTracer
+{
+    NoteWeakMapsTracer(JSContext *cx, js::WeakMapTraceCallback cb,
+                       nsCycleCollectionTraversalCallback &cccb)
+        : js::WeakMapTracer(cx, cb), mCb(cccb), mChildTracer(cccb)
+    {
+        JS_TRACER_INIT(&mChildTracer, cx, TraceWeakMappingChild);
+    }
+    nsCycleCollectionTraversalCallback &mCb;
+    NoteWeakMapChildrenTracer mChildTracer;
+};
+
+static void
+TraceWeakMapping(js::WeakMapTracer *trc, JSObject *m, 
+                 void *k, JSGCTraceKind kkind,
+                 void *v, JSGCTraceKind vkind)
+{
+    JS_ASSERT(trc->callback == TraceWeakMapping);
+    NoteWeakMapsTracer *tracer = static_cast<NoteWeakMapsTracer *>(trc);
+    if (vkind == JSTRACE_STRING)
+        return;
+    if (!xpc_IsGrayGCThing(v) && !tracer->mCb.WantAllTraces())
+        return;
+
+    // The cycle collector can only properly reason about weak maps if it can
+    // reason about the liveness of their keys, which in turn requires that
+    // the key can be represented in the cycle collector graph.  All existing
+    // uses of weak maps use either objects or scripts as keys, which are okay.
+    JS_ASSERT(AddToCCKind(kkind));
+
+    // As an emergency fallback for non-debug builds, if the key is not
+    // representable in the cycle collector graph, we treat it as marked.  This
+    // can cause leaks, but is preferable to ignoring the binding, which could
+    // cause the cycle collector to free live objects.
+    if (!AddToCCKind(kkind))
+        k = nsnull;
+
+    if (AddToCCKind(vkind)) {
+        tracer->mCb.NoteWeakMapping(m, k, v);
+    } else {
+        tracer->mChildTracer.mMap = m;
+        tracer->mChildTracer.mKey = k;
+        JS_TraceChildren(&tracer->mChildTracer, v, vkind);
+    }
+}
+
 nsresult
 nsXPConnect::BeginCycleCollection(nsCycleCollectionTraversalCallback &cb,
                                   bool explainLiveExpectedGarbage)
@@ -478,7 +554,7 @@ nsXPConnect::BeginCycleCollection(nsCycleCollectionTraversalCallback &cb,
         JSRuntime* rt = JS_GetRuntime(mCycleCollectionContext->GetJSContext());
         if (!rt)
             NS_RUNTIMEABORT("Failed to get JS runtime!");
-        uint32 gcNumber = JS_GetGCParameter(rt, JSGC_NUMBER);
+        uint32_t gcNumber = JS_GetGCParameter(rt, JSGC_NUMBER);
         if (!gcNumber)
             NS_RUNTIMEABORT("Cannot cycle collect if GC has not run first!");
         gcHasRun = true;
@@ -510,6 +586,10 @@ nsXPConnect::BeginCycleCollection(nsCycleCollectionTraversalCallback &cb,
 #endif
 
     GetRuntime()->AddXPConnectRoots(mCycleCollectionContext->GetJSContext(), cb);
+ 
+    NoteWeakMapsTracer trc(mCycleCollectionContext->GetJSContext(),
+                           TraceWeakMapping, cb);
+    js::TraceWeakMaps(&trc);
 
     return NS_OK;
 }
@@ -721,9 +801,7 @@ NoteJSChild(JSTracer *trc, void *thing, JSGCTraceKind kind)
 #endif
         tracer->cb.NoteScriptChild(nsIProgrammingLanguage::JAVASCRIPT, thing);
     } else if (kind == JSTRACE_SHAPE) {
-        do {
-            thing = JS_TraceShapeChildrenAcyclic(trc, thing);
-        } while (thing);
+        JS_TraceShapeCycleCollectorChildren(trc, thing);
     } else if (kind != JSTRACE_STRING) {
         JS_TraceChildren(trc, thing, kind);
     }
@@ -762,11 +840,11 @@ nsXPConnect::Traverse(void *p, nsCycleCollectionTraversalCallback &cb)
     JSBool markJSObject = false;
     if (traceKind == JSTRACE_OBJECT) {
         obj = static_cast<JSObject*>(p);
-        clazz = obj->getClass();
+        clazz = js::GetObjectClass(obj);
 
         if (clazz == &XPC_WN_Tearoff_JSClass) {
             XPCWrappedNative *wrapper =
-                (XPCWrappedNative*)xpc_GetJSPrivate(obj->getParent());
+                (XPCWrappedNative*)xpc_GetJSPrivate(js::GetObjectParent(obj));
             dontTraverse = WrapperIsNotMainThreadOnly(wrapper);
         } else if (IS_WRAPPER_CLASS(clazz) && IS_WN_WRAPPER_OBJECT(obj)) {
             XPCWrappedNative *wrapper = (XPCWrappedNative*)xpc_GetJSPrivate(obj);
@@ -813,7 +891,7 @@ nsXPConnect::Traverse(void *p, nsCycleCollectionTraversalCallback &cb)
                 JS_snprintf(name, sizeof(name), "JS Object (%s - %s)",
                             clazz->name, si->GetJSClass()->name);
             } else if (clazz == &js::FunctionClass) {
-                JSFunction* fun = (JSFunction*) xpc_GetJSPrivate(obj);
+                JSFunction* fun = JS_GetObjectFunction(obj);
                 JSString* str = JS_GetFunctionId(fun);
                 if (str) {
                     NS_ConvertUTF16toUTF8 fname(JS_GetInternedStringChars(str));
@@ -833,23 +911,15 @@ nsXPConnect::Traverse(void *p, nsCycleCollectionTraversalCallback &cb)
                 "Script",
                 "Xml",
                 "Shape",
+                "BaseShape",
                 "TypeObject",
             };
             JS_STATIC_ASSERT(NS_ARRAY_LENGTH(trace_types) == JSTRACE_LAST + 1);
             JS_snprintf(name, sizeof(name), "JS %s", trace_types[traceKind]);
         }
 
-        if (traceKind == JSTRACE_OBJECT) {
-            JSObject *global = static_cast<JSObject*>(p), *parent;
-            while ((parent = global->getParent()))
-                global = parent;
-            char fullname[100];
-            JS_snprintf(fullname, sizeof(fullname),
-                        "%s (global=%p)", name, global);
-            cb.DescribeGCedNode(isMarked, sizeof(JSObject), fullname);
-        } else {
-            cb.DescribeGCedNode(isMarked, sizeof(JSObject), name);
-        }
+        // Disable printing global for objects while we figure out ObjShrink fallout.
+        cb.DescribeGCedNode(isMarked, sizeof(JSObject), name);
     } else {
         cb.DescribeGCedNode(isMarked, sizeof(JSObject), "JS Object");
     }
@@ -864,10 +934,7 @@ nsXPConnect::Traverse(void *p, nsCycleCollectionTraversalCallback &cb)
     TraversalTracer trc(cb);
 
     JS_TRACER_INIT(&trc, cx, NoteJSChild);
-    // When WeakMaps are properly integrated with the cycle
-    // collector in Bug 668855, don't eagerly trace weak maps when
-    // building the cycle collector graph.
-    // trc.eagerlyTraceWeakMaps = JS_FALSE;
+    trc.eagerlyTraceWeakMaps = false;
     JS_TraceChildren(&trc, p, traceKind);
 
     if (traceKind != JSTRACE_OBJECT || dontTraverse)
@@ -1077,7 +1144,7 @@ TraceXPCGlobal(JSTracer *trc, JSObject *obj)
     if (trc->callback == VerifyTraceXPCGlobalCalled) {
         // We don't do anything here, we only want to verify that TraceXPCGlobal
         // was called.
-        reinterpret_cast<VerifyTraceXPCGlobalCalledTracer*>(trc)->ok = JS_TRUE;
+        reinterpret_cast<VerifyTraceXPCGlobalCalledTracer*>(trc)->ok = true;
         return;
     }
 #endif
@@ -1123,7 +1190,7 @@ xpc_CreateGlobalObject(JSContext *cx, JSClass *clasp,
     if (clasp->flags & JSCLASS_XPCONNECT_GLOBAL) {
         VerifyTraceXPCGlobalCalledTracer trc;
         JS_TRACER_INIT(&trc.base, cx, VerifyTraceXPCGlobalCalled);
-        trc.ok = JS_FALSE;
+        trc.ok = false;
         JS_TraceChildren(&trc.base, *global, JSTRACE_OBJECT);
         NS_ABORT_IF_FALSE(trc.ok, "Trace hook needs to call TraceXPCGlobal if JSCLASS_XPCONNECT_GLOBAL is set.");
     }
@@ -1237,7 +1304,7 @@ nsXPConnect::InitClassesWithNewWrappedGlobal(JSContext * aJSContext,
 
     // voodoo to fixup scoping and parenting...
 
-    JS_ASSERT(!globalJSObj->getParent());
+    JS_ASSERT(!js::GetObjectParent(globalJSObj));
 
     JSObject* oldGlobal = JS_GetGlobalObject(aJSContext);
     if (!oldGlobal || oldGlobal == tempGlobal)
@@ -1622,7 +1689,7 @@ nsXPConnect::ReparentWrappedNativeIfFound(JSContext * aJSContext,
 
 static JSDHashOperator
 MoveableWrapperFinder(JSDHashTable *table, JSDHashEntryHdr *hdr,
-                      uint32 number, void *arg)
+                      uint32_t number, void *arg)
 {
     nsTArray<nsRefPtr<XPCWrappedNative> > *array =
         static_cast<nsTArray<nsRefPtr<XPCWrappedNative> > *>(arg);
@@ -2013,7 +2080,7 @@ nsXPConnect::RestoreWrappedNativePrototype(JSContext * aJSContext,
     if (NS_FAILED(rv))
         return UnexpectedFailure(rv);
 
-    if (!IS_PROTO_CLASS(protoJSObject->getClass()))
+    if (!IS_PROTO_CLASS(js::GetObjectClass(protoJSObject)))
         return UnexpectedFailure(NS_ERROR_INVALID_ARG);
 
     XPCWrappedNativeScope* scope =
@@ -2155,7 +2222,7 @@ nsXPConnect::GetWrappedNativePrototype(JSContext * aJSContext,
 
     AutoMarkingWrappedNativeProtoPtr proto(ccx);
     proto = XPCWrappedNativeProto::GetNewOrUsed(ccx, scope, aClassInfo,
-                                                &sciProto, JS_FALSE,
+                                                &sciProto, false,
                                                 OBJ_IS_NOT_GLOBAL);
     if (!proto)
         return UnexpectedFailure(NS_ERROR_FAILURE);
@@ -2192,7 +2259,7 @@ nsXPConnect::ReleaseJSContext(JSContext * aJSContext, bool noGC)
             printf("!xpc - deferring destruction of JSContext @ %p\n",
                    (void *)aJSContext);
 #endif
-            ccx->SetDestroyJSContextInDestructor(JS_TRUE);
+            ccx->SetDestroyJSContextInDestructor(true);
             return NS_OK;
         }
         // else continue on and synchronously destroy the JSContext ...
@@ -2587,8 +2654,16 @@ fail:
      * debugger callbacks from having any effect.
      */
     if (gDesiredDebugMode)
-        JS_SetRuntimeDebugMode(rt, JS_FALSE);
-    gDesiredDebugMode = gDebugMode = JS_FALSE;
+        JS_SetRuntimeDebugMode(rt, false);
+    gDesiredDebugMode = gDebugMode = false;
+}
+
+NS_EXPORT_(void)
+xpc_ActivateDebugMode()
+{
+    XPCJSRuntime* rt = nsXPConnect::GetRuntimeInstance();
+    nsXPConnect::GetXPConnect()->SetDebugModeWhenPossible(true, true);
+    nsXPConnect::CheckForDebugMode(rt->GetJSRuntime());
 }
 
 /* JSContext Pop (); */
@@ -2656,7 +2731,7 @@ nsXPConnect::GetSafeJSContext(JSContext * *aSafeJSContext)
 nsIPrincipal*
 nsXPConnect::GetPrincipal(JSObject* obj, bool allowShortCircuit) const
 {
-    NS_ASSERTION(IS_WRAPPER_CLASS(obj->getClass()),
+    NS_ASSERTION(IS_WRAPPER_CLASS(js::GetObjectClass(obj)),
                  "What kind of wrapper is this?");
 
     if (IS_WN_WRAPPER_OBJECT(obj)) {
@@ -2780,20 +2855,20 @@ nsXPConnect::Base64Encode(JSContext *cx, jsval val, jsval *out)
     xpc_qsACString encodedString(cx, root, &root, xpc_qsACString::eNull,
                                  xpc_qsACString::eStringify);
     if (!encodedString.IsValid())
-        return JS_FALSE;
+        return false;
 
     nsCAutoString result;
     if (NS_FAILED(nsXPConnect::Base64Encode(encodedString, result))) {
         JS_ReportError(cx, "Failed to encode base64 data!");
-        return JS_FALSE;
+        return false;
     }
 
     JSString *str = JS_NewStringCopyN(cx, result.get(), result.Length());
     if (!str)
-        return JS_FALSE;
+        return false;
 
     *out = STRING_TO_JSVAL(str);
-    return JS_TRUE;
+    return true;
 }
 
 // static
@@ -2858,26 +2933,20 @@ nsXPConnect::Base64Decode(JSContext *cx, jsval val, jsval *out)
     xpc_qsACString encodedString(cx, root, &root, xpc_qsACString::eNull,
                                  xpc_qsACString::eNull);
     if (!encodedString.IsValid())
-        return JS_FALSE;
+        return false;
 
     nsCAutoString result;
     if (NS_FAILED(nsXPConnect::Base64Decode(encodedString, result))) {
         JS_ReportError(cx, "Failed to decode base64 string!");
-        return JS_FALSE;
+        return false;
     }
 
     JSString *str = JS_NewStringCopyN(cx, result.get(), result.Length());
     if (!str)
-        return JS_FALSE;
+        return false;
 
     *out = STRING_TO_JSVAL(str);
-    return JS_TRUE;
-}
-
-NS_IMETHODIMP
-nsXPConnect::SetDebugModeWhenPossible(bool mode)
-{
-    return SetDebugModeWhenPossible(mode, false);
+    return true;
 }
 
 NS_IMETHODIMP

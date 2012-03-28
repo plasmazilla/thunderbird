@@ -52,6 +52,7 @@
 #include "nsIObjectFrame.h"
 #include "nsNPAPIPluginInstance.h"
 #include "nsIConstraintValidation.h"
+#include "nsIWidget.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -116,7 +117,7 @@ public:
                              bool aNotify);
 
   virtual bool IsHTMLFocusable(bool aWithMouse, bool *aIsFocusable, PRInt32 *aTabIndex);
-  virtual PRUint32 GetDesiredIMEState();
+  virtual IMEState GetDesiredIMEState();
 
   // Overriden nsIFormControl methods
   NS_IMETHOD_(PRUint32) GetType() const
@@ -129,7 +130,7 @@ public:
 
   virtual bool IsDisabled() const { return false; }
 
-  virtual nsresult DoneAddingChildren(bool aHaveNotified);
+  virtual void DoneAddingChildren(bool aHaveNotified);
   virtual bool IsDoneAddingChildren();
 
   virtual bool ParseAttribute(PRInt32 aNamespaceID,
@@ -200,7 +201,7 @@ nsHTMLObjectElement::IsDoneAddingChildren()
   return mIsDoneAddingChildren;
 }
 
-nsresult
+void
 nsHTMLObjectElement::DoneAddingChildren(bool aHaveNotified)
 {
   mIsDoneAddingChildren = true;
@@ -210,7 +211,6 @@ nsHTMLObjectElement::DoneAddingChildren(bool aHaveNotified)
   if (IsInDoc()) {
     StartObjectLoad(aHaveNotified);
   }
-  return NS_OK;
 }
 
 NS_IMPL_CYCLE_COLLECTION_CLASS(nsHTMLObjectElement)
@@ -377,11 +377,11 @@ nsHTMLObjectElement::IsHTMLFocusable(bool aWithMouse,
   return false;
 }
 
-PRUint32
+nsIContent::IMEState
 nsHTMLObjectElement::GetDesiredIMEState()
 {
   if (Type() == eType_Plugin) {
-    return nsIContent::IME_STATUS_PLUGIN;
+    return IMEState(IMEState::PLUGIN);
   }
    
   return nsGenericHTMLFormElement::GetDesiredIMEState();
@@ -509,7 +509,7 @@ nsHTMLObjectElement::IsAttributeMapped(const nsIAtom *aAttribute) const
     sImageAlignAttributeMap,
   };
 
-  return FindAttributeDependence(aAttribute, map, ArrayLength(map));
+  return FindAttributeDependence(aAttribute, map);
 }
 
 

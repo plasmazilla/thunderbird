@@ -111,7 +111,6 @@
 #include "nsJSUtils.h"
 #include "nsIDocumentCharsetInfo.h"
 #include "nsIDocumentEncoder.h" //for outputting selection
-#include "nsICharsetResolver.h"
 #include "nsICachingChannel.h"
 #include "nsIJSContextStack.h"
 #include "nsIContentViewer.h"
@@ -162,6 +161,8 @@ const PRInt32 kBackward = 1;
 
 //#define DEBUG_charset
 
+#define NS_USE_NEW_PLAIN_TEXT 1
+
 static NS_DEFINE_CID(kCParserCID, NS_PARSER_CID);
 
 PRUint32       nsHTMLDocument::gWyciwygSessionCnt = 0;
@@ -207,13 +208,10 @@ MyPrefChangedCallback(const char*aPrefName, void* instance_data)
 static void
 ReportUseOfDeprecatedMethod(nsHTMLDocument* aDoc, const char* aWarning)
 {
-  nsContentUtils::ReportToConsole(nsContentUtils::eDOM_PROPERTIES,
-                                  aWarning,
-                                  nsnull, 0,
-                                  nsnull,
-                                  EmptyString(), 0, 0,
-                                  nsIScriptError::warningFlag,
-                                  "DOM Events", aDoc);
+  nsContentUtils::ReportToConsole(nsIScriptError::warningFlag,
+                                  "DOM Events", aDoc,
+                                  nsContentUtils::eDOM_PROPERTIES,
+                                  aWarning);
 }
 
 static nsresult
@@ -662,11 +660,9 @@ nsHTMLDocument::StartDocumentLoad(const char* aCommand,
     contentType.EqualsLiteral(TEXT_ECMASCRIPT) ||
     contentType.EqualsLiteral(APPLICATION_ECMASCRIPT) ||
     contentType.EqualsLiteral(TEXT_JAVASCRIPT));
-  bool loadAsHtml5 = true;
-  // Turn off new View Source but not new non-View Source plain text handling
-  if (viewSource) {
+  bool loadAsHtml5 = nsHtml5Module::sEnabled || viewSource || plainText;
+  if (!NS_USE_NEW_PLAIN_TEXT && !viewSource) {
     plainText = false;
-    loadAsHtml5 = false;
   }
 
   NS_ASSERTION(!(plainText && aSink),
@@ -690,14 +686,14 @@ nsHTMLDocument::StartDocumentLoad(const char* aCommand,
   }
 #endif
   
-  if (loadAsHtml5 &&
+  if (loadAsHtml5 && !viewSource &&
       (!(contentType.EqualsLiteral("text/html") || plainText) &&
       aCommand && !nsCRT::strcmp(aCommand, "view"))) {
     loadAsHtml5 = false;
   }
   
   // TODO: Proper about:blank treatment is bug 543435
-  if (loadAsHtml5) {
+  if (loadAsHtml5 && aCommand && !nsCRT::strcmp(aCommand, "view")) {
     // mDocumentURI hasn't been set, yet, so get the URI from the channel
     nsCOMPtr<nsIURI> uri;
     aChannel->GetOriginalURI(getter_AddRefs(uri));
@@ -744,11 +740,15 @@ nsHTMLDocument::StartDocumentLoad(const char* aCommand,
 
   if (needsParser) {
     if (loadAsHtml5) {
-      NS_ASSERTION(!viewSource,
-        "How come we are using HTML5 parser for View Source?");
       mParser = nsHtml5Module::NewHtml5Parser();
       if (plainText) {
-        mParser->MarkAsNotScriptCreated("plain-text");
+        if (viewSource) {
+          mParser->MarkAsNotScriptCreated("view-source-plain");
+        } else {
+          mParser->MarkAsNotScriptCreated("plain-text");
+        }
+      } else if (viewSource && !contentType.EqualsLiteral("text/html")) {
+        mParser->MarkAsNotScriptCreated("view-source-xml");
       } else {
         mParser->MarkAsNotScriptCreated(aCommand);
       }
@@ -768,9 +768,6 @@ nsHTMLDocument::StartDocumentLoad(const char* aCommand,
   // but if we get a null pointer, that's perfectly legal for parent
   // and parentContentViewer
   nsCOMPtr<nsIDocShell> docShell(do_QueryInterface(aContainer));
-
-  // No support yet for docshell-less HTML
-  NS_ENSURE_TRUE(docShell || !IsHTML(), NS_ERROR_FAILURE);
 
   nsCOMPtr<nsIDocShellTreeItem> docShellAsItem(do_QueryInterface(docShell));
 
@@ -808,9 +805,6 @@ nsHTMLDocument::StartDocumentLoad(const char* aCommand,
     }
   }
 
-  nsCAutoString scheme;
-  uri->GetScheme(scheme);
-
   nsCAutoString urlSpec;
   uri->GetSpec(urlSpec);
 #ifdef DEBUG_charset
@@ -828,8 +822,9 @@ nsHTMLDocument::StartDocumentLoad(const char* aCommand,
 
   nsCOMPtr<nsIWyciwygChannel> wyciwygChannel;
   
-  if (!IsHTML()) {
-    charsetSource = kCharsetFromDocTypeDefault;
+  if (!IsHTML() || !docShell) { // no docshell for text/html XHR
+    charsetSource = IsHTML() ? kCharsetFromWeakDocTypeDefault
+                             : kCharsetFromDocTypeDefault;
     charset.AssignLiteral("UTF-8");
     TryChannelCharset(aChannel, charsetSource, charset);
     parserCharsetSource = charsetSource;
@@ -944,14 +939,14 @@ nsHTMLDocument::StartDocumentLoad(const char* aCommand,
                  "not nsICachingChannel");
     rv = cachingChan->SetCacheTokenCachedCharset(charset);
     NS_WARN_IF_FALSE(NS_SUCCEEDED(rv), "cannot SetMetaDataElement");
+    rv = NS_OK; // don't propagate error
   }
 
   // Set the parser as the stream listener for the document loader...
   if (mParser) {
-    rv = mParser->GetStreamListener(aDocListener);
-    if (NS_FAILED(rv)) {
-      return rv;
-    }
+    rv = NS_OK;
+    nsCOMPtr<nsIStreamListener> listener = mParser->GetStreamListener();
+    listener.forget(aDocListener);
 
 #ifdef DEBUG_charset
     printf(" charset = %s source %d\n",
@@ -1296,11 +1291,9 @@ nsHTMLDocument::GetURL(nsAString& aURL)
 }
 
 nsIContent*
-nsHTMLDocument::GetBody(nsresult *aResult)
+nsHTMLDocument::GetBody()
 {
   Element* body = GetBodyElement();
-
-  *aResult = NS_OK;
 
   if (body) {
     // There is a body element, return that as the body.
@@ -1320,10 +1313,9 @@ nsHTMLDocument::GetBody(nsIDOMHTMLElement** aBody)
 {
   *aBody = nsnull;
 
-  nsresult rv;
-  nsIContent *body = GetBody(&rv);
+  nsIContent *body = GetBody();
 
-  return body ? CallQueryInterface(body, aBody) : rv;
+  return body ? CallQueryInterface(body, aBody) : NS_OK;
 }
 
 NS_IMETHODIMP
@@ -1747,7 +1739,8 @@ nsHTMLDocument::Open(const nsAString& aContentTypeOrUrl,
 
     nsCOMPtr<nsIScriptGlobalObject> newScope(do_QueryReferent(mScopeObject));
     if (oldScope && newScope != oldScope) {
-      nsContentUtils::ReparentContentWrappersInScope(cx, oldScope, newScope);
+      rv = nsContentUtils::ReparentContentWrappersInScope(cx, oldScope, newScope);
+      NS_ENSURE_SUCCESS(rv, rv);
     }
   }
 
@@ -1920,13 +1913,12 @@ nsHTMLDocument::WriteCommon(JSContext *cx,
       (mParser && !mParser->IsInsertionPointDefined())) {
     if (mExternalScriptsBeingEvaluated) {
       // Instead of implying a call to document.open(), ignore the call.
-      nsContentUtils::ReportToConsole(nsContentUtils::eDOM_PROPERTIES,
+      nsContentUtils::ReportToConsole(nsIScriptError::warningFlag,
+                                      "DOM Events", this,
+                                      nsContentUtils::eDOM_PROPERTIES,
                                       "DocumentWriteIgnored",
                                       nsnull, 0,
-                                      mDocumentURI,
-                                      EmptyString(), 0, 0,
-                                      nsIScriptError::warningFlag,
-                                      "DOM Events", this);
+                                      mDocumentURI);
       return NS_OK;
     }
     mWriteState = eDocumentClosed;
@@ -1937,13 +1929,12 @@ nsHTMLDocument::WriteCommon(JSContext *cx,
   if (!mParser) {
     if (mExternalScriptsBeingEvaluated) {
       // Instead of implying a call to document.open(), ignore the call.
-      nsContentUtils::ReportToConsole(nsContentUtils::eDOM_PROPERTIES,
+      nsContentUtils::ReportToConsole(nsIScriptError::warningFlag,
+                                      "DOM Events", this,
+                                      nsContentUtils::eDOM_PROPERTIES,
                                       "DocumentWriteIgnored",
                                       nsnull, 0,
-                                      mDocumentURI,
-                                      EmptyString(), 0, 0,
-                                      nsIScriptError::warningFlag,
-                                      "DOM Events", this);
+                                      mDocumentURI);
       return NS_OK;
     }
     nsCOMPtr<nsISupports> ignored;
@@ -1956,6 +1947,8 @@ nsHTMLDocument::WriteCommon(JSContext *cx,
     if (NS_FAILED(rv) || !mParser) {
       return rv;
     }
+    NS_ABORT_IF_FALSE(!JS_IsExceptionPending(cx),
+                      "Open() succeeded but JS exception is pending");
   }
 
   static NS_NAMED_LITERAL_STRING(new_line, "\n");

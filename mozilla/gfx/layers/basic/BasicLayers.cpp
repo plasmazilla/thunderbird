@@ -36,6 +36,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "mozilla/Attributes.h"
+
 #include "gfxSharedImageSurface.h"
 
 #include "mozilla/layers/PLayerChild.h"
@@ -48,6 +50,7 @@
 #include "BasicLayers.h"
 #include "ImageLayers.h"
 
+#include "prprf.h"
 #include "nsTArray.h"
 #include "nsGUIEvent.h"
 #include "gfxContext.h"
@@ -63,6 +66,8 @@
 #endif
 
 #include "GLContext.h"
+
+#define PIXMAN_DONT_DEFINE_STDINT
 #include "pixman.h"
 
 namespace mozilla {
@@ -1136,10 +1141,6 @@ BasicCanvasLayer::UpdateSurface(gfxASurface* aDestSurface)
 
     NS_ASSERTION(isurf->Stride() == mBounds.width * 4, "gfxImageSurface stride isn't what we expect!");
 
-    // We have to flush to ensure that any buffered GL operations are
-    // in the framebuffer before we read.
-    mGLContext->fFlush();
-
     PRUint32 currentFramebuffer = 0;
 
     mGLContext->fGetIntegerv(LOCAL_GL_FRAMEBUFFER_BINDING, (GLint*)&currentFramebuffer);
@@ -1188,6 +1189,11 @@ BasicCanvasLayer::PaintWithOpacity(gfxContext* aContext,
 {
   NS_ASSERTION(BasicManager()->InDrawing(),
                "Can only draw in drawing phase");
+
+  if (!mSurface) {
+    NS_WARNING("No valid surface to draw!");
+    return;
+  }
 
   nsRefPtr<gfxPattern> pat = new gfxPattern(mSurface);
 
@@ -2209,17 +2215,17 @@ private:
     return static_cast<BasicShadowLayerManager*>(mManager);
   }
 
-  NS_OVERRIDE virtual void
+  virtual void
   PaintBuffer(gfxContext* aContext,
               const nsIntRegion& aRegionToDraw,
               const nsIntRegion& aExtendedRegionToDraw,
               const nsIntRegion& aRegionToInvalidate,
               bool aDidSelfCopy,
               LayerManager::DrawThebesLayerCallback aCallback,
-              void* aCallbackData);
+              void* aCallbackData) MOZ_OVERRIDE;
 
-  NS_OVERRIDE virtual already_AddRefed<gfxASurface>
-  CreateBuffer(Buffer::ContentType aType, const nsIntSize& aSize);
+  virtual already_AddRefed<gfxASurface>
+  CreateBuffer(Buffer::ContentType aType, const nsIntSize& aSize) MOZ_OVERRIDE;
 
   void DestroyBackBuffer()
   {
@@ -2380,7 +2386,12 @@ BasicShadowableThebesLayer::CreateBuffer(Buffer::ContentType aType,
   if (!BasicManager()->AllocBuffer(gfxIntSize(aSize.width, aSize.height),
                                    aType,
                                    &mBackBuffer)) {
-      NS_RUNTIMEABORT("creating ThebesLayer 'back buffer' failed!");
+      enum { buflen = 256 };
+      char buf[buflen];
+      PR_snprintf(buf, buflen,
+                  "creating ThebesLayer 'back buffer' failed! width=%d, height=%d, type=%x",
+                  aSize.width, aSize.height, int(aType));
+      NS_RUNTIMEABORT(buf);
   }
 
   NS_ABORT_IF_FALSE(!mIsNewBuffer,

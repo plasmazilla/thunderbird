@@ -14,7 +14,19 @@
 
 /** Test for Battery API **/
 
-ok(!('mozBattery' in navigator), "navigator.mozBattery shouldn't exist");
+// Testing prefixing.
+ok(!("NavigatorBattery" in window), "NavigatorBattery shouldn't be visible");
+ok(("MozNavigatorBattery" in window), "MozNavigatorBattery should be visible");
+ok(!("BatteryManager" in window), "BatteryManager shouldn't be visible");
+ok(("MozBatteryManager" in window), "MozBatteryManager should be visible");
+
+ok('mozBattery' in navigator, "navigator.mozBattery should exist");
+
+var battery = navigator.mozBattery;
+is(battery.level, 1.0, "Default battery level should be 1.0");
+is(battery.charging, true, "Default charging value should be true");
+is(battery.dischargingTime, Infinity, "Default dischargingTime should be Inifinity");
+is(battery.chargingTime, 0, "Default chargingTime should be 0");
 
 </script>
 </pre>

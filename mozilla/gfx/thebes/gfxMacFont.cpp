@@ -41,6 +41,9 @@
 #include "gfxMacFont.h"
 #include "gfxCoreTextShaper.h"
 #include "gfxHarfBuzzShaper.h"
+#ifdef MOZ_GRAPHITE
+#include "gfxGraphiteShaper.h"
+#endif
 #include "gfxPlatformMac.h"
 #include "gfxContext.h"
 #include "gfxUnicodeProperties.h"
@@ -49,13 +52,13 @@
 #include "cairo-quartz.h"
 
 using namespace mozilla;
+using namespace mozilla::gfx;
 
 gfxMacFont::gfxMacFont(MacOSFontEntry *aFontEntry, const gfxFontStyle *aFontStyle,
                        bool aNeedsBold)
     : gfxFont(aFontEntry, aFontStyle),
       mCGFont(nsnull),
-      mFontFace(nsnull),
-      mScaledFont(nsnull)
+      mFontFace(nsnull)
 {
     mApplySyntheticBold = aNeedsBold;
 
@@ -132,6 +135,11 @@ gfxMacFont::gfxMacFont(MacOSFontEntry *aFontEntry, const gfxFontStyle *aFontStyl
 #endif
     }
 
+#ifdef MOZ_GRAPHITE
+    if (FontCanSupportGraphite()) {
+        mGraphiteShaper = new gfxGraphiteShaper(this);
+    }
+#endif
     if (FontCanSupportHarfBuzz()) {
         mHarfBuzzShaper = new gfxHarfBuzzShaper(this);
     }
@@ -495,3 +503,18 @@ gfxMacFont::InitMetricsFromATSMetrics(ATSFontRef aFontRef)
 
     mIsValid = true;
 }
+
+RefPtr<ScaledFont>
+gfxMacFont::GetScaledFont()
+{
+  if (!mAzureFont) {
+    NativeFont nativeFont;
+    nativeFont.mType = NATIVE_FONT_MAC_FONT_FACE;
+    nativeFont.mFont = GetCGFontRef();
+    mAzureFont =
+      mozilla::gfx::Factory::CreateScaledFontForNativeFont(nativeFont, GetAdjustedSize());
+  }
+
+  return mAzureFont;
+}
+

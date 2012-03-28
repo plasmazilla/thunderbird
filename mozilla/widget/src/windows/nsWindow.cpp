@@ -129,7 +129,6 @@
 #include "imgIContainer.h"
 #include "nsIFile.h"
 #include "nsIRollupListener.h"
-#include "nsIMenuRollup.h"
 #include "nsIServiceManager.h"
 #include "nsIClipboard.h"
 #include "nsIMM32Handler.h"
@@ -206,6 +205,8 @@
 #include "nsCrashOnException.h"
 #include "nsIXULRuntime.h"
 
+#include "nsIContent.h"
+
 using namespace mozilla::widget;
 using namespace mozilla::layers;
 using namespace mozilla;
@@ -253,7 +254,6 @@ UINT            nsWindow::sHookTimerId            = 0;
 
 // Rollup Listener
 nsIRollupListener* nsWindow::sRollupListener      = nsnull;
-nsIMenuRollup*  nsWindow::sMenuRollup             = nsnull;
 nsIWidget*      nsWindow::sRollupWidget           = nsnull;
 bool            nsWindow::sRollupConsumeEvent     = false;
 
@@ -332,6 +332,9 @@ bool            gDisableNativeTheme               = false;
 // Global used in Show window enumerations.
 static bool     gWindowsVisible                   = false;
 
+// True if we have sent a notification that we are suspending/sleeping.
+static bool     gIsSleepMode                      = false;
+
 static NS_DEFINE_CID(kCClipboardCID, NS_CLIPBOARD_CID);
 
 // General purpose user32.dll hook object
@@ -405,7 +408,6 @@ nsWindow::nsWindow() : nsBaseWidget()
   mLastKeyboardLayout   = 0;
   mAssumeWheelIsZoomUntil = 0;
   mBlurSuppressLevel    = 0;
-  mIMEContext.mStatus   = nsIWidget::IME_STATUS_ENABLED;
 #ifdef MOZ_XUL
   mTransparentSurface   = nsnull;
   mMemoryDC             = nsnull;
@@ -1529,30 +1531,6 @@ NS_METHOD nsWindow::Resize(PRInt32 aX, PRInt32 aY, PRInt32 aWidth, PRInt32 aHeig
   return NS_OK;
 }
 
-// Resize the client area and position the widget within it's parent
-NS_METHOD nsWindow::ResizeClient(PRInt32 aX, PRInt32 aY, PRInt32 aWidth, PRInt32 aHeight, bool aRepaint)
-{
-  NS_ASSERTION((aWidth >=0) , "Negative width passed to ResizeClient");
-  NS_ASSERTION((aHeight >=0), "Negative height passed to ResizeClient");
-
-  // Adjust our existing window bounds, based on the new client dims.
-  RECT client;
-  GetClientRect(mWnd, &client);
-  nsIntPoint dims(client.right - client.left, client.bottom - client.top);
-  aWidth = mBounds.width + (aWidth - dims.x);
-  aHeight = mBounds.height + (aHeight - dims.y);
-  
-  if (aX || aY) {
-    // offsets
-    nsIntRect bounds;
-    GetScreenBounds(bounds);
-    aX += bounds.x;
-    aY += bounds.y;
-    return Resize(aX, aY, aWidth, aHeight, aRepaint);
-  }
-  return Resize(aWidth, aHeight, aRepaint);
-}
-
 NS_IMETHODIMP
 nsWindow::BeginResizeDrag(nsGUIEvent* aEvent, PRInt32 aHorizontal, PRInt32 aVertical)
 {
@@ -1936,9 +1914,9 @@ NS_METHOD nsWindow::GetClientBounds(nsIntRect &aRect)
     RECT r;
     VERIFY(::GetClientRect(mWnd, &r));
 
-    // assign size
-    aRect.x = 0;
-    aRect.y = 0;
+    nsIntRect bounds;
+    GetBounds(bounds);
+    aRect.MoveTo(bounds.TopLeft() + GetClientOffset());
     aRect.width  = r.right - r.left;
     aRect.height = r.bottom - r.top;
 
@@ -3085,7 +3063,6 @@ NS_METHOD nsWindow::CaptureMouse(bool aCapture)
  **************************************************************/
 
 NS_IMETHODIMP nsWindow::CaptureRollupEvents(nsIRollupListener * aListener,
-                                            nsIMenuRollup * aMenuRollup,
                                             bool aDoCapture,
                                             bool aConsumeRollupEvent)
 {
@@ -3096,10 +3073,7 @@ NS_IMETHODIMP nsWindow::CaptureRollupEvents(nsIRollupListener * aListener,
     NS_ASSERTION(!sRollupWidget, "rollup widget reassigned before release");
     sRollupConsumeEvent = aConsumeRollupEvent;
     NS_IF_RELEASE(sRollupWidget);
-    NS_IF_RELEASE(sMenuRollup);
     sRollupListener = aListener;
-    sMenuRollup = aMenuRollup;
-    NS_IF_ADDREF(aMenuRollup);
     sRollupWidget = this;
     NS_ADDREF(this);
     if (!sMsgFilterHook && !sCallProcHook && !sCallMouseHook) {
@@ -3108,7 +3082,6 @@ NS_IMETHODIMP nsWindow::CaptureRollupEvents(nsIRollupListener * aListener,
     sProcessHook = true;
   } else {
     sRollupListener = nsnull;
-    NS_IF_RELEASE(sMenuRollup);
     NS_IF_RELEASE(sRollupWidget);
     sProcessHook = false;
     UnregisterSpecialDropdownHooks();
@@ -4678,17 +4651,7 @@ bool nsWindow::ProcessMessage(UINT msg, WPARAM &wParam, LPARAM &lParam,
       break;
 
     case WM_SYSCOLORCHANGE:
-      if (mWindowType == eWindowType_invisible) {
-        ::EnumThreadWindows(GetCurrentThreadId(), nsWindow::BroadcastMsg, msg);
-      }
-      else {
-        // Note: This is sent for child windows as well as top-level windows.
-        // The Win32 toolkit normally only sends these events to top-level windows.
-        // But we cycle through all of the childwindows and send it to them as well
-        // so all presentations get notified properly.
-        // See nsWindow::GlobalMsgWindowProc.
-        DispatchStandardEvent(NS_SYSCOLORCHANGED);
-      }
+      OnSysColorChanged();
       break;
 
     case WM_NOTIFY:
@@ -4879,20 +4842,16 @@ bool nsWindow::ProcessMessage(UINT msg, WPARAM &wParam, LPARAM &lParam,
     break;
 
     case WM_POWERBROADCAST:
-      // only hidden window handle this
-      // to prevent duplicate notification
-      if (mWindowType == eWindowType_invisible) {
-        switch (wParam)
-        {
-          case PBT_APMSUSPEND:
-            PostSleepWakeNotification("sleep_notification");
-            break;
-          case PBT_APMRESUMEAUTOMATIC:
-          case PBT_APMRESUMECRITICAL:
-          case PBT_APMRESUMESUSPEND:
-            PostSleepWakeNotification("wake_notification");
-            break;
-        }
+      switch (wParam)
+      {
+        case PBT_APMSUSPEND:
+          PostSleepWakeNotification(true);
+          break;
+        case PBT_APMRESUMEAUTOMATIC:
+        case PBT_APMRESUMECRITICAL:
+        case PBT_APMRESUMESUSPEND:
+          PostSleepWakeNotification(false);
+          break;
       }
       break;
 
@@ -5730,12 +5689,18 @@ nsWindow::ClientMarginHitTestPoint(PRInt32 mx, PRInt32 my)
   return testResult;
 }
 
-void nsWindow::PostSleepWakeNotification(const char* aNotification)
+void nsWindow::PostSleepWakeNotification(const bool aIsSleepMode)
 {
+  if (aIsSleepMode == gIsSleepMode)
+    return;
+
+  gIsSleepMode = aIsSleepMode;
+
   nsCOMPtr<nsIObserverService> observerService =
     mozilla::services::GetObserverService();
   if (observerService)
-    observerService->NotifyObservers(nsnull, aNotification, nsnull);
+    observerService->NotifyObservers(nsnull,
+      aIsSleepMode ? "sleep_notification" : "wake_notification", nsnull);
 }
 
 // RemoveNextCharMessage() should be called by WM_KEYDOWN or WM_SYSKEYDOWM
@@ -7417,8 +7382,8 @@ void nsWindow::OnDestroy()
   // turn off capture.
   if ( this == sRollupWidget ) {
     if ( sRollupListener )
-      sRollupListener->Rollup(nsnull, nsnull);
-    CaptureRollupEvents(nsnull, nsnull, false, true);
+      sRollupListener->Rollup(0);
+    CaptureRollupEvents(nsnull, false, true);
   }
 
   // Restore the IM context.
@@ -8005,6 +7970,22 @@ nsWindow::HasBogusPopupsDropShadowOnMultiMonitor() {
   return !!sHasBogusPopupsDropShadowOnMultiMonitor;
 }
 
+void
+nsWindow::OnSysColorChanged()
+{
+  if (mWindowType == eWindowType_invisible) {
+    ::EnumThreadWindows(GetCurrentThreadId(), nsWindow::BroadcastMsg, WM_SYSCOLORCHANGE);
+  }
+  else {
+    // Note: This is sent for child windows as well as top-level windows.
+    // The Win32 toolkit normally only sends these events to top-level windows.
+    // But we cycle through all of the childwindows and send it to them as well
+    // so all presentations get notified properly.
+    // See nsWindow::GlobalMsgWindowProc.
+    DispatchStandardEvent(NS_SYSCOLORCHANGED);
+  }
+}
+
 /**************************************************************
  **************************************************************
  **
@@ -8029,71 +8010,57 @@ NS_IMETHODIMP nsWindow::ResetInputState()
   return NS_OK;
 }
 
-NS_IMETHODIMP nsWindow::SetIMEOpenState(bool aState)
+NS_IMETHODIMP_(void)
+nsWindow::SetInputContext(const InputContext& aContext,
+                          const InputContextAction& aAction)
 {
-#ifdef DEBUG_KBSTATE
-  PR_LOG(gWindowsLog, PR_LOG_ALWAYS, 
-         ("SetIMEOpenState %s\n", (aState ? "Open" : "Close")));
-#endif 
-
 #ifdef NS_ENABLE_TSF
-  nsTextStore::SetIMEOpenState(aState);
+  nsTextStore::SetInputContext(aContext);
 #endif //NS_ENABLE_TSF
-
-  nsIMEContext IMEContext(mWnd);
-  if (IMEContext.IsValid()) {
-    ::ImmSetOpenStatus(IMEContext.get(), aState ? TRUE : FALSE);
-  }
-  return NS_OK;
-}
-
-NS_IMETHODIMP nsWindow::GetIMEOpenState(bool* aState)
-{
-  nsIMEContext IMEContext(mWnd);
-  if (IMEContext.IsValid()) {
-    BOOL isOpen = ::ImmGetOpenStatus(IMEContext.get());
-    *aState = isOpen ? true : false;
-  } else 
-    *aState = false;
-
-#ifdef NS_ENABLE_TSF
-  *aState |= nsTextStore::GetIMEOpenState();
-#endif //NS_ENABLE_TSF
-
-  return NS_OK;
-}
-
-NS_IMETHODIMP nsWindow::SetInputMode(const IMEContext& aContext)
-{
-  PRUint32 status = aContext.mStatus;
-#ifdef NS_ENABLE_TSF
-  nsTextStore::SetInputMode(aContext);
-#endif //NS_ENABLE_TSF
-#ifdef DEBUG_KBSTATE
-  PR_LOG(gWindowsLog, PR_LOG_ALWAYS, 
-         ("SetInputMode: %s\n", (status == nsIWidget::IME_STATUS_ENABLED ||
-                                 status == nsIWidget::IME_STATUS_PLUGIN) ? 
-                                 "Enabled" : "Disabled"));
-#endif 
   if (nsIMM32Handler::IsComposing()) {
     ResetInputState();
   }
-  mIMEContext = aContext;
-  bool enable = (status == nsIWidget::IME_STATUS_ENABLED ||
-                   status == nsIWidget::IME_STATUS_PLUGIN);
+  mInputContext = aContext;
+  bool enable = (mInputContext.mIMEState.mEnabled == IMEState::ENABLED ||
+                 mInputContext.mIMEState.mEnabled == IMEState::PLUGIN);
 
   AssociateDefaultIMC(enable);
-  return NS_OK;
+
+  if (enable &&
+      mInputContext.mIMEState.mOpen != IMEState::DONT_CHANGE_OPEN_STATE) {
+    bool open = (mInputContext.mIMEState.mOpen == IMEState::OPEN);
+#ifdef NS_ENABLE_TSF
+    nsTextStore::SetIMEOpenState(open);
+#endif //NS_ENABLE_TSF
+    nsIMEContext IMEContext(mWnd);
+    if (IMEContext.IsValid()) {
+      ::ImmSetOpenStatus(IMEContext.get(), open);
+    }
+  }
 }
 
-NS_IMETHODIMP nsWindow::GetInputMode(IMEContext& aContext)
+NS_IMETHODIMP_(InputContext)
+nsWindow::GetInputContext()
 {
-#ifdef DEBUG_KBSTATE
-  PR_LOG(gWindowsLog, PR_LOG_ALWAYS, 
-         ("GetInputMode: %s\n", mIMEContext.mStatus ? "Enabled" : "Disabled");
-#endif 
-  aContext = mIMEContext;
-  return NS_OK;
+  mInputContext.mIMEState.mOpen = IMEState::CLOSED;
+  switch (mInputContext.mIMEState.mEnabled) {
+    case IMEState::ENABLED:
+    case IMEState::PLUGIN: {
+      nsIMEContext IMEContext(mWnd);
+      if (IMEContext.IsValid()) {
+        mInputContext.mIMEState.mOpen =
+          ::ImmGetOpenStatus(IMEContext.get()) ? IMEState::OPEN :
+                                                 IMEState::CLOSED;
+      }
+#ifdef NS_ENABLE_TSF
+      if (mInputContext.mIMEState.mOpen == IMEState::CLOSED &&
+          nsTextStore::GetIMEOpenState()) {
+        mInputContext.mIMEState.mOpen = IMEState::OPEN;
+      }
+#endif //NS_ENABLE_TSF
+    }
+  }
+  return mInputContext;
 }
 
 NS_IMETHODIMP nsWindow::CancelIMEComposition()
@@ -8125,7 +8092,8 @@ nsWindow::GetToggledKeyState(PRUint32 aKeyCode, bool* aLEDState)
 NS_IMETHODIMP
 nsWindow::OnIMEFocusChange(bool aFocus)
 {
-  nsresult rv = nsTextStore::OnFocusChange(aFocus, this, mIMEContext.mStatus);
+  nsresult rv = nsTextStore::OnFocusChange(aFocus, this,
+                                           mInputContext.mIMEState.mEnabled);
   if (rv == NS_ERROR_NOT_AVAILABLE)
     rv = NS_ERROR_NOT_IMPLEMENTED; // TSF is not enabled, maybe.
   return rv;
@@ -8721,7 +8689,7 @@ nsWindow::DealWithPopups(HWND inWnd, UINT inMsg, WPARAM inWParam, LPARAM inLPara
 
       if (rollup && (inMsg == WM_MOUSEWHEEL || inMsg == WM_MOUSEHWHEEL))
       {
-        sRollupListener->ShouldRollupOnMouseWheelEvent(&rollup);
+        rollup = sRollupListener->ShouldRollupOnMouseWheelEvent();
         *outResult = true;
       }
 
@@ -8729,9 +8697,9 @@ nsWindow::DealWithPopups(HWND inWnd, UINT inMsg, WPARAM inWParam, LPARAM inLPara
       // want to rollup if the click is in a parent menu of the current submenu.
       PRUint32 popupsToRollup = PR_UINT32_MAX;
       if (rollup) {
-        if ( sMenuRollup ) {
+        if ( sRollupListener ) {
           nsAutoTArray<nsIWidget*, 5> widgetChain;
-          PRUint32 sameTypeCount = sMenuRollup->GetSubmenuWidgetChain(&widgetChain);
+          PRUint32 sameTypeCount = sRollupListener->GetSubmenuWidgetChain(&widgetChain);
           for ( PRUint32 i = 0; i < widgetChain.Length(); ++i ) {
             nsIWidget* widget = widgetChain[i];
             if ( nsWindow::EventIsInsideWindow(inMsg, (nsWindow*)widget) ) {
@@ -8767,7 +8735,7 @@ nsWindow::DealWithPopups(HWND inWnd, UINT inMsg, WPARAM inWParam, LPARAM inLPara
           {
             // WM_MOUSEACTIVATE cause by moving the mouse - X-mouse (eg. TweakUI)
             // must be enabled in Windows.
-            sRollupListener->ShouldRollupOnMouseActivate(&rollup);
+            rollup = sRollupListener->ShouldRollupOnMouseActivate();
             if (!rollup)
             {
               *outResult = MA_NOACTIVATE;
@@ -8782,7 +8750,9 @@ nsWindow::DealWithPopups(HWND inWnd, UINT inMsg, WPARAM inWParam, LPARAM inLPara
         // nsIRollupListener::Rollup.
         bool consumeRollupEvent = sRollupConsumeEvent;
         // only need to deal with the last rollup for left mouse down events.
-        sRollupListener->Rollup(popupsToRollup, inMsg == WM_LBUTTONDOWN ? &mLastRollup : nsnull);
+        NS_ASSERTION(!mLastRollup, "mLastRollup is null");
+        mLastRollup = sRollupListener->Rollup(popupsToRollup, inMsg == WM_LBUTTONDOWN);
+        NS_IF_ADDREF(mLastRollup);
 
         // Tell hook to stop processing messages
         sProcessHook = false;

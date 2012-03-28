@@ -43,6 +43,7 @@
 
 #include "gfxFont.h"
 #include "gfxMacPlatformFontList.h"
+#include "mozilla/gfx/2D.h"
 
 #include "cairo.h"
 
@@ -78,6 +79,8 @@ public:
     // use CGFontRef API to get direct access to system font data
     virtual hb_blob_t *GetFontTable(PRUint32 aTag);
 
+    mozilla::RefPtr<mozilla::gfx::ScaledFont> GetScaledFont();
+
 protected:
     virtual void CreatePlatformShaper();
 
@@ -106,10 +109,11 @@ protected:
     CGFontRef             mCGFont;
 
     cairo_font_face_t    *mFontFace;
-    cairo_scaled_font_t  *mScaledFont;
 
     Metrics               mMetrics;
     PRUint32              mSpaceGlyph;
+
+    mozilla::RefPtr<mozilla::gfx::ScaledFont> mAzureFont;
 };
 
 #endif /* GFX_MACFONT_H */

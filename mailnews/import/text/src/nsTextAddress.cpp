@@ -49,6 +49,12 @@
 #include "plstr.h"
 #include "msgCore.h"
 
+#ifndef MOZILLA_INTERNAL_API
+#include "nsMsgI18N.h"
+#define NS_CopyNativeToUnicode(source, dest) \
+        nsMsgI18NConvertToUnicode(nsMsgI18NFileSystemCharset(), source, dest)
+#endif
+
 #define kWhitespace    " \t\b\r\n"
 
 // If we get a line longer than 32K it's just toooooo bad!
@@ -113,11 +119,11 @@ nsresult nsTextAddress::ImportAddresses(bool *pAbort, const PRUnichar *pName, ns
 
   // Skip the first record if the user has requested it.
   if (skipRecord)
-    rv = ReadRecord(lineStream, line, m_delim, &more);
+    rv = ReadRecord(lineStream, line, &more);
 
   while (!(*pAbort) && more && NS_SUCCEEDED( rv)) {
     // Read the line in
-    rv = ReadRecord(lineStream, line, m_delim, &more);
+    rv = ReadRecord(lineStream, line, &more);
     if (NS_SUCCEEDED(rv)) {
       // Now proces it to add it to the database
       rv = ProcessLine(line.get(), line.Length(), errors);
@@ -145,7 +151,7 @@ nsresult nsTextAddress::ImportAddresses(bool *pAbort, const PRUnichar *pName, ns
   return pDb->Commit(nsAddrDBCommitType::kLargeCommit);
 }
 
-nsresult nsTextAddress::ReadRecord(nsILineInputStream *aLineStream, nsCString &aLine, char delim, bool *aMore)
+nsresult nsTextAddress::ReadRecord(nsILineInputStream *aLineStream, nsCString &aLine, bool *aMore)
 {
   bool more = true;
   PRUint32 numQuotes = 0;
@@ -187,7 +193,7 @@ nsresult nsTextAddress::ReadRecord(nsILineInputStream *aLineStream, nsCString &a
   return rv;
 }
 
-nsresult nsTextAddress::ReadRecordNumber(nsIFile *aSrc, nsCString &aLine, char delim, PRInt32 rNum)
+nsresult nsTextAddress::ReadRecordNumber(nsIFile *aSrc, nsCString &aLine, PRInt32 rNum)
 {
   nsCOMPtr<nsIInputStream> inputStream;
   nsresult rv = NS_NewLocalFileInputStream(getter_AddRefs(inputStream), aSrc);
@@ -212,7 +218,7 @@ nsresult nsTextAddress::ReadRecordNumber(nsIFile *aSrc, nsCString &aLine, char d
   bool more = true;
 
   while (more && (rIndex <= rNum)) {
-    rv = ReadRecord(lineStream, aLine, delim, &more);
+    rv = ReadRecord(lineStream, aLine, &more);
     if (NS_FAILED(rv)) {
       inputStream->Close();
       return rv;

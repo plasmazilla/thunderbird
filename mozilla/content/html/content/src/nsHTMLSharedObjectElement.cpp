@@ -49,13 +49,8 @@
 #include "nsThreadUtils.h"
 #include "nsIDOMGetSVGDocument.h"
 #include "nsIDOMSVGDocument.h"
-
-// XXX this is to get around conflicts with windows.h defines
-// introduced through jni.h
-#ifdef XP_WIN
-#undef GetClassName
-#undef GetObject
-#endif
+#include "nsIScriptError.h"
+#include "nsIWidget.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -125,9 +120,9 @@ public:
                            bool aNotify);
 
   virtual bool IsHTMLFocusable(bool aWithMouse, bool *aIsFocusable, PRInt32 *aTabIndex);
-  virtual PRUint32 GetDesiredIMEState();
+  virtual IMEState GetDesiredIMEState();
 
-  virtual nsresult DoneAddingChildren(bool aHaveNotified);
+  virtual void DoneAddingChildren(bool aHaveNotified);
   virtual bool IsDoneAddingChildren();
 
   virtual bool ParseAttribute(PRInt32 aNamespaceID,
@@ -215,7 +210,7 @@ nsHTMLSharedObjectElement::IsDoneAddingChildren()
   return mIsDoneAddingChildren;
 }
 
-nsresult
+void
 nsHTMLSharedObjectElement::DoneAddingChildren(bool aHaveNotified)
 {
   if (!mIsDoneAddingChildren) {
@@ -227,8 +222,6 @@ nsHTMLSharedObjectElement::DoneAddingChildren(bool aHaveNotified)
       StartObjectLoad(aHaveNotified);
     }
   }
-
-  return NS_OK;
 }
 
 NS_IMPL_CYCLE_COLLECTION_CLASS(nsHTMLSharedObjectElement)
@@ -297,17 +290,6 @@ nsHTMLSharedObjectElement::BindToTree(nsIDocument *aDocument,
     nsContentUtils::AddScriptRunner(NS_NewRunnableMethod(this, start));
   }
 
-#ifndef XP_MACOSX
-  if (aDocument &&
-      aDocument->IsFullScreenDoc() &&
-      nsContentUtils::HasPluginWithUncontrolledEventDispatch(this)) {
-    // This content contains a windowed plugin for which we don't control
-    // event dispatch, and we're in full-screen mode. Exit full-screen mode
-    // to prevent phishing attacks.
-    NS_DispatchToCurrentThread(
-      NS_NewRunnableMethod(aDocument, &nsIDocument::CancelFullScreen));
-  }
-#endif
   return NS_OK;
 }
 
@@ -367,11 +349,11 @@ nsHTMLSharedObjectElement::IsHTMLFocusable(bool aWithMouse,
   return nsGenericHTMLElement::IsHTMLFocusable(aWithMouse, aIsFocusable, aTabIndex);
 }
 
-PRUint32
+nsIContent::IMEState
 nsHTMLSharedObjectElement::GetDesiredIMEState()
 {
   if (Type() == eType_Plugin) {
-    return nsIContent::IME_STATUS_PLUGIN;
+    return IMEState(IMEState::PLUGIN);
   }
    
   return nsGenericHTMLElement::GetDesiredIMEState();
@@ -467,7 +449,7 @@ nsHTMLSharedObjectElement::IsAttributeMapped(const nsIAtom *aAttribute) const
     sImageAlignAttributeMap,
   };
 
-  return FindAttributeDependence(aAttribute, map, ArrayLength(map));
+  return FindAttributeDependence(aAttribute, map);
 }
 
 

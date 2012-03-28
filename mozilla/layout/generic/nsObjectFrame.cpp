@@ -1705,7 +1705,7 @@ nsObjectFrame::PaintPlugin(nsDisplayListBuilder* aBuilder,
                            nsRenderingContext& aRenderingContext,
                            const nsRect& aDirtyRect, const nsRect& aPluginRect)
 {
-#if defined(ANDROID)
+#if defined(MOZ_WIDGET_ANDROID)
   if (mInstanceOwner) {
     NPWindow *window;
     mInstanceOwner->GetWindow(window);
@@ -1716,7 +1716,21 @@ nsObjectFrame::PaintPlugin(nsDisplayListBuilder* aBuilder,
       PresContext()->AppUnitsToGfxUnits(aDirtyRect);
     gfxContext* ctx = aRenderingContext.ThebesContext();
 
-    mInstanceOwner->Paint(ctx, frameGfxRect, dirtyGfxRect);
+    nsIFrame* parent = NULL;
+    gfx3DMatrix matrix3d = GetTransformMatrix(&parent);
+    while (parent) {
+      matrix3d = matrix3d * parent->GetTransformMatrix(&parent);
+    }
+
+    gfxMatrix matrix2d;
+    if (!matrix3d.Is2D(&matrix2d))
+      return;
+
+    // The matrix includes the frame's position, so we need to transform
+    // from 0,0 to get the correct coordinates.
+    frameGfxRect.MoveTo(0, 0);
+
+    mInstanceOwner->Paint(ctx, matrix2d.Transform(frameGfxRect), dirtyGfxRect);
     return;
   }
 #endif

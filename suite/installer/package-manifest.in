@@ -71,6 +71,7 @@
 @BINPATH@/@MOZ_D3DCOMPILER_DLL@
 #endif
 #ifdef XP_WIN32
+@BINPATH@/@DLL_PREFIX@gkmedias@DLL_SUFFIX@
 #ifndef MOZ_DEBUG
 #if _MSC_VER == 1400
 @BINPATH@/Microsoft.VC80.CRT.manifest
@@ -85,11 +86,14 @@
 #elif _MSC_VER == 1600
 @BINPATH@/msvcp100.dll
 @BINPATH@/msvcr100.dll
+#elif _MSC_VER == 1700
+@BINPATH@/msvcp110.dll
+@BINPATH@/msvcr110.dll
 #endif
 #endif
 #endif
 @BINPATH@/@DLL_PREFIX@mozalloc@DLL_SUFFIX@
-@BINPATH@/@DLL_PREFIX@mozutils@DLL_SUFFIX@
+@BINPATH@/@DLL_PREFIX@mozglue@DLL_SUFFIX@
 
 [browser]
 ; [Base Browser Files]
@@ -173,6 +177,7 @@
 #ifdef MOZ_SMIL
 @BINPATH@/components/dom_smil.xpt
 #endif
+@BINPATH@/components/dom_sms.xpt
 @BINPATH@/components/dom_storage.xpt
 @BINPATH@/components/dom_stylesheets.xpt
 @BINPATH@/components/dom_svg.xpt
@@ -332,6 +337,7 @@
 @BINPATH@/components/nsAboutLife.js
 @BINPATH@/components/nsAboutRights.js
 @BINPATH@/components/nsAboutSessionRestore.js
+@BINPATH@/components/nsAboutSyncTabs.js
 @BINPATH@/components/nsBadCertHandler.js
 @BINPATH@/components/nsBadCertHandler.manifest
 @BINPATH@/components/nsBlocklistService.js
@@ -402,14 +408,13 @@
 @BINPATH@/components/smileApplication.manifest
 @BINPATH@/components/storage-Legacy.js
 @BINPATH@/components/storage-mozStorage.js
+@BINPATH@/components/SyncComponents.manifest
 @BINPATH@/components/TelemetryPing.js
 @BINPATH@/components/TelemetryPing.manifest
 @BINPATH@/components/txEXSLTRegExFunctions.js
 @BINPATH@/components/txEXSLTRegExFunctions.manifest
-@BINPATH@/components/WebContentConverter.js
-@BINPATH@/components/nsAboutSyncTabs.js
-@BINPATH@/components/SyncComponents.manifest
 @BINPATH@/components/Weave.js
+@BINPATH@/components/WebContentConverter.js
 
 ; Modules
 @BINPATH@/modules/*
@@ -552,6 +557,8 @@
 @BINPATH@/res/table-remove-row-active.gif
 @BINPATH@/res/table-remove-row-hover.gif
 @BINPATH@/res/table-remove-row.gif
+@BINPATH@/res/TopLevelImageDocument.css
+@BINPATH@/res/TopLevelVideoDocument.css
 #ifdef XP_MACOSX
 @BINPATH@/res/cursors/*
 #endif
@@ -647,7 +654,6 @@ bin/libfreebl_32int64_3.so
 @BINPATH@/components/nsAddrbook.manifest
 @BINPATH@/components/fts3tok.xpt
 @BINPATH@/components/import.xpt
-@BINPATH@/components/impComm4xMail.xpt
 @BINPATH@/components/ldapComponents.manifest
 @BINPATH@/components/mailview.xpt
 @BINPATH@/components/mime.xpt
@@ -726,6 +732,9 @@ bin/libfreebl_32int64_3.so
 @BINPATH@/isp/movemail.rdf
 #endif
 @BINPATH@/isp/rss.rdf
+@BINPATH@/isp/Bogofilter.sfd
+@BINPATH@/isp/DSPAM.sfd
+@BINPATH@/isp/POPFile.sfd
 @BINPATH@/isp/SpamAssassin.sfd
 @BINPATH@/isp/SpamPal.sfd
 

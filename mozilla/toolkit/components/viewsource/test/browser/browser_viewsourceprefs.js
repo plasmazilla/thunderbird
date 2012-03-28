@@ -2,12 +2,18 @@
  * http://creativecommons.org/publicdomain/zero/1.0/
  */
 
-let source = "about:robots";
+const source = "about:mozilla";
 let mWindow, wrapMenuItem, syntaxMenuItem;
 
 // Check the default values are set.
 function test() {
   waitForExplicitFinish();
+
+  registerCleanupFunction(function() {
+    SpecialPowers.clearUserPref("view_source.tab_size");
+    SpecialPowers.clearUserPref("view_source.wrap_long_lines");
+    SpecialPowers.clearUserPref("view_source.syntax_highlight");
+  });
 
   openViewSourceWindow(source, function(aWindow) {
     mWindow = aWindow;
@@ -22,7 +28,7 @@ function test() {
 
     is(wrapMenuItem.hasAttribute("checked"), false, "Wrap menu item not checked by default");
     is(syntaxMenuItem.hasAttribute("checked"), true, "Syntax menu item checked by default");
-    checkStyle(aWindow, "-moz-tab-size", 8);
+    checkStyle(aWindow, "-moz-tab-size", 4);
     checkStyle(aWindow, "white-space", "pre");
 
     test1();
@@ -77,11 +83,11 @@ function test4() {
 
 // Open a new view-source window to check prefs are obeyed.
 function test5() {
-  SpecialPowers.pushPrefEnv({'set': [
-    ["view_source.tab_size", 2],
-    ["view_source.wrap_long_lines", true],
-    ["view_source.syntax_highlight", false]
-  ]}, function() {
+  SpecialPowers.setIntPref("view_source.tab_size", 2);
+  SpecialPowers.setBoolPref("view_source.wrap_long_lines", true);
+  SpecialPowers.setBoolPref("view_source.syntax_highlight", false);
+
+  executeSoon(function() {
     openViewSourceWindow(source, function(aWindow) {
       wrapMenuItem = aWindow.document.getElementById('menu_wrapLongLines');
       syntaxMenuItem = aWindow.document.getElementById('menu_highlightSyntax');

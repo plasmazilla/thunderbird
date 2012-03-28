@@ -46,6 +46,7 @@
 @BINPATH@/@DLL_PREFIX@mozjs@DLL_SUFFIX@
 #endif
 #ifdef XP_WIN32
+@BINPATH@/@DLL_PREFIX@gkmedias@DLL_SUFFIX@
 #if _MSC_VER == 1400
 @BINPATH@/Microsoft.VC80.CRT.manifest
 @BINPATH@/msvcm80.dll
@@ -59,10 +60,13 @@
 #elif _MSC_VER == 1600
 @BINPATH@/msvcp100.dll
 @BINPATH@/msvcr100.dll
+#elif _MSC_VER == 1700
+@BINPATH@/msvcp110.dll
+@BINPATH@/msvcr110.dll
 #endif
 #endif
 @BINPATH@/@DLL_PREFIX@mozalloc@DLL_SUFFIX@
-@BINPATH@/@DLL_PREFIX@mozutils@DLL_SUFFIX@
+@BINPATH@/@DLL_PREFIX@mozglue@DLL_SUFFIX@
 #ifdef XP_MACOSX
 @BINPATH@/XUL
 #else
@@ -151,7 +155,6 @@
 @BINPATH@/components/msgnews.xpt
 @BINPATH@/components/msgsearch.xpt
 @BINPATH@/components/import.xpt
-@BINPATH@/components/impComm4xMail.xpt
 @BINPATH@/components/mailview.xpt
 @BINPATH@/components/mailprofilemigration.xpt
 @BINPATH@/components/messageWakeupService.js
@@ -359,6 +362,7 @@
 #endif
 @BINPATH@/components/layout_xul.xpt
 @BINPATH@/components/xulapp.xpt
+@BINPATH@/components/xul.xpt
 @BINPATH@/components/xuldoc.xpt
 @BINPATH@/components/xultmpl.xpt
 

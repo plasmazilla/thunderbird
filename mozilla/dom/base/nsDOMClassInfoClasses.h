@@ -293,6 +293,7 @@ DOMCI_CLASS(SVGTextElement)
 DOMCI_CLASS(SVGTextPathElement)
 DOMCI_CLASS(SVGTitleElement)
 DOMCI_CLASS(SVGTSpanElement)
+DOMCI_CLASS(SVGUnknownElement)
 DOMCI_CLASS(SVGUseElement)
 
 // other SVG classes
@@ -426,7 +427,11 @@ DOMCI_CLASS(GeoPositionCoords)
 DOMCI_CLASS(GeoPositionAddress)
 DOMCI_CLASS(GeoPositionError)
 
-DOMCI_CLASS(BatteryManager)
+DOMCI_CLASS(MozBatteryManager)
+
+DOMCI_CLASS(MozSmsManager)
+DOMCI_CLASS(MozSmsMessage)
+DOMCI_CLASS(MozSmsEvent)
 
 // @font-face in CSS
 DOMCI_CLASS(CSSFontFaceRule)
@@ -469,6 +474,7 @@ DOMCI_CLASS(WebGLShader)
 DOMCI_CLASS(WebGLFramebuffer)
 DOMCI_CLASS(WebGLRenderbuffer)
 DOMCI_CLASS(WebGLUniformLocation)
+DOMCI_CLASS(WebGLShaderPrecisionFormat)
 DOMCI_CLASS(WebGLActiveInfo)
 DOMCI_CLASS(WebGLExtension)
 DOMCI_CLASS(WebGLExtensionStandardDerivatives)
@@ -494,7 +500,7 @@ DOMCI_CLASS(DesktopNotification)
 DOMCI_CLASS(DesktopNotificationCenter)
 
 // WebSocket
-DOMCI_CLASS(MozWebSocket)
+DOMCI_CLASS(WebSocket)
 DOMCI_CLASS(CloseEvent)
 
 DOMCI_CLASS(IDBFactory)

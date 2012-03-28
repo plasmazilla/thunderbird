@@ -69,7 +69,6 @@
 
 #ifdef XP_MACOSX
 #include "nsVersionComparator.h"
-#include "MacQuirks.h"
 #include "MacLaunchHelper.h"
 #include "MacApplicationDelegate.h"
 #include "MacAutoreleasePool.h"
@@ -160,6 +159,7 @@ using mozilla::unused;
 
 #include "nsINIParser.h"
 #include "mozilla/Omnijar.h"
+#include "mozilla/StartupTimeline.h"
 
 #include <stdlib.h>
 
@@ -217,7 +217,7 @@ using mozilla::unused;
 
 #include "mozilla/FunctionTimer.h"
 
-#ifdef ANDROID
+#ifdef MOZ_WIDGET_ANDROID
 #include "AndroidBridge.h"
 #endif
 
@@ -1607,7 +1607,7 @@ static nsresult LaunchChild(nsINativeAppSupport* aNative,
 
   SaveToEnv("MOZ_LAUNCHED_CHILD=1");
 
-#if defined(ANDROID)
+#if defined(MOZ_WIDGET_ANDROID)
   mozilla::AndroidBridge::Bridge()->ScheduleRestart();
 #else
 #if defined(XP_MACOSX)
@@ -1658,7 +1658,7 @@ static nsresult LaunchChild(nsINativeAppSupport* aNative,
 #endif // XP_OS2 series
 #endif // WP_WIN
 #endif // WP_MACOSX
-#endif // ANDROID
+#endif // MOZ_WIDGET_ANDROID
 
   return NS_ERROR_LAUNCHED_CHILD_PROCESS;
 }
@@ -1890,35 +1890,6 @@ ShowProfileManager(nsIToolkitProfileService* aProfileSvc,
   return LaunchChild(aNative);
 }
 
-static nsresult
-ImportProfiles(nsIToolkitProfileService* aPService,
-               nsINativeAppSupport* aNative)
-{
-  nsresult rv;
-
-  SaveToEnv("XRE_IMPORT_PROFILES=1");
-
-  // try to import old-style profiles
-  { // scope XPCOM
-    ScopedXPCOMStartup xpcom;
-    rv = xpcom.Initialize();
-    if (NS_SUCCEEDED(rv)) {
-#ifdef XP_MACOSX
-      CommandLineServiceMac::SetupMacCommandLine(gRestartArgc, gRestartArgv, true);
-#endif
-
-      nsCOMPtr<nsIProfileMigrator> migrator
-        (do_GetService(NS_PROFILEMIGRATOR_CONTRACTID));
-      if (migrator) {
-        migrator->Import();
-      }
-    }
-  }
-
-  aPService->Flush();
-  return LaunchChild(aNative);
-}
-
 // Pick a profile. We need to end up with a profile lock.
 //
 // 1) check for -profile <path>
@@ -2069,12 +2040,6 @@ SelectProfile(nsIProfileLock* *aResult, nsINativeAppSupport* aNative,
   PRUint32 count;
   rv = profileSvc->GetProfileCount(&count);
   NS_ENSURE_SUCCESS(rv, rv);
-
-  if (gAppData->flags & NS_XRE_ENABLE_PROFILE_MIGRATOR) {
-    if (!count && !EnvHasValue("XRE_IMPORT_PROFILES")) {
-      return ImportProfiles(profileSvc, aNative);
-    }
-  }
 
   ar = CheckArg("p", false, &arg);
   if (ar == ARG_BAD) {
@@ -2604,8 +2569,6 @@ static DWORD InitDwriteBG(LPVOID lpdwThreadParam)
 }
 #endif
 
-PRTime gXRE_mainTimestamp = 0;
-
 #ifdef MOZ_X11
 #ifndef MOZ_PLATFORM_MAEMO
 bool fire_glxtest_process();
@@ -2619,9 +2582,9 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
 {
   NS_TIME_FUNCTION;
   SAMPLER_INIT();
-  SAMPLE_CHECKPOINT("Startup", "XRE_Main");
+  SAMPLE_LABEL("Startup", "XRE_Main");
 
-  gXRE_mainTimestamp = PR_Now();
+  StartupTimeline::Record(StartupTimeline::MAIN);
 
   nsresult rv;
   ArgResult ar;
@@ -2629,10 +2592,6 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
 #ifdef DEBUG
   if (PR_GetEnv("XRE_MAIN_BREAK"))
     NS_BREAK();
-#endif
-
-#ifdef XP_MACOSX
-  TriggerQuirks();
 #endif
 
   // see bug 639842
@@ -2768,6 +2727,10 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
       return 2;
   }
 
+  if (!appData.directory) {
+    NS_IF_ADDREF(appData.directory = appData.xreDirectory);
+  }
+
   if (appData.size > offsetof(nsXREAppData, minVersion)) {
     if (!appData.minVersion) {
       Output(true, "Error: Gecko:MinVersion not specified in application.ini\n");
@@ -2813,12 +2776,19 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
     if (appData.name)
       CrashReporter::AnnotateCrashReport(NS_LITERAL_CSTRING("ProductName"),
                                          nsDependentCString(appData.name));
+    if (appData.ID)
+      CrashReporter::AnnotateCrashReport(NS_LITERAL_CSTRING("ProductID"),
+                                         nsDependentCString(appData.ID));
     if (appData.version)
       CrashReporter::AnnotateCrashReport(NS_LITERAL_CSTRING("Version"),
                                          nsDependentCString(appData.version));
     if (appData.buildID)
       CrashReporter::AnnotateCrashReport(NS_LITERAL_CSTRING("BuildID"),
                                          nsDependentCString(appData.buildID));
+
+    nsDependentCString releaseChannel(NS_STRINGIFY(MOZ_UPDATE_CHANNEL));
+    CrashReporter::AnnotateCrashReport(NS_LITERAL_CSTRING("ReleaseChannel"),
+                                       releaseChannel);
     CrashReporter::SetRestartArgs(argc, argv);
 
     // annotate other data (user id etc)
@@ -3462,7 +3432,6 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
         SaveToEnv("XRE_PROFILE_LOCAL_PATH=");
         SaveToEnv("XRE_PROFILE_NAME=");
         SaveToEnv("XRE_START_OFFLINE=");
-        SaveToEnv("XRE_IMPORT_PROFILES=");
         SaveToEnv("NO_EM_RESTART=");
         SaveToEnv("XUL_APP_FILE=");
         SaveToEnv("XRE_BINARY_PATH=");
@@ -3537,9 +3506,8 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
         }
 
 #ifdef MOZ_INSTRUMENT_EVENT_LOOP
-        bool event_tracing_running = false;
-        if (PR_GetEnv("MOZ_INSTRUMENT_EVENT_LOOP")) {
-          event_tracing_running = mozilla::InitEventTracing();
+        if (PR_GetEnv("MOZ_INSTRUMENT_EVENT_LOOP") || SAMPLER_IS_ACTIVE()) {
+          mozilla::InitEventTracing();
         }
 #endif /* MOZ_INSTRUMENT_EVENT_LOOP */
 
@@ -3560,8 +3528,7 @@ XRE_main(int argc, char* argv[], const nsXREAppData* aAppData)
         NS_TIME_FUNCTION_MARK("appStartup->Run done");
 
 #ifdef MOZ_INSTRUMENT_EVENT_LOOP
-        if (event_tracing_running)
-          mozilla::ShutdownEventTracing();
+        mozilla::ShutdownEventTracing();
 #endif
 
         // Check for an application initiated restart.  This is one that

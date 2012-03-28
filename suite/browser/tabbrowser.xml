@@ -563,7 +563,7 @@
             // the second one is considered a user action.
             mLocationChangeCount : 0,
 
-            onLocationChange: function(aWebProgress, aRequest, aLocation) {
+            onLocationChange: function(aWebProgress, aRequest, aLocation, aFlags) {
               if (aRequest && aWebProgress.DOMWindow == this.mBrowser.contentWindow) {
                 this.mBrowser.mIconURL = "";
                 this.mFeeds = [];
@@ -577,8 +577,9 @@
                   this.mTabBrowser.forwardBrowserGroup = [];
                 }
 
-                // The document loaded correctly, clear the value if we should
-                if (this.mBrowser.userTypedClear > 0)
+                // Clear the value if this was a user document or an error page.
+                if (this.mBrowser.userTypedClear > 0 ||
+                    !Components.isSuccessCode(aRequest.status))
                   this.mBrowser.userTypedValue = null;
               }
 
@@ -590,7 +591,7 @@
                                               null, this.mBrowser, this.mFeeds);
 
               this.mTabBrowser._callProgressListeners(this.mBrowser, "onLocationChange",
-                                                      [aWebProgress, aRequest, aLocation],
+                                                      [aWebProgress, aRequest, aLocation, aFlags],
                                                       false);
             },
 
@@ -691,7 +692,7 @@
               }
             },
 
-            onLocationChange : function(aWebProgress, aRequest, aLocation)
+            onLocationChange : function(aWebProgress, aRequest, aLocation, aFlags)
             {
             },
 
@@ -892,7 +893,7 @@
               function notifyUrlBar(element) {
                 try {
                   if ("onLocationChange" in element)
-                    element.onLocationChange(aWebProgress, aRequest, aLocation);
+                    element.onLocationChange(aWebProgress, aRequest, aLocation, 0);
                   // If switching tabs, the security may have changed.
                   if (aSecurityUI && "onSecurityChange" in element)
                     element.onSecurityChange(aWebProgress, null, aSecurityUI.state);
@@ -1006,49 +1007,7 @@
             newBrowser.docShellIsActive = this.mCurrentTab.linkedBrowser.docShellIsActive;
             if (this.mCurrentBrowser) {
               this.mCurrentBrowser.droppedLinkHandler = null;
-              // Only save the focused element if it is in our content window
-              // or in an ancestor window.
-              var focusedWindow = document.commandDispatcher.focusedWindow;
-              var saveFocus = false;
-
-              if (focusedWindow && focusedWindow.top == window.content) {
-                saveFocus = true;
-              } else {
-                var contentWindow = window;
-
-                while (contentWindow) {
-                  if (contentWindow == focusedWindow) {
-                    saveFocus = true;
-                    break;
-                  }
-
-                  if (contentWindow.parent == contentWindow) {
-                    break;
-                  }
-
-                  contentWindow = contentWindow.parent;
-                }
-              }
-
-              if (saveFocus) {
-                // Preserve the currently-focused element or DOM window for
-                // this tab.
-
-                this.mCurrentBrowser.focusedWindow = focusedWindow;
-                this.mCurrentBrowser.focusedElement = document.commandDispatcher.focusedElement;
-              }
-
-              if (this.mCurrentBrowser.focusedElement &&
-                  this.mCurrentBrowser.focusedElement.parentNode !=
-                  this.mCurrentTab.parentNode) {
-                // Clear focus outline before we draw on top of it.
-                // Only blur the focused element if it isn't a tab, 
-                // to avoid breaking keyboard tab navigation
-                this.mCurrentBrowser.focusedWindow
-                    .QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-                    .getInterface(Components.interfaces.nsIDOMWindowUtils)
-                    .focus(null);
-              }
+              this.mCurrentBrowser.docShellIsActive = false;
               this.mCurrentBrowser.setAttribute("type", "content-targetable");
             }
 
@@ -1115,39 +1074,12 @@
             event.initEvent("TabSelect", true, false);
             this.mCurrentTab.dispatchEvent(event);
 
-            if (document.commandDispatcher.focusedElement && 
-                document.commandDispatcher.focusedElement.parentNode == 
+            if (!document.commandDispatcher.focusedElement ||
+                document.commandDispatcher.focusedElement.parentNode !=
                 this.mCurrentTab.parentNode) {
-              // The focus is on a tab in the same tab panel
-              return;  // If focus was on a tab, switching tabs focuses the new tab
+              // The focus was not on one of our tabs, so focus the new browser.
+              newBrowser.focus();
             }
-            
-            var whatToFocus = window.content;
-
-            // Focus the previously focused element or window
-            if (newBrowser.focusedElement) {
-              if (newBrowser.focusedElement.parentNode != 
-                  this.mCurrentTab.parentNode) {
-                // Focus the remembered element unless it's in the current tab panel
-                whatToFocus = newBrowser.focusedElement;
-              }
-            }
-            else if (newBrowser.focusedWindow) {
-              whatToFocus = newBrowser.focusedWindow;
-            }
-
-            function setFocus(element) {
-              const nsIFocusManager = Components.interfaces.nsIFocusManager;
-              if (element instanceof Window)
-                element.focus();
-              else
-                Components.classes["@mozilla.org/focus-manager;1"]
-                          .getService(nsIFocusManager)
-                          .setFocus(element, nsIFocusManager.FLAG_NOSCROLL);
-            }
-
-            // Use setTimeout to avoid focus outline ghosting.
-            setTimeout(setFocus, 0, whatToFocus);
           ]]>
         </body>
       </method>

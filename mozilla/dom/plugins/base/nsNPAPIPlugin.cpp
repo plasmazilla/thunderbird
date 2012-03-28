@@ -92,6 +92,7 @@
 #include <Carbon/Carbon.h>
 #include <ApplicationServices/ApplicationServices.h>
 #include <OpenGL/OpenGL.h>
+#include "nsCocoaFeatures.h"
 #endif
 
 // needed for nppdf plugin
@@ -131,10 +132,11 @@ using mozilla::plugins::PluginModuleParent;
 #include <windows.h>
 #endif
 
-#ifdef ANDROID
+#ifdef MOZ_WIDGET_ANDROID
+#include <android/log.h>
+#include "android_npapi.h"
 #include "ANPBase.h"
 #include "AndroidBridge.h"
-#include <android/log.h>
 #define LOG(args...)  __android_log_print(ANDROID_LOG_INFO, "GeckoPlugins" , ## args)
 #endif
 
@@ -488,7 +490,7 @@ nsNPAPIPlugin::CreatePlugin(nsPluginTag *aPluginTag, nsNPAPIPlugin** aResult)
     return NS_ERROR_FAILURE;
   }
 
-#if defined(XP_MACOSX) || defined(ANDROID)
+#if defined(XP_MACOSX) || defined(MOZ_WIDGET_ANDROID)
   if (!pluginLib->HasRequiredFunctions()) {
     NS_WARNING("Not all necessary functions exposed by plugin, it will not load.");
     return NS_ERROR_FAILURE;
@@ -526,6 +528,7 @@ nsNPAPIPlugin::CreatePlugin(nsPluginTag *aPluginTag, nsNPAPIPlugin** aResult)
   if (rv != NS_OK || pluginCallError != NPERR_NO_ERROR) {
     return NS_ERROR_FAILURE;
   }
+#elif defined(MOZ_WIDGET_GONK)
 #else
   rv = pluginLib->NP_Initialize(&sBrowserFuncs, &plugin->mPluginFuncs, &pluginCallError);
   if (rv != NS_OK || pluginCallError != NPERR_NO_ERROR) {
@@ -1645,6 +1648,8 @@ _evaluate(NPP npp, NPObject* npobj, NPString *script, NPVariant *result)
   }
 
   obj = JS_ObjectToInnerObject(cx, obj);
+  NS_ABORT_IF_FALSE(obj,
+    "JS_ObjectToInnerObject should never return null with non-null input.");
 
   // Root obj and the rval (below).
   jsval vec[] = { OBJECT_TO_JSVAL(obj), JSVAL_NULL };
@@ -1998,19 +2003,6 @@ _releasevariantvalue(NPVariant* variant)
   VOID_TO_NPVARIANT(*variant);
 }
 
-bool NP_CALLBACK
-_tostring(NPObject* npobj, NPVariant *result)
-{
-  NS_ERROR("Write me!");
-
-  if (!NS_IsMainThread()) {
-    NPN_PLUGIN_LOG(PLUGIN_LOG_ALWAYS,("NPN_tostring called from the wrong thread\n"));
-    return false;
-  }
-
-  return false;
-}
-
 void NP_CALLBACK
 _setexception(NPObject* npobj, const NPUTF8 *message)
 {
@@ -2267,13 +2259,13 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
   }
 
    case NPNVsupportsCoreAnimationBool: {
-     *(NPBool*)result = true;
+     *(NPBool*)result = nsCocoaFeatures::SupportCoreAnimationPlugins();
 
      return NPERR_NO_ERROR;
    }
 
    case NPNVsupportsInvalidatingCoreAnimationBool: {
-     *(NPBool*)result = true;
+     *(NPBool*)result = nsCocoaFeatures::SupportCoreAnimationPlugins();
 
      return NPERR_NO_ERROR;
    }
@@ -2298,7 +2290,7 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
   }
 #endif
 
-#ifdef ANDROID
+#ifdef MOZ_WIDGET_ANDROID
     case kLogInterfaceV0_ANPGetValue: {
       LOG("get log interface");
       ANPLogInterfaceV0 *i = (ANPLogInterfaceV0 *) result;
@@ -2358,7 +2350,7 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
     case kAudioTrackInterfaceV0_ANPGetValue: {
       LOG("get audio interface");
       ANPAudioTrackInterfaceV0 *i = (ANPAudioTrackInterfaceV0 *) result;
-      InitAudioTrackInterface(i);
+      InitAudioTrackInterfaceV0(i);
       return NPERR_NO_ERROR;
     }
 
@@ -2373,7 +2365,6 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
       LOG("get system interface");
       ANPSystemInterfaceV0* i = reinterpret_cast<ANPSystemInterfaceV0*>(result);
       InitSystemInterface(i);
-      LOG("done system interface");
       return NPERR_NO_ERROR;
     }
 
@@ -2393,7 +2384,10 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
 
     case kJavaContext_ANPGetValue: {
       LOG("get context");
-      JNIEnv* env    = GetJNIForThread();
+      JNIEnv* env = GetJNIForThread();
+      if (!env)
+        return NPERR_GENERIC_ERROR;
+
       jclass cls     = env->FindClass("org/mozilla/gecko/GeckoApp");
       jfieldID field = env->GetStaticFieldID(cls, "mAppContext",
                                              "Lorg/mozilla/gecko/GeckoApp;");
@@ -2402,6 +2396,71 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
       *i = reinterpret_cast<int32_t>(ret);
       return NPERR_NO_ERROR;
     }
+
+    case kAudioTrackInterfaceV1_ANPGetValue: {
+      LOG("get audio interface v1");
+      ANPAudioTrackInterfaceV1 *i = (ANPAudioTrackInterfaceV1 *) result;
+      InitAudioTrackInterfaceV1(i);
+      return NPERR_NO_ERROR;
+    }
+
+    case kNativeWindowInterfaceV0_ANPGetValue: {
+      LOG("get native window interface v0");
+      ANPNativeWindowInterfaceV0* i = (ANPNativeWindowInterfaceV0 *) result;
+      InitNativeWindowInterface(i);
+      return NPERR_NO_ERROR;
+    }
+
+    case kOpenGLInterfaceV0_ANPGetValue: {
+      LOG("get openGL interface");
+      ANPOpenGLInterfaceV0 *i = (ANPOpenGLInterfaceV0*) result;
+      InitOpenGLInterface(i);
+      return NPERR_NO_ERROR;
+    }
+
+    case kWindowInterfaceV1_ANPGetValue: {
+      LOG("get Window interface V1");
+      ANPWindowInterfaceV1 *i = (ANPWindowInterfaceV1 *) result;
+      InitWindowInterfaceV1(i);
+      return NPERR_NO_ERROR;
+    }
+
+    case kWindowInterfaceV2_ANPGetValue: {
+      LOG("get Window interface V2");
+      ANPWindowInterfaceV2 *i = (ANPWindowInterfaceV2 *) result;
+      InitWindowInterfaceV2(i);
+      return NPERR_NO_ERROR;
+    }
+
+    case kVideoInterfaceV0_ANPGetValue: {
+      LOG("get video interface");
+      ANPVideoInterfaceV0 *i = (ANPVideoInterfaceV0*) result;
+      InitVideoInterfaceV0(i);
+      return NPERR_NO_ERROR;
+    }
+
+    case kVideoInterfaceV1_ANPGetValue: {
+      LOG("get video interface");
+      ANPVideoInterfaceV1 *i = (ANPVideoInterfaceV1*) result;
+      InitVideoInterfaceV1(i);
+      return NPERR_NO_ERROR;
+    }
+
+
+    case kSystemInterfaceV1_ANPGetValue: {
+      LOG("get system interface v1");
+      ANPSystemInterfaceV1* i = reinterpret_cast<ANPSystemInterfaceV1*>(result);
+      InitSystemInterfaceV1(i);
+      return NPERR_NO_ERROR;
+    }
+
+    case kSystemInterfaceV2_ANPGetValue: {
+      LOG("get system interface v2");
+      ANPSystemInterfaceV2* i = reinterpret_cast<ANPSystemInterfaceV2*>(result);
+      InitSystemInterfaceV2(i);
+      return NPERR_NO_ERROR;
+    }
+
 #endif
 
   // we no longer hand out any XPCOM objects
@@ -2514,10 +2573,10 @@ _setvalue(NPP npp, NPPVariable variable, void *result)
       }
     }
 #endif
-#ifdef ANDROID
+#ifdef MOZ_WIDGET_ANDROID
   case kRequestDrawingModel_ANPSetValue:
     if (inst)
-      inst->SetDrawingModel(NS_PTR_TO_INT32(result));
+      inst->SetANPDrawingModel(NS_PTR_TO_INT32(result));
     return NPERR_NO_ERROR;
   case kAcceptEvents_ANPSetValue:
     return NPERR_NO_ERROR;

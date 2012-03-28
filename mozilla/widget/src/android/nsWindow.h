@@ -43,6 +43,10 @@
 
 #include "nsTArray.h"
 
+#ifdef ACCESSIBILITY
+#include "nsAccessible.h"
+#endif
+
 class gfxASurface;
 class nsIdleService;
 
@@ -69,8 +73,9 @@ public:
 
     void OnAndroidEvent(mozilla::AndroidGeckoEvent *ae);
     void OnDraw(mozilla::AndroidGeckoEvent *ae);
+    bool OnMultitouchEvent(mozilla::AndroidGeckoEvent *ae);
+    void OnGestureEvent(mozilla::AndroidGeckoEvent *ae);
     void OnMotionEvent(mozilla::AndroidGeckoEvent *ae);
-    void OnMultitouchEvent(mozilla::AndroidGeckoEvent *ae);
     void OnKeyEvent(mozilla::AndroidGeckoEvent *ae);
     void OnIMEEvent(mozilla::AndroidGeckoEvent *ae);
 
@@ -144,7 +149,6 @@ public:
     NS_IMETHOD EnableDragDrop(bool aEnable) { return NS_OK; }
     NS_IMETHOD CaptureMouse(bool aCapture) { return NS_ERROR_NOT_IMPLEMENTED; }
     NS_IMETHOD CaptureRollupEvents(nsIRollupListener *aListener,
-                                   nsIMenuRollup *aMenuRollup,
                                    bool aDoCapture,
                                    bool aConsumeRollupEvent) { return NS_ERROR_NOT_IMPLEMENTED; }
 
@@ -152,8 +156,9 @@ public:
     NS_IMETHOD BeginResizeDrag(nsGUIEvent* aEvent, PRInt32 aHorizontal, PRInt32 aVertical) { return NS_ERROR_NOT_IMPLEMENTED; }
 
     NS_IMETHOD ResetInputState();
-    NS_IMETHOD SetInputMode(const IMEContext& aContext);
-    NS_IMETHOD GetInputMode(IMEContext& aContext);
+    NS_IMETHOD_(void) SetInputContext(const InputContext& aContext,
+                                      const InputContextAction& aAction);
+    NS_IMETHOD_(InputContext) GetInputContext();
     NS_IMETHOD CancelIMEComposition();
 
     NS_IMETHOD OnIMEFocusChange(bool aFocus);
@@ -168,10 +173,21 @@ public:
     gfxASurface* GetThebesSurface();
 
     NS_IMETHOD ReparentNativeWidget(nsIWidget* aNewParent);
+
+#ifdef ACCESSIBILITY
+    static bool sAccessibilityEnabled;
+#endif
+
+#ifdef MOZ_JAVA_COMPOSITOR
+    static void BindToTexture();
+    static bool HasDirectTexture();
+#endif
+
 protected:
     void BringToFront();
     nsWindow *FindTopLevel();
     bool DrawTo(gfxASurface *targetSurface);
+    bool DrawTo(gfxASurface *targetSurface, const nsIntRect &aRect);
     bool IsTopLevel();
     void OnIMEAddRange(mozilla::AndroidGeckoEvent *ae);
 
@@ -200,7 +216,7 @@ protected:
     nsString mIMELastDispatchedComposingText;
     nsAutoTArray<nsTextRange, 4> mIMERanges;
 
-    IMEContext mIMEContext;
+    InputContext mInputContext;
 
     static void DumpWindows();
     static void DumpWindows(const nsTArray<nsWindow*>& wins, int indent = 0);
@@ -208,10 +224,30 @@ protected:
 
 private:
     void InitKeyEvent(nsKeyEvent& event, mozilla::AndroidGeckoEvent& key);
-    void DispatchGestureEvent(mozilla::AndroidGeckoEvent *ae);
+    bool DispatchMultitouchEvent(nsTouchEvent &event,
+                             mozilla::AndroidGeckoEvent *ae);
+    void DispatchMotionEvent(nsInputEvent &event,
+                             mozilla::AndroidGeckoEvent *ae,
+                             const nsIntPoint &refPoint);
     void DispatchGestureEvent(PRUint32 msg, PRUint32 direction, double delta,
-                               const nsIntPoint &refPoint, PRUint64 time);
+                              const nsIntPoint &refPoint, PRUint64 time);
     void HandleSpecialKey(mozilla::AndroidGeckoEvent *ae);
+    void RedrawAll();
+
+#ifdef ACCESSIBILITY
+    nsRefPtr<nsAccessible> mRootAccessible;
+
+    /**
+     * Request to create the accessible for this window if it is top level.
+     */
+    void CreateRootAccessible();
+
+    /**
+     * Generate the NS_GETACCESSIBLE event to get accessible for this window
+     * and return it.
+     */
+    nsAccessible *DispatchAccessibleEvent();
+#endif // ACCESSIBILITY
 };
 
 #endif /* NSWINDOW_H_ */

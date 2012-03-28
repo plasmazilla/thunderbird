@@ -48,14 +48,14 @@
  * We are specializing nsAutoRef class.
  */
 
-NS_SPECIALIZE_TEMPLATE
+template <>
 class nsAutoRefTraits<DBusGProxy> : public nsPointerRefTraits<DBusGProxy>
 {
 public:
   static void Release(DBusGProxy* ptr) { g_object_unref(ptr); }
 };
 
-NS_SPECIALIZE_TEMPLATE
+template <>
 class nsAutoRefTraits<GHashTable> : public nsPointerRefTraits<GHashTable>
 {
 public:
@@ -80,8 +80,9 @@ public:
   void BeginListening();
   void StopListening();
 
-  float GetLevel();
-  bool IsCharging();
+  double GetLevel();
+  bool   IsCharging();
+  double GetRemainingTime();
 
   ~UPowerClient();
 
@@ -138,12 +139,14 @@ private:
   // The path of the tracked device.
   gchar* mTrackedDevice;
 
-  float mLevel;
+  double mLevel;
   bool mCharging;
+  double mRemainingTime;
 
   static UPowerClient* sInstance;
 
   static const guint sDeviceTypeBattery = 2;
+  static const guint64 kUPowerUnknownRemainingTime = 0;
 };
 
 /*
@@ -171,6 +174,7 @@ GetCurrentBatteryInformation(hal::BatteryInformation* aBatteryInfo)
 
   aBatteryInfo->level() = upowerClient->GetLevel();
   aBatteryInfo->charging() = upowerClient->IsCharging();
+  aBatteryInfo->remainingTime() = upowerClient->GetRemainingTime();
 }
 
 /*
@@ -195,6 +199,7 @@ UPowerClient::UPowerClient()
   , mTrackedDevice(nsnull)
   , mLevel(kDefaultLevel)
   , mCharging(kDefaultCharging)
+  , mRemainingTime(kDefaultRemainingTime)
 {
 }
 
@@ -274,6 +279,7 @@ UPowerClient::StopListening()
   // We should now show the default values, not the latest we got.
   mLevel = kDefaultLevel;
   mCharging = kDefaultCharging;
+  mRemainingTime = kDefaultRemainingTime;
 }
 
 void
@@ -332,7 +338,9 @@ UPowerClient::DeviceChanged(DBusGProxy* aProxy, const gchar* aObjectPath, UPower
   nsAutoRef<GHashTable> hashTable(aListener->GetDeviceProperties(aObjectPath));
   aListener->UpdateSavedInfo(hashTable);
 
-  hal::NotifyBatteryChange(hal::BatteryInformation(aListener->mLevel, aListener->mCharging));
+  hal::NotifyBatteryChange(hal::BatteryInformation(aListener->mLevel,
+                                                   aListener->mCharging,
+                                                   aListener->mRemainingTime));
 }
 
 /* static */ DBusHandlerResult
@@ -374,14 +382,32 @@ UPowerClient::GetDeviceProperties(const gchar* aDevice)
 void
 UPowerClient::UpdateSavedInfo(GHashTable* aHashTable)
 {
-  mLevel = g_value_get_double(static_cast<const GValue*>(g_hash_table_lookup(aHashTable, "Percentage")))/100.f;
+  bool isFull = false;
 
+  /*
+   * State values are confusing...
+   * First of all, after looking at upower sources (0.9.13), it seems that
+   * PendingDischarge and PendingCharge are not used.
+   * In addition, FullyCharged and Empty states are not clear because we do not
+   * know if the battery is actually charging or not. Those values come directly
+   * from sysfs (in the Linux kernel) which have four states: "Empty", "Full",
+   * "Charging" and "Discharging". In sysfs, "Empty" and "Full" are also only
+   * related to the level, not to the charging state.
+   * In this code, we are going to assume that Full means charging and Empty
+   * means discharging because if that is not the case, the state should not
+   * last a long time (actually, it should disappear at the following update).
+   * It might be even very hard to see real cases where the state is Empty and
+   * the battery is charging or the state is Full and the battery is discharging
+   * given that plugging/unplugging the battery should have an impact on the
+   * level.
+   */
   switch (g_value_get_uint(static_cast<const GValue*>(g_hash_table_lookup(aHashTable, "State")))) {
     case eState_Unknown:
       mCharging = kDefaultCharging;
       break;
-    case eState_Charging:
     case eState_FullyCharged:
+      isFull = true;
+    case eState_Charging:
     case eState_PendingCharge:
       mCharging = true;
       break;
@@ -391,9 +417,31 @@ UPowerClient::UpdateSavedInfo(GHashTable* aHashTable)
       mCharging = false;
       break;
   }
+
+  /*
+   * The battery level might be very close to 100% (like 99.xxxx%) without
+   * increasing. It seems that upower sets the battery state as 'full' in that
+   * case so we should trust it and not even try to get the value.
+   */
+  if (isFull) {
+    mLevel = 1.0;
+  } else {
+    mLevel = g_value_get_double(static_cast<const GValue*>(g_hash_table_lookup(aHashTable, "Percentage")))*0.01;
+  }
+
+  if (isFull) {
+    mRemainingTime = 0;
+  } else {
+    mRemainingTime = mCharging ? g_value_get_int64(static_cast<const GValue*>(g_hash_table_lookup(aHashTable, "TimeToFull")))
+                               : g_value_get_int64(static_cast<const GValue*>(g_hash_table_lookup(aHashTable, "TimeToEmpty")));
+
+    if (mRemainingTime == kUPowerUnknownRemainingTime) {
+      mRemainingTime = kUnknownRemainingTime;
+    }
+  }
 }
 
-float
+double
 UPowerClient::GetLevel()
 {
   return mLevel;
@@ -403,6 +451,12 @@ bool
 UPowerClient::IsCharging()
 {
   return mCharging;
+}
+
+double
+UPowerClient::GetRemainingTime()
+{
+  return mRemainingTime;
 }
 
 } // namespace hal_impl

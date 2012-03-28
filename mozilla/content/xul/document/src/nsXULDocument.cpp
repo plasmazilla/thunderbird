@@ -2364,23 +2364,6 @@ nsXULDocument::ContextStack::SetTopIndex(PRInt32 aIndex)
 }
 
 
-bool
-nsXULDocument::ContextStack::IsInsideXULTemplate()
-{
-    if (mDepth) {
-        for (nsIContent* element = mTop->mElement; element;
-             element = element->GetParent()) {
-
-            if (element->NodeInfo()->Equals(nsGkAtoms::_template,
-                                            kNameSpaceID_XUL)) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-
 //----------------------------------------------------------------------
 //
 // Content model walking routines
@@ -3052,15 +3035,12 @@ nsXULDocument::ResumeWalk()
                     const PRUnichar* params[] = { piProto->mTarget.get() };
 
                     nsContentUtils::ReportToConsole(
+                                        nsIScriptError::warningFlag,
+                                        "XUL Document", nsnull,
                                         nsContentUtils::eXUL_PROPERTIES,
                                         "PINotInProlog",
                                         params, ArrayLength(params),
-                                        overlayURI,
-                                        EmptyString(), /* source line */
-                                        0, /* line number */
-                                        0, /* column number */
-                                        nsIScriptError::warningFlag,
-                                        "XUL Document");
+                                        overlayURI);
                 }
 
                 nsIContent* parent = processingOverlayHookupNodes ?
@@ -3349,15 +3329,11 @@ nsXULDocument::ReportMissingOverlay(nsIURI* aURI)
 
     NS_ConvertUTF8toUTF16 utfSpec(spec);
     const PRUnichar* params[] = { utfSpec.get() };
-    nsContentUtils::ReportToConsole(nsContentUtils::eXUL_PROPERTIES,
+    nsContentUtils::ReportToConsole(nsIScriptError::warningFlag,
+                                    "XUL Document", this,
+                                    nsContentUtils::eXUL_PROPERTIES,
                                     "MissingOverlay",
-                                    params, ArrayLength(params),
-                                    nsnull,
-                                    EmptyString(), /* source line */
-                                    0, /* line number */
-                                    0, /* column number */
-                                    nsIScriptError::warningFlag,
-                                    "XUL Document", this);
+                                    params, ArrayLength(params));
 }
 
 nsresult
@@ -3703,9 +3679,8 @@ nsXULDocument::CreateElementFromPrototype(nsXULPrototypeElement* aPrototype,
                                                     nsIDOMNode::ELEMENT_NODE);
         if (!newNodeInfo) return NS_ERROR_OUT_OF_MEMORY;
         nsCOMPtr<nsIContent> content;
-        PRInt32 ns = newNodeInfo->NamespaceID();
         nsCOMPtr<nsINodeInfo> xtfNi = newNodeInfo;
-        rv = NS_NewElement(getter_AddRefs(content), ns, newNodeInfo.forget(),
+        rv = NS_NewElement(getter_AddRefs(content), newNodeInfo.forget(),
                            NOT_FROM_PARSER);
         if (NS_FAILED(rv))
             return rv;

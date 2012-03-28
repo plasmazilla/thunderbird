@@ -205,6 +205,28 @@ nsDOMUIEvent::InitUIEvent(const nsAString& typeArg,
   return NS_OK;
 }
 
+nsresult
+nsDOMUIEvent::InitFromCtor(const nsAString& aType, nsISupports* aDict,
+                           JSContext* aCx, JSObject* aObj)
+{
+  nsCOMPtr<nsIUIEventInit> eventInit = do_QueryInterface(aDict);
+  bool bubbles = false;
+  bool cancelable = false;
+  nsCOMPtr<nsIDOMWindow> view;
+  PRInt32 detail = 0;
+  if (eventInit) {
+    nsresult rv = eventInit->GetBubbles(&bubbles);
+    NS_ENSURE_SUCCESS(rv, rv);
+    rv = eventInit->GetCancelable(&cancelable);
+    NS_ENSURE_SUCCESS(rv, rv);
+    rv = eventInit->GetView(getter_AddRefs(view));
+    NS_ENSURE_SUCCESS(rv, rv);
+    rv = eventInit->GetDetail(&detail);
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
+  return InitUIEvent(aType, bubbles, cancelable, view, detail);
+}
+
 // ---- nsDOMNSUIEvent implementation -------------------
 nsIntPoint
 nsDOMUIEvent::GetPagePoint()
@@ -233,7 +255,18 @@ NS_IMETHODIMP
 nsDOMUIEvent::GetPageX(PRInt32* aPageX)
 {
   NS_ENSURE_ARG_POINTER(aPageX);
+#ifdef MOZ_TOUCH
+  if (mPrivateDataDuplicated) {
+    *aPageX = mPagePoint.x;
+  } else {
+    *aPageX = nsDOMEvent::GetPageCoords(mPresContext,
+                                        mEvent,
+                                        mEvent->refPoint,
+                                        mClientPoint).x;
+  }
+#else
   *aPageX = GetPagePoint().x;
+#endif
   return NS_OK;
 }
 
@@ -241,7 +274,18 @@ NS_IMETHODIMP
 nsDOMUIEvent::GetPageY(PRInt32* aPageY)
 {
   NS_ENSURE_ARG_POINTER(aPageY);
+#ifdef MOZ_TOUCH
+  if (mPrivateDataDuplicated) {
+    *aPageY = mPagePoint.y;
+  } else {
+    *aPageY = nsDOMEvent::GetPageCoords(mPresContext,
+                                        mEvent,
+                                        mEvent->refPoint,
+                                        mClientPoint).y;
+  }
+#else
   *aPageY = GetPagePoint().y;
+#endif
   return NS_OK;
 }
 
@@ -327,6 +371,7 @@ nsDOMUIEvent::GetLayerPoint()
        mEvent->eventStructType != NS_POPUP_EVENT &&
        mEvent->eventStructType != NS_MOUSE_SCROLL_EVENT &&
        mEvent->eventStructType != NS_MOZTOUCH_EVENT &&
+       mEvent->eventStructType != NS_TOUCH_EVENT &&
        mEvent->eventStructType != NS_DRAG_EVENT &&
        mEvent->eventStructType != NS_SIMPLE_GESTURE_EVENT) ||
       !mPresContext ||
@@ -379,11 +424,27 @@ nsDOMUIEvent::GetIsChar(bool* aIsChar)
 NS_METHOD
 nsDOMUIEvent::DuplicatePrivateData()
 {
+#ifdef MOZ_TOUCH
+  mClientPoint = nsDOMEvent::GetClientCoords(mPresContext,
+                                             mEvent,
+                                             mEvent->refPoint,
+                                             mClientPoint);
+  mLayerPoint = GetLayerPoint();
+  mPagePoint = nsDOMEvent::GetPageCoords(mPresContext,
+                                         mEvent,
+                                         mEvent->refPoint,
+                                         mClientPoint);
+  // GetScreenPoint converts mEvent->refPoint to right coordinates.
+  nsIntPoint screenPoint = nsDOMEvent::GetScreenCoords(mPresContext,
+                                                       mEvent,
+                                                       mEvent->refPoint);
+#else
   mClientPoint = GetClientPoint();
   mLayerPoint = GetLayerPoint();
   mPagePoint = GetPagePoint();
   // GetScreenPoint converts mEvent->refPoint to right coordinates.
   nsIntPoint screenPoint = GetScreenPoint();
+#endif
   nsresult rv = nsDOMEvent::DuplicatePrivateData();
   if (NS_SUCCEEDED(rv)) {
     mEvent->refPoint = screenPoint;

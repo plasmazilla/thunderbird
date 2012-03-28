@@ -38,7 +38,7 @@
 #define MapiMessage_h___
 
 #include "nsTArray.h"
-#include "nsString.h"
+#include "nsStringGlue.h"
 #include "nsILocalFile.h"
 #include "MapiApi.h"
 #include "nsIMsgSend.h"
@@ -217,7 +217,6 @@ public:
   inline bool IsForvarded() const {
     return m_msgLastVerb == EXCHIVERB_FORWARD; }
 
-  bool    IsMultipart( void) const;
   bool    HasContentHeader( void) const {
     return( !m_mimeContentType.IsEmpty());}
   bool    HasMimeVersion( void) const {

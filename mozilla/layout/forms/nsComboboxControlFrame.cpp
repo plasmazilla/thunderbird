@@ -87,7 +87,7 @@
 #include "nsDisplayList.h"
 #include "nsITheme.h"
 #include "nsThemeConstants.h"
-#include "nsPLDOMEvent.h"
+#include "nsAsyncDOMEvent.h"
 #include "nsRenderingContext.h"
 #include "mozilla/Preferences.h"
 
@@ -473,7 +473,7 @@ nsComboboxControlFrame::ShowList(bool aShowList)
     if (view) {
       nsIWidget* widget = view->GetWidget();
       if (widget) {
-        widget->CaptureRollupEvents(this, nsnull, mDroppedDown, mDroppedDown);
+        widget->CaptureRollupEvents(this, mDroppedDown, mDroppedDown);
 
         if (!aShowList) {
           nsCOMPtr<nsIRunnable> widgetDestroyer =
@@ -1322,7 +1322,7 @@ nsComboboxControlFrame::DestroyFrom(nsIFrame* aDestructRoot)
       if (view) {
         nsIWidget* widget = view->GetWidget();
         if (widget)
-          widget->CaptureRollupEvents(this, nsnull, false, true);
+          widget->CaptureRollupEvents(this, false, true);
       }
     }
   }
@@ -1375,24 +1375,21 @@ nsComboboxControlFrame::SetInitialChildList(ChildListID     aListID,
 //----------------------------------------------------------------------
   //nsIRollupListener
 //----------------------------------------------------------------------
-NS_IMETHODIMP 
-nsComboboxControlFrame::Rollup(PRUint32 aCount,
-                               nsIContent** aLastRolledUp)
+nsIContent*
+nsComboboxControlFrame::Rollup(PRUint32 aCount, bool aGetLastRolledUp)
 {
-  if (aLastRolledUp)
-    *aLastRolledUp = nsnull;
-
   if (mDroppedDown) {
     nsWeakFrame weakFrame(this);
     mListControlFrame->AboutToRollup(); // might destroy us
     if (!weakFrame.IsAlive())
-      return NS_OK;
+      return nsnull;
     ShowDropDown(false); // might destroy us
     if (!weakFrame.IsAlive())
-      return NS_OK;
+      return nsnull;
     mListControlFrame->CaptureMouseEvents(false);
   }
-  return NS_OK;
+
+  return nsnull;
 }
 
 void
@@ -1545,8 +1542,8 @@ void nsComboboxControlFrame::FireValueChangeEvent()
 {
   // Fire ValueChange event to indicate data value of combo box has changed
   nsContentUtils::AddScriptRunner(
-    new nsPLDOMEvent(mContent, NS_LITERAL_STRING("ValueChange"), true,
-                     false));
+    new nsAsyncDOMEvent(mContent, NS_LITERAL_STRING("ValueChange"), true,
+                        false));
 }
 
 void

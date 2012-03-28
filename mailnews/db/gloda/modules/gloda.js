@@ -478,7 +478,8 @@ var Gloda = {
       // (it will fix-up the name based on the card as appropriate)
       if (card)
         yield aCallbackHandle.pushAndGo(
-          Gloda.grokNounItem(contact, card, true, true, aCallbackHandle));
+          Gloda.grokNounItem(contact, {card: card}, true, true,
+                             aCallbackHandle));
       else // grokNounItem will issue the insert for us...
         GlodaDatastore.insertContact(contact);
 
@@ -1934,10 +1935,18 @@ var Gloda = {
    * - JSON-able representation.
    *
    * @param aItem The noun instance you want processed.
-   * @param aRawReps An opaque dictionary that we pass to the attribute
-   *     providers.  There is a(n implied) contract between the caller of
-   *     grokNounItem for a given noun type and the attribute providers for
-   *     that noun type, and we have nothing to do with it.
+   * @param aRawReps A dictionary that we pass to the attribute providers.
+   *     There is a(n implied) contract between the caller of grokNounItem for a
+   *     given noun type and the attribute providers for that noun type, and we
+   *     have nothing to do with it OTHER THAN inserting a 'trueGlodaRep'
+   *     value into it.  In the event of reindexing an existing object, the
+   *     gloda representation we pass to the indexers is actually a clone that
+   *     allows the asynchronous indexers to mutate the object without
+   *     causing visible changes in the existing representation of the gloda
+   *     object.  We patch the changes back onto the original item atomically
+   *     once indexing completes.  The 'trueGlodaRep' is then useful for
+   *     objects that hang off of the gloda instance that need a reference
+   *     back to their containing object for API convenience purposes.
    * @param aIsConceptuallyNew Is the item "new" in the sense that it would
    *     never have been visible from within user code?  This translates into
    *     whether this should trigger an itemAdded notification or an
@@ -1965,6 +1974,7 @@ var Gloda = {
     let jsonDict = {};
 
     let aOldItem;
+    aRawReps.trueGlodaRep = aItem;
     if (aIsConceptuallyNew) // there is no old item if we are new.
       aOldItem = {};
     else {
@@ -2039,11 +2049,8 @@ var Gloda = {
       // the new canQuery property has to be explicitly set to generate entries
       // in the messageAttributes table, hence making the message query-able.
       if (!attrib.canQuery) {
-        this._log.debug("Not inserting attribute "+attrib.attributeName
-            +" into the db, since we don't plan on querying on it");
         continue;
       }
-      this._log.debug("Inserting attribute "+attrib.attributeName);
 
       // - database index attributes
 

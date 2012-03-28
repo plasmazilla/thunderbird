@@ -84,7 +84,7 @@ calendar.jar:
     content/calendar/preferences/categories.js             (content/preferences/categories.js)
     content/calendar/preferences/editCategory.xul          (content/preferences/editCategory.xul)
     content/calendar/preferences/general.js                (content/preferences/general.js)
-    content/calendar/preferences/general.xul               (content/preferences/general.xul)
+*   content/calendar/preferences/general.xul               (content/preferences/general.xul)
     content/calendar/preferences/timezones.js              (content/preferences/timezones.js)
     content/calendar/preferences/timezones.xul             (content/preferences/timezones.xul)
     content/calendar/preferences/views.js                  (content/preferences/views.js)
@@ -131,7 +131,8 @@ calendar.jar:
     skin/calendar/widgets/nav-arrow.svg                    (themes/common/widgets/images/nav-arrow.svg)
     skin/calendar/widgets/nav-today.svg                    (themes/common/widgets/images/nav-today.svg)
     skin/calendar/widgets/nav-today-hov.svg                (themes/common/widgets/images/nav-today-hov.svg)
-    skin/calendar/widgets/view-navigation.png              (themes/common/widgets/images/view-navigation.png)
+    skin/calendar/widgets/view-navigation.svg              (themes/common/widgets/images/view-navigation.svg)
+    skin/calendar/widgets/view-navigation-hov.svg          (themes/common/widgets/images/view-navigation-hov.svg)
     skin/calendar/cal-icon32.png                           (themes/@THEME@/images/cal-icon32.png)
     skin/calendar/calendar-alarm-dialog.css                (themes/@THEME@/dialogs/calendar-alarm-dialog.css)
     skin/calendar/calendar-daypicker.css                   (themes/@THEME@/calendar-daypicker.css)
@@ -165,14 +166,22 @@ calendar.jar:
 
 # The following files are added for aero support on windows.
 #ifdef XP_WIN
-% style chrome://calendar/content/calendar-common-sets.xul chrome://calendar/skin/calendar-aero.css os=WINNT osversion>=6
-% style chrome://calendar/content/calendar-event-dialog.xul chrome://calendar/skin/calendar-aero.css os=WINNT osversion>=6
-% style chrome://calendar/content/calendar-occurrence-prompt.xul chrome://calendar/skin/calendar-aero.css os=WINNT osversion>=6
-% style chrome://global/content/customizeToolbar.xul chrome://calendar/skin/calendar-aero.css os=WINNT osversion>=6
-    skin/calendar/calendar-aero.css                        (themes/@THEME@/calendar-aero.css)
+% style chrome://calendar/content/calendar-event-dialog.xul chrome://calendar-windows/skin/calendar-event-dialog.css os=WINNT
+% style chrome://calendar/content/calendar-occurrence-prompt.xul chrome://calendar-windows/skin/calendar.css os=WINNT osversion>=6
+% skin calendar-windows classic/1.0 chrome/calendar/skin/calendar/win-classic/ os=WINNT osversion<6
+% skin calendar-windows classic/1.0 chrome/calendar/skin/calendar/win-aero/ os=WINNT osversion>=6
+    skin/calendar/win-classic/calendar.css                 (themes/@THEME@/win-classic/calendar.css)
+    skin/calendar/win-classic/calendar-event-dialog.css    (themes/@THEME@/win-classic/calendar-event-dialog.css)
+    skin/calendar/win-classic/lightning.css                (themes/@THEME@/win-classic/lightning.css)
+    skin/calendar/win-classic/lightning-toolbar.css        (themes/@THEME@/win-classic/lightning-toolbar.css)
+    skin/calendar/win-aero/calendar.css                    (themes/@THEME@/win-aero/calendar.css)
+    skin/calendar/win-aero/calendar-event-dialog.css       (themes/@THEME@/win-aero/calendar-event-dialog.css)
+    skin/calendar/win-aero/lightning.css                   (themes/@THEME@/win-aero/lightning.css)
+    skin/calendar/win-aero/lightning-toolbar.css           (themes/@THEME@/win-aero/lightning-toolbar.css)
     skin/calendar/calendar-event-dialog-toolbar-aero.png   (themes/@THEME@/dialogs/images/calendar-event-dialog-toolbar-aero.png)
     skin/calendar/calendar-occurrence-prompt-aero.png      (themes/@THEME@/images/calendar-occurrence-prompt-aero.png)
     skin/calendar/tasks-actions-aero.png                   (themes/@THEME@/images/tasks-actions-aero.png)
+    skin/calendar/toolbar-aero.png                         (themes/@THEME@/images/toolbar-aero.png)
     skin/calendar/toolbar-large-aero.png                   (themes/@THEME@/images/toolbar-large-aero.png)
     skin/calendar/toolbar-small-aero.png                   (themes/@THEME@/images/toolbar-small-aero.png)
 #endif

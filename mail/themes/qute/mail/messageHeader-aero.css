@@ -49,8 +49,23 @@
   padding: 0.4ex;
 }
 
-/* ::::: msg header toolbars ::::: */
+/* :::::  message in a tab ::::: */
 
+#displayDeck[collapsed="true"] + splitter + #messagepaneboxwrapper 
+.main-header-area {
+  background-image: -moz-linear-gradient(rgba(255, 255, 255, .5),
+                                         rgba(255, 255, 255, .5) 100%);
+}
+
+@media all and (-moz-windows-default-theme) {
+  #displayDeck[collapsed="true"] + splitter + #messagepaneboxwrapper 
+  .main-header-area {
+    background-image: none;
+    background-color: rgb(233, 239, 245);
+  }
+}
+
+/* ::::: msg header toolbars ::::: */
 #expandedHeaderView[show_header_mode="all"] {
   overflow-y: auto;
   overflow-x: hidden;
@@ -86,17 +101,11 @@
 
 /* ::::: expanded header pane ::::: */
 
+/* toolbars are optimized to look like OS-provided widgets; override this */
 .inline-toolbox {
   border-top-width: 0;
   -moz-appearance: none;
   background-color: transparent;
-}
-
-/* toolbars are optimized to look like OS-provided widgets; override this */
-.inline-toolbar {
-  -moz-appearance: none;
-  padding: 0;
-  border-bottom-width: 0 !important;
 }
 
 #expandedsubjectBox > .headerValue {
@@ -371,16 +380,13 @@ toolbarpaletteitem > #hdrReplyToSenderButton {
 
 .inline-toolbar toolbarpaletteitem toolbarseparator,
 .inline-toolbar toolbarseparator {
-  height: 30px;
   -moz-margin-start: 1px; /* make it symetrical */
 }
 
-.inline-toolbar toolbarspacer {
-  height: 24px;
-}
-
 .inline-toolbar {
+  -moz-appearance: none;
   -moz-box-pack: end;
+  border-bottom-width: 0 !important;
 }
 
 window[inlinetoolbox] #smallicons,

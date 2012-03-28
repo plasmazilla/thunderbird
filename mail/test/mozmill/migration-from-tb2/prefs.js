@@ -13,8 +13,8 @@ user_pref("app.update.lastUpdateTime.addon-background-update-timer", 1273257684)
 user_pref("app.update.lastUpdateTime.background-update-timer", 1273257684);
 user_pref("app.update.lastUpdateTime.blocklist-background-update-timer", 1273257684);
 user_pref("extensions.checkCompatibility.nightly", false);
-user_pref("extensions.checkCompatibility.10.0a", false);
-user_pref("extensions.checkCompatibility.10.0", false);
+user_pref("extensions.checkCompatibility.11.0a", false);
+user_pref("extensions.checkCompatibility.11.0", false);
 user_pref("extensions.getAddons.cache.enabled", false);
 user_pref("extensions.testpilot.lastversion", "1.0");
 user_pref("extensions.autoDisableScopes", 10);

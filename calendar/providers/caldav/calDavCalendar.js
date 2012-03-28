@@ -30,7 +30,7 @@
  *   Wolfgang Sourdeau <wsourdeau@inverse.ca>
  *   Simon Vaillancourt <simon.at.orcl@gmail.com>
  *   Dimas Perez Gago <dimassevfc@gmail.com>
- *
+ *   Stefan Fleiter <stefan.fleiter@web.de>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -352,17 +352,21 @@ calDavCalendar.prototype = {
         return calUri;
     },
 
-    setCalHomeSet: function caldav_setCalHomeSet() {
-        let calUri = this.mUri.clone();
-        let split1 = calUri.spec.split('?');
-        let baseUrl = split1[0];
-        if (baseUrl.charAt(baseUrl.length-1) == '/') {
-            baseUrl = baseUrl.substring(0, baseUrl.length-2);
+    setCalHomeSet: function caldav_setCalHomeSet(removeLastPathSegment) {
+        if (removeLastPathSegment) {
+            let calUri = this.mUri.clone();
+            let split1 = calUri.spec.split('?');
+            let baseUrl = split1[0];
+            if (baseUrl.charAt(baseUrl.length-1) == '/') {
+                baseUrl = baseUrl.substring(0, baseUrl.length-2);
+            }
+            let split2 = baseUrl.split('/');
+            split2.pop();
+            calUri.spec = split2.join('/') + '/';
+            this.mCalHomeSet = calUri;
+        } else {
+            this.mCalHomeSet = this.calendarUri;
         }
-        let split2 = baseUrl.split('/');
-        split2.pop();
-        calUri.spec = split2.join('/') + '/';
-        this.mCalHomeSet = calUri;
     },
 
     mOutboxUrl:  null,
@@ -450,7 +454,7 @@ calDavCalendar.prototype = {
     },
 
     getProperty: function caldav_getProperty(aName) {
-        if (aName in this.mACLProperties) {
+        if (aName in this.mACLProperties && this.mACLProperties[aName]) {
             return this.mACLProperties[aName];
         }
 
@@ -1251,7 +1255,11 @@ calDavCalendar.prototype = {
     },
 
     fillACLProperties: function caldav_fillACLProperties() {
-        this.mACLProperties["organizerId"] = this.calendarUserAddress;
+        let orgId = this.calendarUserAddress;
+        if (orgId) {
+            this.mACLProperties["organizerId"] = orgId;
+        }
+
         if (this.mACLEntry && this.mACLEntry.hasAccessControl) {
             let ownerIdentities = this.mACLEntry.getOwnerIdentities({});
             if (ownerIdentities.length > 0) {
@@ -1695,7 +1703,7 @@ calDavCalendar.prototype = {
                 thisCalendar.mReadOnly = false;
             }
 
-            thisCalendar.setCalHomeSet();
+            thisCalendar.setCalHomeSet(true);
             thisCalendar.checkServerCaps(aChangeLogListener);
         };
         cal.sendHttpRequest(cal.createStreamLoader(), httpchannel, streamListener);
@@ -1710,7 +1718,7 @@ calDavCalendar.prototype = {
      * checkPrincipalsNameSpace
      * completeCheckServerInfo
      */
-    checkServerCaps: function caldav_checkServerCaps(aChangeLogListener) {
+    checkServerCaps: function caldav_checkServerCaps(aChangeLogListener, calHomeSetUrlRetry) {
         let homeSet = this.makeUri(null, this.mCalHomeSet);
         var thisCalendar = this;
 
@@ -1727,10 +1735,19 @@ calDavCalendar.prototype = {
                                          aResultLength, aResult) {
             let request = aLoader.request.QueryInterface(Components.interfaces.nsIHttpChannel);
             if (request.responseStatus != 200) {
-                cal.LOG("CalDAV: Unexpected status " + request.responseStatus +
-                        " while querying options " + thisCalendar.name);
-                thisCalendar.completeCheckServerInfo(aChangeLogListener,
-                                                     Components.results.NS_ERROR_FAILURE);
+                if (!calHomeSetUrlRetry && request.responseStatus == 404) {
+                    // try again with calendar URL, see https://bugzilla.mozilla.org/show_bug.cgi?id=588799
+                    cal.LOG("CalDAV: Calendar homeset was not found at parent url of calendar URL" +
+                            " while querying options " + thisCalendar.name + ", will try calendar URL itself now");
+                    thisCalendar.setCalHomeSet(false);
+                    thisCalendar.checkServerCaps(aChangeLogListener, true);
+                } else {
+                    cal.LOG("CalDAV: Unexpected status " + request.responseStatus +
+                            " while querying options " + thisCalendar.name);
+                    thisCalendar.completeCheckServerInfo(aChangeLogListener, Components.results.NS_ERROR_FAILURE);
+                }
+
+                // No further processing needed, we have called subsequent (async) functions above.
                 return;
             }
 

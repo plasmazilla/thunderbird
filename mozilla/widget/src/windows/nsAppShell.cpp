@@ -46,6 +46,7 @@
 #include "nsString.h"
 #include "nsIMM32Handler.h"
 #include "mozilla/widget/AudioSession.h"
+#include "mozilla/HangMonitor.h"
 
 // For skidmark code
 #include <windows.h> 
@@ -256,7 +257,7 @@ nsAppShell::Run(void)
 
   nsresult rv = nsBaseAppShell::Run();
 
-#ifdef MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
+#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
   mozilla::widget::StopAudioSession();
 #endif
 
@@ -338,11 +339,13 @@ nsAppShell::ProcessNextNativeEvent(bool mayWait)
         ::PostQuitMessage(msg.wParam);
         Exit();
       } else {
+        mozilla::HangMonitor::NotifyActivity();
         ::TranslateMessage(&msg);
         ::DispatchMessageW(&msg);
       }
     } else if (mayWait) {
       // Block and wait for any posted application message
+      mozilla::HangMonitor::Suspend();
       ::WaitMessage();
     }
   } while (!gotMessage && mayWait);

@@ -333,44 +333,44 @@ void
 GfxInfo::AddCrashReportAnnotations()
 {
 #if defined(MOZ_CRASHREPORTER)
-  CrashReporter::AnnotateCrashReport(NS_LITERAL_CSTRING("AdapterRendererIDs"),
-                                     NS_LossyConvertUTF16toASCII(mRendererIDsString));
+  nsCAutoString deviceIDString, vendorIDString;
+  PRUint32 deviceID, vendorID;
 
+  GetAdapterDeviceID(&deviceID);
+  GetAdapterVendorID(&vendorID);
+
+  deviceIDString.AppendPrintf("%04x", deviceID);
+  vendorIDString.AppendPrintf("%04x", vendorID);
+
+  CrashReporter::AnnotateCrashReport(NS_LITERAL_CSTRING("AdapterVendorID"),
+      vendorIDString);
+  CrashReporter::AnnotateCrashReport(NS_LITERAL_CSTRING("AdapterDeviceID"),
+      deviceIDString);
   /* Add an App Note for now so that we get the data immediately. These
    * can go away after we store the above in the socorro db */
   nsCAutoString note;
   /* AppendPrintf only supports 32 character strings, mrghh. */
-  note.AppendLiteral("Renderers: ");
-  note.Append(NS_LossyConvertUTF16toASCII(mRendererIDsString));
-
+  note.AppendPrintf("AdapterVendorID: %04x, ", vendorID);
+  note.AppendPrintf("AdapterDeviceID: %04x", deviceID);
   CrashReporter::AppendAppNotesToCrashReport(note);
 #endif
 }
 
-static GfxDriverInfo gDriverInfo[] = {
-  // We don't support checking driver versions on Mac.
-  #define IMPLEMENT_MAC_DRIVER_BLOCKLIST(os, vendor, device, features, blockOn) \
-    GfxDriverInfo(os, vendor, device, features, blockOn,                        \
-                  DRIVER_UNKNOWN_COMPARISON, V(0,0,0,0), ""),
+// We don't support checking driver versions on Mac.
+#define IMPLEMENT_MAC_DRIVER_BLOCKLIST(os, vendor, device, features, blockOn) \
+  APPEND_TO_DRIVER_BLOCKLIST(os, vendor, device, features, blockOn,           \
+                             DRIVER_UNKNOWN_COMPARISON, V(0,0,0,0), "")
 
-  // Example use of macro.
-  //IMPLEMENT_MAC_DRIVER_BLOCKLIST(DRIVER_OS_OS_X_10_7,
-  //  GfxDriverInfo::vendorATI, GfxDriverInfo::allDevices,
-  //  GfxDriverInfo::allFeatures, nsIGfxInfo::FEATURE_BLOCKED_OS_VERSION)
 
-  // Block all ATI cards from using MSAA, except for two devices that have
-  // special exceptions in the GetFeatureStatusImpl() function.
-  IMPLEMENT_MAC_DRIVER_BLOCKLIST(DRIVER_OS_ALL,
-    GfxDriverInfo::vendorATI, GfxDriverInfo::allDevices,
-    nsIGfxInfo::FEATURE_WEBGL_MSAA, nsIGfxInfo::FEATURE_BLOCKED_OS_VERSION)
-
-  GfxDriverInfo()
-};
-
-const GfxDriverInfo*
+const nsTArray<GfxDriverInfo>&
 GfxInfo::GetGfxDriverInfo()
 {
-  return &gDriverInfo[0];
+  if (!mDriverInfo->Length()) {
+    IMPLEMENT_MAC_DRIVER_BLOCKLIST(DRIVER_OS_ALL,
+      GfxDriverInfo::vendorATI, GfxDriverInfo::allDevices,
+      nsIGfxInfo::FEATURE_WEBGL_MSAA, nsIGfxInfo::FEATURE_BLOCKED_OS_VERSION);
+  }
+  return *mDriverInfo;
 }
 
 static OperatingSystem
@@ -392,14 +392,14 @@ nsresult
 GfxInfo::GetFeatureStatusImpl(PRInt32 aFeature, 
                               PRInt32* aStatus,
                               nsAString& aSuggestedDriverVersion,
-                              GfxDriverInfo* aDriverInfo /* = nsnull */,
+                              const nsTArray<GfxDriverInfo>& aDriverInfo,
                               OperatingSystem* aOS /* = nsnull */)
 {
   NS_ENSURE_ARG_POINTER(aStatus);
 
   aSuggestedDriverVersion.SetIsVoid(true);
 
-  PRInt32 status = nsIGfxInfo::FEATURE_NO_INFO;
+  PRInt32 status = nsIGfxInfo::FEATURE_STATUS_UNKNOWN;
 
   OperatingSystem os = OSXVersionToOperatingSystem(nsToolkit::OSXVersion());
 

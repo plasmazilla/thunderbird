@@ -47,7 +47,6 @@
 #include "nsNSSComponent.h"
 #include "nsNSSCallbacks.h"
 #include "nsNSSIOLayer.h"
-#include "nsSSLThread.h"
 #include "nsCertVerificationThread.h"
 
 #include "nsNetUtil.h"
@@ -364,7 +363,7 @@ nsNSSComponent::nsNSSComponent()
    mNSSInitialized(false),
    mCrlTimerLock("nsNSSComponent.mCrlTimerLock"),
    mThreadList(nsnull),
-   mSSLThread(NULL), mCertVerificationThread(NULL)
+   mCertVerificationThread(NULL)
 {
 #ifdef PR_LOGGING
   if (!gPIPNSSLog)
@@ -391,12 +390,6 @@ nsNSSComponent::nsNSSComponent()
 void 
 nsNSSComponent::deleteBackgroundThreads()
 {
-  if (mSSLThread)
-  {
-    mSSLThread->requestExit();
-    delete mSSLThread;
-    mSSLThread = nsnull;
-  }
   if (mCertVerificationThread)
   {
     mCertVerificationThread->requestExit();
@@ -408,20 +401,11 @@ nsNSSComponent::deleteBackgroundThreads()
 void
 nsNSSComponent::createBackgroundThreads()
 {
-  NS_ASSERTION(mSSLThread == nsnull, "SSL thread already created.");
   NS_ASSERTION(mCertVerificationThread == nsnull,
                "Cert verification thread already created.");
 
-  mSSLThread = new nsSSLThread;
-  nsresult rv = mSSLThread->startThread();
-  if (NS_FAILED(rv)) {
-    delete mSSLThread;
-    mSSLThread = nsnull;
-    return;
-  }
-
   mCertVerificationThread = new nsCertVerificationThread;
-  rv = mCertVerificationThread->startThread();
+  nsresult rv = mCertVerificationThread->startThread();
   if (NS_FAILED(rv)) {
     delete mCertVerificationThread;
     mCertVerificationThread = nsnull;
@@ -844,7 +828,10 @@ nsNSSComponent::InstallLoadableRoots()
   if (!directoryService)
     return;
 
+  static const char nss_lib[] = "nss3";
   const char *possible_ckbi_locations[] = {
+    nss_lib, // This special value means: search for ckbi in the directory
+             // where nss3 is.
     NS_XPCOM_CURRENT_PROCESS_DIR,
     NS_GRE_DIR,
     0 // This special value means: 
@@ -862,9 +849,30 @@ nsNSSComponent::InstallLoadableRoots()
     }
     else
     {
-      directoryService->Get( possible_ckbi_locations[il],
-                             NS_GET_IID(nsILocalFile), 
-                             getter_AddRefs(mozFile));
+      if (possible_ckbi_locations[il] == nss_lib) {
+        // Get the location of the nss3 library.
+        char *nss_path = PR_GetLibraryFilePathname(DLL_PREFIX "nss3" DLL_SUFFIX,
+                                                   (PRFuncPtr) NSS_Initialize);
+        if (!nss_path) {
+          continue;
+        }
+        // Get the directory containing the nss3 library.
+        nsCOMPtr<nsILocalFile> nssLib(do_CreateInstance(NS_LOCAL_FILE_CONTRACTID, &rv));
+        if (NS_SUCCEEDED(rv)) {
+          rv = nssLib->InitWithNativePath(nsDependentCString(nss_path));
+        }
+        PR_Free(nss_path);
+        if (NS_SUCCEEDED(rv)) {
+          nsCOMPtr<nsIFile> file;
+          if (NS_SUCCEEDED(nssLib->GetParent(getter_AddRefs(file)))) {
+            mozFile = do_QueryInterface(file);
+          }
+        }
+      } else {
+        directoryService->Get( possible_ckbi_locations[il],
+                               NS_GET_IID(nsILocalFile), 
+                               getter_AddRefs(mozFile));
+      }
   
       if (!mozFile) {
         continue;
@@ -1999,7 +2007,7 @@ nsNSSComponent::Init()
     mClientAuthRememberService->Init();
 
   createBackgroundThreads();
-  if (!mSSLThread || !mCertVerificationThread)
+  if (!mCertVerificationThread)
   {
     PR_LOG(gPIPNSSLog, PR_LOG_DEBUG, ("NSS init, could not create threads\n"));
 
@@ -2549,8 +2557,6 @@ nsNSSComponent::DoProfileApproveChange(nsISupports* aSubject)
 void
 nsNSSComponent::DoProfileChangeNetTeardown()
 {
-  if (mSSLThread)
-    mSSLThread->requestExit();
   if (mCertVerificationThread)
     mCertVerificationThread->requestExit();
   mIsNetworkDown = true;

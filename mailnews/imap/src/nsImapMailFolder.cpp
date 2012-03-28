@@ -132,7 +132,6 @@
 #include "nsIStringEnumerator.h"
 #include "nsIMsgStatusFeedback.h"
 #include "nsAlgorithm.h"
-#include "nsPrintfCString.h"
 #include "nsMsgLineBuffer.h"
 
 static NS_DEFINE_CID(kRDFServiceCID, NS_RDFSERVICE_CID);
@@ -1229,8 +1228,15 @@ NS_IMETHODIMP nsImapMailFolder::SetBoxFlags(PRInt32 aBoxFlags)
     newFlags |= nsMsgFolderFlags::Inbox;
 
   if (m_boxFlags & kImapXListTrash)
-    newFlags |= nsMsgFolderFlags::Trash;
-
+  {
+    nsCOMPtr<nsIImapIncomingServer> imapServer;
+    nsMsgImapDeleteModel deleteModel = nsMsgImapDeleteModels::MoveToTrash;
+    (void) GetImapIncomingServer(getter_AddRefs(imapServer));
+    if (imapServer)
+      imapServer->GetDeleteModel(&deleteModel);
+    if (deleteModel == nsMsgImapDeleteModels::MoveToTrash)
+      newFlags |= nsMsgFolderFlags::Trash;
+  }
   // Treat the GMail all mail folder as the archive folder.
   if (m_boxFlags & kImapAllMail)
     newFlags |= nsMsgFolderFlags::Archive;
@@ -1811,8 +1817,16 @@ NS_IMETHODIMP nsImapMailFolder::UpdateSummaryTotals(bool force)
 
 NS_IMETHODIMP nsImapMailFolder::GetDeletable (bool *deletable)
 {
-  nsresult rv = NS_ERROR_FAILURE;
-  return rv;
+  NS_ENSURE_ARG_POINTER(deletable);
+
+  bool isServer;
+  GetIsServer(&isServer);
+
+  *deletable = !(isServer || (mFlags & (nsMsgFolderFlags::Inbox |
+    nsMsgFolderFlags::Drafts | nsMsgFolderFlags::Templates |
+    nsMsgFolderFlags::SentMail | nsMsgFolderFlags::Archive |
+    nsMsgFolderFlags::Junk | nsMsgFolderFlags::Trash)));
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsImapMailFolder::GetRequiresCleanup(bool *requiresCleanup)
@@ -3588,9 +3602,16 @@ NS_IMETHODIMP nsImapMailFolder::ApplyFilterHit(nsIMsgFilter *filter, nsIMsgWindo
         break;
         case nsMsgFilterAction::MarkRead:
         {
-          mDatabase->MarkHdrRead(msgHdr, PR_TRUE, nsnull);
-          StoreImapFlags(kImapMsgSeenFlag, PR_TRUE, &msgKey, 1, nsnull);
-          msgIsNew = PR_FALSE;
+          mDatabase->MarkHdrRead(msgHdr, true, nsnull);
+          StoreImapFlags(kImapMsgSeenFlag, true, &msgKey, 1, nsnull);
+          msgIsNew = false;
+        }
+        break;
+        case nsMsgFilterAction::MarkUnread:
+        {
+          mDatabase->MarkHdrRead(msgHdr, false, nsnull);
+          StoreImapFlags(kImapMsgSeenFlag, false, &msgKey, 1, nsnull);
+          msgIsNew = true;
         }
         break;
         case nsMsgFilterAction::MarkFlagged:

@@ -61,6 +61,8 @@
 #include "jsscope.h"
 #include "jsstr.h"
 
+#include "jsscopeinlines.h"
+
 using namespace js;
 
 #define ReadWord(W) (W)
@@ -342,27 +344,27 @@ typedef struct JSFatLockTable {
     JSFatLock   *taken;
 } JSFatLockTable;
 
-#define GLOBAL_LOCK_INDEX(id)   (((uint32)(jsuword)(id)>>2) & global_locks_mask)
+#define GLOBAL_LOCK_INDEX(id)   (((uint32_t)(jsuword)(id)>>2) & global_locks_mask)
 
 static void
 js_Dequeue(JSThinLock *);
 
 static PRLock **global_locks;
-static uint32 global_lock_count = 1;
-static uint32 global_locks_log2 = 0;
-static uint32 global_locks_mask = 0;
+static uint32_t global_lock_count = 1;
+static uint32_t global_locks_log2 = 0;
+static uint32_t global_locks_mask = 0;
 
 static void
 js_LockGlobal(void *id)
 {
-    uint32 i = GLOBAL_LOCK_INDEX(id);
+    uint32_t i = GLOBAL_LOCK_INDEX(id);
     PR_Lock(global_locks[i]);
 }
 
 static void
 js_UnlockGlobal(void *id)
 {
-    uint32 i = GLOBAL_LOCK_INDEX(id);
+    uint32_t i = GLOBAL_LOCK_INDEX(id);
     PR_Unlock(global_locks[i]);
 }
 
@@ -442,15 +444,15 @@ DeleteListOfFatlocks(JSFatLock *m)
 }
 
 static JSFatLockTable *fl_list_table = NULL;
-static uint32          fl_list_table_len = 0;
-static uint32          fl_list_chunk_len = 0;
+static uint32_t        fl_list_table_len = 0;
+static uint32_t        fl_list_chunk_len = 0;
 
 static JSFatLock *
 GetFatlock(void *id)
 {
     JSFatLock *m;
 
-    uint32 i = GLOBAL_LOCK_INDEX(id);
+    uint32_t i = GLOBAL_LOCK_INDEX(id);
     if (fl_list_table[i].free_ == NULL) {
 #ifdef DEBUG
         if (fl_list_table[i].taken)
@@ -472,7 +474,7 @@ GetFatlock(void *id)
 static void
 PutFatlock(JSFatLock *m, void *id)
 {
-    uint32 i;
+    uint32_t i;
     if (m == NULL)
         return;
 
@@ -493,7 +495,7 @@ JSBool
 js_SetupLocks(int listc, int globc)
 {
 #ifndef NSPR_LOCK
-    uint32 i;
+    uint32_t i;
 
     if (global_locks)
         return JS_TRUE;
@@ -534,7 +536,7 @@ void
 js_CleanupLocks()
 {
 #ifndef NSPR_LOCK
-    uint32 i;
+    uint32_t i;
 
     if (global_locks) {
         for (i = 0; i < global_lock_count; i++)

@@ -59,7 +59,6 @@ tier_platform_dirs += modules/zlib
 endif
 
 tier_platform_dirs += \
-		modules/libreg \
 		modules/libpref \
 		intl \
 		netwerk \
@@ -225,6 +224,8 @@ tier_platform_dirs += startupcache
 
 tier_platform_dirs += js/ductwork/debugger
 
+tier_platform_dirs += other-licenses/snappy
+
 ifdef APP_LIBXUL_STATICDIRS
 # Applications can cheat and ask for code to be
 # built before libxul so libxul can be linked against it.
@@ -267,5 +268,6 @@ ifdef ENABLE_TESTS
 tier_platform_dirs += testing/mochitest
 tier_platform_dirs += testing/xpcshell
 tier_platform_dirs += testing/tools/screenshot
+tier_platform_dirs += testing/peptest
+tier_platform_dirs += testing/mozbase
 endif
-

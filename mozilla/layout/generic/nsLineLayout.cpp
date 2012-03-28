@@ -120,6 +120,9 @@ nsLineLayout::nsLineLayout(nsPresContext* aPresContext,
   mTopEdge = 0;
   mTrimmableWidth = 0;
 
+  mInflationMinFontSize =
+    nsLayoutUtils::InflationMinFontSizeFor(*aOuterReflowState);
+
   // Instead of always pre-initializing the free-lists for frames and
   // spans, we do it on demand so that situations that only use a few
   // frames and spans won't waste a lot of time in unneeded
@@ -705,14 +708,22 @@ IsPercentageAware(const nsIFrame* aFrame)
       return true;
     }
 
-    // Handle SVG, which doesn't map width/height into style
-    if ((
-         fType == nsGkAtoms::svgOuterSVGFrame ||
-         fType == nsGkAtoms::imageFrame ||
-         fType == nsGkAtoms::subDocumentFrame) &&
-        const_cast<nsIFrame*>(aFrame)->GetIntrinsicSize().width.GetUnit() ==
-        eStyleUnit_Percent) {
-      return true;
+    // Per CSS 2.1, section 10.3.2:
+    //   If 'height' and 'width' both have computed values of 'auto' and
+    //   the element has an intrinsic ratio but no intrinsic height or
+    //   width and the containing block's width does not itself depend
+    //   on the replaced element's width, then the used value of 'width'
+    //   is calculated from the constraint equation used for
+    //   block-level, non-replaced elements in normal flow. 
+    nsIFrame *f = const_cast<nsIFrame*>(aFrame);
+    if (f->GetIntrinsicRatio() != nsSize(0, 0) &&
+        // Some percents are treated like 'auto', so check != coord
+        pos->mHeight.GetUnit() != eStyleUnit_Coord) {
+      const nsIFrame::IntrinsicSize &intrinsicSize = f->GetIntrinsicSize();
+      if (intrinsicSize.width.GetUnit() == eStyleUnit_None &&
+          intrinsicSize.height.GetUnit() == eStyleUnit_None) {
+        return true;
+      }
     }
   }
 
@@ -1581,7 +1592,10 @@ nsLineLayout::VerticalAlignFrames(PerSpanData* psd)
 
   // Get the parent frame's font for all of the frames in this span
   nsRefPtr<nsFontMetrics> fm;
-  nsLayoutUtils::GetFontMetricsForFrame(spanFrame, getter_AddRefs(fm));
+  float inflation =
+    nsLayoutUtils::FontSizeInflationInner(spanFrame, mInflationMinFontSize);
+  nsLayoutUtils::GetFontMetricsForFrame(spanFrame, getter_AddRefs(fm),
+                                        inflation);
   mBlockReflowState->rendContext->SetFont(fm);
 
   bool preMode = mStyleText->WhiteSpaceIsSignificant();
@@ -1712,9 +1726,12 @@ nsLineLayout::VerticalAlignFrames(PerSpanData* psd)
     // Compute the logical height for this span. The logical height
     // is based on the line-height value, not the font-size. Also
     // compute the top leading.
+    float inflation =
+      nsLayoutUtils::FontSizeInflationInner(spanFrame, mInflationMinFontSize);
     nscoord logicalHeight = nsHTMLReflowState::
       CalcLineHeight(spanFrame->GetStyleContext(),
-                     mBlockReflowState->ComputedHeight());
+                     mBlockReflowState->ComputedHeight(),
+                     inflation);
     nscoord contentHeight = spanFramePFD->mBounds.height -
       spanFramePFD->mBorderPadding.top - spanFramePFD->mBorderPadding.bottom;
 
@@ -1951,8 +1968,11 @@ nsLineLayout::VerticalAlignFrames(PerSpanData* psd)
       if (verticalAlign.HasPercent()) {
         // Percentages are like lengths, except treated as a percentage
         // of the elements line-height value.
+        float inflation =
+          nsLayoutUtils::FontSizeInflationInner(frame, mInflationMinFontSize);
         pctBasis = nsHTMLReflowState::CalcLineHeight(
-          frame->GetStyleContext(), mBlockReflowState->ComputedHeight());
+          frame->GetStyleContext(), mBlockReflowState->ComputedHeight(),
+          inflation);
       }
       nscoord offset =
         nsRuleNode::ComputeCoordPercentCalc(verticalAlign, pctBasis);
@@ -2611,7 +2631,7 @@ nsLineLayout::RelativePositionFrames(PerSpanData* psd, nsOverflowAreas& aOverflo
         if (pfd->GetFlag(PFD_RECOMPUTEOVERFLOW) ||
             frame->GetStyleContext()->HasTextDecorationLines()) {
           nsTextFrame* f = static_cast<nsTextFrame*>(frame);
-          r = f->RecomputeOverflow();
+          r = f->RecomputeOverflow(*mBlockReflowState);
         }
         frame->FinishAndStoreOverflow(r, frame->GetSize());
       }

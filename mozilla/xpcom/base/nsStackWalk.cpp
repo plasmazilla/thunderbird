@@ -58,7 +58,7 @@ static CriticalAddress gCriticalAddress;
 #include <dlfcn.h>
 #endif
 
-#ifdef XP_MACOSX
+#if defined(XP_MACOSX) && (defined(__i386) || defined(__ppc__) || defined(HAVE__UNWIND_BACKTRACE))
 #include <pthread.h>
 #include <errno.h>
 #include <CoreServices/CoreServices.h>
@@ -78,8 +78,8 @@ stack_callback(void *pc, void *closure)
   // stack shows up as having two pthread_cond_wait$UNIX2003 frames. The
   // correct one is the first that we find on our way up, so the
   // following check for gCriticalAddress.mAddr is critical.
-  if(gCriticalAddress.mAddr || dladdr(pc, &info) == 0  ||
-     info.dli_sname == NULL || strcmp(info.dli_sname, name) != 0)
+  if (gCriticalAddress.mAddr || dladdr(pc, &info) == 0  ||
+      info.dli_sname == NULL || strcmp(info.dli_sname, name) != 0)
     return;
   gCriticalAddress.mAddr = pc;
 }
@@ -305,8 +305,6 @@ extern  SYMGETLINEFROMADDRPROC64 _SymGetLineFromAddr64;
 #endif
 
 extern HANDLE hStackWalkMutex; 
-
-HANDLE GetCurrentPIDorHandle();
 
 bool EnsureSymInitialized();
 
@@ -1072,15 +1070,6 @@ BOOL SymGetModuleInfoEspecial64(HANDLE aProcess, DWORD64 aAddr, PIMAGEHLP_MODULE
 }
 #endif
 
-HANDLE
-GetCurrentPIDorHandle()
-{
-    if (_SymGetModuleBase64)
-        return GetCurrentProcess();  // winxp and friends use process handle
-
-    return (HANDLE) GetCurrentProcessId(); // winme win98 win95 etc use process identifier
-}
-
 bool
 EnsureSymInitialized()
 {
@@ -1096,7 +1085,7 @@ EnsureSymInitialized()
         return false;
 
     _SymSetOptions(SYMOPT_LOAD_LINES | SYMOPT_UNDNAME);
-    retStat = _SymInitialize(GetCurrentPIDorHandle(), NULL, TRUE);
+    retStat = _SymInitialize(GetCurrentProcess(), NULL, TRUE);
     if (!retStat)
         PrintError("SymInitialize");
 
@@ -1624,7 +1613,10 @@ unwind_callback (struct _Unwind_Context *context, void *closure)
     void *pc = reinterpret_cast<void *>(_Unwind_GetIP(context));
     if (IsCriticalAddress(pc)) {
         printf("Aborting stack trace, PC is critical\n");
-        return _URC_NORMAL_STOP;
+        /* We just want to stop the walk, so any error code will do.
+           Using _URC_NORMAL_STOP would probably be the most accurate,
+           but it is not defined on Android for ARM. */
+        return _URC_FOREIGN_EXCEPTION_CAUGHT;
     }
     if (--info->skip < 0)
         (*info->callback)(pc, info->closure);

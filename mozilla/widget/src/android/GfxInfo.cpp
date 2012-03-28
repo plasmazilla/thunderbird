@@ -109,6 +109,10 @@ GfxInfo::GetAdapterDescription(nsAString & aAdapterDescription)
       if (mozilla::AndroidBridge::Bridge()->GetStaticStringField("android/os/Build", "MANUFACTURER", str))
         aAdapterDescription.Append(str);
       aAdapterDescription.Append(NS_LITERAL_STRING("', Hardware: '"));
+      PRInt32 version; // the HARDWARE field isn't available on Android SDK < 8
+      if (!mozilla::AndroidBridge::Bridge()->GetStaticIntField("android/os/Build$VERSION", "SDK_INT", &version))
+        version = 0;
+      if (version >= 8 && mozilla::AndroidBridge::Bridge()->GetStaticStringField("android/os/Build", "HARDWARE", str))
       if (mozilla::AndroidBridge::Bridge()->GetStaticStringField("android/os/Build", "HARDWARE", str))
         aAdapterDescription.Append(str);
       aAdapterDescription.Append(NS_LITERAL_STRING("'"));
@@ -189,7 +193,10 @@ NS_IMETHODIMP
 GfxInfo::GetAdapterVendorID(PRUint32 *aAdapterVendorID)
 {
   nsAutoString str;
-  if (mozilla::AndroidBridge::Bridge()->GetStaticStringField("android/os/Build", "HARDWARE", str)) {
+  PRInt32 version; // the HARDWARE field isn't available on Android SDK < 8
+  if (!mozilla::AndroidBridge::Bridge()->GetStaticIntField("android/os/Build$VERSION", "SDK_INT", &version))
+    version = 0;
+  if (version >= 8 && mozilla::AndroidBridge::Bridge()->GetStaticStringField("android/os/Build", "HARDWARE", str)) {
     *aAdapterVendorID = HashString(str);
     return NS_OK;
   }
@@ -267,30 +274,30 @@ GfxInfo::AddOpenGLCrashReportAnnotations()
 #endif
 }
 
-static GfxDriverInfo gDriverInfo[] = {
-  GfxDriverInfo()
-};
-
-const GfxDriverInfo*
+const nsTArray<GfxDriverInfo>&
 GfxInfo::GetGfxDriverInfo()
 {
-  return &gDriverInfo[0];
+  // Nothing here yet.
+  //if (!mDriverInfo->Length()) {
+  //
+  //}
+  return *mDriverInfo;
 }
 
 nsresult
 GfxInfo::GetFeatureStatusImpl(PRInt32 aFeature, 
                               PRInt32 *aStatus, 
                               nsAString & aSuggestedDriverVersion,
-                              GfxDriverInfo* aDriverInfo /* = nsnull */, 
+                              const nsTArray<GfxDriverInfo>& aDriverInfo, 
                               OperatingSystem* aOS /* = nsnull */)
 {
-  PRInt32 status = nsIGfxInfo::FEATURE_NO_INFO;
+  PRInt32 status = nsIGfxInfo::FEATURE_STATUS_UNKNOWN;
 
   aSuggestedDriverVersion.SetIsVoid(true);
 
   // For now, we don't implement the downloaded blacklist.
-  if (aDriverInfo) {
-    *aStatus = status;
+  if (aDriverInfo.Length()) {
+    *aStatus = nsIGfxInfo::FEATURE_NO_INFO;
     return NS_OK;
   }
 
@@ -319,6 +326,12 @@ GfxInfo::GetFeatureStatusImpl(PRInt32 aFeature,
     *aOS = os;
 
   // XXX disabled for now as this calls GetAdapterVendorID and friends, which currently crash on Android, see bug 700124
-  // return GfxInfoBase::GetFeatureStatusImpl(aFeature, aStatus, aSuggestedDriverVersion, aDriverInfo, &os);
+  // FIXME: if this gets fixed, the line setting *aStatus must be removed
+#if 0
+  return GfxInfoBase::GetFeatureStatusImpl(aFeature, aStatus, aSuggestedDriverVersion, aDriverInfo, &os);
+#else
+  if (status == nsIGfxInfo::FEATURE_STATUS_UNKNOWN)
+    *aStatus = nsIGfxInfo::FEATURE_NO_INFO;
+#endif
   return NS_OK;
 }

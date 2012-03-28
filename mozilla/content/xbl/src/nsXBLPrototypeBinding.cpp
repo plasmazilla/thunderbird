@@ -78,12 +78,11 @@
 #include "nsXBLResourceLoader.h"
 #include "mozilla/dom/Element.h"
 
-using namespace mozilla;
-
 #ifdef MOZ_XUL
 #include "nsXULElement.h"
 #endif
 
+using namespace mozilla;
 using namespace mozilla::dom;
 
 // Helper Classes =====================================================================
@@ -642,9 +641,9 @@ nsXBLPrototypeBinding::AttributeChanged(nsIAtom* aAttribute,
       // xbl:text set on us.
 
       if ((dstAttr == nsGkAtoms::text && dstNs == kNameSpaceID_XBL) ||
-          realElement->NodeInfo()->Equals(nsGkAtoms::html,
-                                          kNameSpaceID_XUL) &&
-          dstAttr == nsGkAtoms::value) {
+          (realElement->NodeInfo()->Equals(nsGkAtoms::html,
+                                           kNameSpaceID_XUL) &&
+           dstAttr == nsGkAtoms::value)) {
         // Flush out all our kids.
         PRUint32 childCount = realElement->GetChildCount();
         for (PRUint32 i = 0; i < childCount; i++)
@@ -869,7 +868,7 @@ nsresult
 nsXBLPrototypeBinding::InitClass(const nsCString& aClassName,
                                  JSContext * aContext, JSObject * aGlobal,
                                  JSObject * aScriptObject,
-                                 void ** aClassObject)
+                                 JSObject** aClassObject)
 {
   NS_ENSURE_ARG_POINTER(aClassObject); 
 
@@ -1926,9 +1925,7 @@ nsXBLPrototypeBinding::ReadContentNode(nsIObjectInputStream* aStream,
   }
   else {
 #endif
-    nsCOMPtr<nsINodeInfo> ni = nodeInfo;
-    NS_NewElement(getter_AddRefs(content), nodeInfo->NamespaceID(),
-                  ni.forget(), mozilla::dom::NOT_FROM_PARSER);
+    NS_NewElement(getter_AddRefs(content), nodeInfo.forget(), NOT_FROM_PARSER);
 
     for (PRUint32 i = 0; i < attrCount; i++) {
       rv = ReadNamespace(aStream, namespaceID);
@@ -2380,13 +2377,12 @@ nsXBLPrototypeBinding::ResolveBaseBinding()
       // Check the white list
       if (!CheckTagNameWhiteList(nameSpaceID, tagName)) {
         const PRUnichar* params[] = { display.get() };
-        nsContentUtils::ReportToConsole(nsContentUtils::eXBL_PROPERTIES,
+        nsContentUtils::ReportToConsole(nsIScriptError::errorFlag,
+                                        "XBL", nsnull,
+                                        nsContentUtils::eXBL_PROPERTIES,
                                        "InvalidExtendsBinding",
-                                        params, NS_ARRAY_LENGTH(params),
-                                        doc->GetDocumentURI(),
-                                        EmptyString(), 0, 0,
-                                        nsIScriptError::errorFlag,
-                                        "XBL");
+                                        params, ArrayLength(params),
+                                        doc->GetDocumentURI());
         NS_ASSERTION(!nsXBLService::IsChromeOrResourceURI(doc->GetDocumentURI()),
                      "Invalid extends value");
         return NS_ERROR_ILLEGAL_VALUE;

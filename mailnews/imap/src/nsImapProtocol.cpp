@@ -738,7 +738,7 @@ nsresult nsImapProtocol::SetupWithUrl(nsIURI * aURL, nsISupports* aConsumer)
         nsCOMPtr<nsIInterfaceRequestor> interfaceRequestor;
         msgWindow->GetNotificationCallbacks(getter_AddRefs(interfaceRequestor));
         nsCOMPtr<nsIInterfaceRequestor> aggregateIR;
-        NS_NewInterfaceRequestorAggregation(interfaceRequestor, ir, getter_AddRefs(aggregateIR));
+        MsgNewInterfaceRequestorAggregation(interfaceRequestor, ir, getter_AddRefs(aggregateIR));
         m_mockChannel->SetNotificationCallbacks(aggregateIR);
       }
     }
@@ -1349,6 +1349,20 @@ nsImapProtocol::ImapThreadMainLoop()
 
     if (readyToRun && m_runningUrl)
     {
+      if (m_currentServerCommandTagNumber && m_transport)
+      {
+        bool isAlive;
+        rv = m_transport->IsAlive(&isAlive);
+        // if the transport is not alive, and we've ever sent a command with this connection, kill it.
+        // otherwise, we've probably just not finished setting it so don't kill it!
+        if (NS_FAILED(rv) || !isAlive)
+        {
+          // This says we never started running the url, which is the case.
+          m_runningUrl->SetRerunningUrl(false);
+          RetryUrl();
+          return;
+        }
+      }
       //
       // NOTE: Though we cleared m_nextUrlReadyToRun above, it may have been
       //       set by LoadImapUrl, which runs on the main thread.  Because of this,
@@ -2138,7 +2152,6 @@ NS_IMETHODIMP nsImapProtocol::IsBusy(bool *aIsConnectionBusy,
 {
   if (!aIsConnectionBusy || !isInboxConnection)
     return NS_ERROR_NULL_POINTER;
-  NS_LOCK_INSTANCE();
   nsresult rv = NS_OK;
   *aIsConnectionBusy = PR_FALSE;
   *isInboxConnection = PR_FALSE;
@@ -2159,7 +2172,6 @@ NS_IMETHODIMP nsImapProtocol::IsBusy(bool *aIsConnectionBusy,
       *isInboxConnection = PR_TRUE;
 
   }
-  NS_UNLOCK_INSTANCE();
   return rv;
 }
 
@@ -2192,19 +2204,6 @@ NS_IMETHODIMP nsImapProtocol::CanHandleUrl(nsIImapUrl * aImapUrl,
   {
     // this connection might not be fully set up yet.
     return NS_ERROR_FAILURE;
-  }
-  else if (m_currentServerCommandTagNumber != 0)
-  {
-    bool isAlive;
-    rv = m_transport->IsAlive(&isAlive);
-    // if the transport is not alive, and we've ever sent a command with this connection, kill it.
-    // otherwise, we've probably just not finished setting it so don't kill it!
-    if (NS_FAILED(rv) || !isAlive)
-    {
-      MutexAutoUnlock unlock(mLock); // TellThreadToDie gets the lock
-      TellThreadToDie(PR_FALSE);
-      return NS_ERROR_FAILURE;
-    }
   }
   IsBusy(&isBusy, &isInboxConnection);
   bool inSelectedState = GetServerStateParser().GetIMAPstate() ==
@@ -9152,11 +9151,8 @@ nsresult nsImapMockChannel::ReadFromImapConnection()
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIThread> thread(do_GetCurrentThread());
-
   // Assume AsyncRead is always called from the UI thread.....
-  rv = imapServer->GetImapConnectionAndLoadUrl(thread, imapUrl,
-                                               nsnull);
-  return rv;
+  return imapServer->GetImapConnectionAndLoadUrl(thread, imapUrl, nsnull);
 }
 
 // for messages stored in our offline cache, we have special code to handle that...

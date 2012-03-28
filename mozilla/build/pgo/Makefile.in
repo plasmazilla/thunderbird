@@ -62,7 +62,7 @@ browser_path = \"$(TARGET_DIST)/$(MOZ_APP_NAME)/$(MOZ_MACBUNDLE_NAME)/Contents/M
 else
 browser_path = \"$(TARGET_DIST)/$(MOZ_APP_NAME)/$(PROGRAM)\"
 endif
-
+   
 # Stuff to make a build with a profile
 
 _PGO_FILES = 	\

@@ -58,6 +58,7 @@
 
 #include "jscntxt.h"
 #include "jsdbgapi.h"
+#include "jsfriendapi.h"
 #include "jsprf.h"
 #include "nsAlgorithm.h"
 #include "nsContentUtils.h"
@@ -85,6 +86,12 @@
 #if 0 // Define to run GC more often.
 #define EXTRA_GC
 #endif
+
+// GC will run once every thirty seconds during normal execution.
+#define NORMAL_GC_TIMER_DELAY_MS 30000
+
+// GC will run five seconds after the last event is processed.
+#define IDLE_GC_TIMER_DELAY_MS 5000
 
 using mozilla::MutexAutoLock;
 using mozilla::TimeDuration;
@@ -166,9 +173,9 @@ public:
     {
       // 64bit address plus '0x' plus null terminator.
       char address[21];
-      JSUint32 addressSize =
+      uint32_t addressSize =
         JS_snprintf(address, sizeof(address), "0x%llx", aWorkerPrivate);
-      if (addressSize != JSUint32(-1)) {
+      if (addressSize != uint32_t(-1)) {
         mAddressString.Assign(address, addressSize);
       }
       else {
@@ -227,8 +234,8 @@ NS_IMPL_THREADSAFE_ISUPPORTS1(WorkerMemoryReporter, nsIMemoryMultiReporter)
 struct WorkerStructuredCloneCallbacks
 {
   static JSObject*
-  Read(JSContext* aCx, JSStructuredCloneReader* aReader, uint32 aTag,
-       uint32 aData, void* aClosure)
+  Read(JSContext* aCx, JSStructuredCloneReader* aReader, uint32_t aTag,
+       uint32_t aData, void* aClosure)
   {
     // See if object is a nsIDOMFile pointer.
     if (aTag == DOMWORKER_SCTAG_FILE) {
@@ -326,7 +333,7 @@ struct WorkerStructuredCloneCallbacks
   }
 
   static void
-  Error(JSContext* aCx, uint32 /* aErrorId */)
+  Error(JSContext* aCx, uint32_t /* aErrorId */)
   {
     ThrowDOMExceptionForCode(aCx, DATA_CLONE_ERR);
   }
@@ -341,8 +348,8 @@ JSStructuredCloneCallbacks gWorkerStructuredCloneCallbacks = {
 struct MainThreadWorkerStructuredCloneCallbacks
 {
   static JSObject*
-  Read(JSContext* aCx, JSStructuredCloneReader* aReader, uint32 aTag,
-       uint32 aData, void* aClosure)
+  Read(JSContext* aCx, JSStructuredCloneReader* aReader, uint32_t aTag,
+       uint32_t aData, void* aClosure)
   {
     AssertIsOnMainThread();
 
@@ -485,7 +492,7 @@ struct MainThreadWorkerStructuredCloneCallbacks
   }
 
   static void
-  Error(JSContext* aCx, uint32 aErrorId)
+  Error(JSContext* aCx, uint32_t aErrorId)
   {
     AssertIsOnMainThread();
 
@@ -502,8 +509,8 @@ JSStructuredCloneCallbacks gMainThreadWorkerStructuredCloneCallbacks = {
 struct ChromeWorkerStructuredCloneCallbacks
 {
   static JSObject*
-  Read(JSContext* aCx, JSStructuredCloneReader* aReader, uint32 aTag,
-       uint32 aData, void* aClosure)
+  Read(JSContext* aCx, JSStructuredCloneReader* aReader, uint32_t aTag,
+       uint32_t aData, void* aClosure)
   {
     return WorkerStructuredCloneCallbacks::Read(aCx, aReader, aTag, aData,
                                                 aClosure);
@@ -517,7 +524,7 @@ struct ChromeWorkerStructuredCloneCallbacks
   }
 
   static void
-  Error(JSContext* aCx, uint32 aErrorId)
+  Error(JSContext* aCx, uint32_t aErrorId)
   {
     return WorkerStructuredCloneCallbacks::Error(aCx, aErrorId);
   }
@@ -532,8 +539,8 @@ JSStructuredCloneCallbacks gChromeWorkerStructuredCloneCallbacks = {
 struct MainThreadChromeWorkerStructuredCloneCallbacks
 {
   static JSObject*
-  Read(JSContext* aCx, JSStructuredCloneReader* aReader, uint32 aTag,
-       uint32 aData, void* aClosure)
+  Read(JSContext* aCx, JSStructuredCloneReader* aReader, uint32_t aTag,
+       uint32_t aData, void* aClosure)
   {
     AssertIsOnMainThread();
 
@@ -573,7 +580,7 @@ struct MainThreadChromeWorkerStructuredCloneCallbacks
   }
 
   static void
-  Error(JSContext* aCx, uint32 aErrorId)
+  Error(JSContext* aCx, uint32_t aErrorId)
   {
     AssertIsOnMainThread();
 
@@ -1387,6 +1394,43 @@ public:
 };
 #endif
 
+class GarbageCollectRunnable : public WorkerControlRunnable
+{
+protected:
+  bool mShrinking;
+  bool mCollectChildren;
+
+public:
+  GarbageCollectRunnable(WorkerPrivate* aWorkerPrivate, bool aShrinking,
+                         bool aCollectChildren)
+  : WorkerControlRunnable(aWorkerPrivate, WorkerThread, UnchangedBusyCount),
+    mShrinking(aShrinking), mCollectChildren(aCollectChildren)
+  { }
+
+  bool
+  PreDispatch(JSContext* aCx, WorkerPrivate* aWorkerPrivate)
+  {
+    // Silence bad assertions, this can be dispatched from either the main
+    // thread or the timer thread..
+    return true;
+  }
+
+  void
+  PostDispatch(JSContext* aCx, WorkerPrivate* aWorkerPrivate,
+                bool aDispatchResult)
+  {
+    // Silence bad assertions, this can be dispatched from either the main
+    // thread or the timer thread..
+  }
+
+  bool
+  WorkerRun(JSContext* aCx, WorkerPrivate* aWorkerPrivate)
+  {
+    aWorkerPrivate->GarbageCollectInternal(aCx, mShrinking, mCollectChildren);
+    return true;
+  }
+};
+
 class CollectRuntimeStatsRunnable : public WorkerControlRunnable
 {
   typedef mozilla::Mutex Mutex;
@@ -2135,6 +2179,18 @@ WorkerPrivateParent<Derived>::UpdateGCZeal(JSContext* aCx, PRUint8 aGCZeal)
 
 template <class Derived>
 void
+WorkerPrivateParent<Derived>::GarbageCollect(JSContext* aCx, bool aShrinking)
+{
+  nsRefPtr<GarbageCollectRunnable> runnable =
+    new GarbageCollectRunnable(ParentAsWorkerPrivate(), aShrinking, true);
+  if (!runnable->Dispatch(aCx)) {
+    NS_WARNING("Failed to update worker heap size!");
+    JS_ClearPendingException(aCx);
+  }
+}
+
+template <class Derived>
+void
 WorkerPrivateParent<Derived>::SetBaseURI(nsIURI* aBaseURI)
 {
   AssertIsOnMainThread();
@@ -2458,6 +2514,37 @@ WorkerPrivate::DoRunLoop(JSContext* aCx)
     mStatus = Running;
   }
 
+  // We need a timer for GC. The basic plan is to run a normal (non-shrinking)
+  // GC periodically (NORMAL_GC_TIMER_DELAY_MS) while the worker is running.
+  // Once the worker goes idle we set a short (IDLE_GC_TIMER_DELAY_MS) timer to
+  // run a shrinking GC. If the worker receives more messages then the short
+  // timer is canceled and the periodic timer resumes.
+  nsCOMPtr<nsITimer> gcTimer = do_CreateInstance(NS_TIMER_CONTRACTID);
+  if (!gcTimer) {
+    JS_ReportError(aCx, "Failed to create GC timer!");
+    return;
+  }
+
+  bool normalGCTimerRunning = false;
+
+  // We need to swap event targets below to get different types of GC behavior.
+  nsCOMPtr<nsIEventTarget> normalGCEventTarget;
+  nsCOMPtr<nsIEventTarget> idleGCEventTarget;
+
+  // We also need to track the idle GC event so that we don't confuse it with a
+  // generic event that should re-trigger the idle GC timer.
+  nsCOMPtr<nsIRunnable> idleGCEvent;
+  {
+    nsRefPtr<GarbageCollectRunnable> runnable =
+      new GarbageCollectRunnable(this, false, false);
+    normalGCEventTarget = new WorkerRunnableEventTarget(runnable);
+
+    runnable = new GarbageCollectRunnable(this, true, false);
+    idleGCEventTarget = new WorkerRunnableEventTarget(runnable);
+
+    idleGCEvent = runnable;
+  }
+
   mMemoryReporter = new WorkerMemoryReporter(this);
 
   if (NS_FAILED(NS_RegisterMemoryMultiReporter(mMemoryReporter))) {
@@ -2467,6 +2554,8 @@ WorkerPrivate::DoRunLoop(JSContext* aCx)
 
   for (;;) {
     Status currentStatus;
+    bool scheduleIdleGC;
+
     nsIRunnable* event;
     {
       MutexAutoLock lock(mMutex);
@@ -2475,19 +2564,72 @@ WorkerPrivate::DoRunLoop(JSContext* aCx)
         mCondVar.Wait();
       }
 
+      bool eventIsNotIdleGCEvent;
+      currentStatus = mStatus;
+
       {
         MutexAutoUnlock unlock(mMutex);
+
+        if (!normalGCTimerRunning &&
+            event != idleGCEvent &&
+            currentStatus <= Terminating) {
+          // Must always cancel before changing the timer's target.
+          if (NS_FAILED(gcTimer->Cancel())) {
+            NS_WARNING("Failed to cancel GC timer!");
+          }
+
+          if (NS_SUCCEEDED(gcTimer->SetTarget(normalGCEventTarget)) &&
+              NS_SUCCEEDED(gcTimer->InitWithFuncCallback(
+                                             DummyCallback, nsnull,
+                                             NORMAL_GC_TIMER_DELAY_MS,
+                                             nsITimer::TYPE_REPEATING_SLACK))) {
+            normalGCTimerRunning = true;
+          }
+          else {
+            JS_ReportError(aCx, "Failed to start normal GC timer!");
+          }
+        }
 
 #ifdef EXTRA_GC
         // Find GC bugs...
         JS_GC(aCx);
 #endif
 
+        // Keep track of whether or not this is the idle GC event.
+        eventIsNotIdleGCEvent = event != idleGCEvent;
+
         event->Run();
         NS_RELEASE(event);
       }
 
       currentStatus = mStatus;
+      scheduleIdleGC = mControlQueue.IsEmpty() &&
+                       mQueue.IsEmpty() &&
+                       eventIsNotIdleGCEvent;
+    }
+
+    // Take care of the GC timer. If we're starting the close sequence then we
+    // kill the timer once and for all. Otherwise we schedule the idle timeout
+    // if there are no more events.
+    if (currentStatus > Terminating || scheduleIdleGC) {
+      if (NS_SUCCEEDED(gcTimer->Cancel())) {
+        normalGCTimerRunning = false;
+      }
+      else {
+        NS_WARNING("Failed to cancel GC timer!");
+      }
+    }
+
+    if (scheduleIdleGC) {
+      if (NS_SUCCEEDED(gcTimer->SetTarget(idleGCEventTarget)) &&
+          NS_SUCCEEDED(gcTimer->InitWithFuncCallback(
+                                                    DummyCallback, nsnull,
+                                                    IDLE_GC_TIMER_DELAY_MS,
+                                                    nsITimer::TYPE_ONE_SHOT))) {
+      }
+      else {
+        JS_ReportError(aCx, "Failed to start idle GC timer!");
+      }
     }
 
 #ifdef EXTRA_GC
@@ -2515,6 +2657,11 @@ WorkerPrivate::DoRunLoop(JSContext* aCx)
 
       // If we're supposed to die then we should exit the loop.
       if (currentStatus == Killing) {
+        // Always make sure the timer is canceled.
+        if (NS_FAILED(gcTimer->Cancel())) {
+          NS_WARNING("Failed to cancel the GC timer!");
+        }
+
         // Call this before unregistering the reporter as we may be racing with
         // the main thread.
         DisableMemoryReporter();
@@ -3095,6 +3242,16 @@ WorkerPrivate::NotifyInternal(JSContext* aCx, Status aStatus)
     mStatus = aStatus;
   }
 
+  // Now that status > Running, no-one can create a new mCrossThreadDispatcher
+  // if we don't already have one.
+  if (mCrossThreadDispatcher) {
+    // Since we'll no longer process events, make sure we no longer allow
+    // anyone to post them.
+    // We have to do this without mMutex held, since our mutex must be
+    // acquired *after* mCrossThreadDispatcher's mutex when they're both held.
+    mCrossThreadDispatcher->Forget();
+  }
+
   NS_ASSERTION(previousStatus != Pending, "How is this possible?!");
 
   NS_ASSERTION(previousStatus >= Canceling || mKillTime.IsNull(),
@@ -3593,6 +3750,26 @@ WorkerPrivate::UpdateGCZealInternal(JSContext* aCx, PRUint8 aGCZeal)
 }
 #endif
 
+void
+WorkerPrivate::GarbageCollectInternal(JSContext* aCx, bool aShrinking,
+                                      bool aCollectChildren)
+{
+  AssertIsOnWorkerThread();
+
+  if (aShrinking) {
+    JS_ShrinkingGC(aCx);
+  }
+  else {
+    JS_GC(aCx);
+  }
+
+  if (aCollectChildren) {
+    for (PRUint32 index = 0; index < mChildWorkers.Length(); index++) {
+      mChildWorkers[index]->GarbageCollect(aCx, aShrinking);
+    }
+  }
+}
+
 #ifdef DEBUG
 template <class Derived>
 void
@@ -3639,6 +3816,16 @@ WorkerPrivate::AssertIsOnWorkerThread() const
   }
 }
 #endif
+
+WorkerCrossThreadDispatcher*
+WorkerPrivate::GetCrossThreadDispatcher()
+{
+  mozilla::MutexAutoLock lock(mMutex);
+  if (!mCrossThreadDispatcher && mStatus <= Running) {
+    mCrossThreadDispatcher = new WorkerCrossThreadDispatcher(this);
+  }
+  return mCrossThreadDispatcher;
+}
 
 BEGIN_WORKERS_NAMESPACE
 

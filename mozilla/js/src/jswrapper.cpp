@@ -346,7 +346,7 @@ Wrapper::defaultValue(JSContext *cx, JSObject *wrapper, JSType hint, Value *vp)
 void
 Wrapper::trace(JSTracer *trc, JSObject *wrapper)
 {
-    MarkObject(trc, *wrappedObject(wrapper), "wrappedObject");
+    MarkValue(trc, wrapper->getReservedSlotRef(JSSLOT_PROXY_PRIVATE), "wrappedObject");
 }
 
 JSObject *
@@ -420,7 +420,6 @@ ForceFrame::enter()
     frame = context->new_<DummyFrameGuard>();
     if (!frame)
        return false;
-    LeaveTrace(context);
 
     JS_ASSERT(context->compartment == target->compartment());
     JSCompartment *destination = context->compartment;
@@ -451,8 +450,6 @@ AutoCompartment::enter()
 {
     JS_ASSERT(!entered);
     if (origin != destination) {
-        LeaveTrace(context);
-
         JSObject *scopeChain = target->getGlobal();
         JS_ASSERT(scopeChain->isNative());
 
@@ -748,8 +745,8 @@ bool
 CrossCompartmentWrapper::nativeCall(JSContext *cx, JSObject *wrapper, Class *clasp, Native native, CallArgs srcArgs)
 {
     JS_ASSERT_IF(!srcArgs.calleev().isUndefined(),
-                 srcArgs.callee().getFunctionPrivate()->native() == native ||
-                 srcArgs.callee().getFunctionPrivate()->native() == js_generic_native_method_dispatcher);
+                 srcArgs.callee().toFunction()->native() == native ||
+                 srcArgs.callee().toFunction()->native() == js_generic_native_method_dispatcher);
     JS_ASSERT(&srcArgs.thisv().toObject() == wrapper);
     JS_ASSERT(!UnwrapObject(wrapper)->isCrossCompartmentWrapper());
 
@@ -844,7 +841,8 @@ CrossCompartmentWrapper::defaultValue(JSContext *cx, JSObject *wrapper, JSType h
 void
 CrossCompartmentWrapper::trace(JSTracer *trc, JSObject *wrapper)
 {
-    MarkCrossCompartmentObject(trc, *wrappedObject(wrapper), "wrappedObject");
+    MarkCrossCompartmentValue(trc, wrapper->getReservedSlotRef(JSSLOT_PROXY_PRIVATE),
+                              "wrappedObject");
 }
 
 CrossCompartmentWrapper CrossCompartmentWrapper::singleton(0u);

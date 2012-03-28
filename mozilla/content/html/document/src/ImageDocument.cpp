@@ -363,7 +363,7 @@ ImageDocument::SetScriptGlobalObject(nsIScriptGlobalObject* aScriptGlobalObject)
 
   // Set the script global object on the superclass before doing
   // anything that might require it....
-  nsHTMLDocument::SetScriptGlobalObject(aScriptGlobalObject);
+  MediaDocument::SetScriptGlobalObject(aScriptGlobalObject);
 
   if (aScriptGlobalObject) {
     if (!GetRootElement()) {
@@ -381,6 +381,10 @@ ImageDocument::SetScriptGlobalObject(nsIScriptGlobalObject* aScriptGlobalObject)
     target = do_QueryInterface(aScriptGlobalObject);
     target->AddEventListener(NS_LITERAL_STRING("resize"), this, false);
     target->AddEventListener(NS_LITERAL_STRING("keypress"), this, false);
+
+    if (!nsContentUtils::IsChildOfSameType(this)) {
+      LinkStylesheet(NS_LITERAL_STRING("resource://gre/res/TopLevelImageDocument.css"));
+    }
   }
 }
 
@@ -652,23 +656,20 @@ ImageDocument::CreateSyntheticDocument()
   // the size of the paper and cannot break into continuations along
   // multiple pages.
   Element* head = GetHeadElement();
-  if (!head) {
-    NS_WARNING("no head on image document!");
-    return NS_ERROR_FAILURE;
-  }
+  NS_ENSURE_TRUE(head, NS_ERROR_FAILURE);
 
   nsCOMPtr<nsINodeInfo> nodeInfo;
-  nodeInfo = mNodeInfoManager->GetNodeInfo(nsGkAtoms::style, nsnull,
-                                           kNameSpaceID_XHTML,
-                                           nsIDOMNode::ELEMENT_NODE);
-  NS_ENSURE_TRUE(nodeInfo, NS_ERROR_OUT_OF_MEMORY);
-  nsRefPtr<nsGenericHTMLElement> styleContent = NS_NewHTMLStyleElement(nodeInfo.forget());
-  if (!styleContent) {
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
+  if (nsContentUtils::IsChildOfSameType(this)) {
+    nodeInfo = mNodeInfoManager->GetNodeInfo(nsGkAtoms::style, nsnull,
+                                             kNameSpaceID_XHTML,
+                                             nsIDOMNode::ELEMENT_NODE);
+    NS_ENSURE_TRUE(nodeInfo, NS_ERROR_OUT_OF_MEMORY);
+    nsRefPtr<nsGenericHTMLElement> styleContent = NS_NewHTMLStyleElement(nodeInfo.forget());
+    NS_ENSURE_TRUE(styleContent, NS_ERROR_OUT_OF_MEMORY);
 
-  styleContent->SetTextContent(NS_LITERAL_STRING("img { display: block; }"));
-  head->AppendChildTo(styleContent, false);
+    styleContent->SetTextContent(NS_LITERAL_STRING("img { display: block; }"));
+    head->AppendChildTo(styleContent, false);
+  }
 
   // Add the image element
   Element* body = GetBodyElement();

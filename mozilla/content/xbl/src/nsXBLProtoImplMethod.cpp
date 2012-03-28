@@ -173,7 +173,7 @@ nsXBLProtoImplMethod::InstallMember(nsIScriptContext* aContext,
 
 nsresult 
 nsXBLProtoImplMethod::CompileMember(nsIScriptContext* aContext, const nsCString& aClassStr,
-                                    void* aClassObject)
+                                    JSObject* aClassObject)
 {
   NS_TIME_FUNCTION_MIN(5);
   NS_PRECONDITION(!IsCompiled(),
@@ -239,13 +239,13 @@ nsXBLProtoImplMethod::CompileMember(nsIScriptContext* aContext, const nsCString&
   nsresult rv = aContext->CompileFunction(aClassObject,
                                           cname,
                                           paramCount,
-                                          (const char**)args,
+                                          const_cast<const char**>(args),
                                           body, 
                                           functionUri.get(),
                                           uncompiledMethod->mBodyText.GetLineNumber(),
                                           JSVERSION_LATEST,
                                           true,
-                                          (void **) &methodObject);
+                                          &methodObject);
 
   // Destroy our uncompiled method and delete our arg list.
   delete uncompiledMethod;
@@ -272,9 +272,7 @@ nsresult
 nsXBLProtoImplMethod::Read(nsIScriptContext* aContext,
                            nsIObjectInputStream* aStream)
 {
-  void* methodCode;
-  nsresult rv = XBL_DeserializeFunction(aContext, aStream, this, &methodCode);
-  mJSMethodObject = (JSObject *)methodCode;
+  nsresult rv = XBL_DeserializeFunction(aContext, aStream, &mJSMethodObject);
   if (NS_FAILED(rv)) {
     SetUncompiledMethod(nsnull);
     return rv;

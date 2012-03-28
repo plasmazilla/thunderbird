@@ -46,6 +46,41 @@
 
 @namespace url("http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul");
 
+#navigation-toolbox #tabs-toolbar {
+  -moz-appearance: none;
+  border-bottom: 1px solid ThreeDShadow;
+}
+
+#navigation-toolbox #tabs-toolbar:-moz-lwtheme {
+  border-bottom-color: transparent;
+}
+
+#tabs-toolbar {
+  -moz-box-ordinal-group: 20;
+}
+
+#mail-toolbar-menubar2 {
+  -moz-box-ordinal-group: 10;
+}
+
+.mail-toolbox,
+.contentTabToolbox {
+  -moz-appearance: none;
+  border-top: none;
+  border-bottom: 1px solid threedshadow;
+  background-image: -moz-linear-gradient(rgba(255, 255, 255, .5),
+                    rgba(255, 255, 255, .1) 19px) !important;
+}
+
+.mail-toolbox > toolbar:-moz-lwtheme,
+.contentTabToolbox > toolbar:-moz-lwtheme {
+  border-top: none;
+}
+
+#mail-bar3 {
+  padding: 1px 0;
+}
+
 /* ::::: primary toolbar buttons ::::: */
 
 .toolbarbutton-1 {
@@ -623,6 +658,32 @@ toolbar[iconsize="small"] #button-archive[disabled] {
 }
 
 /* ::::: end small primary toolbar buttons ::::: */
+
+/* ::::: toolbar buttons on tabbar toolbar ::::: */
+
+#tabbar-toolbar .toolbarbutton-1 {
+  margin-top: 1px;
+  margin-bottom: 1px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+
+#tabbar-toolbar .toolbarbutton-1:hover:active:not([disabled]),
+#tabbar-toolbar .toolbarbutton-1[open="true"],
+#tabbar-toolbar .toolbarbutton-menubutton-button:hover:active:not([disabled]),
+#tabbar-toolbar .toolbarbutton-menubutton-button[open="true"] {
+  padding-bottom: 2px;
+}
+
+#tabbar-toolbar .toolbarbutton-1[checked="true"] {
+  padding-bottom: 2px !important;
+}
+
+#palette-box #qfb-show-filter-bar {
+  visibility: visible !important;
+  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.png");
+  -moz-image-region: rect(0px 504px 24px 480px);
+}
 
 /* ::::: message notification bar style rules ::::: */
 

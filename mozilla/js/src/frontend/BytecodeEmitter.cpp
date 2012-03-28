@@ -71,10 +71,10 @@
 #include "vm/RegExpObject.h"
 
 #include "jsatominlines.h"
-#include "jsobjinlines.h"
 #include "jsscopeinlines.h"
 #include "jsscriptinlines.h"
 
+#include "frontend/BytecodeEmitter-inl.h"
 #include "frontend/ParseMaps-inl.h"
 
 /* Allocation chunk counts, must be powers of two in general. */
@@ -88,10 +88,6 @@
 using namespace js;
 using namespace js::gc;
 using namespace js::frontend;
-
-#ifdef JS_TRACER
-extern uint8 js_opcode2extra[];
-#endif
 
 static JSBool
 NewTryNote(JSContext *cx, BytecodeEmitter *bce, JSTryNoteKind kind, uintN stackDepth,
@@ -130,7 +126,6 @@ BytecodeEmitter::BytecodeEmitter(Parser *parser, uintN lineno)
     globalMap(parser->context),
     closedArgs(parser->context),
     closedVars(parser->context),
-    traceIndex(0),
     typesetCount(0)
 {
     flags = TCF_COMPILING;
@@ -204,21 +199,15 @@ UpdateDepth(JSContext *cx, BytecodeEmitter *bce, ptrdiff_t target)
     jsbytecode *pc;
     JSOp op;
     const JSCodeSpec *cs;
-    uintN extra, nuses;
+    uintN nuses;
     intN ndefs;
 
     pc = bce->code(target);
     op = (JSOp) *pc;
     cs = &js_CodeSpec[op];
-#ifdef JS_TRACER
-    extra = js_opcode2extra[op];
-#else
-    extra = 0;
-#endif
-    if ((cs->format & JOF_TMPSLOT_MASK) || extra) {
+    if ((cs->format & JOF_TMPSLOT_MASK)) {
         uintN depth = (uintN) bce->stackDepth +
-                      ((cs->format & JOF_TMPSLOT_MASK) >> JOF_TMPSLOT_SHIFT) +
-                      extra;
+                      ((cs->format & JOF_TMPSLOT_MASK) >> JOF_TMPSLOT_SHIFT);
         if (depth > bce->maxStackDepth)
             bce->maxStackDepth = depth;
     }
@@ -310,7 +299,7 @@ frontend::Emit3(JSContext *cx, BytecodeEmitter *bce, JSOp op, jsbytecode op1,
 }
 
 ptrdiff_t
-frontend::Emit5(JSContext *cx, BytecodeEmitter *bce, JSOp op, uint16 op1, uint16 op2)
+frontend::Emit5(JSContext *cx, BytecodeEmitter *bce, JSOp op, uint16_t op1, uint16_t op2)
 {
     ptrdiff_t offset = EmitCheck(cx, bce, 5);
 
@@ -835,7 +824,7 @@ OptimizeSpanDeps(JSContext *cx, BytecodeEmitter *bce)
     ptrdiff_t offset, growth, delta, top, pivot, span, length, target;
     JSBool done;
     JSOp op;
-    uint32 type;
+    uint32_t type;
     jssrcnote *sn, *snlimit;
     JSSrcNoteSpec *spec;
     uintN i, n, noteIndex;
@@ -905,6 +894,7 @@ OptimizeSpanDeps(JSContext *cx, BytecodeEmitter *bce)
                       case JSOP_DEFAULT:      op = JSOP_DEFAULTX; break;
                       case JSOP_TABLESWITCH:  op = JSOP_TABLESWITCHX; break;
                       case JSOP_LOOKUPSWITCH: op = JSOP_LOOKUPSWITCHX; break;
+                      case JSOP_LABEL:        op = JSOP_LABELX; break;
                       default:
                         ReportStatementTooLarge(cx, bce);
                         return JS_FALSE;
@@ -1357,7 +1347,7 @@ frontend::SetStaticLevel(TreeContext *tc, uintN staticLevel)
 }
 
 bool
-frontend::GenerateBlockId(TreeContext *tc, uint32& blockid)
+frontend::GenerateBlockId(TreeContext *tc, uint32_t &blockid)
 {
     if (tc->blockidGen == JS_BIT(20)) {
         JS_ReportErrorNumber(tc->parser->context, js_GetErrorMessage, NULL,
@@ -1393,7 +1383,7 @@ frontend::PushBlockScope(TreeContext *tc, StmtInfo *stmt, ObjectBox *blockBox, p
     PushStatement(tc, stmt, STMT_BLOCK, top);
     stmt->flags |= SIF_SCOPE;
     blockBox->parent = tc->blockChainBox;
-    blockBox->object->setParent(tc->blockChain());
+    blockBox->object->setStaticBlockScopeChain(tc->blockChain());
     stmt->downScope = tc->topScopeStmt;
     tc->topScopeStmt = stmt;
     tc->blockChainBox = blockBox;
@@ -1459,20 +1449,18 @@ EmitTraceOp(JSContext *cx, BytecodeEmitter *bce, ParseNode *nextpn)
 {
     if (nextpn) {
         /*
-         * Try to give the JSOP_TRACE the same line number as the next
+         * Try to give the JSOP_LOOPHEAD the same line number as the next
          * instruction. nextpn is often a block, in which case the next
          * instruction typically comes from the first statement inside.
          */
-        if (nextpn->isKind(TOK_LC) && nextpn->isArity(PN_LIST) && nextpn->pn_head)
+        JS_ASSERT_IF(nextpn->isKind(PNK_STATEMENTLIST), nextpn->isArity(PN_LIST));
+        if (nextpn->isKind(PNK_STATEMENTLIST) && nextpn->pn_head)
             nextpn = nextpn->pn_head;
         if (!UpdateLineNumberNotes(cx, bce, nextpn->pn_pos.begin.lineno))
             return -1;
     }
 
-    uint32 index = bce->traceIndex;
-    if (index < UINT16_MAX)
-        bce->traceIndex++;
-    return Emit3(cx, bce, JSOP_TRACE, UINT16_HI(index), UINT16_LO(index));
+    return Emit1(cx, bce, JSOP_LOOPHEAD);
 }
 
 /*
@@ -1489,7 +1477,7 @@ CheckTypeSet(JSContext *cx, BytecodeEmitter *bce, JSOp op)
 }
 
 /*
- * Macro to emit a bytecode followed by a uint16 immediate operand stored in
+ * Macro to emit a bytecode followed by a uint16_t immediate operand stored in
  * big-endian order, used for arg and var numbers as well as for atomIndexes.
  * NB: We use cx and bce from our caller's lexical environment, and return
  * false on error.
@@ -1704,7 +1692,7 @@ JSBool
 frontend::DefineCompileTimeConstant(JSContext *cx, BytecodeEmitter *bce, JSAtom *atom, ParseNode *pn)
 {
     /* XXX just do numbers for now */
-    if (pn->isKind(TOK_NUMBER)) {
+    if (pn->isKind(PNK_NUMBER)) {
         if (!bce->constMap.put(atom, NumberValue(pn->pn_dval)))
             return JS_FALSE;
     }
@@ -1733,7 +1721,7 @@ frontend::LexicalLookup(TreeContext *tc, JSAtom *atom, jsint *slotp, StmtInfo *s
 
             if (slotp) {
                 JS_ASSERT(obj->getSlot(JSSLOT_BLOCK_DEPTH).isInt32());
-                *slotp = obj->getSlot(JSSLOT_BLOCK_DEPTH).toInt32() + shape->shortid;
+                *slotp = obj->getSlot(JSSLOT_BLOCK_DEPTH).toInt32() + shape->shortid();
             }
             return stmt;
         }
@@ -1793,8 +1781,8 @@ LookupCompileTimeConstant(JSContext *cx, BytecodeEmitter *bce, JSAtom *atom, Val
                      * from our variable object here.
                      */
                     if (!shape->writable() && !shape->configurable() &&
-                        shape->hasDefaultGetter() && obj->containsSlot(shape->slot)) {
-                        *constp = obj->getSlot(shape->slot);
+                        shape->hasDefaultGetter() && obj->containsSlot(shape->slot())) {
+                        *constp = obj->getSlot(shape->slot());
                     }
                 }
 
@@ -1986,7 +1974,7 @@ AdjustBlockSlot(JSContext *cx, BytecodeEmitter *bce, jsint slot)
 static bool
 EmitEnterBlock(JSContext *cx, ParseNode *pn, BytecodeEmitter *bce)
 {
-    JS_ASSERT(pn->isKind(TOK_LEXICALSCOPE));
+    JS_ASSERT(pn->isKind(PNK_LEXICALSCOPE));
     if (!EmitObjectOp(cx, pn->pn_objbox, JSOP_ENTERBLOCK, bce))
         return false;
 
@@ -2008,7 +1996,7 @@ EmitEnterBlock(JSContext *cx, ParseNode *pn, BytecodeEmitter *bce)
         Definition *dn = (Definition *) v.toPrivate();
         JS_ASSERT(dn->isDefn());
         JS_ASSERT(uintN(dn->frameSlot() + depth) < JS_BIT(16));
-        dn->pn_cookie.set(dn->pn_cookie.level(), uint16(dn->frameSlot() + depth));
+        dn->pn_cookie.set(dn->pn_cookie.level(), uint16_t(dn->frameSlot() + depth));
 #ifdef DEBUG
         for (ParseNode *pnu = dn->dn_uses; pnu; pnu = pnu->pn_link) {
             JS_ASSERT(pnu->pn_lexdef == dn);
@@ -2032,8 +2020,13 @@ EmitEnterBlock(JSContext *cx, ParseNode *pn, BytecodeEmitter *bce)
      * js::Bindings::extensibleParents.
      */
     if ((bce->flags & TCF_FUN_EXTENSIBLE_SCOPE) ||
-        bce->bindings.extensibleParents())
-        blockObj->setBlockOwnShape(cx);
+        bce->bindings.extensibleParents()) {
+        HeapPtrShape shape;
+        shape.init(blockObj->lastProperty());
+        if (!Shape::setExtensibleParents(cx, &shape))
+            return false;
+        blockObj->setLastPropertyInfallible(shape);
+    }
 
     return true;
 }
@@ -2169,7 +2162,7 @@ BindGlobal(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSAtom *atom)
 
 /*
  * BindNameToSlot attempts to optimize name gets and sets to stack slot loads
- * and stores, given the compile-time information in bce and a TOK_NAME node pn.
+ * and stores, given the compile-time information in bce and a PNK_NAME node pn.
  * It returns false on error, true on success.
  *
  * The caller can inspect pn->pn_cookie for FREE_UPVAR_COOKIE to tell whether
@@ -2181,8 +2174,8 @@ BindGlobal(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSAtom *atom)
  * successful return.
  *
  * NB: if you add more opcodes specialized from JSOP_NAME, etc., don't forget
- * to update the TOK_FOR (for-in) and TOK_ASSIGN (op=, e.g. +=) special cases
- * in EmitTree.
+ * to update the special cases in EmitFor (for-in) and EmitAssignment (= and
+ * op=, e.g. +=).
  */
 static JSBool
 BindNameToSlot(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
@@ -2192,7 +2185,7 @@ BindNameToSlot(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
     JSAtom *atom;
     Definition::Kind dn_kind;
 
-    JS_ASSERT(pn->isKind(TOK_NAME));
+    JS_ASSERT(pn->isKind(PNK_NAME));
 
     /* Idempotency tests come first, since we may be called more than once. */
     if (pn->pn_dflags & PND_BOUND)
@@ -2336,7 +2329,7 @@ BindNameToSlot(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         return JS_TRUE;
     }
 
-    uint16 level = cookie.level();
+    uint16_t level = cookie.level();
     JS_ASSERT(bce->staticLevel >= level);
 
     const uintN skip = bce->staticLevel - level;
@@ -2344,7 +2337,6 @@ BindNameToSlot(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         JS_ASSERT(bce->inFunction());
         JS_ASSERT_IF(cookie.slot() != UpvarCookie::CALLEE_SLOT, bce->roLexdeps->lookup(atom));
         JS_ASSERT(JOF_OPTYPE(op) == JOF_ATOM);
-        JS_ASSERT(bce->fun()->u.i.skipmin <= skip);
 
         /*
          * If op is a mutating opcode, this upvar's lookup skips too many levels,
@@ -2516,7 +2508,7 @@ BindNameToSlot(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 }
 
 bool
-BytecodeEmitter::addGlobalUse(JSAtom *atom, uint32 slot, UpvarCookie *cookie)
+BytecodeEmitter::addGlobalUse(JSAtom *atom, uint32_t slot, UpvarCookie *cookie)
 {
     if (!globalMap.ensureMap(context()))
         return false;
@@ -2528,7 +2520,7 @@ BytecodeEmitter::addGlobalUse(JSAtom *atom, uint32 slot, UpvarCookie *cookie)
         return true;
     }
 
-    /* Don't bother encoding indexes >= uint16 */
+    /* Don't bother encoding indexes >= uint16_t */
     if (globalUses.length() >= UINT16_LIMIT) {
         cookie->makeFree();
         return true;
@@ -2594,11 +2586,11 @@ CheckSideEffects(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSBool *ans
                 ok &= CheckSideEffects(cx, bce, pn2, answer);
         } else {
             /*
-             * All invocation operations (construct: TOK_NEW, call: TOK_LP)
+             * All invocation operations (construct: PNK_NEW, call: PNK_LP)
              * are presumed to be useful, because they may have side effects
              * even if their main effect (their return value) is discarded.
              *
-             * TOK_LB binary trees of 3 or more nodes are flattened into lists
+             * PNK_LB binary trees of 3 or more nodes are flattened into lists
              * to avoid too much recursion.  All such lists must be presumed
              * to be useful because each index operation could invoke a getter
              * (the JSOP_ARGUMENTS special case below, in the PN_BINARY case,
@@ -2620,7 +2612,7 @@ CheckSideEffects(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSBool *ans
         break;
 
       case PN_BINARY:
-        if (pn->isKind(TOK_ASSIGN)) {
+        if (pn->isAssignment()) {
             /*
              * Assignment is presumed to be useful, even if the next operation
              * is another assignment overwriting this one's ostensible effect,
@@ -2631,7 +2623,7 @@ CheckSideEffects(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSBool *ans
              * declared in the function currently being compiled.
              */
             pn2 = pn->pn_left;
-            if (!pn2->isKind(TOK_NAME)) {
+            if (!pn2->isKind(PNK_NAME)) {
                 *answer = JS_TRUE;
             } else {
                 if (!BindNameToSlot(cx, bce, pn2))
@@ -2662,10 +2654,10 @@ CheckSideEffects(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSBool *ans
 
       case PN_UNARY:
         switch (pn->getKind()) {
-          case TOK_DELETE:
+          case PNK_DELETE:
             pn2 = pn->pn_kid;
             switch (pn2->getKind()) {
-              case TOK_NAME:
+              case PNK_NAME:
                 if (!BindNameToSlot(cx, bce, pn2))
                     return JS_FALSE;
                 if (pn2->isConst()) {
@@ -2673,15 +2665,15 @@ CheckSideEffects(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSBool *ans
                     break;
                 }
                 /* FALL THROUGH */
-              case TOK_DOT:
+              case PNK_DOT:
 #if JS_HAS_XML_SUPPORT
-              case TOK_DBLDOT:
-                JS_ASSERT_IF(pn2->getKind() == TOK_DBLDOT, !bce->inStrictMode());
+              case PNK_DBLDOT:
+                JS_ASSERT_IF(pn2->getKind() == PNK_DBLDOT, !bce->inStrictMode());
                 /* FALL THROUGH */
 
 #endif
-              case TOK_LP:
-              case TOK_LB:
+              case PNK_LP:
+              case PNK_LB:
                 /* All these delete addressing modes have effects too. */
                 *answer = JS_TRUE;
                 break;
@@ -2691,7 +2683,10 @@ CheckSideEffects(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSBool *ans
             }
             break;
 
-          case TOK_UNARYOP:
+          case PNK_TYPEOF:
+          case PNK_VOID:
+          case PNK_NOT:
+          case PNK_BITNOT:
             if (pn->isOp(JSOP_NOT)) {
                 /* ! does not convert its operand via toString or valueOf. */
                 ok = CheckSideEffects(cx, bce, pn->pn_kid, answer);
@@ -2701,7 +2696,7 @@ CheckSideEffects(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSBool *ans
 
           default:
             /*
-             * All of TOK_INC, TOK_DEC, TOK_THROW, TOK_YIELD, and TOK_DEFSHARP
+             * All of PNK_INC, PNK_DEC, PNK_THROW, PNK_YIELD, and PNK_DEFSHARP
              * have direct effects. Of the remaining unary-arity node types,
              * we can't easily prove that the operand never denotes an object
              * with a toString or valueOf method.
@@ -2717,7 +2712,7 @@ CheckSideEffects(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSBool *ans
          * statements and property values in object initialisers, have pn_op
          * defaulted to JSOP_NOP).
          */
-        if (pn->isKind(TOK_NAME) && !pn->isOp(JSOP_NOP)) {
+        if (pn->isKind(PNK_NAME) && !pn->isOp(JSOP_NOP)) {
             if (!BindNameToSlot(cx, bce, pn))
                 return JS_FALSE;
             if (!pn->isOp(JSOP_ARGUMENTS) && !pn->isOp(JSOP_CALLEE) &&
@@ -2731,8 +2726,8 @@ CheckSideEffects(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSBool *ans
             }
         }
         pn2 = pn->maybeExpr();
-        if (pn->isKind(TOK_DOT)) {
-            if (pn2->isKind(TOK_NAME) && !BindNameToSlot(cx, bce, pn2))
+        if (pn->isKind(PNK_DOT)) {
+            if (pn2->isKind(PNK_NAME) && !BindNameToSlot(cx, bce, pn2))
                 return JS_FALSE;
             if (!(pn2->isOp(JSOP_ARGUMENTS) &&
                   pn->pn_atom == cx->runtime->atomState.lengthAtom)) {
@@ -2751,7 +2746,7 @@ CheckSideEffects(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSBool *ans
         break;
 
       case PN_NULLARY:
-        if (pn->isKind(TOK_DEBUGGER))
+        if (pn->isKind(PNK_DEBUGGER))
             *answer = JS_TRUE;
         break;
     }
@@ -2793,7 +2788,8 @@ EmitNameOp(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSBool callContex
     if (op == JSOP_ARGUMENTS || op == JSOP_CALLEE) {
         if (Emit1(cx, bce, op) < 0)
             return JS_FALSE;
-        if (callContext && Emit1(cx, bce, JSOP_PUSH) < 0)
+        /* Need to provide |this| value for call */
+        if (callContext && Emit1(cx, bce, JSOP_UNDEFINED) < 0)
             return JS_FALSE;
     } else {
         if (!pn->pn_cookie.isFree()) {
@@ -2812,7 +2808,7 @@ static bool
 EmitXMLName(JSContext *cx, ParseNode *pn, JSOp op, BytecodeEmitter *bce)
 {
     JS_ASSERT(!bce->inStrictMode());
-    JS_ASSERT(pn->isKind(TOK_UNARYOP));
+    JS_ASSERT(pn->isKind(PNK_XMLUNARY));
     JS_ASSERT(pn->isOp(JSOP_XMLNAME));
     JS_ASSERT(op == JSOP_XMLNAME || op == JSOP_CALLXMLNAME);
 
@@ -2873,11 +2869,11 @@ EmitPropOp(JSContext *cx, ParseNode *pn, JSOp op, BytecodeEmitter *bce,
     }
 
     if (callContext) {
-        JS_ASSERT(pn->isKind(TOK_DOT));
+        JS_ASSERT(pn->isKind(PNK_DOT));
         JS_ASSERT(op == JSOP_GETPROP);
         op = JSOP_CALLPROP;
-    } else if (op == JSOP_GETPROP && pn->isKind(TOK_DOT)) {
-        if (pn2->isKind(TOK_NAME)) {
+    } else if (op == JSOP_GETPROP && pn->isKind(PNK_DOT)) {
+        if (pn2->isKind(PNK_NAME)) {
             if (!BindNameToSlot(cx, bce, pn2))
                 return false;
         }
@@ -2888,7 +2884,7 @@ EmitPropOp(JSContext *cx, ParseNode *pn, JSOp op, BytecodeEmitter *bce,
      * list linked via pn_expr temporarily so we can iterate over it from the
      * bottom up (reversing again as we go), to avoid excessive recursion.
      */
-    if (pn2->isKind(TOK_DOT)) {
+    if (pn2->isKind(PNK_DOT)) {
         pndot = pn2;
         pnup = NULL;
         top = bce->offset();
@@ -2898,7 +2894,7 @@ EmitPropOp(JSContext *cx, ParseNode *pn, JSOp op, BytecodeEmitter *bce,
             JS_ASSERT(!pndot->isUsed());
             pndown = pndot->pn_expr;
             pndot->pn_expr = pnup;
-            if (!pndown->isKind(TOK_DOT))
+            if (!pndown->isKind(PNK_DOT))
                 break;
             pnup = pndot;
             pndot = pndown;
@@ -3063,26 +3059,24 @@ EmitElemOp(JSContext *cx, ParseNode *pn, JSOp op, BytecodeEmitter *bce)
 
     if (pn->isArity(PN_NAME)) {
         /*
-         * Set left and right so pn appears to be a TOK_LB node, instead
-         * of a TOK_DOT node.  See the TOK_FOR/IN case in EmitTree, and
+         * Set left and right so pn appears to be a PNK_LB node, instead
+         * of a PNK_DOT node.  See the PNK_FOR/IN case in EmitTree, and
          * EmitDestructuringOps nearer below.  In the destructuring case,
          * the base expression (pn_expr) of the name may be null, which
          * means we have to emit a JSOP_BINDNAME.
          */
         left = pn->maybeExpr();
         if (!left) {
-            left = NullaryNode::create(bce);
+            left = NullaryNode::create(PNK_STRING, bce);
             if (!left)
                 return false;
-            left->setKind(TOK_STRING);
             left->setOp(JSOP_BINDNAME);
             left->pn_pos = pn->pn_pos;
             left->pn_atom = pn->pn_atom;
         }
-        right = NullaryNode::create(bce);
+        right = NullaryNode::create(PNK_STRING, bce);
         if (!right)
             return false;
-        right->setKind(TOK_STRING);
         right->setOp(IsIdentifier(pn->pn_atom) ? JSOP_QNAMEPART : JSOP_STRING);
         right->pn_pos = pn->pn_pos;
         right->pn_atom = pn->pn_atom;
@@ -3092,9 +3086,7 @@ EmitElemOp(JSContext *cx, ParseNode *pn, JSOp op, BytecodeEmitter *bce)
         right = pn->pn_right;
     }
 
-    if (op == JSOP_GETELEM &&
-        left->isKind(TOK_NAME) &&
-        right->isKind(TOK_NUMBER)) {
+    if (op == JSOP_GETELEM && left->isKind(PNK_NAME) && right->isKind(PNK_NUMBER)) {
         if (!BindNameToSlot(cx, bce, left))
             return false;
     }
@@ -3103,7 +3095,7 @@ EmitElemOp(JSContext *cx, ParseNode *pn, JSOp op, BytecodeEmitter *bce)
         return false;
 
     /* The right side of the descendant operator is implicitly quoted. */
-    JS_ASSERT(op != JSOP_DESCENDANTS || !right->isKind(TOK_STRING) ||
+    JS_ASSERT(op != JSOP_DESCENDANTS || !right->isKind(PNK_STRING) ||
               right->isOp(JSOP_QNAMEPART));
     if (!EmitTree(cx, bce, right))
         return false;
@@ -3180,7 +3172,7 @@ static JSBool
 EmitNumberOp(JSContext *cx, jsdouble dval, BytecodeEmitter *bce)
 {
     int32_t ival;
-    uint32 u;
+    uint32_t u;
     ptrdiff_t off;
     jsbytecode *pc;
 
@@ -3189,10 +3181,10 @@ EmitNumberOp(JSContext *cx, jsdouble dval, BytecodeEmitter *bce)
             return Emit1(cx, bce, JSOP_ZERO) >= 0;
         if (ival == 1)
             return Emit1(cx, bce, JSOP_ONE) >= 0;
-        if ((jsint)(int8)ival == ival)
-            return Emit2(cx, bce, JSOP_INT8, (jsbytecode)(int8)ival) >= 0;
+        if ((jsint)(int8_t)ival == ival)
+            return Emit2(cx, bce, JSOP_INT8, (jsbytecode)(int8_t)ival) >= 0;
 
-        u = (uint32)ival;
+        u = (uint32_t)ival;
         if (u < JS_BIT(16)) {
             EMIT_UINT16_IMM_OP(JSOP_UINT16, u);
         } else if (u < JS_BIT(24)) {
@@ -3288,7 +3280,7 @@ EmitSwitch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
     JSBool ok, hasDefault, constPropagated;
     ptrdiff_t top, off, defaultOffset;
     ParseNode *pn2, *pn3, *pn4;
-    uint32 caseCount, tableLength;
+    uint32_t caseCount, tableLength;
     ParseNode **table;
     int32_t i, low, high;
     intN noteIndex;
@@ -3314,7 +3306,7 @@ EmitSwitch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
     pn2 = pn->pn_right;
 #if JS_HAS_BLOCK_SCOPE
     TempPopScope tps;
-    if (pn2->isKind(TOK_LEXICALSCOPE)) {
+    if (pn2->isKind(PNK_LEXICALSCOPE)) {
         /*
          * Push the body's block scope before discriminant code-gen to reflect
          * the order of slots on the stack. The block's locals must lie under
@@ -3355,7 +3347,7 @@ EmitSwitch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 #if !JS_HAS_BLOCK_SCOPE
     PushStatement(bce, &stmtInfo, STMT_SWITCH, top);
 #else
-    if (pn2->isKind(TOK_LC)) {
+    if (pn2->isKind(PNK_STATEMENTLIST)) {
         PushStatement(bce, &stmtInfo, STMT_SWITCH, top);
     } else {
         /* Re-push the switch's statement info record. */
@@ -3379,7 +3371,7 @@ EmitSwitch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 
     if (caseCount == 0 ||
         (caseCount == 1 &&
-         (hasDefault = (pn2->pn_head->isKind(TOK_DEFAULT))))) {
+         (hasDefault = (pn2->pn_head->isKind(PNK_DEFAULT))))) {
         caseCount = 0;
         low = 0;
         high = -1;
@@ -3387,35 +3379,44 @@ EmitSwitch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 #define INTMAP_LENGTH   256
         jsbitmap intmap_space[INTMAP_LENGTH];
         jsbitmap *intmap = NULL;
-        int32 intmap_bitlen = 0;
+        int32_t intmap_bitlen = 0;
 
         low  = JSVAL_INT_MAX;
         high = JSVAL_INT_MIN;
 
         for (pn3 = pn2->pn_head; pn3; pn3 = pn3->pn_next) {
-            if (pn3->isKind(TOK_DEFAULT)) {
+            if (pn3->isKind(PNK_DEFAULT)) {
                 hasDefault = JS_TRUE;
                 caseCount--;    /* one of the "cases" was the default */
                 continue;
             }
 
-            JS_ASSERT(pn3->isKind(TOK_CASE));
+            JS_ASSERT(pn3->isKind(PNK_CASE));
             if (switchOp == JSOP_CONDSWITCH)
                 continue;
 
             pn4 = pn3->pn_left;
-            while (pn4->isKind(TOK_RP))
+            while (pn4->isKind(PNK_RP))
                 pn4 = pn4->pn_kid;
 
             Value constVal;
             switch (pn4->getKind()) {
-              case TOK_NUMBER:
+              case PNK_NUMBER:
                 constVal.setNumber(pn4->pn_dval);
                 break;
-              case TOK_STRING:
+              case PNK_STRING:
                 constVal.setString(pn4->pn_atom);
                 break;
-              case TOK_NAME:
+              case PNK_TRUE:
+                constVal.setBoolean(true);
+                break;
+              case PNK_FALSE:
+                constVal.setBoolean(false);
+                break;
+              case PNK_NULL:
+                constVal.setNull();
+                break;
+              case PNK_NAME:
                 if (!pn4->maybeExpr()) {
                     ok = LookupCompileTimeConstant(cx, bce, pn4->pn_atom, &constVal);
                     if (!ok)
@@ -3432,20 +3433,6 @@ EmitSwitch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
                         constPropagated = JS_TRUE;
                         break;
                     }
-                }
-                /* FALL THROUGH */
-              case TOK_PRIMARY:
-                if (pn4->isOp(JSOP_TRUE)) {
-                    constVal.setBoolean(true);
-                    break;
-                }
-                if (pn4->isOp(JSOP_FALSE)) {
-                    constVal.setBoolean(false);
-                    break;
-                }
-                if (pn4->isOp(JSOP_NULL)) {
-                    constVal.setNull();
-                    break;
                 }
                 /* FALL THROUGH */
               default:
@@ -3521,7 +3508,7 @@ EmitSwitch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
          * more than half-sparse.
          */
         if (switchOp == JSOP_TABLESWITCH) {
-            tableLength = (uint32)(high - low + 1);
+            tableLength = (uint32_t)(high - low + 1);
             if (tableLength >= JS_BIT(16) || tableLength > 2 * caseCount)
                 switchOp = JSOP_LOOKUPSWITCH;
         } else if (switchOp == JSOP_LOOKUPSWITCH) {
@@ -3594,7 +3581,7 @@ EmitSwitch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
                     return JS_FALSE;
             }
             if (!pn4) {
-                JS_ASSERT(pn3->isKind(TOK_DEFAULT));
+                JS_ASSERT(pn3->isKind(PNK_DEFAULT));
                 continue;
             }
             caseNoteIndex = NewSrcNote2(cx, bce, SRC_PCDELTA, 0);
@@ -3657,11 +3644,11 @@ EmitSwitch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
                     return JS_FALSE;
                 memset(table, 0, tableSize);
                 for (pn3 = pn2->pn_head; pn3; pn3 = pn3->pn_next) {
-                    if (pn3->isKind(TOK_DEFAULT))
+                    if (pn3->isKind(PNK_DEFAULT))
                         continue;
                     i = pn3->pn_pval->toInt32();
                     i -= low;
-                    JS_ASSERT((uint32)i < tableLength);
+                    JS_ASSERT((uint32_t)i < tableLength);
                     table[i] = pn3;
                 }
             }
@@ -3703,7 +3690,8 @@ EmitSwitch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
                     pn3 = table[i];
                     if (pn3 &&
                         (pn4 = pn3->pn_left) != NULL &&
-                        pn4->isKind(TOK_NAME)) {
+                        pn4->isKind(PNK_NAME))
+                    {
                         /* Note a propagated constant with the const's name. */
                         JS_ASSERT(!pn4->maybeExpr());
                         jsatomid index;
@@ -3718,7 +3706,7 @@ EmitSwitch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
             } else {
                 for (pn3 = pn2->pn_head; pn3; pn3 = pn3->pn_next) {
                     pn4 = pn3->pn_left;
-                    if (pn4 && pn4->isKind(TOK_NAME)) {
+                    if (pn4 && pn4->isKind(PNK_NAME)) {
                         /* Note a propagated constant with the const's name. */
                         JS_ASSERT(!pn4->maybeExpr());
                         jsatomid index;
@@ -3737,14 +3725,14 @@ EmitSwitch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 
     /* Emit code for each case's statements, copying pn_offset up to pn3. */
     for (pn3 = pn2->pn_head; pn3; pn3 = pn3->pn_next) {
-        if (switchOp == JSOP_CONDSWITCH && !pn3->isKind(TOK_DEFAULT))
+        if (switchOp == JSOP_CONDSWITCH && !pn3->isKind(PNK_DEFAULT))
             CHECK_AND_SET_JUMP_OFFSET_AT_CUSTOM(cx, bce, pn3->pn_offset, goto bad);
         pn4 = pn3->pn_right;
         ok = EmitTree(cx, bce, pn4);
         if (!ok)
             goto out;
         pn3->pn_offset = pn4->pn_offset;
-        if (pn3->isKind(TOK_DEFAULT))
+        if (pn3->isKind(PNK_DEFAULT))
             off = pn3->pn_offset - top;
     }
 
@@ -3795,7 +3783,7 @@ EmitSwitch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         pc += INDEX_LEN;
 
         for (pn3 = pn2->pn_head; pn3; pn3 = pn3->pn_next) {
-            if (pn3->isKind(TOK_DEFAULT))
+            if (pn3->isKind(PNK_DEFAULT))
                 continue;
             if (!bce->constList.append(*pn3->pn_pval))
                 goto bad;
@@ -3817,7 +3805,7 @@ out:
         ok = PopStatementBCE(cx, bce);
 
 #if JS_HAS_BLOCK_SCOPE
-        if (ok && pn->pn_right->isKind(TOK_LEXICALSCOPE))
+        if (ok && pn->pn_right->isKind(PNK_LEXICALSCOPE))
             ok = EmitLeaveBlock(cx, bce, JSOP_LEAVEBLOCK, box);
 #endif
     }
@@ -3857,13 +3845,6 @@ frontend::EmitFunctionScript(JSContext *cx, BytecodeEmitter *bce, ParseNode *bod
     if (bce->needsEagerArguments()) {
         bce->switchToProlog();
         if (Emit1(cx, bce, JSOP_ARGUMENTS) < 0 || Emit1(cx, bce, JSOP_POP) < 0)
-            return false;
-        bce->switchToMain();
-    }
-
-    if (bce->flags & TCF_FUN_UNBRAND_THIS) {
-        bce->switchToProlog();
-        if (Emit1(cx, bce, JSOP_UNBRANDTHIS) < 0)
             return false;
         bce->switchToMain();
     }
@@ -3919,7 +3900,7 @@ typedef JSBool
 static JSBool
 EmitDestructuringDecl(JSContext *cx, BytecodeEmitter *bce, JSOp prologOp, ParseNode *pn)
 {
-    JS_ASSERT(pn->isKind(TOK_NAME));
+    JS_ASSERT(pn->isKind(PNK_NAME));
     if (!BindNameToSlot(cx, bce, pn))
         return JS_FALSE;
 
@@ -3933,21 +3914,21 @@ EmitDestructuringDecls(JSContext *cx, BytecodeEmitter *bce, JSOp prologOp, Parse
     ParseNode *pn2, *pn3;
     DestructuringDeclEmitter emitter;
 
-    if (pn->isKind(TOK_RB)) {
+    if (pn->isKind(PNK_RB)) {
         for (pn2 = pn->pn_head; pn2; pn2 = pn2->pn_next) {
-            if (pn2->isKind(TOK_COMMA))
+            if (pn2->isKind(PNK_COMMA))
                 continue;
-            emitter = (pn2->isKind(TOK_NAME))
+            emitter = (pn2->isKind(PNK_NAME))
                       ? EmitDestructuringDecl
                       : EmitDestructuringDecls;
             if (!emitter(cx, bce, prologOp, pn2))
                 return JS_FALSE;
         }
     } else {
-        JS_ASSERT(pn->isKind(TOK_RC));
+        JS_ASSERT(pn->isKind(PNK_RC));
         for (pn2 = pn->pn_head; pn2; pn2 = pn2->pn_next) {
             pn3 = pn2->pn_right;
-            emitter = pn3->isKind(TOK_NAME) ? EmitDestructuringDecl : EmitDestructuringDecls;
+            emitter = pn3->isKind(PNK_NAME) ? EmitDestructuringDecl : EmitDestructuringDecls;
             if (!emitter(cx, bce, prologOp, pn3))
                 return JS_FALSE;
         }
@@ -3967,13 +3948,13 @@ EmitDestructuringLHS(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
      * pop the matched value.  Otherwise emit an lvalue bytecode sequence
      * ending with a JSOP_ENUMELEM or equivalent op.
      */
-    if (pn->isKind(TOK_RB) || pn->isKind(TOK_RC)) {
+    if (pn->isKind(PNK_RB) || pn->isKind(PNK_RC)) {
         if (!EmitDestructuringOpsHelper(cx, bce, pn))
             return JS_FALSE;
         if (Emit1(cx, bce, JSOP_POP) < 0)
             return JS_FALSE;
     } else {
-        if (pn->isKind(TOK_NAME)) {
+        if (pn->isKind(PNK_NAME)) {
             if (!BindNameToSlot(cx, bce, pn))
                 return JS_FALSE;
             if (pn->isConst() && !pn->isInitialized())
@@ -4053,7 +4034,7 @@ EmitDestructuringOpsHelper(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
     intN stackDepth = bce->stackDepth;
     JS_ASSERT(stackDepth != 0);
     JS_ASSERT(pn->isArity(PN_LIST));
-    JS_ASSERT(pn->isKind(TOK_RB) || pn->isKind(TOK_RC));
+    JS_ASSERT(pn->isKind(PNK_RB) || pn->isKind(PNK_RC));
 #endif
 
     if (pn->pn_count == 0) {
@@ -4080,15 +4061,15 @@ EmitDestructuringOpsHelper(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
          * to the lvalue node, which is in the value-initializing position.
          */
         doElemOp = JS_TRUE;
-        if (pn->isKind(TOK_RB)) {
+        if (pn->isKind(PNK_RB)) {
             if (!EmitNumberOp(cx, index, bce))
                 return JS_FALSE;
             pn3 = pn2;
         } else {
-            JS_ASSERT(pn->isKind(TOK_RC));
-            JS_ASSERT(pn2->isKind(TOK_COLON));
+            JS_ASSERT(pn->isKind(PNK_RC));
+            JS_ASSERT(pn2->isKind(PNK_COLON));
             pn3 = pn2->pn_left;
-            if (pn3->isKind(TOK_NUMBER)) {
+            if (pn3->isKind(PNK_NUMBER)) {
                 /*
                  * If we are emitting an object destructuring initialiser,
                  * annotate the index op with SRC_INITPROP so we know we are
@@ -4099,7 +4080,7 @@ EmitDestructuringOpsHelper(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
                 if (!EmitNumberOp(cx, pn3->pn_dval, bce))
                     return JS_FALSE;
             } else {
-                JS_ASSERT(pn3->isKind(TOK_STRING) || pn3->isKind(TOK_NAME));
+                JS_ASSERT(pn3->isKind(PNK_STRING) || pn3->isKind(PNK_NAME));
                 if (!EmitAtomOp(cx, pn3, JSOP_GETPROP, bce))
                     return JS_FALSE;
                 doElemOp = JS_FALSE;
@@ -4119,8 +4100,8 @@ EmitDestructuringOpsHelper(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         }
 
         /* Nullary comma node makes a hole in the array destructurer. */
-        if (pn3->isKind(TOK_COMMA) && pn3->isArity(PN_NULLARY)) {
-            JS_ASSERT(pn->isKind(TOK_RB));
+        if (pn3->isKind(PNK_COMMA) && pn3->isArity(PN_NULLARY)) {
+            JS_ASSERT(pn->isKind(PNK_RB));
             JS_ASSERT(pn2 == pn3);
             if (Emit1(cx, bce, JSOP_POP) < 0)
                 return JS_FALSE;
@@ -4186,7 +4167,7 @@ EmitGroupAssignment(JSContext *cx, BytecodeEmitter *bce, JSOp prologOp,
         }
 
         /* MaybeEmitGroupAssignment won't call us if rhs is holey. */
-        JS_ASSERT(!(pn->isKind(TOK_COMMA) && pn->isArity(PN_NULLARY)));
+        JS_ASSERT(!(pn->isKind(PNK_COMMA) && pn->isArity(PN_NULLARY)));
         if (!EmitTree(cx, bce, pn))
             return JS_FALSE;
         ++limit;
@@ -4204,7 +4185,7 @@ EmitGroupAssignment(JSContext *cx, BytecodeEmitter *bce, JSOp prologOp,
             return JS_FALSE;
         EMIT_UINT16_IMM_OP(JSOP_GETLOCAL, slot);
 
-        if (pn->isKind(TOK_COMMA) && pn->isArity(PN_NULLARY)) {
+        if (pn->isKind(PNK_COMMA) && pn->isArity(PN_NULLARY)) {
             if (Emit1(cx, bce, JSOP_POP) < 0)
                 return JS_FALSE;
         } else {
@@ -4228,13 +4209,13 @@ static JSBool
 MaybeEmitGroupAssignment(JSContext *cx, BytecodeEmitter *bce, JSOp prologOp, ParseNode *pn,
                          JSOp *pop)
 {
-    ParseNode *lhs, *rhs;
-
-    JS_ASSERT(pn->isKind(TOK_ASSIGN));
+    JS_ASSERT(pn->isKind(PNK_ASSIGN));
+    JS_ASSERT(pn->isOp(JSOP_NOP));
     JS_ASSERT(*pop == JSOP_POP || *pop == JSOP_POPV);
-    lhs = pn->pn_left;
-    rhs = pn->pn_right;
-    if (lhs->isKind(TOK_RB) && rhs->isKind(TOK_RB) &&
+
+    ParseNode *lhs = pn->pn_left;
+    ParseNode *rhs = pn->pn_right;
+    if (lhs->isKind(PNK_RB) && rhs->isKind(PNK_RB) &&
         !(rhs->pn_xflags & PNX_HOLEY) &&
         lhs->pn_count <= rhs->pn_count) {
         if (!EmitGroupAssignment(cx, bce, prologOp, lhs, rhs))
@@ -4280,14 +4261,14 @@ EmitVariables(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSBool inLetHe
         first = pn2 == pn->pn_head;
         next = pn2->pn_next;
 
-        if (!pn2->isKind(TOK_NAME)) {
+        if (!pn2->isKind(PNK_NAME)) {
 #if JS_HAS_DESTRUCTURING
-            if (pn2->isKind(TOK_RB) || pn2->isKind(TOK_RC)) {
+            if (pn2->isKind(PNK_RB) || pn2->isKind(PNK_RC)) {
                 /*
                  * Emit variable binding ops, but not destructuring ops.  The
                  * parser (see Parser::variables) has ensured that our caller
-                 * will be the TOK_FOR/TOK_IN case in EmitTree, and that case
-                 * will emit the destructuring code only after emitting an
+                 * will be the PNK_FOR/PNK_FORIN case in EmitTree, and that
+                 * case will emit the destructuring code only after emitting an
                  * enumerating opcode and a branch that tests whether the
                  * enumeration ended.
                  */
@@ -4305,7 +4286,8 @@ EmitVariables(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSBool inLetHe
              * (var x = i in o)...', this will cause the entire 'var [a, b] =
              * i' to be hoisted out of the loop.
              */
-            JS_ASSERT(pn2->isKind(TOK_ASSIGN));
+            JS_ASSERT(pn2->isKind(PNK_ASSIGN));
+            JS_ASSERT(pn2->isOp(JSOP_NOP));
             JS_ASSERT(!forInVar);
 
             /*
@@ -4314,9 +4296,9 @@ EmitVariables(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSBool inLetHe
              * here and initialize the name.
              */
 #if !JS_HAS_DESTRUCTURING
-            JS_ASSERT(pn2->pn_left->isKind(TOK_NAME));
+            JS_ASSERT(pn2->pn_left->isKind(PNK_NAME));
 #else
-            if (pn2->pn_left->isKind(TOK_NAME))
+            if (pn2->pn_left->isKind(PNK_NAME))
 #endif
             {
                 pn3 = pn2->pn_right;
@@ -4418,9 +4400,9 @@ EmitVariables(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, JSBool inLetHe
         /*
          * The parser rewrites 'for (var x = i in o)' to hoist 'var x = i' --
          * likewise 'for (let x = i in o)' becomes 'i; for (let x in o)' using
-         * a TOK_SEQ node to make the two statements appear as one. Therefore
+         * a PNK_SEQ node to make the two statements appear as one. Therefore
          * if this declaration is part of a for-in loop head, we do not need to
-         * emit op or any source note. Our caller, the TOK_FOR/TOK_IN case in
+         * emit op or any source note. Our caller, the PNK_FOR/PNK_IN case in
          * EmitTree, will annotate appropriately.
          */
         JS_ASSERT_IF(pn2->isDefn(), pn3 == pn2->pn_expr);
@@ -4492,7 +4474,7 @@ EmitAssignment(JSContext *cx, BytecodeEmitter *bce, ParseNode *lhs, JSOp op, Par
     jsbytecode offset = 1;
 
     switch (lhs->getKind()) {
-      case TOK_NAME:
+      case PNK_NAME:
         if (!BindNameToSlot(cx, bce, lhs))
             return false;
         if (!lhs->pn_cookie.isFree()) {
@@ -4507,14 +4489,14 @@ EmitAssignment(JSContext *cx, BytecodeEmitter *bce, ParseNode *lhs, JSOp op, Par
             }
         }
         break;
-      case TOK_DOT:
+      case PNK_DOT:
         if (!EmitTree(cx, bce, lhs->expr()))
             return false;
         offset++;
         if (!bce->makeAtomIndex(lhs->pn_atom, &atomIndex))
             return false;
         break;
-      case TOK_LB:
+      case PNK_LB:
         JS_ASSERT(lhs->isArity(PN_BINARY));
         if (!EmitTree(cx, bce, lhs->pn_left))
             return false;
@@ -4523,17 +4505,17 @@ EmitAssignment(JSContext *cx, BytecodeEmitter *bce, ParseNode *lhs, JSOp op, Par
         offset += 2;
         break;
 #if JS_HAS_DESTRUCTURING
-      case TOK_RB:
-      case TOK_RC:
+      case PNK_RB:
+      case PNK_RC:
         break;
 #endif
-      case TOK_LP:
+      case PNK_LP:
         if (!EmitTree(cx, bce, lhs))
             return false;
         offset++;
         break;
 #if JS_HAS_XML_SUPPORT
-      case TOK_UNARYOP:
+      case PNK_XMLUNARY:
         JS_ASSERT(!bce->inStrictMode());
         JS_ASSERT(lhs->isOp(JSOP_SETXMLNAME));
         if (!EmitTree(cx, bce, lhs->pn_kid))
@@ -4550,7 +4532,7 @@ EmitAssignment(JSContext *cx, BytecodeEmitter *bce, ParseNode *lhs, JSOp op, Par
     if (op != JSOP_NOP) {
         JS_ASSERT(rhs);
         switch (lhs->getKind()) {
-          case TOK_NAME:
+          case PNK_NAME:
             if (lhs->isConst()) {
                 if (lhs->isOp(JSOP_CALLEE)) {
                     if (Emit1(cx, bce, JSOP_CALLEE) < 0)
@@ -4570,7 +4552,7 @@ EmitAssignment(JSContext *cx, BytecodeEmitter *bce, ParseNode *lhs, JSOp op, Par
                 EMIT_UINT16_IMM_OP(lhs->isOp(JSOP_SETARG) ? JSOP_GETARG : JSOP_GETLOCAL, atomIndex);
             }
             break;
-          case TOK_DOT:
+          case PNK_DOT:
             if (Emit1(cx, bce, JSOP_DUP) < 0)
                 return false;
             if (lhs->pn_atom == cx->runtime->atomState.protoAtom) {
@@ -4583,10 +4565,10 @@ EmitAssignment(JSContext *cx, BytecodeEmitter *bce, ParseNode *lhs, JSOp op, Par
                 EMIT_INDEX_OP(isLength ? JSOP_LENGTH : JSOP_GETPROP, atomIndex);
             }
             break;
-          case TOK_LB:
-          case TOK_LP:
+          case PNK_LB:
+          case PNK_LP:
 #if JS_HAS_XML_SUPPORT
-          case TOK_UNARYOP:
+          case PNK_XMLUNARY:
 #endif
             if (Emit1(cx, bce, JSOP_DUP2) < 0)
                 return false;
@@ -4614,7 +4596,7 @@ EmitAssignment(JSContext *cx, BytecodeEmitter *bce, ParseNode *lhs, JSOp op, Par
          * declared in the current compilation unit, as in this case (just
          * a bit further below) we will avoid emitting the assignment op.
          */
-        if (!lhs->isKind(TOK_NAME) || !lhs->isConst()) {
+        if (!lhs->isKind(PNK_NAME) || !lhs->isConst()) {
             if (NewSrcNote(cx, bce, SRC_ASSIGNOP) < 0)
                 return false;
         }
@@ -4623,10 +4605,10 @@ EmitAssignment(JSContext *cx, BytecodeEmitter *bce, ParseNode *lhs, JSOp op, Par
     }
 
     /* Left parts such as a.b.c and a[b].c need a decompiler note. */
-    if (!lhs->isKind(TOK_NAME) &&
+    if (!lhs->isKind(PNK_NAME) &&
 #if JS_HAS_DESTRUCTURING
-        !lhs->isKind(TOK_RB) &&
-        !lhs->isKind(TOK_RC) &&
+        !lhs->isKind(PNK_RB) &&
+        !lhs->isKind(PNK_RC) &&
 #endif
         NewSrcNote2(cx, bce, SRC_PCBASE, bce->offset() - top) < 0)
     {
@@ -4635,7 +4617,7 @@ EmitAssignment(JSContext *cx, BytecodeEmitter *bce, ParseNode *lhs, JSOp op, Par
 
     /* Finally, emit the specialized assignment bytecode. */
     switch (lhs->getKind()) {
-      case TOK_NAME:
+      case PNK_NAME:
         if (lhs->isConst()) {
             if (!rhs) {
                 ReportCompileErrorNumber(cx, bce->tokenStream(), lhs, JSREPORT_ERROR,
@@ -4645,23 +4627,23 @@ EmitAssignment(JSContext *cx, BytecodeEmitter *bce, ParseNode *lhs, JSOp op, Par
             break;
         }
         /* FALL THROUGH */
-      case TOK_DOT:
+      case PNK_DOT:
         EMIT_INDEX_OP(lhs->getOp(), atomIndex);
         break;
-      case TOK_LB:
-      case TOK_LP:
+      case PNK_LB:
+      case PNK_LP:
         if (Emit1(cx, bce, JSOP_SETELEM) < 0)
             return false;
         break;
 #if JS_HAS_DESTRUCTURING
-      case TOK_RB:
-      case TOK_RC:
+      case PNK_RB:
+      case PNK_RC:
         if (!EmitDestructuringOps(cx, bce, JSOP_SETNAME, lhs))
             return false;
         break;
 #endif
 #if JS_HAS_XML_SUPPORT
-      case TOK_UNARYOP:
+      case PNK_XMLUNARY:
         JS_ASSERT(!bce->inStrictMode());
         if (Emit1(cx, bce, JSOP_SETXMLNAME) < 0)
             return false;
@@ -4720,7 +4702,7 @@ EmitNewInit(JSContext *cx, BytecodeEmitter *bce, JSProtoKey key, ParseNode *pn, 
 }
 
 static bool
-EmitEndInit(JSContext *cx, BytecodeEmitter *bce, uint32 count)
+EmitEndInit(JSContext *cx, BytecodeEmitter *bce, uint32_t count)
 {
 #if JS_HAS_SHARP_VARS
     /* Emit an op for sharp array cleanup and decompilation. */
@@ -4734,28 +4716,22 @@ bool
 ParseNode::getConstantValue(JSContext *cx, bool strictChecks, Value *vp)
 {
     switch (getKind()) {
-      case TOK_NUMBER:
+      case PNK_NUMBER:
         vp->setNumber(pn_dval);
         return true;
-      case TOK_STRING:
+      case PNK_STRING:
         vp->setString(pn_atom);
         return true;
-      case TOK_PRIMARY:
-        switch (getOp()) {
-          case JSOP_NULL:
-            vp->setNull();
-            return true;
-          case JSOP_FALSE:
-            vp->setBoolean(false);
-            return true;
-          case JSOP_TRUE:
-            vp->setBoolean(true);
-            return true;
-          default:
-            JS_NOT_REACHED("Unexpected node");
-            return false;
-        }
-      case TOK_RB: {
+      case PNK_TRUE:
+        vp->setBoolean(true);
+        return true;
+      case PNK_FALSE:
+        vp->setBoolean(false);
+        return true;
+      case PNK_NULL:
+        vp->setNull();
+        return true;
+      case PNK_RB: {
         JS_ASSERT(isOp(JSOP_NEWINIT) && !(pn_xflags & PNX_NONCONST));
 
         JSObject *obj = NewDenseAllocatedArray(cx, pn_count);
@@ -4776,10 +4752,10 @@ ParseNode::getConstantValue(JSContext *cx, bool strictChecks, Value *vp)
         vp->setObject(*obj);
         return true;
       }
-      case TOK_RC: {
+      case PNK_RC: {
         JS_ASSERT(isOp(JSOP_NEWINIT) && !(pn_xflags & PNX_NONCONST));
 
-        gc::AllocKind kind = GuessObjectGCKind(pn_count, false);
+        gc::AllocKind kind = GuessObjectGCKind(pn_count);
         JSObject *obj = NewBuiltinClassInstance(cx, &ObjectClass, kind);
         if (!obj)
             return false;
@@ -4790,7 +4766,7 @@ ParseNode::getConstantValue(JSContext *cx, bool strictChecks, Value *vp)
                 return false;
 
             ParseNode *pnid = pn->pn_left;
-            if (pnid->isKind(TOK_NUMBER)) {
+            if (pnid->isKind(PNK_NUMBER)) {
                 Value idvalue = NumberValue(pnid->pn_dval);
                 jsid id;
                 if (idvalue.isInt32() && INT_FITS_IN_JSID(idvalue.toInt32()))
@@ -4800,8 +4776,7 @@ ParseNode::getConstantValue(JSContext *cx, bool strictChecks, Value *vp)
                 if (!obj->defineGeneric(cx, id, value, NULL, NULL, JSPROP_ENUMERATE))
                     return false;
             } else {
-                JS_ASSERT(pnid->isKind(TOK_NAME) ||
-                          pnid->isKind(TOK_STRING));
+                JS_ASSERT(pnid->isKind(PNK_NAME) || pnid->isKind(PNK_STRING));
                 JS_ASSERT(pnid->pn_atom != cx->runtime->atomState.protoAtom);
                 jsid id = ATOM_TO_JSID(pnid->pn_atom);
                 if (!DefineNativeProperty(cx, obj, id, value, NULL, NULL,
@@ -4880,8 +4855,8 @@ EmitCatch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
     ParseNode *pn2 = pn->pn_kid1;
     switch (pn2->getKind()) {
 #if JS_HAS_DESTRUCTURING
-      case TOK_RB:
-      case TOK_RC:
+      case PNK_RB:
+      case PNK_RC:
         if (!EmitDestructuringOps(cx, bce, JSOP_NOP, pn2))
             return false;
         if (Emit1(cx, bce, JSOP_POP) < 0)
@@ -4889,7 +4864,7 @@ EmitCatch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         break;
 #endif
 
-      case TOK_NAME:
+      case PNK_NAME:
         /* Inline and specialize BindNameToSlot for pn2. */
         JS_ASSERT(!pn2->pn_cookie.isFree());
         EMIT_UINT16_IMM_OP(JSOP_SETLOCALPOP, pn2->pn_cookie.asInteger());
@@ -4922,7 +4897,7 @@ EmitCatch(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 
     /*
      * Annotate the JSOP_LEAVEBLOCK that will be emitted as we unwind via
-     * our TOK_LEXICALSCOPE parent, so the decompiler knows to pop.
+     * our PNK_LEXICALSCOPE parent, so the decompiler knows to pop.
      */
     ptrdiff_t off = bce->stackDepth;
     if (NewSrcNote2(cx, bce, SRC_CATCH, off) < 0)
@@ -5050,7 +5025,7 @@ EmitTry(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
             /*
              * Annotate the JSOP_ENTERBLOCK that's about to be generated
              * by the call to EmitTree immediately below.  Save this
-             * source note's index in stmtInfo for use by the TOK_CATCH:
+             * source note's index in stmtInfo for use by the PNK_CATCH:
              * case, where the length of the catch guard is set as the
              * note's offset.
              */
@@ -5064,7 +5039,7 @@ EmitTry(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
              * block object population via count, for use when targeting
              * guardJump at the next catch (the guard mismatch case).
              */
-            JS_ASSERT(pn3->isKind(TOK_LEXICALSCOPE));
+            JS_ASSERT(pn3->isKind(PNK_LEXICALSCOPE));
             count = OBJ_BLOCK_COUNT(cx, pn3->pn_objbox->object);
             prevBox = pn3->pn_objbox;
             if (!EmitTree(cx, bce, pn3))
@@ -5240,7 +5215,7 @@ EmitIf(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 
         /* Ensure the branch-if-false comes here, then emit the else. */
         CHECK_AND_SET_JUMP_OFFSET_AT(cx, bce, beq);
-        if (pn3->isKind(TOK_IF)) {
+        if (pn3->isKind(PNK_IF)) {
             pn = pn3;
             goto if_again;
         }
@@ -5330,7 +5305,7 @@ EmitXMLTag(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 
     {
         jsatomid index;
-        JSAtom *tagAtom = (pn->isKind(TOK_XMLETAGO))
+        JSAtom *tagAtom = (pn->isKind(PNK_XMLETAGO))
                           ? cx->runtime->atomState.etagoAtom
                           : cx->runtime->atomState.stagoAtom;
         if (!bce->makeAtomIndex(tagAtom, &index))
@@ -5340,20 +5315,20 @@ EmitXMLTag(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 
     JS_ASSERT(pn->pn_count != 0);
     ParseNode *pn2 = pn->pn_head;
-    if (pn2->isKind(TOK_LC) && Emit1(cx, bce, JSOP_STARTXMLEXPR) < 0)
+    if (pn2->isKind(PNK_XMLCURLYEXPR) && Emit1(cx, bce, JSOP_STARTXMLEXPR) < 0)
         return false;
     if (!EmitTree(cx, bce, pn2))
         return false;
     if (Emit1(cx, bce, JSOP_ADD) < 0)
         return false;
 
-    uint32 i;
+    uint32_t i;
     for (pn2 = pn2->pn_next, i = 0; pn2; pn2 = pn2->pn_next, i++) {
-        if (pn2->isKind(TOK_LC) && Emit1(cx, bce, JSOP_STARTXMLEXPR) < 0)
+        if (pn2->isKind(PNK_XMLCURLYEXPR) && Emit1(cx, bce, JSOP_STARTXMLEXPR) < 0)
             return false;
         if (!EmitTree(cx, bce, pn2))
             return false;
-        if ((i & 1) && pn2->isKind(TOK_LC)) {
+        if ((i & 1) && pn2->isKind(PNK_XMLCURLYEXPR)) {
             if (Emit1(cx, bce, JSOP_TOATTRVAL) < 0)
                 return false;
         }
@@ -5363,7 +5338,7 @@ EmitXMLTag(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 
     {
         jsatomid index;
-        JSAtom *tmp = (pn->isKind(TOK_XMLPTAGC)) ? cx->runtime->atomState.ptagcAtom
+        JSAtom *tmp = (pn->isKind(PNK_XMLPTAGC)) ? cx->runtime->atomState.ptagcAtom
                                                  : cx->runtime->atomState.tagcAtom;
         if (!bce->makeAtomIndex(tmp, &index))
             return false;
@@ -5411,11 +5386,12 @@ EmitLexicalScope(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
      * statements get braces by default from the decompiler.
      */
     ptrdiff_t noteIndex = -1;
-    TokenKind type = pn->expr()->getKind();
-    if (type != TOK_CATCH && type != TOK_LET && type != TOK_FOR &&
+    ParseNodeKind kind = pn->expr()->getKind();
+    if (kind != PNK_CATCH && kind != PNK_LET && kind != PNK_FOR &&
         (!(stmt = stmtInfo.down)
          ? !bce->inFunction()
-         : stmt->type == STMT_BLOCK)) {
+         : stmt->type == STMT_BLOCK))
+    {
 #if defined DEBUG_brendan || defined DEBUG_mrbkap
         /* There must be no source note already output for the next op. */
         JS_ASSERT(bce->noteCount() == 0 ||
@@ -5471,6 +5447,40 @@ EmitWith(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 }
 
 static bool
+SetMethodFunction(JSContext *cx, FunctionBox *funbox, JSAtom *atom)
+{
+    /*
+     * Replace a boxed function with a new one with a method atom. Methods
+     * require a function with the extended size finalize kind, which normal
+     * functions don't have. We don't eagerly allocate functions with the
+     * expanded size for boxed functions, as most functions are not methods.
+     */
+    JSFunction *fun = js_NewFunction(cx, NULL, NULL,
+                                     funbox->function()->nargs,
+                                     funbox->function()->flags,
+                                     funbox->function()->getParent(),
+                                     funbox->function()->atom,
+                                     JSFunction::ExtendedFinalizeKind);
+    if (!fun)
+        return false;
+
+    JSScript *script = funbox->function()->script();
+    if (script) {
+        fun->setScript(script);
+        if (!script->typeSetFunction(cx, fun))
+            return false;
+    }
+
+    JS_ASSERT(funbox->function()->joinable());
+    fun->setJoinable();
+
+    fun->setMethodAtom(atom);
+
+    funbox->object = fun;
+    return true;
+}
+
+static bool
 EmitForIn(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top)
 {
     StmtInfo stmtInfo;
@@ -5488,8 +5498,8 @@ EmitForIn(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top)
      */
     bool forLet = false;
     if (ParseNode *decl = forHead->pn_kid1) {
-        JS_ASSERT(TokenKindIsDecl(decl->getKind()));
-        forLet = decl->isKind(TOK_LET);
+        JS_ASSERT(decl->isKind(PNK_VAR) || decl->isKind(PNK_LET));
+        forLet = decl->isKind(PNK_LET);
         bce->flags |= TCF_IN_FOR_INIT;
         if (!EmitTree(cx, bce, decl))
             return false;
@@ -5513,7 +5523,7 @@ EmitForIn(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top)
      * destructuring for-in).
      */
     JS_ASSERT(pn->isOp(JSOP_ITER));
-    if (Emit2(cx, bce, JSOP_ITER, (uint8) pn->pn_iflags) < 0)
+    if (Emit2(cx, bce, JSOP_ITER, (uint8_t) pn->pn_iflags) < 0)
         return false;
 
     /* Annotate so the decompiler can find the loop-closing jump. */
@@ -5527,10 +5537,6 @@ EmitForIn(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top)
      */
     ptrdiff_t jmp = EmitJump(cx, bce, JSOP_GOTO, 0);
     if (jmp < 0)
-        return false;
-
-    intN noteIndex2 = NewSrcNote(cx, bce, SRC_TRACE);
-    if (noteIndex2 < 0)
         return false;
 
     top = bce->offset();
@@ -5583,12 +5589,6 @@ EmitForIn(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top)
     if (beq < 0)
         return false;
 
-    /*
-     * Be careful: We must set noteIndex2 before noteIndex in case the noteIndex
-     * note gets bigger.
-     */
-    if (!SetSrcNoteOffset(cx, bce, (uintN)noteIndex2, 0, beq - top))
-        return false;
     /* Set the first srcnote offset so we can find the start of the loop body. */
     if (!SetSrcNoteOffset(cx, bce, (uintN)noteIndex, 0, tmp2 - jmp))
         return false;
@@ -5624,15 +5624,16 @@ EmitNormalFor(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top)
     } else {
         bce->flags |= TCF_IN_FOR_INIT;
 #if JS_HAS_DESTRUCTURING
-        if (pn3->isKind(TOK_ASSIGN) &&
-            !MaybeEmitGroupAssignment(cx, bce, op, pn3, &op)) {
-            return false;
+        if (pn3->isKind(PNK_ASSIGN)) {
+            JS_ASSERT(pn3->isOp(JSOP_NOP));
+            if (!MaybeEmitGroupAssignment(cx, bce, op, pn3, &op))
+                return false;
         }
 #endif
         if (op == JSOP_POP) {
             if (!EmitTree(cx, bce, pn3))
                 return false;
-            if (TokenKindIsDecl(pn3->getKind())) {
+            if (pn3->isKind(PNK_VAR) || pn3->isKind(PNK_CONST) || pn3->isKind(PNK_LET)) {
                 /*
                  * Check whether a destructuring-initialized var decl
                  * was optimized to a group assignment.  If so, we do
@@ -5669,10 +5670,6 @@ EmitNormalFor(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top)
     top = bce->offset();
     SET_STATEMENT_TOP(&stmtInfo, top);
 
-    intN noteIndex2 = NewSrcNote(cx, bce, SRC_TRACE);
-    if (noteIndex2 < 0)
-        return false;
-
     /* Emit code for the loop body. */
     if (EmitTraceOp(cx, bce, forBody) < 0)
         return false;
@@ -5694,9 +5691,10 @@ EmitNormalFor(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top)
     if (pn3) {
         op = JSOP_POP;
 #if JS_HAS_DESTRUCTURING
-        if (pn3->isKind(TOK_ASSIGN) &&
-            !MaybeEmitGroupAssignment(cx, bce, op, pn3, &op)) {
-            return false;
+        if (pn3->isKind(PNK_ASSIGN)) {
+            JS_ASSERT(pn3->isOp(JSOP_NOP));
+            if (!MaybeEmitGroupAssignment(cx, bce, op, pn3, &op))
+                return false;
         }
 #endif
         if (op == JSOP_POP && !EmitTree(cx, bce, pn3))
@@ -5726,12 +5724,6 @@ EmitNormalFor(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top)
             return false;
     }
 
-    /*
-     * Be careful: We must set noteIndex2 before noteIndex in case the noteIndex
-     * note gets bigger.
-     */
-    if (!SetSrcNoteOffset(cx, bce, (uintN)noteIndex2, 0, bce->offset() - top))
-        return false;
     /* Set the first note offset so we can find the loop condition. */
     if (!SetSrcNoteOffset(cx, bce, (uintN)noteIndex, 0, tmp3 - tmp))
         return false;
@@ -5753,84 +5745,46 @@ EmitNormalFor(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top)
 static inline bool
 EmitFor(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top)
 {
-    return pn->pn_left->isKind(TOK_IN)
+    JS_ASSERT(pn->pn_left->isKind(PNK_FORIN) || pn->pn_left->isKind(PNK_FORHEAD));
+    return pn->pn_left->isKind(PNK_FORIN)
            ? EmitForIn(cx, bce, pn, top)
            : EmitNormalFor(cx, bce, pn, top);
 }
 
-JSBool
-frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
+static bool
+EmitFunc(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 {
-    JSBool useful, wantval;
-    StmtInfo stmtInfo;
-    StmtInfo *stmt;
-    ptrdiff_t top, off, tmp, beq, jmp;
-    ParseNode *pn2, *pn3;
-    JSAtom *atom;
-    jsatomid atomIndex;
-    uintN index;
-    ptrdiff_t noteIndex, noteIndex2;
-    SrcNoteType noteType;
-    jsbytecode *pc;
-    JSOp op;
-    uint32 argc;
-    EmitLevelManager elm(bce);
-#if JS_HAS_SHARP_VARS
-    jsint sharpnum;
-#endif
-
-    JS_CHECK_RECURSION(cx, return JS_FALSE);
-
-    JSBool ok = true;
-    pn->pn_offset = top = bce->offset();
-
-    /* Emit notes to tell the current bytecode's source line number. */
-    UPDATE_LINE_NUMBER_NOTES(cx, bce, pn->pn_pos.begin.lineno);
-
-    switch (pn->getKind()) {
-      case TOK_FUNCTION:
-      {
-        JSFunction *fun;
-        uintN slot;
-
 #if JS_HAS_XML_SUPPORT
-        if (pn->isArity(PN_NULLARY)) {
-            if (Emit1(cx, bce, JSOP_GETFUNNS) < 0)
-                return JS_FALSE;
-            break;
-        }
+    if (pn->isArity(PN_NULLARY))
+        return Emit1(cx, bce, JSOP_GETFUNNS) >= 0;
 #endif
 
-        fun = pn->pn_funbox->function();
-        JS_ASSERT(fun->isInterpreted());
-        if (fun->script()) {
-            /*
-             * This second pass is needed to emit JSOP_NOP with a source note
-             * for the already-emitted function definition prolog opcode. See
-             * comments in the TOK_LC case.
-             */
-            JS_ASSERT(pn->isOp(JSOP_NOP));
-            JS_ASSERT(bce->inFunction());
-            if (!EmitFunctionDefNop(cx, bce, pn->pn_index))
-                return JS_FALSE;
-            break;
-        }
+    JSFunction *fun = pn->pn_funbox->function();
+    JS_ASSERT(fun->isInterpreted());
+    if (fun->script()) {
+        /*
+         * This second pass is needed to emit JSOP_NOP with a source note
+         * for the already-emitted function definition prolog opcode. See
+         * comments in the PNK_STATEMENTLIST case.
+         */
+        JS_ASSERT(pn->isOp(JSOP_NOP));
+        JS_ASSERT(bce->inFunction());
+        return EmitFunctionDefNop(cx, bce, pn->pn_index);
+    }
 
-        JS_ASSERT_IF(pn->pn_funbox->tcflags & TCF_FUN_HEAVYWEIGHT,
-                     fun->kind() == JSFUN_INTERPRETED);
+    JS_ASSERT_IF(pn->pn_funbox->tcflags & TCF_FUN_HEAVYWEIGHT,
+                 fun->kind() == JSFUN_INTERPRETED);
 
+    {
         /*
          * Generate code for the function's body.  bce2 is not allocated on the
          * stack because doing so significantly reduces the maximum depth of
          * nested functions we can handle.  See bug 696284.
          */
-        BytecodeEmitter *bce2 = cx->new_<BytecodeEmitter>(bce->parser, pn->pn_pos.begin.lineno);
-        if (!bce2) {
-            js_ReportOutOfMemory(cx);
-            return JS_FALSE;
-        }
-        if (!bce2->init(cx))
-            return JS_FALSE;
+        AutoPtr<BytecodeEmitter> bce2(cx);
+        bce2 = cx->new_<BytecodeEmitter>(bce->parser, pn->pn_pos.begin.lineno);
+        if (!bce2 || !bce2->init(cx))
+            return false;
 
         bce2->flags = pn->pn_funbox->tcflags | TCF_COMPILING | TCF_IN_FUNCTION |
                      (bce->flags & TCF_FUN_MIGHT_ALIAS_LOCALS);
@@ -5839,7 +5793,7 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         if (bce2->flags & TCF_HAS_SHARPS) {
             bce2->sharpSlotBase = bce2->bindings.sharpSlotBase(cx);
             if (bce2->sharpSlotBase < 0)
-                return JS_FALSE;
+                return false;
         }
 #endif
         bce2->setFunction(fun);
@@ -5857,82 +5811,1109 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         bce2->staticLevel = bce->staticLevel + 1;
 
         /* We measured the max scope depth when we parsed the function. */
-        if (!EmitFunctionScript(cx, bce2, pn->pn_body))
-            pn = NULL;
+        if (!EmitFunctionScript(cx, bce2.get(), pn->pn_body))
+            return false;
+    }
 
-        cx->delete_(bce2);
-        bce2 = NULL;
-        if (!pn)
-            return JS_FALSE;
+    /* Make the function object a literal in the outer script's pool. */
+    uintN index = bce->objectList.index(pn->pn_funbox);
 
-        /* Make the function object a literal in the outer script's pool. */
-        index = bce->objectList.index(pn->pn_funbox);
+    /* Emit a bytecode pointing to the closure object in its immediate. */
+    if (pn->getOp() != JSOP_NOP) {
+        if ((pn->pn_funbox->tcflags & TCF_GENEXP_LAMBDA) &&
+            NewSrcNote(cx, bce, SRC_GENEXP) < 0)
+        {
+            return false;
+        }
+        EMIT_INDEX_OP(pn->getOp(), index);
 
-        /* Emit a bytecode pointing to the closure object in its immediate. */
-        op = pn->getOp();
-        if (op != JSOP_NOP) {
-            if ((pn->pn_funbox->tcflags & TCF_GENEXP_LAMBDA) &&
-                NewSrcNote(cx, bce, SRC_GENEXP) < 0)
-            {
-                return JS_FALSE;
-            }
+        /* Make blockChain determination quicker. */
+        return EmitBlockChain(cx, bce) >= 0;
+    }
+
+    /*
+     * For a script we emit the code as we parse. Thus the bytecode for
+     * top-level functions should go in the prolog to predefine their
+     * names in the variable object before the already-generated main code
+     * is executed. This extra work for top-level scripts is not necessary
+     * when we emit the code for a function. It is fully parsed prior to
+     * invocation of the emitter and calls to EmitTree for function
+     * definitions can be scheduled before generating the rest of code.
+     */
+    if (!bce->inFunction()) {
+        JS_ASSERT(!bce->topStmt);
+        if (!BindGlobal(cx, bce, pn, fun->atom))
+            return false;
+        if (pn->pn_cookie.isFree()) {
+            bce->switchToProlog();
+            JSOp op = fun->isFlatClosure() ? JSOP_DEFFUN_FC : JSOP_DEFFUN;
             EMIT_INDEX_OP(op, index);
 
             /* Make blockChain determination quicker. */
             if (EmitBlockChain(cx, bce) < 0)
-                return JS_FALSE;
-            break;
+                return false;
+            bce->switchToMain();
         }
 
+        /* Emit NOP for the decompiler. */
+        if (!EmitFunctionDefNop(cx, bce, index))
+            return false;
+    } else {
+        uintN slot;
+        DebugOnly<BindingKind> kind = bce->bindings.lookup(cx, fun->atom, &slot);
+        JS_ASSERT(kind == VARIABLE || kind == CONSTANT);
+        JS_ASSERT(index < JS_BIT(20));
+        pn->pn_index = index;
+        JSOp op = fun->isFlatClosure() ? JSOP_DEFLOCALFUN_FC : JSOP_DEFLOCALFUN;
+        if (pn->isClosed() &&
+            !bce->callsEval() &&
+            !bce->closedVars.append(pn->pn_cookie.slot()))
+        {
+            return false;
+        }
+        if (!EmitSlotIndexOp(cx, op, slot, index, bce))
+            return false;
+
+        /* Make blockChain determination quicker. */
+        return EmitBlockChain(cx, bce) >= 0;
+    }
+
+    return true;
+}
+
+static bool
+EmitDo(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
+{
+    /* Emit an annotated nop so we know to decompile a 'do' keyword. */
+    ptrdiff_t noteIndex = NewSrcNote(cx, bce, SRC_WHILE);
+    if (noteIndex < 0 || Emit1(cx, bce, JSOP_NOP) < 0)
+        return false;
+
+    ptrdiff_t noteIndex2 = NewSrcNote(cx, bce, SRC_WHILE);
+    if (noteIndex2 < 0)
+        return false;
+
+    /* Compile the loop body. */
+    ptrdiff_t top = EmitTraceOp(cx, bce, pn->pn_left);
+    if (top < 0)
+        return false;
+
+    StmtInfo stmtInfo;
+    PushStatement(bce, &stmtInfo, STMT_DO_LOOP, top);
+    if (!EmitTree(cx, bce, pn->pn_left))
+        return false;
+
+    /* Set loop and enclosing label update offsets, for continue. */
+    ptrdiff_t off = bce->offset();
+    StmtInfo *stmt = &stmtInfo;
+    do {
+        stmt->update = off;
+    } while ((stmt = stmt->down) != NULL && stmt->type == STMT_LABEL);
+
+    /* Compile the loop condition, now that continues know where to go. */
+    if (!EmitTree(cx, bce, pn->pn_right))
+        return false;
+
+    /*
+     * Since we use JSOP_IFNE for other purposes as well as for do-while
+     * loops, we must store 1 + (beq - top) in the SRC_WHILE note offset,
+     * and the decompiler must get that delta and decompile recursively.
+     */
+    ptrdiff_t beq = EmitJump(cx, bce, JSOP_IFNE, top - bce->offset());
+    if (beq < 0)
+        return false;
+
+    /*
+     * Be careful: We must set noteIndex2 before noteIndex in case the noteIndex
+     * note gets bigger.
+     */
+    if (!SetSrcNoteOffset(cx, bce, noteIndex2, 0, beq - top))
+        return false;
+    if (!SetSrcNoteOffset(cx, bce, noteIndex, 0, 1 + (off - top)))
+        return false;
+
+    return PopStatementBCE(cx, bce);
+}
+
+static bool
+EmitWhile(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top)
+{
+    /*
+     * Minimize bytecodes issued for one or more iterations by jumping to
+     * the condition below the body and closing the loop if the condition
+     * is true with a backward branch. For iteration count i:
+     *
+     *  i    test at the top                 test at the bottom
+     *  =    ===============                 ==================
+     *  0    ifeq-pass                       goto; ifne-fail
+     *  1    ifeq-fail; goto; ifne-pass      goto; ifne-pass; ifne-fail
+     *  2    2*(ifeq-fail; goto); ifeq-pass  goto; 2*ifne-pass; ifne-fail
+     *  . . .
+     *  N    N*(ifeq-fail; goto); ifeq-pass  goto; N*ifne-pass; ifne-fail
+     */
+    StmtInfo stmtInfo;
+    PushStatement(bce, &stmtInfo, STMT_WHILE_LOOP, top);
+
+    ptrdiff_t noteIndex = NewSrcNote(cx, bce, SRC_WHILE);
+    if (noteIndex < 0)
+        return false;
+
+    ptrdiff_t jmp = EmitJump(cx, bce, JSOP_GOTO, 0);
+    if (jmp < 0)
+        return false;
+
+    top = EmitTraceOp(cx, bce, pn->pn_right);
+    if (top < 0)
+        return false;
+
+    if (!EmitTree(cx, bce, pn->pn_right))
+        return false;
+
+    CHECK_AND_SET_JUMP_OFFSET_AT(cx, bce, jmp);
+    if (!EmitTree(cx, bce, pn->pn_left))
+        return false;
+
+    ptrdiff_t beq = EmitJump(cx, bce, JSOP_IFNE, top - bce->offset());
+    if (beq < 0)
+        return false;
+
+    if (!SetSrcNoteOffset(cx, bce, noteIndex, 0, beq - jmp))
+        return false;
+
+    return PopStatementBCE(cx, bce);
+}
+
+static bool
+EmitBreak(JSContext *cx, BytecodeEmitter *bce, PropertyName *label)
+{
+    StmtInfo *stmt = bce->topStmt;
+    SrcNoteType noteType;
+    jsatomid labelIndex;
+    if (label) {
+        if (!bce->makeAtomIndex(label, &labelIndex))
+            return false;
+
+        while (stmt->type != STMT_LABEL || stmt->label != label)
+            stmt = stmt->down;
+        noteType = SRC_BREAK2LABEL;
+    } else {
+        labelIndex = INVALID_ATOMID;
+        while (!STMT_IS_LOOP(stmt) && stmt->type != STMT_SWITCH)
+            stmt = stmt->down;
+        noteType = (stmt->type == STMT_SWITCH) ? SRC_SWITCHBREAK : SRC_BREAK;
+    }
+
+    return EmitGoto(cx, bce, stmt, &stmt->breaks, labelIndex, noteType) >= 0;
+}
+
+static bool
+EmitContinue(JSContext *cx, BytecodeEmitter *bce, PropertyName *label)
+{
+    StmtInfo *stmt = bce->topStmt;
+    SrcNoteType noteType;
+    jsatomid labelIndex;
+    if (label) {
+        if (!bce->makeAtomIndex(label, &labelIndex))
+            return false;
+
+        /* Find the loop statement enclosed by the matching label. */
+        StmtInfo *loop = NULL;
+        while (stmt->type != STMT_LABEL || stmt->label != label) {
+            if (STMT_IS_LOOP(stmt))
+                loop = stmt;
+            stmt = stmt->down;
+        }
+        stmt = loop;
+        noteType = SRC_CONT2LABEL;
+    } else {
+        labelIndex = INVALID_ATOMID;
+        while (!STMT_IS_LOOP(stmt))
+            stmt = stmt->down;
+        noteType = SRC_CONTINUE;
+    }
+
+    return EmitGoto(cx, bce, stmt, &stmt->continues, labelIndex, noteType) >= 0;
+}
+
+static bool
+EmitReturn(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
+{
+    /* Push a return value */
+    if (ParseNode *pn2 = pn->pn_kid) {
+        if (!EmitTree(cx, bce, pn2))
+            return false;
+    } else {
+        /* No explicit return value provided */
+        if (Emit1(cx, bce, JSOP_UNDEFINED) < 0)
+            return false;
+    }
+
+    /*
+     * EmitNonLocalJumpFixup may add fixup bytecode to close open try
+     * blocks having finally clauses and to exit intermingled let blocks.
+     * We can't simply transfer control flow to our caller in that case,
+     * because we must gosub to those finally clauses from inner to outer,
+     * with the correct stack pointer (i.e., after popping any with,
+     * for/in, etc., slots nested inside the finally's try).
+     *
+     * In this case we mutate JSOP_RETURN into JSOP_SETRVAL and add an
+     * extra JSOP_RETRVAL after the fixups.
+     */
+    ptrdiff_t top = bce->offset();
+
+    if (Emit1(cx, bce, JSOP_RETURN) < 0)
+        return false;
+    if (!EmitNonLocalJumpFixup(cx, bce, NULL))
+        return false;
+    if (top + JSOP_RETURN_LENGTH != bce->offset()) {
+        bce->base()[top] = JSOP_SETRVAL;
+        if (Emit1(cx, bce, JSOP_RETRVAL) < 0)
+            return false;
+        if (EmitBlockChain(cx, bce) < 0)
+            return false;
+    }
+
+    return true;
+}
+
+static bool
+EmitStatementList(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top)
+{
+    JS_ASSERT(pn->isArity(PN_LIST));
+
+    ptrdiff_t noteIndex = -1;
+    ptrdiff_t tmp = bce->offset();
+    if (pn->pn_xflags & PNX_NEEDBRACES) {
+        noteIndex = NewSrcNote2(cx, bce, SRC_BRACE, 0);
+        if (noteIndex < 0 || Emit1(cx, bce, JSOP_NOP) < 0)
+            return false;
+    }
+
+    StmtInfo stmtInfo;
+    PushStatement(bce, &stmtInfo, STMT_BLOCK, top);
+
+    ParseNode *pnchild = pn->pn_head;
+    if (pn->pn_xflags & PNX_FUNCDEFS) {
         /*
-         * For a script we emit the code as we parse. Thus the bytecode for
-         * top-level functions should go in the prolog to predefine their
-         * names in the variable object before the already-generated main code
-         * is executed. This extra work for top-level scripts is not necessary
-         * when we emit the code for a function. It is fully parsed prior to
-         * invocation of the emitter and calls to EmitTree for function
-         * definitions can be scheduled before generating the rest of code.
+         * This block contains top-level function definitions. To ensure
+         * that we emit the bytecode defining them before the rest of code
+         * in the block we use a separate pass over functions. During the
+         * main pass later the emitter will add JSOP_NOP with source notes
+         * for the function to preserve the original functions position
+         * when decompiling.
+         *
+         * Currently this is used only for functions, as compile-as-we go
+         * mode for scripts does not allow separate emitter passes.
          */
-        if (!bce->inFunction()) {
-            JS_ASSERT(!bce->topStmt);
-            if (!BindGlobal(cx, bce, pn, fun->atom))
+        JS_ASSERT(bce->inFunction());
+        if (pn->pn_xflags & PNX_DESTRUCT) {
+            /*
+             * Assign the destructuring arguments before defining any
+             * functions, see bug 419662.
+             */
+            JS_ASSERT(pnchild->isKind(PNK_SEMI));
+            JS_ASSERT(pnchild->pn_kid->isKind(PNK_VAR) || pnchild->pn_kid->isKind(PNK_CONST));
+            if (!EmitTree(cx, bce, pnchild))
                 return false;
-            if (pn->pn_cookie.isFree()) {
-                bce->switchToProlog();
-                op = fun->isFlatClosure() ? JSOP_DEFFUN_FC : JSOP_DEFFUN;
-                EMIT_INDEX_OP(op, index);
+            pnchild = pnchild->pn_next;
+        }
 
-                /* Make blockChain determination quicker. */
-                if (EmitBlockChain(cx, bce) < 0)
-                    return JS_FALSE;
-                bce->switchToMain();
+        for (ParseNode *pn2 = pnchild; pn2; pn2 = pn2->pn_next) {
+            if (pn2->isKind(PNK_FUNCTION)) {
+                if (pn2->isOp(JSOP_NOP)) {
+                    if (!EmitTree(cx, bce, pn2))
+                        return false;
+                } else {
+                    /*
+                     * JSOP_DEFFUN in a top-level block with function
+                     * definitions appears, for example, when "if (true)"
+                     * is optimized away from "if (true) function x() {}".
+                     * See bug 428424.
+                     */
+                    JS_ASSERT(pn2->isOp(JSOP_DEFFUN));
+                }
             }
+        }
+    }
 
-            /* Emit NOP for the decompiler. */
-            if (!EmitFunctionDefNop(cx, bce, index))
-                return JS_FALSE;
+    for (ParseNode *pn2 = pnchild; pn2; pn2 = pn2->pn_next) {
+        if (!EmitTree(cx, bce, pn2))
+            return false;
+    }
+
+    if (noteIndex >= 0 && !SetSrcNoteOffset(cx, bce, (uintN)noteIndex, 0, bce->offset() - tmp))
+        return false;
+
+    return PopStatementBCE(cx, bce);
+}
+
+static bool
+EmitStatement(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
+{
+    JS_ASSERT(pn->isKind(PNK_SEMI));
+
+    ParseNode *pn2 = pn->pn_kid;
+    if (!pn2)
+        return true;
+
+    /*
+     * Top-level or called-from-a-native JS_Execute/EvaluateScript,
+     * debugger, and eval frames may need the value of the ultimate
+     * expression statement as the script's result, despite the fact
+     * that it appears useless to the compiler.
+     *
+     * API users may also set the JSOPTION_NO_SCRIPT_RVAL option when
+     * calling JS_Compile* to suppress JSOP_POPV.
+     */
+    bool wantval;
+    JSBool useful = wantval = !(bce->flags & (TCF_IN_FUNCTION | TCF_NO_SCRIPT_RVAL));
+
+    /* Don't eliminate expressions with side effects. */
+    if (!useful) {
+        if (!CheckSideEffects(cx, bce, pn2, &useful))
+            return false;
+
+        /*
+         * Don't eliminate apparently useless expressions if they are
+         * labeled expression statements.  The tc->topStmt->update test
+         * catches the case where we are nesting in EmitTree for a labeled
+         * compound statement.
+         */
+        if (bce->topStmt &&
+            bce->topStmt->type == STMT_LABEL &&
+            bce->topStmt->update >= bce->offset())
+        {
+            useful = true;
+        }
+    }
+
+    if (useful) {
+        JSOp op = wantval ? JSOP_POPV : JSOP_POP;
+        JS_ASSERT_IF(pn2->isKind(PNK_ASSIGN), pn2->isOp(JSOP_NOP));
+#if JS_HAS_DESTRUCTURING
+        if (!wantval &&
+            pn2->isKind(PNK_ASSIGN) &&
+            !MaybeEmitGroupAssignment(cx, bce, op, pn2, &op))
+        {
+            return false;
+        }
+#endif
+        if (op != JSOP_NOP) {
+            /*
+             * Specialize JSOP_SETPROP to JSOP_SETMETHOD to defer or
+             * avoid null closure cloning. Do this only for assignment
+             * statements that are not completion values wanted by a
+             * script evaluator, to ensure that the joined function
+             * can't escape directly.
+             */
+            if (!wantval &&
+                pn2->isKind(PNK_ASSIGN) &&
+                pn2->pn_left->isOp(JSOP_SETPROP) &&
+                pn2->pn_right->isOp(JSOP_LAMBDA) &&
+                pn2->pn_right->pn_funbox->joinable())
+            {
+                if (!SetMethodFunction(cx, pn2->pn_right->pn_funbox, pn2->pn_left->pn_atom))
+                    return false;
+                pn2->pn_left->setOp(JSOP_SETMETHOD);
+            }
+            if (!EmitTree(cx, bce, pn2))
+                return false;
+            if (Emit1(cx, bce, op) < 0)
+                return false;
+        }
+    } else if (!pn->isDirectivePrologueMember()) {
+        /* Don't complain about directive prologue members; just don't emit their code. */
+        bce->current->currentLine = pn2->pn_pos.begin.lineno;
+        if (!ReportCompileErrorNumber(cx, bce->tokenStream(), pn2,
+                                      JSREPORT_WARNING | JSREPORT_STRICT, JSMSG_USELESS_EXPR))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool
+EmitDelete(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
+{
+    /*
+     * Under ECMA 3, deleting a non-reference returns true -- but alas we
+     * must evaluate the operand if it appears it might have side effects.
+     */
+    ParseNode *pn2 = pn->pn_kid;
+    switch (pn2->getKind()) {
+      case PNK_NAME:
+      {
+        if (!BindNameToSlot(cx, bce, pn2))
+            return false;
+        JSOp op = pn2->getOp();
+        if (op == JSOP_FALSE) {
+            if (Emit1(cx, bce, op) < 0)
+                return false;
         } else {
-            DebugOnly<BindingKind> kind = bce->bindings.lookup(cx, fun->atom, &slot);
-            JS_ASSERT(kind == VARIABLE || kind == CONSTANT);
-            JS_ASSERT(index < JS_BIT(20));
-            pn->pn_index = index;
-            op = fun->isFlatClosure() ? JSOP_DEFLOCALFUN_FC : JSOP_DEFLOCALFUN;
-            if (pn->isClosed() &&
-                !bce->callsEval() &&
-                !bce->closedVars.append(pn->pn_cookie.slot())) {
-                return JS_FALSE;
-            }
-            if (!EmitSlotIndexOp(cx, op, slot, index, bce))
-                return JS_FALSE;
-
-            /* Make blockChain determination quicker. */
-            if (EmitBlockChain(cx, bce) < 0)
-                return JS_FALSE;
+            if (!EmitAtomOp(cx, pn2, op, bce))
+                return false;
         }
         break;
       }
+      case PNK_DOT:
+        if (!EmitPropOp(cx, pn2, JSOP_DELPROP, bce, false))
+            return false;
+        break;
+#if JS_HAS_XML_SUPPORT
+      case PNK_DBLDOT:
+        JS_ASSERT(!bce->inStrictMode());
+        if (!EmitElemOp(cx, pn2, JSOP_DELDESC, bce))
+            return false;
+        break;
+#endif
+      case PNK_LB:
+        if (!EmitElemOp(cx, pn2, JSOP_DELELEM, bce))
+            return false;
+        break;
+      default:
+      {
+        /*
+         * If useless, just emit JSOP_TRUE; otherwise convert delete foo()
+         * to foo(), true (a comma expression, requiring SRC_PCDELTA).
+         */
+        JSBool useful = false;
+        if (!CheckSideEffects(cx, bce, pn2, &useful))
+            return false;
 
-      case TOK_ARGSBODY:
+        ptrdiff_t off, noteIndex;
+        if (useful) {
+            JS_ASSERT_IF(pn2->isKind(PNK_LP), !(pn2->pn_xflags & PNX_SETCALL));
+            if (!EmitTree(cx, bce, pn2))
+                return false;
+            off = bce->offset();
+            noteIndex = NewSrcNote2(cx, bce, SRC_PCDELTA, 0);
+            if (noteIndex < 0 || Emit1(cx, bce, JSOP_POP) < 0)
+                return false;
+        } else {
+            off = noteIndex = -1;
+        }
+
+        if (Emit1(cx, bce, JSOP_TRUE) < 0)
+            return false;
+        if (noteIndex >= 0) {
+            ptrdiff_t tmp = bce->offset();
+            if (!SetSrcNoteOffset(cx, bce, uintN(noteIndex), 0, tmp - off))
+                return false;
+        }
+      }
+    }
+
+    return true;
+}
+
+static bool
+EmitCallOrNew(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top)
+{
+    bool callop = pn->isKind(PNK_LP);
+
+    /*
+     * Emit callable invocation or operator new (constructor call) code.
+     * First, emit code for the left operand to evaluate the callable or
+     * constructable object expression.
+     *
+     * For operator new applied to other expressions than E4X ones, we emit
+     * JSOP_GETPROP instead of JSOP_CALLPROP, etc. This is necessary to
+     * interpose the lambda-initialized method read barrier -- see the code
+     * in jsinterp.cpp for JSOP_LAMBDA followed by JSOP_{SET,INIT}PROP.
+     *
+     * Then (or in a call case that has no explicit reference-base
+     * object) we emit JSOP_UNDEFINED to produce the undefined |this| 
+     * value required for calls (which non-strict mode functions 
+     * will box into the global object).
+     */
+    ParseNode *pn2 = pn->pn_head;
+    switch (pn2->getKind()) {
+      case PNK_NAME:
+        if (!EmitNameOp(cx, bce, pn2, callop))
+            return false;
+        break;
+      case PNK_DOT:
+        if (!EmitPropOp(cx, pn2, pn2->getOp(), bce, callop))
+            return false;
+        break;
+      case PNK_LB:
+        JS_ASSERT(pn2->isOp(JSOP_GETELEM));
+        if (!EmitElemOp(cx, pn2, callop ? JSOP_CALLELEM : JSOP_GETELEM, bce))
+            return false;
+        break;
+#if JS_HAS_XML_SUPPORT
+      case PNK_XMLUNARY:
+        JS_ASSERT(pn2->isOp(JSOP_XMLNAME));
+        if (!EmitXMLName(cx, pn2, JSOP_CALLXMLNAME, bce))
+            return false;
+        callop = true;          /* suppress JSOP_UNDEFINED after */
+        break;
+#endif
+      default:
+        if (!EmitTree(cx, bce, pn2))
+            return false;
+        callop = false;             /* trigger JSOP_UNDEFINED after */
+        break;
+    }
+    if (!callop && Emit1(cx, bce, JSOP_UNDEFINED) < 0)
+        return false;
+
+    /* Remember start of callable-object bytecode for decompilation hint. */
+    ptrdiff_t off = top;
+
+    /*
+     * Emit code for each argument in order, then emit the JSOP_*CALL or
+     * JSOP_NEW bytecode with a two-byte immediate telling how many args
+     * were pushed on the operand stack.
+     */
+    uintN oldflags = bce->flags;
+    bce->flags &= ~TCF_IN_FOR_INIT;
+    for (ParseNode *pn3 = pn2->pn_next; pn3; pn3 = pn3->pn_next) {
+        if (!EmitTree(cx, bce, pn3))
+            return false;
+    }
+    bce->flags |= oldflags & TCF_IN_FOR_INIT;
+    if (NewSrcNote2(cx, bce, SRC_PCBASE, bce->offset() - off) < 0)
+        return false;
+
+    uint32_t argc = pn->pn_count - 1;
+    if (Emit3(cx, bce, pn->getOp(), ARGC_HI(argc), ARGC_LO(argc)) < 0)
+        return false;
+    CheckTypeSet(cx, bce, pn->getOp());
+    if (pn->isOp(JSOP_EVAL)) {
+        EMIT_UINT16_IMM_OP(JSOP_LINENO, pn->pn_pos.begin.lineno);
+        if (EmitBlockChain(cx, bce) < 0)
+            return false;
+    }
+    if (pn->pn_xflags & PNX_SETCALL) {
+        if (Emit1(cx, bce, JSOP_SETCALL) < 0)
+            return false;
+    }
+    return true;
+}
+
+static bool
+EmitLogical(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
+{
+    /*
+     * JSOP_OR converts the operand on the stack to boolean, leaves the original
+     * value on the stack and jumps if true; otherwise it falls into the next
+     * bytecode, which pops the left operand and then evaluates the right operand.
+     * The jump goes around the right operand evaluation.
+     *
+     * JSOP_AND converts the operand on the stack to boolean and jumps if false;
+     * otherwise it falls into the right operand's bytecode.
+     */
+
+    if (pn->isArity(PN_BINARY)) {
+        if (!EmitTree(cx, bce, pn->pn_left))
+            return false;
+        ptrdiff_t top = EmitJump(cx, bce, JSOP_BACKPATCH, 0);
+        if (top < 0)
+            return false;
+        if (Emit1(cx, bce, JSOP_POP) < 0)
+            return false;
+        if (!EmitTree(cx, bce, pn->pn_right))
+            return false;
+        ptrdiff_t off = bce->offset();
+        jsbytecode *pc = bce->code(top);
+        CHECK_AND_SET_JUMP_OFFSET(cx, bce, pc, off - top);
+        *pc = pn->getOp();
+        return true;
+    }
+
+    JS_ASSERT(pn->isArity(PN_LIST));
+    JS_ASSERT(pn->pn_head->pn_next->pn_next);
+
+    /* Left-associative operator chain: avoid too much recursion. */
+    ParseNode *pn2 = pn->pn_head;
+    if (!EmitTree(cx, bce, pn2))
+        return false;
+    ptrdiff_t top = EmitJump(cx, bce, JSOP_BACKPATCH, 0);
+    if (top < 0)
+        return false;
+    if (Emit1(cx, bce, JSOP_POP) < 0)
+        return false;
+
+    /* Emit nodes between the head and the tail. */
+    ptrdiff_t jmp = top;
+    while ((pn2 = pn2->pn_next)->pn_next) {
+        if (!EmitTree(cx, bce, pn2))
+            return false;
+        ptrdiff_t off = EmitJump(cx, bce, JSOP_BACKPATCH, 0);
+        if (off < 0)
+            return false;
+        if (Emit1(cx, bce, JSOP_POP) < 0)
+            return false;
+        if (!SetBackPatchDelta(cx, bce, bce->code(jmp), off - jmp))
+            return false;
+        jmp = off;
+    }
+    if (!EmitTree(cx, bce, pn2))
+        return false;
+
+    pn2 = pn->pn_head;
+    ptrdiff_t off = bce->offset();
+    do {
+        jsbytecode *pc = bce->code(top);
+        ptrdiff_t tmp = GetJumpOffset(bce, pc);
+        CHECK_AND_SET_JUMP_OFFSET(cx, bce, pc, off - top);
+        *pc = pn->getOp();
+        top += tmp;
+    } while ((pn2 = pn2->pn_next)->pn_next);
+
+    return true;
+}
+
+static bool
+EmitIncOrDec(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
+{
+    /* Emit lvalue-specialized code for ++/-- operators. */
+    ParseNode *pn2 = pn->pn_kid;
+    JS_ASSERT(!pn2->isKind(PNK_RP));
+    JSOp op = pn->getOp();
+    switch (pn2->getKind()) {
+      case PNK_DOT:
+        if (!EmitPropIncDec(cx, pn2, op, bce))
+            return false;
+        break;
+      case PNK_LB:
+        if (!EmitElemIncDec(cx, pn2, op, bce))
+            return false;
+        break;
+      case PNK_LP:
+        if (!EmitTree(cx, bce, pn2))
+            return false;
+        if (NewSrcNote2(cx, bce, SRC_PCBASE, bce->offset() - pn2->pn_offset) < 0)
+            return false;
+        if (Emit1(cx, bce, op) < 0)
+            return false;
+        /*
+         * This is dead code for the decompiler, don't generate
+         * a decomposed version of the opcode. We do need to balance
+         * the stacks in the decomposed version.
+         */
+        JS_ASSERT(js_CodeSpec[op].format & JOF_DECOMPOSE);
+        JS_ASSERT(js_CodeSpec[op].format & JOF_ELEM);
+        if (Emit1(cx, bce, (JSOp)1) < 0)
+            return false;
+        if (Emit1(cx, bce, JSOP_POP) < 0)
+            return false;
+        break;
+#if JS_HAS_XML_SUPPORT
+      case PNK_XMLUNARY:
+        JS_ASSERT(!bce->inStrictMode());
+        JS_ASSERT(pn2->isOp(JSOP_SETXMLNAME));
+        if (!EmitTree(cx, bce, pn2->pn_kid))
+            return false;
+        if (Emit1(cx, bce, JSOP_BINDXMLNAME) < 0)
+            return false;
+        if (!EmitElemIncDec(cx, NULL, op, bce))
+            return false;
+        break;
+#endif
+      default:
+        JS_ASSERT(pn2->isKind(PNK_NAME));
+        pn2->setOp(op);
+        if (!BindNameToSlot(cx, bce, pn2))
+            return false;
+        op = pn2->getOp();
+        if (op == JSOP_CALLEE) {
+            if (Emit1(cx, bce, op) < 0)
+                return false;
+        } else if (!pn2->pn_cookie.isFree()) {
+            jsatomid atomIndex = pn2->pn_cookie.asInteger();
+            EMIT_UINT16_IMM_OP(op, atomIndex);
+        } else {
+            JS_ASSERT(JOF_OPTYPE(op) == JOF_ATOM);
+            if (js_CodeSpec[op].format & (JOF_INC | JOF_DEC)) {
+                if (!EmitNameIncDec(cx, pn2, op, bce))
+                    return false;
+            } else {
+                if (!EmitAtomOp(cx, pn2, op, bce))
+                    return false;
+            }
+            break;
+        }
+        if (pn2->isConst()) {
+            if (Emit1(cx, bce, JSOP_POS) < 0)
+                return false;
+            op = pn->getOp();
+            if (!(js_CodeSpec[op].format & JOF_POST)) {
+                if (Emit1(cx, bce, JSOP_ONE) < 0)
+                    return false;
+                op = (js_CodeSpec[op].format & JOF_INC) ? JSOP_ADD : JSOP_SUB;
+                if (Emit1(cx, bce, op) < 0)
+                    return false;
+            }
+        }
+    }
+    return true;
+}
+
+static bool
+EmitLabel(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
+{
+    /*
+     * Emit a JSOP_LABEL instruction. The argument is the offset to the statement
+     * following the labeled statement. This op has either a SRC_LABEL or
+     * SRC_LABELBRACE source note for the decompiler.
+     */
+    JSAtom *atom = pn->pn_atom;
+
+    jsatomid index;
+    if (!bce->makeAtomIndex(atom, &index))
+        return false;
+
+    ParseNode *pn2 = pn->expr();
+    SrcNoteType noteType = (pn2->isKind(PNK_STATEMENTLIST) ||
+                            (pn2->isKind(PNK_LEXICALSCOPE) &&
+                             pn2->expr()->isKind(PNK_STATEMENTLIST)))
+                           ? SRC_LABELBRACE
+                           : SRC_LABEL;
+    ptrdiff_t noteIndex = NewSrcNote2(cx, bce, noteType, ptrdiff_t(index));
+    if (noteIndex < 0)
+        return false;
+
+    ptrdiff_t top = EmitJump(cx, bce, JSOP_LABEL, 0);
+    if (top < 0)
+        return false;
+
+    /* Emit code for the labeled statement. */
+    StmtInfo stmtInfo;
+    PushStatement(bce, &stmtInfo, STMT_LABEL, bce->offset());
+    stmtInfo.label = atom;
+    if (!EmitTree(cx, bce, pn2))
+        return false;
+    if (!PopStatementBCE(cx, bce))
+        return false;
+
+    /* Patch the JSOP_LABEL offset. */
+    CHECK_AND_SET_JUMP_OFFSET_AT(cx, bce, top);
+
+    /* If the statement was compound, emit a note for the end brace. */
+    if (noteType == SRC_LABELBRACE) {
+        if (NewSrcNote(cx, bce, SRC_ENDBRACE) < 0 || Emit1(cx, bce, JSOP_NOP) < 0)
+            return false;
+    }
+
+    return true;
+}
+
+static bool
+EmitSyntheticStatements(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, ptrdiff_t top)
+{
+    JS_ASSERT(pn->isArity(PN_LIST));
+    StmtInfo stmtInfo;
+    PushStatement(bce, &stmtInfo, STMT_SEQ, top);
+    for (ParseNode *pn2 = pn->pn_head; pn2; pn2 = pn2->pn_next) {
+        if (!EmitTree(cx, bce, pn2))
+            return false;
+    }
+    return PopStatementBCE(cx, bce);
+}
+
+static bool
+EmitConditionalExpression(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
+{
+    /* Emit the condition, then branch if false to the else part. */
+    if (!EmitTree(cx, bce, pn->pn_kid1))
+        return false;
+    ptrdiff_t noteIndex = NewSrcNote(cx, bce, SRC_COND);
+    if (noteIndex < 0)
+        return false;
+    ptrdiff_t beq = EmitJump(cx, bce, JSOP_IFEQ, 0);
+    if (beq < 0 || !EmitTree(cx, bce, pn->pn_kid2))
+        return false;
+
+    /* Jump around else, fixup the branch, emit else, fixup jump. */
+    ptrdiff_t jmp = EmitJump(cx, bce, JSOP_GOTO, 0);
+    if (jmp < 0)
+        return false;
+    CHECK_AND_SET_JUMP_OFFSET_AT(cx, bce, beq);
+
+    /*
+     * Because each branch pushes a single value, but our stack budgeting
+     * analysis ignores branches, we now have to adjust bce->stackDepth to
+     * ignore the value pushed by the first branch.  Execution will follow
+     * only one path, so we must decrement bce->stackDepth.
+     *
+     * Failing to do this will foil code, such as let expression and block
+     * code generation, which must use the stack depth to compute local
+     * stack indexes correctly.
+     */
+    JS_ASSERT(bce->stackDepth > 0);
+    bce->stackDepth--;
+    if (!EmitTree(cx, bce, pn->pn_kid3))
+        return false;
+    CHECK_AND_SET_JUMP_OFFSET_AT(cx, bce, jmp);
+    return SetSrcNoteOffset(cx, bce, noteIndex, 0, jmp - beq);
+}
+
+static bool
+EmitObject(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, jsint sharpnum)
+{
+#if JS_HAS_DESTRUCTURING_SHORTHAND
+    if (pn->pn_xflags & PNX_DESTRUCT) {
+        ReportCompileErrorNumber(cx, bce->tokenStream(), pn, JSREPORT_ERROR,
+                                 JSMSG_BAD_OBJECT_INIT);
+        return false;
+    }
+#endif
+
+    if (!bce->hasSharps() && !(pn->pn_xflags & PNX_NONCONST) && pn->pn_head &&
+        bce->checkSingletonContext())
+    {
+        return EmitSingletonInitialiser(cx, bce, pn);
+    }
+
+    /*
+     * Emit code for {p:a, '%q':b, 2:c} that is equivalent to constructing
+     * a new object and in source order evaluating each property value and
+     * adding the property to the object, without invoking latent setters.
+     * We use the JSOP_NEWINIT and JSOP_INITELEM/JSOP_INITPROP bytecodes to
+     * ignore setters and to avoid dup'ing and popping the object as each
+     * property is added, as JSOP_SETELEM/JSOP_SETPROP would do.
+     */
+    ptrdiff_t offset = bce->next() - bce->base();
+    if (!EmitNewInit(cx, bce, JSProto_Object, pn, sharpnum))
+        return false;
+
+    /*
+     * Try to construct the shape of the object as we go, so we can emit a
+     * JSOP_NEWOBJECT with the final shape instead.
+     */
+    JSObject *obj = NULL;
+    if (!bce->hasSharps() && bce->compileAndGo()) {
+        gc::AllocKind kind = GuessObjectGCKind(pn->pn_count);
+        obj = NewBuiltinClassInstance(cx, &ObjectClass, kind);
+        if (!obj)
+            return false;
+    }
+
+    uintN methodInits = 0, slowMethodInits = 0;
+    for (ParseNode *pn2 = pn->pn_head; pn2; pn2 = pn2->pn_next) {
+        /* Emit an index for t[2] for later consumption by JSOP_INITELEM. */
+        ParseNode *pn3 = pn2->pn_left;
+        if (pn3->isKind(PNK_NUMBER)) {
+            if (!EmitNumberOp(cx, pn3->pn_dval, bce))
+                return false;
+        }
+
+        /* Emit code for the property initializer. */
+        if (!EmitTree(cx, bce, pn2->pn_right))
+            return false;
+
+        JSOp op = pn2->getOp();
+        if (op == JSOP_GETTER || op == JSOP_SETTER) {
+            obj = NULL;
+            if (Emit1(cx, bce, op) < 0)
+                return false;
+        }
+
+        /* Annotate JSOP_INITELEM so we decompile 2:c and not just c. */
+        if (pn3->isKind(PNK_NUMBER)) {
+            obj = NULL;
+            if (NewSrcNote(cx, bce, SRC_INITPROP) < 0)
+                return false;
+            if (Emit1(cx, bce, JSOP_INITELEM) < 0)
+                return false;
+        } else {
+            JS_ASSERT(pn3->isKind(PNK_NAME) || pn3->isKind(PNK_STRING));
+            jsatomid index;
+            if (!bce->makeAtomIndex(pn3->pn_atom, &index))
+                return false;
+
+            /* Check whether we can optimize to JSOP_INITMETHOD. */
+            ParseNode *init = pn2->pn_right;
+            bool lambda = init->isOp(JSOP_LAMBDA);
+            if (lambda)
+                ++methodInits;
+            if (op == JSOP_INITPROP && lambda && init->pn_funbox->joinable()) {
+                obj = NULL;
+                op = JSOP_INITMETHOD;
+                if (!SetMethodFunction(cx, init->pn_funbox, pn3->pn_atom))
+                    return JS_FALSE;
+                pn2->setOp(op);
+            } else {
+                /*
+                 * Disable NEWOBJECT on initializers that set __proto__, which has
+                 * a non-standard setter on objects.
+                 */
+                if (pn3->pn_atom == cx->runtime->atomState.protoAtom)
+                    obj = NULL;
+                op = JSOP_INITPROP;
+                if (lambda)
+                    ++slowMethodInits;
+            }
+
+            if (obj) {
+                JS_ASSERT(!obj->inDictionaryMode());
+                if (!DefineNativeProperty(cx, obj, ATOM_TO_JSID(pn3->pn_atom),
+                                          UndefinedValue(), NULL, NULL,
+                                          JSPROP_ENUMERATE, 0, 0))
+                {
+                    return false;
+                }
+                if (obj->inDictionaryMode())
+                    obj = NULL;
+            }
+
+            EMIT_INDEX_OP(op, index);
+        }
+    }
+
+    if (!EmitEndInit(cx, bce, pn->pn_count))
+        return false;
+
+    if (obj) {
+        /*
+         * The object survived and has a predictable shape.  Update the original bytecode,
+         * as long as we can do so without using a big index prefix/suffix.
+         */
+        ObjectBox *objbox = bce->parser->newObjectBox(obj);
+        if (!objbox)
+            return false;
+        uintN index = bce->objectList.index(objbox);
+        if (FitsWithoutBigIndex(index))
+            EMIT_UINT16_IN_PLACE(offset, JSOP_NEWOBJECT, uint16_t(index));
+    }
+
+    return true;
+}
+
+static bool
+EmitArray(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn, jsint sharpnum)
+{
+    /*
+     * Emit code for [a, b, c] that is equivalent to constructing a new
+     * array and in source order evaluating each element value and adding
+     * it to the array, without invoking latent setters.  We use the
+     * JSOP_NEWINIT and JSOP_INITELEM bytecodes to ignore setters and to
+     * avoid dup'ing and popping the array as each element is added, as
+     * JSOP_SETELEM/JSOP_SETPROP would do.
+     */
+
+#if JS_HAS_GENERATORS
+    if (pn->isKind(PNK_ARRAYCOMP)) {
+        if (!EmitNewInit(cx, bce, JSProto_Array, pn, sharpnum))
+            return false;
+
+        /*
+         * Pass the new array's stack index to the PNK_ARRAYPUSH case via
+         * bce->arrayCompDepth, then simply traverse the PNK_FOR node and
+         * its kids under pn2 to generate this comprehension.
+         */
+        JS_ASSERT(bce->stackDepth > 0);
+        uintN saveDepth = bce->arrayCompDepth;
+        bce->arrayCompDepth = (uint32_t) (bce->stackDepth - 1);
+        if (!EmitTree(cx, bce, pn->pn_head))
+            return false;
+        bce->arrayCompDepth = saveDepth;
+
+        /* Emit the usual op needed for decompilation. */
+        if (!EmitEndInit(cx, bce, 1))
+            return false;
+        return true;
+    }
+#endif /* JS_HAS_GENERATORS */
+
+    if (!bce->hasSharps() && !(pn->pn_xflags & PNX_NONCONST) && pn->pn_head &&
+        bce->checkSingletonContext())
+    {
+        return EmitSingletonInitialiser(cx, bce, pn);
+    }
+
+    /* Use the slower NEWINIT for arrays in scripts containing sharps. */
+    if (bce->hasSharps()) {
+        if (!EmitNewInit(cx, bce, JSProto_Array, pn, sharpnum))
+            return false;
+    } else {
+        ptrdiff_t off = EmitN(cx, bce, JSOP_NEWARRAY, 3);
+        if (off < 0)
+            return false;
+        CheckTypeSet(cx, bce, JSOP_NEWARRAY);
+        jsbytecode *pc = bce->code(off);
+        SET_UINT24(pc, pn->pn_count);
+    }
+
+    ParseNode *pn2 = pn->pn_head;
+    jsatomid atomIndex;
+    for (atomIndex = 0; pn2; atomIndex++, pn2 = pn2->pn_next) {
+        if (!EmitNumberOp(cx, atomIndex, bce))
+            return false;
+        if (pn2->isKind(PNK_COMMA) && pn2->isArity(PN_NULLARY)) {
+            if (Emit1(cx, bce, JSOP_HOLE) < 0)
+                return false;
+        } else {
+            if (!EmitTree(cx, bce, pn2))
+                return false;
+        }
+        if (Emit1(cx, bce, JSOP_INITELEM) < 0)
+            return false;
+    }
+    JS_ASSERT(atomIndex == pn->pn_count);
+
+    if (pn->pn_xflags & PNX_ENDCOMMA) {
+        /* Emit a source note so we know to decompile an extra comma. */
+        if (NewSrcNote(cx, bce, SRC_CONTINUE) < 0)
+            return false;
+    }
+
+    /*
+     * Emit an op to finish the array and, secondarily, to aid in sharp
+     * array cleanup (if JS_HAS_SHARP_VARS) and decompilation.
+     */
+    return EmitEndInit(cx, bce, atomIndex);
+}
+
+static bool
+EmitUnary(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
+{
+    /* Unary op, including unary +/-. */
+    JSOp op = pn->getOp();
+    ParseNode *pn2 = pn->pn_kid;
+
+    JS_ASSERT(op != JSOP_XMLNAME);
+    if (op == JSOP_TYPEOF && !pn2->isKind(PNK_NAME))
+        op = JSOP_TYPEOFEXPR;
+
+    uintN oldflags = bce->flags;
+    bce->flags &= ~TCF_IN_FOR_INIT;
+    if (!EmitTree(cx, bce, pn2))
+        return false;
+
+    bce->flags |= oldflags & TCF_IN_FOR_INIT;
+    return Emit1(cx, bce, op) >= 0;
+}
+
+JSBool
+frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
+{
+    ptrdiff_t top, off, tmp, jmp;
+    ParseNode *pn2;
+    JSAtom *atom;
+    ptrdiff_t noteIndex;
+    JSOp op;
+    EmitLevelManager elm(bce);
+    jsint sharpnum = -1;
+
+    JS_CHECK_RECURSION(cx, return JS_FALSE);
+
+    JSBool ok = true;
+    pn->pn_offset = top = bce->offset();
+
+    /* Emit notes to tell the current bytecode's source line number. */
+    UPDATE_LINE_NUMBER_NOTES(cx, bce, pn->pn_pos.begin.lineno);
+
+    switch (pn->getKind()) {
+      case PNK_FUNCTION:
+        ok = EmitFunc(cx, bce, pn);
+        break;
+
+      case PNK_ARGSBODY:
       {
         ParseNode *pnlast = pn->last();
         for (ParseNode *pn2 = pn->pn_head; pn2 != pnlast; pn2 = pn2->pn_next) {
@@ -5949,7 +6930,7 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         break;
       }
 
-      case TOK_UPVARS:
+      case PNK_UPVARS:
         JS_ASSERT(pn->pn_names->count() != 0);
         bce->roLexdeps = pn->pn_names;
         ok = EmitTree(cx, bce, pn->pn_tree);
@@ -5957,235 +6938,66 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         pn->pn_names.releaseMap(cx);
         break;
 
-      case TOK_IF:
+      case PNK_IF:
         ok = EmitIf(cx, bce, pn);
         break;
 
-      case TOK_SWITCH:
+      case PNK_SWITCH:
         ok = EmitSwitch(cx, bce, pn);
         break;
 
-      case TOK_WHILE:
-        /*
-         * Minimize bytecodes issued for one or more iterations by jumping to
-         * the condition below the body and closing the loop if the condition
-         * is true with a backward branch. For iteration count i:
-         *
-         *  i    test at the top                 test at the bottom
-         *  =    ===============                 ==================
-         *  0    ifeq-pass                       goto; ifne-fail
-         *  1    ifeq-fail; goto; ifne-pass      goto; ifne-pass; ifne-fail
-         *  2    2*(ifeq-fail; goto); ifeq-pass  goto; 2*ifne-pass; ifne-fail
-         *  . . .
-         *  N    N*(ifeq-fail; goto); ifeq-pass  goto; N*ifne-pass; ifne-fail
-         *
-         * SpiderMonkey, pre-mozilla.org, emitted while parsing and so used
-         * test at the top. When ParseNode trees were added during the ES3
-         * work (1998-9), the code generation scheme was not optimized, and
-         * the decompiler continued to take advantage of the branch and jump
-         * that bracketed the body. But given the SRC_WHILE note, it is easy
-         * to support the more efficient scheme.
-         */
-        PushStatement(bce, &stmtInfo, STMT_WHILE_LOOP, top);
-        noteIndex = NewSrcNote(cx, bce, SRC_WHILE);
-        if (noteIndex < 0)
-            return JS_FALSE;
-        jmp = EmitJump(cx, bce, JSOP_GOTO, 0);
-        if (jmp < 0)
-            return JS_FALSE;
-        noteIndex2 = NewSrcNote(cx, bce, SRC_TRACE);
-        if (noteIndex2 < 0)
-            return JS_FALSE;
-        top = EmitTraceOp(cx, bce, pn->pn_right);
-        if (top < 0)
-            return JS_FALSE;
-        if (!EmitTree(cx, bce, pn->pn_right))
-            return JS_FALSE;
-        CHECK_AND_SET_JUMP_OFFSET_AT(cx, bce, jmp);
-        if (!EmitTree(cx, bce, pn->pn_left))
-            return JS_FALSE;
-        beq = EmitJump(cx, bce, JSOP_IFNE, top - bce->offset());
-        if (beq < 0)
-            return JS_FALSE;
-        /*
-         * Be careful: We must set noteIndex2 before noteIndex in case the noteIndex
-         * note gets bigger.
-         */
-        if (!SetSrcNoteOffset(cx, bce, noteIndex2, 0, beq - top))
-            return JS_FALSE;
-        if (!SetSrcNoteOffset(cx, bce, noteIndex, 0, beq - jmp))
-            return JS_FALSE;
-        ok = PopStatementBCE(cx, bce);
+      case PNK_WHILE:
+        ok = EmitWhile(cx, bce, pn, top);
         break;
 
-      case TOK_DO:
-        /* Emit an annotated nop so we know to decompile a 'do' keyword. */
-        noteIndex = NewSrcNote(cx, bce, SRC_WHILE);
-        if (noteIndex < 0 || Emit1(cx, bce, JSOP_NOP) < 0)
-            return JS_FALSE;
-
-        noteIndex2 = NewSrcNote(cx, bce, SRC_TRACE);
-        if (noteIndex2 < 0)
-            return JS_FALSE;
-
-        /* Compile the loop body. */
-        top = EmitTraceOp(cx, bce, pn->pn_left);
-        if (top < 0)
-            return JS_FALSE;
-        PushStatement(bce, &stmtInfo, STMT_DO_LOOP, top);
-        if (!EmitTree(cx, bce, pn->pn_left))
-            return JS_FALSE;
-
-        /* Set loop and enclosing label update offsets, for continue. */
-        off = bce->offset();
-        stmt = &stmtInfo;
-        do {
-            stmt->update = off;
-        } while ((stmt = stmt->down) != NULL && stmt->type == STMT_LABEL);
-
-        /* Compile the loop condition, now that continues know where to go. */
-        if (!EmitTree(cx, bce, pn->pn_right))
-            return JS_FALSE;
-
-        /*
-         * Since we use JSOP_IFNE for other purposes as well as for do-while
-         * loops, we must store 1 + (beq - top) in the SRC_WHILE note offset,
-         * and the decompiler must get that delta and decompile recursively.
-         */
-        beq = EmitJump(cx, bce, JSOP_IFNE, top - bce->offset());
-        if (beq < 0)
-            return JS_FALSE;
-        /*
-         * Be careful: We must set noteIndex2 before noteIndex in case the noteIndex
-         * note gets bigger.
-         */
-        if (!SetSrcNoteOffset(cx, bce, noteIndex2, 0, beq - top))
-            return JS_FALSE;
-        if (!SetSrcNoteOffset(cx, bce, noteIndex, 0, 1 + (off - top)))
-            return JS_FALSE;
-        ok = PopStatementBCE(cx, bce);
+      case PNK_DOWHILE:
+        ok = EmitDo(cx, bce, pn);
         break;
 
-      case TOK_FOR:
+      case PNK_FOR:
         ok = EmitFor(cx, bce, pn, top);
         break;
 
-      case TOK_BREAK: {
-        stmt = bce->topStmt;
-        atom = pn->pn_atom;
-
-        jsatomid labelIndex;
-        if (atom) {
-            if (!bce->makeAtomIndex(atom, &labelIndex))
-                return JS_FALSE;
-
-            while (stmt->type != STMT_LABEL || stmt->label != atom)
-                stmt = stmt->down;
-            noteType = SRC_BREAK2LABEL;
-        } else {
-            labelIndex = INVALID_ATOMID;
-            while (!STMT_IS_LOOP(stmt) && stmt->type != STMT_SWITCH)
-                stmt = stmt->down;
-            noteType = (stmt->type == STMT_SWITCH) ? SRC_SWITCHBREAK : SRC_BREAK;
-        }
-
-        if (EmitGoto(cx, bce, stmt, &stmt->breaks, labelIndex, noteType) < 0)
-            return JS_FALSE;
+      case PNK_BREAK:
+        ok = EmitBreak(cx, bce, pn->asBreakStatement().label());
         break;
-      }
 
-      case TOK_CONTINUE: {
-        stmt = bce->topStmt;
-        atom = pn->pn_atom;
-
-        jsatomid labelIndex;
-        if (atom) {
-            /* Find the loop statement enclosed by the matching label. */
-            StmtInfo *loop = NULL;
-            if (!bce->makeAtomIndex(atom, &labelIndex))
-                return JS_FALSE;
-            while (stmt->type != STMT_LABEL || stmt->label != atom) {
-                if (STMT_IS_LOOP(stmt))
-                    loop = stmt;
-                stmt = stmt->down;
-            }
-            stmt = loop;
-            noteType = SRC_CONT2LABEL;
-        } else {
-            labelIndex = INVALID_ATOMID;
-            while (!STMT_IS_LOOP(stmt))
-                stmt = stmt->down;
-            noteType = SRC_CONTINUE;
-        }
-
-        if (EmitGoto(cx, bce, stmt, &stmt->continues, labelIndex, noteType) < 0)
-            return JS_FALSE;
+      case PNK_CONTINUE:
+        ok = EmitContinue(cx, bce, pn->asContinueStatement().label());
         break;
-      }
 
-      case TOK_WITH:
+      case PNK_WITH:
         ok = EmitWith(cx, bce, pn);
         break;
 
-      case TOK_TRY:
+      case PNK_TRY:
         if (!EmitTry(cx, bce, pn))
             return false;
         break;
 
-      case TOK_CATCH:
+      case PNK_CATCH:
         if (!EmitCatch(cx, bce, pn))
             return false;
         break;
 
-      case TOK_VAR:
+      case PNK_VAR:
+      case PNK_CONST:
         if (!EmitVariables(cx, bce, pn, JS_FALSE, &noteIndex))
             return JS_FALSE;
         break;
 
-      case TOK_RETURN:
-        /* Push a return value */
-        pn2 = pn->pn_kid;
-        if (pn2) {
-            if (!EmitTree(cx, bce, pn2))
-                return JS_FALSE;
-        } else {
-            if (Emit1(cx, bce, JSOP_PUSH) < 0)
-                return JS_FALSE;
-        }
-
-        /*
-         * EmitNonLocalJumpFixup may add fixup bytecode to close open try
-         * blocks having finally clauses and to exit intermingled let blocks.
-         * We can't simply transfer control flow to our caller in that case,
-         * because we must gosub to those finally clauses from inner to outer,
-         * with the correct stack pointer (i.e., after popping any with,
-         * for/in, etc., slots nested inside the finally's try).
-         *
-         * In this case we mutate JSOP_RETURN into JSOP_SETRVAL and add an
-         * extra JSOP_RETRVAL after the fixups.
-         */
-        top = bce->offset();
-        if (Emit1(cx, bce, JSOP_RETURN) < 0)
-            return JS_FALSE;
-        if (!EmitNonLocalJumpFixup(cx, bce, NULL))
-            return JS_FALSE;
-        if (top + JSOP_RETURN_LENGTH != bce->offset()) {
-            bce->base()[top] = JSOP_SETRVAL;
-            if (Emit1(cx, bce, JSOP_RETRVAL) < 0)
-                return JS_FALSE;
-            if (EmitBlockChain(cx, bce) < 0)
-                return JS_FALSE;
-        }
+      case PNK_RETURN:
+        ok = EmitReturn(cx, bce, pn);
         break;
 
 #if JS_HAS_GENERATORS
-      case TOK_YIELD:
+      case PNK_YIELD:
         JS_ASSERT(bce->inFunction());
         if (pn->pn_kid) {
             if (!EmitTree(cx, bce, pn->pn_kid))
                 return JS_FALSE;
         } else {
-            if (Emit1(cx, bce, JSOP_PUSH) < 0)
+            if (Emit1(cx, bce, JSOP_UNDEFINED) < 0)
                 return JS_FALSE;
         }
         if (pn->pn_hidden && NewSrcNote(cx, bce, SRC_HIDDEN) < 0)
@@ -6195,208 +7007,33 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         break;
 #endif
 
-      case TOK_LC:
-      {
 #if JS_HAS_XML_SUPPORT
-        if (pn->isArity(PN_UNARY)) {
-            if (!EmitTree(cx, bce, pn->pn_kid))
-                return JS_FALSE;
-            if (Emit1(cx, bce, pn->getOp()) < 0)
-                return JS_FALSE;
-            break;
-        }
+      case PNK_XMLCURLYEXPR:
+        JS_ASSERT(pn->isArity(PN_UNARY));
+        if (!EmitTree(cx, bce, pn->pn_kid))
+            return JS_FALSE;
+        if (Emit1(cx, bce, pn->getOp()) < 0)
+            return JS_FALSE;
+        break;
 #endif
 
-        JS_ASSERT(pn->isArity(PN_LIST));
-
-        noteIndex = -1;
-        tmp = bce->offset();
-        if (pn->pn_xflags & PNX_NEEDBRACES) {
-            noteIndex = NewSrcNote2(cx, bce, SRC_BRACE, 0);
-            if (noteIndex < 0 || Emit1(cx, bce, JSOP_NOP) < 0)
-                return JS_FALSE;
-        }
-
-        PushStatement(bce, &stmtInfo, STMT_BLOCK, top);
-
-        ParseNode *pnchild = pn->pn_head;
-        if (pn->pn_xflags & PNX_FUNCDEFS) {
-            /*
-             * This block contains top-level function definitions. To ensure
-             * that we emit the bytecode defining them before the rest of code
-             * in the block we use a separate pass over functions. During the
-             * main pass later the emitter will add JSOP_NOP with source notes
-             * for the function to preserve the original functions position
-             * when decompiling.
-             *
-             * Currently this is used only for functions, as compile-as-we go
-             * mode for scripts does not allow separate emitter passes.
-             */
-            JS_ASSERT(bce->inFunction());
-            if (pn->pn_xflags & PNX_DESTRUCT) {
-                /*
-                 * Assign the destructuring arguments before defining any
-                 * functions, see bug 419662.
-                 */
-                JS_ASSERT(pnchild->isKind(TOK_SEMI));
-                JS_ASSERT(pnchild->pn_kid->isKind(TOK_VAR));
-                if (!EmitTree(cx, bce, pnchild))
-                    return JS_FALSE;
-                pnchild = pnchild->pn_next;
-            }
-
-            for (pn2 = pnchild; pn2; pn2 = pn2->pn_next) {
-                if (pn2->isKind(TOK_FUNCTION)) {
-                    if (pn2->isOp(JSOP_NOP)) {
-                        if (!EmitTree(cx, bce, pn2))
-                            return JS_FALSE;
-                    } else {
-                        /*
-                         * JSOP_DEFFUN in a top-level block with function
-                         * definitions appears, for example, when "if (true)"
-                         * is optimized away from "if (true) function x() {}".
-                         * See bug 428424.
-                         */
-                        JS_ASSERT(pn2->isOp(JSOP_DEFFUN));
-                    }
-                }
-            }
-        }
-        for (pn2 = pnchild; pn2; pn2 = pn2->pn_next) {
-            if (!EmitTree(cx, bce, pn2))
-                return JS_FALSE;
-        }
-
-        if (noteIndex >= 0 && !SetSrcNoteOffset(cx, bce, (uintN)noteIndex, 0, bce->offset() - tmp))
-            return JS_FALSE;
-
-        ok = PopStatementBCE(cx, bce);
-        break;
-      }
-
-      case TOK_SEQ:
-        JS_ASSERT(pn->isArity(PN_LIST));
-        PushStatement(bce, &stmtInfo, STMT_SEQ, top);
-        for (pn2 = pn->pn_head; pn2; pn2 = pn2->pn_next) {
-            if (!EmitTree(cx, bce, pn2))
-                return JS_FALSE;
-        }
-        ok = PopStatementBCE(cx, bce);
+      case PNK_STATEMENTLIST:
+        ok = EmitStatementList(cx, bce, pn, top);
         break;
 
-      case TOK_SEMI:
-        pn2 = pn->pn_kid;
-        if (pn2) {
-            /*
-             * Top-level or called-from-a-native JS_Execute/EvaluateScript,
-             * debugger, and eval frames may need the value of the ultimate
-             * expression statement as the script's result, despite the fact
-             * that it appears useless to the compiler.
-             *
-             * API users may also set the JSOPTION_NO_SCRIPT_RVAL option when
-             * calling JS_Compile* to suppress JSOP_POPV.
-             */
-            useful = wantval = !(bce->flags & (TCF_IN_FUNCTION | TCF_NO_SCRIPT_RVAL));
-
-            /* Don't eliminate expressions with side effects. */
-            if (!useful) {
-                if (!CheckSideEffects(cx, bce, pn2, &useful))
-                    return JS_FALSE;
-            }
-
-            /*
-             * Don't eliminate apparently useless expressions if they are
-             * labeled expression statements.  The tc->topStmt->update test
-             * catches the case where we are nesting in EmitTree for a labeled
-             * compound statement.
-             */
-            if (!useful &&
-                bce->topStmt &&
-                bce->topStmt->type == STMT_LABEL &&
-                bce->topStmt->update >= bce->offset()) {
-                useful = true;
-            }
-
-            if (!useful) {
-                /* Don't complain about directive prologue members; just don't emit their code. */
-                if (!pn->isDirectivePrologueMember()) {
-                    bce->current->currentLine = pn2->pn_pos.begin.lineno;
-                    if (!ReportCompileErrorNumber(cx, bce->tokenStream(), pn2,
-                                                  JSREPORT_WARNING | JSREPORT_STRICT,
-                                                  JSMSG_USELESS_EXPR)) {
-                        return JS_FALSE;
-                    }
-                }
-            } else {
-                op = wantval ? JSOP_POPV : JSOP_POP;
-#if JS_HAS_DESTRUCTURING
-                if (!wantval &&
-                    pn2->isKind(TOK_ASSIGN) &&
-                    !MaybeEmitGroupAssignment(cx, bce, op, pn2, &op)) {
-                    return JS_FALSE;
-                }
-#endif
-                if (op != JSOP_NOP) {
-                    /*
-                     * Specialize JSOP_SETPROP to JSOP_SETMETHOD to defer or
-                     * avoid null closure cloning. Do this only for assignment
-                     * statements that are not completion values wanted by a
-                     * script evaluator, to ensure that the joined function
-                     * can't escape directly.
-                     */
-                    if (!wantval &&
-                        pn2->isKind(TOK_ASSIGN) &&
-                        pn2->isOp(JSOP_NOP) &&
-                        pn2->pn_left->isOp(JSOP_SETPROP) &&
-                        pn2->pn_right->isOp(JSOP_LAMBDA) &&
-                        pn2->pn_right->pn_funbox->joinable()) {
-                        pn2->pn_left->setOp(JSOP_SETMETHOD);
-                    }
-                    if (!EmitTree(cx, bce, pn2))
-                        return JS_FALSE;
-                    if (Emit1(cx, bce, op) < 0)
-                        return JS_FALSE;
-                }
-            }
-        }
+      case PNK_SEQ:
+        ok = EmitSyntheticStatements(cx, bce, pn, top);
         break;
 
-      case TOK_COLON:
-        /* Emit an annotated nop so we know to decompile a label. */
-        atom = pn->pn_atom;
-
-        jsatomid index;
-        if (!bce->makeAtomIndex(atom, &index))
-            return JS_FALSE;
-
-        pn2 = pn->expr();
-        noteType = (pn2->isKind(TOK_LC) ||
-                    (pn2->isKind(TOK_LEXICALSCOPE) &&
-                     pn2->expr()->isKind(TOK_LC)))
-                   ? SRC_LABELBRACE
-                   : SRC_LABEL;
-        noteIndex = NewSrcNote2(cx, bce, noteType, ptrdiff_t(index));
-        if (noteIndex < 0 || Emit1(cx, bce, JSOP_NOP) < 0)
-            return JS_FALSE;
-
-        /* Emit code for the labeled statement. */
-        PushStatement(bce, &stmtInfo, STMT_LABEL, bce->offset());
-        stmtInfo.label = atom;
-        if (!EmitTree(cx, bce, pn2))
-            return JS_FALSE;
-        if (!PopStatementBCE(cx, bce))
-            return JS_FALSE;
-
-        /* If the statement was compound, emit a note for the end brace. */
-        if (noteType == SRC_LABELBRACE) {
-            if (NewSrcNote(cx, bce, SRC_ENDBRACE) < 0 ||
-                Emit1(cx, bce, JSOP_NOP) < 0) {
-                return JS_FALSE;
-            }
-        }
+      case PNK_SEMI:
+        ok = EmitStatement(cx, bce, pn);
         break;
 
-      case TOK_COMMA:
+      case PNK_COLON:
+        ok = EmitLabel(cx, bce, pn);
+        break;
+
+      case PNK_COMMA:
         /*
          * Emit SRC_PCDELTA notes on each JSOP_POP between comma operands.
          * These notes help the decompiler bracket the bytecodes generated
@@ -6422,125 +7059,52 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         }
         break;
 
-      case TOK_ASSIGN:
+      case PNK_ASSIGN:
+      case PNK_ADDASSIGN:
+      case PNK_SUBASSIGN:
+      case PNK_BITORASSIGN:
+      case PNK_BITXORASSIGN:
+      case PNK_BITANDASSIGN:
+      case PNK_LSHASSIGN:
+      case PNK_RSHASSIGN:
+      case PNK_URSHASSIGN:
+      case PNK_MULASSIGN:
+      case PNK_DIVASSIGN:
+      case PNK_MODASSIGN:
         if (!EmitAssignment(cx, bce, pn->pn_left, pn->getOp(), pn->pn_right))
             return false;
         break;
 
-      case TOK_HOOK:
-        /* Emit the condition, then branch if false to the else part. */
-        if (!EmitTree(cx, bce, pn->pn_kid1))
-            return JS_FALSE;
-        noteIndex = NewSrcNote(cx, bce, SRC_COND);
-        if (noteIndex < 0)
-            return JS_FALSE;
-        beq = EmitJump(cx, bce, JSOP_IFEQ, 0);
-        if (beq < 0 || !EmitTree(cx, bce, pn->pn_kid2))
-            return JS_FALSE;
-
-        /* Jump around else, fixup the branch, emit else, fixup jump. */
-        jmp = EmitJump(cx, bce, JSOP_GOTO, 0);
-        if (jmp < 0)
-            return JS_FALSE;
-        CHECK_AND_SET_JUMP_OFFSET_AT(cx, bce, beq);
-
-        /*
-         * Because each branch pushes a single value, but our stack budgeting
-         * analysis ignores branches, we now have to adjust bce->stackDepth to
-         * ignore the value pushed by the first branch.  Execution will follow
-         * only one path, so we must decrement bce->stackDepth.
-         *
-         * Failing to do this will foil code, such as the try/catch/finally
-         * exception handling code generator, that samples bce->stackDepth for
-         * use at runtime (JSOP_SETSP), or in let expression and block code
-         * generation, which must use the stack depth to compute local stack
-         * indexes correctly.
-         */
-        JS_ASSERT(bce->stackDepth > 0);
-        bce->stackDepth--;
-        if (!EmitTree(cx, bce, pn->pn_kid3))
-            return JS_FALSE;
-        CHECK_AND_SET_JUMP_OFFSET_AT(cx, bce, jmp);
-        if (!SetSrcNoteOffset(cx, bce, noteIndex, 0, jmp - beq))
-            return JS_FALSE;
+      case PNK_HOOK:
+        ok = EmitConditionalExpression(cx, bce, pn);
         break;
 
-      case TOK_OR:
-      case TOK_AND:
-        /*
-         * JSOP_OR converts the operand on the stack to boolean, and if true,
-         * leaves the original operand value on the stack and jumps; otherwise
-         * it pops and falls into the next bytecode, which evaluates the right
-         * operand.  The jump goes around the right operand evaluation.
-         *
-         * JSOP_AND converts the operand on the stack to boolean, and if false,
-         * leaves the original operand value on the stack and jumps; otherwise
-         * it pops and falls into the right operand's bytecode.
-         */
-        if (pn->isArity(PN_BINARY)) {
-            if (!EmitTree(cx, bce, pn->pn_left))
-                return JS_FALSE;
-            top = EmitJump(cx, bce, JSOP_BACKPATCH_POP, 0);
-            if (top < 0)
-                return JS_FALSE;
-            if (!EmitTree(cx, bce, pn->pn_right))
-                return JS_FALSE;
-            off = bce->offset();
-            pc = bce->code(top);
-            CHECK_AND_SET_JUMP_OFFSET(cx, bce, pc, off - top);
-            *pc = pn->getOp();
-        } else {
-            JS_ASSERT(pn->isArity(PN_LIST));
-            JS_ASSERT(pn->pn_head->pn_next->pn_next);
-
-            /* Left-associative operator chain: avoid too much recursion. */
-            pn2 = pn->pn_head;
-            if (!EmitTree(cx, bce, pn2))
-                return JS_FALSE;
-            top = EmitJump(cx, bce, JSOP_BACKPATCH_POP, 0);
-            if (top < 0)
-                return JS_FALSE;
-
-            /* Emit nodes between the head and the tail. */
-            jmp = top;
-            while ((pn2 = pn2->pn_next)->pn_next) {
-                if (!EmitTree(cx, bce, pn2))
-                    return JS_FALSE;
-                off = EmitJump(cx, bce, JSOP_BACKPATCH_POP, 0);
-                if (off < 0)
-                    return JS_FALSE;
-                if (!SetBackPatchDelta(cx, bce, bce->code(jmp), off - jmp))
-                    return JS_FALSE;
-                jmp = off;
-
-            }
-            if (!EmitTree(cx, bce, pn2))
-                return JS_FALSE;
-
-            pn2 = pn->pn_head;
-            off = bce->offset();
-            do {
-                pc = bce->code(top);
-                tmp = GetJumpOffset(bce, pc);
-                CHECK_AND_SET_JUMP_OFFSET(cx, bce, pc, off - top);
-                *pc = pn->getOp();
-                top += tmp;
-            } while ((pn2 = pn2->pn_next)->pn_next);
-        }
+      case PNK_OR:
+      case PNK_AND:
+        ok = EmitLogical(cx, bce, pn);
         break;
 
-      case TOK_PLUS:
-      case TOK_BITOR:
-      case TOK_BITXOR:
-      case TOK_BITAND:
-      case TOK_EQOP:
-      case TOK_RELOP:
-      case TOK_IN:
-      case TOK_INSTANCEOF:
-      case TOK_SHOP:
-      case TOK_MINUS:
-      case TOK_STAR:
-      case TOK_DIVOP:
+      case PNK_ADD:
+      case PNK_SUB:
+      case PNK_BITOR:
+      case PNK_BITXOR:
+      case PNK_BITAND:
+      case PNK_STRICTEQ:
+      case PNK_EQ:
+      case PNK_STRICTNE:
+      case PNK_NE:
+      case PNK_LT:
+      case PNK_LE:
+      case PNK_GT:
+      case PNK_GE:
+      case PNK_IN:
+      case PNK_INSTANCEOF:
+      case PNK_LSH:
+      case PNK_RSH:
+      case PNK_URSH:
+      case PNK_STAR:
+      case PNK_DIV:
+      case PNK_MOD:
         if (pn->isArity(PN_LIST)) {
             /* Left-associative operator chain: avoid too much recursion. */
             pn2 = pn->pn_head;
@@ -6557,7 +7121,8 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 #if JS_HAS_XML_SUPPORT
             uintN oldflags;
 
-      case TOK_DBLCOLON:
+      case PNK_DBLCOLON:
+            JS_ASSERT(pn->getOp() != JSOP_XMLNAME);
             if (pn->isArity(PN_NAME)) {
                 if (!EmitTree(cx, bce, pn->expr()))
                     return JS_FALSE;
@@ -6588,191 +7153,52 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         }
         break;
 
-      case TOK_THROW:
 #if JS_HAS_XML_SUPPORT
-      case TOK_AT:
-      case TOK_DEFAULT:
+      case PNK_XMLUNARY:
+        if (pn->getOp() == JSOP_XMLNAME) {
+            if (!EmitXMLName(cx, pn, JSOP_XMLNAME, bce))
+                return false;
+        } else {
+            JSOp op = pn->getOp();
+            JS_ASSERT(op == JSOP_BINDXMLNAME || op == JSOP_SETXMLNAME);
+            uintN oldflags = bce->flags;
+            bce->flags &= ~TCF_IN_FOR_INIT;
+            if (!EmitTree(cx, bce, pn->pn_kid))
+                return false;
+            bce->flags |= oldflags & TCF_IN_FOR_INIT;
+            if (Emit1(cx, bce, op) < 0)
+                return false;
+        }
+        break;
+#endif
+
+      case PNK_THROW:
+#if JS_HAS_XML_SUPPORT
+      case PNK_AT:
+      case PNK_DEFXMLNS:
         JS_ASSERT(pn->isArity(PN_UNARY));
         /* FALL THROUGH */
 #endif
-      case TOK_UNARYOP:
-      {
-        uintN oldflags;
-
-        /* Unary op, including unary +/-. */
-        op = pn->getOp();
-#if JS_HAS_XML_SUPPORT
-        if (op == JSOP_XMLNAME) {
-            if (!EmitXMLName(cx, pn, op, bce))
-                return JS_FALSE;
-            break;
-        }
-#endif
-        pn2 = pn->pn_kid;
-
-        if (op == JSOP_TYPEOF && !pn2->isKind(TOK_NAME))
-            op = JSOP_TYPEOFEXPR;
-
-        oldflags = bce->flags;
-        bce->flags &= ~TCF_IN_FOR_INIT;
-        if (!EmitTree(cx, bce, pn2))
-            return JS_FALSE;
-        bce->flags |= oldflags & TCF_IN_FOR_INIT;
-        if (Emit1(cx, bce, op) < 0)
-            return JS_FALSE;
-        break;
-      }
-
-      case TOK_INC:
-      case TOK_DEC:
-        /* Emit lvalue-specialized code for ++/-- operators. */
-        pn2 = pn->pn_kid;
-        JS_ASSERT(!pn2->isKind(TOK_RP));
-        op = pn->getOp();
-        switch (pn2->getKind()) {
-          default:
-            JS_ASSERT(pn2->isKind(TOK_NAME));
-            pn2->setOp(op);
-            if (!BindNameToSlot(cx, bce, pn2))
-                return JS_FALSE;
-            op = pn2->getOp();
-            if (op == JSOP_CALLEE) {
-                if (Emit1(cx, bce, op) < 0)
-                    return JS_FALSE;
-            } else if (!pn2->pn_cookie.isFree()) {
-                atomIndex = pn2->pn_cookie.asInteger();
-                EMIT_UINT16_IMM_OP(op, atomIndex);
-            } else {
-                JS_ASSERT(JOF_OPTYPE(op) == JOF_ATOM);
-                if (js_CodeSpec[op].format & (JOF_INC | JOF_DEC)) {
-                    if (!EmitNameIncDec(cx, pn2, op, bce))
-                        return JS_FALSE;
-                } else {
-                    if (!EmitAtomOp(cx, pn2, op, bce))
-                        return JS_FALSE;
-                }
-                break;
-            }
-            if (pn2->isConst()) {
-                if (Emit1(cx, bce, JSOP_POS) < 0)
-                    return JS_FALSE;
-                op = pn->getOp();
-                if (!(js_CodeSpec[op].format & JOF_POST)) {
-                    if (Emit1(cx, bce, JSOP_ONE) < 0)
-                        return JS_FALSE;
-                    op = (js_CodeSpec[op].format & JOF_INC) ? JSOP_ADD : JSOP_SUB;
-                    if (Emit1(cx, bce, op) < 0)
-                        return JS_FALSE;
-                }
-            }
-            break;
-          case TOK_DOT:
-            if (!EmitPropIncDec(cx, pn2, op, bce))
-                return JS_FALSE;
-            break;
-          case TOK_LB:
-            if (!EmitElemIncDec(cx, pn2, op, bce))
-                return JS_FALSE;
-            break;
-          case TOK_LP:
-            if (!EmitTree(cx, bce, pn2))
-                return JS_FALSE;
-            if (NewSrcNote2(cx, bce, SRC_PCBASE, bce->offset() - pn2->pn_offset) < 0)
-                return JS_FALSE;
-            if (Emit1(cx, bce, op) < 0)
-                return JS_FALSE;
-            /*
-             * This is dead code for the decompiler, don't generate
-             * a decomposed version of the opcode. We do need to balance
-             * the stacks in the decomposed version.
-             */
-            JS_ASSERT(js_CodeSpec[op].format & JOF_DECOMPOSE);
-            JS_ASSERT(js_CodeSpec[op].format & JOF_ELEM);
-            if (Emit1(cx, bce, (JSOp)1) < 0)
-                return JS_FALSE;
-            if (Emit1(cx, bce, JSOP_POP) < 0)
-                return JS_FALSE;
-            break;
-#if JS_HAS_XML_SUPPORT
-          case TOK_UNARYOP:
-            JS_ASSERT(!bce->inStrictMode());
-            JS_ASSERT(pn2->isOp(JSOP_SETXMLNAME));
-            if (!EmitTree(cx, bce, pn2->pn_kid))
-                return JS_FALSE;
-            if (Emit1(cx, bce, JSOP_BINDXMLNAME) < 0)
-                return JS_FALSE;
-            if (!EmitElemIncDec(cx, NULL, op, bce))
-                return JS_FALSE;
-            break;
-#endif
-        }
+      case PNK_TYPEOF:
+      case PNK_VOID:
+      case PNK_NOT:
+      case PNK_BITNOT:
+      case PNK_POS:
+      case PNK_NEG:
+        ok = EmitUnary(cx, bce, pn);
         break;
 
-      case TOK_DELETE:
-        /*
-         * Under ECMA 3, deleting a non-reference returns true -- but alas we
-         * must evaluate the operand if it appears it might have side effects.
-         */
-        pn2 = pn->pn_kid;
-        switch (pn2->getKind()) {
-          case TOK_NAME:
-            if (!BindNameToSlot(cx, bce, pn2))
-                return JS_FALSE;
-            op = pn2->getOp();
-            if (op == JSOP_FALSE) {
-                if (Emit1(cx, bce, op) < 0)
-                    return JS_FALSE;
-            } else {
-                if (!EmitAtomOp(cx, pn2, op, bce))
-                    return JS_FALSE;
-            }
-            break;
-          case TOK_DOT:
-            if (!EmitPropOp(cx, pn2, JSOP_DELPROP, bce, JS_FALSE))
-                return JS_FALSE;
-            break;
-#if JS_HAS_XML_SUPPORT
-          case TOK_DBLDOT:
-            JS_ASSERT(!bce->inStrictMode());
-            if (!EmitElemOp(cx, pn2, JSOP_DELDESC, bce))
-                return JS_FALSE;
-            break;
-#endif
-          case TOK_LB:
-            if (!EmitElemOp(cx, pn2, JSOP_DELELEM, bce))
-                return JS_FALSE;
-            break;
-          default:
-            /*
-             * If useless, just emit JSOP_TRUE; otherwise convert delete foo()
-             * to foo(), true (a comma expression, requiring SRC_PCDELTA).
-             */
-            useful = JS_FALSE;
-            if (!CheckSideEffects(cx, bce, pn2, &useful))
-                return JS_FALSE;
-            if (!useful) {
-                off = noteIndex = -1;
-            } else {
-                JS_ASSERT_IF(pn2->isKind(TOK_LP), !(pn2->pn_xflags & PNX_SETCALL));
-                if (!EmitTree(cx, bce, pn2))
-                    return JS_FALSE;
-                off = bce->offset();
-                noteIndex = NewSrcNote2(cx, bce, SRC_PCDELTA, 0);
-                if (noteIndex < 0 || Emit1(cx, bce, JSOP_POP) < 0)
-                    return JS_FALSE;
-            }
-            if (Emit1(cx, bce, JSOP_TRUE) < 0)
-                return JS_FALSE;
-            if (noteIndex >= 0) {
-                tmp = bce->offset();
-                if (!SetSrcNoteOffset(cx, bce, (uintN)noteIndex, 0, tmp-off))
-                    return JS_FALSE;
-            }
-        }
+      case PNK_INC:
+      case PNK_DEC:
+        ok = EmitIncOrDec(cx, bce, pn);
+        break;
+
+      case PNK_DELETE:
+        ok = EmitDelete(cx, bce, pn);
         break;
 
 #if JS_HAS_XML_SUPPORT
-      case TOK_FILTER:
+      case PNK_FILTER:
         JS_ASSERT(!bce->inStrictMode());
 
         if (!EmitTree(cx, bce, pn->pn_left))
@@ -6795,7 +7221,7 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         break;
 #endif
 
-      case TOK_DOT:
+      case PNK_DOT:
         /*
          * Pop a stack operand, convert it to object, get a property named by
          * this bytecode's immediate-indexed atom operand, and push its value
@@ -6805,11 +7231,11 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         break;
 
 #if JS_HAS_XML_SUPPORT
-      case TOK_DBLDOT:
+      case PNK_DBLDOT:
         JS_ASSERT(!bce->inStrictMode());
         /* FALL THROUGH */
 #endif
-      case TOK_LB:
+      case PNK_LB:
         /*
          * Pop two operands, convert the left one to object and the right one
          * to property name (atom or tagged int), get the named property, and
@@ -6819,106 +7245,23 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         ok = EmitElemOp(cx, pn, pn->getOp(), bce);
         break;
 
-      case TOK_NEW:
-      case TOK_LP:
-      {
-        bool callop = pn->isKind(TOK_LP);
-
-        /*
-         * Emit callable invocation or operator new (constructor call) code.
-         * First, emit code for the left operand to evaluate the callable or
-         * constructable object expression.
-         *
-         * For operator new applied to other expressions than E4X ones, we emit
-         * JSOP_GETPROP instead of JSOP_CALLPROP, etc. This is necessary to
-         * interpose the lambda-initialized method read barrier -- see the code
-         * in jsinterp.cpp for JSOP_LAMBDA followed by JSOP_{SET,INIT}PROP.
-         *
-         * Then (or in a call case that has no explicit reference-base
-         * object) we emit JSOP_PUSH to produce the |this| slot required
-         * for calls (which non-strict mode functions will box into the
-         * global object).
-         */
-        pn2 = pn->pn_head;
-        switch (pn2->getKind()) {
-          case TOK_NAME:
-            if (!EmitNameOp(cx, bce, pn2, callop))
-                return JS_FALSE;
-            break;
-          case TOK_DOT:
-            if (!EmitPropOp(cx, pn2, pn2->getOp(), bce, callop))
-                return JS_FALSE;
-            break;
-          case TOK_LB:
-            JS_ASSERT(pn2->isOp(JSOP_GETELEM));
-            if (!EmitElemOp(cx, pn2, callop ? JSOP_CALLELEM : JSOP_GETELEM, bce))
-                return JS_FALSE;
-            break;
-          case TOK_UNARYOP:
-#if JS_HAS_XML_SUPPORT
-            if (pn2->isOp(JSOP_XMLNAME)) {
-                if (!EmitXMLName(cx, pn2, JSOP_CALLXMLNAME, bce))
-                    return JS_FALSE;
-                callop = true;          /* suppress JSOP_PUSH after */
-                break;
-            }
-#endif
-            /* FALL THROUGH */
-          default:
-            if (!EmitTree(cx, bce, pn2))
-                return JS_FALSE;
-            callop = false;             /* trigger JSOP_PUSH after */
-            break;
-        }
-        if (!callop && Emit1(cx, bce, JSOP_PUSH) < 0)
-            return JS_FALSE;
-
-        /* Remember start of callable-object bytecode for decompilation hint. */
-        off = top;
-
-        /*
-         * Emit code for each argument in order, then emit the JSOP_*CALL or
-         * JSOP_NEW bytecode with a two-byte immediate telling how many args
-         * were pushed on the operand stack.
-         */
-        uintN oldflags = bce->flags;
-        bce->flags &= ~TCF_IN_FOR_INIT;
-        for (pn3 = pn2->pn_next; pn3; pn3 = pn3->pn_next) {
-            if (!EmitTree(cx, bce, pn3))
-                return JS_FALSE;
-        }
-        bce->flags |= oldflags & TCF_IN_FOR_INIT;
-        if (NewSrcNote2(cx, bce, SRC_PCBASE, bce->offset() - off) < 0)
-            return JS_FALSE;
-
-        argc = pn->pn_count - 1;
-        if (Emit3(cx, bce, pn->getOp(), ARGC_HI(argc), ARGC_LO(argc)) < 0)
-            return JS_FALSE;
-        CheckTypeSet(cx, bce, pn->getOp());
-        if (pn->isOp(JSOP_EVAL)) {
-            EMIT_UINT16_IMM_OP(JSOP_LINENO, pn->pn_pos.begin.lineno);
-            if (EmitBlockChain(cx, bce) < 0)
-                return JS_FALSE;
-        }
-        if (pn->pn_xflags & PNX_SETCALL) {
-            if (Emit1(cx, bce, JSOP_SETCALL) < 0)
-                return JS_FALSE;
-        }
+      case PNK_NEW:
+      case PNK_LP:
+        ok = EmitCallOrNew(cx, bce, pn, top);
         break;
-      }
 
-      case TOK_LEXICALSCOPE:
+      case PNK_LEXICALSCOPE:
         ok = EmitLexicalScope(cx, bce, pn);
         break;
 
 #if JS_HAS_BLOCK_SCOPE
-      case TOK_LET: 
+      case PNK_LET:
         if (!EmitLet(cx, bce, pn))
             return false;
         break;
 #endif /* JS_HAS_BLOCK_SCOPE */
 #if JS_HAS_GENERATORS
-      case TOK_ARRAYPUSH: {
+      case PNK_ARRAYPUSH: {
         jsint slot;
 
         /*
@@ -6936,263 +7279,49 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
       }
 #endif
 
-      case TOK_RB:
+      case PNK_RB:
 #if JS_HAS_GENERATORS
-      case TOK_ARRAYCOMP:
+      case PNK_ARRAYCOMP:
 #endif
-        /*
-         * Emit code for [a, b, c] that is equivalent to constructing a new
-         * array and in source order evaluating each element value and adding
-         * it to the array, without invoking latent setters.  We use the
-         * JSOP_NEWINIT and JSOP_INITELEM bytecodes to ignore setters and to
-         * avoid dup'ing and popping the array as each element is added, as
-         * JSOP_SETELEM/JSOP_SETPROP would do.
-         */
-#if JS_HAS_SHARP_VARS
-        sharpnum = -1;
-      do_emit_array:
-#endif
-
-#if JS_HAS_GENERATORS
-        if (pn->isKind(TOK_ARRAYCOMP)) {
-            uintN saveDepth;
-
-            if (!EmitNewInit(cx, bce, JSProto_Array, pn, sharpnum))
-                return JS_FALSE;
-
-            /*
-             * Pass the new array's stack index to the TOK_ARRAYPUSH case via
-             * bce->arrayCompDepth, then simply traverse the TOK_FOR node and
-             * its kids under pn2 to generate this comprehension.
-             */
-            JS_ASSERT(bce->stackDepth > 0);
-            saveDepth = bce->arrayCompDepth;
-            bce->arrayCompDepth = (uint32) (bce->stackDepth - 1);
-            if (!EmitTree(cx, bce, pn->pn_head))
-                return JS_FALSE;
-            bce->arrayCompDepth = saveDepth;
-
-            /* Emit the usual op needed for decompilation. */
-            if (!EmitEndInit(cx, bce, 1))
-                return JS_FALSE;
-            break;
-        }
-#endif /* JS_HAS_GENERATORS */
-
-        if (!bce->hasSharps() && !(pn->pn_xflags & PNX_NONCONST) && pn->pn_head &&
-            bce->checkSingletonContext()) {
-            if (!EmitSingletonInitialiser(cx, bce, pn))
-                return JS_FALSE;
-            break;
-        }
-
-        /* Use the slower NEWINIT for arrays in scripts containing sharps. */
-        if (bce->hasSharps()) {
-            if (!EmitNewInit(cx, bce, JSProto_Array, pn, sharpnum))
-                return JS_FALSE;
-        } else {
-            ptrdiff_t off = EmitN(cx, bce, JSOP_NEWARRAY, 3);
-            if (off < 0)
-                return JS_FALSE;
-            CheckTypeSet(cx, bce, JSOP_NEWARRAY);
-            pc = bce->code(off);
-            SET_UINT24(pc, pn->pn_count);
-        }
-
-        pn2 = pn->pn_head;
-        for (atomIndex = 0; pn2; atomIndex++, pn2 = pn2->pn_next) {
-            if (!EmitNumberOp(cx, atomIndex, bce))
-                return JS_FALSE;
-            if (pn2->isKind(TOK_COMMA) && pn2->isArity(PN_NULLARY)) {
-                if (Emit1(cx, bce, JSOP_HOLE) < 0)
-                    return JS_FALSE;
-            } else {
-                if (!EmitTree(cx, bce, pn2))
-                    return JS_FALSE;
-            }
-            if (Emit1(cx, bce, JSOP_INITELEM) < 0)
-                return JS_FALSE;
-        }
-        JS_ASSERT(atomIndex == pn->pn_count);
-
-        if (pn->pn_xflags & PNX_ENDCOMMA) {
-            /* Emit a source note so we know to decompile an extra comma. */
-            if (NewSrcNote(cx, bce, SRC_CONTINUE) < 0)
-                return JS_FALSE;
-        }
-
-        /*
-         * Emit an op to finish the array and, secondarily, to aid in sharp
-         * array cleanup (if JS_HAS_SHARP_VARS) and decompilation.
-         */
-        if (!EmitEndInit(cx, bce, atomIndex))
-            return JS_FALSE;
+        ok = EmitArray(cx, bce, pn, -1);
         break;
 
-      case TOK_RC: {
-#if JS_HAS_SHARP_VARS
-        sharpnum = -1;
-      do_emit_object:
-#endif
-#if JS_HAS_DESTRUCTURING_SHORTHAND
-        if (pn->pn_xflags & PNX_DESTRUCT) {
-            ReportCompileErrorNumber(cx, bce->tokenStream(), pn, JSREPORT_ERROR,
-                                     JSMSG_BAD_OBJECT_INIT);
-            return JS_FALSE;
-        }
-#endif
-
-        if (!bce->hasSharps() && !(pn->pn_xflags & PNX_NONCONST) && pn->pn_head &&
-            bce->checkSingletonContext()) {
-            if (!EmitSingletonInitialiser(cx, bce, pn))
-                return JS_FALSE;
-            break;
-        }
-
-        /*
-         * Emit code for {p:a, '%q':b, 2:c} that is equivalent to constructing
-         * a new object and in source order evaluating each property value and
-         * adding the property to the object, without invoking latent setters.
-         * We use the JSOP_NEWINIT and JSOP_INITELEM/JSOP_INITPROP bytecodes to
-         * ignore setters and to avoid dup'ing and popping the object as each
-         * property is added, as JSOP_SETELEM/JSOP_SETPROP would do.
-         */
-        ptrdiff_t offset = bce->next() - bce->base();
-        if (!EmitNewInit(cx, bce, JSProto_Object, pn, sharpnum))
-            return JS_FALSE;
-
-        /*
-         * Try to construct the shape of the object as we go, so we can emit a
-         * JSOP_NEWOBJECT with the final shape instead.
-         */
-        JSObject *obj = NULL;
-        if (!bce->hasSharps() && bce->compileAndGo()) {
-            gc::AllocKind kind = GuessObjectGCKind(pn->pn_count, false);
-            obj = NewBuiltinClassInstance(cx, &ObjectClass, kind);
-            if (!obj)
-                return JS_FALSE;
-        }
-
-        uintN methodInits = 0, slowMethodInits = 0;
-        for (pn2 = pn->pn_head; pn2; pn2 = pn2->pn_next) {
-            /* Emit an index for t[2] for later consumption by JSOP_INITELEM. */
-            pn3 = pn2->pn_left;
-            if (pn3->isKind(TOK_NUMBER)) {
-                if (!EmitNumberOp(cx, pn3->pn_dval, bce))
-                    return JS_FALSE;
-            }
-
-            /* Emit code for the property initializer. */
-            if (!EmitTree(cx, bce, pn2->pn_right))
-                return JS_FALSE;
-
-            op = pn2->getOp();
-            if (op == JSOP_GETTER || op == JSOP_SETTER) {
-                obj = NULL;
-                if (Emit1(cx, bce, op) < 0)
-                    return JS_FALSE;
-            }
-
-            /* Annotate JSOP_INITELEM so we decompile 2:c and not just c. */
-            if (pn3->isKind(TOK_NUMBER)) {
-                obj = NULL;
-                if (NewSrcNote(cx, bce, SRC_INITPROP) < 0)
-                    return JS_FALSE;
-                if (Emit1(cx, bce, JSOP_INITELEM) < 0)
-                    return JS_FALSE;
-            } else {
-                JS_ASSERT(pn3->isKind(TOK_NAME) ||
-                          pn3->isKind(TOK_STRING));
-                jsatomid index;
-                if (!bce->makeAtomIndex(pn3->pn_atom, &index))
-                    return JS_FALSE;
-
-                /* Check whether we can optimize to JSOP_INITMETHOD. */
-                ParseNode *init = pn2->pn_right;
-                bool lambda = init->isOp(JSOP_LAMBDA);
-                if (lambda)
-                    ++methodInits;
-                if (op == JSOP_INITPROP && lambda && init->pn_funbox->joinable()) {
-                    obj = NULL;
-                    op = JSOP_INITMETHOD;
-                    pn2->setOp(op);
-                } else {
-                    /*
-                     * Disable NEWOBJECT on initializers that set __proto__, which has
-                     * a non-standard setter on objects.
-                     */
-                    if (pn3->pn_atom == cx->runtime->atomState.protoAtom)
-                        obj = NULL;
-                    op = JSOP_INITPROP;
-                    if (lambda)
-                        ++slowMethodInits;
-                }
-
-                if (obj) {
-                    JS_ASSERT(!obj->inDictionaryMode());
-                    if (!DefineNativeProperty(cx, obj, ATOM_TO_JSID(pn3->pn_atom),
-                                              UndefinedValue(), NULL, NULL,
-                                              JSPROP_ENUMERATE, 0, 0)) {
-                        return false;
-                    }
-                    if (obj->inDictionaryMode())
-                        obj = NULL;
-                }
-
-                EMIT_INDEX_OP(op, index);
-            }
-        }
-
-        if (bce->funbox && bce->funbox->shouldUnbrand(methodInits, slowMethodInits)) {
-            obj = NULL;
-            if (Emit1(cx, bce, JSOP_UNBRAND) < 0)
-                return JS_FALSE;
-        }
-        if (!EmitEndInit(cx, bce, pn->pn_count))
-            return JS_FALSE;
-
-        if (obj) {
-            /*
-             * The object survived and has a predictable shape.  Update the original bytecode,
-             * as long as we can do so without using a big index prefix/suffix.
-             */
-            ObjectBox *objbox = bce->parser->newObjectBox(obj);
-            if (!objbox)
-                return JS_FALSE;
-            unsigned index = bce->objectList.index(objbox);
-            if (FitsWithoutBigIndex(index))
-                EMIT_UINT16_IN_PLACE(offset, JSOP_NEWOBJECT, uint16(index));
-        }
-
+      case PNK_RC:
+        ok = EmitObject(cx, bce, pn, -1);
         break;
-      }
 
 #if JS_HAS_SHARP_VARS
-      case TOK_DEFSHARP:
+      case PNK_DEFSHARP:
         JS_ASSERT(bce->hasSharps());
         sharpnum = pn->pn_num;
         pn = pn->pn_kid;
-        if (pn->isKind(TOK_RB))
-            goto do_emit_array;
+        if (pn->isKind(PNK_RB)) {
+            ok = EmitArray(cx, bce, pn, sharpnum);
+            break;
+        }
 # if JS_HAS_GENERATORS
-        if (pn->isKind(TOK_ARRAYCOMP))
-            goto do_emit_array;
+        if (pn->isKind(PNK_ARRAYCOMP)) {
+            ok = EmitArray(cx, bce, pn, sharpnum);
+            break;
+        }
 # endif
-        if (pn->isKind(TOK_RC))
-            goto do_emit_object;
+        if (pn->isKind(PNK_RC)) {
+            ok = EmitObject(cx, bce, pn, sharpnum);
+            break;
+        }
 
         if (!EmitTree(cx, bce, pn))
             return JS_FALSE;
         EMIT_UINT16PAIR_IMM_OP(JSOP_DEFSHARP, bce->sharpSlotBase, (jsatomid) sharpnum);
         break;
 
-      case TOK_USESHARP:
+      case PNK_USESHARP:
         JS_ASSERT(bce->hasSharps());
         EMIT_UINT16PAIR_IMM_OP(JSOP_USESHARP, bce->sharpSlotBase, (jsatomid) pn->pn_num);
         break;
 #endif /* JS_HAS_SHARP_VARS */
 
-      case TOK_NAME:
+      case PNK_NAME:
         /*
          * Cope with a left-over function definition that was replaced by a use
          * of a later function definition of the same name. See FunctionDef and
@@ -7205,52 +7334,55 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         break;
 
 #if JS_HAS_XML_SUPPORT
-      case TOK_XMLATTR:
-      case TOK_XMLSPACE:
-      case TOK_XMLTEXT:
-      case TOK_XMLCDATA:
-      case TOK_XMLCOMMENT:
+      case PNK_XMLATTR:
+      case PNK_XMLSPACE:
+      case PNK_XMLTEXT:
+      case PNK_XMLCDATA:
+      case PNK_XMLCOMMENT:
         JS_ASSERT(!bce->inStrictMode());
         /* FALL THROUGH */
 #endif
-      case TOK_STRING:
+      case PNK_STRING:
         ok = EmitAtomOp(cx, pn, pn->getOp(), bce);
         break;
 
-      case TOK_NUMBER:
+      case PNK_NUMBER:
         ok = EmitNumberOp(cx, pn->pn_dval, bce);
         break;
 
-      case TOK_REGEXP:
+      case PNK_REGEXP:
         JS_ASSERT(pn->isOp(JSOP_REGEXP));
         ok = EmitIndexOp(cx, JSOP_REGEXP, bce->regexpList.index(pn->pn_objbox), bce);
         break;
 
 #if JS_HAS_XML_SUPPORT
-      case TOK_ANYNAME:
+      case PNK_ANYNAME:
 #endif
-      case TOK_PRIMARY:
+      case PNK_TRUE:
+      case PNK_FALSE:
+      case PNK_THIS:
+      case PNK_NULL:
         if (Emit1(cx, bce, pn->getOp()) < 0)
             return JS_FALSE;
         break;
 
-      case TOK_DEBUGGER:
+      case PNK_DEBUGGER:
         if (Emit1(cx, bce, JSOP_DEBUGGER) < 0)
             return JS_FALSE;
         break;
 
 #if JS_HAS_XML_SUPPORT
-      case TOK_XMLELEM:
-      case TOK_XMLLIST:
+      case PNK_XMLELEM:
+      case PNK_XMLLIST:
         JS_ASSERT(!bce->inStrictMode());
-        JS_ASSERT(pn->isKind(TOK_XMLLIST) || pn->pn_count != 0);
+        JS_ASSERT(pn->isKind(PNK_XMLLIST) || pn->pn_count != 0);
 
-        switch (pn->pn_head ? pn->pn_head->getKind() : TOK_XMLLIST) {
-          case TOK_XMLETAGO:
+        switch (pn->pn_head ? pn->pn_head->getKind() : PNK_XMLLIST) {
+          case PNK_XMLETAGO:
             JS_ASSERT(0);
             /* FALL THROUGH */
-          case TOK_XMLPTAGC:
-          case TOK_XMLSTAGO:
+          case PNK_XMLPTAGC:
+          case PNK_XMLSTAGO:
             break;
           default:
             if (Emit1(cx, bce, JSOP_STARTXML) < 0)
@@ -7258,10 +7390,8 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         }
 
         for (pn2 = pn->pn_head; pn2; pn2 = pn2->pn_next) {
-            if (pn2->isKind(TOK_LC) &&
-                Emit1(cx, bce, JSOP_STARTXMLEXPR) < 0) {
+            if (pn2->isKind(PNK_XMLCURLYEXPR) && Emit1(cx, bce, JSOP_STARTXMLEXPR) < 0)
                 return JS_FALSE;
-            }
             if (!EmitTree(cx, bce, pn2))
                 return JS_FALSE;
             if (pn2 != pn->pn_head && Emit1(cx, bce, JSOP_ADD) < 0)
@@ -7270,7 +7400,7 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 
         if (pn->pn_xflags & PNX_XMLROOT) {
             if (pn->pn_count == 0) {
-                JS_ASSERT(pn->isKind(TOK_XMLLIST));
+                JS_ASSERT(pn->isKind(PNK_XMLLIST));
                 atom = cx->runtime->atomState.emptyAtom;
                 jsatomid index;
                 if (!bce->makeAtomIndex(atom, &index))
@@ -7286,23 +7416,21 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
 #endif
         break;
 
-      case TOK_XMLPTAGC:
-      case TOK_XMLSTAGO:
-      case TOK_XMLETAGO:
+      case PNK_XMLPTAGC:
+      case PNK_XMLSTAGO:
+      case PNK_XMLETAGO:
         if (!EmitXMLTag(cx, bce, pn))
             return false;
         break;
 
-      case TOK_XMLNAME:
+      case PNK_XMLNAME:
         JS_ASSERT(!bce->inStrictMode());
 
         if (pn->isArity(PN_LIST)) {
             JS_ASSERT(pn->pn_count != 0);
             for (pn2 = pn->pn_head; pn2; pn2 = pn2->pn_next) {
-                if (pn2->isKind(TOK_LC) &&
-                    Emit1(cx, bce, JSOP_STARTXMLEXPR) < 0) {
+                if (pn2->isKind(PNK_XMLCURLYEXPR) && Emit1(cx, bce, JSOP_STARTXMLEXPR) < 0)
                     return JS_FALSE;
-                }
                 if (!EmitTree(cx, bce, pn2))
                     return JS_FALSE;
                 if (pn2 != pn->pn_head && Emit1(cx, bce, JSOP_ADD) < 0)
@@ -7316,7 +7444,7 @@ frontend::EmitTree(JSContext *cx, BytecodeEmitter *bce, ParseNode *pn)
         }
         break;
 
-      case TOK_XMLPI:
+      case PNK_XMLPI:
         if (!EmitXMLProcessingInstruction(cx, bce, pn))
             return false;
         break;
@@ -7550,7 +7678,7 @@ SetSrcNoteOffset(JSContext *cx, BytecodeEmitter *bce, uintN index, uintN which, 
 
 #ifdef DEBUG_srcnotesize
 #define NBINS 10
-static uint32 hist[NBINS];
+static uint32_t hist[NBINS];
 
 static void
 DumpSrcNoteSizeHist()
@@ -7642,10 +7770,10 @@ static JSBool
 NewTryNote(JSContext *cx, BytecodeEmitter *bce, JSTryNoteKind kind, uintN stackDepth, size_t start,
            size_t end)
 {
-    JS_ASSERT((uintN)(uint16)stackDepth == stackDepth);
+    JS_ASSERT((uintN)(uint16_t)stackDepth == stackDepth);
     JS_ASSERT(start <= end);
-    JS_ASSERT((size_t)(uint32)start == start);
-    JS_ASSERT((size_t)(uint32)end == end);
+    JS_ASSERT((size_t)(uint32_t)start == start);
+    JS_ASSERT((size_t)(uint32_t)end == end);
 
     TryNode *tryNode = cx->tempLifoAlloc().new_<TryNode>();
     if (!tryNode) {
@@ -7654,9 +7782,9 @@ NewTryNote(JSContext *cx, BytecodeEmitter *bce, JSTryNoteKind kind, uintN stackD
     }
 
     tryNode->note.kind = kind;
-    tryNode->note.stackDepth = (uint16)stackDepth;
-    tryNode->note.start = (uint32)start;
-    tryNode->note.length = (uint32)(end - start);
+    tryNode->note.stackDepth = (uint16_t)stackDepth;
+    tryNode->note.start = (uint32_t)start;
+    tryNode->note.length = (uint32_t)(end - start);
     tryNode->prev = bce->lastTryNode;
     bce->lastTryNode = tryNode;
     bce->ntrynotes++;
@@ -7736,7 +7864,7 @@ CGObjectList::finish(JSObjectArray *array)
     JS_ASSERT(length <= INDEX_LIMIT);
     JS_ASSERT(length == array->length);
 
-    JSObject **cursor = array->vector + array->length;
+    js::HeapPtrObject *cursor = array->vector + array->length;
     ObjectBox *objbox = lastbox;
     do {
         --cursor;
@@ -7751,7 +7879,7 @@ GCConstList::finish(JSConstArray *array)
 {
     JS_ASSERT(array->length == list.length());
     Value *src = list.begin(), *srcend = list.end();
-    Value *dst = array->vector;
+    HeapValue *dst = array->vector;
     for (; src != srcend; ++src, ++dst)
         *dst = *src;
 }
@@ -7813,7 +7941,7 @@ js_GetSrcNoteOffset(jssrcnote *sn, uintN which)
             sn += 2;
     }
     if (*sn & SN_3BYTE_OFFSET_FLAG) {
-        return (ptrdiff_t)(((uint32)(sn[0] & SN_3BYTE_OFFSET_MASK) << 16)
+        return (ptrdiff_t)(((uint32_t)(sn[0] & SN_3BYTE_OFFSET_MASK) << 16)
                            | (sn[1] << 8)
                            | sn[2]);
     }

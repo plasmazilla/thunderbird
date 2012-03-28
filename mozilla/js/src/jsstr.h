@@ -139,26 +139,26 @@ extern const char *
 js_ValueToPrintable(JSContext *cx, const js::Value &,
                     JSAutoByteString *bytes, bool asSource = false);
 
-/*
- * Convert a value to a string, returning null after reporting an error,
- * otherwise returning a new string reference.
- */
-extern JSString *
-js_ValueToString(JSContext *cx, const js::Value &v);
-
 namespace js {
 
 /*
- * Most code that calls js_ValueToString knows the value is (probably) not a
- * string, so it does not make sense to put this inline fast path into
- * js_ValueToString.
+ * Convert a non-string value to a string, returning null after reporting an
+ * error, otherwise returning a new string reference.
+ */
+extern JSString *
+ToStringSlow(JSContext *cx, const Value &v);
+
+/*
+ * Convert the given value to a string.  This method includes an inline
+ * fast-path for the case where the value is already a string; if the value is
+ * known not to be a string, use ToStringSlow instead.
  */
 static JS_ALWAYS_INLINE JSString *
-ValueToString_TestForStringInline(JSContext *cx, const Value &v)
+ToString(JSContext *cx, const js::Value &v)
 {
     if (v.isString())
         return v.toString();
-    return js_ValueToString(cx, v);
+    return ToStringSlow(cx, v);
 }
 
 /*
@@ -196,7 +196,7 @@ EqualStrings(JSLinearString *str1, JSLinearString *str2);
  * str1 is less than, equal to, or greater than str2.
  */
 extern bool
-CompareStrings(JSContext *cx, JSString *str1, JSString *str2, int32 *result);
+CompareStrings(JSContext *cx, JSString *str1, JSString *str2, int32_t *result);
 
 /*
  * Return true if the string matches the given sequence of ASCII bytes.
@@ -301,12 +301,12 @@ js_str_charCodeAt(JSContext *cx, uintN argc, js::Value *vp);
  * least 6 bytes long.  Return the number of UTF-8 bytes of data written.
  */
 extern int
-js_OneUcs4ToUtf8Char(uint8 *utf8Buffer, uint32 ucs4Char);
+js_OneUcs4ToUtf8Char(uint8_t *utf8Buffer, uint32_t ucs4Char);
 
 namespace js {
 
 extern size_t
-PutEscapedStringImpl(char *buffer, size_t size, FILE *fp, JSLinearString *str, uint32 quote);
+PutEscapedStringImpl(char *buffer, size_t size, FILE *fp, JSLinearString *str, uint32_t quote);
 
 /*
  * Write str into buffer escaping any non-printable or non-ASCII character
@@ -318,7 +318,7 @@ PutEscapedStringImpl(char *buffer, size_t size, FILE *fp, JSLinearString *str, u
  * be a single or double quote character that will quote the output.
 */
 inline size_t
-PutEscapedString(char *buffer, size_t size, JSLinearString *str, uint32 quote)
+PutEscapedString(char *buffer, size_t size, JSLinearString *str, uint32_t quote)
 {
     size_t n = PutEscapedStringImpl(buffer, size, NULL, str, quote);
 
@@ -333,7 +333,7 @@ PutEscapedString(char *buffer, size_t size, JSLinearString *str, uint32 quote)
  * will quote the output.
 */
 inline bool
-FileEscapedString(FILE *fp, JSLinearString *str, uint32 quote)
+FileEscapedString(FILE *fp, JSLinearString *str, uint32_t quote)
 {
     return PutEscapedStringImpl(NULL, 0, fp, str, quote) != size_t(-1);
 }

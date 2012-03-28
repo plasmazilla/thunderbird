@@ -75,6 +75,7 @@ struct MacroAssemblerTypedefs {
     typedef JSC::RepatchBuffer RepatchBuffer;
     typedef JSC::CodeLocationLabel CodeLocationLabel;
     typedef JSC::CodeLocationDataLabel32 CodeLocationDataLabel32;
+    typedef JSC::CodeLocationDataLabelPtr CodeLocationDataLabelPtr;
     typedef JSC::CodeLocationJump CodeLocationJump;
     typedef JSC::CodeLocationCall CodeLocationCall;
     typedef JSC::CodeLocationInstruction CodeLocationInstruction;
@@ -209,7 +210,7 @@ class NativeStubLinker : public LinkerHelper
 
 bool
 NativeStubEpilogue(VMFrame &f, Assembler &masm, NativeStubLinker::FinalJump *result,
-                   int32 initialFrameDepth, int32 vpOffset,
+                   int32_t initialFrameDepth, int32_t vpOffset,
                    MaybeRegisterID typeReg, MaybeRegisterID dataReg);
 
 /*

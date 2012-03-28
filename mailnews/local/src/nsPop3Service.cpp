@@ -334,7 +334,8 @@ NS_IMETHODIMP nsPop3Service::GetDefaultDoBiff(bool *aDoBiff)
 NS_IMETHODIMP nsPop3Service::GetProtocolFlags(PRUint32 *result)
 {
     NS_ENSURE_ARG_POINTER(result);
-    *result = URI_NORELATIVE | URI_DANGEROUS_TO_LOAD | ALLOWS_PROXY;
+    *result = URI_NORELATIVE | URI_DANGEROUS_TO_LOAD | ALLOWS_PROXY |
+              URI_FORBIDS_COOKIE_ACCESS;
     return NS_OK;
 }
 
@@ -652,14 +653,6 @@ nsPop3Service::GetDefaultServerPort(bool isSecure, PRInt32 *aPort)
       rv = GetDefaultPort(aPort);
 
     return rv;
-}
-
-NS_IMETHODIMP
-nsPop3Service::GetSpecialFoldersDeletionAllowed(bool *specialFoldersDeletionAllowed)
-{
-    NS_ENSURE_ARG_POINTER(specialFoldersDeletionAllowed);
-    *specialFoldersDeletionAllowed = PR_TRUE;
-    return NS_OK;
 }
 
 NS_IMETHODIMP

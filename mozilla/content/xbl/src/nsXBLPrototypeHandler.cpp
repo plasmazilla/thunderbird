@@ -307,7 +307,7 @@ nsXBLPrototypeHandler::ExecuteHandler(nsIDOMEventTarget* aTarget,
   if (!boundContext)
     return NS_OK;
 
-  nsScriptObjectHolder handler(boundContext);
+  nsScriptObjectHolder<JSObject> handler(boundContext);
   nsISupports *scriptTarget;
 
   if (winRoot) {
@@ -321,17 +321,16 @@ nsXBLPrototypeHandler::ExecuteHandler(nsIDOMEventTarget* aTarget,
 
   // Bind it to the bound element
   JSObject* scope = boundGlobal->GetGlobalJSObject();
-  nsScriptObjectHolder boundHandler(boundContext);
+  nsScriptObjectHolder<JSObject> boundHandler(boundContext);
   rv = boundContext->BindCompiledEventHandler(scriptTarget, scope,
-                                              handler, boundHandler);
+                                              handler.get(), boundHandler);
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Execute it.
   nsCOMPtr<nsIJSEventListener> eventListener;
   rv = NS_NewJSEventListener(boundContext, scope,
                              scriptTarget, onEventAtom,
-                             static_cast<JSObject*>(
-                               static_cast<void*>(boundHandler)),
+                             boundHandler.get(),
                              getter_AddRefs(eventListener));
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -345,12 +344,12 @@ nsresult
 nsXBLPrototypeHandler::EnsureEventHandler(nsIScriptGlobalObject* aGlobal,
                                           nsIScriptContext *aBoundContext,
                                           nsIAtom *aName,
-                                          nsScriptObjectHolder &aHandler)
+                                          nsScriptObjectHolder<JSObject>& aHandler)
 {
   // Check to see if we've already compiled this
   nsCOMPtr<nsPIDOMWindow> pWindow = do_QueryInterface(aGlobal);
   if (pWindow) {
-    void* cachedHandler = pWindow->GetCachedXBLPrototypeHandler(this);
+    JSObject* cachedHandler = pWindow->GetCachedXBLPrototypeHandler(this);
     if (cachedHandler) {
       aHandler.set(cachedHandler);
       return aHandler ? NS_OK : NS_ERROR_FAILURE;
@@ -993,12 +992,12 @@ nsXBLPrototypeHandler::ReportKeyConflict(const PRUnichar* aKey, const PRUnichar*
   }
 
   const PRUnichar* params[] = { aKey, aModifiers };
-  nsContentUtils::ReportToConsole(nsContentUtils::eXBL_PROPERTIES,
+  nsContentUtils::ReportToConsole(nsIScriptError::warningFlag,
+                                  "XBL Prototype Handler", doc,
+                                  nsContentUtils::eXBL_PROPERTIES,
                                   aMessageName,
                                   params, ArrayLength(params),
-                                  nsnull, EmptyString(), mLineNumber, 0,
-                                  nsIScriptError::warningFlag,
-                                  "XBL Prototype Handler", doc);
+                                  nsnull, EmptyString(), mLineNumber);
 }
 
 bool

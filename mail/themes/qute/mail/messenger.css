@@ -25,10 +25,22 @@ menuitem.menuitem-iconic > .menu-iconic-left {
   display: -moz-box;
 }
 
+#tabbar-toolbar {
+  -moz-appearance: none;
+  padding: 0;
+  border: none;
+}
+
+#tabbar-toolbar[customizing="true"] {
+  min-width: 24px;
+  min-height: 10px;
+}
+
 /* ::::: menubar ::::: */
 
 #menubar-items {
   -moz-box-orient: vertical; /* for flex hack */
+  margin-bottom: 1px;
 }
 
 #menubar-items > menubar {
@@ -112,7 +124,8 @@ sidebarheader .toolbarbutton-text:not([value]) {
   display: none;
 }
 
-#searchInput {
+#searchInput,
+.remote-gloda-search {
   -moz-appearance: none;
   min-height: 22px;
   border: 1px solid threedshadow;
@@ -120,12 +133,24 @@ sidebarheader .toolbarbutton-text:not([value]) {
   -moz-padding-start: 2px;
 }
 
-#searchInput:-moz-lwtheme:not([focused="true"]) {
+#searchInput:-moz-lwtheme:not([focused="true"]),
+.remote-gloda-search:-moz-lwtheme:not([focused="true"]) {
   opacity: .85;
 }
 
+.remote-gloda-search-container {
+  padding-top: 6px;
+  padding-bottom: 5px;
+}
+
+
 #status-bar:-moz-lwtheme {
   padding-bottom: 1px;
+}
+
+#tabmail-buttons > toolbarbutton {
+  margin-top: 1px;
+  margin-bottom: 1px;
 }
 
 treechildren::-moz-tree-cell-text {

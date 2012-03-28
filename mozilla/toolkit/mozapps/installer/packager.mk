@@ -56,7 +56,7 @@ else
    ifeq (,$(filter-out gtk2 qt, $(MOZ_WIDGET_TOOLKIT)))
       MOZ_PKG_FORMAT  = BZ2
    else
-      ifeq (Android,$(OS_TARGET))
+      ifeq (android,$(MOZ_WIDGET_TOOLKIT))
           MOZ_PKG_FORMAT = APK
       else
           MOZ_PKG_FORMAT = TGZ
@@ -86,6 +86,7 @@ SDK           = $(SDK_PATH)$(PKG_BASENAME).sdk$(SDK_SUFFIX)
 ifndef LIBXUL_SDK
 JSSHELL_BINS  = \
   $(DIST)/bin/js$(BIN_SUFFIX) \
+  $(DIST)/bin/mozglue$(DLL_SUFFIX) \
   $(NULL)
 ifndef MOZ_NATIVE_NSPR
 JSSHELL_BINS += $(DIST)/bin/$(LIB_PREFIX)nspr4$(DLL_SUFFIX)
@@ -259,25 +260,19 @@ endif #Create an RPM file
 
 ifeq ($(MOZ_PKG_FORMAT),APK)
 
-# we have custom stuff for Android
-MOZ_OMNIJAR =
-
 JAVA_CLASSPATH = $(ANDROID_SDK)/android.jar
 include $(topsrcdir)/config/android-common.mk
 
 JARSIGNER ?= echo
 
-DIST_FILES = \
-  resources.arsc \
-  AndroidManifest.xml \
-  chrome \
-  components \
-  defaults \
-  modules \
-  hyphenation/hyph_en_US.dic \
-  res \
-  lib \
-  lib.id \
+DIST_FILES =
+
+# Place the files in the order they are going to be opened by the linker
+ifdef MOZ_CRASHREPORTER
+DIST_FILES += lib.id
+endif
+
+DIST_FILES += \
   libmozalloc.so \
   libnspr4.so \
   libplc4.so \
@@ -292,8 +287,18 @@ DIST_FILES = \
   libnssckbi.so \
   libfreebl3.so \
   libsoftokn3.so \
+  resources.arsc \
+  AndroidManifest.xml \
+  chrome \
+  components \
+  defaults \
+  modules \
+  hyphenation \
+  res \
+  lib \
   extensions \
   application.ini \
+  package-name.txt \
   platform.ini \
   greprefs.js \
   browserconfig.properties \
@@ -301,6 +306,7 @@ DIST_FILES = \
   chrome.manifest \
   update.locale \
   removed-files \
+  recommended-addons.json \
   $(NULL)
 
 NON_DIST_FILES = \
@@ -323,13 +329,19 @@ ABI_DIR = armeabi
 endif
 endif
 
+ifneq (,$(filter mobile/xul b2g,$(MOZ_BUILD_APP)))
+GECKO_APP_AP_PATH = $(call core_abspath,$(DEPTH)/embedding/android)
+else
+GECKO_APP_AP_PATH = $(call core_abspath,$(DEPTH)/mobile/android/base)
+endif
+
 PKG_SUFFIX      = .apk
 INNER_MAKE_PACKAGE	= \
-  make -C ../embedding/android gecko.ap_ && \
-  cp ../embedding/android/gecko.ap_ $(_ABS_DIST) && \
+  make -C $(GECKO_APP_AP_PATH) gecko.ap_ && \
+  cp $(GECKO_APP_AP_PATH)/gecko.ap_ $(_ABS_DIST) && \
   ( cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && \
     mkdir -p lib/$(ABI_DIR) && \
-    mv libmozutils.so $(MOZ_CHILD_PROCESS_NAME) lib/$(ABI_DIR) && \
+    mv libmozglue.so $(MOZ_CHILD_PROCESS_NAME) lib/$(ABI_DIR) && \
     rm -f lib.id && \
     for SOMELIB in *.so ; \
     do \
@@ -337,7 +349,8 @@ INNER_MAKE_PACKAGE	= \
     done && \
     unzip -o $(_ABS_DIST)/gecko.ap_ && \
     rm $(_ABS_DIST)/gecko.ap_ && \
-    $(ZIP) -r9D $(_ABS_DIST)/gecko.ap_ $(DIST_FILES) -x $(NON_DIST_FILES) ) && \
+    $(ZIP) -r9D $(_ABS_DIST)/gecko.ap_ $(DIST_FILES) -x $(NON_DIST_FILES) && \
+    $(ZIP) -0 $(_ABS_DIST)/gecko.ap_ $(OMNIJAR_NAME)) && \
   rm -f $(_ABS_DIST)/gecko.apk && \
   $(APKBUILDER) $(_ABS_DIST)/gecko.apk -v $(APKBUILDER_FLAGS) -z $(_ABS_DIST)/gecko.ap_ -f $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/classes.dex && \
   cp $(_ABS_DIST)/gecko.apk $(_ABS_DIST)/gecko-unsigned-unaligned.apk && \
@@ -345,10 +358,12 @@ INNER_MAKE_PACKAGE	= \
   $(ZIPALIGN) -f -v 4 $(_ABS_DIST)/gecko.apk $(PACKAGE)
 INNER_UNMAKE_PACKAGE	= \
   mkdir $(MOZ_PKG_DIR) && \
-  cd $(MOZ_PKG_DIR) && \
+  pushd $(MOZ_PKG_DIR) && \
   $(UNZIP) $(UNPACKAGE) && \
-  mv lib/$(ABI_DIR)/*.so . && \
-  rm -rf lib
+  mv lib/$(ABI_DIR)/libmozglue.so . && \
+  mv lib/$(ABI_DIR)/*plugin-container* $(MOZ_CHILD_PROCESS_NAME) && \
+  rm -rf lib/$(ABI_DIR) && \
+  popd
 endif
 ifeq ($(MOZ_PKG_FORMAT),DMG)
 ifndef _APPNAME
@@ -466,6 +481,7 @@ OMNIJAR_FILES	= \
   greprefs.js \
   jsloader \
   hyphenation \
+  update.locale \
   $(NULL)
 
 NON_OMNIJAR_FILES += \
@@ -558,8 +574,8 @@ FREEBL_64FPU	= $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/$(DLL_PREFIX)freebl
 FREEBL_64INT	= $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/$(DLL_PREFIX)freebl_64int_3$(DLL_SUFFIX)
 
 SIGN_NSS	+= \
-  $(SIGN_CMD) $(SOFTOKN) && \
-  $(SIGN_CMD) $(NSSDBM) && \
+  if test -f $(SOFTOKN); then $(SIGN_CMD) $(SOFTOKN); fi && \
+  if test -f $(NSSDBM); then $(SIGN_CMD) $(NSSDBM); fi && \
   if test -f $(FREEBL); then $(SIGN_CMD) $(FREEBL); fi && \
   if test -f $(FREEBL_32FPU); then $(SIGN_CMD) $(FREEBL_32FPU); fi && \
   if test -f $(FREEBL_32INT); then $(SIGN_CMD) $(FREEBL_32INT); fi && \
@@ -568,7 +584,7 @@ SIGN_NSS	+= \
   if test -f $(FREEBL_64INT); then $(SIGN_CMD) $(FREEBL_64INT); fi;
 
 endif # MOZ_PSM
-endif # !CROSS_COMPILE
+endif # MOZ_CAN_RUN_PROGRAMS
 
 NO_PKG_FILES += \
 	core \
@@ -648,7 +664,7 @@ PKG_ARG = , "$(pkg)"
 
 # Define packager macro to work around make 3.81 backslash issue (bug #339933)
 define PACKAGER_COPY
-$(PERL) -I$(MOZILLA_DIR)/xpinstall/packager -e 'use Packager; \
+$(PERL) -I$(MOZILLA_DIR)/toolkit/mozapps/installer -e 'use Packager; \
        Packager::Copy($1,$2,$3,$4,$5,$6,$7);'
 endef
 
@@ -688,7 +704,7 @@ ifdef USE_ELF_HACK
 	@echo === and your environment \(compiler and linker versions\), and use
 	@echo === --disable-elf-hack until this is fixed.
 	@echo ===
-	cd $(DIST)/bin; find . -name "*$(DLL_SUFFIX)" | xargs $(DEPTH)/build/unix/elfhack/elfhack
+	cd $(DIST)/bin; find . -name "*$(DLL_SUFFIX)" | xargs ../../build/unix/elfhack/elfhack
 endif
 
 stage-package: $(MOZ_PKG_MANIFEST) $(MOZ_PKG_REMOVALS_GEN) elfhack
@@ -705,7 +721,7 @@ ifdef MOZ_PKG_MANIFEST
 	$(call PACKAGER_COPY, "$(call core_abspath,$(DIST))",\
 	  "$(call core_abspath,$(DIST)/$(MOZ_PKG_DIR))", \
 	  "$(MOZ_PKG_MANIFEST)", "$(PKGCP_OS)", 1, 0, 1)
-	$(PERL) $(MOZILLA_DIR)/xpinstall/packager/xptlink.pl -s $(DIST) -d $(DIST)/xpt -f $(DIST)/$(MOZ_PKG_DIR)/$(_BINPATH)/components -v -x "$(XPIDL_LINK)"
+	$(PERL) $(MOZILLA_DIR)/toolkit/mozapps/installer/xptlink.pl -s $(DIST) -d $(DIST)/xpt -f $(DIST)/$(MOZ_PKG_DIR)/$(_BINPATH)/components -v -x "$(XPIDL_LINK)"
 	$(PYTHON) $(MOZILLA_DIR)/toolkit/mozapps/installer/link-manifests.py \
 	  $(DIST)/$(MOZ_PKG_DIR)/$(_BINPATH)/components/components.manifest \
 	  $(patsubst %,$(DIST)/manifests/%/components,$(MOZ_NONLOCALIZED_PKG_LIST))

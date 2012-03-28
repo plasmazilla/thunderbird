@@ -97,10 +97,7 @@ BumpChunk::tryAllocUnaligned(size_t n)
     if (newBump > limit)
         return NULL;
 
-    if (JS_UNLIKELY(newBump < oldBump))
-        return NULL;
-
-    JS_ASSERT(canAllocUnaligned(n)); /* Ensure consistency between "can" and "try". */
+    JS_ASSERT(canAllocUnaligned(n));
     setBump(newBump);
     return oldBump;
 }
