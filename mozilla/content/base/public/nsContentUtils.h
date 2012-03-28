@@ -76,13 +76,15 @@ static fp_except_t oldmask = fpsetmask(~allmask);
 #include "nsTArray.h"
 #include "nsTextFragment.h"
 #include "nsReadableUtils.h"
-#include "mozilla/AutoRestore.h"
 #include "nsINode.h"
 #include "nsHashtable.h"
 #include "nsIDOMNode.h"
 #include "nsHtml5Parser.h"
 #include "nsIFragmentContentSink.h"
 #include "nsMathUtils.h"
+
+#include "mozilla/AutoRestore.h"
+#include "mozilla/GuardObjects.h"
 #include "mozilla/TimeStamp.h"
 
 struct nsNativeKeyEvent; // Don't include nsINativeKeyBindings.h here: it will force strange compilation error!
@@ -142,6 +144,7 @@ class nsAutoScriptBlockerSuppressNodeRemoved;
 struct nsIntMargin;
 class nsPIDOMWindow;
 class nsIDocumentLoaderFactory;
+class nsIDOMHTMLInputElement;
 
 namespace mozilla {
 
@@ -169,6 +172,48 @@ enum EventNameType {
   EventNameType_All = 0xFFFF
 };
 
+/**
+ * Information retrieved from the <meta name="viewport"> tag. See
+ * GetViewportInfo for more information on this functionality.
+ */
+struct ViewportInfo
+{
+    // Default zoom indicates the level at which the display is 'zoomed in'
+    // initially for the user, upon loading of the page.
+    double defaultZoom;
+
+    // The minimum zoom level permitted by the page.
+    double minZoom;
+
+    // The maximum zoom level permitted by the page.
+    double maxZoom;
+
+    // The width of the viewport, specified by the <meta name="viewport"> tag,
+    // in CSS pixels.
+    PRUint32 width;
+
+    // The height of the viewport, specified by the <meta name="viewport"> tag,
+    // in CSS pixels.
+    PRUint32 height;
+
+    // Whether or not we should automatically size the viewport to the device's
+    // width. This is true if the document has been optimized for mobile, and
+    // the width property of a specified <meta name="viewport"> tag is either
+    // not specified, or is set to the special value 'device-width'.
+    bool autoSize;
+
+    // Whether or not the user can zoom in and out on the page. Default is true.
+    bool allowZoom;
+
+    // This is a holdover from e10s fennec, and might be removed in the future.
+    // It's a hack to work around bugs that didn't allow zooming of documents
+    // from within the parent process. It is still used in native Fennec for XUL
+    // documents, but it should probably be removed.
+    // Currently, from, within GetViewportInfo(), This is only set to false
+    // if the document is a XUL document.
+    bool autoScale;
+};
+
 struct EventNameMapping
 {
   nsIAtom* mAtom;
@@ -189,7 +234,6 @@ struct nsShortcutCandidate {
 class nsContentUtils
 {
   friend class nsAutoScriptBlockerSuppressNodeRemoved;
-  friend class mozilla::AutoRestore<bool>;
   typedef mozilla::dom::Element Element;
   typedef mozilla::TimeDuration TimeDuration;
 
@@ -737,19 +781,22 @@ public:
 
   /**
    * Report a localized error message to the error console.
-   *   @param aFile Properties file containing localized message.
-   *   @param aMessageName Name of localized message.
-   *   @param aParams Parameters to be substituted into localized message.
-   *   @param aParamsLength Length of aParams.
-   *   @param aURI URI of resource containing error (may be null).
-   *   @param aSourceLine The text of the line that contains the error (may be
-              empty).
-   *   @param aLineNumber Line number within resource containing error.
-   *   @param aColumnNumber Column number within resource containing error.
    *   @param aErrorFlags See nsIScriptError.
    *   @param aCategory Name of module reporting error.
-   *   @param [aInnerWindowId=0] (Optional) The window ID of the inner window
-   *          the message originates from.
+   *   @param aDocument Reference to the document which triggered the message.
+   *   @param aFile Properties file containing localized message.
+   *   @param aMessageName Name of localized message.
+   *   @param [aParams=nsnull] (Optional) Parameters to be substituted into
+              localized message.
+   *   @param [aParamsLength=0] (Optional) Length of aParams.
+   *   @param [aURI=nsnull] (Optional) URI of resource containing error.
+   *   @param [aSourceLine=EmptyString()] (Optional) The text of the line that
+              contains the error (may be empty).
+   *   @param [aLineNumber=0] (Optional) Line number within resource
+              containing error.
+   *   @param [aColumnNumber=0] (Optional) Column number within resource
+              containing error.
+              If aURI is null, then aDocument->GetDocumentURI() is used.
    */
   enum PropertiesFile {
     eCSS_PROPERTIES,
@@ -765,45 +812,18 @@ public:
     eCOMMON_DIALOG_PROPERTIES,
     PropertiesFile_COUNT
   };
-  static nsresult ReportToConsole(PropertiesFile aFile,
-                                  const char *aMessageName,
-                                  const PRUnichar **aParams,
-                                  PRUint32 aParamsLength,
-                                  nsIURI* aURI,
-                                  const nsAFlatString& aSourceLine,
-                                  PRUint32 aLineNumber,
-                                  PRUint32 aColumnNumber,
-                                  PRUint32 aErrorFlags,
+  static nsresult ReportToConsole(PRUint32 aErrorFlags,
                                   const char *aCategory,
-                                  PRUint64 aInnerWindowId = 0);
-
-  /**
-   * Report a localized error message to the error console.
-   *   @param aFile Properties file containing localized message.
-   *   @param aMessageName Name of localized message.
-   *   @param aParams Parameters to be substituted into localized message.
-   *   @param aParamsLength Length of aParams.
-   *   @param aURI URI of resource containing error (may be null).
-   *   @param aSourceLine The text of the line that contains the error (may be
-              empty).
-   *   @param aLineNumber Line number within resource containing error.
-   *   @param aColumnNumber Column number within resource containing error.
-   *   @param aErrorFlags See nsIScriptError.
-   *   @param aCategory Name of module reporting error.
-   *   @param aDocument Reference to the document which triggered the message.
-              If aURI is null, then aDocument->GetDocumentURI() is used.
-   */
-  static nsresult ReportToConsole(PropertiesFile aFile,
+                                  nsIDocument* aDocument,
+                                  PropertiesFile aFile,
                                   const char *aMessageName,
-                                  const PRUnichar **aParams,
-                                  PRUint32 aParamsLength,
-                                  nsIURI* aURI,
-                                  const nsAFlatString& aSourceLine,
-                                  PRUint32 aLineNumber,
-                                  PRUint32 aColumnNumber,
-                                  PRUint32 aErrorFlags,
-                                  const char *aCategory,
-                                  nsIDocument* aDocument);
+                                  const PRUnichar **aParams = nsnull,
+                                  PRUint32 aParamsLength = 0,
+                                  nsIURI* aURI = nsnull,
+                                  const nsAFlatString& aSourceLine
+                                    = EmptyString(),
+                                  PRUint32 aLineNumber = 0,
+                                  PRUint32 aColumnNumber = 0);
 
   /**
    * Get the localized string named |aKey| in properties file |aFile|.
@@ -1107,7 +1127,7 @@ public:
    * @param aPrincipal Prinicpal of the document. Must not be null.
    * @param aScriptObject The object from which the context for event handling
    *                      can be got.
-   * @param aSVGDocument Force SVG Document creation.
+   * @param aFlavor Select the kind of document to create.
    * @param aResult [out] The document that was created.
    */
   static nsresult CreateDocument(const nsAString& aNamespaceURI, 
@@ -1117,7 +1137,7 @@ public:
                                  nsIURI* aBaseURI,
                                  nsIPrincipal* aPrincipal,
                                  nsIScriptGlobalObject* aScriptObject,
-                                 bool aSVGDocument,
+                                 DocumentFlavor aFlavor,
                                  nsIDOMDocument** aResult);
 
   /**
@@ -1286,11 +1306,6 @@ public:
                              nsWrapperCache* aCache);
   static void TraceWrapper(nsWrapperCache* aCache, TraceCallback aCallback,
                            void *aClosure);
-
-  /**
-   * Convert nsIContent::IME_STATUS_* to nsIWidget::IME_STATUS_*
-   */
-  static PRUint32 GetWidgetStatusFromIMEStatus(PRUint32 aState);
 
   /*
    * Notify when the first XUL menu is opened and when the all XUL menus are
@@ -1498,6 +1513,18 @@ public:
     return sScriptBlockerCount == 0;
   }
 
+  /**
+   * Retrieve information about the viewport as a data structure.
+   * This will return information in the viewport META data section
+   * of the document. This can be used in lieu of ProcessViewportInfo(),
+   * which places the viewport information in the document header instead
+   * of returning it directly.
+   *
+   * NOTE: If the site is optimized for mobile (via the doctype), this
+   * will return viewport information that specifies default information.
+   */
+  static ViewportInfo GetViewportInfo(nsIDocument* aDocument);
+
   /* Process viewport META data. This gives us information for the scale
    * and zoom of a page on mobile devices. We stick the information in
    * the document header and use it later on after rendering.
@@ -1628,6 +1655,12 @@ public:
     return WrapNative(cx, scope, native, cache, nsnull, vp, aHolder,
                       aAllowWrapping);
   }
+
+  /**
+   * Creates an arraybuffer from a binary string.
+   */
+  static nsresult CreateArrayBuffer(JSContext *aCx, const nsACString& aData,
+                                    JSObject** aResult);
 
   static void StripNullChars(const nsAString& aInStr, nsAString& aOutStr);
 
@@ -1845,7 +1878,18 @@ public:
 
   static nsresult Atob(const nsAString& aAsciiString,
                        nsAString& aBinaryData);
-  
+
+  /**
+   * Returns whether the input element passed in parameter has the autocomplete
+   * functionnality enabled. It is taking into account the form owner.
+   * NOTE: the caller has to make sure autocomplete makes sense for the
+   * element's type.
+   *
+   * @param aInput the input element to check. NOTE: aInput can't be null.
+   * @return whether the input element has autocomplete enabled.
+   */
+  static bool IsAutocompleteEnabled(nsIDOMHTMLInputElement* aInput);
+
 private:
   static bool InitializeEventTable();
 
@@ -2175,6 +2219,23 @@ public:
 private:
   NS_ConvertUTF16toUTF8 mString;
   nsIMIMEHeaderParam*   mService;
+};
+
+class nsDocElementCreatedNotificationRunner : public nsRunnable
+{
+public:
+    nsDocElementCreatedNotificationRunner(nsIDocument* aDoc)
+        : mDoc(aDoc)
+    {
+    }
+
+    NS_IMETHOD Run()
+    {
+        nsContentSink::NotifyDocElementCreated(mDoc);
+        return NS_OK;
+    }
+
+    nsCOMPtr<nsIDocument> mDoc;
 };
 
 #endif /* nsContentUtils_h___ */

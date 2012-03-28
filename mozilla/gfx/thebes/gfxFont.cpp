@@ -47,6 +47,7 @@
 #include "nsReadableUtils.h"
 #include "nsExpirationTracker.h"
 #include "nsILanguageAtomService.h"
+#include "nsIMemoryReporter.h"
 
 #include "gfxFont.h"
 #include "gfxPlatform.h"
@@ -382,6 +383,16 @@ gfxFontEntry::ShareFontTableAndGetBlob(PRUint32 aTag,
 
     return entry->ShareTableAndGetBlob(*aBuffer, &mFontTableCache);
 }
+
+#ifdef MOZ_GRAPHITE
+void
+gfxFontEntry::CheckForGraphiteTables()
+{
+    AutoFallibleTArray<PRUint8,16384> buffer;
+    mHasGraphiteTables =
+        NS_SUCCEEDED(GetFontTable(TRUETYPE_TAG('S','i','l','f'), buffer));
+}
+#endif
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -1057,15 +1068,14 @@ gfxFont::RunMetrics::CombineWith(const RunMetrics& aOther, bool aOtherIsOnLeft)
 }
 
 gfxFont::gfxFont(gfxFontEntry *aFontEntry, const gfxFontStyle *aFontStyle,
-                 AntialiasOption anAAOption) :
+                 AntialiasOption anAAOption, cairo_scaled_font_t *aScaledFont) :
+    mScaledFont(aScaledFont),
     mFontEntry(aFontEntry), mIsValid(true),
     mApplySyntheticBold(false),
     mStyle(*aFontStyle),
     mAdjustedSize(0.0),
     mFUnitsConvFactor(0.0f),
-    mAntialiasOption(anAAOption),
-    mPlatformShaper(nsnull),
-    mHarfBuzzShaper(nsnull)
+    mAntialiasOption(anAAOption)
 {
 #ifdef DEBUG_TEXT_RUN_STORAGE_METRICS
     ++gFontCount;
@@ -1182,8 +1192,8 @@ gfxFont::Draw(gfxTextRun *aTextRun, PRUint32 aStart, PRUint32 aEnd,
 
     // synthetic-bold strikes are each offset one device pixel in run direction
     // (these values are only needed if IsSyntheticBold() is true)
-    double synBoldOnePixelOffset;
-    PRInt32 strikes;
+    double synBoldOnePixelOffset = 0;
+    PRInt32 strikes = 0;
     if (IsSyntheticBold()) {
         double xscale = CalcXScale(aContext);
         synBoldOnePixelOffset = direction * xscale;
@@ -1602,7 +1612,15 @@ gfxFont::InitTextRun(gfxContext *aContext,
 {
     bool ok = false;
 
-    if (mHarfBuzzShaper && !aPreferPlatformShaping) {
+#ifdef MOZ_GRAPHITE
+    if (mGraphiteShaper && gfxPlatform::GetPlatform()->UseGraphiteShaping()) {
+        ok = mGraphiteShaper->InitTextRun(aContext, aTextRun, aString,
+                                          aRunStart, aRunLength,
+                                          aRunScript);
+    }
+#endif
+
+    if (!ok && mHarfBuzzShaper && !aPreferPlatformShaping) {
         if (gfxPlatform::GetPlatform()->UseHarfBuzzForScript(aRunScript)) {
             ok = mHarfBuzzShaper->InitTextRun(aContext, aTextRun, aString,
                                               aRunStart, aRunLength,
@@ -4480,29 +4498,30 @@ gfxTextRun::ClusterIterator::ClusterAdvance(PropertyProvider *aProvider) const
     return mTextRun->GetAdvanceWidth(mCurrentChar, ClusterLength(), aProvider);
 }
 
-PRUint64
-gfxTextRun::ComputeSize()
+size_t
+gfxTextRun::SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf)
 {
-    PRUint64 total = moz_malloc_usable_size(this);
-    if (total == 0) {
-        total = sizeof(gfxTextRun);
-    }
-
-    PRUint64 glyphDataSize = moz_malloc_usable_size(mCharacterGlyphs);
-    if (glyphDataSize == 0) {
-        // calculate how much gfxTextRun::AllocateStorage would have allocated
-        glyphDataSize = sizeof(CompressedGlyph) *
-            GlyphStorageAllocCount(mCharacterCount, mFlags);
-    }
-    total += glyphDataSize;
+    // The second arg is how much gfxTextRun::AllocateStorage would have
+    // allocated.
+    size_t total =
+        aMallocSizeOf(mCharacterGlyphs,
+                      sizeof(CompressedGlyph) *
+                      GlyphStorageAllocCount(mCharacterCount, mFlags));
 
     if (mDetailedGlyphs) {
-        total += mDetailedGlyphs->SizeOf();
+        total += mDetailedGlyphs->SizeOfIncludingThis(aMallocSizeOf);
     }
 
-    total += mGlyphRuns.SizeOf();
+    total += mGlyphRuns.SizeOfExcludingThis(aMallocSizeOf);
 
     return total;
+}
+
+size_t
+gfxTextRun::SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf)
+{
+    return aMallocSizeOf(this, sizeof(gfxTextRun)) +
+           SizeOfExcludingThis(aMallocSizeOf);
 }
 
 

@@ -48,13 +48,15 @@
 #include "nsIDOMNavigatorDesktopNotification.h"
 #include "nsIDOMClientInformation.h"
 #include "nsIDOMNavigatorBattery.h"
+#include "nsIDOMNavigatorSms.h"
 #include "nsAutoPtr.h"
+#include "nsWeakReference.h"
 
 class nsPluginArray;
 class nsMimeTypeArray;
 class nsGeolocation;
 class nsDesktopNotificationCenter;
-class nsIDocShell;
+class nsPIDOMWindow;
 
 //*****************************************************************************
 // Navigator: Script "navigator" object
@@ -67,14 +69,19 @@ namespace battery {
 class BatteryManager;
 } // namespace battery
 
+namespace sms {
+class SmsManager;
+} // namespace sms
+
 class Navigator : public nsIDOMNavigator,
                   public nsIDOMClientInformation,
                   public nsIDOMNavigatorGeolocation,
                   public nsIDOMNavigatorDesktopNotification,
-                  public nsIDOMNavigatorBattery
+                  public nsIDOMMozNavigatorBattery,
+                  public nsIDOMMozNavigatorSms
 {
 public:
-  Navigator(nsIDocShell *aDocShell);
+  Navigator(nsPIDOMWindow *aInnerWindow);
   virtual ~Navigator();
 
   NS_DECL_ISUPPORTS
@@ -82,32 +89,36 @@ public:
   NS_DECL_NSIDOMCLIENTINFORMATION
   NS_DECL_NSIDOMNAVIGATORGEOLOCATION
   NS_DECL_NSIDOMNAVIGATORDESKTOPNOTIFICATION
-  NS_DECL_NSIDOMNAVIGATORBATTERY
+  NS_DECL_NSIDOMMOZNAVIGATORBATTERY
+  NS_DECL_NSIDOMMOZNAVIGATORSMS
 
   static void Init();
 
-  void SetDocShell(nsIDocShell *aDocShell);
-  nsIDocShell *GetDocShell()
-  {
-    return mDocShell;
-  }
+  void Invalidate();
+  nsPIDOMWindow *GetWindow();
 
-  void LoadingNewDocument();
-  nsresult RefreshMIMEArray();
+  void RefreshMIMEArray();
 
   static bool HasDesktopNotificationSupport();
 
   PRInt64 SizeOf() const;
 
+  /**
+   * For use during document.write where our inner window changes.
+   */
+  void SetWindow(nsPIDOMWindow *aInnerWindow);
+
 private:
-  static bool sDoNotTrackEnabled;
+  bool IsSmsAllowed() const;
+  bool IsSmsSupported() const;
 
   nsRefPtr<nsMimeTypeArray> mMimeTypes;
   nsRefPtr<nsPluginArray> mPlugins;
   nsRefPtr<nsGeolocation> mGeolocation;
   nsRefPtr<nsDesktopNotificationCenter> mNotification;
   nsRefPtr<battery::BatteryManager> mBatteryManager;
-  nsIDocShell* mDocShell; // weak reference
+  nsRefPtr<sms::SmsManager> mSmsManager;
+  nsWeakPtr mWindow;
 };
 
 } // namespace dom

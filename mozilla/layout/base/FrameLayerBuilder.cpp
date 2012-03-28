@@ -49,6 +49,9 @@
 #include "nsImageFrame.h"
 #include "nsRenderingContext.h"
 
+#include "mozilla/Preferences.h"
+#include "sampler.h"
+
 #ifdef DEBUG
 #include <stdio.h>
 #endif
@@ -468,6 +471,27 @@ FrameLayerBuilder::DisplayItemDataEntry::HasNonEmptyContainerLayer()
       return true;
   }
   return false;
+}
+
+void
+FrameLayerBuilder::FlashPaint(gfxContext *aContext)
+{
+  static bool sPaintFlashingEnabled;
+  static bool sPaintFlashingPrefCached = false;
+
+  if (!sPaintFlashingPrefCached) {
+    sPaintFlashingPrefCached = true;
+    mozilla::Preferences::AddBoolVarCache(&sPaintFlashingEnabled, 
+                                          "nglayout.debug.paint_flashing");
+  }
+
+  if (sPaintFlashingEnabled) {
+    float r = float(rand()) / RAND_MAX;
+    float g = float(rand()) / RAND_MAX;
+    float b = float(rand()) / RAND_MAX;
+    aContext->SetColor(gfxRGBA(r, g, b, 0.2));
+    aContext->Paint();
+  }
 }
 
 /* static */ nsTArray<FrameLayerBuilder::DisplayItemData>*
@@ -1353,10 +1377,11 @@ ContainerState::ProcessDisplayItems(const nsDisplayList& aList,
     // Assign the item to a layer
     if (layerState == LAYER_ACTIVE_FORCE ||
         layerState == LAYER_ACTIVE_EMPTY ||
-        layerState == LAYER_ACTIVE && (aClip.mRoundedClipRects.IsEmpty() ||
-        // We can use the visible rect here only because the item has its own
-        // layer, like the comment below.
-        !aClip.IsRectClippedByRoundedCorner(item->GetVisibleRect()))) {
+        (layerState == LAYER_ACTIVE &&
+         (aClip.mRoundedClipRects.IsEmpty() ||
+          // We can use the visible rect here only because the item has its own
+          // layer, like the comment below.
+          !aClip.IsRectClippedByRoundedCorner(item->GetVisibleRect())))) {
 
       // LAYER_ACTIVE_EMPTY means the layer is created just for its metadata.
       // We should never see an empty layer with any visible content!
@@ -1676,8 +1701,19 @@ ChooseScaleAndSetTransform(FrameLayerBuilder* aLayerBuilder,
     if (aContainerFrame->AreLayersMarkedActive(nsChangeHint_UpdateTransformLayer) &&
         aTransform &&
         (!aTransform->Is2D(&frameTransform) || frameTransform.HasNonTranslationOrFlip())) {
-      scale.width = gfxUtils::ClampToScaleFactor(scale.width);
-      scale.height = gfxUtils::ClampToScaleFactor(scale.height);
+      // Don't clamp the scale factor when the new desired scale factor matches the old one
+      // or it was previously unscaled.
+      bool clamp = true;
+      gfxMatrix oldFrameTransform2d;
+      if (aLayer->GetTransform().Is2D(&oldFrameTransform2d)) {
+        gfxSize oldScale = oldFrameTransform2d.ScaleFactors(true);
+        if (oldScale == scale || oldScale == gfxSize(1.0, 1.0))
+          clamp = false;
+      }
+      if (clamp) {
+        scale.width = gfxUtils::ClampToScaleFactor(scale.width);
+        scale.height = gfxUtils::ClampToScaleFactor(scale.height);
+      }
     } else {
       // XXX Do we need to move nearly-integer values to integers here?
     }
@@ -1980,6 +2016,8 @@ FrameLayerBuilder::DrawThebesLayer(ThebesLayer* aLayer,
                                    const nsIntRegion& aRegionToInvalidate,
                                    void* aCallbackData)
 {
+  SAMPLE_LABEL("gfx", "DrawThebesLayer");
+
   nsDisplayListBuilder* builder = static_cast<nsDisplayListBuilder*>
     (aCallbackData);
 
@@ -2127,6 +2165,8 @@ FrameLayerBuilder::DrawThebesLayer(ThebesLayer* aLayer,
   if (setClipRect) {
     aContext->Restore();
   }
+
+  FlashPaint(aContext);
 }
 
 bool
@@ -2147,7 +2187,7 @@ FrameLayerBuilder::CheckDOMModified()
   return true;
 }
 
-#ifdef DEBUG
+#ifdef MOZ_DUMP_PAINTING
 void
 FrameLayerBuilder::DumpRetainedLayerTree()
 {

@@ -288,8 +288,8 @@ private:
 
 // IID for the nsINode interface
 #define NS_INODE_IID \
-{ 0x20d16be2, 0x3c58, 0x4099, \
-  { 0xbf, 0xa6, 0xd0, 0xe7, 0x6b, 0xb1, 0x3d, 0xc5 } }
+{ 0xd026d280, 0x5b25, 0x41c0, \
+  { 0x92, 0xcf, 0x6, 0xf6, 0xf, 0xb, 0x9a, 0xfe } }
 
 /**
  * An internal interface that abstracts some DOMNode-related parts that both
@@ -344,17 +344,15 @@ public:
     eCOMMENT             = 1 << 5,
     /** form control elements */
     eHTML_FORM_CONTROL   = 1 << 6,
-    /** svg elements */
-    eSVG                 = 1 << 7,
     /** document fragments */
-    eDOCUMENT_FRAGMENT   = 1 << 8,
+    eDOCUMENT_FRAGMENT   = 1 << 7,
     /** data nodes (comments, PIs, text). Nodes of this type always
      returns a non-null value for nsIContent::GetText() */
-    eDATA_NODE           = 1 << 19,
+    eDATA_NODE           = 1 << 8,
     /** nsHTMLMediaElement */
-    eMEDIA               = 1 << 10,
+    eMEDIA               = 1 << 9,
     /** animation elements */
-    eANIMATION           = 1 << 11
+    eANIMATION           = 1 << 10
   };
 
   /**
@@ -728,6 +726,7 @@ public:
    */
   NS_DECL_NSIDOMEVENTTARGET
   using nsIDOMEventTarget::AddEventListener;
+  using nsIDOMEventTarget::AddSystemEventListener;
 
   /**
    * Adds a mutation observer to be notified when this node, or any of its
@@ -915,6 +914,18 @@ public:
 #else
     return HasFlag(NODE_IS_IN_ANONYMOUS_SUBTREE);
 #endif
+  }
+
+  /**
+   * Returns true if |this| node is the common ancestor of the start/end
+   * nodes of a Range in a Selection or a descendant of such a common ancestor.
+   * This node is definitely not selected when |false| is returned, but it may
+   * or may not be selected when |true| is returned.
+   */
+  bool IsSelectionDescendant() const
+  {
+    return IsDescendantOfCommonAncestorForRangeInSelection() ||
+           IsCommonAncestorForRangeInSelection();
   }
 
   /**
@@ -1202,6 +1213,11 @@ private:
     ElementHasName,
     // Set if the element might have a contenteditable attribute set.
     ElementMayHaveContentEditableAttr,
+    // Set if the node is the common ancestor of the start/end nodes of a Range
+    // that is in a Selection.
+    NodeIsCommonAncestorForRangeInSelection,
+    // Set if the node is a descendant of a node with the above bit set.
+    NodeIsDescendantOfCommonAncestorForRangeInSelection,
     // Guard value
     BooleanFlagCount
   };
@@ -1236,6 +1252,18 @@ public:
   bool HasName() const { return GetBoolFlag(ElementHasName); }
   bool MayHaveContentEditableAttr() const
     { return GetBoolFlag(ElementMayHaveContentEditableAttr); }
+  bool IsCommonAncestorForRangeInSelection() const
+    { return GetBoolFlag(NodeIsCommonAncestorForRangeInSelection); }
+  void SetCommonAncestorForRangeInSelection()
+    { SetBoolFlag(NodeIsCommonAncestorForRangeInSelection); }
+  void ClearCommonAncestorForRangeInSelection()
+    { ClearBoolFlag(NodeIsCommonAncestorForRangeInSelection); }
+  bool IsDescendantOfCommonAncestorForRangeInSelection() const
+    { return GetBoolFlag(NodeIsDescendantOfCommonAncestorForRangeInSelection); }
+  void SetDescendantOfCommonAncestorForRangeInSelection()
+    { SetBoolFlag(NodeIsDescendantOfCommonAncestorForRangeInSelection); }
+  void ClearDescendantOfCommonAncestorForRangeInSelection()
+    { ClearBoolFlag(NodeIsDescendantOfCommonAncestorForRangeInSelection); }
 
 protected:
   void SetParentIsContent(bool aValue) { SetBoolFlag(ParentIsContent, aValue); }

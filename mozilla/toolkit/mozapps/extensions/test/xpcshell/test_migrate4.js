@@ -94,6 +94,8 @@ profileDir.append("extensions");
 do_load_httpd_js();
 var testserver;
 
+let oldSyncGUIDs = {};
+
 function prepare_profile() {
   createAppInfo("xpcshell@tests.mozilla.org", "XPCShell", "1", "1.9.2");
 
@@ -124,12 +126,18 @@ function prepare_profile() {
                                  "addon6@tests.mozilla.org",
                                  "addon9@tests.mozilla.org"],
                                  function([a1, a2, a3, a4, a5, a6, a9]) {
+      a1.applyBackgroundUpdates = AddonManager.AUTOUPDATE_DEFAULT;
       a2.userDisabled = true;
-      a2.applyBackgroundUpdates = false;
+      a2.applyBackgroundUpdates = AddonManager.AUTOUPDATE_DISABLE;
+      a3.applyBackgroundUpdates = AddonManager.AUTOUPDATE_ENABLE;
       a4.userDisabled = true;
       a6.userDisabled = true;
       a9.userDisabled = false;
-  
+
+      for each (let addon in [a1, a2, a3, a4, a5, a6]) {
+        oldSyncGUIDs[addon.id] = addon.syncGUID;
+      }
+
       a6.findUpdates({
         onUpdateAvailable: function(aAddon, aInstall6) {
           AddonManager.getInstallForURL("http://localhost:4444/addons/test_migrate4_7.xpi", function(aInstall7) {
@@ -199,40 +207,44 @@ function test_results() {
                                function([a1, a2, a3, a4, a5, a6, a7, a8, a9]) {
     // addon1 was enabled
     do_check_neq(a1, null);
+    do_check_eq(a1.syncGUID, oldSyncGUIDs[a1.id]);
     do_check_false(a1.userDisabled);
     do_check_false(a1.appDisabled);
     do_check_true(a1.isActive);
-    do_check_true(a1.applyBackgroundUpdates);
+    do_check_eq(a1.applyBackgroundUpdates, AddonManager.AUTOUPDATE_DEFAULT);
     do_check_true(a1.foreignInstall);
     do_check_false(a1.hasBinaryComponents);
     do_check_false(a1.strictCompatibility);
 
     // addon2 was disabled
     do_check_neq(a2, null);
+    do_check_eq(a2.syncGUID, oldSyncGUIDs[a2.id]);
     do_check_true(a2.userDisabled);
     do_check_false(a2.appDisabled);
     do_check_false(a2.isActive);
-    do_check_false(a2.applyBackgroundUpdates);
+    do_check_eq(a2.applyBackgroundUpdates, AddonManager.AUTOUPDATE_DISABLE);
     do_check_true(a2.foreignInstall);
     do_check_false(a2.hasBinaryComponents);
     do_check_false(a2.strictCompatibility);
 
     // addon3 was pending-disable in the database
     do_check_neq(a3, null);
+    do_check_eq(a3.syncGUID, oldSyncGUIDs[a3.id]);
     do_check_true(a3.userDisabled);
     do_check_false(a3.appDisabled);
     do_check_false(a3.isActive);
-    do_check_true(a3.applyBackgroundUpdates);
+    do_check_eq(a3.applyBackgroundUpdates, AddonManager.AUTOUPDATE_ENABLE);
     do_check_true(a3.foreignInstall);
     do_check_false(a3.hasBinaryComponents);
     do_check_false(a3.strictCompatibility);
 
     // addon4 was pending-enable in the database
     do_check_neq(a4, null);
+    do_check_eq(a4.syncGUID, oldSyncGUIDs[a4.id]);
     do_check_false(a4.userDisabled);
     do_check_false(a4.appDisabled);
     do_check_true(a4.isActive);
-    do_check_true(a4.applyBackgroundUpdates);
+    do_check_eq(a4.applyBackgroundUpdates, AddonManager.AUTOUPDATE_DEFAULT);
     do_check_true(a4.foreignInstall);
     do_check_false(a4.hasBinaryComponents);
     do_check_true(a4.strictCompatibility);
@@ -242,18 +254,19 @@ function test_results() {
     do_check_false(a5.userDisabled);
     do_check_false(a5.appDisabled);
     do_check_true(a5.isActive);
-    do_check_true(a5.applyBackgroundUpdates);
+    do_check_eq(a4.applyBackgroundUpdates, AddonManager.AUTOUPDATE_DEFAULT);
     do_check_true(a5.foreignInstall);
     do_check_false(a5.hasBinaryComponents);
     do_check_false(a5.strictCompatibility);
 
     // addon6 was disabled and compatible but a new version has been installed
     do_check_neq(a6, null);
+    do_check_eq(a6.syncGUID, oldSyncGUIDs[a6.id]);
     do_check_eq(a6.version, "2.0");
     do_check_true(a6.userDisabled);
     do_check_false(a6.appDisabled);
     do_check_false(a6.isActive);
-    do_check_true(a6.applyBackgroundUpdates);
+    do_check_eq(a6.applyBackgroundUpdates, AddonManager.AUTOUPDATE_DEFAULT);
     do_check_true(a6.foreignInstall);
     do_check_eq(a6.sourceURI.spec, "http://localhost:4444/addons/test_migrate4_6.xpi");
     do_check_eq(a6.releaseNotesURI.spec, "http://example.com/updateInfo.xhtml");
@@ -266,7 +279,7 @@ function test_results() {
     do_check_false(a7.userDisabled);
     do_check_false(a7.appDisabled);
     do_check_true(a7.isActive);
-    do_check_true(a7.applyBackgroundUpdates);
+    do_check_eq(a7.applyBackgroundUpdates, AddonManager.AUTOUPDATE_DEFAULT);
     do_check_false(a7.foreignInstall);
     do_check_eq(a7.sourceURI.spec, "http://localhost:4444/addons/test_migrate4_7.xpi");
     do_check_eq(a7.releaseNotesURI, null);

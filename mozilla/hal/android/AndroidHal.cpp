@@ -36,14 +36,55 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "Hal.h"
+#include "HalImpl.h"
+#include "WindowIdentifier.h"
 #include "AndroidBridge.h"
+
+using mozilla::hal::WindowIdentifier;
 
 namespace mozilla {
 namespace hal_impl {
 
 void
-Vibrate(const nsTArray<uint32>& pattern)
-{}
+Vibrate(const nsTArray<uint32> &pattern, const WindowIdentifier &)
+{
+  // Ignore the WindowIdentifier parameter; it's here only because hal::Vibrate,
+  // hal_sandbox::Vibrate, and hal_impl::Vibrate all must have the same
+  // signature.
+
+  // Strangely enough, the Android Java API seems to treat vibrate([0]) as a
+  // nop.  But we want to treat vibrate([0]) like CancelVibrate!  (Note that we
+  // also need to treat vibrate([]) as a call to CancelVibrate.)
+  bool allZero = true;
+  for (uint32 i = 0; i < pattern.Length(); i++) {
+    if (pattern[i] != 0) {
+      allZero = false;
+      break;
+    }
+  }
+
+  if (allZero) {
+    hal_impl::CancelVibrate(WindowIdentifier());
+    return;
+  }
+
+  AndroidBridge* b = AndroidBridge::Bridge();
+  if (!b) {
+    return;
+  }
+
+  b->Vibrate(pattern);
+}
+
+void
+CancelVibrate(const WindowIdentifier &)
+{
+  // Ignore WindowIdentifier parameter.
+
+  AndroidBridge* b = AndroidBridge::Bridge();
+  if (b)
+    b->CancelVibrate();
+}
 
 void
 EnableBatteryNotifications()
@@ -77,6 +118,26 @@ GetCurrentBatteryInformation(hal::BatteryInformation* aBatteryInfo)
 
   bridge->GetCurrentBatteryInformation(aBatteryInfo);
 }
+
+bool
+GetScreenEnabled()
+{
+  return true;
+}
+
+void
+SetScreenEnabled(bool enabled)
+{}
+
+double
+GetScreenBrightness()
+{
+  return 1;
+}
+
+void
+SetScreenBrightness(double brightness)
+{}
 
 } // hal_impl
 } // mozilla

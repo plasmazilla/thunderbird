@@ -51,6 +51,7 @@ Components.utils.import("resource:///modules/errUtils.js");
 Components.utils.import("resource:///modules/IOUtils.js");
 Components.utils.import("resource:///modules/mailnewsMigrator.js");
 Components.utils.import("resource:///modules/sessionStoreManager.js");
+Components.utils.import("resource:///modules/summaryFrameManager.js");
 Components.utils.import("resource:///modules/mailInstrumentation.js");
 
 /* This is where functions related to the 3 pane window are kept */
@@ -87,6 +88,9 @@ var gRightMouseButtonSavedSelection = null;
 var gNewAccountToLoad = null;
 
 var gDisplayStartupPage = false;
+
+// The object in charge of managing the mail summary pane
+var gSummaryFrameManager;
 
 // the folderListener object
 var folderListener = {
@@ -278,12 +282,20 @@ function UpdateMailPaneConfig(aMsgWindowInitialized) {
       let threadPaneBox = document.getElementById("threadPaneBox");
       let overflowNodes =
         threadPaneBox.querySelectorAll("[onoverflow]");
+
       for (let iNode = 0; iNode < overflowNodes.length; iNode++) {
         let node = overflowNodes[iNode];
-        if (node.scrollWidth > node.clientWidth)
-          node.onoverflow();
-        else if (node.onresize)
-          node.onresize();
+
+        if (node.scrollWidth > node.clientWidth) {
+          let e = document.createEvent("HTMLEvents");
+          e.initEvent("overflow", false, false);
+          node.dispatchEvent(e);
+        }
+        else if (node.onresize) {
+          let e = document.createEvent("HTMLEvents");
+          e.initEvent("resize", false, false);
+          node.dispatchEvent(e);
+        }
       }
     }, 1500);
   }
@@ -418,6 +430,11 @@ function OnLoadMessenger()
   specialTabs.openSpecialTabsOnStartup();
   tabmail.registerTabType(webSearchTabType);
 
+  // Set up the summary frame manager to handle loading pages in the
+  // multi-message pane
+  gSummaryFrameManager = new SummaryFrameManager(
+                         document.getElementById("multimessage"));
+
   window.addEventListener("AppCommand", HandleAppCommandEvent, true);
 }
 
@@ -432,7 +449,7 @@ function LoadPostAccountWizard()
   MigrateFolderViews();
   MigrateOpenMessageBehavior();
   Components.utils.import("resource:///modules/mailMigrator.js");
-  MailMigrator.migrateMail();
+  MailMigrator.migratePostAccountWizard();
 
   accountManager.setSpecialFolders();
   try {
@@ -1588,4 +1605,21 @@ var LightWeightThemeWebInstaller = {
     return this._manager.parseTheme(node.getAttribute("data-browsertheme"),
                                     node.baseURI);
   }
+}
+
+/**
+ * Initialize and attach the HTML5 context menu to the specified menupopup
+ * during the onpopupshowing event.
+ *
+ * @param menuPopup the menupopup element
+ * @param event the event responsible for showing the popup
+ */
+function InitPageMenu(menuPopup, event) {
+  if (event.target != menuPopup)
+    return;
+
+  PageMenu.maybeBuildAndAttachMenu(menuPopup.triggerNode, menuPopup);
+
+  if (menuPopup.children.length == 0)
+    event.preventDefault();
 }

@@ -61,7 +61,6 @@
 #include "nsStyleConsts.h"
 #include "nsNativeThemeColors.h"
 #include "nsChildView.h"
-#include "nsIMenuRollup.h"
 
 #include "gfxPlatform.h"
 #include "qcms.h"
@@ -95,7 +94,6 @@ extern NSMenu* sApplicationMenu; // Application menu shared by all menubars
 
 // defined in nsChildView.mm
 extern nsIRollupListener * gRollupListener;
-extern nsIMenuRollup     * gMenuRollup;
 extern nsIWidget         * gRollupWidget;
 extern BOOL                gSomeMenuBarPainted;
 
@@ -126,7 +124,7 @@ NS_IMPL_ISUPPORTS_INHERITED1(nsCocoaWindow, Inherited, nsPIWidgetCocoa)
 static void RollUpPopups()
 {
   if (gRollupListener && gRollupWidget)
-    gRollupListener->Rollup(nsnull, nsnull);
+    gRollupListener->Rollup(0);
 }
 
 nsCocoaWindow::nsCocoaWindow()
@@ -141,6 +139,7 @@ nsCocoaWindow::nsCocoaWindow()
 , mSheetNeedsShow(false)
 , mFullScreen(false)
 , mModal(false)
+, mInReportMoveEvent(false)
 , mNumModalDescendents(0)
 {
 
@@ -1366,6 +1365,15 @@ nsCocoaWindow::ReportMoveEvent()
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
 
+  // Prevent recursion, which can become infinite (see bug 708278).  This
+  // can happen when the call to [NSWindow setFrameTopLeftPoint:] in
+  // nsCocoaWindow::Move() triggers an immediate NSWindowDidMove notification
+  // (and a call to [WindowDelegate windowDidMove:]).
+  if (mInReportMoveEvent) {
+    return;
+  }
+  mInReportMoveEvent = true;
+
   UpdateBounds();
 
   // Dispatch the move event to Gecko
@@ -1375,6 +1383,8 @@ nsCocoaWindow::ReportMoveEvent()
   guiEvent.time = PR_IntervalNow();
   nsEventStatus status = nsEventStatus_eIgnore;
   DispatchEvent(&guiEvent, status);
+
+  mInReportMoveEvent = false;
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
 }
@@ -1486,22 +1496,17 @@ nsMenuBarX* nsCocoaWindow::GetMenuBar()
   return mMenuBar;
 }
 
-NS_IMETHODIMP nsCocoaWindow::CaptureRollupEvents(nsIRollupListener * aListener, 
-                                                 nsIMenuRollup * aMenuRollup,
-                                                 bool aDoCapture, 
+NS_IMETHODIMP nsCocoaWindow::CaptureRollupEvents(nsIRollupListener * aListener,
+                                                 bool aDoCapture,
                                                  bool aConsumeRollupEvent)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NSRESULT;
 
   gRollupListener = nsnull;
-  NS_IF_RELEASE(gMenuRollup);
   NS_IF_RELEASE(gRollupWidget);
   
   if (aDoCapture) {
     gRollupListener = aListener;
-    NS_IF_RELEASE(gMenuRollup);
-    gMenuRollup = aMenuRollup;
-    NS_IF_ADDREF(aMenuRollup);
     gRollupWidget = this;
     NS_ADDREF(this);
 
@@ -1791,6 +1796,14 @@ bool nsCocoaWindow::ShouldFocusPlugin()
   // Resizing might have changed our zoom state.
   mGeckoWindow->DispatchSizeModeEvent();
   mGeckoWindow->ReportSizeEvent();
+}
+
+- (void)windowDidChangeScreen:(NSNotification *)aNotification
+{
+  if (!mGeckoWindow)
+    return;
+
+  mGeckoWindow->ReportMoveEvent();
 }
 
 - (void)windowDidBecomeMain:(NSNotification *)aNotification

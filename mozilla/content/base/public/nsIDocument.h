@@ -64,7 +64,7 @@
 #include "nsSMILAnimationController.h"
 #include "nsIScriptGlobalObject.h"
 #include "nsIDocumentEncoder.h"
-#include "nsIAnimationFrameListener.h"
+#include "nsIFrameRequestCallback.h"
 #include "nsEventStates.h"
 #include "nsIStructuredCloneContainer.h"
 #include "nsIBFCacheEntry.h"
@@ -124,11 +124,19 @@ class Element;
 } // namespace mozilla
 
 #define NS_IDOCUMENT_IID \
-{ 0xc3e40e8e, 0x8b91, 0x424c, \
-  { 0xbe, 0x9c, 0x9c, 0xc1, 0x76, 0xa7, 0xf7, 0x24 } }
+{ 0x283ec27d, 0x5b23, 0x49b2, \
+  { 0x94, 0xd9, 0x9, 0xb5, 0xdb, 0x45, 0x30, 0x73 } }
+
 
 // Flag for AddStyleSheet().
 #define NS_STYLESHEET_FROM_CATALOG                (1 << 0)
+
+// Enum for requesting a particular type of document when creating a doc
+enum DocumentFlavor {
+  DocumentFlavorLegacyGuess, // compat with old code until made HTML5-compliant
+  DocumentFlavorHTML, // HTMLDocument with HTMLness bit set to true
+  DocumentFlavorSVG // SVGDocument
+};
 
 // Document states
 
@@ -166,6 +174,7 @@ public:
       // &&-ed in, this is safe.
       mAllowDNSPrefetch(true),
       mIsBeingUsedAsImage(false),
+      mHasLinksToUpdate(false),
       mPartID(0)
   {
     SetInDocument();
@@ -744,20 +753,30 @@ public:
 
   /**
    * Asynchronously requests that the document make aElement the full-screen
-   * element, and move into full-screen mode.
+   * element, and move into full-screen mode. The current full-screen element
+   * (if any) is pushed onto the full-screen element stack, and it can be
+   * returned to full-screen status by calling RestorePreviousFullScreenState().
    */
   virtual void AsyncRequestFullScreen(Element* aElement) = 0;
 
   /**
-   * Requests that the document, and all documents in its hierarchy exit
-   * from DOM full-screen mode.
+   * Restores the previous full-screen element to full-screen status. If there
+   * is no former full-screen element, this exits full-screen, moving the
+   * top-level browser window out of full-screen mode.
    */
-  virtual void CancelFullScreen() = 0;
+  virtual void RestorePreviousFullScreenState() = 0;
 
   /**
    * Returns true if this document is in full-screen mode.
    */
   virtual bool IsFullScreenDoc() = 0;
+
+  /**
+   * Exits all documents from DOM full-screen mode, and moves the top-level
+   * browser window out of full-screen mode. If aRunAsync is true, this runs
+   * asynchronously.
+   */
+  static void ExitFullScreen(bool aRunAsync);
 
   //----------------------------------------------------------------------
 
@@ -1489,7 +1508,7 @@ public:
   /**
    * This method is similar to GetElementById() from nsIDOMDocument but it
    * returns a mozilla::dom::Element instead of a nsIDOMElement.
-   * It prevents converting nsIDOMElement to mozill:dom::Element which is
+   * It prevents converting nsIDOMElement to mozilla::dom::Element which is
    * already converted from mozilla::dom::Element.
    */
   virtual Element* GetElementById(const nsAString& aElementId) = 0;
@@ -1510,18 +1529,16 @@ public:
    */
   virtual Element* LookupImageElement(const nsAString& aElementId) = 0;
 
-  void ScheduleBeforePaintEvent(nsIAnimationFrameListener* aListener);
-  void BeforePaintEventFiring()
-  {
-    mHavePendingPaint = false;
-  }
+  nsresult ScheduleFrameRequestCallback(nsIFrameRequestCallback* aCallback,
+                                        PRInt32 *aHandle);
+  void CancelFrameRequestCallback(PRInt32 aHandle);
 
-  typedef nsTArray< nsCOMPtr<nsIAnimationFrameListener> > AnimationListenerList;
+  typedef nsTArray< nsCOMPtr<nsIFrameRequestCallback> > FrameRequestCallbackList;
   /**
-   * Put this documents animation frame listeners into the provided
+   * Put this document's frame request callbacks into the provided
    * list, and forget about them.
    */
-  void TakeAnimationFrameListeners(AnimationListenerList& aListeners);
+  void TakeFrameRequestCallbacks(FrameRequestCallbackList& aCallbacks);
 
   // This returns true when the document tree is being teared down.
   bool InUnlinkOrDeletion() { return mInUnlinkOrDeletion; }
@@ -1555,6 +1572,25 @@ public:
 
   virtual Element* FindImageMap(const nsAString& aNormalizedMapName) = 0;
 
+  // Called to notify the document that a listener on the "mozaudioavailable"
+  // event has been added. Media elements in the document need to ensure they
+  // fire the event.
+  virtual void NotifyAudioAvailableListener() = 0;
+
+  // Returns true if the document has "mozaudioavailable" event listeners.
+  virtual bool HasAudioAvailableListeners() = 0;
+
+  // Add aLink to the set of links that need their status resolved. 
+  void RegisterPendingLinkUpdate(mozilla::dom::Link* aLink);
+  
+  // Remove aLink from the set of links that need their status resolved.
+  // This function must be called when links are removed from the document.
+  void UnregisterPendingLinkUpdate(mozilla::dom::Link* aElement);
+
+  // Update state on links in mLinksToUpdate.  This function must
+  // be called prior to selector matching.
+  void FlushPendingLinkUpdates();
+
 #define DEPRECATED_OPERATION(_op) e##_op,
   enum DeprecatedOperations {
 #include "nsDeprecatedOperationList.h"
@@ -1564,6 +1600,20 @@ public:
   void WarnOnceAbout(DeprecatedOperations aOperation);
 
   virtual void PostVisibilityUpdateEvent() = 0;
+
+  void SetNeedLayoutFlush() {
+    mNeedLayoutFlush = true;
+    if (mDisplayDocument) {
+      mDisplayDocument->SetNeedLayoutFlush();
+    }
+  }
+
+  void SetNeedStyleFlush() {
+    mNeedStyleFlush = true;
+    if (mDisplayDocument) {
+      mDisplayDocument->SetNeedStyleFlush();
+    }
+  }
 
 private:
   PRUint64 mWarnedAbout;
@@ -1644,6 +1694,11 @@ protected:
   // These are non-owning pointers, the elements are responsible for removing
   // themselves when they go away.
   nsAutoPtr<nsTHashtable<nsPtrHashKey<nsIContent> > > mFreezableElements;
+  
+  // The set of all links that need their status resolved.  Links must add themselves
+  // to this set by calling RegisterPendingLinkUpdate when added to a document and must
+  // remove themselves by calling UnregisterPendingLinkUpdate when removed from a document.
+  nsTHashtable<nsPtrHashKey<mozilla::dom::Link> > mLinksToUpdate;
 
   // SMIL Animation Controller, lazily-initialized in GetAnimationController
   nsRefPtr<nsSMILAnimationController> mAnimationController;
@@ -1714,15 +1769,21 @@ protected:
   // True if document has ever had script handling object.
   bool mHasHadScriptHandlingObject;
 
-  // True if we're waiting for a before-paint event.
-  bool mHavePendingPaint;
-
   // True if we're an SVG document being used as an image.
   bool mIsBeingUsedAsImage;
 
   // True is this document is synthetic : stand alone image, video, audio
   // file, etc.
   bool mIsSyntheticDocument;
+
+  // True if this document has links whose state needs updating
+  bool mHasLinksToUpdate;
+
+  // True if a layout flush might not be a no-op
+  bool mNeedLayoutFlush;
+
+  // True if a style flush might not be a no-op
+  bool mNeedStyleFlush;
 
   // The document's script global object, the object from which the
   // document can get its script context and scope. This is the
@@ -1771,13 +1832,42 @@ protected:
    */
   PRUint32 mExternalScriptsBeingEvaluated;
 
+  /**
+   * The current frame request callback handle
+   */
+  PRInt32 mFrameRequestCallbackCounter;
+
   // Weak reference to mScriptGlobalObject QI:d to nsPIDOMWindow,
   // updated on every set of mSecriptGlobalObject.
   nsPIDOMWindow *mWindow;
 
   nsCOMPtr<nsIDocumentEncoder> mCachedEncoder;
 
-  AnimationListenerList mAnimationFrameListeners;
+  struct FrameRequest {
+    FrameRequest(nsIFrameRequestCallback* aCallback,
+                 PRInt32 aHandle) :
+      mCallback(aCallback),
+      mHandle(aHandle)
+    {}
+
+    // Conversion operator so that we can append these to a
+    // FrameRequestCallbackList
+    operator nsIFrameRequestCallback* const () const { return mCallback; }
+
+    // Comparator operators to allow RemoveElementSorted with an
+    // integer argument on arrays of FrameRequest
+    bool operator==(PRInt32 aHandle) const {
+      return mHandle == aHandle;
+    }
+    bool operator<(PRInt32 aHandle) const {
+      return mHandle < aHandle;
+    }
+    
+    nsCOMPtr<nsIFrameRequestCallback> mCallback;
+    PRInt32 mHandle;
+  };
+
+  nsTArray<FrameRequest> mFrameRequestCallbacks;
 
   // This object allows us to evict ourself from the back/forward cache.  The
   // pointer is non-null iff we're currently in the bfcache.
@@ -1871,7 +1961,7 @@ NS_NewDOMDocument(nsIDOMDocument** aInstancePtrResult,
                   nsIPrincipal* aPrincipal,
                   bool aLoadedAsData,
                   nsIScriptGlobalObject* aEventObject,
-                  bool aSVGDocument);
+                  DocumentFlavor aFlavor);
 
 // This is used only for xbl documents created from the startup cache.
 // Non-cached documents are created in the same manner as xml documents.

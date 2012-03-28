@@ -560,7 +560,14 @@ calendar-month-day-box-item {
 .calendar-color-box {
     /* This rule should be adopted if the alarm image size is changed */
     min-height: 13px;
-    background-image: -moz-linear-gradient(top, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.01) 50%, rgba(0, 0, 0, 0.05))
+    background-image: -moz-linear-gradient(top, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.01) 50%, rgba(0, 0, 0, 0.05));
+    border: 1px solid transparent;
+    border-radius: 2px;
+}
+
+calendar-month-day-box calendar-month-day-box-item[allday="true"] .calendar-color-box {
+    border-color: rgba(0, 0, 0, 0.5);
+    -moz-box-shadow: inset -1px -1px 0 rgba(255, 255, 255, 0.7), inset 1px 1px 0 rgba(255, 255, 255, 0.7);
 }
 
 .calendar-month-day-box-item-label {
@@ -803,7 +810,7 @@ tab[calview] > .tab-middle {
 .view-header {
     font-weight: normal;
     font-size: 14px;
-    color: #2E4E73;
+    color: ButtonText;
     padding-top: 5px;
     margin-top: 3px;
 }
@@ -848,7 +855,7 @@ tab[calview] > .tab-middle {
     -moz-margin-start: 2px;
     -moz-margin-end: 2px;
     margin-bottom: 0px;
-    color: #2E4E73;
+    color: ButtonText;
     font-size: 14px;
 }
 

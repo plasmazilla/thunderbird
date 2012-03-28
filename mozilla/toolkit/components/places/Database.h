@@ -45,9 +45,9 @@
 #include "mozilla/storage.h"
 #include "mozilla/storage/StatementCache.h"
 
-// This is the schema version, update it at any schema change and add a
+// This is the schema version. Update it at any schema change and add a
 // corresponding migrateVxx method below.
-#define DATABASE_SCHEMA_VERSION 12
+#define DATABASE_SCHEMA_VERSION 16
 
 // Fired after Places inited.
 #define TOPIC_PLACES_INIT_COMPLETE "places-init-complete"
@@ -73,6 +73,8 @@
 #define TOPIC_PLACES_WILL_CLOSE_CONNECTION "places-will-close-connection"
 // Fired when the connection has gone, nothing will work from now on.
 #define TOPIC_PLACES_CONNECTION_CLOSED "places-connection-closed"
+
+class nsIStringBundle;
 
 namespace mozilla {
 namespace places {
@@ -271,6 +273,11 @@ protected:
   nsresult InitSchema(bool* aDatabaseMigrated);
 
   /**
+   * Creates bookmark roots in a new DB.
+   */
+  nsresult CreateBookmarkRoots();
+
+  /**
    * Initializes additionale SQLite functions, defined in SQLFunctions.h
    */
   nsresult InitFunctions();
@@ -288,6 +295,12 @@ protected:
   nsresult MigrateV9Up();
   nsresult MigrateV10Up();
   nsresult MigrateV11Up();
+  nsresult MigrateV13Up();
+  nsresult MigrateV14Up();
+  nsresult MigrateV15Up();
+  nsresult MigrateV16Up();
+
+  nsresult UpdateBookmarkRootTitles();
   nsresult CheckAndUpdateGUIDs();
 
 private:

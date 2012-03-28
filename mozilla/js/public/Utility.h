@@ -43,7 +43,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "mozilla/Util.h"
+#include "jstypes.h"
 
 #ifdef __cplusplus
 
@@ -141,8 +141,8 @@ extern JS_PUBLIC_API(void) JS_Abort(void);
  * In order to test OOM conditions, when the shell command-line option
  * |-A NUM| is passed, we fail continuously after the NUM'th allocation.
  */
-extern JS_PUBLIC_DATA(JSUint32) OOM_maxAllocations; /* set from shell/js.cpp */
-extern JS_PUBLIC_DATA(JSUint32) OOM_counter; /* data race, who cares. */
+extern JS_PUBLIC_DATA(uint32_t) OOM_maxAllocations; /* set from shell/js.cpp */
+extern JS_PUBLIC_DATA(uint32_t) OOM_counter; /* data race, who cares. */
 #  define JS_OOM_POSSIBLY_FAIL() \
     do \
     { \
@@ -274,7 +274,7 @@ __BitScanReverse64(unsigned __int64 val)
 #else
 # define JS_CEILING_LOG2(_log2,_n)                                            \
     JS_BEGIN_MACRO                                                            \
-        JSUint32 j_ = (JSUint32)(_n);                                         \
+        uint32_t j_ = (uint32_t)(_n);                                         \
         (_log2) = 0;                                                          \
         if ((j_) & ((j_)-1))                                                  \
             (_log2) += 1;                                                     \
@@ -310,7 +310,7 @@ __BitScanReverse64(unsigned __int64 val)
 #else
 # define JS_FLOOR_LOG2(_log2,_n)                                              \
     JS_BEGIN_MACRO                                                            \
-        JSUint32 j_ = (JSUint32)(_n);                                         \
+        uint32_t j_ = (uint32_t)(_n);                                         \
         (_log2) = 0;                                                          \
         if ((j_) >> 16)                                                       \
             (_log2) += 16, (j_) >>= 16;                                       \
@@ -346,14 +346,14 @@ __BitScanReverse64(unsigned __int64 val)
 #  define js_FloorLog2wImpl(n)                                                \
     ((size_t)(JS_BITS_PER_WORD - 1 - js_bitscan_clz32(n)))
 # else
-extern size_t js_FloorLog2wImpl(size_t n);
+JS_PUBLIC_API(size_t) js_FloorLog2wImpl(size_t n);
 # endif
 #elif JS_BYTES_PER_WORD == 8
 # ifdef JS_HAS_BUILTIN_BITSCAN64
 #  define js_FloorLog2wImpl(n)                                                \
     ((size_t)(JS_BITS_PER_WORD - 1 - js_bitscan_clz64(n)))
 # else
-extern size_t js_FloorLog2wImpl(size_t n);
+JS_PUBLIC_API(size_t) js_FloorLog2wImpl(size_t n);
 # endif
 #else
 # error "NOT SUPPORTED"
@@ -525,7 +525,7 @@ JS_END_EXTERN_C
     template <class T>\
     QUALIFIERS T *array_new(size_t n) {\
         /* The length is stored just before the vector memory. */\
-        uint64 numBytes64 = uint64(JSMinAlignment) + uint64(sizeof(T)) * uint64(n);\
+        uint64_t numBytes64 = uint64_t(JSMinAlignment) + uint64_t(sizeof(T)) * uint64_t(n);\
         size_t numBytes = size_t(numBytes64);\
         if (numBytes64 != numBytes) {\
             JS_ASSERT(0);   /* we want to know if this happens in debug builds */\
@@ -895,11 +895,9 @@ RoundUpPow2(size_t x)
 #endif /* defined(__cplusplus) */
 
 /*
- * This signature is for malloc_usable_size-like functions used to measure
- * memory usage.  A return value of zero indicates that the size is unknown,
- * and so a fall-back computation should be done for the size.
+ * This is SpiderMonkey's equivalent to |nsMallocSizeOfFun|.
  */
-typedef size_t(*JSUsableSizeFun)(void *p);
+typedef size_t(*JSMallocSizeOfFun)(const void *p, size_t computedSize);
 
 /* sixgill annotation defines */
 #ifndef HAVE_STATIC_ANNOTATIONS

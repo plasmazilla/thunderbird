@@ -40,112 +40,247 @@
 
 #include "frontend/TokenStream.h"
 #include "vm/RegExpStatics.h"
+#include "vm/MatchPairs.h"
 
 #include "jsobjinlines.h"
 #include "jsstrinlines.h"
 
 #include "vm/RegExpObject-inl.h"
-
-#ifdef JS_TRACER
-#include "jstracer.h"
-using namespace nanojit;
-#endif
+#include "vm/RegExpStatics-inl.h"
 
 using namespace js;
+using js::detail::RegExpPrivate;
+using js::detail::RegExpPrivateCode;
 
 JS_STATIC_ASSERT(IgnoreCaseFlag == JSREG_FOLD);
 JS_STATIC_ASSERT(GlobalFlag == JSREG_GLOB);
 JS_STATIC_ASSERT(MultilineFlag == JSREG_MULTILINE);
 JS_STATIC_ASSERT(StickyFlag == JSREG_STICKY);
 
-bool
-RegExpPrivate::executeInternal(JSContext *cx, RegExpStatics *res, JSString *inputstr,
-                               size_t *lastIndex, bool test, Value *rval)
-{
-    const size_t pairCount = parenCount + 1;
-    const size_t matchItemCount = pairCount * 2;
-    const size_t bufCount = RegExpPrivateCode::getOutputSize(pairCount);
+/* RegExpMatcher */
 
-    LifoAllocScope las(&cx->tempLifoAlloc());
-    int *buf = cx->tempLifoAlloc().newArray<int>(bufCount);
-    if (!buf)
+bool
+RegExpMatcher::resetWithTestOptimized(RegExpObject *reobj)
+{
+    JS_ASSERT(reobj->startsWithAtomizedGreedyStar());
+
+    JSAtom *source = &reobj->getSource()->asAtom();
+    AlreadyIncRefed<RegExpPrivate> priv =
+        RegExpPrivate::createTestOptimized(cx, source, reobj->getFlags());
+    if (!priv)
         return false;
 
     /*
-     * The JIT regexp procedure doesn't always initialize matchPair values.
-     * Maybe we can make this faster by ensuring it does?
+     * Create a dummy RegExpObject to persist this RegExpPrivate until the next GC.
+     * Note that we give the ref we have to this new object.
      */
-    for (int *it = buf; it != buf + matchItemCount; ++it)
-        *it = -1;
-    
-    JSLinearString *input = inputstr->ensureLinear(cx);
-    if (!input)
+    RegExpObjectBuilder builder(cx);
+    RegExpObject *dummy = builder.build(priv);
+    if (!dummy) {
+        priv->decref(cx);
         return false;
-
-    JS::Anchor<JSString *> anchor(input);
-    size_t len = input->length();
-    const jschar *chars = input->chars();
-
-    /* 
-     * inputOffset emulates sticky mode by matching from this offset into the char buf and
-     * subtracting the delta off at the end.
-     */
-    size_t inputOffset = 0;
-
-    if (sticky()) {
-        /* Sticky matches at the last index for the regexp object. */
-        chars += *lastIndex;
-        len -= *lastIndex;
-        inputOffset = *lastIndex;
     }
 
-    size_t start = *lastIndex - inputOffset;
-    RegExpPrivateCode::ExecuteResult result = code.execute(cx, chars, start, len, buf, bufCount);
-
-    switch (result) {
-      case RegExpPrivateCode::Error:
-        return false;
-      case RegExpPrivateCode::Success_NotFound:
-        *rval = NullValue();
-        return true;
-      default:
-        JS_ASSERT(result == RegExpPrivateCode::Success);
-    }
-
-    /* 
-     * Adjust buf for the inputOffset. Use of sticky is rare and the matchItemCount is small, so
-     * just do another pass.
-     */
-    if (JS_UNLIKELY(inputOffset)) {
-        for (size_t i = 0; i < matchItemCount; ++i)
-            buf[i] = buf[i] < 0 ? -1 : buf[i] + inputOffset;
-    }
-
-    /* Make sure the populated contents of |buf| are sane values against |input|. */
-    checkMatchPairs(input, buf, matchItemCount);
-
-    if (res)
-        res->updateFromMatch(cx, input, buf, matchItemCount);
-
-    *lastIndex = buf[1];
-
-    if (test) {
-        *rval = BooleanValue(true);
-        return true;
-    }
-
-    JSObject *array = createResult(cx, input, buf, matchItemCount);
-    if (!array)
-        return false;
-
-    *rval = ObjectValue(*array);
+    arc.reset(NeedsIncRef<RegExpPrivate>(priv.get()));
     return true;
 }
 
-const Shape *
+/* RegExpObjectBuilder */
+
+bool
+RegExpObjectBuilder::getOrCreate()
+{
+    if (reobj_)
+        return true;
+
+    JSObject *obj = NewBuiltinClassInstance(cx, &RegExpClass);
+    if (!obj)
+        return false;
+    obj->setPrivate(NULL);
+
+    reobj_ = obj->asRegExp();
+    return true;
+}
+
+bool
+RegExpObjectBuilder::getOrCreateClone(RegExpObject *proto)
+{
+    JS_ASSERT(!reobj_);
+
+    JSObject *clone = NewObjectWithGivenProto(cx, &RegExpClass, proto, proto->getParent());
+    if (!clone)
+        return false;
+    clone->setPrivate(NULL);
+
+    reobj_ = clone->asRegExp();
+    return true;
+}
+
+RegExpObject *
+RegExpObjectBuilder::build(AlreadyIncRefed<RegExpPrivate> rep)
+{
+    if (!getOrCreate()) {
+        rep->decref(cx);
+        return NULL;
+    }
+
+    reobj_->purge(cx);
+    if (!reobj_->init(cx, rep->getSource(), rep->getFlags())) {
+        rep->decref(cx);
+        return NULL;
+    }
+    reobj_->setPrivate(rep.get());
+
+    return reobj_;
+}
+
+RegExpObject *
+RegExpObjectBuilder::build(JSLinearString *source, RegExpFlag flags)
+{
+    if (!getOrCreate())
+        return NULL;
+
+    reobj_->purge(cx);
+    return reobj_->init(cx, source, flags) ? reobj_ : NULL;
+}
+
+RegExpObject *
+RegExpObjectBuilder::build(RegExpObject *other)
+{
+    RegExpPrivate *rep = other->getOrCreatePrivate(cx);
+    if (!rep)
+        return NULL;
+
+    /* Now, incref it for the RegExpObject being built. */
+    rep->incref(cx);
+    return build(AlreadyIncRefed<RegExpPrivate>(rep));
+}
+
+RegExpObject *
+RegExpObjectBuilder::clone(RegExpObject *other, RegExpObject *proto)
+{
+    if (!getOrCreateClone(proto))
+        return NULL;
+
+    /*
+     * Check that the RegExpPrivate for the original is okay to use in
+     * the clone -- if the |RegExpStatics| provides more flags we'll
+     * need a different |RegExpPrivate|.
+     */
+    RegExpStatics *res = cx->regExpStatics();
+    RegExpFlag origFlags = other->getFlags();
+    RegExpFlag staticsFlags = res->getFlags();
+    if ((origFlags & staticsFlags) != staticsFlags) {
+        RegExpFlag newFlags = RegExpFlag(origFlags | staticsFlags);
+        return build(other->getSource(), newFlags);
+    }
+
+    RegExpPrivate *toShare = other->getOrCreatePrivate(cx);
+    if (!toShare)
+        return NULL;
+
+    toShare->incref(cx);
+    return build(AlreadyIncRefed<RegExpPrivate>(toShare));
+}
+
+/* MatchPairs */
+
+MatchPairs *
+MatchPairs::create(LifoAlloc &alloc, size_t pairCount, size_t backingPairCount)
+{
+    void *mem = alloc.alloc(calculateSize(backingPairCount));
+    if (!mem)
+        return NULL;
+
+    return new (mem) MatchPairs(pairCount);
+}
+
+inline void
+MatchPairs::checkAgainst(size_t inputLength)
+{
+#if DEBUG
+    for (size_t i = 0; i < pairCount(); ++i) {
+        MatchPair p = pair(i);
+        p.check();
+        if (p.isUndefined())
+            continue;
+        JS_ASSERT(size_t(p.limit) <= inputLength);
+    }
+#endif
+}
+
+RegExpRunStatus
+RegExpPrivate::execute(JSContext *cx, const jschar *chars, size_t length, size_t *lastIndex,
+                       LifoAllocScope &allocScope, MatchPairs **output)
+{
+    const size_t origLength = length;
+    size_t backingPairCount = RegExpPrivateCode::getOutputSize(pairCount());
+
+    MatchPairs *matchPairs = MatchPairs::create(allocScope.alloc(), pairCount(), backingPairCount);
+    if (!matchPairs)
+        return RegExpRunStatus_Error;
+
+    /*
+     * |displacement| emulates sticky mode by matching from this offset
+     * into the char buffer and subtracting the delta off at the end.
+     */
+    size_t start = *lastIndex;
+    size_t displacement = 0;
+
+    if (sticky()) {
+        displacement = *lastIndex;
+        chars += displacement;
+        length -= displacement;
+        start = 0;
+    }
+
+    RegExpRunStatus status = code.execute(cx, chars, length, start,
+                                          matchPairs->buffer(), backingPairCount);
+
+    switch (status) {
+      case RegExpRunStatus_Error:
+        return status;
+      case RegExpRunStatus_Success_NotFound:
+        *output = matchPairs;
+        return status;
+      default:
+        JS_ASSERT(status == RegExpRunStatus_Success);
+    }
+
+    matchPairs->displace(displacement);
+    matchPairs->checkAgainst(origLength);
+
+    *lastIndex = matchPairs->pair(0).limit;
+    *output = matchPairs;
+
+    return RegExpRunStatus_Success;
+}
+
+RegExpPrivate *
+RegExpObject::makePrivate(JSContext *cx)
+{
+    JS_ASSERT(!getPrivate());
+    AlreadyIncRefed<RegExpPrivate> rep = RegExpPrivate::create(cx, getSource(), getFlags(), NULL);
+    if (!rep)
+        return NULL;
+
+    setPrivate(rep.get());
+    return rep.get();
+}
+
+RegExpRunStatus
+RegExpObject::execute(JSContext *cx, const jschar *chars, size_t length, size_t *lastIndex,
+                      LifoAllocScope &allocScope, MatchPairs **output)
+{
+    if (!getPrivate() && !makePrivate(cx))
+        return RegExpRunStatus_Error;
+
+    return getPrivate()->execute(cx, chars, length, lastIndex, allocScope, output);
+}
+
+Shape *
 RegExpObject::assignInitialShape(JSContext *cx)
 {
-    JS_ASSERT(!cx->compartment->initialRegExpShape);
     JS_ASSERT(isRegExp());
     JS_ASSERT(nativeEmpty());
 
@@ -188,7 +323,7 @@ JSBool
 js_XDRRegExpObject(JSXDRState *xdr, JSObject **objp)
 {
     JSString *source = 0;
-    uint32 flagsword = 0;
+    uint32_t flagsword = 0;
 
     if (xdr->mode == JSXDR_ENCODE) {
         JS_ASSERT(objp);
@@ -199,18 +334,18 @@ js_XDRRegExpObject(JSXDRState *xdr, JSObject **objp)
     if (!JS_XDRString(xdr, &source) || !JS_XDRUint32(xdr, &flagsword))
         return false;
     if (xdr->mode == JSXDR_DECODE) {
-        JS::Anchor<JSString *> anchor(source);
-        const jschar *chars = source->getChars(xdr->cx);
-        if (!chars)
+        JSAtom *atom = js_AtomizeString(xdr->cx, source);
+        if (!atom)
             return false;
-        size_t len = source->length();
-        RegExpObject *reobj = RegExpObject::createNoStatics(xdr->cx, chars, len,
-                                                            RegExpFlag(flagsword), NULL);
+        RegExpObject *reobj = RegExpObject::createNoStatics(xdr->cx, atom, RegExpFlag(flagsword),
+                                                            NULL);
         if (!reobj)
             return false;
 
-        reobj->clearParent();
-        reobj->clearType();
+        if (!reobj->clearParent(xdr->cx))
+            return false;
+        if (!reobj->clearType(xdr->cx))
+            return false;
         *objp = reobj;
     }
     return true;
@@ -225,8 +360,14 @@ js_XDRRegExpObject(JSXDRState *xdr, JSObject **objp)
 static void
 regexp_finalize(JSContext *cx, JSObject *obj)
 {
-    if (RegExpPrivate *rep = static_cast<RegExpObject *>(obj)->getPrivate())
-        rep->decref(cx);
+    obj->asRegExp()->finalize(cx);
+}
+
+static void
+regexp_trace(JSTracer *trc, JSObject *obj)
+{
+    if (trc->runtime->gcRunning)
+        obj->asRegExp()->purge(trc->context);
 }
 
 Class js::RegExpClass = {
@@ -248,7 +389,7 @@ Class js::RegExpClass = {
     NULL,                    /* construct */
     js_XDRRegExpObject,
     NULL,                    /* hasInstance */
-    NULL                     /* trace */
+    regexp_trace
 };
 
 #if ENABLE_YARR_JIT
@@ -293,9 +434,9 @@ RegExpPrivateCode::reportPCREError(JSContext *cx, int error)
     return
     switch (error) {
       case -2: REPORT(JSMSG_REGEXP_TOO_COMPLEX);
-      case 0: JS_NOT_REACHED("Precondition violation: an error must have occurred."); 
+      case 0: JS_NOT_REACHED("Precondition violation: an error must have occurred.");
       case 1: REPORT(JSMSG_TRAILING_SLASH);
-      case 2: REPORT(JSMSG_TRAILING_SLASH); 
+      case 2: REPORT(JSMSG_TRAILING_SLASH);
       case 3: REPORT(JSMSG_REGEXP_TOO_COMPLEX);
       case 4: REPORT(JSMSG_BAD_QUANTIFIER);
       case 5: REPORT(JSMSG_BAD_QUANTIFIER);
@@ -316,6 +457,7 @@ RegExpPrivateCode::reportPCREError(JSContext *cx, int error)
     }
 #undef REPORT
 }
+
 #endif /* ENABLE_YARR_JIT */
 
 bool
@@ -355,8 +497,56 @@ js::ParseRegExpFlags(JSContext *cx, JSString *flagStr, RegExpFlag *flagsOut)
     return true;
 }
 
+RegExpPrivate *
+RegExpPrivate::createUncached(JSContext *cx, JSLinearString *source, RegExpFlag flags,
+                              TokenStream *tokenStream)
+{
+    RegExpPrivate *priv = cx->new_<RegExpPrivate>(source, flags);
+    if (!priv)
+        return NULL;
+
+    if (!priv->compile(cx, tokenStream)) {
+        Foreground::delete_(priv);
+        return NULL;
+    }
+
+    return priv;
+}
+
 AlreadyIncRefed<RegExpPrivate>
-RegExpPrivate::createFlagged(JSContext *cx, JSString *str, JSString *opt, TokenStream *ts)
+RegExpPrivate::createTestOptimized(JSContext *cx, JSAtom *cacheKey, RegExpFlag flags)
+{
+    typedef AlreadyIncRefed<RegExpPrivate> RetType;
+
+    RetType cached;
+    if (!cacheLookup(cx, cacheKey, flags, RegExpPrivateCache_TestOptimized, &cached))
+        return RetType(NULL);
+
+    if (cached)
+        return cached;
+
+    /* Strip off the greedy star characters, create a new RegExpPrivate, and cache. */
+    JS_ASSERT(cacheKey->length() > JS_ARRAY_LENGTH(GreedyStarChars));
+    JSDependentString *stripped =
+      JSDependentString::new_(cx, cacheKey, cacheKey->chars() + JS_ARRAY_LENGTH(GreedyStarChars),
+                              cacheKey->length() - JS_ARRAY_LENGTH(GreedyStarChars));
+    if (!stripped)
+        return RetType(NULL);
+
+    RegExpPrivate *priv = createUncached(cx, cacheKey, flags, NULL);
+    if (!priv)
+        return RetType(NULL);
+
+    if (!cacheInsert(cx, cacheKey, RegExpPrivateCache_TestOptimized, priv)) {
+        priv->decref(cx);
+        return RetType(NULL);
+    }
+
+    return RetType(priv);
+}
+
+AlreadyIncRefed<RegExpPrivate>
+RegExpPrivate::create(JSContext *cx, JSLinearString *str, JSString *opt, TokenStream *ts)
 {
     if (!opt)
         return create(cx, str, RegExpFlag(0), ts);
@@ -368,77 +558,20 @@ RegExpPrivate::createFlagged(JSContext *cx, JSString *str, JSString *opt, TokenS
     return create(cx, str, flags, ts);
 }
 
-RegExpObject *
-RegExpObject::clone(JSContext *cx, RegExpObject *obj, RegExpObject *proto)
-{
-    JSObject *clone = NewNativeClassInstance(cx, &RegExpClass, proto, proto->getParent());
-    if (!clone)
-        return NULL;
-
-    /*
-     * This clone functionality does not duplicate the JIT'd code blob,
-     * which is necessary for cross-compartment cloning functionality.
-     */
-    assertSameCompartment(cx, obj, clone);
-
-    RegExpStatics *res = cx->regExpStatics();
-
-    /* 
-     * Check that the RegExpPrivate for the original is okay to use in
-     * the clone -- if the RegExpStatics provides more flags we'll need
-     * a different RegExpPrivate.
-     */
-    AlreadyIncRefed<RegExpPrivate> rep(NULL);
-    {
-        RegExpFlag origFlags = obj->getFlags();
-        RegExpFlag staticsFlags = res->getFlags();
-        if ((origFlags & staticsFlags) != staticsFlags) {
-            RegExpFlag newFlags = RegExpFlag(origFlags | staticsFlags);
-            rep = RegExpPrivate::create(cx, obj->getSource(), newFlags, NULL);
-            if (!rep)
-                return NULL;
-        } else {
-            RegExpPrivate *toShare = obj->getPrivate();
-            toShare->incref(cx);
-            rep = AlreadyIncRefed<RegExpPrivate>(toShare);
-        }
-    }
-
-    JS_ASSERT(rep);
-
-    PreInitRegExpObject pireo(clone);
-    RegExpObject *reclone = pireo.get();
-    if (!ResetRegExpObject(cx, reclone, rep)) {
-        pireo.fail();
-        return NULL;
-    }
-
-    pireo.succeed();
-    return reclone;
-}
-
 JSObject * JS_FASTCALL
 js_CloneRegExpObject(JSContext *cx, JSObject *obj, JSObject *proto)
 {
     JS_ASSERT(obj->isRegExp());
     JS_ASSERT(proto->isRegExp());
 
-    return RegExpObject::clone(cx, obj->asRegExp(), proto->asRegExp());
+    RegExpObjectBuilder builder(cx);
+    return builder.clone(obj->asRegExp(), proto->asRegExp());
 }
-
-#ifdef JS_TRACER
-JS_DEFINE_CALLINFO_3(extern, OBJECT, js_CloneRegExpObject, CONTEXT, OBJECT, OBJECT, 0,
-                     ACCSET_STORE_ANY)
-#endif
 
 JSFlatString *
 RegExpObject::toString(JSContext *cx) const
 {
-    RegExpPrivate *rep = getPrivate();
-    if (!rep)
-        return cx->runtime->emptyString;
-
-    JSLinearString *src = rep->getSource();
+    JSLinearString *src = getSource();
     StringBuffer sb(cx);
     if (size_t len = src->length()) {
         if (!sb.reserve(len + 2))
@@ -450,13 +583,13 @@ RegExpObject::toString(JSContext *cx) const
         if (!sb.append("/(?:)/"))
             return NULL;
     }
-    if (rep->global() && !sb.append('g'))
+    if (global() && !sb.append('g'))
         return NULL;
-    if (rep->ignoreCase() && !sb.append('i'))
+    if (ignoreCase() && !sb.append('i'))
         return NULL;
-    if (rep->multiline() && !sb.append('m'))
+    if (multiline() && !sb.append('m'))
         return NULL;
-    if (rep->sticky() && !sb.append('y'))
+    if (sticky() && !sb.append('y'))
         return NULL;
 
     return sb.finishString();

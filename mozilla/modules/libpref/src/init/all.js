@@ -92,6 +92,13 @@ pref("offline-apps.quota.max",        204800);
 // (in kilobytes)
 pref("offline-apps.quota.warn",        51200);
 
+// zlib compression level used for cache compression:
+// 0 => disable compression
+// 1 => best speed
+// 9 => best compression
+// cache compression turned off for now - see bug #715198
+pref("browser.cache.compression_level", 0);
+
 // Whether or not indexedDB is enabled.
 pref("dom.indexedDB.enabled", true);
 // Space to allow indexedDB databases before prompting (in MB).
@@ -199,6 +206,10 @@ pref("gfx.color_management.enablev4", false);
 pref("gfx.downloadable_fonts.enabled", true);
 pref("gfx.downloadable_fonts.fallback_delay", 3000);
 pref("gfx.downloadable_fonts.sanitize", true);
+
+#ifdef MOZ_GRAPHITE
+pref("gfx.font_rendering.graphite.enabled", false);
+#endif
 
 // see gfx/thebes/gfxUnicodeProperties.h for definitions of script bits
 #ifdef XP_MACOSX
@@ -321,6 +332,7 @@ pref("browser.fixup.alternate.enabled", true);
 pref("browser.fixup.alternate.prefix", "www.");
 pref("browser.fixup.alternate.suffix", ".com");
 pref("browser.fixup.hide_user_pass", true);
+pref("browser.fixup.use-utf8", false);
 
 // Location Bar AutoComplete
 pref("browser.urlbar.autocomplete.enabled", true);
@@ -418,10 +430,6 @@ pref("capability.policy.default.History.toString", "UniversalBrowserRead");
 pref("capability.policy.default.Location.hash.set", "allAccess");
 pref("capability.policy.default.Location.href.set", "allAccess");
 pref("capability.policy.default.Location.replace.get", "allAccess");
-
-pref("capability.policy.default.Navigator.preference", "allAccess");
-pref("capability.policy.default.Navigator.preferenceinternal.get", "UniversalPreferencesRead");
-pref("capability.policy.default.Navigator.preferenceinternal.set", "UniversalPreferencesWrite");
 
 pref("capability.policy.default.Window.blur.get", "allAccess");
 pref("capability.policy.default.Window.close.get", "allAccess");
@@ -627,15 +635,12 @@ pref("javascript.options.strict",           false);
 pref("javascript.options.strict.debug",     true);
 #endif
 pref("javascript.options.relimit",          true);
-pref("javascript.options.tracejit.content",  false);
-pref("javascript.options.tracejit.chrome",   false);
 pref("javascript.options.methodjit.content", true);
 pref("javascript.options.methodjit.chrome",  true);
-pref("javascript.options.jitprofiling.content", true);
-pref("javascript.options.jitprofiling.chrome",  true);
 pref("javascript.options.pccounts.content", false);
 pref("javascript.options.pccounts.chrome",  false);
 pref("javascript.options.methodjit_always", false);
+pref("javascript.options.jit_hardening", true);
 pref("javascript.options.typeinference", true);
 // This preference limits the memory usage of javascript.
 // If you want to change these values for your device,
@@ -795,6 +800,13 @@ pref("network.http.connection-retry-timeout", 250);
 // IPv6 connectivity.
 pref("network.http.fast-fallback-to-IPv4", true);
 
+// Try and use SPDY when using SSL
+pref("network.http.spdy.enabled", false);
+pref("network.http.spdy.chunk-size", 4096);
+pref("network.http.spdy.timeout", 180);
+pref("network.http.spdy.coalesce-hostnames", true);
+pref("network.http.spdy.use-alternate-protocol", true);
+
 // default values for FTP
 // in a DSCP environment this should be 40 (0x28, or AF11), per RFC-4594,
 // Section 4.8 "High-Throughput Data Service Class", and 80 (0x50, or AF22)
@@ -807,8 +819,8 @@ pref("network.ftp.control.qos", 0);
 // <ws>: WebSocket
 pref("network.websocket.enabled", true);
 
-// mobile might want to set this much smaller
-pref("network.websocket.max-message-size", 16000000);
+// 2147483647 == PR_INT32_MAX == ~2 GB  
+pref("network.websocket.max-message-size", 2147483647);
 
 // Should we automatically follow http 3xx redirects during handshake
 pref("network.websocket.auto-follow-http-redirects", false);
@@ -884,6 +896,7 @@ pref("network.IDN.whitelist.cn", true);
 pref("network.IDN.whitelist.de", true);
 pref("network.IDN.whitelist.dk", true);
 pref("network.IDN.whitelist.es", true);
+pref("network.IDN.whitelist.ee", true);
 pref("network.IDN.whitelist.fi", true);
 pref("network.IDN.whitelist.gr", true);
 pref("network.IDN.whitelist.hu", true);
@@ -904,6 +917,7 @@ pref("network.IDN.whitelist.pl", true);
 pref("network.IDN.whitelist.pr", true);
 pref("network.IDN.whitelist.se", true);
 pref("network.IDN.whitelist.sh", true);
+pref("network.IDN.whitelist.si", true);
 pref("network.IDN.whitelist.th", true);
 pref("network.IDN.whitelist.tm", true);
 pref("network.IDN.whitelist.tw", true);
@@ -930,6 +944,8 @@ pref("network.IDN.whitelist.xn--fzc2c9e2c", true);
 pref("network.IDN.whitelist.xn--xkc2al3hye2a", true);
 // qa, Qatar, .<Qatar>
 pref("network.IDN.whitelist.xn--wgbl6a", true);
+// rs, Serbia, .<Srb>
+pref("network.IDN.whitelist.xn--90a3ac", true);
 // ru, Russian Federation, .<RF>
 pref("network.IDN.whitelist.xn--p1ai", true);
 // sa, Saudi Arabia, .<al-Saudiah> with variants
@@ -939,6 +955,8 @@ pref("network.IDN.whitelist.xn--mgbqly7c0a67fbc", true);
 pref("network.IDN.whitelist.xn--mgbqly7cvafr", true);
 // sy, Syria, .<Souria>
 pref("network.IDN.whitelist.xn--ogbpf8fl", true);
+// th, Thailand, .<Thai>
+pref("network.IDN.whitelist.xn--o3cw4h", true);
 // tw, Taiwan, <.Taiwan> with variants
 pref("network.IDN.whitelist.xn--kpry57d", true);  // Traditional
 pref("network.IDN.whitelist.xn--kprw13d", true);  // Simplified
@@ -990,10 +1008,6 @@ pref("network.standard-url.escape-utf8", true);
 // This preference controls whether or not URLs are always encoded and sent as
 // UTF-8.
 pref("network.standard-url.encode-utf8", true);
-
-// This preference controls whether or not queries are encoded and sent as
-// UTF-8.
-pref("network.standard-url.encode-query-utf8", false);
 
 // Idle timeout for ftp control connections - 5 minute default
 pref("network.ftp.idleConnectionTimeout", 300);
@@ -1164,6 +1178,7 @@ pref("intl.hyphenation-alias.uk-*", "uk");
 // (these prefs may soon be obsoleted by better BCP47-based tag matching, but for now...)
 pref("intl.hyphenation-alias.de", "de-1996");
 pref("intl.hyphenation-alias.de-*", "de-1996");
+pref("intl.hyphenation-alias.de-AT-1901", "de-1901");
 pref("intl.hyphenation-alias.de-DE-1901", "de-1901");
 pref("intl.hyphenation-alias.de-CH-*", "de-CH");
 
@@ -1441,12 +1456,6 @@ pref("browser.popups.showPopupBlocker", true);
 // See http://bugzilla.mozilla.org/show_bug.cgi?id=169483 for further details...
 pref("viewmanager.do_doublebuffering", true);
 
-// whether use prefs from system
-pref("config.use_system_prefs", false);
-
-// if the system has enabled accessibility
-pref("config.use_system_prefs.accessibility", false);
-
 // enable single finger gesture input (win7+ tablets)
 pref("gestures.enable_single_finger_input", true);
 
@@ -1471,6 +1480,15 @@ pref("editor.positioning.offset",            0);
 
 pref("dom.max_chrome_script_run_time", 20);
 pref("dom.max_script_run_time", 10);
+
+// Hang monitor timeout after which we kill the browser, in seconds
+// (0 is disabled)
+// Disabled on all platforms per bug 705748 until the found issues are
+// resolved.
+pref("hangmonitor.timeout", 0);
+
+// If true, plugins will be click to play
+pref("plugins.click_to_play", false);
 
 #ifndef DEBUG
 // How long a plugin is allowed to process a synchronous IPC message
@@ -1541,6 +1559,29 @@ pref("font.minimum-size.x-cans", 0);
 pref("font.minimum-size.x-western", 0);
 pref("font.minimum-size.x-unicode", 0);
 pref("font.minimum-size.x-user-def", 0);
+
+/*
+ * A value greater than zero enables font size inflation for
+ * pan-and-zoom UIs, so that the fonts in a block are at least the size
+ * that, if a block's width is scaled to match the device's width, the
+ * fonts in the block are big enough that at most the pref value ems of
+ * text fit in *the width of the device*.
+ *
+ * When both this pref and the next are set, the larger inflation is
+ * used.
+ */
+pref("font.size.inflation.emPerLine", 0);
+/*
+ * A value greater than zero enables font size inflation for
+ * pan-and-zoom UIs, so that if a block's width is scaled to match the
+ * device's width, the fonts in a block are at least the font size
+ * given.  The value given is in twips, i.e., 1/20 of a point, or 1/1440
+ * of an inch.
+ *
+ * When both this pref and the previous are set, the larger inflation is
+ * used.
+ */
+pref("font.size.inflation.minTwips", 0);
 
 #ifdef XP_WIN
 
@@ -2675,11 +2716,6 @@ pref("helpers.global_mime_types_file", "/etc/mime.types");
 pref("helpers.global_mailcap_file", "/etc/mailcap");
 pref("helpers.private_mime_types_file", "~/.mime.types");
 pref("helpers.private_mailcap_file", "~/.mailcap");
-pref("java.global_java_version_file", "/etc/.java/versions");
-pref("java.private_java_version_file", "~/.java/versions");
-pref("java.default_java_location_solaris", "/usr/j2se");
-pref("java.default_java_location_others", "/usr/java");
-pref("java.java_plugin_library_name", "javaplugin_oji");
 pref("applications.telnet", "xterm -e telnet %h %p");
 pref("applications.tn3270", "xterm -e tn3270 %h");
 pref("applications.rlogin", "xterm -e rlogin %h");
@@ -2695,7 +2731,6 @@ pref("print.print_paper_size", 0);
 // around the content of the page for Print Preview only
 pref("print.print_extra_margin", 0); // twips
 
-pref("font.allow_double_byte_special_chars", true);
 // font names
 
 pref("font.alias-list", "sans,sans-serif,serif,monospace");
@@ -2946,11 +2981,6 @@ pref("helpers.global_mime_types_file", "/etc/mime.types");
 pref("helpers.global_mailcap_file", "/etc/mailcap");
 pref("helpers.private_mime_types_file", "~/.mime.types");
 pref("helpers.private_mailcap_file", "~/.mailcap");
-pref("java.global_java_version_file", "/etc/.java/versions");
-pref("java.private_java_version_file", "~/.java/versions");
-pref("java.default_java_location_solaris", "/usr/j2se");
-pref("java.default_java_location_others", "/usr/java");
-pref("java.java_plugin_library_name", "javaplugin_oji");
 pref("applications.telnet", "xterm -e telnet %h %p");
 pref("applications.tn3270", "xterm -e tn3270 %h");
 pref("applications.rlogin", "xterm -e rlogin %h");
@@ -2966,7 +2996,6 @@ pref("print.print_paper_size", 0);
 // around the content of the page for Print Preview only
 pref("print.print_extra_margin", 0); // twips
 
-pref("font.allow_double_byte_special_chars", true);
 // font names
 
 pref("font.alias-list", "sans,sans-serif,serif,monospace");
@@ -3311,6 +3340,8 @@ pref("layers.acceleration.force-enabled", false);
 
 pref("layers.acceleration.draw-fps", false);
 
+pref("layers.offmainthreadcomposition.enabled", false);
+
 #ifdef XP_WIN
 // Whether to disable the automatic detection and use of direct2d.
 #ifdef MOZ_E10S_COMPAT
@@ -3378,5 +3409,36 @@ pref("dom.event.handling-user-input-time-limit", 1000);
 //3D Transforms
 pref("layout.3d-transforms.enabled", true);
 
+pref("dom.vibrator.enabled", true);
+pref("dom.vibrator.max_vibrate_ms", 10000);
+pref("dom.vibrator.max_vibrate_list_len", 128);
+
 // Battery API
-pref("dom.battery.enabled", false);
+pref("dom.battery.enabled", true);
+
+// WebSMS
+pref("dom.sms.enabled", false);
+pref("dom.sms.whitelist", "");
+
+// enable JS dump() function.
+pref("browser.dom.window.dump.enabled", false);
+
+// SPS Profiler
+pref("profiler.enabled", false);
+pref("profiler.interval", 10);
+pref("profiler.entries", 100000);
+
+#ifdef XP_WIN
+// On 32-bit Windows, fire a low-memory notification if we have less than this
+// many mb of virtual address space available.
+pref("memory.low_virtual_memory_threshold_mb", 128);
+
+// On Windows 32- or 64-bit, fire a low-memory notification if we have less
+// than this many mb of physical memory available on the whole machine.
+pref("memory.low_physical_mem_threshold_mb", 0);
+
+// On Windows 32- or 64-bit, don't fire a low-memory notification because of
+// low available physical memory more than once every
+// low_physical_memory_notification_interval_ms.
+pref("memory.low_physical_memory_notification_interval_ms", 10000);
+#endif

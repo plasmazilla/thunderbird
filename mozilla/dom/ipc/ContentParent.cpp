@@ -106,12 +106,16 @@
 
 #ifdef ANDROID
 #include "gfxAndroidPlatform.h"
+#endif
+#ifdef MOZ_WIDGET_ANDROID
 #include "AndroidBridge.h"
 #endif
 
 #include "nsIClipboard.h"
 #include "nsWidgetsCID.h"
 #include "nsISupportsPrimitives.h"
+#include "mozilla/dom/sms/SmsParent.h"
+
 static NS_DEFINE_CID(kCClipboardCID, NS_CLIPBOARD_CID);
 static const char* sClipboardTextFlavors[] = { kUnicodeMime };
 
@@ -122,6 +126,7 @@ using namespace mozilla::net;
 using namespace mozilla::places;
 using mozilla::unused; // heh
 using base::KillProcess;
+using namespace mozilla::dom::sms;
 
 namespace mozilla {
 namespace dom {
@@ -161,6 +166,9 @@ MemoryReportRequestParent::~MemoryReportRequestParent()
 }
 
 nsTArray<ContentParent*>* ContentParent::gContentParents;
+
+// The first content child has ID 1, so the chrome process can have ID 0.
+static PRUint64 gContentChildID = 1;
 
 ContentParent*
 ContentParent::GetNewOrUsed()
@@ -217,8 +225,7 @@ ContentParent::Init()
     nsCOMPtr<nsIThreadInternal>
             threadInt(do_QueryInterface(NS_GetCurrentThread()));
     if (threadInt) {
-        threadInt->GetObserver(getter_AddRefs(mOldObserver));
-        threadInt->SetObserver(this);
+        threadInt->AddObserver(this);
     }
     if (obs) {
         obs->NotifyObservers(static_cast<nsIObserver*>(this), "ipc:content-created", nsnull);
@@ -336,7 +343,7 @@ ContentParent::ActorDestroy(ActorDestroyReason why)
     nsCOMPtr<nsIThreadInternal>
         threadInt(do_QueryInterface(NS_GetCurrentThread()));
     if (threadInt)
-        threadInt->SetObserver(mOldObserver);
+        threadInt->RemoveObserver(this);
     if (mRunToCompletionDepth)
         mRunToCompletionDepth = 0;
 
@@ -424,6 +431,7 @@ ContentParent::ContentParent()
     mSubprocess = new GeckoChildProcessHost(GeckoProcessType_Content);
     mSubprocess->AsyncLaunch();
     Open(mSubprocess->GetChannel(), mSubprocess->GetChildProcessHandle());
+    unused << SendSetID(gContentChildID++);
 
     nsCOMPtr<nsIChromeRegistry> registrySvc = nsChromeRegistry::GetService();
     nsChromeRegistryChrome* chromeRegistry =
@@ -632,7 +640,7 @@ ContentParent::RecvClipboardHasText(bool* hasText)
 bool
 ContentParent::RecvGetSystemColors(const PRUint32& colorsCount, InfallibleTArray<PRUint32>* colors)
 {
-#ifdef ANDROID
+#ifdef MOZ_WIDGET_ANDROID
     NS_ASSERTION(AndroidBridge::Bridge() != nsnull, "AndroidBridge is not available");
     if (AndroidBridge::Bridge() == nsnull) {
         // Do not fail - the colors won't be right, but it's not critical
@@ -651,7 +659,7 @@ ContentParent::RecvGetSystemColors(const PRUint32& colorsCount, InfallibleTArray
 bool
 ContentParent::RecvGetIconForExtension(const nsCString& aFileExt, const PRUint32& aIconSize, InfallibleTArray<PRUint8>* bits)
 {
-#ifdef ANDROID
+#ifdef MOZ_WIDGET_ANDROID
     NS_ASSERTION(AndroidBridge::Bridge() != nsnull, "AndroidBridge is not available");
     if (AndroidBridge::Bridge() == nsnull) {
         // Do not fail - just no icon will be shown
@@ -670,7 +678,7 @@ ContentParent::RecvGetShowPasswordSetting(bool* showPassword)
 {
     // default behavior is to show the last password character
     *showPassword = true;
-#ifdef ANDROID
+#ifdef MOZ_WIDGET_ANDROID
     NS_ASSERTION(AndroidBridge::Bridge() != nsnull, "AndroidBridge is not available");
     if (AndroidBridge::Bridge() != nsnull)
         *showPassword = AndroidBridge::Bridge()->GetShowPasswordSetting();
@@ -926,6 +934,19 @@ ContentParent::DeallocPExternalHelperApp(PExternalHelperAppParent* aService)
     return true;
 }
 
+PSmsParent*
+ContentParent::AllocPSms()
+{
+    return new SmsParent();
+}
+
+bool
+ContentParent::DeallocPSms(PSmsParent* aSms)
+{
+    delete aSms;
+    return true;
+}
+
 PStorageParent*
 ContentParent::AllocPStorage(const StorageConstructData& aData)
 {
@@ -1097,10 +1118,8 @@ ContentParent::RecvLoadURIExternal(const IPC::URI& uri)
 NS_IMETHODIMP
 ContentParent::OnDispatchedEvent(nsIThreadInternal *thread)
 {
-    if (mOldObserver)
-        return mOldObserver->OnDispatchedEvent(thread);
-
-    return NS_OK;
+   NS_NOTREACHED("OnDispatchedEvent unimplemented");
+   return NS_ERROR_NOT_IMPLEMENTED;
 }
 
 /* void onProcessNextEvent (in nsIThreadInternal thread, in boolean mayWait, in unsigned long recursionDepth); */
@@ -1111,9 +1130,6 @@ ContentParent::OnProcessNextEvent(nsIThreadInternal *thread,
 {
     if (mRunToCompletionDepth)
         ++mRunToCompletionDepth;
-
-    if (mOldObserver)
-        return mOldObserver->OnProcessNextEvent(thread, mayWait, recursionDepth);
 
     return NS_OK;
 }
@@ -1133,9 +1149,6 @@ ContentParent::AfterProcessNextEvent(nsIThreadInternal *thread,
                 UnblockChild();
             }
     }
-
-    if (mOldObserver)
-        return mOldObserver->AfterProcessNextEvent(thread, recursionDepth);
 
     return NS_OK;
 }

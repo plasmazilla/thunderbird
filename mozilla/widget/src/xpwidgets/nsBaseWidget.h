@@ -122,10 +122,15 @@ public:
   virtual gfxASurface*    GetThebesSurface();
   NS_IMETHOD              SetModal(bool aModal); 
   NS_IMETHOD              SetWindowClass(const nsAString& xulWinType);
+  NS_IMETHOD              MoveClient(PRInt32 aX, PRInt32 aY);
+  NS_IMETHOD              ResizeClient(PRInt32 aWidth, PRInt32 aHeight, bool aRepaint);
+  NS_IMETHOD              ResizeClient(PRInt32 aX, PRInt32 aY, PRInt32 aWidth, PRInt32 aHeight, bool aRepaint);
   NS_IMETHOD              SetBounds(const nsIntRect &aRect);
   NS_IMETHOD              GetBounds(nsIntRect &aRect);
   NS_IMETHOD              GetClientBounds(nsIntRect &aRect);
   NS_IMETHOD              GetScreenBounds(nsIntRect &aRect);
+  NS_IMETHOD              GetNonClientMargins(nsIntMargin &margins);
+  NS_IMETHOD              SetNonClientMargins(nsIntMargin &margins);
   virtual nsIntPoint      GetClientOffset();
   NS_IMETHOD              EnableDragDrop(bool aEnable);
   NS_IMETHOD              GetAttention(PRInt32 aCycleCount);
@@ -142,12 +147,6 @@ public:
   virtual nsresult        ActivateNativeMenuItemAt(const nsAString& indexString) { return NS_ERROR_NOT_IMPLEMENTED; }
   virtual nsresult        ForceUpdateNativeMenuAt(const nsAString& indexString) { return NS_ERROR_NOT_IMPLEMENTED; }
   NS_IMETHOD              ResetInputState() { return NS_OK; }
-  NS_IMETHOD              SetIMEOpenState(bool aState) { return NS_ERROR_NOT_IMPLEMENTED; }
-  NS_IMETHOD              GetIMEOpenState(bool* aState) { return NS_ERROR_NOT_IMPLEMENTED; }
-  NS_IMETHOD              SetInputMode(const IMEContext& aContext) { return NS_ERROR_NOT_IMPLEMENTED; }
-  NS_IMETHOD              GetInputMode(IMEContext& aContext) { return NS_ERROR_NOT_IMPLEMENTED; }
-  NS_IMETHOD              SetIMEEnabled(PRUint32 aState);
-  NS_IMETHOD              GetIMEEnabled(PRUint32* aState);
   NS_IMETHOD              CancelIMEComposition() { return NS_OK; }
   NS_IMETHOD              SetAcceleratedRendering(bool aEnabled);
   virtual bool            GetAcceleratedRendering();
@@ -168,9 +167,6 @@ public:
   NS_IMETHOD              AttachViewToTopLevel(EVENT_CALLBACK aViewEventFunction, nsDeviceContext *aContext);
   virtual ViewWrapper*    GetAttachedViewPtr();
   NS_IMETHOD              SetAttachedViewPtr(ViewWrapper* aViewWrapper);
-  NS_IMETHOD              ResizeClient(PRInt32 aX, PRInt32 aY, PRInt32 aWidth, PRInt32 aHeight, bool aRepaint);
-  NS_IMETHOD              GetNonClientMargins(nsIntMargin &margins);
-  NS_IMETHOD              SetNonClientMargins(nsIntMargin &margins);
   NS_IMETHOD              RegisterTouchWindow();
   NS_IMETHOD              UnregisterTouchWindow();
 

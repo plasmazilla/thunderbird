@@ -40,23 +40,35 @@
 
 #include <jni.h>
 #include <android/log.h>
+#include <cstdlib>
+#include <pthread.h>
 
 #include "nsCOMPtr.h"
 #include "nsCOMArray.h"
 #include "nsIRunnable.h"
 #include "nsIObserver.h"
+#include "nsThreadUtils.h"
 
 #include "AndroidJavaWrappers.h"
 
 #include "nsIMutableArray.h"
 #include "nsIMIMEInfo.h"
 #include "nsColor.h"
+#include "gfxRect.h"
+
+#include "nsIAndroidBridge.h"
 
 // Some debug #defines
 // #define DEBUG_ANDROID_EVENTS
 // #define DEBUG_ANDROID_WIDGET
 
 class nsWindow;
+
+/* See the comment in AndroidBridge about this function before using it */
+extern "C" JNIEnv * GetJNIForThread();
+
+extern bool mozilla_AndroidBridge_SetMainThread(void *);
+extern jclass GetGeckoAppShellClass();
 
 namespace mozilla {
 
@@ -97,18 +109,23 @@ public:
         return sBridge;
     }
 
-    static JavaVM *VM() {
-        return sBridge->mJavaVM;
-    }
-
-    static JNIEnv *JNI() {
-        sBridge->EnsureJNIThread();
-        return sBridge->mJNIEnv;
-    }
-
-    static JNIEnv *JNIForThread() {
+    static JavaVM *GetVM() {
         if (NS_LIKELY(sBridge))
-          return sBridge->AttachThread();
+            return sBridge->mJavaVM;
+        return nsnull;
+    }
+
+    static JNIEnv *GetJNIEnv() {
+        if (NS_LIKELY(sBridge)) {
+            if ((void*)pthread_self() != sBridge->mThread) {
+                __android_log_print(ANDROID_LOG_INFO, "AndroidBridge",
+                                    "###!!!!!!! Something's grabbing the JNIEnv from the wrong thread! (thr %p should be %p)",
+                                    (void*)pthread_self(), (void*)sBridge->mThread);
+                return nsnull;
+            }
+            return sBridge->mJNIEnv;
+
+        }
         return nsnull;
     }
     
@@ -122,8 +139,6 @@ public:
     // us to use.  toolkit/xre/nsAndroidStartup.cpp calls
     // SetMainThread.
     bool SetMainThread(void *thr);
-
-    JNIEnv* AttachThread(bool asDaemon = true);
 
     /* These are all implemented in Java */
     static void NotifyIME(int aType, int aState);
@@ -141,11 +156,12 @@ public:
 
     void ReturnIMEQueryResult(const PRUnichar *aResult, PRUint32 aLen, int aSelStart, int aSelLen);
 
-    void NotifyAppShellReady();
-
     void NotifyXreExit();
 
     void ScheduleRestart();
+
+    void SetSoftwareLayerClient(jobject jobj);
+    AndroidGeckoSoftwareLayerClient &GetSoftwareLayerClient() { return mSoftwareLayerClient; }
 
     void SetSurfaceView(jobject jobj);
     AndroidGeckoSurfaceView& SurfaceView() { return mSurfaceView; }
@@ -199,9 +215,14 @@ public:
 
     void PerformHapticFeedback(bool aIsLongPress);
 
+    void Vibrate(const nsTArray<PRUint32>& aPattern);
+    void CancelVibrate();
+
     void SetFullScreen(bool aFullScreen);
 
     void ShowInputMethodPicker();
+
+    void SetPreventPanning(bool aPreventPanning);
 
     void HideProgressDialogOnce();
 
@@ -219,30 +240,61 @@ public:
 
     void FireAndWaitForTracerEvent();
 
-    struct AutoLocalJNIFrame {
-        AutoLocalJNIFrame(int nEntries = 128) : mEntries(nEntries) {
-            // Make sure there is enough space to store a local ref to the
-            // exception.  I am not completely sure this is needed, but does
-            // not hurt.
-            AndroidBridge::Bridge()->JNI()->PushLocalFrame(mEntries + 1);
+    bool GetAccessibilityEnabled();
+
+    class AutoLocalJNIFrame {
+    public:
+        AutoLocalJNIFrame(int nEntries = 128)
+            : mEntries(nEntries)
+        {
+            mJNIEnv = AndroidBridge::GetJNIEnv();
+            Push();
         }
+
+        AutoLocalJNIFrame(JNIEnv* aJNIEnv, int nEntries = 128)
+            : mEntries(nEntries)
+        {
+            mJNIEnv = aJNIEnv ? aJNIEnv : AndroidBridge::GetJNIEnv();
+
+            Push();
+        }
+
         // Note! Calling Purge makes all previous local refs created in
         // the AutoLocalJNIFrame's scope INVALID; be sure that you locked down
         // any local refs that you need to keep around in global refs!
         void Purge() {
-            AndroidBridge::Bridge()->JNI()->PopLocalFrame(NULL);
-            AndroidBridge::Bridge()->JNI()->PushLocalFrame(mEntries);
-        }
-        ~AutoLocalJNIFrame() {
-            jthrowable exception =
-                AndroidBridge::Bridge()->JNI()->ExceptionOccurred();
-            if (exception) {
-                AndroidBridge::Bridge()->JNI()->ExceptionDescribe();
-                AndroidBridge::Bridge()->JNI()->ExceptionClear();
+            if (mJNIEnv) {
+                mJNIEnv->PopLocalFrame(NULL);
+                Push();
             }
-            AndroidBridge::Bridge()->JNI()->PopLocalFrame(NULL);
         }
+
+        ~AutoLocalJNIFrame() {
+            if (!mJNIEnv)
+                return;
+
+            jthrowable exception = mJNIEnv->ExceptionOccurred();
+            if (exception) {
+                mJNIEnv->ExceptionDescribe();
+                mJNIEnv->ExceptionClear();
+            }
+
+            mJNIEnv->PopLocalFrame(NULL);
+        }
+
+    private:
+        void Push() {
+            if (!mJNIEnv)
+                return;
+
+            // Make sure there is enough space to store a local ref to the
+            // exception.  I am not completely sure this is needed, but does
+            // not hurt.
+            mJNIEnv->PushLocalFrame(mEntries + 1);
+        }
+
         int mEntries;
+        JNIEnv* mJNIEnv;
     };
 
     /* See GLHelpers.java as to why this is needed */
@@ -267,9 +319,9 @@ public:
 
     void UnlockBitmap(jobject bitmap);
 
-    void PostToJavaThread(nsIRunnable* aRunnable, bool aMainThread = false);
+    void PostToJavaThread(JNIEnv *aEnv, nsIRunnable* aRunnable, bool aMainThread = false);
 
-    void ExecuteNextRunnable();
+    void ExecuteNextRunnable(JNIEnv *aEnv);
 
     /* Copied from Android's native_window.h in newer (platform 9) NDK */
     enum {
@@ -282,10 +334,19 @@ public:
 
     void *AcquireNativeWindow(jobject surface);
     void ReleaseNativeWindow(void *window);
-    bool SetNativeWindowFormat(void *window, int format);
+    bool SetNativeWindowFormat(void *window, int width, int height, int format);
 
     bool LockWindow(void *window, unsigned char **bits, int *width, int *height, int *format, int *stride);
     bool UnlockWindow(void *window);
+    
+    void HandleGeckoMessage(const nsAString& message, nsAString &aRet);
+
+    nsCOMPtr<nsIAndroidDrawMetadataProvider> GetDrawMetadataProvider();
+
+    void EmitGeckoAccessibilityEvent (PRInt32 eventType, const nsAString& role, const nsAString& text, const nsAString& description, bool enabled, bool checked, bool password);
+
+    void CheckURIVisited(const nsAString& uri);
+    void MarkURIVisited(const nsAString& uri);
 
     bool InitCamera(const nsCString& contentType, PRUint32 camera, PRUint32 *width, PRUint32 *height, PRUint32 *fps);
 
@@ -295,7 +356,15 @@ public:
     void DisableBatteryNotifications();
     void GetCurrentBatteryInformation(hal::BatteryInformation* aBatteryInfo);
 
+    PRUint16 GetNumberOfMessagesForText(const nsAString& aText);
+    void SendMessage(const nsAString& aNumber, const nsAString& aText);
+
     bool IsTablet();
+
+    jobject CreateSurface();
+    void DestroySurface(jobject surface);
+    void ShowSurface(jobject surface, const gfxRect& aRect, bool aInverted, bool aBlend);
+    void HideSurface(jobject surface);
 
 protected:
     static AndroidBridge *sBridge;
@@ -309,14 +378,13 @@ protected:
 
     // the GeckoSurfaceView
     AndroidGeckoSurfaceView mSurfaceView;
+    AndroidGeckoSoftwareLayerClient mSoftwareLayerClient;
 
     // the GeckoAppShell java class
     jclass mGeckoAppShellClass;
 
     AndroidBridge() { }
     bool Init(JNIEnv *jEnv, jclass jGeckoApp);
-
-    void EnsureJNIThread();
 
     bool mOpenedGraphicsLibraries;
     void OpenGraphicsLibraries();
@@ -353,8 +421,12 @@ protected:
     jmethodID jGetDpi;
     jmethodID jSetFullScreen;
     jmethodID jShowInputMethodPicker;
+    jmethodID jSetPreventPanning;
     jmethodID jHideProgressDialog;
     jmethodID jPerformHapticFeedback;
+    jmethodID jVibrate1;
+    jmethodID jVibrateA;
+    jmethodID jCancelVibrate;
     jmethodID jSetKeepScreenOn;
     jmethodID jIsNetworkLinkUp;
     jmethodID jIsNetworkLinkKnown;
@@ -372,6 +444,14 @@ protected:
     jmethodID jEnableBatteryNotifications;
     jmethodID jDisableBatteryNotifications;
     jmethodID jGetCurrentBatteryInformation;
+    jmethodID jGetAccessibilityEnabled;
+    jmethodID jHandleGeckoMessage;
+    jmethodID jCheckUriVisited;
+    jmethodID jMarkUriVisited;
+    jmethodID jEmitGeckoAccessibilityEvent;
+
+    jmethodID jNumberOfMessages;
+    jmethodID jSendMessage;
 
     // stuff we need for CallEglCreateWindowSurface
     jclass jEGLSurfaceImplClass;
@@ -396,8 +476,23 @@ protected:
 
 }
 
-extern "C" JNIEnv * GetJNIForThread();
-extern bool mozilla_AndroidBridge_SetMainThread(void *);
-extern jclass GetGeckoAppShellClass();
+#define NS_ANDROIDBRIDGE_CID \
+{ 0x0FE2321D, 0xEBD9, 0x467D, \
+    { 0xA7, 0x43, 0x03, 0xA6, 0x8D, 0x40, 0x59, 0x9E } }
+
+class nsAndroidBridge : public nsIAndroidBridge
+{
+public:
+  NS_DECL_ISUPPORTS
+  NS_DECL_NSIANDROIDBRIDGE
+
+  nsAndroidBridge();
+
+private:
+  ~nsAndroidBridge();
+
+protected:
+};
+
 
 #endif /* AndroidBridge_h__ */

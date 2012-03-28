@@ -70,7 +70,7 @@ static char* FormatJSFrame(JSContext* cx, JSStackFrame* fp,
 {
     JSPropertyDescArray callProps = {0, nsnull};
     JSPropertyDescArray thisProps = {0, nsnull};
-    JSBool gotThisVal = JS_FALSE;
+    JSBool gotThisVal = false;
     jsval thisVal;
     JSObject* callObj = nsnull;
     JSString* funname = nsnull;
@@ -155,7 +155,7 @@ static char* FormatJSFrame(JSContext* cx, JSStackFrame* fp,
 
         if (JS_GetProperty(cx, callObj, "arguments", &val) &&
             JSVAL_IS_OBJECT(val)) {
-            uint32 argCount;
+            uint32_t argCount;
             JSObject* argsObj = JSVAL_TO_OBJECT(val);
             if (JS_GetProperty(cx, argsObj, "length", &val) &&
                 JS_ValueToECMAUint32(cx, val, &argCount) &&
@@ -283,7 +283,7 @@ xpc_DumpJSStack(JSContext* cx, JSBool showArgs, JSBool showLocals, JSBool showTh
         fputs(buf, stdout);
         JS_smprintf_free(buf);
     }
-    return JS_TRUE;
+    return true;
 }
 
 char*
@@ -315,15 +315,15 @@ xpcDumpEvalErrorReporter(JSContext *cx, const char *message,
 }
 
 JSBool
-xpc_DumpEvalInJSStackFrame(JSContext* cx, JSUint32 frameno, const char* text)
+xpc_DumpEvalInJSStackFrame(JSContext* cx, uint32_t frameno, const char* text)
 {
     JSStackFrame* fp;
     JSStackFrame* iter = nsnull;
-    JSUint32 num = 0;
+    uint32_t num = 0;
 
     if (!cx || !text) {
         puts("invalid params passed to xpc_DumpEvalInJSStackFrame!");
-        return JS_FALSE;
+        return false;
     }
 
     printf("js[%d]> %s\n", frameno, text);
@@ -336,7 +336,7 @@ xpc_DumpEvalInJSStackFrame(JSContext* cx, JSUint32 frameno, const char* text)
 
     if (!fp) {
         puts("invalid frame number!");
-        return JS_FALSE;
+        return false;
     }
 
     JSAutoRequest ar(cx);
@@ -355,7 +355,7 @@ xpc_DumpEvalInJSStackFrame(JSContext* cx, JSUint32 frameno, const char* text)
         puts("eval failed!");
     JS_SetErrorReporter(cx, older);
     JS_RestoreExceptionState(cx, exceptionState);
-    return JS_TRUE;
+    return true;
 }
 
 /***************************************************************************/
@@ -368,7 +368,7 @@ xpc_DebuggerKeywordHandler(JSContext *cx, JSScript *script, jsbytecode *pc,
     "------------------------------------------------------------------------";
     puts(line);
     puts("Hit JavaScript \"debugger\" keyword. JS call stack...");
-    xpc_DumpJSStack(cx, JS_TRUE, JS_TRUE, JS_FALSE);
+    xpc_DumpJSStack(cx, true, true, false);
     puts(line);
     return JSTRAP_CONTINUE;
 }
@@ -473,5 +473,5 @@ xpc_DumpJSObject(JSObject* obj)
     else
         puts("xpc_DumpJSObject passed null!");
 
-    return JS_TRUE;
+    return true;
 }

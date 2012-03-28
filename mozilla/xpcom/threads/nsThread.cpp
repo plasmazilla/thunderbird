@@ -45,6 +45,9 @@
 #include "nsCOMPtr.h"
 #include "prlog.h"
 #include "nsThreadUtilsInternal.h"
+#include "nsIObserverService.h"
+#include "mozilla/HangMonitor.h"
+#include "mozilla/Services.h"
 
 #define HAVE_UALARM _BSD_SOURCE || (_XOPEN_SOURCE >= 500 ||                 \
                       _XOPEN_SOURCE && _XOPEN_SOURCE_EXTENDED) &&           \
@@ -79,6 +82,23 @@ static PRLogModuleInfo *sLog = PR_NewLogModule("nsThread");
 NS_DECL_CI_INTERFACE_GETTER(nsThread)
 
 nsIThreadObserver* nsThread::sGlobalObserver;
+
+namespace mozilla {
+
+// Fun fact: Android's GCC won't convert bool* to PRInt32*, so we can't
+// PR_ATOMIC_SET a bool.
+static PRInt32 sMemoryPressurePending = 0;
+
+/*
+ * It's important that this function not acquire any locks, nor do anything
+ * which might cause malloc to run.
+ */
+void ScheduleMemoryPressureEvent()
+{
+  PR_ATOMIC_SET(&sMemoryPressurePending, 1);
+}
+
+} // namespace mozilla
 
 //-----------------------------------------------------------------------------
 // Because we do not have our own nsIFactory, we have to implement nsIClassInfo
@@ -306,20 +326,7 @@ nsThread::ThreadFunc(void *arg)
 
 //-----------------------------------------------------------------------------
 
-nsThread::nsThread()
-  : mLock("nsThread.mLock")
-  , mEvents(&mEventsRoot)
-  , mPriority(PRIORITY_NORMAL)
-  , mThread(nsnull)
-  , mRunningEvent(0)
-  , mStackSize(0)
-  , mShutdownContext(nsnull)
-  , mShutdownRequired(false)
-  , mEventsAreDoomed(false)
-{
-}
-
-nsThread::nsThread(PRUint32 aStackSize)
+nsThread::nsThread(MainThreadFlag aMainThread, PRUint32 aStackSize)
   : mLock("nsThread.mLock")
   , mEvents(&mEventsRoot)
   , mPriority(PRIORITY_NORMAL)
@@ -329,6 +336,7 @@ nsThread::nsThread(PRUint32 aStackSize)
   , mShutdownContext(nsnull)
   , mShutdownRequired(false)
   , mEventsAreDoomed(false)
+  , mIsMainThread(aMainThread)
 {
 }
 
@@ -585,6 +593,25 @@ nsThread::ProcessNextEvent(bool mayWait, bool *result)
 
   NS_ENSURE_STATE(PR_GetCurrentThread() == mThread);
 
+  if (MAIN_THREAD == mIsMainThread && mayWait && !ShuttingDown())
+    HangMonitor::Suspend();
+
+  // Fire a memory pressure notification, if we're the main thread and one is
+  // pending.
+  if (MAIN_THREAD == mIsMainThread && !ShuttingDown()) {
+    bool mpPending = PR_ATOMIC_SET(&sMemoryPressurePending, 0);
+    if (mpPending) {
+      nsCOMPtr<nsIObserverService> os = services::GetObserverService();
+      if (os) {
+        os->NotifyObservers(nsnull, "memory-pressure",
+                            NS_LITERAL_STRING("low-memory").get());
+      }
+      else {
+        NS_WARNING("Can't get observer service!");
+      }
+    }
+  }
+
   bool notifyGlobalObserver = (sGlobalObserver != nsnull);
   if (notifyGlobalObserver) 
     sGlobalObserver->OnProcessNextEvent(this, mayWait && !ShuttingDown(),
@@ -615,7 +642,7 @@ nsThread::ProcessNextEvent(bool mayWait, bool *result)
 
 #ifdef NS_FUNCTION_TIMER
     char message[1024] = {'\0'};
-    if (NS_IsMainThread()) {
+    if (MAIN_THREAD == mIsMainThread) {
         mozilla::FunctionTimer::ft_snprintf(message, sizeof(message), 
                                             "@ Main Thread Event %p", (void*)event.get());
     }
@@ -628,6 +655,8 @@ nsThread::ProcessNextEvent(bool mayWait, bool *result)
 
     if (event) {
       LOG(("THRD(%p) running [%p]\n", this, event.get()));
+      if (MAIN_THREAD == mIsMainThread)
+        HangMonitor::NotifyActivity();
       event->Run();
     } else if (mayWait) {
       NS_ASSERTION(ShuttingDown(),

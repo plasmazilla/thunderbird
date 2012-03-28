@@ -55,6 +55,10 @@
 #include "nsIJSRuntimeService.h"
 #include "xpcpublic.h"
 
+#ifdef ANDROID
+#include <android/log.h>
+#endif
+
 static bool
 IsChromeProcess()
 {
@@ -282,6 +286,9 @@ nsFrameMessageManager::SendAsyncMessage(const nsAString& aMessageName,
 NS_IMETHODIMP
 nsFrameMessageManager::Dump(const nsAString& aStr)
 {
+#ifdef ANDROID
+  __android_log_print(ANDROID_LOG_INFO, "Gecko", NS_ConvertUTF16toUTF8(aStr).get());
+#endif
   fputs(NS_ConvertUTF16toUTF8(aStr).get(), stdout);
   fflush(stdout);
   return NS_OK;
@@ -825,7 +832,7 @@ nsFrameScriptExecutor::InitTabChildGlobalInternal(nsISupports* aScope)
 
   JS_SetNativeStackQuota(cx, 128 * sizeof(size_t) * 1024);
 
-  JS_SetOptions(cx, JS_GetOptions(cx) | JSOPTION_JIT | JSOPTION_PRIVATE_IS_NSISUPPORTS);
+  JS_SetOptions(cx, JS_GetOptions(cx) | JSOPTION_PRIVATE_IS_NSISUPPORTS);
   JS_SetVersion(cx, JSVERSION_LATEST);
   JS_SetErrorReporter(cx, ContentScriptErrorReporter);
 

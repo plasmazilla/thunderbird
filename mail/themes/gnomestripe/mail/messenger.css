@@ -23,6 +23,16 @@ toolbar:not(.inline-toolbar):not(:-moz-lwtheme) {
   -moz-appearance: menubar;
 }
 
+#tabbar-toolbar {
+  -moz-appearance: none;
+  padding: 0;
+}
+
+#tabbar-toolbar[customizing="true"] {
+  min-width: 16px;
+  min-height: 10px;
+}
+
 /*
  * Override the menulist icon forbidding in menu.css so that we can show
  * check-marks. bug 443516
@@ -34,6 +44,20 @@ menulist > menupopup > menu > .menu-iconic-left {
   display: -moz-box;
 }
 
+/* ::::: Mail Toolbars and Menubars ::::: */
+
+.mail-toolbox,
+.contentTabToolbox {
+  -moz-appearance: none;
+  border-bottom: 1px solid threedshadow;
+  background-image: -moz-linear-gradient(rgba(255, 255, 255, 0.3), rgba(255, 255, 255, 0) 19px);
+}
+
+.mail-toolbox > toolbar,
+.contentTabToolbox > toolbar {
+  -moz-appearance: none;
+  background: transparent;
+}
 
 /* ::::: throbber ::::: */
 
@@ -123,12 +147,19 @@ sidebarheader .toolbarbutton-text:not([value]) {
   display: none;
 }
 
-#searchInput {
+#searchInput,
+.remote-gloda-search {
   padding: 2px;
 }
 
-#searchInput:-moz-lwtheme:not([focused="true"]) {
+#searchInput:-moz-lwtheme:not([focused="true"]),
+.remote-gloda-search:-moz-lwtheme:not([focused="true"]) {
   opacity: .85;
+}
+
+.remote-gloda-search-container {
+  padding-top: 3px;
+  padding-bottom: 2px;
 }
 
 /* Stock icons for the menu bar items */
@@ -344,8 +375,7 @@ menuitem[command="cmd_goForward"][disabled]:-moz-locale-dir(rtl) {
 
 statusbarpanel {
   -moz-appearance: none !important;
-  border: none;
-  padding: 0 4px;
+  border: none !important;
 }
 
 treechildren::-moz-tree-cell-text {

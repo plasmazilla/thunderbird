@@ -118,6 +118,7 @@ static const TCHAR kPluginIgnoreSubclassProperty[] = TEXT("PluginIgnoreSubclassP
 
 #elif defined(XP_MACOSX)
 #include <ApplicationServices/ApplicationServices.h>
+#include "nsCocoaFeatures.h"
 #include "PluginUtilsOSX.h"
 #endif // defined(XP_MACOSX)
 
@@ -420,12 +421,12 @@ PluginInstanceChild::NPN_GetValue(NPNVariable aVar,
     }
 
     case NPNVsupportsCoreAnimationBool: {
-        *((NPBool*)aValue) = true;
+        *((NPBool*)aValue) = nsCocoaFeatures::SupportCoreAnimationPlugins();
         return NPERR_NO_ERROR;
     }
 
     case NPNVsupportsInvalidatingCoreAnimationBool: {
-        *((NPBool*)aValue) = true;
+        *((NPBool*)aValue) = nsCocoaFeatures::SupportCoreAnimationPlugins();
         return NPERR_NO_ERROR;
     }
 
@@ -3708,6 +3709,7 @@ PluginInstanceChild::AnswerNPP_Destroy(NPError* aResult)
 {
     PLUGIN_LOG_DEBUG_METHOD;
     AssertPluginThread();
+    *aResult = NPERR_NO_ERROR;
 
 #if defined(OS_WIN)
     SetProp(mPluginWindowHWND, kPluginIgnoreSubclassProperty, (HANDLE)1);

@@ -147,8 +147,7 @@ static ViewWrapper* GetWrapperFor(nsIWidget* aWidget)
 static nsEventStatus HandleEvent(nsGUIEvent *aEvent)
 {
 #if 0
-  printf(" %d %d %d (%d,%d) \n", aEvent->widget, aEvent->widgetSupports, 
-         aEvent->message, aEvent->point.x, aEvent->point.y);
+  printf(" %d %d %d (%d,%d) \n", aEvent->widget, aEvent->message);
 #endif
   nsEventStatus result = nsEventStatus_eIgnore;
   nsView *view = nsView::GetViewFor(aEvent->widget);
@@ -213,10 +212,9 @@ nsView::nsView(nsViewManager* aViewManager, nsViewVisibility aVisibility)
 
 void nsView::DropMouseGrabbing()
 {
-  nsCOMPtr<nsIViewObserver> viewObserver = mViewManager->GetViewObserver();
-  if (viewObserver) {
-    viewObserver->ClearMouseCapture(this);
-  }
+  nsIPresShell* presShell = mViewManager->GetPresShell();
+  if (presShell)
+    presShell->ClearMouseCaptureOnView(this);
 }
 
 nsView::~nsView()
@@ -328,11 +326,13 @@ nsIView* nsIView::GetViewFor(nsIWidget* aWidget)
 
   ViewWrapper* wrapper = GetWrapperFor(aWidget);
 
-  if (!wrapper)
+  if (!wrapper) {
     wrapper = GetAttachedWrapperFor(aWidget);
+  }
 
-  if (wrapper)
+  if (wrapper) {
     return wrapper->GetView();
+  }
 
   return nsnull;
 }
@@ -439,7 +439,7 @@ void nsView::DoResetWidgetBounds(bool aMoveOnly,
   }
   
   nsIntRect curBounds;
-  mWindow->GetBounds(curBounds);
+  mWindow->GetClientBounds(curBounds);
 
   nsWindowType type;
   mWindow->GetWindowType(type);
@@ -463,14 +463,16 @@ void nsView::DoResetWidgetBounds(bool aMoveOnly,
   // Child views are never attached to top level widgets, this is safe.
   if (changedPos) {
     if (changedSize && !aMoveOnly) {
-      mWindow->Resize(newBounds.x, newBounds.y, newBounds.width, newBounds.height,
-                      aInvalidateChangedSize);
+      mWindow->ResizeClient(newBounds.x, newBounds.y,
+                            newBounds.width, newBounds.height,
+                            aInvalidateChangedSize);
     } else {
-      mWindow->Move(newBounds.x, newBounds.y);
+      mWindow->MoveClient(newBounds.x, newBounds.y);
     }
   } else {
     if (changedSize && !aMoveOnly) {
-      mWindow->Resize(newBounds.width, newBounds.height, aInvalidateChangedSize);
+      mWindow->ResizeClient(newBounds.width, newBounds.height,
+                            aInvalidateChangedSize);
     } // else do nothing!
   }
 }
@@ -983,8 +985,8 @@ void nsIView::List(FILE* out, PRInt32 aIndent) const
   nsRect brect = GetBounds();
   fprintf(out, "{%d,%d,%d,%d}",
           brect.x, brect.y, brect.width, brect.height);
-  fprintf(out, " z=%d vis=%d clientData=%p <\n",
-          mZIndex, mVis, mClientData);
+  fprintf(out, " z=%d vis=%d frame=%p <\n",
+          mZIndex, mVis, mFrame);
   for (nsView* kid = mFirstChild; kid; kid = kid->GetNextSibling()) {
     NS_ASSERTION(kid->GetParent() == this, "incorrect parent");
     kid->List(out, aIndent + 1);

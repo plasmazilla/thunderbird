@@ -45,7 +45,7 @@
 @BINPATH@/@DLL_PREFIX@xpcom@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@nspr4@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@mozalloc@DLL_SUFFIX@
-@BINPATH@/@DLL_PREFIX@mozutils@DLL_SUFFIX@
+@BINPATH@/@DLL_PREFIX@mozglue@DLL_SUFFIX@
 #ifdef XP_MACOSX
 @BINPATH@/XUL
 #else
@@ -58,6 +58,7 @@
 @BINPATH@/@MOZ_CHILD_PROCESS_NAME@
 #endif
 #ifdef XP_WIN32
+@BINPATH@/@DLL_PREFIX@gkmedias@DLL_SUFFIX@
 #if _MSC_VER == 1400
 @BINPATH@/Microsoft.VC80.CRT.manifest
 @BINPATH@/msvcm80.dll
@@ -135,6 +136,10 @@
 @BINPATH@/components/docshell.xpt
 @BINPATH@/components/dom.xpt
 @BINPATH@/components/dom_base.xpt
+#ifdef MOZ_B2G_RIL
+@BINPATH@/components/dom_telephony.xpt
+@BINPATH@/components/dom_system_b2g.xpt
+#endif
 @BINPATH@/components/dom_battery.xpt
 @BINPATH@/components/dom_canvas.xpt
 @BINPATH@/components/dom_core.xpt
@@ -148,6 +153,7 @@
 @BINPATH@/components/dom_json.xpt
 @BINPATH@/components/dom_range.xpt
 @BINPATH@/components/dom_sidebar.xpt
+@BINPATH@/components/dom_sms.xpt
 @BINPATH@/components/dom_storage.xpt
 @BINPATH@/components/dom_stylesheets.xpt
 @BINPATH@/components/dom_threads.xpt
@@ -356,6 +362,14 @@
 @BINPATH@/components/contentSecurityPolicy.js
 @BINPATH@/components/contentAreaDropListener.manifest
 @BINPATH@/components/contentAreaDropListener.js
+#ifdef MOZ_B2G_RIL
+@BINPATH@/components/nsTelephonyWorker.manifest
+@BINPATH@/components/nsTelephonyWorker.js
+@BINPATH@/components/Telephony.manifest
+@BINPATH@/components/Telephony.js
+#endif
+@BINPATH@/components/BrowserProfileMigrators.manifest
+@BINPATH@/components/ChromeProfileMigrator.js
 #ifdef XP_MACOSX
 @BINPATH@/components/libalerts_s.dylib
 #endif
@@ -444,6 +458,8 @@
 @BINPATH@/res/EditorOverride.css
 @BINPATH@/res/contenteditable.css
 @BINPATH@/res/designmode.css
+@BINPATH@/res/TopLevelImageDocument.css
+@BINPATH@/res/TopLevelVideoDocument.css
 @BINPATH@/res/table-add-column-after-active.gif
 @BINPATH@/res/table-add-column-after-hover.gif
 @BINPATH@/res/table-add-column-after.gif

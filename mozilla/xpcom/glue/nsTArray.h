@@ -64,22 +64,22 @@
 // moz_free() end up calling the same underlying free()).
 //
 
+#if defined(MOZALLOC_HAVE_XMALLOC)
 struct nsTArrayFallibleAllocator
 {
   static void* Malloc(size_t size) {
-    return NS_Alloc(size);
+    return moz_malloc(size);
   }
 
   static void* Realloc(void* ptr, size_t size) {
-    return NS_Realloc(ptr, size);
+    return moz_realloc(ptr, size);
   }
 
   static void Free(void* ptr) {
-    NS_Free(ptr);
+    moz_free(ptr);
   }
 };
 
-#if defined(MOZALLOC_HAVE_XMALLOC)
 struct nsTArrayInfallibleAllocator
 {
   static void* Malloc(size_t size) {
@@ -92,6 +92,24 @@ struct nsTArrayInfallibleAllocator
 
   static void Free(void* ptr) {
     moz_free(ptr);
+  }
+};
+
+#else
+
+#include <stdlib.h>
+struct nsTArrayFallibleAllocator
+{
+  static void* Malloc(size_t size) {
+    return malloc(size);
+  }
+
+  static void* Realloc(void* ptr, size_t size) {
+    return realloc(ptr, size);
+  }
+
+  static void Free(void* ptr) {
+    free(ptr);
   }
 };
 #endif
@@ -442,6 +460,7 @@ public:
   typedef nsTArray_SafeElementAtHelper<E, self_type> safeelementat_helper_type;
 
   using safeelementat_helper_type::SafeElementAt;
+  using base_type::EmptyHdr;
 
   // A special value that is used to indicate an invalid or unknown index
   // into the array.
@@ -514,11 +533,21 @@ public:
     return *this;
   }
 
-  // @return The amount of memory taken used by this nsTArray, not including
-  // sizeof(this)
-  size_t SizeOf() const {
-    return this->UsesAutoArrayBuffer() ?
-      0 : this->Capacity() * sizeof(elem_type) + sizeof(*this->Hdr());
+  // @return The amount of memory used by this nsTArray, excluding
+  // sizeof(*this).
+  size_t SizeOfExcludingThis(nsMallocSizeOfFun mallocSizeOf) const {
+    if (this->UsesAutoArrayBuffer() || Hdr() == EmptyHdr())
+      return 0;
+    return mallocSizeOf(this->Hdr(), 
+                        sizeof(nsTArrayHeader) +
+                        this->Capacity() * sizeof(elem_type));
+  }
+
+  // @return The amount of memory used by this nsTArray, including
+  // sizeof(*this).
+  size_t SizeOfIncludingThis(nsMallocSizeOfFun mallocSizeOf) const {
+    return mallocSizeOf(this, sizeof(nsTArray)) +
+           SizeOfExcludingThis(mallocSizeOf);
   }
 
   //

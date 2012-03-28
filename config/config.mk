@@ -217,13 +217,13 @@ endif # MOZ_DEBUG
 # the Makefile wants static CRT linking.
 ifeq ($(MOZ_MEMORY)_$(USE_STATIC_LIBS),1_1)
 # Disable default CRT libs and add the right lib path for the linker
-MOZ_UTILS_LDFLAGS =
+MOZ_GLUE_LDFLAGS =
 endif
 
 endif # WINNT && !GNU_CC
 
-ifndef MOZ_UTILS_PROGRAM_LDFLAGS
-MOZ_UTILS_PROGRAM_LDFLAGS=$(MOZ_UTILS_LDFLAGS)
+ifndef MOZ_GLUE_PROGRAM_LDFLAGS
+MOZ_GLUE_PROGRAM_LDFLAGS=$(MOZ_GLUE_LDFLAGS)
 endif
 
 # Determine if module being compiled is destined 
@@ -368,7 +368,7 @@ MY_RULES	:= $(DEPTH)/config/myrules.mk
 CCC		= $(CXX)
 PURIFY		= purify $(PURIFYOPTIONS)
 QUANTIFY	= quantify $(QUANTIFYOPTIONS)
-XPIDL_LINK = $(PYTHON) $(SDK_BIN_DIR)/xpt.py link
+XPIDL_LINK = $(PYTHON) $(LIBXUL_DIST)/sdk/bin/xpt.py link
 
 INCLUDES = \
   $(LOCAL_INCLUDES) \

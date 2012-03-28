@@ -45,6 +45,7 @@
 #include "frontend/BytecodeEmitter.h"
 #include "frontend/Parser.h"
 
+#include "jsobjinlines.h"
 #include "jsfuninlines.h"
 
 using namespace js;
@@ -163,7 +164,6 @@ FindFunArgs(FunctionBox *funbox, int level, FunctionBoxQueue *queue)
     do {
         ParseNode *fn = funbox->node;
         JS_ASSERT(fn->isArity(PN_FUNC));
-        JSFunction *fun = funbox->function();
         int fnlevel = level;
 
         /*
@@ -194,7 +194,7 @@ FindFunArgs(FunctionBox *funbox, int level, FunctionBoxQueue *queue)
         uintN skipmin = UpvarCookie::FREE_LEVEL;
         ParseNode *pn = fn->pn_body;
 
-        if (pn->isKind(TOK_UPVARS)) {
+        if (pn->isKind(PNK_UPVARS)) {
             AtomDefnMapPtr &upvars = pn->pn_names;
             JS_ASSERT(upvars->count() != 0);
 
@@ -244,12 +244,10 @@ FindFunArgs(FunctionBox *funbox, int level, FunctionBoxQueue *queue)
 
         /*
          * Finally, after we've traversed all of the current function's kids,
-         * minimize fun's skipmin against our accumulated skipmin. Do likewise
-         * with allskipmin, but minimize across funbox and all of its siblings,
-         * to compute our return value.
+         * minimize allskipmin against our accumulated skipmin. Minimize across
+         * funbox and all of its siblings, to compute our return value.
          */
         if (skipmin != UpvarCookie::FREE_LEVEL) {
-            fun->u.i.skipmin = skipmin;
             if (skipmin < allskipmin)
                 allskipmin = skipmin;
         }
@@ -259,7 +257,7 @@ FindFunArgs(FunctionBox *funbox, int level, FunctionBoxQueue *queue)
 }
 
 static bool
-MarkFunArgs(JSContext *cx, FunctionBox *funbox, uint32 functionCount)
+MarkFunArgs(JSContext *cx, FunctionBox *funbox, uint32_t functionCount)
 {
     FunctionBoxQueue queue;
     if (!queue.init(functionCount)) {
@@ -273,7 +271,7 @@ MarkFunArgs(JSContext *cx, FunctionBox *funbox, uint32 functionCount)
         JS_ASSERT(fn->isFunArg());
 
         ParseNode *pn = fn->pn_body;
-        if (pn->isKind(TOK_UPVARS)) {
+        if (pn->isKind(PNK_UPVARS)) {
             AtomDefnMapPtr upvars = pn->pn_names;
             JS_ASSERT(!upvars->empty());
 
@@ -333,8 +331,8 @@ MarkFunArgs(JSContext *cx, FunctionBox *funbox, uint32 functionCount)
     return true;
 }
 
-static uint32
-MinBlockId(ParseNode *fn, uint32 id)
+static uint32_t
+MinBlockId(ParseNode *fn, uint32_t id)
 {
     if (fn->pn_blockid < id)
         return false;
@@ -348,7 +346,7 @@ MinBlockId(ParseNode *fn, uint32 id)
 }
 
 static inline bool
-CanFlattenUpvar(Definition *dn, FunctionBox *funbox, uint32 tcflags)
+CanFlattenUpvar(Definition *dn, FunctionBox *funbox, uint32_t tcflags)
 {
     /*
      * Consider the current function (the lambda, innermost below) using a var
@@ -489,7 +487,7 @@ CanFlattenUpvar(Definition *dn, FunctionBox *funbox, uint32 tcflags)
 }
 
 static void
-FlagHeavyweights(Definition *dn, FunctionBox *funbox, uint32 *tcflags)
+FlagHeavyweights(Definition *dn, FunctionBox *funbox, uint32_t *tcflags)
 {
     uintN dnLevel = dn->frameLevel();
 
@@ -512,56 +510,14 @@ FlagHeavyweights(Definition *dn, FunctionBox *funbox, uint32 *tcflags)
 }
 
 static void
-ConsiderUnbranding(FunctionBox *funbox)
-{
-    /*
-     * We've already recursively set our kids' kinds, which also classifies
-     * enclosing functions holding upvars referenced in those descendants'
-     * bodies. So now we can check our "methods".
-     *
-     * Despecialize from branded method-identity-based shape to shape- or
-     * slot-based shape if this function smells like a constructor and too many
-     * of its methods are *not* joinable null closures (i.e., they have one or
-     * more upvars fetched via the display).
-     */
-    bool returnsExpr = !!(funbox->tcflags & TCF_RETURN_EXPR);
-#if JS_HAS_EXPR_CLOSURES
-    {
-        ParseNode *pn2 = funbox->node->pn_body;
-        if (pn2->isKind(TOK_UPVARS))
-            pn2 = pn2->pn_tree;
-        if (pn2->isKind(TOK_ARGSBODY))
-            pn2 = pn2->last();
-        if (!pn2->isKind(TOK_LC))
-            returnsExpr = true;
-    }
-#endif
-    if (!returnsExpr) {
-        uintN methodSets = 0, slowMethodSets = 0;
-
-        for (ParseNode *method = funbox->methods; method; method = method->pn_link) {
-            JS_ASSERT(method->isOp(JSOP_LAMBDA) || method->isOp(JSOP_LAMBDA_FC));
-            ++methodSets;
-            if (!method->pn_funbox->joinable())
-                ++slowMethodSets;
-        }
-
-        if (funbox->shouldUnbrand(methodSets, slowMethodSets))
-            funbox->tcflags |= TCF_FUN_UNBRAND_THIS;
-    }
-}
-
-static void
-SetFunctionKinds(FunctionBox *funbox, uint32 *tcflags, bool isDirectEval)
+SetFunctionKinds(FunctionBox *funbox, uint32_t *tcflags, bool isDirectEval)
 {
     for (; funbox; funbox = funbox->siblings) {
         ParseNode *fn = funbox->node;
         ParseNode *pn = fn->pn_body;
 
-        if (funbox->kids) {
+        if (funbox->kids)
             SetFunctionKinds(funbox->kids, tcflags, isDirectEval);
-            ConsiderUnbranding(funbox);
-        }
 
         JSFunction *fun = funbox->function();
 
@@ -585,7 +541,7 @@ SetFunctionKinds(FunctionBox *funbox, uint32 *tcflags, bool isDirectEval)
             bool hasUpvars = false;
             bool canFlatten = true;
 
-            if (pn->isKind(TOK_UPVARS)) {
+            if (pn->isKind(PNK_UPVARS)) {
                 AtomDefnMapPtr upvars = pn->pn_names;
                 JS_ASSERT(!upvars->empty());
 
@@ -630,13 +586,13 @@ SetFunctionKinds(FunctionBox *funbox, uint32 *tcflags, bool isDirectEval)
                     fn->setOp(JSOP_LAMBDA_FC);
                     break;
                   default:
-                    /* js_EmitTree's case TOK_FUNCTION: will select op. */
+                    /* js::frontend::EmitTree's PNK_FUNCTION case sets op. */
                     JS_ASSERT(fn->isOp(JSOP_NOP));
                 }
             }
         }
 
-        if (fun->kind() == JSFUN_INTERPRETED && pn->isKind(TOK_UPVARS)) {
+        if (fun->kind() == JSFUN_INTERPRETED && pn->isKind(PNK_UPVARS)) {
             /*
              * One or more upvars cannot be safely snapshot into a flat
              * closure's non-reserved slot (see JSOP_GETFCSLOT), so we loop
@@ -673,8 +629,8 @@ SetFunctionKinds(FunctionBox *funbox, uint32 *tcflags, bool isDirectEval)
  * must have their OWN_SHAPE flags set; the comments for
  * js::Bindings::extensibleParents explain why.
  */
-static void
-MarkExtensibleScopeDescendants(FunctionBox *funbox, bool hasExtensibleParent) 
+static bool
+MarkExtensibleScopeDescendants(JSContext *context, FunctionBox *funbox, bool hasExtensibleParent) 
 {
     for (; funbox; funbox = funbox->siblings) {
         /*
@@ -684,14 +640,20 @@ MarkExtensibleScopeDescendants(FunctionBox *funbox, bool hasExtensibleParent)
          */
 
         JS_ASSERT(!funbox->bindings.extensibleParents());
-        if (hasExtensibleParent)
-            funbox->bindings.setExtensibleParents();
+        if (hasExtensibleParent) {
+            if (!funbox->bindings.setExtensibleParents(context))
+                return false;
+        }
 
         if (funbox->kids) {
-            MarkExtensibleScopeDescendants(funbox->kids,
-                                           hasExtensibleParent || funbox->scopeIsExtensible());
+            if (!MarkExtensibleScopeDescendants(context, funbox->kids,
+                                                hasExtensibleParent || funbox->scopeIsExtensible())) {
+                return false;
+            }
         }
     }
+
+    return true;
 }
 
 bool
@@ -702,7 +664,8 @@ frontend::AnalyzeFunctions(TreeContext *tc)
         return true;
     if (!MarkFunArgs(tc->parser->context, tc->functionList, tc->parser->functionCount))
         return false;
-    MarkExtensibleScopeDescendants(tc->functionList, false);
+    if (!MarkExtensibleScopeDescendants(tc->parser->context, tc->functionList, false))
+        return false;
     bool isDirectEval = !!tc->parser->callerFrame;
     SetFunctionKinds(tc->functionList, &tc->flags, isDirectEval);
     return true;

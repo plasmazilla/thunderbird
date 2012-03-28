@@ -69,10 +69,11 @@ struct Parser : private AutoGCRooter
     TokenStream         tokenStream;
     void                *tempPoolMark;  /* initial JSContext.tempLifoAlloc mark */
     JSPrincipals        *principals;    /* principals associated with source */
+    JSPrincipals        *originPrincipals;   /* see jsapi.h 'originPrincipals' comment */
     StackFrame          *const callerFrame;  /* scripted caller frame for eval and dbgapi */
     JSObject            *const callerVarObj; /* callerFrame's varObj */
     ParseNodeAllocator  allocator;
-    uint32              functionCount;  /* number of functions in current unit */
+    uint32_t            functionCount;  /* number of functions in current unit */
     ObjectBox           *traceListHead; /* list of parsed object for GC tracing */
     TreeContext         *tc;            /* innermost tree context (stack-allocated) */
 
@@ -82,7 +83,8 @@ struct Parser : private AutoGCRooter
     /* Perform constant-folding; must be true when interfacing with the emitter. */
     bool                foldConstants;
 
-    Parser(JSContext *cx, JSPrincipals *prin = NULL, StackFrame *cfp = NULL, bool fold = true);
+    Parser(JSContext *cx, JSPrincipals *prin = NULL, JSPrincipals *originPrin = NULL,
+           StackFrame *cfp = NULL, bool fold = true);
     ~Parser();
 
     friend void AutoGCRooter::trace(JSTracer *trc);
@@ -98,7 +100,7 @@ struct Parser : private AutoGCRooter
     bool init(const jschar *base, size_t length, const char *filename, uintN lineno,
               JSVersion version);
 
-    void setPrincipals(JSPrincipals *prin);
+    void setPrincipals(JSPrincipals *prin, JSPrincipals *originPrin);
 
     const char *getFilename() const { return tokenStream.getFilename(); }
     JSVersion versionWithFlags() const { return tokenStream.versionWithFlags(); }
@@ -141,6 +143,12 @@ struct Parser : private AutoGCRooter
         return allocator.allocNode();
     }
 
+    /*
+     * Create a parse node with the given kind and op using the current token's
+     * atom.
+     */
+    ParseNode *atomNode(ParseNodeKind kind, JSOp op);
+
   public:
     ParseNode *freeTree(ParseNode *pn) { return allocator.freeTree(pn); }
     void prepareNodeForMutation(ParseNode *pn) { return allocator.prepareNodeForMutation(pn); }
@@ -151,7 +159,13 @@ struct Parser : private AutoGCRooter
     /* Public entry points for parsing. */
     ParseNode *statement();
     bool recognizeDirectivePrologue(ParseNode *pn, bool *isDirectivePrologueMember);
-    ParseNode *functionBody();
+
+    /*
+     * Parse a function body.  Pass StatementListBody if the body is a list of
+     * statements; pass ExpressionBody if the body is a single expression.
+     */
+    enum FunctionBodyType { StatementListBody, ExpressionBody };
+    ParseNode *functionBody(FunctionBodyType type);
 
   private:
     /*
@@ -182,7 +196,7 @@ struct Parser : private AutoGCRooter
     ParseNode *letStatement();
 #endif
     ParseNode *expressionStatement();
-    ParseNode *variables(bool inLetHead);
+    ParseNode *variables(ParseNodeKind kind, bool inLetHead);
     ParseNode *expr();
     ParseNode *assignExpr();
     ParseNode *condExpr1();
@@ -218,9 +232,11 @@ struct Parser : private AutoGCRooter
 
     ParseNode *functionDef(PropertyName *name, FunctionType type, FunctionSyntaxKind kind);
 
+    ParseNode *unaryOpExpr(ParseNodeKind kind, JSOp op);
+
     ParseNode *condition();
     ParseNode *comprehensionTail(ParseNode *kid, uintN blockid, bool isGenexp,
-                                 TokenKind type = TOK_SEMI, JSOp op = JSOP_NOP);
+                                 ParseNodeKind kind = PNK_SEMI, JSOp op = JSOP_NOP);
     ParseNode *generatorExpr(ParseNode *kid);
     JSBool argumentList(ParseNode *listNode);
     ParseNode *bracketedExpr();
@@ -236,9 +252,8 @@ struct Parser : private AutoGCRooter
     ParseNode *qualifiedIdentifier();
     ParseNode *attributeIdentifier();
     ParseNode *xmlExpr(JSBool inTag);
-    ParseNode *xmlAtomNode();
     ParseNode *xmlNameExpr();
-    ParseNode *xmlTagContent(TokenKind tagtype, JSAtom **namep);
+    ParseNode *xmlTagContent(ParseNodeKind tagkind, JSAtom **namep);
     JSBool xmlElementContent(ParseNode *pn);
     ParseNode *xmlElementOrList(JSBool allowList);
     ParseNode *xmlElementOrListRoot(JSBool allowList);

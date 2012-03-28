@@ -53,7 +53,7 @@ interface nsIDOMHTMLMenuElement;
  * with changes from the work-in-progress WHATWG HTML specification:
  * http://www.whatwg.org/specs/web-apps/current-work/
  */
-[scriptable, uuid(0a21bb68-d8bd-4b2a-a3db-048a02e81c62)]
+[scriptable, uuid(3de9f8c1-5d76-4d2e-b6b9-334c6eb0c113)]
 interface nsIDOMHTMLElement : nsIDOMElement
 {
   // metadata attributes
@@ -86,6 +86,7 @@ interface nsIDOMHTMLElement : nsIDOMElement
 
   // DOM Parsing and Serialization
            attribute DOMString        innerHTML;
+           attribute DOMString        outerHTML;
   void insertAdjacentHTML(in DOMString position,
                           in DOMString text);
 

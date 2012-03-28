@@ -53,7 +53,7 @@ class nsIArray;
 class nsIVariant;
 class nsIObjectInputStream;
 class nsIObjectOutputStream;
-class nsScriptObjectHolder;
+template<class> class nsScriptObjectHolder;
 class nsIScriptObjectPrincipal;
 
 typedef void (*nsScriptTerminationFunc)(nsISupports* aRef);
@@ -74,8 +74,8 @@ NS_DEFINE_STATIC_IID_ACCESSOR(nsIScriptContextPrincipal,
                               NS_ISCRIPTCONTEXTPRINCIPAL_IID)
 
 #define NS_ISCRIPTCONTEXT_IID \
-{ 0x2e583bf4, 0x3c1f, 0x432d, \
-  { 0x82, 0x83, 0x8d, 0xee, 0x7e, 0xcc, 0xc8, 0x8b } }
+{ 0xb36103bd, 0x304e, 0x4ef2, \
+  { 0x81, 0x12, 0x83, 0x42, 0xe5, 0xbd, 0xf3, 0xd4 } }
 
 /* This MUST match JSVERSION_DEFAULT.  This version stuff if we don't
    know what language we have is a little silly... */
@@ -121,15 +121,13 @@ public:
                                   nsAString *aRetValue,
                                   bool* aIsUndefined) = 0;
 
-  // Note JS bigotry remains here - 'void *aRetValue' is assumed to be a
-  // jsval.  This must move to JSObject before it can be made agnostic.
   virtual nsresult EvaluateStringWithValue(const nsAString& aScript,
-                                           void *aScopeObject,
+                                           JSObject* aScopeObject,
                                            nsIPrincipal *aPrincipal,
                                            const char *aURL,
                                            PRUint32 aLineNo,
                                            PRUint32 aVersion,
-                                           void* aRetValue,
+                                           JS::Value* aRetValue,
                                            bool* aIsUndefined) = 0;
 
   /**
@@ -137,8 +135,6 @@ public:
    *
    * @param aText a PRUnichar buffer containing script source
    * @param aTextLength number of characters in aText
-   * @param aScopeObject an object telling the scope in which to execute,
-   *                     or nsnull to use a default scope
    * @param aPrincipal the principal that produced the script
    * @param aURL the URL or filename for error messages
    * @param aLineNo the starting line number of the script for error messages
@@ -151,12 +147,11 @@ public:
    **/
   virtual nsresult CompileScript(const PRUnichar* aText,
                                  PRInt32 aTextLength,
-                                 void* aScopeObject,
                                  nsIPrincipal* aPrincipal,
                                  const char* aURL,
                                  PRUint32 aLineNo,
                                  PRUint32 aVersion,
-                                 nsScriptObjectHolder &aScriptObject) = 0;
+                                 nsScriptObjectHolder<JSScript>& aScriptObject) = 0;
 
   /**
    * Execute a precompiled script object.
@@ -211,7 +206,7 @@ public:
                                        const char* aURL,
                                        PRUint32 aLineNo,
                                        PRUint32 aVersion,
-                                       nsScriptObjectHolder &aHandler) = 0;
+                                       nsScriptObjectHolder<JSObject>& aHandler) = 0;
 
   /**
    * Call the function object with given args and return its boolean result,
@@ -226,7 +221,7 @@ public:
    * @param rval out parameter returning result
    **/
   virtual nsresult CallEventHandler(nsISupports* aTarget,
-                                    JSObject* aScope, void* aHandler,
+                                    JSObject* aScope, JSObject* aHandler,
                                     nsIArray *argv, nsIVariant **rval) = 0;
 
   /**
@@ -252,8 +247,8 @@ public:
    */
   virtual nsresult BindCompiledEventHandler(nsISupports* aTarget,
                                             JSObject* aScope,
-                                            void* aHandler,
-                                            nsScriptObjectHolder& aBoundHandler) = 0;
+                                            JSObject* aHandler,
+                                            nsScriptObjectHolder<JSObject>& aBoundHandler) = 0;
 
   /**
    * Compile a function that isn't used as an event handler.
@@ -262,7 +257,7 @@ public:
    * Caller must make sure aFunctionObject is a JS GC root.
    *
    **/
-  virtual nsresult CompileFunction(void* aTarget,
+  virtual nsresult CompileFunction(JSObject* aTarget,
                                    const nsACString& aName,
                                    PRUint32 aArgCount,
                                    const char** aArgArray,
@@ -271,14 +266,7 @@ public:
                                    PRUint32 aLineNo,
                                    PRUint32 aVersion,
                                    bool aShared,
-                                   void **aFunctionObject) = 0;
-
-  /**
-   * Set the default scripting language version for this context, which must
-   * be a context specific to a particular scripting language.
-   *
-   **/
-  virtual void SetDefaultLanguageVersion(PRUint32 aVersion) = 0;
+                                   JSObject** aFunctionObject) = 0;
 
   /**
    * Return the global object.
@@ -307,7 +295,7 @@ public:
                                       nsIScriptGlobalObject *aNewInner,
                                       bool aIsChrome,
                                       nsIPrincipal *aPrincipal,
-                                      void **aNativeGlobal,
+                                      JSObject** aNativeGlobal,
                                       nsISupports **aHolder) = 0;
 
   /**
@@ -316,7 +304,7 @@ public:
    * Called after both the the inner and outer windows are initialized
    **/
   virtual nsresult ConnectToInner(nsIScriptGlobalObject *aNewInner,
-                                  void *aOuterGlobal) = 0;
+                                  JSObject *aOuterGlobal) = 0;
 
 
   /**
@@ -335,7 +323,7 @@ public:
   /**
    * Given an outer object, updates this context with that outer object.
    */
-  virtual nsresult SetOuterObject(void *aOuterObject) = 0;
+  virtual nsresult SetOuterObject(JSObject* aOuterObject) = 0;
 
   /**
    * Prepares this context for use with the current inner window for the
@@ -385,7 +373,7 @@ public:
   /* Deserialize a script from a stream.
    */
   virtual nsresult Deserialize(nsIObjectInputStream* aStream,
-                               nsScriptObjectHolder &aResult) = 0;
+                               nsScriptObjectHolder<JSScript>& aResult) = 0;
 
   /**
    * JS only - this function need not be implemented by languages other
@@ -433,7 +421,7 @@ public:
    * call DidInitializeContext() when a context is fully
    * (successfully) initialized.
    */
-  virtual nsresult InitClasses(void *aGlobalObj) = 0;
+  virtual nsresult InitClasses(JSObject* aGlobalObj) = 0;
 
   /**
    * Clear the scope object - may be called either as we are being torn down,

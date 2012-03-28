@@ -64,7 +64,8 @@ pref("extensions.minCompatibleAppVersion", "4.0");
 // Preferences for AMO integration
 pref("extensions.getAddons.cache.enabled", true);
 pref("extensions.getAddons.maxResults", 15);
-pref("extensions.getAddons.get.url", "https://services.addons.mozilla.org/%LOCALE%/firefox/api/%API_VERSION%/search/guid:%IDS%?src=firefox&appOS=%OS%&appVersion=%VERSION%&tMain=%TIME_MAIN%&tFirstPaint=%TIME_FIRST_PAINT%&tSessionRestored=%TIME_SESSION_RESTORED%");
+pref("extensions.getAddons.get.url", "https://services.addons.mozilla.org/%LOCALE%/firefox/api/%API_VERSION%/search/guid:%IDS%?src=firefox&appOS=%OS%&appVersion=%VERSION%");
+pref("extensions.getAddons.getWithPerformance.url", "https://services.addons.mozilla.org/%LOCALE%/firefox/api/%API_VERSION%/search/guid:%IDS%?src=firefox&appOS=%OS%&appVersion=%VERSION%&tMain=%TIME_MAIN%&tFirstPaint=%TIME_FIRST_PAINT%&tSessionRestored=%TIME_SESSION_RESTORED%");
 pref("extensions.getAddons.search.browseURL", "https://addons.mozilla.org/%LOCALE%/firefox/search?q=%TERMS%");
 pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/firefox/api/%API_VERSION%/search/%TERMS%/all/%MAX_RESULTS%/%OS%/%VERSION%/%COMPATIBILITY_MODE%?src=firefox");
 pref("extensions.webservice.discoverURL", "https://services.addons.mozilla.org/%LOCALE%/firefox/discovery/pane/%VERSION%/%OS%");
@@ -587,7 +588,7 @@ pref("plugins.hide_infobar_for_missing_plugin", false);
 pref("plugins.hide_infobar_for_outdated_plugin", false);
 
 #ifdef XP_MACOSX
-pref("plugins.use_layers", false);
+pref("plugins.use_layers", true);
 pref("plugins.hide_infobar_for_carbon_failure_plugin", false);
 #endif
 
@@ -931,12 +932,18 @@ pref("browser.taskbar.lists.refreshInSeconds", 120);
 
 #ifdef MOZ_SERVICES_SYNC
 // The sync engines to use.
-pref("services.sync.registerEngines", "Bookmarks,Form,History,Password,Prefs,Tab");
+pref("services.sync.registerEngines", "Bookmarks,Form,History,Password,Prefs,Tab,Addons");
 // Preferences to be synced by default
 pref("services.sync.prefs.sync.accessibility.blockautorefresh", true);
 pref("services.sync.prefs.sync.accessibility.browsewithcaret", true);
 pref("services.sync.prefs.sync.accessibility.typeaheadfind", true);
 pref("services.sync.prefs.sync.accessibility.typeaheadfind.linksonly", true);
+pref("services.sync.prefs.sync.addons.ignoreUserEnabledChanges", true);
+// The addons prefs related to repository verification are intentionally
+// not synced for security reasons. If a system is compromised, a user
+// could weaken the pref locally, install an add-on from an untrusted
+// source, and this would propagate automatically to other,
+// uncompromised Sync-connected devices.
 pref("services.sync.prefs.sync.app.update.mode", true);
 pref("services.sync.prefs.sync.browser.download.manager.closeWhenDone", true);
 pref("services.sync.prefs.sync.browser.download.manager.retention", true);
@@ -949,6 +956,7 @@ pref("services.sync.prefs.sync.browser.safebrowsing.enabled", true);
 pref("services.sync.prefs.sync.browser.safebrowsing.malware.enabled", true);
 pref("services.sync.prefs.sync.browser.search.selectedEngine", true);
 pref("services.sync.prefs.sync.browser.search.update", true);
+pref("services.sync.prefs.sync.browser.sessionstore.restore_on_demand", true);
 pref("services.sync.prefs.sync.browser.startup.homepage", true);
 pref("services.sync.prefs.sync.browser.startup.page", true);
 pref("services.sync.prefs.sync.browser.tabs.autoHide", true);
@@ -1016,11 +1024,20 @@ pref("devtools.inspector.htmlHeight", 112);
 // Enable the style inspector
 pref("devtools.styleinspector.enabled", true);
 
+// Enable the Tilt inspector
+pref("devtools.tilt.enabled", true);
+
+// Enable the Tilt inspector even if WebGL capabilities are not detected
+pref("devtools.tilt.force-enabled", false);
+
 // Enable the rules view
 pref("devtools.ruleview.enabled", true);
 
 // Enable the Scratchpad tool.
 pref("devtools.scratchpad.enabled", true);
+
+// Enable the Style Editor.
+pref("devtools.styleeditor.enabled", true);
 
 // Enable tools for Chrome development.
 pref("devtools.chrome.enabled", false);
@@ -1038,6 +1055,18 @@ pref("devtools.hud.height", 0);
 //   below - below the web page,
 //   window - in a separate window/popup panel.
 pref("devtools.webconsole.position", "above");
+
+// Remember the Web Console filters
+pref("devtools.webconsole.filter.network", true);
+pref("devtools.webconsole.filter.networkinfo", true);
+pref("devtools.webconsole.filter.csserror", true);
+pref("devtools.webconsole.filter.cssparser", true);
+pref("devtools.webconsole.filter.exception", true);
+pref("devtools.webconsole.filter.jswarn", true);
+pref("devtools.webconsole.filter.error", true);
+pref("devtools.webconsole.filter.warn", true);
+pref("devtools.webconsole.filter.info", true);
+pref("devtools.webconsole.filter.log", true);
 
 // The number of lines that are displayed in the web console for the Net,
 // CSS, JS and Web Developer categories.

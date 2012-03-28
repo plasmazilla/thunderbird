@@ -949,10 +949,18 @@ public:
 
   virtual Element* FindImageMap(const nsAString& aNormalizedMapName);
 
+  virtual void NotifyAudioAvailableListener();
+
+  bool HasAudioAvailableListeners()
+  {
+    return mHasAudioAvailableListener;
+  }
+
   virtual Element* GetFullScreenElement();
   virtual void AsyncRequestFullScreen(Element* aElement);
-  virtual void CancelFullScreen();
+  virtual void RestorePreviousFullScreenState();
   virtual bool IsFullScreenDoc();
+  static void ExitFullScreen();
 
   // This is called asynchronously by nsIDocument::AsyncRequestFullScreen()
   // to move document into full-screen mode if allowed. aWasCallerChrome
@@ -960,10 +968,23 @@ public:
   // by chrome code.
   void RequestFullScreen(Element* aElement, bool aWasCallerChrome);
 
-  // Returns true if making this change results in a change in the full-screen
-  // state of this document.
-  bool SetFullScreenState(Element* aElement, bool aIsFullScreen);
- 
+  // Removes all elements from the full-screen stack, removing full-scren
+  // styles from the top element in the stack.
+  void ClearFullScreenStack();
+
+  // Pushes aElement onto the full-screen stack, and removes full-screen styles
+  // from the former full-screen stack top, and its ancestors, and applies the
+  // styles to aElement. aElement becomes the new "full-screen element".
+  bool FullScreenStackPush(Element* aElement);
+
+  // Remove the top element from the full-screen stack. Removes the full-screen
+  // styles from the former top element, and applies them to the new top
+  // element, if there is one.
+  void FullScreenStackPop();
+
+  // Returns the top element from the full-screen stack.
+  Element* FullScreenStackTop();
+
   // This method may fire a DOM event; if it does so it will happen
   // synchronously.
   void UpdateVisibilityState();
@@ -978,7 +999,9 @@ protected:
   // doc tree, and if the document is visible, and if the api is not
   // disabled by pref. aIsCallerChrome must contain the return value of
   // nsContentUtils::IsCallerChrome() from the context we're checking.
-  bool IsFullScreenEnabled(bool aIsCallerChrome);
+  // If aLogFailure is true, an appropriate warning message is logged to the
+  // console, and a "mozfullscreenerror" event is dispatched to this document.
+  bool IsFullScreenEnabled(bool aIsCallerChrome, bool aLogFailure);
 
   /**
    * Check that aId is not empty and log a message to the console
@@ -1101,6 +1124,11 @@ protected:
   // document is hidden/navigation occurs.
   static nsWeakPtr sFullScreenRootDoc;
 
+  // Stack of full-screen elements. When we request full-screen we push the
+  // full-screen element onto this stack, and when we cancel full-screen we
+  // pop one off this stack, restoring the previous full-screen state
+  nsTArray<nsWeakPtr> mFullScreenStack;
+
   nsRefPtr<nsEventListenerManager> mListenerManager;
   nsCOMPtr<nsIDOMStyleSheetList> mDOMStyleSheets;
   nsRefPtr<nsDOMStyleSheetSetList> mStyleSheetSetList;
@@ -1119,9 +1147,6 @@ protected:
 
   // Recorded time of change to 'loading' state.
   mozilla::TimeStamp mLoadingTimeStamp;
-
-  // The current full-screen element of this document.
-  nsCOMPtr<Element> mFullScreenElement;
 
   // True if the document has been detached from its content viewer.
   bool mIsGoingAway:1;
@@ -1155,8 +1180,16 @@ protected:
   // Whether we currently require our images to animate
   bool mAnimatingImages:1;
 
+  // Whether some node in this document has a listener for the
+  // "mozaudioavailable" event.
+  bool mHasAudioAvailableListener:1;
+
   // Whether we are currently in full-screen mode, as per the DOM API.
   bool mIsFullScreen:1;
+
+  // Whether we're currently under a FlushPendingNotifications call to
+  // our presshell.  This is used to handle flush reentry correctly.
+  bool mInFlush:1;
 
   PRUint8 mXMLDeclarationBits;
 

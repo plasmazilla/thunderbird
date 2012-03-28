@@ -55,6 +55,7 @@
  */
 
 #include "jsapi.h"
+
 #include "jsutil.h"
 
 JS_BEGIN_EXTERN_C
@@ -70,8 +71,8 @@ static const uintN JS_GCTHING_ALIGN = 8;
 static const uintN JS_GCTHING_ZEROBITS = 3;
 
 /* Scalar typedefs. */
-typedef uint8       jsbytecode;
-typedef uint8       jssrcnote;
+typedef uint8_t     jsbytecode;
+typedef uint8_t     jssrcnote;
 typedef uintptr_t   jsatomid;
 
 /* Struct typedefs. */
@@ -90,11 +91,8 @@ typedef struct JSCodeSpec           JSCodeSpec;
 typedef struct JSPrinter            JSPrinter;
 typedef struct JSStackHeader        JSStackHeader;
 typedef struct JSSubString          JSSubString;
-typedef struct JSNativeTraceInfo    JSNativeTraceInfo;
 typedef struct JSSpecializedNative  JSSpecializedNative;
 typedef struct JSXML                JSXML;
-typedef struct JSXMLArray           JSXMLArray;
-typedef struct JSXMLArrayCursor     JSXMLArrayCursor;
 
 /*
  * Template declarations.
@@ -122,8 +120,19 @@ namespace js {
 struct ArgumentsData;
 struct Class;
 
-class RegExpPrivate;
+class RegExpObject;
+class RegExpMatcher;
+class RegExpObjectBuilder;
 class RegExpStatics;
+class MatchPairs;
+
+namespace detail {
+
+class RegExpPrivate;
+class RegExpPrivateCode;
+class RegExpPrivateCacheValue;
+
+} /* namespace detail */
 
 enum RegExpFlag
 {
@@ -136,13 +145,17 @@ enum RegExpFlag
     AllFlags        = 0x0f
 };
 
+enum RegExpExecType
+{
+    RegExpExec,
+    RegExpTest
+};
+
 class AutoStringRooter;
 class ExecuteArgsGuard;
 class InvokeFrameGuard;
 class InvokeArgsGuard;
 class StringBuffer;
-class TraceRecorder;
-struct TraceMonitor;
 
 class FrameRegs;
 class StackFrame;
@@ -205,8 +218,11 @@ class LifoAlloc;
 class PropertyCache;
 struct PropertyCacheEntry;
 
+class BaseShape;
+class UnownedBaseShape;
 struct Shape;
 struct EmptyShape;
+class ShapeKindArray;
 class Bindings;
 
 class MultiDeclRange;
@@ -219,10 +235,22 @@ typedef Vector<UpvarCookie, 8> UpvarCookies;
 
 class Breakpoint;
 class BreakpointSite;
-typedef HashMap<jsbytecode *, BreakpointSite *, DefaultHasher<jsbytecode *>, RuntimeAllocPolicy>
-    BreakpointSiteMap;
 class Debugger;
 class WatchpointMap;
+
+typedef HashMap<JSAtom *,
+                detail::RegExpPrivateCacheValue,
+                DefaultHasher<JSAtom *>,
+                RuntimeAllocPolicy>
+    RegExpPrivateCache;
+
+/*
+ * Env is the type of what ES5 calls "lexical environments" (runtime
+ * activations of lexical scopes). This is currently just JSObject, and is
+ * implemented by Call, Block, With, and DeclEnv objects, among others--but
+ * environments and objects are really two different concepts.
+ */
+typedef JSObject Env;
 
 typedef JSNative             Native;
 typedef JSPropertyOp         PropertyOp;
@@ -250,6 +278,18 @@ struct TypeCompartment;
 } /* namespace types */
 
 } /* namespace js */
+
+namespace JSC {
+
+class ExecutableAllocator;
+
+} /* namespace JSC */
+
+namespace WTF {
+
+class BumpPointerAllocator;
+
+} /* namespace WTF */
 
 } /* export "C++" */
 

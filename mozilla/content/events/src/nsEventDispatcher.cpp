@@ -808,6 +808,9 @@ nsEventDispatcher::CreateEvent(nsPresContext* aPresContext,
     case NS_MOZTOUCH_EVENT:
       return NS_NewDOMMozTouchEvent(aDOMEvent, aPresContext,
                                     static_cast<nsMozTouchEvent*>(aEvent));
+    case NS_TOUCH_EVENT:
+      return NS_NewDOMTouchEvent(aDOMEvent, aPresContext,
+                                 static_cast<nsTouchEvent*>(aEvent));
     case NS_TRANSITION_EVENT:
       return NS_NewDOMTransitionEvent(aDOMEvent, aPresContext,
                                       static_cast<nsTransitionEvent*>(aEvent));
@@ -908,6 +911,8 @@ nsEventDispatcher::CreateEvent(nsPresContext* aPresContext,
     return NS_NewDOMHashChangeEvent(aDOMEvent, aPresContext, nsnull);
   if (aEventType.LowerCaseEqualsLiteral("customevent"))
     return NS_NewDOMCustomEvent(aDOMEvent, aPresContext, nsnull);
+  if (aEventType.LowerCaseEqualsLiteral("mozsmsevent"))
+    return NS_NewDOMSmsEvent(aDOMEvent, aPresContext, nsnull);
 
   return NS_ERROR_DOM_NOT_SUPPORTED_ERR;
 }

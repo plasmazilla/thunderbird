@@ -1565,14 +1565,14 @@ nsDocAccessible::AddDependentIDsFor(nsAccessible* aRelProvider,
 
     if (relAttr == nsGkAtoms::_for) {
       if (!aRelProvider->GetContent()->IsHTML() ||
-          aRelProvider->GetContent()->Tag() != nsGkAtoms::label &&
-          aRelProvider->GetContent()->Tag() != nsGkAtoms::output)
+          (aRelProvider->GetContent()->Tag() != nsGkAtoms::label &&
+           aRelProvider->GetContent()->Tag() != nsGkAtoms::output))
         continue;
 
     } else if (relAttr == nsGkAtoms::control) {
       if (!aRelProvider->GetContent()->IsXUL() ||
-          aRelProvider->GetContent()->Tag() != nsGkAtoms::label &&
-          aRelProvider->GetContent()->Tag() != nsGkAtoms::description)
+          (aRelProvider->GetContent()->Tag() != nsGkAtoms::label &&
+           aRelProvider->GetContent()->Tag() != nsGkAtoms::description))
         continue;
     }
 
@@ -1851,11 +1851,7 @@ nsDocAccessible::UpdateTree(nsAccessible* aContainer, nsIContent* aChildNode,
     }
   }
 
-  // Fire value change event.
-  if (aContainer->Role() == nsIAccessibleRole::ROLE_ENTRY) {
-    FireDelayedAccessibleEvent(nsIAccessibleEvent::EVENT_VALUE_CHANGE,
-                               aContainer->GetNode());
-  }
+  MaybeNotifyOfValueChange(aContainer);
 
   // Fire reorder event so the MSAA clients know the children have changed. Also
   // the event is used internally by MSAA layer.

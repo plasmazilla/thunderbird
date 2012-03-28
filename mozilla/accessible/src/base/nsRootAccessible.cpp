@@ -450,7 +450,7 @@ nsRootAccessible::ProcessDOMEvent(nsIDOMEvent* aDOMEvent)
 
   nsAccessible* treeItemAcc = nsnull;
 #ifdef MOZ_XUL
-  // If it's a tree element, need the currently selected item
+  // If it's a tree element, need the currently selected item.
   if (treeAcc) {
     treeItemAcc = accessible->CurrentItem();
     if (treeItemAcc)

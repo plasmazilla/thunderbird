@@ -93,7 +93,7 @@ DefineGlobals(JSContext *cx, GlobalScope &globalScope, JSScript *script)
                                  JSPROP_ENUMERATE | JSPROP_PERMANENT, 0, 0, DNP_SKIP_TYPE);
         if (!shape)
             return false;
-        def.knownSlot = shape->slot;
+        def.knownSlot = shape->slot();
     }
 
     Vector<JSScript *, 16> worklist(cx);
@@ -123,10 +123,10 @@ DefineGlobals(JSContext *cx, GlobalScope &globalScope, JSScript *script)
                 JSObject *obj = arr->vector[i];
                 if (!obj->isFunction())
                     continue;
-                JSFunction *fun = obj->getFunctionPrivate();
+                JSFunction *fun = obj->toFunction();
                 JS_ASSERT(fun->isInterpreted());
                 JSScript *inner = fun->script();
-                if (outer->isHeavyweightFunction) {
+                if (outer->function() && outer->function()->isHeavyweight()) {
                     outer->isOuterFunction = true;
                     inner->isInnerFunction = true;
                 }
@@ -143,9 +143,9 @@ DefineGlobals(JSContext *cx, GlobalScope &globalScope, JSScript *script)
             continue;
 
         GlobalSlotArray *globalUses = outer->globals();
-        uint32 nGlobalUses = globalUses->length;
-        for (uint32 i = 0; i < nGlobalUses; i++) {
-            uint32 index = globalUses->vector[i].slot;
+        uint32_t nGlobalUses = globalUses->length;
+        for (uint32_t i = 0; i < nGlobalUses; i++) {
+            uint32_t index = globalUses->vector[i].slot;
             JS_ASSERT(index < globalScope.defs.length());
             globalUses->vector[i].slot = globalScope.defs[index].knownSlot;
         }
@@ -156,7 +156,8 @@ DefineGlobals(JSContext *cx, GlobalScope &globalScope, JSScript *script)
 
 JSScript *
 frontend::CompileScript(JSContext *cx, JSObject *scopeChain, StackFrame *callerFrame,
-                        JSPrincipals *principals, uint32 tcflags,
+                        JSPrincipals *principals, JSPrincipals *originPrincipals,
+                        uint32_t tcflags,
                         const jschar *chars, size_t length,
                         const char *filename, uintN lineno, JSVersion version,
                         JSString *source /* = NULL */,
@@ -177,7 +178,7 @@ frontend::CompileScript(JSContext *cx, JSObject *scopeChain, StackFrame *callerF
     JS_ASSERT_IF(callerFrame, tcflags & TCF_COMPILE_N_GO);
     JS_ASSERT_IF(staticLevel != 0, callerFrame);
 
-    Parser parser(cx, principals, callerFrame);
+    Parser parser(cx, principals, originPrincipals, callerFrame);
     if (!parser.init(chars, length, filename, lineno, version))
         return NULL;
 
@@ -254,7 +255,7 @@ frontend::CompileScript(JSContext *cx, JSObject *scopeChain, StackFrame *callerF
      * Inline this->statements to emit as we go to save AST space. We must
      * generate our script-body blockid since we aren't calling Statements.
      */
-    uint32 bodyid;
+    uint32_t bodyid;
     if (!GenerateBlockId(&bce, bodyid))
         goto out;
     bce.bodyid = bodyid;
@@ -295,7 +296,7 @@ frontend::CompileScript(JSContext *cx, JSObject *scopeChain, StackFrame *callerF
             goto out;
 
 #if JS_HAS_XML_SUPPORT
-        if (!pn->isKind(TOK_SEMI) || !pn->pn_kid || !TreeTypeIsXML(pn->pn_kid->getKind()))
+        if (!pn->isKind(PNK_SEMI) || !pn->pn_kid || !pn->pn_kid->isXMLItem())
             onlyXML = false;
 #endif
         bce.freeTree(pn);
@@ -381,11 +382,12 @@ frontend::CompileScript(JSContext *cx, JSObject *scopeChain, StackFrame *callerF
  * handler attribute in an HTML <INPUT> tag.
  */
 bool
-frontend::CompileFunctionBody(JSContext *cx, JSFunction *fun, JSPrincipals *principals,
+frontend::CompileFunctionBody(JSContext *cx, JSFunction *fun,
+                              JSPrincipals *principals, JSPrincipals *originPrincipals,
                               Bindings *bindings, const jschar *chars, size_t length,
                               const char *filename, uintN lineno, JSVersion version)
 {
-    Parser parser(cx, principals);
+    Parser parser(cx, principals, originPrincipals);
     if (!parser.init(chars, length, filename, lineno, version))
         return false;
 
@@ -403,8 +405,7 @@ frontend::CompileFunctionBody(JSContext *cx, JSFunction *fun, JSPrincipals *prin
         return false;
 
     /* FIXME: make Function format the source for a function definition. */
-    tokenStream.mungeCurrentToken(TOK_NAME);
-    ParseNode *fn = FunctionNode::create(&funbce);
+    ParseNode *fn = FunctionNode::create(PNK_NAME, &funbce);
     if (fn) {
         fn->pn_body = NULL;
         fn->pn_cookie.makeFree();
@@ -430,14 +431,11 @@ frontend::CompileFunctionBody(JSContext *cx, JSFunction *fun, JSPrincipals *prin
     }
 
     /*
-     * Farble the body so that it looks like a block statement to EmitTree,
-     * which is called from EmitFunctionBody (see BytecodeEmitter.cpp).
      * After we're done parsing, we must fold constants, analyze any nested
      * functions, and generate code for this function, including a stop opcode
      * at the end.
      */
-    tokenStream.mungeCurrentToken(TOK_LC);
-    ParseNode *pn = fn ? parser.functionBody() : NULL;
+    ParseNode *pn = fn ? parser.functionBody(Parser::StatementListBody) : NULL;
     if (pn) {
         if (!CheckStrictParameters(cx, &funbce)) {
             pn = NULL;
@@ -451,7 +449,7 @@ frontend::CompileFunctionBody(JSContext *cx, JSFunction *fun, JSPrincipals *prin
             pn = NULL;
         } else {
             if (fn->pn_body) {
-                JS_ASSERT(fn->pn_body->isKind(TOK_ARGSBODY));
+                JS_ASSERT(fn->pn_body->isKind(PNK_ARGSBODY));
                 fn->pn_body->append(pn);
                 fn->pn_body->pn_pos = pn->pn_pos;
                 pn = fn->pn_body;

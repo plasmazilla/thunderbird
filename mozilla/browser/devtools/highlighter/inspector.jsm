@@ -80,6 +80,9 @@ const INSPECTOR_NOTIFICATIONS = {
   // Fires once the Inspector is closed.
   CLOSED: "inspector-closed",
 
+  // Fires once the Inspector is destroyed. Not fired on tab switch.
+  DESTROYED: "inspector-destroyed",
+
   // Fires when the Inspector is reopened after tab-switch.
   STATE_RESTORED: "inspector-state-restored",
 
@@ -147,8 +150,15 @@ Highlighter.prototype = {
 
     this.buildInfobar(controlsBox);
 
+    if (!this.IUI.store.getValue(this.winID, "inspecting")) {
+      this.veilContainer.setAttribute("locked", true);
+      this.nodeInfo.container.setAttribute("locked", true);
+    }
+
     this.browser.addEventListener("resize", this, true);
     this.browser.addEventListener("scroll", this, true);
+
+    this.transitionDisabler = null;
 
     this.handleResize();
   },
@@ -278,6 +288,7 @@ Highlighter.prototype = {
    */
   destroy: function Highlighter_destroy()
   {
+    this.IUI.win.clearTimeout(this.transitionDisabler);
     this.browser.removeEventListener("scroll", this, true);
     this.browser.removeEventListener("resize", this, true);
     this.boundCloseEventHandler = null;
@@ -487,7 +498,7 @@ Highlighter.prototype = {
     this.nodeInfo.tagNameLabel.textContent = this.node.tagName;
 
     // ID
-    this.nodeInfo.idLabel.textContent = this.node.id;
+    this.nodeInfo.idLabel.textContent = this.node.id ? "#" + this.node.id : "";
 
     // Classes
     let classes = this.nodeInfo.classesBox;
@@ -500,7 +511,7 @@ Highlighter.prototype = {
       for (let i = 0; i < this.node.classList.length; i++) {
         let classLabel = this.chromeDoc.createElement("label");
         classLabel.className = "highlighter-nodeinfobar-class plain";
-        classLabel.textContent = this.node.classList[i];
+        classLabel.textContent = "." + this.node.classList[i];
         fragment.appendChild(classLabel);
       }
       classes.appendChild(fragment);
@@ -665,6 +676,7 @@ Highlighter.prototype = {
         this.handleMouseMove(aEvent);
         break;
       case "resize":
+        this.brieflyDisableTransitions();
         this.handleResize(aEvent);
         break;
       case "dblclick":
@@ -674,9 +686,30 @@ Highlighter.prototype = {
         aEvent.preventDefault();
         break;
       case "scroll":
+        this.brieflyDisableTransitions();
         this.highlight();
         break;
     }
+  },
+
+  /**
+   * Disable the CSS transitions for a short time to avoid laggy animations
+   * during scrolling or resizing.
+   */
+  brieflyDisableTransitions: function Highlighter_brieflyDisableTransitions()
+  {
+   if (this.transitionDisabler) {
+     this.IUI.win.clearTimeout(this.transitionDisabler);
+   } else {
+     this.veilContainer.setAttribute("disable-transitions", "true");
+     this.nodeInfo.container.setAttribute("disable-transitions", "true");
+   }
+   this.transitionDisabler =
+     this.IUI.win.setTimeout(function() {
+       this.veilContainer.removeAttribute("disable-transitions");
+       this.nodeInfo.container.removeAttribute("disable-transitions");
+       this.transitionDisabler = null;
+     }.bind(this), 500);
   },
 
   /**
@@ -895,6 +928,7 @@ InspectorUI.prototype = {
       this.chromeDoc.getElementById("inspector-inspect-toolbutton");
 
     this.initTools();
+    this.chromeWin.Tilt.setup();
 
     if (this.treePanelEnabled) {
       this.treePanel = new TreePanel(this.chromeWin, this);
@@ -963,6 +997,8 @@ InspectorUI.prototype = {
   initializeHighlighter: function IUI_initializeHighlighter()
   {
     this.highlighter = new Highlighter(this);
+    this.browser.addEventListener("keypress", this, true);
+    this.highlighter.highlighterContainer.addEventListener("keypress", this, true);
     this.highlighterReady();
   },
 
@@ -1013,6 +1049,8 @@ InspectorUI.prototype = {
     if (this.closing || !this.win || !this.browser) {
       return;
     }
+
+    let winId = new String(this.winID); // retain this to notify observers.
 
     this.closing = true;
     this.toolbar.hidden = true;
@@ -1072,6 +1110,8 @@ InspectorUI.prototype = {
     delete this.stylePanel;
     delete this.toolbar;
     Services.obs.notifyObservers(null, INSPECTOR_NOTIFICATIONS.CLOSED, null);
+    if (!aKeepStore)
+      Services.obs.notifyObservers(null, INSPECTOR_NOTIFICATIONS.DESTROYED, winId);
   },
 
   /**
@@ -1086,10 +1126,6 @@ InspectorUI.prototype = {
       this.treePanel.closeEditor();
 
     this.inspectToolbutton.checked = true;
-    // Attach event listeners to content window and child windows to enable
-    // highlighting and click to stop inspection.
-    this.browser.addEventListener("keypress", this, true);
-    this.highlighter.highlighterContainer.addEventListener("keypress", this, true);
     this.highlighter.attachInspectListeners();
 
     this.inspecting = true;
@@ -1155,6 +1191,7 @@ InspectorUI.prototype = {
     }
 
     this.breadcrumbs.update();
+    this.chromeWin.Tilt.update(aNode);
 
     this.toolsSelect(aScroll);
   },
@@ -1635,6 +1672,7 @@ InspectorUI.prototype = {
     btn = this.chromeDoc.createElement("toolbarbutton");
     let buttonId = this.getToolbarButtonId(aRegObj.id);
     btn.setAttribute("id", buttonId);
+    btn.setAttribute("class", "devtools-toolbarbutton");
     btn.setAttribute("label", aRegObj.label);
     btn.setAttribute("tooltiptext", aRegObj.tooltiptext);
     btn.setAttribute("accesskey", aRegObj.accesskey);
@@ -1696,6 +1734,7 @@ InspectorUI.prototype = {
 
     btn.id = buttonId;
     btn.setAttribute("label", aRegObj.label);
+    btn.setAttribute("class", "devtools-toolbarbutton");
     btn.setAttribute("tooltiptext", aRegObj.tooltiptext);
     btn.setAttribute("accesskey", aRegObj.accesskey);
     btn.setAttribute("image", aRegObj.icon || "");
@@ -2193,7 +2232,9 @@ InspectorProgressListener.prototype = {
             aRequest.resume();
             aRequest = null;
             this.IUI.closeInspectorUI();
+            return true;
           }
+          return false;
         }.bind(this),
       },
       {

@@ -21,6 +21,7 @@
  *
  * Contributor(s):
  *   Vladimir Vukicevic <vladimir@pobox.com> (original author)
+ *   Nicholas Nethercote <nnethercote@mozilla.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -64,7 +65,7 @@ extern void jemalloc_stats(jemalloc_stats_t* stats)
 #  endif  // XP_LINUX
 #endif  // MOZ_MEMORY
 
-#if defined(XP_LINUX) || defined(XP_MACOSX)
+#if defined(XP_LINUX) || defined(XP_MACOSX) || defined(SOLARIS)
 
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -120,6 +121,52 @@ static PRInt64 GetVsize()
 static PRInt64 GetResident()
 {
     return GetProcSelfStatmField(1);
+}
+
+#elif defined(SOLARIS)
+
+#include <procfs.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+static void XMappingIter(PRInt64& Vsize, PRInt64& Resident)
+{
+    int mapfd = open("/proc/self/xmap", O_RDONLY);
+    struct stat st;
+    prxmap_t *prmapp;
+    if (mapfd >= 0) {
+        if (!fstat(mapfd, &st)) {
+            int nmap = st.st_size / sizeof(prxmap_t);
+            prmapp = (prxmap_t*)malloc((nmap + 1) * sizeof(prxmap_t));
+            int n = read(mapfd, prmapp, (nmap + 1) * sizeof(prxmap_t));
+            if (n > 0) {
+                Vsize = 0;
+                Resident = 0;
+                for (int i = 0; i < n / sizeof(prxmap_t); i++) {
+                    Vsize += prmapp[i].pr_size;
+                    Resident += prmapp[i].pr_rss * prmapp[i].pr_pagesize;
+                }
+            }
+            free(prmapp);
+        }
+        close(mapfd);
+    }
+}
+
+static PRInt64 GetVsize()
+{
+    PRInt64 Vsize = -1;
+    PRInt64 Resident = -1;
+    XMappingIter(Vsize, Resident);
+    return Vsize;
+}
+
+static PRInt64 GetResident()
+{
+    PRInt64 Vsize = -1;
+    PRInt64 Resident = -1;
+    XMappingIter(Vsize, Resident);
+    return Resident;
 }
 
 #elif defined(XP_MACOSX)
@@ -224,7 +271,7 @@ static PRInt64 GetResident()
 
 #endif
 
-#if defined(XP_LINUX) || defined(XP_MACOSX) || defined(XP_WIN)
+#if defined(XP_LINUX) || defined(XP_MACOSX) || defined(XP_WIN) || defined(SOLARIS)
 NS_MEMORY_REPORTER_IMPLEMENT(Vsize,
     "vsize",
     KIND_OTHER,
@@ -239,7 +286,7 @@ NS_MEMORY_REPORTER_IMPLEMENT(Vsize,
     "measure of the memory resources used by the process.")
 #endif
 
-#if defined(XP_LINUX) || defined(XP_MACOSX)
+#if defined(XP_LINUX) || defined(XP_MACOSX) || defined(SOLARIS)
 NS_MEMORY_REPORTER_IMPLEMENT(PageFaultsSoft,
     "page-faults-soft",
     KIND_OTHER,
@@ -313,7 +360,7 @@ static PRInt64 GetHeapCommitted()
     return (PRInt64) stats.committed;
 }
 
-static PRInt64 GetHeapCommittedUnallocatedFraction()
+static PRInt64 GetHeapCommittedFragmentation()
 {
     jemalloc_stats_t stats;
     jemalloc_stats(&stats);
@@ -339,11 +386,11 @@ NS_MEMORY_REPORTER_IMPLEMENT(HeapCommitted,
     "memory and is unable to decommit it because a small part of that block is "
     "currently in use.")
 
-NS_MEMORY_REPORTER_IMPLEMENT(HeapCommittedUnallocatedFraction,
-    "heap-committed-unallocated-fraction",
+NS_MEMORY_REPORTER_IMPLEMENT(HeapCommittedFragmentation,
+    "heap-committed-fragmentation",
     KIND_OTHER,
     UNITS_PERCENTAGE,
-    GetHeapCommittedUnallocatedFraction,
+    GetHeapCommittedFragmentation,
     "Fraction of committed bytes which do not correspond to an active "
     "allocation; i.e., 1 - (heap-allocated / heap-committed).  Although the "
     "allocator will waste some space under any circumstances, a large value here "
@@ -376,16 +423,28 @@ static PRInt64 GetHeapAllocated()
 
 static PRInt64 GetHeapZone0Committed()
 {
+#ifdef MOZ_DMD
+    // malloc_zone_statistics() crashes when run under DMD because Valgrind
+    // doesn't intercept it.  This measurement isn't important for DMD, so
+    // don't even try.
+    return (PRInt64) -1;
+#else
     malloc_statistics_t stats;
     malloc_zone_statistics(malloc_default_zone(), &stats);
     return stats.size_in_use;
+#endif
 }
 
 static PRInt64 GetHeapZone0Used()
 {
+#ifdef MOZ_DMD
+    // See comment in GetHeapZone0Committed above.
+    return (PRInt64) -1;
+#else
     malloc_statistics_t stats;
     malloc_zone_statistics(malloc_default_zone(), &stats);
     return stats.size_allocated;
+#endif
 }
 
 NS_MEMORY_REPORTER_IMPLEMENT(HeapZone0Committed,
@@ -457,11 +516,11 @@ nsMemoryReporterManager::Init()
     REGISTER(HeapUnallocated);
     REGISTER(Resident);
 
-#if defined(XP_LINUX) || defined(XP_MACOSX) || defined(XP_WIN)
+#if defined(XP_LINUX) || defined(XP_MACOSX) || defined(XP_WIN) || defined(SOLARIS)
     REGISTER(Vsize);
 #endif
 
-#if defined(XP_LINUX) || defined(XP_MACOSX)
+#if defined(XP_LINUX) || defined(XP_MACOSX) || defined(SOLARIS)
     REGISTER(PageFaultsSoft);
     REGISTER(PageFaultsHard);
 #endif
@@ -472,7 +531,7 @@ nsMemoryReporterManager::Init()
 
 #if defined(HAVE_JEMALLOC_STATS)
     REGISTER(HeapCommitted);
-    REGISTER(HeapCommittedUnallocatedFraction);
+    REGISTER(HeapCommittedFragmentation);
     REGISTER(HeapDirty);
 #elif defined(XP_MACOSX) && !defined(MOZ_MEMORY)
     REGISTER(HeapZone0Committed);
@@ -810,3 +869,61 @@ NS_UnregisterMemoryMultiReporter (nsIMemoryMultiReporter *reporter)
     return mgr->UnregisterMultiReporter(reporter);
 }
 
+namespace mozilla {
+
+#ifdef MOZ_DMD
+
+class NullMultiReporterCallback : public nsIMemoryMultiReporterCallback
+{
+public:
+    NS_DECL_ISUPPORTS
+
+    NS_IMETHOD Callback(const nsACString &aProcess, const nsACString &aPath,
+                        PRInt32 aKind, PRInt32 aUnits, PRInt64 aAmount,
+                        const nsACString &aDescription,
+                        nsISupports *aData)
+    {
+        // Do nothing;  the reporter has already reported to DMD.
+        return NS_OK;
+    }
+};
+NS_IMPL_ISUPPORTS1(
+  NullMultiReporterCallback
+, nsIMemoryMultiReporterCallback
+)
+
+void
+DMDCheckAndDump()
+{
+    nsCOMPtr<nsIMemoryReporterManager> mgr =
+        do_GetService("@mozilla.org/memory-reporter-manager;1");
+
+    // Do vanilla reporters.
+    nsCOMPtr<nsISimpleEnumerator> e;
+    mgr->EnumerateReporters(getter_AddRefs(e));
+    bool more;
+    while (NS_SUCCEEDED(e->HasMoreElements(&more)) && more) {
+        nsCOMPtr<nsIMemoryReporter> r;
+        e->GetNext(getter_AddRefs(r));
+
+        // Just getting the amount is enough for the reporter to report to DMD.
+        PRInt64 amount;
+        (void)r->GetAmount(&amount);
+    }
+
+    // Do multi-reporters.
+    nsCOMPtr<nsISimpleEnumerator> e2;
+    mgr->EnumerateMultiReporters(getter_AddRefs(e2));
+    nsRefPtr<NullMultiReporterCallback> cb = new NullMultiReporterCallback();
+    while (NS_SUCCEEDED(e2->HasMoreElements(&more)) && more) {
+      nsCOMPtr<nsIMemoryMultiReporter> r;
+      e2->GetNext(getter_AddRefs(r));
+      r->CollectReports(cb, nsnull);
+    }
+
+    VALGRIND_DMD_CHECK_REPORTING;
+}
+
+#endif  /* defined(MOZ_DMD) */
+
+}

@@ -161,6 +161,9 @@ JSBool
 EventTarget::AddEventListener(JSContext* aCx, uintN aArgc, jsval* aVp)
 {
   JSObject* obj = JS_THIS_OBJECT(aCx, aVp);
+  if (!obj) {
+    return true;
+  }
 
   if (!EnsureObjectIsEventTarget(aCx, obj, "AddEventListener")) {
     return false;
@@ -193,6 +196,9 @@ JSBool
 EventTarget::RemoveEventListener(JSContext* aCx, uintN aArgc, jsval* aVp)
 {
   JSObject* obj = JS_THIS_OBJECT(aCx, aVp);
+  if (!obj) {
+    return true;
+  }
 
   if (!EnsureObjectIsEventTarget(aCx, obj, "RemoveEventListener")) {
     return false;
@@ -225,6 +231,9 @@ JSBool
 EventTarget::DispatchEvent(JSContext* aCx, uintN aArgc, jsval* aVp)
 {
   JSObject* obj = JS_THIS_OBJECT(aCx, aVp);
+  if (!obj) {
+    return true;
+  }
 
   if (!EnsureObjectIsEventTarget(aCx, obj, "DispatchEvent")) {
     return false;

@@ -2,19 +2,14 @@
 /* Any copyright is dedicated to the Public Domain.
    http://creativecommons.org/publicdomain/zero/1.0/ */
 
-// Reference to the Scratchpad chrome window object.
-let gScratchpadWindow;
-
 function test()
 {
   waitForExplicitFinish();
 
   gBrowser.selectedTab = gBrowser.addTab();
-  gBrowser.selectedBrowser.addEventListener("load", function() {
-    gBrowser.selectedBrowser.removeEventListener("load", arguments.callee, true);
-
-    gScratchpadWindow = Scratchpad.openScratchpad();
-    gScratchpadWindow.addEventListener("load", runTests, false);
+  gBrowser.selectedBrowser.addEventListener("load", function onTabLoad() {
+    gBrowser.selectedBrowser.removeEventListener("load", onTabLoad, true);
+    openScratchpad(runTests);
   }, true);
 
   content.location = "data:text/html,<p>test run() and display() in Scratchpad";
@@ -22,8 +17,6 @@ function test()
 
 function runTests()
 {
-  gScratchpadWindow.removeEventListener("load", arguments.callee, false);
-
   let sp = gScratchpadWindow.Scratchpad;
 
   content.wrappedJSObject.foobarBug636725 = 1;
@@ -129,8 +122,5 @@ function runTests()
   sp.redo();
   is(sp.getText(), "foo2", "redo() works");
 
-  gScratchpadWindow.close();
-  gScratchpadWindow = null;
-  gBrowser.removeCurrentTab();
   finish();
 }

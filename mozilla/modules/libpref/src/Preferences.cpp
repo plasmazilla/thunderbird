@@ -401,11 +401,11 @@ Preferences::ReadUserPrefs(nsIFile *aFile)
   nsresult rv;
 
   if (nsnull == aFile) {
-    rv = UseDefaultPrefFile();
-    UseUserPrefFile();
 
     NotifyServiceObservers(NS_PREFSERVICE_READ_TOPIC_ID);
 
+    rv = UseDefaultPrefFile();
+    UseUserPrefFile();
   } else {
     rv = ReadAndOwnUserPrefFile(aFile);
   }
@@ -1007,7 +1007,7 @@ static nsresult pref_InitInitialObjects()
   const char *entryName;
   PRUint16 entryNameLen;
 
-  nsZipArchive* jarReader = mozilla::Omnijar::GetReader(mozilla::Omnijar::GRE);
+  nsRefPtr<nsZipArchive> jarReader = mozilla::Omnijar::GetReader(mozilla::Omnijar::GRE);
   if (jarReader) {
     // Load jar:$gre/omni.jar!/greprefs.js
     rv = pref_ReadPrefFromJar(jarReader, "greprefs.js");
@@ -1019,7 +1019,7 @@ static nsresult pref_InitInitialObjects()
 
     find = findPtr;
     while (NS_SUCCEEDED(find->FindNext(&entryName, &entryNameLen))) {
-      prefEntries.AppendElement(Substring(entryName, entryName + entryNameLen));
+      prefEntries.AppendElement(Substring(entryName, entryNameLen));
     }
 
     prefEntries.Sort();
@@ -1073,14 +1073,14 @@ static nsresult pref_InitInitialObjects()
     NS_WARNING("Error parsing application default preferences.");
 
   // Load jar:$app/omni.jar!/defaults/preferences/*.js
-  nsZipArchive *appJarReader = mozilla::Omnijar::GetReader(mozilla::Omnijar::APP);
+  nsRefPtr<nsZipArchive> appJarReader = mozilla::Omnijar::GetReader(mozilla::Omnijar::APP);
   if (appJarReader) {
     rv = appJarReader->FindInit("defaults/preferences/*.js$", &findPtr);
     NS_ENSURE_SUCCESS(rv, rv);
     find = findPtr;
     prefEntries.Clear();
     while (NS_SUCCEEDED(find->FindNext(&entryName, &entryNameLen))) {
-      prefEntries.AppendElement(Substring(entryName, entryName + entryNameLen));
+      prefEntries.AppendElement(Substring(entryName, entryNameLen));
     }
     prefEntries.Sort();
     for (PRUint32 i = prefEntries.Length(); i--; ) {

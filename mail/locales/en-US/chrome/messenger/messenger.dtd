@@ -1,4 +1,3 @@
-<!ENTITY messengerWindow.title "Mail &amp; Newsgroups">
 <!ENTITY titledefault.label    "&brandFullName;">
 <!ENTITY titleSeparator.label " - ">
 
@@ -588,8 +587,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderContextMarkMailFolderRead.accesskey "k">
 <!ENTITY folderContextSubscribe.label "Subscribe…">
 <!ENTITY folderContextSubscribe.accesskey "b">
-<!ENTITY folderContextSearchMessages.label "Search…">
-<!ENTITY folderContextSearchMessages.accesskey "S">
+<!ENTITY folderContextSearchForMessages.label "Search Messages…">
+<!ENTITY folderContextSearchForMessages.accesskey "S">
 <!ENTITY folderContextProperties.label "Properties…">
 <!ENTITY folderContextProperties.accesskey "P">
 <!ENTITY folderContextFavoriteFolder.label "Favorite Folder">
@@ -789,7 +788,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
      to get to the box faster.  If the global indexer is disabled, the search
      box will be collapsed and the user will never see this message.
      -->
-<!ENTITY searchAllMessages.label.base "Search all messages… #1">
+<!ENTITY searchAllMessages.label.base "Search… #1">
 <!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.nonmac):
      The description of the key-binding to get into the global search box on
      windows and linux (which use the control key).  We use the key defined in

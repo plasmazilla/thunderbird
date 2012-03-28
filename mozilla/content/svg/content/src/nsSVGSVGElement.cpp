@@ -62,6 +62,7 @@
 #include "nsSVGSVGElement.h"
 #include "nsContentErrors.h" // For NS_PROPTABLE_PROP_OVERWRITTEN
 #include "nsContentUtils.h"
+#include "nsStyleUtil.h"
 
 #include "nsEventDispatcher.h"
 #include "nsSMILTimeContainer.h"
@@ -666,7 +667,17 @@ nsSVGSVGElement::CreateSVGTransformFromMatrix(nsIDOMSVGMatrix *matrix,
 NS_IMETHODIMP
 nsSVGSVGElement::GetElementById(const nsAString & elementId, nsIDOMElement **_retval)
 {
-  return NS_ERROR_NOT_IMPLEMENTED;
+  NS_ENSURE_ARG_POINTER(_retval);
+  *_retval = nsnull;
+
+  nsresult rv = NS_OK;
+  nsAutoString selector(NS_LITERAL_STRING("#"));
+  nsStyleUtil::AppendEscapedCSSIdent(PromiseFlatString(elementId), selector);
+  nsIContent* element = nsGenericElement::doQuerySelector(this, selector, &rv);
+  if (NS_SUCCEEDED(rv) && element) {
+    return CallQueryInterface(element, _retval);
+  }
+  return rv;
 }
 
 //----------------------------------------------------------------------
@@ -872,6 +883,20 @@ nsSVGSVGElement::GetTimedDocumentRoot()
 NS_IMETHODIMP_(bool)
 nsSVGSVGElement::IsAttributeMapped(const nsIAtom* name) const
 {
+  // We want to map the 'width' and 'height' attributes into style for
+  // outer-<svg>, except when the attributes aren't set (since their default
+  // values of '100%' can cause unexpected and undesirable behaviour for SVG
+  // inline in HTML). We rely on nsSVGElement::UpdateContentStyleRule() to
+  // prevent mapping of the default values into style (it only maps attributes
+  // that are set). We also rely on a check in nsSVGElement::
+  // UpdateContentStyleRule() to prevent us mapping the attributes when they're
+  // given a <length> value that is not currently recognized by the SVG
+  // specification.
+
+  if (!IsInner() && (name == nsGkAtoms::width || name == nsGkAtoms::height)) {
+    return true;
+  }
+
   static const MappedAttributeEntry* const map[] = {
     sColorMap,
     sFEFloodMap,
@@ -886,7 +911,7 @@ nsSVGSVGElement::IsAttributeMapped(const nsIAtom* name) const
     sViewportsMap
   };
 
-  return FindAttributeDependence(name, map, ArrayLength(map)) ||
+  return FindAttributeDependence(name, map) ||
     nsSVGSVGElementBase::IsAttributeMapped(name);
 }
 
@@ -1075,7 +1100,7 @@ nsSVGSVGElement::WillBeOutermostSVG(nsIContent* aParent,
 {
   nsIContent* parent = aBindingParent ? aBindingParent : aParent;
 
-  while (parent && parent->GetNameSpaceID() == kNameSpaceID_SVG) {
+  while (parent && parent->IsSVG()) {
     nsIAtom* tag = parent->Tag();
     if (tag == nsGkAtoms::foreignObject) {
       // SVG in a foreignObject must have its own <svg> (nsSVGOuterSVGFrame).

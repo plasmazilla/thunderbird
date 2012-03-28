@@ -39,6 +39,11 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#calendarContent {
+  color: -moz-DialogText;
+  background-color: -moz-Dialog;
+}
+
 #calsidebar_splitter,
 #today-splitter {
   -moz-appearance: none;
@@ -78,6 +83,10 @@
 #calsidebar_splitter[state="collapsed"]:hover:-moz-locale-dir(rtl),
 #today-splitter[state="collapsed"]:hover:-moz-locale-dir(ltr) {
   border-right: 4px solid highlight;
+}
+
+#today-splitter > grippy {
+  display: none;
 }
 
 /* Calendar list rules */
@@ -145,9 +154,10 @@ radio[pane=paneLightning] {
 }
 
 
-/* Lightning sidebar background in calendar and task mode */
+/* Lightning sidebar in calendar and task mode */
 #ltnSidebar {
-  background-color: -moz-field;  
+  background-color: -moz-field;
+  border-bottom: 1px solid ThreeDShadow;
 }
 
 /* Write button */

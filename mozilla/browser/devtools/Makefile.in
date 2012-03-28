@@ -50,7 +50,9 @@ DIRS = \
   highlighter \
   webconsole \
   sourceeditor \
+  styleeditor \
   styleinspector \
+  tilt \
   scratchpad \
   shared \
   $(NULL)

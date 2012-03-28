@@ -43,6 +43,7 @@
 #include "jsobj.h"
 #include "jslibmath.h"
 #include "jsiter.h"
+#include "jsgcmark.h"
 #include "jsnum.h"
 #include "jsxml.h"
 #include "jsbool.h"
@@ -88,7 +89,7 @@ stubs::BindName(VMFrame &f)
     PropertyCacheEntry *entry;
 
     /* Fast-path should have caught this. See comment in interpreter. */
-    JS_ASSERT(f.fp()->scopeChain().getParent());
+    JS_ASSERT(!f.fp()->scopeChain().isGlobal());
 
     JSAtom *atom;
     JSObject *obj2;
@@ -163,89 +164,30 @@ stubs::SetName(VMFrame &f, JSAtom *origAtom)
              * know that the entry applies to regs.pc and that obj's shape
              * matches.
              *
-             * The entry predicts either a new property to be added directly to
-             * obj by this set, or on an existing "own" property, or on a
-             * prototype property that has a setter.
+             * The entry predicts a set either an existing "own" property, or
+             * on a prototype property that has a setter.
              */
-            const Shape *shape = entry->vword.toShape();
+            const Shape *shape = entry->prop;
             JS_ASSERT_IF(shape->isDataDescriptor(), shape->writable());
-            JS_ASSERT_IF(shape->hasSlot(), entry->vcapTag() == 0);
+            JS_ASSERT_IF(shape->hasSlot(), !entry->vindex);
 
-            /*
-             * Fastest path: check whether obj already has the cached shape and
-             * call NATIVE_SET and break to get out of the do-while(0). But we
-             * can call NATIVE_SET only for a direct or proto-setter hit.
-             */
-            if (!entry->adding()) {
-                if (entry->vcapTag() == 0 ||
-                    ((obj2 = obj->getProto()) && obj2->shape() == entry->vshape()))
-                {
+            if (entry->vindex == 0 ||
+                ((obj2 = obj->getProto()) && obj2->lastProperty() == entry->pshape)) {
 #ifdef DEBUG
-                    if (entry->directHit()) {
-                        JS_ASSERT(obj->nativeContains(cx, *shape));
-                    } else {
-                        JS_ASSERT(obj2->nativeContains(cx, *shape));
-                        JS_ASSERT(entry->vcapTag() == 1);
-                        JS_ASSERT(entry->kshape != entry->vshape());
-                        JS_ASSERT(!shape->hasSlot());
-                    }
+                if (entry->directHit()) {
+                    JS_ASSERT(obj->nativeContains(cx, *shape));
+                } else {
+                    JS_ASSERT(obj2->nativeContains(cx, *shape));
+                    JS_ASSERT(entry->vindex == 1);
+                    JS_ASSERT(entry->kshape != entry->pshape);
+                    JS_ASSERT(!shape->hasSlot());
+                }
 #endif
 
-                    PCMETER(cache->pchits++);
-                    PCMETER(cache->setpchits++);
-                    NATIVE_SET(cx, obj, shape, entry, strict, &rval);
-                    break;
-                }
-            } else {
-                JS_ASSERT(obj->isExtensible());
-
-                if (obj->nativeEmpty()) {
-                    if (!obj->ensureClassReservedSlotsForEmptyObject(cx))
-                        THROW();
-                }
-
-                uint32 slot;
-                if (shape->previous() == obj->lastProperty() &&
-                    entry->vshape() == cx->runtime->protoHazardShape &&
-                    shape->hasDefaultSetter() &&
-                    obj->getClass()->addProperty == JS_PropertyStub) {
-                    slot = shape->slot;
-                    JS_ASSERT(slot == obj->slotSpan());
-
-                    /*
-                     * Fast path: adding a plain old property that was once at
-                     * the frontier of the property tree, whose slot is next to
-                     * claim among the already-allocated slots in obj, where
-                     * shape->table has not been created yet.
-                     */
-                    PCMETER(cache->pchits++);
-                    PCMETER(cache->addpchits++);
-
-                    if (slot < obj->numSlots()) {
-                        JS_ASSERT(obj->getSlot(slot).isUndefined());
-                    } else {
-                        if (!obj->allocSlot(cx, &slot))
-                            THROW();
-                        JS_ASSERT(slot == shape->slot);
-                    }
-
-                    /* Simply extend obj's property tree path with shape! */
-                    obj->extend(cx, shape);
-
-                    /*
-                     * No method change check here because here we are adding a
-                     * new property, not updating an existing slot's value that
-                     * might contain a method of a branded shape.
-                     */
-                    obj->nativeSetSlotWithType(cx, shape, rval);
-
-                    /*
-                     * Purge the property cache of the id we may have just
-                     * shadowed in obj's scope and proto chains.
-                     */
-                    js_PurgeScopeChain(cx, obj, shape->propid);
-                    break;
-                }
+                PCMETER(cache->pchits++);
+                PCMETER(cache->setpchits++);
+                NATIVE_SET(cx, obj, shape, entry, strict, &rval);
+                break;
             }
             PCMETER(cache->setpcmisses++);
 
@@ -338,7 +280,6 @@ NameOp(VMFrame &f, JSObject *obj, bool callname)
 {
     JSContext *cx = f.cx;
 
-    const Shape *shape;
     Value rval;
 
     jsid id;
@@ -348,17 +289,7 @@ NameOp(VMFrame &f, JSObject *obj, bool callname)
     JSAtom *atom;
     JS_PROPERTY_CACHE(cx).test(cx, f.pc(), obj, obj2, entry, atom);
     if (!atom) {
-        if (entry->vword.isFunObj()) {
-            rval.setObject(entry->vword.toFunObj());
-        } else if (entry->vword.isSlot()) {
-            uintN slot = entry->vword.toSlot();
-            rval = obj2->nativeGetSlot(slot);
-        } else {
-            JS_ASSERT(entry->vword.isShape());
-            shape = entry->vword.toShape();
-            NATIVE_GET(cx, obj, obj2, shape, JSGET_METHOD_BARRIER, &rval, return NULL);
-        }
-
+        NATIVE_GET(cx, obj, obj2, entry->prop, JSGET_METHOD_BARRIER, &rval, return NULL);
         JS_ASSERT(obj->isGlobal() || IsCacheableNonGlobalScope(obj));
     } else {
         id = ATOM_TO_JSID(atom);
@@ -368,7 +299,7 @@ NameOp(VMFrame &f, JSObject *obj, bool callname)
             return NULL;
         if (!prop) {
             /* Kludge to allow (typeof foo == "undefined") tests. */
-            JSOp op2 = js_GetOpcode(cx, f.script(), f.pc() + JSOP_NAME_LENGTH);
+            JSOp op2 = JSOp(f.pc()[JSOP_NAME_LENGTH]);
             if (op2 == JSOP_TYPEOF) {
                 f.regs.sp++;
                 f.regs.sp[-1].setUndefined();
@@ -383,7 +314,7 @@ NameOp(VMFrame &f, JSObject *obj, bool callname)
             if (!obj->getGeneric(cx, id, &rval))
                 return NULL;
         } else {
-            shape = (Shape *)prop;
+            Shape *shape = (Shape *)prop;
             JSObject *normalized = obj;
             if (normalized->isWith() && !shape->hasDefaultGetter())
                 normalized = js_UnwrapWithObject(cx, normalized);
@@ -455,7 +386,7 @@ stubs::GetElem(VMFrame &f)
     if (!obj)
         THROW();
 
-    uint32 index;
+    uint32_t index;
     if (IsDefinitelyIndex(rref, &index)) {
         if (obj->isDenseArray()) {
             if (index < obj->getDenseArrayInitializedLength()) {
@@ -633,10 +564,9 @@ stubs::BitOr(VMFrame &f)
 {
     int32_t i, j;
 
-    if (!ValueToECMAInt32(f.cx, f.regs.sp[-2], &i) ||
-        !ValueToECMAInt32(f.cx, f.regs.sp[-1], &j)) {
+    if (!ToInt32(f.cx, f.regs.sp[-2], &i) || !ToInt32(f.cx, f.regs.sp[-1], &j))
         THROW();
-    }
+
     i = i | j;
     f.regs.sp[-2].setInt32(i);
 }
@@ -646,10 +576,9 @@ stubs::BitXor(VMFrame &f)
 {
     int32_t i, j;
 
-    if (!ValueToECMAInt32(f.cx, f.regs.sp[-2], &i) ||
-        !ValueToECMAInt32(f.cx, f.regs.sp[-1], &j)) {
+    if (!ToInt32(f.cx, f.regs.sp[-2], &i) || !ToInt32(f.cx, f.regs.sp[-1], &j))
         THROW();
-    }
+
     i = i ^ j;
     f.regs.sp[-2].setInt32(i);
 }
@@ -659,10 +588,9 @@ stubs::BitAnd(VMFrame &f)
 {
     int32_t i, j;
 
-    if (!ValueToECMAInt32(f.cx, f.regs.sp[-2], &i) ||
-        !ValueToECMAInt32(f.cx, f.regs.sp[-1], &j)) {
+    if (!ToInt32(f.cx, f.regs.sp[-2], &i) || !ToInt32(f.cx, f.regs.sp[-1], &j))
         THROW();
-    }
+
     i = i & j;
     f.regs.sp[-2].setInt32(i);
 }
@@ -672,7 +600,7 @@ stubs::BitNot(VMFrame &f)
 {
     int32_t i;
 
-    if (!ValueToECMAInt32(f.cx, f.regs.sp[-1], &i))
+    if (!ToInt32(f.cx, f.regs.sp[-1], &i))
         THROW();
     i = ~i;
     f.regs.sp[-1].setInt32(i);
@@ -682,9 +610,9 @@ void JS_FASTCALL
 stubs::Lsh(VMFrame &f)
 {
     int32_t i, j;
-    if (!ValueToECMAInt32(f.cx, f.regs.sp[-2], &i))
+    if (!ToInt32(f.cx, f.regs.sp[-2], &i))
         THROW();
-    if (!ValueToECMAInt32(f.cx, f.regs.sp[-1], &j))
+    if (!ToInt32(f.cx, f.regs.sp[-1], &j))
         THROW();
     i = i << (j & 31);
     f.regs.sp[-2].setInt32(i);
@@ -694,9 +622,9 @@ void JS_FASTCALL
 stubs::Rsh(VMFrame &f)
 {
     int32_t i, j;
-    if (!ValueToECMAInt32(f.cx, f.regs.sp[-2], &i))
+    if (!ToInt32(f.cx, f.regs.sp[-2], &i))
         THROW();
-    if (!ValueToECMAInt32(f.cx, f.regs.sp[-1], &j))
+    if (!ToInt32(f.cx, f.regs.sp[-1], &j))
         THROW();
     i = i >> (j & 31);
     f.regs.sp[-2].setInt32(i);
@@ -706,15 +634,15 @@ void JS_FASTCALL
 stubs::Ursh(VMFrame &f)
 {
     uint32_t u;
-    if (!ValueToECMAUint32(f.cx, f.regs.sp[-2], &u))
+    if (!ToUint32(f.cx, f.regs.sp[-2], &u))
         THROW();
     int32_t j;
-    if (!ValueToECMAInt32(f.cx, f.regs.sp[-1], &j))
+    if (!ToInt32(f.cx, f.regs.sp[-1], &j))
         THROW();
 
     u >>= (j & 31);
 
-	if (!f.regs.sp[-2].setNumber(uint32(u)))
+	if (!f.regs.sp[-2].setNumber(uint32_t(u)))
         TypeScript::MonitorOverflow(f.cx, f.script(), f.pc());
 }
 
@@ -759,8 +687,8 @@ stubs::DefFun(VMFrame &f, JSFunction *fun)
      * windows, and user-defined JS functions precompiled and then shared among
      * requests in server-side JS.
      */
-    if (obj->getParent() != obj2) {
-        obj = CloneFunctionObject(cx, fun, obj2, true);
+    if (obj->toFunction()->environment() != obj2) {
+        obj = CloneFunctionObjectIfNotSingleton(cx, fun, obj2);
         if (!obj)
             THROW();
         JS_ASSERT_IF(f.script()->compileAndGo, obj->getGlobal() == fun->getGlobal());
@@ -854,7 +782,7 @@ template void JS_FASTCALL stubs::DefFun<false>(VMFrame &f, JSFunction *fun);
             THROWV(JS_FALSE);                                                 \
         if (lval.isString() && rval.isString()) {                             \
             JSString *l = lval.toString(), *r = rval.toString();              \
-            int32 cmp;                                                        \
+            int32_t cmp;                                                      \
             if (!CompareStrings(cx, l, r, &cmp))                              \
                 THROWV(JS_FALSE);                                             \
             cond = cmp OP 0;                                                  \
@@ -946,7 +874,6 @@ StubEqualityOp(VMFrame &f)
                 cond = JSDOUBLE_COMPARE(l, !=, r, IFNAN);
         } else if (lval.isObject()) {
             JSObject *l = &lval.toObject(), *r = &rval.toObject();
-            l->assertSpecialEqualitySynced();
             if (JSEqualityOp eq = l->getClass()->ext.equality) {
                 if (!eq(cx, l, &rval, &cond))
                     return false;
@@ -1052,7 +979,7 @@ stubs::Add(VMFrame &f)
             if (lIsString) {
                 lstr = lval.toString();
             } else {
-                lstr = js_ValueToString(cx, lval);
+                lstr = ToString(cx, lval);
                 if (!lstr)
                     THROW();
                 regs.sp[-2].setString(lstr);
@@ -1060,7 +987,7 @@ stubs::Add(VMFrame &f)
             if (rIsString) {
                 rstr = rval.toString();
             } else {
-                rstr = js_ValueToString(cx, rval);
+                rstr = ToString(cx, rval);
                 if (!rstr)
                     THROW();
                 regs.sp[-1].setString(rstr);
@@ -1213,6 +1140,8 @@ stubs::DebuggerStatement(VMFrame &f, jsbytecode *pc)
 void JS_FASTCALL
 stubs::Interrupt(VMFrame &f, jsbytecode *pc)
 {
+    gc::VerifyBarriers(f.cx);
+
     if (!js_HandleExecutionInterrupt(f.cx))
         THROW();
 }
@@ -1226,7 +1155,7 @@ stubs::RecompileForInline(VMFrame &f)
 }
 
 void JS_FASTCALL
-stubs::Trap(VMFrame &f, uint32 trapTypes)
+stubs::Trap(VMFrame &f, uint32_t trapTypes)
 {
     Value rval;
 
@@ -1301,7 +1230,7 @@ stubs::Neg(VMFrame &f)
 }
 
 void JS_FASTCALL
-stubs::NewInitArray(VMFrame &f, uint32 count)
+stubs::NewInitArray(VMFrame &f, uint32_t count)
 {
     JSObject *obj = NewDenseAllocatedArray(f.cx, count);
     if (!obj)
@@ -1321,7 +1250,7 @@ stubs::NewInitObject(VMFrame &f, JSObject *baseobj)
     TypeObject *type = (TypeObject *) f.scratch;
 
     if (!baseobj) {
-        gc::AllocKind kind = GuessObjectGCKind(0, false);
+        gc::AllocKind kind = GuessObjectGCKind(0);
         JSObject *obj = NewBuiltinClassInstance(cx, &ObjectClass, kind);
         if (!obj)
             THROW();
@@ -1340,7 +1269,7 @@ stubs::NewInitObject(VMFrame &f, JSObject *baseobj)
 }
 
 void JS_FASTCALL
-stubs::InitElem(VMFrame &f, uint32 last)
+stubs::InitElem(VMFrame &f, uint32_t last)
 {
     JSContext *cx = f.cx;
     FrameRegs &regs = f.regs;
@@ -1378,10 +1307,10 @@ stubs::InitElem(VMFrame &f, uint32 last)
 }
 
 void JS_FASTCALL
-stubs::GetUpvar(VMFrame &f, uint32 ck)
+stubs::GetUpvar(VMFrame &f, uint32_t ck)
 {
     /* :FIXME: We can do better, this stub isn't needed. */
-    uint32 staticLevel = f.script()->staticLevel;
+    uint32_t staticLevel = f.script()->staticLevel;
     UpvarCookie cookie;
     cookie.fromInteger(ck);
     f.regs.sp[0] = GetUpvar(f.cx, staticLevel, cookie);
@@ -1399,22 +1328,19 @@ stubs::DefLocalFun(VMFrame &f, JSFunction *fun)
      */
     JS_ASSERT(fun->isInterpreted());
     JS_ASSERT(!fun->isFlatClosure());
-    JSObject *obj = fun;
 
+    JSObject *parent;
     if (fun->isNullClosure()) {
-        obj = CloneFunctionObject(f.cx, fun, &f.fp()->scopeChain(), true);
-        if (!obj)
-            THROWV(NULL);
+        parent = &f.fp()->scopeChain();
     } else {
-        JSObject *parent = GetScopeChainFast(f.cx, f.fp(), JSOP_DEFLOCALFUN,
-                                             JSOP_DEFLOCALFUN_LENGTH);
+        parent = GetScopeChainFast(f.cx, f.fp(), JSOP_DEFLOCALFUN,
+                                   JSOP_DEFLOCALFUN_LENGTH);
         if (!parent)
             THROWV(NULL);
-
-        obj = CloneFunctionObject(f.cx, fun, parent, true);
-        if (!obj)
-            THROWV(NULL);
     }
+    JSObject *obj = CloneFunctionObjectIfNotSingleton(f.cx, fun, parent);
+    if (!obj)
+        THROWV(NULL);
 
     JS_ASSERT_IF(f.script()->compileAndGo, obj->getGlobal() == fun->getGlobal());
 
@@ -1450,9 +1376,9 @@ stubs::RegExp(VMFrame &f, JSObject *regex)
 JSObject * JS_FASTCALL
 stubs::LambdaJoinableForInit(VMFrame &f, JSFunction *fun)
 {
-    jsbytecode *nextpc = (jsbytecode *) f.scratch;
+    DebugOnly<jsbytecode*> nextpc = (jsbytecode *) f.scratch;
     JS_ASSERT(fun->joinable());
-    fun->setMethodAtom(f.fp()->script()->getAtom(GET_SLOTNO(nextpc)));
+    JS_ASSERT(fun->methodAtom() == f.script()->getAtom(GET_SLOTNO(nextpc)));
     return fun;
 }
 
@@ -1460,10 +1386,10 @@ JSObject * JS_FASTCALL
 stubs::LambdaJoinableForSet(VMFrame &f, JSFunction *fun)
 {
     JS_ASSERT(fun->joinable());
-    jsbytecode *nextpc = (jsbytecode *) f.scratch;
+    DebugOnly<jsbytecode*> nextpc = (jsbytecode *) f.scratch;
     const Value &lref = f.regs.sp[-1];
     if (lref.isObject() && lref.toObject().canHaveMethodBarrier()) {
-        fun->setMethodAtom(f.fp()->script()->getAtom(GET_SLOTNO(nextpc)));
+        JS_ASSERT(fun->methodAtom() == f.script()->getAtom(GET_SLOTNO(nextpc)));
         return fun;
     }
     return Lambda(f, fun);
@@ -1489,11 +1415,10 @@ stubs::LambdaJoinableForCall(VMFrame &f, JSFunction *fun)
      * for this JSOP_CALL.
      */
     const Value &cref = f.regs.sp[1 - (iargc + 2)];
-    JSObject *callee;
+    JSFunction *callee;
 
     if (IsFunctionObject(cref, &callee)) {
-        JSFunction *calleeFun = callee->getFunctionPrivate();
-        Native native = calleeFun->maybeNative();
+        Native native = callee->maybeNative();
 
         if (native) {
             if (iargc == 1 && native == array_sort)
@@ -1524,7 +1449,7 @@ stubs::Lambda(VMFrame &f, JSFunction *fun)
             THROWV(NULL);
     }
 
-    JSObject *obj = CloneFunctionObject(f.cx, fun, parent, true);
+    JSObject *obj = CloneFunctionObjectIfNotSingleton(f.cx, fun, parent);
     if (!obj)
         THROWV(NULL);
 
@@ -1541,7 +1466,7 @@ InlineGetProp(VMFrame &f)
     Value *vp = &f.regs.sp[-1];
 
     if (vp->isMagic(JS_LAZY_ARGUMENTS)) {
-        JS_ASSERT(js_GetOpcode(cx, f.script(), f.pc()) == JSOP_LENGTH);
+        JS_ASSERT(JSOp(*f.pc()) == JSOP_LENGTH);
         regs.sp[-1] = Int32Value(regs.fp()->numActualArgs());
         return true;
     }
@@ -1552,11 +1477,6 @@ InlineGetProp(VMFrame &f)
 
     Value rval;
     do {
-        /*
-         * We do not impose the method read barrier if in an imacro,
-         * assuming any property gets it does (e.g., for 'toString'
-         * from JSOP_NEW) will not be leaked to the calling script.
-         */
         JSObject *aobj = js_GetProtoIfDenseArray(obj);
 
         PropertyCacheEntry *entry;
@@ -1564,27 +1484,14 @@ InlineGetProp(VMFrame &f)
         JSAtom *atom;
         JS_PROPERTY_CACHE(cx).test(cx, f.pc(), aobj, obj2, entry, atom);
         if (!atom) {
-            if (entry->vword.isFunObj()) {
-                rval.setObject(entry->vword.toFunObj());
-            } else if (entry->vword.isSlot()) {
-                uint32 slot = entry->vword.toSlot();
-                rval = obj2->nativeGetSlot(slot);
-            } else {
-                JS_ASSERT(entry->vword.isShape());
-                const Shape *shape = entry->vword.toShape();
-                NATIVE_GET(cx, obj, obj2, shape,
-                        f.fp()->hasImacropc() ? JSGET_NO_METHOD_BARRIER : JSGET_METHOD_BARRIER,
-                        &rval, return false);
-            }
+            NATIVE_GET(cx, obj, obj2, entry->prop, JSGET_METHOD_BARRIER, &rval, return false);
             break;
         }
 
         jsid id = ATOM_TO_JSID(atom);
         if (JS_LIKELY(!aobj->getOps()->getProperty)
                 ? !js_GetPropertyHelper(cx, obj, id,
-                    f.fp()->hasImacropc()
-                    ? JSGET_CACHE_RESULT | JSGET_NO_METHOD_BARRIER
-                    : JSGET_CACHE_RESULT | JSGET_METHOD_BARRIER,
+                    JSGET_CACHE_RESULT | JSGET_METHOD_BARRIER,
                     &rval)
                 : !obj->getGeneric(cx, id, &rval)) {
             return false;
@@ -1657,17 +1564,8 @@ stubs::CallProp(VMFrame &f, JSAtom *origAtom)
     JSAtom *atom;
     JS_PROPERTY_CACHE(cx).test(cx, f.pc(), aobj, obj2, entry, atom);
     if (!atom) {
-        if (entry->vword.isFunObj()) {
-            rval.setObject(entry->vword.toFunObj());
-        } else if (entry->vword.isSlot()) {
-            uint32 slot = entry->vword.toSlot();
-            rval = obj2->nativeGetSlot(slot);
-        } else {
-            JS_ASSERT(entry->vword.isShape());
-            const Shape *shape = entry->vword.toShape();
-            NATIVE_GET(cx, &objv.toObject(), obj2, shape, JSGET_NO_METHOD_BARRIER, &rval,
-                       THROW());
-        }
+        NATIVE_GET(cx, &objv.toObject(), obj2, entry->prop, JSGET_NO_METHOD_BARRIER, &rval,
+                   THROW());
         regs.sp++;
         regs.sp[-2] = rval;
         regs.sp[-1] = lval;
@@ -1712,7 +1610,7 @@ stubs::CallProp(VMFrame &f, JSAtom *origAtom)
 }
 
 void JS_FASTCALL
-stubs::Iter(VMFrame &f, uint32 flags)
+stubs::Iter(VMFrame &f, uint32_t flags)
 {
     if (!js_ValueToIterator(f.cx, flags, &f.regs.sp[-1]))
         THROW();
@@ -1723,7 +1621,6 @@ static void
 InitPropOrMethod(VMFrame &f, JSAtom *atom, JSOp op)
 {
     JSContext *cx = f.cx;
-    JSRuntime *rt = cx->runtime;
     FrameRegs &regs = f.regs;
 
     /* Load the property's initial value into rval. */
@@ -1747,35 +1644,14 @@ InitPropOrMethod(VMFrame &f, JSAtom *atom, JSOp op)
      * repeated property name. The fast path does not handle these two cases.
      */
     PropertyCacheEntry *entry;
-    const Shape *shape;
-    if (JS_PROPERTY_CACHE(cx).testForInit(rt, f.pc(), obj, &shape, &entry) &&
-        shape->hasDefaultSetter() &&
-        shape->previous() == obj->lastProperty())
-    {
+    JSObject *obj2;
+    JSAtom *atom2;
+    if (JS_PROPERTY_CACHE(cx).testForSet(cx, f.pc(), obj, &entry, &obj2, &atom2) &&
+        entry->prop->hasDefaultSetter() &&
+        entry->vindex == 0) {
+        JS_ASSERT(obj == obj2);
         /* Fast path. Property cache hit. */
-        uint32 slot = shape->slot;
-
-        JS_ASSERT(slot == obj->slotSpan());
-        JS_ASSERT(slot >= JSSLOT_FREE(obj->getClass()));
-        if (slot < obj->numSlots()) {
-            JS_ASSERT(obj->getSlot(slot).isUndefined());
-        } else {
-            if (!obj->allocSlot(cx, &slot))
-                THROW();
-            JS_ASSERT(slot == shape->slot);
-        }
-
-        /* A new object, or one we just extended in a recent initprop op. */
-        JS_ASSERT(!obj->lastProperty() ||
-                  obj->shape() == obj->lastProperty()->shapeid);
-        obj->extend(cx, shape);
-
-        /*
-         * No method change check here because here we are adding a new
-         * property, not updating an existing slot's value that might
-         * contain a method of a branded shape.
-         */
-        obj->nativeSetSlotWithType(cx, shape, rval);
+        obj->nativeSetSlotWithType(cx, entry->prop, rval);
     } else {
         PCMETER(JS_PROPERTY_CACHE(cx).inipcmisses++);
 
@@ -1807,7 +1683,7 @@ stubs::InitMethod(VMFrame &f, JSAtom *atom)
 }
 
 void JS_FASTCALL
-stubs::IterNext(VMFrame &f, int32 offset)
+stubs::IterNext(VMFrame &f, int32_t offset)
 {
     JS_ASSERT(f.regs.sp - offset >= f.fp()->base());
     JS_ASSERT(f.regs.sp[-offset].isObject());
@@ -1968,13 +1844,13 @@ stubs::EnterBlock(VMFrame &f, JSObject *obj)
      */
     JSObject *obj2 = &fp->scopeChain();
     while (obj2->isWith())
-        obj2 = obj2->getParent();
+        obj2 = obj2->internalScopeChain();
     if (obj2->isBlock() &&
         obj2->getPrivate() == js_FloatingFrameIfGenerator(cx, fp)) {
         JSObject *youngestProto = obj2->getProto();
         JS_ASSERT(youngestProto->isStaticBlock());
         JSObject *parent = obj;
-        while ((parent = parent->getParent()) != youngestProto)
+        while ((parent = parent->scopeChain()) != youngestProto)
             JS_ASSERT(parent);
     }
 #endif
@@ -2024,7 +1900,7 @@ stubs::LookupSwitch(VMFrame &f, jsbytecode *pc)
     JS_ASSERT(pc[0] == JSOP_LOOKUPSWITCH);
 
     pc += JUMP_OFFSET_LEN;
-    uint32 npairs = GET_UINT16(pc);
+    uint32_t npairs = GET_UINT16(pc);
     pc += UINT16_LEN;
 
     JS_ASSERT(npairs);
@@ -2033,7 +1909,7 @@ stubs::LookupSwitch(VMFrame &f, jsbytecode *pc)
         JSLinearString *str = lval.toString()->ensureLinear(f.cx);
         if (!str)
             THROWV(NULL);
-        for (uint32 i = 1; i <= npairs; i++) {
+        for (uint32_t i = 1; i <= npairs; i++) {
             Value rval = script->getConst(GET_INDEX(pc));
             pc += INDEX_LEN;
             if (rval.isString()) {
@@ -2049,7 +1925,7 @@ stubs::LookupSwitch(VMFrame &f, jsbytecode *pc)
         }
     } else if (lval.isNumber()) {
         double d = lval.toNumber();
-        for (uint32 i = 1; i <= npairs; i++) {
+        for (uint32_t i = 1; i <= npairs; i++) {
             Value rval = script->getConst(GET_INDEX(pc));
             pc += INDEX_LEN;
             if (rval.isNumber() && d == rval.toNumber()) {
@@ -2061,7 +1937,7 @@ stubs::LookupSwitch(VMFrame &f, jsbytecode *pc)
             pc += JUMP_OFFSET_LEN;
         }
     } else {
-        for (uint32 i = 1; i <= npairs; i++) {
+        for (uint32_t i = 1; i <= npairs; i++) {
             Value rval = script->getConst(GET_INDEX(pc));
             pc += INDEX_LEN;
             if (lval == rval) {
@@ -2088,7 +1964,7 @@ stubs::TableSwitch(VMFrame &f, jsbytecode *origPc)
     JSOp op = JSOp(*originalPC);
     JS_ASSERT(op == JSOP_TABLESWITCH || op == JSOP_TABLESWITCHX);
 
-    uint32 jumpOffset = js::analyze::GetJumpOffset(originalPC, pc);
+    uint32_t jumpOffset = js::analyze::GetJumpOffset(originalPC, pc);
     unsigned jumpLength = (op == JSOP_TABLESWITCHX) ? JUMPX_OFFSET_LEN : JUMP_OFFSET_LEN;
     pc += jumpLength;
 
@@ -2119,7 +1995,7 @@ stubs::TableSwitch(VMFrame &f, jsbytecode *origPc)
         tableIdx -= low;
         if ((jsuint) tableIdx < (jsuint)(high - low + 1)) {
             pc += jumpLength * tableIdx;
-            uint32 candidateOffset = js::analyze::GetJumpOffset(originalPC, pc);
+            uint32_t candidateOffset = js::analyze::GetJumpOffset(originalPC, pc);
             if (candidateOffset)
                 jumpOffset = candidateOffset;
         }
@@ -2132,30 +2008,6 @@ finally:
                                            originalPC + jumpOffset);
     JS_ASSERT(native);
     return native;
-}
-
-void JS_FASTCALL
-stubs::Unbrand(VMFrame &f)
-{
-    const Value &thisv = f.regs.sp[-1];
-    if (!thisv.isObject())
-        return;
-    JSObject *obj = &thisv.toObject();
-    if (obj->isNative())
-        obj->unbrand(f.cx);
-}
-
-void JS_FASTCALL
-stubs::UnbrandThis(VMFrame &f)
-{
-    if (!ComputeThis(f.cx, f.fp()))
-        THROW();
-    Value &thisv = f.fp()->thisValue();
-    if (!thisv.isObject())
-        return;
-    JSObject *obj = &thisv.toObject();
-    if (obj->isNative())
-        obj->unbrand(f.cx);
 }
 
 void JS_FASTCALL
@@ -2316,7 +2168,7 @@ template void JS_FASTCALL stubs::DelElem<true>(VMFrame &f);
 template void JS_FASTCALL stubs::DelElem<false>(VMFrame &f);
 
 void JS_FASTCALL
-stubs::TypeBarrierHelper(VMFrame &f, uint32 which)
+stubs::TypeBarrierHelper(VMFrame &f, uint32_t which)
 {
     JS_ASSERT(which == 0 || which == 1);
 
@@ -2339,7 +2191,7 @@ stubs::TypeBarrierHelper(VMFrame &f, uint32 which)
 }
 
 void JS_FASTCALL
-stubs::StubTypeHelper(VMFrame &f, int32 which)
+stubs::StubTypeHelper(VMFrame &f, int32_t which)
 {
     const Value &result = f.regs.sp[which];
 
@@ -2485,13 +2337,23 @@ stubs::FunctionFrameEpilogue(VMFrame &f)
 void JS_FASTCALL
 stubs::AnyFrameEpilogue(VMFrame &f)
 {
+    /*
+     * On the normal execution path, emitReturn calls ScriptDebugEpilogue
+     * and inlines ScriptEpilogue. This function implements forced early
+     * returns, so it must have the same effect.
+     */
+    bool ok = true;
+    if (f.cx->compartment->debugMode())
+        ok = js::ScriptDebugEpilogue(f.cx, f.fp(), ok);
+    ok = ScriptEpilogue(f.cx, f.fp(), ok);
+    if (!ok)
+        THROW();
     if (f.fp()->isNonEvalFunctionFrame())
         f.fp()->functionEpilogue();
-    stubs::ScriptDebugEpilogue(f);
 }
 
 template <bool Clamped>
-int32 JS_FASTCALL
+int32_t JS_FASTCALL
 stubs::ConvertToTypedInt(JSContext *cx, Value *vp)
 {
     JS_ASSERT(!vp->isInt32());
@@ -2510,7 +2372,7 @@ stubs::ConvertToTypedInt(JSContext *cx, Value *vp)
 
     JS_ASSERT(vp->isString());
 
-    int32 i32 = 0;
+    int32_t i32 = 0;
 #ifdef DEBUG
     bool success = 
 #endif
@@ -2520,8 +2382,8 @@ stubs::ConvertToTypedInt(JSContext *cx, Value *vp)
     return i32;
 }
 
-template int32 JS_FASTCALL stubs::ConvertToTypedInt<true>(JSContext *, Value *);
-template int32 JS_FASTCALL stubs::ConvertToTypedInt<false>(JSContext *, Value *);
+template int32_t JS_FASTCALL stubs::ConvertToTypedInt<true>(JSContext *, Value *);
+template int32_t JS_FASTCALL stubs::ConvertToTypedInt<false>(JSContext *, Value *);
 
 void JS_FASTCALL
 stubs::ConvertToTypedFloat(JSContext *cx, Value *vp)
@@ -2544,4 +2406,18 @@ stubs::ConvertToTypedFloat(JSContext *cx, Value *vp)
         JS_ASSERT(success);
         vp->setDouble(d);
     }
+}
+
+void JS_FASTCALL
+stubs::WriteBarrier(VMFrame &f, Value *addr)
+{
+    js::gc::MarkValueUnbarriered(f.cx->compartment->barrierTracer(), *addr, "write barrier");
+}
+
+void JS_FASTCALL
+stubs::GCThingWriteBarrier(VMFrame &f, Value *addr)
+{
+    gc::Cell *cell = (gc::Cell *)addr->toGCThing();
+    if (cell && !cell->isMarked())
+        gc::MarkValueUnbarriered(f.cx->compartment->barrierTracer(), *addr, "write barrier");
 }

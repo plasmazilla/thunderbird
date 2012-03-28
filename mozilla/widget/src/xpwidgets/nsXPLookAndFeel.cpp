@@ -77,9 +77,6 @@ nsLookAndFeelIntPref nsXPLookAndFeel::sIntPrefs[] =
   { "ui.useAccessibilityTheme",
     eIntID_UseAccessibilityTheme,
     false, 0 },
-  { "ui.scrollbarsCanOverlapContent",
-    eIntID_ScrollbarsCanOverlapContent,
-    false, 0 },
   { "ui.menusCanOverlapOSBar",
     eIntID_MenusCanOverlapOSBar,
     false, 0 },
@@ -124,6 +121,12 @@ nsLookAndFeelIntPref nsXPLookAndFeel::sIntPrefs[] =
     false, 0 },
   { "ui.SpellCheckerUnderlineStyle",
     eIntID_SpellCheckerUnderlineStyle,
+    false, 0 },
+  { "ui.scrollbarButtonAutoRepeatBehavior",
+    eIntID_ScrollbarButtonAutoRepeatBehavior,
+    false, 0 },
+  { "ui.tooltipDelay",
+    eIntID_TooltipDelay,
     false, 0 },
 };
 

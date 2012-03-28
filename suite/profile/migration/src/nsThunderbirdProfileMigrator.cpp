@@ -233,35 +233,30 @@ nsThunderbirdProfileMigrator::FillProfileDataFromRegistry()
     do_GetService("@mozilla.org/file/directory_service;1"));
   nsCOMPtr<nsILocalFile> thunderbirdData;
 #ifdef XP_WIN
-#define REGISTRY_FILE "registry.dat"
   fileLocator->Get(NS_WIN_APPDATA_DIR, NS_GET_IID(nsILocalFile),
                    getter_AddRefs(thunderbirdData));
 
   thunderbirdData->Append(NS_LITERAL_STRING("Thunderbird"));
 
 #elif defined(XP_MACOSX)
-#define REGISTRY_FILE "Application Registry"
   fileLocator->Get(NS_MAC_USER_LIB_DIR, NS_GET_IID(nsILocalFile),
                    getter_AddRefs(thunderbirdData));
   
   thunderbirdData->Append(NS_LITERAL_STRING("Thunderbird"));
 
 #elif defined(XP_UNIX)
-#define REGISTRY_FILE "appreg"
   fileLocator->Get(NS_UNIX_HOME_DIR, NS_GET_IID(nsILocalFile),
                    getter_AddRefs(thunderbirdData));
   
   thunderbirdData->Append(NS_LITERAL_STRING(".thunderbird"));
 
 #elif defined(XP_BEOS)
-#define REGISTRY_FILE "appreg"
    fileLocator->Get(NS_BEOS_SETTINGS_DIR, NS_GET_IID(nsILocalFile),
                     getter_AddRefs(thunderbirdData));
 
    thunderbirdData->Append(NS_LITERAL_STRING("Thunderbird"));
 
 #elif defined(XP_OS2)
-#define REGISTRY_FILE "registry.dat"
   fileLocator->Get(NS_OS2_HOME_DIR, NS_GET_IID(nsILocalFile),
                    getter_AddRefs(thunderbirdData));
   
@@ -272,18 +267,9 @@ nsThunderbirdProfileMigrator::FillProfileDataFromRegistry()
 #endif
 
   // Try profiles.ini first
-  nsresult rv = GetProfileDataFromProfilesIni(thunderbirdData,
-                                              mProfileNames,
-                                              mProfileLocations);
-
-  if (rv != NS_ERROR_FILE_NOT_FOUND)
-    return rv;
-
-  thunderbirdData->Append(NS_LITERAL_STRING(REGISTRY_FILE));
-
-  // Then try the old registry format
-  return GetProfileDataFromRegistry(thunderbirdData, mProfileNames,
-                                    mProfileLocations);
+  return GetProfileDataFromProfilesIni(thunderbirdData,
+                                       mProfileNames,
+                                       mProfileLocations);
 }
 
 static

@@ -41,19 +41,18 @@
 #define mozilla_dom_indexeddb_asyncconnectionhelper_h__
 
 // Only meant to be included in IndexedDB source files, not exported.
+#include "DatabaseInfo.h"
 #include "IndexedDatabase.h"
 #include "IDBDatabase.h"
 #include "IDBRequest.h"
 
 #include "mozIStorageProgressHandler.h"
 #include "nsIRunnable.h"
-#include "nsIThread.h"
 
 #include "nsDOMEvent.h"
 
-#include "mozilla/TimeStamp.h"
-
 class mozIStorageConnection;
+class nsIEventTarget;
 
 BEGIN_INDEXEDDB_NAMESPACE
 
@@ -150,14 +149,6 @@ protected:
   virtual ~AsyncConnectionHelper();
 
   /**
-   * Set the timeout duration in milliseconds.
-   */
-  void SetTimeoutMS(PRUint32 aTimeoutMS)
-  {
-    mTimeoutDuration = TimeDuration::FromMilliseconds(aTimeoutMS);
-  }
-
-  /**
    * This is called on the main thread after Dispatch is called but before the
    * runnable is actually dispatched to the database thread. Allows the subclass
    * to initialize itself.
@@ -208,9 +199,9 @@ protected:
   /**
    * Helper to make a JS array object out of an array of clone buffers.
    */
-  static nsresult ConvertCloneBuffersToArray(
+  static nsresult ConvertCloneReadInfosToArray(
                                 JSContext* aCx,
-                                nsTArray<JSAutoStructuredCloneBuffer>& aBuffers,
+                                nsTArray<StructuredCloneReadInfo>& aReadInfos,
                                 jsval* aResult);
 
 protected:
@@ -219,10 +210,6 @@ protected:
 
 private:
   nsCOMPtr<mozIStorageProgressHandler> mOldProgressHandler;
-
-  mozilla::TimeStamp mStartTime;
-  mozilla::TimeDuration mTimeoutDuration;
-
   nsresult mResultCode;
   bool mDispatched;
 };

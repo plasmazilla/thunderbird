@@ -566,6 +566,13 @@ nsHtml5TreeBuilder::elementPopped(PRInt32 aNamespace, nsIAtom* aName, nsIContent
     treeOp->Init(eTreeOpProcessMeta, aElement);
     return;
   }
+  if (aName == nsHtml5Atoms::audio || aName == nsHtml5Atoms::video) {
+    nsHtml5TreeOperation* treeOp = mOpQueue.AppendElement();
+    NS_ASSERTION(treeOp, "Tree op allocation failed.");
+    treeOp->Init(eTreeOpDoneCreatingElement, aElement);
+    return;
+  }   
+
   return;
 }
 
@@ -698,6 +705,32 @@ nsHtml5TreeBuilder::MarkAsBroken()
 {
   mOpQueue.Clear(); // Previous ops don't matter anymore
   mOpQueue.AppendElement()->Init(eTreeOpMarkAsBroken);
+}
+
+void
+nsHtml5TreeBuilder::StartPlainTextViewSource(const nsAutoString& aTitle)
+{
+  startTag(nsHtml5ElementName::ELT_TITLE,
+           nsHtml5HtmlAttributes::EMPTY_ATTRIBUTES,
+           false);
+
+  // XUL will add the "Source of: " prefix.
+  PRUint32 length = aTitle.Length();
+  if (length > PR_INT32_MAX) {
+    length = PR_INT32_MAX;
+  }
+  characters(aTitle.get(), 0, (PRInt32)length);
+  endTag(nsHtml5ElementName::ELT_TITLE);
+
+  startTag(nsHtml5ElementName::ELT_LINK,
+           nsHtml5ViewSourceUtils::NewLinkAttributes(),
+           false);
+
+  startTag(nsHtml5ElementName::ELT_BODY,
+           nsHtml5ViewSourceUtils::NewBodyAttributes(),
+           false);
+
+  StartPlainText();
 }
 
 void

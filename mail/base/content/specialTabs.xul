@@ -36,6 +36,11 @@
    -
    - ***** END LICENSE BLOCK ***** -->
 
+<!DOCTYPE overlay [
+  <!ENTITY % messengerDTD SYSTEM "chrome://messenger/locale/messenger.dtd">
+  %messengerDTD;
+]>
+
 <overlay id="specialTabs"
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
@@ -45,7 +50,11 @@
   </popupset>
 
   <vbox id="contentTab" collapsed="true">
-    <vbox flex="1">
+    <vbox flex="1" class="contentTabInstance">
+      <toolbox id="dummycontenttoolbox" class="contentTabToolbox">
+        <toolbar id="dummycontenttoolbar" class="contentTabToolbar">
+        </toolbar>
+      </toolbox>
       <notificationbox flex="1">
         <browser id="dummycontentbrowser" type="content-targetable" flex="1"
                  disablehistory="true" autocompletepopup="PopupAutoComplete"
@@ -56,12 +65,47 @@
   </vbox>
 
   <vbox id="chromeTab" collapsed="true">
-    <vbox flex="1">
+    <vbox flex="1" class="chromeTabInstance">
+      <toolbox id="dummycontenttoolbox" class="contentTabToolbox">
+        <toolbar id="dummycontenttoolbar" class="contentTabToolbar"></toolbar>
+      </toolbox>
       <notificationbox flex="1">
         <browser id="dummychromebrowser" flex="1"
                  disablesecurity="true" disablehistory="true"
                  autocompletepopup="PopupAutoComplete"/>
       </notificationbox>
+    </vbox>
+  </vbox>
+
+  <vbox id="glodaTab" collapsed="true">
+    <vbox flex="1" class="chromeTabInstance">
+      <toolbox class="contentTabToolbox">
+        <toolbar class="glodaTabToolbar inline-toolbar chromeclass-toolbar">
+          <spacer flex="1" />
+          <spacer flex="1" />
+          <hbox flex="1" class="remote-gloda-search-container">
+            <textbox class="remote-gloda-search"
+                     flex="1"
+                     type="glodacomplete"
+                     searchbutton="true"
+                     autocompletesearch="gloda"
+                     autocompletepopup="PopupGlodaAutocomplete"
+                     autocompletesearchparam="global"
+                     enablehistory="false"
+                     timeout="200"
+                     maxlength="192"
+                     placeholder=""
+                     emptytextbase="&searchAllMessages.label.base;"
+                     keyLabelNonMac="&searchAllMessages.keyLabel2.nonmac;"
+                     keyLabelMac="&searchAllMessages.keyLabel2.mac;">
+              <hbox>
+                <image class="gloda-search-icon" />
+              </hbox>
+            </textbox>
+          </hbox>
+        </toolbar>
+      </toolbox>
+      <iframe flex="1"/>
     </vbox>
   </vbox>
 </overlay>

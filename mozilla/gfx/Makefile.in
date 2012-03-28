@@ -48,9 +48,13 @@ ifdef MOZ_TREE_CAIRO
 DIRS		= cairo
 endif
 
-DIRS		+= 2d ycbcr angle src qcms layers harfbuzz/src ots/src thebes ipc
+ifdef MOZ_GRAPHITE
+DIRS		+= graphite2/src
+endif
 
-ifeq (,$(filter-out cocoa android,$(MOZ_WIDGET_TOOLKIT)))
+DIRS		+= 2d ycbcr angle src qcms gl layers harfbuzz/src ots/src thebes ipc
+
+ifdef MOZ_ENABLE_SKIA
 DIRS        += skia
 endif
 

@@ -84,6 +84,9 @@ enum Phase {
     PHASE_SWEEP_STRING,
     PHASE_SWEEP_SCRIPT,
     PHASE_SWEEP_SHAPE,
+    PHASE_DISCARD_CODE,
+    PHASE_DISCARD_ANALYSIS,
+    PHASE_XPCONNECT,
     PHASE_DESTROY,
 
     PHASE_LIMIT
@@ -114,7 +117,7 @@ struct Statistics {
   private:
     JSRuntime *runtime;
 
-    uint64 startupTime;
+    uint64_t startupTime;
 
     FILE *fp;
     bool fullFormat;
@@ -122,10 +125,10 @@ struct Statistics {
     Reason triggerReason;
     JSCompartment *compartment;
 
-    uint64 phaseStarts[PHASE_LIMIT];
-    uint64 phaseEnds[PHASE_LIMIT];
-    uint64 phaseTimes[PHASE_LIMIT];
-    uint64 totals[PHASE_LIMIT];
+    uint64_t phaseStarts[PHASE_LIMIT];
+    uint64_t phaseEnds[PHASE_LIMIT];
+    uint64_t phaseTimes[PHASE_LIMIT];
+    uint64_t totals[PHASE_LIMIT];
     unsigned int counts[STAT_LIMIT];
 
     double t(Phase phase);
@@ -133,6 +136,22 @@ struct Statistics {
     double beginDelay(Phase phase1, Phase phase2);
     double endDelay(Phase phase1, Phase phase2);
     void printStats();
+    void statsToString(char *buffer, size_t size);
+
+    struct ColumnInfo {
+        const char *title;
+        char str[12];
+        char totalStr[12];
+        int width;
+
+        ColumnInfo() {}
+        ColumnInfo(const char *title, double t, double total);
+        ColumnInfo(const char *title, double t);
+        ColumnInfo(const char *title, unsigned int data);
+        ColumnInfo(const char *title, const char *data);
+    };
+
+    void makeTable(ColumnInfo *cols);
 };
 
 struct AutoGC {

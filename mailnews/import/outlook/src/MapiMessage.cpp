@@ -45,7 +45,7 @@
 
 #include "nscore.h"
 #include <time.h>
-#include "nsString.h"
+#include "nsStringGlue.h"
 #include "nsDirectoryServiceDefs.h"
 #include "nsMsgUtils.h"
 #include "nsMimeTypes.h"
@@ -286,7 +286,7 @@ bool CMapiMessage::FetchHeaders( void)
     else if ((PROP_TYPE(pVal->ulPropTag) == PT_UNICODE) &&
              (pVal->Value.lpszW) && (*(pVal->Value.lpszW))) {
       nsCString headers;
-      LossyCopyUTF16toASCII(pVal->Value.lpszW, headers);
+      LossyCopyUTF16toASCII(nsDependentString(pVal->Value.lpszW), headers);
       m_headers.Assign(headers.get());
     }
 
@@ -304,15 +304,6 @@ bool CMapiMessage::FetchHeaders( void)
   ProcessContentType();
 
   return( !m_headers.IsEmpty());
-}
-
-bool CMapiMessage::IsMultipart( void) const
-{
-  nsCString left;
-  m_mimeContentType.Left( left, 10);
-  if (left.LowerCaseEqualsLiteral("multipart/"))
-    return true;
-  return false;
 }
 
 // Mime-Version: 1.0
@@ -732,7 +723,7 @@ bool CMapiMessage::FetchBody( void)
     // To detect the "true" plain text messages, we look for our string
     // immediately following the <BODY> tag.
     if (!m_body.IsEmpty() &&
-        m_body.Find(L"<BODY>\r\n<!-- Converted from text/plain format -->") ==
+        m_body.Find("<BODY>\r\n<!-- Converted from text/plain format -->") ==
         kNotFound) {
       m_bodyIsHtml = true;
     }
@@ -905,7 +896,7 @@ bool CMapiMessage::CopyMsgAttachToFile(LPATTACH lpAttach, /*out*/ nsILocalFile *
   if (NS_FAILED(rv)) {
     (*tmp_file)->Remove(PR_FALSE);
     (*tmp_file)->Release();
-    tmp_file = 0;
+    *tmp_file = 0;
   }
 
   return NS_SUCCEEDED(rv);
@@ -1077,7 +1068,7 @@ bool CMapiMessage::AddAttachment(DWORD aNum)
       if (fext.IsEmpty()) {
         int idx = fname.RFindChar(L'.');
         if (idx != -1)
-          fname.Right(fext, fname.Length() - idx);
+          fext = Substring(fname, idx);
       }
       else if (fname.RFindChar(L'.') == -1) {
         fname += L".";

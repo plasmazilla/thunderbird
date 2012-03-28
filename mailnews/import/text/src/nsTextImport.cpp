@@ -51,6 +51,7 @@
 
 #include "nscore.h"
 #include "nsIServiceManager.h"
+#include "nsCOMPtr.h"
 #include "nsIImportService.h"
 #include "nsMsgI18N.h"
 #include "nsIComponentManager.h"
@@ -71,7 +72,7 @@
 #include "nsIPrefBranch.h"
 #include "TextDebugLog.h"
 #include "nsNetUtil.h"
-#include "nsISupportsArray.h"
+#include "nsMsgUtils.h"
 
 #define TEXT_MSGS_URL "chrome://messenger/locale/textImportMsgs.properties"
 #define TEXTIMPORT_NAME                  2000
@@ -604,7 +605,7 @@ NS_IMETHODIMP ImportAddressImpl::GetSampleData( PRInt32 index, bool *pFound, PRU
   }
 
   nsCString line;
-  rv = nsTextAddress::ReadRecordNumber(m_fileLoc, line, m_delim, index);
+  rv = nsTextAddress::ReadRecordNumber(m_fileLoc, line, index);
   if (NS_SUCCEEDED( rv)) {
     nsString str;
     nsCString field;

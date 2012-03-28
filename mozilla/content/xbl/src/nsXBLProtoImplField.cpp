@@ -69,7 +69,7 @@ nsXBLProtoImplField::nsXBLProtoImplField(const PRUnichar* aName, const PRUnichar
 }
 
 
-nsXBLProtoImplField::nsXBLProtoImplField(bool aIsReadOnly)
+nsXBLProtoImplField::nsXBLProtoImplField(const bool aIsReadOnly)
   : mNext(nsnull),
     mFieldText(nsnull),
     mFieldTextLength(0),
@@ -148,9 +148,10 @@ nsXBLProtoImplField::InstallField(nsIScriptContext* aContext,
                                         aBoundNode,
                                         aPrincipal, uriSpec.get(),
                                         mLineNumber, JSVERSION_LATEST,
-                                        (void*) &result, &undefined);
-  if (NS_FAILED(rv))
+                                        &result, &undefined);
+  if (NS_FAILED(rv)) {
     return rv;
+  }
 
   if (undefined) {
     result = JSVAL_VOID;

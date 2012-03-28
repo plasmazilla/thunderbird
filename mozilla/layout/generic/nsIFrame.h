@@ -160,9 +160,6 @@ typedef PRUint64 nsFrameState;
 
 #define NS_FRAME_IN_REFLOW                          NS_FRAME_STATE_BIT(0)
 
-// This is only set during painting
-#define NS_FRAME_FORCE_DISPLAY_LIST_DESCEND_INTO    NS_FRAME_STATE_BIT(0)
-
 // This bit is set when a frame is created. After it has been reflowed
 // once (during the DidReflow with a finished state) the bit is
 // cleared.
@@ -202,8 +199,8 @@ typedef PRUint64 nsFrameState;
 // e.g., it is absolutely positioned or floated
 #define NS_FRAME_OUT_OF_FLOW                        NS_FRAME_STATE_BIT(8)
 
-// If this bit is set, then the frame reflects content that may be selected
-#define NS_FRAME_SELECTED_CONTENT                   NS_FRAME_STATE_BIT(9)
+// This bit is available for re-use.
+//#define NS_FRAME_SELECTED_CONTENT                   NS_FRAME_STATE_BIT(9)
 
 // If this bit is set, then the frame is dirty and needs to be reflowed.
 // This bit is set when the frame is first created.
@@ -264,6 +261,7 @@ typedef PRUint64 nsFrameState;
 
 // Bits 20-31 and 60-63 of the frame state are reserved for implementations.
 #define NS_FRAME_IMPL_RESERVED                      nsFrameState(0xF0000000FFF00000)
+#define NS_FRAME_RESERVED                           ~NS_FRAME_IMPL_RESERVED
 
 // This bit is set on floats whose parent does not contain their
 // placeholder.  This can happen for two reasons:  (1) the float was
@@ -293,9 +291,12 @@ typedef PRUint64 nsFrameState;
 // A display item for this frame has been painted as part of a ThebesLayer.
 #define NS_FRAME_PAINTED_THEBES                     NS_FRAME_STATE_BIT(38)
 
-// The lower 20 bits and upper 32 bits of the frame state are reserved
-// by this API.
-#define NS_FRAME_RESERVED                           ~NS_FRAME_IMPL_RESERVED
+// Frame is or is a descendant of something with a fixed height, and
+// has no closer ancestor that is overflow:auto or overflow:scroll.
+#define NS_FRAME_IN_CONSTRAINED_HEIGHT              NS_FRAME_STATE_BIT(39)
+
+// This is only set during painting
+#define NS_FRAME_FORCE_DISPLAY_LIST_DESCEND_INTO    NS_FRAME_STATE_BIT(40)
 
 // Box layout bits
 #define NS_STATE_IS_HORIZONTAL                      NS_FRAME_STATE_BIT(22)
@@ -577,8 +578,18 @@ public:
 
 protected:
   /**
+   * Return true if the frame is part of a Selection.
+   * Helper method to implement the public IsSelected() API.
+   */
+  virtual bool IsFrameSelected() const;
+
+  /**
    * Implements Destroy(). Do not call this directly except from within a
    * DestroyFrom() implementation.
+   *
+   * @note This will always be called, so it is not necessary to override
+   *       Destroy() in subclasses of nsFrame, just DestroyFrom().
+   *
    * @param  aDestructRoot is the root of the subtree being destroyed
    */
   virtual void DestroyFrom(nsIFrame* aDestructRoot) = 0;
@@ -1595,10 +1606,9 @@ public:
 
   /*
    * For replaced elements only. Gets the intrinsic dimensions of this element.
-   * The dimensions may only be one of the following three types:
+   * The dimensions may only be one of the following two types:
    *
    *   eStyleUnit_Coord   - a length in app units
-   *   eStyleUnit_Percent - a percentage of the available space
    *   eStyleUnit_None    - the element has no intrinsic size in this dimension
    */
   struct IntrinsicSize {
@@ -2268,14 +2278,15 @@ public:
   /**
    * Store the overflow area in the frame's mOverflow.mVisualDeltas
    * fields or as a frame property in the frame manager so that it can
-   * be retrieved later without reflowing the frame.
+   * be retrieved later without reflowing the frame. Returns true if either of
+   * the overflow areas changed.
    */
-  void FinishAndStoreOverflow(nsOverflowAreas& aOverflowAreas,
+  bool FinishAndStoreOverflow(nsOverflowAreas& aOverflowAreas,
                               nsSize aNewSize);
 
-  void FinishAndStoreOverflow(nsHTMLReflowMetrics* aMetrics) {
-    FinishAndStoreOverflow(aMetrics->mOverflowAreas,
-                           nsSize(aMetrics->width, aMetrics->height));
+  bool FinishAndStoreOverflow(nsHTMLReflowMetrics* aMetrics) {
+    return FinishAndStoreOverflow(aMetrics->mOverflowAreas,
+                                  nsSize(aMetrics->width, aMetrics->height));
   }
 
   /**
@@ -2288,8 +2299,9 @@ public:
 
   /**
    * Removes any stored overflow rects (visual and scrollable) from the frame.
+   * Returns true if the overflow changed.
    */
-  void ClearOverflowRects();
+  bool ClearOverflowRects();
 
   /**
    * Determine whether borders should not be painted on certain sides of the
@@ -2297,25 +2309,13 @@ public:
    */
   virtual PRIntn GetSkipSides() const { return 0; }
 
-  /** Selection related calls
+  /**
+   * @returns true if this frame is selected.
    */
-  /** 
-   *  Called to set the selection status of the frame.
-   *  
-   *  This must be called on the primary frame, but all continuations
-   *  will be affected the same way.
-   *
-   *  This sets or clears NS_FRAME_SELECTED_CONTENT for each frame in the
-   *  continuation chain, if the frames are currently selectable.
-   *  The frames are unconditionally invalidated, if this selection type
-   *  is supported at all.
-   *  @param aSelected is it selected?
-   *  @param aType the selection type of the selection that you are setting on the frame
-   */
-  virtual void SetSelected(bool          aSelected,
-                           SelectionType aType);
-
-  NS_IMETHOD  GetSelected(bool *aSelected) const = 0;
+  bool IsSelected() const {
+    return (GetContent() && GetContent()->IsSelectionDescendant()) ?
+      IsFrameSelected() : false;
+  }
 
   /**
    *  called to discover where this frame, or a parent frame has user-select style
@@ -2344,10 +2344,7 @@ public:
    * GetConstFrameSelection returns an object which methods are safe to use for
    * example in nsIFrame code.
    */
-  const nsFrameSelection* GetConstFrameSelection();
-
-  /** EndSelection related calls
-   */
+  const nsFrameSelection* GetConstFrameSelection() const;
 
   /**
    *  called to find the previous/next character, word, or line  returns the actual 
@@ -2816,14 +2813,24 @@ protected:
   // If mOverflow.mType == NS_FRAME_OVERFLOW_LARGE, then the
   // delta values are not meaningful and the overflow area is stored
   // as a separate rect property.
+  struct VisualDeltas {
+    PRUint8 mLeft;
+    PRUint8 mTop;
+    PRUint8 mRight;
+    PRUint8 mBottom;
+    bool operator==(const VisualDeltas& aOther) const
+    {
+      return mLeft == aOther.mLeft && mTop == aOther.mTop &&
+             mRight == aOther.mRight && mBottom == aOther.mBottom;
+    }
+    bool operator!=(const VisualDeltas& aOther) const
+    {
+      return !(*this == aOther);
+    }
+  };
   union {
-    PRUint32  mType;
-    struct {
-      PRUint8 mLeft;
-      PRUint8 mTop;
-      PRUint8 mRight;
-      PRUint8 mBottom;
-    } mVisualDeltas;
+    PRUint32     mType;
+    VisualDeltas mVisualDeltas;
   } mOverflow;
 
   // Helpers
@@ -2938,7 +2945,10 @@ private:
                   mRect.height + mOverflow.mVisualDeltas.mBottom +
                                  mOverflow.mVisualDeltas.mTop);
   }
-  void SetOverflowAreas(const nsOverflowAreas& aOverflowAreas);
+  /**
+   * Returns true if any overflow changed.
+   */
+  bool SetOverflowAreas(const nsOverflowAreas& aOverflowAreas);
   nsPoint GetOffsetToCrossDoc(const nsIFrame* aOther, const PRInt32 aAPD) const;
 
 #ifdef NS_DEBUG

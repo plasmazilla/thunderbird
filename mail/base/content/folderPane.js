@@ -925,7 +925,7 @@ let gFolderTreeView = {
 
   _subFoldersWithStringProperty: function ftv_subFoldersWithStringProperty(folder, folders, aFolderName, deep)
   {
-    for each (child in fixIterator(folder.subFolders, Components.interfaces.nsIMsgFolder)) {
+    for each (let child in fixIterator(folder.subFolders, Components.interfaces.nsIMsgFolder)) {
       // if the folder selection is based on a string propery, use that
       if (aFolderName == getSmartFolderName(child)) {
         folders.push(child);
@@ -942,7 +942,7 @@ let gFolderTreeView = {
   _allFoldersWithStringProperty: function ftv_getAllFoldersWithProperty(accounts, aFolderName, deep)
   {
     let folders = [];
-    for each (acct in accounts) {
+    for each (let acct in accounts) {
       let folder = acct.incomingServer.rootFolder;
       this._subFoldersWithStringProperty(folder, folders, aFolderName, deep);
     }
@@ -952,10 +952,10 @@ let gFolderTreeView = {
   _allFoldersWithFlag: function ftv_getAllFolders(accounts, aFolderFlag, deep)
   {
     let folders = [];
-    for each (acct in accounts) {
+    for each (let acct in accounts) {
       let foldersWithFlag = acct.incomingServer.rootFolder.getFoldersWithFlags(aFolderFlag);
       if (foldersWithFlag.length > 0) {
-        for each (folderWithFlag in fixIterator(foldersWithFlag.enumerate(),
+        for each (let folderWithFlag in fixIterator(foldersWithFlag.enumerate(),
                                                 Components.interfaces.nsIMsgFolder)) {
           folders.push(folderWithFlag);
           // Add sub-folders of Sent and Archive to the result.
@@ -1017,7 +1017,7 @@ let gFolderTreeView = {
     if (!smartFolder) {
       let searchFolders = gFolderTreeView._allSmartFolders(accounts, flag, folderName, true);
       let searchFolderURIs = "";
-      for each (searchFolder in searchFolders) {
+      for each (let searchFolder in searchFolders) {
         if (searchFolderURIs.length)
           searchFolderURIs += '|';
         searchFolderURIs +=  searchFolder.URI;
@@ -1580,12 +1580,12 @@ let gFolderTreeView = {
         }
 
         sortFolderItems(smartChildren);
-        for each (smartChild in smartChildren)
+        for each (let smartChild in smartChildren)
           map.push(smartChild);
 
         MailUtils.discoverFolders();
 
-        for each (acct in accounts)
+        for each (let acct in accounts)
           map.push(new ftv_SmartItem(acct.incomingServer.rootFolder));
 
         return map;
@@ -2197,32 +2197,17 @@ let gFolderTreeController = {
       return;
     }
 
-    if (folder.flags & nsMsgFolderFlags.Inbox || folder.flags & nsMsgFolderFlags.Trash)
-      return;
+    var canDelete = (folder.isSpecialFolder(nsMsgFolderFlags.Junk, false)) ?
+      CanRenameDeleteJunkMail(folder.URI) : folder.deletable;
 
-    let prefix = "@mozilla.org/messenger/protocol/info;1?type=";
-    let info = Components.classes[prefix + folder.server.type]
-                          .getService(Ci.nsIMsgProtocolInfo);
-
-    // do not allow deletion of special folders on imap accounts
-    let bundle = document.getElementById("bundle_messenger");
-    if ((folder.flags & nsMsgFolderFlags.SentMail || folder.flags & nsMsgFolderFlags.Drafts ||
-         folder.flags & nsMsgFolderFlags.Templates ||
-         ((folder.flags & nsMsgFolderFlags.Junk) && CanRenameDeleteJunkMail(folder))) &&
-        !info.specialFoldersDeletionAllowed) {
-      let specialFolderString = getSpecialFolderString(folder);
-      let errorMessage = bundle.getFormattedString("specialFolderDeletionErr",
-                                                    [specialFolderString]);
-      let errorTitle = bundle.getString("specialFolderDeletionErrTitle");
-      Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                         .getService(Ci.nsIPromptService)
-                         .alert(window, errorTitle, errorMessage);
-      return;
-    }
+    if (!canDelete)
+      throw new Error("Can't delete folder: " + folder.name);
 
     if (folder.flags & nsMsgFolderFlags.Virtual) {
-      let confirmation = bundle.getString("confirmSavedSearchDeleteMessage");
-      let title = bundle.getString("confirmSavedSearchTitle");
+      let confirmation = document.getElementById("bundle_messenger")
+                                 .getString("confirmSavedSearchDeleteMessage");
+      let title = document.getElementById("bundle_messenger")
+                          .getString("confirmSavedSearchTitle");
       let IPS = Components.interfaces.nsIPromptService;
       if (Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
             .getService(IPS)

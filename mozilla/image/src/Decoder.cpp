@@ -55,6 +55,7 @@ Decoder::Decoder(RasterImage &aImage, imgIDecoderObserver* aObserver)
   , mInFrame(false)
   , mDecodeDone(false)
   , mDataError(false)
+  , mIsAnimated(false)
 {
 }
 
@@ -186,6 +187,20 @@ Decoder::FlushInvalidations()
 
   // Fire OnDataAvailable
   if (mObserver) {
+#ifdef XP_MACOSX
+    // Bug 703231
+    // Because of high quality down sampling on mac we show scan lines while decoding.
+    // Bypass this problem by redrawing the border.
+    PRInt32 width;
+    PRInt32 height;
+
+    mImage.GetWidth(&width);
+    mImage.GetHeight(&height);
+    nsIntRect mImageBound(0, 0, width, height);
+
+    mInvalidRect.Inflate(1);
+    mInvalidRect = mInvalidRect.Intersect(mImageBound);
+#endif
     bool isCurrentFrame = mImage.GetCurrentFrameIndex() == (mFrameCount - 1);
     mObserver->OnDataAvailable(nsnull, isCurrentFrame, &mInvalidRect);
   }
@@ -259,9 +274,14 @@ Decoder::PostFrameStop()
   // Flush any invalidations before we finish the frame
   FlushInvalidations();
 
-  // Fire notification
-  if (mObserver)
+  // Fire notifications
+  if (mObserver) {
     mObserver->OnStopFrame(nsnull, mFrameCount - 1); // frame # is zero-indexed
+    if (mFrameCount > 1 && !mIsAnimated) {
+      mIsAnimated = true;
+      mObserver->OnImageIsAnimated(nsnull);
+    }
+  }
 }
 
 void

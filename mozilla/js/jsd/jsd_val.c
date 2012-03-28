@@ -188,7 +188,7 @@ jsd_GetValueBoolean(JSDContext* jsdc, JSDValue* jsdval)
     return JSVAL_TO_BOOLEAN(val);
 }
 
-int32
+int32_t
 jsd_GetValueInt(JSDContext* jsdc, JSDValue* jsdval)
 {
     jsval val = jsdval->val;
@@ -747,7 +747,7 @@ jsd_GetValueParent(JSDContext* jsdc, JSDValue* jsdval)
 
             return NULL;
         }
-        parent = JS_GetParent(jsdc->dumbContext,obj);
+        parent = JS_GetParentOrScopeChain(jsdc->dumbContext,obj);
         JS_LeaveCrossCompartmentCall(call);
         JS_EndRequest(jsdc->dumbContext);
         if(!parent)

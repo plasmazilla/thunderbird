@@ -145,7 +145,7 @@ input[type="submit"][disabled="true"], input[type="submit"][disabled="true"]:hov
 }
 
 .otherLanguage,
-#otherLanguages {
+#otherLangDesc {
   display: none;
 }
 
@@ -404,7 +404,7 @@ input[type="submit"].search {
 
 /* START hbox/vbox normalization from http://alex.dojotoolkit.org/2009/08/css-3-progress/ */
 /* hbox and vbox classes for Mozilla only */
- 
+
 .hbox {
   display: -moz-box;
   -moz-box-orient: horizontal;
@@ -465,12 +465,12 @@ input[type="submit"].search {
   -moz-box-pack: start;
   /*box-pack: start;*/
 }
- 
+
 .end {
   -moz-box-pack: end;
   /*box-pack: end;*/
 }
- 
+
 .center {
   -moz-box-pack: center;
   /*box-pack: center;*/

@@ -233,23 +233,6 @@ nsHtml5TreeOperation::Append(nsIContent* aNode,
   return rv;
 }
 
-class nsDocElementCreatedNotificationRunner : public nsRunnable
-{
-public:
-  nsDocElementCreatedNotificationRunner(nsIDocument* aDoc)
-    : mDoc(aDoc)
-  {
-  }
-
-  NS_IMETHOD Run()
-  {
-    nsContentSink::NotifyDocElementCreated(mDoc);
-    return NS_OK;
-  }
-
-  nsCOMPtr<nsIDocument> mDoc;
-};
-
 nsresult
 nsHtml5TreeOperation::AppendToDocument(nsIContent* aNode,
                                        nsHtml5TreeOpExecutor* aBuilder)
@@ -386,7 +369,7 @@ nsHtml5TreeOperation::Perform(nsHtml5TreeOpExecutor* aBuilder,
         GetNodeInfo(name, nsnull, ns, nsIDOMNode::ELEMENT_NODE);
       NS_ASSERTION(nodeInfo, "Got null nodeinfo.");
       NS_NewElement(getter_AddRefs(newContent),
-                    ns, nodeInfo.forget(),
+                    nodeInfo.forget(),
                     (mOpCode == eTreeOpCreateElementNetwork ?
                      dom::FROM_PARSER_NETWORK
                      : (aBuilder->IsFragmentMode() ?
@@ -431,7 +414,6 @@ nsHtml5TreeOperation::Perform(nsHtml5TreeOpExecutor* aBuilder,
           nsCOMPtr<nsIContent> optionElt;
           nsCOMPtr<nsINodeInfo> ni = optionNodeInfo;
           NS_NewElement(getter_AddRefs(optionElt), 
-                        optionNodeInfo->NamespaceID(), 
                         ni.forget(),
                         (mOpCode == eTreeOpCreateElementNetwork ?
                          dom::FROM_PARSER_NETWORK

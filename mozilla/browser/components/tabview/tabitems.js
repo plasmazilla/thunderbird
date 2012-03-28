@@ -148,6 +148,8 @@ function TabItem(tab, options) {
 
   this.droppable(true);
 
+  this.$close.attr("title", tabbrowserString("tabs.closeTab"));
+
   TabItems.register(this);
 
   // ___ reconnect to data from Storage
@@ -204,7 +206,15 @@ TabItem.prototype = Utils.extend(new Item(), new Subscribable(), {
     this._cachedImageData = imageData;
     this.$cachedThumb.attr("src", this._cachedImageData).show();
     this.$canvas.css({opacity: 0});
-    this.$tabTitle.text(tabData.title ? tabData.title : "");
+    let label = "";
+    let title;
+    if (tabData.title) {
+      label = tabData.title;
+      title = label + "\n" + tabData.url;
+    } else {
+      title = tabData.url;
+    }
+    this.$tabTitle.text(label).attr("title", title);
 
     this._sendToSubscribers("showingCachedData");
   },
@@ -260,8 +270,14 @@ TabItem.prototype = Utils.extend(new Item(), new Subscribable(), {
 
     function TabItem_loadThumbnail_callback(error, imageData) {
       // we could have been unlinked while waiting for the thumbnail to load
-      if (error || !imageData || !self.tab)
+      if (!self.tab)
         return;
+
+      if (error || !imageData) {
+        // paint the canvas to avoid leaving traces when dragging tab over it
+        self.tabCanvas.paint();
+        return;
+      }
 
       self._sendToSubscribers("loadedCachedImageData");
 
@@ -997,10 +1013,10 @@ let TabItems = {
       // ___ URL
       let tabUrl = tab.linkedBrowser.currentURI.spec;
       if (tabUrl != tabItem.url) {
-        let oldURL = tabItem.url;
         tabItem.url = tabUrl;
         tabItem.save();
       }
+      tabItem.$container.attr("title", label + "\n" + tabUrl);
 
       // ___ Make sure the tab is complete and ready for updating.
       if (!this.isComplete(tab) && (!options || !options.force)) {

@@ -139,6 +139,7 @@ extern nsresult nsStringInputStreamConstructor(nsISupports *, REFNSIID, void **)
 #include "mozilla/Services.h"
 #include "mozilla/FunctionTimer.h"
 #include "mozilla/Omnijar.h"
+#include "mozilla/HangMonitor.h"
 
 #include "nsChromeRegistry.h"
 #include "nsChromeProtocolHandler.h"
@@ -151,6 +152,7 @@ extern nsresult nsStringInputStreamConstructor(nsISupports *, REFNSIID, void **)
 
 #include "mozilla/ipc/BrowserProcessSubThread.h"
 #include "mozilla/MapsMemoryReporter.h"
+#include "mozilla/AvailableMemoryTracker.h"
 
 using base::AtExitManager;
 using mozilla::ipc::BrowserProcessSubThread;
@@ -518,6 +520,8 @@ NS_InitXPCOM2(nsIServiceManager* *result,
     nsDirectoryService::gService->RegisterCategoryProviders();
 
     mozilla::scache::StartupCache::GetSingleton();
+    mozilla::AvailableMemoryTracker::Init();
+
     NS_TIME_FUNCTION_MARK("Next: create services from category");
 
     // Notify observers of xpcom autoregistration start
@@ -529,6 +533,8 @@ NS_InitXPCOM2(nsIServiceManager* *result,
 #endif
 
     mozilla::MapsMemoryReporter::Init();
+
+    mozilla::HangMonitor::Startup();
 
     return NS_OK;
 }
@@ -566,6 +572,9 @@ namespace mozilla {
 nsresult
 ShutdownXPCOM(nsIServiceManager* servMgr)
 {
+    // Make sure the hang monitor is enabled for shutdown.
+    HangMonitor::NotifyActivity();
+
     NS_ENSURE_STATE(NS_IsMainThread());
 
     nsresult rv;
@@ -622,6 +631,8 @@ ShutdownXPCOM(nsIServiceManager* servMgr)
         nsThreadManager::get()->Shutdown();
 
         NS_ProcessPendingEvents(thread);
+
+        HangMonitor::NotifyActivity();
 
         // We save the "xpcom-shutdown-loaders" observers to notify after
         // the observerservice is gone.
@@ -732,7 +743,9 @@ ShutdownXPCOM(nsIServiceManager* servMgr)
         sExitManager = nsnull;
     }
 
-    mozilla::Omnijar::CleanUp();
+    Omnijar::CleanUp();
+
+    HangMonitor::Shutdown();
 
     NS_LogTerm();
 

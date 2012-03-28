@@ -49,13 +49,17 @@
 #include "nsGUIEvent.h"
 #include "nsCycleCollectionParticipant.h"
 #include "nsAutoPtr.h"
+#include "nsIJSNativeInitializer.h"
 
 class nsIContent;
 class nsPresContext;
+struct JSContext;
+struct JSObject;
  
 class nsDOMEvent : public nsIDOMEvent,
                    public nsIDOMNSEvent,
-                   public nsIPrivateDOMEvent
+                   public nsIPrivateDOMEvent,
+                   public nsIJSNativeInitializer
 {
 public:
 
@@ -176,7 +180,6 @@ public:
     eDOMEvents_mozaudioavailable,
 #endif
     eDOMEvents_afterpaint,
-    eDOMEvents_beforepaint,
     eDOMEvents_beforeresize,
     eDOMEvents_mozfullscreenchange,
     eDOMEvents_mozfullscreenerror,
@@ -192,6 +195,12 @@ public:
     eDOMEvents_MozTouchDown,
     eDOMEvents_MozTouchMove,
     eDOMEvents_MozTouchUp,
+    eDOMEvents_touchstart,
+    eDOMEvents_touchend,
+    eDOMEvents_touchmove,
+    eDOMEvents_touchcancel,
+    eDOMEvents_touchenter,
+    eDOMEvents_touchleave,
     eDOMEvents_MozScrolledAreaChanged,
     eDOMEvents_transitionend,
     eDOMEvents_animationstart,
@@ -220,6 +229,16 @@ public:
   NS_IMETHOD_(nsEvent*)    GetInternalNSEvent();
   NS_IMETHOD    SetTrusted(bool aTrusted);
 
+  // nsIJSNativeInitializer
+  NS_IMETHOD Initialize(nsISupports* aOwner, JSContext* aCx, JSObject* aObj,
+                        PRUint32 aArgc, jsval* aArgv);
+
+  virtual const nsIID& EventInitIID() { return NS_GET_IID(nsIEventInit); }
+  virtual nsresult InitFromCtor(const nsAString& aType, nsISupports* aDict,
+                                JSContext* aCx, JSObject* aObj);
+
+  void InitPresContextData(nsPresContext* aPresContext);
+
   virtual void Serialize(IPC::Message* aMsg, bool aSerializeInterfaceType);
   virtual bool Deserialize(const IPC::Message* aMsg, void** aIter);
 
@@ -230,6 +249,17 @@ public:
   static void Shutdown();
 
   static const char* GetEventName(PRUint32 aEventType);
+  static nsIntPoint GetClientCoords(nsPresContext* aPresContext,
+                                    nsEvent* aEvent,
+                                    nsIntPoint aPoint,
+                                    nsIntPoint aDefaultPoint);
+  static nsIntPoint GetPageCoords(nsPresContext* aPresContext,
+                                  nsEvent* aEvent,
+                                  nsIntPoint aPoint,
+                                  nsIntPoint aDefaultPoint);
+  static nsIntPoint GetScreenCoords(nsPresContext* aPresContext,
+                                    nsEvent* aEvent,
+                                    nsIntPoint aPoint);
 protected:
 
   // Internal helper functions

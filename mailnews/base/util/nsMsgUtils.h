@@ -52,6 +52,7 @@
 #include "nsINetUtil.h"
 #include "nsServiceManagerUtils.h"
 #include "nsUnicharUtils.h"
+#include "nsILocalFile.h"
 
 class nsILocalFile;
 class nsIPrefBranch;
@@ -301,6 +302,14 @@ MsgStreamMsgHeaders(nsIInputStream *aInputStream, nsIStreamListener *aConsumer);
 NS_MSG_BASE PRUint64 ParseUint64Str(const char *str);
 
 /**
+ * Detect charset of file
+ *
+ * @param      aFile    The target of nsILocalFile
+ * @param[out] aCharset The charset string
+ */
+NS_MSG_BASE nsresult MsgDetectCharsetFromFile(nsILocalFile *aFile, nsACString &aCharset);
+
+/**
  * The following definitons exist for compatibility between the internal and
  * external APIs. Where possible they just forward to the existing API.
  */
@@ -424,6 +433,8 @@ NS_MSG_BASE PRUnichar *MsgEscapeHTML2(const PRUnichar *aBuffer, PRInt32 aLen);
 NS_MSG_BASE bool MsgIsUTF8(const nsACString& aString);
 /// Equivalent of NS_NewAtom(aUTF8String)
 NS_MSG_BASE nsIAtom* MsgNewAtom(const char* aString);
+/// Replacement of NS_RegisterStaticAtoms
+NS_MSG_BASE nsIAtom* MsgNewPermanentAtom(const char* aString);
 /// Equivalent of do_GetAtom(aUTF8String)
 inline already_AddRefed<nsIAtom> MsgGetAtom(const char* aUTF8String)
 {

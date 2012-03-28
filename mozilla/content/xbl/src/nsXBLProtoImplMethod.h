@@ -127,7 +127,7 @@ public:
                                  const nsCString& aClassStr);
   virtual nsresult CompileMember(nsIScriptContext* aContext,
                                  const nsCString& aClassStr,
-                                 void* aClassObject);
+                                 JSObject* aClassObject);
 
   virtual void Trace(TraceCallback aCallback, void *aClosure) const;
 
@@ -180,6 +180,7 @@ public:
     return NS_OK;
   }
 
+  using nsXBLProtoImplMethod::Write;
   nsresult Write(nsIScriptContext* aContext,
                  nsIObjectOutputStream* aStream,
                  XBLBindingSerializeDetails aType);

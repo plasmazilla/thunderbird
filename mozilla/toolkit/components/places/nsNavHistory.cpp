@@ -30,6 +30,7 @@
  *   Drew Willcoxon <adw@mozilla.com>
  *   Philipp von Weitershausen <philipp@weitershausen.de>
  *   Paolo Amadini <http://www.amadzone.org/>
+ *   Richard Newman <rnewman@mozilla.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -403,7 +404,7 @@ nsNavHistory::Init()
   // Observe preferences changes.
   Preferences::AddWeakObservers(this, kObservedPrefs);
 
-  nsCOMPtr<nsIObserverService> obsSvc = mozilla::services::GetObserverService();
+  nsCOMPtr<nsIObserverService> obsSvc = services::GetObserverService();
   if (obsSvc) {
     (void)obsSvc->AddObserver(this, TOPIC_PLACES_CONNECTION_CLOSED, true);
     (void)obsSvc->AddObserver(this, TOPIC_IDLE_DAILY, true);
@@ -720,10 +721,10 @@ nsNavHistory::FindLastVisit(nsIURI* aURI,
 bool nsNavHistory::IsURIStringVisited(const nsACString& aURIString)
 {
   nsCOMPtr<mozIStorageStatement> stmt = mDB->GetStatement(
-    "SELECT h.id "
+    "SELECT 1 "
     "FROM moz_places h "
     "WHERE url = ?1 "
-      "AND EXISTS(SELECT id FROM moz_historyvisits WHERE place_id = h.id LIMIT 1) "
+      "AND last_visit_date NOTNULL "
   );
   NS_ENSURE_TRUE(stmt, false);
   mozStorageStatementScoper scoper(stmt);
@@ -1549,8 +1550,7 @@ nsNavHistory::AddVisit(nsIURI* aURI, PRTime aTime, nsIURI* aReferringURI,
   // However, for redirects and downloads (since we implement nsIDownloadHistory)
   // this will not happen and we need to send it ourselves.
   if (newItem && (aIsRedirect || aTransitionType == TRANSITION_DOWNLOAD)) {
-    nsCOMPtr<nsIObserverService> obsService =
-      do_GetService(NS_OBSERVERSERVICE_CONTRACTID);
+    nsCOMPtr<nsIObserverService> obsService = services::GetObserverService();
     if (obsService)
       obsService->NotifyObservers(aURI, NS_LINK_VISITED_EVENT_TOPIC, nsnull);
   }

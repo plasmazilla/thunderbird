@@ -56,6 +56,21 @@ namespace a11y {
  */
 FocusManager* FocusMgr();
 
+#ifdef MOZ_ACCESSIBILITY_ATK
+/**
+ * Perform initialization that should be done as soon as possible, in order
+ * to minimize startup time.
+ * XXX: this function and the next defined in nsApplicationAccessibleWrap.cpp
+ */
+void PreInit();
+
+/**
+ * Is platform accessibility enabled.
+ * Only used on linux with atk for now.
+ */
+bool ShouldA11yBeEnabled();
+#endif
+
 } // namespace a11y
 } // namespace mozilla
 
@@ -83,12 +98,16 @@ public:
     CreateHTML4ButtonAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
   virtual already_AddRefed<nsAccessible>
     CreateHTMLButtonAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
+  already_AddRefed<nsAccessible>
+    CreateHTMLCanvasAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
   virtual already_AddRefed<nsAccessible>
     CreateHTMLCaptionAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
   virtual already_AddRefed<nsAccessible>
     CreateHTMLCheckboxAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
   virtual already_AddRefed<nsAccessible>
     CreateHTMLComboboxAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
+  already_AddRefed<nsAccessible>
+    CreateHTMLFileInputAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
   virtual already_AddRefed<nsAccessible>
     CreateHTMLGroupboxAccessible(nsIContent* aContent, nsIPresShell* aPresShell);
   virtual already_AddRefed<nsAccessible>
@@ -420,7 +439,8 @@ static const char kRoleNames[][20] = {
   "flat equation",       //ROLE_FLAT_EQUATION
   "gridcell",            //ROLE_GRID_CELL
   "embedded object",     //ROLE_EMBEDDED_OBJECT
-  "note"                 //ROLE_NOTE
+  "note",                //ROLE_NOTE
+  "figure"               //ROLE_FIGURE
 };
 
 /**

@@ -54,6 +54,8 @@
 #include "mozIStorageFunction.h"
 #include "nsNetUtil.h"
 
+using namespace mozilla;
+
 // Temporary tables for a storage scope will be flushed if found older
 // then this time in seconds since the load
 #define TEMP_TABLE_MAX_AGE (10) // seconds
@@ -447,6 +449,28 @@ nsDOMStoragePersistentDB::Init(const nsString& aDatabaseName)
   return NS_OK;
 }
 
+void
+nsDOMStoragePersistentDB::Close()
+{
+  // Null the statements, this will finalize them.
+  mCopyToTempTableStatement = nsnull;
+  mCopyBackToDiskStatement = nsnull;
+  mDeleteTemporaryTableStatement = nsnull;
+  mGetAllKeysStatement = nsnull;
+  mGetKeyValueStatement = nsnull;
+  mInsertKeyStatement = nsnull;
+  mSetSecureStatement = nsnull;
+  mRemoveKeyStatement = nsnull;
+  mRemoveOwnerStatement = nsnull;
+  mRemoveStorageStatement = nsnull;
+  mRemoveAllStatement = nsnull;
+  mGetOfflineExcludedUsageStatement = nsnull;
+  mGetFullUsageStatement = nsnull;
+
+  DebugOnly<nsresult> rv = mConnection->Close();
+  MOZ_ASSERT(NS_SUCCEEDED(rv));
+}
+
 nsresult
 nsDOMStoragePersistentDB::EnsureLoadTemporaryTableForStorage(DOMStorageImpl* aStorage)
 {
@@ -720,7 +744,7 @@ nsDOMStoragePersistentDB::SetKey(DOMStorageImpl* aStorage,
   NS_ENSURE_SUCCESS(rv, rv);
 
   if (!aStorage->GetQuotaDomainDBKey(!aExcludeOfflineFromUsage).IsEmpty()) {
-    mCachedOwner = aStorage->GetQuotaDomainDBKey(!aExcludeOfflineFromUsage);
+    // No need to set mCachedOwner since it was set by GetUsage()
     mCachedUsage = usage;
   }
 
@@ -783,8 +807,10 @@ nsDOMStoragePersistentDB::RemoveKey(DOMStorageImpl* aStorage,
 
   mozStorageStatementScoper scope(mRemoveKeyStatement);
 
-  if (aStorage->GetQuotaDomainDBKey(!aExcludeOfflineFromUsage) == mCachedOwner) {
-    mCachedUsage -= aKeyUsage;
+  if (DomainMaybeCached(
+      aStorage->GetQuotaDomainDBKey(!aExcludeOfflineFromUsage))) {
+    mCachedUsage = 0;
+    mCachedOwner.Truncate();
   }
 
   Binder binder(mRemoveKeyStatement, &rv);
@@ -853,14 +879,14 @@ nsDOMStoragePersistentDB::RemoveOwner(const nsACString& aOwner,
   nsCAutoString subdomainsDBKey;
   nsDOMStorageDBWrapper::CreateDomainScopeDBKey(aOwner, subdomainsDBKey);
 
-  if (!aIncludeSubDomains)
-    subdomainsDBKey.AppendLiteral(":");
-  subdomainsDBKey.AppendLiteral("*");
-
-  if (subdomainsDBKey == mCachedOwner) {
+  if (DomainMaybeCached(subdomainsDBKey)) {
     mCachedUsage = 0;
     mCachedOwner.Truncate();
   }
+
+  if (!aIncludeSubDomains)
+    subdomainsDBKey.AppendLiteral(":");
+  subdomainsDBKey.AppendLiteral("*");
 
   Binder binder(mRemoveOwnerStatement, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -935,6 +961,11 @@ nsDOMStoragePersistentDB::RemoveOwners(const nsTArray<nsString> &aOwners,
     nsCAutoString quotaKey;
     rv = nsDOMStorageDBWrapper::CreateDomainScopeDBKey(
       NS_ConvertUTF16toUTF8(aOwners[i]), quotaKey);
+
+    if (DomainMaybeCached(quotaKey)) {
+      mCachedUsage = 0;
+      mCachedOwner.Truncate();
+    }
 
     if (!aIncludeSubDomains)
       quotaKey.AppendLiteral(":");
@@ -1095,4 +1126,18 @@ nsDOMStoragePersistentDB::MaybeCommitInsertTransaction()
   NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
+}
+
+bool
+nsDOMStoragePersistentDB::DomainMaybeCached(const nsACString& aDomain)
+{
+  if (mCachedOwner.IsEmpty())
+    return false;
+
+  // if cached owner contains colon we must ignore it
+  if (mCachedOwner[mCachedOwner.Length() - 1] == ':')
+    return StringBeginsWith(aDomain, Substring(mCachedOwner, 0,
+                                               mCachedOwner.Length() - 1));
+  else
+    return StringBeginsWith(aDomain, mCachedOwner);
 }

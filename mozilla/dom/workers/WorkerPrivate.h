@@ -316,6 +316,9 @@ public:
   UpdateGCZeal(JSContext* aCx, PRUint8 aGCZeal);
 #endif
 
+  void
+  GarbageCollect(JSContext* aCx, bool aShrinking);
+
   using events::EventTarget::GetEventListenerOnEventTarget;
   using events::EventTarget::SetEventListenerOnEventTarget;
 
@@ -518,6 +521,7 @@ class WorkerPrivate : public WorkerPrivateParent<WorkerPrivate>
 
   // Touched on multiple threads, protected with mMutex.
   JSContext* mJSContext;
+  nsRefPtr<WorkerCrossThreadDispatcher> mCrossThreadDispatcher;
 
   // Things touched on worker thread only.
   nsTArray<ParentType*> mChildWorkers;
@@ -684,6 +688,10 @@ public:
   UpdateGCZealInternal(JSContext* aCx, PRUint8 aGCZeal);
 #endif
 
+  void
+  GarbageCollectInternal(JSContext* aCx, bool aShrinking,
+                         bool aCollectChildren);
+
   JSContext*
   GetJSContext() const
   {
@@ -705,6 +713,9 @@ public:
   AssertIsOnWorkerThread() const
   { }
 #endif
+
+  WorkerCrossThreadDispatcher*
+  GetCrossThreadDispatcher();
 
 private:
   WorkerPrivate(JSContext* aCx, JSObject* aObject, WorkerPrivate* aParent,
