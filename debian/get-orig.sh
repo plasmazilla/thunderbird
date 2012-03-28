@@ -10,17 +10,27 @@ if [ "$#" -lt 1 ]; then
     exit 1
 fi
 
-VERSION=$1
-ALLXPI=`wget http://mirror.switch.ch/ftp/mirror/mozilla/thunderbird/releases/$VERSION/linux-i686/xpi -O - | grep ".xpi</a>" | awk -F\" '{ print $10 }'`
+TMPDIR=`mktemp -d`
 CURDIR=`pwd`
+VERSION=$1
+
+if [ -f $CURDIR/../icedove-l10n_$VERSION.orig.tar.gz ]; then
+    echo "icedove-l10n_$VERSION.orig.tar.gz exists, giving up..."
+    exit 1
+fi
+
+ALLXPI=`wget http://mirror.switch.ch/ftp/mirror/mozilla/thunderbird/releases/$VERSION/linux-i686/xpi -O - | grep ".xpi</a>" | awk -F\" '{ print $10 }'`
+
+mkdir $TMPDIR/icedove-l10n-$VERSION
+mkdir $TMPDIR/icedove-l10n-$VERSION/upstream
+cd $TMPDIR/icedove-l10n-$VERSION
 
 for XPI in $ALLXPI; do
     LOCALE=`basename $XPI .xpi`
-    rm -rf $CURDIR/upstream/$LOCALE
-    mkdir $CURDIR/upstream/$LOCALE
-    wget -O $CURDIR/upstream/$XPI -4 http://releases.mozilla.org/pub/mozilla.org/thunderbird/releases/$VERSION/linux-i686/xpi/$XPI
-    unzip -o -q -d $CURDIR/upstream/$LOCALE $CURDIR/upstream/$XPI
-    cd $CURDIR/upstream/$LOCALE
+    mkdir upstream/$LOCALE
+    wget -O upstream/$XPI -4 http://mirror.switch.ch/ftp/mirror/mozilla/thunderbird/releases/$VERSION/linux-i686/xpi/$XPI
+    unzip -o -q -d upstream/$LOCALE upstream/$XPI
+    cd upstream/$LOCALE
     if [ -f chrome/$LOCALE.jar ]; then
         JAR=$LOCALE.jar
     else
@@ -30,6 +40,14 @@ for XPI in $ALLXPI; do
         unzip -o -q -d chrome chrome/$JAR
         rm -f chrome/$JAR
     fi
-    rm $CURDIR/upstream/$XPI
-    cd $CURDIR/upstream
+    cd $TMPDIR/icedove-l10n-$VERSION
+    rm upstream/$XPI
 done
+
+# en-US is integrated in icedove itself
+cd $TMPDIR/icedove-l10n-$VERSION
+rm -rf upstream/en-US
+cd ..
+tar -zcf icedove-l10n_$VERSION.orig.tar.gz icedove-l10n-$VERSION
+cp icedove-l10n_$VERSION.orig.tar.gz $CURDIR/..
+rm -rf $TMPDIR/icedove-l10n-$VERSION
