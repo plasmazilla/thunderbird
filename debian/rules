@@ -137,6 +137,10 @@ ifeq ($(DEB_BUILD_ARCH),armel)
 	DEB_CONFIGURE_USER_FLAGS += --disable-methodjit
 endif
 
+ifeq ($(DEB_BUILD_ARCH),sparc)
+	DEB_CONFIGURE_USER_FLAGS += --enable-optimize=-O1
+endif
+
 subst_files = \
 	debian/$(DEB_MOZ_APPLICATION).postinst \
 	debian/$(DEB_MOZ_APPLICATION).postrm \
