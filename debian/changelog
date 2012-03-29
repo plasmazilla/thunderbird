@@ -1,3 +1,9 @@
+icedove (10.0.3-3) unstable; urgency=low
+
+  * [c8d72a6] relax optimize to -O1 on sparc to fix FTBFS
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 29 Mar 2012 17:56:38 +0200
+
 icedove (10.0.3-2) unstable; urgency=low
 
   [ Christoph Goehre ]
