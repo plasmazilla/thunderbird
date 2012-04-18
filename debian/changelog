@@ -1,3 +1,30 @@
+icedove (11.0-1) experimental; urgency=low
+
+  * [ffb767a] Imported Upstream version 11.0 (Closes: #663897)
+  * [2b75f48] relax optimize to -O1 on sparc to fix FTBFS
+  * [fa9a610] update build dependencies (Thanks to Mike) (Closes: #666722)
+  * [5b552f2] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Bug-710972-Define-G_VARIANT_TYPE_STRING_ARRAY-when-b.patch
+    - fixes/Bug-734335-Only-build-SPS-on-supported-platforms.patch
+    - fixes/Revert-investigation-patch-for-bug-621446.patch
+    modified patches:
+    - fixes/Bug-691898-Use-YARR-interpreter-instead-of-PCRE-on-p.patch
+    - icedove/fix-branding-in-migration-wizard-and-the-addon-manag.patch
+    - icedove/save-a-copy-of-a-attached-file-when-sending-from-OOo.patch
+    obsolete patches (fixed upstream):
+    - debian-hacks/Fix-tracejit-to-build-against-nanojit-headers-in-dis.patch
+    - debian-hacks/Install-missing-nanojit-and-.tbl-headers-from-js-src.patch
+    - fixes/Bug-710268-Sign-NSS-libraries-only-when-they-exist-r.patch
+    - fixes/Fixup-bz-730195-for-Linux-ARM-use-_URC_FOREIGN_EXCEP.patch
+    - fixes/mozilla-config.h-was-renamed-js-confdefs.h-in-js-src.patch
+    - fixes/Remove-generated-files-from-js-src-during-make-distc.patch
+    - porting/Bug-703531-Fix-ARMAssembler-getOp2RegScale-on-ARMv5.patch
+    - porting/Bug-703534-Fix-build-failure-on-platforms-without-YA.patch
+    - porting/Bug-703842-Avoid-R_SPARC_WDISP22-relocation-in-Tramp.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Wed, 18 Apr 2012 18:36:31 +0200
+
 icedove (10.0.3-2) unstable; urgency=low
 
   [ Christoph Goehre ]
