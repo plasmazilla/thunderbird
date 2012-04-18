@@ -5,13 +5,13 @@ Subject: Bug 720682 - Don't crash an app using libxul because of the lack of
 
 ---
  mozilla/storage/src/mozStorageService.cpp |    3 ++-
- 1 files changed, 2 insertions(+), 1 deletions(-)
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/mozilla/storage/src/mozStorageService.cpp b/mozilla/storage/src/mozStorageService.cpp
-index 0121765..72b0705 100644
+index 6b59f8d..8c2f3e1 100644
 --- a/mozilla/storage/src/mozStorageService.cpp
 +++ b/mozilla/storage/src/mozStorageService.cpp
-@@ -369,7 +369,8 @@ static int sqliteMemSize(void* p)
+@@ -410,7 +410,8 @@ static int sqliteMemSize(void *p)
  
  static int sqliteMemRoundup(int n)
  {

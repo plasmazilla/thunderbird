@@ -8,12 +8,12 @@ addon-checking/installing/updating will work
 
 Closes: #565559
 ---
- mail/app/profile/all-thunderbird.js                |   28 ++++++++++----------
+ mail/app/profile/all-thunderbird.js                |   30 ++++++++++----------
  .../en-US/chrome/messenger/accountCreation.dtd     |    2 +-
- 2 files changed, 15 insertions(+), 15 deletions(-)
+ 2 files changed, 16 insertions(+), 16 deletions(-)
 
 diff --git a/mail/app/profile/all-thunderbird.js b/mail/app/profile/all-thunderbird.js
-index f4b441e..31a175a 100644
+index cd75f07..6606c22 100644
 --- a/mail/app/profile/all-thunderbird.js
 +++ b/mail/app/profile/all-thunderbird.js
 @@ -1,4 +1,4 @@
@@ -44,15 +44,17 @@ index f4b441e..31a175a 100644
  
  // Controls enabling of the extension system logging (can reduce performance)
  pref("extensions.logging.enabled", false);
-@@ -145,17 +145,17 @@ pref("extensions.autoDisableScopes", 15);
+@@ -145,18 +145,18 @@ pref("extensions.autoDisableScopes", 15);
  // Preferences for AMO integration
  pref("extensions.getAddons.cache.enabled", true);
  pref("extensions.getAddons.maxResults", 15);
--pref("extensions.getAddons.get.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/guid:%IDS%?src=thunderbird&appOS=%OS%&appVersion=%VERSION%&tMain=%TIME_MAIN%&tFirstPaint=%TIME_FIRST_PAINT%&tSessionRestored=%TIME_SESSION_RESTORED%");
+-pref("extensions.getAddons.get.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/guid:%IDS%?src=thunderbird&appOS=%OS%&appVersion=%VERSION%");
+-pref("extensions.getAddons.getWithPerformance.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/guid:%IDS%?src=thunderbird&appOS=%OS%&appVersion=%VERSION%&tMain=%TIME_MAIN%&tFirstPaint=%TIME_FIRST_PAINT%&tSessionRestored=%TIME_SESSION_RESTORED%");
 -pref("extensions.getAddons.search.browseURL", "https://addons.mozilla.org/%LOCALE%/%APP%/search?q=%TERMS%");
 -pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/%APP%/api/%API_VERSION%/search/%TERMS%/all/%MAX_RESULTS%/%OS%/%VERSION%/%COMPATIBILITY_MODE%?src=thunderbird");
 -pref("extensions.webservice.discoverURL", "https://services.addons.mozilla.org/%LOCALE%/%APP%/discovery/pane/%VERSION%/%OS%");
-+pref("extensions.getAddons.get.url", "https://services.addons.mozilla.org/%LOCALE%/thunderbird/api/%API_VERSION%/search/guid:%IDS%?src=thunderbird&appOS=%OS%&appVersion=%VERSION%&tMain=%TIME_MAIN%&tFirstPaint=%TIME_FIRST_PAINT%&tSessionRestored=%TIME_SESSION_RESTORED%");
++pref("extensions.getAddons.get.url", "https://services.addons.mozilla.org/%LOCALE%/thunderbird/api/%API_VERSION%/search/guid:%IDS%?src=thunderbird&appOS=%OS%&appVersion=%VERSION%");
++pref("extensions.getAddons.getWithPerformance.url", "https://services.addons.mozilla.org/%LOCALE%/thunderbird/api/%API_VERSION%/search/guid:%IDS%?src=thunderbird&appOS=%OS%&appVersion=%VERSION%&tMain=%TIME_MAIN%&tFirstPaint=%TIME_FIRST_PAINT%&tSessionRestored=%TIME_SESSION_RESTORED%");
 +pref("extensions.getAddons.search.browseURL", "https://addons.mozilla.org/%LOCALE%/thunderbird/search?q=%TERMS%");
 +pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/thunderbird/api/%API_VERSION%/search/%TERMS%/all/%MAX_RESULTS%/%OS%/%VERSION%/%COMPATIBILITY_MODE%?src=thunderbird");
 +pref("extensions.webservice.discoverURL", "https://services.addons.mozilla.org/%LOCALE%/thunderbird/discovery/pane/%VERSION%/%OS%");
@@ -68,7 +70,7 @@ index f4b441e..31a175a 100644
  
  // Enables some extra Extension System Logging (can reduce performance) 
  pref("extensions.logging.enabled", false); 
-@@ -173,7 +173,7 @@ pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/Ve
+@@ -174,7 +174,7 @@ pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/Ve
  pref("extensions.update.interval", 86400);  // Check for updates to Extensions and 
                                              // Themes every day
  
@@ -77,7 +79,7 @@ index f4b441e..31a175a 100644
  pref("extensions.dss.enabled", false);          // Dynamic Skin Switching                                               
  pref("extensions.dss.switchPending", false);    // Non-dynamic switch pending after next
  
-@@ -364,7 +364,7 @@ pref("javascript.options.showInConsole",    true);
+@@ -370,7 +370,7 @@ pref("javascript.options.showInConsole",    true);
  
  pref("spellchecker.dictionary", "");
  // Dictionary download preference
@@ -86,7 +88,7 @@ index f4b441e..31a175a 100644
  
  // profile.force.migration can be used to bypass the migration wizard, forcing migration from a particular
  // mail application without any user intervention. Possible values are: 
-@@ -501,7 +501,7 @@ pref("mailnews.database.global.indexer.enabled", true);
+@@ -507,7 +507,7 @@ pref("mailnews.database.global.indexer.enabled", true);
  pref("mailnews.database.global.logging.console", true);
  
  // page to load to find good header add-ons
@@ -95,7 +97,7 @@ index f4b441e..31a175a 100644
  
  // Serif fonts look dated.  Switching those language families to sans-serif
  // where we think it makes sense.  Worth investigating for other font families
-@@ -725,7 +725,7 @@ pref("plugins.hide_infobar_for_carbon_failure_plugin", false);
+@@ -731,7 +731,7 @@ pref("plugins.hide_infobar_for_carbon_failure_plugin", false);
  
  pref("plugins.update.url", "https://www.mozilla.com/%LOCALE%/plugincheck/");
  pref("plugins.update.notifyUser", false);

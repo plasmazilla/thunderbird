@@ -7,13 +7,13 @@ Subject: Bug 728229 - Allow to build with system python ply library
  mozilla/configure.in                    |   10 ++++++++++
  mozilla/xpcom/idl-parser/Makefile.in    |    2 ++
  mozilla/xpcom/typelib/xpidl/Makefile.in |    2 ++
- 4 files changed, 16 insertions(+), 0 deletions(-)
+ 4 files changed, 16 insertions(+)
 
 diff --git a/mozilla/config/autoconf.mk.in b/mozilla/config/autoconf.mk.in
-index a168406..c3ced04 100644
+index c33816d..1afe63f 100644
 --- a/mozilla/config/autoconf.mk.in
 +++ b/mozilla/config/autoconf.mk.in
-@@ -684,6 +684,8 @@ JS_SHARED_LIBRARY = @JS_SHARED_LIBRARY@
+@@ -697,6 +697,8 @@ JS_SHARED_LIBRARY = @JS_SHARED_LIBRARY@
  
  MOZ_INSTRUMENT_EVENT_LOOP = @MOZ_INSTRUMENT_EVENT_LOOP@
  
@@ -23,10 +23,10 @@ index a168406..c3ced04 100644
  ifeq ($(HOST_OS_ARCH),WINNT)
  # Ensure invariants between GNU Make and pymake
 diff --git a/mozilla/configure.in b/mozilla/configure.in
-index 28d2b44..0307c52 100644
+index 0c93bff..64c7b45 100644
 --- a/mozilla/configure.in
 +++ b/mozilla/configure.in
-@@ -1021,6 +1021,16 @@ if test -z "$PYTHON"; then
+@@ -1079,6 +1079,16 @@ if test -z "$PYTHON"; then
      AC_MSG_ERROR([python was not found in \$PATH])
  fi
  

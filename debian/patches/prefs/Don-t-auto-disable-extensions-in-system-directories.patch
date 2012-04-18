@@ -4,10 +4,10 @@ Subject: Don't auto-disable extensions in system directories
 
 ---
  mail/app/profile/all-thunderbird.js |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mail/app/profile/all-thunderbird.js b/mail/app/profile/all-thunderbird.js
-index 31a175a..2e61b29 100644
+index 6606c22..8d1198c 100644
 --- a/mail/app/profile/all-thunderbird.js
 +++ b/mail/app/profile/all-thunderbird.js
 @@ -140,7 +140,7 @@ pref("extensions.update.autoUpdateDefault", true);

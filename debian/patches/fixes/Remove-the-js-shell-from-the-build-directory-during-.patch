@@ -4,7 +4,7 @@ Subject: Remove the js shell from the build directory during cleanup
 
 ---
  mozilla/js/src/shell/Makefile.in |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+ 1 file changed, 2 insertions(+)
 
 diff --git a/mozilla/js/src/shell/Makefile.in b/mozilla/js/src/shell/Makefile.in
 index 4df10ed..725fd86 100644

@@ -11,21 +11,21 @@ Squashed kFreeBSD/Hurd related fixes:
 - Build fixes for GNU/kFreeBSD in directory/
 - Missing bits for Hurd support
 ---
- configure.in                                       |    7 +++--
+ configure.in                                       |    7 ++---
  ldap/sdks/c-sdk/config/nsinstall.c                 |    2 +-
- ldap/sdks/c-sdk/configure.in                       |   15 +++++++---
- ldap/sdks/c-sdk/ldap/include/portable.h            |   28 +++++++++++--------
- .../c-sdk/ldap/libraries/libldap/Makefile.client   |    4 +-
+ ldap/sdks/c-sdk/configure.in                       |   15 +++++++----
+ ldap/sdks/c-sdk/ldap/include/portable.h            |   28 +++++++++++---------
+ .../c-sdk/ldap/libraries/libldap/Makefile.client   |    4 +--
  ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in |    2 +-
  ldap/sdks/c-sdk/ldap/libraries/libldap/compat.c    |    2 +-
  .../c-sdk/ldap/libraries/libprldap/ldappr-error.c  |    2 +-
  8 files changed, 36 insertions(+), 26 deletions(-)
 
 diff --git a/configure.in b/configure.in
-index cfe42b6..c8ef6f4 100644
+index ed037eb..b7c32fc 100644
 --- a/configure.in
 +++ b/configure.in
-@@ -1119,6 +1119,7 @@ if test -n "$CROSS_COMPILE"; then
+@@ -1124,6 +1124,7 @@ if test -n "$CROSS_COMPILE"; then
      case "${target_os}" in
          linux*)       OS_ARCH=Linux OS_TARGET=Linux ;;
          kfreebsd*-gnu) OS_ARCH=GNU_kFreeBSD OS_TARGET=GNU_kFreeBSD ;;
@@ -33,7 +33,7 @@ index cfe42b6..c8ef6f4 100644
          solaris*)     OS_ARCH=SunOS OS_RELEASE=5 ;;
          mingw*)       OS_ARCH=WINNT ;;
          wince*)       OS_ARCH=WINCE ;;
-@@ -1765,7 +1766,7 @@ case "$host" in
+@@ -1770,7 +1771,7 @@ case "$host" in
      HOST_OPTIMIZE_FLAGS="${HOST_OPTIMIZE_FLAGS=-O3}"
      ;;
  
@@ -42,7 +42,7 @@ index cfe42b6..c8ef6f4 100644
      HOST_CFLAGS="$HOST_CFLAGS -DXP_UNIX"
      HOST_NSPR_MDCPUCFG='\"md/_linux.cfg\"'
      HOST_OPTIMIZE_FLAGS="${HOST_OPTIMIZE_FLAGS=-O3}"
-@@ -2760,7 +2761,7 @@ dnl ========================================================
+@@ -2765,7 +2766,7 @@ dnl ========================================================
  dnl = Flags to strip unused symbols from .so components
  dnl ========================================================
  case "$target" in
@@ -51,7 +51,7 @@ index cfe42b6..c8ef6f4 100644
          MOZ_COMPONENTS_VERSION_SCRIPT_LDFLAGS='-Wl,--version-script -Wl,$(BUILD_TOOLS)/gnu-ld-scripts/components-version-script'
          ;;
      *-solaris*)
-@@ -3385,7 +3386,7 @@ then
+@@ -3431,7 +3432,7 @@ then
  			fi
  			;;
  

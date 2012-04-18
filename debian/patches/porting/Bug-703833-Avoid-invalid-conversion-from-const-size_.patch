@@ -5,15 +5,15 @@ Subject: Bug 703833 - Avoid invalid conversion from 'const size_t*' to 'const
 
 ---
  mozilla/js/src/jsgc.cpp |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/js/src/jsgc.cpp b/mozilla/js/src/jsgc.cpp
-index e64f3f5..ea4b1f5 100644
+index 87e352c..a1a997a 100644
 --- a/mozilla/js/src/jsgc.cpp
 +++ b/mozilla/js/src/jsgc.cpp
-@@ -1052,8 +1052,8 @@ MarkStackRangeConservatively(JSTracer *trc, Value *beginv, Value *endv)
+@@ -1077,8 +1077,8 @@ MarkStackRangeConservatively(JSTracer *trc, Value *beginv, Value *endv)
          ~AutoSkipChecking() { runtime->gcCheckCompartment = savedCompartment; }
-     } as(trc->context->runtime);
+     } as(trc->runtime);
  
 -    const jsuword *begin = beginv->payloadWord();
 -    const jsuword *end = endv->payloadWord();

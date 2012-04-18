@@ -3,14 +3,14 @@ Date: Thu, 3 Nov 2011 22:35:44 +0100
 Subject: Change extension's name to Iceowl
 
 ---
- calendar/lightning/install.rdf                     |    2 +-
- .../en-US/chrome/calendar/timezones.properties     |    2 +-
- .../locales/en-US/chrome/lightning/lightning.dtd   |    2 +-
- .../en-US/chrome/lightning/lightning.properties    |    8 ++++----
+ calendar/lightning/install.rdf                               |    2 +-
+ calendar/locales/en-US/chrome/calendar/timezones.properties  |    2 +-
+ calendar/locales/en-US/chrome/lightning/lightning.dtd        |    2 +-
+ calendar/locales/en-US/chrome/lightning/lightning.properties |    8 ++++----
  4 files changed, 7 insertions(+), 7 deletions(-)
 
 diff --git a/calendar/lightning/install.rdf b/calendar/lightning/install.rdf
-index 10fd7a5..3b18ba2 100644
+index 602e1aa..cf1a1c3 100644
 --- a/calendar/lightning/install.rdf
 +++ b/calendar/lightning/install.rdf
 @@ -26,7 +26,7 @@
@@ -36,7 +36,7 @@ index f7275f8..bd0f618 100644
  
  pref.timezone.floating=Local Time
 diff --git a/calendar/locales/en-US/chrome/lightning/lightning.dtd b/calendar/locales/en-US/chrome/lightning/lightning.dtd
-index a4b532d..84aa1ba 100644
+index d4babe2..0e630f6 100644
 --- a/calendar/locales/en-US/chrome/lightning/lightning.dtd
 +++ b/calendar/locales/en-US/chrome/lightning/lightning.dtd
 @@ -46,7 +46,7 @@

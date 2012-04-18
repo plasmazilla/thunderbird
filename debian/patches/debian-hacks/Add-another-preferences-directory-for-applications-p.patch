@@ -7,10 +7,10 @@ This can be used to symlink to /etc/ice*/pref.
 
 ---
  mozilla/toolkit/xre/nsXREDirProvider.cpp |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+ 1 file changed, 2 insertions(+)
 
 diff --git a/mozilla/toolkit/xre/nsXREDirProvider.cpp b/mozilla/toolkit/xre/nsXREDirProvider.cpp
-index 45bdfb1..da71bdd 100644
+index 200de65..6e11878 100644
 --- a/mozilla/toolkit/xre/nsXREDirProvider.cpp
 +++ b/mozilla/toolkit/xre/nsXREDirProvider.cpp
 @@ -603,6 +603,7 @@ nsXREDirProvider::LoadAppBundleDirs()

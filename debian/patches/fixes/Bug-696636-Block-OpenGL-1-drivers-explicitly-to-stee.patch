@@ -9,7 +9,7 @@ Subject: Bug 696636 - Block OpenGL 1 drivers explicitly to steer clear of
  2 files changed, 14 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp b/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp
-index 2bc377d..ad9e5e4 100644
+index 1c7b94b..25a72fd 100644
 --- a/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp
 +++ b/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp
 @@ -61,6 +61,7 @@ pid_t glxtest_pid = 0;
@@ -39,7 +39,7 @@ index 2bc377d..ad9e5e4 100644
      if (whereToReadVersionNumbers) {
          // copy into writable buffer, for tokenization
          strncpy(buf, whereToReadVersionNumbers, buf_size);
-@@ -275,6 +279,14 @@ GfxInfo::GetFeatureStatusImpl(PRInt32 aFeature,
+@@ -276,6 +280,14 @@ GfxInfo::GetFeatureStatusImpl(PRInt32 aFeature,
  
      OperatingSystem os = DRIVER_OS_LINUX;
  
@@ -55,7 +55,7 @@ index 2bc377d..ad9e5e4 100644
      if (aFeature == nsIGfxInfo::FEATURE_OPENGL_LAYERS && !mHasTextureFromPixmap) {
          *aStatus = nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION;
 diff --git a/mozilla/widget/src/xpwidgets/GfxInfoX11.h b/mozilla/widget/src/xpwidgets/GfxInfoX11.h
-index 2525db0..03878ff 100644
+index 43690c0..94e5652 100644
 --- a/mozilla/widget/src/xpwidgets/GfxInfoX11.h
 +++ b/mozilla/widget/src/xpwidgets/GfxInfoX11.h
 @@ -95,7 +95,7 @@ private:

@@ -8,7 +8,7 @@ loaded in most cases.
 
 ---
  mozilla/xulrunner/app/Makefile.in |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+ 1 file changed, 2 insertions(+)
 
 diff --git a/mozilla/xulrunner/app/Makefile.in b/mozilla/xulrunner/app/Makefile.in
 index d6efcbb..eae02da 100644

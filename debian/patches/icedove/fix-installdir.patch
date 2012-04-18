@@ -4,7 +4,7 @@ Subject: fix installdir
 
 ---
  mail/app/Makefile.in |    6 +++---
- 1 files changed, 3 insertions(+), 3 deletions(-)
+ 1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/mail/app/Makefile.in b/mail/app/Makefile.in
 index e16325c..c511579 100644
