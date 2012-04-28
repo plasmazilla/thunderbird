@@ -1,0 +1,26 @@
+From 57f0364f89d03987f8d4d3a4ebdd016da13a1b16 Mon Sep 17 00:00:00 2001
+From: Daniel Holbert <dholbert@cs.stanford.edu>
+Date: Fri, 9 Mar 2012 14:32:11 -0800
+Subject: Bug 734288: Use double math instead of float math for computing
+ surface sizes in nsSVGFE::SetupScalingFilter. r=longsonr a=lsblakk
+
+---
+ content/svg/content/src/nsSVGFilters.cpp |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mozilla/content/svg/content/src/nsSVGFilters.cpp b/mozilla/content/svg/content/src/nsSVGFilters.cpp
+index ecfc8ec..9f090c9 100644
+--- a/mozilla/content/svg/content/src/nsSVGFilters.cpp
++++ b/mozilla/content/svg/content/src/nsSVGFilters.cpp
+@@ -146,7 +146,7 @@ nsSVGFE::SetupScalingFilter(nsSVGFilterInstance *aInstance,
+     return result;
+   }
+ 
+-  float kernelX, kernelY;
++  gfxFloat kernelX, kernelY;
+   nsSVGLength2 val;
+   val.Init(nsSVGUtils::X, 0xff,
+            aUnitX->GetAnimValue(),
+-- 
+1.7.10
+

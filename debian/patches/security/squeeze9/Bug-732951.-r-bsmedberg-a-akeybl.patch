@@ -1,0 +1,71 @@
+From ff103a0b68f9692d96eb31506a68f0b76acf5acf Mon Sep 17 00:00:00 2001
+From: Mats Palmgren <matspal@gmail.com>
+Date: Tue, 20 Mar 2012 19:02:38 +0100
+Subject: Bug 732951. r=bsmedberg, a=akeybl
+
+---
+ xpcom/string/public/nsTSubstring.h |    2 +-
+ xpcom/string/src/nsTSubstring.cpp  |   18 +++++++-----------
+ 2 files changed, 8 insertions(+), 12 deletions(-)
+
+diff --git a/mozilla/xpcom/string/public/nsTSubstring.h b/mozilla/xpcom/string/public/nsTSubstring.h
+index b9a4904..a6d551d 100644
+--- a/mozilla/xpcom/string/public/nsTSubstring.h
++++ b/mozilla/xpcom/string/public/nsTSubstring.h
+@@ -423,7 +423,7 @@ class nsTSubstring_CharT
+ 
+       NS_COM void NS_FASTCALL SetCapacity( size_type newCapacity );
+ 
+-      NS_COM void NS_FASTCALL SetLength( size_type newLength );
++      NS_COM PRBool NS_FASTCALL SetLength( size_type newLength );
+ 
+       void Truncate( size_type newLength = 0 )
+         {
+diff --git a/mozilla/xpcom/string/src/nsTSubstring.cpp b/mozilla/xpcom/string/src/nsTSubstring.cpp
+index 811e9ee..b9d5724 100644
+--- a/mozilla/xpcom/string/src/nsTSubstring.cpp
++++ b/mozilla/xpcom/string/src/nsTSubstring.cpp
+@@ -317,16 +317,9 @@ nsTSubstring_CharT::EnsureMutable( size_type newLen )
+         if ((mFlags & F_SHARED) && !nsStringBuffer::FromData(mData)->IsReadonly())
+           return PR_TRUE;
+ 
+-        // promote to a shared string buffer
+-        char_type* prevData = mData;
+-        Assign(string_type(mData, mLength));
+-        return mData != prevData;
+-      }
+-    else
+-      {
+-        SetLength(newLen);
+-        return mLength == newLen;
++        newLen = mLength;
+       }
++    return SetLength(newLen);
+   }
+ 
+ // ---------------------------------------------------------------------------
+@@ -599,7 +592,7 @@ nsTSubstring_CharT::SetCapacity( size_type capacity )
+       }
+   }
+ 
+-void
++PRBool
+ nsTSubstring_CharT::SetLength( size_type length )
+   {
+     SetCapacity(length);
+@@ -609,8 +602,11 @@ nsTSubstring_CharT::SetLength( size_type length )
+     // changed as expected as a means of error checking.
+  
+     size_type capacity = Capacity();
+-    if (capacity != size_type(-1) && capacity >= length)
++    if (capacity != size_type(-1) && capacity >= length) {
+       mLength = length;
++      return PR_TRUE;
++    }
++    return PR_FALSE;
+   }
+ 
+ void
+-- 
+1.7.10
+

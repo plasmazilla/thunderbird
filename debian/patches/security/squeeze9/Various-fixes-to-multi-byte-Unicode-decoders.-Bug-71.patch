@@ -1,0 +1,261 @@
+From 803445bdd66871072c735550a18d748e1a404b96 Mon Sep 17 00:00:00 2001
+From: Simon Montagu <smontagu@smontagu.org>
+Date: Fri, 16 Mar 2012 13:41:41 -0700
+Subject: Various fixes to multi-byte Unicode decoders. Bug 715319, r=emk,
+ a=akeybl
+
+---
+ intl/uconv/src/charsetData.properties    |    1 +
+ intl/uconv/src/charsetalias.properties   |    2 +-
+ intl/uconv/ucvcn/nsGBKToUnicode.cpp      |    9 +++-
+ intl/uconv/ucvcn/nsHZToUnicode.cpp       |   72 +++++++++++++++++-------------
+ intl/uconv/ucvja/nsJapaneseToUnicode.cpp |   30 +++++++++----
+ 5 files changed, 72 insertions(+), 42 deletions(-)
+
+diff --git a/mozilla/intl/uconv/src/charsetData.properties b/mozilla/intl/uconv/src/charsetData.properties
+index d4d2de7..866ac63 100644
+--- a/mozilla/intl/uconv/src/charsetData.properties
++++ b/mozilla/intl/uconv/src/charsetData.properties
+@@ -92,6 +92,7 @@ x-mac-farsi.isXSSVulnerable             = true
+ x-mac-hebrew.isXSSVulnerable            = true
+ x-imap4-modified-utf7.isXSSVulnerable   = true
+ utf-7.isXSSVulnerable                   = true
++t.61-8bit.isXSSVulnerable               = true
+ 
+ t.61-8bit.notForOutgoing             = true
+ utf-7.notForOutgoing                 = true
+diff --git a/mozilla/intl/uconv/src/charsetalias.properties b/mozilla/intl/uconv/src/charsetalias.properties
+index dd1ad48..9f7674b 100644
+--- a/mozilla/intl/uconv/src/charsetalias.properties
++++ b/mozilla/intl/uconv/src/charsetalias.properties
+@@ -301,7 +301,7 @@ cp932=Shift_JIS
+ #
+ # Aliases for EUC_JP
+ #
+-cseucjpkdfmtjapanese=EUC-JP
++cseucpkdfmtjapanese=EUC-JP
+ x-euc-jp=EUC-JP
+ #
+ # Aliases for ISO-2022-JP
+diff --git a/mozilla/intl/uconv/ucvcn/nsGBKToUnicode.cpp b/mozilla/intl/uconv/ucvcn/nsGBKToUnicode.cpp
+index e466546..36a3029 100644
+--- a/mozilla/intl/uconv/ucvcn/nsGBKToUnicode.cpp
++++ b/mozilla/intl/uconv/ucvcn/nsGBKToUnicode.cpp
+@@ -217,11 +217,16 @@ NS_IMETHODIMP nsGBKToUnicode::ConvertNoBuff(const char* aSrc,
+                }
+              }
+            }
++           aSrc += 4;
++           i += 3;
+         } else {
+           *aDest = UCS2_NO_MAPPING; 
++          // If the third and fourth bytes are not in the legal ranges for
++          // a four-byte sequnce, resynchronize on the second byte
++          // (which we know is in the range of LEGAL_GBK_4BYTE_SECOND_BYTE,
++          //  0x30-0x39)
++          aSrc++;
+         }
+-        aSrc += 4;
+-        i+=3;
+       }
+       else if ((PRUint8) aSrc[0] == (PRUint8)0xA0 )
+       {
+diff --git a/mozilla/intl/uconv/ucvcn/nsHZToUnicode.cpp b/mozilla/intl/uconv/ucvcn/nsHZToUnicode.cpp
+index eacbd3e..7aacde3 100644
+--- a/mozilla/intl/uconv/ucvcn/nsHZToUnicode.cpp
++++ b/mozilla/intl/uconv/ucvcn/nsHZToUnicode.cpp
+@@ -46,9 +46,14 @@
+  *       http://www.cis.ohio-state.edu/htbin/rfc/rfc1843.html
+  *       and RFC1842 available at http://www.cis.ohio-state.edu/htbin/rfc/rfc1842.html.
+  *        
+- *       In an effort to match the similar extended capability of Microsoft Internet Explorer
+- *       5.0. We also accept the 8-bit GB encoded chars mixed in a HZ string.
+- *       But this should not be a recommendedd practice for HTML authors.
++ *       Earlier versions of the converter said:
++ *        "In an effort to match the similar extended capability of Microsoft 
++ *         Internet Explorer 5.0. We also accept the 8-bit GB encoded chars
++ *         mixed in a HZ string. 
++ *         But this should not be a recommendedd practice for HTML authors."
++ *       However, testing in current versions of IE shows that it only accepts
++ *       8-bit characters when the converter is in GB state, and when in ASCII
++ *       state each single 8-bit character is converted to U+FFFD
+  *
+  *       The priority of converting are as follows: first convert 8-bit GB code; then,
+  *       consume HZ ESC sequences such as '~{', '~}', '~~'; then, depending on the current
+@@ -74,7 +79,6 @@
+ #define HZLEAD1 '~'
+ #define HZLEAD2 '{'
+ #define HZLEAD3 '}'
+-#define HZLEAD4 '\n'
+ #define HZ_ODD_BYTE_STATE (mHZState & (HZ_STATE_ODD_BYTE_FLAG))
+ #define HZ_ENCODING_STATE (mHZState & ~(HZ_STATE_ODD_BYTE_FLAG))
+ 
+@@ -107,23 +111,28 @@ NS_IMETHODIMP nsHZToUnicode::ConvertNoBuff(
+ 
+     char srcByte = *aSrc++;
+     (*aSrcLength)++;
++    
+     if (!HZ_ODD_BYTE_STATE) {
+-      if (srcByte & 0x80 || srcByte == HZLEAD1 || HZ_ENCODING_STATE == HZ_STATE_GB) { 
++      if (srcByte == HZLEAD1 || 
++          (HZ_ENCODING_STATE == HZ_STATE_GB && 
++           (UINT8_IN_RANGE(0x21, srcByte, 0x7E) ||
++            UINT8_IN_RANGE(0x81, srcByte, 0xFE)))) {
+         oddByte = srcByte;
+         mHZState |= HZ_STATE_ODD_BYTE_FLAG;
+       } else {
+-        *aDest++ = CAST_CHAR_TO_UNICHAR(srcByte);
++        *aDest++ = (srcByte & 0x80) ? UCS2_NO_MAPPING :
++                                      CAST_CHAR_TO_UNICHAR(srcByte);
+         iDestlen++;
+       }
+     } else {
+-      if (oddByte & 0x80) { // if it is a 8-bit byte
+-        if (UINT8_IN_RANGE(0x81, oddByte, 0xFE) &&
+-            UINT8_IN_RANGE(0x40, srcByte, 0xFE)) {
+-          // The source is a 8-bit GBCode
+-          *aDest++ = mUtil.GBKCharToUnicode(oddByte, srcByte);
+-        } else {
+-          *aDest++ = UCS2_NO_MAPPING;
+-        }
++      if (oddByte & 0x80) {
++        // Accept legal 8-bit GB 2312-80 sequences in GB mode only
++        NS_ASSERTION(HZ_ENCODING_STATE == HZ_STATE_GB,
++                     "Invalid lead byte in ASCII mode");                    
++        *aDest++ = (UINT8_IN_RANGE(0x81, oddByte, 0xFE) &&
++                    UINT8_IN_RANGE(0x40, srcByte, 0xFE)) ?
++                     mUtil.GBKCharToUnicode(oddByte, srcByte) : UCS2_NO_MAPPING;
++        mRunLength++;
+         iDestlen++;
+       // otherwise, it is a 7-bit byte 
+       // The source will be an ASCII or a 7-bit HZ code depending on oddByte
+@@ -132,14 +141,14 @@ NS_IMETHODIMP nsHZToUnicode::ConvertNoBuff(
+           case HZLEAD2: 
+             // we got a '~{'
+             // we are switching to HZ state
+-            mHZState = HZ_STATE_GB | HZ_ODD_BYTE_STATE;
++            mHZState = HZ_STATE_GB;
+             mRunLength = 0;
+             break;
+ 
+           case HZLEAD3: 
+             // we got a '~}'
+             // we are switching to ASCII state
+-            mHZState = HZ_STATE_ASCII | HZ_ODD_BYTE_STATE;
++            mHZState = HZ_STATE_ASCII;
+             if (mRunLength == 0) {
+               *aDest++ = UCS2_NO_MAPPING;
+               iDestlen++;
+@@ -154,25 +163,28 @@ NS_IMETHODIMP nsHZToUnicode::ConvertNoBuff(
+             mRunLength++;
+             break;
+ 
+-          case HZLEAD4:   
+-            // we got a "~\n", it means maintain double byte mode cross lines,
+-            // ignore the '~' itself
+-            //  mHZState = HZ_STATE_GB; 
+-            // I find that "~\n" should interpreted as line continuation
+-            // without mode change
+-            // It should not be interpreted as line continuation with double
+-            // byte mode on
+-            break;
+-
+           default:
+-            // undefined ESC sequence '~X' are ignored since this is an
+-            // illegal combination 
+-            *aDest++ = UCS2_NO_MAPPING;
++            // Undefined ESC sequence '~X': treat as an error if X is a
++            // printable character or we are in ASCII mode, and resynchronize
++            // on the second character.
++            // 
++            // N.B. For compatibility with other implementations, we treat '~\n'
++            // as an illegal sequence even though RFC1843 permits it, and for
++            // the same reason we pass through control characters including '\n'
++            // and ' ' even in GB mode.
++            if (srcByte > 0x20 || HZ_ENCODING_STATE == HZ_STATE_ASCII) {
++              *aDest++ = UCS2_NO_MAPPING;
++            }
++            aSrc--;
++            (*aSrcLength)--;
+             iDestlen++;
+             break;
+         }
+       } else if (HZ_ENCODING_STATE == HZ_STATE_GB) {
+-        *aDest++ = mUtil.GBKCharToUnicode(oddByte|0x80, srcByte|0x80);
++        *aDest++ = (UINT8_IN_RANGE(0x21, oddByte, 0x7E) &&
++                    UINT8_IN_RANGE(0x21, srcByte, 0x7E)) ?
++                     mUtil.GBKCharToUnicode(oddByte|0x80, srcByte|0x80) :
++                     UCS2_NO_MAPPING;
+         mRunLength++;
+         iDestlen++;
+       } else {
+diff --git a/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp b/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp
+index 5da487f..12fad8e 100644
+--- a/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp
++++ b/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp
+@@ -51,6 +51,9 @@ static NS_DEFINE_CID(kCharsetConverterManagerCID, NS_ICHARSETCONVERTERMANAGER_CI
+ #define JIS0208_INDEX mMapIndex[1]
+ #define JIS0212_INDEX gJIS0212Index
+ #define UNICODE_REPLACEMENT_CHARACTER 0xfffd
++#define IN_GR_RANGE(b) \
++  ((PRUint8(0xa1) <= PRUint8(b)) && (PRUint8(b) <= PRUint8(0xfe)))
++
+ 
+ void nsJapaneseToUnicode::setMapMode()
+ {
+@@ -365,7 +368,7 @@ NS_IMETHODIMP nsEUCJPToUnicodeV2::Convert(
+ 
+           case 3: // JIS 0212
+           {
+-            if(*src & 0x80)
++            if(IN_GR_RANGE(*src))
+             {
+               mData = JIS0212_INDEX[*src & 0x7F];
+               if(mData != 0xFFFD )
+@@ -375,26 +378,35 @@ NS_IMETHODIMP nsEUCJPToUnicodeV2::Convert(
+                  mState = 5; // error
+               }
+             } else {
+-              mState = 5; // error
++              // First "JIS 0212" byte is not in the valid GR range: save it
++              *dest++ = 0xFFFD;
++              --src;
++              mState = 0;
++              if(dest >= destEnd)
++                goto error1;
+             }
+           }
+           break;
+           case 4:
+           {
+             PRUint8 off = sbIdx[*src];
+-            if(0xFF == off) {
+-               *dest++ = 0xFFFD;
+-            } else {
++            if(0xFF != off) {
+                *dest++ = gJapaneseMap[mData+off];
++               mState = 0;
++              if(dest >= destEnd)
++                goto error1;
++              break;
+             }
+-            mState = 0;
+-            if(dest >= destEnd)
+-              goto error1;
++            // else fall through to error handler
+           }
+-          break;
+           case 5: // two bytes undefined
+           {
+             *dest++ = 0xFFFD;
++            // Undefined JIS 0212 two byte sequence. If the second byte is in
++            // the valid range for a two byte sequence (0xa1 - 0xfe) consume
++            // both bytes. Otherwise resynchronize on the second byte.
++            if (!IN_GR_RANGE(*src))
++              --src;
+             mState = 0;
+             if(dest >= destEnd)
+               goto error1;
+-- 
+1.7.10
+

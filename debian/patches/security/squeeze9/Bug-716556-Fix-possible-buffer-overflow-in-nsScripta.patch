@@ -1,0 +1,27 @@
+From b2f53eecde4ef4fc1efeb310e343825d7a5f3a33 Mon Sep 17 00:00:00 2001
+From: John Schoenick <jschoenick@mozilla.com>
+Date: Mon, 13 Feb 2012 11:26:28 -0800
+Subject: Bug 716556 - Fix possible buffer overflow in nsScriptableInputStream
+ (attempt 2). r=bsmedberg a=lsblakk
+
+---
+ xpcom/io/nsScriptableInputStream.cpp |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mozilla/xpcom/io/nsScriptableInputStream.cpp b/mozilla/xpcom/io/nsScriptableInputStream.cpp
+index 5458b1b..bc510f8 100644
+--- a/mozilla/xpcom/io/nsScriptableInputStream.cpp
++++ b/mozilla/xpcom/io/nsScriptableInputStream.cpp
+@@ -72,7 +72,8 @@ nsScriptableInputStream::Read(PRUint32 aCount, char **_retval) {
+     rv = mInputStream->Available(&count);
+     if (NS_FAILED(rv)) return rv;
+ 
+-    count = PR_MIN(count, aCount);
++    // bug716556 - Ensure count+1 doesn't overflow
++    count = PR_MIN(PR_MIN(count, aCount), PR_UINT32_MAX - 1);
+     buffer = (char*)nsMemory::Alloc(count+1); // make room for '\0'
+     if (!buffer) return NS_ERROR_OUT_OF_MEMORY;
+ 
+-- 
+1.7.10
+

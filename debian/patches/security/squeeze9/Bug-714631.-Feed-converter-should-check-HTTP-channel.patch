@@ -1,0 +1,31 @@
+From 5897af9f8158ac96337a8e17b11e0da98368d8c3 Mon Sep 17 00:00:00 2001
+From: Boris Zbarsky <bzbarsky@mit.edu>
+Date: Fri, 13 Apr 2012 13:46:15 -0400
+Subject: Bug 714631. Feed converter should check HTTP channel response status
+ before proceeding. r=gavin, a=akeybl
+
+---
+ browser/components/feeds/src/FeedConverter.js |    7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/mozilla/browser/components/feeds/src/FeedConverter.js b/mozilla/browser/components/feeds/src/FeedConverter.js
+index cd19290..a179a8a 100644
+--- a/mozilla/browser/components/feeds/src/FeedConverter.js
++++ b/mozilla/browser/components/feeds/src/FeedConverter.js
+@@ -333,6 +333,13 @@ FeedConverter.prototype = {
+     // The value doesn't matter.
+     try {
+       var httpChannel = channel.QueryInterface(Ci.nsIHttpChannel);
++      // Make sure to check requestSucceeded before the potentially-throwing
++      // getResponseHeader.
++      if (!httpChannel.requestSucceeded) {
++        // Just give up, but don't forget to cancel the channel first!
++        request.cancel(0x804b0002); // NS_BINDING_ABORTED
++        return;
++      }
+       var noSniff = httpChannel.getResponseHeader("X-Moz-Is-Feed");
+     }
+     catch (ex) {
+-- 
+1.7.10
+

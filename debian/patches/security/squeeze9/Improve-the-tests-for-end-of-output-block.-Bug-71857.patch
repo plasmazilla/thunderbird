@@ -1,0 +1,675 @@
+From 5f21588678614624439b731a40fe9ffcbf66e75c Mon Sep 17 00:00:00 2001
+From: Simon Montagu <smontagu@smontagu.org>
+Date: Thu, 9 Feb 2012 17:50:48 +0200
+Subject: Improve the tests for end of output block. Bug 718573, r=emk,
+ a=lsblakk
+
+---
+ intl/uconv/ucvcn/nsISO2022CNToUnicode.cpp |   64 +++++++++++++-------------
+ intl/uconv/ucvja/nsJapaneseToUnicode.cpp  |   70 ++++++++++++++---------------
+ intl/uconv/ucvko/nsISO2022KRToUnicode.cpp |   36 +++++++--------
+ intl/uconv/util/nsUCSupport.h             |    7 +++
+ 4 files changed, 89 insertions(+), 88 deletions(-)
+
+diff --git a/mozilla/intl/uconv/ucvcn/nsISO2022CNToUnicode.cpp b/mozilla/intl/uconv/ucvcn/nsISO2022CNToUnicode.cpp
+index e49ac4d..1b6b4be 100644
+--- a/mozilla/intl/uconv/ucvcn/nsISO2022CNToUnicode.cpp
++++ b/mozilla/intl/uconv/ucvcn/nsISO2022CNToUnicode.cpp
+@@ -105,7 +105,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         if(ESC == *src) {
+            mState = eState_ESC;
+         } else {
+-           if(dest+1 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 1))
+               goto error1;
+            *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+ 
+@@ -117,7 +117,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         if('$' == *src) {
+            mState = eState_ESC_24;
+         } else {
+-           if(dest+2 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 2))
+               goto error1;
+            *dest++ = (PRUnichar) ESC;
+            *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+@@ -134,7 +134,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         } else if('+' == *src) {
+            mState = eState_ESC_24_2B;
+         } else {
+-           if(dest+3 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 3))
+               goto error1;
+            *dest++ = (PRUnichar) ESC;
+            *dest++ = (PRUnichar) '$';
+@@ -150,7 +150,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         } else if('G' == *src) {
+            mState = eState_ESC_24_29_G;
+         } else {
+-           if(dest+4 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 4))
+               goto error1;
+            *dest++ = (PRUnichar) ESC;
+            *dest++ = (PRUnichar) '$';
+@@ -166,7 +166,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+            mState = eState_GB2312_1980;
+            mRunLength = 0;
+         } else {
+-           if(dest+5 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 5))
+               goto error1;
+            *dest++ = (PRUnichar) ESC;
+            *dest++ = (PRUnichar) '$';
+@@ -182,7 +182,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         if(SI == *src) { // Shift-In (SI)
+            mState = eState_ESC_24_29_A_SO_SI;
+            if (mRunLength == 0) {
+-              if(dest+1 >= destEnd)
++              if (CHECK_OVERRUN(dest, destEnd, 1))
+                  goto error1;
+               *dest++ = 0xFFFD;
+            }
+@@ -194,7 +194,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+               mData = *src;
+               mState = eState_GB2312_1980_2ndbyte;
+            } else {
+-              if(dest+1 >= destEnd)
++              if (CHECK_OVERRUN(dest, destEnd, 1))
+                  goto error1;
+               *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+            }
+@@ -220,7 +220,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+ 
+            dest += aLen;
+         } else {
+-           if(dest+2 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 2))
+               goto error1;
+            *dest++ = (PRUnichar) mData;
+            *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+@@ -235,7 +235,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         } else if(ESC == *src) {
+            mState = eState_ESC;
+         } else {
+-           if(dest+1 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 1))
+               goto error1;
+            *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+ 
+@@ -248,7 +248,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+            mState = eState_CNS11643_1;
+            mRunLength = 0;
+         } else {
+-           if(dest+5 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 5))
+               goto error1;
+            *dest++ = (PRUnichar) ESC;
+            *dest++ = (PRUnichar) '$';
+@@ -264,7 +264,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         if(SI == *src) { // Shift-In (SI)
+            mState = eState_ESC_24_29_G_SO_SI;
+            if (mRunLength == 0) {
+-              if(dest+1 >= destEnd)
++              if (CHECK_OVERRUN(dest, destEnd, 1))
+                  goto error1;
+               *dest++ = 0xFFFD;
+            }
+@@ -276,7 +276,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+               mData = *src;
+               mState = eState_CNS11643_1_2ndbyte;
+            } else {
+-              if(dest+1 >= destEnd)
++              if (CHECK_OVERRUN(dest, destEnd, 1))
+                  goto error1;
+               *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+            }
+@@ -302,7 +302,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+ 
+            dest += aLen;
+         } else {
+-           if(dest+2 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 2))
+               goto error1;
+            *dest++ = (PRUnichar) mData;
+            *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+@@ -317,7 +317,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         } else if(ESC == *src) {
+            mState = eState_ESC;
+         } else {
+-           if(dest+1 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 1))
+               goto error1;
+            *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+ 
+@@ -329,7 +329,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         if('H' == *src) {
+            mState = eState_ESC_24_2A_H;
+         } else {
+-           if(dest+4 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 4))
+               goto error1;
+            *dest++ = (PRUnichar) ESC;
+            *dest++ = (PRUnichar) '$';
+@@ -344,7 +344,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         if(ESC == *src) {
+            mState = eState_ESC_24_2A_H_ESC;
+         } else {
+-           if(dest+5 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 5))
+               goto error1;
+            *dest++ = (PRUnichar) ESC;
+            *dest++ = (PRUnichar) '$';
+@@ -363,7 +363,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         } else if('$' == *src) {
+            mState = eState_ESC_24;
+         } else {
+-           if(dest+6 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 6))
+               goto error1;
+            *dest++ = (PRUnichar) ESC;
+            *dest++ = (PRUnichar) '$';
+@@ -380,7 +380,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         if(SI == *src) { // Shift-In (SI)
+            mState = eState_ESC_24_2A_H_ESC_SS2_SI;
+            if (mRunLength == 0) {
+-              if(dest+1 >= destEnd)
++              if (CHECK_OVERRUN(dest, destEnd, 1))
+                  goto error1;
+               *dest++ = 0xFFFD;
+            }
+@@ -392,7 +392,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+               mData = *src;
+               mState = eState_CNS11643_2_2ndbyte;
+            } else {
+-              if(dest+1 >= destEnd)
++              if (CHECK_OVERRUN(dest, destEnd, 1))
+                  goto error1;
+               *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+            }
+@@ -420,7 +420,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+ 
+            dest += aLen;
+         } else {
+-           if(dest+2 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 2))
+               goto error1;
+            *dest++ = (PRUnichar) mData;
+            *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+@@ -432,7 +432,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         if(ESC == *src) {
+            mState = eState_ESC_24_2A_H_ESC_SS2_SI_ESC;
+         } else {
+-           if(dest+1 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 1))
+               goto error1;
+            *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+ 
+@@ -447,7 +447,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         } else if('$' == *src) {
+            mState = eState_ESC_24;
+         } else {
+-           if(dest+1 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 1))
+               goto error1;
+            *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+ 
+@@ -460,7 +460,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+             mState = eState_ESC_24_2B_I;
+             mPlaneID = *src - 'I' + 3;
+         } else {
+-           if(dest+4 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 4))
+               goto error1;
+            *dest++ = (PRUnichar) ESC;
+            *dest++ = (PRUnichar) '$';
+@@ -475,7 +475,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         if(ESC == *src) {
+            mState = eState_ESC_24_2B_I_ESC;
+         } else {
+-           if(dest+5 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 5))
+               goto error1;
+            *dest++ = (PRUnichar) ESC;
+            *dest++ = (PRUnichar) '$';
+@@ -494,7 +494,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         } else if('$' == *src) {
+            mState = eState_ESC_24;
+         } else {
+-           if(dest+6 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 6))
+               goto error1;
+            *dest++ = (PRUnichar) ESC;
+            *dest++ = (PRUnichar) '$';
+@@ -511,7 +511,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         if(SI == *src) { // Shift-In (SI)
+            mState = eState_ESC_24_2B_I_ESC_SS3_SI;
+            if (mRunLength == 0) {
+-              if(dest+1 >= destEnd)
++              if (CHECK_OVERRUN(dest, destEnd, 1))
+                  goto error1;
+               *dest++ = 0xFFFD;
+            }
+@@ -523,7 +523,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+               mData = *src;
+               mState = eState_CNS11643_3_2ndbyte;
+            } else {
+-              if(dest+1 >= destEnd)
++              if (CHECK_OVERRUN(dest, destEnd, 1))
+                  goto error1;
+               *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+            }
+@@ -552,7 +552,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+ 
+            dest += aLen;
+         } else {
+-           if(dest+2 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 2))
+               goto error1;
+            *dest++ = (PRUnichar) mData;
+            *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+@@ -564,7 +564,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         if(ESC == *src) {
+            mState = eState_ESC_24_2B_I_ESC_SS3_SI_ESC;
+         } else {
+-           if(dest+1 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 1))
+               goto error1;
+            *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+ 
+@@ -579,7 +579,7 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         } else if('$' == *src) {
+            mState = eState_ESC_24;
+         } else {
+-           if(dest+1 >= destEnd)
++           if (CHECK_OVERRUN(dest, destEnd, 1))
+               goto error1;
+            *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+ 
+@@ -596,10 +596,6 @@ NS_IMETHODIMP nsISO2022CNToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+ 
+ error1:
+   *aDestLen = dest-aDest;
+-  src++;
+-  if ((mState == eState_ASCII) && (src == srcEnd)) {
+-    return NS_OK;
+-  }
+   *aSrcLen = src - (const unsigned char*)aSrc;
+   return NS_OK_UDEC_MOREOUTPUT;
+ 
+diff --git a/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp b/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp
+index b38fb0b..5da487f 100644
+--- a/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp
++++ b/mozilla/intl/uconv/ucvja/nsJapaneseToUnicode.cpp
+@@ -517,9 +517,9 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+             } else if(*src & 0x80) {
+               goto error2;
+             } else {
+-              *dest++ = (PRUnichar) *src;
+-              if(dest >= destEnd)
++              if (CHECK_OVERRUN(dest, destEnd, 1))
+                 goto error1;
++              *dest++ = (PRUnichar) *src;
+             }
+           break;
+           
+@@ -533,7 +533,7 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+             } else if ('N' == *src)  { // for ISO-2022-JP-2
+               mState = mState_ESC_4e;
+             } else  {
+-              if((dest+2) >= destEnd)
++              if (CHECK_OVERRUN(dest, destEnd, 2))
+                 goto error1;
+               *dest++ = (PRUnichar) 0x1b;
+               if(0x80 & *src)
+@@ -547,7 +547,7 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+             if( 'B' == *src) {
+               mState = mState_ASCII;
+               if (mRunLength == 0) {
+-                if((dest+1) >= destEnd)
++                if (CHECK_OVERRUN(dest, destEnd, 1))
+                   goto error1;
+                 *dest++ = 0xFFFD;
+               }
+@@ -555,7 +555,7 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+             } else if ('J' == *src)  {
+               mState = mState_JISX0201_1976Roman;
+               if (mRunLength == 0 && mLastLegalState != mState_ASCII) {
+-                if((dest+1) >= destEnd)
++                if (CHECK_OVERRUN(dest, destEnd, 1))
+                   goto error1;
+                 *dest++ = 0xFFFD;
+               }
+@@ -564,7 +564,7 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+               mState = mState_JISX0201_1976Kana;
+               mRunLength = 0;
+             } else  {
+-              if((dest+3) >= destEnd)
++              if (CHECK_OVERRUN(dest, destEnd, 3))
+                 goto error1;
+               *dest++ = (PRUnichar) 0x1b;
+               *dest++ = (PRUnichar) '(';
+@@ -588,7 +588,7 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+             } else if ('(' == *src)  {
+               mState = mState_ESC_24_28;
+             } else  {
+-              if((dest+3) >= destEnd)
++              if (CHECK_OVERRUN(dest, destEnd, 3))
+                 goto error1;
+               *dest++ = (PRUnichar) 0x1b;
+               *dest++ = (PRUnichar) '$';
+@@ -607,7 +607,7 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+               mState = mState_JISX0212_1990;
+               mRunLength = 0;
+             } else  {
+-              if((dest+4) >= destEnd)
++              if (CHECK_OVERRUN(dest, destEnd, 4))
+                 goto error1;
+               *dest++ = (PRUnichar) 0x1b;
+               *dest++ = (PRUnichar) '$';
+@@ -629,10 +629,10 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+               // XXX We need to  decide how to handle \ and ~ here
+               // we may need a if statement here for '\' and '~' 
+               // to map them to Yen and Overbar
++              if (CHECK_OVERRUN(dest, destEnd, 1))
++                goto error1;
+               *dest++ = (PRUnichar) *src;
+               ++mRunLength;
+-              if(dest >= destEnd)
+-                goto error1;
+             }
+           break;
+ 
+@@ -642,13 +642,13 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+               mState = mState_ESC;
+             } else {
+               if((0x21 <= *src) && (*src <= 0x5F)) {
++                if (CHECK_OVERRUN(dest, destEnd, 1))
++                  goto error1;
+                 *dest++ = (0xFF61-0x0021) + *src;
+                 ++mRunLength;
+               } else {
+                 goto error2;
+               }
+-              if(dest >= destEnd)
+-                goto error1;
+             }
+           break;
+ 
+@@ -735,12 +735,12 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+             } else {
+                // XXX We need to map from JIS X 0208 1983 to 1987 
+                // in the next line before pass to *dest++
+-               *dest++ = gJapaneseMap[mData+off];
+-               ++mRunLength;
++              if (CHECK_OVERRUN(dest, destEnd, 1))
++                goto error1;
++              *dest++ = gJapaneseMap[mData+off];
++              ++mRunLength;
+             }
+             mState = mState_JISX0208_1978;
+-            if(dest >= destEnd)
+-              goto error1;
+           }
+           break;
+ 
+@@ -762,6 +762,8 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+               if (!mGB2312Decoder) {// failed creating a delegate converter
+                 goto error2;
+               } else {
++                if (CHECK_OVERRUN(dest, destEnd, 1))
++                  goto error1;
+                 unsigned char gb[2];
+                 PRUnichar uni;
+                 PRInt32 gbLen = 2, uniLen = 1;
+@@ -778,8 +780,6 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+               }
+             }
+             mState = mState_GB2312_1980;
+-            if(dest >= destEnd)
+-              goto error1;
+           }
+           break;
+ 
+@@ -789,12 +789,12 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+             if(0xFF == off) {
+                goto error2;
+             } else {
+-               *dest++ = gJapaneseMap[mData+off];
+-               ++mRunLength;
++              if (CHECK_OVERRUN(dest, destEnd, 1))
++                goto error1;
++              *dest++ = gJapaneseMap[mData+off];
++              ++mRunLength;
+             }
+             mState = mState_JISX0208_1983;
+-            if(dest >= destEnd)
+-              goto error1;
+           }
+           break;
+ 
+@@ -816,6 +816,8 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+               if (!mEUCKRDecoder) {// failed creating a delegate converter
+                 goto error2;
+               } else {              
++                if (CHECK_OVERRUN(dest, destEnd, 1))
++                  goto error1;
+                 unsigned char ksc[2];
+                 PRUnichar uni;
+                 PRInt32 kscLen = 2, uniLen = 1;
+@@ -832,8 +834,6 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+               }
+             }
+             mState = mState_KSC5601_1987;
+-            if(dest >= destEnd)
+-              goto error1;
+           }
+           break;
+ 
+@@ -843,12 +843,12 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+             if(0xFF == off) {
+                goto error2;
+             } else {
+-               *dest++ = gJapaneseMap[mData+off];
+-               ++mRunLength;
++              if (CHECK_OVERRUN(dest, destEnd, 1))
++                goto error1;
++              *dest++ = gJapaneseMap[mData+off];
++              ++mRunLength;
+             }
+             mState = mState_JISX0212_1990;
+-            if(dest >= destEnd)
+-              goto error1;
+           }
+           break;
+ 
+@@ -860,7 +860,7 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+             } else if ('F' == *src) {
+               G2charset = G2_ISO88597;
+             } else  {
+-              if((dest+3) >= destEnd)
++              if (CHECK_OVERRUN(dest, destEnd, 3))
+                 goto error1;
+               *dest++ = (PRUnichar) 0x1b;
+               *dest++ = (PRUnichar) '.';
+@@ -877,6 +877,8 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+             mState = mLastLegalState;
+             if((0x20 <= *src) && (*src <= 0x7F)) {
+               if (G2_ISO88591 == G2charset) {
++                if (CHECK_OVERRUN(dest, destEnd, 1))
++                  goto error1;
+                 *dest++ = *src | 0x80;
+                 ++mRunLength;
+               } else if (G2_ISO88597 == G2charset) {
+@@ -892,6 +894,8 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+                 if (!mISO88597Decoder) {// failed creating a delegate converter
+                   goto error2;
+                 } else {
++                  if (CHECK_OVERRUN(dest, destEnd, 1))
++                    goto error1;
+                   // Put one character with ISO-8859-7 encoding.
+                   unsigned char gr = *src | 0x80;
+                   PRUnichar uni;
+@@ -905,10 +909,8 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+               } else {// G2charset is G2_unknown (not designated yet)
+                 goto error2;
+               }
+-              if(dest >= destEnd)
+-                goto error1;
+             } else {
+-              if((dest+3) >= destEnd)
++              if (CHECK_OVERRUN(dest, destEnd, 3))
+                 goto error1;
+               *dest++ = (PRUnichar) 0x1b;
+               *dest++ = (PRUnichar) 'N';
+@@ -931,10 +933,6 @@ NS_IMETHODIMP nsISO2022JPToUnicodeV2::Convert(
+    return NS_OK;
+ error1:
+    *aDestLen = dest-aDest;
+-   src++;
+-   if ((mState == 0) && (src == srcEnd)) {
+-     return NS_OK;
+-   }
+    *aSrcLen = src - (const unsigned char*)aSrc;
+    return NS_OK_UDEC_MOREOUTPUT;
+ error2:
+diff --git a/mozilla/intl/uconv/ucvko/nsISO2022KRToUnicode.cpp b/mozilla/intl/uconv/ucvko/nsISO2022KRToUnicode.cpp
+index 1168ac9..922ca5b 100644
+--- a/mozilla/intl/uconv/ucvko/nsISO2022KRToUnicode.cpp
++++ b/mozilla/intl/uconv/ucvko/nsISO2022KRToUnicode.cpp
+@@ -67,14 +67,14 @@ NS_IMETHODIMP nsISO2022KRToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+           mRunLength = 0;
+         } 
+         else if(*src & 0x80) {
+-          *dest++ = 0xFFFD;
+-          if(dest >= destEnd)
++          if (CHECK_OVERRUN(dest, destEnd, 1))
+             goto error1;
++          *dest++ = 0xFFFD;
+         } 
+         else {
+-          *dest++ = (PRUnichar) *src;
+-          if(dest >= destEnd)
++          if (CHECK_OVERRUN(dest, destEnd, 1))
+             goto error1;
++          *dest++ = (PRUnichar) *src;
+         }
+         break;
+           
+@@ -83,7 +83,7 @@ NS_IMETHODIMP nsISO2022KRToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+           mState = mState_ESC_24;
+         } 
+         else  {
+-          if((dest+2) >= destEnd)
++          if (CHECK_OVERRUN(dest, destEnd, 2))
+             goto error1;
+           *dest++ = (PRUnichar) 0x1b;
+           *dest++ = (0x80 & *src) ? 0xFFFD : (PRUnichar) *src;
+@@ -96,7 +96,7 @@ NS_IMETHODIMP nsISO2022KRToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+           mState = mState_ESC_24_29;
+         } 
+         else  {
+-          if((dest+3) >= destEnd)
++          if (CHECK_OVERRUN(dest, destEnd, 3))
+             goto error1;
+           *dest++ = (PRUnichar) 0x1b;
+           *dest++ = (PRUnichar) '$';
+@@ -112,7 +112,7 @@ NS_IMETHODIMP nsISO2022KRToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+           mRunLength = 0;
+         } 
+         else  {
+-          if((dest+4) >= destEnd)
++          if (CHECK_OVERRUN(dest, destEnd, 4))
+             goto error1;
+           *dest++ = (PRUnichar) 0x1b;
+           *dest++ = (PRUnichar) '$';
+@@ -130,7 +130,7 @@ NS_IMETHODIMP nsISO2022KRToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         else if (0x0f == *src) { // Shift-In (SI)
+           mState = mState_ASCII;
+           if (mRunLength == 0) {
+-            if(dest+1 >= destEnd)
++            if (CHECK_OVERRUN(dest, destEnd, 1))
+               goto error1;
+             *dest++ = 0xFFFD;
+           }
+@@ -138,16 +138,16 @@ NS_IMETHODIMP nsISO2022KRToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+         } 
+         else if ((PRUint8) *src == 0x20 || (PRUint8) *src == 0x09) {
+           // Allow space and tab between SO and SI (i.e. in Hangul segment)
++          if (CHECK_OVERRUN(dest, destEnd, 1))
++            goto error1;
+           mState = mState_KSX1001_1992;
+           *dest++ = (PRUnichar) *src;
+           ++mRunLength;
+-          if(dest >= destEnd)
+-          goto error1;
+         } 
+         else {         // Everything else is invalid.
++          if (CHECK_OVERRUN(dest, destEnd, 1))
++            goto error1;
+           *dest++ = 0xFFFD;
+-          if(dest >= destEnd)
+-             goto error1;
+         }
+         break;
+ 
+@@ -167,6 +167,8 @@ NS_IMETHODIMP nsISO2022KRToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+            *dest++ = 0xFFFD;
+           } 
+           else {              
++            if (CHECK_OVERRUN(dest, destEnd, 1))
++              goto error1;
+             unsigned char ksx[2];
+             PRUnichar uni;
+             PRInt32 ksxLen = 2, uniLen = 1;
+@@ -180,8 +182,6 @@ NS_IMETHODIMP nsISO2022KRToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+             *dest++ = uni;
+             ++mRunLength;
+           }
+-          if(dest >= destEnd)
+-            goto error1;
+           mState = mState_KSX1001_1992;
+         } 
+         else {        // Invalid 
+@@ -191,17 +191,17 @@ NS_IMETHODIMP nsISO2022KRToUnicode::Convert(const char * aSrc, PRInt32 * aSrcLen
+           else {
+             mState = mState_KSX1001_1992;
+           }
++          if (CHECK_OVERRUN(dest, destEnd, 1))
++            goto error1;
+           *dest++ = 0xFFFD;
+-          if(dest >= destEnd)
+-           goto error1;
+         }
+         break;
+ 
+       case mState_ERROR:
+         mState = mLastLegalState;
+-        *dest++ = 0xFFFD;
+-        if(dest >= destEnd)
++        if (CHECK_OVERRUN(dest, destEnd, 1))
+           goto error1;
++        *dest++ = 0xFFFD;
+         break;
+ 
+     } // switch
+diff --git a/mozilla/intl/uconv/util/nsUCSupport.h b/mozilla/intl/uconv/util/nsUCSupport.h
+index 01ef851..4b1ba18 100644
+--- a/mozilla/intl/uconv/util/nsUCSupport.h
++++ b/mozilla/intl/uconv/util/nsUCSupport.h
+@@ -46,6 +46,13 @@
+ 
+ #define ONE_BYTE_TABLE_SIZE 256
+ 
++inline PRBool WillOverrun(PRUnichar* aDest, PRUnichar* aDestEnd, PRUint32 aLength)
++{
++  NS_ASSERTION(aDest <= aDestEnd, "Pointer overrun even before check");
++  return ((aDestEnd - aDest) < aLength);
++}
++#define CHECK_OVERRUN(dest, destEnd, length) (WillOverrun(dest, destEnd, length))
++
+ #ifdef NS_DEBUG
+ // {7AFC9F0A-CFE1-44ea-A755-E3B86AB1226E}
+ #define NS_IBASICDECODER_IID \
+-- 
+1.7.10
+

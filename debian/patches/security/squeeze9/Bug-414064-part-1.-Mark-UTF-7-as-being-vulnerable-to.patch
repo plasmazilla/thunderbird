@@ -1,0 +1,72 @@
+From cd8e2056a2685c86d1d7b86762fdb2765db73efc Mon Sep 17 00:00:00 2001
+From: Simon Montagu <smontagu@smontagu.org>
+Date: Mon, 28 Mar 2011 23:32:11 -0400
+Subject: Bug 414064 part 1. Mark UTF-7 as being vulnerable to XSS attacks.
+ r=VYV03354@nifty.ne.jp
+
+---
+ intl/uconv/src/charsetData.properties |   22 ++++++++++++++++++----
+ 1 file changed, 18 insertions(+), 4 deletions(-)
+
+diff --git a/mozilla/intl/uconv/src/charsetData.properties b/mozilla/intl/uconv/src/charsetData.properties
+index 2819f67..d4d2de7 100644
+--- a/mozilla/intl/uconv/src/charsetData.properties
++++ b/mozilla/intl/uconv/src/charsetData.properties
+@@ -43,7 +43,7 @@
+ ## Format of this file:
+ ##
+ ## charset_name.notForBrowser = anything  -  specifies that this charset is 
+-## not to be used in the browser
++## not to be exposed in the browser charset selection UI
+ ## charset_name.notForOutgoing = anything  -  specifies that this charset is 
+ ## not to be used for exporting files ('SaveAsCharset' in composer)
+ ##
+@@ -55,8 +55,15 @@
+ ##
+ ## charset_name.isMultibyte = multi byte charsets
+ 
++# notForBrowser falls into four categories:
++#
++# charsets that we need decoders for, that we don't expect ever to appear in
++# web content
++# XXX do we still need to support t.61?
+ t.61-8bit.notForBrowser             = true
+-x-imap4-modified-utf7.notForBrowser = true
++
++# charsets that are subsets or variants of other charsets. We implement them
++# as aliases to the superset
+ windows-936.notForBrowser           = true
+ us-ascii.notForBrowser                  = true
+ x-obsoleted-euc-jp.notForBrowser        = true
+@@ -65,19 +72,26 @@ x-obsoleted-shift_jis.notForBrowser     = true
+ iso-8859-6-e.notForBrowser              = true
+ iso-8859-6-i.notForBrowser              = true
+ ibm864i.notForBrowser                   = true
++iso-8859-8-e.notForBrowser              = true
++
++# platform charsets that don't appear in web content
+ ibm869.notForBrowser                    = true
+ ibm1125.notForBrowser                   = true
+ ibm1131.notForBrowser                   = true
+ x-ibm1046.notForBrowser                 = true
+-iso-8859-8-e.notForBrowser              = true
+-utf-7.notForBrowser                     = true
++
++# charset with isXSSVulnerable
+ x-mac-arabic.notForBrowser              = true
+ x-mac-farsi.notForBrowser               = true
+ x-mac-hebrew.notForBrowser              = true
++x-imap4-modified-utf7.notForBrowser     = true
++utf-7.notForBrowser                     = true
+ 
+ x-mac-arabic.isXSSVulnerable            = true
+ x-mac-farsi.isXSSVulnerable             = true
+ x-mac-hebrew.isXSSVulnerable            = true
++x-imap4-modified-utf7.isXSSVulnerable   = true
++utf-7.isXSSVulnerable                   = true
+ 
+ t.61-8bit.notForOutgoing             = true
+ utf-7.notForOutgoing                 = true
+-- 
+1.7.10
+

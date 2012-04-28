@@ -167,3 +167,14 @@ security/squeeze8/Bug-730425-Perform-an-additional-range-checks-in-str.patch
 security/squeeze8/Bug-723808-disallow-inheriting-of-system-principal-i.patch
 security/squeeze8/Bug-704354-r-dolske-a-lsblakk.patch
 security/squeeze8/Bug-723808-followup-fix-shared-builds-by-avoiding-us.patch
+security/squeeze9/Bug-734288-Use-double-math-instead-of-float-math-for.patch
+security/squeeze9/Improve-the-tests-for-end-of-output-block.-Bug-71857.patch
+security/squeeze9/Bug-716556-Fix-possible-buffer-overflow-in-nsScripta.patch
+security/squeeze9/Bug-414064-part-1.-Mark-UTF-7-as-being-vulnerable-to.patch
+security/squeeze9/Bug-494099-HZ-GB-2312-converter-reads-beyond-input-b.patch
+security/squeeze9/Various-fixes-to-multi-byte-Unicode-decoders.-Bug-71.patch
+security/squeeze9/Bug-736589-r-jst-a-akeybl.patch
+security/squeeze9/Bug-732941-Deal-with-OOM-when-copying-nsCOMArray.-r-.patch
+security/squeeze9/Bug-706381.-Re-create-the-dummy-java-plugin-when-re-.patch
+security/squeeze9/Bug-732951.-r-bsmedberg-a-akeybl.patch
+security/squeeze9/Bug-714631.-Feed-converter-should-check-HTTP-channel.patch
