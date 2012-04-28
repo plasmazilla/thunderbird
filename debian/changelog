@@ -1,3 +1,19 @@
+icedove (3.0.11-1+squeeze9) stable-security; urgency=high
+
+  * [54a660a] backported patches from xulrunner fixes mfsa2012-{20,23,24,29,33}
+    - MFSA 2012-20 aka CVE-2012-0467: Miscellaneous memory safety hazards
+      (rv:12.0/ rv:10.0.4)
+    - MFSA 2012-23 aka CVE-2012-0470: Invalid frees causes heap corruption in
+      gfxImageSurface
+    - MFSA 2012-24 aka CVE-2012-0471: Potential XSS via multibyte content
+      processing errors
+    - MFSA 2012-29 aka CVE-2012-0477: Potential XSS through
+      ISO-2022-KR/ISO-2022-CN decoding issues
+    - MFSA 2012-33 aka CVE-2012-0479: Potential site identity spoofing when
+      loading RSS and Atom feeds
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 28 Apr 2012 12:34:30 +0200
+
 icedove (3.0.11-1+squeeze8) stable-security; urgency=high
 
   * [ee15c08] backported patches from xulrunner fixes mfsa2012-{13,14,16,19}
