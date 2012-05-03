@@ -1305,6 +1305,7 @@ Parser::functionArguments(TreeContext &funtc, FunctionBox *funbox, ParseNode **l
                  *     until after all arguments have been parsed.
                  */
                 if (funtc.decls.lookupFirst(name)) {
+                    funtc.bindings.noteDup();
                     duplicatedArg = name;
                     if (destructuringArg)
                         goto report_dup_and_destructuring;
@@ -6860,12 +6861,20 @@ Parser::primaryExpr(TokenKind tt, JSBool afterDot)
 
 #if JS_HAS_XML_SUPPORT
       case TOK_STAR:
+        if (tc->inStrictMode()) {
+            reportErrorNumber(NULL, JSREPORT_ERROR, JSMSG_SYNTAX_ERROR);
+            return NULL;
+        }
         pn = qualifiedIdentifier();
         if (!pn)
             return NULL;
         break;
 
       case TOK_AT:
+        if (tc->inStrictMode()) {
+            reportErrorNumber(NULL, JSREPORT_ERROR, JSMSG_SYNTAX_ERROR);
+            return NULL;
+        }      
         pn = attributeIdentifier();
         if (!pn)
             return NULL;
