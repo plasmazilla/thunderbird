@@ -1,0 +1,65 @@
+# HG changeset patch
+# User Simon Montagu <smontagu@smontagu.org>
+# Date 1320695796 -7200
+# Node ID dc9e0a5726061439283376927c2e960a26e0bdc7
+# Parent  7a34e038ee945fac4f8c069414933e102e36ebd9
+Bug 677111 - utf-7 encoded characters are not interpreted properly in TB 5.0. r=bienvenu
+
+Index: icedove-3.0-for-upload/mailnews/base/util/nsMsgI18N.cpp
+===================================================================
+--- icedove-3.0-for-upload.orig/mailnews/base/util/nsMsgI18N.cpp	2012-05-06 20:28:15.000000000 +0200
++++ icedove-3.0-for-upload/mailnews/base/util/nsMsgI18N.cpp	2012-05-06 20:28:15.000000000 +0200
+@@ -158,17 +158,17 @@
+   NS_ENSURE_SUCCESS(rv, rv);
+ 
+   nsCOMPtr <nsIUnicodeDecoder> decoder;
+ 
+   // get an unicode converter
+   if (aIsCharsetCanonical)  // optimize for modified UTF-7 used by IMAP
+     rv = ccm->GetUnicodeDecoderRawInternal(aCharset, getter_AddRefs(decoder));
+   else
+-    rv = ccm->GetUnicodeDecoder(aCharset, getter_AddRefs(decoder));
++    rv = ccm->GetUnicodeDecoderInternal(aCharset, getter_AddRefs(decoder));
+   NS_ENSURE_SUCCESS(rv, rv);
+ 
+   const char *originalSrcPtr = inString.get();
+   const char *currentSrcPtr = originalSrcPtr;
+   PRInt32 originalLength = inString.Length();
+   PRInt32 srcLength;
+   PRInt32 dstLength;
+   PRUnichar localbuf[512];
+Index: icedove-3.0-for-upload/mailnews/mime/src/comi18n.cpp
+===================================================================
+--- icedove-3.0-for-upload.orig/mailnews/mime/src/comi18n.cpp	2012-05-06 20:20:11.000000000 +0200
++++ icedove-3.0-for-upload/mailnews/mime/src/comi18n.cpp	2012-05-06 20:29:03.000000000 +0200
+@@ -804,25 +804,28 @@
+ 
+ //Get unicode decoder(from inputcharset to unicode) for aInputCharset
+ nsresult
+ MIME_get_unicode_decoder(const char* aInputCharset, nsIUnicodeDecoder **aDecoder)
+ {
+   nsresult res;
+ 
+   // get charset converters.
+-  nsCOMPtr<nsICharsetConverterManager> ccm =
++  nsCOMPtr<nsICharsetConverterManager_1_9_BRANCH> ccm =
+            do_GetService(NS_CHARSETCONVERTERMANAGER_CONTRACTID, &res);
+   if (NS_SUCCEEDED(res)) {
+ 
+     // create a decoder (conv to unicode), ok if failed if we do auto detection
+     if (!*aInputCharset || !PL_strcasecmp("us-ascii", aInputCharset))
+       res = ccm->GetUnicodeDecoderRaw("ISO-8859-1", aDecoder);
+     else
+-      res = ccm->GetUnicodeDecoder(aInputCharset, aDecoder);
++      // GetUnicodeDecoderInternal in order to support UTF-7 messages
++      //
++      // XXX this means that even HTML messages in UTF-7 will be decoded
++      res = ccm->GetUnicodeDecoderInternal(aInputCharset, aDecoder);
+   }
+ 
+   return res;
+ }
+ 
+ //Get unicode encoder(from unicode to inputcharset) for aOutputCharset
+ nsresult
+ MIME_get_unicode_encoder(const char* aOutputCharset, nsIUnicodeEncoder **aEncoder)

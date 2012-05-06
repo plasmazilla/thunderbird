@@ -178,3 +178,5 @@ security/squeeze9/Bug-732941-Deal-with-OOM-when-copying-nsCOMArray.-r-.patch
 security/squeeze9/Bug-706381.-Re-create-the-dummy-java-plugin-when-re-.patch
 security/squeeze9/Bug-732951.-r-bsmedberg-a-akeybl.patch
 security/squeeze9/Bug-714631.-Feed-converter-should-check-HTTP-channel.patch
+security/squeeze10/Bug-587475-Reimplement-UTF-7-in-mailnews.patch
+security/squeeze10/Bug-677111-utf-7-encoded-characters-are-not-interpret.patch

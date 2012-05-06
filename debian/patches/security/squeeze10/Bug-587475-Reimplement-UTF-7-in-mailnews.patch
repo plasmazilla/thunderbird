@@ -1,0 +1,69 @@
+# HG changeset patch
+# User Simon Montagu <smontagu@smontagu.org>
+# Date 1294148361 0
+# Node ID 4902ddd8ba761c9d2ad171c2385c52d5f55d830c
+# Parent  037132342f97a385a35bb228b431411f3d7f9191
+Bug 587475 - Reimplement UTF-7 in mailnews - switch to using the internal decoder; r=Standard8
+
+diff --git a/mailnews/base/util/nsMsgI18N.cpp b/mailnews/base/util/nsMsgI18N.cpp
+--- a/mailnews/base/util/nsMsgI18N.cpp
++++ b/mailnews/base/util/nsMsgI18N.cpp
+@@ -157,17 +157,17 @@ nsresult nsMsgI18NConvertToUnicode(const
+   nsresult rv;
+-  nsCOMPtr <nsICharsetConverterManager> ccm = do_GetService(NS_CHARSETCONVERTERMANAGER_CONTRACTID, &rv);
++  nsCOMPtr <nsICharsetConverterManager_1_9_BRANCH> ccm = do_GetService(NS_CHARSETCONVERTERMANAGER_CONTRACTID, &rv);
+   NS_ENSURE_SUCCESS(rv, rv);
+ 
+   nsCOMPtr <nsIUnicodeDecoder> decoder;
+ 
+   // get an unicode converter
+   if (aIsCharsetCanonical)  // optimize for modified UTF-7 used by IMAP
+-    rv = ccm->GetUnicodeDecoderRaw(aCharset, getter_AddRefs(decoder));
++    rv = ccm->GetUnicodeDecoderRawInternal(aCharset, getter_AddRefs(decoder));
+   else
+     rv = ccm->GetUnicodeDecoder(aCharset, getter_AddRefs(decoder));
+   NS_ENSURE_SUCCESS(rv, rv);
+ 
+   const char *originalSrcPtr = inString.get();
+   const char *currentSrcPtr = originalSrcPtr;
+   PRInt32 originalLength = inString.Length();
+   PRInt32 srcLength;
+diff --git a/mailnews/test/fakeserver/imapd.js b/mailnews/test/fakeserver/imapd.js
+--- a/mailnews/test/fakeserver/imapd.js
++++ b/mailnews/test/fakeserver/imapd.js
+@@ -262,16 +262,17 @@ imapMailbox.prototype = {
+   },
+   get fullName () {
+     return (this._parent ? this._parent.fullName + this.delimiter : "") +
+            this.name;
+   },
+   get displayName() {
+     var converter = Cc["@mozilla.org/intl/scriptableunicodeconverter"]
+                       .createInstance(Ci.nsIScriptableUnicodeConverter);
++    converter.isInternal = true;
+     converter.charset = "x-imap4-modified-utf7";
+     return converter.ConvertFromUnicode(this.fullName.replace(
+       /([\\"])/g, '\\$1')) + converter.Finish();
+   },
+   get allChildren() {
+     return this._children.reduce(function (arr, elem) {
+       return arr.concat(elem._allChildrenInternal);
+     }, []);
+@@ -571,16 +572,17 @@
+   if (typeof argument != "string")
+     throw "Expected argument of type " + spec + "!";
+ 
+   if (spec == "atom") {
+     argument = argument.toUpperCase(); 
+   } else if (spec == "mailbox") {
+     var converter = Cc["@mozilla.org/intl/scriptableunicodeconverter"]
+                       .createInstance(Ci.nsIScriptableUnicodeConverter);
++    converter.isInternal = true;
+     converter.charset = "x-imap4-modified-utf7";
+     argument = converter.ConvertToUnicode(argument);
+   } else if (spec == "string") {
+     // Do nothing
+   } else if (spec == "flag") {
+     argument = argument.toLowerCase();
+     if (!('a' <= argument[0] && argument[0] <= 'z') &&
+         !('A' <= argument[0] && argument[0] <= 'Z')) {
