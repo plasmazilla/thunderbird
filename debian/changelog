@@ -1,3 +1,25 @@
+icedove (10.0.4-1) unstable; urgency=low
+
+  * [d98435f] New Upstream version 10.0.4
+  * Fixes for MFSA2012-{20,22-24,26-27,29-31,33}, also known as
+    CVE-2012-0467, CVE-2012-0469, CVE-2012-0470, CVE-2012-0471,
+    CVE-2012-0473, CVE-2012-0474, CVE-2012-0477, CVE-2012-0478,
+    CVE-2011-3062, CVE-2012-0479
+  * [7754de6] rebuild patch queue from patch-queue branch
+    added patches:
+    - debian-hacks/Bug-508942-Use-Preprocessor.py-filters-in-defines-an.patch
+    - fixes/Bug-706724-Fix-for-error-ftruncate-was-not-declared-.patch
+      (Closes: #667205)
+    - fixes/Bug-747322-Fix-jemalloc-mmap-wrapper-for-s390x.patch
+    - fixes/Fix-more-gcc-4.7-errors-in-ipc-code.patch
+    - porting/Bug-706787-Crash-on-s390x-nsXPCComponents-AttachNewC.patch
+    - porting/Bug-747870-Properly-align-XPCLazyCallContext-mData.-.patch
+    obsolete patches (fixed upstream):
+    - fixes/Bug-710268-Sign-NSS-libraries-only-when-they-exist-r.patch
+    - fixes/Fixup-bz-730195-for-Linux-ARM-use-_URC_FOREIGN_EXCEP.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Thu, 10 May 2012 16:29:30 +0200
+
 icedove (10.0.3-3) unstable; urgency=low
 
   * [c8d72a6] relax optimize to -O1 on sparc to fix FTBFS
