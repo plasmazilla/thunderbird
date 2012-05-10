@@ -18314,6 +18314,21 @@ else
 fi
 
 
+# For extensions and langpacks, we require a max version that is compatible
+# across security releases. MOZ_APP_MAXVERSION is our method for doing that.
+# 10.0a1 and 10.0a2 aren't affected
+# 10.0 becomes 10.0.*
+# 10.0.1 becomes 10.0.*
+IS_ALPHA=`echo $MOZ_APP_VERSION | grep a`
+if test -z "$IS_ALPHA"; then
+  
+  MOZ_APP_MAXVERSION=`echo $MOZ_APP_VERSION | sed "s|\(^[0-9]*.[0-9]*\).*|\1|"`.*
+  
+else
+  MOZ_APP_MAXVERSION=$MOZ_APP_VERSION
+fi
+
+
 
 
 
@@ -18472,7 +18487,7 @@ if test "$MOZ_X11"; then
                 _SAVE_CFLAGS=$CFLAGS
     CFLAGS="$CFLAGS $XCFLAGS"
     cat > conftest.$ac_ext <<EOF
-#line 18476 "configure"
+#line 18491 "configure"
 #include "confdefs.h"
 
         #include <stdio.h>
@@ -18490,7 +18505,7 @@ int main() {
     
 ; return 0; }
 EOF
-if { (eval echo configure:18494: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:18509: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   :
 else
   echo "configure: failed program was:" >&5
@@ -19196,6 +19211,7 @@ s%@MOZ_MACBUNDLE_NAME@%$MOZ_MACBUNDLE_NAME%g
 s%@MOZ_APP_NAME@%$MOZ_APP_NAME%g
 s%@MOZ_APP_DISPLAYNAME@%$MOZ_APP_DISPLAYNAME%g
 s%@MOZ_APP_VERSION@%$MOZ_APP_VERSION%g
+s%@MOZ_APP_MAXVERSION@%$MOZ_APP_MAXVERSION%g
 s%@FIREFOX_VERSION@%$FIREFOX_VERSION%g
 s%@THUNDERBIRD_VERSION@%$THUNDERBIRD_VERSION%g
 s%@SUNBIRD_VERSION@%$SUNBIRD_VERSION%g

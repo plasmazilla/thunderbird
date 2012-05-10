@@ -78,6 +78,8 @@ PACKAGE       = $(PKG_PATH)$(PKG_BASENAME)$(PKG_SUFFIX)
 SDK_PATH      = $(PKG_PATH)
 ifeq ($(MOZ_APP_NAME),xulrunner)
 SDK_PATH = sdk/
+# Don't codesign xulrunner internally
+MOZ_INTERNAL_SIGNING_FORMAT =
 endif
 SDK_SUFFIX    = $(PKG_SUFFIX)
 SDK           = $(SDK_PATH)$(PKG_BASENAME).sdk$(SDK_SUFFIX)
@@ -511,9 +513,6 @@ endif
 # For final GPG / authenticode signing / dmg signing if required
 ifdef MOZ_EXTERNAL_SIGNING_FORMAT
 MOZ_SIGN_PACKAGE_CMD=$(MOZ_SIGN_CMD) $(foreach f,$(MOZ_EXTERNAL_SIGNING_FORMAT),-f $(f))
-ifeq (gpg,$(findstring gpg,$(MOZ_EXTERNAL_SIGNING_FORMAT)))
-UPLOAD_EXTRA_FILES += $(PACKAGE).asc
-endif
 endif
 
 ifdef MOZ_SIGN_PREPARED_PACKAGE_CMD
@@ -525,6 +524,11 @@ endif
 
 ifdef MOZ_SIGN_PACKAGE_CMD
 MAKE_PACKAGE    += && $(MOZ_SIGN_PACKAGE_CMD) "$(PACKAGE)"
+endif
+
+ifdef MOZ_SIGN_CMD
+MAKE_SDK           += && $(MOZ_SIGN_CMD) -f gpg $(SDK)
+UPLOAD_EXTRA_FILES += $(SDK).asc
 endif
 
 # dummy macro if we don't have PSM built
@@ -558,8 +562,8 @@ FREEBL_64FPU	= $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/$(DLL_PREFIX)freebl
 FREEBL_64INT	= $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/$(DLL_PREFIX)freebl_64int_3$(DLL_SUFFIX)
 
 SIGN_NSS	+= \
-  $(SIGN_CMD) $(SOFTOKN) && \
-  $(SIGN_CMD) $(NSSDBM) && \
+  if test -f $(SOFTOKN); then $(SIGN_CMD) $(SOFTOKN); fi && \
+  if test -f $(NSSDBM); then $(SIGN_CMD) $(NSSDBM); fi && \
   if test -f $(FREEBL); then $(SIGN_CMD) $(FREEBL); fi && \
   if test -f $(FREEBL_32FPU); then $(SIGN_CMD) $(FREEBL_32FPU); fi && \
   if test -f $(FREEBL_32INT); then $(SIGN_CMD) $(FREEBL_32INT); fi && \
@@ -568,7 +572,7 @@ SIGN_NSS	+= \
   if test -f $(FREEBL_64INT); then $(SIGN_CMD) $(FREEBL_64INT); fi;
 
 endif # MOZ_PSM
-endif # !CROSS_COMPILE
+endif # MOZ_CAN_RUN_PROGRAMS
 
 NO_PKG_FILES += \
 	core \
@@ -911,6 +915,7 @@ CHECKSUM_FILES += $(CHECKSUM_FILE).asc
 UPLOAD_FILES += $(call QUOTED_WILDCARD,$(DIST)/$(COMPLETE_MAR).asc)
 UPLOAD_FILES += $(call QUOTED_WILDCARD,$(wildcard $(DIST)/$(PARTIAL_MAR).asc))
 UPLOAD_FILES += $(call QUOTED_WILDCARD,$(INSTALLER_PACKAGE).asc)
+UPLOAD_FILES += $(call QUOTED_WILDCARD,$(DIST)/$(PACKAGE).asc)
 endif
 endif
 
@@ -961,9 +966,42 @@ endif
 CREATE_SOURCE_TAR = $(TAR) -c --owner=0 --group=0 --numeric-owner \
   --mode="go-w" $(SRC_TAR_EXCLUDE_PATHS) -f
 
+SOURCE_TAR = $(DIST)/$(PKG_SRCPACK_PATH)$(PKG_SRCPACK_BASENAME).tar.bz2
+HG_BUNDLE_FILE = $(DIST)/$(PKG_SRCPACK_PATH)$(PKG_BUNDLE_BASENAME).bundle
+SOURCE_CHECKSUM_FILE = $(DIST)/$(PKG_SRCPACK_PATH)$(PKG_SRCPACK_BASENAME).checksums
+SOURCE_UPLOAD_FILES = $(SOURCE_TAR)
+
+HG ?= hg
+CREATE_HG_BUNDLE_CMD  = $(HG) -v -R $(topsrcdir) bundle --base null
+ifdef HG_BUNDLE_REVISION
+CREATE_HG_BUNDLE_CMD += -r $(HG_BUNDLE_REVISION)
+endif
+CREATE_HG_BUNDLE_CMD += $(HG_BUNDLE_FILE)
+ifdef UPLOAD_HG_BUNDLE
+SOURCE_UPLOAD_FILES  += $(HG_BUNDLE_FILE)
+endif
+
+ifdef MOZ_SIGN_CMD
+SIGN_SOURCE_TAR_CMD  = $(MOZ_SIGN_CMD) -f gpg $(SOURCE_TAR)
+SOURCE_UPLOAD_FILES += $(SOURCE_TAR).asc
+SIGN_HG_BUNDLE_CMD   = $(MOZ_SIGN_CMD) -f gpg $(HG_BUNDLE_FILE)
+ifdef UPLOAD_HG_BUNDLE
+SOURCE_UPLOAD_FILES += $(HG_BUNDLE_FILE).asc
+endif
+endif
+
 # source-package creates a source tarball from the files in MOZ_PKG_SRCDIR,
 # which is either set to a clean checkout or defaults to $topsrcdir
 source-package:
 	@echo "Packaging source tarball..."
-	mkdir -p $(DIST)/$(PKG_SRCPACK_PATH)
-	(cd $(MOZ_PKG_SRCDIR) && $(CREATE_SOURCE_TAR) - $(DIR_TO_BE_PACKAGED)) | bzip2 -vf > $(DIST)/$(PKG_SRCPACK_PATH)$(PKG_SRCPACK_BASENAME).tar.bz2
+	$(MKDIR) -p $(DIST)/$(PKG_SRCPACK_PATH)
+	(cd $(MOZ_PKG_SRCDIR) && $(CREATE_SOURCE_TAR) - $(DIR_TO_BE_PACKAGED)) | bzip2 -vf > $(SOURCE_TAR)
+	$(SIGN_SOURCE_TAR_CMD)
+
+hg-bundle:
+	$(MKDIR) -p $(DIST)/$(PKG_SRCPACK_PATH)
+	$(CREATE_HG_BUNDLE_CMD)
+	$(SIGN_HG_BUNDLE_CMD)
+
+source-upload:
+	$(MAKE) upload UPLOAD_FILES="$(SOURCE_UPLOAD_FILES)" CHECKSUM_FILE="$(SOURCE_CHECKSUM_FILE)"
