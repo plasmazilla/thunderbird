@@ -4,7 +4,7 @@ Subject: Set javascript.options.showInConsole
 
 ---
  mozilla/modules/libpref/src/init/all.js |    1 +
- 1 files changed, 1 insertions(+), 0 deletions(-)
+ 1 file changed, 1 insertion(+)
 
 diff --git a/mozilla/modules/libpref/src/init/all.js b/mozilla/modules/libpref/src/init/all.js
 index 863a1e9..516d90e 100644

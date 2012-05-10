@@ -6,7 +6,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=541770
 
 ---
  mozilla/js/src/Makefile.in |    8 ++++++++
- 1 files changed, 8 insertions(+), 0 deletions(-)
+ 1 file changed, 8 insertions(+)
 
 diff --git a/mozilla/js/src/Makefile.in b/mozilla/js/src/Makefile.in
 index fc48cbd..91b207d 100644

@@ -10,7 +10,7 @@ Ported to icedove by Christoph Goehre <chris@sigxcpu.org>
  mozilla/xpcom/base/nscore.h                   |   22 ++++++++++++++++++++++
  mozilla/xpcom/glue/nsStringAPI.h              |    1 +
  mozilla/xpcom/string/public/nsLiteralString.h |    1 +
- 3 files changed, 24 insertions(+), 0 deletions(-)
+ 3 files changed, 24 insertions(+)
 
 diff --git a/mozilla/xpcom/base/nscore.h b/mozilla/xpcom/base/nscore.h
 index 9cde77d..ca0b1be 100644

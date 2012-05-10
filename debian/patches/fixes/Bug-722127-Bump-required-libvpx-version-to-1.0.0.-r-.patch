@@ -4,7 +4,7 @@ Subject: Bug 722127 - Bump required libvpx version to 1.0.0. r=tterribe
 
 ---
  mozilla/configure.in |   12 ++++++------
- 1 files changed, 6 insertions(+), 6 deletions(-)
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/mozilla/configure.in b/mozilla/configure.in
 index bc897bb..28d2b44 100644

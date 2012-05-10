@@ -8,7 +8,7 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=378046
 Closes: #505875
 ---
  .../compose/content/MsgComposeCommands.js          |   30 ++++++++++++++++++++
- 1 files changed, 30 insertions(+), 0 deletions(-)
+ 1 file changed, 30 insertions(+)
 
 diff --git a/mail/components/compose/content/MsgComposeCommands.js b/mail/components/compose/content/MsgComposeCommands.js
 index 89337b4..1bc31c3 100644

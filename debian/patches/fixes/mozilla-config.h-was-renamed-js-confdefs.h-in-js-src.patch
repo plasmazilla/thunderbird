@@ -4,7 +4,7 @@ Subject: mozilla-config.h was renamed js-confdefs.h in js/src
 
 ---
  mozilla/js/src/Makefile.in |    2 +-
- 1 files changed, 1 insertions(+), 1 deletions(-)
+ 1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/mozilla/js/src/Makefile.in b/mozilla/js/src/Makefile.in
 index 91b207d..1be068f 100644

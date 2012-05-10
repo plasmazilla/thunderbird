@@ -4,11 +4,11 @@ Subject: Bug 691898 - Use YARR interpreter instead of PCRE on platforms where
  YARR JIT is not supported
 
 ---
- mozilla/js/src/Makefile.in           |   21 ++++++++++++-------
- mozilla/js/src/vm/RegExpObject-inl.h |   28 +++++--------------------
+ mozilla/js/src/Makefile.in           |   21 ++++++++++++--------
+ mozilla/js/src/vm/RegExpObject-inl.h |   28 ++++++--------------------
  mozilla/js/src/vm/RegExpObject.cpp   |   36 ----------------------------------
- mozilla/js/src/vm/RegExpObject.h     |   27 +++++-------------------
- mozilla/js/src/yarr/wtfbridge.h      |    2 -
+ mozilla/js/src/vm/RegExpObject.h     |   27 ++++++-------------------
+ mozilla/js/src/yarr/wtfbridge.h      |    2 --
  5 files changed, 25 insertions(+), 89 deletions(-)
 
 diff --git a/mozilla/js/src/Makefile.in b/mozilla/js/src/Makefile.in

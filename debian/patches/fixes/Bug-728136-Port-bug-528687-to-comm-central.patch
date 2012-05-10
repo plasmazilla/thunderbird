@@ -4,10 +4,10 @@ Subject: Bug 728136 - Port bug 528687 to comm-central
 
 ---
  configure.in |   11 ++++++++++-
- 1 files changed, 10 insertions(+), 1 deletions(-)
+ 1 file changed, 10 insertions(+), 1 deletion(-)
 
 diff --git a/configure.in b/configure.in
-index c8ef6f4..e82b627 100644
+index d476bcd..9158df5 100644
 --- a/configure.in
 +++ b/configure.in
 @@ -4062,7 +4062,16 @@ AC_CACHE_CHECK(for __thread keyword for TLS variables,

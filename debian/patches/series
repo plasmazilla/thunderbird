@@ -40,7 +40,6 @@ fixes/Load-dependent-libraries-with-their-real-path-to-avo.patch
 fixes/Bug-515232-Try-getting-general.useragent.locale-as-a.patch
 fixes/Bug-729817-Block-the-Nouveau-3D-driver-as-it-s-insta.patch
 fixes/Bug-729817-Allow-the-Nouveau-driver-with-Mesa-8.0.1-.patch
-fixes/Fixup-bz-730195-for-Linux-ARM-use-_URC_FOREIGN_EXCEP.patch
 porting/Bug-703534-Fix-build-failure-on-platforms-without-YA.patch
 prefs/Set-javascript.options.showInConsole.patch
 prefs/Don-t-auto-disable-extensions-in-system-directories.patch
@@ -48,5 +47,10 @@ debian-hacks/Don-t-build-example-component.patch
 fixes/Link-libldap-against-libpthread.patch
 fixes/Bug-628252-os2.cc-fails-to-compile-against-GCC-4.6-m.patch
 fixes/Bug-728136-Port-bug-528687-to-comm-central.patch
-fixes/Bug-710268-Sign-NSS-libraries-only-when-they-exist-r.patch
 fixes/Include-cstdlib-in-gfx-angle-src-compiler-Types.h-fo.patch
+fixes/Bug-747322-Fix-jemalloc-mmap-wrapper-for-s390x.patch
+porting/Bug-747870-Properly-align-XPCLazyCallContext-mData.-.patch
+porting/Bug-706787-Crash-on-s390x-nsXPCComponents-AttachNewC.patch
+debian-hacks/Bug-508942-Use-Preprocessor.py-filters-in-defines-an.patch
+fixes/Bug-706724-Fix-for-error-ftruncate-was-not-declared-.patch
+fixes/Fix-more-gcc-4.7-errors-in-ipc-code.patch

@@ -3,8 +3,8 @@ Date: Fri, 18 Nov 2011 11:32:09 +0100
 Subject: Bug 703531 - Fix ARMAssembler::getOp2RegScale on < ARMv5
 
 ---
- .../js/src/assembler/assembler/ARMAssembler.cpp    |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+ mozilla/js/src/assembler/assembler/ARMAssembler.cpp |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/js/src/assembler/assembler/ARMAssembler.cpp b/mozilla/js/src/assembler/assembler/ARMAssembler.cpp
 index 78b8a7d..0458446 100644

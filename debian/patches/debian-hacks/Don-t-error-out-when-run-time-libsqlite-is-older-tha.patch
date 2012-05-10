@@ -7,7 +7,7 @@ In Debian, we have shlibs to handle this.
 
 ---
  mozilla/storage/src/mozStorageService.cpp |    2 ++
- 1 files changed, 2 insertions(+), 0 deletions(-)
+ 1 file changed, 2 insertions(+)
 
 diff --git a/mozilla/storage/src/mozStorageService.cpp b/mozilla/storage/src/mozStorageService.cpp
 index 7c0a7a0..0121765 100644

@@ -3,9 +3,9 @@ Date: Thu, 30 Jun 2011 18:29:22 +0200
 Subject: Allow ipc code to build on GNU/kfreebsd
 
 ---
- .../ipc/chromium/src/base/platform_thread_posix.cc |    4 ++++
- .../chromium/src/base/third_party/nspr/prcpucfg.h  |    2 +-
- mozilla/ipc/chromium/src/build/build_config.h      |    2 +-
+ mozilla/ipc/chromium/src/base/platform_thread_posix.cc    |    4 ++++
+ mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h |    2 +-
+ mozilla/ipc/chromium/src/build/build_config.h             |    2 +-
  3 files changed, 6 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc

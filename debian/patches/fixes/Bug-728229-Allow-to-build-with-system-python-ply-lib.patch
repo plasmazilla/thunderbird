@@ -7,7 +7,7 @@ Subject: Bug 728229 - Allow to build with system python ply library
  mozilla/configure.in                    |   10 ++++++++++
  mozilla/xpcom/idl-parser/Makefile.in    |    2 ++
  mozilla/xpcom/typelib/xpidl/Makefile.in |    2 ++
- 4 files changed, 16 insertions(+), 0 deletions(-)
+ 4 files changed, 16 insertions(+)
 
 diff --git a/mozilla/config/autoconf.mk.in b/mozilla/config/autoconf.mk.in
 index a168406..c3ced04 100644

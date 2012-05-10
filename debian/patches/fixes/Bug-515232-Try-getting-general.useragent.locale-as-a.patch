@@ -4,8 +4,8 @@ Subject: Bug 515232 - Try getting general.useragent.locale as a complex value
  first in DirectoryProvider.cpp
 
 ---
- .../components/dirprovider/DirectoryProvider.cpp   |   14 +++++++++++++-
- 1 files changed, 13 insertions(+), 1 deletions(-)
+ .../browser/components/dirprovider/DirectoryProvider.cpp |   14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
 
 diff --git a/mozilla/browser/components/dirprovider/DirectoryProvider.cpp b/mozilla/browser/components/dirprovider/DirectoryProvider.cpp
 index 1373adc..5df1419 100644

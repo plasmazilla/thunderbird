@@ -5,8 +5,8 @@ Subject: Install missing nanojit and .tbl headers from js/src
 https://bugzilla.mozilla.org/show_bug.cgi?id=542789
 
 ---
- mozilla/js/src/Makefile.in |   48 ++++++++++++++++++++++++++++---------------
- 1 files changed, 31 insertions(+), 17 deletions(-)
+ mozilla/js/src/Makefile.in |   48 ++++++++++++++++++++++++++++----------------
+ 1 file changed, 31 insertions(+), 17 deletions(-)
 
 diff --git a/mozilla/js/src/Makefile.in b/mozilla/js/src/Makefile.in
 index 1be068f..1cd0ba7 100644

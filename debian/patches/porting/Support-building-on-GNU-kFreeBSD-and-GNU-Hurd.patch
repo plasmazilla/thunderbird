@@ -11,18 +11,18 @@ Squashed kFreeBSD/Hurd related fixes:
 - Build fixes for GNU/kFreeBSD in directory/
 - Missing bits for Hurd support
 ---
- configure.in                                       |    7 +++--
+ configure.in                                       |    7 ++---
  ldap/sdks/c-sdk/config/nsinstall.c                 |    2 +-
- ldap/sdks/c-sdk/configure.in                       |   15 +++++++---
- ldap/sdks/c-sdk/ldap/include/portable.h            |   28 +++++++++++--------
- .../c-sdk/ldap/libraries/libldap/Makefile.client   |    4 +-
+ ldap/sdks/c-sdk/configure.in                       |   15 +++++++----
+ ldap/sdks/c-sdk/ldap/include/portable.h            |   28 +++++++++++---------
+ .../c-sdk/ldap/libraries/libldap/Makefile.client   |    4 +--
  ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in |    2 +-
  ldap/sdks/c-sdk/ldap/libraries/libldap/compat.c    |    2 +-
  .../c-sdk/ldap/libraries/libprldap/ldappr-error.c  |    2 +-
  8 files changed, 36 insertions(+), 26 deletions(-)
 
 diff --git a/configure.in b/configure.in
-index cfe42b6..c8ef6f4 100644
+index bd32907..d476bcd 100644
 --- a/configure.in
 +++ b/configure.in
 @@ -1119,6 +1119,7 @@ if test -n "$CROSS_COMPILE"; then

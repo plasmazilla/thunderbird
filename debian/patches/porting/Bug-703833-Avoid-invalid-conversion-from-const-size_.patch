@@ -5,7 +5,7 @@ Subject: Bug 703833 - Avoid invalid conversion from 'const size_t*' to 'const
 
 ---
  mozilla/js/src/jsgc.cpp |    4 ++--
- 1 files changed, 2 insertions(+), 2 deletions(-)
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/js/src/jsgc.cpp b/mozilla/js/src/jsgc.cpp
 index e64f3f5..ea4b1f5 100644
