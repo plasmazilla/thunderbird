@@ -7,7 +7,6 @@ mozilla/intl/unicharutil/tools/data/cmbcl.dat
 mozilla/intl/unicharutil/tools/data/ctype.dat
 mozilla/intl/unicharutil/tools/data/decomp.dat
 mozilla/intl/unicharutil/tools/data/num.dat
-mozilla/xpinstall/test/pre_checkin.xpi
 mozilla/netwerk/protocol/ftp/doc/rfc959.txt
 mozilla/layout/doc
 mozilla/content/xml/tests
