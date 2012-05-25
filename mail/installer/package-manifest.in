@@ -1,5 +1,10 @@
 ; Package file for the Thunderbird build.
 ;
+; Packaging manifest is used to copy files from dist/bin
+; to the staging directory.
+; Some other files are built in the staging directory directly,
+; so they will be implicitly packaged too.
+;
 ; File format:
 ;
 ; [] designates a toplevel component. Example: [xpcom]
@@ -19,7 +24,6 @@
 ; Mac bundle stuff
 @APPNAME@/Contents/Info.plist
 @APPNAME@/Contents/PkgInfo
-@APPNAME@/Contents/Plug-Ins/
 @APPNAME@/Contents/Resources/
 @APPNAME@/Contents/Library/
 #endif
@@ -193,9 +197,7 @@
 @BINPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/icon.png
 @BINPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/preview.png
 @BINPATH@/extensions/{972ce4c6-7e08-4474-a285-3208198ce6fd}/chrome.manifest
-#ifdef SHIP_FEEDBACK
 @BINPATH@/distribution/extensions/tbtestpilot@labs.mozilla.com.xpi
-#endif
 
 ; Gloda
 @BINPATH@/chrome/gloda@JAREXT@
@@ -216,7 +218,6 @@
 @BINPATH@/components/mailContentHandler.js
 @BINPATH@/components/mailGlue.js
 @BINPATH@/components/nsMailDefaultHandler.js
-@BINPATH@/components/webSearchProvider.js
 #ifndef XP_OS2
 @BINPATH@/components/nsSetDefaultMail.js
 @BINPATH@/components/shell.manifest
@@ -427,7 +428,7 @@
 @BINPATH@/components/toolkitplaces.manifest
 @BINPATH@/components/toolkitsearch.manifest
 #ifdef XP_MACOSX
-@BINPATH@/components/libalerts_s.dylib
+@BINPATH@/components/libalerts.dylib
 #elifdef XP_UNIX
 @BINPATH@/components/toolkitremote.xpt
 @BINPATH@/mozilla-xremote-client
@@ -452,7 +453,9 @@
 
 ; dom
 @BINPATH@/components/dom.xpt
+@BINPATH@/components/dom_apps.xpt
 @BINPATH@/components/dom_base.xpt
+@BINPATH@/components/dom_battery.xpt
 @BINPATH@/components/dom_canvas.xpt
 @BINPATH@/components/dom_core.xpt
 @BINPATH@/components/dom_css.xpt
@@ -465,9 +468,8 @@
 @BINPATH@/components/dom_offline.xpt
 @BINPATH@/components/dom_range.xpt
 @BINPATH@/components/dom_sidebar.xpt
-#ifdef MOZ_SMIL
+@BINPATH@/components/dom_sms.xpt
 @BINPATH@/components/dom_smil.xpt
-#endif
 @BINPATH@/components/dom_storage.xpt
 @BINPATH@/components/dom_stylesheets.xpt
 @BINPATH@/components/dom_traversal.xpt
@@ -534,36 +536,30 @@
 @BINPATH@/components/nsContentPrefService.manifest
 
 ; [Personal Security Manager]
-@BINPATH@/@DLL_PREFIX@nssckbi@DLL_SUFFIX@
-@BINPATH@/components/pipboot.xpt
-@BINPATH@/components/pipnss.xpt
-@BINPATH@/components/pippki.xpt
+;
+; NSS libraries are signed in the staging directory,
+; meaning their .chk files are created there directly.
+;
+@BINPATH@/@DLL_PREFIX@freebl3@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@nss3@DLL_SUFFIX@
+@BINPATH@/@DLL_PREFIX@nssckbi@DLL_SUFFIX@
+#ifndef NSS_DISABLE_DBM
+@BINPATH@/@DLL_PREFIX@nssdbm3@DLL_SUFFIX@
+#endif
 @BINPATH@/@DLL_PREFIX@nssutil3@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@smime3@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@softokn3@DLL_SUFFIX@
-@BINPATH@/@DLL_PREFIX@freebl3@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@ssl3@DLL_SUFFIX@
-#ifndef CROSS_COMPILE
-@BINPATH@/@DLL_PREFIX@freebl3.chk
-@BINPATH@/@DLL_PREFIX@softokn3.chk
-#endif
-#ifndef NSS_DISABLE_DBM
-@BINPATH@/@DLL_PREFIX@nssdbm3@DLL_SUFFIX@
-#ifndef CROSS_COMPILE
-@BINPATH@/@DLL_PREFIX@nssdbm3.chk
-#endif
-#endif
 @BINPATH@/chrome/pippki@JAREXT@
 @BINPATH@/chrome/pippki.manifest
+@BINPATH@/components/pipboot.xpt
+@BINPATH@/components/pipnss.xpt
+@BINPATH@/components/pippki.xpt
 
 ; for Solaris SPARC
 #ifdef SOLARIS
-@BINPATH@/@DLL_PREFIX@freebl_32fpu_3.chk
 @BINPATH@/@DLL_PREFIX@freebl_32fpu_3@DLL_SUFFIX@
-@BINPATH@/@DLL_PREFIX@freebl_32int_3.chk
 @BINPATH@/@DLL_PREFIX@freebl_32int_3@DLL_SUFFIX@
-@BINPATH@/@DLL_PREFIX@freebl_32int64_3.chk
 @BINPATH@/@DLL_PREFIX@freebl_32int64_3@DLL_SUFFIX@
 #endif
 
@@ -591,7 +587,6 @@
 @BINPATH@/components/mozfind.xpt
 @BINPATH@/components/mimetype.xpt
 @BINPATH@/components/parentalcontrols.xpt
-@BINPATH@/components/proxyObject.xpt
 @BINPATH@/components/exthandler.xpt
 @BINPATH@/components/exthelper.xpt
 @BINPATH@/components/embed_base.xpt

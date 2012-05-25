@@ -122,11 +122,17 @@ pref("calendar.view.dayendhour", 17);
 // number of visible hours for day and week views
 pref("calendar.view.visiblehours", 9);
 
+// time indicator update interval in minutes (0 = no indicator)
+pref("calendar.view.timeIndicatorInterval", 15);
+
 // If true, mouse scrolling via shift+wheel will be enabled
 pref("calendar.view.mousescroll", true);
 
 // Do not set this!  If it's not there, then we guess the system timezone
 //pref("calendar.timezone.local", "");
+
+// Recent timezone list
+pref("calendar.timezone.recent", "[]");
 
 // categories settings
 // XXX One day we might want to move this to a locale specific file
@@ -139,6 +145,9 @@ pref("mousewheel.withshiftkey.action", 0);
 
 // Disable use of worker threads. Restart needed.
 pref("calendar.threading.disabled", false);
+
+// The maximum time in microseconds that a cal.forEach event can take (soft limit).
+pref("calendar.threading.latency ", 250);
 
 // Enable support for multiple realms on one server with the payoff that you
 // will get multiple password dialogs (one for each calendar)

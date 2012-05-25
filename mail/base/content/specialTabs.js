@@ -529,13 +529,15 @@ var specialTabs = {
     tabmail.registerTabType(this.contentTabType);
     tabmail.registerTabType(this.chromeTabType);
 
+    // Even though we're not doing this for TB 12, we still want to upgrade the prefs.
     // If we've upgraded:
     let [fromVer, toVer] = this.getApplicationUpgradeVersions(prefs);
 
     // Only show what's new tab if this is actually an upgraded version,
     // not just a new installation/profile.
-    if (fromVer && ((fromVer[0] != toVer[0]) || (fromVer[1] != toVer[1])))
-      this.showWhatsNewPage();
+    // Not for TB 12.
+    //if (fromVer && ((fromVer[0] != toVer[0]) || (fromVer[1] != toVer[1])))
+    //  this.showWhatsNewPage();
 
     // Show the about rights notification if we need to.
     if (this.shouldShowAboutRightsNotification(prefs))

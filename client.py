@@ -13,11 +13,11 @@ DEFAULTS = {
 
   # LDAPSDKS
   'LDAPSDKS_REPO': 'http://hg.mozilla.org/projects/ldap-sdks/',
-  'LDAPSDKS_REV': 'LDAPCSDK_6_0_7B_RTM',
+  'LDAPSDKS_REV': 'LDAPCSDK_6_0_7D_RTM',
 
   # URL of the default hg repository to clone for ChatZilla.
   'CHATZILLA_REPO': 'http://hg.mozilla.org/chatzilla/',
-  'CHATZILLA_REV':  'CHATZILLA_0_9_88_1_RELEASE',
+  'CHATZILLA_REV':  'CHATZILLA_0_9_88_2_RELEASE',
 
   # URL of the default hg repository to clone for DOM Inspector.
   'INSPECTOR_REPO': 'http://hg.mozilla.org/dom-inspector/',
@@ -25,7 +25,7 @@ DEFAULTS = {
 
   # URL of the default hg repository to clone for Venkman.
   'VENKMAN_REPO': 'http://hg.mozilla.org/venkman/',
-  'VENKMAN_REV':  'a38583d7164a',
+  'VENKMAN_REV':  'VENKMAN_RELEASE_0_9_89',
 
   # URL of the default hg repository to clone for Mozilla.
   'MOZILLA_REPO': 'http://hg.mozilla.org/releases/mozilla-release/',

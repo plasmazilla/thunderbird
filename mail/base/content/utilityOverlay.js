@@ -226,12 +226,16 @@ function openUILink(url, event)
 
 function openWhatsNew()
 {
+  // For TB 12, we are just using the release notes url.
+  openFormattedURL('app.releaseNotesURL');
+  /*
   let startpage =
     Components.classes["@mozilla.org/toolkit/URLFormatterService;1"]
               .getService(Components.interfaces.nsIURLFormatter)
               .formatURLPref("mailnews.start_page.override_url");
 
   openContentTab(startpage);
+  */
 }
 
 /**

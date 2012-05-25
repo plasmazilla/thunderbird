@@ -351,14 +351,17 @@ var BookmarkPropertiesPanel = {
 
     // When collapsible elements change their collapsed attribute we must
     // resize the dialog.
-    // sizeToContent is not usable due to bug 90276, so we'll use resizeTo
-    // instead and cache the element size. See WSucks in the legacy
-    // UI code (addBookmark2.js).
+    var prefs = Components.classes["@mozilla.org/preferences-service;1"]
+                          .getService(Components.interfaces.nsIPrefBranch);
     if (!this._element("tagsRow").collapsed) {
+      if (prefs.getBoolPref("browser.bookmarks.editDialog.expandTags"))
+        gEditItemOverlay.toggleTagsSelector();
       this._element("tagsSelectorRow")
           .addEventListener("DOMAttrModified", this, false);
     }
     if (!this._element("folderRow").collapsed) {
+      if (prefs.getBoolPref("browser.bookmarks.editDialog.expandFolders"))
+        gEditItemOverlay.toggleFolderTreeVisibility();
       this._element("folderTreeRow")
           .addEventListener("DOMAttrModified", this, false);
     }
@@ -382,6 +385,7 @@ var BookmarkPropertiesPanel = {
     }
 
     window.sizeToContent();
+    window.addEventListener("resize", this, false);
   },
 
   // nsIDOMEventListener
@@ -400,6 +404,14 @@ var BookmarkPropertiesPanel = {
         }
         break;
 
+      case "resize":
+        ["folderTree", "tagsSelector", "description"].forEach(function(e) {
+          var el = document.getElementById("editBMPanel_" + e + "Row");
+          if (el.boxObject.height)
+            el.height = el.boxObject.height;
+        });
+        break;
+
       case "DOMAttrModified":
         // this is called when collapsing a node, but also its direct children,
         // we only need to resize when the original node changes.
@@ -407,16 +419,10 @@ var BookmarkPropertiesPanel = {
              target.id == "editBMPanel_folderTreeRow") &&
             aEvent.attrName == "collapsed" &&
             target == aEvent.originalTarget) {
-          var id = target.id;
-          var newHeight = window.outerHeight;
-          if (aEvent.newValue) // is collapsed
-            newHeight -= this._elementsHeight[id];
-          else {
-            this._elementsHeight[id] = target.boxObject.height;
-            newHeight += this._elementsHeight[id];
-          }
-
-          window.resizeTo(window.outerWidth, newHeight);
+          var el = document.getElementById("editBookmarkPanelContent");
+          var width = el.boxObject.width;
+          window.sizeToContent();
+          window.outerWidth -= el.boxObject.width - width;
         }
         break;
     }
@@ -471,6 +477,7 @@ var BookmarkPropertiesPanel = {
   },
 
   onDialogUnload: function BPP_onDialogUnload() {
+    window.removeEventListener("resize", this, false);
     // gEditItemOverlay does not exist anymore here, so don't rely on it.
     // Calling removeEventListener with arguments which do not identify any
     // currently registered EventListener on the EventTarget has no effect.
@@ -484,6 +491,15 @@ var BookmarkPropertiesPanel = {
         .removeEventListener("input", this, false);
     this._element("siteLocationField")
         .removeEventListener("input", this, false);
+
+    var prefs = Components.classes["@mozilla.org/preferences-service;1"]
+                          .getService(Components.interfaces.nsIPrefBranch);
+    if (!this._element("tagsRow").collapsed)
+      prefs.setBoolPref("browser.bookmarks.editDialog.expandTags",
+                        !this._element("tagsSelectorRow").collapsed);
+    if (!this._element("folderRow").collapsed)
+      prefs.setBoolPref("browser.bookmarks.editDialog.expandFolders",
+                        !this._element("folderTreeRow").collapsed);
   },
 
   onDialogAccept: function BPP_onDialogAccept() {
@@ -491,7 +507,7 @@ var BookmarkPropertiesPanel = {
     document.commandDispatcher.focusedElement.blur();
     // The order here is important! We have to uninit the panel first, otherwise
     // late changes could force it to commit more transactions.
-    gEditItemOverlay.uninitPanel(true);
+    gEditItemOverlay.uninitPanel(false);
     gEditItemOverlay = null;
     this._endBatch();
     window.arguments[0].performed = true;
@@ -501,7 +517,7 @@ var BookmarkPropertiesPanel = {
     // The order here is important! We have to uninit the panel first, otherwise
     // changes done as part of Undo may change the panel contents and by
     // that force it to commit more transactions.
-    gEditItemOverlay.uninitPanel(true);
+    gEditItemOverlay.uninitPanel(false);
     gEditItemOverlay = null;
     this._endBatch();
     PlacesUIUtils.ptm.undoTransaction();

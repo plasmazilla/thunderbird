@@ -59,7 +59,6 @@
 #include "nsIImapMailFolderSink.h"
 #include "nsIImapServerSink.h"
 #include "nsIMsgFilterPlugin.h"
-#include "nsIEventTarget.h"
 #include "nsIThread.h"
 #include "nsDataHashtable.h"
 #include "nsIMutableArray.h"
@@ -373,7 +372,8 @@ protected:
   nsresult SyncFlags(nsIImapFlagAndUidState *flagState);
   nsresult HandleCustomFlags(nsMsgKey uidOfMessage, nsIMsgDBHdr *dbHdr,
                              PRUint16 userFlags, nsCString& keywords);
-  nsresult NotifyMessageFlagsFromHdr(nsIMsgDBHdr *dbHdr, nsMsgKey msgKey, PRUint32 flags);
+  nsresult NotifyMessageFlagsFromHdr(nsIMsgDBHdr *dbHdr, nsMsgKey msgKey,
+                                     PRUint32 flags);
 
   nsresult SetupHeaderParseStream(PRUint32 size, const nsACString& content_type, nsIMailboxSpec *boxSpec);
   nsresult  ParseAdoptedHeaderLine(const char *messageLine, PRUint32 msgKey);
@@ -484,7 +484,6 @@ protected:
   PRInt32 m_nextUID;
 
   PRInt32  m_nextMessageByteLength;
-  nsCOMPtr<nsIThread> m_thread;
   nsCOMPtr<nsIUrlListener> m_urlListener;
   bool m_urlRunning;
 

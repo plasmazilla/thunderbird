@@ -101,6 +101,10 @@ var calendarController = {
         "calendar_priority-1_command": true,
         "calendar_general-priority_command": true,
         "calendar_general-progress_command": true,
+        "calendar_general-postpone_command": true,
+        "calendar_postpone-1hour_command": true,
+        "calendar_postpone-1day_command": true,
+        "calendar_postpone-1week_command": true,
         "calendar_task_category_command": true,
 
         "calendar_attendance_command": true,
@@ -173,6 +177,10 @@ var calendarController = {
             case "calendar_task_category_command":
             case "calendar_general-progress_command":
             case "calendar_general-priority_command":
+            case "calendar_general-postpone_command":
+            case "calendar_postpone-1hour_command":
+            case "calendar_postpone-1day_command":
+            case "calendar_postpone-1week_command":
                 return (this.isCalendarInForeground() || this.todo_tasktree_focused) &&
                        this.writable &&
                        this.todo_items_selected &&
@@ -726,7 +734,8 @@ var calendarController2 = {
         "cmd_goBack": true,
         "cmd_fullZoomReduce": true,
         "cmd_fullZoomEnlarge": true,
-        "cmd_fullZoomReset": true
+        "cmd_fullZoomReset": true,
+        "cmd_showQuickFilterBar": true
     },
 
     // These functions can use the same from the calendar controller for now.
@@ -760,6 +769,8 @@ var calendarController2 = {
             case "cmd_properties":
             case "cmd_printpreview":
                 return false;
+            case "cmd_showQuickFilterBar":
+                return calendarController.isInMode("task");
             default:
                 return true;
         }
@@ -806,6 +817,9 @@ var calendarController2 = {
                 break;
             case "cmd_fullZoomReset":
                 currentView().zoomReset();
+                break;
+            case "cmd_showQuickFilterBar":
+                document.getElementById('task-text-filter-field').select();
                 break;
 
             case "button_delete":

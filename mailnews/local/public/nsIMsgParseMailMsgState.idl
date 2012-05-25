@@ -48,7 +48,7 @@ interface nsIOutputStream;
 
 typedef long nsMailboxParseState;
 
-[scriptable, uuid(9BE9B91D-5D5B-4e85-84B2-79FBFF56F5D4)]
+[scriptable, uuid(abf6a8e2-955e-4952-a295-b71d45f770cf)]
 interface nsIMsgParseMailMsgState : nsISupports {
 
     attribute unsigned long envelopePos;
@@ -60,11 +60,11 @@ interface nsIMsgParseMailMsgState : nsISupports {
      * @param aDatabase   the backup database
      */
     void SetBackupMailDB(in nsIMsgDatabase aDatabase);
-    void setDBFolderStream(in nsIOutputStream fileStream);
     void Clear();
 
     void ParseAFolderLine(in string line, in unsigned long lineLength);
-    nsIMsgDBHdr GetNewMsgHdr();
+    /// db header for message we're currently parsing
+    attribute nsIMsgDBHdr newMsgHdr;
     void FinishHeader();
 
     long GetAllHeaders(out string headers);

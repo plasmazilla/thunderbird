@@ -69,7 +69,7 @@
   background-size: -moz-calc(100% - 2px) -moz-calc(100% - 2px);
   background-repeat: no-repeat;
   margin: 0;
-  padding: 0 0 3px;
+  padding: 1px 0 3px;
   -moz-border-image: url(icons/tab.png) 4 3 0 / 4px 3px 0 repeat stretch;
   height: 26px;
   border-radius: 0;
@@ -160,6 +160,7 @@
 .tab-icon-image,
 .tab-throbber {
   -moz-margin-end: 3px;
+  margin-bottom: 1px;
   width: 16px;
   height: 16px;
 }

@@ -44,6 +44,8 @@ load("../../../resources/asyncTestUtils.js");
 // IMAP pump
 load("../../../resources/IMAPpump.js");
 
+Components.utils.import("resource://gre/modules/Services.jsm");
+
 // Globals
 
 // Messages to load must have CRLF line endings, that is Windows style
@@ -78,20 +80,13 @@ function endTest()
 
 function run_test()
 {
+  Services.prefs.setBoolPref("mail.server.server1.autosync_offline_stores", false);
   async_run_tests(tests);
 }
 
 /*
  * helper functions
  */
-
-// get the first message header found in a folder
-function firstMsgHdr(folder) {
-  let enumerator = folder.messages;
-  if (enumerator.hasMoreElements())
-    return enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
-  return null;
-}
 
 // given a test file, return the file uri spec
 function specForFileName(aFileName)

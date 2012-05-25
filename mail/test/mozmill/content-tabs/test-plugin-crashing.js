@@ -111,7 +111,7 @@ function teardownModule(module) {
 }
 
 function setupTest() {
-  let tab = open_content_tab_with_click(mc.menus.helpMenu.whatsNew, kPluginUrl);
+  let tab = open_content_tab_with_url(kPluginUrl);
   assert_tab_has_title(tab, "Plugin Test");
 
   // Check that window.content is set up correctly wrt content-primary and

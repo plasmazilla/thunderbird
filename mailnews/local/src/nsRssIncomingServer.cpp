@@ -60,7 +60,7 @@ NS_IMPL_ISUPPORTS_INHERITED3(nsRssIncomingServer,
 
 nsRssIncomingServer::nsRssIncomingServer()
 {
-  m_canHaveFilters = PR_TRUE;
+  m_canHaveFilters = true;
 
   if (gInstanceCount == 0)
   {
@@ -151,76 +151,23 @@ NS_IMETHODIMP nsRssIncomingServer::SetFlagsOnDefaultMailboxes()
 
 NS_IMETHODIMP nsRssIncomingServer::PerformBiff(nsIMsgWindow *aMsgWindow)
 {
-  // do we need to do anything here besides download articles
-  // for each feed? I don't think we have a way to check a feed for new articles without actually
-  // getting the articles. Do we need to SetPerformingBiff to true for this server?
-  nsresult rv;
+  // Get the account root (server) folder and pass it on.
   nsCOMPtr<nsIMsgFolder> rootRSSFolder;
   GetRootMsgFolder(getter_AddRefs(rootRSSFolder));
-
-  // enumerate over the RSS folders and ping each one
-  nsCOMPtr<nsISupportsArray> allDescendents;
-  NS_NewISupportsArray(getter_AddRefs(allDescendents));
-  rv = rootRSSFolder->ListDescendents(allDescendents);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  PRUint32 cnt =0;
-  allDescendents->Count(&cnt);
-
-  nsCOMPtr<nsIUrlListener> urlListener;
-  nsCOMPtr<nsIMsgFolder> rssFolder;
-
-  for (PRUint32 index = 0; index < cnt; index++)
-  {
-    rssFolder = do_QueryElementAt(allDescendents, index);
-    if (rssFolder)
-    {
-      urlListener = do_QueryInterface(rssFolder);
-      // WARNING: Never call GetNewMail with the root folder or you will trigger an infinite loop...
-      GetNewMail(aMsgWindow, urlListener, rssFolder, nsnull);
-    }
-  }
-
+  nsCOMPtr<nsIUrlListener> urlListener = do_QueryInterface(rootRSSFolder);
+  GetNewMail(aMsgWindow, urlListener, rootRSSFolder, nsnull);
   return NS_OK;
 }
 
-NS_IMETHODIMP nsRssIncomingServer::GetNewMail(nsIMsgWindow *aMsgWindow, nsIUrlListener *aUrlListener, nsIMsgFolder *aFolder, nsIURI **_retval)
+NS_IMETHODIMP nsRssIncomingServer::GetNewMail(nsIMsgWindow *aMsgWindow, nsIUrlListener *aUrlListener,
+                                              nsIMsgFolder *aFolder, nsIURI **_retval)
 {
+  // Pass the selected folder on to the downloader.
   NS_ENSURE_ARG_POINTER(aFolder);
-
-  // before we even try to get New Mail, check to see if the passed in folder was the root folder.
-  // If it was, then call PerformBiff which will properly walk through each RSS folder, asking it to check for new Mail.
-  bool rootFolder = false;
-  aFolder->GetIsServer(&rootFolder);
-  if (rootFolder)
-    return PerformBiff(aMsgWindow);
-
-  bool valid = false;
-  nsCOMPtr <nsIMsgDatabase> db;
   nsresult rv;
   nsCOMPtr <nsINewsBlogFeedDownloader> rssDownloader = do_GetService("@mozilla.org/newsblog-feed-downloader;1", &rv);
   NS_ENSURE_SUCCESS(rv, rv);
-  rv = aFolder->GetMsgDatabase(getter_AddRefs(db));
-  if (NS_SUCCEEDED(rv) && db)
-  {
-    rv = db->GetSummaryValid(&valid);
-    NS_ASSERTION(valid, "db is invalid");
-    if (valid)
-    {
-      nsCOMPtr <nsIDBFolderInfo> folderInfo;
-      rv = db->GetDBFolderInfo(getter_AddRefs(folderInfo));
-      if (folderInfo)
-      {
-        nsCString url;
-        nsString folderName;
-        aFolder->GetName(folderName);
-        folderInfo->GetCharProperty("feedUrl", url);
-
-        rv = rssDownloader->DownloadFeed(url.get(),
-                                         aFolder, PR_FALSE, folderName.get(), aUrlListener, aMsgWindow);
-      }
-    }
-  }
+  rssDownloader->DownloadFeed(nsnull, aFolder, nsnull, nsnull, aUrlListener, aMsgWindow);
   return NS_OK;
 }
 
@@ -240,21 +187,21 @@ NS_IMETHODIMP nsRssIncomingServer::GetOfflineSupportLevel(PRInt32 *aSupportLevel
 NS_IMETHODIMP nsRssIncomingServer::GetSupportsDiskSpace(bool *aSupportsDiskSpace)
 {
   NS_ENSURE_ARG_POINTER(aSupportsDiskSpace);
-  *aSupportsDiskSpace = PR_TRUE;
+  *aSupportsDiskSpace = true;
   return NS_OK;
 }
 
 NS_IMETHODIMP nsRssIncomingServer::GetServerRequiresPasswordForBiff(bool *aServerRequiresPasswordForBiff)
 {
   NS_ENSURE_ARG_POINTER(aServerRequiresPasswordForBiff);
-  *aServerRequiresPasswordForBiff = PR_FALSE;  // for rss folders, we don't require a password
+  *aServerRequiresPasswordForBiff = false;  // for rss folders, we don't require a password
   return NS_OK;
 }
 
 NS_IMETHODIMP nsRssIncomingServer::GetCanSearchMessages(bool *canSearchMessages)
 {
   NS_ENSURE_ARG_POINTER(canSearchMessages);
-  *canSearchMessages = PR_TRUE;
+  *canSearchMessages = true;
   return NS_OK;
 }
 
@@ -290,22 +237,22 @@ NS_IMETHODIMP nsRssIncomingServer::MsgKeyChanged(nsMsgKey aOldKey,
 
 NS_IMETHODIMP nsRssIncomingServer::FolderAdded(nsIMsgFolder *aFolder)
 {
-  return FolderChanged(aFolder, PR_FALSE);
+  return FolderChanged(aFolder, false);
 }
 
 NS_IMETHODIMP nsRssIncomingServer::FolderDeleted(nsIMsgFolder *aFolder)
 {
-  return FolderChanged(aFolder, PR_TRUE);
+  return FolderChanged(aFolder, true);
 }
 
 NS_IMETHODIMP nsRssIncomingServer::FolderMoveCopyCompleted(bool aMove, nsIMsgFolder *aSrcFolder, nsIMsgFolder *aDestFolder)
 {
-  return FolderChanged(aDestFolder, PR_FALSE);
+  return FolderChanged(aDestFolder, false);
 }
 
 NS_IMETHODIMP nsRssIncomingServer::FolderRenamed(nsIMsgFolder *aOrigFolder, nsIMsgFolder *aNewFolder)
 {
-  return FolderChanged(aNewFolder, PR_FALSE);
+  return FolderChanged(aNewFolder, false);
 }
 
 NS_IMETHODIMP nsRssIncomingServer::ItemEvent(nsISupports *aItem, const nsACString &aEvent, nsISupports *aData)

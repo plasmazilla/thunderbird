@@ -22,6 +22,7 @@
  *   Philipp Kewisch <mozilla@kewis.ch>
  *   Berend Cornelius <berend.cornelius@sun.com>
  *   Fred Jendrzejewski <fred.jen@web.de>
+ *   Matthew Mecca <matthew.mecca@gmail.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -60,8 +61,6 @@ var taskDetailsView = {
         var item = document.getElementById("calendar-task-tree").currentTask;
         if (displayElement("calendar-task-details-container", item != null) &&
             displayElement("calendar-task-view-splitter", item != null)) {
-
-            this._initializeToolbar();
 
             displayElement("calendar-task-details-title-row", true);
             document.getElementById("calendar-task-details-title").textContent =
@@ -176,45 +175,7 @@ var taskDetailsView = {
                 }
             }
         }
-    },
-
-    /**
-     * Initialize the task actions toolbar by setting default mode, icon size,
-     * etc. if necessary and hooking up events for the customization dialog.
-     */
-    _initializeToolbar: function tDV_initializeToolbar() {
-        var toolbox = document.getElementById("task-actions-toolbox");
-        toolbox.customizeDone = function(aEvent) {
-            MailToolboxCustomizeDone(aEvent, "CustomizeTaskActionsToolbar");
-        };
-
-        var toolbarset = document.getElementById('customToolbars');
-        toolbox.toolbarset = toolbarset;
-
-        // Check whether we did an upgrade to a customizable header pane.
-        // If yes, set the header pane toolbar mode to icons besides text
-        var toolbar = document.getElementById("task-actions-toolbar");
-        if (toolbox && toolbar) {
-            if (!toolbox.getAttribute("mode")) {
-
-                /* set toolbox attributes to default values */
-                var mode = toolbox.getAttribute("defaultmode");
-                var align = toolbox.getAttribute("defaultlabelalign");
-                var iconsize = toolbox.getAttribute("defaulticonsize");
-                toolbox.setAttribute("mode", mode);
-                toolbox.setAttribute("labelalign", align);
-                toolbox.setAttribute("iconsize", iconsize);
-                toolbox.ownerDocument.persist(toolbox.id, "mode");
-                toolbox.ownerDocument.persist(toolbox.id, "iconsize");
-                toolbox.ownerDocument.persist(toolbox.id, "labelalign");
-
-                /* set toolbar attributes to default values */
-                iconsize = toolbar.getAttribute("defaulticonsize");
-                toolbar.setAttribute("iconsize", iconsize);
-                toolbar.ownerDocument.persist(toolbar.id, "iconsize");
-            }
-        }
-    },
+    }
 };
 
 
@@ -222,12 +183,21 @@ var taskDetailsView = {
  * Updates the currently applied filter for the task view and refreshes the task
  * tree.
  *
- * @param filter        The filter name to set.
+ * @param aFilter        The filter name to set.
  */
-function taskViewUpdate(filter) {
-    document.getElementById("filterBroadcaster").setAttribute("value", filter);
+function taskViewUpdate(aFilter) {
+    let tree = document.getElementById("calendar-task-tree");
+    let broadcaster = document.getElementById("filterBroadcaster");
+    let oldFilter = broadcaster.getAttribute("value");
+    let filter = oldFilter;
 
-    var tree = document.getElementById("calendar-task-tree");
+    if (aFilter && !(aFilter instanceof Event)) {
+        filter = aFilter;
+    }
+
+    if (filter && (filter != oldFilter)) {
+        broadcaster.setAttribute("value", filter);
+    }
 
     // update the filter
     tree.updateFilter(filter || "all");
@@ -275,7 +245,7 @@ function sendMailToOrganizer() {
  * before we had view tabs.
  */
 function taskViewObserveDisplayDeckChange(event) {
-    var deck = event.target;
+    let deck = event.target;
 
     // Bug 309505: The 'select' event also fires when we change the selected
     // panel of calendar-view-box.  Workaround with this check.
@@ -283,9 +253,9 @@ function taskViewObserveDisplayDeckChange(event) {
         return;
     }
 
-    var id = null;
+    let id = null;
     try {
-      id = deck.selectedPanel.id
+        id = deck.selectedPanel.id;
     }
     catch (e) {}
 
@@ -296,8 +266,40 @@ function taskViewObserveDisplayDeckChange(event) {
     }
 }
 
-// Install event listeners for the display deck change.
-window.addEventListener("load", function () {
-  document.getElementById("calendarDisplayDeck").
-    addEventListener("select", taskViewObserveDisplayDeckChange, true);
-  }, false);
+// Install event listeners for the display deck change and connect task tree to filter field
+function taskViewOnLoad() {
+    let deck = document.getElementById("calendarDisplayDeck");
+    let tree = document.getElementById("calendar-task-tree");
+
+    if (deck && tree) {
+        deck.addEventListener("select", taskViewObserveDisplayDeckChange, true);
+        tree.textFilterField = "task-text-filter-field";
+
+        // setup the platform-dependent placeholder for the text filter field
+        let textFilter = document.getElementById("task-text-filter-field");
+        if (textFilter) {
+            let base = textFilter.getAttribute("emptytextbase");
+            let keyLabel = textFilter.getAttribute(Application.platformIsMac ?
+                                                   "keyLabelMac" : "keyLabelNonMac");
+
+            textFilter.setAttribute("placeholder", base.replace("#1", keyLabel));
+            textFilter.value = "";
+        }
+    }
+
+    // Setup customizeDone handler for the task action toolbox.
+    var toolbox = document.getElementById("task-actions-toolbox");
+    toolbox.customizeDone = function(aEvent) {
+        MailToolboxCustomizeDone(aEvent, "CustomizeTaskActionsToolbar");
+    };
+
+    var toolbarset = document.getElementById("customToolbars");
+    toolbox.toolbarset = toolbarset;
+
+    Components.classes["@mozilla.org/observer-service;1"]
+              .getService(Components.interfaces.nsIObserverService)
+              .notifyObservers(window, "calendar-taskview-startup-done",
+                               false);
+}
+
+window.addEventListener("load", taskViewOnLoad, false);

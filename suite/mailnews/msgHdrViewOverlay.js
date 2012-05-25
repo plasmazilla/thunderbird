@@ -1699,6 +1699,24 @@ function CopyWebsiteAddress(websiteAddressNode)
   }
 }
 
+function BookmarkWebsite(aWebsiteAddressNode)
+{
+  if (aWebsiteAddressNode)
+  {
+    let websiteAddress = aWebsiteAddressNode.getAttribute("value");
+
+    if (currentHeaderData && "content-base" in currentHeaderData)
+    {
+      let url = currentHeaderData["content-base"].headerValue;
+      if (url != websiteAddress)
+        return;
+
+      let title = currentHeaderData["subject"].headerValue;
+      PlacesUIUtils.showMinimalAddBookmarkUI(makeURI(url), title);
+    }
+  }
+}
+
 var attachmentAreaDNDObserver = {
   onDragStart: function (aEvent, aAttachmentData, aDragAction)
   {
@@ -1789,17 +1807,30 @@ function nsDummyMsgHeader()
 nsDummyMsgHeader.prototype =
 {
   mProperties : new Array,
-  getStringProperty : function(aProperty) {
+  getStringProperty : function(aProperty)
+  {
     return this.mProperties[aProperty];
   },
-  setStringProperty : function(aProperty, aVal) {
+  setStringProperty : function(aProperty, aVal)
+  {
     this.mProperties[aProperty] = aVal;
+  },
+  getUint32Property : function(aProperty)
+  {
+    if (aProperty in this.mProperties)
+      return parseInt(this.mProperties[aProperty]);
+    return 0;
+  },
+  setUint32Property : function(aProperty, aVal)
+  {
+    this.mProperties[aProperty] = aVal.toString();
   },
   markHasAttachments : function(hasAttachments) {},
   messageSize : 0,
   recipients : null,
   from : null,
-  subject : null,
+  subject : "",
+  get mime2DecodedSubject() { return this.subject; },  
   ccList : null,
   messageId : null,
   date : 0,

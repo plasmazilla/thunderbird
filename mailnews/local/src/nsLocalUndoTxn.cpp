@@ -53,7 +53,10 @@
 #include "nsComponentManagerUtils.h"
 #include "nsMsgUtils.h"
 
-nsLocalMoveCopyMsgTxn::nsLocalMoveCopyMsgTxn()  : m_srcIsImap4(PR_FALSE)
+NS_IMPL_ISUPPORTS_INHERITED1(nsLocalMoveCopyMsgTxn, nsMsgTxn, nsIFolderListener)
+
+nsLocalMoveCopyMsgTxn::nsLocalMoveCopyMsgTxn()  : m_srcIsImap4(false),
+  m_canUndelete(false)
 {
 }
 
@@ -76,7 +79,7 @@ nsLocalMoveCopyMsgTxn::Init(nsIMsgFolder* srcFolder, nsIMsgFolder* dstFolder,
     rv = srcFolder->GetURI(protocolType);
     protocolType.SetLength(protocolType.FindChar(':'));
     if (MsgLowerCaseEqualsLiteral(protocolType, "imap"))
-      m_srcIsImap4 = PR_TRUE;
+      m_srcIsImap4 = true;
     return nsMsgTxn::Init();
 }
 nsresult 
@@ -152,30 +155,25 @@ nsLocalMoveCopyMsgTxn::UndoImapDeleteFlag(nsIMsgFolder* folder,
           msgIds.Append(',');
       msgIds.AppendInt((PRInt32) keyArray[i]);
     }
-    nsCOMPtr<nsIThread> thread(do_GetCurrentThread());
-    if (thread)
-    {
-      // This is to make sure that we are in the selected state
-      // when executing the imap url; we don't want to load the
-      // folder so use lite select to do the trick
-      rv = imapService->LiteSelectFolder(thread, folder,
-                                         urlListener, nsnull, nsnull);
-      if (!deleteFlag)
-          rv =imapService->AddMessageFlags(thread, folder,
-                                          urlListener, nsnull,
-                                          msgIds,
-                                          kImapMsgDeletedFlag,
-                                          PR_TRUE);
-      else
-          rv = imapService->SubtractMessageFlags(thread,
-                                                folder,
-                                           urlListener, nsnull,
-                                           msgIds,
-                                           kImapMsgDeletedFlag,
-                                           PR_TRUE);
-      if (NS_SUCCEEDED(rv) && m_msgWindow)
-          folder->UpdateFolder(m_msgWindow);
-    }
+    // This is to make sure that we are in the selected state
+    // when executing the imap url; we don't want to load the
+    // folder so use lite select to do the trick
+    rv = imapService->LiteSelectFolder(folder,
+                                       urlListener, nsnull, nsnull);
+    if (!deleteFlag)
+        rv =imapService->AddMessageFlags(folder,
+                                         urlListener, nsnull,
+                                         msgIds,
+                                         kImapMsgDeletedFlag,
+                                         true);
+    else
+        rv = imapService->SubtractMessageFlags(folder,
+                                               urlListener, nsnull,
+                                               msgIds,
+                                               kImapMsgDeletedFlag,
+                                               true);
+    if (NS_SUCCEEDED(rv) && m_msgWindow)
+        folder->UpdateFolder(m_msgWindow);
     rv = NS_OK; // always return NS_OK to indicate that the src is imap
   }
   else
@@ -197,6 +195,9 @@ nsLocalMoveCopyMsgTxn::UndoTransaction()
 
   if (!dstDB)
   {
+    // This will listen for the db reparse finishing, and the corresponding
+    // FolderLoadedNotification. When it gets that, it will then call
+    // UndoTransactionInternal.
     mUndoFolderListener = new nsLocalUndoFolderListener(this, dstFolder);
     if (!mUndoFolderListener)
       return NS_ERROR_OUT_OF_MEMORY; 
@@ -268,7 +269,7 @@ nsLocalMoveCopyMsgTxn::UndoTransactionInternal()
       CheckForToggleDelete(srcFolder, m_srcKeyArray[0], &deleteFlag); //there could have been a toggle.
       rv = UndoImapDeleteFlag(srcFolder, m_srcKeyArray, deleteFlag);
     }
-    else
+    else if (m_canUndelete)
     {
       nsCOMPtr<nsIMutableArray> srcMessages =
         do_CreateInstance(NS_ARRAY_CONTRACTID);
@@ -284,7 +285,7 @@ nsLocalMoveCopyMsgTxn::UndoTransactionInternal()
         if (NS_SUCCEEDED(rv) && oldHdr)
         {
           rv = srcDB->CopyHdrFromExistingHdr(m_srcKeyArray[i],
-                                             oldHdr, PR_TRUE,
+                                             oldHdr, true,
                                              getter_AddRefs(newHdr));
           NS_ASSERTION(newHdr, 
                        "fatal ... cannot create new msg header\n");
@@ -292,9 +293,9 @@ nsLocalMoveCopyMsgTxn::UndoTransactionInternal()
           {
             newHdr->SetStatusOffset(m_srcStatusOffsetArray[i]);
             srcDB->UndoDelete(newHdr);
-            srcMessages->AppendElement(newHdr, PR_FALSE);
+            srcMessages->AppendElement(newHdr, false);
             // (we want to keep these two lists in sync)
-            dstMessages->AppendElement(oldHdr, PR_FALSE);
+            dstMessages->AppendElement(oldHdr, false);
           }
         }
       }
@@ -306,7 +307,7 @@ nsLocalMoveCopyMsgTxn::UndoTransactionInternal()
       {
         // Remember that we're actually moving things back from the destination
         //  to the source!
-        notifier->NotifyMsgsMoveCopyCompleted(PR_TRUE, dstMessages,
+        notifier->NotifyMsgsMoveCopyCompleted(true, dstMessages,
                                               srcFolder, srcMessages);
       }
 
@@ -314,11 +315,36 @@ nsLocalMoveCopyMsgTxn::UndoTransactionInternal()
       if (localFolder)
         localFolder->MarkMsgsOnPop3Server(srcMessages, POP3_NONE /*deleteMsgs*/);
     }
-    srcDB->SetSummaryValid(PR_TRUE);
+    else // undoing a move means moving the messages back.
+    {
+      nsCOMPtr<nsIMutableArray> dstMessages =
+        do_CreateInstance(NS_ARRAY_CONTRACTID);
+      nsCOMPtr<nsIMsgDBHdr> dstHdr;
+      m_numHdrsCopied = 0;
+      m_srcKeyArray.Clear();
+      for (i = 0; i < count; i++)
+      {
+        dstDB->GetMsgHdrForKey(m_dstKeyArray[i], getter_AddRefs(dstHdr));
+        NS_ASSERTION(dstHdr, "fatal ... cannot get old msg header\n");
+        if (dstHdr)
+        {
+          nsCString messageId;
+          dstHdr->GetMessageId(getter_Copies(messageId));
+          dstMessages->AppendElement(dstHdr, false);
+          m_copiedMsgIds.AppendElement(messageId);
+        }
+      }
+      srcFolder->AddFolderListener(this);
+      m_undoing = true;
+      return srcFolder->CopyMessages(dstFolder, dstMessages,
+                                     true, nsnull, nsnull, false,
+                                     false);
+    }
+    srcDB->SetSummaryValid(true);
   }
 
   dstDB->DeleteMessages(m_dstKeyArray.Length(), m_dstKeyArray.Elements(), nsnull);
-  dstDB->SetSummaryValid(PR_TRUE);
+  dstDB->SetSummaryValid(true);
 
   return rv;
 }
@@ -326,7 +352,7 @@ nsLocalMoveCopyMsgTxn::UndoTransactionInternal()
 NS_IMETHODIMP
 nsLocalMoveCopyMsgTxn::RedoTransaction()
 {
-  nsresult rv = NS_ERROR_FAILURE;
+  nsresult rv;
   nsCOMPtr<nsIMsgDatabase> srcDB;
   nsCOMPtr<nsIMsgDatabase> dstDB;
 
@@ -358,10 +384,12 @@ nsLocalMoveCopyMsgTxn::RedoTransaction()
     if (NS_SUCCEEDED(rv) && oldHdr)
     {
       msgSupports =do_QueryInterface(oldHdr);
-      srcMessages->AppendElement(msgSupports, PR_FALSE);
+      srcMessages->AppendElement(msgSupports, false);
       
+      if (m_canUndelete)
+      {
       rv = dstDB->CopyHdrFromExistingHdr(m_dstKeyArray[i],
-                                         oldHdr, PR_TRUE,
+                                         oldHdr, true,
                                          getter_AddRefs(newHdr));
       NS_ASSERTION(newHdr, "fatal ... cannot get new msg header\n");
       if (NS_SUCCEEDED(rv) && newHdr)
@@ -372,7 +400,8 @@ nsLocalMoveCopyMsgTxn::RedoTransaction()
       }
     }
   }
-  dstDB->SetSummaryValid(PR_TRUE);
+  }
+  dstDB->SetSummaryValid(true);
 
   if (m_isMove)
   {
@@ -388,18 +417,103 @@ nsLocalMoveCopyMsgTxn::RedoTransaction()
       CheckForToggleDelete(srcFolder, m_srcKeyArray[0], &deleteFlag); // there could have been a toggle
       rv = UndoImapDeleteFlag(srcFolder, m_srcKeyArray, deleteFlag);
     }
-    else
+    else if (m_canUndelete)
     {
       nsCOMPtr <nsIMsgLocalMailFolder> localFolder = do_QueryInterface(srcFolder);
       if (localFolder)
         localFolder->MarkMsgsOnPop3Server(srcMessages, POP3_DELETE /*deleteMsgs*/);
 
       rv = srcDB->DeleteMessages(m_srcKeyArray.Length(), m_srcKeyArray.Elements(), nsnull);
-      srcDB->SetSummaryValid(PR_TRUE);
+      srcDB->SetSummaryValid(true);
+    }
+    else
+    {
+      nsCOMPtr<nsIMsgDBHdr> srcHdr;
+      m_numHdrsCopied = 0;
+      m_dstKeyArray.Clear();
+      for (i = 0; i < count; i++)
+      {
+        srcDB->GetMsgHdrForKey(m_srcKeyArray[i], getter_AddRefs(srcHdr));
+        NS_ASSERTION(srcHdr, "fatal ... cannot get old msg header\n");
+        if (srcHdr)
+        {
+          nsCString messageId;
+          srcHdr->GetMessageId(getter_Copies(messageId));
+          m_copiedMsgIds.AppendElement(messageId);
+        }
+      }
+      dstFolder->AddFolderListener(this);
+      m_undoing = false;
+      return dstFolder->CopyMessages(srcFolder, srcMessages, true, nsnull,
+                                     nsnull, false, false);
     }
   }
 
   return rv;
+}
+
+NS_IMETHODIMP nsLocalMoveCopyMsgTxn::OnItemAdded(nsIMsgFolder *parentItem, nsISupports *item)
+{
+  nsCOMPtr<nsIMsgDBHdr> msgHdr(do_QueryInterface(item));
+  if (msgHdr)
+  {
+    nsresult rv;
+    nsCOMPtr<nsIMsgFolder> folder = do_QueryReferent(m_undoing ? m_srcFolder :
+                                                     m_dstFolder, &rv);
+    NS_ENSURE_SUCCESS(rv,rv);
+    nsCString messageId;
+    msgHdr->GetMessageId(getter_Copies(messageId));
+    if (m_copiedMsgIds.IndexOf(messageId) != kNotFound)
+    {
+      nsMsgKey msgKey;
+      msgHdr->GetMessageKey(&msgKey);
+      if (m_undoing)
+        m_srcKeyArray.AppendElement(msgKey);
+      else
+        m_dstKeyArray.AppendElement(msgKey);
+      if (++m_numHdrsCopied == m_copiedMsgIds.Length())
+      {
+        folder->RemoveFolderListener(this);
+        m_copiedMsgIds.Clear();
+      }
+    }
+  }
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsLocalMoveCopyMsgTxn::OnItemRemoved(nsIMsgFolder *parentItem, nsISupports *item)
+{
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsLocalMoveCopyMsgTxn::OnItemPropertyChanged(nsIMsgFolder *item, nsIAtom *property, const char *oldValue, const char *newValue)
+{
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsLocalMoveCopyMsgTxn::OnItemIntPropertyChanged(nsIMsgFolder *item, nsIAtom *property, PRInt32 oldValue, PRInt32 newValue)
+{
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsLocalMoveCopyMsgTxn::OnItemBoolPropertyChanged(nsIMsgFolder *item, nsIAtom *property, bool oldValue, bool newValue)
+{
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsLocalMoveCopyMsgTxn::OnItemUnicharPropertyChanged(nsIMsgFolder *item, nsIAtom *property, const PRUnichar *oldValue, const PRUnichar *newValue)
+{
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsLocalMoveCopyMsgTxn::OnItemPropertyFlagChanged(nsIMsgDBHdr *item, nsIAtom *property, PRUint32 oldFlag, PRUint32 newFlag)
+{
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsLocalMoveCopyMsgTxn::OnItemEvent(nsIMsgFolder *aItem, nsIAtom *aEvent)
+{
+  return NS_OK;
 }
 
 NS_IMPL_ISUPPORTS1(nsLocalUndoFolderListener, nsIFolderListener)

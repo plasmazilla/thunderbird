@@ -846,7 +846,7 @@ PlacesController.prototype = {
    */
   moveSelectedBookmarks: function PC_moveBookmarks() {
     window.openDialog("chrome://communicator/content/bookmarks/moveBookmarks.xul",
-                      "", "chrome, modal",
+                      "", "chrome,modal,resizable=yes",
                       this._view.selectedNodes);
   },
 
@@ -1503,7 +1503,7 @@ let PlacesControllerDragHelper = {
     for (let i = 0; i < dropCount; ++i) {
       let flavor = this.getFirstValidFlavor(dt.mozTypesAt(i));
       if (!flavor)
-        return false;
+        return;
 
       let data = dt.mozGetDataAt(flavor, i);
       let unwrapped;

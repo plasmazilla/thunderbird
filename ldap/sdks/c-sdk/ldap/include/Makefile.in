@@ -72,30 +72,29 @@ PRIVATEHEADERS	= \
 		  $(NULL)
 PRIVATEHEADERS := $(addprefix $(srcdir)/, $(PRIVATEHEADERS))
 
-GENERATED_HEADERS = ldap-standard.h
+LDAP_STD_HEADER = ldap-standard.h
 
-RELEASE_HEADERS	= $(HEADERS) $(GENHEADERS)
+RELEASE_HEADERS	= $(HEADERS) $(LDAP_STD_HEADER)
 
 include $(topsrcdir)/config/rules.mk
 
 INCLUDEDIR	= $(DIST)/public/ldap
 PRIVATEINCDIR	= $(DIST)/public/ldap-private
-GENHEADERS	= $(addprefix $(INCLUDEDIR)/, $(GENERATED_HEADERS))
 
-GARBAGE		+= sdkver.h dirver.h $(GENHEADERS)
+GARBAGE		+= sdkver.h dirver.h $(LDAP_STD_HEADER)
 
 ###########################################################################
 
-all export::	$(INCLUDEDIR) $(GENHEADERS)
+all export:: $(INCLUDEDIR) $(LDAP_STD_HEADER)
 	$(NSINSTALL) -D $(PRIVATEINCDIR)
-	$(INSTALL) $(INSTALLFLAGS) -m 644 $(HEADERS) $(INCLUDEDIR)
+	$(INSTALL) $(INSTALLFLAGS) -m 644 $(HEADERS) $(LDAP_STD_HEADER) $(INCLUDEDIR)
 	$(INSTALL) $(INSTALLFLAGS) -m 644 $(PRIVATEHEADERS) $(PRIVATEINCDIR)
 
 $(INCLUDEDIR):	FORCE
 	$(NSINSTALL) -D $(INCLUDEDIR)
 
 
-$(INCLUDEDIR)/ldap-standard.h:	ldap-standard-tmpl.h $(INCLUDEDIR)
+$(LDAP_STD_HEADER): ldap-standard-tmpl.h
 	$(PERL) $(srcdir)/../build/replace.pl \
 			LDAP_VENDOR_NAME="$(VENDOR_NAME)" \
 			LDAP_VENDOR_VERSION="$(VENDOR_VERSION)" \

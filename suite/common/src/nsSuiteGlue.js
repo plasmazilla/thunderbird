@@ -749,9 +749,9 @@ SuiteGlue.prototype = {
         }
         catch(ex) {
           // Report the error, but ignore it.
-          Components.utils.reportError("bookmarks.html file could be corrupt. " + err);
-          Services.obs.removeObserver(importObserver, "bookmarks-restore-success");
-          Services.obs.removeObserver(importObserver, "bookmarks-restore-failed");
+          Components.utils.reportError("bookmarks.html file could be corrupt. " + ex);
+          Services.obs.removeObserver(this, "bookmarks-restore-success");
+          Services.obs.removeObserver(this, "bookmarks-restore-failed");
         }
       }
       else

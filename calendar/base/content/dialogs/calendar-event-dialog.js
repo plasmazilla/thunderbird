@@ -1926,7 +1926,7 @@ function updateCalendar() {
     gIsReadOnly = calendar.readOnly;
 
     // We might have to change the organizer, let's see
-    if (window.organizer) {
+    if (window.organizer && calendar.aclEntry) {
       window.organizer.id = calendar.getProperty("organizerId");
       window.organizer.commonName = calendar.getProperty("organizerCN");
     }
@@ -2353,7 +2353,10 @@ function onCommandSave(aIsClosing) {
             // Check if the current window has a calendarItem first, because in case of undo
             // window refers to the main window and we would get a 'calendarItem is undefined' warning.
             if ("calendarItem" in window) {
+                // If we changed the calendar of the item, onOperationComplete will be called multiple
+                // times. We need to make sure we're receiving the update on the right calendar.
                 if ((!window.calendarItem.id ||aId == window.calendarItem.id) &&
+                    (aCalendar.id == window.calendarItem.calendar.id) &&
                     Components.isSuccessCode(aStatus)) {
                     if (window.calendarItem.recurrenceId) {
                         // TODO This workaround needs to be removed in bug 396182
@@ -2537,35 +2540,98 @@ function onCommandCustomize() {
  * Prompts the user to change the start timezone.
  */
 function editStartTimezone() {
-    editTimezone(
-        "timezone-starttime",
-        gStartTime.getInTimezone(gStartTimezone),
-        function(datetime) {
-            var equalTimezones = false;
-            if (gStartTimezone && gEndTimezone) {
-                if (gStartTimezone == gEndTimezone) {
-                    equalTimezones = true;
-                }
-            }
-            gStartTimezone = datetime.timezone;
-            if (equalTimezones) {
-              gEndTimezone = datetime.timezone;
-            }
-            updateDateTime();
-        });
+    editTimezone("timezone-starttime",
+                 gStartTime.getInTimezone(gStartTimezone),
+                 editStartTimezone.complete);
 }
+editStartTimezone.complete = function(datetime) {
+    var equalTimezones = false;
+    if (gStartTimezone && gEndTimezone) {
+        if (gStartTimezone == gEndTimezone) {
+            equalTimezones = true;
+        }
+    }
+    gStartTimezone = datetime.timezone;
+    if (equalTimezones) {
+      gEndTimezone = datetime.timezone;
+    }
+    updateDateTime();
+};
 
 /**
  * Prompts the user to change the end timezone.
  */
 function editEndTimezone() {
-    editTimezone(
-        "timezone-endtime",
-        gEndTime.getInTimezone(gEndTimezone),
-        function(datetime) {
-            gEndTimezone = datetime.timezone;
-            updateDateTime();
-        });
+    editTimezone("timezone-endtime",
+                 gEndTime.getInTimezone(gEndTimezone),
+                 editEndTimezone.complete);
+}
+editEndTimezone.complete = function(datetime) {
+    gEndTimezone = datetime.timezone;
+    updateDateTime();
+};
+
+/**
+ * Called to choose a recent timezone from the timezone popup.
+ *
+ * @param event     The event with a target that holds the timezone id value.
+ */
+function chooseRecentTimezone(event) {
+    let tzid = event.target.value;
+    let timezonePopup = document.getElementById("timezone-popup");
+    let tzProvider = getCurrentCalendar().getProperty("timezones.provider") ||
+                     cal.getTimezoneService();
+
+    if (tzid != "custom") {
+        let zone = tzProvider.getTimezone(tzid);
+        let datetime = timezonePopup.dateTime.getInTimezone(zone);
+        timezonePopup.editTimezone.complete(datetime);
+    }
+}
+
+/**
+ * Opens the timezone popup on the node the event target points at.
+ *
+ * @param event     The event causing the popup to open
+ * @param dateTime  The datetime for which the timezone should be modified
+ * @param editFunc  The function to be called when the custom menuitem is clicked.
+ */
+function showTimezonePopup(event, dateTime, editFunc) {
+    // Don't do anything for right/middle-clicks. Also, don't show the popup if
+    // the opening node is disabled.
+    if (event.button != 0 || event.target.disabled) {
+        return;
+    }
+
+    let timezonePopup = document.getElementById("timezone-popup");
+    let timezoneDefaultItem = document.getElementById("timezone-popup-defaulttz");
+    let timezoneSeparator = document.getElementById("timezone-popup-menuseparator");
+    let defaultTimezone = cal.calendarDefaultTimezone();
+    let recentTimezones = cal.getRecentTimezones(true);
+
+    // Set up the right editTimezone function, so the custom item can use it.
+    timezonePopup.editTimezone = editFunc;
+    timezonePopup.dateTime = dateTime;
+
+    // Set up the default timezone item
+    timezoneDefaultItem.value = defaultTimezone.tzid;
+    timezoneDefaultItem.label = defaultTimezone.displayName;
+
+    // Clear out any old recent timezones
+    while (timezoneDefaultItem.nextSibling != timezoneSeparator) {
+        timezonePopup.removeChild(timezoneDefaultItem.nextSibling);
+    }
+
+    // Fill in the new recent timezones
+    for each (let tz in recentTimezones) {
+        let menuItem = createXULElement("menuitem");
+        menuItem.setAttribute("value", tz.tzid);
+        menuItem.setAttribute("label", tz.displayName);
+        timezonePopup.insertBefore(menuItem, timezoneDefaultItem.nextSibling);
+    }
+
+    // Show the popup
+    timezonePopup.openPopup(event.target, "after_start", 0, 0, true);
 }
 
 /**
@@ -2586,7 +2652,10 @@ function editTimezone(aElementId,aDateTime,aCallback) {
     var args = new Object();
     args.time = aDateTime;
     args.calendar = getCurrentCalendar();
-    args.onOk = aCallback;
+    args.onOk = function(datetime) {
+        cal.saveRecentTimezone(datetime.timezone.tzid);
+        return aCallback(datetime);
+    };
 
     // open the dialog modally
     openDialog(

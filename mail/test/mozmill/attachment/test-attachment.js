@@ -52,7 +52,6 @@ Cu.import('resource://mozmill/modules/elementslib.js', elib);
 var EventUtils = {};
 Cu.import('resource://mozmill/stdlib/EventUtils.js', EventUtils);
 
-
 var folder;
 
 const textAttachment =
@@ -438,35 +437,60 @@ function test_attachments_compose_menu() {
   let cwc = open_compose_with_forward();
   let attachment = cwc.e("attachmentBucket");
 
-  // Focus the attachmentBucket
-  attachment.focus();
-  assert_equals(cwc.e("cmd_delete").getAttribute("label"), "Remove Attachments",
+  // On Linux and OSX, focus events don't seem to be sent to child elements properly if
+  // the parent window is not focused.  This causes some random oranges for us.
+  // We use the force_focus function to "cheat" a bit, and trigger the function
+  // that focusing normally would fire.  We do normal focusing for Windows.
+  function force_focus(aId) {
+    let element = cwc.e(aId);
+    element.focus();
+
+    if (!mc.mozmillModule.isWindows) {
+      // First, call the window's default controller's function.
+      cwc.window.defaultController.isCommandEnabled("cmd_delete");
+
+      // Walk up the DOM tree and call isCommandEnabled on the first controller
+      // that supports "cmd_delete".
+      while (element != cwc.window.document) {
+        for (let i = 0; i < element.controllers.getControllerCount(); i++) {
+          let currController = element.controllers.getControllerAt(i);
+          if (currController.supportsCommand("cmd_delete")) {
+            currController.isCommandEnabled("cmd_delete");
+            return;
+          }
+        }
+        element = element.parentNode;
+      }
+    }
+  }
+
+  // Click on a portion of the attachmentBucket that will focus it, but not
+  // bring up the file picker
+  force_focus("attachmentBucket");
+  assert_equals("Remove Attachments", cwc.e("cmd_delete").getAttribute("label"),
                 "attachmentBucket is focused!");
 
   // Select 1 attachment, and
   // focus the subject to see the label change and to execute isCommandEnabled
-  cwc.click(new elib.Elem(attachment.children[0]));
-  cwc.e("msgSubject").focus();
-  assert_equals(cwc.e("cmd_delete").getAttribute("label"), "Delete",
+  attachment.selectedIndex = 0;
+  force_focus("msgSubject");
+  assert_equals("Delete", cwc.e("cmd_delete").getAttribute("label"),
                 "attachmentBucket is not focused!");
 
   // Focus back to the attachmentBucket
-  attachment.focus();
-  assert_equals(cwc.e("cmd_delete").getAttribute("label"), "Remove Attachment",
+  force_focus("attachmentBucket");
+  assert_equals("Remove Attachment", cwc.e("cmd_delete").getAttribute("label"),
                 "Only 1 attachment is selected!");
 
-  // Select 2 attachments, and focus the identity for the same purpose
-  attachment.focus();
-  cwc.click(new elib.Elem(attachment.children[1]));
-  EventUtils.synthesizeMouse(attachment.children[0], 0, 0,
-                             {accelKey: true}, cwc.window);
-  cwc.e("msgIdentity").focus();
-  assert_equals(cwc.e("cmd_delete").getAttribute("label"), "Delete",
+  // Select multiple attachments, and focus the identity for the same purpose
+  attachment.selectAll();
+  force_focus("msgIdentity");
+  assert_equals("Delete", cwc.e("cmd_delete").getAttribute("label"),
                 "attachmentBucket is not focused!");
 
   // Focus back to the attachmentBucket
-  attachment.focus();
-  assert_equals(cwc.e("cmd_delete").getAttribute("label"), "Remove Attachments",
+  force_focus("attachmentBucket");
+  assert_equals("Remove Attachments", cwc.e("cmd_delete").getAttribute("label"),
                 "Multiple attachments are selected!");
 
   close_compose_window(cwc);

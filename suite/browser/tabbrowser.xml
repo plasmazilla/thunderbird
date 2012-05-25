@@ -2603,10 +2603,6 @@
                 onget="return this.mCurrentBrowser.contentViewerFile;"
                 readonly="true"/>
 
-      <property name="documentCharsetInfo"
-                onget="return this.mCurrentBrowser.documentCharsetInfo;"
-                readonly="true"/>
-
       <property name="contentDocument"
                 onget="return this.mCurrentBrowser.contentDocument;"
                 readonly="true"/>

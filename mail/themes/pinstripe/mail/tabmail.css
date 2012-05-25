@@ -79,14 +79,14 @@
   background-size: -moz-calc(100% + 11px) -moz-calc(100% + 11px);
   margin: 0;
   padding: 1px 0 0;
-  -moz-border-image: url(chrome://messenger/skin/tabs/tab-normal-active.png) 4 5 3 6 /
+  -moz-border-image: url(tabs/tab-normal-active.png) 4 5 3 6 /
                      4px 5px 3px 6px repeat stretch;
   border-radius: 4px 4px 0 0;
   min-height: 23px;
 }
 
 .tabmail-tab[selected="true"] {
-  -moz-border-image: url(chrome://messenger/skin/tabs/tab.png) 4 5 3 6 /
+  -moz-border-image: url(tabs/tab.png) 4 5 3 6 /
                      4px 5px 3px 6px repeat stretch;
 }
 
@@ -104,11 +104,13 @@
 }
 
 .tabmail-tab:not([selected="true"]):hover {
-  -moz-border-image: url(chrome://messenger/skin/tabs/tab-hover-active.png) 4 5 3 6 /
+  -moz-border-image: url(tabs/tab-hover-active.png) 4 5 3 6 /
                      4px 5px 3px 6px repeat stretch;
 }
 
-/* preloading hack - required to prevent flicker on tabs startup */
+/* preloading hack: the images used for tab borders need to be
+preloaded to avoid flickering the first time a non-selected tab is
+opened / hovered. */
 #tabs-toolbar::after {
   content: '';
   display: block;
