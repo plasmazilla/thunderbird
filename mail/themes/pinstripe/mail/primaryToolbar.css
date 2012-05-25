@@ -690,9 +690,16 @@ toolbar[iconsize="small"] #button-archive[disabled] {
 /* ::::: end small primary toolbar buttons ::::: */
 
 #palette-box #qfb-show-filter-bar {
-  visibility: visible !important;
   list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.png");
   -moz-image-region: rect(0px 672px 32px 640px);
+}
+
+/* Force the folder location and mail view items to fit in the available width
+   in the Customize Toolbar dialog. */
+#palette-box #locationFolders,
+#palette-box #folder-location-container,
+#palette-box #viewPicker {
+  -moz-box-flex: 1;
 }
 
 .msgNotificationBarText {

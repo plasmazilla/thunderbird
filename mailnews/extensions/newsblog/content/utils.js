@@ -38,6 +38,180 @@
 #
 # ***** END LICENSE BLOCK ******
 
+var Cc = Components.classes;
+var Ci = Components.interfaces;
+var Cr = Components.results;
+var Cu = Components.utils;
+
+Cu.import("resource:///modules/mailServices.js");
+Cu.import("resource:///modules/gloda/log4moz.js");
+Cu.import("resource://gre/modules/Services.jsm");
+Cu.import("resource://gre/modules/XPCOMUtils.jsm");
+
+var FeedUtils = {
+  kBiffMinutesDefault: 100,
+  kNewsBlogSuccess: 0,
+  // Usually means there was an error trying to parse the feed.
+  kNewsBlogInvalidFeed: 1,
+  // Generic networking failure when trying to download the feed.
+  kNewsBlogRequestFailure: 2,
+  kNewsBlogFeedIsBusy: 3,
+  // There are no new articles for this feed
+  kNewsBlogNoNewItems: 4,
+
+  // Progress glue code.  Acts as a go between the RSS back end and the mail
+  // window front end determined by the aMsgWindow parameter passed into
+  // nsINewsBlogFeedDownloader.
+  progressNotifier: {
+    mSubscribeMode: false,
+    mMsgWindow: null,
+    mStatusFeedback: null,
+    mFeeds: {},
+    // Keeps track of the total number of feeds we have been asked to download.
+    // This number may not reflect the # of entries in our mFeeds array because
+    // not all feeds may have reported in for the first time.
+    mNumPendingFeedDownloads: 0,
+
+    init: function(aMsgWindow, aSubscribeMode)
+    {
+      if (!this.mNumPendingFeedDownloads)
+      {
+        // If we aren't already in the middle of downloading feed items.
+        this.mStatusFeedback = aMsgWindow ? aMsgWindow.statusFeedback : null;
+        this.mSubscribeMode = aSubscribeMode;
+        this.mMsgWindow = aMsgWindow;
+
+        if (this.mStatusFeedback)
+        {
+          this.mStatusFeedback.startMeteors();
+          this.mStatusFeedback.showStatusString(
+            FeedUtils.strings.GetStringFromName(
+              aSubscribeMode ? "subscribe-validating-feed" :
+                               "newsblog-getNewMsgsCheck"));
+        }
+      }
+    },
+
+    downloaded: function(feed, aErrorCode)
+    {
+      FeedUtils.log.debug("downloaded: feed:errorCode - " +
+                          feed.name+" : "+aErrorCode);
+      if (this.mSubscribeMode && aErrorCode == FeedUtils.kNewsBlogSuccess)
+      {
+        // If we get here we should always have a folder by now, either in
+        // feed.folder or FeedItems created the folder for us.
+        updateFolderFeedUrl(feed.folder, feed.url, false);
+
+        // Add feed just adds the feed to the subscription UI and flushes the
+        // datasource.
+        addFeed(feed.url, feed.name, feed.folder);
+
+        // Nice touch: select the folder that now contains the newly subscribed
+        // feed.  This is particularly nice if we just finished subscribing
+        // to a feed URL that the operating system gave us.
+        this.mMsgWindow.windowCommands.selectFolder(feed.folder.URI);
+      }
+      else if (feed.folder && aErrorCode != FeedUtils.kNewsBlogFeedIsBusy)
+        // Free msgDatabase after new mail biff is set; if busy let the next
+        // result do the freeing.  Otherwise new messages won't be indicated.
+        feed.folder.msgDatabase = null;
+
+      if (this.mStatusFeedback)
+      {
+        if (aErrorCode == FeedUtils.kNewsBlogNoNewItems)
+          this.mStatusFeedback.showStatusString(
+            FeedUtils.strings.GetStringFromName("newsblog-noNewArticlesForFeed"));
+        else if (aErrorCode == FeedUtils.kNewsBlogInvalidFeed)
+          this.mStatusFeedback.showStatusString(
+            FeedUtils.strings.formatStringFromName("newsblog-feedNotValid",
+                                                   [feed.url], 1));
+        else if (aErrorCode == FeedUtils.kNewsBlogRequestFailure)
+          this.mStatusFeedback.showStatusString(
+            FeedUtils.strings.formatStringFromName("newsblog-networkError",
+                                                   [feed.url], 1));
+        this.mStatusFeedback.stopMeteors();
+      }
+
+      if (!--this.mNumPendingFeedDownloads)
+      {
+        this.mFeeds = {};
+        this.mSubscribeMode = false;
+
+        // Should we do this on a timer so the text sticks around for a little
+        // while?  It doesnt look like we do it on a timer for newsgroups so
+        // we'll follow that model.  Don't clear the status text if we just
+        // dumped an error to the status bar!
+        if (aErrorCode == FeedUtils.kNewsBlogSuccess && this.mStatusFeedback)
+          this.mStatusFeedback.showStatusString("");
+      }
+    },
+
+    // This gets called after the RSS parser finishes storing a feed item to
+    // disk. aCurrentFeedItems is an integer corresponding to how many feed
+    // items have been downloaded so far.  aMaxFeedItems is an integer
+    // corresponding to the total number of feed items to download
+    onFeedItemStored: function (feed, aCurrentFeedItems, aMaxFeedItems)
+    {
+      // We currently don't do anything here.  Eventually we may add status
+      // text about the number of new feed articles received.
+
+      if (this.mSubscribeMode && this.mStatusFeedback)
+      {
+        // If we are subscribing to a feed, show feed download progress.
+        this.mStatusFeedback.showStatusString(
+          FeedUtils.strings.formatStringFromName("subscribe-gettingFeedItems",
+                                                 [aCurrentFeedItems, aMaxFeedItems], 2));
+        this.onProgress(feed, aCurrentFeedItems, aMaxFeedItems);
+      }
+    },
+
+    onProgress: function(feed, aProgress, aProgressMax)
+    {
+      if (feed.url in this.mFeeds)
+        // Have we already seen this feed?
+        this.mFeeds[feed.url].currentProgress = aProgress;
+      else
+        this.mFeeds[feed.url] = {currentProgress: aProgress,
+                                 maxProgress: aProgressMax};
+
+      this.updateProgressBar();
+    },
+
+    updateProgressBar: function()
+    {
+      var currentProgress = 0;
+      var maxProgress = 0;
+      for (let index in this.mFeeds)
+      {
+        currentProgress += this.mFeeds[index].currentProgress;
+        maxProgress += this.mFeeds[index].maxProgress;
+      }
+
+      // If we start seeing weird "jumping" behavior where the progress bar
+      // goes below a threshold then above it again, then we can factor a
+      // fudge factor here based on the number of feeds that have not reported
+      // yet and the avg progress we've already received for existing feeds.
+      // Fortunately the progressmeter is on a timer and only updates every so
+      // often.  For the most part all of our request have initial progress
+      // before the UI actually picks up a progress value. 
+      if (this.mStatusFeedback)
+      {
+        let progress = (currentProgress * 100) / maxProgress;
+        this.mStatusFeedback.showProgress(progress);
+      }
+    }
+  }
+};
+
+XPCOMUtils.defineLazyGetter(FeedUtils, "log", function() {
+  return Log4Moz.getConfiguredLogger("Feeds");
+});
+
+XPCOMUtils.defineLazyGetter(FeedUtils, "strings", function() {
+  return Services.strings.createBundle(
+    "chrome://messenger-newsblog/locale/newsblog.properties");
+});
+
 // Whether or not to dump debugging messages to the console.
 const DEBUG = false;
 var debug;
@@ -95,6 +269,9 @@ const ATOM_IETF_NS = "http://www.w3.org/2005/Atom";
 // The delay is currently one day.
 const INVALID_ITEM_PURGE_DELAY = 24 * 60 * 60 * 1000;
 
+// The delimiter used to delimit feed urls in the folder's "feedUrl" property.
+const kFeedUrlDelimiter = "|";
+
 // XXX There's a containerutils in forumzilla.js that this should be merged with.
 var containerUtils = Components.classes["@mozilla.org/rdf/container-utils;1"]
                                .getService(Components.interfaces.nsIRDFContainerUtils);
@@ -139,72 +316,190 @@ function addFeed(url, title, destFolder)
   ds.Flush();
 }
 
-function deleteFeed(aId, aServer)
+function deleteFeed(aId, aServer, aParentFolder)
 {
-  var feed = new Feed(aId, aServer);
-  var ds = getSubscriptionsDS(aServer);
+  let feed = new Feed(aId, aServer);
+  let ds = getSubscriptionsDS(aServer);
 
   if (feed && ds)
   {
-    // remove the feed from the subscriptions ds
-    var feeds = getSubscriptionsList(aServer, ds);
-    var index = feeds.IndexOf(aId);
+    // Remove the feed from the subscriptions ds.
+    let feeds = getSubscriptionsList(aServer, ds);
+    let index = feeds.IndexOf(aId);
     if (index != -1)
       feeds.RemoveElementAt(index, false);
 
-    // remove the feed property string from the folder data base
-    var currentFolder = ds.GetTarget(aId, FZ_DESTFOLDER, true);
-    if (currentFolder)
-    {
-      var currentFolderURI = currentFolder.QueryInterface(Components.interfaces.nsIRDFResource).Value;
-      currentFolder = rdf.GetResource(currentFolderURI)
-                         .QueryInterface(Components.interfaces.nsIMsgFolder);
-
-      var feedUrl = ds.GetTarget(aId, DC_IDENTIFIER, true);
-      ds.Unassert(aId, DC_IDENTIFIER, feedUrl, true);
-
-      feedUrl = feedUrl ? feedUrl.QueryInterface(Components.interfaces.nsIRDFLiteral).Value : "";
-
-      updateFolderFeedUrl(currentFolder, feedUrl, true); // remove the old url
-    }
-
     // Remove all assertions about the feed from the subscriptions database.
     removeAssertions(ds, aId);
-    ds.QueryInterface(Components.interfaces.nsIRDFRemoteDataSource).Flush(); // flush any changes
+    ds.QueryInterface(Components.interfaces.nsIRDFRemoteDataSource).Flush();
 
     // Remove all assertions about items in the feed from the items database.
-    var itemds = getItemsDS(aServer);
+    let itemds = getItemsDS(aServer);
     feed.invalidateItems();
-    feed.removeInvalidItems();
-    itemds.QueryInterface(Components.interfaces.nsIRDFRemoteDataSource).Flush(); // flush any changes
+    feed.removeInvalidItems(true);
+    itemds.QueryInterface(Components.interfaces.nsIRDFRemoteDataSource).Flush();
+
+    // Finally, make sure to remove the url from the folder's feedUrl
+    // property.  The correct folder is passed in by the Subscribe dialog or
+    // a folder pane folder delete.  The correct current folder cannot be
+    // currently determined from the feed's destFolder in the db, as it is not
+    // synced with folder pane moves.  Do this at the very end.
+    let feedUrl = aId.ValueUTF8;
+    updateFolderFeedUrl(aParentFolder, feedUrl, true);
   }
 }
 
-// Updates the "feedUrl" property in the message database for the folder
-// in question
+/**
+ * Get the list of feed urls for a folder.  For legacy reasons, we try
+ * 1) getStringProperty on the folder;
+ * 2) getCharProperty on the folder's msgDatabase.dBFolderInfo;
+ * 3) directly from the feeds.rdf subscriptions database, as identified by
+ *    the destFolder tag (currently not synced on folder moves in folder pane).
+ * 
+ * If folder move/renames are fixed, remove msgDatabase accesses and get the
+ * list directly from the feeds db.
+ * 
+ * @param  nsIMsgFolder - the folder.
+ * @return array of urls, or null if none.
+ */
+function getFeedUrlsInFolder(aFolder)
+{
+  if (aFolder.isServer || aFolder.getFlag(Ci.nsMsgFolderFlags.Trash))
+    // Never any feedUrls in the account folder or trash folder.
+    return null;
 
-// The delimiter used to delimit feed urls in the msg folder database
-// "feedUrl" property
-var kFeedUrlDelimiter = '|';
+  let feedUrlArray = [];
 
+  let feedurls = aFolder.getStringProperty("feedUrl");
+  if (feedurls)
+    return feedurls.split(kFeedUrlDelimiter);
+
+  // Go to msgDatabase for the property, make sure to handle errors.
+  let msgDb;
+  try {
+    msgDb = aFolder.msgDatabase;
+  }
+  catch (ex) {}
+  if (msgDb && msgDb.dBFolderInfo) {
+    feedurls = msgDb.dBFolderInfo.getCharProperty("feedUrl");
+    // Clean up the feedUrl string.
+    feedurls.split(kFeedUrlDelimiter).forEach(
+      function(url) {
+        if (url && feedUrlArray.indexOf(url) == -1)
+          feedUrlArray.push(url);
+      });
+
+    feedurls = feedUrlArray.join(kFeedUrlDelimiter);
+    if (feedurls) {
+      // Do a onetime per folder re-sync of the feeds db here based on the
+      // urls in the feedUrl property.
+      let ds = getSubscriptionsDS(aFolder.server);
+      let resource = rdf.GetResource(aFolder.URI);
+      feedUrlArray.forEach(
+        function(url) {
+          try {
+            let id = rdf.GetResource(url);
+            // Get the node for the current folder URI.
+            let node = ds.GetTarget(id, FZ_DESTFOLDER, true);
+            if (node)
+            {
+              ds.Change(id, FZ_DESTFOLDER, node, resource);
+              FeedUtils.log.debug("getFeedUrlsInFolder: sync update folder:url - " +
+                                  aFolder.filePath.path+" : "+url);
+            }
+            else
+            {
+              addFeed(url, null, aFolder);
+              FeedUtils.log.debug("getFeedUrlsInFolder: sync add folder:url - " +
+                                  aFolder.filePath.path+" : "+url);
+            }
+          }
+          catch (ex) {
+            FeedUtils.log.debug("getFeedUrlsInFolder: error - " + ex);
+            FeedUtils.log.debug("getFeedUrlsInFolder: sync failed for folder:url - " +
+                                aFolder.filePath.path+" : "+url);
+          }
+      });
+      ds.QueryInterface(Ci.nsIRDFRemoteDataSource).Flush();
+
+      // Set property on folder so we don't come here ever again.
+      aFolder.setStringProperty("feedUrl", feedurls);
+      aFolder.msgDatabase = null;
+
+      return feedUrlArray.length ? feedUrlArray : null;
+    }
+  }
+  else {
+    // Forcing a reparse with listener here is the last resort.  Not implemented
+    // as it may be unnecessary once feedUrl is property set on folder and not
+    // msgDatabase, and if eventually feedUrls are derived from the feeds db
+    // directly.
+  }
+
+  // Get the list from the feeds database.
+  try {
+    let ds = getSubscriptionsDS(aFolder.server);
+    let enumerator = ds.GetSources(FZ_DESTFOLDER, aFolder, true);
+    while (enumerator.hasMoreElements())
+    {
+      let containerArc = enumerator.getNext();
+      let uri = containerArc.QueryInterface(Ci.nsIRDFResource).Value;
+      feedUrlArray.push(uri);
+    }
+  }
+  catch(ex)
+  {
+    FeedUtils.log.debug("getFeedUrlsInFolder: feeds db error - " + ex);
+    FeedUtils.log.debug("getFeedUrlsInFolder: feeds db error for folder - " +
+                        aFolder.filePath.path);
+  }
+
+  feedurls = feedUrlArray.join(kFeedUrlDelimiter);
+  if (feedurls)
+  {
+    aFolder.setStringProperty("feedUrl", feedurls);
+    FeedUtils.log.debug("getFeedUrlsInFolder: got urls from db, folder:feedUrl - " +
+                        aFolder.filePath.path+" : "+feedurls);
+  }
+  else
+    FeedUtils.log.debug("getFeedUrlsInFolder: no urls from db, folder - " +
+                        aFolder.filePath.path);
+
+  return feedUrlArray.length ? feedUrlArray : null;
+}
+
+/**
+ * Add or remove urls from feedUrl folder property.  Property is used for
+ * access to a folder's feeds in Subscribe dialog and when doing downloadFeed
+ * on a folder.  Ensure no dupes.
+ * 
+ * @param  nsIMsgFolder - the folder.
+ * @param  string       - the feed's url.
+ * @param  boolean      - true if removing the url.
+ */
 function updateFolderFeedUrl(aFolder, aFeedUrl, aRemoveUrl)
 {
-  var msgdb = aFolder.QueryInterface(Components.interfaces.nsIMsgFolder)
-                     .msgDatabase;
-  var folderInfo = msgdb.dBFolderInfo;
-  var oldFeedUrl = folderInfo.getCharProperty("feedUrl");
+  if (!aFeedUrl)
+    return;
+
+  let curFeedUrls = aFolder.getStringProperty("feedUrl");
+  curFeedUrls = curFeedUrls ? curFeedUrls.split(kFeedUrlDelimiter) : [];
+  let index = curFeedUrls.indexOf(aFeedUrl);
 
   if (aRemoveUrl)
   {
-    // Remove our feed url string from the list of feed urls
-    var newFeedUrl = oldFeedUrl.replace(kFeedUrlDelimiter + aFeedUrl, "");
-    folderInfo.setCharProperty("feedUrl", newFeedUrl);
+    if (index == -1)
+      return;
+    curFeedUrls.splice(index, 1);
   }
-  else
-    folderInfo.setCharProperty("feedUrl", oldFeedUrl + kFeedUrlDelimiter + aFeedUrl);
+  else {
+    if (index != -1)
+      return;
+    curFeedUrls.push(aFeedUrl);
+  }
 
-  // Commit the db to preserve our changes
-  msgdb.Close(true);
+  let newFeedUrls = curFeedUrls.join(kFeedUrlDelimiter);
+  aFolder.setStringProperty("feedUrl", newFeedUrls);
 }
 
 function getNodeValue(node)

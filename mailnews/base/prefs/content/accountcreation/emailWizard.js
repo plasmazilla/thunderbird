@@ -692,7 +692,7 @@ EmailConfigWizard.prototype =
     if (!this._realname || !this._email) {
       return;
     }
-    return this._foundConfig2(config);
+    this._foundConfig2(config);
   },
 
   // Continuation of foundConfig2() after custom fields.
@@ -1578,6 +1578,8 @@ EmailConfigWizard.prototype =
         // should back-port it to the current config.
         self._currentConfig.incoming.auth = successfulConfig.incoming.auth;
         self._currentConfig.outgoing.auth = successfulConfig.outgoing.auth;
+        self._currentConfig.incoming.username = successfulConfig.incoming.username;
+        self._currentConfig.outgoing.username = successfulConfig.outgoing.username;
         self.finish();
       },
       function(e) // failed

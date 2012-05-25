@@ -164,7 +164,7 @@ nsContextMenu.prototype = {
       this.setItemAttr("context-saveaudio", "disabled", !this.mediaURL);
 
     // Send media URL (but not for canvas, since it's a big data: URL)
-    this.showItem("context-sendimage", showSave);
+    this.showItem("context-sendimage", showSave && !this.onCanvas);
     this.showItem("context-sendvideo", this.onVideo);
     this.showItem("context-sendaudio", this.onAudio);
     if (this.onVideo)
@@ -215,17 +215,21 @@ nsContextMenu.prototype = {
 
     this.showItem("context-reloadimage", this.onImage);
 
-    // View Image depends on whether an image was clicked on.
-    this.showItem("context-viewimage", this.onImage &&
-                  (!this.onStandaloneImage || this.inFrame) || this.onCanvas);
+    // View image depends on having an image that's not standalone
+    // (or is in a frame), or a canvas.
+    this.showItem("context-viewimage",
+                  (this.onImage && (!this.inSyntheticDoc || this.inFrame)) ||
+                  this.onCanvas);
 
-    this.showItem("context-viewvideo", this.onVideo && (this.inFrame ||
-                  this.mediaURL != this.target.ownerDocument.location.href));
+    // View video depends on not having a standalone video.
+    this.showItem("context-viewvideo", this.onVideo &&
+                                       (!this.inSyntheticDoc || this.inFrame));
     this.setItemAttr("context-viewvideo", "disabled", !this.mediaURL);
 
-    // View background image depends on whether there is one.
-    this.showItem("context-viewbgimage", showView && !this.onStandaloneImage);
-    this.showItem("context-sep-viewbgimage", showView && !this.onStandaloneImage);
+    // View background image depends on whether there is one, but don't make
+    // background images of a stand-alone media document available
+    this.showItem("context-viewbgimage", showView && !this.inSyntheticDoc);
+    this.showItem("context-sep-viewbgimage", showView && !this.inSyntheticDoc);
     this.setItemAttr("context-viewbgimage", "disabled", this.hasBGImage ? null : "true");
 
     // Hide Block and Unblock menuitems.
@@ -348,7 +352,8 @@ nsContextMenu.prototype = {
     this.showItem("context-delete", this.onTextInput);
     this.showItem("context-sep-paste", this.onTextInput);
     this.showItem("context-selectall", !(this.onLink || this.onImage ||
-                                         this.onVideo || this.onAudio));
+                                         this.onVideo || this.onAudio ||
+                                         this.inSyntheticDoc));
     this.showItem("context-sep-selectall",
                   this.isContentSelected && !this.onTextInput);
     // In a text area there will be nothing after select all, so we don't want a sep
@@ -450,6 +455,7 @@ nsContextMenu.prototype = {
     this.linkProtocol          = "";
     this.onMathML              = false;
     this.inFrame               = false;
+    this.inSyntheticDoc        = false;
     this.hasBGImage            = false;
     this.bgImageURL            = "";
     this.popupURL              = null;
@@ -501,15 +507,20 @@ nsContextMenu.prototype = {
       }
     }
 
-    // See if the user clicked on an image.
+    // Check if we are in a synthetic document (stand alone image, video, etc.).
+    this.inSyntheticDoc = this.target.ownerDocument.mozSyntheticDocument;
+    // First, do checks for nodes that never have children.
     if (this.target.nodeType == Node.ELEMENT_NODE) {
+      // See if the user clicked on an image.
       if (this.target instanceof Components.interfaces.nsIImageLoadingContent &&
           this.target.currentURI) {
         this.onImage = true;
+
         var request =
           this.target.getRequest(Components.interfaces.nsIImageLoadingContent.CURRENT_REQUEST);
         if (request && (request.imageStatus & request.STATUS_SIZE_AVAILABLE))
           this.onLoadedImage = true;
+
         this.mediaURL = this.target.currentURI.spec;
 
         if (this.target.ownerDocument instanceof ImageDocument)
@@ -621,6 +632,7 @@ nsContextMenu.prototype = {
             ((elem instanceof HTMLAnchorElement && elem.href) ||
              elem instanceof HTMLAreaElement ||
              elem instanceof HTMLLinkElement ||
+             (elem.namespaceURI == NS_MathML && elem.hasAttribute("href")) ||
              elem.getAttributeNS("http://www.w3.org/1999/xlink", "type") == "simple")) {
           // Clicked on a link.
           this.onLink = true;
@@ -1210,7 +1222,12 @@ nsContextMenu.prototype = {
     if (this.link.href)
       return this.link.href;
 
-    var href = this.link.getAttributeNS("http://www.w3.org/1999/xlink", "href");
+    var href;
+    if (this.link.namespaceURI == "http://www.w3.org/1998/Math/MathML")
+      href = this.link.getAttribute("href");
+
+    if (!href)
+      href = this.link.getAttributeNS("http://www.w3.org/1999/xlink", "href");
 
     if (!href || !href.match(/\S/)) {
       // Without this we try to save as the current doc,
@@ -1242,25 +1259,28 @@ nsContextMenu.prototype = {
   // Get text of link.
   linkText: function() {
     var text = gatherTextUnder(this.link);
-    if (!text || !text.match(/\S/)) {
-      text = this.link.getAttribute("title");
-      if (!text || !text.match(/\S/)) {
-        text = this.link.getAttribute("alt");
-        if (!text || !text.match(/\S/)) {
-          if (this.link.href) {
-            text = this.link.href;
-          }
-          else {
-            text = getAttributeNS("http://www.w3.org/1999/xlink", "href");
-            if (text && text.match(/\S/)) {
-              text = makeURLAbsolute(this.link.baseURI, text);
-            }
-          }
-        }
-      }
-    }
+    if (text && text.match(/\S/))
+      return text;
 
-    return text;
+    text = this.link.getAttribute("title");
+    if (text && text.match(/\S/))
+      return text;
+
+    text = this.link.getAttribute("alt");
+    if (text && text.match(/\S/))
+      return text;
+
+    if (this.link.href)
+      return this.link.href;
+
+    if (elem.namespaceURI == "http://www.w3.org/1998/Math/MathML")
+      text = elem.getAttribute("href");
+    if (!text || !text.match(/\S/))
+      text = elem.getAttributeNS("http://www.w3.org/1999/xlink", "href");
+    if (text && text.match(/\S/))
+      return makeURLAbsolute(this.link.baseURI, text);
+
+    return null;
   },
 
   /**

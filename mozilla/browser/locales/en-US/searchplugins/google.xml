@@ -1,3 +1,13 @@
+#define GOOGLE_PARAMS <Param name="q" value="{searchTerms}"/><Param name="ie" value="utf-8"/><Param name="oe" value="utf-8"/><Param name="aq" value="t"/><Param name="rls" value="{moz:distributionID}:{moz:locale}:{moz:official}"/>
+#if MOZ_UPDATE_CHANNEL == beta
+#define GOOGLE_CLIENT_PARAM <MozParam name="client" condition="defaultEngine" trueValue="firefox-beta" falseValue="firefox"/>
+#elif MOZ_UPDATE_CHANNEL == aurora
+#define GOOGLE_CLIENT_PARAM <MozParam name="client" condition="defaultEngine" trueValue="firefox-aurora" falseValue="firefox"/>
+#elif MOZ_UPDATE_CHANNEL == nightly
+#define GOOGLE_CLIENT_PARAM <MozParam name="client" condition="defaultEngine" trueValue="firefox-nightly" falseValue="firefox"/>
+#else
+#define GOOGLE_CLIENT_PARAM <MozParam name="client" condition="defaultEngine" trueValue="firefox-a" falseValue="firefox"/>
+#endif
 <SearchPlugin xmlns="http://www.mozilla.org/2006/browser/search/">
 <ShortName>Google</ShortName>
 <Description>Google Search</Description>
@@ -5,13 +15,20 @@
 <Image width="16" height="16" type="image/x-icon">http://www.google.com/favicon.ico</Image>
 <Url type="application/x-suggestions+json" method="GET" template="http://suggestqueries.google.com/complete/search?output=firefox&amp;client=firefox&amp;hl={moz:locale}&amp;q={searchTerms}"/>
 <Url type="text/html" method="GET" template="http://www.google.com/search">
-  <Param name="q" value="{searchTerms}"/>
-  <Param name="ie" value="utf-8"/>
-  <Param name="oe" value="utf-8"/>
-  <Param name="aq" value="t"/>
-  <!-- Dynamic parameters -->
-  <Param name="rls" value="{moz:distributionID}:{moz:locale}:{moz:official}"/>
-  <MozParam name="client" condition="defaultEngine" trueValue="firefox-a" falseValue="firefox"/>
+#expand   __GOOGLE_PARAMS__
+#expand   __GOOGLE_CLIENT_PARAM__
+</Url>
+<!-- Keyword search URL is the same as the default, but with an additional parameter -->
+<Url type="application/x-moz-keywordsearch" method="GET" template="http://www.google.com/search">
+#expand   __GOOGLE_PARAMS__
+#expand   __GOOGLE_CLIENT_PARAM__
+  <Param name="channel" value="fflb"/>
+</Url>
+<!-- Context/Right-click search URL is the same as the default, but with an additional parameter -->
+<Url type="application/x-moz-contextsearch" method="GET" template="http://www.google.com/search">
+#expand   __GOOGLE_PARAMS__
+#expand   __GOOGLE_CLIENT_PARAM__
+  <Param name="channel" value="rcs"/>
 </Url>
 <SearchForm>http://www.google.com/</SearchForm>
 </SearchPlugin>

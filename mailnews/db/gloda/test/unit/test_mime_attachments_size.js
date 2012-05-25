@@ -244,7 +244,7 @@ function check_attachments(aMimeMsg, epsilon, checkTotalSize) {
   let totalSize = htmlText.length;
 
   for each (let [i, att] in Iterator(aMimeMsg.allUserAttachments)) {
-    dump("*** Attachment now is "+att.name+" "+att.size+" "+"\n");
+    dump("*** Attachment now is " + att.name + " " + att.size + "\n");
     do_check_true(Math.abs(att.size - originalTextByteCount) <= epsilon);
     totalSize += att.size;
   }

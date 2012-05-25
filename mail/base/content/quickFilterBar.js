@@ -117,12 +117,11 @@ let QuickFilterBarMuxer = {
     let qfbButton = document.getElementById("qfb-show-filter-bar");
 
     if (qfbButton) {
-      qfbButton.style.visibility = (appropriate ? "visible" : "hidden");
+      qfbButton.disabled = !appropriate;
       if (!appropriate)
         qfbButton.checked = false;
     }
   },
-
 
   /**
    * Clear out our state when notified the user has changed folders and re-apply
@@ -495,7 +494,7 @@ let QuickFilterBarMuxer = {
     else { // this only happens for tabs we are not legal on
       let qfbButton = document.getElementById("qfb-show-filter-bar");
       if (qfbButton)
-        qfbButton.style.visibility = "hidden";
+        qfbButton.disabled = true;
     }
   },
 

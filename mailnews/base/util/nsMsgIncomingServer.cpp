@@ -53,6 +53,7 @@
 #include "nsMsgDBCID.h"
 #include "nsIMsgFolder.h"
 #include "nsIMsgFolderCache.h"
+#include "nsIMsgPluggableStore.h"
 #include "nsIMsgFolderCacheElement.h"
 #include "nsIMsgWindow.h"
 #include "nsIMsgFilterService.h"
@@ -71,7 +72,6 @@
 #include "nsIInterfaceRequestorUtils.h"
 #include "nsILoginInfo.h"
 #include "nsILoginManager.h"
-
 #include "nsIMsgAccountManager.h"
 #include "nsIMsgMdnGenerator.h"
 #include "nsMsgFolderFlags.h"
@@ -84,10 +84,10 @@ nsMsgIncomingServer::nsMsgIncomingServer():
     m_rootFolder(0),
     m_numMsgsDownloaded(0),
     m_biffState(nsIMsgFolder::nsMsgBiffState_Unknown),
-    m_serverBusy(PR_FALSE),
-    m_canHaveFilters(PR_TRUE),
-    m_displayStartupPage(PR_TRUE),
-    mPerformingBiff(PR_FALSE)
+    m_serverBusy(false),
+    m_canHaveFilters(true),
+    m_displayStartupPage(true),
+    mPerformingBiff(false)
 { 
   m_downloadedHdrs.Init(50);
 }
@@ -228,7 +228,7 @@ NS_IMETHODIMP nsMsgIncomingServer::WriteToFolderCache(nsIMsgFolderCache *folderC
   {
     nsCOMPtr <nsIMsgFolder> msgFolder = do_QueryInterface(m_rootFolder, &rv);
     if (NS_SUCCEEDED(rv) && msgFolder)
-      rv = msgFolder->WriteToFolderCache(folderCache, PR_TRUE /* deep */);
+      rv = msgFolder->WriteToFolderCache(folderCache, true /* deep */);
   }
   return rv;
 }
@@ -269,7 +269,7 @@ NS_IMETHODIMP
 nsMsgIncomingServer::GetDownloadMessagesAtStartup(bool *getMessagesAtStartup)
 {
   // derived class should override if they need to do this.
-  *getMessagesAtStartup = PR_FALSE;
+  *getMessagesAtStartup = false;
   return NS_OK;
 }
 
@@ -292,7 +292,7 @@ NS_IMETHODIMP
 nsMsgIncomingServer::GetCanBeDefaultServer(bool *canBeDefaultServer)
 {
   // derived class should override if they need to do this.
-  *canBeDefaultServer = PR_FALSE;
+  *canBeDefaultServer = false;
   return NS_OK;
 }
 
@@ -301,7 +301,7 @@ nsMsgIncomingServer::GetCanSearchMessages(bool *canSearchMessages)
 {
   // derived class should override if they need to do this.
   NS_ENSURE_ARG_POINTER(canSearchMessages);
-  *canSearchMessages = PR_FALSE;
+  *canSearchMessages = false;
   return NS_OK;
 }
 
@@ -310,7 +310,7 @@ nsMsgIncomingServer::GetCanCompactFoldersOnServer(bool *canCompactFoldersOnServe
 {
   // derived class should override if they need to do this.
   NS_ENSURE_ARG_POINTER(canCompactFoldersOnServer);
-  *canCompactFoldersOnServer = PR_TRUE;
+  *canCompactFoldersOnServer = true;
   return NS_OK;
 }
 
@@ -319,7 +319,7 @@ nsMsgIncomingServer::GetCanUndoDeleteOnServer(bool *canUndoDeleteOnServer)
 {
   // derived class should override if they need to do this.
   NS_ENSURE_ARG_POINTER(canUndoDeleteOnServer);
-  *canUndoDeleteOnServer = PR_TRUE;
+  *canUndoDeleteOnServer = true;
   return NS_OK;
 }
 
@@ -328,7 +328,7 @@ nsMsgIncomingServer::GetCanEmptyTrashOnExit(bool *canEmptyTrashOnExit)
 {
   // derived class should override if they need to do this.
   NS_ENSURE_ARG_POINTER(canEmptyTrashOnExit);
-  *canEmptyTrashOnExit = PR_TRUE;
+  *canEmptyTrashOnExit = true;
   return NS_OK;
 }
 
@@ -337,7 +337,7 @@ nsMsgIncomingServer::GetIsSecureServer(bool *isSecureServer)
 {
   // derived class should override if they need to do this.
   NS_ENSURE_ARG_POINTER(isSecureServer);
-  *isSecureServer = PR_TRUE;
+  *isSecureServer = true;
   return NS_OK;
 }
 
@@ -372,17 +372,20 @@ nsMsgIncomingServer::GetServerURI(nsACString& aResult)
 }
 
 // helper routine to create local folder on disk, if it doesn't exist.
-// Path must already have a LeafName for this to work...
 nsresult
-nsMsgIncomingServer::CreateLocalFolder(nsIFile *path, const nsACString& folderName)
+nsMsgIncomingServer::CreateLocalFolder(const nsAString& folderName)
 {
-  (void) path->SetNativeLeafName(folderName);
-  bool exists;
-  nsresult rv = path->Exists(&exists);
+  nsCOMPtr<nsIMsgFolder> rootFolder;
+  nsresult rv = GetRootFolder(getter_AddRefs(rootFolder));
   NS_ENSURE_SUCCESS(rv, rv);
-  if (!exists)
-    rv = path->Create(nsIFile::NORMAL_FILE_TYPE, 0644);
-  return rv;
+  nsCOMPtr<nsIMsgFolder> child;
+  rv = rootFolder->GetChildNamed(folderName, getter_AddRefs(child));
+  if (child)
+    return NS_OK;
+  nsCOMPtr<nsIMsgPluggableStore> msgStore;
+  rv = GetMsgStore(getter_AddRefs(msgStore));
+  NS_ENSURE_SUCCESS(rv, rv);
+  return msgStore->CreateFolder(rootFolder, folderName, getter_AddRefs(child));
 }
 
 nsresult
@@ -417,7 +420,7 @@ nsMsgIncomingServer::GetBoolValue(const char *prefname,
     return NS_ERROR_NOT_INITIALIZED;
 
   NS_ENSURE_ARG_POINTER(val);
-  *val = PR_FALSE;
+  *val = false;
 
   if (NS_FAILED(mPrefBranch->GetBoolPref(prefname, val)))
     mDefPrefBranch->GetBoolPref(prefname, val);
@@ -697,7 +700,7 @@ NS_IMETHODIMP nsMsgIncomingServer::GetPassword(nsACString& aPassword)
 NS_IMETHODIMP nsMsgIncomingServer::GetServerRequiresPasswordForBiff(bool *aServerRequiresPasswordForBiff)
 {
   NS_ENSURE_ARG_POINTER(aServerRequiresPasswordForBiff);
-  *aServerRequiresPasswordForBiff = PR_TRUE;
+  *aServerRequiresPasswordForBiff = true;
   return NS_OK;
 }
 
@@ -968,6 +971,36 @@ nsMsgIncomingServer::GetLocalPath(nsILocalFile **aLocalPath)
 }
 
 NS_IMETHODIMP
+nsMsgIncomingServer::GetMsgStore(nsIMsgPluggableStore **aMsgStore)
+{
+  NS_ENSURE_ARG_POINTER(aMsgStore);
+  if (!m_msgStore)
+  {
+    nsCString storeContractID;
+    nsresult rv;
+    // We don't want there to be a default pref, I think, since
+    // we can't change the default. We may want no pref to mean
+    // berkeley store, and then set the store pref off of some sort
+    // of default when creating a server. But we need to make sure
+    // that we do always write a store pref.
+    GetCharValue("storeContractID", storeContractID);
+    if (storeContractID.IsEmpty())
+    {
+      storeContractID.Assign("@mozilla.org/msgstore/berkeleystore;1");
+      SetCharValue("storeContractID", storeContractID);
+    }
+    // Right now, we just have one pluggable store per server. If we want
+    // to support multiple, this pref could be a list of pluggable store
+    // contract id's.
+    m_msgStore = do_CreateInstance(storeContractID.get(), &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
+  NS_IF_ADDREF(*aMsgStore = m_msgStore);
+  return NS_OK;
+}
+
+
+NS_IMETHODIMP
 nsMsgIncomingServer::SetLocalPath(nsILocalFile *aLocalPath)
 {
   NS_ENSURE_ARG_POINTER(aLocalPath);
@@ -1036,13 +1069,13 @@ nsMsgIncomingServer::RemoveFiles()
   GetIsDeferredTo(&isDeferredTo);
   if (!deferredToAccount.IsEmpty() || isDeferredTo)
   {
-    NS_ASSERTION(PR_FALSE, "shouldn't remove files for a deferred account");
+    NS_ASSERTION(false, "shouldn't remove files for a deferred account");
     return NS_ERROR_FAILURE;
   }
   nsCOMPtr <nsILocalFile> localPath;
   nsresult rv = GetLocalPath(getter_AddRefs(localPath));
   NS_ENSURE_SUCCESS(rv, rv);
-  return localPath->Remove(PR_TRUE);
+  return localPath->Remove(true);
 }
 
 NS_IMETHODIMP
@@ -1180,9 +1213,9 @@ nsMsgIncomingServer::InternalSetHostName(const nsACString& aHostname, const char
 {
   nsCString hostname;
   hostname = aHostname;
-  PRInt32 colonPos = hostname.FindChar(':');
-  if (colonPos != -1)
+  if (hostname.CountChar(':') == 1)
   {
+    PRInt32 colonPos = hostname.FindChar(':');
     nsCAutoString portString(Substring(hostname, colonPos));
     hostname.SetLength(colonPos);
     nsresult err;
@@ -1262,7 +1295,7 @@ nsMsgIncomingServer::GetHostName(nsACString& aResult)
 {
   nsresult rv;
   rv = GetCharValue("hostname", aResult);
-  if (aResult.FindChar(':') != -1)
+  if (aResult.CountChar(':') == 1)
   {
     // gack, we need to reformat the hostname - SetHostName will do that
     SetHostName(aResult);
@@ -1282,7 +1315,7 @@ nsMsgIncomingServer::GetRealHostName(nsACString& aResult)
   if (aResult.IsEmpty())
     return GetHostName(aResult);
 
-  if (aResult.FindChar(':') != -1)
+  if (aResult.CountChar(':') == 1)
   {
     SetRealHostName(aResult);
     rv = GetCharValue("realhostname", aResult);
@@ -1558,7 +1591,7 @@ NS_IMETHODIMP
 nsMsgIncomingServer::GetSupportsDiskSpace(bool *aSupportsDiskSpace)
 {
   NS_ENSURE_ARG_POINTER(aSupportsDiskSpace);
-  *aSupportsDiskSpace = PR_TRUE;
+  *aSupportsDiskSpace = true;
   return NS_OK;
 }
 
@@ -1599,7 +1632,7 @@ NS_IMETHODIMP nsMsgIncomingServer::DisplayOfflineMsg(nsIMsgWindow *aMsgWindow)
     nsString errorMsgBody;
     bundle->GetStringFromName(NS_LITERAL_STRING("nocachedbodybody").get(), getter_Copies(errorMsgBody));
     bundle->GetStringFromName(NS_LITERAL_STRING("nocachedbodytitle").get(),  getter_Copies(errorMsgTitle));
-    aMsgWindow->DisplayHTMLInMessagePane(errorMsgTitle, errorMsgBody, PR_TRUE);
+    aMsgWindow->DisplayHTMLInMessagePane(errorMsgTitle, errorMsgBody, true);
   }
   
   return NS_OK;
@@ -1739,7 +1772,7 @@ NS_IMETHODIMP
 nsMsgIncomingServer::GetPasswordPromptRequired(bool *aPasswordIsRequired)
 {
   NS_ENSURE_ARG_POINTER(aPasswordIsRequired);
-  *aPasswordIsRequired = PR_TRUE;
+  *aPasswordIsRequired = true;
 
   // If the password is not even required for biff we don't need to check any further
   nsresult rv = GetServerRequiresPasswordForBiff(aPasswordIsRequired);
@@ -1825,7 +1858,7 @@ nsMsgIncomingServer::ConfigureTemporaryServerSpamFilters(nsIMsgFilterList *filte
                                   getter_AddRefs(newFilter));
   if (newFilter && serverFilterTrustFlags & nsISpamSettings::TRUST_POSITIVES)
   {
-    newFilter->SetTemporary(PR_TRUE);
+    newFilter->SetTemporary(true);
     // check if we're supposed to move junk mail to junk folder; if so,
     // add filter action to do so.
 
@@ -1849,12 +1882,12 @@ nsMsgIncomingServer::ConfigureTemporaryServerSpamFilters(nsIMsgFilterList *filte
       nsCOMPtr<nsIMsgSearchTerm> firstTerm(do_QueryElementAt(searchTerms,
                                                              0, &rv));
       NS_ENSURE_SUCCESS(rv,rv);
-      firstTerm->SetBeginsGrouping(PR_TRUE);
+      firstTerm->SetBeginsGrouping(true);
 
       nsCOMPtr<nsIMsgSearchTerm> lastTerm(do_QueryElementAt(searchTerms,
                                                             count - 1, &rv));
       NS_ENSURE_SUCCESS(rv,rv);
-      lastTerm->SetEndsGrouping(PR_TRUE);
+      lastTerm->SetEndsGrouping(true);
     }
 
     // Create a new term, checking if the user set junk status. The term will
@@ -1865,7 +1898,7 @@ nsMsgIncomingServer::ConfigureTemporaryServerSpamFilters(nsIMsgFilterList *filte
 
     searchTerm->SetAttrib(nsMsgSearchAttrib::JunkScoreOrigin);
     searchTerm->SetOp(nsMsgSearchOp::Isnt);
-    searchTerm->SetBooleanAnd(PR_TRUE);
+    searchTerm->SetBooleanAnd(true);
 
     nsCOMPtr<nsIMsgSearchValue> searchValue;
     searchTerm->GetValue(getter_AddRefs(searchValue));
@@ -1912,7 +1945,7 @@ nsMsgIncomingServer::ConfigureTemporaryServerSpamFilters(nsIMsgFilterList *filte
                                   getter_AddRefs(newFilter));
   if (newFilter && serverFilterTrustFlags & nsISpamSettings::TRUST_NEGATIVES)
   {
-    newFilter->SetTemporary(PR_TRUE);
+    newFilter->SetTemporary(true);
     filterList->InsertFilterAt(0, newFilter);
   }
 
@@ -1967,10 +2000,10 @@ nsMsgIncomingServer::ConfigureTemporaryReturnReceiptsFilter(nsIMsgFilterList *fi
                                getter_AddRefs(newFilter));
       if (newFilter)
       {
-        newFilter->SetEnabled(PR_TRUE);
+        newFilter->SetEnabled(true);
         // this internal filter is temporary
         // and should not show up in the UI or be written to disk
-        newFilter->SetTemporary(PR_TRUE);
+        newFilter->SetTemporary(true);
 
         nsCOMPtr<nsIMsgSearchTerm> term;
         nsCOMPtr<nsIMsgSearchValue> value;
@@ -1987,7 +2020,7 @@ nsMsgIncomingServer::ConfigureTemporaryReturnReceiptsFilter(nsIMsgFilterList *fi
             value->SetStr(NS_LITERAL_STRING("multipart/report"));
             term->SetAttrib(nsMsgSearchAttrib::OtherHeader + 1);
             term->SetOp(nsMsgSearchOp::Contains);
-            term->SetBooleanAnd(PR_TRUE);
+            term->SetBooleanAnd(true);
             term->SetArbitraryHeader(NS_LITERAL_CSTRING("Content-Type"));
             term->SetValue(value);
             newFilter->AppendTerm(term);
@@ -2006,7 +2039,7 @@ nsMsgIncomingServer::ConfigureTemporaryReturnReceiptsFilter(nsIMsgFilterList *fi
             value->SetStr(NS_LITERAL_STRING("disposition-notification"));
             term->SetAttrib(nsMsgSearchAttrib::OtherHeader + 1);
             term->SetOp(nsMsgSearchOp::Contains);
-            term->SetBooleanAnd(PR_TRUE);
+            term->SetBooleanAnd(true);
             term->SetArbitraryHeader(NS_LITERAL_CSTRING("Content-Type"));
             term->SetValue(value);
             newFilter->AppendTerm(term);
@@ -2049,7 +2082,7 @@ nsMsgIncomingServer::GetMsgFolderFromURI(nsIMsgFolder *aFolderResource, const ns
   NS_ENSURE_TRUE(rootMsgFolder, NS_ERROR_UNEXPECTED);
 
   nsCOMPtr <nsIMsgFolder> msgFolder;
-  rv = rootMsgFolder->GetChildWithURI(aURI, PR_TRUE, PR_TRUE /*caseInsensitive*/, getter_AddRefs(msgFolder));
+  rv = rootMsgFolder->GetChildWithURI(aURI, true, true /*caseInsensitive*/, getter_AddRefs(msgFolder));
   if (NS_FAILED(rv) || !msgFolder)
     msgFolder = aFolderResource;
   NS_IF_ADDREF(*aFolder = msgFolder);
@@ -2165,7 +2198,7 @@ NS_IMETHODIMP nsMsgIncomingServer::GetIsDeferredTo(bool *aIsDeferredTo)
             server->GetCharValue("deferred_to_account", deferredToAccount);
             if (deferredToAccount.Equals(accountKey))
             {
-              *aIsDeferredTo = PR_TRUE;
+              *aIsDeferredTo = true;
               return NS_OK;
             }
           }
@@ -2173,7 +2206,7 @@ NS_IMETHODIMP nsMsgIncomingServer::GetIsDeferredTo(bool *aIsDeferredTo)
       }
     }
   }
-  *aIsDeferredTo = PR_FALSE;
+  *aIsDeferredTo = false;
   return NS_OK;
 }
 
@@ -2196,7 +2229,7 @@ NS_IMETHODIMP nsMsgIncomingServer::IsNewHdrDuplicate(nsIMsgDBHdr *aNewHdr, bool 
 {
   NS_ENSURE_ARG_POINTER(aResult);
   NS_ENSURE_ARG_POINTER(aNewHdr);
-  *aResult = PR_FALSE;
+  *aResult = false;
   nsCAutoString strHashKey;
   nsCString messageId, subject;
   aNewHdr->GetMessageId(getter_Copies(messageId));
@@ -2209,7 +2242,7 @@ NS_IMETHODIMP nsMsgIncomingServer::IsNewHdrDuplicate(nsIMsgDBHdr *aNewHdr, bool 
   PRInt32 hashValue = 0;
   m_downloadedHdrs.Get(strHashKey, &hashValue);
   if (hashValue)
-    *aResult = PR_TRUE;
+    *aResult = true;
   else
   {
     // we store the current size of the hash table as the hash

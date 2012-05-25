@@ -100,16 +100,21 @@ ifdef MOZ_URL_CLASSIFIER
 DEFINES += -DMOZ_URL_CLASSIFIER=1
 endif
 
-ifdef MOZ_USE_NATIVE_UCONV
-DEFINES += -DMOZ_USE_NATIVE_UCONV=1
-endif
-
 ifdef MOZ_UPDATER
 DEFINES += -DMOZ_UPDATER=1
 endif
 
 ifdef MOZ_MOVEMAIL
 DEFINES += -DMOZ_MOVEMAIL=1
+endif
+
+# Set MSVC dlls version to package, if any.
+ifdef WIN32_REDIST_DIR
+DEFINES += -DMOZ_MSVC_REDIST=$(_MSC_VER)
+endif
+
+ifneq (,$(filter WINNT Darwin Android,$(OS_TARGET)))
+DEFINES += -DMOZ_SHARED_MOZGLUE=1
 endif
 
 ifneq (en-US, $(AB_CD))
@@ -144,6 +149,12 @@ NON_OMNIJAR_FILES = \
 	defaults/profile/localstore.rdf \
 	defaults/profile/panels.rdf \
 	$(NULL)
+
+ifndef LIBXUL_SDK
+INSTALL_SDK = 1
+endif
+ 
+GENERATE_CACHE=1
 
 include $(MOZILLA_SRCDIR)/toolkit/mozapps/installer/packager.mk
 

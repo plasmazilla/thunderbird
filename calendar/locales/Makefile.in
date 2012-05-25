@@ -82,6 +82,7 @@ DEFINES += \
     -DAB_CD=$(AB_CD) \
     -DMOZ_LANGPACK_EID=langpack-$(AB_CD)@sunbird.mozilla.org \
     -DMOZ_APP_VERSION=$(MOZ_APP_VERSION) \
+    -DMOZ_APP_MAXVERSION=$(MOZ_APP_MAXVERSION) \
     -DLOCALE_SRCDIR=$(LOCALE_SRCDIR) \
     -DPKG_BASENAME="$(PKG_BASENAME)" \
     -DPKG_INST_BASENAME="$(PKG_INST_BASENAME)" \
@@ -330,7 +331,7 @@ l10n-upload-%:
 ifdef MOZ_MAKE_COMPLETE_MAR
 	$(PYTHON) $(MOZILLA_SRCDIR)/build/upload.py --base-path $(DIST) $(DIST)/$(COMPLETE_MAR) $(call QUOTED_WILDCARD,$(wildcard $(DIST)/$(PARTIAL_MAR)))
 endif
-ifneq (,$(filter WINNT WINCE,$(OS_ARCH)))
+ifeq (WINNT,$(OS_ARCH))
 	$(PYTHON) $(MOZILLA_SRCDIR)/build/upload.py --base-path $(DIST) "$(INSTALLER_PACKAGE)"
 endif
 

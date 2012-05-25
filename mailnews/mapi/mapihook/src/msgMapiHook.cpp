@@ -78,6 +78,7 @@
 #include "msgMapiSupport.h"
 #include "msgMapiMain.h"
 #include "nsThreadUtils.h"
+#include "nsMsgUtils.h"
 #include "nsNetUtil.h"
 
 #include "nsEmbedCID.h"
@@ -107,7 +108,7 @@ public:
                            nsIFile *returnFile) {
         PR_CEnterMonitor(this);
         PR_CNotifyAll(this);
-        m_done = PR_TRUE;
+        m_done = true;
         PR_CExitMonitor(this);
         return NS_OK ;
     }
@@ -127,7 +128,7 @@ public:
 
 protected :
     nsMAPISendListener() {
-        m_done = PR_FALSE;
+        m_done = false;
     }
 
     bool            m_done;
@@ -166,23 +167,23 @@ bool nsMapiHook::DisplayLoginDialog(bool aLogin, PRUnichar **aUsername,
   if (NS_SUCCEEDED(rv) && dlgService)
   {
     nsCOMPtr<nsIStringBundleService> bundleService(do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv));
-    if (NS_FAILED(rv) || !bundleService) return PR_FALSE;
+    if (NS_FAILED(rv) || !bundleService) return false;
 
     nsCOMPtr<nsIStringBundle> bundle;
     rv = bundleService->CreateBundle(MAPI_PROPERTIES_CHROME, getter_AddRefs(bundle));
-    if (NS_FAILED(rv) || !bundle) return PR_FALSE;
+    if (NS_FAILED(rv) || !bundle) return false;
 
     nsCOMPtr<nsIStringBundle> brandBundle;
     rv = bundleService->CreateBundle(
                     "chrome://branding/locale/brand.properties",
                     getter_AddRefs(brandBundle));
-    if (NS_FAILED(rv)) return PR_FALSE;
+    if (NS_FAILED(rv)) return false;
 
     nsString brandName;
     rv = brandBundle->GetStringFromName(
                        NS_LITERAL_STRING("brandFullName").get(),
                        getter_Copies(brandName));
-    if (NS_FAILED(rv)) return PR_FALSE;
+    if (NS_FAILED(rv)) return false;
 
     nsString loginTitle;
     const PRUnichar *brandStrings[] = { brandName.get() };
@@ -190,14 +191,14 @@ bool nsMapiHook::DisplayLoginDialog(bool aLogin, PRUnichar **aUsername,
     const PRUnichar *dTitlePropertyTag = loginTitlePropertyTag.get();
     rv = bundle->FormatStringFromName(dTitlePropertyTag, brandStrings, 1,
                                       getter_Copies(loginTitle));
-    if (NS_FAILED(rv)) return PR_FALSE;
+    if (NS_FAILED(rv)) return false;
 
     if (aLogin)
     {
       nsString loginText;
       rv = bundle->GetStringFromName(NS_LITERAL_STRING("loginTextwithName").get(),
                                      getter_Copies(loginText));
-      if (NS_FAILED(rv) || loginText.IsEmpty()) return PR_FALSE;
+      if (NS_FAILED(rv) || loginText.IsEmpty()) return false;
 
       bool dummyValue = false;
       rv = dlgService->PromptUsernameAndPassword(nsnull, loginTitle.get(),
@@ -214,7 +215,7 @@ bool nsMapiHook::DisplayLoginDialog(bool aLogin, PRUnichar **aUsername,
       const PRUnichar *dpropertyTag = loginTextPropertyTag.get();
       rv = bundle->FormatStringFromName(dpropertyTag, userNameStrings, 1,
                                         getter_Copies(loginText));
-      if (NS_FAILED(rv)) return PR_FALSE;
+      if (NS_FAILED(rv)) return false;
 
       bool dummyValue = false;
       rv = dlgService->PromptPassword(nsnull, loginTitle.get(), loginText.get(),
@@ -230,13 +231,13 @@ bool nsMapiHook::VerifyUserName(const nsString& aUsername, nsCString& aIdKey)
   nsresult rv;
 
   if (aUsername.IsEmpty())
-    return PR_FALSE;
+    return false;
 
   nsCOMPtr<nsIMsgAccountManager> accountManager(do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv));
-  if (NS_FAILED(rv)) return PR_FALSE;
+  if (NS_FAILED(rv)) return false;
   nsCOMPtr<nsISupportsArray> identities;
   rv = accountManager->GetAllIdentities(getter_AddRefs(identities));
-  if (NS_FAILED(rv)) return PR_FALSE;
+  if (NS_FAILED(rv)) return false;
   PRUint32 numIndentities;
   identities->Count(&numIndentities);
 
@@ -263,7 +264,7 @@ bool nsMapiHook::VerifyUserName(const nsString& aUsername, nsCString& aIdKey)
     }
   }
 
-  return PR_FALSE;
+  return false;
 }
 
 bool
@@ -277,38 +278,38 @@ nsMapiHook::IsBlindSendAllowed()
       prefBranch->GetBoolPref(PREF_MAPI_BLIND_SEND_ENABLED, &enabled);
   }
   if (!enabled)
-      return PR_FALSE;
+      return false;
 
   if (!warn)
-      return PR_TRUE; // Everything is okay.
+      return true; // Everything is okay.
 
   nsresult rv;
   nsCOMPtr<nsIStringBundleService> bundleService(do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv));
-  if (NS_FAILED(rv) || !bundleService) return PR_FALSE;
+  if (NS_FAILED(rv) || !bundleService) return false;
 
   nsCOMPtr<nsIStringBundle> bundle;
   rv = bundleService->CreateBundle(MAPI_PROPERTIES_CHROME, getter_AddRefs(bundle));
-  if (NS_FAILED(rv) || !bundle) return PR_FALSE;
+  if (NS_FAILED(rv) || !bundle) return false;
 
   nsString warningMsg;
   rv = bundle->GetStringFromName(NS_LITERAL_STRING("mapiBlindSendWarning").get(),
                                       getter_Copies(warningMsg));
-  if (NS_FAILED(rv)) return PR_FALSE;
+  if (NS_FAILED(rv)) return false;
 
   nsString dontShowAgainMessage;
   rv = bundle->GetStringFromName(NS_LITERAL_STRING("mapiBlindSendDontShowAgain").get(),
                                       getter_Copies(dontShowAgainMessage));
-  if (NS_FAILED(rv)) return PR_FALSE;
+  if (NS_FAILED(rv)) return false;
 
   nsCOMPtr<nsIPromptService> dlgService(do_GetService(NS_PROMPTSERVICE_CONTRACTID, &rv));
-  if (NS_FAILED(rv) || !dlgService) return PR_FALSE;
+  if (NS_FAILED(rv) || !dlgService) return false;
 
   bool continueToWarn = true;
   bool okayToContinue = false;
   dlgService->ConfirmCheck(nsnull, nsnull, warningMsg.get(), dontShowAgainMessage.get(), &continueToWarn, &okayToContinue);
 
   if (!continueToWarn && okayToContinue && prefBranch)
-    prefBranch->SetBoolPref(PREF_MAPI_WARN_PRIOR_TO_BLIND_SEND, PR_FALSE);
+    prefBranch->SetBoolPref(PREF_MAPI_WARN_PRIOR_TO_BLIND_SEND, false);
 
   return okayToContinue;
 }
@@ -378,7 +379,9 @@ nsresult nsMapiHook::BlindSendMail (unsigned long aSession, nsIMsgCompFields * a
   rv = pMsgCompose->Initialize(pMsgComposeParams, hiddenWindow, nsnull);
   if (NS_FAILED(rv)) return rv ;
 
-  return pMsgCompose->SendMsg(nsIMsgSend::nsMsgDeliverNow, pMsgId, nsnull, nsnull, nsnull) ;
+  // If we're in offline mode, we'll need to queue it for later. No point in trying to send it.
+  return pMsgCompose->SendMsg(WeAreOffline() ? nsIMsgSend::nsMsgQueueForLater : nsIMsgSend::nsMsgDeliverNow,
+			      pMsgId, nsnull, nsnull, nsnull);
   if (NS_FAILED(rv)) return rv ;
 
   // assign to interface pointer from nsCOMPtr to facilitate typecast below
@@ -458,7 +461,7 @@ nsresult nsMapiHook::PopulateCompFields(lpnsMapiMessage aMessage,
     aCompFields->SetSubject(NS_ConvertASCIItoUTF16(aMessage->lpszSubject));
 
   // handle attachments as File URL
-  rv = HandleAttachments (aCompFields, aMessage->nFileCount, aMessage->lpFiles, PR_TRUE) ;
+  rv = HandleAttachments (aCompFields, aMessage->nFileCount, aMessage->lpFiles, true) ;
   if (NS_FAILED(rv)) return rv ;
 
   // set body
@@ -470,7 +473,7 @@ nsresult nsMapiHook::PopulateCompFields(lpnsMapiMessage aMessage,
         Body.AppendLiteral(CRLF);
 
       if (Body.Find("<html>") == kNotFound)
-        aCompFields->SetForcePlainText(PR_TRUE);
+        aCompFields->SetForcePlainText(true);
 
       rv = aCompFields->SetBody(Body) ;
   }
@@ -558,7 +561,7 @@ nsresult nsMapiHook::HandleAttachments (nsIMsgCompFields * aCompFields, PRInt32 
             {
               rv = pTempFile->CreateUnique(nsIFile::NORMAL_FILE_TYPE, 0777);
               NS_ENSURE_SUCCESS(rv, rv);
-              pTempFile->Remove(PR_FALSE); // remove so we can copy over it.
+              pTempFile->Remove(false); // remove so we can copy over it.
               pTempFile->GetLeafName(leafName);
             }
             // copy the file to its new location and file name
@@ -568,7 +571,7 @@ nsresult nsMapiHook::HandleAttachments (nsIMsgCompFields * aCompFields, PRInt32 
             pFile->Append(leafName);
 
             // create MsgCompose attachment object
-            attachment->SetTemporary(PR_TRUE); // this one is a temp file so set the flag for MsgCompose
+            attachment->SetTemporary(true); // this one is a temp file so set the flag for MsgCompose
 
             // now set the attachment object
             nsCAutoString pURL ;
@@ -662,7 +665,7 @@ nsresult nsMapiHook::PopulateCompFieldsWithConversion(lpnsMapiMessage aMessage,
   }
 
   // handle attachments as File URL
-  rv = HandleAttachments (aCompFields, aMessage->nFileCount, aMessage->lpFiles, PR_FALSE) ;
+  rv = HandleAttachments (aCompFields, aMessage->nFileCount, aMessage->lpFiles, false) ;
   if (NS_FAILED(rv)) return rv ;
 
   // set body
@@ -677,7 +680,7 @@ nsresult nsMapiHook::PopulateCompFieldsWithConversion(lpnsMapiMessage aMessage,
       Body.AppendLiteral(CRLF);
 
     if (Body.Find("<html>") == kNotFound)
-      aCompFields->SetForcePlainText(PR_TRUE);
+      aCompFields->SetForcePlainText(true);
 
     rv = aCompFields->SetBody(Body) ;
   }
@@ -808,7 +811,7 @@ nsresult nsMapiHook::PopulateCompFieldsForSendDocs(nsIMsgCompFields * aCompField
       pTempDir->Append(fileNameNative);
 
       // this one is a temp file so set the flag for MsgCompose
-      attachment->SetTemporary(PR_TRUE);
+      attachment->SetTemporary(true);
 
       // now set the attachment object
       nsCAutoString pURL;

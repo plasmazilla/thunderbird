@@ -285,23 +285,23 @@ modules/searchSpec.js
 #ifdef XP_WIN
   mozcpp19.dll
   mozcrt19.dll
-  #if _MSC_VER != 1400
+  #if MOZ_MSVC_REDIST != 1400
     Microsoft.VC80.CRT.manifest
     msvcm80.dll
     msvcp80.dll
     msvcr80.dll
   #endif
-  #if _MSC_VER != 1500
+  #if MOZ_MSVC_REDIST != 1500
     Microsoft.VC90.CRT.manifest
     msvcm90.dll
     msvcp90.dll
     msvcr90.dll
   #endif
-  #if _MSC_VER != 1600
+  #if MOZ_MSVC_REDIST != 1600
     msvcp100.dll
     msvcr100.dll
   #endif
-  #if _MSC_VER != 1700
+  #if MOZ_MSVC_REDIST != 1700
     msvcp110.dll
     msvcr110.dll
   #endif
@@ -521,8 +521,14 @@ Throbber-small.gif
 #endif
 #endif
 #endif
-#ifdef XP_MACOSX
-updater.app/Contents/MacOS/updater.ini
+#ifndef MOZ_UPDATER
+  update.locale
+  #ifdef XP_MACOSX
+    updater.app/
+  #else
+    updater@BIN_SUFFIX@
+  #endif
+  updater.ini
 #endif
 #ifdef XP_OS2
   @DLL_PREFIX@xpcomcor@DLL_SUFFIX@
@@ -592,6 +598,7 @@ xpicleanup@BIN_SUFFIX@
   components/nsAboutLife.js
   components/nsAboutRights.js
   components/nsAboutSessionRestore.js
+  components/nsAboutSyncTabs.js
   components/nsBadCertHandler.js
   components/nsBlocklistService.js
   components/nsBrowserContentHandler.js
@@ -655,22 +662,24 @@ xpicleanup@BIN_SUFFIX@
   components/smime-service.js
   components/glautocomp.js
   components/jsmimeemitter.js
+  components/Weave.js
   components/Webapps.js
   components/browser.xpt
+  components/components.manifest
   components/interfaces.manifest
   components/mail.xpt
-  components/components.manifest
   defaults/profile/bookmarks.html
   defaults/profile/mimeTypes.rdf
   defaults/profile/chrome/
   defaults/profile/chrome/userChrome-example.css
   defaults/profile/chrome/userContent-example.css
-  defaults/pref/suite-l10n.js
   defaults/pref/browser-prefs.js
   defaults/pref/composer.js
   defaults/pref/mailnews.js
   defaults/pref/mdn.js
+  defaults/pref/services-sync.js
   defaults/pref/smime.js
+  defaults/pref/suite-l10n.js
   defaults/autoconfig/
   defaults/autoconfig/platform.js
   defaults/autoconfig/prefcalls.js
@@ -1029,7 +1038,9 @@ xpicleanup@BIN_SUFFIX@
   res/entityTables/htmlEntityVersions.properties
   res/entityTables/mathml20.properties
   res/entityTables/transliterate.properties
-  update.locale
+  #ifdef MOZ_UPDATER
+    update.locale
+  #endif
 #else
   components/binary.manifest
   omni.jar
@@ -1134,12 +1145,12 @@ components/@DLL_PREFIX@windowds@DLL_SUFFIX@
 components/@DLL_PREFIX@xpautocomplete@DLL_SUFFIX@
 components/@DLL_PREFIX@zipwriter@DLL_SUFFIX@
 #ifdef XP_MACOSX
-components/libwidget_mac.dylib
-#endif
-#ifdef XP_WIN
-components/gkwidget.dll
-components/msgMapi.dll
-components/xppref32.dll
+  components/libalerts_s.dylib
+  components/libwidget_mac.dylib
+#elifdef XP_WIN
+  components/gkwidget.dll
+  components/msgMapi.dll
+  components/xppref32.dll
 #endif
 @DLL_PREFIX@gkgfx@DLL_SUFFIX@
 #ifdef UNIX_BUT_NOT_MAC

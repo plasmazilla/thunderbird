@@ -167,6 +167,7 @@ mfnListener =
 
 function run_test()
 {
+  Services.prefs.setBoolPref("mail.server.default.autosync_offline_stores", false);
   // Add folder listeners that will capture async events
   const nsIMFNService = Ci.nsIMsgFolderNotificationService;
   var MFNService = Cc["@mozilla.org/messenger/msgnotificationservice;1"]
@@ -181,14 +182,6 @@ function run_test()
 /*
  * helper functions
  */
-
-// get the first message header found in a folder
-function firstMsgHdr(folder) {
-  let enumerator = folder.messages;
-  if (enumerator.hasMoreElements())
-    return enumerator.getNext().QueryInterface(Ci.nsIMsgDBHdr);
-  return null;
-}
 
 // given a test file, return the file uri spec
 function specForFileName(aFileName)

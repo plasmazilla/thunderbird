@@ -85,14 +85,16 @@
 
 .task-details-name {
     text-align: right;
-    color: #888a85; /* lower contrast */
+    color: windowtext;
+    opacity: 0.5; /* lower contrast */
     background-color: transparent;
     border: none;
 }
 
 #calendar-task-details-grid > rows > .item-date-row > .headline {
     font-weight: normal;
-    color: #888a85; /* lower contrast */
+    color: windowtext;
+    opacity: 0.5; /* lower contrast */
 }
 
 #calendar-task-details-attachment-row {
@@ -117,14 +119,6 @@
     border-right: 1px solid ThreeDHighlight;
 }
 
-#calendar-task-tree > .calendar-task-tree > treechildren::-moz-tree-row {
-    border-bottom: 1px dotted #AAA;
-}
-
-#calendar-task-tree > .calendar-task-tree > treechildren::-moz-tree-cell {
-    border-right: 1px dotted #AAA;
-}
-
 #calendar-task-tree-detail {
     border: 1px solid ThreeDShadow;
     margin: 3px;
@@ -136,6 +130,10 @@
 
 .task-edit-field[readonly="true"] {
     color: GrayText;
+}
+
+#task-text-filter-field {
+    margin: 5px;
 }
 
 #calendar-task-details-title {

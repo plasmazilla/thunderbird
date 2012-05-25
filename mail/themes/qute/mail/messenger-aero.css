@@ -36,9 +36,10 @@ treechildren::-moz-tree-cell-text {
   margin-bottom: 0;
 }
 
-@media all and (-moz-windows-default-theme) {
+@media (-moz-windows-default-theme) {
   #searchInput,
-  .remote-gloda-search {
+  .remote-gloda-search
+ {
     border-color: rgba(0, 0, 0, .32);
   }
 
@@ -113,7 +114,7 @@ treechildren::-moz-tree-cell-text {
   }
 }
 
-@media all and (-moz-windows-compositor) {
+@media (-moz-windows-compositor) {
   #unifinder-searchBox,
   #task-addition-box {
     border-top: none;
@@ -134,5 +135,11 @@ treechildren::-moz-tree-cell-text {
   #searchInput[focused="true"],
   .remote-gloda-search[focused="true"] {
     background-color: white;
+  }
+}
+
+@media not all and (-moz-windows-compositor) {
+  #print-preview-toolbar:not(:-moz-lwtheme) {
+    -moz-appearance: -moz-win-browsertabbar-toolbox;
   }
 }

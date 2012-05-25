@@ -30,6 +30,7 @@
    -   Michael Buettner <michael.buettner@sun.com>
    -   Berend Cornelius <berend.cornelius@sun.com>
    -   Martin Schroeder <mschroeder@mozilla.x-home.org>
+   -   Matthew Mecca <matthew.mecca@gmail.com>
    -
    - Alternatively, the contents of this file may be used under the terms of
    - either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -79,7 +80,6 @@
 #include ../../base/content/calendar-scripts.inc
 #include lightning-scripts.inc
 
-
   <window id="messengerWindow">
     <!-- Be sure to keep these sets, since they will be overlayed by
          calendar/base/content/calendar-common-sets.xul -->
@@ -122,10 +122,12 @@
 
   <toolbar id="tabbar-toolbar">
     <toolbarbutton id="calendar-tab-button"
+                   class="toolbarbutton-1"
                    title="&lightning.toolbar.calendar.label;"
                    tooltiptext="&lightning.toolbar.calendar.tooltip;"
                    command="new_calendar_tab"/>
     <toolbarbutton id="task-tab-button"
+                   class="toolbarbutton-1"
                    title="&lightning.toolbar.task.label;"
                    tooltiptext="&lightning.toolbar.task.tooltip;"
                    command="new_task_tab"/>
@@ -168,8 +170,8 @@
                              attribute="value"
                              onbroadcast="checkRadioControl(this.parentNode, document.getElementById('filterBroadcaster').getAttribute('value'));"/>
                    <radio id="opt_throughcurrent_filter" label="&calendar.task.filter.current.label;" value="throughcurrent" command="calendar_task_filter_command"/>
-                   <radio id="opt_today_filter" label="&calendar.task.filter.today.label;" value="today" command="calendar_task_filter_command"/>
-                   <radio id="opt_next7days_filter" label="&calendar.task.filter.next7days.label;" value="next7days" command="calendar_task_filter_command"/>
+                   <radio id="opt_today_filter" label="&calendar.task.filter.today.label;" value="throughtoday" command="calendar_task_filter_command"/>
+                   <radio id="opt_next7days_filter" label="&calendar.task.filter.next7days.label;" value="throughsevendays" command="calendar_task_filter_command"/>
                    <radio id="opt_notstarted_filter" label="&calendar.task.filter.notstarted.label;" value="notstarted" command="calendar_task_filter_command"/>
                    <radio id="opt_overdue_filter" label="&calendar.task.filter.overdue.label;" value="overdue" command="calendar_task_filter_command"/>
                    <radio id="opt_completed_filter" label="&calendar.task.filter.completed.label;" value="completed" command="calendar_task_filter_command"/>

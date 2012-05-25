@@ -161,12 +161,15 @@ function doMoves() {
   MailServices.copy.CopyMessages(gIMAPInbox, headers1, gFolder1, true,
                                  CopyListener, dummyMsgWindow, true);
   yield false;
+  gServer.performTest("UID COPY");
+
   gFolder1.msgDatabase.DeleteHeader(msgHdr, null, true, false);
   gIMAPInbox.updateFolderWithListener(null, UrlListener);
   yield false;
   // this should clear the dummy headers.
   gFolder1.updateFolderWithListener(dummyMsgWindow, UrlListener);
   yield false;
+  let serverSink = gIMAPIncomingServer.QueryInterface(Ci.nsIImapServerSink);
   do_check_eq(gFolder1.msgDatabase.dBFolderInfo.highWater, 11);
   yield true;
 }
@@ -208,7 +211,9 @@ function actually_run_test() {
 
 function endTest()
 {
-  gIMAPIncomingServer.closeCachedConnections();
+  Services.io.offline = true;
+  gServer.performTest("LOGOUT");
+//  gIMAPIncomingServer.closeCachedConnections();
   gServer.stop();
   let thread = gThreadManager.currentThread;
   while (thread.hasPendingEvents())

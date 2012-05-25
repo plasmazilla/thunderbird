@@ -230,7 +230,7 @@ AC_SUBST(COMPILE_ENVIRONMENT)
 MOZ_ARG_WITH_STRING(l10n-base,
 [  --with-l10n-base=DIR     path to l10n repositories],
     L10NBASEDIR=$withval)
-if test ! -z "$L10NBASEDIR"; then
+if test -n "$L10NBASEDIR"; then
     if test "$L10NBASEDIR" = "yes" -o "$L10NBASEDIR" = "no"; then
         AC_MSG_ERROR([--with-l10n-base must specify a path])
     elif test -d "$L10NBASEDIR"; then
@@ -4177,9 +4177,8 @@ AC_CACHE_CHECK(for LC_MESSAGES,
 				ac_cv_i18n_lc_messages=no)])
 if test "$ac_cv_i18n_lc_messages" = yes; then
    AC_DEFINE(HAVE_I18N_LC_MESSAGES)
-fi 	
-
-fi # SKIP_COMPILER_CHECKS
+fi
+fi # ! SKIP_COMPILER_CHECKS
 
 TARGET_XPCOM_ABI=
 if test -n "${CPU_ARCH}" -a -n "${TARGET_COMPILER_ABI}"; then
@@ -4526,7 +4525,6 @@ MOZ_OFFICIAL_BRANDING=
 MOZ_CALENDAR=
 MOZ_FEEDS=1
 MOZ_INSTALLER=1
-MOZ_IPC=1
 MOZ_JSDEBUGGER=1
 MOZ_LDAP_XPCOM=
 MOZ_MORK=
@@ -4554,7 +4552,6 @@ MOZ_TIMELINE=
 MOZ_UI_LOCALE=en-US
 MOZ_UNIVERSALCHARDET=1
 MOZ_URL_CLASSIFIER=
-MOZ_USE_NATIVE_UCONV=
 MOZ_XSLT_STANDALONE=
 MOZ_XTF=1
 MOZ_XUL=1
@@ -5108,20 +5105,6 @@ MOZ_ARG_DISABLE_BOOL(jsd,
     MOZ_JSDEBUGGER=1)
 
 dnl ========================================================
-dnl = Disable IPC support for tabs and plugins
-dnl ========================================================
-MOZ_ARG_DISABLE_BOOL(ipc,
-[  --disable-ipc           Disable IPC supports for tabs and plugins],
-    MOZ_IPC=,
-    MOZ_IPC=1)
-
-if test -n "$MOZ_IPC"; then
-    AC_DEFINE(MOZ_IPC)
-fi
-
-AC_SUBST(MOZ_IPC)
-
-dnl ========================================================
 dnl = Disable plugin support
 dnl ========================================================
 MOZ_ARG_DISABLE_BOOL(plugins,
@@ -5169,21 +5152,6 @@ fi
 if test "$NS_PRINTING"; then
     AC_DEFINE(NS_PRINTING)
 fi
-
-dnl ========================================================
-dnl use native unicode converters
-dnl ========================================================
-MOZ_ARG_ENABLE_BOOL(native-uconv,
-[  --enable-native-uconv   Enable iconv support],
-    MOZ_USE_NATIVE_UCONV=1,
-    MOZ_USE_NATIVE_UCONV= )
-if test "$MOZ_USE_NATIVE_UCONV"; then
-    AC_DEFINE(MOZ_USE_NATIVE_UCONV)
-fi
-if test "$OS_ARCH" != "WINCE" -a "$OS_ARCH" != "WINNT" -a "$MOZ_USE_NATIVE_UCONV" -a "$ac_cv_func_iconv" != "yes"; then
-    AC_MSG_ERROR([iconv() not found.  Cannot enable native uconv support.])
-fi
-
 
 dnl ========================================================
 dnl Libeditor can be build as plaintext-only,
@@ -5358,7 +5326,7 @@ if test -n "$MOZ_ANGLE"; then
   fi
 
   if test -n "`echo $MOZ_DIRECTX_SDK_REG_KEY | grep 'February 2010'`" ; then
-    AC_MSG_WARN([Found the February 2010 DirectX SDK. This is too old. We now require the June 2010 DirectX SDK, or newer.])
+    AC_MSG_ERROR([Found the February 2010 DirectX SDK. This is too old. We now require the June 2010 DirectX SDK, or newer.  Upgrade your SDK or to explicitly build without ANGLE, reconfigure with --disable-angle.])
   else
     MOZ_DIRECTX_SDK_PATH=`reg query "$MOZ_DIRECTX_SDK_REG_KEY" //v InstallPath | grep REG_SZ | sed 's/.*\([[a-zA-Z]]\)\\:\\\\/\\1\\:\\\\/'`
   fi
@@ -5427,19 +5395,6 @@ MOZ_ARG_DISABLE_BOOL(crashreporter,
 
 if test -n "$MOZ_CRASHREPORTER"; then
    AC_DEFINE(MOZ_CRASHREPORTER)
-fi
-
-dnl ========================================================
-dnl SMIL
-dnl ========================================================
-MOZ_SMIL=1
-MOZ_ARG_DISABLE_BOOL(smil,
-[  --disable-smil           Disable SMIL animation support],
-    MOZ_SMIL=,
-    MOZ_SMIL=1 )
-
-if test -n "$MOZ_SMIL"; then
-  AC_DEFINE(MOZ_SMIL)
 fi
 
 dnl ========================================================
@@ -6339,19 +6294,10 @@ else
 fi
 
 dnl ========================================================
-dnl Profile guided optimization
+dnl Profile guided optimization (gcc checks)
 dnl ========================================================
 dnl Test for profiling options
 dnl Under gcc 3.4+, use -fprofile-generate/-fprofile-use
-
-dnl Provide a switch to disable PGO even when called via profiledbuild.
-MOZ_ARG_DISABLE_BOOL(profile-guided-optimization,
-[  --disable-profile-guided-optimization
-                           Don't build with PGO even if called via make profiledbuild],
-MOZ_PROFILE_GUIDED_OPTIMIZE_DISABLE=1,
-MOZ_PROFILE_GUIDED_OPTIMIZE_DISABLE=)
-
-AC_SUBST(MOZ_PROFILE_GUIDED_OPTIMIZE_DISABLE)
 
 _SAVE_CFLAGS="$CFLAGS"
 CFLAGS="$CFLAGS -fprofile-generate -fprofile-correction"
@@ -6490,7 +6436,7 @@ CXXFLAGS="$_SAVE_CXXFLAGS"
 if test "$ac_nscap_nonconst_opeq_bug" = "yes" ; then
     AC_DEFINE(NSCAP_DONT_PROVIDE_NONCONST_OPEQ)
 fi
-fi # SKIP_COMPILER_CHECKS
+fi # ! SKIP_COMPILER_CHECKS
 
 dnl ========================================================
 dnl C++ exceptions (g++/VC/irix6/Sun only - for now)
@@ -6838,7 +6784,6 @@ AC_SUBST(MOZ_AUTH_EXTENSION)
 AC_SUBST(MOZ_PERMISSIONS)
 AC_SUBST(MOZ_XTF)
 AC_SUBST(MOZ_PREF_EXTENSIONS)
-AC_SUBST(MOZ_SMIL)
 AC_SUBST(MOZ_XSLT_STANDALONE)
 AC_SUBST(MOZ_JS_LIBS)
 AC_SUBST(MOZ_PSM)
@@ -6855,7 +6800,6 @@ AC_SUBST(MOZ_LOG_REFCNT)
 AC_SUBST(MOZ_JPROF)
 AC_SUBST(MOZ_SHARK)
 AC_SUBST(MOZ_PROFILING)
-AC_SUBST(MOZ_USE_NATIVE_UCONV)
 AC_SUBST(MOZ_QUANTIFY)
 AC_SUBST(MOZ_LDAP_XPCOM)
 AC_SUBST(LDAP_CFLAGS)
@@ -6927,9 +6871,24 @@ else
 fi
 AC_SUBST(MOZ_MACBUNDLE_NAME)
 
+# For extensions and langpacks, we require a max version that is compatible
+# across security releases. MOZ_APP_MAXVERSION is our method for doing that.
+# 10.0a1 and 10.0a2 aren't affected
+# 10.0 becomes 10.0.*
+# 10.0.1 becomes 10.0.*
+IS_ALPHA=`echo $MOZ_APP_VERSION | grep a`
+if test -z "$IS_ALPHA"; then
+  changequote(,)
+  MOZ_APP_MAXVERSION=`echo $MOZ_APP_VERSION | sed "s|\(^[0-9]*.[0-9]*\).*|\1|"`.*
+  changequote([,])
+else
+  MOZ_APP_MAXVERSION=$MOZ_APP_VERSION
+fi
+
 AC_SUBST(MOZ_APP_NAME)
 AC_SUBST(MOZ_APP_DISPLAYNAME)
 AC_SUBST(MOZ_APP_VERSION)
+AC_SUBST(MOZ_APP_MAXVERSION)
 AC_SUBST(FIREFOX_VERSION)
 AC_SUBST(THUNDERBIRD_VERSION)
 AC_SUBST(SUNBIRD_VERSION)

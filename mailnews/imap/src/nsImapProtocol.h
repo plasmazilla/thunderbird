@@ -43,7 +43,6 @@
 #include "nsIImapUrl.h"
 
 #include "nsMsgProtocol.h"
-#include "nsIEventTarget.h"
 #include "nsIStreamListener.h"
 #include "nsIAsyncOutputStream.h"
 #include "nsIAsyncInputStream.h"
@@ -263,8 +262,8 @@ public:
   const char* GetImapServerKey(); // return the user name from the incoming server;
 
   // state set by the imap parser...
-  void NotifyMessageFlags(imapMessageFlagsType flags, nsMsgKey key,
-                          PRUint64 highestModSeq);
+  void NotifyMessageFlags(imapMessageFlagsType flags, const nsACString &keywords,
+                          nsMsgKey key, PRUint64 highestModSeq);
   void NotifySearchHit(const char * hitLine);
 
   // Event handlers for the imap parser.
@@ -375,7 +374,6 @@ private:
 
 
   // ******* Thread support *******
-  nsCOMPtr<nsIEventTarget> m_sinkEventTarget;
   nsCOMPtr<nsIThread>      m_iThread;
   PRThread     *m_thread;
   mozilla::ReentrantMonitor m_dataAvailableMonitor;   // used to notify the arrival of data from the server

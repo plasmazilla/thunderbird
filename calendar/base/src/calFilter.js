@@ -110,14 +110,13 @@ calFilter.prototype = {
             return (item.recurrenceInfo != null);
         },
         throughcurrent: function cF_filterThroughCurrent(item) {
-            if (!item.completedDate) {
-                return true;
-            }
-            // filter out tasks completed earlier than today
-            let today = cal.now();
-            today.isDate = true;
-
-            return (today.compare(item.completedDate) <= 0);
+            return completionIsCurrent(item);
+        },
+        throughtoday: function cF_filterThroughToday(item) {
+            return completionIsCurrent(item);
+        },
+        throughsevendays: function cF_filterThroughSevenDays(item) {
+            return completionIsCurrent(item);
         }
     },
 
@@ -155,8 +154,11 @@ calFilter.prototype = {
 
     // checks if the item contains the text of mTextFilterField
     textFilter: function cF_filterByText(aItem) {
+        if (!this.mTextFilterField) {
+            return true;
+        }
         filterByText.mTextFilterField = this.mTextFilterField;
-        var inIt = filterByText(aItem);
+        let inIt = filterByText(aItem);
         return inIt;
     },
 
@@ -208,9 +210,10 @@ calFilter.prototype = {
         return checkIfInRange(aItem, this.mStartDate, this.mEndDate);
     },
 
-    // checks if the item is between startDate and endDate and its properties
+    // checks if the item is between startDate and endDate, matches its properties, and
+    // contains the text of mTextFilterField if set
     isItemInFilters: function cF_isItemInFilters(aItem) {
-        return (this.isItemWithinRange(aItem) && this.propertyFilter(aItem));
+        return (this.isItemWithinRange(aItem) && this.propertyFilter(aItem) && this.textFilter(aItem));
     }
 };
 
@@ -274,6 +277,11 @@ function getDatesForFilter(aFilter, aSelectedDate) {
             endDate.addDuration(oneDay);
             break;
 
+        case "currentview":
+            startDate = currentView().startDay;
+            endDate = currentView().endDay;
+            break;
+
         case "throughcurrent":
         case "open":
         case "overdue":
@@ -286,6 +294,20 @@ function getDatesForFilter(aFilter, aSelectedDate) {
             }
             endDate.isDate = true;
             endDate.addDuration(oneDay);
+            break;
+
+        case "throughtoday":
+            endDate = cal.now();
+            endDate.isDate = true;
+            endDate.addDuration(oneDay);
+            break;
+
+        case "throughsevendays":
+            let dur = cal.createDuration();
+            dur.days = 8;
+            endDate = cal.now();
+            endDate.isDate = true;
+            endDate.addDuration(dur);
             break;
 
         default:
@@ -373,6 +395,22 @@ function percentCompleted(item) {
     }
     return percent;
 } 
+
+/**
+ * Check if a task is still incomplete or was completed today.
+ */
+function completionIsCurrent(aItem) {
+    // tasks not completed yet are still current
+    if (!aItem.completedDate) {
+        return true;
+    }
+
+    // filter out tasks completed earlier than today
+    let today = cal.now();
+    today.isDate = true;
+
+    return (today.compare(aItem.completedDate) <= 0);
+}
 
 function filterAll(aItem) {
     return true;

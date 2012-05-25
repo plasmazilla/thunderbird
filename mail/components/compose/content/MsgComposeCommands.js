@@ -421,169 +421,262 @@ var progressListener = {
     }
 };
 
-var defaultController =
-{
-  supportsCommand: function(command)
-  {
-    switch (command)
-    {
-      //File Menu
-      case "cmd_attachFile":
-      case "cmd_attachPage":
-      case "cmd_close":
-      case "cmd_saveDefault":
-      case "cmd_saveAsFile":
-      case "cmd_saveAsDraft":
-      case "cmd_saveAsTemplate":
-      case "cmd_sendButton":
-      case "cmd_sendNow":
-      case "cmd_sendWithCheck":
-      case "cmd_sendLater":
-      case "cmd_printSetup":
-      case "cmd_print":
-      case "cmd_quit":
-
-      //Edit Menu
-      case "cmd_delete":
-      case "cmd_renameAttachment":
-      case "cmd_selectAll":
-      case "cmd_openAttachment":
-      case "cmd_account":
-
-      //View Menu
-      case "cmd_showFormatToolbar":
-
-      //Options Menu
-      case "cmd_outputFormat":
-      case "cmd_quoteMessage":
-        return true;
-
-      default:
-//        dump("##MsgCompose: command " + command + "no supported!\n");
-        return false;
-    }
-  },
-  isCommandEnabled: function(command)
-  {
-    var composeHTML = gMsgCompose && gMsgCompose.composeHTML;
-
-    switch (command)
-    {
-      //File Menu
-      case "cmd_attachFile":
-      case "cmd_attachPage":
-      case "cmd_close":
-      case "cmd_saveDefault":
-      case "cmd_saveAsFile":
-      case "cmd_saveAsDraft":
-      case "cmd_saveAsTemplate":
-      case "cmd_sendButton":
-      case "cmd_sendLater":
-      case "cmd_printSetup":
-      case "cmd_print":
-      case "cmd_sendWithCheck":
+var defaultController = {
+  commands: {
+    cmd_attachFile: {
+      isEnabled: function() {
         return !gWindowLocked;
-      case "cmd_sendNow":
-        return !(gWindowLocked || gIsOffline);
-      case "cmd_quit":
-        return true;
+      },
+      doCommand: function() {
+        AttachFile();
+      }
+    },
 
-      //Edit Menu
-      case "cmd_delete":
-        var numSelectedAttachments = MessageGetNumSelectedAttachments();
+    cmd_attachPage: {
+      isEnabled: function() {
+        return !gWindowLocked;
+      },
+      doCommand: function() {
+        AttachPage();
+      }
+    },
 
-        var cmdDelete = document.getElementById("cmd_delete");
-        var textValue = cmdDelete.getAttribute("valueDefault");
-        var accesskeyValue = cmdDelete.getAttribute("valueDefaultAccessKey");
+    cmd_close: {
+      isEnabled: function() {
+        return !gWindowLocked;
+      },
+      doCommand: function() {
+        DoCommandClose();
+      }
+    },
 
-        var hasAttachments = MessageHasAttachments();
-        if (hasAttachments) {
-          textValue = getComposeBundle().getString("removeAttachmentMsgs");
-          textValue = PluralForm.get(numSelectedAttachments, textValue);
-          accesskeyValue = cmdDelete.getAttribute("valueRemoveAttachmentAccessKey");
-        }
+    cmd_saveDefault: {
+      isEnabled: function() {
+        return !gWindowLocked;
+      },
+      doCommand: function() {
+        Save();
+      }
+    },
+
+    cmd_saveAsFile: {
+      isEnabled: function() {
+        return !gWindowLocked;
+      },
+      doCommand: function() {
+        SaveAsFile(true);
+      }
+    },
+
+    cmd_saveAsDraft: {
+      isEnabled: function() {
+        return !gWindowLocked;
+      },
+      doCommand: function() {
+        SaveAsDraft();
+      }
+    },
+
+    cmd_saveAsTemplate: {
+      isEnabled: function() {
+        return !gWindowLocked;
+      },
+      doCommand: function() {
+        SaveAsTemplate();
+      }
+    },
+
+    cmd_sendButton: {
+      isEnabled: function() {
+        return !gWindowLocked;
+      },
+      doCommand: function() {
+        if (gIOService && gIOService.offline)
+          SendMessageLater();
+        else
+          SendMessage();
+      }
+    },
+
+    cmd_sendNow: {
+      isEnabled: function() {
+        return !gWindowLocked && !gIsOffline;
+      },
+      doCommand: function() {
+        SendMessage();
+      }
+    },
+
+    cmd_sendLater: {
+      isEnabled: function() {
+        return !gWindowLocked;
+      },
+      doCommand: function() {
+        SendMessageLater();
+      }
+    },
+
+    cmd_sendWithCheck: {
+      isEnabled: function() {
+        return !gWindowLocked;
+      },
+      doCommand: function() {
+        SendMessageWithCheck();
+      }
+    },
+
+    cmd_printSetup: {
+      isEnabled: function() {
+        return !gWindowLocked;
+      },
+      doCommand: function() {
+        PrintUtils.showPageSetup();
+      }
+    },
+
+    cmd_print: {
+      isEnabled: function() {
+        return !gWindowLocked;
+      },
+      doCommand: function() {
+        DoCommandPrint();
+      }
+    },
+
+    cmd_delete: {
+      isEnabled: function() {
+        let cmdDelete = document.getElementById("cmd_delete");
+        let textValue = cmdDelete.getAttribute("valueDefault");
+        let accesskeyValue = cmdDelete.getAttribute("valueDefaultAccessKey");
 
         cmdDelete.setAttribute("label", textValue);
         cmdDelete.setAttribute("accesskey", accesskeyValue);
 
-        return hasAttachments ? numSelectedAttachments : 0;
-      case "cmd_selectAll":
-        return MessageHasAttachments();
-      case "cmd_openAttachment":
-        return MessageGetNumSelectedAttachments() == 1;
-      case "cmd_renameAttachment":
-        return MessageGetNumSelectedAttachments() == 1;
-      case "cmd_account":
-
-      //View Menu
-      case "cmd_showFormatToolbar":
-        return composeHTML;
-
-      //Options Menu
-      case "cmd_outputFormat":
-        return composeHTML;
-      case "cmd_quoteMessage":
-        var selectedURIs = GetSelectedMessages();
-        if (selectedURIs && selectedURIs.length > 0)
-          return true;
         return false;
+      },
+      doCommand: function() {
+      }
+    },
 
-      default:
-//        dump("##MsgCompose: command " + command + " disabled!\n");
-        return false;
-    }
+    cmd_account: {
+      isEnabled: function() {
+        return true;
+      },
+      doCommand: function() {
+        MsgAccountManager(null);
+      }
+    },
+
+    cmd_showFormatToolbar: {
+      isEnabled: function() {
+        return gMsgCompose && gMsgCompose.composeHTML;
+      },
+      doCommand: function() {
+        goToggleToolbar("FormatToolbar", "menu_showFormatToolbar");
+      }
+    },
+
+    cmd_quoteMessage: {
+      isEnabled: function() {
+        let selectedURIs = GetSelectedMessages();
+        return (selectedURIs && selectedURIs.length > 0)
+      },
+      doCommand: function() {
+        QuoteSelectedMessage();
+      }
+    },
   },
 
-  doCommand: function(command)
-  {
-    switch (command)
-    {
-      //File Menu
-      case "cmd_attachFile"         : if (defaultController.isCommandEnabled(command)) AttachFile();           break;
-      case "cmd_attachPage"         : AttachPage();           break;
-      case "cmd_close"              : DoCommandClose();       break;
-      case "cmd_saveDefault"        : Save();                 break;
-      case "cmd_saveAsFile"         : SaveAsFile(true);       break;
-      case "cmd_saveAsDraft"        : SaveAsDraft();          break;
-      case "cmd_saveAsTemplate"     : SaveAsTemplate();       break;
-      case "cmd_sendButton"         :
-        if (defaultController.isCommandEnabled(command))
-        {
-          if (gIOService && gIOService.offline)
-            SendMessageLater();
-          else
-            SendMessage();
-        }
-        break;
-      case "cmd_sendNow"            : if (defaultController.isCommandEnabled(command)) SendMessage();          break;
-      case "cmd_sendWithCheck"   : if (defaultController.isCommandEnabled(command)) SendMessageWithCheck();          break;
-      case "cmd_sendLater"          : if (defaultController.isCommandEnabled(command)) SendMessageLater();     break;
-      case "cmd_printSetup"         : PrintUtils.showPageSetup(); break;
-      case "cmd_print"              : DoCommandPrint(); break;
-
-      //Edit Menu
-      case "cmd_delete"             : if (MessageGetNumSelectedAttachments()) RemoveSelectedAttachment();         break;
-      case "cmd_renameAttachment"   : if (MessageGetNumSelectedAttachments() == 1) RenameSelectedAttachment(); break;
-      case "cmd_selectAll"          : if (MessageHasAttachments()) SelectAllAttachments();                     break;
-      case "cmd_openAttachment"     : if (MessageGetNumSelectedAttachments() == 1) OpenSelectedAttachment();          break;
-      case "cmd_account"            : MsgAccountManager(null); break;
-
-      //View Menu
-      case "cmd_showFormatToolbar"  : goToggleToolbar('FormatToolbar', 'menu_showFormatToolbar');   break;
-
-      //Options Menu
-      case "cmd_quoteMessage"       : if (defaultController.isCommandEnabled(command)) QuoteSelectedMessage();  break;
-      default:
-//        dump("##MsgCompose: don't know what to do with command " + command + "!\n");
-        return;
-    }
+  supportsCommand: function(aCommand) {
+    return (aCommand in this.commands);
   },
 
-  onEvent: function(event)
-  {
-//    dump("DefaultController:onEvent\n");
-  }
-}
+  isCommandEnabled: function(aCommand) {
+    if (!this.supportsCommand(aCommand))
+      return false;
+    return this.commands[aCommand].isEnabled();
+  },
+
+  doCommand: function(aCommand) {
+    if (!this.supportsCommand(aCommand))
+      return;
+    var cmd = this.commands[aCommand];
+    if (!cmd.isEnabled())
+      return;
+    cmd.doCommand();
+  },
+
+  onEvent: function(event) {},
+};
+
+var attachmentBucketController = {
+  commands: {
+    cmd_selectAll: {
+      isEnabled: function() {
+        return true;
+      },
+      doCommand: function() {
+        document.getElementById("attachmentBucket").selectAll();
+      }
+    },
+
+    cmd_delete: {
+      isEnabled: function() {
+        let selectedCount = MessageGetNumSelectedAttachments();
+        let cmdDelete = document.getElementById("cmd_delete");
+        let textValue = getComposeBundle().getString("removeAttachmentMsgs");
+        textValue = PluralForm.get(selectedCount, textValue);
+        let accesskeyValue = cmdDelete.getAttribute("valueRemoveAttachmentAccessKey");
+        cmdDelete.setAttribute("label", textValue);
+        cmdDelete.setAttribute("accesskey", accesskeyValue);
+
+        return selectedCount > 0;
+      },
+      doCommand: function() {
+        RemoveSelectedAttachment();
+      }
+    },
+
+    cmd_openAttachment: {
+      isEnabled: function() {
+        return MessageGetNumSelectedAttachments() == 1;
+      },
+      doCommand: function() {
+        OpenSelectedAttachment();
+      }
+    },
+
+    cmd_renameAttachment: {
+      isEnabled: function() {
+        return MessageGetNumSelectedAttachments() == 1;
+      },
+      doCommand: function() {
+        RenameSelectedAttachment();
+      }
+    },
+  },
+
+  supportsCommand: function(aCommand) {
+    return (aCommand in this.commands);
+  },
+
+  isCommandEnabled: function(aCommand) {
+    if (!this.supportsCommand(aCommand))
+      return false;
+    return this.commands[aCommand].isEnabled();
+  },
+
+  doCommand: function(aCommand) {
+    if (!this.supportsCommand(aCommand))
+      return;
+    var cmd = this.commands[aCommand];
+    if (!cmd.isEnabled())
+      return;
+    cmd.doCommand();
+  },
+
+  onEvent: function(event) {},
+};
 
 function goOpenNewMessage()
 {
@@ -628,7 +721,10 @@ function GetSelectedMessages()
 
 function SetupCommandUpdateHandlers()
 {
-  top.controllers.insertControllerAt(0, defaultController);
+  let attachmentBucket = document.getElementById("attachmentBucket");
+
+  top.controllers.appendController(defaultController);
+  attachmentBucket.controllers.appendController(attachmentBucketController);
 
   document.getElementById("optionsMenuPopup")
           .addEventListener("popupshowing", updateOptionItems, true);
@@ -636,9 +732,12 @@ function SetupCommandUpdateHandlers()
 
 function UnloadCommandUpdateHandlers()
 {
+  let attachmentBucket = document.getElementById("attachmentBucket");
+
   document.getElementById("optionsMenuPopup")
           .removeEventListener("popupshowing", updateOptionItems, true);
 
+  attachmentBucket.controllers.removeController(attachmentBucketController);
   top.controllers.removeController(defaultController);
 }
 
@@ -1968,257 +2067,256 @@ function DoSpellCheckBeforeSend()
   return getPref("mail.SpellCheckBeforeSend");
 }
 
-function GenericSendMessage( msgType )
+/**
+ * Handles message sending operations.
+ * @param msgType nsIMsgCompDeliverMode of the operation.
+ */
+function GenericSendMessage(msgType)
 {
-  if (gMsgCompose != null)
+  var msgCompFields = gMsgCompose.compFields;
+
+  Recipients2CompFields(msgCompFields);
+  var subject = GetMsgSubjectElement().value;
+  msgCompFields.subject = subject;
+  Attachments2CompFields(msgCompFields);
+
+  if (msgType == nsIMsgCompDeliverMode.Now ||
+      msgType == nsIMsgCompDeliverMode.Later ||
+      msgType == nsIMsgCompDeliverMode.Background)
   {
-    var msgCompFields = gMsgCompose.compFields;
-    if (msgCompFields)
+    // Do we need to check the spelling?
+    if (DoSpellCheckBeforeSend())
     {
-      Recipients2CompFields(msgCompFields);
-      var subject = GetMsgSubjectElement().value;
-      msgCompFields.subject = subject;
-      Attachments2CompFields(msgCompFields);
+      // We disable spellcheck for the following -subject line, attachment
+      // pane, identity and addressing widget therefore we need to explicitly
+      // focus on the mail body when we have to do a spellcheck.
+      SetMsgBodyFrameFocus();
+      window.cancelSendMessage = false;
+      window.openDialog("chrome://editor/content/EdSpellCheck.xul", "_blank",
+                        "chrome,close,titlebar,modal", true, true);
 
-      if (msgType == nsIMsgCompDeliverMode.Now ||
-          msgType == nsIMsgCompDeliverMode.Later ||
-          msgType == nsIMsgCompDeliverMode.Background)
+      if (window.cancelSendMessage)
+        return;
+    }
+
+    // Strip trailing spaces and long consecutive WSP sequences from the
+    // subject line to prevent getting only WSP chars on a folded line.
+    var fixedSubject = subject.replace(/\s{74,}/g, "    ")
+                              .replace(/\s*$/, "");
+    if (fixedSubject != subject)
+    {
+      subject = fixedSubject;
+      msgCompFields.subject = fixedSubject;
+      GetMsgSubjectElement().value = fixedSubject;
+    }
+
+    // Remind the person if there isn't a subject
+    if (subject == "")
+    {
+      if (gPromptService.confirmEx(
+            window,
+            getComposeBundle().getString("subjectEmptyTitle"),
+            getComposeBundle().getString("subjectEmptyMessage"),
+            (gPromptService.BUTTON_TITLE_IS_STRING * gPromptService.BUTTON_POS_0) +
+            (gPromptService.BUTTON_TITLE_IS_STRING * gPromptService.BUTTON_POS_1),
+            getComposeBundle().getString("sendWithEmptySubjectButton"),
+            getComposeBundle().getString("cancelSendingButton"),
+            null, null, {value:0}) == 1)
       {
-        //Do we need to check the spelling?
-        if (DoSpellCheckBeforeSend())
-        {
-          // We disable spellcheck for the following -subject line, attachment pane, identity and addressing widget
-          // therefore we need to explicitly focus on the mail body when we have to do a spellcheck.
-          SetMsgBodyFrameFocus();
-          window.cancelSendMessage = false;
-          try {
-            window.openDialog("chrome://editor/content/EdSpellCheck.xul", "_blank",
-                    "chrome,close,titlebar,modal", true, true);
-          }
-          catch(ex){}
-          if(window.cancelSendMessage)
-            return;
-        }
+        GetMsgSubjectElement().focus();
+        return;
+      }
+    }
 
-        // Strip trailing spaces and long consecutive WSP sequences from the
-        // subject line to prevent getting only WSP chars on a folded line.
-        var fixedSubject = subject.replace(/\s{74,}/g, "    ")
-                                  .replace(/\s*$/, "");
-        if (fixedSubject != subject)
-        {
-          subject = fixedSubject;
-          msgCompFields.subject = fixedSubject;
-          GetMsgSubjectElement().value = fixedSubject;
-        }
+    // Alert the user if
+    //  - the button to remind about attachments was clicked, or
+    //  - the aggressive pref is set and the notification was not dismissed
+    // and the message (still) contains attachment keywords.
+    if ((gRemindLater || (getPref("mail.compose.attachment_reminder_aggressive") &&
+          document.getElementById("attachmentNotificationBox").currentNotification)) &&
+        ShouldShowAttachmentNotification(false)) {
+      var flags = gPromptService.BUTTON_POS_0 * gPromptService.BUTTON_TITLE_IS_STRING +
+                  gPromptService.BUTTON_POS_1 * gPromptService.BUTTON_TITLE_IS_STRING;
+      var hadForgotten = gPromptService.confirmEx(window,
+                            getComposeBundle().getString("attachmentReminderTitle"),
+                            getComposeBundle().getString("attachmentReminderMsg"),
+                            flags,
+                            getComposeBundle().getString("attachmentReminderFalseAlarm"),
+                            getComposeBundle().getString("attachmentReminderYesIForgot"),
+                            null, null, {value:0});
+      if (hadForgotten)
+        return;
+    }
 
-        // Remind the person if there isn't a subject
-        if (subject == "")
-        {
-          if (gPromptService.confirmEx(
-                window,
-                getComposeBundle().getString("subjectEmptyTitle"),
-                getComposeBundle().getString("subjectEmptyMessage"),
-                (gPromptService.BUTTON_TITLE_IS_STRING * gPromptService.BUTTON_POS_0) +
-                (gPromptService.BUTTON_TITLE_IS_STRING * gPromptService.BUTTON_POS_1),
-                getComposeBundle().getString("sendWithEmptySubjectButton"),
-                getComposeBundle().getString("cancelSendingButton"),
-                null, null, {value:0}) == 1)
-          {
-            GetMsgSubjectElement().focus();
-            return;
-          }
-        }
-
-        // Alert the user if
-        //  - the button to remind about attachments was clicked, or
-        //  - the aggressive pref is set and the notification was not dismissed
-        // and the message (still) contains attachment keywords.
-        if ((gRemindLater || (getPref("mail.compose.attachment_reminder_aggressive") &&
-             document.getElementById("attachmentNotificationBox").currentNotification)) &&
-            ShouldShowAttachmentNotification(false)) {
-          var flags = gPromptService.BUTTON_POS_0 * gPromptService.BUTTON_TITLE_IS_STRING +
-                      gPromptService.BUTTON_POS_1 * gPromptService.BUTTON_TITLE_IS_STRING;
-          var hadForgotten = gPromptService.confirmEx(window,
-                               getComposeBundle().getString("attachmentReminderTitle"),
-                               getComposeBundle().getString("attachmentReminderMsg"),
-                               flags,
-                               getComposeBundle().getString("attachmentReminderFalseAlarm"),
-                               getComposeBundle().getString("attachmentReminderYesIForgot"),
-                               null, null, {value:0});
-          if (hadForgotten)
-            return;
-        }
-
-        // check if the user tries to send a message to a newsgroup through a mail account
-        var currentAccountKey = getCurrentAccountKey();
-        var account = gAccountManager.getAccount(currentAccountKey);
-        if (!account)
-        {
-          throw "UNEXPECTED: currentAccountKey '" + currentAccountKey +
-              "' has no matching account!";
-        }
-        var servertype = account.incomingServer.type;
-
-        if (servertype != "nntp" && msgCompFields.newsgroups != "")
-        {
-          let kDontAskAgainPref = "mail.compose.dontWarnMail2Newsgroup";
-          // default to ask user if the pref is not set
-          var dontAskAgain = getPref(kDontAskAgainPref);
-          if (!dontAskAgain)
-          {
-            var checkbox = {value:false};
-            var okToProceed = gPromptService.confirmCheck(
-                                  window,
-                                  getComposeBundle().getString("noNewsgroupSupportTitle"),
-                                  getComposeBundle().getString("recipientDlogMessage"),
-                                  getComposeBundle().getString("CheckMsg"),
-                                  checkbox);
-
-            if (!okToProceed)
-              return;
-
-            if (checkbox.value) {
-              var branch = Components.classes["@mozilla.org/preferences-service;1"]
-                                     .getService(Components.interfaces.nsIPrefBranch);
-
-              branch.setBoolPref(kDontAskAgainPref, true);
-            }
-          }
-
-          // remove newsgroups to prevent news_p to be set
-          // in nsMsgComposeAndSend::DeliverMessage()
-          msgCompFields.newsgroups = "";
-        }
-
-        // Before sending the message, check what to do with HTML message, eventually abort.
-        var convert = DetermineConvertibility();
-        var action = DetermineHTMLAction(convert);
-        // check if e-mail addresses are complete, in case user
-        // has turned off autocomplete to local domain.
-        if (!CheckValidEmailAddress(msgCompFields.to, msgCompFields.cc, msgCompFields.bcc))
+    // Check if the user tries to send a message to a newsgroup through a mail
+    // account.
+    var currentAccountKey = getCurrentAccountKey();
+    var account = gAccountManager.getAccount(currentAccountKey);
+    if (!account)
+    {
+      throw new Error("currentAccountKey '" + currentAccountKey +
+                      "' has no matching account!");
+    }
+    if (account.incomingServer.type != "nntp" && msgCompFields.newsgroups != "")
+    {
+      const kDontAskAgainPref = "mail.compose.dontWarnMail2Newsgroup";
+      // default to ask user if the pref is not set
+      var dontAskAgain = getPref(kDontAskAgainPref);
+      if (!dontAskAgain)
+      {
+        var checkbox = {value:false};
+        var okToProceed = gPromptService.confirmCheck(
+                              window,
+                              getComposeBundle().getString("noNewsgroupSupportTitle"),
+                              getComposeBundle().getString("recipientDlogMessage"),
+                              getComposeBundle().getString("CheckMsg"),
+                              checkbox);
+        if (!okToProceed)
           return;
 
-        if (action == nsIMsgCompSendFormat.AskUser)
-        {
-          var recommAction = (convert == nsIMsgCompConvertible.No)
-                             ? nsIMsgCompSendFormat.AskUser
-                             : nsIMsgCompSendFormat.PlainText;
-          var result2 = {action:recommAction,
-                         convertible:convert,
-                         abort:false};
-          window.openDialog("chrome://messenger/content/messengercompose/askSendFormat.xul",
-                            "askSendFormatDialog", "chrome,modal,titlebar,centerscreen",
-                            result2);
-          if (result2.abort)
-            return;
-          action = result2.action;
-        }
+        if (checkbox.value) {
+          var branch = Components.classes["@mozilla.org/preferences-service;1"]
+                                  .getService(Components.interfaces.nsIPrefBranch);
 
-        // we will remember the users "send format" decision
-        // in the address collector code (see nsAbAddressCollector::CollectAddress())
-        // by using msgCompFields.forcePlainText and msgCompFields.useMultipartAlternative
-        // to determine the nsIAbPreferMailFormat (unknown, plaintext, or html)
-        // if the user sends both, we remember html.
-        switch (action)
-        {
-          case nsIMsgCompSendFormat.PlainText:
-            msgCompFields.forcePlainText = true;
-            msgCompFields.useMultipartAlternative = false;
-            break;
-          case nsIMsgCompSendFormat.HTML:
-            msgCompFields.forcePlainText = false;
-            msgCompFields.useMultipartAlternative = false;
-            break;
-          case nsIMsgCompSendFormat.Both:
-            msgCompFields.forcePlainText = false;
-            msgCompFields.useMultipartAlternative = true;
-            break;
-           default: dump("\###SendMessage Error: invalid action value\n"); return;
+          branch.setBoolPref(kDontAskAgainPref, true);
         }
       }
 
-      // hook for extra compose pre-processing
-      Services.obs.notifyObservers(window, "mail:composeOnSend", null);
+      // remove newsgroups to prevent news_p to be set
+      // in nsMsgComposeAndSend::DeliverMessage()
+      msgCompFields.newsgroups = "";
+    }
 
-      var originalCharset = gMsgCompose.compFields.characterSet;
-      // Check if the headers of composing mail can be converted to a mail charset.
-      if (msgType == nsIMsgCompDeliverMode.Now ||
-        msgType == nsIMsgCompDeliverMode.Later ||
-        msgType == nsIMsgCompDeliverMode.Background ||
-        msgType == nsIMsgCompDeliverMode.Save ||
-        msgType == nsIMsgCompDeliverMode.SaveAsDraft ||
-        msgType == nsIMsgCompDeliverMode.AutoSaveAsDraft ||
-        msgType == nsIMsgCompDeliverMode.SaveAsTemplate)
-      {
-        var fallbackCharset = new Object;
-        // Check encoding, switch to UTF-8 if the default encoding doesn't fit
-        // and disable_fallback_to_utf8 isn't set for this encoding.
-        if (!gMsgCompose.checkCharsetConversion(getCurrentIdentity(), fallbackCharset))
-        {
-          var disableFallback = false;
-          try
-          {
-            disableFallback = getPref("mailnews.disable_fallback_to_utf8." + originalCharset);
-          }
-          catch (e) {}
-          if (disableFallback)
-            msgCompFields.needToCheckCharset = false;
-          else
-            fallbackCharset.value = "UTF-8";
-        }
+    // Before sending the message, check what to do with HTML message,
+    // eventually abort.
+    var convert = DetermineConvertibility();
+    var action = DetermineHTMLAction(convert);
+    // Check if e-mail addresses are complete, in case user turned off
+    // autocomplete to local domain.
+    if (!CheckValidEmailAddress(msgCompFields.to, msgCompFields.cc, msgCompFields.bcc))
+      return;
 
-        if (fallbackCharset &&
-            fallbackCharset.value && fallbackCharset.value != "")
-          gMsgCompose.SetDocumentCharset(fallbackCharset.value);
-      }
-      try {
+    if (action == nsIMsgCompSendFormat.AskUser)
+    {
+      var recommAction = (convert == nsIMsgCompConvertible.No)
+                          ? nsIMsgCompSendFormat.AskUser
+                          : nsIMsgCompSendFormat.PlainText;
+      var result2 = {action:recommAction, convertible:convert, abort:false};
+      window.openDialog("chrome://messenger/content/messengercompose/askSendFormat.xul",
+                        "askSendFormatDialog", "chrome,modal,titlebar,centerscreen",
+                        result2);
+      if (result2.abort)
+        return;
+      action = result2.action;
+    }
 
-        // just before we try to send the message, fire off the compose-send-message event for listeners
-        // such as smime so they can do any pre-security work such as fetching certificates before sending
-        var event = document.createEvent('UIEvents');
-        event.initEvent('compose-send-message', false, true);
-        var msgcomposeWindow = document.getElementById("msgcomposeWindow");
-        msgcomposeWindow.setAttribute("msgtype", msgType);
-        msgcomposeWindow.dispatchEvent(event);
-        if (event.getPreventDefault())
-          throw Components.results.NS_ERROR_ABORT;
-
-        gAutoSaving = (msgType == nsIMsgCompDeliverMode.AutoSaveAsDraft);
-        // disable the ui if we're not auto-saving
-        if (!gAutoSaving)
-        {
-          gWindowLocked = true;
-          disableEditableFields();
-          updateComposeItems();
-        }
-        // if we're auto saving, mark the body as not changed here, and not
-        // when the save is done, because the user might change it between now
-        // and when the save is done.
-        else
-          SetContentAndBodyAsUnmodified();
-
-        var progress = Components.classes["@mozilla.org/messenger/progress;1"].createInstance(Components.interfaces.nsIMsgProgress);
-        if (progress)
-        {
-          progress.registerListener(progressListener);
-          gSendOrSaveOperationInProgress = true;
-        }
-        msgWindow.domWindow = window;
-        msgWindow.rootDocShell.allowAuth = true;
-        gMsgCompose.SendMsg(msgType, getCurrentIdentity(), currentAccountKey, msgWindow, progress);
-      }
-      catch (ex) {
-        dump("failed to SendMsg: " + ex + "\n");
-        gWindowLocked = false;
-        enableEditableFields();
-        updateComposeItems();
-      }
-      if (gMsgCompose && originalCharset != gMsgCompose.compFields.characterSet)
-        SetDocumentCharacterSet(gMsgCompose.compFields.characterSet);
+    // We will remember the users "send format" decision in the address 
+    // collector code (see nsAbAddressCollector::CollectAddress())
+    // by using msgCompFields.forcePlainText and msgCompFields.useMultipartAlternative
+    // to determine the nsIAbPreferMailFormat (unknown, plaintext, or html).
+    // If the user sends both, we remember html.
+    switch (action)
+    {
+      case nsIMsgCompSendFormat.PlainText:
+        msgCompFields.forcePlainText = true;
+        msgCompFields.useMultipartAlternative = false;
+        break;
+      case nsIMsgCompSendFormat.HTML:
+        msgCompFields.forcePlainText = false;
+        msgCompFields.useMultipartAlternative = false;
+        break;
+      case nsIMsgCompSendFormat.Both:
+        msgCompFields.forcePlainText = false;
+        msgCompFields.useMultipartAlternative = true;
+        break;
+      default:
+        throw new Error("Invalid nsIMsgCompSendFormat action; action=" + action);
     }
   }
-  else
-    dump("###SendMessage Error: composeAppCore is null!\n");
+
+  // hook for extra compose pre-processing
+  Services.obs.notifyObservers(window, "mail:composeOnSend", null);
+
+  var originalCharset = gMsgCompose.compFields.characterSet;
+  // Check if the headers of composing mail can be converted to a mail charset.
+  if (msgType == nsIMsgCompDeliverMode.Now ||
+    msgType == nsIMsgCompDeliverMode.Later ||
+    msgType == nsIMsgCompDeliverMode.Background ||
+    msgType == nsIMsgCompDeliverMode.Save ||
+    msgType == nsIMsgCompDeliverMode.SaveAsDraft ||
+    msgType == nsIMsgCompDeliverMode.AutoSaveAsDraft ||
+    msgType == nsIMsgCompDeliverMode.SaveAsTemplate)
+  {
+    var fallbackCharset = new Object;
+    // Check encoding, switch to UTF-8 if the default encoding doesn't fit
+    // and disable_fallback_to_utf8 isn't set for this encoding.
+    if (!gMsgCompose.checkCharsetConversion(getCurrentIdentity(), fallbackCharset))
+    {
+      var disableFallback = false;
+      try
+      {
+        disableFallback = getPref("mailnews.disable_fallback_to_utf8." + originalCharset);
+      }
+      catch (e) {}
+      if (disableFallback)
+        msgCompFields.needToCheckCharset = false;
+      else
+        fallbackCharset.value = "UTF-8";
+    }
+
+    if (fallbackCharset &&
+        fallbackCharset.value && fallbackCharset.value != "")
+      gMsgCompose.SetDocumentCharset(fallbackCharset.value);
+  }
+
+  try {
+    // Just before we try to send the message, fire off the
+    // compose-send-message event for listeners such as smime so they can do
+    // any pre-security work such as fetching certificates before sending.
+    var event = document.createEvent("UIEvents");
+    event.initEvent("compose-send-message", false, true);
+    var msgcomposeWindow = document.getElementById("msgcomposeWindow");
+    msgcomposeWindow.setAttribute("msgtype", msgType);
+    msgcomposeWindow.dispatchEvent(event);
+    if (event.getPreventDefault())
+      throw Components.results.NS_ERROR_ABORT;
+
+    gAutoSaving = (msgType == nsIMsgCompDeliverMode.AutoSaveAsDraft);
+    // disable the ui if we're not auto-saving
+    if (!gAutoSaving)
+    {
+      gWindowLocked = true;
+      disableEditableFields();
+      updateComposeItems();
+    }
+    // If we're auto saving, mark the body as not changed here, and not
+    // when the save is done, because the user might change it between now
+    // and when the save is done.
+    else
+    {
+      SetContentAndBodyAsUnmodified();
+    }
+
+    var progress = Components.classes["@mozilla.org/messenger/progress;1"]
+                             .createInstance(Components.interfaces.nsIMsgProgress);
+    if (progress)
+    {
+      progress.registerListener(progressListener);
+      gSendOrSaveOperationInProgress = true;
+    }
+    msgWindow.domWindow = window;
+    msgWindow.rootDocShell.allowAuth = true;
+    gMsgCompose.SendMsg(msgType, getCurrentIdentity(),
+                        getCurrentAccountKey(), msgWindow, progress);
+  }
+  catch (ex) {
+    Components.utils.reportError("GenericSendMessage FAILED: " + ex);
+    gWindowLocked = false;
+    enableEditableFields();
+    updateComposeItems();
+  }
+  if (gMsgCompose && originalCharset != gMsgCompose.compFields.characterSet)
+    SetDocumentCharacterSet(gMsgCompose.compFields.characterSet);
 }
 
 function CheckValidEmailAddress(to, cc, bcc)
@@ -2653,15 +2751,8 @@ function FillIdentityList(menulist)
 
 function getCurrentIdentity()
 {
-    // fill in Identity combobox
-    var identityList = document.getElementById("msgIdentity");
-
-    var identityKey = identityList.value;
-
-    //dump("Looking for identity " + identityKey + "\n");
-    var identity = gAccountManager.getIdentity(identityKey);
-
-    return identity;
+  var identityKey = document.getElementById("msgIdentity").value;
+  return gAccountManager.getIdentity(identityKey);
 }
 
 function getCurrentAccountKey()
@@ -2763,8 +2854,22 @@ function ComposeCanClose()
       switch (result)
       {
         case 0: //Save
+          // Since we're going to save the message, we tell toolkit that
+          // the close command failed, by returning false, and then
+          // we close the window ourselves after the save is done.
           gCloseWindowAfterSave = true;
-          GenericSendMessage(nsIMsgCompDeliverMode.AutoSaveAsDraft);
+          // We catch the exception because we need to tell toolkit that it
+          // shouldn't close the window, because we're going to close it
+          // ourselves. If we don't tell toolkit that, and then close the window
+          // ourselves, the toolkit code that keeps track of the open windows
+          // gets off by one and the app can close unexpectedly on os's that
+          // shutdown the app when the last window is closed.
+          try {
+            GenericSendMessage(nsIMsgCompDeliverMode.AutoSaveAsDraft);
+          }
+          catch (ex) {
+            Components.utils.reportError(ex);
+          }
           return false;
         case 1: //Cancel
           return false;
@@ -3020,22 +3125,6 @@ function AddUrlAttachment(attachment)
   AddAttachments([attachment]);
 }
 
-function SelectAllAttachments()
-{
-  var bucketList = document.getElementById("attachmentBucket");
-  if (bucketList)
-    bucketList.selectAll();
-}
-
-function MessageHasAttachments()
-{
-  var bucketList = document.getElementById("attachmentBucket");
-  if (bucketList) {
-    return (bucketList && bucketList.getRowCount() && (bucketList == top.document.commandDispatcher.focusedElement));
-  }
-  return false;
-}
-
 function MessageGetNumSelectedAttachments()
 {
   var bucketList = document.getElementById("attachmentBucket");
@@ -3191,12 +3280,13 @@ function RenameSelectedAttachment()
     if (attachmentName.value == "")
       return; // name was not filled, bail out
 
+    let originalName = item.attachment.name;
     item.attachment.name = attachmentName.value;
     item.setAttribute("name", attachmentName.value);
 
     gContentChanged = true;
     Services.obs.notifyObservers(item.attachment, "mail:attachmentRenamed",
-                                 null);
+                                 originalName);
   }
 }
 

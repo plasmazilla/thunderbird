@@ -180,8 +180,8 @@ NS_IMETHODIMP nsNoIncomingServer::CreateDefaultMailboxes(nsIFile *aPath)
   rv = path->AppendNative(NS_LITERAL_CSTRING("Trash"));
   bool isDeferredTo;
   if (NS_SUCCEEDED(GetIsDeferredTo(&isDeferredTo)) && isDeferredTo)
-    CreateLocalFolder(path, NS_LITERAL_CSTRING("Inbox"));
-  CreateLocalFolder(path, NS_LITERAL_CSTRING("Trash"));
+    CreateLocalFolder(NS_LITERAL_STRING("Inbox"));
+  CreateLocalFolder(NS_LITERAL_STRING("Trash"));
   NS_ENSURE_SUCCESS(rv, rv);
 
   // copy the default templates into the Templates folder
@@ -192,7 +192,7 @@ NS_IMETHODIMP nsNoIncomingServer::CreateDefaultMailboxes(nsIFile *aPath)
   rv = CopyDefaultMessages("Templates", parent);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  (void ) CreateLocalFolder(path, NS_LITERAL_CSTRING("Unsent Messages"));
+  (void ) CreateLocalFolder(NS_LITERAL_STRING("Unsent Messages"));
   return NS_OK;
 }
 
@@ -225,7 +225,7 @@ NS_IMETHODIMP
 nsNoIncomingServer::GetCanSearchMessages(bool *canSearchMessages)
 {
   NS_ENSURE_ARG_POINTER(canSearchMessages);
-  *canSearchMessages = PR_TRUE;
+  *canSearchMessages = true;
   return NS_OK;
 }
 
@@ -233,7 +233,7 @@ NS_IMETHODIMP
 nsNoIncomingServer::GetServerRequiresPasswordForBiff(bool *aServerRequiresPasswordForBiff)
 {
   NS_ENSURE_ARG_POINTER(aServerRequiresPasswordForBiff);
-  *aServerRequiresPasswordForBiff = PR_FALSE;  // for local folders, we don't require a password
+  *aServerRequiresPasswordForBiff = false;  // for local folders, we don't require a password
   return NS_OK;
 }
 

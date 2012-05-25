@@ -82,7 +82,8 @@ function teardownModule(module) {
 }
 
 function openPluginTab() {
-  let tab = open_content_tab_with_click(mc.menus.helpMenu.whatsNew, kPluginUrl);
+  //let tab = open_content_tab_with_click(mc.menus.helpMenu.whatsNew, kPluginUrl);
+  let tab = open_content_tab_with_url(kPluginUrl);
   assert_tab_has_title(tab, "Unknown Plugin Test");
   assert_content_tab_has_url(tab, kPluginUrl);
 

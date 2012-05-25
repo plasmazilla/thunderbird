@@ -141,10 +141,14 @@
             <td>
               <div id="profile-dir-button-box" class="data-public">
                 <button onclick="openProfileDirectory()">
+#ifdef XP_WIN
+                  &aboutSupport.showWin.label;
+#else
 #ifdef XP_MACOSX
                   &aboutSupport.showMac.label;
 #else
-                  &aboutSupport.show.label;
+                  &aboutSupport.showDir.label;
+#endif
 #endif
                 </button>
               </div>
@@ -296,7 +300,7 @@
       <!-- - - - - - - - - - - - - - - - - - - - - -->
 
       <h2 class="major-section">
-        &aboutSupport.modifiedPrefsTitle;
+        &aboutSupport.modifiedKeyPrefsTitle;
       </h2>
 
       <table class="prefs-table">

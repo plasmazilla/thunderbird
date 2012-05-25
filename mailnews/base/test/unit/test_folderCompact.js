@@ -15,6 +15,9 @@
   * - Compacting imap offline stores.
   */
 
+Services.prefs.setCharPref("mail.serverDefaultStoreContractID",
+                           "@mozilla.org/msgstore/berkeleystore;1");
+
 // Globals
 var gMsgFile1, gMsgFile2, gMsgFile3;
 var gLocalFolder2;
@@ -111,6 +114,23 @@ function calculateFolderSize(folder)
   return totalSize;
 }
 
+function verifyMsgOffsets(folder)
+{
+  let msgDB = folder.msgDatabase;
+  let enumerator = msgDB.EnumerateMessages();
+  if (enumerator)
+  {
+    while (enumerator.hasMoreElements())
+    {
+      let header = enumerator.getNext();
+      if (header instanceof Components.interfaces.nsIMsgDBHdr) {
+        let storeToken = header.getStringProperty("storeToken");
+        do_check_eq(storeToken, header.messageOffset);
+      }
+    }
+  }
+}
+
 /*
  * TESTS
  */
@@ -145,6 +165,7 @@ const gTestArray =
   },
   function testDeleteMessages2() {
     do_check_eq(gExpectedFolderSize, gLocalFolder3.filePath.fileSize);
+    verifyMsgOffsets(gLocalFolder3);
     var folder2DB = gLocalFolder2.msgDatabase;
     gMsgHdrs[0].hdr = folder2DB.getMsgHdrForMessageID(gMsgHdrs[0].ID);
 
@@ -173,6 +194,9 @@ const gTestArray =
     do_check_eq(gExpectedInboxSize, gLocalInboxFolder.filePath.fileSize);
     do_check_eq(gExpectedFolder2Size, gLocalFolder2.filePath.fileSize);
     do_check_eq(gExpectedFolder3Size, gLocalFolder3.filePath.fileSize);
+    verifyMsgOffsets(gLocalFolder2);
+    verifyMsgOffsets(gLocalFolder3);
+    verifyMsgOffsets(gLocalInboxFolder);
     urlListener.OnStopRunningUrl(null, 0);
   }
 ];
@@ -186,11 +210,10 @@ function run_test()
   gMsgFile3 = do_get_file("../../../data/draft1");
 
   // Create another folder to move and copy messages around, and force initialization.
-  var rootFolder = gLocalIncomingServer.rootMsgFolder;
-  gLocalFolder2 = rootFolder.createLocalSubfolder("folder2");
-  var folderName = gLocalFolder2.prettiestName;
+  gLocalFolder2 = gLocalRootFolder.createLocalSubfolder("folder2");
+  let folderName = gLocalFolder2.prettiestName;
   // Create a third folder for more testing.
-  gLocalFolder3 = rootFolder.createLocalSubfolder("folder3");
+  gLocalFolder3 = gLocalRootFolder.createLocalSubfolder("folder3");
   folderName = gLocalFolder3.prettiestName;
 
   // "Master" do_test_pending(), paired with a do_test_finished() at the end of all the operations.
@@ -206,15 +229,13 @@ function doTest(test)
   if (test <= gTestArray.length)
   {
     gCurTestNum = test;
-    
     var testFn = gTestArray[test-1];
-    // Set a limit of 10 seconds; if the notifications haven't arrived by then there's a problem.
-    do_timeout(10000, function(){
-
-        if (gCurTestNum == test)
-          do_throw("Notifications not received in 10000 ms for operation " + testFn.name);
-        }
-      );
+    // Set a limit of 10 seconds; if the notifications haven't arrived by
+    // then, there's a problem.
+    do_timeout(10000, function() {
+      if (gCurTestNum == test)
+        do_throw("Notifications not received in 10000 ms for operation " + testFn.name);
+    });
     try {
     testFn();
     } catch(ex) {dump(ex);}

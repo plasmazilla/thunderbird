@@ -100,6 +100,7 @@
 #include "nsThreadUtils.h"
 #include "nsNetUtil.h"
 #include "nsMsgMessageFlags.h"
+#include "nsIMsgPluggableStore.h"
 
 #define PREF_MAIL_ROOT_IMAP "mail.root.imap"            // old - for backward compatibility only
 #define PREF_MAIL_ROOT_IMAP_REL "mail.root.imap-rel"
@@ -128,7 +129,7 @@ NS_IMPL_QUERY_INTERFACE6(nsImapService,
 
 nsImapService::nsImapService()
 {
-  mPrintingOperation = PR_FALSE;
+  mPrintingOperation = false;
   if (!gInitialized)
   {
     nsresult rv;
@@ -148,7 +149,7 @@ nsImapService::nsImapService()
     }
     NS_ASSERTION(autoSyncMgr != nsnull, "*** Cannot initialize nsAutoSyncManager service.");
 
-    gInitialized = PR_TRUE;
+    gInitialized = true;
   }
 }
 
@@ -205,13 +206,11 @@ nsresult nsImapService::GetFolderName(nsIMsgFolder *aImapFolder, nsACString &aFo
   return rv;
 }
 
-NS_IMETHODIMP nsImapService::SelectFolder(nsIEventTarget *aClientEventTarget, 
-                                          nsIMsgFolder *aImapMailFolder, 
-                                          nsIUrlListener *aUrlListener, 
+NS_IMETHODIMP nsImapService::SelectFolder(nsIMsgFolder *aImapMailFolder,
+                                          nsIUrlListener *aUrlListener,
                                           nsIMsgWindow *aMsgWindow,
                                           nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
   if (WeAreOffline())
@@ -240,9 +239,9 @@ NS_IMETHODIMP nsImapService::SelectFolder(nsIEventTarget *aClientEventTarget,
     nsCOMPtr<nsIMsgMailNewsUrl> mailNewsUrl = do_QueryInterface(imapUrl);
     // if no msg window, we won't put up error messages (this is almost certainly a biff-inspired get new msgs)
     if (!aMsgWindow)
-      mailNewsUrl->SetSuppressErrorMsgs(PR_TRUE);
+      mailNewsUrl->SetSuppressErrorMsgs(true);
     mailNewsUrl->SetMsgWindow(aMsgWindow);
-    mailNewsUrl->SetUpdatingFolder(PR_TRUE);
+    mailNewsUrl->SetUpdatingFolder(true);
     rv = SetImapUrlSink(aImapMailFolder, imapUrl);
 
     if (NS_SUCCEEDED(rv))
@@ -254,7 +253,7 @@ NS_IMETHODIMP nsImapService::SelectFolder(nsIEventTarget *aClientEventTarget,
       urlSpec.Append(folderName);
       rv = mailNewsUrl->SetSpec(urlSpec);
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl, nsnull, aURL);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, aURL);
     }
   } // if we have a url to run....
 
@@ -262,16 +261,14 @@ NS_IMETHODIMP nsImapService::SelectFolder(nsIEventTarget *aClientEventTarget,
 }
 
 // lite select, used to verify UIDVALIDITY while going on/offline
-NS_IMETHODIMP nsImapService::LiteSelectFolder(nsIEventTarget *aClientEventTarget,
-                                              nsIMsgFolder *aImapMailFolder,
+NS_IMETHODIMP nsImapService::LiteSelectFolder(nsIMsgFolder *aImapMailFolder,
                                               nsIUrlListener *aUrlListener,
                                               nsIMsgWindow *aMsgWindow,
                                               nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
-  return FolderCommand(aClientEventTarget, aImapMailFolder, aUrlListener,
+  return FolderCommand(aImapMailFolder, aUrlListener,
                        "/liteselect>", nsIImapUrl::nsImapLiteSelectFolder, aMsgWindow, aURL);
 }
 
@@ -279,8 +276,6 @@ NS_IMETHODIMP nsImapService::GetUrlForUri(const char *aMessageURI,
                                           nsIURI **aURL, 
                                           nsIMsgWindow *aMsgWindow) 
 {
-  nsresult rv = NS_OK;
-
   nsCAutoString messageURI(aMessageURI);
 
   if (messageURI.Find(NS_LITERAL_CSTRING("&type=application/x-message-display")) != kNotFound)
@@ -288,7 +283,7 @@ NS_IMETHODIMP nsImapService::GetUrlForUri(const char *aMessageURI,
 
   nsCOMPtr<nsIMsgFolder> folder;
   nsCAutoString msgKey;
-  rv = DecomposeImapURI(messageURI, getter_AddRefs(folder), msgKey);
+  nsresult rv = DecomposeImapURI(messageURI, getter_AddRefs(folder), msgKey);
   if (NS_SUCCEEDED(rv))
   {
     nsCOMPtr<nsIImapUrl> imapUrl;
@@ -328,7 +323,6 @@ NS_IMETHODIMP nsImapService::OpenAttachment(const char *aContentType,
                                             nsIMsgWindow *aMsgWindow, 
                                             nsIUrlListener *aUrlListener)
 {
-  nsresult rv = NS_OK;
   // okay this is a little tricky....we may have to fetch the mime part
   // or it may already be downloaded for us....the only way i can tell to 
   // distinguish the two events is to search for ?section or ?part
@@ -366,10 +360,11 @@ NS_IMETHODIMP nsImapService::OpenAttachment(const char *aContentType,
   nsCOMPtr<nsIMsgFolder> folder;
   nsCAutoString msgKey;
   nsCAutoString uriMimePart;
-  nsCAutoString	folderURI;
+  nsCAutoString folderURI;
   nsMsgKey key;
 
-  rv = DecomposeImapURI(uri, getter_AddRefs(folder), msgKey);
+  nsresult rv = DecomposeImapURI(uri, getter_AddRefs(folder), msgKey);
+  NS_ENSURE_SUCCESS(rv, rv);
   rv = nsParseImapMessageURI(uri.get(), folderURI, &key, getter_Copies(uriMimePart));
   if (NS_SUCCEEDED(rv))
   {
@@ -417,7 +412,6 @@ NS_IMETHODIMP nsImapService::FetchMimePart(nsIURI *aURI,
                                            nsIUrlListener *aUrlListener, 
                                            nsIURI **aURL)
 {
-  nsresult rv = NS_OK;
   nsCOMPtr<nsIMsgFolder> folder;
   nsCAutoString messageURI(aMessageURI);
   nsCAutoString msgKey;
@@ -425,7 +419,8 @@ NS_IMETHODIMP nsImapService::FetchMimePart(nsIURI *aURI,
   nsCAutoString folderURI;
   nsMsgKey key;
   
-  rv = DecomposeImapURI(messageURI, getter_AddRefs(folder), msgKey);
+  nsresult rv = DecomposeImapURI(messageURI, getter_AddRefs(folder), msgKey);
+  NS_ENSURE_SUCCESS(rv, rv);
   rv = nsParseImapMessageURI(aMessageURI, folderURI, &key, getter_Copies(mimePart));
   if (NS_SUCCEEDED(rv))
   {
@@ -455,11 +450,12 @@ NS_IMETHODIMP nsImapService::DisplayMessage(const char *aMessageURI,
                                             const char *aCharsetOverride,
                                             nsIURI **aURL)
 {
-  nsresult rv = NS_OK;
+  nsresult rv;
+
   nsCOMPtr<nsIMsgFolder> folder;
   nsCAutoString msgKey;
   nsCAutoString mimePart;
-  nsCAutoString	folderURI;
+  nsCAutoString folderURI;
   nsMsgKey key;
   nsCAutoString messageURI(aMessageURI);
 
@@ -494,6 +490,7 @@ NS_IMETHODIMP nsImapService::DisplayMessage(const char *aMessageURI,
   }
 
   rv = DecomposeImapURI(messageURI, getter_AddRefs(folder), msgKey);
+  NS_ENSURE_SUCCESS(rv, rv);
   if (msgKey.IsEmpty())
     return NS_MSG_MESSAGE_NOT_FOUND;
 
@@ -544,9 +541,9 @@ NS_IMETHODIMP nsImapService::DisplayMessage(const char *aMessageURI,
       if(keySeparator != -1)
       {
         PRInt32 keyEndSeparator = MsgFindCharInSet(uriStr, "/?&", keySeparator);
-        PRInt32 mpodFetchPos = MsgFind(uriStr, "fetchCompleteMessage=true", PR_FALSE, keyEndSeparator);
+        PRInt32 mpodFetchPos = MsgFind(uriStr, "fetchCompleteMessage=true", false, keyEndSeparator);
         if (mpodFetchPos != -1)
-          useMimePartsOnDemand = PR_FALSE;
+          useMimePartsOnDemand = false;
       }
 
       if (folder)
@@ -560,7 +557,7 @@ NS_IMETHODIMP nsImapService::DisplayMessage(const char *aMessageURI,
         useMimePartsOnDemand && messageSize >= (PRUint32) gMIMEOnDemandThreshold);
 
       if (hasMsgOffline)
-        msgurl->SetMsgIsInLocalCache(PR_TRUE);
+        msgurl->SetMsgIsInLocalCache(true);
 
       nsCOMPtr<nsIPrefBranch> prefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID, &rv));
       // Should the message fetch force a peek or a traditional fetch?
@@ -579,7 +576,7 @@ NS_IMETHODIMP nsImapService::DisplayMessage(const char *aMessageURI,
       }
 
       rv = FetchMessage(imapUrl, forcePeek ? nsIImapUrl::nsImapMsgFetchPeek : nsIImapUrl::nsImapMsgFetch, 
-                        folder, imapMessageSink, aMsgWindow, aDisplayConsumer, msgKey, PR_FALSE, 
+                        folder, imapMessageSink, aMsgWindow, aDisplayConsumer, msgKey, false, 
                         (mPrintingOperation) ? NS_LITERAL_CSTRING("print") : NS_LITERAL_CSTRING(""), aURL);
     }
   }
@@ -661,7 +658,7 @@ nsresult nsImapService::FetchMimePart(nsIImapUrl *aImapUrl,
         loadInfo->SetLoadType(nsIDocShellLoadInfo::loadLink);
       }
       
-      rv = docShell->LoadURI(url, loadInfo, nsIWebNavigation::LOAD_FLAGS_NONE, PR_FALSE);
+      rv = docShell->LoadURI(url, loadInfo, nsIWebNavigation::LOAD_FLAGS_NONE, false);
     }
     else
     {
@@ -697,9 +694,7 @@ nsresult nsImapService::FetchMimePart(nsIImapUrl *aImapUrl,
 #if defined(DEBUG_mscott) || defined(DEBUG_bienvenu)
         NS_ERROR("oops...someone still is reaching this part of the code");
 #endif
-        nsCOMPtr<nsIThread> thread(do_GetCurrentThread());
-        rv = GetImapConnectionAndLoadUrl(thread, aImapUrl,
-                                         aDisplayConsumer, aURL);
+        rv = GetImapConnectionAndLoadUrl(aImapUrl, aDisplayConsumer, aURL);
       }
     }
   }
@@ -716,9 +711,9 @@ NS_IMETHODIMP nsImapService::DisplayMessageForPrinting(const char *aMessageURI,
                                                        nsIUrlListener *aUrlListener,
                                                        nsIURI **aURL) 
 {
-  mPrintingOperation = PR_TRUE;
+  mPrintingOperation = true;
   nsresult rv = DisplayMessage(aMessageURI, aDisplayConsumer, aMsgWindow, aUrlListener, nsnull, aURL);
-  mPrintingOperation = PR_FALSE;
+  mPrintingOperation = false;
   return rv;
 }
 
@@ -765,7 +760,7 @@ NS_IMETHODIMP nsImapService::CopyMessage(const char *aSrcMailboxURI,
       if (moveMessage)
         imapAction = nsIImapUrl::nsImapOnlineToOfflineMove; 
       rv = FetchMessage(imapUrl,imapAction, folder, imapMessageSink,aMsgWindow, 
-                        streamSupport, msgKey, PR_FALSE, EmptyCString(), aURL);
+                        streamSupport, msgKey, false, EmptyCString(), aURL);
     } // if we got an imap message sink
   } // if we decomposed the imap message 
   return rv;
@@ -814,7 +809,7 @@ NS_IMETHODIMP nsImapService::CopyMessages(PRUint32 aNumKeys,
       imapUrl->SetCopyState(aMailboxCopy);
       // now try to display the message
       rv = FetchMessage(imapUrl, action, folder, imapMessageSink, aMsgWindow, 
-                        streamSupport, messageIds, PR_FALSE, EmptyCString(), aURL);
+                        streamSupport, messageIds, false, EmptyCString(), aURL);
       // ### end of copy operation should know how to do the delete.if this is a move
       
     } // if we got an imap message sink
@@ -827,16 +822,15 @@ NS_IMETHODIMP nsImapService::Search(nsIMsgSearchSession *aSearchSession,
                                     nsIMsgFolder *aMsgFolder, 
                                     const char *aSearchUri)
 {
-  nsresult rv = NS_OK;
-  nsCAutoString	folderURI;
+  NS_ENSURE_ARG_POINTER(aSearchUri);
 
   nsCOMPtr<nsIImapUrl> imapUrl;
   nsCOMPtr <nsIUrlListener> urlListener = do_QueryInterface(aSearchSession);
-
   nsCAutoString urlSpec;
   char hierarchyDelimiter = GetHierarchyDelimiter(aMsgFolder);
-  rv = CreateStartOfImapUrl(EmptyCString(), getter_AddRefs(imapUrl), 
-                            aMsgFolder, urlListener, urlSpec, hierarchyDelimiter);
+  nsresult rv = CreateStartOfImapUrl(EmptyCString(), getter_AddRefs(imapUrl),
+                                     aMsgFolder, urlListener, urlSpec,
+                                     hierarchyDelimiter);
   NS_ENSURE_SUCCESS(rv, rv);
   nsCOMPtr<nsIMsgMailNewsUrl> msgurl (do_QueryInterface(imapUrl));
 
@@ -851,7 +845,7 @@ NS_IMETHODIMP nsImapService::Search(nsIMsgSearchSession *aSearchSession,
 
     nsCOMPtr <nsIMsgMailNewsUrl> mailNewsUrl = do_QueryInterface(imapUrl);
     if (!aMsgWindow)
-      mailNewsUrl->SetSuppressErrorMsgs(PR_TRUE);
+      mailNewsUrl->SetSuppressErrorMsgs(true);
 
     urlSpec.Append("/search>UID>");
     urlSpec.Append(hierarchyDelimiter);
@@ -865,10 +859,8 @@ NS_IMETHODIMP nsImapService::Search(nsIMsgSearchSession *aSearchSession,
     MsgEscapeString(nsDependentCString(aSearchUri), nsINetUtil::ESCAPE_XALPHAS, escapedSearchUri);
     urlSpec.Append(escapedSearchUri);
     rv = mailNewsUrl->SetSpec(urlSpec);
-    if (NS_SUCCEEDED(rv)) {
-      nsCOMPtr<nsIThread> thread(do_GetCurrentThread());
-      rv = GetImapConnectionAndLoadUrl(thread, imapUrl, nsnull, nsnull);
-    }
+    if (NS_SUCCEEDED(rv))
+      rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, nsnull);
   }
   return rv;
 }
@@ -900,9 +892,9 @@ nsresult nsImapService::DecomposeImapURI(const nsACString &aMessageURI,
   NS_ENSURE_ARG_POINTER(aFolder);
   NS_ENSURE_ARG_POINTER(aMsgKey);
   
-  nsresult rv = NS_OK;
   nsCAutoString folderURI;
-  rv = nsParseImapMessageURI(PromiseFlatCString(aMessageURI).get(), folderURI, aMsgKey, nsnull);
+  nsresult rv = nsParseImapMessageURI(PromiseFlatCString(aMessageURI).get(),
+                                      folderURI, aMsgKey, nsnull);
   NS_ENSURE_SUCCESS(rv,rv);
   
   nsCOMPtr <nsIRDFService> rdf = do_GetService("@mozilla.org/rdf/rdf-service;1",&rv);
@@ -929,12 +921,12 @@ NS_IMETHODIMP nsImapService::SaveMessageToDisk(const char *aMessageURI,
                                                bool canonicalLineEnding,
                                                nsIMsgWindow *aMsgWindow)
 {
-  nsresult rv = NS_OK;
   nsCOMPtr<nsIMsgFolder> folder;
   nsCOMPtr<nsIImapUrl> imapUrl;
   nsCAutoString msgKey;
 
-  rv = DecomposeImapURI(nsDependentCString(aMessageURI), getter_AddRefs(folder), msgKey);
+  nsresult rv = DecomposeImapURI(nsDependentCString(aMessageURI),
+                                 getter_AddRefs(folder), msgKey);
   NS_ENSURE_SUCCESS(rv, rv);
 
   bool hasMsgOffline = false;
@@ -964,7 +956,7 @@ NS_IMETHODIMP nsImapService::SaveMessageToDisk(const char *aMessageURI,
     mailnewsUrl->GetSaveAsListener(aAddDummyEnvelope, aFile, getter_AddRefs(saveAsListener));
 
     return FetchMessage(imapUrl, nsIImapUrl::nsImapSaveMessageToDisk, folder, imapMessageSink, 
-                        aMsgWindow, saveAsListener, msgKey, PR_FALSE, EmptyCString(), aURL);
+                        aMsgWindow, saveAsListener, msgKey, false, EmptyCString(), aURL);
   }
   return rv;
 }
@@ -978,6 +970,8 @@ NS_IMETHODIMP nsImapService::AddImapFetchToUrl(nsIURI *aUrl,
                                                const nsACString &aMessageIdentifierList,
                                                const nsACString &aAdditionalHeader)
 {
+  NS_ENSURE_ARG_POINTER(aUrl);
+
   nsCAutoString urlSpec;
   aUrl->GetSpec(urlSpec);
 
@@ -1090,7 +1084,7 @@ nsresult nsImapService::GetMessageFromUrl(nsIImapUrl *aImapUrl,
   if (NS_SUCCEEDED(rv) && docShell)
   {
     NS_ASSERTION(!aConvertDataToText, "can't convert to text when using docshell");
-    rv = docShell->LoadURI(url, nsnull, nsIWebNavigation::LOAD_FLAGS_NONE, PR_FALSE);
+    rv = docShell->LoadURI(url, nsnull, nsIWebNavigation::LOAD_FLAGS_NONE, false);
   }
   else
   {
@@ -1140,8 +1134,7 @@ nsresult nsImapService::GetMessageFromUrl(nsIImapUrl *aImapUrl,
 #if defined(DEBUG_mscott) || defined(DEBUG_bienvenu)
       NS_ERROR("oops...someone still is reaching this part of the code");
 #endif
-      nsCOMPtr<nsIThread> thread(do_GetCurrentThread());
-      rv = GetImapConnectionAndLoadUrl(thread, aImapUrl,
+      rv = GetImapConnectionAndLoadUrl(aImapUrl,
                                        aDisplayConsumer, aURL);
     }
   }
@@ -1229,7 +1222,7 @@ NS_IMETHODIMP nsImapService::StreamMessage(const char *aMessageURI,
         }
       }
 
-      msgurl->SetAddToMemoryCache(PR_TRUE);
+      msgurl->SetAddToMemoryCache(true);
 
       bool shouldStoreMsgOffline = false;
       folder->ShouldStoreMsgOffline(key, &shouldStoreMsgOffline);
@@ -1270,7 +1263,7 @@ NS_IMETHODIMP nsImapService::StreamHeaders(const char *aMessageURI,
     folder->HasMsgOffline(key, &hasMsgOffline);
     if (hasMsgOffline)
     {
-      PRUint64 messageOffset;
+      PRInt64 messageOffset;
       PRUint32 messageSize;
       folder->GetOfflineFileStream(key, &messageOffset, &messageSize, getter_AddRefs(inputStream));
       if (inputStream)
@@ -1307,7 +1300,7 @@ NS_IMETHODIMP nsImapService::IsMsgInMemCache(nsIURI *aUrl,
 {
   NS_ENSURE_ARG_POINTER(aUrl);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
-  *aResult = PR_FALSE;
+  *aResult = false;
 
   // Poke around in the memory cache
   if (mCacheSession)
@@ -1327,11 +1320,11 @@ NS_IMETHODIMP nsImapService::IsMsgInMemCache(nsIURI *aUrl,
     aUrl->GetAsciiSpec(escapedSpec);
     cacheKey.Append(escapedSpec);
     nsCOMPtr<nsICacheEntryDescriptor> cacheEntry;
-    rv = mCacheSession->OpenCacheEntry(cacheKey, nsICache::ACCESS_READ, PR_FALSE,
+    rv = mCacheSession->OpenCacheEntry(cacheKey, nsICache::ACCESS_READ, false,
                                        getter_AddRefs(cacheEntry));
     if (NS_SUCCEEDED(rv))
     {
-      *aResult = PR_TRUE;
+      *aResult = true;
       if (aCacheEntry)
         NS_IF_ADDREF(*aCacheEntry = cacheEntry);
     }
@@ -1347,16 +1340,16 @@ nsresult nsImapService::CreateStartOfImapUrl(const nsACString &aImapURI,
                                              nsACString &urlSpec, 
                                              char &hierarchyDelimiter)
 {
-  nsresult rv = NS_OK;
+  NS_ENSURE_ARG_POINTER(aImapMailFolder);
+
   nsCString hostname;
   nsCString username;
   nsCString escapedUsername;
 
-  rv = aImapMailFolder->GetHostname(hostname);
+  nsresult rv = aImapMailFolder->GetHostname(hostname);
   NS_ENSURE_SUCCESS(rv, rv);
   rv = aImapMailFolder->GetUsername(username);
   NS_ENSURE_SUCCESS(rv, rv);
-
   if (!username.IsEmpty())
     MsgEscapeString(username, nsINetUtil::ESCAPE_XALPHAS, escapedUsername);
 
@@ -1378,7 +1371,7 @@ nsresult nsImapService::CreateStartOfImapUrl(const nsACString &aImapURI,
     if (NS_SUCCEEDED(rv) && mailnewsUrl && aUrlListener)
       mailnewsUrl->RegisterListener(aUrlListener);
     nsCOMPtr<nsIMsgMessageUrl> msgurl(do_QueryInterface(*imapUrl));
-    (*imapUrl)->SetExternalLinkUrl(PR_FALSE);
+    (*imapUrl)->SetExternalLinkUrl(false);
     msgurl->SetUri(PromiseFlatCString(aImapURI).get());
 
     urlSpec = "imap://";
@@ -1407,8 +1400,7 @@ nsresult nsImapService::CreateStartOfImapUrl(const nsACString &aImapURI,
 /* imap4://HOST>header><UID/SEQUENCE>>MAILBOXPATH>x */
 /*   'x' is the message UID or sequence number list */
 /* will not affect the 'SEEN' flag */
-NS_IMETHODIMP nsImapService::GetHeaders(nsIEventTarget *aClientEventTarget, 
-                                        nsIMsgFolder *aImapMailFolder, 
+NS_IMETHODIMP nsImapService::GetHeaders(nsIMsgFolder *aImapMailFolder, 
                                         nsIUrlListener *aUrlListener, 
                                         nsIURI **aURL,
                                         const nsACString &messageIdentifierList,
@@ -1417,7 +1409,6 @@ NS_IMETHODIMP nsImapService::GetHeaders(nsIEventTarget *aClientEventTarget,
   // create a protocol instance to handle the request.
   // NOTE: once we start working with multiple connections, this step will be much more complicated...but for now
   // just create a connection and process the request.
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
   nsCOMPtr<nsIImapUrl> imapUrl;
@@ -1449,7 +1440,7 @@ NS_IMETHODIMP nsImapService::GetHeaders(nsIEventTarget *aClientEventTarget,
       rv = uri->SetSpec(urlSpec);
 
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl, nsnull, aURL);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, aURL);
     }
   }
   return rv;
@@ -1461,14 +1452,12 @@ NS_IMETHODIMP nsImapService::GetHeaders(nsIEventTarget *aClientEventTarget,
 /*   'x' is the message UID */
 /*   'n' is the number of bytes to fetch */
 /* will not affect the 'SEEN' flag */
-NS_IMETHODIMP nsImapService::GetBodyStart(nsIEventTarget *aClientEventTarget, 
-                                          nsIMsgFolder *aImapMailFolder, 
+NS_IMETHODIMP nsImapService::GetBodyStart(nsIMsgFolder *aImapMailFolder, 
                                           nsIUrlListener *aUrlListener, 
                                           const nsACString &messageIdentifierList,
                                           PRInt32 numBytes,
                                           nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
   nsresult rv;
@@ -1501,21 +1490,19 @@ NS_IMETHODIMP nsImapService::GetBodyStart(nsIEventTarget *aClientEventTarget,
       urlSpec.AppendInt(numBytes);
       rv = uri->SetSpec(urlSpec);
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl, nsnull, aURL);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, aURL);
     }
   }
   return rv;
 }
 
-nsresult nsImapService::FolderCommand(nsIEventTarget *aClientEventTarget,
-                                      nsIMsgFolder *imapMailFolder,
+nsresult nsImapService::FolderCommand(nsIMsgFolder *imapMailFolder,
                                       nsIUrlListener *urlListener,
                                       const char *aCommand,
                                       nsImapAction imapAction,
                                       nsIMsgWindow *msgWindow,
                                       nsIURI **url)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(imapMailFolder);
 
   nsCOMPtr<nsIImapUrl> imapUrl;
@@ -1543,8 +1530,7 @@ nsresult nsImapService::FolderCommand(nsIEventTarget *aClientEventTarget,
       urlSpec.Append(folderName);
       rv = uri->SetSpec(urlSpec);
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl,
-                                         nsnull, url);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, url);
     }
   }
   return rv;
@@ -1565,15 +1551,13 @@ nsImapService::VerifyLogon(nsIMsgFolder *aFolder, nsIUrlListener *aUrlListener,
     nsCOMPtr<nsIURI> uri = do_QueryInterface(imapUrl);
 
     nsCOMPtr<nsIMsgMailNewsUrl> mailNewsUrl = do_QueryInterface(imapUrl);
-    mailNewsUrl->SetSuppressErrorMsgs(PR_TRUE);
+    mailNewsUrl->SetSuppressErrorMsgs(true);
     mailNewsUrl->SetMsgWindow(aMsgWindow);
     rv = SetImapUrlSink(aFolder, imapUrl);
     urlSpec.Append("/verifyLogon");
     rv = uri->SetSpec(urlSpec);
-    if (NS_SUCCEEDED(rv)) {
-      nsCOMPtr<nsIThread> thread(do_GetCurrentThread());
-      rv = GetImapConnectionAndLoadUrl(thread, imapUrl, nsnull, nsnull);
-    }
+    if (NS_SUCCEEDED(rv))
+      rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, nsnull);
     if (aURL)
       uri.forget(aURL);
   }
@@ -1581,53 +1565,45 @@ nsImapService::VerifyLogon(nsIMsgFolder *aFolder, nsIUrlListener *aUrlListener,
 }
 
 // Noop, used to update a folder (causes server to send changes).
-NS_IMETHODIMP nsImapService::Noop(nsIEventTarget *aClientEventTarget, 
-                                  nsIMsgFolder *aImapMailFolder,
+NS_IMETHODIMP nsImapService::Noop(nsIMsgFolder *aImapMailFolder,
                                   nsIUrlListener *aUrlListener, 
                                   nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
-  return FolderCommand(aClientEventTarget, aImapMailFolder, aUrlListener,
+  return FolderCommand(aImapMailFolder, aUrlListener,
                        "/selectnoop>", nsIImapUrl::nsImapSelectNoopFolder, nsnull, aURL);
 }
     
 // FolderStatus, used to update message counts
-NS_IMETHODIMP nsImapService::UpdateFolderStatus(nsIEventTarget *aClientEventTarget, 
-                                                nsIMsgFolder *aImapMailFolder,
+NS_IMETHODIMP nsImapService::UpdateFolderStatus(nsIMsgFolder *aImapMailFolder,
                                                 nsIUrlListener *aUrlListener, 
                                                 nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
-  return FolderCommand(aClientEventTarget, aImapMailFolder, aUrlListener,
+  return FolderCommand(aImapMailFolder, aUrlListener,
                        "/folderstatus>", nsIImapUrl::nsImapFolderStatus, nsnull, aURL);
 }
 
 // Expunge, used to "compress" an imap folder,removes deleted messages.
-NS_IMETHODIMP nsImapService::Expunge(nsIEventTarget *aClientEventTarget,
-                                     nsIMsgFolder *aImapMailFolder,
+NS_IMETHODIMP nsImapService::Expunge(nsIMsgFolder *aImapMailFolder,
                                      nsIUrlListener *aUrlListener,
                                      nsIMsgWindow *aMsgWindow,
                                      nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
-  return FolderCommand(aClientEventTarget, aImapMailFolder, aUrlListener,
+  return FolderCommand(aImapMailFolder, aUrlListener,
                        "/Expunge>", nsIImapUrl::nsImapExpungeFolder, aMsgWindow, aURL);
 }
 
 /* old-stle biff that doesn't download headers */
-NS_IMETHODIMP nsImapService::Biff(nsIEventTarget *aClientEventTarget, 
-                                  nsIMsgFolder *aImapMailFolder,
+NS_IMETHODIMP nsImapService::Biff(nsIMsgFolder *aImapMailFolder,
                                   nsIUrlListener *aUrlListener, 
                                   nsIURI **aURL,
                                   PRUint32 uidHighWater)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
   // static const char *formatString = "biff>%c%s>%ld";
@@ -1655,19 +1631,17 @@ NS_IMETHODIMP nsImapService::Biff(nsIEventTarget *aClientEventTarget,
       urlSpec.AppendInt(uidHighWater);
       rv = uri->SetSpec(urlSpec);
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl, nsnull, aURL);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, aURL);
     }
   }
   return rv;
 }
 
-NS_IMETHODIMP nsImapService::DeleteFolder(nsIEventTarget *aClientEventTarget,
-                                          nsIMsgFolder *aImapMailFolder,
+NS_IMETHODIMP nsImapService::DeleteFolder(nsIMsgFolder *aImapMailFolder,
                                           nsIUrlListener *aUrlListener,
                                           nsIMsgWindow *aMsgWindow,
                                           nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
   // If it's an aol server then use 'deletefolder' url to 
@@ -1681,19 +1655,17 @@ NS_IMETHODIMP nsImapService::DeleteFolder(nsIEventTarget *aClientEventTarget,
       imapServer->GetIsAOLServer(&removeFolderAndMsgs);
   }
   
-  return FolderCommand(aClientEventTarget, aImapMailFolder, aUrlListener,
+  return FolderCommand(aImapMailFolder, aUrlListener,
                        removeFolderAndMsgs ? "/deletefolder>" : "/delete>", 
                        nsIImapUrl::nsImapDeleteFolder, aMsgWindow, aURL);
 }
 
-NS_IMETHODIMP nsImapService::DeleteMessages(nsIEventTarget *aClientEventTarget, 
-                                            nsIMsgFolder *aImapMailFolder, 
+NS_IMETHODIMP nsImapService::DeleteMessages(nsIMsgFolder *aImapMailFolder, 
                                             nsIUrlListener *aUrlListener, 
                                             nsIURI **aURL,
                                             const nsACString &messageIdentifierList,
                                             bool messageIdsAreUID)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
   // create a protocol instance to handle the request.
@@ -1727,72 +1699,63 @@ NS_IMETHODIMP nsImapService::DeleteMessages(nsIEventTarget *aClientEventTarget,
       urlSpec.Append(messageIdentifierList);
       rv = uri->SetSpec(urlSpec);
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl, nsnull, aURL);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, aURL);
     }
   }
   return rv;
 }
 
 // Delete all messages in a folder, used to empty trash
-NS_IMETHODIMP nsImapService::DeleteAllMessages(nsIEventTarget *aClientEventTarget, 
-                                               nsIMsgFolder *aImapMailFolder,
+NS_IMETHODIMP nsImapService::DeleteAllMessages(nsIMsgFolder *aImapMailFolder,
                                                nsIUrlListener *aUrlListener, 
                                                nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
-  return FolderCommand(aClientEventTarget, aImapMailFolder, aUrlListener,
+  return FolderCommand(aImapMailFolder, aUrlListener,
                       "/deleteallmsgs>", nsIImapUrl::nsImapSelectNoopFolder, nsnull, aURL);
 }
 
-NS_IMETHODIMP nsImapService::AddMessageFlags(nsIEventTarget *aClientEventTarget,
-                                             nsIMsgFolder *aImapMailFolder, 
-                                             nsIUrlListener *aUrlListener, 
+NS_IMETHODIMP nsImapService::AddMessageFlags(nsIMsgFolder *aImapMailFolder,
+                                             nsIUrlListener *aUrlListener,
                                              nsIURI **aURL,
                                              const nsACString &messageIdentifierList,
                                              imapMessageFlagsType flags,
                                              bool messageIdsAreUID)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
-  return DiddleFlags(aClientEventTarget, aImapMailFolder, aUrlListener, aURL, messageIdentifierList,
+  return DiddleFlags(aImapMailFolder, aUrlListener, aURL, messageIdentifierList,
                      "addmsgflags", flags, messageIdsAreUID);
 }
 
-NS_IMETHODIMP nsImapService::SubtractMessageFlags(nsIEventTarget *aClientEventTarget,
-                                                  nsIMsgFolder *aImapMailFolder, 
-                                                  nsIUrlListener *aUrlListener, 
+NS_IMETHODIMP nsImapService::SubtractMessageFlags(nsIMsgFolder *aImapMailFolder,
+                                                  nsIUrlListener *aUrlListener,
                                                   nsIURI **aURL,
                                                   const nsACString &messageIdentifierList,
                                                   imapMessageFlagsType flags,
                                                   bool messageIdsAreUID)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
-  return DiddleFlags(aClientEventTarget, aImapMailFolder, aUrlListener, aURL, messageIdentifierList,
+  return DiddleFlags(aImapMailFolder, aUrlListener, aURL, messageIdentifierList,
                      "subtractmsgflags", flags, messageIdsAreUID);
 }
 
-NS_IMETHODIMP nsImapService::SetMessageFlags(nsIEventTarget *aClientEventTarget,
-                                             nsIMsgFolder *aImapMailFolder, 
-                                             nsIUrlListener *aUrlListener, 
+NS_IMETHODIMP nsImapService::SetMessageFlags(nsIMsgFolder *aImapMailFolder,
+                                             nsIUrlListener *aUrlListener,
                                              nsIURI **aURL,
                                              const nsACString &messageIdentifierList,
                                              imapMessageFlagsType flags,
                                              bool messageIdsAreUID)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
-  return DiddleFlags(aClientEventTarget, aImapMailFolder, aUrlListener, aURL, messageIdentifierList,
+  return DiddleFlags(aImapMailFolder, aUrlListener, aURL, messageIdentifierList,
                      "setmsgflags", flags, messageIdsAreUID);
 }
 
-nsresult nsImapService::DiddleFlags(nsIEventTarget *aClientEventTarget, 
-                                    nsIMsgFolder *aImapMailFolder, 
+nsresult nsImapService::DiddleFlags(nsIMsgFolder *aImapMailFolder,
                                     nsIUrlListener *aUrlListener,
                                     nsIURI **aURL,
                                     const nsACString &messageIdentifierList,
@@ -1800,7 +1763,6 @@ nsresult nsImapService::DiddleFlags(nsIEventTarget *aClientEventTarget,
                                     imapMessageFlagsType flags,
                                     bool messageIdsAreUID)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
   // create a protocol instance to handle the request.
@@ -1837,7 +1799,7 @@ nsresult nsImapService::DiddleFlags(nsIEventTarget *aClientEventTarget,
       urlSpec.AppendInt(flags);
       rv = uri->SetSpec(urlSpec);
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl, nsnull, aURL);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, aURL);
     }
   }
   return rv;
@@ -1874,13 +1836,11 @@ nsresult nsImapService::SetImapUrlSink(nsIMsgFolder *aMsgFolder, nsIImapUrl *aIm
   return NS_OK;
 }
 
-NS_IMETHODIMP nsImapService::DiscoverAllFolders(nsIEventTarget *aClientEventTarget,
-                                                nsIMsgFolder *aImapMailFolder,
+NS_IMETHODIMP nsImapService::DiscoverAllFolders(nsIMsgFolder *aImapMailFolder,
                                                 nsIUrlListener *aUrlListener,
                                                 nsIMsgWindow *aMsgWindow,
                                                 nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
   nsCOMPtr<nsIImapUrl> imapUrl;
@@ -1903,18 +1863,16 @@ NS_IMETHODIMP nsImapService::DiscoverAllFolders(nsIEventTarget *aClientEventTarg
       nsCOMPtr <nsIURI> url = do_QueryInterface(imapUrl, &rv);
       rv = uri->SetSpec(urlSpec);
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl, nsnull, aURL);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, aURL);
     }
   }
   return rv;
 }
 
-NS_IMETHODIMP nsImapService::DiscoverAllAndSubscribedFolders(nsIEventTarget *aClientEventTarget,
-                                                             nsIMsgFolder *aImapMailFolder,
+NS_IMETHODIMP nsImapService::DiscoverAllAndSubscribedFolders(nsIMsgFolder *aImapMailFolder,
                                                              nsIUrlListener *aUrlListener,
                                                              nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
   nsCOMPtr<nsIImapUrl> aImapUrl;
@@ -1932,19 +1890,17 @@ NS_IMETHODIMP nsImapService::DiscoverAllAndSubscribedFolders(nsIEventTarget *aCl
       urlSpec.Append("/discoverallandsubscribedboxes");
       rv = uri->SetSpec(urlSpec);
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, aImapUrl, nsnull, aURL);
+        rv = GetImapConnectionAndLoadUrl(aImapUrl, nsnull, aURL);
     }
   }
   return rv;
 }
 
-NS_IMETHODIMP nsImapService::DiscoverChildren(nsIEventTarget *aClientEventTarget,
-                                              nsIMsgFolder *aImapMailFolder,
+NS_IMETHODIMP nsImapService::DiscoverChildren(nsIMsgFolder *aImapMailFolder,
                                               nsIUrlListener *aUrlListener,
                                               const nsACString &folderPath,
                                               nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
   nsCOMPtr<nsIImapUrl> aImapUrl;
@@ -1975,7 +1931,7 @@ NS_IMETHODIMP nsImapService::DiscoverChildren(nsIEventTarget *aClientEventTarget
           aImapUrl->SetOnlineSubDirSeparator(hierarchyDelimiter);
 
         if (NS_SUCCEEDED(rv))
-          rv = GetImapConnectionAndLoadUrl(aClientEventTarget, aImapUrl, nsnull, aURL);
+          rv = GetImapConnectionAndLoadUrl(aImapUrl, nsnull, aURL);
       }
       else
         rv = NS_ERROR_FAILURE;
@@ -1984,8 +1940,7 @@ NS_IMETHODIMP nsImapService::DiscoverChildren(nsIEventTarget *aClientEventTarget
   return rv;
 }
 
-NS_IMETHODIMP nsImapService::OnlineMessageCopy(nsIEventTarget *aClientEventTarget,
-                                               nsIMsgFolder *aSrcFolder,
+NS_IMETHODIMP nsImapService::OnlineMessageCopy(nsIMsgFolder *aSrcFolder,
                                                const nsACString &messageIds,
                                                nsIMsgFolder *aDstFolder,
                                                bool idsAreUids,
@@ -1995,7 +1950,6 @@ NS_IMETHODIMP nsImapService::OnlineMessageCopy(nsIEventTarget *aClientEventTarge
                                                nsISupports *copyState,
                                                nsIMsgWindow *aMsgWindow)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aSrcFolder);
   NS_ENSURE_ARG_POINTER(aDstFolder);
 
@@ -2015,7 +1969,7 @@ NS_IMETHODIMP nsImapService::OnlineMessageCopy(nsIEventTarget *aClientEventTarge
 
   if (!sameServer) 
   {
-    NS_ASSERTION(PR_FALSE, "can't use this method to copy across servers");
+    NS_ASSERTION(false, "can't use this method to copy across servers");
     // *** can only take message from the same imap host and user accnt
     return NS_ERROR_FAILURE;
   }
@@ -2059,7 +2013,7 @@ NS_IMETHODIMP nsImapService::OnlineMessageCopy(nsIEventTarget *aClientEventTarge
 
     rv = uri->SetSpec(urlSpec);
     if (NS_SUCCEEDED(rv))
-      rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl, nsnull, aURL);
+      rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, aURL);
   }
   return rv;
 }
@@ -2088,7 +2042,7 @@ nsresult nsImapService::OfflineAppendFromFile(nsIFile *aFile,
     destDB->GetNextFakeOfflineMsgKey(&fakeKey);
 
     nsCOMPtr <nsIMsgOfflineImapOperation> op;
-    rv = destDB->GetOfflineOpForKey(fakeKey, PR_TRUE, getter_AddRefs(op));
+    rv = destDB->GetOfflineOpForKey(fakeKey, true, getter_AddRefs(op));
     if (NS_SUCCEEDED(rv) && op)
     {
       nsCString destFolderUri;
@@ -2096,7 +2050,16 @@ nsresult nsImapService::OfflineAppendFromFile(nsIFile *aFile,
       op->SetOperation(nsIMsgOfflineImapOperation::kAppendDraft); // ### do we care if it's a template?
       op->SetDestinationFolderURI(destFolderUri.get());
       nsCOMPtr <nsIOutputStream> offlineStore;
-      rv = aDstFolder->GetOfflineStoreOutputStream(getter_AddRefs(offlineStore));
+      nsCOMPtr<nsIMsgPluggableStore> msgStore;
+      nsCOMPtr<nsIMsgIncomingServer> dstServer;
+      nsCOMPtr<nsIMsgDBHdr> newMsgHdr;
+
+      aDstFolder->GetServer(getter_AddRefs(dstServer));
+      rv = dstServer->GetMsgStore(getter_AddRefs(msgStore));
+      NS_ENSURE_SUCCESS(rv, rv);
+      bool reusable;
+      msgStore->GetNewMsgOutputStream(aDstFolder, getter_AddRefs(newMsgHdr),
+                                      &reusable, getter_AddRefs(offlineStore));
 
       if (NS_SUCCEEDED(rv) && offlineStore)
       {
@@ -2106,7 +2069,7 @@ nsresult nsImapService::OfflineAppendFromFile(nsIFile *aFile,
           seekable->Tell(&curOfflineStorePos);
         else
         {
-          NS_ASSERTION(PR_FALSE, "needs to be a random store!");
+          NS_ERROR("needs to be a random store!");
           return NS_ERROR_FAILURE;
         }
 
@@ -2122,14 +2085,15 @@ nsresult nsImapService::OfflineAppendFromFile(nsIFile *aFile,
           // now, copy the temp file to the offline store for the dest folder.
           PRInt32 inputBufferSize = 10240;
           nsMsgLineStreamBuffer *inputStreamBuffer = new nsMsgLineStreamBuffer(inputBufferSize, 
-                                                                               PR_TRUE,    // allocate new lines
-                                                                               PR_FALSE);  // leave CRLFs on the returned string
+                                                                               true,    // allocate new lines
+                                                                               false);  // leave CRLFs on the returned string
           PRInt64 fileSize;
           aFile->GetFileSize(&fileSize);
           PRUint32 bytesWritten;
           rv = NS_OK;
 //        rv = inputStream->Read(inputBuffer, inputBufferSize, &bytesRead);
 //        if (NS_SUCCEEDED(rv) && bytesRead > 0)
+          msgParser->SetNewMsgHdr(newMsgHdr);
           msgParser->SetState(nsIMsgParseMailMsgState::ParseHeadersState);
           // set the env pos to fake key so the msg hdr will have that for a key
           msgParser->SetEnvelopePos(fakeKey);
@@ -2158,7 +2122,7 @@ nsresult nsImapService::OfflineAppendFromFile(nsIFile *aFile,
               fakeHdr->SetMessageOffset(curOfflineStorePos);
               fakeHdr->OrFlags(nsMsgMessageFlags::Offline | nsMsgMessageFlags::Read, &resultFlags);
               fakeHdr->SetOfflineMessageSize(fileSize);
-              destDB->AddNewHdrToDB(fakeHdr, PR_TRUE /* notify */);
+              destDB->AddNewHdrToDB(fakeHdr, true /* notify */);
               aDstFolder->SetFlag(nsMsgFolderFlags::OfflineEvents);
             }
           }
@@ -2173,15 +2137,14 @@ nsresult nsImapService::OfflineAppendFromFile(nsIFile *aFile,
   }
           
   if (destDB)
-    destDB->Close(PR_TRUE);
+    destDB->Close(true);
   return rv;
 }
 
 /* append message from file url */
 /* imap://HOST>appendmsgfromfile>DESTINATIONMAILBOXPATH */
 /* imap://HOST>appenddraftfromfile>DESTINATIONMAILBOXPATH>UID>messageId */
-NS_IMETHODIMP nsImapService::AppendMessageFromFile(nsIEventTarget *aClientEventTarget,
-                                                   nsIFile *aFile,
+NS_IMETHODIMP nsImapService::AppendMessageFromFile(nsIFile *aFile,
                                                    nsIMsgFolder *aDstFolder,
                                                    const nsACString &messageId,  // to be replaced
                                                    bool idsAreUids,
@@ -2191,7 +2154,6 @@ NS_IMETHODIMP nsImapService::AppendMessageFromFile(nsIEventTarget *aClientEventT
                                                    nsISupports *aCopyState,
                                                    nsIMsgWindow *aMsgWindow)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aFile);
   NS_ENSURE_ARG_POINTER(aDstFolder);
 
@@ -2246,13 +2208,12 @@ NS_IMETHODIMP nsImapService::AppendMessageFromFile(nsIEventTarget *aClientEventT
       return OfflineAppendFromFile(aFile, uri, aDstFolder, messageId, inSelectedState, aListener, aURL, aCopyState);
     }
     if (NS_SUCCEEDED(rv))
-      rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl, nsnull, aURL);
+      rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, aURL);
   }
   return rv;
 }
 
-nsresult nsImapService::GetImapConnectionAndLoadUrl(nsIEventTarget *aClientEventTarget,
-                                                    nsIImapUrl *aImapUrl,
+nsresult nsImapService::GetImapConnectionAndLoadUrl(nsIImapUrl *aImapUrl,
                                                     nsISupports *aConsumer,
                                                     nsIURI **aURL)
 {
@@ -2275,10 +2236,9 @@ nsresult nsImapService::GetImapConnectionAndLoadUrl(nsIEventTarget *aClientEvent
       return NS_MSG_ERROR_OFFLINE;
   }
 
-  nsresult rv = NS_OK;
   nsCOMPtr<nsIMsgIncomingServer> aMsgIncomingServer;
   nsCOMPtr<nsIMsgMailNewsUrl> msgUrl = do_QueryInterface(aImapUrl);
-  rv = msgUrl->GetServer(getter_AddRefs(aMsgIncomingServer));
+  nsresult rv = msgUrl->GetServer(getter_AddRefs(aMsgIncomingServer));
     
   if (aURL)
   {
@@ -2290,19 +2250,17 @@ nsresult nsImapService::GetImapConnectionAndLoadUrl(nsIEventTarget *aClientEvent
   {
     nsCOMPtr<nsIImapIncomingServer> aImapServer(do_QueryInterface(aMsgIncomingServer, &rv));
     if (NS_SUCCEEDED(rv) && aImapServer)
-      rv = aImapServer->GetImapConnectionAndLoadUrl(aClientEventTarget, aImapUrl, aConsumer);
+      rv = aImapServer->GetImapConnectionAndLoadUrl(aImapUrl, aConsumer);
   }
   return rv;
 }
 
-NS_IMETHODIMP nsImapService::MoveFolder(nsIEventTarget *aClientEventTarget,
-                                        nsIMsgFolder *srcFolder,
+NS_IMETHODIMP nsImapService::MoveFolder(nsIMsgFolder *srcFolder,
                                         nsIMsgFolder *dstFolder, 
                                         nsIUrlListener *urlListener, 
                                         nsIMsgWindow *msgWindow, 
                                         nsIURI **url)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(srcFolder);
   NS_ENSURE_ARG_POINTER(dstFolder);
 
@@ -2340,30 +2298,26 @@ NS_IMETHODIMP nsImapService::MoveFolder(nsIEventTarget *aClientEventTarget,
       if (NS_SUCCEEDED(rv))
       {
         GetFolderName(srcFolder, folderName);
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl,
-                                         nsnull, url);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, url);
       }
     }
   }
   return rv;
 }
 
-NS_IMETHODIMP nsImapService::RenameLeaf(nsIEventTarget *aClientEventTarget,
-                                        nsIMsgFolder *srcFolder,
+NS_IMETHODIMP nsImapService::RenameLeaf(nsIMsgFolder *srcFolder,
                                         const nsAString &newLeafName, 
                                         nsIUrlListener *urlListener,
                                         nsIMsgWindow *msgWindow, 
                                         nsIURI **url)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(srcFolder);
-  
+
   nsCOMPtr<nsIImapUrl> imapUrl;
   nsCAutoString urlSpec;
-  nsresult rv;
 
   char hierarchyDelimiter = GetHierarchyDelimiter(srcFolder);
-  rv = CreateStartOfImapUrl(EmptyCString(), getter_AddRefs(imapUrl), srcFolder, 
+  nsresult rv = CreateStartOfImapUrl(EmptyCString(), getter_AddRefs(imapUrl), srcFolder, 
                             urlListener, urlSpec, hierarchyDelimiter);
   if (NS_SUCCEEDED(rv))
   {
@@ -2402,20 +2356,17 @@ NS_IMETHODIMP nsImapService::RenameLeaf(nsIEventTarget *aClientEventTarget,
 
       rv = uri->SetSpec(urlSpec);
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl,
-                                         nsnull, url);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, url);
     } // if (NS_SUCCEEDED(rv))
   } // if (NS_SUCCEEDED(rv) && imapUrl)
   return rv;
 }
 
-NS_IMETHODIMP nsImapService::CreateFolder(nsIEventTarget *aClientEventTarget,
-                                          nsIMsgFolder *parent,
+NS_IMETHODIMP nsImapService::CreateFolder(nsIMsgFolder *parent,
                                           const nsAString &newFolderName,
-                                          nsIUrlListener *urlListener, 
+                                          nsIUrlListener *urlListener,
                                           nsIURI **url)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(parent);
 
   nsCOMPtr<nsIImapUrl> imapUrl;
@@ -2455,20 +2406,17 @@ NS_IMETHODIMP nsImapService::CreateFolder(nsIEventTarget *aClientEventTarget,
 
       rv = uri->SetSpec(urlSpec);
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl,
-                                         nsnull, url);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, url);
     } // if (NS_SUCCEEDED(rv))
   } // if (NS_SUCCEEDED(rv) && imapUrl)
   return rv;
 }
 
-NS_IMETHODIMP nsImapService::EnsureFolderExists(nsIEventTarget *aClientEventTarget,
-                                                nsIMsgFolder *parent,
+NS_IMETHODIMP nsImapService::EnsureFolderExists(nsIMsgFolder *parent,
                                                 const nsAString &newFolderName, 
                                                 nsIUrlListener *urlListener, 
                                                 nsIURI **url)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(parent);
 
   nsCOMPtr<nsIImapUrl> imapUrl;
@@ -2501,22 +2449,19 @@ NS_IMETHODIMP nsImapService::EnsureFolderExists(nsIEventTarget *aClientEventTarg
 
       rv = uri->SetSpec(urlSpec);
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl,
-                                         nsnull, url);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, url);
     } // if (NS_SUCCEEDED(rv))
   } // if (NS_SUCCEEDED(rv) && imapUrl)
   return rv;
 }
 
-NS_IMETHODIMP nsImapService::ListFolder(nsIEventTarget *aClientEventTarget,
-                                        nsIMsgFolder *aImapMailFolder,
+NS_IMETHODIMP nsImapService::ListFolder(nsIMsgFolder *aImapMailFolder,
                                         nsIUrlListener *aUrlListener,
                                         nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
-  return FolderCommand(aClientEventTarget, aImapMailFolder, aUrlListener,
+  return FolderCommand(aImapMailFolder, aUrlListener,
                        "/listfolder>", nsIImapUrl::nsImapListFolder, nsnull, aURL);
 }
 
@@ -2547,7 +2492,7 @@ NS_IMETHODIMP nsImapService::GetProtocolFlags(PRUint32 *result)
 NS_IMETHODIMP nsImapService::AllowPort(PRInt32 port, const char *scheme, bool *aRetVal)
 {
   // allow imap to run on any port
-  *aRetVal = PR_TRUE;
+  *aRetVal = true;
   return NS_OK;
 }
 
@@ -2555,7 +2500,7 @@ NS_IMETHODIMP nsImapService::GetDefaultDoBiff(bool *aDoBiff)
 {
   NS_ENSURE_ARG_POINTER(aDoBiff);
   // by default, do biff for IMAP servers
-  *aDoBiff = PR_TRUE;    
+  *aDoBiff = true;    
   return NS_OK;
 }
 
@@ -2594,7 +2539,7 @@ nsresult nsImapService::GetServerFromUrl(nsIImapUrl *aImapUrl, nsIMsgIncomingSer
   nsCOMPtr<nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
   
-  rv = accountManager->FindServerByURI(mailnewsUrl, PR_FALSE, aServer);
+  rv = accountManager->FindServerByURI(mailnewsUrl, false, aServer);
   
   // look for server with any user name, in case we're trying to subscribe
   // to a folder with some one else's user name like the following
@@ -2610,9 +2555,9 @@ nsresult nsImapService::GetServerFromUrl(nsIImapUrl *aImapUrl, nsIMsgIncomingSer
     NS_ENSURE_SUCCESS(rv, rv);
     
     url->SetUserPass(EmptyCString());
-    rv = accountManager->FindServerByURI(url, PR_FALSE, aServer);
+    rv = accountManager->FindServerByURI(url, false, aServer);
     if (*aServer)
-      aImapUrl->SetExternalLinkUrl(PR_TRUE);
+      aImapUrl->SetExternalLinkUrl(true);
   }
   
     // if we can't extract the imap server from this url then give up!!!
@@ -2679,7 +2624,7 @@ NS_IMETHODIMP nsImapService::NewURI(const nsACString &aSpec,
         rv = aImapUrl->SetImapMessageSink(msgSink);
 
         nsCOMPtr<nsIMsgFolder> msgFolder = do_QueryInterface(folder);
-        rv = SetImapUrlSink(msgFolder, aImapUrl);	
+        rv = SetImapUrlSink(msgFolder, aImapUrl);
 
          nsCString messageIdString;
          aImapUrl->GetListOfMessageIds(messageIdString);
@@ -2696,7 +2641,7 @@ NS_IMETHODIMP nsImapService::NewURI(const nsACString &aSpec,
     bool mimePartSelectorDetected = false;
     aImapUrl->GetMimePartSelectorDetected(&mimePartSelectorDetected);
     if (mimePartSelectorDetected)
-      aImapUrl->SetFetchPartsOnDemand(PR_TRUE);
+      aImapUrl->SetFetchPartsOnDemand(true);
 
     // we got an imap url, so be sure to return it...
     nsCOMPtr<nsIURI> imapUri = do_QueryInterface(aImapUrl);
@@ -2840,12 +2785,12 @@ NS_IMETHODIMP nsImapService::NewChannel(nsIURI *aURI, nsIChannel **aRetVal)
           // It's already in mod-utf7.
           nsAutoString unicodeName;
           CopyASCIItoUTF16(fullFolderName, unicodeName);
-          rv = imapServer->SubscribeToFolder(unicodeName, PR_TRUE, getter_AddRefs(subscribeURI));
+          rv = imapServer->SubscribeToFolder(unicodeName, true, getter_AddRefs(subscribeURI));
           if (NS_SUCCEEDED(rv) && subscribeURI)
           {
             nsCOMPtr <nsIImapUrl> imapSubscribeUrl = do_QueryInterface(subscribeURI);
             if (imapSubscribeUrl)
-              imapSubscribeUrl->SetExternalLinkUrl(PR_TRUE);
+              imapSubscribeUrl->SetExternalLinkUrl(true);
             nsCOMPtr <nsIMsgMailNewsUrl> mailnewsUrl = do_QueryInterface(subscribeURI);
             if (mailnewsUrl)
             {
@@ -2916,6 +2861,8 @@ NS_IMETHODIMP nsImapService::NewChannel(nsIURI *aURI, nsIChannel **aRetVal)
 
 NS_IMETHODIMP nsImapService::SetDefaultLocalPath(nsILocalFile *aPath)
 {
+  NS_ENSURE_ARG_POINTER(aPath);
+
   return NS_SetPersistentFile(PREF_MAIL_ROOT_IMAP_REL, PREF_MAIL_ROOT_IMAP, aPath);
 }       
 
@@ -2931,7 +2878,8 @@ NS_IMETHODIMP nsImapService::GetDefaultLocalPath(nsILocalFile **aResult)
                                      NS_APP_IMAP_MAIL_50_DIR,
                                      havePref,
                                      getter_AddRefs(localFile));
-  
+  NS_ENSURE_SUCCESS(rv, rv);
+
   bool exists;
   rv = localFile->Exists(&exists);
   if (NS_SUCCEEDED(rv) && !exists)
@@ -2956,57 +2904,59 @@ NS_IMETHODIMP nsImapService::GetServerIID(nsIID **aServerIID)
 
 NS_IMETHODIMP nsImapService::GetRequiresUsername(bool *aRequiresUsername)
 {
-	NS_ENSURE_ARG_POINTER(aRequiresUsername);
-	*aRequiresUsername = PR_TRUE;
-	return NS_OK;
+  NS_ENSURE_ARG_POINTER(aRequiresUsername);
+
+  *aRequiresUsername = true;
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsImapService::GetPreflightPrettyNameWithEmailAddress(bool *aPreflightPrettyNameWithEmailAddress)
 {
-	NS_ENSURE_ARG_POINTER(aPreflightPrettyNameWithEmailAddress);
-	*aPreflightPrettyNameWithEmailAddress = PR_TRUE;
-	return NS_OK;
+  NS_ENSURE_ARG_POINTER(aPreflightPrettyNameWithEmailAddress);
+
+  *aPreflightPrettyNameWithEmailAddress = true;
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsImapService::GetCanLoginAtStartUp(bool *aCanLoginAtStartUp)
 {
   NS_ENSURE_ARG_POINTER(aCanLoginAtStartUp);
-  *aCanLoginAtStartUp = PR_TRUE;
+  *aCanLoginAtStartUp = true;
   return NS_OK;
 }
 
 NS_IMETHODIMP nsImapService::GetCanDelete(bool *aCanDelete)
 {
   NS_ENSURE_ARG_POINTER(aCanDelete);
-  *aCanDelete = PR_TRUE;
+  *aCanDelete = true;
   return NS_OK;
 }
 
 NS_IMETHODIMP nsImapService::GetCanDuplicate(bool *aCanDuplicate)
 {
   NS_ENSURE_ARG_POINTER(aCanDuplicate);
-  *aCanDuplicate = PR_TRUE;
+  *aCanDuplicate = true;
   return NS_OK;
 }        
 
 NS_IMETHODIMP nsImapService::GetCanGetMessages(bool *aCanGetMessages)
 {
   NS_ENSURE_ARG_POINTER(aCanGetMessages);
-  *aCanGetMessages = PR_TRUE;
+  *aCanGetMessages = true;
   return NS_OK;
 }        
 
 NS_IMETHODIMP nsImapService::GetCanGetIncomingMessages(bool *aCanGetIncomingMessages)
 {
   NS_ENSURE_ARG_POINTER(aCanGetIncomingMessages);
-  *aCanGetIncomingMessages = PR_TRUE;
+  *aCanGetIncomingMessages = true;
   return NS_OK;
 }    
 
 NS_IMETHODIMP nsImapService::GetShowComposeMsgLink(bool *showComposeMsgLink)
 {
   NS_ENSURE_ARG_POINTER(showComposeMsgLink);
-  *showComposeMsgLink = PR_TRUE;
+  *showComposeMsgLink = true;
   return NS_OK;
 }
 
@@ -3062,8 +3012,7 @@ NS_IMETHODIMP nsImapService::GetListOfFoldersWithPath(nsIImapIncomingServer *aSe
 
     rv = rootMsgFolder->FindSubFolder(changedStr, getter_AddRefs(msgFolder));
   }
-  nsCOMPtr<nsIThread> thread(do_GetCurrentThread());
-  return DiscoverChildren(thread, msgFolder, listener, folderPath, nsnull);
+  return DiscoverChildren(msgFolder, listener, folderPath, nsnull);
 }
 
 NS_IMETHODIMP nsImapService::GetListOfFoldersOnServer(nsIImapIncomingServer *aServer, 
@@ -3085,30 +3034,25 @@ NS_IMETHODIMP nsImapService::GetListOfFoldersOnServer(nsIImapIncomingServer *aSe
   nsCOMPtr<nsIUrlListener> listener = do_QueryInterface(aServer, &rv);
   NS_ENSURE_TRUE(NS_SUCCEEDED(rv) && listener, NS_ERROR_FAILURE);
 
-  nsCOMPtr<nsIThread> thread(do_GetCurrentThread());
-  return DiscoverAllAndSubscribedFolders(thread, rootMsgFolder, listener, nsnull);
+  return DiscoverAllAndSubscribedFolders(rootMsgFolder, listener, nsnull);
 } 
 
-NS_IMETHODIMP nsImapService::SubscribeFolder(nsIEventTarget *aClientEventTarget,
-                                             nsIMsgFolder *aFolder,
+NS_IMETHODIMP nsImapService::SubscribeFolder(nsIMsgFolder *aFolder,
                                              const nsAString &aFolderName, 
                                              nsIUrlListener *urlListener, 
                                              nsIURI **url)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
 
-  return ChangeFolderSubscription(aClientEventTarget, aFolder, aFolderName, 
+  return ChangeFolderSubscription(aFolder, aFolderName, 
                                   "/subscribe>", urlListener, url);
 }
 
-nsresult nsImapService::ChangeFolderSubscription(nsIEventTarget *aClientEventTarget,
-                                                 nsIMsgFolder *folder,
+nsresult nsImapService::ChangeFolderSubscription(nsIMsgFolder *folder,
                                                  const nsAString &folderName, 
                                                  const char *command,
                                                  nsIUrlListener *urlListener, 
                                                  nsIURI **url)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(folder);
 
   nsCOMPtr<nsIImapUrl> imapUrl;
@@ -3133,46 +3077,39 @@ nsresult nsImapService::ChangeFolderSubscription(nsIEventTarget *aClientEventTar
       urlSpec.Append(escapedFolderName);
       rv = uri->SetSpec(urlSpec);
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl,
-                                         nsnull, url);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, url);
     }
   }
   return rv;
 }
 
-NS_IMETHODIMP nsImapService::UnsubscribeFolder(nsIEventTarget *aClientEventTarget,
-                                               nsIMsgFolder *aFolder,
+NS_IMETHODIMP nsImapService::UnsubscribeFolder(nsIMsgFolder *aFolder,
                                                const nsAString &aFolderName, 
                                                nsIUrlListener *aUrlListener, 
                                                nsIURI **aUrl)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
 
-  return ChangeFolderSubscription(aClientEventTarget, aFolder, aFolderName,
+  return ChangeFolderSubscription(aFolder, aFolderName,
                                   "/unsubscribe>", aUrlListener, aUrl);
 }
 
-NS_IMETHODIMP nsImapService::GetFolderAdminUrl(nsIEventTarget *aClientEventTarget,
-                                               nsIMsgFolder *aImapMailFolder,
+NS_IMETHODIMP nsImapService::GetFolderAdminUrl(nsIMsgFolder *aImapMailFolder,
                                                nsIMsgWindow *aMsgWindow,
                                                nsIUrlListener *aUrlListener,
                                                nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(aImapMailFolder);
 
-  return FolderCommand(aClientEventTarget, aImapMailFolder, aUrlListener,
+  return FolderCommand(aImapMailFolder, aUrlListener,
                        "/refreshfolderurls>", nsIImapUrl::nsImapRefreshFolderUrls, aMsgWindow, aURL);
 }
 
-NS_IMETHODIMP nsImapService::IssueCommandOnMsgs(nsIEventTarget *aClientEventTarget,
-                                                nsIMsgFolder *anImapFolder,
+NS_IMETHODIMP nsImapService::IssueCommandOnMsgs(nsIMsgFolder *anImapFolder,
                                                 nsIMsgWindow *aMsgWindow,
                                                 const nsACString &aCommand,
                                                 const nsACString &uids,
                                                 nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(anImapFolder);
   NS_ENSURE_ARG_POINTER(aMsgWindow);
 
@@ -3189,7 +3126,7 @@ NS_IMETHODIMP nsImapService::IssueCommandOnMsgs(nsIEventTarget *aClientEventTarg
 
     nsCOMPtr <nsIMsgMailNewsUrl> mailNewsUrl = do_QueryInterface(imapUrl);
     mailNewsUrl->SetMsgWindow(aMsgWindow);
-    mailNewsUrl->SetUpdatingFolder(PR_TRUE);
+    mailNewsUrl->SetUpdatingFolder(true);
     rv = SetImapUrlSink(anImapFolder, imapUrl);
 
     if (NS_SUCCEEDED(rv))
@@ -3207,21 +3144,19 @@ NS_IMETHODIMP nsImapService::IssueCommandOnMsgs(nsIEventTarget *aClientEventTarg
       urlSpec.Append(uids);
       rv = mailNewsUrl->SetSpec(urlSpec);
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl, nsnull, aURL);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, aURL);
     }
   } // if we have a url to run....
 
   return rv;
 }
 
-NS_IMETHODIMP nsImapService::FetchCustomMsgAttribute(nsIEventTarget *aClientEventTarget,
-                                                     nsIMsgFolder *anImapFolder,
+NS_IMETHODIMP nsImapService::FetchCustomMsgAttribute(nsIMsgFolder *anImapFolder,
                                                      nsIMsgWindow *aMsgWindow,
                                                      const nsACString &aAttribute,
                                                      const nsACString &uids,
                                                      nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(anImapFolder);
   NS_ENSURE_ARG_POINTER(aMsgWindow);
 
@@ -3238,7 +3173,7 @@ NS_IMETHODIMP nsImapService::FetchCustomMsgAttribute(nsIEventTarget *aClientEven
 
     nsCOMPtr <nsIMsgMailNewsUrl> mailNewsUrl = do_QueryInterface(imapUrl);
     mailNewsUrl->SetMsgWindow(aMsgWindow);
-    mailNewsUrl->SetUpdatingFolder(PR_TRUE);
+    mailNewsUrl->SetUpdatingFolder(true);
     rv = SetImapUrlSink(anImapFolder, imapUrl);
 
     if (NS_SUCCEEDED(rv))
@@ -3254,22 +3189,20 @@ NS_IMETHODIMP nsImapService::FetchCustomMsgAttribute(nsIEventTarget *aClientEven
       urlSpec.Append(aAttribute);
       rv = mailNewsUrl->SetSpec(urlSpec);
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl, nsnull, aURL);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, aURL);
     }
   } // if we have a url to run....
 
   return rv;
 }
 
-NS_IMETHODIMP nsImapService::StoreCustomKeywords(nsIEventTarget *aClientEventTarget,
-                                                 nsIMsgFolder *anImapFolder,
+NS_IMETHODIMP nsImapService::StoreCustomKeywords(nsIMsgFolder *anImapFolder,
                                                  nsIMsgWindow *aMsgWindow,
                                                  const nsACString &flagsToAdd,
                                                  const nsACString &flagsToSubtract,
                                                  const nsACString &uids,
                                                  nsIURI **aURL)
 {
-  NS_ENSURE_ARG_POINTER(aClientEventTarget);
   NS_ENSURE_ARG_POINTER(anImapFolder);
 
   nsCOMPtr<nsIImapUrl> imapUrl;
@@ -3285,7 +3218,7 @@ NS_IMETHODIMP nsImapService::StoreCustomKeywords(nsIEventTarget *aClientEventTar
 
     nsCOMPtr <nsIMsgMailNewsUrl> mailNewsUrl = do_QueryInterface(imapUrl);
     mailNewsUrl->SetMsgWindow(aMsgWindow);
-    mailNewsUrl->SetUpdatingFolder(PR_TRUE);
+    mailNewsUrl->SetUpdatingFolder(true);
     rv = SetImapUrlSink(anImapFolder, imapUrl);
 
     if (NS_SUCCEEDED(rv))
@@ -3303,7 +3236,7 @@ NS_IMETHODIMP nsImapService::StoreCustomKeywords(nsIEventTarget *aClientEventTar
       urlSpec.Append(flagsToSubtract);
       rv = mailNewsUrl->SetSpec(urlSpec);
       if (NS_SUCCEEDED(rv))
-        rv = GetImapConnectionAndLoadUrl(aClientEventTarget, imapUrl, nsnull, aURL);
+        rv = GetImapConnectionAndLoadUrl(imapUrl, nsnull, aURL);
     }
   } // if we have a url to run....
 
@@ -3331,7 +3264,7 @@ NS_IMETHODIMP nsImapService::DownloadMessagesForOffline(const nsACString &messag
     nsCOMPtr<nsIImapMessageSink> imapMessageSink(do_QueryInterface(aFolder, &rv));
     rv = FetchMessage(imapUrl, nsImapUrl::nsImapMsgDownloadForOffline,aFolder,
                       imapMessageSink, aMsgWindow, nsnull, messageIds,
-                      PR_FALSE, EmptyCString(), getter_AddRefs(runningURI));
+                      false, EmptyCString(), getter_AddRefs(runningURI));
     if (runningURI && aUrlListener)
     {
       nsCOMPtr<nsIMsgMailNewsUrl> msgurl (do_QueryInterface(runningURI));
@@ -3339,7 +3272,7 @@ NS_IMETHODIMP nsImapService::DownloadMessagesForOffline(const nsACString &messag
       if (msgurl)
         msgurl->RegisterListener(aUrlListener);
       if (imapUrl)
-        imapUrl->SetStoreResultsOffline(PR_TRUE);
+        imapUrl->SetStoreResultsOffline(true);
     }
   }
   return rv;
@@ -3350,15 +3283,14 @@ NS_IMETHODIMP nsImapService::MessageURIToMsgHdr(const char *uri, nsIMsgDBHdr **a
   NS_ENSURE_ARG_POINTER(uri);
   NS_ENSURE_ARG_POINTER(aRetVal);
 
-  nsresult rv = NS_OK;
   nsCOMPtr<nsIMsgFolder> folder;
   nsMsgKey msgKey;
-
-  rv = DecomposeImapURI(nsDependentCString(uri), getter_AddRefs(folder), &msgKey);
+  nsresult rv = DecomposeImapURI(nsDependentCString(uri),
+                                 getter_AddRefs(folder), &msgKey);
   NS_ENSURE_SUCCESS(rv,rv);
-
   rv = folder->GetMessageHeader(msgKey, aRetVal);
   NS_ENSURE_SUCCESS(rv,rv);
+
   return NS_OK;
 }
 
@@ -3406,7 +3338,7 @@ NS_IMETHODIMP nsImapService::GetCacheSession(nsICacheSession **result)
     
     rv = serv->CreateSession("IMAP-anywhere", nsICache::STORE_ANYWHERE, nsICache::STREAM_BASED, getter_AddRefs(mCacheSession));
     NS_ENSURE_SUCCESS(rv, rv);
-    rv = mCacheSession->SetDoomEntriesIfExpired(PR_FALSE);
+    rv = mCacheSession->SetDoomEntriesIfExpired(false);
   }
 
   NS_IF_ADDREF(*result = mCacheSession);

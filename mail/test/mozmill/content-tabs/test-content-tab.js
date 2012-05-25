@@ -70,7 +70,8 @@ function test_content_tab_open() {
   // Set the pref so that what's new opens a local url
   Services.prefs.setCharPref("mailnews.start_page.override_url", whatsUrl);
 
-  let tab = open_content_tab_with_click(mc.menus.helpMenu.whatsNew, whatsUrl);
+  let tab = open_content_tab_with_url(whatsUrl);
+  //let tab = open_content_tab_with_click(mc.menus.helpMenu.whatsNew, whatsUrl);
 
   assert_tab_has_title(tab, "What's New Content Test");
   // Check the location of the what's new image, this is via the link element
@@ -83,6 +84,7 @@ function test_content_tab_open() {
     throw new Error("window.content is not set to the url loaded, incorrect type=\"...\"?");
 
 }
+
 
 /**
  * Just make sure that the context menu does what we expect in content tabs wrt.
@@ -155,7 +157,8 @@ function test_content_tab_context_menu() {
 function test_content_tab_open_same() {
   let preCount = mc.tabmail.tabContainer.childNodes.length;
 
-  mc.click(new elementslib.Elem(mc.menus.helpMenu.whatsNew));
+  mc.window.openContentTab(whatsUrl);
+  //  mc.click(new elementslib.Elem(mc.menus.helpMenu.whatsNew));
 
   controller.sleep(0);
 
@@ -173,7 +176,8 @@ function test_content_tab_default_favicon() {
   // Set the pref so that what's new opens a local url
   Services.prefs.setCharPref("mailnews.start_page.override_url", whatsUrl1);
 
-  let tab = open_content_tab_with_click(mc.menus.helpMenu.whatsNew, whatsUrl1);
+  let tab = open_content_tab_with_url(whatsUrl1);
+  //  let tab = open_content_tab_with_click(mc.menus.helpMenu.whatsNew, whatsUrl1);
 
   assert_tab_has_title(tab, "What's New Content Test 1");
   // Check the location of the favicon, this should be the site favicon in this
