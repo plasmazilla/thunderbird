@@ -1748,6 +1748,15 @@ public:
     void fBufferData(GLenum target, GLsizeiptr size, const GLvoid* data, GLenum usage) {
         BEFORE_GL_CALL;
         mSymbols.fBufferData(target, size, data, usage);
+
+        // bug 744888
+        if (!data &&
+            Vendor() == VendorNVIDIA)
+        {
+            char c = 0;
+            mSymbols.fBufferSubData(target, size-1, 1, &c);
+        }
+
         AFTER_GL_CALL;
     }
 
