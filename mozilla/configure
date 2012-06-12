@@ -23713,6 +23713,20 @@ if test -z "$MOZ_APP_NAME"; then
    MOZ_APP_NAME=`echo $MOZ_APP_BASENAME | tr A-Z a-z`
 fi
 
+# For extensions and langpacks, we require a max version that is compatible
+# across security releases. MOZ_APP_MAXVERSION is our method for doing that.
+# 10.0a1 and 10.0a2 aren't affected
+# 10.0 becomes 10.0.*
+# 10.0.1 becomes 10.0.*
+IS_ALPHA=`echo $MOZ_APP_VERSION | grep a`
+if test -z "$IS_ALPHA"; then
+  
+  MOZ_APP_MAXVERSION=`echo $MOZ_APP_VERSION | sed "s|\(^[0-9]*.[0-9]*\).*|\1|"`.*
+  
+else
+  MOZ_APP_MAXVERSION=$MOZ_APP_VERSION
+fi
+
 
 
 
@@ -23726,6 +23740,7 @@ EOF
 cat >> confdefs.h <<EOF
 #define MOZ_APP_UA_VERSION "$MOZ_APP_VERSION"
 EOF
+
 
 
 cat >> confdefs.h <<EOF
@@ -23909,9 +23924,9 @@ EOF
 
 
 echo $ac_n "checking for posix_fallocate""... $ac_c" 1>&6
-echo "configure:23913: checking for posix_fallocate" >&5
+echo "configure:23928: checking for posix_fallocate" >&5
 cat > conftest.$ac_ext <<EOF
-#line 23915 "configure"
+#line 23930 "configure"
 #include "confdefs.h"
 #define _XOPEN_SOURCE 600
   #include <fcntl.h>
@@ -23919,7 +23934,7 @@ int main() {
 posix_fallocate(0, 0, 0);
 ; return 0; }
 EOF
-if { (eval echo configure:23923: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:23938: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   ac_cv___posix_fallocate=true
 else
@@ -23945,7 +23960,7 @@ if test "$MOZ_X11"; then
                 _SAVE_CFLAGS=$CFLAGS
     CFLAGS="$CFLAGS $XCFLAGS"
     cat > conftest.$ac_ext <<EOF
-#line 23949 "configure"
+#line 23964 "configure"
 #include "confdefs.h"
 
         #include <stdio.h>
@@ -23964,7 +23979,7 @@ int main() {
     
 ; return 0; }
 EOF
-if { (eval echo configure:23968: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:23983: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   :
 else
   echo "configure: failed program was:" >&5
@@ -23984,19 +23999,19 @@ fi # MOZ_X11
 if test -n "$MOZ_WEBGL_GLX"; then
        ac_safe=`echo "GL/glx.h" | sed 'y%./+-%__p_%'`
   echo $ac_n "checking for GL/glx.h""... $ac_c" 1>&6
-echo "configure:23988: checking for GL/glx.h" >&5
+echo "configure:24003: checking for GL/glx.h" >&5
   if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
    cat > conftest.$ac_ext <<EOF
-#line 23993 "configure"
+#line 24008 "configure"
 #include "confdefs.h"
 #include <GL/glx.h>
 int main() {
 
 ; return 0; }
 EOF
-if { (eval echo configure:24000: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:24015: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   rm -rf conftest*
   eval "ac_cv_header_$ac_safe=yes"
 else
@@ -24030,17 +24045,17 @@ if test "$USE_FC_FREETYPE"; then
 do
 ac_safe=`echo "$ac_hdr" | sed 'y%./+-%__p_%'`
 echo $ac_n "checking for $ac_hdr""... $ac_c" 1>&6
-echo "configure:24034: checking for $ac_hdr" >&5
+echo "configure:24049: checking for $ac_hdr" >&5
 if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 24039 "configure"
+#line 24054 "configure"
 #include "confdefs.h"
 #include <$ac_hdr>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:24044: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:24059: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -24864,6 +24879,7 @@ s%@MOZ_APP_VENDOR@%$MOZ_APP_VENDOR%g
 s%@MOZ_APP_PROFILE@%$MOZ_APP_PROFILE%g
 s%@MOZ_APP_UA_NAME@%$MOZ_APP_UA_NAME%g
 s%@MOZ_APP_VERSION@%$MOZ_APP_VERSION%g
+s%@MOZ_APP_MAXVERSION@%$MOZ_APP_MAXVERSION%g
 s%@FIREFOX_VERSION@%$FIREFOX_VERSION%g
 s%@MOZ_UA_BUILDID@%$MOZ_UA_BUILDID%g
 s%@MOZ_PKG_SPECIAL@%$MOZ_PKG_SPECIAL%g
