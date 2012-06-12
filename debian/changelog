@@ -1,3 +1,13 @@
+icedove (3.0.11-1+squeeze11) stable-security; urgency=high
+
+  * [ee0d82e] backported patches from xulrunner fixes mfsa2012-{34,40}
+    - MFSA 2012-34 aka CVE-2012-1937, CVE-2012-1939: Miscellaneous memory
+      safety hazards
+    - MFSA 2012-40 aka CVE-2012-1940: Buffer overflow and use-after-free
+      issues found using Address Sanitizer
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 12 Jun 2012 18:59:10 +0200
+
 icedove (3.0.11-1+squeeze10) stable-security; urgency=low
 
   * [b3c6c90] Reimplement UTF-7 in mailnews (Closes: #671408, #671410)
