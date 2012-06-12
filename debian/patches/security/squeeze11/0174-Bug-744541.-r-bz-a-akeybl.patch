@@ -1,0 +1,46 @@
+From: Mats Palmgren <matspal@gmail.com>
+Date: Thu, 3 May 2012 18:45:20 +0200
+Subject: Bug 744541. r=bz a=akeybl
+
+---
+ mozilla/xpcom/io/nsNativeCharsetUtils.cpp |   11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/mozilla/xpcom/io/nsNativeCharsetUtils.cpp b/mozilla/xpcom/io/nsNativeCharsetUtils.cpp
+index eabcc8c..bba5b10 100644
+--- a/mozilla/xpcom/io/nsNativeCharsetUtils.cpp
++++ b/mozilla/xpcom/io/nsNativeCharsetUtils.cpp
+@@ -563,9 +563,9 @@ nsNativeCharsetConverter::UnicodeToNative(const PRUnichar **input,
+     if (gUnicodeToNative != INVALID_ICONV_T) {
+         res = xp_iconv(gUnicodeToNative, (const char **) input, &inLeft, output, &outLeft);
+ 
++        *inputLeft = inLeft / 2;
++        *outputLeft = outLeft;
+         if (res != (size_t) -1) {
+-            *inputLeft = inLeft / 2;
+-            *outputLeft = outLeft;
+             return NS_OK;
+         }
+ 
+@@ -606,10 +606,10 @@ nsNativeCharsetConverter::UnicodeToNative(const PRUnichar **input,
+             inLeft -= sizeof(PRUnichar);
+         }
+ 
++        (*input) += (*inputLeft - inLeft/2);
++        *inputLeft = inLeft/2;
++        *outputLeft = outLeft;
+         if (res != (size_t) -1) {
+-            (*input) += (*inputLeft - inLeft/2);
+-            *inputLeft = inLeft/2;
+-            *outputLeft = outLeft;
+             return NS_OK;
+         }
+ 
+@@ -620,6 +620,7 @@ nsNativeCharsetConverter::UnicodeToNative(const PRUnichar **input,
+ #endif
+ 
+     // fallback: truncate and hope for the best
++    // XXX This is lame and we have to do better.
+     utf16_to_isolatin1(input, inputLeft, output, outputLeft);
+ 
+     return NS_OK;

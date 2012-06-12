@@ -1,0 +1,27 @@
+From: Robert O'Callahan <robert@ocallahan.org>
+Date: Thu, 13 May 2010 12:56:08 +1200
+Subject: Bug 489477. Part 1: reflow lines again for clearance while we pull
+ lines from the next-in-flow. r=mats
+
+---
+ mozilla/layout/generic/nsBlockFrame.cpp |    7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/mozilla/layout/generic/nsBlockFrame.cpp b/mozilla/layout/generic/nsBlockFrame.cpp
+index adb8799..6e96a8c 100644
+--- a/mozilla/layout/generic/nsBlockFrame.cpp
++++ b/mozilla/layout/generic/nsBlockFrame.cpp
+@@ -2175,6 +2175,13 @@ nsBlockFrame::ReflowDirtyLines(nsBlockReflowState& aState)
+       while (line != end_lines()) {
+         rv = ReflowLine(aState, line, &keepGoing);
+         NS_ENSURE_SUCCESS(rv, rv);
++
++        if (aState.mReflowState.WillReflowAgainForClearance()) {
++          line->MarkDirty();
++          keepGoing = PR_FALSE;
++          break;
++        }
++
+         DumpLine(aState, line, deltaY, -1);
+         if (!keepGoing) {
+           if (0 == line->GetChildCount()) {

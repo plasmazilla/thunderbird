@@ -1,0 +1,76 @@
+From: Robert O'Callahan <robert@ocallahan.org>
+Date: Thu, 13 May 2010 12:56:08 +1200
+Subject: Bug 489477. Part 2: nsOverflowTracker should drop references to
+ deleted frame lists. r=fantasai,sr=mats
+
+---
+ mozilla/layout/generic/nsContainerFrame.cpp |   37 +++++++++++++--------------
+ mozilla/layout/generic/nsContainerFrame.h   |    6 ++---
+ 2 files changed, 21 insertions(+), 22 deletions(-)
+
+diff --git a/mozilla/layout/generic/nsContainerFrame.cpp b/mozilla/layout/generic/nsContainerFrame.cpp
+index aeb2436..5b035af 100644
+--- a/mozilla/layout/generic/nsContainerFrame.cpp
++++ b/mozilla/layout/generic/nsContainerFrame.cpp
+@@ -1568,26 +1568,25 @@ nsOverflowContinuationTracker::Finish(nsIFrame* aChild)
+                 "supposed to call Finish *before* deleting next-in-flow!");
+ 
+   for (nsIFrame* f = aChild; f; f = f->GetNextInFlow()) {
++    // Make sure we drop all references if the only frame
++    // in the overflow containers list is about to be destroyed
++    if (mOverflowContList &&
++        mOverflowContList->FirstChild() == f->GetNextInFlow() &&
++        !f->GetNextInFlow()->GetNextSibling()) {
++      mOverflowContList = nsnull;
++      mPrevOverflowCont = nsnull;
++      mSentry = nsnull;
++      mParent = static_cast<nsContainerFrame*>(f->GetParent());
++      break;
++    }
+     if (f == mSentry) {
+-      // Make sure we drop all references if this was the only frame
+-      // in the overflow containers list
+-      if (mOverflowContList->FirstChild() == f->GetNextInFlow()
+-          && !f->GetNextInFlow()->GetNextSibling()) {
+-        mOverflowContList = nsnull;
+-        mPrevOverflowCont = nsnull;
+-        mSentry = nsnull;
+-        mParent = static_cast<nsContainerFrame*>(f->GetParent());
+-        break;
+-      }
+-      else {
+-        // Step past aChild
+-        nsIFrame* prevOverflowCont = mPrevOverflowCont;
+-        StepForward();
+-        if (mPrevOverflowCont == f->GetNextInFlow()) {
+-          // Pull mPrevOverflowChild back to aChild's prevSibling:
+-          // aChild will be removed from our list by our caller
+-          mPrevOverflowCont = prevOverflowCont;
+-        }
++      // Step past aChild
++      nsIFrame* prevOverflowCont = mPrevOverflowCont;
++      StepForward();
++      if (mPrevOverflowCont == f->GetNextInFlow()) {
++        // Pull mPrevOverflowChild back to aChild's prevSibling:
++        // aChild will be removed from our list by our caller
++        mPrevOverflowCont = prevOverflowCont;
+       }
+     }
+   }
+diff --git a/mozilla/layout/generic/nsContainerFrame.h b/mozilla/layout/generic/nsContainerFrame.h
+index 0e2cb1d..3ff352b 100644
+--- a/mozilla/layout/generic/nsContainerFrame.h
++++ b/mozilla/layout/generic/nsContainerFrame.h
+@@ -557,9 +557,9 @@ private:
+      to increment this walker to the next overflow container. */
+   nsIFrame* mSentry;
+   /* Parent of all frames in mOverflowContList. If our mOverflowContList
+-     is an excessOverflowContainersProperty, then this our frame (the frame
+-     that was passed in to our constructor). Otherwise this is that frame's
+-     next-in-flow, and our mOverflowContList is mParent's
++     is an excessOverflowContainersProperty, or null, then this is our frame
++     (the frame that was passed in to our constructor). Otherwise this is
++     that frame's next-in-flow, and our mOverflowContList is mParent's
+      overflowContainersProperty */
+   nsContainerFrame* mParent;
+   /* Tells SetUpListWalker whether or not to walk us past any continuations

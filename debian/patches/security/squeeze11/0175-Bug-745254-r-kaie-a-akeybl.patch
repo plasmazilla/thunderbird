@@ -1,0 +1,174 @@
+From: Honza Bambas <honzab.moz@firemni.cz>
+Date: Mon, 7 May 2012 14:01:00 +0200
+Subject: Bug 745254, r=kaie, a=akeybl
+
+---
+ .../base/content/test/browser_alltabslistener.js   |    2 -
+ .../manager/boot/src/nsSecureBrowserUIImpl.cpp     |   76 +++++++++++++++++++-
+ .../manager/boot/src/nsSecureBrowserUIImpl.h       |    1 +
+ 3 files changed, 76 insertions(+), 3 deletions(-)
+
+diff --git a/mozilla/browser/base/content/test/browser_alltabslistener.js b/mozilla/browser/base/content/test/browser_alltabslistener.js
+index 8766aab..742c624 100644
+--- a/mozilla/browser/base/content/test/browser_alltabslistener.js
++++ b/mozilla/browser/base/content/test/browser_alltabslistener.js
+@@ -127,7 +127,6 @@ function startTest2() {
+     "onStateChange",
+     "onLocationChange",
+     "onSecurityChange",
+-    "onSecurityChange",
+     "onStateChange"
+   ];
+   gFrontNotifications = gAllNotifications;
+@@ -150,7 +149,6 @@ function startTest4() {
+     "onStateChange",
+     "onLocationChange",
+     "onSecurityChange",
+-    "onSecurityChange",
+     "onStateChange"
+   ];
+   gFrontNotifications = [];
+diff --git a/mozilla/security/manager/boot/src/nsSecureBrowserUIImpl.cpp b/mozilla/security/manager/boot/src/nsSecureBrowserUIImpl.cpp
+index cf25e04..31a9ac3 100644
+--- a/mozilla/security/manager/boot/src/nsSecureBrowserUIImpl.cpp
++++ b/mozilla/security/manager/boot/src/nsSecureBrowserUIImpl.cpp
+@@ -173,6 +173,7 @@ nsSecureBrowserUIImpl::nsSecureBrowserUIImpl()
+   mSubRequestsLowSecurity = 0;
+   mSubRequestsBrokenSecurity = 0;
+   mSubRequestsNoSecurity = 0;
++  mRestoreSubrequests = PR_FALSE;
+   
+ #if defined(PR_LOGGING)
+   if (!gSecureDocLog)
+@@ -565,6 +566,11 @@ nsSecureBrowserUIImpl::EvaluateAndUpdateSecurityState(nsIRequest* aRequest, nsIS
+            ("SecureUI:%p: remember securityInfo %p\n", this,
+             info));
+     mCurrentToplevelSecurityInfo = info;
++
++    // The subrequest counters are now in sync with
++    // mCurrentToplevelSecurityInfo, don't restore after top level
++    // document load finishes.
++    mRestoreSubrequests = false;
+   }
+ 
+   return UpdateSecurityState(aRequest, withNewLocation, 
+@@ -1102,6 +1108,8 @@ nsSecureBrowserUIImpl::OnStateChange(nsIWebProgress* aWebProgress,
+         prevContentSecurity->SetCountSubRequestsLowSecurity(saveSubLow);
+         prevContentSecurity->SetCountSubRequestsBrokenSecurity(saveSubBroken);
+         prevContentSecurity->SetCountSubRequestsNoSecurity(saveSubNo);
++        PR_LOG(gSecureDocLog, PR_LOG_DEBUG, ("SecureUI:%p: Saving subs in START to %p as %d,%d,%d,%d\n",
++          this, prevContentSecurity.get(), saveSubHigh, saveSubLow, saveSubBroken, saveSubNo));
+       }
+ 
+       PRBool retrieveAssociatedState = PR_FALSE;
+@@ -1135,8 +1143,19 @@ nsSecureBrowserUIImpl::OnStateChange(nsIWebProgress* aWebProgress,
+           newContentSecurity->GetCountSubRequestsLowSecurity(&newSubLow);
+           newContentSecurity->GetCountSubRequestsBrokenSecurity(&newSubBroken);
+           newContentSecurity->GetCountSubRequestsNoSecurity(&newSubNo);
++          PR_LOG(gSecureDocLog, PR_LOG_DEBUG, ("SecureUI:%p: Restoring subs in START from %p to %d,%d,%d,%d\n",
++            this, newContentSecurity.get(), newSubHigh, newSubLow, newSubBroken, newSubNo));
+         }
+       }
++      else
++      {
++        // If we don't get OnLocationChange for this top level load later,
++        // it didn't get rendered.  But we reset the state to unknown and
++        // mSubRequests* to zeros.  If we would have left these values after
++        // this top level load stoped, we would override the original top level
++        // load with all zeros and break mixed content state on back and forward.
++        mRestoreSubrequests = PR_TRUE;
++      }
+     }
+ 
+     {
+@@ -1203,22 +1222,77 @@ nsSecureBrowserUIImpl::OnStateChange(nsIWebProgress* aWebProgress,
+       }
+     }
+ 
++    PRBool sinkChanged = PR_FALSE;
++    PRBool inProgress;
+     {
+       nsAutoMonitor lock(mMonitor);
+       if (allowSecurityStateChange)
+       {
++        sinkChanged = (mToplevelEventSink != temp_ToplevelEventSink);
+         mToplevelEventSink = temp_ToplevelEventSink;
+       }
+       --mDocumentRequestsInProgress;
++      inProgress = mDocumentRequestsInProgress > 0;
+     }
+ 
+     if (allowSecurityStateChange && requestHasTransferedData) {
+       // Data has been transferred for the single toplevel
+       // request. Evaluate the security state.
+ 
+-      return EvaluateAndUpdateSecurityState(aRequest, securityInfo, PR_FALSE);
++      // Do this only when the sink has changed.  We update and notify
++      // the state from OnLacationChange, this is actually redundant.
++      // But when the target sink changes between OnLocationChange and
++      // OnStateChange, we have to fire the notification here (again).
++
++      if (sinkChanged)
++        return EvaluateAndUpdateSecurityState(aRequest, securityInfo, PR_FALSE);
+     }
+     
++    if (mRestoreSubrequests && !inProgress)
++    {
++      // We get here when there were no OnLocationChange between
++      // OnStateChange(START) and OnStateChange(STOP).  Then the load has not
++      // been rendered but has been retargeted in some other way then by external
++      // app handler.  Restore mSubRequests* members to what the current security
++      // state info holds (it was reset to all zero in OnStateChange(START)
++      // before).
++      nsCOMPtr<nsIAssociatedContentSecurity> currentContentSecurity;
++      {
++        nsAutoMonitor lock(mMonitor);
++        currentContentSecurity = do_QueryInterface(mCurrentToplevelSecurityInfo);
++
++        // Drop this indication flag, the restore opration is just being
++        // done.
++        mRestoreSubrequests = PR_FALSE;
++
++        // We can do this since the state didn't actually change.
++        mNewToplevelSecurityStateKnown = PR_TRUE;
++      }
++
++      PRInt32 subHigh = 0;
++      PRInt32 subLow = 0;
++      PRInt32 subBroken = 0;
++      PRInt32 subNo = 0;
++
++      if (currentContentSecurity)
++      {
++        currentContentSecurity->GetCountSubRequestsHighSecurity(&subHigh);
++        currentContentSecurity->GetCountSubRequestsLowSecurity(&subLow);
++        currentContentSecurity->GetCountSubRequestsBrokenSecurity(&subBroken);
++        currentContentSecurity->GetCountSubRequestsNoSecurity(&subNo);
++        PR_LOG(gSecureDocLog, PR_LOG_DEBUG, ("SecureUI:%p: Restoring subs in STOP from %p to %d,%d,%d,%d\n",
++          this, currentContentSecurity.get(), subHigh, subLow, subBroken, subNo));
++      }
++
++      {
++        nsAutoMonitor lock(mMonitor);
++        mSubRequestsHighSecurity = subHigh;
++        mSubRequestsLowSecurity = subLow;
++        mSubRequestsBrokenSecurity = subBroken;
++        mSubRequestsNoSecurity = subNo;
++      }
++    }
++
+     return NS_OK;
+   }
+   
+diff --git a/mozilla/security/manager/boot/src/nsSecureBrowserUIImpl.h b/mozilla/security/manager/boot/src/nsSecureBrowserUIImpl.h
+index b18a98f..15c448a 100644
+--- a/mozilla/security/manager/boot/src/nsSecureBrowserUIImpl.h
++++ b/mozilla/security/manager/boot/src/nsSecureBrowserUIImpl.h
+@@ -127,6 +127,7 @@ protected:
+   PRInt32 mSubRequestsLowSecurity;
+   PRInt32 mSubRequestsBrokenSecurity;
+   PRInt32 mSubRequestsNoSecurity;
++  PRBool mRestoreSubrequests;
+ 
+   static already_AddRefed<nsISupports> ExtractSecurityInfo(nsIRequest* aRequest);
+   static nsresult MapInternalToExternalState(PRUint32* aState, lockIconState lock, PRBool ev);

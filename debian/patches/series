@@ -180,3 +180,8 @@ security/squeeze9/Bug-732951.-r-bsmedberg-a-akeybl.patch
 security/squeeze9/Bug-714631.-Feed-converter-should-check-HTTP-channel.patch
 security/squeeze10/Bug-587475-Reimplement-UTF-7-in-mailnews.patch
 security/squeeze10/Bug-677111-utf-7-encoded-characters-are-not-interpret.patch
+security/squeeze11/0174-Bug-744541.-r-bz-a-akeybl.patch
+security/squeeze11/0175-Bug-745254-r-kaie-a-akeybl.patch
+security/squeeze11/0176-Bug-489477.-Part-1-reflow-lines-again-for-clearance-.patch
+security/squeeze11/0177-Bug-489477.-Part-2-nsOverflowTracker-should-drop-ref.patch
+security/squeeze11/0178-Bug-747688.-r-roc-a-lsblakk.patch
