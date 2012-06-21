@@ -553,7 +553,7 @@ Description: Serbian language package for Icedove
  The goal of Thunderbird is to produce a cross platform stand-alone mail
  application using the XUL user interface language.
  .
- This package contains the localization of Icedove in Serbia.
+ This package contains the localization of Icedove in Serbian.
 
 Package: icedove-l10n-sv-se
 Architecture: all
