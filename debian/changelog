@@ -1,3 +1,19 @@
+icedove (10.0.5-1) unstable; urgency=low
+
+  * [9a9ff18] New Upstream version 10.0.5 (Closes: #677040)
+  * Fixes for MFSA2012-{34,36-38,40}, also known as
+    CVE-2012-1939, CVE-2012-1937, CVE-2011-3101, CVE-2012-1944,
+    CVE-2012-1945, CVE-2012-1946, CVE-2012-1947, CVE-2012-1940,
+    CVE-2012-1941
+  * [0b143db] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Bug-709259-Try-creating-a-named-cursor-before-a-bitm.patch
+    - fixes/Bug-734490-fix-build-failures-with-Clang-and-GCC-4.7.patch
+  * [3d769ec] replace transitional depens ttf-lyx with fonts-lyx
+    (Closes: #676505)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 24 Jun 2012 10:37:07 +0200
+
 icedove (10.0.4-1) unstable; urgency=low
 
   * [d98435f] New Upstream version 10.0.4
