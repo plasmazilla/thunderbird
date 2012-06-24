@@ -54,3 +54,5 @@ porting/Bug-706787-Crash-on-s390x-nsXPCComponents-AttachNewC.patch
 debian-hacks/Bug-508942-Use-Preprocessor.py-filters-in-defines-an.patch
 fixes/Bug-706724-Fix-for-error-ftruncate-was-not-declared-.patch
 fixes/Fix-more-gcc-4.7-errors-in-ipc-code.patch
+fixes/Bug-734490-fix-build-failures-with-Clang-and-GCC-4.7.patch
+fixes/Bug-709259-Try-creating-a-named-cursor-before-a-bitm.patch

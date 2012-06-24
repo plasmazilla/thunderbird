@@ -13,7 +13,7 @@ Closes: #565559
  2 files changed, 15 insertions(+), 15 deletions(-)
 
 diff --git a/mail/app/profile/all-thunderbird.js b/mail/app/profile/all-thunderbird.js
-index f4b441e..31a175a 100644
+index d91e125..5b9ceda 100644
 --- a/mail/app/profile/all-thunderbird.js
 +++ b/mail/app/profile/all-thunderbird.js
 @@ -1,4 +1,4 @@
@@ -22,7 +22,7 @@ index f4b441e..31a175a 100644
  /* ***** BEGIN LICENSE BLOCK *****
   * Version: MPL 1.1/GPL 2.0/LGPL 2.1
   *
-@@ -102,7 +102,7 @@ pref("app.update.url", "https://aus2.mozillamessaging.com/update/3/%PRODUCT%/%VE
+@@ -102,7 +102,7 @@ pref("app.update.url", "https://aus3.mozilla.org/update/3/%PRODUCT%/%VERSION%/%B
  pref("app.update.url.manual", "http://www.getthunderbird.com");
  // A default value for the "More information about this update" link
  // supplied in the "An update is available" page of the update wizard. 
