@@ -185,3 +185,7 @@ security/squeeze11/0175-Bug-745254-r-kaie-a-akeybl.patch
 security/squeeze11/0176-Bug-489477.-Part-1-reflow-lines-again-for-clearance-.patch
 security/squeeze11/0177-Bug-489477.-Part-2-nsOverflowTracker-should-drop-ref.patch
 security/squeeze11/0178-Bug-747688.-r-roc-a-lsblakk.patch
+security/squeeze12/0195-Bug-749385-use-deferred-release-in-nsHTMLDocumentSH-.patch
+security/squeeze12/0196-Bug-758344-Push-more-stuff-when-evaluating-in-a-sand.patch
+security/squeeze12/0197-Bug-765139-prevent-leaking-oldDocument-r-peterv-a-dv.patch
+security/squeeze12/0198-Bug-772282-Hold-on-to-nodes-when-we-delete-them-in-n.patch

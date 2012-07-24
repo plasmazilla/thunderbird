@@ -1,0 +1,92 @@
+From: Mike Hommey <mh@glandium.org>
+Date: Sat, 14 Jul 2012 11:24:03 +0200
+Subject: Bug 749385 - use deferred release in
+ nsHTMLDocumentSH::ReleaseDocument
+
+---
+ mozilla/dom/src/base/nsDOMClassInfo.cpp       |    6 ++++--
+ mozilla/js/src/xpconnect/idl/nsIXPConnect.idl |    6 ++++++
+ mozilla/js/src/xpconnect/src/nsXPConnect.cpp  |    9 ++++++++-
+ mozilla/js/src/xpconnect/src/xpcprivate.h     |    3 ++-
+ 4 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/mozilla/dom/src/base/nsDOMClassInfo.cpp b/mozilla/dom/src/base/nsDOMClassInfo.cpp
+index 946c1a8..0efbcff 100644
+--- a/mozilla/dom/src/base/nsDOMClassInfo.cpp
++++ b/mozilla/dom/src/base/nsDOMClassInfo.cpp
+@@ -8580,8 +8580,10 @@ void
+ nsHTMLDocumentSH::ReleaseDocument(JSContext *cx, JSObject *obj)
+ {
+   nsIHTMLDocument *doc = (nsIHTMLDocument *)::JS_GetPrivate(cx, obj);
+-
+-  NS_IF_RELEASE(doc);
++  if (doc) {
++    nsCOMPtr<nsIXPConnect_1_9_1> xpconnect(do_QueryInterface(sXPConnect));
++    xpconnect->DeferredRelease(doc);
++  }
+ }
+ 
+ JSBool
+diff --git a/mozilla/js/src/xpconnect/idl/nsIXPConnect.idl b/mozilla/js/src/xpconnect/idl/nsIXPConnect.idl
+index 59acced..f221682 100644
+--- a/mozilla/js/src/xpconnect/idl/nsIXPConnect.idl
++++ b/mozilla/js/src/xpconnect/idl/nsIXPConnect.idl
+@@ -817,3 +817,9 @@ interface nsIXPConnect : nsISupports
+         in nsIPrincipal aPrincipal,
+         in unsigned long aFilenameFlags);
+ };
++
++[uuid(3907f151-1069-4e1d-85b3-77d6d0c45759)]
++interface nsIXPConnect_1_9_1 : nsIXPConnect
++{
++    void DeferredRelease(in nsISupports obj);
++};
+diff --git a/mozilla/js/src/xpconnect/src/nsXPConnect.cpp b/mozilla/js/src/xpconnect/src/nsXPConnect.cpp
+index a3689b3..74f3c37 100644
+--- a/mozilla/js/src/xpconnect/src/nsXPConnect.cpp
++++ b/mozilla/js/src/xpconnect/src/nsXPConnect.cpp
+@@ -53,8 +53,9 @@
+ #include "nsThreadUtilsInternal.h"
+ #include "dom_quickstubs.h"
+ 
+-NS_IMPL_THREADSAFE_ISUPPORTS6(nsXPConnect,
++NS_IMPL_THREADSAFE_ISUPPORTS7(nsXPConnect,
+                               nsIXPConnect,
++                              nsIXPConnect_1_9_1,
+                               nsISupportsWeakReference,
+                               nsIThreadObserver,
+                               nsIJSRuntimeService,
+@@ -658,6 +659,12 @@ nsXPConnect::Unroot(void *p)
+     return NS_OK;
+ }
+ 
++NS_IMETHODIMP
++nsXPConnect::DeferredRelease(nsISupports *obj)
++{
++  nsXPConnect::GetRuntimeInstance()->DeferredRelease(obj);
++}
++
+ struct TraversalTracer : public JSTracer
+ {
+     TraversalTracer(nsCycleCollectionTraversalCallback &aCb) : cb(aCb)
+diff --git a/mozilla/js/src/xpconnect/src/xpcprivate.h b/mozilla/js/src/xpconnect/src/xpcprivate.h
+index 4ad4925..0ca92a0 100644
+--- a/mozilla/js/src/xpconnect/src/xpcprivate.h
++++ b/mozilla/js/src/xpconnect/src/xpcprivate.h
+@@ -452,7 +452,7 @@ const PRBool OBJ_IS_NOT_GLOBAL = PR_FALSE;
+ { 0xff8c4d10, 0x3194, 0x11d3, \
+     { 0x98, 0x85, 0x0, 0x60, 0x8, 0x96, 0x24, 0x22 } }
+ 
+-class nsXPConnect : public nsIXPConnect,
++class nsXPConnect : public nsIXPConnect_1_9_1,
+                     public nsIThreadObserver,
+                     public nsSupportsWeakReference,
+                     public nsCycleCollectionJSRuntime,
+@@ -464,6 +464,7 @@ public:
+     // all the interface method declarations...
+     NS_DECL_ISUPPORTS
+     NS_DECL_NSIXPCONNECT
++    NS_DECL_NSIXPCONNECT_1_9_1
+     NS_DECL_NSITHREADOBSERVER
+     NS_DECL_NSIJSRUNTIMESERVICE
+     NS_DECL_NSIJSCONTEXTSTACK

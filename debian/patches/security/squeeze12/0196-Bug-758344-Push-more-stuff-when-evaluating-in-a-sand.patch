@@ -1,0 +1,100 @@
+From: Bobby Holley <bobbyholley@gmail.com>
+Date: Tue, 26 Jun 2012 22:23:08 +0200
+Subject: Bug 758344 - Push more stuff when evaluating in a sandbox. r=mrbkap,
+ a=lsblakk
+
+---
+ mozilla/js/src/xpconnect/src/xpccomponents.cpp |   66 +++++++++++++++++++-----
+ 1 file changed, 53 insertions(+), 13 deletions(-)
+
+diff --git a/mozilla/js/src/xpconnect/src/xpccomponents.cpp b/mozilla/js/src/xpconnect/src/xpccomponents.cpp
+index 94e4085..782ef98 100644
+--- a/mozilla/js/src/xpconnect/src/xpccomponents.cpp
++++ b/mozilla/js/src/xpconnect/src/xpccomponents.cpp
+@@ -3536,6 +3536,55 @@ nsXPCComponents_Utils::EvalInSandbox(const nsAString &source)
+ }
+ 
+ #ifndef XPCONNECT_STANDALONE
++struct NS_STACK_CLASS AutoSecurityJunkPusher
++{
++    JSContext                *mCx;
++    nsIPrincipal             *mPrincipal;
++    XPCJSContextStack        *mStack;
++    nsIScriptSecurityManager_1_9_2 *mSSM;
++    bool                      mPushed;
++
++    AutoSecurityJunkPusher(JSContext *cx, nsIPrincipal *principal)
++       : mCx(cx)
++       , mPrincipal(principal)
++       , mStack(XPCPerThreadData::GetData(cx)->GetJSContextStack())
++       , mSSM(XPCWrapper::GetSecurityManager())
++       , mPushed(false)
++    {}
++
++    bool Push() {
++        if (!mStack)
++            return false;
++
++        // First, push the js context.
++        if (NS_FAILED(mStack->Push(mCx))) {
++            JS_ReportError(mCx, "Unable to initialize XPConnect with the sandbox context");
++            return false;
++        }
++
++        // Then, push the principal.
++        nsresult rv = mSSM->PushContextPrincipal(mCx, nsnull, mPrincipal);
++        if (NS_FAILED(rv)) {
++            mStack->Pop(nsnull);
++            return false;
++        }
++
++        mPushed = true;
++        return true;
++    }
++
++    void Pop() {
++        NS_ASSERTION(mPushed, "not pushed");
++        mSSM->PopContextPrincipal(mCx);
++        mStack->Pop(nsnull);
++    }
++
++    ~AutoSecurityJunkPusher() {
++        if (mPushed)
++            Pop();
++    }
++};
++
+ nsresult
+ xpc_EvalInSandbox(JSContext *cx, JSObject *sandbox, const nsAString& source,
+                   const char *filename, PRInt32 lineNo,
+@@ -3567,15 +3616,10 @@ xpc_EvalInSandbox(JSContext *cx, JSObject *sandbox, const nsAString& source,
+     if (jsVersion != JSVERSION_DEFAULT)
+         JS_SetVersion(sandcx->GetJSContext(), jsVersion);
+ 
+-    XPCPerThreadData *data = XPCPerThreadData::GetData(cx);
+-    XPCJSContextStack *stack = nsnull;
+-    if (data && (stack = data->GetJSContextStack())) {
+-        if (NS_FAILED(stack->Push(sandcx->GetJSContext()))) {
+-            JS_ReportError(cx,
+-                    "Unable to initialize XPConnect with the sandbox context");
+-            JSPRINCIPALS_DROP(cx, jsPrincipals);
+-            return NS_ERROR_FAILURE;
+-        }
++    AutoSecurityJunkPusher pusher(sandcx->GetJSContext(), prin);
++    if (!pusher.Push()) {
++        JSPRINCIPALS_DROP(cx, jsPrincipals);
++        return NS_ERROR_FAILURE;
+     }
+ 
+     if (!filename) {
+@@ -3639,10 +3683,6 @@ xpc_EvalInSandbox(JSContext *cx, JSObject *sandbox, const nsAString& source,
+         }
+     }
+ 
+-    if (stack) {
+-        stack->Pop(nsnull);
+-    }
+-
+     JSPRINCIPALS_DROP(cx, jsPrincipals);
+ 
+     return rv;

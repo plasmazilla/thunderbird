@@ -1,0 +1,21 @@
+From: Daniel Veditz <dveditz@cruzio.com>
+Date: Tue, 10 Jul 2012 08:27:54 -0700
+Subject: Bug 765139, prevent leaking oldDocument, r=peterv, a=dveditz
+
+---
+ mozilla/content/base/src/nsDocument.cpp |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mozilla/content/base/src/nsDocument.cpp b/mozilla/content/base/src/nsDocument.cpp
+index 425cbdf..83b85ab 100644
+--- a/mozilla/content/base/src/nsDocument.cpp
++++ b/mozilla/content/base/src/nsDocument.cpp
+@@ -6002,7 +6002,7 @@ nsDocument::AdoptNode(nsIDOMNode *aAdoptedNode, nsIDOMNode **aResult)
+     }
+   }
+ 
+-  nsIDocument *oldDocument = adoptedNode->GetOwnerDoc();
++  nsCOMPtr<nsIDocument> oldDocument = adoptedNode->GetOwnerDoc();
+   PRBool sameDocument = oldDocument == this;
+ 
+   JSContext *cx = nsnull;
