@@ -1,3 +1,15 @@
+icedove (3.0.11-1+squeeze12) stable-security; urgency=high
+
+  * [23f20f9] backported patches from xulrunner fixes mfsa2012-{42-44,56}
+    - MFSA 2012-42 aka CVE-2012-1948: Miscellaneous memory safety hazards
+      (rv:14.0/ rv:10.0.6)
+    - MFSA 2012-43 aka CVE-2012-1950: Incorrect URL displayed in addressbar
+      through drag and drop
+    - MFSA 2012-44 aka CVE-2012-1954: Gecko memory corruption
+    - MFSA 2012-56 aka CVE-2012-1967: Code execution through javascript: URLs
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Tue, 24 Jul 2012 18:36:42 +0200
+
 icedove (3.0.11-1+squeeze11) stable-security; urgency=high
 
   * [ee0d82e] backported patches from xulrunner fixes mfsa2012-{34,40}
