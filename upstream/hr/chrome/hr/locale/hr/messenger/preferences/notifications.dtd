@@ -1,0 +1,11 @@
+<!ENTITY notificationsDialog2.title       "Prilagodi obavijest o novoj poruci">
+<!ENTITY window.width                     "30em">
+
+<!ENTITY alertCustomization.intro         "Odaberite koja će se polja prikazivati u obavijesti:">
+<!ENTITY previewText.label                "Tekst poruke">
+<!ENTITY previewText.accesskey            "T">
+<!ENTITY subject.label                    "Naslov">
+<!ENTITY subject.accesskey                "s">
+<!ENTITY sender.label                     "Pošiljatelj">
+<!ENTITY sender.accesskey                 "e">
+

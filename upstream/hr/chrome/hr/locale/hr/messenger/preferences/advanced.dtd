@@ -1,0 +1,111 @@
+<!ENTITY itemGeneral.label       "Općenito">
+<!ENTITY itemDisplay.label       "Čitanje i prikaz">
+<!ENTITY itemUpdate.label        "Ažuriranje">
+<!ENTITY itemNetworking.label    "Mreža i diskovni prostor">
+<!ENTITY itemCertificates.label  "Certifikati">
+
+<!-- General Settings -->
+
+<!ENTITY submitTelemetry.label         "Pošalji podatke o izvođenju">
+<!ENTITY submitTelemetry.accesskey     "P">
+<!ENTITY telemetryInfoLink.label       "Više informacija o telemetriji">
+<!ENTITY enableGlodaSearch.label       "Omogući globalno pretraživanje i indeksiranje">
+<!ENTITY enableGlodaSearch.accesskey   "e">
+<!ENTITY systemIntegration.label       "Sistemska integracija">
+<!ENTITY alwaysCheckDefault.label      "Prilikom pokretanja uvijek provjeri je li &brandShortName; zadani program za e-poštu">
+<!ENTITY alwaysCheckDefault.accesskey  "a">
+<!ENTITY searchIntegration.label       "Dopusti da &searchIntegration.engineName; pretražuje poruke">
+<!ENTITY searchIntegration.accesskey   "D">
+<!ENTITY checkNow.label                "Provjeri sada">
+<!ENTITY checkNow.accesskey            "P">
+<!ENTITY configEditDesc.label          "Napredne postavke">
+<!ENTITY configEdit.label              "Uređivač postavki…">
+<!ENTITY configEdit.accesskey          "U">
+<!ENTITY returnReceiptsInfo.label      "Odredite kako će &brandShortName; rukovati s potvrdama čitanja">
+<!ENTITY showReturnReceipts.label      "Potvrde čitanja…">
+<!ENTITY showReturnReceipts.accesskey  "r">
+
+<!-- Display and Reading Settings -->
+<!ENTITY reading.caption               "Čitanje">
+<!ENTITY display.caption               "Prikaz">
+<!ENTITY showCondensedAddresses.label  "Prikaži samo ime za prikaz osoba iz mojeg adresara">
+<!ENTITY showCondensedAddresses.accesskey "P">
+
+<!ENTITY autoMarkAsRead.label          "Automatski označi poruku kao pročitanu">
+<!ENTITY autoMarkAsRead.accesskey      "A">
+<!ENTITY markAsReadNoDelay.label       "Odmah pri prikazu">
+<!ENTITY markAsReadNoDelay.accesskey   "O">
+<!-- LOCALIZATION NOTE (markAsReadDelay.label): This will concatenate to
+     "After displaying for [___] seconds",
+     using (markAsReadDelay.label) and a number (secondsLabel.label). -->
+<!ENTITY markAsReadDelay.label         "Nakon prikazivanja u trajanju od">
+<!ENTITY markAsReadDelay.accesskey     "d">
+<!ENTITY secondsLabel.label            "sekundi">
+<!ENTITY openMsgIn.label               "Otvori poruke u:">
+<!ENTITY openMsgInNewTab.label         "Novoj kartici">
+<!ENTITY openMsgInNewTab.accesskey     "t">
+<!ENTITY reuseExpRadio0.label          "Novom prozoru poruke">
+<!ENTITY reuseExpRadio0.accesskey      "N">
+<!ENTITY reuseExpRadio1.label          "Postojećem prozoru poruke">
+<!ENTITY reuseExpRadio1.accesskey      "e">
+<!ENTITY closeMsgOnMoveOrDelete.label  "Zatvori prozor/karticu poruke prilikom premještanja ili brisanja">
+<!ENTITY closeMsgOnMoveOrDelete.accesskey "Z">
+
+<!-- Update -->
+<!ENTITY autoCheck.label                "Automatski provjeri dostupne dopune za:">
+<!ENTITY enableAppUpdate.label          "&brandShortName;">
+<!ENTITY enableAppUpdate.accesskey      "h">
+<!ENTITY enableAddonsUpdate.label       "Instalirane dodatke">
+<!ENTITY enableAddonsUpdate.accesskey   "a">
+<!ENTITY whenUpdatesFound.label         "Kada su dostupne dopune za &brandShortName;,">
+<!ENTITY modeAskMe.label                "Pitaj me što želim uraditi">
+<!ENTITY modeAskMe.accesskey            "m">
+<!ENTITY modeAutomatic.label            "Automatski preuzmi i instaliraj dopune">
+<!ENTITY modeAutomatic.accesskey        "p">
+<!ENTITY modeAutoAddonWarn.label        "Upozori me ako će ovo onemogućiti neke od mojih dodataka">
+<!ENTITY modeAutoAddonWarn.accesskey    "U">
+<!ENTITY showUpdates.label              "Prikaži povijest ažuriranja">
+<!ENTITY showUpdates.accesskey          "s">
+
+<!-- Networking and Disk Space -->
+<!ENTITY showSettings.label            "Postavke…">
+<!ENTITY showSettings.accesskey        "s">
+<!ENTITY proxiesConfigure.label        "Podesite način na koji se&brandShortName; povezuje na Internet">
+<!ENTITY connectionsInfo.caption       "Veza">
+<!ENTITY offlineInfo.caption           "Izvanmrežno">
+<!ENTITY offlineInfo.label             "Podesi izvanmrežne postavke">
+<!ENTITY showOffline.label             "Izvanmrežno…">
+<!ENTITY showOffline.accesskey         "I">
+
+<!ENTITY Diskspace "Diskovni prostor">
+<!ENTITY offlineCompact.label "Sažmi mape kada se može uštedjeti više od">
+<!ENTITY offlineCompact.accesskey "m">
+<!ENTITY mb.label "MB">
+
+<!-- LOCALIZATION NOTE:
+  The entities useCacheBefore.label and useCacheAfter.label appear on a single
+  line in preferences as follows:
+
+  &useCacheBefore.label  [ textbox for cache size in MB ]   &useCacheAfter.label;
+-->
+<!ENTITY useCacheBefore.label            "Koristi do">
+<!ENTITY useCacheBefore.accesskey        "K">
+<!ENTITY useCacheAfter.label             "MB prostora za priručnu memoriju">
+<!ENTITY clearCacheNow.label             "Očisti sada">
+<!ENTITY clearCacheNow.accesskey         "O">
+
+<!-- Certificates -->
+<!ENTITY certSelection.description       "Kada poslužitelj zatraži moj osobni certifikat:">
+<!ENTITY certs.auto                      "Automatski odaberi jedan">
+<!ENTITY certs.auto.accesskey            "O">
+<!ENTITY certs.ask                       "Pitaj me svaki put">
+<!ENTITY certs.ask.accesskey             "a">
+
+<!ENTITY viewCertificates.label         "Prikaz certifikata">
+<!ENTITY viewCertificates.accesskey     "c">
+<!ENTITY viewCRLs.label                 "Popisi opozvanih">
+<!ENTITY viewCRLs.accesskey             "P">
+<!ENTITY validation.label               "Provjera valjanosti">
+<!ENTITY validation.accesskey           "v">
+<!ENTITY viewSecurityDevices.label      "Sigurnosni uređaji">
+<!ENTITY viewSecurityDevices.accesskey  "S">

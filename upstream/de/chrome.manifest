@@ -5,6 +5,7 @@ override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger
 locale mozldap de chrome/de/locale/de/mozldap/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale alerts de chrome/de/locale/de/alerts/
+locale chat de chrome/de/locale/de/chat/
 locale necko de chrome/de/locale/de/necko/
 locale global de chrome/de/locale/de/global/
 locale passwordmgr de chrome/de/locale/de/passwordmgr/

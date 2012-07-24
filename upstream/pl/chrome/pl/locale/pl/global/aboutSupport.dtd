@@ -17,7 +17,12 @@
 <!ENTITY aboutSupport.appBasicsTitle "Informacje o aplikacji">
 <!ENTITY aboutSupport.appBasicsName "Nazwa">
 <!ENTITY aboutSupport.appBasicsVersion "Wersja">
-<!ENTITY aboutSupport.appBasicsProfileDir "Folder profilu">
+<!ENTITY aboutSupport.appBasicsProfileDir "Katalog profilu">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
+This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
+Windows/Mac use the term "Folder" instead of "Directory" -->
+<!ENTITY aboutSupport.appBasicsProfileDirWinMac "Folder profilu">
+
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Włączone wtyczki">
 
 <!ENTITY aboutSupport.appBasicsBuildConfig "Konfiguracja kompilacji">
@@ -26,17 +31,24 @@
 <!ENTITY aboutSupport.appBasicsCrashIDs "Zgłoszenia awarii">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Zużycie pamięci">
 
-<!ENTITY aboutSupport.show.label "Pokaż zawartość folderu">
+<!ENTITY aboutSupport.showDir.label "Otwórz katalog">
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
-variant of aboutSupport.show.label.  This allows us to use the preferred
+variant of aboutSupport.showDir.label.  This allows us to use the preferred
 "Finder" terminology on Mac. -->
 <!ENTITY aboutSupport.showMac.label "Pokaż w Finderze">
+<!-- LOCALIZATION NOTE (aboutSupport.showWin.label): This is the Windows-specific
+variant of aboutSupport.showDir.label. -->
+<!ENTITY aboutSupport.showWin.label "Pokaż folder">
 
-<!ENTITY aboutSupport.modifiedPrefsTitle "Zmodyfikowane ustawienia">
+<!ENTITY aboutSupport.modifiedKeyPrefsTitle "Ważne zmodyfikowane ustawienia">
 <!ENTITY aboutSupport.modifiedPrefsName "Nazwa">
 <!ENTITY aboutSupport.modifiedPrefsValue "Wartość">
 
 <!ENTITY aboutSupport.graphicsTitle "Grafika">
+<!ENTITY aboutSupport.jsTitle "JavaScript">
+<!ENTITY aboutSupport.jsIncrementalGC "Przyrostowy GC">
+
+<!ENTITY aboutSupport.libraryVersionsTitle "Wersje bibliotek">
 
 <!ENTITY aboutSupport.installationHistoryTitle "Historia instalacji">
 <!ENTITY aboutSupport.updateHistoryTitle "Historia aktualizacji">

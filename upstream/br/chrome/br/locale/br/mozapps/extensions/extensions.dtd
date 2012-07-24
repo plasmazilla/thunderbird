@@ -1,5 +1,10 @@
 <!ENTITY addons.windowTitle                   "Ardoer an askouezhioù">
+
 <!ENTITY search.placeholder                   "Klask en holl askouezhioù">
+<!-- LOCALIZATION NOTE (search.commandKey):
+     The search command key should match findOnCmd.commandkey from browser.dtd -->
+<!ENTITY search.commandkey                    "f">
+
 <!ENTITY loading.label                        "O kargañ…">
 <!ENTITY listEmpty.installed.label            "N'eus askouezh ebet eus ar rizh-mañ staliet">
 <!ENTITY listEmpty.availableUpdates.label     "Hizivadenn ebet kavet">
@@ -104,7 +109,7 @@
      Displayed in the center of the Get Add-ons view, see bug 601143 for mockups. -->
 <!ENTITY discover.title                       "Petra eo an askouezhioù ?">
 <!ENTITY discover.description2                "Arloadoù a ro tro deoc'h da bersonelaat &brandShortName; gant keweriusterioù
-  pe stiloù ouzhpenn eo an askouezhioù. Amprouadit ur varren-gostez pe un arload evit an hinad, pe un neuz da lakaat &brandShortName;
+  pe stiloù ouzhpenn eo an askouezhioù. Amprouit ur varrenn gostez pe un arload evit an hinad, pe un neuz da lakaat &brandShortName;
   da vezañ evel ma plijo deoc'h.">
 <!ENTITY discover.footer                      "Pa viot kennasket ouzh internet e tiskouezo ar penel-mañ un darn eus
   an askouezhioù gwellañ ha brudetañ da brouadiñ.">
@@ -112,7 +117,7 @@
 <!-- detail view -->
 <!ENTITY detail.version.label                 "Handelv">
 <!ENTITY detail.lastupdated.label             "Hizivadur diwezhañ">
-<!ENTITY detail.creator.label                 "Diorrenour">
+<!ENTITY detail.creator.label                 "Diorroer">
 <!ENTITY detail.homepage.label                "Pennbajenn">
 <!ENTITY detail.numberOfDownloads.label       "Pellgargadurioù">
 

@@ -22,4 +22,5 @@ locale alerts gl chrome/gl/locale/gl/alerts/
 locale autoconfig gl chrome/gl/locale/gl/autoconfig/
 locale global-platform gl chrome/gl/locale/gl/global-platform/
 locale messenger-mapi gl chrome/gl/locale/gl/messenger-mapi/
+locale chat gl chrome/gl/locale/gl/chat/
 locale mozldap gl chrome/gl/locale/gl/mozldap/

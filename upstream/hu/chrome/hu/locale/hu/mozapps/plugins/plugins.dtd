@@ -21,7 +21,9 @@
 <!ENTITY pluginWizard.finalPage.restart.label                "A bővítmények használata előtt a &brandShortName; programot újra kell indítani.">
 
 <!ENTITY missingPlugin                                       "A tartalom megjelenítéséhez bővítmény szükséges.">
-<!ENTITY clickToPlayPlugin                                   "Bökjön ide a bővítmény aktiválásához.">
+<!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
+<!ENTITY tapToPlayPlugin                                     "Bökjön ide a bővítmény aktiválásához.">
+<!ENTITY clickToPlayPlugins                                  "Kattintson ide a bővítmények aktiválásához.">
 <!ENTITY disabledPlugin                                      "A bővítmény le van tiltva.">
 <!ENTITY blockedPlugin.label                                 "Az Ön védelme érdekében ez a bővítmény le lett tiltva.">
 
@@ -34,8 +36,8 @@
 <!ENTITY reloadPlugin.pre                                    "">
 <!ENTITY reloadPlugin.middle                                 "töltse be újra az oldalt">
 <!ENTITY reloadPlugin.post                                   " ">
-<!-- LOCALIZATION NOTE: report.* strings should be as short as possible, ideally 2-3 words. -->
-<!ENTITY report.checkbox                                     "...és hibajelentés küldése">
+<!-- LOCALIZATION NOTE (report.please): This and the other report.* strings should be as short as possible, ideally 2-3 words. -->
+<!ENTITY report.please                                       "Hibajelentés küldése">
 <!ENTITY report.submitting                                   "Jelentés elküldése...">
 <!ENTITY report.submitted                                    "A hibajelentést elküldte.">
 <!ENTITY report.disabled                                     "A hibajelentés le van tiltva.">

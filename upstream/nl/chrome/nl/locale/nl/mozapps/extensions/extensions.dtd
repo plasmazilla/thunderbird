@@ -1,5 +1,10 @@
 <!ENTITY addons.windowTitle                   "Add-onbeheerder">
+
 <!ENTITY search.placeholder                   "Alle add-ons doorzoeken">
+<!-- LOCALIZATION NOTE (search.commandKey):
+     The search command key should match findOnCmd.commandkey from browser.dtd -->
+<!ENTITY search.commandkey                    "f">
+
 <!ENTITY loading.label                        "Laden…">
 <!ENTITY listEmpty.installed.label            "U hebt geen add-ons van dit type geïnstalleerd">
 <!ENTITY listEmpty.availableUpdates.label     "Geen updates gevonden">
@@ -18,7 +23,7 @@
 <!ENTITY warning.safemode.label                    "Alle add-ons zijn uitgeschakeld door de veilige modus.">
 <!ENTITY warning.checkcompatibility.label          "Compatibiliteitscontrole voor add-ons is uitgeschakeld. Mogelijk hebt u incompatibele add-ons.">
 <!ENTITY warning.checkcompatibility.enable.label   "Inschakelen">
-<!ENTITY warning.checkcompatibility.enable.tooltip "Add-oncompatibiliteitscontrole inschakelen">
+<!ENTITY warning.checkcompatibility.enable.tooltip "Add-on-compatibiliteitscontrole inschakelen">
 <!ENTITY warning.updatesecurity.label              "Veiligheidscontrole voor add-on-updates is uitgeschakeld. Mogelijk loopt u een veiligheidsrisico door updates.">
 <!ENTITY warning.updatesecurity.enable.label       "Inschakelen">
 <!ENTITY warning.updatesecurity.enable.tooltip     "Add-on-veiligheidscontrole inschakelen">

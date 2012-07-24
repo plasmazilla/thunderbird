@@ -108,6 +108,7 @@
 <!ENTITY imageDimensionsTab.label "মাত্রা">
 <!ENTITY imageAppearanceTab.label "রূপ">
 <!ENTITY imageLinkTab.label "লিংক">
+
 <!ENTITY LinkAdvancedEditButton.accessKey "L">
 <!ENTITY LinkAdvancedEditButton.label "Link Advanced Edit…">
 <!ENTITY LinkAdvancedEditButton.tooltip "Add or modify HTML attributes, style attributes, and JavaScript">

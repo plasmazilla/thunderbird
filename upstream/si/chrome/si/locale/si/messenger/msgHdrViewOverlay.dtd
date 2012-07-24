@@ -68,6 +68,8 @@
 <!ENTITY hdrReplyListButton1.tooltip "ලැයිස්තුවට පිළිතුරු යවන්න">
 <!ENTITY hdrForwardButton1.label "යොමු කරන්න">
 <!ENTITY hdrForwardButton1.tooltip "මෙම ලිපිය යොමු කරන්න">
+<!ENTITY hdrFollowupButton1.label "පිළිතුරු යවන්න">
+<!ENTITY hdrFollowupButton1.tooltip "මෙම පුවක්සමූහයට පිළිතුරක් යවන්න">
 <!ENTITY hdrJunkButton1.label "නිසරු (junk)">
 <!ENTITY hdrJunkButton1.tooltip "මෙම ලිපිය නිසරු සේ ලකුණු කරන්න">
 <!ENTITY hdrTrashButton1.label "මකන්න">
@@ -117,12 +119,14 @@
 <!ENTITY copyLinkCmd.accesskey		"C">
 
 <!ENTITY CopyMessageId.label "Copy Message-ID">
+<!ENTITY CopyMessageId.accesskey "C">
 <!ENTITY OpenMessageForMsgId.label "Open Message For ID">
+<!ENTITY OpenMessageForMsgId.accesskey "O">
 <!ENTITY OpenBrowserWithMsgId.label "Open Browser With Message-ID">
-
+<!ENTITY OpenBrowserWithMsgId.label "Open Browser With Message-ID">
+<!ENTITY OpenBrowserWithMsgId.accesskey "B">
 
 <!ENTITY openAttachment.tooltip "ඇමුණුම් ගොනුව විවෘත කරන්න">
-
 
 <!ENTITY saveAllAttachmentsButton1.label "සියල්ල සුරකින්න">
 <!ENTITY saveAttachmentButton1.tooltip "ඇමුණුම් ගොනුව සුරකින්න">

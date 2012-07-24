@@ -32,22 +32,10 @@
 <!ENTITY emailLabel.label "An seòladh puist-dhealain:">
 <!ENTITY emailLabel.accesskey "e">
 
-<!-- Entities for Server page -->
+<!-- Entities for Incoming Server page -->
 
-<!ENTITY serverTitle.label "Fiosrachadh an fhrithealaiche">
+<!ENTITY incomingTitle.label "Fiosrachadh an fhrithealaiche a-steach">
 <!ENTITY incomingServerTypeDesc.label "Tagh seòrsa an fhrithealaiche a-steach a tha thu a' cleachdadh.">
-<!-- LOCALIZATION NOTE (incomingServerNameDesc.label) : Do not translate "&quot;pop.example.net&quot;" in below line -->
-<!ENTITY incomingServerNameDesc.label "Cuir a-steach ainm an fhrithealaiche a-steach agad (mar eisimpleir &quot;post.ballsampaill.net&quot;).">
-<!ENTITY incomingServerLabel.label "Am frithealaiche a-steach:">
-<!ENTITY incomingServerLabel.accesskey "s">
-<!-- LOCALIZATION NOTE (newsServerNameDesc.label) : Do not translate "NNTP" or the "&quot;" entities in below line -->
-<!ENTITY newsServerNameDesc.label "Cuir a-steach ainm frithealaiche nan naidheachdan (NNTP) agad (mar eisimpleir &quot;naidheachdan.ballsampaill.net&quot;).">
-<!-- LOCALIZATION NOTE (smtpServerDesc.label) : Do not translate "SMTP" and "&quot;smtp.example.net&quot;" in below line -->
-<!ENTITY smtpServerDesc.label "Cuir a-steach ainm an fhrithealaiche a-mach (SMTP) agad (mar eisimpleir &quot;smtp.ballsampaill.net&quot;).">
-<!ENTITY smtpServerLabel.label "Am frithealaiche a-mach:">
-<!ENTITY smtpServerLabel.accesskey "A">
-<!ENTITY newsServerLabel.label "Frithealaiche nam buidhnean-naidheachd:">
-<!ENTITY newsServerLabel.accesskey "F">
 <!-- LOCALIZATION NOTE (imapType.label) : Do not translate "IMAP" in below line -->
 <!ENTITY imapType.label "IMAP">
 <!ENTITY imapType.accesskey "I">
@@ -56,37 +44,56 @@
 <!ENTITY popType.accesskey "P">
 <!ENTITY leaveMsgsOnSrvr.label "Fàg teachdaireachdan air an fhrithealaiche">
 <!ENTITY leaveMsgsOnSrvr.accesskey "t">
+<!ENTITY portNum.label "Port:">
+<!ENTITY portNum.accesskey "o">
+<!ENTITY defaultPortLabel.label "Bun-roghainn:">
+<!ENTITY defaultPortValue.label "">
+<!-- LOCALIZATION NOTE (incomingServerNameDesc.label) : Do not translate "&quot;pop.example.net&quot;" in below line -->
+<!ENTITY incomingServer.description "Cuir a-steach ainm an fhrithealaiche a-steach agad (mar eisimpleir &quot;pop.example.net&quot;).">
+<!ENTITY incomingServer.label "Am frithealaiche a-steach:">
+<!ENTITY incomingServer.accesskey "s">
+<!-- LOCALIZATION NOTE (incomingUsername.description) : do not translate "&quot;jsmith&quot;" in below line -->
+<!ENTITY incomingUsername.description "Cuir a-steach ainm a' chleachdaiche a-steach a thug solaraiche do phuist-d dhut (mar eisimpleir, &quot;jsmith&quot;).">
+<!ENTITY incomingUsername.label "Ainm-cleachdaiche:">
+<!ENTITY incomingUsername.accesskey "A">
+<!-- LOCALIZATION NOTE (newsServerNameDesc.label) : Do not translate "NNTP" or the "&quot;" entities in below line -->
+<!ENTITY newsServerNameDesc.label "Cuir a-steach ainm frithealaiche nan naidheachdan (NNTP) agad (mar eisimpleir &quot;news.example.net&quot;).">
+<!ENTITY newsServerLabel.label "Frithealaiche nam buidhnean-naidheachd:">
+<!ENTITY newsServerLabel.accesskey "F">
 
-<!-- LOCALIZATION NOTE (haveSmtp1.prefix and haveSmtp1.suffix2) : Do not translate "SMTP" and "&quot;" in
-     these variables. Also, translate haveSmtp1.prefix and haveSmtp1.suffix2 as a single sentence, inserting
-     text after the "&quot;" entity in haveSmtp1.suffix2, if required grammatically.
+<!-- Entities for Outgoing Server page -->
+
+<!ENTITY outgoingTitle.label "Fiosrachadh an fhrithealaiche a-mach">
+<!-- LOCALIZATION NOTE (outgoingServer.description) : Do not translate "SMTP" and "&quot;smtp.example.net&quot;" in below line -->
+<!ENTITY outgoingServer.description "Cuir a-steach ainm an fhrithealaiche a-mach (SMTP) (mar eisimpleir, &quot;smtp.example.net&quot;).">
+<!ENTITY outgoingServer.label "Am frithealaiche a-mach:">
+<!ENTITY outgoingServer.accesskey "A">
+<!ENTITY outgoingUsername.description "Cuir a-steach an t-ainm-cleachdaiche a-mach a thug solaraiche a' phuist-d agad dhut (tha seo co-ionnann ris an ainm-chleachdaiche a-steach mar is trice).">
+<!ENTITY outgoingUsername.label "Ainm-cleachdaiche a-mach:">
+<!ENTITY outgoingUsername.accesskey "c">
+
+<!-- LOCALIZATION NOTE (modifyOutgoing.suffix) : This string will be appended after each of
+     haveSmtp1.suffix3, haveSmtp2.suffix3, haveSmtp3.suffix3 .
+-->
+<!ENTITY modifyOutgoing.suffix "You can change outgoing servers in the account settings.">
+<!-- LOCALIZATION NOTE (haveSmtp1.prefix and haveSmtp1.suffix3) : Do not translate "SMTP" and "&quot;" in
+     these variables. Also, translate haveSmtp1.prefix and haveSmtp1.suffix3 as a single sentence, inserting
+     text after the "&quot;" entity in haveSmtp1.suffix3, if required grammatically.
 -->
 <!ENTITY haveSmtp1.prefix "Thèid am frithealaiche a-mach (SMTP) làithreach agad, &quot;">
-<!ENTITY haveSmtp1.suffix2 "&quot;, a chleachdadh. 'S urrainn dhut na frithealaichean a-mach atharrachadh ann an roghainnean nan cunntasan.">
-
-<!-- Entities for Login page -->
-
-<!ENTITY loginTitle.label "Ainmean a' chleachdaiche">
-<!ENTITY usernameDesc.label "Cuir a-steach ainm a' chleachdaiche airson post a-steach a fhuair thu o sholaraiche a' phuist-dhealain agad ">
-<!-- LOCALIZATION NOTE (usernameExample.label) : do not translate "&quot;jsmith&quot;" in below line -->
-<!ENTITY usernameExample.label "(mar eisimpleir &quot;cmaccaluim&quot;).">
-<!ENTITY usernameLabel.label "Ainm a' chleachdaiche airson post a-steach:">
-<!ENTITY usernameLabel.accesskey "i">
-<!ENTITY usernameSmtpDesc.label "Cuir a-steach ainm a' chleachdaiche airson post a-mach a fhuair thu o sholaraiche a' phuist-dhealain agad (an dearbh ainm a tha agad airson post a-steach mar is trice).">
-<!ENTITY usernameSmtpLabel.label "Ainm a' chleachdaiche airson post a-mach:">
-<!ENTITY usernameSmtpLabel.accesskey "o">
-<!-- LOCALIZATION NOTE (haveSmtp2.prefix and haveSmtp2.suffix2) : Do not translate "SMTP" and "&quot;" in
-     these variables. Also, translate haveSmtp2.prefix and haveSmtp2.suffix2 as a single sentence, inserting
-     text after the "&quot;" entity in haveSmtp2.suffix2, if required grammatically.
+<!ENTITY haveSmtp1.suffix3 "&quot;, a chleachdadh.">
+<!-- LOCALIZATION NOTE (haveSmtp2.prefix and haveSmtp2.suffix3) : Do not translate "SMTP" and "&quot;" in
+     these variables. Also, translate haveSmtp2.prefix and haveSmtp2.suffix3 as a single sentence, inserting
+     text after the "&quot;" entity in haveSmtp2.suffix3, if required grammatically.
 -->
 <!ENTITY haveSmtp2.prefix "Thèid an t-ainm-cleachdaiche làithreach agad airson post a-mach (SMTP), &quot;">
-<!ENTITY haveSmtp2.suffix2 "&quot;, a chleachdadh. 'S urrainn dhut na frithealaichean a-mach atharrachadh ann an roghainnean nan cunntasan.">
+<!ENTITY haveSmtp2.suffix3 "&quot;, a chleachdadh.">
 <!-- LOCALIZATION NOTE (haveSmtp3.prefix and haveSmtp3.suffix2) : Do not translate "SMTP" and "&quot;" in
      these variables. Also, translate haveSmtp3.prefix and haveSmtp3.suffix2 as a single sentence, inserting
      text after the "&quot;" entity in haveSmtp3.suffix2, if required grammatically.
 -->
 <!ENTITY haveSmtp3.prefix "Tha am frithealaiche a-mach (SMTP) agad, &quot;">
-<!ENTITY haveSmtp3.suffix2 "&quot;, co-ionnan ris an fhrithealaiche a-steach agad 's thèid d' ainm cleachdaiche airson post a-steach a chleachdadh gus inntrigeadh a dhèanamh thuige. 'S urrainn dhut na frithealaichean a-mach atharrachadh ann an roghainnean nan cunntasan.">
+<!ENTITY haveSmtp3.suffix3 "&quot;, co-ionnan ris an fhrithealaiche a-steach agad 's thèid d' ainm cleachdaiche airson post a-steach a chleachdadh gus inntrigeadh a dhèanamh dha.">
 
 <!-- Entities for Account name page -->
 

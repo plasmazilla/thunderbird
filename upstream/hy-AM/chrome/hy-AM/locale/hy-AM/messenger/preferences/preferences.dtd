@@ -1,0 +1,27 @@
+<!--
+# Translator(s):
+#
+# Hrant <hrantohanyan@mail.am>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Hrant <hrantohanyan@mail.am>
+# armenzg <armenzg@gmail.com>
+# alexxed <alexxed@gmail.com>
+#
+-->
+<!ENTITY  prefWindow.titleWin     "Ընտրանքներ">
+<!ENTITY  prefWindow.titleGNOME   "&brandShortName;-ի կարգավորումները">
+<!ENTITY  prefWindow.styleWindows "width: 48em; min-height: 38.5em;">
+<!ENTITY  prefWindow.styleMac     "width: 47em;">
+<!ENTITY  prefWindow.styleGNOME   "width: 47em; min-height: 38em;">
+
+<!ENTITY paneGeneral.title        "Գլխավորը">
+<!ENTITY paneDisplay.title        "Տեսքը">
+<!ENTITY paneComposition.title    "Նամակը">
+<!ENTITY paneChat.title           "Զրույց">
+<!ENTITY paneAttachments.title    "Կցորդներ">
+<!ENTITY paneSecurity.title       "Անվտանգությունը">
+<!ENTITY paneAdvanced.title       "Ընդլայնված">

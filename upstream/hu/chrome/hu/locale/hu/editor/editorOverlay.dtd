@@ -83,11 +83,6 @@
 <!ENTITY insertBreakAllCmd.accesskey "k">
 
 <!-- Used just in context popup. -->
-<!ENTITY spellCheckNoSuggestions.label "(Nincs javaslat)">
-<!ENTITY spellCheckIgnoreWord.label "Szó kihagyása">
-<!ENTITY spellCheckIgnoreWord.accesskey "k">
-<!ENTITY spellCheckAddToDictionary.label "Hozzáadás a szótárhoz">
-<!ENTITY spellCheckAddToDictionary.accesskey "H">
 <!ENTITY createLinkCmd.label "Hivatkozás létrehozása...">
 <!ENTITY createLinkCmd.accesskey "H">
 <!ENTITY editLinkCmd.label "Hivatkozás szerkesztése új szerkesztőablakban">
@@ -326,12 +321,6 @@
 <!-- Toolbar-only items -->
 <!ENTITY menuBar.tooltip "Menüsor">
 <!ENTITY formatToolbar.tooltip "Formázás eszköztár">
-<!ENTITY newToolbarCmd.label "Új">
-<!ENTITY newToolbarCmd.tooltip "Új HTML-szerkesztő oldal létrehozása">
-<!ENTITY openToolbarCmd.label "Megnyitás">
-<!ENTITY openToolbarCmd.tooltip "Helyi fájl megnyitása">
-<!ENTITY saveToolbarCmd.tooltip "Fájl mentése helyi lemezre">
-<!ENTITY publishToolbarCmd.tooltip "Fájl feltöltése távoli kiszolgálóra">
 <!ENTITY cutToolbarCmd.tooltip "Kivágás">
 <!ENTITY copyToolbarCmd.tooltip "Másolás">
 <!ENTITY pasteToolbarCmd.tooltip "Beillesztés">

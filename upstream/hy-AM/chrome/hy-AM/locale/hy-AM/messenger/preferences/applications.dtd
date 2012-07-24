@@ -1,0 +1,48 @@
+<!--
+# Translator(s):
+#
+# robyerevan <robyerevan@gmail.com>
+# Hrant <hrantohanyan@mail.am>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Hrant <hrantohanyan@mail.am>
+# alexxed <alexxed@gmail.com>
+#
+-->
+<!ENTITY  typeColumn.label            "Պարունակության տեսակը">
+<!ENTITY  typeColumn.accesskey        "T">
+
+<!ENTITY  actionColumn2.label         "Գործողություն">
+<!ENTITY  actionColumn2.accesskey     "A">
+
+<!ENTITY  focusSearch1.key            "f">
+<!ENTITY  focusSearch2.key            "k">
+
+<!ENTITY  filter.placeholder          "Փնտրել">
+
+<!ENTITY saveTo.label                 "Պահել ֆայլերը՝">
+<!ENTITY saveTo.accesskey             "S">
+<!ENTITY alwaysAsk.label              "Միշտ հարցնել ֆայլերի պահման տեղը">
+<!ENTITY alwaysAsk.accesskey          "A">
+<!ENTITY chooseFolderWin.label        "Ընտրել…">
+<!ENTITY chooseFolderWin.accesskey    "B">
+<!ENTITY chooseFolderMac.label        "Ընտրել…">
+<!ENTITY chooseFolderMac.accesskey    "C">
+
+<!ENTITY attachments.incoming.label   "Մուտքյին">
+<!ENTITY attachments.outgoing.label   "Ելքային">
+
+<!ENTITY addCloudFileAccount.label        "Ավելացնել">
+<!ENTITY addCloudFileAccount.accesskey    "Ա">
+<!ENTITY addCloudFileAccount.description  "Ավելացնել նոր Ֆայլի հղման կրիչ սարք">
+<!ENTITY removeCloudFileAccount.label     "Ջնջել">
+<!ENTITY removeCloudFileAccount.accesskey "Ջ">
+<!ENTITY authRequired.description         "Պահանջվում է ներկայացում՝ տեսնելու շարժական սարքի կարգավորումները։">
+<!ENTITY authRequired.button.label        "Ներկայացում">
+<!ENTITY authRequired.button.accesskey    "Ն">
+
+<!ENTITY enableCloudFileAccountOffer.label "Առաջարկել տարածել ֆայլերչը, որոնք մեծ են՝">
+<!ENTITY enableCloudFileAccountOffer.mb "ՄԲ">

@@ -18,3 +18,9 @@
 <!ENTITY bccButton.label                    "Bcc யில் சேர்க்கவும்:">
 <!ENTITY bccButton.accesskey                "B">
 
+
+<!ENTITY addrBookCardProperties.accesskey   "P">
+<!ENTITY addtoBccFieldMenu.accesskey        "B">
+<!ENTITY addtoCcFieldMenu.accesskey         "C">
+<!ENTITY addtoToFieldMenu.accesskey         "A">
+<!ENTITY deleteAddrBookCard.accesskey       "D">

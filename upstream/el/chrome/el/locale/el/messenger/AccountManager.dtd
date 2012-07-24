@@ -11,3 +11,10 @@
 <!ENTITY removeButton.accesskey "Δ">
 <!ENTITY accountManager.size "width: 75em; height: 48em;">
 <!ENTITY accountTree.width "width: 21em;">
+
+<!ENTITY accountManager.size "width: 125ch; height: 55em;">
+<!ENTITY accountTree.width "width: 35ch;">
+
+
+<!ENTITY addIMAccountButton.accesskey "C">
+<!ENTITY addIMAccountButton.label "Add Chat Account…">

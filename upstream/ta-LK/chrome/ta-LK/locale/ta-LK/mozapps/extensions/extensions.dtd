@@ -203,3 +203,7 @@ Entities below were automatically added by compare-locales,
 -->
 
 <!ENTITY settings.path.button.label "Browse…">
+
+<!-- LOCALIZATION NOTE (search.commandKey):
+     The search command key should match findOnCmd.commandkey from browser.dtd -->
+<!ENTITY search.commandkey                    "f">

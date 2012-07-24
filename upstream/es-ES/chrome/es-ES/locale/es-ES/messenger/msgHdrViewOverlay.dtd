@@ -27,6 +27,8 @@
 <!ENTITY hdrReplyAllButton1.tooltip "Responder al remitente y a todos los destinatarios">
 <!ENTITY hdrReplyListButton1.label "Responder a la lista">
 <!ENTITY hdrReplyListButton1.tooltip "Responder a la lista de correo">
+<!ENTITY hdrFollowupButton1.label "Responder">
+<!ENTITY hdrFollowupButton1.tooltip "Publicar una respuesta a la conversación en este grupo de noticias">
 <!ENTITY hdrForwardButton1.label "Reenviar">
 <!ENTITY hdrForwardButton1.tooltip "Reenviar este mensaje">
 <!ENTITY hdrJunkButton1.label "No deseado">
@@ -82,5 +84,8 @@
 <!ENTITY copyLinkCmd.label "Copiar la dirección del enlace">
 <!ENTITY copyLinkCmd.accesskey "C">
 <!ENTITY CopyMessageId.label "Copiar Message-ID">
+<!ENTITY CopyMessageId.accesskey "C">
 <!ENTITY OpenMessageForMsgId.label "Abrir mensaje para el Message-ID">
+<!ENTITY OpenMessageForMsgId.accesskey "m">
 <!ENTITY OpenBrowserWithMsgId.label "Abrir navegador con el Message-ID">
+<!ENTITY OpenBrowserWithMsgId.accesskey "A">

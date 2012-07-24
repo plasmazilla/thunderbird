@@ -83,11 +83,6 @@
 <!ENTITY insertBreakAllCmd.accesskey "k">
 
 <!-- Used just in context popup. -->
-<!ENTITY spellCheckNoSuggestions.label "(無拼字建議)">
-<!ENTITY spellCheckIgnoreWord.label "忽略單字">
-<!ENTITY spellCheckIgnoreWord.accesskey "I">
-<!ENTITY spellCheckAddToDictionary.label "加入字典">
-<!ENTITY spellCheckAddToDictionary.accesskey "n">
 <!ENTITY createLinkCmd.label "建立鏈結…">
 <!ENTITY createLinkCmd.accesskey "k">
 <!ENTITY editLinkCmd.label "用新編輯器視窗編輯此鏈結">
@@ -306,7 +301,7 @@
 <!ENTITY tableCellAfter.label "在此格後加一格">
 <!ENTITY tableCellAfter.accesskey "f">
 <!-- Delete SubMenu -->
-<!ENTITY tableDeleteMenu.label "刪除項目">
+<!ENTITY tableDeleteMenu.label "刪除">
 <!ENTITY tableDeleteMenu.accesskey "D">
 
 <!-- text for "Join Cells" is in editor.properties 
@@ -326,12 +321,6 @@
 <!-- Toolbar-only items -->
 <!ENTITY menuBar.tooltip "選單列">
 <!ENTITY formatToolbar.tooltip "格式化工具列">
-<!ENTITY newToolbarCmd.label "新增">
-<!ENTITY newToolbarCmd.tooltip "建立新編輯視窗">
-<!ENTITY openToolbarCmd.label "開啟">
-<!ENTITY openToolbarCmd.tooltip "開啟本機檔案">
-<!ENTITY saveToolbarCmd.tooltip "儲存到本機位置">
-<!ENTITY publishToolbarCmd.tooltip "上傳檔案到遠端位址">
 <!ENTITY cutToolbarCmd.tooltip "剪下">
 <!ENTITY copyToolbarCmd.tooltip "複製">
 <!ENTITY pasteToolbarCmd.tooltip "貼上">

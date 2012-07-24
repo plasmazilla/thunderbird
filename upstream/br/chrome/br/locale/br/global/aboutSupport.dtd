@@ -12,25 +12,39 @@
 <!ENTITY aboutSupport.appBasicsTitle "Arventennoù diazez an arload">
 <!ENTITY aboutSupport.appBasicsName "Anv">
 <!ENTITY aboutSupport.appBasicsVersion "Handelv">
+
 <!ENTITY aboutSupport.appBasicsProfileDir "Kavlec'h an aelad">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
+This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
+Windows/Mac use the term "Folder" instead of "Directory" -->
+<!ENTITY aboutSupport.appBasicsProfileDirWinMac "Teuliad an aelad">
+
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Enlugelladoù gweredekaet">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Kefluniad kempunadur">
 <!ENTITY aboutSupport.appBasicsUserAgent "Gwazour arveriad">
 <!ENTITY aboutSupport.appBasicsCrashIDs "Danevelloù sac'hadenn">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Arver ar vemor">
 
-<!ENTITY aboutSupport.show.label "Digeriñ teuliad an arload">
+<!ENTITY aboutSupport.showDir.label "Digeriñ ar c'havlec'h">
 
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
-variant of aboutSupport.show.label.  This allows us to use the preferred
+variant of aboutSupport.showDir.label.  This allows us to use the preferred
 "Finder" terminology on Mac. -->
 <!ENTITY aboutSupport.showMac.label "Diskouez e-barzh Finder">
+<!-- LOCALIZATION NOTE (aboutSupport.showWin.label): This is the Windows-specific
+variant of aboutSupport.showDir.label. -->
+<!ENTITY aboutSupport.showWin.label "Diskouez an teuliad">
 
-<!ENTITY aboutSupport.modifiedPrefsTitle "Gwellvezioù kemmet">
+<!ENTITY aboutSupport.modifiedKeyPrefsTitle "Gwellvezioù pouezus kemmet">
 <!ENTITY aboutSupport.modifiedPrefsName "Anv">
 <!ENTITY aboutSupport.modifiedPrefsValue "Talvoud">
 
 <!ENTITY aboutSupport.graphicsTitle "Reizhiad kevregañ">
+
+<!ENTITY aboutSupport.jsTitle "JavaScript">
+<!ENTITY aboutSupport.jsIncrementalGC "Karzher azvuiadel">
+
+<!ENTITY aboutSupport.libraryVersionsTitle "Handelvoù ar mezarc'hioù">
 
 <!ENTITY aboutSupport.installationHistoryTitle "Roll istor staliadur">
 <!ENTITY aboutSupport.updateHistoryTitle "Roll istor hizivadur">

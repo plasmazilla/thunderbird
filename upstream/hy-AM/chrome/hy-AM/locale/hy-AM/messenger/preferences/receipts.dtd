@@ -1,0 +1,35 @@
+<!--
+# Translator(s):
+#
+# Hrant <hrantohanyan@mail.am>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Hrant <hrantohanyan@mail.am>
+# alexxed <alexxed@gmail.com>
+#
+-->
+<!ENTITY dialog.title                  "Պահանջել ստացական">
+<!ENTITY requestReceipt.label          "Նամակներ ուղարկելիս պահանջել ստացական">
+<!ENTITY requestReceipt.accesskey      "W">
+<!ENTITY receiptArrive.label           "Ստացականը ստանալիս՝">
+<!ENTITY leaveIt.label                 "Թողնել Մուտքայինում">
+<!ENTITY leaveIt.accesskey             "i">
+<!ENTITY moveToSent.label              "Տեղափոխել &quot;Ուղարկված&quot; թղթապանակ">
+<!ENTITY moveToSent.accesskey          "m">
+<!ENTITY requestMDN.label              "Ստացականի հարցում ստանալիս.">
+<!ENTITY never.label                   "Երբեք չուղարկել ստացական">
+<!ENTITY never.accesskey               "n">
+<!ENTITY returnSome.label              "Թույլատրել ստացականներ որոշ նամակների համար">
+<!ENTITY returnSome.accesskey          "r">
+<!ENTITY notInToCc.label               "Եթե իմ հասցեն չկա Ում և Cc տողում.">
+<!ENTITY notInToCc.accesskey           "f">
+<!ENTITY outsideDomain.label           "Եթե ուղարկողը իմ տիրույթից դուրս է.">
+<!ENTITY outsideDomain.accesskey       "t">
+<!ENTITY otherCases.label              "Բոլոր այլ դեպքերում.">
+<!ENTITY otherCases.accesskey          "a">
+<!ENTITY askMe.label                   "Հարցնել">
+<!ENTITY alwaysSend.label              "Միշտ ուղարկել">
+<!ENTITY neverSend.label               "Երբեք չուղարկել">

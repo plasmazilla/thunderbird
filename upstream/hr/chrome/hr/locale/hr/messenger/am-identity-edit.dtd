@@ -1,0 +1,7 @@
+<!ENTITY identityDialog.style "width: 67ch;">
+<!ENTITY identityTitle.label "Postavke identiteta">
+<!ENTITY identityListDesc.label "Podesite postavke za ovaj identitet:">
+
+<!ENTITY settingsTab.label       "Postavke">
+<!ENTITY copiesFoldersTab.label "Kopije i mape">
+<!ENTITY addressingTab.label    "Sastavljanje i adresiranje">

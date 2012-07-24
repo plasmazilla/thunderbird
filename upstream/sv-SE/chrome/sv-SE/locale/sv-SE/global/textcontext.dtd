@@ -49,3 +49,6 @@
 <!ENTITY spellNoSuggestions.label "(Inga stavningsförslag)">
 <!ENTITY spellDictionaries.label "Språk">
 <!ENTITY spellDictionaries.accesskey "S">
+
+<!ENTITY spellUndoAddToDictionary.accesskey "n">
+<!ENTITY spellUndoAddToDictionary.label "Undo Add To Dictionary">

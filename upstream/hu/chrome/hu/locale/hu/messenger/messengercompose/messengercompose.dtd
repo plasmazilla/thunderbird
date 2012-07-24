@@ -17,6 +17,8 @@
 <!ENTITY attachFileCmd.label "Fájlok...">
 <!ENTITY attachFileCmd.accesskey "F">
 <!ENTITY attachFileCmd.key "A">
+<!ENTITY attachCloudCmd.label "Filelink">
+<!ENTITY attachCloudCmd.accesskey "i">
 <!ENTITY attachPageCmd.label "Weboldal...">
 <!ENTITY attachPageCmd.accesskey "W">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -68,11 +70,13 @@
 <!ENTITY pasteCmd.accesskey "B">
 <!ENTITY pasteNoFormattingCmd.key "V">
 <!ENTITY pasteAsQuotationCmd.key "o">
-<!ENTITY editRewrapCmd.label "Újratördelés">
-<!ENTITY editRewrapCmd.key "R">
 <!ENTITY editRewrapCmd.accesskey "r">
 <!ENTITY deleteCmd.label "Törlés">
 <!ENTITY deleteCmd.accesskey "T">
+<!ENTITY editRewrapCmd.label "Újratördelés">
+<!ENTITY editRewrapCmd.key "R">
+<!ENTITY renameAttachmentCmd.label "Melléklet átnevezése...">
+<!ENTITY renameAttachmentCmd.accesskey "t">
 <!ENTITY selectAllCmd.label "Minden kijelölése">
 <!ENTITY selectAllCmd.key "A">
 <!ENTITY selectAllCmd.accesskey "d"> 
@@ -218,7 +222,7 @@
 <!ENTITY subject.accesskey "T">
 <!-- LOCALIZATION NOTE attachments.accesskey This access key should correspond
      to the strings in attachmentCount in composeMsgs.properties -->
-<!ENTITY attachments.accesskey "M">
+<!ENTITY attachments.accesskey "m">
 
 <!-- Format Toolbar, imported from editorAppShell.xul -->
 <!ENTITY SmileButton.tooltip "Hangulatjel beszúrása">
@@ -268,6 +272,14 @@
 <!ENTITY selectAll.accesskey "d">
 <!ENTITY attachFile.label "Fájlok csatolása...">
 <!ENTITY attachFile.accesskey "F">
+<!ENTITY attachCloud.label "Filelink...">
+<!ENTITY attachCloud.accesskey "i">
+<!ENTITY convertCloud.label "Konvertálás...">
+<!ENTITY convertCloud.accesskey "K">
+<!ENTITY cancelUpload.label "Feltöltés megszakítása">
+<!ENTITY cancelUpload.accesskey "F">
+<!ENTITY convertRegularAttachment.label "Normál melléklet">
+<!ENTITY convertRegularAttachment.accesskey "N">
 <!ENTITY attachPage.label "Weboldal csatolása...">
 <!ENTITY attachPage.accesskey "W">
 

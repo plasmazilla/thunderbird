@@ -1,5 +1,5 @@
 locale testpilot fy-NL chrome/fy-NL/locale/fy-NL/feedback/
-locale places fy-NL chrome/fy-NL/locale/fy-NL/places/
+locale chat fy-NL chrome/fy-NL/locale/fy-NL/chat/
 locale messenger-mapi fy-NL chrome/fy-NL/locale/fy-NL/messenger-mapi/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
@@ -8,7 +8,8 @@ manifest chrome/fy-NL.manifest
 locale editor fy-NL chrome/fy-NL/locale/fy-NL/editor/
 locale alerts fy-NL chrome/fy-NL/locale/fy-NL/alerts/
 locale autoconfig fy-NL chrome/fy-NL/locale/fy-NL/autoconfig/
-locale pipnss fy-NL chrome/fy-NL/locale/fy-NL/pipnss/
+locale places fy-NL chrome/fy-NL/locale/fy-NL/places/
+locale pippki fy-NL chrome/fy-NL/locale/fy-NL/pippki/
 locale necko fy-NL chrome/fy-NL/locale/fy-NL/necko/
 locale mozldap fy-NL chrome/fy-NL/locale/fy-NL/mozldap/
 locale messenger-newsblog fy-NL chrome/fy-NL/locale/fy-NL/messenger-newsblog/
@@ -17,7 +18,7 @@ locale cookie fy-NL chrome/fy-NL/locale/fy-NL/cookie/
 locale messenger-smime fy-NL chrome/fy-NL/locale/fy-NL/messenger-smime/
 locale mozapps fy-NL chrome/fy-NL/locale/fy-NL/mozapps/
 locale global fy-NL chrome/fy-NL/locale/fy-NL/global/
-locale pippki fy-NL chrome/fy-NL/locale/fy-NL/pippki/
+locale pipnss fy-NL chrome/fy-NL/locale/fy-NL/pipnss/
 locale global-region fy-NL chrome/fy-NL/locale/fy-NL/global-region/
 locale global-platform fy-NL chrome/fy-NL/locale/fy-NL/global-platform/
 locale passwordmgr fy-NL chrome/fy-NL/locale/fy-NL/passwordmgr/

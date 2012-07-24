@@ -1,0 +1,6 @@
+<!ENTITY joinChatWindow.title           "Uneix al xat">
+<!ENTITY name.label                     "Sala">
+<!ENTITY optional.label                 "(opcional)">
+<!ENTITY account.label                  "Compte">
+<!ENTITY autojoin.label                 "Uneix-automàticament a la sala de xat">
+<!ENTITY autojoin.accesskey             "a">

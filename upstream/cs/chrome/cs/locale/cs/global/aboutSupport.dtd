@@ -16,25 +16,39 @@ aplikace &brandShortName; naleznete na <a id='supportLink'>webových stránkách
 <!ENTITY aboutSupport.appBasicsTitle "Stručně o aplikaci">
 <!ENTITY aboutSupport.appBasicsName "Název">
 <!ENTITY aboutSupport.appBasicsVersion "Verze">
-<!ENTITY aboutSupport.appBasicsProfileDir "Složka s profilem">
+
+<!ENTITY aboutSupport.appBasicsProfileDir "Adresář profilu">
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
+This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
+Windows/Mac use the term "Folder" instead of "Directory" -->
+<!ENTITY aboutSupport.appBasicsProfileDirWinMac "Složka profilu">
+
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Povolené zásuvné moduly">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Nastavení sestavení">
 <!ENTITY aboutSupport.appBasicsUserAgent "Identifikace prohlížeče">
 <!ENTITY aboutSupport.appBasicsCrashIDs "Hlášení pádů">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Spotřeba paměti">
 
-<!ENTITY aboutSupport.show.label "Otevřít složku">
+<!ENTITY aboutSupport.showDir.label "Otevřít adresář">
 
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
-variant of aboutSupport.show.label.  This allows us to use the preferred
+variant of aboutSupport.showDir.label.  This allows us to use the preferred
 "Finder" terminology on Mac. -->
 <!ENTITY aboutSupport.showMac.label "Zobrazit ve Finderu">
+<!-- LOCALIZATION NOTE (aboutSupport.showWin.label): This is the Windows-specific
+variant of aboutSupport.showDir.label. -->
+<!ENTITY aboutSupport.showWin.label "Zobrazit složku">
 
-<!ENTITY aboutSupport.modifiedPrefsTitle "Změněné předvolby">
+<!ENTITY aboutSupport.modifiedKeyPrefsTitle "Důležité změněné předvolby">
 <!ENTITY aboutSupport.modifiedPrefsName "Název">
 <!ENTITY aboutSupport.modifiedPrefsValue "Hodnota">
 
 <!ENTITY aboutSupport.graphicsTitle "Grafika">
+
+<!ENTITY aboutSupport.jsTitle "JavaScript">
+<!ENTITY aboutSupport.jsIncrementalGC "Inkrementální GC">
+
+<!ENTITY aboutSupport.libraryVersionsTitle "Verze knihovny">
 
 <!ENTITY aboutSupport.installationHistoryTitle "Historie instalací">
 <!ENTITY aboutSupport.updateHistoryTitle "Aktualizovat historii">

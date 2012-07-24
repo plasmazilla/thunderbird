@@ -83,11 +83,6 @@
 <!ENTITY insertBreakAllCmd.accesskey "k">
 <!-- Used just in context popup. -->
 
-<!ENTITY spellCheckNoSuggestions.label "(Ez da gomendiorik aurkitu)">
-<!ENTITY spellCheckIgnoreWord.label "Ezikusi hitza">
-<!ENTITY spellCheckIgnoreWord.accesskey "i">
-<!ENTITY spellCheckAddToDictionary.label "Gehitu hiztegira">
-<!ENTITY spellCheckAddToDictionary.accesskey "G">
 <!ENTITY createLinkCmd.label "Sortu lotura…">
 <!ENTITY createLinkCmd.accesskey "u">
 <!ENTITY editLinkCmd.label "Editatu lotura mezu-prestatzailearen leiho berrian">
@@ -327,12 +322,6 @@
 
 <!ENTITY menuBar.tooltip "Menu-barra">
 <!ENTITY formatToolbar.tooltip "Formatu tresna-barra">
-<!ENTITY newToolbarCmd.label "Berria">
-<!ENTITY newToolbarCmd.tooltip "Sortu mezu-prestatzailearen orri berria">
-<!ENTITY openToolbarCmd.label "Ireki">
-<!ENTITY openToolbarCmd.tooltip "Ireki fitxategi lokala">
-<!ENTITY saveToolbarCmd.tooltip "Gorde fitxategia kokaleku lokalean">
-<!ENTITY publishToolbarCmd.tooltip "Igo fitxategia urruneko kokaleku batera">
 <!ENTITY cutToolbarCmd.tooltip "Ebaki">
 <!ENTITY copyToolbarCmd.tooltip "Kopiatu">
 <!ENTITY pasteToolbarCmd.tooltip "Itsatsi">

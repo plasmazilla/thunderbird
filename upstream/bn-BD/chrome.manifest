@@ -14,6 +14,7 @@ locale global-region bn-BD chrome/bn-BD/locale/bn-BD/global-region/
 locale pippki bn-BD chrome/bn-BD/locale/bn-BD/pippki/
 locale global-platform bn-BD chrome/bn-BD/locale/bn-BD/global-platform/
 locale autoconfig bn-BD chrome/bn-BD/locale/bn-BD/autoconfig/
+locale chat bn-BD chrome/bn-BD/locale/bn-BD/chat/
 locale mozldap bn-BD chrome/bn-BD/locale/bn-BD/mozldap/
 locale messenger bn-BD chrome/bn-BD/locale/bn-BD/messenger/
 locale passwordmgr bn-BD chrome/bn-BD/locale/bn-BD/passwordmgr/

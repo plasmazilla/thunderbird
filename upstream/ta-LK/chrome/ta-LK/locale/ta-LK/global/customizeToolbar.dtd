@@ -10,3 +10,5 @@
 <!ENTITY addNewToolbar.label      "புதிய கருவிப்பட்டையினைச் சேர்க்க">
 <!ENTITY saveChanges.label        "செய்யப்பட்டது">
 <!ENTITY undoChanges.label        "மாற்றங்களை முன்செயல் நீக்குக">
+
+<!ENTITY dialog.dimensions        "width: 92ch; height: 36em;">

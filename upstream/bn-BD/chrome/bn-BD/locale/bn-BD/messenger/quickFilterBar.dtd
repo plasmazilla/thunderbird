@@ -207,6 +207,13 @@
 
 <!ENTITY quickFilterBar.glodaUpsell.pressEnterAndCurrent "আপনার অনুসন্ধান চালিয়ে যেতে 'Enter' চাপুন: #1">
 
+<!-- LOCALIZATION NOTE (quickFilterBar.qfbShowFilterBar.label):
+     The label  for the button on the tab bar that toggles the visibility of
+     the quick filter bar.
+     -->
+<!ENTITY quickFilterBar.qfbShowFilterBar.label
+         "Quick Filter">
+
 <!-- LOCALIZATION NOTE (quickFilterBar.show.key2):
      This is the key used to show the quick filter bar. -->
 <!ENTITY quickFilterBar.show.key2

@@ -84,5 +84,11 @@
 <!ENTITY copyLinkCmd.label "Copiar la direición del enllaz">
 <!ENTITY copyLinkCmd.accesskey "C">
 <!ENTITY CopyMessageId.label "Copiar Message-ID">
+<!ENTITY CopyMessageId.accesskey "C">
 <!ENTITY OpenMessageForMsgId.label "Abrir mensaxe pal Message-ID">
+<!ENTITY OpenMessageForMsgId.accesskey "m">
 <!ENTITY OpenBrowserWithMsgId.label "Abrir restolador web col Message-ID">
+<!ENTITY OpenBrowserWithMsgId.accesskey "A">
+<!ENTITY hdrFollowupButton1.label "Retrucar">
+<!ENTITY hdrFollowupButton1.tooltip "Espublizar una rempuesta a la conversación nesti grupu de noticies">
+

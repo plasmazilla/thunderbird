@@ -57,3 +57,6 @@
 <!ENTITY showCookies.label              "কুকি প্রদর্শন… (S)">
 <!ENTITY showCookies.accesskey          "S">
 
+
+<!ENTITY enableAdaptiveJunkLogging.accesskey "E">
+<!ENTITY enableAdaptiveJunkLogging.label "Enable adaptive junk filter logging">

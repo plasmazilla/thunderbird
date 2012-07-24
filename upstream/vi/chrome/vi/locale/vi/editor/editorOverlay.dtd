@@ -451,6 +451,7 @@
 <!ENTITY removeTOC.accesskey      "X">
 <!ENTITY tocMenu.label            "Mục lục…">
 <!ENTITY tocMenu.accesskey        "M">
+
 <!ENTITY copyToolbarCmd.tooltip "Copy">
 <!ENTITY cutToolbarCmd.tooltip "Cut">
 <!ENTITY formatRemoveNamedAnchors2.key "R">

@@ -1,0 +1,23 @@
+<!-- extracted from am-advanced.xul -->
+
+<!-- LOCALIZATION NOTE (smtpServer.label): do not translate "SMTP" in below line -->
+<!ENTITY smtpServer.label "Postavke odlaznog (SMTP) poslužitelja">
+
+<!-- LOCALIZATION NOTE (smtpDesc.label): do not translate "SMTP" in below line -->
+<!ENTITY smtpDesc.label "Iako možete definirati više od jednog odlaznog (SMTP) poslužitelja, ovo je preporučeno samo naprednim korisnicima. Postavljanje višestrukih SMTP poslužitelja može stvoriti probleme prilikom slanja poruka.">
+
+<!ENTITY smtpListAdd.label  "Dodaj…">
+<!ENTITY smtpListAdd.accesskey  "D">
+<!ENTITY smtpListEdit.label "Uredi…">
+<!ENTITY smtpListEdit.accesskey "e">
+<!ENTITY smtpListDelete.label "Ukloni">
+<!ENTITY smtpListDelete.accesskey "U">
+<!ENTITY smtpListSetDefault.label "Postavi zadanim">
+<!ENTITY smtpListSetDefault.accesskey "t">
+
+<!ENTITY serverDescription.label "Opis: ">
+<!ENTITY serverName.label "Ime poslužitelja: ">
+<!ENTITY serverPort.label "Port: ">
+<!ENTITY userName.label   "Korisničko ime: ">
+<!ENTITY connectionSecurity.label "Sigurnost veze: ">
+<!ENTITY authMethod.label   "Metoda autentifikacije: ">

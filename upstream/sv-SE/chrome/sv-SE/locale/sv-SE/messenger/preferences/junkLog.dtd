@@ -4,3 +4,6 @@
 <!ENTITY clearLog.accesskey "R">
 <!ENTITY closeLog.label "Stäng">
 <!ENTITY closeLog.accesskey "ä">
+
+<!ENTITY adaptiveJunkLog.title "Adaptive Junk Mail Log">
+<!ENTITY adaptiveJunkLogInfo.label "Log of adaptive junk mail control activity.">

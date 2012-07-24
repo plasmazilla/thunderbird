@@ -4,10 +4,10 @@ locale messenger-newsblog he chrome/he/locale/he/messenger-newsblog/
 locale pippki he chrome/he/locale/he/pippki/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale global he chrome/he/locale/he/global/
+locale pipnss he chrome/he/locale/he/pipnss/
 locale branding he chrome/he/locale/he/branding/
 manifest chrome/he.manifest
-locale mozapps he chrome/he/locale/he/mozapps/
+locale chat he chrome/he/locale/he/chat/
 locale editor he chrome/he/locale/he/editor/
 locale mozldap he chrome/he/locale/he/mozldap/
 locale necko he chrome/he/locale/he/necko/
@@ -15,11 +15,12 @@ locale passwordmgr he chrome/he/locale/he/passwordmgr/
 locale autoconfig he chrome/he/locale/he/autoconfig/
 locale messenger-region he chrome/he/locale/he/messenger-region/
 locale global-platform he chrome/he/locale/he/global-platform/
+locale mozapps he chrome/he/locale/he/mozapps/
 locale messenger-smime he chrome/he/locale/he/messenger-smime/
 locale alerts he chrome/he/locale/he/alerts/
 locale messenger-mapi he chrome/he/locale/he/messenger-mapi/
 locale cookie he chrome/he/locale/he/cookie/
-locale pipnss he chrome/he/locale/he/pipnss/
+locale global he chrome/he/locale/he/global/
 locale messenger he chrome/he/locale/he/messenger/
 locale global-region he chrome/he/locale/he/global-region/
 locale testpilot he chrome/he/locale/he/feedback/

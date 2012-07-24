@@ -83,11 +83,6 @@
 <!ENTITY insertBreakAllCmd.accesskey "u">
 
 <!-- Used just in context popup. -->
-<!ENTITY spellCheckNoSuggestions.label "(Ingen forslag)">
-<!ENTITY spellCheckIgnoreWord.label "Oversjå ord">
-<!ENTITY spellCheckIgnoreWord.accesskey "O">
-<!ENTITY spellCheckAddToDictionary.label "Legg til i ordboka">
-<!ENTITY spellCheckAddToDictionary.accesskey "e">
 <!ENTITY createLinkCmd.label "Lag lenkje …">
 <!ENTITY createLinkCmd.accesskey "l">
 <!ENTITY editLinkCmd.label "Rediger lenkje i nytt nettsideutviklar-vindauge">
@@ -326,12 +321,6 @@
 <!-- Toolbar-only items -->
 <!ENTITY menuBar.tooltip "Menylinje">
 <!ENTITY formatToolbar.tooltip "Formateringsverktylinje">
-<!ENTITY newToolbarCmd.label "Ny">
-<!ENTITY newToolbarCmd.tooltip "Lag ei ny nettsideutviklar-side">
-<!ENTITY openToolbarCmd.label "Opne">
-<!ENTITY openToolbarCmd.tooltip "Opne ei lokal fil">
-<!ENTITY saveToolbarCmd.tooltip "Lagre fil lokalt">
-<!ENTITY publishToolbarCmd.tooltip "Last opp fil til eksternt område">
 <!ENTITY cutToolbarCmd.tooltip "Klipp ut">
 <!ENTITY copyToolbarCmd.tooltip "Kopier">
 <!ENTITY pasteToolbarCmd.tooltip "Lim inn">

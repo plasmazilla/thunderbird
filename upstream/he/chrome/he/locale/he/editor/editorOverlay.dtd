@@ -9,6 +9,7 @@
 # Reviewer(s):
 #
 # http://tomercohen.com/ <tomer.mozilla@tomercohen.com>
+# hatul <amiadb@gmail.com>
 #
 -->
 <!-- ***** BEGIN LICENSE BLOCK *****
@@ -130,7 +131,7 @@
 <!ENTITY increaseFontSize.label "גדול יותר">
 <!ENTITY increaseFontSize.accesskey "g">
 <!ENTITY increaseFontSize.key "+">
-<!-- + is above this key on many keyboards --><!ENTITY increaseFontSize.key2 "="> 
+<!ENTITY increaseFontSize.key2 "="> <!-- + is above this key on many keyboards -->
 
 <!ENTITY fontSizeMenu.label "גודל ">
 <!ENTITY fontSizeMenu.accesskey "z">
@@ -339,12 +340,6 @@
 <!-- Toolbar-only items -->
 <!ENTITY menuBar.tooltip "סרגל תפריטים">
 <!ENTITY formatToolbar.tooltip "סרגל כלים עיצוב">
-<!ENTITY newToolbarCmd.label "חדש">
-<!ENTITY newToolbarCmd.tooltip "צור דף Composer חדש">
-<!ENTITY openToolbarCmd.label "פתיחה">
-<!ENTITY openToolbarCmd.tooltip "פתח קובץ מקומי">
-<!ENTITY saveToolbarCmd.tooltip "שמור קובץ למיקום מקומי">
-<!ENTITY publishToolbarCmd.tooltip "העלה קובץ למיקום מרוחק">
 <!ENTITY cutToolbarCmd.tooltip "גזירה">
 <!ENTITY copyToolbarCmd.tooltip "העתקה">
 <!ENTITY pasteToolbarCmd.tooltip "הדבקה">

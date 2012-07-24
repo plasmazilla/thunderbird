@@ -23,3 +23,4 @@ manifest chrome/be.manifest
 locale messenger-region be chrome/be/locale/be/messenger-region/
 locale alerts be chrome/be/locale/be/alerts/
 locale global-platform be chrome/be/locale/be/global-platform/
+locale chat be chrome/be/locale/be/chat/

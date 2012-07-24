@@ -16,3 +16,9 @@
 <!ENTITY ccButton.accesskey                 "d">
 <!ENTITY bccButton.label                    "Bcc ਵਿੱਚ ਸ਼ਾਮਲ:">
 <!ENTITY bccButton.accesskey                "B">
+
+<!ENTITY addrBookCardProperties.accesskey   "P">
+<!ENTITY addtoBccFieldMenu.accesskey        "B">
+<!ENTITY addtoCcFieldMenu.accesskey         "C">
+<!ENTITY addtoToFieldMenu.accesskey         "A">
+<!ENTITY deleteAddrBookCard.accesskey       "D">

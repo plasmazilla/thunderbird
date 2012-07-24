@@ -74,11 +74,6 @@
 <!ENTITY insertCharsCmd.accesskey "у">
 <!ENTITY insertBreakAllCmd.label "Разрыв под изображениями">
 <!ENTITY insertBreakAllCmd.accesskey "о">
-<!ENTITY spellCheckNoSuggestions.label "(Вариантов не найдено)">
-<!ENTITY spellCheckIgnoreWord.label "Пропустить слово">
-<!ENTITY spellCheckIgnoreWord.accesskey "П">
-<!ENTITY spellCheckAddToDictionary.label "Добавить в словарь">
-<!ENTITY spellCheckAddToDictionary.accesskey "с">
 <!ENTITY createLinkCmd.label "Создать ссылку…">
 <!ENTITY createLinkCmd.accesskey "с">
 <!ENTITY editLinkCmd.label "Редактировать объект в новом окне Компоновщика">
@@ -280,12 +275,6 @@
 <!ENTITY tableProperties.accesskey "в">
 <!ENTITY menuBar.tooltip "Панель меню">
 <!ENTITY formatToolbar.tooltip "Панель форматирования">
-<!ENTITY newToolbarCmd.label "Создать">
-<!ENTITY newToolbarCmd.tooltip "Создать новую страницу Компоновщика">
-<!ENTITY openToolbarCmd.label "Открыть">
-<!ENTITY openToolbarCmd.tooltip "Открыть локальный файл">
-<!ENTITY saveToolbarCmd.tooltip "Сохранить файл локально">
-<!ENTITY publishToolbarCmd.tooltip "Выгрузить файл на удалённый сервер">
 <!ENTITY cutToolbarCmd.tooltip "Вырезать">
 <!ENTITY copyToolbarCmd.tooltip "Копировать">
 <!ENTITY pasteToolbarCmd.tooltip "Вставить">

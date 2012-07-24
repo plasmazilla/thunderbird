@@ -27,3 +27,6 @@
 
 <!ENTITY done.title                     "Nhập Xong">
 <!ENTITY done.label                     "Các mục sau đã được nhập thành công:">
+
+<!ENTITY importFromSeamonkey3.accesskey "S">
+<!ENTITY importFromSeamonkey3.label     "SeaMonkey 2 or later">

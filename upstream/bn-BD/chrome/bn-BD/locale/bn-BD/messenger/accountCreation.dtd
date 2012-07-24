@@ -80,5 +80,11 @@
 <!ENTITY insecureUnencrypted.description "আপনার ইমেইল ও প্রমাণীকরণ আনএনক্রিপ্ট করে পাঠানো হয়েছে, সুতরাং আপনার পাসওয়ার্ড (এবং বার্তা) অন্য যে কেউ সহজেই পড়তে পারবে। &brandShortName; আপনাকে আপনার ইমেইল গ্রহণ করতে দিবে, কিন্তু আপনি নিরাপদ সংযোগসহ সার্ভারকে কনফিগার করার ব্যাপারে আপনার ইমেইল সরবরাহকারীর সাথে যোগাযোগ করুন।">
 <!ENTITY insecureSelfSigned.description  "সার্ভার যে সার্টিফিকেট ব্যবহার করে তা আমরা বিশ্বাস করতে পারিনা, সুতরাং আপনার সার্ভার ও &brandShortName; এর মাঝে অন্য কেউ আসছে কিনা তার ব্যাপারে আমারা নিশ্চিত না। &brandShortName; আপনাকে আপনার ইমেইল গ্রহণ করতে দিবে কিন্তু ইমেইল সরবরাহকারীকে বিশ্বাসযোগ্য সার্টিফিকেট দ্বারা সার্ভার কনফিগার করতে হবে।">
 <!ENTITY secureServer.description        "অভিনন্দন! এটি একটি নিরাপদ সার্ভার।">
+
+<!ENTITY doneAccount.accesskey           "D">
+<!-- LOCALIZATION NOTE (doneAccount.label): If there is a security warning
+     on the incoming or outgoing servers, then the page that pops up will
+     have this text in a button to continue by creating the account. -->
+<!ENTITY doneAccount.label               "Done">
 <!ENTITY switch-to-provisioner.accesskey "G">
 <!ENTITY switch-to-provisioner.label     "Get a new account">

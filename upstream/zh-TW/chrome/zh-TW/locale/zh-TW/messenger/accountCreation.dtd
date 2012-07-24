@@ -1,7 +1,7 @@
 <!ENTITY autoconfigWizard.title          "郵件帳號設定">
 <!ENTITY name.label                      "您的大名:">
 <!ENTITY name.accesskey                  "n">
-<!ENTITY name.placeholder                "[名] [姓] (英式)">
+<!ENTITY name.placeholder                "姓名">
 <!ENTITY name.text                       "您的名字，用於顯示在您的郵件上">
 <!ENTITY email.label                     "Email 位址:">
 <!ENTITY email.accesskey                 "l">
@@ -62,11 +62,11 @@
      checkbox beside this text before continuing. -->
 <!ENTITY confirmWarning.label            "我了解危險性。">
 <!ENTITY confirmWarning.accesskey        "u">
-<!-- LOCALIZATION NOTE (createAccount.label): If there is a security warning
+<!-- LOCALIZATION NOTE (doneAccount.label): If there is a security warning
      on the incoming or outgoing servers, then the page that pops up will
      have this text in a button to continue by creating the account. -->
-<!ENTITY createAccount.label             "建立帳號">
-<!ENTITY createAccount.accesskey         "C">
+<!ENTITY doneAccount.label               "完成">
+<!ENTITY doneAccount.accesskey           "D">
 <!-- LOCALIZATION NOTE (changeSettings.label): If there is a security warning on
      the incoming or outgoing servers, then the page that pops up will have
      this text in a button to take you back to the previous page to change

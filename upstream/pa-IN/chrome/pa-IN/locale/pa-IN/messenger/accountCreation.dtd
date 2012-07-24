@@ -81,5 +81,11 @@
 <!ENTITY insecureSelfSigned.description  "The server uses a certificate that we can't trust, so we can't be sure that someone isn't intercepting the traffic between &brandShortName; and your server. &brandShortName; will let you get to your mail, but you should really get your email provider to configure the server with a trusted certificate.">
 <!ENTITY secureServer.description        "ਵਧਾਈਆਂ! ਇਹ ਸੁਰੱਖਿਅਤ ਸਰਵਰ ਹੈ।">
 
+
+<!ENTITY doneAccount.accesskey           "D">
+<!-- LOCALIZATION NOTE (doneAccount.label): If there is a security warning
+     on the incoming or outgoing servers, then the page that pops up will
+     have this text in a button to continue by creating the account. -->
+<!ENTITY doneAccount.label               "Done">
 <!ENTITY switch-to-provisioner.accesskey "G">
 <!ENTITY switch-to-provisioner.label     "Get a new account">

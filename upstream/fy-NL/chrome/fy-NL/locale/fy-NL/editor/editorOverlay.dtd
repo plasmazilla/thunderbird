@@ -79,15 +79,10 @@
 <!ENTITY insertHTMLCmd.accesskey "H">
 <!ENTITY insertCharsCmd.label "Tekens en symboalen…">
 <!ENTITY insertCharsCmd.accesskey "s">
-<!ENTITY insertBreakAllCmd.label "Ofbrekke nei ôfbylding(s)">
+<!ENTITY insertBreakAllCmd.label "Ofbrekke nei ôfbylding(en)">
 <!ENTITY insertBreakAllCmd.accesskey "e">
 
 <!-- Used just in context popup. -->
-<!ENTITY spellCheckNoSuggestions.label "(Gjin suggestjes fûn)">
-<!ENTITY spellCheckIgnoreWord.label "Wurd negearje">
-<!ENTITY spellCheckIgnoreWord.accesskey "n">
-<!ENTITY spellCheckAddToDictionary.label "Tafoegje oan wurdboek">
-<!ENTITY spellCheckAddToDictionary.accesskey "T">
 <!ENTITY createLinkCmd.label "Keppeling meitsje…">
 <!ENTITY createLinkCmd.accesskey "l">
 <!ENTITY editLinkCmd.label "Keppeling yn in nij finster bewurkje">
@@ -326,12 +321,6 @@
 <!-- Toolbar-only items -->
 <!ENTITY menuBar.tooltip "Menubalke">
 <!ENTITY formatToolbar.tooltip "Opmaakarkbalke">
-<!ENTITY newToolbarCmd.label "Nij">
-<!ENTITY newToolbarCmd.tooltip "In nije Composer-side oanmeitsje">
-<!ENTITY openToolbarCmd.label "Iepenje">
-<!ENTITY openToolbarCmd.tooltip "In lokaal bestân iepenje">
-<!ENTITY saveToolbarCmd.tooltip "Bestân bewarje op in lokale lokaasje">
-<!ENTITY publishToolbarCmd.tooltip "Bestân oplade nei in lokaasje op ôfstân">
 <!ENTITY cutToolbarCmd.tooltip "Knippe">
 <!ENTITY copyToolbarCmd.tooltip "Kopiearje">
 <!ENTITY pasteToolbarCmd.tooltip "Plakke">

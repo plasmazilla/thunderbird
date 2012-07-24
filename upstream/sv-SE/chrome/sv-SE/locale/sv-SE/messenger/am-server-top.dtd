@@ -106,3 +106,10 @@
 <!ENTITY newsrcPicker.label "Välj newsrc-fil">
 <!ENTITY browseNewsrc.label "Bläddra…">
 <!ENTITY browseNewsrc.accesskey "d">
+
+<!ENTITY accountSettingsDesc.label "The following is a special account.  There are no identities associated with it.">
+
+<!ENTITY accountTitle.label "Account Settings">
+<!-- extracted from am-server-top.xul -->
+
+<!ENTITY messageStorage.label "Message Storage">

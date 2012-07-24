@@ -17,3 +17,9 @@
 <!ENTITY bccButton.label                    "Додај бКоп:">
 <!ENTITY bccButton.accesskey                "б">
 
+
+<!ENTITY addrBookCardProperties.accesskey   "P">
+<!ENTITY addtoBccFieldMenu.accesskey        "B">
+<!ENTITY addtoCcFieldMenu.accesskey         "C">
+<!ENTITY addtoToFieldMenu.accesskey         "A">
+<!ENTITY deleteAddrBookCard.accesskey       "D">

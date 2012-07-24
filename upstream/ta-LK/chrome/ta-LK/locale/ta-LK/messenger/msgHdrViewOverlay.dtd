@@ -134,4 +134,10 @@ Entities below were automatically added by compare-locales,
 <!ENTITY hdrArchiveButton1.label "ஆவணகாப்பு">
 <!ENTITY saveAllAttachmentsButton1.tooltip "உடனிணைக்கப்பட்ட எல்லா கோப்புகளையும் சேமிக்க">
 
+<!ENTITY CopyMessageId.accesskey "C">
+<!ENTITY OpenBrowserWithMsgId.accesskey "B">
+<!ENTITY OpenMessageForMsgId.accesskey "O">
+<!ENTITY hdrFollowupButton1.label "Followup">
+<!ENTITY hdrFollowupButton1.tooltip "Post a followup to this newsgroup">
+
 <!ENTITY openAttachment.tooltip "Open the attached file">

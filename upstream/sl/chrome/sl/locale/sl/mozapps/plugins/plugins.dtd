@@ -21,8 +21,10 @@
 <!ENTITY pluginWizard.finalPage.restart.label "&brandShortName; morate ponovno zagnati, preden bodo novi vstavki začeli delovati.">
   
 <!ENTITY missingPlugin "Za prikaz te vsebine je potreben vstavek.">
-<!ENTITY clickToPlayPlugin                                   "Klikni za vklop vstavka.">
-<!ENTITY disabledPlugin                               "Ta vstavek je onemogočen.">
+<!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
+<!ENTITY tapToPlayPlugin                                     "Dotakni se za vklop vstavka.">
+<!ENTITY clickToPlayPlugins                                  "Klikni za vklop vstavkov.">
+<!ENTITY disabledPlugin                                      "Ta vstavek je onemogočen.">
 <!ENTITY blockedPlugin.label                                 "Ta vstavek je bil zavrnjen iz varnostnih razlogov.">
 
 <!ENTITY installPlugin                                       "Namesti vstavek …">
@@ -35,7 +37,7 @@
 <!ENTITY reloadPlugin.middle                                 "Ponovno naloži stran">
 <!ENTITY reloadPlugin.post                                   " za nov poskus.">
 <!-- LOCALIZATION NOTE: report.* strings should be as short as possible, ideally 2-3 words. -->
-<!ENTITY report.checkbox                                     "…in pošlji poročilo">
+<!ENTITY report.please                                       "Pošlji poročilo">
 <!ENTITY report.submitting                                   "Pošiljanje poročila …">
 <!ENTITY report.submitted                                    "Poročilo poslano.">
 <!ENTITY report.disabled                                     "Pošiljanje poročil onemogočeno.">

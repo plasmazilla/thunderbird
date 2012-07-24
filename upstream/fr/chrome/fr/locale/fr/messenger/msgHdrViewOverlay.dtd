@@ -65,6 +65,8 @@
 <!ENTITY hdrReplyAllButton1.tooltip "Répondre à tous les destinataires">
 <!ENTITY hdrReplyListButton1.label "Répondre à la liste">
 <!ENTITY hdrReplyListButton1.tooltip "Répondre à la liste de diffusion">
+<!ENTITY hdrFollowupButton1.label "Faire suivre">
+<!ENTITY hdrFollowupButton1.tooltip "Faire suivre à ce groupe">
 <!ENTITY hdrForwardButton1.label "Transférer">
 <!ENTITY hdrForwardButton1.tooltip "Transférer ce message">
 <!ENTITY hdrJunkButton1.label "Indésirable">
@@ -128,5 +130,8 @@
 <!ENTITY copyLinkCmd.accesskey "C">
 
 <!ENTITY CopyMessageId.label "Copier l'identifiant du message">
+<!ENTITY CopyMessageId.accesskey "C">
 <!ENTITY OpenMessageForMsgId.label "Ouvrir le message pour l'identifiant">
+<!ENTITY OpenMessageForMsgId.accesskey "O">
 <!ENTITY OpenBrowserWithMsgId.label "Ouvrir le navigateur avec l'identifiant de message">
+<!ENTITY OpenBrowserWithMsgId.accesskey "v">

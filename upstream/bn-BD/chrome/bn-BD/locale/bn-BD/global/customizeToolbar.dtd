@@ -10,3 +10,5 @@
 <!ENTITY addNewToolbar.label      "নতুন টুলবার যোগ">
 <!ENTITY saveChanges.label        "সম্পন্ন">
 <!ENTITY undoChanges.label        "পরিবর্তন বাতিল">
+
+<!ENTITY dialog.dimensions        "width: 92ch; height: 36em;">

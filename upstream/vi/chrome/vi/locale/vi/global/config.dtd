@@ -79,3 +79,8 @@
 <!ENTITY integer.accesskey "S">
 <!ENTITY boolean.label "Luận lí">
 <!ENTITY boolean.accesskey "L">
+
+<!ENTITY focusSearch.key "r">
+<!ENTITY searchPrefs.accesskey "r">
+
+<!ENTITY searchPrefs.label "Search:">

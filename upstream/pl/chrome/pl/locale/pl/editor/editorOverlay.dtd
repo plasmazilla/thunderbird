@@ -85,11 +85,6 @@
 <!ENTITY insertBreakAllCmd.accesskey "u">
 
 <!-- Used just in context popup. -->
-<!ENTITY spellCheckNoSuggestions.label       "(brak podpowiedzi)">
-<!ENTITY spellCheckIgnoreWord.label          "Zignoruj słowo">
-<!ENTITY spellCheckIgnoreWord.accesskey      "Z">
-<!ENTITY spellCheckAddToDictionary.label     "Dodaj do słownika">
-<!ENTITY spellCheckAddToDictionary.accesskey "D">
 <!ENTITY createLinkCmd.label                 "Wstaw odnośnik…">
 <!ENTITY createLinkCmd.accesskey             "W">
 <!ENTITY editLinkCmd.label                   "Edytuj odnośnik w nowym oknie Kompozytora Stron">
@@ -324,12 +319,6 @@
 <!-- Toolbar-only items -->
 <!ENTITY menuBar.tooltip               "Pasek menu">
 <!ENTITY formatToolbar.tooltip         "Pasek narzędzi formatowania">
-<!ENTITY newToolbarCmd.label           "Nowy">
-<!ENTITY newToolbarCmd.tooltip         "Utwórz nową stronę Kompozytora Stron">
-<!ENTITY openToolbarCmd.label          "Otwórz">
-<!ENTITY openToolbarCmd.tooltip        "Otwórz lokalny plik">
-<!ENTITY saveToolbarCmd.tooltip        "Zapisz plik na lokalnym dysku">
-<!ENTITY publishToolbarCmd.tooltip     "Prześlij plik na zdalny serwer">
 <!ENTITY cutToolbarCmd.tooltip         "Wytnij">
 <!ENTITY copyToolbarCmd.tooltip        "Kopiuj">
 <!ENTITY pasteToolbarCmd.tooltip       "Wklej">

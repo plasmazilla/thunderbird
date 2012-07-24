@@ -4,3 +4,6 @@
 <!ENTITY clearLog.accesskey "C">
 <!ENTITY closeLog.label "மூடுக">
 <!ENTITY closeLog.accesskey "o">
+
+<!ENTITY adaptiveJunkLog.title "Adaptive Junk Mail Log">
+<!ENTITY adaptiveJunkLogInfo.label "Log of adaptive junk mail control activity.">

@@ -46,3 +46,6 @@
 <!ENTITY cookieExceptions.accesskey "В">
 <!ENTITY showCookies.label "Паказаць біркі…">
 <!ENTITY showCookies.accesskey "П">
+
+<!ENTITY enableAdaptiveJunkLogging.accesskey "E">
+<!ENTITY enableAdaptiveJunkLogging.label "Enable adaptive junk filter logging">

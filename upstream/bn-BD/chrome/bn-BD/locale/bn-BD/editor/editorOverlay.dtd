@@ -452,6 +452,7 @@
 <!ENTITY removeTOC.accesskey      "R">
 <!ENTITY tocMenu.label            "সূচীপত্র... (b)">
 <!ENTITY tocMenu.accesskey        "b">
+
 <!ENTITY copyToolbarCmd.tooltip "Copy">
 <!ENTITY cutToolbarCmd.tooltip "Cut">
 <!ENTITY formatRemoveNamedAnchors2.key "R">

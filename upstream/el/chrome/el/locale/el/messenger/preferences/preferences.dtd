@@ -9,3 +9,5 @@
 <!ENTITY paneAttachments.title "Συνημμένα">
 <!ENTITY paneSecurity.title "Ασφάλεια">
 <!ENTITY paneAdvanced.title "Για προχωρημένους">
+
+<!ENTITY paneChat.title           "Chat">

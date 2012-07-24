@@ -1,0 +1,34 @@
+<!--
+# Translator(s):
+#
+# Hrant <hrantohanyan@mail.am>
+# robyerevan <robyerevan@gmail.com>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Hrant <hrantohanyan@mail.am>
+# alexxed <alexxed@gmail.com>
+#
+-->
+<!ENTITY settings.caption "Կարգավորումներ">
+<!ENTITY security.caption "Անվտանգություն և Վավերացում">
+<!ENTITY serverName.label "Սպասարկիչի անունը.">
+<!ENTITY serverName.accesskey "S">
+<!ENTITY serverDescription.label "Նկարագրությունը.">
+<!ENTITY serverDescription.accesskey "D">
+<!ENTITY serverPort.label "Դարպասը.">
+<!ENTITY serverPort.accesskey "P">
+<!ENTITY userName.label "Օգտվողի անունը.">
+<!ENTITY userName.accesskey "m">
+<!ENTITY connectionSecurity.label "Միացման անվտանգությունը.">
+<!ENTITY connectionSecurity.accesskey "n">
+<!ENTITY connectionSecurityType-0.label "Ոչինչ">
+<!ENTITY connectionSecurityType-1.label "STARTTLS, եթե հասանելի է">
+<!ENTITY connectionSecurityType-2.label "STARTTLS">
+<!ENTITY connectionSecurityType-3.label "SSL/TLS">
+<!ENTITY smtpEditTitle.label "SMTP սպասարկիչ">
+<!ENTITY serverPortDefault.label "Ծրագրային.">
+<!ENTITY authMethod.label "Վավերացման եղանակը.">
+<!ENTITY authMethod.accesskey "i">

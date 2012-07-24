@@ -14,6 +14,8 @@
 <!ENTITY attachFileCmd.label "Файл(ы)…">
 <!ENTITY attachFileCmd.accesskey "л">
 <!ENTITY attachFileCmd.key "A">
+<!ENTITY attachCloudCmd.label "Filelink">
+<!ENTITY attachCloudCmd.accesskey "i">
 <!ENTITY attachPageCmd.label "Веб-страницу…">
 <!ENTITY attachPageCmd.accesskey "е">
 <!ENTITY attachVCardCmd.label "Визитную карточку (vCard)">
@@ -62,11 +64,13 @@
 <!ENTITY pasteCmd.accesskey "с">
 <!ENTITY pasteNoFormattingCmd.key "V">
 <!ENTITY pasteAsQuotationCmd.key "o">
-<!ENTITY editRewrapCmd.label "Переформатировать">
-<!ENTITY editRewrapCmd.key "R">
 <!ENTITY editRewrapCmd.accesskey "е">
 <!ENTITY deleteCmd.label "Удалить">
 <!ENTITY deleteCmd.accesskey "У">
+<!ENTITY editRewrapCmd.label "Переформатировать">
+<!ENTITY editRewrapCmd.key "R">
+<!ENTITY renameAttachmentCmd.label "Переименовать вложение…">
+<!ENTITY renameAttachmentCmd.accesskey "и">
 <!ENTITY selectAllCmd.label "Выделить всё">
 <!ENTITY selectAllCmd.key "A">
 <!ENTITY selectAllCmd.accesskey "ы">
@@ -188,7 +192,7 @@
 <!ENTITY followupAddr.label "Ответ в группу новостей:">
 <!ENTITY subject.label "Тема:">
 <!ENTITY subject.accesskey "Т">
-<!ENTITY attachments.accesskey "В">
+<!ENTITY attachments.accesskey "ж">
 <!ENTITY SmileButton.tooltip "Вставить смайлик">
 <!ENTITY smiley1Cmd.label "Улыбка">
 <!ENTITY smiley2Cmd.label "Нахмуриться">
@@ -233,6 +237,14 @@
 <!ENTITY selectAll.accesskey "ы">
 <!ENTITY attachFile.label "Вложить файл(ы)…">
 <!ENTITY attachFile.accesskey "ф">
+<!ENTITY attachCloud.label "Filelink…">
+<!ENTITY attachCloud.accesskey "i">
+<!ENTITY convertCloud.label "Конвертировать в…">
+<!ENTITY convertCloud.accesskey "в">
+<!ENTITY cancelUpload.label "Отменить выгрузку">
+<!ENTITY cancelUpload.accesskey "м">
+<!ENTITY convertRegularAttachment.label "Обычное вложение">
+<!ENTITY convertRegularAttachment.accesskey "ы">
 <!ENTITY attachPage.label "Вложить веб-страницу…">
 <!ENTITY attachPage.accesskey "е">
 <!ENTITY spellAddDictionaries.label "Добавить словари…">

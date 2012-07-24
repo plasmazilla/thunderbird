@@ -1,4 +1,3 @@
-<!ENTITY messengerWindow.title "郵件與新聞群組">
 <!ENTITY titledefault.label    "&brandFullName;">
 <!ENTITY titleSeparator.label " - ">
 
@@ -27,6 +26,8 @@
 <!ENTITY newCreateEmailAccountCmd.accesskey "G">
 <!ENTITY newExistingEmailAccountCmd.label "現有的電子郵件帳號…">
 <!ENTITY newExistingEmailAccountCmd.accesskey "E">
+<!ENTITY newIMAccountCmd.label "聊天帳號…">
+<!ENTITY newIMAccountCmd.accesskey "C">
 <!ENTITY openMessageFileCmd.label "開啟已存郵件…">
 <!ENTITY openMessageFileCmd.accesskey "O">
 <!ENTITY openAttachmentCmd.label "附件">
@@ -91,7 +92,7 @@
 <!ENTITY deleteFolderCmd.label "刪除資料夾">
 <!ENTITY deleteFolderCmd.accesskey "D">
 <!ENTITY unsubscribeNewsgroupCmd.label "取消訂閱">
-<!ENTITY unsubscribeNewsgroupCmd.accesskey "n">
+<!ENTITY unsubscribeNewsgroupCmd.accesskey "b">
 <!ENTITY selectMenu.label "選取">
 <!ENTITY selectMenu.accesskey "S">
 <!ENTITY all.label "全部">
@@ -290,7 +291,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY findAgainCmd.key2 "VK_F3">
 <!ENTITY findPrevCmd.key "g">
 <!ENTITY findPrevCmd.key2 "VK_F3">
-<!ENTITY searchMailCmd.label "搜尋郵件…">
+<!ENTITY searchMailCmd.label "搜尋訊息…">
 <!ENTITY searchMailCmd.accesskey "M">
 <!ENTITY searchMailCmd.key "f">
 <!ENTITY searchAddressesCmd.label "搜尋地址…">
@@ -326,6 +327,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.label "上一頁">
 <!ENTITY goBackCmd.accesskey "B">
 <!ENTITY goBackCmd.commandKey "[">
+<!ENTITY goChatCmd.label "聊天">
+<!ENTITY goChatCmd.accesskey "C">
+<!ENTITY goChatCmd.commandKey "C">
 <!ENTITY prevStarredMsgCmd.label "已加星號郵件">
 <!ENTITY prevStarredMsgCmd.accesskey "S">
 <!ENTITY folderMenu.label "資料夾">
@@ -333,6 +337,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY thisFolder.label "此資料夾">
 <!ENTITY thisFolder.accesskey "F">
 <!ENTITY goRecentlyClosedTabs.label "最近關閉的分頁">
+<!ENTITY goRecentlyClosedTabs.accesskey "R">
 <!ENTITY startPageCmd.label "開始頁面">
 <!ENTITY startPageCmd.accesskey "S">
 
@@ -353,8 +358,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyMsgCmd.key  "r">
 <!ENTITY replySenderCmd.label "只回覆給寄件者">
 <!ENTITY replySenderCmd.accesskey "R">
-<!ENTITY replyNewsgroupCmd.label "回覆給新聞群組">
-<!ENTITY replyNewsgroupCmd.accesskey  "y">
+<!ENTITY replyNewsgroupCmd2.label "加入郵件群組討論">
+<!ENTITY replyNewsgroupCmd2.accesskey  "u">
 <!ENTITY replyToAllMsgCmd.label "回覆給所有人">
 <!ENTITY replyToAllMsgCmd.accesskey  "p">
 <!ENTITY replyToAllMsgCmd.key  "r">
@@ -468,6 +473,12 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY addons.accesskey "A">
 <!ENTITY activitymanager.label "活動管理員">
 <!ENTITY activitymanager.accesskey "v">
+<!ENTITY imAccountsStatus.label "聊天狀態">
+<!ENTITY imAccountsStatus.accesskey "C">
+<!ENTITY imStatus.available          "有空">
+<!ENTITY imStatus.unavailable        "沒空">
+<!ENTITY imStatus.offline            "離線">
+<!ENTITY imStatus.showAccounts       "顯示帳號…">
 <!ENTITY savedFiles.label "已存檔案">
 <!ENTITY savedFiles.accesskey "l">
 <!ENTITY savedFiles.key "j">
@@ -487,6 +498,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY importCmd.accesskey "m">
 <!ENTITY errorConsoleCmd.label "錯誤主控台">
 <!ENTITY errorConsoleCmd.accesskey "E">
+<!ENTITY errorConsoleCmd.commandkey "j">
 <!ENTITY accountManagerCmd.label "帳號設定…">
 <!ENTITY accountManagerCmd.accesskey "S">
 <!-- LOCALIZATION NOTE (accountManagerCmdUnix.accesskey): belongs to accountManagerCmd.label,
@@ -500,14 +512,18 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY replyAllButton.label "全部回覆">
 <!ENTITY replyListButton.label "回覆至清單">
 <!ENTITY forwardButton.label "轉寄">
-<!ENTITY fileButton.label "歸檔">
+<!ENTITY fileButton.label "檔案">
 <!ENTITY archiveButton.label "備存">
 <!ENTITY nextButton.label "下一封">
+<!ENTITY nextButtonToolbarItem.label "下一封未讀">
+<!ENTITY nextMsgButton.label "下一封">
 <!ENTITY previousButton.label "上一封">
+<!ENTITY previousButtonToolbarItem.label "上一封未讀">
+<!ENTITY previousMsgButton.label "上一封">
 <!ENTITY backButton1.label "上一頁">
 <!ENTITY goForwardButton1.label "下一頁">
 <!ENTITY deleteItem.title "刪除">
-<!ENTITY deleteButton.label "刪除項目">
+<!ENTITY deleteButton.label "刪除">
 <!ENTITY undeleteButton.label "還原">
 <!ENTITY markButton.label "標示">
 <!ENTITY printButton.label "列印">
@@ -517,6 +533,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY junkButton.label "垃圾郵件">
 <!ENTITY notJunkButton.label "非垃圾信">
 <!ENTITY addressBookButton.label "通訊錄">
+<!ENTITY chatButton.label "聊天">
 <!ENTITY glodaSearch.title "全域搜尋">
 <!ENTITY searchItem.title "快速搜尋">
 <!ENTITY mailViewsToolbarItem.title "郵件檢視">
@@ -537,17 +554,20 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY fileButton.tooltip "歸檔所選郵件">
 <!ENTITY archiveButton.tooltip "將選取的郵件備存">
 <!ENTITY nextButton.tooltip "移至下一封未讀郵件">
+<!ENTITY nextMsgButton.tooltip "移動至下一封訊息">
 <!ENTITY previousButton.tooltip "移至上一封未讀郵件">
+<!ENTITY previousMsgButton.tooltip "移動至上一封訊息">
 <!ENTITY goForwardButton.tooltip "下一封郵件">
 <!ENTITY goBackButton.tooltip "上一封郵件">
 <!ENTITY deleteButton.tooltip "刪除已選的郵件或資料夾">
 <!ENTITY undeleteButton.tooltip "還原選取的郵件">
 <!ENTITY markButton.tooltip "標示郵件">
-<!ENTITY printButton.tooltip "列印郵件">
+<!ENTITY printButton.tooltip "列印此訊息">
 <!ENTITY stopButton.tooltip "停止傳送">
 <!ENTITY junkButton.tooltip "標示所選郵件為垃圾信">
 <!ENTITY notJunkButton.tooltip "標示所選郵件為非垃圾信">
 <!ENTITY addressBookButton.tooltip "開啟通訊錄">
+<!ENTITY chatButton.tooltip "顯示聊天分頁">
 <!ENTITY tagButton.tooltip "將郵件加上標籤">
 <!ENTITY compactButton.tooltip "從指定資料夾移除已刪郵件">
 
@@ -570,7 +590,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderContextNew.accesskey "N">
 <!ENTITY folderContextRename.label "重新命名">
 <!ENTITY folderContextRename.accesskey "R">
-<!ENTITY folderContextRemove.label "刪除項目">
+<!ENTITY folderContextRemove.label "刪除">
 <!ENTITY folderContextRemove.accesskey "D">
 <!ENTITY folderContextCompact.label "壓實重整">
 <!ENTITY folderContextCompact.accesskey "C">
@@ -588,8 +608,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderContextMarkMailFolderRead.accesskey "k">
 <!ENTITY folderContextSubscribe.label "訂閱…">
 <!ENTITY folderContextSubscribe.accesskey "b">
-<!ENTITY folderContextSearchMessages.label "搜尋…">
-<!ENTITY folderContextSearchMessages.accesskey "S">
+<!ENTITY folderContextSearchForMessages.label "搜尋訊息…">
+<!ENTITY folderContextSearchForMessages.accesskey "S">
 <!ENTITY folderContextProperties.label "屬性…">
 <!ENTITY folderContextProperties.accesskey "P">
 <!ENTITY folderContextFavoriteFolder.label "最愛資料夾">
@@ -673,8 +693,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextArchive.accesskey "h">
 <!ENTITY contextReplySender.label "回信給寄件者">
 <!ENTITY contextReplySender.accesskey "R">
-<!ENTITY contextReplyNewsgroup.label "回覆給新聞群組">
-<!ENTITY contextReplyNewsgroup.accesskey "y">
+<!ENTITY contextReplyNewsgroup2.label "加入郵件群組討論">
+<!ENTITY contextReplyNewsgroup2.accesskey "u">
 <!ENTITY contextReplyAll.label "回信給所有人">
 <!ENTITY contextReplyAll.accesskey "A">
 <!ENTITY contextReplyList.label "回覆至清單">
@@ -750,13 +770,13 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextPause.accesskey "P">
 <!ENTITY contextMute.label "靜音">
 <!ENTITY contextMute.accesskey "M">
-<!ENTITY contextUnmute.label "聲音">
+<!ENTITY contextUnmute.label "取消靜音">
 <!ENTITY contextUnmute.accesskey "m">
 
 <!-- Junk Bar -->
 <!ENTITY junkBarMessage1.label "垃圾郵件">
 <!ENTITY junkBarButton1.label "非垃圾信">
-<!ENTITY junkInfoButton.label "？">
+<!ENTITY junkInfoButton.label "?">
 
 <!-- Remote Content Bar -->
 <!ENTITY remoteContentMessage2.label "為保護您的隱私，&brandShortName; 已阻擋來自遠端的內容。">
@@ -780,28 +800,28 @@ you can use these alternative items. Otherwise, their values should be empty.  -
      not changed 
      -->
 <!ENTITY quickSearchCmd.key "k">
-<!-- LOCALIZATION NOTE (searchAllMessages.label.base):
+<!-- LOCALIZATION NOTE (search.label.base):
      This is the base of the empty text for the global search box.  We replace
-     #1 with the contents of the appropriate
-     searchAllMessages.keyLabel2.* value for the platform.
+     #1 with the contents of the appropriate search.keyLabel.* value for the
+     platform.
      The goal is to convey to the user that typing in the box will allow them
      to search for messages globally and that there is a hotkey they can press
      to get to the box faster.  If the global indexer is disabled, the search
      box will be collapsed and the user will never see this message.
      -->
-<!ENTITY searchAllMessages.label.base "搜尋全部訊息… #1">
-<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.nonmac):
+<!ENTITY search.label.base "搜尋… #1">
+<!-- LOCALIZATION NOTE (search.keyLabel.nonmac):
      The description of the key-binding to get into the global search box on
      windows and linux (which use the control key).  We use the key defined in
      the quickSearchCmd.key entity defined above, the letter should match it.
      -->
-<!ENTITY searchAllMessages.keyLabel2.nonmac "&lt;Ctrl+K&gt;">
-<!-- LOCALIZATION NOTE (searchAllMessages.keyLabel.mac):
+<!ENTITY search.keyLabel.nonmac "&lt;Ctrl+K&gt;">
+<!-- LOCALIZATION NOTE (search.keyLabel.mac):
      The description of the key-binding to get into the global search box on mac
      systems.  We use the key defined in the quickSearchCmd.key entity defined
      above, the letter should match it.
      -->
-<!ENTITY searchAllMessages.keyLabel2.mac "&lt;&#x2318;K&gt;">
+<!ENTITY search.keyLabel.mac "&lt;&#x2318;K&gt;">
 
 <!-- Message Header Context Menu -->
 <!ENTITY AddToAddressBook.label "加入通訊錄…">

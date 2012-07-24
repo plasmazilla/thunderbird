@@ -7,3 +7,6 @@
 <!ENTITY identitiesListDelete.accesskey "מ">
 
 
+
+<!ENTITY identitiesListClose.accesskey "C">
+<!ENTITY identitiesListClose.label "Close">

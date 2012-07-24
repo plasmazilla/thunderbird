@@ -108,6 +108,7 @@
 <!ENTITY imageDimensionsTab.label "Chiều">
 <!ENTITY imageAppearanceTab.label "Diện mạo">
 <!ENTITY imageLinkTab.label "Liên kết">
+
 <!ENTITY LinkAdvancedEditButton.accessKey "L">
 <!ENTITY LinkAdvancedEditButton.label "Link Advanced Edit…">
 <!ENTITY LinkAdvancedEditButton.tooltip "Add or modify HTML attributes, style attributes, and JavaScript">

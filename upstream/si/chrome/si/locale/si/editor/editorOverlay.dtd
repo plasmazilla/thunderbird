@@ -88,11 +88,6 @@
 <!ENTITY insertBreakAllCmd.accesskey "k">
 
 <!-- Used just in context popup. -->
-<!ENTITY spellCheckNoSuggestions.label "(යෝජනා හමු වී නැත)">
-<!ENTITY spellCheckIgnoreWord.label "වචනය නොසලකා හරින්න">
-<!ENTITY spellCheckIgnoreWord.accesskey "I">
-<!ENTITY spellCheckAddToDictionary.label "ශබ්ද කෝෂයට ඇතුළු කරන්න">
-<!ENTITY spellCheckAddToDictionary.accesskey "n">
 <!ENTITY createLinkCmd.label "සබැඳි නිර්මාණය කරන්න...">
 <!ENTITY createLinkCmd.accesskey "k">
 <!ENTITY editLinkCmd.label "නව සකසනය තුළ සබැඳිය සකසන්න">
@@ -330,13 +325,7 @@
 
 <!-- Toolbar-only items -->
 <!ENTITY menuBar.tooltip "මෙනු තීරුව">
-<!ENTITY newToolbarCmd.label "නව">
 <!ENTITY formatToolbar.tooltip "හැඩතල මෙවලම්තීරුව">
-<!ENTITY newToolbarCmd.tooltip "නව සකසන පිටුවක් සෑදීම">
-<!ENTITY openToolbarCmd.label "විවෘත කරන්න">
-<!ENTITY openToolbarCmd.tooltip "පෙදෙසි (local) ගොනුවක් විවෘත කිරීම">
-<!ENTITY saveToolbarCmd.tooltip "ගොනුව පෙදෙසි (local) ස්ථානයකට සුරැකීම">
-<!ENTITY publishToolbarCmd.tooltip "ගොනුව දුරස්ථ ස්ථානයකට උඩුගත කිරීම">
 <!ENTITY cutToolbarCmd.tooltip "කපන්න">
 <!ENTITY copyToolbarCmd.tooltip "පිටපත් කරන්න">
 <!ENTITY pasteToolbarCmd.tooltip "අලවන්න">

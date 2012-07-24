@@ -17,24 +17,38 @@
 <!ENTITY aboutSupport.appBasicsName "Emër">
 <!ENTITY aboutSupport.appBasicsVersion "Version">
 <!ENTITY aboutSupport.appBasicsProfileDir "Drejtoria e Profilit">
+
+<!-- LOCALIZATION NOTE (aboutSupport.appBasicsProfileDirWinMac):
+This is the Windows- and Mac-specific variant of aboutSupport.appBasicsProfileDir.
+Windows/Mac use the term "Folder" instead of "Directory" -->
+<!ENTITY aboutSupport.appBasicsProfileDirWinMac "Dosje Profili">
+
 <!ENTITY aboutSupport.appBasicsEnabledPlugins "Shtojca të Aktivizuara">
 <!ENTITY aboutSupport.appBasicsBuildConfig "Formësim Montimi">
 <!ENTITY aboutSupport.appBasicsUserAgent "Agjent Përdoruesi">
 <!ENTITY aboutSupport.appBasicsCrashIDs "Njoftime Vithisjesh">
 <!ENTITY aboutSupport.appBasicsMemoryUse "Përdorim Kujtese">
 
-<!ENTITY aboutSupport.show.label "Hap Dosjen Që e Përmban">
+<!ENTITY aboutSupport.showDir.label "Hap Drejtorinë">
 
 <!-- LOCALIZATION NOTE (aboutSupport.showMac.label): This is the Mac-specific
-variant of aboutSupport.show.label.  This allows us to use the preferred
+variant of aboutSupport.showDir.label.  This allows us to use the preferred
 "Finder" terminology on Mac. -->
 <!ENTITY aboutSupport.showMac.label "Shfaqe te Finder">
+<!-- LOCALIZATION NOTE (aboutSupport.showWin.label): This is the Windows-specific
+variant of aboutSupport.showDir.label. -->
+<!ENTITY aboutSupport.showWin.label "Shfaq Drejtorinë">
 
-<!ENTITY aboutSupport.modifiedPrefsTitle "Parapëlqime të Ndryshuara">
+<!ENTITY aboutSupport.modifiedKeyPrefsTitle "Parapëlqime të Rëndësishme të Ndryshuara">
 <!ENTITY aboutSupport.modifiedPrefsName "Emër">
 <!ENTITY aboutSupport.modifiedPrefsValue "Vlerë">
 
 <!ENTITY aboutSupport.graphicsTitle "Grafikë">
+
+<!ENTITY aboutSupport.jsTitle "JavaScript">
+<!ENTITY aboutSupport.jsIncrementalGC "GC Rritës">
+
+<!ENTITY aboutSupport.libraryVersionsTitle "Versione Librarie">
 
 <!ENTITY aboutSupport.installationHistoryTitle "Historik Instalimesh">
 <!ENTITY aboutSupport.updateHistoryTitle "Historik Përditësimesh">

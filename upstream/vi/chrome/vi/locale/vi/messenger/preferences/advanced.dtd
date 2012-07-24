@@ -106,6 +106,7 @@
 <!ENTITY validation.accesskey           "P">
 <!ENTITY viewSecurityDevices.label      "Thiết bị Bảo mật">
 <!ENTITY viewSecurityDevices.accesskey  "B">
+
 <!ENTITY submitTelemetry.accesskey     "P">
 
 <!-- General Settings -->

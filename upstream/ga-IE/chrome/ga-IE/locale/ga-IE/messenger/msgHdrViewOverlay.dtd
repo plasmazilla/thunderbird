@@ -129,5 +129,11 @@
 <!ENTITY copyLinkCmd.accesskey "C">
 
 <!ENTITY CopyMessageId.label "Cóipeáil Aitheantas-Teachtaireachta">
+<!ENTITY CopyMessageId.accesskey "C">
 <!ENTITY OpenMessageForMsgId.label "Oscail teachtaireacht le haitheantas">
-<!ENTITY OpenBrowserWithMsgId.label "Oscail brabhsálaí le hAitheantas-Teachtaireachta">
+<!ENTITY OpenMessageForMsgId.accesskey "O">
+<!ENTITY OpenBrowserWithMsgId.label "Oscail Brabhsálaí le hAitheantas-Teachtaireachta">
+<!ENTITY OpenBrowserWithMsgId.accesskey "B">
+
+<!ENTITY hdrFollowupButton1.label "Followup">
+<!ENTITY hdrFollowupButton1.tooltip "Post a followup to this newsgroup">

@@ -6,6 +6,7 @@ locale global si chrome/si/locale/si/global/
 locale messenger-newsblog si chrome/si/locale/si/messenger-newsblog/
 manifest chrome/si.manifest
 locale places si chrome/si/locale/si/places/
+locale chat si chrome/si/locale/si/chat/
 locale global-platform si chrome/si/locale/si/global-platform/
 locale mozldap si chrome/si/locale/si/mozldap/
 locale global-region si chrome/si/locale/si/global-region/

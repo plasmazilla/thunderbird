@@ -83,11 +83,6 @@
 <!ENTITY insertBreakAllCmd.accesskey "g">
 <!-- Used just in context popup. -->
 
-<!ENTITY spellCheckNoSuggestions.label "(No s'ha trobat cap suggeriment)">
-<!ENTITY spellCheckIgnoreWord.label "Ignora el mot">
-<!ENTITY spellCheckIgnoreWord.accesskey "I">
-<!ENTITY spellCheckAddToDictionary.label "Afegeix al diccionari">
-<!ENTITY spellCheckAddToDictionary.accesskey "n">
 <!ENTITY createLinkCmd.label "Crea un enllaç…">
 <!ENTITY createLinkCmd.accesskey "l">
 <!ENTITY editLinkCmd.label "Edita l'enllaç en una pàgina del redactor">
@@ -327,12 +322,6 @@
 
 <!ENTITY menuBar.tooltip "Barra de menús">
 <!ENTITY formatToolbar.tooltip "S'està formatant la barra d'eines">
-<!ENTITY newToolbarCmd.label "Nou">
-<!ENTITY newToolbarCmd.tooltip "Crea una pàgina nova del redactor">
-<!ENTITY openToolbarCmd.label "Obre">
-<!ENTITY openToolbarCmd.tooltip "Obre un fitxer local">
-<!ENTITY saveToolbarCmd.tooltip "Desa el fitxer localment">
-<!ENTITY publishToolbarCmd.tooltip "Carrega el fitxer en una ubicació remota">
 <!ENTITY cutToolbarCmd.tooltip "Retalla">
 <!ENTITY copyToolbarCmd.tooltip "Copia">
 <!ENTITY pasteToolbarCmd.tooltip "Enganxa">

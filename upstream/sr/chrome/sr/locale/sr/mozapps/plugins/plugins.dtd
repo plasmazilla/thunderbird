@@ -42,3 +42,7 @@
 <!ENTITY report.failed                                       "Слање није успело.">
 <!ENTITY report.unavailable                                  "Извештај није доступан.">
 
+
+<!ENTITY clickToPlayPlugins                                  "Click here to activate plugins.">
+<!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
+<!ENTITY tapToPlayPlugin                                     "Tap here to activate plugin.">

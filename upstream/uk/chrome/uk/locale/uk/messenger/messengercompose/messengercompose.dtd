@@ -17,6 +17,8 @@
 <!ENTITY attachFileCmd.label "Файл(и)…">
 <!ENTITY attachFileCmd.accesskey "л">
 <!ENTITY attachFileCmd.key "A">
+<!ENTITY attachCloudCmd.label "Filelink">
+<!ENTITY attachCloudCmd.accesskey "i">
 <!ENTITY attachPageCmd.label "Веб-сторінку…">
 <!ENTITY attachPageCmd.accesskey "е">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -68,11 +70,13 @@
 <!ENTITY pasteCmd.accesskey "т">
 <!ENTITY pasteNoFormattingCmd.key "И">
 <!ENTITY pasteAsQuotationCmd.key "o">
-<!ENTITY editRewrapCmd.label "Переформатувати">
-<!ENTITY editRewrapCmd.key "О">
 <!ENTITY editRewrapCmd.accesskey "ф">
 <!ENTITY deleteCmd.label "Стерти">
 <!ENTITY deleteCmd.accesskey "С">
+<!ENTITY editRewrapCmd.label "Переформатувати">
+<!ENTITY editRewrapCmd.key "О">
+<!ENTITY renameAttachmentCmd.label "Перейменувати вкладення…">
+<!ENTITY renameAttachmentCmd.accesskey "П">
 <!ENTITY selectAllCmd.label "Виділити все">
 <!ENTITY selectAllCmd.key "A">
 <!ENTITY selectAllCmd.accesskey "с"> 
@@ -268,6 +272,14 @@
 <!ENTITY selectAll.accesskey "с">
 <!ENTITY attachFile.label "Вкласти файл(и)…">
 <!ENTITY attachFile.accesskey "ф">
+<!ENTITY attachCloud.label "Filelink…">
+<!ENTITY attachCloud.accesskey "i">
+<!ENTITY convertCloud.label "Convert to…">
+<!ENTITY convertCloud.accesskey "C">
+<!ENTITY cancelUpload.label "Cancel Upload">
+<!ENTITY cancelUpload.accesskey "n">
+<!ENTITY convertRegularAttachment.label "Regular Attachment">
+<!ENTITY convertRegularAttachment.accesskey "A">
 <!ENTITY attachPage.label "Вкласти веб-сторінку…">
 <!ENTITY attachPage.accesskey "е">
 

@@ -21,5 +21,6 @@ locale messenger-smime ta-LK chrome/ta-LK/locale/ta-LK/messenger-smime/
 locale cookie ta-LK chrome/ta-LK/locale/ta-LK/cookie/
 locale autoconfig ta-LK chrome/ta-LK/locale/ta-LK/autoconfig/
 manifest chrome/ta-LK.manifest
+locale chat ta-LK chrome/ta-LK/locale/ta-LK/chat/
 locale pippki ta-LK chrome/ta-LK/locale/ta-LK/pippki/
 locale global-region ta-LK chrome/ta-LK/locale/ta-LK/global-region/

@@ -46,3 +46,6 @@
 <!ENTITY cookieExceptions.accesskey "ξ">
 <!ENTITY showCookies.label "Προβολή Cookies…">
 <!ENTITY showCookies.accesskey "β">
+
+<!ENTITY enableAdaptiveJunkLogging.accesskey "E">
+<!ENTITY enableAdaptiveJunkLogging.label "Enable adaptive junk filter logging">

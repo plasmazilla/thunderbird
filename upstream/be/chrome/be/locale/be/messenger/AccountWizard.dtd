@@ -33,8 +33,13 @@
 <!ENTITY popType.accesskey "P">
 <!ENTITY leaveMsgsOnSrvr.label "Пакідаць лісты на паслугачы">
 <!ENTITY leaveMsgsOnSrvr.accesskey "п">
+<!ENTITY portNum.label "Порт:">
+<!ENTITY portNum.accesskey "о">
+<!ENTITY defaultPortLabel.label "Змоўчны:">
+<!ENTITY defaultPortValue.label "">
+<!ENTITY modifyOutgoing.suffix "Вы можаце змяніць выходны паслугач у наладжваннях рахунку.">
 <!ENTITY haveSmtp1.prefix "Ваш існы выходны паслугач (SMTP), &quot;">
-<!ENTITY haveSmtp1.suffix2 "&quot;, будзе ўжывацца. Вы можаце змяніць выходныя паслугачы ў наладжваннях рахунку.">
+<!ENTITY haveSmtp1.suffix3 "&quot;, будзе ўжывацца.">
 <!ENTITY loginTitle.label "Імёны карыстальнікаў">
 <!ENTITY usernameDesc.label "Увядзіце ўваходнае імя карыстальніка, якое надаў вам ваш дастаўшчык э-пошты">
 <!ENTITY usernameExample.label "(напрыклад: &quot;u-brattchyk&quot;).">
@@ -44,9 +49,9 @@
 <!ENTITY usernameSmtpLabel.label "Выходнае імя карыстальніка:">
 <!ENTITY usernameSmtpLabel.accesskey "ы">
 <!ENTITY haveSmtp2.prefix "Ваша існае выходнае (SMTP) імя карыстальніка, &quot;">
-<!ENTITY haveSmtp2.suffix2 "&quot;, будзе ўжывацца. Вы можаце змяніць выходныя паслугачы ў наладжваннях рахунку.">
+<!ENTITY haveSmtp2.suffix3 "&quot;, будзе ўжывацца.">
 <!ENTITY haveSmtp3.prefix "Ваш выходны паслугач (SMTP), &quot;">
-<!ENTITY haveSmtp3.suffix2 "&quot;, &quot;, тоесны вашаму ўваходнаму паслугачу, ваша ўваходнае імя карыстальніка будзе ўжывацца, каб зварочвацца да яго. Вы можаце змяніць выходныя паслугачы ў наладжваннях рахунку.">
+<!ENTITY haveSmtp3.suffix3 "&quot;, аднолькавы з вашым уваходным паслугачом, імя вашага зваходнага карыстальніка будзе ўжывацца для доступу да яго.">
 <!ENTITY accnameTitle.label "Назва рахунку">
 <!ENTITY accnameDesc.label "Увядзіце пажаданую назву для спасылання на гэты рахунак (напрыклад: &quot;Праца&quot;, &quot;Хатні Рахунак&quot; ці &quot;Навіны&quot;).">
 <!ENTITY accnameLabel.label "Назва рахунку:">
@@ -64,3 +69,27 @@
 <!ENTITY deferStorage.accesskey "г">
 <!ENTITY clickFinish.label "Пстрыкніце Скончыць, каб захаваць вашы наладжванні і выйсці з Чараўніка Рахункаў.">
 <!ENTITY clickFinish.labelMac "Пстрыкніце Гатова, каб захаваць вашы наладжванні і выйсці з Чараўніка Рахункаў.">
+
+<!ENTITY incomingServer.accesskey "S">
+<!-- LOCALIZATION NOTE (incomingServerNameDesc.label) : Do not translate "&quot;pop.example.net&quot;" in below line -->
+<!ENTITY incomingServer.description "Enter the name of your incoming server (for example, &quot;mail.example.net&quot;).">
+<!ENTITY incomingServer.label "Incoming Server:">
+
+<!-- Entities for Incoming Server page -->
+
+<!ENTITY incomingTitle.label "Incoming Server Information">
+<!ENTITY incomingUsername.accesskey "U">
+<!-- LOCALIZATION NOTE (incomingUsername.description) : do not translate "&quot;jsmith&quot;" in below line -->
+<!ENTITY incomingUsername.description "Enter the incoming user name given to you by your email provider (for example, &quot;jsmith&quot;).">
+<!ENTITY incomingUsername.label "User Name:">
+<!ENTITY outgoingServer.accesskey "S">
+<!-- LOCALIZATION NOTE (outgoingServer.description) : Do not translate "SMTP" and "&quot;smtp.example.net&quot;" in below line -->
+<!ENTITY outgoingServer.description "Enter the name of your outgoing server (SMTP) (for example, &quot;smtp.example.net&quot;).">
+<!ENTITY outgoingServer.label "Outgoing Server:">
+
+<!-- Entities for Outgoing Server page -->
+
+<!ENTITY outgoingTitle.label "Outgoing Server Information">
+<!ENTITY outgoingUsername.accesskey "U">
+<!ENTITY outgoingUsername.description "Enter the outgoing user name given to you by your email provider (this is typically the same as your incoming user name).">
+<!ENTITY outgoingUsername.label "Outgoing User Name:">

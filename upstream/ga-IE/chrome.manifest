@@ -1,7 +1,7 @@
 locale messenger-newsblog ga-IE chrome/ga-IE/locale/ga-IE/messenger-newsblog/
 override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
-locale passwordmgr ga-IE chrome/ga-IE/locale/ga-IE/passwordmgr/
+locale chat ga-IE chrome/ga-IE/locale/ga-IE/chat/
 locale autoconfig ga-IE chrome/ga-IE/locale/ga-IE/autoconfig/
 locale global ga-IE chrome/ga-IE/locale/ga-IE/global/
 locale communicator ga-IE chrome/ga-IE/locale/ga-IE/communicator/
@@ -19,6 +19,7 @@ locale necko ga-IE chrome/ga-IE/locale/ga-IE/necko/
 locale cookie ga-IE chrome/ga-IE/locale/ga-IE/cookie/
 manifest chrome/ga-IE.manifest
 locale mozapps ga-IE chrome/ga-IE/locale/ga-IE/mozapps/
+locale passwordmgr ga-IE chrome/ga-IE/locale/ga-IE/passwordmgr/
 locale mozldap ga-IE chrome/ga-IE/locale/ga-IE/mozldap/
 locale messenger-region ga-IE chrome/ga-IE/locale/ga-IE/messenger-region/
 locale messenger-mapi ga-IE chrome/ga-IE/locale/ga-IE/messenger-mapi/

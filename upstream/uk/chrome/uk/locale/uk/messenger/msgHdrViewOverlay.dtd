@@ -65,6 +65,8 @@
 <!ENTITY hdrReplyAllButton1.tooltip "Відповісти відправнику та всім отримувачам">
 <!ENTITY hdrReplyListButton1.label "Відповісти списку">
 <!ENTITY hdrReplyListButton1.tooltip "Відповісти списку розсилки">
+<!ENTITY hdrFollowupButton1.label "Followup">
+<!ENTITY hdrFollowupButton1.tooltip "Post a followup to this newsgroup">
 <!ENTITY hdrForwardButton1.label "Переслати">
 <!ENTITY hdrForwardButton1.tooltip "Переслати цей лист">
 <!ENTITY hdrJunkButton1.label "Спам">
@@ -129,5 +131,8 @@
 <!ENTITY copyLinkCmd.accesskey    "К">
 
 <!ENTITY CopyMessageId.label "Копіювати ідентифікатор">
+<!ENTITY CopyMessageId.accesskey "К">
 <!ENTITY OpenMessageForMsgId.label "Відкрити листа за ідентифікатором">
+<!ENTITY OpenMessageForMsgId.accesskey "В">
 <!ENTITY OpenBrowserWithMsgId.label "Відкрити лист у браузері">
+<!ENTITY OpenBrowserWithMsgId.accesskey "б">

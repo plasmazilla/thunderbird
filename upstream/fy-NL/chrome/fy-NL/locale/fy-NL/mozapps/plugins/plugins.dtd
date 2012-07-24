@@ -21,8 +21,10 @@
 <!ENTITY pluginWizard.finalPage.restart.label				 "&brandShortName; moat op 'e nij starten wurde om de ynstekker(s) wurkje te litten.">
 
 <!ENTITY missingPlugin 		                                "der is in ynstekker nedich om dizze ynhâld te toanen.">
-<!ENTITY clickToPlayPlugin                                   "Tik om ynstekker te aktivearjen.">
-<!ENTITY disabledPlugin		                               "De ynstekker is útskeakele.">
+<!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
+<!ENTITY tapToPlayPlugin                                     "Tik hjir om de ynstekker te aktivearjen.">
+<!ENTITY clickToPlayPlugins                                   "Klik hjir om de ynstekkers te aktivearjen.">
+<!ENTITY disabledPlugin		                               "Dizzee ynstekker is útskeakele.">
 <!ENTITY blockedPlugin.label                               "Dizze ynstekker is blokkearre foar jo beskerming.">
 
 <!ENTITY installPlugin                                       "Ynstallearje ynstekker…">
@@ -35,7 +37,7 @@
 <!ENTITY reloadPlugin.middle                                 "side op 'e nij">
 <!ENTITY reloadPlugin.post                                   " om it nochris te probearjen.">
 <!-- LOCALIZATION NOTE (report.please): This and the other report.* strings should be as short as possible, ideally 2-3 words. -->
-<!ENTITY report.checkbox                                     "…en ûngelokrapport ferstjoere">
+<!ENTITY report.please                                     	 "Ferstjoer ûngelokrapport">
 <!ENTITY report.submitting                                   "Rapport ferstjoere…">
 <!ENTITY report.submitted                                    "Ungelokrapport ferstjoerd.">
 <!ENTITY report.disabled                                     "Ungelokrapportearring útskeakele.">

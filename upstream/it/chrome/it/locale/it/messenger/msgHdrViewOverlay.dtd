@@ -1,21 +1,21 @@
 <!--null-->
-<!ENTITY toField3.label "A">
-<!ENTITY fromField3.label "Da">
-<!ENTITY senderField3.label "Mittente">
-<!ENTITY organizationField3.label "Organizzazione">
-<!ENTITY replyToField3.label "Rispondi a">
-<!ENTITY subjectField3.label "Oggetto">
+<!ENTITY toField3.label "A ">
+<!ENTITY fromField3.label "Da ">
+<!ENTITY senderField3.label "Mittente ">
+<!ENTITY organizationField3.label "Organizzazione ">
+<!ENTITY replyToField3.label "Rispondi a ">
+<!ENTITY subjectField3.label "Oggetto ">
 <!ENTITY ccField3.label "Cc ">
-<!ENTITY bccField3.label "Ccn">
-<!ENTITY newsgroupsField3.label "Gruppi di discussione">
-<!ENTITY followupToField3.label "Inoltra a">
+<!ENTITY bccField3.label "Ccn ">
+<!ENTITY newsgroupsField3.label "Gruppi di discussione ">
+<!ENTITY followupToField3.label "Inoltra a ">
 <!ENTITY tagsHdr3.label "Etichette ">
-<!ENTITY dateField3.label "Data">
+<!ENTITY dateField3.label "Data ">
 <!ENTITY userAgentField3.label "User agent ">
-<!ENTITY referencesField3.label "Riferimenti">
-<!ENTITY messageIdField3.label "ID del messaggio">
+<!ENTITY referencesField3.label "Riferimenti ">
+<!ENTITY messageIdField3.label "ID del messaggio ">
 <!ENTITY inReplyToField3.label "In risposta a ">
-<!ENTITY originalWebsite3.label "Sito web">
+<!ENTITY originalWebsite3.label "Sito web ">
 <!ENTITY editMessageDescription.label "Questa è una bozza">
 <!ENTITY editMessageButton.label "Modifica…">
 <!ENTITY hdrArchiveButton1.label "Archivia">
@@ -27,6 +27,8 @@
 <!ENTITY hdrReplyAllButton1.tooltip "Rispondi al mittente e a tutti i destinatari">
 <!ENTITY hdrReplyListButton1.label "Rispondi alla lista">
 <!ENTITY hdrReplyListButton1.tooltip "Rispondi alla lista di distribuzione">
+<!ENTITY hdrFollowupButton1.label "Rispondi nel gruppo">
+<!ENTITY hdrFollowupButton1.tooltip "Rispondi a questo messaggio nel gruppo di discussione">
 <!ENTITY hdrForwardButton1.label "Inoltra">
 <!ENTITY hdrForwardButton1.tooltip "Inoltra questo messaggio">
 <!ENTITY hdrJunkButton1.label "Indesiderata">
@@ -81,6 +83,9 @@
 <!ENTITY saveAllAttachmentsButton1.tooltip "Salva tutti gli allegati">
 <!ENTITY copyLinkCmd.label "Copia indirizzo">
 <!ENTITY copyLinkCmd.accesskey "C">
-<!ENTITY CopyMessageId.label "Copiare identificativo messaggio">
+<!ENTITY CopyMessageId.label "Copiare l'identificativo del messaggio">
+<!ENTITY CopyMessageId.accesskey "C">
 <!ENTITY OpenMessageForMsgId.label "Apri il messaggio con questo ID">
+<!ENTITY OpenMessageForMsgId.accesskey "A">
 <!ENTITY OpenBrowserWithMsgId.label "Apri nel browser il messaggio con questo ID">
+<!ENTITY OpenBrowserWithMsgId.accesskey "B">

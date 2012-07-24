@@ -1,11 +1,11 @@
 locale editor ja chrome/ja/locale/ja/editor/
 locale messenger-smime ja chrome/ja/locale/ja/messenger-smime/
-override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+locale testpilot ja chrome/ja/locale/ja/feedback/
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale communicator ja chrome/ja/locale/ja/communicator/
 locale messenger-mapi ja chrome/ja/locale/ja/messenger-mapi/
 locale messenger ja chrome/ja/locale/ja/messenger/
-locale branding ja chrome/ja/locale/ja/branding/
+locale global-region ja chrome/ja/locale/ja/global-region/
 locale messenger-region ja chrome/ja/locale/ja/messenger-region/
 locale pipnss ja chrome/ja/locale/ja/pipnss/
 locale mozldap ja chrome/ja/locale/ja/mozldap/
@@ -14,11 +14,12 @@ locale autoconfig ja chrome/ja/locale/ja/autoconfig/
 locale messenger-newsblog ja chrome/ja/locale/ja/messenger-newsblog/
 locale cookie ja chrome/ja/locale/ja/cookie/
 locale global-platform ja chrome/ja/locale/ja/global-platform/
-locale testpilot ja chrome/ja/locale/ja/feedback/
+locale chat ja chrome/ja/locale/ja/chat/
 locale alerts ja chrome/ja/locale/ja/alerts/
 locale global ja chrome/ja/locale/ja/global/
 locale necko ja chrome/ja/locale/ja/necko/
-locale global-region ja chrome/ja/locale/ja/global-region/
+override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger/locale/downloads/settingsChange.dtd
+locale branding ja chrome/ja/locale/ja/branding/
 manifest chrome/ja.manifest
 locale mozapps ja chrome/ja/locale/ja/mozapps/
 locale pippki ja chrome/ja/locale/ja/pippki/

@@ -83,11 +83,6 @@
 <!ENTITY insertBreakAllCmd.accesskey "k">
 
 <!-- Used just in context popup. -->
-<!ENTITY spellCheckNoSuggestions.label "(kinnig ebet kavet)">
-<!ENTITY spellCheckIgnoreWord.label "Leuskel ar ger a-gostez">
-<!ENTITY spellCheckIgnoreWord.accesskey "L">
-<!ENTITY spellCheckAddToDictionary.label "Ouzhpennañ d'ar geriadur">
-<!ENTITY spellCheckAddToDictionary.accesskey "O">
 <!ENTITY createLinkCmd.label "Krouiñ un ere…">
 <!ENTITY createLinkCmd.accesskey "r">
 <!ENTITY editLinkCmd.label "Embann an ere en ur bajennad nevez">
@@ -170,7 +165,7 @@
 <!ENTITY styleCode.accesskey "o">
 <!ENTITY styleSamp.label "Ec'hankad ar standilhon">
 <!ENTITY styleSamp.accesskey "k">
-<!ENTITY styleVar.label "Argemenn">
+<!ENTITY styleVar.label "Argemmenn">
 <!ENTITY styleVar.accesskey "g">
 
 <!ENTITY formatFontColor.label "Liv an destenn…">
@@ -326,12 +321,6 @@
 <!-- Toolbar-only items -->
 <!ENTITY menuBar.tooltip "Barrenn lañser">
 <!ENTITY formatToolbar.tooltip "Barrenn ostilhoù mentrezhañ">
-<!ENTITY newToolbarCmd.label "Nevez">
-<!ENTITY newToolbarCmd.tooltip "Sevel ur bajenn embanner nevez">
-<!ENTITY openToolbarCmd.label "Digeriñ">
-<!ENTITY openToolbarCmd.tooltip "Digeriñ ur restr lec'hel">
-<!ENTITY saveToolbarCmd.tooltip "Enrollañ ar restr en ul lec'hiadur lec'hel">
-<!ENTITY publishToolbarCmd.tooltip "Kargañ ar restr etrezek ul lec'hiadur arbell">
 <!ENTITY cutToolbarCmd.tooltip "Troc'hañ">
 <!ENTITY copyToolbarCmd.tooltip "Eilañ">
 <!ENTITY pasteToolbarCmd.tooltip "Pegañ">
@@ -368,10 +357,10 @@
 <!ENTITY indentToolbarCmd.tooltip "Kilañ an destenn (dilec'hiañ a-zehou)">
 <!ENTITY AlignPopupButton.tooltip "Dibab steudadur an destenn">
 <!ENTITY InsertPopupButton.tooltip "Enlakaat un ere, eor, skeudenn, linenn a-blaen pe un daolenn">
-<!ENTITY alignLeftButton.tooltip "Desteudañ an destenn ouzh ar riblenn gleiz">
+<!ENTITY alignLeftButton.tooltip "Desteudañ an destenn ouzh ar marz gleiz">
 <!ENTITY alignCenterButton.tooltip "Desteudañ an destenn e kreiz">
-<!ENTITY alignRightButton.tooltip "Desteudañ an destenn a-hed ar riblenn dehou">
-<!ENTITY alignJustifyButton.tooltip "Marzekaat an destenn a-hed ar riblennoù kleiz ha dehou">
+<!ENTITY alignRightButton.tooltip "Desteudañ an destenn a-hed ar marz dehou">
+<!ENTITY alignJustifyButton.tooltip "Marzekaat an destenn a-hed ar marzoù kleiz ha dehou">
 
 <!-- Structure Toolbar Context Menu items -->
 <!ENTITY structSelect.label         "Diuzañ">

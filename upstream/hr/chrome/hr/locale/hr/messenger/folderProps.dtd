@@ -1,0 +1,102 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+   - Version: MPL 1.1/GPL 2.0/LGPL 2.1
+   -
+   - The contents of this file are subject to the Mozilla Public License Version
+   - 1.1 (the "License"); you may not use this file except in compliance with
+   - the License. You may obtain a copy of the License at
+   - http://www.mozilla.org/MPL/
+   -
+   - Software distributed under the License is distributed on an "AS IS" basis,
+   - WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+   - for the specific language governing rights and limitations under the
+   - License.
+   -
+   - The Original Code is Mozilla Communicator.
+   -
+   - The Initial Developer of the Original Code is
+   - Netscape Communications Corp.
+   - Portions created by the Initial Developer are Copyright (C) 2000
+   - the Initial Developer. All Rights Reserved.
+   -
+   - Contributor(s):
+   -   David Bienvenu <bienvenu@netscape.com>
+   -   Mohan Bhamidipati <mohanb@netscape.com>
+   -   Lorenzo Colitti   <lorenzo@colitti.com>
+   -   Stefan Borggraefe <Stefan.Borggraefe@gmx.de>
+   -
+   - Alternatively, the contents of this file may be used under the terms of
+   - either of the GNU General Public License Version 2 or later (the "GPL"),
+   - or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+   - in which case the provisions of the GPL or the LGPL are applicable instead
+   - of those above. If you wish to allow use of your version of this file only
+   - under the terms of either the GPL or the LGPL, and not to allow others to
+   - use your version of this file under the terms of the MPL, indicate your
+   - decision by deleting the provisions above and replace them with the notice
+   - and other provisions required by the GPL or the LGPL. If you do not delete
+   - the provisions above, a recipient may use your version of this file under
+   - the terms of any one of the MPL, the GPL or the LGPL.
+   -
+   - ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY folderProps.windowtitle.label           "Postavke">
+
+<!ENTITY generalInfo.label                       "Opće informacije">
+<!ENTITY folderCharsetTab.label                  "Zadana kodna stranica:">
+<!ENTITY folderCharsetTab.accesskey              "k">
+<!ENTITY folderCharsetOverride.label             "Primijeni zadano na sve poruke u mapi (postavke kodnih stranica pojedinih poruka i automatsko otkrivanje će biti zanemareno)">
+<!ENTITY folderCharsetOverride.accesskey         "a">
+<!ENTITY folderRebuildSummaryFileTip2.label      "Ponovno izgradi skupnu indeks datoteku">
+<!ENTITY folderRebuildSummaryFile2.label         "Popravi mapu">
+<!ENTITY folderRebuildSummaryFile2.accesskey     "r">
+<!ENTITY folderRebuildSummaryFile.explanation    "Ponekad se (.msf) datoteka koja je indeks mape ošteti i poruke izgledaju nedostupne ili se izbrisane poruke i dalje pojavljuju; popravak mape može riješiti ove probleme.">
+<!ENTITY folderIncludeInGlobalSearch.label       "Uvrsti poruke iz ove mape u globalne rezultate pretraživanja">
+<!ENTITY folderIncludeInGlobalSearch.accesskey   "g">
+     
+<!ENTITY retention.label "Politika čuvanja">
+<!ENTITY retentionUseAccount.label  "Koristi moje postavke računa">
+<!ENTITY retentionUseAccount.accesskey "u">
+<!ENTITY daysOld.label "dana">
+<!ENTITY message.label "najnovijih poruka">
+<!ENTITY retentionCleanup.label "Kako biste oslobodili diskovni prostor, stare poruke mogu biti trajno izbrisane.">
+<!ENTITY retentionCleanupImap.label "Kako biste oslobodili diskovni prostor, stare poruke mogu biti trajno izbrisane (lokalne kopije i izvorne poruke na poslužitelju).">
+<!ENTITY retentionCleanupPop.label "Kako biste oslobodili diskovni prostor, stare poruke mogu biti trajno izbrisane, uključujući i izvorne poruke na udaljenom poslužitelju.">
+<!ENTITY retentionDeleteMsg.label "Obriši poruke starije od">
+<!ENTITY retentionDeleteMsg.accesskey "b">
+<!ENTITY retentionKeepAll.label "Ne briši nikakve poruke">
+<!ENTITY retentionKeepAll.accesskey "a">
+<!ENTITY retentionKeepRecent.label "Obriši sve osim">
+<!ENTITY retentionKeepRecent.accesskey "i">
+<!-- LOCALIZATION NOTE: Unhide with .keepUnreadOnly { display: -moz-box; } -->
+<!ENTITY retentionKeepUnreadHidden.label "Uvijek obriši pročitane poruke (ima prednost nad postavkama starosti)">
+<!ENTITY retentionApplyToFlagged.label "Uvijek zadrži poruke označene zvjezdicom">
+<!ENTITY retentionApplyToFlagged.accesskey "e">
+
+<!ENTITY folderSynchronizationTab.label          "Sinkronizacija">
+<!ENTITY folderCheckForNewMessages2.label         "Prilikom primanja novih poruka za ovaj račun, uvijek provjeri ovu mapu">
+<!ENTITY folderCheckForNewMessages2.accesskey     "m">
+
+<!ENTITY offlineFolder.check.label               "Odaberi ovu mapu za izvanmrežno korištenje">
+<!ENTITY offlineFolder.check.accesskey           "v">
+<!ENTITY offlineFolder.button.label              "Preuzmi sada">
+<!ENTITY offlineFolder.button.accesskey          "z">
+
+<!ENTITY selectofflineNewsgroup.check.label      "Odaberi ovu interesnu grupu za izvanmrežno korištenje">
+<!ENTITY selectofflineNewsgroup.check.accesskey  "O">
+<!ENTITY offlineNewsgroup.button.label           "Preuzmi sada">
+<!ENTITY offlineNewsgroup.button.accesskey       "z">
+
+<!ENTITY folderProps.name.label                  "Naziv:">
+<!ENTITY folderProps.name.accesskey              "N">
+<!ENTITY folderProps.location.label              "Lokacija:">
+<!ENTITY folderProps.location.accesskey          "L">
+
+<!ENTITY folderSharingTab.label                  "Dijeljenje">
+<!ENTITY privileges.button.label                 "Povlastice…">
+<!ENTITY privileges.button.accesskey             "P">
+<!ENTITY permissionsDesc.label                   "Imate sljedeće dozvole:">
+<!ENTITY folderType.label                        "Vrsta mape:">
+
+<!ENTITY folderQuotaTab.label                    "Kvota">
+<!ENTITY folderQuotaRoot.label                   "Root kvota:">
+<!ENTITY folderQuotaUsage.label                  "Upotreba:">
+<!ENTITY folderQuotaStatus.label                 "Status:">

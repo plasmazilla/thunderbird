@@ -1,5 +1,5 @@
 <!ENTITY pluginWizard.title                                  "Serviciu de gueta de complementos">
-<!ENTITY pluginWizard.firstPage.title                        "Bienaportáu al &pluginWizard.title;">
+<!ENTITY pluginWizard.firstPage.title                        "Bienllegáu al &pluginWizard.title;">
 
 <!ENTITY pluginWizard.checkingForPlugins.description.label   "&brandShortName; ta comprobando agora los plugins disponibles…">
 
@@ -20,7 +20,8 @@
 <!ENTITY pluginWizard.finalPage.moreInfo.label               "Más al rodiu de Plugins o guetar manualmente los plugins que falten.">
 <!ENTITY pluginWizard.finalPage.restart.label                "Necesítase reaniciar &brandShortName; pa que furrulen los plugins.">
 <!ENTITY missingPlugin                                       "Necesítase un plugin p'amosar esti conteníu.">
-<!ENTITY clickToPlayPlugin                                   "Calca equí p'activar el plugin.">
+<!ENTITY clickToPlayPlugins                                  "Calca equí p'activar los plugins.">
+<!ENTITY tapToPlayPlugin                                     "Toca equí p'activar el plugin.">
 <!ENTITY disabledPlugin                                      "Esti plugin ta desactiváu.">
 <!ENTITY installPlugin                                       "Instalar plugin…">
 <!ENTITY managePlugins                                       "Xestionar plugins…">
@@ -33,9 +34,9 @@
 <!ENTITY reloadPlugin.middle                                 "Recargar la páxina">
 <!ENTITY reloadPlugin.post                                   " intentar otra vegada.">
 <!-- LOCALIZATION NOTE (report.please): This and the other report.* strings should be as short as possible, ideally 2-3 words. -->
-<!ENTITY report.checkbox                                     "…y unviar informe de fallu.">
 <!ENTITY report.submitting                                   "Unviando informe…">
 <!ENTITY report.submitted                                    "Unvióse informe de fallu.">
 <!ENTITY report.disabled                                     "Desactiváu informe de fallu.">
-<!ENTITY report.failed                                       "Falló l'unvíu.">
+<!ENTITY report.failed                                       "Falló l'unviu.">
 <!ENTITY report.unavailable                                  "Informe non disponible.">
+<!ENTITY report.please                                       "Unviar informe de fallu">

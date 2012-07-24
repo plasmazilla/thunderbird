@@ -41,3 +41,5 @@
 <!ENTITY ignoreSubthread.label "ਸਬ-ਥਰਿੱਡ ਅਣਡਿੱਠਾ">
 <!ENTITY watchThread.label "ਥਰਿੱਡ ਨਿਗਰਾਨੀ">
 <!ENTITY stopExecution.label "ਫਿਲਟਰ ਚਲਾਉਣਾ ਰੋਕੋ">
+
+<!ENTITY markMessageUnread.label "Mark As Unread">

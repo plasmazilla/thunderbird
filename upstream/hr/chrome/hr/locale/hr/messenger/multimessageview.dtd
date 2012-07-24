@@ -1,0 +1,4 @@
+<!ENTITY window.title             "Sažetak poruka">
+<!ENTITY selectedmessages.label   "Odabrane poruke">
+<!ENTITY archiveButton.label      "Arhiviraj">
+<!ENTITY deleteButton.label       "Obriši">

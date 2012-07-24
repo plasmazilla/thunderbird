@@ -210,6 +210,7 @@
 <!ENTITY minimizeWindow.label "சிறிதாக்கு">
 <!ENTITY bringAllToFront.label "அனைத்தையும் முன் கொணர்">
 <!ENTITY zoomWindow.label "பெரிதாக்கு">
+
 <!ENTITY firstLastCmd2.accesskey                        "f"> 
 <!-- LOCALIZATION NOTE (firstLastCmd2.label): We're not including a comma here
 because displayed names don't have the comma in between. -->

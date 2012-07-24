@@ -6,3 +6,6 @@
 <!ENTITY identitiesListDelete.label "Уклони">
 <!ENTITY identitiesListDelete.accesskey "У">
 
+
+<!ENTITY identitiesListClose.accesskey "C">
+<!ENTITY identitiesListClose.label "Close">

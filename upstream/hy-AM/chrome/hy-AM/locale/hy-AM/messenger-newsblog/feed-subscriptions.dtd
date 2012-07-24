@@ -1,0 +1,45 @@
+<!--
+# Translator(s):
+#
+# Hrant <hrantohanyan@mail.am>
+#
+-->
+<!--
+# Reviewer(s):
+#
+# Hrant <hrantohanyan@mail.am>
+# alexxed <alexxed@gmail.com>
+#
+-->
+<!-- Subscription Dialog -->
+<!ENTITY feedSubscriptions.label     "Բաժանորդագրություններ">
+<!ENTITY subscriptionDesc.label      "Հիշեք. Նորությունների շղթայի թղթապանակի ջնջումը կամ փոփոխումը չի ազդի նախորդ գրառումների վրա։">
+
+<!ENTITY feedTitle.label             "Վերնագիրը.">
+<!ENTITY feedTitle.accesskey         "Վ">
+
+<!ENTITY feedLocation.label          "Շղթայի վեբ հղումը.">
+<!ENTITY feedLocation.accesskey      "Շ">
+<!ENTITY feedLocation.placeholder    "Նշեք ճիշտ վեբ հղում">
+
+<!ENTITY feedFolder.label            "Պահել հոդվածները՝">
+<!ENTITY feedFolder.accesskey        "Պ">
+
+<!ENTITY quickMode.label             "Ցուցադրել հոդվածի ընդհանուր պատկերը` վեբ էջի փոխարեն">
+<!ENTITY quickMode.accesskey         "Ց">
+
+<!ENTITY locationValidate.label      "Validate">
+<!ENTITY validateText.label          "Ստուգել և ստանալ ճիշտ վեբ հղում։">
+
+<!ENTITY button.addFeed.label        "Ավելացնել">
+<!ENTITY button.addFeed.accesskey    "A">
+<!ENTITY button.editFeed.label       "Թարմացնել">
+<!ENTITY button.editFeed.accesskey   "E">
+<!ENTITY button.removeFeed.label     "Հեռացնել">
+<!ENTITY button.removeFeed.accesskey "R">
+<!ENTITY button.importOPML.label     "Ներմուծել">
+<!ENTITY button.importOPML.accesskey "I">
+<!ENTITY button.exportOPML.label     "Արտածել">
+<!ENTITY button.exportOPML.accesskey "x">
+
+<!ENTITY cmd.close.commandKey        "w">

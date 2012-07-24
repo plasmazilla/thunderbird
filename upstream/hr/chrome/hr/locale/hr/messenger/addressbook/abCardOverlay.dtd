@@ -1,0 +1,173 @@
+<!-- ***** BEGIN LICENSE BLOCK *****
+ Version: MPL 1.1/GPL 2.0/LGPL 2.1
+
+ The contents of this file are subject to the Mozilla Public License Version
+ 1.1 (the "License"); you may not use this file except in compliance with
+ the License. You may obtain a copy of the License at
+ http://www.mozilla.org/MPL/
+
+ Software distributed under the License is distributed on an "AS IS" basis,
+ WITHOUT WARRANTY OF ANY KIND, either express or implied. See the License
+ for the specific language governing rights and limitations under the
+ License.
+
+ The Original Code is Mozilla Communicator client code, released
+ March 31, 1998.
+
+ The Initial Developer of the Original Code is
+ Netscape Communications Corporation.
+ Portions created by the Initial Developer are Copyright (C) 1998-1999
+ the Initial Developer. All Rights Reserved.
+
+ Contributor(s):
+
+ Alternatively, the contents of this file may be used under the terms of
+ either the GNU General Public License Version 2 or later (the "GPL"), or
+ the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
+ in which case the provisions of the GPL or the LGPL are applicable instead
+ of those above. If you wish to allow use of your version of this file only
+ under the terms of either the GPL or the LGPL, and not to allow others to
+ use your version of this file under the terms of the MPL, indicate your
+ decision by deleting the provisions above and replace them with the notice
+ and other provisions required by the GPL or the LGPL. If you do not delete
+ the provisions above, a recipient may use your version of this file under
+ the terms of any one of the MPL, the GPL or the LGPL.
+
+ ***** END LICENSE BLOCK ***** -->
+
+<!ENTITY Contact.tab                     "Kontakt">
+<!ENTITY Contact.accesskey               "K">
+<!ENTITY Name.box                        "Naziv">
+
+<!-- LOCALIZATION NOTE:
+ NameField1, NameField2, PhoneticField1, PhoneticField2
+ those fields are either LN or FN depends on the target country.
+ "FirstName" and "LastName" can be swapped for id to change the order
+ but they should not be translated (same applied to phonetic id).
+ Make sure the translation of label corresponds to the order of id.
+-->
+
+<!-- LOCALIZATION NOTE (NameField1.id) : DONT_TRANSLATE -->
+<!ENTITY NameField1.id                  "FirstName">
+<!-- LOCALIZATION NOTE (NameField2.id) : DONT_TRANSLATE -->
+<!ENTITY NameField2.id                  "LastName">
+<!-- LOCALIZATION NOTE (PhoneticField1.id) : DONT_TRANSLATE -->
+<!ENTITY PhoneticField1.id              "PhoneticFirstName">
+<!-- LOCALIZATION NOTE (PhoneticField2.id) : DONT_TRANSLATE -->
+<!ENTITY PhoneticField2.id              "PhoneticLastName">
+
+<!ENTITY NameField1.label               "Ime:">
+<!ENTITY NameField1.accesskey           "I">
+<!ENTITY NameField2.label               "Prezime:">
+<!ENTITY NameField2.accesskey           "z">
+<!ENTITY PhoneticField1.label           "Fonetski:">
+<!ENTITY PhoneticField2.label           "Fonetski:">
+<!ENTITY DisplayName.label              "Prikaži:">
+<!ENTITY DisplayName.accesskey          "r">
+<!ENTITY preferDisplayName.label        "Uvijek preferiraj prikazano ime ispred zaglavlja poruke">
+<!ENTITY preferDisplayName.accesskey    "g">
+<!ENTITY NickName.label                 "Nadimak:">
+<!ENTITY NickName.accesskey             "N">
+
+<!ENTITY PrimaryEmail.label             "E-pošta:">
+<!ENTITY PrimaryEmail.accesskey         "E">
+<!ENTITY SecondEmail.label              "Dodatna e-pošta:">
+<!ENTITY SecondEmail.accesskey          "a">
+<!ENTITY PreferMailFormat.label         "Preferira primati poruke oblikovane kao:">
+<!ENTITY PreferMailFormat.accesskey     "t">
+<!ENTITY PlainText.label                "Običan tekst">
+<!ENTITY HTML.label                     "HTML">
+<!ENTITY Unknown.label                  "Nepoznato">
+<!ENTITY ScreenName.label               "Ime na ekranu:">
+<!ENTITY ScreenName.accesskey           "m">
+
+<!ENTITY allowRemoteContent1.label      "Dozvoli vanjski sadržaj.">
+<!ENTITY allowRemoteContent1.accesskey  "v">
+<!ENTITY allowRemoteContent1.tooltip    "U HTML poruke moguće je ugraditi sadržaj s vanjskih izvora. Otvaranje takvih poruka će otvoriti vezu na taj vanjski izvor. Ovo može omogućiti praćenje čitanja poruke. Označavanje ove kućice će omogućiti ugrađeni vanjski sadržaj u HTML porukama ovog kontakta.">
+
+<!ENTITY WorkPhone.label                "Telefon (posao):">
+<!ENTITY WorkPhone.accesskey            "l">
+<!ENTITY HomePhone.label                "Telefon (kuća):">
+<!ENTITY HomePhone.accesskey            "u">
+<!ENTITY FaxNumber.label                "Faks:">
+<!ENTITY FaxNumber.accesskey            "F">
+<!ENTITY PagerNumber.label              "Pager:">
+<!ENTITY PagerNumber.accesskey          "g">
+<!ENTITY CellularNumber.label           "Mobitel:">
+<!ENTITY CellularNumber.accesskey       "b">
+
+<!ENTITY Home.tab                       "Privatno">
+<!ENTITY Home.accesskey                 "P">
+<!ENTITY HomeAddress.label              "Adresa:">
+<!ENTITY HomeAddress.accesskey          "A">
+<!ENTITY HomeAddress2.label             "">
+<!ENTITY HomeAddress2.accesskey         "">
+<!ENTITY HomeCity.label                 "Grad:">
+<!ENTITY HomeCity.accesskey             "G">
+<!ENTITY HomeState.label                "Županija:">
+<!ENTITY HomeState.accesskey            "u">
+<!ENTITY HomeZipCode.label              "Poštanski broj:">
+<!ENTITY HomeZipCode.accesskey          "n">
+<!ENTITY HomeCountry.label              "Država:">
+<!ENTITY HomeCountry.accesskey          "v">
+<!ENTITY HomeWebPage.label              "Web stranica:">
+<!ENTITY HomeWebPage.accesskey          "e">
+<!ENTITY Birthday.label                 "Rođendan:">
+<!ENTITY Birthday.accesskey             "R">
+<!ENTITY In.label                       "">
+<!ENTITY Year.placeholder               "Godina">
+<!ENTITY Or.value                       "ili">
+<!ENTITY Age.placeholder                "Starost">
+<!ENTITY YearsOld.label                 "">
+
+<!ENTITY Work.tab                       "Posao">
+<!ENTITY Work.accesskey                 "o">
+<!ENTITY JobTitle.label                 "Titula:">
+<!ENTITY JobTitle.accesskey             "T">
+<!ENTITY Department.label               "Odjel:">
+<!ENTITY Department.accesskey           "j">
+<!ENTITY Company.label                  "Organizacija:">
+<!ENTITY Company.accesskey              "z">
+<!ENTITY WorkAddress.label              "Adresa:">
+<!ENTITY WorkAddress.accesskey          "A">
+<!ENTITY WorkAddress2.label             "">
+<!ENTITY WorkAddress2.accesskey         "">
+<!ENTITY WorkCity.label                 "Grad:">
+<!ENTITY WorkCity.accesskey             "G">
+<!ENTITY WorkState.label                "Županija:">
+<!ENTITY WorkState.accesskey            "u">
+<!ENTITY WorkZipCode.label              "Poštanski broj:">
+<!ENTITY WorkZipCode.accesskey          "n">
+<!ENTITY WorkCountry.label              "Država:">
+<!ENTITY WorkCountry.accesskey          "v">
+<!ENTITY WorkWebPage.label              "Web stranica:">
+<!ENTITY WorkWebPage.accesskey          "e">
+
+<!ENTITY Other.tab                      "Drugi">
+<!ENTITY Other.accesskey                "D">
+<!ENTITY Custom1.label                  "Posebno 1:">
+<!ENTITY Custom1.accesskey              "1">
+<!ENTITY Custom2.label                  "Posebno 2:">
+<!ENTITY Custom2.accesskey              "2">
+<!ENTITY Custom3.label                  "Posebno 3:">
+<!ENTITY Custom3.accesskey              "3">
+<!ENTITY Custom4.label                  "Posebno 4:">
+<!ENTITY Custom4.accesskey              "4">
+<!ENTITY Notes.label                    "Bilješke:">
+<!ENTITY Notes.accesskey                "B">
+
+<!ENTITY Photo.tab                      "Slika">
+<!ENTITY Photo.accesskey                "S">
+<!ENTITY PhotoDesc.label                "Odaberi jedan od sljedećih:">
+<!ENTITY GenericPhoto.label             "Općenita slika">
+<!ENTITY GenericPhoto.accesskey         "e">
+<!ENTITY DefaultPhoto.label             "Zadano">
+<!ENTITY PhotoFile.label                "Na ovom računalu">
+<!ENTITY PhotoFile.accesskey            "N">
+<!ENTITY BrowsePhoto.label              "Odaberi">
+<!ENTITY BrowsePhoto.accesskey          "r">
+<!ENTITY PhotoURL.label                 "Na internetu">
+<!ENTITY PhotoURL.accesskey             "a">
+<!ENTITY PhotoURL.placeholder           "Zalijepite ili unesite web adresu slike">
+<!ENTITY UpdatePhoto.label              "Osvježi">
+<!ENTITY UpdatePhoto.accesskey          "v">

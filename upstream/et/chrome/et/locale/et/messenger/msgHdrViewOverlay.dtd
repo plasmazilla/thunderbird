@@ -65,6 +65,8 @@
 <!ENTITY hdrReplyAllButton1.tooltip                "Vasta saatjale ja kõigile saajatele">
 <!ENTITY hdrReplyListButton1.label                 "Vasta listile">
 <!ENTITY hdrReplyListButton1.tooltip               "Vasta meililistile">
+<!ENTITY hdrFollowupButton1.label                  "Vasta uudistegruppi">
+<!ENTITY hdrFollowupButton1.tooltip                "Postita vastus sellesse uudistegruppi">
 <!ENTITY hdrForwardButton1.label                   "Edasta">
 <!ENTITY hdrForwardButton1.tooltip                 "Edasta see kiri">
 <!ENTITY hdrJunkButton1.label                      "Märgi rämpsuks">
@@ -128,6 +130,9 @@
 <!ENTITY copyLinkCmd.label                         "Kopeeri lingi asukoht">
 <!ENTITY copyLinkCmd.accesskey                     "g">
 
-<!ENTITY CopyMessageId.label                       "Kopeeri kirja-ID">
+<!ENTITY CopyMessageId.label                       "Kopeeri kirja ID">
+<!ENTITY CopyMessageId.accesskey                   "K">
 <!ENTITY OpenMessageForMsgId.label                 "Ava kiri ID-ga">
+<!ENTITY OpenMessageForMsgId.accesskey             "A">
 <!ENTITY OpenBrowserWithMsgId.label                "Ava brauser kirja ID-ga">
+<!ENTITY OpenBrowserWithMsgId.accesskey            "v">

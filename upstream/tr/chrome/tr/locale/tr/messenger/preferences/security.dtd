@@ -58,3 +58,6 @@
 <!ENTITY showCookies.accesskey          "z">
 
 
+
+<!ENTITY enableAdaptiveJunkLogging.accesskey "E">
+<!ENTITY enableAdaptiveJunkLogging.label "Enable adaptive junk filter logging">

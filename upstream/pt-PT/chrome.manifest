@@ -15,6 +15,7 @@ locale messenger-smime pt-PT chrome/pt-PT/locale/pt-PT/messenger-smime/
 locale branding pt-PT chrome/pt-PT/locale/pt-PT/branding/
 locale mozldap pt-PT chrome/pt-PT/locale/pt-PT/mozldap/
 locale places pt-PT chrome/pt-PT/locale/pt-PT/places/
+locale chat pt-PT chrome/pt-PT/locale/pt-PT/chat/
 locale pippki pt-PT chrome/pt-PT/locale/pt-PT/pippki/
 locale mozapps pt-PT chrome/pt-PT/locale/pt-PT/mozapps/
 manifest chrome/pt-PT.manifest

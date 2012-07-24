@@ -145,6 +145,10 @@
 <!ENTITY CopyMessageId.label "বার্তার ID অনুলিপি করা হবে">
 <!ENTITY OpenMessageForMsgId.label "ID এর জন্য বার্তা খোলা হবে">
 <!ENTITY OpenBrowserWithMsgId.label "বার্তা-ID সহ ব্রাউজার খোলা হবে">
+
+<!ENTITY CopyMessageId.accesskey "C">
+<!ENTITY OpenBrowserWithMsgId.accesskey "B">
+<!ENTITY OpenMessageForMsgId.accesskey "O">
 <!ENTITY bccField3.label "Bcc ">
 <!ENTITY ccField3.label "Cc ">
 <!ENTITY dateField3.label "Date ">
@@ -152,6 +156,8 @@
 <!ENTITY fromField3.label "From ">
 <!ENTITY hdrArchiveButton1.label "Archive">
 <!ENTITY hdrArchiveButton1.tooltip "Archive this message">
+<!ENTITY hdrFollowupButton1.label "Followup">
+<!ENTITY hdrFollowupButton1.tooltip "Post a followup to this newsgroup">
 <!ENTITY hdrForwardButton1.label "Forward">
 <!ENTITY hdrForwardButton1.tooltip "Forward this message">
 <!ENTITY hdrJunkButton1.label "Junk">

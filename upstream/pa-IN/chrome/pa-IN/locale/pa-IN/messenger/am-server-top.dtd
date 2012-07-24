@@ -81,3 +81,10 @@
 <!ENTITY newsrcPicker.label "ਫਾਇਲ newsrc ਚੁਣੋ">
 <!ENTITY browseNewsrc.label "ਝਲਕ...">
 <!ENTITY browseNewsrc.accesskey "e">
+
+<!ENTITY accountSettingsDesc.label "The following is a special account.  There are no identities associated with it.">
+
+<!ENTITY accountTitle.label "Account Settings">
+<!-- extracted from am-server-top.xul -->
+
+<!ENTITY messageStorage.label "Message Storage">

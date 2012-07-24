@@ -17,6 +17,8 @@
 <!ENTITY attachFileCmd.label "Fitxategia(k)…">
 <!ENTITY attachFileCmd.accesskey "F">
 <!ENTITY attachFileCmd.key "A">
+<!ENTITY attachCloudCmd.label "Filelink">
+<!ENTITY attachCloudCmd.accesskey "i">
 <!ENTITY attachPageCmd.label "Web orria…">
 <!ENTITY attachPageCmd.accesskey "W">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -68,11 +70,13 @@
 <!ENTITY pasteCmd.accesskey "s">
 <!ENTITY pasteNoFormattingCmd.key "V">
 <!ENTITY pasteAsQuotationCmd.key "o">
-<!ENTITY editRewrapCmd.label "Berritzulbiratu">
-<!ENTITY editRewrapCmd.key "R">
 <!ENTITY editRewrapCmd.accesskey "z">
 <!ENTITY deleteCmd.label "Ezabatu">
 <!ENTITY deleteCmd.accesskey "E">
+<!ENTITY editRewrapCmd.label "Berritzulbiratu">
+<!ENTITY editRewrapCmd.key "R">
+<!ENTITY renameAttachmentCmd.label "Berrizendatu eranskina…">
+<!ENTITY renameAttachmentCmd.accesskey "e">
 <!ENTITY selectAllCmd.label "Hautatu dena">
 <!ENTITY selectAllCmd.key "A">
 <!ENTITY selectAllCmd.accesskey "a"> 
@@ -268,6 +272,14 @@
 <!ENTITY selectAll.accesskey "a">
 <!ENTITY attachFile.label "Erantsi fitxategia(k)…">
 <!ENTITY attachFile.accesskey "f">
+<!ENTITY attachCloud.label "Filelink…">
+<!ENTITY attachCloud.accesskey "i">
+<!ENTITY convertCloud.label "Bihurtu hona…">
+<!ENTITY convertCloud.accesskey "B">
+<!ENTITY cancelUpload.label "Utzi igotzea">
+<!ENTITY cancelUpload.accesskey "t">
+<!ENTITY convertRegularAttachment.label "Eranskin arrunta">
+<!ENTITY convertRegularAttachment.accesskey "E">
 <!ENTITY attachPage.label "Erantsi web orria…">
 <!ENTITY attachPage.accesskey "w">
 <!-- Spell checker context menu items -->

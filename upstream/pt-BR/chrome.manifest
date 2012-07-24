@@ -4,13 +4,14 @@ override chrome://mozapps/locale/downloads/settingsChange.dtd chrome://messenger
 override chrome://global/locale/netError.dtd chrome://messenger/locale/netError.dtd
 locale communicator pt-BR chrome/pt-BR/locale/pt-BR/communicator/
 locale global-region pt-BR chrome/pt-BR/locale/pt-BR/global-region/
-locale messenger-newsblog pt-BR chrome/pt-BR/locale/pt-BR/messenger-newsblog/
-locale passwordmgr pt-BR chrome/pt-BR/locale/pt-BR/passwordmgr/
-manifest chrome/pt-BR.manifest
-locale places pt-BR chrome/pt-BR/locale/pt-BR/places/
-locale messenger-smime pt-BR chrome/pt-BR/locale/pt-BR/messenger-smime/
 locale pipnss pt-BR chrome/pt-BR/locale/pt-BR/pipnss/
+locale messenger-smime pt-BR chrome/pt-BR/locale/pt-BR/messenger-smime/
+manifest chrome/pt-BR.manifest
+locale messenger-newsblog pt-BR chrome/pt-BR/locale/pt-BR/messenger-newsblog/
+locale places pt-BR chrome/pt-BR/locale/pt-BR/places/
+locale passwordmgr pt-BR chrome/pt-BR/locale/pt-BR/passwordmgr/
 locale necko pt-BR chrome/pt-BR/locale/pt-BR/necko/
+locale chat pt-BR chrome/pt-BR/locale/pt-BR/chat/
 locale autoconfig pt-BR chrome/pt-BR/locale/pt-BR/autoconfig/
 locale cookie pt-BR chrome/pt-BR/locale/pt-BR/cookie/
 locale editor pt-BR chrome/pt-BR/locale/pt-BR/editor/
@@ -20,6 +21,6 @@ locale global pt-BR chrome/pt-BR/locale/pt-BR/global/
 locale global-platform pt-BR chrome/pt-BR/locale/pt-BR/global-platform/
 locale messenger-region pt-BR chrome/pt-BR/locale/pt-BR/messenger-region/
 locale branding pt-BR chrome/pt-BR/locale/pt-BR/branding/
-locale mozapps pt-BR chrome/pt-BR/locale/pt-BR/mozapps/
-locale pippki pt-BR chrome/pt-BR/locale/pt-BR/pippki/
 locale mozldap pt-BR chrome/pt-BR/locale/pt-BR/mozldap/
+locale pippki pt-BR chrome/pt-BR/locale/pt-BR/pippki/
+locale mozapps pt-BR chrome/pt-BR/locale/pt-BR/mozapps/

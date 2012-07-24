@@ -23,3 +23,4 @@ locale messenger-newsblog ro chrome/ro/locale/ro/messenger-newsblog/
 locale pippki ro chrome/ro/locale/ro/pippki/
 locale alerts ro chrome/ro/locale/ro/alerts/
 locale mozapps ro chrome/ro/locale/ro/mozapps/
+locale chat ro chrome/ro/locale/ro/chat/

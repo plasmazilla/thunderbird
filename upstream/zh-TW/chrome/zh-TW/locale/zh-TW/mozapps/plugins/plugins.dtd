@@ -21,7 +21,9 @@
 <!ENTITY pluginWizard.finalPage.restart.label                "&brandShortName; 重新啟動後才能使用這些外掛程式。">
 
 <!ENTITY missingPlugin                                       "需要安裝某個外掛程式才能檢視此內容。">
-<!ENTITY clickToPlayPlugin                                   "點擊此處以啟用外掛程式。">
+<!-- LOCALIZATION NOTE (tapToPlayPlugin): Mobile (used for touch interfaces) only has one type of plugin possible. -->
+<!ENTITY tapToPlayPlugin                                     "點擊此處以啟用外掛程式。">
+<!ENTITY clickToPlayPlugins                                  "點選此處以啟用外掛程式。">
 <!ENTITY disabledPlugin                                      "此外掛程式已停用。">
 <!ENTITY blockedPlugin.label                                 "已阻擋此外掛以保護您的電腦。">
 
@@ -34,10 +36,10 @@
 <!ENTITY reloadPlugin.pre                                    "">
 <!ENTITY reloadPlugin.middle                                 "重新載入網頁">
 <!ENTITY reloadPlugin.post                                   "以再試一次。">
-<!-- LOCALIZATION NOTE: report.* strings should be as short as possible, ideally 2-3 words. -->
-<!ENTITY report.checkbox                                     "…並傳送錯誤資訊報表">
-<!ENTITY report.submitting                                   "正在傳送報告…">
+<!-- LOCALIZATION NOTE (report.please): This and the other report.* strings should be as short as possible, ideally 2-3 words. -->
+<!ENTITY report.please                                       "傳送錯誤報表">
+<!ENTITY report.submitting                                   "正在傳送報表…">
 <!ENTITY report.submitted                                    "已送出錯誤資訊報表。">
 <!ENTITY report.disabled                                     "錯誤回報已被停用。">
 <!ENTITY report.failed                                       "傳送失敗。">
-<!ENTITY report.unavailable                                  "沒有可用的報告。">
+<!ENTITY report.unavailable                                  "沒有可用的報表。">

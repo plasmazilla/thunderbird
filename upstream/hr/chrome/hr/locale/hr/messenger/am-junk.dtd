@@ -1,0 +1,20 @@
+<!ENTITY junkSettings.label "Postavke neželjene pošte">
+<!ENTITY trainingWarning.label "Ukoliko je omogućeno, morate prvo naučiti &brandShortName; kako prepoznati neželjenu poštu koristeći tipku Neželjena pošta na alatnoj traci kako bi označili poruku kao neželjenu ili željenu. Trebate identificirati neželjenu i željenu poštu.">
+<!ENTITY level.label "Omogući kontrolu neželjene pošte za ovaj račun">
+<!ENTITY level.accesskey "e">
+
+<!ENTITY move.label "Premjesti nove poruke neželjene pošte u:">
+<!ENTITY move.accesskey "m">
+<!ENTITY junkFolderOn.label "Mapu &quot;Neželjena pošta&quot; u:">
+<!ENTITY junkFolderOn.accesskey "N">
+<!ENTITY otherFolder.label "Drugo:">
+<!ENTITY otherFolder.accesskey "r">
+<!ENTITY purge1.label "Automatski obriši neželjenu poštu stariju od">
+<!ENTITY purge1.accesskey "u">
+<!ENTITY purge2.label "dana">
+
+<!ENTITY whitelist.label "Ne označavaj poštu kao neželjenu ako je pošiljatelj: ">
+<!ENTITY whitelist.accesskey "o">
+
+<!ENTITY ispHeaders.label "Vjeruj zaglavljima neželjene pošte postavljenim od: ">
+<!ENTITY ispHeaders.accesskey "t">

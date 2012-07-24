@@ -131,4 +131,10 @@
 <!ENTITY OpenBrowserWithMsgId.label "Mở Trình Duyệt Với ID Thư">
 
 
+<!ENTITY CopyMessageId.accesskey "C">
+<!ENTITY OpenBrowserWithMsgId.accesskey "B">
+<!ENTITY OpenMessageForMsgId.accesskey "O">
+<!ENTITY hdrFollowupButton1.label "Followup">
+<!ENTITY hdrFollowupButton1.tooltip "Post a followup to this newsgroup">
+
 <!ENTITY openAttachment.tooltip "Open the attached file">

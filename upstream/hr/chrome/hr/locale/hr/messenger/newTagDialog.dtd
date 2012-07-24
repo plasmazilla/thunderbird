@@ -1,0 +1,4 @@
+<!-- New Tag Dialog -->
+<!ENTITY newTagDialog.title      "Stvorite novu oznaku">
+<!ENTITY name.label              "Naziv oznake:">
+<!ENTITY name.accesskey          "N">

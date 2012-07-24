@@ -17,6 +17,8 @@
 <!ENTITY attachFileCmd.label "Filer …">
 <!ENTITY attachFileCmd.accesskey "F">
 <!ENTITY attachFileCmd.key "A">
+<!ENTITY attachCloudCmd.label "Filelink">
+<!ENTITY attachCloudCmd.accesskey "i">
 <!ENTITY attachPageCmd.label "Nettside …">
 <!ENTITY attachPageCmd.accesskey "N">
 <!--LOCALIZATION NOTE attachVCardCmd.label Don't translate the term 'vCard' -->
@@ -68,11 +70,13 @@
 <!ENTITY pasteCmd.accesskey "L">
 <!ENTITY pasteNoFormattingCmd.key "V">
 <!ENTITY pasteAsQuotationCmd.key "o">
-<!ENTITY editRewrapCmd.label "Tekstbryting">
-<!ENTITY editRewrapCmd.key "T">
 <!ENTITY editRewrapCmd.accesskey "T">
 <!ENTITY deleteCmd.label "Slett">
 <!ENTITY deleteCmd.accesskey "S">
+<!ENTITY editRewrapCmd.label "Tekstbryting">
+<!ENTITY editRewrapCmd.key "T">
+<!ENTITY renameAttachmentCmd.label "Endre namn på vedlegg …">
+<!ENTITY renameAttachmentCmd.accesskey "E">
 <!ENTITY selectAllCmd.label "Merk alt">
 <!ENTITY selectAllCmd.key "A">
 <!ENTITY selectAllCmd.accesskey "M"> 
@@ -167,7 +171,7 @@
 <!ENTITY addressBookCmd.label "Adressebok">
 <!ENTITY addressBookCmd.accesskey "A">
 <!ENTITY addressBookCmd.key "B">
-<!ENTITY accountManagerCmd.label "Kontoinnstillingar …">
+<!ENTITY accountManagerCmd.label "Konto …">
 <!ENTITY accountManagerCmd.accesskey "K">
 <!ENTITY accountManagerCmdUnix.accesskey "S">
 <!ENTITY preferencesCmd.label "Innstillingar …">
@@ -268,6 +272,14 @@
 <!ENTITY selectAll.accesskey "M">
 <!ENTITY attachFile.label "Legg ved fil(er) …">
 <!ENTITY attachFile.accesskey "L">
+<!ENTITY attachCloud.label "Filelink …">
+<!ENTITY attachCloud.accesskey "i">
+<!ENTITY convertCloud.label "Konverter til …">
+<!ENTITY convertCloud.accesskey "K">
+<!ENTITY cancelUpload.label "Avbryt opplasting">
+<!ENTITY cancelUpload.accesskey "v">
+<!ENTITY convertRegularAttachment.label "Vanleg vedlegg">
+<!ENTITY convertRegularAttachment.accesskey "a">
 <!ENTITY attachPage.label "Legg ved nettside …">
 <!ENTITY attachPage.accesskey "L">
 

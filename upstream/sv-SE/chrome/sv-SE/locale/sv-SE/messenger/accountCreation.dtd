@@ -82,3 +82,9 @@
 <!ENTITY insecureUnencrypted.description "E-posten och inloggningsuppgifterna skickas i klartext, så lösenord och meddelanden kan enkelt läsas av obehöriga. &brandShortName; låter dig komma åt din e-post men du bör försöka få din e-postleverantör att konfigurera servern för en säker anslutning.">
 <!ENTITY insecureSelfSigned.description  "Servern använder ett certifikat som inte är betrott, så vi kan inte vara säkra på ingen avlyssnar trafiken mellan &brandShortName; och servern. &brandShortName; låter dig komma åt din e-post men du bör försöka få din e-postleverantör att konfigurera servern med ett betrott certifikat.">
 <!ENTITY secureServer.description        "Gratulerar! Det här är en säker server.">
+
+<!ENTITY doneAccount.accesskey           "D">
+<!-- LOCALIZATION NOTE (doneAccount.label): If there is a security warning
+     on the incoming or outgoing servers, then the page that pops up will
+     have this text in a button to continue by creating the account. -->
+<!ENTITY doneAccount.label               "Done">
