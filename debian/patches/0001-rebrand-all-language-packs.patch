@@ -1,110 +1,110 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Mon, 5 Sep 2011 19:12:55 +0200
-Subject: rebrand all language packs
+Subject: [PATCH] rebrand all language packs
 
 ---
- upstream/ar/chrome/ar/locale/ar/branding/brand.dtd |    6 +++---
- .../chrome/ar/locale/ar/branding/brand.properties  |    6 +++---
- .../ast/chrome/ast/locale/ast/branding/brand.dtd   |    4 ++--
- .../ast/locale/ast/branding/brand.properties       |    4 ++--
- upstream/be/chrome/be/locale/be/branding/brand.dtd |    4 ++--
- .../chrome/be/locale/be/branding/brand.properties  |    4 ++--
- upstream/bg/chrome/bg/locale/bg/branding/brand.dtd |    4 ++--
- .../chrome/bg/locale/bg/branding/brand.properties  |    4 ++--
- upstream/br/chrome/br/locale/br/branding/brand.dtd |    4 ++--
- .../chrome/br/locale/br/branding/brand.properties  |    4 ++--
- upstream/ca/chrome/ca/locale/ca/branding/brand.dtd |    4 ++--
- .../chrome/ca/locale/ca/branding/brand.properties  |    4 ++--
- upstream/cs/chrome/cs/locale/cs/branding/brand.dtd |    4 ++--
- .../chrome/cs/locale/cs/branding/brand.properties  |    4 ++--
- upstream/da/chrome/da/locale/da/branding/brand.dtd |    6 +++---
- .../chrome/da/locale/da/branding/brand.properties  |    4 ++--
- upstream/de/chrome/de/locale/de/branding/brand.dtd |    6 +++---
- .../chrome/de/locale/de/branding/brand.properties  |    6 +++---
- upstream/el/chrome/el/locale/el/branding/brand.dtd |    4 ++--
- .../chrome/el/locale/el/branding/brand.properties  |    4 ++--
- .../chrome/en-GB/locale/en-GB/branding/brand.dtd   |    6 +++---
- .../en-GB/locale/en-GB/branding/brand.properties   |    4 ++--
- .../chrome/es-AR/locale/es-AR/branding/brand.dtd   |    6 +++---
- .../es-AR/locale/es-AR/branding/brand.properties   |    6 +++---
- .../chrome/es-ES/locale/es-ES/branding/brand.dtd   |    4 ++--
- .../es-ES/locale/es-ES/branding/brand.properties   |    6 +++---
- upstream/et/chrome/et/locale/et/branding/brand.dtd |    6 +++---
- .../chrome/et/locale/et/branding/brand.properties  |    4 ++--
- upstream/eu/chrome/eu/locale/eu/branding/brand.dtd |    6 +++---
- .../chrome/eu/locale/eu/branding/brand.properties  |    4 ++--
- upstream/fi/chrome/fi/locale/fi/branding/brand.dtd |    4 ++--
- .../chrome/fi/locale/fi/branding/brand.properties  |    4 ++--
- upstream/fr/chrome/fr/locale/fr/branding/brand.dtd |    6 +++---
- .../chrome/fr/locale/fr/branding/brand.properties  |    4 ++--
- .../chrome/fy-NL/locale/fy-NL/branding/brand.dtd   |    6 +++---
- .../fy-NL/locale/fy-NL/branding/brand.properties   |    4 ++--
- .../chrome/ga-IE/locale/ga-IE/branding/brand.dtd   |    4 ++--
- .../ga-IE/locale/ga-IE/branding/brand.properties   |    4 ++--
- upstream/gd/chrome/gd/locale/gd/branding/brand.dtd |    6 +++---
- .../chrome/gd/locale/gd/branding/brand.properties  |    4 ++--
- upstream/gl/chrome/gl/locale/gl/branding/brand.dtd |    6 +++---
- .../chrome/gl/locale/gl/branding/brand.properties  |    4 ++--
- upstream/he/chrome/he/locale/he/branding/brand.dtd |    4 ++--
- .../chrome/he/locale/he/branding/brand.properties  |    5 +++--
- upstream/hu/chrome/hu/locale/hu/branding/brand.dtd |    6 +++---
- .../chrome/hu/locale/hu/branding/brand.properties  |    4 ++--
- upstream/id/chrome/id/locale/id/branding/brand.dtd |    4 ++--
- .../chrome/id/locale/id/branding/brand.properties  |    4 ++--
- upstream/is/chrome/is/locale/is/branding/brand.dtd |    4 ++--
- .../chrome/is/locale/is/branding/brand.properties  |    4 ++--
- upstream/it/chrome/it/locale/it/branding/brand.dtd |    6 +++---
- .../chrome/it/locale/it/branding/brand.properties  |    6 +++---
- upstream/ja/chrome/ja/locale/ja/branding/brand.dtd |    6 +++---
- .../chrome/ja/locale/ja/branding/brand.properties  |    6 +++---
- upstream/ko/chrome/ko/locale/ko/branding/brand.dtd |    4 ++--
- .../chrome/ko/locale/ko/branding/brand.properties  |    6 +++---
- upstream/lt/chrome/lt/locale/lt/branding/brand.dtd |    6 +++---
- .../chrome/lt/locale/lt/branding/brand.properties  |    4 ++--
- .../chrome/nb-NO/locale/nb-NO/branding/brand.dtd   |    6 +++---
- .../nb-NO/locale/nb-NO/branding/brand.properties   |    4 ++--
- upstream/nl/chrome/nl/locale/nl/branding/brand.dtd |    6 +++---
- .../chrome/nl/locale/nl/branding/brand.properties  |    4 ++--
- .../chrome/nn-NO/locale/nn-NO/branding/brand.dtd   |    6 +++---
- .../nn-NO/locale/nn-NO/branding/brand.properties   |    4 ++--
- .../chrome/pa-IN/locale/pa-IN/branding/brand.dtd   |    6 +++---
- .../pa-IN/locale/pa-IN/branding/brand.properties   |    6 +++---
- upstream/pl/chrome/pl/locale/pl/branding/brand.dtd |    4 ++--
- .../chrome/pl/locale/pl/branding/brand.properties  |    4 ++--
- .../chrome/pt-BR/locale/pt-BR/branding/brand.dtd   |    6 +++---
- .../pt-BR/locale/pt-BR/branding/brand.properties   |    4 ++--
- .../chrome/pt-PT/locale/pt-PT/branding/brand.dtd   |    6 +++---
- .../pt-PT/locale/pt-PT/branding/brand.properties   |    6 +++---
- upstream/rm/chrome/rm/locale/rm/branding/brand.dtd |    6 +++---
- .../chrome/rm/locale/rm/branding/brand.properties  |    4 ++--
- upstream/ro/chrome/ro/locale/ro/branding/brand.dtd |    4 ++--
- .../chrome/ro/locale/ro/branding/brand.properties  |    4 ++--
- upstream/ru/chrome/ru/locale/ru/branding/brand.dtd |    4 ++--
- .../chrome/ru/locale/ru/branding/brand.properties  |    6 +++---
- upstream/si/chrome/si/locale/si/branding/brand.dtd |    6 +++---
- .../chrome/si/locale/si/branding/brand.properties  |    6 +++---
- upstream/sk/chrome/sk/locale/sk/branding/brand.dtd |    6 +++---
- .../chrome/sk/locale/sk/branding/brand.properties  |    4 ++--
- upstream/sl/chrome/sl/locale/sl/branding/brand.dtd |    4 ++--
- .../chrome/sl/locale/sl/branding/brand.properties  |    4 ++--
- upstream/sq/chrome/sq/locale/sq/branding/brand.dtd |    6 +++---
- .../chrome/sq/locale/sq/branding/brand.properties  |    6 +++---
- upstream/sr/chrome/sr/locale/sr/branding/brand.dtd |    2 +-
- .../chrome/sr/locale/sr/branding/brand.properties  |    2 +-
- .../chrome/sv-SE/locale/sv-SE/branding/brand.dtd   |    6 +++---
- .../sv-SE/locale/sv-SE/branding/brand.properties   |    4 ++--
- .../chrome/ta-LK/locale/ta-LK/branding/brand.dtd   |    6 +++---
- .../ta-LK/locale/ta-LK/branding/brand.properties   |    6 +++---
- upstream/tr/chrome/tr/locale/tr/branding/brand.dtd |    4 ++--
- .../chrome/tr/locale/tr/branding/brand.properties  |    4 ++--
- upstream/uk/chrome/uk/locale/uk/branding/brand.dtd |    6 +++---
- .../chrome/uk/locale/uk/branding/brand.properties  |    6 +++---
- upstream/vi/chrome/vi/locale/vi/branding/brand.dtd |    4 ++--
- .../chrome/vi/locale/vi/branding/brand.properties  |    4 ++--
- .../chrome/zh-CN/locale/zh-CN/branding/brand.dtd   |    4 ++--
- .../zh-CN/locale/zh-CN/branding/brand.properties   |    4 ++--
- .../chrome/zh-TW/locale/zh-TW/branding/brand.dtd   |    6 +++---
- .../zh-TW/locale/zh-TW/branding/brand.properties   |    4 ++--
+ upstream/ar/chrome/ar/locale/ar/branding/brand.dtd               |    6 +++---
+ upstream/ar/chrome/ar/locale/ar/branding/brand.properties        |    6 +++---
+ upstream/ast/chrome/ast/locale/ast/branding/brand.dtd            |    4 ++--
+ upstream/ast/chrome/ast/locale/ast/branding/brand.properties     |    4 ++--
+ upstream/be/chrome/be/locale/be/branding/brand.dtd               |    4 ++--
+ upstream/be/chrome/be/locale/be/branding/brand.properties        |    4 ++--
+ upstream/bg/chrome/bg/locale/bg/branding/brand.dtd               |    4 ++--
+ upstream/bg/chrome/bg/locale/bg/branding/brand.properties        |    4 ++--
+ upstream/br/chrome/br/locale/br/branding/brand.dtd               |    4 ++--
+ upstream/br/chrome/br/locale/br/branding/brand.properties        |    4 ++--
+ upstream/ca/chrome/ca/locale/ca/branding/brand.dtd               |    4 ++--
+ upstream/ca/chrome/ca/locale/ca/branding/brand.properties        |    4 ++--
+ upstream/cs/chrome/cs/locale/cs/branding/brand.dtd               |    4 ++--
+ upstream/cs/chrome/cs/locale/cs/branding/brand.properties        |    4 ++--
+ upstream/da/chrome/da/locale/da/branding/brand.dtd               |    6 +++---
+ upstream/da/chrome/da/locale/da/branding/brand.properties        |    4 ++--
+ upstream/de/chrome/de/locale/de/branding/brand.dtd               |    6 +++---
+ upstream/de/chrome/de/locale/de/branding/brand.properties        |    6 +++---
+ upstream/el/chrome/el/locale/el/branding/brand.dtd               |    4 ++--
+ upstream/el/chrome/el/locale/el/branding/brand.properties        |    4 ++--
+ upstream/en-GB/chrome/en-GB/locale/en-GB/branding/brand.dtd      |    6 +++---
+ .../en-GB/chrome/en-GB/locale/en-GB/branding/brand.properties    |    4 ++--
+ upstream/es-AR/chrome/es-AR/locale/es-AR/branding/brand.dtd      |    6 +++---
+ .../es-AR/chrome/es-AR/locale/es-AR/branding/brand.properties    |    6 +++---
+ upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.dtd      |    4 ++--
+ .../es-ES/chrome/es-ES/locale/es-ES/branding/brand.properties    |    6 +++---
+ upstream/et/chrome/et/locale/et/branding/brand.dtd               |    6 +++---
+ upstream/et/chrome/et/locale/et/branding/brand.properties        |    4 ++--
+ upstream/eu/chrome/eu/locale/eu/branding/brand.dtd               |    6 +++---
+ upstream/eu/chrome/eu/locale/eu/branding/brand.properties        |    4 ++--
+ upstream/fi/chrome/fi/locale/fi/branding/brand.dtd               |    4 ++--
+ upstream/fi/chrome/fi/locale/fi/branding/brand.properties        |    4 ++--
+ upstream/fr/chrome/fr/locale/fr/branding/brand.dtd               |    6 +++---
+ upstream/fr/chrome/fr/locale/fr/branding/brand.properties        |    4 ++--
+ upstream/fy-NL/chrome/fy-NL/locale/fy-NL/branding/brand.dtd      |    6 +++---
+ .../fy-NL/chrome/fy-NL/locale/fy-NL/branding/brand.properties    |    4 ++--
+ upstream/ga-IE/chrome/ga-IE/locale/ga-IE/branding/brand.dtd      |    4 ++--
+ .../ga-IE/chrome/ga-IE/locale/ga-IE/branding/brand.properties    |    4 ++--
+ upstream/gd/chrome/gd/locale/gd/branding/brand.dtd               |    6 +++---
+ upstream/gd/chrome/gd/locale/gd/branding/brand.properties        |    4 ++--
+ upstream/gl/chrome/gl/locale/gl/branding/brand.dtd               |    6 +++---
+ upstream/gl/chrome/gl/locale/gl/branding/brand.properties        |    4 ++--
+ upstream/he/chrome/he/locale/he/branding/brand.dtd               |    4 ++--
+ upstream/he/chrome/he/locale/he/branding/brand.properties        |    5 +++--
+ upstream/hu/chrome/hu/locale/hu/branding/brand.dtd               |    6 +++---
+ upstream/hu/chrome/hu/locale/hu/branding/brand.properties        |    4 ++--
+ upstream/id/chrome/id/locale/id/branding/brand.dtd               |    4 ++--
+ upstream/id/chrome/id/locale/id/branding/brand.properties        |    4 ++--
+ upstream/is/chrome/is/locale/is/branding/brand.dtd               |    4 ++--
+ upstream/is/chrome/is/locale/is/branding/brand.properties        |    4 ++--
+ upstream/it/chrome/it/locale/it/branding/brand.dtd               |    6 +++---
+ upstream/it/chrome/it/locale/it/branding/brand.properties        |    6 +++---
+ upstream/ja/chrome/ja/locale/ja/branding/brand.dtd               |    6 +++---
+ upstream/ja/chrome/ja/locale/ja/branding/brand.properties        |    6 +++---
+ upstream/ko/chrome/ko/locale/ko/branding/brand.dtd               |    4 ++--
+ upstream/ko/chrome/ko/locale/ko/branding/brand.properties        |    6 +++---
+ upstream/lt/chrome/lt/locale/lt/branding/brand.dtd               |    6 +++---
+ upstream/lt/chrome/lt/locale/lt/branding/brand.properties        |    4 ++--
+ upstream/nb-NO/chrome/nb-NO/locale/nb-NO/branding/brand.dtd      |    6 +++---
+ .../nb-NO/chrome/nb-NO/locale/nb-NO/branding/brand.properties    |    4 ++--
+ upstream/nl/chrome/nl/locale/nl/branding/brand.dtd               |    6 +++---
+ upstream/nl/chrome/nl/locale/nl/branding/brand.properties        |    4 ++--
+ upstream/nn-NO/chrome/nn-NO/locale/nn-NO/branding/brand.dtd      |    6 +++---
+ .../nn-NO/chrome/nn-NO/locale/nn-NO/branding/brand.properties    |    4 ++--
+ upstream/pa-IN/chrome/pa-IN/locale/pa-IN/branding/brand.dtd      |    6 +++---
+ .../pa-IN/chrome/pa-IN/locale/pa-IN/branding/brand.properties    |    6 +++---
+ upstream/pl/chrome/pl/locale/pl/branding/brand.dtd               |    4 ++--
+ upstream/pl/chrome/pl/locale/pl/branding/brand.properties        |    4 ++--
+ upstream/pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.dtd      |    6 +++---
+ .../pt-BR/chrome/pt-BR/locale/pt-BR/branding/brand.properties    |    4 ++--
+ upstream/pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.dtd      |    6 +++---
+ .../pt-PT/chrome/pt-PT/locale/pt-PT/branding/brand.properties    |    6 +++---
+ upstream/rm/chrome/rm/locale/rm/branding/brand.dtd               |    6 +++---
+ upstream/rm/chrome/rm/locale/rm/branding/brand.properties        |    4 ++--
+ upstream/ro/chrome/ro/locale/ro/branding/brand.dtd               |    4 ++--
+ upstream/ro/chrome/ro/locale/ro/branding/brand.properties        |    4 ++--
+ upstream/ru/chrome/ru/locale/ru/branding/brand.dtd               |    4 ++--
+ upstream/ru/chrome/ru/locale/ru/branding/brand.properties        |    6 +++---
+ upstream/si/chrome/si/locale/si/branding/brand.dtd               |    6 +++---
+ upstream/si/chrome/si/locale/si/branding/brand.properties        |    6 +++---
+ upstream/sk/chrome/sk/locale/sk/branding/brand.dtd               |    6 +++---
+ upstream/sk/chrome/sk/locale/sk/branding/brand.properties        |    4 ++--
+ upstream/sl/chrome/sl/locale/sl/branding/brand.dtd               |    4 ++--
+ upstream/sl/chrome/sl/locale/sl/branding/brand.properties        |    4 ++--
+ upstream/sq/chrome/sq/locale/sq/branding/brand.dtd               |    6 +++---
+ upstream/sq/chrome/sq/locale/sq/branding/brand.properties        |    6 +++---
+ upstream/sr/chrome/sr/locale/sr/branding/brand.dtd               |    2 +-
+ upstream/sr/chrome/sr/locale/sr/branding/brand.properties        |    2 +-
+ upstream/sv-SE/chrome/sv-SE/locale/sv-SE/branding/brand.dtd      |    6 +++---
+ .../sv-SE/chrome/sv-SE/locale/sv-SE/branding/brand.properties    |    4 ++--
+ upstream/ta-LK/chrome/ta-LK/locale/ta-LK/branding/brand.dtd      |    6 +++---
+ .../ta-LK/chrome/ta-LK/locale/ta-LK/branding/brand.properties    |    6 +++---
+ upstream/tr/chrome/tr/locale/tr/branding/brand.dtd               |    4 ++--
+ upstream/tr/chrome/tr/locale/tr/branding/brand.properties        |    4 ++--
+ upstream/uk/chrome/uk/locale/uk/branding/brand.dtd               |    6 +++---
+ upstream/uk/chrome/uk/locale/uk/branding/brand.properties        |    6 +++---
+ upstream/vi/chrome/vi/locale/vi/branding/brand.dtd               |    4 ++--
+ upstream/vi/chrome/vi/locale/vi/branding/brand.properties        |    4 ++--
+ upstream/zh-CN/chrome/zh-CN/locale/zh-CN/branding/brand.dtd      |    4 ++--
+ .../zh-CN/chrome/zh-CN/locale/zh-CN/branding/brand.properties    |    4 ++--
+ upstream/zh-TW/chrome/zh-TW/locale/zh-TW/branding/brand.dtd      |    6 +++---
+ .../zh-TW/chrome/zh-TW/locale/zh-TW/branding/brand.properties    |    4 ++--
  102 files changed, 246 insertions(+), 245 deletions(-)
 
 diff --git a/upstream/ar/chrome/ar/locale/ar/branding/brand.dtd b/upstream/ar/chrome/ar/locale/ar/branding/brand.dtd
@@ -377,7 +377,7 @@ index e20eab8..44bf191 100644
 +brandFullName=Icedove
 +vendorShortName=Mozilla
 diff --git a/upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.dtd b/upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.dtd
-index 7a5e361..e0d377a 100644
+index 8e7d740..70e5609 100644
 --- a/upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.dtd
 +++ b/upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.dtd
 @@ -1,5 +1,5 @@
@@ -386,8 +386,8 @@ index 7a5e361..e0d377a 100644
 +<!ENTITY brandShortName "Icedove">
 +<!ENTITY brandFullName "Icedove">
  <!ENTITY vendorShortName "Mozilla">
- <!ENTITY trademarkInfo.part1 "Mozilla Thunderbird y los logos de Thunderbird
-                                  son marcas registradas de Mozilla Foundation.">
+ <!ENTITY trademarkInfo.part1 "Mozilla Thunderbird y los logos de Thunderbird logos
+ son marcas registradas de la Fundación Mozilla.">
 diff --git a/upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.properties b/upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.properties
 index c27e6cb..44bf191 100644
 --- a/upstream/es-ES/chrome/es-ES/locale/es-ES/branding/brand.properties
@@ -505,11 +505,11 @@ index 12c1752..75638fc 100644
  <!ENTITY  trademarkInfo.part1   "Mozilla Thunderbird en de Thunderbird-logo's
                                   binne hannelsmerken fan de Mozilla Foundation.">
 diff --git a/upstream/fy-NL/chrome/fy-NL/locale/fy-NL/branding/brand.properties b/upstream/fy-NL/chrome/fy-NL/locale/fy-NL/branding/brand.properties
-index fd1a07a..44bf191 100644
+index 857d0c3..44bf191 100644
 --- a/upstream/fy-NL/chrome/fy-NL/locale/fy-NL/branding/brand.properties
 +++ b/upstream/fy-NL/chrome/fy-NL/locale/fy-NL/branding/brand.properties
 @@ -1,3 +1,3 @@
--brandShortName=Mozilla Thunderbird
+-brandShortName=Thunderbird
 -brandFullName=Mozilla Thunderbird
 +brandShortName=Icedove
 +brandFullName=Icedove
@@ -685,25 +685,25 @@ index 857d0c3..44bf191 100644
 +brandFullName=Icedove
  vendorShortName=Mozilla
 diff --git a/upstream/it/chrome/it/locale/it/branding/brand.dtd b/upstream/it/chrome/it/locale/it/branding/brand.dtd
-index eb6aeb3..212ad91 100644
+index 864db44..79a9930 100644
 --- a/upstream/it/chrome/it/locale/it/branding/brand.dtd
 +++ b/upstream/it/chrome/it/locale/it/branding/brand.dtd
 @@ -1,4 +1,4 @@
 -<!ENTITY brandShortName "Thunderbird">
 -<!ENTITY brandFullName "Mozilla Thunderbird">
--<!ENTITY vendorShortName "Mozilla Thunderbird">
 +<!ENTITY brandShortName "Icedove">
 +<!ENTITY brandFullName "Icedove">
-+<!ENTITY vendorShortName "Mozilla">
- <!ENTITY trademarkInfo.part1 "Mozilla Thunderbird e i logo di Thunderbird sono marchi registrati della Mozilla Foundation.">
+ <!ENTITY vendorShortName "Mozilla">
+-<!ENTITY trademarkInfo.part1 "Mozilla Thunderbird e i logo Thunderbird                                  sono marchi registrati di Mozilla Foundation.">
++<!ENTITY trademarkInfo.part1 "Mozilla Thunderbird e i logo di Thunderbird sono marchi registrati della Mozilla Foundation.">
 diff --git a/upstream/it/chrome/it/locale/it/branding/brand.properties b/upstream/it/chrome/it/locale/it/branding/brand.properties
-index 3014cf8..44bf191 100644
+index c27e6cb..44bf191 100644
 --- a/upstream/it/chrome/it/locale/it/branding/brand.properties
 +++ b/upstream/it/chrome/it/locale/it/branding/brand.properties
 @@ -1,3 +1,3 @@
--brandShortName = Mozilla Thunderbird
+-brandShortName = Thunderbird
 -brandFullName = Mozilla Thunderbird
--vendorShortName = Mozilla Thunderbird
+-vendorShortName = Mozilla
 +brandShortName=Icedove
 +brandFullName=Icedove
 +vendorShortName=Mozilla
@@ -1288,3 +1288,4 @@ index 857d0c3..44bf191 100644
 +brandShortName=Icedove
 +brandFullName=Icedove
  vendorShortName=Mozilla
+-- 
