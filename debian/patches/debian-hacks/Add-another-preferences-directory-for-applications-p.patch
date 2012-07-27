@@ -5,15 +5,16 @@ Subject: Add another preferences directory for applications:
 
 This can be used to symlink to /etc/ice*/pref.
 
+
 ---
  mozilla/toolkit/xre/nsXREDirProvider.cpp |    2 ++
  1 file changed, 2 insertions(+)
 
 diff --git a/mozilla/toolkit/xre/nsXREDirProvider.cpp b/mozilla/toolkit/xre/nsXREDirProvider.cpp
-index 200de65..6e11878 100644
+index ecbcc0d..6951312 100644
 --- a/mozilla/toolkit/xre/nsXREDirProvider.cpp
 +++ b/mozilla/toolkit/xre/nsXREDirProvider.cpp
-@@ -603,6 +603,7 @@ nsXREDirProvider::LoadAppBundleDirs()
+@@ -606,6 +606,7 @@ nsXREDirProvider::LoadAppBundleDirs()
  }
  
  static const char *const kAppendPrefDir[] = { "defaults", "preferences", nsnull };
@@ -21,8 +22,8 @@ index 200de65..6e11878 100644
  
  #ifdef DEBUG_bsmedberg
  static void
-@@ -644,6 +645,7 @@ nsXREDirProvider::GetFilesInternal(const char* aProperty,
-     LoadAppDirIntoArray(mXULAppDir, kAppendPrefDir, directories);
+@@ -647,6 +648,7 @@ nsXREDirProvider::GetFilesInternal(const char* aProperty,
+     LoadDirIntoArray(mXULAppDir, kAppendPrefDir, directories);
      LoadDirsIntoArray(mAppBundleDirectories,
                        kAppendPrefDir, directories);
 +    LoadAppDirIntoArray(mXULAppDir, kAppendSysPrefDir, directories);

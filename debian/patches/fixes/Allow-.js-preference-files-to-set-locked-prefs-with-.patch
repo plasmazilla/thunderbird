@@ -4,6 +4,7 @@ Subject: Allow .js preference files to set locked prefs with lockPref()
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=440908
 
+
 ---
  mozilla/modules/libpref/src/prefapi.cpp  |    5 ++++-
  mozilla/modules/libpref/src/prefapi.h    |    3 ++-
@@ -12,10 +13,10 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=440908
  4 files changed, 17 insertions(+), 6 deletions(-)
 
 diff --git a/mozilla/modules/libpref/src/prefapi.cpp b/mozilla/modules/libpref/src/prefapi.cpp
-index 06de6e0..99d540d 100644
+index d1a45f9..af2adb1 100644
 --- a/mozilla/modules/libpref/src/prefapi.cpp
 +++ b/mozilla/modules/libpref/src/prefapi.cpp
-@@ -944,7 +944,10 @@ void PREF_ReaderCallback(void       *closure,
+@@ -948,7 +948,10 @@ void PREF_ReaderCallback(void       *closure,
                           const char *pref,
                           PrefValue   value,
                           PrefType    type,
@@ -23,7 +24,7 @@ index 06de6e0..99d540d 100644
 +                         bool        isDefault,
 +                         bool        isLocked)
  {
-     pref_HashPref(pref, value, type, isDefault);
+     pref_HashPref(pref, value, type, isDefault ? kPrefSetDefault : kPrefForceSet);
 +    if (isLocked)
 +        PREF_LockPref(pref, PR_TRUE);
  }

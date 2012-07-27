@@ -10,6 +10,7 @@ Squashed kFreeBSD/Hurd related fixes:
 - Fix FTBFS of liboggplay on hurd
 - Build fixes for GNU/kFreeBSD in directory/
 - Missing bits for Hurd support
+
 ---
  configure.in                                       |    7 ++---
  ldap/sdks/c-sdk/config/nsinstall.c                 |    2 +-
@@ -22,10 +23,10 @@ Squashed kFreeBSD/Hurd related fixes:
  8 files changed, 36 insertions(+), 26 deletions(-)
 
 diff --git a/configure.in b/configure.in
-index ed037eb..b7c32fc 100644
+index 9d56d10..f8ad64d 100644
 --- a/configure.in
 +++ b/configure.in
-@@ -1124,6 +1124,7 @@ if test -n "$CROSS_COMPILE"; then
+@@ -1095,6 +1095,7 @@ if test -n "$CROSS_COMPILE"; then
      case "${target_os}" in
          linux*)       OS_ARCH=Linux OS_TARGET=Linux ;;
          kfreebsd*-gnu) OS_ARCH=GNU_kFreeBSD OS_TARGET=GNU_kFreeBSD ;;
@@ -33,7 +34,7 @@ index ed037eb..b7c32fc 100644
          solaris*)     OS_ARCH=SunOS OS_RELEASE=5 ;;
          mingw*)       OS_ARCH=WINNT ;;
          wince*)       OS_ARCH=WINCE ;;
-@@ -1770,7 +1771,7 @@ case "$host" in
+@@ -1737,7 +1738,7 @@ case "$host" in
      HOST_OPTIMIZE_FLAGS="${HOST_OPTIMIZE_FLAGS=-O3}"
      ;;
  
@@ -42,7 +43,7 @@ index ed037eb..b7c32fc 100644
      HOST_CFLAGS="$HOST_CFLAGS -DXP_UNIX"
      HOST_NSPR_MDCPUCFG='\"md/_linux.cfg\"'
      HOST_OPTIMIZE_FLAGS="${HOST_OPTIMIZE_FLAGS=-O3}"
-@@ -2765,7 +2766,7 @@ dnl ========================================================
+@@ -2692,7 +2693,7 @@ dnl ========================================================
  dnl = Flags to strip unused symbols from .so components
  dnl ========================================================
  case "$target" in
@@ -51,7 +52,7 @@ index ed037eb..b7c32fc 100644
          MOZ_COMPONENTS_VERSION_SCRIPT_LDFLAGS='-Wl,--version-script -Wl,$(BUILD_TOOLS)/gnu-ld-scripts/components-version-script'
          ;;
      *-solaris*)
-@@ -3431,7 +3432,7 @@ then
+@@ -3358,7 +3359,7 @@ then
  			fi
  			;;
  
@@ -74,7 +75,7 @@ index dfdb837..9f9c84a 100644
  #endif
  
 diff --git a/ldap/sdks/c-sdk/configure.in b/ldap/sdks/c-sdk/configure.in
-index 07759a8..0938a6c 100644
+index 3b1d5cb..32aa83e 100644
 --- a/ldap/sdks/c-sdk/configure.in
 +++ b/ldap/sdks/c-sdk/configure.in
 @@ -794,6 +794,7 @@ if test -n "$CROSS_COMPILE"; then
@@ -109,7 +110,7 @@ index 07759a8..0938a6c 100644
      LD='$(CC)'
      CFLAGS="$CFLAGS -ansi -Wall"
      CXXFLAGS="$CXXFLAGS -ansi -Wall"
-@@ -2401,7 +2406,7 @@ if test -n "$USE_PTHREADS"; then
+@@ -2405,7 +2410,7 @@ if test -n "$USE_PTHREADS"; then
  	        _PTHREAD_LDFLAGS=
  	    fi
  	    ;;
@@ -118,7 +119,7 @@ index 07759a8..0938a6c 100644
          AC_DEFINE(_REENTRANT)
          ;;
      esac
-@@ -2477,7 +2482,7 @@ case "$target" in
+@@ -2481,7 +2486,7 @@ case "$target" in
          fi
      fi
      ;;

@@ -5,15 +5,16 @@ Subject: Don't error-out when run-time libsqlite is older than build-time
 
 In Debian, we have shlibs to handle this.
 
+
 ---
  mozilla/storage/src/mozStorageService.cpp |    2 ++
  1 file changed, 2 insertions(+)
 
 diff --git a/mozilla/storage/src/mozStorageService.cpp b/mozilla/storage/src/mozStorageService.cpp
-index 4171592..6b59f8d 100644
+index 54806d0..497a7e2 100644
 --- a/mozilla/storage/src/mozStorageService.cpp
 +++ b/mozilla/storage/src/mozStorageService.cpp
-@@ -228,6 +228,7 @@ Service::getSingleton()
+@@ -396,6 +396,7 @@ Service::getSingleton()
      return gService;
    }
  
@@ -21,7 +22,7 @@ index 4171592..6b59f8d 100644
    // Ensure that we are using the same version of SQLite that we compiled with
    // or newer.  Our configure check ensures we are using a new enough version
    // at compile time.
-@@ -243,6 +244,7 @@ Service::getSingleton()
+@@ -411,6 +412,7 @@ Service::getSingleton()
      }
      ::PR_Abort();
    }

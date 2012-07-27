@@ -8,7 +8,7 @@ Subject: Load dependent libraries with their real path to avoid confusing gdb
  1 file changed, 3 insertions(+)
 
 diff --git a/mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp b/mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp
-index 7d8d4d6..bd43c6b 100644
+index 7736832..4c06fb4 100644
 --- a/mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp
 +++ b/mozilla/xpcom/glue/standalone/nsGlueLinkingDlopen.cpp
 @@ -218,6 +218,9 @@ preload(const char *file)

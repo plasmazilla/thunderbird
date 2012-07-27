@@ -8,14 +8,14 @@ Subject: Fix GNU/non-Linux failure to build because of
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/ipc/chromium/src/base/dir_reader_posix.h b/mozilla/ipc/chromium/src/base/dir_reader_posix.h
-index f591ae0..4b74a08 100644
+index 9a34492..4b74a08 100644
 --- a/mozilla/ipc/chromium/src/base/dir_reader_posix.h
 +++ b/mozilla/ipc/chromium/src/base/dir_reader_posix.h
 @@ -18,7 +18,7 @@
  // seems worse than falling back to enumerating all file descriptors so we will
  // probably never implement this on the Mac.
  
--#if defined(OS_LINUX)
+-#if defined(OS_LINUX) && !defined(OS_OPENBSD)
 +#if defined(OS_LINUX) && defined(__linux__)
  #include "base/dir_reader_linux.h"
  #else
@@ -24,7 +24,7 @@ index f591ae0..4b74a08 100644
  
  namespace base {
  
--#if defined(OS_LINUX)
+-#if defined(OS_LINUX) && !defined(OS_OPENBSD)
 +#if defined(OS_LINUX) && defined(__linux__)
  typedef DirReaderLinux DirReaderPosix;
  #else

@@ -7,7 +7,7 @@ Subject: Don't build example component
  1 file changed, 1 deletion(-)
 
 diff --git a/mozilla/xulrunner/Makefile.in b/mozilla/xulrunner/Makefile.in
-index 0af55ea..176ace0 100644
+index 2dc7eaf..0eebe0d 100644
 --- a/mozilla/xulrunner/Makefile.in
 +++ b/mozilla/xulrunner/Makefile.in
 @@ -47,7 +47,6 @@ PARALLEL_DIRS = \
@@ -17,4 +17,4 @@ index 0af55ea..176ace0 100644
 -  examples \
    $(NULL)
  
- ifeq ($(OS_ARCH),WINNT)
+ ifdef MAKENSISU

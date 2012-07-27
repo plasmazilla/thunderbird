@@ -8,12 +8,12 @@ Subject: Don't register plugins if the MOZILLA_DISABLE_PLUGINS environment
  1 file changed, 4 insertions(+)
 
 diff --git a/mozilla/dom/plugins/base/nsPluginHost.cpp b/mozilla/dom/plugins/base/nsPluginHost.cpp
-index 7fe18b2..e5aa04b 100644
+index a4e5982..664bcdb 100644
 --- a/mozilla/dom/plugins/base/nsPluginHost.cpp
 +++ b/mozilla/dom/plugins/base/nsPluginHost.cpp
-@@ -405,6 +405,10 @@ nsPluginHost::nsPluginHost()
-     }
-   }
+@@ -355,6 +355,10 @@ nsPluginHost::nsPluginHost()
+ 
+   Preferences::AddStrongObserver(this, "plugin.disable");
  
 +  const char *env = PR_GetEnv("MOZILLA_DISABLE_PLUGINS");
 +  if (env && env[0])

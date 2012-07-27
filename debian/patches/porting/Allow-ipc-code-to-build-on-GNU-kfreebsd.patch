@@ -9,7 +9,7 @@ Subject: Allow ipc code to build on GNU/kfreebsd
  3 files changed, 6 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
-index e3f49c7..f1d3b2f 100644
+index aa4f661..a021af2 100644
 --- a/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
 +++ b/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
 @@ -37,7 +37,11 @@ PlatformThreadId PlatformThread::CurrentId() {
@@ -38,7 +38,7 @@ index ef40994..30fef1b 100644
  #elif defined(__OpenBSD__)
  #include "base/third_party/nspr/prcpucfg_openbsd.h"
 diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h
-index 0952ab1..4ef0c76 100644
+index 9e87ad2..f79884e 100644
 --- a/mozilla/ipc/chromium/src/build/build_config.h
 +++ b/mozilla/ipc/chromium/src/build/build_config.h
 @@ -17,7 +17,7 @@

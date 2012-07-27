@@ -5,16 +5,17 @@ Subject: Gross workaround to avoid installing test idl and include files in
 
 https://bugzilla.mozilla.org/show_bug.cgi?id=542749
 
+
 ---
  mozilla/config/rules.mk        |   14 ++++++++++++--
  mozilla/js/src/config/rules.mk |   14 ++++++++++++--
  2 files changed, 24 insertions(+), 4 deletions(-)
 
 diff --git a/mozilla/config/rules.mk b/mozilla/config/rules.mk
-index 1f37020..6ba87a6 100644
+index c522235..c398511 100644
 --- a/mozilla/config/rules.mk
 +++ b/mozilla/config/rules.mk
-@@ -64,6 +64,16 @@ ifdef SDK_HEADERS
+@@ -32,6 +32,16 @@ ifdef SDK_HEADERS
  EXPORTS += $(SDK_HEADERS)
  endif
  
@@ -31,7 +32,7 @@ index 1f37020..6ba87a6 100644
  REPORT_BUILD = @echo $(notdir $<)
  
  ifeq ($(OS_ARCH),OS2)
-@@ -1524,8 +1534,8 @@ ifndef NO_DIST_INSTALL
+@@ -1494,8 +1504,8 @@ ifndef NO_DIST_INSTALL
  export:: $(XPIDLSRCS) $(IDL_DIR)
  	$(INSTALL) $(IFLAGS1) $^
  
@@ -43,10 +44,10 @@ index 1f37020..6ba87a6 100644
  
  endif # XPIDLSRCS
 diff --git a/mozilla/js/src/config/rules.mk b/mozilla/js/src/config/rules.mk
-index 1f37020..6ba87a6 100644
+index c522235..c398511 100644
 --- a/mozilla/js/src/config/rules.mk
 +++ b/mozilla/js/src/config/rules.mk
-@@ -64,6 +64,16 @@ ifdef SDK_HEADERS
+@@ -32,6 +32,16 @@ ifdef SDK_HEADERS
  EXPORTS += $(SDK_HEADERS)
  endif
  
@@ -63,7 +64,7 @@ index 1f37020..6ba87a6 100644
  REPORT_BUILD = @echo $(notdir $<)
  
  ifeq ($(OS_ARCH),OS2)
-@@ -1524,8 +1534,8 @@ ifndef NO_DIST_INSTALL
+@@ -1494,8 +1504,8 @@ ifndef NO_DIST_INSTALL
  export:: $(XPIDLSRCS) $(IDL_DIR)
  	$(INSTALL) $(IFLAGS1) $^
  

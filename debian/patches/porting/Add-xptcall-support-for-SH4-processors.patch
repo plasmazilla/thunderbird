@@ -4,6 +4,7 @@ Subject: Add xptcall support for SH4 processors
 
 Closes: #573400
 https://bugzilla.mozilla.org/show_bug.cgi?id=382214
+
 ---
  .../xpcom/reflect/xptcall/src/md/unix/Makefile.in  |   11 +
  .../xptcall/src/md/unix/xptcinvoke_linux_sh.cpp    |  203 +++++++++++++++

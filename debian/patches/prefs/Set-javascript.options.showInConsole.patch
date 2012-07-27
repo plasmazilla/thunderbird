@@ -7,10 +7,10 @@ Subject: Set javascript.options.showInConsole
  1 file changed, 1 insertion(+)
 
 diff --git a/mozilla/modules/libpref/src/init/all.js b/mozilla/modules/libpref/src/init/all.js
-index c09ab9f..35cbbfb 100644
+index b7fc7e9..e9ae724 100644
 --- a/mozilla/modules/libpref/src/init/all.js
 +++ b/mozilla/modules/libpref/src/init/all.js
-@@ -635,6 +635,7 @@ pref("javascript.options.strict",           false);
+@@ -667,6 +667,7 @@ pref("javascript.options.strict",           false);
  pref("javascript.options.strict.debug",     true);
  #endif
  pref("javascript.options.relimit",          true);

@@ -7,10 +7,10 @@ Subject: Remove the js shell from the build directory during cleanup
  1 file changed, 2 insertions(+)
 
 diff --git a/mozilla/js/src/shell/Makefile.in b/mozilla/js/src/shell/Makefile.in
-index 4df10ed..725fd86 100644
+index cf27c4d..355b863 100644
 --- a/mozilla/js/src/shell/Makefile.in
 +++ b/mozilla/js/src/shell/Makefile.in
-@@ -78,3 +78,5 @@ endif
+@@ -81,3 +81,5 @@ endif
  # People expect the js shell to wind up in the top-level JS dir.
  libs::
  	$(INSTALL) $(IFLAGS2) $(PROGRAM) $(DEPTH)
