@@ -57,7 +57,6 @@ nsIDocument.h \
 nsDeprecatedOperationList.h \
 nsIDocumentObserver.h \
 nsIMutationObserver.h \
-nsIMutationObserver2.h \
 nsINameSpaceManager.h \
 nsINode.h \
 nsINodeInfo.h \
@@ -65,9 +64,7 @@ nsINodeList.h \
 nsIScriptElement.h \
 nsIStyleSheetLinkingElement.h \
 nsIContentSerializer.h \
-nsIHTMLToTextSink.h \
 nsIXPathEvaluatorInternal.h \
-mozISanitizingSerializer.h \
 nsCaseTreatment.h \
 nsContentCID.h \
 nsCopySupport.h \
@@ -77,15 +74,18 @@ nsLineBreaker.h \
 nsReferencedElement.h \
 nsTreeSanitizer.h \
 nsXMLNameSpaceMap.h \
-nsDOMEventTargetWrapperCache.h \
 nsIXFormsUtilityService.h \
 $(NULL)
 
-EXPORTS_NAMESPACES = mozilla/dom
+EXPORTS_NAMESPACES = mozilla/dom mozilla
 
 EXPORTS_mozilla/dom = \
 		Element.h \
 		FromParser.h \
+		$(NULL)
+
+EXPORTS_mozilla = \
+		CORSMode.h \
 		$(NULL)
 
 SDK_XPIDLSRCS   = \
@@ -98,8 +98,6 @@ XPIDLSRCS	= \
 		nsIDOMFile.idl \
 		nsIDOMFileReader.idl \
 		nsIDOMFileList.idl \
-		nsIDOMFileException.idl \
-		nsIDOMFileError.idl \
 		nsIDOMFormData.idl \
 		nsIDOMParser.idl \
 		nsIDOMSerializer.idl \

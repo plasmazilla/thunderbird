@@ -373,7 +373,7 @@ def writeHeaderFile(filename, name):
                 "#ifndef " + headerMacro + "\n"
                 "#define " + headerMacro + "\n\n"
                 "JSBool " + name + "_DefineQuickStubs("
-                "JSContext *cx, JSObject *proto, uintN flags, "
+                "JSContext *cx, JSObject *proto, unsigned flags, "
                 "PRUint32 count, const nsID **iids);\n\n"
                 "void " + name + "_MarkInterfaces();\n\n"
                 "void " + name + "_ClearInterfaces();\n\n"
@@ -456,23 +456,23 @@ argumentUnboxingTemplates = {
         "        return JS_FALSE;\n",
 
     'long long':
-        "    PRInt64 ${name};\n"
-        "    if (!xpc_qsValueToInt64(cx, ${argVal}, &${name}))\n"
+        "    int64_t ${name};\n"
+        "    if (!xpc::ValueToInt64(cx, ${argVal}, &${name}))\n"
         "        return JS_FALSE;\n",
 
     'unsigned long long':
-        "    PRUint64 ${name};\n"
-        "    if (!xpc_qsValueToUint64(cx, ${argVal}, &${name}))\n"
+        "    uint64_t ${name};\n"
+        "    if (!xpc::ValueToUint64(cx, ${argVal}, &${name}))\n"
         "        return JS_FALSE;\n",
 
     'float':
-        "    jsdouble ${name}_dbl;\n"
+        "    double ${name}_dbl;\n"
         "    if (!JS_ValueToNumber(cx, ${argVal}, &${name}_dbl))\n"
         "        return JS_FALSE;\n"
         "    float ${name} = (float) ${name}_dbl;\n",
 
     'double':
-        "    jsdouble ${name};\n"
+        "    double ${name};\n"
         "    if (!JS_ValueToNumber(cx, ${argVal}, &${name}))\n"
         "        return JS_FALSE;\n",
 
@@ -802,7 +802,7 @@ def writeQuickStub(f, customMethodCalls, member, stubName, isSetter=False):
             signature += "%s(JSContext *cx, JSObject *obj, jsid id,%s jsval *vp)\n"
     else:
         # JSFastNative.
-        signature += "%s(JSContext *cx, uintN argc,%s jsval *vp)\n"
+        signature += "%s(JSContext *cx, unsigned argc,%s jsval *vp)\n"
 
     customMethodCall = customMethodCalls.get(stubName, None)
 
@@ -893,12 +893,6 @@ def writeQuickStub(f, customMethodCalls, member, stubName, isSetter=False):
                 "JSVAL_TO_OBJECT(JS_CALLEE(cx, vp)));\n")
         if isInterfaceType(member.realtype):
             f.write("    XPCLazyCallContext lccx(ccx);\n")
-    elif isInterfaceType(member.realtype):
-        if isMethod:
-            f.write("    JSObject *callee = "
-                    "JSVAL_TO_OBJECT(JS_CALLEE(cx, vp));\n")
-        elif isGetter:
-            f.write("    JSObject *callee = nsnull;\n")
 
     # Get the 'self' pointer.
     if customMethodCall is None or not 'thisType' in customMethodCall:
@@ -930,10 +924,10 @@ def writeQuickStub(f, customMethodCalls, member, stubName, isSetter=False):
 
         if not isSetter and isInterfaceType(member.realtype):
             f.write("    XPCLazyCallContext lccx(JS_CALLER, cx, obj);\n")
-            f.write("    if (!xpc_qsUnwrapThis(cx, obj, callee, &self, "
+            f.write("    if (!xpc_qsUnwrapThis(cx, obj, &self, "
                     "&selfref.ptr, %s, &lccx, %s))\n" % (pthisval, unwrapFatalArg))
         else:
-            f.write("    if (!xpc_qsUnwrapThis(cx, obj, nsnull, &self, "
+            f.write("    if (!xpc_qsUnwrapThis(cx, obj, &self, "
                     "&selfref.ptr, %s, nsnull, %s))\n" % (pthisval, unwrapFatalArg))
         f.write("        return JS_FALSE;\n")
 
@@ -1280,14 +1274,16 @@ def writeDefiner(f, conf, stringtable, interfaces):
     f.write("\n")
 
     # the definer function (entry point to this quick stubs file)
-    f.write("JSBool %s_DefineQuickStubs(" % conf.name)
-    f.write("JSContext *cx, JSObject *proto, uintN flags, PRUint32 count, "
+    f.write("namespace xpc {\n")
+    f.write("bool %s_DefineQuickStubs(" % conf.name)
+    f.write("JSContext *cx, JSObject *proto, unsigned flags, PRUint32 count, "
             "const nsID **iids)\n"
             "{\n")
-    f.write("    return xpc_qsDefineQuickStubs("
+    f.write("    return !!xpc_qsDefineQuickStubs("
             "cx, proto, flags, count, iids, %d, tableData, %s, %s, %s);\n" % (
             size, prop_array_name, func_array_name, table_name))
-    f.write("}\n\n\n")
+    f.write("}\n")
+    f.write("} // namespace xpc\n\n\n")
 
 
 stubTopTemplate = '''\

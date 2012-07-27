@@ -36,25 +36,24 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+// Main header first:
 #include "nsSVGPatternFrame.h"
 
-#include "nsGkAtoms.h"
-#include "nsIDOMSVGAnimatedRect.h"
-#include "SVGAnimatedTransformList.h"
-#include "nsStyleContext.h"
-#include "nsINameSpaceManager.h"
-#include "nsISVGChildFrame.h"
-#include "nsSVGRect.h"
-#include "nsSVGUtils.h"
-#include "nsSVGEffects.h"
-#include "nsSVGOuterSVGFrame.h"
-#include "nsSVGPatternElement.h"
-#include "nsSVGGeometryFrame.h"
+// Keep others in (case-insensitive) order:
 #include "gfxContext.h"
-#include "gfxPlatform.h"
-#include "gfxPattern.h"
 #include "gfxMatrix.h"
+#include "gfxPattern.h"
+#include "gfxPlatform.h"
 #include "nsContentUtils.h"
+#include "nsGkAtoms.h"
+#include "nsISVGChildFrame.h"
+#include "nsRenderingContext.h"
+#include "nsStyleContext.h"
+#include "nsSVGEffects.h"
+#include "nsSVGGeometryFrame.h"
+#include "nsSVGPatternElement.h"
+#include "nsSVGUtils.h"
+#include "SVGAnimatedTransformList.h"
 
 using namespace mozilla;
 
@@ -295,17 +294,18 @@ nsSVGPatternFrame::PaintPattern(gfxASurface** surface,
   if (!tmpSurface || tmpSurface->CairoStatus())
     return NS_ERROR_FAILURE;
 
-  nsSVGRenderState tmpState(tmpSurface);
-  gfxContext* tmpContext = tmpState.GetGfxContext();
+  nsRenderingContext context;
+  context.Init(aSource->PresContext()->DeviceContext(), tmpSurface);
+  gfxContext* gfx = context.ThebesContext();
 
   // Fill with transparent black
-  tmpContext->SetOperator(gfxContext::OPERATOR_CLEAR);
-  tmpContext->Paint();
-  tmpContext->SetOperator(gfxContext::OPERATOR_OVER);
+  gfx->SetOperator(gfxContext::OPERATOR_CLEAR);
+  gfx->Paint();
+  gfx->SetOperator(gfxContext::OPERATOR_OVER);
 
   if (aGraphicOpacity != 1.0f) {
-    tmpContext->Save();
-    tmpContext->PushGroup(gfxASurface::CONTENT_COLOR_ALPHA);
+    gfx->Save();
+    gfx->PushGroup(gfxASurface::CONTENT_COLOR_ALPHA);
   }
 
   // OK, now render -- note that we use "firstKid", which
@@ -326,10 +326,11 @@ nsSVGPatternFrame::PaintPattern(gfxASurface** surface,
       // The CTM of each frame referencing us can be different
       nsISVGChildFrame* SVGFrame = do_QueryFrame(kid);
       if (SVGFrame) {
-        SVGFrame->NotifySVGChanged(nsISVGChildFrame::SUPPRESS_INVALIDATION |
-                                   nsISVGChildFrame::TRANSFORM_CHANGED);
+        SVGFrame->NotifySVGChanged(
+                          nsISVGChildFrame::DO_NOT_NOTIFY_RENDERING_OBSERVERS |
+                          nsISVGChildFrame::TRANSFORM_CHANGED);
       }
-      nsSVGUtils::PaintFrameWithEffects(&tmpState, nsnull, kid);
+      nsSVGUtils::PaintFrameWithEffects(&context, nsnull, kid);
     }
     patternFrame->RemoveStateBits(NS_FRAME_DRAWING_AS_PAINTSERVER);
   }
@@ -337,9 +338,9 @@ nsSVGPatternFrame::PaintPattern(gfxASurface** surface,
   patternFrame->mSource = nsnull;
 
   if (aGraphicOpacity != 1.0f) {
-    tmpContext->PopGroupToSource();
-    tmpContext->Paint(aGraphicOpacity);
-    tmpContext->Restore();
+    gfx->PopGroupToSource();
+    gfx->Paint(aGraphicOpacity);
+    gfx->Restore();
   }
 
   // caller now owns the surface
@@ -579,10 +580,14 @@ nsSVGPatternFrame::ConstructCTM(const gfxRect &callerBBox,
     tCTM.Scale(scale, scale);
   }
 
-  const nsSVGViewBoxRect viewBox = GetViewBox().GetAnimValue();
-
-  if (viewBox.height <= 0.0f || viewBox.width <= 0.0f) {
+  const nsSVGViewBox& viewBox = GetViewBox();
+  if (!viewBox.IsValid()) {
     return tCTM;
+  }
+  const nsSVGViewBoxRect viewBoxRect = GetViewBox().GetAnimValue();
+
+  if (viewBoxRect.height <= 0.0f || viewBoxRect.width <= 0.0f) {
+    return gfxMatrix(0.0, 0.0, 0.0, 0.0, 0.0, 0.0); // singular
   }
 
   float viewportWidth, viewportHeight;
@@ -601,11 +606,16 @@ nsSVGPatternFrame::ConstructCTM(const gfxRect &callerBBox,
     viewportHeight =
       GetLengthValue(nsSVGPatternElement::HEIGHT)->GetAnimValue(aTarget);
   }
+
+  if (viewportWidth <= 0.0f || viewportHeight <= 0.0f) {
+    return gfxMatrix(0.0, 0.0, 0.0, 0.0, 0.0, 0.0); // singular
+  }
+
   gfxMatrix tm = nsSVGUtils::GetViewBoxTransform(
     static_cast<nsSVGPatternElement*>(mContent),
     viewportWidth, viewportHeight,
-    viewBox.x, viewBox.y,
-    viewBox.width, viewBox.height,
+    viewBoxRect.x, viewBoxRect.y,
+    viewBoxRect.width, viewBoxRect.height,
     GetPreserveAspectRatio());
 
   return tm * tCTM;

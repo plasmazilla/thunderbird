@@ -1,27 +1,35 @@
 /* -*- Mode: JavaScript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
 /*
  * Test to ensure that downloadAllForOffline works correctly for large imap
- * stores, i.e., > 4GB.
+ * stores, i.e., over 4 GiB.
  */
-
-var gIMAPDaemon, gServer, gIMAPIncomingServer;
-
-Services.prefs.setCharPref("mail.serverDefaultStoreContractID",
-                           "@mozilla.org/msgstore/berkeleystore;1");
-
-const gIMAPService = Cc["@mozilla.org/messenger/messageservice;1?type=imap"]
-                       .getService(Ci.nsIMsgMessageService);
 
 load("../../../resources/mailTestUtils.js");
 load("../../../resources/messageGenerator.js");
 
+Services.prefs.setCharPref("mail.serverDefaultStoreContractID",
+                           "@mozilla.org/msgstore/berkeleystore;1");
+
 var gDownloadedOnce = false;
+var gIMAPDaemon;
 var gIMAPInbox;
+var gIMAPIncomingServer;
 var gOfflineStoreSize;
+var gServer;
 
 function run_test()
 {
+  // Preference tuning: turn off notifications.
+  Services.prefs.setBoolPref("mail.biff.play_sound", false);
+  Services.prefs.setBoolPref("mail.biff.show_alert", false);
+  Services.prefs.setBoolPref("mail.biff.show_tray_icon", false);
+  Services.prefs.setBoolPref("mail.biff.animate_dock_icon", false);
+
   loadLocalMailAccount();
+
+  // "Master" do_test_pending(), paired with a do_test_finished() at the end of
+  // all the operations.
+  do_test_pending();
 
   /*
    * Set up an IMAP server.
@@ -31,20 +39,13 @@ function run_test()
   gIMAPIncomingServer = createLocalIMAPServer();
   gIMAPIncomingServer.maximumConnectionsNumber = 1;
 
-  // pref tuning: one connection only, turn off notifications
-  let prefBranch = Cc["@mozilla.org/preferences-service;1"]
-                     .getService(Ci.nsIPrefBranch);
-  prefBranch.setBoolPref("mail.biff.play_sound", false);
-  prefBranch.setBoolPref("mail.biff.show_alert", false);
-  prefBranch.setBoolPref("mail.biff.show_tray_icon", false);
-  prefBranch.setBoolPref("mail.biff.animate_dock_icon", false);
-
   // Figure out the name of the IMAP inbox
-  let inboxFile = gIMAPIncomingServer.rootMsgFolder.filePath.clone();
+  let inboxFile = gIMAPIncomingServer.rootMsgFolder.filePath;
   inboxFile.append("INBOX");
   if (!inboxFile.exists())
     inboxFile.create(Ci.nsIFile.NORMAL_FILE_TYPE, parseInt("0644", 8));
 
+  let neededFreeSpace = 0x200000000;
   // On Windows, check whether the drive is NTFS. If it is, mark the file as
   // sparse. If it isn't, then bail out now, because in all probability it is
   // FAT32, which doesn't support file sizes greater than 4 GB.
@@ -55,11 +56,15 @@ function run_test()
     endTest();
     return;
   }
+
   let isFileSparse = mark_file_region_sparse(inboxFile, 0, 0x10000000f);
-  if (!isFileSparse && inboxFile.diskSpaceAvailable < 0x200000000)
-  {
-    dump("On systems where files can't be marked sparse, this test needs 8 " +
-         "GB of free disk space.\n");
+  let freeDiskSpace = inboxFile.diskSpaceAvailable;
+  do_print("Free disk space = " + toMiBString(freeDiskSpace));
+  if (!isFileSparse && freeDiskSpace < neededFreeSpace) {
+    do_print("This test needs " + toMiBString(neededFreeSpace) +
+             " free space to run. Aborting.");
+    todo_check_true(false);
+
     endTest();
     return;
   }
@@ -69,49 +74,52 @@ function run_test()
   let ioService = Cc["@mozilla.org/network/io-service;1"]
                     .getService(Ci.nsIIOService);
 
-  // "Master" do_test_pending(), paired with a do_test_finished() at the end of
-  // all the operations.
-  do_test_pending();
-
-  // Create a couple test messages.
+  // Create a couple test messages on the IMAP server.
   let messages = [];
   let messageGenerator = new MessageGenerator();
   let scenarioFactory = new MessageScenarioFactory(messageGenerator);
 
   messages = messages.concat(scenarioFactory.directReply(2));
   let dataUri = ioService.newURI("data:text/plain;base64," +
-                   btoa(messages[0].toMessageString()),
-                        null, null);
+                                   btoa(messages[0].toMessageString()),
+                                 null, null);
   let imapMsg = new imapMessage(dataUri.spec, inbox.uidnext++, []);
   inbox.addMessage(imapMsg);
 
   dataUri = ioService.newURI("data:text/plain;base64," +
-                   btoa(messages[1].toMessageString()),
-                        null, null);
+                               btoa(messages[1].toMessageString()),
+                             null, null);
   imapMsg = new imapMessage(dataUri.spec, inbox.uidnext++, []);
   inbox.addMessage(imapMsg);
 
-  // Get the IMAP inbox...
+  // Get local IMAP inbox.
   let rootFolder = gIMAPIncomingServer.rootFolder;
-
   gIMAPInbox = rootFolder.getFolderWithFlags(Ci.nsMsgFolderFlags.Inbox);
-  let outputStream = Cc["@mozilla.org/network/file-output-stream;1"].
-                       createInstance(Ci.nsIFileOutputStream)
-                               .QueryInterface(Ci.nsISeekableStream);
+
+  // Extend local IMAP inbox to over 4 GiB.
+  let outputStream = Cc["@mozilla.org/network/file-output-stream;1"]
+                       .createInstance(Ci.nsIFileOutputStream)
+                       .QueryInterface(Ci.nsISeekableStream);
   // Open in write-only mode, no truncate.
   outputStream.init(gIMAPInbox.filePath, 0x02, -1, 0);
   // seek to 15 bytes past 4GB.
   outputStream.seek(0, 0x10000000f);
+  // Write an empty "from" line.
   outputStream.write("from\r\n", 6);
   outputStream.close();
+
+  // Save initial file size.
   gOfflineStoreSize = gIMAPInbox.filePath.fileSize;
-  // ...and download for offline use.
+  do_print("Offline store size (before 1st downloadAllForOffline()) = " +
+           gOfflineStoreSize);
+
+  // Download for offline use, to append created messages to local IMAP inbox.
   gIMAPInbox.downloadAllForOffline(UrlListener, null);
 }
 
 var UrlListener =
 {
-  OnStartRunningUrl: function(url) { },
+  OnStartRunningUrl: function(url) {},
   OnStopRunningUrl: function(url, rc)
   {
     // Check for ok status.
@@ -119,33 +127,30 @@ var UrlListener =
 
     if (!gDownloadedOnce) {
       gDownloadedOnce = true;
+      // Call downloadAllForOffline() a second time.
       gIMAPInbox.downloadAllForOffline(UrlListener, null);
       return;
     }
-    else {
-      // verify that the message headers have the offline flag set.
-      let msgEnumerator = gIMAPInbox.msgDatabase.EnumerateMessages();
-      let offset = new Object;
-      let size = new Object;
-      while (msgEnumerator.hasMoreElements())
-      {
-        let header = msgEnumerator.getNext();
-        // Verify that each message has been downloaded and looks OK.
-        if (header instanceof Components.interfaces.nsIMsgDBHdr &&
-            (header.flags & Ci.nsMsgMessageFlags.Offline))
-          gIMAPInbox.getOfflineFileStream(header.messageKey, offset, size).close();
-        else
-          do_throw("Message not downloaded for offline use");
 
-        dump("msg hdr offset = " + offset.value + "\n");
-      }
-      let offlineStoreSize = gIMAPInbox.filePath.fileSize;
-      dump("offline store size = " + offlineStoreSize + "\n");
-      // Make sure offline store grew (i.e., we're not writing over data).
-      do_check_true(offlineStoreSize > gOfflineStoreSize);
-      // free up disk space - if you want to look at the file after running
-      // this test, comment out this line.
-      gIMAPInbox.filePath.remove(false);
+    // Make sure offline store grew (i.e., we were not writing over data).
+    let offlineStoreSize = gIMAPInbox.filePath.fileSize;
+    do_print("Offline store size (after 2nd downloadAllForOffline()) = " +
+             offlineStoreSize + ". (Msg hdr offsets should be close to it.)");
+    do_check_true(offlineStoreSize > gOfflineStoreSize);
+
+    // Verify that the message headers have the offline flag set.
+    let msgEnumerator = gIMAPInbox.msgDatabase.EnumerateMessages();
+    let offset = new Object;
+    let size = new Object;
+    while (msgEnumerator.hasMoreElements()) {
+      let header = msgEnumerator.getNext();
+      // Verify that each message has been downloaded and looks OK.
+      if (!(header instanceof Components.interfaces.nsIMsgDBHdr &&
+            (header.flags & Ci.nsMsgMessageFlags.Offline)))
+        do_throw("Message not downloaded for offline use");
+
+      gIMAPInbox.getOfflineFileStream(header.messageKey, offset, size).close();
+      do_print("Msg hdr offset = " + offset.value);
     }
 
     try {
@@ -158,10 +163,17 @@ var UrlListener =
 
 function endTest()
 {
-  gIMAPIncomingServer.closeCachedConnections();
-  gServer.stop();
+  // Free up disk space - if you want to look at the file after running
+  // this test, comment out this line.
+  if (gIMAPInbox)
+    gIMAPInbox.filePath.remove(false);
 
-  var thread = gThreadManager.currentThread;
+  if (gIMAPIncomingServer)
+    gIMAPIncomingServer.closeCachedConnections();
+  if (gServer)
+    gServer.stop();
+
+  let thread = gThreadManager.currentThread;
   while (thread.hasPendingEvents())
     thread.processNextEvent(true);
 

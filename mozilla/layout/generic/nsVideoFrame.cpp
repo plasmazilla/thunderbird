@@ -56,12 +56,10 @@
 #include "nsBoxFrame.h"
 #include "nsImageFrame.h"
 #include "nsIImageLoadingContent.h"
-#include "nsDisplayList.h"
 #include "nsCSSRendering.h"
 #include "nsContentUtils.h"
 
 #ifdef ACCESSIBILITY
-#include "nsIServiceManager.h"
 #include "nsAccessibilityService.h"
 #endif
 
@@ -197,59 +195,9 @@ nsVideoFrame::BuildLayer(nsDisplayListBuilder* aBuilder,
     return nsnull;
 
   nsRefPtr<ImageContainer> container = element->GetImageContainer();
-  // If we have a container with a different layer manager, try to hand
-  // off the container to the new one.
-  if (container && container->Manager() != aManager) {
-    // we don't care about the return type here -- if the set didn't take, it'll
-    // be handled when we next check the manager
-    container->SetLayerManager(aManager);
-  }
-
-  // If we have a container of the correct type already, we don't need
-  // to do anything here. Otherwise we need to set up a temporary
-  // ImageContainer, capture the video data and store it in the temp
-  // container. For now we also check if the manager is equal since not all
-  // image containers are manager independent yet.
-  if (!container || 
-      (container->Manager() && container->Manager() != aManager) ||
-      container->GetBackendType() != aManager->GetBackendType())
-  {
-    nsRefPtr<ImageContainer> tmpContainer = aManager->CreateImageContainer();
-    if (!tmpContainer)
-      return nsnull;
-    
-    // We get a reference to the video data as a cairo surface.
-    CairoImage::Data cairoData;
-    nsRefPtr<gfxASurface> imageSurface;
-    if (container) {
-      // Get video from the existing container. It was created for a
-      // different layer manager, so we do fallback through cairo.
-      imageSurface = container->GetCurrentAsSurface(&cairoData.mSize);
-      if (!imageSurface) {
-        // we couldn't do fallback, so we've got nothing to do here
-        return nsnull;
-      }
-      cairoData.mSurface = imageSurface;
-    } else {
-      // We're probably printing.
-      cairoData.mSurface = element->GetPrintSurface();
-      if (!cairoData.mSurface)
-        return nsnull;
-      cairoData.mSize = gfxIntSize(videoSize.width, videoSize.height);
-    }
-
-    // Now create a CairoImage to display the surface.
-    Image::Format cairoFormat = Image::CAIRO_SURFACE;
-    nsRefPtr<Image> image = tmpContainer->CreateImage(&cairoFormat, 1);
-    if (!image)
-      return nsnull;
-
-    NS_ASSERTION(image->GetFormat() == cairoFormat, "Wrong format");
-    static_cast<CairoImage*>(image.get())->SetData(cairoData);
-    tmpContainer->SetCurrentImage(image);
-    container = tmpContainer.forget();
-  }
-
+  if (!container)
+    return nsnull;
+  
   // Retrieve the size of the decoded video frame, before being scaled
   // by pixel aspect ratio.
   gfxIntSize frameSize = container->GetCurrentSize();
@@ -397,8 +345,9 @@ public:
   // away completely (e.g. because of a decoder error). The problem would
   // be especially acute if we have off-main-thread rendering.
 
-  virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder)
+  virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder, bool* aSnap)
   {
+    *aSnap = false;
     nsIFrame* f = GetUnderlyingFrame();
     return f->GetContentRect() - f->GetPosition() + ToReferenceFrame();
   }
@@ -504,7 +453,7 @@ nsSize nsVideoFrame::ComputeSize(nsRenderingContext *aRenderingContext,
                                      nsSize aMargin,
                                      nsSize aBorder,
                                      nsSize aPadding,
-                                     bool aShrinkWrap)
+                                     PRUint32 aFlags)
 {
   nsSize size = GetVideoIntrinsicSize(aRenderingContext);
 

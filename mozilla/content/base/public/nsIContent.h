@@ -43,7 +43,6 @@
 #include "nsChangeHint.h"
 #include "nsINode.h"
 #include "nsIDocument.h" // for IsInHTMLDocument
-#include "nsDOMMemoryReporter.h"
 
 // Forward declarations
 class nsIAtom;
@@ -78,8 +77,8 @@ enum nsLinkState {
 
 // IID for the nsIContent interface
 #define NS_ICONTENT_IID \
-{ 0x94671671, 0x9e1b, 0x447a, \
-  { 0xad, 0xb7, 0xc3, 0x2e, 0x05, 0x6a, 0x96, 0xc9 } }
+{ 0xa887c108, 0xc25e, 0x42ab, \
+  { 0x87, 0xef, 0xad, 0x4b, 0xee, 0x50, 0x28, 0x28 } }
 
 /**
  * A node of content in a document's content model. This interface
@@ -104,8 +103,6 @@ public:
 
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_ICONTENT_IID)
 
-  NS_DECL_AND_IMPL_DOM_MEMORY_REPORTER_SIZEOF(nsIContent, nsINode);
-
   /**
    * Bind this content node to a tree.  If this method throws, the caller must
    * call UnbindFromTree() on the node.  In the typical case of a node being
@@ -118,8 +115,9 @@ public:
    * @param aParent The new parent for the content node.  May be null if the
    *                node is being bound as a direct child of the document.
    * @param aBindingParent The new binding parent for the content node.
-   *                       This is allowed to be null.  In that case, the
-   *                       binding parent of aParent, if any, will be used.
+   *                       This is must either be non-null if a particular
+   *                       binding parent is desired or match aParent's binding
+   *                       parent.
    * @param aCompileEventHandlers whether to initialize the event handlers in
    *        the document (used by nsXULElement)
    * @note either aDocument or aParent must be non-null.  If both are null,
@@ -530,7 +528,7 @@ public:
    * Get the length of the text content.
    * NOTE: This should not be called on elements.
    */
-  virtual PRUint32 TextLength() = 0;
+  virtual PRUint32 TextLength() const = 0;
 
   /**
    * Set the text to the given value. If aNotify is true then
@@ -797,17 +795,6 @@ public:
   NS_IMETHOD WalkContentStyleRules(nsRuleWalker* aRuleWalker) = 0;
 
   /**
-   * Get the inline style rule, if any, for this content node
-   */
-  virtual mozilla::css::StyleRule* GetInlineStyleRule() = 0;
-
-  /**
-   * Set the inline style rule for this node.  This will send an
-   * appropriate AttributeChanged notification if aNotify is true.
-   */
-  NS_IMETHOD SetInlineStyleRule(mozilla::css::StyleRule* aStyleRule, bool aNotify) = 0;
-
-  /**
    * Is the attribute named stored in the mapped attributes?
    *
    * // XXXbz we use this method in HasAttributeDependentStyle, so svg
@@ -869,39 +856,6 @@ public:
     mPrimaryFrame = aFrame;
   }
 
-  /*
-   * Returns a new nsISMILAttr that allows the caller to animate the given
-   * attribute on this element.
-   *
-   * The CALLER OWNS the result and is responsible for deleting it.
-   */
-  virtual nsISMILAttr* GetAnimatedAttr(PRInt32 aNamespaceID, nsIAtom* aName) = 0;
-
-  /**
-   * Get the SMIL override style for this content node.  This is a style
-   * declaration that is applied *after* the inline style, and it can be used
-   * e.g. to store animated style values.
-   *
-   * Note: This method is analogous to the 'GetStyle' method in
-   * nsGenericHTMLElement and nsStyledElement.
-   */
-  virtual nsIDOMCSSStyleDeclaration* GetSMILOverrideStyle() = 0;
-
-  /**
-   * Get the SMIL override style rule for this content node.  If the rule
-   * hasn't been created (or if this nsIContent object doesn't support SMIL
-   * override style), this method simply returns null.
-   */
-  virtual mozilla::css::StyleRule* GetSMILOverrideStyleRule() = 0;
-
-  /**
-   * Set the SMIL override style rule for this node.  If aNotify is true, this
-   * method will notify the document's pres context, so that the style changes
-   * will be noticed.
-   */
-  virtual nsresult SetSMILOverrideStyleRule(mozilla::css::StyleRule* aStyleRule,
-                                            bool aNotify) = 0;
-
   nsresult LookupNamespaceURIInternal(const nsAString& aNamespacePrefix,
                                       nsAString& aNamespaceURI) const;
 
@@ -920,7 +874,7 @@ public:
 
   /**
    * Determing language. Look at the nearest ancestor element that has a lang
-   * attribute in the XML namespace or is an HTML element and has a lang in
+   * attribute in the XML namespace or is an HTML/SVG element and has a lang in
    * no namespace attribute.
    */
   void GetLang(nsAString& aResult) const {
@@ -930,7 +884,7 @@ public:
         // XHTML1 section C.7).
         bool hasAttr = content->GetAttr(kNameSpaceID_XML, nsGkAtoms::lang,
                                           aResult);
-        if (!hasAttr && content->IsHTML()) {
+        if (!hasAttr && (content->IsHTML() || content->IsSVG())) {
           hasAttr = content->GetAttr(kNameSpaceID_None, nsGkAtoms::lang,
                                      aResult);
         }
@@ -999,7 +953,6 @@ public:
   // accessibility.tabfocus_applies_to_xul pref - if it is set to true,
   // the tabfocus bit field applies to xul elements.
   static bool sTabFocusModelAppliesToXUL;
-
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIContent, NS_ICONTENT_IID)

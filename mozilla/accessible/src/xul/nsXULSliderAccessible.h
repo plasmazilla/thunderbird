@@ -49,13 +49,12 @@
 class nsXULSliderAccessible : public nsAccessibleWrap
 {
 public:
-  nsXULSliderAccessible(nsIContent *aContent, nsIWeakReference *aShell);
+  nsXULSliderAccessible(nsIContent* aContent, nsDocAccessible* aDoc);
 
   // nsISupports
   NS_DECL_ISUPPORTS_INHERITED
 
   // nsIAccessible
-  NS_IMETHOD GetValue(nsAString& aValue);
   NS_IMETHOD GetActionName(PRUint8 aIndex, nsAString& aName);
   NS_IMETHOD DoAction(PRUint8 aIndex);
 
@@ -63,9 +62,10 @@ public:
   NS_DECL_NSIACCESSIBLEVALUE
 
   // nsAccessible
+  virtual void Value(nsString& aValue);
   virtual mozilla::a11y::role NativeRole();
   virtual PRUint64 NativeState();
-  virtual bool GetAllowsAnonChildAccessibles();
+  virtual bool CanHaveAnonChildren();
 
   // ActionAccessible
   virtual PRUint8 ActionCount();
@@ -90,7 +90,7 @@ private:
 class nsXULThumbAccessible : public nsAccessibleWrap
 {
 public:
-  nsXULThumbAccessible(nsIContent *aContent, nsIWeakReference *aShell);
+  nsXULThumbAccessible(nsIContent* aContent, nsDocAccessible* aDoc);
 
   // nsAccessible
   virtual mozilla::a11y::role NativeRole();

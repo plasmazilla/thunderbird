@@ -44,6 +44,18 @@
 
 @class mozRootAccessible;
 
+/**
+ * All mozAccessibles are either abstract objects (that correspond to XUL
+ * widgets, HTML frames, etc) or are attached to a certain view; for example
+ * a document view. When we hand an object off to an AT, we always want
+ * to give it the represented view, in the latter case.
+ */
+inline id <mozAccessible>
+GetObjectOrRepresentedView(id <mozAccessible> aObject)
+{
+  return [aObject hasRepresentedView] ? [aObject representedView] : aObject;
+}
+
 @interface mozAccessible : NSObject <mozAccessible>
 {
   /**
@@ -97,6 +109,9 @@
 // the role might be "textfield", while the subrole is "password textfield".
 - (NSString*)subrole;
 
+// Return the role description, as there are a few exceptions.
+- (NSString*)roleDescription;
+
 // returns the native window we're inside.
 - (NSWindow*)window;
 
@@ -124,6 +139,7 @@
 // notifications sent out to listening accessible providers.
 - (void)didReceiveFocus;
 - (void)valueDidChange;
+- (void)selectedTextDidChange;
 
 #pragma mark -
 
@@ -134,9 +150,6 @@
  * Append a child if they are already cached.
  */
 - (void)appendChild:(nsAccessible*)aAccessible;
-
-// invalidates the cached parent, used by invalidateChildren.
-- (void)invalidateParent;
 
 // makes ourselves "expired". after this point, we might be around if someone
 // has retained us (e.g., a third-party), but we really contain no information.

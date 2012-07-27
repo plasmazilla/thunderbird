@@ -495,9 +495,12 @@ public class WatcherService extends Service
         boolean bRet = false;
         ActivityManager aMgr = (ActivityManager) getApplicationContext().getSystemService(Activity.ACTIVITY_SERVICE);
         List <ActivityManager.RunningAppProcessInfo> lProcesses = aMgr.getRunningAppProcesses();
-        int    nProcs = lProcesses.size();
+        int    nProcs = 0;
         int lcv = 0;
         String strProcName = "";
+
+        if (lProcesses != null)
+            nProcs = lProcesses.size();
 
         for (lcv = 0; lcv < nProcs; lcv++)
             {
@@ -554,8 +557,12 @@ public class WatcherService extends Service
         int lcv = 0;
         String strProcName = "";
         int    nPID = 0;
+        int nProcs = 0;
 
-        for (lcv = 0; lcv < lProcesses.size(); lcv++)
+        if (lProcesses != null)
+            nProcs = lProcesses.size();
+
+        for (lcv = 0; lcv < nProcs; lcv++)
             {
             if (lProcesses.get(lcv).processName.contains(sProcName))
                 {
@@ -598,7 +605,10 @@ public class WatcherService extends Service
             {
             sRet = "Successfully killed " + nPID + " " + strProcName + "\n";
             lProcesses = aMgr.getRunningAppProcesses();
-            for (lcv = 0; lcv < lProcesses.size(); lcv++)
+            nProcs = 0;
+            if (lProcesses != null)
+                nProcs = lProcesses.size();
+            for (lcv = 0; lcv < nProcs; lcv++)
                 {
                 if (lProcesses.get(lcv).processName.contains(sProcName))
                     {
@@ -732,7 +742,7 @@ public class WatcherService extends Service
 
         theArgs[0] = "su";
         theArgs[1] = "-c";
-        theArgs[2] = "pm install " + sApp + ";exit";
+        theArgs[2] = "pm install -r " + sApp + ";exit";
 
         try
             {

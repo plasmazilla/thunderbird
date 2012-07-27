@@ -51,7 +51,6 @@
 #include "nsIForm.h"
 #include "nsFormSubmission.h"
 #include "nsIFormProcessor.h"
-#include "nsContentCreatorFunctions.h"
 
 #include "nsIDOMHTMLOptGroupElement.h"
 #include "nsEventStates.h"
@@ -231,15 +230,11 @@ nsHTMLSelectElement::InsertChildAt(nsIContent* aKid,
   return rv;
 }
 
-nsresult
+void
 nsHTMLSelectElement::RemoveChildAt(PRUint32 aIndex, bool aNotify)
 {
   nsSafeOptionListMutation safeMutation(this, this, nsnull, aIndex, aNotify);
-  nsresult rv = nsGenericHTMLFormElement::RemoveChildAt(aIndex, aNotify);
-  if (NS_FAILED(rv)) {
-    safeMutation.MutationFailed();
-  }
-  return rv;
+  nsGenericHTMLFormElement::RemoveChildAt(aIndex, aNotify);
 }
 
 
@@ -808,7 +803,7 @@ nsHTMLSelectElement::SetLength(PRUint32 aLength)
       if (i + 1 < aLength) {
         nsCOMPtr<nsIDOMNode> newNode;
 
-        rv = node->CloneNode(true, getter_AddRefs(newNode));
+        rv = node->CloneNode(true, 1, getter_AddRefs(newNode));
         NS_ENSURE_SUCCESS(rv, rv);
 
         node = newNode;
@@ -1371,7 +1366,8 @@ nsHTMLSelectElement::UnbindFromTree(bool aDeep, bool aNullParent)
 
 nsresult
 nsHTMLSelectElement::BeforeSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
-                                   const nsAString* aValue, bool aNotify)
+                                   const nsAttrValueOrString* aValue,
+                                   bool aNotify)
 {
   if (aNotify && aName == nsGkAtoms::disabled &&
       aNameSpaceID == kNameSpaceID_None) {
@@ -1384,7 +1380,7 @@ nsHTMLSelectElement::BeforeSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
 
 nsresult
 nsHTMLSelectElement::AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
-                                  const nsAString* aValue, bool aNotify)
+                                  const nsAttrValue* aValue, bool aNotify)
 {
   if (aNameSpaceID == kNameSpaceID_None) {
     if (aName == nsGkAtoms::disabled) {
@@ -1966,7 +1962,7 @@ nsHTMLSelectElement::VerifyOptionsArray()
 
 nsHTMLOptionCollection::nsHTMLOptionCollection(nsHTMLSelectElement* aSelect)
 {
-  SetIsProxy();
+  SetIsDOMBinding();
 
   // Do not maintain a reference counted reference. When
   // the select goes away, it will let us know.
@@ -1991,6 +1987,8 @@ nsHTMLOptionCollection::GetOptionIndex(mozilla::dom::Element* aOption,
                                        bool aForward,
                                        PRInt32* aIndex)
 {
+  // NOTE: aIndex shouldn't be set if the returned value isn't NS_OK.
+
   PRInt32 index;
 
   // Make the common case fast
@@ -2058,7 +2056,7 @@ NS_IMPL_CYCLE_COLLECTING_RELEASE(nsHTMLOptionCollection)
 
 
 JSObject*
-nsHTMLOptionCollection::WrapObject(JSContext *cx, XPCWrappedNativeScope *scope,
+nsHTMLOptionCollection::WrapObject(JSContext *cx, JSObject *scope,
                                    bool *triedToWrap)
 {
   return mozilla::dom::binding::HTMLOptionsCollection::create(cx, scope, this,

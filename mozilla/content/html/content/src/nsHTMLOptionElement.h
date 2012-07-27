@@ -91,8 +91,9 @@ public:
                                               PRInt32 aModType) const;
 
   virtual nsresult BeforeSetAttr(PRInt32 aNamespaceID, nsIAtom* aName,
-                                 const nsAString* aValue, bool aNotify);
-  
+                                 const nsAttrValueOrString* aValue,
+                                 bool aNotify);
+
   void SetSelectedInternal(bool aValue, bool aNotify);
 
   // nsIContent
@@ -103,6 +104,10 @@ public:
   nsresult CopyInnerTo(nsGenericElement* aDest) const;
 
   virtual nsXPCClassInfo* GetClassInfo();
+
+  virtual bool IsDisabled() const {
+    return HasAttr(kNameSpaceID_None, nsGkAtoms::disabled);
+  }
 protected:
   /**
    * Get the select content element that contains this option, this

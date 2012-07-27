@@ -44,7 +44,7 @@
 #include "nsIDOMDocument.h"
 #include "nsIDOMDocumentType.h"
 #include "nsIScriptElement.h"
-#include "nsIParser.h"
+#include "nsCharsetSource.h"
 #include "nsIRefreshURI.h"
 #include "nsPIDOMWindow.h"
 #include "nsIContent.h"
@@ -64,8 +64,8 @@
 #include "nsIDocumentTransformer.h"
 #include "mozilla/css/Loader.h"
 #include "mozilla/dom/Element.h"
-#include "nsICharsetAlias.h"
-#include "nsIHTMLContentSink.h"
+#include "nsCharsetAlias.h"
+#include "nsIFrame.h"
 #include "nsContentUtils.h"
 #include "txXMLUtils.h"
 #include "nsContentSink.h"
@@ -160,7 +160,7 @@ txMozillaXMLOutput::attribute(nsIAtom* aPrefix,
 
     if (mOpenedElementIsHTML && aNsID == kNameSpaceID_None) {
         nsAutoString lnameStr;
-        ToLowerCase(aLocalName, lnameStr);
+        nsContentUtils::ASCIIToLower(aLocalName, lnameStr);
         lname = do_GetAtom(lnameStr);
     }
     else {
@@ -258,6 +258,8 @@ txMozillaXMLOutput::endDocument(nsresult aResult)
 
     if (mCreatingNewDocument) {
         // This should really be handled by nsIDocument::EndLoad
+        MOZ_ASSERT(mDocument->GetReadyStateEnum() ==
+                   nsIDocument::READYSTATE_LOADING, "Bad readyState");
         mDocument->SetReadyStateInternal(nsIDocument::READYSTATE_INTERACTIVE);
         nsScriptLoader* loader = mDocument->ScriptLoader();
         if (loader) {
@@ -499,7 +501,7 @@ txMozillaXMLOutput::startElement(nsIAtom* aPrefix,
         nsId = kNameSpaceID_XHTML;
 
         nsAutoString lnameStr;
-        ToLowerCase(aLocalName, lnameStr);
+        nsContentUtils::ASCIIToLower(aLocalName, lnameStr);
         lname = do_GetAtom(lnameStr);
     }
     else {
@@ -691,8 +693,7 @@ txMozillaXMLOutput::createTxWrapper()
             ++j;
         }
         else {
-            rv = mDocument->RemoveChildAt(j, true);
-            NS_ENSURE_SUCCESS(rv, rv);
+            mDocument->RemoveChildAt(j, true);
 
             rv = wrapper->AppendChildTo(childContent, true);
             NS_ENSURE_SUCCESS(rv, rv);
@@ -802,7 +803,7 @@ txMozillaXMLOutput::endHTMLElement(nsIContent* aElement)
             nsAutoString value;
             aElement->GetAttr(kNameSpaceID_None, nsGkAtoms::content, value);
             if (!value.IsEmpty()) {
-                ToLowerCase(httpEquiv);
+                nsContentUtils::ASCIIToLower(httpEquiv);
                 nsCOMPtr<nsIAtom> header = do_GetAtom(httpEquiv);
                 processHTTPEquiv(header, value);
             }
@@ -838,6 +839,8 @@ txMozillaXMLOutput::createResultDocument(const nsSubstring& aName, PRInt32 aNsID
         NS_ENSURE_SUCCESS(rv, rv);
     }
     // This should really be handled by nsIDocument::BeginLoad
+    MOZ_ASSERT(mDocument->GetReadyStateEnum() ==
+               nsIDocument::READYSTATE_UNINITIALIZED, "Bad readyState");
     mDocument->SetReadyStateInternal(nsIDocument::READYSTATE_LOADING);
     nsCOMPtr<nsIDocument> source = do_QueryInterface(aSourceDocument);
     NS_ENSURE_STATE(source);
@@ -857,11 +860,7 @@ txMozillaXMLOutput::createResultDocument(const nsSubstring& aName, PRInt32 aNsID
     if (!mOutputFormat.mEncoding.IsEmpty()) {
         NS_LossyConvertUTF16toASCII charset(mOutputFormat.mEncoding);
         nsCAutoString canonicalCharset;
-        nsCOMPtr<nsICharsetAlias> calias =
-            do_GetService("@mozilla.org/intl/charsetalias;1");
-
-        if (calias &&
-            NS_SUCCEEDED(calias->GetPreferred(charset, canonicalCharset))) {
+        if (NS_SUCCEEDED(nsCharsetAlias::GetPreferred(charset, canonicalCharset))) {
             mDocument->SetDocumentCharacterSetSource(kCharsetFromOtherComponent);
             mDocument->SetDocumentCharacterSet(canonicalCharset);
         }

@@ -62,8 +62,7 @@ DESKTOP_ICONS = \
 	abcardWindow \
 	ablistWindow \
 	addressbookWindow \
-	bmPropsWindow \
-	bookmark-window \
+	bookmarkproperties \
 	downloadManager \
 	editorWindow \
 	findBookmarkWindow \
@@ -73,6 +72,7 @@ DESKTOP_ICONS = \
 	main-window \
 	messengerWindow \
 	msgcomposeWindow \
+	places \
 	venkman-window \
 	$(NULL) 
 
@@ -121,6 +121,7 @@ export::
 	$(NSINSTALL) -D $(DIST)/branding
 ifeq ($(OS_ARCH),WINNT)
 	cp $(srcdir)/icons/windows/seamonkey.ico      $(DIST)/branding/seamonkey.ico
+	cp $(srcdir)/icons/windows/html-file.ico      $(DIST)/branding/html-file.ico
 	cp $(srcdir)/package/windows/branding.nsi     $(DIST)/branding/branding.nsi
 	cp $(srcdir)/package/windows/wizHeader.bmp    $(DIST)/branding/wizHeader.bmp
 	cp $(srcdir)/package/windows/wizHeaderRTL.bmp $(DIST)/branding/wizHeaderRTL.bmp

@@ -784,10 +784,8 @@ static const JSC::MacroAssembler::RegisterID JSParamReg_Argc  = JSC::MIPSRegiste
     Jump guardArrayExtent(int offset, RegisterID reg,
                           const Int32Key &key, Condition cond) {
         Address extent(reg, offset);
-        if (key.isConstant()) {
-            JS_ASSERT(key.index() >= 0);
+        if (key.isConstant())
             return branch32(cond, extent, Imm32(key.index()));
-        }
         return branch32(cond, extent, key.reg());
     }
 
@@ -1137,7 +1135,7 @@ static const JSC::MacroAssembler::RegisterID JSParamReg_Argc  = JSC::MIPSRegiste
         done.linkTo(label(), this);
     }
 
-    // Inline version of js_TypedArray_uint8_clamp_double.
+    // Inline version of js::ClampDoubleToUint8.
     void clampDoubleToUint8(FPRegisterID fpReg, FPRegisterID fpTemp, RegisterID reg)
     {
         JS_ASSERT(fpTemp != Registers::FPConversionTemp);
@@ -1166,7 +1164,7 @@ static const JSC::MacroAssembler::RegisterID JSParamReg_Argc  = JSC::MIPSRegiste
         Jump done3 = branchDouble(Assembler::DoubleNotEqual, fpTemp, Registers::FPConversionTemp);
 
         // It was a tie. Mask out the ones bit to get an even value.
-        // See js_TypedArray_uint8_clamp_double for the reasoning behind this.
+        // See js::ClampDoubleToUint8 for the reasoning behind this.
         and32(Imm32(~1), reg);
 
         done1.linkTo(label(), this);
@@ -1368,28 +1366,28 @@ static const JSC::MacroAssembler::RegisterID JSParamReg_Argc  = JSC::MIPSRegiste
         return jump;
     }
 
-    /* Add the value stored in 'value' to the accumulator 'counter'. */
-    void addCounter(const double *value, double *counter, RegisterID scratch)
+    /* Add the value stored in 'value' to the accumulator 'count'. */
+    void addCount(const double *value, double *count, RegisterID scratch)
     {
         loadDouble(value, Registers::FPConversionTemp);
-        move(ImmPtr(counter), scratch);
+        move(ImmPtr(count), scratch);
         addDouble(Address(scratch), Registers::FPConversionTemp);
         storeDouble(Registers::FPConversionTemp, Address(scratch));
     }
 
-    /* Add one to the accumulator 'counter'. */
-    void bumpCounter(double *counter, RegisterID scratch)
+    /* Add one to the accumulator |count|. */
+    void bumpCount(double *count, RegisterID scratch)
     {
-        addCounter(&oneDouble, counter, scratch);
+        addCount(&oneDouble, count, scratch);
     }
 
     /* Bump the stub call count for script/pc if they are being counted. */
-    void bumpStubCounter(JSScript *script, jsbytecode *pc, RegisterID scratch)
+    void bumpStubCount(JSScript *script, jsbytecode *pc, RegisterID scratch)
     {
-        if (script->pcCounters) {
-            OpcodeCounts counts = script->getCounts(pc);
-            double *counter = &counts.get(OpcodeCounts::BASE_METHODJIT_STUBS);
-            bumpCounter(counter, scratch);
+        if (script->hasScriptCounts) {
+            PCCounts counts = script->getPCCounts(pc);
+            double *count = &counts.get(PCCounts::BASE_METHODJIT_STUBS);
+            bumpCount(count, scratch);
         }
     }
 

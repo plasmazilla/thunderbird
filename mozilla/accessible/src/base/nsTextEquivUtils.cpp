@@ -39,9 +39,9 @@
 
 #include "nsTextEquivUtils.h"
 
+#include "Accessible-inl.h"
 #include "AccIterator.h"
 #include "nsAccessibilityService.h"
-#include "nsAccessible.h"
 #include "nsAccUtils.h"
 
 #include "nsIDOMXULLabeledControlEl.h"
@@ -94,7 +94,7 @@ nsTextEquivUtils::GetTextEquivFromIDRefs(nsAccessible *aAccessible,
     return NS_OK;
 
   nsIContent* refContent = nsnull;
-  IDRefsIterator iter(content, aIDRefsAttr);
+  IDRefsIterator iter(aAccessible->Document(), content, aIDRefsAttr);
   while ((refContent = iter.NextElem())) {
     if (!aTextEquiv.IsEmpty())
       aTextEquiv += ' ';
@@ -118,13 +118,6 @@ nsTextEquivUtils::AppendTextEquivFromContent(nsAccessible *aInitiatorAcc,
 
   gInitiatorAcc = aInitiatorAcc;
 
-  nsCOMPtr<nsIWeakReference> shell = nsCoreUtils::GetWeakShellFor(aContent);
-  if (!shell) {
-    NS_ASSERTION(true, "There is no presshell!");
-    gInitiatorAcc = nsnull;
-    return NS_ERROR_UNEXPECTED;
-  }
-
   // If the given content is not visible or isn't accessible then go down
   // through the DOM subtree otherwise go down through accessible subtree and
   // calculate the flat string.
@@ -135,8 +128,8 @@ nsTextEquivUtils::AppendTextEquivFromContent(nsAccessible *aInitiatorAcc,
   bool goThroughDOMSubtree = true;
 
   if (isVisible) {
-    nsAccessible *accessible =
-      GetAccService()->GetAccessibleInWeakShell(aContent, shell);
+    nsAccessible* accessible =
+      gInitiatorAcc->Document()->GetAccessible(aContent);
     if (accessible) {
       rv = AppendFromAccessible(accessible, aString);
       goThroughDOMSubtree = false;
@@ -290,8 +283,7 @@ nsTextEquivUtils::AppendFromValue(nsAccessible *aAccessible,
 
   nsAutoString text;
   if (aAccessible != gInitiatorAcc) {
-    nsresult rv = aAccessible->GetValue(text);
-    NS_ENSURE_SUCCESS(rv, rv);
+    aAccessible->Value(text);
 
     return AppendString(aString, text) ?
       NS_OK : NS_OK_NO_NAME_CLAUSE_HANDLED;
@@ -311,8 +303,7 @@ nsTextEquivUtils::AppendFromValue(nsAccessible *aAccessible,
            siblingContent = siblingContent->GetNextSibling()) {
         // .. and subsequent text
         if (!siblingContent->TextIsOnlyWhitespace()) {
-          nsresult rv = aAccessible->GetValue(text);
-          NS_ENSURE_SUCCESS(rv, rv);
+          aAccessible->Value(text);
 
           return AppendString(aString, text) ?
             NS_OK : NS_OK_NO_NAME_CLAUSE_HANDLED;
@@ -534,5 +525,9 @@ PRUint32 nsTextEquivUtils::gRoleToNameRulesMap[] =
   eFromSubtree,      // ROLE_RICH_OPTION
   eNoRule,           // ROLE_LISTBOX
   eNoRule,           // ROLE_FLAT_EQUATION
-  eFromSubtree       // ROLE_GRID_CELL
+  eFromSubtree,      // ROLE_GRID_CELL
+  eNoRule,           // ROLE_EMBEDDED_OBJECT
+  eFromSubtree,      // ROLE_NOTE
+  eNoRule,           // ROLE_FIGURE
+  eFromSubtree       // ROLE_CHECK_RICH_OPTION
 };

@@ -23,7 +23,7 @@
 
   <hbox flex="1">
     <vbox style="&accountTree.width;">
-      <tree flex="1" onselect="onAccountTreeSelect()" id="accounttree"
+      <tree flex="1" onselect="onAccountTreeSelect(null, null);" id="accounttree"
             seltype="single" hidecolumnpicker="true">
         <treecols>
           <treecol id="AccountCol" flex="1" primary="true" hideheader="true"/>
@@ -42,6 +42,11 @@
                     accesskey="&addMailAccountButton.accesskey;"
                     prefstring="mail.disable_new_account_addition"
                     oncommand="AddMailAccount(event); event.stopPropagation();"/>
+          <menuitem id="accountActionsAddIMAccount"
+                    label="&addIMAccountButton.label;"
+                    accesskey="&addIMAccountButton.accesskey;"
+                    prefstring="mail.disable_new_account_addition"
+                    oncommand="AddIMAccount(event); event.stopPropagation();"/>
           <menuitem id="accountActionsAddOtherAccount"
                     label="&addOtherAccountButton.label;"
                     accesskey="&addOtherAccountButton.accesskey;"

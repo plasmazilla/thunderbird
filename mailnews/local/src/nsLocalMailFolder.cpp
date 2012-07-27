@@ -110,6 +110,7 @@
 #include "nsArrayUtils.h"
 #include "nsIMsgTraitService.h"
 #include "nsIStringEnumerator.h"
+#include "mozilla/Services.h"
 
 //////////////////////////////////////////////////////////////////////////////
 // nsLocal
@@ -254,13 +255,10 @@ nsMsgLocalMailFolder::GetMsgDatabase(nsIMsgDatabase** aMsgDatabase)
 NS_IMETHODIMP
 nsMsgLocalMailFolder::GetSubFolders(nsISimpleEnumerator **aResult)
 {
-  bool isServer;
-  nsresult rv = GetIsServer(&isServer);
-
   if (!mInitialized)
   {
     nsCOMPtr<nsIMsgIncomingServer> server;
-    rv = GetServer(getter_AddRefs(server));
+    nsresult rv = GetServer(getter_AddRefs(server));
     NS_ENSURE_SUCCESS(rv, NS_MSG_INVALID_OR_MISSING_SERVER);
     nsCOMPtr<nsIMsgPluggableStore> msgStore;
     // need to set this flag here to avoid infinite recursion
@@ -275,37 +273,31 @@ nsMsgLocalMailFolder::GetSubFolders(nsISimpleEnumerator **aResult)
     if (NS_FAILED(rv))
       return rv;
 
-    bool exists, directory;
-    path->Exists(&exists);
-    if (!exists)
-      path->Create(nsIFile::DIRECTORY_TYPE, 0755);
-
+    bool directory;
     path->IsDirectory(&directory);
     if (directory)
     {
       SetFlag(nsMsgFolderFlags::Mail | nsMsgFolderFlags::Elided |
               nsMsgFolderFlags::Directory);
 
-      bool createdDefaultMailboxes = false;
-      nsCOMPtr<nsILocalMailIncomingServer> localMailServer;
-
+      bool isServer;
+      GetIsServer(&isServer);
       if (isServer)
       {
         nsCOMPtr<nsIMsgIncomingServer> server;
         rv = GetServer(getter_AddRefs(server));
         NS_ENSURE_SUCCESS(rv, NS_MSG_INVALID_OR_MISSING_SERVER);
+
+        nsCOMPtr<nsILocalMailIncomingServer> localMailServer;
         localMailServer = do_QueryInterface(server, &rv);
         NS_ENSURE_SUCCESS(rv, NS_MSG_INVALID_OR_MISSING_SERVER);
 
         // first create the folders on disk (as empty files)
         rv = localMailServer->CreateDefaultMailboxes(path);
-        NS_ENSURE_SUCCESS(rv, rv);
-        createdDefaultMailboxes = true;
-      }
+        if (NS_FAILED(rv) && rv != NS_MSG_FOLDER_EXISTS)
+          return rv;
 
-      // must happen after CreateSubFolders, or the folders won't exist.
-      if (createdDefaultMailboxes && isServer)
-      {
+        // must happen after CreateSubFolders, or the folders won't exist.
         rv = localMailServer->SetFlagsOnDefaultMailboxes();
         if (NS_FAILED(rv))
           return rv;
@@ -878,8 +870,9 @@ nsresult nsMsgLocalMailFolder::ConfirmFolderDeletion(nsIMsgWindow *aMsgWindow,
     pPrefBranch->GetBoolPref("mailnews.confirm.moveFoldersToTrash", &confirmDeletion);
     if (confirmDeletion)
     {
-      nsCOMPtr<nsIStringBundleService> bundleService(do_GetService("@mozilla.org/intl/stringbundle;1", &rv));
-      NS_ENSURE_SUCCESS(rv, rv);
+      nsCOMPtr<nsIStringBundleService> bundleService =
+        mozilla::services::GetStringBundleService();
+      NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
       nsCOMPtr<nsIStringBundle> bundle;
       rv = bundleService->CreateBundle("chrome://messenger/locale/localMsgs.properties", getter_AddRefs(bundle));
       NS_ENSURE_SUCCESS(rv, rv);
@@ -1541,9 +1534,21 @@ nsMsgLocalMailFolder::CopyMessages(nsIMsgFolder* srcFolder, nsIArray*
   nsCOMPtr<nsIMsgPluggableStore> msgStore;
   rv = GetMsgStore(getter_AddRefs(msgStore));
   NS_ENSURE_SUCCESS(rv, rv);
-  rv = msgStore->CopyMessages(isMove, messages, this, listener, &storeDidCopy);
+  nsCOMPtr<nsITransaction> undoTxn;
+  rv = msgStore->CopyMessages(isMove, messages, this, listener,
+                              getter_AddRefs(undoTxn), &storeDidCopy);
   if (storeDidCopy)
+  {
+    NS_ASSERTION(undoTxn, "if store does copy, it needs to add undo action");
+    if (msgWindow && undoTxn)
+    {
+      nsCOMPtr<nsITransactionManager> txnMgr;
+      msgWindow->GetTransactionManager(getter_AddRefs(txnMgr));
+      if (txnMgr)
+        txnMgr->DoTransaction(undoTxn);
+    }
     return rv;
+  }
   // If the store doesn't do the copy, we'll stream the source messages into
   // the target folder, using getMsgInputStream and getNewMsgOutputStream.
 
@@ -3195,8 +3200,9 @@ nsresult nsMsgLocalMailFolder::DisplayMoveCopyStatusMsg()
 
     if (!mCopyState->m_stringBundle)
     {
-      nsCOMPtr<nsIStringBundleService> bundleService(do_GetService("@mozilla.org/intl/stringbundle;1", &rv));
-      NS_ENSURE_SUCCESS(rv, rv);
+      nsCOMPtr<nsIStringBundleService> bundleService =
+        mozilla::services::GetStringBundleService();
+      NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
       rv = bundleService->CreateBundle("chrome://messenger/locale/localMsgs.properties", getter_AddRefs(mCopyState->m_stringBundle));
       NS_ENSURE_SUCCESS(rv, rv);
     }
@@ -3532,19 +3538,30 @@ nsMsgLocalMailFolder::GetUidlFromFolder(nsLocalFolderScanState *aState, nsIMsgDB
   return rv;
 }
 
-// this adds a message to the end of the folder, parsing it as it goes, and
-// applying filters, if applicable.
+/**
+ * Adds a message to the end of the folder, parsing it as it goes, and
+ * applying filters, if applicable.
+ */
 NS_IMETHODIMP
-nsMsgLocalMailFolder::AddMessage(const char *aMessage)
+nsMsgLocalMailFolder::AddMessage(const char *aMessage, nsIMsgDBHdr **aHdr)
 {
   const char *aMessages[] = {aMessage};
-  return AddMessageBatch(1, aMessages);
+  nsCOMPtr<nsIArray> hdrs;
+  nsresult rv = AddMessageBatch(1, aMessages, getter_AddRefs(hdrs));
+  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsIMsgDBHdr> hdr(do_QueryElementAt(hdrs, 0, &rv));
+  NS_ENSURE_SUCCESS(rv, rv);
+  hdr.forget(aHdr);
+  return rv;
 }
 
 NS_IMETHODIMP
 nsMsgLocalMailFolder::AddMessageBatch(PRUint32 aMessageCount,
-                                      const char **aMessages)
+                                      const char **aMessages,
+                                      nsIArray **aHdrArray)
 {
+  NS_ENSURE_ARG_POINTER(aHdrArray);
+
   nsCOMPtr<nsIMsgIncomingServer> server;
   nsresult rv = GetServer(getter_AddRefs(server));
   NS_ENSURE_SUCCESS(rv, rv);
@@ -3570,6 +3587,9 @@ nsMsgLocalMailFolder::AddMessageBatch(PRUint32 aMessageCount,
 
   if (NS_SUCCEEDED(rv))
   {
+    nsCOMPtr<nsIMutableArray> hdrArray =
+      do_CreateInstance(NS_ARRAY_CONTRACTID, &rv);
+    NS_ENSURE_SUCCESS(rv, rv);
     for (PRUint32 i = 0; i < aMessageCount; i++)
     {
       nsRefPtr<nsParseNewMailState> newMailParser = new nsParseNewMailState;
@@ -3593,7 +3613,9 @@ nsMsgLocalMailFolder::AddMessageBatch(PRUint32 aMessageCount,
       outFileStream = nsnull;
       newMailParser->EndMsgDownload();
       newMailParser->OnStopRequest(nsnull, nsnull, NS_OK);
+      hdrArray->AppendElement(newHdr, false);
     }
+    NS_ADDREF(*aHdrArray = hdrArray);
   }
   ReleaseSemaphore(static_cast<nsIMsgLocalMailFolder*>(this));
   return rv;

@@ -41,7 +41,7 @@ VPATH     = @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-ifeq (,$(filter aurora beta release,$(MOZ_UPDATE_CHANNEL)))
+ifeq (,$(filter aurora beta release esr,$(MOZ_UPDATE_CHANNEL)))
 DEFINES += -DMOZ_COMPATIBILITY_NIGHTLY=1
 endif
 
@@ -76,9 +76,7 @@ EXTRA_JS_MODULES = \
   SpellCheckDictionaryBootstrap.js \
   $(NULL)
 
-ifdef ENABLE_TESTS
-DIRS += test
-endif
+TEST_DIRS += test
 
 EXTRA_DSO_LDOPTS = \
   $(MOZ_JS_LIBS) \

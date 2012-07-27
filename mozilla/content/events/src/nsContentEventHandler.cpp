@@ -215,8 +215,10 @@ static PRUint32 CountNewlinesInXPLength(nsIContent* aContent,
   const nsTextFragment* text = aContent->GetText();
   if (!text)
     return 0;
-  NS_ASSERTION(aXPLength == PR_UINT32_MAX || aXPLength <= text->GetLength(),
-               "text offset is out-of-bounds");
+  // For automated tests, we should abort on debug build.
+  NS_ABORT_IF_FALSE(
+    (aXPLength == PR_UINT32_MAX || aXPLength <= text->GetLength()),
+    "aXPLength is out-of-bounds");
   const PRUint32 length = NS_MIN(aXPLength, text->GetLength());
   PRUint32 newlines = 0;
   for (PRUint32 i = 0; i < length; ++i) {
@@ -236,11 +238,17 @@ static PRUint32 CountNewlinesInNativeLength(nsIContent* aContent,
   if (!text) {
     return 0;
   }
+  // For automated tests, we should abort on debug build.
+  NS_ABORT_IF_FALSE(
+    (aNativeLength == PR_UINT32_MAX || aNativeLength <= text->GetLength() * 2),
+    "aNativeLength is unexpected value");
   const PRUint32 xpLength = text->GetLength();
   PRUint32 newlines = 0;
   for (PRUint32 i = 0, nativeOffset = 0;
        i < xpLength && nativeOffset < aNativeLength;
        ++i, ++nativeOffset) {
+    // For automated tests, we should abort on debug build.
+    NS_ABORT_IF_FALSE(i < text->GetLength(), "i is out-of-bounds");
     if (text->CharAt(i) == '\n') {
       ++newlines;
       ++nativeOffset;
@@ -328,7 +336,9 @@ static nsresult GenerateFlatTextContent(nsRange* aRange,
   nsAutoString tmpStr;
   for (; !iter->IsDone(); iter->Next()) {
     nsINode* node = iter->GetCurrentNode();
-    if (!node || !node->IsNodeOfType(nsINode::eCONTENT))
+    if (!node)
+      break;
+    if (!node->IsNodeOfType(nsINode::eCONTENT))
       continue;
     nsIContent* content = static_cast<nsIContent*>(node);
 
@@ -410,7 +420,9 @@ nsContentEventHandler::SetRangeFromFlatTextOffset(
   nsCOMPtr<nsIContent> content;
   for (; !iter->IsDone(); iter->Next()) {
     nsINode* node = iter->GetCurrentNode();
-    if (!node || !node->IsNodeOfType(nsINode::eCONTENT))
+    if (!node)
+      break;
+    if (!node->IsNodeOfType(nsINode::eCONTENT))
       continue;
     nsIContent* content = static_cast<nsIContent*>(node);
 
@@ -642,7 +654,9 @@ nsContentEventHandler::OnQueryTextRect(nsQueryContentEvent* aEvent)
       do {
         iter->Next();
         node = iter->GetCurrentNode();
-        if (!node || !node->IsNodeOfType(nsINode::eCONTENT))
+        if (!node)
+          break;
+        if (!node->IsNodeOfType(nsINode::eCONTENT))
           continue;
         frame = static_cast<nsIContent*>(node)->GetPrimaryFrame();
       } while (!frame && !iter->IsDone());
@@ -947,7 +961,9 @@ nsContentEventHandler::GetFlatTextOffsetOfRange(nsIContent* aRootContent,
   *aNativeOffset = 0;
   for (; !iter->IsDone(); iter->Next()) {
     nsINode* node = iter->GetCurrentNode();
-    if (!node || !node->IsNodeOfType(nsINode::eCONTENT))
+    if (!node)
+      break;
+    if (!node->IsNodeOfType(nsINode::eCONTENT))
       continue;
     nsIContent* content = static_cast<nsIContent*>(node);
 
@@ -1101,8 +1117,9 @@ nsContentEventHandler::OnSelectionEvent(nsSelectionEvent* aEvent)
   selPrivate->EndBatchChanges();
   NS_ENSURE_SUCCESS(rv, rv);
 
-  selPrivate->ScrollIntoView(
-      nsISelectionController::SELECTION_FOCUS_REGION, false, -1, -1);
+  selPrivate->ScrollIntoViewInternal(
+    nsISelectionController::SELECTION_FOCUS_REGION,
+    false, nsIPresShell::ScrollAxis(), nsIPresShell::ScrollAxis());
   aEvent->mSucceeded = true;
   return NS_OK;
 }

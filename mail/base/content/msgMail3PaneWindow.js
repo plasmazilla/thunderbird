@@ -331,14 +331,30 @@ const MailPrefObserver = {
  */
 function AutoConfigWizard(okCallback)
 {
+  let suppressDialogs = false;
+
+  // Try to get the suppression pref that we stashed away in accountProvisionerTab.js.
+  // If it doesn't exist, nsIPrefBranch throws, so we eat it silently and move along.
+  try {
+    suppressDialogs = Services.prefs.getBoolPref("mail.provider.suppress_dialog_on_startup");
+  } catch(e) {};
+
+  if (suppressDialogs) {
+    // Looks like we were in the middle of filling out an account form. We
+    // won't display the dialogs in that case.
+    Services.prefs.clearUserPref("mail.provider.suppress_dialog_on_startup");
+    okCallback();
+    return;
+  }
+
   if (gPrefBranch.getBoolPref("mail.provider.enabled")) {
     // We need to let the event loop pump a little so that the 3pane finishes
-    // opening - so we use setTimeout. The 100ms is a bit arbitrary, but seems
+    // opening - so we use setTimeout. The 200ms is a bit arbitrary, but seems
     // to be enough time to let the 3pane do it's thing, and not pull focus
     // when the Account Provisioner modal window closes.
     setTimeout(function() {
       NewMailAccountProvisioner(msgWindow, { okCallback: okCallback });
-    }, 100);
+    }, 200);
   }
   else
     NewMailAccount(msgWindow, okCallback);
@@ -375,7 +391,6 @@ function OnLoadMessenger()
     document.documentElement.setAttribute("screenY", screen.availTop);
   }
 
-  gPrefBranch.QueryInterface(Components.interfaces.nsIPrefBranch2);
   gPrefBranch.addObserver("mail.pane_config.dynamic", MailPrefObserver, false);
   gPrefBranch.addObserver("mail.showCondensedAddresses", MailPrefObserver,
                           false);
@@ -613,8 +628,8 @@ function FindOther3PaneWindow()
  */
 function OnUnloadMessenger()
 {
+  Services.obs.notifyObservers(window, "mail-unloading-messenger", null);
   accountManager.removeIncomingServerListener(gThreePaneIncomingServerListener);
-  gPrefBranch.QueryInterface(Components.interfaces.nsIPrefBranch2);
   gPrefBranch.removeObserver("mail.pane_config.dynamic", MailPrefObserver);
   gPrefBranch.removeObserver("mail.showCondensedAddresses", MailPrefObserver);
 
@@ -777,7 +792,11 @@ function loadStartFolder(initialUri)
             startFolder = GetMsgFolderFromUri(initialUri);
         else
         {
-            var defaultAccount = accountManager.defaultAccount;
+            try {
+                var defaultAccount = accountManager.defaultAccount;
+            } catch (x) {
+                return; // exception caused by no default account, ignore it.
+            }
 
             defaultServer = defaultAccount.incomingServer;
             var rootMsgFolder = defaultServer.rootMsgFolder;
@@ -842,8 +861,7 @@ function loadStartFolder(initialUri)
         return;
       }
 
-      dump(ex);
-      dump('Exception in LoadStartFolder caused by no default account.  We know about this\n');
+      Components.utils.reportError(ex);
     }
 
     MsgGetMessagesForAllServers(defaultServer);
@@ -1571,21 +1589,6 @@ var LightWeightThemeWebInstaller = {
   _isAllowed: function (node) {
     let pm = Components.classes["@mozilla.org/permissionmanager;1"]
       .getService(Components.interfaces.nsIPermissionManager);
-
-    let prefs = [["xpinstall.whitelist.add", pm.ALLOW_ACTION],
-                 ["xpinstall.whitelist.add.36", pm.ALLOW_ACTION],
-                 ["xpinstall.blacklist.add", pm.DENY_ACTION]];
-
-    prefs.forEach(function ([pref, permission]) {
-      let hosts = Application.prefs.getValue(pref, "");
-      if (hosts) {
-        hosts.split(",").forEach(function (host) {
-          pm.add(makeURI("http://" + host.trim()), "install", permission);
-        });
-
-        Application.prefs.setValue(pref, "");
-      }
-    });
 
     let uri = node.ownerDocument.documentURIObject;
     return pm.testPermission(uri, "install") == pm.ALLOW_ACTION;

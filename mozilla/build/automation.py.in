@@ -358,6 +358,7 @@ user_pref("browser.EULA.override", true);
 user_pref("javascript.options.jit_hardening", true);
 user_pref("gfx.color_management.force_srgb", true);
 user_pref("network.manage-offline-status", false);
+user_pref("dom.min_background_timeout_value", 1000);
 user_pref("test.mousescroll", true);
 user_pref("security.default_personal_cert", "Select Automatically"); // Need to client auth test be w/o any dialogs
 user_pref("network.http.prompt-temp-redirect", false);
@@ -395,6 +396,7 @@ user_pref("browser.safebrowsing.provider.0.keyURL", "http://%(server)s/safebrows
 user_pref("browser.safebrowsing.provider.0.updateURL", "http://%(server)s/safebrowsing-dummy/update");
 // Point update checks to the local testing server for fast failures
 user_pref("extensions.update.url", "http://%(server)s/extensions-dummy/updateURL");
+user_pref("extensions.update.background.url", "http://%(server)s/extensions-dummy/updateBackgroundURL");
 user_pref("extensions.blocklist.url", "http://%(server)s/extensions-dummy/blocklistURL");
 user_pref("extensions.hotfix.url", "http://%(server)s/extensions-dummy/hotfixURL");
 // Make sure opening about:addons won't hit the network
@@ -699,8 +701,8 @@ user_pref("camino.use_system_proxy_settings", false); // Camino-only, harmless t
       utility = ['/usr/sbin/screencapture', '-C', '-x', '-t', 'png']
       imgoutput = 'file'
     elif self.IS_WIN32:
-      self.log.info("If you fixed bug 589668, you'd get a screenshot here")
-      return
+      utility = [os.path.join(utilityPath, "screenshot.exe")]
+      imgoutput = 'file'
 
     # Run the capture correctly for the type of capture
     try:
@@ -726,7 +728,7 @@ user_pref("camino.use_system_proxy_settings", false); // Camino-only, harmless t
       if imgoutput == 'stdout':
         image = dumper_out
       elif imgoutput == 'file':
-        with open(imgfilename) as imgfile:
+        with open(imgfilename, 'rb') as imgfile:
           image = imgfile.read()
     except IOError, err:
         self.log.info("Failed to read image from %s", imgoutput)
@@ -737,8 +739,11 @@ user_pref("camino.use_system_proxy_settings", false); // Camino-only, harmless t
 
   def killAndGetStack(self, proc, utilityPath, debuggerInfo):
     """Kill the process, preferrably in a way that gets us a stack trace."""
-    if not debuggerInfo and not self.haveDumpedScreen:
-      self.dumpScreen(utilityPath)
+    if not debuggerInfo:
+      if self.haveDumpedScreen:
+        self.log.info("Not taking screenshot here: see the one that was previously logged")
+      else:
+        self.dumpScreen(utilityPath)
 
     if self.CRASHREPORTER and not debuggerInfo:
       if self.UNIXISH:
@@ -754,7 +759,7 @@ user_pref("camino.use_system_proxy_settings", false); // Camino-only, harmless t
     self.log.info("Can't trigger Breakpad, just killing process")
     proc.kill()
 
-  def waitForFinish(self, proc, utilityPath, timeout, maxTime, startTime, debuggerInfo, symbolsPath):
+  def waitForFinish(self, proc, utilityPath, timeout, maxTime, startTime, debuggerInfo, symbolsPath, logger):
     """ Look for timeout or crashes and return the status after the process terminates """
     stackFixerProcess = None
     stackFixerFunction = None
@@ -788,13 +793,18 @@ user_pref("camino.use_system_proxy_settings", false); // Camino-only, harmless t
 
       (line, didTimeout) = self.readWithTimeout(logsource, timeout)
       while line != "" and not didTimeout:
+        if logger:
+          logger.log(line)
         if "TEST-START" in line and "|" in line:
           self.lastTestSeen = line.split("|")[1].strip()
         if stackFixerFunction:
           line = stackFixerFunction(line)
         self.log.info(line.rstrip().decode("UTF-8", "ignore"))
-        if not debuggerInfo and not self.haveDumpedScreen and "TEST-UNEXPECTED-FAIL" in line and "Test timed out" in line:
-          self.dumpScreen(utilityPath)
+        if not debuggerInfo and "TEST-UNEXPECTED-FAIL" in line and "Test timed out" in line:
+          if self.haveDumpedScreen:
+            self.log.info("Not taking screenshot here: see the one that was previously logged")
+          else:
+            self.dumpScreen(utilityPath)
 
         (line, didTimeout) = self.readWithTimeout(logsource, timeout)
         if not hitMaxTime and maxTime and datetime.now() - startTime > timedelta(seconds = maxTime):
@@ -877,7 +887,7 @@ user_pref("camino.use_system_proxy_settings", false); // Camino-only, harmless t
 
   def runApp(self, testURL, env, app, profileDir, extraArgs,
              runSSLTunnel = False, utilityPath = None,
-             xrePath = None, certPath = None,
+             xrePath = None, certPath = None, logger = None,
              debuggerInfo = None, symbolsPath = None,
              timeout = -1, maxTime = None):
     """
@@ -936,7 +946,7 @@ user_pref("camino.use_system_proxy_settings", false); // Camino-only, harmless t
                  stderr = subprocess.STDOUT)
     self.log.info("INFO | automation.py | Application pid: %d", proc.pid)
 
-    status = self.waitForFinish(proc, utilityPath, timeout, maxTime, startTime, debuggerInfo, symbolsPath)
+    status = self.waitForFinish(proc, utilityPath, timeout, maxTime, startTime, debuggerInfo, symbolsPath, logger)
     self.log.info("INFO | automation.py | Application ran for: %s", str(datetime.now() - startTime))
 
     # Do a final check for zombie child processes.

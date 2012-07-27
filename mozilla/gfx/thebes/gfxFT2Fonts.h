@@ -96,6 +96,11 @@ public: // new functions
         return &entry->mData;
     }
 
+    virtual void SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf,
+                                     FontCacheSizes*   aSizes) const;
+    virtual void SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf,
+                                     FontCacheSizes*   aSizes) const;
+
 protected:
     virtual bool ShapeWord(gfxContext *aContext,
                            gfxShapedWord *aShapedWord,
@@ -141,7 +146,8 @@ protected: // new functions
     already_AddRefed<gfxFT2Font> WhichFontSupportsChar(const nsTArray<nsRefPtr<gfxFontEntry> >& aFontEntryList,
                                                        PRUint32 aCh);
     already_AddRefed<gfxFont> WhichPrefFontSupportsChar(PRUint32 aCh);
-    already_AddRefed<gfxFont> WhichSystemFontSupportsChar(PRUint32 aCh);
+    already_AddRefed<gfxFont>
+        WhichSystemFontSupportsChar(PRUint32 aCh, PRInt32 aRunScript);
 
     nsTArray<gfxTextRange> mRanges;
     nsString mString;

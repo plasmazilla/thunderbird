@@ -46,7 +46,7 @@ LIBXUL_LIBRARY	= 1
 EXPORT_LIBRARY	= 1
 
 EXPORTS	= \
-        gfx2DGlue.h \
+	gfx2DGlue.h \
 	gfx3DMatrix.h \
 	gfxASurface.h \
 	gfxAlphaRecovery.h \
@@ -75,11 +75,12 @@ EXPORTS	= \
 	gfxSkipChars.h \
 	gfxTeeSurface.h \
 	gfxTypes.h \
-	gfxUnicodeProperties.h \
 	gfxUtils.h \
 	gfxUserFontSet.h \
 	nsCoreAnimationSupport.h \
+	nsIOSurface.h \
 	gfxSharedImageSurface.h \
+	gfxReusableSurfaceWrapper.h \
 	$(NULL)
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),android)
@@ -173,8 +174,6 @@ EXPORTS	+= \
 	gfxGDIFont.h \
 	gfxGDIFontList.h \
 	gfxPlatformFontList.h \
-	gfxAtoms.h \
-	gfxAtomList.h \
 	$(NULL)
 endif
 
@@ -191,7 +190,6 @@ CPPSRCS	= \
 	gfxFontMissingGlyphs.cpp \
 	gfxFontTest.cpp \
 	gfxFontUtils.cpp \
-	gfxAtoms.cpp \
 	gfxMatrix.cpp \
 	gfxPath.cpp \
 	gfxPattern.cpp \
@@ -202,10 +200,10 @@ CPPSRCS	= \
 	gfxTeeSurface.cpp \
 	gfxUserFontSet.cpp \
 	gfxUtils.cpp \
-	gfxUnicodeProperties.cpp \
 	gfxScriptItemizer.cpp \
 	gfxHarfBuzzShaper.cpp \
 	gfxSharedImageSurface.cpp \
+	gfxReusableSurfaceWrapper.cpp \
 	$(NULL)
 
 ifdef MOZ_GRAPHITE
@@ -275,6 +273,9 @@ CPPSRCS += \
 	gfxPDFSurface.cpp \
 	nsUnicodeRange.cpp \
 	$(NULL)
+# This is set for "normal Android", that is, when Gecko is running on
+# top of the android java runtime.
+DEFINES +=	-DMOZ_USING_ANDROID_JAVA_WIDGETS
 endif
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),gonk)
@@ -361,7 +362,7 @@ endif
 
 CSRCS += woff.c
 
-DEFINES += -DIMPL_THEBES -DWOFF_MOZILLA_CLIENT
+DEFINES += -DIMPL_THEBES -DWOFF_MOZILLA_CLIENT -DHB_DONT_DEFINE_STDINT
 
 ifeq (WINNT,$(OS_TARGET))
 DEFINES += -DOTS_DLL

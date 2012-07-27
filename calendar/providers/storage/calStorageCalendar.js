@@ -1669,10 +1669,15 @@ calStorageCalendar.prototype = {
                 selectItem.params.item_id = item.id;
                 while (selectItem.step()) {
                     var attendee = this.getAttendeeFromRow(selectItem.row);
-                    if (attendee.isOrganizer) {
-                        item.organizer = attendee;
+                    if (attendee && attendee.id) {
+                        if (attendee.isOrganizer) {
+                            item.organizer = attendee;
+                        } else {
+                            item.addAttendee(attendee);
+                        }
                     } else {
-                        item.addAttendee(attendee);
+                        cal.WARN("[calStorageCalendar] Skipping invalid attendee for item '" +
+                                 item.title + "' (" + item.id + ").");
                     }
                 }
             } catch (e) {

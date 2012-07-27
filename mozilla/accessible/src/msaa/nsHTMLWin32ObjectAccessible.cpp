@@ -48,9 +48,9 @@ using namespace mozilla::a11y;
 ////////////////////////////////////////////////////////////////////////////////
 
 nsHTMLWin32ObjectOwnerAccessible::
-  nsHTMLWin32ObjectOwnerAccessible(nsIContent *aContent,
-                                   nsIWeakReference *aShell, void *aHwnd) :
-  nsAccessibleWrap(aContent, aShell), mHwnd(aHwnd)
+  nsHTMLWin32ObjectOwnerAccessible(nsIContent* aContent,
+                                   nsDocAccessible* aDoc, void* aHwnd) :
+  nsAccessibleWrap(aContent, aDoc), mHwnd(aHwnd)
 {
   // Our only child is a nsHTMLWin32ObjectAccessible object.
   mNativeAccessible = new nsHTMLWin32ObjectAccessible(mHwnd);
@@ -101,6 +101,10 @@ nsHTMLWin32ObjectOwnerAccessible::CacheChildren()
 nsHTMLWin32ObjectAccessible::nsHTMLWin32ObjectAccessible(void* aHwnd):
 nsLeafAccessible(nsnull, nsnull)
 {
+  // XXX: Mark it as defunct to make sure no single nsAccessible method is
+  // running on it. We need to allow accessible without DOM nodes.
+  mFlags |= eIsDefunct;
+
   mHwnd = aHwnd;
   if (mHwnd) {
     // The plugin is not windowless. In this situation we use 
@@ -114,11 +118,16 @@ nsLeafAccessible(nsnull, nsnull)
   }
 }
 
-NS_IMPL_ISUPPORTS_INHERITED1(nsHTMLWin32ObjectAccessible, nsAccessible, nsIAccessibleWin32Object)
+NS_IMPL_ISUPPORTS_INHERITED0(nsHTMLWin32ObjectAccessible, nsAccessible)
 
-NS_IMETHODIMP nsHTMLWin32ObjectAccessible::GetHwnd(void **aHwnd) 
+NS_IMETHODIMP 
+nsHTMLWin32ObjectAccessible::GetNativeInterface(void** aNativeAccessible)
 {
-  *aHwnd = mHwnd;
+  if (mHwnd) {
+    ::AccessibleObjectFromWindow(static_cast<HWND>(mHwnd),
+                                 OBJID_WINDOW, IID_IAccessible,
+                                 aNativeAccessible);
+  }
   return NS_OK;
 }
 

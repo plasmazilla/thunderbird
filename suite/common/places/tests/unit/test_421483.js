@@ -15,7 +15,7 @@
  *
  * The Original Code is Places Unit Test code.
  *
- * The Initial Developer of the Original Code is Mozilla Corp.
+ * The Initial Developer of the Original Code is Mozilla Foundation.
  * Portions created by the Initial Developer are Copyright (C) 2008
  * the Initial Developer. All Rights Reserved.
  *
@@ -56,16 +56,10 @@ try {
 try {
   var gluesvc = Cc["@mozilla.org/suite/suiteglue;1"].
                 getService(Ci.nsISuiteGlue);
+  // Avoid default bookmarks import.
+  gluesvc.QueryInterface(Ci.nsIObserver).observe(null, "initial-migration", null);
 } catch(ex) {
   do_throw("Could not get SuiteGlue service\n");
-}
-
-// Get pref service
-try {
-  var pref =  Cc["@mozilla.org/preferences-service;1"].
-              getService(Ci.nsIPrefBranch);
-} catch(ex) {
-  do_throw("Could not get Preferences service\n");
 }
 
 const SMART_BOOKMARKS_ANNO = "Places/SmartBookmark";
@@ -74,32 +68,32 @@ const SMART_BOOKMARKS_PREF = "browser.places.smartBookmarksVersion";
 // main
 function run_test() {
   // TEST 1: smart bookmarks disabled
-  pref.setIntPref("browser.places.smartBookmarksVersion", -1);
+  Services.prefs.setIntPref("browser.places.smartBookmarksVersion", -1);
   gluesvc.ensurePlacesDefaultQueriesInitialized();
   var smartBookmarkItemIds = annosvc.getItemsWithAnnotation(SMART_BOOKMARKS_ANNO);
   do_check_eq(smartBookmarkItemIds.length, 0);
   // check that pref has not been bumped up
-  do_check_eq(pref.getIntPref("browser.places.smartBookmarksVersion"), -1);
+  do_check_eq(Services.prefs.getIntPref("browser.places.smartBookmarksVersion"), -1);
 
   // TEST 2: create smart bookmarks
-  pref.setIntPref("browser.places.smartBookmarksVersion", 0);
+  Services.prefs.setIntPref("browser.places.smartBookmarksVersion", 0);
   gluesvc.ensurePlacesDefaultQueriesInitialized();
   smartBookmarkItemIds = annosvc.getItemsWithAnnotation(SMART_BOOKMARKS_ANNO);
   do_check_neq(smartBookmarkItemIds.length, 0);
   // check that pref has been bumped up
-  do_check_true(pref.getIntPref("browser.places.smartBookmarksVersion") > 0);
+  do_check_true(Services.prefs.getIntPref("browser.places.smartBookmarksVersion") > 0);
 
   var smartBookmarksCount = smartBookmarkItemIds.length;
 
   // TEST 3: smart bookmarks restore
   // remove one smart bookmark and restore
   bmsvc.removeItem(smartBookmarkItemIds[0]);
-  pref.setIntPref("browser.places.smartBookmarksVersion", 0);
+  Services.prefs.setIntPref("browser.places.smartBookmarksVersion", 0);
   gluesvc.ensurePlacesDefaultQueriesInitialized();
   smartBookmarkItemIds = annosvc.getItemsWithAnnotation(SMART_BOOKMARKS_ANNO);
   do_check_eq(smartBookmarkItemIds.length, smartBookmarksCount);
   // check that pref has been bumped up
-  do_check_true(pref.getIntPref("browser.places.smartBookmarksVersion") > 0);
+  do_check_true(Services.prefs.getIntPref("browser.places.smartBookmarksVersion") > 0);
 
   // TEST 4: move a smart bookmark, change its title, then restore
   // smart bookmark should be restored in place
@@ -111,12 +105,12 @@ function run_test() {
   // change title
   bmsvc.setItemTitle(smartBookmarkItemIds[0], "new title");
   // restore
-  pref.setIntPref("browser.places.smartBookmarksVersion", 0);
+  Services.prefs.setIntPref("browser.places.smartBookmarksVersion", 0);
   gluesvc.ensurePlacesDefaultQueriesInitialized();
   smartBookmarkItemIds = annosvc.getItemsWithAnnotation(SMART_BOOKMARKS_ANNO);
   do_check_eq(smartBookmarkItemIds.length, smartBookmarksCount);
   do_check_eq(bmsvc.getFolderIdForItem(smartBookmarkItemIds[0]), newParent);
   do_check_eq(bmsvc.getItemTitle(smartBookmarkItemIds[0]), oldTitle);
   // check that pref has been bumped up
-  do_check_true(pref.getIntPref("browser.places.smartBookmarksVersion") > 0);
+  do_check_true(Services.prefs.getIntPref("browser.places.smartBookmarksVersion") > 0);
 }

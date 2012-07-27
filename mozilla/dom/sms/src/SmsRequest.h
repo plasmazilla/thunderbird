@@ -39,7 +39,7 @@
 #define mozilla_dom_sms_SmsRequest_h
 
 #include "nsIDOMSmsRequest.h"
-#include "nsDOMEventTargetWrapperCache.h"
+#include "nsDOMEventTargetHelper.h"
 
 class nsIDOMMozSmsMessage;
 class nsIDOMMozSmsCursor;
@@ -47,40 +47,28 @@ class nsIDOMMozSmsCursor;
 namespace mozilla {
 namespace dom {
 namespace sms {
+class SmsManager;
 
-class SmsRequest : public nsIDOMMozSmsRequest
-                 , public nsDOMEventTargetWrapperCache
+class SmsRequest : public nsDOMEventTargetHelper
+                 , public nsIDOMMozSmsRequest
 {
 public:
   friend class SmsRequestManager;
 
-  /**
-   * All SMS related errors that could apply to SmsRequest objects.
-   * Make sure to keep this list in sync with the list in:
-   * embedding/android/GeckoSmsManager.java
-   */
-  enum ErrorType {
-    eNoError = 0,
-    eNoSignalError,
-    eNotFoundError,
-    eUnknownError,
-    eInternalError,
-  };
-
   NS_DECL_ISUPPORTS
   NS_DECL_NSIDOMMOZSMSREQUEST
 
-  NS_FORWARD_NSIDOMEVENTTARGET(nsDOMEventTargetWrapperCache::)
+  NS_FORWARD_NSIDOMEVENTTARGET(nsDOMEventTargetHelper::)
 
   NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS_INHERITED(SmsRequest,
-                                                         nsDOMEventTargetWrapperCache)
+                                                         nsDOMEventTargetHelper)
 
   void Reset();
 
 private:
   SmsRequest() MOZ_DELETE;
 
-  SmsRequest(nsPIDOMWindow* aWindow, nsIScriptContext* aScriptContext);
+  SmsRequest(SmsManager* aManager);
   ~SmsRequest();
 
   /**
@@ -111,7 +99,7 @@ private:
   /**
    * Set the object in an error state with the error type being aError.
    */
-  void SetError(ErrorType aError);
+  void SetError(PRInt32 aError);
 
   /**
    * Set the object in a success state with the result being the nsISupports
@@ -129,7 +117,7 @@ private:
 
   jsval     mResult;
   bool      mResultRooted;
-  ErrorType mError;
+  PRInt32   mError;
   bool      mDone;
   nsCOMPtr<nsIDOMMozSmsCursor> mCursor;
 

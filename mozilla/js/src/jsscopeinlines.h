@@ -236,10 +236,10 @@ Shape::Shape(UnownedBaseShape *base, uint32_t nfixed)
     kids.setNull();
 }
 
-inline JSDHashNumber
+inline HashNumber
 StackShape::hash() const
 {
-    JSDHashNumber hash = uintptr_t(base);
+    HashNumber hash = uintptr_t(base);
 
     /* Accumulate from least to most random so the low bits are most random. */
     hash = JS_ROTATE_LEFT32(hash, 4) ^ (flags & Shape::PUBLIC_FLAGS);
@@ -267,7 +267,7 @@ Shape::matches(const StackShape &other) const
 
 inline bool
 Shape::matchesParamsAfterId(BaseShape *base, uint32_t aslot,
-                            uintN aattrs, uintN aflags, intN ashortid) const
+                            unsigned aattrs, unsigned aflags, int ashortid) const
 {
     return base->unowned() == this->base()->unowned() &&
            maybeSlot() == aslot &&
@@ -282,14 +282,8 @@ Shape::get(JSContext* cx, JSObject *receiver, JSObject* obj, JSObject *pobj, js:
     JS_ASSERT(!hasDefaultGetter());
 
     if (hasGetterValue()) {
-        JS_ASSERT(!isMethod());
         js::Value fval = getterValue();
         return js::InvokeGetterOrSetter(cx, receiver, fval, 0, 0, vp);
-    }
-
-    if (isMethod()) {
-        vp->setObject(*pobj->nativeGetMethod(this));
-        return pobj->methodReadBarrier(cx, *this, vp);
     }
 
     /*
@@ -394,8 +388,11 @@ Shape::writeBarrierPre(const js::Shape *shape)
         return;
 
     JSCompartment *comp = shape->compartment();
-    if (comp->needsBarrier())
-        MarkShapeUnbarriered(comp->barrierTracer(), shape, "write barrier");
+    if (comp->needsBarrier()) {
+        Shape *tmp = const_cast<Shape *>(shape);
+        MarkShapeUnbarriered(comp->barrierTracer(), &tmp, "write barrier");
+        JS_ASSERT(tmp == shape);
+    }
 #endif
 }
 
@@ -409,9 +406,21 @@ Shape::readBarrier(const Shape *shape)
 {
 #ifdef JSGC_INCREMENTAL
     JSCompartment *comp = shape->compartment();
-    if (comp->needsBarrier())
-        MarkShapeUnbarriered(comp->barrierTracer(), shape, "read barrier");
+    if (comp->needsBarrier()) {
+        Shape *tmp = const_cast<Shape *>(shape);
+        MarkShapeUnbarriered(comp->barrierTracer(), &tmp, "read barrier");
+        JS_ASSERT(tmp == shape);
+    }
 #endif
+}
+
+inline void
+Shape::markChildren(JSTracer *trc)
+{
+    MarkBaseShape(trc, &base_, "base");
+    gc::MarkId(trc, &propidRef(), "propid");
+    if (parent)
+        MarkShape(trc, &parent, "parent");
 }
 
 inline void
@@ -422,8 +431,11 @@ BaseShape::writeBarrierPre(BaseShape *base)
         return;
 
     JSCompartment *comp = base->compartment();
-    if (comp->needsBarrier())
-        MarkBaseShapeUnbarriered(comp->barrierTracer(), base, "write barrier");
+    if (comp->needsBarrier()) {
+        BaseShape *tmp = base;
+        MarkBaseShapeUnbarriered(comp->barrierTracer(), &tmp, "write barrier");
+        JS_ASSERT(tmp == base);
+    }
 #endif
 }
 
@@ -437,9 +449,28 @@ BaseShape::readBarrier(BaseShape *base)
 {
 #ifdef JSGC_INCREMENTAL
     JSCompartment *comp = base->compartment();
-    if (comp->needsBarrier())
-        MarkBaseShapeUnbarriered(comp->barrierTracer(), base, "read barrier");
+    if (comp->needsBarrier()) {
+        BaseShape *tmp = base;
+        MarkBaseShapeUnbarriered(comp->barrierTracer(), &tmp, "read barrier");
+        JS_ASSERT(tmp == base);
+    }
 #endif
+}
+
+inline void
+BaseShape::markChildren(JSTracer *trc)
+{
+    if (hasGetterObject())
+        MarkObjectUnbarriered(trc, &getterObj, "getter");
+
+    if (hasSetterObject())
+        MarkObjectUnbarriered(trc, &setterObj, "setter");
+
+    if (isOwned())
+        MarkBaseShape(trc, &unowned_, "base");
+
+    if (parent)
+        MarkObject(trc, &parent, "parent");
 }
 
 } /* namespace js */

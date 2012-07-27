@@ -58,7 +58,7 @@ namespace js {
 
 inline
 Bindings::Bindings(JSContext *cx)
-    : lastBinding(NULL), nargs(0), nvars(0), nupvars(0), hasDup_(false)
+    : lastBinding(NULL), nargs(0), nvars(0), hasDup_(false)
 {}
 
 inline void
@@ -119,10 +119,10 @@ Bindings::extensibleParents()
 }
 
 extern void
-CurrentScriptFileLineOriginSlow(JSContext *cx, const char **file, uintN *linenop, JSPrincipals **origin);
+CurrentScriptFileLineOriginSlow(JSContext *cx, const char **file, unsigned *linenop, JSPrincipals **origin);
 
 inline void
-CurrentScriptFileLineOrigin(JSContext *cx, const char **file, uintN *linenop, JSPrincipals **origin,
+CurrentScriptFileLineOrigin(JSContext *cx, const char **file, unsigned *linenop, JSPrincipals **origin,
                             LineOption opt = NOT_CALLED_FROM_JSOP_EVAL)
 {
     if (opt == CALLED_FROM_JSOP_EVAL) {
@@ -139,10 +139,9 @@ CurrentScriptFileLineOrigin(JSContext *cx, const char **file, uintN *linenop, JS
 }
 
 inline void
-ScriptOpcodeCounts::destroy(JSContext *cx)
+ScriptCounts::destroy(FreeOp *fop)
 {
-    if (counts)
-        cx->free_(counts);
+    fop->free_(pcCountsVector);
 }
 
 } // namespace js
@@ -245,7 +244,9 @@ JSScript::writeBarrierPre(JSScript *script)
     JSCompartment *comp = script->compartment();
     if (comp->needsBarrier()) {
         JS_ASSERT(!comp->rt->gcRunning);
-        MarkScriptUnbarriered(comp->barrierTracer(), script, "write barrier");
+        JSScript *tmp = script;
+        MarkScriptUnbarriered(comp->barrierTracer(), &tmp, "write barrier");
+        JS_ASSERT(tmp == script);
     }
 #endif
 }

@@ -37,6 +37,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource:///modules/appIdleManager.js");
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
 Components.utils.import("resource:///modules/gloda/log4moz.js");
@@ -49,7 +50,6 @@ var pref;
 var statusFeedback;
 var msgWindow;
 
-var msgComposeService;
 var accountManager;
 
 var gContextMenu;
@@ -80,6 +80,9 @@ function OnMailWindowUnload()
 
   msgWindow.closeWindow();
 
+  msgWindow.msgHeaderSink = null;
+  msgWindow.notificationCallbacks = null;
+  gDBView = null;
   window.MsgStatusFeedback.unload();
   Components.classes["@mozilla.org/activity-manager;1"]
             .getService(Components.interfaces.nsIActivityManager)
@@ -93,7 +96,7 @@ function CreateMailWindowGlobals()
                         .createInstance(Components.interfaces.nsIMessenger);
 
   pref = Components.classes["@mozilla.org/preferences-service;1"]
-          .getService(Components.interfaces.nsIPrefBranch2);
+          .getService(Components.interfaces.nsIPrefBranch);
 
   window.addEventListener("blur", appIdleManager.onBlur, false);
   window.addEventListener("focus", appIdleManager.onFocus, false);
@@ -123,9 +126,6 @@ function CreateMailWindowGlobals()
   //Create message window object
   msgWindow = Components.classes["@mozilla.org/messenger/msgwindow;1"]
                         .createInstance(Components.interfaces.nsIMsgWindow);
-
-  msgComposeService = Components.classes['@mozilla.org/messengercompose;1']
-                                .getService(Components.interfaces.nsIMsgComposeService);
 
   accountManager = Components.classes["@mozilla.org/messenger/account-manager;1"].getService(Components.interfaces.nsIMsgAccountManager);
 

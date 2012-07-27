@@ -52,6 +52,17 @@ function expect_fail(f) {
   do_check_true(failed);
 }
 
+function expect_success(f) {
+  let succeeded = false;
+  try {
+    f();
+    succeeded = true;
+  } catch (e) {
+    succeeded = false;
+  }
+  do_check_true(succeeded);
+}
+
 function test_boolean_histogram()
 {
   var h = Telemetry.newHistogram("test::boolean histogram", 99,1,4, Telemetry.HISTOGRAM_BOOLEAN);
@@ -74,6 +85,32 @@ function test_boolean_histogram()
   do_check_eq(s.counts[0], 2);
 }
 
+function test_flag_histogram()
+{
+  var h = Telemetry.newHistogram("test::flag histogram", 130, 4, 5, Telemetry.HISTOGRAM_FLAG);
+  var r = h.snapshot().ranges;
+  // Flag histograms ignore numeric parameters.
+  do_check_eq(uneval(r), uneval([0, 1, 2]))
+  // Should already have a 0 counted.
+  var c = h.snapshot().counts;
+  var s = h.snapshot().sum;
+  do_check_eq(uneval(c), uneval([1, 0, 0]));
+  do_check_eq(s, 1);
+  // Should switch counts.
+  h.add(2);
+  var c2 = h.snapshot().counts;
+  var s2 = h.snapshot().sum;
+  do_check_eq(uneval(c2), uneval([0, 1, 0]));
+  do_check_eq(s, 1);
+  // Should only switch counts once.
+  h.add(3);
+  var c3 = h.snapshot().counts;
+  var s3 = h.snapshot().sum;
+  do_check_eq(uneval(c3), uneval([0, 1, 0]));
+  do_check_eq(s3, 1);
+  do_check_eq(h.snapshot().histogram_type, Telemetry.FLAG_HISTOGRAM);
+}
+
 function test_getHistogramById() {
   try {
     Telemetry.getHistogramById("nonexistent");
@@ -93,6 +130,91 @@ function test_getSlowSQL() {
   do_check_true(("mainThread" in slow) && ("otherThreads" in slow));
 }
 
+function test_addons() {
+  var addon_id = "testing-addon";
+  var fake_addon_id = "fake-addon";
+  var name1 = "testing-histogram1";
+  var register = Telemetry.registerAddonHistogram;
+  expect_success(function ()
+                 register(addon_id, name1, 1, 5, 6, Telemetry.HISTOGRAM_LINEAR));
+  // Can't register the same histogram multiple times.
+  expect_fail(function ()
+	      register(addon_id, name1, 1, 5, 6, Telemetry.HISTOGRAM_LINEAR));
+  // Make sure we can't get at it with another name.
+  expect_fail(function () Telemetry.getAddonHistogram(fake_addon_id, name1));
+
+  // Check for reflection capabilities.
+  var h1 = Telemetry.getAddonHistogram(addon_id, name1);
+  h1.add(1);
+  h1.add(3);
+  var s1 = h1.snapshot();
+  do_check_eq(s1.histogram_type, Telemetry.HISTOGRAM_LINEAR);
+  do_check_eq(s1.min, 1);
+  do_check_eq(s1.max, 5);
+  do_check_eq(s1.counts[1], 1);
+  do_check_eq(s1.counts[3], 1);
+
+  var name2 = "testing-histogram2";
+  expect_success(function ()
+                 register(addon_id, name2, 2, 4, 4, Telemetry.HISTOGRAM_LINEAR));
+
+  var h2 = Telemetry.getAddonHistogram(addon_id, name2);
+  h2.add(2);
+  h2.add(3);
+  var s2 = h2.snapshot();
+  do_check_eq(s2.histogram_type, Telemetry.HISTOGRAM_LINEAR);
+  do_check_eq(s2.min, 2);
+  do_check_eq(s2.max, 4);
+  do_check_eq(s2.counts[1], 1);
+  do_check_eq(s2.counts[2], 1);
+
+  // Check that we can register histograms for a different addon with
+  // identical names.
+  var extra_addon = "testing-extra-addon";
+  expect_success(function ()
+		 register(extra_addon, name1, 0, 1, 2, Telemetry.HISTOGRAM_BOOLEAN));
+
+  // Check that we can register flag histograms.
+  var flag_addon = "testing-flag-addon";
+  var flag_histogram = "flag-histogram";
+  expect_success(function() 
+                 register(flag_addon, flag_histogram, 0, 1, 2, Telemetry.HISTOGRAM_FLAG))
+  expect_success(function()
+		 register(flag_addon, name2, 2, 4, 4, Telemetry.HISTOGRAM_LINEAR));
+
+  // Check that we reflect registered addons and histograms.
+  snapshots = Telemetry.addonHistogramSnapshots;
+  do_check_true(addon_id in snapshots)
+  do_check_true(extra_addon in snapshots);
+  do_check_true(flag_addon in snapshots);
+
+  // Check that we have data for our created histograms.
+  do_check_true(name1 in snapshots[addon_id]);
+  do_check_true(name2 in snapshots[addon_id]);
+  var s1_alt = snapshots[addon_id][name1];
+  var s2_alt = snapshots[addon_id][name2];
+  do_check_eq(s1_alt.min, s1.min);
+  do_check_eq(s1_alt.max, s1.max);
+  do_check_eq(s1_alt.histogram_type, s1.histogram_type);
+  do_check_eq(s2_alt.min, s2.min);
+  do_check_eq(s2_alt.max, s2.max);
+  do_check_eq(s2_alt.histogram_type, s2.histogram_type);
+
+  // Even though we've registered it, it shouldn't show up until data is added to it.
+  do_check_false(name1 in snapshots[extra_addon]);
+
+  // Flag histograms should show up automagically.
+  do_check_true(flag_histogram in snapshots[flag_addon]);
+  do_check_false(name2 in snapshots[flag_addon]);
+
+  // Check that we can remove addon histograms.
+  Telemetry.unregisterAddonHistograms(addon_id);
+  snapshots = Telemetry.addonHistogramSnapshots;
+  do_check_false(addon_id in snapshots);
+  // Make sure other addons are unaffected.
+  do_check_true(extra_addon in snapshots);
+}
+
 // Check that telemetry doesn't record in private mode
 function test_privateMode() {
   var h = Telemetry.newHistogram("test::private_mode_boolean", 1,2,3, Telemetry.HISTOGRAM_BOOLEAN);
@@ -103,6 +225,45 @@ function test_privateMode() {
   Telemetry.canRecord = true;
   h.add(1);
   do_check_neq(uneval(orig), uneval(h.snapshot()));
+}
+
+function generateUUID() {
+  let str = Cc["@mozilla.org/uuid-generator;1"].getService(Ci.nsIUUIDGenerator).generateUUID().toString();
+  // strip {}
+  return str.substring(1, str.length - 1);
+}
+
+// Check that we do sane things when saving to disk.
+function test_loadSave()
+{
+  let dirService = Cc["@mozilla.org/file/directory_service;1"]
+                    .getService(Ci.nsIProperties);
+  let tmpDir = dirService.get("TmpD", Ci.nsILocalFile);
+  let tmpFile = tmpDir.clone();
+  tmpFile.append("saved-histograms.dat");
+  if (tmpFile.exists()) {
+    tmpFile.remove(true);
+  }
+
+  let saveFinished = false;
+  let loadFinished = false;
+  let uuid = generateUUID();
+  let loadCallback = function(data) {
+    do_check_true(data != null);
+    do_check_eq(uuid, data.uuid);
+    loadFinished = true;
+    do_test_finished();
+  };
+  let saveCallback = function(success) {
+    do_check_true(success);
+    Telemetry.loadHistograms(tmpFile, loadCallback, false);
+    saveFinished = true;
+  };
+  do_test_pending();
+  Telemetry.saveHistograms(tmpFile, uuid, saveCallback, false);
+  do_register_cleanup(function () do_check_true(saveFinished));
+  do_register_cleanup(function () do_check_true(loadFinished));
+  do_register_cleanup(function () tmpFile.remove(true));
 }
 
 function run_test()
@@ -121,4 +282,6 @@ function run_test()
   test_getHistogramById();
   test_getSlowSQL();
   test_privateMode();
+  test_addons();
+  test_loadSave();
 }

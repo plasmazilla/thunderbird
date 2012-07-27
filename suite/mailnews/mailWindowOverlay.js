@@ -49,7 +49,7 @@
  * ***** END LICENSE BLOCK ***** */
 
 Components.utils.import("resource://gre/modules/Services.jsm");
-Components.utils.import("resource://gre/modules/mailServices.js");
+Components.utils.import("resource:///modules/mailServices.js");
 Components.utils.import("resource:///modules/folderUtils.jsm");
 
 const kClassicMailLayout  = 0;
@@ -609,7 +609,7 @@ function InitNewMsgMenu(aPopup)
   // If the identity is not found, use the mail.html_compose pref to
   // determine the message compose type (HTML or PlainText).
   var composeHTML = identity ? identity.composeHtml
-                             : Application.prefs.getValue("mail.html_compose", true);
+                             : Services.prefs.getBoolPref("mail.html_compose");
   const kIDs = {true: "button-newMsgHTML", false: "button-newMsgPlain"};
   document.getElementById(kIDs[composeHTML]).setAttribute("default", "true");
   document.getElementById(kIDs[!composeHTML]).removeAttribute("default");
@@ -617,8 +617,7 @@ function InitNewMsgMenu(aPopup)
 
 function InitMessageForward(aPopup)
 {
-  var forwardType = Application.prefs.getValue("mail.forward_message_mode",
-                                               kMsgForwardAsAttachment);
+  var forwardType = Services.prefs.getIntPref("mail.forward_message_mode");
 
   if (forwardType != kMsgForwardAsAttachment)
   {
@@ -1203,9 +1202,9 @@ BatchMessageMover.prototype =
         // RSS servers don't have an identity so we special case the archives URI.
         archiveFolderUri = server.serverURI + "/Archives";
         archiveGranularity =
-          Application.prefs.get("mail.identity.default.archive_granularity").value;
+          Services.prefs.getIntPref("mail.identity.default.archive_granularity");
         archiveKeepFolderStructure =
-          Application.prefs.get("mail.identity.default.archive_keep_folder_structure").value;
+          Services.prefs.getBoolPref("mail.identity.default.archive_keep_folder_structure");
       }
       else {
         let identity = GetIdentityForHeader(msgHdr,
@@ -1424,8 +1423,7 @@ function MsgArchiveSelectedMessages(aEvent)
 
 function MsgForwardMessage(event)
 {
-  var forwardType = Application.prefs.getValue("mail.forward_message_mode",
-                                               kMsgForwardAsAttachment);
+  var forwardType = Services.prefs.getIntPref("mail.forward_message_mode");
 
   // mail.forward_message_mode could be 1, if the user migrated from 4.x
   // 1 (forward as quoted) is obsolete, so we treat is as forward inline
@@ -2301,21 +2299,17 @@ function SpaceHit(event)
 
   if (event && event.shiftKey) {
     // if at the start of the message, go to the previous one
-    if (contentWindow.scrollY > 0) {
+    if (contentWindow.scrollY > 0)
       contentWindow.scrollByPages(-1);
-    }
-    else {
+    else if (pref.getBoolPref("mail.advance_on_spacebar"))
       goDoCommand("cmd_previousUnreadMsg");
-    }
   }
   else {
     // if at the end of the message, go to the next one
-    if (contentWindow.scrollY < contentWindow.scrollMaxY) {
+    if (contentWindow.scrollY < contentWindow.scrollMaxY)
       contentWindow.scrollByPages(1);
-    }
-    else {
+    else if (pref.getBoolPref("mail.advance_on_spacebar"))
       goDoCommand("cmd_nextUnreadMsg");
-    }
   }
 }
 

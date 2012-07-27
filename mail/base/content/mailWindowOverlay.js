@@ -1027,8 +1027,8 @@ function UpdateReplyButtons()
   let buttonToShow;
   if (gFolderDisplay.selectedMessageIsNews)
   {
-    // News messages always default to the "reply" dual-button.
-    buttonToShow = "reply";
+    // News messages always default to the "followup" dual-button.
+    buttonToShow = "followup";
   }
   else if (gFolderDisplay.selectedMessageIsFeed)
   {
@@ -1044,31 +1044,31 @@ function UpdateReplyButtons()
     else if (IsReplyAllEnabled())
       buttonToShow = "replyAll";
     else
-      buttonToShow = "replyOnly";
+      buttonToShow = "reply";
   }
 
   let smartReplyButton = document.getElementById("hdrSmartReplyButton");
   if (smartReplyButton)
   {
-    let replyOnlyButton = document.getElementById("hdrReplyOnlyButton");
     let replyButton = document.getElementById("hdrReplyButton");
     let replyAllButton = document.getElementById("hdrReplyAllButton");
     let replyListButton = document.getElementById("hdrReplyListButton");
+    let followupButton = document.getElementById("hdrFollowupButton");
 
-    replyOnlyButton.hidden = (buttonToShow != "replyOnly");
     replyButton.hidden = (buttonToShow != "reply");
     replyAllButton.hidden = (buttonToShow != "replyAll");
     replyListButton.hidden = (buttonToShow != "replyList");
+    followupButton.hidden = (buttonToShow != "followup");
   }
 
   let replyToSenderButton = document.getElementById("hdrReplyToSenderButton");
   if (replyToSenderButton)
   {
-    if (gFolderDisplay.selectedMessageIsFeed)
+    if (gFolderDisplay.selectedMessageIsFeed ||
+        gFolderDisplay.selectedMessageIsNews)
       replyToSenderButton.hidden = true;
     else if (smartReplyButton)
-      replyToSenderButton.hidden = buttonToShow == "reply" ||
-                                   buttonToShow == "replyOnly";
+      replyToSenderButton.hidden = (buttonToShow == "reply");
     else
       replyToSenderButton.hidden = false;
   }
@@ -1076,6 +1076,7 @@ function UpdateReplyButtons()
   goUpdateCommand("button_reply");
   goUpdateCommand("button_replyall");
   goUpdateCommand("button_replylist");
+  goUpdateCommand("button_followup");
 }
 
 function UpdateDeleteToolbarButton()
@@ -2294,6 +2295,19 @@ function IsMailFolderSelected()
   return folder && folder.server.type != "nntp";
 }
 
+function IsGetNewMessagesEnabled()
+{
+  let allServers = accountManager.allServers;
+  for (let i = 0; i < allServers.Count(); ++i) {
+    let server = allServers.GetElementAt(i)
+                           .QueryInterface(Components.interfaces.nsIMsgIncomingServer);
+    if (server.type == "none")
+      continue;
+    return true;
+  }
+  return false;
+}
+
 function IsGetNextNMessagesEnabled()
 {
   var selectedFolders = GetSelectedMsgFolders();
@@ -2361,14 +2375,14 @@ function SpaceHit(event)
     // if at the start of the message, go to the previous one
     if (contentWindow.scrollY > 0)
       contentWindow.scrollByPages(-1);
-    else
+    else if (pref.getBoolPref("mail.advance_on_spacebar"))
       goDoCommand("cmd_previousUnreadMsg");
   }
   else {
     // if at the end of the message, go to the next one
     if (contentWindow.scrollY < contentWindow.scrollMaxY)
       contentWindow.scrollByPages(1);
-    else
+    else if (pref.getBoolPref("mail.advance_on_spacebar"))
       goDoCommand("cmd_nextUnreadMsg");
   }
 }
@@ -2657,7 +2671,7 @@ var gMessageNotificationBar =
                     1, // 1 << (kMsgNotificationPhishingBar - 1)
                     2, // 1 << (kMsgNotificationJunkBar - 1)
                     4, // 1 << (kMsgNotificationRemoteImages - 1)
-                    8  // 1 << (kMsgNotificationMSN - 1)
+                    8  // 1 << (kMsgNotificationMDN - 1)
                   ],
 
   get mMsgNotificationBar() {
@@ -2701,8 +2715,9 @@ var gMessageNotificationBar =
   setMDNMsg: function(aMdnGenerator, aMsgHeader, aMimeHdr)
   {
     this.mdnGenerator = aMdnGenerator;
-    this.msgHeader = aMsgHeader;
-    let mdnHdr = aMimeHdr.extractHeader("Disposition-Notification-To", false);
+    // Return receipts can be RFC 3798 or not.
+    let mdnHdr = aMimeHdr.extractHeader("Disposition-Notification-To", false) ||
+                 aMimeHdr.extractHeader("Return-Receipt-To", false); // not
     let fromHdr = aMimeHdr.extractHeader("From", false);
 
     let headerParser = Components.classes["@mozilla.org/messenger/headerparser;1"]
@@ -3036,11 +3051,7 @@ function HandleMDNResponse(aUrl)
 
   // After a msg is downloaded it's already marked READ at this point so we must check if
   // the msg has a "Disposition-Notification-To" header and no MDN report has been sent yet.
-  var msgFlags = msgHdr.flags;
-  if (!msgFlags)
-    return;
-  if ((msgFlags & Components.interfaces.nsMsgMessageFlags.IMAPDeleted) ||
-      (msgFlags & Components.interfaces.nsMsgMessageFlags.MDNReportSent))
+  if (msgHdr.flags & Components.interfaces.nsMsgMessageFlags.MDNReportSent)
     return;
 
   var DNTHeader = mimeHdr.extractHeader("Disposition-Notification-To", false);
@@ -3084,6 +3095,13 @@ function QuickSearchFocus()
     if (searchInput)
       searchInput.select();
 
+    return;
+  }
+
+  if (tabmail && tabmail.currentTabInfo.mode.name == "chat") {
+    let searchInput = document.getElementById("IMSearchInput");
+    if (searchInput)
+      searchInput.select();
     return;
   }
 
@@ -3291,7 +3309,7 @@ function FeedSetContentView(val)
       }
     }
   }
-  else if(contentBase.headerValue) {
+  else if (contentBase && contentBase.headerValue) {
     document.getElementById("messagepane")
             .loadURI(contentBase.headerValue, null, null);
     gShowFeedSummaryToggle = false;

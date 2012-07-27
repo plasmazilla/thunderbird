@@ -61,6 +61,8 @@ endif
 
 EXPORTS = \
         BasicLayers.h \
+        BasicTiledThebesLayer.h \
+        BasicImplData.h \
         ImageLayers.h \
         Layers.h \
         LayerManagerOGL.h \
@@ -72,7 +74,9 @@ EXPORTS = \
 CPPSRCS = \
         BasicImages.cpp \
         BasicLayers.cpp \
+        BasicTiledThebesLayer.cpp \
         Layers.cpp \
+        RenderTrace.cpp \
         ReadbackProcessor.cpp \
         ThebesLayerBuffer.cpp \
         CanvasLayerOGL.cpp \
@@ -81,14 +85,11 @@ CPPSRCS = \
         ImageLayerOGL.cpp \
         LayerManagerOGL.cpp \
         ThebesLayerOGL.cpp \
+        TiledThebesLayerOGL.cpp \
+        ReusableTileStoreOGL.cpp \
         LayerSorter.cpp \
+        ImageLayers.cpp \
         $(NULL)
-
-ifeq ($(MOZ_WIDGET_TOOLKIT),cocoa)
-CMMSRCS = \
-        MacIOSurfaceImageOGL.mm \
-        $(NULL)
-endif
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),windows)
 ifdef MOZ_ENABLE_D3D9_LAYER
@@ -138,6 +139,7 @@ EXPORTS_mozilla/layers =\
         ShadowLayersChild.h \
         ShadowLayersParent.h \
         ShadowLayersManager.h \
+        RenderTrace.h \
         $(NULL)
 
 CPPSRCS += \
@@ -155,13 +157,6 @@ ifdef MOZ_X11 #{
 EXPORTS_mozilla/layers += ShadowLayerUtilsX11.h
 CPPSRCS += ShadowLayerUtilsX11.cpp
 endif #}
-
-# Enable GLES2.0 under maemo
-ifdef MOZ_X11
-ifdef MOZ_PLATFORM_MAEMO
-DEFINES += -DUSE_GLES2
-endif
-endif
 
 ifdef MOZ_ENABLE_D3D10_LAYER
 EXPORTS_mozilla/layers += ShadowLayerUtilsD3D10.h

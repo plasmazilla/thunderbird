@@ -45,9 +45,9 @@
 // This file gets included by nsAccessibilityService.cpp, which can't include
 // atk.h (or glib.h), so we can't rely on it being included.
 #ifdef __ATK_H__
-typedef void (*AtkSocketEmbedType) (AtkSocket*, gchar*);
+extern "C" typedef void (*AtkSocketEmbedType) (AtkSocket*, gchar*);
 #else
-typedef void (*AtkSocketEmbedType) (void*, void*);
+extern "C" typedef void (*AtkSocketEmbedType) (void*, void*);
 #endif
 
 /**
@@ -72,7 +72,7 @@ public:
    */
   static bool gCanEmbed;
 
-  AtkSocketAccessible(nsIContent* aContent, nsIWeakReference* aShell,
+  AtkSocketAccessible(nsIContent* aContent, nsDocAccessible* aDoc,
                       const nsCString& aPlugId);
 
   // nsAccessNode

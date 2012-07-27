@@ -1409,7 +1409,7 @@ void nsImapProtocol::HandleIdleResponses()
 {
   // PRInt32 oldRecent = GetServerStateParser().NumberOfRecentMessages();
   nsCAutoString commandBuffer(GetServerCommandTag());
-  commandBuffer.Append(" IDLE"CRLF);
+  commandBuffer.Append(" IDLE" CRLF);
 
   do
   {
@@ -3287,7 +3287,7 @@ void nsImapProtocol::FetchMsgAttribute(const nsCString &messageIds, const nsCStr
     commandString.Append(messageIds);
     commandString.Append(" (");
     commandString.Append(attribute);
-    commandString.Append(")"CRLF);
+    commandString.Append(")" CRLF);
     nsresult rv = SendData(commandString.get());
 
     if (NS_SUCCEEDED(rv))
@@ -4879,7 +4879,7 @@ nsImapProtocol::DiscoverMailboxSpec(nsImapMailboxSpec * adoptedBoxSpec)
 
         // Don't set the Trash flag if not using the Trash model
         if (GetDeleteIsMoveToTrash() && !onlineTrashFolderExists &&
-            adoptedBoxSpec->mAllocatedPathName.Find(m_trashFolderName) != -1)
+            adoptedBoxSpec->mAllocatedPathName.Find(m_trashFolderName, CaseInsensitiveCompare) != -1)
         {
           bool trashExists = false;
           nsCString trashMatch(CreatePossibleTrashName(nsPrefix));
@@ -4896,11 +4896,11 @@ nsImapProtocol::DiscoverMailboxSpec(nsImapMailboxSpec * adoptedBoxSpec)
               StringBeginsWith(adoptedBoxSpec->mAllocatedPathName,
                                serverTrashName,
                                nsCaseInsensitiveCStringComparator()) && /* "INBOX/" */
-              pathName.Equals(Substring(serverTrashName, 6));
+              pathName.Equals(Substring(serverTrashName, 6), nsCaseInsensitiveCStringComparator());
           }
           else
-            trashExists = adoptedBoxSpec->mAllocatedPathName.Equals(serverTrashName);
-              
+            trashExists = adoptedBoxSpec->mAllocatedPathName.Equals(serverTrashName, nsCaseInsensitiveCStringComparator());
+
           if (m_hostSessionList)
             m_hostSessionList->SetOnlineTrashFolderExistsForHost(GetImapServerKey(), trashExists);
 
@@ -5283,7 +5283,7 @@ nsImapProtocol::Expunge()
 
   IncrementCommandTagNumber();
   nsCAutoString command(GetServerCommandTag());
-  command.Append(" expunge"CRLF);
+  command.Append(" expunge" CRLF);
 
   nsresult rv = SendData(command.get());
   if (NS_SUCCEEDED(rv))
@@ -5359,7 +5359,7 @@ void nsImapProtocol::ID()
   command.Append(gAppName);
   command.Append("\" \"version\" \"");
   command.Append(gAppVersion);
-  command.Append("\")"CRLF);
+  command.Append("\")" CRLF);
 
   nsresult rv = SendData(command.get());
   if (NS_SUCCEEDED(rv))
@@ -5816,7 +5816,7 @@ nsresult nsImapProtocol::AuthLogin(const char *userName, const nsCString &passwo
     nsCAutoString correctedPassword;
     EscapeUserNamePasswordString(password.get(), &correctedPassword);
     command.Append(correctedPassword);
-    command.Append("\""CRLF);
+    command.Append("\"" CRLF);
     rv = SendData(command.get(), true /* suppress logging */);
     NS_ENSURE_SUCCESS(rv, rv);
     ParseIMAPandCheckForNewMail();
@@ -6113,15 +6113,14 @@ char * nsImapProtocol::OnCreateServerSourceFolderPathString()
 {
   char *sourceMailbox = nsnull;
   char hierarchyDelimiter = 0;
-  char *onlineDelimiter = nsnull;
+  char onlineDelimiter = 0;
   m_runningUrl->GetOnlineSubDirSeparator(&hierarchyDelimiter);
   if (m_imapMailFolderSink)
-      m_imapMailFolderSink->GetOnlineDelimiter(&onlineDelimiter);
-  if (onlineDelimiter && *onlineDelimiter != kOnlineHierarchySeparatorUnknown
-      && *onlineDelimiter != hierarchyDelimiter)
-      m_runningUrl->SetOnlineSubDirSeparator (*onlineDelimiter);
-  if (onlineDelimiter)
-    NS_Free(onlineDelimiter);
+    m_imapMailFolderSink->GetOnlineDelimiter(&onlineDelimiter);
+
+  if (onlineDelimiter != kOnlineHierarchySeparatorUnknown &&
+      onlineDelimiter != hierarchyDelimiter)
+    m_runningUrl->SetOnlineSubDirSeparator(onlineDelimiter);
 
   m_runningUrl->CreateServerSourceFolderPathString(&sourceMailbox);
 
@@ -6147,7 +6146,7 @@ char * nsImapProtocol::GetFolderPathString()
       imapFolder->GetHierarchyDelimiter(&hierarchyDelimiter);
       if (hierarchyDelimiter != kOnlineHierarchySeparatorUnknown &&
           onlineSubDirDelimiter != hierarchyDelimiter)
-          m_runningUrl->SetOnlineSubDirSeparator(hierarchyDelimiter);
+        m_runningUrl->SetOnlineSubDirSeparator(hierarchyDelimiter);
     }
   }
   m_runningUrl->CreateServerSourceFolderPathString(&sourceMailbox);
@@ -6167,15 +6166,13 @@ char * nsImapProtocol::OnCreateServerDestinationFolderPathString()
 {
   char *destinationMailbox = nsnull;
   char hierarchyDelimiter = 0;
-  char *onlineDelimiter = nsnull;
+  char onlineDelimiter = 0;
   m_runningUrl->GetOnlineSubDirSeparator(&hierarchyDelimiter);
   if (m_imapMailFolderSink)
-      m_imapMailFolderSink->GetOnlineDelimiter(&onlineDelimiter);
-  if (onlineDelimiter && *onlineDelimiter != kOnlineHierarchySeparatorUnknown
-      && *onlineDelimiter != hierarchyDelimiter)
-      m_runningUrl->SetOnlineSubDirSeparator (*onlineDelimiter);
-  if (onlineDelimiter)
-      NS_Free(onlineDelimiter);
+    m_imapMailFolderSink->GetOnlineDelimiter(&onlineDelimiter);
+  if (onlineDelimiter != kOnlineHierarchySeparatorUnknown &&
+      onlineDelimiter != hierarchyDelimiter)
+    m_runningUrl->SetOnlineSubDirSeparator(onlineDelimiter);
 
   m_runningUrl->CreateServerDestinationFolderPathString(&destinationMailbox);
 
@@ -6188,7 +6185,9 @@ void nsImapProtocol::OnCreateFolder(const char * aSourceMailbox)
   if (created)
   {
     m_hierarchyNameState = kListingForCreate;
-    List(aSourceMailbox, false);
+    nsCString mailboxWODelim(aSourceMailbox);
+    RemoveHierarchyDelimiter(mailboxWODelim);
+    List(mailboxWODelim.get(), false);
     m_hierarchyNameState = kNoOperationInProgress;
   }
   else
@@ -7417,23 +7416,33 @@ void nsImapProtocol::MailboxDiscoveryFinished()
   }
 }
 
+// returns the mailboxName with the IMAP delimiter removed from the tail end
+void nsImapProtocol::RemoveHierarchyDelimiter(nsCString &mailboxName)
+{
+  char onlineDelimiter[2] = {0, 0};
+  if (m_imapMailFolderSink)
+    m_imapMailFolderSink->GetOnlineDelimiter(&onlineDelimiter[0]);
+  // take the hierarchy delimiter off the end, if any.
+  if (onlineDelimiter[0])
+    mailboxName.Trim(onlineDelimiter, false, true);
+}
+
 // returns true is the create succeeded (regardless of subscription changes)
 bool nsImapProtocol::CreateMailboxRespectingSubscriptions(const char *mailboxName)
 {
   CreateMailbox(mailboxName);
   bool rv = GetServerStateParser().LastCommandSuccessful();
-  if (rv)
+  if (rv && m_autoSubscribe) // auto-subscribe is on
   {
-    if (m_autoSubscribe) // auto-subscribe is on
-    {
-      // create succeeded - let's subscribe to it
-      bool reportingErrors = GetServerStateParser().GetReportingErrors();
-      GetServerStateParser().SetReportingErrors(false);
-      OnSubscribe(mailboxName);
-      GetServerStateParser().SetReportingErrors(reportingErrors);
-    }
+    // create succeeded - let's subscribe to it
+    bool reportingErrors = GetServerStateParser().GetReportingErrors();
+    GetServerStateParser().SetReportingErrors(false);
+    nsCString mailboxWODelim(mailboxName);
+    RemoveHierarchyDelimiter(mailboxWODelim);
+    OnSubscribe(mailboxWODelim.get());
+    GetServerStateParser().SetReportingErrors(reportingErrors);
   }
-  return (rv);
+  return rv;
 }
 
 void nsImapProtocol::CreateMailbox(const char *mailboxName)
@@ -7447,7 +7456,7 @@ void nsImapProtocol::CreateMailbox(const char *mailboxName)
   nsCString command(GetServerCommandTag());
   command += " create \"";
   command += escapedName;
-  command += "\""CRLF;
+  command += "\"" CRLF;
 
   nsresult rv = SendData(command.get());
   if(NS_SUCCEEDED(rv))
@@ -7550,7 +7559,7 @@ void nsImapProtocol::Lsub(const char *mailboxPattern, bool addDirectoryIfNecessa
   nsCString command (GetServerCommandTag());
   command += " lsub \"\" \"";
   command += escapedPattern;
-  command += "\""CRLF;
+  command += "\"" CRLF;
 
   PR_Free(boxnameWithOnlineDirectory);
 
@@ -7579,7 +7588,7 @@ void nsImapProtocol::List(const char *mailboxPattern, bool addDirectoryIfNecessa
   command += useXLIST ?
     " xlist \"\" \"" : " list \"\" \"";
   command += escapedPattern;
-  command += "\""CRLF;
+  command += "\"" CRLF;
 
   PR_Free(boxnameWithOnlineDirectory);
 
@@ -7600,7 +7609,7 @@ void nsImapProtocol::Subscribe(const char *mailboxName)
   nsCString command (GetServerCommandTag());
   command += " subscribe \"";
   command += escapedName;
-  command += "\""CRLF;
+  command += "\"" CRLF;
 
   nsresult rv = SendData(command.get());
   if (NS_SUCCEEDED(rv))
@@ -7618,7 +7627,7 @@ void nsImapProtocol::Unsubscribe(const char *mailboxName)
   nsCString command (GetServerCommandTag());
   command += " unsubscribe \"";
   command += escapedName;
-  command += "\""CRLF;
+  command += "\"" CRLF;
 
   nsresult rv = SendData(command.get());
   if (NS_SUCCEEDED(rv))
@@ -7632,7 +7641,7 @@ void nsImapProtocol::Idle()
   if (m_urlInProgress)
     return;
   nsCAutoString command (GetServerCommandTag());
-  command += " IDLE"CRLF;
+  command += " IDLE" CRLF;
   nsresult rv = SendData(command.get());
   if (NS_SUCCEEDED(rv))
   {
@@ -7659,7 +7668,7 @@ void nsImapProtocol::EndIdle(bool waitForResponse /* = true */)
   nsCOMPtr <nsIAsyncInputStream> asyncInputStream = do_QueryInterface(m_inputStream);
   if (asyncInputStream)
     asyncInputStream->AsyncWait(nsnull, 0, 0, nsnull);
-  nsresult rv = SendData("DONE"CRLF);
+  nsresult rv = SendData("DONE" CRLF);
   // set a short timeout if we don't want to wait for a response
   if (m_transport && !waitForResponse)
     m_transport->SetTimeout(nsISocketTransport::TIMEOUT_READ_WRITE, 5);
@@ -7728,8 +7737,8 @@ void nsImapProtocol::Copy(const char * messageList,
   PRUint32 msgsHandled = 0;
   const char *formatString;
   formatString = (idsAreUid)
-      ? "%s uid store %s %s"CRLF
-      : "%s store %s %s"CRLF;
+      ? "%s uid store %s %s" CRLF
+      : "%s store %s %s" CRLF;
 
   do
   {
@@ -8312,6 +8321,12 @@ bool nsImapProtocol::TryToLogon()
    */
 
   bool newPasswordRequested = false;
+  // remember the msgWindow before we start trying to logon, because if the
+  // server drops the connection on errors, TellThreadToDie will null out the
+  // protocolsink and we won't be able to get the msgWindow.
+  nsCOMPtr<nsIMsgWindow> msgWindow;
+  GetMsgWindow(getter_AddRefs(msgWindow));
+
   // This loops over 1) auth methods (only one per loop) and 2) password tries (with UI)
   while (!loginSucceeded && !skipLoop && !DeathSignalReceived())
   {
@@ -8359,8 +8374,6 @@ bool nsImapProtocol::TryToLogon()
           PR_LOG(IMAP, PR_LOG_WARN, ("IMAP: ask user what to do (after login failed): new passwort, retry, cancel"));
           if (!m_imapServerSink)
             break;
-          nsCOMPtr<nsIMsgWindow> msgWindow;
-          GetMsgWindow(getter_AddRefs(msgWindow));
           // if there's no msg window, don't forget the password
           if (!msgWindow)
             break;
@@ -8931,6 +8944,12 @@ nsImapMockChannel::OnCacheEntryAvailable(nsICacheEntryDescriptor *entry, nsCache
   return ReadFromImapConnection();
 }
 
+NS_IMETHODIMP
+nsImapMockChannel::OnCacheEntryDoomed(nsresult status)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
 nsresult nsImapMockChannel::OpenCacheEntry()
 {
   nsresult rv;
@@ -9002,7 +9021,7 @@ nsresult nsImapMockChannel::OpenCacheEntry()
   nsCAutoString cacheKey;
   cacheKey.AppendInt(uidValidity, 16);
   cacheKey.Append(urlSpec);
-  return cacheSession->AsyncOpenCacheEntry(cacheKey, cacheAccess, this);
+  return cacheSession->AsyncOpenCacheEntry(cacheKey, cacheAccess, this, false);
 }
 
 nsresult nsImapMockChannel::ReadFromMemCache(nsICacheEntryDescriptor *entry)
@@ -9066,7 +9085,10 @@ nsresult nsImapMockChannel::ReadFromMemCache(nsICacheEntryDescriptor *entry)
     PRInt32 findPos = MsgFindCharInSet(nsDependentCString(firstBlock),
                                        ":\n\r", 0);
     // Check that the first line is a header line, i.e., with a ':' in it
-    shouldUseCacheEntry = findPos != -1 && firstBlock[findPos] == ':';
+    // Or that it begins with "From " because some IMAP servers allow that,
+    // even though it's technically invalid.
+    shouldUseCacheEntry = ((findPos != -1 && firstBlock[findPos] == ':') ||
+                           !(strncmp(firstBlock, "From ", 5)));
     in->Close();
   }
   if (shouldUseCacheEntry)

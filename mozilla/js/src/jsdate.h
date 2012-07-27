@@ -44,11 +44,13 @@
 #ifndef jsdate_h___
 #define jsdate_h___
 
+#include "mozilla/FloatingPoint.h"
+
 #include "jscntxt.h"
 
 #define HalfTimeDomain  8.64e15
 
-#define TIMECLIP(d) ((JSDOUBLE_IS_FINITE(d) \
+#define TIMECLIP(d) ((MOZ_DOUBLE_IS_FINITE(d) \
                       && !((d < 0 ? -d : d) > HalfTimeDomain)) \
                      ? js_DoubleToInteger(d + (+0.)) : js_NaN)
 
@@ -64,7 +66,7 @@ js_InitDateClass(JSContext *cx, JSObject *obj);
  * since the epoch.
  */
 extern JS_FRIEND_API(JSObject*)
-js_NewDateObjectMsec(JSContext* cx, jsdouble msec_time);
+js_NewDateObjectMsec(JSContext* cx, double msec_time);
 
 /*
  * Construct a new Date Object from an exploded local time value.
@@ -102,6 +104,6 @@ js_IntervalNow();
 
 /* Date constructor native. Exposed only so the JIT can know its address. */
 JSBool
-js_Date(JSContext *cx, uintN argc, js::Value *vp);
+js_Date(JSContext *cx, unsigned argc, js::Value *vp);
 
 #endif /* jsdate_h___ */

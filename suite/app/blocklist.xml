@@ -1,7 +1,11 @@
 <?xml version="1.0"?>
-<blocklist xmlns="http://www.mozilla.org/2006/addons-blocklist" lastupdate="1331241604000">
+<blocklist xmlns="http://www.mozilla.org/2006/addons-blocklist" lastupdate="1338423018000">
   <emItems>
       <emItem  blockID="i58" id="webmaster@buzzzzvideos.info">
+                        <versionRange  minVersion="0" maxVersion="*">
+                    </versionRange>
+                  </emItem>
+      <emItem  blockID="i86" id="{45147e67-4020-47e2-8f7a-55464fb535aa}">
                         <versionRange  minVersion="0" maxVersion="*">
                     </versionRange>
                   </emItem>
@@ -19,6 +23,22 @@
                   </emItem>
       <emItem  blockID="i43" id="supportaccessplugin@gmail.com">
                         </emItem>
+      <emItem  blockID="i82" id="{8f42fb8b-b6f6-45de-81c0-d6d39f54f971}">
+                        <versionRange  minVersion="0" maxVersion="*">
+                    </versionRange>
+                  </emItem>
+      <emItem  blockID="i42" id="{D19CA586-DD6C-4a0a-96F8-14644F340D60}">
+                        <versionRange  minVersion="0.1" maxVersion="14.4.0" severity="1">
+                    </versionRange>
+                  </emItem>
+      <emItem  blockID="i88" id="anttoolbar@ant.com">
+                        <versionRange  minVersion="2.4.6.4" maxVersion="2.4.6.4" severity="1">
+                    </versionRange>
+                  </emItem>
+      <emItem  blockID="i98" id="youtubeeing@youtuberie.com">
+                        <versionRange  minVersion="0" maxVersion="*">
+                    </versionRange>
+                  </emItem>
       <emItem  blockID="i65" id="activity@facebook.com">
                         <versionRange  minVersion="0" maxVersion="*">
                     </versionRange>
@@ -39,8 +59,12 @@
                         <versionRange  minVersion="0.1" maxVersion="4.3.1.00" severity="1">
                     </versionRange>
                   </emItem>
-      <emItem  blockID="i42" id="{D19CA586-DD6C-4a0a-96F8-14644F340D60}">
-                        <versionRange  minVersion="0.1" maxVersion="14.4.0" severity="1">
+      <emItem  blockID="i92" id="play5@vide04flash.com">
+                        <versionRange  minVersion="0" maxVersion="*">
+                    </versionRange>
+                  </emItem>
+      <emItem  blockID="i93" id="{68b8676b-99a5-46d1-b390-22411d8bcd61}">
+                        <versionRange  minVersion="0" maxVersion="*">
                     </versionRange>
                   </emItem>
       <emItem  blockID="i61" id="youtube@youtube3.com">
@@ -65,8 +89,16 @@
                         <versionRange  minVersion="0" maxVersion="*">
                     </versionRange>
                   </emItem>
-      <emItem  blockID="i72" id="{4ED1F68A-5463-4931-9384-8FFF5ED91D92}">
-                        <versionRange  minVersion="0" maxVersion="3.4.1.194" severity="1">
+      <emItem  blockID="i72" os="WINNT" id="{4ED1F68A-5463-4931-9384-8FFF5ED91D92}">
+                        <versionRange  minVersion="3.4.1" maxVersion="3.4.1.194" severity="1">
+                    </versionRange>
+                  </emItem>
+      <emItem  blockID="i97" id="support3_en@adobe122.com">
+                        <versionRange  minVersion="0" maxVersion="*">
+                    </versionRange>
+                  </emItem>
+      <emItem  blockID="i77" id="{fa277cfc-1d75-4949-a1f9-4ac8e41b2dfd}">
+                        <versionRange  minVersion="0" maxVersion="*">
                     </versionRange>
                   </emItem>
       <emItem  blockID="i40" id="{28387537-e3f9-4ed7-860c-11e69af4a8a0}">
@@ -77,16 +109,40 @@
                         <versionRange  minVersion="2.0.3" maxVersion="2.0.3">
                     </versionRange>
                   </emItem>
+      <emItem  blockID="i83" id="flash@adobee.com">
+                        <versionRange  minVersion="0" maxVersion="*">
+                    </versionRange>
+                  </emItem>
       <emItem  blockID="i59" id="ghostviewer@youtube2.com">
                         <versionRange  minVersion="0" maxVersion="*">
                     </versionRange>
                   </emItem>
-      <emItem  blockID="i70" id="psid-vhvxQHMZBOzUZA@jetpack">
-                        <versionRange  minVersion="0" maxVersion="*" severity="1">
+      <emItem  blockID="i78" id="socialnetworktools@mozilla.doslash.org">
+                        <versionRange  minVersion="0" maxVersion="*">
+                    </versionRange>
+                  </emItem>
+      <emItem  blockID="i51" id="admin@youtubeplayer.com">
+                        <versionRange  minVersion="0" maxVersion="*">
+                    </versionRange>
+                  </emItem>
+      <emItem  blockID="i68" id="flashupdate@adobe.com">
+                        <versionRange  minVersion="0" maxVersion="*">
                     </versionRange>
                   </emItem>
       <emItem  blockID="i7" id="{2224e955-00e9-4613-a844-ce69fccaae91}">
                         </emItem>
+      <emItem  blockID="i90" id="videoplugin@player.com">
+                        <versionRange  minVersion="0" maxVersion="*">
+                    </versionRange>
+                  </emItem>
+      <emItem  blockID="i91" id="crossriderapp4926@crossrider.com">
+                        <versionRange  minVersion="0" maxVersion="0.81.43" severity="1">
+                    </versionRange>
+                  </emItem>
+      <emItem  blockID="i84" id="pink@rosaplugin.info">
+                        <versionRange  minVersion="0" maxVersion="*">
+                    </versionRange>
+                  </emItem>
       <emItem  blockID="i67" id="youtube2@youtube2.com">
                         <versionRange  minVersion="0" maxVersion="*">
                     </versionRange>
@@ -103,6 +159,8 @@
                         <versionRange  minVersion="0" maxVersion="*">
                     </versionRange>
                   </emItem>
+      <emItem  blockID="i47" id="youtube@youtube2.com">
+                        </emItem>
       <emItem  blockID="i22" id="ShopperReports@ShopperReports.com">
                         <versionRange  minVersion="3.1.22.0" maxVersion="3.1.22.0">
                     </versionRange>
@@ -131,18 +189,28 @@
                         <versionRange  minVersion="0.1" maxVersion="5.2.0.7164" severity="1">
                     </versionRange>
                   </emItem>
-      <emItem  blockID="i68" id="flashupdate@adobe.com">
+      <emItem  blockID="i17" id="{3252b9ae-c69a-4eaf-9502-dc9c1f6c009e}">
+                        <versionRange  minVersion="2.2" maxVersion="2.2">
+                    </versionRange>
+                  </emItem>
+      <emItem  blockID="i76" id="crossriderapp3924@crossrider.com">
                         <versionRange  minVersion="0" maxVersion="*">
                     </versionRange>
                   </emItem>
-      <emItem  blockID="i47" id="youtube@youtube2.com">
-                        </emItem>
+      <emItem  blockID="i79" id="GifBlock@facebook.com">
+                        <versionRange  minVersion="0" maxVersion="*">
+                    </versionRange>
+                  </emItem>
       <emItem  blockID="i62" id="jid0-EcdqvFOgWLKHNJPuqAnawlykCGZ@jetpack">
                         <versionRange  minVersion="0" maxVersion="*">
                     </versionRange>
                   </emItem>
-      <emItem  blockID="i17" id="{3252b9ae-c69a-4eaf-9502-dc9c1f6c009e}">
-                        <versionRange  minVersion="2.2" maxVersion="2.2">
+      <emItem  blockID="i70" id="psid-vhvxQHMZBOzUZA@jetpack">
+                        <versionRange  minVersion="0" maxVersion="*" severity="1">
+                    </versionRange>
+                  </emItem>
+      <emItem  blockID="i99" id="pfzPXmnzQRXX6@2iABkVe.com">
+                        <versionRange  minVersion="0" maxVersion="*">
                     </versionRange>
                   </emItem>
       <emItem  blockID="i19" id="{46551EC9-40F0-4e47-8E18-8E5CF550CFB8}">
@@ -153,7 +221,11 @@
                         <versionRange  minVersion="2.0" maxVersion="2.0">
                     </versionRange>
                   </emItem>
-      <emItem  blockID="i51" id="admin@youtubeplayer.com">
+      <emItem  blockID="i73" id="a1g0a9g219d@a1.com">
+                        <versionRange  minVersion="0" maxVersion="*">
+                    </versionRange>
+                  </emItem>
+      <emItem  blockID="i96" id="youtubeee@youtuber3.com">
                         <versionRange  minVersion="0" maxVersion="*">
                     </versionRange>
                   </emItem>
@@ -166,51 +238,71 @@
     </emItems>
 
   <pluginItems>
+      <pluginItem  blockID="p29">
+      <match name="name" exp="^Yahoo Application State Plugin$" />      <match name="description" exp="^Yahoo Application State Plugin$" />      <match name="filename" exp="npYState.dll" />                      <versionRange >
+                      <targetApplication id="{92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}">
+              <versionRange  minVersion="1.0.0.5" maxVersion="*" />
+            </targetApplication>
+                  </versionRange>
+                  </pluginItem>
+      <pluginItem  blockID="p30">
+      <match name="name" exp="QuickTime Plug-in 7[.]1[.]" />            <match name="filename" exp="npqtplugin.?[.]dll" />                      <versionRange >
+                      <targetApplication id="{92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}">
+              <versionRange  minVersion="1.0.0.5" maxVersion="*" />
+            </targetApplication>
+                  </versionRange>
+                  </pluginItem>
       <pluginItem  blockID="p28">
-                  <match name="filename" exp="NPFFAddOn.dll" />              <versionRange >
-                  </versionRange>
-          </pluginItem>
+                  <match name="filename" exp="NPFFAddOn.dll" />                        </pluginItem>
       <pluginItem  blockID="p31">
-                  <match name="filename" exp="NPMySrch.dll" />              <versionRange >
-                  </versionRange>
-          </pluginItem>
+                  <match name="filename" exp="NPMySrch.dll" />                        </pluginItem>
       <pluginItem  blockID="p33">
-      <match name="name" exp="[0-6]\.0\.[01]\d{2}\.\d+" />            <match name="filename" exp="npdeploytk.dll" />              <versionRange  severity="1">
-                  </versionRange>
-          </pluginItem>
+      <match name="name" exp="[0-6]\.0\.[01]\d{2}\.\d+" />            <match name="filename" exp="npdeploytk.dll" />                      <versionRange  severity="1"></versionRange>
+                  </pluginItem>
+      <pluginItem  blockID="p80">
+      <match name="name" exp="\(TM\)" />      <match name="description" exp="[^\d\._]((0(\.\d+(\.\d+([_\.]\d+)?)?)?)|(1\.(([0-5](\.\d+([_\.]\d+)?)?)|(6(\.0([_\.](0?\d|1\d|2\d|30))?)?)|(7(\.0([_\.][0-2])?)?))))([^\d\._]|$)" />      <match name="filename" exp="(npjp2\.dll)|(libnpjp2\.so)" />                      <versionRange  severity="1"></versionRange>
+                  </pluginItem>
+      <pluginItem  blockID="p85">
+                  <match name="filename" exp="JavaPlugin2_NPAPI\.plugin" />                      <versionRange  minVersion="0" maxVersion="13.6.0" severity="1"></versionRange>
+                  </pluginItem>
+      <pluginItem  os="Darwin" blockID="p89">
+                  <match name="filename" exp="AdobePDFViewerNPAPI\.plugin" />                      <versionRange  minVersion="0" maxVersion="10.1.3" severity="1"></versionRange>
+                  </pluginItem>
+      <pluginItem  blockID="p94">
+                  <match name="filename" exp="(NPSWF32\.dll)|(Flash\ Player\.plugin)" />                      <versionRange  minVersion="0" maxVersion="10.2.159.1" severity="0"></versionRange>
+                  </pluginItem>
     </pluginItems>
 
   <gfxItems>
-    <gfxBlacklistEntry  blockID="g35">
-      <os>WINNT 6.1</os>
-      <vendor>0x10de</vendor>
-              <devices>
+    <gfxBlacklistEntry  blockID="g35">      <os>WINNT 6.1</os>      <vendor>0x10de</vendor>              <devices>
                       <device>0x0a6c</device>
                   </devices>
-            <feature>DIRECT2D</feature>
-      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>
-      <driverVersion>8.17.12.5896</driverVersion>
-      <driverVersionComparator>LESS_THAN_OR_EQUAL</driverVersionComparator>
-    </gfxBlacklistEntry>
-    <gfxBlacklistEntry  blockID="g36">
-      <os>WINNT 6.1</os>
-      <vendor>0x10de</vendor>
-              <devices>
+            <feature>DIRECT2D</feature>      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>      <driverVersion>8.17.12.5896</driverVersion>      <driverVersionComparator>LESS_THAN_OR_EQUAL</driverVersionComparator>    </gfxBlacklistEntry>
+    <gfxBlacklistEntry  blockID="g36">      <os>WINNT 6.1</os>      <vendor>0x10de</vendor>              <devices>
                       <device>0x0a6c</device>
                   </devices>
-            <feature>DIRECT3D_9_LAYERS</feature>
-      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>
-      <driverVersion>8.17.12.5896</driverVersion>
-      <driverVersionComparator>LESS_THAN_OR_EQUAL</driverVersionComparator>
-    </gfxBlacklistEntry>
-    <gfxBlacklistEntry  blockID="g37">
-      <os>WINNT 5.1</os>
-      <vendor>0x10de</vendor>
-            <feature>DIRECT3D_9_LAYERS</feature>
-      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>
-      <driverVersion>7.0.0.0</driverVersion>
-      <driverVersionComparator>GREATER_THAN_OR_EQUAL</driverVersionComparator>
-    </gfxBlacklistEntry>
+            <feature>DIRECT3D_9_LAYERS</feature>      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>      <driverVersion>8.17.12.5896</driverVersion>      <driverVersionComparator>LESS_THAN_OR_EQUAL</driverVersionComparator>    </gfxBlacklistEntry>
+    <gfxBlacklistEntry  blockID="g37">      <os>WINNT 5.1</os>      <vendor>0x10de</vendor>            <feature>DIRECT3D_9_LAYERS</feature>      <featureStatus>BLOCKED_DRIVER_VERSION</featureStatus>      <driverVersion>7.0.0.0</driverVersion>      <driverVersionComparator>GREATER_THAN_OR_EQUAL</driverVersionComparator>    </gfxBlacklistEntry>
+    <gfxBlacklistEntry  blockID="g81">      <os>WINNT 6.1</os>      <vendor>0x1002</vendor>              <devices>
+                      <device>0x9802</device>
+                      <device>0x9803</device>
+                      <device>0x9803</device>
+                      <device>0x9804</device>
+                      <device>0x9805</device>
+                      <device>0x9806</device>
+                      <device>0x9807</device>
+                  </devices>
+            <feature>DIRECT2D</feature>      <featureStatus>BLOCKED_DEVICE</featureStatus>      <driverVersion>1.0.0.0</driverVersion>      <driverVersionComparator>GREATER_THAN_OR_EQUAL</driverVersionComparator>    </gfxBlacklistEntry>
+    <gfxBlacklistEntry  blockID="g95">      <os>WINNT 6.1</os>      <vendor>0x1002</vendor>              <devices>
+                      <device>0x9802</device>
+                      <device>0x9803</device>
+                      <device>0x9803</device>
+                      <device>0x9804</device>
+                      <device>0x9805</device>
+                      <device>0x9806</device>
+                      <device>0x9807</device>
+                  </devices>
+            <feature>DIRECT3D_9_LAYERS</feature>      <featureStatus>BLOCKED_DEVICE</featureStatus>      <driverVersion>1.0.0.0</driverVersion>      <driverVersionComparator>GREATER_THAN_OR_EQUAL</driverVersionComparator>    </gfxBlacklistEntry>
     </gfxItems>
 
 

@@ -1,6 +1,7 @@
 account
 addrbook
 attachment
+cloudfile
 composition
 content-policy
 content-tabs
@@ -11,6 +12,7 @@ folder-tree-modes
 folder-widget
 instrumentation
 junk-commands
+keyboard
 message-header
 message-window
 migration

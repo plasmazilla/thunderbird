@@ -74,6 +74,15 @@ interface nsIShellService : nsISupports
    */
   attribute boolean shouldCheckDefaultBrowser;
 
+  /**
+   * Used to determine whether or not to offer "Set as desktop background"
+   * functionality. Even if shell service is available it is not
+   * guaranteed that it is able to set the background for every desktop
+   * which is especially true for Linux with its many different desktop
+   * environments.
+   */
+  readonly attribute boolean canSetDesktopBackground;
+
   /** 
    * Flags for positioning/sizing of the Desktop Background image.
    */
@@ -81,6 +90,7 @@ interface nsIShellService : nsISupports
   const long BACKGROUND_STRETCH   = 2;
   const long BACKGROUND_CENTER    = 3;
   const long BACKGROUND_FILL      = 4;
+  const long BACKGROUND_FIT       = 5;
 
     /**
      * Sets the desktop background image using either the HTML <IMG> 

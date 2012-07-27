@@ -42,6 +42,7 @@
   <!ENTITY % globalDTD SYSTEM "chrome://global/locale/global.dtd"> %globalDTD;
   <!ENTITY % brandDTD SYSTEM "chrome://branding/locale/brand.dtd"> %brandDTD;
   <!ENTITY % aboutSupportDTD SYSTEM "chrome://global/locale/aboutSupport.dtd"> %aboutSupportDTD;
+  <!ENTITY % resetProfileDTD SYSTEM "chrome://global/locale/resetProfile.dtd"> %resetProfileDTD;
 ]>
 
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -56,6 +57,14 @@
   </head>
 
   <body dir="&locale.dir;">
+
+    <div id="reset-box" style="visibility: hidden">
+      <h3>&resetProfile.title;</h3>
+      <p>&resetProfile.description;</p>
+      <button onclick="resetProfileAndRestart()">
+        &resetProfile.button.label;
+      </button>
+    </div>
 
     <h1>
       &aboutSupport.pageTitle;
@@ -110,7 +119,15 @@
 
           <tr>
             <th class="column">
+#ifdef XP_WIN
+              &aboutSupport.appBasicsProfileDirWinMac;
+#else
+#ifdef XP_MACOSX
+              &aboutSupport.appBasicsProfileDirWinMac;
+#else
               &aboutSupport.appBasicsProfileDir;
+#endif
+#endif
             </th>
 
             <td>
@@ -232,6 +249,34 @@
         </tbody>
 
         <tbody id="graphics-failures-tbody">
+        </tbody>
+      </table>
+
+      <!-- - - - - - - - - - - - - - - - - - - - - -->
+      <h2 class="major-section">
+        &aboutSupport.jsTitle;
+      </h2>
+
+      <table>
+        <tbody>
+          <tr>
+            <th class="column">
+              &aboutSupport.jsIncrementalGC;
+            </th>
+
+            <td id="javascript-incremental-gc">
+            </td>
+          </tr>
+	</tbody>
+      </table>
+
+      <!-- - - - - - - - - - - - - - - - - - - - - -->
+      <h2 class="major-section">
+        &aboutSupport.libraryVersionsTitle;
+      </h2>
+
+      <table>
+        <tbody id="libversions-tbody">
         </tbody>
       </table>
 

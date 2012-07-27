@@ -38,12 +38,13 @@
 
 #include "nsXULMenuAccessible.h"
 
+#include "Accessible-inl.h"
 #include "nsAccessibilityService.h"
 #include "nsAccUtils.h"
 #include "nsDocAccessible.h"
-#include "nsXULFormControlAccessible.h"
 #include "Role.h"
 #include "States.h"
+#include "XULFormControlAccessible.h"
 
 #include "nsIDOMElement.h"
 #include "nsIDOMXULElement.h"
@@ -71,8 +72,8 @@ using namespace mozilla::a11y;
 ////////////////////////////////////////////////////////////////////////////////
 
 nsXULMenuitemAccessible::
-  nsXULMenuitemAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
-  nsAccessibleWrap(aContent, aShell)
+  nsXULMenuitemAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
+  nsAccessibleWrap(aContent, aDoc)
 {
 }
 
@@ -311,16 +312,8 @@ nsXULMenuitemAccessible::GetLevelInternal()
   return nsAccUtils::GetLevelForXULContainerItem(mContent);
 }
 
-void
-nsXULMenuitemAccessible::GetPositionAndSizeInternal(PRInt32 *aPosInSet,
-                                                    PRInt32 *aSetSize)
-{
-  nsAccUtils::GetPositionAndSizeForXULContainerItem(mContent, aPosInSet,
-                                                    aSetSize);
-}
-
 bool
-nsXULMenuitemAccessible::GetAllowsAnonChildAccessibles()
+nsXULMenuitemAccessible::CanHaveAnonChildren()
 {
   // That indicates we don't walk anonymous children for menuitems
   return false;
@@ -408,8 +401,8 @@ nsXULMenuitemAccessible::ContainerWidget() const
 ////////////////////////////////////////////////////////////////////////////////
 
 nsXULMenuSeparatorAccessible::
-  nsXULMenuSeparatorAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
-  nsXULMenuitemAccessible(aContent, aShell)
+  nsXULMenuSeparatorAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
+  nsXULMenuitemAccessible(aContent, aDoc)
 {
 }
 
@@ -454,8 +447,8 @@ nsXULMenuSeparatorAccessible::ActionCount()
 ////////////////////////////////////////////////////////////////////////////////
 
 nsXULMenupopupAccessible::
-  nsXULMenupopupAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
-  XULSelectControlAccessible(aContent, aShell)
+  nsXULMenupopupAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
+  XULSelectControlAccessible(aContent, aDoc)
 {
   nsMenuPopupFrame* menuPopupFrame = do_QueryFrame(GetFrame());
   if (menuPopupFrame && menuPopupFrame->IsMenu())
@@ -556,7 +549,7 @@ nsXULMenupopupAccessible::AreItemsOperable() const
 nsAccessible*
 nsXULMenupopupAccessible::ContainerWidget() const
 {
-  nsDocAccessible* document = GetDocAccessible();
+  nsDocAccessible* document = Document();
 
   nsMenuPopupFrame* menuPopupFrame = do_QueryFrame(GetFrame());
   while (menuPopupFrame) {
@@ -594,8 +587,8 @@ nsXULMenupopupAccessible::ContainerWidget() const
 ////////////////////////////////////////////////////////////////////////////////
 
 nsXULMenubarAccessible::
-  nsXULMenubarAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
-  nsAccessibleWrap(aContent, aShell)
+  nsXULMenubarAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
+  nsAccessibleWrap(aContent, aDoc)
 {
 }
 
@@ -647,7 +640,7 @@ nsXULMenubarAccessible::CurrentItem()
     nsMenuFrame* menuFrame = menuBarFrame->GetCurrentMenuItem();
     if (menuFrame) {
       nsIContent* menuItemNode = menuFrame->GetContent();
-      return GetAccService()->GetAccessible(menuItemNode);
+      return mDoc->GetAccessible(menuItemNode);
     }
   }
   return nsnull;

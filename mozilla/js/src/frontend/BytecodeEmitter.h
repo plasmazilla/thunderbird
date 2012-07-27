@@ -54,7 +54,11 @@
 #include "frontend/Parser.h"
 #include "frontend/ParseMaps.h"
 
+#include "vm/ScopeObject.h"
+
 namespace js {
+
+typedef HashSet<JSAtom *> FuncStmtSet;
 
 /*
  * NB: If you add enumerators for scope statements, add them between STMT_WITH
@@ -134,12 +138,12 @@ struct StmtInfo {
     ptrdiff_t       update;         /* loop update offset (top if none) */
     ptrdiff_t       breaks;         /* offset of last break in loop */
     ptrdiff_t       continues;      /* offset of last continue in loop */
-    union {
-        JSAtom      *label;         /* name of LABEL */
-        StaticBlockObject *blockObj;/* block scope object */
-    };
+    RootedVarAtom   label;          /* name of LABEL */
+    RootedVar<StaticBlockObject *> blockObj; /* block scope object */
     StmtInfo        *down;          /* info for enclosing statement */
     StmtInfo        *downScope;     /* next enclosing lexical scope */
+
+    StmtInfo(JSContext *cx) : label(cx), blockObj(cx) {}
 };
 
 #define SIF_SCOPE        0x0001     /* statement has its own lexical scope */
@@ -161,126 +165,172 @@ struct StmtInfo {
 #define SET_STATEMENT_TOP(stmt, top)                                          \
     ((stmt)->update = (top), (stmt)->breaks = (stmt)->continues = (-1))
 
-#define TCF_COMPILING           0x01 /* TreeContext is BytecodeEmitter */
-#define TCF_IN_FUNCTION         0x02 /* parsing inside function body */
-#define TCF_RETURN_EXPR         0x04 /* function has 'return expr;' */
-#define TCF_RETURN_VOID         0x08 /* function has 'return;' */
-#define TCF_IN_FOR_INIT         0x10 /* parsing init expr of for; exclude 'in' */
-#define TCF_FUN_SETS_OUTER_NAME 0x20 /* function set outer name (lexical or free) */
-#define TCF_FUN_PARAM_ARGUMENTS 0x40 /* function has parameter named arguments */
-#define TCF_FUN_USES_ARGUMENTS  0x80 /* function uses arguments except as a
-                                        parameter name */
-#define TCF_FUN_HEAVYWEIGHT    0x100 /* function needs Call object per call */
-#define TCF_FUN_IS_GENERATOR   0x200 /* parsed yield statement in function */
-#define TCF_FUN_USES_OWN_NAME  0x400 /* named function expression that uses its
-                                        own name */
-#define TCF_HAS_FUNCTION_STMT  0x800 /* block contains a function statement */
-#define TCF_GENEXP_LAMBDA     0x1000 /* flag lambda from generator expression */
-#define TCF_COMPILE_N_GO      0x2000 /* compile-and-go mode of script, can
-                                        optimize name references based on scope
-                                        chain */
-#define TCF_NO_SCRIPT_RVAL    0x4000 /* API caller does not want result value
-                                        from global script */
-/* bit 0x8000 is unused */
+JS_ENUM_HEADER(TreeContextFlags, uint32_t)
+{
+    /*
+     * There are two parsing modes.
+     * - If we are parsing only to get the parse tree, all TreeContexts used
+     *   are truly TreeContexts, and this flag is clear for each of them.
+     * - If we are parsing to do bytecode compilation, all TreeContexts are
+     *   actually BytecodeEmitters and this flag is set for each of them.
+     */
+    TCF_COMPILING =                            0x1,
 
-/*
- * Set when parsing a declaration-like destructuring pattern.  This
- * flag causes PrimaryExpr to create PN_NAME parse nodes for variable
- * references which are not hooked into any definition's use chain,
- * added to any tree context's AtomList, etc. etc.  CheckDestructuring
- * will do that work later.
- *
- * The comments atop CheckDestructuring explain the distinction
- * between assignment-like and declaration-like destructuring
- * patterns, and why they need to be treated differently.
- */
-#define TCF_DECL_DESTRUCTURING  0x10000
+    /* parsing inside function body */
+    TCF_IN_FUNCTION =                          0x2,
 
-/*
- * This function/global/eval code body contained a Use Strict Directive. Treat
- * certain strict warnings as errors, and forbid the use of 'with'. See also
- * TSF_STRICT_MODE_CODE, JSScript::strictModeCode, and JSREPORT_STRICT_ERROR.
- */
-#define TCF_STRICT_MODE_CODE    0x20000
+    /* function has 'return expr;' */
+    TCF_RETURN_EXPR =                          0x4,
 
-/* bits 0x40000 and 0x80000 are unused */
+    /* function has 'return;' */
+    TCF_RETURN_VOID =                          0x8,
 
-/*
- * "Module pattern", i.e., a lambda that is immediately applied and the whole
- * of an expression statement.
- */
-#define TCF_FUN_MODULE_PATTERN 0x200000
+    /* parsing init expr of for; exclude 'in' */
+    TCF_IN_FOR_INIT =                         0x10,
 
-/*
- * Flag to prevent a non-escaping function from being optimized into a null
- * closure (i.e., a closure that needs only its global object for free variable
- * resolution), because this function contains a closure that needs one or more
- * scope objects surrounding it (i.e., a Call object for an outer heavyweight
- * function). See bug 560234.
- */
-#define TCF_FUN_ENTRAINS_SCOPES 0x400000
+    /* function needs Call object per call */
+    TCF_FUN_HEAVYWEIGHT =                     0x20,
 
-/* The function calls 'eval'. */
-#define TCF_FUN_CALLS_EVAL       0x800000
+    /* parsed yield statement in function */
+    TCF_FUN_IS_GENERATOR =                    0x40,
 
-/* The function mutates a positional (non-destructuring) parameter. */
-#define TCF_FUN_MUTATES_PARAMETER 0x1000000
+    /* block contains a function statement */
+    TCF_HAS_FUNCTION_STMT =                   0x80,
 
-/*
- * Compiling an eval() script.
- */
-#define TCF_COMPILE_FOR_EVAL     0x2000000
+    /* flag lambda from generator expression */
+    TCF_GENEXP_LAMBDA =                      0x100,
 
-/*
- * The function or a function that encloses it may define new local names
- * at runtime through means other than calling eval.
- */
-#define TCF_FUN_MIGHT_ALIAS_LOCALS  0x4000000
+    /* script can optimize name references based on scope chain */
+    TCF_COMPILE_N_GO =                       0x200,
 
-/*
- * The script contains singleton initialiser JSOP_OBJECT.
- */
-#define TCF_HAS_SINGLETONS       0x8000000
+    /* API caller does not want result value from global script */
+    TCF_NO_SCRIPT_RVAL =                     0x400,
 
-/*
- * Some enclosing scope is a with-statement or E4X filter-expression.
- */
-#define TCF_IN_WITH             0x10000000
+    /*
+     * Set when parsing a declaration-like destructuring pattern.  This flag
+     * causes PrimaryExpr to create PN_NAME parse nodes for variable references
+     * which are not hooked into any definition's use chain, added to any tree
+     * context's AtomList, etc. etc.  CheckDestructuring will do that work
+     * later.
+     *
+     * The comments atop CheckDestructuring explain the distinction between
+     * assignment-like and declaration-like destructuring patterns, and why
+     * they need to be treated differently.
+     */
+    TCF_DECL_DESTRUCTURING =                 0x800,
 
-/*
- * This function does something that can extend the set of bindings in its
- * call objects --- it does a direct eval in non-strict code, or includes a
- * function statement (as opposed to a function definition).
- *
- * This flag is *not* inherited by enclosed or enclosing functions; it
- * applies only to the function in whose flags it appears.
- */
-#define TCF_FUN_EXTENSIBLE_SCOPE 0x20000000
+    /*
+     * This function/global/eval code body contained a Use Strict Directive.
+     * Treat certain strict warnings as errors, and forbid the use of 'with'.
+     * See also TSF_STRICT_MODE_CODE, JSScript::strictModeCode, and
+     * JSREPORT_STRICT_ERROR.
+     */
+    TCF_STRICT_MODE_CODE =                  0x1000,
 
-/*
- * The caller is JS_Compile*Script*.
- */
-#define TCF_NEED_SCRIPT_GLOBAL 0x40000000
+    /*
+     * The (static) bindings of this script need to support dynamic name
+     * read/write access. Here, 'dynamic' means dynamic dictionary lookup on
+     * the scope chain for a dynamic set of keys. The primary examples are:
+     *  - direct eval
+     *  - function::
+     *  - with
+     * since both effectively allow any name to be accessed. Non-exmaples are:
+     *  - upvars of nested functions
+     *  - function statement
+     * since the set of assigned name is known dynamically. 'with' could be in
+     * the non-example category, provided the set of all free variables within
+     * the with block was noted. However, we do not optimize 'with' so, for
+     * simplicity, 'with' is treated like eval.
+     *
+     * Note: access through the arguments object is not considered dynamic
+     * binding access since it does not go through the normal name lookup
+     * mechanism. This is debatable and could be changed (although care must be
+     * taken not to turn off the whole 'arguments' optimization). To answer the
+     * more general "is this argument aliased" question, script->needsArgsObj
+     * should be tested (see JSScript::argIsAlised).
+     */
+    TCF_BINDINGS_ACCESSED_DYNAMICALLY =     0x2000,
 
-/*
- * Flags to check for return; vs. return expr; in a function.
- */
-#define TCF_RETURN_FLAGS        (TCF_RETURN_EXPR | TCF_RETURN_VOID)
+    /* Compiling an eval() script. */
+    TCF_COMPILE_FOR_EVAL =                  0x4000,
+
+    /*
+     * The function or a function that encloses it may define new local names
+     * at runtime through means other than calling eval.
+     */
+    TCF_FUN_MIGHT_ALIAS_LOCALS =            0x8000,
+
+    /* The script contains singleton initialiser JSOP_OBJECT. */
+    TCF_HAS_SINGLETONS =                   0x10000,
+
+    /* Some enclosing scope is a with-statement or E4X filter-expression. */
+    TCF_IN_WITH =                          0x20000,
+
+    /*
+     * This function does something that can extend the set of bindings in its
+     * call objects --- it does a direct eval in non-strict code, or includes a
+     * function statement (as opposed to a function definition).
+     *
+     * This flag is *not* inherited by enclosed or enclosing functions; it
+     * applies only to the function in whose flags it appears.
+     */
+    TCF_FUN_EXTENSIBLE_SCOPE =             0x40000,
+
+    /* The caller is JS_Compile*Script*. */
+    TCF_NEED_SCRIPT_GLOBAL =               0x80000,
+
+    /*
+     * Technically, every function has a binding named 'arguments'. Internally,
+     * this binding is only added when 'arguments' is mentioned by the function
+     * body. This flag indicates whether 'arguments' has been bound either
+     * through implicit use:
+     *   function f() { return arguments }
+     * or explicit redeclaration:
+     *   function f() { var arguments; return arguments }
+     *
+     * Note 1: overwritten arguments (function() { arguments = 3 }) will cause
+     * this flag to be set but otherwise require no special handling:
+     * 'arguments' is just a local variable and uses of 'arguments' will just
+     * read the local's current slot which may have been assigned. The only
+     * special semantics is that the initial value of 'arguments' is the
+     * arguments object (not undefined, like normal locals).
+     *
+     * Note 2: if 'arguments' is bound as a formal parameter, there will be an
+     * 'arguments' in Bindings, but, as the "LOCAL" in the name indicates, this
+     * flag will not be set. This is because, as a formal, 'arguments' will
+     * have no special semantics: the initial value is unconditionally the
+     * actual argument (or undefined if nactual < nformal).
+     */
+    TCF_ARGUMENTS_HAS_LOCAL_BINDING =     0x100000,
+
+    /*
+     * In many cases where 'arguments' has a local binding (as described above)
+     * we do not need to actually create an arguments object in the function
+     * prologue: instead we can analyze how 'arguments' is used (using the
+     * simple dataflow analysis in analyzeSSA) to determine that uses of
+     * 'arguments' can just read from the stack frame directly. However, the
+     * dataflow analysis only looks at how JSOP_ARGUMENTS is used, so it will
+     * be unsound in several cases. The frontend filters out such cases by
+     * setting this flag which eagerly sets script->needsArgsObj to true.
+     */
+    TCF_DEFINITELY_NEEDS_ARGS_OBJ =       0x200000
+
+} JS_ENUM_FOOTER(TreeContextFlags);
+
+/* Flags to check for return; vs. return expr; in a function. */
+static const uint32_t TCF_RETURN_FLAGS = TCF_RETURN_EXPR | TCF_RETURN_VOID;
 
 /*
  * Sticky deoptimization flags to propagate from FunctionBody.
  */
-#define TCF_FUN_FLAGS           (TCF_FUN_SETS_OUTER_NAME |                    \
-                                 TCF_FUN_USES_ARGUMENTS  |                    \
-                                 TCF_FUN_PARAM_ARGUMENTS |                    \
-                                 TCF_FUN_HEAVYWEIGHT     |                    \
-                                 TCF_FUN_IS_GENERATOR    |                    \
-                                 TCF_FUN_USES_OWN_NAME   |                    \
-                                 TCF_FUN_CALLS_EVAL      |                    \
-                                 TCF_FUN_MIGHT_ALIAS_LOCALS |                 \
-                                 TCF_FUN_MUTATES_PARAMETER |                  \
-                                 TCF_STRICT_MODE_CODE    |                    \
-                                 TCF_FUN_EXTENSIBLE_SCOPE)
+static const uint32_t TCF_FUN_FLAGS = TCF_FUN_HEAVYWEIGHT |
+                                      TCF_FUN_IS_GENERATOR |
+                                      TCF_BINDINGS_ACCESSED_DYNAMICALLY |
+                                      TCF_FUN_MIGHT_ALIAS_LOCALS |
+                                      TCF_STRICT_MODE_CODE |
+                                      TCF_FUN_EXTENSIBLE_SCOPE |
+                                      TCF_ARGUMENTS_HAS_LOCAL_BINDING |
+                                      TCF_DEFINITELY_NEEDS_ARGS_OBJ;
 
 struct BytecodeEmitter;
 
@@ -292,11 +342,10 @@ struct TreeContext {                /* tree context for semantic checks */
                                        to be generator expressions */
     uint32_t        yieldCount;     /* number of |yield| tokens encountered at
                                        non-zero depth in current paren tree */
-    uint32_t        argumentsCount; /* number of |arguments| references encountered
-                                       at non-zero depth in current paren tree */
     StmtInfo        *topStmt;       /* top of statement info stack */
     StmtInfo        *topScopeStmt;  /* top lexical scope statement */
-    StaticBlockObject *blockChain;  /* compile block scope chain (NB: one
+    RootedVar<StaticBlockObject *> blockChain;
+                                    /* compile time block scope chain (NB: one
                                        deeper than the topScopeStmt/downScope
                                        chain when in head of let block/expr) */
     ParseNode       *blockNode;     /* parse node for a block with let declarations
@@ -311,11 +360,9 @@ struct TreeContext {                /* tree context for semantic checks */
                                        inside a generator expression */
 
   private:
-    union {
-        JSFunction  *fun_;          /* function to store argument and variable
+    RootedVarFunction fun_;         /* function to store argument and variable
                                        names when flags & TCF_IN_FUNCTION */
-        JSObject    *scopeChain_;   /* scope chain object for the script */
-    };
+    RootedVarObject   scopeChain_;  /* scope chain object for the script */
 
   public:
     JSFunction *fun() const {
@@ -336,8 +383,16 @@ struct TreeContext {                /* tree context for semantic checks */
     }
 
     OwnedAtomDefnMapPtr lexdeps;    /* unresolved lexical name dependencies */
-    TreeContext     *parent;        /* enclosing function or global context */
-    uintN           staticLevel;    /* static compilation unit nesting level */
+
+    /*
+     * Enclosing function or global context.  If |this| is truly a TreeContext,
+     * then |parent| will also be a TreeContext.  If |this| is a
+     * BytecodeEmitter, then |parent| will also be a BytecodeEmitter.  See the
+     * comment on TCF_COMPILING.
+     */
+    TreeContext     *parent;
+
+    unsigned        staticLevel;    /* static compilation unit nesting level */
 
     FunctionBox     *funbox;        /* null or box for function we're compiling
                                        if (flags & TCF_IN_FUNCTION) and not in
@@ -349,6 +404,10 @@ struct TreeContext {                /* tree context for semantic checks */
     Bindings        bindings;       /* bindings in this code, including
                                        arguments if we're compiling a function */
     Bindings::StackRoot bindingsRoot; /* root for stack allocated bindings. */
+
+    FuncStmtSet *funcStmts;         /* Set of (non-top-level) function statements
+                                       that will alias any top-level bindings with
+                                       the same name. */
 
     void trace(JSTracer *trc);
 
@@ -372,7 +431,7 @@ struct TreeContext {                /* tree context for semantic checks */
         return decls.init() && lexdeps.ensureMap(cx);
     }
 
-    uintN blockid() { return topStmt ? topStmt->blockid : bodyid; }
+    unsigned blockid() { return topStmt ? topStmt->blockid : bodyid; }
 
     /*
      * True if we are at the topmost level of a entire script or function body.
@@ -384,19 +443,11 @@ struct TreeContext {                /* tree context for semantic checks */
      */
     bool atBodyLevel() { return !topStmt || (topStmt->flags & SIF_BODY_BLOCK); }
 
-    /* Test whether we're in a statement of given type. */
-    bool inStatement(StmtType type);
-
     bool inStrictMode() const {
         return flags & TCF_STRICT_MODE_CODE;
     }
 
     inline bool needStrictChecks();
-
-    // Return true there is a generator function within |skip| lexical scopes
-    // (going upward) from this context's lexical scope. Always return true if
-    // this context is itself a generator.
-    bool skipSpansGenerator(unsigned skip);
 
     bool compileAndGo() const { return flags & TCF_COMPILE_N_GO; }
     bool inFunction() const { return flags & TCF_IN_FUNCTION; }
@@ -404,16 +455,12 @@ struct TreeContext {                /* tree context for semantic checks */
     bool compiling() const { return flags & TCF_COMPILING; }
     inline BytecodeEmitter *asBytecodeEmitter();
 
-    bool usesArguments() const {
-        return flags & TCF_FUN_USES_ARGUMENTS;
+    void noteBindingsAccessedDynamically() {
+        flags |= TCF_BINDINGS_ACCESSED_DYNAMICALLY;
     }
 
-    void noteCallsEval() {
-        flags |= TCF_FUN_CALLS_EVAL;
-    }
-
-    bool callsEval() const {
-        return flags & TCF_FUN_CALLS_EVAL;
+    bool bindingsAccessedDynamically() const {
+        return flags & TCF_BINDINGS_ACCESSED_DYNAMICALLY;
     }
 
     void noteMightAliasLocals() {
@@ -424,61 +471,29 @@ struct TreeContext {                /* tree context for semantic checks */
         return flags & TCF_FUN_MIGHT_ALIAS_LOCALS;
     }
 
-    void noteParameterMutation() {
-        JS_ASSERT(inFunction());
-        flags |= TCF_FUN_MUTATES_PARAMETER;
+    void noteArgumentsHasLocalBinding() {
+        flags |= TCF_ARGUMENTS_HAS_LOCAL_BINDING;
     }
 
-    bool mutatesParameter() const {
-        JS_ASSERT(inFunction());
-        return flags & TCF_FUN_MUTATES_PARAMETER;
+    bool argumentsHasLocalBinding() const {
+        return flags & TCF_ARGUMENTS_HAS_LOCAL_BINDING;
     }
 
-    /*
-     * Accessing the implicit |arguments| local binding in a function must
-     * trigger appropriate code generation such that the access works.
-     */
-    void noteArgumentsNameUse(ParseNode *node) {
-        JS_ASSERT(inFunction());
-        JS_ASSERT(node->isKind(PNK_NAME));
-        JS_ASSERT(node->pn_atom == parser->context->runtime->atomState.argumentsAtom);
-        countArgumentsUse(node);
-        flags |= TCF_FUN_USES_ARGUMENTS;
-        if (funbox)
-            funbox->node->pn_dflags |= PND_FUNARG;
+    unsigned argumentsLocalSlot() const {
+        PropertyName *arguments = parser->context->runtime->atomState.argumentsAtom;
+        unsigned slot;
+        DebugOnly<BindingKind> kind = bindings.lookup(parser->context, arguments, &slot);
+        JS_ASSERT(kind == VARIABLE || kind == CONSTANT);
+        return slot;
     }
 
-    /*
-     * Non-dynamic accesses to a property named "arguments" inside a function
-     * have to deoptimize the function in case those accesses are to the
-     * function's arguments.  (However, this is unnecessary in strict mode
-     * functions because of the f.arguments poison-pill.  O frabjous day!)
-     */
-    void noteArgumentsPropertyAccess(ParseNode *node) {
-        JS_ASSERT(inFunction());
-        JS_ASSERT(&node->asPropertyAccess().name() ==
-                  parser->context->runtime->atomState.argumentsAtom);
-        if (!inStrictMode()) {
-            flags |= TCF_FUN_USES_ARGUMENTS;
-            if (funbox)
-                funbox->node->pn_dflags |= PND_FUNARG;
-        }
+    void noteDefinitelyNeedsArgsObj() {
+        JS_ASSERT(argumentsHasLocalBinding());
+        flags |= TCF_DEFINITELY_NEEDS_ARGS_OBJ;
     }
 
-    /*
-     * Uses of |arguments| must be noted so that such uses can be forbidden if
-     * they occur inside generator expressions (which desugar to functions and
-     * yields, in which |arguments| would have an entirely different meaning).
-     */
-    void countArgumentsUse(ParseNode *node) {
-        JS_ASSERT(node->isKind(PNK_NAME));
-        JS_ASSERT(node->pn_atom == parser->context->runtime->atomState.argumentsAtom);
-        argumentsCount++;
-        argumentsNode = node;
-    }
-
-    bool needsEagerArguments() const {
-        return inStrictMode() && ((usesArguments() && mutatesParameter()) || callsEval());
+    bool definitelyNeedsArgsObj() const {
+        return flags & TCF_DEFINITELY_NEEDS_ARGS_OBJ;
     }
 
     void noteHasExtensibleScope() {
@@ -503,7 +518,7 @@ inline bool TreeContext::needStrictChecks() {
 namespace frontend {
 
 bool
-SetStaticLevel(TreeContext *tc, uintN staticLevel);
+SetStaticLevel(TreeContext *tc, unsigned staticLevel);
 
 bool
 GenerateBlockId(TreeContext *tc, uint32_t &blockid);
@@ -521,7 +536,7 @@ struct CGObjectList {
 
     CGObjectList() : length(0), lastbox(NULL) {}
 
-    uintN index(ObjectBox *objbox);
+    unsigned index(ObjectBox *objbox);
     void finish(JSObjectArray *array);
 };
 
@@ -536,7 +551,8 @@ class GCConstList {
 
 struct GlobalScope {
     GlobalScope(JSContext *cx, JSObject *globalObj, BytecodeEmitter *bce)
-      : globalObj(globalObj), bce(bce), defs(cx), names(cx)
+      : globalObj(cx, globalObj), bce(bce), defs(cx), names(cx),
+        defsRoot(cx, &defs), namesRoot(cx, &names)
     { }
 
     struct GlobalDef {
@@ -550,7 +566,7 @@ struct GlobalScope {
         GlobalDef(JSAtom *atom, FunctionBox *box) : atom(atom), funbox(box) { }
     };
 
-    JSObject        *globalObj;
+    RootedVarObject globalObj;
     BytecodeEmitter *bce;
 
     /*
@@ -563,6 +579,13 @@ struct GlobalScope {
      */
     Vector<GlobalDef, 16> defs;
     AtomIndexMap      names;
+
+    /*
+     * Protect the inline elements within defs/names from being clobbered by
+     * root analysis. The atoms in this structure must be separately rooted.
+     */
+    JS::SkipRoot      defsRoot;
+    JS::SkipRoot      namesRoot;
 };
 
 struct BytecodeEmitter : public TreeContext
@@ -572,25 +595,25 @@ struct BytecodeEmitter : public TreeContext
         jsbytecode  *limit;         /* one byte beyond end of bytecode */
         jsbytecode  *next;          /* pointer to next free bytecode */
         jssrcnote   *notes;         /* source notes, see below */
-        uintN       noteCount;      /* number of source notes so far */
-        uintN       noteLimit;      /* limit number for source notes in notePool */
+        unsigned    noteCount;      /* number of source notes so far */
+        unsigned    noteLimit;      /* limit number for source notes in notePool */
         ptrdiff_t   lastNoteOffset; /* code offset for last source note */
-        uintN       currentLine;    /* line number for tree-based srcnote gen */
+        unsigned    currentLine;    /* line number for tree-based srcnote gen */
     } prolog, main, *current;
 
     OwnedAtomIndexMapPtr atomIndices; /* literals indexed for mapping */
     AtomDefnMapPtr  roLexdeps;
-    uintN           firstLine;      /* first line, for JSScript::NewScriptFromEmitter */
+    unsigned        firstLine;      /* first line, for JSScript::NewScriptFromEmitter */
 
-    intN            stackDepth;     /* current stack depth in script frame */
-    uintN           maxStackDepth;  /* maximum stack depth so far */
+    int             stackDepth;     /* current stack depth in script frame */
+    unsigned        maxStackDepth;  /* maximum stack depth so far */
 
-    uintN           ntrynotes;      /* number of allocated so far try notes */
+    unsigned        ntrynotes;      /* number of allocated so far try notes */
     TryNode         *lastTryNode;   /* the last allocated try node */
 
-    uintN           arrayCompDepth; /* stack depth of array in comprehension */
+    unsigned        arrayCompDepth; /* stack depth of array in comprehension */
 
-    uintN           emitLevel;      /* js::frontend::EmitTree recursion level */
+    unsigned        emitLevel;      /* js::frontend::EmitTree recursion level */
 
     typedef HashMap<JSAtom *, Value> ConstMap;
     ConstMap        constMap;       /* compile time constants */
@@ -600,10 +623,6 @@ struct BytecodeEmitter : public TreeContext
     CGObjectList    objectList;     /* list of emitted objects */
     CGObjectList    regexpList;     /* list of emitted regexp that will be
                                        cloned during execution */
-
-    OwnedAtomIndexMapPtr upvarIndices; /* map of atoms to upvar indexes */
-
-    UpvarCookies    upvarMap;       /* indexed upvar slot locations */
 
     GlobalScope     *globalScope;   /* frontend::CompileScript global scope, or null */
 
@@ -619,7 +638,7 @@ struct BytecodeEmitter : public TreeContext
 
     uint16_t        typesetCount;   /* Number of JOF_TYPESET opcodes generated */
 
-    BytecodeEmitter(Parser *parser, uintN lineno);
+    BytecodeEmitter(Parser *parser, unsigned lineno);
     bool init(JSContext *cx, TreeContext::InitBehavior ib = USED_AS_CODE_GENERATOR);
 
     JSContext *context() {
@@ -650,14 +669,13 @@ struct BytecodeEmitter : public TreeContext
      */
     bool addGlobalUse(JSAtom *atom, uint32_t slot, UpvarCookie *cookie);
 
-    bool hasUpvarIndices() const {
-        return upvarIndices.hasMap() && !upvarIndices->empty();
-    }
-
     bool compilingForEval() const { return !!(flags & TCF_COMPILE_FOR_EVAL); }
     JSVersion version() const { return parser->versionWithFlags(); }
 
+    bool isAliasedName(ParseNode *pn);
     bool shouldNoteClosedName(ParseNode *pn);
+    bool noteClosedVar(ParseNode *pn);
+    bool noteClosedArg(ParseNode *pn);
 
     JS_ALWAYS_INLINE
     bool makeAtomIndex(JSAtom *atom, jsatomid *indexp) {
@@ -701,10 +719,10 @@ struct BytecodeEmitter : public TreeContext
     void switchToProlog() { current = &prolog; }
 
     jssrcnote *notes() const { return current->notes; }
-    uintN noteCount() const { return current->noteCount; }
-    uintN noteLimit() const { return current->noteLimit; }
+    unsigned noteCount() const { return current->noteCount; }
+    unsigned noteLimit() const { return current->noteLimit; }
     ptrdiff_t lastNoteOffset() const { return current->lastNoteOffset; }
-    uintN currentLine() const { return current->currentLine; }
+    unsigned currentLine() const { return current->currentLine; }
 
     inline ptrdiff_t countFinalSourceNotes();
 };
@@ -801,7 +819,7 @@ DefineCompileTimeConstant(JSContext *cx, BytecodeEmitter *bce, JSAtom *atom, Par
  * found. Otherwise return null.
  */
 StmtInfo *
-LexicalLookup(TreeContext *tc, JSAtom *atom, jsint *slotp, StmtInfo *stmt = NULL);
+LexicalLookup(TreeContext *tc, JSAtom *atom, int *slotp, StmtInfo *stmt = NULL);
 
 /*
  * Emit code into bce for the tree rooted at pn.
@@ -842,7 +860,7 @@ EmitFunctionScript(JSContext *cx, BytecodeEmitter *bce, ParseNode *body);
  * arity in JSSrcNoteSpec. This is why SRC_IF and SRC_INITPROP have the same
  * value below.
  *
- * Don't forget to update JSXDR_BYTECODE_VERSION in jsxdrapi.h for all such
+ * Don't forget to update XDR_BYTECODE_VERSION in vm/Xdr.h for all such
  * incompatible source note or other bytecode changes.
  */
 enum SrcNoteType {
@@ -966,13 +984,13 @@ namespace frontend {
  * within the array pointed at by bce->current->notes. Return -1 if out of
  * memory.
  */
-intN
+int
 NewSrcNote(JSContext *cx, BytecodeEmitter *bce, SrcNoteType type);
 
-intN
+int
 NewSrcNote2(JSContext *cx, BytecodeEmitter *bce, SrcNoteType type, ptrdiff_t offset);
 
-intN
+int
 NewSrcNote3(JSContext *cx, BytecodeEmitter *bce, SrcNoteType type, ptrdiff_t offset1,
                ptrdiff_t offset2);
 
@@ -1052,12 +1070,12 @@ struct JSSrcNoteSpec {
 };
 
 extern JS_FRIEND_DATA(JSSrcNoteSpec)  js_SrcNoteSpec[];
-extern JS_FRIEND_API(uintN)         js_SrcNoteLength(jssrcnote *sn);
+extern JS_FRIEND_API(unsigned)         js_SrcNoteLength(jssrcnote *sn);
 
 /*
  * Get and set the offset operand identified by which (0 for the first, etc.).
  */
 extern JS_FRIEND_API(ptrdiff_t)
-js_GetSrcNoteOffset(jssrcnote *sn, uintN which);
+js_GetSrcNoteOffset(jssrcnote *sn, unsigned which);
 
 #endif /* BytecodeEmitter_h__ */

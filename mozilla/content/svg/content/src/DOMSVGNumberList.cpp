@@ -40,6 +40,8 @@
 #include "nsDOMError.h"
 #include "SVGAnimatedNumberList.h"
 #include "nsCOMPtr.h"
+#include "nsContentUtils.h"
+#include "dombindings.h"
 
 // See the comment in this file's header.
 
@@ -72,11 +74,16 @@ NS_IMPL_CYCLE_COLLECTION_CLASS(DOMSVGNumberList)
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(DOMSVGNumberList)
   // No need to null check tmp - script/SMIL can't detach us from mAList
   ( tmp->IsAnimValList() ? tmp->mAList->mAnimVal : tmp->mAList->mBaseVal ) = nsnull;
-NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mAList)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mAList)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_PRESERVED_WRAPPER
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(DOMSVGNumberList)
-NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mAList)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mAList)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_SCRIPT_OBJECTS
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
+NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN(DOMSVGNumberList)
+  NS_IMPL_CYCLE_COLLECTION_TRACE_PRESERVED_WRAPPER
+NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
 NS_IMPL_CYCLE_COLLECTING_ADDREF(DOMSVGNumberList)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(DOMSVGNumberList)
@@ -86,14 +93,22 @@ DOMCI_DATA(SVGNumberList, mozilla::DOMSVGNumberList)
 namespace mozilla {
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(DOMSVGNumberList)
+  NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
   NS_INTERFACE_MAP_ENTRY(nsIDOMSVGNumberList)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
   NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGNumberList)
 NS_INTERFACE_MAP_END
 
 
+JSObject*
+DOMSVGNumberList::WrapObject(JSContext *cx, JSObject *scope, bool *triedToWrap)
+{
+  return mozilla::dom::binding::SVGNumberList::create(cx, scope, this,
+                                                      triedToWrap);
+}
+
 nsIDOMSVGNumber*
-DOMSVGNumberList::GetItemWithoutAddRef(PRUint32 aIndex)
+DOMSVGNumberList::GetItemAt(PRUint32 aIndex)
 {
   if (IsAnimValList()) {
     Element()->FlushAnimations();
@@ -171,6 +186,7 @@ DOMSVGNumberList::Clear()
   }
 
   if (Length() > 0) {
+    nsAttrValue emptyOrOldValue = Element()->WillChangeNumberList(AttrEnum());
     // Notify any existing DOM items of removal *before* truncating the lists
     // so that they can find their SVGNumber internal counterparts and copy
     // their values. This also notifies the animVal list:
@@ -178,7 +194,7 @@ DOMSVGNumberList::Clear()
 
     mItems.Clear();
     InternalList().Clear();
-    Element()->DidChangeNumberList(AttrEnum(), true);
+    Element()->DidChangeNumberList(AttrEnum(), emptyOrOldValue);
     if (mAList->IsAnimating()) {
       Element()->AnimationNeedsResample();
     }
@@ -219,7 +235,7 @@ NS_IMETHODIMP
 DOMSVGNumberList::GetItem(PRUint32 index,
                           nsIDOMSVGNumber **_retval)
 {
-  *_retval = GetItemWithoutAddRef(index);
+  *_retval = GetItemAt(index);
   if (!*_retval) {
     return NS_ERROR_DOM_INDEX_SIZE_ERR;
   }
@@ -256,6 +272,7 @@ DOMSVGNumberList::InsertItemBefore(nsIDOMSVGNumber *newItem,
     return NS_ERROR_OUT_OF_MEMORY;
   }
 
+  nsAttrValue emptyOrOldValue = Element()->WillChangeNumberList(AttrEnum());
   // Now that we know we're inserting, keep animVal list in sync as necessary.
   MaybeInsertNullInAnimValListAt(index);
 
@@ -269,7 +286,7 @@ DOMSVGNumberList::InsertItemBefore(nsIDOMSVGNumber *newItem,
 
   UpdateListIndicesFromIndex(mItems, index + 1);
 
-  Element()->DidChangeNumberList(AttrEnum(), true);
+  Element()->DidChangeNumberList(AttrEnum(), emptyOrOldValue);
   if (mAList->IsAnimating()) {
     Element()->AnimationNeedsResample();
   }
@@ -298,6 +315,7 @@ DOMSVGNumberList::ReplaceItem(nsIDOMSVGNumber *newItem,
     domItem = domItem->Clone(); // must do this before changing anything!
   }
 
+  nsAttrValue emptyOrOldValue = Element()->WillChangeNumberList(AttrEnum());
   if (mItems[index]) {
     // Notify any existing DOM item of removal *before* modifying the lists so
     // that the DOM item can copy the *old* value at its index:
@@ -311,7 +329,7 @@ DOMSVGNumberList::ReplaceItem(nsIDOMSVGNumber *newItem,
   // would end up reading bad data from InternalList()!
   domItem->InsertingIntoList(this, AttrEnum(), index, IsAnimValList());
 
-  Element()->DidChangeNumberList(AttrEnum(), true);
+  Element()->DidChangeNumberList(AttrEnum(), emptyOrOldValue);
   if (mAList->IsAnimating()) {
     Element()->AnimationNeedsResample();
   }
@@ -340,6 +358,7 @@ DOMSVGNumberList::RemoveItem(PRUint32 index,
   // We have to return the removed item, so make sure it exists:
   EnsureItemAt(index);
 
+  nsAttrValue emptyOrOldValue = Element()->WillChangeNumberList(AttrEnum());
   // Notify the DOM item of removal *before* modifying the lists so that the
   // DOM item can copy its *old* value:
   mItems[index]->RemovingFromList();
@@ -350,7 +369,7 @@ DOMSVGNumberList::RemoveItem(PRUint32 index,
 
   UpdateListIndicesFromIndex(mItems, index);
 
-  Element()->DidChangeNumberList(AttrEnum(), true);
+  Element()->DidChangeNumberList(AttrEnum(), emptyOrOldValue);
   if (mAList->IsAnimating()) {
     Element()->AnimationNeedsResample();
   }

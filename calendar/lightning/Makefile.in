@@ -67,6 +67,10 @@ ifneq (,$(findstring pre,$(LIGHTNING_VERSION)))
 DEFINES += -DLIGHTNING_PRERELEASE_VERSION=1
 endif
 
+ifdef LIGHTNING_UPDATE_LOCATION
+DEFINES += -DLIGHTNING_UPDATE_LOCATION=$(LIGHTNING_UPDATE_LOCATION)
+endif
+
 # Gecko milestone
 GRE_MILESTONE = $(shell $(PYTHON) $(MOZILLA_SRCDIR)/config/printconfigsetting.py $(LIBXUL_DIST)/bin/platform.ini Build Milestone)
 ifdef GRE_MILESTONE
@@ -155,6 +159,13 @@ libs::
 
 include $(topsrcdir)/config/rules.mk
 include $(srcdir)/lightning-packager.mk
+
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+# If the macbundle dist dir was already created, sync lightning here to avoid
+# the need to make -C objdir/mail/app each time
+libs::
+	[ -d $(DIST)/$(MOZ_MACBUNDLE_NAME) ] && rsync -a $(FINAL_TARGET) $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/MacOS/extensions/$(XPI_EM_ID) || true
+endif
 
 ident:
 	@printf "comm_revision "

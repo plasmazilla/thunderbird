@@ -1,6 +1,8 @@
 #include "tests.h"
 #include "jsatom.h"
 
+#include "vm/String.h"
+
 using namespace mozilla;
 
 BEGIN_TEST(testAtomizedIsNotInterned)
@@ -21,12 +23,11 @@ struct StringWrapper
     bool     strOk;
 } sw;
 
-JSBool
-GCCallback(JSContext *cx, JSGCStatus status)
+void
+FinalizeCallback(JSFreeOp *fop, JSFinalizeStatus status, JSBool isCompartmentGC)
 {
-    if (status == JSGC_MARK_END)
-        sw.strOk = !JS_IsAboutToBeFinalized(cx, sw.str);
-    return true;
+    if (status == JSFINALIZE_START)
+        sw.strOk = !JS_IsAboutToBeFinalized(sw.str);
 }
 
 BEGIN_TEST(testInternAcrossGC)
@@ -34,8 +35,8 @@ BEGIN_TEST(testInternAcrossGC)
     sw.str = JS_InternString(cx, "wrapped chars that another test shouldn't be using");
     sw.strOk = false;
     CHECK(sw.str);
-    JS_SetGCCallback(cx, GCCallback);
-    JS_GC(cx);
+    JS_SetFinalizeCallback(rt, FinalizeCallback);
+    JS_GC(rt);
     CHECK(sw.strOk);
     return true;
 }

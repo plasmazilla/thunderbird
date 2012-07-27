@@ -65,6 +65,7 @@
 #include "nsComposeStrings.h"
 #include "nsIZipWriter.h"
 #include "nsIDirectoryEnumerator.h"
+#include "mozilla/Services.h"
 
 ///////////////////////////////////////////////////////////////////////////
 // Mac Specific Attachment Handling for AppleDouble Encoded Files
@@ -151,6 +152,7 @@ nsMsgAttachmentHandler::nsMsgAttachmentHandler() :
   mMHTMLPart(false),
   mPartUserOmissionOverride(false),
   mMainBody(false),
+  mSendViaCloud(false),
   mNodeIndex(-1),
   // For analyzing the attachment file...
   m_size(0),
@@ -298,6 +300,11 @@ nsMsgAttachmentHandler::PickEncoding(const char *charset, nsIMsgSend *mime_deliv
   bool needsB64 = false;
   bool forceB64 = false;
 
+  if (mSendViaCloud)
+  {
+    m_encoding = ENCODING_7BIT;
+    return 0;
+  }
   if (m_already_encoded_p)
     goto DONE;
 
@@ -580,17 +587,13 @@ nsMsgAttachmentHandler::SnarfMsgAttachment(nsMsgCompFields *compFields)
 
       nsCOMPtr<nsIURI> aURL;
       rv = messageService->GetUrlForUri(uri.get(), getter_AddRefs(aURL), nsnull);
-      if (aURL)
-        aURL->SetSpec(nsDependentCString(uri.get()));
 
       rv = NS_NewInputStreamChannel(getter_AddRefs(m_converter_channel), aURL, nsnull);
       if (NS_FAILED(rv))
         goto done;
 
-      rv = m_mime_parser->AsyncConvertData(
-		    "message/rfc822",
-		    "message/rfc822",
-		    strListener, m_converter_channel);
+      rv = m_mime_parser->AsyncConvertData("message/rfc822", "message/rfc822",
+                                           strListener, m_converter_channel);
       if (NS_FAILED(rv))
         goto done;
 
@@ -991,6 +994,14 @@ nsMsgAttachmentHandler::Abort()
 {
   nsCOMPtr<nsIRequest> saveRequest;
   saveRequest.swap(mRequest);
+
+  if (mTmpFile)
+  {
+    if (mDeleteFile)
+      mTmpFile->Remove(false);
+    mTmpFile = nsnull;
+  }
+
   NS_ASSERTION(m_mime_delivery_state != nsnull, "not-null m_mime_delivery_state");
 
   if (m_done)
@@ -1056,8 +1067,9 @@ nsMsgAttachmentHandler::UrlExit(nsresult status, const PRUnichar* aMsg)
     nsString     msg;
     PRUnichar         *printfString = nsnull;
     nsresult rv;
-    nsCOMPtr<nsIStringBundleService> bundleService(do_GetService("@mozilla.org/intl/stringbundle;1", &rv));
-    NS_ENSURE_SUCCESS(rv, rv);
+    nsCOMPtr<nsIStringBundleService> bundleService =
+      mozilla::services::GetStringBundleService();
+    NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
     nsCOMPtr<nsIStringBundle> bundle;
     rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(bundle));
     NS_ENSURE_SUCCESS(rv, rv);

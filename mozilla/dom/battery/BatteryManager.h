@@ -39,10 +39,11 @@
 #define mozilla_dom_battery_BatteryManager_h
 
 #include "nsIDOMBatteryManager.h"
-#include "nsDOMEventTargetWrapperCache.h"
+#include "nsDOMEventTargetHelper.h"
 #include "nsCycleCollectionParticipant.h"
 #include "mozilla/Observer.h"
 #include "Types.h"
+#include "nsDOMEventTargetHelper.h"
 
 class nsPIDOMWindow;
 class nsIScriptContext;
@@ -56,25 +57,25 @@ class BatteryInformation;
 namespace dom {
 namespace battery {
 
-class BatteryManager : public nsDOMEventTargetWrapperCache
+class BatteryManager : public nsDOMEventTargetHelper
                      , public nsIDOMMozBatteryManager
                      , public BatteryObserver
 {
 public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIDOMMOZBATTERYMANAGER
-  NS_FORWARD_NSIDOMEVENTTARGET(nsDOMEventTargetWrapperCache::)
+  NS_FORWARD_NSIDOMEVENTTARGET(nsDOMEventTargetHelper::)
 
   BatteryManager();
 
-  void Init(nsPIDOMWindow *aWindow, nsIScriptContext* aScriptContext);
+  void Init(nsPIDOMWindow *aWindow);
   void Shutdown();
 
   // For IObserver.
   void Notify(const hal::BatteryInformation& aBatteryInfo);
 
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(BatteryManager,
-                                           nsDOMEventTargetWrapperCache)
+                                           nsDOMEventTargetHelper)
 
   /**
    * Returns whether the battery api is supported (ie. not disabled by the user)

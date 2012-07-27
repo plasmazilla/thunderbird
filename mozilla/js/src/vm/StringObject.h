@@ -50,39 +50,43 @@ namespace js {
 
 class StringObject : public JSObject
 {
-    static const uintN PRIMITIVE_THIS_SLOT = 0;
-    static const uintN LENGTH_SLOT = 1;
+    static const unsigned PRIMITIVE_VALUE_SLOT = 0;
+    static const unsigned LENGTH_SLOT = 1;
 
   public:
-    static const uintN RESERVED_SLOTS = 2;
+    static const unsigned RESERVED_SLOTS = 2;
 
     /*
      * Creates a new String object boxing the given string.  The object's
      * [[Prototype]] is determined from context.
      */
-    static inline StringObject *create(JSContext *cx, JSString *str);
+    static inline StringObject *create(JSContext *cx, HandleString str);
 
     /*
      * Identical to create(), but uses |proto| as [[Prototype]].  This method
      * must not be used to create |String.prototype|.
      */
-    static inline StringObject *createWithProto(JSContext *cx, JSString *str, JSObject &proto);
+    static inline StringObject *createWithProto(JSContext *cx, HandleString str, JSObject &proto);
 
     JSString *unbox() const {
-        return getSlot(PRIMITIVE_THIS_SLOT).toString();
+        return getFixedSlot(PRIMITIVE_VALUE_SLOT).toString();
     }
 
     inline size_t length() const {
-        return size_t(getSlot(LENGTH_SLOT).toInt32());
+        return size_t(getFixedSlot(LENGTH_SLOT).toInt32());
+    }
+
+    static size_t getPrimitiveValueOffset() {
+        return getFixedSlotOffset(PRIMITIVE_VALUE_SLOT);
     }
 
   private:
-    inline bool init(JSContext *cx, JSString *str);
+    inline bool init(JSContext *cx, HandleString str);
 
     void setStringThis(JSString *str) {
-        JS_ASSERT(getSlot(PRIMITIVE_THIS_SLOT).isUndefined());
-        setSlot(PRIMITIVE_THIS_SLOT, StringValue(str));
-        setSlot(LENGTH_SLOT, Int32Value(int32_t(str->length())));
+        JS_ASSERT(getReservedSlot(PRIMITIVE_VALUE_SLOT).isUndefined());
+        setFixedSlot(PRIMITIVE_VALUE_SLOT, StringValue(str));
+        setFixedSlot(LENGTH_SLOT, Int32Value(int32_t(str->length())));
     }
 
     /* For access to init, as String.prototype is special. */

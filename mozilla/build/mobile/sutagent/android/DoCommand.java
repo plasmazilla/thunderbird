@@ -67,6 +67,7 @@ import java.util.GregorianCalendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.StringTokenizer;
 import java.util.TimeZone;
 import java.util.zip.Adler32;
 import java.util.zip.CheckedInputStream;
@@ -87,7 +88,6 @@ import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 
-import com.mozilla.SUTAgentAndroid.NtpMessage;
 import com.mozilla.SUTAgentAndroid.R;
 import com.mozilla.SUTAgentAndroid.SUTAgentAndroid;
 
@@ -137,12 +137,13 @@ public class DoCommand {
     String ffxProvider = "org.mozilla.ffxcp";
     String fenProvider = "org.mozilla.fencp";
 
-    private final String prgVersion = "SUTAgentAndroid Version 1.04";
+    private final String prgVersion = "SUTAgentAndroid Version 1.07";
 
     public enum Command
         {
         RUN ("run"),
         EXEC ("exec"),
+        EXECCWD ("execcwd"),
         ENVRUN ("envrun"),
         KILL ("kill"),
         PS ("ps"),
@@ -693,7 +694,25 @@ public class DoCommand {
                         theArgs[lcv - 1] = Argv[lcv];
                         }
 
-                    strReturn = StartPrg2(theArgs, cmdOut);
+                    strReturn = StartPrg2(theArgs, cmdOut, null);
+                    }
+                else
+                    {
+                    strReturn = sErrorPrefix + "Wrong number of arguments for " + Argv[0] + " command!";
+                    }
+                break;
+
+            case EXECCWD:
+                if (Argc >= 3)
+                    {
+                    String [] theArgs = new String [Argc - 2];
+
+                    for (int lcv = 2; lcv < Argc; lcv++)
+                        {
+                        theArgs[lcv - 2] = Argv[lcv];
+                        }
+
+                    strReturn = StartPrg2(theArgs, cmdOut, Argv[1]);
                     }
                 else
                     {
@@ -1263,6 +1282,11 @@ private void CancelNotification()
         {
         String    sRet = null;
 
+        File tmpFile = new java.io.File("/data/local/tests");
+        if (tmpFile.exists() && tmpFile.isDirectory()) 
+            {
+            return("/data/local");
+            }
         if (Environment.getExternalStorageState().equalsIgnoreCase(Environment.MEDIA_MOUNTED))
             {
             sRet = Environment.getExternalStorageDirectory().getAbsolutePath();
@@ -1507,7 +1531,7 @@ private void CancelNotification()
             }
             catch (FileNotFoundException e) {
                 sRet += " file not found";
-                e.printStackTrace();
+                Log.d("SUT", "HashFile: "+e);
             }
             catch (IOException e) {
                 sRet += " io exception";
@@ -2364,8 +2388,12 @@ private void CancelNotification()
         int lcv = 0;
         String strProcName = "";
         int    nPID = 0;
+        int nProcs = 0;
 
-        for (lcv = 0; lcv < lProcesses.size(); lcv++)
+        if (lProcesses != null) 
+            nProcs = lProcesses.size();
+
+        for (lcv = 0; lcv < nProcs; lcv++)
             {
             if (lProcesses.get(lcv).processName.contains(sProcName))
                 {
@@ -2417,13 +2445,58 @@ private void CancelNotification()
             {
             sRet = "Successfully killed " + nPID + " " + strProcName + "\n";
             lProcesses = aMgr.getRunningAppProcesses();
-            for (lcv = 0; lcv < lProcesses.size(); lcv++)
+            nProcs = 0;
+            if (lProcesses != null) 
+                nProcs = lProcesses.size();
+            for (lcv = 0; lcv < nProcs; lcv++)
                 {
                 if (lProcesses.get(lcv).processName.contains(sProcName))
                     {
                     sRet = sErrorPrefix + "Unable to kill " + nPID + " " + strProcName + "\n";
                     break;
                     }
+                }
+            }
+        else
+            {
+            // To kill processes other than Java applications - processes
+            // like xpcshell - a different strategy is necessary: use ps
+            // to find the process' PID.
+            try
+                {
+                pProc = Runtime.getRuntime().exec("ps");
+                RedirOutputThread outThrd = new RedirOutputThread(pProc, null);
+                outThrd.start();
+                outThrd.join(10000);
+                sTmp = outThrd.strOutput;
+                StringTokenizer stokLines = new StringTokenizer(sTmp, "\n");
+                while(stokLines.hasMoreTokens())
+                    {
+                    String sLine = stokLines.nextToken();
+                    StringTokenizer stokColumns = new StringTokenizer(sLine, " \t\n");
+                    stokColumns.nextToken();
+                    String sPid = stokColumns.nextToken();
+                    stokColumns.nextToken();
+                    stokColumns.nextToken();
+                    stokColumns.nextToken();
+                    stokColumns.nextToken();
+                    stokColumns.nextToken();
+                    stokColumns.nextToken();
+                    String sName = null;
+                    if (stokColumns.hasMoreTokens())
+                        {
+                        sName = stokColumns.nextToken();
+                        if (sName.contains(sProcName))
+                            {
+                            NewKillProc(sPid, out);
+                            sRet = "Successfully killed " + sPid + " " + sName + "\n";
+                            }
+                        }
+                    }
+                }
+            catch (Exception e)
+                {
+                e.printStackTrace();
                 }
             }
 
@@ -2458,11 +2531,14 @@ private void CancelNotification()
         String sRet = "";
         ActivityManager aMgr = (ActivityManager) contextWrapper.getSystemService(Activity.ACTIVITY_SERVICE);
         List <ActivityManager.RunningAppProcessInfo> lProcesses = aMgr.getRunningAppProcesses();
-        int    nProcs = lProcesses.size();
+        int    nProcs = 0;
         int lcv = 0;
         String strProcName = "";
         int    nPID = 0;
         int nUser = 0;
+
+        if (lProcesses != null) 
+            nProcs = lProcesses.size();
 
         for (lcv = 0; lcv < nProcs; lcv++)
             {
@@ -2783,68 +2859,6 @@ private void CancelNotification()
             sM = Long.toString(lMillisecs);
             sMillis = sM.substring(0, sM.length() - 3) + "." + sM.substring(sM.length() - 3);
 
-        } else if ((sDate != null) && (sTime == null) && sDate.contains(".")) {
-            String serverName = sDate;
-//            String serverName = "us.pool.ntp.org";
-            sRet = "NTP Server: " + serverName + lineSep;
-            // Send request
-            DatagramSocket socket;
-
-            try {
-                socket = new DatagramSocket();
-                InetAddress address = InetAddress.getByName(serverName);
-                byte[] buf = new NtpMessage().toByteArray();
-                DatagramPacket packet = new DatagramPacket(buf, buf.length, address, 123);
-
-                // Set the transmit timestamp *just* before sending the packet
-                // ToDo: Does this actually improve performance or not?
-                NtpMessage.encodeTimestamp(packet.getData(), 40, (System.currentTimeMillis()/1000.0) + 2208988800.0);
-
-                socket.send(packet);
-
-                // Get response
-                System.out.println("NTP request sent, waiting for response...\n");
-                packet = new DatagramPacket(buf, buf.length);
-                socket.receive(packet);
-
-                // Immediately record the incoming timestamp since 00:00 1-JAN-1900 in secs.
-                double destinationTimestamp = (System.currentTimeMillis()/1000.0) + 2208988800.0;
-
-                // Process response
-                NtpMessage msg = new NtpMessage(packet.getData());
-
-                // Corrected, according to RFC2030 errata
-                double roundTripDelay = (destinationTimestamp-msg.originateTimestamp) - (msg.transmitTimestamp-msg.receiveTimestamp);
-
-                double localClockOffset = ((msg.receiveTimestamp - msg.originateTimestamp) + (msg.transmitTimestamp - destinationTimestamp)) / 2;
-
-                // convert base of timestamp from 00:00 1900/01/01 to 00:00:00 1970/01/01
-                double utc = msg.transmitTimestamp - (2208988800.0);
-
-                // convert from secs to ms
-                long lNewMillisecs = (long)(utc * 1000.0);
-
-                // create a date object using the timestamp this will take into account the timezone and daylight savings settings
-                Date dt = new Date(lNewMillisecs);
-
-                sRet += "  Time: " + new SimpleDateFormat("yyyy/MM/dd hh:mm:ss:SSS").format(dt) + lineSep;
-
-                // get the timestamp
-                long lMillisecs = dt.getTime();
-
-                // format the timestamp as required for the date command
-                sM = Long.toString(lMillisecs);
-                sMillis = sM.substring(0, sM.length() - 3) + "." + sM.substring(sM.length() - 3);
-
-                socket.close();
-            } catch (SocketException e) {
-                e.printStackTrace();
-            } catch (UnknownHostException e) {
-                e.printStackTrace();
-                sRet = sErrorPrefix + "Unknown host";
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
         } else {
             sRet += "Invalid argument(s)";
         }
@@ -2911,15 +2925,10 @@ private void CancelNotification()
     public String NewKillProc(String sProcId, OutputStream out)
         {
         String sRet = "";
-        String [] theArgs = new String [3];
-
-        theArgs[0] = "su";
-        theArgs[1] = "-c";
-        theArgs[2] = "kill " + sProcId;
 
         try
             {
-            pProc = Runtime.getRuntime().exec(theArgs);
+            pProc = Runtime.getRuntime().exec("kill "+sProcId);
             RedirOutputThread outThrd = new RedirOutputThread(pProc, out);
             outThrd.start();
             outThrd.join(5000);
@@ -3509,7 +3518,7 @@ private void CancelNotification()
                     }
                 catch (IllegalThreadStateException itse) {
                     lcv++;
-                    itse.printStackTrace();
+                    Log.d("SUT", "StartPrg waited 10s for "+progArray[0]);
                     }
                 }
             }
@@ -3526,7 +3535,7 @@ private void CancelNotification()
         return (sRet);
         }
 
-    public String StartPrg2(String [] progArray, OutputStream out)
+    public String StartPrg2(String [] progArray, OutputStream out, String cwd)
         {
         String sRet = "";
 
@@ -3616,7 +3625,15 @@ private void CancelNotification()
 
             if (theArgs[0].contains("/") || theArgs[0].contains("\\") || !theArgs[0].contains("."))
                 {
-                pProc = Runtime.getRuntime().exec(theArgs, envArray);
+                if (cwd != null)
+                    {
+                    File f = new File(cwd);
+                    pProc = Runtime.getRuntime().exec(theArgs, envArray, f);
+                    }
+                else
+                    {
+                    pProc = Runtime.getRuntime().exec(theArgs, envArray);
+                    }
 
                 RedirOutputThread outThrd = new RedirOutputThread(pProc, out);
                 outThrd.start();
@@ -3632,7 +3649,7 @@ private void CancelNotification()
                         }
                     catch (IllegalThreadStateException itse) {
                         lcv++;
-                        itse.printStackTrace();
+                        Log.d("SUT", "StartPrg2 waited 10s for "+theArgs[0]);
                         }
                     }
                 }

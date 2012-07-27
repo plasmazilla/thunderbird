@@ -10,6 +10,8 @@ const nsIAccessibleCaretMoveEvent =
   Components.interfaces.nsIAccessibleCaretMoveEvent;
 const nsIAccessibleTextChangeEvent =
   Components.interfaces.nsIAccessibleTextChangeEvent;
+const nsIAccessibleVirtualCursorChangeEvent =
+  Components.interfaces.nsIAccessibleVirtualCursorChangeEvent;
 
 const nsIAccessibleStates = Components.interfaces.nsIAccessibleStates;
 const nsIAccessibleRole = Components.interfaces.nsIAccessibleRole;
@@ -18,7 +20,6 @@ const nsIAccessibleCoordinateType = Components.interfaces.nsIAccessibleCoordinat
 
 const nsIAccessibleRelation = Components.interfaces.nsIAccessibleRelation;
 
-const nsIAccessNode = Components.interfaces.nsIAccessNode;
 const nsIAccessible = Components.interfaces.nsIAccessible;
 
 const nsIAccessibleDocument = Components.interfaces.nsIAccessibleDocument;
@@ -30,10 +31,13 @@ const nsIAccessibleEditableText = Components.interfaces.nsIAccessibleEditableTex
 const nsIAccessibleHyperLink = Components.interfaces.nsIAccessibleHyperLink;
 const nsIAccessibleHyperText = Components.interfaces.nsIAccessibleHyperText;
 
+const nsIAccessibleCursorable = Components.interfaces.nsIAccessibleCursorable;
 const nsIAccessibleImage = Components.interfaces.nsIAccessibleImage;
+const nsIAccessiblePivot = Components.interfaces.nsIAccessiblePivot;
 const nsIAccessibleSelectable = Components.interfaces.nsIAccessibleSelectable;
 const nsIAccessibleTable = Components.interfaces.nsIAccessibleTable;
 const nsIAccessibleTableCell = Components.interfaces.nsIAccessibleTableCell;
+const nsIAccessibleTraversalRule = Components.interfaces.nsIAccessibleTraversalRule;
 const nsIAccessibleValue = Components.interfaces.nsIAccessibleValue;
 
 const nsIObserverService = Components.interfaces.nsIObserverService;
@@ -111,6 +115,21 @@ function addA11yLoadEvent(aFunc, aWindow)
   SimpleTest.waitForFocus(waitForDocLoad, aWindow);
 }
 
+/**
+ * Analogy of SimpleTest.is function used to compare objects.
+ */
+function isObject(aObj, aExpectedObj, aMsg)
+{
+  if (aObj == aExpectedObj) {
+    ok(true, aMsg);
+    return;
+  }
+
+  ok(false,
+     aMsg + " - got '" + prettyName(aObj) +
+            "', expected '" + prettyName(aExpectedObj) + "'");
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Helpers for getting DOM node/accessible
 
@@ -125,10 +144,8 @@ function getNode(aAccOrNodeOrID)
   if (aAccOrNodeOrID instanceof nsIDOMNode)
     return aAccOrNodeOrID;
 
-  if (aAccOrNodeOrID instanceof nsIAccessible) {
-    aAccOrNodeOrID.QueryInterface(nsIAccessNode);
+  if (aAccOrNodeOrID instanceof nsIAccessible)
     return aAccOrNodeOrID.DOMNode;
-  }
 
   node = document.getElementById(aAccOrNodeOrID);
   if (!node) {
@@ -171,7 +188,6 @@ function getAccessible(aAccOrElmOrID, aInterfaces, aElmObj, aDoNotFailIf)
   var elm = null;
 
   if (aAccOrElmOrID instanceof nsIAccessible) {
-    aAccOrElmOrID.QueryInterface(nsIAccessNode);
     elm = aAccOrElmOrID.DOMNode;
 
   } else if (aAccOrElmOrID instanceof nsIDOMNode) {
@@ -202,8 +218,6 @@ function getAccessible(aAccOrElmOrID, aInterfaces, aElmObj, aDoNotFailIf)
       return null;
     }
   }
-
-  acc.QueryInterface(nsIAccessNode);
 
   if (!aInterfaces)
     return acc;
@@ -261,8 +275,7 @@ function getContainerAccessible(aAccOrElmOrID)
  */
 function getRootAccessible(aAccOrElmOrID)
 {
-  var acc = getAccessible(aAccOrElmOrID ? aAccOrElmOrID : document,
-                          [nsIAccessNode]);
+  var acc = getAccessible(aAccOrElmOrID ? aAccOrElmOrID : document);
   return acc ? acc.rootDocument.QueryInterface(nsIAccessible) : null;
 }
 
@@ -271,11 +284,10 @@ function getRootAccessible(aAccOrElmOrID)
  */
 function getTabDocAccessible(aAccOrElmOrID)
 {
-  var acc = getAccessible(aAccOrElmOrID ? aAccOrElmOrID : document,
-                          [nsIAccessNode]);
+  var acc = getAccessible(aAccOrElmOrID ? aAccOrElmOrID : document);
 
   var docAcc = acc.document.QueryInterface(nsIAccessible);
-  var containerDocAcc = docAcc.parent.QueryInterface(nsIAccessNode).document;
+  var containerDocAcc = docAcc.parent.document;
 
   // Test is running is stand-alone mode.
   if (acc.rootDocument == containerDocAcc)
@@ -292,27 +304,6 @@ function getApplicationAccessible()
 {
   return gAccRetrieval.getApplicationAccessible().
     QueryInterface(nsIAccessibleApplication);
-}
-
-/**
- * Run through accessible tree of the given identifier so that we ensure
- * accessible tree is created.
- */
-function ensureAccessibleTree(aAccOrElmOrID)
-{
-  var acc = getAccessible(aAccOrElmOrID);
-  if (!acc)
-    return;
-
-  var child = acc.firstChild;
-  while (child) {
-    ensureAccessibleTree(child);
-    try {
-      child = child.nextSibling;
-    } catch (e) {
-      child = null;
-    }
-  }
 }
 
 /**
@@ -510,6 +501,23 @@ function testDefunctAccessible(aAcc, aNodeOrId)
   ok(success, "parent" + msg);
 }
 
+/**
+ * Ensure that image map accessible tree is created.
+ */
+function ensureImageMapTree(aID)
+{
+  // XXX: We send a useless mouse move to the image to force it to setup its
+  // image map, because flushing layout won't do it. Hopefully bug 135040
+  // will make this not suck.
+  var image = getNode(aID);
+  synthesizeMouse(image, 10, 10, { type: "mousemove" },
+                  image.ownerDocument.defaultView);
+
+  // XXX This may affect a11y more than other code because imagemaps may not
+  // get drawn or have an mouse event over them. Bug 570322 tracks a11y
+  // dealing with this.
+  todo(false, "Need to remove this image map workaround.");
+}
 
 /**
  * Convert role to human readable string.
@@ -588,7 +596,7 @@ function getTextFromClipboard()
 function prettyName(aIdentifier)
 {
   if (aIdentifier instanceof nsIAccessible) {
-    var acc = getAccessible(aIdentifier, [nsIAccessNode]);
+    var acc = getAccessible(aIdentifier);
     var msg = "[" + getNodePrettyName(acc.DOMNode);
     try {
       msg += ", role: " + roleToString(acc.role);
@@ -639,9 +647,9 @@ function getNodePrettyName(aNode)
 function getObjAddress(aObj)
 {
   var exp = /native\s*@\s*(0x[a-f0-9]+)/g;
-  var match = exp.exec(aObj.valueOf());
+  var match = exp.exec(aObj.toString());
   if (match)
     return match[1];
 
-  return aObj.valueOf();
+  return aObj.toString();
 }

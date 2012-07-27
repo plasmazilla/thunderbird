@@ -106,7 +106,7 @@ struct ScopedCanberraFile {
 
     ~ScopedCanberraFile() {
         if (mFile) {
-            mFile->Remove(PR_FALSE);
+            mFile->Remove(false);
         }
     }
 
@@ -188,7 +188,7 @@ ca_finish_cb(ca_context *c,
 {
     nsILocalFile *file = reinterpret_cast<nsILocalFile *>(userdata);
     if (file) {
-        file->Remove(PR_FALSE);
+        file->Remove(false);
         NS_RELEASE(file);
     }
 }
@@ -293,7 +293,8 @@ NS_IMETHODIMP nsSound::OnStreamComplete(nsIStreamLoader *aLoader,
     ScopedCanberraFile canberraFile(tmpFile);
 
     mozilla::AutoFDClose fd;
-    rv = canberraFile->OpenNSPRFileDesc(PR_WRONLY, PR_IRUSR | PR_IWUSR, &fd);
+    rv = canberraFile->OpenNSPRFileDesc(PR_WRONLY, PR_IRUSR | PR_IWUSR,
+                                        &fd.rwget());
     if (NS_FAILED(rv)) {
         return rv;
     }
@@ -358,13 +359,18 @@ NS_METHOD nsSound::Play(nsIURL *aURL)
             return NS_ERROR_OUT_OF_MEMORY;
         }
 
-        nsCAutoString path;
-        rv = aURL->GetPath(path);
+        nsCAutoString spec;
+        rv = aURL->GetSpec(spec);
         if (NS_FAILED(rv)) {
             return rv;
         }
+        gchar *path = g_filename_from_uri(spec.get(), NULL, NULL);
+        if (!path) {
+            return NS_ERROR_FILE_UNRECOGNIZED_PATH;
+        }
 
-        ca_context_play(ctx, 0, "media.filename", path.get(), NULL);
+        ca_context_play(ctx, 0, "media.filename", path, NULL);
+        g_free(path);
     } else {
         nsCOMPtr<nsIStreamLoader> loader;
         rv = NS_NewStreamLoader(getter_AddRefs(loader), aURL, this);

@@ -37,6 +37,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "mozilla/FloatingPoint.h"
+
 #include "Key.h"
 #include "nsIStreamBufferAccess.h"
 #include "jsfriendapi.h"
@@ -150,7 +152,7 @@ Key::EncodeJSVal(JSContext* aCx, const jsval aVal, PRUint8 aTypeOffset)
 
   if (JSVAL_IS_DOUBLE(aVal)) {
     double d = JSVAL_TO_DOUBLE(aVal);
-    if (DOUBLE_IS_NaN(d)) {
+    if (MOZ_DOUBLE_IS_NaN(d)) {
       return NS_ERROR_DOM_INDEXEDDB_DATA_ERR;
     }
     EncodeNumber(d, eFloat + aTypeOffset);
@@ -170,12 +172,12 @@ Key::EncodeJSVal(JSContext* aCx, const jsval aVal, PRUint8 aTypeOffset)
                    aTypeOffset < (eMaxType * MaxArrayCollapse),
                    "Wrong typeoffset");
 
-      jsuint length;
+      uint32_t length;
       if (!JS_GetArrayLength(aCx, obj, &length)) {
         return NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR;
       }
 
-      for (jsuint index = 0; index < length; index++) {
+      for (uint32_t index = 0; index < length; index++) {
         jsval val;
         if (!JS_GetElement(aCx, obj, index, &val)) {
           return NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR;
@@ -220,7 +222,7 @@ Key::DecodeJSVal(const unsigned char*& aPos, const unsigned char* aEnd,
       aTypeOffset = 0;
     }
 
-    jsuint index = 0;
+    uint32_t index = 0;
     while (aPos < aEnd && *aPos - aTypeOffset != eTerminator) {
       jsval val;
       nsresult rv = DecodeJSVal(aPos, aEnd, aCx, aTypeOffset, &val);
@@ -248,7 +250,7 @@ Key::DecodeJSVal(const unsigned char*& aPos, const unsigned char* aEnd,
     }
   }
   else if (*aPos - aTypeOffset == eDate) {
-    jsdouble msec = static_cast<jsdouble>(DecodeNumber(aPos, aEnd));
+    double msec = static_cast<double>(DecodeNumber(aPos, aEnd));
     JSObject* date = JS_NewDateObjectMsec(aCx, msec);
     if (!date) {
       NS_WARNING("Failed to make date!");

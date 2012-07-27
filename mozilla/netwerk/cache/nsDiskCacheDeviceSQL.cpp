@@ -73,7 +73,6 @@
 using namespace mozilla;
 
 static const char OFFLINE_CACHE_DEVICE_ID[] = { "offline" };
-static NS_DEFINE_CID(kCacheServiceCID, NS_CACHESERVICE_CID);
 
 #define LOG(args) CACHE_LOG_DEBUG(args)
 
@@ -821,7 +820,7 @@ private:
  * nsOfflineCacheDevice
  */
 
-NS_IMPL_THREADSAFE_ISUPPORTS1(nsOfflineCacheDevice, nsIApplicationCacheService)
+NS_IMPL_THREADSAFE_ISUPPORTS0(nsOfflineCacheDevice)
 
 nsOfflineCacheDevice::nsOfflineCacheDevice()
   : mDB(nsnull)
@@ -984,23 +983,6 @@ nsOfflineCacheDevice::DeleteData(nsCacheEntry *entry)
 /**
  * nsCacheDevice implementation
  */
-
-/* static */
-nsOfflineCacheDevice *
-nsOfflineCacheDevice::GetInstance()
-{
-  nsresult rv;
-  nsCOMPtr<nsICacheService> serv = do_GetService(kCacheServiceCID, &rv);
-  NS_ENSURE_SUCCESS(rv, nsnull);
-
-  nsICacheService *iservice = static_cast<nsICacheService*>(serv.get());
-  nsCacheService *cacheService = static_cast<nsCacheService*>(iservice);
-  rv = cacheService->CreateOfflineDevice();
-  NS_ENSURE_SUCCESS(rv, nsnull);
-
-  NS_IF_ADDREF(cacheService->mOfflineDevice);
-  return cacheService->mOfflineDevice;
-}
 
 // This struct is local to nsOfflineCacheDevice::Init, but ISO C++98 doesn't
 // allow a template (mozilla::ArrayLength) to be instantiated based on a local
@@ -1172,7 +1154,8 @@ nsOfflineCacheDevice::Init()
                                                      " AND NameSpace <= ?2 AND ?2 GLOB NameSpace || '*'"
                                                      " ORDER BY NameSpace DESC;"),
     StatementSql ( mStatement_InsertNamespaceEntry,  "INSERT INTO moz_cache_namespaces (ClientID, NameSpace, Data, ItemType) VALUES(?, ?, ?, ?);"),
-    StatementSql ( mStatement_EnumerateGroups,       "SELECT GroupID, ActiveClientID FROM moz_cache_groups;")
+    StatementSql ( mStatement_EnumerateGroups,       "SELECT GroupID, ActiveClientID FROM moz_cache_groups;"),
+    StatementSql ( mStatement_EnumerateGroupsTimeOrder, "SELECT GroupID, ActiveClientID FROM moz_cache_groups ORDER BY ActivateTimeStamp;")
   };
   for (PRUint32 i = 0; NS_SUCCEEDED(rv) && i < ArrayLength(prepared); ++i)
   {
@@ -1218,7 +1201,7 @@ nsOfflineCacheDevice::InitActiveCaches()
     nsCString clientID;
     statement->GetUTF8String(1, clientID);
 
-    mActiveCaches.Put(clientID);
+    mActiveCaches.PutEntry(clientID);
     mActiveCachesByGroup.Put(group, new nsCString(clientID));
 
     rv = statement->ExecuteStep(&hasRows);
@@ -1303,6 +1286,7 @@ nsOfflineCacheDevice::Shutdown()
   mStatement_FindClient = nsnull;
   mStatement_FindClientByNamespace = nsnull;
   mStatement_EnumerateGroups = nsnull;
+  mStatement_EnumerateGroupsTimeOrder = nsnull;
   }
 
   // Close Database on the correct thread
@@ -1752,16 +1736,36 @@ nsOfflineCacheDevice::EvictEntries(const char *clientID)
 
     rv = statement->BindUTF8StringByIndex(0, nsDependentCString(clientID));
     NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = statement->Execute();
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = mDB->CreateStatement(NS_LITERAL_CSTRING("DELETE FROM moz_cache_groups WHERE ActiveClientID=?;"),
+                              getter_AddRefs(statement));
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = statement->BindUTF8StringByIndex(0, nsDependentCString(clientID));
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = statement->Execute();
+    NS_ENSURE_SUCCESS(rv, rv);
   }
   else
   {
     rv = mDB->CreateStatement(NS_LITERAL_CSTRING("DELETE FROM moz_cache WHERE Flags = 0;"),
                               getter_AddRefs(statement));
     NS_ENSURE_SUCCESS(rv, rv);
-  }
 
-  rv = statement->Execute();
-  NS_ENSURE_SUCCESS(rv, rv);
+    rv = statement->Execute();
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = mDB->CreateStatement(NS_LITERAL_CSTRING("DELETE FROM moz_cache_groups;"),
+                              getter_AddRefs(statement));
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    rv = statement->Execute();
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
 
   evictionObserver.Apply();
 
@@ -1873,7 +1877,7 @@ nsOfflineCacheDevice::GetMatchingNamespace(const nsCString &clientID,
 
   bool found = false;
   nsCString nsSpec;
-  PRInt32 nsType;
+  PRInt32 nsType = 0;
   nsCString nsData;
 
   while (hasRows)
@@ -2033,15 +2037,24 @@ nsOfflineCacheDevice::GetUsage(const nsACString &clientID,
   return NS_OK;
 }
 
-NS_IMETHODIMP
+nsresult
 nsOfflineCacheDevice::GetGroups(PRUint32 *count,
                                  char ***keys)
 {
 
   LOG(("nsOfflineCacheDevice::GetGroups"));
 
-  AutoResetStatement statement(mStatement_EnumerateGroups);
   return RunSimpleQuery(mStatement_EnumerateGroups, 0, count, keys);
+}
+
+nsresult
+nsOfflineCacheDevice::GetGroupsTimeOrdered(PRUint32 *count,
+					   char ***keys)
+{
+
+  LOG(("nsOfflineCacheDevice::GetGroupsTimeOrder"));
+
+  return RunSimpleQuery(mStatement_EnumerateGroupsTimeOrder, 0, count, keys);
 }
 
 nsresult
@@ -2082,7 +2095,7 @@ nsOfflineCacheDevice::RunSimpleQuery(mozIStorageStatement * statement,
   return NS_OK;
 }
 
-NS_IMETHODIMP
+nsresult
 nsOfflineCacheDevice::CreateApplicationCache(const nsACString &group,
                                              nsIApplicationCache **out)
 {
@@ -2120,7 +2133,7 @@ nsOfflineCacheDevice::CreateApplicationCache(const nsACString &group,
   return NS_OK;
 }
 
-NS_IMETHODIMP
+nsresult
 nsOfflineCacheDevice::GetApplicationCache(const nsACString &clientID,
                                           nsIApplicationCache **out)
 {
@@ -2155,7 +2168,7 @@ nsOfflineCacheDevice::GetApplicationCache(const nsACString &clientID,
   return NS_OK;
 }
 
-NS_IMETHODIMP
+nsresult
 nsOfflineCacheDevice::GetActiveCache(const nsACString &group,
                                      nsIApplicationCache **out)
 {
@@ -2168,7 +2181,7 @@ nsOfflineCacheDevice::GetActiveCache(const nsACString &group,
   return NS_OK;
 }
 
-NS_IMETHODIMP
+nsresult
 nsOfflineCacheDevice::DeactivateGroup(const nsACString &group)
 {
   nsCString *active = nsnull;
@@ -2182,7 +2195,7 @@ nsOfflineCacheDevice::DeactivateGroup(const nsACString &group)
 
   if (mActiveCachesByGroup.Get(group, &active))
   {
-    mActiveCaches.Remove(*active);
+    mActiveCaches.RemoveEntry(*active);
     mActiveCachesByGroup.Remove(group);
     active = nsnull;
   }
@@ -2217,7 +2230,7 @@ nsOfflineCacheDevice::CanUseCache(nsIURI *keyURI, const nsCString &clientID)
 }
 
 
-NS_IMETHODIMP
+nsresult
 nsOfflineCacheDevice::ChooseApplicationCache(const nsACString &key,
                                              nsIApplicationCache **out)
 {
@@ -2290,7 +2303,7 @@ nsOfflineCacheDevice::ChooseApplicationCache(const nsACString &key,
   return NS_OK;
 }
 
-NS_IMETHODIMP
+nsresult
 nsOfflineCacheDevice::CacheOpportunistically(nsIApplicationCache* cache,
                                              const nsACString &key)
 {
@@ -2323,14 +2336,14 @@ nsOfflineCacheDevice::ActivateCache(const nsCSubstring &group,
   nsCString *active;
   if (mActiveCachesByGroup.Get(group, &active))
   {
-    mActiveCaches.Remove(*active);
+    mActiveCaches.RemoveEntry(*active);
     mActiveCachesByGroup.Remove(group);
     active = nsnull;
   }
 
   if (!clientID.IsEmpty())
   {
-    mActiveCaches.Put(clientID);
+    mActiveCaches.PutEntry(clientID);
     mActiveCachesByGroup.Put(group, new nsCString(clientID));
   }
 

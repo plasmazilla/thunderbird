@@ -109,6 +109,99 @@ let current_test = null;
 //------------------------------------------------------------------------------
 
 tests.push({
+  name: "A.1",
+  desc: "Remove obsolete annotations from moz_annos",
+
+  _obsoleteWeaveAttribute: "weave/test",
+  _placeId: null,
+
+  setup: function() {
+    // Add a place to ensure place_id = 1 is valid.
+    this._placeId = addPlace();
+    // Add an obsolete attribute.
+    let stmt = mDBConn.createStatement(
+      "INSERT INTO moz_anno_attributes (name) VALUES (:anno)"
+    );
+    stmt.params['anno'] = this._obsoleteWeaveAttribute;
+    stmt.execute();
+    stmt.finalize();
+    stmt = mDBConn.createStatement(
+      "INSERT INTO moz_annos (place_id, anno_attribute_id) "
+    + "VALUES (:place_id, "
+    +   "(SELECT id FROM moz_anno_attributes WHERE name = :anno)"
+    + ")"
+    );
+    stmt.params['place_id'] = this._placeId;
+    stmt.params['anno'] = this._obsoleteWeaveAttribute;
+    stmt.execute();
+    stmt.finalize();
+  },
+
+  check: function() {
+    // Check that the obsolete annotation has been removed.
+    let stmt = mDBConn.createStatement(
+      "SELECT id FROM moz_anno_attributes WHERE name = :anno"
+    );
+    stmt.params['anno'] = this._obsoleteWeaveAttribute;
+    do_check_false(stmt.executeStep());
+    stmt.finalize();
+  }
+});
+
+tests.push({
+  name: "A.2",
+  desc: "Remove obsolete annotations from moz_items_annos",
+
+  _obsoleteSyncAttribute: "sync/children",
+  _obsoleteGuidAttribute: "placesInternal/GUID",
+  _obsoleteWeaveAttribute: "weave/test",
+  _placeId: null,
+  _bookmarkId: null,
+
+  setup: function() {
+    // Add a place to ensure place_id = 1 is valid.
+    this._placeId = addPlace();
+    // Add a bookmark.
+    this._bookmarkId = addBookmark(this._placeId);
+    // Add an obsolete attribute.
+    let stmt = mDBConn.createStatement(
+      "INSERT INTO moz_anno_attributes (name) "
+    + "VALUES (:anno1), (:anno2), (:anno3)"
+    );
+    stmt.params['anno1'] = this._obsoleteSyncAttribute;
+    stmt.params['anno2'] = this._obsoleteGuidAttribute;
+    stmt.params['anno3'] = this._obsoleteWeaveAttribute;
+    stmt.execute();
+    stmt.finalize();
+    stmt = mDBConn.createStatement(
+      "INSERT INTO moz_items_annos (item_id, anno_attribute_id) "
+    + "SELECT :item_id, id "
+    + "FROM moz_anno_attributes "
+    + "WHERE name IN (:anno1, :anno2, :anno3)"
+    );
+    stmt.params['item_id'] = this._bookmarkId;
+    stmt.params['anno1'] = this._obsoleteSyncAttribute;
+    stmt.params['anno2'] = this._obsoleteGuidAttribute;
+    stmt.params['anno3'] = this._obsoleteWeaveAttribute;
+    stmt.execute();
+    stmt.finalize();
+  },
+
+  check: function() {
+    // Check that the obsolete annotations have been removed.
+    let stmt = mDBConn.createStatement(
+      "SELECT id FROM moz_anno_attributes "
+    + "WHERE name IN (:anno1, :anno2, :anno3)"
+    );
+    stmt.params['anno1'] = this._obsoleteSyncAttribute;
+    stmt.params['anno2'] = this._obsoleteGuidAttribute;
+    stmt.params['anno3'] = this._obsoleteWeaveAttribute;
+    do_check_false(stmt.executeStep());
+    stmt.finalize();
+  }
+});
+
+tests.push({
   name: "A.3",
   desc: "Remove unused attributes",
 
@@ -729,49 +822,6 @@ tests.push({
 //------------------------------------------------------------------------------
 
 tests.push({
-  name: "D.11",
-  desc: "Remove old livemarks status items",
-
-  _bookmarkId: null,
-  _livemarkLoadingStatusId: null,
-  _livemarkFailedStatusId: null,
-  _placeId: null,
-  _lmLoadingPlaceId: null,
-  _lmFailedPlaceId: null,
-
-  setup: function() {
-    // Add a place to ensure place_id = 1 is valid
-    this._placeId = addPlace();
-
-    // Insert a bookmark
-    this._bookmarkId = addBookmark(this._placeId);
-    // Add livemark status item
-    this._lmLoadingPlaceId = addPlace("about:livemark-loading");
-    this._lmFailedPlaceId = addPlace("about:livemark-failed");
-    // Bookmark it
-    this._livemarkLoadingStatusId = addBookmark(this._lmLoadingPlaceId);
-    this._livemarkFailedStatusId = addBookmark(this._lmFailedPlaceId);
-  },
-
-  check: function() {
-    // Check that valid bookmark is still there
-    let stmt = mDBConn.createStatement("SELECT id FROM moz_bookmarks WHERE id = :item_id");
-    stmt.params["item_id"] = this._bookmarkId;
-    do_check_true(stmt.executeStep());
-    stmt.reset();
-    // Check that livemark status items have been removed
-    stmt.params["item_id"] = this._livemarkLoadingStatusId;
-    do_check_false(stmt.executeStep());
-    stmt.reset();
-    stmt.params["item_id"] = this._livemarkFailedStatusId;
-    do_check_false(stmt.executeStep());
-    stmt.finalize();
-  }
-});
-
-//------------------------------------------------------------------------------
-
-tests.push({
   name: "D.12",
   desc: "Fix empty-named tags",
 
@@ -1189,6 +1239,54 @@ tests.push({
 //------------------------------------------------------------------------------
 
 tests.push({
+  name: "L.3",
+  desc: "recalculate hidden for redirects.",
+
+  setup: function() {
+    addVisits([
+      { uri: NetUtil.newURI("http://l3.moz.org/"),
+        transition: TRANSITION_TYPED },
+      { uri: NetUtil.newURI("http://l3.moz.org/redirecting/"),
+        transition: TRANSITION_TYPED },
+      { uri: NetUtil.newURI("http://l3.moz.org/redirecting2/"),
+        transition: TRANSITION_REDIRECT_TEMPORARY,
+        referrer: NetUtil.newURI("http://l3.moz.org/redirecting/") },
+      { uri: NetUtil.newURI("http://l3.moz.org/target/"),
+        transition: TRANSITION_REDIRECT_PERMANENT,
+        referrer: NetUtil.newURI("http://l3.moz.org/redirecting2/") },
+    ]);
+  },
+
+  asyncCheck: function(aCallback) {
+    let stmt = mDBConn.createAsyncStatement(
+      "SELECT h.url FROM moz_places h WHERE h.hidden = 1"
+    );
+    stmt.executeAsync({
+      _count: 0,
+      handleResult: function(aResultSet) {
+        for (let row; (row = aResultSet.getNextRow());) {
+          let url = row.getResultByIndex(0);
+          do_check_true(/redirecting/.test(url));
+          this._count++;
+        }
+      },
+      handleError: function(aError) {
+      },
+      handleCompletion: function(aReason) {
+        dump_table("moz_places");
+        dump_table("moz_historyvisits");
+        do_check_eq(aReason, Ci.mozIStorageStatementCallback.REASON_FINISHED);
+        do_check_eq(this._count, 2);
+        aCallback();
+      }
+    });
+    stmt.finalize();
+  }
+});
+
+//------------------------------------------------------------------------------
+
+tests.push({
   name: "Z",
   desc: "Sanity: Preventive maintenance does not touch valid items",
 
@@ -1215,14 +1313,13 @@ tests.push({
                                            bs.DEFAULT_INDEX);
     do_check_true(this._separatorId > 0);
     ts.tagURI(this._uri1, ["testtag"]);
-    fs.setFaviconUrlForPage(this._uri2,
-                            uri("http://www2.mozilla.org/favicon.ico"));
+    fs.setAndFetchFaviconForPage(this._uri2, SMALLPNG_DATA_URI, false);
     bs.setKeywordForBookmark(this._bookmarkId, "testkeyword");
     as.setPageAnnotation(this._uri2, "anno", "anno", 0, as.EXPIRE_NEVER);
     as.setItemAnnotation(this._bookmarkId, "anno", "anno", 0, as.EXPIRE_NEVER);
   },
 
-  check: function() {
+  asyncCheck: function (aCallback) {
     // Check that all items are correct
     do_check_true(bh.isVisited(this._uri1));
     do_check_true(bh.isVisited(this._uri2));
@@ -1235,10 +1332,13 @@ tests.push({
 
     do_check_eq(ts.getTagsForURI(this._uri1).length, 1);
     do_check_eq(bs.getKeywordForBookmark(this._bookmarkId), "testkeyword");
-    do_check_eq(fs.getFaviconForPage(this._uri2).spec,
-                "http://www2.mozilla.org/favicon.ico");
     do_check_eq(as.getPageAnnotation(this._uri2, "anno"), "anno");
     do_check_eq(as.getItemAnnotation(this._bookmarkId, "anno"), "anno");
+
+    fs.getFaviconURLForPage(this._uri2, function (aFaviconURI) {
+        do_check_true(aFaviconURI.equals(SMALLPNG_DATA_URI));
+        aCallback();
+      });
   }
 });
 
@@ -1250,26 +1350,37 @@ let observer = {
       // Check the lastMaintenance time has been saved.
       do_check_neq(Services.prefs.getIntPref("places.database.lastMaintenance"), null);
 
-      try {current_test.check();}
-      catch (ex){ do_throw(ex);}
+      function afterCheck() {
+        cleanDatabase();
 
-      cleanDatabase();
-
-      if (tests.length) {
-        current_test = tests.shift();
-        dump("\nExecuting test: " + current_test.name + "\n" + "*** " + current_test.desc + "\n");
-        current_test.setup();
-        PlacesDBUtils.maintenanceOnIdle();
+        if (tests.length) {
+          current_test = tests.shift();
+          do_log_info("Executing test: " + current_test.name + " *** " + current_test.desc);
+          current_test.setup();
+          PlacesDBUtils.maintenanceOnIdle();
+        }
+        else {
+          Services.obs.removeObserver(observer,
+                                      FINISHED_MAINTENANCE_NOTIFICATION_TOPIC);
+          // Sanity check: all roots should be intact
+          do_check_eq(bs.getFolderIdForItem(bs.placesRoot), 0);
+          do_check_eq(bs.getFolderIdForItem(bs.bookmarksMenuFolder), bs.placesRoot);
+          do_check_eq(bs.getFolderIdForItem(bs.tagsFolder), bs.placesRoot);
+          do_check_eq(bs.getFolderIdForItem(bs.unfiledBookmarksFolder), bs.placesRoot);
+          do_check_eq(bs.getFolderIdForItem(bs.toolbarFolder), bs.placesRoot);
+          do_test_finished();
+        }
       }
-      else {
-        Services.obs.removeObserver(this, FINISHED_MAINTENANCE_NOTIFICATION_TOPIC);
-        // Sanity check: all roots should be intact
-        do_check_eq(bs.getFolderIdForItem(bs.placesRoot), 0);
-        do_check_eq(bs.getFolderIdForItem(bs.bookmarksMenuFolder), bs.placesRoot);
-        do_check_eq(bs.getFolderIdForItem(bs.tagsFolder), bs.placesRoot);
-        do_check_eq(bs.getFolderIdForItem(bs.unfiledBookmarksFolder), bs.placesRoot);
-        do_check_eq(bs.getFolderIdForItem(bs.toolbarFolder), bs.placesRoot);
-        do_test_finished();
+
+      try {
+        if (current_test.asyncCheck) {
+          current_test.asyncCheck(afterCheck);
+        } else {
+          current_test.check();
+          afterCheck();
+        }
+      } catch (ex) {
+        do_throw(ex);
       }
     }
   }

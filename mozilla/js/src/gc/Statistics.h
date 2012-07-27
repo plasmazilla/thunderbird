@@ -52,17 +52,28 @@ namespace js {
 namespace gcstats {
 
 enum Phase {
-    PHASE_GC,
+    PHASE_GC_BEGIN,
+    PHASE_WAIT_BACKGROUND_THREAD,
+    PHASE_PURGE,
     PHASE_MARK,
+    PHASE_MARK_ROOTS,
+    PHASE_MARK_DELAYED,
+    PHASE_MARK_OTHER,
+    PHASE_FINALIZE_START,
     PHASE_SWEEP,
+    PHASE_SWEEP_COMPARTMENTS,
     PHASE_SWEEP_OBJECT,
     PHASE_SWEEP_STRING,
     PHASE_SWEEP_SCRIPT,
     PHASE_SWEEP_SHAPE,
     PHASE_DISCARD_CODE,
     PHASE_DISCARD_ANALYSIS,
-    PHASE_XPCONNECT,
+    PHASE_DISCARD_TI,
+    PHASE_SWEEP_TYPES,
+    PHASE_CLEAR_SCRIPT_ANALYSIS,
+    PHASE_FINALIZE_END,
     PHASE_DESTROY,
+    PHASE_GC_END,
 
     PHASE_LIMIT
 };
@@ -74,66 +85,92 @@ enum Stat {
     STAT_LIMIT
 };
 
+class StatisticsSerializer;
+
 struct Statistics {
     Statistics(JSRuntime *rt);
     ~Statistics();
 
-    void beginGC(JSCompartment *comp, gcreason::Reason reason);
-    void endGC();
-
     void beginPhase(Phase phase);
     void endPhase(Phase phase);
+
+    void beginSlice(int collectedCount, int compartmentCount, gcreason::Reason reason);
+    void endSlice();
+
+    void reset(const char *reason) { slices.back().resetReason = reason; }
+    void nonincremental(const char *reason) { nonincrementalReason = reason; }
 
     void count(Stat s) {
         JS_ASSERT(s < STAT_LIMIT);
         counts[s]++;
     }
 
+    jschar *formatMessage();
+    jschar *formatJSON(uint64_t timestamp);
+
   private:
     JSRuntime *runtime;
 
-    uint64_t startupTime;
+    int64_t startupTime;
 
     FILE *fp;
     bool fullFormat;
 
-    gcreason::Reason triggerReason;
-    JSCompartment *compartment;
+    int collectedCount;
+    int compartmentCount;
+    const char *nonincrementalReason;
 
-    uint64_t phaseStarts[PHASE_LIMIT];
-    uint64_t phaseEnds[PHASE_LIMIT];
-    uint64_t phaseTimes[PHASE_LIMIT];
-    uint64_t totals[PHASE_LIMIT];
-    unsigned int counts[STAT_LIMIT];
+    struct SliceData {
+        SliceData(gcreason::Reason reason, int64_t start)
+          : reason(reason), resetReason(NULL), start(start)
+        {
+            PodArrayZero(phaseTimes);
+        }
 
-    double t(Phase phase);
-    double total(Phase phase);
-    double beginDelay(Phase phase1, Phase phase2);
-    double endDelay(Phase phase1, Phase phase2);
-    void printStats();
-    void statsToString(char *buffer, size_t size);
+        gcreason::Reason reason;
+        const char *resetReason;
+        int64_t start, end;
+        int64_t phaseTimes[PHASE_LIMIT];
 
-    struct ColumnInfo {
-        const char *title;
-        char str[32];
-        char totalStr[32];
-        int width;
-
-        ColumnInfo() {}
-        ColumnInfo(const char *title, double t, double total);
-        ColumnInfo(const char *title, double t);
-        ColumnInfo(const char *title, unsigned int data);
-        ColumnInfo(const char *title, const char *data);
+        int64_t duration() const { return end - start; }
     };
 
-    void makeTable(ColumnInfo *cols);
+    Vector<SliceData, 8, SystemAllocPolicy> slices;
+
+    /* Most recent time when the given phase started. */
+    int64_t phaseStarts[PHASE_LIMIT];
+
+    /* Total time in a given phase for this GC. */
+    int64_t phaseTimes[PHASE_LIMIT];
+
+    /* Total time in a given phase over all GCs. */
+    int64_t phaseTotals[PHASE_LIMIT];
+
+    /* Number of events of this type for this GC. */
+    unsigned int counts[STAT_LIMIT];
+
+    /* Allocated space before the GC started. */
+    size_t preBytes;
+
+    void beginGC();
+    void endGC();
+
+    int64_t gcDuration();
+    void printStats();
+    bool formatData(StatisticsSerializer &ss, uint64_t timestamp);
+
+    double computeMMU(int64_t resolution);
 };
 
-struct AutoGC {
-    AutoGC(Statistics &stats, JSCompartment *comp, gcreason::Reason reason
-           JS_GUARD_OBJECT_NOTIFIER_PARAM)
-      : stats(stats) { JS_GUARD_OBJECT_NOTIFIER_INIT; stats.beginGC(comp, reason); }
-    ~AutoGC() { stats.endGC(); }
+struct AutoGCSlice {
+    AutoGCSlice(Statistics &stats, int collectedCount, int compartmentCount, gcreason::Reason reason
+                JS_GUARD_OBJECT_NOTIFIER_PARAM)
+      : stats(stats)
+    {
+        JS_GUARD_OBJECT_NOTIFIER_INIT;
+        stats.beginSlice(collectedCount, compartmentCount, reason);
+    }
+    ~AutoGCSlice() { stats.endSlice(); }
 
     Statistics &stats;
     JS_DECL_USE_GUARD_OBJECT_NOTIFIER

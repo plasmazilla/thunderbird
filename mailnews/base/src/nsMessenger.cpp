@@ -57,6 +57,7 @@
 #endif
 #include "nsNativeCharsetUtils.h"
 #include "nsIMutableArray.h"
+#include "mozilla/Services.h"
 
 // necko
 #include "nsMimeTypes.h"
@@ -130,7 +131,6 @@
 #include "nsIStringBundle.h"
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
-#include "nsIPrefBranch2.h"
 #include "nsCExternalHandlerService.h"
 #include "nsIExternalProtocolService.h"
 #include "nsIMIMEService.h"
@@ -150,7 +150,7 @@ static NS_DEFINE_CID(kMsgSendLaterCID, NS_MSGSENDLATER_CID);
 // Convert an nsString buffer to plain text...
 //
 #include "nsMsgUtils.h"
-#include "nsIParser.h"
+#include "nsCharsetSource.h"
 
 static void ConvertAndSanitizeFileName(const char * displayName, nsString& aResult)
 {
@@ -1984,17 +1984,15 @@ nsSaveMsgListener::OnDataAvailable(nsIRequest* request,
 nsresult
 nsMessenger::InitStringBundle()
 {
-  nsresult res = NS_OK;
-  if (!mStringBundle)
-  {
-    const char propertyURL[] = MESSENGER_STRING_URL;
-    nsCOMPtr<nsIStringBundleService> sBundleService =
-             do_GetService(NS_STRINGBUNDLE_CONTRACTID, &res);
-    if (NS_SUCCEEDED(res) && (nsnull != sBundleService))
-      res = sBundleService->CreateBundle(propertyURL,
-                                               getter_AddRefs(mStringBundle));
-  }
-  return res;
+  if (mStringBundle)
+    return NS_OK;
+
+  const char propertyURL[] = MESSENGER_STRING_URL;
+  nsCOMPtr<nsIStringBundleService> sBundleService =
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(sBundleService, NS_ERROR_UNEXPECTED);
+  return sBundleService->CreateBundle(propertyURL,
+                                      getter_AddRefs(mStringBundle));
 }
 
 void
@@ -2265,10 +2263,10 @@ NS_IMETHODIMP nsMessenger::OnItemEvent(nsIMsgFolder *item, nsIAtom *event)
 // Detach/Delete Attachments
 ///////////////////////////////////////////////////////////////////////////////
 
-static char * GetAttachmentPartId(const char * aAttachmentUrl)
+static const char * GetAttachmentPartId(const char * aAttachmentUrl)
 {
   static const char partIdPrefix[] = "part=";
-  char * partId = PL_strstr(aAttachmentUrl, partIdPrefix);
+  const char * partId = PL_strstr(aAttachmentUrl, partIdPrefix);
   return partId ? (partId + sizeof(partIdPrefix) - 1) : nsnull;
 }
 
@@ -2284,8 +2282,8 @@ static int CompareAttachmentPartId(const char * aAttachUrlLeft, const char * aAt
   //   1  right is greater than left
   //   2  right is a parent of left
 
-  char * partIdLeft  = GetAttachmentPartId(aAttachUrlLeft);
-  char * partIdRight = GetAttachmentPartId(aAttachUrlRight);
+  const char * partIdLeft  = GetAttachmentPartId(aAttachUrlLeft);
+  const char * partIdRight = GetAttachmentPartId(aAttachUrlRight);
 
   // for detached attachments the URL does not contain any "part=xx"
   if(!partIdLeft)
@@ -2301,8 +2299,11 @@ static int CompareAttachmentPartId(const char * aAttachUrlLeft, const char * aAt
     NS_ABORT_IF_FALSE(partIdRight && IS_DIGIT(*partIdRight), "Invalid character in part id string");
 
     // if the part numbers are different then the numerically smaller one is first
-    idLeft  = strtol(partIdLeft, &partIdLeft, 10);
-    idRight = strtol(partIdRight, &partIdRight, 10);
+    char *fixConstLoss;
+    idLeft  = strtol(partIdLeft, &fixConstLoss, 10);
+    partIdLeft = fixConstLoss;
+    idRight = strtol(partIdRight, &fixConstLoss, 10);
+    partIdRight = fixConstLoss;
     if (idLeft != idRight)
       return idLeft < idRight ? -1 : 1;
 

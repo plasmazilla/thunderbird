@@ -76,7 +76,7 @@ public:
 
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
 
-  virtual JSObject* WrapObject(JSContext *cx, XPCWrappedNativeScope *scope,
+  virtual JSObject* WrapObject(JSContext *cx, JSObject *scope,
                                bool *triedToWrap);
 
   // nsIDOMHTMLOptionsCollection interface
@@ -143,7 +143,9 @@ public:
   void DropReference();
 
   /**
-   * Finds the index of a given option element
+   * Finds the index of a given option element.
+   * If the option isn't part of the collection, return NS_ERROR_FAILURE
+   * without setting aIndex.
    *
    * @param aOption the option to get the index of
    * @param aStartIndex the index to start looking at
@@ -200,8 +202,8 @@ public:
   }
 
 private:
-  nsCheapStringSet mValues;
-  nsCheapInt32Set mIndices;
+  nsCheapSet<nsStringHashKey> mValues;
+  nsCheapSet<nsUint32HashKey> mIndices;
 };
 
 class NS_STACK_CLASS nsSafeOptionListMutation
@@ -294,7 +296,7 @@ public:
   virtual bool IsHTMLFocusable(bool aWithMouse, bool *aIsFocusable, PRInt32 *aTabIndex);
   virtual nsresult InsertChildAt(nsIContent* aKid, PRUint32 aIndex,
                                  bool aNotify);
-  virtual nsresult RemoveChildAt(PRUint32 aIndex, bool aNotify);
+  virtual void RemoveChildAt(PRUint32 aIndex, bool aNotify);
 
   // Overriden nsIFormControl methods
   NS_IMETHOD_(PRUint32) GetType() const { return NS_FORM_SELECT; }
@@ -392,9 +394,10 @@ public:
                                bool aCompileEventHandlers);
   virtual void UnbindFromTree(bool aDeep, bool aNullParent);
   virtual nsresult BeforeSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
-                                 const nsAString* aValue, bool aNotify);
+                                 const nsAttrValueOrString* aValue,
+                                 bool aNotify);
   virtual nsresult AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
-                                const nsAString* aValue, bool aNotify);
+                                const nsAttrValue* aValue, bool aNotify);
   virtual nsresult UnsetAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
                              bool aNotify);
   

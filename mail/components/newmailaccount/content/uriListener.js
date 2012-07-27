@@ -180,6 +180,10 @@ TracingListener.prototype = {
   onStopRequest: function (/* nsIRequest */ aRequest,
                            /* nsISupports */ aContext,
                            /* int */ aStatusCode) {
+    let tabmail = document.getElementById('tabmail');
+    let success = false;
+    let account;
+
     try {
       // Attempt to construct the downloaded data into XML
       let data = this.chunks.join("");
@@ -188,34 +192,32 @@ TracingListener.prototype = {
       // Attempt to derive email account information
       let accountConfig = accountCreationFuncs.readFromXML(xml);
       accountCreationFuncs.replaceVariables(accountConfig,
-        this.params.realName,
-        this.params.email);
-      let account = accountCreationFuncs.createAccountInBackend(accountConfig);
-
-      // Switch to the mail tab
-      let tabmail = document.getElementById('tabmail');
-      tabmail.switchToTab(0);
-
-      // Find the tab associated with this browser, and close it.
-      let myTabInfo = tabmail.tabInfo
-        .filter((function (x) {
-              return "browser" in x && x.browser == this.browser;
-              }).bind(this))[0];
-      tabmail.closeTab(myTabInfo);
-
-      // Respawn the account provisioner to announce our success
-      NewMailAccountProvisioner(null, {
-        success: true,
-        search_engine: this.params.searchEngine,
-        account: account,
-      });
+                                            this.params.realName,
+                                            this.params.email);
+      account = accountCreationFuncs.createAccountInBackend(accountConfig);
+      success = true;
     } catch (e) {
-      // Something went wrong.  Right now, we just dump the problem out
-      // to the Error Console.  We should really do something smarter and
-      // more user-facing, because if - for example - a provider passes
-      // some bogus XML, this routine silently fails.
+      // Something went wrong with account set up. Dump the error out to the
+      // error console. The tab will be closed, and the Account Provisioner
+      // tab will be reopened.
       Components.utils.reportError("Problem interpreting provider XML:" + e);
     }
+
+    tabmail.switchToTab(0);
+
+    // Find the tab associated with this browser, and close it.
+    let myTabInfo = tabmail.tabInfo
+      .filter((function (x) {
+            return "browser" in x && x.browser == this.browser;
+            }).bind(this))[0];
+    tabmail.closeTab(myTabInfo);
+
+    // Respawn the account provisioner to announce our success
+    NewMailAccountProvisioner(null, {
+      success: success,
+      search_engine: this.params.searchEngine,
+      account: account,
+    });
 
     this.oldListener.onStopRequest(aRequest, aContext, aStatusCode);
   },

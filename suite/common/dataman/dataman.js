@@ -56,6 +56,9 @@ XPCOMUtils.defineLazyServiceGetter(gLocSvc, "idn",
                                    "@mozilla.org/network/idn-service;1",
                                    "nsIIDNService");
 
+// From nsContentBlocker.cpp
+const NOFOREIGN = 3;
+
 // :::::::::::::::::::: general functions ::::::::::::::::::::
 var gDataman = {
   bundle: null,
@@ -1257,7 +1260,8 @@ var gPerms = {
       this.addButton.disabled = true;
       this.addType.removeAllItems(); // Make sure list is clean.
       let permTypes = ["allowXULXBL", "cookie", "geo", "image", "install",
-                       "password", "popup"];
+                       "object", "password", "plugins", "popup", "script",
+                       "stylesheet"];
       for (let i = 0; i < permTypes.length; i++) {
         let typeDesc = permTypes[i];
         try {
@@ -1307,22 +1311,34 @@ var gPerms = {
         return Services.perms.ALLOW_ACTION;
       case "geo":
         return Services.perms.DENY_ACTION;
-      case "image":
-        if (Services.prefs.getIntPref("permissions.default.image") == 2)
-          return Services.perms.DENY_ACTION;
-        return Services.perms.ALLOW_ACTION;
       case "install":
         if (Services.prefs.getBoolPref("xpinstall.whitelist.required"))
           return Services.perms.DENY_ACTION;
         return Services.perms.ALLOW_ACTION;
       case "password":
         return Services.perms.ALLOW_ACTION;
+      case "plugins":
+        if (Services.prefs.getBoolPref("plugins.click_to_play"))
+          return Services.perms.UNKNOWN_ACTION;
+        return Services.perms.ALLOW_ACTION;
       case "popup":
         if (Services.prefs.getBoolPref("dom.disable_open_during_load"))
           return Services.perms.DENY_ACTION;
         return Services.perms.ALLOW_ACTION;
     }
-    return Services.perms.UNKNOWN_ACTION;
+    try {
+      // Look for an nsContentBlocker permission
+      switch (Services.prefs.getIntPref("permissions.default." + aType)) {
+        case 3:
+          return NOFOREIGN;
+        case 2:
+          return Services.perms.DENY_ACTION;
+        default:
+          return Services.perms.ALLOW_ACTION;
+      }
+    } catch (e) {
+      return Services.perms.UNKNOWN_ACTION;
+    }
   },
 
   reactToChange: function permissions_reactToChange(aSubject, aData) {
@@ -2017,11 +2033,29 @@ var gPasswords = {
       this.tree.view.selection.count >= this.tree.view.rowCount;
   },
 
-  copyPassword: function passwords_copyPassword() {
+  copySelPassword: function passwords_copySelPassword() {
     // Copy selected signon's password to clipboard.
     let row = this.tree.currentIndex;
     let password = gPasswords.displayedSignons[row].password;
     gLocSvc.clipboard.copyString(password);
+  },
+
+  copyPassword: function passwords_copyPassword() {
+    // Prompt for the master password upfront.
+    let token = Components.classes["@mozilla.org/security/pk11tokendb;1"]
+                          .getService(Components.interfaces.nsIPK11TokenDB)
+                          .getInternalKeyToken();
+
+    if (this.showPasswords || token.checkPassword(""))
+      this.copySelPassword();
+    else {
+      try {
+        token.login(true);
+        this.copySelPassword();
+      } catch (ex) {
+      // If user cancels an exception is expected.
+      }
+    }
   },
 
   reactToChange: function passwords_reactToChange(aSubject, aData) {

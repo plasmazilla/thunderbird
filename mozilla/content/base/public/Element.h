@@ -42,7 +42,6 @@
 
 #include "nsIContent.h"
 #include "nsEventStates.h"
-#include "nsDOMMemoryReporter.h"
 
 class nsEventStateManager;
 class nsGlobalWindow;
@@ -89,9 +88,9 @@ namespace dom {
 class Link;
 
 // IID for the dom::Element interface
-#define NS_ELEMENT_IID      \
-{ 0xa1588efb, 0x5a84, 0x49cd, \
-  { 0x99, 0x1a, 0xac, 0x84, 0x9d, 0x92, 0x05, 0x0f } }
+#define NS_ELEMENT_IID \
+{ 0xab6554b0, 0xb675, 0x45a7, \
+  { 0xac, 0x23, 0x44, 0x1c, 0x94, 0x5f, 0x3b, 0xee } }
 
 class Element : public nsIContent
 {
@@ -104,8 +103,6 @@ public:
 #endif // MOZILLA_INTERNAL_API
 
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_ELEMENT_IID)
-
-  NS_DECL_AND_IMPL_DOM_MEMORY_REPORTER_SIZEOF(Element, nsIContent)
 
   /**
    * Method to get the full state of this element.  See nsEventStates.h for
@@ -142,6 +139,84 @@ public:
     return mState.HasAtLeastOneOfStates(NS_EVENT_STATE_FULL_SCREEN_ANCESTOR |
                                         NS_EVENT_STATE_FULL_SCREEN);
   }
+
+  /**
+   * The style state of this element. This is the real state of the element
+   * with any style locks applied for pseudo-class inspecting.
+   */
+  nsEventStates StyleState() const {
+    if (!HasLockedStyleStates()) {
+      return mState;
+    }
+    return StyleStateFromLocks();
+  };
+
+  /**
+   * The style state locks applied to this element.
+   */
+  nsEventStates LockedStyleStates() const;
+
+  /**
+   * Add a style state lock on this element.
+   */
+  void LockStyleStates(nsEventStates aStates);
+
+  /**
+   * Remove a style state lock on this element.
+   */
+  void UnlockStyleStates(nsEventStates aStates);
+
+  /**
+   * Clear all style state locks on this element.
+   */
+  void ClearStyleStateLocks();
+
+  /**
+   * Get the inline style rule, if any, for this element.
+   */
+  virtual css::StyleRule* GetInlineStyleRule() = 0;
+
+  /**
+   * Set the inline style rule for this element. This will send an appropriate
+   * AttributeChanged notification if aNotify is true.
+   */
+  virtual nsresult SetInlineStyleRule(css::StyleRule* aStyleRule,
+                                      const nsAString* aSerialized,
+                                      bool aNotify) = 0;
+
+  /**
+   * Get the SMIL override style rule for this element. If the rule hasn't been
+   * created, this method simply returns null.
+   */
+  virtual css::StyleRule* GetSMILOverrideStyleRule() = 0;
+
+  /**
+   * Set the SMIL override style rule for this element. If aNotify is true, this
+   * method will notify the document's pres context, so that the style changes
+   * will be noticed.
+   */
+  virtual nsresult SetSMILOverrideStyleRule(css::StyleRule* aStyleRule,
+                                            bool aNotify) = 0;
+
+  /**
+   * Returns a new nsISMILAttr that allows the caller to animate the given
+   * attribute on this element.
+   *
+   * The CALLER OWNS the result and is responsible for deleting it.
+   */
+  virtual nsISMILAttr* GetAnimatedAttr(PRInt32 aNamespaceID, nsIAtom* aName) = 0;
+
+  /**
+   * Get the SMIL override style for this element. This is a style declaration
+   * that is applied *after* the inline style, and it can be used e.g. to store
+   * animated style values.
+   *
+   * Note: This method is analogous to the 'GetStyle' method in
+   * nsGenericHTMLElement and nsStyledElement.
+   *
+   * TODO: Bug 744157 - All callers QI to nsICSSDeclaration.
+   */
+  virtual nsIDOMCSSStyleDeclaration* GetSMILOverrideStyle() = 0;
 
 protected:
   /**
@@ -183,6 +258,11 @@ private:
   friend class Link;
 
   void NotifyStateChange(nsEventStates aStates);
+
+  void NotifyStyleStateChange(nsEventStates aStates);
+
+  // Style state computed from element's state and style locks.
+  nsEventStates StyleStateFromLocks() const;
 
   // Methods for the ESM to manage state bits.  These will handle
   // setting up script blockers when they notify, so no need to do it

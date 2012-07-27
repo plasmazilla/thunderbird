@@ -37,6 +37,8 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsLookAndFeel.h"
+#include "nsStyleConsts.h"
+#include "gfxFont.h"
 
 nsLookAndFeel::nsLookAndFeel()
     : nsXPLookAndFeel()
@@ -316,4 +318,92 @@ nsLookAndFeel::NativeGetColor(ColorID aID, nscolor &aColor)
     return rv;
 }
 
+nsresult
+nsLookAndFeel::GetIntImpl(IntID aID, PRInt32 &aResult)
+{
+    nsresult rv = nsXPLookAndFeel::GetIntImpl(aID, aResult);
+    if (NS_SUCCEEDED(rv))
+        return rv;
 
+    rv = NS_OK;
+
+    switch (aID) {
+        case eIntID_CaretBlinkTime:
+            aResult = 500;
+            break;
+
+        case eIntID_CaretWidth:
+            aResult = 1;
+            break;
+
+        case eIntID_ShowCaretDuringSelection:
+            aResult = 0;
+            break;
+
+        case eIntID_SelectTextfieldsOnKeyFocus:
+            // Select textfield content when focused by kbd
+            // used by nsEventStateManager::sTextfieldSelectModel
+            aResult = 1;
+            break;
+
+        case eIntID_SubmenuDelay:
+            aResult = 200;
+            break;
+
+        case eIntID_TooltipDelay:
+            aResult = 500;
+            break;
+
+        case eIntID_MenusCanOverlapOSBar:
+            // we want XUL popups to be able to overlap the task bar.
+            aResult = 1;
+            break;
+
+        case eIntID_ScrollArrowStyle:
+            aResult = eScrollArrowStyle_Single;
+            break;
+
+        case eIntID_ScrollSliderStyle:
+            aResult = eScrollThumbStyle_Proportional;
+            break;
+
+        case eIntID_TouchEnabled:
+            aResult = 1;
+            break;
+
+        case eIntID_WindowsDefaultTheme:
+        case eIntID_MaemoClassic:
+        case eIntID_WindowsThemeIdentifier:
+            aResult = 0;
+            rv = NS_ERROR_NOT_IMPLEMENTED;
+            break;
+
+        case eIntID_SpellCheckerUnderlineStyle:
+            aResult = NS_STYLE_TEXT_DECORATION_STYLE_WAVY;
+            break;
+
+        case eIntID_ScrollbarButtonAutoRepeatBehavior:
+            aResult = 0;
+            break;
+
+        default:
+            aResult = 0;
+            rv = NS_ERROR_FAILURE;
+    }
+
+    return rv;
+}
+
+/*virtual*/
+bool
+nsLookAndFeel::GetFontImpl(FontID aID, nsString& aFontName,
+                           gfxFontStyle& aFontStyle)
+{
+    aFontName.AssignLiteral("\"Droid Sans\"");
+    aFontStyle.style = NS_FONT_STYLE_NORMAL;
+    aFontStyle.weight = NS_FONT_WEIGHT_NORMAL;
+    aFontStyle.stretch = NS_FONT_STRETCH_NORMAL;
+    aFontStyle.size = 9.0 * 96.0f / 72.0f;
+    aFontStyle.systemFont = true;
+    return true;
+}

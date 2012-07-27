@@ -3,6 +3,7 @@
 //
 // requires:
 //   common.js
+//   role.js
 //
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -71,7 +72,7 @@ function testStates(aAccOrElmOrID, aState, aExtraState, aAbsentState,
                     aAbsentExtraState, aTestName)
 {
   var [state, extraState] = getStates(aAccOrElmOrID);
-
+  var role = getRole(aAccOrElmOrID);
   var id = prettyName(aAccOrElmOrID) + (aTestName ? " [" + aTestName + "]": "");
 
   // Primary test.
@@ -101,15 +102,6 @@ function testStates(aAccOrElmOrID, aState, aExtraState, aAbsentState,
     isState(state & STATE_FOCUSED, 0, false,
               "Not focusable " + id + " must be not focused!");
   }
-
-  // readonly/editable
-  if (state & STATE_READONLY)
-    isState(extraState & EXT_STATE_EDITABLE, 0, true,
-            "Read-only " + id + " cannot be editable!");
-
-  if (extraState & EXT_STATE_EDITABLE)
-    isState(state & STATE_READONLY, 0, true,
-            "Editable " + id + " cannot be readonly!");
 
   // multiline/singleline
   if (extraState & EXT_STATE_MULTI_LINE)
@@ -144,7 +136,7 @@ function testStates(aAccOrElmOrID, aState, aExtraState, aAbsentState,
   }
 
   // checked/mixed/checkable
-  if (state & STATE_CHECKED || state & STATE_MIXED)
+  if (state & STATE_CHECKED || state & STATE_MIXED && role != ROLE_PROGRESSBAR)
     isState(state & STATE_CHECKABLE, STATE_CHECKABLE, false,
             "Checked or mixed element must be checkable!");
 

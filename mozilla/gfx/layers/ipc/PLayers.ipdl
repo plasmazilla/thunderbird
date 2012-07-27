@@ -117,8 +117,6 @@ struct CommonLayerAttributes {
   float opacity;
   bool useClipRect;
   nsIntRect clipRect;
-  bool useTileSourceRect;
-  nsIntRect tileSourceRect;
   bool isFixedPosition;
 };
 
@@ -164,6 +162,13 @@ struct OpPaintThebesBuffer {
   nsIntRegion updatedRegion;
 };
 
+struct OpPaintTiledLayerBuffer {
+  PLayer layer;
+  // Bug 747811
+  // FIXME: We need to support sharing tile across process.
+  uintptr_t tiledLayerBuffer;
+};
+
 struct OpPaintCanvas  {
   PLayer layer;
   CanvasSurface newFrontBuffer;
@@ -192,6 +197,7 @@ union Edit {
   OpRemoveChild;
 
   OpPaintThebesBuffer;
+  OpPaintTiledLayerBuffer;
   OpPaintCanvas;
   OpPaintImage;
 };
@@ -232,7 +238,9 @@ sync protocol PLayers {
 parent:
   async PLayer();
 
-  sync Update(Edit[] cset)
+  // The isFirstPaint flag can be used to indicate that this is the first update
+  // for a particular document.
+  sync Update(Edit[] cset, bool isFirstPaint)
     returns (EditReply[] reply);
 
   async __delete__();

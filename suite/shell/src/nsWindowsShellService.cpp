@@ -64,11 +64,7 @@
 #include "nsIWinTaskbar.h"
 #include "nsISupportsPrimitives.h"
 #include <mbstring.h>
-#include "mozilla/ModuleUtils.h"
-
-#ifdef MOZILLA_INTERNAL_API
-#define CaseInsensitiveCompare nsCaseInsensitiveStringComparator()
-#endif
+#include "mozilla/Services.h"
 
 #ifdef _WIN32_WINNT
 #undef _WIN32_WINNT
@@ -519,7 +515,6 @@ nsresult nsWindowsShellService::Init()
 bool
 nsWindowsShellService::IsDefaultClientVista(PRUint16 aApps, bool* aIsDefaultClient)
 {
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
   IApplicationAssociationRegistration* pAAR;
 
   HRESULT hr = CoCreateInstance(CLSID_ApplicationAssociationRegistration,
@@ -544,7 +539,6 @@ nsWindowsShellService::IsDefaultClientVista(PRUint16 aApps, bool* aIsDefaultClie
     pAAR->Release();
     return true;
   }
-#endif  
   return false;
 }
 
@@ -790,9 +784,9 @@ nsWindowsShellService::SetDesktopBackground(nsIDOMElement* aElement,
     return NS_ERROR_FAILURE;
 
   // get the file name from localized strings
-  nsCOMPtr<nsIStringBundleService>
-    bundleService(do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv));
-  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsIStringBundleService> bundleService =
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
 
   nsCOMPtr<nsIStringBundle> shellBundle;
   rv = bundleService->CreateBundle(SHELLSERVICE_PROPERTIES,
@@ -980,27 +974,3 @@ nsWindowsShellService::GetDefaultFeedReader(nsILocalFile** _retval)
   NS_ADDREF(*_retval = defaultReader);
   return NS_OK;
 }
-
-#ifdef BUILD_STATIC_SHELL
-NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(nsWindowsShellService, Init)
-NS_DEFINE_NAMED_CID(NS_SUITEWININTEGRATION_CID);
-
-static const mozilla::Module::CIDEntry kSuiteShellCIDs[] = {
-  { &kNS_SUITEWININTEGRATION_CID, false, NULL, nsWindowsShellServiceConstructor },
-  { NULL }
-};
-
-static const mozilla::Module::ContractIDEntry kSuiteShellContracts[] = {
-  { NS_SUITESHELLSERVICE_CONTRACTID, &kNS_SUITEWININTEGRATION_CID },
-  { NS_SUITEFEEDSERVICE_CONTRACTID, &kNS_SUITEWININTEGRATION_CID },
-  { NULL }
-};
-
-static const mozilla::Module kSuiteShellModule = {
-  mozilla::Module::kVersion,
-  kSuiteShellCIDs,
-  kSuiteShellContracts
-};
-
-NSMODULE_DEFN(nsSuiteShellModule) = &kSuiteShellModule;
-#endif

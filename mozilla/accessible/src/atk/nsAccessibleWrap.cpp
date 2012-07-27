@@ -38,17 +38,18 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "mozilla/Util.h"
-
-#include "nsAccessible.h"
 #include "nsAccessibleWrap.h"
 
+#include "Accessible-inl.h"
+#include "InterfaceInitFuncs.h"
 #include "nsAccUtils.h"
 #include "nsApplicationAccessibleWrap.h"
 #include "nsIAccessibleRelation.h"
 #include "nsRootAccessible.h"
 #include "nsDocAccessibleWrap.h"
 #include "nsIAccessibleValue.h"
+#include "nsMai.h"
+#include "nsMaiHyperlink.h"
 #include "nsString.h"
 #include "nsAutoPtr.h"
 #include "prprf.h"
@@ -57,19 +58,9 @@
 #include "Relation.h"
 #include "States.h"
 
-#include "nsMaiInterfaceComponent.h"
-#include "nsMaiInterfaceAction.h"
-#include "nsMaiInterfaceText.h"
-#include "nsMaiInterfaceEditableText.h"
-#include "nsMaiInterfaceSelection.h"
-#include "nsMaiInterfaceValue.h"
-#include "nsMaiInterfaceHypertext.h"
-#include "nsMaiInterfaceHyperlinkImpl.h"
-#include "nsMaiInterfaceTable.h"
+#include "mozilla/Util.h"
 #include "nsXPCOMStrings.h"
 #include "nsComponentManagerUtils.h"
-#include "nsMaiInterfaceDocument.h"
-#include "nsMaiInterfaceImage.h"
 
 using namespace mozilla;
 using namespace mozilla::a11y;
@@ -281,8 +272,8 @@ PRInt32 nsAccessibleWrap::mAccWrapDeleted = 0;
 #endif
 
 nsAccessibleWrap::
-    nsAccessibleWrap(nsIContent *aContent, nsIWeakReference *aShell) :
-    nsAccessible(aContent, aShell), mAtkObject(nsnull)
+  nsAccessibleWrap(nsIContent* aContent, nsDocAccessible* aDoc) :
+  nsAccessible(aContent, aDoc), mAtkObject(nsnull)
 {
 #ifdef MAI_LOGGING
     ++mAccWrapCreated;
@@ -362,7 +353,7 @@ NS_IMETHODIMP nsAccessibleWrap::GetNativeInterface(void **aOutAccessible)
     *aOutAccessible = nsnull;
 
     if (!mAtkObject) {
-        if (!mWeakShell || !nsAccUtils::IsEmbeddedObject(this)) {
+        if (IsDefunct() || !nsAccUtils::IsEmbeddedObject(this)) {
             // We don't create ATK objects for node which has been shutdown, or
             // nsIAccessible plain text leaves
             return NS_ERROR_FAILURE;
@@ -871,10 +862,11 @@ refChildCB(AtkObject *aAtkObj, gint aChildIndex)
     if (!childAtkObj)
         return nsnull;
     g_object_ref(childAtkObj);
-    
-    //this will addref parent
+
+  if (aAtkObj != childAtkObj->accessible_parent)
     atk_object_set_parent(childAtkObj, aAtkObj);
-    return childAtkObj;
+
+  return childAtkObj;
 }
 
 gint

@@ -86,7 +86,7 @@ var SidebarUtils = {
     else if (!mouseInGutter && openInTabs &&
             aEvent.originalTarget.localName == "treechildren") {
       tbo.view.selection.select(row.value);
-      PlacesUIUtils.openContainerNodeInTabs(aTree.selectedNode, aEvent, tbo.view);
+      PlacesUIUtils.openContainerNodeInTabs(aTree.selectedNode, aEvent, aTree);
     }
     else if (!mouseInGutter && !isContainer &&
              aEvent.originalTarget.localName == "treechildren") {
@@ -94,17 +94,17 @@ var SidebarUtils = {
       // do this *before* attempting to load the link since openURL uses
       // selection as an indication of which link to load.
       tbo.view.selection.select(row.value);
-      PlacesUIUtils.openNodeWithEvent(aTree.selectedNode, aEvent, tbo.view);
+      PlacesUIUtils.openNodeWithEvent(aTree.selectedNode, aEvent, aTree);
     }
   },
 
   handleTreeKeyPress: function SU_handleTreeKeyPress(aEvent) {
     // XXX Bug 627901: Post Fx4, this method should take a tree parameter.
-    let node = aEvent.target.selectedNode;
+    let tree = aEvent.target;
+    let node = tree.selectedNode;
     if (node) {
-      let view = PlacesUIUtils.getViewForNode(node);
       if (aEvent.keyCode == KeyEvent.DOM_VK_RETURN)
-        PlacesUIUtils.openNodeWithEvent(node, aEvent, view);
+        PlacesUIUtils.openNodeWithEvent(node, aEvent, tree);
     }
   },
 
@@ -136,6 +136,11 @@ var SidebarUtils = {
   },
 
   setMouseoverURL: function SU_setMouseoverURL(aURL) {
-    window.top.XULBrowserWindow.setOverLink(aURL, null);
+    // When the browser window is closed with an open sidebar, the sidebar
+    // unload event happens after the browser's one.  In this case
+    // top.XULBrowserWindow has been nullified already.
+    if (top.XULBrowserWindow) {
+      top.XULBrowserWindow.setOverLink(aURL, null);
+    }
   }
 };

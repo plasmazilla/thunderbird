@@ -147,7 +147,7 @@ nsresult nsMsgMaildirStore::AddSubFolders(nsIMsgFolder *parent, nsIFile *path,
       }
     }
   }
-  return rv;
+  return rv == NS_MSG_FOLDER_EXISTS ? NS_OK : rv;
 }
 
 NS_IMETHODIMP nsMsgMaildirStore::DiscoverSubFolders(nsIMsgFolder *aParentFolder,
@@ -165,38 +165,10 @@ NS_IMETHODIMP nsMsgMaildirStore::DiscoverSubFolders(nsIMsgFolder *aParentFolder,
     GetDirectoryForFolder(path);
 
   path->IsDirectory(&directory);
-
   if (directory)
-  {
-    aParentFolder->SetFlag(nsMsgFolderFlags::Mail | nsMsgFolderFlags::Elided |
-                           nsMsgFolderFlags::Directory);
-
-    // discover existing folders
     rv = AddSubFolders(aParentFolder, path, aDeep);
-    NS_ENSURE_SUCCESS(rv, rv);
 
-    // if this is root folder - attempt to create default folders
-    if (isServer)
-    {
-      nsCOMPtr<nsIMsgIncomingServer> server;
-      rv = aParentFolder->GetServer(getter_AddRefs(server));
-      NS_ENSURE_SUCCESS(rv, NS_MSG_INVALID_OR_MISSING_SERVER);
-      nsCOMPtr<nsILocalMailIncomingServer> localMailServer;
-      localMailServer = do_QueryInterface(server, &rv);
-      NS_ENSURE_SUCCESS(rv, NS_MSG_INVALID_OR_MISSING_SERVER);
-
-      // first create the folders on disk
-      rv = localMailServer->CreateDefaultMailboxes(path);
-      NS_ENSURE_SUCCESS(rv, rv);
-      // now, discover those folders
-      rv = AddSubFolders(aParentFolder, path, aDeep);
-      NS_ENSURE_SUCCESS(rv, rv);
-      // and add flags on them
-      rv = localMailServer->SetFlagsOnDefaultMailboxes();
-      NS_ENSURE_SUCCESS(rv, rv);
-    }
-  }
-  return rv;
+  return (rv == NS_MSG_FOLDER_EXISTS) ? NS_OK : rv;
 }
 
 /**
@@ -795,7 +767,7 @@ nsMsgMaildirStore::MoveNewlyDownloadedMessage(nsIMsgDBHdr *aNewHdr,
   // path to the downloaded message
   nsCOMPtr<nsIFile> fromPath;
   folderPath->Clone(getter_AddRefs(fromPath));
-  fromPath->Append(NS_LITERAL_STRING("tmp"));
+  fromPath->Append(NS_LITERAL_STRING("cur"));
   fromPath->AppendNative(fileName);
 
   // let's check if the tmp file exists
@@ -912,11 +884,13 @@ NS_IMETHODIMP
 nsMsgMaildirStore::CopyMessages(bool aIsMove, nsIArray *aHdrArray,
                                nsIMsgFolder *aDstFolder,
                                nsIMsgCopyServiceListener *aListener,
+                               nsITransaction **aUndoAction,
                                bool *aCopyDone)
 {
   NS_ENSURE_ARG_POINTER(aHdrArray);
   NS_ENSURE_ARG_POINTER(aDstFolder);
   NS_ENSURE_ARG_POINTER(aCopyDone);
+  NS_ENSURE_ARG_POINTER(aUndoAction);
   PRUint32 messageCount;
   nsresult rv = aHdrArray->GetLength(&messageCount);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -934,7 +908,8 @@ nsMsgMaildirStore::CopyMessages(bool aIsMove, nsIArray *aHdrArray,
   NS_ENSURE_SUCCESS(rv, rv);
   srcFolder->GetMsgDatabase(getter_AddRefs(srcDB));
   nsRefPtr<nsLocalMoveCopyMsgTxn> msgTxn = new nsLocalMoveCopyMsgTxn;
-  if (msgTxn && NS_SUCCEEDED(msgTxn->Init(srcFolder, aDstFolder, aIsMove)))
+  NS_ENSURE_TRUE(msgTxn, NS_ERROR_OUT_OF_MEMORY);
+  if (NS_SUCCEEDED(msgTxn->Init(srcFolder, aDstFolder, aIsMove)))
   {
     if (aIsMove)
       msgTxn->SetTransactionType(nsIMessenger::eMoveMsg);
@@ -990,10 +965,13 @@ nsMsgMaildirStore::CopyMessages(bool aIsMove, nsIArray *aHdrArray,
     nsCOMPtr<nsIMsgDBHdr> destHdr;
     if (destDB)
     {
-      rv = destDB->CopyHdrFromExistingHdr(srcKey, msgHdr, true, getter_AddRefs(destHdr));
+      rv = destDB->CopyHdrFromExistingHdr(nsMsgKey_None, msgHdr, true, getter_AddRefs(destHdr));
       NS_ENSURE_SUCCESS(rv, rv);
       destHdr->SetStringProperty("storeToken", fileName.get());
       dstHdrs->AppendElement(destHdr, false);
+      nsMsgKey dstKey;
+      destHdr->GetMessageKey(&dstKey);
+      msgTxn->AddDstKey(dstKey);
     }
   }
   nsCOMPtr<nsIMsgFolderNotificationService> notifier(do_GetService(NS_MSGNOTIFICATIONSERVICE_CONTRACTID));
@@ -1009,13 +987,13 @@ nsMsgMaildirStore::CopyMessages(bool aIsMove, nsIArray *aHdrArray,
     }
   }
   *aCopyDone = true;
-  nsCOMPtr<nsISupports> srcSupports(srcFolder);
+  nsCOMPtr<nsISupports> srcSupports(do_QueryInterface(srcFolder));
   nsCOMPtr<nsIMsgLocalMailFolder> localDest(do_QueryInterface(aDstFolder));
   if (localDest)
     localDest->OnCopyCompleted(srcSupports, true);
   if (aListener)
     aListener->OnStopCopy(NS_OK);
-
+  msgTxn.forget(aUndoAction);
   return NS_OK;
 }
 

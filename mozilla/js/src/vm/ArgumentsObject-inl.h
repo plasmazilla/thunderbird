@@ -89,24 +89,97 @@ ArgumentsObject::data() const
     return reinterpret_cast<js::ArgumentsData *>(getFixedSlot(DATA_SLOT).toPrivate());
 }
 
+inline bool
+ArgumentsObject::isElementDeleted(uint32_t i) const
+{
+    return IsBitArrayElementSet(data()->deletedBits, initialLength(), i);
+}
+
+inline bool
+ArgumentsObject::isAnyElementDeleted() const
+{
+    return IsAnyBitArrayElementSet(data()->deletedBits, initialLength());
+}
+
+inline void
+ArgumentsObject::markElementDeleted(uint32_t i)
+{
+    SetBitArrayElement(data()->deletedBits, initialLength(), i);
+}
+
 inline const js::Value &
 ArgumentsObject::element(uint32_t i) const
 {
-    JS_ASSERT(i < initialLength());
+    JS_ASSERT(!isElementDeleted(i));
     return data()->slots[i];
-}
-
-inline const js::Value *
-ArgumentsObject::elements() const
-{
-    return Valueify(data()->slots);
 }
 
 inline void
 ArgumentsObject::setElement(uint32_t i, const js::Value &v)
 {
-    JS_ASSERT(i < initialLength());
+    JS_ASSERT(!isElementDeleted(i));
     data()->slots[i] = v;
+}
+
+inline bool
+ArgumentsObject::getElement(uint32_t i, Value *vp)
+{
+    if (i >= initialLength() || isElementDeleted(i))
+        return false;
+
+    /*
+     * If this arguments object has an associated stack frame, that contains
+     * the canonical argument value.  Note that strict arguments objects do not
+     * alias named arguments and never have a stack frame.
+     */
+    StackFrame *fp = maybeStackFrame();
+    JS_ASSERT_IF(isStrictArguments(), !fp);
+    if (fp)
+        *vp = fp->canonicalActualArg(i);
+    else
+        *vp = element(i);
+    return true;
+}
+
+namespace detail {
+
+struct STATIC_SKIP_INFERENCE CopyNonHoleArgsTo
+{
+    CopyNonHoleArgsTo(ArgumentsObject *argsobj, Value *dst) : argsobj(*argsobj), dst(dst) {}
+    ArgumentsObject &argsobj;
+    Value *dst;
+    bool operator()(uint32_t argi, Value *src) {
+        *dst++ = *src;
+        return true;
+    }
+};
+
+} /* namespace detail */
+
+inline bool
+ArgumentsObject::getElements(uint32_t start, uint32_t count, Value *vp)
+{
+    JS_ASSERT(start + count >= start);
+
+    uint32_t length = initialLength();
+    if (start > length || start + count > length || isAnyElementDeleted())
+        return false;
+
+    StackFrame *fp = maybeStackFrame();
+
+    /* If there's no stack frame for this, argument values are in elements(). */
+    if (!fp) {
+        const Value *srcbeg = Valueify(data()->slots) + start;
+        const Value *srcend = srcbeg + count;
+        const Value *src = srcbeg;
+        for (Value *dst = vp; src < srcend; ++dst, ++src)
+            *dst = *src;
+        return true;
+    }
+
+    /* Otherwise, element values are on the stack. */
+    JS_ASSERT(fp->numActualArgs() <= StackSpace::ARGS_LENGTH_MAX);
+    return fp->forEachCanonicalActualArg(detail::CopyNonHoleArgsTo(this, vp), start, count);
 }
 
 inline js::StackFrame *
@@ -121,6 +194,12 @@ ArgumentsObject::setStackFrame(StackFrame *frame)
     setFixedSlot(STACK_FRAME_SLOT, PrivateValue(frame));
 }
 
+inline size_t
+ArgumentsObject::sizeOfMisc(JSMallocSizeOfFun mallocSizeOf) const
+{
+    return mallocSizeOf(data());
+}
+
 inline const js::Value &
 NormalArgumentsObject::callee() const
 {
@@ -130,7 +209,7 @@ NormalArgumentsObject::callee() const
 inline void
 NormalArgumentsObject::clearCallee()
 {
-    data()->callee.set(compartment(), MagicValue(JS_ARGS_HOLE));
+    data()->callee.set(compartment(), MagicValue(JS_OVERWRITTEN_CALLEE));
 }
 
 } // namespace js

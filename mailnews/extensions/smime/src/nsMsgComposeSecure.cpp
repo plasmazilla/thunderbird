@@ -53,6 +53,7 @@
 #include "nsServiceManagerUtils.h"
 #include "nsMemory.h"
 #include "nsAlgorithm.h"
+#include "mozilla/Services.h"
 
 #define MK_MIME_ERROR_WRITING_FILE -1
 
@@ -70,60 +71,45 @@ static char *mime_make_separator(const char *prefix);
 // mscott --> FIX ME...for now cloning code from compose\nsMsgEncode.h/.cpp
 
 MimeEncoderData *
-MIME_B64EncoderInit(nsresult (* output_fn) (const char *buf, PRInt32 size, void *closure), void *closure) 
+MIME_B64EncoderInit(nsresult (* output_fn) (const char *buf, PRInt32 size, void *closure), void *closure)
 {
   MimeEncoderData *returnEncoderData = nsnull;
-  nsIMimeConverter *converter;
-  nsresult res = CallCreateInstance(NS_MIME_CONVERTER_CONTRACTID, &converter);
-  if (NS_SUCCEEDED(res) && nsnull != converter) 
-  {
-    res = converter->B64EncoderInit(output_fn, closure, &returnEncoderData);
-    NS_RELEASE(converter);
-  }
+  nsCOMPtr<nsIMimeConverter> converter = do_GetService(NS_MIME_CONVERTER_CONTRACTID);
+  NS_ENSURE_TRUE(converter, nsnull);
+
+  nsresult res = converter->B64EncoderInit(output_fn, closure, &returnEncoderData);
   return NS_SUCCEEDED(res) ? returnEncoderData : nsnull;
 }
 
-MimeEncoderData * 
+MimeEncoderData *
 MIME_QPEncoderInit(nsresult (* output_fn) (const char *buf, PRInt32 size, void *closure), void *closure) 
 {
   MimeEncoderData *returnEncoderData = nsnull;
-  nsIMimeConverter *converter;
-  nsresult res = CallCreateInstance(NS_MIME_CONVERTER_CONTRACTID, &converter);
-  if (NS_SUCCEEDED(res) && nsnull != converter) 
-  {
-    res = converter->QPEncoderInit(output_fn, closure, &returnEncoderData);
-    NS_RELEASE(converter);
-  }
+  nsCOMPtr<nsIMimeConverter> converter = do_GetService(NS_MIME_CONVERTER_CONTRACTID);
+  NS_ENSURE_TRUE(converter, nsnull);
+
+  nsresult res = converter->QPEncoderInit(output_fn, closure, &returnEncoderData);
   return NS_SUCCEEDED(res) ? returnEncoderData : nsnull;
 }
 
 nsresult
 MIME_EncoderDestroy(MimeEncoderData *data, bool abort_p) 
 {
-  //MimeEncoderData *returnEncoderData = nsnull;
-  nsIMimeConverter *converter;
-  nsresult res = CallCreateInstance(NS_MIME_CONVERTER_CONTRACTID, &converter);
-  if (NS_SUCCEEDED(res) && nsnull != converter) 
-  {
-    res = converter->EncoderDestroy(data, abort_p);
-    NS_RELEASE(converter);
-  }
+  nsCOMPtr<nsIMimeConverter> converter = do_GetService(NS_MIME_CONVERTER_CONTRACTID);
+  NS_ENSURE_TRUE(converter, nsnull);
 
-  return NS_SUCCEEDED(res) ? 0 : -1;
+  return converter->EncoderDestroy(data, abort_p);
 }
 
 nsresult
 MIME_EncoderWrite(MimeEncoderData *data, const char *buffer, PRInt32 size) 
 {
-  //  MimeEncoderData *returnEncoderData = nsnull;
-  nsIMimeConverter *converter;
+  nsresult rv;
+  nsCOMPtr<nsIMimeConverter> converter = do_GetService(NS_MIME_CONVERTER_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
   PRInt32 written = 0;
-  nsresult res = CallCreateInstance(NS_MIME_CONVERTER_CONTRACTID, &converter);
-  if (NS_SUCCEEDED(res) && nsnull != converter) {
-    res = converter->EncoderWrite(data, buffer, size, &written);
-    NS_RELEASE(converter);
-  }
-  return NS_SUCCEEDED(res) ? 0 : -1;
+  return converter->EncoderWrite(data, buffer, size, &written);
 }
 
 static void
@@ -294,7 +280,7 @@ bool nsMsgComposeSecure::InitializeSMIMEBundle()
     return true;
 
   nsCOMPtr<nsIStringBundleService> bundleService =
-    do_GetService(NS_STRINGBUNDLE_CONTRACTID);
+    mozilla::services::GetStringBundleService();
   nsresult rv = bundleService->CreateBundle(SMIME_STRBUNDLE_URL,
                                             getter_AddRefs(mSMIMEBundle));
   NS_ENSURE_SUCCESS(rv, false);
@@ -545,8 +531,8 @@ nsresult nsMsgComposeSecure::MimeInitEncryption(bool aSign, nsIMsgSendReport *se
 {
   nsresult rv;
   nsCOMPtr<nsIStringBundleService> bundleSvc =
-                  do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(bundleSvc, NS_ERROR_UNEXPECTED);
 
   nsCOMPtr<nsIStringBundle> sMIMEBundle;
   nsString mime_smime_enc_content_desc;
@@ -655,8 +641,8 @@ nsresult nsMsgComposeSecure::MimeFinishMultipartSigned (bool aOuter, nsIMsgSendR
 
   char * header = nsnull;
   nsCOMPtr<nsIStringBundleService> bundleSvc =
-                  do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(bundleSvc, NS_ERROR_UNEXPECTED);
 
   nsCOMPtr<nsIStringBundle> sMIMEBundle;
   nsString mime_smime_sig_content_desc;
@@ -1062,11 +1048,10 @@ make_multipart_signed_header_string(bool outer_p,
 {
   *header_return = 0;
   *boundary_return = mime_make_separator("ms");
-  nsresult rv;
 
   nsCOMPtr<nsIStringBundleService> bundleSvc =
-                  do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(bundleSvc, NS_ERROR_UNEXPECTED);
 
   nsCOMPtr<nsIStringBundle> sMIMEBundle;
   nsString crypto_multipart_blurb;
@@ -1117,12 +1102,11 @@ make_multipart_signed_header_string(bool outer_p,
    difference is which MimeEncoderData object is used.
  */
 static void
-mime_crypto_write_base64 (void *closure, const char *buf,
-						  unsigned long size)
+mime_crypto_write_base64 (void *closure, const char *buf, unsigned long size)
 {
   MimeEncoderData *data = (MimeEncoderData *) closure;
-  int status = MIME_EncoderWrite (data, buf, size);
-  PR_SetError(status < 0 ? status : 0, 0);
+  nsresult rv = MIME_EncoderWrite (data, buf, size);
+  PR_SetError(NS_FAILED(rv) ? rv : 0, 0);
 }
 
 

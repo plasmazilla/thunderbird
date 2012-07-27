@@ -70,6 +70,10 @@
 #include "nsChildIterator.h"
 #include "nsRenderingContext.h"
 
+#ifdef ACCESSIBILITY
+#include "nsAccessibilityService.h"
+#endif
+
 /////////////// nsListScrollSmoother //////////////////
 
 /* A mediator used to smooth out scrolling. It works by seeing if 
@@ -558,15 +562,6 @@ nsListBoxBodyFrame::ScrollByLines(PRInt32 aNumLines)
   }
   
   ScrollToIndex(scrollIndex);
-
-  // we have to do a sync update for mac because if we scroll too quickly
-  // w/out going back to the main event loop we can easily scroll the wrong
-  // bits and it looks like garbage (bug 63465).
-  // XXXbz is this seriously still needed?
-    
-  // I'd use Composite here, but it doesn't always work.
-  // vm->Composite();
-  PresContext()->GetPresShell()->GetViewManager()->ForceUpdate();
 
   return NS_OK;
 }
@@ -1523,6 +1518,15 @@ nsListBoxBodyFrame::RemoveChildFrame(nsBoxLayoutState &aState,
     // Don't touch that one
     return;
   }
+
+#ifdef ACCESSIBILITY
+  nsAccessibilityService* accService = nsIPresShell::AccService();
+  if (accService) {
+    nsIContent* content = aFrame->GetContent();
+    accService->ContentRemoved(PresContext()->PresShell(), content->GetParent(),
+                               content);
+  }
+#endif
 
   mFrames.RemoveFrame(aFrame);
   if (mLayoutManager)

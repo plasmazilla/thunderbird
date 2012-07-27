@@ -174,6 +174,44 @@ nsAccTextChangeEvent::GetModifiedText(nsAString& aModifiedText)
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// nsAccHideEvent
+////////////////////////////////////////////////////////////////////////////////
+
+NS_IMPL_ISUPPORTS_INHERITED1(nsAccHideEvent, nsAccEvent,
+                             nsIAccessibleHideEvent)
+
+NS_IMETHODIMP
+nsAccHideEvent::GetTargetParent(nsIAccessible** aAccessible)
+{
+  NS_ENSURE_ARG_POINTER(aAccessible);
+
+  NS_IF_ADDREF(*aAccessible =
+    static_cast<AccHideEvent*>(mEvent.get())->TargetParent());
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsAccHideEvent::GetTargetNextSibling(nsIAccessible** aAccessible)
+{
+  NS_ENSURE_ARG_POINTER(aAccessible);
+
+  NS_IF_ADDREF(*aAccessible =
+    static_cast<AccHideEvent*>(mEvent.get())->TargetNextSibling());
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsAccHideEvent::GetTargetPrevSibling(nsIAccessible** aAccessible)
+{
+  NS_ENSURE_ARG_POINTER(aAccessible);
+
+  NS_IF_ADDREF(*aAccessible =
+    static_cast<AccHideEvent*>(mEvent.get())->TargetPrevSibling());
+  return NS_OK;
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
 // nsAccCaretMoveEvent
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -215,3 +253,40 @@ nsAccTableChangeEvent::GetNumRowsOrCols(PRInt32* aNumRowsOrCols)
   return NS_OK;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// nsAccVirtualCursorChangeEvent
+////////////////////////////////////////////////////////////////////////////////
+
+NS_IMPL_ISUPPORTS_INHERITED1(nsAccVirtualCursorChangeEvent, nsAccEvent,
+                             nsIAccessibleVirtualCursorChangeEvent)
+
+NS_IMETHODIMP
+nsAccVirtualCursorChangeEvent::GetOldAccessible(nsIAccessible** aOldAccessible)
+{
+  NS_ENSURE_ARG_POINTER(aOldAccessible);
+
+  *aOldAccessible =
+    static_cast<AccVCChangeEvent*>(mEvent.get())->OldAccessible();
+  NS_IF_ADDREF(*aOldAccessible);
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsAccVirtualCursorChangeEvent::GetOldStartOffset(PRInt32* aOldStartOffset)
+{
+  NS_ENSURE_ARG_POINTER(aOldStartOffset);
+
+  *aOldStartOffset =
+    static_cast<AccVCChangeEvent*>(mEvent.get())->OldStartOffset();
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsAccVirtualCursorChangeEvent::GetOldEndOffset(PRInt32* aOldEndOffset)
+{
+  NS_ENSURE_ARG_POINTER(aOldEndOffset);
+
+  *aOldEndOffset =
+    static_cast<AccVCChangeEvent*>(mEvent.get())->OldEndOffset();
+  return NS_OK;
+}

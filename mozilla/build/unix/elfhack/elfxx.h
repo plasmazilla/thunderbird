@@ -393,6 +393,23 @@ public:
             markDirty();
     }
 
+    void insertBefore(ElfSection *section, bool dirty = true) {
+        if (previous != NULL)
+            previous->next = next;
+        if (next != NULL)
+            next->previous = previous;
+        next = section;
+        if (section != NULL) {
+            previous = section->previous;
+            section->previous = this;
+        } else
+            previous = NULL;
+        if (previous != NULL)
+            previous->next = this;
+        if (dirty)
+            markDirty();
+    }
+
     void markDirty() {
         if (link != NULL)
             shdr.sh_link = -1;
@@ -444,7 +461,7 @@ public:
 
     unsigned int getType() { return type; }
     unsigned int getFlags() { return flags; }
-    unsigned int getAlign() { return type == PT_LOAD ? 0x1000 : align; /* TODO: remove this gross hack */ }
+    unsigned int getAlign() { return align; }
 
     ElfSection *getFirstSection() { return sections.empty() ? NULL : sections.front(); }
     int getVPDiff() { return v_p_diff; }

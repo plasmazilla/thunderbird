@@ -108,8 +108,6 @@
 #include "nsCaret.h"
 #include "nsIDOMHTMLDocument.h"
 #include "nsIDOMXMLDocument.h"
-#include "nsIParser.h"
-#include "nsParserCIID.h"
 #include "nsViewsCID.h"
 #include "nsFrameManager.h"
 #include "nsEventStateManager.h"
@@ -201,9 +199,6 @@
 #include "imgIEncoder.h"
 #include "gfxPlatform.h"
 
-/* for NS_MEMORY_REPORTER_IMPLEMENT */
-#include "nsIMemoryReporter.h"
-
 #include "mozilla/FunctionTimer.h"
 #include "mozilla/Preferences.h"
 #include "mozilla/Telemetry.h"
@@ -233,7 +228,7 @@ using namespace mozilla::dom;
 using namespace mozilla::layers;
 
 CapturingContentInfo nsIPresShell::gCaptureInfo =
-  { false /* mAllowed */,     false /* mRetargetToElement */,
+  { false /* mAllowed */, false /* mPointerLock */, false /* mRetargetToElement */,
     false /* mPreventDrag */, nsnull /* mContent */ };
 nsIContent* nsIPresShell::gKeyDownTarget;
 nsInterfaceHashtable<nsUint32HashKey, nsIDOMTouch> nsIPresShell::gCaptureTouchList;
@@ -608,108 +603,6 @@ struct nsCallbackEventRequest
                  GetPresContext()->RefreshDriver()->                          \
                    IsLayoutFlushObserver(this), "Unexpected state")
 
-NS_IMPL_ISUPPORTS1(PresShell::MemoryReporter, nsIMemoryMultiReporter)
-
-namespace {
-
-struct MemoryReporterData
-{
-  nsIMemoryMultiReporterCallback* callback;
-  nsISupports* closure;
-};
-
-} // anonymous namespace
-
-NS_MEMORY_REPORTER_MALLOC_SIZEOF_FUN(LayoutMallocSizeOf, "layout")
-
-/* static */ PLDHashOperator
-PresShell::MemoryReporter::SizeEnumerator(PresShellPtrKey *aEntry,
-                                          void *userArg)
-{
-  PresShell *aShell = static_cast<PresShell*>(aEntry->GetKey());
-  MemoryReporterData *data = (MemoryReporterData*)userArg;
-
-  // Build the string "explicit/layout/shell(<uri of the document>)"
-  nsCAutoString str("explicit/layout/shell(");
-
-  nsIDocument* doc = aShell->GetDocument();
-  if (doc) {
-    nsIURI* docURI = doc->GetDocumentURI();
-
-    if (docURI) {
-      nsCString spec;
-      docURI->GetSpec(spec);
-
-      // A hack: replace forward slashes with '\\' so they aren't
-      // treated as path separators.  Users of the reporters
-      // (such as about:memory) have to undo this change.
-      spec.ReplaceChar('/', '\\');
-
-      str += spec;
-    }
-  }
-
-  str += NS_LITERAL_CSTRING(")");
-
-  NS_NAMED_LITERAL_CSTRING(kArenaDesc, "Memory used by layout PresShell, PresContext, and other related areas.");
-  NS_NAMED_LITERAL_CSTRING(kStyleDesc, "Memory used by the style system.");
-  NS_NAMED_LITERAL_CSTRING(kTextRunsDesc, "Memory used for text-runs (glyph layout) in the PresShell's frame tree.");
-
-  nsCAutoString arenaPath = str + NS_LITERAL_CSTRING("/arenas");
-  nsCAutoString stylePath = str + NS_LITERAL_CSTRING("/styledata");
-  nsCAutoString textRunsPath = str + NS_LITERAL_CSTRING("/textruns");
-
-  PRInt64 arenasSize =
-    aShell->SizeOfIncludingThis(LayoutMallocSizeOf) +
-    aShell->mPresContext->SizeOfIncludingThis(LayoutMallocSizeOf);
-
-  PRInt64 styleSize =
-    aShell->StyleSet()->SizeOfIncludingThis(LayoutMallocSizeOf);
-
-  PRInt64 textRunsSize = aShell->SizeOfTextRuns(LayoutMallocSizeOf);
-
-  data->callback->
-    Callback(EmptyCString(), arenaPath, nsIMemoryReporter::KIND_HEAP,
-             nsIMemoryReporter::UNITS_BYTES, arenasSize, kArenaDesc,
-             data->closure);
-
-  data->callback->
-    Callback(EmptyCString(), stylePath, nsIMemoryReporter::KIND_HEAP,
-             nsIMemoryReporter::UNITS_BYTES, styleSize, kStyleDesc,
-             data->closure);
-
-  if (textRunsSize) {
-    data->callback->
-      Callback(EmptyCString(), textRunsPath, nsIMemoryReporter::KIND_HEAP,
-               nsIMemoryReporter::UNITS_BYTES, textRunsSize, kTextRunsDesc,
-               data->closure);
-  }
-
-  return PL_DHASH_NEXT;
-}
-
-NS_MEMORY_REPORTER_MALLOC_SIZEOF_FUN(GfxTextrunWordCacheMallocSizeOf, "gfx/textrun-word-cache")
-
-NS_IMETHODIMP
-PresShell::MemoryReporter::CollectReports(nsIMemoryMultiReporterCallback* aCb,
-                                          nsISupports* aClosure)
-{
-  MemoryReporterData data;
-  data.callback = aCb;
-  data.closure = aClosure;
-
-  sLiveShells->EnumerateEntries(SizeEnumerator, &data);
-
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-PresShell::MemoryReporter::GetExplicitNonHeap(PRInt64 *aAmount) {
-  // This reporter doesn't do any KIND_NONHEAP measurements.
-  *aAmount = 0;
-  return NS_OK;
-}
-
 class nsAutoCauseReflowNotifier
 {
 public:
@@ -753,6 +646,28 @@ public:
   nsRefPtr<PresShell> mPresShell;
 };
 
+class nsBeforeFirstPaintDispatcher : public nsRunnable
+{
+public:
+  nsBeforeFirstPaintDispatcher(nsIDocument* aDocument)
+  : mDocument(aDocument) {}
+
+  // Fires the "before-first-paint" event so that interested parties (right now, the
+  // mobile browser) are aware of it.
+  NS_IMETHOD Run()
+  {
+    nsCOMPtr<nsIObserverService> observerService =
+      mozilla::services::GetObserverService();
+    if (observerService) {
+      observerService->NotifyObservers(mDocument, "before-first-paint", NULL);
+    }
+    return NS_OK;
+  }
+
+private:
+  nsCOMPtr<nsIDocument> mDocument;
+};
+
 bool PresShell::sDisableNonTestMouseEvents = false;
 
 #ifdef PR_LOGGING
@@ -768,7 +683,7 @@ VerifyStyleTree(nsPresContext* aPresContext, nsFrameManager* aFrameManager)
     aFrameManager->DebugVerifyStyleTree(rootFrame);
   }
 }
-#define VERIFY_STYLE_TREE ::VerifyStyleTree(mPresContext, FrameManager())
+#define VERIFY_STYLE_TREE ::VerifyStyleTree(mPresContext, mFrameConstructor)
 #else
 #define VERIFY_STYLE_TREE
 #endif
@@ -910,7 +825,6 @@ NS_NewPresShell(nsIPresShell** aInstancePtrResult)
   return NS_OK;
 }
 
-nsTHashtable<PresShell::PresShellPtrKey> *nsIPresShell::sLiveShells = 0;
 static bool sSynthMouseMove = true;
 
 PresShell::PresShell()
@@ -929,6 +843,7 @@ PresShell::PresShell()
   mSelectionFlags = nsISelectionDisplay::DISPLAY_TEXT | nsISelectionDisplay::DISPLAY_IMAGES;
   mIsThemeSupportDisabled = false;
   mIsActive = true;
+  mIsFirstPaint = false;
   mFrozen = false;
 #ifdef DEBUG
   mPresArenaAllocCount = 0;
@@ -938,17 +853,14 @@ PresShell::PresShell()
   mYResolution = 1.0;
   mViewportOverridden = false;
 
-  static bool registeredReporter = false;
-  if (!registeredReporter) {
-    NS_RegisterMemoryMultiReporter(new MemoryReporter);
+  mScrollPositionClampingScrollPortSizeSet = false;
+
+  static bool addedSynthMouseMove = false;
+  if (!addedSynthMouseMove) {
     Preferences::AddBoolVarCache(&sSynthMouseMove,
                                  "layout.reflow.synthMouseMove", true);
-    registeredReporter = true;
+    addedSynthMouseMove = true;
   }
-
-  new (this) nsFrameManager();
-
-  sLiveShells->PutEntry(this);
 }
 
 NS_IMPL_ISUPPORTS7(PresShell, nsIPresShell, nsIDocumentObserver,
@@ -958,8 +870,6 @@ NS_IMPL_ISUPPORTS7(PresShell, nsIPresShell, nsIDocumentObserver,
 
 PresShell::~PresShell()
 {
-  sLiveShells->RemoveEntry(this);
-
   if (!mHaveShutDown) {
     NS_NOTREACHED("Someone did not call nsIPresShell::destroy");
     Destroy();
@@ -972,8 +882,8 @@ PresShell::~PresShell()
                "post-reflow queues not empty.  This means we're leaking");
 
 #ifdef DEBUG
-  NS_ASSERTION(mPresArenaAllocCount == 0,
-               "Some pres arena objects were not freed");
+  MOZ_ASSERT(mPresArenaAllocCount == 0,
+             "Some pres arena objects were not freed");
 #endif
 
   delete mStyleSet;
@@ -1026,6 +936,8 @@ PresShell::Init(nsIDocument* aDocument,
   // Create our frame constructor.
   mFrameConstructor = new nsCSSFrameConstructor(mDocument, this);
 
+  mFrameManager = mFrameConstructor;
+
   // The document viewer owns both view manager and pres shell.
   mViewManager->SetPresShell(this);
 
@@ -1056,7 +968,10 @@ PresShell::Init(nsIDocument* aDocument,
   NS_ADDREF(mSelection = new nsFrameSelection());
 
   // Create and initialize the frame manager
-  result = FrameManager()->Init(this, mStyleSet);
+  // XXXjwatt it would be better if we did this right after creating
+  // mFrameConstructor, since the frame constructor and frame manager
+  // are now the same object.
+  result =  mFrameConstructor->Init(mStyleSet);
   if (NS_FAILED(result)) {
     NS_WARNING("Frame manager initialization failed");
     mStyleSet = nsnull;
@@ -1126,6 +1041,9 @@ PresShell::Init(nsIDocument* aDocument,
 
   // Get our activeness from the docShell.
   QueryIsActive();
+
+  // Setup our font inflation preferences.
+  SetupFontInflation();
 
   return NS_OK;
 }
@@ -1256,6 +1174,8 @@ PresShell::Destroy()
   // before we destroy the frame manager, since apparently frame destruction
   // sometimes spins the event queue when plug-ins are involved(!).
   rd->RemoveLayoutFlushObserver(this);
+  rd->RevokeViewManagerFlush();
+
   mResizeEvent.Revoke();
   if (mAsyncResizeTimerIsActive) {
     mAsyncResizeEventTimer->Cancel();
@@ -1267,7 +1187,6 @@ PresShell::Destroy()
 
   // Destroy the frame manager. This will destroy the frame hierarchy
   mFrameConstructor->WillDestroyFrameTree();
-  FrameManager()->Destroy();
 
   // Destroy all frame properties (whose destruction was suppressed
   // while destroying the frame tree, but which might contain more
@@ -1928,13 +1847,13 @@ PresShell::InitialReflow(nscoord aWidth, nscoord aHeight)
   // XXXbz it would be nice to move this somewhere else... like frame manager
   // Init(), say.  But we need to make sure our views are all set up by the
   // time we do this!
-  nsIFrame* rootFrame = FrameManager()->GetRootFrame();
+  nsIFrame* rootFrame = mFrameConstructor->GetRootFrame();
   NS_ASSERTION(!rootFrame, "How did that happen, exactly?");
   if (!rootFrame) {
     nsAutoScriptBlocker scriptBlocker;
     mFrameConstructor->BeginUpdate();
     mFrameConstructor->ConstructRootFrame(&rootFrame);
-    FrameManager()->SetRootFrame(rootFrame);
+    mFrameConstructor->SetRootFrame(rootFrame);
     mFrameConstructor->EndUpdate();
   }
 
@@ -2005,7 +1924,7 @@ PresShell::InitialReflow(nscoord aWidth, nscoord aHeight)
   // Restore our root scroll position now if we're getting here after EndLoad
   // got called, since this is our one chance to do it.  Note that we need not
   // have reflowed for this to work; when the scrollframe is finally reflowed
-  // it'll puick up the position we store in it here.
+  // it'll pick up the position we store in it here.
   if (!mDocumentLoading) {
     RestoreRootScrollPosition();
   }
@@ -2087,7 +2006,7 @@ PresShell::ResizeReflowIgnoreOverride(nscoord aWidth, nscoord aHeight)
   // If we don't have a root frame yet, that means we haven't had our initial
   // reflow... If that's the case, and aWidth or aHeight is unconstrained,
   // ignore them altogether.
-  nsIFrame* rootFrame = FrameManager()->GetRootFrame();
+  nsIFrame* rootFrame = mFrameConstructor->GetRootFrame();
 
   if (!rootFrame && aHeight == NS_UNCONSTRAINEDSIZE) {
     // We can't do the work needed for SizeToContent without a root
@@ -2107,14 +2026,12 @@ PresShell::ResizeReflowIgnoreOverride(nscoord aWidth, nscoord aHeight)
   mPresContext->SetVisibleArea(nsRect(0, 0, aWidth, aHeight));
 
   // There isn't anything useful we can do if the initial reflow hasn't happened
-  rootFrame = FrameManager()->GetRootFrame();
+  rootFrame = mFrameConstructor->GetRootFrame();
   if (!rootFrame)
     return NS_OK;
 
   if (!GetPresContext()->SupressingResizeReflow())
   {
-    nsIViewManager::UpdateViewBatch batch(mViewManager);
-
     // Have to make sure that the content notifications are flushed before we
     // start messing with the frame model; otherwise we can get content doubling.
     mDocument->FlushPendingNotifications(Flush_ContentAndNotify);
@@ -2126,7 +2043,7 @@ PresShell::ResizeReflowIgnoreOverride(nscoord aWidth, nscoord aHeight)
       mFrameConstructor->ProcessPendingRestyles();
     }
 
-    rootFrame = FrameManager()->GetRootFrame();
+    rootFrame = mFrameConstructor->GetRootFrame();
     if (!mIsDestroying && rootFrame) {
       // XXX Do a full invalidate at the beginning so that invalidates along
       // the way don't have region accumulation issues?
@@ -2137,6 +2054,7 @@ PresShell::ResizeReflowIgnoreOverride(nscoord aWidth, nscoord aHeight)
 
         // Kick off a top-down reflow
         AUTO_LAYOUT_PHASE_ENTRY_POINT(GetPresContext(), Reflow);
+        nsIViewManager::AutoDisableRefresh refreshBlocker(mViewManager);
 
         mDirtyRoots.RemoveElement(rootFrame);
         DoReflow(rootFrame, true);
@@ -2144,11 +2062,9 @@ PresShell::ResizeReflowIgnoreOverride(nscoord aWidth, nscoord aHeight)
 
       DidDoReflow(true);
     }
-
-    batch.EndUpdateViewBatch(NS_VMREFRESH_NO_SYNC);
   }
 
-  rootFrame = FrameManager()->GetRootFrame();
+  rootFrame = mFrameConstructor->GetRootFrame();
   if (aHeight == NS_UNCONSTRAINEDSIZE && rootFrame) {
     mPresContext->SetVisibleArea(
       nsRect(0, 0, aWidth, rootFrame->GetRect().height));
@@ -2250,9 +2166,6 @@ PresShell::NotifyDestroyingFrame(nsIFrame* aFrame)
         mDirtyRoots.RemoveElementAt(idx);
       }
     }
-
-    // Notify the frame manager
-    FrameManager()->NotifyDestroyingFrame(aFrame);
 
     // Remove frame properties
     mPresContext->NotifyDestroyingFrame(aFrame);
@@ -2463,22 +2376,11 @@ PresShell::ScrollLine(bool aForward)
   nsIScrollableFrame* scrollFrame =
     GetFrameToScrollAsScrollable(nsIPresShell::eVertical);
   if (scrollFrame) {
-    // Scroll 2 lines at a time to improve scrolling speed.
-    PRInt32 lineCount = 2;
+    PRInt32 lineCount = Preferences::GetInt("toolkit.scrollbox.verticalScrollDistance",
+                                            NS_DEFAULT_VERTICAL_SCROLL_DISTANCE);
     scrollFrame->ScrollBy(nsIntPoint(0, aForward ? lineCount : -lineCount),
                           nsIScrollableFrame::LINES,
                           nsIScrollableFrame::SMOOTH);
-      
-//NEW FOR LINES    
-    // force the update to happen now, otherwise multiple scrolls can
-    // occur before the update is processed. (bug #7354)
-
-  // I'd use Composite here, but it doesn't always work.
-    // vm->Composite();
-    nsIViewManager* viewManager = GetViewManager();
-    if (viewManager) {
-      viewManager->ForceUpdate();
-    }
   }
   return NS_OK;
 }
@@ -2492,16 +2394,6 @@ PresShell::ScrollCharacter(bool aRight)
     scrollFrame->ScrollBy(nsIntPoint(aRight ? 1 : -1, 0),
                           nsIScrollableFrame::LINES,
                           nsIScrollableFrame::SMOOTH);
-//NEW FOR LINES    
-    // force the update to happen now, otherwise multiple scrolls can
-    // occur before the update is processed. (bug #7354)
-
-  // I'd use Composite here, but it doesn't always work.
-    // vm->Composite();
-    nsIViewManager* viewManager = GetViewManager();
-    if (viewManager) {
-      viewManager->ForceUpdate();
-    }
   }
   return NS_OK;
 }
@@ -2529,7 +2421,8 @@ PresShell::CompleteMove(bool aForward, bool aExtend)
                             : FrameConstructor()->GetRootElementFrame();
   if (!frame)
     return NS_ERROR_FAILURE;
-  nsPeekOffsetStruct pos = frame->GetExtremeCaretPosition(!aForward);
+  nsIFrame::CaretPosition pos =
+    frame->GetExtremeCaretPosition(!aForward);
   mSelection->HandleClick(pos.mResultContent, pos.mContentOffset,
                           pos.mContentOffset, aExtend, false, aForward);
   if (limiter) {
@@ -2605,7 +2498,7 @@ PresShell::CheckVisibilityContent(nsIContent* aNode, PRInt16 aStartOffset,
 void
 PresShell::StyleChangeReflow()
 {
-  nsIFrame* rootFrame = FrameManager()->GetRootFrame();
+  nsIFrame* rootFrame = mFrameConstructor->GetRootFrame();
   // At the moment at least, we don't have a root frame before the initial
   // reflow; it's safe to just ignore the request in that case
   if (!rootFrame)
@@ -2617,13 +2510,13 @@ PresShell::StyleChangeReflow()
 nsIFrame*
 nsIPresShell::GetRootFrameExternal() const
 {
-  return FrameManager()->GetRootFrame();
+  return mFrameConstructor->GetRootFrame();
 }
 
 nsIFrame*
 nsIPresShell::GetRootScrollFrame() const
 {
-  nsIFrame* rootFrame = FrameManager()->GetRootFrame();
+  nsIFrame* rootFrame = mFrameConstructor->GetRootFrame();
   // Ensure root frame is a viewport frame
   if (!rootFrame || nsGkAtoms::viewportFrame != rootFrame->GetType())
     return nsnull;
@@ -2711,8 +2604,8 @@ PresShell::RestoreRootScrollPosition()
     if (scrollFrame) {
       nsIScrollableFrame* scrollableFrame = do_QueryFrame(scrollFrame);
       if (scrollableFrame) {
-        FrameManager()->RestoreFrameStateFor(scrollFrame, historyState,
-                                             nsIStatefulFrame::eDocumentScrollState);
+        mFrameConstructor->RestoreFrameStateFor(scrollFrame, historyState,
+                                                nsIStatefulFrame::eDocumentScrollState);
         scrollableFrame->ScrollToRestoredPosition();
       }
     }
@@ -2852,6 +2745,8 @@ PresShell::FrameNeedsReflow(nsIFrame *aFrame, IntrinsicDirty aIntrinsicDirty,
     if (aIntrinsicDirty == eStyleChange) {
       // Mark all descendants dirty (using an nsTArray stack rather than
       // recursion).
+      // Note that nsHTMLReflowState::InitResizeFlags has some similar
+      // code; see comments there for how and why it differs.
       nsAutoTArray<nsIFrame*, 32> stack;
       stack.AppendElement(subtreeRoot);
 
@@ -3009,7 +2904,6 @@ PresShell::RecreateFramesFor(nsIContent* aContent)
   // to keep the number of entrypoints down.
 
   NS_ASSERTION(mViewManager, "Should have view manager");
-  nsIViewManager::UpdateViewBatch batch(mViewManager);
 
   // Have to make sure that the content notifications are flushed before we
   // start messing with the frame model; otherwise we can get content doubling.
@@ -3025,7 +2919,6 @@ PresShell::RecreateFramesFor(nsIContent* aContent)
   nsresult rv = mFrameConstructor->ProcessRestyledFrames(changeList);
   --mChangeNestCount;
   
-  batch.EndUpdateViewBatch(NS_VMREFRESH_NO_SYNC);
   return rv;
 }
 
@@ -3164,8 +3057,9 @@ PresShell::GoToAnchor(const nsAString& aAnchorName, bool aScroll)
 
   if (content) {
     if (aScroll) {
-      rv = ScrollContentIntoView(content, NS_PRESSHELL_SCROLL_TOP,
-                                 NS_PRESSHELL_SCROLL_ANYWHERE,
+      rv = ScrollContentIntoView(content,
+                                 ScrollAxis(SCROLL_TOP, SCROLL_ALWAYS),
+                                 ScrollAxis(),
                                  ANCHOR_SCROLL_FLAGS);
       NS_ENSURE_SUCCESS(rv, rv);
 
@@ -3254,8 +3148,9 @@ PresShell::ScrollToAnchor()
       mLastAnchorScrollPositionY != rootScroll->GetScrollPosition().y)
     return NS_OK;
 
-  nsresult rv = ScrollContentIntoView(mLastAnchorScrolledTo, NS_PRESSHELL_SCROLL_TOP,
-                                      NS_PRESSHELL_SCROLL_ANYWHERE,
+  nsresult rv = ScrollContentIntoView(mLastAnchorScrolledTo,
+                                      ScrollAxis(SCROLL_TOP, SCROLL_ALWAYS),
+                                      ScrollAxis(),
                                       ANCHOR_SCROLL_FLAGS);
   mLastAnchorScrolledTo = nsnull;
   return rv;
@@ -3343,6 +3238,58 @@ AccumulateFrameBounds(nsIFrame* aContainerFrame,
   }
 }
 
+static bool
+ComputeNeedToScroll(nsIPresShell::WhenToScroll aWhenToScroll,
+                    nscoord                    aLineSize,
+                    nscoord                    aRectMin,
+                    nscoord                    aRectMax,
+                    nscoord                    aViewMin,
+                    nscoord                    aViewMax) {
+  // See how the rect should be positioned vertically
+  if (nsIPresShell::SCROLL_ALWAYS == aWhenToScroll) {
+    // The caller wants the frame as visible as possible
+    return true;
+  } else if (nsIPresShell::SCROLL_IF_NOT_VISIBLE == aWhenToScroll) {
+    // Scroll only if no part of the frame is visible in this view
+    return aRectMax - aLineSize <= aViewMin ||
+           aRectMin + aLineSize >= aViewMax;
+  } else if (nsIPresShell::SCROLL_IF_NOT_FULLY_VISIBLE == aWhenToScroll) {
+    // Scroll only if part of the frame is hidden and more can fit in view
+    return !(aRectMin >= aViewMin && aRectMax <= aViewMax) &&
+      NS_MIN(aViewMax, aRectMax) - NS_MAX(aRectMin, aViewMin) < aViewMax - aViewMin;
+  }
+  return false;
+}
+
+static nscoord
+ComputeWhereToScroll(PRInt16 aWhereToScroll,
+                     nscoord aOriginalCoord,
+                     nscoord aRectMin,
+                     nscoord aRectMax,
+                     nscoord aViewMin,
+                     nscoord aViewMax) {
+  nscoord resultCoord = aOriginalCoord;
+  if (nsIPresShell::SCROLL_MINIMUM == aWhereToScroll) {
+    if (aRectMin < aViewMin) {
+      // Scroll up so the frame's top edge is visible
+      resultCoord = aRectMin;
+    } else if (aRectMax > aViewMax) {
+      // Scroll down so the frame's bottom edge is visible. Make sure the
+      // frame's top edge is still visible
+      resultCoord = aOriginalCoord + aRectMax - aViewMax;
+      if (resultCoord > aRectMin) {
+        resultCoord = aRectMin;
+      }
+    }
+  } else {
+    nscoord frameAlignCoord =
+      NSToCoordRound(aRectMin + (aRectMax - aRectMin) * (aWhereToScroll / 100.0f));
+    resultCoord =  NSToCoordRound(frameAlignCoord - (aViewMax - aViewMin) * (
+                                  aWhereToScroll / 100.0f));
+  }
+  return resultCoord;
+}
+
 /**
  * This function takes a scrollable frame, a rect in the coordinate system
  * of the scrolled frame, and a desired percentage-based scroll
@@ -3351,11 +3298,11 @@ AccumulateFrameBounds(nsIFrame* aContainerFrame,
  * 
  * This needs to work even if aRect has a width or height of zero.
  */
-static void ScrollToShowRect(nsIScrollableFrame* aScrollFrame,
-                             const nsRect&       aRect,
-                             PRIntn              aVPercent,
-                             PRIntn              aHPercent,
-                             PRUint32            aFlags)
+static void ScrollToShowRect(nsIScrollableFrame*      aScrollFrame,
+                             const nsRect&            aRect,
+                             nsIPresShell::ScrollAxis aVertical,
+                             nsIPresShell::ScrollAxis aHorizontal,
+                             PRUint32                 aFlags)
 {
   nsPoint scrollPt = aScrollFrame->GetScrollPosition();
   nsRect visibleRect(scrollPt, aScrollFrame->GetScrollPortRect().Size());
@@ -3364,83 +3311,37 @@ static void ScrollToShowRect(nsIScrollableFrame* aScrollFrame,
 
   if ((aFlags & nsIPresShell::SCROLL_OVERFLOW_HIDDEN) ||
       ss.mVertical != NS_STYLE_OVERFLOW_HIDDEN) {
-    // See how the rect should be positioned vertically
-    if (NS_PRESSHELL_SCROLL_ANYWHERE == aVPercent ||
-        (NS_PRESSHELL_SCROLL_IF_NOT_VISIBLE == aVPercent &&
-         aRect.height < lineSize.height)) {
-      // The caller doesn't care where the frame is positioned vertically,
-      // so long as it's fully visible
-      if (aRect.y < visibleRect.y) {
-        // Scroll up so the frame's top edge is visible
-        scrollPt.y = aRect.y;
-      } else if (aRect.YMost() > visibleRect.YMost()) {
-        // Scroll down so the frame's bottom edge is visible. Make sure the
-        // frame's top edge is still visible
-        scrollPt.y += aRect.YMost() - visibleRect.YMost();
-        if (scrollPt.y > aRect.y) {
-          scrollPt.y = aRect.y;
-        }
-      }
-    } else if (NS_PRESSHELL_SCROLL_IF_NOT_VISIBLE == aVPercent) {
-      // Scroll only if no part of the frame is visible in this view
-      if (aRect.YMost() - lineSize.height < visibleRect.y) {
-        // Scroll up so the frame's top edge is visible
-        scrollPt.y = aRect.y;
-      }  else if (aRect.y + lineSize.height > visibleRect.YMost()) {
-        // Scroll down so the frame's bottom edge is visible. Make sure the
-        // frame's top edge is still visible
-        scrollPt.y += aRect.YMost() - visibleRect.YMost();
-        if (scrollPt.y > aRect.y) {
-          scrollPt.y = aRect.y;
-        }
-      }
-    } else {
-      // Align the frame edge according to the specified percentage
-      nscoord frameAlignY =
-        NSToCoordRound(aRect.y + aRect.height * (aVPercent / 100.0f));
-      scrollPt.y =
-        NSToCoordRound(frameAlignY - visibleRect.height * (aVPercent / 100.0f));
+
+    if (ComputeNeedToScroll(aVertical.mWhenToScroll,
+                            lineSize.height,
+                            aRect.y,
+                            aRect.YMost(),
+                            visibleRect.y,
+                            visibleRect.YMost())) {
+      scrollPt.y = ComputeWhereToScroll(aVertical.mWhereToScroll,
+                                        scrollPt.y,
+                                        aRect.y,
+                                        aRect.YMost(),
+                                        visibleRect.y,
+                                        visibleRect.YMost());
     }
   }
 
   if ((aFlags & nsIPresShell::SCROLL_OVERFLOW_HIDDEN) ||
       ss.mHorizontal != NS_STYLE_OVERFLOW_HIDDEN) {
-    // See how the frame should be positioned horizontally
-    if (NS_PRESSHELL_SCROLL_ANYWHERE == aHPercent ||
-        (NS_PRESSHELL_SCROLL_IF_NOT_VISIBLE == aHPercent &&
-         aRect.width < lineSize.width)) {
-      // The caller doesn't care where the frame is positioned horizontally,
-      // so long as it's fully visible
-      if (aRect.x < visibleRect.x) {
-        // Scroll left so the frame's left edge is visible
-        scrollPt.x = aRect.x;
-      } else if (aRect.XMost() > visibleRect.XMost()) {
-        // Scroll right so the frame's right edge is visible. Make sure the
-        // frame's left edge is still visible
-        scrollPt.x += aRect.XMost() - visibleRect.XMost();
-        if (scrollPt.x > aRect.x) {
-          scrollPt.x = aRect.x;
-        }
-      }
-    } else if (NS_PRESSHELL_SCROLL_IF_NOT_VISIBLE == aHPercent) {
-      // Scroll only if no part of the frame is visible in this view
-      if (aRect.XMost() - lineSize.width < visibleRect.x) {
-        // Scroll left so the frame's left edge is visible
-        scrollPt.x = aRect.x;
-      }  else if (aRect.x + lineSize.width > visibleRect.XMost()) {
-        // Scroll right so the frame's right edge is visible. Make sure the
-        // frame's left edge is still visible
-        scrollPt.x += aRect.XMost() - visibleRect.XMost();
-        if (scrollPt.x > aRect.x) {
-          scrollPt.x = aRect.x;
-        }
-      }
-    } else {
-      // Align the frame edge according to the specified percentage
-      nscoord frameAlignX =
-        NSToCoordRound(aRect.x + (aRect.width) * (aHPercent / 100.0f));
-      scrollPt.x =
-        NSToCoordRound(frameAlignX - visibleRect.width * (aHPercent / 100.0f));
+
+    if (ComputeNeedToScroll(aHorizontal.mWhenToScroll,
+                            lineSize.width,
+                            aRect.x,
+                            aRect.XMost(),
+                            visibleRect.x,
+                            visibleRect.XMost())) {
+      scrollPt.x = ComputeWhereToScroll(aHorizontal.mWhereToScroll,
+                                        scrollPt.x,
+                                        aRect.x,
+                                        aRect.XMost(),
+                                        visibleRect.x,
+                                        visibleRect.XMost());
     }
   }
 
@@ -3448,10 +3349,10 @@ static void ScrollToShowRect(nsIScrollableFrame* aScrollFrame,
 }
 
 nsresult
-PresShell::ScrollContentIntoView(nsIContent* aContent,
-                                 PRIntn      aVPercent,
-                                 PRIntn      aHPercent,
-                                 PRUint32    aFlags)
+PresShell::ScrollContentIntoView(nsIContent*              aContent,
+                                 nsIPresShell::ScrollAxis aVertical,
+                                 nsIPresShell::ScrollAxis aHorizontal,
+                                 PRUint32                 aFlags)
 {
   nsCOMPtr<nsIContent> content = aContent; // Keep content alive while flushing.
   NS_ENSURE_TRUE(content, NS_ERROR_NULL_POINTER);
@@ -3461,8 +3362,8 @@ PresShell::ScrollContentIntoView(nsIContent* aContent,
   NS_ASSERTION(mDidInitialReflow, "should have done initial reflow by now");
 
   mContentToScrollTo = aContent;
-  mContentScrollVPosition = aVPercent;
-  mContentScrollHPosition = aHPercent;
+  mContentScrollVAxis = aVertical;
+  mContentScrollHAxis = aHorizontal;
   mContentToScrollToFlags = aFlags;
 
   // Flush layout and attempt to scroll in the process.
@@ -3478,16 +3379,16 @@ PresShell::ScrollContentIntoView(nsIContent* aContent,
   // than a single best-effort scroll followed by one final scroll on the first
   // completed reflow.
   if (mContentToScrollTo) {
-    DoScrollContentIntoView(content, aVPercent, aHPercent, aFlags);
+    DoScrollContentIntoView(content, aVertical, aHorizontal, aFlags);
   }
   return NS_OK;
 }
 
 void
-PresShell::DoScrollContentIntoView(nsIContent* aContent,
-                                   PRIntn      aVPercent,
-                                   PRIntn      aHPercent,
-                                   PRUint32    aFlags)
+PresShell::DoScrollContentIntoView(nsIContent*              aContent,
+                                   nsIPresShell::ScrollAxis aVertical,
+                                   nsIPresShell::ScrollAxis aHorizontal,
+                                   PRUint32                 aFlags)
 {
   NS_ASSERTION(mDidInitialReflow, "should have done initial reflow by now");
 
@@ -3523,7 +3424,7 @@ PresShell::DoScrollContentIntoView(nsIContent* aContent,
   // even if that assumption was false.)
   nsRect frameBounds;
   bool haveRect = false;
-  bool useWholeLineHeightForInlines = aVPercent != NS_PRESSHELL_SCROLL_ANYWHERE;
+  bool useWholeLineHeightForInlines = aVertical.mWhenToScroll != nsIPresShell::SCROLL_IF_NOT_FULLY_VISIBLE;
   // Reuse the same line iterator across calls to AccumulateFrameBounds.  We set
   // it every time we detect a new block (stored in prevBlock).
   nsIFrame* prevBlock = nsnull;
@@ -3536,16 +3437,16 @@ PresShell::DoScrollContentIntoView(nsIContent* aContent,
                           frameBounds, haveRect, prevBlock, lines, curLine);
   } while ((frame = frame->GetNextContinuation()));
 
-  ScrollFrameRectIntoView(container, frameBounds, aVPercent, aHPercent,
+  ScrollFrameRectIntoView(container, frameBounds, aVertical, aHorizontal,
                           aFlags);
 }
 
 bool
-PresShell::ScrollFrameRectIntoView(nsIFrame*     aFrame,
-                                   const nsRect& aRect,
-                                   PRIntn        aVPercent,
-                                   PRIntn        aHPercent,
-                                   PRUint32      aFlags)
+PresShell::ScrollFrameRectIntoView(nsIFrame*                aFrame,
+                                   const nsRect&            aRect,
+                                   nsIPresShell::ScrollAxis aVertical,
+                                   nsIPresShell::ScrollAxis aHorizontal,
+                                   PRUint32                 aFlags)
 {
   bool didScroll = false;
   // This function needs to work even if rect has a width or height of 0.
@@ -3558,7 +3459,7 @@ PresShell::ScrollFrameRectIntoView(nsIFrame*     aFrame,
     if (sf) {
       nsPoint oldPosition = sf->GetScrollPosition();
       ScrollToShowRect(sf, rect - sf->GetScrolledFrame()->GetPosition(),
-                       aVPercent, aHPercent, aFlags);
+                       aVertical, aHorizontal, aFlags);
       nsPoint newPosition = sf->GetScrollPosition();
       // If the scroll position increased, that means our content moved up,
       // so our rect's offset should decrease
@@ -3598,7 +3499,7 @@ PresShell::GetRectVisibility(nsIFrame* aFrame,
 {
   NS_ASSERTION(aFrame->PresContext() == GetPresContext(),
                "prescontext mismatch?");
-  nsIFrame* rootFrame = FrameManager()->GetRootFrame();
+  nsIFrame* rootFrame = mFrameConstructor->GetRootFrame();
   NS_ASSERTION(rootFrame,
                "How can someone have a frame for this presshell when there's no root?");
   nsIScrollableFrame* sf = GetRootScrollFrameAsScrollable();
@@ -3661,6 +3562,18 @@ nsresult PresShell::GetLinkLocation(nsIDOMNode* aNode, nsAString& aLocationStrin
 
   // if no link, fail.
   return NS_ERROR_FAILURE;
+}
+
+void
+PresShell::ScheduleViewManagerFlush()
+{
+  nsPresContext* presContext = GetPresContext();
+  if (presContext) {
+    presContext->RefreshDriver()->ScheduleViewManagerFlush();
+  }
+  if (mDocument) {
+    mDocument->SetNeedLayoutFlush();
+  }
 }
 
 void
@@ -3787,7 +3700,7 @@ PresShell::CaptureHistoryState(nsILayoutHistoryState** aState, bool aLeavingPage
   NS_IF_ADDREF(*aState);
   
   // Capture frame state for the entire frame hierarchy
-  nsIFrame* rootFrame = FrameManager()->GetRootFrame();
+  nsIFrame* rootFrame = mFrameConstructor->GetRootFrame();
   if (!rootFrame) return NS_OK;
   // Capture frame state for the root scroll frame
   // Don't capture state when first creating doc element hierarchy
@@ -3796,12 +3709,12 @@ PresShell::CaptureHistoryState(nsILayoutHistoryState** aState, bool aLeavingPage
   if (aLeavingPage) {
     nsIFrame* scrollFrame = GetRootScrollFrame();
     if (scrollFrame) {
-      FrameManager()->CaptureFrameStateFor(scrollFrame, historyState,
-                                           nsIStatefulFrame::eDocumentScrollState);
+      mFrameConstructor->CaptureFrameStateFor(scrollFrame, historyState,
+                                              nsIStatefulFrame::eDocumentScrollState);
     }
   }
 
-  FrameManager()->CaptureFrameState(rootFrame, historyState);  
+  mFrameConstructor->CaptureFrameState(rootFrame, historyState);  
  
   return NS_OK;
 }
@@ -3816,9 +3729,16 @@ PresShell::UnsuppressAndInvalidate()
     // No point; we're about to be torn down anyway.
     return;
   }
-  
+
+  if (!mDocument->IsResourceDoc()) {
+    // Notify observers that a new page is about to be drawn. Execute this
+    // as soon as it is safe to run JS, which is guaranteed to be before we
+    // go back to the event loop and actually draw the page.
+    nsContentUtils::AddScriptRunner(new nsBeforeFirstPaintDispatcher(mDocument));
+  }
+
   mPaintingSuppressed = false;
-  nsIFrame* rootFrame = FrameManager()->GetRootFrame();
+  nsIFrame* rootFrame = mFrameConstructor->GetRootFrame();
   if (rootFrame) {
     // let's assume that outline on a root frame is not supported
     nsRect rect(nsPoint(0, 0), rootFrame->GetSize());
@@ -4033,7 +3953,7 @@ PresShell::FlushPendingNotifications(mozFlushType aType)
   }
 
   NS_ASSERTION(!isSafeToFlush || mViewManager, "Must have view manager");
-  // Make sure the view manager stays alive while batching view updates.
+  // Make sure the view manager stays alive.
   nsCOMPtr<nsIViewManager> viewManagerDeathGrip = mViewManager;
   if (isSafeToFlush && mViewManager) {
     // Processing pending notifications can kill us, and some callers only
@@ -4046,11 +3966,6 @@ PresShell::FlushPendingNotifications(mozFlushType aType)
         return;
       }
     }
-
-    // Style reresolves not in conjunction with reflows can't cause
-    // painting or geometry changes, so don't bother with view update
-    // batching if we only have style reresolve
-    nsIViewManager::UpdateViewBatch batch(mViewManager);
 
     // We need to make sure external resource documents are flushed too (for
     // example, svg filters that reference a filter in an external document
@@ -4127,8 +4042,9 @@ PresShell::FlushPendingNotifications(mozFlushType aType)
       mViewManager->FlushDelayedResize(true);
       if (ProcessReflowCommands(aType < Flush_Layout) && mContentToScrollTo) {
         // We didn't get interrupted.  Go ahead and scroll to our content
-        DoScrollContentIntoView(mContentToScrollTo, mContentScrollVPosition,
-                                mContentScrollHPosition,
+        DoScrollContentIntoView(mContentToScrollTo,
+                                mContentScrollVAxis,
+                                mContentScrollHAxis,
                                 mContentToScrollToFlags);
         mContentToScrollTo = nsnull;
       }
@@ -4147,15 +4063,11 @@ PresShell::FlushPendingNotifications(mozFlushType aType)
       if (rootPresContext) {
         rootPresContext->UpdatePluginGeometry();
       }
-    }
 
-    PRUint32 updateFlags = NS_VMREFRESH_NO_SYNC;
-    if (aType >= Flush_Display) {
-      // Flushing paints, so perform the invalidates and drawing
-      // immediately
-      updateFlags = NS_VMREFRESH_IMMEDIATE;
+      if (!mIsDestroying) {
+        mViewManager->UpdateWidgetGeometry();
+      }
     }
-    batch.EndUpdateViewBatch(updateFlags);
   }
 }
 
@@ -4229,7 +4141,7 @@ PresShell::DocumentStatesChanged(nsIDocument* aDocument,
   }
 
   if (aStateMask.HasState(NS_DOCUMENT_STATE_WINDOW_INACTIVE)) {
-    nsIFrame* root = FrameManager()->GetRootFrame();
+    nsIFrame* root = mFrameConstructor->GetRootFrame();
     if (root) {
       root->InvalidateFrameSubtree();
     }
@@ -4374,7 +4286,7 @@ PresShell::ContentRemoved(nsIDocument *aDocument,
 nsresult
 PresShell::ReconstructFrames(void)
 {
-  NS_PRECONDITION(!FrameManager()->GetRootFrame() || mDidInitialReflow,
+  NS_PRECONDITION(!mFrameConstructor->GetRootFrame() || mDidInitialReflow,
                   "Must not have root frame before initial reflow");
   if (!mDidInitialReflow) {
     // Nothing to do here
@@ -4507,7 +4419,7 @@ PresShell::GetRealPrimaryFrameFor(nsIContent* aContent) const
 nsIFrame*
 PresShell::GetPlaceholderFrameFor(nsIFrame* aFrame) const
 {
-  return FrameManager()->GetPlaceholderFrameFor(aFrame);
+  return mFrameConstructor->GetPlaceholderFrameFor(aFrame);
 }
 
 nsresult
@@ -4539,7 +4451,7 @@ PresShell::RenderDocument(const nsRect& aRect, PRUint32 aFlags,
   aThebesContext->Rectangle(r);
 #endif
 
-  nsIFrame* rootFrame = FrameManager()->GetRootFrame();
+  nsIFrame* rootFrame = mFrameConstructor->GetRootFrame();
   if (!rootFrame) {
     // Nothing to paint, just fill the rect
     aThebesContext->SetColor(gfxRGBA(aBackgroundColor));
@@ -4727,7 +4639,8 @@ PresShell::ClipListToRange(nsDisplayListBuilder *aBuilder,
             nsRange::CompareNodeToRange(content, aRange, &before, &after);
           if (NS_SUCCEEDED(rv) && !before && !after) {
             itemToInsert = i;
-            surfaceRect.UnionRect(surfaceRect, i->GetBounds(aBuilder));
+            bool snap;
+            surfaceRect.UnionRect(surfaceRect, i->GetBounds(aBuilder, &snap));
           }
         }
       }
@@ -5183,7 +5096,8 @@ void PresShell::UpdateCanvasBackground()
 nscolor PresShell::ComputeBackstopColor(nsIView* aDisplayRoot)
 {
   nsIWidget* widget = aDisplayRoot->GetWidget();
-  if (widget && widget->GetTransparencyMode() != eTransparencyOpaque) {
+  if (widget && (widget->GetTransparencyMode() != eTransparencyOpaque ||
+                 widget->WidgetPaintsBackground())) {
     // Within a transparent widget, so the backstop color must be
     // totally transparent.
     return NS_RGBA(0,0,0,0);
@@ -5229,7 +5143,7 @@ void PresShell::SetDisplayPort(const nsRect& aDisplayPort)
 
 nsresult PresShell::SetResolution(float aXResolution, float aYResolution)
 {
-  if (!(aXResolution > 0.0 && aXResolution > 0.0)) {
+  if (!(aXResolution > 0.0 && aYResolution > 0.0)) {
     return NS_ERROR_ILLEGAL_VALUE;
   }
   if (aXResolution == mXResolution && aYResolution == mYResolution) {
@@ -5260,6 +5174,9 @@ void PresShell::SetRenderingState(const RenderingState& aState)
 
 void PresShell::SynthesizeMouseMove(bool aFromScroll)
 {
+  if (!sSynthMouseMove)
+    return;
+
   if (mPaintingSuppressed || !mIsActive || !mPresContext) {
     return;
   }
@@ -5364,6 +5281,13 @@ static nsIView* FindViewContaining(nsIView* aView, nsPoint aPt)
 void
 PresShell::ProcessSynthMouseMoveEvent(bool aFromScroll)
 {
+  // If drag session has started, we shouldn't synthesize mousemove event.
+  nsCOMPtr<nsIDragSession> dragSession = nsContentUtils::GetDragSession();
+  if (dragSession) {
+    mSynthMouseMoveEvent.Forget();
+    return;
+  }
+
   // allow new event to be posted while handling this one only if the
   // source of the event is a scroll (to prevent infinite reflow loops)
   if (aFromScroll) {
@@ -5443,6 +5367,24 @@ PresShell::ProcessSynthMouseMoveEvent(bool aFromScroll)
   }
 }
 
+class nsAutoNotifyDidPaint
+{
+public:
+  nsAutoNotifyDidPaint(bool aWillSendDidPaint)
+    : mWillSendDidPaint(aWillSendDidPaint)
+  {
+  }
+  ~nsAutoNotifyDidPaint()
+  {
+    if (!mWillSendDidPaint && nsContentUtils::XPConnect()) {
+      nsContentUtils::XPConnect()->NotifyDidPaint();
+    }
+  }
+
+private:
+  bool mWillSendDidPaint;
+};
+
 void
 PresShell::Paint(nsIView*           aViewToPaint,
                  nsIWidget*         aWidgetToPaint,
@@ -5466,6 +5408,8 @@ PresShell::Paint(nsIView*           aViewToPaint,
   NS_ASSERTION(aViewToPaint, "null view");
   NS_ASSERTION(aWidgetToPaint, "Can't paint without a widget");
 
+  nsAutoNotifyDidPaint notifyDidPaint(aWillSendDidPaint);
+
   nsPresContext* presContext = GetPresContext();
   AUTO_LAYOUT_PHASE_ENTRY_POINT(presContext, Paint);
 
@@ -5475,6 +5419,11 @@ PresShell::Paint(nsIView*           aViewToPaint,
   LayerManager* layerManager =
     aWidgetToPaint->GetLayerManager(&isRetainingManager);
   NS_ASSERTION(layerManager, "Must be in paint event");
+
+  if (mIsFirstPaint) {
+    layerManager->SetIsFirstPaint();
+    mIsFirstPaint = false;
+  }
   layerManager->BeginTransaction();
 
   if (frame && isRetainingManager) {
@@ -5536,16 +5485,27 @@ PresShell::Paint(nsIView*           aViewToPaint,
 void
 nsIPresShell::SetCapturingContent(nsIContent* aContent, PRUint8 aFlags)
 {
+  // If capture was set for pointer lock, don't unlock unless we are coming
+  // out of pointer lock explicitly.
+  if (!aContent && gCaptureInfo.mPointerLock &&
+      !(aFlags & CAPTURE_POINTERLOCK)) {
+    return;
+  }
+
   NS_IF_RELEASE(gCaptureInfo.mContent);
 
-  // only set capturing content if allowed or the CAPTURE_IGNOREALLOWED flag
-  // is used
-  if ((aFlags & CAPTURE_IGNOREALLOWED) || gCaptureInfo.mAllowed) {
+  // only set capturing content if allowed or the CAPTURE_IGNOREALLOWED or
+  // CAPTURE_POINTERLOCK flags are used.
+  if ((aFlags & CAPTURE_IGNOREALLOWED) || gCaptureInfo.mAllowed ||
+      (aFlags & CAPTURE_POINTERLOCK)) {
     if (aContent) {
       NS_ADDREF(gCaptureInfo.mContent = aContent);
     }
-    gCaptureInfo.mRetargetToElement = (aFlags & CAPTURE_RETARGETTOELEMENT) != 0;
+    // CAPTURE_POINTERLOCK is the same as CAPTURE_RETARGETTOELEMENT & CAPTURE_IGNOREALLOWED
+    gCaptureInfo.mRetargetToElement = ((aFlags & CAPTURE_RETARGETTOELEMENT) != 0) ||
+                                      ((aFlags & CAPTURE_POINTERLOCK) != 0);
     gCaptureInfo.mPreventDrag = (aFlags & CAPTURE_PREVENTDRAG) != 0;
+    gCaptureInfo.mPointerLock = (aFlags & CAPTURE_POINTERLOCK) != 0;
   }
 }
 
@@ -5839,7 +5799,8 @@ PresShell::HandleEvent(nsIFrame        *aFrame,
   NS_TIME_FUNCTION_MIN(1.0);
 
   nsIContent* capturingContent =
-    NS_IS_MOUSE_EVENT(aEvent) ? GetCapturingContent() : nsnull;
+    NS_IS_MOUSE_EVENT(aEvent) || aEvent->eventStructType == NS_MOUSE_SCROLL_EVENT ?
+      GetCapturingContent() : nsnull;
 
   nsCOMPtr<nsIDocument> retargetEventDoc;
   if (!aDontRetargetEvents) {
@@ -5867,6 +5828,10 @@ PresShell::HandleEvent(nsIFrame        *aFrame,
       // if the mouse is being captured then retarget the mouse event at the
       // document that is being captured.
       retargetEventDoc = capturingContent->GetCurrentDoc();
+#ifdef ANDROID
+    } else if (aEvent->eventStructType == NS_TOUCH_EVENT) {
+      retargetEventDoc = GetTouchEventTargetDocument();
+#endif
     }
 
     if (retargetEventDoc) {
@@ -5919,7 +5884,7 @@ PresShell::HandleEvent(nsIFrame        *aFrame,
   // Check for a system color change up front, since the frame type is
   // irrelevant
   if ((aEvent->message == NS_SYSCOLORCHANGED) && mPresContext &&
-      aFrame == FrameManager()->GetRootFrame()) {
+      aFrame == mFrameConstructor->GetRootFrame()) {
     *aEventStatus = nsEventStatus_eConsumeDoDefault;
     mPresContext->SysColorChanged();
     return NS_OK;
@@ -5954,7 +5919,7 @@ PresShell::HandleEvent(nsIFrame        *aFrame,
     // then someone must be capturing the mouse. In that case we don't want to search the popup
     // list.
     if (framePresContext == rootPresContext &&
-        frame == FrameManager()->GetRootFrame()) {
+        frame == mFrameConstructor->GetRootFrame()) {
       nsIFrame* popupFrame =
         nsLayoutUtils::GetPopupFrameForEventCoordinates(rootPresContext, aEvent);
       // If the popupFrame is an ancestor of the 'frame', the frame should
@@ -6010,6 +5975,12 @@ PresShell::HandleEvent(nsIFrame        *aFrame,
       }
     }
 
+    // all touch events except for touchstart use a captured target
+    if (aEvent->eventStructType == NS_TOUCH_EVENT &&
+        aEvent->message != NS_TOUCH_START) {
+      captureRetarget = true;
+    }
+
     bool isWindowLevelMouseExit = (aEvent->message == NS_MOUSE_EXIT) &&
       (static_cast<nsMouseEvent*>(aEvent)->exit == nsMouseEvent::eTopLevel);
 
@@ -6019,7 +5990,6 @@ PresShell::HandleEvent(nsIFrame        *aFrame,
     // with a window-level mouse exit event since we want to start sending
     // mouse out events at the root EventStateManager.
     if (!captureRetarget && !isWindowLevelMouseExit) {
-#ifdef MOZ_TOUCH
       nsPoint eventPoint;
       if (aEvent->message == NS_TOUCH_START) {
         // Add any new touches to the queue
@@ -6068,10 +6038,6 @@ PresShell::HandleEvent(nsIFrame        *aFrame,
       } else {
         eventPoint = nsLayoutUtils::GetEventCoordinatesRelativeTo(aEvent, frame);
       }
-#else
-      nsPoint eventPoint
-          = nsLayoutUtils::GetEventCoordinatesRelativeTo(aEvent, frame);
-#endif
       {
         bool ignoreRootScrollFrame = false;
         if (aEvent->eventStructType == NS_MOUSE_EVENT) {
@@ -6266,6 +6232,36 @@ PresShell::HandleEvent(nsIFrame        *aFrame,
 
   return rv;
 }
+
+#ifdef ANDROID
+nsIDocument*
+PresShell::GetTouchEventTargetDocument()
+{
+  nsPresContext* context = GetPresContext();
+  if (!context || !context->IsRoot()) {
+    return nsnull;
+  }
+
+  nsCOMPtr<nsISupports> container = context->GetContainer();
+  nsCOMPtr<nsIDocShellTreeItem> shellAsTreeItem = do_QueryInterface(container);
+  if (!shellAsTreeItem) {
+    return nsnull;
+  }
+
+  nsCOMPtr<nsIDocShellTreeOwner> owner;
+  shellAsTreeItem->GetTreeOwner(getter_AddRefs(owner));
+  if (!owner) {
+    return nsnull;
+  }
+
+  // now get the primary content shell (active tab)
+  nsCOMPtr<nsIDocShellTreeItem> item;
+  owner->GetPrimaryContentShell(getter_AddRefs(item));
+  nsCOMPtr<nsIDocShell> childDocShell = do_QueryInterface(item);
+  nsCOMPtr<nsIDocument> result = do_GetInterface(childDocShell);
+  return result;
+}
+#endif
 
 #ifdef NS_DEBUG
 void
@@ -6471,9 +6467,7 @@ PresShell::HandleEventInternal(nsEvent* aEvent, nsEventStatus* aStatus)
   nsresult rv = NS_OK;
 
   if (!NS_EVENT_NEEDS_FRAME(aEvent) || GetCurrentEventFrame()) {
-#ifdef MOZ_TOUCH
     bool touchIsNew = false;
-#endif
     bool isHandlingUserInput = false;
 
     // XXX How about IME events and input events for plugins?
@@ -6516,7 +6510,6 @@ PresShell::HandleEventInternal(nsEvent* aEvent, nsEventStatus* aStatus)
       case NS_MOUSE_BUTTON_UP:
         isHandlingUserInput = true;
         break;
-#ifdef MOZ_TOUCH
       case NS_TOUCH_CANCEL:
       case NS_TOUCH_END: {
         // Remove the changed touches
@@ -6596,7 +6589,6 @@ PresShell::HandleEventInternal(nsEvent* aEvent, nsEventStatus* aStatus)
         }
         break;
       }
-#endif
       case NS_DRAGDROP_DROP:
         nsCOMPtr<nsIDragSession> session = nsContentUtils::GetDragSession();
         if (session) {
@@ -6655,14 +6647,10 @@ PresShell::HandleEventInternal(nsEvent* aEvent, nsEventStatus* aStatus)
       // because they do not have a reliable refPoint.
       if (!IsSynthesizedMouseEvent(aEvent)) {
         nsPresShellEventCB eventCB(this);
-#ifdef MOZ_TOUCH
         if (aEvent->eventStructType == NS_TOUCH_EVENT) {
           DispatchTouchEvent(aEvent, aStatus, &eventCB, touchIsNew);
         }
         else if (mCurrentEventContent) {
-#else
-        if (mCurrentEventContent) {
-#endif
           nsEventDispatcher::Dispatch(mCurrentEventContent, mPresContext,
                                       aEvent, nsnull, aStatus, &eventCB);
         }
@@ -6729,7 +6717,9 @@ PresShell::DispatchTouchEvent(nsEvent *aEvent,
         continue;
       }
 
-      nsTouchEvent newEvent(touchEvent);
+      nsTouchEvent newEvent(NS_IS_TRUSTED_EVENT(touchEvent) ?
+                              true : false,
+                            touchEvent);
       newEvent.target = targetPtr;
 
       nsCOMPtr<nsIContent> content(do_QueryInterface(targetPtr));
@@ -6883,7 +6873,7 @@ PresShell::AdjustContextMenuKeyEvent(nsMouseEvent* aEvent)
     if (aEvent->widget) {
       // default the refpoint to the topleft of our document
       nsPoint offset(0, 0);
-      nsIFrame* rootFrame = FrameManager()->GetRootFrame();
+      nsIFrame* rootFrame = mFrameConstructor->GetRootFrame();
       if (rootFrame) {
         nsIView* view = rootFrame->GetClosestView(&offset);
         offset += view->GetOffsetToWidget(aEvent->widget);
@@ -6988,9 +6978,10 @@ PresShell::PrepareToUseCaretPosition(nsIWidget* aEventWidget, nsIntPoint& aTarge
     // problem. The only difference in the result is that if your cursor is in
     // an edit box below the current view, you'll get the edit box aligned with
     // the top of the window. This is arguably better behavior anyway.
-    rv = ScrollContentIntoView(content, NS_PRESSHELL_SCROLL_IF_NOT_VISIBLE,
-                                        NS_PRESSHELL_SCROLL_IF_NOT_VISIBLE,
-                                        SCROLL_OVERFLOW_HIDDEN);
+    rv = ScrollContentIntoView(content,
+                               ScrollAxis(),
+                               ScrollAxis(),
+                               SCROLL_OVERFLOW_HIDDEN);
     NS_ENSURE_SUCCESS(rv, false);
     frame = content->GetPrimaryFrame();
     NS_WARN_IF_FALSE(frame, "No frame for focused content?");
@@ -7052,9 +7043,10 @@ PresShell::GetCurrentItemAndPositionForElement(nsIDOMElement *aCurrentEl,
                                                nsIWidget *aRootWidget)
 {
   nsCOMPtr<nsIContent> focusedContent(do_QueryInterface(aCurrentEl));
-  ScrollContentIntoView(focusedContent, NS_PRESSHELL_SCROLL_ANYWHERE,
-                                        NS_PRESSHELL_SCROLL_ANYWHERE,
-                                        SCROLL_OVERFLOW_HIDDEN);
+  ScrollContentIntoView(focusedContent,
+                        ScrollAxis(),
+                        ScrollAxis(),
+                        SCROLL_OVERFLOW_HIDDEN);
 
   nsPresContext* presContext = GetPresContext();
 
@@ -7236,6 +7228,10 @@ PresShell::DidPaint()
   if (rootPresContext == mPresContext) {
     rootPresContext->UpdatePluginGeometry();
   }
+
+  if (nsContentUtils::XPConnect()) {
+    nsContentUtils::XPConnect()->NotifyDidPaint();
+  }
 }
 
 bool
@@ -7301,10 +7297,9 @@ PresShell::RemoveOverrideStyleSheet(nsIStyleSheet *aSheet)
 static void
 FreezeElement(nsIContent *aContent, void * /* unused */)
 {
-  nsIFrame *frame = aContent->GetPrimaryFrame();
-  nsIObjectFrame *objectFrame = do_QueryFrame(frame);
-  if (objectFrame) {
-    objectFrame->StopPlugin();
+  nsCOMPtr<nsIObjectLoadingContent> olc(do_QueryInterface(aContent));
+  if (olc) {
+    olc->StopPluginInstance();
   }
 }
 
@@ -7382,10 +7377,9 @@ PresShell::FireOrClearDelayedEvents(bool aFireEvents)
 static void
 ThawElement(nsIContent *aContent, void *aShell)
 {
-  nsCOMPtr<nsIObjectLoadingContent> objlc(do_QueryInterface(aContent));
-  if (objlc) {
-    nsRefPtr<nsNPAPIPluginInstance> inst;
-    objlc->EnsureInstantiation(getter_AddRefs(inst));
+  nsCOMPtr<nsIObjectLoadingContent> olc(do_QueryInterface(aContent));
+  if (olc) {
+    olc->AsyncStartPluginInstance();
   }
 }
 
@@ -7552,26 +7546,12 @@ PresShell::DoReflow(nsIFrame* target, bool aInterruptible)
     mReflowContinueTimer = nsnull;
   }
 
-  nsIFrame* rootFrame = FrameManager()->GetRootFrame();
+  nsIFrame* rootFrame = mFrameConstructor->GetRootFrame();
 
   nsRefPtr<nsRenderingContext> rcx = GetReferenceRenderingContext();
   if (!rcx) {
     NS_NOTREACHED("CreateRenderingContext failure");
     return false;
-  }
-
-  NS_ASSERTION(!mPresContext->mCurrentInflationContainer,
-               "current inflation container should be null");
-  AutoRestore<nsIFrame*> restoreInflationContainer(mPresContext->
-                           mCurrentInflationContainer);
-  for (nsIFrame *f = target->GetParent(); f; f = f->GetParent()) {
-    if (nsLayoutUtils::IsContainerForFontSizeInflation(f)) {
-      NS_ASSERTION(!(f->GetStateBits() & NS_FRAME_IN_REFLOW),
-                   "a frame outside should not be in reflow");
-      mPresContext->mCurrentInflationContainer = f;
-      mPresContext->mCurrentInflationContainerWidth = f->GetContentRect().width;
-      break;
-    }
   }
 
 #ifdef DEBUG
@@ -7724,7 +7704,7 @@ PresShell::DoVerifyReflow()
     // First synchronously render what we have so far so that we can
     // see it.
     nsIView* rootView = mViewManager->GetRootView();
-    mViewManager->UpdateView(rootView, NS_VMREFRESH_IMMEDIATE);
+    mViewManager->InvalidateView(rootView);
 
     FlushPendingNotifications(Flush_Layout);
     mInVerifyReflow = true;
@@ -7771,6 +7751,7 @@ PresShell::ProcessReflowCommands(bool aInterruptible)
       nsAutoScriptBlocker scriptBlocker;
       WillDoReflow();
       AUTO_LAYOUT_PHASE_ENTRY_POINT(GetPresContext(), Reflow);
+      nsIViewManager::AutoDisableRefresh refreshBlocker(mViewManager);
 
       do {
         // Send an incremental reflow notification to the target frame.
@@ -7834,8 +7815,16 @@ PresShell::ProcessReflowCommands(bool aInterruptible)
   }
 
   if (mDocument->GetRootElement()) {
-    Telemetry::ID id = (mDocument->GetRootElement()->IsXUL()
-                        ? Telemetry::XUL_REFLOW_MS : Telemetry::HTML_REFLOW_MS);
+    Telemetry::ID id;
+    if (mDocument->GetRootElement()->IsXUL()) {
+      id = mIsActive
+        ? Telemetry::XUL_FOREGROUND_REFLOW_MS
+        : Telemetry::XUL_BACKGROUND_REFLOW_MS;
+    } else {
+      id = mIsActive
+        ? Telemetry::HTML_FOREGROUND_REFLOW_MS
+        : Telemetry::HTML_BACKGROUND_REFLOW_MS;
+    }
     Telemetry::AccumulateTimeDelta(id, timerStart);
   }
 
@@ -7914,12 +7903,11 @@ PresShell::Observe(nsISupports* aSubject,
 {
 #ifdef MOZ_XUL
   if (!nsCRT::strcmp(aTopic, "chrome-flush-skin-caches")) {
-    nsIFrame *rootFrame = FrameManager()->GetRootFrame();
+    nsIFrame *rootFrame = mFrameConstructor->GetRootFrame();
     // Need to null-check because "chrome-flush-skin-caches" can happen
     // at interesting times during startup.
     if (rootFrame) {
       NS_ASSERTION(mViewManager, "View manager must exist");
-      nsIViewManager::UpdateViewBatch batch(mViewManager);
 
       nsWeakFrame weakRoot(rootFrame);
       // Have to make sure that the content notifications are flushed before we
@@ -7944,7 +7932,6 @@ PresShell::Observe(nsISupports* aSubject,
           --mChangeNestCount;
         }
       }
-      batch.EndUpdateViewBatch(NS_VMREFRESH_NO_SYNC);
     }
     return NS_OK;
   }
@@ -8013,8 +8000,6 @@ nsIPresShell::RemoveRefreshObserverExternal(nsARefreshObserver* aObserver,
 // Start of DEBUG only code
 
 #ifdef NS_DEBUG
-#include "nsViewsCID.h"
-#include "nsWidgetsCID.h"
 #include "nsIURL.h"
 #include "nsILinkHandler.h"
 
@@ -8405,8 +8390,8 @@ PresShell::VerifyIncrementalReflow()
 
   // Now that the document has been reflowed, use its frame tree to
   // compare against our frame tree.
-  nsIFrame* root1 = FrameManager()->GetRootFrame();
-  nsIFrame* root2 = sh->FrameManager()->GetRootFrame();
+  nsIFrame* root1 = mFrameConstructor->GetRootFrame();
+  nsIFrame* root2 = sh->GetRootFrame();
   bool ok = CompareTrees(mPresContext, root1, cx, root2);
   if (!ok && (VERIFY_REFLOW_NOISY & gVerifyReflowFlags)) {
     printf("Verify reflow failed, primary tree:\n");
@@ -8628,6 +8613,9 @@ void ReflowCounter::DisplayHTMLTotals(PRUint32 aTotal, const char * aTitle)
 //------------------------------------------------------------------
 //-- ReflowCountMgr
 //------------------------------------------------------------------
+
+#define KEY_BUF_SIZE_FOR_PTR  24 // adequate char[] buffer to sprintf a pointer
+
 ReflowCountMgr::ReflowCountMgr()
 {
   mCounts = PL_NewHashTable(10, PL_HashString, PL_CompareStrings, 
@@ -8676,14 +8664,14 @@ void ReflowCountMgr::Add(const char * aName, nsIFrame * aFrame)
   if ((mDumpFrameByFrameCounts || mPaintFrameByFrameCounts) && 
       nsnull != mIndiFrameCounts && 
       aFrame != nsnull) {
-    char * key = new char[16];
+    char key[KEY_BUF_SIZE_FOR_PTR];
     sprintf(key, "%p", (void*)aFrame);
     IndiReflowCounter * counter = (IndiReflowCounter *)PL_HashTableLookup(mIndiFrameCounts, key);
     if (counter == nsnull) {
       counter = new IndiReflowCounter(this);
       counter->mFrame = aFrame;
       counter->mName.AssignASCII(aName);
-      PL_HashTableAdd(mIndiFrameCounts, key, counter);
+      PL_HashTableAdd(mIndiFrameCounts, NS_strdup(key), counter);
     }
     // this eliminates extra counts from super classes
     if (counter != nsnull && counter->mName.EqualsASCII(aName)) {
@@ -8704,7 +8692,7 @@ void ReflowCountMgr::PaintCount(const char*     aName,
   if (mPaintFrameByFrameCounts &&
       nsnull != mIndiFrameCounts &&
       aFrame != nsnull) {
-    char * key = new char[16];
+    char key[KEY_BUF_SIZE_FOR_PTR];
     sprintf(key, "%p", (void*)aFrame);
     IndiReflowCounter * counter =
       (IndiReflowCounter *)PL_HashTableLookup(mIndiFrameCounts, key);
@@ -8718,7 +8706,7 @@ void ReflowCountMgr::PaintCount(const char*     aName,
       nsRefPtr<nsFontMetrics> fm;
       aPresContext->DeviceContext()->GetMetricsFor(font,
         // We have one frame, therefore we must have a root...
-        aPresContext->FrameManager()->GetRootFrame()->
+        aPresContext->GetPresShell()->GetRootFrame()->
           GetStyleFont()->mLanguage,
         aPresContext->GetUserFontSet(), *getter_AddRefs(fm));
 
@@ -8841,7 +8829,7 @@ static void RecurseIndiTotals(nsPresContext* aPresContext,
     return;
   }
 
-  char key[16];
+  char key[KEY_BUF_SIZE_FOR_PTR];
   sprintf(key, "%p", (void*)aParentFrame);
   IndiReflowCounter * counter = (IndiReflowCounter *)PL_HashTableLookup(aHT, key);
   if (counter) {
@@ -9066,19 +9054,18 @@ nsIPresShell::AccService()
 }
 #endif
 
+static bool inited = false;
+
 void nsIPresShell::InitializeStatics()
 {
-  NS_ASSERTION(sLiveShells == nsnull, "InitializeStatics called multiple times!");
-  sLiveShells = new nsTHashtable<PresShellPtrKey>();
-  sLiveShells->Init();
+  NS_ASSERTION(!inited, "InitializeStatics called multiple times!");
   gCaptureTouchList.Init();
+  inited = true;
 }
 
 void nsIPresShell::ReleaseStatics()
 {
-  NS_ASSERTION(sLiveShells, "ReleaseStatics called without Initialize!");
-  delete sLiveShells;
-  sLiveShells = nsnull;
+  NS_ASSERTION(inited, "ReleaseStatics called without Initialize!");
 }
 
 // Asks our docshell whether we're active.
@@ -9184,10 +9171,25 @@ PresShell::GetRootPresShell()
   return nsnull;
 }
 
-size_t
-PresShell::SizeOfTextRuns(nsMallocSizeOfFun aMallocSizeOf)
+void
+PresShell::SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf,
+                               size_t *aArenasSize,
+                               size_t *aStyleSetsSize,
+                               size_t *aTextRunsSize) const
 {
-  nsIFrame* rootFrame = FrameManager()->GetRootFrame();
+  *aArenasSize = aMallocSizeOf(this);
+  *aArenasSize += mStackArena.SizeOfExcludingThis(aMallocSizeOf);
+  *aArenasSize += mFrameArena.SizeOfExcludingThis(aMallocSizeOf);
+
+  *aStyleSetsSize = StyleSet()->SizeOfIncludingThis(aMallocSizeOf);
+
+  *aTextRunsSize = SizeOfTextRuns(aMallocSizeOf);
+}
+
+size_t
+PresShell::SizeOfTextRuns(nsMallocSizeOfFun aMallocSizeOf) const
+{
+  nsIFrame* rootFrame = mFrameConstructor->GetRootFrame();
   if (!rootFrame) {
     return 0;
   }
@@ -9201,3 +9203,18 @@ PresShell::SizeOfTextRuns(nsMallocSizeOfFun aMallocSizeOf)
                                                 /* clear = */false);
 }
 
+void
+nsIPresShell::SetScrollPositionClampingScrollPortSize(nscoord aWidth, nscoord aHeight)
+{
+  mScrollPositionClampingScrollPortSizeSet = true;
+  mScrollPositionClampingScrollPortSize.width = aWidth;
+  mScrollPositionClampingScrollPortSize.height = aHeight;
+}
+
+void
+PresShell::SetupFontInflation()
+{
+  mFontSizeInflationEmPerLine = nsLayoutUtils::FontSizeInflationEmPerLine();
+  mFontSizeInflationMinTwips = nsLayoutUtils::FontSizeInflationMinTwips();
+  mFontSizeInflationLineThreshold = nsLayoutUtils::FontSizeInflationLineThreshold();
+}

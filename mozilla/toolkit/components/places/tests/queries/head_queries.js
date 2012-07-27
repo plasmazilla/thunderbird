@@ -107,6 +107,28 @@ function populateDB(aArray) {
             }
           }
 
+          if (qdata.isRedirect) {
+            // Redirect sources added through the docshell are properly marked
+            // as redirects and get hidden state, the API doesn't have that
+            // power (And actually doesn't make much sense to add redirects
+            // through the API).
+            // This must be async cause otherwise the updateFrecency call
+            // done by addVisits may randomly happen after it, overwriting the
+            // value.
+            let stmt = DBConn().createAsyncStatement(
+              "UPDATE moz_places SET hidden = 1 WHERE url = :url");
+            stmt.params.url = qdata.uri;
+            try {
+              stmt.executeAsync();
+            }
+            catch (ex) {
+              print("Error while setting hidden.");
+            }
+            finally {
+              stmt.finalize();
+            }
+          }
+
           if (qdata.isDetails) {
             // Then we add extraneous page details for testing
             PlacesUtils.history.addPageWithDetails(uri(qdata.uri),
@@ -177,20 +199,6 @@ function populateDB(aArray) {
             }
           }
 
-          if (qdata.isFavicon) {
-            // Not planning on doing deep testing of favIcon service so these two
-            // calls should be sufficient to get favicons into the database
-            try {
-              PlacesUtils.favicons.setFaviconData(uri(qdata.faviconURI),
-                                                  qdata.favicon,
-                                                  qdata.faviconLen,
-                                                  qdata.faviconMimeType,
-                                                  qdata.faviconExpiration);
-            } catch (ex) {}
-            PlacesUtils.favicons.setFaviconUrlForPage(uri(qdata.uri),
-                                                      uri(qdata.faviconURI));
-          }
-
           if (qdata.isFolder) {
             let folderId = PlacesUtils.bookmarks.createFolder(qdata.parentFolder,
                                                               qdata.title,
@@ -200,11 +208,12 @@ function populateDB(aArray) {
           }
 
           if (qdata.isLivemark) {
-            PlacesUtils.livemarks.createLivemark(qdata.parentFolder,
-                                                 qdata.title,
-                                                 uri(qdata.uri),
-                                                 uri(qdata.feedURI),
-                                                 qdata.index);
+            PlacesUtils.livemarks.addLivemark({ title: qdata.title
+                                              , parentId: qdata.parentFolder
+                                              , index: qdata.index
+                                              , feedURI: uri(qdata.feedURI)
+                                              , siteURI: uri(qdata.uri)
+                                              });
           }
 
           if (qdata.isBookmark) {
@@ -285,12 +294,6 @@ function queryData(obj) {
   this.annoMimeType = obj.annoMimeType ? obj.annoMimeType : "";
   this.isTag = obj.isTag ? obj.isTag : false;
   this.tagArray = obj.tagArray ? obj.tagArray : null;
-  this.isFavicon = obj.isFavicon ? obj.isFavicon : false;
-  this.faviconURI = obj.faviconURI ? obj.faviconURI : "";
-  this.faviconLen = obj.faviconLen ? obj.faviconLen : 0;
-  this.faviconMimeType = obj.faviconMimeType ? obj.faviconMimeType : "";
-  this.faviconExpiration = obj.faviconExpiration ?
-                           obj.faviconExpiration : futureday;
   this.isLivemark = obj.isLivemark ? obj.isLivemark : false;
   this.parentFolder = obj.parentFolder ? obj.parentFolder
                                        : PlacesUtils.placesRootId;

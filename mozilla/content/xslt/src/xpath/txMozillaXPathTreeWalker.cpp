@@ -55,6 +55,7 @@
 #include "nsAttrName.h"
 #include "nsTArray.h"
 #include "mozilla/dom/Element.h"
+#include "mozilla/StandardInteger.h"
 
 const PRUint32 kUnknownIndex = PRUint32(-1);
 
@@ -453,7 +454,7 @@ txXPathNodeUtils::getLocalName(const txXPathNode& aNode, nsAString& aLocalName)
     // Check for html
     if (aNode.Content()->NodeInfo()->NamespaceEquals(kNameSpaceID_None) &&
         aNode.Content()->IsHTML()) {
-        ToUpperCase(aLocalName);
+        nsContentUtils::ASCIIToUpper(aLocalName);
     }
 }
 
@@ -564,14 +565,6 @@ txXPathNodeUtils::isWhitespace(const txXPathNode& aNode)
 
 /* static */
 txXPathNode*
-txXPathNodeUtils::getDocument(const txXPathNode& aNode)
-{
-    nsIDocument* document = aNode.mNode->GetCurrentDoc();
-    return document ? new txXPathNode(document) : nsnull;
-}
-
-/* static */
-txXPathNode*
 txXPathNodeUtils::getOwnerDocument(const txXPathNode& aNode)
 {
     return new txXPathNode(aNode.mNode->OwnerDoc());
@@ -595,7 +588,7 @@ txXPathNodeUtils::getXSLTId(const txXPathNode& aNode,
                             const txXPathNode& aBase,
                             nsAString& aResult)
 {
-    PRUword nodeid = ((PRUword)aNode.mNode) - ((PRUword)aBase.mNode);
+    uintptr_t nodeid = ((uintptr_t)aNode.mNode) - ((uintptr_t)aBase.mNode);
     if (!aNode.isAttribute()) {
         CopyASCIItoUTF16(nsPrintfCString(kFmtSize, gPrintfFmt, nodeid),
                          aResult);

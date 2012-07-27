@@ -83,70 +83,18 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::DiscoverSubFolders(nsIMsgFolder *aParentFolder,
                                                     bool aDeep)
 {
   NS_ENSURE_ARG_POINTER(aParentFolder);
-  bool isServer;
-  nsresult rv = aParentFolder->GetIsServer(&isServer);
-  NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsILocalFile> path;
-  rv = aParentFolder->GetFilePath(getter_AddRefs(path));
+  nsresult rv = aParentFolder->GetFilePath(getter_AddRefs(path));
   if (NS_FAILED(rv))
     return rv;
 
-  bool exists, directory;
+  bool exists;
   path->Exists(&exists);
   if (!exists)
     path->Create(nsIFile::DIRECTORY_TYPE, 0755);
 
-  path->IsDirectory(&directory);
-  if (!directory)
-  {
-    nsCOMPtr<nsIFile> dirFile;
-    rv = path->Clone(getter_AddRefs(dirFile));
-    NS_ENSURE_SUCCESS(rv, rv);
-    nsAutoString leafName;
-    dirFile->GetLeafName(leafName);
-    leafName.AppendLiteral(".sbd");
-    dirFile->SetLeafName(leafName);
-    path = do_QueryInterface(dirFile);
-    path->IsDirectory(&directory);
-  }
-
-  if (directory)
-  {
-    aParentFolder->SetFlag(nsMsgFolderFlags::Mail | nsMsgFolderFlags::Elided |
-                           nsMsgFolderFlags::Directory);
-
-    // now, discover those folders
-    rv = AddSubFolders(aParentFolder, path, aDeep);
-    if (NS_FAILED(rv))
-      return rv;
-
-    bool createdDefaultMailboxes = false;
-    nsCOMPtr<nsILocalMailIncomingServer> localMailServer;
-
-    if (isServer)
-    {
-      nsCOMPtr<nsIMsgIncomingServer> server;
-      rv = aParentFolder->GetServer(getter_AddRefs(server));
-      NS_ENSURE_SUCCESS(rv, NS_MSG_INVALID_OR_MISSING_SERVER);
-      localMailServer = do_QueryInterface(server, &rv);
-      NS_ENSURE_SUCCESS(rv, NS_MSG_INVALID_OR_MISSING_SERVER);
-
-      // first create the folders on disk (as empty files)
-      rv = localMailServer->CreateDefaultMailboxes(path);
-      NS_ENSURE_SUCCESS(rv, rv);
-      createdDefaultMailboxes = true;
-      // now, discover those folders
-      rv = AddSubFolders(aParentFolder, path, aDeep);
-      if (NS_FAILED(rv))
-        return rv;
-      
-      rv = localMailServer->SetFlagsOnDefaultMailboxes();
-      if (NS_FAILED(rv))
-        return rv;
-    }
-  }
-  return rv;
+  return AddSubFolders(aParentFolder, path, aDeep);
 }
 
 NS_IMETHODIMP nsMsgBrkMBoxStore::CreateFolder(nsIMsgFolder *aParent,
@@ -279,6 +227,7 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::HasSpaceAvailable(nsIMsgFolder *aFolder,
   NS_ENSURE_SUCCESS(rv, rv);
   // ### I think we're allowing mailboxes > 4GB, so we should be checking
   // for disk space here, not total file size.
+  // 0xFFC00000 = 4 GiB - 4 MiB.
   *aResult = ((fileSize + aSpaceRequested) < 0xFFC00000);
   return NS_OK;
 }
@@ -843,11 +792,13 @@ NS_IMETHODIMP
 nsMsgBrkMBoxStore::CopyMessages(bool isMove, nsIArray *aHdrArray,
                                nsIMsgFolder *aDstFolder,
                                nsIMsgCopyServiceListener *aListener,
+                               nsITransaction **aUndoAction,
                                bool *aCopyDone)
 {
   NS_ENSURE_ARG_POINTER(aHdrArray);
   NS_ENSURE_ARG_POINTER(aDstFolder);
   NS_ENSURE_ARG_POINTER(aCopyDone);
+  *aUndoAction = nsnull;
   *aCopyDone = false;
   return NS_OK;
 }
@@ -1076,20 +1027,32 @@ NS_IMETHODIMP nsMsgBrkMBoxStore::ChangeKeywords(nsIArray *aHdrArray,
 // Iterates over the files in the "path" directory, and adds subfolders to
 // parent for each mailbox file found.
 nsresult
-nsMsgBrkMBoxStore::AddSubFolders(nsIMsgFolder *parent, nsIFile *path,
+nsMsgBrkMBoxStore::AddSubFolders(nsIMsgFolder *parent, nsCOMPtr<nsILocalFile> &path,
                                  bool deep)
 {
+  nsresult rv;
+  nsCOMPtr<nsIFile> tmp; // at top level so we can safely assign to path
+  bool isDirectory;
+  path->IsDirectory(&isDirectory);
+  if (!isDirectory)
+  {
+    rv = path->Clone(getter_AddRefs(tmp));
+    path = do_QueryInterface(tmp);
+    NS_ENSURE_SUCCESS(rv, rv);
+    nsAutoString leafName;
+    path->GetLeafName(leafName);
+    leafName.AppendLiteral(".sbd");
+    path->SetLeafName(leafName);
+    path->IsDirectory(&isDirectory);
+  }
+  if (!isDirectory)
+    return NS_OK;
   // first find out all the current subfolders and files, before using them
   // while creating new subfolders; we don't want to modify and iterate the same
   // directory at once.
   nsCOMArray<nsIFile> currentDirEntries;
-  bool isDirectory;
-  path->IsDirectory(&isDirectory);
-  if (!isDirectory)
-    return NS_OK;
-
   nsCOMPtr<nsISimpleEnumerator> directoryEnumerator;
-  nsresult rv = path->GetDirectoryEntries(getter_AddRefs(directoryEnumerator));
+  rv = path->GetDirectoryEntries(getter_AddRefs(directoryEnumerator));
   NS_ENSURE_SUCCESS(rv, rv);
 
   bool hasMore;
@@ -1133,7 +1096,7 @@ nsMsgBrkMBoxStore::AddSubFolders(nsIMsgFolder *parent, nsIFile *path,
       }
     }
   }
-  return rv;
+  return rv == NS_MSG_FOLDER_EXISTS ? NS_OK : rv;
 }
 
 /* Finds the directory associated with this folder.  That is if the path is

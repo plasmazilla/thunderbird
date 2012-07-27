@@ -67,13 +67,11 @@ struct TransferItem {
   nsCOMPtr<nsIVariant> mData;
 };
 
-class nsDOMDataTransfer : public nsIDOMDataTransfer,
-                          public nsIDOMNSDataTransfer
+class nsDOMDataTransfer : public nsIDOMDataTransfer
 {
 public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
   NS_DECL_NSIDOMDATATRANSFER
-  NS_DECL_NSIDOMNSDATATRANSFER
 
   NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(nsDOMDataTransfer, nsIDOMDataTransfer)
 
@@ -102,10 +100,18 @@ protected:
                     bool aCursorState,
                     bool aIsExternal,
                     bool aUserCancelled,
+                    bool aIsCrossDomainSubFrameDrop,
                     nsTArray<nsTArray<TransferItem> >& aItems,
                     nsIDOMElement* aDragImage,
                     PRUint32 aDragImageX,
                     PRUint32 aDragImageY);
+
+  ~nsDOMDataTransfer()
+  {
+    if (mFiles) {
+      mFiles->Disconnect();
+    }
+  }
 
   static const char sEffects[8][9];
 
@@ -187,6 +193,10 @@ protected:
 
   // true if the user cancelled the drag. Used only for the dragend event.
   bool mUserCancelled;
+
+  // true if this is a cross-domain drop from a subframe where access to the
+  // data should be prevented
+  bool mIsCrossDomainSubFrameDrop;
 
   // array of items, each containing an array of format->data pairs
   nsTArray<nsTArray<TransferItem> > mItems;

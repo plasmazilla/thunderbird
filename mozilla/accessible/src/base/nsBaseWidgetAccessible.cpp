@@ -39,6 +39,7 @@
 
 #include "nsBaseWidgetAccessible.h"
 
+#include "Accessible-inl.h"
 #include "nsAccessibilityService.h"
 #include "nsAccUtils.h"
 #include "nsCoreUtils.h"
@@ -59,8 +60,8 @@ using namespace mozilla::a11y;
 ////////////////////////////////////////////////////////////////////////////////
 
 nsLeafAccessible::
-  nsLeafAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
-  nsAccessibleWrap(aContent, aShell)
+  nsLeafAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
+  nsAccessibleWrap(aContent, aDoc)
 {
 }
 
@@ -92,8 +93,8 @@ nsLeafAccessible::CacheChildren()
 ////////////////////////////////////////////////////////////////////////////////
 
 nsLinkableAccessible::
-  nsLinkableAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
-  nsAccessibleWrap(aContent, aShell),
+  nsLinkableAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
+  nsAccessibleWrap(aContent, aDoc),
   mActionAcc(nsnull),
   mIsLink(false),
   mIsOnclick(false)
@@ -124,16 +125,17 @@ nsLinkableAccessible::NativeState()
   return states;
 }
 
-NS_IMETHODIMP
-nsLinkableAccessible::GetValue(nsAString& aValue)
+void
+nsLinkableAccessible::Value(nsString& aValue)
 {
   aValue.Truncate();
 
-  nsAccessible::GetValue(aValue);
+  nsAccessible::Value(aValue);
   if (!aValue.IsEmpty())
-    return NS_OK;
+    return;
 
-  return mIsLink ? mActionAcc->GetValue(aValue) : NS_ERROR_NOT_IMPLEMENTED;
+  if (aValue.IsEmpty() && mIsLink)
+    mActionAcc->Value(aValue);
 }
 
 
@@ -253,7 +255,7 @@ nsLinkableAccessible::UnbindFromParent()
 {
   mActionAcc = nsnull;
   mIsLink = false;
-  mIsOnclick = nsnull;
+  mIsOnclick = false;
 
   nsAccessibleWrap::UnbindFromParent();
 }
@@ -263,9 +265,9 @@ nsLinkableAccessible::UnbindFromParent()
 ////////////////////////////////////////////////////////////////////////////////
 
 nsEnumRoleAccessible::
-  nsEnumRoleAccessible(nsIContent *aNode, nsIWeakReference *aShell,
+  nsEnumRoleAccessible(nsIContent* aNode, nsDocAccessible* aDoc,
                        roles::Role aRole) :
-  nsAccessibleWrap(aNode, aShell), mRole(aRole)
+  nsAccessibleWrap(aNode, aDoc), mRole(aRole)
 {
 }
 

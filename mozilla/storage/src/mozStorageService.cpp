@@ -169,17 +169,23 @@ public:
   StorageSQLiteMultiReporter(Service *aService) 
   : mService(aService)
   {
-    NS_NAMED_LITERAL_CSTRING(mStmtDesc,
+    mStmtDesc = NS_LITERAL_CSTRING(
       "Memory (approximate) used by all prepared statements used by "
       "connections to this database.");
 
-    NS_NAMED_LITERAL_CSTRING(mCacheDesc,
+    mCacheDesc = NS_LITERAL_CSTRING(
       "Memory (approximate) used by all pager caches used by connections "
       "to this database.");
 
-    NS_NAMED_LITERAL_CSTRING(mSchemaDesc,
+    mSchemaDesc = NS_LITERAL_CSTRING(
       "Memory (approximate) used to store the schema for all databases "
       "associated with connections to this database.");
+  }
+
+  NS_IMETHOD GetName(nsACString &aName)
+  {
+      aName.AssignLiteral("storage-sqlite");
+      return NS_OK;
   }
 
   // Warning: To get a Connection's measurements requires holding its lock.
@@ -188,9 +194,10 @@ public:
   // main thread!  But at the time of writing this function is only called when
   // about:memory is loaded (not, for example, when telemetry pings occur) and
   // any delays in that case aren't so bad.
-  NS_IMETHOD CollectReports(nsIMemoryMultiReporterCallback *aCallback,
+  NS_IMETHOD CollectReports(nsIMemoryMultiReporterCallback *aCb,
                             nsISupports *aClosure)
   {
+    nsresult rv;
     size_t totalConnSize = 0;
     {
       nsTArray<nsRefPtr<Connection> > connections;
@@ -212,29 +219,32 @@ public:
 
         SQLiteMutexAutoLock lockedScope(conn->sharedDBMutex);
 
-        totalConnSize +=
-          doConnMeasurement(aCallback, aClosure, *conn.get(), pathHead,
-                            NS_LITERAL_CSTRING("stmt"), mStmtDesc,
-                            SQLITE_DBSTATUS_STMT_USED);
-        totalConnSize +=
-          doConnMeasurement(aCallback, aClosure, *conn.get(), pathHead,
-                            NS_LITERAL_CSTRING("cache"), mCacheDesc,
-                            SQLITE_DBSTATUS_CACHE_USED);
-        totalConnSize +=
-          doConnMeasurement(aCallback, aClosure, *conn.get(), pathHead,
-                            NS_LITERAL_CSTRING("schema"), mSchemaDesc,
-                            SQLITE_DBSTATUS_SCHEMA_USED);
+        rv = reportConn(aCb, aClosure, *conn.get(), pathHead,
+                        NS_LITERAL_CSTRING("stmt"), mStmtDesc,
+                        SQLITE_DBSTATUS_STMT_USED, &totalConnSize);
+        NS_ENSURE_SUCCESS(rv, rv);
+
+        rv = reportConn(aCb, aClosure, *conn.get(), pathHead,
+                        NS_LITERAL_CSTRING("cache"), mCacheDesc,
+                        SQLITE_DBSTATUS_CACHE_USED, &totalConnSize);
+        NS_ENSURE_SUCCESS(rv, rv);
+
+        rv = reportConn(aCb, aClosure, *conn.get(), pathHead,
+                        NS_LITERAL_CSTRING("schema"), mSchemaDesc,
+                        SQLITE_DBSTATUS_SCHEMA_USED, &totalConnSize);
+        NS_ENSURE_SUCCESS(rv, rv);
       }
     }
 
     PRInt64 other = ::sqlite3_memory_used() - totalConnSize;
 
-    aCallback->Callback(NS_LITERAL_CSTRING(""),
-                        NS_LITERAL_CSTRING("explicit/storage/sqlite/other"),
-                        nsIMemoryReporter::KIND_HEAP,
-                        nsIMemoryReporter::UNITS_BYTES, other,
-                        NS_LITERAL_CSTRING("All unclassified sqlite memory."),
-                        aClosure);
+    rv = aCb->Callback(NS_LITERAL_CSTRING(""),
+                       NS_LITERAL_CSTRING("explicit/storage/sqlite/other"),
+                       nsIMemoryReporter::KIND_HEAP,
+                       nsIMemoryReporter::UNITS_BYTES, other,
+                       NS_LITERAL_CSTRING("All unclassified sqlite memory."),
+                       aClosure);
+    NS_ENSURE_SUCCESS(rv, rv);
 
     return NS_OK;
   }
@@ -266,14 +276,17 @@ private:
    *        The memory report description.
    * @param aOption
    *        The SQLite constant for getting the measurement.
+   * @param aTotal
+   *        The accumulator for the measurement.
    */
-  size_t doConnMeasurement(nsIMemoryMultiReporterCallback *aCallback,
-                           nsISupports *aClosure,
-                           sqlite3 *aConn,
-                           const nsACString &aPathHead,
-                           const nsACString &aKind,
-                           const nsACString &aDesc,
-                           int aOption)
+  nsresult reportConn(nsIMemoryMultiReporterCallback *aCb,
+                      nsISupports *aClosure,
+                      sqlite3 *aConn,
+                      const nsACString &aPathHead,
+                      const nsACString &aKind,
+                      const nsACString &aDesc,
+                      int aOption,
+                      size_t *aTotal)
   {
     nsCString path(aPathHead);
     path.Append(aKind);
@@ -284,11 +297,14 @@ private:
     nsresult rv = convertResultCode(rc);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    aCallback->Callback(NS_LITERAL_CSTRING(""), path,
-                        nsIMemoryReporter::KIND_HEAP,
-                        nsIMemoryReporter::UNITS_BYTES, PRInt64(curr),
-                        aDesc, aClosure);
-    return curr;
+    rv = aCb->Callback(NS_LITERAL_CSTRING(""), path,
+                       nsIMemoryReporter::KIND_HEAP,
+                       nsIMemoryReporter::UNITS_BYTES, PRInt64(curr),
+                       aDesc, aClosure);
+    NS_ENSURE_SUCCESS(rv, rv);
+    *aTotal += curr;
+
+    return NS_OK;
   }
 };
 
@@ -513,20 +529,8 @@ Service::shutdown()
 
 sqlite3_vfs *ConstructTelemetryVFS();
 
-#ifdef MOZ_MEMORY
-
-#  if defined(XP_WIN) || defined(SOLARIS) || defined(ANDROID) || defined(XP_MACOSX)
-#    include "jemalloc.h"
-#  elif defined(XP_LINUX)
-// jemalloc is directly linked into firefox-bin; libxul doesn't link
-// with it.  So if we tried to use je_malloc_usable_size_in_advance directly
-// here, it wouldn't be defined.  Instead, we don't include the jemalloc header
-// and weakly link against je_malloc_usable_size_in_advance.
-extern "C" {
-extern size_t je_malloc_usable_size_in_advance(size_t size)
-  NS_VISIBILITY_DEFAULT __attribute__((weak));
-}
-#  endif  // XP_LINUX
+#ifdef MOZ_STORAGE_MEMORY
+#  include "jemalloc.h"
 
 namespace {
 
@@ -595,7 +599,7 @@ const sqlite3_mem_methods memMethods = {
 
 } // anonymous namespace
 
-#endif  // MOZ_MEMORY
+#endif  // MOZ_STORAGE_MEMORY
 
 nsresult
 Service::initialize()
@@ -604,7 +608,7 @@ Service::initialize()
 
   int rc;
 
-#ifdef MOZ_MEMORY
+#ifdef MOZ_STORAGE_MEMORY
   rc = ::sqlite3_config(SQLITE_CONFIG_MALLOC, &memMethods);
   if (rc != SQLITE_OK)
     return convertResultCode(rc);

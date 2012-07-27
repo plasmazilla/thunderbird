@@ -46,22 +46,26 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-DIRS		= profile/extensions
+DIRS        = profile/extensions
+dist_dest   = $(DIST)/$(MOZ_MACBUNDLE_NAME)
 
 PREF_JS_EXPORTS = $(srcdir)/profile/firefox.js \
-		  $(srcdir)/profile/channel-prefs.js \
 		  $(NULL)
 
 
 # hardcode en-US for the moment
 AB_CD = en-US
 
-DEFINES += -DAB_CD=$(AB_CD)
+DEFINES += \
+  -DAB_CD=$(AB_CD) \
+  -DAPP_VERSION="$(MOZ_APP_VERSION)" \
+  -DFIREFOX_ICO=\"$(DIST)/branding/firefox.ico\" \
+  -DDOCUMENT_ICO=\"$(DIST)/branding/document.ico\" \
+  $(NULL)
 
-APP_VERSION = $(shell cat $(srcdir)/../config/version.txt)
-DEFINES += -DAPP_VERSION="$(APP_VERSION)"
+ifdef LIBXUL_SDK #{
+PREF_JS_EXPORTS += $(srcdir)/profile/channel-prefs.js
 
-ifdef LIBXUL_SDK
 include $(topsrcdir)/config/rules.mk
 else
 # Build a binary bootstrapping with XRE_main
@@ -70,10 +74,12 @@ PROGRAM = $(MOZ_APP_NAME)$(BIN_SUFFIX)
 
 CPPSRCS = nsBrowserApp.cpp
 
-LOCAL_INCLUDES += -I$(topsrcdir)/toolkit/xre
-LOCAL_INCLUDES += -I$(topsrcdir)/xpcom/base
-LOCAL_INCLUDES += -I$(topsrcdir)/xpcom/build
-LOCAL_INCLUDES += -I$(DEPTH)/build
+LOCAL_INCLUDES += \
+  -I$(topsrcdir)/toolkit/xre \
+  -I$(topsrcdir)/xpcom/base \
+  -I$(topsrcdir)/xpcom/build \
+  -I$(DEPTH)/build \
+  $(NULL)
 
 DEFINES += -DXPCOM_GLUE
 STL_FLAGS=
@@ -114,23 +120,17 @@ RCFLAGS += -DMOZ_PHOENIX -I$(srcdir)
 else
 RCFLAGS += -DMOZ_PHOENIX --include-dir $(srcdir)
 endif
-ifdef DEBUG
-RCFLAGS += -DDEBUG
-endif
 endif
 
 ifeq ($(OS_ARCH),OS2)
 RESFILE=splashos2.res
 RCFLAGS += -DMOZ_PHOENIX
-ifdef DEBUG
-RCFLAGS += -DDEBUG
-endif
 RCFLAGS += -DFIREFOX_ICO=\"$(DIST)/branding/firefox-os2.ico\" -DDOCUMENT_ICO=\"$(DIST)/branding/document-os2.ico\"
 endif
 
 include $(topsrcdir)/config/rules.mk
 
-ifeq ($(OS_ARCH),WINNT)
+ifeq ($(OS_ARCH),WINNT) #{
 #
 # Control the default heap size.
 # This is the heap returned by GetProcessHeap().
@@ -141,14 +141,14 @@ ifeq ($(OS_ARCH),WINNT)
 #
 # Set it to 256k.  See bug 127069.
 #
-ifndef GNU_CC
+ifndef GNU_CC #{
 LDFLAGS += /HEAP:0x40000
-ifeq ($(OS_TEST),x86_64)
+ifeq ($(OS_TEST),x86_64) #{
 # set stack to 2MB on x64 build.  See bug 582910
 LDFLAGS += -STACK:2097152
-endif
-endif
-endif
+endif #}
+endif #}
+endif #}
 
 ifneq (,$(filter-out OS2 WINNT,$(OS_ARCH)))
 
@@ -159,9 +159,7 @@ GARBAGE += $(addprefix $(DIST)/bin/defaults/pref/, firefox.js)
 
 endif
 
-endif # LIBXUL_SDK
-
-DEFINES += -DFIREFOX_ICO=\"$(DIST)/branding/firefox.ico\" -DDOCUMENT_ICO=\"$(DIST)/branding/document.ico\"
+endif #} LIBXUL_SDK
 
 ifeq ($(MOZ_WIDGET_TOOLKIT),gtk2)
 libs::
@@ -173,6 +171,13 @@ endif
 
 libs:: $(srcdir)/profile/prefs.js
 	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin/defaults/profile
+
+ifndef LIBXUL_SDK
+# channel-prefs.js is handled separate from other prefs due to bug 756325
+libs:: $(srcdir)/profile/channel-prefs.js
+	$(NSINSTALL) -D $(DIST)/bin/defaults/pref
+	$(PYTHON) $(topsrcdir)/config/Preprocessor.py $(PREF_PPFLAGS) $(ACDEFINES) $^ > $(DIST)/bin/defaults/pref/channel-prefs.js
+endif
 
 libs:: $(srcdir)/blocklist.xml
 	$(INSTALL) $(IFLAGS1) $^ $(DIST)/bin
@@ -192,7 +197,7 @@ AB_CD = $(MOZ_UI_LOCALE)
 AB := $(firstword $(subst -, ,$(AB_CD)))
 
 clean clobber repackage::
-	$(RM) -r $(DIST)/$(MOZ_MACBUNDLE_NAME)
+	$(RM) -r $(dist_dest)
 
 ifdef LIBXUL_SDK
 APPFILES = Resources
@@ -201,24 +206,22 @@ APPFILES = MacOS
 endif
 
 libs repackage:: $(PROGRAM)
-	$(MKDIR) -p $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/MacOS
-	rsync -a --exclude "*.in" $(srcdir)/macbuild/Contents $(DIST)/$(MOZ_MACBUNDLE_NAME) --exclude English.lproj
-	$(MKDIR) -p $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/Resources/$(AB).lproj
-	rsync -a --exclude "*.in" $(srcdir)/macbuild/Contents/Resources/English.lproj/ $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/Resources/$(AB).lproj
-	sed -e "s/%APP_VERSION%/$(APP_VERSION)/" -e "s/%MAC_APP_NAME%/$(MAC_APP_NAME)/" -e "s/%LOWER_MAC_APP_NAME%/$(LOWER_MAC_APP_NAME)/" $(srcdir)/macbuild/Contents/Info.plist.in > $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/Info.plist
-	sed -e "s/%MAC_APP_NAME%/$(MAC_APP_NAME)/" $(srcdir)/macbuild/Contents/Resources/English.lproj/InfoPlist.strings.in | iconv -f UTF-8 -t UTF-16 > $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/Resources/$(AB).lproj/InfoPlist.strings
-	rsync -a $(DIST)/bin/ $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/$(APPFILES)
-	$(RM) $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/$(APPFILES)/mangle $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/$(APPFILES)/shlibsign
+	$(MKDIR) -p $(dist_dest)/Contents/MacOS
+	rsync -a --exclude "*.in" $(srcdir)/macbuild/Contents $(dist_dest) --exclude English.lproj
+	$(MKDIR) -p $(dist_dest)/Contents/Resources/$(AB).lproj
+	rsync -a --exclude "*.in" $(srcdir)/macbuild/Contents/Resources/English.lproj/ $(dist_dest)/Contents/Resources/$(AB).lproj
+	sed -e "s/%APP_VERSION%/$(MOZ_APP_VERSION)/" -e "s/%MAC_APP_NAME%/$(MAC_APP_NAME)/" -e "s/%LOWER_MAC_APP_NAME%/$(LOWER_MAC_APP_NAME)/" $(srcdir)/macbuild/Contents/Info.plist.in > $(dist_dest)/Contents/Info.plist
+	sed -e "s/%MAC_APP_NAME%/$(MAC_APP_NAME)/" $(srcdir)/macbuild/Contents/Resources/English.lproj/InfoPlist.strings.in | iconv -f UTF-8 -t UTF-16 > $(dist_dest)/Contents/Resources/$(AB).lproj/InfoPlist.strings
+	rsync -a $(DIST)/bin/ $(dist_dest)/Contents/$(APPFILES)
 ifdef LIBXUL_SDK
-	cp $(LIBXUL_DIST)/bin/$(XR_STUB_NAME) $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/MacOS/firefox
+	cp $(LIBXUL_DIST)/bin/$(XR_STUB_NAME) $(dist_dest)/Contents/MacOS/firefox
 else
-	$(RM) $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/MacOS/$(PROGRAM)
-	rsync -aL $(PROGRAM) $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/MacOS
+	$(RM) $(dist_dest)/Contents/MacOS/$(PROGRAM)
+	rsync -aL $(PROGRAM) $(dist_dest)/Contents/MacOS
 endif
-	-cp -L $(DIST)/bin/mangle $(DIST)/bin/shlibsign $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/$(APPFILES)
-	cp -RL $(DIST)/branding/firefox.icns $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/Resources/firefox.icns
-	cp -RL $(DIST)/branding/document.icns $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/Resources/document.icns
-	printf APPLMOZB > $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/PkgInfo
+	cp -RL $(DIST)/branding/firefox.icns $(dist_dest)/Contents/Resources/firefox.icns
+	cp -RL $(DIST)/branding/document.icns $(dist_dest)/Contents/Resources/document.icns
+	printf APPLMOZB > $(dist_dest)/Contents/PkgInfo
 
 else
 ifdef LIBXUL_SDK
@@ -227,14 +230,14 @@ libs::
 endif
 endif
 
-ifdef LIBXUL_SDK
-ifndef SKIP_COPY_XULRUNNER
+ifdef LIBXUL_SDK #{
+ifndef SKIP_COPY_XULRUNNER #{
 libs::
-ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
-	rsync -a --copy-unsafe-links $(LIBXUL_DIST)/XUL.framework $(DIST)/$(MOZ_MACBUNDLE_NAME)/Contents/Frameworks
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT)) #{
+	rsync -a --copy-unsafe-links $(LIBXUL_DIST)/XUL.framework $(dist_dest)/Contents/Frameworks
 else
 	$(NSINSTALL) -D $(DIST)/bin/xulrunner
 	(cd $(LIBXUL_SDK)/bin && tar $(TAR_CREATE_FLAGS) - .) | (cd $(DIST)/bin/xulrunner && tar -xf -)
-endif # cocoa
-endif # SKIP_COPY_XULRUNNER
-endif # LIBXUL_SDK
+endif #} cocoa
+endif #} SKIP_COPY_XULRUNNER
+endif #} LIBXUL_SDK

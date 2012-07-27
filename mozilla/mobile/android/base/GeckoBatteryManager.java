@@ -40,19 +40,20 @@ package org.mozilla.gecko;
 import java.lang.Math;
 import java.util.Date;
 
-import android.util.Log;
-
+import android.app.Activity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-
+import android.content.IntentFilter;
 import android.os.BatteryManager;
+import android.os.Build;
 import android.os.SystemClock;
+import android.util.Log;
 
 public class GeckoBatteryManager
   extends BroadcastReceiver
 {
-    private static final String LOGTAG = "GeckoBatteryManager";
+  private static final String LOGTAG = "GeckoBatteryManager";
 
   // Those constants should be keep in sync with the ones in:
   // dom/battery/Constants.h
@@ -67,6 +68,31 @@ public class GeckoBatteryManager
   private static boolean sCharging                   = kDefaultCharging;
   private static double  sRemainingTime              = kDefaultRemainingTime;;
 
+  private static boolean isRegistered = false;
+
+  public void registerFor(Activity activity) {
+      if (!isRegistered) {
+          IntentFilter filter = new IntentFilter();
+          filter.addAction(Intent.ACTION_BATTERY_CHANGED);
+
+          // registerReceiver can return null if registering fails
+          isRegistered = activity.registerReceiver(this, filter) != null;
+          if (!isRegistered)
+              Log.e(LOGTAG, "Registering receiver failed");
+      }
+  }
+
+  public void unregisterFor(Activity activity) {
+      if (isRegistered) {
+          try {
+              activity.unregisterReceiver(this);
+          } catch (IllegalArgumentException iae) {
+              Log.e(LOGTAG, "Unregistering receiver failed", iae);
+          }
+          isRegistered = false;
+      }
+  }
+
   @Override
   public void onReceive(Context context, Intent intent) {
     if (!intent.getAction().equals(Intent.ACTION_BATTERY_CHANGED)) {
@@ -77,7 +103,14 @@ public class GeckoBatteryManager
     boolean previousCharging = isCharging();
     double previousLevel = getLevel();
 
-    if (intent.getBooleanExtra(BatteryManager.EXTRA_PRESENT, false)) {
+    // NOTE: it might not be common (in 2012) but technically, Android can run
+    // on a device that has no battery so we want to make sure it's not the case
+    // before bothering checking for battery state.
+    // However, the Galaxy Nexus phone advertizes itself as battery-less which
+    // force us to special-case the logic.
+    // See the Google bug: https://code.google.com/p/android/issues/detail?id=22035
+    if (intent.getBooleanExtra(BatteryManager.EXTRA_PRESENT, false) ||
+        Build.MODEL.equals("Galaxy Nexus")) {
       int plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, -1);
       if (plugged == -1) {
         sCharging = kDefaultCharging;
@@ -140,7 +173,7 @@ public class GeckoBatteryManager
     } else {
       sLevel = kDefaultLevel;
       sCharging = kDefaultCharging;
-      sRemainingTime = kDefaultRemainingTime;
+      sRemainingTime = 0;
     }
 
     /*

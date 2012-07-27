@@ -1563,23 +1563,9 @@ ReadMARChannelIDs(const NS_tchar *path, MARChannelStringTable *results)
   return result;
 }
 
-struct UpdateThreadData 
-{
-  UpdateThreadData(bool performMARChecks) :
-    mPerformMARChecks(performMARChecks)
-  {
-  }
-
-  bool mPerformMARChecks;
-};
-
 static void
 UpdateThreadFunc(void *param)
 {
-  UpdateThreadData *threadData = reinterpret_cast<UpdateThreadData*>(param);
-  bool performMARChecks = threadData && threadData->mPerformMARChecks;
-  delete threadData;
-  
   // open ZIP archive and process...
   int rv;
   NS_tchar dataFile[MAXPATHLEN];
@@ -1588,29 +1574,27 @@ UpdateThreadFunc(void *param)
 
   rv = gArchiveReader.Open(dataFile);
 
-  if (performMARChecks) {
 #ifdef MOZ_VERIFY_MAR_SIGNATURE
-    if (rv == OK) {
-      rv = gArchiveReader.VerifySignature();
-    }
-
-    if (rv == OK) {
-      NS_tchar updateSettingsPath[MAX_TEXT_LEN];
-      NS_tsnprintf(updateSettingsPath, 
-                   sizeof(updateSettingsPath) / sizeof(updateSettingsPath[0]),
-                   NS_T("%supdate-settings.ini"), gDestPath);
-      MARChannelStringTable MARStrings;
-      if (ReadMARChannelIDs(updateSettingsPath, &MARStrings) != OK) {
-        // If we can't read from update-settings.ini then we shouldn't impose
-        // a MAR restriction.  Some installations won't even include this file.
-        MARStrings.MARChannelID[0] = '\0';
-      }
-
-      rv = gArchiveReader.VerifyProductInformation(MARStrings.MARChannelID,
-                                                   MOZ_APP_VERSION);
-    }
-#endif
+  if (rv == OK) {
+    rv = gArchiveReader.VerifySignature();
   }
+
+  if (rv == OK) {
+    NS_tchar updateSettingsPath[MAX_TEXT_LEN];
+    NS_tsnprintf(updateSettingsPath, 
+                 sizeof(updateSettingsPath) / sizeof(updateSettingsPath[0]),
+                 NS_T("%supdate-settings.ini"), gDestPath);
+    MARChannelStringTable MARStrings;
+    if (ReadMARChannelIDs(updateSettingsPath, &MARStrings) != OK) {
+      // If we can't read from update-settings.ini then we shouldn't impose
+      // a MAR restriction.  Some installations won't even include this file.
+      MARStrings.MARChannelID[0] = '\0';
+    }
+
+    rv = gArchiveReader.VerifyProductInformation(MARStrings.MARChannelID,
+                                                 MOZ_APP_VERSION);
+  }
+#endif
 
   if (rv == OK) {
     rv = DoUpdate();
@@ -1833,6 +1817,14 @@ int NS_main(int argc, NS_tchar **argv)
         return 1;
       }
 
+      // Make sure the path to the updater to use for the update is on local.
+      // We do this check to make sure that file locking is available for
+      // race condition security checks.
+      if (useService) {
+        BOOL isLocal = FALSE;
+        useService = IsLocalFile(argv[0], isLocal) && isLocal;
+      }
+      
       // Make sure the service registry entries for the instsallation path
       // are available.  If not don't use the service.
       if (useService) {
@@ -2123,7 +2115,7 @@ int NS_main(int argc, NS_tchar **argv)
   // before QuitProgressUI has been called, so wait for UpdateThreadFunc to
   // terminate.
   Thread t;
-  if (t.Run(UpdateThreadFunc, new UpdateThreadData(usingService)) == 0) {
+  if (t.Run(UpdateThreadFunc, NULL) == 0) {
     ShowProgressUI();
   }
   t.Join();
@@ -2371,6 +2363,95 @@ int add_dir_entries(const NS_tchar *dirpath, ActionList *list)
       else
         list->Append(action);
     }
+  }
+
+  return rv;
+}
+
+#elif defined(SOLARIS)
+int add_dir_entries(const NS_tchar *dirpath, ActionList *list)
+{
+  int rv = OK;
+  NS_tchar searchpath[MAXPATHLEN];
+  NS_tchar foundpath[MAXPATHLEN];
+  struct {
+    dirent dent_buffer;
+    char chars[MAXNAMLEN];
+  } ent_buf;
+  struct dirent* ent;
+
+
+  NS_tsnprintf(searchpath, sizeof(searchpath)/sizeof(searchpath[0]), NS_T("%s"),
+               dirpath);
+  // Remove the trailing slash so the paths don't contain double slashes. The
+  // existence of the slash has already been checked in DoUpdate.
+  searchpath[NS_tstrlen(searchpath) - 1] = NS_T('\0');
+
+  DIR* dir = opendir(searchpath);
+  if (!dir) {
+    LOG(("add_dir_entries error on opendir: " LOG_S ", err: %d\n", searchpath,
+         errno));
+    return UNEXPECTED_ERROR;
+  }
+
+  while (readdir_r(dir, (dirent *)&ent_buf, &ent) == 0 && ent) {
+    if ((strcmp(ent->d_name, ".") == 0) ||
+        (strcmp(ent->d_name, "..") == 0))
+      continue;
+
+    NS_tsnprintf(foundpath, sizeof(foundpath)/sizeof(foundpath[0]),
+                 NS_T("%s%s"), dirpath, ent->d_name);
+    struct stat64 st_buf;
+    int test = stat64(foundpath, &st_buf);
+    if (test) {
+      closedir(dir);
+      return UNEXPECTED_ERROR;
+    }
+    if (S_ISDIR(st_buf.st_mode)) {
+      NS_tsnprintf(foundpath, sizeof(foundpath)/sizeof(foundpath[0]),
+                   NS_T("%s/"), foundpath);
+      // Recurse into the directory.
+      rv = add_dir_entries(foundpath, list);
+      if (rv) {
+        LOG(("add_dir_entries error: " LOG_S ", err: %d\n", foundpath, rv));
+        closedir(dir);
+        return rv;
+      }
+    } else {
+      // Add the file to be removed to the ActionList.
+      NS_tchar *quotedpath = get_quoted_path(foundpath);
+      if (!quotedpath) {
+        closedir(dir);
+        return PARSE_ERROR;
+      }
+
+      Action *action = new RemoveFile();
+      rv = action->Parse(quotedpath);
+      if (rv) {
+        LOG(("add_dir_entries Parse error on recurse: " LOG_S ", err: %d\n",
+             quotedpath, rv));
+        closedir(dir);
+        return rv;
+      }
+
+      list->Append(action);
+    }
+  }
+  closedir(dir);
+
+  // Add the directory to be removed to the ActionList.
+  NS_tchar *quotedpath = get_quoted_path(dirpath);
+  if (!quotedpath)
+    return PARSE_ERROR;
+
+  Action *action = new RemoveDir();
+  rv = action->Parse(quotedpath);
+  if (rv) {
+    LOG(("add_dir_entries Parse error on close: " LOG_S ", err: %d\n",
+         quotedpath, rv));
+  }
+  else {
+    list->Append(action);
   }
 
   return rv;

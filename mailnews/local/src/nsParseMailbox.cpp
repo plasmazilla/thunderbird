@@ -94,6 +94,7 @@
 #include "nsIMsgFilterCustomAction.h"
 #include <ctype.h>
 #include "nsIMsgPluggableStore.h"
+#include "mozilla/Services.h"
 
 static NS_DEFINE_CID(kCMailDB, NS_MAILDB_CID);
 static NS_DEFINE_CID(kRDFServiceCID, NS_RDFSERVICE_CID);
@@ -126,7 +127,9 @@ NS_IMETHODIMP nsMsgMailboxParser::OnStartRequest(nsIRequest *request, nsISupport
     // we have an error.
     nsresult rv = NS_OK;
 
-    nsCOMPtr<nsIIOService> ioServ(do_GetService(NS_IOSERVICE_CONTRACTID, &rv));
+    nsCOMPtr<nsIIOService> ioServ =
+      mozilla::services::GetIOService();
+    NS_ENSURE_TRUE(ioServ, NS_ERROR_UNEXPECTED);
 
     nsCOMPtr<nsIMailboxUrl> runningUrl = do_QueryInterface(ctxt, &rv);
 
@@ -317,8 +320,9 @@ void nsMsgMailboxParser::UpdateStatusText (PRUint32 stringID)
   if (m_statusFeedback)
   {
     nsresult rv;
-    nsCOMPtr<nsIStringBundleService> bundleService(do_GetService("@mozilla.org/intl/stringbundle;1", &rv));
-    if (NS_FAILED(rv))
+    nsCOMPtr<nsIStringBundleService> bundleService =
+      mozilla::services::GetStringBundleService();
+    if (!bundleService)
       return;
     nsCOMPtr<nsIStringBundle> bundle;
     rv = bundleService->CreateBundle("chrome://messenger/locale/localMsgs.properties", getter_AddRefs(bundle));
@@ -1739,7 +1743,7 @@ nsParseNewMailState::Init(nsIMsgFolder *serverFolder, nsIMsgFolder *downloadFold
   // the new mail parser isn't going to get the stream input, it seems, so we can't use
   // the OnStartRequest mechanism the mailbox parser uses. So, let's open the db right now.
   nsCOMPtr<nsIMsgDBService> msgDBService = do_GetService(NS_MSGDB_SERVICE_CONTRACTID, &rv);
-  if (msgDBService)
+  if (msgDBService && !m_mailDB)
     rv = msgDBService->OpenFolderDB(downloadFolder, false,
                                     getter_AddRefs(m_mailDB));
   NS_ENSURE_SUCCESS(rv, rv);

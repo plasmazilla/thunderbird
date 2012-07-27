@@ -132,6 +132,10 @@ gfxPattern::SetMatrix(const gfxMatrix& matrix)
     cairo_pattern_set_matrix(mPattern, &mat);
   } else {
     mTransform = ToMatrix(matrix);
+    // Cairo-pattern matrices specify the conversion from DrawTarget to pattern
+    // space. Azure pattern matrices specify the conversion from pattern to
+    // DrawTarget space.
+    mTransform.Invert();
   }
 }
 
@@ -148,7 +152,7 @@ gfxPattern::GetMatrix() const
 }
 
 Pattern*
-gfxPattern::GetPattern(mozilla::gfx::DrawTarget *aTarget)
+gfxPattern::GetPattern(DrawTarget *aTarget, Matrix *aPatternTransform)
 {
   if (!mPattern) {
     mGfxPattern = new (mSurfacePattern.addr())
@@ -159,6 +163,14 @@ gfxPattern::GetPattern(mozilla::gfx::DrawTarget *aTarget)
   GraphicsExtend extend = (GraphicsExtend)cairo_pattern_get_extend(mPattern);
 
   switch (cairo_pattern_get_type(mPattern)) {
+  case CAIRO_PATTERN_TYPE_SOLID:
+    {
+      double r, g, b, a;
+      cairo_pattern_get_rgba(mPattern, &r, &g, &b, &a);
+
+      new (mColorPattern.addr()) ColorPattern(Color(r, g, b, a));
+      return mColorPattern.addr();
+    }
   case CAIRO_PATTERN_TYPE_SURFACE:
     {
       GraphicsFilter filter = (GraphicsFilter)cairo_pattern_get_filter(mPattern);
@@ -177,6 +189,9 @@ gfxPattern::GetPattern(mozilla::gfx::DrawTarget *aTarget)
 
       if (mSourceSurface) {
         Matrix newMat = ToMatrix(matrix);
+
+        AdjustTransformForPattern(newMat, aTarget->GetTransform(), aPatternTransform);
+
         newMat.Invert();
         double x, y;
         cairo_surface_get_device_offset(surf, &x, &y);
@@ -216,6 +231,9 @@ gfxPattern::GetPattern(mozilla::gfx::DrawTarget *aTarget)
         gfxMatrix matrix(*reinterpret_cast<gfxMatrix*>(&mat));
 
         Matrix newMat = ToMatrix(matrix);
+
+        AdjustTransformForPattern(newMat, aTarget->GetTransform(), aPatternTransform);
+
         newMat.Invert();
 
         mGfxPattern = new (mLinearGradientPattern.addr())
@@ -252,6 +270,9 @@ gfxPattern::GetPattern(mozilla::gfx::DrawTarget *aTarget)
         gfxMatrix matrix(*reinterpret_cast<gfxMatrix*>(&mat));
 
         Matrix newMat = ToMatrix(matrix);
+
+        AdjustTransformForPattern(newMat, aTarget->GetTransform(), aPatternTransform);
+
         newMat.Invert();
 
         double x1, y1, x2, y2, r1, r2;
@@ -263,6 +284,9 @@ gfxPattern::GetPattern(mozilla::gfx::DrawTarget *aTarget)
       }
       break;
     }
+  default:
+    /* Reassure the compiler we are handling all the enum values.  */
+    break;
   }
 
   new (mColorPattern.addr()) ColorPattern(Color(0, 0, 0, 0));
@@ -322,9 +346,9 @@ gfxPattern::IsOpaque()
           return true;
         }
       }
+    default:
+      return false;
     }
-
-    return false;
   }
 
   if (mSourceSurface->GetFormat() == FORMAT_B8G8R8X8) {
@@ -411,4 +435,19 @@ gfxPattern::CairoStatus()
     // An Azure pattern as this point is never in error status.
     return CAIRO_STATUS_SUCCESS;
   }
+}
+
+void
+gfxPattern::AdjustTransformForPattern(Matrix &aPatternTransform,
+                                      const Matrix &aCurrentTransform,
+                                      const Matrix *aOriginalTransform)
+{
+  if (!aOriginalTransform) {
+    return;
+  }
+
+  Matrix mat = *aOriginalTransform;
+  mat.Invert();
+
+  aPatternTransform = mat * aCurrentTransform * aPatternTransform;
 }

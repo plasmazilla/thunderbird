@@ -1330,11 +1330,11 @@ public:
 
   /**
    * Get a device context that can be used to get up-to-date device
-   * dimensions for the given docshell.  For some reason, this is more
+   * dimensions for the given window. For some reason, this is more
    * complicated than it ought to be in multi-monitor situations.
    */
   static nsDeviceContext*
-  GetDeviceContextForScreenInfo(nsIDocShell* aDocShell);
+  GetDeviceContextForScreenInfo(nsPIDOMWindow* aWindow);
 
   /**
    * Some frames with 'position: fixed' (nsStylePosition::mDisplay ==
@@ -1497,6 +1497,12 @@ public:
   static bool Are3DTransformsEnabled();
 
   /**
+   * Checks if we should forcibly use nearest pixel filtering for the
+   * background.
+   */
+  static bool UseBackgroundNearestFiltering();
+
+  /**
    * Unions the overflow areas of all non-popup children of aFrame with
    * aOverflowAreas.
    */
@@ -1516,15 +1522,8 @@ public:
    * Return the font size inflation *ratio* for a given frame.  This is
    * the factor by which font sizes should be inflated; it is never
    * smaller than 1.
-   *
-   * The WidthDetermination parameter says how we determine the width of
-   * the nearest inflation container:  when not in reflow we look at the
-   * frame tree; when in reflow we look at state stored on the pres
-   * context.
    */
-  enum WidthDetermination { eNotInReflow, eInReflow };
-  static float FontSizeInflationFor(const nsIFrame *aFrame,
-                                    WidthDetermination aWidthDetermination);
+  static float FontSizeInflationFor(const nsIFrame *aFrame);
 
   /**
    * Perform the first half of the computation of FontSizeInflationFor
@@ -1539,9 +1538,7 @@ public:
    * above the minimum should always be adjusted as done by
    * FontSizeInflationInner.
    */
-  static nscoord InflationMinFontSizeFor(const nsIFrame *aFrame,
-                                         WidthDetermination
-                                           aWidthDetermination);
+  static nscoord InflationMinFontSizeFor(const nsIFrame *aFrame);
 
   /**
    * Perform the second half of the computation done by
@@ -1554,6 +1551,30 @@ public:
                                       nscoord aMinFontSize);
 
   static bool FontSizeInflationEnabled(nsPresContext *aPresContext);
+
+  /**
+   * See comment above "font.size.inflation.emPerLine" in
+   * modules/libpref/src/init/all.js .
+   */
+  static PRUint32 FontSizeInflationEmPerLine() {
+    return sFontSizeInflationEmPerLine;
+  }
+
+  /**
+   * See comment above "font.size.inflation.minTwips" in
+   * modules/libpref/src/init/all.js .
+   */
+  static PRUint32 FontSizeInflationMinTwips() {
+    return sFontSizeInflationMinTwips;
+  }
+
+  /**
+   * See comment above "font.size.inflation.lineThreshold" in
+   * modules/libpref/src/init/all.js .
+   */
+  static PRUint32 FontSizeInflationLineThreshold() {
+    return sFontSizeInflationLineThreshold;
+  }
 
   static void Initialize();
   static void Shutdown();
@@ -1633,6 +1654,11 @@ public:
   static void
   AssertTreeOnlyEmptyNextInFlows(nsIFrame *aSubtreeRoot);
 #endif
+
+private:
+  static PRUint32 sFontSizeInflationEmPerLine;
+  static PRUint32 sFontSizeInflationMinTwips;
+  static PRUint32 sFontSizeInflationLineThreshold;
 };
 
 namespace mozilla {
@@ -1644,29 +1670,33 @@ namespace mozilla {
      * set the current inflation container on the pres context to null
      * (and then, in its destructor, restore the old value).
      */
-    class AutoMaybeNullInflationContainer {
+    class AutoMaybeDisableFontInflation {
     public:
-      AutoMaybeNullInflationContainer(nsIFrame *aFrame)
+      AutoMaybeDisableFontInflation(nsIFrame *aFrame)
       {
+        // FIXME: Now that inflation calculations are based on the flow
+        // root's NCA's (nearest common ancestor of its inflatable
+        // descendants) width, we could probably disable inflation in
+        // fewer cases than we currently do.
         if (nsLayoutUtils::IsContainerForFontSizeInflation(aFrame)) {
           mPresContext = aFrame->PresContext();
-          mOldValue = mPresContext->mCurrentInflationContainer;
-          mPresContext->mCurrentInflationContainer = nsnull;
+          mOldValue = mPresContext->mInflationDisabledForShrinkWrap;
+          mPresContext->mInflationDisabledForShrinkWrap = true;
         } else {
           // indicate we have nothing to restore
           mPresContext = nsnull;
         }
       }
 
-      ~AutoMaybeNullInflationContainer()
+      ~AutoMaybeDisableFontInflation()
       {
         if (mPresContext) {
-          mPresContext->mCurrentInflationContainer = mOldValue;
+          mPresContext->mInflationDisabledForShrinkWrap = mOldValue;
         }
       }
     private:
       nsPresContext *mPresContext;
-      nsIFrame *mOldValue;
+      bool mOldValue;
     };
 
   }

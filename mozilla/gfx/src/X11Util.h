@@ -45,14 +45,14 @@
 #if defined(MOZ_WIDGET_GTK2)
 #  include <gdk/gdkx.h>
 #elif defined(MOZ_WIDGET_QT)
-// X11/X.h has #define CursorShape 0, but Qt's qnamespace.h defines
-//   enum CursorShape { ... }.  Good times!
+#include "gfxQtPlatform.h"
 #undef CursorShape
-#  include <QX11Info>
 #  include <X11/Xlib.h>
 #else
 #  error Unknown toolkit
 #endif 
+
+#include "mozilla/Scoped.h"
 
 #include "gfxCore.h"
 #include "nsDebug.h"
@@ -68,7 +68,7 @@ DefaultXDisplay()
 #if defined(MOZ_WIDGET_GTK2)
   return GDK_DISPLAY();
 #elif defined(MOZ_WIDGET_QT)
-  return QX11Info::display();
+  return gfxQtPlatform::GetXDisplay();
 #endif
 }
 
@@ -87,38 +87,14 @@ XVisualIDToInfo(Display* aDisplay, VisualID aVisualID,
  * Invoke XFree() on a pointer to memory allocated by Xlib (if the
  * pointer is nonnull) when this class goes out of scope.
  */
-template<typename T>
-struct ScopedXFree
+template <typename T>
+struct ScopedXFreePtrTraits
 {
-  ScopedXFree() : mPtr(NULL) {}
-  ScopedXFree(T* aPtr) : mPtr(aPtr) {}
-
-  ~ScopedXFree() { Assign(NULL); }
-
-  ScopedXFree& operator=(T* aPtr) { Assign(aPtr); return *this; }
-
-  operator T*() const { return get(); }
-  T* operator->() const { return get(); }
-  T* get() const { return mPtr; }
-
-private:
-  void Assign(T* aPtr)
-  {
-    NS_ASSERTION(!mPtr || mPtr != aPtr, "double-XFree() imminent");
-
-    if (mPtr)
-      XFree(mPtr);
-    mPtr = aPtr;
-  }
-
-  T* mPtr;
-
-  // disable these
-  ScopedXFree(const ScopedXFree&);
-  ScopedXFree& operator=(const ScopedXFree&);
-  static void* operator new (size_t);
-  static void operator delete (void*);
+  typedef T *type;
+  static T *empty() { return NULL; }
+  static void release(T *ptr) { if (ptr!=NULL) XFree(ptr); }
 };
+SCOPED_TEMPLATE(ScopedXFree, ScopedXFreePtrTraits)
 
 /**
  * On construction, set a graceful X error handler that doesn't crash the application and records X errors.

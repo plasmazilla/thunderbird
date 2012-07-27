@@ -124,7 +124,12 @@ public:
   nsresult SetAndTakeMappedAttr(nsIAtom* aLocalName, nsAttrValue& aValue,
                                 nsMappedAttributeElement* aContent,
                                 nsHTMLStyleSheet* aSheet);
-  nsresult SetMappedAttrStyleSheet(nsHTMLStyleSheet* aSheet);
+  nsresult SetMappedAttrStyleSheet(nsHTMLStyleSheet* aSheet) {
+    if (!mImpl || !mImpl->mMappedAttrs) {
+      return NS_OK;
+    }
+    return DoSetMappedAttrStyleSheet(aSheet);
+  }
   void WalkMappedAttributeStyleRules(nsRuleWalker* aRuleWalker);
 
   void Compact();
@@ -135,7 +140,11 @@ public:
            !AttrSlotIsTaken(ATTRCHILD_ARRAY_MAX_ATTR_COUNT - 1);
   }
 
-  PRInt64 SizeOf() const;
+  size_t SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf) const;
+  bool HasMappedAttrs() const
+  {
+    return MappedAttrCount();
+  }
 
 private:
   nsAttrAndChildArray(const nsAttrAndChildArray& aOther) MOZ_DELETE;
@@ -198,6 +207,11 @@ private:
    */
   inline void SetChildAtPos(void** aPos, nsIContent* aChild, PRUint32 aIndex,
                             PRUint32 aChildCount);
+
+  /**
+   * Guts of SetMappedAttrStyleSheet for the rare case when we have mapped attrs
+   */
+  nsresult DoSetMappedAttrStyleSheet(nsHTMLStyleSheet* aSheet);
 
   struct InternalAttr
   {

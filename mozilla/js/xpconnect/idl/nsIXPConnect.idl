@@ -50,6 +50,8 @@
 #include "nsIInterfaceInfoManager.idl"
 #include "nsIExceptionService.idl"
 #include "nsIVariant.idl"
+#include "nsIObjectOutputStream.idl"
+#include "nsIObjectInputStream.idl"
 
 %{ C++
 #include "jspubtd.h"
@@ -65,11 +67,13 @@ class nsWrapperCache;
 
 [ptr] native JSContextPtr(JSContext);
 [ptr] native JSClassPtr(JSClass);
+[ptr] native JSFreeOpPtr(JSFreeOp);
 [ptr] native JSObjectPtr(JSObject);
 [ptr] native JSValPtr(jsval);
 [ptr] native JSValConstPtr(const jsval);
       native JSPropertyOp(JSPropertyOp);
       native JSEqualityOp(JSEqualityOp);
+[ptr] native JSScriptPtr(JSScript);
 [ptr] native voidPtrPtr(void*);
 [ptr] native nsScriptObjectTracerPtr(nsScriptObjectTracer);
 [ref] native nsCCTraversalCallbackRef(nsCycleCollectionTraversalCallback);
@@ -180,7 +184,14 @@ interface nsIXPConnectWrappedNative : nsIXPConnectJSObjectHolder
 
     void debugDump(in short depth);
 
-    void refreshPrototype();
+    /*
+     * This finishes initializing a wrapped global, doing the parts that we
+     * couldn't do while the global and window were being simultaneously
+     * bootstrapped. This should be called exactly once, and only for wrapped
+     * globals.
+     */
+    void finishInitForWrappedGlobal();
+
     /* 
      * This returns a pointer into the instance and care should be taken
      * to make sure the pointer is not kept past the life time of the
@@ -398,7 +409,7 @@ enum nsGCType {
 };
 %}
 
-[uuid(686bb1d0-4711-11e1-b86c-0800200c9a66)]
+[uuid(1239b432-b835-4d28-9dc0-53063cb7f60f)]
 interface nsIXPConnect : nsISupports
 {
 %{ C++
@@ -421,12 +432,8 @@ interface nsIXPConnect : nsISupports
      *
      * @param aJSContext the context to use while creating the global object.
      * @param aCOMObj the native object that represents the global object.
-     * @param aIID the IID used to wrap the global object.
      * @param aPrincipal the principal of the code that will run in this
      *                   compartment. Can be null if not on the main thread.
-     * @param aExtraPtr must be passed if aPrincipal is null. Used to separate
-     *                  code from the same principal into different
-     *                  compartments, as for sandboxes.
      * @param aFlags one of the flags below specifying what options this
      *               global object wants.
      */
@@ -434,9 +441,7 @@ interface nsIXPConnect : nsISupports
     initClassesWithNewWrappedGlobal(
                   in JSContextPtr aJSContext,
                   in nsISupports  aCOMObj,
-                  in nsIIDRef     aIID,
                   in nsIPrincipal aPrincipal,
-                  in nsISupports  aExtraPtr,
                   in PRUint32     aFlags);
 
     const PRUint32 INIT_JS_STANDARD_CLASSES  = 1 << 0;
@@ -735,28 +740,10 @@ interface nsIXPConnect : nsISupports
     void GarbageCollect(in PRUint32 reason, in PRUint32 kind);
 
     /**
-     * Define quick stubs on the given object, @a proto.
-     *
-     * @param cx
-     *     A context.  Requires request.
-     * @param proto
-     *     The (newly created) prototype object for a DOM class.  The JS half
-     *     of an XPCWrappedNativeProto.
-     * @param flags
-     *     Property flags for the quick stub properties--should be either
-     *     JSPROP_ENUMERATE or 0.
-     * @param interfaceCount
-     *     The number of interfaces the class implements.
-     * @param interfaceArray
-     *     The interfaces the class implements; interfaceArray and
-     *     interfaceCount are like what nsIClassInfo.getInterfaces returns.
+     * Signals a good place to do an incremental GC slice, because the
+     * browser is drawing a frame.
      */
-    [noscript,notxpcom] boolean defineDOMQuickStubs(
-        in JSContextPtr cx,
-        in JSObjectPtr proto,
-        in PRUint32 flags,
-        in PRUint32 interfaceCount,
-        [array, size_is(interfaceCount)] in nsIIDPtr interfaceArray);
+    void NotifyDidPaint();
 
 %{C++
     /**
@@ -794,4 +781,18 @@ interface nsIXPConnect : nsISupports
      */
     [noscript] void setDebugModeWhenPossible(in boolean mode,
                                              in boolean allowSyncDisable);
+
+    [noscript] void writeScript(in nsIObjectOutputStream aStream,
+                                in JSContextPtr aJSContext,
+                                in JSScriptPtr aJSScript);
+
+    [noscript] JSScriptPtr readScript(in nsIObjectInputStream aStream,
+                                      in JSContextPtr aJSContext);
+
+    [noscript] void writeFunction(in nsIObjectOutputStream aStream,
+                                  in JSContextPtr aJSContext,
+                                  in JSObjectPtr aJSObject);
+
+    [noscript] JSObjectPtr readFunction(in nsIObjectInputStream aStream,
+                                        in JSContextPtr aJSContext);
 };

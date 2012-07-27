@@ -48,7 +48,6 @@
 #include <stdio.h>
 #endif
 
-#include "jsdhash.h"
 #include "jsobj.h"
 #include "jspropertytree.h"
 #include "jstypes.h"
@@ -136,10 +135,11 @@ static const uint32_t SHAPE_INVALID_SLOT = JS_BIT(24) - 1;
 static const uint32_t SHAPE_MAXIMUM_SLOT = JS_BIT(24) - 2;
 
 /*
- * Shapes use multiplicative hashing, _a la_ jsdhash.[ch], but specialized to
+ * Shapes use multiplicative hashing, but specialized to
  * minimize footprint.
  */
 struct PropertyTable {
+    static const uint32_t HASH_BITS     = tl::BitSize<HashNumber>::result;
     static const uint32_t MIN_ENTRIES   = 7;
     static const uint32_t MIN_SIZE_LOG2 = 4;
     static const uint32_t MIN_SIZE      = JS_BIT(MIN_SIZE_LOG2);
@@ -154,7 +154,7 @@ struct PropertyTable {
     js::Shape       **entries;          /* table of ptrs to shared tree nodes */
 
     PropertyTable(uint32_t nentries)
-      : hashShift(JS_DHASH_BITS - MIN_SIZE_LOG2),
+      : hashShift(HASH_BITS - MIN_SIZE_LOG2),
         entryCount(nentries),
         removedCount(0),
         freelist(SHAPE_INVALID_SLOT)
@@ -166,8 +166,8 @@ struct PropertyTable {
         js::UnwantedForeground::free_(entries);
     }
 
-    /* By definition, hashShift = JS_DHASH_BITS - log2(capacity). */
-    uint32_t capacity() const { return JS_BIT(JS_DHASH_BITS - hashShift); }
+    /* By definition, hashShift = HASH_BITS - log2(capacity). */
+    uint32_t capacity() const { return JS_BIT(HASH_BITS - hashShift); }
 
     /* Computes the size of the entries array for a given capacity. */
     static size_t sizeOfEntries(size_t cap) { return cap * sizeof(Shape *); }
@@ -328,7 +328,7 @@ class BaseShape : public js::gc::Cell
     PropertyTable       *table_;
 
   public:
-    void finalize(JSContext *cx, bool background);
+    void finalize(FreeOp *fop);
 
     inline BaseShape(Class *clasp, JSObject *parent, uint32_t objectFlags);
     inline BaseShape(Class *clasp, JSObject *parent, uint32_t objectFlags,
@@ -389,6 +389,8 @@ class BaseShape : public js::gc::Cell
     static inline void readBarrier(BaseShape *shape);
 
     static inline ThingRootKind rootKind() { return THING_ROOT_BASE_SHAPE; }
+
+    inline void markChildren(JSTracer *trc);
 
   private:
     static void staticAsserts() {
@@ -461,9 +463,10 @@ struct Shape : public js::gc::Cell
 {
     friend struct ::JSObject;
     friend struct ::JSFunction;
-    friend class js::StaticBlockObject;
-    friend class js::PropertyTree;
     friend class js::Bindings;
+    friend class js::ObjectImpl;
+    friend class js::PropertyTree;
+    friend class js::StaticBlockObject;
     friend struct js::StackShape;
     friend struct js::StackBaseShape;
 
@@ -515,6 +518,10 @@ struct Shape : public js::gc::Cell
 
     static inline Shape *search(JSContext *cx, Shape *start, jsid id,
                                 Shape ***pspp, bool adding = false);
+
+#ifdef DEBUG
+    static inline Shape *searchNoAllocation(JSContext *cx, Shape *start, jsid id);
+#endif
 
     inline void removeFromDictionary(JSObject *obj);
     inline void insertIntoDictionary(HeapPtrShape *dictp);
@@ -646,43 +653,15 @@ struct Shape : public js::gc::Cell
     /* Public bits stored in shape->flags. */
     enum {
         HAS_SHORTID     = 0x40,
-        METHOD          = 0x80,
-        PUBLIC_FLAGS    = HAS_SHORTID | METHOD
+        PUBLIC_FLAGS    = HAS_SHORTID
     };
 
     bool inDictionary() const   { return (flags & IN_DICTIONARY) != 0; }
-    uintN getFlags() const  { return flags & PUBLIC_FLAGS; }
+    unsigned getFlags() const  { return flags & PUBLIC_FLAGS; }
     bool hasShortID() const { return (flags & HAS_SHORTID) != 0; }
 
-    /*
-     * A shape has a method barrier when some compiler-created "null closure"
-     * function objects (functions that do not use lexical bindings above their
-     * scope, only free variable names) that have a correct JSSLOT_PARENT value
-     * thanks to the COMPILE_N_GO optimization are stored in objects without
-     * cloning.
-     *
-     * The de-facto standard JS language requires each evaluation of such a
-     * closure to result in a unique (according to === and observable effects)
-     * function object. When storing a function to a property, we use method
-     * shapes to speculate that these effects will never be observed: the
-     * property will only be used in calls, and f.callee will not be used
-     * to get a handle on the object.
-     *
-     * If either a non-call use or callee access occurs, then the function is
-     * cloned and the object is reshaped with a non-method property.
-     *
-     * Note that method shapes do not imply the object has a particular
-     * uncloned function, just that the object has *some* uncloned function
-     * in the shape's slot.
-     */
-    bool isMethod() const {
-        JS_ASSERT_IF(flags & METHOD, !base()->rawGetter);
-        return (flags & METHOD) != 0;
-    }
-
     PropertyOp getter() const { return base()->rawGetter; }
-    bool hasDefaultGetterOrIsMethod() const { return !base()->rawGetter; }
-    bool hasDefaultGetter() const  { return !base()->rawGetter && !isMethod(); }
+    bool hasDefaultGetter() const  { return !base()->rawGetter; }
     PropertyOp getterOp() const { JS_ASSERT(!hasGetterValue()); return base()->rawGetter; }
     JSObject *getterObject() const { JS_ASSERT(hasGetterValue()); return base()->getterObj; }
 
@@ -720,8 +699,8 @@ struct Shape : public js::gc::Cell
     inline bool matches(const Shape *other) const;
     inline bool matches(const StackShape &other) const;
     inline bool matchesParamsAfterId(BaseShape *base,
-                                     uint32_t aslot, uintN aattrs, uintN aflags,
-                                     intN ashortid) const;
+                                     uint32_t aslot, unsigned aattrs, unsigned aflags,
+                                     int ashortid) const;
 
     bool get(JSContext* cx, JSObject *receiver, JSObject *obj, JSObject *pobj, js::Value* vp) const;
     bool set(JSContext* cx, JSObject *obj, bool strict, js::Value* vp) const;
@@ -770,8 +749,12 @@ struct Shape : public js::gc::Cell
         slotInfo = slotInfo | ((count + 1) << LINEAR_SEARCHES_SHIFT);
     }
 
-    jsid propid() const { JS_ASSERT(!isEmptyShape()); return maybePropid(); }
-    jsid maybePropid() const { JS_ASSERT(!JSID_IS_VOID(propid_)); return propid_; }
+    const HeapId &propid() const {
+        JS_ASSERT(!isEmptyShape());
+        JS_ASSERT(!JSID_IS_VOID(propid_));
+        return propid_;
+    }
+    HeapId &propidRef() { JS_ASSERT(!JSID_IS_VOID(propid_)); return propid_; }
 
     int16_t shortid() const { JS_ASSERT(hasShortID()); return maybeShortid(); }
     int16_t maybeShortid() const { return shortid_; }
@@ -823,7 +806,7 @@ struct Shape : public js::gc::Cell
      * care of making this work, but that suffices only because we require that
      * start points with the same shape have the same successor object in the
      * search path --- a cache hit means the starting shapes were equal, which
-     * means the seach path tail (everything but the first object in the path)
+     * means the search path tail (everything but the first object in the path)
      * was shared, which in turn means the effects of a purge will be seen by
      * all affected starting search points.
      *
@@ -886,7 +869,7 @@ struct Shape : public js::gc::Cell
     void dumpSubtree(JSContext *cx, int level, FILE *fp) const;
 #endif
 
-    void finalize(JSContext *cx, bool background);
+    void finalize(FreeOp *fop);
     void removeChild(js::Shape *child);
 
     static inline void writeBarrierPre(const Shape *shape);
@@ -900,6 +883,8 @@ struct Shape : public js::gc::Cell
     static inline void readBarrier(const Shape *shape);
 
     static inline ThingRootKind rootKind() { return THING_ROOT_SHAPE; }
+
+    inline void markChildren(JSTracer *trc);
 
     /* For JIT usage */
     static inline size_t offsetOfBase() { return offsetof(Shape, base_); }
@@ -980,7 +965,7 @@ struct StackShape
     int16_t          shortid;
 
     StackShape(UnownedBaseShape *base, jsid propid, uint32_t slot,
-               uint32_t nfixed, uintN attrs, uintN flags, intN shortid)
+               uint32_t nfixed, unsigned attrs, unsigned flags, int shortid)
       : base(base),
         propid(propid),
         slot_(slot),
@@ -995,7 +980,7 @@ struct StackShape
 
     StackShape(const Shape *shape)
       : base(shape->base()->unowned()),
-        propid(shape->maybePropid()),
+        propid(const_cast<Shape *>(shape)->propidRef()),
         slot_(shape->slotInfo & Shape::SLOT_MASK),
         attrs(shape->attrs),
         flags(shape->flags),
@@ -1018,7 +1003,7 @@ struct StackShape
         slot_ = slot;
     }
 
-    inline JSDHashNumber hash() const;
+    inline HashNumber hash() const;
 };
 
 /* Rooter for stack allocated shapes. */
@@ -1081,7 +1066,7 @@ Shape::search(JSContext *cx, Shape *start, jsid id, Shape ***pspp, bool adding)
                 return SHAPE_FETCH(spp);
             }
         }
-        /* 
+        /*
          * No table built -- there weren't enough entries, or OOM occurred.
          * Don't increment numLinearSearches, to keep hasTable() false.
          */
@@ -1091,12 +1076,30 @@ Shape::search(JSContext *cx, Shape *start, jsid id, Shape ***pspp, bool adding)
     }
 
     for (Shape *shape = start; shape; shape = shape->parent) {
-        if (shape->maybePropid() == id)
+        if (shape->propidRef() == id)
             return shape;
     }
 
     return NULL;
 }
+
+#ifdef DEBUG
+/* static */ inline Shape *
+Shape::searchNoAllocation(JSContext *cx, Shape *start, jsid id)
+{
+    if (start->hasTable()) {
+        Shape **spp = start->table().search(id, false);
+        return SHAPE_FETCH(spp);
+    }
+
+    for (Shape *shape = start; shape; shape = shape->parent) {
+        if (shape->propidRef() == id)
+            return shape;
+    }
+
+    return NULL;
+}
+#endif /* DEBUG */
 
 } // namespace js
 
@@ -1104,30 +1107,6 @@ Shape::search(JSContext *cx, Shape *start, jsid id, Shape ***pspp, bool adding)
 #pragma warning(pop)
 #pragma warning(pop)
 #endif
-
-inline js::Class *
-JSObject::getClass() const
-{
-    return lastProperty()->getObjectClass();
-}
-
-inline JSClass *
-JSObject::getJSClass() const
-{
-    return Jsvalify(getClass());
-}
-
-inline bool
-JSObject::hasClass(const js::Class *c) const
-{
-    return getClass() == c;
-}
-
-inline const js::ObjectOps *
-JSObject::getOps() const
-{
-    return &getClass()->ops;
-}
 
 namespace JS {
     template<> class AnchorPermitted<js::Shape *> { };

@@ -97,6 +97,7 @@ LOCAL_INCLUDES = \
 		-I$(srcdir)/../loader \
 		-I$(topsrcdir)/caps/include \
 		-I$(topsrcdir)/content/base/src \
+		-I$(topsrcdir)/content/events/src \
 		-I$(topsrcdir)/content/html/content/src \
 		-I$(topsrcdir)/content/html/document/src \
 		-I$(topsrcdir)/content/svg/content/src \
@@ -119,6 +120,10 @@ DEFINES += \
   -DEXPORT_XPC_API \
   -DNO_NSPR_10_SUPPORT \
   $(NULL)
+
+ifdef MOZ_JSDEBUGGER
+DEFINES += -DMOZ_JSDEBUGGER
+endif
 
 ifeq ($(OS_ARCH),WINNT)
 ifndef GNU_CXX
@@ -146,7 +151,7 @@ dom_quickstubs.cpp: $(srcdir)/dom_quickstubs.qsconf \
                     $(topsrcdir)/xpcom/idl-parser/xpidl.py \
                     $(DEPTH)/js/src/js-confdefs.h
 	$(PYTHON) $(topsrcdir)/config/pythonpath.py \
-	  -I$(topsrcdir)/other-licenses/ply \
+	  $(PLY_INCLUDE) \
 	  -I$(topsrcdir)/xpcom/idl-parser \
 	  $(srcdir)/qsgen.py \
 	  --idlpath=$(DEPTH)/dist/idl \
@@ -167,11 +172,11 @@ dombindings_gen.h: $(srcdir)/dombindings.conf \
                    $(topsrcdir)/xpcom/idl-parser/xpidl.py \
                    $(DEPTH)/js/src/js-confdefs.h
 	$(PYTHON) $(topsrcdir)/config/pythonpath.py \
-	  -I$(topsrcdir)/other-licenses/ply \
+	  $(PLY_INCLUDE) \
 	  -I$(topsrcdir)/xpcom/idl-parser \
 	  $(srcdir)/dombindingsgen.py \
 	  --idlpath=$(DEPTH)/dist/idl \
-	  --cachedir=$(DEPTH)/xpcom/idl-parser/cache \
+	  --cachedir=$(DEPTH)/xpcom/idl-parser \
 	  --header-output dombindings_gen.h \
 	  $(srcdir)/dombindings.conf
 
@@ -184,11 +189,11 @@ dombindings_gen.cpp: $(srcdir)/dombindings.conf \
                      $(topsrcdir)/xpcom/idl-parser/xpidl.py \
                      $(DEPTH)/js/src/js-confdefs.h
 	$(PYTHON) $(topsrcdir)/config/pythonpath.py \
-	  -I$(topsrcdir)/other-licenses/ply \
+	  $(PLY_INCLUDE) \
 	  -I$(topsrcdir)/xpcom/idl-parser \
 	  $(srcdir)/dombindingsgen.py \
 	  --idlpath=$(DEPTH)/dist/idl \
-	  --cachedir=$(DEPTH)/xpcom/idl-parser/cache \
+	  --cachedir=$(DEPTH)/xpcom/idl-parser \
 	  --stub-output dombindings_gen.cpp \
 	  --makedepend-output $(MDDEPDIR)/dombindingsgen.pp \
 	  $(srcdir)/dombindings.conf
@@ -203,11 +208,11 @@ DictionaryHelpers.h: $(srcdir)/dictionary_helper_gen.conf \
                      $(topsrcdir)/xpcom/idl-parser/xpidl.py \
                      $(DEPTH)/js/src/js-confdefs.h
 	$(PYTHON) $(topsrcdir)/config/pythonpath.py \
-	  -I$(topsrcdir)/other-licenses/ply \
+	  $(PLY_INCLUDE) \
 	  -I$(topsrcdir)/xpcom/idl-parser \
 	  $(srcdir)/dictionary_helper_gen.py \
 	  -I $(DEPTH)/dist/idl \
-	  --cachedir=$(DEPTH)/xpcom/idl-parser/cache \
+	  --cachedir=$(DEPTH)/xpcom/idl-parser \
 	  --header-output DictionaryHelpers.h \
 	  $(srcdir)/dictionary_helper_gen.conf
 
@@ -218,11 +223,11 @@ DictionaryHelpers.cpp: $(srcdir)/dictionary_helper_gen.conf \
                        $(topsrcdir)/xpcom/idl-parser/xpidl.py \
                        $(DEPTH)/js/src/js-confdefs.h
 	$(PYTHON) $(topsrcdir)/config/pythonpath.py \
-	  -I$(topsrcdir)/other-licenses/ply \
+	  $(PLY_INCLUDE) \
 	  -I$(topsrcdir)/xpcom/idl-parser \
 	  $(srcdir)/dictionary_helper_gen.py \
 	  -I $(DEPTH)/dist/idl \
-	  --cachedir=$(DEPTH)/xpcom/idl-parser/cache \
+	  --cachedir=$(DEPTH)/xpcom/idl-parser \
 	  --header-output DictionaryHelpers.h \
 	  --stub-output DictionaryHelpers.cpp \
 	  --makedepend-output $(MDDEPDIR)/dictionary_helper_gen.pp \
@@ -247,9 +252,6 @@ GARBAGE += \
 		$(MDDEPDIR)/dombindingsgen.pp \
 		$(MDDEPDIR)/dictionary_helper_gen.pp \
 		$(wildcard $(topsrcdir)/other-licenses/ply/ply/*.pyc) \
-		$(wildcard $(topsrcdir)/xpcom/idl-parser/*.pyc) \
 		$(NULL)
-
-GARBAGE_DIRS += $(DEPTH)/xpcom/idl-parser/cache
 
 DEFINES += -D_IMPL_NS_LAYOUT

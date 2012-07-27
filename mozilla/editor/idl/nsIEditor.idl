@@ -55,7 +55,7 @@ interface nsIEditActionListener;
 interface nsIInlineSpellChecker;
 interface nsITransferable;
 
-[scriptable, uuid(14dbb6b1-7da4-42cf-be8e-77ae24eabe0f)]
+[scriptable, uuid(2e14b183-29d4-4282-9475-589277a70654)]
 
 interface nsIEditor  : nsISupports
 {
@@ -370,26 +370,6 @@ interface nsIEditor  : nsISupports
   /** sets the document selection to the end of the document */
   void endOfDocument();
 
-   /* ------------ Drag/Drop methods -------------- */
-  
-   /** 
-    * canDrag decides if a drag should be started
-    * (for example, based on the current selection and mousepoint).
-    */
-  boolean canDrag(in nsIDOMEvent aEvent);
- 
-   /** 
-    * doDrag transfers the relevant data (as appropriate)
-    * to a transferable so it can later be dropped.
-    */
-  void doDrag(in nsIDOMEvent aEvent);
- 
-   /** 
-    * insertFromDrop looks for a dragsession and inserts the
-    * relevant data in response to a drop.
-    */
-  void insertFromDrop(in nsIDOMEvent aEvent);
-
   /* ------------ Node manipulation methods -------------- */
 
   /**
@@ -586,10 +566,6 @@ interface nsIEditor  : nsISupports
   /* checks if a node is read-only or not */
   [notxpcom] boolean isModifiableNode(in nsIDOMNode aNode);
 
-  /**
-   * Will be set to true if the last keypress event that the editor has handled
-   * has been trusted.  The value will only be valid when the edit action listeners
-   * are being called, and will throw upon access at all other times.
-   */
-  readonly attribute boolean lastKeypressEventTrusted;
+  /* Set true if you want to suppress dispatching input event. */
+  attribute boolean suppressDispatchingInputEvent;
 };

@@ -40,6 +40,7 @@
 #include "sqlite3.h"
 
 void setup_sqlite_functions(void *sqlite_handle);
+static jobject sqliteInternalCall(JNIEnv* jenv, sqlite3 *db, jstring jQuery, jobjectArray jParams, jlongArray jQueryRes);
 
 #define SQLITE_WRAPPER(name, return_type, args...) \
 typedef return_type (*name ## _t)(args);  \
@@ -59,5 +60,7 @@ SQLITE_WRAPPER(sqlite3_column_type, int, sqlite3_stmt*, int)
 SQLITE_WRAPPER(sqlite3_column_blob, const void*, sqlite3_stmt*, int)
 SQLITE_WRAPPER(sqlite3_column_bytes, int, sqlite3_stmt*, int)
 SQLITE_WRAPPER(sqlite3_column_text, const unsigned char*, sqlite3_stmt*, int)
+SQLITE_WRAPPER(sqlite3_changes, int, sqlite3*)
+SQLITE_WRAPPER(sqlite3_last_insert_rowid, sqlite3_int64, sqlite3*)
 
 #endif /* SQLiteBridge_h */

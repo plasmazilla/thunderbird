@@ -100,6 +100,8 @@ static const char* const sEventNames[] = {
   "MozBeforeResize",
   "mozfullscreenchange",
   "mozfullscreenerror",
+  "mozpointerlockchange",
+  "mozpointerlockerror",
   "MozSwipeGesture",
   "MozMagnifyGestureStart",
   "MozMagnifyGestureUpdate",
@@ -180,8 +182,7 @@ nsDOMEvent::InitPresContextData(nsPresContext* aPresContext)
   // Get the explicit original target (if it's anonymous make it null)
   {
     nsCOMPtr<nsIContent> content = GetTargetFromFrame();
-    mTmpRealOriginalTarget = do_QueryInterface(content);
-    mExplicitOriginalTarget = mTmpRealOriginalTarget;
+    mExplicitOriginalTarget = do_QueryInterface(content);
     if (content && content->IsInAnonymousSubtree()) {
       mExplicitOriginalTarget = nsnull;
     }
@@ -237,10 +238,7 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsDOMEvent)
     }
   }
   NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mPresContext);
-  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mTmpRealOriginalTarget)
-  // Always set mExplicitOriginalTarget to null, when 
-  // mTmpRealOriginalTarget doesn't point to any object!
-  tmp->mExplicitOriginalTarget = nsnull;
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mExplicitOriginalTarget);
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsDOMEvent)
@@ -275,7 +273,7 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsDOMEvent)
     }
   }
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NATIVE_MEMBER(mPresContext.get(), nsPresContext)
-  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mTmpRealOriginalTarget)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mExplicitOriginalTarget)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
 // nsIDOMEventInterface
@@ -353,18 +351,6 @@ nsDOMEvent::GetExplicitOriginalTarget(nsIDOMEventTarget** aRealEventTarget)
   }
 
   return GetTarget(aRealEventTarget);
-}
-
-NS_IMETHODIMP
-nsDOMEvent::GetTmpRealOriginalTarget(nsIDOMEventTarget** aRealEventTarget)
-{
-  if (mTmpRealOriginalTarget) {
-    *aRealEventTarget = mTmpRealOriginalTarget;
-    NS_ADDREF(*aRealEventTarget);
-    return NS_OK;
-  }
-
-  return GetOriginalTarget(aRealEventTarget);
 }
 
 NS_IMETHODIMP
@@ -912,7 +898,8 @@ NS_METHOD nsDOMEvent::DuplicatePrivateData()
     }
     case NS_TOUCH_EVENT:
     {
-      newEvent = new nsTouchEvent(false, msg, nsnull);
+      nsTouchEvent *oldTouchEvent = static_cast<nsTouchEvent*>(mEvent);
+      newEvent = new nsTouchEvent(false, oldTouchEvent);
       NS_ENSURE_TRUE(newEvent, NS_ERROR_OUT_OF_MEMORY);
       isInputEvent = true;
       break;
@@ -1185,6 +1172,10 @@ nsDOMEvent::GetScreenCoords(nsPresContext* aPresContext,
                             nsEvent* aEvent,
                             nsIntPoint aPoint)
 {
+  if (nsEventStateManager::sIsPointerLocked) {
+    return nsEventStateManager::sLastScreenPoint;
+  }
+
   if (!aEvent || 
        (aEvent->eventStructType != NS_MOUSE_EVENT &&
         aEvent->eventStructType != NS_POPUP_EVENT &&
@@ -1240,6 +1231,10 @@ nsDOMEvent::GetClientCoords(nsPresContext* aPresContext,
                             nsIntPoint aPoint,
                             nsIntPoint aDefaultPoint)
 {
+  if (nsEventStateManager::sIsPointerLocked) {
+    return nsEventStateManager::sLastClientPoint;
+  }
+
   if (!aEvent ||
       (aEvent->eventStructType != NS_MOUSE_EVENT &&
        aEvent->eventStructType != NS_POPUP_EVENT &&

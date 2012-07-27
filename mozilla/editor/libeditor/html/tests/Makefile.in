@@ -48,6 +48,7 @@ _TEST_FILES = \
 		green.png \
 		test_bug290026.html \
 		test_bug291780.html \
+		test_bug316447.html \
 		test_bug332636.html \
 		test_bug332636.html^headers^ \
 		test_bug372345.html \
@@ -74,6 +75,7 @@ _TEST_FILES = \
 		test_bug551704.html \
 		test_bug552782.html \
 		test_bug570144.html \
+		test_bug578771.html \
 		test_bug592592.html \
 		test_bug597784.html \
 		test_bug599322.html \
@@ -91,15 +93,19 @@ _TEST_FILES = \
 		test_bug674861.html \
 		test_bug676401.html \
 		test_bug677752.html \
+		test_bug686203.html \
 		test_bug697842.html \
 		test_bug725069.html \
+		test_bug735059.html \
 		test_CF_HTML_clipboard.html \
 		test_contenteditable_focus.html \
+		test_dom_input_event_on_htmleditor.html \
 		test_htmleditor_keyevent_handling.html \
 		test_keypress_untrusted_event.html \
 		test_select_all_without_body.html \
 		file_select_all_without_body.html \
 		test_root_element_replacement.html \
+		test_bug738366.html \
 		$(NULL)
 
 ifneq (mobile,$(MOZ_BUILD_APP))

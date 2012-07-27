@@ -520,11 +520,14 @@ protected:
      * @param aChannelRedirectFlags
      *        For redirects, the redirect flags from nsIChannelEventSink
      *        (0 otherwise)
+     * @param aResponseStatus
+     *        For HTTP channels, the response code (0 otherwise).
      */
     void AddURIVisit(nsIURI* aURI,
                      nsIURI* aReferrerURI,
                      nsIURI* aPreviousURI,
-                     PRUint32 aChannelRedirectFlags);
+                     PRUint32 aChannelRedirectFlags,
+                     PRUint32 aResponseStatus=0);
 
     // Helper Routines
     nsresult   ConfirmRepost(bool * aRepost);
@@ -690,6 +693,8 @@ protected:
         nsRefPtr<nsDocShell> mDocShell;
     };
 
+    bool JustStartedNetworkLoad();
+
     // hash of session storages, keyed by domain
     nsInterfaceHashtable<nsCStringHashKey, nsIDOMStorage> mStorages;
 
@@ -803,6 +808,8 @@ protected:
     bool                       mIsActive;
     bool                       mIsAppTab;
     bool                       mUseGlobalHistory;
+    bool                       mInPrivateBrowsing;
+    bool                       mIsBrowserFrame;
 
     // This boolean is set to true right before we fire pagehide and generally
     // unset when we embed a new content viewer.  While it's true no navigation

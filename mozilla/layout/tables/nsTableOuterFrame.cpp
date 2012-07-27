@@ -103,7 +103,7 @@ nsTableCaptionFrame::ComputeAutoSize(nsRenderingContext *aRenderingContext,
 
   // If we're a container for font size inflation, then shrink
   // wrapping inside of us should not apply font size inflation.
-  AutoMaybeNullInflationContainer an(this);
+  AutoMaybeDisableFontInflation an(this);
 
   PRUint8 captionSide = GetStyleTableBorder()->mCaptionSide;
   if (captionSide == NS_STYLE_CAPTION_SIDE_LEFT ||
@@ -126,7 +126,7 @@ nsTableCaptionFrame::ComputeAutoSize(nsRenderingContext *aRenderingContext,
 }
 
 nsIFrame*
-nsTableCaptionFrame::GetParentStyleContextFrame()
+nsTableCaptionFrame::GetParentStyleContextFrame() const
 {
   NS_PRECONDITION(mContent->GetParent(),
                   "How could we not have a parent here?");
@@ -215,7 +215,7 @@ nsTableOuterFrame::DestroyFrom(nsIFrame* aDestructRoot)
   nsContainerFrame::DestroyFrom(aDestructRoot);
 }
 
-nsFrameList
+const nsFrameList&
 nsTableOuterFrame::GetChildList(ChildListID aListID) const
 {
   if (aListID == kCaptionList) {
@@ -378,7 +378,7 @@ nsTableOuterFrame::BuildDisplayListForInnerTable(nsDisplayListBuilder*   aBuilde
 }
 
 nsIFrame*
-nsTableOuterFrame::GetParentStyleContextFrame()
+nsTableOuterFrame::GetParentStyleContextFrame() const
 {
   // The table outer frame and the (inner) table frame split the style
   // data by giving the table frame the style context associated with
@@ -533,7 +533,7 @@ ChildShrinkWrapWidth(nsRenderingContext *aRenderingContext,
                      nsSize aCBSize, nscoord aAvailableWidth,
                      nscoord *aMarginResult = nsnull)
 {
-  AutoMaybeNullInflationContainer an(aChildFrame);
+  AutoMaybeDisableFontInflation an(aChildFrame);
 
   nsCSSOffsetState offsets(aChildFrame, aRenderingContext, aCBSize.width);
   nsSize size = aChildFrame->ComputeSize(aRenderingContext, aCBSize,

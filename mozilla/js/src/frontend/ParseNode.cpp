@@ -109,15 +109,6 @@ ParseNode::clear()
 }
 
 bool
-FunctionBox::joinable() const
-{
-    return function()->isNullClosure() &&
-           (tcflags & (TCF_FUN_USES_ARGUMENTS |
-                       TCF_FUN_USES_OWN_NAME |
-                       TCF_COMPILE_N_GO)) == TCF_COMPILE_N_GO;
-}
-
-bool
 FunctionBox::inAnyDynamicScope() const
 {
     for (const FunctionBox *funbox = this; funbox; funbox = funbox->parent) {
@@ -660,3 +651,14 @@ js::CloneLeftHandSide(ParseNode *opn, TreeContext *tc)
     }
     return pn;
 }
+
+#ifdef DEBUG
+void
+js::DumpParseTree(ParseNode *pn, int indent)
+{
+    if (pn == NULL) 
+        fprintf(stderr, "()");
+    else
+        pn->dump(indent);
+}
+#endif

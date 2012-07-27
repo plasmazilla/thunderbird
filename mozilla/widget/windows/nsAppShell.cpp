@@ -43,6 +43,8 @@
 #include "nsToolkit.h"
 #include "nsThreadUtils.h"
 #include "WinTaskbar.h"
+#include "WinMouseScrollHandler.h"
+#include "nsWindowDefs.h"
 #include "nsString.h"
 #include "nsIMM32Handler.h"
 #include "mozilla/widget/AudioSession.h"
@@ -60,14 +62,12 @@ const PRUnichar* kTaskbarButtonEventId = L"TaskbarButtonCreated";
 
 static UINT sMsgId;
 
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_WIN7
 static UINT sTaskbarButtonCreatedMsg;
 
 /* static */
 UINT nsAppShell::GetTaskbarButtonCreatedMessage() {
 	return sTaskbarButtonCreatedMsg;
 }
-#endif
 
 namespace mozilla {
 namespace crashreporter {
@@ -81,6 +81,19 @@ using mozilla::crashreporter::LSPAnnotate;
 
 static bool PeekUIMessage(MSG* aMsg)
 {
+  // For avoiding deadlock between our process and plugin process by
+  // mouse wheel messages, we're handling actually when we receive one of
+  // following internal messages which is posted by native mouse wheel message
+  // handler. Any other events, especially native modifier key events, should
+  // not be handled between native message and posted internal message because
+  // it may make different modifier key state or mouse cursor position between
+  // them.
+  if (mozilla::widget::MouseScrollHandler::IsWaitingInternalMessage() &&
+      ::PeekMessageW(aMsg, NULL, MOZ_WM_MOUSEWHEEL_FIRST,
+                     MOZ_WM_MOUSEWHEEL_LAST, PM_REMOVE)) {
+    return true;
+  }
+
   MSG keyMsg, imeMsg, mouseMsg, *pMsg = 0;
   bool haveKeyMsg, haveIMEMsg, haveMouseMsg;
 
@@ -144,10 +157,8 @@ nsAppShell::Init()
   if (!sMsgId)
     sMsgId = RegisterWindowMessageW(kAppShellEventId);
 
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_WIN7
   sTaskbarButtonCreatedMsg = ::RegisterWindowMessageW(kTaskbarButtonEventId);
   NS_ASSERTION(sTaskbarButtonCreatedMsg, "Could not register taskbar button creation message");
-#endif
 
   WNDCLASSW wc;
   HINSTANCE module = GetModuleHandle(NULL);
@@ -249,17 +260,13 @@ nsAppShell::Run(void)
   memset(modules, 0, sizeof(modules));
   sLoadedModules = modules;	
 
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
   // Ignore failure; failing to start the application is not exactly an
   // appropriate response to failing to start an audio session.
   mozilla::widget::StartAudioSession();
-#endif
 
   nsresult rv = nsBaseAppShell::Run();
 
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
   mozilla::widget::StopAudioSession();
-#endif
 
   // Don't forget to null this out!
   sLoadedModules = nsnull;

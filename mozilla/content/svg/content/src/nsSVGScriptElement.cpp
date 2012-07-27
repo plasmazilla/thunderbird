@@ -86,6 +86,7 @@ public:
   virtual void GetScriptText(nsAString& text);
   virtual void GetScriptCharset(nsAString& charset);
   virtual void FreezeUriAsyncDefer();
+  virtual CORSMode GetCORSMode() const;
   
   // nsScriptElement
   virtual bool HasScriptContent();
@@ -95,7 +96,11 @@ public:
                               nsIContent* aBindingParent,
                               bool aCompileEventHandlers);
   virtual nsresult AfterSetAttr(PRInt32 aNamespaceID, nsIAtom* aName,
-                                const nsAString* aValue, bool aNotify);
+                                const nsAttrValue* aValue, bool aNotify);
+  virtual bool ParseAttribute(PRInt32 aNamespaceID,
+                              nsIAtom* aAttribute,
+                              const nsAString& aValue,
+                              nsAttrValue& aResult);
 
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const;
 
@@ -172,18 +177,9 @@ nsSVGScriptElement::Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const
 // nsIDOMSVGScriptElement methods
 
 /* attribute DOMString type; */
-NS_IMETHODIMP
-nsSVGScriptElement::GetType(nsAString & aType)
-{
-  GetAttr(kNameSpaceID_None, nsGkAtoms::type, aType);
-
-  return NS_OK;
-}
-NS_IMETHODIMP
-nsSVGScriptElement::SetType(const nsAString & aType)
-{
-  return SetAttr(kNameSpaceID_None, nsGkAtoms::type, aType, true); 
-}
+NS_IMPL_STRING_ATTR(nsSVGScriptElement, Type, type)
+/* attribute DOMString crossOrigin */
+NS_IMPL_STRING_ATTR(nsSVGScriptElement, CrossOrigin, crossorigin)
 
 //----------------------------------------------------------------------
 // nsIDOMSVGURIReference methods
@@ -280,7 +276,7 @@ nsSVGScriptElement::BindToTree(nsIDocument* aDocument, nsIContent* aParent,
 
 nsresult
 nsSVGScriptElement::AfterSetAttr(PRInt32 aNamespaceID, nsIAtom* aName,
-                                 const nsAString* aValue, bool aNotify)
+                                 const nsAttrValue* aValue, bool aNotify)
 {
   if (aNamespaceID == kNameSpaceID_XLink && aName == nsGkAtoms::href) {
     MaybeProcessScript();
@@ -288,3 +284,26 @@ nsSVGScriptElement::AfterSetAttr(PRInt32 aNamespaceID, nsIAtom* aName,
   return nsSVGScriptElementBase::AfterSetAttr(aNamespaceID, aName,
                                               aValue, aNotify);
 }
+
+bool
+nsSVGScriptElement::ParseAttribute(PRInt32 aNamespaceID,
+                                   nsIAtom* aAttribute,
+                                   const nsAString& aValue,
+                                   nsAttrValue& aResult)
+{
+  if (aNamespaceID == kNameSpaceID_None &&
+      aAttribute == nsGkAtoms::crossorigin) {
+    ParseCORSValue(aValue, aResult);
+    return true;
+  }
+
+  return nsSVGScriptElementBase::ParseAttribute(aNamespaceID, aAttribute,
+                                                aValue, aResult);
+}
+
+CORSMode
+nsSVGScriptElement::GetCORSMode() const
+{
+  return AttrValueToCORSMode(GetParsedAttr(nsGkAtoms::crossorigin));
+}
+

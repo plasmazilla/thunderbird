@@ -229,6 +229,13 @@ LayerManager::Mutated(Layer* aLayer)
 }
 #endif  // DEBUG
 
+already_AddRefed<ImageContainer>
+LayerManager::CreateImageContainer()
+{
+  nsRefPtr<ImageContainer> container = new ImageContainer();
+  return container.forget();
+}
+
 //--------------------------------------------------
 // Layer
 
@@ -451,6 +458,10 @@ ContainerLayer::DefaultComputeEffectiveTransforms(const gfx3DMatrix& aTransformT
   float opacity = GetEffectiveOpacity();
   if (opacity != 1.0f && HasMultipleChildren()) {
     useIntermediateSurface = true;
+#ifdef MOZ_DUMP_PAINTING
+  } else if (gfxUtils::sDumpPainting) {
+    useIntermediateSurface = true;
+#endif
   } else {
     useIntermediateSurface = false;
     gfxMatrix contTransform;
@@ -513,54 +524,7 @@ ContainerLayer::DidInsertChild(Layer* aLayer)
     mMayHaveReadbackChild = true;
   }
 }
-
-PRUint8* 
-PlanarYCbCrImage::AllocateBuffer(PRUint32 aSize)
-{
-  const fallible_t fallible = fallible_t();
-  return new (fallible) PRUint8[aSize]; 
-}
-
-PRUint8*
-PlanarYCbCrImage::CopyData(Data& aDest, gfxIntSize& aDestSize,
-                           PRUint32& aDestBufferSize, const Data& aData)
-{
-  aDest = aData;
-
-  aDest.mYStride = aDest.mYSize.width;
-  aDest.mCbCrStride = aDest.mCbCrSize.width;
-
-  // update buffer size
-  aDestBufferSize = aDest.mCbCrStride * aDest.mCbCrSize.height * 2 +
-                    aDest.mYStride * aDest.mYSize.height;
-
-  // get new buffer
-  PRUint8* buffer = AllocateBuffer(aDestBufferSize); 
-  if (!buffer)
-    return nsnull;
-
-  aDest.mYChannel = buffer;
-  aDest.mCbChannel = aDest.mYChannel + aDest.mYStride * aDest.mYSize.height;
-  aDest.mCrChannel = aDest.mCbChannel + aDest.mCbCrStride * aDest.mCbCrSize.height;
-
-  for (int i = 0; i < aDest.mYSize.height; i++) {
-    memcpy(aDest.mYChannel + i * aDest.mYStride,
-           aData.mYChannel + i * aData.mYStride,
-           aDest.mYStride);
-  }
-  for (int i = 0; i < aDest.mCbCrSize.height; i++) {
-    memcpy(aDest.mCbChannel + i * aDest.mCbCrStride,
-           aData.mCbChannel + i * aData.mCbCrStride,
-           aDest.mCbCrStride);
-    memcpy(aDest.mCrChannel + i * aDest.mCbCrStride,
-           aData.mCrChannel + i * aData.mCbCrStride,
-           aDest.mCbCrStride);
-  }
-
-  aDestSize = aData.mPicSize;
-  return buffer;
-}
-                         
+                        
 void
 LayerManager::StartFrameTimeRecording()
 {
@@ -592,17 +556,62 @@ LayerManager::StopFrameTimeRecording()
 
 static nsACString& PrintInfo(nsACString& aTo, ShadowLayer* aShadowLayer);
 
+#ifdef MOZ_DUMP_PAINTING
+template <typename T>
+void WriteSnapshotLinkToDumpFile(T* aObj, FILE* aFile)
+{
+  nsCString string(aObj->Name());
+  string.Append("-");
+  string.AppendInt((PRUint64)aObj);
+  fprintf(aFile, "href=\"javascript:ViewImage('%s')\"", string.BeginReading());
+}
+
+template <typename T>
+void WriteSnapshotToDumpFile_internal(T* aObj, gfxASurface* aSurf)
+{
+  nsCString string(aObj->Name());
+  string.Append("-");
+  string.AppendInt((PRUint64)aObj);
+  if (gfxUtils::sDumpPaintFile)
+    fprintf(gfxUtils::sDumpPaintFile, "array[\"%s\"]=\"", string.BeginReading());
+  aSurf->DumpAsDataURL(gfxUtils::sDumpPaintFile);
+  if (gfxUtils::sDumpPaintFile)
+    fprintf(gfxUtils::sDumpPaintFile, "\";");
+}
+
+void WriteSnapshotToDumpFile(Layer* aLayer, gfxASurface* aSurf)
+{
+  WriteSnapshotToDumpFile_internal(aLayer, aSurf);
+}
+
+void WriteSnapshotToDumpFile(LayerManager* aManager, gfxASurface* aSurf)
+{
+  WriteSnapshotToDumpFile_internal(aManager, aSurf);
+}
+#endif
+
 void
 Layer::Dump(FILE* aFile, const char* aPrefix)
 {
+  fprintf(aFile, "<li><a id=\"%p\" ", this);
+#ifdef MOZ_DUMP_PAINTING
+  if (GetType() == TYPE_CONTAINER || GetType() == TYPE_THEBES) {
+    WriteSnapshotLinkToDumpFile(this, aFile);
+  }
+#endif
+  fprintf(aFile, ">");
   DumpSelf(aFile, aPrefix);
+  fprintf(aFile, "</a>");
 
   if (Layer* kid = GetFirstChild()) {
     nsCAutoString pfx(aPrefix);
     pfx += "  ";
+    fprintf(aFile, "<ul>");
     kid->Dump(aFile, pfx.get());
+    fprintf(aFile, "</ul>");
   }
 
+  fprintf(aFile, "</li>");
   if (Layer* next = GetNextSibling())
     next->Dump(aFile, aPrefix);
 }
@@ -663,9 +672,6 @@ Layer::PrintInfo(nsACString& aTo, const char* aPrefix)
   }
   if (1.0 != mOpacity) {
     aTo.AppendPrintf(" [opacity=%g]", mOpacity);
-  }
-  if (const nsIntRect* tileSourceRect = GetTileSourceRect()) {
-    AppendToString(aTo, *tileSourceRect, " [tileSrc=", "]");
   }
   if (GetContentFlags() & CONTENT_OPAQUE) {
     aTo += " [opaqueContent]";
@@ -754,17 +760,27 @@ void
 LayerManager::Dump(FILE* aFile, const char* aPrefix)
 {
   FILE* file = FILEOrDefault(aFile);
-
+ 
+  fprintf(file, "<ul><li><a ");
+#ifdef MOZ_DUMP_PAINTING
+  WriteSnapshotLinkToDumpFile(this, aFile);
+#endif
+  fprintf(file, ">");
   DumpSelf(file, aPrefix);
+#ifdef MOZ_DUMP_PAINTING
+  fprintf(aFile, "</a>");
+#endif
 
   nsCAutoString pfx(aPrefix);
   pfx += "  ";
   if (!GetRoot()) {
-    fprintf(file, "%s(null)", pfx.get());
+    fprintf(file, "%s(null)</li></ul>", pfx.get());
     return;
   }
-
+ 
+  fprintf(file, "<ul>");
   GetRoot()->Dump(file, pfx.get());
+  fprintf(file, "</ul></li></ul>");
 }
 
 void

@@ -42,8 +42,9 @@
 #include "jsnum.h"
 #include "jsonparser.h"
 
+#include "vm/StringBuffer.h"
+
 #include "jsobjinlines.h"
-#include "jsstrinlines.h"
 
 using namespace js;
 
@@ -217,7 +218,7 @@ JSONParser::readNumber()
     /* Fast path: no fractional or exponent part. */
     if (current == end || (*current != '.' && *current != 'e' && *current != 'E')) {
         const jschar *dummy;
-        jsdouble d;
+        double d;
         if (!GetPrefixInteger(cx, digitStart.get(), current.get(), 10, &dummy, &d))
             return token(OOM);
         JS_ASSERT(current == dummy);
@@ -262,7 +263,7 @@ JSONParser::readNumber()
         }
     }
 
-    jsdouble d;
+    double d;
     const jschar *finish;
     if (!js_strtod(cx, digitStart.get(), current.get(), &finish, &d))
         return token(OOM);
@@ -538,7 +539,8 @@ JSONParser::parse(Value *vp)
              *     js_CheckForStringIndex.
              */
             jsid propid = ATOM_TO_JSID(&valueStack.popCopy().toString()->asAtom());
-            if (!DefineNativeProperty(cx, &valueStack.back().toObject(), propid, v,
+            RootedVarObject obj(cx, &valueStack.back().toObject());
+            if (!DefineNativeProperty(cx, obj, propid, v,
                                       JS_PropertyStub, JS_StrictPropertyStub, JSPROP_ENUMERATE,
                                       0, 0))
             {

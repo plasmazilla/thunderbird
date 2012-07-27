@@ -142,9 +142,9 @@ PatternIsCompatible(const Pattern& aPattern)
       const RadialGradientPattern& pattern = static_cast<const RadialGradientPattern&>(aPattern);
       return pattern.mStops->GetBackendType() == BACKEND_CAIRO;
     }
+    default:
+      return true;
   }
-
-  return true;
 }
 
 // Never returns NULL. As such, you must always pass in Cairo-compatible
@@ -587,7 +587,8 @@ void
 DrawTargetCairo::FillGlyphs(ScaledFont *aFont,
                             const GlyphBuffer &aBuffer,
                             const Pattern &aPattern,
-                            const DrawOptions &aOptions)
+                            const DrawOptions &aOptions,
+                            const GlyphRenderingOptions*)
 {
   AutoPrepareForDrawing prep(this, mContext);
 

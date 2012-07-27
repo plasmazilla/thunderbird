@@ -77,6 +77,26 @@ void EnableNetworkNotifications();
  */
 void DisableNetworkNotifications();
 
+/**
+ * Enables screen orientation notifications from the backend.
+ */
+void EnableScreenOrientationNotifications();
+
+/**
+ * Disables screen orientation notifications from the backend.
+ */
+void DisableScreenOrientationNotifications();
+
+/**
+ * Enable switch notifications from the backend
+ */
+void EnableSwitchNotifications(hal::SwitchDevice aDevice);
+
+/**
+ * Disable switch notifications from the backend
+ */
+void DisableSwitchNotifications(hal::SwitchDevice aDevice);
+
 } // namespace MOZ_HAL_NAMESPACE
 } // namespace mozilla
 

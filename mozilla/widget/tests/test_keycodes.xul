@@ -73,15 +73,16 @@ function synthesizeNativeKey(aLayout, aKeyCode, aModifiers, aSystemChars,
 
 var keyboardLayouts;
 if (IS_MAC) {
-  // These constants can be found by inspecting files under
-  // /System/Library/Keyboard\ Layouts/Unicode.bundle/Contents/Resources/
-  // XXX if you need a new keyboard layout and that uses KCHR resource,
-  // you need to modify GetScriptFromKeyboardLayout of nsChildView.mm
+  // Any unused number is okay for adding new keyboard layout.
+  // When you add new keyboard layout here, you need to modify
+  // TISInputSourceWrapper::InitByLayoutID().
   keyboardLayouts = {
-    "US":0,
-    "Greek":-18944,
-    "German":3,
-    "Swedish":224
+    "US":              0,
+    "Greek":           1,
+    "German":          2,
+    "Swedish":         3,
+    "Dvorak-Qwerty":   4,
+    "Thai":            5
   };
 } else if (IS_WIN) {
   // These constants can be found by inspecting registry keys under
@@ -403,6 +404,11 @@ function runKeyEventTests()
             "", SHOULD_DELIVER_KEYDOWN);
     testKey({layout:"US", keyCode:54, commandRight:0, chars:"", unmodifiedChars:""},
             "", SHOULD_DELIVER_KEYUP);
+
+   testKey({layout:"Dvorak-Qwerty", keyCode:0x22, command:1, alt:1, chars:"^", unmodifiedChars:"c"},
+           "^", SHOULD_DELIVER_KEYDOWN_KEYPRESS);
+   testKey({layout:"Dvorak-Qwerty", keyCode:0x22, command:1, alt:1, shift:1, chars:"\u02C6", unmodifiedChars:"C"},
+           "\u02C6", SHOULD_DELIVER_KEYDOWN_KEYPRESS);
   }
   else if (IS_WIN) {
     // On Windows, you can use Spy++ or Winspector (free) to watch window messages.
@@ -491,44 +497,44 @@ function runAccessKeyTests()
     testKey({layout:"US", keyCode:0, chars:"a", unmodifiedChars:"a"},
             "a", false);
     testKey({layout:"US", keyCode:0, ctrl:1, chars:"\u0001", unmodifiedChars:"a"},
-            "a", true);
+            "a", false);
     testKey({layout:"US", keyCode:0, ctrl:1, chars:"\u0001", unmodifiedChars:"a"},
-            "A", true);
+            "A", false);
 
     // Shift-ctrl does not activate accesskeys
     testKey({layout:"US", keyCode:0, ctrl:1, shift:1, chars:"\u0001", unmodifiedChars:"A"},
             "a", false);
     testKey({layout:"US", keyCode:0, ctrl:1, shift:1, chars:"\u0001", unmodifiedChars:"A"},
             "A", false);
-    // Alt-ctrl does not activate accesskeys
+    // Alt-ctrl activate accesskeys
     testKey({layout:"US", keyCode:0, ctrl:1, alt:1, chars:"\u0001", unmodifiedChars:"a"},
-            "a", false);
+            "a", true);
     testKey({layout:"US", keyCode:0, ctrl:1, alt:1, chars:"\u0001", unmodifiedChars:"a"},
-            "A", false);
+            "A", true);
             
     // Greek layout can activate a Latin accesskey
-    testKey({layout:"Greek", keyCode:0, ctrl:1, chars:"\u0001", unmodifiedChars:"\u03b1"},
+    testKey({layout:"Greek", keyCode:0, ctrl:1, alt:1, chars:"\u0001", unmodifiedChars:"\u03b1"},
             "a", true);
-    testKey({layout:"Greek", keyCode:0, ctrl:1, chars:"\u0001", unmodifiedChars:"\u03b1"},
+    testKey({layout:"Greek", keyCode:0, ctrl:1, alt:1, chars:"\u0001", unmodifiedChars:"\u03b1"},
             "A", true);
     // ... and a Greek accesskey!
-    testKey({layout:"Greek", keyCode:0, ctrl:1, chars:"\u0001", unmodifiedChars:"\u03b1"},
+    testKey({layout:"Greek", keyCode:0, ctrl:1, alt:1, chars:"\u0001", unmodifiedChars:"\u03b1"},
             "\u03b1", true);
-    testKey({layout:"Greek", keyCode:0, ctrl:1, chars:"\u0001", unmodifiedChars:"\u03b1"},
+    testKey({layout:"Greek", keyCode:0, ctrl:1, alt:1, chars:"\u0001", unmodifiedChars:"\u03b1"},
             "\u0391", true);
 
     // bug 359638
-    testKey({layout:"US", keyCode:47, ctrl:1, chars:".", unmodifiedChars:"."},
+    testKey({layout:"US", keyCode:47, ctrl:1, alt:1, chars:".", unmodifiedChars:"."},
             ".", true);
 
     // German (KCHR/KeyTranslate case)
-    testKey({layout:"German", keyCode:0, ctrl:1, chars:"a", unmodifiedChars:"a"},
+    testKey({layout:"German", keyCode:0, ctrl:1, alt:1, chars:"a", unmodifiedChars:"a"},
             "a", true);
-    testKey({layout:"German", keyCode:0, ctrl:1, chars:"a", unmodifiedChars:"a"},
+    testKey({layout:"German", keyCode:0, ctrl:1, alt:1, chars:"a", unmodifiedChars:"a"},
             "A", true);
-    testKey({layout:"German", keyCode:33, ctrl:1, chars:"\u00fc", unmodifiedChars:"\u00fc"},
+    testKey({layout:"German", keyCode:33, ctrl:1, alt:1, chars:"\u00fc", unmodifiedChars:"\u00fc"},
             "\u00fc", true);
-    testKey({layout:"German", keyCode:33, ctrl:1, chars:"\u00fc", unmodifiedChars:"\u00fc"},
+    testKey({layout:"German", keyCode:33, ctrl:1, alt:1, chars:"\u00fc", unmodifiedChars:"\u00fc"},
             "\u00dc", true);
   }
   else if (IS_WIN) {

@@ -106,6 +106,26 @@ private:
 
 
 /**
+ * Accessible hide event.
+ */
+class nsAccHideEvent : public nsAccEvent,
+                       public nsIAccessibleHideEvent
+{
+public:
+  nsAccHideEvent(AccHideEvent* aEvent) : nsAccEvent(aEvent) { }
+  virtual ~nsAccHideEvent() { }
+
+  NS_DECL_ISUPPORTS_INHERITED
+  NS_DECL_NSIACCESSIBLEHIDEEVENT
+
+private:
+  nsAccHideEvent() MOZ_DELETE;
+  nsAccHideEvent(const nsAccHideEvent&) MOZ_DELETE;
+  nsAccHideEvent& operator =(const nsAccHideEvent&) MOZ_DELETE;
+};
+
+
+/**
  * Accessible caret move event.
  */
 class nsAccCaretMoveEvent: public nsAccEvent,
@@ -142,6 +162,26 @@ private:
   nsAccTableChangeEvent();
   nsAccTableChangeEvent(const nsAccTableChangeEvent&);
   nsAccTableChangeEvent& operator =(const nsAccTableChangeEvent&);
+};
+
+/**
+ * Accessible virtual cursor change event.
+ */
+class nsAccVirtualCursorChangeEvent : public nsAccEvent,
+                                      public nsIAccessibleVirtualCursorChangeEvent
+{
+public:
+  nsAccVirtualCursorChangeEvent(AccVCChangeEvent* aEvent) :
+    nsAccEvent(aEvent) { }
+  virtual ~nsAccVirtualCursorChangeEvent() { }
+
+  NS_DECL_ISUPPORTS_INHERITED
+  NS_DECL_NSIACCESSIBLEVIRTUALCURSORCHANGEEVENT
+
+private:
+  nsAccVirtualCursorChangeEvent() MOZ_DELETE;
+  nsAccVirtualCursorChangeEvent(const nsAccVirtualCursorChangeEvent&) MOZ_DELETE;
+  nsAccVirtualCursorChangeEvent& operator =(const nsAccVirtualCursorChangeEvent&) MOZ_DELETE;
 };
 
 #endif

@@ -38,6 +38,13 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+/**
+ * Functionality for the main application window (aka the 3pane) usually
+ * consisting of folder pane, thread pane and message pane.
+ */
+
+Components.utils.import("resource:///modules/mailServices.js");
+
 // Controller object for folder pane
 var FolderPaneController =
 {
@@ -146,6 +153,7 @@ var DefaultController =
       case "button_reply":
       case "cmd_replySender":
       case "cmd_replyGroup":
+      case "button_followup":
       case "cmd_replyall":
       case "button_replyall":
       case "cmd_replylist":
@@ -162,13 +170,15 @@ var DefaultController =
       case "button_junk":
       case "cmd_shiftDelete":
       case "button_shiftDelete":
+      case "button_nextMsg":
       case "cmd_nextMsg":
       case "button_next":
-      case "button_previous":
       case "cmd_nextUnreadMsg":
       case "cmd_nextFlaggedMsg":
       case "cmd_nextUnreadThread":
+      case "button_previousMsg":
       case "cmd_previousMsg":
+      case "button_previous":
       case "cmd_previousUnreadMsg":
       case "cmd_previousFlaggedMsg":
       case "button_goForward":
@@ -334,6 +344,7 @@ var DefaultController =
       case "button_reply":
       case "cmd_replySender":
       case "cmd_replyGroup":
+      case "button_followup":
       case "cmd_replyall":
       case "button_replyall":
       case "cmd_replylist":
@@ -433,13 +444,14 @@ var DefaultController =
         return CanMarkMsgAsRead(true);
       case "cmd_markAsUnread":
         return CanMarkMsgAsRead(false);
-      case "button_previous":
-      case "button_next":
-        return IsViewNavigationItemEnabled();
+      case "button_nextMsg":
       case "cmd_nextMsg":
+      case "button_next":
       case "cmd_nextUnreadMsg":
       case "cmd_nextUnreadThread":
+      case "button_previousMsg":
       case "cmd_previousMsg":
+      case "button_previous":
       case "cmd_previousUnreadMsg":
         return IsViewNavigationItemEnabled();
       case "button_goForward":
@@ -471,10 +483,10 @@ var DefaultController =
         // and have more than one message selected.
         return (!IsMessagePaneCollapsed() && (GetNumSelectedMessages() == 1));
       case "cmd_search":
-        return IsCanSearchMessagesEnabled();
+        return (MailServices.accounts.accounts.Count() > 0);
       case "cmd_selectAll":
       case "cmd_selectFlagged":
-        return gDBView != null;
+        return !!gDBView;
       // these are enabled on when we are in threaded mode
       case "cmd_selectThread":
         if (GetNumSelectedMessages() <= 0) return false;
@@ -516,8 +528,7 @@ var DefaultController =
       case "button_getNewMessages":
       case "cmd_getNewMessages":
       case "cmd_getMsgsForAuthAccounts":
-        // GetMsgs should always be enabled, see bugs 89404 and 111102.
-        return true;
+        return IsGetNewMessagesEnabled();
       case "cmd_getNextNMessages":
         return IsGetNextNMessagesEnabled();
       case "cmd_emptyTrash":
@@ -686,12 +697,14 @@ var DefaultController =
       case "cmd_nextUnreadThread":
         GoNextMessage(nsMsgNavigationType.nextUnreadThread, true);
         break;
+      case "button_nextMsg":
       case "cmd_nextMsg":
         GoNextMessage(nsMsgNavigationType.nextMessage, false);
         break;
       case "cmd_nextFlaggedMsg":
         GoNextMessage(nsMsgNavigationType.nextFlagged, true);
         break;
+      case "button_previousMsg":
       case "cmd_previousMsg":
         GoNextMessage(nsMsgNavigationType.previousMessage, false);
         break;
@@ -1061,13 +1074,6 @@ function IsSendUnsentMsgsEnabled(unsentMsgsFolder)
   return msgSendlater.hasUnsentMessages(identity);
 }
 
-function IsCanSearchMessagesEnabled()
-{
-  var folder = GetSelectedMsgFolders()[0];
-  if (!folder)
-    return false;
-  return folder.server.canSearchMessages;
-}
 function IsFolderCharsetEnabled()
 {
   return IsFolderSelected();

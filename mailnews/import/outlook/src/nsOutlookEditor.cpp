@@ -191,7 +191,7 @@ NS_IMETHODIMP nsOutlookHTMLImageElement::HasChildNodes(bool *_retval)
 }
 
 // nsIDOMNode cloneNode (in boolean deep)
-NS_IMETHODIMP nsOutlookHTMLImageElement::CloneNode(bool deep, nsIDOMNode **_retval)
+NS_IMETHODIMP nsOutlookHTMLImageElement::CloneNode(bool deep, PRUint8 aOptionalArgc, nsIDOMNode **_retval)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }
@@ -940,6 +940,23 @@ NS_IMETHODIMP nsOutlookHTMLImageElement::GetBoundingClientRect(nsIDOMClientRect 
 }
 
 NS_IMETHODIMP nsOutlookHTMLImageElement::MozMatchesSelector(const nsAString &aSelector, bool *aResult)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP nsOutlookHTMLImageElement::MozRequestPointerLock()
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP
+nsOutlookHTMLImageElement::GetX(PRInt32* aX)
+{
+  return NS_ERROR_NOT_IMPLEMENTED;
+}
+
+NS_IMETHODIMP
+nsOutlookHTMLImageElement::GetY(PRInt32* aY)
 {
   return NS_ERROR_NOT_IMPLEMENTED;
 }

@@ -74,9 +74,11 @@ protected:
   nsresult OpenPopup();
   nsresult ClosePopup();
 
-  nsresult StartSearch();
-  
-  nsresult StartSearchTimer();
+  nsresult StartSearch(PRUint16 aSearchType);
+
+  nsresult BeforeSearches();
+  nsresult StartSearches();
+  void AfterSearches();
   nsresult ClearSearchTimer();
 
   nsresult ProcessResult(PRInt32 aSearchIndex, nsIAutoCompleteResult *aResult);
@@ -98,8 +100,49 @@ private:
   nsresult GetResultValueLabelAt(PRInt32 aIndex, bool aValueOnly,
                                  bool aGetValue, nsAString & _retval);
 protected:
+
+  /**
+   * Gets and validates the defaultComplete result and the relative
+   * defaultIndex value.
+   *
+   * @param aResultIndex
+   *        Index of the defaultComplete result to be used.  Pass -1 to search
+   *        for the first result providing a valid defaultIndex.
+   * @param _result
+   *        The found result.
+   * @param _defaultIndex
+   *        The defaultIndex relative to _result.
+   */
+  nsresult GetDefaultCompleteResult(PRInt32 aResultIndex,
+                                    nsIAutoCompleteResult** _result,
+                                    PRInt32* _defaultIndex);
+
+  /**
+   * Gets the defaultComplete value to be suggested to the user.
+   *
+   * @param aResultIndex
+   *        Index of the defaultComplete result to be used.
+   * @param aPreserveCasing
+   *        Whether user casing should be preserved.
+   * @param _retval
+   *        The value to be completed.
+   */
   nsresult GetDefaultCompleteValue(PRInt32 aResultIndex, bool aPreserveCasing,
                                    nsAString &_retval);
+
+  /**
+   * Gets the defaultComplete value to be used when the user confirms the
+   * current match.
+   * The value is returned only if it case-insensitively matches the current
+   * input text, otherwise the method returns NS_ERROR_FAILURE.
+   * This happens because we don't want to replace text if the user backspaces
+   * just before Enter.
+   *
+   * @param _retval
+   *        The value to be completed.
+   */
+  nsresult GetFinalDefaultCompleteValue(nsAString &_retval);
+
   nsresult ClearResults();
   
   nsresult RowIndexToSearch(PRInt32 aRowIndex,
@@ -111,8 +154,14 @@ protected:
 
   nsCOMArray<nsIAutoCompleteSearch> mSearches;
   nsCOMArray<nsIAutoCompleteResult> mResults;
+  // Caches the match counts for the current ongoing results to allow
+  // incremental results to keep the rowcount up to date.
   nsTArray<PRUint32> mMatchCounts;
-  
+  // Temporarily keeps the results alive while invoking startSearch() for each
+  // search.  This is needed to allow the searches to reuse the previous result,
+  // since otherwise the first search clears mResults.
+  nsCOMArray<nsIAutoCompleteResult> mResultCache;
+
   nsCOMPtr<nsITimer> mTimer;
   nsCOMPtr<nsITreeSelection> mSelection;
   nsCOMPtr<nsITreeBoxObject> mTree;
@@ -121,12 +170,18 @@ protected:
   bool mDefaultIndexCompleted;
   bool mBackspaced;
   bool mPopupClosedByCompositionStart;
-  bool mIsIMEComposing;
-  bool mIgnoreHandleText;
+  enum CompositionState {
+    eCompositionState_None,
+    eCompositionState_Composing,
+    eCompositionState_Committing
+  };
+  CompositionState mCompositionState;
   PRUint16 mSearchStatus;
   PRUint32 mRowCount;
   PRUint32 mSearchesOngoing;
+  PRUint32 mSearchesFailed;
   bool mFirstSearchResult;
+  PRUint32 mImmediateSearchesCount;
 };
 
 #endif /* __nsAutoCompleteController__ */

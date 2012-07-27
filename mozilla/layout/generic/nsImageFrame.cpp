@@ -62,7 +62,6 @@
 #include "nsILinkHandler.h"
 #include "nsIURL.h"
 #include "nsIIOService.h"
-#include "nsIURL.h"
 #include "nsILoadGroup.h"
 #include "nsISupportsPriority.h"
 #include "nsIServiceManager.h"
@@ -80,7 +79,6 @@
 #ifdef ACCESSIBILITY
 #include "nsAccessibilityService.h"
 #endif
-#include "nsIServiceManager.h"
 #include "nsIDOMNode.h"
 #include "nsGUIEvent.h"
 #include "nsLayoutUtils.h"
@@ -196,8 +194,14 @@ nsImageFrame::CreateAccessible()
 {
   nsAccessibilityService* accService = nsIPresShell::AccService();
   if (accService) {
-    return accService->CreateHTMLImageAccessible(mContent,
-                                                 PresContext()->PresShell());
+    // Don't use GetImageMap() to avoid reentrancy into accessibility.
+    if (HasImageMap()) {
+      return accService->CreateHTMLImageMapAccessible(mContent,
+                                                      PresContext()->PresShell());
+    } else {
+      return accService->CreateHTMLImageAccessible(mContent,
+                                                   PresContext()->PresShell());
+    }
   }
 
   return nsnull;
@@ -210,6 +214,13 @@ nsImageFrame::DisconnectMap()
   if (mImageMap) {
     mImageMap->Destroy();
     NS_RELEASE(mImageMap);
+
+#ifdef ACCESSIBILITY
+  nsAccessibilityService* accService = GetAccService();
+  if (accService) {
+    accService->RecreateAccessible(PresContext()->PresShell(), mContent);
+  }
+#endif
   }
 }
 
@@ -631,10 +642,6 @@ nsImageFrame::OnStopDecode(imgIRequest *aRequest,
                            nsresult aStatus,
                            const PRUnichar *aStatusArg)
 {
-  nsPresContext *presContext = PresContext();
-  nsIPresShell *presShell = presContext->GetPresShell();
-  NS_ASSERTION(presShell, "No PresShell.");
-
   // Check what request type we're dealing with
   nsCOMPtr<nsIImageLoadingContent> imageLoader = do_QueryInterface(mContent);
   NS_ASSERTION(imageLoader, "Who's notifying us??");
@@ -646,39 +653,47 @@ nsImageFrame::OnStopDecode(imgIRequest *aRequest,
   }
 
   if (loadType == nsIImageLoadingContent::PENDING_REQUEST) {
-    // May have to switch sizes here!
-    bool intrinsicSizeChanged = true;
-    if (NS_SUCCEEDED(aStatus)) {
-      nsCOMPtr<imgIContainer> imageContainer;
-      aRequest->GetImage(getter_AddRefs(imageContainer));
-      NS_ASSERTION(imageContainer, "Successful load with no container?");
-      intrinsicSizeChanged = UpdateIntrinsicSize(imageContainer);
-      intrinsicSizeChanged = UpdateIntrinsicRatio(imageContainer) ||
-        intrinsicSizeChanged;
-    }
-    else {
-      // Have to size to 0,0 so that GetDesiredSize recalculates the size
-      mIntrinsicSize.width.SetCoordValue(0);
-      mIntrinsicSize.height.SetCoordValue(0);
-      mIntrinsicRatio.SizeTo(0, 0);
-    }
-
-    if (mState & IMAGE_GOTINITIALREFLOW) { // do nothing if we haven't gotten the initial reflow yet
-      if (!(mState & IMAGE_SIZECONSTRAINED) && intrinsicSizeChanged) {
-        if (presShell) { 
-          presShell->FrameNeedsReflow(this, nsIPresShell::eStyleChange,
-                                      NS_FRAME_IS_DIRTY);
-        }
-      } else {
-        nsSize s = GetSize();
-        nsRect r(0, 0, s.width, s.height);
-        // Update border+content to account for image change
-        Invalidate(r);
-      }
-    }
+    NotifyNewCurrentRequest(aRequest, aStatus);
   }
 
   return NS_OK;
+}
+
+void
+nsImageFrame::NotifyNewCurrentRequest(imgIRequest *aRequest,
+                                      nsresult aStatus)
+{
+  // May have to switch sizes here!
+  bool intrinsicSizeChanged = true;
+  if (NS_SUCCEEDED(aStatus)) {
+    nsCOMPtr<imgIContainer> imageContainer;
+    aRequest->GetImage(getter_AddRefs(imageContainer));
+    NS_ASSERTION(imageContainer, "Successful load with no container?");
+    intrinsicSizeChanged = UpdateIntrinsicSize(imageContainer);
+    intrinsicSizeChanged = UpdateIntrinsicRatio(imageContainer) ||
+      intrinsicSizeChanged;
+  }
+  else {
+    // Have to size to 0,0 so that GetDesiredSize recalculates the size
+    mIntrinsicSize.width.SetCoordValue(0);
+    mIntrinsicSize.height.SetCoordValue(0);
+    mIntrinsicRatio.SizeTo(0, 0);
+  }
+
+  if (mState & IMAGE_GOTINITIALREFLOW) { // do nothing if we haven't gotten the initial reflow yet
+    if (!(mState & IMAGE_SIZECONSTRAINED) && intrinsicSizeChanged) {
+      nsIPresShell *presShell = PresContext()->GetPresShell();
+      if (presShell) { 
+        presShell->FrameNeedsReflow(this, nsIPresShell::eStyleChange,
+                                    NS_FRAME_IS_DIRTY);
+      }
+    } else {
+      nsSize s = GetSize();
+      nsRect r(0, 0, s.width, s.height);
+      // Update border+content to account for image change
+      Invalidate(r);
+    }
+  }
 }
 
 nsresult
@@ -754,7 +769,7 @@ nsImageFrame::EnsureIntrinsicSizeAndRatio(nsPresContext* aPresContext)
 nsImageFrame::ComputeSize(nsRenderingContext *aRenderingContext,
                           nsSize aCBSize, nscoord aAvailableWidth,
                           nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                          bool aShrinkWrap)
+                          PRUint32 aFlags)
 {
   nsPresContext *presContext = PresContext();
   EnsureIntrinsicSizeAndRatio(presContext);
@@ -988,7 +1003,7 @@ nsImageFrame::DisplayAltText(nsPresContext*      aPresContext,
   aRenderingContext.SetColor(GetStyleColor()->mColor);
   nsRefPtr<nsFontMetrics> fm;
   nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm),
-    nsLayoutUtils::FontSizeInflationFor(this, nsLayoutUtils::eNotInReflow));
+    nsLayoutUtils::FontSizeInflationFor(this));
   aRenderingContext.SetFont(fm);
 
   // Format the text to display within the formatting rect
@@ -1211,10 +1226,10 @@ nsDisplayImage::Paint(nsDisplayListBuilder* aBuilder,
 }
 
 already_AddRefed<ImageContainer>
-nsDisplayImage::GetContainer(LayerManager* aManager)
+nsDisplayImage::GetContainer()
 {
   nsRefPtr<ImageContainer> container;
-  nsresult rv = mImage->GetImageContainer(aManager, getter_AddRefs(container));
+  nsresult rv = mImage->GetImageContainer(getter_AddRefs(container));
   NS_ENSURE_SUCCESS(rv, nsnull);
   return container.forget();
 }
@@ -1424,15 +1439,7 @@ nsImageMap*
 nsImageFrame::GetImageMap()
 {
   if (!mImageMap) {
-    nsIDocument* doc = mContent->GetDocument();
-    if (!doc) {
-      return nsnull;
-    }
-
-    nsAutoString usemap;
-    mContent->GetAttr(kNameSpaceID_None, nsGkAtoms::usemap, usemap);
-
-    nsCOMPtr<nsIContent> map = doc->FindImageMap(usemap);
+    nsIContent* map = GetMapElement();
     if (map) {
       mImageMap = new nsImageMap();
       NS_ADDREF(mImageMap);

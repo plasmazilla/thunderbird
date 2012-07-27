@@ -56,18 +56,18 @@ void ToUpperCase(nsAString&);
 void ToLowerCase(const nsAString& aSource, nsAString& aDest);
 void ToUpperCase(const nsAString& aSource, nsAString& aDest);
 
-PRUnichar ToLowerCase(PRUnichar);
-PRUnichar ToUpperCase(PRUnichar);
-PRUnichar ToTitleCase(PRUnichar);
+PRUint32 ToLowerCase(PRUint32);
+PRUint32 ToUpperCase(PRUint32);
+PRUint32 ToTitleCase(PRUint32);
 
 void ToLowerCase(const PRUnichar*, PRUnichar*, PRUint32);
 void ToUpperCase(const PRUnichar*, PRUnichar*, PRUint32);
 
-inline bool IsUpperCase(PRUnichar c) {
+inline bool IsUpperCase(PRUint32 c) {
   return ToLowerCase(c) != c;
 }
 
-inline bool IsLowerCase(PRUnichar c) {
+inline bool IsLowerCase(PRUint32 c) {
   return ToUpperCase(c) != c;
 }
 
@@ -162,5 +162,20 @@ CaseInsensitiveUTF8CharsEqual(const char* aLeft, const char* aRight,
                               const char* aLeftEnd, const char* aRightEnd,
                               const char** aLeftNext, const char** aRightNext,
                               bool* aErr);
+
+namespace mozilla {
+
+/**
+ * Hash a UTF8 string as though it were a UTF16 string.
+ *
+ * The value returned is the same as if we converted the string to UTF16 and
+ * then ran HashString() on the result.
+ *
+ * The given |length| is in bytes.
+ */
+PRUint32
+HashUTF8AsUTF16(const char* aUTF8, PRUint32 aLength, bool* aErr);
+
+} // namespace mozilla
 
 #endif  /* nsUnicharUtils_h__ */

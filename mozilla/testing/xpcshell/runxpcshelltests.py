@@ -39,12 +39,14 @@
 # ***** END LICENSE BLOCK ***** */
 
 import re, sys, os, os.path, logging, shutil, signal, math, time
+import xml.dom.minidom
 from glob import glob
 from optparse import OptionParser
 from subprocess import Popen, PIPE, STDOUT
 from tempfile import mkdtemp, gettempdir
 import manifestparser
 import mozinfo
+import random
 
 from automationutils import *
 
@@ -252,24 +254,29 @@ class XPCShellTests(object):
         # Simply remove optional ending separator.
         self.testPath = self.testPath.rstrip("/")
 
+  def getHeadAndTailFiles(self, test):
+      """Obtain the list of head and tail files.
 
-  def getHeadFiles(self, test):
-    """
-      test['head'] is a whitespace delimited list of head files.
-      return the list of head files as paths including the subdir if the head file exists
+      Returns a 2-tuple. The first element is a list of head files. The second
+      is a list of tail files.
+      """
+      def sanitize_list(s, kind):
+          for f in s.strip().split(' '):
+              f = f.strip()
+              if len(f) < 1:
+                  continue
 
-      On a remote system, this may be overloaded to list files in a remote directory structure.
-    """
-    return [os.path.join(test['here'], f).strip() for f in sorted(test['head'].split(' ')) if os.path.isfile(os.path.join(test['here'], f))]
+              path = os.path.normpath(os.path.join(test['here'], f))
+              if not os.path.exists(path):
+                  raise Exception('%s file does not exist: %s' % (kind, path))
 
-  def getTailFiles(self, test):
-    """
-      test['tail'] is a whitespace delimited list of head files.
-      return the list of tail files as paths including the subdir if the tail file exists
+              if not os.path.isfile(path):
+                  raise Exception('%s file is not a file: %s' % (kind, path))
 
-      On a remote system, this may be overloaded to list files in a remote directory structure.
-    """
-    return [os.path.join(test['here'], f).strip() for f in sorted(test['tail'].split(' ')) if os.path.isfile(os.path.join(test['here'], f))]
+              yield path
+
+      return (list(sanitize_list(test['head'], 'head')),
+              list(sanitize_list(test['tail'], 'tail')))
 
   def setupProfileDir(self):
     """
@@ -386,12 +393,118 @@ class XPCShellTests(object):
     return ['-e', 'const _TEST_FILE = ["%s"];' %
               replaceBackSlashes(name)]
 
+  def writeXunitResults(self, results, name=None, filename=None, fh=None):
+    """
+      Write Xunit XML from results.
+
+      The function receives an iterable of results dicts. Each dict must have
+      the following keys:
+
+        classname - The "class" name of the test.
+        name - The simple name of the test.
+
+      In addition, it must have one of the following saying how the test
+      executed:
+
+        passed - Boolean indicating whether the test passed. False if it
+          failed.
+        skipped - True if the test was skipped.
+
+      The following keys are optional:
+
+        time - Execution time of the test in decimal seconds.
+        failure - Dict describing test failure. Requires keys:
+          type - String type of failure.
+          message - String describing basic failure.
+          text - Verbose string describing failure.
+
+      Arguments:
+
+      |name|, Name of the test suite. Many tools expect Java class dot notation
+        e.g. dom.simple.foo. A directory with '/' converted to '.' is a good
+        choice.
+      |fh|, File handle to write XML to.
+      |filename|, File name to write XML to.
+      |results|, Iterable of tuples describing the results.
+    """
+    if filename is None and fh is None:
+      raise Exception("One of filename or fh must be defined.")
+
+    if name is None:
+      name = "xpcshell"
+    else:
+      assert isinstance(name, str)
+
+    if filename is not None:
+      fh = open(filename, 'wb')
+
+    doc = xml.dom.minidom.Document()
+    testsuite = doc.createElement("testsuite")
+    testsuite.setAttribute("name", name)
+    doc.appendChild(testsuite)
+
+    total = 0
+    passed = 0
+    failed = 0
+    skipped = 0
+
+    for result in results:
+      total += 1
+
+      if result.get("skipped", None):
+        skipped += 1
+      elif result["passed"]:
+        passed += 1
+      else:
+        failed += 1
+
+      testcase = doc.createElement("testcase")
+      testcase.setAttribute("classname", result["classname"])
+      testcase.setAttribute("name", result["name"])
+
+      if "time" in result:
+        testcase.setAttribute("time", str(result["time"]))
+      else:
+        # It appears most tools expect the time attribute to be present.
+        testcase.setAttribute("time", "0")
+
+      if "failure" in result:
+        failure = doc.createElement("failure")
+        failure.setAttribute("type", str(result["failure"]["type"]))
+        failure.setAttribute("message", result["failure"]["message"])
+
+        # Lossy translation but required to not break CDATA. Also, text could
+        # be None and Python 2.5's minidom doesn't accept None. Later versions
+        # do, however.
+        cdata = result["failure"]["text"]
+        if not isinstance(cdata, str):
+            cdata = ""
+
+        cdata = cdata.replace("]]>", "]] >")
+        text = doc.createCDATASection(cdata)
+        failure.appendChild(text)
+        testcase.appendChild(failure)
+
+      if result.get("skipped", None):
+        e = doc.createElement("skipped")
+        testcase.appendChild(e)
+
+      testsuite.appendChild(testcase)
+
+    testsuite.setAttribute("tests", str(total))
+    testsuite.setAttribute("failures", str(failed))
+    testsuite.setAttribute("skip", str(skipped))
+
+    doc.writexml(fh, addindent="  ", newl="\n", encoding="utf-8")
+
   def runTests(self, xpcshell, xrePath=None, appPath=None, symbolsPath=None,
-               manifest=None, testdirs=[], testPath=None,
+               manifest=None, testdirs=None, testPath=None,
                interactive=False, verbose=False, keepGoing=False, logfiles=True,
                thisChunk=1, totalChunks=1, debugger=None,
                debuggerArgs=None, debuggerInteractive=False,
-               profileName=None, mozInfo=None, **otherOptions):
+               profileName=None, mozInfo=None, shuffle=False,
+               testsRootDir=None, xunitFilename=None, xunitName=None,
+               **otherOptions):
     """Run xpcshell tests.
 
     |xpcshell|, is the xpcshell executable to use to run the tests.
@@ -415,10 +528,31 @@ class XPCShellTests(object):
     |profileName|, if set, specifies the name of the application for the profile
       directory if running only a subset of tests.
     |mozInfo|, if set, specifies specifies build configuration information, either as a filename containing JSON, or a dict.
+    |shuffle|, if True, execute tests in random order.
+    |testsRootDir|, absolute path to root directory of all tests. This is used
+      by xUnit generation to determine the package name of the tests.
+    |xunitFilename|, if set, specifies the filename to which to write xUnit XML
+      results.
+    |xunitName|, if outputting an xUnit XML file, the str value to use for the
+      testsuite name.
     |otherOptions| may be present for the convenience of subclasses
     """
 
-    global gotSIGINT 
+    global gotSIGINT
+
+    if testdirs is None:
+        testdirs = []
+
+    if xunitFilename is not None or xunitName is not None:
+        if not isinstance(testsRootDir, str):
+            raise Exception("testsRootDir must be a str when outputting xUnit.")
+
+        if not os.path.isabs(testsRootDir):
+            testsRootDir = os.path.abspath(testsRootDir)
+
+        if not os.path.exists(testsRootDir):
+            raise Exception("testsRootDir path does not exists: %s" %
+                    testsRootDir)
 
     self.xpcshell = xpcshell
     self.xrePath = xrePath
@@ -468,6 +602,11 @@ class XPCShellTests(object):
 
     self.buildTestList()
 
+    if shuffle:
+      random.shuffle(self.alltests)
+
+    xunitResults = []
+
     for test in self.alltests:
       name = test['path']
       if self.singleFile and not name.endswith(self.singleFile):
@@ -478,18 +617,32 @@ class XPCShellTests(object):
 
       self.testCount += 1
 
+      xunitResult = {"name": test["name"], "classname": "xpcshell"}
+      # The xUnit package is defined as the path component between the root
+      # dir and the test with path characters replaced with '.' (using Java
+      # class notation).
+      if testsRootDir is not None:
+          if test["here"].find(testsRootDir) != 0:
+              raise Exception("testsRootDir is not a parent path of %s" %
+                  test["here"])
+          relpath = test["here"][len(testsRootDir):].lstrip("/\\")
+          xunitResult["classname"] = relpath.replace("/", ".").replace("\\", ".")
+
       # Check for skipped tests
       if 'disabled' in test:
         self.log.info("TEST-INFO | skipping %s | %s" %
                       (name, test['disabled']))
+
+        xunitResult["skipped"] = True
+        xunitResults.append(xunitResult)
         continue
+
       # Check for known-fail tests
       expected = test['expected'] == 'pass'
 
       testdir = os.path.dirname(name)
       self.buildXpcsCmd(testdir)
-      testHeadFiles = self.getHeadFiles(test)
-      testTailFiles = self.getTailFiles(test)
+      testHeadFiles, testTailFiles = self.getHeadAndTailFiles(test)
       cmdH = self.buildCmdHead(testHeadFiles, testTailFiles, self.xpcsCmd)
 
       # create a temp dir that the JS harness can stick a profile in
@@ -503,11 +656,21 @@ class XPCShellTests(object):
       if 'debug' in test:
           args.insert(0, '-d')
 
+      completeCmd = cmdH + cmdT + args
+
       try:
         self.log.info("TEST-INFO | %s | running test ..." % name)
+        if verbose:
+            self.log.info("TEST-INFO | %s | full command: %r" % (name, completeCmd))
+            self.log.info("TEST-INFO | %s | current directory: %r" % (name, testdir))
+            # Show only those environment variables that are changed from
+            # the ambient environment.
+            changedEnv = (set("%s=%s" % i for i in self.env.iteritems())
+                          - set("%s=%s" % i for i in os.environ.iteritems()))
+            self.log.info("TEST-INFO | %s | environment: %s" % (name, list(changedEnv)))
         startTime = time.time()
 
-        proc = self.launchProcess(cmdH + cmdT + args,
+        proc = self.launchProcess(completeCmd,
                     stdout=pStdout, stderr=pStderr, env=self.env, cwd=testdir)
 
         # Allow user to kill hung subprocess with SIGINT w/o killing this script
@@ -530,20 +693,42 @@ class XPCShellTests(object):
           self.log.info("<<<<<<<")
 
         result = not ((self.getReturnCode(proc) != 0) or
+                      # if do_throw or do_check failed
                       (stdout and re.search("^((parent|child): )?TEST-UNEXPECTED-",
                                             stdout, re.MULTILINE)) or
+                      # if syntax error in xpcshell file
                       (stdout and re.search(": SyntaxError:", stdout,
-                                            re.MULTILINE)))
+                                            re.MULTILINE)) or
+                      # if e10s test started but never finished (child process crash)
+                      (stdout and re.search("^child: CHILD-TEST-STARTED", 
+                                            stdout, re.MULTILINE) 
+                              and not re.search("^child: CHILD-TEST-COMPLETED",
+                                                stdout, re.MULTILINE)))
 
         if result != expected:
-          self.log.error("TEST-UNEXPECTED-%s | %s | test failed (with xpcshell return code: %d), see following log:" % ("FAIL" if expected else "PASS", name, self.getReturnCode(proc)))
+          failureType = "TEST-UNEXPECTED-%s" % ("FAIL" if expected else "PASS")
+          message = "%s | %s | test failed (with xpcshell return code: %d), see following log:" % (
+                        failureType, name, self.getReturnCode(proc))
+          self.log.error(message)
           print_stdout(stdout)
           self.failCount += 1
+          xunitResult["passed"] = False
+
+          xunitResult["failure"] = {
+            "type": failureType,
+            "message": message,
+            "text": stdout
+          }
         else:
-          timeTaken = (time.time() - startTime) * 1000
+          now = time.time()
+          timeTaken = (now - startTime) * 1000
+          xunitResult["time"] = now - startTime
           self.log.info("TEST-%s | %s | test passed (time: %.3fms)" % ("PASS" if expected else "KNOWN-FAIL", name, timeTaken))
           if verbose:
             print_stdout(stdout)
+
+          xunitResult["passed"] = True
+
           if expected:
             self.passCount += 1
           else:
@@ -567,11 +752,23 @@ class XPCShellTests(object):
         if self.profileDir and not self.interactive and not self.singleFile:
           self.removeDir(self.profileDir)
       if gotSIGINT:
+        xunitResult["passed"] = False
+        xunitResult["time"] = "0.0"
+        xunitResult["failure"] = {
+          "type": "SIGINT",
+          "message": "Received SIGINT",
+          "text": "Received SIGINT (control-C) during test execution."
+        }
+
         self.log.error("TEST-UNEXPECTED-FAIL | Received SIGINT (control-C) during test execution")
         if (keepGoing):
           gotSIGINT = False
         else:
+          xunitResults.append(xunitResult)
           break
+
+      xunitResults.append(xunitResult)
+
     if self.testCount == 0:
       self.log.error("TEST-UNEXPECTED-FAIL | runxpcshelltests.py | No tests run. Did you pass an invalid --test-path?")
       self.failCount = 1
@@ -581,10 +778,15 @@ INFO | Passed: %d
 INFO | Failed: %d
 INFO | Todo: %d""" % (self.passCount, self.failCount, self.todoCount))
 
+    if xunitFilename is not None:
+        self.writeXunitResults(filename=xunitFilename, results=xunitResults,
+                               name=xunitName)
+
     if gotSIGINT and not keepGoing:
       self.log.error("TEST-UNEXPECTED-FAIL | Received SIGINT (control-C), so stopped run. " \
                      "(Use --keep-going to keep running tests after killing one with SIGINT)")
       return False
+
     return self.failCount == 0
 
 class XPCShellOptions(OptionParser):
@@ -617,6 +819,9 @@ class XPCShellOptions(OptionParser):
     self.add_option("--test-path",
                     type="string", dest="testPath", default=None,
                     help="single path and/or test filename to test")
+    self.add_option("--tests-root-dir",
+                    type="string", dest="testsRootDir", default=None,
+                    help="absolute path to directory where all tests are located. this is typically $(objdir)/_tests")
     self.add_option("--total-chunks",
                     type = "int", dest = "totalChunks", default=1,
                     help = "how many chunks to split the tests up into")
@@ -629,6 +834,15 @@ class XPCShellOptions(OptionParser):
     self.add_option("--build-info-json",
                     type = "string", dest="mozInfo", default=None,
                     help="path to a mozinfo.json including information about the build configuration. defaults to looking for mozinfo.json next to the script.")
+    self.add_option("--shuffle",
+                    action="store_true", dest="shuffle", default=False,
+                    help="Execute tests in random order")
+    self.add_option("--xunit-file", dest="xunitFilename",
+                    help="path to file where xUnit results will be written.")
+    self.add_option("--xunit-suite-name", dest="xunitName",
+                    help="name to record for this xUnit test suite. Many "
+                         "tools expect Java class notation, e.g. "
+                         "dom.basic.foo")
 
 def main():
   parser = XPCShellOptions()

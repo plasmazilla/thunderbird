@@ -329,12 +329,18 @@ toolbar[mode="text"] > #window-controls > toolbarbutton > .toolbarbutton-icon {
 
 .popup-notification-icon[popupid="indexedDB-permissions-prompt"],
 .popup-notification-icon[popupid="indexedDB-quota-prompt"] {
-  list-style-image: url("chrome://global/skin/icons/question64.png");
+  list-style-image: url("chrome://global/skin/icons/question-64.png");
 }
 
 .popup-notification-icon[popupid="password-change"],
 .popup-notification-icon[popupid="password-save"] {
   list-style-image: url("chrome://mozapps/skin/passwordmgr/key-64.png");
+}
+
+.popup-notification-icon[popupid="click-to-play-plugins"] {
+  list-style-image: url("chrome://mozapps/skin/plugins/pluginGeneric.png");
+  width: 32px;
+  height: 32px;
 }
 
 .addon-progress-description {
@@ -377,6 +383,12 @@ toolbar[mode="text"] > #window-controls > toolbarbutton > .toolbarbutton-icon {
 
 #password-notification-icon {
   list-style-image: url("chrome://mozapps/skin/passwordmgr/key-16.png");
+  width: 16px;
+  height: 16px;
+}
+
+#plugins-notification-icon {
+  list-style-image: url("chrome://mozapps/skin/plugins/pluginGeneric-16.png");
   width: 16px;
   height: 16px;
 }

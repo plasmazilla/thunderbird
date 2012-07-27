@@ -42,7 +42,7 @@
 #include "nsDOMClassInfoID.h"
 #include "nsDOMFile.h"
 #include "nsDOMError.h"
-#include "nsICharsetAlias.h"
+#include "nsCharsetAlias.h"
 #include "nsICharsetDetector.h"
 #include "nsICharsetConverterManager.h"
 #include "nsIConverterInputStream.h"
@@ -79,8 +79,9 @@
 #include "xpcpublic.h"
 #include "nsIScriptSecurityManager.h"
 #include "nsDOMJSUtils.h"
+#include "nsDOMEventTargetHelper.h"
 
-#include "jstypedarray.h"
+#include "jsfriendapi.h"
 
 using namespace mozilla;
 
@@ -114,7 +115,7 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 
 
 NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN_INHERITED(nsDOMFileReader,
-                                               nsDOMEventTargetWrapperCache)
+                                               nsDOMEventTargetHelper)
   if(tmp->mResultArrayBuffer) {
     NS_IMPL_CYCLE_COLLECTION_TRACE_JS_CALLBACK(tmp->mResultArrayBuffer,
                                                "mResultArrayBuffer")
@@ -173,7 +174,7 @@ nsDOMFileReader::~nsDOMFileReader()
 nsresult
 nsDOMFileReader::Init()
 {
-  nsDOMEventTargetWrapperCache::Init();
+  nsDOMEventTargetHelper::Init();
 
   nsIScriptSecurityManager *secMan = nsContentUtils::GetSecurityManager();
   nsCOMPtr<nsIPrincipal> subjectPrincipal;
@@ -198,21 +199,19 @@ NS_IMETHODIMP
 nsDOMFileReader::Initialize(nsISupports* aOwner, JSContext* cx, JSObject* obj,
                             PRUint32 argc, jsval *argv)
 {
-  mOwner = do_QueryInterface(aOwner);
-  if (!mOwner) {
+  nsCOMPtr<nsPIDOMWindow> owner = do_QueryInterface(aOwner);
+  if (!owner) {
     NS_WARNING("Unexpected nsIJSNativeInitializer owner");
     return NS_OK;
   }
 
+  BindToOwner(owner);
+
   // This object is bound to a |window|,
-  // so reset the principal and script context.
+  // so reset the principal.
   nsCOMPtr<nsIScriptObjectPrincipal> scriptPrincipal = do_QueryInterface(aOwner);
   NS_ENSURE_STATE(scriptPrincipal);
   mPrincipal = scriptPrincipal->GetPrincipal();
-  nsCOMPtr<nsIScriptGlobalObject> sgo = do_QueryInterface(aOwner);
-  NS_ENSURE_STATE(sgo);
-  mScriptContext = sgo->GetContext();
-  NS_ENSURE_STATE(mScriptContext);
 
   return NS_OK; 
 }
@@ -243,6 +242,9 @@ nsDOMFileReader::GetResult(JSContext* aCx, jsval* aResult)
     } else {
       *aResult = JSVAL_NULL;
     }
+    if (!JS_WrapValue(aCx, aResult)) {
+      return NS_ERROR_FAILURE;
+    }
     return NS_OK;
   }
  
@@ -254,7 +256,7 @@ nsDOMFileReader::GetResult(JSContext* aCx, jsval* aResult)
 }
 
 NS_IMETHODIMP
-nsDOMFileReader::GetError(nsIDOMFileError** aError)
+nsDOMFileReader::GetError(nsIDOMDOMError** aError)
 {
   return FileIOObject::GetError(aError);
 }
@@ -357,11 +359,9 @@ nsDOMFileReader::DoOnDataAvailable(nsIRequest *aRequest,
     NS_ASSERTION(bytesRead == aCount, "failed to read data");
   }
   else if (mDataFormat == FILE_AS_ARRAYBUFFER) {
-    JSObject* abuf = js::ArrayBuffer::getArrayBuffer(mResultArrayBuffer);
-    NS_ASSERTION(abuf, "What happened?");
-  
     PRUint32 bytesRead = 0;
-    aInputStream->Read((char*)JS_GetArrayBufferData(abuf) + aOffset, aCount, &bytesRead);
+    aInputStream->Read((char*)JS_GetArrayBufferData(mResultArrayBuffer, NULL) + aOffset,
+                       aCount, &bytesRead);
     NS_ASSERTION(bytesRead == aCount, "failed to read data");
   }
   else {
@@ -468,7 +468,7 @@ nsDOMFileReader::ReadFileContent(JSContext* aCx,
   
   if (mDataFormat == FILE_AS_ARRAYBUFFER) {
     RootResultArrayBuffer();
-    mResultArrayBuffer = js_CreateArrayBuffer(aCx, mTotal);
+    mResultArrayBuffer = JS_NewArrayBuffer(aCx, mTotal);
     if (!mResultArrayBuffer) {
       NS_WARNING("Failed to create JS array buffer");
       return NS_ERROR_FAILURE;
@@ -494,10 +494,7 @@ nsDOMFileReader::GetAsText(const nsACString &aCharset,
   }
 
   nsCAutoString charset;
-  nsCOMPtr<nsICharsetAlias> alias = do_GetService(NS_CHARSETALIAS_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  rv = alias->GetPreferred(charsetGuess, charset);
+  rv = nsCharsetAlias::GetPreferred(charsetGuess, charset);
   NS_ENSURE_SUCCESS(rv, rv);
 
   rv = ConvertStream(aFileData, aDataLen, charset.get(), aResult);

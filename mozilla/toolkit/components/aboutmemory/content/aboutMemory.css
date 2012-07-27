@@ -35,17 +35,19 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+/* This file is used for both about:memory and about:compartments. */
+
 body.verbose {
   /* override setting in about.css */
   max-width: 100% !important;
 }
 
-body.non-verbose pre.tree {
+body.non-verbose pre.entries {
   overflow-x: hidden;
   text-overflow: ellipsis;
 }
 
-.sectionHeader {
+h2 {
   background: #ddd;
   padding-left: .1em;
 }
@@ -93,6 +95,10 @@ body.non-verbose pre.tree {
 .legend {
   font-size: 80%;
   -moz-user-select: none;  /* no need to include this when cutting+pasting */
+}
+
+.debug {
+  font-size: 80%;
 }
 
 .hidden {

@@ -41,6 +41,7 @@ import java.io.ByteArrayOutputStream;
 
 import android.content.ContentResolver;
 import android.content.ContentValues;
+import android.database.ContentObserver;
 import android.database.Cursor;
 import android.database.CursorWrapper;
 import android.database.sqlite.SQLiteConstraintException;
@@ -62,6 +63,10 @@ public class AndroidBrowserDB implements BrowserDB.BrowserDBIface {
     private static final String URL_COLUMN_DELETED = "deleted";
 
     private static final Uri BOOKMARKS_CONTENT_URI_POST_11 = Uri.parse("content://com.android.browser/bookmarks");
+
+    public void invalidateCachedState() {
+        // Do nothing
+    }
 
     private Cursor filterAllSites(ContentResolver cr, String[] projection, CharSequence constraint, int limit, CharSequence urlFilter) {
         Cursor c = cr.query(Browser.BOOKMARKS_URI,
@@ -178,29 +183,12 @@ public class AndroidBrowserDB implements BrowserDB.BrowserDBIface {
         return new AndroidDBCursor(c);
     }
 
-    public int getMaxHistoryCount() {
-        // Valid for Android versions up to 4.0.
-        return 250;
-    }
-
     public void clearHistory(ContentResolver cr) {
         Browser.clearHistory(cr);
     }
 
-    public Cursor getAllBookmarks(ContentResolver cr) {
-        Cursor c = cr.query(Browser.BOOKMARKS_URI,
-                            new String[] { URL_COLUMN_ID,
-                                           BookmarkColumns.URL,
-                                           BookmarkColumns.TITLE,
-                                           BookmarkColumns.FAVICON },
-                            // Select all bookmarks with a non-empty URL. When the history
-                            // is empty there appears to be a dummy entry in the database
-                            // which has a title of "Bookmarks" and no URL; the length restriction
-                            // is to avoid picking that up specifically.
-                            Browser.BookmarkColumns.BOOKMARK + " = 1 AND LENGTH(" + Browser.BookmarkColumns.URL + ") > 0",
-                            null,
-                            Browser.BookmarkColumns.TITLE);
-
+    public Cursor getBookmarksInFolder(ContentResolver cr, long folderId) {
+        Cursor c = cr.query(null, null, null, null, null);
         return new AndroidDBCursor(c);
     }
 
@@ -232,6 +220,10 @@ public class AndroidBrowserDB implements BrowserDB.BrowserDBIface {
         cursor.close();
 
         return (count == 1);
+    }
+
+    public String getUrlForKeyword(ContentResolver cr, String keyword) {
+        return null;
     }
 
     public void addBookmarkPre11(ContentResolver cr, String title, String uri) {
@@ -271,6 +263,10 @@ public class AndroidBrowserDB implements BrowserDB.BrowserDBIface {
             addBookmarkPre11(cr, title, uri);
     }
 
+    public void updateBookmark(ContentResolver cr, int id, String uri, String title, String keyword) {
+        // Not implemented
+    }
+
     public void removeBookmarkPre11(ContentResolver cr, String uri) {
         ContentValues values = new ContentValues();
         values.put(Browser.BookmarkColumns.BOOKMARK, "0");
@@ -287,11 +283,30 @@ public class AndroidBrowserDB implements BrowserDB.BrowserDBIface {
                   new String[] { uri });
     }
 
-    public void removeBookmark(ContentResolver cr, String uri) {
+    public void removeBookmark(ContentResolver cr, int id) {
+        // Not implemented
+    }
+
+    public void removeBookmarksWithURL(ContentResolver cr, String uri) {
         if (Build.VERSION.SDK_INT >= 11)
             removeBookmarkPost11(cr, uri);
         else
             removeBookmarkPre11(cr, uri);
+    }
+
+    public void registerBookmarkObserverPre11(ContentResolver cr, ContentObserver observer) {
+        cr.registerContentObserver(Browser.BOOKMARKS_URI, false, observer);
+    }
+
+    public void registerBookmarkObserverPost11(ContentResolver cr, ContentObserver observer) {
+        cr.registerContentObserver(BOOKMARKS_CONTENT_URI_POST_11, false, observer);
+    }
+
+    public void registerBookmarkObserver(ContentResolver cr, ContentObserver observer) {
+        if (Build.VERSION.SDK_INT >= 11)
+            registerBookmarkObserverPost11(cr, observer);
+        else
+            registerBookmarkObserverPre11(cr, observer);
     }
 
     public BitmapDrawable getFaviconForUrl(ContentResolver cr, String uri) {

@@ -46,7 +46,7 @@
 #include "RuntimeService.h"
 
 #define PROPERTY_FLAGS \
-  JSPROP_ENUMERATE | JSPROP_SHARED
+  (JSPROP_ENUMERATE | JSPROP_SHARED)
 
 USING_WORKERS_NAMESPACE
 
@@ -108,23 +108,17 @@ public:
 
     jsval empty = JS_GetEmptyStringValue(aCx);
 
-    if (!JS_SetReservedSlot(aCx, obj, SLOT_appName,
-                            appName ? STRING_TO_JSVAL(appName) : empty) ||
-        !JS_SetReservedSlot(aCx, obj, SLOT_appVersion,
-                            version ? STRING_TO_JSVAL(version) : empty) ||
-        !JS_SetReservedSlot(aCx, obj, SLOT_platform,
-                            platform ? STRING_TO_JSVAL(platform) : empty) ||
-        !JS_SetReservedSlot(aCx, obj, SLOT_userAgent,
-                            userAgent ? STRING_TO_JSVAL(userAgent) : empty)) {
-      return NULL;
-    }
+    JS_SetReservedSlot(obj, SLOT_appName,
+                       appName ? STRING_TO_JSVAL(appName) : empty);
+    JS_SetReservedSlot(obj, SLOT_appVersion,
+                       version ? STRING_TO_JSVAL(version) : empty);
+    JS_SetReservedSlot(obj, SLOT_platform,
+                       platform ? STRING_TO_JSVAL(platform) : empty);
+    JS_SetReservedSlot(obj, SLOT_userAgent,
+                       userAgent ? STRING_TO_JSVAL(userAgent) : empty);
 
     Navigator* priv = new Navigator();
-
-    if (!JS_SetPrivate(aCx, obj, priv)) {
-      delete priv;
-      return NULL;
-    }
+    JS_SetPrivate(obj, priv);
 
     return obj;
   }
@@ -141,7 +135,7 @@ private:
   }
 
   static JSBool
-  Construct(JSContext* aCx, uintN aArgc, jsval* aVp)
+  Construct(JSContext* aCx, unsigned aArgc, jsval* aVp)
   {
     JS_ReportErrorNumber(aCx, js_GetErrorMessage, NULL, JSMSG_WRONG_CONSTRUCTOR,
                          sClass.name);
@@ -149,27 +143,28 @@ private:
   }
 
   static void
-  Finalize(JSContext* aCx, JSObject* aObj)
+  Finalize(JSFreeOp* aFop, JSObject* aObj)
   {
-    JS_ASSERT(JS_GET_CLASS(aCx, aObj) == &sClass);
-    delete static_cast<Navigator*>(JS_GetPrivate(aCx, aObj));
+    JS_ASSERT(JS_GetClass(aObj) == &sClass);
+    delete static_cast<Navigator*>(JS_GetPrivate(aObj));
   }
 
   static JSBool
   GetProperty(JSContext* aCx, JSObject* aObj, jsid aIdval, jsval* aVp)
   {
-    JSClass* classPtr;
-    if (!aObj || ((classPtr = JS_GET_CLASS(aCx, aObj)) != &sClass)) {
+    JSClass* classPtr = JS_GetClass(aObj);
+    if (classPtr != &sClass) {
       JS_ReportErrorNumber(aCx, js_GetErrorMessage, NULL,
                            JSMSG_INCOMPATIBLE_PROTO, sClass.name, "GetProperty",
-                           classPtr ? classPtr->name : "object");
+                           classPtr->name);
       return false;
     }
 
     JS_ASSERT(JSID_IS_INT(aIdval));
     JS_ASSERT(JSID_TO_INT(aIdval) >= 0 && JSID_TO_INT(aIdval) < SLOT_COUNT);
 
-    return JS_GetReservedSlot(aCx, aObj, JSID_TO_INT(aIdval), aVp);
+    *aVp = JS_GetReservedSlot(aObj, JSID_TO_INT(aIdval));
+    return true;
   }
 };
 
@@ -177,8 +172,7 @@ JSClass Navigator::sClass = {
   "WorkerNavigator",
   JSCLASS_HAS_PRIVATE | JSCLASS_HAS_RESERVED_SLOTS(SLOT_COUNT),
   JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_StrictPropertyStub,
-  JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, Finalize,
-  JSCLASS_NO_OPTIONAL_MEMBERS
+  JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, Finalize
 };
 
 JSPropertySpec Navigator::sProperties[] = {

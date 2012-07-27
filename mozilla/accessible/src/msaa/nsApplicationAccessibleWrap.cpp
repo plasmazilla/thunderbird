@@ -42,12 +42,39 @@
 
 #include "AccessibleApplication_i.c"
 
+#include "nsIGfxInfo.h"
+#include "nsIPersistentProperties2.h"
 #include "nsServiceManagerUtils.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // nsISupports
 NS_IMPL_ISUPPORTS_INHERITED0(nsApplicationAccessibleWrap,
                              nsApplicationAccessible)
+
+NS_IMETHODIMP
+nsApplicationAccessibleWrap::GetAttributes(nsIPersistentProperties** aAttributes)
+{
+  NS_ENSURE_ARG_POINTER(aAttributes);
+  *aAttributes = nsnull;
+
+  nsCOMPtr<nsIPersistentProperties> attributes =
+    do_CreateInstance(NS_PERSISTENTPROPERTIES_CONTRACTID);
+  NS_ENSURE_STATE(attributes);
+
+  nsCOMPtr<nsIGfxInfo> gfxInfo = do_GetService("@mozilla.org/gfx/info;1");
+  if (gfxInfo) {
+    bool isD2DEnabled = false;
+    gfxInfo->GetD2DEnabled(&isD2DEnabled);
+    nsAutoString unused;
+    attributes->SetStringProperty(
+      NS_LITERAL_CSTRING("D2D"),
+      isD2DEnabled ? NS_LITERAL_STRING("true") : NS_LITERAL_STRING("false"),
+        unused);
+  }
+
+  attributes.swap(*aAttributes);
+  return NS_OK;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // IUnknown
@@ -75,6 +102,9 @@ nsApplicationAccessibleWrap::get_appName(BSTR *aName)
 __try {
   *aName = NULL;
 
+  if (IsDefunct())
+    return CO_E_OBJNOTCONNECTED;
+
   nsAutoString name;
   nsresult rv = GetAppName(name);
   if (NS_FAILED(rv))
@@ -96,6 +126,9 @@ nsApplicationAccessibleWrap::get_appVersion(BSTR *aVersion)
 __try {
   *aVersion = NULL;
 
+  if (IsDefunct())
+    return CO_E_OBJNOTCONNECTED;
+
   nsAutoString version;
   nsresult rv = GetAppVersion(version);
   if (NS_FAILED(rv))
@@ -115,6 +148,9 @@ STDMETHODIMP
 nsApplicationAccessibleWrap::get_toolkitName(BSTR *aName)
 {
 __try {
+  if (IsDefunct())
+    return CO_E_OBJNOTCONNECTED;
+
   nsAutoString name;
   nsresult rv = GetPlatformName(name);
   if (NS_FAILED(rv))
@@ -135,6 +171,9 @@ nsApplicationAccessibleWrap::get_toolkitVersion(BSTR *aVersion)
 {
 __try {
   *aVersion = NULL;
+
+  if (IsDefunct())
+    return CO_E_OBJNOTCONNECTED;
 
   nsAutoString version;
   nsresult rv = GetPlatformVersion(version);

@@ -608,10 +608,9 @@ let gFolderTreeView = {
       }
       return true;
     }
-    // allow subscribing to feeds by dragging an url to a feed account
-    else if (Array.indexOf(types, "text/x-moz-url") != -1 &&
-             targetFolder.server.type == "rss")
-      return true;
+    // Allow subscribing to feeds by dragging an url to a feed account.
+    else if (targetFolder.server.type == "rss" && dt.mozItemCount == 1)
+      return FeedUtils.getFeedUriFromDataTransfer(dt) ? true : false;
     else if (Array.indexOf(types, "application/x-moz-file") != -1) {
       if (aOrientation != Ci.nsITreeView.DROP_ON)
         return false;
@@ -711,19 +710,16 @@ let gFolderTreeView = {
         }
       }
     }
-    else if (Array.indexOf(types, "text/x-moz-url") != -1) {
-      // This is a potential rss feed to subscribe to
-      // and there's only one, so just get the 0th element.
-      let url = dt.mozGetDataAt("text/x-moz-url", 0);
-      let uri = Cc["@mozilla.org/network/io-service;1"]
-                   .getService(Ci.nsIIOService).newURI(url, null, null);
-      if (!(uri.schemeIs("http") || uri.schemeIs("https")) ||
-             targetFolder.server.type != "rss")
-        return;
 
-      Cc["@mozilla.org/newsblog-feed-downloader;1"]
-         .getService(Ci.nsINewsBlogFeedDownloader)
-         .subscribeToFeed(url, targetFolder, msgWindow);
+    if (targetFolder.server.type == "rss" && count == 1) {
+      // This is a potential rss feed.  A link image as well as link text url
+      // should be handled; try to extract a url from non moz apps as well.
+      let validUri = FeedUtils.getFeedUriFromDataTransfer(dt);
+
+      if (validUri)
+        Cc["@mozilla.org/newsblog-feed-downloader;1"]
+           .getService(Ci.nsINewsBlogFeedDownloader)
+           .subscribeToFeed(validUri.spec, targetFolder, msgWindow);
     }
   },
 
@@ -1240,6 +1236,9 @@ let gFolderTreeView = {
                  server.deferredToAccount);
       });
 
+      // Don't show IM accounts
+      accounts = accounts.filter(function(a) a.incomingServer.type != "im");
+
       function sortAccounts(a, b) {
         if (a.key == acctMgr.defaultAccount.key)
           return -1;
@@ -1712,13 +1711,15 @@ let gFolderTreeView = {
 
     let acctMgr = Cc["@mozilla.org/messenger/account-manager;1"]
                      .getService(Ci.nsIMsgAccountManager);
-    for each (let acct in fixIterator(acctMgr.accounts, Ci.nsIMsgAccount)) {
+    for each (let server in fixIterator(acctMgr.allServers, Ci.nsIMsgIncomingServer)) {
       // Skip deferred accounts
-      if (acct.incomingServer instanceof Ci.nsIPop3IncomingServer &&
-          acct.incomingServer.deferredToAccount)
+      if (server instanceof Ci.nsIPop3IncomingServer &&
+          server.deferredToAccount)
         continue;
-      folders.push(acct.incomingServer.rootFolder);
-      this.addSubFolders(acct.incomingServer.rootFolder, folders);
+
+      let rootFolder = server.rootFolder;
+      folders.push(rootFolder);
+      this.addSubFolders(rootFolder, folders);
     }
     return folders;
   },

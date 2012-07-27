@@ -37,6 +37,7 @@
 # ***** END LICENSE BLOCK *****
 
 Components.utils.import("resource://gre/modules/XPCOMUtils.jsm");
+Components.utils.import("resource://gre/modules/Services.jsm");
 
 #ifndef XP_WIN
 #define BROKEN_WM_Z_ORDER
@@ -94,6 +95,7 @@ function PrivateBrowsingService() {
   this._obs.addObserver(this, "private-browsing", true);
   this._obs.addObserver(this, "command-line-startup", true);
   this._obs.addObserver(this, "sessionstore-browser-state-restored", true);
+  this._obs.addObserver(this, "domwindowopened", true);
 
   // List of nsIXULWindows we are going to be closing during the transition
   this._windowsToClose = [];
@@ -147,6 +149,17 @@ PrivateBrowsingService.prototype = {
       this.privateBrowsingEnabled = false;
   },
 
+  _setPerWindowPBFlag: function PBS__setPerWindowPBFlag(aWindow, aFlag) {
+    aWindow.QueryInterface(Ci.nsIInterfaceRequestor)
+           .getInterface(Ci.nsIWebNavigation)
+           .QueryInterface(Ci.nsIDocShellTreeItem)
+           .treeOwner
+           .QueryInterface(Ci.nsIInterfaceRequestor)
+           .getInterface(Ci.nsIXULWindow)
+           .docShell.QueryInterface(Ci.nsILoadContext)
+           .usePrivateBrowsing = aFlag;
+  },
+
   _onBeforePrivateBrowsingModeChange: function PBS__onBeforePrivateBrowsingModeChange() {
     // nothing needs to be done here if we're enabling at startup
     if (!this._autoStarted) {
@@ -176,9 +189,7 @@ PrivateBrowsingService.prototype = {
       this._closePageInfoWindows();
 
       // save view-source windows URIs and close them
-      let viewSrcWindowsEnum = Cc["@mozilla.org/appshell/window-mediator;1"].
-                               getService(Ci.nsIWindowMediator).
-                               getEnumerator("navigator:view-source");
+      let viewSrcWindowsEnum = Services.wm.getEnumerator("navigator:view-source");
       while (viewSrcWindowsEnum.hasMoreElements()) {
         let win = viewSrcWindowsEnum.getNext();
         if (this._inPrivateBrowsing) {
@@ -222,6 +233,12 @@ PrivateBrowsingService.prototype = {
     }
     else
       this._saveSession = false;
+
+    var windowsEnum = Services.wm.getEnumerator("navigator:browser");
+    while (windowsEnum.hasMoreElements()) {
+      var window = windowsEnum.getNext();
+      this._setPerWindowPBFlag(window, this._inPrivateBrowsing);
+    }
   },
 
   _onAfterPrivateBrowsingModeChange: function PBS__onAfterPrivateBrowsingModeChange() {
@@ -459,6 +476,18 @@ PrivateBrowsingService.prototype = {
           this._currentStatus = STATE_RESTORE_FINISHED;
           this._notifyIfTransitionComplete();
         }
+        break;
+      case "domwindowopened":
+        let aWindow = aSubject;
+        let self = this;
+        aWindow.addEventListener("load", function PBS__onWindowLoad(aEvent) {
+          aWindow.removeEventListener("load", arguments.callee);
+          if (aWindow.document
+                     .documentElement
+                     .getAttribute("windowtype") == "navigator:browser") {
+            self._setPerWindowPBFlag(aWindow, self._inPrivateBrowsing);
+          }
+        }, false);
         break;
     }
   },

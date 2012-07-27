@@ -81,7 +81,7 @@ gTests.push({
     var menuNode = PO._places.selectedNode.
                    QueryInterface(Ci.nsINavHistoryContainerResultNode);
     menuNode.containerOpen = true;
-    childNode = menuNode.getChild(0);
+    var childNode = menuNode.getChild(0);
     isnot(childNode, null, "Bookmarks menu child node exists.");
     var recentlyBookmarkedTitle = PlacesUIUtils.
                                   getString("recentlyBookmarkedTitle");
@@ -118,8 +118,7 @@ gTests.push({
 
     menuNode.containerOpen = false;
 
-    bhist.removeAllPages();
-    nextTest();
+    waitForClearHistory(nextTest);
   }
 });
 
@@ -187,35 +186,16 @@ function nextTest() {
   }
 }
 
-var ww = Cc["@mozilla.org/embedcomp/window-watcher;1"].
-         getService(Ci.nsIWindowWatcher);
-
-function windowObserver(aSubject, aTopic, aData) {
-  if (aTopic != "domwindowopened")
-    return;
-  ww.unregisterNotification(windowObserver);
-  gLibrary = aSubject.QueryInterface(Ci.nsIDOMWindow);
-  gLibrary.addEventListener("load", function onLoad(event) {
-    gLibrary.removeEventListener("load", onLoad, false);
-    executeSoon(function() {
-      gLibrary.PlacesOrganizer._places.focus();
-      waitForFocus(nextTest, gLibrary);
-    });
-  }, false);
-}
-
 function test() {
-  dump("Starting test browser_library_infoBox.js\n");
   waitForExplicitFinish();
   // Sanity checks.
   ok(PlacesUtils, "PlacesUtils is running in chrome context");
   ok(PlacesUIUtils, "PlacesUIUtils is running in chrome context");
 
   // Open Library.
-  ww.registerNotification(windowObserver);
-  ww.openWindow(null,
-                "chrome://communicator/content/bookmarks/bookmarksManager.xul",
-                "",
-                "chrome,toolbar=yes,dialog=no,resizable",
-                null);
+  openLibrary(function (library) {
+    gLibrary = library;
+    gLibrary.PlacesOrganizer._places.focus();
+    nextTest(gLibrary);
+  });
 }

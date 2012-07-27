@@ -38,7 +38,7 @@
     <!-- Address bar -->
     <style name="AddressBar">
         <item name="android:layout_width">fill_parent</item>
-        <item name="android:layout_height">42dip</item>
+        <item name="android:layout_height">48dip</item>
         <item name="android:orientation">horizontal</item>
     </style>
 
@@ -55,11 +55,21 @@
         <item name="android:background">@android:color/transparent</item>
     </style>
 
+    <!-- AwesomeBar -->
+    <style name="AwesomeBar">
+        <item name="android:layout_width">fill_parent</item>
+        <item name="android:layout_height">48dip</item>
+        <item name="android:orientation">horizontal</item>
+    </style>
+
     <!-- Lists in AwesomeBar -->
     <style name="AwesomeBarList" parent="android:style/Widget.ListView.White">
         <item name="android:layout_width">fill_parent</item>
         <item name="android:layout_height">fill_parent</item>
         <item name="android:layout_weight">1</item>
+        <item name="android:divider">#E5E5E5</item>
+        <item name="android:dividerHeight">1dp</item>
+        <item name="android:cacheColorHint">#FFFFFF</item>
     </style>
 
     <!-- Lists in TabsTray -->

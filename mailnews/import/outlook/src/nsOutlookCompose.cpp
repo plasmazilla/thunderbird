@@ -58,7 +58,7 @@
 #include "nsIMsgAccountManager.h"
 
 #include "nsNetCID.h"
-
+#include "nsCRT.h"
 #include "nsOutlookCompose.h"
 
 #include "OutlookDebugLog.h"
@@ -74,8 +74,8 @@
 
 #include <algorithm>
 
-static NS_DEFINE_CID( kMsgSendCID, NS_MSGSEND_CID);
-static NS_DEFINE_CID( kMsgCompFieldsCID, NS_MSGCOMPFIELDS_CID);
+static NS_DEFINE_CID(kMsgSendCID, NS_MSGSEND_CID);
+static NS_DEFINE_CID(kMsgCompFieldsCID, NS_MSGCOMPFIELDS_CID);
 
 // We need to do some calculations to set these numbers to something reasonable!
 // Unless of course, CreateAndSendMessage will NEVER EVER leave us in the lurch
@@ -151,7 +151,7 @@ public:
     m_location = nsnull;
   }
 
-  virtual ~OutlookSendListener() { NS_IF_RELEASE( m_location); }
+  virtual ~OutlookSendListener() { NS_IF_RELEASE(m_location); }
 
   // nsISupports interface
   NS_DECL_ISUPPORTS
@@ -179,8 +179,8 @@ public:
   /* void OnGetDraftFolderURI (); */
   NS_IMETHOD OnGetDraftFolderURI(const char *aFolderURI) {return NS_OK;}
 
-  static nsresult CreateSendListener( nsIMsgSendListener **ppListener);
-  void Reset() { m_done = false; NS_IF_RELEASE( m_location);}
+  static nsresult CreateSendListener(nsIMsgSendListener **ppListener);
+  void Reset() { m_done = false; NS_IF_RELEASE(m_location);}
 
 public:
   bool m_done;
@@ -189,7 +189,7 @@ public:
 
 NS_IMPL_THREADSAFE_ISUPPORTS1(OutlookSendListener, nsIMsgSendListener)
 
-nsresult OutlookSendListener::CreateSendListener( nsIMsgSendListener **ppListener)
+nsresult OutlookSendListener::CreateSendListener(nsIMsgSendListener **ppListener)
 {
   NS_PRECONDITION(ppListener != nsnull, "null ptr");
   NS_ENSURE_ARG_POINTER(ppListener);
@@ -240,7 +240,7 @@ nsOutlookCompose::~nsOutlookCompose()
 
 nsIMsgIdentity * nsOutlookCompose::m_pIdentity = nsnull;
 
-nsresult nsOutlookCompose::CreateIdentity( void)
+nsresult nsOutlookCompose::CreateIdentity(void)
 {
   if (m_pIdentity)
     return NS_OK;
@@ -265,19 +265,19 @@ void nsOutlookCompose::ReleaseIdentity()
   NS_IF_RELEASE(m_pIdentity);
 }
 
-nsresult nsOutlookCompose::CreateComponents( void)
+nsresult nsOutlookCompose::CreateComponents(void)
 {
   nsresult rv = NS_OK;
 
   NS_IF_RELEASE(m_pMsgFields);
-  if (!m_pListener && NS_SUCCEEDED( rv))
-    rv = OutlookSendListener::CreateSendListener( &m_pListener);
+  if (!m_pListener && NS_SUCCEEDED(rv))
+    rv = OutlookSendListener::CreateSendListener(&m_pListener);
 
   if (NS_SUCCEEDED(rv)) {
-      rv = CallCreateInstance( kMsgCompFieldsCID, &m_pMsgFields);
+      rv = CallCreateInstance(kMsgCompFieldsCID, &m_pMsgFields);
     if (NS_SUCCEEDED(rv) && m_pMsgFields) {
-      // IMPORT_LOG0( "nsOutlookCompose - CreateComponents succeeded\n");
-      m_pMsgFields->SetForcePlainText( false);
+      // IMPORT_LOG0("nsOutlookCompose - CreateComponents succeeded\n");
+      m_pMsgFields->SetForcePlainText(false);
       return NS_OK;
     }
   }
@@ -292,7 +292,7 @@ nsresult nsOutlookCompose::ComposeTheMessage(nsMsgDeliverMode mode, CMapiMessage
   rv = CreateIdentity();
   NS_ENSURE_SUCCESS(rv, rv);
 
-  // IMPORT_LOG0( "Outlook Compose created necessary components\n");
+  // IMPORT_LOG0("Outlook Compose created necessary components\n");
 
   CMapiMessageHeaders* headers = msg.GetHeaders();
 
@@ -365,7 +365,7 @@ nsresult nsOutlookCompose::ComposeTheMessage(nsMsgDeliverMode mode, CMapiMessage
 
   OutlookSendListener *pListen = (OutlookSendListener *)m_pListener;
   if (NS_FAILED(rv)) {
-    IMPORT_LOG1( "*** Error, CreateAndSendMessage FAILED: 0x%lx\n", rv);
+    IMPORT_LOG1("*** Error, CreateAndSendMessage FAILED: 0x%lx\n", rv);
   }
   else {
     // wait for the listener to get done!
@@ -383,9 +383,7 @@ nsresult nsOutlookCompose::ComposeTheMessage(nsMsgDeliverMode mode, CMapiMessage
     }
 
     if (abortCnt >= kHungAbortCount) {
-      IMPORT_LOG0( "**** Create and send message hung\n");
-//      IMPORT_LOG1( "Headers: %s\n", m_Headers.get());
-//      IMPORT_LOG1( "Body: %s\n", m_Body.get());
+      IMPORT_LOG0("**** Create and send message hung\n");
       rv = NS_ERROR_FAILURE;
     }
   }
@@ -396,7 +394,7 @@ nsresult nsOutlookCompose::ComposeTheMessage(nsMsgDeliverMode mode, CMapiMessage
   }
   else {
     rv = NS_ERROR_FAILURE;
-    IMPORT_LOG0( "*** Error, Outlook compose unsuccessful\n");
+    IMPORT_LOG0("*** Error, Outlook compose unsuccessful\n");
   }
 
   pListen->Reset();
@@ -412,7 +410,7 @@ nsresult nsOutlookCompose::CopyComposedMessage(nsIFile *pSrc,
   // and the attachments were processed by TB either... However, I let it stay as it was in the original code.
   CCompositionFile f(pSrc, m_optimizationBuffer, m_optimizationBufferSize, true);
   if (!f) {
-    IMPORT_LOG0( "*** Error, unexpected zero file size for composed message\n");
+    IMPORT_LOG0("*** Error, unexpected zero file size for composed message\n");
     return NS_ERROR_FAILURE;
   }
 
@@ -421,7 +419,7 @@ nsresult nsOutlookCompose::CopyComposedMessage(nsIFile *pSrc,
   int fromLineLen;
   const char* fromLine = origMsg.GetFromLine(fromLineLen);
   PRUint32 written;
-  nsresult rv = pDst->Write( fromLine, fromLineLen, &written);
+  nsresult rv = pDst->Write(fromLine, fromLineLen, &written);
 
   // Bug 219269
   // Write out the x-mozilla-status headers.
@@ -479,8 +477,8 @@ nsresult nsOutlookCompose::CopyComposedMessage(nsIFile *pSrc,
     EscapeFromSpaceLine(pDst, const_cast<char*>(line.get()), line.get()+line.Length());
   }
 
-  if (f.LastChar() != 0x0A) {
-    rv = pDst->Write( MSG_LINEBREAK, 2, &written);
+  if (f.LastChar() != nsCRT::LF) {
+    rv = pDst->Write(MSG_LINEBREAK, 2, &written);
     if (written != 2)
       rv = NS_ERROR_FAILURE;
   }
@@ -497,8 +495,8 @@ nsresult nsOutlookCompose::ProcessMessage(nsMsgDeliverMode mode,
   NS_ENSURE_SUCCESS(rv, rv);
   rv = CopyComposedMessage(compositionFile, pDst, msg);
   compositionFile->Remove(false);
-  if (NS_FAILED( rv)) {
-    IMPORT_LOG0( "*** Error copying composed message to destination mailbox\n");
+  if (NS_FAILED(rv)) {
+    IMPORT_LOG0("*** Error copying composed message to destination mailbox\n");
   }
   return rv;
 }
@@ -683,13 +681,13 @@ CCompositionFile::CCompositionFile(nsIFile* aFile, void* fifoBuffer,
 {
   m_pFile->GetFileSize(&m_fileSize);
   if (!m_fileSize) {
-    IMPORT_LOG0( "*** Error, unexpected zero file size for composed message\n");
+    IMPORT_LOG0("*** Error, unexpected zero file size for composed message\n");
     return;
   }
 
   nsresult rv = NS_NewLocalFileInputStream(getter_AddRefs(m_pInputStream), m_pFile);
   if (NS_FAILED(rv)) {
-    IMPORT_LOG0( "*** Error, unable to open composed message file\n");
+    IMPORT_LOG0("*** Error, unable to open composed message file\n");
     return;
   }
 }
@@ -706,18 +704,16 @@ nsresult CCompositionFile::EnsureHasDataInBuffer()
     return NS_ERROR_FAILURE; // Isn't there a "No more data" error?
 
   PRUint32 bytesRead = 0;
-  nsresult rv = m_pInputStream->Read( m_fifoBuffer, count, &bytesRead);
+  nsresult rv = m_pInputStream->Read(m_fifoBuffer, count, &bytesRead);
   NS_ENSURE_SUCCESS(rv, rv);
   if (!bytesRead || (bytesRead > count))
-    return( NS_ERROR_FAILURE);
+    return NS_ERROR_FAILURE;
   m_fifoBufferWrittenPos = m_fifoBuffer+bytesRead;
   m_fifoBufferReadPos = m_fifoBuffer;
   m_fileReadPos += bytesRead;
 
   return NS_OK;
 }
-
-const char CR = '\x0D', LF = '\x0A';
 
 class CTermGuard {
 public:
@@ -731,7 +727,7 @@ public:
   inline bool IsTriggered() const {
     return m_termSize && (m_matchPos == m_termSize); }
   // indicates if the guard has something to check
-  inline bool IsChecking() const { return m_termSize; } 
+  inline bool IsChecking() const { return m_termSize; }
 
   bool Check(char c) // returns true only if the whole sequence passed
   {
@@ -742,7 +738,7 @@ public:
     if (m_term[m_matchPos] != c) // Reset sequence
       m_matchPos = 0;
     if (m_term[m_matchPos] == c) { // Sequence continues
-      return (++m_matchPos == m_termSize); // If equal then sequence complete!
+      return ++m_matchPos == m_termSize; // If equal then sequence complete!
     }
     // Sequence broken
     return false;
@@ -760,7 +756,7 @@ nsresult CCompositionFile::ToDest(_OutFn dest, const char* term, int termSize)
 
 #ifdef MOZILLA_INTERNAL_API
   // We already know the required string size, so reduce future reallocations
-  if (!guard.IsChecking() && !m_convertCRs) 
+  if (!guard.IsChecking() && !m_convertCRs)
     dest.SetCapacity(m_fileSize - m_fileReadPos);
 #endif
 
@@ -776,10 +772,11 @@ nsresult CCompositionFile::ToDest(_OutFn dest, const char* term, int termSize)
         c = *m_fifoBufferReadPos;
         if (m_convertCRs && wasCR) {
           wasCR = false;
-          if (c != LF) {
-            dest.Append(&LF, 1);
-            if (guard.Check(LF)) {
-              c = LF; // save last char
+          if (c != nsCRT::LF) {
+            const char kTmpLF = nsCRT::LF;
+            dest.Append(&kTmpLF, 1);
+            if (guard.Check(nsCRT::LF)) {
+              c = nsCRT::LF; // save last char
               break;
             }
           }
@@ -790,7 +787,7 @@ nsresult CCompositionFile::ToDest(_OutFn dest, const char* term, int termSize)
         if (guard.Check(c))
           break;
 
-        if (m_convertCRs && (c == CR))
+        if (m_convertCRs && (c == nsCRT::CR))
           wasCR = true;
       }
       if (guard.IsTriggered())
@@ -800,8 +797,8 @@ nsresult CCompositionFile::ToDest(_OutFn dest, const char* term, int termSize)
 
   // check for trailing CR (only if caller didn't specify the terminating sequence that ends with CR -
   // in this case he knows what he does!)
-  if (m_convertCRs && !guard.IsTriggered() && (c == CR)) {
-    c = LF;
+  if (m_convertCRs && !guard.IsTriggered() && (c == nsCRT::CR)) {
+    c = nsCRT::LF;
     dest.Append(&c, 1);
   }
 

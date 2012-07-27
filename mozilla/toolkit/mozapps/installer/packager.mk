@@ -71,6 +71,19 @@ ifeq ($(OS_ARCH),WINNT)
 INSTALLER_DIR   = windows
 endif
 
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+ifndef _APPNAME
+_APPNAME = $(MOZ_MACBUNDLE_NAME)
+endif
+ifndef _BINPATH
+_BINPATH = /$(_APPNAME)/Contents/MacOS
+endif # _BINPATH
+ifdef UNIVERSAL_BINARY
+STAGEPATH = universal/
+endif
+endif
+
+PACKAGE_BASE_DIR = $(_ABS_DIST)
 PACKAGE       = $(PKG_PATH)$(PKG_BASENAME)$(PKG_SUFFIX)
 
 # By default, the SDK uses the same packaging type as the main bundle,
@@ -83,19 +96,19 @@ MOZ_INTERNAL_SIGNING_FORMAT =
 endif
 SDK_SUFFIX    = $(PKG_SUFFIX)
 SDK           = $(SDK_PATH)$(PKG_BASENAME).sdk$(SDK_SUFFIX)
+ifdef UNIVERSAL_BINARY
+SDK           = $(SDK_PATH)$(PKG_BASENAME)-$(TARGET_CPU).sdk$(SDK_SUFFIX)
+endif
 
 # JavaScript Shell packaging
 ifndef LIBXUL_SDK
 JSSHELL_BINS  = \
   $(DIST)/bin/js$(BIN_SUFFIX) \
-  $(DIST)/bin/mozglue$(DLL_SUFFIX) \
+  $(DIST)/bin/$(DLL_PREFIX)mozglue$(DLL_SUFFIX) \
   $(NULL)
 ifndef MOZ_NATIVE_NSPR
-JSSHELL_BINS += $(DIST)/bin/$(LIB_PREFIX)nspr4$(DLL_SUFFIX)
+JSSHELL_BINS += $(DIST)/bin/$(DLL_PREFIX)nspr4$(DLL_SUFFIX)
 ifeq ($(OS_ARCH),WINNT)
-ifdef MOZ_MEMORY
-JSSHELL_BINS += $(DIST)/bin/jemalloc$(DLL_SUFFIX)
-endif
 ifeq ($(_MSC_VER),1400)
 JSSHELL_BINS += $(DIST)/bin/Microsoft.VC80.CRT.manifest
 JSSHELL_BINS += $(DIST)/bin/msvcr80.dll
@@ -112,8 +125,8 @@ JSSHELL_BINS += $(DIST)/bin/msvcr110.dll
 endif
 else
 JSSHELL_BINS += \
-  $(DIST)/bin/$(LIB_PREFIX)plds4$(DLL_SUFFIX) \
-  $(DIST)/bin/$(LIB_PREFIX)plc4$(DLL_SUFFIX) \
+  $(DIST)/bin/$(DLL_PREFIX)plds4$(DLL_SUFFIX) \
+  $(DIST)/bin/$(DLL_PREFIX)plc4$(DLL_SUFFIX) \
   $(NULL)
 endif
 endif # MOZ_NATIVE_NSPR
@@ -143,7 +156,11 @@ MAKE_SDK = $(CREATE_FINAL_TAR) - $(MOZ_APP_NAME)-sdk | gzip -vf9 > $(SDK)
 endif
 ifeq ($(MOZ_PKG_FORMAT),BZ2)
 PKG_SUFFIX	= .tar.bz2
+ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+INNER_MAKE_PACKAGE 	= $(CREATE_FINAL_TAR) - -C $(STAGEPATH)$(MOZ_PKG_DIR) $(_APPNAME) | bzip2 -vf > $(PACKAGE)
+else
 INNER_MAKE_PACKAGE 	= $(CREATE_FINAL_TAR) - $(MOZ_PKG_DIR) | bzip2 -vf > $(PACKAGE)
+endif
 INNER_UNMAKE_PACKAGE	= bunzip2 -c $(UNPACKAGE) | $(UNPACK_TAR)
 MAKE_SDK = $(CREATE_FINAL_TAR) - $(MOZ_APP_NAME)-sdk | bzip2 -vf > $(SDK)
 endif
@@ -311,6 +328,12 @@ DIST_FILES += \
   recommended-addons.json \
   $(NULL)
 
+ifdef MOZ_ENABLE_SZIP
+SZIP_LIBRARIES = \
+  libxul.so \
+  $(NULL)
+endif
+
 NON_DIST_FILES = \
   classes.dex \
   $(NULL)
@@ -341,8 +364,11 @@ ifdef ENABLE_TESTS
 INNER_ROBOCOP_PACKAGE=echo
 ifeq ($(MOZ_BUILD_APP),mobile/android)
 UPLOAD_EXTRA_FILES += robocop.apk
+UPLOAD_EXTRA_FILES += fennec_ids.txt
 ROBOCOP_PATH = $(call core_abspath,$(_ABS_DIST)/../build/mobile/robocop)
 INNER_ROBOCOP_PACKAGE= \
+  $(PYTHON) $(abspath $(topsrcdir)/build/mobile/robocop/parse_ids.py) -i $(call core_abspath,$(DEPTH)/mobile/android/base/R.java) -o $(call core_abspath,$(DEPTH)/build/mobile/robocop/fennec_ids.txt) && \
+  $(NSINSTALL) $(call core_abspath,$(DEPTH)/build/mobile/robocop/fennec_ids.txt) $(_ABS_DIST) && \
   $(APKBUILDER) $(_ABS_DIST)/robocop-raw.apk -v $(APKBUILDER_FLAGS) -z $(ROBOCOP_PATH)/robocop.ap_ -f $(ROBOCOP_PATH)/classes.dex && \
   $(JARSIGNER) $(_ABS_DIST)/robocop-raw.apk && \
   $(ZIPALIGN) -f -v 4 $(_ABS_DIST)/robocop-raw.apk $(_ABS_DIST)/robocop.apk
@@ -353,6 +379,7 @@ endif
 
 PKG_SUFFIX      = .apk
 INNER_MAKE_PACKAGE	= \
+  $(foreach lib,$(SZIP_LIBRARIES),host/bin/szip $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/$(lib) $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/$(lib:.so=.sz) && mv $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/$(lib:.so=.sz) $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/$(lib) && ) \
   make -C $(GECKO_APP_AP_PATH) gecko.ap_ && \
   cp $(GECKO_APP_AP_PATH)/gecko.ap_ $(_ABS_DIST) && \
   ( cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && \
@@ -365,7 +392,8 @@ INNER_MAKE_PACKAGE	= \
     done && \
     unzip -o $(_ABS_DIST)/gecko.ap_ && \
     rm $(_ABS_DIST)/gecko.ap_ && \
-    $(ZIP) -r9D $(_ABS_DIST)/gecko.ap_ $(DIST_FILES) -x $(NON_DIST_FILES) && \
+    $(if $(SZIP_LIBRARIES),$(ZIP) -0 $(_ABS_DIST)/gecko.ap_ $(SZIP_LIBRARIES) && ) \
+    $(ZIP) -r9D $(_ABS_DIST)/gecko.ap_ $(DIST_FILES) -x $(NON_DIST_FILES) $(SZIP_LIBRARIES) && \
     $(ZIP) -0 $(_ABS_DIST)/gecko.ap_ $(OMNIJAR_NAME)) && \
   rm -f $(_ABS_DIST)/gecko.apk && \
   $(APKBUILDER) $(_ABS_DIST)/gecko.apk -v $(APKBUILDER_FLAGS) -z $(_ABS_DIST)/gecko.ap_ -f $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/classes.dex && \
@@ -384,12 +412,6 @@ INNER_UNMAKE_PACKAGE	= \
   popd
 endif
 ifeq ($(MOZ_PKG_FORMAT),DMG)
-ifndef _APPNAME
-_APPNAME = $(MOZ_MACBUNDLE_NAME)
-endif
-ifndef _BINPATH
-_BINPATH	= /$(_APPNAME)/Contents/MacOS
-endif # _BINPATH
 PKG_SUFFIX	= .dmg
 PKG_DMG_FLAGS	=
 ifneq (,$(MOZ_PKG_MAC_DSSTORE))
@@ -408,9 +430,6 @@ ifneq (,$(MOZ_PKG_MAC_EXTRA))
 PKG_DMG_FLAGS += $(MOZ_PKG_MAC_EXTRA)
 endif
 _ABS_MOZSRCDIR = $(shell cd $(MOZILLA_DIR) && pwd)
-ifdef UNIVERSAL_BINARY
-STAGEPATH = universal/
-endif
 ifndef PKG_DMG_SOURCE
 PKG_DMG_SOURCE = $(STAGEPATH)$(MOZ_PKG_DIR)
 endif
@@ -474,12 +493,13 @@ PRECOMPILE_RESOURCE=gre
 PRECOMPILE_GRE=$$PWD
 endif
 
+# Silence the unzip step so we don't print any binary data from the comment field.
 GENERATE_CACHE = \
   $(_ABS_RUN_TEST_PROGRAM) $(LIBXUL_DIST)/bin/xpcshell$(BIN_SUFFIX) -g "$(PRECOMPILE_GRE)" -a "$$PWD" -f $(call core_abspath,$(MOZILLA_DIR)/toolkit/mozapps/installer/precompile_cache.js) -e "populate_startupcache('$(PRECOMPILE_DIR)', '$(OMNIJAR_NAME)', 'startupCache.zip');" && \
-  rm -rf jsloader && \
-  $(UNZIP) startupCache.zip && \
+  rm -rf jsloader jssubloader && \
+  $(UNZIP) -q startupCache.zip && \
   rm startupCache.zip && \
-  $(ZIP) -r9m $(OMNIJAR_NAME) jsloader/resource/$(PRECOMPILE_RESOURCE)
+  $(ZIP) -r9m $(OMNIJAR_NAME) jsloader/resource/$(PRECOMPILE_RESOURCE) jssubloader/*/resource/$(PRECOMPILE_RESOURCE)
 else
 GENERATE_CACHE = true
 endif
@@ -498,13 +518,17 @@ OMNIJAR_FILES	= \
   defaults \
   greprefs.js \
   jsloader \
+  jssubloader \
   hyphenation \
   update.locale \
   $(NULL)
 
+# defaults/pref/channel-prefs.js is handled separate from other prefs due to
+# bug 756325
 NON_OMNIJAR_FILES += \
   chrome/icons/\* \
   $(PREF_DIR)/channel-prefs.js \
+  defaults/pref/channel-prefs.js \
   res/cursors/\* \
   res/MainMenu.nib/\* \
   $(NULL)
@@ -530,13 +554,34 @@ UNPACK_OMNIJAR	= \
     mv tmp.manifest $$m; \
   done
 
+ifdef MOZ_WEBAPP_RUNTIME
+# It's simpler to pack the webapp runtime, because it doesn't have any
+# binary components.  We also don't pre-generate the startup cache, which seems
+# unnecessary, given the small size of the runtime, although it might become
+# more valuable over time.
+PACK_OMNIJAR_WEBAPP_RUNTIME	= \
+  rm -f $(OMNIJAR_NAME); \
+  $(ZIP) -r9m $(OMNIJAR_NAME) $(OMNIJAR_FILES) -x $(NON_OMNIJAR_FILES) && \
+  $(OPTIMIZE_JARS_CMD) --optimize $(JARLOG_DIR_AB_CD) ./ ./
+UNPACK_OMNIJAR_WEBAPP_RUNTIME	= \
+  $(OPTIMIZE_JARS_CMD) --deoptimize $(JARLOG_DIR_AB_CD) ./ ./ && \
+  $(UNZIP) -o $(OMNIJAR_NAME)
+
+PREPARE_PACKAGE	= (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(PACK_OMNIJAR)) && \
+	              (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/webapprt && $(PACK_OMNIJAR_WEBAPP_RUNTIME)) && \
+	              (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(CREATE_PRECOMPLETE_CMD))
+UNMAKE_PACKAGE	= $(INNER_UNMAKE_PACKAGE) && \
+	              (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(UNPACK_OMNIJAR)) && \
+	              (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/webapprt && $(UNPACK_OMNIJAR_WEBAPP_RUNTIME))
+else # ndef MOZ_WEBAPP_RUNTIME
 PREPARE_PACKAGE	= (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(PACK_OMNIJAR)) && \
 	              (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(CREATE_PRECOMPLETE_CMD))
 UNMAKE_PACKAGE	= $(INNER_UNMAKE_PACKAGE) && (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(UNPACK_OMNIJAR))
-else
+endif # def MOZ_WEBAPP_RUNTIME
+else # ndef MOZ_OMNIJAR
 PREPARE_PACKAGE	= (cd $(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(CREATE_PRECOMPLETE_CMD))
 UNMAKE_PACKAGE	= $(INNER_UNMAKE_PACKAGE)
-endif
+endif # def MOZ_OMNIJAR
 
 ifdef MOZ_INTERNAL_SIGNING_FORMAT
 MOZ_SIGN_PREPARED_PACKAGE_CMD=$(MOZ_SIGN_CMD) $(foreach f,$(MOZ_INTERNAL_SIGNING_FORMAT),-f $(f)) $(foreach i,$(SIGN_INCLUDES),-i $(i)) $(foreach x,$(SIGN_EXCLUDES),-x $(x)) --nsscmd "$(SIGN_CMD)"
@@ -548,8 +593,18 @@ MOZ_SIGN_PACKAGE_CMD=$(MOZ_SIGN_CMD) $(foreach f,$(MOZ_EXTERNAL_SIGNING_FORMAT),
 endif
 
 ifdef MOZ_SIGN_PREPARED_PACKAGE_CMD
+ifeq (Darwin, $(OS_ARCH)) 
+MAKE_PACKAGE    = $(PREPARE_PACKAGE) \
+                  && cd ./$(PKG_DMG_SOURCE) && $(MOZ_SIGN_PREPARED_PACKAGE_CMD) $(MOZ_MACBUNDLE_NAME) \
+                  && rm $(MOZ_MACBUNDLE_NAME)/Contents/CodeResources \
+                  && cp $(MOZ_MACBUNDLE_NAME)/Contents/_CodeSignature/CodeResources $(MOZ_MACBUNDLE_NAME)/Contents \
+                  && cd $(PACKAGE_BASE_DIR) \
+                  && $(INNER_MAKE_PACKAGE)
+else
 MAKE_PACKAGE    = $(PREPARE_PACKAGE) && $(MOZ_SIGN_PREPARED_PACKAGE_CMD) \
 		  $(MOZ_PKG_DIR) && $(INNER_MAKE_PACKAGE)
+endif #Darwin
+
 else
 MAKE_PACKAGE    = $(PREPARE_PACKAGE) && $(INNER_MAKE_PACKAGE)
 endif
@@ -703,6 +758,9 @@ endif
 	@$(NSINSTALL) -D $(DEPTH)/installer-stage/core
 ifdef MOZ_OMNIJAR
 	@(cd $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(PACK_OMNIJAR))
+ifdef MOZ_WEBAPP_RUNTIME
+	@(cd $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/webapprt && $(PACK_OMNIJAR_WEBAPP_RUNTIME))
+endif
 endif
 	@cp -av $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/. $(DEPTH)/installer-stage/core
 	@(cd $(DEPTH)/installer-stage/core && $(CREATE_PRECOMPLETE_CMD))
@@ -712,6 +770,11 @@ ifdef MOZ_OPTIONAL_PKG_LIST
 	  "$(call core_abspath,$(DEPTH)/installer-stage/optional)", \
 	  "$(MOZ_PKG_MANIFEST)", "$(PKGCP_OS)", 1, 0, 1 \
 	  $(foreach pkg,$(MOZ_OPTIONAL_PKG_LIST),$(PKG_ARG)) )
+ifeq (DMG, $(MOZ_PKG_FORMAT))
+ifeq (dmg, $(filter dmg, $(MOZ_INTERNAL_SIGNING_FORMAT)))
+	@cd $(DIST)/$(_APPNAME)/Contents && ln -sf _CodeSignature/CodeResources CodeResources
+endif
+endif
 	if test -d $(DEPTH)/installer-stage/optional/extensions ; then \
 		cd $(DEPTH)/installer-stage/optional/extensions; find -maxdepth 1 -mindepth 1 -exec rm -r ../../core/extensions/{} \; ; \
 	fi
@@ -747,6 +810,11 @@ ifdef MOZ_PKG_MANIFEST
 	$(call PACKAGER_COPY, "$(call core_abspath,$(DIST))",\
 	  "$(call core_abspath,$(DIST)/$(MOZ_PKG_DIR))", \
 	  "$(MOZ_PKG_MANIFEST)", "$(PKGCP_OS)", 1, 0, 1)
+ifeq (DMG, $(MOZ_PKG_FORMAT))
+ifeq (dmg, $(filter dmg, $(MOZ_INTERNAL_SIGNING_FORMAT)))
+	@cd $(DIST)/$(_APPNAME)/Contents && ln -sf _CodeSignature/CodeResources CodeResources
+endif
+endif
 	$(PERL) $(MOZILLA_DIR)/toolkit/mozapps/installer/xptlink.pl -s $(DIST) -d $(DIST)/xpt -f $(DIST)/$(MOZ_PKG_DIR)/$(_BINPATH)/components -v -x "$(XPIDL_LINK)"
 	$(PYTHON) $(MOZILLA_DIR)/toolkit/mozapps/installer/link-manifests.py \
 	  $(DIST)/$(MOZ_PKG_DIR)/$(_BINPATH)/components/components.manifest \
@@ -759,7 +827,7 @@ ifdef MOZ_PKG_MANIFEST
 	  $(patsubst %,$(DIST)/manifests/%/chrome,$(MOZ_LOCALIZED_PKG_LIST))
 	printf "manifest components/interfaces.manifest\nmanifest components/components.manifest\nmanifest chrome/nonlocalized.manifest\nmanifest chrome/localized.manifest\n" > $(DIST)/$(MOZ_PKG_DIR)/$(_BINPATH)/chrome.manifest
 else # !MOZ_PKG_MANIFEST
-ifeq ($(MOZ_PKG_FORMAT),DMG)
+ifeq ($(MOZ_WIDGET_TOOLKIT),cocoa)
 ifndef STAGE_SDK
 	@cd $(DIST) && rsync -auv --copy-unsafe-links $(_APPNAME) $(MOZ_PKG_DIR)
 	@echo "Linking XPT files..."
@@ -823,10 +891,12 @@ ifdef MOZ_POST_STAGING_CMD
 	cd $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(MOZ_POST_STAGING_CMD)
 endif # MOZ_POST_STAGING_CMD
 ifndef LIBXUL_SDK
+ifdef MOZ_PACKAGE_JSSHELL
 # Package JavaScript Shell
 	@echo "Packaging JavaScript Shell..."
 	$(RM) $(PKG_JSSHELL)
 	$(MAKE_JSSHELL)
+endif # MOZ_PACKAGE_JSSHELL
 endif # LIBXUL_SDK
 
 make-package: stage-package $(PACKAGE_XULRUNNER) make-sourcestamp-file
@@ -854,6 +924,9 @@ ifeq (bundle,$(MOZ_FS_LAYOUT))
 endif
 ifdef MOZ_OMNIJAR
 	cd $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH) && $(PACK_OMNIJAR)
+ifdef MOZ_WEBAPP_RUNTIME
+	cd $(DIST)/$(STAGEPATH)$(MOZ_PKG_DIR)$(_BINPATH)/webapprt && $(PACK_OMNIJAR_WEBAPP_RUNTIME))
+endif
 endif
 	$(NSINSTALL) -D $(DESTDIR)$(installdir)
 	(cd $(DIST)/$(MOZ_PKG_DIR) && tar $(TAR_CREATE_FLAGS) - .) | \

@@ -41,6 +41,7 @@
 #ifndef jsanalyze_h___
 #define jsanalyze_h___
 
+#include "jsautooplen.h"
 #include "jscompartment.h"
 #include "jscntxt.h"
 #include "jsinfer.h"
@@ -48,6 +49,7 @@
 
 #include "ds/LifoAlloc.h"
 #include "js/TemplateLib.h"
+#include "vm/ScopeObject.h"
 
 struct JSScript;
 
@@ -121,6 +123,9 @@ class Bytecode
 
     /* Whether this is in a try block. */
     bool inTryBlock : 1;
+
+    /* Whether this is in a loop. */
+    bool inLoop : 1;
 
     /* Method JIT safe point. */
     bool safePoint : 1;
@@ -253,9 +258,6 @@ ExtendedDef(jsbytecode *pc)
       case JSOP_ARGINC:
       case JSOP_ARGDEC:
       case JSOP_SETLOCAL:
-      case JSOP_SETLOCALPOP:
-      case JSOP_DEFLOCALFUN:
-      case JSOP_DEFLOCALFUN_FC:
       case JSOP_INCLOCAL:
       case JSOP_DECLOCAL:
       case JSOP_LOCALINC:
@@ -383,14 +385,22 @@ static inline uint32_t GetBytecodeSlot(JSScript *script, jsbytecode *pc)
       case JSOP_GETLOCAL:
       case JSOP_CALLLOCAL:
       case JSOP_SETLOCAL:
-      case JSOP_SETLOCALPOP:
-      case JSOP_DEFLOCALFUN:
-      case JSOP_DEFLOCALFUN_FC:
       case JSOP_INCLOCAL:
       case JSOP_DECLOCAL:
       case JSOP_LOCALINC:
       case JSOP_LOCALDEC:
         return LocalSlot(script, GET_SLOTNO(pc));
+
+      case JSOP_GETALIASEDVAR:
+      case JSOP_CALLALIASEDVAR:
+      case JSOP_SETALIASEDVAR:
+      {
+          ScopeCoordinate sc = ScopeCoordinate(pc);
+          return script->bindings.bindingIsArg(sc.binding)
+                 ? ArgSlot(script->bindings.bindingToArg(sc.binding))
+                 : LocalSlot(script, script->bindings.bindingToLocal(sc.binding));
+      }
+
 
       case JSOP_THIS:
         return ThisSlot();
@@ -408,9 +418,6 @@ BytecodeUpdatesSlot(JSOp op)
     switch (op) {
       case JSOP_SETARG:
       case JSOP_SETLOCAL:
-      case JSOP_SETLOCALPOP:
-      case JSOP_DEFLOCALFUN:
-      case JSOP_DEFLOCALFUN_FC:
       case JSOP_INCARG:
       case JSOP_DECARG:
       case JSOP_ARGINC:
@@ -833,6 +840,8 @@ class SlotValue
     SlotValue(uint32_t slot, const SSAValue &value) : slot(slot), value(value) {}
 };
 
+struct NeedsArgsObjState;
+
 /* Analysis information about a script. */
 class ScriptAnalysis
 {
@@ -847,7 +856,7 @@ class ScriptAnalysis
     bool outOfMemory;
     bool hadFailure;
 
-    JSPackedBool *escapedSlots;
+    bool *escapedSlots;
 
     /* Which analyses have been performed. */
     bool ranBytecode_;
@@ -871,6 +880,7 @@ class ScriptAnalysis
     bool addsScopeObjects_:1;
     bool localsAliasStack_:1;
     bool isInlineable:1;
+    bool isCompileable:1;
     bool canTrackVars:1;
 
     uint32_t numReturnSites_;
@@ -905,6 +915,7 @@ class ScriptAnalysis
     bool OOM() { return outOfMemory; }
     bool failed() { return hadFailure; }
     bool inlineable(uint32_t argc) { return isInlineable && argc == script->function()->nargs; }
+    bool compileable() { return isCompileable; }
 
     /* Whether there are POPV/SETRVAL bytecodes which can write to the frame's rval. */
     bool usesReturnValue() const { return usesReturnValue_; }
@@ -1070,7 +1081,7 @@ class ScriptAnalysis
     bool trackUseChain(const SSAValue &v) {
         JS_ASSERT_IF(v.kind() == SSAValue::VAR, trackSlot(v.varSlot()));
         return v.kind() != SSAValue::EMPTY &&
-            (v.kind() != SSAValue::VAR || !v.varInitial());
+               (v.kind() != SSAValue::VAR || !v.varInitial());
     }
 
     /*
@@ -1105,10 +1116,7 @@ class ScriptAnalysis
     {
         SSAUseChain *uses = useChain(SSAValue::PushedValue(pc - script->code, 0));
         JS_ASSERT(uses && uses->popped);
-        JS_ASSERT_IF(uses->next,
-                     !uses->next->next &&
-                     uses->next->popped &&
-                     script->code[uses->next->offset] == JSOP_SWAP);
+        JS_ASSERT(js_CodeSpec[script->code[uses->offset]].format & JOF_INVOKE);
         return script->code + uses->offset;
     }
 
@@ -1134,7 +1142,7 @@ class ScriptAnalysis
      * presence of NAME opcodes which could alias local variables or arguments
      * keeps us from tracking variable values at each point.
      */
-    bool trackSlot(uint32_t slot) { return !slotEscapes(slot) && canTrackVars; }
+    bool trackSlot(uint32_t slot) { return !slotEscapes(slot) && canTrackVars && slot < 1000; }
 
     const LifetimeVariable & liveness(uint32_t slot) {
         JS_ASSERT(script->compartment()->activeAnalysis);
@@ -1176,9 +1184,8 @@ class ScriptAnalysis
 
     /* Bytecode helpers */
     inline bool addJump(JSContext *cx, unsigned offset,
-                        unsigned *currentOffset, unsigned *forwardJump,
+                        unsigned *currentOffset, unsigned *forwardJump, unsigned *forwardLoop,
                         unsigned stackDepth);
-    void checkAliasedName(JSContext *cx, jsbytecode *pc);
 
     /* Lifetime helpers */
     inline void addVariable(JSContext *cx, LifetimeVariable &var, unsigned offset,
@@ -1188,6 +1195,19 @@ class ScriptAnalysis
     inline void extendVariable(JSContext *cx, LifetimeVariable &var, unsigned start, unsigned end);
     inline void ensureVariable(LifetimeVariable &var, unsigned until);
 
+    /* Current value for a variable or stack value, as tracked during SSA. */
+    struct SSAValueInfo
+    {
+        SSAValue v;
+
+        /*
+         * Sizes of branchTargets the last time this slot was written. Branches less
+         * than this threshold do not need to be inspected if the slot is written
+         * again, as they will already reflect the slot's value at the branch.
+         */
+        int32_t branchSize;
+    };
+
     /* SSA helpers */
     bool makePhi(JSContext *cx, uint32_t slot, uint32_t offset, SSAValue *pv);
     void insertPhi(JSContext *cx, SSAValue &phi, const SSAValue &v);
@@ -1195,18 +1215,15 @@ class ScriptAnalysis
     void checkPendingValue(JSContext *cx, const SSAValue &v, uint32_t slot,
                            Vector<SlotValue> *pending);
     void checkBranchTarget(JSContext *cx, uint32_t targetOffset, Vector<uint32_t> &branchTargets,
-                           SSAValue *values, uint32_t stackDepth);
+                           SSAValueInfo *values, uint32_t stackDepth);
     void checkExceptionTarget(JSContext *cx, uint32_t catchOffset,
                               Vector<uint32_t> &exceptionTargets);
-    void mergeBranchTarget(JSContext *cx, const SSAValue &value, uint32_t slot,
-                           const Vector<uint32_t> &branchTargets);
+    void mergeBranchTarget(JSContext *cx, SSAValueInfo &value, uint32_t slot,
+                           const Vector<uint32_t> &branchTargets, uint32_t currentOffset);
     void mergeExceptionTarget(JSContext *cx, const SSAValue &value, uint32_t slot,
                               const Vector<uint32_t> &exceptionTargets);
-    void mergeAllExceptionTargets(JSContext *cx, SSAValue *values,
+    void mergeAllExceptionTargets(JSContext *cx, SSAValueInfo *values,
                                   const Vector<uint32_t> &exceptionTargets);
-    bool removeBranchTarget(Vector<uint32_t> &branchTargets,
-                            Vector<uint32_t> &exceptionTargets,
-                            uint32_t offset);
     void freezeNewValues(JSContext *cx, uint32_t offset);
 
     struct TypeInferenceState {
@@ -1221,8 +1238,9 @@ class ScriptAnalysis
 
     /* Type inference helpers */
     bool analyzeTypesBytecode(JSContext *cx, unsigned offset, TypeInferenceState &state);
-    bool followEscapingArguments(JSContext *cx, const SSAValue &v, Vector<SSAValue> *seen);
-    bool followEscapingArguments(JSContext *cx, SSAUseChain *use, Vector<SSAValue> *seen);
+    bool needsArgsObj(NeedsArgsObjState &state, const SSAValue &v);
+    bool needsArgsObj(NeedsArgsObjState &state, SSAUseChain *use);
+    bool needsArgsObj(JSContext *cx);
 
   public:
 #ifdef DEBUG

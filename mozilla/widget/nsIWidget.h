@@ -118,8 +118,9 @@ typedef nsEventStatus (* EVENT_CALLBACK)(nsGUIEvent *event);
 #endif
 
 #define NS_IWIDGET_IID \
-  { 0x6ca77c11, 0xade7, 0x4715, \
-    { 0x82, 0xe0, 0xfe, 0xae, 0x42, 0xca, 0x5b, 0x1f } }
+  { 0x7c7ff2ff, 0x61f9, 0x4240, \
+    { 0xaa, 0x58, 0x74, 0xb0, 0xcd, 0xa9, 0xe3, 0x05 } }
+
 /*
  * Window shadow styles
  * Also used for the -moz-window-shadow CSS property
@@ -477,6 +478,14 @@ class nsIWidget : public nsISupports {
                 nsDeviceContext  *aContext,
                 nsWidgetInitData *aInitData = nsnull,
                 bool             aForceUseIWidgetParent = false) = 0;
+
+    /**
+     * Set the event callback for a widget. If a device context is not
+     * provided then the existing device context will remain, it will
+     * not be nulled out.
+     */
+    NS_IMETHOD SetEventCallback(EVENT_CALLBACK aEventFunction,
+                                nsDeviceContext *aContext) = 0;
 
     /**
      * Attach to a top level widget. 
@@ -1008,6 +1017,28 @@ class nsIWidget : public nsISupports {
      */
     virtual void SetShowsToolbarButton(bool aShow) = 0;
 
+    /*
+     * On Mac OS X Lion, this method shows or hides the full screen button in
+     * the titlebar that handles native full screen mode.
+     *
+     * Ignored on child widgets, non-Mac platforms, & pre-Lion Mac.
+     */
+    virtual void SetShowsFullScreenButton(bool aShow) = 0;
+
+    enum WindowAnimationType {
+      eGenericWindowAnimation,
+      eDocumentWindowAnimation
+    };
+
+    /**
+     * Sets the kind of top-level window animation this widget should have.  On
+     * Mac OS X, this causes a particular kind of animation to be shown when the
+     * window is first made visible.
+     *
+     * Ignored on child widgets and on non-Mac platforms.
+     */
+    virtual void SetWindowAnimationType(WindowAnimationType aType) = 0;
+
     /** 
      * Hide window chrome (borders, buttons) for this widget.
      *
@@ -1021,21 +1052,10 @@ class nsIWidget : public nsISupports {
     NS_IMETHOD MakeFullScreen(bool aFullScreen) = 0;
 
     /**
-     * Invalidate a specified rect for a widget and repaints it.
-     *
-     * @param aIsSynchronouse true then repaint synchronously. If false repaint later.
-     * @see #Update()
+     * Invalidate a specified rect for a widget so that it will be repainted
+     * later.
      */
-
-    NS_IMETHOD Invalidate(const nsIntRect & aRect, bool aIsSynchronous) = 0;
-
-    /**
-     * Force a synchronous repaint of the window if there are dirty rects.
-     *
-     * @see Invalidate()
-     */
-
-     NS_IMETHOD Update() = 0;
+    NS_IMETHOD Invalidate(const nsIntRect & aRect) = 0;
 
     enum LayerManagerPersistence
     {
@@ -1072,6 +1092,14 @@ class nsIWidget : public nsISupports {
                                           LayersBackend aBackendHint,
                                           LayerManagerPersistence aPersistence = LAYER_MANAGER_CURRENT,
                                           bool* aAllowRetaining = nsnull) = 0;
+
+    /**
+     * Called before the LayerManager draws the layer tree.
+     *
+     * @param aManager The drawing LayerManager.
+     * @param aWidgetRect The current widget rect that is being drawn.
+     */
+    virtual void DrawWindowUnderlay(LayerManager* aManager, nsIntRect aRect) = 0;
 
     /**
      * Called after the LayerManager draws the layer tree
@@ -1349,6 +1377,40 @@ class nsIWidget : public nsISupports {
                                                 PRUint32 aModifierFlags) = 0;
 
     /**
+     * A shortcut to SynthesizeNativeMouseEvent, abstracting away the native message.
+     */
+    virtual nsresult SynthesizeNativeMouseMove(nsIntPoint aPoint) = 0;
+
+    /**
+     * Utility method intended for testing. Dispatching native mouse scroll
+     * events may move the mouse cursor.
+     *
+     * @param aPoint            Mouse cursor position in screen coordinates.
+     *                          In device pixels, the origin at the top left of
+     *                          the primary display.
+     * @param aNativeMessage    Platform native message.
+     * @param aDeltaX           The delta value for X direction.  If the native
+     *                          message doesn't indicate X direction scrolling,
+     *                          this may be ignored.
+     * @param aDeltaY           The delta value for Y direction.  If the native
+     *                          message doesn't indicate Y direction scrolling,
+     *                          this may be ignored.
+     * @param aDeltaZ           The delta value for Z direction.  If the native
+     *                          message doesn't indicate Z direction scrolling,
+     *                          this may be ignored.
+     * @param aModifierFlags    Must be values of Modifiers, or zero.
+     * @param aAdditionalFlags  See nsIDOMWidnowUtils' consts and their
+     *                          document.
+     */
+    virtual nsresult SynthesizeNativeMouseScrollEvent(nsIntPoint aPoint,
+                                                      PRUint32 aNativeMessage,
+                                                      double aDeltaX,
+                                                      double aDeltaY,
+                                                      double aDeltaZ,
+                                                      PRUint32 aModifierFlags,
+                                                      PRUint32 aAdditionalFlags) = 0;
+
+    /**
      * Activates a native menu item at the position specified by the index
      * string. The index string is a string of positive integers separated
      * by the "|" (pipe) character. The last integer in the string represents
@@ -1527,6 +1589,19 @@ class nsIWidget : public nsISupports {
      * widget.
      */
     virtual PRUint32 GetGLFrameBufferFormat() { return 0; /*GL_NONE*/ }
+
+    /**
+     * Return true if widget has it's own GL context
+     */
+    virtual bool HasGLContext() { return false; }
+
+    /**
+     * Returns true to indicate that this widget paints an opaque background
+     * that we want to be visible under the page, so layout should not force
+     * a default background.
+     */
+    virtual bool WidgetPaintsBackground() { return false; }
+
 protected:
 
     // keep the list of children.  We also keep track of our siblings.

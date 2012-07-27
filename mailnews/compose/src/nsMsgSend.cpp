@@ -110,6 +110,7 @@
 #include "nsMsgUtils.h"
 #include "nsIArray.h"
 #include "nsArrayUtils.h"
+#include "mozilla/Services.h"
 
 static NS_DEFINE_CID(kRDFServiceCID, NS_RDFSERVICE_CID);
 
@@ -954,26 +955,24 @@ nsMsgComposeAndSend::GatherMimeAttachments()
       for (i = 0; i < m_attachment_count; i++)
       {
         //
+        // look for earlier part with the same content id. If we find it,
+        // need to remember the mapping between our node index and the
+        // part num of the earlier part.
+        PRInt32 nodeIndex = m_attachments[i].mNodeIndex;
+        if (nodeIndex != -1)
+        {
+          for (PRUint32 j = 0; j < i; j++)
+          {
+            if (m_attachments[j].mNodeIndex != -1 &&
+                m_attachments[j].m_contentId.Equals(m_attachments[i].m_contentId))
+              m_partNumbers[nodeIndex] = m_partNumbers[m_attachments[j].mNodeIndex];
+          }
+        }
         // rhp: This is here because we could get here after saying OK
         // to a lot of prompts about not being able to fetch this part!
         //
         if (m_attachments[i].mPartUserOmissionOverride)
-        {
-          // look for earlier part with the same content id. If we find it,
-          // need to remember the mapping between our node index and the
-          // part num of the earlier part.
-          PRInt32 nodeIndex = m_attachments[i].mNodeIndex;
-          if (nodeIndex != -1)
-          {
-            for (PRUint32 j = 0; j < i; j++)
-            {
-              if (m_attachments[j].mNodeIndex != -1 &&
-                  m_attachments[j].m_contentId.Equals(m_attachments[i].m_contentId))
-                m_partNumbers[nodeIndex] = m_partNumbers[m_attachments[j].mNodeIndex];
-            }
-          }
           continue;
-        }
 
         // Now, we need to add this part to the m_related_part member so the
         // message will be generated correctly.
@@ -1119,6 +1118,9 @@ nsMsgComposeAndSend::PreProcessPart(nsMsgAttachmentHandler  *ma,
   if (NS_FAILED(status))
     return 0;
 
+  if (ma->mSendViaCloud)
+    ma->m_encoding = ENCODING_7BIT;
+
   nsCString turl;
   if (!ma->mURL)
   {
@@ -1127,13 +1129,24 @@ nsMsgComposeAndSend::PreProcessPart(nsMsgAttachmentHandler  *ma,
   }
   else
     ma->mURL->GetSpec(turl);
-  hdrs = mime_generate_attachment_headers (ma->m_type.get(),
+
+  nsCString type(ma->m_type);
+  nsCString realName(ma->m_realName);
+
+  // for cloud attachments, make the part an html part with no name,
+  // so we don't show it as an attachment.
+  if (ma->mSendViaCloud)
+  {
+    type.Assign("application/octet-stream");
+    realName.Truncate();
+  }
+  hdrs = mime_generate_attachment_headers (type.get(),
                                            ma->m_typeParam.get(),
                                            ma->m_encoding.get(),
                                            ma->m_description.get(),
                                            ma->m_xMacType.get(),
                                            ma->m_xMacCreator.get(),
-                                           ma->m_realName.get(),
+                                           realName.get(),
                                            turl.get(),
                                            m_digest_p,
                                            ma,
@@ -1152,6 +1165,29 @@ nsMsgComposeAndSend::PreProcessPart(nsMsgAttachmentHandler  *ma,
 
   status = part->SetOtherHeaders(hdrs);
   PR_FREEIF(hdrs);
+  if (ma->mSendViaCloud)
+  {
+    nsCString urlSpec;
+    ma->mURL->GetSpec(urlSpec);
+    // Need to add some headers so that libmime can restore the cloud info
+    // when loading a draft message.
+    nsCString draftInfo(HEADER_X_MOZILLA_CLOUD_PART": cloudFile; url=");
+    draftInfo.Append(ma->mCloudUrl.get());
+    // don't leak user file paths or account keys to recipients.
+    if (m_deliver_mode == nsMsgSaveAsDraft)
+    {
+      draftInfo.Append("; provider=");
+      draftInfo.Append(ma->mCloudProviderKey.get());
+      draftInfo.Append("; file=");
+      draftInfo.Append(urlSpec.get());
+    }
+    draftInfo.Append("; name=");
+    draftInfo.Append(ma->m_realName.get());
+    draftInfo.Append(CRLF);
+    part->AppendOtherHeaders(draftInfo.get());
+    part->SetType("application/octet-stream");
+    part->SetBuffer("");
+  }
   if (NS_FAILED(status))
     return 0;
   status = part->SetFile(ma->mTmpFile);
@@ -1256,7 +1292,7 @@ mime_write_message_body(nsIMsgSend *state, const char *buf, PRInt32 size)
 
   PRUint32 n;
   nsresult rv = output->Write(buf, size, &n);
-  if (NS_FAILED(rv) || n != size)
+  if (NS_FAILED(rv) || n != (PRUint32)size)
   {
     return NS_MSG_ERROR_WRITING_FILE;
   }
@@ -2067,14 +2103,14 @@ nsMsgComposeAndSend::CountCompFieldAttachments()
     {
       attachment->GetUrl(url);
       if (!url.IsEmpty())
-    {
-      // Check to see if this is a file URL, if so, don't retrieve
-      // like a remote URL...
+      {
+        // Check to see if this is a file URL, if so, don't retrieve
+        // like a remote URL...
         if (nsMsgIsLocalFile(url.get()))
           mCompFieldLocalAttachments++;
-      else    // This is a remote URL...
-        mCompFieldRemoteAttachments++;
-    }
+        else    // This is a remote URL...
+          mCompFieldRemoteAttachments++;
+      }
     }
   }
 
@@ -2111,9 +2147,25 @@ nsMsgComposeAndSend::AddCompFieldLocalAttachments()
     nsCOMPtr<nsIMsgAttachment> attachment = do_QueryInterface(element, &rv);
     if (NS_SUCCEEDED(rv) && attachment)
     {
+      bool sendViaCloud = false;
+      attachment->GetSendViaCloud(&sendViaCloud);
+      m_attachments[newLoc].mSendViaCloud = sendViaCloud;
       attachment->GetUrl(url);
       if (!url.IsEmpty())
       {
+        bool sendViaCloud;
+        attachment->GetSendViaCloud(&sendViaCloud);
+        if (sendViaCloud)
+        {
+          nsCString cloudProviderKey;
+          // We'd like to output a part for the attachment, just an html part
+          // with information about how to download the attachment.
+          // m_attachments[newLoc].m_done = true;
+          attachment->GetHtmlAnnotation(m_attachments[newLoc].mHtmlAnnotation);
+          m_attachments[newLoc].m_type = "text/html";
+          attachment->GetCloudProviderKey(m_attachments[newLoc].mCloudProviderKey);
+          attachment->GetContentLocation(m_attachments[newLoc].mCloudUrl);
+        }
         // Just look for local file:// attachments and do the right thing.
         if (nsMsgIsLocalFile(url.get()))
         {
@@ -2132,8 +2184,9 @@ nsMsgComposeAndSend::AddCompFieldLocalAttachments()
             m_attachments[newLoc].mTmpFile =nsnull;
           }
           nsresult rv;
-          nsCOMPtr<nsIIOService> ioService = do_GetService(NS_IOSERVICE_CONTRACTID, &rv);
-          NS_ENSURE_SUCCESS(rv, rv);
+          nsCOMPtr<nsIIOService> ioService =
+            mozilla::services::GetIOService();
+          NS_ENSURE_TRUE(ioService, NS_ERROR_UNEXPECTED);
           nsCOMPtr <nsIURI> uri;
           rv = ioService->NewURI(url, nsnull, nsnull, getter_AddRefs(uri));
           NS_ENSURE_SUCCESS(rv, rv);
@@ -2160,6 +2213,9 @@ nsMsgComposeAndSend::AddCompFieldLocalAttachments()
   #else
           bool mustSnarfAttachment = false;
   #endif
+          if (sendViaCloud)
+            mustSnarfAttachment = false;
+
           attachment->GetContentType(getter_Copies(m_attachments[newLoc].m_type));
           if (m_attachments[newLoc].m_type.IsEmpty())
           {
@@ -2278,7 +2334,7 @@ nsMsgComposeAndSend::AddCompFieldRemoteAttachments(PRUint32   aStartLocation,
     NS_ENSURE_SUCCESS(rv, rv);
 
     nsCOMPtr<nsIMsgAttachment> attachment = do_QueryInterface(element, &rv);
-    if (NS_SUCCEEDED(rv) && attachment)
+     if (NS_SUCCEEDED(rv) && attachment)
     {
       attachment->GetUrl(url);
       if (!url.IsEmpty())
@@ -2319,7 +2375,7 @@ nsMsgComposeAndSend::AddCompFieldRemoteAttachments(PRUint32   aStartLocation,
           }
           else
             do_add_attachment = (nsnull != m_attachments[newLoc].mURL);
-
+          m_attachments[newLoc].mSendViaCloud = false;
           if (do_add_attachment)
           {
             nsAutoString proposedName;
@@ -2553,7 +2609,7 @@ nsMsgComposeAndSend::HackAttachments(nsIArray *attachments,
 
     for (i = 0; i < m_attachment_count; i++)
     {
-      if (m_attachments[i].m_done)
+      if (m_attachments[i].m_done || m_attachments[i].mSendViaCloud)
       {
         m_attachment_pending_count--;
         continue;
@@ -3218,8 +3274,9 @@ nsMsgComposeAndSend::Init(
   nsString msg;
   if (!mComposeBundle)
   {
-    nsCOMPtr<nsIStringBundleService> bundleService(do_GetService("@mozilla.org/intl/stringbundle;1", &rv));
-    NS_ENSURE_SUCCESS(rv, rv);
+    nsCOMPtr<nsIStringBundleService> bundleService =
+      mozilla::services::GetStringBundleService();
+    NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
     nsCOMPtr<nsIStringBundle> bundle;
     rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(mComposeBundle));
     NS_ENSURE_SUCCESS(rv, rv);
@@ -4019,8 +4076,9 @@ nsMsgComposeAndSend::NotifyListenerOnStopCopy(nsresult aStatus)
   {
     bool retry = false;
     nsresult rv;
-    nsCOMPtr<nsIStringBundleService> bundleService(do_GetService("@mozilla.org/intl/stringbundle;1", &rv));
-    NS_ENSURE_SUCCESS(rv, rv);
+    nsCOMPtr<nsIStringBundleService> bundleService =
+      mozilla::services::GetStringBundleService();
+    NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
     nsCOMPtr<nsIStringBundle> bundle;
     rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(bundle));
     NS_ENSURE_SUCCESS(rv, rv);
@@ -5191,6 +5249,18 @@ NS_IMETHODIMP nsMsgAttachedFile::GetDescription(nsACString &aDescription)
 NS_IMETHODIMP nsMsgAttachedFile::SetDescription(const nsACString &aDescription)
 {
   m_description = aDescription;
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgAttachedFile::GetCloudPartInfo(nsACString &aCloudPartInfo)
+{
+  aCloudPartInfo = m_cloudPartInfo;
+  return NS_OK;
+}
+
+NS_IMETHODIMP nsMsgAttachedFile::SetCloudPartInfo(const nsACString &aCloudPartInfo)
+{
+  m_cloudPartInfo = aCloudPartInfo;
   return NS_OK;
 }
 

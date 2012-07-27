@@ -43,6 +43,7 @@
 #include "Role.h"
 #include "States.h"
 
+#include "nsDocAccessible.h"
 #include "nsEventStates.h"
 #include "mozilla/dom/Element.h"
 
@@ -53,8 +54,8 @@ using namespace mozilla::a11y;
 ////////////////////////////////////////////////////////////////////////////////
 
 nsHTMLLinkAccessible::
-  nsHTMLLinkAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
-  nsHyperTextAccessibleWrap(aContent, aShell)
+  nsHTMLLinkAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
+  nsHyperTextAccessibleWrap(aContent, aDoc)
 {
 }
 
@@ -105,20 +106,18 @@ nsHTMLLinkAccessible::NativeState()
   return states;
 }
 
-NS_IMETHODIMP
-nsHTMLLinkAccessible::GetValue(nsAString& aValue)
+void
+nsHTMLLinkAccessible::Value(nsString& aValue)
 {
   aValue.Truncate();
 
-  nsresult rv = nsHyperTextAccessible::GetValue(aValue);
-  NS_ENSURE_SUCCESS(rv, rv);
-
+  nsHyperTextAccessible::Value(aValue);
   if (!aValue.IsEmpty())
-    return NS_OK;
+    return;
   
-  nsCOMPtr<nsIPresShell> presShell(do_QueryReferent(mWeakShell));
+  nsIPresShell* presShell(mDoc->PresShell());
   nsCOMPtr<nsIDOMNode> DOMNode(do_QueryInterface(mContent));
-  return presShell->GetLinkLocation(DOMNode, aValue);
+  presShell->GetLinkLocation(DOMNode, aValue);
 }
 
 PRUint8

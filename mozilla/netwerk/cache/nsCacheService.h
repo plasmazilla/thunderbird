@@ -99,6 +99,10 @@ public:
     static nsresult  IsStorageEnabledForPolicy(nsCacheStoragePolicy  storagePolicy,
                                                bool *              result);
 
+    static nsresult  DoomEntry(nsCacheSession   *session,
+                               const nsACString &key,
+                               nsICacheListener *listener);
+
     /**
      * Methods called by nsCacheEntryDescriptor
      */
@@ -139,6 +143,12 @@ public:
     static nsresult  DoomEntry(nsCacheEntry * entry);
 
     static bool      IsStorageEnabledForPolicy_Locked(nsCacheStoragePolicy policy);
+
+    /**
+     * Methods called by nsApplicationCacheService
+     */
+
+    nsresult GetOfflineDevice(nsOfflineCacheDevice ** aDevice);
 
     // This method may be called to release an object while the cache service
     // lock is being held.  If a non-null target is specified and the target
@@ -198,6 +208,7 @@ private:
     friend class nsSetSmartSizeEvent;
     friend class nsBlockOnCacheThreadEvent;
     friend class nsSetDiskSmartSizeCallback;
+    friend class nsDoomEvent;
 
     /**
      * Internal Methods
@@ -285,6 +296,7 @@ private:
     nsCOMPtr<nsITimer>              mSmartSizeTimer;
     
     bool                            mInitialized;
+    bool                            mClearingEntries;
     
     bool                            mEnableMemoryDevice;
     bool                            mEnableDiskDevice;

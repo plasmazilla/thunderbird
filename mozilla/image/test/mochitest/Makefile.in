@@ -88,6 +88,7 @@ _TEST_FILES =   imgutils.js \
                 test_bug671906.html \
 		test_error_events.html \
 		error-early.png \
+		test_drawDiscardedImage.html \
                 $(NULL)
 
 # Tests disabled due to intermittent orange
@@ -117,6 +118,9 @@ _CHROME_FILES = imgutils.js \
                 test_undisplayed_iframe.html \
                 iframe.html \
                 ref-iframe.html \
+                test_net_failedtoprocess.html \
+                invalid.jpg \
+                damon.jpg \
                 $(NULL)
 
 libs:: $(_TEST_FILES)

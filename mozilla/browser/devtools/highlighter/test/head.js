@@ -41,6 +41,16 @@ let tempScope = {};
 Cu.import("resource:///modules/devtools/LayoutHelpers.jsm", tempScope);
 let LayoutHelpers = tempScope.LayoutHelpers;
 
+// Clear preferences that may be set during the course of tests.
+function clearUserPrefs()
+{
+  Services.prefs.clearUserPref("devtools.inspector.htmlPanelOpen");
+  Services.prefs.clearUserPref("devtools.inspector.sidebarOpen");
+  Services.prefs.clearUserPref("devtools.inspector.activeSidebar");
+}
+
+registerCleanupFunction(clearUserPrefs);
+
 function isHighlighting()
 {
   let veil = InspectorUI.highlighter.veilTransparentBox;
@@ -77,4 +87,44 @@ function midPoint(aPointA, aPointB)
   pointC.x = (aPointB.x - aPointA.x) / 2 + aPointA.x;
   pointC.y = (aPointB.y - aPointA.y) / 2 + aPointA.y;
   return pointC;
+}
+
+function computedView()
+{
+  return InspectorUI.sidebar._toolContext("computedview");
+}
+
+function computedViewTree()
+{
+  return computedView().view;
+}
+
+function ruleView()
+{
+  return InspectorUI.sidebar._toolContext("ruleview").view;
+}
+function synthesizeKeyFromKeyTag(aKeyId) {
+  let key = document.getElementById(aKeyId);
+  isnot(key, null, "Successfully retrieved the <key> node");
+
+  let modifiersAttr = key.getAttribute("modifiers");
+
+  let name = null;
+
+  if (key.getAttribute("keycode"))
+    name = key.getAttribute("keycode");
+  else if (key.getAttribute("key"))
+    name = key.getAttribute("key");
+
+  isnot(name, null, "Successfully retrieved keycode/key");
+
+  let modifiers = {
+    shiftKey: modifiersAttr.match("shift"),
+    ctrlKey: modifiersAttr.match("ctrl"),
+    altKey: modifiersAttr.match("alt"),
+    metaKey: modifiersAttr.match("meta"),
+    accelKey: modifiersAttr.match("accel")
+  }
+
+  EventUtils.synthesizeKey(name, modifiers);
 }

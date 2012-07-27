@@ -159,6 +159,8 @@ _TEST_FILES =	\
 		     bug664087-2-ref.html \
 		     bug682712-1.html \
 		     bug682712-1-ref.html \
+		     bug746993-1.html \
+		     bug746993-1-ref.html \
 		test_bug514127.html \
 		test_bug518777.html \
 		test_bug548545.xhtml \
@@ -170,6 +172,7 @@ _TEST_FILES =	\
 		test_bug588174.html \
 		test_bug607529.html \
 		file_bug607529.html \
+		test_bug667512.html \
 		test_bug677878.html \
 		test_bug696020.html \
 		test_flush_on_paint.html \
@@ -183,7 +186,8 @@ _TEST_FILES =	\
 		test_bug629838.html \
 		test_bug646757.html \
 		test_bug718809.html \
-		test_font_inflation_reftests.html \
+		test_bug725426.html \
+		test_bug731777.html \
 		$(NULL)
 
 # Tests for bugs 441782, 467672 and 570378 don't pass reliably on Windows, because of bug 469208
@@ -381,18 +385,10 @@ _BROWSER_FILES = \
 	browser_bug617076.js \
 	$(NULL)
 
-_INFLATION_REFTEST_FILES = \
-		$(shell find $(srcdir)/font-inflation/ -name '*.html' -o -name '*.xhtml') \
-		$(srcdir)/../../reftests/webm-video/black140x100.webm \
-		$(srcdir)/../../reftests/fonts/Ahem.ttf \
-		$(NULL)
-
 libs:: $(_TEST_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)
 libs:: $(_BROWSER_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/browser/$(relativesrcdir)
-libs:: $(_INFLATION_REFTEST_FILES)
-	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/tests/$(relativesrcdir)/font-inflation/
 
 check::
 	@$(EXIT_ON_ERROR) \

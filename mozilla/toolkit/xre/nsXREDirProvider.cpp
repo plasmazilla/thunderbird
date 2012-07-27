@@ -40,11 +40,13 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include "nsAppRunner.h"
+#include "nsToolkitCompsCID.h"
 #include "nsXREDirProvider.h"
 
 #include "jsapi.h"
 
-#include "nsIJSContextStack.h"
+#include "nsIJSRuntimeService.h"
+#include "nsIAppStartup.h"
 #include "nsIDirectoryEnumerator.h"
 #include "nsILocalFile.h"
 #include "nsIObserver.h"
@@ -68,6 +70,7 @@
 #include "mozilla/Services.h"
 #include "mozilla/Omnijar.h"
 #include "mozilla/Preferences.h"
+#include "mozilla/Telemetry.h"
 
 #include <stdlib.h>
 
@@ -422,24 +425,26 @@ nsXREDirProvider::GetFile(const char* aProperty, bool* aPersistent,
 }
 
 static void
-LoadAppDirIntoArray(nsIFile* aXULAppDir,
-                    const char *const *aAppendList,
-                    nsCOMArray<nsIFile>& aDirectories)
+LoadDirIntoArray(nsIFile* dir,
+                 const char *const *aAppendList,
+                 nsCOMArray<nsIFile>& aDirectories)
 {
-  if (!aXULAppDir)
+  if (!dir)
     return;
 
   nsCOMPtr<nsIFile> subdir;
-  aXULAppDir->Clone(getter_AddRefs(subdir));
+  dir->Clone(getter_AddRefs(subdir));
   if (!subdir)
     return;
 
-  for (; *aAppendList; ++aAppendList)
-    subdir->AppendNative(nsDependentCString(*aAppendList));
+  for (const char *const *a = aAppendList; *a; ++a) {
+    subdir->AppendNative(nsDependentCString(*a));
+  }
 
   bool exists;
-  if (NS_SUCCEEDED(subdir->Exists(&exists)) && exists)
+  if (NS_SUCCEEDED(subdir->Exists(&exists)) && exists) {
     aDirectories.AppendObject(subdir);
+  }
 }
 
 static void
@@ -455,10 +460,14 @@ LoadDirsIntoArray(nsCOMArray<nsIFile>& aSourceDirs,
     if (!appended)
       continue;
 
-    for (const char *const *a = aAppendList; *a; ++a)
-      appended->AppendNative(nsDependentCString(*a));
-
-    if (NS_SUCCEEDED(appended->Exists(&exists)) && exists)
+    nsCAutoString leaf;
+    appended->GetNativeLeafName(leaf);
+    if (!Substring(leaf, leaf.Length() - 4).Equals(NS_LITERAL_CSTRING(".xpi"))) {
+      LoadDirIntoArray(appended,
+                       aAppendList,
+                       aDirectories);
+    }
+    else if (NS_SUCCEEDED(appended->Exists(&exists)) && exists)
       aDirectories.AppendObject(appended);
   }
 }
@@ -508,8 +517,6 @@ LoadExtensionDirectories(nsINIParser &parser,
 {
   nsresult rv;
   PRInt32 i = 0;
-  nsCOMPtr<nsIPrefService> prefs =
-    do_GetService("@mozilla.org/preferences-service;1");
   do {
     nsCAutoString buf("Extension");
     buf.AppendInt(i++);
@@ -527,15 +534,11 @@ LoadExtensionDirectories(nsINIParser &parser,
     if (NS_FAILED(rv))
       continue;
 
+    aDirectories.AppendObject(dir);
     if (Substring(path, path.Length() - 4).Equals(NS_LITERAL_CSTRING(".xpi"))) {
       XRE_AddJarManifestLocation(aType, dir);
-      if (!prefs)
-        continue;
-      mozilla::Preferences::ReadExtensionPrefs(dir);
     }
     else {
-      aDirectories.AppendObject(dir);
-
       nsCOMPtr<nsILocalFile> manifest =
         CloneAndAppend(dir, "chrome.manifest");
       XRE_AddManifestLocation(aType, manifest);
@@ -641,7 +644,7 @@ nsXREDirProvider::GetFilesInternal(const char* aProperty,
   else if (!strcmp(aProperty, NS_APP_PREFS_DEFAULTS_DIR_LIST)) {
     nsCOMArray<nsIFile> directories;
 
-    LoadAppDirIntoArray(mXULAppDir, kAppendPrefDir, directories);
+    LoadDirIntoArray(mXULAppDir, kAppendPrefDir, directories);
     LoadDirsIntoArray(mAppBundleDirectories,
                       kAppendPrefDir, directories);
 
@@ -671,9 +674,9 @@ nsXREDirProvider::GetFilesInternal(const char* aProperty,
 
     static const char *const kAppendChromeDir[] = { "chrome", nsnull };
     nsCOMArray<nsIFile> directories;
-    LoadAppDirIntoArray(mXULAppDir,
-                        kAppendChromeDir,
-                        directories);
+    LoadDirIntoArray(mXULAppDir,
+                     kAppendChromeDir,
+                     directories);
     LoadDirsIntoArray(mAppBundleDirectories,
                       kAppendChromeDir,
                       directories);
@@ -733,6 +736,27 @@ nsXREDirProvider::DoStartup()
 
     mProfileNotified = true;
 
+    /*
+       Setup prefs before profile-do-change to be able to use them to track
+       crashes and because we want to begin crash tracking before other code run
+       from this notification since they may cause crashes.
+    */
+    nsresult rv = mozilla::Preferences::ResetAndReadUserPrefs();
+    if (NS_FAILED(rv)) NS_WARNING("Failed to setup pref service.");
+
+    bool safeModeNecessary = false;
+    nsCOMPtr<nsIAppStartup> appStartup (do_GetService(NS_APPSTARTUP_CONTRACTID));
+    if (appStartup) {
+      rv = appStartup->TrackStartupCrashBegin(&safeModeNecessary);
+      if (NS_FAILED(rv) && rv != NS_ERROR_NOT_AVAILABLE)
+        NS_WARNING("Error while beginning startup crash tracking");
+
+      if (!gSafeMode && safeModeNecessary) {
+        appStartup->RestartInSafeMode(nsIAppStartup::eForceQuit);
+        return NS_OK;
+      }
+    }
+
     static const PRUnichar kStartup[] = {'s','t','a','r','t','u','p','\0'};
     obsSvc->NotifyObservers(nsnull, "profile-do-change", kStartup);
     // Init the Extension Manager
@@ -752,6 +776,21 @@ nsXREDirProvider::DoStartup()
     // should also be created at this time.
     (void)NS_CreateServicesFromCategory("profile-after-change", nsnull,
                                         "profile-after-change");
+
+    if (gSafeMode && safeModeNecessary) {
+      static const PRUnichar kCrashed[] = {'c','r','a','s','h','e','d','\0'};
+      obsSvc->NotifyObservers(nsnull, "safemode-forced", kCrashed);
+    }
+
+    // 1 = Regular mode, 2 = Safe mode, 3 = Safe mode forced
+    int mode = 1;
+    if (gSafeMode) {
+      if (safeModeNecessary)
+        mode = 3;
+      else
+        mode = 2;
+    }
+    mozilla::Telemetry::Accumulate(mozilla::Telemetry::SAFE_MODE_USAGE, mode);
 
     obsSvc->NotifyObservers(nsnull, "profile-initial-state", nsnull);
   }
@@ -800,14 +839,15 @@ nsXREDirProvider::DoShutdown()
 
       // Phase 2c: Now that things are torn down, force JS GC so that things which depend on
       // resources which are about to go away in "profile-before-change" are destroyed first.
-      nsCOMPtr<nsIThreadJSContextStack> stack
-        (do_GetService("@mozilla.org/js/xpc/ContextStack;1"));
-      if (stack)
+
+      nsCOMPtr<nsIJSRuntimeService> rtsvc
+        (do_GetService("@mozilla.org/js/xpc/RuntimeService;1"));
+      if (rtsvc)
       {
-        JSContext *cx = nsnull;
-        stack->GetSafeJSContext(&cx);
-        if (cx)
-          ::JS_GC(cx);
+        JSRuntime *rt = nsnull;
+        rtsvc->GetRuntime(&rt);
+        if (rt)
+          ::JS_GC(rt);
       }
 
       // Phase 3: Notify observers of a profile change
@@ -1066,7 +1106,7 @@ nsXREDirProvider::GetUserDataDirectoryHome(nsILocalFile** aFile, bool aLocal)
     rv = NS_NewNativeLocalFile(nsDependentCString(appDir), true, getter_AddRefs(localDir));
   }
 #elif defined(MOZ_WIDGET_GONK)
-  rv = NS_NewNativeLocalFile(NS_LITERAL_CSTRING("/data/b2g"), PR_TRUE,
+  rv = NS_NewNativeLocalFile(NS_LITERAL_CSTRING("/data/b2g"), true,
                              getter_AddRefs(localDir));
 #elif defined(XP_UNIX)
   const char* homeDir = getenv("HOME");

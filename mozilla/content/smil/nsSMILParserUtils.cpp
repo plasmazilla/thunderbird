@@ -564,7 +564,7 @@ public:
 
   virtual nsresult Parse(const nsAString& aValueStr) {
     nsSMILValue newValue;
-    bool tmpPreventCachingOfSandwich;
+    bool tmpPreventCachingOfSandwich = false;
     nsresult rv = mSMILAttr->ValueFromString(aValueStr, mSrcElement, newValue,
                                              tmpPreventCachingOfSandwich);
     if (NS_FAILED(rv))
@@ -613,11 +613,6 @@ nsSMILParserUtils::ParseValuesGeneric(const nsAString& aSpec,
     if (NS_FAILED(rv)) {
       return NS_ERROR_FAILURE;
     }
-  }
-
-  // Disallow ;-terminated values lists.
-  if (tokenizer.lastTokenEndedWithSeparator()) {
-    return NS_ERROR_FAILURE;
   }
 
   return NS_OK;

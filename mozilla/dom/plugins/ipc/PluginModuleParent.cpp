@@ -41,8 +41,6 @@
 #elif XP_MACOSX
 #include "PluginInterposeOSX.h"
 #include "PluginUtilsOSX.h"
-#include "nsIPrefService.h"
-#include "nsIPrefBranch.h"
 #endif
 #ifdef MOZ_WIDGET_QT
 #include <QtCore/QCoreApplication>
@@ -206,7 +204,7 @@ PluginModuleParent::TimeoutChanged(const char* aPref, void* aModule)
     } else if (!strcmp(aPref, kParentTimeoutPref)) {
       // The timeout value used by the child for its parent
       PRInt32 timeoutSecs = Preferences::GetInt(kParentTimeoutPref, 0);
-      static_cast<PluginModuleParent*>(aModule)->SendSetParentHangTimeout(timeoutSecs);
+      unused << static_cast<PluginModuleParent*>(aModule)->SendSetParentHangTimeout(timeoutSecs);
     }
     return 0;
 }
@@ -214,7 +212,7 @@ PluginModuleParent::TimeoutChanged(const char* aPref, void* aModule)
 void
 PluginModuleParent::CleanupFromTimeout()
 {
-    if (!mShutdown)
+    if (!mShutdown && OkToCleanup())
         Close();
 }
 
@@ -560,9 +558,11 @@ PluginModuleParent::RecvBackUpXResources(const FileDescriptor& aXSocketFd)
 #ifndef MOZ_X11
     NS_RUNTIMEABORT("This message only makes sense on X11 platforms");
 #else
-    NS_ABORT_IF_FALSE(0 > mPluginXSocketFdDup.mFd,
+    NS_ABORT_IF_FALSE(0 > mPluginXSocketFdDup.get(),
                       "Already backed up X resources??");
-    mPluginXSocketFdDup.mFd = aXSocketFd.fd;
+    int fd = aXSocketFd.fd; // Copy to discard |const| qualifier
+    mPluginXSocketFdDup.forget();
+    mPluginXSocketFdDup.reset(fd);
 #endif
     return true;
 }
@@ -687,12 +687,11 @@ PluginModuleParent::HandleGUIEvent(NPP instance,
 #endif
 
 nsresult
-PluginModuleParent::GetImage(NPP instance,
-                             mozilla::layers::ImageContainer* aContainer,
-                             mozilla::layers::Image** aImage)
+PluginModuleParent::GetImageContainer(NPP instance,
+                             mozilla::layers::ImageContainer** aContainer)
 {
     PluginInstanceParent* i = InstCast(instance);
-    return !i ? NS_ERROR_FAILURE : i->GetImage(aContainer, aImage);
+    return !i ? NS_ERROR_FAILURE : i->GetImageContainer(aContainer);
 }
 
 nsresult
@@ -750,7 +749,12 @@ PluginModuleParent::NP_Initialize(NPNetscapeFuncs* bFuncs, NPPluginFuncs* pFuncs
         return NS_ERROR_FAILURE;
     }
 
-    if (!CallNP_Initialize(error)) {
+    uint32_t flags = 0;
+    if (mozilla::Preferences::GetBool("plugin.allow.asyncdrawing", false)) {
+      flags |= kAllowAsyncDrawing;
+    }
+
+    if (!CallNP_Initialize(flags, error)) {
         return NS_ERROR_FAILURE;
     }
     else if (*error != NPERR_NO_ERROR) {
@@ -774,10 +778,15 @@ PluginModuleParent::NP_Initialize(NPNetscapeFuncs* bFuncs, NPError* error)
         return NS_ERROR_FAILURE;
     }
 
-    if (!CallNP_Initialize(error))
+    uint32_t flags = 0;
+    if (mozilla::Preferences::GetBool("plugin.allow.asyncdrawing", false)) {
+      flags |= kAllowAsyncDrawing;
+    }
+
+    if (!CallNP_Initialize(flags, error))
         return NS_ERROR_FAILURE;
 
-#if defined XP_WIN && MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
+#if defined XP_WIN
     // Send the info needed to join the chrome process's audio session to the
     // plugin process
     nsID id;
@@ -1154,15 +1163,8 @@ PluginModuleParent::RecvGetNativeCursorsSupported(bool* supported)
 {
     PLUGIN_LOG_DEBUG(("%s", FULLFUNCTION));
 #if defined(XP_MACOSX)
-    bool nativeCursorsSupported = false;
-    nsCOMPtr<nsIPrefBranch> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID);
-    if (prefs) {
-      if (NS_FAILED(prefs->GetBoolPref("dom.ipc.plugins.nativeCursorSupport",
-          &nativeCursorsSupported))) {
-        nativeCursorsSupported = false;
-      }
-    }
-    *supported = nativeCursorsSupported;
+    *supported =
+      Preferences::GetBool("dom.ipc.plugins.nativeCursorSupport", false);
     return true;
 #else
     NS_NOTREACHED(
@@ -1186,5 +1188,14 @@ PluginModuleParent::RecvNPN_SetException(PPluginScriptableObjectParent* aActor,
         }
     }
     mozilla::plugins::parent::_setexception(aNPObj, NullableStringGet(aMessage));
+    return true;
+}
+
+bool
+PluginModuleParent::RecvNPN_ReloadPlugins(const bool& aReloadPages)
+{
+    PLUGIN_LOG_DEBUG(("%s", FULLFUNCTION));
+
+    mozilla::plugins::parent::_reloadplugins(aReloadPages);
     return true;
 }

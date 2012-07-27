@@ -45,35 +45,35 @@
 #include "nsServiceManagerUtils.h"
 #include "nsIURI.h"
 #include "nsTextFormatter.h"
+#include "mozilla/Services.h"
 
 #define EUDORA_MSGS_URL       "chrome://messenger/locale/eudoraImportMsgs.properties"
 
 nsIStringBundle *  nsEudoraStringBundle::m_pBundle = nsnull;
 
-nsIStringBundle *nsEudoraStringBundle::GetStringBundle( void)
+nsIStringBundle *nsEudoraStringBundle::GetStringBundle(void)
 {
   if (m_pBundle)
     return m_pBundle;
 
-  nsresult          rv;
   const char*       propertyURL = EUDORA_MSGS_URL;
   nsIStringBundle*  sBundle = nsnull;
 
   nsCOMPtr<nsIStringBundleService> sBundleService =
-           do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
-  if (NS_SUCCEEDED(rv) && (nsnull != sBundleService))
-    rv = sBundleService->CreateBundle(propertyURL, &sBundle);
+    mozilla::services::GetStringBundleService();
+  if (sBundleService)
+    sBundleService->CreateBundle(propertyURL, &sBundle);
 
   m_pBundle = sBundle;
-  return( sBundle);
+  return sBundle;
 }
 
-void nsEudoraStringBundle::GetStringByID( PRInt32 stringID, nsString& result)
+void nsEudoraStringBundle::GetStringByID(PRInt32 stringID, nsString& result)
 {
 
   PRUnichar *ptrv = GetStringByID(stringID);
   result = ptrv;
-  FreeString( ptrv);
+  FreeString(ptrv);
 }
 
 PRUnichar *nsEudoraStringBundle::GetStringByID(PRInt32 stringID)
@@ -86,8 +86,8 @@ PRUnichar *nsEudoraStringBundle::GetStringByID(PRInt32 stringID)
     PRUnichar *ptrv = nsnull;
     nsresult rv = m_pBundle->GetStringFromID(stringID, &ptrv);
 
-    if (NS_SUCCEEDED( rv) && ptrv)
-      return( ptrv);
+    if (NS_SUCCEEDED(rv) && ptrv)
+      return ptrv;
   }
 
   nsString resultString(NS_LITERAL_STRING("[StringID "));
@@ -115,7 +115,7 @@ nsString nsEudoraStringBundle::FormatString(PRInt32 stringID, ...)
   return result;
 }
 
-void nsEudoraStringBundle::Cleanup( void)
+void nsEudoraStringBundle::Cleanup(void)
 {
   if (m_pBundle)
     m_pBundle->Release();

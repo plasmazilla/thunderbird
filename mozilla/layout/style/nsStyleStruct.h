@@ -436,6 +436,26 @@ struct nsStyleBackground {
       return !(*this == aOther);
     }
   };
+  
+  struct Repeat;
+  friend struct Repeat;
+  struct Repeat {
+    PRUint8 mXRepeat, mYRepeat;
+    
+    // Initialize nothing
+    Repeat() {}
+
+    // Initialize to initial values
+    void SetInitialValues();
+
+    bool operator==(const Repeat& aOther) const {
+      return mXRepeat == aOther.mXRepeat &&
+             mYRepeat == aOther.mYRepeat;
+    }
+    bool operator!=(const Repeat& aOther) const {
+      return !(*this == aOther);
+    }
+  };
 
   struct Layer;
   friend struct Layer;
@@ -443,7 +463,7 @@ struct nsStyleBackground {
     PRUint8 mAttachment;                // [reset] See nsStyleConsts.h
     PRUint8 mClip;                      // [reset] See nsStyleConsts.h
     PRUint8 mOrigin;                    // [reset] See nsStyleConsts.h
-    PRUint8 mRepeat;                    // [reset] See nsStyleConsts.h
+    Repeat mRepeat;                     // [reset] See nsStyleConsts.h
     Position mPosition;                 // [reset]
     nsStyleImage mImage;                // [reset]
     Size mSize;                         // [reset]
@@ -704,6 +724,14 @@ class nsCSSShadowArray {
       return &mArray[i];
     }
 
+    bool HasShadowWithInset(bool aInset) {
+      for (PRUint32 i = 0; i < mLength; ++i) {
+        if (mArray[i].mInset == aInset)
+          return true;
+      }
+      return false;
+    }
+
     NS_INLINE_DECL_REFCOUNTING(nsCSSShadowArray)
 
   private:
@@ -743,7 +771,10 @@ struct nsStyleBorder {
 #ifdef DEBUG
   static nsChangeHint MaxDifference();
 #endif
-  static bool ForceCompare() { return false; }
+  // ForceCompare is true, because a change to our border-style might
+  // change border-width on descendants (requiring reflow of those)
+  // but not our own border-width (thus not requiring us to reflow).
+  static bool ForceCompare() { return true; }
   bool ImageBorderDiffers() const;
 
   nsStyleCorners mBorderRadius;    // [reset] coord, percent, calc
@@ -811,6 +842,11 @@ struct nsStyleBorder {
   const nsMargin& GetComputedBorder() const
   {
     return mComputedBorder;
+  }
+
+  bool HasBorder() const
+  {
+    return mComputedBorder != nsMargin(0,0,0,0) || mBorderImage;
   }
 
   // Get the actual border width for a particular side, in appunits.  Note that
@@ -1541,7 +1577,7 @@ struct nsStyleDisplay {
   // We guarantee that if mBinding is non-null, so are mBinding->GetURI() and
   // mBinding->mOriginPrincipal.
   nsRefPtr<nsCSSValue::URL> mBinding;    // [reset]
-  nsRect    mClip;              // [reset] offsets from upper-left border edge
+  nsRect  mClip;                // [reset] offsets from upper-left border edge
   float   mOpacity;             // [reset]
   PRUint8 mDisplay;             // [reset] see nsStyleConsts.h NS_STYLE_DISPLAY_*
   PRUint8 mOriginalDisplay;     // [reset] saved mDisplay for position:absolute/fixed
@@ -1558,7 +1594,7 @@ struct nsStyleDisplay {
   PRUint8 mOverflowX;           // [reset] see nsStyleConsts.h
   PRUint8 mOverflowY;           // [reset] see nsStyleConsts.h
   PRUint8 mResize;              // [reset] see nsStyleConsts.h
-  PRUint8   mClipFlags;         // [reset] see nsStyleConsts.h
+  PRUint8 mClipFlags;           // [reset] see nsStyleConsts.h
   PRUint8 mOrient;              // [reset] see nsStyleConsts.h
 
   // mSpecifiedTransform is the list of transform functions as

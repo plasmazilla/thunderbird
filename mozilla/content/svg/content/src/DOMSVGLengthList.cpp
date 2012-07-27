@@ -40,6 +40,8 @@
 #include "nsDOMError.h"
 #include "SVGAnimatedLengthList.h"
 #include "nsCOMPtr.h"
+#include "nsContentUtils.h"
+#include "dombindings.h"
 
 // See the comment in this file's header.
 
@@ -72,11 +74,16 @@ NS_IMPL_CYCLE_COLLECTION_CLASS(DOMSVGLengthList)
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(DOMSVGLengthList)
   // No need to null check tmp - script/SMIL can't detach us from mAList
   ( tmp->IsAnimValList() ? tmp->mAList->mAnimVal : tmp->mAList->mBaseVal ) = nsnull;
-NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mAList)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mAList)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_PRESERVED_WRAPPER
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(DOMSVGLengthList)
-NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mAList)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mAList)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_SCRIPT_OBJECTS
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
+NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN(DOMSVGLengthList)
+  NS_IMPL_CYCLE_COLLECTION_TRACE_PRESERVED_WRAPPER
+NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
 NS_IMPL_CYCLE_COLLECTING_ADDREF(DOMSVGLengthList)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(DOMSVGLengthList)
@@ -86,14 +93,21 @@ DOMCI_DATA(SVGLengthList, mozilla::DOMSVGLengthList)
 namespace mozilla {
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(DOMSVGLengthList)
+  NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
   NS_INTERFACE_MAP_ENTRY(nsIDOMSVGLengthList)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
   NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGLengthList)
 NS_INTERFACE_MAP_END
 
+JSObject*
+DOMSVGLengthList::WrapObject(JSContext *cx, JSObject *scope, bool *triedToWrap)
+{
+  return mozilla::dom::binding::SVGLengthList::create(cx, scope, this,
+                                                      triedToWrap);
+}
 
 nsIDOMSVGLength*
-DOMSVGLengthList::GetItemWithoutAddRef(PRUint32 aIndex)
+DOMSVGLengthList::GetItemAt(PRUint32 aIndex)
 {
   if (IsAnimValList()) {
     Element()->FlushAnimations();
@@ -171,6 +185,7 @@ DOMSVGLengthList::Clear()
   }
 
   if (Length() > 0) {
+    nsAttrValue emptyOrOldValue = Element()->WillChangeLengthList(AttrEnum());
     // Notify any existing DOM items of removal *before* truncating the lists
     // so that they can find their SVGLength internal counterparts and copy
     // their values. This also notifies the animVal list:
@@ -178,7 +193,7 @@ DOMSVGLengthList::Clear()
 
     mItems.Clear();
     InternalList().Clear();
-    Element()->DidChangeLengthList(AttrEnum(), true);
+    Element()->DidChangeLengthList(AttrEnum(), emptyOrOldValue);
     if (mAList->IsAnimating()) {
       Element()->AnimationNeedsResample();
     }
@@ -219,7 +234,7 @@ NS_IMETHODIMP
 DOMSVGLengthList::GetItem(PRUint32 index,
                           nsIDOMSVGLength **_retval)
 {
-  *_retval = GetItemWithoutAddRef(index);
+  *_retval = GetItemAt(index);
   if (!*_retval) {
     return NS_ERROR_DOM_INDEX_SIZE_ERR;
   }
@@ -256,6 +271,7 @@ DOMSVGLengthList::InsertItemBefore(nsIDOMSVGLength *newItem,
     return NS_ERROR_OUT_OF_MEMORY;
   }
 
+  nsAttrValue emptyOrOldValue = Element()->WillChangeLengthList(AttrEnum());
   // Now that we know we're inserting, keep animVal list in sync as necessary.
   MaybeInsertNullInAnimValListAt(index);
 
@@ -269,7 +285,7 @@ DOMSVGLengthList::InsertItemBefore(nsIDOMSVGLength *newItem,
 
   UpdateListIndicesFromIndex(mItems, index + 1);
 
-  Element()->DidChangeLengthList(AttrEnum(), true);
+  Element()->DidChangeLengthList(AttrEnum(), emptyOrOldValue);
   if (mAList->IsAnimating()) {
     Element()->AnimationNeedsResample();
   }
@@ -298,6 +314,7 @@ DOMSVGLengthList::ReplaceItem(nsIDOMSVGLength *newItem,
     domItem = domItem->Copy(); // must do this before changing anything!
   }
 
+  nsAttrValue emptyOrOldValue = Element()->WillChangeLengthList(AttrEnum());
   if (mItems[index]) {
     // Notify any existing DOM item of removal *before* modifying the lists so
     // that the DOM item can copy the *old* value at its index:
@@ -311,7 +328,7 @@ DOMSVGLengthList::ReplaceItem(nsIDOMSVGLength *newItem,
   // would end up reading bad data from InternalList()!
   domItem->InsertingIntoList(this, AttrEnum(), index, IsAnimValList());
 
-  Element()->DidChangeLengthList(AttrEnum(), true);
+  Element()->DidChangeLengthList(AttrEnum(), emptyOrOldValue);
   if (mAList->IsAnimating()) {
     Element()->AnimationNeedsResample();
   }
@@ -332,6 +349,7 @@ DOMSVGLengthList::RemoveItem(PRUint32 index,
     return NS_ERROR_DOM_INDEX_SIZE_ERR;
   }
 
+  nsAttrValue emptyOrOldValue = Element()->WillChangeLengthList(AttrEnum());
   // Now that we know we're removing, keep animVal list in sync as necessary.
   // Do this *before* touching InternalList() so the removed item can get its
   // internal value.
@@ -350,7 +368,7 @@ DOMSVGLengthList::RemoveItem(PRUint32 index,
 
   UpdateListIndicesFromIndex(mItems, index);
 
-  Element()->DidChangeLengthList(AttrEnum(), true);
+  Element()->DidChangeLengthList(AttrEnum(), emptyOrOldValue);
   if (mAList->IsAnimating()) {
     Element()->AnimationNeedsResample();
   }

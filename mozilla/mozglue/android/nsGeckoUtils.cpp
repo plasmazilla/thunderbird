@@ -36,7 +36,15 @@
  * ***** END LICENSE BLOCK ***** */
 
 #include <jni.h>
+
+#ifdef MOZ_MEMORY
+// Wrap malloc and free to use jemalloc
+#define malloc __wrap_malloc
+#define free __wrap_free
+#endif
+
 #include <stdlib.h>
+#include <fcntl.h>
 
 extern "C"
 __attribute__ ((visibility("default")))
@@ -58,7 +66,14 @@ __attribute__ ((visibility("default")))
 jobject JNICALL
 Java_org_mozilla_gecko_GeckoAppShell_allocateDirectBuffer(JNIEnv *jenv, jclass, jlong size)
 {
-    return jenv->NewDirectByteBuffer(malloc(size), size);
+    jobject buffer = NULL;
+    void* mem = malloc(size);
+    if (mem) {
+        buffer = jenv->NewDirectByteBuffer(mem, size);
+        if (!buffer)
+            free(mem);
+    }
+    return buffer;
 }
 
 extern "C"
@@ -68,4 +83,3 @@ Java_org_mozilla_gecko_GeckoAppShell_freeDirectBuffer(JNIEnv *jenv, jclass, jobj
 {
     free(jenv->GetDirectBufferAddress(buf));
 }
-

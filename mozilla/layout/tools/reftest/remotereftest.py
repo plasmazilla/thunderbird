@@ -364,30 +364,17 @@ user_pref("capability.principal.codebase.p2.id", "http://%s:%s");
         if (self._devicemanager.pushDir(profileDir, options.remoteProfile) == None):
             raise devicemanager.FileError("Failed to copy extra files to device") 
 
-    def registerExtension(self, browserEnv, options, profileDir, extraArgs = ['-silent'] ):
-        if options.bootstrap:
-            return
-
-        self.automation.log.info("REFTEST INFO | runreftest.py | Performing extension manager registration: start.\n")
-        # Because our startProcess code doesn't return until fennec starts we just give it
-        # a maxTime of 20 secs before timing it out and ensuring it is dead.
-        # Besides registering the extension, this works around fennec bug 570027
-        status = self.automation.runApp(None, browserEnv, options.app, profileDir,
-                                   extraArgs,
-                                   utilityPath = options.utilityPath,
-                                   xrePath=options.xrePath,
-                                   symbolsPath=options.symbolsPath,
-                                   maxTime = 20)
-        # We don't care to call |processLeakLog()| for this step.
-        self.automation.log.info("\nREFTEST INFO | runreftest.py | Performing extension manager registration: end.")
-
     def getManifestPath(self, path):
         return path
 
     def cleanup(self, profileDir):
         # Pull results back from device
         if (self.remoteLogFile):
-            self._devicemanager.getFile(self.remoteLogFile, self.localLogName)
+            try:
+                self._devicemanager.getFile(self.remoteLogFile, self.localLogName)
+            except:
+                print "ERROR: We were not able to retrieve the info from %s" % self.remoteLogFile
+                sys.exit(5)
         self._devicemanager.removeDir(self.remoteProfile)
         self._devicemanager.removeDir(self.remoteTestRoot)
         RefTest.cleanup(self, profileDir)
@@ -399,8 +386,7 @@ user_pref("capability.principal.codebase.p2.id", "http://%s:%s");
                 print "Warning: cleaning up pidfile '%s' was unsuccessful from the test harness" % self.pidFile
 
 def main():
-    dm_none = devicemanagerADB.DeviceManagerADB(None, None)
-    automation = RemoteAutomation(dm_none)
+    automation = RemoteAutomation(None)
     parser = RemoteOptions(automation)
     options, args = parser.parse_args()
 
@@ -408,13 +394,18 @@ def main():
         print "Error: you must provide a device IP to connect to via the --device option"
         sys.exit(1)
 
-    if (options.dm_trans == "adb"):
-        if (options.deviceIP):
-            dm = devicemanagerADB.DeviceManagerADB(options.deviceIP, options.devicePort)
+    try:
+        if (options.dm_trans == "adb"):
+            if (options.deviceIP):
+                dm = devicemanagerADB.DeviceManagerADB(options.deviceIP, options.devicePort)
+            else:
+                dm = devicemanagerADB.DeviceManagerADB(None, None)
         else:
-            dm = dm_none
-    else:
-         dm = devicemanagerSUT.DeviceManagerSUT(options.deviceIP, options.devicePort)
+            dm = devicemanagerSUT.DeviceManagerSUT(options.deviceIP, options.devicePort)
+    except devicemanager.DMError:
+        print "Error: exception while initializing devicemanager.  Most likely the device is not in a testable state."
+        sys.exit(1)
+
     automation.setDeviceManager(dm)
 
     if (options.remoteProductName != None):

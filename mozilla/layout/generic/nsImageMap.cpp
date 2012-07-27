@@ -59,8 +59,11 @@
 #include "nsIConsoleService.h"
 #include "nsIScriptError.h"
 #include "nsIStringBundle.h"
-#include "nsIDocument.h"
 #include "nsContentUtils.h"
+
+#ifdef ACCESSIBILITY
+#include "nsAccessibilityService.h"
+#endif
 
 namespace dom = mozilla::dom;
 
@@ -812,7 +815,16 @@ nsImageMap::UpdateAreas()
   bool foundAnchor = false;
   mContainsBlockContents = false;
 
-  return SearchForAreas(mMap, foundArea, foundAnchor);
+  nsresult rv = SearchForAreas(mMap, foundArea, foundAnchor);
+#ifdef ACCESSIBILITY
+  if (NS_SUCCEEDED(rv)) {
+    nsAccessibilityService* accService = GetAccService();
+    if (accService) {
+      accService->UpdateImageMap(mImageFrame);
+    }
+  }
+#endif
+  return rv;
 }
 
 nsresult
@@ -885,6 +897,12 @@ nsImageMap::GetArea(nscoord aX, nscoord aY) const
   }
 
   return nsnull;
+}
+
+nsIContent*
+nsImageMap::GetAreaAt(PRUint32 aIndex) const
+{
+  return mAreas.ElementAt(aIndex)->mArea;
 }
 
 void

@@ -1037,15 +1037,18 @@ function updateTitle() {
 function updateStyle() {
     const kDialogStylesheet = "chrome://calendar/skin/calendar-event-dialog.css";
 
-    for each (var stylesheet in document.styleSheets) {
+    for each (let stylesheet in document.styleSheets) {
         if (stylesheet.href == kDialogStylesheet) {
-            if (isSunbird()) {
-                stylesheet.insertRule(".lightning-only { display: none; }", 0);
+            if (cal.isSunbird()) {
+                stylesheet.insertRule(".lightning-only { display: none; }",
+                                      stylesheet.cssRules.length);
             }
-            if (isEvent(window.calendarItem)) {
-                stylesheet.insertRule(".todo-only { display: none; }", 0);
-            } else if (isToDo(window.calendarItem)) {
-                stylesheet.insertRule(".event-only { display: none; }", 0);
+            if (cal.isEvent(window.calendarItem)) {
+                stylesheet.insertRule(".todo-only { display: none; }",
+                                      stylesheet.cssRules.length);
+            } else if (cal.isToDo(window.calendarItem)) {
+                stylesheet.insertRule(".event-only { display: none; }",
+                                      stylesheet.cssRules.length);
             }
             return;
         }
@@ -1877,6 +1880,17 @@ function openAttachment() {
         // TODO There should be a nicer dialog
         externalLoader.loadUrl(attURI);
     }
+}
+
+/**
+ * Copies the link location of the first selected attachment to the clipboard
+ */
+function copyAttachment() {
+    let documentLink = document.getElementById("attachment-link");
+    let attURI = documentLink.getSelectedItem(0).attachment.uri.spec;
+    let clipboard = Components.classes["@mozilla.org/widget/clipboardhelper;1"]
+                              .getService(Components.interfaces.nsIClipboardHelper);
+    clipboard.copyString(attURI);
 }
 
 /**

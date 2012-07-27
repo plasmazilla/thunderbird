@@ -47,9 +47,11 @@ MODULE		= dom
 DIRS = \
   interfaces/base \
   interfaces/canvas \
+  interfaces/contacts \
   interfaces/core \
   interfaces/html \
   interfaces/events \
+  interfaces/settings \
   interfaces/stylesheets \
   interfaces/sidebar \
   interfaces/css \
@@ -68,15 +70,17 @@ DIRS = \
   interfaces/smil \
   $(NULL)
 
-ifeq (gonk,$(MOZ_WIDGET_TOOLKIT))
 DIRS += \
   interfaces/apps \
   $(NULL)
-endif
 
 DIRS += \
   base \
+  bindings \
   battery \
+  contacts \
+  power \
+  settings \
   sms \
   src \
   locales \
@@ -96,11 +100,19 @@ DIRS += \
   $(NULL)
 endif
 
-ifdef ENABLE_TESTS
-DIRS += tests
-ifneq (,$(filter gtk2 cocoa windows android qt os2,$(MOZ_WIDGET_TOOLKIT)))
-DIRS += plugins/test
+ifdef MOZ_B2G_BT
+DIRS += \
+  bluetooth \
+  $(NULL)
 endif
+
+TEST_DIRS += \
+  tests \
+  imported-tests \
+  $(NULL)
+
+ifneq (,$(filter gtk2 cocoa windows android qt os2,$(MOZ_WIDGET_TOOLKIT)))
+TEST_DIRS += plugins/test
 endif
 
 include $(topsrcdir)/config/rules.mk

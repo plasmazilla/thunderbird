@@ -189,6 +189,11 @@
                     type="checkbox"
                     command="Tools:Inspect"
                     key="key_inspect"/>
+          <menuitem id="appmenu_debugger"
+                    hidden="true"
+                    label="&debuggerMenu.label;"
+                    key="key_debugger"
+                    command="Tools:Debugger"/>
           <menuitem id="appmenu_scratchpad"
                     hidden="true"
                     label="&scratchpad.label;"
@@ -265,8 +270,8 @@
                      placespopup="true"
                      context="placesContext"
                      openInTabs="children"
-                     oncommand="BookmarksEventHandler.onCommand(event);"
-                     onclick="BookmarksEventHandler.onClick(event);"
+                     oncommand="BookmarksEventHandler.onCommand(event, this.parentNode._placesView);"
+                     onclick="BookmarksEventHandler.onClick(event, this.parentNode._placesView);"
                      onpopupshowing="BookmarksMenuButton.onPopupShowing(event);
                                      if (!this.parentNode._placesView)
                                        new PlacesMenu(event, 'place:folder=BOOKMARKS_MENU');"

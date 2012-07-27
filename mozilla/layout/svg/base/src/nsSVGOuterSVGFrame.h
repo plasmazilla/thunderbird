@@ -39,13 +39,9 @@
 #ifndef __NS_SVGOUTERSVGFRAME_H__
 #define __NS_SVGOUTERSVGFRAME_H__
 
-#include "nsSVGContainerFrame.h"
-#include "nsISVGSVGFrame.h"
-#include "nsIDOMSVGPoint.h"
-#include "nsIDOMSVGNumber.h"
 #include "gfxMatrix.h"
-
-class nsSVGForeignObjectFrame;
+#include "nsISVGSVGFrame.h"
+#include "nsSVGContainerFrame.h"
 
 ////////////////////////////////////////////////////////////////////////
 // nsSVGOuterSVGFrame class
@@ -64,13 +60,6 @@ public:
   NS_DECL_QUERYFRAME
   NS_DECL_FRAMEARENA_HELPERS
 
-#ifdef DEBUG
-  ~nsSVGOuterSVGFrame() {
-    NS_ASSERTION(mForeignObjectHash.Count() == 0,
-                 "foreignObject(s) still registered!");
-  }
-#endif
-
   // nsIFrame:
   virtual nscoord GetMinWidth(nsRenderingContext *aRenderingContext);
   virtual nscoord GetPrefWidth(nsRenderingContext *aRenderingContext);
@@ -81,7 +70,7 @@ public:
   virtual nsSize ComputeSize(nsRenderingContext *aRenderingContext,
                              nsSize aCBSize, nscoord aAvailableWidth,
                              nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                             bool aShrinkWrap);
+                             PRUint32 aFlags) MOZ_OVERRIDE;
 
   NS_IMETHOD Reflow(nsPresContext*          aPresContext,
                     nsHTMLReflowMetrics&     aDesiredSize,
@@ -110,7 +99,7 @@ public:
   virtual nsIAtom* GetType() const;
 
   void Paint(const nsDisplayListBuilder* aBuilder,
-             nsRenderingContext& aRenderingContext,
+             nsRenderingContext* aContext,
              const nsRect& aDirtyRect, nsPoint aPt);
 
 #ifdef DEBUG
@@ -124,34 +113,39 @@ public:
                                nsIAtom*        aAttribute,
                                PRInt32         aModType);
 
-  // nsSVGOuterSVGFrame methods:
-
-  void InvalidateCoveredRegion(nsIFrame *aFrame);
-  // Calls aSVG->UpdateCoveredRegion and returns true if the covered
-  // region actually changed. If it changed, invalidates the old and new
-  // covered regions, taking filters into account, like
-  // InvalidateCoveredRegion.
-  bool UpdateAndInvalidateCoveredRegion(nsIFrame *aFrame);
-
-  bool IsRedrawSuspended();
-
   // nsISVGSVGFrame interface:
-  NS_IMETHOD SuspendRedraw();
-  NS_IMETHOD UnsuspendRedraw();
-  NS_IMETHOD NotifyViewportChange();
+  virtual void NotifyViewportChange();
 
   // nsSVGContainerFrame methods:
   virtual gfxMatrix GetCanvasTM();
 
-  /* Methods to allow descendant nsSVGForeignObjectFrame frames to register and
-   * unregister themselves with their nearest nsSVGOuterSVGFrame ancestor so
-   * they can be reflowed. The methods return true on success or false on
-   * failure.
+#ifdef XP_MACOSX
+  bool BitmapFallbackEnabled() const {
+    return mEnableBitmapFallback;
+  }
+  void SetBitmapFallbackEnabled(bool aVal) {
+    NS_NOTREACHED("don't think me need this any more"); // comment in bug 732429 if we do
+    mEnableBitmapFallback = aVal;
+  }
+#endif
+
+  /**
+   * Return true only if the height is unspecified (defaulting to 100%) or else
+   * the height is explicitly set to a percentage value no greater than 100%.
    */
-  void RegisterForeignObject(nsSVGForeignObjectFrame* aFrame);
-  void UnregisterForeignObject(nsSVGForeignObjectFrame* aFrame);
+  bool VerticalScrollbarNotNeeded() const;
+
+#ifdef DEBUG
+  bool IsCallingUpdateBounds() const {
+    return mCallingUpdateBounds;
+  }
+#endif
 
 protected:
+
+#ifdef DEBUG
+  bool mCallingUpdateBounds;
+#endif
 
   /* Returns true if our content is the document element and our document is
    * embedded in an HTML 'object', 'embed' or 'applet' element. Set
@@ -164,12 +158,6 @@ protected:
    */
   bool IsRootOfImage();
 
-  // A hash-set containing our nsSVGForeignObjectFrame descendants. Note we use
-  // a hash-set to avoid the O(N^2) behavior we'd get tearing down an SVG frame
-  // subtree if we were to use a list (see bug 381285 comment 20).
-  nsTHashtable<nsVoidPtrHashKey> mForeignObjectHash;
-
-  PRUint32 mRedrawSuspendCount;
   nsAutoPtr<gfxMatrix> mCanvasTM;
 
   float mFullZoom;

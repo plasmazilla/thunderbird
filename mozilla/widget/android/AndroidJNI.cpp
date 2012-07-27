@@ -46,6 +46,7 @@
 #include <pthread.h>
 #include <dlfcn.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include "nsAppShell.h"
 #include "nsWindow.h"
@@ -65,10 +66,10 @@
 #include "mozilla/dom/sms/Constants.h"
 #include "mozilla/dom/sms/Types.h"
 #include "mozilla/dom/sms/PSms.h"
-#include "mozilla/dom/sms/SmsRequestManager.h"
-#include "mozilla/dom/sms/SmsRequest.h"
 #include "mozilla/dom/sms/SmsParent.h"
+#include "nsISmsRequestManager.h"
 #include "nsISmsDatabaseService.h"
+#include "nsPluginInstanceOwner.h"
 
 using namespace mozilla;
 using namespace mozilla::dom::sms;
@@ -76,40 +77,6 @@ using namespace mozilla::dom::sms;
 /* Forward declare all the JNI methods as extern "C" */
 
 extern "C" {
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_nativeInit(JNIEnv *, jclass);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_notifyGeckoOfEvent(JNIEnv *, jclass, jobject event);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_processNextNativeEvent(JNIEnv *, jclass);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_setSoftwareLayerClient(JNIEnv *jenv, jclass, jobject sv);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_setSurfaceView(JNIEnv *jenv, jclass, jobject sv);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_onResume(JNIEnv *, jclass);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_onLowMemory(JNIEnv *, jclass);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_callObserver(JNIEnv *, jclass, jstring observerKey, jstring topic, jstring data);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_removeObserver(JNIEnv *jenv, jclass, jstring jObserverKey);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_onChangeNetworkLinkStatus(JNIEnv *, jclass, jstring status);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_reportJavaCrash(JNIEnv *, jclass, jstring stack);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_executeNextRunnable(JNIEnv *, jclass);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_notifyUriVisited(JNIEnv *, jclass, jstring uri);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_notifyBatteryChange(JNIEnv* jenv, jclass, jdouble, jboolean, jdouble);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_notifySmsReceived(JNIEnv* jenv, jclass, jstring, jstring, jlong);
-    NS_EXPORT PRInt32 JNICALL Java_org_mozilla_gecko_GeckoAppShell_saveMessageInSentbox(JNIEnv* jenv, jclass, jstring, jstring, jlong);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_notifySmsSent(JNIEnv* jenv, jclass, jint, jstring, jstring, jlong, jint, jlong);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_notifySmsDelivered(JNIEnv* jenv, jclass, jint, jstring, jstring, jlong);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_notifySmsSendFailed(JNIEnv* jenv, jclass, jint, jint, jlong);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_notifyGetSms(JNIEnv* jenv, jclass, jint, jstring, jstring, jstring, jlong, jint, jlong);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_notifyGetSmsFailed(JNIEnv* jenv, jclass, jint, jint, jlong);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_notifySmsDeleted(JNIEnv* jenv, jclass, jboolean, jint, jlong);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_notifySmsDeleteFailed(JNIEnv* jenv, jclass, jint, jint, jlong);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_notifyNoMessageInList(JNIEnv* jenv, jclass, jint, jlong);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_notifyListCreated(JNIEnv* jenv, jclass, jint, jint, jstring, jstring, jstring, jlong, jint, jlong);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_notifyGotNextMessage(JNIEnv* jenv, jclass, jint, jstring, jstring, jstring, jlong, jint, jlong);
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_notifyReadingMessageListFailed(JNIEnv* jenv, jclass, jint, jint, jlong);
-
-#ifdef MOZ_JAVA_COMPOSITOR
-    NS_EXPORT void JNICALL Java_org_mozilla_gecko_GeckoAppShell_bindWidgetTexture(JNIEnv* jenv, jclass);
-#endif
-}
-
-
 /*
  * Incoming JNI methods
  */
@@ -143,9 +110,9 @@ Java_org_mozilla_gecko_GeckoAppShell_setSurfaceView(JNIEnv *jenv, jclass, jobjec
 }
 
 NS_EXPORT void JNICALL
-Java_org_mozilla_gecko_GeckoAppShell_setSoftwareLayerClient(JNIEnv *jenv, jclass, jobject obj)
+Java_org_mozilla_gecko_GeckoAppShell_setLayerClient(JNIEnv *jenv, jclass, jobject obj)
 {
-    AndroidBridge::Bridge()->SetSoftwareLayerClient(jenv->NewGlobalRef(obj));
+    AndroidBridge::Bridge()->SetLayerClient(jenv->NewGlobalRef(obj));
 }
 
 NS_EXPORT void JNICALL
@@ -345,7 +312,11 @@ Java_org_mozilla_gecko_GeckoAppShell_notifySmsSent(JNIEnv* jenv, jclass,
         obs->NotifyObservers(message, kSmsSentObserverTopic, nsnull);
 
         if (mProcessId == 0) { // Parent process.
-          SmsRequestManager::GetInstance()->NotifySmsSent(mRequestId, message);
+          nsCOMPtr<nsISmsRequestManager> requestManager
+            = do_GetService(SMS_REQUEST_MANAGER_CONTRACTID);
+          if (requestManager) {
+            requestManager->NotifySmsSent(mRequestId, message);
+          }
         } else { // Content process.
           nsTArray<SmsParent*> spList;
           SmsParent::GetAll(spList);
@@ -419,8 +390,9 @@ Java_org_mozilla_gecko_GeckoAppShell_notifySmsSendFailed(JNIEnv* jenv, jclass,
 {
     class NotifySmsSendFailedRunnable : public nsRunnable {
     public:
-      NotifySmsSendFailedRunnable(SmsRequest::ErrorType aError,
-                                  PRInt32 aRequestId, PRUint64 aProcessId)
+      NotifySmsSendFailedRunnable(PRInt32 aError,
+                                  PRInt32 aRequestId,
+                                  PRUint64 aProcessId)
         : mError(aError)
         , mRequestId(aRequestId)
         , mProcessId(aProcessId)
@@ -428,7 +400,11 @@ Java_org_mozilla_gecko_GeckoAppShell_notifySmsSendFailed(JNIEnv* jenv, jclass,
 
       NS_IMETHODIMP Run() {
         if (mProcessId == 0) { // Parent process.
-          SmsRequestManager::GetInstance()->NotifySmsSendFailed(mRequestId, mError);
+          nsCOMPtr<nsISmsRequestManager> requestManager
+            = do_GetService(SMS_REQUEST_MANAGER_CONTRACTID);
+          if (requestManager) {
+            requestManager->NotifySmsSendFailed(mRequestId, mError);
+          }
         } else { // Content process.
           nsTArray<SmsParent*> spList;
           SmsParent::GetAll(spList);
@@ -444,14 +420,14 @@ Java_org_mozilla_gecko_GeckoAppShell_notifySmsSendFailed(JNIEnv* jenv, jclass,
       }
 
     private:
-      SmsRequest::ErrorType mError;
-      PRInt32               mRequestId;
-      PRUint64              mProcessId;
+      PRInt32  mError;
+      PRInt32  mRequestId;
+      PRUint64 mProcessId;
     };
 
 
     nsCOMPtr<nsIRunnable> runnable =
-      new NotifySmsSendFailedRunnable(SmsRequest::ErrorType(aError), aRequestId, aProcessId);
+      new NotifySmsSendFailedRunnable(aError, aRequestId, aProcessId);
     NS_DispatchToMainThread(runnable);
 }
 
@@ -477,7 +453,11 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyGetSms(JNIEnv* jenv, jclass,
       NS_IMETHODIMP Run() {
         if (mProcessId == 0) { // Parent process.
           nsCOMPtr<nsIDOMMozSmsMessage> message = new SmsMessage(mMessageData);
-          SmsRequestManager::GetInstance()->NotifyGotSms(mRequestId, message);
+          nsCOMPtr<nsISmsRequestManager> requestManager
+            = do_GetService(SMS_REQUEST_MANAGER_CONTRACTID);
+          if (requestManager) {
+            requestManager->NotifyGotSms(mRequestId, message);
+          }
         } else { // Content process.
           nsTArray<SmsParent*> spList;
           SmsParent::GetAll(spList);
@@ -517,8 +497,9 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyGetSmsFailed(JNIEnv* jenv, jclass,
 {
     class NotifyGetSmsFailedRunnable : public nsRunnable {
     public:
-      NotifyGetSmsFailedRunnable(SmsRequest::ErrorType aError,
-                                  PRInt32 aRequestId, PRUint64 aProcessId)
+      NotifyGetSmsFailedRunnable(PRInt32 aError,
+                                 PRInt32 aRequestId,
+                                 PRUint64 aProcessId)
         : mError(aError)
         , mRequestId(aRequestId)
         , mProcessId(aProcessId)
@@ -526,7 +507,11 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyGetSmsFailed(JNIEnv* jenv, jclass,
 
       NS_IMETHODIMP Run() {
         if (mProcessId == 0) { // Parent process.
-          SmsRequestManager::GetInstance()->NotifyGetSmsFailed(mRequestId, mError);
+          nsCOMPtr<nsISmsRequestManager> requestManager
+            = do_GetService(SMS_REQUEST_MANAGER_CONTRACTID);
+          if (requestManager) {
+            requestManager->NotifyGetSmsFailed(mRequestId, mError);
+          }
         } else { // Content process.
           nsTArray<SmsParent*> spList;
           SmsParent::GetAll(spList);
@@ -542,14 +527,14 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyGetSmsFailed(JNIEnv* jenv, jclass,
       }
 
     private:
-      SmsRequest::ErrorType mError;
-      PRInt32               mRequestId;
-      PRUint64              mProcessId;
+      PRInt32  mError;
+      PRInt32  mRequestId;
+      PRUint64 mProcessId;
     };
 
 
     nsCOMPtr<nsIRunnable> runnable =
-      new NotifyGetSmsFailedRunnable(SmsRequest::ErrorType(aError), aRequestId, aProcessId);
+      new NotifyGetSmsFailedRunnable(aError, aRequestId, aProcessId);
     NS_DispatchToMainThread(runnable);
 }
 
@@ -570,7 +555,11 @@ Java_org_mozilla_gecko_GeckoAppShell_notifySmsDeleted(JNIEnv* jenv, jclass,
 
       NS_IMETHODIMP Run() {
         if (mProcessId == 0) { // Parent process.
-          SmsRequestManager::GetInstance()->NotifySmsDeleted(mRequestId, mDeleted);
+          nsCOMPtr<nsISmsRequestManager> requestManager
+            = do_GetService(SMS_REQUEST_MANAGER_CONTRACTID);
+          if (requestManager) {
+            requestManager->NotifySmsDeleted(mRequestId, mDeleted);
+          }
         } else { // Content process.
           nsTArray<SmsParent*> spList;
           SmsParent::GetAll(spList);
@@ -605,8 +594,9 @@ Java_org_mozilla_gecko_GeckoAppShell_notifySmsDeleteFailed(JNIEnv* jenv, jclass,
 {
     class NotifySmsDeleteFailedRunnable : public nsRunnable {
     public:
-      NotifySmsDeleteFailedRunnable(SmsRequest::ErrorType aError,
-                                    PRInt32 aRequestId, PRUint64 aProcessId)
+      NotifySmsDeleteFailedRunnable(PRInt32 aError,
+                                    PRInt32 aRequestId,
+                                    PRUint64 aProcessId)
         : mError(aError)
         , mRequestId(aRequestId)
         , mProcessId(aProcessId)
@@ -614,7 +604,11 @@ Java_org_mozilla_gecko_GeckoAppShell_notifySmsDeleteFailed(JNIEnv* jenv, jclass,
 
       NS_IMETHODIMP Run() {
         if (mProcessId == 0) { // Parent process.
-          SmsRequestManager::GetInstance()->NotifySmsDeleteFailed(mRequestId, mError);
+          nsCOMPtr<nsISmsRequestManager> requestManager
+            = do_GetService(SMS_REQUEST_MANAGER_CONTRACTID);
+          if (requestManager) {
+            requestManager->NotifySmsDeleteFailed(mRequestId, mError);
+          }
         } else { // Content process.
           nsTArray<SmsParent*> spList;
           SmsParent::GetAll(spList);
@@ -630,14 +624,14 @@ Java_org_mozilla_gecko_GeckoAppShell_notifySmsDeleteFailed(JNIEnv* jenv, jclass,
       }
 
     private:
-      SmsRequest::ErrorType mError;
-      PRInt32               mRequestId;
-      PRUint64              mProcessId;
+      PRInt32  mError;
+      PRInt32  mRequestId;
+      PRUint64 mProcessId;
     };
 
 
     nsCOMPtr<nsIRunnable> runnable =
-      new NotifySmsDeleteFailedRunnable(SmsRequest::ErrorType(aError), aRequestId, aProcessId);
+      new NotifySmsDeleteFailedRunnable(aError, aRequestId, aProcessId);
     NS_DispatchToMainThread(runnable);
 }
 
@@ -655,7 +649,11 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyNoMessageInList(JNIEnv* jenv, jclass,
 
       NS_IMETHODIMP Run() {
         if (mProcessId == 0) { // Parent process.
-          SmsRequestManager::GetInstance()->NotifyNoMessageInList(mRequestId);
+          nsCOMPtr<nsISmsRequestManager> requestManager
+            = do_GetService(SMS_REQUEST_MANAGER_CONTRACTID);
+          if (requestManager) {
+            requestManager->NotifyNoMessageInList(mRequestId);
+          }
         } else { // Content process.
           nsTArray<SmsParent*> spList;
           SmsParent::GetAll(spList);
@@ -705,9 +703,13 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyListCreated(JNIEnv* jenv, jclass,
       NS_IMETHODIMP Run() {
         if (mProcessId == 0) { // Parent process.
           nsCOMPtr<nsIDOMMozSmsMessage> message = new SmsMessage(mMessage);
-          SmsRequestManager::GetInstance()->NotifyCreateMessageList(mRequestId,
-                                                                    mListId,
-                                                                    message);
+          nsCOMPtr<nsISmsRequestManager> requestManager
+            = do_GetService(SMS_REQUEST_MANAGER_CONTRACTID);
+          if (requestManager) {
+            requestManager->NotifyCreateMessageList(mRequestId,
+                                                    mListId,
+                                                    message);
+          }
         } else { // Content process.
           nsTArray<SmsParent*> spList;
           SmsParent::GetAll(spList);
@@ -765,8 +767,11 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyGotNextMessage(JNIEnv* jenv, jclass,
       NS_IMETHODIMP Run() {
         if (mProcessId == 0) { // Parent process.
           nsCOMPtr<nsIDOMMozSmsMessage> message = new SmsMessage(mMessage);
-          SmsRequestManager::GetInstance()->NotifyGotNextMessage(mRequestId,
-                                                                 message);
+          nsCOMPtr<nsISmsRequestManager> requestManager
+            = do_GetService(SMS_REQUEST_MANAGER_CONTRACTID);
+          if (requestManager) {
+            requestManager->NotifyGotNextMessage(mRequestId, message);
+          }
         } else { // Content process.
           nsTArray<SmsParent*> spList;
           SmsParent::GetAll(spList);
@@ -808,8 +813,9 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyReadingMessageListFailed(JNIEnv* jenv
 {
     class NotifyReadListFailedRunnable : public nsRunnable {
     public:
-      NotifyReadListFailedRunnable(SmsRequest::ErrorType aError,
-                                    PRInt32 aRequestId, PRUint64 aProcessId)
+      NotifyReadListFailedRunnable(PRInt32 aError,
+                                   PRInt32 aRequestId,
+                                   PRUint64 aProcessId)
         : mError(aError)
         , mRequestId(aRequestId)
         , mProcessId(aProcessId)
@@ -817,7 +823,11 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyReadingMessageListFailed(JNIEnv* jenv
 
       NS_IMETHODIMP Run() {
         if (mProcessId == 0) { // Parent process.
-          SmsRequestManager::GetInstance()->NotifyReadMessageListFailed(mRequestId, mError);
+          nsCOMPtr<nsISmsRequestManager> requestManager
+            = do_GetService(SMS_REQUEST_MANAGER_CONTRACTID);
+          if (requestManager) {
+            requestManager->NotifyReadMessageListFailed(mRequestId, mError);
+          }
         } else { // Content process.
           nsTArray<SmsParent*> spList;
           SmsParent::GetAll(spList);
@@ -833,23 +843,214 @@ Java_org_mozilla_gecko_GeckoAppShell_notifyReadingMessageListFailed(JNIEnv* jenv
       }
 
     private:
-      SmsRequest::ErrorType mError;
-      PRInt32               mRequestId;
-      PRUint64              mProcessId;
+      PRInt32  mError;
+      PRInt32  mRequestId;
+      PRUint64 mProcessId;
     };
 
 
     nsCOMPtr<nsIRunnable> runnable =
-      new NotifyReadListFailedRunnable(SmsRequest::ErrorType(aError), aRequestId, aProcessId);
+      new NotifyReadListFailedRunnable(aError, aRequestId, aProcessId);
     NS_DispatchToMainThread(runnable);
 }
 
 #ifdef MOZ_JAVA_COMPOSITOR
 
 NS_EXPORT void JNICALL
-Java_org_mozilla_gecko_GeckoAppShell_bindWidgetTexture(JNIEnv* jenv, jclass)
+Java_org_mozilla_gecko_GeckoAppShell_scheduleComposite(JNIEnv*, jclass)
 {
-    nsWindow::BindToTexture();
+    nsWindow::ScheduleComposite();
+}
+
+NS_EXPORT void JNICALL
+Java_org_mozilla_gecko_GeckoAppShell_schedulePauseComposition(JNIEnv*, jclass)
+{
+    nsWindow::SchedulePauseComposition();
+}
+
+NS_EXPORT void JNICALL
+Java_org_mozilla_gecko_GeckoAppShell_scheduleResumeComposition(JNIEnv*, jclass, jint width, jint height)
+{
+    nsWindow::ScheduleResumeComposition(width, height);
+}
+
+NS_EXPORT void JNICALL
+Java_org_mozilla_gecko_GeckoAppShell_notifyFilePickerResult(JNIEnv* jenv, jclass, jstring filePath, jlong callback)
+{
+    class NotifyFilePickerResultRunnable : public nsRunnable {
+    public:
+        NotifyFilePickerResultRunnable(nsString& fileDir, long callback) : 
+            mFileDir(fileDir), mCallback(callback) {}
+
+        NS_IMETHODIMP Run() {
+            nsFilePickerCallback* handler = (nsFilePickerCallback*)mCallback;
+            handler->handleResult(mFileDir);
+            handler->Release();
+            return NS_OK;
+        }
+    private:
+        nsString mFileDir;
+        long mCallback;
+    };
+    nsString path = nsJNIString(filePath, jenv);
+    
+    nsCOMPtr<nsIRunnable> runnable =
+        new NotifyFilePickerResultRunnable(path, (long)callback);
+    NS_DispatchToMainThread(runnable);
+}
+
+static int
+NextPowerOfTwo(int value) {
+    // code taken from http://acius2.blogspot.com/2007/11/calculating-next-power-of-2.html
+    if (0 == value--) {
+        return 1;
+    }
+    value = (value >> 1) | value;
+    value = (value >> 2) | value;
+    value = (value >> 4) | value;
+    value = (value >> 8) | value;
+    value = (value >> 16) | value;
+    return value + 1;
+}
+
+#define MAX_LOCK_ATTEMPTS 10
+
+static bool LockWindowWithRetry(void* window, unsigned char** bits, int* width, int* height, int* format, int* stride)
+{
+  int count = 0;
+
+  while (count < MAX_LOCK_ATTEMPTS) {
+      if (AndroidBridge::Bridge()->LockWindow(window, bits, width, height, format, stride))
+        return true;
+
+      count++;
+      usleep(500);
+  }
+
+  return false;
+}
+
+NS_EXPORT jobject JNICALL
+Java_org_mozilla_gecko_GeckoAppShell_getSurfaceBits(JNIEnv* jenv, jclass, jobject surface)
+{
+    static jclass jSurfaceBitsClass = nsnull;
+    static jmethodID jSurfaceBitsCtor = 0;
+    static jfieldID jSurfaceBitsWidth, jSurfaceBitsHeight, jSurfaceBitsFormat, jSurfaceBitsBuffer;
+
+    jobject surfaceBits = nsnull;
+    unsigned char* bitsCopy = nsnull;
+    int dstWidth, dstHeight, dstSize;
+
+    void* window = AndroidBridge::Bridge()->AcquireNativeWindow(jenv, surface);
+    if (!window)
+        return nsnull;
+
+    unsigned char* bits;
+    int srcWidth, srcHeight, format, srcStride;
+
+    // So we lock/unlock once here in order to get whatever is currently the front buffer. It sucks.
+    if (!LockWindowWithRetry(window, &bits, &srcWidth, &srcHeight, &format, &srcStride))
+        return nsnull;
+
+    AndroidBridge::Bridge()->UnlockWindow(window);
+
+    // This is lock will result in the front buffer, since the last unlock rotated it to the back. Probably.
+    if (!LockWindowWithRetry(window, &bits, &srcWidth, &srcHeight, &format, &srcStride))
+        return nsnull;
+
+    // These are from android.graphics.PixelFormat
+    int bpp;
+    switch (format) {
+    case 1: // RGBA_8888
+        bpp = 4;
+        break;
+    case 4: // RGB_565
+        bpp = 2;
+        break;
+    default:
+        goto cleanup;
+    }
+
+    dstWidth = NextPowerOfTwo(srcWidth);
+    dstHeight = NextPowerOfTwo(srcHeight);
+    dstSize = dstWidth * dstHeight * bpp;
+
+    bitsCopy = (unsigned char*)malloc(dstSize);
+    bzero(bitsCopy, dstSize);
+    for (int i = 0; i < srcHeight; i++) {
+        memcpy(bitsCopy + ((dstHeight - i - 1) * dstWidth * bpp), bits + (i * srcStride * bpp), srcStride * bpp);
+    }
+    
+    if (!jSurfaceBitsClass) {
+        jSurfaceBitsClass = (jclass)jenv->NewGlobalRef(jenv->FindClass("org/mozilla/gecko/SurfaceBits"));
+        jSurfaceBitsCtor = jenv->GetMethodID(jSurfaceBitsClass, "<init>", "()V");
+
+        jSurfaceBitsWidth = jenv->GetFieldID(jSurfaceBitsClass, "width", "I");
+        jSurfaceBitsHeight = jenv->GetFieldID(jSurfaceBitsClass, "height", "I");
+        jSurfaceBitsFormat = jenv->GetFieldID(jSurfaceBitsClass, "format", "I");
+        jSurfaceBitsBuffer = jenv->GetFieldID(jSurfaceBitsClass, "buffer", "Ljava/nio/ByteBuffer;");
+    }
+
+    surfaceBits = jenv->NewObject(jSurfaceBitsClass, jSurfaceBitsCtor);
+    jenv->SetIntField(surfaceBits, jSurfaceBitsWidth, dstWidth);
+    jenv->SetIntField(surfaceBits, jSurfaceBitsHeight, dstHeight);
+    jenv->SetIntField(surfaceBits, jSurfaceBitsFormat, format);
+    jenv->SetObjectField(surfaceBits, jSurfaceBitsBuffer, jenv->NewDirectByteBuffer(bitsCopy, dstSize));
+
+cleanup:
+    AndroidBridge::Bridge()->UnlockWindow(window);
+    AndroidBridge::Bridge()->ReleaseNativeWindow(window);
+
+    return surfaceBits;
+}
+
+NS_EXPORT void JNICALL
+Java_org_mozilla_gecko_GeckoAppShell_onFullScreenPluginHidden(JNIEnv* jenv, jclass, jobject view)
+{
+  class ExitFullScreenRunnable : public nsRunnable {
+    public:
+      ExitFullScreenRunnable(jobject view) : mView(view) {}
+
+      NS_IMETHODIMP Run() {
+        JNIEnv* env = AndroidBridge::GetJNIEnv();
+        if (!env) {
+          NS_WARNING("Failed to acquire JNI env, can't exit plugin fullscreen mode");
+          return NS_OK;
+        }
+
+        nsPluginInstanceOwner::ExitFullScreen(mView);
+        env->DeleteGlobalRef(mView);
+        return NS_OK;
+      }
+
+    private:
+      jobject mView;
+  };
+
+  nsCOMPtr<nsIRunnable> runnable = new ExitFullScreenRunnable(jenv->NewGlobalRef(view));
+  NS_DispatchToMainThread(runnable);
+}
+
+NS_EXPORT jobject JNICALL
+Java_org_mozilla_gecko_GeckoAppShell_getNextMessageFromQueue(JNIEnv* jenv, jclass, jobject queue)
+{
+    static jclass jMessageQueueCls = nsnull;
+    static jfieldID jMessagesField;
+    static jmethodID jNextMethod;
+    if (!jMessageQueueCls) {
+        jMessageQueueCls = (jclass) jenv->NewGlobalRef(jenv->FindClass("android/os/MessageQueue"));
+        jMessagesField = jenv->GetFieldID(jMessageQueueCls, "mMessages", "Landroid/os/Message;");
+        jNextMethod = jenv->GetMethodID(jMessageQueueCls, "next", "()Landroid/os/Message;");
+    }
+    if (!jMessageQueueCls || !jMessagesField || !jNextMethod)
+        return NULL;
+    jobject msg = jenv->GetObjectField(queue, jMessagesField);
+    // if queue.mMessages is null, queue.next() will block, which we don't want
+    if (!msg)
+        return msg;
+    msg = jenv->CallObjectMethod(queue, jNextMethod);
+    return msg;
 }
 
 #endif
+}

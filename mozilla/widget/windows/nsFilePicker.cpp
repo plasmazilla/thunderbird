@@ -49,10 +49,10 @@
 #include "nsReadableUtils.h"
 #include "nsNetUtil.h"
 #include "nsWindow.h"
+#include "nsILoadContext.h"
 #include "nsIServiceManager.h"
 #include "nsIPlatformCharset.h"
 #include "nsICharsetConverterManager.h"
-#include "nsIPrivateBrowsingService.h"
 #include "nsIURL.h"
 #include "nsIStringBundle.h"
 #include "nsEnumeratorUtils.h"
@@ -60,6 +60,7 @@
 #include "nsString.h"
 #include "nsToolkit.h"
 #include "WinUtils.h"
+#include "nsPIDOMWindow.h"
 
 using namespace mozilla::widget;
 
@@ -206,9 +207,7 @@ private:
 nsFilePicker::nsFilePicker() :
   mSelectedType(1)
   , mDlgWnd(NULL)
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
   , mFDECookie(0)
-#endif
 {
    CoInitialize(NULL);
 }
@@ -224,8 +223,15 @@ nsFilePicker::~nsFilePicker()
 
 NS_IMPL_ISUPPORTS1(nsFilePicker, nsIFilePicker)
 
+NS_IMETHODIMP nsFilePicker::Init(nsIDOMWindow *aParent, const nsAString& aTitle, PRInt16 aMode)
+{
+  nsCOMPtr<nsPIDOMWindow> window = do_QueryInterface(aParent);
+  nsIDocShell* docShell = window ? window->GetDocShell() : NULL;  
+  mLoadContext = do_QueryInterface(docShell);
+  
+  return nsBaseFilePicker::Init(aParent, aTitle, aMode);
+}
 
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
 STDMETHODIMP nsFilePicker::QueryInterface(REFIID refiid, void** ppvResult)
 {
   *ppvResult = NULL;
@@ -241,7 +247,6 @@ STDMETHODIMP nsFilePicker::QueryInterface(REFIID refiid, void** ppvResult)
 
   return E_NOINTERFACE;
 }
-#endif
 
 /*
  * XP picker callbacks
@@ -435,8 +440,6 @@ nsFilePicker::MultiFilePickerHook(HWND hwnd,
  * Vista+ callbacks
  */
 
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
-
 HRESULT
 nsFilePicker::OnFileOk(IFileDialog *pfd)
 {
@@ -498,8 +501,6 @@ nsFilePicker::OnOverwrite(IFileDialog *pfd,
 {
   return S_OK;
 }
-
-#endif // MOZ_NTDDI_LONGHORN
 
 /*
  * Close on parent close logic
@@ -598,8 +599,6 @@ nsFilePicker::ShowXPFolderPicker(const nsString& aInitialDir)
   return result;
 }
 
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
-
 bool
 nsFilePicker::ShowFolderPicker(const nsString& aInitialDir)
 {
@@ -618,8 +617,7 @@ nsFilePicker::ShowFolderPicker(const nsString& aInitialDir)
  
   // initial strings
   dialog->SetTitle(mTitle.get());
-  if (!aInitialDir.IsEmpty() &&
-      WinUtils::VistaCreateItemFromParsingNameInit()) {
+  if (!aInitialDir.IsEmpty()) {
     nsRefPtr<IShellItem> folder;
     if (SUCCEEDED(
           WinUtils::SHCreateItemFromParsingName(aInitialDir.get(), NULL,
@@ -641,18 +639,25 @@ nsFilePicker::ShowFolderPicker(const nsString& aInitialDir)
     return false;
   }
   dialog->Unadvise(mFDECookie);
- 
-  // results  
-  LPWSTR str = NULL;
-  if (FAILED(item->GetDisplayName(SIGDN_FILESYSPATH, &str)))
-    return false;
-  mUnicodeFile.Assign(str);
-  CoTaskMemFree(str);
- 
-  return true;
-}
 
-#endif // MOZ_WINSDK_TARGETVER
+  // results
+
+  // If the user chose a Win7 Library, resolve to the library's
+  // default save folder.
+  nsRefPtr<IShellItem> folderPath;
+  nsRefPtr<IShellLibrary> shellLib;
+  CoCreateInstance(CLSID_ShellLibrary, NULL, CLSCTX_INPROC, IID_IShellLibrary,
+                   getter_AddRefs(shellLib));
+  if (shellLib &&
+      SUCCEEDED(shellLib->LoadLibraryFromItem(item, STGM_READ)) &&
+      SUCCEEDED(shellLib->GetDefaultSaveFolder(DSFT_DETECT, IID_IShellItem,
+                                               getter_AddRefs(folderPath)))) {
+    item.swap(folderPath);
+  }
+
+  // get the folder's file system path
+  return WinUtils::GetShellItemPath(item, mUnicodeFile);
+}
 
 /*
  * File open and save picker invocation
@@ -870,8 +875,6 @@ nsFilePicker::ShowXPFilePicker(const nsString& aInitialDir)
   return true;
 }
 
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
-
 bool
 nsFilePicker::ShowFilePicker(const nsString& aInitialDir)
 {
@@ -947,8 +950,7 @@ nsFilePicker::ShowFilePicker(const nsString& aInitialDir)
   }
 
   // initial location
-  if (!aInitialDir.IsEmpty() &&
-      WinUtils::VistaCreateItemFromParsingNameInit()) {
+  if (!aInitialDir.IsEmpty()) {
     nsRefPtr<IShellItem> folder;
     if (SUCCEEDED(
           WinUtils::SHCreateItemFromParsingName(aInitialDir.get(), NULL,
@@ -990,16 +992,9 @@ nsFilePicker::ShowFilePicker(const nsString& aInitialDir)
   // single selection
   if (mMode != modeOpenMultiple) {
     nsRefPtr<IShellItem> item;
-    if (FAILED(dialog->GetResult(getter_AddRefs(item))) || !item) {
+    if (FAILED(dialog->GetResult(getter_AddRefs(item))) || !item)
       return false;
-    }
-
-    LPWSTR str = NULL;
-    if (FAILED(item->GetDisplayName(SIGDN_FILESYSPATH, &str)))
-      return false;
-    mUnicodeFile.Assign(str);
-    CoTaskMemFree(str);
-    return true;
+    return WinUtils::GetShellItemPath(item, mUnicodeFile);
   }
 
   // multiple selection
@@ -1019,20 +1014,17 @@ nsFilePicker::ShowFilePicker(const nsString& aInitialDir)
   items->GetCount(&count);
   for (unsigned int idx = 0; idx < count; idx++) {
     nsRefPtr<IShellItem> item;
+    nsAutoString str;
     if (SUCCEEDED(items->GetItemAt(idx, getter_AddRefs(item)))) {
-      LPWSTR str = NULL;
-      if (FAILED(item->GetDisplayName(SIGDN_FILESYSPATH, &str)))
+      if (!WinUtils::GetShellItemPath(item, str))
         continue;
       nsCOMPtr<nsILocalFile> file = do_CreateInstance("@mozilla.org/file/local;1");
-      if (file && NS_SUCCEEDED(file->InitWithPath(nsDependentString(str))))
+      if (file && NS_SUCCEEDED(file->InitWithPath(str)))
         mFiles.AppendObject(file);
-      CoTaskMemFree(str);
     }
   }
   return true;
 }
-
-#endif // MOZ_WINSDK_TARGETVER
 
 ///////////////////////////////////////////////////////////////////////////////
 // nsIFilePicker impl.
@@ -1062,23 +1054,15 @@ nsFilePicker::ShowW(PRInt16 *aReturnVal)
 
   bool result = false;
    if (mMode == modeGetFolder) {
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
     if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION)
       result = ShowFolderPicker(initialDir);
     else
       result = ShowXPFolderPicker(initialDir);
-#else
-    result = ShowXPFolderPicker(initialDir);
-#endif  
    } else {
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
     if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION)
       result = ShowFilePicker(initialDir);
     else
       result = ShowXPFilePicker(initialDir);
-#else
-    result = ShowXPFilePicker(initialDir);
-#endif  
    }
 
   // exit, and return returnCancel in aReturnVal
@@ -1268,15 +1252,11 @@ nsFilePicker::AppendXPFilter(const nsAString& aTitle, const nsAString& aFilter)
 NS_IMETHODIMP
 nsFilePicker::AppendFilter(const nsAString& aTitle, const nsAString& aFilter)
 {
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
   if (WinUtils::GetWindowsVersion() >= WinUtils::VISTA_VERSION) {
     mComFilterList.Append(aTitle, aFilter);
   } else {
     AppendXPFilter(aTitle, aFilter);
   }
-#else
-  AppendXPFilter(aTitle, aFilter);
-#endif
   return NS_OK;
 }
 
@@ -1309,14 +1289,7 @@ nsFilePicker::RememberLastUsedDirectory()
 bool
 nsFilePicker::IsPrivacyModeEnabled()
 {
-  // Handle add to recent docs settings
-  nsCOMPtr<nsIPrivateBrowsingService> pbs =
-    do_GetService(NS_PRIVATE_BROWSING_SERVICE_CONTRACTID);
-  bool privacyModeEnabled = false;
-  if (pbs) {
-    pbs->GetPrivateBrowsingEnabled(&privacyModeEnabled);
-  }
-  return privacyModeEnabled;
+  return mLoadContext && mLoadContext->UsePrivateBrowsing();
 }
 
 bool
@@ -1347,8 +1320,6 @@ nsFilePicker::IsDefaultPathHtml()
   return false;
 }
 
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
-
 void
 nsFilePicker::ComDlgFilterSpec::Append(const nsAString& aTitle, const nsAString& aFilter)
 {
@@ -1378,5 +1349,3 @@ nsFilePicker::ComDlgFilterSpec::Append(const nsAString& aTitle, const nsAString&
   }
   pSpecForward->pszSpec = pStr->get();
 }
-
-#endif // MOZ_WINSDK_TARGETVER

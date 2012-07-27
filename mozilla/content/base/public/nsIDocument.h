@@ -68,7 +68,6 @@
 #include "nsEventStates.h"
 #include "nsIStructuredCloneContainer.h"
 #include "nsIBFCacheEntry.h"
-#include "nsDOMMemoryReporter.h"
 
 class nsIContent;
 class nsPresContext;
@@ -111,6 +110,8 @@ class nsIBoxObject;
 class imgIRequest;
 class nsISHEntry;
 class nsDOMNavigationTiming;
+class nsWindowSizes;
+class nsIObjectLoadingContent;
 
 namespace mozilla {
 namespace css {
@@ -124,8 +125,8 @@ class Element;
 } // namespace mozilla
 
 #define NS_IDOCUMENT_IID \
-{ 0x283ec27d, 0x5b23, 0x49b2, \
-  { 0x94, 0xd9, 0x9, 0xb5, 0xdb, 0x45, 0x30, 0x73 } }
+{ 0x8e51e6d9, 0x914d, 0x46ba, \
+  { 0xb3, 0x11, 0x2f, 0x27, 0x3d, 0xe6, 0x0d, 0x19 } }
 
 
 // Flag for AddStyleSheet().
@@ -156,7 +157,6 @@ public:
 
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_IDOCUMENT_IID)
   NS_DECL_AND_IMPL_ZEROING_OPERATOR_NEW
-  NS_DECL_DOM_MEMORY_REPORTER_SIZEOF
 
 #ifdef MOZILLA_INTERNAL_API
   nsIDocument()
@@ -183,9 +183,10 @@ public:
   
   /**
    * Let the document know that we're starting to load data into it.
-   * @param aCommand The parser command
+   * @param aCommand The parser command. Must not be null.
    *                 XXXbz It's odd to have that here.
-   * @param aChannel The channel the data will come from
+   * @param aChannel The channel the data will come from. The channel must be
+   *                 able to report its Content-Type.
    * @param aLoadGroup The loadgroup this document should use from now on.
    *                   Note that the document might not be the only thing using
    *                   this loadgroup.
@@ -204,6 +205,9 @@ public:
    * @param aSink The content sink to use for the data.  If this is null and
    *              the document needs a content sink, it will create one based
    *              on whatever it knows about the data it's going to load.
+   *              This MUST be null if the underlying document is an HTML
+   *              document. Even in the XML case, please don't add new calls
+   *              with non-null sink.
    *
    * Once this has been called, the document will return false for
    * MayStartLayout() until SetMayStartLayout(true) is called on it.  Making
@@ -650,7 +654,9 @@ public:
    * Get this document's attribute stylesheet.  May return null if
    * there isn't one.
    */
-  virtual nsHTMLStyleSheet* GetAttributeStyleSheet() const = 0;
+  nsHTMLStyleSheet* GetAttributeStyleSheet() const {
+    return mAttrStyleSheet;
+  }
 
   /**
    * Get this document's inline style sheet.  May return null if there
@@ -777,6 +783,12 @@ public:
    * asynchronously.
    */
   static void ExitFullScreen(bool aRunAsync);
+
+
+  virtual void RequestPointerLock(Element* aElement) = 0;
+
+  static void UnlockPointer();
+
 
   //----------------------------------------------------------------------
 
@@ -1429,7 +1441,8 @@ public:
   /**
    * Called by nsParser to preload images. Can be removed and code moved
    * to nsPreloadURIs::PreloadURIs() in file nsParser.cpp whenever the
-   * parser-module is linked with gklayout-module.
+   * parser-module is linked with gklayout-module.  aCrossOriginAttr should
+   * be a void string if the attr is not present.
    */
   virtual void MaybePreLoadImage(nsIURI* uri,
                                  const nsAString& aCrossOriginAttr) = 0;
@@ -1568,6 +1581,10 @@ public:
   // state is unlocked/false.
   virtual nsresult SetImageLockingState(bool aLocked) = 0;
 
+  virtual nsresult AddPlugin(nsIObjectLoadingContent* aPlugin) = 0;
+  virtual void RemovePlugin(nsIObjectLoadingContent* aPlugin) = 0;
+  virtual void GetPlugins(nsTArray<nsIObjectLoadingContent*>& aPlugins) = 0;
+
   virtual nsresult GetStateObject(nsIVariant** aResult) = 0;
 
   virtual nsDOMNavigationTiming* GetNavigationTiming() const = 0;
@@ -1618,6 +1635,40 @@ public:
     mNeedStyleFlush = true;
     if (mDisplayDocument) {
       mDisplayDocument->SetNeedStyleFlush();
+    }
+  }
+
+  // Note: nsIDocument is a sub-class of nsINode, which has a
+  // SizeOfExcludingThis function.  However, because nsIDocument objects can
+  // only appear at the top of the DOM tree, we have a specialized measurement
+  // function which returns multiple sizes.
+  virtual void DocSizeOfExcludingThis(nsWindowSizes* aWindowSizes) const;
+  // DocSizeOfIncludingThis doesn't need to be overridden by sub-classes
+  // because nsIDocument inherits from nsINode;  see the comment above the
+  // declaration of nsINode::SizeOfIncludingThis.
+  virtual void DocSizeOfIncludingThis(nsWindowSizes* aWindowSizes) const;
+
+  bool MayHaveDOMMutationObservers()
+  {
+    return mMayHaveDOMMutationObservers;
+  }
+
+  void SetMayHaveDOMMutationObservers()
+  {
+    mMayHaveDOMMutationObservers = true;
+  }
+
+  bool IsInSyncOperation()
+  {
+    return mInSyncOperationCount != 0;
+  }
+
+  void SetIsInSyncOperation(bool aSync)
+  {
+    if (aSync) {
+      ++mInSyncOperationCount;
+    } else {
+      --mInSyncOperationCount;
     }
   }
 
@@ -1694,6 +1745,7 @@ protected:
   // The cleanup is handled by the nsDocument destructor.
   nsNodeInfoManager* mNodeInfoManager; // [STRONG]
   mozilla::css::Loader* mCSSLoader; // [STRONG]
+  nsHTMLStyleSheet* mAttrStyleSheet;
 
   // The set of all object, embed, applet, video and audio elements for
   // which this is the owner document. (They might not be in the document.)
@@ -1791,6 +1843,9 @@ protected:
   // True if a style flush might not be a no-op
   bool mNeedStyleFlush;
 
+  // True if a DOMMutationObserver is perhaps attached to a node in the document.
+  bool mMayHaveDOMMutationObservers;
+
   // The document's script global object, the object from which the
   // document can get its script context and scope. This is the
   // *inner* window object.
@@ -1886,6 +1941,8 @@ protected:
   nsCOMPtr<nsIVariant> mStateObjectCached;
 
   PRUint8 mDefaultElementType;
+
+  PRUint32 mInSyncOperationCount;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIDocument, NS_IDOCUMENT_IID)
@@ -1930,6 +1987,16 @@ public:
 private:
   nsCOMPtr<nsINode>     mTarget;
   nsCOMPtr<nsIDocument> mSubtreeOwner;
+};
+
+class NS_STACK_CLASS nsAutoSyncOperation
+{
+public:
+  nsAutoSyncOperation(nsIDocument* aDocument);
+  ~nsAutoSyncOperation();
+private:
+  nsCOMArray<nsIDocument> mDocuments;
+  PRUint32                mMicroTaskLevel;
 };
 
 // XXX These belong somewhere else

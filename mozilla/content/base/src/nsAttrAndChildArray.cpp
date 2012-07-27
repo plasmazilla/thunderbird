@@ -576,10 +576,11 @@ nsAttrAndChildArray::SetAndTakeMappedAttr(nsIAtom* aLocalName,
 }
 
 nsresult
-nsAttrAndChildArray::SetMappedAttrStyleSheet(nsHTMLStyleSheet* aSheet)
+nsAttrAndChildArray::DoSetMappedAttrStyleSheet(nsHTMLStyleSheet* aSheet)
 {
-  if (!mImpl || !mImpl->mMappedAttrs ||
-      aSheet == mImpl->mMappedAttrs->GetStyleSheet()) {
+  NS_PRECONDITION(mImpl && mImpl->mMappedAttrs,
+                  "Should have mapped attrs here!");
+  if (aSheet == mImpl->mMappedAttrs->GetStyleSheet()) {
     return NS_OK;
   }
 
@@ -839,26 +840,22 @@ nsAttrAndChildArray::SetChildAtPos(void** aPos, nsIContent* aChild,
   }
 }
 
-PRInt64
-nsAttrAndChildArray::SizeOf() const
+size_t
+nsAttrAndChildArray::SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf) const
 {
-  PRInt64 size = sizeof(*this);
-
+  size_t n = 0;
   if (mImpl) {
     // Don't add the size taken by *mMappedAttrs because it's shared.
 
-    // mBuffer cointains InternalAttr and nsIContent* (even if it's void**)
-    // so, we just have to compute the size of *mBuffer given that this object
-    // doesn't own the children list.
-    size += mImpl->mBufferSize * sizeof(*(mImpl->mBuffer)) + NS_IMPL_EXTRA_SIZE;
+    n += aMallocSizeOf(mImpl);
 
     PRUint32 slotCount = AttrSlotCount();
     for (PRUint32 i = 0; i < slotCount && AttrSlotIsTaken(i); ++i) {
       nsAttrValue* value = &ATTRS(mImpl)[i].mValue;
-      size += value->SizeOf() - sizeof(*value);
+      n += value->SizeOfExcludingThis(aMallocSizeOf);
     }
   }
 
-  return size;
+  return n;
 }
 

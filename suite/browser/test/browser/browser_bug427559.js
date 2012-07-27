@@ -48,10 +48,9 @@ function test() {
 
   gBrowser.selectedTab = gBrowser.addTab();
 
-  gBrowser.selectedBrowser.addEventListener("load", function () {
-    gBrowser.selectedBrowser.removeEventListener("load", arguments.callee, true);
+  gBrowser.selectedBrowser.addEventListener("load", function loadListener() {
+    gBrowser.selectedBrowser.removeEventListener("load", loadListener, true);
     executeSoon(function () {
-      var testPageWin = content;
 
       // The test page loaded, so open an empty tab, select it, then restore
       // the test tab. This causes the test page's focused element to be removed
@@ -59,13 +58,13 @@ function test() {
       gBrowser.selectedTab = gBrowser.addTab();
       gBrowser.removeCurrentTab();
 
-      // Make sure focus is given to the window because the element is now gone
-      is(document.commandDispatcher.focusedWindow, testPageWin,
+      // Make sure focus is given to the window because the element is now gone.
+      is(document.commandDispatcher.focusedWindow, window.content,
          "content window is focused");
 
       gBrowser.removeCurrentTab();
       finish();
-    }, 0);
+    });
   }, true);
 
   content.location = testPage;

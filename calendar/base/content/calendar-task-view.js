@@ -170,7 +170,9 @@ var taskDetailsView = {
                     urlLabel.setAttribute("tooltiptext", url);
                     urlLabel.setAttribute("class", "text-link");
                     urlLabel.setAttribute("crop", "end");
-                    urlLabel.setAttribute("onclick", "launchBrowser(this.value)");
+                    urlLabel.setAttribute("onclick",
+                                          "if (event.button != 2) launchBrowser(this.value);");
+                    urlLabel.setAttribute("context", "taskview-link-context-menu");
                     attachmentRows.appendChild(urlLabel);
                 }
             }
@@ -300,6 +302,20 @@ function taskViewOnLoad() {
               .getService(Components.interfaces.nsIObserverService)
               .notifyObservers(window, "calendar-taskview-startup-done",
                                false);
+}
+
+/**
+ * Copy the value of the given link node to the clipboard
+ *
+ * @param linkNode      The node containing the value to copy to the clipboard
+ */
+function taskViewCopyLink(linkNode) {
+    if (linkNode) {
+        let linkAddress = linkNode.value;
+        let clipboard = Components.classes["@mozilla.org/widget/clipboardhelper;1"]
+                                  .getService(Components.interfaces.nsIClipboardHelper);
+        clipboard.copyString(linkAddress);
+    }
 }
 
 window.addEventListener("load", taskViewOnLoad, false);

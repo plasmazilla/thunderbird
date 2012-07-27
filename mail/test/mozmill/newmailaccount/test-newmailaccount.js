@@ -51,16 +51,19 @@ var MODULE_REQUIRES = ['folder-display-helpers',
                        'content-tab-helpers',
                        'window-helpers',
                        'newmailaccount-helpers',
-                       'keyboard-helpers'];
+                       'keyboard-helpers',
+                       'dom-helpers'];
 
 var controller = {};
 var mozmill = {};
 var elib = {};
+let httpd = {};
 Cu.import('resource://mozmill/modules/controller.js', controller);
 Cu.import('resource://mozmill/modules/mozmill.js', mozmill);
 Cu.import('resource://mozmill/modules/elementslib.js', elib);
 Cu.import('resource://gre/modules/Services.jsm');
 Cu.import("resource:///modules/mailServices.js");
+Cu.import('resource://mozmill/stdlib/httpd.js', httpd);
 
 // RELATIVE_ROOT messes with the collector, so we have to bring the path back
 // so we get the right path for the resources.
@@ -69,7 +72,9 @@ const kProvisionerUrl = "chrome://messenger/content/newmailaccount/accountProvis
 const kProvisionerEnabledPref = "mail.provider.enabled";
 const kSuggestFromNamePref = "mail.provider.suggestFromName";
 const kProviderListPref = "mail.provider.providerList";
-const kAcceptLangs = "intl.accept_languages";
+const kAcceptedLanguage = "general.useragent.locale";
+const kDefaultServerPort = 4444;
+const kDefaultServerRoot = "http://localhost:" + kDefaultServerPort;
 
 Services.prefs.setCharPref(kProviderListPref, url + "providerList");
 Services.prefs.setCharPref(kSuggestFromNamePref, url + "suggestFromName");
@@ -85,7 +90,7 @@ var gProvisionerEnabled = Services.prefs.getBoolPref(kProvisionerEnabledPref);
 // Record what the original value of the mail.provider.enabled pref is so
 // that we can put it back once the tests are done.
 var gProvisionerEnabled = Services.prefs.getBoolPref(kProvisionerEnabledPref);
-var gOldAcceptLangs = Services.prefs.getComplexValue(kAcceptLangs, Ci.nsIPrefLocalizedString);
+var gOldAcceptLangs = Services.prefs.getCharPref(kAcceptedLanguage);
 var gNumAccounts;
 
 function setupModule(module) {
@@ -99,13 +104,12 @@ function setupModule(module) {
   nmah.installInto(module);
   let kh = collector.getModule('keyboard-helpers');
   kh.installInto(module);
+  collector.getModule('dom-helpers').installInto(module);
 
   // Make sure we enable the Account Provisioner.
   Services.prefs.setBoolPref(kProvisionerEnabledPref, true);
-  // First, restrict the user's language to just en-US
-  let langs = Cc["@mozilla.org/pref-localizedstring;1"].createInstance(Ci.nsIPrefLocalizedString);
-  langs.data = "en-US";
-  Services.prefs.setComplexValue(kAcceptLangs, Ci.nsIPrefLocalizedString, langs);
+  // Restrict the user's language to just en-US
+  Services.prefs.setCharPref(kAcceptedLanguage, "en-US");
 
   // Add a "bar" search engine that we can switch to be the default.
   Services.search.addEngineWithDetails("bar", null, null, null, "post",
@@ -116,7 +120,7 @@ function teardownModule(module) {
   // Put the mail.provider.enabled pref back the way it was.
   Services.prefs.setBoolPref(kProvisionerEnabledPref, gProvisionerEnabled);
   // And same with the user languages
-  Services.prefs.setComplexValue(kAcceptLangs, Ci.nsIPrefLocalizedString, gOldAcceptLangs);
+  Services.prefs.setCharPref(kAcceptedLanguage, gOldAcceptLangs);
 }
 
 /* Helper function that returns the number of accounts associated with the
@@ -137,8 +141,13 @@ function nAccounts() {
  * this test is split over 3 functions, and uses a global gNumAccounts.  The
  * three functions are "test_get_an_account", "subtest_get_an_account",
  * and "subtest_get_an_account_part_2".
+ *
+ * @param aCloseAndRestore a boolean for whether or not we should close and
+ *                         restore the Account Provisioner tab before filling
+ *                         in the form. Defaults to false.
  */
-function test_get_an_account() {
+function test_get_an_account(aCloseAndRestore) {
+  let originalEngine = Services.search.currentEngine;
   // Open the provisioner - once opened, let subtest_get_an_account run.
   plan_for_modal_dialog("AccountCreation", subtest_get_an_account);
   open_provisioner_window();
@@ -154,22 +163,43 @@ function test_get_an_account() {
 
   let tab = mc.tabmail.currentTabInfo;
 
+  if (aCloseAndRestore) {
+    // Close the account provisioner tab, and then restore it...
+    mc.tabmail.closeTab(mc.tabmail.currentTabInfo);
+    mc.tabmail.undoCloseTab();
+    // Wait for the page to be loaded again...
+    wait_for_content_tab_load(undefined, function (aURL) {
+      return aURL.host == "localhost";
+    });
+    tab = mc.tabmail.currentTabInfo;
+  }
+
   // Record how many accounts we start with.
   gNumAccounts = nAccounts();
 
-  // Plan for the account provisioner window to re-open, and then let
-  // subtest_get_an_account_part_2 run.
-  plan_for_modal_dialog("AccountCreation", subtest_get_an_account_part_2);
+  // Plan for the account provisioner window to re-open, and then run the
+  // controller through subtest_get_an_account_part_2. Since the Account
+  // Provisioner dialog is non-modal in the event of success, we use our
+  // normal window handlers.
+  plan_for_new_window("AccountCreation");
 
   // Click the OK button to order the account.
   let btn = tab.browser.contentWindow.document.querySelector("input[value=Send]");
   mc.click(new elib.Elem(btn));
 
-  wait_for_modal_dialog("AccountCreation");
+  let ac = wait_for_new_window("AccountCreation");
+
+  plan_for_window_close(ac);
+  subtest_get_an_account_part_2(ac);
+  wait_for_window_close();
 
   // Make sure we set the default search engine
   let engine = Services.search.getEngineByName("bar");
   assert_equals(engine, Services.search.currentEngine);
+
+  // Restore the original search engine.
+  Services.search.currentEngine = originalEngine;
+  remove_email_account("green@example.com");
 }
 
 /**
@@ -186,7 +216,8 @@ function subtest_get_an_account(w) {
 
   // Fill in some data
   let $ = w.window.$;
-  $("#name").val("Green Llama");
+  type_in_search_name(w, "Green Llama");
+
   $("#searchSubmit").click();
   wait_for_search_results(w);
 
@@ -207,7 +238,7 @@ function subtest_get_an_account(w) {
  */
 function subtest_get_an_account_part_2(w) {
   // Re-get the new window
-  $ = w.window.$;
+  let $ = w.window.$;
 
   // An account should have been added.
   assert_equals(nAccounts(), gNumAccounts + 1);
@@ -221,6 +252,14 @@ function subtest_get_an_account_part_2(w) {
 
   // Then click "Finish"
   mc.click(w.eid("closeWindow"));
+}
+
+/**
+ * Runs test_get_an_account again, but this time, closes and restores the
+ * order form tab before submitting it.
+ */
+function test_restored_ap_tab_works() {
+  test_get_an_account(true);
 }
 
 /**
@@ -395,7 +434,7 @@ function subtest_persist_name_in_search_field(w) {
   let $ = w.window.$;
 
   // Type a name into the search field
-  $("#name").val(NAME);
+  type_in_search_name(w, NAME);
 
   // Do a search
   $("#searchSubmit").click();
@@ -441,7 +480,7 @@ function subtest_html_characters_and_ampersands(w) {
   // Type a name with some HTML tags and an ampersand in there
   // to see if we can trip up account provisioner.
   const CLEVER_STRING = "<i>Hey, I'm ''clever &\"\" smart!<!-- Ain't I a stinkah? --></i>";
-  $("#name").val(CLEVER_STRING);
+  type_in_search_name(w, CLEVER_STRING);
 
   // Do the search.
   $("#searchSubmit").click();
@@ -557,7 +596,7 @@ function subtest_shows_error_on_bad_suggest_from_name(w) {
   wait_for_search_ready(w);
   let $ = w.window.$;
 
-  $("#name").val("Boston Low");
+  type_in_search_name(w, "Boston Low");
 
   // Do the search.
   $("#searchSubmit").click();
@@ -589,7 +628,7 @@ function subtest_shows_error_on_empty_suggest_from_name(w) {
   wait_for_search_ready(w);
   let $ = w.window.$;
 
-  $("#name").val("Maggie Robbins");
+  type_in_search_name(w, "Maggie Robbins");
 
   // Do the search.
   $("#searchSubmit").click();
@@ -604,19 +643,7 @@ function subtest_shows_error_on_empty_suggest_from_name(w) {
  */
 function test_throws_console_error_on_corrupt_XML() {
   // Open the provisioner - once opened, let subtest_get_an_account run.
-  plan_for_modal_dialog("AccountCreation",
-                        subtest_throws_console_error_on_corrupt_XML);
-  open_provisioner_window();
-  wait_for_modal_dialog("AccountCreation");
-
-  // Once we're here, subtest_get_an_account has completed, and we're waiting
-  // for a content tab to load for the account order form.
-
-  // Make sure the page is loaded.
-  wait_for_content_tab_load(undefined, function (aURL) {
-    return aURL.host == "localhost";
-  });
-
+  get_to_order_form("corrupt@corrupt.nul");
   let tab = mc.tabmail.currentTabInfo;
 
   // Record how many accounts we start with.
@@ -628,40 +655,15 @@ function test_throws_console_error_on_corrupt_XML() {
   Services.console.registerListener(gConsoleListener);
 
   // Click the OK button to order the account.
+  plan_for_modal_dialog("AccountCreation", close_dialog_immediately);
+
   let btn = tab.browser.contentWindow.document.querySelector("input[value=Send]");
   mc.click(new elib.Elem(btn));
+  wait_for_modal_dialog("AccountCreation");
 
   gConsoleListener.wait();
 
   Services.console.unregisterListener(gConsoleListener);
-}
-
-/**
- * Subtest for test_throws_console_error_on_corrupt_XML.  This
- * function does a search for an email address, and then chooses
- * an address from a provider that returns corrupt XML.
- */
-function subtest_throws_console_error_on_corrupt_XML(w) {
-  wait_for_provider_list_loaded(w);
-  wait_for_search_ready(w);
-  let $ = w.window.$;
-
-  // Make sure that only the corrupt provider is checked.
-  $('input[type="checkbox"]').not('[value="corrupt"]').removeAttr("checked");
-
-  // Fill in some data
-  $("#name").val("Green Llama");
-  $("#searchSubmit").click();
-  wait_for_search_results(w);
-
-  // Click on the first address. This reveals the button with the price.
-  $(".address:first").click();
-  mc.waitFor(function () $("button.create:visible").length > 0);
-
-  plan_for_content_tab_load();
-
-  // Clicking this button should close the modal dialog.
-  $('button.create[address="corrupt@corrupt.nul"]').click();
 }
 
 /**
@@ -755,30 +757,29 @@ function subtest_search_button_disabled_cases(w) {
   $('input[type="checkbox"][value="foo"]').click();
 
   // The search submit button should become disabled
-  wait_for_element_disabled(w, "searchSubmit");
+  wait_for_element_enabled(w, w.e("searchSubmit"), false);
 
   // Case 2:  Search input has text, some providers selected
 
   // Put something into the search input
-  searchInput.getNode().focus();
-  input_value(w, "Dexter Morgan");
+  type_in_search_name(w, "Dexter Morgan");
 
   // We already have at least one provider checked from the last case, so
   // the search submit button should become enabled
-  wait_for_element_enabled(w, "searchSubmit");
+  wait_for_element_enabled(w, w.e("searchSubmit"), true);
 
   // Case 3:  Search input has text, no providers selected
   // Make sure no provider checkboxes are checked.
   $('input[type="checkbox"]:checked').click();
 
   // The search submit button should now be disabled
-  wait_for_element_disabled(w, "searchSubmit");
+  wait_for_element_enabled(w, w.e("searchSubmit"), false);
 
   // We'll turn on a single provider now to enable the search button,
   // so we can ensure that it actually *becomes* disabled for the next
   // case.
   $('input[type="checkbox"][value="foo"]').click();
-  wait_for_element_enabled(w, "searchSubmit");
+  wait_for_element_enabled(w, w.e("searchSubmit"), true);
 
   // Case 4:  Search input has no text, and no providers are
   // selected.
@@ -788,7 +789,7 @@ function subtest_search_button_disabled_cases(w) {
   w.keypress(null, 'VK_BACK_SPACE', {});
   $('input[type="checkbox"]:checked').click();
 
-  wait_for_element_disabled(w, "searchSubmit");
+  wait_for_element_enabled(w, w.e("searchSubmit"), false);
 }
 
 /**
@@ -890,11 +891,439 @@ function test_other_lang_link_hides() {
 }
 
 /**
- * Subtest for test_other_lang_link_hides that just waits for the provider list
- * to be loaded, and then ensures that the "show me providers in other
+ * Subtest for test_other_lang_link_hides that just waits for the provider
+ * list to be loaded, and then ensures that the "show me providers in other
  * languages" link is not visible.
  */
 function subtest_other_lang_link_hides(w) {
   wait_for_provider_list_loaded(w);
   wait_for_element_invisible(w, "otherLangDesc");
+}
+
+/**
+ * Quickly get us to the default order form (registration.html) and return
+ * when we're there.
+ */
+function get_to_order_form(aAddress) {
+  if (!aAddress)
+    aAddress = "green@example.com";
+
+  plan_for_modal_dialog("AccountCreation", function(aController) {
+    sub_get_to_order_form(aController, aAddress);
+  });
+  open_provisioner_window();
+  wait_for_modal_dialog("AccountCreation");
+
+  // Once we're here, subtest_get_an_account has completed, and we're waiting
+  // for a content tab to load for the account order form.
+
+  // Make sure the page is loaded.
+  wait_for_content_tab_load(undefined, function (aURL) {
+    return aURL.host == "localhost";
+  });
+}
+
+/**
+ * Fills in the Account Provisioner dialog to get us to the order form.
+ */
+function sub_get_to_order_form(aController, aAddress) {
+  wait_for_provider_list_loaded(aController);
+  wait_for_search_ready(aController);
+
+  // Fill in some data
+  let $ = aController.window.$;
+  type_in_search_name(aController, "Joe Nobody");
+
+  $("#searchSubmit").click();
+  wait_for_search_results(aController);
+
+  // Click on the first address. This reveals the button with the price.
+  $(".address:first").click();
+  mc.waitFor(function () $("button.create:visible").length > 0);
+
+  // Pick the email address green@example.com
+  plan_for_content_tab_load();
+
+  // Clicking this button should close the modal dialog.
+  $('button.create[address="' + aAddress + '"]').click();
+}
+
+/**
+ * Helper function to be passed to plan_for_modal_dialog that closes the
+ * Account Provisioner dialog immediately.
+ */
+function close_dialog_immediately(aController) {
+  plan_for_window_close(aController);
+  mc.click(new elib.Elem(aController.window.document.querySelector(".close")));
+  wait_for_window_close();
+}
+
+/**
+ * Test that clicking on links in the order form open in the same account
+ * provisioner tab.
+ */
+function test_internal_link_opening_behaviour() {
+  get_to_order_form();
+
+  // Open the provisioner - once opened, let subtest_get_an_account run...
+  let tab = mc.tabmail.currentTabInfo;
+  let doc = tab.browser.contentWindow.document;
+
+  // Click on the internal link.
+  mc.click(new elib.Elem(doc.getElementById("internal")));
+
+  // We should load the target page in the current tab browser.
+  wait_for_browser_load(tab.browser, function(aURL) {
+    return aURL.host == "localhost" && aURL.path == "/target.html";
+  });
+  // Now close the tab.
+  mc.tabmail.closeTab(tab);
+}
+
+/**
+ * Test that window.open in the order form opens in new content tabs.
+ */
+function test_window_open_link_opening_behaviour() {
+  get_to_order_form();
+
+  let tab = mc.tabmail.currentTabInfo;
+  let doc = tab.browser.contentWindow.document;
+
+  // First, click on the Javascript link - this should open in a new content
+  // tab and be focused.
+  let newTabLink = doc.getElementById("newtab");
+  open_content_tab_with_click(newTabLink, function(aURL) {
+    return aURL.host == "localhost" && aURL.path == "/target.html";
+  });
+
+  // Close the new tab.
+  let newTab = mc.tabmail.currentTabInfo;
+  mc.tabmail.closeTab(newTab);
+  mc.tabmail.closeTab(tab);
+}
+
+/**
+ * Test that links with target="_blank" open in the default browser.
+ */
+function test_external_link_opening_behaviour() {
+  get_to_order_form();
+
+  let tab = mc.tabmail.currentTabInfo;
+  let doc = tab.browser.contentWindow.document;
+
+  // Mock out the ExternalProtocolService.
+  gMockExtProtSvcReg.register();
+
+  let external = doc.getElementById("external");
+  let targetHref = external.href;
+  mc.click(new elib.Elem(external));
+
+  mc.waitFor(function () gMockExtProtSvc.urlLoaded(targetHref),
+             "Timed out waiting for the link " + targetHref + "to be " +
+             "opened in the default browser.");
+  gMockExtProtSvcReg.unregister();
+  mc.tabmail.closeTab(tab);
+}
+
+/**
+ * Test that if the provider returns XML that we can't turn into an account,
+ * then we error out and go back to the Account Provisioner dialog.
+ */
+function test_return_to_provisioner_on_error_XML() {
+  const kOriginalTabNum = mc.tabmail.tabContainer.childNodes.length;
+
+  get_to_order_form("error@error.nul");
+
+  let tab = mc.tabmail.currentTabInfo;
+  let doc = tab.browser.contentWindow.document;
+
+  plan_for_modal_dialog("AccountCreation", close_dialog_immediately);
+
+  // Click the OK button to order the account.
+  let btn = tab.browser.contentWindow.document.querySelector("input[value=Send]");
+  mc.click(new elib.Elem(btn));
+
+  wait_for_modal_dialog("AccountCreation");
+
+  // We should be done executing the function defined in plan_for_modal_dialog
+  // now, so the Account Provisioner dialog should be closed, and the order
+  // form tab should have been closed.
+  assert_equals(kOriginalTabNum, mc.tabmail.tabContainer.childNodes.length,
+                "Timed out waiting for the order form tab to close.");
+}
+
+/**
+ * Test that if we initiate a search, then the search input, the search button,
+ * and all checkboxes should be disabled. The ability to close the window should
+ * still be enabled though.
+ */
+function test_disabled_fields_when_searching() {
+  plan_for_modal_dialog("AccountCreation",
+                        subtest_disabled_fields_when_searching);
+  open_provisioner_window();
+  wait_for_modal_dialog("AccountCreation");
+}
+
+/**
+ * Subtest for test_disabled_fields_when_searching. Sets up a fake HTTP server
+ * that slowly returns a search suggestion, and then checks to ensure all the
+ * right fields are disabled (search input, search button, all check boxes).
+ * We also make sure those fields are renabled once the test is completed.
+ */
+function subtest_disabled_fields_when_searching(aController) {
+  const kSuggestPath = "/slowSuggest";
+  const kSearchMSeconds = 2000;
+  let timer;
+
+  function slow_results(aRequest, aResponse) {
+    aResponse.processAsync();
+    timer = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
+    let result = [{
+      product: "personalized_email",
+      addresses: ["green@example.com", "green_llama@example.com"],
+      succeeded: true,
+      quote: "b28acb3c0a474d33af22",
+      price: 0,
+      provider: "bar"
+    }];
+    let timerEvent = {
+      notify: function(aTimer) {
+        aResponse.setStatusLine(null, 200, "OK");
+        aResponse.setHeader("Content-Type", "application/json");
+        aResponse.write(JSON.stringify(result));
+        aResponse.finish();
+      }
+    };
+    timer.initWithCallback(timerEvent, kSearchMSeconds,
+                           Ci.nsITimer.TYPE_ONE_SHOT);
+  }
+
+  // Set up a mock HTTP server to serve up a super slow search...
+  let server = httpd.getServer(kDefaultServerPort, '');
+  server.registerPathHandler(kSuggestPath, slow_results);
+  server.start(kDefaultServerPort);
+
+  // Now point our suggestFromName pref at that slow server.
+  let originalSuggest = Services.prefs.getCharPref(kSuggestFromNamePref);
+  Services.prefs.setCharPref(kSuggestFromNamePref,
+                             kDefaultServerRoot + kSuggestPath);
+
+  wait_for_provider_list_loaded(aController);
+  wait_for_search_ready(aController);
+
+  let doc = aController.window.document;
+  type_in_search_name(aController, "Fone Bone");
+
+  aController.click(aController.eid("searchSubmit"));
+
+  // Our slow search has started. We have kSearchMSeconds milliseconds before
+  // the search completes. Plenty of time to check that the right things are
+  // disabled.
+  wait_for_element_enabled(aController, aController.e("searchSubmit"), false);
+  wait_for_element_enabled(aController, aController.e("name"), false);
+  let providerCheckboxes = doc.querySelectorAll(".providerCheckbox");
+
+  for (let [, checkbox] in Iterator(providerCheckboxes))
+    wait_for_element_enabled(aController, checkbox, false);
+
+  // Check to ensure that the buttons for switching to the wizard and closing
+  // the wizard are still enabled.
+  wait_for_element_enabled(aController, doc.querySelector(".close"), true);
+  wait_for_element_enabled(aController, doc.querySelector(".existing"), true);
+
+  // Ok, wait for the results to come through...
+  wait_for_search_results(aController);
+
+  wait_for_element_enabled(aController, aController.e("searchSubmit"), true);
+  wait_for_element_enabled(aController, aController.e("name"), true);
+
+  for (let [, checkbox] in Iterator(providerCheckboxes))
+    wait_for_element_enabled(aController, checkbox, true);
+
+  // Ok, cleanup time. Put the old suggest URL back.
+  Services.prefs.setCharPref(kSuggestFromNamePref, originalSuggest);
+
+  // The fake HTTP server stops asynchronously, so let's kick off the stop
+  // and wait for it to complete.
+  let serverStopped = false;
+  server.stop(function() {
+    serverStopped = true;
+  });
+  aController.waitFor(function() serverStopped,
+                      "Timed out waiting for the fake server to stop.");
+
+  close_dialog_immediately(aController);
+}
+
+/**
+ * Tests that the search button is disabled if there is no initially
+ * supported language for the user.
+ */
+function test_search_button_disabled_if_no_lang_support() {
+  // Set the user's supported language to something ridiculous (caching the
+  // old one so we can put it back later).
+  let oldLang = Services.prefs.getCharPref(kAcceptedLanguage);
+  Services.prefs.setCharPref(kAcceptedLanguage, "foo");
+
+  plan_for_modal_dialog("AccountCreation",
+                        subtest_search_button_disabled_on_init);
+  open_provisioner_window();
+  wait_for_modal_dialog("AccountCreation");
+
+  Services.prefs.setCharPref(kAcceptedLanguage, oldLang);
+}
+
+/**
+ * Subtest used by several functions that checks to make sure that the
+ * search button is disabled when the Account Provisioner dialog  is opened.
+ */
+function subtest_search_button_disabled_on_init(aController) {
+  wait_for_provider_list_loaded(aController);
+
+  // The search button should be disabled.
+  wait_for_element_enabled(aController, aController.e("searchSubmit"), false);
+  close_dialog_immediately(aController);
+}
+
+/**
+ * Test that if the providerList contains entries with supported languages
+ * including "*", they are always displayed, even if the users locale pref
+ * is not set to "*".
+ */
+function test_provider_language_wildcard() {
+  let oldLang = Services.prefs.getCharPref(kAcceptedLanguage);
+  Services.prefs.setCharPref(kAcceptedLanguage, "foo-bar");
+
+  let original = Services.prefs.getCharPref(kProviderListPref);
+  Services.prefs.setCharPref(kProviderListPref, url + "providerListWildcard");
+
+  plan_for_modal_dialog("AccountCreation",
+                        subtest_provider_language_wildcard);
+  open_provisioner_window();
+  wait_for_modal_dialog("AccountCreation");
+  Services.prefs.setCharPref(kProviderListPref, original);
+  Services.prefs.setCharPref(kAcceptedLanguage, oldLang);
+}
+
+/**
+ * Subtest used by test_provider_language_wildcard, ensures that the
+ * "Universal" and "OtherUniversal" providers are displayed, but the French
+ * and German ones are not.
+ */
+function subtest_provider_language_wildcard(aController) {
+  wait_for_provider_list_loaded(aController);
+  let doc = aController.window.document;
+  // Check that the two universal providers are visible.
+  wait_for_element_visible(aController, "universal-check");
+  wait_for_element_visible(aController, "otherUniversal-check");
+  // The French and German providers should not be visible.
+  wait_for_element_invisible(aController, "french-check");
+  wait_for_element_invisible(aController, "german-check");
+  close_dialog_immediately(aController);
+}
+
+/**
+ * Tests that the search button is disabled if we start up the Account
+ * Provisioner, and we have no search in the input.
+ */
+function test_search_button_disabled_if_no_query_on_init() {
+  // We have to do a little bit of gymnastics to access the local storage
+  // for the accountProvisioner dialog...
+  let url = "chrome://content/messenger/accountProvisionerStorage/accountProvisioner";
+  let ssm = Cc["@mozilla.org/scriptsecuritymanager;1"]
+    .getService(Ci.nsIScriptSecurityManager);
+  let dsm = Cc["@mozilla.org/dom/storagemanager;1"]
+    .getService(Ci.nsIDOMStorageManager);
+
+  let uri = Services.io.newURI(url, "", null);
+  let principal = ssm.getCodebasePrincipal(uri);
+  let storage = dsm.getLocalStorageForPrincipal(principal, url);
+
+  // Ok, got it. Now let's blank out the name.
+  storage.setItem("name", "");
+
+  plan_for_modal_dialog("AccountCreation",
+                        subtest_search_button_disabled_on_init);
+  open_provisioner_window();
+  wait_for_modal_dialog("AccountCreation");
+}
+
+/**
+ * Test that if we try to open the Account Provisioner dialog when an
+ * Account Provisioner tab is opened, that we focus the tab instead of opening
+ * the dialog.
+ */
+function test_get_new_account_focuses_existing_ap_tab() {
+  get_to_order_form("green@example.com");
+  let apTab = mc.tabmail.getTabInfoForCurrentOrFirstModeInstance(
+    mc.tabmail.tabModes["accountProvisionerTab"]);
+
+  // Switch back to the inbox tab.
+  mc.tabmail.switchToTab(0);
+
+  // Try to re-open the provisioner dialog
+  open_provisioner_window();
+
+  // If we got here, that means that we weren't blocked by a dialog
+  // being opened, which is good.
+  assert_selected_tab(apTab);
+
+  // Now open up the wizard, and try opening the Account Provisioner from
+  // there.
+  plan_for_new_window("mail:autoconfig");
+
+  // Open the wizard...
+  mc.click(new elib.Elem(mc.menus.menu_File.menu_New.newMailAccountMenuItem));
+  let wizard = wait_for_new_window("mail:autoconfig");
+
+  // Click on the "Get a new Account" button in the wizard.
+  wizard.click(wizard.eid("provisioner_button"));
+
+  // If we got here, that means that we weren't blocked by a dialog
+  // being opened, which is what we wanted..
+  assert_selected_tab(apTab);
+  mc.tabmail.closeTab(apTab);
+}
+
+/**
+ * Test that some prices can be per-address, instead of per-provider.
+ */
+function test_per_address_prices() {
+  plan_for_modal_dialog("AccountCreation", subtest_per_address_prices);
+  open_provisioner_window();
+  wait_for_modal_dialog("AccountCreation");
+}
+
+/**
+ * Subtest used by test_html_characters_and_ampersands.  This function puts
+ * a name with HTML tags into the search input, does a search, and ensures
+ * that the rendered name has escaped the HTML tags properly.
+ */
+function subtest_per_address_prices(w) {
+  wait_for_provider_list_loaded(w);
+  wait_for_search_ready(w);
+  let $ = w.window.$;
+
+  // Type a name with some HTML tags and an ampersand in there
+  // to see if we can trip up account provisioner.
+  type_in_search_name(w, "Joanna Finkelstein");
+
+  // Do the search.
+  $("#searchSubmit").click();
+
+  wait_for_search_results(w);
+
+  let prices = ["$20-$0 a year", "Free", "$20.00 a year"];
+
+  // Check that the multi-provider has the default price.
+  assert_true($(".provider:contains('multi') ~ .price").text(), prices[0].slice(0, 6));
+
+  // Click on the multi provider. This reveals the buttons with the prices.
+  $(".provider:contains('multi')").click();
+  mc.waitFor(function () $("button.create:visible").length > 0);
+
+  // For each button, make sure it has the correct price.
+  $("button.create:visible").text(function(index, text){
+    assert_equals(text, prices[index]);
+  });
 }

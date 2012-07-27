@@ -88,7 +88,6 @@ static const char sPrintSettingsServiceContractID[] = "@mozilla.org/gfx/printset
 // Print error dialog
 #include "nsIPrompt.h"
 #include "nsIWindowWatcher.h"
-#include "nsIStringBundle.h"
 
 // Printing Prompts
 #include "nsIPrintingPromptService.h"
@@ -106,7 +105,6 @@ static const char kPrintingPromptService[] = "@mozilla.org/embedcomp/printingpro
 
 // Misc
 #include "nsISupportsUtils.h"
-#include "nsIFrame.h"
 #include "nsIScriptContext.h"
 #include "nsILinkHandler.h"
 #include "nsIDOMDocument.h"
@@ -141,11 +139,9 @@ static const char kPrintingPromptService[] = "@mozilla.org/embedcomp/printingpro
 #include "nsIDocShellTreeNode.h"
 #include "nsIDocShellTreeOwner.h"
 #include "nsIWebBrowserChrome.h"
-#include "nsIDocShell.h"
 #include "nsIBaseWindow.h"
 #include "nsILayoutHistoryState.h"
 #include "nsFrameManager.h"
-#include "nsIParser.h"
 #include "nsGUIEvent.h"
 #include "nsHTMLReflowState.h"
 #include "nsIDOMHTMLAnchorElement.h"
@@ -156,7 +152,6 @@ static const char kPrintingPromptService[] = "@mozilla.org/embedcomp/printingpro
 #include "nsIContentViewer.h"
 #include "nsIDocumentViewerPrint.h"
 
-#include "nsPIDOMWindow.h"
 #include "nsFocusManager.h"
 #include "nsRange.h"
 #include "nsCDefaultURIFixup.h"
@@ -1688,9 +1683,6 @@ nsPrintEngine::SetupToPrintContent()
 
     // Only Shrink if we are smaller
     if (mPrt->mShrinkRatio < 0.998f) {
-      // Clamp Shrink to Fit to 60%
-      mPrt->mShrinkRatio = NS_MAX(mPrt->mShrinkRatio, 0.60f);
-
       for (PRUint32 i=0;i<mPrt->mPrintDocList.Length();i++) {
         nsPrintObject* po = mPrt->mPrintDocList.ElementAt(i);
         NS_ASSERTION(po, "nsPrintObject can't be null!");

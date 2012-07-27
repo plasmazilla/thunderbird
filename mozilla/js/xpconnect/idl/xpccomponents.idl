@@ -152,7 +152,7 @@ interface ScheduledGCCallback : nsISupports
 /**
 * interface of Components.utils
 */
-[scriptable, uuid(9e9ba9d6-a0fa-4767-9f49-9b74bb2368cd)]
+[scriptable, uuid(9e43a260-5db2-11e1-b86c-0800200c9a66)]
 interface nsIXPCComponents_Utils : nsISupports
 {
 
@@ -261,7 +261,6 @@ interface nsIXPCComponents_Utils : nsISupports
      *
      * Force an immediate garbage collection cycle.
      */
-    [implicit_jscontext]
     void forceGC();
     
     /*
@@ -269,21 +268,18 @@ interface nsIXPCComponents_Utils : nsISupports
      *
      * Force an immediate shrinking garbage collection cycle.
      */
-    [implicit_jscontext]
     void forceShrinkingGC();
 
     /*
      * Schedule a garbage collection cycle for a point in the future when no JS
      * is running. Call the provided function once this has occurred.
      */
-    [implicit_jscontext]
     void schedulePreciseGC(in ScheduledGCCallback callback);
     
     /*
      * Schedule a shrinking garbage collection cycle for a point in the future
      * when no JS is running. Call the provided function once this has occured.
      */
-    [implicit_jscontext]
     void schedulePreciseShrinkingGC(in ScheduledGCCallback callback);
 
     /**
@@ -300,6 +296,9 @@ interface nsIXPCComponents_Utils : nsISupports
      */
     [implicit_jscontext]
     jsval nondeterministicGetWeakMapKeys(in jsval aMap);
+
+    [implicit_jscontext]
+    jsval getJSTestingFunctions();
 
     /*
      * To be called from JS only.

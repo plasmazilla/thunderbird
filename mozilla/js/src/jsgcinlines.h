@@ -118,8 +118,8 @@ GetGCObjectFixedSlotsKind(size_t numFixedSlots)
 static inline bool
 IsBackgroundAllocKind(AllocKind kind)
 {
-    JS_ASSERT(kind <= FINALIZE_OBJECT_LAST);
-    return kind % 2 == 1;
+    JS_ASSERT(kind <= FINALIZE_LAST);
+    return kind <= FINALIZE_OBJECT_LAST && kind % 2 == 1;
 }
 
 static inline AllocKind
@@ -195,7 +195,7 @@ GetGCKindSlots(AllocKind thingKind, Class *clasp)
 }
 
 static inline void
-GCPoke(JSContext *cx, Value oldval)
+GCPoke(JSRuntime *rt, Value oldval)
 {
     /*
      * Since we're forcing a GC from JS_GC anyway, don't bother wasting cycles
@@ -203,15 +203,15 @@ GCPoke(JSContext *cx, Value oldval)
      * ignored", etc.
      */
 #if 1
-    cx->runtime->gcPoke = JS_TRUE;
+    rt->gcPoke = true;
 #else
-    cx->runtime->gcPoke = oldval.isGCThing();
+    rt->gcPoke = oldval.isGCThing();
 #endif
 
 #ifdef JS_GC_ZEAL
     /* Schedule a GC to happen "soon" after a GC poke. */
-    if (cx->runtime->gcZeal() >= js::gc::ZealPokeThreshold)
-        cx->runtime->gcNextScheduled = 1;
+    if (rt->gcZeal() == js::gc::ZealPokeValue)
+        rt->gcNextScheduled = 1;
 #endif
 }
 
@@ -262,14 +262,25 @@ class CellIterImpl
     CellIterImpl() {
     }
 
-    void init(JSCompartment *comp, AllocKind kind) {
+    void initSpan(JSCompartment *comp, AllocKind kind) {
         JS_ASSERT(comp->arenas.isSynchronizedFreeList(kind));
         firstThingOffset = Arena::firstThingOffset(kind);
         thingSize = Arena::thingSize(kind);
-        aheader = comp->arenas.getFirstArena(kind);
         firstSpan.initAsEmpty();
         span = &firstSpan;
         thing = span->first;
+    }
+
+    void init(ArenaHeader *singleAheader) {
+        aheader = singleAheader;
+        initSpan(aheader->compartment, aheader->getAllocKind());
+        next();
+        aheader = NULL;
+    }
+
+    void init(JSCompartment *comp, AllocKind kind) {
+        initSpan(comp, kind);
+        aheader = comp->arenas.getFirstArena(kind);
         next();
     }
 
@@ -311,12 +322,17 @@ class CellIterImpl
     }
 };
 
-class CellIterUnderGC : public CellIterImpl {
-
+class CellIterUnderGC : public CellIterImpl
+{
   public:
     CellIterUnderGC(JSCompartment *comp, AllocKind kind) {
         JS_ASSERT(comp->rt->gcRunning);
         init(comp, kind);
+    }
+
+    CellIterUnderGC(ArenaHeader *aheader) {
+        JS_ASSERT(aheader->compartment->rt->gcRunning);
+        init(aheader);
     }
 };
 
@@ -325,7 +341,7 @@ class CellIterUnderGC : public CellIterImpl {
  * allocations of GC things are possible and that the background finalization
  * for the given thing kind is not enabled or is done.
  */
-class CellIter: public CellIterImpl
+class CellIter : public CellIterImpl
 {
     ArenaLists *lists;
     AllocKind kind;
@@ -333,12 +349,17 @@ class CellIter: public CellIterImpl
     size_t *counter;
 #endif
   public:
-    CellIter(JSContext *cx, JSCompartment *comp, AllocKind kind)
+    CellIter(JSCompartment *comp, AllocKind kind)
       : lists(&comp->arenas),
-        kind(kind) {
-#ifdef JS_THREADSAFE
-        JS_ASSERT(comp->arenas.doneBackgroundFinalize(kind));
-#endif
+        kind(kind)
+    {
+        /*
+         * We have a single-threaded runtime, so there's no need to protect
+         * against other threads iterating or allocating. However, we do have
+         * background finalization; make sure people aren't using CellIter to
+         * walk such allocation kinds.
+         */
+        JS_ASSERT(!IsBackgroundAllocKind(kind));
         if (lists->isSynchronizedFreeList(kind)) {
             lists = NULL;
         } else {
@@ -346,7 +367,7 @@ class CellIter: public CellIterImpl
             lists->copyFreeListToArena(kind);
         }
 #ifdef DEBUG
-        counter = &cx->runtime->noGCOrAllocationCheck;
+        counter = &comp->rt->noGCOrAllocationCheck;
         ++*counter;
 #endif
         init(comp, kind);
@@ -367,6 +388,38 @@ class CellIter: public CellIterImpl
 inline void EmptyArenaOp(Arena *arena) {}
 inline void EmptyCellOp(Cell *t) {}
 
+class GCCompartmentsIter {
+  private:
+    JSCompartment **it, **end;
+
+  public:
+    GCCompartmentsIter(JSRuntime *rt) {
+        JS_ASSERT(rt->gcRunning);
+        it = rt->compartments.begin();
+        end = rt->compartments.end();
+        if (!(*it)->isCollecting())
+            next();
+        JS_ASSERT(it < end);
+    }
+
+    bool done() const { return it == end; }
+
+    void next() {
+        JS_ASSERT(!done());
+        do {
+            it++;
+        } while (it != end && !(*it)->isCollecting());
+    }
+
+    JSCompartment *get() const {
+        JS_ASSERT(!done());
+        return *it;
+    }
+
+    operator JSCompartment *() const { return get(); }
+    JSCompartment *operator->() const { return get(); }
+};
+
 /*
  * Allocates a new GC thing. After a successful allocation the caller must
  * fully initialize the thing before calling any function that can potentially
@@ -386,6 +439,9 @@ NewGCThing(JSContext *cx, js::gc::AllocKind kind, size_t thingSize)
     JS_ASSERT(!cx->runtime->gcRunning);
     JS_ASSERT(!cx->runtime->noGCOrAllocationCheck);
 
+    /* For testing out of memory conditions */
+    JS_OOM_POSSIBLY_FAIL_REPORT(cx);
+
 #ifdef JS_GC_ZEAL
     if (cx->runtime->needZealousGC())
         js::gc::RunDebugGC(cx);
@@ -397,6 +453,9 @@ NewGCThing(JSContext *cx, js::gc::AllocKind kind, size_t thingSize)
     void *t = comp->arenas.allocateFromFreeList(kind, thingSize);
     if (!t)
         t = js::gc::ArenaLists::refillFreeList(cx, kind);
+
+    JS_ASSERT_IF(t && comp->needsBarrier(),
+                 static_cast<T *>(t)->arenaHeader()->allocatedDuringIncremental);
     return static_cast<T *>(t);
 }
 
@@ -419,6 +478,8 @@ TryNewGCThing(JSContext *cx, js::gc::AllocKind kind, size_t thingSize)
 #endif
 
     void *t = cx->compartment->arenas.allocateFromFreeList(kind, thingSize);
+    JS_ASSERT_IF(t && cx->compartment->needsBarrier(),
+                 static_cast<T *>(t)->arenaHeader()->allocatedDuringIncremental);
     return static_cast<T *>(t);
 }
 

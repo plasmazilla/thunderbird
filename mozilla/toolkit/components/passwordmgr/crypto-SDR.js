@@ -103,7 +103,6 @@ LoginManagerCrypto_SDR.prototype = {
     init : function () {
         // Connect to the correct preferences branch.
         this._prefBranch = Services.prefs.getBranch("signon.");
-        this._prefBranch.QueryInterface(Ci.nsIPrefBranch2);
 
         this._debug = this._prefBranch.getBoolPref("debug");
 
@@ -237,6 +236,14 @@ LoginManagerCrypto_SDR.prototype = {
         if (status == Ci.nsIPKCS11Slot.SLOT_NOT_LOGGED_IN)
             return false;
         throw Components.Exception("unexpected slot status: " + status, Cr.NS_ERROR_FAILURE);
+    },
+
+
+    /*
+     * defaultEncType
+     */
+    get defaultEncType() {
+        return Ci.nsILoginManagerCrypto.ENCTYPE_SDR;
     },
 
 

@@ -40,6 +40,7 @@
 #include "mozilla/dom/ContentChild.h"
 
 #include "mozilla/Util.h"
+#include "mozilla/HashFunctions.h"
 
 #include "nsXULAppAPI.h"
 
@@ -87,9 +88,10 @@ static NS_DEFINE_CID(kZipReaderCID, NS_ZIPREADER_CID);
 static nsresult openPrefFile(nsIFile* aFile);
 static nsresult pref_InitInitialObjects(void);
 static nsresult pref_LoadPrefsInDirList(const char *listId);
+static nsresult ReadExtensionPrefs(nsIFile *aFile);
 
 Preferences* Preferences::sPreferences = nsnull;
-nsIPrefBranch2* Preferences::sRootBranch = nsnull;
+nsIPrefBranch* Preferences::sRootBranch = nsnull;
 nsIPrefBranch* Preferences::sDefaultRootBranch = nsnull;
 bool Preferences::sShutdown = false;
 
@@ -105,9 +107,8 @@ public:
 
   static PLDHashNumber HashKey(const ValueObserverHashKey *aKey)
   {
-    PRUint32 strHash = nsCRT::HashCode(aKey->mPrefName.BeginReading(),
-                                       aKey->mPrefName.Length());
-    return PR_ROTATE_LEFT32(strHash, 4) ^ NS_PTR_TO_UINT32(aKey->mCallback);
+    PLDHashNumber hash = HashString(aKey->mPrefName);
+    return AddToHash(hash, aKey->mCallback);
   }
 
   ValueObserverHashKey(const char *aPref, PrefChangedFunc aCallback) :
@@ -351,12 +352,17 @@ Preferences::Init()
 
   rv = observerService->AddObserver(this, "profile-before-change", true);
 
-  if (NS_SUCCEEDED(rv))
-    rv = observerService->AddObserver(this, "profile-do-change", true);
-
   observerService->AddObserver(this, "load-extension-defaults", true);
 
   return(rv);
+}
+
+// static
+nsresult
+Preferences::ResetAndReadUserPrefs()
+{
+  sPreferences->ResetUserPrefs();
+  return sPreferences->ReadUserPrefs(nsnull);
 }
 
 NS_IMETHODIMP
@@ -377,9 +383,6 @@ Preferences::Observe(nsISupports *aSubject, const char *aTopic,
     } else {
       rv = SavePrefFile(nsnull);
     }
-  } else if (!nsCRT::strcmp(aTopic, "profile-do-change")) {
-    ResetUserPrefs();
-    rv = ReadUserPrefs(nsnull);
   } else if (!strcmp(aTopic, "load-extension-defaults")) {
     pref_LoadPrefsInDirList(NS_EXT_PREFS_DEFAULTS_DIR_LIST);
   } else if (!nsCRT::strcmp(aTopic, "reload-default-prefs")) {
@@ -402,13 +405,15 @@ Preferences::ReadUserPrefs(nsIFile *aFile)
 
   if (nsnull == aFile) {
     rv = UseDefaultPrefFile();
-    UseUserPrefFile();
+    // A user pref file is optional.
+    // Ignore all errors related to it, so we retain 'rv' value :-|
+    (void) UseUserPrefFile();
 
     NotifyServiceObservers(NS_PREFSERVICE_READ_TOPIC_ID);
-
   } else {
     rv = ReadAndOwnUserPrefFile(aFile);
   }
+
   return rv;
 }
 
@@ -452,8 +457,8 @@ Preferences::SavePrefFile(nsIFile *aFile)
   return SavePrefFileInternal(aFile);
 }
 
-nsresult
-Preferences::ReadExtensionPrefs(nsIFile *aFile)
+static nsresult
+ReadExtensionPrefs(nsIFile *aFile)
 {
   nsresult rv;
   nsCOMPtr<nsIZipReader> reader = do_CreateInstance(kZipReaderCID, &rv);
@@ -584,7 +589,7 @@ Preferences::NotifyServiceObservers(const char *aTopic)
 nsresult
 Preferences::UseDefaultPrefFile()
 {
-  nsresult rv, rv2;
+  nsresult rv;
   nsCOMPtr<nsIFile> aFile;
 
   rv = NS_GetSpecialDirectory(NS_APP_PREFS_50_FILE, getter_AddRefs(aFile));
@@ -594,8 +599,10 @@ Preferences::UseDefaultPrefFile()
     // exist, so save a new one. mUserPrefReadFailed will be
     // used to catch an error in actually reading the file.
     if (NS_FAILED(rv)) {
-      rv2 = SavePrefFileInternal(aFile);
-      NS_ASSERTION(NS_SUCCEEDED(rv2), "Failed to save new shared pref file");
+      if (NS_FAILED(SavePrefFileInternal(aFile)))
+        NS_ERROR("Failed to save new shared pref file");
+      else
+        rv = NS_OK;
     }
   }
   
@@ -715,8 +722,6 @@ Preferences::WritePrefFile(nsIFile* aFile)
     " *"
     NS_LINEBREAK
     " * To make a manual change to preferences, you can visit the URL about:config"
-    NS_LINEBREAK
-    " * For more information, see http://www.mozilla.org/unix/customizing.html#prefs"
     NS_LINEBREAK
     " */"
     NS_LINEBREAK
@@ -853,7 +858,7 @@ pref_LoadPrefsInDir(nsIFile* aDir, char const *const *aSpecialFiles, PRUint32 aS
   if (NS_FAILED(rv)) {
     // If the directory doesn't exist, then we have no reason to complain.  We
     // loaded everything (and nothing) successfully.
-    if (rv == NS_ERROR_FILE_NOT_FOUND)
+    if (rv == NS_ERROR_FILE_NOT_FOUND || rv == NS_ERROR_FILE_TARGET_DOES_NOT_EXIST)
       rv = NS_OK;
     return rv;
   }
@@ -938,25 +943,35 @@ static nsresult pref_LoadPrefsInDirList(const char *listId)
 {
   nsresult rv;
   nsCOMPtr<nsIProperties> dirSvc(do_GetService(NS_DIRECTORY_SERVICE_CONTRACTID, &rv));
-  if (NS_FAILED(rv)) return rv;
+  if (NS_FAILED(rv))
+    return rv;
 
-  nsCOMPtr<nsISimpleEnumerator> dirList;
+  nsCOMPtr<nsISimpleEnumerator> list;
   dirSvc->Get(listId,
               NS_GET_IID(nsISimpleEnumerator),
-              getter_AddRefs(dirList));
-  if (dirList) {
-    bool hasMore;
-    while (NS_SUCCEEDED(dirList->HasMoreElements(&hasMore)) && hasMore) {
-      nsCOMPtr<nsISupports> elem;
-      dirList->GetNext(getter_AddRefs(elem));
-      if (elem) {
-        nsCOMPtr<nsIFile> dir = do_QueryInterface(elem);
-        if (dir) {
-          // Do we care if a file provided by this process fails to load?
-          pref_LoadPrefsInDir(dir, nsnull, 0); 
-        }
-      }
-    }
+              getter_AddRefs(list));
+  if (!list)
+    return NS_OK;
+
+  bool hasMore;
+  while (NS_SUCCEEDED(list->HasMoreElements(&hasMore)) && hasMore) {
+    nsCOMPtr<nsISupports> elem;
+    list->GetNext(getter_AddRefs(elem));
+    if (!elem)
+      continue;
+
+    nsCOMPtr<nsIFile> path = do_QueryInterface(elem);
+    if (!path)
+      continue;
+
+    nsCAutoString leaf;
+    path->GetNativeLeafName(leaf);
+
+    // Do we care if a file provided by this process fails to load?
+    if (Substring(leaf, leaf.Length() - 4).Equals(NS_LITERAL_CSTRING(".xpi")))
+      ReadExtensionPrefs(path);
+    else
+      pref_LoadPrefsInDir(path, nsnull, 0);
   }
   return NS_OK;
 }
@@ -1000,6 +1015,10 @@ static nsresult pref_InitInitialObjects()
   // - $app/defaults/preferences/*.js
   // and in non omni.jar case:
   // - $app/defaults/preferences/*.js
+  // When $app == $gre, we additionally load, in omni.jar case:
+  // - jar:$gre/omni.jar!/defaults/preferences/*.js
+  // Thus, in omni.jar case, we always load app-specific default preferences
+  // from omni.jar, whether or not $app == $gre.
 
   nsZipFind *findPtr;
   nsAutoPtr<nsZipFind> find;
@@ -1073,7 +1092,12 @@ static nsresult pref_InitInitialObjects()
     NS_WARNING("Error parsing application default preferences.");
 
   // Load jar:$app/omni.jar!/defaults/preferences/*.js
+  // or jar:$gre/omni.jar!/defaults/preferences/*.js.
   nsRefPtr<nsZipArchive> appJarReader = mozilla::Omnijar::GetReader(mozilla::Omnijar::APP);
+  // GetReader(mozilla::Omnijar::APP) returns null when $app == $gre, in which
+  // case we look for app-specific default preferences in $gre.
+  if (!appJarReader)
+    appJarReader = mozilla::Omnijar::GetReader(mozilla::Omnijar::GRE);
   if (appJarReader) {
     rv = appJarReader->FindInit("defaults/preferences/*.js$", &findPtr);
     NS_ENSURE_SUCCESS(rv, rv);
@@ -1311,6 +1335,16 @@ Preferences::HasUserValue(const char* aPref)
 {
   NS_ENSURE_TRUE(InitStaticMembers(), false);
   return PREF_HasUserPref(aPref);
+}
+
+// static
+PRInt32
+Preferences::GetType(const char* aPref)
+{
+  NS_ENSURE_TRUE(InitStaticMembers(), nsIPrefBranch::PREF_INVALID);
+  PRInt32 result;
+  return NS_SUCCEEDED(sRootBranch->GetPrefType(aPref, &result)) ?
+    result : nsIPrefBranch::PREF_INVALID;
 }
 
 // static
@@ -1623,6 +1657,16 @@ Preferences::GetDefaultComplex(const char* aPref, const nsIID &aType,
 {
   NS_ENSURE_TRUE(InitStaticMembers(), NS_ERROR_NOT_AVAILABLE);
   return sDefaultRootBranch->GetComplexValue(aPref, aType, aResult);
+}
+
+// static
+PRInt32
+Preferences::GetDefaultType(const char* aPref)
+{
+  NS_ENSURE_TRUE(InitStaticMembers(), nsIPrefBranch::PREF_INVALID);
+  PRInt32 result;
+  return NS_SUCCEEDED(sDefaultRootBranch->GetPrefType(aPref, &result)) ?
+    result : nsIPrefBranch::PREF_INVALID;
 }
 
 } // namespace mozilla

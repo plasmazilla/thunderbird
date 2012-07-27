@@ -49,7 +49,6 @@ interface nsIDOMMediaQueryList;
 interface nsIDOMOfflineResourceList;
 interface nsIDOMPerformance;
 interface nsIDOMStorage;
-interface nsIDOMStorageList;
 interface nsIPrompt;
 interface nsISelection;
 interface nsIVariant;
@@ -437,11 +436,6 @@ interface nsIDOMWindow : nsISupports
    * @see <http://dev.w3.org/2006/webapi/FileAPI/#creating-revoking>
    */
   readonly attribute nsIDOMMozURLProperty URL;
-
-  /**
-   * Global storage, accessible by domain.
-   */
-  readonly attribute nsIDOMStorageList globalStorage;
 
   /**
    * HTML5 event attributes that only apply to windows and <body>/<frameset>

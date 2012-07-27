@@ -52,6 +52,7 @@
 #include "nsComponentManagerUtils.h"
 #include "nsServiceManagerUtils.h"
 #include "nsMsgUtils.h"
+#include "mozilla/Services.h"
 
 #define PREF_BIFF_JITTER "mail.biff.add_interval_jitter"
 
@@ -83,10 +84,9 @@ nsMsgBiffManager::~nsMsgBiffManager()
   if (!mHaveShutdown)
     Shutdown();
 
-  nsresult rv;
   nsCOMPtr<nsIObserverService> observerService =
-       do_GetService("@mozilla.org/observer-service;1", &rv);
-  if (NS_SUCCEEDED(rv))
+    mozilla::services::GetObserverService();
+  if (observerService)
   {
     observerService->RemoveObserver(this, "wake_notification");
     observerService->RemoveObserver(this, "sleep_notification");
@@ -121,8 +121,8 @@ NS_IMETHODIMP nsMsgBiffManager::Init()
     MsgBiffLogModule = PR_NewLogModule("MsgBiff");
 
   nsCOMPtr<nsIObserverService> observerService =
-           do_GetService("@mozilla.org/observer-service;1", &rv);
-  if (NS_SUCCEEDED(rv))
+    mozilla::services::GetObserverService();
+  if (observerService)
   {
     observerService->AddObserver(this, "sleep_notification", true);
     observerService->AddObserver(this, "wake_notification", true);
@@ -168,11 +168,12 @@ NS_IMETHODIMP nsMsgBiffManager::Observe(nsISupports *aSubject, const char *aTopi
 
 NS_IMETHODIMP nsMsgBiffManager::AddServerBiff(nsIMsgIncomingServer *server)
 {
+  NS_ENSURE_ARG_POINTER(server);
+
   PRInt32 biffMinutes;
 
   nsresult rv = server->GetBiffMinutes(&biffMinutes);
-  if (NS_FAILED(rv))
-    return rv;
+  NS_ENSURE_SUCCESS(rv, rv);
 
   // Don't add if biffMinutes isn't > 0
   if (biffMinutes > 0)
@@ -184,8 +185,7 @@ NS_IMETHODIMP nsMsgBiffManager::AddServerBiff(nsIMsgIncomingServer *server)
       nsBiffEntry biffEntry;
       biffEntry.server = server;
       rv = SetNextBiffTime(biffEntry, PR_Now());
-      if (NS_FAILED(rv))
-        return rv;
+      NS_ENSURE_SUCCESS(rv, rv);
 
       AddBiffEntry(biffEntry);
       SetupNextBiff();
@@ -218,6 +218,8 @@ NS_IMETHODIMP nsMsgBiffManager::ForceBiffAll()
 
 NS_IMETHODIMP nsMsgBiffManager::OnServerLoaded(nsIMsgIncomingServer *server)
 {
+  NS_ENSURE_ARG_POINTER(server);
+
   bool doBiff = false;
   nsresult rv = server->GetDoBiff(&doBiff);
 
@@ -267,8 +269,7 @@ nsresult nsMsgBiffManager::AddBiffEntry(nsBiffEntry &biffEntry)
 nsresult nsMsgBiffManager::SetNextBiffTime(nsBiffEntry &biffEntry, PRTime currentTime)
 {
   nsIMsgIncomingServer *server = biffEntry.server;
-  if (!server)
-    return NS_ERROR_FAILURE;
+  NS_ENSURE_TRUE(server, NS_ERROR_FAILURE);
 
   PRInt32 biffInterval;
   nsresult rv = server->GetBiffMinutes(&biffInterval);

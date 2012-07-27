@@ -35,6 +35,10 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+/**
+ * Tests attachment handling functionality of the message compose window.
+ */
+
 var Ci = Components.interfaces;
 var Cc = Components.classes;
 var Cu = Components.utils;
@@ -201,7 +205,7 @@ function test_file_attachment() {
 function test_webpage_attachment() {
   let cwc = open_compose_new_mail();
 
-  add_attachment(cwc, "http://www.mozillamessaging.com/");
+  add_attachment(cwc, "http://www.mozilla.org/");
   check_no_attachment_size(cwc, 0);
   check_total_attachment_size(cwc, 1);
 
@@ -342,3 +346,4 @@ function test_forward_message_with_attachments_as_attachment() {
 
 // XXX: Test attached emails dragged onto composer and files pulled from other
 // emails (this probably requires better drag-and-drop support from Mozmill)
+

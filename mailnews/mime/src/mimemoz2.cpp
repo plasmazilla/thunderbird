@@ -70,7 +70,6 @@
 #include "nsIImapUrl.h"
 #include "nsMsgI18N.h"
 #include "nsICharsetConverterManager.h"
-#include "nsICharsetAlias.h"
 #include "nsMimeTypes.h"
 #include "nsIIOService.h"
 #include "nsIURI.h"
@@ -86,19 +85,11 @@
 #include "mimeeobj.h"
 // <for functions="HTML2Plaintext,HTMLSantinize">
 #include "nsXPCOM.h"
-#include "nsParserCIID.h"
-#include "nsIParser.h"
-#include "nsIHTMLContentSink.h"
-#include "nsIContentSerializer.h"
 #include "nsLayoutCID.h"
 #include "nsIComponentManager.h"
-#include "nsIHTMLToTextSink.h"
-#include "mozISanitizingSerializer.h"
+#include "nsIParserUtils.h"
 // </for>
-
-// <for functions="HTML2Plaintext,HTMLSantinize">
-static NS_DEFINE_CID(kParserCID, NS_PARSER_CID);
-// </for>
+#include "mozilla/Services.h"
 
 #ifdef HAVE_MIME_DATA_SLOT
 #define LOCK_LAST_CACHED_MESSAGE
@@ -125,9 +116,12 @@ MimeObject    *mime_get_main_object(MimeObject* obj);
 nsresult MimeGetSize(MimeObject *child, PRInt32 *size) {
   bool isLeaf = mime_subclass_p(child->clazz, (MimeObjectClass *) &mimeLeafClass);
   bool isContainer = mime_subclass_p(child->clazz, (MimeObjectClass *) &mimeContainerClass);
+  bool isMsg = mime_subclass_p(child->clazz, (MimeObjectClass *) &mimeMessageClass);
 
   if (isLeaf) {
     *size += ((MimeLeaf *)child)->sizeSoFar;
+  } else if (isMsg) {
+    *size += ((MimeMessage *)child)->sizeSoFar;
   } else if (isContainer) {
     int i;
     MimeContainer *cont = (MimeContainer *)child;
@@ -174,6 +168,14 @@ ProcessBodyAsAttachment(MimeObject *obj, nsMsgAttachmentData **data)
   else
   {
     tmp->m_realName.Adopt(MimeHeaders_get_name(child->headers, obj->options));
+
+    if (tmp->m_realName.IsEmpty() &&
+        tmp->m_realType.LowerCaseEqualsLiteral(MESSAGE_RFC822))
+    {
+      // We haven't actually parsed the message "attachment", so just give it a
+      // generic name.
+      tmp->m_realName = "AttachedMessage.eml";
+    }
   }
 
   tmp->m_hasFilename = !tmp->m_realName.IsEmpty();
@@ -270,21 +272,6 @@ ValidateRealName(nsMsgAttachmentData *aAttach, MimeHeaders *aHdrs)
       StringBeginsWith(aAttach->m_realType, NS_LITERAL_CSTRING("multipart"),
                        nsCaseInsensitiveCStringComparator()))
     return;
-
-  // Special case...if this is a enclosed RFC822 message, give it a nice
-  // name.
-  if (aAttach->m_realType.LowerCaseEqualsLiteral(MESSAGE_RFC822))
-  {
-    NS_ASSERTION(aHdrs, "How comes the object's headers is null!");
-    if (aHdrs && aHdrs->munged_subject)
-    {
-      aAttach->m_realName.Assign(aHdrs->munged_subject);
-      aAttach->m_realName.Append(".eml");
-    }
-    else
-      aAttach->m_realName = "ForwardedMessage.eml";
-    return;
-  }
 
   //
   // Now validate any other name we have for the attachment!
@@ -496,7 +483,21 @@ GenerateAttachmentData(MimeObject *object, const char *aMessageURL, MimeDisplayO
     // Allows the JS mime emitter to figure out the part information.
     urlString.Append("?part=");
     urlString.Append(part);
+  } else if (tmp->m_realType.LowerCaseEqualsLiteral(MESSAGE_RFC822)) {
+    // Special case...if this is a enclosed RFC822 message, give it a nice
+    // name.
+    if (object->headers->munged_subject)
+    {
+      nsCString subject;
+      subject.Assign(object->headers->munged_subject);
+      MimeHeaders_convert_header_value(options, subject, false);
+      tmp->m_realName.Assign(subject);
+      tmp->m_realName.Append(".eml");
+    }
+    else
+      tmp->m_realName = "ForwardedMessage.eml";
   }
+
   nsresult rv = nsMimeNewURI(getter_AddRefs(tmp->m_url), urlString.get(), nsnull);
 
   PR_FREEIF(urlSpec);
@@ -614,12 +615,7 @@ MimeGetAttachmentList(MimeObject *tobj, const char *aMessageURL, nsMsgAttachment
     return 0;
 
   if (!mime_subclass_p(obj->clazz, (MimeObjectClass*) &mimeContainerClass))
-  {
-    if (!PL_strcasecmp(obj->content_type, MESSAGE_RFC822))
-      return 0;
-    else
-      return ProcessBodyAsAttachment(obj, data);
-  }
+    return ProcessBodyAsAttachment(obj, data);
 
   isAnInlineMessage = mime_typep(obj, (MimeObjectClass *) &mimeMessageClass);
 
@@ -645,7 +641,10 @@ MimeGetAttachmentList(MimeObject *tobj, const char *aMessageURL, nsMsgAttachment
 
   if (isAnInlineMessage)
   {
-    rv = GenerateAttachmentData(obj, aMessageURL, obj->options, false, -1, *data);
+    PRInt32 size = 0;
+    MimeGetSize(obj, &size);
+    rv = GenerateAttachmentData(obj, aMessageURL, obj->options, false, size,
+                                *data);
     NS_ENSURE_SUCCESS(rv, rv);
   }
   return BuildAttachmentList((MimeObject *) cobj, *data, aMessageURL);
@@ -725,9 +724,9 @@ nsMimeNewURI(nsIURI** aInstancePtrResult, const char *aSpec, nsIURI *aBase)
   if (nsnull == aInstancePtrResult)
     return NS_ERROR_NULL_POINTER;
 
-  nsCOMPtr<nsIIOService> pService(do_GetService(NS_IOSERVICE_CONTRACTID, &res));
-  if (NS_FAILED(res))
-    return NS_ERROR_FACTORY_NOT_REGISTERED;
+  nsCOMPtr<nsIIOService> pService =
+    mozilla::services::GetIOService();
+  NS_ENSURE_TRUE(pService, NS_ERROR_FACTORY_NOT_REGISTERED);
 
   return pService->NewURI(nsDependentCString(aSpec), nsnull, aBase, aInstancePtrResult);
 }
@@ -1976,7 +1975,8 @@ mimeEmitterEndHeader(MimeDisplayOptions *opt, MimeObject *obj)
     if (msd->format_out == nsMimeOutput::nsMimeMessageSplitDisplay ||
         msd->format_out == nsMimeOutput::nsMimeMessageHeaderDisplay ||
         msd->format_out == nsMimeOutput::nsMimeMessageBodyDisplay ||
-        msd->format_out == nsMimeOutput::nsMimeMessageSaveAs) {
+        msd->format_out == nsMimeOutput::nsMimeMessageSaveAs ||
+        msd->format_out == nsMimeOutput::nsMimeMessagePrintOutput) {
       if (obj->headers) {
         nsMsgAttachmentData attachment;
         attIndex = 0;
@@ -2063,7 +2063,7 @@ char *
 MimeGetStringByID(PRInt32 stringID)
 {
   nsCOMPtr<nsIStringBundleService> stringBundleService =
-    do_GetService(NS_STRINGBUNDLE_CONTRACTID);
+    mozilla::services::GetStringBundleService();
 
   nsCOMPtr<nsIStringBundle> stringBundle;
   stringBundleService->CreateBundle(MIME_URL, getter_AddRefs(stringBundle));
@@ -2071,6 +2071,25 @@ MimeGetStringByID(PRInt32 stringID)
   {
     nsString v;
     if (NS_SUCCEEDED(stringBundle->GetStringFromID(stringID, getter_Copies(v))))
+      return ToNewUTF8String(v);
+  }
+
+  return strdup("???");
+}
+
+extern "C"
+char *
+MimeGetStringByName(const PRUnichar *stringName)
+{
+  nsCOMPtr<nsIStringBundleService> stringBundleService =
+    do_GetService(NS_STRINGBUNDLE_CONTRACTID);
+
+  nsCOMPtr<nsIStringBundle> stringBundle;
+  stringBundleService->CreateBundle(MIME_URL, getter_AddRefs(stringBundle));
+  if (stringBundle)
+  {
+    nsString v;
+    if (NS_SUCCEEDED(stringBundle->GetStringFromName(stringName, getter_Copies(v))))
       return ToNewUTF8String(v);
   }
 
@@ -2203,115 +2222,67 @@ nsresult GetMailNewsFont(MimeObject *obj, bool styleFixed,  PRInt32 *fontPixelSi
 
    flags: see nsIDocumentEncoder.h
 */
-// TODO: |printf|s?
-/* <copy from="mozilla/parser/htmlparser/test/outsinks/Convert.cpp"
-         author="akk"
-         adapted-by="Ben Bucksch"
-         comment=" 'This code would not have been possible without akk.' ;-P.
-                   No, really. "
-   > */
 nsresult
 HTML2Plaintext(const nsString& inString, nsString& outString,
                PRUint32 flags, PRUint32 wrapCol)
 {
-  nsresult rv = NS_OK;
-
-#if DEBUG_BenB
-  printf("Converting HTML to plaintext\n");
-  char* charstar = ToNewUTF8String(inString);
-  printf("HTML source is:\n--------------------\n%s--------------------\n",
-         charstar);
-  delete[] charstar;
-#endif
-
-  // Create a parser
-  nsCOMPtr<nsIParser> parser = do_CreateInstance(kParserCID);
-  NS_ENSURE_TRUE(parser, NS_ERROR_FAILURE);
-
-  // Create the appropriate output sink
-  nsCOMPtr<nsIContentSink> sink =
-                               do_CreateInstance(NS_PLAINTEXTSINK_CONTRACTID);
-  NS_ENSURE_TRUE(sink, NS_ERROR_FAILURE);
-
-  nsCOMPtr<nsIHTMLToTextSink> textSink(do_QueryInterface(sink));
-  NS_ENSURE_TRUE(textSink, NS_ERROR_FAILURE);
-
-  textSink->Initialize(&outString, flags, wrapCol);
-
-  parser->SetContentSink(sink);
-
-  rv = parser->Parse(inString, 0, NS_LITERAL_CSTRING("text/html"), true);
-
-  // Aah! How can NS_ERROR and NS_ABORT_IF_FALSE be no-ops in release builds???
-  if (NS_FAILED(rv))
-  {
-    NS_ERROR("Parse() failed!");
-    return rv;
-  }
-
-#if DEBUG_BenB
-  charstar = ToNewUTF8String(outString);
-  printf("Plaintext is:\n--------------------\n%s--------------------\n",
-         charstar);
-  delete[] charstar;
-#endif
-
-  return rv;
+  nsCOMPtr<nsIParserUtils> utils =
+    do_GetService(NS_PARSERUTILS_CONTRACTID);
+  return utils->ConvertToPlainText(inString, flags, wrapCol, outString);
 }
 // </copy>
 
 
 
 /* This function syncronously sanitizes an HTML document (string->string)
-   using the Gecko ContentSink mozISanitizingHTMLSerializer.
-
-   flags: currently unused
-   allowedTags: see mozSanitizingHTMLSerializer::ParsePrefs()
+   using the Gecko nsTreeSanitizer.
 */
 // copied from HTML2Plaintext above
 nsresult
-HTMLSanitize(const nsString& inString, nsString& outString,
-             PRUint32 flags, const nsAString& allowedTags)
+HTMLSanitize(const nsString& inString, nsString& outString)
 {
-  nsresult rv = NS_OK;
+  // If you want to add alternative sanitization, you can insert a conditional
+  // call to another sanitizer and an early return here.
 
-#if DEBUG_BenB
-  printf("Sanitizing HTML\n");
-  char* charstar = ToNewUTF8String(inString);
-  printf("Original HTML is:\n--------------------\n%s--------------------\n",
-         charstar);
-  delete[] charstar;
-#endif
+  PRUint32 flags = nsIParserUtils::SanitizerCidEmbedsOnly |
+                   nsIParserUtils::SanitizerDropForms;
 
-  // Create a parser
-  nsCOMPtr<nsIParser> parser = do_CreateInstance(kParserCID);
-  NS_ENSURE_TRUE(parser, NS_ERROR_FAILURE);
+  nsCOMPtr<nsIPrefBranch> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID));
 
-  // Create the appropriate output sink
-  nsCOMPtr<nsIContentSink> sink =
-                    do_CreateInstance(MOZ_SANITIZINGHTMLSERIALIZER_CONTRACTID);
-  NS_ENSURE_TRUE(sink, NS_ERROR_FAILURE);
-
-  nsCOMPtr<mozISanitizingHTMLSerializer> sanSink(do_QueryInterface(sink));
-  NS_ENSURE_TRUE(sanSink, NS_ERROR_FAILURE);
-
-  sanSink->Initialize(&outString, flags, allowedTags);
-
-  parser->SetContentSink(sink);
-
-  rv = parser->Parse(inString, 0, NS_LITERAL_CSTRING("text/html"), true);
-  if (NS_FAILED(rv))
-  {
-    NS_ERROR("Parse() failed!");
-    return rv;
+  // Start pref migration. This would make more sense in a method that runs
+  // once at app startup.
+  bool migrated = false;
+  nsresult rv = prefs->GetBoolPref(
+    "mailnews.display.html_sanitizer.allowed_tags.migrated",
+    &migrated);
+  if (NS_SUCCEEDED(rv) && !migrated) {
+    prefs->SetBoolPref("mailnews.display.html_sanitizer.allowed_tags.migrated",
+                       true);
+    nsCAutoString legacy;
+    rv = prefs->GetCharPref("mailnews.display.html_sanitizer.allowed_tags",
+                            getter_Copies(legacy));
+    if (NS_SUCCEEDED(rv)) {
+      prefs->SetBoolPref("mailnews.display.html_sanitizer.drop_non_css_presentation",
+                         legacy.Find("font") < 0);
+      prefs->SetBoolPref("mailnews.display.html_sanitizer.drop_media",
+                         legacy.Find("img") < 0);
+    }
   }
+  // End pref migration.
 
-#if DEBUG_BenB
-  charstar = ToNewUTF8String(outString);
-  printf("Sanitized HTML is:\n--------------------\n%s--------------------\n",
-         charstar);
-  delete[] charstar;
-#endif
+  bool dropPresentational = true;
+  bool dropMedia = false;
+  prefs->GetBoolPref(
+    "mailnews.display.html_sanitizer.drop_non_css_presentation",
+    &dropPresentational);
+  prefs->GetBoolPref(
+    "mailnews.display.html_sanitizer.drop_media",
+    &dropMedia);
+  if (dropPresentational)
+    flags |= nsIParserUtils::SanitizerDropNonCSSPresentation;
+  if (dropMedia)
+    flags |= nsIParserUtils::SanitizerDropMedia;
 
-  return rv;
+  nsCOMPtr<nsIParserUtils> utils = do_GetService(NS_PARSERUTILS_CONTRACTID);
+  return utils->Sanitize(inString, flags, outString);
 }

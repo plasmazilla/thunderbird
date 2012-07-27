@@ -213,7 +213,9 @@
                  disable-on-readonly="true"
                  oncommand="attachURL()"/>
         <command id="cmd_openAttachment"
-                 oncommand="openAttachment()"/> 
+                 oncommand="openAttachment()"/>
+        <command id="cmd_copyAttachment"
+                 oncommand="copyAttachment()"/>
         <command id="cmd_deleteAttachment"
                  disable-on-readonly="true"
                  oncommand="deleteAttachment()"/>
@@ -461,8 +463,8 @@
                             accesskey="&event.menu.options.attachments.accesskey;"
                             command="cmd_attach_url"/>
                   <menuitem id="options-timezone-menuitem"
-                            label="&event.menu.options.timezone.label;"
-                            accesskey="&event.menu.options.timezone.accesskey;"
+                            label="&event.menu.options.timezone2.label;"
+                            accesskey="&event.menu.options.timezone2.accesskey;"
                             checked="false"
                             type="checkbox"
                             persist="checked"
@@ -1171,6 +1173,10 @@
                       label="&event.attachments.popup.open.label;"
                       accesskey="&event.attachments.popup.open.accesskey;"
                       command="cmd_openAttachment"/>
+            <menuitem id="attachment-popup-copy"
+                      label="&calendar.copylink.label;"
+                      accesskey="&calendar.copylink.accesskey;"
+                      command="cmd_copyAttachment"/>
             <menuitem id="attachment-popup-delete"
                       label="&event.attachments.popup.remove.label;"
                       accesskey="&event.attachments.popup.remove.accesskey;"
@@ -1189,7 +1195,7 @@
         <menuitem id="timezone-popup-defaulttz"/>
         <menuseparator id="timezone-popup-menuseparator"/>
         <menuitem id="timezone-custom-menuitem"
-                  label="&event.repeat.custom.label;"
+                  label="&event.timezone.custom.label;"
                   value="custom"
                   oncommand="this.parentNode.editTimezone()"/>
       </menupopup>

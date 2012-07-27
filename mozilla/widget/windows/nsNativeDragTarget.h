@@ -43,9 +43,7 @@
 #include <shlobj.h>
 
 #ifndef IDropTargetHelper
-#ifndef __MINGW32__   // MingW does not provide shobjidl.h.
 #include <shobjidl.h> // Vista drag image interfaces
-#endif  // MingW
 #endif
 
 class nsIDragService;
@@ -119,7 +117,11 @@ protected:
   // Gecko Stuff
   nsIWidget      * mWindow;
   nsIDragService * mDragService;
+  // Drag target helper 
+  IDropTargetHelper * GetDropTargetHelper();
 
+
+private:
   // Drag target helper 
   IDropTargetHelper * mDropTargetHelper;
 };

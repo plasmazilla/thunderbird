@@ -187,14 +187,14 @@ public:
 
  */
 
-class nsXULPrototypeNode
+class nsXULPrototypeNode : public nsISupports
 {
 public:
     enum Type { eType_Element, eType_Script, eType_Text, eType_PI };
 
     Type                     mType;
 
-    nsAutoRefCnt             mRefCnt;
+    NS_DECL_CYCLE_COLLECTING_ISUPPORTS
 
     virtual ~nsXULPrototypeNode() {}
     virtual nsresult Serialize(nsIObjectOutputStream* aStream,
@@ -210,17 +210,6 @@ public:
     virtual PRUint32 ClassSize() = 0;
 #endif
 
-    void AddRef() {
-        ++mRefCnt;
-        NS_LOG_ADDREF(this, mRefCnt, ClassName(), ClassSize());
-    }
-    void Release()
-    {
-        --mRefCnt;
-        NS_LOG_RELEASE(this, mRefCnt, ClassName());
-        if (mRefCnt == 0)
-            delete this;
-    }
     /**
      * The prototype document must call ReleaseSubtree when it is going
      * away.  This makes the parents through the tree stop owning their
@@ -231,7 +220,7 @@ public:
      */
     virtual void ReleaseSubtree() { }
 
-    NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_NATIVE_CLASS(nsXULPrototypeNode)
+    NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS(nsXULPrototypeNode)
 
 protected:
     nsXULPrototypeNode(Type aType)
@@ -248,8 +237,7 @@ public:
           mHasIdAttribute(false),
           mHasClassAttribute(false),
           mHasStyleAttribute(false),
-          mHoldsScriptObject(false),
-          mScriptTypeID(nsIProgrammingLanguage::UNKNOWN)
+          mHoldsScriptObject(false)
     {
     }
 
@@ -297,11 +285,6 @@ public:
     bool                     mHasStyleAttribute:1;
     bool                     mHoldsScriptObject:1;
 
-    // The language ID can not be set on a per-node basis, but is tracked
-    // so that the language ID from the originating root can be used
-    // (eg, when a node from an overlay ends up in our document, that node
-    // must use its original script language, not our document's default.
-    PRUint16                 mScriptTypeID;
 };
 
 class nsXULDocument;
@@ -482,7 +465,7 @@ public:
                                 nsIContent* aBindingParent,
                                 bool aCompileEventHandlers);
     virtual void UnbindFromTree(bool aDeep, bool aNullParent);
-    virtual nsresult RemoveChildAt(PRUint32 aIndex, bool aNotify);
+    virtual void RemoveChildAt(PRUint32 aIndex, bool aNotify);
     virtual bool GetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
                            nsAString& aResult) const;
     virtual bool HasAttr(PRInt32 aNameSpaceID, nsIAtom* aName) const;
@@ -626,9 +609,10 @@ protected:
     }
 
     virtual nsresult BeforeSetAttr(PRInt32 aNamespaceID, nsIAtom* aName,
-                                   const nsAString* aValue, bool aNotify);
+                                   const nsAttrValueOrString* aValue,
+                                   bool aNotify);
     virtual nsresult AfterSetAttr(PRInt32 aNamespaceID, nsIAtom* aName,
-                                  const nsAString* aValue, bool aNotify);
+                                  const nsAttrValue* aValue, bool aNotify);
 
     virtual void UpdateEditableState(bool aNotify);
 
@@ -656,7 +640,7 @@ protected:
 
     // attribute setters for widget
     nsresult HideWindowChrome(bool aShouldHide);
-    void SetChromeMargins(const nsAString* aValue);
+    void SetChromeMargins(const nsAttrValue* aValue);
     void ResetChromeMargins();
     void SetTitlebarColor(nscolor aColor, bool aActive);
 

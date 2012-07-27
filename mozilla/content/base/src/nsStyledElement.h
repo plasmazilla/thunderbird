@@ -48,7 +48,6 @@
 
 #include "nsString.h"
 #include "nsGenericElement.h"
-#include "nsDOMMemoryReporter.h"
 
 namespace mozilla {
 namespace css {
@@ -68,10 +67,6 @@ protected:
   {}
 
 public:
-
-  NS_DECL_AND_IMPL_DOM_MEMORY_REPORTER_SIZEOF(nsStyledElementNotElementCSSInlineStyle,
-                                              nsStyledElementBase)
-
   // nsIContent interface methods
   virtual nsIAtom* GetClassAttributeName() const;
   virtual nsIAtom* GetIDAttributeName() const;
@@ -79,17 +74,14 @@ public:
   virtual const nsAttrValue* DoGetClasses() const;
 
   virtual mozilla::css::StyleRule* GetInlineStyleRule();
-  NS_IMETHOD SetInlineStyleRule(mozilla::css::StyleRule* aStyleRule, bool aNotify);
-
-  virtual nsresult BindToTree(nsIDocument* aDocument, nsIContent* aParent,
-                              nsIContent* aBindingParent,
-                              bool aCompileEventHandlers);
-  virtual void UnbindFromTree(bool aDeep, bool aNullParent);
+  virtual nsresult SetInlineStyleRule(mozilla::css::StyleRule* aStyleRule,
+                                      const nsAString* aSerialized,
+                                      bool aNotify);
 
   virtual nsresult UnsetAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
                              bool aNotify);
   virtual nsresult AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aAttribute,
-                                const nsAString* aValue, bool aNotify);
+                                const nsAttrValue* aValue, bool aNotify);
 
   nsIDOMCSSStyleDeclaration* GetStyle(nsresult* retval);
 
@@ -109,6 +101,8 @@ protected:
   virtual bool ParseAttribute(PRInt32 aNamespaceID, nsIAtom* aAttribute,
                                 const nsAString& aValue, nsAttrValue& aResult);
 
+  friend class nsGenericElement;
+
   /**
    * Create the style struct from the style attr.  Used when an element is
    * first put into a document.  Only has an effect if the old value is a
@@ -119,10 +113,6 @@ protected:
 };
 
 class nsStyledElement : public nsStyledElementNotElementCSSInlineStyle {
-public:
-  NS_DECL_AND_IMPL_DOM_MEMORY_REPORTER_SIZEOF(nsStyledElement,
-                                              nsStyledElementNotElementCSSInlineStyle)
-
 protected:
   inline nsStyledElement(already_AddRefed<nsINodeInfo> aNodeInfo)
     : nsStyledElementNotElementCSSInlineStyle(aNodeInfo)

@@ -47,6 +47,7 @@
 #include "jspropertytree.h"
 #include "jsscope.h"
 
+#include "jsgcinlines.h"
 #include "jsobjinlines.h"
 #include "jsscopeinlines.h"
 
@@ -150,7 +151,7 @@ Shape::removeChild(Shape *child)
 
     if (hash->count() == 1) {
         /* Convert from HASH form back to SHAPE form. */
-        KidsHash::Range r = hash->all(); 
+        KidsHash::Range r = hash->all();
         Shape *otherChild = r.front();
         JS_ASSERT((r.popFront(), r.empty()));    /* No more elements! */
         kidp->setShape(otherChild);
@@ -166,8 +167,11 @@ ReadBarrier(Shape *shape)
 {
 #ifdef JSGC_INCREMENTAL
     JSCompartment *comp = shape->compartment();
-    if (comp->needsBarrier())
-        MarkShapeUnbarriered(comp->barrierTracer(), shape, "read barrier");
+    if (comp->needsBarrier()) {
+        Shape *tmp = shape;
+        MarkShapeUnbarriered(comp->barrierTracer(), &tmp, "read barrier");
+        JS_ASSERT(tmp == shape);
+    }
 #endif
     return shape;
 }
@@ -216,14 +220,14 @@ PropertyTree::getChild(JSContext *cx, Shape *parent, uint32_t nfixed, const Stac
 }
 
 void
-Shape::finalize(JSContext *cx, bool background)
+Shape::finalize(FreeOp *fop)
 {
     if (!inDictionary()) {
         if (parent && parent->isMarked())
             parent->removeChild(this);
 
         if (kids.isHash())
-            cx->delete_(kids.toHash());
+            fop->delete_(kids.toHash());
     }
 }
 
@@ -277,7 +281,7 @@ Shape::dump(JSContext *cx, FILE *fp) const
     if (attrs) {
         int first = 1;
         fputs("(", fp);
-#define DUMP_ATTR(name, display) if (attrs & JSPROP_##name) fputs(" " #display + first, fp), first = 0
+#define DUMP_ATTR(name, display) if (attrs & JSPROP_##name) fputs(&(" " #display)[first], fp), first = 0
         DUMP_ATTR(ENUMERATE, enumerate);
         DUMP_ATTR(READONLY, readonly);
         DUMP_ATTR(PERMANENT, permanent);
@@ -292,9 +296,8 @@ Shape::dump(JSContext *cx, FILE *fp) const
     if (flags) {
         int first = 1;
         fputs("(", fp);
-#define DUMP_FLAG(name, display) if (flags & name) fputs(" " #display + first, fp), first = 0
+#define DUMP_FLAG(name, display) if (flags & name) fputs(&(" " #display)[first], fp), first = 0
         DUMP_FLAG(HAS_SHORTID, has_shortid);
-        DUMP_FLAG(METHOD, method);
         DUMP_FLAG(IN_DICTIONARY, in_dictionary);
 #undef  DUMP_FLAG
         fputs(") ", fp);
@@ -334,7 +337,7 @@ Shape::dumpSubtree(JSContext *cx, int level, FILE *fp) const
 }
 
 void
-js::PropertyTree::dumpShapes(JSContext *cx)
+js::PropertyTree::dumpShapes(JSRuntime *rt)
 {
     static bool init = false;
     static FILE *dumpfp = NULL;
@@ -349,13 +352,9 @@ js::PropertyTree::dumpShapes(JSContext *cx)
     if (!dumpfp)
         return;
 
-    JSRuntime *rt = cx->runtime;
     fprintf(dumpfp, "rt->gcNumber = %lu", (unsigned long)rt->gcNumber);
 
-    for (CompartmentsIter c(rt); !c.done(); c.next()) {
-        if (rt->gcCurrentCompartment != NULL && rt->gcCurrentCompartment != c)
-            continue;
-
+    for (gc::GCCompartmentsIter c(rt); !c.done(); c.next()) {
         fprintf(dumpfp, "*** Compartment %p ***\n", (void *)c.get());
 
         /*
@@ -363,7 +362,7 @@ js::PropertyTree::dumpShapes(JSContext *cx)
         HS &h = c->emptyShapes;
         for (HS::Range r = h.all(); !r.empty(); r.popFront()) {
             Shape *empty = r.front();
-            empty->dumpSubtree(cx, 0, dumpfp);
+            empty->dumpSubtree(rt, 0, dumpfp);
             putc('\n', dumpfp);
         }
         */

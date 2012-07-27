@@ -305,18 +305,17 @@ class JSAPITest
         static JSClass c = {
             "global", JSCLASS_GLOBAL_FLAGS,
             JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_StrictPropertyStub,
-            JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, JS_FinalizeStub,
-            JSCLASS_NO_OPTIONAL_MEMBERS
+            JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub
         };
         return &c;
     }
 
   protected:
     static JSBool
-    print(JSContext *cx, uintN argc, jsval *vp)
+    print(JSContext *cx, unsigned argc, jsval *vp)
     {
         jsval *argv = JS_ARGV(cx, vp);
-        for (uintN i = 0; i < argc; i++) {
+        for (unsigned i = 0; i < argc; i++) {
             JSString *str = JS_ValueToString(cx, argv[i]);
             if (!str)
                 return JS_FALSE;
@@ -338,7 +337,25 @@ class JSAPITest
     }
 
     virtual JSRuntime * createRuntime() {
-        return JS_NewRuntime(8L * 1024 * 1024);
+        JSRuntime *rt = JS_NewRuntime(8L * 1024 * 1024);
+        if (!rt)
+            return NULL;
+
+        const size_t MAX_STACK_SIZE =
+/* Assume we can't use more than 5e5 bytes of C stack by default. */
+#if (defined(DEBUG) && defined(__SUNPRO_CC))  || defined(JS_CPU_SPARC)
+            /*
+             * Sun compiler uses a larger stack space for js::Interpret() with
+             * debug.  Use a bigger gMaxStackSize to make "make check" happy.
+             */
+            5000000
+#else
+            500000
+#endif
+        ;
+
+        JS_SetNativeStackQuota(rt, MAX_STACK_SIZE);
+        return rt;
     }
 
     virtual void destroyRuntime() {
@@ -358,22 +375,6 @@ class JSAPITest
         JSContext *cx = JS_NewContext(rt, 8192);
         if (!cx)
             return NULL;
-
-        const size_t MAX_STACK_SIZE =
-/* Assume we can't use more than 5e5 bytes of C stack by default. */
-#if (defined(DEBUG) && defined(__SUNPRO_CC))  || defined(JS_CPU_SPARC)
-            /*
-             * Sun compiler uses a larger stack space for js::Interpret() with
-             * debug.  Use a bigger gMaxStackSize to make "make check" happy.
-             */
-            5000000
-#else
-            500000
-#endif
-        ;
-
-        JS_SetNativeStackQuota(cx, MAX_STACK_SIZE);
-
         JS_SetOptions(cx, JSOPTION_VAROBJFIX);
         JS_SetVersion(cx, JSVERSION_LATEST);
         JS_SetErrorReporter(cx, &reportError);
@@ -432,7 +433,7 @@ class JSAPITest
 
 /*
  * A class for creating and managing one temporary file.
- * 
+ *
  * We could use the ISO C temporary file functions here, but those try to
  * create files in the root directory on Windows, which fails for users
  * without Administrator privileges.
@@ -463,7 +464,7 @@ class TempFile {
             fprintf(stderr, "error opening temporary file '%s': %s\n",
                     fileName, strerror(errno));
             exit(1);
-        }            
+        }
         name = fileName;
         return stream;
     }

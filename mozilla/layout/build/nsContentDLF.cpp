@@ -60,7 +60,7 @@
 #endif
 #include "nsContentUtils.h"
 #include "imgILoader.h"
-#include "nsIParser.h"
+#include "nsCharsetSource.h"
 #include "nsMimeTypes.h"
 
 #include "mozilla/FunctionTimer.h"
@@ -310,7 +310,7 @@ nsContentDLF::CreateInstance(const char* aCommand,
   nsCOMPtr<nsIPluginHost> pluginHostCOM(do_GetService(MOZ_PLUGIN_HOST_CONTRACTID));
   nsPluginHost *pluginHost = static_cast<nsPluginHost*>(pluginHostCOM.get());
   if(pluginHost &&
-     NS_SUCCEEDED(pluginHost->IsPluginEnabledForType(aContentType, true))) {
+     NS_SUCCEEDED(pluginHost->IsPluginEnabledForType(aContentType))) {
     return CreateDocument(aCommand,
                           aChannel, aLoadGroup,
                           aContainer, kPluginDocumentCID,

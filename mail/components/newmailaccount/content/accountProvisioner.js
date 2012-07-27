@@ -141,16 +141,10 @@ var EmailAccountProvisioner = {
   },
 
   /**
-   * Returns the languages that the user currently accepts.
+   * Returns the language that the user currently accepts.
    */
-  get userLanguages() {
-    let userLanguages =
-      Services.prefs.getComplexValue("intl.accept_languages",
-                                     Ci.nsIPrefLocalizedString)
-                                       .data
-                                       .toLowerCase()
-                                       .split(",");
-    return $.map(userLanguages, $.trim);
+  get userLanguage() {
+    return Services.prefs.getCharPref("general.useragent.locale");
   },
 
   /**
@@ -170,8 +164,10 @@ var EmailAccountProvisioner = {
   searchEnabled: function EAP_searchEnabled(aVal) {
     if (aVal) {
       $("#name").removeAttr("disabled");
+      $(".providerCheckbox").removeAttr("disabled");
     } else {
       $("#name").attr("disabled", "true");
+      $(".providerCheckbox").attr("disabled", "true");
     }
     this.searchButtonEnabled(aVal);
   },
@@ -370,7 +366,7 @@ var EmailAccountProvisioner = {
       }
     });
 
-    if (window.arguments[0].search_engine || window.arguments[0].success) {
+    if (window.arguments[0].success) {
       // Show the success page which lets a user compose mail, find add-ons,
       // set a signature, etc.
       gLog.info("Looks like we just finished ordering an address - showing the success page...");
@@ -415,12 +411,13 @@ var EmailAccountProvisioner = {
       dataType: 'json',
       data: {"first_name": firstname,
              "last_name": lastname,
-             "providers": providerList},
+             "providers": providerList,
+             "version": 2},
       timeout: CONNECTION_TIMEOUT,
       success: EmailAccountProvisioner.onSearchResults})
       .error(EmailAccountProvisioner.showSearchError)
       .complete(function() {
-        $("#FirstAndLastName").html(firstname + " " + lastname);
+        $("#FirstAndLastName").html(String.trim(firstname + " " + lastname));
         EmailAccountProvisioner.searchEnabled(true);
         EmailAccountProvisioner.spinning(false);
       });
@@ -461,7 +458,7 @@ var EmailAccountProvisioner = {
     let tabmail = mail3Pane.document.getElementById("tabmail");
     tabmail.openTab("accountProvisionerTab", {
       contentPage: url,
-      realName: firstName + " " + lastName,
+      realName: String.trim(firstName + " " + lastName),
       email: email,
       searchEngine: provider.search_engine,
       onLoad: function (aEvent, aBrowser) {
@@ -510,7 +507,8 @@ var EmailAccountProvisioner = {
         // Ugh, we couldn't get the JSON file.  Maybe we're not online.  Or maybe
         // the server is down, or the file isn't being served.  Regardless, if
         // we get here, none of this stuff is going to work.
-        EmailAccountProvisioner._loadProviderRetryId = window.setTimeout(EmailAccountProvisioner.tryToPopulateProviderList,
+        EmailAccountProvisioner._loadProviderRetryId = window.setTimeout(EmailAccountProvisioner.tryToPopulateProviderList
+                                                                                                .bind(self),
                                                                          RETRY_TIMEOUT);
         EmailAccountProvisioner._loadingProviders = false;
         EmailAccountProvisioner.beOffline();
@@ -572,21 +570,20 @@ var EmailAccountProvisioner = {
       EmailAccountProvisioner.providers[provider.id] = provider;
 
       // Let's go through the array of languages for this provider, and
-      // check to see if at least one of them matches one of the accepted
-      // languages for this user profile.  If so, supportsSomeUserLang becomes
-      // true, and we'll show / select this provider by default.
+      // check to see if at least one of them matches general.useragent.locale.
+      // If so, we'll show / select this provider by default.
       let supportsSomeUserLang = provider
                                  .languages
                                  .some(function (x) {
-                                   return EmailAccountProvisioner
-                                          .userLanguages
-                                          .indexOf(x.toLowerCase()) >= 0
+                                   return x == "*" ||
+                                          x == EmailAccountProvisioner.userLanguage
                                  });
 
       let checkboxId = provider.id + "-check";
 
       let providerCheckbox = $('<input type="checkbox" />')
                              .val(provider.id)
+                             .addClass("providerCheckbox")
                              .attr("id", checkboxId);
 
       let providerEntry = $('<li class="provider" />')
@@ -630,6 +627,7 @@ var EmailAccountProvisioner = {
     EmailAccountProvisioner.populateTermsAndPrivacyLinks();
     EmailAccountProvisioner.beOnline();
     EmailAccountProvisioner._loadedProviders = true;
+    EmailAccountProvisioner.onSearchInputOrProvidersChanged();
   },
 
   /**
@@ -795,8 +793,20 @@ var EmailAccountProvisioner = {
         let tmplData = {
           address: address,
         };
+        if (address.address)
+          tmplData.address = address.address;
 
-        if (provider.price && provider.price != "0")
+        // Figure out the price to display on the address button, as so:
+        // If there is a per-address price of > 0, use that.
+        // Otherwise, if there is a per-address price of 0, use "Free",
+        // Otherwise, there's no per-address price,
+        //   so if the provider's price is > 0, use that.
+        //   Or if the provider's price is 0, use "Free".
+        if (address.price && address.price != "0")
+          tmplData.priceStr = stringBundle.get("price", [address.price])
+        else if (address.price && address.price == "0")
+          tmplData.priceStr = stringBundle.get("free");
+        else if (provider.price && provider.price != "0")
           tmplData.priceStr = stringBundle.get("price", [provider.price])
         else
           tmplData.priceStr = stringBundle.get("free");

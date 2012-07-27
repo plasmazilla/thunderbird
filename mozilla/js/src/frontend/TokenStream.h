@@ -262,18 +262,16 @@ struct TokenPos {
     TokenPtr          end;            /* index 1 past last char, last line */
 
     static TokenPos make(const TokenPtr &begin, const TokenPtr &end) {
-        // Assertions temporarily disabled by jorendorff. See bug 695922.
-        //JS_ASSERT(begin <= end);
+        JS_ASSERT(begin <= end);
         TokenPos pos = {begin, end};
         return pos;
     }
 
     /* Return a TokenPos that covers left, right, and anything in between. */
     static TokenPos box(const TokenPos &left, const TokenPos &right) {
-        // Assertions temporarily disabled by jorendorff. See bug 695922.
-        //JS_ASSERT(left.begin <= left.end);
-        //JS_ASSERT(left.end <= right.begin);
-        //JS_ASSERT(right.begin <= right.end);
+        JS_ASSERT(left.begin <= left.end);
+        JS_ASSERT(left.end <= right.begin);
+        JS_ASSERT(right.begin <= right.end);
         TokenPos pos = {left.begin, right.end};
         return pos;
     }
@@ -324,7 +322,7 @@ struct Token {
             PropertyName *target;       /* non-empty */
             JSAtom       *data;         /* maybe empty, never null */
         } xmlpi;
-        jsdouble        number;         /* floating point number */
+        double          number;         /* floating point number */
         RegExpFlag      reflags;        /* regexp flags, use tokenbuf to access
                                            regexp chars */
     } u;
@@ -338,12 +336,14 @@ struct Token {
 
     void setName(JSOp op, PropertyName *name) {
         JS_ASSERT(op == JSOP_NAME);
+        JS_ASSERT(!IsPoisonedPtr(name));
         u.s.op = op;
         u.s.n.name = name;
     }
 
     void setAtom(JSOp op, JSAtom *atom) {
         JS_ASSERT(op == JSOP_STRING || op == JSOP_XMLCOMMENT || JSOP_XMLCDATA);
+        JS_ASSERT(!IsPoisonedPtr(atom));
         u.s.op = op;
         u.s.n.atom = atom;
     }
@@ -352,6 +352,8 @@ struct Token {
         JS_ASSERT(target);
         JS_ASSERT(data);
         JS_ASSERT(!target->empty());
+        JS_ASSERT(!IsPoisonedPtr(target));
+        JS_ASSERT(!IsPoisonedPtr(data));
         u.xmlpi.target = target;
         u.xmlpi.data = data;
     }
@@ -361,7 +363,7 @@ struct Token {
         u.reflags = flags;
     }
 
-    void setNumber(jsdouble n) {
+    void setNumber(double n) {
         u.number = n;
     }
 
@@ -398,7 +400,7 @@ struct Token {
         return u.reflags;
     }
 
-    jsdouble number() const {
+    double number() const {
         JS_ASSERT(type == TOK_NUMBER);
         return u.number;
     }
@@ -453,7 +455,7 @@ class TokenStream
 
     static const size_t ntokens = 4;                /* 1 current + 2 lookahead, rounded
                                                        to power of 2 to avoid divmod by 3 */
-    static const uintN ntokensMask = ntokens - 1;
+    static const unsigned ntokensMask = ntokens - 1;
 
   public:
     typedef Vector<jschar, 32> CharBuffer;
@@ -474,7 +476,7 @@ class TokenStream
      * Create a new token stream from an input buffer.
      * Return false on memory-allocation failure.
      */
-    bool init(const jschar *base, size_t length, const char *filename, uintN lineno,
+    bool init(const jschar *base, size_t length, const char *filename, unsigned lineno,
               JSVersion version);
     ~TokenStream();
 
@@ -491,7 +493,7 @@ class TokenStream
     }
     const CharBuffer &getTokenbuf() const { return tokenbuf; }
     const char *getFilename() const { return filename; }
-    uintN getLineno() const { return lineno; }
+    unsigned getLineno() const { return lineno; }
     /* Note that the version and hasXML can get out of sync via setXML. */
     JSVersion versionNumber() const { return VersionNumber(version); }
     JSVersion versionWithFlags() const { return version; }
@@ -528,7 +530,7 @@ class TokenStream
     bool isEOF() const { return !!(flags & TSF_EOF); }
     bool hasOctalCharacterEscape() const { return flags & TSF_OCTAL_CHAR; }
 
-    bool reportCompileErrorNumberVA(ParseNode *pn, uintN flags, uintN errorNumber, va_list ap);
+    bool reportCompileErrorNumberVA(ParseNode *pn, unsigned flags, unsigned errorNumber, va_list ap);
 
   private:
     static JSAtom *atomize(JSContext *cx, CharBuffer &cb);
@@ -540,9 +542,9 @@ class TokenStream
      */
     class Flagger {
         TokenStream * const parent;
-        uintN       flags;
+        unsigned       flags;
       public:
-        Flagger(TokenStream *parent, uintN withFlags) : parent(parent), flags(withFlags) {
+        Flagger(TokenStream *parent, unsigned withFlags) : parent(parent), flags(withFlags) {
             parent->flags |= flags;
         }
 
@@ -577,7 +579,7 @@ class TokenStream
     }
 
     /* Similar, but also sets flags. */
-    TokenKind getToken(uintN withFlags) {
+    TokenKind getToken(unsigned withFlags) {
         Flagger flagger(this, withFlags);
         return getToken();
     }
@@ -601,12 +603,12 @@ class TokenStream
         return tt;
     }
 
-    TokenKind peekToken(uintN withFlags) {
+    TokenKind peekToken(unsigned withFlags) {
         Flagger flagger(this, withFlags);
         return peekToken();
     }
 
-    TokenKind peekTokenSameLine(uintN withFlags = 0) {
+    TokenKind peekTokenSameLine(unsigned withFlags = 0) {
         if (!onCurrentLine(currentToken().pos))
             return TOK_EOL;
 
@@ -639,7 +641,7 @@ class TokenStream
         return false;
     }
 
-    bool matchToken(TokenKind tt, uintN withFlags) {
+    bool matchToken(TokenKind tt, unsigned withFlags) {
         Flagger flagger(this, withFlags);
         return matchToken(tt);
     }
@@ -774,7 +776,7 @@ class TokenStream
     bool peekUnicodeEscape(int32_t *c);
     bool matchUnicodeEscapeIdStart(int32_t *c);
     bool matchUnicodeEscapeIdent(int32_t *c);
-    bool peekChars(intN n, jschar *cp);
+    bool peekChars(int n, jschar *cp);
     bool getAtLine();
     bool getAtSourceMappingURL();
 
@@ -801,7 +803,7 @@ class TokenStream
         return c;
     }
 
-    void skipChars(intN n) {
+    void skipChars(int n) {
         while (--n >= 0)
             getChar();
     }
@@ -810,20 +812,22 @@ class TokenStream
     void updateFlagsForEOL();
 
     Token               tokens[ntokens];/* circular token buffer */
-    uintN               cursor;         /* index of last parsed token */
-    uintN               lookahead;      /* count of lookahead tokens */
-    uintN               lineno;         /* current line number */
-    uintN               flags;          /* flags -- see above */
+    JS::SkipRoot        tokensRoot;     /* prevent overwriting of token buffer */
+    unsigned            cursor;         /* index of last parsed token */
+    unsigned            lookahead;      /* count of lookahead tokens */
+    unsigned            lineno;         /* current line number */
+    unsigned            flags;          /* flags -- see above */
     const jschar        *linebase;      /* start of current line;  points into userbuf */
     const jschar        *prevLinebase;  /* start of previous line;  NULL if on the first line */
     TokenBuf            userbuf;        /* user input buffer */
+    JS::SkipRoot        userbufRoot;    /* prevent overwriting of char pointers within userbuf */
     const char          *filename;      /* input filename or null */
     jschar              *sourceMap;     /* source map's filename or null */
     void                *listenerTSData;/* listener data for this TokenStream */
     CharBuffer          tokenbuf;       /* current token string buffer */
     int8_t              oneCharTokens[128];  /* table of one-char tokens */
-    JSPackedBool        maybeEOL[256];       /* probabilistic EOL lookup table */
-    JSPackedBool        maybeStrSpecial[256];/* speeds up string scanning */
+    bool                maybeEOL[256];       /* probabilistic EOL lookup table */
+    bool                maybeStrSpecial[256];/* speeds up string scanning */
     JSVersion           version;        /* (i.e. to identify keywords) */
     bool                xml;            /* see JSOPTION_XML */
     JSContext           *const cx;
@@ -863,8 +867,8 @@ IsIdentifier(JSLinearString *str);
  * Otherwise use ts, which must not be null.
  */
 bool
-ReportCompileErrorNumber(JSContext *cx, TokenStream *ts, ParseNode *pn, uintN flags,
-                         uintN errorNumber, ...);
+ReportCompileErrorNumber(JSContext *cx, TokenStream *ts, ParseNode *pn, unsigned flags,
+                         unsigned errorNumber, ...);
 
 /*
  * Report a condition that should elicit a warning with JSOPTION_STRICT,
@@ -885,7 +889,7 @@ ReportCompileErrorNumber(JSContext *cx, TokenStream *ts, ParseNode *pn, uintN fl
  */
 bool
 ReportStrictModeError(JSContext *cx, TokenStream *ts, TreeContext *tc, ParseNode *pn,
-                      uintN errorNumber, ...);
+                      unsigned errorNumber, ...);
 
 } /* namespace js */
 

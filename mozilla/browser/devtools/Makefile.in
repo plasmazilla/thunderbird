@@ -54,6 +54,8 @@ DIRS = \
   styleinspector \
   tilt \
   scratchpad \
+  debugger \
+  layoutview \
   shared \
   $(NULL)
 

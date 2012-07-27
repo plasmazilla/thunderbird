@@ -42,13 +42,9 @@
 #include "nsContentUtils.h"
 #include "nsIScriptSecurityManager.h"
 #include "nsNetUtil.h"
-#include "nsIParser.h"
-#include "nsParserCIID.h"
-#include "nsICharsetAlias.h"
 #include "nsMimeTypes.h"
 #include "nsIStreamConverterService.h"
 #include "nsStringStream.h"
-#include "nsParserUtils.h"
 #include "nsGkAtoms.h"
 #include "nsWhitespaceTokenizer.h"
 #include "nsIChannelEventSink.h"
@@ -643,7 +639,13 @@ nsCORSListenerProxy::OnStopRequest(nsIRequest* aRequest,
                                    nsISupports* aContext,
                                    nsresult aStatusCode)
 {
-  return mOuterListener->OnStopRequest(aRequest, aContext, aStatusCode);
+  nsresult rv = mOuterListener->OnStopRequest(aRequest, aContext, aStatusCode);
+  mOuterListener = nsnull;
+  mOuterNotificationCallbacks = nsnull;
+  mRedirectCallback = nsnull;
+  mOldRedirectChannel = nsnull;
+  mNewRedirectChannel = nsnull;
+  return rv;
 }
 
 NS_IMETHODIMP
@@ -1030,6 +1032,9 @@ nsCORSPreflightListener::OnStopRequest(nsIRequest *aRequest,
                                        nsISupports *aContext,
                                        nsresult aStatus)
 {
+  mOuterChannel = nsnull;
+  mOuterListener = nsnull;
+  mOuterContext = nsnull;
   return NS_OK;
 }
 

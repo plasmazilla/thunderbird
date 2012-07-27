@@ -45,6 +45,8 @@
 
 #include "nsINode.h"
 
+#include "jsatom.h"
+
 /* XPCQuickStubs.h - Support functions used only by quick stubs. */
 
 class XPCCallContext;
@@ -158,7 +160,7 @@ public:
 };
 
 JSBool
-xpc_qsDefineQuickStubs(JSContext *cx, JSObject *proto, uintN extraFlags,
+xpc_qsDefineQuickStubs(JSContext *cx, JSObject *proto, unsigned extraFlags,
                        PRUint32 ifacec, const nsIID **interfaces,
                        PRUint32 tableSize, const xpc_qsHashEntry *table,
                        const xpc_qsPropertySpec *propspecs,
@@ -197,7 +199,7 @@ xpc_qsThrowMethodFailed(JSContext *cx, nsresult rv, jsval *vp);
 JSBool
 xpc_qsThrowMethodFailedWithCcx(XPCCallContext &ccx, nsresult rv);
 
-void
+bool
 xpc_qsThrowMethodFailedWithDetails(JSContext *cx, nsresult rv,
                                    const char *ifaceName,
                                    const char *memberName);
@@ -208,13 +210,13 @@ xpc_qsThrowMethodFailedWithDetails(JSContext *cx, nsresult rv,
  * See NOTE at xpc_qsThrowGetterSetterFailed.
  */
 void
-xpc_qsThrowBadArg(JSContext *cx, nsresult rv, jsval *vp, uintN paramnum);
+xpc_qsThrowBadArg(JSContext *cx, nsresult rv, jsval *vp, unsigned paramnum);
 
 void
-xpc_qsThrowBadArgWithCcx(XPCCallContext &ccx, nsresult rv, uintN paramnum);
+xpc_qsThrowBadArgWithCcx(XPCCallContext &ccx, nsresult rv, unsigned paramnum);
 
 void
-xpc_qsThrowBadArgWithDetails(JSContext *cx, nsresult rv, uintN paramnum,
+xpc_qsThrowBadArgWithDetails(JSContext *cx, nsresult rv, unsigned paramnum,
                              const char *ifaceName, const char *memberName);
 
 /**
@@ -235,13 +237,13 @@ xpc_qsGetterOnlyPropertyStub(JSContext *cx, JSObject *obj, jsid id, JSBool stric
 inline JSBool
 xpc_qsInt64ToJsval(JSContext *cx, PRInt64 i, jsval *rv)
 {
-    return JS_NewNumberValue(cx, static_cast<jsdouble>(i), rv);
+    return JS_NewNumberValue(cx, static_cast<double>(i), rv);
 }
 
 inline JSBool
 xpc_qsUint64ToJsval(JSContext *cx, PRUint64 u, jsval *rv)
 {
-    return JS_NewNumberValue(cx, static_cast<jsdouble>(u), rv);
+    return JS_NewNumberValue(cx, static_cast<double>(u), rv);
 }
 
 
@@ -440,7 +442,6 @@ xpc_qsStringToJsstring(JSContext *cx, nsString &str, JSString **rval);
 nsresult
 getWrapper(JSContext *cx,
            JSObject *obj,
-           JSObject *callee,
            XPCWrappedNative **wrapper,
            JSObject **cur,
            XPCWrappedNativeTearOff **tearoff);
@@ -476,7 +477,6 @@ template <class T>
 inline JSBool
 xpc_qsUnwrapThis(JSContext *cx,
                  JSObject *obj,
-                 JSObject *callee,
                  T **ppThis,
                  nsISupports **pThisRef,
                  jsval *pThisVal,
@@ -485,7 +485,7 @@ xpc_qsUnwrapThis(JSContext *cx,
 {
     XPCWrappedNative *wrapper;
     XPCWrappedNativeTearOff *tearoff;
-    nsresult rv = getWrapper(cx, obj, callee, &wrapper, &obj, &tearoff);
+    nsresult rv = getWrapper(cx, obj, &wrapper, &obj, &tearoff);
     if (NS_SUCCEEDED(rv))
         rv = castNative(cx, wrapper, obj, tearoff, NS_GET_TEMPLATE_IID(T),
                         reinterpret_cast<void **>(ppThis), pThisRef, pThisVal,
@@ -502,7 +502,6 @@ xpc_qsUnwrapThis(JSContext *cx,
 inline nsISupports*
 castNativeFromWrapper(JSContext *cx,
                       JSObject *obj,
-                      JSObject *callee,
                       PRUint32 interfaceBit,
                       nsISupports **pRef,
                       jsval *pVal,
@@ -513,14 +512,14 @@ castNativeFromWrapper(JSContext *cx,
     XPCWrappedNativeTearOff *tearoff;
     JSObject *cur;
 
-    if (!callee && IS_WRAPPER_CLASS(js::GetObjectClass(obj))) {
+    if (IS_WRAPPER_CLASS(js::GetObjectClass(obj))) {
         cur = obj;
         wrapper = IS_WN_WRAPPER_OBJECT(cur) ?
                   (XPCWrappedNative*)xpc_GetJSPrivate(obj) :
                   nsnull;
         tearoff = nsnull;
     } else {
-        *rv = getWrapper(cx, obj, callee, &wrapper, &cur, &tearoff);
+        *rv = getWrapper(cx, obj, &wrapper, &cur, &tearoff);
         if (NS_FAILED(*rv))
             return nsnull;
     }
@@ -542,8 +541,8 @@ castNativeFromWrapper(JSContext *cx,
 
     NS_ASSERTION(IS_WRAPPER_CLASS(js::GetObjectClass(cur)), "Not a wrapper?");
 
-    XPCNativeScriptableSharedJSClass *clasp =
-      (XPCNativeScriptableSharedJSClass*)js::GetObjectClass(cur);
+    XPCWrappedNativeJSClass *clasp =
+      (XPCWrappedNativeJSClass*)js::GetObjectClass(cur);
     if (!(clasp->interfacesBitmap & (1 << interfaceBit)))
         return nsnull;
 
@@ -616,7 +615,7 @@ castNativeArgFromWrapper(JSContext *cx,
     if (!src)
         return nsnull;
 
-    return castNativeFromWrapper(cx, src, nsnull, bit, pArgRef, vp, nsnull, rv);
+    return castNativeFromWrapper(cx, src, bit, pArgRef, vp, nsnull, rv);
 }
 
 inline nsWrapperCache*
@@ -656,50 +655,6 @@ xpc_qsVariantToJsval(XPCLazyCallContext &ccx,
                      nsIVariant *p,
                      jsval *rval);
 
-/**
- * Convert a jsval to PRInt64. Return true on success.
- */
-inline JSBool
-xpc_qsValueToInt64(JSContext *cx,
-                   jsval v,
-                   PRInt64 *result)
-{
-    if (JSVAL_IS_INT(v)) {
-        int32_t intval;
-        if (!JS_ValueToECMAInt32(cx, v, &intval))
-            return false;
-        *result = static_cast<PRInt64>(intval);
-    } else {
-        jsdouble doubleval;
-        if (!JS_ValueToNumber(cx, v, &doubleval))
-            return false;
-        *result = static_cast<PRInt64>(doubleval);
-    }
-    return true;
-}
-
-/**
- * Convert a jsval to PRUint64. Return true on success.
- */
-inline JSBool
-xpc_qsValueToUint64(JSContext *cx,
-                    jsval v,
-                    PRUint64 *result)
-{
-    if (JSVAL_IS_INT(v)) {
-        uint32_t intval;
-        if (!JS_ValueToECMAUint32(cx, v, &intval))
-            return false;
-        *result = static_cast<PRUint64>(intval);
-    } else {
-        jsdouble doubleval;
-        if (!JS_ValueToNumber(cx, v, &doubleval))
-            return false;
-        *result = static_cast<PRUint64>(doubleval);
-    }
-    return true;
-}
-
 #ifdef DEBUG
 void
 xpc_qsAssertContextOK(JSContext *cx);
@@ -726,5 +681,86 @@ xpc_qsSameResult(PRInt32 result1, PRInt32 result2)
 #else
 #define XPC_QS_ASSERT_CONTEXT_OK(cx) ((void) 0)
 #endif
+
+// Apply |op| to |obj|, |id|, and |vp|. If |op| is a setter, treat the assignment as lenient.
+template<typename Op>
+static inline JSBool ApplyPropertyOp(JSContext *cx, Op op, JSObject *obj, jsid id, jsval *vp);
+
+template<>
+inline JSBool
+ApplyPropertyOp<JSPropertyOp>(JSContext *cx, JSPropertyOp op, JSObject *obj, jsid id, jsval *vp)
+{
+    return op(cx, obj, id, vp);
+}
+
+template<>
+inline JSBool
+ApplyPropertyOp<JSStrictPropertyOp>(JSContext *cx, JSStrictPropertyOp op, JSObject *obj,
+                                    jsid id, jsval *vp)
+{
+    return op(cx, obj, id, true, vp);
+}
+
+template<typename Op>
+JSBool
+PropertyOpForwarder(JSContext *cx, unsigned argc, jsval *vp)
+{
+    // Layout:
+    //   this = our this
+    //   property op to call = callee reserved slot 0
+    //   name of the property = callee reserved slot 1
+
+    JSObject *callee = JSVAL_TO_OBJECT(JS_CALLEE(cx, vp));
+    JSObject *obj = JS_THIS_OBJECT(cx, vp);
+    if (!obj)
+        return false;
+
+    jsval v = js::GetFunctionNativeReserved(callee, 0);
+
+    JSObject *ptrobj = JSVAL_TO_OBJECT(v);
+    Op *popp = static_cast<Op *>(JS_GetPrivate(ptrobj));
+
+    v = js::GetFunctionNativeReserved(callee, 1);
+
+    jsval argval = (argc > 0) ? JS_ARGV(cx, vp)[0] : JSVAL_VOID;
+    jsid id;
+    if (!JS_ValueToId(cx, v, &id))
+        return false;
+    JS_SET_RVAL(cx, vp, argval);
+    return ApplyPropertyOp<Op>(cx, *popp, obj, id, vp);
+}
+
+extern JSClass PointerHolderClass;
+
+template<typename Op>
+JSObject *
+GeneratePropertyOp(JSContext *cx, JSObject *obj, jsid id, unsigned argc, Op pop)
+{
+    // The JS engine provides two reserved slots on function objects for
+    // XPConnect to use. Use them to stick the necessary info here.
+    JSFunction *fun =
+        js::NewFunctionByIdWithReserved(cx, PropertyOpForwarder<Op>, argc, 0, obj, id);
+    if (!fun)
+        return nsnull;
+
+    JSObject *funobj = JS_GetFunctionObject(fun);
+
+    JS::AutoObjectRooter tvr(cx, funobj);
+
+    // Unfortunately, we cannot guarantee that Op is aligned. Use a
+    // second object to work around this.
+    JSObject *ptrobj = JS_NewObject(cx, &PointerHolderClass, nsnull, funobj);
+    if (!ptrobj)
+        return nsnull;
+    Op *popp = new Op;
+    if (!popp)
+        return nsnull;
+    *popp = pop;
+    JS_SetPrivate(ptrobj, popp);
+
+    js::SetFunctionNativeReserved(funobj, 0, OBJECT_TO_JSVAL(ptrobj));
+    js::SetFunctionNativeReserved(funobj, 1, js::IdToJsval(id));
+    return funobj;
+}
 
 #endif /* xpcquickstubs_h___ */

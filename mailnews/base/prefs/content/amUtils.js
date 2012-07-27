@@ -35,13 +35,18 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  *
  * ***** END LICENSE BLOCK ***** */
+/* Prerequisites:
+   gServer - server.incomingServer defined in the calling page
+ */
 
-const nsIFilePicker = Components.interfaces.nsIFilePicker;
-const nsILocalFile = Components.interfaces.nsILocalFile;
-const LOCALFILE_CTRID = "@mozilla.org/file/local;1";
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
 
 function BrowseForLocalFolders()
 {
+  const nsIFilePicker = Components.interfaces.nsIFilePicker;
+  const nsILocalFile = Components.interfaces.nsILocalFile;
+
   var currentFolderTextBox = document.getElementById("server.localPath");
   var fp = Components.classes["@mozilla.org/filepicker;1"]
                      .createInstance(nsIFilePicker);
@@ -51,38 +56,34 @@ function BrowseForLocalFolders()
                   .getAttribute("filepickertitle"),
           nsIFilePicker.modeGetFolder);
 
-  var currentFolder = Components.classes[LOCALFILE_CTRID]
+  var currentFolder = Components.classes["@mozilla.org/file/local;1"]
                                 .createInstance(nsILocalFile);
   currentFolder.initWithPath(currentFolderTextBox.value);
   fp.displayDirectory = currentFolder;
 
-  if (fp.show() == nsIFilePicker.returnOK)
-  {
-    // Retrieve the selected folder.
-    var selectedFolder = fp.file;
+  if (fp.show() != nsIFilePicker.returnOK)
+    return;
 
-    // check that no other account/server has this same local directory
-    var allServers = Components.classes["@mozilla.org/messenger/account-manager;1"]
-                               .getService(Components.interfaces.nsIMsgAccountManager)
-                               .allServers;
-    for (var i = allServers.Count(); --i >= 0;)
-    {
-      var currentServer = allServers.QueryElementAt(i, Components.interfaces.nsIMsgIncomingServer);
-      if (currentServer.key != gServer.key &&
-          currentServer.localPath.equals(selectedFolder))
-      {
-        var directoryAlreadyUsed =
-          top.gPrefsBundle.getFormattedString(
-            "directoryUsedByOtherAccount", [ currentServer.prettyName ]);
-        Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                  .getService(Components.interfaces.nsIPromptService)
-                  .alert(window, null, directoryAlreadyUsed);
-        return;
-      }
+  // Retrieve the selected folder.
+  let selectedFolder = fp.file;
+
+  // check that no other account/server has this same local directory
+  let allServers = MailServices.accounts.allServers;
+  for (let i = allServers.Count(); --i >= 0;) {
+    let currentServer = allServers
+      .QueryElementAt(i, Components.interfaces.nsIMsgIncomingServer);
+    if (currentServer.key == gServer.key)
+      continue;
+
+    if (currentServer.localPath.equals(selectedFolder)) {
+      let dirAlreadyUsed = top.document.getElementById("bundle_prefs")
+                              .getFormattedString("directoryUsedByOtherAccount",
+                                                  [currentServer.prettyName]);
+      Services.prompt.alert(window, null, dirAlreadyUsed);
+      return;
     }
-
-    currentFolderTextBox.value = selectedFolder.path;
   }
+  currentFolderTextBox.value = selectedFolder.path;
 }
 
 function hostnameIsIllegal(hostname)
@@ -102,4 +103,22 @@ function hostnameIsIllegal(hostname)
 function trim(string)
 {
   return string.trim();
+}
+
+/**
+ * Return server/folder name formatted with server name if needed.
+ *
+ * @param aTargetFolder  nsIMsgFolder to format name for
+ *                       If target.isServer then only its name is returned.
+ *                       Otherwise return the name as "<foldername> on <servername>".
+ */
+function prettyFolderName(aTargetFolder)
+{
+  if (aTargetFolder.isServer)
+    return aTargetFolder.prettyName;
+
+  return document.getElementById("bundle_messenger")
+                 .getFormattedString("verboseFolderFormat",
+                                     [aTargetFolder.prettyName,
+                                      aTargetFolder.server.prettyName]);
 }

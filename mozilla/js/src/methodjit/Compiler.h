@@ -262,7 +262,7 @@ class Compiler : public BaseCompiler
             return getPropLabels_;
         }
         ic::SetPropLabels &setPropLabels() {
-            JS_ASSERT(kind == ic::PICInfo::SET || kind == ic::PICInfo::SETMETHOD);
+            JS_ASSERT(kind == ic::PICInfo::SET);
             return setPropLabels_;
         }
         ic::BindNameLabels &bindNameLabels() {
@@ -380,6 +380,10 @@ class Compiler : public BaseCompiler
         uint32_t source;
         uint32_t target;
 
+#ifdef JS_CPU_X64
+        Label sourceTrampoline;
+#endif
+
         Jump fastJump;
         MaybeJump slowJump;
     };
@@ -400,7 +404,7 @@ class Compiler : public BaseCompiler
     analyze::CrossScriptSSA ssa;
 
     GlobalObject *globalObj;
-    const HeapValue *globalSlots;  /* Original slots pointer. */
+    const HeapSlot *globalSlots;  /* Original slots pointer. */
 
     Assembler masm;
     FrameState frame;
@@ -484,8 +488,7 @@ private:
     bool hasGlobalReallocation;
     bool oomInVector;       // True if we have OOM'd appending to a vector. 
     bool overflowICSpace;   // True if we added a constant pool in a reserved space.
-    uint32_t gcNumber;
-    enum { NoApplyTricks, LazyArgsObj } applyTricks;
+    uint64_t gcNumber;
     PCLengthEntry *pcLengths;
 
     Compiler *thisFromCtor() { return this; }
@@ -560,16 +563,17 @@ private:
     CompileStatus finishThisUp();
     CompileStatus pushActiveFrame(JSScript *script, uint32_t argc);
     void popActiveFrame();
-    void updatePCCounters(jsbytecode *pc, Label *start, bool *updated);
+    void updatePCCounts(jsbytecode *pc, Label *start, bool *updated);
     void updatePCTypes(jsbytecode *pc, FrameEntry *fe);
-    void updateArithCounters(jsbytecode *pc, FrameEntry *fe,
+    void updateArithCounts(jsbytecode *pc, FrameEntry *fe,
                              JSValueType firstUseType, JSValueType secondUseType);
-    void updateElemCounters(jsbytecode *pc, FrameEntry *obj, FrameEntry *id);
-    void bumpPropCounter(jsbytecode *pc, int counter);
+    void updateElemCounts(jsbytecode *pc, FrameEntry *obj, FrameEntry *id);
+    void bumpPropCount(jsbytecode *pc, int count);
 
     /* Analysis helpers. */
     CompileStatus prepareInferenceTypes(JSScript *script, ActiveFrame *a);
     void ensureDoubleArguments();
+    void markUndefinedLocal(uint32_t offset, uint32_t i);
     void markUndefinedLocals();
     void fixDoubleTypes(jsbytecode *target);
     void watchGlobalReallocation();
@@ -606,15 +610,13 @@ private:
 
     /* Non-emitting helpers. */
     void pushSyncedEntry(uint32_t pushed);
-    uint32_t fullAtomIndex(jsbytecode *pc);
     bool jumpInScript(Jump j, jsbytecode *pc);
     bool compareTwoValues(JSContext *cx, JSOp op, const Value &lhs, const Value &rhs);
-    bool canUseApplyTricks();
 
     /* Emitting helpers. */
     bool constantFoldBranch(jsbytecode *target, bool taken);
     bool emitStubCmpOp(BoolStub stub, jsbytecode *target, JSOp fused);
-    bool iter(uintN flags);
+    bool iter(unsigned flags);
     void iterNext(ptrdiff_t offset);
     bool iterMore(jsbytecode *target);
     void iterEnd();
@@ -665,8 +667,7 @@ private:
     void interruptCheckHelper();
     void recompileCheckHelper();
     void emitUncachedCall(uint32_t argc, bool callingNew);
-    void checkCallApplySpeculation(uint32_t callImmArgc, uint32_t speculatedArgc,
-                                   FrameEntry *origCallee, FrameEntry *origThis,
+    void checkCallApplySpeculation(uint32_t argc, FrameEntry *origCallee, FrameEntry *origThis,
                                    MaybeRegisterID origCalleeType, RegisterID origCalleeData,
                                    MaybeRegisterID origThisType, RegisterID origThisData,
                                    Jump *uncachedCallSlowRejoin, CallPatchInfo *uncachedCallPatch);
@@ -687,10 +688,9 @@ private:
     bool jsop_instanceof();
     void jsop_name(PropertyName *name, JSValueType type);
     bool jsop_xname(PropertyName *name);
-    void enterBlock(JSObject *obj);
+    void enterBlock(StaticBlockObject *block);
     void leaveBlock();
     void emitEval(uint32_t argc);
-    void jsop_arguments(RejoinState rejoin);
     bool jsop_tableswitch(jsbytecode *pc);
 
     /* Fast arithmetic. */
@@ -792,7 +792,6 @@ private:
 
     /* Fast builtins. */
     JSObject *pushedSingleton(unsigned pushed);
-    CompileStatus callArrayBuiltin(uint32_t argc, bool callingNew);
     CompileStatus inlineNativeFunction(uint32_t argc, bool callingNew);
     CompileStatus inlineScriptedFunction(uint32_t argc, bool callingNew);
     CompileStatus compileMathAbsInt(FrameEntry *arg);

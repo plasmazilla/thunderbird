@@ -64,10 +64,8 @@
 #include "nsLinebreakConverter.h"
 #include "nsIDocument.h"
 #include "nsIFrame.h"
-#include "nsIFormControlFrame.h"
 #include "nsIPrivateDOMEvent.h"
 #include "nsGUIEvent.h"
-#include "nsLinebreakConverter.h"
 #include "nsPresState.h"
 #include "nsReadableUtils.h"
 #include "nsEventDispatcher.h"
@@ -212,7 +210,8 @@ public:
    * Called when an attribute is about to be changed
    */
   virtual nsresult BeforeSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
-                                 const nsAString* aValue, bool aNotify);
+                                 const nsAttrValueOrString* aValue,
+                                 bool aNotify);
 
   // nsIMutationObserver
   NS_DECL_NSIMUTATIONOBSERVER_CHARACTERDATACHANGED
@@ -284,7 +283,7 @@ protected:
   void ContentChanged(nsIContent* aContent);
 
   virtual nsresult AfterSetAttr(PRInt32 aNamespaceID, nsIAtom *aName,
-                                const nsAString* aValue, bool aNotify);
+                                const nsAttrValue* aValue, bool aNotify);
 
   /**
    * Return if an element should have a specific validity UI
@@ -1215,7 +1214,8 @@ nsHTMLTextAreaElement::UnbindFromTree(bool aDeep, bool aNullParent)
 
 nsresult
 nsHTMLTextAreaElement::BeforeSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
-                                     const nsAString* aValue, bool aNotify)
+                                     const nsAttrValueOrString* aValue,
+                                     bool aNotify)
 {
   if (aNotify && aName == nsGkAtoms::disabled &&
       aNameSpaceID == kNameSpaceID_None) {
@@ -1276,7 +1276,7 @@ nsHTMLTextAreaElement::ContentChanged(nsIContent* aContent)
 
 nsresult
 nsHTMLTextAreaElement::AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
-                                    const nsAString* aValue, bool aNotify)
+                                    const nsAttrValue* aValue, bool aNotify)
 {
   if (aNameSpaceID == kNameSpaceID_None) {
     if (aName == nsGkAtoms::required || aName == nsGkAtoms::disabled ||
@@ -1293,6 +1293,7 @@ nsHTMLTextAreaElement::AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
 
     if (aName == nsGkAtoms::readonly) {
       UpdateEditableState(aNotify);
+      mState->UpdateEditableState(aNotify);
     }
     UpdateState(aNotify);
   }
@@ -1421,7 +1422,7 @@ nsHTMLTextAreaElement::GetValidationMessage(nsAString& aValidationMessage,
         const PRUnichar* params[] = { strMaxLength.get(), strTextLength.get() };
         rv = nsContentUtils::FormatLocalizedString(nsContentUtils::eDOM_PROPERTIES,
                                                    "FormValidationTextTooLong",
-                                                   params, 2, message);
+                                                   params, message);
         aValidationMessage = message;
       }
       break;

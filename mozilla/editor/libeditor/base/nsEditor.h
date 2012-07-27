@@ -153,6 +153,8 @@ public:
                                            nsIEditor)
 
   /* ------------ utility methods   -------------- */
+  already_AddRefed<nsIDOMDocument> GetDOMDocument();
+  already_AddRefed<nsIDocument> GetDocument();
   already_AddRefed<nsIPresShell> GetPresShell();
   void NotifyEditorObservers();
 
@@ -191,6 +193,7 @@ public:
                             const nsAString *aValue = nsnull,
                             bool aCloneAttributes = false);
 
+  nsresult RemoveContainer(nsINode* aNode);
   nsresult RemoveContainer(nsIDOMNode *inNode);
   nsresult InsertContainerAbove(nsIDOMNode *inNode, 
                                 nsCOMPtr<nsIDOMNode> *outNode, 
@@ -213,29 +216,6 @@ public:
   nsresult EndIMEComposition();
 
   void SwitchTextDirectionTo(PRUint32 aDirection);
-
-  void BeginKeypressHandling() { mLastKeypressEventWasTrusted = eTriTrue; }
-  void BeginKeypressHandling(nsIDOMNSEvent* aEvent);
-  void EndKeypressHandling() { mLastKeypressEventWasTrusted = eTriUnset; }
-
-  class FireTrustedInputEvent {
-  public:
-    explicit FireTrustedInputEvent(nsEditor* aSelf, bool aActive = true)
-      : mEditor(aSelf)
-      , mShouldAct(aActive && mEditor->mLastKeypressEventWasTrusted == eTriUnset) {
-      if (mShouldAct) {
-        mEditor->BeginKeypressHandling();
-      }
-    }
-    ~FireTrustedInputEvent() {
-      if (mShouldAct) {
-        mEditor->EndKeypressHandling();
-      }
-    }
-  private:
-    nsEditor* mEditor;
-    bool mShouldAct;
-  };
 
 protected:
   nsCString mContentMIMEType;       // MIME type of the doc we are editing.
@@ -504,6 +484,10 @@ public:
                        nsCOMPtr<nsIDOMNode> *aResultNode,
                        bool         bNoBlockCrossing = false,
                        nsIContent  *aActiveEditorRoot = nsnull);
+  nsIContent* GetNextNode(nsINode* aCurrentNode,
+                          bool aEditableNode,
+                          bool bNoBlockCrossing = false,
+                          nsIContent* aActiveEditorRoot = nsnull);
 
   // and another version that takes a {parent,offset} pair rather than a node
   nsresult GetNextNode(nsIDOMNode  *aParentNode, 
@@ -574,17 +558,13 @@ public:
   virtual bool IsTextInDirtyFrameVisible(nsIContent *aNode);
 
   /** returns true if aNode is a MozEditorBogus node */
-  bool IsMozEditorBogusNode(nsIDOMNode *aNode);
   bool IsMozEditorBogusNode(nsIContent *aNode);
 
   /** counts number of editable child nodes */
   nsresult CountEditableChildren(nsIDOMNode *aNode, PRUint32 &outCount);
   
-  /** Find the deep first and last children. Returned nodes are AddReffed */
-  nsresult GetFirstEditableNode(nsIDOMNode *aRoot, nsCOMPtr<nsIDOMNode> *outFirstNode);
-#ifdef XXX_DEAD_CODE
-  nsresult GetLastEditableNode(nsIDOMNode *aRoot, nsCOMPtr<nsIDOMNode> *outLastNode);
-#endif
+  /** Find the deep first and last children. */
+  nsINode* GetFirstEditableNode(nsINode* aRoot);
 
   nsresult GetIMEBufferLength(PRInt32* length);
   bool     IsIMEComposing();    /* test if IME is in composition state */
@@ -689,11 +669,6 @@ public:
     return (mFlags & nsIPlaintextEditor::eEditorMailMask) != 0;
   }
 
-  bool UseAsyncUpdate() const
-  {
-    return (mFlags & nsIPlaintextEditor::eEditorUseAsyncUpdatesMask) != 0;
-  }
-
   bool IsWrapHackEnabled() const
   {
     return (mFlags & nsIPlaintextEditor::eEditorEnableWrapHackMask) != 0;
@@ -719,7 +694,7 @@ public:
     return (mFlags & nsIPlaintextEditor::eEditorDontEchoPassword) != 0;
   }
   
-  PRBool ShouldSkipSpellCheck() const
+  bool ShouldSkipSpellCheck() const
   {
     return (mFlags & nsIPlaintextEditor::eEditorSkipSpellCheck) != 0;
   }
@@ -729,6 +704,9 @@ public:
     return IsSingleLineEditor() || IsPasswordEditor() || IsFormWidget() ||
            IsInteractionAllowed();
   }
+
+  // Get the input event target. This might return null.
+  virtual already_AddRefed<nsIContent> GetInputEventTargetContent() = 0;
 
   // Get the focused content, if we're focused.  Returns null otherwise.
   virtual already_AddRefed<nsIContent> GetFocusedContent();
@@ -761,6 +739,59 @@ public:
   // added here.
   void OnFocus(nsIDOMEventTarget* aFocusEventTarget);
 
+  // Used to insert content from a data transfer into the editable area.
+  // This is called for each item in the data transfer, with the index of
+  // each item passed as aIndex.
+  virtual nsresult InsertFromDataTransfer(nsIDOMDataTransfer *aDataTransfer,
+                                          PRInt32 aIndex,
+                                          nsIDOMDocument *aSourceDoc,
+                                          nsIDOMNode *aDestinationNode,
+                                          PRInt32 aDestOffset,
+                                          bool aDoDeleteSelection) = 0;
+
+  virtual nsresult InsertFromDrop(nsIDOMEvent* aDropEvent) = 0;
+
+  virtual already_AddRefed<nsIDOMNode> FindUserSelectAllNode(nsIDOMNode* aNode) { return nsnull; }
+
+  NS_STACK_CLASS class HandlingTrustedAction
+  {
+  public:
+    explicit HandlingTrustedAction(nsEditor* aSelf, bool aIsTrusted = true)
+    {
+      Init(aSelf, aIsTrusted);
+    }
+
+    HandlingTrustedAction(nsEditor* aSelf, nsIDOMNSEvent* aEvent);
+
+    ~HandlingTrustedAction()
+    {
+      mEditor->mHandlingTrustedAction = mWasHandlingTrustedAction;
+      mEditor->mHandlingActionCount--;
+    }
+
+  private:
+    nsRefPtr<nsEditor> mEditor;
+    bool mWasHandlingTrustedAction;
+
+    void Init(nsEditor* aSelf, bool aIsTrusted)
+    {
+      MOZ_ASSERT(aSelf);
+
+      mEditor = aSelf;
+      mWasHandlingTrustedAction = aSelf->mHandlingTrustedAction;
+      if (aIsTrusted) {
+        // If action is nested and the outer event is not trusted,
+        // we shouldn't override it.
+        if (aSelf->mHandlingActionCount == 0) {
+          aSelf->mHandlingTrustedAction = true;
+        }
+      } else {
+        aSelf->mHandlingTrustedAction = false;
+      }
+      aSelf->mHandlingActionCount++;
+    }
+  };
+
 protected:
 
   PRUint32        mModCount;     // number of modifications (for undo/redo stack)
@@ -768,7 +799,6 @@ protected:
 
   nsWeakPtr       mSelConWeak;   // weak reference to the nsISelectionController
   PRInt32         mUpdateCount;
-  nsIViewManager::UpdateViewBatch mBatch;
 
   // Spellchecking
   enum Tristate {
@@ -815,7 +845,9 @@ protected:
 
  nsCOMPtr<nsIDOMEventListener> mEventListener;
 
-  Tristate mLastKeypressEventWasTrusted;
+  PRUint32 mHandlingActionCount;
+  bool mHandlingTrustedAction;
+  bool mDispatchInputEvent;
 
   friend bool NSCanUnload(nsISupports* serviceMgr);
   friend class nsAutoTxnsConserveSelection;

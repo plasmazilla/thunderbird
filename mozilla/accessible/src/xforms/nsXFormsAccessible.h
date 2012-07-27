@@ -70,16 +70,14 @@ class nsXFormsAccessible : public nsHyperTextAccessibleWrap,
                            public nsXFormsAccessibleBase
 {
 public:
-  nsXFormsAccessible(nsIContent *aContent, nsIWeakReference *aShell);
-
-  // nsIAccessible
-
-  // Returns value of instance node that xforms element is bound to.
-  NS_IMETHOD GetValue(nsAString& aValue);
+  nsXFormsAccessible(nsIContent* aContent, nsDocAccessible* aDoc);
 
   // nsAccessible
   // Returns value of child xforms 'hint' element.
   virtual void Description(nsString& aDescription);
+
+  // Returns value of instance node that xforms element is bound to.
+  virtual void Value(nsString& aValue);
 
   // Returns value of child xforms 'label' element.
   virtual nsresult GetNameInternal(nsAString& aName);
@@ -90,7 +88,7 @@ public:
 
   // Denies accessible nodes in anonymous content of xforms element by
   // always returning false value.
-  virtual bool GetAllowsAnonChildAccessibles();
+  virtual bool CanHaveAnonChildren();
 
 protected:
   // Returns value of first child xforms element by tagname that is bound to
@@ -124,14 +122,14 @@ protected:
 class nsXFormsContainerAccessible : public nsXFormsAccessible
 {
 public:
-  nsXFormsContainerAccessible(nsIContent *aContent, nsIWeakReference *aShell);
+  nsXFormsContainerAccessible(nsIContent* aContent, nsDocAccessible* aDoc);
 
   // nsAccessible
   virtual mozilla::a11y::role NativeRole();
 
   // Allows accessible nodes in anonymous content of xforms element by
   // always returning true value.
-  virtual bool GetAllowsAnonChildAccessibles();
+  virtual bool CanHaveAnonChildren();
 };
 
 
@@ -142,10 +140,10 @@ public:
 class nsXFormsEditableAccessible : public nsXFormsAccessible
 {
 public:
-  nsXFormsEditableAccessible(nsIContent *aContent, nsIWeakReference *aShell);
+  nsXFormsEditableAccessible(nsIContent* aContent, nsDocAccessible* aDoc);
 
-  // nsIAccessibleEditableText
-  NS_IMETHOD GetAssociatedEditor(nsIEditor **aEditor);
+  // nsHyperTextAccessible
+  virtual already_AddRefed<nsIEditor> GetEditor() const;
 
   // nsAccessible
   virtual PRUint64 NativeState();
@@ -159,7 +157,7 @@ public:
 class nsXFormsSelectableAccessible : public nsXFormsEditableAccessible
 {
 public:
-  nsXFormsSelectableAccessible(nsIContent *aContent, nsIWeakReference *aShell);
+  nsXFormsSelectableAccessible(nsIContent* aContent, nsDocAccessible* aDoc);
 
   // SelectAccessible
   virtual bool IsSelect();
@@ -186,11 +184,13 @@ protected:
 class nsXFormsSelectableItemAccessible : public nsXFormsAccessible
 {
 public:
-  nsXFormsSelectableItemAccessible(nsIContent *aContent,
-                                   nsIWeakReference *aShell);
+  nsXFormsSelectableItemAccessible(nsIContent* aContent,
+                                   nsDocAccessible* aDoc);
 
-  NS_IMETHOD GetValue(nsAString& aValue);
   NS_IMETHOD DoAction(PRUint8 aIndex);
+
+  // nsAccessible
+  virtual void Value(nsString& aValue);
 
   // ActionAccessible
   virtual PRUint8 ActionCount();

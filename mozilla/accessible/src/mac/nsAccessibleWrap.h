@@ -62,7 +62,7 @@
 class nsAccessibleWrap : public nsAccessible
 {
 public: // construction, destruction
-  nsAccessibleWrap(nsIContent* aContent, nsIWeakReference* aShell);
+  nsAccessibleWrap(nsIContent* aContent, nsDocAccessible* aDoc);
   virtual ~nsAccessibleWrap();
     
   /**
@@ -99,8 +99,8 @@ public: // construction, destruction
    * Returns this accessible's all children, adhering to "flat" accessibles by 
    * not returning their children.
    */
-  void GetUnignoredChildren(nsTArray<nsRefPtr<nsAccessibleWrap> >& aChildrenArray);
-  virtual already_AddRefed<nsIAccessible> GetUnignoredParent();
+  void GetUnignoredChildren(nsTArray<nsAccessible*>* aChildrenArray);
+  nsAccessible* GetUnignoredParent() const;
     
 protected:
 

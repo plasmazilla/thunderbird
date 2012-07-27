@@ -65,6 +65,14 @@ RUN_MOCHITEST = \
 	rm -f ./$@.log && \
 	$(PYTHON) _tests/testing/mochitest/runtests.py --autorun --close-when-done \
 	  --console-level=INFO --log-file=./$@.log --file-level=INFO \
+	  --failure-file=$(call core_abspath,_tests/testing/mochitest/makefailures.json)  \
+	  $(SYMBOLS_PATH) $(TEST_PATH_ARG) $(EXTRA_TEST_ARGS)
+
+RERUN_MOCHITEST = \
+	rm -f ./$@.log && \
+	$(PYTHON) _tests/testing/mochitest/runtests.py --autorun --close-when-done \
+	  --console-level=INFO --log-file=./$@.log --file-level=INFO \
+	  --run-only-tests=makefailures.json  \
 	  $(SYMBOLS_PATH) $(TEST_PATH_ARG) $(EXTRA_TEST_ARGS)
 
 RUN_MOCHITEST_REMOTE = \
@@ -78,7 +86,7 @@ RUN_MOCHITEST_ROBOTIUM = \
   rm -f ./$@.log && \
   $(PYTHON) _tests/testing/mochitest/runtestsremote.py --robocop-path=$(DEPTH)/dist \
     --robocop-ids=$(DEPTH)/build/mobile/robocop/fennec_ids.txt \
-    --console-level=INFO --log-file=./$@.log --file-level=INFO $(DM_FLAGS) --dm_trans=adb \
+    --console-level=INFO --log-file=./$@.log --file-level=INFO $(DM_FLAGS) --dm_trans=$(DM_TRANS) \
     --app=$(TEST_PACKAGE_NAME) --deviceIP=${TEST_DEVICE} --xre-path=${MOZ_HOST_BIN} \
     --robocop=$(DEPTH)/build/mobile/robocop/robocop.ini $(SYMBOLS_PATH) $(TEST_PATH_ARG) $(EXTRA_TEST_ARGS)
 
@@ -88,6 +96,7 @@ define CHECK_TEST_ERROR
   if test "$$errors" ; then \
 	  echo "$@ failed:"; \
 	  echo "$$errors"; \
+          echo "To rerun your failures please run 'make mochitest-plain-rerun-failures'"; \
 	  exit 1; \
   else \
 	  echo "$@ passed"; \
@@ -97,23 +106,31 @@ endif
 
 mochitest-remote: DM_TRANS?=adb
 mochitest-remote:
-	@if test -f ${MOZ_HOST_BIN}/xpcshell && [ "${TEST_DEVICE}" != "usb" -o "$(DM_TRANS)" = "adb" ]; \
-          then $(RUN_MOCHITEST_REMOTE); \
-        else \
-          echo "please prepare your host with environment variables for TEST_DEVICE and MOZ_HOST_BIN"; \
-        fi
+	@if [ ! -f ${MOZ_HOST_BIN}/xpcshell ]; then \
+        echo "please prepare your host with the environment variable MOZ_HOST_BIN"; \
+    elif [ "${TEST_DEVICE}" = "" -a "$(DM_TRANS)" != "adb" ]; then \
+        echo "please prepare your host with the environment variable TEST_DEVICE"; \
+    else \
+        $(RUN_MOCHITEST_REMOTE); \
+    fi
 
 mochitest-robotium: robotium-id-map
 mochitest-robotium: DM_TRANS?=adb
 mochitest-robotium:
-	@if test -f ${MOZ_HOST_BIN}/xpcshell && [ "${TEST_DEVICE}" != "usb" -o "$(DM_TRANS)" = "adb" ]; \
-          then $(RUN_MOCHITEST_ROBOTIUM); \
-        else \
-          echo "please prepare your host with environment variables for TEST_DEVICE and MOZ_HOST_BIN"; \
-        fi
+	@if [ ! -f ${MOZ_HOST_BIN}/xpcshell ]; then \
+        echo "please prepare your host with the environment variable MOZ_HOST_BIN"; \
+    elif [ "${TEST_DEVICE}" = "" -a "$(DM_TRANS)" != "adb" ]; then \
+        echo "please prepare your host with the environment variable TEST_DEVICE"; \
+    else \
+        $(RUN_MOCHITEST_ROBOTIUM); \
+    fi
 
 mochitest-plain:
 	$(RUN_MOCHITEST)
+	$(CHECK_TEST_ERROR)
+
+mochitest-plain-rerun-failures:
+	$(RERUN_MOCHITEST)
 	$(CHECK_TEST_ERROR)
 
 # Allow mochitest-1 ... mochitest-5 for developer ease
@@ -172,11 +189,15 @@ reftest:
 reftest-remote: TEST_PATH?=layout/reftests/reftest.list
 reftest-remote: DM_TRANS?=adb
 reftest-remote:
-	@if test -f ${MOZ_HOST_BIN}/xpcshell && [ "${TEST_DEVICE}" != "" -o "$(DM_TRANS)" = "adb" ]; \
-	  then ln -s $(abspath $(topsrcdir)) _tests/reftest/tests;$(call REMOTE_REFTEST,tests/$(TEST_PATH)); $(CHECK_TEST_ERROR); \
-        else \
-          echo "please prepare your host with environment variables for TEST_DEVICE and MOZ_HOST_BIN"; \
-        fi
+	@if [ ! -f ${MOZ_HOST_BIN}/xpcshell ]; then \
+        echo "please prepare your host with the environment variable MOZ_HOST_BIN"; \
+    elif [ "${TEST_DEVICE}" = "" -a "$(DM_TRANS)" != "adb" ]; then \
+        echo "please prepare your host with the environment variable TEST_DEVICE"; \
+    else \
+        ln -s $(abspath $(topsrcdir)) _tests/reftest/tests; \
+        $(call REMOTE_REFTEST,tests/$(TEST_PATH)); \
+        $(CHECK_TEST_ERROR); \
+    fi
 
 reftest-ipc: TEST_PATH?=layout/reftests/reftest.list
 reftest-ipc:
@@ -220,6 +241,9 @@ xpcshell-tests:
 	  --manifest=$(DEPTH)/_tests/xpcshell/xpcshell.ini \
 	  --build-info-json=$(DEPTH)/mozinfo.json \
 	  --no-logfiles \
+	  --tests-root-dir=$(call core_abspath,_tests/xpcshell) \
+	  --xunit-file=$(call core_abspath,_tests/xpcshell/results.xml) \
+	  --xunit-suite-name=xpcshell \
           $(SYMBOLS_PATH) \
 	  $(TEST_PATH_ARG) $(EXTRA_TEST_ARGS) \
 	  $(LIBXUL_DIST)/bin/xpcshell
@@ -250,8 +274,12 @@ xpcshell-tests-remote:
 # Runs peptest, for usage see: https://developer.mozilla.org/en/Peptest#Running_Tests
 RUN_PEPTEST = \
 	rm -f ./$@.log && \
-	$(PYTHON) _tests/peptest/runtests.py --binary=$(browser_path) $(PEPTEST_PATH_ARG) \
-	  --log-file=./$@.log $(SYMBOLS_PATH) $(EXTRA_TEST_ARGS)
+	$(PYTHON) _tests/peptest/runtests.py --binary=$(browser_path) \
+          $(PEPTEST_PATH_ARG) \
+	  --proxy=_tests/peptest/tests/firefox/server-locations.txt \
+          --proxy-host-dirs \
+          --server-path=_tests/peptest/tests/firefox/server \
+          --log-file=./$@.log $(SYMBOLS_PATH) $(EXTRA_TEST_ARGS)
 
 peptest:
 	$(RUN_PEPTEST)
@@ -262,7 +290,18 @@ include $(topsrcdir)/toolkit/mozapps/installer/package-name.mk
 
 ifndef UNIVERSAL_BINARY
 PKG_STAGE = $(DIST)/test-package-stage
-package-tests: stage-mochitest stage-reftest stage-xpcshell stage-jstests stage-jetpack stage-firebug stage-peptest stage-mozbase
+package-tests: \
+  stage-mochitest \
+  stage-reftest \
+  stage-xpcshell \
+  stage-jstests \
+  stage-jetpack \
+  stage-firebug \
+  stage-peptest \
+  stage-mozbase \
+  stage-tps \
+  stage-modules \
+  $(NULL)
 else
 # This staging area has been built for us by universal/flight.mk
 PKG_STAGE = $(DIST)/universal/test-package-stage
@@ -284,7 +323,7 @@ package-tests: stage-android
 endif
 
 make-stage-dir:
-	rm -rf $(PKG_STAGE) && $(NSINSTALL) -D $(PKG_STAGE) && $(NSINSTALL) -D $(PKG_STAGE)/bin && $(NSINSTALL) -D $(PKG_STAGE)/bin/components && $(NSINSTALL) -D $(PKG_STAGE)/certs && $(NSINSTALL) -D $(PKG_STAGE)/jetpack && $(NSINSTALL) -D $(PKG_STAGE)/firebug && $(NSINSTALL) -D $(PKG_STAGE)/peptest && $(NSINSTALL) -D $(PKG_STAGE)/mozbase
+	rm -rf $(PKG_STAGE) && $(NSINSTALL) -D $(PKG_STAGE) && $(NSINSTALL) -D $(PKG_STAGE)/bin && $(NSINSTALL) -D $(PKG_STAGE)/bin/components && $(NSINSTALL) -D $(PKG_STAGE)/certs && $(NSINSTALL) -D $(PKG_STAGE)/jetpack && $(NSINSTALL) -D $(PKG_STAGE)/firebug && $(NSINSTALL) -D $(PKG_STAGE)/peptest && $(NSINSTALL) -D $(PKG_STAGE)/mozbase && $(NSINSTALL) -D $(PKG_STAGE)/modules
 
 robotium-id-map:
 ifeq ($(MOZ_BUILD_APP),mobile/android)
@@ -322,12 +361,41 @@ stage-firebug: make-stage-dir
 stage-peptest: make-stage-dir
 	$(MAKE) -C $(DEPTH)/testing/peptest stage-package
 
+stage-tps: make-stage-dir
+	$(NSINSTALL) -D $(PKG_STAGE)/tps/tests
+	@(cd $(topsrcdir)/testing/tps && tar $(TAR_CREATE_FLAGS) - *) | (cd $(PKG_STAGE)/tps && tar -xf -)
+	@(cd $(topsrcdir)/services/sync/tps && tar $(TAR_CREATE_FLAGS) - *) | (cd $(PKG_STAGE)/tps && tar -xf -)
+	@(cd $(topsrcdir)/services/sync/tests/tps && tar $(TAR_CREATE_FLAGS) - *) | (cd $(PKG_STAGE)/tps/tests && tar -xf -)
+
+  # This will get replaced by actual logic in a subsequent patch.
+stage-modules: make-stage-dir
+	$(TOUCH) $(PKG_STAGE)/modules/.dummy
+
 stage-mozbase: make-stage-dir
 	$(MAKE) -C $(DEPTH)/testing/mozbase stage-package
 .PHONY: \
-  mochitest mochitest-plain mochitest-chrome mochitest-a11y mochitest-ipcplugins \
-  reftest crashtest \
+  mochitest \
+  mochitest-plain \
+  mochitest-chrome \
+  mochitest-a11y \
+  mochitest-ipcplugins \
+  reftest \
+  crashtest \
   xpcshell-tests \
   jstestbrowser \
   peptest \
-  package-tests make-stage-dir stage-mochitest stage-reftest stage-xpcshell stage-jstests stage-android stage-jetpack stage-firebug stage-peptest stage-mozbase
+  package-tests \
+  make-stage-dir \
+  stage-mochitest \
+  stage-reftest \
+  stage-xpcshell \
+  stage-jstests \
+  stage-android \
+  stage-jetpack \
+  stage-firebug \
+  stage-peptest \
+  stage-mozbase \
+  stage-tps \
+  stage-modules \
+  $(NULL)
+

@@ -73,6 +73,9 @@ html|a {
 :-moz-type-unsupported .icon[status="ready"] {
   background-image: url(chrome://mozapps/skin/plugins/contentPluginDownload.png);
 }
+:-moz-handler-clicktoplay .icon {
+  background-image: url(chrome://mozapps/skin/plugins/contentPluginClickToPlay.png);
+}
 :-moz-handler-disabled .icon {
   background-image: url(chrome://mozapps/skin/plugins/contentPluginDisabled.png);
 }
@@ -94,6 +97,15 @@ html|a {
   font-size: 12px;
   cursor: default;
   text-shadow: rgba(0,0,0,0.8) 0 0 3.5px;
+}
+
+:-moz-handler-clicktoplay,
+.msgClickToPlay {
+  cursor: pointer;
+}
+
+:-moz-handler-clicktoplay .msgTapToPlay {
+  display: none;
 }
 
 .submitStatus div {

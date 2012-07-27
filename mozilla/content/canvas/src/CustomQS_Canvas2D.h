@@ -42,8 +42,10 @@
 #include "nsIDOMCanvasRenderingContext2D.h"
 #include "CheckedInt.h"
 #include "nsMathUtils.h"
+#include "CustomQS_Canvas.h"
 
 #include "jsapi.h"
+#include "jsfriendapi.h"
 
 typedef NS_STDCALL_FUNCPROTO(nsresult, CanvasStyleSetterType, nsIDOMCanvasRenderingContext2D,
                              SetStrokeStyle_multi, (const nsAString &, nsISupports *));
@@ -58,7 +60,7 @@ Canvas2D_SetStyleHelper(JSContext *cx, JSObject *obj, jsid id, jsval *vp,
     nsIDOMCanvasRenderingContext2D *self;
     xpc_qsSelfRef selfref;
     JS::AutoValueRooter tvr(cx);
-    if (!xpc_qsUnwrapThis(cx, obj, nsnull, &self, &selfref.ptr, tvr.jsval_addr(), nsnull))
+    if (!xpc_qsUnwrapThis(cx, obj, &self, &selfref.ptr, tvr.jsval_addr(), nsnull))
         return JS_FALSE;
 
     nsresult rv = NS_OK;
@@ -96,7 +98,7 @@ Canvas2D_GetStyleHelper(JSContext *cx, JSObject *obj, jsid id, jsval *vp,
     nsIDOMCanvasRenderingContext2D *self;
     xpc_qsSelfRef selfref;
     XPCLazyCallContext lccx(JS_CALLER, cx, obj);
-    if (!xpc_qsUnwrapThis(cx, obj, nsnull, &self, &selfref.ptr, vp, &lccx))
+    if (!xpc_qsUnwrapThis(cx, obj, &self, &selfref.ptr, vp, &lccx))
         return JS_FALSE;
     nsresult rv;
 
@@ -157,13 +159,7 @@ nsIDOMCanvasRenderingContext2D_GetFillStyle(JSContext *cx, JSObject *obj, jsid i
 }
 
 static bool
-CreateImageData(JSContext* cx,
-                uint32_t w,
-                uint32_t h,
-                nsIDOMCanvasRenderingContext2D* self,
-                int32_t x,
-                int32_t y,
-                jsval* vp)
+CreateImageData(JSContext* cx, JSObject* obj, uint32_t w, uint32_t h, jsval* vp)
 {
     using mozilla::CheckedInt;
 
@@ -178,79 +174,30 @@ CreateImageData(JSContext* cx,
     }
 
     // Create the fast typed array; it's initialized to 0 by default.
-    JSObject* darray =
-      js_CreateTypedArray(cx, js::TypedArray::TYPE_UINT8_CLAMPED, len.value());
+    JSObject* darray = JS_NewUint8ClampedArray(cx, len.value());
     JS::AutoObjectRooter rd(cx, darray);
     if (!darray) {
         return false;
     }
 
-    if (self) {
-        JSObject *tdest = js::TypedArray::getTypedArray(darray);
-
-        // make the call
-        nsresult rv =
-            self->GetImageData_explicit(x, y, w, h,
-                                        static_cast<PRUint8*>(JS_GetTypedArrayData(tdest)),
-                                        JS_GetTypedArrayByteLength(tdest));
-        if (NS_FAILED(rv)) {
-            return xpc_qsThrowMethodFailed(cx, rv, vp);
-        }
-    }
-
-    // Do JS_NewObject after CreateTypedArray, so that gc will get
-    // triggered here if necessary
-    JSObject* result = JS_NewObject(cx, NULL, NULL, NULL);
-    JS::AutoObjectRooter rr(cx, result);
-    if (!result) {
-        return false;
-    }
-
-    if (!JS_DefineProperty(cx, result, "width", INT_TO_JSVAL(w), NULL, NULL,
-                           JSPROP_ENUMERATE | JSPROP_READONLY | JSPROP_PERMANENT) ||
-        !JS_DefineProperty(cx, result, "height", INT_TO_JSVAL(h), NULL, NULL,
-                           JSPROP_ENUMERATE | JSPROP_READONLY | JSPROP_PERMANENT) ||
-        !JS_DefineProperty(cx, result, "data", OBJECT_TO_JSVAL(darray), NULL, NULL,
-                           JSPROP_ENUMERATE | JSPROP_READONLY | JSPROP_PERMANENT)) {
-        return false;
-    }
-
-    *vp = OBJECT_TO_JSVAL(result);
-    return true;
-}
-
-static bool
-GetImageDataDimensions(JSContext *cx, JSObject *dataObject, uint32_t *width, uint32_t *height)
-{
-    jsval temp;
-    int32_t wi, hi;
-    
-    // Need to check that dataObject is ImageData object. That's hard for the moment 
-    // because they're just vanilla objects in our implementation.
-    // Let's guess, if the object has valid width and height then it's suitable
-    // for this operation.
-    if (!JS_GetProperty(cx, dataObject, "width", &temp) ||
-        !JS_ValueToECMAInt32(cx, temp, &wi))
-        return false;
-
-    if (!JS_GetProperty(cx, dataObject, "height", &temp) ||
-        !JS_ValueToECMAInt32(cx, temp, &hi))
-        return false;
-
-    if (wi <= 0 || hi <= 0)
-        return xpc_qsThrow(cx, NS_ERROR_DOM_INDEX_SIZE_ERR);
-
-    *width = uint32_t(wi);
-    *height = uint32_t(hi);
-    return true;
+    XPCLazyCallContext lccx(JS_CALLER, cx, obj);
+    const nsIID *iid = &NS_GET_IID(nsIDOMImageData);
+    nsRefPtr<mozilla::dom::ImageData> imageData =
+        new mozilla::dom::ImageData(w, h, *darray);
+    qsObjectHelper helper(imageData, NULL);
+    return xpc_qsXPCOMObjectToJsval(lccx, helper, iid,
+                                    &interfaces[k_nsIDOMImageData], vp);
 }
 
 static JSBool
-nsIDOMCanvasRenderingContext2D_CreateImageData(JSContext *cx, uintN argc, jsval *vp)
+nsIDOMCanvasRenderingContext2D_CreateImageData(JSContext *cx, unsigned argc, jsval *vp)
 {
     XPC_QS_ASSERT_CONTEXT_OK(cx);
 
-    /* Note: this doesn't need JS_THIS_OBJECT */
+    JSObject* obj = JS_THIS_OBJECT(cx, vp);
+    if (!obj) {
+        return false;
+    }
 
     if (argc < 1)
         return xpc_qsThrow(cx, NS_ERROR_XPC_NOT_ENOUGH_ARGS);
@@ -258,21 +205,16 @@ nsIDOMCanvasRenderingContext2D_CreateImageData(JSContext *cx, uintN argc, jsval 
     jsval *argv = JS_ARGV(cx, vp);
 
     if (argc == 1) {
-        // The specification asks to throw NOT_SUPPORTED if first argument is NULL,
-        // An object is expected, so throw an exception for all primitives.
-        if (JSVAL_IS_PRIMITIVE(argv[0]))
-            return xpc_qsThrow(cx, NS_ERROR_DOM_NOT_SUPPORTED_ERR);
-
-        JSObject *dataObject = JSVAL_TO_OBJECT(argv[0]);
-
         uint32_t data_width, data_height;
-        if (!GetImageDataDimensions(cx, dataObject, &data_width, &data_height))
+        JS::Anchor<JSObject*> darray;
+        if (!GetImageData(cx, argv[0], &data_width, &data_height, &darray)) {
             return false;
+        }
 
-        return CreateImageData(cx, data_width, data_height, NULL, 0, 0, vp);
+        return CreateImageData(cx, obj, data_width, data_height, vp);
     }
 
-    jsdouble width, height;
+    double width, height;
     if (!JS_ValueToNumber(cx, argv[0], &width) ||
         !JS_ValueToNumber(cx, argv[1], &height))
         return false;
@@ -288,68 +230,11 @@ nsIDOMCanvasRenderingContext2D_CreateImageData(JSContext *cx, uintN argc, jsval 
 
     uint32_t w = NS_ABS(wi);
     uint32_t h = NS_ABS(hi);
-    return CreateImageData(cx, w, h, NULL, 0, 0, vp);
+    return CreateImageData(cx, obj, w, h, vp);
 }
 
 static JSBool
-nsIDOMCanvasRenderingContext2D_GetImageData(JSContext *cx, uintN argc, jsval *vp)
-{
-    XPC_QS_ASSERT_CONTEXT_OK(cx);
-
-    JSObject *obj = JS_THIS_OBJECT(cx, vp);
-    if (!obj)
-        return JS_FALSE;
-
-    nsIDOMCanvasRenderingContext2D *self;
-    xpc_qsSelfRef selfref;
-    JS::AutoValueRooter tvr(cx);
-    if (!xpc_qsUnwrapThis(cx, obj, nsnull, &self, &selfref.ptr, tvr.jsval_addr(), nsnull))
-        return JS_FALSE;
-
-    if (argc < 4)
-        return xpc_qsThrow(cx, NS_ERROR_XPC_NOT_ENOUGH_ARGS);
-
-    jsval *argv = JS_ARGV(cx, vp);
-
-    jsdouble xd, yd, width, height;
-    if (!JS_ValueToNumber(cx, argv[0], &xd) ||
-        !JS_ValueToNumber(cx, argv[1], &yd) ||
-        !JS_ValueToNumber(cx, argv[2], &width) ||
-        !JS_ValueToNumber(cx, argv[3], &height))
-        return false;
-
-    if (!NS_finite(xd) || !NS_finite(yd) ||
-        !NS_finite(width) || !NS_finite(height))
-        return xpc_qsThrow(cx, NS_ERROR_DOM_NOT_SUPPORTED_ERR);
-
-    if (!width || !height)
-        return xpc_qsThrow(cx, NS_ERROR_DOM_INDEX_SIZE_ERR);
-
-    int32_t x = JS_DoubleToInt32(xd);
-    int32_t y = JS_DoubleToInt32(yd);
-    int32_t wi = JS_DoubleToInt32(width);
-    int32_t hi = JS_DoubleToInt32(height);
-
-    // Handle negative width and height by flipping the rectangle over in the
-    // relevant direction.
-    uint32_t w, h;
-    if (width < 0) {
-        w = -wi;
-        x -= w;
-    } else {
-        w = wi;
-    }
-    if (height < 0) {
-        h = -hi;
-        y -= h;
-    } else {
-        h = hi;
-    }
-    return CreateImageData(cx, w, h, self, x, y, vp);
-}
-
-static JSBool
-nsIDOMCanvasRenderingContext2D_PutImageData(JSContext *cx, uintN argc, jsval *vp)
+nsIDOMCanvasRenderingContext2D_PutImageData(JSContext *cx, unsigned argc, jsval *vp)
 {
     XPC_QS_ASSERT_CONTEXT_OK(cx);
 
@@ -362,7 +247,7 @@ nsIDOMCanvasRenderingContext2D_PutImageData(JSContext *cx, uintN argc, jsval *vp
     nsIDOMCanvasRenderingContext2D *self;
     xpc_qsSelfRef selfref;
     JS::AutoValueRooter tvr(cx);
-    if (!xpc_qsUnwrapThis(cx, obj, nsnull, &self, &selfref.ptr, tvr.jsval_addr(), nsnull))
+    if (!xpc_qsUnwrapThis(cx, obj, &self, &selfref.ptr, tvr.jsval_addr(), nsnull))
         return JS_FALSE;
 
     if (argc < 3)
@@ -370,10 +255,11 @@ nsIDOMCanvasRenderingContext2D_PutImageData(JSContext *cx, uintN argc, jsval *vp
 
     jsval *argv = JS_ARGV(cx, vp);
 
-    if (JSVAL_IS_PRIMITIVE(argv[0]))
-        return xpc_qsThrow(cx, NS_ERROR_DOM_TYPE_MISMATCH_ERR);
-
-    JSObject *dataObject = JSVAL_TO_OBJECT(argv[0]);
+    uint32_t w, h;
+    JS::Anchor<JSObject*> darray;
+    if (!GetImageData(cx, argv[0], &w, &h, &darray)) {
+        return false;
+    }
 
     double xd, yd;
     if (!JS_ValueToNumber(cx, argv[1], &xd) ||
@@ -387,13 +273,6 @@ nsIDOMCanvasRenderingContext2D_PutImageData(JSContext *cx, uintN argc, jsval *vp
 
     int32_t x = JS_DoubleToInt32(xd);
     int32_t y = JS_DoubleToInt32(yd);
-
-    // Grab width, height, and the dense array from the dataObject.
-    JS::AutoValueRooter tv(cx);
-
-    uint32_t w, h;
-    if (!GetImageDataDimensions(cx, dataObject, &w, &h))
-        return JS_FALSE;
 
     // the optional dirty rect
     bool hasDirtyRect = false;
@@ -424,36 +303,32 @@ nsIDOMCanvasRenderingContext2D_PutImageData(JSContext *cx, uintN argc, jsval *vp
         hasDirtyRect = true;
     }
 
-    if (!JS_GetProperty(cx, dataObject, "data", tv.jsval_addr()))
-        return JS_FALSE;
-
-    if (JSVAL_IS_PRIMITIVE(tv.jsval_value()))
-        return xpc_qsThrow(cx, NS_ERROR_DOM_TYPE_MISMATCH_ERR);
-
-    JSObject *darray = JSVAL_TO_OBJECT(tv.jsval_value());
-
     JS::AutoValueRooter tsrc_tvr(cx);
 
-    JSObject *tsrc = NULL;
-    if (js::GetObjectClass(darray) == &js::TypedArray::fastClasses[js::TypedArray::TYPE_UINT8] ||
-        js::GetObjectClass(darray) == &js::TypedArray::fastClasses[js::TypedArray::TYPE_UINT8_CLAMPED])
+    JSObject * tsrc = NULL;
+    if (JS_IsInt8Array(darray.get(), cx) ||
+        JS_IsUint8Array(darray.get(), cx) ||
+        JS_IsUint8ClampedArray(darray.get(), cx))
     {
-        tsrc = js::TypedArray::getTypedArray(darray);
-    } else if (JS_IsArrayObject(cx, darray) || js_IsTypedArray(darray)) {
+        tsrc = darray.get();
+    } else if (JS_IsTypedArrayObject(darray.get(), cx) || JS_IsArrayObject(cx, darray.get())) {
         // ugh, this isn't a uint8 typed array, someone made their own object; convert it to a typed array
-        JSObject *nobj = js_CreateTypedArrayWithArray(cx, js::TypedArray::TYPE_UINT8, darray);
+        JSObject *nobj = JS_NewUint8ClampedArrayFromArray(cx, darray.get());
         if (!nobj)
             return JS_FALSE;
 
         *tsrc_tvr.jsval_addr() = OBJECT_TO_JSVAL(nobj);
-        tsrc = js::TypedArray::getTypedArray(nobj);
+        tsrc = nobj;
     } else {
         // yeah, no.
         return xpc_qsThrow(cx, NS_ERROR_DOM_TYPE_MISMATCH_ERR);
     }
 
     // make the call
-    rv = self->PutImageData_explicit(x, y, w, h, static_cast<PRUint8*>(JS_GetTypedArrayData(tsrc)), JS_GetTypedArrayByteLength(tsrc), hasDirtyRect, dirtyX, dirtyY, dirtyWidth, dirtyHeight);
+    MOZ_ASSERT(JS_IsTypedArrayObject(tsrc, cx));
+    PRUint8* data = reinterpret_cast<PRUint8*>(JS_GetArrayBufferViewData(tsrc, cx));
+    uint32_t byteLength = JS_GetTypedArrayByteLength(tsrc, cx);
+    rv = self->PutImageData_explicit(x, y, w, h, data, byteLength, hasDirtyRect, dirtyX, dirtyY, dirtyWidth, dirtyHeight);
     if (NS_FAILED(rv))
         return xpc_qsThrowMethodFailed(cx, rv, vp);
 

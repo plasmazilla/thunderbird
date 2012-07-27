@@ -124,17 +124,16 @@ nsApplicationAccessible::GetName(nsAString& aName)
   return NS_OK;
 }
 
-NS_IMETHODIMP
-nsApplicationAccessible::GetValue(nsAString &aValue)
-{
-  aValue.Truncate();
-  return NS_OK;
-}
-
 void
 nsApplicationAccessible::Description(nsString &aDescription)
 {
   aDescription.Truncate();
+}
+
+void
+nsApplicationAccessible::Value(nsString& aValue)
+{
+  aValue.Truncate();
 }
 
 PRUint64
@@ -310,12 +309,6 @@ nsApplicationAccessible::GetPlatformVersion(nsAString& aVersion)
 // nsAccessNode public methods
 
 bool
-nsApplicationAccessible::IsDefunct() const
-{
-  return nsAccessibilityService::IsShutdown();
-}
-
-bool
 nsApplicationAccessible::Init()
 {
   mAppInfo = do_GetService("@mozilla.org/xre/app-info;1");
@@ -421,7 +414,7 @@ nsApplicationAccessible::GetSiblingAtOffset(PRInt32 aOffset,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// nsIAccessNode and nsAccessNode
+// nsIAccessible
 
 NS_IMETHODIMP
 nsApplicationAccessible::GetDOMNode(nsIDOMNode **aDOMNode)
@@ -448,13 +441,6 @@ nsApplicationAccessible::GetRootDocument(nsIAccessibleDocument **aRootDocument)
 }
 
 NS_IMETHODIMP
-nsApplicationAccessible::GetInnerHTML(nsAString &aInnerHTML)
-{
-  aInnerHTML.Truncate();
-  return NS_OK;
-}
-
-NS_IMETHODIMP
 nsApplicationAccessible::ScrollTo(PRUint32 aScrollType)
 {
   return NS_OK;
@@ -464,24 +450,6 @@ NS_IMETHODIMP
 nsApplicationAccessible::ScrollToPoint(PRUint32 aCoordinateType,
                                        PRInt32 aX, PRInt32 aY)
 {
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsApplicationAccessible::GetComputedStyleValue(const nsAString &aPseudoElt,
-                                               const nsAString &aPropertyName,
-                                               nsAString &aValue)
-{
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsApplicationAccessible::GetComputedStyleCSSValue(const nsAString &aPseudoElt,
-                                                  const nsAString &aPropertyName,
-                                                  nsIDOMCSSPrimitiveValue **aCSSPrimitiveValue)
-{
-  NS_ENSURE_ARG_POINTER(aCSSPrimitiveValue);
-  *aCSSPrimitiveValue = nsnull;
   return NS_OK;
 }
 

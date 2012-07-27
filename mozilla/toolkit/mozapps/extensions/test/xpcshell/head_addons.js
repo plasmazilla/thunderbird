@@ -402,8 +402,8 @@ function shutdownManager() {
       thr.processNextEvent(false);
   }
 
-  // Force the XPIProvider provider to reload since it defines some constants on
-  // load that need to change during tests
+  // Force the XPIProvider provider to reload to better
+  // simulate real-world usage.
   let scope = Components.utils.import("resource://gre/modules/XPIProvider.jsm");
   AddonManagerPrivate.unregisterProvider(scope.XPIProvider);
   Components.utils.unload("resource://gre/modules/XPIProvider.jsm");
@@ -1127,6 +1127,7 @@ Services.prefs.setBoolPref("extensions.showMismatchUI", false);
 
 // Point update checks to the local machine for fast failures
 Services.prefs.setCharPref("extensions.update.url", "http://127.0.0.1/updateURL");
+Services.prefs.setCharPref("extensions.update.background.url", "http://127.0.0.1/updateBackgroundURL");
 Services.prefs.setCharPref("extensions.blocklist.url", "http://127.0.0.1/blocklistURL");
 
 // By default ignore bundled add-ons

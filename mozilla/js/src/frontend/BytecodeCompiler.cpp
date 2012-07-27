@@ -53,9 +53,11 @@ using namespace js;
 using namespace js::frontend;
 
 bool
-DefineGlobals(JSContext *cx, GlobalScope &globalScope, JSScript *script)
+DefineGlobals(JSContext *cx, GlobalScope &globalScope, JSScript* script)
 {
-    JSObject *globalObj = globalScope.globalObj;
+    Root<JSScript*> root(cx, &script);
+
+    HandleObject globalObj = globalScope.globalObj;
 
     /* Define and update global properties. */
     for (size_t i = 0; i < globalScope.defs.length(); i++) {
@@ -159,13 +161,12 @@ frontend::CompileScript(JSContext *cx, JSObject *scopeChain, StackFrame *callerF
                         JSPrincipals *principals, JSPrincipals *originPrincipals,
                         uint32_t tcflags,
                         const jschar *chars, size_t length,
-                        const char *filename, uintN lineno, JSVersion version,
+                        const char *filename, unsigned lineno, JSVersion version,
                         JSString *source /* = NULL */,
-                        uintN staticLevel /* = 0 */)
+                        unsigned staticLevel /* = 0 */)
 {
     TokenKind tt;
     ParseNode *pn;
-    JSScript *script;
     bool inDirectivePrologue;
 
     JS_ASSERT(!(tcflags & ~(TCF_COMPILE_N_GO | TCF_NO_SCRIPT_RVAL | TCF_COMPILE_FOR_EVAL
@@ -199,8 +200,7 @@ frontend::CompileScript(JSContext *cx, JSObject *scopeChain, StackFrame *callerF
     JS_ASSERT_IF(globalObj, globalObj->isNative());
     JS_ASSERT_IF(globalObj, JSCLASS_HAS_GLOBAL_FLAG_AND_SLOTS(globalObj->getClass()));
 
-    /* Null script early in case of error, to reduce our code footprint. */
-    script = NULL;
+    RootedVar<JSScript*> script(cx);
 
     GlobalScope globalScope(cx, globalObj, &bce);
     bce.flags |= tcflags;
@@ -346,7 +346,7 @@ bool
 frontend::CompileFunctionBody(JSContext *cx, JSFunction *fun,
                               JSPrincipals *principals, JSPrincipals *originPrincipals,
                               Bindings *bindings, const jschar *chars, size_t length,
-                              const char *filename, uintN lineno, JSVersion version)
+                              const char *filename, unsigned lineno, JSVersion version)
 {
     Parser parser(cx, principals, originPrincipals);
     if (!parser.init(chars, length, filename, lineno, version))
@@ -361,7 +361,7 @@ frontend::CompileFunctionBody(JSContext *cx, JSFunction *fun,
     funbce.flags |= TCF_IN_FUNCTION;
     funbce.setFunction(fun);
     funbce.bindings.transfer(cx, bindings);
-    fun->setArgCount(funbce.bindings.countArgs());
+    fun->setArgCount(funbce.bindings.numArgs());
     if (!GenerateBlockId(&funbce, funbce.bodyid))
         return false;
 
@@ -371,7 +371,7 @@ frontend::CompileFunctionBody(JSContext *cx, JSFunction *fun,
         fn->pn_body = NULL;
         fn->pn_cookie.makeFree();
 
-        uintN nargs = fun->nargs;
+        unsigned nargs = fun->nargs;
         if (nargs) {
             /*
              * NB: do not use AutoLocalNameArray because it will release space
@@ -381,7 +381,7 @@ frontend::CompileFunctionBody(JSContext *cx, JSFunction *fun,
             if (!funbce.bindings.getLocalNameArray(cx, &names)) {
                 fn = NULL;
             } else {
-                for (uintN i = 0; i < nargs; i++) {
+                for (unsigned i = 0; i < nargs; i++) {
                     if (!DefineArg(fn, names[i], i, &funbce)) {
                         fn = NULL;
                         break;
@@ -398,9 +398,7 @@ frontend::CompileFunctionBody(JSContext *cx, JSFunction *fun,
      */
     ParseNode *pn = fn ? parser.functionBody(Parser::StatementListBody) : NULL;
     if (pn) {
-        if (!CheckStrictParameters(cx, &funbce)) {
-            pn = NULL;
-        } else if (!tokenStream.matchToken(TOK_EOF)) {
+        if (!tokenStream.matchToken(TOK_EOF)) {
             parser.reportErrorNumber(NULL, JSREPORT_ERROR, JSMSG_SYNTAX_ERROR);
             pn = NULL;
         } else if (!FoldConstants(cx, pn, &funbce)) {

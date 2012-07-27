@@ -41,9 +41,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-
-var gPromptService = Components.classes["@mozilla.org/embedcomp/prompt-service;1"]
-                     .getService(Components.interfaces.nsIPromptService);
+Components.utils.import("resource://gre/modules/Services.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
 
 // The actual filter that we're editing if it is a _saved_ filter or prefill;
 // void otherwise.
@@ -56,8 +55,7 @@ var gFilterContext;
 var gFilterBundle;
 var gPreFillName;
 var nsMsgSearchScope = Components.interfaces.nsMsgSearchScope;
-var gPrefBranch;
-var gMailSession = null;
+var gSessionFolderListenerAdded = false;
 var gFilterActionList;
 var gCustomActions = null;
 var gFilterType;
@@ -79,7 +77,6 @@ function filterEditorOnLoad()
   initializeSearchWidgets();
   initializeFilterWidgets();
 
-  gPrefBranch = Components.classes["@mozilla.org/preferences-service;1"].getService(Components.interfaces.nsIPrefService).getBranch(null);
   gFilterBundle = document.getElementById("bundle_filter");
 
   if ("arguments" in window && window.arguments[0])
@@ -166,8 +163,8 @@ function filterEditorOnLoad()
 
 function filterEditorOnUnload()
 {
-  if (gMailSession)
-    gMailSession.RemoveFolderListener(gFolderListener);
+  if (gSessionFolderListenerAdded)
+    MailServices.mailSession.RemoveFolderListener(gFolderListener);
 }
 
 function onEnterInSearchTerm()
@@ -324,9 +321,9 @@ function saveFilter()
   // the duplicateFilterNameExists function will have picked up.
   if ((!gFilter || gFilter.filterName != filterName) && duplicateFilterNameExists(filterName))
   {
-    if (gPromptService)
-      gPromptService.alert(window,gFilterBundle.getString("cannotHaveDuplicateFilterTitle"),
-                           gFilterBundle.getString("cannotHaveDuplicateFilterMessage"));
+    Services.prompt.alert(window,
+                          gFilterBundle.getString("cannotHaveDuplicateFilterTitle"),
+                          gFilterBundle.getString("cannotHaveDuplicateFilterMessage"));
     return false;
   }
 
@@ -346,9 +343,7 @@ function saveFilter()
 
     if (isNaN(obj.searchattribute.value)) // is this a custom term?
     {
-      let filterService = Components.classes["@mozilla.org/messenger/services/filters;1"]
-          .getService(Components.interfaces.nsIMsgFilterService);
-      let customTerm = filterService.getCustomTerm(obj.searchattribute.value);
+      let customTerm = MailServices.filters.getCustomTerm(obj.searchattribute.value);
       if (!customTerm)
       { 
         allValid = false;
@@ -378,9 +373,9 @@ function saveFilter()
 
   if (!allValid)
   {
-    if (gPromptService)
-      gPromptService.alert(window, gFilterBundle.getString("searchTermsInvalidTitle"),
-                           gFilterBundle.getString("searchTermsInvalidMessage"));
+    Services.prompt.alert(window,
+                          gFilterBundle.getString("searchTermsInvalidTitle"),
+                          gFilterBundle.getString("searchTermsInvalidMessage"));
     return false;
   }
 
@@ -536,18 +531,17 @@ function SearchNewFolderOkCallback(name, uri)
   catch(ex) {}
   if (imapFolder) //imapFolder creation is asynchronous.
   {
-    if (!gMailSession)
-      gMailSession = Components.classes["@mozilla.org/messenger/services/session;1"]
-                               .getService(Components.interfaces.nsIMsgMailSession);
-    try
-    {
-      var nsIFolderListener = Components.interfaces.nsIFolderListener;
-      var notifyFlags = nsIFolderListener.event;
-      gMailSession.AddFolderListener(gFolderListener, notifyFlags);
-    }
-    catch (ex)
-    {
-      dump("Error adding to session: " +ex + "\n");
+    if (!gSessionFolderListenerAdded) {
+      try
+      {
+        let notifyFlags = Components.interfaces.nsIFolderListener.event;
+        MailServices.mailSession.AddFolderListener(gFolderListener, notifyFlags);
+        gSessionFolderListenerAdded = true;
+      }
+      catch (ex)
+      {
+        Components.utils.reportError("Error adding to session: " + ex + "\n");
+      }
     }
   }
 
@@ -609,11 +603,7 @@ function getCustomActions()
   if (!gCustomActions)
   {
     gCustomActions = [];
-    var filterService = Components.classes[
-                        "@mozilla.org/messenger/services/filters;1"]
-                        .getService(Components.interfaces.nsIMsgFilterService);
-
-    var customActionsEnum = filterService.getCustomActions();
+    let customActionsEnum = MailServices.filters.getCustomActions();
     while (customActionsEnum.hasMoreElements())
       gCustomActions.push(customActionsEnum.getNext().QueryInterface(
                            Components.interfaces.nsIMsgFilterCustomAction));

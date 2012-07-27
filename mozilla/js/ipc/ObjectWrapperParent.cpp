@@ -53,53 +53,44 @@ namespace {
 
     // Only need one reserved slot because the ObjectWrapperParent* is
     // stored in the private slot.
-    static const uintN sFlagsSlot = 0;
-    static const uintN sNumSlots = 1;
-    static const uintN CPOW_FLAG_RESOLVING = 1 << 0;
+    static const unsigned sFlagsSlot = 0;
+    static const unsigned sNumSlots = 1;
+    static const unsigned CPOW_FLAG_RESOLVING = 1 << 0;
 
     class AutoResolveFlag
     {
-        JSContext* mContext;
         JSObject* mObj;
-        uintN mOldFlags;
+        unsigned mOldFlags;
         JS_DECL_USE_GUARD_OBJECT_NOTIFIER
 
-        static uintN GetFlags(JSContext* cx, JSObject* obj) {
-            jsval v;
-#ifdef DEBUG
-            JSBool ok =
-#endif
-                JS_GetReservedSlot(cx, obj, sFlagsSlot, &v);
-            NS_ASSERTION(ok, "Failed to get CPOW flags");
+        static unsigned GetFlags(JSObject* obj) {
+            jsval v = JS_GetReservedSlot(obj, sFlagsSlot);
             return JSVAL_TO_INT(v);
         }
 
-        static uintN SetFlags(JSContext* cx, JSObject* obj, uintN flags) {
-            uintN oldFlags = GetFlags(cx, obj);
+        static unsigned SetFlags(JSObject* obj, unsigned flags) {
+            unsigned oldFlags = GetFlags(obj);
             if (oldFlags != flags)
-                JS_SetReservedSlot(cx, obj, sFlagsSlot, INT_TO_JSVAL(flags));
+                JS_SetReservedSlot(obj, sFlagsSlot, INT_TO_JSVAL(flags));
             return oldFlags;
         }
 
     public:
 
-        AutoResolveFlag(JSContext* cx,
-                        JSObject* obj
+        AutoResolveFlag(JSObject* obj
                         JS_GUARD_OBJECT_NOTIFIER_PARAM)
-            : mContext(cx)
-            , mObj(obj)
-            , mOldFlags(SetFlags(cx, obj,
-                                 GetFlags(cx, obj) | CPOW_FLAG_RESOLVING))
+            : mObj(obj)
+            , mOldFlags(SetFlags(obj, GetFlags(obj) | CPOW_FLAG_RESOLVING))
         {
             JS_GUARD_OBJECT_NOTIFIER_INIT;
         }
 
         ~AutoResolveFlag() {
-            SetFlags(mContext, mObj, mOldFlags);
+            SetFlags(mObj, mOldFlags);
         }
 
-        static JSBool IsSet(JSContext* cx, JSObject* obj) {
-            return GetFlags(cx, obj) & CPOW_FLAG_RESOLVING;
+        static JSBool IsSet(JSObject* obj) {
+            return GetFlags(obj) & CPOW_FLAG_RESOLVING;
         }
 
     };
@@ -181,13 +172,11 @@ const js::Class ObjectWrapperParent::sCPOW_JSClass = {
       (JSResolveOp) ObjectWrapperParent::CPOW_NewResolve,
       ObjectWrapperParent::CPOW_Convert,
       ObjectWrapperParent::CPOW_Finalize,
-      nsnull, // reserved1
       nsnull, // checkAccess
       ObjectWrapperParent::CPOW_Call,
       ObjectWrapperParent::CPOW_Construct,
-      nsnull, // xdrObject
       ObjectWrapperParent::CPOW_HasInstance,
-      nsnull, // mark
+      nsnull, // trace
       {
           ObjectWrapperParent::CPOW_Equality,
           nsnull, // outerObject
@@ -201,7 +190,7 @@ void
 ObjectWrapperParent::ActorDestroy(ActorDestroyReason)
 {
     if (mObj) {
-        JS_SetPrivate(NULL, mObj, NULL);
+        JS_SetPrivate(mObj, NULL);
         mObj = NULL;
     }
 }
@@ -216,25 +205,28 @@ ObjectWrapperParent::Manager()
 JSObject*
 ObjectWrapperParent::GetJSObject(JSContext* cx) const
 {
-    js::Class *clasp = const_cast<js::Class *>(&ObjectWrapperParent::sCPOW_JSClass);
-    if (!mObj && (mObj = JS_NewObject(cx, js::Jsvalify(clasp), NULL, NULL))) {
-        JS_SetPrivate(cx, mObj, (void*)this);
-        JS_SetReservedSlot(cx, mObj, sFlagsSlot, JSVAL_ZERO);
+    if (!mObj) {
+        js::Class *clasp = const_cast<js::Class *>(&ObjectWrapperParent::sCPOW_JSClass);
+        mObj = JS_NewObject(cx, js::Jsvalify(clasp), NULL, NULL);
+        if (mObj) {
+            JS_SetPrivate(mObj, (void*)this);
+            JS_SetReservedSlot(mObj, sFlagsSlot, JSVAL_ZERO);
+        }
     }
     return mObj;
 }
 
 static ObjectWrapperParent*
-Unwrap(JSContext* cx, JSObject* obj)
+Unwrap(JSObject* obj)
 {
     while (js::GetObjectClass(obj) != &ObjectWrapperParent::sCPOW_JSClass)
         if (!(obj = js::GetObjectProto(obj)))
             return NULL;
     
     ObjectWrapperParent* self =
-        static_cast<ObjectWrapperParent*>(JS_GetPrivate(cx, obj));
+        static_cast<ObjectWrapperParent*>(JS_GetPrivate(obj));
 
-    NS_ASSERTION(!self || self->GetJSObject(cx) == obj,
+    NS_ASSERTION(!self || self->GetJSObjectOrNull() == obj,
                  "Wrapper and wrapped object disagree?");
     
     return self;
@@ -259,7 +251,7 @@ ObjectWrapperParent::jsval_to_JSVariant(JSContext* cx, jsval from,
     case JSTYPE_OBJECT:
         {
             PObjectWrapperParent* powp;
-            if (!JSObject_to_PObjectWrapperParent(cx, JSVAL_TO_OBJECT(from), &powp))
+            if (!JSObject_to_PObjectWrapperParent(JSVAL_TO_OBJECT(from), &powp))
                 return with_error(cx, false, "Cannot pass parent-created object to child");
             *to = powp;
         }
@@ -322,14 +314,13 @@ ObjectWrapperParent::jsval_from_JSVariant(JSContext* cx, const JSVariant& from,
 
 /*static*/ bool
 ObjectWrapperParent::
-JSObject_to_PObjectWrapperParent(JSContext* cx, JSObject* from,
-                                 PObjectWrapperParent** to)
+JSObject_to_PObjectWrapperParent(JSObject* from, PObjectWrapperParent** to)
 {
     if (!from) {
         *to = NULL;
         return true;
     }
-    ObjectWrapperParent* owp = Unwrap(cx, from);
+    ObjectWrapperParent* owp = Unwrap(from);
     if (!owp)
         return false;
     *to = owp;
@@ -401,11 +392,11 @@ ObjectWrapperParent::CPOW_AddProperty(JSContext *cx, JSObject *obj, jsid id,
     CPOW_LOG(("Calling CPOW_AddProperty (%s)...",
               JSVAL_TO_CSTR(cx, id)));
 
-    ObjectWrapperParent* self = Unwrap(cx, obj);
+    ObjectWrapperParent* self = Unwrap(obj);
     if (!self)
         return with_error(cx, JS_FALSE, "Unwrapping failed in CPOW_AddProperty");
 
-    if (AutoResolveFlag::IsSet(cx, obj))
+    if (AutoResolveFlag::IsSet(obj))
         return JS_TRUE;
 
     AutoCheckOperation aco(cx, self);
@@ -428,7 +419,7 @@ ObjectWrapperParent::CPOW_GetProperty(JSContext *cx, JSObject *obj, jsid id,
     CPOW_LOG(("Calling CPOW_GetProperty (%s)...",
               JSVAL_TO_CSTR(cx, id)));
 
-    ObjectWrapperParent* self = Unwrap(cx, obj);
+    ObjectWrapperParent* self = Unwrap(obj);
     if (!self)
         return with_error(cx, JS_FALSE, "Unwrapping failed in CPOW_GetProperty");
 
@@ -455,7 +446,7 @@ ObjectWrapperParent::CPOW_SetProperty(JSContext *cx, JSObject *obj, jsid id,
     CPOW_LOG(("Calling CPOW_SetProperty (%s)...",
               JSVAL_TO_CSTR(cx, id)));
 
-    ObjectWrapperParent* self = Unwrap(cx, obj);
+    ObjectWrapperParent* self = Unwrap(obj);
     if (!self)
         return with_error(cx, JS_FALSE, "Unwrapping failed in CPOW_SetProperty");
 
@@ -484,7 +475,7 @@ ObjectWrapperParent::CPOW_DelProperty(JSContext *cx, JSObject *obj, jsid id,
     CPOW_LOG(("Calling CPOW_DelProperty (%s)...",
               JSVAL_TO_CSTR(cx, id)));
 
-    ObjectWrapperParent* self = Unwrap(cx, obj);
+    ObjectWrapperParent* self = Unwrap(obj);
     if (!self)
         return with_error(cx, JS_FALSE, "Unwrapping failed in CPOW_DelProperty");
 
@@ -538,7 +529,7 @@ ObjectWrapperParent::NewEnumerateNext(JSContext* cx, jsval* statep, jsid* idp)
         jsid_from_nsString(cx, out_id, idp))
     {
         JSObject* obj = GetJSObject(cx);
-        AutoResolveFlag arf(cx, obj);
+        AutoResolveFlag arf(obj);
         return JS_DefinePropertyById(cx, obj, *idp, JSVAL_VOID, NULL, NULL,
                                      JSPROP_ENUMERATE);
     }
@@ -565,7 +556,7 @@ ObjectWrapperParent::CPOW_NewEnumerate(JSContext *cx, JSObject *obj,
 {
     CPOW_LOG(("Calling CPOW_NewEnumerate..."));
 
-    ObjectWrapperParent* self = Unwrap(cx, obj);
+    ObjectWrapperParent* self = Unwrap(obj);
     if (!self)
         return with_error(cx, JS_FALSE, "Unwrapping failed in CPOW_NewEnumerate");
 
@@ -586,12 +577,12 @@ ObjectWrapperParent::CPOW_NewEnumerate(JSContext *cx, JSObject *obj,
 
 /*static*/ JSBool
 ObjectWrapperParent::CPOW_NewResolve(JSContext *cx, JSObject *obj, jsid id,
-                                     uintN flags, JSObject **objp)
+                                     unsigned flags, JSObject **objp)
 {
     CPOW_LOG(("Calling CPOW_NewResolve (%s)...",
               JSVAL_TO_CSTR(cx, id)));
 
-    ObjectWrapperParent* self = Unwrap(cx, obj);
+    ObjectWrapperParent* self = Unwrap(obj);
     if (!self)
         return with_error(cx, JS_FALSE, "Unwrapping failed in CPOW_NewResolve");
 
@@ -612,7 +603,7 @@ ObjectWrapperParent::CPOW_NewResolve(JSContext *cx, JSObject *obj, jsid id,
         return JS_FALSE;
 
     if (*objp) {
-        AutoResolveFlag arf(cx, *objp);
+        AutoResolveFlag arf(*objp);
         JS_DefinePropertyById(cx, *objp, id, JSVAL_VOID, NULL, NULL,
                               JSPROP_ENUMERATE);
     }
@@ -626,7 +617,7 @@ ObjectWrapperParent::CPOW_Convert(JSContext *cx, JSObject *obj, JSType type,
     CPOW_LOG(("Calling CPOW_Convert (to %s)...",
               JS_GetTypeName(cx, type)));
 
-    ObjectWrapperParent* self = Unwrap(cx, obj);
+    ObjectWrapperParent* self = Unwrap(obj);
     if (!self)
         return with_error(cx, JS_FALSE, "Unwrapping failed in CPOW_Convert");
 
@@ -636,11 +627,11 @@ ObjectWrapperParent::CPOW_Convert(JSContext *cx, JSObject *obj, JSType type,
 }
 
 /*static*/ void
-ObjectWrapperParent::CPOW_Finalize(JSContext* cx, JSObject* obj)
+ObjectWrapperParent::CPOW_Finalize(js::FreeOp* fop, JSObject* obj)
 {
     CPOW_LOG(("Calling CPOW_Finalize..."));
     
-    ObjectWrapperParent* self = Unwrap(cx, obj);
+    ObjectWrapperParent* self = Unwrap(obj);
     if (self) {
         self->mObj = NULL;
         unused << ObjectWrapperParent::Send__delete__(self);
@@ -648,7 +639,7 @@ ObjectWrapperParent::CPOW_Finalize(JSContext* cx, JSObject* obj)
 }
 
 /*static*/ JSBool
-ObjectWrapperParent::CPOW_Call(JSContext* cx, uintN argc, jsval* vp)
+ObjectWrapperParent::CPOW_Call(JSContext* cx, unsigned argc, jsval* vp)
 {
     CPOW_LOG(("Calling CPOW_Call..."));
 
@@ -657,13 +648,13 @@ ObjectWrapperParent::CPOW_Call(JSContext* cx, uintN argc, jsval* vp)
         return JS_FALSE;
 
     ObjectWrapperParent* function =
-        Unwrap(cx, JSVAL_TO_OBJECT(JS_CALLEE(cx, vp)));
+        Unwrap(JSVAL_TO_OBJECT(JS_CALLEE(cx, vp)));
     if (!function)
         return with_error(cx, JS_FALSE, "Could not unwrap CPOW function");
 
     AutoCheckOperation aco(cx, function);
 
-    ObjectWrapperParent* receiver = Unwrap(cx, thisobj);
+    ObjectWrapperParent* receiver = Unwrap(thisobj);
     if (!receiver) {
         // Substitute child global for parent global object.
         // TODO First make sure we're really replacing the global object?
@@ -674,7 +665,7 @@ ObjectWrapperParent::CPOW_Call(JSContext* cx, uintN argc, jsval* vp)
 
     InfallibleTArray<JSVariant> in_argv(argc);
     jsval* argv = JS_ARGV(cx, vp);
-    for (uintN i = 0; i < argc; i++)
+    for (unsigned i = 0; i < argc; i++)
         if (!jsval_to_JSVariant(cx, argv[i], in_argv.AppendElement()))
             return JS_FALSE;
 
@@ -688,11 +679,11 @@ ObjectWrapperParent::CPOW_Call(JSContext* cx, uintN argc, jsval* vp)
 }
 
 /*static*/ JSBool
-ObjectWrapperParent::CPOW_Construct(JSContext* cx, uintN argc, jsval* vp)
+ObjectWrapperParent::CPOW_Construct(JSContext* cx, unsigned argc, jsval* vp)
 {
     CPOW_LOG(("Calling CPOW_Construct..."));
     
-    ObjectWrapperParent* constructor = Unwrap(cx, JSVAL_TO_OBJECT(JS_CALLEE(cx, vp)));
+    ObjectWrapperParent* constructor = Unwrap(JSVAL_TO_OBJECT(JS_CALLEE(cx, vp)));
     if (!constructor)
         return with_error(cx, JS_FALSE, "Could not unwrap CPOW constructor function");
 
@@ -700,7 +691,7 @@ ObjectWrapperParent::CPOW_Construct(JSContext* cx, uintN argc, jsval* vp)
 
     InfallibleTArray<JSVariant> in_argv(argc);
     jsval* argv = JS_ARGV(cx, vp);
-    for (uintN i = 0; i < argc; i++)
+    for (unsigned i = 0; i < argc; i++)
         if (!jsval_to_JSVariant(cx, argv[i], in_argv.AppendElement()))
             return JS_FALSE;
 
@@ -720,7 +711,7 @@ ObjectWrapperParent::CPOW_HasInstance(JSContext *cx, JSObject *obj, const jsval 
 
     *bp = JS_FALSE;
 
-    ObjectWrapperParent* self = Unwrap(cx, obj);
+    ObjectWrapperParent* self = Unwrap(obj);
     if (!self)
         return with_error(cx, JS_FALSE, "Unwrapping failed in CPOW_HasInstance");
 
@@ -745,14 +736,14 @@ ObjectWrapperParent::CPOW_Equality(JSContext *cx, JSObject *obj, const jsval *v,
 
     *bp = JS_FALSE;
     
-    ObjectWrapperParent* self = Unwrap(cx, obj);
+    ObjectWrapperParent* self = Unwrap(obj);
     if (!self)
         return with_error(cx, JS_FALSE, "Unwrapping failed in CPOW_Equality");
 
     if (JSVAL_IS_PRIMITIVE(*v))
         return JS_TRUE;
 
-    ObjectWrapperParent* other = Unwrap(cx, JSVAL_TO_OBJECT(*v));
+    ObjectWrapperParent* other = Unwrap(JSVAL_TO_OBJECT(*v));
     if (!other)
         return JS_TRUE;
 

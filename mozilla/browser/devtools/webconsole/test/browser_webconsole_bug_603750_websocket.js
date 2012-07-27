@@ -30,8 +30,6 @@ let TestObserver = {
           "sourceName is correct");
 
     if (++errors == 2) {
-      is(lastWindowId, aSubject.outerWindowID,
-         "same window ID (" + lastWindowId + ") for both errors");
       executeSoon(performTest);
     }
     else {
@@ -70,7 +68,7 @@ function test() {
 
   Services.prefs.setBoolPref(pref_ws, true);
 
-  addTab("data:text/html,Web Console test for bug 603750: Web Socket errors");
+  addTab("data:text/html;charset=utf-8,Web Console test for bug 603750: Web Socket errors");
   browser.addEventListener("load", tabLoad, true);
 }
 

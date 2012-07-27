@@ -49,6 +49,7 @@
 #include "jsapi.h"
 #include "jscntxt.h"
 #include "jsdbgapi.h"
+#include "jsfriendapi.h"
 #include "jslock.h"
 #include "jsworkers.h"
 
@@ -166,7 +167,7 @@ class WorkerParent {
 
     bool addChild(Worker *w) {
         AutoLock hold(getLock());
-        return children.put(w) != NULL;
+        return children.put(w);
     }
 
     // This must be called only from GC or when all threads are shut down. It
@@ -489,10 +490,11 @@ class ThreadPool
         }
 
         JSObject *obj = JS_NewObject(cx, &jsClass, NULL, NULL);
-        if (!obj || !JS_SetPrivate(cx, obj, tp)) {
+        if (!obj) {
             delete tp;
             return NULL;
         }
+        JS_SetPrivate(obj, tp);
         tp->obj = obj;
         return tp;
     }
@@ -566,7 +568,7 @@ class ThreadPool
 
   private:
     static void jsTraceThreadPool(JSTracer *trc, JSObject *obj) {
-        ThreadPool *tp = unwrap(trc->context, obj);
+        ThreadPool *tp = unwrap(obj);
         if (tp->mq) {
             tp->mq->traceChildren(trc);
             tp->wq->trace(trc);
@@ -574,15 +576,15 @@ class ThreadPool
     }
 
 
-    static void jsFinalize(JSContext *cx, JSObject *obj) {
-        if (ThreadPool *tp = unwrap(cx, obj))
+    static void jsFinalize(JSFreeOp *fop, JSObject *obj) {
+        if (ThreadPool *tp = unwrap(obj))
             delete tp;
     }
 
   public:
-    static ThreadPool *unwrap(JSContext *cx, JSObject *obj) {
-        JS_ASSERT(JS_GET_CLASS(cx, obj) == &jsClass);
-        return (ThreadPool *) JS_GetPrivate(cx, obj);
+    static ThreadPool *unwrap(JSObject *obj) {
+        JS_ASSERT(JS_GetClass(obj) == &jsClass);
+        return (ThreadPool *) JS_GetPrivate(obj);
     }
 };
 
@@ -626,10 +628,10 @@ class Worker MOZ_FINAL : public WorkerParent
         this->parent = parent;
         this->object = obj;
         lock = PR_NewLock();
-        return lock &&
-               createRuntime(parentcx) &&
-               createContext(parentcx, parent) &&
-               JS_SetPrivate(parentcx, obj, this);
+        if (!lock || !createRuntime(parentcx) || !createContext(parentcx, parent))
+            return false;
+        JS_SetPrivate(obj, this);
+        return true;
     }
 
     bool createRuntime(JSContext *parentcx) {
@@ -700,8 +702,8 @@ class Worker MOZ_FINAL : public WorkerParent
     }
 
     static void jsTraceWorker(JSTracer *trc, JSObject *obj) {
-        JS_ASSERT(JS_GET_CLASS(trc->context, obj) == &jsWorkerClass);
-        if (Worker *w = (Worker *) JS_GetPrivate(trc->context, obj)) {
+        JS_ASSERT(JS_GetClass(obj) == &jsWorkerClass);
+        if (Worker *w = (Worker *) JS_GetPrivate(obj)) {
             w->parent->trace(trc);
             w->events.trace(trc);
             if (w->current)
@@ -710,9 +712,9 @@ class Worker MOZ_FINAL : public WorkerParent
         }
     }
 
-    static void jsFinalize(JSContext *cx, JSObject *obj) {
-        JS_ASSERT(JS_GET_CLASS(cx, obj) == &jsWorkerClass);
-        if (Worker *w = (Worker *) JS_GetPrivate(cx, obj))
+    static void jsFinalize(JSFreeOp *fop, JSObject *obj) {
+        JS_ASSERT(JS_GetClass(obj) == &jsWorkerClass);
+        if (Worker *w = (Worker *) JS_GetPrivate(obj))
             delete w;
     }
 
@@ -722,7 +724,7 @@ class Worker MOZ_FINAL : public WorkerParent
         return !w->checkTermination();
     }
 
-    static JSBool jsResolveGlobal(JSContext *cx, JSObject *obj, jsid id, uintN flags,
+    static JSBool jsResolveGlobal(JSContext *cx, JSObject *obj, jsid id, unsigned flags,
                                   JSObject **objp)
     {
         JSBool resolved;
@@ -735,9 +737,9 @@ class Worker MOZ_FINAL : public WorkerParent
         return true;
     }
 
-    static JSBool jsPostMessageToParent(JSContext *cx, uintN argc, jsval *vp);
-    static JSBool jsPostMessageToChild(JSContext *cx, uintN argc, jsval *vp);
-    static JSBool jsTerminate(JSContext *cx, uintN argc, jsval *vp);
+    static JSBool jsPostMessageToParent(JSContext *cx, unsigned argc, jsval *vp);
+    static JSBool jsPostMessageToChild(JSContext *cx, unsigned argc, jsval *vp);
+    static JSBool jsTerminate(JSContext *cx, unsigned argc, jsval *vp);
 
     bool checkTermination() {
         AutoLock hold(lock);
@@ -825,7 +827,7 @@ class Worker MOZ_FINAL : public WorkerParent
         AutoLock hold(lock);
         terminateFlag = true;
         if (current)
-            JS_TriggerOperationCallback(context);
+            JS_TriggerOperationCallback(runtime);
     }
 
     void notifyTerminating() {
@@ -861,7 +863,14 @@ class Worker MOZ_FINAL : public WorkerParent
         return true;
     }
 
-    static JSBool jsConstruct(JSContext *cx, uintN argc, jsval *vp) {
+    static JSBool jsConstruct(JSContext *cx, unsigned argc, jsval *vp) {
+        /*
+         * We pretend to implement write barriers on shell workers (by setting
+         * the JSCLASS_IMPLEMENTS_BARRIERS), but we don't. So we immediately
+         * disable incremental GC if shell workers are ever used.
+         */
+        js::DisableIncrementalGC(JS_GetRuntime(cx));
+
         WorkerParent *parent;
         if (!getWorkerParentFromConstructor(cx, JSVAL_TO_OBJECT(JS_CALLEE(cx, vp)), &parent))
             return false;
@@ -1111,8 +1120,9 @@ Worker::create(JSContext *parentcx, WorkerParent *parent, JSString *scriptName, 
         return NULL;
     }
 
-    JSStackFrame *frame = JS_GetScriptedCaller(parentcx, NULL);
-    const char *base = JS_GetScriptFilename(parentcx, JS_GetFrameScript(parentcx, frame));
+    JSScript *script;
+    JS_DescribeScriptedCaller(parentcx, &script, NULL);
+    const char *base = JS_GetScriptFilename(parentcx, script);
     JSString *scriptPath = ResolveRelativePath(parentcx, base, scriptName);
     if (!scriptPath)
         return NULL;
@@ -1190,7 +1200,7 @@ Worker::processOneEvent()
 }
 
 JSBool
-Worker::jsPostMessageToParent(JSContext *cx, uintN argc, jsval *vp)
+Worker::jsPostMessageToParent(JSContext *cx, unsigned argc, jsval *vp)
 {
     jsval workerval = js::GetFunctionNativeReserved(JSVAL_TO_OBJECT(JS_CALLEE(cx, vp)), 0);
     Worker *w = (Worker *) JSVAL_TO_PRIVATE(workerval);
@@ -1215,7 +1225,7 @@ Worker::jsPostMessageToParent(JSContext *cx, uintN argc, jsval *vp)
 }
 
 JSBool
-Worker::jsPostMessageToChild(JSContext *cx, uintN argc, jsval *vp)
+Worker::jsPostMessageToChild(JSContext *cx, unsigned argc, jsval *vp)
 {
     JSObject *workerobj = JS_THIS_OBJECT(cx, vp);
     if (!workerobj)
@@ -1240,7 +1250,7 @@ Worker::jsPostMessageToChild(JSContext *cx, uintN argc, jsval *vp)
 }
 
 JSBool
-Worker::jsTerminate(JSContext *cx, uintN argc, jsval *vp)
+Worker::jsTerminate(JSContext *cx, unsigned argc, jsval *vp)
 {
     JS_SET_RVAL(cx, vp, JSVAL_VOID);
 
@@ -1266,19 +1276,17 @@ Event::trace(JSTracer *trc)
 }
 
 JSClass ThreadPool::jsClass = {
-    "ThreadPool", JSCLASS_HAS_PRIVATE,
+    "ThreadPool", JSCLASS_HAS_PRIVATE | JSCLASS_IMPLEMENTS_BARRIERS,
     JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_StrictPropertyStub,
     JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, jsFinalize,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, jsTraceThreadPool, NULL
+    NULL, NULL, NULL, NULL, jsTraceThreadPool
 };
 
 JSClass Worker::jsWorkerClass = {
-    "Worker", JSCLASS_HAS_PRIVATE,
+    "Worker", JSCLASS_HAS_PRIVATE | JSCLASS_IMPLEMENTS_BARRIERS,
     JS_PropertyStub, JS_PropertyStub, JS_PropertyStub, JS_StrictPropertyStub,
     JS_EnumerateStub, JS_ResolveStub, JS_ConvertStub, jsFinalize,
-    NULL, NULL, NULL, NULL,
-    NULL, NULL, jsTraceWorker, NULL
+    NULL, NULL, NULL, NULL, jsTraceWorker
 };
 
 JSFunctionSpec Worker::jsMethods[3] = {

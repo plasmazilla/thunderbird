@@ -25,6 +25,7 @@
 @APPNAME@/Contents/Info.plist
 @APPNAME@/Contents/PkgInfo
 @APPNAME@/Contents/Resources/
+@APPNAME@/Contents/_CodeSignature/CodeResources
 @APPNAME@/Contents/Library/
 #endif
 
@@ -42,6 +43,7 @@
 @BINPATH@/updater.ini
 
 [xpcom]
+@BINPATH@/dependentlibs.list
 @BINPATH@/@DLL_PREFIX@xpcom@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@nspr4@DLL_SUFFIX@
 @BINPATH@/@DLL_PREFIX@plc4@DLL_SUFFIX@
@@ -141,6 +143,8 @@
 @BINPATH@/components/aboutRedirector.js
 @BINPATH@/components/activity.xpt
 @BINPATH@/components/activityComponents.manifest
+@BINPATH@/components/cloudFileComponents.manifest
+@BINPATH@/components/cloudfile.xpt
 @BINPATH@/components/addrbook.xpt
 @BINPATH@/components/fts3tok.xpt
 ; interfaces.manifest doesn't get packaged because it is dynamically
@@ -166,6 +170,10 @@
 @BINPATH@/components/nsActivity.js
 @BINPATH@/components/nsActivityManager.js
 @BINPATH@/components/nsActivityManagerUI.js
+@BINPATH@/components/nsYouSendIt.js
+@BINPATH@/components/nsDropbox.js
+@BINPATH@/components/nsUbuntuOne.js
+@BINPATH@/components/cloudFileAccounts.js
 @BINPATH@/components/nsAddrbook.manifest
 @BINPATH@/components/nsMailNewsCommandLineHandler.js
 @BINPATH@/components/services-crypto-component.xpt
@@ -233,6 +241,45 @@
 @BINPATH@/components/smime-service.js
 @BINPATH@/components/smime-service.manifest
 @BINPATH@/components/msgsmime.xpt
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; instant messaging
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; shared with Instantbird
+@BINPATH@/@PREF_DIR@/chat-prefs.js
+@BINPATH@/chrome/chat@JAREXT@
+@BINPATH@/chrome/chat.manifest
+@BINPATH@/components/chat.xpt
+@BINPATH@/components/imAccounts.js
+@BINPATH@/components/imAccounts.manifest
+@BINPATH@/components/imCommands.js
+@BINPATH@/components/imCommands.manifest
+@BINPATH@/components/imContacts.js
+@BINPATH@/components/imContacts.manifest
+@BINPATH@/components/imConversations.js
+@BINPATH@/components/imConversations.manifest
+@BINPATH@/components/imCore.js
+@BINPATH@/components/imCore.manifest
+@BINPATH@/components/facebook.js
+@BINPATH@/components/facebook.manifest
+@BINPATH@/components/gtalk.js
+@BINPATH@/components/gtalk.manifest
+@BINPATH@/components/twitter.js
+@BINPATH@/components/twitter.manifest
+@BINPATH@/components/irc.js
+@BINPATH@/components/irc.manifest
+@BINPATH@/components/xmpp.js
+@BINPATH@/components/xmpp.manifest
+@BINPATH@/components/smileProtocolHandler.js
+@BINPATH@/components/smileProtocolHandler.manifest
+@BINPATH@/components/logger.js
+@BINPATH@/components/logger.manifest
+
+; Thunderbird specific
+@BINPATH@/@PREF_DIR@/all-im.js
+@BINPATH@/components/im.manifest
+@BINPATH@/components/imIncomingServer.js
+@BINPATH@/components/imProtocolInfo.js
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Chrome Files
@@ -355,6 +402,7 @@
 @BINPATH@/components/content_htmldoc.xpt
 @BINPATH@/components/content_xslt.xpt
 @BINPATH@/components/content_xtf.xpt
+@BINPATH@/components/html5.xpt
 @BINPATH@/components/htmlparser.xpt
 @BINPATH@/components/layout_base.xpt
 @BINPATH@/components/layout_forms.xpt
@@ -464,8 +512,10 @@
 @BINPATH@/components/dom_html.xpt
 @BINPATH@/components/dom_indexeddb.xpt
 @BINPATH@/components/dom_json.xpt
+@BINPATH@/components/dom_network.xpt
 @BINPATH@/components/dom_notification.xpt
 @BINPATH@/components/dom_offline.xpt
+@BINPATH@/componnets/dom_power.xpt
 @BINPATH@/components/dom_range.xpt
 @BINPATH@/components/dom_sidebar.xpt
 @BINPATH@/components/dom_sms.xpt
@@ -569,8 +619,9 @@
 @BINPATH@/components/xpautocomplete.xpt
 @BINPATH@/components/autocomplete.xpt
 @BINPATH@/components/alerts.xpt
-@BINPATH@/components/jsdservice.xpt
 @BINPATH@/components/jsdebugger.xpt
+@BINPATH@/components/jsdservice.xpt
+@BINPATH@/components/jsinspector.xpt
 @BINPATH@/components/fastfind.xpt
 @BINPATH@/components/find.xpt
 @BINPATH@/components/chardet.xpt

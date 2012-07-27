@@ -53,6 +53,29 @@ class nsCocoaWindow;
 class nsChildView;
 class nsMenuBarX;
 
+// If we are using an SDK older than 10.7, define bits we need that are missing
+// from it.
+#if !defined(MAC_OS_X_VERSION_10_7) || \
+    MAC_OS_X_VERSION_MAX_ALLOWED < MAC_OS_X_VERSION_10_7
+
+enum {
+    NSWindowAnimationBehaviorDefault = 0,
+    NSWindowAnimationBehaviorNone = 2,
+    NSWindowAnimationBehaviorDocumentWindow = 3,
+    NSWindowAnimationBehaviorUtilityWindow = 4,
+    NSWindowAnimationBehaviorAlertPanel = 5,
+    NSWindowCollectionBehaviorFullScreenPrimary = 128, // 1 << 7
+};
+
+typedef NSInteger NSWindowAnimationBehavior;
+
+@interface NSWindow (LionWindowFeatures)
+- (void)setAnimationBehavior:(NSWindowAnimationBehavior)newAnimationBehavior;
+- (void)toggleFullScreen:(id)sender;
+@end
+
+#endif
+
 typedef struct _nsCocoaWindowList {
   _nsCocoaWindowList() : prev(NULL), window(NULL) {}
   struct _nsCocoaWindowList *prev;
@@ -240,6 +263,7 @@ public:
                                         nsIWidget *aWidget, bool aActivate);
     NS_IMETHOD              SetSizeMode(PRInt32 aMode);
     NS_IMETHOD              HideWindowChrome(bool aShouldHide);
+    void                    EnteredFullScreen(bool aFullScreen);
     NS_IMETHOD              MakeFullScreen(bool aFullScreen);
     NS_IMETHOD              Resize(PRInt32 aWidth,PRInt32 aHeight, bool aRepaint);
     NS_IMETHOD              Resize(PRInt32 aX, PRInt32 aY, PRInt32 aWidth, PRInt32 aHeight, bool aRepaint);
@@ -252,8 +276,7 @@ public:
 
     NS_IMETHOD              SetTitle(const nsAString& aTitle);
 
-    NS_IMETHOD Invalidate(const nsIntRect &aRect, bool aIsSynchronous);
-    NS_IMETHOD Update();
+    NS_IMETHOD Invalidate(const nsIntRect &aRect);
     virtual nsresult ConfigureChildren(const nsTArray<Configuration>& aConfigurations);
     virtual LayerManager* GetLayerManager(PLayersChild* aShadowManager = nsnull,
                                           LayersBackend aBackendHint = LayerManager::LAYERS_NONE,
@@ -267,6 +290,8 @@ public:
     virtual void SetTransparencyMode(nsTransparencyMode aMode);
     NS_IMETHOD SetWindowShadowStyle(PRInt32 aStyle);
     virtual void SetShowsToolbarButton(bool aShow);
+    virtual void SetShowsFullScreenButton(bool aShow);
+    virtual void SetWindowAnimationType(WindowAnimationType aType);
     NS_IMETHOD SetWindowTitlebarColor(nscolor aColor, bool aActive);
     virtual void SetDrawsInTitlebar(bool aState);
     virtual nsresult SynthesizeNativeMouseEvent(nsIntPoint aPoint,
@@ -336,11 +361,19 @@ protected:
   PRInt32              mShadowStyle;
   NSUInteger           mWindowFilter;
 
+  WindowAnimationType  mAnimationType;
+
   bool                 mWindowMadeHere; // true if we created the window, false for embedding
   bool                 mSheetNeedsShow; // if this is a sheet, are we waiting to be shown?
                                         // this is used for sibling sheet contention only
   bool                 mFullScreen;
+  bool                 mInFullScreenTransition; // true from the request to enter/exit fullscreen
+                                                // (MakeFullScreen() call) to EnteredFullScreen()
   bool                 mModal;
+
+  bool                 mUsesNativeFullScreen; // only true on Lion if SetShowsFullScreenButton(true);
+
+  bool                 mIsAnimationSuppressed;
 
   bool                 mInReportMoveEvent; // true if in a call to ReportMoveEvent().
 

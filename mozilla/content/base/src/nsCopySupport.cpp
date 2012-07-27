@@ -81,15 +81,15 @@
 
 #include "mozilla/dom/Element.h"
 
+#include "mozilla/Preferences.h"
+
+using namespace mozilla;
+
 nsresult NS_NewDomSelection(nsISelection **aDomSelection);
 
 static NS_DEFINE_CID(kCClipboardCID,           NS_CLIPBOARD_CID);
 static NS_DEFINE_CID(kCTransferableCID,        NS_TRANSFERABLE_CID);
 static NS_DEFINE_CID(kHTMLConverterCID,        NS_HTMLFORMATCONVERTER_CID);
-
-// private clipboard data flavors for html copy, used by editor when pasting
-#define kHTMLContext   "text/_moz_htmlcontext"
-#define kHTMLInfo      "text/_moz_htmlinfo"
 
 // copy string data onto the transferable
 static nsresult AppendString(nsITransferable *aTransferable,
@@ -160,25 +160,35 @@ SelectionCopyHelper(nsISelection *aSel, nsIDocument *aDoc,
   if (NS_FAILED(rv)) 
     return rv;
 
-  nsCOMPtr<nsIFormatConverter> htmlConverter;
-
-  // sometimes we also need the HTML version
+  // If the selection was in a text input, in textarea or in pre, the encoder
+  // already produced plain text. Otherwise,the encoder produced HTML. In that
+  // case, we need to create an additional plain text serialization and an
+  // addition HTML serialization that encodes context.
   if (bIsHTMLCopy) {
 
-    // this string may still contain HTML formatting, so we need to remove that too.
-    htmlConverter = do_CreateInstance(kHTMLConverterCID);
-    NS_ENSURE_TRUE(htmlConverter, NS_ERROR_FAILURE);
+    // First, create the plain text serialization
+    mimeType.AssignLiteral("text/plain");
 
-    nsCOMPtr<nsISupportsString> plainHTML = do_CreateInstance(NS_SUPPORTS_STRING_CONTRACTID);
-    NS_ENSURE_TRUE(plainHTML, NS_ERROR_FAILURE);
-    plainHTML->SetData(textBuffer);
+    flags =
+      nsIDocumentEncoder::OutputSelectionOnly |
+      nsIDocumentEncoder::OutputAbsoluteLinks |
+      nsIDocumentEncoder::SkipInvisibleContent |
+      nsIDocumentEncoder::OutputDropInvisibleBreak |
+      (aFlags & nsIDocumentEncoder::OutputNoScriptContent);
 
-    nsCOMPtr<nsISupportsString> ConvertedData;
-    PRUint32 ConvertedLen;
-    rv = htmlConverter->Convert(kHTMLMime, plainHTML, textBuffer.Length() * 2, kUnicodeMime, getter_AddRefs(ConvertedData), &ConvertedLen);
-    NS_ENSURE_SUCCESS(rv, rv);
+    rv = docEncoder->Init(domDoc, mimeType, flags);
+    if (NS_FAILED(rv))
+      return rv;
 
-    ConvertedData->GetData(plaintextBuffer);
+    rv = docEncoder->SetSelection(aSel);
+    if (NS_FAILED(rv))
+      return rv;
+
+    rv = docEncoder->EncodeToString(plaintextBuffer);
+    if (NS_FAILED(rv))
+      return rv;
+
+    // Now create the version that shows HTML context
 
     mimeType.AssignLiteral(kHTMLMime);
 
@@ -208,7 +218,10 @@ SelectionCopyHelper(nsISelection *aSel, nsIDocument *aDoc,
     nsCOMPtr<nsITransferable> trans = do_CreateInstance(kCTransferableCID);
     if (trans) {
       if (bIsHTMLCopy) {
-        // set up the data converter
+        // Set up a format converter so that clipboard flavor queries work.
+        // This converter isn't really used for conversions.
+        nsCOMPtr<nsIFormatConverter> htmlConverter =
+          do_CreateInstance(kHTMLConverterCID);
         trans->SetConverter(htmlConverter);
 
         if (!buffer.IsEmpty()) {
@@ -727,14 +740,16 @@ nsCopySupport::FireClipboardEvent(PRInt32 aType, nsIPresShell* aPresShell, nsISe
     return false;
 
   // next, fire the cut or copy event
-  nsEventStatus status = nsEventStatus_eIgnore;
-  nsEvent evt(true, aType);
-  nsEventDispatcher::Dispatch(content, presShell->GetPresContext(), &evt, nsnull,
-                              &status);
-  // if the event was cancelled, don't do the clipboard operation
-  if (status == nsEventStatus_eConsumeNoDefault)
-    return false;
-
+  if (Preferences::GetBool("dom.event.clipboardevents.enabled", true)) {
+    nsEventStatus status = nsEventStatus_eIgnore;
+    nsEvent evt(true, aType);
+    nsEventDispatcher::Dispatch(content, presShell->GetPresContext(), &evt, nsnull,
+                                &status);
+    // if the event was cancelled, don't do the clipboard operation
+    if (status == nsEventStatus_eConsumeNoDefault)
+      return false;
+  }
+  
   if (presShell->IsDestroying())
     return false;
 

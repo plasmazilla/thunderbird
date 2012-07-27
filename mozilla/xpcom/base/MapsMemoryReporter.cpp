@@ -43,7 +43,8 @@
 #include "nsIMemoryReporter.h"
 #include "nsString.h"
 #include "nsCOMPtr.h"
-#include "nsHashSets.h"
+#include "nsTHashtable.h"
+#include "nsHashKeys.h"
 #include <stdio.h>
 
 namespace mozilla {
@@ -123,7 +124,8 @@ void GetBasename(const nsCString &aPath, nsACString &aOut)
 }
 
 // MapsReporter::CollectReports uses this stuct to keep track of whether it's
-// seen a mapping under 'map/resident', 'map/vsize', and 'map/swap'.
+// seen a mapping under 'smaps/resident', 'smaps/pss', 'smaps/vsize', and
+// 'smaps/swap'.
 struct CategoriesSeen {
   CategoriesSeen() :
     mSeenResident(false),
@@ -148,8 +150,14 @@ public:
 
   NS_DECL_ISUPPORTS
 
+  NS_IMETHOD GetName(nsACString &aName)
+  {
+      aName.AssignLiteral("smaps");
+      return NS_OK;
+  }
+
   NS_IMETHOD
-  CollectReports(nsIMemoryMultiReporterCallback *aCallback,
+  CollectReports(nsIMemoryMultiReporterCallback *aCb,
                  nsISupports *aClosure);
 
   NS_IMETHOD
@@ -166,7 +174,7 @@ private:
 
   nsresult
   ParseMapping(FILE *aFile,
-               nsIMemoryMultiReporterCallback *aCallback,
+               nsIMemoryMultiReporterCallback *aCb,
                nsISupports *aClosure,
                CategoriesSeen *aCategoriesSeen);
 
@@ -180,13 +188,13 @@ private:
   ParseMapBody(FILE *aFile,
                const nsACString &aName,
                const nsACString &aDescription,
-               nsIMemoryMultiReporterCallback *aCallback,
+               nsIMemoryMultiReporterCallback *aCb,
                nsISupports *aClosure,
                CategoriesSeen *aCategoriesSeen);
 
   bool mSearchedForLibxul;
   nsCString mLibxulDir;
-  nsCStringHashSet mMozillaLibraries;
+  nsTHashtable<nsCStringHashKey> mMozillaLibraries;
 };
 
 NS_IMPL_THREADSAFE_ISUPPORTS1(MapsReporter, nsIMemoryMultiReporter)
@@ -199,12 +207,12 @@ MapsReporter::MapsReporter()
   for (PRUint32 i = 0; i < len; i++) {
     nsCAutoString str;
     str.Assign(mozillaLibraries[i]);
-    mMozillaLibraries.Put(str);
+    mMozillaLibraries.PutEntry(str);
   }
 }
 
 NS_IMETHODIMP
-MapsReporter::CollectReports(nsIMemoryMultiReporterCallback *aCallback,
+MapsReporter::CollectReports(nsIMemoryMultiReporterCallback *aCb,
                              nsISupports *aClosure)
 {
   CategoriesSeen categoriesSeen;
@@ -214,28 +222,30 @@ MapsReporter::CollectReports(nsIMemoryMultiReporterCallback *aCallback,
     return NS_ERROR_FAILURE;
 
   while (true) {
-    nsresult rv = ParseMapping(f, aCallback, aClosure, &categoriesSeen);
+    nsresult rv = ParseMapping(f, aCb, aClosure, &categoriesSeen);
     if (NS_FAILED(rv))
       break;
   }
 
   fclose(f);
 
-  // For sure we should have created some node under 'map/resident' and
-  // 'map/vsize'; otherwise we're probably not reading smaps correctly.  If we
-  // didn't create a node under 'map/swap', create one here so about:memory
-  // knows to create an empty 'map/swap' tree.  See also bug 682735.
+  // For sure we should have created some node under 'smaps/resident' and
+  // 'smaps/vsize'; otherwise we're probably not reading smaps correctly.  If we
+  // didn't create a node under 'smaps/swap', create one here so about:memory
+  // knows to create an empty 'smaps/swap' tree.  See also bug 682735.
 
   NS_ASSERTION(categoriesSeen.mSeenVsize, "Didn't create a vsize node?");
   NS_ASSERTION(categoriesSeen.mSeenVsize, "Didn't create a resident node?");
   if (!categoriesSeen.mSeenSwap) {
-    aCallback->Callback(NS_LITERAL_CSTRING(""),
-                        NS_LITERAL_CSTRING("map/swap/total"),
-                        nsIMemoryReporter::KIND_NONHEAP,
-                        nsIMemoryReporter::UNITS_BYTES,
-                        0,
-                        NS_LITERAL_CSTRING("This process uses no swap space."),
-                        aClosure);
+    nsresult rv;
+    rv = aCb->Callback(NS_LITERAL_CSTRING(""),
+                       NS_LITERAL_CSTRING("smaps/swap/total"),
+                       nsIMemoryReporter::KIND_NONHEAP,
+                       nsIMemoryReporter::UNITS_BYTES,
+                       0,
+                       NS_LITERAL_CSTRING("This process uses no swap space."),
+                       aClosure);
+    NS_ENSURE_SUCCESS(rv, rv);
   }
 
   return NS_OK;
@@ -285,14 +295,16 @@ MapsReporter::FindLibxul()
 nsresult
 MapsReporter::ParseMapping(
   FILE *aFile,
-  nsIMemoryMultiReporterCallback *aCallback,
+  nsIMemoryMultiReporterCallback *aCb,
   nsISupports *aClosure,
   CategoriesSeen *aCategoriesSeen)
 {
   // We need to use native types in order to get good warnings from fscanf, so
   // let's make sure that the native types have the sizes we expect.
-  PR_STATIC_ASSERT(sizeof(long long) == sizeof(PRInt64));
-  PR_STATIC_ASSERT(sizeof(int) == sizeof(PRInt32));
+  MOZ_STATIC_ASSERT(sizeof(long long) == sizeof(PRInt64),
+                    "size of (long long) is expected to match (PRInt64)");
+  MOZ_STATIC_ASSERT(sizeof(int) == sizeof(PRInt32),
+                    "size of (int) is expected to match (PRInt32)");
 
   // Don't bail if FindLibxul fails.  We can still gather meaningful stats
   // here.
@@ -339,7 +351,7 @@ MapsReporter::ParseMapping(
   GetReporterNameAndDescription(path, perms, name, description);
 
   while (true) {
-    nsresult rv = ParseMapBody(aFile, name, description, aCallback,
+    nsresult rv = ParseMapBody(aFile, name, description, aCb,
                                aClosure, aCategoriesSeen);
     if (NS_FAILED(rv))
       break;
@@ -468,11 +480,12 @@ MapsReporter::ParseMapBody(
   FILE *aFile,
   const nsACString &aName,
   const nsACString &aDescription,
-  nsIMemoryMultiReporterCallback *aCallback,
+  nsIMemoryMultiReporterCallback *aCb,
   nsISupports *aClosure,
   CategoriesSeen *aCategoriesSeen)
 {
-  PR_STATIC_ASSERT(sizeof(long long) == sizeof(PRInt64));
+  MOZ_STATIC_ASSERT(sizeof(long long) == sizeof(PRInt64),
+                    "size of (long long) is expected to match (PRInt64)");
 
   const int argCount = 2;
 
@@ -510,17 +523,19 @@ MapsReporter::ParseMapBody(
   }
 
   nsCAutoString path;
-  path.Append("map/");
+  path.Append("smaps/");
   path.Append(category);
   path.Append("/");
   path.Append(aName);
 
-  aCallback->Callback(NS_LITERAL_CSTRING(""),
-                      path,
-                      nsIMemoryReporter::KIND_NONHEAP,
-                      nsIMemoryReporter::UNITS_BYTES,
-                      PRInt64(size) * 1024, // convert from kB to bytes
-                      aDescription, aClosure);
+  nsresult rv;
+  rv = aCb->Callback(NS_LITERAL_CSTRING(""),
+                     path,
+                     nsIMemoryReporter::KIND_NONHEAP,
+                     nsIMemoryReporter::UNITS_BYTES,
+                     PRInt64(size) * 1024, // convert from kB to bytes
+                     aDescription, aClosure);
+  NS_ENSURE_SUCCESS(rv, rv);
 
   return NS_OK;
 }

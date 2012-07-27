@@ -94,7 +94,7 @@ FrameState::pushActiveFrame(JSScript *script, uint32_t argc)
         size_t totalBytes = sizeof(FrameEntry) * nentries +       // entries[]
                             sizeof(FrameEntry *) * nentries +     // tracker.entries
                             sizeof(StackEntryExtra) * nentries;   // extraArray
-        uint8_t *cursor = (uint8_t *)cx->calloc_(totalBytes);
+        uint8_t *cursor = (uint8_t *)OffTheBooks::calloc_(totalBytes);
         if (!cursor)
             return false;
 
@@ -120,7 +120,7 @@ FrameState::pushActiveFrame(JSScript *script, uint32_t argc)
     /* We should have already checked that argc == nargs */
     JS_ASSERT_IF(a, argc == script->function()->nargs);
 
-    ActiveFrame *newa = cx->new_<ActiveFrame>();
+    ActiveFrame *newa = OffTheBooks::new_<ActiveFrame>();
     if (!newa)
         return false;
 
@@ -575,8 +575,10 @@ FrameState::computeAllocation(jsbytecode *target)
 {
     JS_ASSERT(cx->typeInferenceEnabled());
     RegisterAllocation *alloc = cx->typeLifoAlloc().new_<RegisterAllocation>(false);
-    if (!alloc)
+    if (!alloc) {
+        js_ReportOutOfMemory(cx);
         return NULL;
+    }
 
     /*
      * State must be synced at exception and switch targets, at traps and when
@@ -856,8 +858,10 @@ FrameState::discardForJoin(RegisterAllocation *&alloc, uint32_t stackDepth)
          * loop head, and for exception, switch target and trap safe points.
          */
         alloc = cx->typeLifoAlloc().new_<RegisterAllocation>(false);
-        if (!alloc)
+        if (!alloc) {
+            js_ReportOutOfMemory(cx);
             return false;
+        }
     }
 
     resetInternalState();
@@ -2885,7 +2889,7 @@ FrameState::getTemporaryCopies(Uses uses)
                 FrameEntry *nfe = tracker[i];
                 if (!deadEntry(nfe, uses.nuses) && nfe->isCopy() && nfe->copyOf() == fe) {
                     if (!res)
-                        res = cx->new_< Vector<TemporaryCopy> >(cx);
+                        res = OffTheBooks::new_< Vector<TemporaryCopy> >(cx);
                     res->append(TemporaryCopy(addressOf(nfe), addressOf(fe)));
                 }
             }

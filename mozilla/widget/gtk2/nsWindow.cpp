@@ -160,8 +160,7 @@ using mozilla::layers::LayerManagerOGL;
 #define MAX_RECTS_IN_REGION 100
 
 /* utility functions */
-static bool       check_for_rollup(GdkWindow *aWindow,
-                                   gdouble aMouseX, gdouble aMouseY,
+static bool       check_for_rollup(gdouble aMouseX, gdouble aMouseY,
                                    bool aIsWheel, bool aAlwaysRollup);
 static bool       is_mouse_in_window(GdkWindow* aWindow,
                                      gdouble aMouseX, gdouble aMouseY);
@@ -175,8 +174,6 @@ static GdkWindow *get_inner_gdk_window (GdkWindow *aWindow,
                                         gint *retx, gint *rety);
 
 static inline bool is_context_menu_key(const nsKeyEvent& inKeyEvent);
-static void   key_event_to_context_menu_event(nsMouseEvent &aEvent,
-                                              GdkEventKey *aGdkEvent);
 
 static int    is_parent_ungrab_enter(GdkEventCrossing *aEvent);
 static int    is_parent_grab_leave(GdkEventCrossing *aEvent);
@@ -272,36 +269,14 @@ static void    drag_data_received_event_cb(GtkWidget *aWidget,
                                            guint32 aTime,
                                            gpointer aData);
 
-static GdkModifierType gdk_keyboard_get_modifiers();
-#ifdef MOZ_X11
-static bool gdk_keyboard_get_modmap_masks(Display*  aDisplay,
-                                            PRUint32* aCapsLockMask,
-                                            PRUint32* aNumLockMask,
-                                            PRUint32* aScrollLockMask);
-#endif /* MOZ_X11 */
-
 /* initialization static functions */
 static nsresult    initialize_prefs        (void);
 
-static void
-UpdateLastInputEventTime()
-{
-  nsCOMPtr<nsIdleService> idleService = do_GetService("@mozilla.org/widget/idleservice;1");
-  if (idleService) {
-    idleService->ResetIdleTimeOut();
-  }
-}
-
 // this is the last window that had a drag event happen on it.
 nsWindow *nsWindow::sLastDragMotionWindow = NULL;
-bool nsWindow::sIsDraggingOutOf = false;
 
-// This is the time of the last button press event.  The drag service
-// uses it as the time to start drags.
-guint32   nsWindow::sLastButtonPressTime = 0;
-// Time of the last button release event. We use it to detect when the
-// drag ended before we could properly setup drag and drop.
-guint32   nsWindow::sLastButtonReleaseTime = 0;
+static guint32 sLastUserInputTime = GDK_CURRENT_TIME;
+static guint32 sRetryGrabTime;
 
 static NS_DEFINE_IID(kCDragServiceCID,  NS_DRAGSERVICE_CID);
 
@@ -378,6 +353,29 @@ GetBitmapStride(PRInt32 width)
 #else
   return cairo_format_stride_for_width(CAIRO_FORMAT_A1, width);
 #endif
+}
+
+static inline bool TimestampIsNewerThan(guint32 a, guint32 b)
+{
+    // Timestamps are just the least significant bits of a monotonically
+    // increasing function, and so the use of unsigned overflow arithmetic.
+    return a - b <= G_MAXUINT32/2;
+}
+
+static void
+UpdateLastInputEventTime(void *aGdkEvent)
+{
+    nsCOMPtr<nsIdleService> idleService =
+        do_GetService("@mozilla.org/widget/idleservice;1");
+    if (idleService) {
+        idleService->ResetIdleTimeOut();
+    }
+
+    guint timestamp = gdk_event_get_time(static_cast<GdkEvent*>(aGdkEvent));
+    if (timestamp == GDK_CURRENT_TIME)
+        return;
+
+    sLastUserInputTime = timestamp;
 }
 
 nsWindow::nsWindow()
@@ -462,59 +460,6 @@ nsWindow::CommonCreate(nsIWidget *aParent, bool aListenForResizes)
     mParent = aParent;
     mListenForResizes = aListenForResizes;
     mCreated = true;
-}
-
-void
-nsWindow::InitKeyEvent(nsKeyEvent &aEvent, GdkEventKey *aGdkEvent)
-{
-    aEvent.keyCode   = GdkKeyCodeToDOMKeyCode(aGdkEvent->keyval);
-    // NOTE: The state of given key event indicates adjacent state of
-    // modifier keys.  E.g., even if the event is Shift key press event,
-    // the bit for Shift is still false.  By the same token, even if the
-    // event is Shift key release event, the bit for Shift is still true.
-    // Unfortunately, gdk_keyboard_get_modifiers() returns current modifier
-    // state.  It means if there're some pending modifier key press or
-    // key release events, the result isn't what we want.
-    // Temporarily, we should compute the state only when the key event
-    // is GDK_KEY_PRESS.
-    guint modifierState = aGdkEvent->state;
-    guint changingMask = 0;
-    switch (aEvent.keyCode) {
-        case NS_VK_SHIFT:
-            changingMask = GDK_SHIFT_MASK;
-            break;
-        case NS_VK_CONTROL:
-            changingMask = GDK_CONTROL_MASK;
-            break;
-        case NS_VK_ALT:
-            changingMask = GDK_MOD1_MASK;
-            break;
-        case NS_VK_META:
-            changingMask = GDK_MOD4_MASK;
-            break;
-    }
-    if (changingMask != 0) {
-        // This key event is caused by pressing or releasing a modifier key.
-        if (aGdkEvent->type == GDK_KEY_PRESS) {
-            // If new modifier key is pressed, add the pressed mod mask.
-            modifierState |= changingMask;
-        } else {
-            // XXX If we could know the modifier keys state at the key release
-            // event, we should cut out changingMask from modifierState.
-        }
-    }
-    aEvent.isShift   = (modifierState & GDK_SHIFT_MASK) != 0;
-    aEvent.isControl = (modifierState & GDK_CONTROL_MASK) != 0;
-    aEvent.isAlt     = (modifierState & GDK_MOD1_MASK) != 0;
-    aEvent.isMeta    = (modifierState & GDK_MOD4_MASK) != 0;
-
-    // The transformations above and in gdk for the keyval are not invertible
-    // so link to the GdkEvent (which will vanish soon after return from the
-    // event callback) to give plugins access to hardware_keycode and state.
-    // (An XEvent would be nice but the GdkEvent is good enough.)
-    aEvent.pluginEvent = (void *)aGdkEvent;
-
-    aEvent.time      = aGdkEvent->time;
 }
 
 void
@@ -1426,7 +1371,28 @@ SetUserTimeAndStartupIDForActivatedWindow(GtkWidget* aWindow)
     sn_display_unref(snd);
 #endif
 
+    // If we used the startup ID, that already contains the focus timestamp;
+    // we don't want to reuse the timestamp next time we raise the window
+    GTKToolkit->SetFocusTimestamp(0);
     GTKToolkit->SetDesktopStartupID(EmptyCString());
+}
+
+/* static */ guint32
+nsWindow::GetLastUserInputTime()
+{
+    // gdk_x11_display_get_user_time tracks button and key presses,
+    // DESKTOP_STARTUP_ID used to start the app, drop events from external
+    // drags, WM_DELETE_WINDOW delete events, but not usually mouse motion nor
+    // button and key releases.  Therefore use the most recent of
+    // gdk_x11_display_get_user_time and the last time that we have seen.
+    guint32 timestamp =
+            gdk_x11_display_get_user_time(gdk_display_get_default());
+    if (sLastUserInputTime != GDK_CURRENT_TIME &&
+        TimestampIsNewerThan(sLastUserInputTime, timestamp)) {
+        return sLastUserInputTime;
+    }       
+
+    return timestamp;
 }
 
 NS_IMETHODIMP
@@ -1471,11 +1437,20 @@ nsWindow::SetFocus(bool aRaise)
         if (gRaiseWindows && owningWindow->mIsShown && owningWindow->mShell &&
             !gtk_window_is_active(GTK_WINDOW(owningWindow->mShell))) {
 
+            PRUint32 timestamp = GDK_CURRENT_TIME;
+
+            nsGTKToolkit* GTKToolkit = nsGTKToolkit::GetToolkit();
+            if (GTKToolkit)
+                timestamp = GTKToolkit->GetFocusTimestamp();
+
             LOGFOCUS(("  requesting toplevel activation [%p]\n", (void *)this));
             NS_ASSERTION(owningWindow->mWindowType != eWindowType_popup
                          || mParent,
                          "Presenting an override-redirect window");
-            gtk_window_present(GTK_WINDOW(owningWindow->mShell));
+            gtk_window_present_with_time(GTK_WINDOW(owningWindow->mShell), timestamp);
+
+            if (GTKToolkit)
+                GTKToolkit->SetFocusTimestamp(0);
         }
 
         return NS_OK;
@@ -1695,8 +1670,7 @@ nsWindow::SetCursor(imgIContainer* aCursor,
 }
 
 NS_IMETHODIMP
-nsWindow::Invalidate(const nsIntRect &aRect,
-                     bool             aIsSynchronous)
+nsWindow::Invalidate(const nsIntRect &aRect)
 {
     if (!mGdkWindow)
         return NS_OK;
@@ -1707,27 +1681,11 @@ nsWindow::Invalidate(const nsIntRect &aRect,
     rect.width = aRect.width;
     rect.height = aRect.height;
 
-    LOGDRAW(("Invalidate (rect) [%p]: %d %d %d %d (sync: %d)\n", (void *)this,
-             rect.x, rect.y, rect.width, rect.height, aIsSynchronous));
+    LOGDRAW(("Invalidate (rect) [%p]: %d %d %d %d\n", (void *)this,
+             rect.x, rect.y, rect.width, rect.height));
 
     gdk_window_invalidate_rect(mGdkWindow, &rect, FALSE);
-    if (aIsSynchronous)
-        gdk_window_process_updates(mGdkWindow, FALSE);
 
-    return NS_OK;
-}
-
-NS_IMETHODIMP
-nsWindow::Update()
-{
-    if (!mGdkWindow)
-        return NS_OK;
-
-    LOGDRAW(("Update [%p] %p\n", this, mGdkWindow));
-
-    gdk_window_process_updates(mGdkWindow, FALSE);
-    // Send the updates to the server.
-    gdk_display_flush(gdk_window_get_display(mGdkWindow));
     return NS_OK;
 }
 
@@ -1899,7 +1857,7 @@ nsWindow::CaptureMouse(bool aCapture)
 
     if (aCapture) {
         gtk_grab_add(widget);
-        GrabPointer();
+        GrabPointer(GetLastUserInputTime());
     }
     else {
         ReleaseGrabs();
@@ -1931,7 +1889,7 @@ nsWindow::CaptureRollupEvents(nsIRollupListener *aListener,
         // real grab is only done when there is no dragging
         if (!nsWindow::DragInProgress()) {
             gtk_grab_add(widget);
-            GrabPointer();
+            GrabPointer(GetLastUserInputTime());
         }
     }
     else {
@@ -2008,7 +1966,7 @@ nsWindow::HasPendingInputEvent()
 // Paint flashing code (disabled for cairo - see below)
 
 #define CAPS_LOCK_IS_ON \
-(gdk_keyboard_get_modifiers() & GDK_LOCK_MASK)
+(KeymapWrapper::AreModifiersCurrentlyActive(KeymapWrapper::CAPS_LOCK))
 
 #define WANT_PAINT_FLASHING \
 (debug_WantPaintFlashing() && CAPS_LOCK_IS_ON)
@@ -2374,7 +2332,7 @@ nsWindow::OnConfigureEvent(GtkWidget *aWidget, GdkEventConfigure *aEvent)
         // Cygwin/X (bug 672103).
         if (mBounds.x != screenBounds.x ||
             mBounds.y != screenBounds.y) {
-            check_for_rollup(aEvent->window, 0, 0, false, true);
+            check_for_rollup(0, 0, false, true);
         }
     }
 
@@ -2552,10 +2510,6 @@ nsWindow::OnLeaveNotifyEvent(GtkWidget *aWidget, GdkEventCrossing *aEvent)
 void
 nsWindow::OnMotionNotifyEvent(GtkWidget *aWidget, GdkEventMotion *aEvent)
 {
-    // when we receive this, it must be that the gtk dragging is over,
-    // it is dropped either in or out of mozilla, clear the flag
-    sIsDraggingOutOf = false;
-
     // see if we can compress this event
     // XXXldb Why skip every other motion event when we have multiple,
     // but not more than that?
@@ -2592,29 +2546,20 @@ nsWindow::OnMotionNotifyEvent(GtkWidget *aWidget, GdkEventMotion *aEvent)
       mLastMotionPressure = pressure;
     event.pressure = mLastMotionPressure;
 
+    guint modifierState;
     if (synthEvent) {
 #ifdef MOZ_X11
         event.refPoint.x = nscoord(xevent.xmotion.x);
         event.refPoint.y = nscoord(xevent.xmotion.y);
 
-        event.isShift   = (xevent.xmotion.state & GDK_SHIFT_MASK)
-            ? true : false;
-        event.isControl = (xevent.xmotion.state & GDK_CONTROL_MASK)
-            ? true : false;
-        event.isAlt     = (xevent.xmotion.state & GDK_MOD1_MASK)
-            ? true : false;
+        modifierState = xevent.xmotion.state;
 
         event.time = xevent.xmotion.time;
 #else
         event.refPoint.x = nscoord(aEvent->x);
         event.refPoint.y = nscoord(aEvent->y);
 
-        event.isShift   = (aEvent->state & GDK_SHIFT_MASK)
-            ? true : false;
-        event.isControl = (aEvent->state & GDK_CONTROL_MASK)
-            ? true : false;
-        event.isAlt     = (aEvent->state & GDK_MOD1_MASK)
-            ? true : false;
+        modifierState = aEvent->state;
 
         event.time = aEvent->time;
 #endif /* MOZ_X11 */
@@ -2629,15 +2574,12 @@ nsWindow::OnMotionNotifyEvent(GtkWidget *aWidget, GdkEventMotion *aEvent)
             event.refPoint = point - WidgetToScreenOffset();
         }
 
-        event.isShift   = (aEvent->state & GDK_SHIFT_MASK)
-            ? true : false;
-        event.isControl = (aEvent->state & GDK_CONTROL_MASK)
-            ? true : false;
-        event.isAlt     = (aEvent->state & GDK_MOD1_MASK)
-            ? true : false;
+        modifierState = aEvent->state;
 
         event.time = aEvent->time;
     }
+
+    KeymapWrapper::InitInputEvent(event, modifierState);
 
     nsEventStatus status;
     DispatchEvent(&event, status);
@@ -2692,8 +2634,6 @@ nsWindow::DispatchMissedButtonReleases(GdkEventCrossing *aGdkEvent)
             synthEvent.button = buttonType;
             nsEventStatus status;
             DispatchEvent(&synthEvent, status);
-
-            sLastButtonReleaseTime = aGdkEvent->time;
         }
     }
 }
@@ -2711,10 +2651,7 @@ nsWindow::InitButtonEvent(nsMouseEvent &aEvent,
         aEvent.refPoint = point - WidgetToScreenOffset();
     }
 
-    aEvent.isShift   = (aGdkEvent->state & GDK_SHIFT_MASK) != 0;
-    aEvent.isControl = (aGdkEvent->state & GDK_CONTROL_MASK) != 0;
-    aEvent.isAlt     = (aGdkEvent->state & GDK_MOD1_MASK) != 0;
-    aEvent.isMeta    = (aGdkEvent->state & GDK_MOD4_MASK) != 0;
+    KeymapWrapper::InitInputEvent(aEvent, aGdkEvent->state);
 
     aEvent.time = aGdkEvent->time;
 
@@ -2757,18 +2694,14 @@ nsWindow::OnButtonPressEvent(GtkWidget *aWidget, GdkEventButton *aEvent)
             return;
     }
 
-    // Always save the time of this event
-    sLastButtonPressTime = aEvent->time;
-    sLastButtonReleaseTime = 0;
-
     nsWindow *containerWindow = GetContainerWindow();
     if (!gFocusWindow && containerWindow) {
         containerWindow->DispatchActivateEvent();
     }
 
     // check to see if we should rollup
-    bool rolledUp = check_for_rollup(aEvent->window, aEvent->x_root,
-                                       aEvent->y_root, false, false);
+    bool rolledUp =
+        check_for_rollup(aEvent->x_root, aEvent->y_root, false, false);
     if (gConsumeRollupEvent && rolledUp)
         return;
 
@@ -2799,10 +2732,7 @@ nsWindow::OnButtonPressEvent(GtkWidget *aWidget, GdkEventButton *aEvent)
             // XXX Why is this delta value different from the scroll event?
             event.delta = (aEvent->button == 6) ? -2 : 2;
 
-            event.isShift   = (aEvent->state & GDK_SHIFT_MASK) != 0;
-            event.isControl = (aEvent->state & GDK_CONTROL_MASK) != 0;
-            event.isAlt     = (aEvent->state & GDK_MOD1_MASK) != 0;
-            event.isMeta    = (aEvent->state & GDK_MOD4_MASK) != 0;
+            KeymapWrapper::InitInputEvent(event, aEvent->state);
 
             event.time = aEvent->time;
 
@@ -2847,8 +2777,6 @@ nsWindow::OnButtonReleaseEvent(GtkWidget *aWidget, GdkEventButton *aEvent)
     LOG(("Button %u release on %p\n", aEvent->button, (void *)this));
 
     PRUint16 domButton;
-    sLastButtonReleaseTime = aEvent->time;
-
     switch (aEvent->button) {
     case 1:
         domButton = nsMouseEvent::eLeftButton;
@@ -2932,7 +2860,7 @@ nsWindow::OnContainerFocusOutEvent(GtkWidget *aWidget, GdkEventFocus *aEvent)
         }
 
         if (shouldRollup) {
-            check_for_rollup(aEvent->window, 0, 0, false, true);
+            check_for_rollup(0, 0, false, true);
         }
     }
 
@@ -2975,54 +2903,12 @@ nsWindow::DispatchContentCommandEvent(PRInt32 aMsg)
   return TRUE;
 }
 
-static PRUint32
-GetCharCodeFor(const GdkEventKey *aEvent, guint aShiftState,
-               gint aGroup)
-{
-    guint keyval;
-    GdkKeymap *keymap = gdk_keymap_get_default();
-
-    if (gdk_keymap_translate_keyboard_state(keymap, aEvent->hardware_keycode,
-                                            GdkModifierType(aShiftState),
-                                            aGroup,
-                                            &keyval, NULL, NULL, NULL)) {
-        GdkEventKey tmpEvent = *aEvent;
-        tmpEvent.state = guint(aShiftState);
-        tmpEvent.keyval = keyval;
-        tmpEvent.group = aGroup;
-        return nsConvertCharCodeToUnicode(&tmpEvent);
-    }
-    return 0;
-}
-
-static gint
-GetKeyLevel(GdkEventKey *aEvent)
-{
-    gint level;
-    GdkKeymap *keymap = gdk_keymap_get_default();
-
-    if (!gdk_keymap_translate_keyboard_state(keymap,
-                                             aEvent->hardware_keycode,
-                                             GdkModifierType(aEvent->state),
-                                             aEvent->group,
-                                             NULL, NULL, &level, NULL))
-        return -1;
-    return level;
-}
-
-static bool
-IsBasicLatinLetterOrNumeral(PRUint32 aChar)
-{
-    return (aChar >= 'a' && aChar <= 'z') ||
-           (aChar >= 'A' && aChar <= 'Z') ||
-           (aChar >= '0' && aChar <= '9');
-}
-
 static bool
 IsCtrlAltTab(GdkEventKey *aEvent)
 {
     return aEvent->keyval == GDK_Tab &&
-        aEvent->state & GDK_CONTROL_MASK && aEvent->state & GDK_MOD1_MASK;
+        KeymapWrapper::AreModifiersActive(
+            KeymapWrapper::CTRL | KeymapWrapper::ALT, aEvent->state);
 }
 
 bool
@@ -3039,7 +2925,7 @@ nsWindow::DispatchKeyDownEvent(GdkEventKey *aEvent, bool *aCancelled)
     // send the key down event
     nsEventStatus status;
     nsKeyEvent downEvent(true, NS_KEY_DOWN, this);
-    InitKeyEvent(downEvent, aEvent);
+    KeymapWrapper::InitKeyEvent(downEvent, aEvent);
     DispatchEvent(&downEvent, status);
     *aCancelled = (status == nsEventStatus_eConsumeNoDefault);
     return true;
@@ -3096,14 +2982,7 @@ nsWindow::OnKeyPressEvent(GtkWidget *aWidget, GdkEventKey *aEvent)
     // TODO: Instead of selectively excluding some keys from NS_KEY_PRESS events,
     //       we should instead selectively include (as per MSDN spec; no official
     //       spec covers KeyPress events).
-    if (aEvent->keyval == GDK_Shift_L
-        || aEvent->keyval == GDK_Shift_R
-        || aEvent->keyval == GDK_Control_L
-        || aEvent->keyval == GDK_Control_R
-        || aEvent->keyval == GDK_Alt_L
-        || aEvent->keyval == GDK_Alt_R
-        || aEvent->keyval == GDK_Meta_L
-        || aEvent->keyval == GDK_Meta_R) {
+    if (!KeymapWrapper::IsKeyPressEventNecessary(aEvent)) {
         return TRUE;
     }
 
@@ -3144,88 +3023,10 @@ nsWindow::OnKeyPressEvent(GtkWidget *aWidget, GdkEventKey *aEvent)
 #endif /* MOZ_X11 */
 
     nsKeyEvent event(true, NS_KEY_PRESS, this);
-    InitKeyEvent(event, aEvent);
+    KeymapWrapper::InitKeyEvent(event, aEvent);
     if (isKeyDownCancelled) {
       // If prevent default set for onkeydown, do the same for onkeypress
       event.flags |= NS_EVENT_FLAG_NO_DEFAULT;
-    }
-    event.charCode = nsConvertCharCodeToUnicode(aEvent);
-    if (event.charCode) {
-        event.keyCode = 0;
-        gint level = GetKeyLevel(aEvent);
-        if ((event.isControl || event.isAlt || event.isMeta) &&
-            (level == 0 || level == 1)) {
-            guint baseState =
-                aEvent->state & ~(GDK_SHIFT_MASK | GDK_CONTROL_MASK |
-                                  GDK_MOD1_MASK | GDK_MOD4_MASK);
-            // We shold send both shifted char and unshifted char,
-            // all keyboard layout users can use all keys.
-            // Don't change event.charCode. On some keyboard layouts,
-            // ctrl/alt/meta keys are used for inputting some characters.
-            nsAlternativeCharCode altCharCodes(0, 0);
-            // unshifted charcode of current keyboard layout.
-            altCharCodes.mUnshiftedCharCode =
-                GetCharCodeFor(aEvent, baseState, aEvent->group);
-            bool isLatin = (altCharCodes.mUnshiftedCharCode <= 0xFF);
-            // shifted charcode of current keyboard layout.
-            altCharCodes.mShiftedCharCode =
-                GetCharCodeFor(aEvent, baseState | GDK_SHIFT_MASK,
-                               aEvent->group);
-            isLatin = isLatin && (altCharCodes.mShiftedCharCode <= 0xFF);
-            if (altCharCodes.mUnshiftedCharCode ||
-                altCharCodes.mShiftedCharCode) {
-                event.alternativeCharCodes.AppendElement(altCharCodes);
-            }
-
-            if (!isLatin) {
-                // Next, find latin inputtable keyboard layout.
-                GdkKeymapKey *keys;
-                gint count;
-                gint minGroup = -1;
-                if (gdk_keymap_get_entries_for_keyval(NULL, GDK_a,
-                                                      &keys, &count)) {
-                    // find the minimum number group for latin inputtable layout
-                    for (gint i = 0; i < count && minGroup != 0; ++i) {
-                        if (keys[i].level != 0 && keys[i].level != 1)
-                            continue;
-                        if (minGroup >= 0 && keys[i].group > minGroup)
-                            continue;
-                        minGroup = keys[i].group;
-                    }
-                    g_free(keys);
-                }
-                if (minGroup >= 0) {
-                    PRUint32 unmodifiedCh =
-                               event.isShift ? altCharCodes.mShiftedCharCode :
-                                               altCharCodes.mUnshiftedCharCode;
-                    // unshifted charcode of found keyboard layout.
-                    PRUint32 ch =
-                        GetCharCodeFor(aEvent, baseState, minGroup);
-                    altCharCodes.mUnshiftedCharCode =
-                        IsBasicLatinLetterOrNumeral(ch) ? ch : 0;
-                    // shifted charcode of found keyboard layout.
-                    ch = GetCharCodeFor(aEvent, baseState | GDK_SHIFT_MASK,
-                                        minGroup);
-                    altCharCodes.mShiftedCharCode =
-                        IsBasicLatinLetterOrNumeral(ch) ? ch : 0;
-                    if (altCharCodes.mUnshiftedCharCode ||
-                        altCharCodes.mShiftedCharCode) {
-                        event.alternativeCharCodes.AppendElement(altCharCodes);
-                    }
-                    // If the charCode is not Latin, and the level is 0 or 1,
-                    // we should replace the charCode to Latin char if Alt and
-                    // Meta keys are not pressed. (Alt should be sent the
-                    // localized char for accesskey like handling of Web
-                    // Applications.)
-                    ch = event.isShift ? altCharCodes.mShiftedCharCode :
-                                         altCharCodes.mUnshiftedCharCode;
-                    if (ch && !(event.isAlt || event.isMeta) &&
-                        event.charCode == unmodifiedCh) {
-                        event.charCode = ch;
-                    }
-                }
-            }
-        }
     }
 
     // before we dispatch a key, check if it's the context menu key.
@@ -3234,7 +3035,11 @@ nsWindow::OnKeyPressEvent(GtkWidget *aWidget, GdkEventKey *aEvent)
         nsMouseEvent contextMenuEvent(true, NS_CONTEXTMENU, this,
                                       nsMouseEvent::eReal,
                                       nsMouseEvent::eContextMenuKey);
-        key_event_to_context_menu_event(contextMenuEvent, aEvent);
+
+        contextMenuEvent.refPoint = nsIntPoint(0, 0);
+        contextMenuEvent.time = aEvent->time;
+        contextMenuEvent.clickCount = 1;
+        KeymapWrapper::InitInputEvent(contextMenuEvent, aEvent->state);
         DispatchEvent(&contextMenuEvent, status);
     }
     else {
@@ -3274,7 +3079,7 @@ nsWindow::OnKeyReleaseEvent(GtkWidget *aWidget, GdkEventKey *aEvent)
 
     // send the key event as a key up event
     nsKeyEvent event(true, NS_KEY_UP, this);
-    InitKeyEvent(event, aEvent);
+    KeymapWrapper::InitKeyEvent(event, aEvent);
 
     nsEventStatus status;
     DispatchEvent(&event, status);
@@ -3291,8 +3096,8 @@ void
 nsWindow::OnScrollEvent(GtkWidget *aWidget, GdkEventScroll *aEvent)
 {
     // check to see if we should rollup
-    bool rolledUp =  check_for_rollup(aEvent->window, aEvent->x_root,
-                                        aEvent->y_root, true, false);
+    bool rolledUp =
+        check_for_rollup(aEvent->x_root, aEvent->y_root, true, false);
     if (gConsumeRollupEvent && rolledUp)
         return;
 
@@ -3328,10 +3133,7 @@ nsWindow::OnScrollEvent(GtkWidget *aWidget, GdkEventScroll *aEvent)
         event.refPoint = point - WidgetToScreenOffset();
     }
 
-    event.isShift   = (aEvent->state & GDK_SHIFT_MASK) != 0;
-    event.isControl = (aEvent->state & GDK_CONTROL_MASK) != 0;
-    event.isAlt     = (aEvent->state & GDK_MOD1_MASK) != 0;
-    event.isMeta    = (aEvent->state & GDK_MOD4_MASK) != 0;
+    KeymapWrapper::InitInputEvent(event, aEvent->state);
 
     event.time = aEvent->time;
 
@@ -3406,10 +3208,12 @@ nsWindow::OnWindowStateEvent(GtkWidget *aWidget, GdkEventWindowState *aEvent)
 
     nsSizeModeEvent event(true, NS_SIZEMODE, this);
 
-    // We don't care about anything but changes in the maximized/icon
+    // We don't care about anything but changes in the maximized/icon/fullscreen
     // states
     if ((aEvent->changed_mask
-         & (GDK_WINDOW_STATE_ICONIFIED|GDK_WINDOW_STATE_MAXIMIZED)) == 0) {
+         & (GDK_WINDOW_STATE_ICONIFIED |
+            GDK_WINDOW_STATE_MAXIMIZED |
+            GDK_WINDOW_STATE_FULLSCREEN)) == 0) {
         return;
     }
 
@@ -3421,6 +3225,11 @@ nsWindow::OnWindowStateEvent(GtkWidget *aWidget, GdkEventWindowState *aEvent)
         DispatchMinimizeEventAccessible();
 #endif //ACCESSIBILITY
     }
+    else if (aEvent->new_window_state & GDK_WINDOW_STATE_FULLSCREEN) {
+        LOG(("\tFullscreen\n"));
+        event.mSizeMode = nsSizeMode_Fullscreen;
+        mSizeState = nsSizeMode_Fullscreen;
+    }
     else if (aEvent->new_window_state & GDK_WINDOW_STATE_MAXIMIZED) {
         LOG(("\tMaximized\n"));
         event.mSizeMode = nsSizeMode_Maximized;
@@ -3428,11 +3237,6 @@ nsWindow::OnWindowStateEvent(GtkWidget *aWidget, GdkEventWindowState *aEvent)
 #ifdef ACCESSIBILITY
         DispatchMaximizeEventAccessible();
 #endif //ACCESSIBILITY
-    }
-    else if (aEvent->new_window_state & GDK_WINDOW_STATE_FULLSCREEN) {
-        LOG(("\tFullscreen\n"));
-        event.mSizeMode = nsSizeMode_Fullscreen;
-        mSizeState = nsSizeMode_Fullscreen;
     }
     else {
         LOG(("\tNormal\n"));
@@ -3476,14 +3280,14 @@ nsWindow::ThemeChanged()
 }
 
 void
-nsWindow::CheckNeedDragLeaveEnter(nsWindow* aInnerMostWidget,
-                                  nsIDragService* aDragService,
-                                  GdkDragContext *aDragContext,
-                                  nscoord aX, nscoord aY)
+nsWindow::CheckNeedDragLeave(nsWindow* aInnerMostWidget,
+                             nsIDragService* aDragService,
+                             GdkDragContext *aDragContext,
+                             nscoord aX, nscoord aY)
 {
     // check to see if there was a drag motion window already in place
     if (sLastDragMotionWindow) {
-        // same as the last window so no need for dragenter and dragleave events
+        // same as the last window so no need for dragleave event
         if (sLastDragMotionWindow == aInnerMostWidget) {
             UpdateDragStatus(aDragContext, aDragService);
             return;
@@ -3497,12 +3301,59 @@ nsWindow::CheckNeedDragLeaveEnter(nsWindow* aInnerMostWidget,
     // Make sure that the drag service knows we're now dragging
     aDragService->StartDragSession();
 
-    // update our drag status and send a dragenter event to the window
+    // update our drag status
     UpdateDragStatus(aDragContext, aDragService);
-    aInnerMostWidget->OnDragEnter(aX, aY);
 
     // set the last window to the innerMostWidget
     sLastDragMotionWindow = aInnerMostWidget;
+}
+
+void
+nsWindow::DispatchDragMotionEvents(nsDragService *aDragService,
+                                   const nsIntPoint& aWindowPoint, guint aTime)
+{
+    aDragService->SetCanDrop(false);
+
+    aDragService->FireDragEventAtSource(NS_DRAGDROP_DRAG);
+
+    DispatchDragEvent(NS_DRAGDROP_OVER, aWindowPoint, aTime);
+}
+
+// Returns true if the drop was successful
+gboolean
+nsWindow::DispatchDragDropEvent(nsDragService *aDragService,
+                                const nsIntPoint& aWindowPoint, guint aTime)
+{
+    // We need to check mIsDestroyed here because the nsRefPtr
+    // only protects this from being deleted, it does NOT protect
+    // against nsView::~nsView() calling Destroy() on it, bug 378670.
+    if (mIsDestroyed)
+        return FALSE;
+
+    bool canDrop;
+    aDragService->GetCanDrop(&canDrop);
+    PRUint32 msg = canDrop ? NS_DRAGDROP_DROP : NS_DRAGDROP_EXIT;
+
+    DispatchDragEvent(msg, aWindowPoint, aTime);
+
+    return canDrop;
+}
+
+void
+nsWindow::DispatchDragEvent(PRUint32 aMsg, const nsIntPoint& aRefPoint,
+                            guint aTime)
+{
+    nsDragEvent event(true, aMsg, this);
+
+    if (aMsg == NS_DRAGDROP_OVER) {
+        InitDragEvent(event);
+    }
+
+    event.refPoint = aRefPoint;
+    event.time = aTime;
+
+    nsEventStatus status;
+    DispatchEvent(&event, status);
 }
 
 gboolean
@@ -3515,28 +3366,10 @@ nsWindow::OnDragMotionEvent(GtkWidget *aWidget,
 {
     LOGDRAG(("nsWindow::OnDragMotionSignal\n"));
 
-    if (sLastButtonReleaseTime) {
-      // The drag ended before it was even setup to handle the end of the drag
-      // So, we fake the button getting released again to release the drag
-      GtkWidget *widget = gtk_grab_get_current();
-      GdkEvent event;
-      gboolean retval;
-      memset(&event, 0, sizeof(event));
-      event.type = GDK_BUTTON_RELEASE;
-      event.button.time = sLastButtonReleaseTime;
-      event.button.button = 1;
-      sLastButtonReleaseTime = 0;
-      if (widget) {
-        g_signal_emit_by_name(widget, "button_release_event", &event, &retval);
-        return TRUE;
-      }
-    }
-
-    sIsDraggingOutOf = false;
-
     // get our drag context
     nsCOMPtr<nsIDragService> dragService = do_GetService(kCDragServiceCID);
-    nsCOMPtr<nsIDragSessionGTK> dragSessionGTK = do_QueryInterface(dragService);
+    nsDragService *dragServiceGTK =
+        static_cast<nsDragService*>(dragService.get());
 
     // first, figure out which internal widget this drag motion actually
     // happened on
@@ -3550,9 +3383,6 @@ nsWindow::OnDragMotionEvent(GtkWidget *aWidget,
     if (!innerMostWidget)
         innerMostWidget = this;
 
-    // update the drag context
-    dragSessionGTK->TargetSetLastContext(aWidget, aDragContext, aTime);
-
     // clear any drag leave timer that might be pending so that it
     // doesn't get processed when we actually go out to get data.
     if (mDragLeaveTimer) {
@@ -3560,29 +3390,20 @@ nsWindow::OnDragMotionEvent(GtkWidget *aWidget,
         mDragLeaveTimer = nsnull;
     }
 
-    CheckNeedDragLeaveEnter(innerMostWidget, dragService, aDragContext, retx, rety);
+    CheckNeedDragLeave(innerMostWidget, dragService, aDragContext, retx, rety);
 
-    // notify the drag service that we are starting a drag motion.
-    dragSessionGTK->TargetStartDragMotion();
+    // update the drag context
+    dragServiceGTK->TargetSetLastContext(aWidget, aDragContext, aTime);
 
-    dragService->FireDragEventAtSource(NS_DRAGDROP_DRAG);
+    innerMostWidget->
+        DispatchDragMotionEvents(dragServiceGTK, nsIntPoint(retx, rety), aTime);
 
-    nsDragEvent event(true, NS_DRAGDROP_OVER, innerMostWidget);
-
-    InitDragEvent(event);
-
-    event.refPoint.x = retx;
-    event.refPoint.y = rety;
-    event.time = aTime;
-
-    nsEventStatus status;
-    innerMostWidget->DispatchEvent(&event, status);
-
-    // we're done with the drag motion event.  notify the drag service.
-    dragSessionGTK->TargetEndDragMotion(aWidget, aDragContext, aTime);
+    // Reply to tell the source whether we can drop and what action would be
+    // taken.
+    dragServiceGTK->TargetEndDragMotion(aWidget, aDragContext, aTime);
 
     // and unset our context
-    dragSessionGTK->TargetSetLastContext(0, 0, 0);
+    dragServiceGTK->TargetSetLastContext(0, 0, 0);
 
     return TRUE;
 }
@@ -3596,8 +3417,6 @@ nsWindow::OnDragLeaveEvent(GtkWidget *aWidget,
     // XXX Do we want to pass this on only if the event's subwindow is null?
 
     LOGDRAG(("nsWindow::OnDragLeaveSignal(%p)\n", (void*)this));
-
-    sIsDraggingOutOf = true;
 
     if (mDragLeaveTimer) {
         return;
@@ -3627,7 +3446,9 @@ nsWindow::OnDragDropEvent(GtkWidget *aWidget,
 
     // get our drag context
     nsCOMPtr<nsIDragService> dragService = do_GetService(kCDragServiceCID);
-    nsCOMPtr<nsIDragSessionGTK> dragSessionGTK = do_QueryInterface(dragService);
+    nsDragService *dragServiceGTK = static_cast<nsDragService*>(dragService.get());
+
+    dragServiceGTK->SetDragEndPoint(nsIntPoint(aX, aY) + WidgetToScreenOffset());
 
     nscoord retx = 0;
     nscoord rety = 0;
@@ -3639,9 +3460,6 @@ nsWindow::OnDragDropEvent(GtkWidget *aWidget,
     if (!innerMostWidget)
         innerMostWidget = this;
 
-    // set this now before any of the drag enter or leave events happen
-    dragSessionGTK->TargetSetLastContext(aWidget, aDragContext, aTime);
-
     // clear any drag leave timer that might be pending so that it
     // doesn't get processed when we actually go out to get data.
     if (mDragLeaveTimer) {
@@ -3649,57 +3467,54 @@ nsWindow::OnDragDropEvent(GtkWidget *aWidget,
         mDragLeaveTimer = nsnull;
     }
 
-    CheckNeedDragLeaveEnter(innerMostWidget, dragService, aDragContext, retx, rety);
+    CheckNeedDragLeave(innerMostWidget, dragService, aDragContext, retx, rety);
 
-    // What we do here is dispatch a new drag motion event to
-    // re-validate the drag target and then we do the drop.  The events
-    // look the same except for the type.
+    // http://www.whatwg.org/specs/web-apps/current-work/multipage/dnd.html#drag-and-drop-processing-model
+    // (as at 27 December 2010) indicates that a "drop" event should only be
+    // fired (at the current target element) if the current drag operation is
+    // not none.  The current drag operation will only be set to a non-none
+    // value during a "dragover" event.
+    //
+    // If the user has ended the drag before any dragover events have been
+    // sent, then the spec recommends skipping the drop (because the current
+    // drag operation is none).  However, here we assume that, by releasing
+    // the mouse button, the user has indicated that they want to drop, so we
+    // proceed with the drop where possible.
+    //
+    // In order to make the events appear to content in the same way as if the
+    // spec is being followed we make sure to dispatch a "dragover" event with
+    // appropriate coordinates and check canDrop before the "drop" event.
+    //
+    // When the Xdnd protocol is used for source/destination communication (as
+    // should be the case with GTK source applications) a dragover event
+    // should have already been sent during the drag-motion signal, which
+    // would have already been received because XdndDrop messages do not
+    // contain a position.  However, we can't assume the same when the Motif
+    // protocol is used.
 
-    nsDragEvent event(true, NS_DRAGDROP_OVER, innerMostWidget);
+    dragServiceGTK->TargetSetLastContext(aWidget, aDragContext, aTime);
 
-    InitDragEvent(event);
+    innerMostWidget->
+        DispatchDragMotionEvents(dragServiceGTK, nsIntPoint(retx, rety), aTime);
 
-    event.refPoint.x = retx;
-    event.refPoint.y = rety;
-    event.time = aTime;
-
-    nsEventStatus status;
-    innerMostWidget->DispatchEvent(&event, status);
-
-    // We need to check innerMostWidget->mIsDestroyed here because the nsRefPtr
-    // only protects innerMostWidget from being deleted, it does NOT protect
-    // against nsView::~nsView() calling Destroy() on it, bug 378670.
-    if (!innerMostWidget->mIsDestroyed) {
-        nsDragEvent event(true, NS_DRAGDROP_DROP, innerMostWidget);
-        event.refPoint.x = retx;
-        event.refPoint.y = rety;
-
-        nsEventStatus status = nsEventStatus_eIgnore;
-        innerMostWidget->DispatchEvent(&event, status);
-    }
+    gboolean success = innerMostWidget->
+        DispatchDragDropEvent(dragServiceGTK, nsIntPoint(retx, rety), aTime);
 
     // before we unset the context we need to do a drop_finish
 
-    gdk_drop_finish(aDragContext, TRUE, aTime);
+    gdk_drop_finish(aDragContext, success, aTime);
 
     // after a drop takes place we need to make sure that the drag
     // service doesn't think that it still has a context.  if the other
     // way ( besides the drop ) to end a drag event is during the leave
     // event and and that case is handled in that handler.
-    dragSessionGTK->TargetSetLastContext(0, 0, 0);
+    dragServiceGTK->TargetSetLastContext(0, 0, 0);
 
     // clear the sLastDragMotion window
     sLastDragMotionWindow = 0;
 
     // Make sure to end the drag session. If this drag started in a
     // different app, we won't get a drag_end signal to end it from.
-    gint x, y;
-    GdkDisplay* display = gdk_display_get_default();
-    if (display) {
-      // get the current cursor position
-      gdk_display_get_pointer(display, NULL, &x, &y, NULL);
-      ((nsDragService *)dragService.get())->SetDragEndPoint(nsIntPoint(x, y));
-    }
     dragService->EndDragSession(true);
 
     return TRUE;
@@ -3730,10 +3545,7 @@ nsWindow::OnDragLeave(void)
 {
     LOGDRAG(("nsWindow::OnDragLeave(%p)\n", (void*)this));
 
-    nsDragEvent event(true, NS_DRAGDROP_EXIT, this);
-
-    nsEventStatus status;
-    DispatchEvent(&event, status);
+    DispatchDragEvent(NS_DRAGDROP_EXIT, nsIntPoint(0, 0), 0);
 
     nsCOMPtr<nsIDragService> dragService = do_GetService(kCDragServiceCID);
 
@@ -3754,22 +3566,6 @@ nsWindow::OnDragLeave(void)
             }
         }
     }
-}
-
-void
-nsWindow::OnDragEnter(nscoord aX, nscoord aY)
-{
-    // XXX Do we want to pass this on only if the event's subwindow is null?
-
-    LOGDRAG(("nsWindow::OnDragEnter(%p)\n", (void*)this));
-
-    nsDragEvent event(true, NS_DRAGDROP_ENTER, this);
-
-    event.refPoint.x = aX;
-    event.refPoint.y = aY;
-
-    nsEventStatus status;
-    DispatchEvent(&event, status);
 }
 
 static void
@@ -3914,14 +3710,11 @@ nsWindow::Create(nsIWidget        *aParent,
         // If we get explicitly moved, the position will also be set.
         mNeedsResize = true;
 
-        nsXPIDLString brandName;
-        GetBrandName(brandName);
-        NS_ConvertUTF16toUTF8 cBrand(brandName);
-
         if (mWindowType == eWindowType_dialog) {
             mShell = gtk_window_new(GTK_WINDOW_TOPLEVEL);
             SetDefaultIcon();
-            gtk_window_set_wmclass(GTK_WINDOW(mShell), "Dialog", cBrand.get());
+            gtk_window_set_wmclass(GTK_WINDOW(mShell), "Dialog", 
+                                   gdk_get_program_class());
             gtk_window_set_type_hint(GTK_WINDOW(mShell),
                                      GDK_WINDOW_TYPE_HINT_DIALOG);
             gtk_window_set_transient_for(GTK_WINDOW(mShell),
@@ -3962,12 +3755,14 @@ nsWindow::Create(nsIWidget        *aParent,
                 // GTK_WINDOW_POPUP, which will use a Window with the
                 // override-redirect attribute (for temporary windows).
                 mShell = gtk_window_new(GTK_WINDOW_POPUP);
-                gtk_window_set_wmclass(GTK_WINDOW(mShell), "Popup", cBrand.get());
+                gtk_window_set_wmclass(GTK_WINDOW(mShell), "Popup", 
+                                       gdk_get_program_class());
             } else {
                 // For long-lived windows, their stacking order is managed by
                 // the window manager, as indicated by GTK_WINDOW_TOPLEVEL ...
                 mShell = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-                gtk_window_set_wmclass(GTK_WINDOW(mShell), "Popup", cBrand.get());
+                gtk_window_set_wmclass(GTK_WINDOW(mShell), "Popup", 
+                                       gdk_get_program_class());
                 // ... but the window manager does not decorate this window,
                 // nor provide a separate taskbar icon.
                 if (mBorderStyle == eBorderStyle_default) {
@@ -4029,7 +3824,8 @@ nsWindow::Create(nsIWidget        *aParent,
         else { // must be eWindowType_toplevel
             mShell = gtk_window_new(GTK_WINDOW_TOPLEVEL);
             SetDefaultIcon();
-            gtk_window_set_wmclass(GTK_WINDOW(mShell), "Toplevel", cBrand.get());
+            gtk_window_set_wmclass(GTK_WINDOW(mShell), "Toplevel", 
+                                   gdk_get_program_class());
 
             // each toplevel window gets its own window group
             mWindowGroup = gtk_window_group_new();
@@ -4257,61 +4053,13 @@ nsWindow::SetWindowClass(const nsAString &xulWinType)
   if (!mShell)
     return NS_ERROR_FAILURE;
 
-#ifdef MOZ_X11
-  nsXPIDLString brandName;
-  GetBrandName(brandName);
-
-  XClassHint *class_hint = XAllocClassHint();
-  if (!class_hint)
-    return NS_ERROR_OUT_OF_MEMORY;
-  const char *role = NULL;
-  class_hint->res_name = ToNewCString(xulWinType);
-  if (!class_hint->res_name) {
-    XFree(class_hint);
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
-  class_hint->res_class = ToNewCString(brandName);
-  if (!class_hint->res_class) {
-    nsMemory::Free(class_hint->res_name);
-    XFree(class_hint);
-    return NS_ERROR_OUT_OF_MEMORY;
-  }
-
-  // Parse res_name into a name and role. Characters other than
-  // [A-Za-z0-9_-] are converted to '_'. Anything after the first
-  // colon is assigned to role; if there's no colon, assign the
-  // whole thing to both role and res_name.
-  for (char *c = class_hint->res_name; *c; c++) {
-    if (':' == *c) {
-      *c = 0;
-      role = c + 1;
-    }
-    else if (!isascii(*c) || (!isalnum(*c) && ('_' != *c) && ('-' != *c)))
-      *c = '_';
-  }
-  class_hint->res_name[0] = toupper(class_hint->res_name[0]);
-  if (!role) role = class_hint->res_name;
-
-  GdkWindow *shellWindow = gtk_widget_get_window(GTK_WIDGET(mShell));
-  gdk_window_set_role(shellWindow, role);
-  // Can't use gtk_window_set_wmclass() for this; it prints
-  // a warning & refuses to make the change.
-  XSetClassHint(GDK_DISPLAY_XDISPLAY(gdk_display_get_default()),
-                gdk_x11_window_get_xid(shellWindow),
-                class_hint);
-  nsMemory::Free(class_hint->res_class);
-  nsMemory::Free(class_hint->res_name);
-  XFree(class_hint);
-#else /* MOZ_X11 */
-
-  char *res_name;
-
-  res_name = ToNewCString(xulWinType);
+  const char *res_class = gdk_get_program_class();
+  if (!res_class)
+    return NS_ERROR_FAILURE;
+  
+  char *res_name = ToNewCString(xulWinType);
   if (!res_name)
     return NS_ERROR_OUT_OF_MEMORY;
-
-  printf("WARN: res_name = '%s'\n", res_name);
-
 
   const char *role = NULL;
 
@@ -4330,11 +4078,28 @@ nsWindow::SetWindowClass(const nsAString &xulWinType)
   res_name[0] = toupper(res_name[0]);
   if (!role) role = res_name;
 
-  gdk_window_set_role(gtk_widget_get_window(GTK_WIDGET(mShell)), role);
+  GdkWindow *shellWindow = gtk_widget_get_window(GTK_WIDGET(mShell));
+  gdk_window_set_role(shellWindow, role);
+
+#ifdef MOZ_X11
+  XClassHint *class_hint = XAllocClassHint();
+  if (!class_hint) {
+    nsMemory::Free(res_name);
+    return NS_ERROR_OUT_OF_MEMORY;
+  }
+  class_hint->res_name = res_name;
+  class_hint->res_class = const_cast<char*>(res_class);
+
+  // Can't use gtk_window_set_wmclass() for this; it prints
+  // a warning & refuses to make the change.
+  XSetClassHint(GDK_DISPLAY_XDISPLAY(gdk_display_get_default()),
+                gdk_x11_window_get_xid(shellWindow),
+                class_hint);
+  XFree(class_hint);
+#endif /* MOZ_X11 */
 
   nsMemory::Free(res_name);
 
-#endif /* MOZ_X11 */
   return NS_OK;
 }
 
@@ -4510,7 +4275,7 @@ void
 nsWindow::EnsureGrabs(void)
 {
     if (mRetryPointerGrab)
-        GrabPointer();
+        GrabPointer(sRetryGrabTime);
 }
 
 void
@@ -4899,11 +4664,13 @@ nsWindow::UpdateTranslucentWindowAlphaInternal(const nsIntRect& aRect,
 }
 
 void
-nsWindow::GrabPointer(void)
+nsWindow::GrabPointer(guint32 aTime)
 {
-    LOG(("GrabPointer %d\n", mRetryPointerGrab));
+    LOG(("GrabPointer time=0x%08x retry=%d\n",
+         (unsigned int)aTime, mRetryPointerGrab));
 
     mRetryPointerGrab = false;
+    sRetryGrabTime = aTime;
 
     // If the window isn't visible, just set the flag to retry the
     // grab.  When this window becomes visible, the grab will be
@@ -4927,11 +4694,17 @@ nsWindow::GrabPointer(void)
                                              GDK_POINTER_MOTION_HINT_MASK |
 #endif
                                              GDK_POINTER_MOTION_MASK),
-                              (GdkWindow *)NULL, NULL, GDK_CURRENT_TIME);
+                              (GdkWindow *)NULL, NULL, aTime);
 
-    if (retval != GDK_GRAB_SUCCESS) {
-        LOG(("GrabPointer: pointer grab failed\n"));
+    if (retval == GDK_GRAB_NOT_VIEWABLE) {
+        LOG(("GrabPointer: window not viewable; will retry\n"));
         mRetryPointerGrab = true;
+    } else if (retval != GDK_GRAB_SUCCESS) {
+        LOG(("GrabPointer: pointer grab failed: %i\n", retval));
+        // A failed grab indicates that another app has grabbed the pointer.
+        // Check for rollup now, because, without the grab, we likely won't
+        // get subsequent button press events.
+        check_for_rollup(0, 0, false, true);
     }
 }
 
@@ -5240,7 +5013,7 @@ nsWindow::HideWindowChrome(bool aShouldHide)
 }
 
 static bool
-check_for_rollup(GdkWindow *aWindow, gdouble aMouseX, gdouble aMouseY,
+check_for_rollup(gdouble aMouseX, gdouble aMouseY,
                  bool aIsWheel, bool aAlwaysRollup)
 {
     bool retVal = false;
@@ -5303,10 +5076,15 @@ check_for_rollup(GdkWindow *aWindow, gdouble aMouseX, gdouble aMouseY,
 bool
 nsWindow::DragInProgress(void)
 {
-    // sLastDragMotionWindow means the drag arrow is over mozilla
-    // sIsDraggingOutOf means the drag arrow is out of mozilla
-    // both cases mean the dragging is happenning.
-    return (sLastDragMotionWindow || sIsDraggingOutOf);
+    nsCOMPtr<nsIDragService> dragService = do_GetService(kCDragServiceCID);
+
+    if (!dragService)
+        return false;
+
+    nsCOMPtr<nsIDragSession> currentDragSession;
+    dragService->GetCurrentSession(getter_AddRefs(currentDragSession));
+
+    return currentDragSession != nsnull;
 }
 
 static bool
@@ -5712,7 +5490,7 @@ GetFirstNSWindowForGDKWindow(GdkWindow *aGdkWindow)
 static gboolean
 motion_notify_event_cb(GtkWidget *widget, GdkEventMotion *event)
 {
-    UpdateLastInputEventTime();
+    UpdateLastInputEventTime(event);
 
     nsWindow *window = GetFirstNSWindowForGDKWindow(event->window);
     if (!window)
@@ -5729,7 +5507,7 @@ motion_notify_event_cb(GtkWidget *widget, GdkEventMotion *event)
 static gboolean
 button_press_event_cb(GtkWidget *widget, GdkEventButton *event)
 {
-    UpdateLastInputEventTime();
+    UpdateLastInputEventTime(event);
 
     nsWindow *window = GetFirstNSWindowForGDKWindow(event->window);
     if (!window)
@@ -5743,7 +5521,7 @@ button_press_event_cb(GtkWidget *widget, GdkEventButton *event)
 static gboolean
 button_release_event_cb(GtkWidget *widget, GdkEventButton *event)
 {
-    UpdateLastInputEventTime();
+    UpdateLastInputEventTime(event);
 
     nsWindow *window = GetFirstNSWindowForGDKWindow(event->window);
     if (!window)
@@ -5949,7 +5727,7 @@ key_press_event_cb(GtkWidget *widget, GdkEventKey *event)
 {
     LOG(("key_press_event_cb\n"));
 
-    UpdateLastInputEventTime();
+    UpdateLastInputEventTime(event);
 
     // find the window with focus and dispatch this event to that widget
     nsWindow *window = get_window_for_gtk_widget(widget);
@@ -5992,7 +5770,7 @@ key_release_event_cb(GtkWidget *widget, GdkEventKey *event)
 {
     LOG(("key_release_event_cb\n"));
 
-    UpdateLastInputEventTime();
+    UpdateLastInputEventTime(event);
 
     // find the window with focus and dispatch this event to that widget
     nsWindow *window = get_window_for_gtk_widget(widget);
@@ -6094,12 +5872,8 @@ void
 nsWindow::InitDragEvent(nsDragEvent &aEvent)
 {
     // set the keyboard modifiers
-    GdkModifierType state = (GdkModifierType)0;
-    gdk_display_get_pointer(gdk_display_get_default(), NULL, NULL, NULL, &state);
-    aEvent.isShift = (state & GDK_SHIFT_MASK) ? true : false;
-    aEvent.isControl = (state & GDK_CONTROL_MASK) ? true : false;
-    aEvent.isAlt = (state & GDK_MOD1_MASK) ? true : false;
-    aEvent.isMeta = false; // GTK+ doesn't support the meta key
+    guint modifierState = KeymapWrapper::GetCurrentModifierState();
+    KeymapWrapper::InitInputEvent(aEvent, modifierState);
 }
 
 // This will update the drag action based on the information in the
@@ -6283,19 +6057,6 @@ is_context_menu_key(const nsKeyEvent& aKeyEvent)
              !aKeyEvent.isControl && !aKeyEvent.isMeta && !aKeyEvent.isAlt));
 }
 
-static void
-key_event_to_context_menu_event(nsMouseEvent &aEvent,
-                                GdkEventKey *aGdkEvent)
-{
-    aEvent.refPoint = nsIntPoint(0, 0);
-    aEvent.isShift = false;
-    aEvent.isControl = false;
-    aEvent.isAlt = false;
-    aEvent.isMeta = false;
-    aEvent.time = aGdkEvent->time;
-    aEvent.clickCount = 1;
-}
-
 static int
 is_parent_ungrab_enter(GdkEventCrossing *aEvent)
 {
@@ -6312,76 +6073,6 @@ is_parent_grab_leave(GdkEventCrossing *aEvent)
         ((GDK_NOTIFY_ANCESTOR == aEvent->detail) ||
             (GDK_NOTIFY_VIRTUAL == aEvent->detail));
 }
-
-static GdkModifierType
-gdk_keyboard_get_modifiers()
-{
-    GdkModifierType m = (GdkModifierType) 0;
-
-    gdk_window_get_pointer(NULL, NULL, NULL, &m);
-
-    return m;
-}
-
-#ifdef MOZ_X11
-// Get the modifier masks for GDK_Caps_Lock, GDK_Num_Lock and GDK_Scroll_Lock.
-// Return true on success, false on error.
-static bool
-gdk_keyboard_get_modmap_masks(Display*  aDisplay,
-                              PRUint32* aCapsLockMask,
-                              PRUint32* aNumLockMask,
-                              PRUint32* aScrollLockMask)
-{
-    *aCapsLockMask = 0;
-    *aNumLockMask = 0;
-    *aScrollLockMask = 0;
-
-    int min_keycode = 0;
-    int max_keycode = 0;
-    XDisplayKeycodes(aDisplay, &min_keycode, &max_keycode);
-
-    int keysyms_per_keycode = 0;
-    KeySym* xkeymap = XGetKeyboardMapping(aDisplay, min_keycode,
-                                          max_keycode - min_keycode + 1,
-                                          &keysyms_per_keycode);
-    if (!xkeymap) {
-        return false;
-    }
-
-    XModifierKeymap* xmodmap = XGetModifierMapping(aDisplay);
-    if (!xmodmap) {
-        XFree(xkeymap);
-        return false;
-    }
-
-    /*
-      The modifiermap member of the XModifierKeymap structure contains 8 sets
-      of max_keypermod KeyCodes, one for each modifier in the order Shift,
-      Lock, Control, Mod1, Mod2, Mod3, Mod4, and Mod5.
-      Only nonzero KeyCodes have meaning in each set, and zero KeyCodes are ignored.
-    */
-    const unsigned int map_size = 8 * xmodmap->max_keypermod;
-    for (unsigned int i = 0; i < map_size; i++) {
-        KeyCode keycode = xmodmap->modifiermap[i];
-        if (!keycode || keycode < min_keycode || keycode > max_keycode)
-            continue;
-
-        const KeySym* syms = xkeymap + (keycode - min_keycode) * keysyms_per_keycode;
-        const unsigned int mask = 1 << (i / xmodmap->max_keypermod);
-        for (int j = 0; j < keysyms_per_keycode; j++) {
-            switch (syms[j]) {
-                case GDK_Caps_Lock:   *aCapsLockMask |= mask;   break;
-                case GDK_Num_Lock:    *aNumLockMask |= mask;    break;
-                case GDK_Scroll_Lock: *aScrollLockMask |= mask; break;
-            }
-        }
-    }
-
-    XFreeModifiermap(xmodmap);
-    XFree(xkeymap);
-    return true;
-}
-#endif /* MOZ_X11 */
 
 #ifdef ACCESSIBILITY
 void
@@ -6520,30 +6211,17 @@ nsWindow::GetToggledKeyState(PRUint32 aKeyCode, bool* aLEDState)
 {
     NS_ENSURE_ARG_POINTER(aLEDState);
 
-#ifdef MOZ_X11
-
-    GdkModifierType modifiers = gdk_keyboard_get_modifiers();
-    PRUint32 capsLockMask, numLockMask, scrollLockMask;
-    bool foundMasks = gdk_keyboard_get_modmap_masks(
-                          GDK_WINDOW_XDISPLAY(mGdkWindow),
-                          &capsLockMask, &numLockMask, &scrollLockMask);
-    if (!foundMasks)
-        return NS_ERROR_NOT_IMPLEMENTED;
-
-    PRUint32 mask = 0;
+    KeymapWrapper::Modifiers modifier;
     switch (aKeyCode) {
-        case NS_VK_CAPS_LOCK:   mask = capsLockMask;   break;
-        case NS_VK_NUM_LOCK:    mask = numLockMask;    break;
-        case NS_VK_SCROLL_LOCK: mask = scrollLockMask; break;
+        case NS_VK_CAPS_LOCK:   modifier = KeymapWrapper::CAPS_LOCK;   break;
+        case NS_VK_NUM_LOCK:    modifier = KeymapWrapper::NUM_LOCK;    break;
+        case NS_VK_SCROLL_LOCK: modifier = KeymapWrapper::SCROLL_LOCK; break;
+        default: return NS_ERROR_INVALID_ARG;
     }
-    if (mask == 0)
-        return NS_ERROR_NOT_IMPLEMENTED;
 
-    *aLEDState = (modifiers & mask) != 0;
+    *aLEDState =
+        KeymapWrapper::AreModifiersCurrentlyActive(modifier);
     return NS_OK;
-#else
-    return NS_ERROR_NOT_IMPLEMENTED;
-#endif /* MOZ_X11 */
 }
 
 #if defined(MOZ_X11) && defined(MOZ_WIDGET_GTK2)
@@ -6796,4 +6474,20 @@ nsWindow::ClearCachedResources()
             window->ClearCachedResources();
         }
     }
+}
+
+nsresult
+nsWindow::SynthesizeNativeMouseEvent(nsIntPoint aPoint,
+                                     PRUint32 aNativeMessage,
+                                     PRUint32 aModifierFlags)
+{
+  if (!mGdkWindow) {
+    return NS_OK;
+  }
+
+  GdkDisplay* display = gdk_window_get_display(mGdkWindow);
+  GdkScreen* screen = gdk_window_get_screen(mGdkWindow);
+  gdk_display_warp_pointer(display, screen, aPoint.x, aPoint.y);
+
+  return NS_OK;
 }

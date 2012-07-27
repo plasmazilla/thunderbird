@@ -82,6 +82,12 @@ var gPermObj = {
   indexedDB: function getIndexedDBDefaultPermissions()
   {
     return BLOCK;
+  },
+  plugins: function getPluginsDefaultPermissions()
+  {
+    if (gPrefs.getBoolPref("plugins.click_to_play"))
+      return BLOCK;
+    return ALLOW;
   }
 };
 
@@ -99,7 +105,7 @@ var permissionObserver = {
 function onLoadPermission()
 {
   gPrefs = Components.classes[PREFERENCES_CONTRACTID]
-                     .getService(Components.interfaces.nsIPrefBranch2);
+                     .getService(Components.interfaces.nsIPrefBranch);
 
   var uri = gDocument.documentURIObject;
   var permTab = document.getElementById("permTab");
@@ -133,6 +139,9 @@ function onUnloadPermission()
 
 function initRow(aPartId)
 {
+  if (aPartId == "plugins" && !gPrefs.getBoolPref("plugins.click_to_play"))
+    document.getElementById("permPluginsRow").hidden = true;
+
   var permissionManager = Components.classes[PERMISSION_CONTRACTID]
                                     .getService(nsIPermissionManager);
 

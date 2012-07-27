@@ -399,6 +399,11 @@ if test -n "$CROSS_COMPILE" && test "$target" != "$host"; then
     AC_DEFINE(CROSS_COMPILE)
 else
     AC_PROG_CC
+    case "$target" in
+    *-mingw*)
+      # Work around the conftest.exe access problem on Windows (bug 545015)
+      sleep 1
+    esac
     AC_PROG_CXX
     AC_PROG_RANLIB
     MOZ_PATH_PROGS(AS, $AS as, $CC)
@@ -489,41 +494,19 @@ WINSDK_TARGETVER=601
 MOZ_ARG_WITH_STRING(windows-version,
 [  --with-windows-version=WINSDK_TARGETVER
                           Highest Windows version to target using this SDK
-                              502: Windows Server 2003
-                              600: Windows Vista
                               601: Windows 7],
   WINSDK_TARGETVER=$withval)
 
 case "$WINSDK_TARGETVER" in
-502|600|601)
+601)
     MOZ_WINSDK_TARGETVER=0${WINSDK_TARGETVER}0000
     ;;
 
 *)
-    AC_MSG_ERROR([Invalid value for --with-windows-version ($WINSDK_TARGETVER), must be 502, 600 or 601]);
+    AC_MSG_ERROR([Invalid value for --with-windows-version ($WINSDK_TARGETVER), must be 601]);
     ;;
 
 esac
-
-dnl Vista SDK specific api (deprecated)
-MOZ_ARG_DISABLE_BOOL(vista-sdk-requirements,
-[  --disable-vista-sdk-requirements
-                           Do not build Vista SDK specific code],
-   MOZ_DISABLE_VISTA_SDK_REQUIREMENTS=1,
-   MOZ_DISABLE_VISTA_SDK_REQUIREMENTS=)
-if test -n "$COMPILE_ENVIRONMENT"; then
-if test -n "$MOZ_DISABLE_VISTA_SDK_REQUIREMENTS"; then
-    AC_MSG_WARN([--disable-vista-sdk-requirements is deprecated, use --with-windows-version=502 instead])
-    MOZ_WINSDK_TARGETVER=05020000
-fi
-
-if test "$MOZ_WINSDK_TARGETVER" -lt "06000000"; then
-    MOZ_DISABLE_VISTA_SDK_REQUIREMENTS=1
-    AC_DEFINE(MOZ_DISABLE_VISTA_SDK_REQUIREMENTS)
-fi
-fi
-
-AC_SUBST(MOZ_DISABLE_VISTA_SDK_REQUIREMENTS)
 
 case "$target" in
 *-cygwin*|*-mingw*|*-msvc*|*-mks*|*-wince|*-winmo)
@@ -597,8 +580,6 @@ case "$target" in
 
         _MOZ_RTTI_FLAGS_ON='-GR'
         _MOZ_RTTI_FLAGS_OFF='-GR-'
-        _MOZ_EXCEPTIONS_FLAGS_ON='-EHsc'
-        _MOZ_EXCEPTIONS_FLAGS_OFF=''
 
         dnl Ensure that mt.exe is 'Microsoft (R) Manifest Tool',
         dnl not something else like "magnetic tape manipulation utility".
@@ -681,15 +662,8 @@ EOF
                            ])
             MOZ_WINSDK_MAXVER=${ac_cv_winsdk_maxver}
         else
-            # The Vista SDK is the only one to have sdkddkver.h but not
-            # WinSDKVer.h
-            AC_CHECK_HEADERS([sdkddkver.h])
-            if test "$ac_cv_header_sdkddkver_h" = "yes"; then
-                MOZ_WINSDK_MAXVER=0x06000000
-            else
-                # Assume the Server 2003 Platform SDK
-                MOZ_WINSDK_MAXVER=0x05020000
-            fi
+            # Any SDK which doesn't have WinSDKVer.h is too old.
+            AC_MSG_ERROR([Your SDK does not have WinSDKVer.h. It is probably too old. Please upgrade to a newer SDK or try running the Windows SDK Configuration Tool and selecting a newer SDK. See https://developer.mozilla.org/En/Windows_SDK_versions for more details on fixing this.])
         fi
 
         unset _MSVC_VER_FILTER
@@ -795,14 +769,13 @@ EOF
             AC_MSG_ERROR([windres version $WINDRES_VERSION or higher is required to build.])
         fi
 
-        # Server 2003 is the highest version supported
-        MOZ_WINSDK_MAXVER=0x05020000
+        MOZ_WINSDK_MAXVER=0x06010000
     fi # !GNU_CC
 
     AC_DEFINE_UNQUOTED(WINVER,0x$WINVER)
     AC_DEFINE_UNQUOTED(_WIN32_WINNT,0x$WINVER)
-    # Require OS features provided by IE 5.0
-    AC_DEFINE_UNQUOTED(_WIN32_IE,0x0500)
+    # Require OS features provided by IE 6.0 SP2 (XP SP2)
+    AC_DEFINE_UNQUOTED(_WIN32_IE,0x0603)
 
     # If the maximum version supported by this SDK is lower than the target
     # version, error out
@@ -816,8 +789,6 @@ EOF
 
     AC_DEFINE_UNQUOTED(MOZ_WINSDK_TARGETVER,0x$MOZ_WINSDK_TARGETVER)
     # Definitions matching sdkddkver.h
-    AC_DEFINE_UNQUOTED(MOZ_NTDDI_WS03, 0x05020000)
-    AC_DEFINE_UNQUOTED(MOZ_NTDDI_LONGHORN, 0x06000000)
     AC_DEFINE_UNQUOTED(MOZ_NTDDI_WIN7, 0x06010000)
     ;;
 esac
@@ -1140,8 +1111,6 @@ fi
 # but that breaks when you have a 64 bit kernel with a 32 bit userland.
 OS_TEST="${target_cpu}"
 
-_COMPILER_PREFIX=
-
 HOST_OS_ARCH=`echo $host_os | sed -e 's|/|_|g'`
 
 #######################################################################
@@ -1456,10 +1425,8 @@ if test "$GNU_CC"; then
     DSO_CFLAGS=''
     DSO_PIC_CFLAGS='-fPIC'
     ASFLAGS="$ASFLAGS -fPIC"
-    _MOZ_RTTI_FLAGS_ON=${_COMPILER_PREFIX}-frtti
-    _MOZ_RTTI_FLAGS_OFF=${_COMPILER_PREFIX}-fno-rtti
-    _MOZ_EXCEPTIONS_FLAGS_ON='-fexceptions'
-    _MOZ_EXCEPTIONS_FLAGS_OFF='-fno-exceptions'
+    _MOZ_RTTI_FLAGS_ON=-frtti
+    _MOZ_RTTI_FLAGS_OFF=-fno-rtti
 
     # Turn on GNU specific features
     # -Wall - turn on all warnings
@@ -1517,7 +1484,7 @@ fi
 
 if test "$GNU_CXX"; then
     # FIXME: Let us build with strict aliasing. bug 414641.
-    CXXFLAGS="$CXXFLAGS -fno-strict-aliasing"
+    CXXFLAGS="$CXXFLAGS -fno-exceptions -fno-strict-aliasing"
     # Turn on GNU specific features
     _WARNINGS_CXXFLAGS="${_WARNINGS_CXXFLAGS} -Wall -Wpointer-arith -Woverloaded-virtual -Wsynth -Wno-ctor-dtor-privacy -Wno-non-virtual-dtor"
     if test -z "$INTEL_CC"; then
@@ -1541,7 +1508,7 @@ if test "$GNU_CXX"; then
             AC_LANG_SAVE
             AC_LANG_CPLUSPLUS
             _SAVE_CXXFLAGS="$CXXFLAGS"
-            CXXFLAGS="$CXXFLAGS ${_COMPILER_PREFIX}-Wno-invalid-offsetof"
+            CXXFLAGS="$CXXFLAGS -Wno-invalid-offsetof"
             AC_TRY_COMPILE([],
                            [return(0);],
                            ac_has_wno_invalid_offsetof="yes",
@@ -1550,7 +1517,7 @@ if test "$GNU_CXX"; then
             AC_LANG_RESTORE
         ])
     if test "$ac_has_wno_invalid_offsetof" = "yes"; then
-        _WARNINGS_CXXFLAGS="${_WARNINGS_CXXFLAGS} ${_COMPILER_PREFIX}-Wno-invalid-offsetof"
+        _WARNINGS_CXXFLAGS="${_WARNINGS_CXXFLAGS} -Wno-invalid-offsetof"
     fi
 
     AC_CACHE_CHECK(whether the compiler supports -Wno-variadic-macros,
@@ -1559,7 +1526,7 @@ if test "$GNU_CXX"; then
             AC_LANG_SAVE
             AC_LANG_CPLUSPLUS
             _SAVE_CXXFLAGS="$CXXFLAGS"
-            CXXFLAGS="$CXXFLAGS ${_COMPILER_PREFIX}-Wno-variadic-macros"
+            CXXFLAGS="$CXXFLAGS -Wno-variadic-macros"
             AC_TRY_COMPILE([],
                            [return(0);],
                            ac_has_wno_variadic_macros="yes",
@@ -1568,7 +1535,7 @@ if test "$GNU_CXX"; then
             AC_LANG_RESTORE
         ])
     if test "$ac_has_wno_variadic_macros" = "yes"; then
-        _WARNINGS_CXXFLAGS="${_WARNINGS_CXXFLAGS} ${_COMPILER_PREFIX}-Wno-variadic-macros"
+        _WARNINGS_CXXFLAGS="${_WARNINGS_CXXFLAGS} -Wno-variadic-macros"
     fi
 
     AC_CACHE_CHECK(whether the compiler supports -Werror=return-type,
@@ -2336,45 +2303,7 @@ ia64*-hpux*)
         AC_MSG_ERROR([\$MOZ_TOOLS\\bin must be in your path.])
     fi
     MOZ_TOOLS_DIR=`$CYGPATH_W $MOZ_TOOLS_DIR | $CYGPATH_S`
-
-    if test -n "$GLIB_PREFIX"; then
-        _GLIB_PREFIX_DIR=`cd $GLIB_PREFIX && pwd -W`
-        if test "$?" = "0"; then
-            if test `echo ${PATH}: | grep -ic "$_GLIB_PREFIX_DIR/bin:"` = 0; then
-                AC_MSG_ERROR([GLIB_PREFIX must be in your \$PATH.])
-            fi
-            _GLIB_PREFIX_DIR=`$CYGPATH_W $_GLIB_PREFIX_DIR | $CYGPATH_S`
-        else
-            AC_MSG_ERROR([GLIB_PREFIX is set but "${GLIB_PREFIX}" is not a directory.])
-        fi
-    else
-        _GLIB_PREFIX_DIR=$MOZ_TOOLS_DIR
-    fi
-    if test ! -f "${_GLIB_PREFIX_DIR}/include/glib.h"; then
-        AC_MSG_ERROR([Cannot find $_GLIB_PREFIX_DIR/include/glib.h .])
-    fi
-    GLIB_CFLAGS="-I${_GLIB_PREFIX_DIR}/include"
-    if test -f "${_GLIB_PREFIX_DIR}/lib/glib-1.2_s.lib"; then
-        GLIB_LIBS="${_GLIB_PREFIX_DIR}/lib/glib-1.2_s.lib"
-    elif test -f "${_GLIB_PREFIX_DIR}/lib/glib-1.2.lib"; then
-        GLIB_LIBS="${_GLIB_PREFIX_DIR}/lib/glib-1.2.lib"
-    else
-        AC_MSG_ERROR([Cannot find $_GLIB_PREFIX_DIR/lib/glib-1.2.lib or $_GLIB_PREFIX_DIR/lib/glib-1.2_s.lib])
-    fi
     ;;
-
-    *) # else cross-compiling
-        if test -n "$GLIB_PREFIX"; then
-            GLIB_CFLAGS="-I${GLIB_PREFIX}/include"
-            if test -f "${GLIB_PREFIX}/lib/glib-1.2_s.lib"; then
-                GLIB_LIBS="${GLIB_PREFIX}/lib/glib-1.2_s.lib"
-            elif test -f "${GLIB_PREFIX}/lib/glib-1.2.lib"; then
-                GLIB_LIBS="${GLIB_PREFIX}/lib/glib-1.2.lib"
-            else
-                AC_MSG_ERROR([Cannot find $GLIB_PREFIX/lib/glib-1.2.lib or $GLIB_PREFIX/lib/glib-1.2_s.lib])
-            fi
-        fi
-        ;;
     esac 
 
 
@@ -2630,9 +2559,7 @@ alpha*-*-osf*)
        NS_USE_NATIVE=1
        AC_DEFINE(NSCAP_DISABLE_DEBUG_PTR_TYPES)
        CFLAGS="$CFLAGS -xlibmieee -xstrconst -xbuiltin=%all -D__FUNCTION__=__func__"
-       CXXFLAGS="$CXXFLAGS -xlibmieee -xbuiltin=%all -features=tmplife,tmplrefstatic,extensions -norunpath -D__FUNCTION__=__func__ -template=no%extdef"
-       _MOZ_EXCEPTIONS_FLAGS_ON='-features=except'
-       _MOZ_EXCEPTIONS_FLAGS_OFF='-features=no%except'
+       CXXFLAGS="$CXXFLAGS -xlibmieee -xbuiltin=%all -features=tmplife,tmplrefstatic,extensions,no%except -norunpath -D__FUNCTION__=__func__ -template=no%extdef"
        LDFLAGS="-xildoff $LDFLAGS"
        if test -z "$CROSS_COMPILE" -a -f /usr/lib/ld/map.noexstk; then
            _SAVE_LDFLAGS=$LDFLAGS
@@ -4107,7 +4034,16 @@ AC_CACHE_CHECK(for __thread keyword for TLS variables,
                             ac_cv_thread_keyword=no)])
 LDFLAGS=$_SAVE_LDFLAGS
 if test "$ac_cv_thread_keyword" = yes; then
-  AC_DEFINE(HAVE_THREAD_TLS_KEYWORD)
+  # mips builds fail with TLS variables because of a binutils bug.
+  # See bug 528687
+  case "${target}" in
+    mips*-*)
+      :
+      ;;
+    *)
+      AC_DEFINE(HAVE_THREAD_TLS_KEYWORD)
+      ;;
+  esac
 fi
 
 dnl Check for the existence of various allocation headers/functions
@@ -4524,7 +4460,6 @@ MOZ_BRANDING_DIRECTORY=
 MOZ_OFFICIAL_BRANDING=
 MOZ_CALENDAR=
 MOZ_FEEDS=1
-MOZ_INSTALLER=1
 MOZ_JSDEBUGGER=1
 MOZ_LDAP_XPCOM=
 MOZ_MORK=
@@ -4558,6 +4493,7 @@ MOZ_XUL=1
 MOZ_ZIPWRITER=1
 NS_PRINTING=1
 NSS_DISABLE_DBM=
+NECKO_WIFI=1
 BUILD_CTYPES=1
 
 
@@ -5411,19 +5347,14 @@ fi
 dnl ========================================================
 dnl Installer
 dnl ========================================================
-MOZ_ARG_DISABLE_BOOL(installer,
-[  --disable-installer     Disable building of installer],
-    MOZ_INSTALLER=,
-    MOZ_INSTALLER=1 )
-if test -n "$MOZ_INSTALLER" -a "$OS_ARCH" = "WINNT"; then
-    # Disable installer for Windows builds that use the new toolkit if the
-    # required major version and minimum minor version of Unicode NSIS isn't in
-    # the path.
+dnl Abort Windows build if the required major version and
+dnl minimum minor version of Unicode NSIS isn't in the path.
+if test "$OS_ARCH" = "WINNT"; then
     REQ_NSIS_MAJOR_VER=2
     MIN_NSIS_MINOR_VER=33
     MOZ_PATH_PROGS(MAKENSISU, $MAKENSISU makensisu-2.46 makensisu makensis)
     if test -z "$MAKENSISU" -o "$MAKENSISU" = ":"; then
-        AC_MSG_ERROR([To build the installer you must have the latest MozillaBuild or Unicode NSIS with a major version of $REQ_NSIS_MAJOR_VER and a minimum minor version of $MIN_NSIS_MINOR_VER in your path. To build without the installer reconfigure using --disable-installer.])
+        AC_MSG_ERROR([To build the installer you must have the latest MozillaBuild or Unicode NSIS with a major version of $REQ_NSIS_MAJOR_VER and a minimum minor version of $MIN_NSIS_MINOR_VER in your path.])
     fi
     changequote(,)
     MAKENSISU_VER=`"$MAKENSISU" -version 2>/dev/null | sed -e '/-Unicode/!s/.*//g' -e 's/^v\([0-9]\+\.[0-9]\+\)\-Unicode$/\1/g'`
@@ -5437,13 +5368,11 @@ if test -n "$MOZ_INSTALLER" -a "$OS_ARCH" = "WINNT"; then
        test ! "$MAKENSISU_MAJOR_VER" = "$REQ_NSIS_MAJOR_VER" -o \
             ! "$MAKENSISU_MINOR_VER" -ge $MIN_NSIS_MINOR_VER; then
         AC_MSG_RESULT([no])
-        AC_MSG_ERROR([To build the installer you must have the latest MozillaBuild or Unicode NSIS with a major version of $REQ_NSIS_MAJOR_VER and a minimum minor version of $MIN_NSIS_MINOR_VER in your path. To build without the installer reconfigure using --disable-installer.])
+        AC_MSG_ERROR([To build the installer you must have the latest MozillaBuild or Unicode NSIS with a major version of $REQ_NSIS_MAJOR_VER and a minimum minor version of $MIN_NSIS_MINOR_VER in your path.])
     fi
     AC_MSG_RESULT([yes])
     MAKENSISU="${CYGWIN_WRAPPER} $MAKENSISU"
 fi
-
-AC_SUBST(MOZ_INSTALLER)
 
 AC_MSG_CHECKING([for tar archiver])
 AC_CHECK_PROGS(TAR, gnutar gtar tar, "")
@@ -5990,6 +5919,36 @@ if test -n "$MOZ_JPROF"; then
 fi
 
 dnl ========================================================
+dnl SPS Profiler
+dnl ========================================================
+MOZ_ENABLE_PROFILER_SPS=1
+
+case "${OS_TARGET}" in
+Android)
+    case "${CPU_ARCH}" in
+    x86 | arm) ;;
+    *)
+        MOZ_ENABLE_PROFILER_SPS=
+    esac
+    ;;
+Linux)
+    case "${CPU_ARCH}" in
+    x86 | x86_64) ;;
+    *)
+        MOZ_ENABLE_PROFILER_SPS=
+    esac
+    ;;
+WINNT|Darwin) ;;
+*)
+    MOZ_ENABLE_PROFILER_SPS=
+    ;;
+esac
+
+if test -n "$MOZ_ENABLE_PROFILER_SPS"; then
+    AC_DEFINE(MOZ_ENABLE_PROFILER_SPS)
+fi
+
+dnl ========================================================
 dnl shark
 dnl ========================================================
 MOZ_ARG_ENABLE_BOOL(shark,
@@ -6346,7 +6305,7 @@ MOZ_ARG_DISABLE_BOOL(pedantic,
 _PEDANTIC= )
 if test "$_PEDANTIC"; then
     _SAVE_CXXFLAGS=$CXXFLAGS
-    CXXFLAGS="$CXXFLAGS ${_WARNINGS_CXXFLAGS} ${_COMPILER_PREFIX}-pedantic ${_COMPILER_PREFIX}-Wno-long-long"
+    CXXFLAGS="$CXXFLAGS -pedantic ${_WARNINGS_CXXFLAGS} -Wno-long-long"
     AC_MSG_CHECKING([whether C++ compiler has -pedantic long long bug])
     AC_TRY_COMPILE([$configure_static_assert_macros],
                    [CONFIGURE_STATIC_ASSERT(sizeof(long long) == 8)],
@@ -6356,8 +6315,8 @@ if test "$_PEDANTIC"; then
 
     case "$result" in
     no)
-        _WARNINGS_CFLAGS="${_WARNINGS_CFLAGS} ${_COMPILER_PREFIX}-pedantic ${_COMPILER_PREFIX}-Wno-long-long"
-        _WARNINGS_CXXFLAGS="${_WARNINGS_CXXFLAGS} ${_COMPILER_PREFIX}-pedantic ${_COMPILER_PREFIX}-Wno-long-long"
+        _WARNINGS_CFLAGS="-pedantic ${_WARNINGS_CFLAGS} -Wno-long-long"
+        _WARNINGS_CXXFLAGS="-pedantic ${_WARNINGS_CXXFLAGS} -Wno-long-long"
         ;;
     yes)
         AC_MSG_ERROR([Your compiler appears to have a known bug where long long is miscompiled when using -pedantic.  Reconfigure using --disable-pedantic. ])
@@ -6438,31 +6397,7 @@ if test "$ac_nscap_nonconst_opeq_bug" = "yes" ; then
 fi
 fi # ! SKIP_COMPILER_CHECKS
 
-dnl ========================================================
-dnl C++ exceptions (g++/VC/irix6/Sun only - for now)
-dnl Should be smarter and check that the compiler does indeed have exceptions
-dnl ========================================================
-MOZ_ARG_ENABLE_BOOL(cpp-exceptions,
-[  --enable-cpp-exceptions Enable C++ exceptions ],
-[ _MOZ_CPP_EXCEPTIONS=1 ],
-[ _MOZ_CPP_EXCEPTIONS= ])
-
-if test "$_MOZ_CPP_EXCEPTIONS"; then
-    _MOZ_EXCEPTIONS_FLAGS=$_MOZ_EXCEPTIONS_FLAGS_ON
-    AC_DEFINE(MOZ_CPP_EXCEPTIONS)
-else
-    _MOZ_EXCEPTIONS_FLAGS=$_MOZ_EXCEPTIONS_FLAGS_OFF
-fi
-
-AC_SUBST(_MOZ_EXCEPTIONS_FLAGS_ON)
-
-# Irix & OSF native compilers do not like exception declarations 
-# when exceptions are disabled
-if test -n "$MIPSPRO_CXX" -o -n "$COMPAQ_CXX" -o -n "$VACPP"; then
-    AC_DEFINE(CPP_THROW_NEW, [])
-else
-    AC_DEFINE(CPP_THROW_NEW, [throw()])
-fi
+AC_DEFINE(CPP_THROW_NEW, [throw()])
 AC_LANG_C
 
 dnl ========================================================
@@ -6682,6 +6617,39 @@ fi
 AC_SUBST(MOZ_RDF)
 
 dnl
+dnl option to disable necko's wifi scanner
+dnl
+MOZ_ARG_DISABLE_BOOL(necko-wifi,
+[  --disable-necko-wifi    Disable necko wifi scanner],
+    NECKO_WIFI=,
+    NECKO_WIFI=1)
+
+if test "$OS_ARCH" = "OS2"; then
+  dnl OS/2 implementation of Necko-WiFi support will be added in bug 506566
+  NECKO_WIFI=
+fi
+if test "$NECKO_WIFI" -a \
+        "$OS_ARCH" != "Linux" -a \
+        "$OS_ARCH" != "Darwin" -a \
+        "$OS_ARCH" != "SunOS" -a \
+        "$OS_ARCH" != "WINNT"; then
+  AC_MSG_ERROR([Necko WiFi scanning not supported on your platform, use --disable-necko-wifi])
+fi
+
+if test -z "$SKIP_LIBRARY_CHECKS" -a "$NECKO_WIFI" -a "$OS_ARCH" = "Linux"
+then
+  AC_CHECK_HEADER([iwlib.h])
+  if test "$ac_cv_header_iwlib_h" != "yes"; then
+    AC_MSG_ERROR([Can't find header iwlib.h for Necko WiFi scanning (might be in package libiw-dev (Ubuntu) or wireless-tools-devel (Fedora) or libiw-devel (openSUSE)); use --disable-necko-wifi to disable])
+  fi
+fi
+
+if test "$NECKO_WIFI"; then
+  AC_DEFINE(NECKO_WIFI)
+fi
+AC_SUBST(NECKO_WIFI)
+
+dnl
 dnl Build jsctypes on the platforms we can, unless it's explicitly disabled.
 dnl
 MOZ_ARG_DISABLE_BOOL(ctypes,
@@ -6797,6 +6765,7 @@ AC_SUBST(WARNINGS_AS_ERRORS)
 AC_SUBST(MOZ_JSDEBUGGER)
 AC_SUBST(MOZ_PLUGINS)
 AC_SUBST(MOZ_LOG_REFCNT)
+AC_SUBST(MOZ_ENABLE_PROFILER_SPS)
 AC_SUBST(MOZ_JPROF)
 AC_SUBST(MOZ_SHARK)
 AC_SUBST(MOZ_PROFILING)
@@ -6919,7 +6888,6 @@ CFLAGS=`echo \
 
 CXXFLAGS=`echo \
 	$_MOZ_RTTI_FLAGS \
-	$_MOZ_EXCEPTIONS_FLAGS \
 	$_WARNINGS_CXXFLAGS \
 	$CXXFLAGS`
 

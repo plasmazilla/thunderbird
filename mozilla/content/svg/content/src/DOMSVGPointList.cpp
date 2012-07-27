@@ -41,6 +41,8 @@
 #include "SVGAnimatedPointList.h"
 #include "nsCOMPtr.h"
 #include "nsSVGAttrTearoffTable.h"
+#include "nsContentUtils.h"
+#include "dombindings.h"
 
 // See the comment in this file's header.
 
@@ -69,7 +71,19 @@ namespace mozilla {
 static nsSVGAttrTearoffTable<void, DOMSVGPointList>
   sSVGPointListTearoffTable;
 
-NS_SVG_VAL_IMPL_CYCLE_COLLECTION(DOMSVGPointList, mElement)
+NS_IMPL_CYCLE_COLLECTION_CLASS(DOMSVGPointList)
+NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(DOMSVGPointList)
+  // No unlinking of mElement, we'd need to null out the value pointer (the
+  // object it points to is held by the element) and null-check it everywhere.
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_PRESERVED_WRAPPER
+NS_IMPL_CYCLE_COLLECTION_UNLINK_END
+NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(DOMSVGPointList)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR_AMBIGUOUS(mElement, nsIContent)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_SCRIPT_OBJECTS
+NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
+NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN(DOMSVGPointList)
+  NS_IMPL_CYCLE_COLLECTION_TRACE_PRESERVED_WRAPPER
+NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
 NS_IMPL_CYCLE_COLLECTING_ADDREF(DOMSVGPointList)
 NS_IMPL_CYCLE_COLLECTING_RELEASE(DOMSVGPointList)
@@ -79,6 +93,7 @@ DOMCI_DATA(SVGPointList, mozilla::DOMSVGPointList)
 namespace mozilla {
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(DOMSVGPointList)
+  NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
   NS_INTERFACE_MAP_ENTRY(nsIDOMSVGPointList)
   NS_INTERFACE_MAP_ENTRY(nsISupports)
   NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(SVGPointList)
@@ -116,8 +131,15 @@ DOMSVGPointList::~DOMSVGPointList()
   sSVGPointListTearoffTable.RemoveTearoff(key);
 }
 
+JSObject*
+DOMSVGPointList::WrapObject(JSContext *cx, JSObject *scope, bool *triedToWrap)
+{
+  return mozilla::dom::binding::SVGPointList::create(cx, scope, this,
+                                                     triedToWrap);
+}
+
 nsIDOMSVGPoint*
-DOMSVGPointList::GetItemWithoutAddRef(PRUint32 aIndex)
+DOMSVGPointList::GetItemAt(PRUint32 aIndex)
 {
   if (IsAnimValList()) {
     Element()->FlushAnimations();
@@ -213,6 +235,7 @@ DOMSVGPointList::Clear()
   }
 
   if (Length() > 0) {
+    nsAttrValue emptyOrOldValue = Element()->WillChangePointList();
     // DOM list items that are to be removed must be removed before we change
     // the internal list, otherwise they wouldn't be able to copy their
     // internal counterparts' values!
@@ -229,7 +252,7 @@ DOMSVGPointList::Clear()
     }
 
     InternalList().Clear();
-    Element()->DidChangePointList(true);
+    Element()->DidChangePointList(emptyOrOldValue);
     if (AttrIsAnimating()) {
       Element()->AnimationNeedsResample();
     }
@@ -270,7 +293,7 @@ NS_IMETHODIMP
 DOMSVGPointList::GetItem(PRUint32 aIndex,
                          nsIDOMSVGPoint **_retval)
 {
-  *_retval = GetItemWithoutAddRef(aIndex);
+  *_retval = GetItemAt(aIndex);
   if (!*_retval) {
     return NS_ERROR_DOM_INDEX_SIZE_ERR;
   }
@@ -307,6 +330,7 @@ DOMSVGPointList::InsertItemBefore(nsIDOMSVGPoint *aNewItem,
     return NS_ERROR_OUT_OF_MEMORY;
   }
 
+  nsAttrValue emptyOrOldValue = Element()->WillChangePointList();
   // Now that we know we're inserting, keep animVal list in sync as necessary.
   MaybeInsertNullInAnimValListAt(aIndex);
 
@@ -320,7 +344,7 @@ DOMSVGPointList::InsertItemBefore(nsIDOMSVGPoint *aNewItem,
 
   UpdateListIndicesFromIndex(mItems, aIndex + 1);
 
-  Element()->DidChangePointList(true);
+  Element()->DidChangePointList(emptyOrOldValue);
   if (AttrIsAnimating()) {
     Element()->AnimationNeedsResample();
   }
@@ -349,6 +373,7 @@ DOMSVGPointList::ReplaceItem(nsIDOMSVGPoint *aNewItem,
     domItem = domItem->Clone(); // must do this before changing anything!
   }
 
+  nsAttrValue emptyOrOldValue = Element()->WillChangePointList();
   if (mItems[aIndex]) {
     // Notify any existing DOM item of removal *before* modifying the lists so
     // that the DOM item can copy the *old* value at its index:
@@ -362,7 +387,7 @@ DOMSVGPointList::ReplaceItem(nsIDOMSVGPoint *aNewItem,
   // would end up reading bad data from InternalList()!
   domItem->InsertingIntoList(this, aIndex, IsAnimValList());
 
-  Element()->DidChangePointList(true);
+  Element()->DidChangePointList(emptyOrOldValue);
   if (AttrIsAnimating()) {
     Element()->AnimationNeedsResample();
   }
@@ -383,6 +408,7 @@ DOMSVGPointList::RemoveItem(PRUint32 aIndex,
     return NS_ERROR_DOM_INDEX_SIZE_ERR;
   }
 
+  nsAttrValue emptyOrOldValue = Element()->WillChangePointList();
   // Now that we know we're removing, keep animVal list in sync as necessary.
   // Do this *before* touching InternalList() so the removed item can get its
   // internal value.
@@ -401,7 +427,7 @@ DOMSVGPointList::RemoveItem(PRUint32 aIndex,
 
   UpdateListIndicesFromIndex(mItems, aIndex);
 
-  Element()->DidChangePointList(true);
+  Element()->DidChangePointList(emptyOrOldValue);
   if (AttrIsAnimating()) {
     Element()->AnimationNeedsResample();
   }

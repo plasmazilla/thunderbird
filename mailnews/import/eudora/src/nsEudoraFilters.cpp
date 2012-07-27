@@ -52,6 +52,7 @@
 #include "nsIMsgFilterList.h"
 #include "nsIMsgAccountManager.h"
 #include "nsIStringBundle.h"
+#include "mozilla/Services.h"
 
 #include "nsEudoraFilters.h"
 #include "nsEudoraStringBundle.h"
@@ -102,13 +103,13 @@ NS_IMETHODIMP nsEudoraFilters::AutoLocate(PRUnichar **aDescription, nsIFile **aL
   m_pLocation =  do_CreateInstance (NS_LOCAL_FILE_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
-  *aDescription = nsEudoraStringBundle::GetStringByID( EUDORAIMPORT_NAME);
+  *aDescription = nsEudoraStringBundle::GetStringByID(EUDORAIMPORT_NAME);
 
 #if defined(XP_WIN) || defined(XP_OS2)
-  *_retval = nsEudoraWin32::FindFiltersFile( getter_AddRefs(m_pLocation) );
+  *_retval = nsEudoraWin32::FindFiltersFile(getter_AddRefs(m_pLocation));
 #endif
 #ifdef XP_MACOSX
-  *_retval = nsEudoraMac::FindFiltersFile( getter_AddRefs(m_pLocation) );
+  *_retval = nsEudoraMac::FindFiltersFile(getter_AddRefs(m_pLocation));
 #endif
 
   NS_IF_ADDREF(*aLocation = m_pLocation);
@@ -119,7 +120,7 @@ NS_IMETHODIMP nsEudoraFilters::SetLocation(nsIFile *aLocation)
 {
   m_pLocation = aLocation;
 
-  return( NS_OK);
+  return NS_OK;
 }
 
 NS_IMETHODIMP nsEudoraFilters::Import(PRUnichar **aError, bool *_retval)
@@ -148,8 +149,8 @@ NS_IMETHODIMP nsEudoraFilters::Import(PRUnichar **aError, bool *_retval)
 
   if (!m_pLocation)
   {
-    IMPORT_LOG0( "*** Error, unable to locate filters file for import.\n");
-    return( NS_ERROR_FAILURE);
+    IMPORT_LOG0("*** Error, unable to locate filters file for import.\n");
+    return NS_ERROR_FAILURE;
   }
 
   // Now perform actual importing task
@@ -157,11 +158,11 @@ NS_IMETHODIMP nsEudoraFilters::Import(PRUnichar **aError, bool *_retval)
   *aError = ToNewUnicode(m_errorLog);
 
   if (*_retval)
-    IMPORT_LOG0( "Successful import of eudora filters\n");
+    IMPORT_LOG0("Successful import of eudora filters\n");
   else
-    IMPORT_LOG0( "*** Error, Unsuccessful import of eudora filters\n");
+    IMPORT_LOG0("*** Error, Unsuccessful import of eudora filters\n");
 
-  return( NS_OK);
+  return NS_OK;
 }
 
 bool nsEudoraFilters::RealImport()
@@ -171,7 +172,7 @@ bool nsEudoraFilters::RealImport()
   rv = Init();
   if (NS_FAILED(rv))
   {
-    IMPORT_LOG0( "*** Error initializing filter import process\n");
+    IMPORT_LOG0("*** Error initializing filter import process\n");
     return false;
   }
 
@@ -180,14 +181,14 @@ bool nsEudoraFilters::RealImport()
 
   if (NS_FAILED(rv))
   {
-    IMPORT_LOG0( "*** Error opening filters file for reading\n");
+    IMPORT_LOG0("*** Error opening filters file for reading\n");
     return false;
   }
 
   rv = LoadServers();
   if (NS_FAILED(rv))
   {
-    IMPORT_LOG0( "*** Error loading servers with filters\n");
+    IMPORT_LOG0("*** Error loading servers with filters\n");
     return false;
   }
 
@@ -357,7 +358,7 @@ bool nsEudoraFilters::RealImport()
 
   if (more)
   {
-    IMPORT_LOG0( "*** Error reading the filters, didn't reach the end\n");
+    IMPORT_LOG0("*** Error reading the filters, didn't reach the end\n");
     return false;
   }
 
@@ -389,20 +390,19 @@ nsresult nsEudoraFilters::Init()
 
   // Get the name of the folder where one-off imported mail is placed
   nsAutoString folderName(NS_LITERAL_STRING("Eudora Import"));
-  nsCOMPtr<nsIStringBundleService> bundleService(do_GetService(
-                                     NS_STRINGBUNDLE_CONTRACTID, &rv));
+  nsCOMPtr<nsIStringBundleService> bundleService = 
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
+
+  nsCOMPtr<nsIStringBundle> bundle;
+  rv = bundleService->CreateBundle("chrome://messenger/locale/importMsgs.properties",
+                                   getter_AddRefs(bundle));
   if (NS_SUCCEEDED(rv))
   {
-    nsCOMPtr<nsIStringBundle> bundle;
-    rv = bundleService->CreateBundle("chrome://messenger/locale/importMsgs.properties",
-                                     getter_AddRefs(bundle));
-    if (NS_SUCCEEDED(rv))
-    {
-      nsAutoString Eudora(NS_LITERAL_STRING("Eudora"));
-      const PRUnichar *moduleName[] = { Eudora.get() };
-      rv = bundle->FormatStringFromName(NS_LITERAL_STRING("ImportModuleFolderName").get(),
-                                        moduleName, 1, getter_Copies(folderName));
-    }
+    nsAutoString Eudora(NS_LITERAL_STRING("Eudora"));
+    const PRUnichar *moduleName[] = { Eudora.get() };
+    rv = bundle->FormatStringFromName(NS_LITERAL_STRING("ImportModuleFolderName").get(),
+                                      moduleName, 1, getter_Copies(folderName));
   }
   localRootFolder->GetChildNamed(folderName, getter_AddRefs(m_pMailboxesRoot));
   if (!m_pMailboxesRoot)

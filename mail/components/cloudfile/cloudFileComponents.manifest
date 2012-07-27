@@ -1,0 +1,3 @@
+component {32fd439f-9eb6-4907-ac0b-2c88eb14d98d} nsYouSendIt.js
+contract @mozilla.org/mail/yousendit;1 {32fd439f-9eb6-4907-ac0b-2c88eb14d98d}
+category cloud-files YouSendIt @mozilla.org/mail/yousendit;1

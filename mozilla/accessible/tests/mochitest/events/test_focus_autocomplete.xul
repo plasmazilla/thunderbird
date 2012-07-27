@@ -21,6 +21,8 @@
   <script type="application/javascript"
           src="../common.js" />
   <script type="application/javascript"
+          src="../role.js" />
+  <script type="application/javascript"
           src="../states.js" />
   <script type="application/javascript"
           src="../events.js" />
@@ -384,13 +386,10 @@
     {
       if (SEAMONKEY) {
         todo(false, "Skipping this test on SeaMonkey ftb. (Bug 718237)");
+        shutdownAutoComplete();
         SimpleTest.finish();
         return;
       }
-
-      // register 'test-a11y-search' autocomplete search
-      initAutoComplete([ "hello", "hi" ],
-                       [ "Beep beep'm beep beep yeah", "Baby you can drive my car" ]);
 
       gInitQueue = new eventQueue();
       gInitQueue.push(new loadFormAutoComplete("iframe"));
@@ -461,6 +460,12 @@
     }
 
     SimpleTest.waitForExplicitFinish();
+
+    // Register 'test-a11y-search' autocomplete search.
+    // XPFE AutoComplete needs to register early.
+    initAutoComplete([ "hello", "hi" ],
+                     [ "Beep beep'm beep beep yeah", "Baby you can drive my car" ]);
+
     addA11yLoadEvent(initTests);
   ]]>
   </script>

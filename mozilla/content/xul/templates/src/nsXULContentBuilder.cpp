@@ -677,7 +677,7 @@ nsXULContentBuilder::BuildContentFromTemplate(nsIContent *aTemplateNode,
                 return NS_ERROR_FAILURE;
             }
             nsCOMPtr<nsIDOMNode> clonedNode;
-            tmplTextNode->CloneNode(false, getter_AddRefs(clonedNode));
+            tmplTextNode->CloneNode(false, 1, getter_AddRefs(clonedNode));
             nsCOMPtr<nsIContent> clonedContent = do_QueryInterface(clonedNode);
             if (!clonedContent) {
                 NS_ERROR("failed to clone textnode");
@@ -956,8 +956,7 @@ nsXULContentBuilder::RemoveMember(nsIContent* aContent)
         // Note: RemoveChildAt sets |child|'s document to null so that
         // it'll get knocked out of the XUL doc's resource-to-element
         // map.
-        nsresult rv = parent->RemoveChildAt(pos, true);
-        if (NS_FAILED(rv)) return rv;
+        parent->RemoveChildAt(pos, true);
     }
 
     // Remove from the content support map.

@@ -651,6 +651,10 @@ function HideMenus()
 
 function OnUnloadMessageWindow()
 {
+  if (gFolderDisplay._magicTreeSelection) {
+    gFolderDisplay._magicTreeSelection.tree = null;
+    gFolderDisplay._magicTreeSelection = null;
+  }
   gFolderDisplay.close();
   UnloadCommandUpdateHandlers();
   // FIX ME - later we will be able to use onunload from the overlay
@@ -731,15 +735,17 @@ var MessageWindowController =
       case "cmd_viewPageSource":
       case "cmd_getMsgsForAuthAccounts":
       case "button_file":
+      case "button_previousMsg":
+      case "cmd_previousMsg":
+      case "button_previous":
+      case "cmd_previousUnreadMsg":
+      case "cmd_previousFlaggedMsg":
+      case "button_nextMsg":
       case "cmd_nextMsg":
       case "button_next":
-      case "button_previous":
       case "cmd_nextUnreadMsg":
       case "cmd_nextFlaggedMsg":
       case "cmd_nextUnreadThread":
-      case "cmd_previousMsg":
-      case "cmd_previousUnreadMsg":
-      case "cmd_previousFlaggedMsg":
       case "cmd_goForward":
       case "cmd_goBack":
       case "button_goForward":
@@ -750,6 +756,7 @@ var MessageWindowController =
       case "button_reply":
       case "cmd_replySender":
       case "cmd_replyGroup":
+      case "button_followup":
       case "cmd_replyall":
       case "button_replyall":
       case "cmd_replylist":
@@ -833,9 +840,9 @@ var MessageWindowController =
       case "cmd_replylist":
       case "button_replylist":
         return gFolderDisplay.selectedMessage && IsReplyListEnabled();
-
       case "cmd_replySender":
       case "cmd_replyGroup":
+      case "button_followup":
       case "cmd_forward":
       case "button_forward":
       case "cmd_forwardInline":
@@ -881,8 +888,7 @@ var MessageWindowController =
       case "cmd_getNewMessages":
       case "button_getNewMessages":
       case "cmd_getMsgsForAuthAccounts":
-        // GetMsgs should always be enabled, see bugs 89404 and 111102.
-        return true;
+        return IsGetNewMessagesEnabled();
       case "cmd_getNextNMessages":
         return IsGetNextNMessagesEnabled();
       case "cmd_downloadFlagged":
@@ -891,13 +897,15 @@ var MessageWindowController =
         return MailOfflineMgr.isOnline();
       case "cmd_settingsOffline":
         return IsAccountOfflineEnabled();
+      case "button_nextMsg":
       case "cmd_nextMsg":
       case "button_next":
       case "cmd_nextUnreadMsg":
       case "cmd_nextFlaggedMsg":
       case "cmd_nextUnreadThread":
-      case "button_previous":
+      case "button_previousMsg":
       case "cmd_previousMsg":
+      case "button_previous":
       case "cmd_previousUnreadMsg":
       case "cmd_previousFlaggedMsg":
       case "cmd_findAgain":
@@ -1125,19 +1133,21 @@ var MessageWindowController =
       case "cmd_settingsOffline":
         MailOfflineMgr.openOfflineAccountSettings();
         return;
-      case "cmd_nextUnreadMsg":
       case "button_next":
+      case "cmd_nextUnreadMsg":
         performNavigation(nsMsgNavigationType.nextUnreadMessage);
         break;
       case "cmd_nextUnreadThread":
         performNavigation(nsMsgNavigationType.nextUnreadThread);
         break;
+      case "button_nextMsg":
       case "cmd_nextMsg":
         performNavigation(nsMsgNavigationType.nextMessage);
         break;
       case "cmd_nextFlaggedMsg":
         performNavigation(nsMsgNavigationType.nextFlagged);
         break;
+      case "button_previousMsg":
       case "cmd_previousMsg":
         performNavigation(nsMsgNavigationType.previousMessage);
         break;

@@ -153,7 +153,11 @@ public:
     bool Init()
     {
         MakeCurrent();
-        return InitWithPrefix("gl", true);
+        if (!InitWithPrefix("gl", true))
+            return false;
+
+        InitFramebuffers();
+        return true;
     }
 
     void *GetNativeData(NativeDataType aType)
@@ -210,7 +214,8 @@ public:
                             const nsIntSize& aSize,
                             GLenum aWrapMode,
                             TextureImage::ContentType aContentType,
-                            GLContext* aContext);
+                            GLContext* aContext,
+                            TextureImage::Flags aFlags = TextureImage::NoFlags);
 
     NSOpenGLContext *mContext;
     NSOpenGLPixelBuffer *mPBuffer;
@@ -315,7 +320,8 @@ class TextureImageCGL : public BasicTextureImage
                                           const nsIntSize&,
                                           GLenum,
                                           TextureImage::ContentType,
-                                          GLContext*);
+                                          GLContext*,
+                                          TextureImage::Flags);
 public:
     ~TextureImageCGL()
     {
@@ -401,8 +407,9 @@ private:
                     const nsIntSize& aSize,
                     GLenum aWrapMode,
                     ContentType aContentType,
-                    GLContext* aContext)
-        : BasicTextureImage(aTexture, aSize, aWrapMode, aContentType, aContext)
+                    GLContext* aContext,
+                    TextureImage::Flags aFlags = TextureImage::NoFlags)
+        : BasicTextureImage(aTexture, aSize, aWrapMode, aContentType, aContext, aFlags)
         , mPixelBuffer(0)
         , mPixelBufferSize(0)
         , mBoundPixelBuffer(false)
@@ -418,10 +425,11 @@ GLContextCGL::CreateBasicTextureImage(GLuint aTexture,
                                       const nsIntSize& aSize,
                                       GLenum aWrapMode,
                                       TextureImage::ContentType aContentType,
-                                      GLContext* aContext)
+                                      GLContext* aContext,
+                                      TextureImage::Flags aFlags)
 {
     nsRefPtr<TextureImageCGL> teximage
-        (new TextureImageCGL(aTexture, aSize, aWrapMode, aContentType, aContext));
+        (new TextureImageCGL(aTexture, aSize, aWrapMode, aContentType, aContext, aFlags));
     return teximage.forget();
 }
 
@@ -456,7 +464,7 @@ GLContextProviderCGL::CreateForWindow(nsIWidget *aWidget)
                                                         context);
     if (!glContext->Init()) {
         return nsnull;
-    }    
+    }
 
     return glContext.forget();
 }
@@ -496,8 +504,6 @@ CreateOffscreenPBufferContext(const gfxIntSize& aSize,
 
     A_(0);
 #undef A_
-
-    printf_stderr("colorbits: %d alpha: %d depth: %d stencil: %d\n", aFormat.colorBits(), aFormat.alpha, aFormat.depth, aFormat.stencil);
 
     NSOpenGLPixelFormat *pbFormat = [[NSOpenGLPixelFormat alloc]
                                      initWithAttributes:attribs.Elements()];
@@ -548,12 +554,12 @@ CreateOffscreenPBufferContext(const gfxIntSize& aSize,
     {
         GLint l;
         [pbFormat getValues:&l forAttribute:NSOpenGLPFADepthSize forVirtualScreen:[context currentVirtualScreen]];
-        printf_stderr("*** depth: %d (req: %d)\n", l, aFormat.depth);
     }
 
     [pbFormat release];
 
     nsRefPtr<GLContextCGL> glContext = new GLContextCGL(aFormat, shareContext, context, pb);
+
     return glContext.forget();
 }
 
@@ -579,12 +585,14 @@ CreateOffscreenFBOContext(const ContextFormat& aFormat,
     }
 
     nsRefPtr<GLContextCGL> glContext = new GLContextCGL(aFormat, shareContext, context, true);
+
     return glContext.forget();
 }
 
 already_AddRefed<GLContext>
 GLContextProviderCGL::CreateOffscreen(const gfxIntSize& aSize,
-                                      const ContextFormat& aFormat)
+                                      const ContextFormat& aFormat,
+                                      const ContextFlags flags)
 {
     ContextFormat actualFormat(aFormat);
 

@@ -47,7 +47,7 @@ let Services = {};
 XPCOMUtils.defineLazyGetter(Services, "prefs", function () {
   return Cc["@mozilla.org/preferences-service;1"]
            .getService(Ci.nsIPrefService)
-           .QueryInterface(Ci.nsIPrefBranch2);
+           .QueryInterface(Ci.nsIPrefBranch);
 });
 
 XPCOMUtils.defineLazyGetter(Services, "appinfo", function () {
@@ -68,6 +68,7 @@ let initTable = [
   ["console", "@mozilla.org/consoleservice;1", "nsIConsoleService"],
   ["contentPrefs", "@mozilla.org/content-pref/service;1", "nsIContentPrefService"],
   ["cookies", "@mozilla.org/cookiemanager;1", "nsICookieManager2"],
+  ["downloads", "@mozilla.org/download-manager;1", "nsIDownloadManager"],
   ["droppedLinkHandler", "@mozilla.org/content/dropped-link-handler;1", "nsIDroppedLinkHandler"],
   ["eTLD", "@mozilla.org/network/effective-tld-service;1", "nsIEffectiveTLDService"],
   ["io", "@mozilla.org/network/io-service;1", "nsIIOService2"],
@@ -92,7 +93,8 @@ let initTable = [
   ["ww", "@mozilla.org/embedcomp/window-watcher;1", "nsIWindowWatcher"],
   ["startup", "@mozilla.org/toolkit/app-startup;1", "nsIAppStartup"],
   ["sysinfo", "@mozilla.org/system-info;1", "nsIPropertyBag2"],
-  ["clipboard", "@mozilla.org/widget/clipboard;1", "nsIClipboard"]
+  ["clipboard", "@mozilla.org/widget/clipboard;1", "nsIClipboard"],
+  ["DOMRequest", "@mozilla.org/dom/dom-request-service;1", "nsIDOMRequestService"]
 ];
 
 initTable.forEach(function ([name, contract, intf])

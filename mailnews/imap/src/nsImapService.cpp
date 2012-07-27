@@ -392,7 +392,8 @@ NS_IMETHODIMP nsImapService::OpenAttachment(const char *aContentType,
         nsCOMPtr<nsIMsgMailNewsUrl> mailUrl (do_QueryInterface(imapUrl));
         if (mailUrl)
         {
-          mailUrl->SetSpec(urlSpec);
+          rv = mailUrl->SetSpec(urlSpec);
+          NS_ENSURE_SUCCESS(rv, rv);
           if (aFileName)
             mailUrl->SetFileName(nsDependentCString(aFileName));
         }
@@ -618,15 +619,16 @@ nsresult nsImapService::FetchMimePart(nsIImapUrl *aImapUrl,
   {
     nsCOMPtr<nsIURI> url = do_QueryInterface(aImapUrl);
     url->GetSpec(urlSpec);
-    
+
     // rhp: If we are displaying this message for the purpose of printing, we
     // need to append the header=print option.
     //
     if (mPrintingOperation)
       urlSpec.Append("?header=print");
-    
+
     rv = url->SetSpec(urlSpec);
-    
+    NS_ENSURE_SUCCESS(rv, rv);
+
     rv = aImapUrl->SetImapAction(actionToUse /* nsIImapUrl::nsImapMsgFetch */);
     if (aImapMailFolder && aDisplayConsumer)
     {
@@ -823,14 +825,18 @@ NS_IMETHODIMP nsImapService::Search(nsIMsgSearchSession *aSearchSession,
                                     const char *aSearchUri)
 {
   NS_ENSURE_ARG_POINTER(aSearchUri);
+  NS_ENSURE_ARG_POINTER(aMsgFolder);
+  nsresult rv;
 
   nsCOMPtr<nsIImapUrl> imapUrl;
-  nsCOMPtr <nsIUrlListener> urlListener = do_QueryInterface(aSearchSession);
+  nsCOMPtr <nsIUrlListener> urlListener = do_QueryInterface(aSearchSession, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
   nsCAutoString urlSpec;
   char hierarchyDelimiter = GetHierarchyDelimiter(aMsgFolder);
-  nsresult rv = CreateStartOfImapUrl(EmptyCString(), getter_AddRefs(imapUrl),
-                                     aMsgFolder, urlListener, urlSpec,
-                                     hierarchyDelimiter);
+  rv = CreateStartOfImapUrl(EmptyCString(), getter_AddRefs(imapUrl),
+                            aMsgFolder, urlListener, urlSpec,
+                            hierarchyDelimiter);
   NS_ENSURE_SUCCESS(rv, rv);
   nsCOMPtr<nsIMsgMailNewsUrl> msgurl (do_QueryInterface(imapUrl));
 
@@ -866,15 +872,15 @@ NS_IMETHODIMP nsImapService::Search(nsIMsgSearchSession *aSearchSession,
 }
 
 // just a helper method to break down imap message URIs....
-nsresult nsImapService::DecomposeImapURI(const nsACString &aMessageURI, 
-                                         nsIMsgFolder **aFolder, 
+nsresult nsImapService::DecomposeImapURI(const nsACString &aMessageURI,
+                                         nsIMsgFolder **aFolder,
                                          nsACString &aMsgKey)
 {
   nsMsgKey msgKey;
   nsresult rv = DecomposeImapURI(aMessageURI, aFolder, &msgKey);
-  NS_ENSURE_SUCCESS(rv,rv);
+  NS_ENSURE_SUCCESS(rv, rv);
 
-  if (msgKey) 
+  if (msgKey)
   {
     nsCAutoString messageIdString;
     messageIdString.AppendInt(msgKey);
@@ -885,38 +891,37 @@ nsresult nsImapService::DecomposeImapURI(const nsACString &aMessageURI,
 }
 
 // just a helper method to break down imap message URIs....
-nsresult nsImapService::DecomposeImapURI(const nsACString &aMessageURI, 
-                                         nsIMsgFolder **aFolder, 
+nsresult nsImapService::DecomposeImapURI(const nsACString &aMessageURI,
+                                         nsIMsgFolder **aFolder,
                                          nsMsgKey *aMsgKey)
 {
   NS_ENSURE_ARG_POINTER(aFolder);
   NS_ENSURE_ARG_POINTER(aMsgKey);
-  
+
   nsCAutoString folderURI;
   nsresult rv = nsParseImapMessageURI(PromiseFlatCString(aMessageURI).get(),
                                       folderURI, aMsgKey, nsnull);
-  NS_ENSURE_SUCCESS(rv,rv);
-  
+  NS_ENSURE_SUCCESS(rv, rv);
+
   nsCOMPtr <nsIRDFService> rdf = do_GetService("@mozilla.org/rdf/rdf-service;1",&rv);
-  NS_ENSURE_SUCCESS(rv,rv);
-  
+  NS_ENSURE_SUCCESS(rv, rv);
+
   nsCOMPtr<nsIRDFResource> res;
   rv = rdf->GetResource(folderURI, getter_AddRefs(res));
-  NS_ENSURE_SUCCESS(rv,rv);
-  
+  NS_ENSURE_SUCCESS(rv, rv);
+
   nsCOMPtr<nsIMsgFolder> msgFolder = do_QueryInterface(res);
-  if (!msgFolder)
-    return NS_ERROR_FAILURE;
-  
+  NS_ENSURE_TRUE(msgFolder, NS_ERROR_FAILURE);
+
   msgFolder.swap(*aFolder);
-  
+
   return NS_OK;
 }
 
-NS_IMETHODIMP nsImapService::SaveMessageToDisk(const char *aMessageURI, 
-                                               nsIFile *aFile, 
-                                               bool aAddDummyEnvelope, 
-                                               nsIUrlListener *aUrlListener, 
+NS_IMETHODIMP nsImapService::SaveMessageToDisk(const char *aMessageURI,
+                                               nsIFile *aFile,
+                                               bool aAddDummyEnvelope,
+                                               nsIUrlListener *aUrlListener,
                                                nsIURI **aURL,
                                                bool canonicalLineEnding,
                                                nsIMsgWindow *aMsgWindow)
@@ -1387,6 +1392,7 @@ nsresult nsImapService::CreateStartOfImapUrl(const nsACString &aImapURI,
     // *** jefft - force to parse the urlSpec in order to search for
     // the correct incoming server
     rv = mailnewsUrl->SetSpec(urlSpec);
+    NS_ENSURE_SUCCESS(rv, rv);
 
     hierarchyDelimiter = kOnlineHierarchySeparatorUnknown;
     nsCOMPtr <nsIMsgImapMailFolder> imapFolder = do_QueryInterface(aImapMailFolder);
@@ -2864,34 +2870,35 @@ NS_IMETHODIMP nsImapService::SetDefaultLocalPath(nsILocalFile *aPath)
   NS_ENSURE_ARG_POINTER(aPath);
 
   return NS_SetPersistentFile(PREF_MAIL_ROOT_IMAP_REL, PREF_MAIL_ROOT_IMAP, aPath);
-}       
+}
 
 NS_IMETHODIMP nsImapService::GetDefaultLocalPath(nsILocalFile **aResult)
 {
   NS_ENSURE_ARG_POINTER(aResult);
   *aResult = nsnull;
-  
+
   bool havePref;
-  nsCOMPtr<nsILocalFile> localFile;    
+  nsCOMPtr<nsILocalFile> localFile;
   nsresult rv = NS_GetPersistentFile(PREF_MAIL_ROOT_IMAP_REL,
                                      PREF_MAIL_ROOT_IMAP,
                                      NS_APP_IMAP_MAIL_50_DIR,
                                      havePref,
                                      getter_AddRefs(localFile));
   NS_ENSURE_SUCCESS(rv, rv);
+  NS_ENSURE_TRUE(localFile, NS_ERROR_FAILURE);
 
   bool exists;
   rv = localFile->Exists(&exists);
   if (NS_SUCCEEDED(rv) && !exists)
     rv = localFile->Create(nsIFile::DIRECTORY_TYPE, 0775);
   NS_ENSURE_SUCCESS(rv, rv);
-  
-  if (!havePref || !exists) 
+
+  if (!havePref || !exists)
   {
     rv = NS_SetPersistentFile(PREF_MAIL_ROOT_IMAP_REL, PREF_MAIL_ROOT_IMAP, localFile);
     NS_ASSERTION(NS_SUCCEEDED(rv), "Failed to set root dir pref.");
   }
-  
+
   localFile.swap(*aResult);
   return NS_OK;
 }

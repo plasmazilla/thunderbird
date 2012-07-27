@@ -179,9 +179,10 @@ class nsDisplayTextOverflowMarker : public nsDisplayItem
 public:
   nsDisplayTextOverflowMarker(nsDisplayListBuilder* aBuilder, nsIFrame* aFrame,
                               const nsRect& aRect, nscoord aAscent,
-                              const nsString& aString)
+                              const nsString& aString,
+                              PRUint32 aIndex)
     : nsDisplayItem(aBuilder, aFrame), mRect(aRect), mString(aString),
-      mAscent(aAscent) {
+      mAscent(aAscent), mIndex(aIndex) {
     MOZ_COUNT_CTOR(nsDisplayTextOverflowMarker);
   }
 #ifdef NS_BUILD_REFCNT_LOGGING
@@ -189,13 +190,18 @@ public:
     MOZ_COUNT_DTOR(nsDisplayTextOverflowMarker);
   }
 #endif
-  virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder) {
+  virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder, bool* aSnap) {
+    *aSnap = false;
     nsRect shadowRect =
       nsLayoutUtils::GetTextShadowRectsUnion(mRect, mFrame);
     return mRect.Union(shadowRect);
   }
   virtual void Paint(nsDisplayListBuilder* aBuilder,
                      nsRenderingContext* aCtx);
+
+  virtual PRUint32 GetPerFrameKey() { 
+    return (mIndex << nsDisplayItem::TYPE_BITS) | nsDisplayItem::GetPerFrameKey(); 
+  }
   void PaintTextToContext(nsRenderingContext* aCtx,
                           nsPoint aOffsetFromRect);
   NS_DISPLAY_DECL_NAME("TextOverflow", TYPE_TEXT_OVERFLOW)
@@ -203,6 +209,7 @@ private:
   nsRect          mRect;   // in reference frame coordinates
   const nsString  mString; // the marker text
   nscoord         mAscent; // baseline for the marker text in mRect
+  PRUint32        mIndex;
 };
 
 static void
@@ -236,7 +243,7 @@ nsDisplayTextOverflowMarker::PaintTextToContext(nsRenderingContext* aCtx,
 {
   nsRefPtr<nsFontMetrics> fm;
   nsLayoutUtils::GetFontMetricsForFrame(mFrame, getter_AddRefs(fm),
-    nsLayoutUtils::FontSizeInflationFor(mFrame, nsLayoutUtils::eNotInReflow));
+    nsLayoutUtils::FontSizeInflationFor(mFrame));
   aCtx->SetFont(fm);
   gfxFloat y = nsLayoutUtils::GetSnappedBaselineY(mFrame, aCtx->ThebesContext(),
                                                   mRect.y, mAscent);
@@ -720,7 +727,7 @@ TextOverflow::CreateMarkers(const nsLineBox* aLine,
     markerRect += mBuilder->ToReferenceFrame(mBlock);
     nsDisplayItem* marker = new (mBuilder)
       nsDisplayTextOverflowMarker(mBuilder, mBlock, markerRect,
-                                  aLine->GetAscent(), mLeft.mMarkerString);
+                                  aLine->GetAscent(), mLeft.mMarkerString, 0);
     if (marker) {
       marker = ClipMarker(mBuilder, mBlock, marker,
                           mContentArea + mBuilder->ToReferenceFrame(mBlock),
@@ -736,7 +743,7 @@ TextOverflow::CreateMarkers(const nsLineBox* aLine,
     markerRect += mBuilder->ToReferenceFrame(mBlock);
     nsDisplayItem* marker = new (mBuilder)
       nsDisplayTextOverflowMarker(mBuilder, mBlock, markerRect,
-                                  aLine->GetAscent(), mRight.mMarkerString);
+                                  aLine->GetAscent(), mRight.mMarkerString, 1);
     if (marker) {
       marker = ClipMarker(mBuilder, mBlock, marker,
                           mContentArea + mBuilder->ToReferenceFrame(mBlock),
@@ -756,7 +763,7 @@ TextOverflow::Marker::SetupString(nsIFrame* aFrame)
     aFrame->PresContext()->PresShell()->GetReferenceRenderingContext();
   nsRefPtr<nsFontMetrics> fm;
   nsLayoutUtils::GetFontMetricsForFrame(aFrame, getter_AddRefs(fm),
-    nsLayoutUtils::FontSizeInflationFor(aFrame, nsLayoutUtils::eNotInReflow));
+    nsLayoutUtils::FontSizeInflationFor(aFrame));
   rc->SetFont(fm);
 
   mMarkerString = mStyle->mType == NS_STYLE_TEXT_OVERFLOW_ELLIPSIS ?

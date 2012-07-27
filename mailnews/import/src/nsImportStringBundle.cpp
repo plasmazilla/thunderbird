@@ -43,6 +43,7 @@
 #include "nsIURI.h"
 #include "nsServiceManagerUtils.h"
 #include "nsComponentManagerUtils.h"
+#include "mozilla/Services.h"
 
 nsresult nsImportStringBundle::GetStringBundle(const char *aPropertyURL,
                                                nsIStringBundle **aBundle)
@@ -50,10 +51,9 @@ nsresult nsImportStringBundle::GetStringBundle(const char *aPropertyURL,
   nsresult rv;
 
   nsCOMPtr<nsIStringBundleService> sBundleService =
-           do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
-  if (NS_SUCCEEDED(rv) && (nsnull != sBundleService)) {
-    rv = sBundleService->CreateBundle(aPropertyURL, aBundle);
-  }
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(sBundleService, NS_ERROR_UNEXPECTED);
+  rv = sBundleService->CreateBundle(aPropertyURL, aBundle);
 
   return rv;
 }
@@ -74,7 +74,7 @@ PRUnichar *nsImportStringBundle::GetStringByID(PRInt32 aStringID,
     nsresult rv = aBundle->GetStringFromID(aStringID, &ptrv);
 
     if (NS_SUCCEEDED(rv) && ptrv)
-      return(ptrv);
+      return ptrv;
   }
 
   nsString resultString(NS_LITERAL_STRING("[StringID "));
@@ -101,7 +101,7 @@ PRUnichar *nsImportStringBundle::GetStringByName(const char *aName,
         NS_ConvertUTF8toUTF16(aName).get(), &ptrv);
 
     if (NS_SUCCEEDED(rv) && ptrv)
-      return(ptrv);
+      return ptrv;
   }
 
   nsString resultString(NS_LITERAL_STRING("[StringName "));

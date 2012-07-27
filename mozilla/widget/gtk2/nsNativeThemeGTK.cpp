@@ -116,7 +116,7 @@ nsNativeThemeGTK::RefreshWidgetWindow(nsIFrame* aFrame)
   if (!vm)
     return;
  
-  vm->UpdateAllViews(NS_VMREFRESH_NO_SYNC);
+  vm->InvalidateAllViews();
 }
 
 static bool IsFrameContentNodeInNamespace(nsIFrame *aFrame, PRUint32 aNamespace)
@@ -1317,8 +1317,6 @@ nsNativeThemeGTK::WidgetStateChanged(nsIFrame* aFrame, PRUint8 aWidgetType,
 NS_IMETHODIMP
 nsNativeThemeGTK::ThemeChanged()
 {
-  nsDeviceContext::ClearCachedSystemFonts();
-
   memset(mDisabledWidgetTypes, 0, sizeof(mDisabledWidgetTypes));
   return NS_OK;
 }

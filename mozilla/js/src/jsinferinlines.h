@@ -202,23 +202,26 @@ TypeIdString(jsid id)
  */
 struct AutoEnterTypeInference
 {
-    JSContext *cx;
+    FreeOp *freeOp;
+    JSCompartment *compartment;
     bool oldActiveAnalysis;
     bool oldActiveInference;
 
     AutoEnterTypeInference(JSContext *cx, bool compiling = false)
-        : cx(cx), oldActiveAnalysis(cx->compartment->activeAnalysis),
-          oldActiveInference(cx->compartment->activeInference)
     {
         JS_ASSERT_IF(!compiling, cx->compartment->types.inferenceEnabled);
-        cx->compartment->activeAnalysis = true;
-        cx->compartment->activeInference = true;
+        init(cx->runtime->defaultFreeOp(), cx->compartment);
+    }
+
+    AutoEnterTypeInference(FreeOp *fop, JSCompartment *comp)
+    {
+        init(fop, comp);
     }
 
     ~AutoEnterTypeInference()
     {
-        cx->compartment->activeAnalysis = oldActiveAnalysis;
-        cx->compartment->activeInference = oldActiveInference;
+        compartment->activeAnalysis = oldActiveAnalysis;
+        compartment->activeInference = oldActiveInference;
 
         /*
          * If there are no more type inference activations on the stack,
@@ -226,13 +229,23 @@ struct AutoEnterTypeInference
          * invoking any scripted code while type inference is running.
          * :TODO: assert this.
          */
-        if (!cx->compartment->activeInference) {
-            TypeCompartment *types = &cx->compartment->types;
+        if (!compartment->activeInference) {
+            TypeCompartment *types = &compartment->types;
             if (types->pendingNukeTypes)
-                types->nukeTypes(cx);
+                types->nukeTypes(freeOp);
             else if (types->pendingRecompiles)
-                types->processPendingRecompiles(cx);
+                types->processPendingRecompiles(freeOp);
         }
+    }
+
+  private:
+    void init(FreeOp *fop, JSCompartment *comp) {
+        freeOp = fop;
+        compartment = comp;
+        oldActiveAnalysis = compartment->activeAnalysis;
+        oldActiveInference = compartment->activeInference;
+        compartment->activeAnalysis = true;
+        compartment->activeInference = true;
     }
 };
 
@@ -316,7 +329,7 @@ MarkIteratorUnknown(JSContext *cx)
  * Monitor a javascript call, either on entry to the interpreter or made
  * from within the interpreter.
  */
-inline void
+inline bool
 TypeMonitorCall(JSContext *cx, const js::CallArgs &args, bool constructing)
 {
     extern void TypeMonitorCallSlow(JSContext *cx, JSObject *callee,
@@ -328,11 +341,13 @@ TypeMonitorCall(JSContext *cx, const js::CallArgs &args, bool constructing)
         if (fun->isInterpreted()) {
             JSScript *script = fun->script();
             if (!script->ensureRanAnalysis(cx, fun->environment()))
-                return;
+                return false;
             if (cx->typeInferenceEnabled())
                 TypeMonitorCallSlow(cx, callee, args, constructing);
         }
     }
+
+    return true;
 }
 
 inline bool
@@ -544,8 +559,10 @@ struct AllocationSiteKey {
 };
 
 /* static */ inline TypeObject *
-TypeScript::InitObject(JSContext *cx, JSScript *script, const jsbytecode *pc, JSProtoKey kind)
+TypeScript::InitObject(JSContext *cx, JSScript *script, jsbytecode *pc, JSProtoKey kind)
 {
+    JS_ASSERT(!UseNewTypeForInitializer(cx, script, pc));
+
     /* :XXX: Limit script->length so we don't need to check the offset up front? */
     uint32_t offset = pc - script->code;
 
@@ -565,6 +582,34 @@ TypeScript::InitObject(JSContext *cx, JSScript *script, const jsbytecode *pc, JS
     if (p)
         return p->value;
     return cx->compartment->types.newAllocationSiteTypeObject(cx, key);
+}
+
+/* Set the type to use for obj according to the site it was allocated at. */
+static inline bool
+SetInitializerObjectType(JSContext *cx, JSScript *script, jsbytecode *pc, JSObject *obj)
+{
+    if (!cx->typeInferenceEnabled())
+        return true;
+
+    if (UseNewTypeForInitializer(cx, script, pc)) {
+        if (!obj->setSingletonType(cx))
+            return false;
+
+        /*
+         * Inference does not account for types of run-once initializer
+         * objects, as these may not be created until after the script
+         * has been analyzed.
+         */
+        TypeScript::Monitor(cx, script, pc, ObjectValue(*obj));
+    } else {
+        JSProtoKey key = obj->isDenseArray() ? JSProto_Array : JSProto_Object;
+        types::TypeObject *type = TypeScript::InitObject(cx, script, pc, key);
+        if (!type)
+            return false;
+        obj->setType(type);
+    }
+
+    return true;
 }
 
 /* static */ inline void
@@ -639,8 +684,7 @@ TypeScript::Monitor(JSContext *cx, const js::Value &rval)
 }
 
 /* static */ inline void
-TypeScript::MonitorAssign(JSContext *cx, JSScript *script, jsbytecode *pc,
-                          JSObject *obj, jsid id, const js::Value &rval)
+TypeScript::MonitorAssign(JSContext *cx, JSObject *obj, jsid id)
 {
     if (cx->typeInferenceEnabled() && !obj->hasSingletonType()) {
         /*
@@ -741,7 +785,7 @@ void
 TypeScript::trace(JSTracer *trc)
 {
     if (hasScope() && global)
-        gc::MarkObject(trc, global, "script_global");
+        gc::MarkObject(trc, &global, "script_global");
 
     /* Note: nesting does not keep anything alive. */
 }
@@ -1159,6 +1203,9 @@ inline TypeObject::TypeObject(JSObject *proto, bool function, bool unknown)
 {
     PodZero(this);
 
+    /* Inner objects may not appear on prototype chains. */
+    JS_ASSERT_IF(proto, !proto->getClass()->ext.outerObject);
+
     this->proto = proto;
 
     if (function)
@@ -1310,8 +1357,11 @@ TypeObject::writeBarrierPre(TypeObject *type)
         return;
 
     JSCompartment *comp = type->compartment();
-    if (comp->needsBarrier())
-        MarkTypeObjectUnbarriered(comp->barrierTracer(), type, "write barrier");
+    if (comp->needsBarrier()) {
+        TypeObject *tmp = type;
+        MarkTypeObjectUnbarriered(comp->barrierTracer(), &tmp, "write barrier");
+        JS_ASSERT(tmp == type);
+    }
 #endif
 }
 
@@ -1325,8 +1375,11 @@ TypeObject::readBarrier(TypeObject *type)
 {
 #ifdef JSGC_INCREMENTAL
     JSCompartment *comp = type->compartment();
-    if (comp->needsBarrier())
-        MarkTypeObjectUnbarriered(comp->barrierTracer(), type, "read barrier");
+    if (comp->needsBarrier()) {
+        TypeObject *tmp = type;
+        MarkTypeObjectUnbarriered(comp->barrierTracer(), &tmp, "read barrier");
+        JS_ASSERT(tmp == type);
+    }
 #endif
 }
 
@@ -1339,8 +1392,8 @@ TypeNewScript::writeBarrierPre(TypeNewScript *newScript)
 
     JSCompartment *comp = newScript->fun->compartment();
     if (comp->needsBarrier()) {
-        MarkObjectUnbarriered(comp->barrierTracer(), newScript->fun, "write barrier");
-        MarkShapeUnbarriered(comp->barrierTracer(), newScript->shape, "write barrier");
+        MarkObject(comp->barrierTracer(), &newScript->fun, "write barrier");
+        MarkShape(comp->barrierTracer(), &newScript->shape, "write barrier");
     }
 #endif
 }
@@ -1374,11 +1427,11 @@ inline bool
 JSScript::ensureRanAnalysis(JSContext *cx, JSObject *scope)
 {
     JSScript *self = this;
+    JS::SkipRoot root(cx, &self);
 
     if (!self->ensureHasTypes(cx))
         return false;
     if (!self->types->hasScope()) {
-        js::CheckRoot root(cx, &self);
         js::RootObject objRoot(cx, &scope);
         if (!js::types::TypeScript::SetScope(cx, self, scope))
             return false;

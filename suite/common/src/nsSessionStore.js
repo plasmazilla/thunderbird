@@ -116,7 +116,7 @@ const CAPABILITIES = [
 // These keys are for internal use only - they shouldn't be part of the JSON
 // that gets saved to disk nor part of the strings returned by the API.
 const INTERNAL_KEYS = ["_tabStillLoading", "_hosts", "_formDataSaved",
-                       "_tab", "_browser", "_history"];
+                       "_tab", "_browser", "_history", "_host", "_scheme"];
 
 // These are tab events that we listen to.
 const TAB_EVENTS = ["TabOpen", "TabClose", "TabSelect", "TabShow", "TabHide"];
@@ -147,7 +147,7 @@ function debug(aMsg) {
 
 function SessionStoreService() {
   XPCOMUtils.defineLazyGetter(this, "_prefBranch", function () {
-    return Services.prefs.getBranch("browser.").QueryInterface(Components.interfaces.nsIPrefBranch2);
+    return Services.prefs.getBranch("browser.");
   });
 
   // minimal interval between two save operations (in milliseconds)
@@ -1195,8 +1195,6 @@ SessionStoreService.prototype = {
     if (aWindow.__SSi && this._windows[aWindow.__SSi].extData &&
         this._windows[aWindow.__SSi].extData[aKey])
       delete this._windows[aWindow.__SSi].extData[aKey];
-    else
-      throw (Components.returnCode = Components.results.NS_ERROR_INVALID_ARG);
   },
 
   getTabValue: function sss_getTabValue(aTab, aKey) {
@@ -1243,8 +1241,6 @@ SessionStoreService.prototype = {
 
     if (deleteFrom && deleteFrom[aKey])
       delete deleteFrom[aKey];
-    else
-      throw (Components.returnCode = Components.results.NS_ERROR_INVALID_ARG);
   },
 
   persistTabAttribute: function sss_persistTabAttribute(aName) {
@@ -1594,6 +1590,14 @@ SessionStoreService.prototype = {
   _serializeHistoryEntry:
     function sss_serializeHistoryEntry(aEntry, aFullData, aIsPinned) {
     var entry = { url: aEntry.URI.spec };
+
+    try {
+      entry._scheme = aEntry.URI.scheme;
+      entry._host = aEntry.URI.host;
+    }
+    catch (ex) {
+      // We just won't attempt to get cookies for this entry.
+    }
 
     if (aEntry.title && aEntry.title != entry.url) {
       entry.title = aEntry.title;
@@ -2008,21 +2012,20 @@ SessionStoreService.prototype = {
    */
   _extractHostsForCookies:
     function sss_extractHostsForCookies(aEntry, aHosts, aCheckPrivacy, aIsPinned) {
-    let match;
 
-    if ((match = /^https?:\/\/(?:[^@\/\s]+@)?([\w.-]+)/.exec(aEntry.url)) != null) {
-      if (!aHosts[match[1]] &&
-          (!aCheckPrivacy ||
-           this._checkPrivacyLevel(this._getURIFromString(aEntry.url).schemeIs("https"),
-                                   aIsPinned))) {
-        // By setting this to true or false, we can determine when looking at
-        // the host in _updateCookies if we should check for privacy.
-        aHosts[match[1]] = aIsPinned;
-      }
+    // _host and _scheme may not be set (for about: urls for example), in which
+    // case testing _scheme will be sufficient.
+    if (/https?/.test(aEntry._scheme) && !aHosts[aEntry._host] &&
+        (!aCheckPrivacy ||
+         this._checkPrivacyLevel(aEntry._scheme == "https", aIsPinned))) {
+      // By setting this to true or false, we can determine when looking at
+      // the host in _updateCookies if we should check for privacy.
+      aHosts[aEntry._host] = aIsPinned;
     }
-    else if ((match = /^file:\/\/([^\/]*)/.exec(aEntry.url)) != null) {
-      aHosts[match[1]] = true;
+    else if (aEntry._scheme == "file") {
+      aHosts[aEntry._host] = true;
     }
+
     if (aEntry.children) {
       aEntry.children.forEach(function(entry) {
         this._extractHostsForCookies(entry, aHosts, aCheckPrivacy, aIsPinned);
@@ -3818,7 +3821,8 @@ SessionStoreService.prototype = {
     this._removeTabsProgressListener(window);
 
     if (previousState == TAB_STATE_RESTORING) {
-      this._tabsRestoringCount--;
+      if (this._tabsRestoringCount)
+        this._tabsRestoringCount--;
     }
     else if (previousState == TAB_STATE_NEEDS_RESTORE) {
       // Make sure the session history listener is removed. This is normally

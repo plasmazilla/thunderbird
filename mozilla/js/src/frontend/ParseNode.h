@@ -51,6 +51,50 @@
 namespace js {
 
 /*
+ * Indicates a location in the stack that an upvar value can be retrieved from
+ * as a two tuple of (level, slot).
+ *
+ * Some existing client code uses the level value as a delta, or level "skip"
+ * quantity. We could probably document that through use of more types at some
+ * point in the future.
+ */
+class UpvarCookie
+{
+    uint32_t value;
+
+    static const uint32_t FREE_VALUE = 0xfffffffful;
+
+    void checkInvariants() {
+        JS_STATIC_ASSERT(sizeof(UpvarCookie) == sizeof(uint32_t));
+        JS_STATIC_ASSERT(UPVAR_LEVEL_LIMIT < FREE_LEVEL);
+    }
+
+  public:
+    /*
+     * All levels above-and-including FREE_LEVEL are reserved so that
+     * FREE_VALUE can be used as a special value.
+     */
+    static const uint16_t FREE_LEVEL = 0x3fff;
+
+    /*
+     * If a function has a higher static level than this limit, we will not
+     * optimize it using UPVAR opcodes.
+     */
+    static const uint16_t UPVAR_LEVEL_LIMIT = 16;
+    static const uint16_t CALLEE_SLOT = 0xffff;
+    static bool isLevelReserved(uint16_t level) { return level >= FREE_LEVEL; }
+
+    bool isFree() const { return value == FREE_VALUE; }
+    /* isFree check should be performed before using these accessors. */
+    uint16_t level() const { JS_ASSERT(!isFree()); return uint16_t(value >> 16); }
+    uint16_t slot() const { JS_ASSERT(!isFree()); return uint16_t(value); }
+
+    void set(const UpvarCookie &other) { set(other.level(), other.slot()); }
+    void set(uint16_t newLevel, uint16_t newSlot) { value = (uint32_t(newLevel) << 16) | newSlot; }
+    void makeFree() { set(0xffff, 0xffff); JS_ASSERT(isFree()); }
+};
+
+/*
  * Parsing builds a tree of nodes that directs code generation.  This tree is
  * not a concrete syntax tree in all respects (for example, || and && are left
  * associative, but (A && B && C) translates into the right-associated tree
@@ -589,7 +633,7 @@ struct ParseNode {
             ParseNode   *left;
             ParseNode   *right;
             Value       *pval;          /* switch case value */
-            uintN       iflags;         /* JSITER_* flags for PNK_FOR node */
+            unsigned       iflags;         /* JSITER_* flags for PNK_FOR node */
         } binary;
         struct {                        /* one kid if unary */
             ParseNode   *kid;
@@ -619,7 +663,7 @@ struct ParseNode {
             AtomDefnMapPtr   defnMap;
             ParseNode        *tree;     /* sub-tree containing name uses */
         } nameset;
-        jsdouble        dval;           /* aligned numeric literal value */
+        double        dval;             /* aligned numeric literal value */
         class {
             friend class LoopControlStatement;
             PropertyName     *label;    /* target of break/continue statement */
@@ -690,6 +734,8 @@ struct ParseNode {
     newBinaryOrAppend(ParseNodeKind kind, JSOp op, ParseNode *left, ParseNode *right,
                       TreeContext *tc);
 
+    inline PropertyName *atom() const;
+
     /*
      * The pn_expr and lexdef members are arms of an unsafe union. Unless you
      * know exactly what you're doing, use only the following methods to access
@@ -711,6 +757,8 @@ struct ParseNode {
     ParseNode  *maybeExpr()   { return pn_used ? NULL : expr(); }
     Definition *maybeLexDef() { return pn_used ? lexdef() : NULL; }
 
+    Definition *resolve();
+
 /* PN_FUNC and PN_NAME pn_dflags bits. */
 #define PND_LET         0x01            /* let (block-scoped) binding */
 #define PND_CONST       0x02            /* const binding (orthogonal to let) */
@@ -721,15 +769,14 @@ struct ParseNode {
 #define PND_GVAR        0x40            /* gvar binding, can't close over
                                            because it could be deleted */
 #define PND_PLACEHOLDER 0x80            /* placeholder definition for lexdep */
-#define PND_FUNARG     0x100            /* downward or upward funarg usage */
-#define PND_BOUND      0x200            /* bound to a stack or global slot */
-#define PND_DEOPTIMIZED 0x400           /* former pn_used name node, pn_lexdef
+#define PND_BOUND      0x100            /* bound to a stack or global slot */
+#define PND_DEOPTIMIZED 0x200           /* former pn_used name node, pn_lexdef
                                            still valid, but this use no longer
                                            optimizable via an upvar opcode */
-#define PND_CLOSED      0x800           /* variable is closed over */
+#define PND_CLOSED      0x400           /* variable is closed over */
 
 /* Flags to propagate from uses to definition. */
-#define PND_USE2DEF_FLAGS (PND_ASSIGNED | PND_FUNARG | PND_CLOSED)
+#define PND_USE2DEF_FLAGS (PND_ASSIGNED | PND_CLOSED)
 
 /* PN_LIST pn_xflags bits. */
 #define PNX_STRCAT      0x01            /* PNK_ADD list has string term */
@@ -753,17 +800,17 @@ struct ParseNode {
 #define PNX_HOLEY      0x400            /* array initialiser has holes */
 #define PNX_NONCONST   0x800            /* initialiser has non-constants */
 
-    uintN frameLevel() const {
+    unsigned frameLevel() const {
         JS_ASSERT(pn_arity == PN_FUNC || pn_arity == PN_NAME);
         return pn_cookie.level();
     }
 
-    uintN frameSlot() const {
+    unsigned frameSlot() const {
         JS_ASSERT(pn_arity == PN_FUNC || pn_arity == PN_NAME);
         return pn_cookie.slot();
     }
 
-    inline bool test(uintN flag) const;
+    inline bool test(unsigned flag) const;
 
     bool isLet() const          { return test(PND_LET); }
     bool isConst() const        { return test(PND_CONST); }
@@ -772,7 +819,6 @@ struct ParseNode {
     bool isPlaceholder() const  { return test(PND_PLACEHOLDER); }
     bool isDeoptimized() const  { return test(PND_DEOPTIMIZED); }
     bool isAssigned() const     { return test(PND_ASSIGNED); }
-    bool isFunArg() const       { return test(PND_FUNARG); }
     bool isClosed() const       { return test(PND_CLOSED); }
 
     /*
@@ -788,9 +834,6 @@ struct ParseNode {
      *     rationale for this behavior.
      */
     bool isTopLevel() const     { return test(PND_TOPLEVEL); }
-
-    /* Defined below, see after struct Definition. */
-    void setFunArg();
 
     void become(ParseNode *pn2);
     void clear();
@@ -929,12 +972,20 @@ struct ParseNode {
 #endif
     inline ConditionalExpression &asConditionalExpression();
     inline PropertyAccess &asPropertyAccess();
+
+#ifdef DEBUG
+    inline void dump(int indent);
+#endif
 };
 
 struct NullaryNode : public ParseNode {
     static inline NullaryNode *create(ParseNodeKind kind, TreeContext *tc) {
         return (NullaryNode *)ParseNode::create(kind, PN_NULLARY, tc);
     }
+
+#ifdef DEBUG
+    inline void dump();
+#endif
 };
 
 struct UnaryNode : public ParseNode {
@@ -947,6 +998,10 @@ struct UnaryNode : public ParseNode {
     static inline UnaryNode *create(ParseNodeKind kind, TreeContext *tc) {
         return (UnaryNode *)ParseNode::create(kind, PN_UNARY, tc);
     }
+
+#ifdef DEBUG
+    inline void dump(int indent);
+#endif
 };
 
 struct BinaryNode : public ParseNode {
@@ -967,6 +1022,10 @@ struct BinaryNode : public ParseNode {
     static inline BinaryNode *create(ParseNodeKind kind, TreeContext *tc) {
         return (BinaryNode *)ParseNode::create(kind, PN_BINARY, tc);
     }
+
+#ifdef DEBUG
+    inline void dump(int indent);
+#endif
 };
 
 struct TernaryNode : public ParseNode {
@@ -983,24 +1042,40 @@ struct TernaryNode : public ParseNode {
     static inline TernaryNode *create(ParseNodeKind kind, TreeContext *tc) {
         return (TernaryNode *)ParseNode::create(kind, PN_TERNARY, tc);
     }
+
+#ifdef DEBUG
+    inline void dump(int indent);
+#endif
 };
 
 struct ListNode : public ParseNode {
     static inline ListNode *create(ParseNodeKind kind, TreeContext *tc) {
         return (ListNode *)ParseNode::create(kind, PN_LIST, tc);
     }
+
+#ifdef DEBUG
+    inline void dump(int indent);
+#endif
 };
 
 struct FunctionNode : public ParseNode {
     static inline FunctionNode *create(ParseNodeKind kind, TreeContext *tc) {
         return (FunctionNode *)ParseNode::create(kind, PN_FUNC, tc);
     }
+
+#ifdef DEBUG
+    inline void dump(int indent);
+#endif
 };
 
 struct NameNode : public ParseNode {
     static NameNode *create(ParseNodeKind kind, JSAtom *atom, TreeContext *tc);
 
     inline void initCommon(TreeContext *tc);
+
+#ifdef DEBUG
+    inline void dump(int indent);
+#endif
 };
 
 struct NameSetNode : public ParseNode {
@@ -1254,6 +1329,10 @@ class PropertyByValue : public ParseNode {
 ParseNode *
 CloneLeftHandSide(ParseNode *opn, TreeContext *tc);
 
+#ifdef DEBUG
+void DumpParseTree(ParseNode *pn, int indent = 0);
+#endif
+
 /*
  * js::Definition is a degenerate subtype of the PN_FUNC and PN_NAME variants
  * of js::ParseNode, allocated only for function, var, const, and let
@@ -1351,52 +1430,11 @@ CloneLeftHandSide(ParseNode *opn, TreeContext *tc);
  * When the compiler unwinds from the outermost tc, tc->lexdeps contains the
  * definition nodes with use chains for all free variables. These are either
  * global variables or reference errors.
- *
- * We analyze whether a binding is initialized, whether the bound names is ever
- * assigned apart from its initializer, and if the bound name definition or use
- * is in a direct child of a block. These PND_* flags allow a subset dominance
- * computation telling whether an initialized var dominates its uses. An inner
- * function using only such outer vars (and formal parameters) can be optimized
- * into a flat closure. See JSOP_{GET,CALL}DSLOT.
- *
- * Another important subset dominance relation: ... { var x = ...; ... x ... }
- * where x is not assigned after initialization and not used outside the block.
- * This style is common in the absence of 'let'. Even though the var x is not
- * at top level, we can tell its initialization dominates all uses cheaply,
- * because the above one-pass algorithm sees the definition before any uses,
- * and because all uses are contained in the same block as the definition.
- *
- * We also analyze function uses to flag upward/downward funargs.  If a lambda
- * post-dominates each of its upvars' sole, inevitable (i.e. not hidden behind
- * conditions or within loops or the like) initialization or assignment; then
- * we can optimize the lambda as a flat closure (after Chez Scheme's display
- * closures).
  */
 #define dn_uses         pn_link
 
 struct Definition : public ParseNode
 {
-    /*
-     * We store definition pointers in PN_NAMESET AtomDefnMapPtrs in the AST,
-     * but due to redefinition these nodes may become uses of other
-     * definitions.  This is unusual, so we simply chase the pn_lexdef link to
-     * find the final definition node. See functions called from
-     * js::frontend::AnalyzeFunctions.
-     *
-     * FIXME: MakeAssignment mutates for want of a parent link...
-     */
-    Definition *resolve() {
-        ParseNode *pn = this;
-        while (!pn->isDefn()) {
-            if (pn->isAssignment()) {
-                pn = pn->pn_left;
-                continue;
-            }
-            pn = pn->lexdef();
-        }
-        return (Definition *) pn;
-    }
-
     bool isFreeVar() const {
         JS_ASSERT(isDefn());
         return pn_cookie.isFree() || test(PND_GVAR);
@@ -1444,11 +1482,11 @@ class ParseNodeAllocator {
 };
 
 inline bool
-ParseNode::test(uintN flag) const
+ParseNode::test(unsigned flag) const
 {
     JS_ASSERT(pn_defn || pn_arity == PN_FUNC || pn_arity == PN_NAME);
 #ifdef DEBUG
-    if ((flag & (PND_ASSIGNED | PND_FUNARG)) && pn_defn && !(pn_dflags & flag)) {
+    if ((flag & PND_ASSIGNED) && pn_defn && !(pn_dflags & flag)) {
         for (ParseNode *pn = ((Definition *) this)->dn_uses; pn; pn = pn->pn_link) {
             JS_ASSERT(!pn->pn_defn);
             JS_ASSERT(!(pn->pn_dflags & flag));
@@ -1458,23 +1496,27 @@ ParseNode::test(uintN flag) const
     return !!(pn_dflags & flag);
 }
 
-inline void
-ParseNode::setFunArg()
+/*
+ * We store definition pointers in PN_NAMESET AtomDefnMapPtrs in the AST,
+ * but due to redefinition these nodes may become uses of other
+ * definitions.  This is unusual, so we simply chase the pn_lexdef link to
+ * find the final definition node. See functions called from
+ * js::frontend::AnalyzeFunctions.
+ *
+ * FIXME: MakeAssignment mutates for want of a parent link...
+ */
+inline Definition *
+ParseNode::resolve()
 {
-    /*
-     * pn_defn NAND pn_used must be true, per this chart:
-     *
-     *   pn_defn pn_used
-     *         0       0        anonymous function used implicitly, e.g. by
-     *                          hidden yield in a genexp
-     *         0       1        a use of a definition or placeholder
-     *         1       0        a definition or placeholder
-     *         1       1        error: this case must not be possible
-     */
-    JS_ASSERT(!(pn_defn & pn_used));
-    if (pn_used)
-        pn_lexdef->pn_dflags |= PND_FUNARG;
-    pn_dflags |= PND_FUNARG;
+    ParseNode *pn = this;
+    while (!pn->isDefn()) {
+        if (pn->isAssignment()) {
+            pn = pn->pn_left;
+            continue;
+        }
+        pn = pn->lexdef();
+    }
+    return (Definition *) pn;
 }
 
 inline void
@@ -1517,8 +1559,6 @@ struct FunctionBox : public ObjectBox
     uint32_t            tcflags;
 
     JSFunction *function() const { return (JSFunction *) object; }
-
-    bool joinable() const;
 
     /*
      * True if this function is inside the scope of a with-statement, an E4X

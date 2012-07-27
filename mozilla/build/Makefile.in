@@ -53,25 +53,29 @@ ifeq (WINNT,$(OS_ARCH))
 DIRS = win32
 endif
 
+ifdef STLPORT_SOURCES
+DIRS += stlport
+endif
+
 DIRS += pgo
 
-ifdef ENABLE_TESTS
-  DIRS += autoconf/test
+TEST_DIRS += autoconf/test
 ifeq (android,$(MOZ_WIDGET_TOOLKIT))
-  DIRS += mobile/sutagent/android \
+TEST_DIRS += mobile/sutagent/android \
           mobile/sutagent/android/watcher \
           mobile/sutagent/android/ffxcp \
           mobile/sutagent/android/fencp \
           mobile/robocop \
           $(NULL)
 endif
-endif
 
 ifdef MOZ_APP_BASENAME
 DIST_FILES = application.ini
 
 ifneq (android,$(MOZ_WIDGET_TOOLKIT))
+ifdef MOZ_UPDATER
 DIST_FILES += update-settings.ini
+endif
 endif
 
 ifdef LIBXUL_SDK
@@ -90,13 +94,13 @@ DEFINES += -DGRE_MILESTONE=$(GRE_MILESTONE) -DAPP_BUILDID=$(APP_BUILDID)
 DEFINES += -DMOZ_APP_VERSION="$(MOZ_APP_VERSION)"
 APP_INI_DEPS += $(DEPTH)/config/autoconf.mk
 
-MOZ_SOURCE_STAMP ?= $(firstword $(shell hg -R $(topsrcdir) parent --template="{node|short}\n" 2>/dev/null))
+MOZ_SOURCE_STAMP := $(firstword $(shell cd $(topsrcdir)/$(MOZ_BUILD_APP)/.. && hg parent --template="{node|short}\n" 2>/dev/null))
 ifdef MOZ_SOURCE_STAMP
 DEFINES += -DMOZ_SOURCE_STAMP="$(MOZ_SOURCE_STAMP)"
 endif
 
 _dollar=$$
-SOURCE_REPO := $(shell cd $(topsrcdir) && hg showconfig paths.default 2>/dev/null | head -n1 | sed -e "s/^ssh:/http:/" -e "s/\/$(_dollar)//" )
+SOURCE_REPO := $(shell cd $(topsrcdir)/$(MOZ_BUILD_APP)/.. && hg showconfig paths.default 2>/dev/null | head -n1 | sed -e "s/^ssh:/http:/" -e "s/\/$(_dollar)//" )
 ifdef SOURCE_REPO
 DEFINES += -DMOZ_SOURCE_REPO="$(SOURCE_REPO)"
 endif
@@ -162,9 +166,11 @@ leaktest.py: leaktest.py.in
 GARBAGE += leaktest.py
 
 ifneq (android,$(MOZ_WIDGET_TOOLKIT))
+ifdef MOZ_UPDATER
 update-settings.ini: update-settings.ini.in $(APP_INI_DEPS)
 	$(PYTHON) $(topsrcdir)/config/Preprocessor.py $(DEFINES) $< > $@
 GARBAGE += update-settings.ini
+endif
 endif
 
 ifdef MOZ_APP_BASENAME

@@ -37,13 +37,23 @@
 #ifndef __NS_SVGMARKERFRAME_H__
 #define __NS_SVGMARKERFRAME_H__
 
-#include "nsSVGContainerFrame.h"
 #include "gfxMatrix.h"
+#include "gfxRect.h"
+#include "nsFrame.h"
+#include "nsLiteralString.h"
+#include "nsQueryFrame.h"
+#include "nsSVGContainerFrame.h"
+#include "nsSVGUtils.h"
 
-class gfxContext;
-class nsSVGPathGeometryFrame;
-class nsIURI;
+class nsIAtom;
 class nsIContent;
+class nsIFrame;
+class nsIPresShell;
+class nsRenderingContext;
+class nsStyleContext;
+class nsSVGPathGeometryFrame;
+class nsSVGSVGElement;
+
 struct nsSVGMark;
 
 typedef nsSVGContainerFrame nsSVGMarkerFrameBase;
@@ -53,11 +63,14 @@ class nsSVGMarkerFrame : public nsSVGMarkerFrameBase
   friend nsIFrame*
   NS_NewSVGMarkerFrame(nsIPresShell* aPresShell, nsStyleContext* aContext);
 protected:
-  nsSVGMarkerFrame(nsStyleContext* aContext) :
-    nsSVGMarkerFrameBase(aContext),
-    mMarkedFrame(nsnull),
-    mInUse(false),
-    mInUse2(false) {}
+  nsSVGMarkerFrame(nsStyleContext* aContext)
+    : nsSVGMarkerFrameBase(aContext)
+    , mMarkedFrame(nsnull)
+    , mInUse(false)
+    , mInUse2(false)
+  {
+    AddStateBits(NS_STATE_SVG_NONDISPLAY_CHILD);
+  }
 
 public:
   NS_DECL_FRAMEARENA_HELPERS
@@ -87,12 +100,12 @@ public:
 #endif
 
   // nsSVGMarkerFrame methods:
-  nsresult PaintMark(nsSVGRenderState *aContext,
+  nsresult PaintMark(nsRenderingContext *aContext,
                      nsSVGPathGeometryFrame *aMarkedFrame,
                      nsSVGMark *aMark,
                      float aStrokeWidth);
 
-  gfxRect GetMarkBBoxContribution(const gfxMatrix &aToBBoxUserspace,
+  SVGBBox GetMarkBBoxContribution(const gfxMatrix &aToBBoxUserspace,
                                   PRUint32 aFlags,
                                   nsSVGPathGeometryFrame *aMarkedFrame,
                                   const nsSVGMark *aMark,

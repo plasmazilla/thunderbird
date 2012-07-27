@@ -56,7 +56,7 @@ ThrowException(nsresult ex, JSContext *cx)
 }
 
 static JSBool
-UnwrapNW(JSContext *cx, uintN argc, jsval *vp)
+UnwrapNW(JSContext *cx, unsigned argc, jsval *vp)
 {
   if (argc != 1) {
     return ThrowException(NS_ERROR_XPC_NOT_ENOUGH_ARGS, cx);
@@ -83,7 +83,7 @@ UnwrapNW(JSContext *cx, uintN argc, jsval *vp)
 }
 
 static JSBool
-XrayWrapperConstructor(JSContext *cx, uintN argc, jsval *vp)
+XrayWrapperConstructor(JSContext *cx, unsigned argc, jsval *vp)
 {
   if (argc == 0) {
     return ThrowException(NS_ERROR_XPC_NOT_ENOUGH_ARGS, cx);
@@ -123,12 +123,12 @@ AttachNewConstructorObject(XPCCallContext &ccx, JSObject *aGlobalObject)
 namespace XPCWrapper {
 
 JSObject *
-Unwrap(JSContext *cx, JSObject *wrapper)
+Unwrap(JSContext *cx, JSObject *wrapper, bool stopAtOuter)
 {
   if (js::IsWrapper(wrapper)) {
     if (xpc::AccessCheck::isScriptAccessOnly(cx, wrapper))
       return nsnull;
-    return js::UnwrapObject(wrapper);
+    return js::UnwrapObject(wrapper, stopAtOuter);
   }
 
   return nsnull;

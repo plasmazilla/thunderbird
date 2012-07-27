@@ -72,6 +72,9 @@ pref("toolkit.zoomManager.zoomValues", ".2,.3,.5,.67,.8,.9,1,1.1,1.2,1.33,1.5,1.
 // Mobile will use faster, less durable mode.
 pref("toolkit.storage.synchronous", 0);
 
+// disable telemetry for beta
+pref("toolkit.telemetry.enabled", false);
+
 // Device pixel to CSS px ratio, in percent. Set to -1 to calculate based on display density.
 pref("browser.viewport.scaleRatio", -1);
 pref("browser.viewport.desktopWidth", 980);
@@ -90,9 +93,10 @@ pref("ui.scrollbarsCanOverlapContent", 1);
 
 /* cache prefs */
 pref("browser.cache.disk.enable", true);
-pref("browser.cache.disk.capacity", 10240); // kilobytes
-pref("browser.cache.disk.smart_size.enabled", false);
-pref("browser.cache.disk.smart_size.first_run", false);
+pref("browser.cache.disk.capacity", 20480); // kilobytes
+pref("browser.cache.disk.max_entry_size", 4096); // kilobytes
+pref("browser.cache.disk.smart_size.enabled", true);
+pref("browser.cache.disk.smart_size.first_run", true);
 
 pref("browser.cache.memory.enable", true);
 pref("browser.cache.memory.capacity", 1024); // kilobytes
@@ -145,7 +149,7 @@ pref("browser.sessionhistory.max_entries", 50);
 
 /* session store */
 pref("browser.sessionstore.resume_session_once", false);
-pref("browser.sessionstore.resume_from_crash", true);
+pref("browser.sessionstore.resume_from_crash", false);
 pref("browser.sessionstore.resume_from_crash_timeout", 60); // minutes
 pref("browser.sessionstore.interval", 10000); // milliseconds
 pref("browser.sessionstore.max_tabs_undo", 1);
@@ -221,13 +225,14 @@ pref("extensions.strictCompatibility", false);
 pref("extensions.minCompatibleAppVersion", "11.0");
 
 pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%&compatMode=%COMPATIBILITY_MODE%");
+pref("extensions.update.background.url", "https://versioncheck-bg.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%&compatMode=%COMPATIBILITY_MODE%");
 
 /* preferences for the Get Add-ons pane */
 pref("extensions.getAddons.cache.enabled", true);
 pref("extensions.getAddons.maxResults", 15);
 pref("extensions.getAddons.recommended.browseURL", "https://addons.mozilla.org/%LOCALE%/android/recommended/");
 pref("extensions.getAddons.recommended.url", "https://services.addons.mozilla.org/%LOCALE%/android/api/%API_VERSION%/list/featured/all/%MAX_RESULTS%/%OS%/%VERSION%");
-pref("extensions.getAddons.search.browseURL", "https://addons.mozilla.org/%LOCALE%/android/search?q=%TERMS%");
+pref("extensions.getAddons.search.browseURL", "https://addons.mozilla.org/%LOCALE%/android/search?q=%TERMS%&platform=%OS%&appver=%VERSION%");
 pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/android/api/%API_VERSION%/search/%TERMS%/all/%MAX_RESULTS%/%OS%/%VERSION%/%COMPATIBILITY_MODE%");
 pref("extensions.getAddons.browseAddons", "https://addons.mozilla.org/%LOCALE%/android/");
 pref("extensions.getAddons.get.url", "https://services.addons.mozilla.org/%LOCALE%/android/api/%API_VERSION%/search/guid:%IDS%?src=mobile&appOS=%OS%&appVersion=%VERSION%");
@@ -247,8 +252,14 @@ pref("extensions.blocklist.detailsURL", "https://www.mozilla.com/%LOCALE%/blockl
 pref("dom.disable_open_during_load", true);
 pref("privacy.popups.showBrowserMessage", true);
 
+/* disable opening windows with the dialog feature */
+pref("dom.disable_window_open_dialog_feature", true);
+pref("dom.disable_window_showModalDialog", true);
+pref("dom.disable_window_print", true);
+pref("dom.disable_window_find", true);
+
 pref("keyword.enabled", true);
-pref("keyword.URL", "http://www.google.com/m?ie=UTF-8&oe=UTF-8&sourceid=navclient&gfns=1&q=");
+pref("keyword.URL", "");
 
 pref("accessibility.typeaheadfind", false);
 pref("accessibility.typeaheadfind.timeout", 5000);
@@ -358,6 +369,27 @@ pref("places.frecency.unvisitedTypedBonus", 200);
 // disable color management
 pref("gfx.color_management.mode", 0);
 
+#ifdef ANDROID
+// 0=fixed margin, 1=velocity bias, 2=dynamic resolution, 3=no margins, 4=prediction bias
+pref("gfx.displayport.strategy", 1);
+// all of the following displayport strategy prefs will be divided by 1000
+// to obtain some multiplier which is then used in the strategy.
+// fixed margin strategy options
+pref("gfx.displayport.strategy_fm.multiplier", -1); // displayport dimension multiplier
+pref("gfx.displayport.strategy_fm.danger_x", -1); // danger zone on x-axis when multiplied by viewport width
+pref("gfx.displayport.strategy_fm.danger_y", -1); // danger zone on y-axis when multiplied by viewport height
+// velocity bias strategy options
+pref("gfx.displayport.strategy_vb.multiplier", -1); // displayport dimension multiplier
+pref("gfx.displayport.strategy_vb.threshold", -1); // velocity threshold in inches/frame
+pref("gfx.displayport.strategy_vb.reverse_buffer", -1); // fraction of buffer to keep in reverse direction from scroll
+pref("gfx.displayport.strategy_vb.danger_x_base", -1); // danger zone on x-axis when multiplied by viewport width
+pref("gfx.displayport.strategy_vb.danger_y_base", -1); // danger zone on y-axis when multiplied by viewport height
+pref("gfx.displayport.strategy_vb.danger_x_incr", -1); // additional danger zone on x-axis when multiplied by viewport width and velocity
+pref("gfx.displayport.strategy_vb.danger_y_incr", -1); // additional danger zone on y-axis when multiplied by viewport height and velocity
+// prediction bias strategy options
+pref("gfx.displayport.strategy_pb.threshold", -1); // velocity threshold in inches/frame
+#endif
+
 // don't allow JS to move and resize existing windows
 pref("dom.disable_window_move_resize", true);
 
@@ -416,27 +448,17 @@ pref("dom.max_script_run_time", 20);
 // JS error console
 pref("devtools.errorconsole.enabled", false);
 
-pref("browser.ui.layout.tablet", -1); // on: 1, off: 0, auto: -1
-
-// kinetic tweakables
-pref("browser.ui.kinetic.updateInterval", 16);
-pref("browser.ui.kinetic.exponentialC", 1400);
-pref("browser.ui.kinetic.polynomialC", 100);
-pref("browser.ui.kinetic.swipeLength", 160);
-
 pref("font.size.inflation.minTwips", 120);
 
-// pinch gesture
-pref("browser.ui.pinch.maxGrowth", 150);     // max pinch distance growth
-pref("browser.ui.pinch.maxShrink", 200);     // max pinch distance shrinkage
-pref("browser.ui.pinch.scalingFactor", 500); // scaling factor for above pinch limits
+// When true, zooming will be enabled on all sites, even ones that declare user-scalable=no.
+pref("browser.ui.zoom.force-user-scalable", false);
 
 // Touch radius (area around the touch location to look for target elements),
 // in 1/240-inch pixels:
-pref("browser.ui.touch.left", 8);
-pref("browser.ui.touch.right", 8);
-pref("browser.ui.touch.top", 12);
-pref("browser.ui.touch.bottom", 4);
+pref("browser.ui.touch.left", 32);
+pref("browser.ui.touch.right", 32);
+pref("browser.ui.touch.top", 48);
+pref("browser.ui.touch.bottom", 16);
 pref("browser.ui.touch.weight.visited", 120); // percentage
 
 // plugins
@@ -452,6 +474,10 @@ pref("dom.ipc.plugins.enabled", true);
 #endif
 
 pref("plugins.click_to_play", true);
+// Disabled because of thread safety problem
+// in getting the bits from the surface.
+// Bug 756253
+pref("plugins.use_placeholder", 0);
 
 // process priority
 // higher values give content process less CPU time
@@ -464,13 +490,16 @@ pref("dom.ipc.content.nice", 1);
 // product URLs
 // The breakpad report server to link to in about:crashes
 pref("breakpad.reportURL", "http://crash-stats.mozilla.com/report/index/");
-pref("app.releaseNotesURL", "http://www.mozilla.com/%LOCALE%/mobile/%VERSION%/releasenotes/");
-pref("app.sync.tutorialURL", "https://support.mozilla.com/kb/sync-firefox-between-desktop-and-mobile");
-pref("app.support.baseURL", "http://support.mozilla.com/mobile");
+pref("app.support.baseURL", "http://support.mozilla.org/1/mobile/%VERSION%/%OS%/%LOCALE%/");
 pref("app.feedbackURL", "http://input.mozilla.com/feedback/");
 pref("app.privacyURL", "http://www.mozilla.com/%LOCALE%/m/privacy.html");
 pref("app.creditsURL", "http://www.mozilla.org/credits/");
 pref("app.channelURL", "http://www.mozilla.org/%LOCALE%/firefox/channel/");
+#if MOZ_UPDATE_CHANNEL == aurora
+pref("app.releaseNotesURL", "http://www.mozilla.com/%LOCALE%/mobile/%VERSION%/auroranotes/");
+#else
+pref("app.releaseNotesURL", "http://www.mozilla.com/%LOCALE%/mobile/%VERSION%/releasenotes/");
+#endif
 #if MOZ_UPDATE_CHANNEL == beta
 pref("app.featuresURL", "http://www.mozilla.com/%LOCALE%/mobile/beta/features/");
 pref("app.faqURL", "http://www.mozilla.com/%LOCALE%/mobile/beta/faq/");
@@ -478,6 +507,7 @@ pref("app.faqURL", "http://www.mozilla.com/%LOCALE%/mobile/beta/faq/");
 pref("app.featuresURL", "http://www.mozilla.com/%LOCALE%/mobile/features/");
 pref("app.faqURL", "http://www.mozilla.com/%LOCALE%/mobile/faq/");
 #endif
+pref("app.marketplaceURL", "https://marketplace.mozilla.org/");
 
 // Name of alternate about: page for certificate errors (when undefined, defaults to about:neterror)
 pref("security.alternate_certificate_error_page", "certerror");
@@ -594,6 +624,8 @@ pref("layers.acceleration.disabled", false);
 pref("layers.acceleration.disabled", true);
 #endif
 
+pref("layers.offmainthreadcomposition.enabled", true);
+
 pref("notification.feature.enabled", true);
 
 // prevent tooltips from showing up
@@ -695,3 +727,36 @@ pref("full-screen-api.enabled", true);
 
 pref("direct-texture.force.enabled", false);
 pref("direct-texture.force.disabled", false);
+
+// show checkerboard pattern on android; we use background colour instead
+pref("gfx.show_checkerboard_pattern", true);
+
+pref("remote-debugger.enabled", false);
+pref("remote-debugger.port", 6000);
+
+// This fraction in 1000ths of velocity remains after every animation frame when the velocity is low.
+pref("ui.scrolling.friction_slow", -1);
+// This fraction in 1000ths of velocity remains after every animation frame when the velocity is high.
+pref("ui.scrolling.friction_fast", -1);
+// Below this velocity (in pixels per frame), the friction starts increasing from friction_fast
+// to friction_slow.
+pref("ui.scrolling.velocity_threshold", -1);
+// The maximum velocity change factor between events, per ms, in 1000ths.
+// Direction changes are excluded.
+pref("ui.scrolling.max_event_acceleration", -1);
+// The rate of deceleration when the surface has overscrolled, in 1000ths.
+pref("ui.scrolling.overscroll_decel_rate", -1);
+// The fraction of the surface which can be overscrolled before it must snap back, in 1000ths.
+pref("ui.scrolling.overscroll_snap_limit", -1);
+// The minimum amount of space that must be present for an axis to be considered scrollable,
+// in 1/1000ths of pixels.
+pref("ui.scrolling.min_scrollable_distance", -1);
+// A comma-separated list of float values in the range [0.0, 1.0) that are used as
+// interpolation frames for zoom animations.
+pref("ui.zooming.animation_frames", "");
+
+// Mobile manages state by autodetection
+pref("network.manage-offline-status", true);
+
+// increase the timeout clamp for background tabs to 15 minutes
+pref("dom.min_background_timeout_value", 900000);

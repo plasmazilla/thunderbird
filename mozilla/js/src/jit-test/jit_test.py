@@ -132,7 +132,11 @@ def get_test_cmd(path, jitflags, lib_dir, shell_args):
     libdir_var = lib_dir
     if not libdir_var.endswith('/'):
         libdir_var += '/'
-    expr = "const platform=%r; const libdir=%r;"%(sys.platform, libdir_var)
+    scriptdir_var = os.path.dirname(path);
+    if not scriptdir_var.endswith('/'):
+        scriptdir_var += '/'
+    expr = ("const platform=%r; const libdir=%r; const scriptdir=%r"
+            % (sys.platform, libdir_var, scriptdir_var))
     # We may have specified '-a' or '-d' twice: once via --jitflags, once
     # via the "|jit-test|" line.  Remove dups because they are toggles.
     return ([ JS ] + list(set(jitflags)) + shell_args +
@@ -431,7 +435,6 @@ def main(argv):
         op.error('missing JS_SHELL argument')
     # We need to make sure we are using backslashes on Windows.
     JS, test_args = os.path.normpath(args[0]), args[1:]
-    JS = os.path.realpath(JS) # Burst through the symlinks!
 
     if stdio_might_be_broken():
         # Prefer erring on the side of caution and not using stdio if

@@ -101,7 +101,6 @@ ifeq (,$(strip $(AUTOCONF)))
 AUTOCONF=$(error Could not find autoconf 2.13)
 endif
 
-MKDIR := mkdir
 SH := /bin/sh
 PERL ?= perl
 PYTHON ?= python
@@ -181,6 +180,9 @@ OBJDIR_TARGETS = install export libs clean realclean distclean alldep maybe_clob
 build::
 	$(MAKE) -f $(TOPSRCDIR)/client.mk $(if $(MOZ_PGO),profiledbuild,realbuild)
 
+# Define mkdir
+include $(TOPSRCDIR)/config/makefiles/makeutils.mk
+include $(TOPSRCDIR)/config/makefiles/autotargets.mk
 
 # Print out any options loaded from mozconfig.
 all realbuild clean depend distclean export libs install realclean::
@@ -195,6 +197,9 @@ build_all: build
 build_all_dep: alldep
 build_all_depend: alldep
 clobber clobber_all: clean
+
+# helper target for mobile
+build_and_deploy: build package install
 
 # Do everything from scratch
 everything: clean build
@@ -218,7 +223,7 @@ endif
 
 profiledbuild::
 	$(MAKE) -f $(TOPSRCDIR)/client.mk realbuild MOZ_PROFILE_GENERATE=1 MOZ_PGO_INSTRUMENTED=1
-	$(MAKE) -C $(PGO_OBJDIR) stage-package MOZ_PGO_INSTRUMENTED=1
+	$(MAKE) -C $(PGO_OBJDIR) package MOZ_PGO_INSTRUMENTED=1 MOZ_INTERNAL_SIGNING_FORMAT= MOZ_EXTERNAL_SIGNING_FORMAT=
 	MOZ_PGO_INSTRUMENTED=1 OBJDIR=${PGO_OBJDIR} JARLOG_DIR=${PGO_OBJDIR}/jarlog/en-US $(PROFILE_GEN_SCRIPT)
 	$(MAKE) -f $(TOPSRCDIR)/client.mk maybe_clobber_profiledbuild
 	$(MAKE) -f $(TOPSRCDIR)/client.mk realbuild MOZ_PROFILE_USE=1
@@ -292,13 +297,15 @@ $(CONFIGURES): %: %.in $(EXTRA_CONFIG_DEPS)
 	cd $(@D); $(AUTOCONF)
 
 CONFIG_STATUS_DEPS := \
-	$(wildcard $(CONFIGURES)) \
-	$(TOPSRCDIR)/allmakefiles.sh \
-	$(wildcard $(TOPSRCDIR)/nsprpub/configure) \
-	$(wildcard $(TOPSRCDIR)/config/milestone.txt) \
-	$(wildcard $(TOPSRCDIR)/js/src/config/milestone.txt) \
-	$(wildcard $(TOPSRCDIR)/browser/config/version.txt) \
-	$(wildcard $(addsuffix confvars.sh,$(wildcard $(TOPSRCDIR)/*/))) \
+	$(wildcard \
+        $(CONFIGURES) \
+        $(TOPSRCDIR)/allmakefiles.sh \
+        $(TOPSRCDIR)/nsprpub/configure \
+        $(TOPSRCDIR)/config/milestone.txt \
+        $(TOPSRCDIR)/js/src/config/milestone.txt \
+        $(TOPSRCDIR)/browser/config/version.txt \
+        $(TOPSRCDIR)/*/confvars.sh \
+	) \
 	$(NULL)
 
 CONFIGURE_ENV_ARGS += \
@@ -316,11 +323,13 @@ endif
 
 configure-files: $(CONFIGURES)
 
-configure:: configure-files
-ifdef MOZ_BUILD_PROJECTS
-	@if test ! -d $(MOZ_OBJDIR); then $(MKDIR) $(MOZ_OBJDIR); else true; fi
-endif
-	@if test ! -d $(OBJDIR); then $(MKDIR) $(OBJDIR); else true; fi
+configure-preqs = \
+  configure-files \
+  $(call mkdir_deps,$(OBJDIR)) \
+  $(if $(MOZ_BUILD_PROJECTS),$(call mkdir_deps,$(MOZ_OBJDIR))) \
+  $(NULL)
+
+configure:: $(configure-preqs)
 	@echo cd $(OBJDIR);
 	@echo $(CONFIGURE) $(CONFIGURE_ARGS)
 	@cd $(OBJDIR) && $(BUILD_PROJECT_ARG) $(CONFIGURE_ENV_ARGS) $(CONFIGURE) $(CONFIGURE_ARGS) \
@@ -364,8 +373,7 @@ endif
 ####################################
 # Build it
 
-realbuild::  $(OBJDIR)/Makefile $(OBJDIR)/config.status
-	@$(PYTHON) $(TOPSRCDIR)/js/src/config/check-sync-dirs.py $(TOPSRCDIR)/js/src/config $(TOPSRCDIR)/config
+realbuild::  $(OBJDIR)/Makefile $(OBJDIR)/config.status check-sync-dirs-config
 	$(MOZ_MAKE)
 
 ####################################
@@ -422,6 +430,12 @@ cleansrcdir:
 	          -o \( -name '*.[ao]' -o -name '*.so' \) -type f -print`; \
 	   build/autoconf/clean-config.sh; \
 	fi;
+
+## Sanity check $X and js/src/$X are in sync
+.PHONY: check-sync-dirs
+check-sync-dirs: check-sync-dirs-build check-sync-dirs-config
+check-sync-dirs-%:
+	@$(PYTHON) $(TOPSRCDIR)/js/src/config/check-sync-dirs.py $(TOPSRCDIR)/js/src/$* $(TOPSRCDIR)/$*
 
 echo-variable-%:
 	@echo $($*)

@@ -79,8 +79,7 @@ let EXPORTED_SYMBOLS = [
  */
 
 XPCOMUtils.defineLazyGetter(this, "_prefs", function() {
-  return Services.prefs.getBranch(PREF_TASKBAR_BRANCH)
-                       .QueryInterface(Ci.nsIPrefBranch2);
+  return Services.prefs.getBranch(PREF_TASKBAR_BRANCH);
 });
 
 XPCOMUtils.defineLazyGetter(this, "_stringBundle", function() {
@@ -478,8 +477,6 @@ var WinTaskbarJumpList =
     var options = PlacesUtils.history.getNewQueryOptions();
     options.maxResults = aLimit;
     options.sortingMode = aSortingMode;
-    // We don't want source redirects for these queries.
-    options.redirectsMode = Ci.nsINavHistoryQueryOptions.REDIRECTS_MODE_TARGET;
     var query = PlacesUtils.history.getNewQuery();
 
     // Return the pending statement to the caller, to allow cancelation.

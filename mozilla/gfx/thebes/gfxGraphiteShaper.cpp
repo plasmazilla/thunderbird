@@ -40,7 +40,6 @@
 #include "nsString.h"
 #include "nsBidiUtils.h"
 #include "nsMathUtils.h"
-#include "nsHashSets.h"
 
 #include "gfxTypes.h"
 
@@ -48,12 +47,11 @@
 #include "gfxPlatform.h"
 #include "gfxGraphiteShaper.h"
 #include "gfxFontUtils.h"
-#include "gfxUnicodeProperties.h"
 
 #include "graphite2/Font.h"
 #include "graphite2/Segment.h"
 
-#include "harfbuzz/hb-blob.h"
+#include "harfbuzz/hb.h"
 
 #include "cairo.h"
 
@@ -90,7 +88,6 @@ ReleaseTableFunc(const PRUint32& /* aKey */,
                  gfxGraphiteShaper::TableRec& aData,
                  void* /* aUserArg */)
 {
-    hb_blob_unlock(aData.mBlob);
     hb_blob_destroy(aData.mBlob);
     return PL_DHASH_REMOVE;
 }
@@ -124,11 +121,8 @@ gfxGraphiteShaper::GetTable(PRUint32 aTag, size_t *aLength)
         if (blob) {
             // mFont->GetFontTable() gives us a reference to the blob.
             // We will destroy (release) it in our destructor.
-            // Meanwhile, we hold the blob locked because Graphite expects
-            // the table pointer to remain valid for the life of the face.
             tableRec.mBlob = blob;
-            tableRec.mData = hb_blob_lock(blob);
-            tableRec.mLength = hb_blob_get_length(blob);
+            tableRec.mData = hb_blob_get_data(blob, &tableRec.mLength);
             mTables.Put(aTag, tableRec);
         } else {
             return nsnull;
@@ -166,7 +160,9 @@ gfxGraphiteShaper::ShapeWord(gfxContext      *aContext,
                              const PRUnichar *aText)
 {
     // some font back-ends require this in order to get proper hinted metrics
-    mFont->SetupCairoFont(aContext);
+    if (!mFont->SetupCairoFont(aContext)) {
+        return false;
+    }
 
     mCallbackData.mContext = aContext;
 

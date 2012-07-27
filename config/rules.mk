@@ -94,24 +94,6 @@ ifdef LIBXUL_SDK
 VPATH += $(LIBXUL_SDK)/lib
 endif
 
-# EXPAND_LIBNAME - $(call EXPAND_LIBNAME,foo)
-# expands to $(LIB_PREFIX)foo.$(LIB_SUFFIX) or -lfoo, depending on linker
-# arguments syntax. Should only be used for system libraries
-
-# EXPAND_LIBNAME_PATH - $(call EXPAND_LIBNAME_PATH,foo,dir)
-# expands to dir/$(LIB_PREFIX)foo.$(LIB_SUFFIX)
-
-# EXPAND_MOZLIBNAME - $(call EXPAND_MOZLIBNAME,foo)
-# expands to $(DIST)/lib/$(LIB_PREFIX)foo.$(LIB_SUFFIX)
-
-ifdef GNU_CC
-EXPAND_LIBNAME = $(addprefix -l,$(1))
-else
-EXPAND_LIBNAME = $(foreach lib,$(1),$(LIB_PREFIX)$(lib).$(LIB_SUFFIX))
-endif
-EXPAND_LIBNAME_PATH = $(foreach lib,$(1),$(2)/$(LIB_PREFIX)$(lib).$(LIB_SUFFIX))
-EXPAND_MOZLIBNAME = $(foreach lib,$(1),$(DIST)/lib/$(LIB_PREFIX)$(lib).$(LIB_SUFFIX))
-
 ifdef EXTRA_DSO_LIBS
 EXTRA_DSO_LIBS	:= $(call EXPAND_MOZLIBNAME,$(EXTRA_DSO_LIBS))
 endif
@@ -329,9 +311,6 @@ endif
 
 endif # !GNU_CC
 
-ifdef ENABLE_CXX_EXCEPTIONS
-CXXFLAGS += $(MOZ_EXCEPTIONS_FLAGS_ON) -DMOZ_CPP_EXCEPTIONS=1
-endif # ENABLE_CXX_EXCEPTIONS
 endif # WINNT
 
 ifeq ($(SOLARIS_SUNPRO_CXX),1)
@@ -971,11 +950,7 @@ ifdef MOZ_PROFILE_GENERATE
 	touch -t `date +%Y%m%d%H%M.%S -d "now+5seconds"` pgo.relink
 endif
 else # !WINNT || GNU_CC
-ifeq ($(CPP_PROG_LINK),1)
 	$(EXPAND_CCC) -o $@ $(CXXFLAGS) $(PROGOBJS) $(RESFILE) $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(WRAP_LDFLAGS) $(MOZ_GLUE_PROGRAM_LDFLAGS) $(LIBS_DIR) $(LIBS) $(OS_LIBS) $(EXTRA_LIBS) $(BIN_FLAGS) $(EXE_DEF_FILE)
-else # ! CPP_PROG_LINK
-	$(EXPAND_CC) -o $@ $(CFLAGS) $(PROGOBJS) $(RESFILE) $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(MOZ_GLUE_PROGRAM_LDFLAGS) $(WRAP_LDFLAGS) $(LIBS_DIR) $(LIBS) $(OS_LIBS) $(EXTRA_LIBS) $(BIN_FLAGS) $(EXE_DEF_FILE)
-endif # CPP_PROG_LINK
 endif # WINNT && !GNU_CC
 endif # WINCE
 
@@ -1042,11 +1017,7 @@ ifdef MSMANIFEST_TOOL
 	fi
 endif	# MSVC with manifest tool
 else
-ifeq ($(CPP_PROG_LINK),1)
 	$(EXPAND_CCC) $(CXXFLAGS) -o $@ $< $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(MOZ_GLUE_PROGRAM_LDFLAGS) $(WRAP_LDFLAGS) $(LIBS_DIR) $(LIBS) $(OS_LIBS) $(EXTRA_LIBS) $(BIN_FLAGS)
-else
-	$(EXPAND_CC) $(CFLAGS) $(OUTOPTION)$@ $< $(WIN32_EXE_LDFLAGS) $(LDFLAGS) $(MOZ_GLUE_PROGRAM_LDFLAGS) $(WRAP_LDFLAGS) $(LIBS_DIR) $(LIBS) $(OS_LIBS) $(EXTRA_LIBS) $(BIN_FLAGS)
-endif # CPP_PROG_LINK
 endif # WINNT && !GNU_CC
 endif # WINCE
 

@@ -148,26 +148,9 @@
  * object allocation and the assignment.
  */
 
+struct JSXML;
+
 namespace js {
-
-/*
- * Ideally, we would like to make the argument to functions like MarkShape be a
- * HeapPtr<const js::Shape>. That would ensure that we don't forget to
- * barrier any fields that we mark through. However, that would prohibit us from
- * passing in a derived class like HeapPtr<js::EmptyShape>.
- *
- * To overcome the problem, we make the argument to MarkShape be a
- * MarkablePtr<const js::Shape>. And we allow conversions from HeapPtr<T>
- * to MarkablePtr<U> as long as T can be converted to U.
- */
-template<class T>
-class MarkablePtr
-{
-  public:
-    T *value;
-
-    explicit MarkablePtr(T *value) : value(value) {}
-};
 
 template<class T, typename Unioned = uintptr_t>
 class HeapPtr
@@ -230,13 +213,6 @@ class HeapPtr
 
     operator T*() const { return value; }
 
-    /*
-     * This coerces to MarkablePtr<U> as long as T can coerce to U. See the
-     * comment for MarkablePtr above.
-     */
-    template<class U>
-    operator MarkablePtr<U>() const { return MarkablePtr<U>(value); }
-
   private:
     void pre() { T::writeBarrierPre(value); }
     void post() { T::writeBarrierPost(value, (void *)&value); }
@@ -269,6 +245,11 @@ BarrieredSetPair(JSCompartment *comp,
     v2.post();
 }
 
+struct Shape;
+class BaseShape;
+namespace types { struct TypeObject; }
+
+typedef HeapPtr<JSAtom> HeapPtrAtom;
 typedef HeapPtr<JSObject> HeapPtrObject;
 typedef HeapPtr<JSFunction> HeapPtrFunction;
 typedef HeapPtr<JSString> HeapPtrString;
@@ -293,15 +274,73 @@ struct HeapPtrHasher
 template <class T>
 struct DefaultHasher< HeapPtr<T> >: HeapPtrHasher<T> { };
 
-class HeapValue
+class EncapsulatedValue
 {
+  protected:
     Value value;
 
+    /*
+     * Ensure that EncapsulatedValue is not constructable, except by our
+     * implementations.
+     */
+    EncapsulatedValue() MOZ_DELETE;
+    EncapsulatedValue(const EncapsulatedValue &v) MOZ_DELETE;
+    EncapsulatedValue &operator=(const Value &v) MOZ_DELETE;
+    EncapsulatedValue &operator=(const EncapsulatedValue &v) MOZ_DELETE;
+
+    EncapsulatedValue(const Value &v) : value(v) {}
+    ~EncapsulatedValue() {}
+
   public:
-    explicit HeapValue() : value(UndefinedValue()) {}
+    const Value &get() const { return value; }
+    Value *unsafeGet() { return &value; }
+    operator const Value &() const { return value; }
+
+    bool isUndefined() const { return value.isUndefined(); }
+    bool isNull() const { return value.isNull(); }
+    bool isBoolean() const { return value.isBoolean(); }
+    bool isTrue() const { return value.isTrue(); }
+    bool isFalse() const { return value.isFalse(); }
+    bool isNumber() const { return value.isNumber(); }
+    bool isInt32() const { return value.isInt32(); }
+    bool isDouble() const { return value.isDouble(); }
+    bool isString() const { return value.isString(); }
+    bool isObject() const { return value.isObject(); }
+    bool isMagic(JSWhyMagic why) const { return value.isMagic(why); }
+    bool isGCThing() const { return value.isGCThing(); }
+    bool isMarkable() const { return value.isMarkable(); }
+
+    bool toBoolean() const { return value.toBoolean(); }
+    double toNumber() const { return value.toNumber(); }
+    int32_t toInt32() const { return value.toInt32(); }
+    double toDouble() const { return value.toDouble(); }
+    JSString *toString() const { return value.toString(); }
+    JSObject &toObject() const { return value.toObject(); }
+    JSObject *toObjectOrNull() const { return value.toObjectOrNull(); }
+    void *toGCThing() const { return value.toGCThing(); }
+
+    JSGCTraceKind gcKind() const { return value.gcKind(); }
+
+    uint64_t asRawBits() const { return value.asRawBits(); }
+
+#ifdef DEBUG
+    JSWhyMagic whyMagic() const { return value.whyMagic(); }
+#endif
+
+    static inline void writeBarrierPre(const Value &v);
+    static inline void writeBarrierPre(JSCompartment *comp, const Value &v);
+
+  protected:
+    inline void pre();
+    inline void pre(JSCompartment *comp);
+};
+
+class HeapValue : public EncapsulatedValue
+{
+  public:
+    explicit inline HeapValue();
     explicit inline HeapValue(const Value &v);
     explicit inline HeapValue(const HeapValue &v);
-
     inline ~HeapValue();
 
     inline void init(const Value &v);
@@ -318,67 +357,75 @@ class HeapValue
      */
     inline void set(JSCompartment *comp, const Value &v);
 
-    const Value &get() const { return value; }
-    operator const Value &() const { return value; }
-
-    bool isMarkable() const { return value.isMarkable(); }
-    bool isMagic(JSWhyMagic why) const { return value.isMagic(why); }
-    bool isUndefined() const { return value.isUndefined(); }
-    bool isObject() const { return value.isObject(); }
-    bool isGCThing() const { return value.isGCThing(); }
-    bool isTrue() const { return value.isTrue(); }
-    bool isFalse() const { return value.isFalse(); }
-    bool isInt32() const { return value.isInt32(); }
-    bool isNull() const { return value.isNull(); }
-
-    JSObject &toObject() const { return value.toObject(); }
-    JSObject *toObjectOrNull() const { return value.toObjectOrNull(); }
-    void *toGCThing() const { return value.toGCThing(); }
-    double toDouble() const { return value.toDouble(); }
-    int32_t toInt32() const { return value.toInt32(); }
-    JSString *toString() const { return value.toString(); }
-    bool toBoolean() const { return value.toBoolean(); }
-    double toNumber() const { return value.toNumber(); }
-
-    JSGCTraceKind gcKind() const { return value.gcKind(); }
-
-#ifdef DEBUG
-    JSWhyMagic whyMagic() const { return value.whyMagic(); }
-#endif
-
-    static inline void writeBarrierPre(const Value &v);
     static inline void writeBarrierPost(const Value &v, void *addr);
-
-    static inline void writeBarrierPre(JSCompartment *comp, const Value &v);
     static inline void writeBarrierPost(JSCompartment *comp, const Value &v, void *addr);
 
   private:
-    inline void pre();
     inline void post();
-
-    inline void pre(JSCompartment *comp);
     inline void post(JSCompartment *comp);
 };
 
-static inline const Value *
-Valueify(const HeapValue *array)
+class HeapSlot : public EncapsulatedValue
 {
-    JS_ASSERT(sizeof(HeapValue) == sizeof(Value));
+    /*
+     * Operator= is not valid for HeapSlot because is must take the object and
+     * slot offset to provide to the post/generational barrier.
+     */
+    inline HeapSlot &operator=(const Value &v) MOZ_DELETE;
+    inline HeapSlot &operator=(const HeapValue &v) MOZ_DELETE;
+    inline HeapSlot &operator=(const HeapSlot &v) MOZ_DELETE;
+
+  public:
+    explicit inline HeapSlot() MOZ_DELETE;
+    explicit inline HeapSlot(JSObject *obj, uint32_t slot, const Value &v);
+    explicit inline HeapSlot(JSObject *obj, uint32_t slot, const HeapSlot &v);
+    inline ~HeapSlot();
+
+    inline void init(JSObject *owner, uint32_t slot, const Value &v);
+    inline void init(JSCompartment *comp, JSObject *owner, uint32_t slot, const Value &v);
+
+    inline void set(JSObject *owner, uint32_t slot, const Value &v);
+    inline void set(JSCompartment *comp, JSObject *owner, uint32_t slot, const Value &v);
+
+    static inline void writeBarrierPost(JSObject *obj, uint32_t slot);
+    static inline void writeBarrierPost(JSCompartment *comp, JSObject *obj, uint32_t slotno);
+
+  private:
+    inline void post(JSObject *owner, uint32_t slot);
+    inline void post(JSCompartment *comp, JSObject *owner, uint32_t slot);
+};
+
+/*
+ * NOTE: This is a placeholder for bug 619558.
+ *
+ * Run a post write barrier that encompasses multiple contiguous slots in a
+ * single step.
+ */
+static inline void
+SlotRangeWriteBarrierPost(JSCompartment *comp, JSObject *obj, uint32_t start, uint32_t count)
+{
+}
+
+static inline const Value *
+Valueify(const EncapsulatedValue *array)
+{
+    JS_STATIC_ASSERT(sizeof(HeapValue) == sizeof(Value));
+    JS_STATIC_ASSERT(sizeof(HeapSlot) == sizeof(Value));
     return (const Value *)array;
 }
 
-class HeapValueArray
+class HeapSlotArray
 {
-    HeapValue *array;
+    HeapSlot *array;
 
   public:
-    HeapValueArray(HeapValue *array) : array(array) {}
+    HeapSlotArray(HeapSlot *array) : array(array) {}
 
     operator const Value *() const { return Valueify(array); }
-    operator HeapValue *() const { return array; }
+    operator HeapSlot *() const { return array; }
 
-    HeapValueArray operator +(int offset) const { return HeapValueArray(array + offset); }
-    HeapValueArray operator +(uint32_t offset) const { return HeapValueArray(array + offset); }
+    HeapSlotArray operator +(int offset) const { return HeapSlotArray(array + offset); }
+    HeapSlotArray operator +(uint32_t offset) const { return HeapSlotArray(array + offset); }
 };
 
 class HeapId
@@ -400,6 +447,7 @@ class HeapId
     bool operator!=(jsid id) const { return value != id; }
 
     jsid get() const { return value; }
+    jsid *unsafeGet() { return &value; }
     operator jsid() const { return value; }
 
   private:
@@ -445,11 +493,31 @@ class ReadBarriered
     void set(T *v) { value = v; }
 
     operator bool() { return !!value; }
-
-    template<class U>
-    operator MarkablePtr<U>() const { return MarkablePtr<U>(value); }
 };
 
-}
+class ReadBarrieredValue
+{
+    Value value;
+
+  public:
+    ReadBarrieredValue() : value(UndefinedValue()) {}
+    ReadBarrieredValue(const Value &value) : value(value) {}
+
+    inline const Value &get() const;
+    inline operator const Value &() const;
+
+    inline JSObject &toObject() const;
+};
+
+namespace tl {
+
+template <class T> struct IsPostBarrieredType<HeapPtr<T> > {
+                                                    static const bool result = true; };
+template <> struct IsPostBarrieredType<HeapSlot>  { static const bool result = true; };
+template <> struct IsPostBarrieredType<HeapValue> { static const bool result = true; };
+template <> struct IsPostBarrieredType<HeapId>    { static const bool result = true; };
+
+} /* namespace tl */
+} /* namespace js */
 
 #endif /* jsgc_barrier_h___ */

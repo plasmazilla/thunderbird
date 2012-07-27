@@ -76,7 +76,6 @@ public:
    */
   virtual void SetDimensions(const nsRect &aRect, bool aPaint = true,
                              bool aResizeWidget = true);
-  void SetInvalidationDimensions(const nsRect* aRect);
 
   /**
    * Called to indicate that the visibility of a view has been
@@ -149,10 +148,6 @@ public:
   // Same as GetBounds but converts to parent appunits if they are different.
   nsRect GetBoundsInParentUnits() const;
 
-  nsRect GetInvalidationDimensions() const {
-    return mHaveInvalidationDimensions ? mInvalidationDimensions : GetDimensions();
-  }
-
   // These are defined exactly the same in nsIView, but for now they have to be redeclared
   // here because of stupid C++ method hiding rules
 
@@ -181,7 +176,7 @@ public:
   void SetTopMost(bool aTopMost) { aTopMost ? mVFlags |= NS_VIEW_FLAG_TOPMOST : mVFlags &= ~NS_VIEW_FLAG_TOPMOST; }
   bool IsTopMost() { return((mVFlags & NS_VIEW_FLAG_TOPMOST) != 0); }
 
-  void ResetWidgetBounds(bool aRecurse, bool aMoveOnly, bool aInvalidateChangedSize);
+  void ResetWidgetBounds(bool aRecurse, bool aForceSync);
   void AssertNoWindow();
 
   void NotifyEffectiveVisibilityChanged(bool aEffectivelyVisible);
@@ -205,13 +200,6 @@ protected:
   void DoResetWidgetBounds(bool aMoveOnly, bool aInvalidateChangedSize);
 
   nsRegion*    mDirtyRegion;
-  // invalidations are clipped to mInvalidationDimensions, not
-  // GetDimensions(), when mHaveInvalidationDimensions is true.  This
-  // is used to support persistent "displayport" rendering; see
-  // nsPresShell.cpp.  The coordinates of mInvalidationDimensions are
-  // relative to |this|.
-  nsRect       mInvalidationDimensions;
-  bool mHaveInvalidationDimensions;
 
 private:
   void InitializeWindow(bool aEnableDragDrop, bool aResetVisibility);

@@ -225,7 +225,7 @@ enum ErrorNum {
 };
 
 const JSErrorFormatString*
-GetErrorMessage(void* userRef, const char* locale, const uintN errorNumber);
+GetErrorMessage(void* userRef, const char* locale, const unsigned errorNumber);
 JSBool TypeError(JSContext* cx, const char* expected, jsval actual);
 
 /**
@@ -348,9 +348,9 @@ struct ClosureInfo
   };
 };
 
-bool IsCTypesGlobal(JSContext* cx, JSObject* obj);
+bool IsCTypesGlobal(JSObject* obj);
 
-JSCTypesCallbacks* GetCallbacks(JSContext* cx, JSObject* obj);
+JSCTypesCallbacks* GetCallbacks(JSObject* obj);
 
 JSBool InitTypeClasses(JSContext* cx, JSObject* parent);
 
@@ -369,6 +369,8 @@ JSBool ExplicitConvert(JSContext* cx, jsval val, JSObject* targetType,
 
 enum CTypesGlobalSlot {
   SLOT_CALLBACKS = 0, // pointer to JSCTypesCallbacks struct
+  SLOT_ERRNO = 1,     // jsval for latest |errno|
+  SLOT_LASTERROR = 2, // jsval for latest |GetLastError|, used only with Windows
   CTYPESGLOBAL_SLOTS
 };
 
@@ -389,8 +391,9 @@ enum CTypeProtoSlot {
   SLOT_FUNCTIONDATAPROTO = 8,  // common ancestor of all CData objects of FunctionType
   SLOT_INT64PROTO        = 9,  // ctypes.Int64.prototype object
   SLOT_UINT64PROTO       = 10, // ctypes.UInt64.prototype object
-  SLOT_OURDATAPROTO      = 11, // the data prototype corresponding to this object
-  SLOT_CLOSURECX         = 12, // JSContext for use with FunctionType closures
+  SLOT_CTYPES            = 11, // ctypes object
+  SLOT_OURDATAPROTO      = 12, // the data prototype corresponding to this object
+  SLOT_CLOSURECX         = 13, // JSContext for use with FunctionType closures
   CTYPEPROTO_SLOTS
 };
 
@@ -454,41 +457,41 @@ namespace CType {
     JSObject* typeProto, JSObject* dataProto, const char* name, TypeCode type,
     jsval size, jsval align, ffi_type* ffiType);
 
-  bool IsCType(JSContext* cx, JSObject* obj);
-  bool IsCTypeProto(JSContext* cx, JSObject* obj);
-  TypeCode GetTypeCode(JSContext* cx, JSObject* typeObj);
-  bool TypesEqual(JSContext* cx, JSObject* t1, JSObject* t2);
-  size_t GetSize(JSContext* cx, JSObject* obj);
-  bool GetSafeSize(JSContext* cx, JSObject* obj, size_t* result);
-  bool IsSizeDefined(JSContext* cx, JSObject* obj);
-  size_t GetAlignment(JSContext* cx, JSObject* obj);
+  bool IsCType(JSObject* obj);
+  bool IsCTypeProto(JSObject* obj);
+  TypeCode GetTypeCode(JSObject* typeObj);
+  bool TypesEqual(JSObject* t1, JSObject* t2);
+  size_t GetSize(JSObject* obj);
+  bool GetSafeSize(JSObject* obj, size_t* result);
+  bool IsSizeDefined(JSObject* obj);
+  size_t GetAlignment(JSObject* obj);
   ffi_type* GetFFIType(JSContext* cx, JSObject* obj);
   JSString* GetName(JSContext* cx, JSObject* obj);
-  JSObject* GetProtoFromCtor(JSContext* cx, JSObject* obj, CTypeProtoSlot slot);
-  JSObject* GetProtoFromType(JSContext* cx, JSObject* obj, CTypeProtoSlot slot);
-  JSCTypesCallbacks* GetCallbacksFromType(JSContext* cx, JSObject* obj);
+  JSObject* GetProtoFromCtor(JSObject* obj, CTypeProtoSlot slot);
+  JSObject* GetProtoFromType(JSObject* obj, CTypeProtoSlot slot);
+  JSCTypesCallbacks* GetCallbacksFromType(JSObject* obj);
 }
 
 namespace PointerType {
   JSObject* CreateInternal(JSContext* cx, JSObject* baseType);
 
-  JSObject* GetBaseType(JSContext* cx, JSObject* obj);
+  JSObject* GetBaseType(JSObject* obj);
 }
 
 namespace ArrayType {
   JSObject* CreateInternal(JSContext* cx, JSObject* baseType, size_t length,
     bool lengthDefined);
 
-  JSObject* GetBaseType(JSContext* cx, JSObject* obj);
-  size_t GetLength(JSContext* cx, JSObject* obj);
-  bool GetSafeLength(JSContext* cx, JSObject* obj, size_t* result);
+  JSObject* GetBaseType(JSObject* obj);
+  size_t GetLength(JSObject* obj);
+  bool GetSafeLength(JSObject* obj, size_t* result);
   ffi_type* BuildFFIType(JSContext* cx, JSObject* obj);
 }
 
 namespace StructType {
   JSBool DefineInternal(JSContext* cx, JSObject* typeObj, JSObject* fieldsObj);
 
-  const FieldInfoHash* GetFieldInfo(JSContext* cx, JSObject* obj);
+  const FieldInfoHash* GetFieldInfo(JSObject* obj);
   const FieldInfo* LookupField(JSContext* cx, JSObject* obj, JSFlatString *name);
   JSObject* BuildFieldsArray(JSContext* cx, JSObject* obj);
   ffi_type* BuildFFIType(JSContext* cx, JSObject* obj);
@@ -496,14 +499,13 @@ namespace StructType {
 
 namespace FunctionType {
   JSObject* CreateInternal(JSContext* cx, jsval abi, jsval rtype,
-    jsval* argtypes, jsuint arglen);
+    jsval* argtypes, unsigned arglen);
 
   JSObject* ConstructWithObject(JSContext* cx, JSObject* typeObj,
     JSObject* refObj, PRFuncPtr fnptr, JSObject* result);
 
-  FunctionInfo* GetFunctionInfo(JSContext* cx, JSObject* obj);
-  JSObject* GetLibrary(JSContext* cx, JSObject* obj);
-  void BuildSymbolName(JSContext* cx, JSString* name, JSObject* typeObj,
+  FunctionInfo* GetFunctionInfo(JSObject* obj);
+  void BuildSymbolName(JSString* name, JSObject* typeObj,
     AutoCString& result);
 }
 
@@ -516,23 +518,23 @@ namespace CData {
   JSObject* Create(JSContext* cx, JSObject* typeObj, JSObject* refObj,
     void* data, bool ownResult);
 
-  JSObject* GetCType(JSContext* cx, JSObject* dataObj);
-  void* GetData(JSContext* cx, JSObject* dataObj);
-  bool IsCData(JSContext* cx, JSObject* obj);
-  bool IsCDataProto(JSContext* cx, JSObject* obj);
+  JSObject* GetCType(JSObject* dataObj);
+  void* GetData(JSObject* dataObj);
+  bool IsCData(JSObject* obj);
+  bool IsCDataProto(JSObject* obj);
 
   // Attached by JSAPI as the function 'ctypes.cast'
-  JSBool Cast(JSContext* cx, uintN argc, jsval* vp);
+  JSBool Cast(JSContext* cx, unsigned argc, jsval* vp);
   // Attached by JSAPI as the function 'ctypes.getRuntime'
-  JSBool GetRuntime(JSContext* cx, uintN argc, jsval* vp);
+  JSBool GetRuntime(JSContext* cx, unsigned argc, jsval* vp);
 }
 
 namespace Int64 {
-  bool IsInt64(JSContext* cx, JSObject* obj);
+  bool IsInt64(JSObject* obj);
 }
 
 namespace UInt64 {
-  bool IsUInt64(JSContext* cx, JSObject* obj);
+  bool IsUInt64(JSObject* obj);
 }
 
 }

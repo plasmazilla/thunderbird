@@ -56,17 +56,19 @@ public class GeckoThread extends Thread {
 
     Intent mIntent;
     String mUri;
-    boolean mRestoreSession;
+    int mRestoreMode;
 
-    GeckoThread (Intent intent, String uri, boolean restoreSession) {
+    GeckoThread(Intent intent, String uri, int restoreMode) {
         mIntent = intent;
         mUri = uri;
-        mRestoreSession = restoreSession;
+        mRestoreMode = restoreMode;
+
+        setName("Gecko");
     }
 
     public void run() {
         final GeckoApp app = GeckoApp.mAppContext;
-        File cacheFile = GeckoAppShell.getCacheDir();
+        File cacheFile = GeckoAppShell.getCacheDir(app);
         File libxulFile = new File(cacheFile, "libxul.so");
 
         if ((!libxulFile.exists() ||
@@ -86,9 +88,13 @@ public class GeckoThread extends Thread {
         // At some point while loading the gecko libs our default locale gets set
         // so just save it to locale here and reset it as default after the join
         Locale locale = Locale.getDefault();
+
         String resourcePath = app.getApplication().getPackageResourcePath();
-        GeckoAppShell.ensureSQLiteLibsLoaded(resourcePath);
+        GeckoAppShell.setupGeckoEnvironment(app);
+        GeckoAppShell.loadSQLiteLibs(app, resourcePath);
+        GeckoAppShell.loadNSSLibs(app, resourcePath);
         GeckoAppShell.loadGeckoLibs(resourcePath);
+
         Locale.setDefault(locale);
         Resources res = app.getBaseContext().getResources();
         Configuration config = res.getConfiguration();
@@ -97,16 +103,18 @@ public class GeckoThread extends Thread {
 
         Log.w(LOGTAG, "zerdatime " + SystemClock.uptimeMillis() + " - runGecko");
 
-        // and then fire us up
-        try {
-            Log.w(LOGTAG, "RunGecko - URI = " + mUri);
+        // find the right intent type
+        final String action = mIntent.getAction();
+        String type = GeckoApp.ACTION_WEBAPP.equals(action) ? "-webapp" :
+                      GeckoApp.ACTION_BOOKMARK.equals(action) ? "-bookmark" :
+                      null;
 
-            GeckoAppShell.runGecko(app.getApplication().getPackageResourcePath(),
-                                   mIntent.getStringExtra("args"),
-                                   mUri,
-                                   mRestoreSession);
-        } catch (Exception e) {
-            GeckoAppShell.reportJavaCrash(e);
-        }
+        // and then fire us up
+        Log.i(LOGTAG, "RunGecko - URI = " + mUri);
+        GeckoAppShell.runGecko(app.getApplication().getPackageResourcePath(),
+                               mIntent.getStringExtra("args"),
+                               mUri,
+                               type,
+                               mRestoreMode);
     }
 }

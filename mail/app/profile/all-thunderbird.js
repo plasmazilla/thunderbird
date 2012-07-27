@@ -44,8 +44,6 @@
 #endif
 #endif
 
-pref("general.useragent.extra.thunderbird", "@APP_UA_NAME@/@APP_VERSION@");
-
 pref("general.useragent.locale", "@AB_CD@");
 pref("general.skins.selectedSkin", "classic/1.0");
 
@@ -60,7 +58,7 @@ pref("mail.rights.version", 0);
 #ifdef DEBUG
 pref("mail.rights.override", true);
 #endif
-#ifndef OFFICIAL_BUILD
+#ifndef MOZILLA_OFFICIAL
 pref("mail.rights.override", true);
 #endif
 
@@ -95,14 +93,14 @@ pref("app.update.mode", 1);
 pref("app.update.silent", false);
 
 // Update service URL:
-pref("app.update.url", "https://aus2.mozillamessaging.com/update/3/%PRODUCT%/%VERSION%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/update.xml");
+pref("app.update.url", "https://aus3.mozilla.org/update/3/%PRODUCT%/%VERSION%/%BUILD_ID%/%BUILD_TARGET%/%LOCALE%/%CHANNEL%/%OS_VERSION%/%DISTRIBUTION%/%DISTRIBUTION_VERSION%/update.xml");
 
 // URL user can browse to manually if for some reason all update installation
 // attempts fail.
 pref("app.update.url.manual", "http://www.getthunderbird.com");
 // A default value for the "More information about this update" link
 // supplied in the "An update is available" page of the update wizard. 
-pref("app.update.url.details", "http://www.mozillamessaging.com/%LOCALE%/%APP%/releases/");
+pref("app.update.url.details", "http://www.mozilla.org/%LOCALE%/%APP%/releases/");
 // User-settable override to app.update.url for testing purposes.
 //pref("app.update.url.override", "");
 
@@ -484,11 +482,20 @@ pref("mail.compose.attachment_reminder_keywords", "chrome://messenger/locale/mes
 // show an alert on send?
 pref("mail.compose.attachment_reminder_aggressive", true);
 
+// True if the user should be notified when attaching big files
+pref("mail.compose.big_attachments.notify", true);
+// Size (in kB) to automatically prompt for conversion of attachments to
+// cloud links
+pref("mail.compose.big_attachments.threshold_kb", 1024);
+// True if the user should be notified that links will be inserted into
+// their message when the upload is completed
+pref("mail.compose.big_attachments.insert_notification", true);
+
 // Set this to false to prevent instrumentation from happening, e.g., user
 // has opted out, or an enterprise wants to disable it from the git go.
 pref("mail.instrumentation.askUser", true);
 pref("mail.instrumentation.userOptedIn", false);
-pref("mail.instrumentation.postUrl", "https://www.mozillamessaging.com/instrumentation");
+pref("mail.instrumentation.postUrl", "https://www.mozilla.org/instrumentation");
 // not sure how this will be formatted - would be nice to make it extensible.
 pref("mail.instrumentation.lastNotificationSent", "");
 
@@ -749,7 +756,7 @@ pref("gfx.direct2d.disabled", true);
 // Account provisioner.
 pref("mail.provider.providerList", "https://broker-live.mozillamessaging.com/provider/list");
 pref("mail.provider.suggestFromName", "https://broker-live.mozillamessaging.com/provider/suggest");
-pref("mail.provider.enabled", false);
+pref("mail.provider.enabled", true);
 
 pref("mail.websearch.open_externally", false);
 
@@ -766,3 +773,15 @@ pref("browser.search.update", false);
 
 // Check whether we need to perform engine updates every 6 hours
 pref("browser.search.update.interval", 21600);
+
+// Disable remote debugging protocol logging
+pref("devtools.debugger.log", false);
+
+pref("mail.chat.enabled", false);
+// Send typing notification in private conversations
+pref("purple.conversations.im.send_typing", true);
+
+// BigFiles
+pref("mail.cloud_files.enabled", true);
+pref("mail.cloud_files.inserted_urls.footer.link", "http://www.getthunderbird.com");
+pref("mail.cloud_files.learn_more_url", "http://support.mozillamessaging.com/kb/file-link");

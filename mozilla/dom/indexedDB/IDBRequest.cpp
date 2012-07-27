@@ -56,12 +56,12 @@
 #include "AsyncConnectionHelper.h"
 #include "IDBEvents.h"
 #include "IDBTransaction.h"
+#include "DOMError.h"
 
 USING_INDEXEDDB_NAMESPACE
 
 IDBRequest::IDBRequest()
 : mResultVal(JSVAL_VOID),
-  mErrorCode(0),
   mHaveResultOrErrorCode(false),
   mRooted(false)
 {
@@ -86,9 +86,10 @@ IDBRequest::Create(nsISupports* aSource,
 
   request->mSource = aSource;
   request->mTransaction = aTransaction;
-  request->mScriptContext = aOwnerCache->GetScriptContext();
-  request->mOwner = aOwnerCache->GetOwner();
-  request->mScriptOwner = aOwnerCache->GetScriptOwner();
+  request->BindToOwner(aOwnerCache);
+  if (!request->SetScriptOwner(aOwnerCache->GetScriptOwner())) {
+    return nsnull;
+  }
 
   return request.forget();
 }
@@ -99,7 +100,7 @@ IDBRequest::Reset()
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   mResultVal = JSVAL_VOID;
   mHaveResultOrErrorCode = false;
-  mErrorCode = 0;
+  mError = nsnull;
   UnrootResultVal();
 }
 
@@ -123,25 +124,27 @@ IDBRequest::NotifyHelperCompleted(HelperBase* aHelper)
 
   // If the request failed then set the error code and return.
   if (NS_FAILED(rv)) {
-    mErrorCode = NS_ERROR_GET_CODE(rv);
+    mError = DOMError::CreateForNSResult(rv);
     return NS_OK;
   }
 
   // Otherwise we need to get the result from the helper.
   JSContext* cx;
-  if (mScriptOwner) {
+  if (GetScriptOwner()) {
     nsIThreadJSContextStack* cxStack = nsContentUtils::ThreadJSContextStack();
     NS_ASSERTION(cxStack, "Failed to get thread context stack!");
 
     if (NS_FAILED(cxStack->GetSafeJSContext(&cx))) {
       NS_WARNING("Failed to get safe JSContext!");
       rv = NS_ERROR_DOM_INDEXEDDB_UNKNOWN_ERR;
-      mErrorCode = NS_ERROR_GET_CODE(rv);
+      mError = DOMError::CreateForNSResult(rv);
       return rv;
     }
   }
   else {
-    cx = mScriptContext->GetNativeContext();
+    nsIScriptContext* sc = GetContextForEventHandlers(&rv);
+    NS_ENSURE_STATE(sc);
+    cx = sc->GetNativeContext();
     NS_ASSERTION(cx, "Failed to get a context!");
   } 
 
@@ -164,14 +167,23 @@ IDBRequest::NotifyHelperCompleted(HelperBase* aHelper)
   }
 
   if (NS_SUCCEEDED(rv)) {
-    mErrorCode = 0;
+    mError = nsnull;
   }
   else {
-    mErrorCode = NS_ERROR_GET_CODE(rv);
+    mError = DOMError::CreateForNSResult(rv);
     mResultVal = JSVAL_VOID;
   }
 
   return rv;
+}
+
+void
+IDBRequest::SetError(nsresult rv)
+{
+  NS_ASSERTION(NS_FAILED(rv), "Er, what?");
+  NS_ASSERTION(!mError, "Already have an error?");
+
+  mError = DOMError::CreateForNSResult(rv);
 }
 
 void
@@ -187,13 +199,16 @@ IDBRequest::UnrootResultValInternal()
 }
 
 NS_IMETHODIMP
-IDBRequest::GetReadyState(PRUint16* aReadyState)
+IDBRequest::GetReadyState(nsAString& aReadyState)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
-  *aReadyState = mHaveResultOrErrorCode ?
-                 nsIIDBRequest::DONE :
-                 nsIIDBRequest::LOADING;
+  if (mHaveResultOrErrorCode) {
+    aReadyState.AssignLiteral("done");
+  }
+  else {
+    aReadyState.AssignLiteral("pending");
+  }
 
   return NS_OK;
 }
@@ -233,7 +248,7 @@ IDBRequest::GetResult(jsval* aResult)
 }
 
 NS_IMETHODIMP
-IDBRequest::GetErrorCode(PRUint16* aErrorCode)
+IDBRequest::GetError(nsIDOMDOMError** aError)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
 
@@ -242,7 +257,7 @@ IDBRequest::GetErrorCode(PRUint16* aErrorCode)
     return NS_ERROR_DOM_INDEXEDDB_NOT_ALLOWED_ERR;
   }
 
-  *aErrorCode = mErrorCode;
+  NS_IF_ADDREF(*aError = mError);
   return NS_OK;
 }
 
@@ -308,16 +323,16 @@ IDBOpenDBRequest::~IDBOpenDBRequest()
 
 // static
 already_AddRefed<IDBOpenDBRequest>
-IDBOpenDBRequest::Create(nsIScriptContext* aScriptContext,
-                         nsPIDOMWindow* aOwner,
+IDBOpenDBRequest::Create(nsPIDOMWindow* aOwner,
                          JSObject* aScriptOwner)
 {
   NS_ASSERTION(NS_IsMainThread(), "Wrong thread!");
   nsRefPtr<IDBOpenDBRequest> request(new IDBOpenDBRequest());
 
-  request->mScriptContext = aScriptContext;
-  request->mOwner = aOwner;
-  request->mScriptOwner = aScriptOwner;
+  request->BindToOwner(aOwner);
+  if (!request->SetScriptOwner(aScriptOwner)) {
+    return nsnull;
+  }
 
   return request.forget();
 }

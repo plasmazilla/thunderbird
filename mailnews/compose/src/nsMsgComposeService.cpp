@@ -71,7 +71,6 @@
 #include "nsIBaseWindow.h"
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
-#include "nsIPrefBranch2.h"
 #include "nsMsgBaseCID.h"
 #include "nsIMsgAccountManager.h"
 #include "nsIMimeMiscStatus.h"
@@ -88,6 +87,8 @@
 #include "nsUTF8Utils.h"
 #include "nsILineBreaker.h"
 #include "nsLWBrkCIID.h"
+#include "mozilla/Services.h"
+#include "mimemoz2.h"
 
 #ifdef MSGCOMP_TRACE_PERFORMANCE
 #include "prlog.h"
@@ -95,12 +96,6 @@
 #include "nsIMsgMessageService.h"
 #include "nsMsgUtils.h"
 #endif
-
-// <for functions="HTMLSantinize">
-#include "nsIParser.h"
-#include "nsParserCIID.h"
-#include "nsIContentSink.h"
-#include "mozISanitizingSerializer.h"
 
 #include "nsICommandLine.h"
 #include "nsIAppStartup.h"
@@ -111,10 +106,6 @@
 #include <shellapi.h>
 #include "nsIWidget.h"
 #endif
-
-static NS_DEFINE_CID(kParserCID, NS_PARSER_CID);
-// </for>
-
 
 #define DEFAULT_CHROME  "chrome://messenger/content/messengercompose/messengercompose.xul"
 
@@ -191,15 +182,16 @@ nsresult nsMsgComposeService::Init()
   // Register observers
 
   // Register for quit application and profile change, we will need to clear the cache.
-  nsCOMPtr<nsIObserverService> observerService = do_GetService("@mozilla.org/observer-service;1", &rv);
-  if (NS_SUCCEEDED(rv))
+  nsCOMPtr<nsIObserverService> observerService =
+    mozilla::services::GetObserverService();
+  if (observerService)
   {
     rv = observerService->AddObserver(this, "quit-application", true);
     rv = observerService->AddObserver(this, "profile-do-change", true);
   }
 
   // Register some pref observer
-  nsCOMPtr<nsIPrefBranch2> pbi = do_GetService(NS_PREFSERVICE_CONTRACTID);
+  nsCOMPtr<nsIPrefBranch> pbi = do_GetService(NS_PREFSERVICE_CONTRACTID);
   if (pbi)
     rv = pbi->AddObserver(PREF_MAIL_COMPOSE_MAXRECYCLEDWINDOWS, this, true);
 
@@ -696,34 +688,14 @@ NS_IMETHODIMP nsMsgComposeService::GetParamsForMailto(nsIURI * aURI, nsIMsgCompo
       {
         //For security reason, we must sanitize the message body before accepting any html...
 
-        // Create a parser
-        nsCOMPtr<nsIParser> parser = do_CreateInstance(kParserCID);
+        rv = HTMLSanitize(rawBody, sanitizedBody); // from mimemoz2.h
 
-        // Create the appropriate output sink
-        nsCOMPtr<nsIContentSink> sink = do_CreateInstance(MOZ_SANITIZINGHTMLSERIALIZER_CONTRACTID);
-
-        nsCString allowedTags;
-        nsCOMPtr<nsIPrefBranch> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID));
-        if (prefs)
-          prefs->GetCharPref(MAILNEWS_ROOT_PREF "display.html_sanitizer.allowed_tags", getter_Copies(allowedTags));
-
-        if (parser && sink)
+        if (NS_FAILED(rv))
         {
-          nsCOMPtr<mozISanitizingHTMLSerializer> sanSink(do_QueryInterface(sink));
-          if (sanSink)
-          {
-            sanSink->Initialize(&sanitizedBody, 0, NS_ConvertASCIItoUTF16(allowedTags));
-
-            parser->SetContentSink(sink);
-            rv = parser->Parse(rawBody, 0, NS_LITERAL_CSTRING("text/html"), true);
-            if (NS_FAILED(rv))
-            {
-              // Something went horribly wrong with parsing for html format
-              // in the body.  Set composeHTMLFormat to false so we show the
-              // plain text mail compose.
-              composeHTMLFormat = false;
-            }
-          }
+          // Something went horribly wrong with parsing for html format
+          // in the body.  Set composeHTMLFormat to false so we show the
+          // plain text mail compose.
+          composeHTMLFormat = false;
         }
       }
 
@@ -804,14 +776,13 @@ nsMsgComposeService::GetDefaultIdentity(nsIMsgIdentity **_retval)
 
   nsresult rv;
   nsCOMPtr<nsIMsgAccountManager> accountManager = do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
-  if (NS_SUCCEEDED(rv) && accountManager)
-  {
-    nsCOMPtr<nsIMsgAccount> defaultAccount;
-    rv = accountManager->GetDefaultAccount(getter_AddRefs(defaultAccount));
-    if (NS_SUCCEEDED(rv) && defaultAccount)
-      defaultAccount->GetDefaultIdentity(_retval);
-  }
-  return rv;
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsIMsgAccount> defaultAccount;
+  rv = accountManager->GetDefaultAccount(getter_AddRefs(defaultAccount));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return defaultAccount->GetDefaultIdentity(_retval);
 }
 
 /* readonly attribute boolean logComposePerformance; */
@@ -989,7 +960,7 @@ NS_IMETHODIMP nsMsgTemplateReplyHelper::OnStopRunningUrl(nsIURI *aUrl, nsresult 
 
   rv = accountManager->FindAccountForServer(mServer, getter_AddRefs(account));
   NS_ENSURE_SUCCESS(rv, rv);
-  account->GetDefaultIdentity(getter_AddRefs(identity));
+  rv = account->GetDefaultIdentity(getter_AddRefs(identity));
   NS_ENSURE_SUCCESS(rv, rv);
 
   // create the compose params object
@@ -1231,12 +1202,12 @@ nsMsgComposeService::ForwardMessage(const nsAString &forwardTo,
 
   nsCOMPtr<nsIMsgFolder> folder;
   aMsgHdr->GetFolder(getter_AddRefs(folder));
-  if (!folder)
-    return NS_ERROR_NULL_POINTER;
+  NS_ENSURE_TRUE(folder, NS_ERROR_NULL_POINTER);
+
   folder->GetUriForMsg(aMsgHdr, msgUri);
 
   // get the MsgIdentity for the above key using AccountManager
-  nsCOMPtr<nsIMsgAccountManager> accountManager = 
+  nsCOMPtr<nsIMsgAccountManager> accountManager =
     do_GetService (NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
   NS_ENSURE_SUCCESS(rv, rv);
 
@@ -1246,7 +1217,12 @@ nsMsgComposeService::ForwardMessage(const nsAString &forwardTo,
   rv = accountManager->FindAccountForServer(aServer, getter_AddRefs(account));
   NS_ENSURE_SUCCESS(rv, rv);
   rv = account->GetDefaultIdentity(getter_AddRefs(identity));
-  NS_ENSURE_SUCCESS(rv, rv);
+  // Use default identity if no identity has been found on this account
+  if (NS_FAILED(rv) || !identity)
+  {
+    rv = GetDefaultIdentity(getter_AddRefs(identity));
+    NS_ENSURE_SUCCESS(rv, rv);
+  }
 
   if (aForwardType == nsIMsgComposeService::kForwardInline)
     return RunMessageThroughMimeDraft(msgUri,
@@ -1279,11 +1255,11 @@ nsMsgComposeService::ForwardMessage(const nsAString &forwardTo,
   pMsgComposeParams->SetOriginalMsgURI(msgUri.get());
   // create the nsIMsgCompose object to send the object
   nsCOMPtr<nsIMsgCompose> pMsgCompose (do_CreateInstance(NS_MSGCOMPOSE_CONTRACTID, &rv));
-  NS_ENSURE_SUCCESS(rv,rv);
+  NS_ENSURE_SUCCESS(rv, rv);
 
   /** initialize nsIMsgCompose, Send the message, wait for send completion response **/
   rv = pMsgCompose->Initialize(pMsgComposeParams, parentWindow, nsnull);
-  NS_ENSURE_SUCCESS(rv,rv);
+  NS_ENSURE_SUCCESS(rv, rv);
 
   rv = pMsgCompose->SendMsg(nsIMsgSend::nsMsgDeliverNow, identity, nsnull, nsnull, nsnull);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -1300,9 +1276,9 @@ nsresult nsMsgComposeService::ShowCachedComposeWindow(nsIDOMWindow *aComposeWind
 {
   nsresult rv = NS_OK;
 
-  nsCOMPtr<nsIObserverService> obs
-    (do_GetService("@mozilla.org/observer-service;1", &rv));
-  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsIObserverService> obs =
+    mozilla::services::GetObserverService();
+  NS_ENSURE_TRUE(obs, NS_ERROR_UNEXPECTED);
 
   nsCOMPtr <nsPIDOMWindow> window = do_QueryInterface(aComposeWindow, &rv);
 

@@ -45,7 +45,7 @@
 
 #include "nsIIDBRequest.h"
 #include "nsIIDBOpenDBRequest.h"
-
+#include "nsDOMEventTargetHelper.h"
 #include "mozilla/dom/indexedDB/IDBWrapperCache.h"
 
 class nsIScriptContext;
@@ -82,13 +82,7 @@ public:
 
   nsresult NotifyHelperCompleted(HelperBase* aHelper);
 
-  void SetError(nsresult rv)
-  {
-    NS_ASSERTION(NS_FAILED(rv), "Er, what?");
-    NS_ASSERTION(mErrorCode == NS_OK, "Already have an error?");
-
-    mErrorCode = rv;
-  }
+  void SetError(nsresult rv);
 
 protected:
   IDBRequest();
@@ -121,7 +115,7 @@ protected:
 
   jsval mResultVal;
 
-  PRUint16 mErrorCode;
+  nsCOMPtr<nsIDOMDOMError> mError;
   bool mHaveResultOrErrorCode;
   bool mRooted;
 };
@@ -137,15 +131,14 @@ public:
 
   static
   already_AddRefed<IDBOpenDBRequest>
-  Create(nsIScriptContext* aScriptContext,
-         nsPIDOMWindow* aOwner,
+  Create(nsPIDOMWindow* aOwner,
          JSObject* aScriptOwner);
 
   static
   already_AddRefed<IDBOpenDBRequest>
   Create(IDBWrapperCache* aOwnerCache)
   {
-    return Create(aOwnerCache->GetScriptContext(), aOwnerCache->GetOwner(),
+    return Create(aOwnerCache->GetOwner(),
                   aOwnerCache->GetScriptOwner());
   }
 

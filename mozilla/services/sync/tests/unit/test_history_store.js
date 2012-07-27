@@ -1,6 +1,6 @@
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://services-sync/engines/history.js");
-Cu.import("resource://services-sync/async.js");
+Cu.import("resource://services-common/async.js");
 Cu.import("resource://services-sync/util.js");
 
 const TIMESTAMP1 = (Date.now() - 103406528) * 1000;
@@ -163,7 +163,10 @@ add_test(function test_null_title() {
 
 add_test(function test_invalid_records() {
   _("Make sure we handle invalid URLs in places databases gracefully.");
-  let stmt = PlacesUtils.history.DBConnection.createAsyncStatement(
+  let connection = PlacesUtils.history
+                              .QueryInterface(Ci.nsPIPlacesDatabase)
+                              .DBConnection;
+  let stmt = connection.createAsyncStatement(
     "INSERT INTO moz_places "
   + "(url, title, rev_host, visit_count, last_visit_date) "
   + "VALUES ('invalid-uri', 'Invalid URI', '.', 1, " + TIMESTAMP3 + ")"
@@ -171,7 +174,7 @@ add_test(function test_invalid_records() {
   Async.querySpinningly(stmt);
   stmt.finalize();
   // Add the corresponding visit to retain database coherence.
-  stmt = PlacesUtils.history.DBConnection.createAsyncStatement(
+  stmt = connection.createAsyncStatement(
     "INSERT INTO moz_historyvisits "
   + "(place_id, visit_date, visit_type, session) "
   + "VALUES ((SELECT id FROM moz_places WHERE url = 'invalid-uri'), "

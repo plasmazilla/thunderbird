@@ -536,7 +536,8 @@
                 if (!this.mBlank) {
                   if (!(aStateFlags & nsIWebProgressListener.STATE_RESTORING)) {
                     this.mTab.setAttribute("busy", "true");
-                    this.mTabBrowser.setTabTitleLoading(this.mTab);
+                    if (!(this.mBrowser.docShell.loadType & Ci.nsIDocShell.LOAD_CMD_RELOAD))
+                      this.mTabBrowser.setTabTitleLoading(this.mTab);
                   }
 
                   if (this.mTab.selected)
@@ -545,20 +546,6 @@
               }
               else if (aStateFlags & nsIWebProgressListener.STATE_STOP &&
                        aStateFlags & nsIWebProgressListener.STATE_IS_NETWORK) {
-                if (aWebProgress.DOMWindow == this.mBrowser.contentWindow) {
-                  // The document is done loading, we no longer want the
-                  // value cleared.
-                  if (this.mBrowser.userTypedClear > 1)
-                    this.mBrowser.userTypedClear -= 2;
-                  else if (this.mBrowser.userTypedClear > 0)
-                    this.mBrowser.userTypedClear--;
-
-                  if (!this.mBrowser.mIconURL)
-                    this.mTabBrowser.useDefaultIcon(this.mTab);
-                }
-
-                if (this.mBlank)
-                  this.mBlank = false;
 
                 if (this.mTab.hasAttribute("busy")) {
                   this.mTab.removeAttribute("busy");
@@ -567,6 +554,34 @@
                     this.mTab.setAttribute("unread", "true");
                 }
                 this.mTab.removeAttribute("progress");
+
+                if (aWebProgress.DOMWindow == this.mBrowser.contentWindow) {
+                  if (!Components.isSuccessCode(aStatus) &&
+                      !isTabEmpty(this.mTab)) {
+                    // Restore the current document's location in case the
+                    // request was stopped (possibly from a content script)
+                    // before the location changed.
+
+                    this.mBrowser.userTypedValue = null;
+
+                    if (this.mTab.selected && gURLBar)
+                      URLBarSetURI();
+                  } else {
+                    // The document is done loading, we no longer want the
+                    // value cleared.
+
+                    if (this.mBrowser.userTypedClear > 1)
+                      this.mBrowser.userTypedClear -= 2;
+                    else if (this.mBrowser.userTypedClear > 0)
+                      this.mBrowser.userTypedClear--;
+                  }
+
+                  if (!this.mBrowser.mIconURL)
+                    this.mTabBrowser.useDefaultIcon(this.mTab);
+                }
+
+                if (this.mBlank)
+                  this.mBlank = false;
 
                 var location = aRequest.QueryInterface(nsIChannel).URI;
 
@@ -692,8 +707,8 @@
             if (aURI && this.mFaviconService) {
               if (!(aURI instanceof Ci.nsIURI))
                 aURI = makeURI(aURI);
-              this.mFaviconService.setAndLoadFaviconForPage(browser.currentURI,
-                                                            aURI, false);
+              this.mFaviconService.setAndFetchFaviconForPage(browser.currentURI,
+                                                             aURI, false);
             }
 
             if ((browser.mIconURL || "") != aTab.getAttribute("image")) {
@@ -909,6 +924,7 @@
 
             if (!this._previewMode) {
               this.mCurrentTab.removeAttribute("unread");
+              this.selectedTab.lastAccessed = Date.now();
 
 #ifdef MOZ_E10S_COMPAT
               // Bug 666816 - TypeAheadFind support for e10s
@@ -1265,6 +1281,12 @@
                 else {
                   t._animStartTime = Date.now();
                   t.setAttribute("fadein", "true");
+
+                  // This call to adjustTabstrip is redundant but needed so that
+                  // when opening a second tab, the first tab's close buttons
+                  // appears immediately rather than when the transition ends.
+                  if (tabContainer.childNodes.length == 2)
+                    tabContainer.adjustTabstrip();
                 }
               }, 0, this.tabContainer);
             }
@@ -1364,7 +1386,8 @@
 
               // pretend the user typed this so it'll be available till
               // the document successfully loads
-              b.userTypedValue = aURI;
+              if (!isBlankPageURL(aURI))
+                b.userTypedValue = aURI;
 
               let flags = Ci.nsIWebNavigation.LOAD_FLAGS_NONE;
               if (aAllowThirdPartyFixup)
@@ -1410,7 +1433,9 @@
       <parameter name="aAll"/>
       <body>
         <![CDATA[
-          var tabsToClose = (aAll ? this.tabs.length : this.visibleTabs.length - 1)
+          var tabsToClose = (aAll ?
+                               this.tabs.length - this._removingTabs.length :
+                               this.visibleTabs.length - 1)
                             - gBrowser._numPinnedTabs;
           if (tabsToClose <= 1)
             return true;
@@ -1518,6 +1543,7 @@
             if (!animate /* the caller didn't opt in */ ||
                 isLastTab ||
                 aTab.pinned ||
+                aTab.hidden ||
                 this._removingTabs.length > 3 /* don't want lots of concurrent animations */ ||
                 aTab.getAttribute("fadein") != "true" /* fade-in transition hasn't been triggered yet */ ||
                 window.getComputedStyle(aTab).maxWidth == "0.1px" /* fade-in transition hasn't moved yet */ ||
@@ -3791,6 +3817,7 @@
       <field name="mCorrespondingMenuitem">null</field>
       <field name="_fullyOpen">false</field>
       <field name="closing">false</field>
+      <field name="lastAccessed">0</field>
     </implementation>
 
     <handlers>
@@ -4011,8 +4038,10 @@
 
       <property name="label">
         <setter><![CDATA[
-          if (!this.label)
+          if (!this.label) {
             this.removeAttribute("mirror");
+            this.removeAttribute("sizelimit");
+          }
 
           this.style.minWidth = this.getAttribute("type") == "status" &&
                                 this.getAttribute("previoustype") == "status"
@@ -4090,6 +4119,11 @@
             this.removeAttribute("mirror");
           else
             this.setAttribute("mirror", "true");
+
+          if (!this.hasAttribute("sizelimit")) {
+            this.setAttribute("sizelimit", "true");
+            this._calcMouseTargetRect();
+          }
         </body>
       </method>
     </implementation>

@@ -51,8 +51,8 @@ class nsXFormsDropmarkerWidgetAccessible : public nsLeafAccessible,
                                            public nsXFormsAccessibleBase
 {
 public:
-  nsXFormsDropmarkerWidgetAccessible(nsIContent *aContent,
-                                     nsIWeakReference *aShell);
+  nsXFormsDropmarkerWidgetAccessible(nsIContent* aContent,
+                                     nsDocAccessible* aDoc);
 
   // nsIAccessible
   NS_IMETHOD GetActionName(PRUint8 aIndex, nsAString& aName);
@@ -73,8 +73,8 @@ public:
 class nsXFormsCalendarWidgetAccessible : public nsAccessibleWrap
 {
 public:
-  nsXFormsCalendarWidgetAccessible(nsIContent *aContent,
-                                   nsIWeakReference *aShell);
+  nsXFormsCalendarWidgetAccessible(nsIContent* aContent,
+                                   nsDocAccessible* aDoc);
 
   // nsAccessible
   virtual mozilla::a11y::role NativeRole();
@@ -88,14 +88,12 @@ public:
 class nsXFormsComboboxPopupWidgetAccessible : public nsXFormsAccessible
 {
 public:
-  nsXFormsComboboxPopupWidgetAccessible(nsIContent *aContent,
-                                        nsIWeakReference *aShell);
-
-  // nsIAccessible
-  NS_IMETHOD GetValue(nsAString& aValue);
+  nsXFormsComboboxPopupWidgetAccessible(nsIContent* aContent,
+                                        nsDocAccessible* aDoc);
 
   // nsAccessible
   virtual void Description(nsString& aDescription);
+  virtual void Value(nsString& aValue);
   virtual nsresult GetNameInternal(nsAString& aName);
   virtual mozilla::a11y::role NativeRole();
   virtual PRUint64 NativeState();

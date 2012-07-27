@@ -6,20 +6,20 @@
     <ScrollView android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dip"
-                android:layout_alignParentTop="true">
+                android:layout_alignParentTop="true"
+                android:background="@drawable/doorhanger_popup_bg">
 
         <LinearLayout android:id="@+id/doorhanger_container"
                       android:layout_width="fill_parent"
                       android:layout_height="wrap_content"
-                      android:orientation="vertical"
-                      android:background="@drawable/doorhanger_popup_bg"/>
+                      android:orientation="vertical"/>
 
     </ScrollView>
 
-    <ImageView android:layout_width="43dip"
-               android:layout_height="15dip"
+    <ImageView android:layout_width="44dip"
+               android:layout_height="16dip"
                android:layout_marginLeft="4dip"
-               android:layout_marginTop="10dip"
+               android:layout_marginTop="9dip"
                android:layout_alignParentTop="true"
                android:src="@drawable/doorhanger_arrow"
                android:scaleType="fitXY"/>

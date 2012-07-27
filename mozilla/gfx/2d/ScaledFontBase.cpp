@@ -37,8 +37,6 @@
 
 #include "ScaledFontBase.h"
 
-#include "gfxFont.h"
-
 #ifdef USE_SKIA
 #include "PathSkia.h"
 #include "skia/SkPaint.h"
@@ -56,32 +54,6 @@ using namespace std;
 
 namespace mozilla {
 namespace gfx {
-
-#ifdef USE_SKIA
-static SkTypeface::Style
-gfxFontStyleToSkia(const gfxFontStyle* aStyle)
-{
-  if (aStyle->style == NS_FONT_STYLE_ITALIC) {
-    if (aStyle->weight == NS_FONT_WEIGHT_BOLD) {
-      return SkTypeface::kBoldItalic;
-    }
-    return SkTypeface::kItalic;
-  }
-  if (aStyle->weight == NS_FONT_WEIGHT_BOLD) {
-    return SkTypeface::kBold;
-  }
-  return SkTypeface::kNormal;
-}
-#endif
-
-#ifdef USE_SKIA
-ScaledFontBase::ScaledFontBase(gfxFont* aFont, Float aSize)
-  : mSize(aSize)
-{
-  NS_LossyConvertUTF16toASCII name(aFont->GetName());
-  mTypeface = SkTypeface::CreateFromName(name.get(), gfxFontStyleToSkia(aFont->GetStyle()));
-}
-#endif
 
 ScaledFontBase::~ScaledFontBase()
 {
@@ -156,6 +128,14 @@ ScaledFontBase::GetPathForGlyphs(const GlyphBuffer &aBuffer, const DrawTarget *a
   }
 #endif
   return NULL;
+}
+
+void
+ScaledFontBase::CopyGlyphsToBuilder(const GlyphBuffer &aBuffer, PathBuilder *aBuilder)
+{
+  // XXX - implement me
+  MOZ_ASSERT(false);
+  return;
 }
 
 #ifdef USE_CAIRO

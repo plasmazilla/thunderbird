@@ -47,9 +47,4 @@ DEFINES += -DAB_CD=$(MOZ_UI_LOCALE) \
            -DMOZ_APP_VERSION=$(MOZ_APP_VERSION) \
            $(NULL)
 
-
-ifdef ENABLE_TESTS
-DIRS += tests
-endif
-
 include $(topsrcdir)/config/rules.mk

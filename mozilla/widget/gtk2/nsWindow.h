@@ -95,6 +95,7 @@ extern PRLogModuleInfo *gWidgetDrawLog;
 
 #endif /* MOZ_LOGGING */
 
+class nsDragService;
 #if defined(MOZ_X11) && defined(MOZ_HAVE_SHAREDMEMORYSYSV)
 #  define MOZ_HAVE_SHMIMAGE
 
@@ -114,8 +115,6 @@ public:
     void CommonCreate(nsIWidget *aParent, bool aListenForResizes);
     
     // event handling code
-    void InitKeyEvent(nsKeyEvent &aEvent, GdkEventKey *aGdkEvent);
-
     void DispatchActivateEvent(void);
     void DispatchDeactivateEvent(void);
     void DispatchResizeEvent(nsIntRect &aRect, nsEventStatus &aStatus);
@@ -173,9 +172,7 @@ public:
     NS_IMETHOD         SetCursor(nsCursor aCursor);
     NS_IMETHOD         SetCursor(imgIContainer* aCursor,
                                  PRUint32 aHotspotX, PRUint32 aHotspotY);
-    NS_IMETHOD         Invalidate(const nsIntRect &aRect,
-                                  bool             aIsSynchronous);
-    NS_IMETHOD         Update();
+    NS_IMETHOD         Invalidate(const nsIntRect &aRect);
     virtual void*      GetNativeData(PRUint32 aDataType);
     NS_IMETHOD         SetTitle(const nsAString& aTitle);
     NS_IMETHOD         SetIcon(const nsAString& aIconSpec);
@@ -192,6 +189,12 @@ public:
 
     NS_IMETHOD         MakeFullScreen(bool aFullScreen);
     NS_IMETHOD         HideWindowChrome(bool aShouldHide);
+
+    /**
+     * GetLastUserInputTime returns a timestamp for the most recent user input
+     * event.  This is intended for pointer grab requests (including drags).
+     */
+    static guint32     GetLastUserInputTime();
 
     // utility method, -1 if no change should be made, otherwise returns a
     // value that can be passed to gdk_window_set_decorations
@@ -259,26 +262,27 @@ public:
                                                guint            aTime,
                                                gpointer         aData);
     void               OnDragLeave(void);
-    void               OnDragEnter(nscoord aX, nscoord aY);
 
-    virtual void       NativeResize(PRInt32 aWidth,
+private:
+    void               NativeResize(PRInt32 aWidth,
                                     PRInt32 aHeight,
                                     bool    aRepaint);
 
-    virtual void       NativeResize(PRInt32 aX,
+    void               NativeResize(PRInt32 aX,
                                     PRInt32 aY,
                                     PRInt32 aWidth,
                                     PRInt32 aHeight,
                                     bool    aRepaint);
 
-    virtual void       NativeShow  (bool    aAction);
+    void               NativeShow  (bool    aAction);
     void               SetHasMappedToplevel(bool aState);
     nsIntSize          GetSafeWindowSize(nsIntSize aSize);
 
     void               EnsureGrabs  (void);
-    void               GrabPointer  (void);
+    void               GrabPointer  (guint32 aTime);
     void               ReleaseGrabs (void);
 
+public:
     enum PluginType {
         PluginType_NONE = 0,   /* do not have any plugin */
         PluginType_XEMBED,     /* the plugin support xembed */
@@ -293,25 +297,36 @@ public:
 
     void               ThemeChanged(void);
 
-    void CheckNeedDragLeaveEnter(nsWindow* aInnerMostWidget,
-                                 nsIDragService* aDragService,
-                                 GdkDragContext *aDragContext,
-                                 nscoord aX, nscoord aY);
+    void CheckNeedDragLeave(nsWindow* aInnerMostWidget,
+                            nsIDragService* aDragService,
+                            GdkDragContext *aDragContext,
+                            nscoord aX, nscoord aY);
 
 #ifdef MOZ_X11
     Window             mOldFocusWindow;
 #endif /* MOZ_X11 */
 
     static guint32     sLastButtonPressTime;
-    static guint32     sLastButtonReleaseTime;
 
     NS_IMETHOD         BeginResizeDrag(nsGUIEvent* aEvent, PRInt32 aHorizontal, PRInt32 aVertical);
     NS_IMETHOD         BeginMoveDrag(nsMouseEvent* aEvent);
 
     MozContainer*      GetMozContainer() { return mContainer; }
+    // GetMozContainerWidget returns the MozContainer even for undestroyed
+    // descendant windows
+    GtkWidget*         GetMozContainerWidget();
     GdkWindow*         GetGdkWindow() { return mGdkWindow; }
     bool               IsDestroyed() { return mIsDestroyed; }
 
+    void               DispatchDragEvent(PRUint32 aMsg,
+                                         const nsIntPoint& aRefPoint,
+                                         guint aTime);
+    void               DispatchDragMotionEvents(nsDragService *aDragService,
+                                                const nsIntPoint& aPoint,
+                                                guint aTime);
+    gboolean           DispatchDragDropEvent(nsDragService *aDragService,
+                                             const nsIntPoint& aWindowPoint,
+                                             guint aTime);
     // If this dispatched the keydown event actually, this returns TRUE,
     // otherwise, FALSE.
     bool               DispatchKeyDownEvent(GdkEventKey *aEvent,
@@ -342,6 +357,13 @@ public:
     gfxASurface       *GetThebesSurface(cairo_t *cr);
 #endif
     NS_IMETHOD         ReparentNativeWidget(nsIWidget* aNewParent);
+
+    virtual nsresult SynthesizeNativeMouseEvent(nsIntPoint aPoint,
+                                                PRUint32 aNativeMessage,
+                                                PRUint32 aModifierFlags);
+
+    virtual nsresult SynthesizeNativeMouseMove(nsIntPoint aPoint)
+    { return SynthesizeNativeMouseEvent(aPoint, GDK_MOTION_NOTIFY, 0); }
 
 protected:
     // Helper for SetParent and ReparentNativeWidget.
@@ -374,7 +396,6 @@ protected:
 private:
     void               DestroyChildWindows();
     void               GetToplevelWidget(GtkWidget **aWidget);
-    GtkWidget         *GetMozContainerWidget();
     nsWindow          *GetContainerWindow();
     void               SetUrgencyHint(GtkWidget *top_window, bool state);
     void              *SetupPluginPort(void);
@@ -487,8 +508,6 @@ private:
     // leaving fullscreen
     nsSizeMode         mLastSizeMode;
 
-    static bool        sIsDraggingOutOf;
-    // drag in progress
     static bool DragInProgress(void);
 
     void         FireDragLeaveTimer       (void);

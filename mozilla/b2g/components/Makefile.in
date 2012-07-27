@@ -44,8 +44,21 @@ include $(DEPTH)/config/autoconf.mk
 MODULE = B2GComponents
 XPIDL_MODULE = B2GComponents
 
+XPIDLSRCS = \
+        b2g.idl \
+        $(NULL)
+
 EXTRA_PP_COMPONENTS = \
         B2GComponents.manifest \
+        CameraContent.js \
+        AlertsService.js \
+        ContentPermissionPrompt.js \
+        MozKeyboard.js \
+        DirectoryProvider.js \
         $(NULL)
+
+ifdef MOZ_UPDATER
+EXTRA_PP_COMPONENTS += UpdatePrompt.js
+endif
 
 include $(topsrcdir)/config/rules.mk

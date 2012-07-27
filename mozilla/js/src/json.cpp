@@ -39,6 +39,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "mozilla/FloatingPoint.h"
+
 #include <string.h>
 #include "jsapi.h"
 #include "jsarray.h"
@@ -59,12 +61,12 @@
 #include "jsxml.h"
 
 #include "frontend/TokenStream.h"
+#include "vm/StringBuffer.h"
 
 #include "jsatominlines.h"
 #include "jsboolinlines.h"
 #include "jsinferinlines.h"
 #include "jsobjinlines.h"
-#include "jsstrinlines.h"
 
 #include "vm/Stack-inl.h"
 
@@ -86,7 +88,7 @@ Class js::JSONClass = {
 
 /* ES5 15.12.2. */
 JSBool
-js_json_parse(JSContext *cx, uintN argc, Value *vp)
+js_json_parse(JSContext *cx, unsigned argc, Value *vp)
 {
     /* Step 1. */
     JSLinearString *linear;
@@ -110,7 +112,7 @@ js_json_parse(JSContext *cx, uintN argc, Value *vp)
 
 /* ES5 15.12.3. */
 JSBool
-js_json_stringify(JSContext *cx, uintN argc, Value *vp)
+js_json_stringify(JSContext *cx, unsigned argc, Value *vp)
 {
     *vp = (argc >= 1) ? vp[2] : UndefinedValue();
     JSObject *replacer = (argc >= 2 && vp[3].isObject())
@@ -312,7 +314,7 @@ PreprocessValue(JSContext *cx, JSObject *holder, KeyType key, Value *vp, Stringi
     if (vp->isObject()) {
         Value toJSON;
         jsid id = ATOM_TO_JSID(cx->runtime->atomState.toJSONAtom);
-        if (!js_GetMethod(cx, &vp->toObject(), id, JSGET_NO_METHOD_BARRIER, &toJSON))
+        if (!js_GetMethod(cx, RootedVarObject(cx, &vp->toObject()), id, 0, &toJSON))
             return false;
 
         if (js_IsCallable(toJSON)) {
@@ -500,7 +502,7 @@ JA(JSContext *cx, JSObject *obj, StringifyContext *scx)
         return JS_FALSE;
 
     /* Step 6. */
-    jsuint length;
+    uint32_t length;
     if (!js_GetLengthProperty(cx, obj, &length))
         return JS_FALSE;
 
@@ -584,7 +586,7 @@ Str(JSContext *cx, const Value &v, StringifyContext *scx)
     /* Step 9. */
     if (v.isNumber()) {
         if (v.isDouble()) {
-            if (!JSDOUBLE_IS_FINITE(v.toDouble()))
+            if (!MOZ_DOUBLE_IS_FINITE(v.toDouble()))
                 return scx->sb.append("null");
         }
 
@@ -649,7 +651,7 @@ js_Stringify(JSContext *cx, Value *vp, JSObject *replacer, Value space, StringBu
              */
 
             /* Step 4b(ii). */
-            jsuint len;
+            uint32_t len;
             JS_ALWAYS_TRUE(js_GetLengthProperty(cx, replacer, &len));
             if (replacer->isDenseArray())
                 len = JS_MIN(len, replacer->getDenseArrayCapacity());
@@ -659,7 +661,7 @@ js_Stringify(JSContext *cx, Value *vp, JSObject *replacer, Value space, StringBu
                 return false;
 
             /* Step 4b(iii). */
-            jsuint i = 0;
+            uint32_t i = 0;
 
             /* Step 4b(iv). */
             for (; i < len; i++) {
@@ -709,7 +711,7 @@ js_Stringify(JSContext *cx, Value *vp, JSObject *replacer, Value space, StringBu
     if (space.isObject()) {
         JSObject &spaceObj = space.toObject();
         if (ObjectClassIs(spaceObj, ESClass_Number, cx)) {
-            jsdouble d;
+            double d;
             if (!ToNumber(cx, space, &d))
                 return false;
             space = NumberValue(d);
@@ -725,7 +727,7 @@ js_Stringify(JSContext *cx, Value *vp, JSObject *replacer, Value space, StringBu
 
     if (space.isNumber()) {
         /* Step 6. */
-        jsdouble d;
+        double d;
         JS_ALWAYS_TRUE(ToInteger(cx, space, &d));
         d = JS_MIN(10, d);
         if (d >= 1 && !gap.appendN(' ', uint32_t(d)))
@@ -745,7 +747,7 @@ js_Stringify(JSContext *cx, Value *vp, JSObject *replacer, Value space, StringBu
     }
 
     /* Step 9. */
-    JSObject *wrapper = NewBuiltinClassInstance(cx, &ObjectClass);
+    RootedVarObject wrapper(cx, NewBuiltinClassInstance(cx, &ObjectClass));
     if (!wrapper)
         return false;
 
@@ -783,7 +785,7 @@ Walk(JSContext *cx, JSObject *holder, jsid name, const Value &reviver, Value *vp
 
     /* Step 2. */
     if (val.isObject()) {
-        JSObject *obj = &val.toObject();
+        RootedVarObject obj(cx, &val.toObject());
 
         /* 'val' must have been produced by the JSON parser, so not a proxy. */
         JS_ASSERT(!obj->isProxy());
@@ -909,7 +911,7 @@ ParseJSONWithReviver(JSContext *cx, const jschar *chars, size_t length, const Va
 
 #if JS_HAS_TOSOURCE
 static JSBool
-json_toSource(JSContext *cx, uintN argc, Value *vp)
+json_toSource(JSContext *cx, unsigned argc, Value *vp)
 {
     vp->setString(CLASS_ATOM(cx, JSON));
     return JS_TRUE;

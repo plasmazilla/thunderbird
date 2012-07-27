@@ -197,8 +197,6 @@ DOMCI_CLASS(ChromeWindow)
 // RGBColor object used by getComputedStyle
 DOMCI_CLASS(CSSRGBColor)
 
-DOMCI_CLASS(RangeException)
-
 // CSSValueList object that represents an nsIDOMCSSValueList, used
 // by DOM CSS
 DOMCI_CLASS(CSSValueList)
@@ -352,6 +350,7 @@ DOMCI_CLASS(CanvasRenderingContext2D)
 DOMCI_CLASS(CanvasGradient)
 DOMCI_CLASS(CanvasPattern)
 DOMCI_CLASS(TextMetrics)
+DOMCI_CLASS(ImageData)
 
 // SmartCard Events
 DOMCI_CLASS(SmartCardEvent)
@@ -375,7 +374,6 @@ DOMCI_CLASS(XPathResult)
 // WhatWG WebApps Objects
 DOMCI_CLASS(StorageObsolete)
 DOMCI_CLASS(Storage)
-DOMCI_CLASS(StorageList)
 DOMCI_CLASS(StorageItem)
 DOMCI_CLASS(StorageEvent)
 DOMCI_CLASS(StorageEventObsolete)
@@ -403,8 +401,6 @@ DOMCI_CLASS(OfflineResourceList)
 DOMCI_CLASS(FileList)
 DOMCI_CLASS(Blob)
 DOMCI_CLASS(File)
-DOMCI_CLASS(FileException)
-DOMCI_CLASS(FileError)
 DOMCI_CLASS(FileReader)
 DOMCI_CLASS(MozURLProperty)
 DOMCI_CLASS(MozBlobBuilder)
@@ -425,10 +421,12 @@ DOMCI_CLASS(MessageEvent)
 DOMCI_CLASS(GeoGeolocation)
 DOMCI_CLASS(GeoPosition)
 DOMCI_CLASS(GeoPositionCoords)
-DOMCI_CLASS(GeoPositionAddress)
 DOMCI_CLASS(GeoPositionError)
 
 DOMCI_CLASS(MozBatteryManager)
+
+DOMCI_CLASS(MozPowerManager)
+DOMCI_CLASS(MozWakeLock)
 
 DOMCI_CLASS(MozSmsManager)
 DOMCI_CLASS(MozSmsMessage)
@@ -438,6 +436,7 @@ DOMCI_CLASS(MozSmsFilter)
 DOMCI_CLASS(MozSmsCursor)
 
 DOMCI_CLASS(MozConnection)
+DOMCI_CLASS(MozMobileConnection)
 
 // @font-face in CSS
 DOMCI_CLASS(CSSFontFaceRule)
@@ -484,6 +483,7 @@ DOMCI_CLASS(WebGLShaderPrecisionFormat)
 DOMCI_CLASS(WebGLActiveInfo)
 DOMCI_CLASS(WebGLExtension)
 DOMCI_CLASS(WebGLExtensionStandardDerivatives)
+DOMCI_CLASS(WebGLExtensionTextureFilterAnisotropic)
 DOMCI_CLASS(WebGLExtensionLoseContext)
 
 DOMCI_CLASS(PaintRequest)
@@ -520,7 +520,6 @@ DOMCI_CLASS(IDBKeyRange)
 DOMCI_CLASS(IDBIndex)
 DOMCI_CLASS(IDBVersionChangeEvent)
 DOMCI_CLASS(IDBOpenDBRequest)
-DOMCI_CLASS(IDBDatabaseException)
 
 DOMCI_CLASS(Touch)
 DOMCI_CLASS(TouchList)
@@ -532,10 +531,21 @@ DOMCI_CLASS(MozCSSKeyframesRule)
 DOMCI_CLASS(MediaQueryList)
 DOMCI_CLASS(CustomEvent)
 
+DOMCI_CLASS(MutationObserver)
+DOMCI_CLASS(MutationRecord)
+
+DOMCI_CLASS(MozSettingsEvent)
+
 #ifdef MOZ_B2G_RIL
 DOMCI_CLASS(Telephony)
 DOMCI_CLASS(TelephonyCall)
 DOMCI_CLASS(CallEvent)
 #endif
 
+#ifdef MOZ_B2G_BT
+DOMCI_CLASS(BluetoothAdapter)
+DOMCI_CLASS(BluetoothDevice)
+#endif
+
 DOMCI_CLASS(DOMError)
+DOMCI_CLASS(DOMRequest)

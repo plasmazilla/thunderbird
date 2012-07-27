@@ -36,7 +36,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-const TEST_URI = "http://example.com/browser/browser/devtools/webconsole/test//test-console.html";
+const TEST_URI = "http://example.com/browser/browser/devtools/webconsole/test/test-console.html";
 
 let pb = Cc["@mozilla.org/privatebrowsing;1"].
          getService(Ci.nsIPrivateBrowsingService);
@@ -47,7 +47,7 @@ registerCleanupFunction(function() {
 
 function test() {
   Services.prefs.setBoolPref("devtools.gcli.enable", false);
-  addTab("data:text/html,Web Console test for bug 618311 (private browsing)");
+  addTab("data:text/html;charset=utf-8,Web Console test for bug 618311 (private browsing)");
 
   browser.addEventListener("load", function() {
     browser.removeEventListener("load", arguments.callee, true);

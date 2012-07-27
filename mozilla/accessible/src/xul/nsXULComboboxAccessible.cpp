@@ -40,7 +40,9 @@
 
 #include "nsXULComboboxAccessible.h"
 
+#include "Accessible-inl.h"
 #include "nsAccessibilityService.h"
+#include "nsDocAccessible.h"
 #include "nsCoreUtils.h"
 #include "Role.h"
 #include "States.h"
@@ -56,8 +58,8 @@ using namespace mozilla::a11y;
 ////////////////////////////////////////////////////////////////////////////////
 
 nsXULComboboxAccessible::
-  nsXULComboboxAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
-  nsAccessibleWrap(aContent, aShell)
+  nsXULComboboxAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
+  nsAccessibleWrap(aContent, aDoc)
 {
   if (mContent->AttrValueIs(kNameSpaceID_None, nsGkAtoms::type,
                             nsGkAtoms::autocomplete, eIgnoreCase))
@@ -102,22 +104,6 @@ nsXULComboboxAccessible::NativeState()
   return states;
 }
 
-NS_IMETHODIMP
-nsXULComboboxAccessible::GetValue(nsAString& aValue)
-{
-  aValue.Truncate();
-
-  if (IsDefunct())
-    return NS_ERROR_FAILURE;
-
-  // The value is the option or text shown entered in the combobox.
-  nsCOMPtr<nsIDOMXULMenuListElement> menuList(do_QueryInterface(mContent));
-  if (menuList)
-    return menuList->GetLabel(aValue);
-
-  return NS_ERROR_FAILURE;
-}
-
 void
 nsXULComboboxAccessible::Description(nsString& aDescription)
 {
@@ -131,16 +117,26 @@ nsXULComboboxAccessible::Description(nsString& aDescription)
   menuListElm->GetSelectedItem(getter_AddRefs(focusedOptionItem));
   nsCOMPtr<nsIContent> focusedOptionContent =
     do_QueryInterface(focusedOptionItem);
-  if (focusedOptionContent) {
-    nsAccessible* focusedOptionAcc = GetAccService()->
-      GetAccessibleInWeakShell(focusedOptionContent, mWeakShell);
+  if (focusedOptionContent && mDoc) {
+    nsAccessible* focusedOptionAcc = mDoc->GetAccessible(focusedOptionContent);
     if (focusedOptionAcc)
       focusedOptionAcc->Description(aDescription);
   }
 }
 
+void
+nsXULComboboxAccessible::Value(nsString& aValue)
+{
+  aValue.Truncate();
+
+  // The value is the option or text shown entered in the combobox.
+  nsCOMPtr<nsIDOMXULMenuListElement> menuList(do_QueryInterface(mContent));
+  if (menuList)
+    menuList->GetLabel(aValue);
+}
+
 bool
-nsXULComboboxAccessible::GetAllowsAnonChildAccessibles()
+nsXULComboboxAccessible::CanHaveAnonChildren()
 {
   if (mContent->NodeInfo()->Equals(nsGkAtoms::textbox, kNameSpaceID_XUL) ||
       mContent->AttrValueIs(kNameSpaceID_None, nsGkAtoms::editable,

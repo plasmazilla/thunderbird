@@ -39,7 +39,7 @@
 #ifndef __nsHTMLSelectAccessible_h__
 #define __nsHTMLSelectAccessible_h__
 
-#include "nsHTMLFormControlAccessible.h"
+#include "HTMLFormControlAccessible.h"
 #include "nsIDOMHTMLOptionsCollection.h"
 #include "nsIDOMHTMLOptionElement.h"
 #include "nsIDOMNode.h"
@@ -68,7 +68,7 @@ class nsHTMLSelectListAccessible : public nsAccessibleWrap
 {
 public:
   
-  nsHTMLSelectListAccessible(nsIContent *aContent, nsIWeakReference *aShell);
+  nsHTMLSelectListAccessible(nsIContent* aContent, nsDocAccessible* aDoc);
   virtual ~nsHTMLSelectListAccessible() {}
 
   // nsAccessible
@@ -108,7 +108,7 @@ class nsHTMLSelectOptionAccessible : public nsHyperTextAccessibleWrap
 public:
   enum { eAction_Select = 0 };  
   
-  nsHTMLSelectOptionAccessible(nsIContent *aContent, nsIWeakReference *aShell);
+  nsHTMLSelectOptionAccessible(nsIContent* aContent, nsDocAccessible* aDoc);
   virtual ~nsHTMLSelectOptionAccessible() {}
 
   // nsIAccessible
@@ -122,8 +122,6 @@ public:
   virtual PRUint64 NativeState();
 
   virtual PRInt32 GetLevelInternal();
-  virtual void GetPositionAndSizeInternal(PRInt32 *aPosInSet,
-                                          PRInt32 *aSetSize);
 
   // ActionAccessible
   virtual PRUint8 ActionCount();
@@ -152,7 +150,7 @@ class nsHTMLSelectOptGroupAccessible : public nsHTMLSelectOptionAccessible
 {
 public:
 
-  nsHTMLSelectOptGroupAccessible(nsIContent *aContent, nsIWeakReference *aShell);
+  nsHTMLSelectOptGroupAccessible(nsIContent* aContent, nsDocAccessible* aDoc);
   virtual ~nsHTMLSelectOptGroupAccessible() {}
 
   // nsIAccessible
@@ -185,11 +183,10 @@ class nsHTMLComboboxAccessible : public nsAccessibleWrap
 public:
   enum { eAction_Click = 0 };
 
-  nsHTMLComboboxAccessible(nsIContent *aContent, nsIWeakReference *aShell);
+  nsHTMLComboboxAccessible(nsIContent* aContent, nsDocAccessible* aDoc);
   virtual ~nsHTMLComboboxAccessible() {}
 
   // nsIAccessible
-  NS_IMETHOD GetValue(nsAString& _retval);
   NS_IMETHOD DoAction(PRUint8 index);
   NS_IMETHOD GetActionName(PRUint8 aIndex, nsAString& aName);
 
@@ -198,6 +195,7 @@ public:
 
   // nsAccessible
   virtual void Description(nsString& aDescription);
+  virtual void Value(nsString& aValue);
   virtual mozilla::a11y::role NativeRole();
   virtual PRUint64 NativeState();
   virtual void InvalidateChildren();
@@ -234,9 +232,9 @@ class nsHTMLComboboxListAccessible : public nsHTMLSelectListAccessible
 {
 public:
 
-  nsHTMLComboboxListAccessible(nsIAccessible *aParent, 
-                               nsIContent *aContent, 
-                               nsIWeakReference* aShell);
+  nsHTMLComboboxListAccessible(nsIAccessible* aParent, 
+                               nsIContent* aContent, 
+                               nsDocAccessible* aDoc);
   virtual ~nsHTMLComboboxListAccessible() {}
 
   // nsAccessNode

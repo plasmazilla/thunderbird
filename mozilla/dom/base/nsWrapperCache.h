@@ -43,10 +43,19 @@
 
 struct JSObject;
 struct JSContext;
-class nsContentUtils;
 class XPCWrappedNativeScope;
 
 typedef PRUptrdiff PtrBits;
+
+namespace mozilla {
+namespace dom {
+namespace workers {
+
+class DOMBindingBase;
+
+} // namespace workers
+} // namespace dom
+} // namespace mozilla
 
 #define NS_WRAPPERCACHE_IID \
 { 0x6f3179a1, 0x36f7, 0x4a5c, \
@@ -67,20 +76,15 @@ typedef PRUptrdiff PtrBits;
  * collected and we want to preserve this state we actually store the state
  * object in the cache.
  *
- * The cache can store 3 types of objects:
+ * The cache can store 2 types of objects:
  *
- *  If WRAPPER_IS_PROXY is not set (IsProxy() returns false):
+ *  If WRAPPER_IS_DOM_BINDING is not set (IsDOMBinding() returns false):
  *    - a slim wrapper or the JSObject of an XPCWrappedNative wrapper
  *
- *  If WRAPPER_IS_PROXY is set (IsProxy() returns true):
- *    - a proxy wrapper
- *    - an expando object
+ *  If WRAPPER_IS_DOM_BINDING is set (IsDOMBinding() returns true):
+ *    - a DOM binding object (regular JS object or proxy)
  *
- * If a proxy wrapper is GCed and it has an expando object we'll store the
- * expando object in the cache. If we create a new proxy wrapper and the cache
- * contains an expando object we'll store the expando object in the new wrapper
- * and store the new wrapper in the cache. Unlinking from the cycle collector
- * clears anything stored in the cache.
+ * The finalizer for the wrapper clears the cache.
  *
  * A number of the methods are implemented in nsWrapperCacheInlines.h because we
  * have to include some JS headers that don't play nicely with the rest of the
@@ -88,7 +92,7 @@ typedef PRUptrdiff PtrBits;
  */
 class nsWrapperCache
 {
-  friend class nsContentUtils;
+  friend class mozilla::dom::workers::DOMBindingBase;
 
 public:
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_WRAPPERCACHE_IID)
@@ -100,7 +104,6 @@ public:
   {
     NS_ASSERTION(!PreservingWrapper(),
                  "Destroying cache with a preserved wrapper!");
-    RemoveExpandoObject();
   }
 
   /**
@@ -121,57 +124,51 @@ public:
    * be passed into a JS API function and that it won't be stored without being
    * rooted (or otherwise signaling the stored value to the CC).
    */
-  JSObject* GetWrapperPreserveColor() const;
+  JSObject* GetWrapperPreserveColor() const
+  {
+    return GetJSObjectFromBits();
+  }
+
+  void SetWrapper(JSObject* aWrapper)
+  {
+    NS_ASSERTION(!PreservingWrapper(), "Clearing a preserved wrapper!");
+    NS_ASSERTION(aWrapper, "Use ClearWrapper!");
+
+    SetWrapperBits(aWrapper);
+  }
 
   /**
-   * Get the expando object, used for storing expando properties, if there is
-   * one available. If the cache holds a DOM proxy binding that proxy's expando
-   * object will be returned.
-   *
-   * This getter does not change the color of the JSObject meaning that the
-   * object returned is not guaranteed to be kept alive past the next CC.
-   *
-   * This should only be called if you are certain that the return value won't
-   * be passed into a JS API function and that it won't be stored without being
-   * rooted (or otherwise signaling the stored value to the CC).
+   * Clear the wrapper. This should be called from the finalizer for the
+   * wrapper.
    */
-  JSObject* GetExpandoObjectPreserveColor() const;
+  void ClearWrapper()
+  {
+    NS_ASSERTION(!PreservingWrapper(), "Clearing a preserved wrapper!");
 
-  void SetWrapper(JSObject* aWrapper);
-
-  /**
-   * Clear the wrapper, but keep the expando object alive if the wrapper has
-   * one. This should be called from the finalizer for the wrapper.
-   */
-  void ClearWrapper();
-
-  /**
-   * Clear the wrapper if it's a proxy, doesn't keep the expando object alive.
-   * This should be called when unlinking the cache.
-   */
-  void ClearWrapperIfProxy();
+    SetWrapperBits(NULL);
+  }
 
   bool PreservingWrapper()
   {
     return (mWrapperPtrBits & WRAPPER_BIT_PRESERVED) != 0;
   }
 
-  void SetIsProxy()
+  void SetIsDOMBinding()
   {
     NS_ASSERTION(!mWrapperPtrBits,
                  "This flag should be set before creating any wrappers.");
-    mWrapperPtrBits = WRAPPER_IS_PROXY;
+    mWrapperPtrBits = WRAPPER_IS_DOM_BINDING;
   }
-  void ClearIsProxy()
+  void ClearIsDOMBinding()
   {
-    NS_ASSERTION(!mWrapperPtrBits || mWrapperPtrBits == WRAPPER_IS_PROXY,
+    NS_ASSERTION(!mWrapperPtrBits || mWrapperPtrBits == WRAPPER_IS_DOM_BINDING,
                  "This flag should be cleared before creating any wrappers.");
     mWrapperPtrBits = 0;
   }
 
-  bool IsProxy() const
+  bool IsDOMBinding() const
   {
-    return (mWrapperPtrBits & WRAPPER_IS_PROXY) != 0;
+    return (mWrapperPtrBits & WRAPPER_IS_DOM_BINDING) != 0;
   }
 
 
@@ -183,7 +180,7 @@ public:
    * object doesn't actually support creating a wrapper through its WrapObject
    * hook.
    */
-  virtual JSObject* WrapObject(JSContext *cx, XPCWrappedNativeScope *scope,
+  virtual JSObject* WrapObject(JSContext *cx, JSObject *scope,
                                bool *triedToWrap)
   {
     *triedToWrap = false;
@@ -195,8 +192,7 @@ public:
    */
   bool IsBlack();
 
-private:
-  // Only meant to be called by nsContentUtils.
+  // Only meant to be called by code that preserves a wrapper.
   void SetPreservingWrapper(bool aPreserve)
   {
     if(aPreserve) {
@@ -206,6 +202,8 @@ private:
       mWrapperPtrBits &= ~WRAPPER_BIT_PRESERVED;
     }
   }
+
+private:
   JSObject *GetJSObjectFromBits() const
   {
     return reinterpret_cast<JSObject*>(mWrapperPtrBits & ~kWrapperBitMask);
@@ -213,11 +211,8 @@ private:
   void SetWrapperBits(void *aWrapper)
   {
     mWrapperPtrBits = reinterpret_cast<PtrBits>(aWrapper) |
-                      (mWrapperPtrBits & WRAPPER_IS_PROXY);
+                      (mWrapperPtrBits & WRAPPER_IS_DOM_BINDING);
   }
-  void RemoveExpandoObject();
-
-  static JSObject *GetExpandoFromSlot(JSObject *obj);
 
   /**
    * If this bit is set then we're preserving the wrapper, which in effect ties
@@ -233,14 +228,12 @@ private:
   enum { WRAPPER_BIT_PRESERVED = 1 << 0 };
 
   /**
-   * If this bit is set then the wrapper for the native object is a proxy. Note
-   * that that doesn't necessarily mean that the JS object stored in the cache
-   * is a JS proxy, as we sometimes store objects other than the wrapper in the
-   * cache.
+   * If this bit is set then the wrapper for the native object is a DOM binding
+   * (regular JS object or proxy).
    */
-  enum { WRAPPER_IS_PROXY = 1 << 1 };
+  enum { WRAPPER_IS_DOM_BINDING = 1 << 1 };
 
-  enum { kWrapperBitMask = (WRAPPER_BIT_PRESERVED | WRAPPER_IS_PROXY) };
+  enum { kWrapperBitMask = (WRAPPER_BIT_PRESERVED | WRAPPER_IS_DOM_BINDING) };
 
   PtrBits mWrapperPtrBits;
 };

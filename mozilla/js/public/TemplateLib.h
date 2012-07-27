@@ -165,6 +165,7 @@ template <> struct IsPodType<long>                  { static const bool result =
 template <> struct IsPodType<unsigned long>         { static const bool result = true; };
 template <> struct IsPodType<long long>             { static const bool result = true; };
 template <> struct IsPodType<unsigned long long>    { static const bool result = true; };
+template <> struct IsPodType<bool>                  { static const bool result = true; };
 template <> struct IsPodType<float>                 { static const bool result = true; };
 template <> struct IsPodType<double>                { static const bool result = true; };
 template <> struct IsPodType<wchar_t>               { static const bool result = true; };
@@ -172,6 +173,11 @@ template <typename T> struct IsPodType<T *>         { static const bool result =
 
 template <bool cond, typename T, T v1, T v2> struct If        { static const T result = v1; };
 template <typename T, T v1, T v2> struct If<false, T, v1, v2> { static const T result = v2; };
+
+/*
+ * Traits class for identifying types that are implicitly barriered.
+ */
+template <class T> struct IsPostBarrieredType { static const bool result = false; };
 
 } /* namespace tl */
 } /* namespace js */

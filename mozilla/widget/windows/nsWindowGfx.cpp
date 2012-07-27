@@ -253,9 +253,15 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
       ::GetPropW(mWnd, L"PluginInstanceParentProperty"));
     if (instance) {
       instance->CallUpdateWindow();
-      ValidateRect(mWnd, NULL);
-      return true;
+    } else {
+      // We should never get here since in-process plugins should have
+      // subclassed our HWND and handled WM_PAINT, but in some cases that
+      // could fail. Return without asserting since it's not our fault.
+      NS_WARNING("Plugin failed to subclass our window");
     }
+
+    ValidateRect(mWnd, NULL);
+    return true;
   }
 
   nsPaintEvent willPaintEvent(true, NS_WILL_PAINT, this);
@@ -312,6 +318,7 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
 #endif
   event.region = GetRegionToPaint(forceRepaint, ps, hDC);
   event.willSendDidPaint = true;
+  event.didSendWillPaint = true;
 
   if (!event.region.IsEmpty() && mEventCallback)
   {
@@ -576,7 +583,7 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
             // When our device was removed, we should have gfxWindowsPlatform
             // check if its render mode is up to date!
             gfxWindowsPlatform::GetPlatform()->UpdateRenderMode();
-            Invalidate(false);
+            Invalidate();
           }
         }
         break;
@@ -587,7 +594,7 @@ bool nsWindow::OnPaint(HDC aDC, PRUint32 aNestingLevel)
           gfxWindowsPlatform::GetPlatform()->UpdateRenderMode();
           LayerManagerD3D10 *layerManagerD3D10 = static_cast<mozilla::layers::LayerManagerD3D10*>(GetLayerManager());
           if (layerManagerD3D10->device() != gfxWindowsPlatform::GetPlatform()->GetD3D10Device()) {
-            Invalidate(false);
+            Invalidate();
           } else {
             result = DispatchWindowEvent(&event, eventStatus);
           }
@@ -757,23 +764,9 @@ PRUint8* nsWindowGfx::Data32BitTo1Bit(PRUint8* aImageData,
   return outData;
 }
 
-bool nsWindowGfx::IsCursorTranslucencySupported()
-{
-  static bool didCheck = false;
-  static bool isSupported = false;
-  if (!didCheck) {
-    didCheck = true;
-    // Cursor translucency is supported on Windows XP and newer
-    isSupported = WinUtils::GetWindowsVersion() >= WinUtils::WINXP_VERSION;
-  }
-
-  return isSupported;
-}
-
 /**
  * Convert the given image data to a HBITMAP. If the requested depth is
- * 32 bit and the OS supports translucency, a bitmap with an alpha channel
- * will be returned.
+ * 32 bit, a bitmap with an alpha channel will be returned.
  *
  * @param aImageData The image data to convert. Must use the format accepted
  *                   by CreateDIBitmap.
@@ -792,7 +785,7 @@ HBITMAP nsWindowGfx::DataToBitmap(PRUint8* aImageData,
 {
   HDC dc = ::GetDC(NULL);
 
-  if (aDepth == 32 && IsCursorTranslucencySupported()) {
+  if (aDepth == 32) {
     // Alpha channel. We need the new header.
     BITMAPV4HEADER head = { 0 };
     head.bV4Size = sizeof(head);

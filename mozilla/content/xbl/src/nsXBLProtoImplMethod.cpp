@@ -42,7 +42,6 @@
 #include "nsIContent.h"
 #include "nsIDocument.h"
 #include "nsIScriptGlobalObject.h"
-#include "nsString.h"
 #include "mozilla/FunctionTimer.h"
 #include "nsUnicharUtils.h"
 #include "nsReadableUtils.h"
@@ -289,13 +288,17 @@ nsresult
 nsXBLProtoImplMethod::Write(nsIScriptContext* aContext,
                             nsIObjectOutputStream* aStream)
 {
-  nsresult rv = aStream->Write8(XBLBinding_Serialize_Method);
-  NS_ENSURE_SUCCESS(rv, rv);
+  if (mJSMethodObject) {
+    nsresult rv = aStream->Write8(XBLBinding_Serialize_Method);
+    NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = aStream->WriteWStringZ(mName);
-  NS_ENSURE_SUCCESS(rv, rv);
+    rv = aStream->WriteWStringZ(mName);
+    NS_ENSURE_SUCCESS(rv, rv);
 
-  return XBL_SerializeFunction(aContext, aStream, mJSMethodObject);
+    return XBL_SerializeFunction(aContext, aStream, mJSMethodObject);
+  }
+
+  return NS_OK;
 }
 
 nsresult
@@ -321,7 +324,9 @@ nsXBLProtoImplAnonymousMethod::Execute(nsIContent* aBoundElement)
   if (!context) {
     return NS_OK;
   }
-  
+
+  nsAutoMicroTask mt;
+
   JSContext* cx = context->GetNativeContext();
 
   JSObject* globalObject = global->GetGlobalJSObject();
