@@ -1,0 +1,23 @@
+From: =?UTF-8?q?Guido=20G=C3=BCnther?= <agx@sigxcpu.org>
+Date: Tue, 12 Jun 2012 19:44:27 +0200
+Subject: Make sure we only match the generated files
+
+and don't remove the idl-parser itself.
+
+---
+ mozilla/xpcom/idl-parser/header.py |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mozilla/xpcom/idl-parser/header.py b/mozilla/xpcom/idl-parser/header.py
+index b8d6940..f00f1eb 100644
+--- a/mozilla/xpcom/idl-parser/header.py
++++ b/mozilla/xpcom/idl-parser/header.py
+@@ -505,7 +505,7 @@ if __name__ == '__main__':
+             print >>sys.stderr, "--regen useless without --cachedir"
+         # Delete the lex/yacc files.  Ply is too stupid to regenerate them
+         # properly
+-        deadfiles = os.path.join(options.cachedir, "*.py*")
++        deadfiles = os.path.join(options.cachedir, "xpidl?*.py*")
+         for filename in glob.glob(deadfiles):
+             print filename
+             os.remove(filename)

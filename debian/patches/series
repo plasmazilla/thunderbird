@@ -31,3 +31,4 @@ fixes/Bug-628252-os2.cc-fails-to-compile-against-GCC-4.6-m.patch
 fixes/Include-cstdlib-in-gfx-angle-src-compiler-Types.h-fo.patch
 icedove/save-a-copy-of-a-attached-file-when-sending-from-OOo.patch
 fixes/Bug-691898-Use-YARR-interpreter-instead-of-PCRE-on-p.patch
+debian-hacks/Make-sure-we-only-match-the-generated-files.patch
