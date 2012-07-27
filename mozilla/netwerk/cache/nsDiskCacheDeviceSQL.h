@@ -51,7 +51,6 @@
 #include "nsCOMArray.h"
 #include "nsInterfaceHashtable.h"
 #include "nsClassHashtable.h"
-#include "nsHashSets.h"
 #include "nsWeakReference.h"
 
 class nsIURI;
@@ -90,19 +89,16 @@ private:
 };
 
 class nsOfflineCacheDevice : public nsCacheDevice
-                           , public nsIApplicationCacheService
+                           , public nsISupports
 {
 public:
   nsOfflineCacheDevice();
 
   NS_DECL_ISUPPORTS
-  NS_DECL_NSIAPPLICATIONCACHESERVICE
 
   /**
    * nsCacheDevice methods
    */
-
-  static nsOfflineCacheDevice *GetInstance();
 
   virtual nsresult        Init();
   virtual nsresult        Shutdown();
@@ -174,6 +170,28 @@ public:
                                         const nsCSubstring &clientID);
   nsresult                GetGroupForCache(const nsCSubstring &clientID,
                                            nsCString &out);
+
+  nsresult                CreateApplicationCache(const nsACString &group,
+                                                 nsIApplicationCache **out);
+
+  nsresult                GetApplicationCache(const nsACString &clientID,
+                                              nsIApplicationCache **out);
+
+  nsresult                GetActiveCache(const nsACString &group,
+                                         nsIApplicationCache **out);
+
+  nsresult                DeactivateGroup(const nsACString &group);
+
+  nsresult                ChooseApplicationCache(const nsACString &key,
+                                                 nsIApplicationCache **out);
+
+  nsresult                CacheOpportunistically(nsIApplicationCache* cache,
+                                                 const nsACString &key);
+
+  nsresult                GetGroups(PRUint32 *count,char ***keys);
+
+  nsresult                GetGroupsTimeOrdered(PRUint32 *count,
+                                               char ***keys);
 
   /**
    * Preference accessors
@@ -264,6 +282,7 @@ private:
   nsCOMPtr<mozIStorageStatement>  mStatement_FindClient;
   nsCOMPtr<mozIStorageStatement>  mStatement_FindClientByNamespace;
   nsCOMPtr<mozIStorageStatement>  mStatement_EnumerateGroups;
+  nsCOMPtr<mozIStorageStatement>  mStatement_EnumerateGroupsTimeOrder;
 
   nsCOMPtr<nsILocalFile>          mCacheDirectory;
   PRUint32                        mCacheCapacity; // in bytes
@@ -271,7 +290,7 @@ private:
 
   nsInterfaceHashtable<nsCStringHashKey, nsIWeakReference> mCaches;
   nsClassHashtable<nsCStringHashKey, nsCString> mActiveCachesByGroup;
-  nsCStringHashSet mActiveCaches;
+  nsTHashtable<nsCStringHashKey> mActiveCaches;
 
   nsCOMPtr<nsIThread> mInitThread;
 };

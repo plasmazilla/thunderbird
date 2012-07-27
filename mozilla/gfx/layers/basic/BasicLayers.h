@@ -131,9 +131,10 @@ public:
   virtual already_AddRefed<ContainerLayer> CreateContainerLayer();
   virtual already_AddRefed<ImageLayer> CreateImageLayer();
   virtual already_AddRefed<CanvasLayer> CreateCanvasLayer();
-  virtual already_AddRefed<ImageContainer> CreateImageContainer();
   virtual already_AddRefed<ColorLayer> CreateColorLayer();
   virtual already_AddRefed<ReadbackLayer> CreateReadbackLayer();
+  virtual ImageFactory *GetImageFactory();
+
   virtual already_AddRefed<ShadowThebesLayer> CreateShadowThebesLayer()
   { return nsnull; }
   virtual already_AddRefed<ShadowContainerLayer> CreateShadowContainerLayer()
@@ -207,6 +208,8 @@ protected:
   nsRefPtr<gfxContext> mDefaultTarget;
   // The context to draw into.
   nsRefPtr<gfxContext> mTarget;
+  // Image factory we use.
+  nsRefPtr<ImageFactory> mFactory;
 
   // Cached surface for double buffering
   gfxCachedTempSurface mCachedSurface;
@@ -264,6 +267,8 @@ public:
   virtual bool IsCompositingCheap();
   virtual bool HasShadowManagerInternal() const { return HasShadowManager(); }
 
+  virtual void SetIsFirstPaint() MOZ_OVERRIDE;
+
 private:
   /**
    * Forward transaction results to the parent context.
@@ -273,57 +278,50 @@ private:
   LayerRefArray mKeepAlive;
 };
 
-}
-}
-
-/**
- * We need to be able to hold a reference to a gfxASurface from Image
- * subclasses. This is potentially a problem since Images can be addrefed
- * or released off the main thread. We can ensure that we never AddRef
- * a gfxASurface off the main thread, but we might want to Release due
- * to an Image being destroyed off the main thread.
- * 
- * We use nsCountedRef<nsMainThreadSurfaceRef> to reference the
- * gfxASurface. When AddRefing, we assert that we're on the main thread.
- * When Releasing, if we're not on the main thread, we post an event to
- * the main thread to do the actual release.
- */
-class nsMainThreadSurfaceRef;
-
-template <>
-class nsAutoRefTraits<nsMainThreadSurfaceRef> {
+class BasicShadowableThebesLayer;
+class BasicShadowableLayer : public ShadowableLayer
+{
 public:
-  typedef gfxASurface* RawRef;
-
-  /**
-   * The XPCOM event that will do the actual release on the main thread.
-   */
-  class SurfaceReleaser : public nsRunnable {
-  public:
-    SurfaceReleaser(RawRef aRef) : mRef(aRef) {}
-    NS_IMETHOD Run() {
-      mRef->Release();
-      return NS_OK;
-    }
-    RawRef mRef;
-  };
-
-  static RawRef Void() { return nsnull; }
-  static void Release(RawRef aRawRef)
+  BasicShadowableLayer()
   {
-    if (NS_IsMainThread()) {
-      aRawRef->Release();
-      return;
-    }
-    nsCOMPtr<nsIRunnable> runnable = new SurfaceReleaser(aRawRef);
-    NS_DispatchToMainThread(runnable);
+    MOZ_COUNT_CTOR(BasicShadowableLayer);
   }
-  static void AddRef(RawRef aRawRef)
+
+  ~BasicShadowableLayer();
+
+  void SetShadow(PLayerChild* aShadow)
   {
-    NS_ASSERTION(NS_IsMainThread(),
-                 "Can only add a reference on the main thread");
-    aRawRef->AddRef();
+    NS_ABORT_IF_FALSE(!mShadow, "can't have two shadows (yet)");
+    mShadow = aShadow;
   }
+
+  virtual void SetBackBuffer(const SurfaceDescriptor& aBuffer)
+  {
+    NS_RUNTIMEABORT("if this default impl is called, |aBuffer| leaks");
+  }
+  
+  virtual void SetBackBufferYUVImage(gfxSharedImageSurface* aYBuffer,
+                                     gfxSharedImageSurface* aUBuffer,
+                                     gfxSharedImageSurface* aVBuffer)
+  {
+    NS_RUNTIMEABORT("if this default impl is called, |aBuffer| leaks");
+  }
+
+  virtual void Disconnect()
+  {
+    // This is an "emergency Disconnect()", called when the compositing
+    // process has died.  |mShadow| and our Shmem buffers are
+    // automatically managed by IPDL, so we don't need to explicitly
+    // free them here (it's hard to get that right on emergency
+    // shutdown anyway).
+    mShadow = nsnull;
+  }
+
+  virtual BasicShadowableThebesLayer* AsThebes() { return nsnull; }
 };
+
+
+}
+}
 
 #endif /* GFX_BASICLAYERS_H */

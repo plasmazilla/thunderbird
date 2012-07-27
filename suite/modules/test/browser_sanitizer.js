@@ -1,5 +1,4 @@
-Components.utils.import("resource:///modules/Sanitizer.jsm");
-ok(typeof Sanitizer != "undefined", "Sanitizer module imported")
+Cu.import("resource:///modules/Sanitizer.jsm", this);
 
 function getWindows(aType, aSingle) {
   var wm = Components.classes["@mozilla.org/appshell/window-mediator;1"]
@@ -79,9 +78,7 @@ var sanTests = {
   cookies: {
     desc: "Cookie",
     setup: function() {
-      var prefs = Components.classes["@mozilla.org/preferences-service;1"]
-                            .getService(Components.interfaces.nsIPrefBranch);
-      prefs.setIntPref("network.cookie.cookieBehavior", 0);
+      Services.prefs.setIntPref("network.cookie.cookieBehavior", 0);
       var ios = Components.classes["@mozilla.org/network/io-service;1"]
                           .getService(Components.interfaces.nsIIOService);
       this.uri = ios.newURI("http://sanitizer.test/", null, null);
@@ -103,9 +100,10 @@ var sanTests = {
                           .getService(Components.interfaces.nsIIOService);
       var uri = ios.newURI("http://sanitizer.test/", null, null);
 
-      var history = Components.classes["@mozilla.org/browser/global-history;2"]
-                              .getService(Components.interfaces.nsIBrowserHistory);
-      history.addPageWithDetails(uri, "Sanitizer!", Date.now());
+      PlacesUtils.history.addVisit(uri, Date.now() * 1000, null,
+                                   Ci.nsINavHistoryService.TRANSITION_LINK,
+                                   false, 0);
+      PlacesUtils.ghistory2.setPageTitle(uri, "Sanitizer!");
 
       return this.check();
     },
@@ -148,10 +146,8 @@ var sanTests = {
       var supStr = Components.classes["@mozilla.org/supports-string;1"]
                              .createInstance(Components.interfaces.nsISupportsString);
       supStr.data = "Sanitizer!";
-      this.prefs = Components.classes["@mozilla.org/preferences-service;1"]
-                             .getService(Components.interfaces.nsIPrefBranch);
-      this.prefs.setComplexValue("general.open_location.last_url",
-                                 Components.interfaces.nsISupportsString, supStr);
+      Services.prefs.setComplexValue("general.open_location.last_url",
+                                      Components.interfaces.nsISupportsString, supStr);
 
       return this.check(true);
     },
@@ -159,8 +155,8 @@ var sanTests = {
     check: function(aCheckAll) {
       var locDialog = false;
       try {
-        locDialog = (this.prefs.getComplexValue("general.open_location.last_url",
-                                                Components.interfaces.nsISupportsString).data == "Sanitizer!");
+        locDialog = (Services.prefs.getComplexValue("general.open_location.last_url",
+                                                     Components.interfaces.nsISupportsString).data == "Sanitizer!");
       } catch(ex) {}
 
       if (locDialog == !aCheckAll)
@@ -222,9 +218,18 @@ var sanTests = {
       var dest = ios.newFileURI(file);
 
       this.dm = Components.classes["@mozilla.org/download-manager;1"]
-                          .createInstance(Components.interfaces.nsIDownloadManager);
+                          .getService(Components.interfaces.nsIDownloadManager);
+
+      const nsIWBP = Components.interfaces.nsIWebBrowserPersist;
+      var persist = Components.classes["@mozilla.org/embedding/browser/nsWebBrowserPersist;1"]
+                              .createInstance(nsIWBP);
+      persist.persistFlags = nsIWBP.PERSIST_FLAGS_REPLACE_EXISTING_FILES |
+                             nsIWBP.PERSIST_FLAGS_BYPASS_CACHE |
+                             nsIWBP.PERSIST_FLAGS_AUTODETECT_APPLY_CONVERSION;
+
       this.dl = this.dm.addDownload(Components.interfaces.nsIDownloadManager.DOWNLOAD_CANCELED, uri,
-                                    dest, "Sanitizer!", null, Math.round(Date.now() * 1000), null, {});
+                                    dest, "Sanitizer!", null, Math.round(Date.now() * 1000), null, persist);
+
       // Stupid DM...
       this.dm.cancelDownload(this.dl.id);
       return this.check();
@@ -291,12 +296,9 @@ var sanTests = {
 };
 
 function fullSanitize() {
-  var psvc = Components.classes["@mozilla.org/preferences-service;1"]
-                       .getService(Components.interfaces.nsIPrefService);
-  var prefs = psvc.getBranch("privacy.item.");
+  var prefs = Services.prefs.getBranch("privacy.item.");
 
-  var poppref = psvc.getBranch("privacy.sanitize.");
-  poppref.setBoolPref("promptOnSanitize", false);
+  Services.prefs.setBoolPref("privacy.sanitize.promptOnSanitize", false);
 
   for (var testName in sanTests) {
     var test = sanTests[testName];
@@ -315,7 +317,7 @@ function fullSanitize() {
   }
 
   try {
-    poppref.clearUserPref("promptOnSanitize");
+    Services.prefs.clearUserPref("privacy.sanitize.promptOnSanitize");
   } catch(ex) {}
 }
 

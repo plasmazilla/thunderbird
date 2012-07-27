@@ -59,8 +59,8 @@ using namespace mozilla::a11y;
 ////////////////////////////////////////////////////////////////////////////////
 
 nsXULTabAccessible::
-  nsXULTabAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
-  nsAccessibleWrap(aContent, aShell)
+  nsXULTabAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
+  nsAccessibleWrap(aContent, aDoc)
 {
 }
 
@@ -153,9 +153,9 @@ nsXULTabAccessible::RelationByType(PRUint32 aType)
   if (!tabsElm)
     return rel;
 
-  nsCOMPtr<nsIDOMNode> DOMNode(GetDOMNode());
+  nsCOMPtr<nsIDOMNode> domNode(DOMNode());
   nsCOMPtr<nsIDOMNode> tabpanelNode;
-  tabsElm->GetRelatedElement(DOMNode, getter_AddRefs(tabpanelNode));
+  tabsElm->GetRelatedElement(domNode, getter_AddRefs(tabpanelNode));
   if (!tabpanelNode)
     return rel;
 
@@ -164,22 +164,14 @@ nsXULTabAccessible::RelationByType(PRUint32 aType)
   return rel;
 }
 
-void
-nsXULTabAccessible::GetPositionAndSizeInternal(PRInt32 *aPosInSet,
-                                               PRInt32 *aSetSize)
-{
-  nsAccUtils::GetPositionAndSizeForXULSelectControlItem(mContent, aPosInSet,
-                                                        aSetSize);
-}
-
 
 ////////////////////////////////////////////////////////////////////////////////
 // nsXULTabsAccessible
 ////////////////////////////////////////////////////////////////////////////////
 
 nsXULTabsAccessible::
-  nsXULTabsAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
-  XULSelectControlAccessible(aContent, aShell)
+  nsXULTabsAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
+  XULSelectControlAccessible(aContent, aDoc)
 {
 }
 
@@ -195,10 +187,10 @@ nsXULTabsAccessible::ActionCount()
   return 0;
 }
 
-/** no value */
-NS_IMETHODIMP nsXULTabsAccessible::GetValue(nsAString& _retval)
+void
+nsXULTabsAccessible::Value(nsString& aValue)
 {
-  return NS_OK;
+  aValue.Truncate();
 }
 
 nsresult
@@ -214,8 +206,8 @@ nsXULTabsAccessible::GetNameInternal(nsAString& aName)
 ////////////////////////////////////////////////////////////////////////////////
 
 nsXULTabpanelsAccessible::
-  nsXULTabpanelsAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
-  nsAccessibleWrap(aContent, aShell)
+  nsXULTabpanelsAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
+  nsAccessibleWrap(aContent, aDoc)
 {
 }
 
@@ -231,8 +223,8 @@ nsXULTabpanelsAccessible::NativeRole()
 ////////////////////////////////////////////////////////////////////////////////
 
 nsXULTabpanelAccessible::
-  nsXULTabpanelAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
-  nsAccessibleWrap(aContent, aShell)
+  nsXULTabpanelAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
+  nsAccessibleWrap(aContent, aDoc)
 {
 }
 
@@ -255,9 +247,9 @@ nsXULTabpanelAccessible::RelationByType(PRUint32 aType)
   if (!tabpanelsElm)
     return rel;
 
-  nsCOMPtr<nsIDOMNode> DOMNode(GetDOMNode());
+  nsCOMPtr<nsIDOMNode> domNode(DOMNode());
   nsCOMPtr<nsIDOMNode> tabNode;
-  tabpanelsElm->GetRelatedElement(DOMNode, getter_AddRefs(tabNode));
+  tabpanelsElm->GetRelatedElement(domNode, getter_AddRefs(tabNode));
   if (!tabNode)
     return rel;
 

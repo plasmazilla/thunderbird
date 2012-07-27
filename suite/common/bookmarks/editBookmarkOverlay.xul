@@ -48,7 +48,7 @@
 <overlay id="editBookmarkOverlay"
          xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
 
-  <vbox id="editBookmarkPanelContent" flex="1">
+  <vbox id="editBookmarkPanelContent">
     <broadcaster id="paneElementsBroadcaster"/>
 
     <hbox id="editBMPanel_selectionCount" hidden="true" pack="center">
@@ -92,7 +92,6 @@
                  observes="paneElementsBroadcaster"/>
           <textbox id="editBMPanel_feedLocationField"
                    class="uri-element"
-                   onblur="gEditItemOverlay.onFeedLocationFieldBlur();"
                    observes="paneElementsBroadcaster"/>
         </row>
 
@@ -104,7 +103,6 @@
                  observes="paneElementsBroadcaster"/>
           <textbox id="editBMPanel_siteLocationField"
                    class="uri-element"
-                   onblur="gEditItemOverlay.onSiteLocationFieldBlur();"
                    observes="paneElementsBroadcaster"/>
         </row>
 

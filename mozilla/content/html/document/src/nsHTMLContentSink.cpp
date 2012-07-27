@@ -40,6 +40,12 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+/**
+ * This file is near-OBSOLETE. It is used for about:blank only and for the
+ * HTML element factory.
+ * Don't bother adding new stuff in this file.
+ */
+
 #include "mozilla/Util.h"
 
 #include "nsContentSink.h"
@@ -49,8 +55,6 @@
 #include "nsIHTMLContentSink.h"
 #include "nsIInterfaceRequestor.h"
 #include "nsIInterfaceRequestorUtils.h"
-#include "nsIParser.h"
-#include "nsParserUtils.h"
 #include "nsScriptLoader.h"
 #include "nsIURI.h"
 #include "nsNetUtil.h"
@@ -103,7 +107,6 @@
 #include "nsIScriptContext.h"
 #include "nsStyleLinkElement.h"
 
-#include "nsReadableUtils.h"
 #include "nsWeakReference.h" // nsHTMLElementFactory supports weak references
 #include "nsIPrompt.h"
 #include "nsLayoutCID.h"
@@ -157,6 +160,10 @@ static const contentCreatorCallback sContentCreatorCallbacks[] = {
 class SinkContext;
 class HTMLContentSink;
 
+/**
+ * This class is near-OBSOLETE. It is used for about:blank only.
+ * Don't bother adding new stuff in this file.
+ */
 class HTMLContentSink : public nsContentSink,
 #ifdef DEBUG
                         public nsIDebugDumpContent,

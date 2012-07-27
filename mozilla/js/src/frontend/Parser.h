@@ -79,6 +79,8 @@ struct Parser : private AutoGCRooter
     ParseNodeAllocator  allocator;
     uint32_t            functionCount;  /* number of functions in current unit */
     ObjectBox           *traceListHead; /* list of parsed object for GC tracing */
+
+    /* This is a TreeContext or a BytecodeEmitter; see the comment on TCF_COMPILING. */
     TreeContext         *tc;            /* innermost tree context (stack-allocated) */
 
     /* Root atoms and objects allocated for the parsed tree. */
@@ -101,7 +103,7 @@ struct Parser : private AutoGCRooter
      * tempLifoAlloc and save the pointer beyond the next Parser destructor
      * invocation.
      */
-    bool init(const jschar *base, size_t length, const char *filename, uintN lineno,
+    bool init(const jschar *base, size_t length, const char *filename, unsigned lineno,
               JSVersion version);
 
     void setPrincipals(JSPrincipals *prin, JSPrincipals *originPrin);
@@ -139,7 +141,7 @@ struct Parser : private AutoGCRooter
     /*
      * Report a parse (compile) error.
      */
-    inline bool reportErrorNumber(ParseNode *pn, uintN flags, uintN errorNumber, ...);
+    inline bool reportErrorNumber(ParseNode *pn, unsigned flags, unsigned errorNumber, ...);
 
   private:
     ParseNode *allocParseNode(size_t size) {
@@ -243,12 +245,12 @@ struct Parser : private AutoGCRooter
     enum FunctionType { Getter, Setter, Normal };
     bool functionArguments(TreeContext &funtc, FunctionBox *funbox, ParseNode **list);
 
-    ParseNode *functionDef(PropertyName *name, FunctionType type, FunctionSyntaxKind kind);
+    ParseNode *functionDef(HandlePropertyName name, FunctionType type, FunctionSyntaxKind kind);
 
     ParseNode *unaryOpExpr(ParseNodeKind kind, JSOp op);
 
     ParseNode *condition();
-    ParseNode *comprehensionTail(ParseNode *kid, uintN blockid, bool isGenexp,
+    ParseNode *comprehensionTail(ParseNode *kid, unsigned blockid, bool isGenexp,
                                  ParseNodeKind kind = PNK_SEMI, JSOp op = JSOP_NOP);
     ParseNode *generatorExpr(ParseNode *kid);
     JSBool argumentList(ParseNode *listNode);
@@ -280,10 +282,11 @@ struct Parser : private AutoGCRooter
 #endif /* JS_HAS_XML_SUPPORT */
 
     bool setAssignmentLhsOps(ParseNode *pn, JSOp op);
+    bool matchInOrOf(bool *isForOfp);
 };
 
 inline bool
-Parser::reportErrorNumber(ParseNode *pn, uintN flags, uintN errorNumber, ...)
+Parser::reportErrorNumber(ParseNode *pn, unsigned flags, unsigned errorNumber, ...)
 {
     va_list args;
     va_start(args, errorNumber);
@@ -293,10 +296,7 @@ Parser::reportErrorNumber(ParseNode *pn, uintN flags, uintN errorNumber, ...)
 }
 
 bool
-CheckStrictParameters(JSContext *cx, TreeContext *tc);
-
-bool
-DefineArg(ParseNode *pn, JSAtom *atom, uintN i, TreeContext *tc);
+DefineArg(ParseNode *pn, JSAtom *atom, unsigned i, TreeContext *tc);
 
 } /* namespace js */
 

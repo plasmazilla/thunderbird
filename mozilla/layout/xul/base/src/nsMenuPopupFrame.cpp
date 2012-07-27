@@ -80,7 +80,6 @@
 #include "nsIDocShellTreeOwner.h"
 #include "nsIBaseWindow.h"
 #include "nsISound.h"
-#include "nsIRootBox.h"
 #include "nsIScreenManager.h"
 #include "nsIServiceManager.h"
 #include "nsThemeConstants.h"
@@ -1481,13 +1480,13 @@ nsIScrollableFrame* nsMenuPopupFrame::GetScrollFrame(nsIFrame* aStart)
 void nsMenuPopupFrame::EnsureMenuItemIsVisible(nsMenuFrame* aMenuItem)
 {
   if (aMenuItem) {
-    aMenuItem->PresContext()->PresShell()->
-      ScrollFrameRectIntoView(aMenuItem,
-                              nsRect(nsPoint(0,0), aMenuItem->GetRect().Size()),
-                              NS_PRESSHELL_SCROLL_ANYWHERE,
-                              NS_PRESSHELL_SCROLL_ANYWHERE,
-                              nsIPresShell::SCROLL_OVERFLOW_HIDDEN |
-                              nsIPresShell::SCROLL_FIRST_ANCESTOR_ONLY);
+    aMenuItem->PresContext()->PresShell()->ScrollFrameRectIntoView(
+      aMenuItem,
+      nsRect(nsPoint(0,0), aMenuItem->GetRect().Size()),
+      nsIPresShell::ScrollAxis(),
+      nsIPresShell::ScrollAxis(),
+      nsIPresShell::SCROLL_OVERFLOW_HIDDEN |
+      nsIPresShell::SCROLL_FIRST_ANCESTOR_ONLY);
   }
 }
 

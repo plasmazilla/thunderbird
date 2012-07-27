@@ -39,7 +39,6 @@
 #include "nsSVGSwitchElement.h"
 #include "DOMSVGTests.h"
 #include "nsIFrame.h"
-#include "nsISVGChildFrame.h"
 #include "nsSVGUtils.h"
 #include "mozilla/Preferences.h"
 
@@ -88,21 +87,22 @@ nsSVGSwitchElement::nsSVGSwitchElement(already_AddRefed<nsINodeInfo> aNodeInfo)
 void
 nsSVGSwitchElement::MaybeInvalidate()
 {
-  // We don't reuse UpdateActiveChild() and check if mActiveChild has changed
-  // to determine if we should call nsSVGUtils::UpdateGraphic. If we did that,
-  // nsSVGUtils::UpdateGraphic would not invalidate the old mActiveChild area!
+  // We must not change mActiveChild until after
+  // InvalidateAndScheduleBoundsUpdate has been called, otherwise
+  // it will not correctly invalidate the old mActiveChild area.
 
-  if (FindActiveChild() == mActiveChild) {
+  nsIContent *newActiveChild = FindActiveChild();
+
+  if (newActiveChild == mActiveChild) {
     return;
   }
 
   nsIFrame *frame = GetPrimaryFrame();
   if (frame) {
-    nsISVGChildFrame* svgFrame = do_QueryFrame(frame);
-    if (svgFrame) {
-      nsSVGUtils::UpdateGraphic(svgFrame);
-    }
+    nsSVGUtils::InvalidateAndScheduleBoundsUpdate(frame);
   }
+
+  mActiveChild = newActiveChild;
 }
 
 //----------------------------------------------------------------------
@@ -126,14 +126,11 @@ nsSVGSwitchElement::InsertChildAt(nsIContent* aKid,
   return rv;
 }
 
-nsresult
+void
 nsSVGSwitchElement::RemoveChildAt(PRUint32 aIndex, bool aNotify)
 {
-  nsresult rv = nsSVGSwitchElementBase::RemoveChildAt(aIndex, aNotify);
-  if (NS_SUCCEEDED(rv)) {
-    MaybeInvalidate();
-  }
-  return rv;
+  nsSVGSwitchElementBase::RemoveChildAt(aIndex, aNotify);
+  MaybeInvalidate();
 }
  
 //----------------------------------------------------------------------

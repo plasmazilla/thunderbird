@@ -116,14 +116,9 @@ struct VMFrame
             void *ptr2;
         } x;
         struct {
-            uint32_t lazyArgsObj;
             uint32_t dynamicArgc;
         } call;
     } u;
-
-    static size_t offsetOfLazyArgsObj() {
-        return offsetof(VMFrame, u.call.lazyArgsObj);
-    }
 
     static size_t offsetOfDynamicArgc() {
         return offsetof(VMFrame, u.call.dynamicArgc);
@@ -402,7 +397,7 @@ struct RecompilationMonitor
     unsigned frameExpansions;
 
     /* If a GC occurs it may discard jit code on the stack. */
-    unsigned gcNumber;
+    uint64_t gcNumber;
 
     RecompilationMonitor(JSContext *cx)
         : cx(cx),
@@ -454,8 +449,22 @@ enum JaegerStatus
      * The trap has been reinstalled, but should not execute again when
      * resuming execution.
      */
-    Jaeger_UnfinishedAtTrap = 3
+    Jaeger_UnfinishedAtTrap = 3,
+
+    /*
+     * An exception was thrown before entering jit code, so the caller should
+     * 'goto error'.
+     */
+    Jaeger_ThrowBeforeEnter = 4
 };
+
+static inline bool
+JaegerStatusToSuccess(JaegerStatus status)
+{
+    JS_ASSERT(status != Jaeger_Unfinished);
+    JS_ASSERT(status != Jaeger_UnfinishedAtTrap);
+    return status == Jaeger_Returned;
+}
 
 /*
  * Method JIT compartment data. Currently, there is exactly one per
@@ -473,7 +482,7 @@ class JaegerCompartment {
     void Finish();
 
   public:
-    bool Initialize();
+    bool Initialize(JSContext *cx);
 
     JaegerCompartment();
     ~JaegerCompartment() { Finish(); }
@@ -761,6 +770,14 @@ struct CrossChunkEdge
     void *sourceJump1;
     void *sourceJump2;
 
+#ifdef JS_CPU_X64
+    /*
+     * Location of a trampoline for the edge to perform an indirect jump if
+     * out of range, NULL if the source is not compiled.
+     */
+    void *sourceTrampoline;
+#endif
+
     /* Any jump table entries along this edge. */
     typedef Vector<void**,4,SystemAllocPolicy> JumpTableEntryVector;
     JumpTableEntryVector *jumpTableEntries;
@@ -844,8 +861,8 @@ struct JITScript
 
     size_t sizeOfIncludingThis(JSMallocSizeOfFun mallocSizeOf);
 
-    void destroy(JSContext *cx);
-    void destroyChunk(JSContext *cx, unsigned chunkIndex, bool resetUses = true);
+    void destroy(FreeOp *fop);
+    void destroyChunk(FreeOp *fop, unsigned chunkIndex, bool resetUses = true);
 };
 
 /*
@@ -884,16 +901,13 @@ CompileStatus
 CanMethodJIT(JSContext *cx, JSScript *script, jsbytecode *pc,
              bool construct, CompileRequest request);
 
-void
-ReleaseScriptCode(JSContext *cx, JSScript *script, bool construct);
-
 inline void
-ReleaseScriptCode(JSContext *cx, JSScript *script)
+ReleaseScriptCode(FreeOp *fop, JSScript *script)
 {
-    if (script->jitCtor)
-        mjit::ReleaseScriptCode(cx, script, true);
-    if (script->jitNormal)
-        mjit::ReleaseScriptCode(cx, script, false);
+    if (script->jitHandleCtor.isValid())
+        JSScript::ReleaseCode(fop, &script->jitHandleCtor);
+    if (script->jitHandleNormal.isValid())
+        JSScript::ReleaseCode(fop, &script->jitHandleNormal);
 }
 
 // Expand all stack frames inlined by the JIT within a compartment.
@@ -959,6 +973,17 @@ inline void * bsearch_nmap(NativeMapEntry *nmap, size_t nPairs, size_t bcOff)
         }
         return nmap[mid-1].ncode;
     }
+}
+
+static inline bool
+IsLowerableFunCallOrApply(jsbytecode *pc)
+{
+#ifdef JS_MONOIC
+    return (*pc == JSOP_FUNCALL && GET_ARGC(pc) >= 1) ||
+           (*pc == JSOP_FUNAPPLY && GET_ARGC(pc) == 2);
+#else
+    return false;
+#endif
 }
 
 } /* namespace mjit */

@@ -37,7 +37,7 @@
 
 package org.mozilla.gecko.sync.synchronizer;
 
-import org.mozilla.gecko.sync.Utils;
+import org.mozilla.gecko.sync.Logger;
 import org.mozilla.gecko.sync.repositories.domain.Record;
 
 import android.util.Log;
@@ -51,7 +51,7 @@ import android.util.Log;
  *
  */
 class ConcurrentRecordConsumer extends RecordConsumer {
-  private static final String LOG_TAG = "ConcurrentRecordConsumer";
+  private static final String LOG_TAG = "CRecordConsumer";
 
   /**
    * When this is true and all records have been processed, the consumer
@@ -65,15 +65,15 @@ class ConcurrentRecordConsumer extends RecordConsumer {
   }
 
   private static void info(String message) {
-    Utils.info(LOG_TAG, message);
+    Logger.info(LOG_TAG, message);
   }
 
   private static void debug(String message) {
-    Utils.debug(LOG_TAG, message);
+    Logger.debug(LOG_TAG, message);
   }
 
   private static void trace(String message) {
-    Utils.trace(LOG_TAG, message);
+    Logger.trace(LOG_TAG, message);
   }
 
   private Object monitor = new Object();
@@ -104,7 +104,7 @@ class ConcurrentRecordConsumer extends RecordConsumer {
   private Object countMonitor = new Object();
   @Override
   public void stored() {
-    debug("Record stored. Notifying.");
+    trace("Record stored. Notifying.");
     synchronized (countMonitor) {
       counter++;
     }
@@ -117,23 +117,24 @@ class ConcurrentRecordConsumer extends RecordConsumer {
 
   @Override
   public void run() {
+    Record record;
+
     while (true) {
-      synchronized (monitor) {
-        trace("run() took monitor.");
-        if (stopImmediately) {
-          debug("Stopping immediately. Clearing queue.");
-          delegate.getQueue().clear();
-          debug("Notifying consumer.");
-          consumerIsDone();
-          return;
-        }
-        debug("run() dropped monitor.");
-      }
       // The queue is concurrent-safe.
-      while (!delegate.getQueue().isEmpty()) {
-        trace("Grabbing record...");
-        Record record = delegate.getQueue().remove();
-        trace("Storing record... " + delegate);
+      while ((record = delegate.getQueue().poll()) != null) {
+        synchronized (monitor) {
+          trace("run() took monitor.");
+          if (stopImmediately) {
+            debug("Stopping immediately. Clearing queue.");
+            delegate.getQueue().clear();
+            debug("Notifying consumer.");
+            consumerIsDone();
+            return;
+          }
+          debug("run() dropped monitor.");
+        }
+
+        trace("Storing record with guid " + record.guid + ".");
         try {
           delegate.store(record);
         } catch (Exception e) {

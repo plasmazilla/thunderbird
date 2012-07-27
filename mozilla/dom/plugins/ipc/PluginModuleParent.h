@@ -217,6 +217,9 @@ protected:
     RecvNPN_SetException(PPluginScriptableObjectParent* aActor,
                          const nsCString& aMessage);
 
+    NS_OVERRIDE virtual bool
+    RecvNPN_ReloadPlugins(const bool& aReloadPages);
+
     static PluginInstanceParent* InstCast(NPP instance);
     static BrowserStreamParent* StreamCast(NPP instance, NPStream* s);
 
@@ -262,7 +265,7 @@ private:
 
     virtual bool HasRequiredFunctions();
     virtual nsresult AsyncSetWindow(NPP instance, NPWindow* window);
-    virtual nsresult GetImage(NPP instance, mozilla::layers::ImageContainer* aContainer, mozilla::layers::Image** aImage);
+    virtual nsresult GetImageContainer(NPP instance, mozilla::layers::ImageContainer** aContainer);
     virtual nsresult GetImageSize(NPP instance, nsIntSize* aSize);
     NS_OVERRIDE virtual bool UseAsyncPainting() { return true; }
     NS_OVERRIDE
@@ -321,7 +324,7 @@ private:
     bool mClearSiteDataSupported;
     bool mGetSitesWithDataSupported;
     const NPNetscapeFuncs* mNPNIface;
-    nsDataHashtable<nsVoidPtrHashKey, PluginIdentifierParent*> mIdentifiers;
+    nsDataHashtable<nsPtrHashKey<void>, PluginIdentifierParent*> mIdentifiers;
     nsNPAPIPlugin* mPlugin;
     ScopedRunnableMethodFactory<PluginModuleParent> mTaskFactory;
     nsString mPluginDumpID;

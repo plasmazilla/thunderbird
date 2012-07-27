@@ -61,6 +61,8 @@
 #include <windows.h>
 #include <objbase.h>
 
+class nsIMemoryMultiReporter;
+
 // Utility to get a Windows HDC from a thebes context,
 // used by both GDI and Uniscribe font shapers
 struct DCFromContext {
@@ -117,6 +119,13 @@ struct ClearTypeParameterInfo {
 
 class THEBES_API gfxWindowsPlatform : public gfxPlatform {
 public:
+    enum TextRenderingMode {
+        TEXT_RENDERING_NO_CLEARTYPE,
+        TEXT_RENDERING_NORMAL,
+        TEXT_RENDERING_GDI_CLASSIC,
+        TEXT_RENDERING_COUNT
+    };
+
     gfxWindowsPlatform();
     virtual ~gfxWindowsPlatform();
     static gfxWindowsPlatform *GetPlatform() {
@@ -177,6 +186,10 @@ public:
 
     nsresult UpdateFontList();
 
+    virtual void GetCommonFallbackFonts(const PRUint32 aCh,
+                                        PRInt32 aRunScript,
+                                        nsTArray<const char*>& aFontList);
+
     nsresult ResolveFontName(const nsAString& aFontName,
                              FontResolverCallback aCallback,
                              void *aClosure, bool& aAborted);
@@ -223,7 +236,6 @@ public:
     // based on http://msdn.microsoft.com/en-us/library/ms724834(VS.85).aspx
     enum {
         kWindowsUnknown = 0,
-        kWindows2000 = 0x50000,
         kWindowsXP = 0x50001,
         kWindowsServer2003 = 0x50002,
         kWindowsVista = 0x60000,
@@ -246,6 +258,9 @@ public:
     inline bool DWriteEnabled() { return mUseDirectWrite; }
     inline DWRITE_MEASURING_MODE DWriteMeasuringMode() { return mMeasuringMode; }
     IDWriteTextAnalyzer *GetDWriteAnalyzer() { return mDWriteAnalyzer; }
+
+    IDWriteRenderingParams *GetRenderingParams(TextRenderingMode aRenderMode)
+    { return mRenderingParams[aRenderMode]; }
 #else
     inline bool DWriteEnabled() { return false; }
 #endif
@@ -272,6 +287,7 @@ private:
 #ifdef CAIRO_HAS_DWRITE_FONT
     nsRefPtr<IDWriteFactory> mDWriteFactory;
     nsRefPtr<IDWriteTextAnalyzer> mDWriteAnalyzer;
+    nsRefPtr<IDWriteRenderingParams> mRenderingParams[TEXT_RENDERING_COUNT];
     DWRITE_MEASURING_MODE mMeasuringMode;
 #endif
 #ifdef CAIRO_HAS_D2D_SURFACE
@@ -282,6 +298,8 @@ private:
 
     // TODO: unify this with mPrefFonts (NB: holds families, not fonts) in gfxPlatformFontList
     nsDataHashtable<nsCStringHashKey, nsTArray<nsRefPtr<gfxFontEntry> > > mPrefFonts;
+
+    nsIMemoryMultiReporter* mGPUAdapterMultiReporter;
 };
 
 #endif /* GFX_WINDOWS_PLATFORM_H */

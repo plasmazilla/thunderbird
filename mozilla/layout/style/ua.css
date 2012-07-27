@@ -74,6 +74,11 @@
   page-break-after: inherit;
   vertical-align: inherit; /* needed for inline-table */
   line-height: inherit; /* needed for vertical-align on inline-table */
+  /* Bug 722777 */
+  -moz-transform: inherit;
+  -moz-transform-origin: inherit;
+  /* Bug 724750 */
+  -moz-backface-visibility: inherit;
 }
 
 *|*::-moz-table-row {
@@ -163,7 +168,6 @@
   -moz-column-width: inherit;
   -moz-column-gap: inherit;
   -moz-column-rule: inherit;
-  -moz-column-fill: inherit;
   /* Do not change these. nsCSSFrameConstructor depends on them to create a good
      frame tree. */
   position: static !important;
@@ -253,6 +257,10 @@
   background: black;
   width: 100% !important;
   height: 100% !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  min-height: 0 !important;
+  max-height: none !important;
 }
 
 /* If there is a full-screen element that is not the root then

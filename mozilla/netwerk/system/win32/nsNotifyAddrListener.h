@@ -81,17 +81,13 @@ protected:
     nsresult Shutdown(void);
     nsresult SendEventToUI(const char *aEventID);
 
-    DWORD GetOperationalStatus(DWORD aAdapterIndex);
-    DWORD CheckIPAddrTable(void);
-    DWORD CheckAdaptersInfo(void);
     DWORD CheckAdaptersAddresses(void);
-    BOOL  CheckIsGateway(PIP_ADAPTER_ADDRESSES aAdapter);
-    BOOL  CheckICSStatus(PWCHAR aAdapterName);
+    bool  CheckIsGateway(PIP_ADAPTER_ADDRESSES aAdapter);
+    bool  CheckICSStatus(PWCHAR aAdapterName);
     void  CheckLinkStatus(void);
 
     nsCOMPtr<nsIThread> mThread;
 
-    OSVERSIONINFO mOSVerInfo;
     HANDLE        mShutdownEvent;
 };
 

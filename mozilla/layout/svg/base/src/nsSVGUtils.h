@@ -41,42 +41,42 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-#include "nscore.h"
-#include "nsCOMPtr.h"
-#include "nsRect.h"
-#include "gfxContext.h"
-#include "nsRenderingContext.h"
-#include "gfxRect.h"
 #include "gfxMatrix.h"
+#include "gfxPoint.h"
+#include "gfxRect.h"
+#include "nsAlgorithm.h"
+#include "nsColor.h"
+#include "nsCOMPtr.h"
+#include "nsID.h"
+#include "nsISupportsBase.h"
+#include "nsMathUtils.h"
+#include "nsPoint.h"
+#include "nsRect.h"
 
-class nsIDocument;
-class nsPresContext;
+class gfxASurface;
+class gfxContext;
+class gfxImageSurface;
+class gfxPattern;
+class nsFrameList;
 class nsIContent;
+class nsIDocument;
+class nsIDOMSVGElement;
+class nsIFrame;
+class nsPresContext;
+class nsRenderingContext;
 class nsStyleContext;
 class nsStyleCoord;
-class nsFrameList;
-class nsIFrame;
-struct nsStyleSVGPaint;
-class nsIDOMSVGElement;
-class nsIDOMSVGLength;
-class nsIURI;
-class nsSVGOuterSVGFrame;
-class nsIAtom;
-class nsSVGLength2;
-class nsSVGElement;
-class nsSVGSVGElement;
-class nsAttrValue;
-class gfxContext;
-class gfxASurface;
-class gfxPattern;
-class gfxImageSurface;
-struct gfxSize;
-struct nsStyleFont;
-class nsSVGEnum;
-class nsISVGChildFrame;
-class nsSVGGeometryFrame;
-class nsSVGPathGeometryFrame;
 class nsSVGDisplayContainerFrame;
+class nsSVGElement;
+class nsSVGEnum;
+class nsSVGGeometryFrame;
+class nsSVGLength2;
+class nsSVGOuterSVGFrame;
+class nsSVGPathGeometryFrame;
+class nsSVGSVGElement;
+
+struct nsStyleSVG;
+struct nsStyleSVGPaint;
 
 namespace mozilla {
 class SVGAnimatedPreserveAspectRatio;
@@ -92,8 +92,6 @@ class Element;
 
 // SVG Frame state bits
 #define NS_STATE_IS_OUTER_SVG                    NS_FRAME_STATE_BIT(20)
-
-#define NS_STATE_SVG_DIRTY                       NS_FRAME_STATE_BIT(21)
 
 /* are we the child of a non-display container? */
 #define NS_STATE_SVG_NONDISPLAY_CHILD            NS_FRAME_STATE_BIT(22)
@@ -145,59 +143,68 @@ IsSVGWhitespace(PRUnichar aChar)
  */
 bool NS_SMILEnabled();
 
+/**
+ * Sometimes we need to distinguish between an empty box and a box
+ * that contains an element that has no size e.g. a point at the origin.
+ */
+class SVGBBox {
+public:
+  SVGBBox() 
+    : mIsEmpty(true) {}
+
+  SVGBBox(const gfxRect& aRect) 
+    : mBBox(aRect), mIsEmpty(false) {}
+
+  SVGBBox& operator=(const gfxRect& aRect) {
+    mBBox = aRect;
+    mIsEmpty = false;
+    return *this;
+  }
+
+  operator const gfxRect& () const {
+    return mBBox;
+  }
+
+  bool IsEmpty() const {
+    return mIsEmpty;
+  }
+
+  void UnionEdges(const SVGBBox& aSVGBBox) {
+    if (aSVGBBox.mIsEmpty) {
+      return;
+    }
+    mBBox = mIsEmpty ? aSVGBBox.mBBox : mBBox.UnionEdges(aSVGBBox.mBBox);
+    mIsEmpty = false;
+  }
+
+private:
+  gfxRect mBBox;
+  bool    mIsEmpty;
+};
+
 // GRRR WINDOWS HATE HATE HATE
 #undef CLIP_MASK
 
-class nsSVGRenderState
+class NS_STACK_CLASS SVGAutoRenderState
 {
 public:
   enum RenderMode { NORMAL, CLIP, CLIP_MASK };
 
-  /**
-   * Render SVG to a legacy rendering context
-   */
-  nsSVGRenderState(nsRenderingContext *aContext);
-  /**
-   * Render SVG to a modern rendering context
-   */
-  nsSVGRenderState(gfxContext *aContext);
-  /**
-   * Render SVG to a temporary surface
-   */
-  nsSVGRenderState(gfxASurface *aSurface);
+  SVGAutoRenderState(nsRenderingContext *aContext, RenderMode aMode);
+  ~SVGAutoRenderState();
 
-  nsRenderingContext *GetRenderingContext(nsIFrame *aFrame);
-  gfxContext *GetGfxContext() { return mGfxContext; }
+  void SetPaintingToWindow(bool aPaintingToWindow);
 
-  void SetRenderMode(RenderMode aMode) { mRenderMode = aMode; }
-  RenderMode GetRenderMode() { return mRenderMode; }
-
-  void SetPaintingToWindow(bool aPaintingToWindow) {
-    mPaintingToWindow = aPaintingToWindow;
-  }
-  bool IsPaintingToWindow() { return mPaintingToWindow; }
+  static RenderMode GetRenderMode(nsRenderingContext *aContext);
+  static bool IsPaintingToWindow(nsRenderingContext *aContext);
 
 private:
-  RenderMode                    mRenderMode;
-  nsRefPtr<nsRenderingContext> mRenderingContext;
-  nsRefPtr<gfxContext>          mGfxContext;
-  bool                          mPaintingToWindow;
+  nsRenderingContext *mContext;
+  void *mOriginalRenderState;
+  RenderMode mMode;
+  bool mPaintingToWindow;
 };
 
-class nsAutoSVGRenderMode
-{
-public:
-  nsAutoSVGRenderMode(nsSVGRenderState *aState,
-                      nsSVGRenderState::RenderMode aMode) : mState(aState) {
-    mOriginalMode = aState->GetRenderMode();
-    aState->SetRenderMode(aMode);
-  }
-  ~nsAutoSVGRenderMode() { mState->SetRenderMode(mOriginalMode); }
-
-private:
-  nsSVGRenderState            *mState;
-  nsSVGRenderState::RenderMode mOriginalMode;
-};
 
 #define NS_ISVGFILTERPROPERTY_IID \
 { 0x9744ee20, 0x1bcf, 0x4c62, \
@@ -321,14 +328,56 @@ public:
   static nsRect FindFilterInvalidation(nsIFrame *aFrame, const nsRect& aRect);
 
   /**
-   * Invalidates the area covered by the frame
+   * Invalidates the area that is painted by the frame without updating its
+   * bounds.
+   *
+   * This is similar to InvalidateOverflowRect(). It will go away when we
+   * support display list based invalidation of SVG.
    */
-  static void InvalidateCoveredRegion(nsIFrame *aFrame);
+  static void InvalidateBounds(nsIFrame *aFrame, bool aDuringUpdate = false);
 
-  /*
-   * Update the area covered by the frame
+  /**
+   * Schedules an update of the frame's bounds (which will in turn invalidate
+   * the new area that the frame should paint to).
+   *
+   * This does nothing when passed an NS_STATE_SVG_NONDISPLAY_CHILD frame.
+   * In future we may want to allow UpdateBounds to be called on such frames,
+   * but that would be better implemented as a ForceUpdateBounds function to
+   * be called synchronously while painting them without marking or paying
+   * attention to dirty bits like this function.
+   *
+   * This is very similar to PresShell::FrameNeedsReflow. The main reason that
+   * we have this function instead of using FrameNeedsReflow is because we need
+   * to be able to call it under nsSVGOuterSVGFrame::NotifyViewportChange when
+   * that function is called by nsSVGOuterSVGFrame::Reflow. FrameNeedsReflow
+   * is not suitable for calling during reflow though, and it asserts as much.
+   * The reason that we want to be callable under NotifyViewportChange is
+   * because we want to synchronously notify and dirty the nsSVGOuterSVGFrame's
+   * children so that when nsSVGOuterSVGFrame::DidReflow is called its children
+   * will be updated for the new size as appropriate. Otherwise we'd have to
+   * post an event to the event loop to mark dirty flags and request an update.
+   *
+   * Another reason that we don't currently want to call
+   * PresShell::FrameNeedsReflow is because passing eRestyle to it to get it to
+   * mark descendants dirty would cause it to descend through
+   * nsSVGForeignObjectFrame frames to mark their children dirty, but we want to
+   * handle nsSVGForeignObjectFrame specially. It would also do unnecessary work
+   * descending into NS_STATE_SVG_NONDISPLAY_CHILD frames.
    */
-  static void UpdateGraphic(nsISVGChildFrame *aSVGFrame);
+  static void ScheduleBoundsUpdate(nsIFrame *aFrame);
+
+  /**
+   * Invalidates the area that the frame last painted to, then schedules an
+   * update of the frame's bounds (which will in turn invalidate the new area
+   * that the frame should paint to).
+   */
+  static void InvalidateAndScheduleBoundsUpdate(nsIFrame *aFrame);
+
+  /**
+   * Returns true if the frame or any of its children need UpdateBounds
+   * to be called on them.
+   */
+  static bool NeedsUpdatedBounds(nsIFrame *aFrame);
 
   /*
    * Update the filter invalidation region for ancestor frames, if relevant.
@@ -396,7 +445,7 @@ public:
   /* Paint SVG frame with SVG effects - aDirtyRect is the area being
    * redrawn, in device pixel coordinates relative to the outer svg */
   static void
-  PaintFrameWithEffects(nsSVGRenderState *aContext,
+  PaintFrameWithEffects(nsRenderingContext *aContext,
                         const nsIntRect *aDirtyRect,
                         nsIFrame *aFrame);
 
@@ -429,14 +478,19 @@ public:
   static nsRect
   GetCoveredRegion(const nsFrameList &aFrames);
 
-  /*
-   * Convert a rect from device pixel units to app pixel units by inflation.
-   */
+  // Converts aPoint from an app unit point in outer-<svg> content rect space
+  // to an app unit point in a frame's SVG userspace. 
+  // This is a temporary helper we should no longer need after bug 614732 is
+  // fixed.
+  static nsPoint
+  TransformOuterSVGPointToChildFrame(nsPoint aPoint,
+                                     const gfxMatrix& aFrameToCanvasTM,
+                                     nsPresContext* aPresContext);
+
   static nsRect
-  ToAppPixelRect(nsPresContext *aPresContext,
-                 double xmin, double ymin, double xmax, double ymax);
-  static nsRect
-  ToAppPixelRect(nsPresContext *aPresContext, const gfxRect& rect);
+  TransformFrameRectToOuterSVG(const nsRect& aRect,
+                               const gfxMatrix& aMatrix,
+                               nsPresContext* aPresContext);
 
   /*
    * Convert a surface size to an integer for use by thebes
@@ -526,7 +580,9 @@ public:
   static gfxRect GetBBox(nsIFrame *aFrame, PRUint32 aFlags = eBBoxIncludeFill);
 
   /**
-   * Compute a rectangle in userSpaceOnUse or objectBoundingBoxUnits.
+   * Convert a userSpaceOnUse/objectBoundingBoxUnits rectangle that's specified
+   * using four nsSVGLength2 values into a user unit rectangle in user space.
+   *
    * @param aXYWH pointer to 4 consecutive nsSVGLength2 objects containing
    * the x, y, width and height values in that order
    * @param aBBox the bounding box of the object the rect is relative to;
@@ -547,6 +603,8 @@ public:
 #ifdef DEBUG
   static void
   WritePPM(const char *fname, gfxImageSurface *aSurface);
+
+  static bool OuterSVGIsCallingUpdateBounds(nsIFrame *aFrame);
 #endif
 
   /**
@@ -563,9 +621,11 @@ public:
    * This should die once bug 478152 is fixed.
    */
   static gfxRect PathExtentsToMaxStrokeExtents(const gfxRect& aPathExtents,
-                                               nsSVGGeometryFrame* aFrame);
+                                               nsSVGGeometryFrame* aFrame,
+                                               const gfxMatrix& aMatrix);
   static gfxRect PathExtentsToMaxStrokeExtents(const gfxRect& aPathExtents,
-                                               nsSVGPathGeometryFrame* aFrame);
+                                               nsSVGPathGeometryFrame* aFrame,
+                                               const gfxMatrix& aMatrix);
 
   /**
    * Convert a floating-point value to a 32-bit integer value, clamping to
@@ -586,6 +646,11 @@ public:
    * builds, it will trigger a false return-value as a safe fallback.)
    */
   static bool RootSVGElementHasViewbox(const nsIContent *aRootSVGElem);
+
+  static void GetFallbackOrPaintColor(gfxContext *aContext,
+                                      nsStyleContext *aStyleContext,
+                                      nsStyleSVGPaint nsStyleSVG::*aFillOrStroke,
+                                      float *aOpacity, nscolor *color);
 };
 
 #endif

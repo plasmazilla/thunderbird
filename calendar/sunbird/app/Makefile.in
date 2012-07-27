@@ -118,12 +118,10 @@ TK_LIBS := -framework SystemConfiguration -framework CoreAudio -framework AudioT
 endif
 endif
 
-APP_XPCOM_LIBS = $(XPCOM_GLUE_LDOPTS)
-
 LIBS += \
 	$(STATIC_COMPONENTS_LINKER_PATH) \
 	$(EXTRA_DSO_LIBS) \
-	$(APP_XPCOM_LIBS) \
+	$(XPCOM_GLUE_LDOPTS) \
 	$(NSPR_LIBS) \
 	$(NULL)
 
@@ -336,7 +334,7 @@ else
 endif
 
 libs:: $(srcdir)/profile/prefs.js
-	$(INSTALL) $^ $(DIST)/bin/defaults/profile
+	$(INSTALL) -m644 $^ $(DIST)/bin/defaults/profile
 
 install:: $(srcdir)/profile/prefs.js
 	$(SYSINSTALL) $(IFLAGS1) $^ $(DESTDIR)$(mozappdir)/defaults/profile

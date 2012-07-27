@@ -44,7 +44,7 @@
 
 #include "nsIDocument.h"
 #include "nsIIDBDatabase.h"
-
+#include "nsDOMEventTargetHelper.h"
 #include "mozilla/dom/indexedDB/IDBWrapperCache.h"
 #include "mozilla/dom/indexedDB/FileManager.h"
 
@@ -103,11 +103,12 @@ public:
 
   already_AddRefed<nsIDocument> GetOwnerDocument()
   {
-    if (!mOwner) {
+    if (!GetOwner()) {
       return nsnull;
     }
 
-    nsCOMPtr<nsIDocument> doc = do_QueryInterface(mOwner->GetExtantDocument());
+    nsCOMPtr<nsIDocument> doc =
+      do_QueryInterface(GetOwner()->GetExtantDocument());
     return doc.forget();
   }
 

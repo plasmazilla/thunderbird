@@ -73,13 +73,17 @@ public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIPREFSERVICE
   NS_FORWARD_NSIPREFBRANCH(sRootBranch->)
-  NS_FORWARD_NSIPREFBRANCH2(sRootBranch->)
   NS_DECL_NSIOBSERVER
 
   Preferences();
   virtual ~Preferences();
 
   nsresult Init();
+
+  /**
+   * Reset loaded user prefs then read them
+   */
+  static nsresult ResetAndReadUserPrefs();
 
   /**
    * Returns the singleton instance which is addreffed.
@@ -105,7 +109,7 @@ public:
    * Returns shared pref branch instance.
    * NOTE: not addreffed.
    */
-  static nsIPrefBranch2* GetRootBranch()
+  static nsIPrefBranch* GetRootBranch()
   {
     NS_ENSURE_TRUE(InitStaticMembers(), nsnull);
     return sRootBranch;
@@ -234,6 +238,11 @@ public:
   static bool HasUserValue(const char* aPref);
 
   /**
+   * Gets the type of the pref.
+   */
+  static PRInt32 GetType(const char* aPref);
+
+  /**
    * Adds/Removes the observer for the root pref branch.
    * The observer is referenced strongly if AddStrongObserver is used.  On the
    * other hand, it is referenced weakly, if AddWeakObserver is used.
@@ -339,8 +348,12 @@ public:
   static nsresult GetDefaultComplex(const char* aPref, const nsIID &aType,
                                     void** aResult);
 
+  /**
+   * Gets the type of the pref.
+   */
+  static PRInt32 GetDefaultType(const char* aPref);
+
   // Used to synchronise preferences between chrome and content processes.
-  static nsresult ReadExtensionPrefs(nsIFile *aFile);
   static void MirrorPreferences(nsTArray<PrefTuple,
                                 nsTArrayInfallibleAllocator> *aArray);
   static bool MirrorPreference(const char *aPref, PrefTuple *aTuple);
@@ -349,6 +362,12 @@ public:
 
 protected:
   nsresult NotifyServiceObservers(const char *aSubject);
+  /**
+   * Reads the default pref file or, if that failed, try to save a new one.
+   *
+   * @return NS_OK if either action succeeded,
+   *         or the error code related to the read attempt.
+   */
   nsresult UseDefaultPrefFile();
   nsresult UseUserPrefFile();
   nsresult ReadAndOwnUserPrefFile(nsIFile *aFile);
@@ -361,8 +380,7 @@ private:
   nsCOMPtr<nsIFile>        mCurrentFile;
 
   static Preferences*      sPreferences;
-  static nsIPrefBranch2*   sRootBranch;
-  // NOTE: default branch doesn't return nsIPrefBranch2 interface at query.
+  static nsIPrefBranch*    sRootBranch;
   static nsIPrefBranch*    sDefaultRootBranch;
   static bool              sShutdown;
 

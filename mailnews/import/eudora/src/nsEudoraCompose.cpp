@@ -67,12 +67,13 @@
 #include "EudoraDebugLog.h"
 
 #include "nsMimeTypes.h"
+#include "nsCRT.h"
 #include "nsNetUtil.h"
 #include "nsAutoPtr.h"
 #include "nsIMutableArray.h"
 
-static NS_DEFINE_CID( kMsgSendCID, NS_MSGSEND_CID);
-static NS_DEFINE_CID( kMsgCompFieldsCID, NS_MSGCOMPFIELDS_CID);
+static NS_DEFINE_CID(kMsgSendCID, NS_MSGSEND_CID);
+static NS_DEFINE_CID(kMsgCompFieldsCID, NS_MSGCOMPFIELDS_CID);
 
 // We need to do some calculations to set these numbers to something reasonable!
 // Unless of course, CreateAndSendMessage will NEVER EVER leave us in the lurch
@@ -158,7 +159,7 @@ public:
   /* void OnGetDraftFolderURI (); */
   NS_IMETHOD OnGetDraftFolderURI(const char *aFolderURI) {return NS_OK;}
 
-  static nsresult CreateSendListener( nsIMsgSendListener **ppListener);
+  static nsresult CreateSendListener(nsIMsgSendListener **ppListener);
 
   void Reset() { m_done = false;  m_location = nsnull;}
 
@@ -170,7 +171,7 @@ public:
 
 NS_IMPL_THREADSAFE_ISUPPORTS1(EudoraSendListener, nsIMsgSendListener)
 
-nsresult EudoraSendListener::CreateSendListener( nsIMsgSendListener **ppListener)
+nsresult EudoraSendListener::CreateSendListener(nsIMsgSendListener **ppListener)
 {
   NS_ENSURE_ARG_POINTER(ppListener);
   *ppListener = new EudoraSendListener();
@@ -194,12 +195,12 @@ nsEudoraCompose::nsEudoraCompose()
   m_pMsgFields = nsnull;
   m_pHeaders = p_test_headers;
   if (m_pHeaders)
-    m_headerLen = strlen( m_pHeaders);
+    m_headerLen = strlen(m_pHeaders);
   else
     m_headerLen = 0;
   m_pBody = p_test_body;
   if (m_pBody)
-    m_bodyLen = strlen( m_pBody);
+    m_bodyLen = strlen(m_pBody);
   else
     m_bodyLen = 0;
 
@@ -209,14 +210,14 @@ nsEudoraCompose::nsEudoraCompose()
 
 nsEudoraCompose::~nsEudoraCompose()
 {
-  NS_IF_RELEASE( m_pListener);
-  NS_IF_RELEASE( m_pMsgFields);
+  NS_IF_RELEASE(m_pListener);
+  NS_IF_RELEASE(m_pMsgFields);
 }
 
-nsresult nsEudoraCompose::CreateIdentity( void)
+nsresult nsEudoraCompose::CreateIdentity(void)
 {
   if (s_pIdentity)
-    return( NS_OK);
+    return NS_OK;
 
   // Should only create identity from main thread
   NS_ENSURE_TRUE(NS_IsMainThread(), NS_ERROR_FAILURE);
@@ -224,7 +225,7 @@ nsresult nsEudoraCompose::CreateIdentity( void)
   nsCOMPtr<nsIMsgAccountManager> accMgr(do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv));
   NS_ENSURE_SUCCESS(rv, rv);
 
-  rv = accMgr->CreateIdentity( &s_pIdentity);
+  rv = accMgr->CreateIdentity(&s_pIdentity);
   nsString name(NS_LITERAL_STRING("Import Identity"));
   if (s_pIdentity) {
     s_pIdentity->SetFullName(name);
@@ -239,10 +240,10 @@ nsresult nsEudoraCompose::CreateIdentity( void)
     // message will never actually be sent anyway.
     s_pIdentity->SetDoFcc(false);
   }
-  return( rv);
+  return rv;
 }
 
-void nsEudoraCompose::ReleaseIdentity( void)
+void nsEudoraCompose::ReleaseIdentity(void)
 {
   if (s_pIdentity) {
     nsresult rv = s_pIdentity->ClearAllValues();
@@ -254,34 +255,39 @@ void nsEudoraCompose::ReleaseIdentity( void)
 }
 
 
-nsresult nsEudoraCompose::CreateComponents( void)
+nsresult nsEudoraCompose::CreateComponents(void)
 {
   nsresult  rv = NS_OK;
 
   if (!m_pIOService) {
-    IMPORT_LOG0( "Creating nsIOService\n");
+    IMPORT_LOG0("Creating nsIOService\n");
     
     m_pIOService = do_GetService(NS_IOSERVICE_CONTRACTID, &rv);
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
-  NS_IF_RELEASE( m_pMsgFields);
-  if (!m_pListener && NS_SUCCEEDED( rv))
-    rv = EudoraSendListener::CreateSendListener( &m_pListener);
+  NS_IF_RELEASE(m_pMsgFields);
+  if (!m_pListener && NS_SUCCEEDED(rv))
+    rv = EudoraSendListener::CreateSendListener(&m_pListener);
 
   if (NS_SUCCEEDED(rv)) {
-      rv = CallCreateInstance( kMsgCompFieldsCID, &m_pMsgFields);
+      rv = CallCreateInstance(kMsgCompFieldsCID, &m_pMsgFields);
     if (NS_SUCCEEDED(rv) && m_pMsgFields) {
-      // IMPORT_LOG0( "nsOutlookCompose - CreateComponents succeeded\n");
-      m_pMsgFields->SetForcePlainText( false);
-      return( NS_OK);
+      // IMPORT_LOG0("nsOutlookCompose - CreateComponents succeeded\n");
+      m_pMsgFields->SetForcePlainText(false);
+      return NS_OK;
     }
   }
 
   return NS_ERROR_FAILURE;
 }
 
-void nsEudoraCompose::GetNthHeader( const char *pData, PRInt32 dataLen, PRInt32 n, nsCString& header, nsCString& val, bool unwrap)
+void nsEudoraCompose::GetNthHeader(const char *pData,
+                                   PRInt32 dataLen,
+                                   PRInt32 n,
+                                   nsCString& header,
+                                   nsCString& val,
+                                   bool unwrap)
 {
   header.Truncate();
   val.Truncate();
@@ -301,14 +307,14 @@ void nsEudoraCompose::GetNthHeader( const char *pData, PRInt32 dataLen, PRInt32 
       len++;
       pChar++;
     }
-    header.Append( pStart, len);
-    header.Trim( kWhitespace);
+    header.Append(pStart, len);
+    header.Trim(kWhitespace);
     start++;
     pChar++;
   }
   else {
     while (start < dataLen) {
-      if ((*pChar != ' ') && (*pChar != 9)) {
+      if ((*pChar != ' ') && (*pChar != '\t')) {
         if (n == index) {
           pStart = pChar;
           len = 0;
@@ -317,8 +323,8 @@ void nsEudoraCompose::GetNthHeader( const char *pData, PRInt32 dataLen, PRInt32 
             len++;
             pChar++;
           }
-          header.Append( pStart, len);
-          header.Trim( kWhitespace);
+          header.Append(pStart, len);
+          header.Trim(kWhitespace);
           start++;
           pChar++;
           break;
@@ -327,11 +333,15 @@ void nsEudoraCompose::GetNthHeader( const char *pData, PRInt32 dataLen, PRInt32 
           index++;
       }
 
-      while ((start < dataLen) && (*pChar != 0x0D) && (*pChar != 0x0A)) {
+      // Skip to next end of line.
+      while ((start < dataLen) &&
+             (*pChar != nsCRT::CR) && (*pChar != nsCRT::LF)) {
         start++;
         pChar++;
       }
-      while ((start < dataLen) && ((*pChar == 0x0D) || (*pChar == 0x0A))) {
+      // Skip over end of line(s).
+      while ((start < dataLen) &&
+             ((*pChar == nsCRT::CR) || (*pChar == nsCRT::LF))) {
         start++;
         pChar++;
       }
@@ -344,23 +354,29 @@ void nsEudoraCompose::GetNthHeader( const char *pData, PRInt32 dataLen, PRInt32 
   PRInt32 lineEnd;
   PRInt32 end = start;
   while (end < dataLen) {
-    while ((end < dataLen) && (*pChar != 0x0D) && (*pChar != 0x0A)) {
+    // Skip to next end of line.
+    while ((end < dataLen) && (*pChar != nsCRT::CR) && (*pChar != nsCRT::LF)) {
       end++;
       pChar++;
     }
+
     if (end > start) {
-      val.Append( pData + start, end - start);
+      val.Append(pData + start, end - start);
     }
 
     lineEnd = end;
     pStart = pChar;
-    while ((end < dataLen) && ((*pChar == 0x0D) || (*pChar == 0x0A))) {
+
+    // Skip over end of line(s).
+    while ((end < dataLen) &&
+           ((*pChar == nsCRT::CR) || (*pChar == nsCRT::LF))) {
       end++;
       pChar++;
     }
 
     start = end;
 
+    // Skip over space(s) and tab(s).
     while ((end < dataLen) && ((*pChar == ' ') || (*pChar == '\t'))) {
       end++;
       pChar++;
@@ -370,41 +386,50 @@ void nsEudoraCompose::GetNthHeader( const char *pData, PRInt32 dataLen, PRInt32 
       break;
 
     if (unwrap)
-      val.Append( ' ');
+      val.Append(' ');
     else {
-      val.Append( pStart, end - lineEnd);
+      val.Append(pStart, end - lineEnd);
     }
 
     start = end;
   }
 
-  val.Trim( kWhitespace);
+  val.Trim(kWhitespace);
 }
 
 
-void nsEudoraCompose::GetHeaderValue( const char *pData, PRInt32 dataLen, const char *pHeader, nsCString& val, bool unwrap)
+void nsEudoraCompose::GetHeaderValue(const char *pData,
+                                     PRInt32 dataLen,
+                                     const char *pHeader,
+                                     nsCString& val,
+                                     bool unwrap)
 {
   val.Truncate();
   if (!pData)
     return;
 
   PRInt32  start = 0;
-  PRInt32 len = strlen( pHeader);
+  PRInt32 len = strlen(pHeader);
   const char *pChar = pData;
-  if (!PL_strncasecmp( pHeader, pData, len)) {
+  if (!PL_strncasecmp(pHeader, pData, len)) {
     start = len;
   }
   else {
     while (start < dataLen) {
-      while ((start < dataLen) && (*pChar != 0x0D) && (*pChar != 0x0A)) {
+      // Skip to next end of line.
+      while ((start < dataLen) &&
+             (*pChar != nsCRT::CR) && (*pChar != nsCRT::LF)) {
         start++;
         pChar++;
       }
-      while ((start < dataLen) && ((*pChar == 0x0D) || (*pChar == 0x0A))) {
+      // Skip over end of line(s).
+      while ((start < dataLen) &&
+             ((*pChar == nsCRT::CR) || (*pChar == nsCRT::LF))) {
         start++;
         pChar++;
       }
-      if ((start < dataLen) && !PL_strncasecmp( pChar, pHeader, len))
+
+      if ((start < dataLen) && !PL_strncasecmp(pChar, pHeader, len))
         break;
     }
     if (start < dataLen)
@@ -421,23 +446,28 @@ void nsEudoraCompose::GetHeaderValue( const char *pData, PRInt32 dataLen, const 
   pChar = pData + start;
 
   while (end < dataLen) {
-    while ((end < dataLen) && (*pChar != 0x0D) && (*pChar != 0x0A)) {
+    // Skip to next end of line.
+    while ((end < dataLen) && (*pChar != nsCRT::CR) && (*pChar != nsCRT::LF)) {
       end++;
       pChar++;
     }
-    if (end > start) {
-      val.Append( pData + start, end - start);
-    }
+
+    if (end > start)
+      val.Append(pData + start, end - start);
 
     lineEnd = end;
     pStart = pChar;
-    while ((end < dataLen) && ((*pChar == 0x0D) || (*pChar == 0x0A))) {
+
+    // Skip over the end of line(s).
+    while ((end < dataLen) &&
+           ((*pChar == nsCRT::CR) || (*pChar == nsCRT::LF))) {
       end++;
       pChar++;
     }
 
     start = end;
 
+    // Skip over space(s) and tab(s).
     while ((end < dataLen) && ((*pChar == ' ') || (*pChar == '\t'))) {
       end++;
       pChar++;
@@ -447,50 +477,50 @@ void nsEudoraCompose::GetHeaderValue( const char *pData, PRInt32 dataLen, const 
       break;
 
     if (unwrap)
-      val.Append( ' ');
+      val.Append(' ');
     else {
-      val.Append( pStart, end - lineEnd);
+      val.Append(pStart, end - lineEnd);
     }
 
     start = end;
   }
 
-  val.Trim( kWhitespace);
+  val.Trim(kWhitespace);
 }
 
 
-void nsEudoraCompose::ExtractCharset( nsString& str)
+void nsEudoraCompose::ExtractCharset(nsString& str)
 {
   PRInt32 idx = MsgFind(str, "charset=", true, 0);
   if (idx != -1) {
     str.Cut(0, idx + 8);
-    idx = str.FindChar( ';');
+    idx = str.FindChar(';');
     if (idx != -1)
       str.SetLength(idx);
-    str.Trim( kWhitespace);
-    if ((str.CharAt( 0) == '"') && (str.Length() > 2)) {
+    str.Trim(kWhitespace);
+    if ((str.CharAt(0) == '"') && (str.Length() > 2)) {
       str.SetLength(str.Length() - 1);
       str.Cut(0, 1);
-      str.Trim( kWhitespace);
+      str.Trim(kWhitespace);
     }
   }
   else
     str.Truncate();
 }
 
-void nsEudoraCompose::ExtractType( nsString& str)
+void nsEudoraCompose::ExtractType(nsString& str)
 {
   nsString tStr;
-  PRInt32 idx = str.FindChar( ';');
+  PRInt32 idx = str.FindChar(';');
   if (idx != -1)
     str.SetLength(idx);
 
-  str.Trim( kWhitespace);
+  str.Trim(kWhitespace);
 
-  if ((str.CharAt( 0) == '"') && (str.Length() > 2)) {
+  if ((str.CharAt(0) == '"') && (str.Length() > 2)) {
     str.SetLength(str.Length() - 1);
     str.Cut(0, 1);
-    str.Trim( kWhitespace);
+    str.Trim(kWhitespace);
   }
 
   // if multipart then ignore it since no outlook message body is ever
@@ -523,9 +553,7 @@ nsresult nsEudoraCompose::GetLocalAttachments(nsIArray **aArray)
     // nsMsgNewURL(&url, "file://C:/boxster.jpg");
     // a[i].orig_url = url;
 
-    // NS_PRECONDITION( false, "Forced Break");
-
-    pAttach = (ImportAttachment *) m_pAttachments->ElementAt( i);
+    pAttach = (ImportAttachment *) m_pAttachments->ElementAt(i);
     nsCOMPtr<nsILocalFile> tmpFile = do_QueryInterface(pAttach->pAttachment);
     a->SetTmpFile(tmpFile);
     urlStr.Adopt(0);
@@ -538,7 +566,7 @@ nsresult nsEudoraCompose::GetLocalAttachments(nsIArray **aArray)
       return NS_ERROR_FAILURE;
 
     nsCOMPtr<nsIURI> origUrl;
-    rv = m_pIOService->NewURI( urlStr, nsnull, nsnull, getter_AddRefs(origUrl));
+    rv = m_pIOService->NewURI(urlStr, nsnull, nsnull, getter_AddRefs(origUrl));
     NS_ENSURE_SUCCESS(rv, rv);
     a->SetOrigUrl(origUrl);
     a->SetType(nsDependentCString(pAttach->mimeType));
@@ -553,34 +581,34 @@ nsresult nsEudoraCompose::GetLocalAttachments(nsIArray **aArray)
 nsresult nsEudoraCompose::SendTheMessage(nsIFile *pMailImportLocation, nsIFile **pMsg)
 {
   nsresult rv = CreateComponents();
-  if (NS_FAILED( rv))
-    return( rv);
+  if (NS_FAILED(rv))
+    return rv;
 
-  // IMPORT_LOG0( "Outlook Compose created necessary components\n");
+  // IMPORT_LOG0("Outlook Compose created necessary components\n");
 
   nsString bodyType;
   nsString charSet;
   nsString headerVal;
-  GetHeaderValue( m_pHeaders, m_headerLen, "From:", headerVal);
+  GetHeaderValue(m_pHeaders, m_headerLen, "From:", headerVal);
   if (!headerVal.IsEmpty())
-    m_pMsgFields->SetFrom( headerVal);
-  GetHeaderValue( m_pHeaders, m_headerLen, "To:", headerVal);
+    m_pMsgFields->SetFrom(headerVal);
+  GetHeaderValue(m_pHeaders, m_headerLen, "To:", headerVal);
   if (!headerVal.IsEmpty())
-    m_pMsgFields->SetTo( headerVal);
-  GetHeaderValue( m_pHeaders, m_headerLen, "Subject:", headerVal);
+    m_pMsgFields->SetTo(headerVal);
+  GetHeaderValue(m_pHeaders, m_headerLen, "Subject:", headerVal);
   if (!headerVal.IsEmpty())
-    m_pMsgFields->SetSubject( headerVal);
-  GetHeaderValue( m_pHeaders, m_headerLen, "Content-type:", headerVal);
+    m_pMsgFields->SetSubject(headerVal);
+  GetHeaderValue(m_pHeaders, m_headerLen, "Content-type:", headerVal);
   bodyType = headerVal;
-  ExtractType( bodyType);
-  ExtractCharset( headerVal);
+  ExtractType(bodyType);
+  ExtractCharset(headerVal);
   // Use platform charset as default if the msg doesn't specify one
   // (ie, no 'charset' param in the Content-Type: header). As the last
   // resort we'll use the mail default charset.
   // (ie, no 'charset' param in the Content-Type: header) or if the
   // charset parameter fails a length sanity check.
   // As the last resort we'll use the mail default charset.
-  if ( headerVal.IsEmpty() || (headerVal.Length() > kContentTypeLengthSanityCheck) )
+  if (headerVal.IsEmpty() || (headerVal.Length() > kContentTypeLengthSanityCheck))
   {
     headerVal.AssignASCII(nsMsgI18NFileSystemCharset());
     if (headerVal.IsEmpty())
@@ -595,17 +623,17 @@ nsresult nsEudoraCompose::SendTheMessage(nsIFile *pMailImportLocation, nsIFile *
       headerVal = m_defCharset;
     }
   }
-  m_pMsgFields->SetCharacterSet( NS_LossyConvertUTF16toASCII(headerVal).get() );
+  m_pMsgFields->SetCharacterSet(NS_LossyConvertUTF16toASCII(headerVal).get());
   charSet = headerVal;
-  GetHeaderValue( m_pHeaders, m_headerLen, "CC:", headerVal);
+  GetHeaderValue(m_pHeaders, m_headerLen, "CC:", headerVal);
   if (!headerVal.IsEmpty())
-    m_pMsgFields->SetCc( headerVal);
-  GetHeaderValue( m_pHeaders, m_headerLen, "Message-ID:", headerVal);
+    m_pMsgFields->SetCc(headerVal);
+  GetHeaderValue(m_pHeaders, m_headerLen, "Message-ID:", headerVal);
   if (!headerVal.IsEmpty())
-    m_pMsgFields->SetMessageId( NS_LossyConvertUTF16toASCII(headerVal).get() );
-  GetHeaderValue( m_pHeaders, m_headerLen, "Reply-To:", headerVal);
+    m_pMsgFields->SetMessageId(NS_LossyConvertUTF16toASCII(headerVal).get());
+  GetHeaderValue(m_pHeaders, m_headerLen, "Reply-To:", headerVal);
   if (!headerVal.IsEmpty())
-    m_pMsgFields->SetReplyTo( headerVal);
+    m_pMsgFields->SetReplyTo(headerVal);
 
   // what about all of the other headers?!?!?!?!?!?!
   char *pMimeType;
@@ -635,16 +663,14 @@ nsresult nsEudoraCompose::SendTheMessage(nsIFile *pMailImportLocation, nsIFile *
 
   nsCString body;
 
-  rv = nsMsgI18NConvertFromUnicode( NS_LossyConvertUTF16toASCII(charSet).get(),
+  rv = nsMsgI18NConvertFromUnicode(NS_LossyConvertUTF16toASCII(charSet).get(),
                                     uniBody, body);
-  if (NS_FAILED( rv)) {
+  if (NS_FAILED(rv) && !charSet.Equals(m_defCharset)) {
     // in this case, if we did not use the default compose
     // charset, then try that.
-    if (!charSet.Equals( m_defCharset)) {
-      body.Truncate();
-      rv = nsMsgI18NConvertFromUnicode( NS_LossyConvertUTF16toASCII(charSet).get(),
-                                        uniBody, body);
-    }
+    body.Truncate();
+    rv = nsMsgI18NConvertFromUnicode(NS_LossyConvertUTF16toASCII(charSet).get(),
+                                     uniBody, body);
   }
   uniBody.Truncate();
 
@@ -674,9 +700,9 @@ nsresult nsEudoraCompose::SendTheMessage(nsIFile *pMailImportLocation, nsIFile *
                         m_pListener);                 // listener
 
   EudoraSendListener *pListen = (EudoraSendListener *)m_pListener;
-  if (NS_FAILED( rv)) {
-    IMPORT_LOG1( "*** Error, CreateAndSendMessage FAILED: 0x%lx\n", rv);
-    // IMPORT_LOG1( "Headers: %80s\n", m_pHeaders);
+  if (NS_FAILED(rv)) {
+    IMPORT_LOG1("*** Error, CreateAndSendMessage FAILED: 0x%lx\n", rv);
+    // IMPORT_LOG1("Headers: %80s\n", m_pHeaders);
   }
   else {
     // wait for the listener to get done!
@@ -684,7 +710,7 @@ nsresult nsEudoraCompose::SendTheMessage(nsIFile *pMailImportLocation, nsIFile *
     PRInt32 cnt = 0;
     PRInt32 sleepCnt = 1;
     while (!pListen->m_done && (abortCnt < kHungAbortCount)) {
-      PR_Sleep( sleepCnt);
+      PR_Sleep(sleepCnt);
       cnt++;
       if (cnt > kHungCount) {
         abortCnt++;
@@ -694,16 +720,16 @@ nsresult nsEudoraCompose::SendTheMessage(nsIFile *pMailImportLocation, nsIFile *
     }
 
     if (abortCnt >= kHungAbortCount) {
-      IMPORT_LOG0( "**** Create and send message hung\n");
-      IMPORT_LOG1( "Headers: %s\n", m_pHeaders);
-      IMPORT_LOG1( "Body: %s\n", m_pBody);
+      IMPORT_LOG0("**** Create and send message hung\n");
+      IMPORT_LOG1("Headers: %s\n", m_pHeaders);
+      IMPORT_LOG1("Body: %s\n", m_pBody);
       rv = NS_ERROR_FAILURE;
     }
 
   }
 
   if (pMimeType)
-    NS_Free( pMimeType);
+    NS_Free(pMimeType);
 
   if (pListen->m_location) {
     pListen->m_location->Clone(pMsg);
@@ -711,37 +737,39 @@ nsresult nsEudoraCompose::SendTheMessage(nsIFile *pMailImportLocation, nsIFile *
   }
   else {
     rv = NS_ERROR_FAILURE;
-    IMPORT_LOG0( "*** Error, Outlook compose unsuccessful\n");
+    IMPORT_LOG0("*** Error, Outlook compose unsuccessful\n");
   }
 
   pListen->Reset();
 
-  return( rv);
+  return rv;
 }
 
 
-bool SimpleBufferTonyRCopiedOnce::SpecialMemCpy( PRInt32 offset, const char *pData, PRInt32 len, PRInt32 *pWritten)
+bool SimpleBufferTonyRCopiedOnce::SpecialMemCpy(PRInt32 offset, const char *pData, PRInt32 len, PRInt32 *pWritten)
 {
   // Arg!!!!!  Mozilla can't handle plain CRs in any mail messages.  Particularly a
   // problem with Eudora since it doesn't give a rats a**
   *pWritten = len;
   PRInt32  sz = offset + len;
   if (offset) {
-    if ((m_pBuffer[offset - 1] == 0x0D) && (*pData != 0x0A)) {
+    if ((m_pBuffer[offset - 1] == nsCRT::CR) && (*pData != nsCRT::LF)) {
       sz++;
-      if (!Grow( sz)) return( false);
-      m_pBuffer[offset] = 0x0A;
+      if (!Grow(sz))
+        return false;
+      m_pBuffer[offset] = nsCRT::LF;
       offset++;
       (*pWritten)++;
     }
   }
   while (len > 0) {
-    if ((*pData == 0x0D) && (*(pData + 1) != 0x0A)) {
+    if ((*pData == nsCRT::CR) && (*(pData + 1) != nsCRT::LF)) {
       sz++;
-      if (!Grow( sz)) return( false);
-      m_pBuffer[offset] = 0x0D;
+      if (!Grow(sz))
+        return false;
+      m_pBuffer[offset] = nsCRT::CR;
       offset++;
-      m_pBuffer[offset] = 0x0A;
+      m_pBuffer[offset] = nsCRT::LF;
       (*pWritten)++;
     }
     else {
@@ -752,10 +780,10 @@ bool SimpleBufferTonyRCopiedOnce::SpecialMemCpy( PRInt32 offset, const char *pDa
     len--;
   }
 
-  return( true);
+  return true;
 }
 
-nsresult nsEudoraCompose::ReadHeaders( ReadFileState *pState, SimpleBufferTonyRCopiedOnce& copy, SimpleBufferTonyRCopiedOnce& header)
+nsresult nsEudoraCompose::ReadHeaders(ReadFileState *pState, SimpleBufferTonyRCopiedOnce& copy, SimpleBufferTonyRCopiedOnce& header)
 {
   // This should be the headers...
   header.m_writeOffset = 0;
@@ -765,90 +793,98 @@ nsresult nsEudoraCompose::ReadHeaders( ReadFileState *pState, SimpleBufferTonyRC
   PRInt32 endLen = -1;
   PRInt8 endBuffer = 0;
 
-  while ((endLen = IsEndHeaders( copy)) == -1) {
-    while ((lineLen = FindNextEndLine( copy)) == -1) {
+  while ((endLen = IsEndHeaders(copy)) == -1) {
+    while ((lineLen = FindNextEndLine(copy)) == -1) {
       copy.m_writeOffset = copy.m_bytesInBuf;
-      if (!header.Write( copy.m_pBuffer, copy.m_writeOffset)) {
-        IMPORT_LOG0( "*** ERROR, writing headers\n");
-        return( NS_ERROR_FAILURE);
+      if (!header.Write(copy.m_pBuffer, copy.m_writeOffset)) {
+        IMPORT_LOG0("*** ERROR, writing headers\n");
+        return NS_ERROR_FAILURE;
       }
-      if (NS_FAILED( rv = FillMailBuffer( pState, copy))) {
-        IMPORT_LOG0( "*** Error reading message headers\n");
-        return( rv);
+      if (NS_FAILED(rv = FillMailBuffer(pState, copy))) {
+        IMPORT_LOG0("*** Error reading message headers\n");
+        return rv;
       }
       if (!copy.m_bytesInBuf) {
-        IMPORT_LOG0( "*** Error, end of file while reading headers\n");
-        return( NS_ERROR_FAILURE);
+        IMPORT_LOG0("*** Error, end of file while reading headers\n");
+        return NS_ERROR_FAILURE;
       }
     }
     copy.m_writeOffset += lineLen;
     if ((copy.m_writeOffset + 4) >= copy.m_bytesInBuf) {
-      if (!header.Write( copy.m_pBuffer, copy.m_writeOffset)) {
-        IMPORT_LOG0( "*** ERROR, writing headers 2\n");
-        return( NS_ERROR_FAILURE);
+      if (!header.Write(copy.m_pBuffer, copy.m_writeOffset)) {
+        IMPORT_LOG0("*** ERROR, writing headers 2\n");
+        return NS_ERROR_FAILURE;
       }
-      if (NS_FAILED( rv = FillMailBuffer( pState, copy))) {
-        IMPORT_LOG0( "*** Error reading message headers 2\n");
-        return( rv);
+      if (NS_FAILED(rv = FillMailBuffer(pState, copy))) {
+        IMPORT_LOG0("*** Error reading message headers 2\n");
+        return rv;
       }
     }
   }
 
-  if (!header.Write( copy.m_pBuffer, copy.m_writeOffset)) {
-    IMPORT_LOG0( "*** Error writing final headers\n");
-    return( NS_ERROR_FAILURE);
+  if (!header.Write(copy.m_pBuffer, copy.m_writeOffset)) {
+    IMPORT_LOG0("*** Error writing final headers\n");
+    return NS_ERROR_FAILURE;
   }
-  if (!header.Write( (const char *)&endBuffer, 1)) {
-    IMPORT_LOG0( "*** Error writing header trailing null\n");
-    return( NS_ERROR_FAILURE);
+  if (!header.Write((const char *)&endBuffer, 1)) {
+    IMPORT_LOG0("*** Error writing header trailing null\n");
+    return NS_ERROR_FAILURE;
   }
 
   copy.m_writeOffset += endLen;
 
-  return( NS_OK);
+  return NS_OK;
 }
 
-PRInt32 nsEudoraCompose::FindNextEndLine( SimpleBufferTonyRCopiedOnce& data)
+PRInt32 nsEudoraCompose::FindNextEndLine(SimpleBufferTonyRCopiedOnce& data)
 {
   PRInt32 len = data.m_bytesInBuf - data.m_writeOffset;
   if (!len)
-    return( -1);
-  PRInt32  count = 0;
+    return -1;
+
+  PRInt32 count = 0;
   const char *pData = data.m_pBuffer + data.m_writeOffset;
-  while (((*pData == 0x0D) || (*pData == 0x0A)) && (count < len)) {
+  // Skip over end of line(s).
+  while ((count < len) && ((*pData == nsCRT::CR) || (*pData == nsCRT::LF))) {
     pData++;
     count++;
   }
-  while ((*pData != 0x0D) && (*pData != 0x0A) && (count < len)) {
+  // Skip to next end of line.
+  while ((count < len) && (*pData != nsCRT::CR) && (*pData != nsCRT::LF)) {
     pData++;
     count++;
   }
 
-  if (count < len)
-    return( count);
-
-  return( -1);
+  return (count < len) ? count : -1;
 }
 
-PRInt32 nsEudoraCompose::IsEndHeaders( SimpleBufferTonyRCopiedOnce& data)
+PRInt32 nsEudoraCompose::IsEndHeaders(SimpleBufferTonyRCopiedOnce& data)
 {
   PRInt32 len = data.m_bytesInBuf - data.m_writeOffset;
   if (len < 2)
-    return( -1);
+    return -1;
+
   const char *pChar = data.m_pBuffer + data.m_writeOffset;
-  if ((*pChar == 0x0D) && (*(pChar + 1) == 0x0D))
-    return( 2);
+  // Double nsCRT::CR.
+  if ((*pChar == nsCRT::CR) && (*(pChar + 1) == nsCRT::CR))
+    return 2;
 
   if (len < 4)
-    return( -1);
-  if ((*pChar == 0x0D) && (*(pChar + 1) == 0x0A) &&
-    (*(pChar + 2) == 0x0D) && (*(pChar + 3) == 0x0A))
-    return( 4);
-  return( -1);
+    return -1;
+
+  // Double (nsCRT::CR + nsCRT::LF).
+  if ((*pChar == nsCRT::CR) && (*(pChar + 1) == nsCRT::LF) &&
+      (*(pChar + 2) == nsCRT::CR) && (*(pChar + 3) == nsCRT::LF))
+    return 4;
+
+  return -1;
 }
 
 
-nsresult nsEudoraCompose::CopyComposedMessage( nsCString& fromLine, nsIFile *pSrc, nsIOutputStream *pDst, SimpleBufferTonyRCopiedOnce& copy)
+nsresult nsEudoraCompose::CopyComposedMessage(nsCString& fromLine,
+                                              nsIFile *pSrc,
+                                              nsIOutputStream *pDst,
+                                              SimpleBufferTonyRCopiedOnce& copy)
 {
   copy.m_bytesInBuf = 0;
   copy.m_writeOffset = 0;
@@ -857,34 +893,33 @@ nsresult nsEudoraCompose::CopyComposedMessage( nsCString& fromLine, nsIFile *pSr
   state.offset = 0;
   state.size = 0;
 
-  pSrc->GetFileSize( &state.size);
+  pSrc->GetFileSize(&state.size);
   if (!state.size) {
-    IMPORT_LOG0( "*** Error, unexpected zero file size for composed message\n");
-    return( NS_ERROR_FAILURE);
+    IMPORT_LOG0("*** Error, unexpected zero file size for composed message\n");
+    return NS_ERROR_FAILURE;
   }
 
         nsresult rv = NS_NewLocalFileInputStream(getter_AddRefs(state.pInputStream), pSrc);
 
-  if (NS_FAILED( rv)) {
-    IMPORT_LOG0( "*** Error, unable to open composed message file\n");
-    return( NS_ERROR_FAILURE);
+  if (NS_FAILED(rv)) {
+    IMPORT_LOG0("*** Error, unable to open composed message file\n");
+    return NS_ERROR_FAILURE;
   }
 
   PRUint32 written;
-  rv = pDst->Write( fromLine.get(), fromLine.Length(), &written);
+  rv = pDst->Write(fromLine.get(), fromLine.Length(), &written);
 
   // well, isn't this a hoot!
   // Read the headers from the new message, get the ones we like
   // and write out only the headers we want from the new message,
   // along with all of the other headers from the "old" message!
-  if (NS_SUCCEEDED( rv))
-    rv = FillMailBuffer( &state, copy);
-  if (NS_SUCCEEDED( rv))
-    rv = ReadHeaders( &state, copy, m_readHeaders);
+  if (NS_SUCCEEDED(rv))
+    rv = FillMailBuffer(&state, copy);
+  if (NS_SUCCEEDED(rv))
+    rv = ReadHeaders(&state, copy, m_readHeaders);
 
-  if (NS_SUCCEEDED( rv)) {
-    rv = WriteHeaders( pDst, m_readHeaders);
-  }
+  if (NS_SUCCEEDED(rv))
+    rv = WriteHeaders(pDst, m_readHeaders);
 
   // We need to go ahead and write out the rest of the copy buffer
   // so that the following will properly copy the rest of the body
@@ -896,37 +931,37 @@ nsresult nsEudoraCompose::CopyComposedMessage( nsCString& fromLine, nsIFile *pSr
   if (NS_SUCCEEDED(rv))
     copy.m_writeOffset = copy.m_bytesInBuf;
 
-  while ((state.offset < state.size) && NS_SUCCEEDED( rv)) {
-    rv = FillMailBuffer( &state, copy);
-    if (NS_SUCCEEDED( rv)) {
+  while ((state.offset < state.size) && NS_SUCCEEDED(rv)) {
+    rv = FillMailBuffer(&state, copy);
+    if (NS_SUCCEEDED(rv)) {
       rv = EscapeFromSpaceLine(pDst, copy.m_pBuffer + copy.m_writeOffset, copy.m_pBuffer+copy.m_bytesInBuf);
       lastChar = copy.m_pBuffer[copy.m_bytesInBuf - 1];
-      if (NS_SUCCEEDED( rv))
+      if (NS_SUCCEEDED(rv))
         copy.m_writeOffset = copy.m_bytesInBuf;
       else
-        IMPORT_LOG0( "*** Error writing to destination mailbox\n");
+        IMPORT_LOG0("*** Error writing to destination mailbox\n");
     }
   }
 
   state.pInputStream->Close();
 
-  if ((lastChar != 0x0A) && NS_SUCCEEDED( rv)) {
-    rv = pDst->Write( "\x0D\x0A", 2, &written);
+  if ((lastChar != nsCRT::LF) && NS_SUCCEEDED(rv)) {
+    rv = pDst->Write("\x0D\x0A", 2, &written);
     if (written != 2)
       rv = NS_ERROR_FAILURE;
   }
 
-  return( rv);
+  return rv;
 }
 
-nsresult nsEudoraCompose::FillMailBuffer( ReadFileState *pState, SimpleBufferTonyRCopiedOnce& read)
+nsresult nsEudoraCompose::FillMailBuffer(ReadFileState *pState, SimpleBufferTonyRCopiedOnce& read)
 {
   if (read.m_writeOffset >= read.m_bytesInBuf) {
     read.m_writeOffset = 0;
     read.m_bytesInBuf = 0;
   }
   else if (read.m_writeOffset) {
-    memcpy( read.m_pBuffer, read.m_pBuffer + read.m_writeOffset, read.m_bytesInBuf - read.m_writeOffset);
+    memcpy(read.m_pBuffer, read.m_pBuffer + read.m_writeOffset, read.m_bytesInBuf - read.m_writeOffset);
     read.m_bytesInBuf -= read.m_writeOffset;
     read.m_writeOffset = 0;
   }
@@ -938,13 +973,15 @@ nsresult nsEudoraCompose::FillMailBuffer( ReadFileState *pState, SimpleBufferTon
     PRUint32 bytesRead = 0;
     char * pBuffer = read.m_pBuffer + read.m_bytesInBuf;
     nsresult rv = pState->pInputStream->Read(pBuffer, count, &bytesRead);
-    if (NS_FAILED( rv)) return( rv);
-    if (bytesRead != count) return( NS_ERROR_FAILURE);
+    if (NS_FAILED(rv))
+      return rv;
+    if (bytesRead != count)
+      return NS_ERROR_FAILURE;
     read.m_bytesInBuf += bytesRead;
     pState->offset += bytesRead;
   }
 
-  return( NS_OK);
+  return NS_OK;
 }
 
 
@@ -965,24 +1002,24 @@ static const char *gReplaceHeaders[kMaxReplaceHeaders] = {
   "cc"
 };
 
-bool nsEudoraCompose::IsReplaceHeader( const char *pHeader)
+bool nsEudoraCompose::IsReplaceHeader(const char *pHeader)
 {
   for (int i = 0; i < kMaxReplaceHeaders; i++) {
-    if (!PL_strcasecmp( pHeader, gReplaceHeaders[i]))
-      return( true);
+    if (!PL_strcasecmp(pHeader, gReplaceHeaders[i]))
+      return true;
   }
 
-  return( false);
+  return false;
 }
 
-PRInt32 nsEudoraCompose::IsSpecialHeader( const char *pHeader)
+PRInt32 nsEudoraCompose::IsSpecialHeader(const char *pHeader)
 {
   for (int i = 0; i < kMaxSpecialHeaders; i++) {
-    if (!PL_strcasecmp( pHeader, gSpecialHeaders[i]))
-      return( (PRInt32) i);
+    if (!PL_strcasecmp(pHeader, gSpecialHeaders[i]))
+      return (PRInt32) i;
   }
 
-  return( -1);
+  return -1;
 }
 
 
@@ -1013,20 +1050,22 @@ nsresult nsEudoraCompose::WriteHeaders(nsIOutputStream *pDst, SimpleBufferTonyRC
   // m_pHeaders - contains headers from a Eudora msg.
   // newHeaders - contains headers from a mozilla msg (more headers here).
   do {
-    GetNthHeader( m_pHeaders, m_headerLen, n, header, val, false);
-    // GetNthHeader( newHeaders.m_pBuffer, newHeaders.m_writeOffset, n, header, val, false);
+    GetNthHeader(m_pHeaders, m_headerLen, n, header, val, false);
+    // GetNthHeader(newHeaders.m_pBuffer, newHeaders.m_writeOffset, n, header, val, false);
     if (!header.IsEmpty()) {
-      if ((specialHeader = IsSpecialHeader( header.get())) != -1) {
-        header.Append( ':');
-        GetHeaderValue( newHeaders.m_pBuffer, newHeaders.m_writeOffset - 1, header.get(), val, false);
-        header.SetLength( header.Length() - 1);
+      if ((specialHeader = IsSpecialHeader(header.get())) != -1) {
+        header.Append(':');
+        GetHeaderValue(newHeaders.m_pBuffer, newHeaders.m_writeOffset - 1,
+                       header.get(), val, false);
+        header.SetLength(header.Length() - 1);
         specials[specialHeader] = true;
       }
-      else if (IsReplaceHeader( header.get())) {
+      else if (IsReplaceHeader(header.get())) {
         replaceVal.Truncate();
-        header.Append( ':');
-        GetHeaderValue( newHeaders.m_pBuffer, newHeaders.m_writeOffset - 1, header.get(), replaceVal, false);
-        header.SetLength( header.Length() - 1);
+        header.Append(':');
+        GetHeaderValue(newHeaders.m_pBuffer, newHeaders.m_writeOffset - 1,
+                       header.get(), replaceVal, false);
+        header.SetLength(header.Length() - 1);
         if (!replaceVal.IsEmpty())
           val = replaceVal;
       }
@@ -1034,48 +1073,49 @@ nsresult nsEudoraCompose::WriteHeaders(nsIOutputStream *pDst, SimpleBufferTonyRC
         // See if we're writing out a Date: header.
         if (header.LowerCaseEqualsLiteral("date"))
           hasDateHeader = true;
-        rv = pDst->Write( header.get(), header.Length(), &written);
-        if (NS_SUCCEEDED( rv))
-          rv = pDst->Write( ": ", 2, &written);
-        if (NS_SUCCEEDED( rv))
-          rv = pDst->Write( val.get(), val.Length(), &written);
-        if (NS_SUCCEEDED( rv))
-          rv = pDst->Write( "\x0D\x0A", 2, &written);
+        rv = pDst->Write(header.get(), header.Length(), &written);
+        if (NS_SUCCEEDED(rv))
+          rv = pDst->Write(": ", 2, &written);
+        if (NS_SUCCEEDED(rv))
+          rv = pDst->Write(val.get(), val.Length(), &written);
+        if (NS_SUCCEEDED(rv))
+          rv = pDst->Write("\x0D\x0A", 2, &written);
 
       }
     }
     n++;
-  } while (NS_SUCCEEDED( rv) && !header.IsEmpty());
+  } while (NS_SUCCEEDED(rv) && !header.IsEmpty());
 
   // If we don't have Date: header so far then use the default one (taken from Eudora "From " line).
   if (!hasDateHeader)
   {
     rv = pDst->Write(m_defaultDate.get(), m_defaultDate.Length(), &written);
-    if (NS_SUCCEEDED( rv))
-      rv = pDst->Write( "\x0D\x0A", 2, &written);
+    if (NS_SUCCEEDED(rv))
+      rv = pDst->Write("\x0D\x0A", 2, &written);
   }
 
-  for (i = 0; (i < kMaxSpecialHeaders) && NS_SUCCEEDED( rv); i++) {
+  for (i = 0; (i < kMaxSpecialHeaders) && NS_SUCCEEDED(rv); i++) {
     if (!specials[i]) {
       header = gSpecialHeaders[i];
-      header.Append( ':');
-      GetHeaderValue( newHeaders.m_pBuffer, newHeaders.m_writeOffset - 1, header.get(), val, false);
-      header.SetLength( header.Length() - 1);
+      header.Append(':');
+      GetHeaderValue(newHeaders.m_pBuffer, newHeaders.m_writeOffset - 1,
+                     header.get(), val, false);
+      header.SetLength(header.Length() - 1);
       if (!val.IsEmpty()) {
-        rv = pDst->Write( header.get(), header.Length(), &written);
-        if (NS_SUCCEEDED( rv))
-          rv = pDst->Write( ": ", 2, &written);
-        if (NS_SUCCEEDED( rv))
-          rv = pDst->Write( val.get(), val.Length(), &written);
-        if (NS_SUCCEEDED( rv))
-          rv = pDst->Write( "\x0D\x0A", 2, &written);
+        rv = pDst->Write(header.get(), header.Length(), &written);
+        if (NS_SUCCEEDED(rv))
+          rv = pDst->Write(": ", 2, &written);
+        if (NS_SUCCEEDED(rv))
+          rv = pDst->Write(val.get(), val.Length(), &written);
+        if (NS_SUCCEEDED(rv))
+          rv = pDst->Write("\x0D\x0A", 2, &written);
       }
     }
   }
 
-  if (NS_SUCCEEDED( rv))
-    rv = pDst->Write( "\x0D\x0A", 2, &written);
-  return( rv);
+  if (NS_SUCCEEDED(rv))
+    rv = pDst->Write("\x0D\x0A", 2, &written);
+  return rv;
 }
 
 

@@ -64,6 +64,7 @@
 #include "xpcpublic.h"
 #include "nsCrossSiteListenerProxy.h"
 #include "nsWrapperCacheInlines.h"
+#include "nsDOMEventTargetHelper.h"
 
 using namespace mozilla;
 
@@ -88,6 +89,7 @@ nsEventSource::nsEventSource() :
   mErrorLoadOnRedirect(false),
   mGoingToDispatchAllMessages(false),
   mWithCredentials(false),
+  mWaitingForOnStopRequest(false),
   mLastConvertionResult(NS_OK),
   mReadyState(nsIEventSource::CONNECTING),
   mScriptLine(0),
@@ -107,12 +109,16 @@ nsEventSource::~nsEventSource()
 NS_IMPL_CYCLE_COLLECTION_CLASS(nsEventSource)
 
 NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_BEGIN(nsEventSource)
-  if (tmp->IsBlack()) {
+  bool isBlack = tmp->IsBlack();
+  if (isBlack || tmp->mWaitingForOnStopRequest) {
     if (tmp->mListenerManager) {
       tmp->mListenerManager->UnmarkGrayJSListeners();
       NS_UNMARK_LISTENER_WRAPPER(Open)
       NS_UNMARK_LISTENER_WRAPPER(Message)
       NS_UNMARK_LISTENER_WRAPPER(Error)
+    }
+    if (!isBlack && tmp->PreservingWrapper()) {
+      xpc_UnmarkGrayObject(tmp->GetWrapperPreserveColor());
     }
     return true;
   }
@@ -127,11 +133,11 @@ NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_THIS_BEGIN(nsEventSource)
 NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_THIS_END
 
 NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN_INHERITED(nsEventSource,
-                                               nsDOMEventTargetWrapperCache)
+                                               nsDOMEventTargetHelper)
 NS_IMPL_CYCLE_COLLECTION_TRACE_END
 
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(nsEventSource,
-                                                  nsDOMEventTargetWrapperCache)
+                                                  nsDOMEventTargetHelper)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mSrc)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mNotificationCallbacks)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mLoadGroup)
@@ -144,7 +150,7 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(nsEventSource,
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mUnicodeDecoder)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
-NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(nsEventSource, nsDOMEventTargetWrapperCache)
+NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(nsEventSource, nsDOMEventTargetHelper)
   tmp->Close();
   NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mOnOpenListener)
   NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mOnMessageListener)
@@ -163,10 +169,20 @@ NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(nsEventSource)
   NS_INTERFACE_MAP_ENTRY(nsIInterfaceRequestor)
   NS_INTERFACE_MAP_ENTRY(nsISupportsWeakReference)
   NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(EventSource)
-NS_INTERFACE_MAP_END_INHERITING(nsDOMEventTargetWrapperCache)
+NS_INTERFACE_MAP_END_INHERITING(nsDOMEventTargetHelper)
 
-NS_IMPL_ADDREF_INHERITED(nsEventSource, nsDOMEventTargetWrapperCache)
-NS_IMPL_RELEASE_INHERITED(nsEventSource, nsDOMEventTargetWrapperCache)
+NS_IMPL_ADDREF_INHERITED(nsEventSource, nsDOMEventTargetHelper)
+NS_IMPL_RELEASE_INHERITED(nsEventSource, nsDOMEventTargetHelper)
+
+void
+nsEventSource::DisconnectFromOwner()
+{
+  nsDOMEventTargetHelper::DisconnectFromOwner();
+  NS_DISCONNECT_EVENT_HANDLER(Open)
+  NS_DISCONNECT_EVENT_HANDLER(Message)
+  NS_DISCONNECT_EVENT_HANDLER(Error)
+  Close();
+}
 
 //-----------------------------------------------------------------------------
 // nsEventSource::nsIEventSource
@@ -243,9 +259,6 @@ nsEventSource::Close()
   mSrc = nsnull;
   mFrozen = false;
 
-  mScriptContext = nsnull;
-  mOwner = nsnull;
-
   mUnicodeDecoder = nsnull;
 
   mReadyState = nsIEventSource::CLOSED;
@@ -270,13 +283,12 @@ nsEventSource::Init(nsIPrincipal* aPrincipal,
   }
 
   mPrincipal = aPrincipal;
-  mScriptContext = aScriptContext;
   mWithCredentials = aWithCredentials;
   if (aOwnerWindow) {
-    mOwner = aOwnerWindow->IsOuterWindow() ?
-      aOwnerWindow->GetCurrentInnerWindow() : aOwnerWindow;
+    BindToOwner(aOwnerWindow->IsOuterWindow() ?
+      aOwnerWindow->GetCurrentInnerWindow() : aOwnerWindow);
   } else {
-    mOwner = nsnull;
+    BindToOwner(aOwnerWindow);
   }
 
   nsCOMPtr<nsIJSContextStack> stack =
@@ -294,9 +306,11 @@ nsEventSource::Init(nsIPrincipal* aPrincipal,
   // Get the load group for the page. When requesting we'll add ourselves to it.
   // This way any pending requests will be automatically aborted if the user
   // leaves the page.
-  if (mScriptContext) {
+  nsresult rv;
+  nsIScriptContext* sc = GetContextForEventHandlers(&rv);
+  if (sc) {
     nsCOMPtr<nsIDocument> doc =
-      nsContentUtils::GetDocumentFromScriptContext(mScriptContext);
+      nsContentUtils::GetDocumentFromScriptContext(sc);
     if (doc) {
       mLoadGroup = doc->GetDocumentLoadGroup();
     }
@@ -304,7 +318,7 @@ nsEventSource::Init(nsIPrincipal* aPrincipal,
 
   // get the src
   nsCOMPtr<nsIURI> baseURI;
-  nsresult rv = GetBaseURI(getter_AddRefs(baseURI));
+  rv = GetBaseURI(getter_AddRefs(baseURI));
   NS_ENSURE_SUCCESS(rv, rv);
 
   nsCOMPtr<nsIURI> srcURI;
@@ -449,11 +463,11 @@ nsEventSource::Observe(nsISupports* aSubject,
   }
 
   nsCOMPtr<nsPIDOMWindow> window = do_QueryInterface(aSubject);
-  if (!mOwner || window != mOwner) {
+  if (!GetOwner() || window != GetOwner()) {
     return NS_OK;
   }
 
-  nsresult rv;
+  DebugOnly<nsresult> rv;
   if (strcmp(aTopic, DOM_WINDOW_FROZEN_TOPIC) == 0) {
     rv = Freeze();
     NS_ASSERTION(rv, "Freeze() failed");
@@ -598,6 +612,8 @@ nsEventSource::OnStopRequest(nsIRequest *aRequest,
                              nsISupports *aContext,
                              nsresult aStatusCode)
 {
+  mWaitingForOnStopRequest = false;
+
   if (mReadyState == nsIEventSource::CLOSED) {
     return NS_ERROR_ABORT;
   }
@@ -824,8 +840,8 @@ nsEventSource::GetInterface(const nsIID & aIID,
     // of the dialogs works as it should when using tabs.
 
     nsCOMPtr<nsIDOMWindow> window;
-    if (mOwner) {
-      window = mOwner->GetOuterWindow();
+    if (GetOwner()) {
+      window = GetOwner()->GetOuterWindow();
     }
 
     return wwatch->GetPrompt(window, aIID, aResult);
@@ -851,15 +867,17 @@ nsEventSource::GetBaseURI(nsIURI **aBaseURI)
   nsCOMPtr<nsIURI> baseURI;
 
   // first we try from document->GetBaseURI()
+  nsresult rv;
+  nsIScriptContext* sc = GetContextForEventHandlers(&rv);
   nsCOMPtr<nsIDocument> doc =
-    nsContentUtils::GetDocumentFromScriptContext(mScriptContext);
+    nsContentUtils::GetDocumentFromScriptContext(sc);
   if (doc) {
     baseURI = doc->GetBaseURI();
   }
 
   // otherwise we get from the doc's principal
   if (!baseURI) {
-    nsresult rv = mPrincipal->GetURI(getter_AddRefs(baseURI));
+    rv = mPrincipal->GetURI(getter_AddRefs(baseURI));
     NS_ENSURE_SUCCESS(rv, rv);
   }
 
@@ -948,7 +966,11 @@ nsEventSource::InitChannelAndRequestEventSource()
   NS_ENSURE_SUCCESS(rv, rv);
 
   // Start reading from the channel
-  return mHttpChannel->AsyncOpen(listener, nsnull);
+  rv = mHttpChannel->AsyncOpen(listener, nsnull);
+  if (NS_SUCCEEDED(rv)) {
+    mWaitingForOnStopRequest = true;
+  }
+  return rv;
 }
 
 void
@@ -1253,8 +1275,9 @@ nsEventSource::CheckCanRequestSrc(nsIURI* aSrc)
 
   // After the security manager, the content-policy check
 
+  nsIScriptContext* sc = GetContextForEventHandlers(&rv);
   nsCOMPtr<nsIDocument> doc =
-    nsContentUtils::GetDocumentFromScriptContext(mScriptContext);
+    nsContentUtils::GetDocumentFromScriptContext(sc);
 
   // mScriptContext should be initialized because of GetBaseURI() above.
   // Still need to consider the case that doc is nsnull however.
@@ -1404,7 +1427,7 @@ nsEventSource::DispatchAllMessageEvents()
   }
 
   // Let's play get the JSContext
-  nsCOMPtr<nsIScriptGlobalObject> sgo = do_QueryInterface(mOwner);
+  nsCOMPtr<nsIScriptGlobalObject> sgo = do_QueryInterface(GetOwner());
   NS_ENSURE_TRUE(sgo,);
 
   nsIScriptContext* scriptContext = sgo->GetContext();

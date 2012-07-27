@@ -92,12 +92,18 @@
   <stringbundle id="bundlePreferences"
                 src="chrome://messenger/locale/preferences/preferences.properties"/>
 
+  <script type="application/javascript" src="chrome://global/content/globalOverlay.js"/>
+  <script type="application/javascript" src="chrome://communicator/content/contentAreaClick.js"/>
+  <script type="application/javascript" src="chrome://messenger/content/preferences/preferences.js"/>
+
   <prefpane id="paneGeneral" label="&paneGeneral.title;"
             src="chrome://messenger/content/preferences/general.xul"/>
   <prefpane id="paneDisplay" label="&paneDisplay.title;"
             src="chrome://messenger/content/preferences/display.xul"/>
   <prefpane id="paneCompose" label="&paneComposition.title;"
             src="chrome://messenger/content/preferences/compose.xul"/>
+  <prefpane id="paneChat" label="&paneChat.title;"
+            src="chrome://messenger/content/preferences/chat.xul"/>
   <prefpane id="paneSecurity" label="&paneSecurity.title;"
             src="chrome://messenger/content/preferences/security.xul"/>
   <prefpane id="paneApplications" label="&paneAttachments.title;"

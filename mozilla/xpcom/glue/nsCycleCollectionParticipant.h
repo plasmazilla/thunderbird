@@ -226,7 +226,7 @@ public:
 
     NS_IMETHOD_(void) Trace(void *p, TraceCallback cb, void *closure);
 
-    NS_IMETHOD_(void) UnmarkPurple(nsISupports *p);
+    NS_IMETHOD_(void) UnmarkIfPurple(nsISupports *p);
 
     bool CheckForRightISupports(nsISupports *s);
 };
@@ -299,6 +299,10 @@ public:
 #define NS_CYCLE_COLLECTION_UPCAST(obj, clazz)                                 \
   NS_CYCLE_COLLECTION_CLASSNAME(clazz)::Upcast(obj)
 
+///////////////////////////////////////////////////////////////////////////////
+// Helpers for implementing CanSkip methods
+///////////////////////////////////////////////////////////////////////////////
+
 #define NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_BEGIN(_class)                        \
   NS_IMETHODIMP_(bool)                                                         \
   NS_CYCLE_COLLECTION_CLASSNAME(_class)::CanSkipReal(void *p,                  \
@@ -310,6 +314,7 @@ public:
     _class *tmp = Downcast(s);
 
 #define NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_END                                  \
+    (void)tmp;                                                                 \
     return false;                                                              \
   }
 
@@ -323,6 +328,7 @@ public:
     _class *tmp = Downcast(s);
 
 #define NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_IN_CC_END                            \
+    (void)tmp;                                                                 \
     return false;                                                              \
   }
 
@@ -336,6 +342,7 @@ public:
     _class *tmp = Downcast(s);
 
 #define NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_THIS_END                             \
+    (void)tmp;                                                                 \
     return false;                                                              \
   }
 
@@ -586,9 +593,9 @@ public:
 public:                                                                        \
   NS_IMETHOD Traverse(void *p,                                                 \
                       nsCycleCollectionTraversalCallback &cb);                 \
-  NS_IMETHOD_(void) UnmarkPurple(nsISupports *s)                               \
+  NS_IMETHOD_(void) UnmarkIfPurple(nsISupports *s)                             \
   {                                                                            \
-    Downcast(s)->UnmarkPurple();                                               \
+    Downcast(s)->UnmarkIfPurple();                                             \
   }                                                                            \
   static _class* Downcast(nsISupports* s)                                      \
   {                                                                            \
@@ -613,6 +620,24 @@ NS_CYCLE_COLLECTION_PARTICIPANT_INSTANCE
 
 #define NS_DECL_CYCLE_COLLECTION_CLASS(_class)                                 \
   NS_DECL_CYCLE_COLLECTION_CLASS_AMBIGUOUS(_class, _class)
+
+// Cycle collector helper for ambiguous classes that can sometimes be skipped.
+#define NS_DECL_CYCLE_COLLECTION_SKIPPABLE_CLASS_AMBIGUOUS(_class, _base)        \
+class NS_CYCLE_COLLECTION_INNERCLASS                                             \
+ : public nsXPCOMCycleCollectionParticipant                                      \
+{                                                                                \
+public:                                                                          \
+  NS_CYCLE_COLLECTION_INNERCLASS () : nsXPCOMCycleCollectionParticipant(true) {} \
+  NS_DECL_CYCLE_COLLECTION_CLASS_BODY(_class, _base)                             \
+protected:                                                                       \
+  NS_IMETHOD_(bool) CanSkipReal(void *p, bool aRemovingAllowed);                 \
+  NS_IMETHOD_(bool) CanSkipInCCReal(void *p);                                    \
+  NS_IMETHOD_(bool) CanSkipThisReal(void *p);                                    \
+};                                                                               \
+NS_CYCLE_COLLECTION_PARTICIPANT_INSTANCE
+
+#define NS_DECL_CYCLE_COLLECTION_SKIPPABLE_CLASS(_class)                       \
+        NS_DECL_CYCLE_COLLECTION_SKIPPABLE_CLASS_AMBIGUOUS(_class, _class)
 
 // Cycle collector helper for classes that don't want to unlink anything.
 // Note: if this is used a lot it might make sense to have a base class that
@@ -733,13 +758,13 @@ public:                                                                        \
 NS_CYCLE_COLLECTION_PARTICIPANT_INSTANCE
 
 /**
- * This implements a stub UnmarkPurple function for classes that want to be
+ * This implements a stub UnmarkIfPurple function for classes that want to be
  * traversed but whose AddRef/Release functions don't add/remove them to/from
  * the purple buffer. If you're just using NS_DECL_CYCLE_COLLECTING_ISUPPORTS
  * then you don't need this.
  */
 #define NS_DECL_CYCLE_COLLECTION_UNMARK_PURPLE_STUB(_class)                    \
-  NS_IMETHODIMP_(void) UnmarkPurple()                                          \
+  NS_IMETHODIMP_(void) UnmarkIfPurple()                                        \
   {                                                                            \
   }                                                                            \
 

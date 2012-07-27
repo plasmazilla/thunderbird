@@ -42,9 +42,8 @@
 class nsIArray;
 
 #define NS_ISCRIPTTIMEOUTHANDLER_IID \
-{ /* {21ba4f96-30b8-4215-a75d-d438eb16a50c} */ \
-  0x21ba4f96, 0x30b8, 0x4215, \
-  { 0xa7, 0x5d, 0xd4, 0x38, 0xeb, 0x16, 0xa5, 0x0c } }
+{ 0xcaf520a5, 0x8078, 0x4cba, \
+  { 0x8a, 0xb9, 0xb6, 0x8a, 0x12, 0x43, 0x4f, 0x05 } }
 
 /**
  * Abstraction of the script objects etc required to do timeouts in a
@@ -55,9 +54,6 @@ class nsIScriptTimeoutHandler : public nsISupports
 {
 public:
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_ISCRIPTTIMEOUTHANDLER_IID)
-
-  // Get the script-type (language) implementing this timeout.
-  virtual PRUint32 GetScriptTypeID() = 0;
 
   // Get a script object for the language suitable for passing back to
   // the language's context as an event handler.  If this returns nsnull,
@@ -75,13 +71,6 @@ public:
   // If a script object, get the argv suitable for passing back to the
   // script context.
   virtual nsIArray *GetArgv() = 0;
-
-  // Get the language version for this timeout.
-  virtual PRUint32 GetScriptVersion() = 0;
-
-  // Set the "secret" final lateness arg.  This will be called before
-  // GetArgv(), which should reflect this lateness value.
-  virtual void SetLateness(PRIntervalTime aHowLate) = 0;
 };
 
 NS_DEFINE_STATIC_IID_ACCESSOR(nsIScriptTimeoutHandler,

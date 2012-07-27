@@ -88,7 +88,6 @@
 #include "mozFlushType.h"
 #include "prclist.h"
 #include "nsIDOMStorageObsolete.h"
-#include "nsIDOMStorageList.h"
 #include "nsIDOMStorageEvent.h"
 #include "nsIDOMStorageIndexedDB.h"
 #include "nsIDOMOfflineResourceList.h"
@@ -102,7 +101,6 @@
 
 // JS includes
 #include "jsapi.h"
-#include "jswrapper.h"
 
 #define DEFAULT_HOME_PAGE "www.mozilla.org"
 #define PREF_BROWSER_STARTUP_HOMEPAGE "browser.startup.homepage"
@@ -134,13 +132,16 @@ class nsGlobalWindow;
 class nsDummyJavaPluginOwner;
 class PostMessageEvent;
 class nsRunnable;
-
+class nsDOMEventTargetHelper;
 class nsDOMOfflineResourceList;
 class nsDOMMozURLProperty;
+class nsDOMWindowUtils;
 
 #ifdef MOZ_DISABLE_DOMCRYPTO
 class nsIDOMCrypto;
 #endif
+
+class nsWindowSizes;
 
 namespace mozilla {
 namespace dom {
@@ -230,26 +231,6 @@ private:
 };
 
 //*****************************************************************************
-// nsOuterWindow: Outer Window Proxy
-//*****************************************************************************
-
-class nsOuterWindowProxy : public js::Wrapper
-{
-public:
-  nsOuterWindowProxy() : js::Wrapper((uintN)0) {}
-
-  virtual bool isOuterWindow() {
-    return true;
-  }
-  JSString *obj_toString(JSContext *cx, JSObject *wrapper);
-  void finalize(JSContext *cx, JSObject *proxy);
-
-  static nsOuterWindowProxy singleton;
-};
-
-JSObject *NS_NewOuterWindowProxy(JSContext *cx, JSObject *parent);
-
-//*****************************************************************************
 // nsGlobalWindow: Global Object for Scripting
 //*****************************************************************************
 // Beware that all scriptable interfaces implemented by
@@ -299,8 +280,7 @@ public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
 
   // nsWrapperCache
-  JSObject *WrapObject(JSContext *cx, XPCWrappedNativeScope *scope,
-                       bool *triedToWrap)
+  JSObject *WrapObject(JSContext *cx, JSObject *scope, bool *triedToWrap)
   {
     NS_ASSERTION(IsOuterWindow(),
                  "Inner window supports nsWrapperCache, fix WrapObject!");
@@ -316,13 +296,13 @@ public:
     return mJSObject;
   }
 
-  virtual nsresult EnsureScriptEnvironment(PRUint32 aLangID);
+  virtual nsresult EnsureScriptEnvironment();
 
-  virtual nsIScriptContext *GetScriptContext(PRUint32 lang);
+  virtual nsIScriptContext *GetScriptContext();
 
   // Set a new script language context for this global.  The native global
   // for the context is created by the context's GetNativeGlobal() method.
-  virtual nsresult SetScriptContext(PRUint32 lang, nsIScriptContext *aContext);
+  virtual nsresult SetScriptContext(nsIScriptContext *aContext);
   
   virtual void OnFinalize(JSObject* aObject);
   virtual void SetScriptsEnabled(bool aEnabled, bool aFireTimeouts);
@@ -393,8 +373,6 @@ public:
   virtual NS_HIDDEN_(bool) CanClose();
   virtual NS_HIDDEN_(nsresult) ForceClose();
 
-  virtual NS_HIDDEN_(void) SetHasOrientationEventListener();
-  virtual NS_HIDDEN_(void) RemoveOrientationEventListener();
   virtual NS_HIDDEN_(void) MaybeUpdateTouchState();
   virtual NS_HIDDEN_(void) UpdateTouchState();
   virtual NS_HIDDEN_(bool) DispatchCustomEvent(const char *aEventName);
@@ -529,6 +507,9 @@ public:
   virtual nsresult DispatchAsyncHashchange(nsIURI *aOldURI, nsIURI *aNewURI);
   virtual nsresult DispatchSyncPopState();
 
+  virtual void EnableDeviceSensor(PRUint32 aType);
+  virtual void DisableDeviceSensor(PRUint32 aType);
+
   virtual nsresult SetArguments(nsIArray *aArguments, nsIPrincipal *aOrigin);
 
   static bool DOMWindowDumpEnabled();
@@ -576,15 +557,12 @@ public:
     return sWindowsById;
   }
 
-  PRInt64 SizeOf() const;
+  void SizeOfIncludingThis(nsWindowSizes* aWindowSizes) const;
 
   void UnmarkGrayTimers();
-private:
-  // Enable updates for the accelerometer.
-  void EnableDeviceMotionUpdates();
 
-  // Disables updates for the accelerometer.
-  void DisableDeviceMotionUpdates();
+  void AddEventTargetObject(nsDOMEventTargetHelper* aObject);
+  void RemoveEventTargetObject(nsDOMEventTargetHelper* aObject);
 
 protected:
   friend class HashchangeCallback;
@@ -594,11 +572,10 @@ protected:
   virtual ~nsGlobalWindow();
   void CleanUp(bool aIgnoreModalDialog);
   void ClearControllers();
-  static void TryClearWindowScope(nsISupports* aWindow);
-  void ClearScopeWhenAllScriptsStop();
   nsresult FinalClose();
 
-  void FreeInnerObjects(bool aClearScope);
+  void FreeInnerObjects();
+  JSObject *CallerGlobal();
   nsGlobalWindow *CallerInnerWindow();
 
   nsresult InnerSetNewDocument(nsIDocument* aDocument);
@@ -676,7 +653,6 @@ protected:
                                     nsIDOMWindow **aReturn);
 
   static void CloseWindow(nsISupports* aWindow);
-  static void ClearWindowScope(nsISupports* aWindow);
 
   // Timeout Functions
   // Language agnostic timeout function (all args passed).
@@ -829,6 +805,11 @@ protected:
 
   inline PRInt32 DOMMinTimeoutValue() const;
 
+  nsresult CreateOuterObject(nsGlobalWindow* aNewInner);
+  nsresult SetOuterObject(JSContext* aCx, JSObject* aOuterObject);
+  nsresult CloneStorageEvent(const nsAString& aType,
+                             nsCOMPtr<nsIDOMStorageEvent>& aEvent);
+
   // When adding new member variables, be careful not to create cycles
   // through JavaScript.  If there is any chance that a member variable
   // could own objects that are implemented in JavaScript, then those
@@ -897,9 +878,6 @@ protected:
   // should be displayed.
   bool                   mFocusByKeyOccurred : 1;
 
-  // Indicates whether this window is getting device motion change events
-  bool                   mHasDeviceMotion : 1;
-
   // whether we've sent the destroy notification for our window id
   bool                   mNotifiedIDDestroyed : 1;
 
@@ -919,7 +897,7 @@ protected:
   nsRefPtr<nsBarProp>           mPersonalbar;
   nsRefPtr<nsBarProp>           mStatusbar;
   nsRefPtr<nsBarProp>           mScrollbars;
-  nsCOMPtr<nsIWeakReference>    mWindowUtils;
+  nsRefPtr<nsDOMWindowUtils>    mWindowUtils;
   nsString                      mStatus;
   nsString                      mDefaultStatus;
   // index 0->language_id 1, so index MAX-1 == language_id MAX
@@ -961,7 +939,6 @@ protected:
 
   typedef nsCOMArray<nsIDOMStorageEvent> nsDOMStorageEventArray;
   nsDOMStorageEventArray mPendingStorageEvents;
-  nsAutoPtr< nsDataHashtable<nsStringHashKey, bool> > mPendingStorageEventsObsolete;
 
   PRUint32 mTimeoutsSuspendDepth;
 
@@ -979,7 +956,7 @@ protected:
 
   nsCOMPtr<nsIDOMOfflineResourceList> mApplicationCache;
 
-  nsDataHashtable<nsVoidPtrHashKey, JSObject*> mCachedXBLPrototypeHandlers;
+  nsDataHashtable<nsPtrHashKey<nsXBLPrototypeHandler>, JSObject*> mCachedXBLPrototypeHandlers;
 
   nsCOMPtr<nsIDocument> mSuspendedDoc;
 
@@ -999,10 +976,13 @@ protected:
 
   nsRefPtr<nsDOMMozURLProperty> mURLProperty;
 
+  nsTHashtable<nsPtrHashKey<nsDOMEventTargetHelper> > mEventTargetObjects;
+
+  nsTArray<PRUint32> mEnabledSensors;
+
   friend class nsDOMScriptableHelper;
   friend class nsDOMWindowUtils;
   friend class PostMessageEvent;
-  static nsIDOMStorageList* sGlobalStorageList;
 
   static WindowByIdTable* sWindowsById;
   static bool sWarnedAboutWindowInternal;
@@ -1077,8 +1057,20 @@ protected:
 };
 
 /* factory function */
-nsresult
-NS_NewScriptGlobalObject(bool aIsChrome, bool aIsModalContentWindow,
-                         nsIScriptGlobalObject **aResult);
+inline already_AddRefed<nsGlobalWindow>
+NS_NewScriptGlobalObject(bool aIsChrome, bool aIsModalContentWindow)
+{
+  nsRefPtr<nsGlobalWindow> global;
+
+  if (aIsChrome) {
+    global = new nsGlobalChromeWindow(nsnull);
+  } else if (aIsModalContentWindow) {
+    global = new nsGlobalModalWindow(nsnull);
+  } else {
+    global = new nsGlobalWindow(nsnull);
+  }
+
+  return global.forget();
+}
 
 #endif /* nsGlobalWindow_h___ */

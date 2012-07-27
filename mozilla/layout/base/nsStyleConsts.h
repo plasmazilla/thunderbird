@@ -294,11 +294,10 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
 #define NS_STYLE_BG_POSITION_RIGHT   (1<<4)
 
 // See nsStyleBackground
-// Code depends on (BG_REPEAT_X | BG_REPEAT_Y) == BG_REPEAT_XY
-#define NS_STYLE_BG_REPEAT_OFF                  0x00
-#define NS_STYLE_BG_REPEAT_X                    0x01
-#define NS_STYLE_BG_REPEAT_Y                    0x02
-#define NS_STYLE_BG_REPEAT_XY                   0x03
+#define NS_STYLE_BG_REPEAT_NO_REPEAT                0x00
+#define NS_STYLE_BG_REPEAT_REPEAT_X                 0x01
+#define NS_STYLE_BG_REPEAT_REPEAT_Y                 0x02
+#define NS_STYLE_BG_REPEAT_REPEAT                   0x03
 
 // See nsStyleBackground
 #define NS_STYLE_BG_SIZE_CONTAIN  0
@@ -472,22 +471,22 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
 #define NS_STYLE_FONT_STRETCH_ULTRA_EXPANDED    NS_FONT_STRETCH_ULTRA_EXPANDED
 
 // See nsStyleFont - system fonts
-#define NS_STYLE_FONT_CAPTION                   1		// css2
+#define NS_STYLE_FONT_CAPTION                   1   // css2
 #define NS_STYLE_FONT_ICON                      2
 #define NS_STYLE_FONT_MENU                      3
 #define NS_STYLE_FONT_MESSAGE_BOX               4
 #define NS_STYLE_FONT_SMALL_CAPTION             5
 #define NS_STYLE_FONT_STATUS_BAR                6
-#define NS_STYLE_FONT_WINDOW										7		// css3
-#define NS_STYLE_FONT_DOCUMENT									8
-#define NS_STYLE_FONT_WORKSPACE									9
-#define NS_STYLE_FONT_DESKTOP										10
-#define NS_STYLE_FONT_INFO											11
-#define NS_STYLE_FONT_DIALOG										12
-#define NS_STYLE_FONT_BUTTON										13
-#define NS_STYLE_FONT_PULL_DOWN_MENU						14
-#define NS_STYLE_FONT_LIST											15
-#define NS_STYLE_FONT_FIELD											16
+#define NS_STYLE_FONT_WINDOW                    7   // css3
+#define NS_STYLE_FONT_DOCUMENT                  8
+#define NS_STYLE_FONT_WORKSPACE                 9
+#define NS_STYLE_FONT_DESKTOP                   10
+#define NS_STYLE_FONT_INFO                      11
+#define NS_STYLE_FONT_DIALOG                    12
+#define NS_STYLE_FONT_BUTTON                    13
+#define NS_STYLE_FONT_PULL_DOWN_MENU            14
+#define NS_STYLE_FONT_LIST                      15
+#define NS_STYLE_FONT_FIELD                     16
 
 // defaults per MathML spec
 #define NS_MATHML_DEFAULT_SCRIPT_SIZE_MULTIPLIER 0.71f
@@ -641,6 +640,7 @@ static inline mozilla::css::Side operator++(mozilla::css::Side& side, int) {
 #define NS_STYLE_TEXT_DECORATION_LINE_UNDERLINE    NS_FONT_DECORATION_UNDERLINE
 #define NS_STYLE_TEXT_DECORATION_LINE_OVERLINE     NS_FONT_DECORATION_OVERLINE
 #define NS_STYLE_TEXT_DECORATION_LINE_LINE_THROUGH NS_FONT_DECORATION_LINE_THROUGH
+#define NS_STYLE_TEXT_DECORATION_LINE_BLINK        0x08
 #define NS_STYLE_TEXT_DECORATION_LINE_PREF_ANCHORS 0x10
 // OVERRIDE_ALL does not occur in stylesheets; it only comes from HTML
 // attribute mapping (and thus appears in computed data)

@@ -38,18 +38,15 @@
 const EXPORTED_SYMBOLS = ["XPCOMUtils", "Services", "NetUtil", "PlacesUtils",
                           "FileUtils", "Utils", "Async", "Svc", "Str"];
 
-const Cc = Components.classes;
-const Ci = Components.interfaces;
-const Cr = Components.results;
-const Cu = Components.utils;
+const {classes: Cc, interfaces: Ci, results: Cr, utils: Cu} = Components;
 
-Cu.import("resource://services-sync/async.js");
+Cu.import("resource://services-common/log4moz.js");
+Cu.import("resource://services-common/preferences.js");
+Cu.import("resource://services-common/stringbundle.js");
+Cu.import("resource://services-common/utils.js");
+Cu.import("resource://services-common/async.js");
 Cu.import("resource://services-sync/constants.js");
-Cu.import("resource://services-sync/ext/Observers.js");
-Cu.import("resource://services-sync/ext/Preferences.js");
-Cu.import("resource://services-sync/ext/StringBundle.js");
-Cu.import("resource://services-sync/log4moz.js");
-Cu.import("resource://services-sync/status.js");
+Cu.import("resource://services-common/observers.js");
 Cu.import("resource://gre/modules/XPCOMUtils.jsm");
 Cu.import("resource://gre/modules/Services.jsm");
 Cu.import("resource://gre/modules/PlacesUtils.jsm");
@@ -61,6 +58,17 @@ Cu.import("resource://gre/modules/FileUtils.jsm");
  */
 
 let Utils = {
+  // Alias in functions from CommonUtils. These previously were defined here.
+  // In the ideal world, references to these would be removed.
+  nextTick: CommonUtils.nextTick,
+  namedTimer: CommonUtils.namedTimer,
+  exceptionStr: CommonUtils.exceptionStr,
+  stackTrace: CommonUtils.stackTrace,
+  makeURI: CommonUtils.makeURI,
+  encodeUTF8: CommonUtils.encodeUTF8,
+  decodeUTF8: CommonUtils.decodeUTF8,
+  safeAtoB: CommonUtils.safeAtoB,
+
   /**
    * Wrap a function to catch all exceptions and log them
    *
@@ -207,28 +215,6 @@ let Utils = {
     return !!guid && this._base64url_regex.test(guid);
   },
 
-  ensureOneOpen: let (windows = {}) function ensureOneOpen(window) {
-    // Close the other window if it exists
-    let url = window.location.href;
-    let other = windows[url];
-    if (other != null)
-      other.close();
-
-    // Save the new window for future closure
-    windows[url] = window;
-
-    // Actively clean up when the window is closed
-    window.addEventListener("unload", function() windows[url] = null, false);
-  },
-
-  // Returns a nsILocalFile representing a file relative to the current
-  // user's profile directory.  The argument should be a string with
-  // unix-style slashes for directory names (these slashes are automatically
-  // converted to platform-specific path separators).
-  getProfileFile: function getProfileFile(path) {
-    return FileUtils.getFile("ProfD", path.split("/"), true);
-  },
-
   /**
    * Add a simple getter/setter to an object that defers access of a property
    * to an inner property.
@@ -292,86 +278,18 @@ let Utils = {
     return true;
   },
 
-  deepCopy: function Weave_deepCopy(thing, noSort) {
-    if (typeof(thing) != "object" || thing == null)
-      return thing;
-    let ret;
-
-    if (Array.isArray(thing)) {
-      ret = [];
-      for (let i = 0; i < thing.length; i++)
-        ret.push(Utils.deepCopy(thing[i], noSort));
-
-    } else {
-      ret = {};
-      let props = [p for (p in thing)];
-      if (!noSort)
-        props = props.sort();
-      props.forEach(function(k) ret[k] = Utils.deepCopy(thing[k], noSort));
-    }
-
-    return ret;
-  },
-
-  // Works on frames or exceptions, munges file:// URIs to shorten the paths
-  // FIXME: filename munging is sort of hackish, might be confusing if
-  // there are multiple extensions with similar filenames
-  formatFrame: function Utils_formatFrame(frame) {
-    let tmp = "<file:unknown>";
-
-    let file = frame.filename || frame.fileName;
-    if (file)
-      tmp = file.replace(/^(?:chrome|file):.*?([^\/\.]+\.\w+)$/, "$1");
-
-    if (frame.lineNumber)
-      tmp += ":" + frame.lineNumber;
-    if (frame.name)
-      tmp = frame.name + "()@" + tmp;
-
-    return tmp;
-  },
-
-  exceptionStr: function Weave_exceptionStr(e) {
-    let message = e.message ? e.message : e;
-    return message + " " + Utils.stackTrace(e);
-  },
-
-  stackTraceFromFrame: function Weave_stackTraceFromFrame(frame) {
-    let output = [];
-    while (frame) {
-      let str = Utils.formatFrame(frame);
-      if (str)
-        output.push(str);
-      frame = frame.caller;
-    }
-    return output.join(" < ");
-  },
-
-  stackTrace: function Weave_stackTrace(e) {
-    // Wrapped nsIException
-    if (e.location)
-      return "Stack trace: " + Utils.stackTraceFromFrame(e.location);
-
-    // Standard JS exception
-    if (e.stack)
-      return "JS Stack trace: " + e.stack.trim().replace(/\n/g, " < ").
-        replace(/@[^@]*?([^\/\.]+\.\w+:)/g, "@$1");
-
-    return "No traceback available";
-  },
-  
   // Generator and discriminator for HMAC exceptions.
-  // Split these out in case we want to make them richer in future, and to 
+  // Split these out in case we want to make them richer in future, and to
   // avoid inevitable confusion if the message changes.
   throwHMACMismatch: function throwHMACMismatch(shouldBe, is) {
     throw "Record SHA256 HMAC mismatch: should be " + shouldBe + ", is " + is;
   },
-  
+
   isHMACMismatch: function isHMACMismatch(ex) {
     const hmacFail = "Record SHA256 HMAC mismatch: ";
     return ex && ex.indexOf && (ex.indexOf(hmacFail) == 0);
   },
-  
+
   /**
    * UTF8-encode a message and hash it with the given hasher. Returns a
    * string containing bytes. The hasher is reset if it's an HMAC hasher.
@@ -755,22 +673,128 @@ let Utils = {
     return Utils.encodeKeyBase32(atob(encodedKey));
   },
 
-  makeURI: function Weave_makeURI(URIString) {
-    if (!URIString)
-      return null;
-    try {
-      return Services.io.newURI(URIString, null, null);
-    } catch (e) {
-      let log = Log4Moz.repository.getLogger("Sync.Utils");
-      log.debug("Could not create URI: " + Utils.exceptionStr(e));
-      return null;
+  /**
+   * Compute the HTTP MAC SHA-1 for an HTTP request.
+   *
+   * @param  identifier
+   *         (string) MAC Key Identifier.
+   * @param  key
+   *         (string) MAC Key.
+   * @param  method
+   *         (string) HTTP request method.
+   * @param  URI
+   *         (nsIURI) HTTP request URI.
+   * @param  extra
+   *         (object) Optional extra parameters. Valid keys are:
+   *           nonce_bytes - How many bytes the nonce should be. This defaults
+   *             to 8. Note that this many bytes are Base64 encoded, so the
+   *             string length of the nonce will be longer than this value.
+   *           ts - Timestamp to use. Should only be defined for testing.
+   *           nonce - String nonce. Should only be defined for testing as this
+   *             function will generate a cryptographically secure random one
+   *             if not defined.
+   *           ext - Extra string to be included in MAC. Per the HTTP MAC spec,
+   *             the format is undefined and thus application specific.
+   * @returns
+   *         (object) Contains results of operation and input arguments (for
+   *           symmetry). The object has the following keys:
+   *
+   *           identifier - (string) MAC Key Identifier (from arguments).
+   *           key - (string) MAC Key (from arguments).
+   *           method - (string) HTTP request method (from arguments).
+   *           hostname - (string) HTTP hostname used (derived from arguments).
+   *           port - (string) HTTP port number used (derived from arguments).
+   *           mac - (string) Raw HMAC digest bytes.
+   *           getHeader - (function) Call to obtain the string Authorization
+   *             header value for this invocation.
+   *           nonce - (string) Nonce value used.
+   *           ts - (number) Integer seconds since Unix epoch that was used.
+   */
+  computeHTTPMACSHA1: function computeHTTPMACSHA1(identifier, key, method,
+                                                  uri, extra) {
+    let ts = (extra && extra.ts) ? extra.ts : Math.floor(Date.now() / 1000);
+    let nonce_bytes = (extra && extra.nonce_bytes > 0) ? extra.nonce_bytes : 8;
+
+    // We are allowed to use more than the Base64 alphabet if we want.
+    let nonce = (extra && extra.nonce)
+                ? extra.nonce
+                : btoa(Utils.generateRandomBytes(nonce_bytes));
+
+    let host = uri.asciiHost;
+    let port;
+    let usedMethod = method.toUpperCase();
+
+    if (uri.port != -1) {
+      port = uri.port;
+    } else if (uri.scheme == "http") {
+      port = "80";
+    } else if (uri.scheme == "https") {
+      port = "443";
+    } else {
+      throw new Error("Unsupported URI scheme: " + uri.scheme);
     }
+
+    let ext = (extra && extra.ext) ? extra.ext : "";
+
+    let requestString = ts.toString(10) + "\n" +
+                        nonce           + "\n" +
+                        usedMethod      + "\n" +
+                        uri.path        + "\n" +
+                        host            + "\n" +
+                        port            + "\n" +
+                        ext             + "\n";
+
+    let hasher = Utils.makeHMACHasher(Ci.nsICryptoHMAC.SHA1,
+                                      Utils.makeHMACKey(key));
+    let mac = Utils.digestBytes(requestString, hasher);
+
+    function getHeader() {
+      return Utils.getHTTPMACSHA1Header(this.identifier, this.ts, this.nonce,
+                                        this.mac, this.ext);
+    }
+
+    return {
+      identifier: identifier,
+      key:        key,
+      method:     usedMethod,
+      hostname:   host,
+      port:       port,
+      mac:        mac,
+      nonce:      nonce,
+      ts:         ts,
+      ext:        ext,
+      getHeader:  getHeader
+    };
   },
 
-  makeURL: function Weave_makeURL(URIString) {
-    let url = Utils.makeURI(URIString);
-    url.QueryInterface(Ci.nsIURL);
-    return url;
+  /**
+   * Obtain the HTTP MAC Authorization header value from fields.
+   *
+   * @param  identifier
+   *         (string) MAC key identifier.
+   * @param  ts
+   *         (number) Integer seconds since Unix epoch.
+   * @param  nonce
+   *         (string) Nonce value.
+   * @param  mac
+   *         (string) Computed HMAC digest (raw bytes).
+   * @param  ext
+   *         (optional) (string) Extra string content.
+   * @returns
+   *         (string) Value to put in Authorization header.
+   */
+  getHTTPMACSHA1Header: function getHTTPMACSHA1Header(identifier, ts, nonce,
+                                                      mac, ext) {
+    let header ='MAC id="' + identifier + '", ' +
+                'ts="'     + ts         + '", ' +
+                'nonce="'  + nonce      + '", ' +
+                'mac="'    + btoa(mac)  + '"';
+
+    if (!ext) {
+      return header;
+    }
+
+    return header += ', ext="' + ext +'"';
   },
 
   /**
@@ -788,7 +812,7 @@ let Utils = {
     if (that._log)
       that._log.trace("Loading json from disk: " + filePath);
 
-    let file = Utils.getProfileFile(filePath);
+    let file = FileUtils.getFile("ProfD", filePath.split("/"), true);
     if (!file.exists()) {
       callback.call(that);
       return;
@@ -833,7 +857,7 @@ let Utils = {
     if (that._log)
       that._log.trace("Saving json to disk: " + filePath);
 
-    let file = Utils.getProfileFile(filePath);
+    let file = FileUtils.getFile("ProfD", filePath.split("/"), true);
     let json = typeof obj == "function" ? obj.call(that) : obj;
     let out = JSON.stringify(json);
 
@@ -844,59 +868,6 @@ let Utils = {
         callback.call(that);        
       }
     });
-  },
-
-  /**
-   * Execute a function on the next event loop tick.
-   * 
-   * @param callback
-   *        Function to invoke.
-   * @param thisObj [optional]
-   *        Object to bind the callback to.
-   */
-  nextTick: function nextTick(callback, thisObj) {
-    if (thisObj) {
-      callback = callback.bind(thisObj);
-    }
-    Services.tm.currentThread.dispatch(callback, Ci.nsIThread.DISPATCH_NORMAL);
-  },
-
-  /**
-   * Return a timer that is scheduled to call the callback after waiting the
-   * provided time or as soon as possible. The timer will be set as a property
-   * of the provided object with the given timer name.
-   */
-  namedTimer: function delay(callback, wait, thisObj, name) {
-    if (!thisObj || !name) {
-      throw "You must provide both an object and a property name for the timer!";
-    }
-
-    // Delay an existing timer if it exists
-    if (name in thisObj && thisObj[name] instanceof Ci.nsITimer) {
-      thisObj[name].delay = wait;
-      return;
-    }
-
-    // Create a special timer that we can add extra properties
-    let timer = {};
-    timer.__proto__ = Cc["@mozilla.org/timer;1"].createInstance(Ci.nsITimer);
-
-    // Provide an easy way to clear out the timer
-    timer.clear = function() {
-      thisObj[name] = null;
-      timer.cancel();
-    };
-
-    // Initialize the timer with a smart callback
-    timer.initWithCallback({
-      notify: function notify() {
-        // Clear out the timer once it's been triggered
-        timer.clear();
-        callback.call(thisObj, timer);
-      }
-    }, wait, timer.TYPE_ONE_SHOT);
-
-    return thisObj[name] = timer;
   },
 
   getIcon: function(iconUri, defaultIcon) {
@@ -917,24 +888,6 @@ let Utils = {
 
     // basically returns "Unknown Error"
     return Str.errors.get("error.reason.unknown");
-  },
-
-  encodeUTF8: function(str) {
-    try {
-      str = this._utf8Converter.ConvertFromUnicode(str);
-      return str + this._utf8Converter.Finish();
-    } catch(ex) {
-      return null;
-    }
-  },
-
-  decodeUTF8: function(str) {
-    try {
-      str = this._utf8Converter.ConvertToUnicode(str);
-      return str + this._utf8Converter.Finish();
-    } catch(ex) {
-      return null;
-    }
   },
 
   /**
@@ -1037,15 +990,6 @@ let Utils = {
     return acc.trim();
   },
 
-  // WeaveCrypto returns bad base64 strings. Truncate excess padding
-  // and decode.
-  // See Bug 562431, comment 4.
-  safeAtoB: function safeAtoB(b64) {
-    let len = b64.length;
-    let over = len % 4;
-    return over ? atob(b64.substr(0, len - over)) : atob(b64);
-  },
-
   /**
    * Create an array like the first but without elements of the second. Reuse
    * arrays if possible.
@@ -1109,12 +1053,14 @@ let Utils = {
    * Status.backoffInterval is higher.
    *
    */
-  calculateBackoff: function calculateBackoff(attempts, base_interval) {
+  calculateBackoff: function calculateBackoff(attempts, baseInterval,
+                                              statusInterval) {
     let backoffInterval = attempts *
-                          (Math.floor(Math.random() * base_interval) +
-                           base_interval);
-    return Math.max(Math.min(backoffInterval, MAXIMUM_BACKOFF_INTERVAL), Status.backoffInterval);
-  }
+                          (Math.floor(Math.random() * baseInterval) +
+                           baseInterval);
+    return Math.max(Math.min(backoffInterval, MAXIMUM_BACKOFF_INTERVAL),
+                    statusInterval);
+  },
 };
 
 XPCOMUtils.defineLazyGetter(Utils, "_utf8Converter", function() {

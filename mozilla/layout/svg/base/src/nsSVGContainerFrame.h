@@ -37,14 +37,32 @@
 #ifndef NS_SVGCONTAINERFRAME_H
 #define NS_SVGCONTAINERFRAME_H
 
-#include "nsContainerFrame.h"
-#include "nsISVGChildFrame.h"
-#include "nsSVGSVGElement.h"
-#include "gfxRect.h"
 #include "gfxMatrix.h"
+#include "gfxRect.h"
+#include "nsContainerFrame.h"
+#include "nsFrame.h"
+#include "nsIFrame.h"
+#include "nsISVGChildFrame.h"
+#include "nsQueryFrame.h"
+#include "nsRect.h"
+
+class nsFrameList;
+class nsIContent;
+class nsIPresShell;
+class nsRenderingContext;
+class nsStyleContext;
+
+struct nsPoint;
 
 typedef nsContainerFrame nsSVGContainerFrameBase;
 
+/**
+ * Base class for SVG container frames. Frame sub-classes that do not
+ * display their contents directly (such as the frames for <marker> or
+ * <pattern>) just inherit this class. Frame sub-classes that do or can
+ * display their contents directly (such as the frames for inner-<svg> or
+ * <g>) inherit our nsDisplayContainerFrame sub-class.
+ */
 class nsSVGContainerFrame : public nsSVGContainerFrameBase
 {
   friend nsIFrame* NS_NewSVGContainerFrame(nsIPresShell* aPresShell,
@@ -69,9 +87,6 @@ public:
                           nsFrameList&    aFrameList);
   NS_IMETHOD RemoveFrame(ChildListID     aListID,
                          nsIFrame*       aOldFrame);
-  NS_IMETHOD Init(nsIContent*      aContent,
-                  nsIFrame*        aParent,
-                  nsIFrame*        aPrevInFlow);
 
   virtual bool IsFrameOfType(PRUint32 aFlags) const
   {
@@ -80,6 +95,10 @@ public:
   }
 };
 
+/**
+ * Frame class or base-class for SVG containers that can or do display their
+ * contents directly.
+ */
 class nsSVGDisplayContainerFrame : public nsSVGContainerFrame,
                                    public nsISVGChildFrame
 {
@@ -103,16 +122,13 @@ public:
                   nsIFrame*        aPrevInFlow);
 
   // nsISVGChildFrame interface:
-  NS_IMETHOD PaintSVG(nsSVGRenderState* aContext,
+  NS_IMETHOD PaintSVG(nsRenderingContext* aContext,
                       const nsIntRect *aDirtyRect);
   NS_IMETHOD_(nsIFrame*) GetFrameForPoint(const nsPoint &aPoint);
   NS_IMETHOD_(nsRect) GetCoveredRegion();
-  NS_IMETHOD UpdateCoveredRegion();
-  NS_IMETHOD InitialUpdate();
+  virtual void UpdateBounds();
   virtual void NotifySVGChanged(PRUint32 aFlags);
-  NS_IMETHOD NotifyRedrawSuspended();
-  NS_IMETHOD NotifyRedrawUnsuspended();
-  virtual gfxRect GetBBoxContribution(const gfxMatrix &aToBBoxUserspace,
+  virtual SVGBBox GetBBoxContribution(const gfxMatrix &aToBBoxUserspace,
                                       PRUint32 aFlags);
   NS_IMETHOD_(bool) IsDisplayContainer() { return true; }
   NS_IMETHOD_(bool) HasValidCoveredRect() { return false; }

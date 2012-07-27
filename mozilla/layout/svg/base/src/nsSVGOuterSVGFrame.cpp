@@ -36,24 +36,22 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+// Main header first:
 #include "nsSVGOuterSVGFrame.h"
+
+// Keep others in (case-insensitive) order:
+#include "DOMSVGTests.h"
+#include "gfxMatrix.h"
+#include "nsDisplayList.h"
+#include "nsIDocument.h"
 #include "nsIDOMSVGSVGElement.h"
+#include "nsIDOMWindow.h"
+#include "nsIInterfaceRequestorUtils.h"
+#include "nsIObjectLoadingContent.h"
+#include "nsRenderingContext.h"
+#include "nsStubMutationObserver.h"
 #include "nsSVGSVGElement.h"
 #include "nsSVGTextFrame.h"
-#include "nsSVGForeignObjectFrame.h"
-#include "DOMSVGTests.h"
-#include "nsDisplayList.h"
-#include "nsStubMutationObserver.h"
-#include "gfxContext.h"
-#include "gfxMatrix.h"
-#include "gfxRect.h"
-#include "nsIContentViewer.h"
-#include "nsIDocShell.h"
-#include "nsIDOMDocument.h"
-#include "nsIDOMWindow.h"
-#include "nsPIDOMWindow.h"
-#include "nsIObjectLoadingContent.h"
-#include "nsIInterfaceRequestorUtils.h"
 
 namespace dom = mozilla::dom;
 
@@ -141,7 +139,6 @@ NS_IMPL_FRAMEARENA_HELPERS(nsSVGOuterSVGFrame)
 
 nsSVGOuterSVGFrame::nsSVGOuterSVGFrame(nsStyleContext* aContext)
     : nsSVGOuterSVGFrameBase(aContext)
-    ,  mRedrawSuspendCount(0)
     , mFullZoom(0)
     , mViewportInitialized(false)
 #ifdef XP_MACOSX
@@ -161,11 +158,18 @@ nsSVGOuterSVGFrame::Init(nsIContent* aContent,
   NS_ASSERTION(svgElement, "Content is not an SVG 'svg' element!");
 #endif
 
-  AddStateBits(NS_STATE_IS_OUTER_SVG);
+  AddStateBits(NS_STATE_IS_OUTER_SVG |
+               NS_FRAME_FONT_INFLATION_CONTAINER |
+               NS_FRAME_FONT_INFLATION_FLOW_ROOT);
 
   // Check for conditional processing attributes here rather than in
   // nsCSSFrameConstructor::FindSVGData because we want to avoid
   // simply giving failing outer <svg> elements an nsSVGContainerFrame.
+  // We don't create other SVG frames if PassesConditionalProcessingTests
+  // returns false, but since we do create nsSVGOuterSVGFrame frames we
+  // prevent them from painting by [ab]use NS_STATE_SVG_NONDISPLAY_CHILD. The
+  // frame will be recreated via an nsChangeHint_ReconstructFrame restyle if
+  // the value returned by PassesConditionalProcessingTests changes.
   nsSVGSVGElement *svg = static_cast<nsSVGSVGElement*>(aContent);
   if (!svg->PassesConditionalProcessingTests()) {
     AddStateBits(NS_STATE_SVG_NONDISPLAY_CHILD);
@@ -183,8 +187,6 @@ nsSVGOuterSVGFrame::Init(nsIContent* aContent,
     // not need to be removed
     doc->AddMutationObserverUnlessExists(&sSVGMutationObserver);
   }
-
-  SuspendRedraw();  // UnsuspendRedraw is in DidReflow
 
   return rv;
 }
@@ -309,7 +311,7 @@ nsSVGOuterSVGFrame::GetIntrinsicRatio()
 nsSVGOuterSVGFrame::ComputeSize(nsRenderingContext *aRenderingContext,
                                 nsSize aCBSize, nscoord aAvailableWidth,
                                 nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                                bool aShrinkWrap)
+                                PRUint32 aFlags)
 {
   nsSVGSVGElement* content = static_cast<nsSVGSVGElement*>(mContent);
 
@@ -414,14 +416,6 @@ nsSVGOuterSVGFrame::Reflow(nsPresContext*           aPresContext,
   return NS_OK;
 }
 
-static PLDHashOperator
-ReflowForeignObject(nsVoidPtrHashKey *aEntry, void* aUserArg)
-{
-  static_cast<nsSVGForeignObjectFrame*>
-    (const_cast<void*>(aEntry->GetKey()))->MaybeReflowFromOuterSVGFrame();
-  return PL_DHASH_NEXT;
-}
-
 NS_IMETHODIMP
 nsSVGOuterSVGFrame::DidReflow(nsPresContext*   aPresContext,
                               const nsHTMLReflowState*  aReflowState,
@@ -432,30 +426,40 @@ nsSVGOuterSVGFrame::DidReflow(nsPresContext*   aPresContext,
   nsresult rv = nsSVGOuterSVGFrameBase::DidReflow(aPresContext,aReflowState,aStatus);
 
   if (firstReflow) {
-    // call InitialUpdate() on all frames:
+    // Temporarily add back the NS_FRAME_FIRST_REFLOW bit to indicate
+    // to the children that we are still to receive the invalidation
+    // for our first reflow:
+    AddStateBits(NS_FRAME_FIRST_REFLOW);
+  }
+
+#ifdef DEBUG
+  mCallingUpdateBounds = true;
+#endif
+
+  if (!(mState & NS_STATE_SVG_NONDISPLAY_CHILD)) {
     nsIFrame* kid = mFrames.FirstChild();
     while (kid) {
       nsISVGChildFrame* SVGFrame = do_QueryFrame(kid);
-      if (SVGFrame) {
-        SVGFrame->InitialUpdate(); 
+      if (SVGFrame && !(kid->GetStateBits() & NS_STATE_SVG_NONDISPLAY_CHILD)) {
+        SVGFrame->UpdateBounds(); 
       }
       kid = kid->GetNextSibling();
     }
-    
-    UnsuspendRedraw(); // For the SuspendRedraw in InitSVG
-  } else {
-    // Now that all viewport establishing descendants have their correct size,
-    // tell our foreignObject descendants to reflow their children.
-    if (mForeignObjectHash.IsInitialized()) {
-#ifdef DEBUG
-      PRUint32 count =
-#endif
-        mForeignObjectHash.EnumerateEntries(ReflowForeignObject, nsnull);
-      NS_ASSERTION(count == mForeignObjectHash.Count(),
-                   "We didn't reflow all our nsSVGForeignObjectFrames!");
-    }
   }
-  
+
+#ifdef DEBUG
+  mCallingUpdateBounds = false;
+#endif
+
+  if (firstReflow) {
+    // And now remove it again:
+    RemoveStateBits(NS_FRAME_FIRST_REFLOW);
+  }
+
+  // Make sure elements styled by :hover get updated if script/animation moves
+  // them under or out from under the pointer:
+  PresContext()->PresShell()->SynthesizeMouseMove(false);
+
   return rv;
 }
 
@@ -505,10 +509,70 @@ nsDisplaySVG::HitTest(nsDisplayListBuilder* aBuilder, const nsRect& aRect,
 
 void
 nsDisplaySVG::Paint(nsDisplayListBuilder* aBuilder,
-                    nsRenderingContext* aCtx)
+                    nsRenderingContext* aContext)
 {
-  static_cast<nsSVGOuterSVGFrame*>(mFrame)->
-    Paint(aBuilder, *aCtx, mVisibleRect, ToReferenceFrame());
+  nsSVGOuterSVGFrame *frame = static_cast<nsSVGOuterSVGFrame*>(mFrame);
+
+  if (frame->GetStateBits() & NS_STATE_SVG_NONDISPLAY_CHILD)
+    return;
+
+#if defined(DEBUG) && defined(SVG_DEBUG_PAINT_TIMING)
+  PRTime start = PR_Now();
+#endif
+
+  aContext->PushState();
+
+#ifdef XP_MACOSX
+  if (frame->BitmapFallbackEnabled()) {
+    // nquartz fallback paths, which svg tends to trigger, need
+    // a non-window context target
+    aContext->ThebesContext()->PushGroup(gfxASurface::CONTENT_COLOR_ALPHA);
+  }
+#endif
+
+  frame->Paint(aBuilder, aContext, mVisibleRect, ToReferenceFrame());
+
+#ifdef XP_MACOSX
+  if (frame->BitmapFallbackEnabled()) {
+    // show the surface we pushed earlier for fallbacks
+    aContext->ThebesContext()->PopGroupToSource();
+    aContext->ThebesContext()->Paint();
+  }
+
+  if (aContext->ThebesContext()->HasError() && !frame->BitmapFallbackEnabled()) {
+    frame->SetBitmapFallbackEnabled(true);
+    // It's not really clear what area to invalidate here. We might have
+    // stuffed up rendering for the entire window in this paint pass,
+    // so we can't just invalidate our own rect. Invalidate everything
+    // in sight.
+    // This won't work for printing, by the way, but failure to print the
+    // odd document is probably no worse than printing horribly for all
+    // documents. Better to fix things so we don't need fallback.
+    nsIFrame* ancestor = frame;
+    PRUint32 flags = 0;
+    while (true) {
+      nsIFrame* next = nsLayoutUtils::GetCrossDocParentFrame(ancestor);
+      if (!next)
+        break;
+      if (ancestor->GetParent() != next) {
+        // We're crossing a document boundary. Logically, the invalidation is
+        // being triggered by a subdocument of the root document. This will
+        // prevent an untrusted root document being told about invalidation
+        // that happened because a child was using SVG...
+        flags |= nsIFrame::INVALIDATE_CROSS_DOC;
+      }
+      ancestor = next;
+    }
+    ancestor->InvalidateWithFlags(nsRect(nsPoint(0, 0), ancestor->GetSize()), flags);
+  }
+#endif
+
+  aContext->PopState();
+
+#if defined(DEBUG) && defined(SVG_DEBUG_PAINT_TIMING)
+  PRTime end = PR_Now();
+  printf("SVG Paint Timing: %f ms\n", (end-start)/1000.0);
+#endif
 }
 
 // helper
@@ -585,88 +649,30 @@ nsSVGOuterSVGFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
 
 void
 nsSVGOuterSVGFrame::Paint(const nsDisplayListBuilder* aBuilder,
-                          nsRenderingContext& aRenderingContext,
+                          nsRenderingContext* aContext,
                           const nsRect& aDirtyRect, nsPoint aPt)
 {
-  if (GetStateBits() & NS_STATE_SVG_NONDISPLAY_CHILD)
-    return;
-
-  // initialize Mozilla rendering context
-  aRenderingContext.PushState();
-
   nsRect viewportRect = GetContentRect();
   nsPoint viewportOffset = aPt + viewportRect.TopLeft() - GetPosition();
   viewportRect.MoveTo(viewportOffset);
 
   nsRect clipRect;
   clipRect.IntersectRect(aDirtyRect, viewportRect);
-  aRenderingContext.IntersectClip(clipRect);
-  aRenderingContext.Translate(viewportRect.TopLeft());
+  aContext->IntersectClip(clipRect);
+  aContext->Translate(viewportRect.TopLeft());
   nsRect dirtyRect = clipRect - viewportOffset;
-
-#if defined(DEBUG) && defined(SVG_DEBUG_PAINT_TIMING)
-  PRTime start = PR_Now();
-#endif
 
   nsIntRect dirtyPxRect = dirtyRect.ToOutsidePixels(PresContext()->AppUnitsPerDevPixel());
 
-  nsSVGRenderState ctx(&aRenderingContext);
+  // Create an SVGAutoRenderState so we can call SetPaintingToWindow on
+  // it, but don't change the render mode:
+  SVGAutoRenderState state(aContext, SVGAutoRenderState::GetRenderMode(aContext));
 
   if (aBuilder->IsPaintingToWindow()) {
-    ctx.SetPaintingToWindow(true);
+    state.SetPaintingToWindow(true);
   }
 
-#ifdef XP_MACOSX
-  if (mEnableBitmapFallback) {
-    // nquartz fallback paths, which svg tends to trigger, need
-    // a non-window context target
-    ctx.GetGfxContext()->PushGroup(gfxASurface::CONTENT_COLOR_ALPHA);
-  }
-#endif
-
-  nsSVGUtils::PaintFrameWithEffects(&ctx, &dirtyPxRect, this);
-
-#ifdef XP_MACOSX
-  if (mEnableBitmapFallback) {
-    // show the surface we pushed earlier for fallbacks
-    ctx.GetGfxContext()->PopGroupToSource();
-    ctx.GetGfxContext()->Paint();
-  }
-  
-  if (ctx.GetGfxContext()->HasError() && !mEnableBitmapFallback) {
-    mEnableBitmapFallback = true;
-    // It's not really clear what area to invalidate here. We might have
-    // stuffed up rendering for the entire window in this paint pass,
-    // so we can't just invalidate our own rect. Invalidate everything
-    // in sight.
-    // This won't work for printing, by the way, but failure to print the
-    // odd document is probably no worse than printing horribly for all
-    // documents. Better to fix things so we don't need fallback.
-    nsIFrame* frame = this;
-    PRUint32 flags = 0;
-    while (true) {
-      nsIFrame* next = nsLayoutUtils::GetCrossDocParentFrame(frame);
-      if (!next)
-        break;
-      if (frame->GetParent() != next) {
-        // We're crossing a document boundary. Logically, the invalidation is
-        // being triggered by a subdocument of the root document. This will
-        // prevent an untrusted root document being told about invalidation
-        // that happened because a child was using SVG...
-        flags |= INVALIDATE_CROSS_DOC;
-      }
-      frame = next;
-    }
-    frame->InvalidateWithFlags(nsRect(nsPoint(0, 0), frame->GetSize()), flags);
-  }
-#endif
-
-#if defined(DEBUG) && defined(SVG_DEBUG_PAINT_TIMING)
-  PRTime end = PR_Now();
-  printf("SVG Paint Timing: %f ms\n", (end-start)/1000.0);
-#endif
-  
-  aRenderingContext.PopState();
+  nsSVGUtils::PaintFrameWithEffects(aContext, &dirtyPxRect, this);
 }
 
 nsSplittableType
@@ -682,88 +688,14 @@ nsSVGOuterSVGFrame::GetType() const
 }
 
 //----------------------------------------------------------------------
-// nsSVGOuterSVGFrame methods:
-
-void
-nsSVGOuterSVGFrame::InvalidateCoveredRegion(nsIFrame *aFrame)
-{
-  nsISVGChildFrame *svgFrame = do_QueryFrame(aFrame);
-  if (!svgFrame)
-    return;
-
-  nsRect rect = nsSVGUtils::FindFilterInvalidation(aFrame, svgFrame->GetCoveredRegion());
-  Invalidate(rect);
-}
-
-bool
-nsSVGOuterSVGFrame::UpdateAndInvalidateCoveredRegion(nsIFrame *aFrame)
-{
-  nsISVGChildFrame *svgFrame = do_QueryFrame(aFrame);
-  if (!svgFrame)
-    return false;
-
-  nsRect oldRegion = svgFrame->GetCoveredRegion();
-  Invalidate(nsSVGUtils::FindFilterInvalidation(aFrame, oldRegion));
-  svgFrame->UpdateCoveredRegion();
-  nsRect newRegion = svgFrame->GetCoveredRegion();
-  if (oldRegion.IsEqualInterior(newRegion))
-    return false;
-
-  Invalidate(nsSVGUtils::FindFilterInvalidation(aFrame, newRegion));
-  return true;
-}
-
-bool
-nsSVGOuterSVGFrame::IsRedrawSuspended()
-{
-  return (mRedrawSuspendCount>0) || !mViewportInitialized;
-}
-
-//----------------------------------------------------------------------
 // nsISVGSVGFrame methods:
 
-
-NS_IMETHODIMP
-nsSVGOuterSVGFrame::SuspendRedraw()
-{
-  if (++mRedrawSuspendCount != 1)
-    return NS_OK;
-
-  for (nsIFrame* kid = mFrames.FirstChild(); kid;
-       kid = kid->GetNextSibling()) {
-    nsISVGChildFrame* SVGFrame = do_QueryFrame(kid);
-    if (SVGFrame) {
-      SVGFrame->NotifyRedrawSuspended();
-    }
-  }
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsSVGOuterSVGFrame::UnsuspendRedraw()
-{
-  NS_ASSERTION(mRedrawSuspendCount >=0, "unbalanced suspend count!");
-
-  if (--mRedrawSuspendCount > 0)
-    return NS_OK;
-
-  for (nsIFrame* kid = mFrames.FirstChild(); kid;
-       kid = kid->GetNextSibling()) {
-    nsISVGChildFrame* SVGFrame = do_QueryFrame(kid);
-    if (SVGFrame) {
-      SVGFrame->NotifyRedrawUnsuspended();
-    }
-  }
-
-  return NS_OK;
-}
-
-NS_IMETHODIMP
+void
 nsSVGOuterSVGFrame::NotifyViewportChange()
 {
   // no point in doing anything when were not init'ed yet:
   if (!mViewportInitialized) {
-    return NS_OK;
+    return;
   }
 
   PRUint32 flags = COORD_CONTEXT_CHANGED;
@@ -782,10 +714,7 @@ nsSVGOuterSVGFrame::NotifyViewportChange()
   }
 
   // inform children
-  SuspendRedraw();
   nsSVGUtils::NotifyChildrenOfSVGChange(this, flags);
-  UnsuspendRedraw();
-  return NS_OK;
 }
 
 //----------------------------------------------------------------------
@@ -818,36 +747,6 @@ nsSVGOuterSVGFrame::GetCanvasTM()
 
 //----------------------------------------------------------------------
 // Implementation helpers
-
-void
-nsSVGOuterSVGFrame::RegisterForeignObject(nsSVGForeignObjectFrame* aFrame)
-{
-  NS_ASSERTION(aFrame, "Who on earth is calling us?!");
-
-  if (!mForeignObjectHash.IsInitialized()) {
-    if (!mForeignObjectHash.Init()) {
-      NS_ERROR("Failed to initialize foreignObject hash.");
-      return;
-    }
-  }
-
-  NS_ASSERTION(!mForeignObjectHash.GetEntry(aFrame),
-               "nsSVGForeignObjectFrame already registered!");
-
-  mForeignObjectHash.PutEntry(aFrame);
-
-  NS_ASSERTION(mForeignObjectHash.GetEntry(aFrame),
-               "Failed to register nsSVGForeignObjectFrame!");
-}
-
-void
-nsSVGOuterSVGFrame::UnregisterForeignObject(nsSVGForeignObjectFrame* aFrame)
-{
-  NS_ASSERTION(aFrame, "Who on earth is calling us?!");
-  NS_ASSERTION(mForeignObjectHash.GetEntry(aFrame),
-               "nsSVGForeignObjectFrame not in registry!");
-  return mForeignObjectHash.RemoveEntry(aFrame);
-}
 
 bool
 nsSVGOuterSVGFrame::IsRootOfReplacedElementSubDoc(nsIFrame **aEmbeddingFrame)
@@ -891,4 +790,12 @@ nsSVGOuterSVGFrame::IsRootOfImage()
   }
 
   return false;
+}
+
+bool
+nsSVGOuterSVGFrame::VerticalScrollbarNotNeeded() const
+{
+  nsSVGLength2 &height = static_cast<nsSVGSVGElement*>(mContent)->
+                           mLengthAttributes[nsSVGSVGElement::HEIGHT];
+  return height.IsPercentage() && height.GetBaseValInSpecifiedUnits() <= 100;
 }

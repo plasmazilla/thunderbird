@@ -37,10 +37,10 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "domstubs.idl"
+#include "nsIDOMEventTarget.idl"
 
-[scriptable, uuid(4507e43f-097c-452a-bfc4-dbb99748f6fd)]
-interface nsIDOMScreen : nsISupports
+[scriptable, uuid(9b978f58-5bfe-409d-aa3f-946ca934e51d)]
+interface nsIDOMScreen : nsIDOMEventTarget
 {
   readonly attribute long             top;
   readonly attribute long             left;
@@ -54,25 +54,21 @@ interface nsIDOMScreen : nsISupports
   readonly attribute long             availTop;
 
   /**
-   * Is the device's screen currently enabled?  This attribute controls the
-   * device's screen, so setting it to false will turn off the screen.
+   * Returns the current screen orientation.
+   * Can be: landscape-primary, landscape-secondary,
+   *         portrait-primary or portrait-secondary.
    */
-  attribute boolean mozEnabled;
+  readonly attribute DOMString       mozOrientation;
+
+  attribute nsIDOMEventListener      onmozorientationchange;
 
   /**
-   * How bright is the screen's backlight, on a scale from 0 (very dim) to 1
-   * (full brightness)?  Setting this attribute modifies the screen's
-   * brightness.
-   *
-   * You can read and write this attribute even when the screen is disabled,
-   * but the backlight is off while the screen is disabled.
-   *
-   * If you write a value of X into this attribute, the attribute may not have
-   * the same value X when you later read it.  Most screens don't support as
-   * many different brightness levels as there are doubles between 0 and 1, so
-   * we may reduce the value's precision before storing it.
-   *
-   * @throw NS_ERROR_INVALID_ARG if brightness is not in the range [0, 1].
+   * Lock screen orientation to the specified type.
    */
-  attribute double mozBrightness;
+  boolean mozLockOrientation(in DOMString orientation);
+
+  /**
+   * Unlock the screen orientation.
+   */
+  void mozUnlockOrientation();
 };

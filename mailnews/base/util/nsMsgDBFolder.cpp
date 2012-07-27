@@ -73,12 +73,8 @@
 #include "nsTextFormatter.h"
 #include "nsMsgDBCID.h"
 #include "nsReadLine.h"
-#include "nsParserCIID.h"
-#include "nsIParser.h"
-#include "nsIHTMLContentSink.h"
-#include "nsIContentSerializer.h"
 #include "nsLayoutCID.h"
-#include "nsIHTMLToTextSink.h"
+#include "nsIParserUtils.h"
 #include "nsIDocumentEncoder.h"
 #include "nsMsgI18N.h"
 #include "nsIMIMEHeaderParam.h"
@@ -103,6 +99,7 @@
 #include "nsMsgUtils.h"
 #include "nsIMsgFilterService.h"
 #include "nsDirectoryServiceUtils.h"
+#include "mozilla/Services.h"
 
 static PRTime gtimeOfLastPurgeCheck;    //variable to know when to check for purge_threshhold
 
@@ -117,7 +114,6 @@ const char *kUseServerRetentionProp = "useServerRetention";
 
 static NS_DEFINE_CID(kRDFServiceCID, NS_RDFSERVICE_CID);
 static NS_DEFINE_CID(kCMailDB, NS_MAILDB_CID);
-static NS_DEFINE_CID(kParserCID, NS_PARSER_CID);
 
 nsICollation * nsMsgDBFolder::gCollationKeyGenerator = nsnull;
 
@@ -180,7 +176,7 @@ nsMsgDBFolder::nsMsgDBFolder(void)
 {
   if (mInstanceCount++ <=0) {
 #ifdef MOZILLA_INTERNAL_API //FIXME NS_RegisterStaticAtoms
-    NS_RegisterStaticAtoms(folder_atoms, NS_ARRAY_LENGTH(folder_atoms));
+    NS_RegisterStaticAtoms(folder_atoms);
 #else
 #define MSGDBFOLDER_ATOM(name_, value_) name_ = MsgNewPermanentAtom(value_);
 #include "nsMsgDBFolderAtomList.h"
@@ -1824,8 +1820,6 @@ nsresult nsMsgDBFolder::HandleAutoCompactEvent(nsIMsgWindow *aWindow)
     PRInt32 offlineSupportLevel;
     if (numServers > 0)
     {
-      nsCOMPtr<nsIMsgIncomingServer> server = do_QueryElementAt(allServers, serverIndex);
-      NS_ENSURE_SUCCESS(rv, rv);
       nsCOMPtr<nsIMutableArray> folderArray = do_CreateInstance(NS_ARRAY_CONTRACTID, &rv);
       NS_ENSURE_SUCCESS(rv, rv);
       nsCOMPtr<nsIMutableArray> offlineFolderArray = do_CreateInstance(NS_ARRAY_CONTRACTID, &rv);
@@ -1835,6 +1829,8 @@ nsresult nsMsgDBFolder::HandleAutoCompactEvent(nsIMsgWindow *aWindow)
       PRInt32 localExpungedBytes = 0;
       do
       {
+        nsCOMPtr<nsIMsgIncomingServer> server = do_QueryElementAt(allServers, serverIndex);
+        NS_ENSURE_SUCCESS(rv, rv);
         nsCOMPtr<nsIMsgPluggableStore> msgStore;
         rv = server->GetMsgStore(getter_AddRefs(msgStore));
         NS_ENSURE_SUCCESS(rv, rv);
@@ -1879,6 +1875,7 @@ nsresult nsMsgDBFolder::HandleAutoCompactEvent(nsIMsgWindow *aWindow)
             for (PRUint32 i = 0; i < cnt; i++)
             {
               nsCOMPtr<nsIMsgFolder> folder = do_QueryElementAt(allDescendents, i);
+              expungedBytes = 0;
               folder->GetExpungedBytes(&expungedBytes);
               if (expungedBytes > 0 )
               {
@@ -1888,7 +1885,6 @@ nsresult nsMsgDBFolder::HandleAutoCompactEvent(nsIMsgWindow *aWindow)
             }
           }
         }
-        server = do_QueryElementAt(allServers, serverIndex);
       }
       while (++serverIndex < numServers);
       totalExpungedBytes = localExpungedBytes + offlineExpungedBytes;
@@ -2911,8 +2907,8 @@ nsMsgDBFolder::initializeStrings()
 {
   nsresult rv;
   nsCOMPtr<nsIStringBundleService> bundleService =
-      do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
   nsCOMPtr<nsIStringBundle> bundle;
   rv = bundleService->CreateBundle("chrome://messenger/locale/messenger.properties",
                                    getter_AddRefs(bundle));
@@ -5160,15 +5156,14 @@ nsresult
 nsMsgDBFolder::GetBaseStringBundle(nsIStringBundle **aBundle)
 {
   NS_ENSURE_ARG_POINTER(aBundle);
-  nsresult rv;
   nsCOMPtr<nsIStringBundleService> bundleService =
-         do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
   nsCOMPtr<nsIStringBundle> bundle;
-  if (bundleService && NS_SUCCEEDED(rv))
-    bundleService->CreateBundle("chrome://messenger/locale/messenger.properties",
+  bundleService->CreateBundle("chrome://messenger/locale/messenger.properties",
                                  getter_AddRefs(bundle));
   bundle.swap(*aBundle);
-  return rv;
+  return NS_OK;
 }
 
 nsresult //Do not use this routine if you have to call it very often because it creates a new bundle each time
@@ -5710,29 +5705,13 @@ void nsMsgDBFolder::compressQuotesInMsgSnippet(const nsString& aMsgSnippet, nsAS
 NS_IMETHODIMP nsMsgDBFolder::ConvertMsgSnippetToPlainText(
     const nsAString& aMessageText, nsAString& aOutText)
 {
-  nsString bodyText;
-  nsresult rv = NS_OK;
-
-  // Create a parser
-  nsCOMPtr<nsIParser> parser = do_CreateInstance(kParserCID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  // Create the appropriate output sink
-  nsCOMPtr<nsIContentSink> sink = do_CreateInstance(NS_PLAINTEXTSINK_CONTRACTID,&rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCOMPtr<nsIHTMLToTextSink> textSink(do_QueryInterface(sink));
-  NS_ENSURE_TRUE(textSink, NS_ERROR_FAILURE);
   PRUint32 flags = nsIDocumentEncoder::OutputLFLineBreak
                    | nsIDocumentEncoder::OutputNoScriptContent
                    | nsIDocumentEncoder::OutputNoFramesContent
                    | nsIDocumentEncoder::OutputBodyOnly;
-
-  textSink->Initialize(&bodyText, flags, 80);
-  parser->SetContentSink(sink);
-  rv = parser->Parse(aMessageText, 0, NS_LITERAL_CSTRING("text/html"), true);
-  aOutText.Assign(bodyText);
-  return rv;
+  nsCOMPtr<nsIParserUtils> utils =
+    do_GetService(NS_PARSERUTILS_CONTRACTID);
+  return utils->ConvertToPlainText(aMessageText, flags, 80, aOutText);
 }
 
 nsresult nsMsgDBFolder::GetMsgPreviewTextFromStream(nsIMsgDBHdr *msgHdr, nsIInputStream *stream)
@@ -5874,7 +5853,7 @@ NS_IMETHODIMP nsMsgDBFolder::RemoveKeywordsFromMessages(nsIArray *aMessages, con
             length++;
           }
           // but if the keyword is at the start then delete the following space
-          if (!startOffset && length < keywords.Length() &&
+          if (!startOffset && length < static_cast<PRInt32>(keywords.Length()) &&
               keywords.CharAt(length) == ' ')
             length++;
           keywords.Cut(startOffset, length);

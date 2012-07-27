@@ -578,11 +578,8 @@ function toolboxCustomizeChange(toolbox, event)
 function goClickThrobber(urlPref, aEvent)
 {
   var url = GetLocalizedStringPref(urlPref);
-
-  if (url) {
-    var where = whereToOpenLink(aEvent, false, true, true);
-    return openUILinkIn(url, where);
-  }
+  if (url)
+    openUILinkIn(url, whereToOpenLink(aEvent, false, true, true));
 }
 
 function getTopWin()
@@ -594,14 +591,14 @@ function isRestricted( url )
 {
   try {
     const nsIURIFixup = Components.interfaces.nsIURIFixup;
-    var uriFixup = Components.classes["@mozilla.org/docshell/urifixup;1"]
-                             .getService(nsIURIFixup);
-    var url = uriFixup.createFixupURI(url, nsIURIFixup.FIXUP_FLAG_NONE);
+    var uri = Components.classes["@mozilla.org/docshell/urifixup;1"]
+                        .getService(nsIURIFixup)
+                        .createFixupURI(url, nsIURIFixup.FIXUP_FLAG_NONE);
     const URI_INHERITS_SECURITY_CONTEXT =
         Components.interfaces.nsIProtocolHandler.URI_INHERITS_SECURITY_CONTEXT;
     return Components.classes["@mozilla.org/network/util;1"]
                      .getService(Components.interfaces.nsINetUtil)
-                     .URIChainHasFlags(url, URI_INHERITS_SECURITY_CONTEXT);
+                     .URIChainHasFlags(uri, URI_INHERITS_SECURITY_CONTEXT);
   } catch (e) {
     return false;
   }
@@ -1164,11 +1161,14 @@ function popupNotificationMenuShowing(event)
   separator.hidden = !createShowPopupsMenu(event.target, notificationbox.activeBrowser);
 }
 
-function createShowPopupsMenu(parent, browser)
+function RemovePopupsItems(parent)
 {
   while (parent.lastChild && ("popup" in parent.lastChild))
     parent.removeChild(parent.lastChild);
+}
 
+function createShowPopupsMenu(parent, browser)
+{
   if (!browser)
     return false;
 
@@ -1633,4 +1633,15 @@ function GetFileFromString(aString)
   let uri = commandLine.resolveURI(aString);
   return uri instanceof Components.interfaces.nsIFileURL ?
          uri.file.QueryInterface(Components.interfaces.nsILocalFile) : null;
+}
+
+function CopyImage()
+{
+  var param = Components.classes["@mozilla.org/embedcomp/command-params;1"]
+                        .createInstance(Components.interfaces.nsICommandParams);
+  param.setLongValue("imageCopy",
+                     Components.interfaces.nsIContentViewerEdit.COPY_IMAGE_ALL);
+  document.commandDispatcher.getControllerForCommand("cmd_copyImage")
+          .QueryInterface(Components.interfaces.nsICommandController)
+          .doCommandWithParams("cmd_copyImage", param);
 }

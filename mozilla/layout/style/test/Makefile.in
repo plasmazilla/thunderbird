@@ -141,6 +141,7 @@ _TEST_FILES =	test_acid3_test46.html \
 		test_computed_style_no_pseudo.html \
 		test_css_cross_domain.html \
 		test_css_eof_handling.html \
+		test_default_bidi_css.html \
 		test_descriptor_storage.html \
 		test_descriptor_syntax_errors.html \
 		test_dont_use_document_colors.html \
@@ -229,6 +230,7 @@ _TEST_FILES =	test_acid3_test46.html \
 		visited_image_loading_frame.html \
 		visited_image_loading_frame_empty.html \
 		test_load_events_on_stylesheets.html \
+		test_bug721136.html \
 		$(NULL)
 
 _VISITED_REFTEST_FILES = \

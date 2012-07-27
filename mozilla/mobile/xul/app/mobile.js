@@ -216,13 +216,14 @@ pref("extensions.strictCompatibility", false);
 pref("extensions.minCompatibleAppVersion", "4.0");
 
 pref("extensions.update.url", "https://versioncheck.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%&compatMode=%COMPATIBILITY_MODE%");
+pref("extensions.update.background.url", "https://versioncheck-bg.addons.mozilla.org/update/VersionCheck.php?reqVersion=%REQ_VERSION%&id=%ITEM_ID%&version=%ITEM_VERSION%&maxAppVersion=%ITEM_MAXAPPVERSION%&status=%ITEM_STATUS%&appID=%APP_ID%&appVersion=%APP_VERSION%&appOS=%APP_OS%&appABI=%APP_ABI%&locale=%APP_LOCALE%&currentAppVersion=%CURRENT_APP_VERSION%&updateType=%UPDATE_TYPE%&compatMode=%COMPATIBILITY_MODE%");
 
 /* preferences for the Get Add-ons pane */
 pref("extensions.getAddons.cache.enabled", true);
 pref("extensions.getAddons.maxResults", 15);
 pref("extensions.getAddons.recommended.browseURL", "https://addons.mozilla.org/%LOCALE%/mobile/recommended/");
 pref("extensions.getAddons.recommended.url", "https://services.addons.mozilla.org/%LOCALE%/mobile/api/%API_VERSION%/list/featured/all/%MAX_RESULTS%/%OS%/%VERSION%");
-pref("extensions.getAddons.search.browseURL", "https://addons.mozilla.org/%LOCALE%/mobile/search?q=%TERMS%");
+pref("extensions.getAddons.search.browseURL", "https://addons.mozilla.org/%LOCALE%/mobile/search?q=%TERMS%&platform=%OS%&appver=%VERSION%");
 pref("extensions.getAddons.search.url", "https://services.addons.mozilla.org/%LOCALE%/mobile/api/%API_VERSION%/search/%TERMS%/all/%MAX_RESULTS%/%OS%/%VERSION%/%COMPATIBILITY_MODE%");
 pref("extensions.getAddons.browseAddons", "https://addons.mozilla.org/%LOCALE%/mobile/");
 pref("extensions.getAddons.get.url", "https://services.addons.mozilla.org/%LOCALE%/mobile/api/%API_VERSION%/search/guid:%IDS%?src=mobile&appOS=%OS%&appVersion=%VERSION%");
@@ -242,8 +243,11 @@ pref("extensions.blocklist.detailsURL", "https://www.mozilla.com/%LOCALE%/blockl
 pref("dom.disable_open_during_load", true);
 pref("privacy.popups.showBrowserMessage", true);
 
+/* disable opening windows with the dialog feature */
+pref("dom.disable_window_open_dialog_feature", true);
+
 pref("keyword.enabled", true);
-pref("keyword.URL", "http://www.google.com/m?ie=UTF-8&oe=UTF-8&sourceid=navclient&gfns=1&q=");
+pref("keyword.URL", "https://www.google.com/m?ie=UTF-8&oe=UTF-8&sourceid=navclient&q=");
 
 pref("accessibility.typeaheadfind", false);
 pref("accessibility.typeaheadfind.timeout", 5000);
@@ -462,8 +466,8 @@ pref("dom.ipc.content.nice", 1);
 // The breakpad report server to link to in about:crashes
 pref("breakpad.reportURL", "http://crash-stats.mozilla.com/report/index/");
 pref("app.releaseNotesURL", "http://www.mozilla.com/%LOCALE%/mobile/%VERSION%/releasenotes/");
-pref("app.sync.tutorialURL", "https://support.mozilla.com/kb/sync-firefox-between-desktop-and-mobile");
-pref("app.support.baseURL", "http://support.mozilla.com/mobile");
+pref("app.sync.tutorialURL", "https://support.mozilla.org/kb/sync-firefox-between-desktop-and-mobile");
+pref("app.support.baseURL", "http://support.mozilla.org/mobile");
 pref("app.feedbackURL", "http://input.mozilla.com/feedback/");
 pref("app.privacyURL", "http://www.mozilla.com/%LOCALE%/m/privacy.html");
 pref("app.creditsURL", "http://www.mozilla.org/credits/");
@@ -687,3 +691,6 @@ pref("browser.dom.window.dump.enabled", false);
 // controls if we want camera support
 pref("device.camera.enabled", true);
 pref("media.realtime_decoder.enabled", true);
+
+// Mobile manages state by autodetection
+pref("network.manage-offline-status", true);

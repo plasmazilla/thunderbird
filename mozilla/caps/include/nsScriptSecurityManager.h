@@ -57,6 +57,8 @@
 #include "plstr.h"
 #include "nsIScriptExternalNameSet.h"
 
+#include "mozilla/StandardInteger.h"
+
 class nsIDocShell;
 class nsString;
 class nsIClassInfo;
@@ -147,8 +149,8 @@ private:
 // Property Policy
 union SecurityLevel
 {
-    PRWord   level;
-    char*    capability;
+    intptr_t   level;
+    char*      capability;
 };
 
 // Security levels
@@ -428,6 +430,9 @@ private:
                       jsid id, JSAccessMode mode,
                       jsval *vp);
 
+    static JSPrincipals *
+    ObjectPrincipalFinder(JSObject *obj);
+    
     // Decides, based on CSP, whether or not eval() and stuff can be executed.
     static JSBool
     ContentSecurityPolicyPermitsJSAction(JSContext *cx);
@@ -498,7 +503,7 @@ private:
     // when this happens -- this means that there was no script.  Callers MUST
     // pass in a non-null rv here.
     static nsIPrincipal*
-    GetScriptPrincipal(JSContext* cx, JSScript* script, nsresult* rv);
+    GetScriptPrincipal(JSScript* script, nsresult* rv);
 
     // Returns null if a principal cannot be found.  Note that rv can be NS_OK
     // when this happens -- this means that there was no script associated

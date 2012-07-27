@@ -98,14 +98,11 @@
 #include "nsICharsetDetector.h"
 #include "nsILineInputStream.h"
 #include "nsIPlatformCharset.h"
-#include "nsIParser.h"
-#include "nsParserCIID.h"
-#include "nsIHTMLToTextSink.h"
-#include "nsIContentSink.h"
+#include "nsIParserUtils.h"
 #include "nsICharsetConverterManager.h"
 #include "nsIDocumentEncoder.h"
+#include "mozilla/Services.h"
 
-static NS_DEFINE_CID(kCParserCID, NS_PARSER_CID);
 static NS_DEFINE_CID(kImapUrlCID, NS_IMAPURL_CID);
 static NS_DEFINE_CID(kCMailboxUrl, NS_MAILBOXURL_CID);
 static NS_DEFINE_CID(kCNntpUrlCID, NS_NNTPURL_CID);
@@ -194,8 +191,8 @@ nsresult CreateStartupUrl(const char *uri, nsIURI** aUrl)
       rv = nntpUrl->QueryInterface(NS_GET_IID(nsIURI),
       (void**) aUrl);
   }
-  if (*aUrl)
-    (*aUrl)->SetSpec(nsDependentCString(uri));
+  if (*aUrl) // SetSpec can fail, for mailbox urls, but we still have a url.
+    (void) (*aUrl)->SetSpec(nsDependentCString(uri));
   return rv;
 }
 
@@ -517,8 +514,8 @@ nsresult FormatFileSize(PRUint64 size, bool useKB, nsAString &formattedSize)
   nsresult rv;
 
   nsCOMPtr<nsIStringBundleService> bundleSvc =
-    do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(bundleSvc, NS_ERROR_UNEXPECTED);
 
   nsCOMPtr<nsIStringBundle> bundle;
   rv = bundleSvc->CreateBundle("chrome://messenger/locale/messenger.properties",
@@ -821,11 +818,11 @@ nsresult NS_MsgDecodeUnescapeURLPath(const nsACString& aPath,
 
 bool WeAreOffline()
 {
-  nsresult rv = NS_OK;
   bool offline = false;
 
-  nsCOMPtr <nsIIOService> ioService = do_GetService(NS_IOSERVICE_CONTRACTID, &rv);
-  if (NS_SUCCEEDED(rv) && ioService)
+  nsCOMPtr <nsIIOService> ioService =
+    mozilla::services::GetIOService();
+  if (ioService)
     ioService->GetOffline(&offline);
 
   return offline;
@@ -2094,8 +2091,8 @@ NS_MSG_BASE nsresult MsgPromptLoginFailed(nsIMsgWindow *aMsgWindow,
   }
 
   nsCOMPtr<nsIStringBundleService> bundleSvc =
-    do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(bundleSvc, NS_ERROR_UNEXPECTED);
 
   nsCOMPtr<nsIStringBundle> bundle;
   rv = bundleSvc->CreateBundle("chrome://messenger/locale/messenger.properties",
@@ -2314,17 +2311,17 @@ MsgDetectCharsetFromFile(nsILocalFile *aFile, nsACString &aCharset)
     rv = inputStream->Read(sniffBuf, sizeof(sniffBuf), &numRead);
 
     if (numRead >= 2 &&
-               sniffBuf[0] == 0xfe &&
-               sniffBuf[1] == 0xff) {
+               sniffBuf[0] == (char)0xfe &&
+               sniffBuf[1] == (char)0xff) {
       aCharset = "UTF-16BE";
     } else if (numRead >= 2 &&
-               sniffBuf[0] == 0xff &&
-               sniffBuf[1] == 0xfe) {
+               sniffBuf[0] == (char)0xff &&
+               sniffBuf[1] == (char)0xfe) {
       aCharset = "UTF-16LE";
     } else if (numRead >= 3 &&
-               sniffBuf[0] == 0xef &&
-               sniffBuf[1] == 0xbb &&
-               sniffBuf[2] == 0xbf) {
+               sniffBuf[0] == (char)0xef &&
+               sniffBuf[1] == (char)0xbb &&
+               sniffBuf[2] == (char)0xbf) {
       aCharset = "UTF-8";
     }
   }
@@ -2359,11 +2356,6 @@ ConvertBufToPlainText(nsString &aConBuf, bool formatFlowed /* = false */, bool f
   if (aConBuf.IsEmpty())
     return NS_OK;
 
-  nsresult rv;
-  nsCOMPtr<nsIParser> parser = do_CreateInstance(kCParserCID, &rv);
-  if (NS_FAILED(rv) || !parser)
-    return rv;
-
   PRInt32 wrapWidth = 72;
   nsCOMPtr<nsIPrefBranch> pPrefBranch(do_GetService(NS_PREFSERVICE_CONTRACTID));
 
@@ -2383,22 +2375,10 @@ ConvertBufToPlainText(nsString &aConBuf, bool formatFlowed /* = false */, bool f
   if (formatFlowed)
     converterFlags |= nsIDocumentEncoder::OutputFormatFlowed;
 
-  nsCOMPtr<nsIContentSink> sink = do_CreateInstance(NS_PLAINTEXTSINK_CONTRACTID);
-  NS_ENSURE_TRUE(sink, NS_ERROR_FAILURE);
-
-  nsCOMPtr<nsIHTMLToTextSink> textSink(do_QueryInterface(sink));
-  NS_ENSURE_TRUE(textSink, NS_ERROR_FAILURE);
-
-  nsAutoString convertedText;
-  textSink->Initialize(&convertedText, converterFlags, wrapWidth);
-
-  parser->SetContentSink(sink);
-
-  parser->Parse(aConBuf, 0, NS_LITERAL_CSTRING("text/html"), true);
-
-  // Now if we get here, we need to get from ASCII text to
-  // UTF-8 format or there is a problem downstream...
-  aConBuf = convertedText;
-
-  return NS_OK;
+  nsCOMPtr<nsIParserUtils> utils =
+    do_GetService(NS_PARSERUTILS_CONTRACTID);
+  return utils->ConvertToPlainText(aConBuf,
+                                   converterFlags,
+                                   wrapWidth,
+                                   aConBuf);
 }

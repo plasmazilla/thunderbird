@@ -54,8 +54,9 @@
 
 interface nsIDOMFile;
 interface nsIVariant;
+interface nsIInputStreamCallback;
 
-[scriptable, uuid(8cddbc86-f384-40ac-835b-fe3e00630cad)]
+[scriptable, uuid(5929542B-C68E-48AB-84F9-D9642DA39720)]
 interface nsIDOMHTMLCanvasElement : nsIDOMHTMLElement
 {
   attribute unsigned long width;
@@ -82,5 +83,10 @@ interface nsIDOMHTMLCanvasElement : nsIDOMHTMLElement
   // A Mozilla-only extension to get a canvas context backed by double-buffered
   // shared memory. Only privileged callers can call this.
   nsISupports MozGetIPCContext(in DOMString contextId);
+
+  // A Mozilla-only extension that returns the canvas' image data as a data
+  // stream in the desired image format.
+  void mozFetchAsStream(in nsIInputStreamCallback callback,
+                                        [optional] in DOMString type);
 };
 

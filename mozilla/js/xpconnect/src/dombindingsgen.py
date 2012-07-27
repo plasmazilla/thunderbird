@@ -87,7 +87,7 @@ def firstCap(str):
     return str[0].upper() + str[1:]
 
 class DOMClass(UserDict.DictMixin):
-    def __init__(self, name, nativeClass):
+    def __init__(self, name, nativeClass, prefable):
         self.name = name
         self.base = None
         self.isBase = False
@@ -98,6 +98,7 @@ class DOMClass(UserDict.DictMixin):
         self.nameSetter = None
         self.stringifier = False
         self.members = set()
+        self.prefable = prefable
 
     @staticmethod
     def getterNativeType(getter):
@@ -232,12 +233,22 @@ class Configuration:
         execfile(filename, config)
 
         # required settings
-        if 'classes' not in config:
+        if 'list_classes' not in config:
             raise UserError(filename + ": `%s` was not defined." % name)
-        self.classes = {}
-        for clazz in config['classes']:
-            self.classes[clazz] = DOMClass(name=clazz, nativeClass=config['classes'][clazz])
+        if 'list_classes' not in config:
+            raise UserError(filename + ": `%s` was not defined." % name)
+        self.list_classes = {}
+        for clazz in config['list_classes']:
+            self.list_classes[clazz['name']] = \
+                DOMClass(name = clazz['name'],
+                         nativeClass = clazz['nativeClass'],
+                         prefable = False)
+
         # optional settings
+        if 'prefableClasses' in config:
+            for clazz in config['prefableClasses']:
+                self.list_classes[clazz] = DOMClass(name=clazz, nativeClass=config['prefableClasses'][clazz], prefable=True)
+
         self.customInheritance = config.get('customInheritance', {})
         self.derivedClasses = {}
         self.irregularFilenames = config.get('irregularFilenames', {})
@@ -275,7 +286,7 @@ def completeConfiguration(conf, includePath, cachedir):
 
     stubbedInterfaces = []
 
-    for clazz in conf.classes.itervalues():
+    for clazz in conf.list_classes.itervalues():
         interfaceName = 'nsIDOM' + clazz.name
 
         iface = getInterface(interfaceName, errorLoc='looking for %r' % clazz.name)
@@ -306,10 +317,11 @@ def completeConfiguration(conf, includePath, cachedir):
 
             assert iface.name.startswith('nsIDOM') and not iface.name.startswith('nsIDOMNS')
             clazz.base = iface.name[6:]
-            # For now we only support base classes that are real DOM classes
-            assert clazz.base in conf.classes
-            if not conf.classes[clazz.base].isBase:
-                conf.classes[clazz.base].isBase = True
+            # For now we only support base classes that are real DOM
+            # list classes
+            assert clazz.base in conf.list_classes
+            if not conf.list_classes[clazz.base].isBase:
+                conf.list_classes[clazz.base].isBase = True
                 conf.derivedClasses[clazz.base] = []
             conf.derivedClasses[clazz.base].append(clazz.name)
 
@@ -322,38 +334,43 @@ def completeConfiguration(conf, includePath, cachedir):
 
 # === Generating the header file
 
-def needsForwardDeclaration(type):
-    return isInterfaceType(type) or (type.kind == 'native' and type.specialtype is None)
-
-def getTypes(classes, map={}):
+def addType(types, type, map):
     def getTranslatedType(type):
         return map.get(type, type)
 
+    type = xpidl.unaliasType(type)
+    if isInterfaceType(type) or (type.kind == 'native' and type.specialtype is None):
+        types.add(getTranslatedType(type.name))
+
+
+def getTypes(classes, map):
     types = set()
     for clazz in classes.itervalues():
-        types.add(getTranslatedType(clazz.nativeClass))
-        if clazz.indexGetter and needsForwardDeclaration(clazz.realIndexGetter.realtype):
-            types.add(getTranslatedType(clazz.realIndexGetter.realtype.name))
-        if clazz.indexSetter and needsForwardDeclaration(clazz.realIndexSetter.realtype):
-            types.add(getTranslatedType(clazz.realIndexSetter.realtype.name))
-        if clazz.nameGetter and needsForwardDeclaration(clazz.realNameGetter.realtype):
-            types.add(getTranslatedType(clazz.realNameGetter.realtype.name))
-    return sorted(types)
+        types.add(map.get(clazz.nativeClass, clazz.nativeClass))
+        if clazz.indexGetter:
+            addType(types, clazz.realIndexGetter.realtype, map)
+        if clazz.indexSetter:
+            addType(types, clazz.realIndexSetter.realtype, map)
+        if clazz.nameGetter:
+            addType(types, clazz.realNameGetter.realtype, map)
+        if clazz.nameSetter:
+            addType(types, clazz.realNameSetter.realtype, map)
+    return types
 
 listDefinitionTemplate = (
 "class ${name} {\n"
 "public:\n"
 "    template<typename I>\n"
-"    static JSObject *create(JSContext *cx, XPCWrappedNativeScope *scope, I *list, bool *triedToWrap)\n"
+"    static JSObject *create(JSContext *cx, JSObject *scope, I *list, bool *triedToWrap)\n"
 "    {\n"
-"        return create(cx, scope, list, GetWrapperCache(list), triedToWrap);\n"
+"        return create(cx, scope, list, list, triedToWrap);\n"
 "    }\n"
 "\n"
 "    static bool objIsWrapper(JSObject *obj);\n"
 "    static ${nativeClass} *getNative(JSObject *obj);\n"
 "\n"
 "private:\n"
-"    static JSObject *create(JSContext *cx, XPCWrappedNativeScope *scope, ${nativeClass} *list, nsWrapperCache *cache, bool *triedToWrap);\n"
+"    static JSObject *create(JSContext *cx, JSObject *scope, ${nativeClass} *list, nsWrapperCache *cache, bool *triedToWrap);\n"
 "};"
 "\n"
 "\n")
@@ -369,7 +386,7 @@ def writeHeaderFile(filename, config):
                 "#define " + headerMacro + "\n\n")
 
         namespaces = []
-        for type in getTypes(config.classes, {}):
+        for type in sorted(getTypes(config.list_classes, {})):
             newNamespaces = type.split('::')
             type = newNamespaces.pop()
             j = 0
@@ -394,7 +411,7 @@ def writeHeaderFile(filename, config):
         f.write("bool\n"
                 "DefinePropertyStaticJSVals(JSContext *cx);\n\n")
 
-        for clazz in config.classes.itervalues():
+        for clazz in config.list_classes.itervalues():
             f.write(string.Template(listDefinitionTemplate).substitute(clazz))
 
         f.write("\n"
@@ -443,12 +460,10 @@ listTemplate = (
 "    JS_EnumerateStub,\n"
 "    JS_ResolveStub,\n"
 "    JS_ConvertStub,\n"
-"    NULL,                   /* finalize */\n"
-"    NULL,                   /* reserved0 */\n"
+"    NULL,                   /* finalize    */\n"
 "    NULL,                   /* checkAccess */\n"
-"    NULL,                   /* call */\n"
-"    NULL,                   /* construct */\n"
-"    NULL,                   /* xdrObject */\n"
+"    NULL,                   /* call        */\n"
+"    NULL,                   /* construct   */\n"
 "    interface_hasInstance\n"
 "};\n"
 "\n")
@@ -476,6 +491,26 @@ derivedClassTemplate = (
 "\n"
 "    NS_RUNTIMEABORT(\"Unknown list type!\");\n"
 "    return NULL;\n"
+"}\n"
+"\n")
+
+prefableClassTemplate = (
+"template<>\n"
+"JSObject *\n"
+"${name}Wrapper::getPrototype(JSContext *cx, JSObject *receiver, bool *enabled)\n"
+"{\n"
+"    XPCWrappedNativeScope *scope =\n"
+"        XPCWrappedNativeScope::FindInJSObjectScope(cx, receiver);\n"
+"    if (!scope)\n"
+"        return false;\n"
+"\n"
+"    if (!scope->NewDOMBindingsEnabled()) {\n"
+"        *enabled = false;\n"
+"        return NULL;\n"
+"    }\n"
+"\n"
+"    *enabled = true;\n"
+"    return getPrototype(cx, scope, receiver);\n"
 "}\n"
 "\n")
 
@@ -527,20 +562,31 @@ nameSetterTemplate = (
 "}\n"
 "\n")
 
-listTemplateFooter = (
+propertiesTemplate = (
 "template<>\n"
 "${name}Wrapper::Properties ${name}Wrapper::sProtoProperties[] = {\n"
 "${properties}\n"
 "};\n"
-"\n""template<>\n"
+"\n"
+"template<>\n"
+"size_t ${name}Wrapper::sProtoPropertiesCount = ArrayLength(${name}Wrapper::sProtoProperties);\n"
+"\n")
+
+methodsTemplate = (
+"template<>\n"
 "${name}Wrapper::Methods ${name}Wrapper::sProtoMethods[] = {\n"
 "${methods}\n"
 "};\n"
 "\n"
+"template<>\n"
+"size_t ${name}Wrapper::sProtoMethodsCount = ArrayLength(${name}Wrapper::sProtoMethods);\n"
+"\n")
+
+listTemplateFooter = (
 "template class ListBase<${name}Class>;\n"
 "\n"
 "JSObject*\n"
-"${name}::create(JSContext *cx, XPCWrappedNativeScope *scope, ${nativeClass} *list, nsWrapperCache *cache, bool *triedToWrap)\n"
+"${name}::create(JSContext *cx, JSObject *scope, ${nativeClass} *list, nsWrapperCache *cache, bool *triedToWrap)\n"
 "{\n"
 "    return ${name}Wrapper::create(cx, scope, list, cache, triedToWrap);\n"
 "}\n"
@@ -569,10 +615,8 @@ def writeBindingStub(f, classname, member, stubName, isSetter=False):
                     "        return false;\n" % classname)
         return "%sWrapper::getListObject(obj)" % classname
     def writeCheckForFailure(f, isMethod, isGeter, haveCcx):
-        f.write("    if (NS_FAILED(rv)) {\n"
-                "        xpc_qsThrowMethodFailedWithDetails(cx, rv, \"%s\", \"%s\");\n"
-                "        return JS_FALSE;\n"
-                "    }\n" % (classname, member.name))
+        f.write("    if (NS_FAILED(rv))\n"
+                "        return xpc_qsThrowMethodFailedWithDetails(cx, rv, \"%s\", \"%s\");\n" % (classname, member.name))
     def writeResultWrapping(f, member, jsvalPtr, jsvalRef):
         if member.kind == 'method' and member.notxpcom and len(member.params) > 0 and member.params[len(member.params) - 1].paramtype == 'out':
             assert member.params[len(member.params) - 1].realtype.kind == 'native' and member.params[len(member.params) - 1].realtype.nativename == 'nsWrapperCache'
@@ -607,30 +651,21 @@ def writeStubFile(filename, config, interfaces):
     f = open(filename, 'w')
     filesIncluded = set()
 
-    def includeType(type):
-        type = unaliasType(type)
-        if type.kind in ('builtin', 'native'):
-            return None
-        file = conf.irregularFilenames.get(type.name, type.name) + '.h'
-        if file not in filesIncluded:
-            f.write('#include "%s"\n' % file)
-            filesIncluded.add(file)
-        return type
-
-    def writeIncludesForMember(member):
-        assert member.kind in ('attribute', 'method')
-        resulttype = includeType(member.realtype)
-        if member.kind == 'method':
-            for p in member.params:
-                includeType(p.realtype)
-        return resulttype
-
     headerFilename = re.sub(r'(\.cpp)?$', '.h', filename)
 
     try:
         f.write("/* THIS FILE IS AUTOGENERATED - DO NOT EDIT */\n\n")
 
-        f.write("".join([("#include \"%s.h\"\n" % re.sub(r'(([^:]+::)*)', '', type)) for type in getTypes(config.classes, config.irregularFilenames)]))
+        f.write("#include \"nsScriptNameSpaceManager.h\"\n")
+        types = getTypes(config.list_classes, config.irregularFilenames)
+        for clazz in config.list_classes.itervalues():
+            for member in clazz.members:
+                addType(types, member.realtype, config.irregularFilenames)
+                if member.kind == 'method':
+                    for p in member.params:
+                        addType(types, p.realtype, config.irregularFilenames)
+
+        f.write("".join([("#include \"%s.h\"\n" % re.sub(r'(([^:]+::)*)', '', type)) for type in sorted(types)]))
         f.write("\n")
 
         f.write("namespace mozilla {\n"
@@ -640,7 +675,7 @@ def writeStubFile(filename, config, interfaces):
         f.write("// Property name ids\n\n")
 
         ids = set()
-        for clazz in config.classes.itervalues():
+        for clazz in config.list_classes.itervalues():
             assert clazz.indexGetter
             ids.add(clazz.indexGetter.name)
             if clazz.indexSetter:
@@ -664,7 +699,7 @@ def writeStubFile(filename, config, interfaces):
         f.write("\n"
                 "}\n\n")
 
-        classes = sorted(config.classes.values())
+        classes = sorted(config.list_classes.values())
 
         f.write("// Typedefs\n\n")
 
@@ -682,6 +717,8 @@ def writeStubFile(filename, config, interfaces):
                 checkproxyhandlers = "||\n".join(map(lambda d: "           %sWrapper::proxyHandlerIsList(handler)" % d, derivedClasses))
                 castproxyhandlers = "\n".join(map(lambda d: "    if (%sWrapper::proxyHandlerIsList(handler))\n        return %sWrapper::getNative(obj);\n" % (d, d), derivedClasses))
                 f.write(string.Template(derivedClassTemplate).substitute(clazz, checkproxyhandlers=checkproxyhandlers, castproxyhandlers=castproxyhandlers))
+            if clazz.prefable:
+                f.write(string.Template(prefableClassTemplate).substitute(clazz))
             methodsList = []
             propertiesList = []
             if clazz.stringifier:
@@ -718,17 +755,21 @@ def writeStubFile(filename, config, interfaces):
                 else:
                     propertiesList.append(writeAttrStubs(f, clazz.name, member))
 
-            f.write(string.Template(listTemplateFooter).substitute(clazz, methods=",\n".join(methodsList), properties=",\n".join(propertiesList)))
+            if len(propertiesList) > 0:
+                f.write(string.Template(propertiesTemplate).substitute(clazz, properties=",\n".join(propertiesList)))
+            if len(methodsList) > 0:
+                f.write(string.Template(methodsTemplate).substitute(clazz, methods=",\n".join(methodsList)))
+            f.write(string.Template(listTemplateFooter).substitute(clazz))
             
         f.write("// Register prototypes\n\n")
 
         f.write("void\n"
-                "Register(nsDOMClassInfoData *aData)\n"
+                "Register(nsScriptNameSpaceManager* aNameSpaceManager)\n"
                 "{\n"
                 "#define REGISTER_PROTO(_dom_class) \\\n"
-                "    aData[eDOMClassInfo_##_dom_class##_id].mDefineDOMInterface = _dom_class##Wrapper::getPrototype\n"
+                "    aNameSpaceManager->RegisterDefineDOMInterface(NS_LITERAL_STRING(#_dom_class), _dom_class##Wrapper::DefineDOMInterface);\n\n"""
                 "\n")
-        for clazz in config.classes.itervalues():
+        for clazz in config.list_classes.itervalues():
             f.write("    REGISTER_PROTO(%s);\n" % clazz.name)
         f.write("\n"
                 "#undef REGISTER_PROTO\n"

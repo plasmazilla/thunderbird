@@ -1,4 +1,4 @@
-/* -*- Mode: C; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
+/* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*-
  * vim: set ts=4 sw=4 et tw=79 ft=cpp:
  *
  * ***** BEGIN LICENSE BLOCK *****
@@ -190,16 +190,16 @@ typedef JSBool
                     JSProperty **propp);
 typedef JSBool
 (* DefineGenericOp)(JSContext *cx, JSObject *obj, jsid id, const Value *value,
-                    PropertyOp getter, StrictPropertyOp setter, uintN attrs);
+                    PropertyOp getter, StrictPropertyOp setter, unsigned attrs);
 typedef JSBool
 (* DefinePropOp)(JSContext *cx, JSObject *obj, PropertyName *name, const Value *value,
-                 PropertyOp getter, StrictPropertyOp setter, uintN attrs);
+                 PropertyOp getter, StrictPropertyOp setter, unsigned attrs);
 typedef JSBool
 (* DefineElementOp)(JSContext *cx, JSObject *obj, uint32_t index, const Value *value,
-                    PropertyOp getter, StrictPropertyOp setter, uintN attrs);
+                    PropertyOp getter, StrictPropertyOp setter, unsigned attrs);
 typedef JSBool
 (* DefineSpecialOp)(JSContext *cx, JSObject *obj, SpecialId sid, const Value *value,
-                    PropertyOp getter, StrictPropertyOp setter, uintN attrs);
+                    PropertyOp getter, StrictPropertyOp setter, unsigned attrs);
 typedef JSBool
 (* GenericIdOp)(JSContext *cx, JSObject *obj, JSObject *receiver, jsid id, Value *vp);
 typedef JSBool
@@ -219,13 +219,13 @@ typedef JSBool
 typedef JSBool
 (* StrictSpecialIdOp)(JSContext *cx, JSObject *obj, SpecialId sid, Value *vp, JSBool strict);
 typedef JSBool
-(* GenericAttributesOp)(JSContext *cx, JSObject *obj, jsid id, uintN *attrsp);
+(* GenericAttributesOp)(JSContext *cx, JSObject *obj, jsid id, unsigned *attrsp);
 typedef JSBool
-(* PropertyAttributesOp)(JSContext *cx, JSObject *obj, PropertyName *name, uintN *attrsp);
+(* PropertyAttributesOp)(JSContext *cx, JSObject *obj, PropertyName *name, unsigned *attrsp);
 typedef JSBool
-(* ElementAttributesOp)(JSContext *cx, JSObject *obj, uint32_t index, uintN *attrsp);
+(* ElementAttributesOp)(JSContext *cx, JSObject *obj, uint32_t index, unsigned *attrsp);
 typedef JSBool
-(* SpecialAttributesOp)(JSContext *cx, JSObject *obj, SpecialId sid, uintN *attrsp);
+(* SpecialAttributesOp)(JSContext *cx, JSObject *obj, SpecialId sid, unsigned *attrsp);
 typedef JSBool
 (* DeletePropertyOp)(JSContext *cx, JSObject *obj, PropertyName *name, Value *vp, JSBool strict);
 typedef JSBool
@@ -248,7 +248,9 @@ typedef JSBool
 typedef JSObject *
 (* ObjectOp)(JSContext *cx, JSObject *obj);
 typedef void
-(* FinalizeOp)(JSContext *cx, JSObject *obj);
+(* FinalizeOp)(FreeOp *fop, JSObject *obj);
+typedef void
+(* ClearOp)(JSContext *cx, JSObject *obj);
 
 #define JS_CLASS_MEMBERS                                                      \
     const char          *name;                                                \
@@ -262,14 +264,12 @@ typedef void
     JSEnumerateOp       enumerate;                                            \
     JSResolveOp         resolve;                                              \
     JSConvertOp         convert;                                              \
-    JSFinalizeOp        finalize;                                             \
+    FinalizeOp          finalize;                                             \
                                                                               \
     /* Optionally non-null members start here. */                             \
-    JSClassInternal     reserved0;                                            \
     JSCheckAccessOp     checkAccess;                                          \
     JSNative            call;                                                 \
     JSNative            construct;                                            \
-    JSXDRObjectOp       xdrObject;                                            \
     JSHasInstanceOp     hasInstance;                                          \
     JSTraceOp           trace
 
@@ -334,7 +334,7 @@ struct ObjectOps
     TypeOfOp            typeOf;
     FixOp               fix;
     ObjectOp            thisObject;
-    FinalizeOp          clear;
+    ClearOp             clear;
 };
 
 #define JS_NULL_OBJECT_OPS                                                    \
@@ -372,11 +372,9 @@ JS_STATIC_ASSERT(offsetof(JSClass, enumerate) == offsetof(Class, enumerate));
 JS_STATIC_ASSERT(offsetof(JSClass, resolve) == offsetof(Class, resolve));
 JS_STATIC_ASSERT(offsetof(JSClass, convert) == offsetof(Class, convert));
 JS_STATIC_ASSERT(offsetof(JSClass, finalize) == offsetof(Class, finalize));
-JS_STATIC_ASSERT(offsetof(JSClass, reserved0) == offsetof(Class, reserved0));
 JS_STATIC_ASSERT(offsetof(JSClass, checkAccess) == offsetof(Class, checkAccess));
 JS_STATIC_ASSERT(offsetof(JSClass, call) == offsetof(Class, call));
 JS_STATIC_ASSERT(offsetof(JSClass, construct) == offsetof(Class, construct));
-JS_STATIC_ASSERT(offsetof(JSClass, xdrObject) == offsetof(Class, xdrObject));
 JS_STATIC_ASSERT(offsetof(JSClass, hasInstance) == offsetof(Class, hasInstance));
 JS_STATIC_ASSERT(offsetof(JSClass, trace) == offsetof(Class, trace));
 JS_STATIC_ASSERT(sizeof(JSClass) == sizeof(Class));
@@ -386,18 +384,30 @@ Jsvalify(Class *c)
 {
     return (JSClass *)c;
 }
+static JS_ALWAYS_INLINE const JSClass *
+Jsvalify(const Class *c)
+{
+    return (const JSClass *)c;
+}
 
 static JS_ALWAYS_INLINE Class *
 Valueify(JSClass *c)
 {
     return (Class *)c;
 }
+static JS_ALWAYS_INLINE const Class *
+Valueify(const JSClass *c)
+{
+    return (const Class *)c;
+}
 
 /*
  * Enumeration describing possible values of the [[Class]] internal property
  * value of objects.
  */
-enum ESClassValue { ESClass_Array, ESClass_Number, ESClass_String, ESClass_Boolean };
+enum ESClassValue {
+    ESClass_Array, ESClass_Number, ESClass_String, ESClass_Boolean, ESClass_RegExp
+};
 
 /*
  * Return whether the given object has the given [[Class]] internal property
@@ -407,6 +417,10 @@ enum ESClassValue { ESClass_Array, ESClass_Number, ESClass_String, ESClass_Boole
  */
 inline bool
 ObjectClassIs(JSObject &obj, ESClassValue classValue, JSContext *cx);
+
+/* Just a helper that checks v.isObject before calling ObjectClassIs. */
+inline bool
+IsObjectWithClass(const Value &v, ESClassValue classValue, JSContext *cx);
 
 }  /* namespace js */
 

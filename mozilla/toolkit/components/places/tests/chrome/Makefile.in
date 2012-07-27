@@ -54,13 +54,16 @@ _HTTP_FILES	= \
 		$(NULL)
 
 _CHROME_FILES	= \
-		test_329534.xul \
 		test_371798.xul \
 		test_342484.xul \
 		test_341972a.xul \
+		test_341972b.xul \
 		test_favicon_annotations.xul \
 		test_303567.xul \
 		test_381357.xul \
+		test_history_post.xul \
+		history_post.sjs \
+		test_reloadLivemarks.xul \
 		$(NULL)
 
 libs:: $(_HTTP_FILES)
@@ -68,4 +71,3 @@ libs:: $(_HTTP_FILES)
 
 libs:: $(_CHROME_FILES)
 	$(INSTALL) $(foreach f,$^,"$f") $(DEPTH)/_tests/testing/mochitest/chrome/$(relativesrcdir)
-

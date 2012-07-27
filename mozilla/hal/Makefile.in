@@ -46,6 +46,7 @@ VPATH       = \
   $(srcdir)/sandbox \
   $(srcdir)/linux \
   $(srcdir)/windows \
+  $(srcdir)/cocoa \
   $(NULL)
 
 include $(DEPTH)/config/autoconf.mk
@@ -61,27 +62,73 @@ EXPORTS_mozilla = \
   Hal.h \
   HalImpl.h \
   HalSandbox.h \
+  HalSensor.h \
+  HalTypes.h \
+  HalWakeLock.h \
   $(NULL)
 
 CPPSRCS = \
   Hal.cpp \
   SandboxHal.cpp \
   WindowIdentifier.cpp \
+  HalWakeLock.cpp \
   $(NULL)
 
 ifeq (android,$(MOZ_WIDGET_TOOLKIT))
-CPPSRCS += AndroidHal.cpp
+CPPSRCS += \
+  AndroidHal.cpp \
+  AndroidSensor.cpp \
+  $(NULL)
 else ifeq (gonk,$(MOZ_WIDGET_TOOLKIT))
-CPPSRCS += GonkHal.cpp
+CPPSRCS += \
+  GonkHal.cpp \
+  Power.cpp \
+  GonkSensor.cpp \
+  UeventPoller.cpp \
+  GonkSwitch.cpp \
+  $(NULL)
 else ifeq (Linux,$(OS_TARGET))
-CPPSRCS += LinuxHal.cpp
+CPPSRCS += \
+  LinuxHal.cpp \
+  FallbackSensor.cpp \
+  Power.cpp \
+  $(NULL)
 ifdef MOZ_ENABLE_DBUS
 CPPSRCS += UPowerClient.cpp
 endif
 else ifeq (WINNT,$(OS_TARGET))
-CPPSRCS += WindowsHal.cpp WindowsBattery.cpp
+CPPSRCS += \
+  WindowsHal.cpp \
+  WindowsBattery.cpp \
+  FallbackSensor.cpp \
+  $(NULL)
+else ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
+CPPSRCS += \
+  FallbackHal.cpp \
+  $(NULL)
+CMMSRCS += \
+  CocoaSensor.mm \
+  smslib.mm \
+  $(NULL)
 else
-CPPSRCS += FallbackHal.cpp
+CPPSRCS += \
+  FallbackHal.cpp \
+  FallbackSensor.cpp \
+  $(NULL)
+endif
+
+ifneq (gonk,$(MOZ_WIDGET_TOOLKIT)) #{
+CPPSRCS += \
+  FallbackLights.cpp  \
+  FallbackTime.cpp \
+  FallbackWakeLocks.cpp \
+  FallbackSwitch.cpp \
+  $(NULL)
+endif #}
+
+# Screen Orientation backend
+ifneq (android,$(MOZ_WIDGET_TOOLKIT))
+CPPSRCS += ScreenOrientationFallback.cpp
 endif
 
 include $(topsrcdir)/config/config.mk

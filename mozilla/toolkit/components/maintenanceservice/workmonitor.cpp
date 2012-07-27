@@ -56,6 +56,7 @@
 #include "registrycertificates.h"
 #include "uachelper.h"
 #include "updatehelper.h"
+#include "errors.h"
 
 // Wait 15 minutes for an update operation to run at most.
 // Updates usually take less than a minute so this seems like a 
@@ -65,16 +66,6 @@ PRUnichar* MakeCommandLine(int argc, PRUnichar **argv);
 BOOL WriteStatusFailure(LPCWSTR updateDirPath, int errorCode);
 BOOL PathGetSiblingFilePath(LPWSTR destinationBuffer,  LPCWSTR siblingFilePath, 
                             LPCWSTR newFileName);
-
-// The error codes start from 16000 since Windows system error 
-// codes only go up to 15999
-const int SERVICE_UPDATER_COULD_NOT_BE_STARTED = 16000;
-const int SERVICE_NOT_ENOUGH_COMMAND_LINE_ARGS = 16001;
-const int SERVICE_UPDATER_SIGN_ERROR = 16002;
-const int SERVICE_UPDATER_COMPARE_ERROR = 16003;
-const int SERVICE_UPDATER_IDENTITY_ERROR = 16004;
-const int SERVICE_STILL_APPLYING_ON_SUCCESS = 16005;
-const int SERVICE_STILL_APPLYING_ON_FAILURE = 16006;
 
 /* 
  * Read the update.status file and sets isApplying to true if
@@ -298,6 +289,34 @@ ProcessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
     return FALSE;
   }
 
+  // Make sure the path to the updater to use for the update is local.
+  // We do this check to make sure that file locking is available for
+  // race condition security checks.
+  BOOL isLocal = FALSE;
+  if (!IsLocalFile(argv[0], isLocal) || !isLocal) {
+    LOG(("Filesystem in path %ls is not supported"
+         "Last error: %d\n", argv[0], GetLastError()));
+    if (!WriteStatusFailure(argv[1], 
+                            SERVICE_UPDATER_NOT_FIXED_DRIVE)) {
+      LOG(("Could not write update.status service update failure."
+           "Last error: %d\n", GetLastError()));
+    }
+    return FALSE;
+  }
+
+  nsAutoHandle noWriteLock(CreateFileW(argv[0], GENERIC_READ, FILE_SHARE_READ, 
+                                       NULL, OPEN_EXISTING, 0, NULL));
+  if (INVALID_HANDLE_VALUE == noWriteLock) {
+      LOG(("Could not set no write sharing access on file."
+           "Last error: %d\n", GetLastError()));
+    if (!WriteStatusFailure(argv[1], 
+                            SERVICE_COULD_NOT_LOCK_UPDATER)) {
+      LOG(("Could not write update.status service update failure."
+           "Last error: %d\n", GetLastError()));
+    }
+    return FALSE;
+  }
+
   // Verify that the updater.exe that we are executing is the same
   // as the one in the installation directory which we are updating.
   // The installation dir that we are installing to is argv[2].
@@ -335,7 +354,8 @@ ProcessSoftwareUpdateCommand(DWORD argc, LPWSTR *argv)
   // Check to make sure the udpater.exe module has the unique updater identity.
   // This is a security measure to make sure that the signed executable that
   // we will run is actually an updater.
-  HMODULE updaterModule = LoadLibrary(argv[0]);
+  HMODULE updaterModule = LoadLibraryEx(argv[0], NULL, 
+                                        LOAD_LIBRARY_AS_DATAFILE);
   if (!updaterModule) {
     LOG(("updater.exe module could not be loaded. (%d)\n", GetLastError()));
     result = FALSE;

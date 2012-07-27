@@ -66,10 +66,15 @@
  * 'c' - Continue Sample tag gives remaining tag element. If a 'c' tag is seen without
  *         a preceding 's' tag it should be ignored. This is to support the behavior
  *         of circular buffers.
+ *         If the 'stackwalk' feature is enabled this tag will have the format
+ *         'l-<library name>@<hex address>' and will expect an external tool to translate
+ *         the tag into something readable through a symbolication processing step.
  * 'm' - Timeline marker. Zero or more may appear before a 's' tag.
  * 'l' - Information about the program counter library and address. Post processing
  *         can include function and source line. If built with leaf data enabled
  *         this tag will describe the last 'c' tag.
+ * 'r' - Responsiveness tag following an 's' tag. Gives an indication on how well the
+ *          application is responding to the event loop. Lower is better.
  *
  * NOTE: File format is planned to be extended to include a dictionary to reduce size.
  */
@@ -78,7 +83,7 @@
 #define SAMPLER_H
 
 // Redefine the macros for platforms where SPS is supported.
-#if defined(ANDROID) || defined(__linux__) || defined(XP_MACOSX) || defined(XP_WIN)
+#ifdef MOZ_ENABLE_PROFILER_SPS
 
 #include "sps_sampler.h"
 
@@ -94,6 +99,7 @@
 #define SAMPLER_SAVE()
 // Returned string must be free'ed
 #define SAMPLER_GET_PROFILE() NULL
+#define SAMPLER_GET_PROFILE_DATA(ctx) NULL
 #define SAMPLER_RESPONSIVENESS(time) NULL
 #define SAMPLER_GET_RESPONSIVENESS() NULL
 #define SAMPLER_GET_FEATURES() NULL

@@ -48,20 +48,11 @@
 using namespace js;
 
 PropertyCacheEntry *
-PropertyCache::fill(JSContext *cx, JSObject *obj, uintN scopeIndex, JSObject *pobj,
+PropertyCache::fill(JSContext *cx, JSObject *obj, unsigned scopeIndex, JSObject *pobj,
                     const Shape *shape)
 {
     JS_ASSERT(this == &JS_PROPERTY_CACHE(cx));
     JS_ASSERT(!cx->runtime->gcRunning);
-
-    /*
-     * Check for fill from js_SetPropertyHelper where the setter removed shape
-     * from pobj (via unwatch or delete, e.g.).
-     */
-    if (!pobj->nativeContains(cx, *shape)) {
-        PCMETER(oddfills++);
-        return JS_NO_PROP_CACHE_FILL;
-    }
 
     /*
      * Check for overdeep scope and prototype chain. Because resolve, getter,
@@ -77,10 +68,10 @@ PropertyCache::fill(JSContext *cx, JSObject *obj, uintN scopeIndex, JSObject *po
     JS_ASSERT_IF(obj == pobj, scopeIndex == 0);
 
     JSObject *tmp = obj;
-    for (uintN i = 0; i < scopeIndex; i++)
+    for (unsigned i = 0; i < scopeIndex; i++)
         tmp = &tmp->asScope().enclosingScope();
 
-    uintN protoIndex = 0;
+    unsigned protoIndex = 0;
     while (tmp != pobj) {
         /*
          * Don't cache entries across prototype lookups which can mutate in
@@ -251,7 +242,7 @@ void
 PropertyCache::assertEmpty()
 {
     JS_ASSERT(empty);
-    for (uintN i = 0; i < SIZE; i++) {
+    for (unsigned i = 0; i < SIZE; i++) {
         JS_ASSERT(!table[i].kpc);
         JS_ASSERT(!table[i].kshape);
         JS_ASSERT(!table[i].pshape);
@@ -263,7 +254,7 @@ PropertyCache::assertEmpty()
 #endif
 
 void
-PropertyCache::purge(JSContext *cx)
+PropertyCache::purge(JSRuntime *rt)
 {
     if (empty) {
         assertEmpty();
@@ -279,10 +270,7 @@ PropertyCache::purge(JSContext *cx)
         fp = fopen("/tmp/propcache.stats", "w");
     if (fp) {
         fputs("Property cache stats for ", fp);
-#ifdef JS_THREADSAFE
-        fprintf(fp, "thread %lu, ", (unsigned long) cx->thread->id);
-#endif
-        fprintf(fp, "GC %u\n", cx->runtime->gcNumber);
+        fprintf(fp, "GC %lu\n", (unsigned long)rt->gcNumber);
 
 # define P(mem) fprintf(fp, "%11s %10lu\n", #mem, (unsigned long)mem)
         P(fills);

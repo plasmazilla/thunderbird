@@ -529,15 +529,24 @@ var specialTabs = {
     tabmail.registerTabType(this.contentTabType);
     tabmail.registerTabType(this.chromeTabType);
 
-    // Even though we're not doing this for TB 12, we still want to upgrade the prefs.
-    // If we've upgraded:
+    // If we've upgraded (note: always get these values so that we set
+    // the mstone preference for the new version):
     let [fromVer, toVer] = this.getApplicationUpgradeVersions(prefs);
 
-    // Only show what's new tab if this is actually an upgraded version,
-    // not just a new installation/profile.
-    // Not for TB 12.
-    //if (fromVer && ((fromVer[0] != toVer[0]) || (fromVer[1] != toVer[1])))
-    //  this.showWhatsNewPage();
+    // Although this might not be really necessary because of the version checks, we'll
+    // check this pref anyway and clear it so that we are consistent with what Firefox
+    // actually does. It will help developers switching between branches without updating.
+    if (Services.prefs.prefHasUserValue("app.update.postupdate")) {
+      // Only show what's new tab if this is actually an upgraded version,
+      // not just a new installation/profile (and don't show if the major version
+      // hasn't changed).
+      if (fromVer && ((fromVer[0] != toVer[0]) || (fromVer[1] != toVer[1]))) {
+          // showWhatsNewPage checks the details of the update manager before
+          // showing the page.
+          this.showWhatsNewPage();
+      }
+      Services.prefs.clearUserPref("app.update.postupdate");
+    }
 
     // Show the about rights notification if we need to.
     if (this.shouldShowAboutRightsNotification(prefs))
@@ -737,6 +746,22 @@ var specialTabs = {
    * Shows the what's new page in a content tab.
    */
   showWhatsNewPage: function onShowWhatsNewPage() {
+    let um = Components.classes["@mozilla.org/updates/update-manager;1"]
+               .getService(Components.interfaces.nsIUpdateManager);
+
+    try {
+      // If the updates.xml file is deleted then getUpdateAt will throw.
+      var update = um.getUpdateAt(0)
+                     .QueryInterface(Components.interfaces.nsIPropertyBag);
+    } catch (x) {
+      Cu.reportError("Unable to find update: " + x);
+      return;
+    }
+
+    let actions = update.getProperty("actions");
+    if (actions && actions.indexOf("silent") != -1)
+      return;
+
     openWhatsNew();
   },
 
@@ -877,7 +902,7 @@ var specialTabs = {
   aboutClickHandler: function aboutClickHandler(aEvent) {
     // Don't handle events that: a) aren't trusted, b) have already been
     // handled or c) aren't left-click.
-    if (!aEvent.isTrusted || aEvent.getPreventDefault() || aEvent.button)
+    if (!aEvent.isTrusted || aEvent.defaultPrevented || aEvent.button)
       return true;
 
     let href = hRefForClickEvent(aEvent, true);
@@ -899,7 +924,7 @@ var specialTabs = {
   defaultClickHandler: function defaultClickHandler(aEvent) {
     // Don't handle events that: a) aren't trusted, b) have already been
     // handled or c) aren't left-click.
-    if (!aEvent.isTrusted || aEvent.getPreventDefault() || aEvent.button)
+    if (!aEvent.isTrusted || aEvent.defaultPrevented || aEvent.button)
       return true;
 
     let href = hRefForClickEvent(aEvent, true);
@@ -936,7 +961,7 @@ var specialTabs = {
   siteClickHandler: function siteClickHandler(aEvent, aSiteRegexp) {
     // Don't handle events that: a) aren't trusted, b) have already been
     // handled or c) aren't left-click.
-    if (!aEvent.isTrusted || aEvent.getPreventDefault() || aEvent.button)
+    if (!aEvent.isTrusted || aEvent.defaultPrevented || aEvent.button)
       return true;
 
     let href = hRefForClickEvent(aEvent, true);
@@ -1419,8 +1444,8 @@ var specialTabs = {
    */
   setTabIcon: function(aTab, aIcon) {
     if (aIcon && this.mFaviconService)
-      this.mFaviconService.setAndLoadFaviconForPage(aTab.browser.currentURI,
-                                                    makeURI(aIcon), false);
+      this.mFaviconService.setAndFetchFaviconForPage(aTab.browser.currentURI,
+                                                     makeURI(aIcon), false);
 
     // Save this off so we know about it later,
     aTab.browser.mIconURL = aIcon;

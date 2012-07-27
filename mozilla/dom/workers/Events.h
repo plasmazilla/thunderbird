@@ -41,10 +41,6 @@
 
 #include "Workers.h"
 
-#include "jspubtd.h"
-#include "nsTArray.h"
-#include "nsCOMPtr.h"
-
 class JSAutoStructuredCloneBuffer;
 
 BEGIN_WORKERS_NAMESPACE
@@ -69,19 +65,19 @@ CreateErrorEvent(JSContext* aCx, JSString* aMessage, JSString* aFilename,
 
 JSObject*
 CreateProgressEvent(JSContext* aCx, JSString* aType, bool aLengthComputable,
-                    jsdouble aLoaded, jsdouble aTotal);
+                    double aLoaded, double aTotal);
 
 bool
-IsSupportedEventClass(JSContext* aCx, JSObject* aEvent);
+IsSupportedEventClass(JSObject* aEvent);
+
+void
+SetEventTarget(JSObject* aEvent, JSObject* aTarget);
 
 bool
-SetEventTarget(JSContext* aCx, JSObject* aEvent, JSObject* aTarget);
+EventWasCanceled(JSObject* aEvent);
 
 bool
-EventWasCanceled(JSContext* aCx, JSObject* aEvent);
-
-bool
-EventImmediatePropagationStopped(JSContext* aCx, JSObject* aEvent);
+EventImmediatePropagationStopped(JSObject* aEvent);
 
 bool
 DispatchEventToTarget(JSContext* aCx, JSObject* aTarget, JSObject* aEvent,
@@ -91,4 +87,4 @@ DispatchEventToTarget(JSContext* aCx, JSObject* aTarget, JSObject* aEvent,
 
 END_WORKERS_NAMESPACE
 
-#endif /* mozilla_dom_workers_events_h__ */
+#endif // mozilla_dom_workers_events_h__

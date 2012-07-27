@@ -1,4 +1,4 @@
-/* -*- Mode: C++; tab-width: 20; indent-tabs-mode: nil; c-basic-offset: 2 -*-
+/* -*- Mode: C++; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*-
  * ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
@@ -78,11 +78,9 @@
 #include "nsIDocShell.h"
 #include "nsIDOMWindow.h"
 #include "nsPIDOMWindow.h"
-#include "nsIDocShell.h"
 #include "nsIDocShellTreeItem.h"
 #include "nsIDocShellTreeNode.h"
 #include "nsIXPConnect.h"
-#include "jsapi.h"
 #include "nsDisplayList.h"
 
 #include "nsTArray.h"
@@ -106,15 +104,21 @@
 #include "nsIMemoryReporter.h"
 #include "nsStyleUtil.h"
 #include "CanvasImageCache.h"
+#include "CheckedInt.h"
 
 #include <algorithm>
-#include "mozilla/dom/ContentParent.h"
-#include "mozilla/ipc/PDocumentRendererParent.h"
-#include "mozilla/dom/PBrowserParent.h"
-#include "mozilla/ipc/DocumentRendererParent.h"
 
+#include "jsapi.h"
+#include "jsfriendapi.h"
+
+#include "mozilla/Assertions.h"
+#include "mozilla/dom/ContentParent.h"
+#include "mozilla/dom/ImageData.h"
+#include "mozilla/dom/PBrowserParent.h"
 #include "mozilla/gfx/2D.h"
 #include "mozilla/gfx/PathHelpers.h"
+#include "mozilla/ipc/DocumentRendererParent.h"
+#include "mozilla/ipc/PDocumentRendererParent.h"
 #include "mozilla/Preferences.h"
 
 #ifdef XP_WIN
@@ -227,6 +231,7 @@ protected:
   nsTArray<GradientStop> mRawStops;
   RefPtr<GradientStops> mStops;
   Type mType;
+  virtual ~nsCanvasGradientAzure() {}
 };
 
 class nsCanvasRadialGradientAzure : public nsCanvasGradientAzure
@@ -287,7 +292,7 @@ NS_INTERFACE_MAP_END
  **/
 #define NS_CANVASPATTERNAZURE_PRIVATE_IID \
     {0xc9bacc25, 0x28da, 0x421e, {0x9a, 0x4b, 0xbb, 0xd6, 0x93, 0x05, 0x12, 0xbc}}
-class nsCanvasPatternAzure : public nsIDOMCanvasPattern
+class nsCanvasPatternAzure MOZ_FINAL : public nsIDOMCanvasPattern
 {
 public:
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_CANVASPATTERNAZURE_PRIVATE_IID)
@@ -401,7 +406,9 @@ public:
   NS_IMETHOD InitializeWithSurface(nsIDocShell *shell, gfxASurface *surface, PRInt32 width, PRInt32 height)
   { return NS_ERROR_NOT_IMPLEMENTED; }
 
-  NS_IMETHOD Render(gfxContext *ctx, gfxPattern::GraphicsFilter aFilter);
+  NS_IMETHOD Render(gfxContext *ctx,
+                    gfxPattern::GraphicsFilter aFilter,
+                    PRUint32 aFlags = RenderFlagPremultAlpha);
   NS_IMETHOD GetInputStream(const char* aMimeType,
                             const PRUnichar* aEncoderOptions,
                             nsIInputStream **aStream);
@@ -442,6 +449,10 @@ public:
   nsresult BezierTo(const Point& aCP1, const Point& aCP2, const Point& aCP3);
 
 protected:
+  nsresult GetImageDataArray(JSContext* aCx, int32_t aX, int32_t aY,
+                             uint32_t aWidth, uint32_t aHeight,
+                             JSObject** aRetval);
+
   nsresult InitializeWithTarget(DrawTarget *surface, PRInt32 width, PRInt32 height);
 
   /**
@@ -1373,7 +1384,7 @@ nsCanvasRenderingContext2DAzure::SetIsIPC(bool isIPC)
 }
 
 NS_IMETHODIMP
-nsCanvasRenderingContext2DAzure::Render(gfxContext *ctx, gfxPattern::GraphicsFilter aFilter)
+nsCanvasRenderingContext2DAzure::Render(gfxContext *ctx, gfxPattern::GraphicsFilter aFilter, PRUint32 aFlags)
 {
   nsresult rv = NS_OK;
 
@@ -1404,6 +1415,14 @@ nsCanvasRenderingContext2DAzure::Render(gfxContext *ctx, gfxPattern::GraphicsFil
 
   if (mOpaque)
       ctx->SetOperator(op);
+
+  if (!(aFlags & RenderFlagPremultAlpha)) {
+      nsRefPtr<gfxASurface> curSurface = ctx->CurrentSurface();
+      nsRefPtr<gfxImageSurface> gis = curSurface->GetAsImageSurface();
+      NS_ABORT_IF_FALSE(gis, "If non-premult alpha, must be able to get image surface!");
+
+      gfxUtils::UnpremultiplyImageSurface(gis);
+  }
 
   return rv;
 }
@@ -1830,8 +1849,6 @@ nsCanvasRenderingContext2DAzure::GetMozFillRule(nsAString& aString)
         aString.AssignLiteral("nonzero"); break;
     case FILL_EVEN_ODD:
         aString.AssignLiteral("evenodd"); break;
-    default:
-        return NS_ERROR_FAILURE;
     }
 
     return NS_OK;
@@ -1956,7 +1973,7 @@ nsCanvasRenderingContext2DAzure::CreatePattern(nsIDOMHTMLElement *image,
   }
 
   // Ignore nsnull cairo surfaces! See bug 666312.
-  if (!res.mSurface->CairoSurface()) {
+  if (!res.mSurface->CairoSurface() || res.mSurface->CairoStatus()) {
     return NS_OK;
   }
 
@@ -2542,6 +2559,7 @@ nsCanvasRenderingContext2DAzure::EnsureWritablePath()
   } else {
     mDSPathBuilder =
       mPath->TransformedCopyToBuilder(mPathToDS, fillRule);
+    mPathTransformWillUpdate = false;
   }
 }
 
@@ -2845,9 +2863,6 @@ nsCanvasRenderingContext2DAzure::GetTextAlign(nsAString& ta)
   case TEXT_ALIGN_CENTER:
     ta.AssignLiteral("center");
     break;
-  default:
-    NS_ERROR("textAlign holds invalid value");
-    return NS_ERROR_FAILURE;
   }
 
   return NS_OK;
@@ -2895,9 +2910,6 @@ nsCanvasRenderingContext2DAzure::GetTextBaseline(nsAString& tb)
   case TEXT_BASELINE_BOTTOM:
     tb.AssignLiteral("bottom");
     break;
-  default:
-    NS_ERROR("textBaseline holds invalid value");
-    return NS_ERROR_FAILURE;
   }
 
   return NS_OK;
@@ -2959,6 +2971,7 @@ struct NS_STACK_CLASS nsCanvasBidiProcessorAzure : public nsBidiPresUtils::BidiP
 
   virtual void SetText(const PRUnichar* text, PRInt32 length, nsBidiDirection direction)
   {
+    mFontgrp->UpdateFontList(); // ensure user font generation is current
     mTextRun = mFontgrp->MakeTextRun(text,
                                      length,
                                      mThebes,
@@ -3035,6 +3048,11 @@ struct NS_STACK_CLASS nsCanvasBidiProcessorAzure : public nsBidiPresUtils::BidiP
 
       RefPtr<ScaledFont> scaledFont =
         gfxPlatform::GetPlatform()->GetScaledFontForFont(font);
+
+      if (!scaledFont) {
+        // This can occur when something switched DirectWrite off.
+        return;
+      }
 
       GlyphBuffer buffer;
 
@@ -3166,9 +3184,9 @@ nsCanvasRenderingContext2DAzure::DrawOrMeasureText(const nsAString& aRawText,
     return NS_ERROR_FAILURE;
   }
 
-  nsIPresShell* presShell = GetPresShell();
+  nsCOMPtr<nsIPresShell> presShell = GetPresShell();
   if (!presShell)
-      return NS_ERROR_FAILURE;
+    return NS_ERROR_FAILURE;
 
   nsIDocument* document = presShell->GetDocument();
 
@@ -3224,15 +3242,15 @@ nsCanvasRenderingContext2DAzure::DrawOrMeasureText(const nsAString& aRawText,
   // bounding boxes before rendering anything
   nsBidi bidiEngine;
   rv = nsBidiPresUtils::ProcessText(textToDraw.get(),
-                                textToDraw.Length(),
-                                isRTL ? NSBIDI_RTL : NSBIDI_LTR,
-                                presShell->GetPresContext(),
-                                processor,
-                                nsBidiPresUtils::MODE_MEASURE,
-                                nsnull,
-                                0,
-                                &totalWidthCoord,
-                                &bidiEngine);
+                                    textToDraw.Length(),
+                                    isRTL ? NSBIDI_RTL : NSBIDI_LTR,
+                                    presShell->GetPresContext(),
+                                    processor,
+                                    nsBidiPresUtils::MODE_MEASURE,
+                                    nsnull,
+                                    0,
+                                    &totalWidthCoord,
+                                    &bidiEngine);
   if (NS_FAILED(rv)) {
     return rv;
   }
@@ -3287,9 +3305,6 @@ nsCanvasRenderingContext2DAzure::DrawOrMeasureText(const nsAString& aRawText,
   case TEXT_BASELINE_BOTTOM:
     anchorY = -fontMetrics.emDescent;
     break;
-  default:
-    NS_ERROR("mTextBaseline holds invalid value");
-    return NS_ERROR_FAILURE;
   }
 
   processor.mPt.y += anchorY;
@@ -3438,8 +3453,6 @@ nsCanvasRenderingContext2DAzure::GetLineCap(nsAString& capstyle)
   case CAP_SQUARE:
     capstyle.AssignLiteral("square");
     break;
-  default:
-    return NS_ERROR_FAILURE;
   }
 
   return NS_OK;
@@ -3999,15 +4012,10 @@ nsCanvasRenderingContext2DAzure::EnsureUnpremultiplyTable() {
 
 
 NS_IMETHODIMP
-nsCanvasRenderingContext2DAzure::GetImageData()
-{
-  /* Should never be called -- GetImageData_explicit is the QS entry point */
-  return NS_ERROR_NOT_IMPLEMENTED;
-}
-
-NS_IMETHODIMP
-nsCanvasRenderingContext2DAzure::GetImageData_explicit(PRInt32 x, PRInt32 y, PRUint32 w, PRUint32 h,
-                                                       PRUint8 *aData, PRUint32 aDataLen)
+nsCanvasRenderingContext2DAzure::GetImageData(double aSx, double aSy,
+                                              double aSw, double aSh,
+                                              JSContext* aCx,
+                                              nsIDOMImageData** aRetval)
 {
   if (!mValid)
     return NS_ERROR_FAILURE;
@@ -4027,33 +4035,96 @@ nsCanvasRenderingContext2DAzure::GetImageData_explicit(PRInt32 x, PRInt32 y, PRU
     return NS_ERROR_DOM_SECURITY_ERR;
   }
 
-  if (w == 0 || h == 0 || aDataLen != w * h * 4)
-    return NS_ERROR_DOM_SYNTAX_ERR;
+  if (!NS_finite(aSx) || !NS_finite(aSy) ||
+      !NS_finite(aSw) || !NS_finite(aSh)) {
+    return NS_ERROR_DOM_NOT_SUPPORTED_ERR;
+  }
 
-  CheckedInt32 rightMost = CheckedInt32(x) + w;
-  CheckedInt32 bottomMost = CheckedInt32(y) + h;
+  if (!aSw || !aSh) {
+    return NS_ERROR_DOM_INDEX_SIZE_ERR;
+  }
 
-  if (!rightMost.valid() || !bottomMost.valid())
+  int32_t x = JS_DoubleToInt32(aSx);
+  int32_t y = JS_DoubleToInt32(aSy);
+  int32_t wi = JS_DoubleToInt32(aSw);
+  int32_t hi = JS_DoubleToInt32(aSh);
+
+  // Handle negative width and height by flipping the rectangle over in the
+  // relevant direction.
+  uint32_t w, h;
+  if (aSw < 0) {
+    w = -wi;
+    x -= w;
+  } else {
+    w = wi;
+  }
+  if (aSh < 0) {
+    h = -hi;
+    y -= h;
+  } else {
+    h = hi;
+  }
+
+  if (w == 0) {
+    w = 1;
+  }
+  if (h == 0) {
+    h = 1;
+  }
+
+  JSObject* array;
+  nsresult rv = GetImageDataArray(aCx, x, y, w, h, &array);
+  NS_ENSURE_SUCCESS(rv, rv);
+  MOZ_ASSERT(array);
+
+  nsRefPtr<ImageData> imageData = new ImageData(w, h, *array);
+  imageData.forget(aRetval);
+  return NS_OK;
+}
+
+nsresult
+nsCanvasRenderingContext2DAzure::GetImageDataArray(JSContext* aCx,
+                                                   int32_t aX,
+                                                   int32_t aY,
+                                                   uint32_t aWidth,
+                                                   uint32_t aHeight,
+                                                   JSObject** aRetval)
+{
+  MOZ_ASSERT(aWidth && aHeight);
+
+  CheckedInt<uint32_t> len = CheckedInt<uint32_t>(aWidth) * aHeight * 4;
+  if (!len.valid()) {
+    return NS_ERROR_DOM_INDEX_SIZE_ERR;
+  }
+
+  CheckedInt<int32_t> rightMost = CheckedInt<int32_t>(aX) + aWidth;
+  CheckedInt<int32_t> bottomMost = CheckedInt<int32_t>(aY) + aHeight;
+
+  if (!rightMost.valid() || !bottomMost.valid()) {
     return NS_ERROR_DOM_SYNTAX_ERR;
+  }
+
+  JSObject* darray = JS_NewUint8ClampedArray(aCx, len.value());
+  if (!darray) {
+    return NS_ERROR_OUT_OF_MEMORY;
+  }
 
   if (mZero) {
+    *aRetval = darray;
     return NS_OK;
   }
 
-  IntRect srcRect(0, 0, mWidth, mHeight);
-  IntRect destRect(x, y, w, h);
+  uint8_t* data = JS_GetUint8ClampedArrayData(darray, aCx);
 
-  if (!srcRect.Contains(destRect)) {
-    // Some data is outside the canvas surface, clear the destination.
-    memset(aData, 0, aDataLen);
-  }
+  IntRect srcRect(0, 0, mWidth, mHeight);
+  IntRect destRect(aX, aY, aWidth, aHeight);
 
   IntRect srcReadRect = srcRect.Intersect(destRect);
   IntRect dstWriteRect = srcReadRect;
-  dstWriteRect.MoveBy(-x, -y);
+  dstWriteRect.MoveBy(-aX, -aY);
 
-  PRUint8 *src = aData;
-  PRUint32 srcStride = w * 4;
+  uint8_t* src = data;
+  uint32_t srcStride = aWidth * 4;
   
   RefPtr<DataSourceSurface> readback;
   if (!srcReadRect.IsEmpty()) {
@@ -4070,10 +4141,10 @@ nsCanvasRenderingContext2DAzure::GetImageData_explicit(PRInt32 x, PRInt32 y, PRU
 
   // NOTE! dst is the same as src, and this relies on reading
   // from src and advancing that ptr before writing to dst.
-  PRUint8 *dst = aData + dstWriteRect.y * (w * 4) + dstWriteRect.x * 4;
+  uint8_t* dst = data + dstWriteRect.y * (aWidth * 4) + dstWriteRect.x * 4;
 
-  for (int j = 0; j < dstWriteRect.height; j++) {
-    for (int i = 0; i < dstWriteRect.width; i++) {
+  for (int32_t j = 0; j < dstWriteRect.height; ++j) {
+    for (int32_t i = 0; i < dstWriteRect.width; ++i) {
       // XXX Is there some useful swizzle MMX we can use here?
 #ifdef IS_LITTLE_ENDIAN
       PRUint8 b = *src++;
@@ -4093,8 +4164,10 @@ nsCanvasRenderingContext2DAzure::GetImageData_explicit(PRInt32 x, PRInt32 y, PRU
       *dst++ = a;
     }
     src += srcStride - (dstWriteRect.width * 4);
-    dst += (w * 4) - (dstWriteRect.width * 4);
+    dst += (aWidth * 4) - (dstWriteRect.width * 4);
   }
+
+  *aRetval = darray;
   return NS_OK;
 }
 

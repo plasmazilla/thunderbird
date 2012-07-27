@@ -183,6 +183,8 @@ public:
     eDOMEvents_beforeresize,
     eDOMEvents_mozfullscreenchange,
     eDOMEvents_mozfullscreenerror,
+    eDOMEvents_mozpointerlockchange,
+    eDOMEvents_mozpointerlockerror,
     eDOMEvents_MozSwipeGesture,
     eDOMEvents_MozMagnifyGestureStart,
     eDOMEvents_MozMagnifyGestureUpdate,
@@ -267,8 +269,7 @@ protected:
 
   nsEvent*                    mEvent;
   nsRefPtr<nsPresContext>     mPresContext;
-  nsCOMPtr<nsIDOMEventTarget> mTmpRealOriginalTarget;
-  nsIDOMEventTarget*          mExplicitOriginalTarget;
+  nsCOMPtr<nsIDOMEventTarget> mExplicitOriginalTarget;
   nsString                    mCachedType;
   bool                        mEventIsInternal;
   bool                        mPrivateDataDuplicated;

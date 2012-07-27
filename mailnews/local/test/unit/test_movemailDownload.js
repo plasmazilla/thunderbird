@@ -34,7 +34,7 @@ function run_test()
                   .getService(Ci.nsIMsgAccountManager);
   var incoming = acctMgr.createIncomingServer("", "", "movemail");
   let workingDir = Services.dirsvc.get("CurWorkD", Ci.nsIFile);
-  let workingDirFile = workingDir.clone().QueryInterface(Ci.nsILocalFile);
+  let workingDirFile = workingDir.clone();
   let fullPath = workingDirFile.path + "/data/movemailspool";
   workingDirFile.initWithPath(fullPath);
   // movemail truncates spool file, so make a copy, and use that

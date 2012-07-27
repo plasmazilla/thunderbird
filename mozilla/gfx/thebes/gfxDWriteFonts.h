@@ -90,6 +90,15 @@ public:
 
     virtual PRInt32 GetGlyphWidth(gfxContext *aCtx, PRUint16 aGID);
 
+    virtual mozilla::TemporaryRef<mozilla::gfx::GlyphRenderingOptions> GetGlyphRenderingOptions();
+
+    virtual void SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf,
+                                     FontCacheSizes*   aSizes) const;
+    virtual void SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf,
+                                     FontCacheSizes*   aSizes) const;
+
+    virtual FontType GetType() const { return FONT_TYPE_DWRITE; }
+
 protected:
     friend class gfxDWriteShaper;
 

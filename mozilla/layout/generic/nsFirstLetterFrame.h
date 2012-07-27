@@ -64,9 +64,11 @@ public:
 #endif
   virtual nsIAtom* GetType() const;
 
+  bool IsFloating() const { return GetStateBits() & NS_FRAME_OUT_OF_FLOW; }
+
   virtual bool IsFrameOfType(PRUint32 aFlags) const
   {
-    if (!GetStyleDisplay()->IsFloating())
+    if (!IsFloating())
       aFlags = aFlags & ~(nsIFrame::eLineParticipant);
     return nsContainerFrame::IsFrameOfType(aFlags &
       ~(nsIFrame::eBidiInlineContainer));
@@ -81,7 +83,7 @@ public:
   virtual nsSize ComputeSize(nsRenderingContext *aRenderingContext,
                              nsSize aCBSize, nscoord aAvailableWidth,
                              nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                             bool aShrinkWrap);
+                             PRUint32 aFlags) MOZ_OVERRIDE;
   NS_IMETHOD Reflow(nsPresContext*          aPresContext,
                     nsHTMLReflowMetrics&     aDesiredSize,
                     const nsHTMLReflowState& aReflowState,

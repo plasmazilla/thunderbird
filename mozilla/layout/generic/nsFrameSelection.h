@@ -91,26 +91,29 @@ enum EWordMovementType { eStartWord, eEndWord, eDefaultBehavior };
  */
 struct NS_STACK_CLASS nsPeekOffsetStruct
 {
-  void SetData(nsSelectionAmount aAmount,
-               nsDirection aDirection,
-               PRInt32 aStartOffset,
-               nscoord aDesiredX,
-               bool aJumpLines,
-               bool aScrollViewStop,
-               bool aIsKeyboardSelect,
-               bool aVisual,
-               EWordMovementType aWordMovementType = eDefaultBehavior)
-
+  nsPeekOffsetStruct(nsSelectionAmount aAmount,
+                     nsDirection aDirection,
+                     PRInt32 aStartOffset,
+                     nscoord aDesiredX,
+                     bool aJumpLines,
+                     bool aScrollViewStop,
+                     bool aIsKeyboardSelect,
+                     bool aVisual,
+                     EWordMovementType aWordMovementType = eDefaultBehavior)
+    : mAmount(aAmount)
+    , mDirection(aDirection)
+    , mStartOffset(aStartOffset)
+    , mDesiredX(aDesiredX)
+    , mWordMovementType(aWordMovementType)
+    , mJumpLines(aJumpLines)
+    , mScrollViewStop(aScrollViewStop)
+    , mIsKeyboardSelect(aIsKeyboardSelect)
+    , mVisual(aVisual)
+    , mResultContent()
+    , mResultFrame(nsnull)
+    , mContentOffset(0)
+    , mAttachForward(false)
   {
-    mAmount = aAmount;
-    mDirection = aDirection;
-    mStartOffset = aStartOffset;
-    mDesiredX = aDesiredX;
-    mJumpLines = aJumpLines;
-    mScrollViewStop = aScrollViewStop;
-    mIsKeyboardSelect = aIsKeyboardSelect;
-    mVisual = aVisual;
-    mWordMovementType = aWordMovementType;
   }
 
   // Note: Most arguments (input and output) are only used with certain values
@@ -530,7 +533,17 @@ public:
    *  by the selection during MouseDown processing. It can be NULL
    *  if the data is no longer valid.
    */
-  nsMouseEvent* GetDelayedCaretData();
+  bool HasDelayedCaretData() { return mDelayedMouseEventValid; }
+  bool IsShiftDownInDelayedCaretData()
+  {
+    NS_ASSERTION(mDelayedMouseEventValid, "No valid delayed caret data");
+    return mDelayedMouseEventIsShift;
+  }
+  PRUint32 GetClickCountInDelayedCaretData()
+  {
+    NS_ASSERTION(mDelayedMouseEventValid, "No valid delayed caret data");
+    return mDelayedMouseEventClickCount;
+  }
 
   /** Get the content node that limits the selection
    *  When searching up a nodes for parents, as in a text edit field
@@ -726,9 +739,8 @@ private:
 #endif
 
   PRInt32 mDesiredX;
-
-  nsMouseEvent mDelayedMouseEvent;
-
+  PRUint32 mDelayedMouseEventClickCount;
+  bool mDelayedMouseEventIsShift;
   bool mDelayedMouseEventValid;
 
   bool mChangesDuringBatching;

@@ -54,19 +54,19 @@ namespace dom {
 
 const PRUint64 kUnknownSize = PRUint64(-1);
 
-NS_IMPL_ADDREF_INHERITED(FileIOObject, nsDOMEventTargetWrapperCache)
-NS_IMPL_RELEASE_INHERITED(FileIOObject, nsDOMEventTargetWrapperCache)
+NS_IMPL_ADDREF_INHERITED(FileIOObject, nsDOMEventTargetHelper)
+NS_IMPL_RELEASE_INHERITED(FileIOObject, nsDOMEventTargetHelper)
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(FileIOObject)
   NS_INTERFACE_MAP_ENTRY(nsITimerCallback)
   NS_INTERFACE_MAP_ENTRY(nsIStreamListener)
   NS_INTERFACE_MAP_ENTRY(nsIRequestObserver)
-NS_INTERFACE_MAP_END_INHERITING(nsDOMEventTargetWrapperCache)
+NS_INTERFACE_MAP_END_INHERITING(nsDOMEventTargetHelper)
 
 NS_IMPL_CYCLE_COLLECTION_CLASS(FileIOObject)
 
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(FileIOObject,
-                                                  nsDOMEventTargetWrapperCache)
+                                                  nsDOMEventTargetHelper)
   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mProgressNotifier)
   NS_CYCLE_COLLECTION_TRAVERSE_EVENT_HANDLER(abort)
   NS_CYCLE_COLLECTION_TRAVERSE_EVENT_HANDLER(error)
@@ -74,7 +74,7 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(FileIOObject,
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(FileIOObject,
-                                                nsDOMEventTargetWrapperCache)
+                                                nsDOMEventTargetHelper)
   NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mProgressNotifier)
   NS_CYCLE_COLLECTION_UNLINK_EVENT_HANDLER(abort)
   NS_CYCLE_COLLECTION_UNLINK_EVENT_HANDLER(error)
@@ -119,13 +119,13 @@ FileIOObject::DispatchError(nsresult rv, nsAString& finalEvent)
   // Set the status attribute, and dispatch the error event
   switch (rv) {
   case NS_ERROR_FILE_NOT_FOUND:
-    mError = new nsDOMFileError(nsIDOMFileError::NOT_FOUND_ERR);
+    mError = DOMError::CreateWithName(NS_LITERAL_STRING("NotFoundError"));
     break;
   case NS_ERROR_FILE_ACCESS_DENIED:
-    mError = new nsDOMFileError(nsIDOMFileError::SECURITY_ERR);
+    mError = DOMError::CreateWithName(NS_LITERAL_STRING("SecurityError"));
     break;
   default:
-    mError = new nsDOMFileError(nsIDOMFileError::NOT_READABLE_ERR);
+    mError = DOMError::CreateWithName(NS_LITERAL_STRING("NotReadableError"));
     break;
   }
 
@@ -258,14 +258,17 @@ FileIOObject::OnStopRequest(nsIRequest* aRequest, nsISupports* aContext,
 NS_IMETHODIMP
 FileIOObject::Abort()
 {
-  if (mReadyState != 1)
+  if (mReadyState != 1) {
+    // XXX The spec doesn't say this
     return NS_ERROR_DOM_FILE_ABORT_ERR;
+  }
 
   ClearProgressEventTimer();
 
   mReadyState = 2; // There are DONE constants on multiple interfaces,
                    // but they all have value 2.
-  mError = new nsDOMFileError(nsIDOMFileError::ABORT_ERR);
+  // XXX The spec doesn't say this
+  mError = DOMError::CreateWithName(NS_LITERAL_STRING("AbortError"));
 
   nsString finalEvent;
   nsresult rv = DoAbort(finalEvent);
@@ -285,7 +288,7 @@ FileIOObject::GetReadyState(PRUint16 *aReadyState)
 }
 
 NS_IMETHODIMP
-FileIOObject::GetError(nsIDOMFileError** aError)
+FileIOObject::GetError(nsIDOMDOMError** aError)
 {
   NS_IF_ADDREF(*aError = mError);
   return NS_OK;

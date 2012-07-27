@@ -291,6 +291,18 @@ function SwitchPage(aIndex)
   document.getElementById("behaviourDeck").selectedIndex = aIndex;
 }
 
+function ReadConcurrentTabs()
+{
+  var val = document.getElementById("browser.sessionstore.max_concurrent_tabs").value;
+  return val != 0 && val != -1 ? 3 : val;
+}
+
+function WriteConcurrentTabs(aValue)
+{
+  return aValue == "0" || aValue == "-1" ? aValue :
+      document.getElementById("maxConcurrentTabs").value;
+}
+
 // platform integration
 
 function ApplySetAsDefaultBrowser()

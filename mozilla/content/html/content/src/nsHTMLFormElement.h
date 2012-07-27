@@ -49,46 +49,12 @@
 #include "nsIURI.h"
 #include "nsIWeakReferenceUtils.h"
 #include "nsPIDOMWindow.h"
-#include "nsUnicharUtils.h"
 #include "nsThreadUtils.h"
 #include "nsInterfaceHashtable.h"
 #include "nsDataHashtable.h"
 
 class nsFormControlList;
 class nsIMutableArray;
-
-/**
- * hashkey wrapper using nsAString KeyType
- *
- * @see nsTHashtable::EntryType for specification
- */
-class nsStringCaseInsensitiveHashKey : public PLDHashEntryHdr
-{
-public:
-  typedef const nsAString& KeyType;
-  typedef const nsAString* KeyTypePointer;
-  nsStringCaseInsensitiveHashKey(KeyTypePointer aStr) : mStr(*aStr) { } //take it easy just deal HashKey 
-  nsStringCaseInsensitiveHashKey(const nsStringCaseInsensitiveHashKey& toCopy) : mStr(toCopy.mStr) { }
-  ~nsStringCaseInsensitiveHashKey() { }
-
-  KeyType GetKey() const { return mStr; }
-  bool KeyEquals(const KeyTypePointer aKey) const
-  {
-    return mStr.Equals(*aKey, nsCaseInsensitiveStringComparator());
-  }
-
-  static KeyTypePointer KeyToPointer(KeyType aKey) { return &aKey; }
-  static PLDHashNumber HashKey(const KeyTypePointer aKey)
-  {
-      nsAutoString tmKey(*aKey);
-      ToLowerCase(tmKey);
-      return HashString(tmKey);
-  }
-  enum { ALLOW_MEMMOVE = true };
-
-private:
-  const nsString mStr;
-};
 
 class nsHTMLFormElement : public nsGenericHTMLElement,
                           public nsIDOMHTMLFormElement,
@@ -151,6 +117,8 @@ public:
   virtual bool GetValueMissingState(const nsAString& aName) const;
   virtual void SetValueMissingState(const nsAString& aName, bool aValue);
 
+  virtual nsEventStates IntrinsicState() const;
+
   // nsIContent
   virtual bool ParseAttribute(PRInt32 aNamespaceID,
                                 nsIAtom* aAttribute,
@@ -174,7 +142,7 @@ public:
                            nsIAtom* aPrefix, const nsAString& aValue,
                            bool aNotify);
   virtual nsresult AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
-                                const nsAString* aValue, bool aNotify);
+                                const nsAttrValue* aValue, bool aNotify);
 
   /**
    * Forget all information about the current submission (and the fact that we

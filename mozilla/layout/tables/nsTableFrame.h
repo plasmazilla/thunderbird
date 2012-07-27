@@ -78,7 +78,7 @@ public:
   // the table part frames, so allow this display element to blow out to our
   // overflow rect. This is also useful for row frames that have spanning
   // cells extending outside them.
-  virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder);
+  virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder, bool* aSnap);
 
   void UpdateForFrameBackground(nsIFrame* aFrame);
 
@@ -244,7 +244,7 @@ public:
   NS_IMETHOD SetInitialChildList(ChildListID     aListID,
                                  nsFrameList&    aChildList);
 
-  virtual nsFrameList GetChildList(ChildListID aListID) const;
+  virtual const nsFrameList& GetChildList(ChildListID aListID) const;
   virtual void GetChildLists(nsTArray<ChildList>* aLists) const;
 
   NS_IMETHOD BuildDisplayList(nsDisplayListBuilder*   aBuilder,
@@ -309,7 +309,7 @@ public:
   virtual nsSize ComputeSize(nsRenderingContext *aRenderingContext,
                              nsSize aCBSize, nscoord aAvailableWidth,
                              nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                             bool aShrinkWrap);
+                             PRUint32 aFlags) MOZ_OVERRIDE;
   virtual nsSize ComputeAutoSize(nsRenderingContext *aRenderingContext,
                                  nsSize aCBSize, nscoord aAvailableWidth,
                                  nsSize aMargin, nsSize aBorder,
@@ -349,7 +349,7 @@ public:
 
   nsFrameList& GetColGroups();
 
-  virtual nsIFrame* GetParentStyleContextFrame();
+  virtual nsIFrame* GetParentStyleContextFrame() const;
 
   /**
    * Get the "type" of the frame
@@ -566,6 +566,10 @@ protected:
       mTableLayoutStrategy;
   }
 
+  // Helper for InsertFrames.
+  void HomogenousInsertFrames(ChildListID     aListID,
+                              nsIFrame*       aPrevFrame,
+                              nsFrameList&    aFrameList);
 private:
   /* Handle a row that got inserted during reflow.  aNewHeight is the
      new height of the table after reflow. */

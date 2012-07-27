@@ -51,6 +51,7 @@
 #include "nsDOMError.h"
 #include "nsGlobalWindow.h"
 #include "nsIContentSecurityPolicy.h"
+#include "nsAlgorithm.h"
 
 static const char kSetIntervalStr[] = "setInterval";
 static const char kSetTimeoutStr[] = "setTimeout";
@@ -75,19 +76,9 @@ public:
     *aLineNo = mLineNo;
   }
 
-  virtual PRUint32 GetScriptTypeID() {
-        return nsIProgrammingLanguage::JAVASCRIPT;
-  }
-  virtual PRUint32 GetScriptVersion() {
-        return mVersion;
-  }
-
   virtual nsIArray *GetArgv() {
     return mArgv;
   }
-  // Called by the timeout mechanism so the secret 'lateness' arg can be
-  // added.
-  virtual void SetLateness(PRIntervalTime aHowLate);
 
   nsresult Init(nsGlobalWindow *aWindow, bool *aIsInterval,
                 PRInt32 *aInterval);
@@ -103,7 +94,7 @@ private:
   nsCString mFileName;
   PRUint32 mLineNo;
   PRUint32 mVersion;
-  nsCOMPtr<nsIArray> mArgv;
+  nsCOMPtr<nsIJSArgArray> mArgv;
 
   // The JS expression to evaluate or function to call, if !mExpr
   JSFlatString *mExpr;
@@ -324,11 +315,13 @@ nsJSScriptTimeoutHandler::Init(nsGlobalWindow *aWindow, bool *aIsInterval,
 
     mFunObj = funobj;
 
-    // Create our arg array - leave an extra slot for a secret final argument
-    // that indicates to the called function how "late" the timeout is.  We
-    // will fill that in when SetLateness is called.
-    nsCOMPtr<nsIArray> array;
-    rv = NS_CreateJSArgv(cx, (argc > 1) ? argc - 1 : argc, nsnull,
+    // Create our arg array.  argc is the number of arguments passed
+    // to setTimeout or setInterval; the first two are our callback
+    // and the delay, so only arguments after that need to go in our
+    // array.
+    nsCOMPtr<nsIJSArgArray> array;
+    // NS_MAX(argc - 2, 0) wouldn't work right because argc is unsigned.
+    rv = NS_CreateJSArgv(cx, NS_MAX(argc, 2u) - 2, nsnull,
                          getter_AddRefs(array));
     if (NS_FAILED(rv)) {
       return NS_ERROR_OUT_OF_MEMORY;
@@ -336,35 +329,22 @@ nsJSScriptTimeoutHandler::Init(nsGlobalWindow *aWindow, bool *aIsInterval,
 
     PRUint32 dummy;
     jsval *jsargv = nsnull;
-    nsCOMPtr<nsIJSArgArray> jsarray(do_QueryInterface(array));
-    jsarray->GetArgs(&dummy, reinterpret_cast<void **>(&jsargv));
+    array->GetArgs(&dummy, reinterpret_cast<void **>(&jsargv));
 
-    // must have worked - we own the impl! :)
-    NS_ASSERTION(jsargv, "No argv!");
-    for (PRInt32 i = 2; (PRUint32)i < argc; ++i) {
-      jsargv[i - 2] = argv[i];
+    // jsargv might be null if we have argc <= 2
+    if (jsargv) {
+      for (PRInt32 i = 2; (PRUint32)i < argc; ++i) {
+        jsargv[i - 2] = argv[i];
+      }
+    } else {
+      NS_ASSERTION(argc <= 2, "Why do we have no jsargv when we have arguments?");
     }
-    // final arg slot remains null, array has rooted vals.
     mArgv = array;
   } else {
     NS_WARNING("No func and no expr - why are we here?");
   }
   *aInterval = interval;
   return NS_OK;
-}
-
-void nsJSScriptTimeoutHandler::SetLateness(PRIntervalTime aHowLate)
-{
-  nsCOMPtr<nsIJSArgArray> jsarray(do_QueryInterface(mArgv));
-  if (jsarray) {
-    PRUint32 argc;
-    jsval *jsargv;
-    nsresult rv = jsarray->GetArgs(&argc, reinterpret_cast<void **>(&jsargv));
-    if (NS_SUCCEEDED(rv) && jsargv && argc)
-      jsargv[argc-1] = INT_TO_JSVAL((jsint) aHowLate);
-  } else {
-    NS_ERROR("How can our argv not handle this?");
-  }
 }
 
 const PRUnichar *

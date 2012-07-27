@@ -97,16 +97,26 @@
 // Define what mechanism the CSS parser uses for parsing the property.
 // See CSSParserImpl::ParseProperty(nsCSSProperty).  Don't use 0 so that
 // we can verify that every property sets one of the values.
+//
+// CSS_PROPERTY_PARSE_FUNCTION must be used for shorthand properties,
+// since it's the only mechanism that allows appending values for
+// separate properties.  Longhand properties that require custom parsing
+// functions should prefer using CSS_PROPERTY_PARSE_VALUE (or
+// CSS_PROPERTY_PARSE_VALUE_LIST) and
+// CSS_PROPERTY_VALUE_PARSER_FUNCTION, though a number of existing
+// longhand properties use CSS_PROPERTY_PARSE_FUNCTION instead.
 #define CSS_PROPERTY_PARSE_PROPERTY_MASK          (7<<9)
 #define CSS_PROPERTY_PARSE_INACCESSIBLE           (1<<9)
 #define CSS_PROPERTY_PARSE_FUNCTION               (2<<9)
 #define CSS_PROPERTY_PARSE_VALUE                  (3<<9)
 #define CSS_PROPERTY_PARSE_VALUE_LIST             (4<<9)
 
-// See CSSParserImpl::ParseSingleValueProperty
+// See CSSParserImpl::ParseSingleValueProperty and comment above
+// CSS_PROPERTY_PARSE_FUNCTION (which is different).
 #define CSS_PROPERTY_VALUE_PARSER_FUNCTION        (1<<12)
-PR_STATIC_ASSERT((CSS_PROPERTY_PARSE_PROPERTY_MASK &
-                  CSS_PROPERTY_VALUE_PARSER_FUNCTION) == 0);
+MOZ_STATIC_ASSERT((CSS_PROPERTY_PARSE_PROPERTY_MASK &
+                   CSS_PROPERTY_VALUE_PARSER_FUNCTION) == 0,
+                  "didn't leave enough room for the parse property constants");
 
 #define CSS_PROPERTY_VALUE_RESTRICTION_MASK       (3<<13)
 // The parser (in particular, CSSParserImpl::ParseSingleValueProperty)
@@ -340,6 +350,7 @@ public:
   static const PRInt32 kBackgroundOriginKTable[];
   static const PRInt32 kBackgroundPositionKTable[];
   static const PRInt32 kBackgroundRepeatKTable[];
+  static const PRInt32 kBackgroundRepeatPartKTable[];
   static const PRInt32 kBackgroundSizeKTable[];
   static const PRInt32 kBorderCollapseKTable[];
   static const PRInt32 kBorderColorKTable[];

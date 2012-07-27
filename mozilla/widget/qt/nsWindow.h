@@ -42,6 +42,7 @@
 #define __nsWindow_h__
 
 #include <QKeyEvent>
+#include <QGestureEvent>
 #include <qgraphicswidget.h>
 #include <QTime>
 
@@ -173,9 +174,7 @@ public:
     NS_IMETHOD         GetHasTransparentBackground(bool& aTransparent);
     NS_IMETHOD         HideWindowChrome(bool aShouldHide);
     NS_IMETHOD         MakeFullScreen(bool aFullScreen);
-    NS_IMETHOD         Invalidate(const nsIntRect &aRect,
-                                  bool          aIsSynchronous);
-    NS_IMETHOD         Update();
+    NS_IMETHOD         Invalidate(const nsIntRect &aRect);
 
     virtual void*      GetNativeData(PRUint32 aDataType);
     NS_IMETHOD         SetTitle(const nsAString& aTitle);
@@ -197,6 +196,7 @@ public:
     NS_IMETHOD_(void) SetInputContext(const InputContext& aContext,
                                       const InputContextAction& aAction);
     NS_IMETHOD_(InputContext) GetInputContext();
+    NS_IMETHOD_(bool)  HasGLContext();
 
     //
     // utility methods
@@ -231,6 +231,7 @@ public:
     NS_IMETHOD         ReparentNativeWidget(nsIWidget* aNewParent);
 
     QWidget* GetViewWidget();
+    virtual PRUint32 GetGLFrameBufferFormat() MOZ_OVERRIDE;
 
 protected:
     nsCOMPtr<nsIWidget> mParent;

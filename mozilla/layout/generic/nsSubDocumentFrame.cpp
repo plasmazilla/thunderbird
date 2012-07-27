@@ -344,7 +344,7 @@ nsSubDocumentFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
   nsRect subdocBoundsInParentUnits =
     mInnerView->GetBounds() + GetOffsetToCrossDoc(aBuilder->ReferenceFrame());
 
-  if (subdocRootFrame && NS_SUCCEEDED(rv)) {
+  if (subdocRootFrame) {
     rv = subdocRootFrame->
            BuildDisplayListForStackingContext(aBuilder, dirty, &childItems);
   }
@@ -379,50 +379,47 @@ nsSubDocumentFrame::BuildDisplayList(nsDisplayListBuilder*   aBuilder,
     }
   }
 
-  if (NS_SUCCEEDED(rv)) {
+  bool addedLayer = false;
 
-    bool addedLayer = false;
+  if (subdocRootFrame && parentAPD != subdocAPD) {
+    NS_WARN_IF_FALSE(!addedLayer,
+                     "Two container layers have been added. "
+                      "Performance may suffer.");
+    addedLayer = true;
 
-    if (subdocRootFrame && parentAPD != subdocAPD) {
-      NS_WARN_IF_FALSE(!addedLayer,
-                       "Two container layers have been added. "
-                       "Performance may suffer.");
-      addedLayer = true;
-
-      nsDisplayZoom* zoomItem =
-        new (aBuilder) nsDisplayZoom(aBuilder, subdocRootFrame, &childItems,
-                                     subdocAPD, parentAPD);
-      childItems.AppendToTop(zoomItem);
-    }
-    
-    if (!addedLayer && presContext->IsRootContentDocument()) {
-      // We always want top level content documents to be in their own layer.
-      nsDisplayOwnLayer* layerItem = new (aBuilder) nsDisplayOwnLayer(
-        aBuilder, subdocRootFrame ? subdocRootFrame : this, &childItems);
-      childItems.AppendToTop(layerItem);
-    }
-
-    if (ShouldClipSubdocument()) {
-      nsDisplayClip* item =
-        new (aBuilder) nsDisplayClip(aBuilder, this, &childItems,
-                                     subdocBoundsInParentUnits);
-      // Clip children to the child root frame's rectangle
-      childItems.AppendToTop(item);
-    }
-
-    if (mIsInline) {
-      WrapReplacedContentForBorderRadius(aBuilder, &childItems, aLists);
-    } else {
-      aLists.Content()->AppendToTop(&childItems);
-    }
+    nsDisplayZoom* zoomItem =
+      new (aBuilder) nsDisplayZoom(aBuilder, subdocRootFrame, &childItems,
+                                   subdocAPD, parentAPD);
+    childItems.AppendToTop(zoomItem);
   }
 
-  // delete childItems in case of OOM
-  childItems.DeleteAll();
+  if (!addedLayer && presContext->IsRootContentDocument()) {
+    // We always want top level content documents to be in their own layer.
+    nsDisplayOwnLayer* layerItem = new (aBuilder) nsDisplayOwnLayer(
+      aBuilder, subdocRootFrame ? subdocRootFrame : this, &childItems);
+    childItems.AppendToTop(layerItem);
+  }
 
   if (subdocRootFrame) {
     aBuilder->LeavePresShell(subdocRootFrame, dirty);
   }
+
+  if (ShouldClipSubdocument()) {
+    nsDisplayClip* item =
+      new (aBuilder) nsDisplayClip(aBuilder, this, &childItems,
+                                   subdocBoundsInParentUnits);
+    // Clip children to the child root frame's rectangle
+    childItems.AppendToTop(item);
+  }
+
+  if (mIsInline) {
+    WrapReplacedContentForBorderRadius(aBuilder, &childItems, aLists);
+  } else {
+    aLists.Content()->AppendToTop(&childItems);
+  }
+
+  // delete childItems in case of OOM
+  childItems.DeleteAll();
 
   return rv;
 }
@@ -550,7 +547,7 @@ nsSubDocumentFrame::ComputeAutoSize(nsRenderingContext *aRenderingContext,
 nsSubDocumentFrame::ComputeSize(nsRenderingContext *aRenderingContext,
                                 nsSize aCBSize, nscoord aAvailableWidth,
                                 nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                                bool aShrinkWrap)
+                                PRUint32 aFlags)
 {
   nsIFrame* subDocRoot = ObtainIntrinsicSizeFrame();
   if (subDocRoot) {
@@ -561,7 +558,7 @@ nsSubDocumentFrame::ComputeSize(nsRenderingContext *aRenderingContext,
                             aCBSize, aMargin, aBorder, aPadding);
   }
   return nsLeafFrame::ComputeSize(aRenderingContext, aCBSize, aAvailableWidth,
-                                  aMargin, aBorder, aPadding, aShrinkWrap);
+                                  aMargin, aBorder, aPadding, aFlags);
 }
 
 NS_IMETHODIMP

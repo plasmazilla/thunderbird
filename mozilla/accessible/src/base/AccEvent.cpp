@@ -44,10 +44,8 @@
 #include "nsApplicationAccessibleWrap.h"
 #include "nsDocAccessible.h"
 #include "nsIAccessibleText.h"
-#ifdef MOZ_XUL
-#include "nsXULTreeAccessible.h"
-#endif
 #include "nsAccEvent.h"
+#include "States.h"
 
 #include "nsIDOMDocument.h"
 #include "nsEventStateManager.h"
@@ -55,6 +53,8 @@
 #ifdef MOZ_XUL
 #include "nsIDOMXULMultSelectCntrlEl.h"
 #endif
+
+using namespace mozilla::a11y;
 
 ////////////////////////////////////////////////////////////////////////////////
 // AccEvent
@@ -101,7 +101,10 @@ AccEvent::GetNode()
 nsDocAccessible*
 AccEvent::GetDocAccessible()
 {
-  nsINode *node = GetNode();
+  if (mAccessible)
+    return mAccessible->Document();
+
+  nsINode* node = GetNode();
   if (node)
     return GetAccService()->GetDocAccessible(node->OwnerDoc());
 
@@ -139,7 +142,7 @@ NS_IMPL_CYCLE_COLLECTION_UNROOT_NATIVE(AccEvent, Release)
 nsAccessible*
 AccEvent::GetAccessibleForNode() const
 {
-  return mNode ? GetAccService()->GetAccessible(mNode) : nsnull;
+  return mNode ? GetAccService()->GetAccessible(mNode, nsnull) : nsnull;
 }
 
 void
@@ -254,6 +257,10 @@ AccTextChangeEvent::
   , mIsInserted(aIsInserted)
   , mModifiedText(aModifiedText)
 {
+  // XXX We should use IsFromUserInput here, but that isn't always correct
+  // when the text change isn't related to content insertion or removal.
+   mIsFromUserInput = mAccessible->State() &
+    (states::FOCUSED | states::EDITABLE);
 }
 
 already_AddRefed<nsAccEvent>
@@ -289,6 +296,14 @@ AccHideEvent::
   mParent = mAccessible->Parent();
   mNextSibling = mAccessible->NextSibling();
   mPrevSibling = mAccessible->PrevSibling();
+}
+
+already_AddRefed<nsAccEvent>
+AccHideEvent::CreateXPCOMObject()
+{
+  nsAccEvent* event = new nsAccHideEvent(this);
+  NS_ADDREF(event);
+  return event;
 }
 
 
@@ -372,3 +387,24 @@ AccTableChangeEvent::CreateXPCOMObject()
   return event;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+// AccVCChangeEvent
+////////////////////////////////////////////////////////////////////////////////
+
+AccVCChangeEvent::
+  AccVCChangeEvent(nsAccessible* aAccessible,
+                   nsIAccessible* aOldAccessible,
+                   PRInt32 aOldStart, PRInt32 aOldEnd) :
+    AccEvent(::nsIAccessibleEvent::EVENT_VIRTUALCURSOR_CHANGED, aAccessible),
+    mOldAccessible(aOldAccessible), mOldStart(aOldStart), mOldEnd(aOldEnd)
+{
+}
+
+already_AddRefed<nsAccEvent>
+AccVCChangeEvent::CreateXPCOMObject()
+{
+  nsAccEvent* event = new nsAccVirtualCursorChangeEvent(this);
+  NS_ADDREF(event);
+  return event;
+}

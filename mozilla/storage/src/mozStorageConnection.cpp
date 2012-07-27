@@ -45,7 +45,6 @@
 
 #include "nsError.h"
 #include "nsIMutableArray.h"
-#include "nsHashSets.h"
 #include "nsAutoPtr.h"
 #include "nsIMemoryReporter.h"
 #include "nsThreadUtils.h"
@@ -678,7 +677,7 @@ Connection::initialize(nsIFile *aDatabaseFile,
                                "PRAGMA cache_size = ");
   cacheSizeQuery.AppendInt(NS_MIN(DEFAULT_CACHE_SIZE_PAGES,
                                   PRInt32(MAX_CACHE_SIZE_BYTES / pageSize)));
-  srv = ::sqlite3_exec(mDBConn, cacheSizeQuery.get(), NULL, NULL, NULL);
+  srv = executeSql(cacheSizeQuery.get());
   if (srv != SQLITE_OK) {
     ::sqlite3_close(mDBConn);
     mDBConn = nsnull;
@@ -878,6 +877,16 @@ Connection::stepStatement(sqlite3_stmt *aStatement)
   bool checkedMainThread = false;
   TimeStamp startTime = TimeStamp::Now();
 
+  // mDBConn may be null if the executing statement has been created and cached
+  // after a call to asyncClose() but before the connection has been nullified
+  // by internalClose().  In such a case closing the connection fails due to
+  // the existence of prepared statements, but mDBConn is set to null
+  // regardless. This usually happens when other tasks using cached statements
+  // are asynchronously scheduled for execution and any of them ends up after
+  // asyncClose. See bug 728653 for details.
+  if (!mDBConn)
+    return SQLITE_MISUSE;
+
   (void)::sqlite3_extended_result_codes(mDBConn, 1);
 
   int srv;
@@ -901,9 +910,16 @@ Connection::stepStatement(sqlite3_stmt *aStatement)
   // Report very slow SQL statements to Telemetry
   TimeDuration duration = TimeStamp::Now() - startTime;
   if (duration.ToMilliseconds() >= Telemetry::kSlowStatementThreshold) {
-    nsDependentCString statementString(::sqlite3_sql(aStatement));
-    Telemetry::RecordSlowSQLStatement(statementString, getFilename(),
-                                      duration.ToMilliseconds());
+    const char *sql = ::sqlite3_sql(aStatement);
+    // FIXME: Try runs have found hard to reproduce crashes where sql is NULL.
+    // It is not clear how can we get a NULL sql statement in here.
+    // sqlite3_prepare_v2 always copies the incoming argument and fails
+    // if it runs out of memory.
+    if (sql) {
+      nsDependentCString statementString(sql);
+      Telemetry::RecordSlowSQLStatement(statementString, getFilename(),
+                                        duration.ToMilliseconds(), false);
+    }
   }
 
   (void)::sqlite3_extended_result_codes(mDBConn, 0);
@@ -954,6 +970,27 @@ Connection::prepareStatement(const nsCString &aSQL,
   (void)::sqlite3_extended_result_codes(mDBConn, 0);
   // Drop off the extended result bits of the result code.
   return srv & 0xFF;
+}
+
+
+int
+Connection::executeSql(const char *aSqlString)
+{
+  if (!mDBConn)
+    return SQLITE_MISUSE;
+
+  TimeStamp startTime = TimeStamp::Now();
+  int srv = ::sqlite3_exec(mDBConn, aSqlString, NULL, NULL, NULL);
+
+  // Report very slow SQL statements to Telemetry
+  TimeDuration duration = TimeStamp::Now() - startTime;
+  if (duration.ToMilliseconds() >= Telemetry::kSlowStatementThreshold) {
+    nsDependentCString statementString(aSqlString);
+    Telemetry::RecordSlowSQLStatement(statementString, getFilename(),
+                                      duration.ToMilliseconds(), true);
+  }
+
+  return srv;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1217,8 +1254,7 @@ Connection::ExecuteSimpleSQL(const nsACString &aSQLStatement)
 {
   if (!mDBConn) return NS_ERROR_NOT_INITIALIZED;
 
-  int srv = ::sqlite3_exec(mDBConn, PromiseFlatCString(aSQLStatement).get(),
-                           NULL, NULL, NULL);
+  int srv = executeSql(PromiseFlatCString(aSQLStatement).get());
   return convertResultCode(srv);
 }
 
@@ -1348,7 +1384,7 @@ Connection::CreateTable(const char *aTableName,
   if (!buf)
     return NS_ERROR_OUT_OF_MEMORY;
 
-  int srv = ::sqlite3_exec(mDBConn, buf, NULL, NULL, NULL);
+  int srv = executeSql(buf);
   ::PR_smprintf_free(buf);
 
   return convertResultCode(srv);

@@ -49,7 +49,6 @@
 #include "XPCWrapper.h"
 #include "XrayWrapper.h"
 #include "FilteringWrapper.h"
-#include "WrapperFactory.h"
 
 #include "jsfriendapi.h"
 
@@ -61,8 +60,7 @@ namespace xpc {
 nsIPrincipal *
 GetCompartmentPrincipal(JSCompartment *compartment)
 {
-    JSPrincipals *prin = JS_GetCompartmentPrincipals(compartment);
-    return prin ? static_cast<nsJSPrincipals *>(prin)->nsIPrincipalPtr : nsnull;
+    return nsJSPrincipals::get(JS_GetCompartmentPrincipals(compartment));
 }
 
 bool
@@ -90,12 +88,25 @@ AccessCheck::isSameOrigin(JSCompartment *a, JSCompartment *b)
 bool
 AccessCheck::isLocationObjectSameOrigin(JSContext *cx, JSObject *wrapper)
 {
+    // The caller must ensure that the given wrapper wraps a Location object.
+    MOZ_ASSERT(WrapperFactory::IsLocationObject(js::UnwrapObject(wrapper)));
+
+    // Location objects are parented to the outer window for which they
+    // were created. This gives us an easy way to determine whether our
+    // object is same origin with the current inner window:
+
+    // Grab the outer window...
     JSObject *obj = js::GetObjectParent(js::UnwrapObject(wrapper));
     if (!js::GetObjectClass(obj)->ext.innerObject) {
+        // ...which might be wrapped in a security wrapper.
         obj = js::UnwrapObject(obj);
         JS_ASSERT(js::GetObjectClass(obj)->ext.innerObject);
     }
+
+    // Now innerize it to find the *current* inner window for our outer.
     obj = JS_ObjectToInnerObject(cx, obj);
+
+    // Which lets us compare the current compartment against the old one.
     return obj &&
            (isSameOrigin(js::GetObjectCompartment(wrapper),
                          js::GetObjectCompartment(obj)) ||
@@ -222,6 +233,10 @@ static nsIPrincipal *
 GetPrincipal(JSObject *obj)
 {
     NS_ASSERTION(!IS_SLIM_WRAPPER(obj), "global object is a slim wrapper?");
+    NS_ASSERTION(js::GetObjectClass(obj)->flags & JSCLASS_IS_GLOBAL,
+                 "Not a global object?");
+    NS_ASSERTION(!(js::GetObjectClass(obj)->flags & JSCLASS_IS_DOMJSCLASS),
+                 "Not sure what we should do with these yet!");
     if (!IS_WN_WRAPPER(obj)) {
         NS_ASSERTION(!(~js::GetObjectClass(obj)->flags &
                        (JSCLASS_PRIVATE_IS_NSISUPPORTS | JSCLASS_HAS_PRIVATE)),
@@ -239,21 +254,7 @@ GetPrincipal(JSObject *obj)
 bool
 AccessCheck::documentDomainMakesSameOrigin(JSContext *cx, JSObject *obj)
 {
-    JSObject *scope = nsnull;
-    JSStackFrame *fp = nsnull;
-    JS_FrameIterator(cx, &fp);
-    if (fp) {
-        while (!JS_IsScriptFrame(cx, fp)) {
-            if (!JS_FrameIterator(cx, &fp))
-                break;
-        }
-
-        if (fp)
-            scope = JS_GetGlobalForFrame(fp);
-    }
-
-    if (!scope)
-        scope = JS_GetGlobalForScopeChain(cx);
+    JSObject *scope = JS_GetScriptedGlobal(cx);
 
     nsIPrincipal *subject;
     nsIPrincipal *object;
@@ -295,6 +296,15 @@ AccessCheck::isCrossOriginAccessPermitted(JSContext *cx, JSObject *wrapper, jsid
 
     JSObject *obj = Wrapper::wrappedObject(wrapper);
 
+    // LocationPolicy checks PUNCTURE first, so we should never get here for
+    // Location wrappers. For all other wrappers interested in cross-origin
+    // semantics, we want to allow puncturing only for the same-origin
+    // document.domain case.
+    if (act == Wrapper::PUNCTURE) {
+        MOZ_ASSERT(!WrapperFactory::IsLocationObject(obj));
+        return documentDomainMakesSameOrigin(cx, obj);
+    }
+
     const char *name;
     js::Class *clasp = js::GetObjectClass(obj);
     NS_ASSERTION(Jsvalify(clasp) != &XrayUtils::HolderClass, "shouldn't have a holder here");
@@ -311,8 +321,13 @@ AccessCheck::isCrossOriginAccessPermitted(JSContext *cx, JSObject *wrapper, jsid
     if (IsWindow(name) && IsFrameId(cx, obj, id))
         return true;
 
-    // We only reach this point for cross origin location objects (see
-    // SameOriginOrCrossOriginAccessiblePropertiesOnly::check).
+    // Do the dynamic document.domain check.
+    //
+    // Location also needs a dynamic access check, but it's a different one, and
+    // we do it in LocationPolicy::check. Before LocationPolicy::check does that
+    // though, it first calls this function to check whether the property is
+    // accessible to anyone regardless of origin. So make sure not to do the
+    // document.domain check in that case.
     if (!IsLocation(name) && documentDomainMakesSameOrigin(cx, obj))
         return true;
 
@@ -335,18 +350,15 @@ AccessCheck::isSystemOnlyAccessPermitted(JSContext *cx)
         return false;
     }
 
+    JSScript *script = nsnull;
     if (!fp) {
-        if (!JS_FrameIterator(cx, &fp)) {
+        if (!JS_DescribeScriptedCaller(cx, &script, nsnull)) {
             // No code at all is running. So we must be arriving here as the result
             // of C++ code asking us to do something. Allow access.
             return true;
         }
-
-        // Some code is running, we can't make the assumption, as above, but we
-        // can't use a native frame, so clear fp.
-        fp = NULL;
-    } else if (!JS_IsScriptFrame(cx, fp)) {
-        fp = NULL;
+    } else if (JS_IsScriptFrame(cx, fp)) {
+        script = JS_GetFrameScript(cx, fp);
     }
 
     bool privileged;
@@ -359,8 +371,8 @@ AccessCheck::isSystemOnlyAccessPermitted(JSContext *cx)
     // cloned into a less privileged context.
     static const char prefix[] = "chrome://global/";
     const char *filename;
-    if (fp &&
-        (filename = JS_GetScriptFilename(cx, JS_GetFrameScript(cx, fp))) &&
+    if (script &&
+        (filename = JS_GetScriptFilename(cx, script)) &&
         !strncmp(filename, prefix, ArrayLength(prefix) - 1)) {
         return true;
     }
@@ -383,8 +395,8 @@ AccessCheck::isScriptAccessOnly(JSContext *cx, JSObject *wrapper)
 {
     JS_ASSERT(js::IsWrapper(wrapper));
 
-    uintN flags;
-    JSObject *obj = js::UnwrapObject(wrapper, &flags);
+    unsigned flags;
+    JSObject *obj = js::UnwrapObject(wrapper, true, &flags);
 
     // If the wrapper indicates script-only access, we are done.
     if (flags & WrapperFactory::SCRIPT_ACCESS_ONLY_FLAG) {
@@ -481,6 +493,10 @@ ExposedPropertiesOnly::check(JSContext *cx, JSObject *wrapper, jsid id, Wrapper:
     if (act == Wrapper::CALL) {
         perm = PermitObjectAccess;
         return true;
+    }
+    if (act == Wrapper::PUNCTURE) {
+        perm = DenyAccess;
+        return false;
     }
 
     perm = DenyAccess;

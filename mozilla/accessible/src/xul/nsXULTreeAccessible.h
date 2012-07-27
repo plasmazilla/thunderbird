@@ -53,35 +53,24 @@ const PRUint32 kDefaultTreeCacheSize = 256;
  * Accessible class for XUL tree element.
  */
 
-#define NS_XULTREEACCESSIBLE_IMPL_CID                   \
-{  /* 2692e149-6176-42ee-b8e1-2c44b04185e3 */           \
-  0x2692e149,                                           \
-  0x6176,                                               \
-  0x42ee,                                               \
-  { 0xb8, 0xe1, 0x2c, 0x44, 0xb0, 0x41, 0x85, 0xe3 }    \
-}
-
 class nsXULTreeAccessible : public nsAccessibleWrap
 {
 public:
   using nsAccessible::GetChildCount;
   using nsAccessible::GetChildAt;
 
-  nsXULTreeAccessible(nsIContent *aContent, nsIWeakReference *aShell);
+  nsXULTreeAccessible(nsIContent* aContent, nsDocAccessible* aDoc);
 
   // nsISupports and cycle collection
   NS_DECL_ISUPPORTS_INHERITED
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(nsXULTreeAccessible,
                                            nsAccessible)
 
-  // nsIAccessible
-  NS_IMETHOD GetValue(nsAString& aValue);
-
   // nsAccessNode
-  virtual bool IsDefunct() const;
   virtual void Shutdown();
 
   // nsAccessible
+  virtual void Value(nsString& aValue);
   virtual mozilla::a11y::role NativeRole();
   virtual PRUint64 NativeState();
   virtual nsAccessible* ChildAtPoint(PRInt32 aX, PRInt32 aY,
@@ -111,8 +100,6 @@ public:
   virtual nsAccessible* ContainerWidget() const;
 
   // nsXULTreeAccessible
-
-  NS_DECLARE_STATIC_IID_ACCESSOR(NS_XULTREEACCESSIBLE_IMPL_CID)
 
   /**
    * Return tree item accessible at the givem row. If accessible doesn't exist
@@ -147,7 +134,7 @@ public:
   /**
    * Invalidates children created for previous tree view.
    */
-  void TreeViewChanged();
+  void TreeViewChanged(nsITreeView* aView);
 
 protected:
   /**
@@ -159,9 +146,6 @@ protected:
   nsCOMPtr<nsITreeView> mTreeView;
   nsAccessibleHashtable mAccessibleCache;
 };
-
-NS_DEFINE_STATIC_IID_ACCESSOR(nsXULTreeAccessible,
-                              NS_XULTREEACCESSIBLE_IMPL_CID)
 
 /**
  * Base class for tree item accessibles.
@@ -180,9 +164,9 @@ class nsXULTreeItemAccessibleBase : public nsAccessibleWrap
 public:
   using nsAccessible::GetParent;
 
-  nsXULTreeItemAccessibleBase(nsIContent *aContent, nsIWeakReference *aShell,
-                              nsAccessible *aParent, nsITreeBoxObject *aTree,
-                              nsITreeView *aTreeView, PRInt32 aRow);
+  nsXULTreeItemAccessibleBase(nsIContent* aContent, nsDocAccessible* aDoc,
+                              nsAccessible* aParent, nsITreeBoxObject* aTree,
+                              nsITreeView* aTreeView, PRInt32 aRow);
 
   // nsISupports and cycle collection
   NS_DECL_ISUPPORTS_INHERITED
@@ -204,7 +188,6 @@ public:
   NS_IMETHOD DoAction(PRUint8 aIndex);
 
   // nsAccessNode
-  virtual bool IsDefunct() const;
   virtual void Shutdown();
   virtual bool IsPrimaryForNode() const;
 
@@ -275,9 +258,9 @@ NS_DEFINE_STATIC_IID_ACCESSOR(nsXULTreeItemAccessibleBase,
 class nsXULTreeItemAccessible : public nsXULTreeItemAccessibleBase
 {
 public:
-  nsXULTreeItemAccessible(nsIContent *aContent, nsIWeakReference *aShell,
-                          nsAccessible *aParent, nsITreeBoxObject *aTree,
-                          nsITreeView *aTreeView, PRInt32 aRow);
+  nsXULTreeItemAccessible(nsIContent* aContent, nsDocAccessible* aDoc,
+                          nsAccessible* aParent, nsITreeBoxObject* aTree,
+                          nsITreeView* aTreeView, PRInt32 aRow);
 
   // nsISupports and cycle collection
   NS_DECL_ISUPPORTS_INHERITED
@@ -287,7 +270,6 @@ public:
   NS_IMETHOD GetName(nsAString& aName);
 
   // nsAccessNode
-  virtual bool IsDefunct() const;
   virtual bool Init();
   virtual void Shutdown();
 
@@ -314,7 +296,7 @@ protected:
 class nsXULTreeColumnsAccessible : public nsXULColumnsAccessible
 {
 public:
-  nsXULTreeColumnsAccessible(nsIContent *aContent, nsIWeakReference *aShell);
+  nsXULTreeColumnsAccessible(nsIContent* aContent, nsDocAccessible* aDoc);
 
 protected:
 
@@ -322,5 +304,15 @@ protected:
   virtual nsAccessible* GetSiblingAtOffset(PRInt32 aOffset,
                                            nsresult *aError = nsnull) const;
 };
+
+////////////////////////////////////////////////////////////////////////////////
+// nsAccessible downcasting method
+
+inline nsXULTreeAccessible*
+nsAccessible::AsXULTree()
+{
+  return IsXULTree() ?
+    static_cast<nsXULTreeAccessible*>(this) : nsnull;
+}
 
 #endif

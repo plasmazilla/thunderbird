@@ -52,6 +52,7 @@ var gEditItemOverlay = {
   _observersAdded: false,
   _staticFoldersListBuilt: false,
   _initialized: false,
+  _titleOverride: null,
 
   // the first field which was edited after this panel was initialized for
   // a certain item
@@ -80,6 +81,8 @@ var gEditItemOverlay = {
       this._hiddenRows.splice(0, this._hiddenRows.length);
     // force-read-only
     this._readOnly = aInfo && aInfo.forceReadOnly;
+    // override title
+    this._titleOverride = aInfo && aInfo.titleOverride;
   },
 
   _showHideRows: function EIO__showHideRows() {
@@ -160,12 +163,13 @@ var gEditItemOverlay = {
     }
     else {
       this._itemId = aFor;
+      // We can't store information on livemarks.
+      if (aFor == -1)
+        this._readOnly = true;
       var containerId = PlacesUtils.bookmarks.getFolderIdForItem(this._itemId);
       this._itemType = PlacesUtils.bookmarks.getItemType(this._itemId);
       if (this._itemType == Components.interfaces.nsINavBookmarksService.TYPE_BOOKMARK) {
         this._uri = PlacesUtils.bookmarks.getBookmarkURI(this._itemId);
-        if (!this._readOnly) // If readOnly wasn't forced through aInfo
-          this._readOnly = PlacesUtils.itemIsLivemark(containerId);
         this._initTextField("keywordField",
                             PlacesUtils.bookmarks
                                        .getKeywordForBookmark(this._itemId));
@@ -175,17 +179,9 @@ var gEditItemOverlay = {
                                                     PlacesUIUtils.LOAD_IN_SIDEBAR_ANNO);
       }
       else {
-        if (!this._readOnly) // If readOnly wasn't forced through aInfo
-          this._readOnly = false;
-
         this._uri = null;
-        this._isLivemark = PlacesUtils.itemIsLivemark(this._itemId);
-        if (this._isLivemark) {
-          var feedURI = PlacesUtils.livemarks.getFeedURI(this._itemId);
-          var siteURI = PlacesUtils.livemarks.getSiteURI(this._itemId);
-          this._initTextField("feedLocationField", feedURI.spec);
-          this._initTextField("siteLocationField", siteURI ? siteURI.spec : "");
-        }
+        this._isLivemark = false;
+        PlacesUtils.livemarks.getLivemark({ id: this._itemId }, this);
       }
 
       // folder picker
@@ -366,6 +362,7 @@ var gEditItemOverlay = {
 
   QueryInterface: function EIO_QueryInterface(aIID) {
     if (aIID.equals(Components.interfaces.nsIDOMEventListener) ||
+        aIID.equals(Components.interfaces.mozILivemarkCallback) ||
         aIID.equals(Components.interfaces.nsINavBookmarkObserver) ||
         aIID.equals(Components.interfaces.nsISupports))
       return this;
@@ -378,6 +375,9 @@ var gEditItemOverlay = {
   },
 
   _getItemStaticTitle: function EIO__getItemStaticTitle() {
+    if (this._titleOverride)
+      return this._titleOverride;
+
     if (this._itemId == -1)
       return PlacesUtils.history.getPageTitle(this._uri);
 
@@ -425,6 +425,8 @@ var gEditItemOverlay = {
     this._multiEdit = false;
     this._firstEditedField = "";
     this._initialized = false;
+    this._readOnly = false;
+    this._titleOverride = null;
   },
 
   onTagsFieldBlur: function EIO_onTagsFieldBlur() {
@@ -454,15 +456,18 @@ var gEditItemOverlay = {
           tagsToAdd.push(tags[i]);
       }
 
-      if (tagsToRemove.length > 0)
-        txns.push(PlacesUIUtils.ptm.untagURI(this._uri, tagsToRemove));
-      if (tagsToAdd.length > 0)
-        txns.push(PlacesUIUtils.ptm.tagURI(this._uri, tagsToAdd));
+      if (tagsToRemove.length > 0) {
+        let untagTxn = new PlacesUntagURITransaction(this._uri, tagsToRemove);
+        txns.push(untagTxn);
+      }
+      if (tagsToAdd.length > 0) {
+        let tagTxn = new PlacesTagURITransaction(this._uri, tagsToAdd);
+        txns.push(tagTxn);
+      }
 
       if (txns.length > 0) {
-        var aggregate = PlacesUIUtils.ptm.aggregateTransactions("Update tags",
-                                                                txns);
-        PlacesUIUtils.ptm.doTransaction(aggregate);
+        let aggregate = new PlacesAggregatedTransaction("Update tags", txns);
+        PlacesUtils.transactionManager.doTransaction(aggregate);
 
         // Ensure the tagsField is in sync, clean it up from empty tags
         var tags = PlacesUtils.tagging.getTagsForURI(this._uri).join(", ");
@@ -514,24 +519,29 @@ var gEditItemOverlay = {
       }
 
       if (tagsToAdd.length > 0) {
-        for (i = 0; i < this._uris.length; i++) {
-          if (tagsToAdd[i].length > 0)
-            txns.push(PlacesUIUtils.ptm.tagURI(this._uris[i], tagsToAdd[i]));
+        for (let i = 0; i < this._uris.length; i++) {
+          if (tagsToAdd[i].length > 0) {
+            let tagTxn = new PlacesTagURITransaction(this._uris[i],
+                                                     tagsToAdd[i]);
+            txns.push(tagTxn);
+          }
         }
       }
       if (tagsToRemove.length > 0) {
-        for (var i = 0; i < this._uris.length; i++)
-          txns.push(PlacesUIUtils.ptm.untagURI(this._uris[i], tagsToRemove));
+        for (let i = 0; i < this._uris.length; i++) {
+          let untagTxn = new PlacesUntagURITransaction(this._uris[i],
+                                                       tagsToRemove);
+          txns.push(untagTxn);
+        }
       }
 
       if (txns.length > 0) {
-        var aggregate = PlacesUIUtils.ptm.aggregateTransactions("Update tags",
-                                                                txns);
-        PlacesUIUtils.ptm.doTransaction(aggregate);
+        let aggregate = new PlacesAggregatedTransaction("Update tags", txns);
+        PlacesUtils.transactionManager.doTransaction(aggregate);
 
         this._allTags = tags;
         this._tags = [];
-        for (i = 0; i < this._uris.length; i++)
+        for (let i = 0; i < this._uris.length; i++)
           this._tags[i] = PlacesUtils.tagging.getTagsForURI(this._uris[i]);
 
         // Ensure the tagsField is in sync, clean it up from empty tags
@@ -547,8 +557,6 @@ var gEditItemOverlay = {
       return;
 
     var namePicker = this._element("namePicker")
-    var txns = [];
-    const ptm = PlacesUIUtils.ptm;
 
     // Here we update either the item title or its cached static title
     var newTitle = namePicker.value;
@@ -559,19 +567,22 @@ var gEditItemOverlay = {
     }
     else if (this._getItemStaticTitle() != newTitle) {
       this._mayUpdateFirstEditField("namePicker");
-      txns.push(ptm.editItemTitle(this._itemId, newTitle));
+      let txn = new PlacesEditItemTitleTransaction(this._itemId, newTitle);
+      PlacesUtils.transactionManager.doTransaction(txn);
     }
-
-    var aggregate = ptm.aggregateTransactions("Edit Item Title", txns);
-    ptm.doTransaction(aggregate);
   },
 
   onDescriptionFieldBlur: function EIO_onDescriptionFieldBlur() {
     var description = this._element("descriptionField").value;
     if (description != PlacesUIUtils.getItemDescription(this._itemId)) {
-      var txn = PlacesUIUtils.ptm
-                             .editItemDescription(this._itemId, description);
-      PlacesUIUtils.ptm.doTransaction(txn);
+      var nsIAnnotationService = Components.interfaces.nsIAnnotationService;
+      var annoObj = { name   : PlacesUIUtils.DESCRIPTION_ANNO,
+                      type   : nsIAnnotationService.TYPE_STRING,
+                      flags  : 0,
+                      value  : description,
+                      expires: nsIAnnotationService.EXPIRE_NEVER };
+      var txn = new PlacesSetItemAnnotationTransaction(this._itemId, annoObj);
+      PlacesUtils.transactionManager.doTransaction(txn);
     }
   },
 
@@ -583,8 +594,8 @@ var gEditItemOverlay = {
     catch(ex) { return; }
 
     if (!this._uri.equals(uri)) {
-      var txn = PlacesUIUtils.ptm.editBookmarkURI(this._itemId, uri);
-      PlacesUIUtils.ptm.doTransaction(txn);
+      var txn = new PlacesEditBookmarkURITransaction(this._itemId, uri);
+      PlacesUtils.transactionManager.doTransaction(txn);
       this._uri = uri;
     }
   },
@@ -592,45 +603,23 @@ var gEditItemOverlay = {
   onKeywordFieldBlur: function EIO_onKeywordFieldBlur() {
     var keyword = this._element("keywordField").value;
     if (keyword != PlacesUtils.bookmarks.getKeywordForBookmark(this._itemId)) {
-      var txn = PlacesUIUtils.ptm.editBookmarkKeyword(this._itemId, keyword);
-      PlacesUIUtils.ptm.doTransaction(txn);
-    }
-  },
-
-  onFeedLocationFieldBlur: function EIO_onFeedLocationFieldBlur() {
-    var uri;
-    try {
-      uri = PlacesUIUtils.createFixedURI(this._element("feedLocationField").value);
-    }
-    catch(ex) { return; }
-
-    var currentFeedURI = PlacesUtils.livemarks.getFeedURI(this._itemId);
-    if (!currentFeedURI.equals(uri)) {
-      var txn = PlacesUIUtils.ptm.editLivemarkFeedURI(this._itemId, uri);
-      PlacesUIUtils.ptm.doTransaction(txn);
-    }
-  },
-
-  onSiteLocationFieldBlur: function EIO_onSiteLocationFieldBlur() {
-    var uri = null;
-    try {
-      uri = PlacesUIUtils.createFixedURI(this._element("siteLocationField").value);
-    }
-    catch(ex) {  }
-
-    var currentSiteURI = PlacesUtils.livemarks.getSiteURI(this._itemId);
-    if (!uri || !currentSiteURI.equals(uri)) {
-      var txn = PlacesUIUtils.ptm.editLivemarkSiteURI(this._itemId, uri);
-      PlacesUIUtils.ptm.doTransaction(txn);
+      var txn = new PlacesEditBookmarkKeywordTransaction(this._itemId, keyword);
+      PlacesUtils.transactionManager.doTransaction(txn);
     }
   },
 
   onLoadInSidebarCheckboxCommand:
   function EIO_onLoadInSidebarCheckboxCommand() {
+    var nsIAnnotationService = Components.interfaces.nsIAnnotationService;
     var loadInSidebarChecked = this._element("loadInSidebarCheckbox").checked;
-    var txn = PlacesUIUtils.ptm.setLoadInSidebar(this._itemId,
-                                                 loadInSidebarChecked);
-    PlacesUIUtils.ptm.doTransaction(txn);
+    var annoObj = { name   : PlacesUIUtils.LOAD_IN_SIDEBAR_ANNO,
+                    type   : nsIAnnotationService.TYPE_INT32,
+                    flags  : 0,
+                    value  : loadInSidebarChecked,
+                    expires: nsIAnnotationService.EXPIRE_NEVER };
+    var txn = new PlacesSetItemAnnotationTransaction(this._itemId,
+                                                     annoObj);
+    PlacesUtils.transactionManager.doTransaction(txn);
   },
 
   toggleFolderTreeVisibility: function EIO_toggleFolderTreeVisibility() {
@@ -718,8 +707,10 @@ var gEditItemOverlay = {
     // Move the item
     var container = this._getFolderIdFromMenuList();
     if (PlacesUtils.bookmarks.getFolderIdForItem(this._itemId) != container) {
-      var txn = PlacesUIUtils.ptm.moveItem(this._itemId, container, -1);
-      PlacesUIUtils.ptm.doTransaction(txn);
+      var txn = new PlacesMoveItemTransaction(this._itemId,
+                                              container,
+                                              PlacesUtils.bookmarks.DEFAULT_INDEX);
+      PlacesUtils.transactionManager.doTransaction(txn);
 
       // Mark the containing folder as recently-used if it isn't in the
       // static list
@@ -766,15 +757,17 @@ var gEditItemOverlay = {
     var anno = this._getLastUsedAnnotationObject(false);
     while (this._recentFolders.length > MAX_FOLDER_ITEM_IN_MENU_LIST) {
       var folderId = this._recentFolders.pop().folderId;
-      txns.push(PlacesUIUtils.ptm.setItemAnnotation(folderId, anno));
+      let annoTxn = new PlacesSetItemAnnotationTransaction(folderId, anno);
+      txns.push(annoTxn);
     }
 
     // Mark folder as recently used
     anno = this._getLastUsedAnnotationObject(true);
-    txns.push(PlacesUIUtils.ptm.setItemAnnotation(aFolderId, anno));
+    let annoTxn = new PlacesSetItemAnnotationTransaction(aFolderId, anno);
+    txns.push(annoTxn);
 
-    var aggregate = PlacesUIUtils.ptm.aggregateTransactions("Update last used folders", txns);
-    PlacesUIUtils.ptm.doTransaction(aggregate);
+    let aggregate = new PlacesAggregatedTransaction("Update last used folders", txns);
+    PlacesUtils.transactionManager.doTransaction(aggregate);
   },
 
   /**
@@ -866,8 +859,8 @@ var gEditItemOverlay = {
 
     // XXXmano: add a separate "New Folder" string at some point...
     var defaultLabel = this._element("newFolderButton").label;
-    var txn = PlacesUIUtils.ptm.createFolder(defaultLabel, ip.itemId, ip.index);
-    PlacesUIUtils.ptm.doTransaction(txn);
+    var txn = new PlacesCreateFolderTransaction(defaultLabel, ip.itemId, ip.index);
+    PlacesUtils.transactionManager.doTransaction(txn);
     this._folderTree.focus();
     this._folderTree.selectItems([this._lastNewItem]);
     this._folderTree.startEditing(this._folderTree.view.selection.currentIndex,
@@ -896,6 +889,17 @@ var gEditItemOverlay = {
     case "unload":
       this.uninitPanel(false);
       break;
+    }
+  },
+
+  // mozILivemarkCallback
+  onCompletion: function EIO_onCompletion(aStatus, aLivemark) {
+    if (Components.isSuccessCode(aStatus)) {
+      this._isLivemark = true;
+      this._initTextField("feedLocationField", aLivemark.feedURI.spec, true);
+      this._initTextField("siteLocationField",
+                          aLivemark.siteURI ? aLivemark.siteURI.spec : "", true);
+      this._showHideRows();
     }
   },
 
@@ -996,15 +1000,17 @@ var gEditItemOverlay = {
                                                   PlacesUIUtils.LOAD_IN_SIDEBAR_ANNO);
       break;
     case PlacesUtils.LMANNO_FEEDURI:
-      var feedURISpec = PlacesUtils.livemarks.getFeedURI(this._itemId).spec;
-      this._initTextField("feedLocationField", feedURISpec);
+      var feedURISpec = PlacesUtils.annotations.getItemAnnotation(this._itemId,
+                        PlacesUtils.LMANNO_FEEDURI);
+      this._initTextField("feedLocationField", feedURISpec, true);
       break;
     case PlacesUtils.LMANNO_SITEURI:
       var siteURISpec = "";
-      var siteURI = PlacesUtils.livemarks.getSiteURI(this._itemId);
-      if (siteURI)
-        siteURISpec = siteURI.spec;
-      this._initTextField("siteLocationField", siteURISpec);
+      try {
+        siteURISpec = PlacesUtils.annotations.getItemAnnotation(this._itemId,
+                      PlacesUtils.LMANNO_SITEURI);
+      } catch (e) {}
+      this._initTextField("siteLocationField", siteURISpec, true);
       break;
     }
   },

@@ -69,8 +69,9 @@ interface nsIDOMBlob;
 interface nsIDOMFile;
 interface nsIFile;
 interface nsIDOMTouch;
+interface nsIDOMClientRect;
 
-[scriptable, uuid(401b9315-c562-4066-a15c-7feb7ad5bb47)]
+[scriptable, uuid(2b3ac53c-2a88-421f-af09-f10665c88acf)]
 interface nsIDOMWindowUtils : nsISupports {
 
   /**
@@ -188,6 +189,15 @@ interface nsIDOMWindowUtils : nsISupports {
    * privileges.
    */
   void setResolution(in float aXResolution, in float aYResolution);
+
+  /**
+   * Whether the next paint should be flagged as the first paint for a document.
+   * This gives a way to track the next paint that occurs after the flag is
+   * set. The flag gets cleared after the next paint.
+   *
+   * Can only be accessed with UniversalXPConnect privileges.
+   */
+  attribute boolean isFirstPaint;
 
   /** Synthesize a mouse event. The event types supported are:
    *    mousedown, mouseup, mousemove, mouseover, mouseout, contextmenu
@@ -360,6 +370,52 @@ interface nsIDOMWindowUtils : nsISupports {
                             in nsIDOMElement aElement);
 
   /**
+   * See nsIWidget::SynthesizeNativeMouseScrollEvent
+   *
+   * Will be called on the widget that contains aElement.
+   * Cannot be accessed from unprivileged context (not content-accessible)
+   * Will throw a DOM security error if called without UniversalXPConnect
+   * privileges.
+   *
+   * NOTE: The synthesized native event may be fired asynchronously.
+   *
+   * @param aNativeMessage
+   *   On Windows:  WM_MOUSEWHEEL (0x020A), WM_MOUSEHWHEEL(0x020E),
+   *                WM_VSCROLL (0x0115) or WM_HSCROLL (0x114).
+   */
+  void sendNativeMouseScrollEvent(in long aScreenX,
+                                  in long aScreenY,
+                                  in unsigned long aNativeMessage,
+                                  in double aDeltaX,
+                                  in double aDeltaY,
+                                  in double aDeltaZ,
+                                  in unsigned long aModifierFlags,
+                                  in unsigned long aAdditionalFlags,
+                                  in nsIDOMElement aElement);
+
+  /**
+   * The values of aAdditionalFlags.
+   */
+
+  /**
+   * If MOUSESCROLL_PREFER_WIDGET_AT_POINT is set, widget will dispatch
+   * the event to a widget which is under the cursor.  Otherwise, dispatch to
+   * a default target on the platform.  E.g., on Windows, it's focused window.
+   */
+  const unsigned long MOUSESCROLL_PREFER_WIDGET_AT_POINT = 0x00000001;
+
+  /**
+   * The platform specific values of aAdditionalFlags.  Must be over 0x00010000.
+   */
+
+  /**
+   * If MOUSESCROLL_WIN_SCROLL_LPARAM_NOT_NULL is set and aNativeMessage is
+   * WM_VSCROLL or WM_HSCROLL, widget will set the window handle to the lParam
+   * instead of NULL.
+   */
+  const unsigned long MOUSESCROLL_WIN_SCROLL_LPARAM_NOT_NULL = 0x00010000;
+
+  /**
    * See nsIWidget::ActivateNativeMenuItemAt
    *
    * Cannot be accessed from unprivileged context (not content-accessible)
@@ -431,12 +487,6 @@ interface nsIDOMWindowUtils : nsISupports {
    */
   void cycleCollect([optional] in nsICycleCollectorListener aListener,
                     [optional] in long aExtraForgetSkippableCalls);
-
-  /**
-   * Force processing of any queued paints
-   */
-
-  void processUpdates();
 
   /** Synthesize a simple gesture event for a window. The event types
    *  supported are: MozSwipeGesture, MozMagnifyGestureStart,
@@ -545,6 +595,13 @@ interface nsIDOMWindowUtils : nsISupports {
    * @see nsIDOMWindow::scrollX/Y
    */
   void getScrollXY(in boolean aFlushLayout, out long aScrollX, out long aScrollY);
+
+  /**
+   * Returns the bounds of the window's currently loaded document. This will
+   * generally be (0, 0, pageWidth, pageHeight) but in some cases (e.g. RTL
+   * documents) may have a negative left value.
+   */
+  nsIDOMClientRect getRootBounds();
 
   /**
    * Get IME open state. TRUE means 'Open', otherwise, 'Close'.
@@ -999,6 +1056,12 @@ interface nsIDOMWindowUtils : nsISupports {
                             [optional] out long aSliceRefCnt);
 
   /**
+   * Return whether incremental GC has been disabled due to a binary add-on.
+   */
+  [implicit_jscontext]
+  boolean isIncrementalGCEnabled();
+
+  /**
    * Begin opcode-level profiling of all JavaScript execution in the window's
    * runtime.
    */
@@ -1044,4 +1107,23 @@ interface nsIDOMWindowUtils : nsISupports {
    * otherwise.
    */
   readonly attribute boolean paintingSuppressed;
+
+  /**
+   * Returns an array of plugins on the page for opt-in activation.
+   *
+   * Cannot be accessed from unprivileged context (not content-accessible).
+   * Will throw a DOM security error if called without UniversalXPConnect
+   * privileges.
+   *
+   */
+  [implicit_jscontext]
+  readonly attribute jsval plugins;
+
+  /**
+   * Set the scrollport size for the purposes of clamping scroll positions for
+   * the root scroll frame of this document to be (aWidth,aHeight) in CSS pixels.
+   *
+   * The caller of this method must have UniversalXPConnect privileges.
+   */
+  void setScrollPositionClampingScrollPortSize(in float aWidth, in float aHeight);
 };

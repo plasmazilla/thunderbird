@@ -8,7 +8,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-const TESTS_PATH = "http://example.com/browser/browser/devtools/webconsole/test//";
+const TESTS_PATH = "http://example.com/browser/browser/devtools/webconsole/test/";
 const TESTS = [
   { // #0
     file: "test-bug-595934-css-loader.html",
@@ -195,7 +195,7 @@ function test() {
   Services.prefs.setBoolPref("devtools.gcli.enable", false);
   registerCleanupFunction(testEnd);
 
-  addTab("data:text/html,Web Console test for bug 595934 - message categories coverage.");
+  addTab("data:text/html;charset=utf-8,Web Console test for bug 595934 - message categories coverage.");
   browser.addEventListener("load", tabLoad, true);
 }
 

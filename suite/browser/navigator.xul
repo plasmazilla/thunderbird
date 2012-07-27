@@ -162,7 +162,8 @@
 
     <menupopup id="popupBlockerMenu"
                oncommand="popupBlockerMenuCommand(event.target);"
-               onpopupshowing="return popupBlockerMenuShowing(event)"/>
+               onpopupshowing="return popupBlockerMenuShowing(event);"
+               onpopuphiding="RemovePopupsItems(this);"/>
     <!-- Items are generated, see popupBlockerMenuShowing() -->
     <menupopup id="popupNotificationMenu"/>
     <menupopup id="networkProperties"/>
@@ -308,6 +309,7 @@
             <image id="addons-notification-icon" class="notification-anchor-icon" role="button"/>
             <image id="indexedDB-notification-icon" class="notification-anchor-icon" role="button"/>
             <image id="password-notification-icon" class="notification-anchor-icon" role="button"/>
+            <image id="plugins-notification-icon" class="notification-anchor-icon" role="button"/>
           </box>
           <deck id="page-proxy-deck"
                 class="urlbar-icons"

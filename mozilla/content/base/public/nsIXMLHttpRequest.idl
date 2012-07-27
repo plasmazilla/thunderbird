@@ -111,7 +111,7 @@ interface nsIXMLHttpRequestUpload : nsIXMLHttpRequestEventTarget {
  * you're aware of all the security implications.  And then think twice about
  * it.
  */
-[scriptable, uuid(88ffc45a-22e2-44f4-9a6e-f4586fbde376)]
+[scriptable, uuid(8681ffbc-4755-45de-9fc1-b63e6930e76a)]
 interface nsIXMLHttpRequest : nsISupports
 {
   /**
@@ -161,19 +161,20 @@ interface nsIXMLHttpRequest : nsISupports
   /**
    * The status of the response to the request for HTTP requests.
    */
+  // XXX spec says unsigned short
   readonly attribute unsigned long status;
 
   /**
    * The string representing the status of the response for
    * HTTP requests.
    */
-  readonly attribute AUTF8String statusText;
+  readonly attribute DOMString statusText;
 
   /**
    * If the request has been sent already, this method will
    * abort the request.
    */
-  void   abort();
+  [binaryname(SlowAbort)] void abort();
 
   /**
    * Returns all of the response headers as a string for HTTP
@@ -183,9 +184,9 @@ interface nsIXMLHttpRequest : nsISupports
    * part of a multipart request, not from the original channel.
    *
    * @returns A string containing all of the response headers.
-   *          NULL if the response has not yet been received.
+   *          The empty string if the response has not yet been received.
    */
-  string getAllResponseHeaders();
+  DOMString getAllResponseHeaders();
 
   /**
    * Returns the text of the header with the specified name for
@@ -259,7 +260,7 @@ interface nsIXMLHttpRequest : nsISupports
    *             Type header via the setRequestHeader method before
    *             calling send.
    */
-  void   send([optional] in nsIVariant body);
+  [implicit_jscontext] void   send([optional] in nsIVariant body);
 
   /**
    * A variant of the send() method used to send binary data.
@@ -268,7 +269,7 @@ interface nsIXMLHttpRequest : nsISupports
    *             converted to a single-byte string by truncation (i.e., the
    *             high-order byte of each character will be discarded).
    */
-  void   sendAsBinary(in DOMString body);
+  [implicit_jscontext] void   sendAsBinary(in DOMString body);
 
   /**
    * Sets a HTTP request header for HTTP requests. You must call open
@@ -312,7 +313,7 @@ interface nsIXMLHttpRequest : nsISupports
    * @param mimetype The type used to override that returned by the server
    *                 (if any).
    */
-  void   overrideMimeType(in AUTF8String mimetype);
+  [binaryname(SlowOverrideMimeType)] void overrideMimeType(in DOMString mimetype);
 
   /**
    * Set to true if the response is expected to be a stream of

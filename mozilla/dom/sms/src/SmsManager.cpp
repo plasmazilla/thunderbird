@@ -68,14 +68,14 @@ namespace sms {
 NS_IMPL_CYCLE_COLLECTION_CLASS(SmsManager)
 
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN_INHERITED(SmsManager,
-                                                  nsDOMEventTargetWrapperCache)
+                                                  nsDOMEventTargetHelper)
   NS_CYCLE_COLLECTION_TRAVERSE_EVENT_HANDLER(received)
   NS_CYCLE_COLLECTION_TRAVERSE_EVENT_HANDLER(sent)
   NS_CYCLE_COLLECTION_TRAVERSE_EVENT_HANDLER(delivered)
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
 
 NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN_INHERITED(SmsManager,
-                                                nsDOMEventTargetWrapperCache)
+                                                nsDOMEventTargetHelper)
   NS_CYCLE_COLLECTION_UNLINK_EVENT_HANDLER(received)
   NS_CYCLE_COLLECTION_UNLINK_EVENT_HANDLER(sent)
   NS_CYCLE_COLLECTION_UNLINK_EVENT_HANDLER(delivered)
@@ -83,19 +83,18 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 
 NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION_INHERITED(SmsManager)
   NS_INTERFACE_MAP_ENTRY(nsIDOMMozSmsManager)
+  NS_INTERFACE_MAP_ENTRY(nsIObserver)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMMozSmsManager)
   NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(MozSmsManager)
-NS_INTERFACE_MAP_END_INHERITING(nsDOMEventTargetWrapperCache)
+NS_INTERFACE_MAP_END_INHERITING(nsDOMEventTargetHelper)
 
-NS_IMPL_ADDREF_INHERITED(SmsManager, nsDOMEventTargetWrapperCache)
-NS_IMPL_RELEASE_INHERITED(SmsManager, nsDOMEventTargetWrapperCache)
+NS_IMPL_ADDREF_INHERITED(SmsManager, nsDOMEventTargetHelper)
+NS_IMPL_RELEASE_INHERITED(SmsManager, nsDOMEventTargetHelper)
 
 void
-SmsManager::Init(nsPIDOMWindow *aWindow, nsIScriptContext* aScriptContext)
+SmsManager::Init(nsPIDOMWindow *aWindow)
 {
-  // Those vars come from nsDOMEventTargetHelper.
-  mOwner = aWindow;
-  mScriptContext = aScriptContext;
+  BindToOwner(aWindow);
 
   nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
   // GetObserverService() can return null is some situations like shutdown.
@@ -145,17 +144,22 @@ SmsManager::Send(JSContext* aCx, JSObject* aGlobal, JSString* aNumber,
 
   nsCOMPtr<nsIDOMMozSmsRequest> request;
 
-  int requestId =
-    SmsRequestManager::GetInstance()->CreateRequest(mOwner, mScriptContext,
-                                                    getter_AddRefs(request));
-  NS_ASSERTION(request, "The request object must have been created!");
+  nsCOMPtr<nsISmsRequestManager> requestManager = do_GetService(SMS_REQUEST_MANAGER_CONTRACTID);
+
+  PRInt32 requestId;
+  nsresult rv = requestManager->CreateRequest(this, getter_AddRefs(request),
+                                              &requestId);
+  if (NS_FAILED(rv)) {
+    NS_ERROR("Failed to create the request!");
+    return rv;
+  }
 
   nsDependentJSString number;
   number.init(aCx, aNumber);
 
   smsService->Send(number, aMessage, requestId, 0);
 
-  nsresult rv = nsContentUtils::WrapNative(aCx, aGlobal, request, aRequest);
+  rv = nsContentUtils::WrapNative(aCx, aGlobal, request, aRequest);
   if (NS_FAILED(rv)) {
     NS_ERROR("Failed to create the js value!");
     return rv;
@@ -167,7 +171,10 @@ SmsManager::Send(JSContext* aCx, JSObject* aGlobal, JSString* aNumber,
 NS_IMETHODIMP
 SmsManager::Send(const jsval& aNumber, const nsAString& aMessage, jsval* aReturn)
 {
-  JSContext* cx = mScriptContext->GetNativeContext();
+  nsresult rv;
+  nsIScriptContext* sc = GetContextForEventHandlers(&rv);
+  NS_ENSURE_STATE(sc);
+  JSContext* cx = sc->GetNativeContext();
   NS_ASSERTION(cx, "Failed to get a context!");
 
   if (!aNumber.isString() &&
@@ -175,7 +182,7 @@ SmsManager::Send(const jsval& aNumber, const nsAString& aMessage, jsval* aReturn
     return NS_ERROR_INVALID_ARG;
   }
 
-  JSObject* global = mScriptContext->GetNativeGlobal();
+  JSObject* global = sc->GetNativeGlobal();
   NS_ASSERTION(global, "Failed to get global object!");
 
   JSAutoRequest ar(cx);
@@ -192,12 +199,12 @@ SmsManager::Send(const jsval& aNumber, const nsAString& aMessage, jsval* aReturn
   // Must be an array then.
   JSObject& numbers = aNumber.toObject();
 
-  jsuint size;
+  uint32_t size;
   JS_ALWAYS_TRUE(JS_GetArrayLength(cx, &numbers, &size));
 
   jsval* requests = new jsval[size];
 
-  for (jsuint i=0; i<size; ++i) {
+  for (uint32_t i=0; i<size; ++i) {
     jsval number;
     if (!JS_GetElement(cx, &numbers, i, &number)) {
       return NS_ERROR_INVALID_ARG;
@@ -216,9 +223,14 @@ SmsManager::Send(const jsval& aNumber, const nsAString& aMessage, jsval* aReturn
 NS_IMETHODIMP
 SmsManager::GetMessageMoz(PRInt32 aId, nsIDOMMozSmsRequest** aRequest)
 {
-  int requestId =
-    SmsRequestManager::GetInstance()->CreateRequest(mOwner, mScriptContext, aRequest);
-  NS_ASSERTION(*aRequest, "The request object must have been created!");
+  nsCOMPtr<nsISmsRequestManager> requestManager = do_GetService(SMS_REQUEST_MANAGER_CONTRACTID);
+
+  PRInt32 requestId;
+  nsresult rv = requestManager->CreateRequest(this, aRequest, &requestId);
+  if (NS_FAILED(rv)) {
+    NS_ERROR("Failed to create the request!");
+    return rv;
+  }
 
   nsCOMPtr<nsISmsDatabaseService> smsDBService =
     do_GetService(SMS_DATABASE_SERVICE_CONTRACTID);
@@ -232,9 +244,14 @@ SmsManager::GetMessageMoz(PRInt32 aId, nsIDOMMozSmsRequest** aRequest)
 nsresult
 SmsManager::Delete(PRInt32 aId, nsIDOMMozSmsRequest** aRequest)
 {
-  int requestId =
-    SmsRequestManager::GetInstance()->CreateRequest(mOwner, mScriptContext, aRequest);
-  NS_ASSERTION(*aRequest, "The request object must have been created!");
+  nsCOMPtr<nsISmsRequestManager> requestManager = do_GetService(SMS_REQUEST_MANAGER_CONTRACTID);
+
+  PRInt32 requestId;
+  nsresult rv = requestManager->CreateRequest(this, aRequest, &requestId);
+  if (NS_FAILED(rv)) {
+    NS_ERROR("Failed to create the request!");
+    return rv;
+  }
 
   nsCOMPtr<nsISmsDatabaseService> smsDBService =
     do_GetService(SMS_DATABASE_SERVICE_CONTRACTID);
@@ -256,9 +273,12 @@ SmsManager::Delete(const jsval& aParam, nsIDOMMozSmsRequest** aRequest)
     return NS_ERROR_INVALID_ARG;
   }
 
+  nsresult rv;
+  nsIScriptContext* sc = GetContextForEventHandlers(&rv);
+  NS_ENSURE_STATE(sc);
   nsCOMPtr<nsIDOMMozSmsMessage> message =
     do_QueryInterface(nsContentUtils::XPConnect()->GetNativeOfWrapper(
-          mScriptContext->GetNativeContext(), &aParam.toObject()));
+          sc->GetNativeContext(), &aParam.toObject()));
   NS_ENSURE_TRUE(message, NS_ERROR_INVALID_ARG);
 
   PRInt32 id;
@@ -277,9 +297,15 @@ SmsManager::GetMessages(nsIDOMMozSmsFilter* aFilter, bool aReverse,
     filter = new SmsFilter();
   }
 
-  int requestId =
-    SmsRequestManager::GetInstance()->CreateRequest(mOwner, mScriptContext, aRequest);
-  NS_ASSERTION(*aRequest, "The request object must have been created!");
+  nsCOMPtr<nsISmsRequestManager> requestManager = do_GetService(SMS_REQUEST_MANAGER_CONTRACTID);
+
+  PRInt32 requestId;
+  nsresult rv = requestManager->CreateRequest(this, aRequest,
+                                              &requestId);
+  if (NS_FAILED(rv)) {
+    NS_ERROR("Failed to create the request!");
+    return rv;
+  }
 
   nsCOMPtr<nsISmsDatabaseService> smsDBService =
     do_GetService(SMS_DATABASE_SERVICE_CONTRACTID);

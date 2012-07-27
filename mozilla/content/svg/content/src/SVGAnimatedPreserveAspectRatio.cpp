@@ -250,7 +250,8 @@ SVGAnimatedPreserveAspectRatio::SetBaseValueString(
 }
 
 void
-SVGAnimatedPreserveAspectRatio::GetBaseValueString(nsAString & aValueAsString)
+SVGAnimatedPreserveAspectRatio::GetBaseValueString(
+  nsAString& aValueAsString) const
 {
   nsAutoString tmpString;
 
@@ -276,12 +277,17 @@ nsresult
 SVGAnimatedPreserveAspectRatio::SetBaseAlign(PRUint16 aAlign,
                                              nsSVGElement *aSVGElement)
 {
+  if (mIsBaseSet && mBaseVal.GetAlign() == aAlign) {
+    return NS_OK;
+  }
+
+  nsAttrValue emptyOrOldValue = aSVGElement->WillChangePreserveAspectRatio();
   nsresult rv = mBaseVal.SetAlign(aAlign);
   NS_ENSURE_SUCCESS(rv, rv);
   mIsBaseSet = true;
 
   mAnimVal.mAlign = mBaseVal.mAlign;
-  aSVGElement->DidChangePreserveAspectRatio(true);
+  aSVGElement->DidChangePreserveAspectRatio(emptyOrOldValue);
   if (mIsAnimated) {
     aSVGElement->AnimationNeedsResample();
   }
@@ -293,12 +299,17 @@ nsresult
 SVGAnimatedPreserveAspectRatio::SetBaseMeetOrSlice(PRUint16 aMeetOrSlice,
                                                    nsSVGElement *aSVGElement)
 {
+  if (mIsBaseSet && mBaseVal.GetMeetOrSlice() == aMeetOrSlice) {
+    return NS_OK;
+  }
+
+  nsAttrValue emptyOrOldValue = aSVGElement->WillChangePreserveAspectRatio();
   nsresult rv = mBaseVal.SetMeetOrSlice(aMeetOrSlice);
   NS_ENSURE_SUCCESS(rv, rv);
   mIsBaseSet = true;
 
   mAnimVal.mMeetOrSlice = mBaseVal.mMeetOrSlice;
-  aSVGElement->DidChangePreserveAspectRatio(true);
+  aSVGElement->DidChangePreserveAspectRatio(emptyOrOldValue);
   if (mIsAnimated) {
     aSVGElement->AnimationNeedsResample();
   }
@@ -381,9 +392,9 @@ void
 SMILPreserveAspectRatio::ClearAnimValue()
 {
   if (mVal->mIsAnimated) {
-    mVal->SetAnimValue(PackPreserveAspectRatio(mVal->GetBaseValue()),
-                       mSVGElement);
     mVal->mIsAnimated = false;
+    mVal->mAnimVal = mVal->mBaseVal;
+    mSVGElement->DidAnimatePreserveAspectRatio();
   }
 }
 

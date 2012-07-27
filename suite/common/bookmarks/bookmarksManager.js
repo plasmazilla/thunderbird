@@ -357,10 +357,9 @@ var PlacesOrganizer = {
             Components.interfaces.nsIFilePicker.modeOpen);
     fp.appendFilters(Components.interfaces.nsIFilePicker.filterHTML);
     if (fp.show() != Components.interfaces.nsIFilePicker.returnCancel) {
-      if (fp.file) {
-        var importer = Components.classes["@mozilla.org/browser/places/import-export-service;1"]
-                                 .getService(Components.interfaces.nsIPlacesImportExportService);
-        importer.importHTMLFromFile(fp.file, false);
+      if (fp.fileURL) {
+        Components.utils.import("resource://gre/modules/BookmarkHTMLUtils.jsm");
+        BookmarkHTMLUtils.importFromURL(fp.fileURL.spec, false);
       }
     }
   },
@@ -541,9 +540,7 @@ var PlacesOrganizer = {
       return;
     }
     if (aNode.itemId != -1 &&
-        ((PlacesUtils.nodeIsFolder(aNode) &&
-          !PlacesUtils.nodeIsLivemarkContainer(aNode)) ||
-         PlacesUtils.nodeIsLivemarkItem(aNode) ||
+        ((PlacesUtils.nodeIsFolder(aNode) && !aNode._feedURI) ||
          PlacesUtils.nodeIsQuery(aNode))) {
       if (infoBox.getAttribute("minimal") == "true")
         infoBox.setAttribute("wasminimal", "true");
@@ -631,6 +628,7 @@ var PlacesOrganizer = {
         itemId = PlacesUtils._uri(aSelectedNode.uri);
 
       gEditItemOverlay.initPanel(itemId, { hiddenRows: ["folderPicker"],
+                                           titleOverride: aSelectedNode.title,
                                            forceReadOnly: readOnly });
 
       // Dynamically generated queries, like history date containers, have
@@ -770,11 +768,11 @@ var PlacesOrganizer = {
      return;
 
     // Add the place: uri as a bookmark under the bookmarks root.
-    var txn = PlacesUIUtils.ptm.createItem(placeURI,
-                                           PlacesUtils.bookmarksMenuFolderId,
-                                           PlacesUtils.bookmarks.DEFAULT_INDEX,
-                                           input.value);
-    PlacesUIUtils.ptm.doTransaction(txn);
+    var txn = new PlacesCreateBookmarkTransaction(placeURI,
+                                                  PlacesUtils.bookmarksMenuFolderId,
+                                                  PlacesUtils.bookmarks.DEFAULT_INDEX,
+                                                  input.value);
+    PlacesUtils.transactionManager.doTransaction(txn);
 
     // select and load the new query
     this._places.selectPlaceURI(placeSpec);

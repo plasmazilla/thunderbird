@@ -54,6 +54,7 @@
 #include "gfxQuartzImageSurface.h"
 #endif
 #include "nsAutoPtr.h"
+#include "imgIContainer.h"
 
 class imgFrame
 {
@@ -66,7 +67,8 @@ public:
 
   void Draw(gfxContext *aContext, gfxPattern::GraphicsFilter aFilter,
             const gfxMatrix &aUserSpaceToImageSpace, const gfxRect& aFill,
-            const nsIntMargin &aPadding, const nsIntRect &aSubimage);
+            const nsIntMargin &aPadding, const nsIntRect &aSubimage,
+            PRUint32 aImageFlags = imgIContainer::FLAG_NONE);
 
   nsresult Extract(const nsIntRect& aRegion, imgFrame** aResult);
 
@@ -92,6 +94,7 @@ public:
   bool ImageComplete() const;
 
   void SetHasNoAlpha();
+  void SetAsNonPremult(bool aIsNonPremult);
 
   bool GetCompositingFailed() const;
   void SetCompositingFailed(bool val);
@@ -130,7 +133,9 @@ public:
     return mImageSurface;
   }
 
-  PRUint32 EstimateMemoryUsed(gfxASurface::MemoryLocation aLocation) const;
+  size_t SizeOfExcludingThisWithComputedFallbackIfHeap(
+           gfxASurface::MemoryLocation aLocation,
+           nsMallocSizeOfFun aMallocSizeOf) const;
 
   PRUint8 GetPaletteDepth() const { return mPaletteDepth; }
 
@@ -178,6 +183,7 @@ private: // data
   // Total length is PaletteDataLength() + GetImageDataLength().
   PRUint8*     mPalettedImageData;
 
+  // Note that the data stored in gfxRGBA is *non-alpha-premultiplied*.
   gfxRGBA      mSinglePixelColor;
 
   PRInt32      mTimeout; // -1 means display forever
@@ -190,13 +196,16 @@ private: // data
   bool mNeverUseDeviceSurface;
   bool mFormatChanged;
   bool mCompositingFailed;
+  bool mNonPremult;
   /** Indicates if the image data is currently locked */
   bool mLocked;
+
+  /** Have we called DiscardTracker::InformAllocation()? */
+  bool mInformedDiscardTracker;
 
 #ifdef XP_WIN
   bool mIsDDBSurface;
 #endif
-
 };
 
 #endif /* imgFrame_h */

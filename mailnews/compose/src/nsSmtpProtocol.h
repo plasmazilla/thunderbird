@@ -114,7 +114,7 @@ public:
     virtual ~nsSmtpProtocol();
 
     virtual nsresult LoadUrl(nsIURI * aURL, nsISupports * aConsumer = nsnull);
-    virtual PRInt32 SendData(nsIURI * aURL, const char * dataBuffer, bool aSuppressLogging = false);
+    virtual nsresult SendData(const char * dataBuffer, bool aSuppressLogging = false);
 
     ////////////////////////////////////////////////////////////////////////////////////////
     // we suppport the nsIStreamListener interface 
@@ -198,7 +198,7 @@ private:
     PRInt32 ExtensionLoginResponse(nsIInputStream * inputStream, PRUint32 length);
     PRInt32 SendHeloResponse(nsIInputStream * inputStream, PRUint32 length);
     PRInt32 SendEhloResponse(nsIInputStream * inputStream, PRUint32 length);	
-    PRInt32 SendQuit();
+    PRInt32 SendQuit(SmtpState aNextStateAfterResponse = SMTP_DONE);
 
     PRInt32 AuthGSSAPIFirst();
     PRInt32 AuthGSSAPIStep();

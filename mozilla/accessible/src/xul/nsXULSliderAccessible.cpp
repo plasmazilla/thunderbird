@@ -53,8 +53,8 @@ using namespace mozilla::a11y;
 ////////////////////////////////////////////////////////////////////////////////
 
 nsXULSliderAccessible::
-  nsXULSliderAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
-  nsAccessibleWrap(aContent, aShell)
+  nsXULSliderAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
+  nsAccessibleWrap(aContent, aDoc)
 {
 }
 
@@ -92,10 +92,10 @@ nsXULSliderAccessible::NativeState()
 
 // nsIAccessible
 
-NS_IMETHODIMP
-nsXULSliderAccessible::GetValue(nsAString& aValue)
+void
+nsXULSliderAccessible::Value(nsString& aValue)
 {
-  return GetSliderAttr(nsGkAtoms::curpos, aValue);
+  GetSliderAttr(nsGkAtoms::curpos, aValue);
 }
 
 PRUint8
@@ -190,7 +190,7 @@ nsXULSliderAccessible::SetCurrentValue(double aValue)
 }
 
 bool
-nsXULSliderAccessible::GetAllowsAnonChildAccessibles()
+nsXULSliderAccessible::CanHaveAnonChildren()
 {
   // Do not allow anonymous xul:slider be accessible.
   return false;
@@ -289,8 +289,8 @@ nsXULSliderAccessible::SetSliderAttr(nsIAtom *aName, double aValue)
 ////////////////////////////////////////////////////////////////////////////////
 
 nsXULThumbAccessible::
-  nsXULThumbAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
-  nsAccessibleWrap(aContent, aShell)
+  nsXULThumbAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
+  nsAccessibleWrap(aContent, aDoc)
 {
 }
 

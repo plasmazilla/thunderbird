@@ -61,6 +61,7 @@
 #include "jsapi.h"
 #include "jsdbgapi.h"
 #include "jsfriendapi.h"
+#include "nsJSPrincipals.h"
 
 #include "mozilla/FunctionTimer.h"
 #include "mozilla/scache/StartupCache.h"
@@ -111,7 +112,6 @@ mozJSSubScriptLoader::ReadScript(nsIURI *uri, JSContext *cx, JSObject *target_ob
 {
     nsCOMPtr<nsIChannel>     chan;
     nsCOMPtr<nsIInputStream> instream;
-    JSPrincipals    *jsPrincipals;
     JSErrorReporter  er;
 
     nsresult rv;
@@ -140,14 +140,6 @@ mozJSSubScriptLoader::ReadScript(nsIURI *uri, JSContext *cx, JSObject *target_ob
     if (NS_FAILED(rv))
         return rv;
 
-    /* we can't hold onto jsPrincipals as a module var because the
-     * JSPRINCIPALS_DROP macro takes a JSContext, which we won't have in the
-     * destructor */
-    rv = principal->GetJSPrincipals(cx, &jsPrincipals);
-    if (NS_FAILED(rv) || !jsPrincipals) {
-        return ReportError(cx, LOAD_ERROR_NOPRINCIPALS);
-    }
-
     /* set our own error reporter so we can report any bad things as catchable
      * exceptions, including the source/line number */
     er = JS_SetErrorReporter(cx, mozJSLoaderErrorReporter);
@@ -158,20 +150,17 @@ mozJSSubScriptLoader::ReadScript(nsIURI *uri, JSContext *cx, JSObject *target_ob
                                             charset, nsnull, script);
 
         if (NS_FAILED(rv)) {
-            JSPRINCIPALS_DROP(cx, jsPrincipals);
             return ReportError(cx, LOAD_ERROR_BADCHARSET);
         }
 
         *scriptp =
-            JS_CompileUCScriptForPrincipals(cx, target_obj, jsPrincipals,
+            JS_CompileUCScriptForPrincipals(cx, target_obj, nsJSPrincipals::get(principal),
                                             reinterpret_cast<const jschar*>(script.get()),
                                             script.Length(), uriStr, 1);
     } else {
-        *scriptp = JS_CompileScriptForPrincipals(cx, target_obj, jsPrincipals, buf.get(),
-                                                 len, uriStr, 1);
+        *scriptp = JS_CompileScriptForPrincipals(cx, target_obj, nsJSPrincipals::get(principal),
+                                                 buf.get(), len, uriStr, 1);
     }
-
-    JSPRINCIPALS_DROP(cx, jsPrincipals);
 
     /* repent for our evil deeds */
     JS_SetErrorReporter(cx, er);
@@ -204,7 +193,7 @@ mozJSSubScriptLoader::LoadSubScript(const nsAString& url,
                          __LINE__, NS_LossyConvertUTF16toASCII(url).get());
 #endif
 
-    /* set mJSPrincipals if it's not here already */
+    /* set the system principal if it's not here already */
     if (!mSystemPrincipal) {
         nsCOMPtr<nsIScriptSecurityManager> secman =
             do_GetService(NS_SCRIPTSECURITYMANAGER_CONTRACTID);
@@ -271,21 +260,11 @@ mozJSSubScriptLoader::LoadSubScript(const nsAString& url,
     nsCAutoString uriStr;
     nsCAutoString scheme;
 
-    JSStackFrame* frame = nsnull;
     JSScript* script = nsnull;
 
     // Figure out who's calling us
-    do
-    {
-        frame = JS_FrameIterator(cx, &frame);
-
-        if (frame)
-            script = JS_GetFrameScript(cx, frame);
-    } while (frame && !script);
-
-    if (!script) {
-        // No script means we don't know who's calling, bail.
-
+    if (!JS_DescribeScriptedCaller(cx, &script, nsnull)) {
+        // No scripted frame means we don't know who's calling, bail.
         return NS_ERROR_FAILURE;
     }
 
@@ -340,7 +319,7 @@ mozJSSubScriptLoader::LoadSubScript(const nsAString& url,
 
     script = nsnull;
     if (cache)
-        rv = ReadCachedScript(cache, cachePath, cx, &script);
+        rv = ReadCachedScript(cache, cachePath, cx, mSystemPrincipal, &script);
     if (!script) {
         rv = ReadScript(uri, cx, targetObj, charset,
                         static_cast<const char*>(uriStr.get()), serv,
@@ -360,7 +339,7 @@ mozJSSubScriptLoader::LoadSubScript(const nsAString& url,
     }
 
     if (cache && ok && writeScript) {
-        WriteCachedScript(cache, cachePath, cx, script);
+        WriteCachedScript(cache, cachePath, cx, mSystemPrincipal, script);
     }
 
     return NS_OK;

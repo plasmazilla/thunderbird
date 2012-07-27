@@ -48,13 +48,15 @@
 #include "nsIPrincipal.h"
 #include "nsCycleCollectionParticipant.h"
 #include "nsIDOMEventListener.h"
-#include "nsDOMEventTargetWrapperCache.h"
+#include "nsDOMEventTargetHelper.h"
 #include "nsAutoPtr.h"
 #include "nsIDOMDOMStringList.h"
 #include "nsIInterfaceRequestor.h"
 #include "nsIWebSocketChannel.h"
 #include "nsIWebSocketListener.h"
+#include "nsIObserver.h"
 #include "nsIRequest.h"
+#include "nsWeakReference.h"
 
 #define DEFAULT_WS_SCHEME_PORT  80
 #define DEFAULT_WSS_SCHEME_PORT 443
@@ -69,11 +71,13 @@
 class nsWSCloseEvent;
 class nsAutoCloseWS;
 
-class nsWebSocket: public nsDOMEventTargetWrapperCache,
+class nsWebSocket: public nsDOMEventTargetHelper,
                    public nsIWebSocket,
                    public nsIJSNativeInitializer,
                    public nsIInterfaceRequestor,
                    public nsIWebSocketListener,
+                   public nsIObserver,
+                   public nsSupportsWeakReference,
                    public nsIRequest
 {
 friend class nsWSCloseEvent;
@@ -84,10 +88,11 @@ public:
   virtual ~nsWebSocket();
   NS_DECL_ISUPPORTS_INHERITED
   NS_DECL_CYCLE_COLLECTION_SKIPPABLE_SCRIPT_HOLDER_CLASS_INHERITED(nsWebSocket,
-                                                                   nsDOMEventTargetWrapperCache)
+                                                                   nsDOMEventTargetHelper)
   NS_DECL_NSIWEBSOCKET
   NS_DECL_NSIINTERFACEREQUESTOR
   NS_DECL_NSIWEBSOCKETLISTENER
+  NS_DECL_NSIOBSERVER
   NS_DECL_NSIREQUEST
 
   // nsIJSNativeInitializer
@@ -107,13 +112,17 @@ public:
   // Determine if preferences allow WebSocket
   static bool PrefEnabled();
 
+  virtual void DisconnectFromOwner();
 protected:
   nsresult ParseURL(const nsString& aURL);
   nsresult EstablishConnection();
 
-  // these three methods when called can release the WebSocket object
-  nsresult FailConnection();
-  nsresult CloseConnection();
+  // These methods when called can release the WebSocket object
+  nsresult FailConnection(PRUint16 reasonCode,
+                          const nsACString& aReasonString = EmptyCString());
+  void     FailConnectionQuietly();
+  nsresult CloseConnection(PRUint16 reasonCode,
+                           const nsACString& aReasonString = EmptyCString());
   nsresult Disconnect();
 
   nsresult ConsoleError();
@@ -127,7 +136,8 @@ protected:
   // Get msg info out of JS variable being sent (string, arraybuffer, blob)
   nsresult GetSendParams(nsIVariant *aData, nsCString &aStringOut,
                          nsCOMPtr<nsIInputStream> &aStreamOut,
-                         bool &aIsBinary, PRUint32 &aOutgoingLength);
+                         bool &aIsBinary, PRUint32 &aOutgoingLength,
+                         JSContext *aCx);
 
   nsresult DoOnMessageAvailable(const nsACString & aMsg, bool isBinary);
   nsresult CreateAndDispatchSimpleEvent(const nsString& aName);
@@ -166,13 +176,12 @@ protected:
   bool mKeepingAlive;
   bool mCheckMustKeepAlive;
   bool mTriggeredCloseEvent;
-  bool mClosedCleanly;
   bool mDisconnected;
 
-  nsCString mClientReason;
-  nsString  mServerReason;
-  PRUint16  mClientReasonCode;
-  PRUint16  mServerReasonCode;
+  // Set attributes of DOM 'onclose' message
+  bool      mCloseEventWasClean;
+  nsString  mCloseEventReason;
+  PRUint16  mCloseEventCode;
 
   nsCString mAsciiHost;  // hostname
   PRUint32  mPort;

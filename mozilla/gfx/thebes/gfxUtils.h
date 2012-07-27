@@ -43,6 +43,7 @@
 #include "gfxImageSurface.h"
 #include "ImageLayers.h"
 #include "mozilla/gfx/2D.h"
+#include "imgIContainer.h"
 
 class gfxDrawable;
 class nsIntRegion;
@@ -65,6 +66,9 @@ public:
     static void UnpremultiplyImageSurface(gfxImageSurface *aSurface,
                                           gfxImageSurface *aDestSurface = nsnull);
 
+    static void ConvertBGRAtoRGBA(gfxImageSurface *aSourceSurface,
+                                  gfxImageSurface *aDestSurface = nsnull);
+
     /**
      * Draw something drawable while working around limitations like bad support
      * for EXTEND_PAD, lack of source-clipping, or cairo / pixman bugs with
@@ -86,7 +90,8 @@ public:
                                  const gfxRect&   aImageRect,
                                  const gfxRect&   aFill,
                                  const gfxImageSurface::gfxImageFormat aFormat,
-                                 const gfxPattern::GraphicsFilter& aFilter);
+                                 gfxPattern::GraphicsFilter aFilter,
+                                 PRUint32         aImageFlags = imgIContainer::FLAG_NONE);
 
     /**
      * Clip aContext to the region aRegion.
@@ -167,7 +172,55 @@ public:
      * Copy a PNG encoded Data URL to the clipboard.
      */
     static void CopyAsDataURL(mozilla::gfx::DrawTarget* aDT);
+
+    static bool sDumpPaintList;
+    static bool sDumpPainting;
+    static bool sDumpPaintingToFile;
+    static FILE* sDumpPaintFile;
 #endif
 };
+
+namespace mozilla {
+namespace gfx {
+
+
+/*
+ * Copyright 2008 The Android Open Source Project
+ *
+ * Use of this source code is governed by a BSD-style license that can be
+ * found in the LICENSE file.
+ */
+
+/**
+ * Returns true if |aNumber| is a power of two
+ */
+static inline bool
+IsPowerOfTwo(int aNumber)
+{
+    return (aNumber & (aNumber - 1)) == 0;
+}
+
+/**
+ * Returns the first integer greater than |aNumber| which is a power of two
+ * Undefined for |aNumber| < 0
+ */
+static inline int
+NextPowerOfTwo(int aNumber)
+{
+#if defined(__arm__)
+    return 1 << (32 - __builtin_clz(aNumber - 1));
+#else
+    --aNumber;
+    aNumber |= aNumber >> 1;
+    aNumber |= aNumber >> 2;
+    aNumber |= aNumber >> 4;
+    aNumber |= aNumber >> 8;
+    aNumber |= aNumber >> 16;
+    return ++aNumber;
+#endif
+}
+
+} // namespace gfx
+} // namespace mozilla
 
 #endif

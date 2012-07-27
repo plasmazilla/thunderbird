@@ -35,6 +35,12 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "mozilla/Hal.h"
+#include "mozilla/HalSensor.h"
+
+// Microsoft's API Name hackery sucks
+#undef CreateEvent
+
 #include "nsISupports.h"
 #include "nsGUIEvent.h"
 #include "nsDOMEvent.h"
@@ -79,13 +85,12 @@
 #include "nsDataHashtable.h"
 #include "nsCOMArray.h"
 #include "nsEventListenerService.h"
-#include "nsDOMEvent.h"
 #include "nsIContentSecurityPolicy.h"
 #include "nsJSEnvironment.h"
 #include "xpcpublic.h"
-#include "sampler.h"
 
 using namespace mozilla::dom;
+using namespace mozilla::hal;
 
 #define EVENT_TYPE_EQUALS( ls, type, userType ) \
   (ls->mEventType == type && \
@@ -283,11 +288,10 @@ nsEventListenerManager::AddEventListener(nsIDOMEventListener *aListener,
                                    kAllMutationBits :
                                    MutationBitForEventType(aType));
     }
-  } else if (aTypeAtom == nsGkAtoms::ondeviceorientation ||
-             aTypeAtom == nsGkAtoms::ondevicemotion) {
-    nsPIDOMWindow* window = GetInnerWindowForTarget();
-    if (window)
-      window->SetHasOrientationEventListener();
+  } else if (aTypeAtom == nsGkAtoms::ondeviceorientation) {
+    EnableDevice(NS_DEVICE_ORIENTATION);
+  } else if (aTypeAtom == nsGkAtoms::ondevicemotion) {
+    EnableDevice(NS_DEVICE_MOTION);
   } else if ((aType >= NS_MOZTOUCH_DOWN && aType <= NS_MOZTOUCH_UP) ||
              (aTypeAtom == nsGkAtoms::ontouchstart ||
               aTypeAtom == nsGkAtoms::ontouchend ||
@@ -315,6 +319,69 @@ nsEventListenerManager::AddEventListener(nsIDOMEventListener *aListener,
   }
 }
 
+bool
+nsEventListenerManager::IsDeviceType(PRUint32 aType)
+{
+  switch (aType) {
+    case NS_DEVICE_ORIENTATION:
+    case NS_DEVICE_MOTION:
+      return true;
+    default:
+      break;
+  }
+  return false;
+}
+
+void
+nsEventListenerManager::EnableDevice(PRUint32 aType)
+{
+  nsCOMPtr<nsPIDOMWindow> window = do_QueryInterface(mTarget);
+  if (!window) {
+    return;
+  }
+
+  NS_ASSERTION(window->IsInnerWindow(), "Target should not be an outer window");
+
+  switch (aType) {
+    case NS_DEVICE_ORIENTATION:
+      window->EnableDeviceSensor(SENSOR_ORIENTATION);
+      break;
+    case NS_DEVICE_MOTION:
+      window->EnableDeviceSensor(SENSOR_ACCELERATION);
+      window->EnableDeviceSensor(SENSOR_LINEAR_ACCELERATION);
+      window->EnableDeviceSensor(SENSOR_GYROSCOPE);
+      break;
+    default:
+      NS_WARNING("Enabling an unknown device sensor.");
+      break;
+  }
+}
+
+void
+nsEventListenerManager::DisableDevice(PRUint32 aType)
+{
+  nsCOMPtr<nsPIDOMWindow> window = do_QueryInterface(mTarget);
+  if (!window) {
+    return;
+  }
+
+  NS_ASSERTION(window->IsInnerWindow(), "Target should not be an outer window");
+
+  switch (aType) {
+    case NS_DEVICE_ORIENTATION:
+      window->DisableDeviceSensor(SENSOR_ORIENTATION);
+      break;
+    case NS_DEVICE_MOTION:
+      window->DisableDeviceSensor(SENSOR_ACCELERATION);
+      window->DisableDeviceSensor(SENSOR_LINEAR_ACCELERATION);
+      window->DisableDeviceSensor(SENSOR_GYROSCOPE);
+      break;
+    default:
+      NS_WARNING("Disabling an unknown device sensor.");
+      break;
+  }
+}
+
 void
 nsEventListenerManager::RemoveEventListener(nsIDOMEventListener *aListener, 
                                             PRUint32 aType,
@@ -329,22 +396,31 @@ nsEventListenerManager::RemoveEventListener(nsIDOMEventListener *aListener,
   aFlags &= ~NS_PRIV_EVENT_UNTRUSTED_PERMITTED;
 
   PRUint32 count = mListeners.Length();
+  PRUint32 typeCount = 0;
+  bool deviceType = IsDeviceType(aType);
+
   for (PRUint32 i = 0; i < count; ++i) {
     ls = &mListeners.ElementAt(i);
-    if (ls->mListener == aListener &&
-        ((ls->mFlags & ~NS_PRIV_EVENT_UNTRUSTED_PERMITTED) == aFlags) &&
-        EVENT_TYPE_EQUALS(ls, aType, aUserType)) {
-      nsRefPtr<nsEventListenerManager> kungFuDeathGrip = this;
-      mListeners.RemoveElementAt(i);
-      mNoListenerForEvent = NS_EVENT_TYPE_NULL;
-      mNoListenerForEventAtom = nsnull;
-      if (aType == NS_DEVICE_ORIENTATION) {
-        nsPIDOMWindow* window = GetInnerWindowForTarget();
-        if (window)
-          window->RemoveOrientationEventListener();
+    if (EVENT_TYPE_EQUALS(ls, aType, aUserType)) {
+      ++typeCount;
+      if (ls->mListener == aListener &&
+          (ls->mFlags & ~NS_PRIV_EVENT_UNTRUSTED_PERMITTED) == aFlags) {
+        nsRefPtr<nsEventListenerManager> kungFuDeathGrip = this;
+        mListeners.RemoveElementAt(i);
+        --count;
+        mNoListenerForEvent = NS_EVENT_TYPE_NULL;
+        mNoListenerForEventAtom = nsnull;
+
+        if (deviceType) {
+          return;
+        }
+        --typeCount;
       }
-      break;
     }
+  }
+
+  if (deviceType && typeCount == 0) {
+    DisableDevice(aType);
   }
 }
 
@@ -471,7 +547,8 @@ nsEventListenerManager::AddScriptEventListener(nsIAtom *aName,
     // Try to get context from doc
     // XXX sXBL/XBL2 issue -- do we really want the owner here?  What
     // if that's the XBL document?
-    global = node->OwnerDoc()->GetScriptGlobalObject();
+    doc = node->OwnerDoc();
+    global = doc->GetScriptGlobalObject();
   } else {
     nsCOMPtr<nsPIDOMWindow> win(do_QueryInterface(mTarget));
     if (win) {
@@ -533,12 +610,12 @@ nsEventListenerManager::AddScriptEventListener(nsIAtom *aName,
 
   // This might be the first reference to this language in the global
   // We must init the language before we attempt to fetch its context.
-  if (NS_FAILED(global->EnsureScriptEnvironment(aLanguage))) {
+  if (NS_FAILED(global->EnsureScriptEnvironment())) {
     NS_WARNING("Failed to setup script environment for this language");
     // but fall through and let the inevitable failure below handle it.
   }
 
-  nsIScriptContext* context = global->GetScriptContext(aLanguage);
+  nsIScriptContext* context = global->GetScriptContext();
   NS_ENSURE_TRUE(context, NS_ERROR_FAILURE);
 
   JSObject* scope = global->GetGlobalJSObject();
@@ -737,6 +814,7 @@ nsEventListenerManager::HandleEventSubType(nsListenerStruct* aListenerStruct,
   }
 
   if (NS_SUCCEEDED(result)) {
+    nsAutoMicroTask mt;
     // nsIDOMEvent::currentTarget is set in nsEventDispatcher.
     result = aListener->HandleEvent(aDOMEvent);
   }
@@ -758,7 +836,6 @@ nsEventListenerManager::HandleEventInternal(nsPresContext* aPresContext,
                                             nsEventStatus* aEventStatus,
                                             nsCxPusher* aPusher)
 {
-  SAMPLE_LABEL("nsEventListenerManager", "HandleEventInternal");
   //Set the value of the internal PreventDefault flag properly based on aEventStatus
   if (*aEventStatus == nsEventStatus_eConsumeNoDefault) {
     aEvent->flags |= NS_EVENT_FLAG_NO_DEFAULT;
@@ -965,6 +1042,19 @@ nsEventListenerManager::SetJSEventListenerToJsval(nsIAtom *aEventName,
     return NS_OK;
   }
 
+  // Now ensure that we're working in the compartment of aScope from now on.
+  JSAutoEnterCompartment ac;
+  if (!ac.enter(cx, aScope)) {
+    return NS_ERROR_UNEXPECTED;
+  }
+
+  // Rewrap the handler into the new compartment, if needed.
+  jsval tempVal = v;
+  if (!JS_WrapValue(cx, &tempVal)) {
+    return NS_ERROR_UNEXPECTED;
+  }
+  handler = &tempVal.toObject();
+
   // We might not have a script context, e.g. if we're setting a listener
   // on a dead Window.
   nsIScriptContext *context = nsJSUtils::GetStaticScriptContext(cx, aScope);
@@ -991,11 +1081,6 @@ nsEventListenerManager::GetJSEventListener(nsIAtom *aEventName, jsval *vp)
   }
 
   nsIJSEventListener *listener = ls->GetJSListener();
-  if (listener->GetEventContext()->GetScriptTypeID() !=
-        nsIProgrammingLanguage::JAVASCRIPT) {
-    // Not JS, so no point doing anything with it.
-    return;
-  }
     
   if (ls->mHandlerIsString) {
     CompileEventHandlerInternal(ls, true, nsnull);
@@ -1004,20 +1089,20 @@ nsEventListenerManager::GetJSEventListener(nsIAtom *aEventName, jsval *vp)
   *vp = OBJECT_TO_JSVAL(listener->GetHandler());
 }
 
-PRInt64
-nsEventListenerManager::SizeOf() const
+size_t
+nsEventListenerManager::SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf)
+  const
 {
-  PRInt64 size = sizeof(*this);
+  size_t n = aMallocSizeOf(this);
+  n += mListeners.SizeOfExcludingThis(aMallocSizeOf);
   PRUint32 count = mListeners.Length();
   for (PRUint32 i = 0; i < count; ++i) {
-    const nsListenerStruct& ls = mListeners.ElementAt(i);
-    size += sizeof(ls);
-    nsIJSEventListener* jsl = ls.GetJSListener();
+    nsIJSEventListener* jsl = mListeners.ElementAt(i).GetJSListener();
     if (jsl) {
-      size += jsl->SizeOf();
+      n += jsl->SizeOfIncludingThis(aMallocSizeOf);
     }
   }
-  return size;
+  return n;
 }
 
 void
@@ -1031,8 +1116,7 @@ nsEventListenerManager::UnmarkGrayJSListeners()
       xpc_UnmarkGrayObject(jsl->GetHandler());
       xpc_UnmarkGrayObject(jsl->GetEventScope());
     } else if (ls.mWrappedJS) {
-      nsCOMPtr<nsIXPConnectWrappedJS> wjs = do_QueryInterface(ls.mListener);
-      xpc_UnmarkGrayObject(wjs);
+      xpc_TryUnmarkWrappedGrayObject(ls.mListener);
     }
   }
 }

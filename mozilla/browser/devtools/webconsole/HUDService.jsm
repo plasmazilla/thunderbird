@@ -164,6 +164,7 @@ function loadCommands() {
   let commandExports = {};
 
   Cu.import("resource:///modules/GcliCommands.jsm", commandExports);
+  Cu.import("resource:///modules/GcliTiltCommands.jsm", commandExports);
 
   return commandExports;
 }
@@ -6948,6 +6949,12 @@ GcliTerm.prototype = {
     this.context = Cu.getWeakReference(aContentWindow);
     this.console = aConsole;
     this.createSandbox();
+
+    this.opts.environment.contentDocument = aContentWindow.document;
+    this.opts.contentDocument = aContentWindow.document;
+    this.opts.jsEnvironment.globalObject = unwrap(aContentWindow);
+
+    gcli._internal.reattachConsole(this.opts);
   },
 
   /**

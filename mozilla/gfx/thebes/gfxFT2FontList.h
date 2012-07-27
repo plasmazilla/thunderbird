@@ -102,6 +102,15 @@ public:
     nsresult ReadCMAP();
     nsresult GetFontTable(PRUint32 aTableTag, FallibleTArray<PRUint8>& aBuffer);
 
+    // Check for various kinds of brokenness, and set flags on the entry
+    // accordingly so that we avoid using bad font tables
+    void CheckForBrokenFont();
+
+    virtual void SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf,
+                                     FontListSizes*    aSizes) const;
+    virtual void SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf,
+                                     FontListSizes*    aSizes) const;
+
     FT_Face mFTFace;
     cairo_font_face_t *mFontFace;
 

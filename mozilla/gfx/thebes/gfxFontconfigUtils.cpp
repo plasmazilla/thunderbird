@@ -41,7 +41,7 @@
 
 #include "gfxFontconfigUtils.h"
 #include "gfxFont.h"
-#include "gfxAtoms.h"
+#include "nsGkAtoms.h"
 
 #include <locale.h>
 #include <fontconfig/fontconfig.h>
@@ -73,11 +73,11 @@ gfxFontconfigUtils::FcSlantToThebesStyle(int aFcSlant)
 {
     switch (aFcSlant) {
         case FC_SLANT_ITALIC:
-            return FONT_STYLE_ITALIC;
+            return NS_FONT_STYLE_ITALIC;
         case FC_SLANT_OBLIQUE:
-            return FONT_STYLE_OBLIQUE;
+            return NS_FONT_STYLE_OBLIQUE;
         default:
-            return FONT_STYLE_NORMAL;
+            return NS_FONT_STYLE_NORMAL;
     }
 }
 
@@ -86,7 +86,7 @@ gfxFontconfigUtils::GetThebesStyle(FcPattern *aPattern)
 {
     int slant;
     if (FcPatternGetInteger(aPattern, FC_SLANT, 0, &slant) != FcResultMatch) {
-        return FONT_STYLE_NORMAL;
+        return NS_FONT_STYLE_NORMAL;
     }
 
     return FcSlantToThebesStyle(slant);
@@ -95,9 +95,9 @@ gfxFontconfigUtils::GetThebesStyle(FcPattern *aPattern)
 /* static */ int
 gfxFontconfigUtils::GetFcSlant(const gfxFontStyle& aFontStyle)
 {
-    if (aFontStyle.style == FONT_STYLE_ITALIC)
+    if (aFontStyle.style == NS_FONT_STYLE_ITALIC)
         return FC_SLANT_ITALIC;
-    if (aFontStyle.style == FONT_STYLE_OBLIQUE)
+    if (aFontStyle.style == NS_FONT_STYLE_OBLIQUE)
         return FC_SLANT_OBLIQUE;
 
     return FC_SLANT_ROMAN;
@@ -124,7 +124,7 @@ gfxFontconfigUtils::GetThebesWeight(FcPattern *aPattern)
 {
     int weight;
     if (FcPatternGetInteger(aPattern, FC_WEIGHT, 0, &weight) != FcResultMatch)
-        return FONT_WEIGHT_NORMAL;
+        return NS_FONT_WEIGHT_NORMAL;
 
     if (weight <= (FC_WEIGHT_THIN + FC_WEIGHT_EXTRALIGHT) / 2)
         return 100;
@@ -405,28 +405,28 @@ struct MozLangGroupData {
 };
 
 const MozLangGroupData MozLangGroups[] = {
-    { gfxAtoms::x_western,      "en" },
-    { gfxAtoms::x_central_euro, "pl" },
-    { gfxAtoms::x_cyrillic,     "ru" },
-    { gfxAtoms::x_baltic,       "lv" },
-    { gfxAtoms::x_devanagari,   "hi" },
-    { gfxAtoms::x_tamil,        "ta" },
-    { gfxAtoms::x_armn,         "hy" },
-    { gfxAtoms::x_beng,         "bn" },
-    { gfxAtoms::x_cans,         "iu" },
-    { gfxAtoms::x_ethi,         "am" },
-    { gfxAtoms::x_geor,         "ka" },
-    { gfxAtoms::x_gujr,         "gu" },
-    { gfxAtoms::x_guru,         "pa" },
-    { gfxAtoms::x_khmr,         "km" },
-    { gfxAtoms::x_knda,         "kn" },
-    { gfxAtoms::x_mlym,         "ml" },
-    { gfxAtoms::x_orya,         "or" },
-    { gfxAtoms::x_sinh,         "si" },
-    { gfxAtoms::x_telu,         "te" },
-    { gfxAtoms::x_tibt,         "bo" },
-    { gfxAtoms::x_unicode,      0    },
-    { gfxAtoms::x_user_def,     0    }
+    { nsGkAtoms::x_western,      "en" },
+    { nsGkAtoms::x_central_euro, "pl" },
+    { nsGkAtoms::x_cyrillic,     "ru" },
+    { nsGkAtoms::x_baltic,       "lv" },
+    { nsGkAtoms::x_devanagari,   "hi" },
+    { nsGkAtoms::x_tamil,        "ta" },
+    { nsGkAtoms::x_armn,         "hy" },
+    { nsGkAtoms::x_beng,         "bn" },
+    { nsGkAtoms::x_cans,         "iu" },
+    { nsGkAtoms::x_ethi,         "am" },
+    { nsGkAtoms::x_geor,         "ka" },
+    { nsGkAtoms::x_gujr,         "gu" },
+    { nsGkAtoms::x_guru,         "pa" },
+    { nsGkAtoms::x_khmr,         "km" },
+    { nsGkAtoms::x_knda,         "kn" },
+    { nsGkAtoms::x_mlym,         "ml" },
+    { nsGkAtoms::x_orya,         "or" },
+    { nsGkAtoms::x_sinh,         "si" },
+    { nsGkAtoms::x_telu,         "te" },
+    { nsGkAtoms::x_tibt,         "bo" },
+    { nsGkAtoms::Unicode,        0    },
+    { nsGkAtoms::x_user_def,     0    }
 };
 
 static bool

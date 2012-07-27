@@ -94,8 +94,11 @@
 #include "nsIContentSecurityPolicy.h"
 #include "nsIAsyncVerifyRedirectCallback.h"
 #include "mozilla/Preferences.h"
+#include "mozilla/dom/bindings/Utils.h"
+#include "mozilla/StandardInteger.h"
 
 using namespace mozilla;
+using namespace mozilla::dom;
 
 static NS_DEFINE_CID(kZipReaderCID, NS_ZIPREADER_CID);
 
@@ -195,6 +198,44 @@ GetScriptContext(JSContext *cx)
 {
     return GetScriptContextFromJSContext(cx);
 }
+
+// Callbacks for the JS engine to use to push/pop context principals.
+static JSBool
+PushPrincipalCallback(JSContext *cx, JSPrincipals *principals)
+{
+    // We should already be in the compartment of the given principal.
+    MOZ_ASSERT(principals ==
+               JS_GetCompartmentPrincipals((js::GetContextCompartment(cx))));
+
+    // Get the security manager.
+    nsIScriptSecurityManager *ssm = XPCWrapper::GetSecurityManager();
+    if (!ssm) {
+        return true;
+    }
+
+    // Push the principal.
+    JSStackFrame *fp = NULL;
+    nsresult rv = ssm->PushContextPrincipal(cx, JS_FrameIterator(cx, &fp),
+                                            nsJSPrincipals::get(principals));
+    if (NS_FAILED(rv)) {
+        JS_ReportOutOfMemory(cx);
+        return false;
+    }
+
+    return true;
+}
+
+static JSBool
+PopPrincipalCallback(JSContext *cx)
+{
+    nsIScriptSecurityManager *ssm = XPCWrapper::GetSecurityManager();
+    if (ssm) {
+        ssm->PopContextPrincipal(cx);
+    }
+
+    return true;
+}
+
 
 inline void SetPendingException(JSContext *cx, const char *aMsg)
 {
@@ -517,6 +558,13 @@ NS_IMPL_ISUPPORTS4(nsScriptSecurityManager,
 ///////////////////////////////////////////////////
 
 ///////////////// Security Checks /////////////////
+
+/* static */ JSPrincipals *
+nsScriptSecurityManager::ObjectPrincipalFinder(JSObject *aObj)
+{
+    return nsJSPrincipals::get(doGetObjectPrincipal(aObj));
+}
+
 JSBool
 nsScriptSecurityManager::ContentSecurityPolicyPermitsJSAction(JSContext *cx)
 {
@@ -537,7 +585,7 @@ nsScriptSecurityManager::ContentSecurityPolicyPermitsJSAction(JSContext *cx)
 
     if (!subjectPrincipal) {
         // See bug 553448 for discussion of this case.
-        NS_ASSERTION(!JS_GetSecurityCallbacks(cx)->findObjectPrincipals,
+        NS_ASSERTION(!JS_GetSecurityCallbacks(js::GetRuntime(cx))->findObjectPrincipals,
                      "CSP: Should have been able to find subject principal. "
                      "Reluctantly granting access.");
         return JS_TRUE;
@@ -563,23 +611,14 @@ nsScriptSecurityManager::ContentSecurityPolicyPermitsJSAction(JSContext *cx)
     if (!evalOK) {
         // get the script filename, script sample, and line number
         // to log with the violation
-        JSStackFrame *fp = nsnull;
         nsAutoString fileName;
-        PRUint32 lineNum = 0;
+        unsigned lineNum = 0;
         NS_NAMED_LITERAL_STRING(scriptSample, "call to eval() or related function blocked by CSP");
 
-        fp = JS_FrameIterator(cx, &fp);
-        if (fp) {
-            JSScript *script = JS_GetFrameScript(cx, fp);
-            if (script) {
-                const char *file = JS_GetScriptFilename(cx, script);
-                if (file) {
-                    CopyUTF8toUTF16(nsDependentCString(file), fileName);
-                }
-                jsbytecode *pc = JS_GetFramePC(cx, fp);
-                if (pc) {
-                    lineNum = JS_PCToLineNumber(cx, script, pc);
-                }
+        JSScript *script;
+        if (JS_DescribeScriptedCaller(cx, &script, &lineNum)) {
+            if (const char *file = JS_GetScriptFilename(cx, script)) {
+                CopyUTF8toUTF16(nsDependentCString(file), fileName);
             }
         }
 
@@ -1393,11 +1432,21 @@ nsScriptSecurityManager::CheckLoadURIWithPrincipal(nsIPrincipal* aPrincipal,
     NS_ENSURE_ARG_POINTER(aPrincipal);
     NS_ENSURE_ARG_POINTER(aTargetURI);
 
+    // If DISALLOW_INHERIT_PRINCIPAL is set, we prevent loading of URIs which
+    // would do such inheriting. That would be URIs that do not have their own
+    // security context. We do this even for the system principal.
+    if (aFlags & nsIScriptSecurityManager::DISALLOW_INHERIT_PRINCIPAL) {
+        nsresult rv =
+            DenyAccessIfURIHasFlags(aTargetURI,
+                                    nsIProtocolHandler::URI_INHERITS_SECURITY_CONTEXT);
+        NS_ENSURE_SUCCESS(rv, rv);
+    }
+
     if (aPrincipal == mSystemPrincipal) {
         // Allow access
         return NS_OK;
     }
-    
+
     nsCOMPtr<nsIURI> sourceURI;
     aPrincipal->GetURI(getter_AddRefs(sourceURI));
     if (!sourceURI) {
@@ -1411,16 +1460,6 @@ nsScriptSecurityManager::CheckLoadURIWithPrincipal(nsIPrincipal* aPrincipal,
         nsresult rv =
             DenyAccessIfURIHasFlags(sourceURI,
                                     nsIProtocolHandler::URI_FORBIDS_AUTOMATIC_DOCUMENT_REPLACEMENT);
-        NS_ENSURE_SUCCESS(rv, rv);
-    }
-
-    // If DISALLOW_INHERIT_PRINCIPAL is set, we prevent loading of URIs which
-    // would do such inheriting.  That would be URIs that do not have their own
-    // security context.
-    if (aFlags & nsIScriptSecurityManager::DISALLOW_INHERIT_PRINCIPAL) {
-        nsresult rv =
-            DenyAccessIfURIHasFlags(aTargetURI,
-                                    nsIProtocolHandler::URI_INHERITS_SECURITY_CONTEXT);
         NS_ENSURE_SUCCESS(rv, rv);
     }
 
@@ -2163,8 +2202,7 @@ nsScriptSecurityManager::GetPrincipalFromContext(JSContext *cx,
 
 // static
 nsIPrincipal*
-nsScriptSecurityManager::GetScriptPrincipal(JSContext *cx,
-                                            JSScript *script,
+nsScriptSecurityManager::GetScriptPrincipal(JSScript *script,
                                             nsresult* rv)
 {
     NS_PRECONDITION(rv, "Null out param");
@@ -2173,17 +2211,13 @@ nsScriptSecurityManager::GetScriptPrincipal(JSContext *cx,
     {
         return nsnull;
     }
-    JSPrincipals *jsp = JS_GetScriptPrincipals(cx, script);
+    JSPrincipals *jsp = JS_GetScriptPrincipals(script);
     if (!jsp) {
         *rv = NS_ERROR_FAILURE;
         NS_ERROR("Script compiled without principals!");
         return nsnull;
     }
-    nsJSPrincipals *nsJSPrin = static_cast<nsJSPrincipals *>(jsp);
-    nsIPrincipal* result = nsJSPrin->nsIPrincipalPtr;
-    if (!result)
-        *rv = NS_ERROR_FAILURE;
-    return result;
+    return nsJSPrincipals::get(jsp);
 }
 
 // static
@@ -2250,7 +2284,7 @@ nsScriptSecurityManager::GetFunctionObjectPrincipal(JSContext *cx,
         return result;
     }
 
-    return GetScriptPrincipal(cx, script, rv);
+    return GetScriptPrincipal(script, rv);
 }
 
 nsIPrincipal*
@@ -2264,7 +2298,7 @@ nsScriptSecurityManager::GetFramePrincipal(JSContext *cx,
     {
         // Must be in a top-level script. Get principal from the script.
         JSScript *script = JS_GetFrameScript(cx, fp);
-        return GetScriptPrincipal(cx, script, rv);
+        return GetScriptPrincipal(script, rv);
     }
 
     nsIPrincipal* result = GetFunctionObjectPrincipal(cx, obj, fp, rv);
@@ -2443,9 +2477,17 @@ nsScriptSecurityManager::doGetObjectPrincipal(JSObject *aObj
             if (result) {
                 break;
             }
-        } else if (!(~jsClass->flags & (JSCLASS_HAS_PRIVATE |
-                                        JSCLASS_PRIVATE_IS_NSISUPPORTS))) {
-            nsISupports *priv = (nsISupports *) js::GetObjectPrivate(aObj);
+        } else {
+            nsISupports *priv;
+            if (!(~jsClass->flags & (JSCLASS_HAS_PRIVATE |
+                                     JSCLASS_PRIVATE_IS_NSISUPPORTS))) {
+                priv = (nsISupports *) js::GetObjectPrivate(aObj);
+            } else if ((jsClass->flags & JSCLASS_IS_DOMJSCLASS) &&
+                       bindings::DOMJSClass::FromJSClass(jsClass)->mDOMObjectIsISupports) {
+                priv = bindings::UnwrapDOMObject<nsISupports>(aObj, jsClass);
+            } else {
+                priv = nsnull;
+            }
 
 #ifdef DEBUG
             if (aAllowShortCircuit) {
@@ -2483,11 +2525,10 @@ nsScriptSecurityManager::doGetObjectPrincipal(JSObject *aObj
     if (aAllowShortCircuit) {
         nsIPrincipal *principal = doGetObjectPrincipal(origObj, false);
 
-        // Location is always wrapped (even for same-compartment), so we can
-        // loosen the check to same-origin instead of same-principal.
-        NS_ASSERTION(strcmp(jsClass->name, "Location") == 0 ?
-                     NS_SUCCEEDED(CheckSameOriginPrincipal(result, principal)) :
-                     result == principal,
+        // Because of inner window reuse, we can have objects with one principal
+        // living in a scope with a different (but same-origin) principal. So
+        // just check same-origin here.
+        NS_ASSERTION(NS_SUCCEEDED(CheckSameOriginPrincipal(result, principal)),
                      "Principal mismatch.  Not good");
     }
 #endif
@@ -3325,12 +3366,11 @@ nsScriptSecurityManager::nsScriptSecurityManager(void)
       mIsWritingPrefs(false),
       mPolicyPrefsChanged(true)
 {
-    NS_ASSERTION(sizeof(PRWord) == sizeof(void*),
-                 "PRWord and void* have different lengths on this platform. "
-                 "This may cause a security failure with the SecurityLevel union.");
+    MOZ_STATIC_ASSERT(sizeof(intptr_t) == sizeof(void*),
+                      "intptr_t and void* have different lengths on this platform. "
+                      "This may cause a security failure with the SecurityLevel union.");
     mPrincipals.Init(31);
 }
-
 
 nsresult nsScriptSecurityManager::Init()
 {
@@ -3366,10 +3406,6 @@ nsresult nsScriptSecurityManager::Init()
     nsRefPtr<nsSystemPrincipal> system = new nsSystemPrincipal();
     NS_ENSURE_TRUE(system, NS_ERROR_OUT_OF_MEMORY);
 
-    JSPrincipals *jsprin;
-    rv = system->Init(&jsprin);
-    NS_ENSURE_SUCCESS(rv, rv);
-
     mSystemPrincipal = system;
 
     //-- Register security check callback in the JS engine
@@ -3381,20 +3417,20 @@ nsresult nsScriptSecurityManager::Init()
     rv = runtimeService->GetRuntime(&sRuntime);
     NS_ENSURE_SUCCESS(rv, rv);
 
-    static JSSecurityCallbacks securityCallbacks = {
+    static const JSSecurityCallbacks securityCallbacks = {
         CheckObjectAccess,
-        NULL,
-        NULL,
-        ContentSecurityPolicyPermitsJSAction
+        nsJSPrincipals::Subsume,
+        ObjectPrincipalFinder,
+        ContentSecurityPolicyPermitsJSAction,
+        PushPrincipalCallback,
+        PopPrincipalCallback
     };
 
-#ifdef DEBUG
-    JSSecurityCallbacks *oldcallbacks =
-#endif
-    JS_SetRuntimeSecurityCallbacks(sRuntime, &securityCallbacks);
-    NS_ASSERTION(!oldcallbacks, "Someone else set security callbacks!");
+    MOZ_ASSERT(!JS_GetSecurityCallbacks(sRuntime));
+    JS_SetSecurityCallbacks(sRuntime, &securityCallbacks);
+    JS_InitDestroyPrincipalsCallback(sRuntime, nsJSPrincipals::Destroy);
 
-    JS_SetTrustedPrincipals(sRuntime, jsprin);
+    JS_SetTrustedPrincipals(sRuntime, system);
 
     return NS_OK;
 }
@@ -3418,7 +3454,7 @@ void
 nsScriptSecurityManager::Shutdown()
 {
     if (sRuntime) {
-        JS_SetRuntimeSecurityCallbacks(sRuntime, NULL);
+        JS_SetSecurityCallbacks(sRuntime, NULL);
         JS_SetTrustedPrincipals(sRuntime, NULL);
         sRuntime = nsnull;
     }
@@ -3442,13 +3478,6 @@ nsScriptSecurityManager::GetScriptSecurityManager()
         rv = ssManager->Init();
         NS_ASSERTION(NS_SUCCEEDED(rv), "Failed to initialize nsScriptSecurityManager");
         if (NS_FAILED(rv)) {
-            delete ssManager;
-            return nsnull;
-        }
- 
-        rv = nsJSPrincipals::Startup();
-        if (NS_FAILED(rv)) {
-            NS_WARNING("can't initialize JS engine security protocol glue!");
             delete ssManager;
             return nsnull;
         }

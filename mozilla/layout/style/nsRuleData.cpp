@@ -40,17 +40,22 @@
 #include "nsCSSProps.h"
 #include "nsPresArena.h"
 
+#include "mozilla/StandardInteger.h"
+
 inline size_t
 nsRuleData::GetPoisonOffset()
 {
   // Fill in mValueOffsets such that mValueStorage + mValueOffsets[i]
   // will yield the frame poison value for all uninitialized value
   // offsets.
-  PR_STATIC_ASSERT(sizeof(PRUword) == sizeof(size_t));
-  PR_STATIC_ASSERT(PRUword(-1) > PRUword(0));
-  PR_STATIC_ASSERT(size_t(-1) > size_t(0));
-  PRUword framePoisonValue = nsPresArena::GetPoisonValue();
-  return size_t(framePoisonValue - PRUword(mValueStorage)) /
+  MOZ_STATIC_ASSERT(sizeof(uintptr_t) == sizeof(size_t),
+                    "expect uintptr_t and size_t to be the same size");
+  MOZ_STATIC_ASSERT(uintptr_t(-1) > uintptr_t(0),
+                    "expect uintptr_t to be unsigned");
+  MOZ_STATIC_ASSERT(size_t(-1) > size_t(0),
+                    "expect size_t to be unsigned");
+  uintptr_t framePoisonValue = nsPresArena::GetPoisonValue();
+  return size_t(framePoisonValue - uintptr_t(mValueStorage)) /
          sizeof(nsCSSValue);
 }
 

@@ -8,7 +8,7 @@
 
     <ImageView android:id="@+id/thumbnail"
                android:layout_width="136dip"
-               android:layout_height="77dip"
+               android:layout_height="78dip"
                android:layout_marginLeft="35dip"
                android:layout_alignParentLeft="true"
                android:layout_centerVertical="true"
@@ -41,7 +41,7 @@
               android:textAppearance="?android:attr/textAppearanceSmall"
               android:textColor="#E5F2FF"
               android:singleLine="false"
-              android:maxLines="3"
+              android:maxLines="4"
               android:ellipsize="middle"
               android:shadowColor="#000000"
               android:shadowRadius="1"

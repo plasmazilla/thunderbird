@@ -39,8 +39,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_WIN7
-
 #include "TaskbarPreview.h"
 #include <nsITaskbarPreviewController.h>
 #include <windows.h>
@@ -451,12 +449,12 @@ TaskbarPreview::MainWindowHook(void *aContext,
     preview->mWnd = NULL;
   } else {
     nsWindow *window = WinUtils::GetNSWindowPtr(preview->mWnd);
-    NS_ASSERTION(window, "Cannot use taskbar previews in an embedded context!");
+    if (window) {
+      window->SetHasTaskbarIconBeenCreated();
 
-    window->SetHasTaskbarIconBeenCreated();
-
-    if (preview->mVisible)
-      preview->UpdateTaskbarProperties();
+      if (preview->mVisible)
+        preview->UpdateTaskbarProperties();
+    }
   }
   return false;
 }
@@ -467,4 +465,3 @@ TaskbarPreview::sActivePreview = nsnull;
 } // namespace widget
 } // namespace mozilla
 
-#endif // MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_WIN7

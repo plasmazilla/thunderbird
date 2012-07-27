@@ -126,8 +126,9 @@ function ShowHideToolbarButtons()
   var array = gPrefs.getChildList(kEditorToolbarPrefs);
   for (var i in array) {
     var prefName = array[i];
-    var id = prefName.substr(kEditorToolbarPrefs.length) + "Button";
-    var button = document.getElementById(id);
+    var id = prefName.substr(kEditorToolbarPrefs.length);
+    var button = document.getElementById(id + "Button") ||
+                 document.getElementById(id + "-button");
     if (button)
       button.hidden = !gPrefs.getBoolPref(prefName);
   }
@@ -148,8 +149,7 @@ nsPrefListener.prototype =
   {
     this.domain = prefName;
     try {
-      var pbi = pref.QueryInterface(Components.interfaces.nsIPrefBranch2);
-      pbi.addObserver(this.domain, this, false);
+      pref.addObserver(this.domain, this, false);
     } catch(ex) {
       dump("Failed to observe prefs: " + ex + "\n");
     }
@@ -157,8 +157,7 @@ nsPrefListener.prototype =
   shutdown: function()
   {
     try {
-      var pbi = pref.QueryInterface(Components.interfaces.nsIPrefBranch2);
-      pbi.removeObserver(this.domain, this);
+      pref.removeObserver(this.domain, this);
     } catch(ex) {
       dump("Failed to remove pref observers: " + ex + "\n");
     }
@@ -698,17 +697,13 @@ function CheckAndSaveDocument(command, allowDontSave)
     
   var reasonToSave = strID ? GetString(strID) : "";
 
-  var title = document.title;
-  if (!title)
-    title = gUntitledString;
+  var title = document.title || GetString("untitledDefaultFilename");
 
   var dialogTitle = GetString(doPublish ? "PublishPage" : "SaveDocument");
   var dialogMsg = GetString(doPublish ? "PublishPrompt" : "SaveFilePrompt");
   dialogMsg = (dialogMsg.replace(/%title%/,title)).replace(/%reason%/,reasonToSave);
 
   var promptService = GetPromptService();
-  if (!promptService)
-    return false;
 
   var result = {value:0};
   var promptFlags = promptService.BUTTON_TITLE_CANCEL * promptService.BUTTON_POS_1;

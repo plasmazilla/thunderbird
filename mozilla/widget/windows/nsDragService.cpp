@@ -144,7 +144,7 @@ nsDragService::CreateDragImage(nsIDOMNode *aDOMNode,
   memset((void*)&bmih, 0, sizeof(BITMAPV5HEADER));
   bmih.bV5Size        = sizeof(BITMAPV5HEADER);
   bmih.bV5Width       = bmWidth;
-  bmih.bV5Height      = -bmHeight; // flip vertical
+  bmih.bV5Height      = -(PRInt32)bmHeight; // flip vertical
   bmih.bV5Planes      = 1;
   bmih.bV5BitCount    = 32;
   bmih.bV5Compression = BI_BITFIELDS;
@@ -317,7 +317,7 @@ nsDragService::StartInvokingDragSession(IDataObject * aDataObj,
   HRESULT res = ::DoDragDrop(aDataObj, mNativeDragSrc, effects, &winDropRes);
 
   // In  cases where the drop operation completed outside the application, update
-  // the source node's nsIDOMNSDataTransfer dropEffect value so it is up to date.  
+  // the source node's nsIDOMDataTransfer dropEffect value so it is up to date.  
   if (!mSentLocalDropEvent) {
     PRUint32 dropResult;
     // Order is important, since multiple flags can be returned.
@@ -330,14 +330,11 @@ nsDragService::StartInvokingDragSession(IDataObject * aDataObj,
     else
         dropResult = DRAGDROP_ACTION_NONE;
     
-    nsCOMPtr<nsIDOMNSDataTransfer> dataTransfer =
-      do_QueryInterface(mDataTransfer);
-
-    if (dataTransfer) {
+    if (mDataTransfer) {
       if (res == DRAGDROP_S_DROP) // Success 
-        dataTransfer->SetDropEffectInt(dropResult);
+        mDataTransfer->SetDropEffectInt(dropResult);
       else
-        dataTransfer->SetDropEffectInt(DRAGDROP_ACTION_NONE);
+        mDataTransfer->SetDropEffectInt(DRAGDROP_ACTION_NONE);
     }
   }
 

@@ -92,19 +92,22 @@ GetGSNCache(JSContext *cx)
 
 class AutoNamespaceArray : protected AutoGCRooter {
   public:
-    AutoNamespaceArray(JSContext *cx) : AutoGCRooter(cx, NAMESPACES) {
+    AutoNamespaceArray(JSContext *cx)
+        : AutoGCRooter(cx, NAMESPACES), context(cx) {
         array.init();
     }
 
     ~AutoNamespaceArray() {
-        array.finish(context);
+        array.finish(context->runtime->defaultFreeOp());
     }
 
     uint32_t length() const { return array.length; }
 
-  public:
+  private:
+    JSContext *context;
     friend void AutoGCRooter::trace(JSTracer *trc);
 
+  public:
     JSXMLArray<JSObject> array;
 };
 
@@ -211,7 +214,7 @@ class CompartmentChecker
     
     void check(JSIdArray *ida) {
         if (ida) {
-            for (jsint i = 0; i < ida->length; i++) {
+            for (int i = 0; i < ida->length; i++) {
                 if (JSID_IS_OBJECT(ida->vector[i]))
                     check(ida->vector[i]);
             }
@@ -316,14 +319,14 @@ CallJSNative(JSContext *cx, Native native, const CallArgs &args)
     return ok;
 }
 
-extern JSBool CallOrConstructBoundFunction(JSContext *, uintN, js::Value *);
+extern JSBool CallOrConstructBoundFunction(JSContext *, unsigned, js::Value *);
 
 STATIC_PRECONDITION(ubound(args.argv_) >= argc)
 JS_ALWAYS_INLINE bool
 CallJSNativeConstructor(JSContext *cx, Native native, const CallArgs &args)
 {
 #ifdef DEBUG
-    JSObject &callee = args.callee();
+    RootedVarObject callee(cx, &args.callee());
 #endif
 
     JS_ASSERT(args.thisv().isMagic());
@@ -348,8 +351,8 @@ CallJSNativeConstructor(JSContext *cx, Native native, const CallArgs &args)
     JS_ASSERT_IF(native != FunctionProxyClass.construct &&
                  native != CallableObjectClass.construct &&
                  native != js::CallOrConstructBoundFunction &&
-                 (!callee.isFunction() || callee.toFunction()->u.n.clasp != &ObjectClass),
-                 !args.rval().isPrimitive() && callee != args.rval().toObject());
+                 (!callee->isFunction() || callee->toFunction()->native() != js_Object),
+                 !args.rval().isPrimitive() && callee != &args.rval().toObject());
 
     return true;
 }
@@ -373,8 +376,8 @@ CallJSPropertyOpSetter(JSContext *cx, StrictPropertyOp op, JSObject *obj, jsid i
 }
 
 inline bool
-CallSetter(JSContext *cx, JSObject *obj, jsid id, StrictPropertyOp op, uintN attrs,
-           uintN shortid, JSBool strict, Value *vp)
+CallSetter(JSContext *cx, JSObject *obj, jsid id, StrictPropertyOp op, unsigned attrs,
+           unsigned shortid, JSBool strict, Value *vp)
 {
     if (attrs & JSPROP_SETTER)
         return InvokeGetterOrSetter(cx, obj, CastAsObjectJsval(op), 1, vp, vp);
@@ -387,7 +390,7 @@ CallSetter(JSContext *cx, JSObject *obj, jsid id, StrictPropertyOp op, uintN att
     return CallJSPropertyOpSetter(cx, op, obj, id, strict, vp);
 }
 
-static inline JSAtom **
+static inline HeapPtrAtom *
 FrameAtomBase(JSContext *cx, js::StackFrame *fp)
 {
     return fp->script()->atoms;
@@ -438,14 +441,14 @@ JSContext::maybeOverrideVersion(JSVersion newVersion)
     return true;
 }
 
-inline uintN
+inline unsigned
 JSContext::getCompileOptions() const { return js::VersionFlagsToOptions(findVersion()); }
 
-inline uintN
+inline unsigned
 JSContext::allOptions() const { return getRunOptions() | getCompileOptions(); }
 
 inline void
-JSContext::setCompileOptions(uintN newcopts)
+JSContext::setCompileOptions(unsigned newcopts)
 {
     JS_ASSERT((newcopts & JSCOMPILEOPTION_MASK) == newcopts);
     if (JS_LIKELY(getCompileOptions() == newcopts))
@@ -456,7 +459,7 @@ JSContext::setCompileOptions(uintN newcopts)
 }
 
 inline void
-JSContext::assertValidStackDepth(uintN depth)
+JSContext::assertValidStackDepth(unsigned depth)
 {
 #ifdef DEBUG
     JS_ASSERT(0 <= regs().sp - fp()->base());

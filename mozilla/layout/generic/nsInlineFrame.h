@@ -69,6 +69,13 @@ public:
 
   friend nsIFrame* NS_NewInlineFrame(nsIPresShell* aPresShell, nsStyleContext* aContext);
 
+  /** sets defaults for inline-specific style.
+    * @see nsIFrame::Init
+    */
+  NS_IMETHOD Init(nsIContent*      aContent,
+                  nsIFrame*        aParent,
+                  nsIFrame*        aPrevInFlow);
+
   // nsIFrame overrides
   NS_IMETHOD BuildDisplayList(nsDisplayListBuilder*   aBuilder,
                               const nsRect&           aDirtyRect,
@@ -105,7 +112,7 @@ public:
   virtual nsSize ComputeSize(nsRenderingContext *aRenderingContext,
                              nsSize aCBSize, nscoord aAvailableWidth,
                              nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                             bool aShrinkWrap);
+                             PRUint32 aFlags) MOZ_OVERRIDE;
   virtual nsRect ComputeTightBounds(gfxContext* aContext) const;
   NS_IMETHOD Reflow(nsPresContext* aPresContext,
                     nsHTMLReflowMetrics& aDesiredSize,

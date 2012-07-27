@@ -171,6 +171,6 @@
 }
 
 #tabbar-toolbar {
-  min-height: 0;
   background-color: transparent;
+  min-height: 0;
 }

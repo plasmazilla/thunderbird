@@ -76,7 +76,7 @@ nsFolderCompactState::nsFolderCompactState()
 {
   m_fileStream = nsnull;
   m_size = 0;
-  m_curIndex = -1;
+  m_curIndex = 0;
   m_status = NS_OK;
   m_compactAll = false;
   m_compactOfflineAlso = false;
@@ -758,7 +758,7 @@ nsFolderCompactState::OnDataAvailable(nsIRequest *request, nsISupports *ctxt,
           }
         }
       }
-#define EXTRA_KEYWORD_HDR "                                                                                 "MSG_LINEBREAK
+#define EXTRA_KEYWORD_HDR "                                                                                 " MSG_LINEBREAK
 
        // if status offset isn't in the first block, this code won't work. There's no good reason
       // for the status offset not to be at the beginning of the message anyway.
@@ -1118,13 +1118,14 @@ nsFolderCompactState::EndCopy(nsISupports *url, nsresult aStatus)
   /**
    * Done with the current message; copying the existing message header
    * to the new database.
-   * XXX This will need to be changed when we support local mail folders
-   * > 4GB. We'll need to set the messageOffset attribute on the new header,
-   * and assign the nsMsgKey some other way.
    */
   if (m_curSrcHdr)
-    m_db->CopyHdrFromExistingHdr((nsMsgKey) m_startOfNewMsg, m_curSrcHdr, true,
-                               getter_AddRefs(newMsgHdr));
+  {
+    // if mbox is close to 4GB, auto-assign the msg key.
+    nsMsgKey key = m_startOfNewMsg > 0xFFFFFF00 ? nsMsgKey_None : (nsMsgKey) m_startOfNewMsg;
+    m_db->CopyHdrFromExistingHdr(key, m_curSrcHdr, true,
+                                 getter_AddRefs(newMsgHdr));
+  }
   m_curSrcHdr = nsnull;
   if (newMsgHdr)
   {
@@ -1216,7 +1217,7 @@ nsOfflineStoreCompactState::OnDataAvailable(nsIRequest *request, nsISupports *ct
         // check if there's an envelope header; if not, write one.
         if (strncmp(m_dataBuffer, "From ", 5))
         {
-          m_fileStream->Write("From "CRLF, 7, &bytesWritten);
+          m_fileStream->Write("From " CRLF, 7, &bytesWritten);
           m_offlineMsgSize += bytesWritten;
         }
       }

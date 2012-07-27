@@ -47,6 +47,10 @@ include $(topsrcdir)/config/rules.mk
 MOZ_PKG_REMOVALS = $(srcdir)/removed-files.in
 
 MOZ_PKG_MANIFEST_P = $(srcdir)/package-manifest.in
+# Be fatal, except when building with XULRunner which already bundles some files.
+ifndef SYSTEM_LIBXUL
+MOZ_PKG_FATAL_WARNINGS = 1
+endif
 
 MOZ_NONLOCALIZED_PKG_LIST = \
 	xpcom \
@@ -70,6 +74,10 @@ ifdef ENABLE_TESTS
 DEFINES += -DENABLE_TESTS=1
 endif
 
+ifdef LIBXUL_SDK
+DEFINES += -DLIBXUL_SDK=1
+endif
+
 ifdef MOZ_ANGLE
 DEFINES += -DMOZ_ANGLE=$(MOZ_ANGLE)
 DEFINES += -DMOZ_D3DX9_DLL=$(MOZ_D3DX9_DLL)
@@ -88,6 +96,13 @@ ifeq (gtk2, $(MOZ_WIDGET_TOOLKIT))
 DEFINES += -DMOZ_GTK2=1
 endif
 
+# Check whether this build is an alpha or nightly:
+# replace "pre" with "a" in the version then look if "a" matches.
+# This should match /suite/Makefile.in.
+ifneq (,$(findstring a,$(MOZ_APP_VERSION:pre=a)))
+DEFINES += -DMOZ_PACKAGE_DEBUGQA=1
+endif
+
 ifdef NSS_DISABLE_DBM
 DEFINES += -DNSS_DISABLE_DBM=1
 endif
@@ -103,9 +118,19 @@ endif
 ifdef MOZ_UPDATER
 DEFINES += -DMOZ_UPDATER=1
 endif
+ifdef MOZ_NATIVE_NSPR
+DEFINES += -DMOZ_NATIVE_NSPR=1
+endif
+
+ifdef MOZ_NATIVE_NSS
+DEFINES += -DMOZ_NATIVE_NSS=1
+endif
 
 ifdef MOZ_MOVEMAIL
 DEFINES += -DMOZ_MOVEMAIL=1
+endif
+ifdef NECKO_WIFI
+DEFINES += -DNECKO_WIFI=1
 endif
 
 # Set MSVC dlls version to package, if any.

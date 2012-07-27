@@ -40,23 +40,43 @@
 DEPTH       = ../..
 topsrcdir	  = @top_srcdir@
 srcdir      = @srcdir@
-VPATH       = \
-  $(srcdir) \
-  $(srcdir)/sps \
-  $(srcdir)/public \
-  $(NULL)
+VPATH       = $(srcdir)
 
 include $(DEPTH)/config/autoconf.mk
 
-EXPORTS = \
-  sampler.h \
+EXPORTS = sampler.h
+
+ifdef MOZ_ENABLE_PROFILER_SPS
+EXPORTS += \
   sps_sampler.h \
   thread_helper.h \
+  shared-libraries.h \
   $(NULL)
 
 LOCAL_INCLUDES += \
   -I$(topsrcdir)/ipc/chromium/src \
   $(NULL)
+
+ifneq (,$(MOZ_PROFILING))
+ifneq (,$(filter Android,$(OS_TARGET)))
+LOCAL_INCLUDES += \
+  -I$(topsrcdir)/tools/profiler/libunwind/src/include \
+  -I$(DEPTH)/tools/profiler/libunwind/src/include \
+  $(NULL)
+
+SHARED_LIBRARY_LIBS += \
+  $(DEPTH)/tools/profiler/libunwind/src/src/.libs/libunwind-arm.$(LIB_SUFFIX) \
+  $(NULL)
+
+export::
+	# Avoid building libunwind documentation
+	$(topsrcdir)/tools/profiler/libunwind/dont_build_docs.sh $(DEPTH)/tools/profiler/libunwind/src/doc/Makefile
+	$(call SUBMAKE,,libunwind/src)
+
+distclean::
+	$(call SUBMAKE,$@,libunwind/src)
+endif
+endif
 
 MODULE          = profiler
 MODULE_NAME     = nsProfilerModule
@@ -68,6 +88,7 @@ IS_COMPONENT    = 1
 CPPSRCS		= \
   nsProfilerFactory.cpp \
   nsProfiler.cpp \
+  TableTicker.cpp \
   $(NULL)
 
 XPIDLSRCS = \
@@ -79,42 +100,26 @@ EXTRA_JS_MODULES = \
   $(NULL)
 
 ifneq (,$(filter Android Linux,$(OS_TARGET)))
-
-DEFINES += -DMOZ_ENABLE_PROFILER_SPS
-
 CPPSRCS += \
   shared-libraries-linux.cc \
   platform-linux.cc \
-  TableTicker.cpp \
   $(NULL)
 endif
+
 ifeq ($(OS_TARGET),Darwin)
-# For now we use platform-linux.cc because we can't unwind
-# another thread on mac using backtrace(), the implementation
-# for platform-macosx.cc is in the hg history and should be
-# used when we can stackwalk using a thread handle.
-
-DEFINES += -DMOZ_ENABLE_PROFILER_SPS
-
 CPPSRCS += \
   shared-libraries-macos.cc \
-  platform-linux.cc \
-  TableTicker.cpp \
+  platform-macos.cc \
   $(NULL)
 endif
 
 ifeq ($(OS_TARGET),WINNT)
-
-DEFINES += -DMOZ_ENABLE_PROFILER_SPS
-
 CPPSRCS += \
   shared-libraries-win32.cc \
   platform-win32.cc \
-  TableTicker.cpp \
   $(NULL)
 endif
 
-
+endif
 
 include $(topsrcdir)/config/rules.mk
-

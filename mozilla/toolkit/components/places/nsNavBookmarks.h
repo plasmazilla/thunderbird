@@ -255,6 +255,17 @@ public:
    */
   void NotifyItemChanged(const ItemChangeData& aData);
 
+  /**
+   * Recursively builds an array of descendant folders inside a given folder.
+   *
+   * @param aFolderId
+   *        The folder to fetch descendants from.
+   * @param aDescendantFoldersArray
+   *        Output array to put descendant folders id.
+   */
+  nsresult GetDescendantFolders(PRInt64 aFolderId,
+                                nsTArray<PRInt64>& aDescendantFoldersArray);
+
 private:
   static nsNavBookmarks* gBookmarksService;
 
@@ -296,9 +307,6 @@ private:
    * This is an handle to the Places database.
    */
   nsRefPtr<mozilla::places::Database> mDB;
-
-  nsString mGUIDBase;
-  nsresult GetGUIDBase(nsAString& aGUIDBase);
 
   PRInt32 mItemCount;
 

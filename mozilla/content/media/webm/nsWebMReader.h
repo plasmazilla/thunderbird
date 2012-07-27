@@ -39,17 +39,15 @@
 #if !defined(nsWebMReader_h_)
 #define nsWebMReader_h_
 
-#include "mozilla/StdInt.h"
+#include "mozilla/StandardInteger.h"
 
 #include "nsDeque.h"
 #include "nsBuiltinDecoderReader.h"
-#include "nsWebMBufferedParser.h"
 #include "nsAutoRef.h"
 #include "nestegg/nestegg.h"
 
 #define VPX_DONT_DEFINE_STDINT_TYPES
-#include "vpx/vpx_decoder.h"
-#include "vpx/vp8dx.h"
+#include "vpx/vpx_codec.h"
 
 #ifdef MOZ_TREMOR
 #include "tremor/ivorbiscodec.h"
@@ -57,7 +55,7 @@
 #include "vorbis/codec.h"
 #endif
 
-class nsMediaDecoder;
+class nsWebMBufferedState;
 
 // Holds a nestegg_packet, and its file offset. This is needed so we
 // know the offset in the file we've played up to, in order to calculate
@@ -161,7 +159,7 @@ public:
   virtual nsresult ReadMetadata(nsVideoInfo* aInfo);
   virtual nsresult Seek(PRInt64 aTime, PRInt64 aStartTime, PRInt64 aEndTime, PRInt64 aCurrentTime);
   virtual nsresult GetBuffered(nsTimeRanges* aBuffered, PRInt64 aStartTime);
-  virtual void NotifyDataArrived(const char* aBuffer, PRUint32 aLength, PRUint32 aOffset);
+  virtual void NotifyDataArrived(const char* aBuffer, PRUint32 aLength, PRInt64 aOffset);
 
 private:
   // Value passed to NextPacket to determine if we are reading a video or an
@@ -201,7 +199,7 @@ private:
   nestegg* mContext;
 
   // VP8 decoder state
-  vpx_codec_ctx_t  mVP8;
+  vpx_codec_ctx_t mVP8;
 
   // Vorbis decoder state
   vorbis_info mVorbisInfo;
@@ -237,16 +235,16 @@ private:
   // Picture region, as relative to the initial frame size.
   nsIntRect mPicture;
 
-  // Booleans to indicate if we have audio and/or video data
-  bool mHasVideo;
-  bool mHasAudio;
-
   // Value of the "media.webm.force_stereo_mode" pref, which we need off the
   // main thread.
   PRInt32 mForceStereoMode;
 
-  // Boolean which is set to true when the "media.webm.force_stereo_mode" is
-  // explicitly set.
+  // Booleans to indicate if we have audio and/or video data
+  bool mHasVideo;
+  bool mHasAudio;
+
+  // Boolean which is set to true when the "media.webm.force_stereo_mode"
+  // pref is explicitly set.
   bool mStereoModeForced;
 };
 

@@ -49,6 +49,7 @@
 #include "nsContentUtils.h"
 #include "nsJSUtils.h"
 #include "nsMathUtils.h"
+#include "nsStreamUtils.h"
 #include "mozilla/Preferences.h"
 #include "mozilla/Telemetry.h"
 
@@ -214,6 +215,36 @@ nsHTMLCanvasElement::ToDataURL(const nsAString& aType, nsIVariant* aParams,
   }
 
   return ToDataURLImpl(aType, aParams, aDataURL);
+}
+
+// nsHTMLCanvasElement::mozFetchAsStream
+
+NS_IMETHODIMP
+nsHTMLCanvasElement::MozFetchAsStream(nsIInputStreamCallback *aCallback,
+                                      const nsAString& aType)
+{
+  if (!nsContentUtils::IsCallerChrome())
+    return NS_ERROR_FAILURE;
+
+  nsresult rv;
+  bool fellBackToPNG = false;
+  nsCOMPtr<nsIInputStream> inputData;
+
+  rv = ExtractData(aType, EmptyString(), getter_AddRefs(inputData), fellBackToPNG);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsIAsyncInputStream> asyncData = do_QueryInterface(inputData, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsIThread> mainThread;
+  rv = NS_GetMainThread(getter_AddRefs(mainThread));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsIInputStreamCallback> asyncCallback;
+  rv = NS_NewInputStreamReadyEvent(getter_AddRefs(asyncCallback), aCallback, mainThread);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  return asyncCallback->OnInputStreamReady(asyncData);
 }
 
 nsresult
@@ -680,6 +711,8 @@ nsHTMLCanvasElement::InvalidateCanvasContent(const gfxRect* damageRect)
       // then make it a nsRect
       invalRect = nsRect(realRect.X(), realRect.Y(),
                          realRect.Width(), realRect.Height());
+
+      invalRect = invalRect.Intersect(nsRect(nsPoint(0,0), contentArea.Size()));
     }
   } else {
     invalRect = nsRect(nsPoint(0, 0), contentArea.Size());
@@ -761,12 +794,12 @@ nsHTMLCanvasElement::GetSizeExternal()
 }
 
 NS_IMETHODIMP
-nsHTMLCanvasElement::RenderContextsExternal(gfxContext *aContext, gfxPattern::GraphicsFilter aFilter)
+nsHTMLCanvasElement::RenderContextsExternal(gfxContext *aContext, gfxPattern::GraphicsFilter aFilter, PRUint32 aFlags)
 {
   if (!mCurrentContext)
     return NS_OK;
 
-  return mCurrentContext->Render(aContext, aFilter);
+  return mCurrentContext->Render(aContext, aFilter, aFlags);
 }
 
 nsresult NS_NewCanvasRenderingContext2DThebes(nsIDOMCanvasRenderingContext2D** aResult);

@@ -169,14 +169,17 @@ nsSMILCSSProperty::ValueFromString(const nsAString& aStr,
   nsSMILCSSValueType::ValueFromString(mPropID, mElement, aStr, aValue,
       &aPreventCachingOfSandwich);
 
+  if (aValue.IsNull()) {
+    return NS_ERROR_FAILURE;
+  }
+
   // XXX Due to bug 536660 (or at least that seems to be the most likely
   // culprit), when we have animation setting display:none on a <use> element,
   // if we DON'T set the property every sample, chaos ensues.
   if (!aPreventCachingOfSandwich && mPropID == eCSSProperty_display) {
     aPreventCachingOfSandwich = true;
   }
-
-  return aValue.IsNull() ? NS_ERROR_FAILURE : NS_OK;
+  return NS_OK;
 }
 
 nsresult
@@ -251,6 +254,7 @@ nsSMILCSSProperty::IsPropertyAnimatable(nsCSSProperty aPropID)
     case eCSSProperty_font_style:
     case eCSSProperty_font_variant:
     case eCSSProperty_font_weight:
+    case eCSSProperty_height:
     case eCSSProperty_image_rendering:
     case eCSSProperty_letter_spacing:
     case eCSSProperty_lighting_color:
@@ -279,6 +283,7 @@ nsSMILCSSProperty::IsPropertyAnimatable(nsCSSProperty aPropID)
     case eCSSProperty_text_decoration_line:
     case eCSSProperty_text_rendering:
     case eCSSProperty_visibility:
+    case eCSSProperty_width:
     case eCSSProperty_word_spacing:
       return true;
 

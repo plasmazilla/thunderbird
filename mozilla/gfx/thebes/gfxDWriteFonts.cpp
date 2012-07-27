@@ -47,10 +47,12 @@
 
 #include "gfxDWriteTextAnalysis.h"
 
-#include "harfbuzz/hb-blob.h"
+#include "harfbuzz/hb.h"
 
 // Chosen this as to resemble DWrite's own oblique face style.
 #define OBLIQUE_SKEW_FACTOR 0.3
+
+using namespace mozilla::gfx;
 
 // This is also in gfxGDIFont.cpp. Would be nice to put it somewhere common,
 // but we can't declare it in the gfxFont.h or gfxFontUtils.h headers
@@ -82,28 +84,12 @@ GetCairoAntialiasOption(gfxFont::AntialiasOption anAntialiasOption)
 #endif
 
 static bool
-HasClearType()
-{
-    OSVERSIONINFO versionInfo;
-    versionInfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
-
-    return (GetVersionEx(&versionInfo) &&
-            (versionInfo.dwMajorVersion > 5 ||
-             (versionInfo.dwMajorVersion == 5 &&
-              versionInfo.dwMinorVersion >= 1))); // XP or newer
-}
-
-static bool
 UsingClearType()
 {
     BOOL fontSmoothing;
     if (!SystemParametersInfo(SPI_GETFONTSMOOTHING, 0, &fontSmoothing, 0) ||
         !fontSmoothing)
     {
-        return false;    
-    }
-
-    if (!HasClearType()) {
         return false;
     }
 
@@ -134,7 +120,7 @@ gfxDWriteFont::gfxDWriteFont(gfxFontEntry *aFontEntry,
         static_cast<gfxDWriteFontEntry*>(aFontEntry);
     nsresult rv;
     DWRITE_FONT_SIMULATIONS sims = DWRITE_FONT_SIMULATIONS_NONE;
-    if ((GetStyle()->style & (FONT_STYLE_ITALIC | FONT_STYLE_OBLIQUE)) &&
+    if ((GetStyle()->style & (NS_FONT_STYLE_ITALIC | NS_FONT_STYLE_OBLIQUE)) &&
         !fe->IsItalic()) {
             // For this we always use the font_matrix for uniformity. Not the
             // DWrite simulation.
@@ -686,7 +672,7 @@ gfxDWriteFont::GetFontTable(PRUint32 aTag)
         FontTableRec *ftr = new FontTableRec(mFontFace, context);
         return hb_blob_create(static_cast<const char*>(data), size,
                               HB_MEMORY_MODE_READONLY,
-                              DestroyBlobFunc, ftr);
+                              ftr, DestroyBlobFunc);
     }
 
     if (mFontEntry->IsUserFont() && !mFontEntry->IsLocalUserFont()) {
@@ -723,6 +709,19 @@ gfxDWriteFont::GetGlyphWidth(gfxContext *aCtx, PRUint16 aGID)
     width = NS_lround(MeasureGlyphWidth(aGID) * 65536.0);
     mGlyphWidths.Put(aGID, width);
     return width;
+}
+
+TemporaryRef<GlyphRenderingOptions>
+gfxDWriteFont::GetGlyphRenderingOptions()
+{
+  if (UsingClearType()) {
+    return Factory::CreateDWriteGlyphRenderingOptions(
+      gfxWindowsPlatform::GetPlatform()->GetRenderingParams(GetForceGDIClassic() ?
+        gfxWindowsPlatform::TEXT_RENDERING_GDI_CLASSIC : gfxWindowsPlatform::TEXT_RENDERING_NORMAL));
+  } else {
+    return Factory::CreateDWriteGlyphRenderingOptions(gfxWindowsPlatform::GetPlatform()->
+      GetRenderingParams(gfxWindowsPlatform::TEXT_RENDERING_NO_CLEARTYPE));
+  }
 }
 
 bool
@@ -762,4 +761,21 @@ gfxDWriteFont::MeasureGlyphWidth(PRUint16 aGlyph)
         }
     }
     return 0;
+}
+
+void
+gfxDWriteFont::SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf,
+                                   FontCacheSizes*   aSizes) const
+{
+    gfxFont::SizeOfExcludingThis(aMallocSizeOf, aSizes);
+    aSizes->mFontInstances += aMallocSizeOf(mMetrics) +
+        mGlyphWidths.SizeOfExcludingThis(nsnull, aMallocSizeOf);
+}
+
+void
+gfxDWriteFont::SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf,
+                                   FontCacheSizes*   aSizes) const
+{
+    aSizes->mFontInstances += aMallocSizeOf(this);
+    SizeOfExcludingThis(aMallocSizeOf, aSizes);
 }

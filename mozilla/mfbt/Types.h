@@ -53,7 +53,7 @@
  * the right __STDC_*_MACRO has been defined for each).  These are all usable
  * throughout mfbt code, and throughout Mozilla code more generally.
  */
-#include "mozilla/StdInt.h"
+#include "mozilla/StandardInteger.h"
 
 /* Also expose size_t. */
 #include <stddef.h>
@@ -101,7 +101,7 @@
  * depending upon the compilation mode.
  */
 #ifdef _WIN32
-#  if defined(__MWERKS__) || defined(__GNUC__)
+#  if defined(__MWERKS__)
 #    define MOZ_IMPORT_API(x)    x
 #  else
 #    define MOZ_IMPORT_API(x)    __declspec(dllimport) x
@@ -129,8 +129,17 @@
 #  define MFBT_API(type)        MOZ_EXPORT_API(type)
 #  define MFBT_DATA(type)       MOZ_EXPORT_DATA(type)
 #else
-#  define MFBT_API(type)        MOZ_IMPORT_API(type)
-#  define MFBT_DATA(type)       MOZ_IMPORT_DATA(type)
+  /*
+   * When mozglue is linked in the program, we need the MFBT API symbols
+   * to be weak.
+   */
+#  if defined(MOZ_GLUE_IN_PROGRAM)
+#    define MFBT_API(type)        __attribute__((weak)) MOZ_IMPORT_API(type)
+#    define MFBT_DATA(type)       __attribute__((weak)) MOZ_IMPORT_DATA(type)
+#  else
+#    define MFBT_API(type)        MOZ_IMPORT_API(type)
+#    define MFBT_DATA(type)       MOZ_IMPORT_DATA(type)
+#  endif
 #endif
 
 /*

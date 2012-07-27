@@ -46,6 +46,7 @@
 #if defined(XP_OS2)
 #include "nsIRandomGenerator.h"
 #endif
+#include "nsContentUtils.h"
 
 // The length of guids that are used by history and bookmarks.
 #define GUID_LENGTH 12
@@ -400,13 +401,6 @@ PlacesEvent::Run()
   return NS_OK;
 }
 
-NS_IMETHODIMP
-PlacesEvent::Complete()
-{
-  Notify();
-  return NS_OK;
-}
-
 void
 PlacesEvent::Notify()
 {
@@ -417,11 +411,39 @@ PlacesEvent::Notify()
   }
 }
 
-NS_IMPL_THREADSAFE_ISUPPORTS2(
+NS_IMPL_THREADSAFE_ISUPPORTS1(
   PlacesEvent
-, mozIStorageCompletionCallback
 , nsIRunnable
 )
+
+////////////////////////////////////////////////////////////////////////////////
+//// AsyncStatementCallbackNotifier
+
+NS_IMETHODIMP
+AsyncStatementCallbackNotifier::HandleCompletion(PRUint16 aReason)
+{
+  if (aReason != mozIStorageStatementCallback::REASON_FINISHED)
+    return NS_ERROR_UNEXPECTED;
+
+  nsCOMPtr<nsIObserverService> obs = services::GetObserverService();
+  if (obs) {
+    (void)obs->NotifyObservers(nsnull, mTopic, nsnull);
+  }
+
+  return NS_OK;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+//// AsyncStatementCallbackNotifier
+
+NS_IMETHODIMP
+AsyncStatementTelemetryTimer::HandleCompletion(PRUint16 aReason)
+{
+  if (aReason == mozIStorageStatementCallback::REASON_FINISHED) {
+    Telemetry::AccumulateTimeDelta(mHistogramId, mStart);
+  }
+  return NS_OK;
+}
 
 } // namespace places
 } // namespace mozilla

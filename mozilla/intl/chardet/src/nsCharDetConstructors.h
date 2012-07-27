@@ -47,7 +47,6 @@
 // chardet
 #include "nsISupports.h"
 #include "nsICharsetDetector.h"
-#include "nsICharsetAlias.h"
 #include "nsICharsetDetectionObserver.h"
 #include "nsIStringCharsetDetector.h"
 #include "nsCyrillicDetector.h"
@@ -56,12 +55,5 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsRUProbDetector)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsUKProbDetector)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsRUStringProbDetector)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsUKStringProbDetector)
-
-#ifdef INCLUDE_DBGDETECTOR
-NS_GENERIC_FACTORY_CONSTRUCTOR(ns1stBlkDbgDetector)
-NS_GENERIC_FACTORY_CONSTRUCTOR(ns2ndBlkDbgDetector)
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsLastBlkDbgDetector)
-#endif /* INCLUDE_DBGDETECTOR */
-
 
 #endif

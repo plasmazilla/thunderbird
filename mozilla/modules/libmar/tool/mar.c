@@ -186,8 +186,8 @@ int main(int argc, char **argv) {
   case 'T': {
     int rv;
     struct ProductInformationBlock infoBlock;
-    int hasSignatureBlock, numSignatures, 
-      hasAdditionalBlock, numAdditionalBlocks;
+    PRUint32 numSignatures, numAdditionalBlocks;
+    int hasSignatureBlock, hasAdditionalBlock;
     if (!get_mar_file_info(argv[2], 
                            &hasSignatureBlock,
                            &numSignatures,
@@ -216,7 +216,7 @@ int main(int argc, char **argv) {
       }
      }
     printf("\n");
-    // The fall through from 'T' to 't' is intentional
+    /* The fall through from 'T' to 't' is intentional */
   }
   case 't':
     return mar_test(argv[2]);

@@ -53,6 +53,8 @@
 #include "nsDOMHashChangeEvent.h"
 #include "nsFrameLoader.h"
 #include "nsDOMTouchEvent.h"
+#include "nsDOMStorage.h"
+#include "sampler.h"
 
 #define NS_TARGET_CHAIN_FORCE_CONTENT_DISPATCH  (1 << 0)
 #define NS_TARGET_CHAIN_WANTS_WILL_HANDLE_EVENT (1 << 1)
@@ -479,6 +481,7 @@ nsEventDispatcher::Dispatch(nsISupports* aTarget,
                             nsDispatchingCallback* aCallback,
                             nsCOMArray<nsIDOMEventTarget>* aTargets)
 {
+  SAMPLE_LABEL("nsEventDispatcher", "Dispatch");
   NS_ASSERTION(aEvent, "Trying to dispatch without nsEvent!");
   NS_ENSURE_TRUE(!NS_IS_EVENT_IN_DISPATCH(aEvent),
                  NS_ERROR_ILLEGAL_VALUE);
@@ -913,6 +916,11 @@ nsEventDispatcher::CreateEvent(nsPresContext* aPresContext,
     return NS_NewDOMCustomEvent(aDOMEvent, aPresContext, nsnull);
   if (aEventType.LowerCaseEqualsLiteral("mozsmsevent"))
     return NS_NewDOMSmsEvent(aDOMEvent, aPresContext, nsnull);
+  if (aEventType.LowerCaseEqualsLiteral("storageevent")) {
+    NS_ADDREF(*aDOMEvent = static_cast<nsDOMEvent*>(new nsDOMStorageEvent()));
+    return NS_OK;
+  }
+    
 
   return NS_ERROR_DOM_NOT_SUPPORTED_ERR;
 }

@@ -50,7 +50,6 @@
 #include "jscntxtinlines.h"
 #include "jscompartment.h"
 #include "jsscope.h"
-#include "jsgcmark.h"
 
 #include "jsgcinlines.h"
 #include "jsinterpinlines.h"
@@ -253,7 +252,7 @@ JS_STATIC_ASSERT(offsetof(FrameRegs, sp) == 0);
 #if defined(__GNUC__) && !defined(_WIN64)
 
 /* If this assert fails, you need to realign VMFrame to 16 bytes. */
-#if defined(JS_CPU_ARM) || defined(JS_CPU_MIPS)
+#if defined(JS_CPU_ARM) || defined(JS_CPU_MIPS) || defined(JS_CPU_SPARC)
 JS_STATIC_ASSERT(sizeof(VMFrame) % 8 == 0);
 #else
 JS_STATIC_ASSERT(sizeof(VMFrame) % 16 == 0);
@@ -989,9 +988,10 @@ JaegerCompartment::JaegerCompartment()
 {}
 
 bool
-JaegerCompartment::Initialize()
+JaegerCompartment::Initialize(JSContext *cx)
 {
-    execAlloc_ = js::OffTheBooks::new_<JSC::ExecutableAllocator>();
+    execAlloc_ = js::OffTheBooks::new_<JSC::ExecutableAllocator>(
+        cx->runtime->getJitHardening() ? JSC::AllocationCanRandomize : JSC::AllocationDeterministic);
     if (!execAlloc_)
         return false;
     
@@ -1106,7 +1106,7 @@ CheckStackAndEnterMethodJIT(JSContext *cx, StackFrame *fp, void *code, bool part
 
     Value *stackLimit = cx->stack.space().getStackLimit(cx, REPORT_ERROR);
     if (!stackLimit)
-        return Jaeger_Throwing;
+        return Jaeger_ThrowBeforeEnter;
 
     return EnterMethodJIT(cx, fp, code, stackLimit, partial);
 }
@@ -1229,13 +1229,34 @@ JITScript::patchEdge(const CrossChunkEdge &edge, void *label)
 {
     if (edge.sourceJump1 || edge.sourceJump2) {
         JITChunk *sourceChunk = chunk(script->code + edge.source);
-        JSC::CodeLocationLabel targetLabel(label);
         ic::Repatcher repatch(sourceChunk);
 
+#ifdef JS_CPU_X64
+        JS_ASSERT(edge.sourceTrampoline);
+
+        static const uint32_t JUMP_LENGTH = 10;
+
+        if (edge.sourceJump1) {
+            JSC::CodeLocationLabel targetLabel(VerifyRange(edge.sourceJump1, JUMP_LENGTH, label, 0)
+                                               ? label
+                                               : edge.sourceTrampoline);
+            repatch.relink(JSC::CodeLocationJump(edge.sourceJump1), targetLabel);
+        }
+        if (edge.sourceJump2) {
+            JSC::CodeLocationLabel targetLabel(VerifyRange(edge.sourceJump2, JUMP_LENGTH, label, 0)
+                                               ? label
+                                               : edge.sourceTrampoline);
+            repatch.relink(JSC::CodeLocationJump(edge.sourceJump2), targetLabel);
+        }
+        JSC::CodeLocationDataLabelPtr sourcePatch((char*)edge.sourceTrampoline + JUMP_LENGTH);
+        repatch.repatch(sourcePatch, label);
+#else
+        JSC::CodeLocationLabel targetLabel(label);
         if (edge.sourceJump1)
             repatch.relink(JSC::CodeLocationJump(edge.sourceJump1), targetLabel);
         if (edge.sourceJump2)
             repatch.relink(JSC::CodeLocationJump(edge.sourceJump2), targetLabel);
+#endif
     }
     if (edge.jumpTableEntries) {
         for (unsigned i = 0; i < edge.jumpTableEntries->length(); i++)
@@ -1292,23 +1313,23 @@ JITChunk::~JITChunk()
 }
 
 void
-JITScript::destroy(JSContext *cx)
+JITScript::destroy(FreeOp *fop)
 {
     for (unsigned i = 0; i < nchunks; i++)
-        destroyChunk(cx, i);
+        destroyChunk(fop, i);
 
     if (shimPool)
         shimPool->release();
 }
 
 void
-JITScript::destroyChunk(JSContext *cx, unsigned chunkIndex, bool resetUses)
+JITScript::destroyChunk(FreeOp *fop, unsigned chunkIndex, bool resetUses)
 {
     ChunkDescriptor &desc = chunkDescriptor(chunkIndex);
 
     if (desc.chunk) {
-        Probes::discardMJITCode(cx, this, script, desc.chunk->code.m_code.executableAddress());
-        cx->delete_(desc.chunk);
+        Probes::discardMJITCode(fop, this, script, desc.chunk->code.m_code.executableAddress());
+        fop->delete_(desc.chunk);
         desc.chunk = NULL;
 
         CrossChunkEdge *edges = this->edges();
@@ -1316,8 +1337,11 @@ JITScript::destroyChunk(JSContext *cx, unsigned chunkIndex, bool resetUses)
             CrossChunkEdge &edge = edges[i];
             if (edge.source >= desc.begin && edge.source < desc.end) {
                 edge.sourceJump1 = edge.sourceJump2 = NULL;
+#ifdef JS_CPU_X64
+                edge.sourceTrampoline = NULL;
+#endif
                 if (edge.jumpTableEntries) {
-                    cx->delete_(edge.jumpTableEntries);
+                    fop->delete_(edge.jumpTableEntries);
                     edge.jumpTableEntries = NULL;
                 }
             } else if (edge.target >= desc.begin && edge.target < desc.end) {
@@ -1338,13 +1362,8 @@ JITScript::destroyChunk(JSContext *cx, unsigned chunkIndex, bool resetUses)
 
         invokeEntry = NULL;
         fastEntry = NULL;
-        arityCheckEntry = NULL;
         argsCheckEntry = NULL;
-
-        if (script->jitNormal == this)
-            script->jitArityCheckNormal = NULL;
-        else
-            script->jitArityCheckCtor = NULL;
+        arityCheckEntry = NULL;
 
         // Fixup any ICs still referring to this chunk.
         while (!JS_CLIST_IS_EMPTY(&callers)) {
@@ -1361,14 +1380,27 @@ JITScript::destroyChunk(JSContext *cx, unsigned chunkIndex, bool resetUses)
     }
 }
 
+const js::mjit::JITScript *JSScript::JITScriptHandle::UNJITTABLE =
+    reinterpret_cast<js::mjit::JITScript *>(1);
+
+void
+JSScript::JITScriptHandle::staticAsserts()
+{
+    // JITScriptHandle's memory layout must match that of JITScript *.
+    JS_STATIC_ASSERT(sizeof(JSScript::JITScriptHandle) == sizeof(js::mjit::JITScript *));
+    JS_STATIC_ASSERT(JS_ALIGNMENT_OF(JSScript::JITScriptHandle) ==
+                     JS_ALIGNMENT_OF(js::mjit::JITScript *));
+    JS_STATIC_ASSERT(offsetof(JSScript::JITScriptHandle, value) == 0);
+}
+
 size_t
 JSScript::sizeOfJitScripts(JSMallocSizeOfFun mallocSizeOf)
 {
     size_t n = 0;
-    if (jitNormal)
-        n += jitNormal->sizeOfIncludingThis(mallocSizeOf); 
-    if (jitCtor)
-        n += jitCtor->sizeOfIncludingThis(mallocSizeOf); 
+    if (jitHandleNormal.isValid())
+        n += jitHandleNormal.getValid()->sizeOfIncludingThis(mallocSizeOf); 
+    if (jitHandleCtor.isValid())
+        n += jitHandleCtor.getValid()->sizeOfIncludingThis(mallocSizeOf); 
     return n;
 }
 
@@ -1414,21 +1446,16 @@ mjit::JITChunk::sizeOfIncludingThis(JSMallocSizeOfFun mallocSizeOf)
 }
 
 void
-mjit::ReleaseScriptCode(JSContext *cx, JSScript *script, bool construct)
+JSScript::ReleaseCode(FreeOp *fop, JITScriptHandle *jith)
 {
     // NB: The recompiler may call ReleaseScriptCode, in which case it
     // will get called again when the script is destroyed, so we
     // must protect against calling ReleaseScriptCode twice.
 
-    JITScript **pjit = construct ? &script->jitCtor : &script->jitNormal;
-    void **parity = construct ? &script->jitArityCheckCtor : &script->jitArityCheckNormal;
-
-    if (*pjit) {
-        (*pjit)->destroy(cx);
-        cx->free_(*pjit);
-        *pjit = NULL;
-        *parity = NULL;
-    }
+    JITScript *jit = jith->getValid();
+    jit->destroy(fop);
+    fop->free_(jit);
+    jith->setEmpty();
 }
 
 #ifdef JS_METHODJIT_PROFILE_STUBS

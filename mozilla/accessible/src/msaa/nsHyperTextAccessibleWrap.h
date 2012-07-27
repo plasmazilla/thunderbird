@@ -44,15 +44,15 @@
 #include "nsHyperTextAccessible.h"
 #include "CAccessibleText.h"
 #include "CAccessibleEditableText.h"
-#include "CAccessibleHyperText.h"
+#include "ia2AccessibleHyperText.h"
 
 class nsHyperTextAccessibleWrap : public nsHyperTextAccessible,
-                                  public CAccessibleHypertext,
+                                  public ia2AccessibleHypertext,
                                   public CAccessibleEditableText
 {
 public:
-  nsHyperTextAccessibleWrap(nsIContent *aContent, nsIWeakReference *aShell) :
-    nsHyperTextAccessible(aContent, aShell) {}
+  nsHyperTextAccessibleWrap(nsIContent* aContent, nsDocAccessible* aDoc) :
+    nsHyperTextAccessible(aContent, aDoc) {}
 
   // IUnknown
   DECL_IUNKNOWN_INHERITED

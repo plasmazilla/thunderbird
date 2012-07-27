@@ -45,6 +45,7 @@
 #include "nsCOMPtr.h"
 #include "nsTArray.h"
 #include "nsInterfaceHashtable.h"
+#include "nsIAndroidBridge.h"
 
 namespace mozilla {
 class AndroidGeckoEvent;
@@ -84,6 +85,14 @@ public:
     void NotifyObservers(nsISupports *aSupports, const char *aTopic, const PRUnichar *aData);
     void ResendLastResizeEvent(nsWindow* aDest);
 
+    void SetBrowserApp(nsIAndroidBrowserApp* aBrowserApp) {
+        mBrowserApp = aBrowserApp;
+    }
+
+    void GetBrowserApp(nsIAndroidBrowserApp* *aBrowserApp) {
+        *aBrowserApp = mBrowserApp;
+    }
+
 protected:
     virtual void ScheduleNativeEventCallback();
     virtual ~nsAppShell();
@@ -91,14 +100,16 @@ protected:
     Mutex mQueueLock;
     Mutex mCondLock;
     CondVar mQueueCond;
-    int mNumDraws;
-    int mNumViewports;
-    mozilla::AndroidGeckoEvent *mLastDrawEvent;
+    mozilla::AndroidGeckoEvent *mQueuedDrawEvent;
+    mozilla::AndroidGeckoEvent *mQueuedViewportEvent;
+    bool mAllowCoalescingNextDraw;
     nsTArray<mozilla::AndroidGeckoEvent *> mEventQueue;
     nsInterfaceHashtable<nsStringHashKey, nsIObserver> mObserversHash;
 
     mozilla::AndroidGeckoEvent *PopNextEvent();
     mozilla::AndroidGeckoEvent *PeekNextEvent();
+
+    nsCOMPtr<nsIAndroidBrowserApp> mBrowserApp;
 };
 
 #endif // nsAppShell_h__

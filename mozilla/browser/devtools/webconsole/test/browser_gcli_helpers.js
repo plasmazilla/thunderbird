@@ -5,7 +5,9 @@
 // - https://github.com/mozilla/gcli/blob/master/docs/index.md
 // - https://wiki.mozilla.org/DevTools/Features/GCLI
 
-Components.utils.import("resource:///modules/gcli.jsm");
+let tmp = {};
+Components.utils.import("resource:///modules/gcli.jsm", tmp);
+let gcli = tmp.gcli;
 
 let hud;
 let gcliterm;
@@ -18,7 +20,7 @@ registerCleanupFunction(function() {
 
 function test() {
   Services.prefs.setBoolPref("devtools.gcli.enable", true);
-  addTab("http://example.com/browser/browser/devtools/webconsole/test//test-console.html");
+  addTab("http://example.com/browser/browser/devtools/webconsole/test/test-console.html");
   browser.addEventListener("DOMContentLoaded", onLoad, false);
 }
 

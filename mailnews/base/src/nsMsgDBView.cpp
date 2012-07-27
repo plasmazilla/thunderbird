@@ -60,7 +60,6 @@
 #include "nsMsgMimeCID.h"
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
-#include "nsIPrefBranch2.h"
 #include "nsIPrefLocalizedString.h"
 #include "nsIMsgSearchSession.h"
 #include "nsIMsgCopyService.h"
@@ -83,6 +82,7 @@
 #include "nsIAbManager.h"
 #include "nsIAbDirectory.h"
 #include "nsIAbCard.h"
+#include "mozilla/Services.h"
 
 nsrefcnt nsMsgDBView::gInstanceCount  = 0;
 
@@ -314,14 +314,15 @@ nsresult nsMsgDBView::InitLabelStrings()
 // helper function used to fetch strings from the messenger string bundle
 PRUnichar * nsMsgDBView::GetString(const PRUnichar *aStringName)
 {
-  nsresult    res = NS_OK;
+  nsresult    res = NS_ERROR_UNEXPECTED;
   PRUnichar   *ptrv = nsnull;
 
   if (!mMessengerStringBundle)
   {
     static const char propertyURL[] = MESSENGER_STRING_URL;
-    nsCOMPtr<nsIStringBundleService> sBundleService = do_GetService(NS_STRINGBUNDLE_CONTRACTID, &res);
-    if (NS_SUCCEEDED(res) && sBundleService)
+    nsCOMPtr<nsIStringBundleService> sBundleService =
+      mozilla::services::GetStringBundleService();
+    if (sBundleService)
       res = sBundleService->CreateBundle(propertyURL, getter_AddRefs(mMessengerStringBundle));
   }
 
@@ -880,6 +881,7 @@ nsresult nsMsgDBView::FetchPriority(nsIMsgDBHdr *aHdr, nsAString & aPriorityStri
 
 nsresult nsMsgDBView::FetchKeywords(nsIMsgDBHdr *aHdr, nsACString &keywordString)
 {
+  NS_ENSURE_ARG_POINTER(aHdr);
   nsresult rv = NS_OK;
   if (!mTagService)
   {
@@ -927,11 +929,11 @@ nsresult nsMsgDBView::FetchRowKeywords(nsMsgViewIndex aRow, nsIMsgDBHdr *aHdr,
         thread->GetNumChildren(&numChildren);
         nsCOMPtr<nsIMsgDBHdr> msgHdr;
         nsCString moreKeywords;
-        for (long index = 0; index < numChildren; index++)
+        for (PRUint32 index = 0; index < numChildren; index++)
         {
           thread->GetChildHdrAt(index, getter_AddRefs(msgHdr));
           rv = FetchKeywords(msgHdr, moreKeywords);
-          NS_ENSURE_SUCCESS(rv,rv);
+          NS_ENSURE_SUCCESS(rv, rv);
 
           if (!keywordString.IsEmpty() && !moreKeywords.IsEmpty())
             keywordString.Append(' ');
@@ -945,6 +947,7 @@ nsresult nsMsgDBView::FetchRowKeywords(nsMsgViewIndex aRow, nsIMsgDBHdr *aHdr,
 
 nsresult nsMsgDBView::FetchTags(nsIMsgDBHdr *aHdr, nsAString &aTagString)
 {
+  NS_ENSURE_ARG_POINTER(aHdr);
   nsresult rv = NS_OK;
   if (!mTagService)
   {
@@ -1939,7 +1942,7 @@ void nsMsgDBView::RememberDeletedMsgHdr(nsIMsgDBHdr *msgHdr)
   else
     mRecentlyDeletedMsgIds[mRecentlyDeletedArrayIndex] = messageId;
   // only remember last 20 deleted msgs.
-  mRecentlyDeletedArrayIndex = ++mRecentlyDeletedArrayIndex % 20;
+  mRecentlyDeletedArrayIndex = (mRecentlyDeletedArrayIndex + 1) % 20;
 }
 
 bool nsMsgDBView::WasHdrRecentlyDeleted(nsIMsgDBHdr *msgHdr)
@@ -4168,7 +4171,7 @@ void nsMsgDBView::PushSort(const MsgViewSortColumnInfo &newSort)
 nsresult
 nsMsgDBView::GetCollationKey(nsIMsgDBHdr *msgHdr, nsMsgViewSortTypeValue sortType, PRUint8 **result, PRUint32 *len, nsIMsgCustomColumnHandler* colHandler)
 {
-  nsresult rv;
+  nsresult rv = NS_ERROR_UNEXPECTED;
   NS_ENSURE_ARG_POINTER(msgHdr);
   NS_ENSURE_ARG_POINTER(result);
 
@@ -4248,8 +4251,8 @@ nsMsgDBView::GetCollationKey(nsIMsgDBHdr *msgHdr, nsMsgViewSortTypeValue sortTyp
       }
       else
       {
-        NS_ASSERTION(false,"should not be here (Sort Type: byCustom (String), but no custom handler)");
-        //rv = NS_ERROR_UNEXPECTED;
+        NS_ERROR("should not be here (Sort Type: byCustom (String), but no custom handler)");
+        rv = NS_ERROR_UNEXPECTED;
       }
       break;
     default:
@@ -4808,7 +4811,7 @@ nsMsgViewIndex nsMsgDBView::FindHdr(nsIMsgDBHdr *msgHdr, nsMsgViewIndex startInd
   return viewIndex;
 }
 
-nsMsgViewIndex  nsMsgDBView::FindKey(nsMsgKey key, bool expand)
+nsMsgViewIndex nsMsgDBView::FindKey(nsMsgKey key, bool expand)
 {
   nsMsgViewIndex retIndex = nsMsgViewIndex_None;
   retIndex = (nsMsgViewIndex) (m_keys.IndexOf(key));
@@ -4826,8 +4829,9 @@ nsMsgViewIndex  nsMsgDBView::FindKey(nsMsgKey key, bool expand)
       if (threadIndex != nsMsgViewIndex_None)
       {
         PRUint32 flags = m_flags[threadIndex];
-        if ((flags & nsMsgMessageFlags::Elided) && NS_SUCCEEDED(ExpandByIndex(threadIndex, nsnull))
-          || (flags & MSG_VIEW_FLAG_DUMMY))
+        if (((flags & nsMsgMessageFlags::Elided) &&
+             NS_SUCCEEDED(ExpandByIndex(threadIndex, nsnull)))
+            || (flags & MSG_VIEW_FLAG_DUMMY))
           retIndex = (nsMsgViewIndex) m_keys.IndexOf(key, threadIndex + 1);
       }
     }
@@ -5455,7 +5459,9 @@ nsMsgViewIndex nsMsgDBView::FindParentInThread(nsMsgKey parentKey, nsMsgViewInde
   return startOfThreadViewIndex;
 }
 
-nsresult nsMsgDBView::ListIdsInThreadOrder(nsIMsgThread *threadHdr, nsMsgKey parentKey, PRInt32 level, nsMsgViewIndex *viewIndex, PRUint32 *pNumListed)
+nsresult nsMsgDBView::ListIdsInThreadOrder(nsIMsgThread *threadHdr, nsMsgKey parentKey,
+                                           PRUint32 level, nsMsgViewIndex *viewIndex,
+                                           PRUint32 *pNumListed)
 {
   nsresult rv = NS_OK;
   nsCOMPtr <nsISimpleEnumerator> msgEnumerator;
@@ -7090,7 +7096,8 @@ nsMsgDBView::GetMsgToSelectAfterDelete(nsMsgViewIndex *msgToSelectAfterDelete)
   *msgToSelectAfterDelete = nsMsgViewIndex_None;
 
   bool isMultiSelect = false;
-  PRInt32 startFirstRange, endFirstRange = nsMsgViewIndex_None;
+  PRInt32 startFirstRange = nsMsgViewIndex_None;
+  PRInt32 endFirstRange = nsMsgViewIndex_None;
   if (!mTreeSelection)
   {
     // If we don't have a tree selection then we must be in stand alone mode.
@@ -7106,9 +7113,9 @@ nsMsgDBView::GetMsgToSelectAfterDelete(nsMsgViewIndex *msgToSelectAfterDelete)
     for (PRInt32 i = 0; i < selectionCount; i++)
     {
       rv = mTreeSelection->GetRangeAt(i, &startRange, &endRange);
-      
+
       // save off the first range in case we need it later 
-      if (i == 0) {          
+      if (i == 0) {
         startFirstRange = startRange;
         endFirstRange = endRange;
       } else {

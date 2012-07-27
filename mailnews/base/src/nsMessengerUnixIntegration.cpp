@@ -84,6 +84,7 @@
 #include "nsCOMArray.h"
 #include "nsIMutableArray.h"
 #include "nsMemory.h"
+#include "mozilla/Services.h"
 
 #define ALERT_CHROME_URL "chrome://messenger/content/newmailalert.xul"
 #define NEW_MAIL_ALERT_ICON "chrome://messenger/skin/icons/new-mail-alert.png"
@@ -173,14 +174,15 @@ nsMessengerUnixIntegration::OnItemRemoved(nsIMsgFolder *, nsISupports *)
 
 nsresult nsMessengerUnixIntegration::GetStringBundle(nsIStringBundle **aBundle)
 {
-  nsresult rv = NS_OK;
   NS_ENSURE_ARG_POINTER(aBundle);
-  nsCOMPtr<nsIStringBundleService> bundleService = do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
+  nsCOMPtr<nsIStringBundleService> bundleService =
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
   nsCOMPtr<nsIStringBundle> bundle;
-  if (bundleService && NS_SUCCEEDED(rv))
-    bundleService->CreateBundle("chrome://messenger/locale/messenger.properties", getter_AddRefs(bundle));
+  bundleService->CreateBundle("chrome://messenger/locale/messenger.properties",
+                              getter_AddRefs(bundle));
   bundle.swap(*aBundle);
-  return rv;
+  return NS_OK;
 }
 
 #ifdef MOZ_THUNDERBIRD
@@ -383,10 +385,10 @@ nsresult nsMessengerUnixIntegration::ShowAlertMessage(const nsAString& aAlertTit
 
   if (showAlert)
   {
+    mAlertInProgress = true;
 #ifdef MOZ_THUNDERBIRD
     nsCOMPtr<nsIAlertsService> alertsService(do_GetService(NS_SYSTEMALERTSERVICE_CONTRACTID, &rv));
     if (NS_SUCCEEDED(rv)) {
-      mAlertInProgress = true;
       rv = alertsService->ShowAlertNotification(NS_LITERAL_STRING(NEW_MAIL_ALERT_ICON),
                                                 aAlertTitle,
                                                 aAlertText,
@@ -398,7 +400,7 @@ nsresult nsMessengerUnixIntegration::ShowAlertMessage(const nsAString& aAlertTit
         return rv;
     }
     AlertFinished();
-    ShowNewAlertNotification(false);
+    rv = ShowNewAlertNotification(false);
 
 #else
     nsCOMPtr<nsIAlertsService> alertsService (do_GetService(NS_ALERTSERVICE_CONTRACTID, &rv));
@@ -408,12 +410,11 @@ nsresult nsMessengerUnixIntegration::ShowAlertMessage(const nsAString& aAlertTit
                                                 aAlertText, true,
                                                 NS_ConvertASCIItoUTF16(aFolderURI), this,
                                                 EmptyString());
-      mAlertInProgress = true;
     }
 #endif
   }
 
-  if (!showAlert || NS_FAILED(rv)) // go straight to showing the system tray icon.
+  if (NS_FAILED(rv)) // go straight to showing the system tray icon.
     AlertFinished();
 
   return rv;
@@ -468,17 +469,14 @@ nsresult nsMessengerUnixIntegration::ShowNewAlertNotification(bool aUserInitiate
     nsCOMPtr<nsIWindowWatcher> wwatch(do_GetService(NS_WINDOWWATCHER_CONTRACTID));
     nsCOMPtr<nsIDOMWindow> newWindow;
 
+    mAlertInProgress = true;
     rv = wwatch->OpenWindow(0, ALERT_CHROME_URL, "_blank",
                             "chrome,dialog=yes,titlebar=no,popup=yes", argsArray,
                             getter_AddRefs(newWindow));
 
-    mAlertInProgress = true;
+    if (NS_FAILED(rv))
+      AlertFinished();
   }
-
-  // if the user has turned off the mail alert, or openWindow generated an error,
-  // then go straight to the system tray.
-  if (!showAlert || NS_FAILED(rv))
-    AlertFinished();
 
   return rv;
 }

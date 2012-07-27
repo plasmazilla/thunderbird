@@ -41,6 +41,7 @@
 #define GFX_FONT_UTILS_H
 
 #include "gfxTypes.h"
+#include "gfxPlatform.h"
 
 #include "prtypes.h"
 #include "nsAlgorithm.h"
@@ -56,6 +57,8 @@
 #include "nsTArray.h"
 #include "nsAutoPtr.h"
 #include "nsIStreamBufferAccess.h"
+
+#include "zlib.h"
 
 /* Bug 341128 - w32api defines min/max which causes problems with <bitset> */
 #ifdef __MINGW32__
@@ -86,6 +89,28 @@ public:
                 mBlocks[i] = new Block(*block);
         }
     }
+
+    bool Equals(const gfxSparseBitSet *aOther) const {
+        if (mBlocks.Length() != aOther->mBlocks.Length()) {
+            return false;
+        }
+        size_t n = mBlocks.Length();
+        for (size_t i = 0; i < n; ++i) {
+            const Block *b1 = mBlocks[i];
+            const Block *b2 = aOther->mBlocks[i];
+            if (!b1 != !b2) {
+                return false;
+            }
+            if (!b1) {
+                continue;
+            }
+            if (memcmp(&b1->mBits, &b2->mBits, BLOCK_SIZE) != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     bool test(PRUint32 aIndex) const {
         NS_ASSERTION(mBlocks.DebugGetHeader(), "mHdr is null, this is bad");
         PRUint32 blockIndex = aIndex/BLOCK_SIZE_BITS;
@@ -96,6 +121,11 @@ public:
             return false;
         return ((block->mBits[(aIndex>>3) & (BLOCK_SIZE - 1)]) & (1 << (aIndex & 0x7))) != 0;
     }
+
+#if PR_LOGGING
+    // dump out contents of bitmap
+    void Dump(const char* aPrefix, eGfxLog aWhichLog) const;
+#endif
 
     bool TestRange(PRUint32 aStart, PRUint32 aEnd) {
         PRUint32 startBlock, endBlock, blockLen;
@@ -165,8 +195,6 @@ public:
         Block *block = mBlocks[blockIndex];
         if (!block) {
             block = new Block;
-            if (NS_UNLIKELY(!block)) // OOM
-                return;
             mBlocks[blockIndex] = block;
         }
         block->mBits[(aIndex>>3) & (BLOCK_SIZE - 1)] |= 1 << (aIndex & 0x7);
@@ -201,9 +229,6 @@ public:
                     fullBlock = true;
 
                 block = new Block(fullBlock ? 0xFF : 0);
-
-                if (NS_UNLIKELY(!block)) // OOM
-                    return;
                 mBlocks[i] = block;
 
                 if (fullBlock)
@@ -263,14 +288,18 @@ public:
         }
     }
 
-    PRUint32 GetSize() {
-        PRUint32 size = 0;
+    size_t SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf) const {
+        size_t total = mBlocks.SizeOfExcludingThis(aMallocSizeOf);
         for (PRUint32 i = 0; i < mBlocks.Length(); i++) {
-            if (mBlocks[i])
-                size += sizeof(Block);
-            size += sizeof(nsAutoPtr<Block>);
+            if (mBlocks[i]) {
+                total += aMallocSizeOf(mBlocks[i]);
+            }
         }
-        return size;
+        return total;
+    }
+
+    size_t SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf) const {
+        return aMallocSizeOf(this) + SizeOfExcludingThis(aMallocSizeOf);
     }
 
     // clear out all blocks in the array
@@ -279,7 +308,56 @@ public:
         for (i = 0; i < mBlocks.Length(); i++)
             mBlocks[i] = nsnull;    
     }
-    
+
+    // set this bitset to the union of its current contents and another
+    void Union(const gfxSparseBitSet& aBitset) {
+        // ensure mBlocks is large enough
+        PRUint32 blockCount = aBitset.mBlocks.Length();
+        if (blockCount > mBlocks.Length()) {
+            PRUint32 needed = blockCount - mBlocks.Length();
+            nsAutoPtr<Block> *blocks = mBlocks.AppendElements(needed);
+            if (NS_UNLIKELY(!blocks)) { // OOM
+                return;
+            }
+        }
+        // for each block that may be present in aBitset...
+        for (PRUint32 i = 0; i < blockCount; ++i) {
+            // if it is missing (implicitly empty), just skip
+            if (!aBitset.mBlocks[i]) {
+                continue;
+            }
+            // if the block is missing in this set, just copy the other
+            if (!mBlocks[i]) {
+                mBlocks[i] = new Block(*aBitset.mBlocks[i]);
+                continue;
+            }
+            // else set existing block to the union of both
+            PRUint32 *dst = reinterpret_cast<PRUint32*>(mBlocks[i]->mBits);
+            const PRUint32 *src =
+                reinterpret_cast<const PRUint32*>(aBitset.mBlocks[i]->mBits);
+            for (PRUint32 j = 0; j < BLOCK_SIZE / 4; ++j) {
+                dst[j] |= src[j];
+            }
+        }
+    }
+
+    void Compact() {
+        mBlocks.Compact();
+    }
+
+    PRUint32 GetChecksum() const {
+        PRUint32 check = adler32(0, Z_NULL, 0);
+        for (PRUint32 i = 0; i < mBlocks.Length(); i++) {
+            if (mBlocks[i]) {
+                const Block *block = mBlocks[i];
+                check = adler32(check, (PRUint8*) (&i), 4);
+                check = adler32(check, (PRUint8*) block, sizeof(Block));
+            }
+        }
+        return check;
+    }
+
+private:
     nsTArray< nsAutoPtr<Block> > mBlocks;
 };
 

@@ -83,7 +83,6 @@ public:
   NS_IMETHOD GetCanUndoDeleteOnServer(bool *canUndoDeleteOnServer);
   NS_IMETHOD GetCanSearchMessages(bool *canSearchMessages);
   NS_IMETHOD GetCanEmptyTrashOnExit(bool *canEmptyTrashOnExit);
-  NS_IMETHOD GetIsSecureServer(bool *isSecureServer);
   NS_IMETHOD GetOfflineSupportLevel(PRInt32 *aSupportLevel);
   NS_IMETHOD GeneratePrettyNameForMigration(nsAString& aPrettyName);
   NS_IMETHOD GetSupportsDiskSpace(bool *aSupportsDiskSpace);
@@ -149,6 +148,13 @@ private:
   nsCOMPtr <nsISubscribableServer> mInner;
   nsresult EnsureInner();
   nsresult ClearInner();
+
+  // Utility function for checking folder existence
+  nsresult GetExistingMsgFolder(const nsACString& aURI,
+                                nsACString& folderUriWithNamespace,
+                                bool& namespacePrefixAdded,
+                                bool caseInsensitive,
+                                nsIMsgFolder **aFolder);
 };
 
 #endif

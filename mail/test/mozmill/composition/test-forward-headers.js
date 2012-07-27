@@ -35,7 +35,8 @@
  * ***** END LICENSE BLOCK ***** */
 
 /**
- * Tests that the attachment reminder works properly.
+ * Tests that headers like References and X-Forwarded-Message-Id are
+ * set properly when forwarding messages.
  */
 
 const MODULE_NAME = "test-forward-headers";
@@ -68,9 +69,13 @@ var setupModule = function (module) {
 };
 
 function forward_selected_messages_and_go_to_drafts_folder(f) {
+  const kText = "Hey check out this megalol link";
   // opening a new compose window
   cwc = f(mc);
-  cwc.type(cwc.eid("content-frame"), "Hey check out this megalol link");
+  cwc.type(cwc.eid("content-frame"), kText);
+
+  let mailBody = get_compose_body(cwc);
+  assert_previous_text(mailBody.firstChild, [kText]);
 
   plan_for_window_close(cwc);
   // mwc is modal window controller

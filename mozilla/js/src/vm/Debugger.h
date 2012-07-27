@@ -119,8 +119,11 @@ class Debugger {
     /* The map from debuggee Envs to Debugger.Environment instances. */
     ObjectWeakMap environments;
 
+    class FrameRange;
+    class ScriptQuery;
+
     bool addDebuggeeGlobal(JSContext *cx, GlobalObject *obj);
-    void removeDebuggeeGlobal(JSContext *cx, GlobalObject *global,
+    void removeDebuggeeGlobal(FreeOp *fop, GlobalObject *global,
                               GlobalObjectSet::Enum *compartmentEnum,
                               GlobalObjectSet::Enum *debugEnum);
 
@@ -172,41 +175,43 @@ class Debugger {
 
     static void traceObject(JSTracer *trc, JSObject *obj);
     void trace(JSTracer *trc);
-    static void finalize(JSContext *cx, JSObject *obj);
+    static void finalize(FreeOp *fop, JSObject *obj);
     void markKeysInCompartment(JSTracer *tracer);
 
     static Class jsclass;
 
     static Debugger *fromThisValue(JSContext *cx, const CallArgs &ca, const char *fnname);
-    static JSBool getEnabled(JSContext *cx, uintN argc, Value *vp);
-    static JSBool setEnabled(JSContext *cx, uintN argc, Value *vp);
-    static JSBool getHookImpl(JSContext *cx, uintN argc, Value *vp, Hook which);
-    static JSBool setHookImpl(JSContext *cx, uintN argc, Value *vp, Hook which);
-    static JSBool getOnDebuggerStatement(JSContext *cx, uintN argc, Value *vp);
-    static JSBool setOnDebuggerStatement(JSContext *cx, uintN argc, Value *vp);
-    static JSBool getOnExceptionUnwind(JSContext *cx, uintN argc, Value *vp);
-    static JSBool setOnExceptionUnwind(JSContext *cx, uintN argc, Value *vp);
-    static JSBool getOnNewScript(JSContext *cx, uintN argc, Value *vp);
-    static JSBool setOnNewScript(JSContext *cx, uintN argc, Value *vp);
-    static JSBool getOnEnterFrame(JSContext *cx, uintN argc, Value *vp);
-    static JSBool setOnEnterFrame(JSContext *cx, uintN argc, Value *vp);
-    static JSBool getUncaughtExceptionHook(JSContext *cx, uintN argc, Value *vp);
-    static JSBool setUncaughtExceptionHook(JSContext *cx, uintN argc, Value *vp);
-    static JSBool addDebuggee(JSContext *cx, uintN argc, Value *vp);
-    static JSBool removeDebuggee(JSContext *cx, uintN argc, Value *vp);
-    static JSBool hasDebuggee(JSContext *cx, uintN argc, Value *vp);
-    static JSBool getDebuggees(JSContext *cx, uintN argc, Value *vp);
-    static JSBool getNewestFrame(JSContext *cx, uintN argc, Value *vp);
-    static JSBool clearAllBreakpoints(JSContext *cx, uintN argc, Value *vp);
-    static JSBool construct(JSContext *cx, uintN argc, Value *vp);
+    static JSBool getEnabled(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool setEnabled(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool getHookImpl(JSContext *cx, unsigned argc, Value *vp, Hook which);
+    static JSBool setHookImpl(JSContext *cx, unsigned argc, Value *vp, Hook which);
+    static JSBool getOnDebuggerStatement(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool setOnDebuggerStatement(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool getOnExceptionUnwind(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool setOnExceptionUnwind(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool getOnNewScript(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool setOnNewScript(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool getOnEnterFrame(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool setOnEnterFrame(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool getUncaughtExceptionHook(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool setUncaughtExceptionHook(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool addDebuggee(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool removeDebuggee(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool hasDebuggee(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool getDebuggees(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool getNewestFrame(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool clearAllBreakpoints(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool findScripts(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool wrap(JSContext *cx, unsigned argc, Value *vp);
+    static JSBool construct(JSContext *cx, unsigned argc, Value *vp);
     static JSPropertySpec properties[];
     static JSFunctionSpec methods[];
 
     JSObject *getHook(Hook hook) const;
-    bool hasAnyLiveHooks(JSContext *cx) const;
+    bool hasAnyLiveHooks() const;
 
     static JSTrapStatus slowPathOnEnterFrame(JSContext *cx, Value *vp);
-    static void slowPathOnLeaveFrame(JSContext *cx);
+    static bool slowPathOnLeaveFrame(JSContext *cx, bool ok);
     static void slowPathOnNewScript(JSContext *cx, JSScript *script,
                                     GlobalObject *compileAndGoGlobal);
     static JSTrapStatus dispatchHook(JSContext *cx, Value *vp, Hook which);
@@ -236,6 +241,7 @@ class Debugger {
 
     bool init(JSContext *cx);
     inline const js::HeapPtrObject &toJSObject() const;
+    inline js::HeapPtrObject &toJSObjectRef();
     static inline Debugger *fromJSObject(JSObject *obj);
     static Debugger *fromChildJSObject(JSObject *obj);
 
@@ -258,12 +264,12 @@ class Debugger {
      */
     static void markCrossCompartmentDebuggerObjectReferents(JSTracer *tracer);
     static bool markAllIteratively(GCMarker *trc);
-    static void sweepAll(JSContext *cx);
-    static void detachAllDebuggersFromGlobal(JSContext *cx, GlobalObject *global,
+    static void sweepAll(FreeOp *fop);
+    static void detachAllDebuggersFromGlobal(FreeOp *fop, GlobalObject *global,
                                              GlobalObjectSet::Enum *compartmentEnum);
 
     static inline JSTrapStatus onEnterFrame(JSContext *cx, Value *vp);
-    static inline void onLeaveFrame(JSContext *cx);
+    static inline bool onLeaveFrame(JSContext *cx, bool ok);
     static inline JSTrapStatus onDebuggerStatement(JSContext *cx, Value *vp);
     static inline JSTrapStatus onExceptionUnwind(JSContext *cx, Value *vp);
     static inline void onNewScript(JSContext *cx, JSScript *script,
@@ -329,6 +335,23 @@ class Debugger {
     bool getScriptFrame(JSContext *cx, StackFrame *fp, Value *vp);
 
     /*
+     * Set |*status| and |*value| to a (JSTrapStatus, Value) pair reflecting a
+     * standard SpiderMonkey call state: a boolean success value |ok|, a return
+     * value |rv|, and a context |cx| that may or may not have an exception set.
+     * If an exception was pending on |cx|, it is cleared (and |ok| is asserted
+     * to be false).
+     */
+    static void resultToCompletion(JSContext *cx, bool ok, const Value &rv,
+                                   JSTrapStatus *status, Value *value);
+
+    /*
+     * Set |*result| to a JavaScript completion value corresponding to |status|
+     * and |value|. |value| should be the return value or exception value, not
+     * wrapped as a debuggee value. |cx| must be in the debugger compartment.
+     */
+    bool newCompletionValue(JSContext *cx, JSTrapStatus status, Value value, Value *result);
+
+    /*
      * Precondition: we are in the debuggee compartment (ac is entered) and ok
      * is true if the operation in the debuggee compartment succeeded, false on
      * error or exception.
@@ -340,7 +363,7 @@ class Debugger {
      * pending exception. (This ordinarily returns true even if the ok argument
      * is false.)
      */
-    bool newCompletionValue(AutoCompartment &ac, bool ok, Value val, Value *vp);
+    bool receiveCompletionValue(AutoCompartment &ac, bool ok, Value val, Value *vp);
 
     /*
      * Return the Debugger.Script object for |script|, or create a new one if
@@ -377,7 +400,7 @@ class BreakpointSite {
     JSTrapHandler trapHandler;  /* jsdbgapi trap state */
     HeapValue trapClosure;
 
-    bool recompile(JSContext *cx, bool forTrap);
+    void recompile(FreeOp *fop);
 
   public:
     BreakpointSite(JSScript *script, jsbytecode *pc);
@@ -386,11 +409,11 @@ class BreakpointSite {
     bool hasTrap() const { return !!trapHandler; }
     GlobalObject *getScriptGlobal() const { return scriptGlobal; }
 
-    bool inc(JSContext *cx);
-    void dec(JSContext *cx);
-    bool setTrap(JSContext *cx, JSTrapHandler handler, const Value &closure);
-    void clearTrap(JSContext *cx, JSTrapHandler *handlerp = NULL, Value *closurep = NULL);
-    void destroyIfEmpty(JSRuntime *rt);
+    void inc(FreeOp *fop);
+    void dec(FreeOp *fop);
+    void setTrap(FreeOp *fop, JSTrapHandler handler, const Value &closure);
+    void clearTrap(FreeOp *fop, JSTrapHandler *handlerp = NULL, Value *closurep = NULL);
+    void destroyIfEmpty(FreeOp *fop);
 };
 
 /*
@@ -427,10 +450,11 @@ class Breakpoint {
     static Breakpoint *fromDebuggerLinks(JSCList *links);
     static Breakpoint *fromSiteLinks(JSCList *links);
     Breakpoint(Debugger *debugger, BreakpointSite *site, JSObject *handler);
-    void destroy(JSContext *cx);
+    void destroy(FreeOp *fop);
     Breakpoint *nextInDebugger();
     Breakpoint *nextInSite();
     const HeapPtrObject &getHandler() const { return handler; }
+    HeapPtrObject &getHandlerRef() { return handler; }
 };
 
 Debugger *
@@ -450,6 +474,13 @@ Debugger::firstBreakpoint() const
 
 const js::HeapPtrObject &
 Debugger::toJSObject() const
+{
+    JS_ASSERT(object);
+    return object;
+}
+
+js::HeapPtrObject &
+Debugger::toJSObjectRef()
 {
     JS_ASSERT(object);
     return object;
@@ -483,7 +514,7 @@ Debugger::observesGlobal(GlobalObject *global) const
 bool
 Debugger::observesFrame(StackFrame *fp) const
 {
-    return observesGlobal(&fp->scopeChain().global());
+    return !fp->isDummyFrame() && observesGlobal(&fp->scopeChain().global());
 }
 
 JSTrapStatus
@@ -494,14 +525,15 @@ Debugger::onEnterFrame(JSContext *cx, Value *vp)
     return slowPathOnEnterFrame(cx, vp);
 }
 
-void
-Debugger::onLeaveFrame(JSContext *cx)
+bool
+Debugger::onLeaveFrame(JSContext *cx, bool ok)
 {
     /* Traps must be cleared from eval frames, see slowPathOnLeaveFrame. */
     bool evalTraps = cx->fp()->isEvalFrame() &&
                      cx->fp()->script()->hasAnyBreakpointsOrStepMode();
     if (!cx->compartment->getDebuggees().empty() || evalTraps)
-        slowPathOnLeaveFrame(cx);
+        ok = slowPathOnLeaveFrame(cx, ok);
+    return ok;
 }
 
 JSTrapStatus
@@ -531,7 +563,7 @@ Debugger::onNewScript(JSContext *cx, JSScript *script, GlobalObject *compileAndG
 
 extern JSBool
 EvaluateInEnv(JSContext *cx, Env *env, StackFrame *fp, const jschar *chars,
-              uintN length, const char *filename, uintN lineno, Value *rval);
+              unsigned length, const char *filename, unsigned lineno, Value *rval);
 
 }
 

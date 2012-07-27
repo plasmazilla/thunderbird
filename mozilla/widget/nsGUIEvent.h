@@ -558,6 +558,11 @@ class nsHashKey;
 #define NS_TOUCH_LEAVE               (NS_TOUCH_EVENT_START+4)
 #define NS_TOUCH_CANCEL              (NS_TOUCH_EVENT_START+5)
 
+// Pointerlock DOM API
+#define NS_POINTERLOCK_START         5300
+#define NS_POINTERLOCKCHANGE         (NS_POINTERLOCK_START)
+#define NS_POINTERLOCKERROR          (NS_POINTERLOCK_START + 1)
+
 /**
  * Return status for event processors, nsEventStatus, is defined in
  * nsEvent.h.
@@ -583,6 +588,7 @@ protected:
     : eventStructType(structType),
       message(msg),
       refPoint(0, 0),
+      lastRefPoint(0, 0),
       time(0),
       flags(isTrusted ? NS_EVENT_FLAG_TRUSTED : NS_EVENT_FLAG_NONE),
       userType(0)
@@ -599,6 +605,7 @@ public:
     : eventStructType(NS_EVENT),
       message(msg),
       refPoint(0, 0),
+      lastRefPoint(0, 0),
       time(0),
       flags(isTrusted ? NS_EVENT_FLAG_TRUSTED : NS_EVENT_FLAG_NONE),
       userType(0)
@@ -618,6 +625,8 @@ public:
   // Relative to the widget of the event, or if there is no widget then it is
   // in screen coordinates. Not modified by layout code.
   nsIntPoint  refPoint;
+  // The previous refPoint, if known, used to calculate mouse movement deltas.
+  nsIntPoint  lastRefPoint;
   // Elapsed time, in milliseconds, from a platform-specific zero time
   // to the time the message was created
   PRUint64    time;
@@ -749,13 +758,15 @@ class nsPaintEvent : public nsGUIEvent
 public:
   nsPaintEvent(bool isTrusted, PRUint32 msg, nsIWidget *w)
     : nsGUIEvent(isTrusted, msg, w, NS_PAINT_EVENT),
-      willSendDidPaint(false)
+      willSendDidPaint(false),
+      didSendWillPaint(false)
   {
   }
 
   // area that needs repainting
   nsIntRegion region;
   bool willSendDidPaint;
+  bool didSendWillPaint;
 };
 
 /**
@@ -1282,9 +1293,14 @@ public:
     kIsMomentum =   1 << 6, // Marks scroll events that aren't controlled by the
                             // user but fire automatically as the result of a
                             // "momentum" scroll.
-    kAllowSmoothScroll = 1 << 7 // Allow smooth scroll for the pixel scroll
-                                // event.
-  };
+    kAllowSmoothScroll = 1 << 7, // Allow smooth scroll for the pixel scroll
+                                 // event.
+    kFromLines =    1 << 8  // For a pixels scroll event, indicates that it
+                            // originated from a lines scroll event.
+                            // (Only used on windows which generates "faked"
+                            // pixel scroll events even for simple mouse wheel
+                            // scroll)
+};
 
   nsMouseScrollEvent(bool isTrusted, PRUint32 msg, nsIWidget *w)
     : nsMouseEvent_base(isTrusted, msg, w, NS_MOUSE_SCROLL_EVENT),
@@ -1541,12 +1557,17 @@ public:
 class nsTouchEvent : public nsInputEvent
 {
 public:
-  nsTouchEvent(nsTouchEvent *aEvent)
-    :nsInputEvent(aEvent->flags & NS_EVENT_FLAG_TRUSTED ? true : false,
-                 aEvent->message,
-                 aEvent->widget,
-                 NS_TOUCH_EVENT)
+  nsTouchEvent(bool isTrusted, nsTouchEvent *aEvent)
+    : nsInputEvent(isTrusted,
+                   aEvent->message,
+                   aEvent->widget,
+                   NS_TOUCH_EVENT)
   {
+    isShift = aEvent->isShift;
+    isControl = aEvent->isControl;
+    isMeta = aEvent->isMeta;
+    isAlt = aEvent->isAlt;
+    time = aEvent->time;
     touches.AppendElements(aEvent->touches);
     MOZ_COUNT_CTOR(nsTouchEvent);
   }

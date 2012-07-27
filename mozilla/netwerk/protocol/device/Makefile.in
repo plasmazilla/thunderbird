@@ -38,6 +38,7 @@ DEPTH     = ../../..
 topsrcdir = @top_srcdir@
 srcdir    = @srcdir@
 VPATH     = @srcdir@
+FAIL_ON_WARNINGS = 1
 
 include $(DEPTH)/config/autoconf.mk
 
@@ -62,6 +63,12 @@ EXPORTS_mozilla/net += \
   CameraStreamImpl.h  \
   $(NULL)
 
+endif
+
+ifeq (gonk,$(MOZ_WIDGET_TOOLKIT))
+CPPSRCS += GonkCaptureProvider.cpp \
+           nsB2GProtocolHandler.cpp \
+           $(NULL)
 endif
 
 LOCAL_INCLUDES = -I$(srcdir)/../../base/src/ \

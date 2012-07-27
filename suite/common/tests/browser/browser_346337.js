@@ -36,17 +36,17 @@
 
 function test() {
   /** Test for Bug 346337 **/
-  
+
   var file = Components.classes["@mozilla.org/file/directory_service;1"]
                .getService(Components.interfaces.nsIProperties)
                .get("TmpD", Components.interfaces.nsILocalFile);
   file.append("346337_test1.file");
-  filePath1 = file.path;
+  let filePath1 = file.path;
   file = Components.classes["@mozilla.org/file/directory_service;1"]
              .getService(Components.interfaces.nsIProperties)
              .get("TmpD", Components.interfaces.nsILocalFile);
   file.append("346337_test2.file");
-  filePath2 = file.path;
+  let filePath2 = file.path;
 
   let fieldList = {
     "//input[@name='input']":     Date.now().toString(),
@@ -65,13 +65,13 @@ function test() {
     "//input[@type='file'][1]":   [filePath1],
     "//input[@type='file'][2]":   [filePath1, filePath2]
   };
-  
+
   function getElementByXPath(aTab, aQuery) {
     let doc = aTab.linkedBrowser.contentDocument;
     let xptype = Components.interfaces.nsIDOMXPathResult.FIRST_ORDERED_NODE_TYPE;
     return doc.evaluate(aQuery, doc, null, xptype, null).singleNodeValue;
   }
-  
+
   function setFormValue(aTab, aQuery, aValue) {
     let node = getElementByXPath(aTab, aQuery);
     if (typeof aValue == "string")
@@ -86,7 +86,7 @@ function test() {
       Array.forEach(node.options, function(aOpt, aIx)
                                     (aOpt.selected = aValue.indexOf(aIx) > -1));
   }
-  
+
   function compareFormValue(aTab, aQuery, aValue) {
     let node = getElementByXPath(aTab, aQuery);
     if (!node)
@@ -107,42 +107,41 @@ function test() {
     return Array.every(node.options, function(aOpt, aIx)
                                        (aValue.indexOf(aIx) > -1) == aOpt.selected);
   }
-  
+
   // test setup
   let tabbrowser = getBrowser();
   waitForExplicitFinish();
-  
-  // make sure we don't save form data at all (except for tab duplication)
-  var gPrefService = Components.classes["@mozilla.org/preferences-service;1"]
-                        .getService(Components.interfaces.nsIPrefBranch);
 
-  gPrefService.setIntPref("browser.sessionstore.privacy_level", 2);
-  
+  // make sure we don't save form data at all (except for tab duplication)
+  Services.prefs.setIntPref("browser.sessionstore.privacy_level", 2);
+
   let rootDir = getRootDirectory(gTestPath);
   let testURL = rootDir + "browser_346337_sample.html";
   let tab = tabbrowser.addTab(testURL);
-  tab.linkedBrowser.addEventListener("load", function(aEvent) {
-    this.removeEventListener("load", arguments.callee, true);
+  tab.linkedBrowser.addEventListener("load", function loadListener1(aEvent) {
+    tab.linkedBrowser.removeEventListener("load", loadListener1, true);
     for (let xpath in fieldList)
       setFormValue(tab, xpath, fieldList[xpath]);
-    
+
     let tab2 = ss.duplicateTab(window,tab);
-    tab2.linkedBrowser.addEventListener("pageshow", function(aEvent) {
+    tab2.linkedBrowser.addEventListener("pageshow", function pageshowListener2(aEvent) {
+      tab2.linkedBrowser.removeEventListener("pageshow", pageshowListener2, true);
       for (let xpath in fieldList)
         ok(compareFormValue(tab2, xpath, fieldList[xpath]),
            "The value for \"" + xpath + "\" was correctly restored");
       let browser = tab.linkedBrowser;
-      tab.linkedBrowser.addEventListener("load", function(aEvent) {
-        browser.removeEventListener("load", arguments.callee, true);
+      browser.addEventListener("load", function pageshowListener3(aEvent) {
+        browser.removeEventListener("load", pageshowListener3, true);
         let tab3 = tabbrowser.undoCloseTab(0);
-        tab3.linkedBrowser.addEventListener("pageshow", function(aEvent) {
+        tab3.linkedBrowser.addEventListener("pageshow", function pageshowListener4(aEvent) {
+          tab3.linkedBrowser.removeEventListener("pageshow", pageshowListener4, true);
           for (let xpath in fieldList)
             if (fieldList[xpath])
               ok(!compareFormValue(tab3, xpath, fieldList[xpath]),
                  "The value for \"" + xpath + "\" was correctly discarded");
-          
-        if (gPrefService.prefHasUserValue("browser.sessionstore.privacy_level"))
-          gPrefService.clearUserPref("browser.sessionstore.privacy_level");
+
+        if (Services.prefs.prefHasUserValue("browser.sessionstore.privacy_level"))
+          Services.prefs.clearUserPref("browser.sessionstore.privacy_level");
           // undoCloseTab can reuse a single blank tab, so we have to
           // make sure not to close the window when closing our last tab
           if (tabbrowser.tabContainer.childNodes.length == 1)

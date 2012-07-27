@@ -51,7 +51,7 @@ EXPORTS	= \
 	GLContextSymbols.h \
 	GLContextProvider.h \
 	GLContextProviderImpl.h \
-	EGLUtils.h \
+	GLLibraryLoader.h \
 	ForceDiscreteGPUHelperCGL.h \
 	$(NULL)
 
@@ -70,6 +70,7 @@ endif
 
 CPPSRCS	= \
 	GLContext.cpp \
+	GLLibraryLoader.cpp \
 	GLContextProviderOSMesa.cpp \
 	$(NULL)
 
@@ -111,6 +112,10 @@ ifeq ($(MOZ_WIDGET_TOOLKIT),gonk)
 GL_PROVIDER = EGL
 endif
 
+ifdef MOZ_GL_PROVIDER
+GL_PROVIDER = $(MOZ_GL_PROVIDER)
+endif
+
 # Mac is a special snowflake
 ifeq ($(GL_PROVIDER),CGL)
 CMMSRCS += GLContextProvider$(GL_PROVIDER).mm
@@ -118,9 +123,19 @@ else
 CPPSRCS += GLContextProvider$(GL_PROVIDER).cpp
 endif
 
+ifeq ($(GL_PROVIDER),EGL)
+CPPSRCS += GLLibraryEGL.cpp
+endif
+
 # Win32 is a special snowflake, for ANGLE
 ifeq ($(MOZ_WIDGET_TOOLKIT),windows)
-CPPSRCS += GLContextProviderEGL.cpp
+CPPSRCS += \
+	GLContextProviderEGL.cpp \
+	GLLibraryEGL.cpp
+endif
+
+ifdef MOZ_JAVA_COMPOSITOR
+DEFINES += -DMOZ_JAVA_COMPOSITOR
 endif
 
 include $(topsrcdir)/config/rules.mk

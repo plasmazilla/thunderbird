@@ -86,6 +86,12 @@ SHARED_LIBRARY_LIBS 	+= \
 	$(NULL)
 endif
 
+ifdef MOZ_CUBEB
+SHARED_LIBRARY_LIBS 	+= \
+	$(DEPTH)/media/libcubeb/src/$(LIB_PREFIX)cubeb.$(LIB_SUFFIX) \
+	$(NULL)
+endif
+
 SHARED_LIBRARY_LIBS 	+= \
 	$(DEPTH)/gfx/angle/$(LIB_PREFIX)angle.$(LIB_SUFFIX) \
 	$(NULL)
@@ -108,4 +114,9 @@ include $(topsrcdir)/config/rules.mk
 ifeq (WINNT,$(OS_TARGET))
 symbols.def: symbols.def.in
 	$(PYTHON) $(topsrcdir)/config/Preprocessor.py $(ACDEFINES) $< > $@
+
+ifdef MOZ_CUBEB
+OS_LIBS += $(call EXPAND_LIBNAME, winmm)
+endif
+
 endif

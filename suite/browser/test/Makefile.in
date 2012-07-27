@@ -59,6 +59,7 @@ _TEST_FILES =	test_feed_discovery.html \
 
 _BROWSER_FILES = browser_bug413915.js \
                  browser_bug427559.js \
+                 browser_bug519216.js \
                  browser_bug561636.js \
                  browser_bug562649.js \
                  browser_bug585511.js \
@@ -66,7 +67,7 @@ _BROWSER_FILES = browser_bug413915.js \
                  browser_fayt.js \
                  browser_page_style_menu.js \
                  page_style_sample.html \
-                 browser_feed_tab.js \
+                 browser_pageInfo.js \
                  feed_tab.html \
                  browser_pluginnotification.js \
                  plugin_unknown.html \
@@ -79,8 +80,6 @@ _BROWSER_FILES = browser_bug413915.js \
                  alltabslistener.html \
                  browser_relatedTabs.js \
                  browser_selectTabAtIndex.js \
-                 browser_bug519216.js \
-                 browser_bug728651.js \
     $(NULL)
 
 ifneq (cocoa,$(MOZ_WIDGET_TOOLKIT))

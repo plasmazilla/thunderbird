@@ -54,7 +54,6 @@
 #include "netCore.h"
 #include "nsIObserverService.h"
 #include "nsIPrefService.h"
-#include "nsIPrefBranch2.h"
 #include "nsIPrefLocalizedString.h"
 #include "nsICategoryManager.h"
 #include "nsXPCOM.h"
@@ -177,7 +176,7 @@ PRUint32   nsIOService::gDefaultSegmentCount = 24;
 nsIOService::nsIOService()
     : mOffline(true)
     , mOfflineForProfileChange(false)
-    , mManageOfflineStatus(true)
+    , mManageOfflineStatus(false)
     , mSettingOffline(false)
     , mSetOfflineValue(false)
     , mShutdown(false)
@@ -222,7 +221,7 @@ nsIOService::Init()
         mRestrictedPortList.AppendElement(gBadPortList[i]);
 
     // Further modifications to the port list come from prefs
-    nsCOMPtr<nsIPrefBranch2> prefBranch;
+    nsCOMPtr<nsIPrefBranch> prefBranch;
     GetPrefBranch(getter_AddRefs(prefBranch));
     if (prefBranch) {
         prefBranch->AddObserver(PORT_PREF_PREFIX, this, true);
@@ -441,7 +440,7 @@ nsIOService::GetProtocolHandler(const char* scheme, nsIProtocolHandler* *result)
         return rv;
 
     bool externalProtocol = false;
-    nsCOMPtr<nsIPrefBranch2> prefBranch;
+    nsCOMPtr<nsIPrefBranch> prefBranch;
     GetPrefBranch(getter_AddRefs(prefBranch));
     if (prefBranch) {
         nsCAutoString externalProtocolPref("network.protocol-handler.external.");
@@ -643,8 +642,18 @@ nsIOService::NewChannelFromURIWithProxyFlags(nsIURI *aURI,
                 NS_WARNING("failed to get protocol proxy service");
         }
         if (mProxyService) {
-            rv = mProxyService->Resolve(aProxyURI ? aProxyURI : aURI,
-                                        proxyFlags, getter_AddRefs(pi));
+            PRUint32 flags = 0;
+            if (scheme.EqualsLiteral("http") || scheme.EqualsLiteral("https"))
+                flags = nsIProtocolProxyService::RESOLVE_NON_BLOCKING;
+            rv = mProxyService->Resolve(aProxyURI ? aProxyURI : aURI, proxyFlags,
+                                        getter_AddRefs(pi));
+            if (rv == NS_BASE_STREAM_WOULD_BLOCK) {
+                // Use an UNKNOWN proxy to defer resolution and avoid blocking.
+                rv = mProxyService->NewProxyInfo(NS_LITERAL_CSTRING("unknown"),
+                                                 NS_LITERAL_CSTRING(""),
+                                                 -1, 0, 0, nsnull,
+                                                 getter_AddRefs(pi));
+            }
             if (NS_FAILED(rv))
                 pi = nsnull;
         }
@@ -952,7 +961,7 @@ nsIOService::ParsePortList(nsIPrefBranch *prefBranch, const char *pref, bool rem
 }
 
 void
-nsIOService::GetPrefBranch(nsIPrefBranch2 **result)
+nsIOService::GetPrefBranch(nsIPrefBranch **result)
 {
     *result = nsnull;
     CallGetService(NS_PREFSERVICE_CONTRACTID, result);
@@ -1110,9 +1119,18 @@ NS_IMETHODIMP
 nsIOService::SetManageOfflineStatus(bool aManage) {
     nsresult rv = NS_OK;
 
-    InitializeNetworkLinkService();
+    // SetManageOfflineStatus must throw when we fail to go from non-managed
+    // to managed.  Usually because there is no link monitoring service 
+    // available.  Failure to do this switch is detected by a failure of 
+    // TrackNetworkLinkStatusForOffline().  When there is no network link 
+    // available during call to InitializeNetworkLinkService(), application is
+    // put to offline mode.  And when we change mMangeOfflineStatus to false 
+    // on the next line we get stuck on being offline even though the link 
+    // becomes later available.
     bool wasManaged = mManageOfflineStatus;
     mManageOfflineStatus = aManage;
+
+    InitializeNetworkLinkService();
 
     if (mManageOfflineStatus && !wasManaged) {
         rv = TrackNetworkLinkStatusForOffline();
@@ -1170,7 +1188,7 @@ nsIOService::EscapeString(const nsACString& aString,
                           PRUint32 aEscapeType,
                           nsACString& aResult)
 {
-  NS_ENSURE_ARG_RANGE(aEscapeType, 0, 4);
+  NS_ENSURE_ARG_MAX(aEscapeType, 4);
 
   nsCAutoString stringCopy(aString);
   nsCString result;

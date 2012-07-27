@@ -214,7 +214,15 @@ const gFormSubmitObserver = {
     }, false);
 
     this.panel.hidden = false;
-    this.panel.openPopup(element, "after_start", 0, 0);
+
+    var style = element.ownerDocument.defaultView.getComputedStyle(element, null);
+
+    var offset = style.direction == 'rtl' ? parseInt(style.paddingRight) + 
+                                            parseInt(style.borderRightWidth) :
+                                            parseInt(style.paddingLeft) +
+                                            parseInt(style.borderLeftWidth);
+
+    this.panel.openPopup(element, "after_start", offset, 0);
   }
 };
 
@@ -697,9 +705,6 @@ function Startup()
 
   // initialize the session-restore service
   setTimeout(InitSessionStoreCallback, 0);
-
-  // initialize the livemark service
-  setTimeout(function() { PlacesUtils.livemarks.start(); }, 5000);
 }
 
 function UpdateNavBar()
@@ -1116,28 +1121,26 @@ const BrowserSearch = {
    * necessary.
    */
   webSearch: function BrowserSearch_webSearch() {
-    if (/Mac/.test(navigator.platform)) {
-      if (window.location.href != getBrowserURL()) {
-        var win = getTopWin();
-        if (win) {
-          // If there's an open browser window, it should handle this command
-          win.focus();
-          win.BrowserSearch.webSearch();
-        } else {
-          // If there are no open browser windows, open a new one
-
-          // This needs to be in a timeout so that we don't end up refocused
-          // in the url bar
-          function webSearchCallback() {
-            setTimeout(BrowserSearch.webSearch, 0);
-          }
-
-          win = window.openDialog(getBrowserURL(), "_blank",
-                                  "chrome,all,dialog=no", "about:blank");
-          win.addEventListener("load", webSearchCallback, false);
-        }
+    if (!gBrowser) {
+      var win = getTopWin();
+      if (win) {
+        // If there's an open browser window, it should handle this command
+        win.focus();
+        win.BrowserSearch.webSearch();
         return;
       }
+
+      // If there are no open browser windows, open a new one
+      function webSearchCallback() {
+        // This needs to be in a timeout so that we don't end up refocused
+        // in the url bar
+        setTimeout(BrowserSearch.webSearch, 0);
+      }
+
+      win = window.openDialog(getBrowserURL(), "_blank",
+                              "chrome,all,dialog=no", "about:blank");
+      win.addEventListener("load", webSearchCallback, false);
+      return;
     }
 
     if (isElementVisible(this.searchBar)) {
@@ -1338,8 +1341,16 @@ function BrowserOpenTab()
         break;
     }
 
-    // Open a new window if someone requests a new tab when no browser window is open
     if (!gBrowser) {
+      var win = getTopWin();
+      if (win) {
+        // If there's an open browser window, it should handle this command
+        win.focus();
+        win.BrowserOpenTab();
+        return;
+      }
+
+      // If there are no open browser windows, open a new one
       openDialog(getBrowserURL(), "_blank", "chrome,all,dialog=no", uriToLoad);
       return;
     }
@@ -2145,6 +2156,17 @@ function stylesheetSwitchAll(frameset, title) {
 
 function setStyleDisabled(disabled) {
   getMarkupDocumentViewer().authorStyleDisabled = disabled;
+}
+
+function focusNextFrame(aEvent)
+{
+  var fm = Components.classes["@mozilla.org/focus-manager;1"]
+                     .getService(Components.interfaces.nsIFocusManager);
+  var dir = aEvent.shiftKey ? fm.MOVEFOCUS_BACKWARDDOC
+                            : fm.MOVEFOCUS_FORWARDDOC;
+  var element = fm.moveFocus(window, null, dir, fm.FLAG_BYKEY);
+  if (element && element.ownerDocument == document)
+    ShowAndSelectContentsOfURLBar();
 }
 
 function URLBarFocusHandler(aEvent)

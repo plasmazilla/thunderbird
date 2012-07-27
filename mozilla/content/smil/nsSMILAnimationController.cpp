@@ -693,10 +693,12 @@ nsSMILAnimationController::SampleAnimation(AnimationElementPtrKey* aKey,
   NS_ENSURE_TRUE(aData, PL_DHASH_NEXT);
 
   nsISMILAnimationElement* animElem = aKey->GetKey();
-  SampleAnimationParams* params = static_cast<SampleAnimationParams*>(aData);
+  if (animElem->PassesConditionalProcessingTests()) {
+    SampleAnimationParams* params = static_cast<SampleAnimationParams*>(aData);
 
-  SampleTimedElement(animElem, params->mActiveContainers);
-  AddAnimationToCompositorTable(animElem, params->mCompositorTable);
+    SampleTimedElement(animElem, params->mActiveContainers);
+    AddAnimationToCompositorTable(animElem, params->mCompositorTable);
+  }
 
   return PL_DHASH_NEXT;
 }
@@ -797,9 +799,16 @@ nsSMILAnimationController::GetTargetIdentifierForAnimation(
   bool isCSS = false;
   if (attributeType == eSMILTargetAttrType_auto) {
     if (attributeNamespaceID == kNameSpaceID_None) {
-      nsCSSProperty prop =
-        nsCSSProps::LookupProperty(nsDependentAtomString(attributeName));
-      isCSS = nsSMILCSSProperty::IsPropertyAnimatable(prop);
+      // width/height are special as they may be attributes or for
+      // outer-<svg> elements, mapped into style.
+      if (attributeName == nsGkAtoms::width ||
+          attributeName == nsGkAtoms::height) {
+        isCSS = targetElem->GetNameSpaceID() != kNameSpaceID_SVG;
+      } else {
+        nsCSSProperty prop =
+          nsCSSProps::LookupProperty(nsDependentAtomString(attributeName));
+        isCSS = nsSMILCSSProperty::IsPropertyAnimatable(prop);
+      }
     }
   } else {
     isCSS = (attributeType == eSMILTargetAttrType_CSS);

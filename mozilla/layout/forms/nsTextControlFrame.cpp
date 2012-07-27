@@ -76,7 +76,6 @@
 #include "nsIDOMDocument.h"
 #include "nsIDOMHTMLElement.h"
 #include "nsIPresShell.h"
-#include "nsIComponentManager.h"
 
 #include "nsBoxLayoutState.h"
 //for keylistener for "return" check
@@ -96,10 +95,8 @@
 #ifdef ACCESSIBILITY
 #include "nsAccessibilityService.h"
 #endif
-#include "nsIServiceManager.h"
 #include "nsIDOMNode.h"
 
-#include "nsIEditorObserver.h"
 #include "nsITransactionManager.h"
 #include "nsIDOMText.h" //for multiline getselection
 #include "nsNodeInfoManager.h"
@@ -172,7 +169,6 @@ nsTextControlFrame::nsTextControlFrame(nsIPresShell* aShell, nsStyleContext* aCo
   : nsStackFrame(aShell, aContext)
   , mUseEditor(false)
   , mIsProcessing(false)
-  , mNotifyOnInput(true)
   , mFireChangeEventState(false)
 #ifdef DEBUG
   , mInEditorInitialization(false)
@@ -498,8 +494,7 @@ nsTextControlFrame::ComputeAutoSize(nsRenderingContext *aRenderingContext,
                                     nsSize aMargin, nsSize aBorder,
                                     nsSize aPadding, bool aShrinkWrap)
 {
-  float inflation =
-    nsLayoutUtils::FontSizeInflationFor(this, nsLayoutUtils::eInReflow);
+  float inflation = nsLayoutUtils::FontSizeInflationFor(this);
   nsSize autoSize;
   nsresult rv = CalcIntrinsicSize(aRenderingContext, autoSize, inflation);
   if (NS_FAILED(rv)) {
@@ -606,8 +601,7 @@ nsTextControlFrame::GetBoxAscent(nsBoxLayoutState& aState)
   // Return the baseline of the first (nominal) row, with centering for
   // single-line controls.
 
-  float inflation =
-    nsLayoutUtils::FontSizeInflationFor(this, nsLayoutUtils::eInReflow);
+  float inflation = nsLayoutUtils::FontSizeInflationFor(this);
 
   // First calculate the ascent wrt the client rect
   nsRect clientRect;
@@ -1385,23 +1379,6 @@ nsTextControlFrame::GetMaxLength(PRInt32* aSize)
   return false;
 }
 
-// this is where we propagate a content changed event
-void
-nsTextControlFrame::FireOnInput(bool aTrusted)
-{
-  if (!mNotifyOnInput)
-    return; // if notification is turned off, do nothing
-  
-  // Dispatch the "input" event
-  nsEventStatus status = nsEventStatus_eIgnore;
-  nsUIEvent event(aTrusted, NS_FORM_INPUT, 0);
-
-  // Have the content handle the event, propagating it according to normal
-  // DOM rules.
-  nsCOMPtr<nsIPresShell> shell = PresContext()->PresShell();
-  shell->HandleEventWithTarget(&event, nsnull, mContent, &status);
-}
-
 nsresult
 nsTextControlFrame::InitFocusedValue()
 {
@@ -1621,4 +1598,3 @@ nsTextControlFrame::RestoreState(nsPresState* aState)
   Properties().Set(ContentScrollPos(), new nsPoint(aState->GetScrollState()));
   return NS_OK;
 }
-

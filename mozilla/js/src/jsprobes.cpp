@@ -231,10 +231,10 @@ Probes::registerMJITCode(JSContext *cx, js::mjit::JITScript *jscr,
 }
 
 void
-Probes::discardMJITCode(JSContext *cx, mjit::JITScript *jscr, JSScript *script, void* address)
+Probes::discardMJITCode(FreeOp *fop, mjit::JITScript *jscr, JSScript *script, void* address)
 {
     for (JITWatcher **p = jitWatchers.begin(); p != jitWatchers.end(); ++p)
-        (*p)->discardMJITCode(cx, jscr, script, address);
+        (*p)->discardMJITCode(fop, jscr, script, address);
 }
 
 void
@@ -325,20 +325,9 @@ FunctionName(JSContext *cx, const JSFunction *fun, JSAutoByteString* bytes)
 {
     if (!fun)
         return Probes::nullName;
-    JSAtom *atom = const_cast<JSAtom*>(fun->atom);
-    if (!atom)
+    if (!fun->atom)
         return Probes::anonymousName;
-    return bytes->encode(cx, atom) ? bytes->ptr() : Probes::nullName;
-}
-
-static const char *
-FunctionClassname(const JSFunction *fun)
-{
-    if (!fun || fun->isInterpreted())
-        return Probes::nullName;
-    if (fun->getConstructorClass())
-        return fun->getConstructorClass()->name;
-    return Probes::nullName;
+    return bytes->encode(cx, fun->atom) ? bytes->ptr() : Probes::nullName;
 }
 
 /*
@@ -352,7 +341,7 @@ void
 Probes::DTraceEnterJSFun(JSContext *cx, JSFunction *fun, JSScript *script)
 {
     JSAutoByteString funNameBytes;
-    JAVASCRIPT_FUNCTION_ENTRY(ScriptFilename(script), FunctionClassname(fun),
+    JAVASCRIPT_FUNCTION_ENTRY(ScriptFilename(script), Probes::nullName,
                               FunctionName(cx, fun, &funNameBytes));
 }
 
@@ -360,7 +349,7 @@ void
 Probes::DTraceExitJSFun(JSContext *cx, JSFunction *fun, JSScript *script)
 {
     JSAutoByteString funNameBytes;
-    JAVASCRIPT_FUNCTION_RETURN(ScriptFilename(script), FunctionClassname(fun),
+    JAVASCRIPT_FUNCTION_RETURN(ScriptFilename(script), Probes::nullName,
                                FunctionName(cx, fun, &funNameBytes));
 }
 #endif

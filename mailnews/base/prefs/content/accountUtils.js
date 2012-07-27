@@ -238,9 +238,9 @@ function msgOpenAccountWizard(wizardCallback)
     selectServer(null, null);
 }
 
-// selectPage: the xul file name for the viewing page, 
+// selectPage: the xul file name for the viewing page,
 // null for the account main page, other pages are
-// 'am-server.xul', 'am-copies.xul', 'am-offline.xul', 
+// 'am-server.xul', 'am-copies.xul', 'am-offline.xul',
 // 'am-addressing.xul', 'am-smtp.xul'
 function MsgAccountManager(selectPage)
 {
@@ -253,9 +253,10 @@ function MsgAccountManager(selectPage)
         existingAccountManager.focus();
     else {
         try {
-            var server = GetSelectedMsgFolders()[0].server;
+            var server = GetSelectedMsgFolders()[0] || GetDefaultAccountRootFolder();
+            server = server.server;
         } catch (ex) { /* functions might not be defined */}
-        
+
         window.openDialog("chrome://messenger/content/AccountManager.xul",
                           "AccountManager",
                           "chrome,centerscreen,modal,titlebar,resizable",
@@ -367,6 +368,29 @@ function NewMailAccountProvisioner(aMsgWindow, args) {
 
   let mail3Pane = Services.wm.getMostRecentWindow("mail:3pane");
 
+  // If we couldn't find a 3pane, bail out.
+  if (!mail3Pane) {
+    Components.utils.reportError("Could not find a 3pane to connect to.");
+    return;
+  }
+
+  let tabmail = mail3Pane.document.getElementById("tabmail");
+
+  if (!tabmail) {
+    Components.utils.reportError("Could not find a tabmail in the 3pane!");
+    return;
+  }
+
+  // If there's already an accountProvisionerTab open, just focus it instead
+  // of opening a new dialog.
+  let apTab = tabmail.getTabInfoForCurrentOrFirstModeInstance(
+    tabmail.tabModes["accountProvisionerTab"]);
+
+  if (apTab) {
+    tabmail.switchToTab(apTab);
+    return;
+  }
+
   // XXX make sure these are all defined in all contexts... to be on the safe
   // side, just get a mail:3pane and borrow the functions from it?
   if (!args.NewMailAccount)
@@ -384,8 +408,14 @@ function NewMailAccountProvisioner(aMsgWindow, args) {
   if (!args.okCallback)
     args.okCallback = null;
 
-  if (!args.success)
+  let windowParams = "chrome,titlebar,centerscreen,width=640,height=480";
+
+  if (!args.success) {
     args.success = false;
+    // If we're not opening up the success dialog, then our window should be
+    // modal.
+    windowParams = "modal," + windowParams;
+  }
 
   // NOTE: If you're a developer, and you notice that the jQuery code in
   // accountProvisioner.xhtml isn't throwing errors or warnings, that's due
@@ -394,7 +424,7 @@ function NewMailAccountProvisioner(aMsgWindow, args) {
   window.openDialog(
     "chrome://messenger/content/newmailaccount/accountProvisioner.xhtml",
     "AccountCreation",
-    "modal,chrome,titlebar,centerscreen,width=640,height=480",
+    windowParams,
     args);
 }
 

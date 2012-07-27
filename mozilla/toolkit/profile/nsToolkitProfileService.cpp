@@ -362,6 +362,13 @@ nsToolkitProfileLock::Unlock()
     return NS_OK;
 }
 
+NS_IMETHODIMP
+nsToolkitProfileLock::GetReplacedLockTime(PRInt64 *aResult)
+{
+    mLock.GetReplacedLockTime(aResult);
+    return NS_OK;
+}
+
 nsToolkitProfileLock::~nsToolkitProfileLock()
 {
     if (mDirectory) {
@@ -479,7 +486,8 @@ nsToolkitProfileService::Init()
         if (NS_SUCCEEDED(rv) && buffer.EqualsLiteral("1"))
             mChosen = currentProfile;
     }
-
+    if (!mChosen && mFirst && !mFirst->mNext) // only one profile
+        mChosen = mFirst;
     return NS_OK;
 }
 

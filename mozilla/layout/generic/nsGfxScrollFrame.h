@@ -176,15 +176,22 @@ public:
     return pt;
   }
   nsRect GetScrollRange() const;
+  // Get the scroll range assuming the scrollport has size (aWidth, aHeight).
+  nsRect GetScrollRange(nscoord aWidth, nscoord aHeight) const;
+protected:
+  nsRect GetScrollRangeForClamping() const;
 
-  nsPoint ClampAndRestrictToDevPixels(const nsPoint& aPt, nsIntPoint* aPtDevPx) const;
+public:
+  nsPoint RestrictToDevPixels(const nsPoint& aPt, nsIntPoint* aPtDevPx, bool aShouldClamp) const;
   nsPoint ClampScrollPosition(const nsPoint& aPt) const;
   static void AsyncScrollCallback(nsITimer *aTimer, void* anInstance);
-  void ScrollTo(nsPoint aScrollPosition, nsIScrollableFrame::ScrollMode aMode);
+  void ScrollTo(nsPoint aScrollPosition, nsIScrollableFrame::ScrollMode aMode) {
+    ScrollToWithOrigin(aScrollPosition, aMode, nsGkAtoms::other);
+  };
   void ScrollToImpl(nsPoint aScrollPosition);
   void ScrollVisual(nsPoint aOldScrolledFramePosition);
   void ScrollBy(nsIntPoint aDelta, nsIScrollableFrame::ScrollUnit aUnit,
-                nsIScrollableFrame::ScrollMode aMode, nsIntPoint* aOverflow);
+                nsIScrollableFrame::ScrollMode aMode, nsIntPoint* aOverflow, nsIAtom *aOrigin = nsnull);
   void ScrollToRestoredPosition();
   nsSize GetLineScrollAmount() const;
   nsSize GetPageScrollAmount() const;
@@ -260,6 +267,8 @@ public:
                         const nsRect& aOldScrollArea);
 
   bool IsIgnoringViewportClipping() const;
+
+  bool ShouldClampScrollPosition() const;
 
   bool IsAlwaysActive() const;
   void MarkActive();
@@ -338,6 +347,11 @@ public:
   // If true, the layer should always be active because we always build a layer.
   // Used for asynchronous scrolling.
   bool mShouldBuildLayer:1;
+
+protected:
+  void ScrollToWithOrigin(nsPoint aScrollPosition,
+                          nsIScrollableFrame::ScrollMode aMode,
+                          nsIAtom *aOrigin); // nsnull indicates "other" origin
 };
 
 /**
@@ -480,8 +494,8 @@ public:
     mInner.ScrollTo(aScrollPosition, aMode);
   }
   virtual void ScrollBy(nsIntPoint aDelta, ScrollUnit aUnit, ScrollMode aMode,
-                        nsIntPoint* aOverflow) {
-    mInner.ScrollBy(aDelta, aUnit, aMode, aOverflow);
+                        nsIntPoint* aOverflow, nsIAtom *aOrigin = nsnull) {
+    mInner.ScrollBy(aDelta, aUnit, aMode, aOverflow, aOrigin);
   }
   virtual void ScrollToRestoredPosition() {
     mInner.ScrollToRestoredPosition();
@@ -718,8 +732,8 @@ public:
     mInner.ScrollTo(aScrollPosition, aMode);
   }
   virtual void ScrollBy(nsIntPoint aDelta, ScrollUnit aUnit, ScrollMode aMode,
-                        nsIntPoint* aOverflow) {
-    mInner.ScrollBy(aDelta, aUnit, aMode, aOverflow);
+                        nsIntPoint* aOverflow, nsIAtom *aOrigin = nsnull) {
+    mInner.ScrollBy(aDelta, aUnit, aMode, aOverflow, aOrigin);
   }
   virtual void ScrollToRestoredPosition() {
     mInner.ScrollToRestoredPosition();

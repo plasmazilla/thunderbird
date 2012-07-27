@@ -39,7 +39,7 @@
 
 #include "nsXMLDocument.h"
 #include "nsParserCIID.h"
-#include "nsIParser.h"
+#include "nsCharsetSource.h"
 #include "nsIXMLContentSink.h"
 #include "nsPresContext.h" 
 #include "nsIContent.h"
@@ -59,8 +59,6 @@
 #include "nsIHttpChannel.h"
 #include "nsIURI.h"
 #include "nsIServiceManager.h"
-#include "nsICharsetAlias.h"
-#include "nsICharsetAlias.h"
 #include "nsNetUtil.h"
 #include "nsDOMError.h"
 #include "nsIScriptSecurityManager.h"
@@ -69,7 +67,6 @@
 #include "nsDOMAttribute.h"
 #include "nsGUIEvent.h"
 #include "nsCExternalHandlerService.h"
-#include "nsNetUtil.h"
 #include "nsMimeTypes.h"
 #include "nsEventListenerManager.h"
 #include "nsContentUtils.h"
@@ -460,6 +457,14 @@ nsXMLDocument::Load(const nsAString& aUrl, bool *aReturn)
     return rv;
   }
 
+  // StartDocumentLoad asserts that readyState is uninitialized, so
+  // uninitialize it. SetReadyStateInternal make this transition invisible to
+  // Web content. But before doing that, assert that the current readyState
+  // is complete as it should be after the call to ResetToURI() above.
+  MOZ_ASSERT(GetReadyStateEnum() == nsIDocument::READYSTATE_COMPLETE,
+             "Bad readyState");
+  SetReadyStateInternal(nsIDocument::READYSTATE_UNINITIALIZED);
+
   // Prepare for loading the XML document "into oneself"
   nsCOMPtr<nsIStreamListener> listener;
   if (NS_FAILED(rv = StartDocumentLoad(kLoadAsData, channel, 
@@ -483,6 +488,7 @@ nsXMLDocument::Load(const nsAString& aUrl, bool *aReturn)
   if (!mAsync) {
     nsCOMPtr<nsIThread> thread = do_GetCurrentThread();
 
+    nsAutoSyncOperation sync(this);
     mLoopingForSyncLoad = true;
     while (mLoopingForSyncLoad) {
       if (!NS_ProcessNextEvent(thread))
@@ -532,7 +538,7 @@ nsXMLDocument::StartDocumentLoad(const char* aCommand,
 
   PRInt32 charsetSource = kCharsetFromDocTypeDefault;
   nsCAutoString charset(NS_LITERAL_CSTRING("UTF-8"));
-  TryChannelCharset(aChannel, charsetSource, charset);
+  TryChannelCharset(aChannel, charsetSource, charset, nsnull);
 
   nsCOMPtr<nsIURI> aUrl;
   rv = aChannel->GetURI(getter_AddRefs(aUrl));
@@ -595,6 +601,12 @@ nsXMLDocument::EndLoad()
   }    
 }
  
+/* virtual */ void
+nsXMLDocument::DocSizeOfExcludingThis(nsWindowSizes* aWindowSizes) const
+{
+  nsDocument::DocSizeOfExcludingThis(aWindowSizes);
+}
+
 // nsIDOMDocument interface
 
 nsresult

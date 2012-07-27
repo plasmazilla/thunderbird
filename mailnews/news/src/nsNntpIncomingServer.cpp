@@ -66,6 +66,7 @@
 #include "nsNetUtil.h"
 #include "nsISimpleEnumerator.h"
 #include "nsMsgUtils.h"
+#include "mozilla/Services.h"
 
 #define INVALID_VERSION         0
 #define VALID_VERSION           2
@@ -135,7 +136,6 @@ nsNntpIncomingServer::nsNntpIncomingServer()
   mUniqueId = 0;
   mHasSeenBeginGroups = false;
   mPostingAllowed = false;
-  m_userAuthenticated = false;
   mLastUpdatedTime = 0;
 
   // these atoms are used for subscribe search
@@ -442,8 +442,6 @@ nsNntpIncomingServer::GetNewsrcHasChanged(bool *aNewsrcHasChanged)
     *aNewsrcHasChanged = mNewsrcHasChanged;
     return NS_OK;
 }
-
-NS_IMPL_GETSET(nsNntpIncomingServer, UserAuthenticated, bool, m_userAuthenticated)
 
 NS_IMETHODIMP
 nsNntpIncomingServer::CloseCachedConnections()
@@ -1411,9 +1409,7 @@ nsNntpIncomingServer::ForgetPassword()
     NS_ENSURE_SUCCESS(rv,rv);
     if (!newsFolder) return NS_ERROR_FAILURE;
 
-    rv = newsFolder->ForgetGroupUsername();
-    NS_ENSURE_SUCCESS(rv,rv);
-    rv = newsFolder->ForgetGroupPassword();
+    rv = newsFolder->ForgetAuthenticationCredentials();
     NS_ENSURE_SUCCESS(rv,rv);
 
     // clear password of all child folders
@@ -1433,9 +1429,7 @@ nsNntpIncomingServer::ForgetPassword()
         if (NS_SUCCEEDED(rv) && child) {
             newsFolder = do_QueryInterface(child, &rv);
             if (NS_SUCCEEDED(rv) && newsFolder) {
-                rv = newsFolder->ForgetGroupUsername();
-                if (NS_FAILED(rv)) return_rv = rv;
-                rv = newsFolder->ForgetGroupPassword();
+                rv = newsFolder->ForgetAuthenticationCredentials();
                 if (NS_FAILED(rv)) return_rv = rv;
             }
             else {
@@ -1598,8 +1592,9 @@ nsNntpIncomingServer::GroupNotFound(nsIMsgWindow *aMsgWindow,
     NS_ENSURE_SUCCESS(rv,rv);
   }
 
-  nsCOMPtr <nsIStringBundleService> bundleService = do_GetService(NS_STRINGBUNDLE_CONTRACTID,&rv);
-  NS_ENSURE_SUCCESS(rv,rv);
+  nsCOMPtr <nsIStringBundleService> bundleService =
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
 
   nsCOMPtr <nsIStringBundle> bundle;
   rv = bundleService->CreateBundle(NEWS_MSGS_URL, getter_AddRefs(bundle));

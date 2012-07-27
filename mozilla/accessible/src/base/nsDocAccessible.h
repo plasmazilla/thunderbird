@@ -39,7 +39,9 @@
 #ifndef _nsDocAccessible_H_
 #define _nsDocAccessible_H_
 
+#include "nsIAccessibleCursorable.h"
 #include "nsIAccessibleDocument.h"
+#include "nsIAccessiblePivot.h"
 
 #include "nsEventShell.h"
 #include "nsHyperTextAccessibleWrap.h"
@@ -58,37 +60,35 @@
 #include "nsIDocShellTreeNode.h"
 
 class nsIScrollableView;
+class nsAccessiblePivot;
 
 const PRUint32 kDefaultCacheSize = 256;
-
-#define NS_DOCACCESSIBLE_IMPL_CID                       \
-{  /* 5641921c-a093-4292-9dca-0b51813db57d */           \
-  0x5641921c,                                           \
-  0xa093,                                               \
-  0x4292,                                               \
-  { 0x9d, 0xca, 0x0b, 0x51, 0x81, 0x3d, 0xb5, 0x7d }    \
-}
 
 class nsDocAccessible : public nsHyperTextAccessibleWrap,
                         public nsIAccessibleDocument,
                         public nsIDocumentObserver,
                         public nsIObserver,
                         public nsIScrollPositionListener,
-                        public nsSupportsWeakReference
-{  
+                        public nsSupportsWeakReference,
+                        public nsIAccessibleCursorable,
+                        public nsIAccessiblePivotObserver
+{
   NS_DECL_ISUPPORTS_INHERITED
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(nsDocAccessible, nsAccessible)
 
   NS_DECL_NSIACCESSIBLEDOCUMENT
-  NS_DECLARE_STATIC_IID_ACCESSOR(NS_DOCACCESSIBLE_IMPL_CID)
 
   NS_DECL_NSIOBSERVER
+
+  NS_DECL_NSIACCESSIBLECURSORABLE
+
+  NS_DECL_NSIACCESSIBLEPIVOTOBSERVER
 
 public:
   using nsAccessible::GetParent;
 
   nsDocAccessible(nsIDocument *aDocument, nsIContent *aRootContent,
-                  nsIWeakReference* aShell);
+                  nsIPresShell* aPresShell);
   virtual ~nsDocAccessible();
 
   // nsIAccessible
@@ -107,7 +107,6 @@ public:
   virtual bool Init();
   virtual void Shutdown();
   virtual nsIFrame* GetFrame() const;
-  virtual bool IsDefunct() const;
   virtual nsINode* GetNode() const { return mDocument; }
   virtual nsIDocument* GetDocumentNode() const { return mDocument; }
 
@@ -124,11 +123,21 @@ public:
   virtual nsresult HandleAccEvent(AccEvent* aAccEvent);
 #endif
 
-  // nsIAccessibleText
-  NS_IMETHOD GetAssociatedEditor(nsIEditor **aEditor);
+  // nsHyperTextAccessible
+  virtual already_AddRefed<nsIEditor> GetEditor() const;
 
   // nsDocAccessible
 
+  /**
+   * Return presentation shell for this document accessible.
+   */
+  nsIPresShell* PresShell() const { return mPresShell; }
+
+  /**
+   * Return the presentation shell's context.
+   */
+  nsPresContext* PresContext() const { return mPresShell->GetPresContext(); }
+    
   /**
    * Return true if associated DOM document was loaded and isn't unloading.
    */
@@ -161,7 +170,8 @@ public:
    * Return true if the document has given document state.
    */
   bool HasLoadState(LoadState aState) const
-    { return (mLoadState & aState) == aState; }
+    { return (mLoadState & static_cast<PRUint32>(aState)) == 
+        static_cast<PRUint32>(aState); }
 
   /**
    * Return a native window handler or pointer depending on platform.
@@ -172,7 +182,7 @@ public:
    * Return the parent document.
    */
   nsDocAccessible* ParentDocument() const
-    { return mParent ? mParent->GetDocAccessible() : nsnull; }
+    { return mParent ? mParent->Document() : nsnull; }
 
   /**
    * Return the child document count.
@@ -367,6 +377,8 @@ public:
   void RecreateAccessible(nsIContent* aContent);
 
 protected:
+
+  void LastRelease();
 
   // nsAccessible
   virtual void CacheChildren();
@@ -596,6 +608,16 @@ protected:
   nsTArray<nsRefPtr<nsDocAccessible> > mChildDocuments;
 
   /**
+   * Whether we support nsIAccessibleCursorable, used when querying the interface.
+   */
+  bool mIsCursorable;
+
+  /**
+   * The virtual cursor of the document when it supports nsIAccessibleCursorable.
+   */
+  nsRefPtr<nsAccessiblePivot> mVirtualCursor;
+
+  /**
    * A storage class for pairing content with one of its relation attributes.
    */
   class AttrRelProvider
@@ -634,10 +656,11 @@ protected:
    */
   nsRefPtr<NotificationController> mNotificationController;
   friend class NotificationController;
-};
 
-NS_DEFINE_STATIC_IID_ACCESSOR(nsDocAccessible,
-                              NS_DOCACCESSIBLE_IMPL_CID)
+private:
+
+  nsIPresShell* mPresShell;
+};
 
 inline nsDocAccessible*
 nsAccessible::AsDoc()

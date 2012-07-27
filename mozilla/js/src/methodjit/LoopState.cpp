@@ -158,8 +158,10 @@ LoopState::init(jsbytecode *head, Jump entry, jsbytecode *entryTarget)
     JS_ASSERT(!alloc);
 
     alloc = cx->typeLifoAlloc().new_<RegisterAllocation>(true);
-    if (!alloc)
+    if (!alloc) {
+        js_ReportOutOfMemory(cx);
         return false;
+    }
 
     this->alloc = alloc;
     this->loopRegs = Registers::AvailAnyRegs;
@@ -810,7 +812,7 @@ LoopState::invariantLength(const CrossSSAValue &obj)
     TypeSet *objTypes = ssa->getValueTypes(obj);
 
     /* Check for 'length' on the lazy arguments for the current frame. */
-    if (objTypes->isLazyArguments(cx)) {
+    if (objTypes->isMagicArguments(cx)) {
         JS_ASSERT(obj.frame == CrossScriptSSA::OUTER_FRAME);
 
         for (unsigned i = 0; i < invariantEntries.length(); i++) {
@@ -1867,9 +1869,8 @@ LoopState::analyzeLoopBody(unsigned frame)
             break;
           }
 
-          case JSOP_SETPROP:
-          case JSOP_SETMETHOD: {
-            JSAtom *atom = script->getAtom(js_GetIndexFromBytecode(script, pc, 0));
+          case JSOP_SETPROP: {
+            JSAtom *atom = script->getAtom(GET_UINT32_INDEX(pc));
             jsid id = MakeTypeId(cx, ATOM_TO_JSID(atom));
 
             TypeSet *objTypes = analysis->poppedTypes(pc, 1);
@@ -1916,7 +1917,6 @@ LoopState::analyzeLoopBody(unsigned frame)
           case JSOP_THIS:
           case JSOP_GETLOCAL:
           case JSOP_SETLOCAL:
-          case JSOP_SETLOCALPOP:
           case JSOP_INCLOCAL:
           case JSOP_DECLOCAL:
           case JSOP_LOCALINC:
@@ -2181,7 +2181,7 @@ LoopState::getEntryValue(const CrossSSAValue &iv, uint32_t *pslot, int32_t *pcon
       }
 
       case JSOP_GETPROP: {
-        JSAtom *atom = script->getAtom(js_GetIndexFromBytecode(script, pc, 0));
+        JSAtom *atom = script->getAtom(GET_UINT32_INDEX(pc));
         jsid id = ATOM_TO_JSID(atom);
         CrossSSAValue objcv(cv.frame, analysis->poppedValue(v.pushedOffset(), 0));
         FrameEntry *tmp = invariantProperty(objcv, id);

@@ -125,6 +125,7 @@ sidebarheader .toolbarbutton-text:not([value]) {
 }
 
 #searchInput,
+#IMSearchInput,
 .remote-gloda-search {
   -moz-appearance: none;
   min-height: 22px;
@@ -134,6 +135,7 @@ sidebarheader .toolbarbutton-text:not([value]) {
 }
 
 #searchInput:-moz-lwtheme:not([focused="true"]),
+#IMSearchInput:-moz-lwtheme:not([focused="true"]),
 .remote-gloda-search:-moz-lwtheme:not([focused="true"]) {
   opacity: .85;
 }
@@ -161,4 +163,19 @@ treechildren::-moz-tree-cell-text {
   treechildren::-moz-tree-cell-text {
     -moz-padding-start: 4px !important;
   }
+}
+
+notification[value="addon-install-blocked"],
+notification[value="addon-install-failed"],
+notification[value="addon-install-complete"] {
+  background-image: url("chrome://mozapps/skin/extensions/stripes-info-negative.png"),
+                    -moz-linear-gradient(rgba(255, 255, 255, 0),
+                                         rgba(255, 255, 255, 0.5));
+  background-repeat: repeat-x;
+}
+
+notification[value="addon-install-blocked"] .notification-inner,
+notification[value="addon-install-failed"] .notification-inner,
+notification[value="addon-install-complete"] .notification-inner {
+  border: none;
 }

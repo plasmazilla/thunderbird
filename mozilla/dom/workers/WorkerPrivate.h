@@ -55,6 +55,7 @@
 #include "nsStringGlue.h"
 #include "nsTArray.h"
 #include "nsTPriorityQueue.h"
+#include "StructuredCloneTags.h"
 
 #include "EventTarget.h"
 #include "Queue.h"
@@ -68,6 +69,7 @@ class nsIScriptContext;
 class nsIURI;
 class nsPIDOMWindow;
 class nsITimer;
+class nsIXPCScriptNotify;
 
 BEGIN_WORKERS_NAMESPACE
 
@@ -132,6 +134,8 @@ protected:
   virtual void
   PostRun(JSContext* aCx, WorkerPrivate* aWorkerPrivate, bool aRunResult);
 
+  void NotifyScriptExecutedIfNeeded() const;
+
 private:
   NS_DECL_NSIRUNNABLE
 };
@@ -176,7 +180,7 @@ protected:
 };
 
 template <class Derived>
-class WorkerPrivateParent : public events::EventTarget
+class WorkerPrivateParent : public EventTarget
 {
 public:
   struct LocationInfo
@@ -206,6 +210,7 @@ private:
   // Main-thread things.
   nsCOMPtr<nsPIDOMWindow> mWindow;
   nsCOMPtr<nsIScriptContext> mScriptContext;
+  nsCOMPtr<nsIXPCScriptNotify> mScriptNotify;
   nsCOMPtr<nsIURI> mBaseURI;
   nsCOMPtr<nsIURI> mScriptURI;
   nsCOMPtr<nsIPrincipal> mPrincipal;
@@ -223,6 +228,7 @@ private:
   bool mParentSuspended;
   bool mIsChromeWorker;
   bool mPrincipalIsSystem;
+  bool mMainThreadObjectsForgotten;
 
 protected:
   WorkerPrivateParent(JSContext* aCx, JSObject* aObject, WorkerPrivate* aParent,
@@ -243,13 +249,15 @@ private:
     return static_cast<Derived*>(const_cast<WorkerPrivateParent*>(this));
   }
 
+  // aCx is null when called from the finalizer
   bool
-  NotifyPrivate(JSContext* aCx, Status aStatus, bool aFromJSFinalizer);
+  NotifyPrivate(JSContext* aCx, Status aStatus);
 
+  // aCx is null when called from the finalizer
   bool
-  TerminatePrivate(JSContext* aCx, bool aFromJSFinalizer)
+  TerminatePrivate(JSContext* aCx)
   {
-    return NotifyPrivate(aCx, Terminating, aFromJSFinalizer);
+    return NotifyPrivate(aCx, Terminating);
   }
 
 public:
@@ -261,7 +269,7 @@ public:
   bool
   Notify(JSContext* aCx, Status aStatus)
   {
-    return NotifyPrivate(aCx, aStatus, false);
+    return NotifyPrivate(aCx, aStatus);
   }
 
   bool
@@ -282,22 +290,24 @@ public:
   bool
   Resume(JSContext* aCx);
 
-  void
-  TraceInstance(JSTracer* aTrc)
-  {
-    // This should only happen on the parent thread but we can't assert that
-    // because it can also happen on the cycle collector thread when this is a
-    // top-level worker.
-    events::EventTarget::TraceInstance(aTrc);
-  }
+  virtual void
+  _Trace(JSTracer* aTrc) MOZ_OVERRIDE;
+
+  virtual void
+  _Finalize(JSFreeOp* aFop) MOZ_OVERRIDE;
 
   void
-  FinalizeInstance(JSContext* aCx, bool aFromJSFinalizer);
+  Finish(JSContext* aCx)
+  {
+    RootJSObject(aCx, false);
+  }
 
   bool
   Terminate(JSContext* aCx)
   {
-    return TerminatePrivate(aCx, false);
+    AssertIsOnParentThread();
+    RootJSObject(aCx, false);
+    return TerminatePrivate(aCx);
   }
 
   bool
@@ -332,9 +342,6 @@ public:
   void
   GarbageCollect(JSContext* aCx, bool aShrinking);
 
-  using events::EventTarget::GetEventListenerOnEventTarget;
-  using events::EventTarget::SetEventListenerOnEventTarget;
-
   void
   QueueRunnable(WorkerRunnable* aRunnable)
   {
@@ -355,6 +362,17 @@ public:
     return mParentSuspended;
   }
 
+  bool
+  IsAcceptingEvents()
+  {
+    AssertIsOnParentThread();
+    bool acceptingEvents;
+    mMutex.Lock();
+    acceptingEvents = mParentStatus < Terminating;
+    mMutex.Unlock();
+    return acceptingEvents;
+  }
+
   Status
   ParentStatus() const
   {
@@ -370,6 +388,13 @@ public:
   {
     AssertIsOnMainThread();
     return mScriptContext;
+  }
+
+  nsIXPCScriptNotify*
+  GetScriptNotify() const
+  {
+    AssertIsOnMainThread();
+    return mScriptNotify;
   }
 
   JSObject*
@@ -563,7 +588,7 @@ class WorkerPrivate : public WorkerPrivateParent<WorkerPrivate>
 public:
   ~WorkerPrivate();
 
-  static WorkerPrivate*
+  static already_AddRefed<WorkerPrivate>
   Create(JSContext* aCx, JSObject* aObj, WorkerPrivate* aParent,
          JSString* aScriptURL, bool aIsChromeWorker);
 
@@ -655,7 +680,7 @@ public:
   ReportError(JSContext* aCx, const char* aMessage, JSErrorReport* aReport);
 
   bool
-  SetTimeout(JSContext* aCx, uintN aArgc, jsval* aVp, bool aIsInterval);
+  SetTimeout(JSContext* aCx, unsigned aArgc, jsval* aVp, bool aIsInterval);
 
   bool
   ClearTimeout(JSContext* aCx, uint32 aId);
@@ -799,7 +824,7 @@ GetWorkerPrivateFromContext(JSContext* aCx);
 
 enum WorkerStructuredDataType
 {
-  DOMWORKER_SCTAG_FILE = JS_SCTAG_USER_MIN + 0x1000,
+  DOMWORKER_SCTAG_FILE = SCTAG_DOM_MAX,
   DOMWORKER_SCTAG_BLOB,
 
   DOMWORKER_SCTAG_END

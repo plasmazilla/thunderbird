@@ -375,7 +375,7 @@ GetNamedPropertyAsVariantRaw(XPCCallContext& ccx,
 nsresult
 nsXPCWrappedJSClass::GetNamedPropertyAsVariant(XPCCallContext& ccx,
                                                JSObject* aJSObj,
-                                               jsval aName,
+                                               const nsAString& aName,
                                                nsIVariant** aResult)
 {
     JSContext* cx = ccx.GetJSContext();
@@ -387,7 +387,16 @@ nsXPCWrappedJSClass::GetNamedPropertyAsVariant(XPCCallContext& ccx,
     if (!scriptEval.StartEvaluating(aJSObj))
         return NS_ERROR_FAILURE;
 
-    ok = JS_ValueToId(cx, aName, &id) &&
+    // Wrap the string in a jsval after the AutoScriptEvaluate, so that the
+    // resulting value ends up in the correct compartment.
+    nsStringBuffer* buf;
+    jsval jsstr = XPCStringConvert::ReadableToJSVal(ccx, aName, &buf);
+    if (JSVAL_IS_NULL(jsstr))
+        return NS_ERROR_OUT_OF_MEMORY;
+    if (buf)
+        buf->AddRef();
+
+    ok = JS_ValueToId(cx, jsstr, &id) &&
          GetNamedPropertyAsVariantRaw(ccx, aJSObj, id, aResult, &rv);
 
     return ok ? NS_OK : NS_FAILED(rv) ? rv : NS_ERROR_FAILURE;
@@ -1028,15 +1037,7 @@ nsXPCWrappedJSClass::CheckForException(XPCCallContext & ccx,
                 // Finally, check to see if this is the last JS frame on the
                 // stack. If so then we always want to report it.
                 if (!reportable) {
-                    bool onlyNativeStackFrames = true;
-                    JSStackFrame * fp = nsnull;
-                    while ((fp = JS_FrameIterator(cx, &fp))) {
-                        if (JS_IsScriptFrame(cx, fp)) {
-                            onlyNativeStackFrames = false;
-                            break;
-                        }
-                    }
-                    reportable = onlyNativeStackFrames;
+                    reportable = !JS_DescribeScriptedCaller(cx, nsnull, nsnull);
                 }
 
                 // Ugly special case for GetInterface. It's "special" in the
@@ -1100,8 +1101,7 @@ nsXPCWrappedJSClass::CheckForException(XPCCallContext & ccx,
                             rv = xpc_exception->ToString(&exn_string);
                             if (NS_SUCCEEDED(rv)) {
                                 // use toString on the exception as the message
-                                nsAutoString newMessage;
-                                newMessage.AssignWithConversion(exn_string);
+                                NS_ConvertASCIItoUTF16 newMessage(exn_string);
                                 nsMemory::Free((void *) exn_string);
 
                                 // try to get filename, lineno from the first
@@ -1315,8 +1315,7 @@ nsXPCWrappedJSClass::CallMethod(nsXPCWrappedJS* wrapper, uint16_t methodIndex,
                                 JSBool ok =
                                   XPCConvert::NativeInterface2JSObject(ccx,
                                                                        &v, nsnull, helper, newWrapperIID,
-                                                                       nsnull, false, false,
-                                                                       nsnull);
+                                                                       nsnull, false, nsnull);
                                 if (newWrapperIID)
                                     nsMemory::Free(newWrapperIID);
                                 if (!ok) {

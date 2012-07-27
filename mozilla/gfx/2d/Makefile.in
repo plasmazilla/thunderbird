@@ -73,6 +73,7 @@ CPPSRCS	= \
         PathCairo.cpp \
         Blur.cpp \
         ScaledFontBase.cpp \
+        DrawTargetDual.cpp \
         $(NULL)
 
 ifeq (cocoa,$(MOZ_WIDGET_TOOLKIT))
@@ -90,6 +91,7 @@ CPPSRCS	+= \
         SourceSurfaceSkia.cpp \
         DrawTargetSkia.cpp \
         PathSkia.cpp \
+        ScaledFontFreetype.cpp
         $(NULL)
 
 DEFINES += -DUSE_SKIA

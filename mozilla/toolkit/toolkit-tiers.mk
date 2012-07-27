@@ -153,6 +153,12 @@ tier_platform_dirs += \
 		$(NULL)
 endif
 
+ifdef MOZ_CUBEB
+tier_platform_dirs += \
+		media/libcubeb \
+		$(NULL)
+endif
+
 ifndef MOZ_NATIVE_PNG
 tier_platform_dirs += media/libpng
 endif
@@ -265,6 +271,10 @@ endif
 
 ifdef MOZ_MAPINFO
 tier_platform_dirs	+= tools/codesighs
+endif
+
+ifdef ENABLE_MARIONETTE
+tier_platform_dirs += testing/marionette
 endif
 
 ifdef ENABLE_TESTS

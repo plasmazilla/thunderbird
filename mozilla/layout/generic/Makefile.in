@@ -41,9 +41,7 @@ VPATH		= @srcdir@
 
 include $(DEPTH)/config/autoconf.mk
 
-ifdef ENABLE_TESTS
-DIRS		+= test
-endif
+TEST_DIRS += test
 
 MODULE		= layout
 LIBRARY_NAME	= gkgeneric_s
@@ -89,6 +87,7 @@ CPPSRCS		= \
 		nsContainerFrame.cpp \
 		nsFirstLetterFrame.cpp \
 		nsFloatManager.cpp \
+		nsFontInflationData.cpp \
 		nsFrame.cpp \
 		nsFrameList.cpp \
 		nsFrameSetFrame.cpp \
@@ -154,6 +153,7 @@ LOCAL_INCLUDES += \
 		-I$(srcdir)/../../content/html/content/src \
 		-I$(srcdir)/../../dom/base \
 		-I$(srcdir)/../../dom/plugins/base \
+		-I$(srcdir)/../svg/base/src \
 		$(MOZ_CAIRO_CFLAGS) \
 		$(NULL)
 

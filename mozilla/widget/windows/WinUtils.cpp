@@ -123,6 +123,26 @@ WinUtils::GetRegistryKey(HKEY aRoot,
 }
 
 /* static */
+bool
+WinUtils::HasRegistryKey(HKEY aRoot, const PRUnichar* aKeyName)
+{
+  MOZ_ASSERT(aRoot, "aRoot must not be NULL");
+  MOZ_ASSERT(aKeyName, "aKeyName must not be NULL");
+  HKEY key;
+  LONG result =
+    ::RegOpenKeyExW(aRoot, aKeyName, 0, KEY_READ | KEY_WOW64_32KEY, &key);
+  if (result != ERROR_SUCCESS) {
+    result =
+      ::RegOpenKeyExW(aRoot, aKeyName, 0, KEY_READ | KEY_WOW64_64KEY, &key);
+    if (result != ERROR_SUCCESS) {
+      return false;
+    }
+  }
+  ::RegCloseKey(key);
+  return true;
+}
+
+/* static */
 HWND
 WinUtils::GetTopLevelHWND(HWND aWnd,
                           bool aStopIfNotChild,
@@ -393,10 +413,24 @@ HRESULT
 WinUtils::SHCreateItemFromParsingName(PCWSTR pszPath, IBindCtx *pbc,
                                       REFIID riid, void **ppv)
 {
-  NS_ENSURE_TRUE(sCreateItemFromParsingName, E_FAIL);
+  if (!VistaCreateItemFromParsingNameInit())
+    return E_FAIL;
   return sCreateItemFromParsingName(pszPath, pbc, riid, ppv);
 }
 
+/* static */
+bool
+WinUtils::GetShellItemPath(IShellItem* aItem,
+                           nsString& aResultString)
+{
+  NS_ENSURE_TRUE(aItem, false);
+  LPWSTR str = NULL;
+  if (FAILED(aItem->GetDisplayName(SIGDN_FILESYSPATH, &str)))
+    return false;
+  aResultString.Assign(str);
+  CoTaskMemFree(str);
+  return !aResultString.IsEmpty();
+}
 
 } // namespace widget
 } // namespace mozilla

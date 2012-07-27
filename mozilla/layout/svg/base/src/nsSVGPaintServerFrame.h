@@ -37,18 +37,30 @@
 #ifndef __NS_SVGPAINTSERVERFRAME_H__
 #define __NS_SVGPAINTSERVERFRAME_H__
 
+#include "nsCOMPtr.h"
+#include "nsFrame.h"
+#include "nsIFrame.h"
+#include "nsQueryFrame.h"
 #include "nsSVGContainerFrame.h"
+#include "nsSVGUtils.h"
 
 class gfxContext;
+class gfxPattern;
+class nsStyleContext;
 class nsSVGGeometryFrame;
+
+struct gfxRect;
 
 typedef nsSVGContainerFrame nsSVGPaintServerFrameBase;
 
 class nsSVGPaintServerFrame : public nsSVGPaintServerFrameBase
 {
 protected:
-  nsSVGPaintServerFrame(nsStyleContext* aContext) :
-    nsSVGPaintServerFrameBase(aContext) {}
+  nsSVGPaintServerFrame(nsStyleContext* aContext)
+    : nsSVGPaintServerFrameBase(aContext)
+  {
+    AddStateBits(NS_STATE_SVG_NONDISPLAY_CHILD);
+  }
 
 public:
   NS_DECL_FRAMEARENA_HELPERS

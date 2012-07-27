@@ -135,6 +135,17 @@ nsBaseWidget::nsBaseWidget()
 }
 
 
+static void DestroyCompositor(CompositorParent* aCompositorParent,
+                              CompositorChild* aCompositorChild,
+                              Thread* aCompositorThread)
+{
+    aCompositorChild->Destroy();
+    delete aCompositorThread;
+    aCompositorParent->Release();
+    aCompositorChild->Release();
+}
+
+
 //-------------------------------------------------------------------------
 //
 // nsBaseWidget destructor
@@ -153,8 +164,23 @@ nsBaseWidget::~nsBaseWidget()
   }
 
   if (mCompositorChild) {
-    mCompositorChild->Destroy();
-    delete mCompositorThread;
+    mCompositorChild->SendWillStop();
+
+    // The call just made to SendWillStop can result in IPC from the
+    // CompositorParent to the CompositorChild (e.g. caused by the destruction
+    // of shared memory). We need to ensure this gets processed by the
+    // CompositorChild before it gets destroyed. It suffices to ensure that
+    // events already in the MessageLoop get processed before the
+    // CompositorChild is destroyed, so we add a task to the MessageLoop to
+    // handle compositor desctruction.
+    MessageLoop::current()->
+      PostTask(FROM_HERE,
+               NewRunnableFunction(DestroyCompositor, mCompositorParent,
+                                   mCompositorChild, mCompositorThread));
+    // The DestroyCompositor task we just added to the MessageLoop will handle
+    // releasing mCompositorParent and mCompositorChild.
+    mCompositorParent.forget();
+    mCompositorChild.forget();
   }
 
 #ifdef NOISY_WIDGET_LEAKS
@@ -261,6 +287,23 @@ nsBaseWidget::CreateChild(const nsIntRect  &aRect,
   }
 
   return nsnull;
+}
+
+NS_IMETHODIMP
+nsBaseWidget::SetEventCallback(EVENT_CALLBACK aEventFunction,
+                               nsDeviceContext *aContext)
+{
+  NS_ASSERTION(aEventFunction, "Must have valid event callback!");
+
+  mEventCallback = aEventFunction;
+
+  if (aContext) {
+    NS_IF_RELEASE(mContext);
+    mContext = aContext;
+    NS_ADDREF(mContext);
+  }
+
+  return NS_OK;
 }
 
 // Attach a view to our widget which we'll send events to. 
@@ -743,7 +786,7 @@ nsBaseWidget::AutoUseBasicLayerManager::~AutoUseBasicLayerManager()
 bool
 nsBaseWidget::GetShouldAccelerate()
 {
-#if defined(XP_WIN) || defined(ANDROID) || (MOZ_PLATFORM_MAEMO > 5)
+#if defined(XP_WIN) || defined(ANDROID) || (MOZ_PLATFORM_MAEMO > 5) || defined(MOZ_GL_PROVIDER)
   bool accelerateByDefault = true;
 #elif defined(XP_MACOSX)
 /* quickdraw plugins don't work with OpenGL so we need to avoid OpenGL when we want to support
@@ -829,8 +872,8 @@ nsBaseWidget::GetShouldAccelerate()
 
 void nsBaseWidget::CreateCompositor()
 {
-  mCompositorParent = new CompositorParent(this);
   mCompositorThread = new Thread("CompositorThread");
+  mCompositorParent = new CompositorParent(this, mCompositorThread);
   if (mCompositorThread->Start()) {
     LayerManager* lm = CreateBasicLayerManager();
     MessageLoop *childMessageLoop = mCompositorThread->message_loop();
@@ -846,6 +889,7 @@ void nsBaseWidget::CreateCompositor()
       if (!lf) {
         delete lm;
         mCompositorChild = nsnull;
+        return;
       }
       lf->SetShadowManager(shadowManager);
       lf->SetParentBackendType(LayerManager::LAYERS_OPENGL);
@@ -1540,7 +1584,6 @@ nsBaseWidget::debug_DumpPaintEvent(FILE *                aFileOut,
 nsBaseWidget::debug_DumpInvalidate(FILE *                aFileOut,
                                    nsIWidget *           aWidget,
                                    const nsIntRect *     aRect,
-                                   bool                  aIsSynchronous,
                                    const nsCAutoString & aWidgetName,
                                    PRInt32               aWindowID)
 {
@@ -1572,10 +1615,6 @@ nsBaseWidget::debug_DumpInvalidate(FILE *                aFileOut,
             " rect=%-15s",
             "none");
   }
-
-  fprintf(aFileOut,
-          " sync=%s",
-          (const char *) (aIsSynchronous ? "yes" : "no "));
   
   fprintf(aFileOut,"\n");
 }

@@ -19,6 +19,7 @@
  * Contributor(s):
  *   Sid Stamm <sid@mozilla.com>
  *   Brandon Sterne <bsterne@mozilla.com>
+ *   Ian Melven <imelven@mozilla.com>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -69,6 +70,7 @@ function ContentSecurityPolicy() {
   this._policy._allowEval = true;
 
   this._request = "";
+  this._referrer = "";
   this._docRequest = null;
   CSPdebug("CSP POLICY INITED TO 'default-src *'");
 }
@@ -156,13 +158,13 @@ ContentSecurityPolicy.prototype = {
     switch (aViolationType) {
     case Ci.nsIContentSecurityPolicy.VIOLATION_TYPE_INLINE_SCRIPT:
       if (!this._policy.allowsInlineScripts)
-        this._asyncReportViolation('self','inline script base restriction',
+        this._asyncReportViolation('self',null,'inline script base restriction',
                                    'violated base restriction: Inline Scripts will not execute',
                                    aSourceFile, aScriptSample, aLineNum);
       break;
     case Ci.nsIContentSecurityPolicy.VIOLATION_TYPE_EVAL:
       if (!this._policy.allowsEvalInScripts)
-        this._asyncReportViolation('self','eval script base restriction',
+        this._asyncReportViolation('self',null,'eval script base restriction',
                                    'violated base restriction: Code will not be created from strings',
                                    aSourceFile, aScriptSample, aLineNum);
       break;
@@ -192,25 +194,18 @@ ContentSecurityPolicy.prototype = {
   function(aChannel) {
     if (!aChannel)
       return;
-    // grab the request line
-    var internalChannel = null;
-    try {
-      internalChannel = aChannel.QueryInterface(Ci.nsIHttpChannelInternal);
-    } catch (e) {
-      CSPdebug("No nsIHttpChannelInternal for " + aChannel.URI.asciiSpec);
-    }
 
-    this._request = aChannel.requestMethod + " " + aChannel.URI.asciiSpec;
+    // Save the docRequest for fetching a policy-uri
     this._docRequest = aChannel;
 
-    // We will only be able to provide the HTTP version information if aChannel
-    // implements nsIHttpChannelInternal
-    if (internalChannel) {
-      var reqMaj = {};
-      var reqMin = {};
-      var reqVersion = internalChannel.getRequestVersion(reqMaj, reqMin);
-      this._request += " HTTP/" + reqMaj.value + "." + reqMin.value;
-    }
+    // save the document URI (minus <fragment>) and referrer for reporting
+    let uri = aChannel.URI.cloneIgnoringRef();
+    uri.userPass = '';
+    this._request = uri.asciiSpec;
+
+    let referrer = aChannel.referrer.cloneIgnoringRef();
+    referrer.userPass = '';
+    this._referrer = referrer.asciiSpec;
   },
 
 /* ........ Methods .............. */
@@ -238,8 +233,10 @@ ContentSecurityPolicy.prototype = {
 
     // If there is a policy-uri, fetch the policy, then re-call this function.
     // (1) parse and create a CSPRep object
+    // Note that we pass the full URI since when it's parsed as 'self' to construct a 
+    // CSPSource only the scheme, host, and port are kept. 
     var newpolicy = CSPRep.fromString(aPolicy,
-                                      selfURI.scheme + "://" + selfURI.hostPort,
+				      selfURI,
                                       this._docRequest,
                                       this);
 
@@ -255,27 +252,48 @@ ContentSecurityPolicy.prototype = {
    * Generates and sends a violation report to the specified report URIs.
    */
   sendReports:
-  function(blockedUri, violatedDirective, aSourceFile, aScriptSample, aLineNum) {
+  function(blockedUri, originalUri, violatedDirective,
+           aSourceFile, aScriptSample, aLineNum) {
     var uriString = this._policy.getReportURIs();
     var uris = uriString.split(/\s+/);
     if (uris.length > 0) {
+      // see if we need to sanitize the blocked-uri
+      let blocked = '';
+      if (originalUri) {
+        // We've redirected, only report the blocked origin
+        let clone = blockedUri.clone();
+        clone.path = '';
+        blocked = clone.asciiSpec;
+      }
+      else if (blockedUri instanceof Ci.nsIURI) {
+        blocked = blockedUri.cloneIgnoringRef().asciiSpec;
+      }
+      else {
+        // blockedUri is a string for eval/inline-script violations
+        blocked = blockedUri;
+      }
+
       // Generate report to send composed of
       // {
       //   csp-report: {
-      //     request: "GET /index.html HTTP/1.1",
+      //     document-uri: "http://example.com/file.html?params",
+      //     referrer: "...",
       //     blocked-uri: "...",
       //     violated-directive: "..."
       //   }
       // }
       var report = {
         'csp-report': {
-          'request': this._request,
-          'blocked-uri': (blockedUri instanceof Ci.nsIURI ?
-                          blockedUri.asciiSpec : blockedUri),
+          'document-uri': this._request,
+          'referrer': this._referrer,
+          'blocked-uri': blocked,
           'violated-directive': violatedDirective
         }
       }
+
       // extra report fields for script errors (if available)
+      if (originalUri)
+        report["csp-report"]["original-uri"] = originalUri.cloneIgnoringRef().asciiSpec;
       if (aSourceFile)
         report["csp-report"]["source-file"] = aSourceFile;
       if (aScriptSample)
@@ -301,7 +319,7 @@ ContentSecurityPolicy.prototype = {
 
         var failure = function(aEvt) {  
           if (req.readyState == 4 && req.status != 200) {
-            CSPError("Failed to send report to " + reportURI);
+            CSPError("Failed to send report to " + uris[i]);
           }  
         };  
         var req = Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]  
@@ -312,6 +330,10 @@ ContentSecurityPolicy.prototype = {
           req.setRequestHeader('Content-Type', 'application/json');
           req.upload.addEventListener("error", failure, false);
           req.upload.addEventListener("abort", failure, false);
+
+          // we need to set an nsIChannelEventSink on the XHR object
+          // so we can tell it to not follow redirects when posting the reports
+          req.channel.notificationCallbacks = new CSPReportRedirectSink();
 
           req.send(JSON.stringify(report));
           CSPdebug("Sent violation report to " + uris[i]);
@@ -368,7 +390,7 @@ ContentSecurityPolicy.prototype = {
                                 ? 'default-src' : 'frame-ancestors ')
                                 + directive.toString();
 
-        this._asyncReportViolation(ancestors[i], violatedPolicy);
+        this._asyncReportViolation(ancestors[i], null, violatedPolicy);
 
         // need to lie if we are testing in report-only mode
         return this._reportOnlyMode;
@@ -388,7 +410,7 @@ ContentSecurityPolicy.prototype = {
                           aRequestOrigin, 
                           aContext, 
                           aMimeTypeGuess, 
-                          aExtra) {
+                          aOriginalUri) {
 
     // don't filter chrome stuff
     if (aContentLocation.scheme === 'chrome' ||
@@ -422,7 +444,7 @@ ContentSecurityPolicy.prototype = {
         let violatedPolicy = (directive._isImplicit
                                 ? 'default-src' : cspContext)
                                 + ' ' + directive.toString();
-        this._asyncReportViolation(aContentLocation, violatedPolicy);
+        this._asyncReportViolation(aContentLocation, aOriginalUri, violatedPolicy);
       } catch(e) {
         CSPdebug('---------------- ERROR: ' + e);
       }
@@ -452,6 +474,8 @@ ContentSecurityPolicy.prototype = {
    * @param blockedContentSource
    *        Either a CSP Source (like 'self', as string) or nsIURI: the source
    *        of the violation.
+   * @param originalUri
+   *        The original URI if the blocked content is a redirect, else null
    * @param violatedDirective
    *        the directive that was violated (string).
    * @param observerSubject
@@ -465,7 +489,7 @@ ContentSecurityPolicy.prototype = {
    *        source line number of the violation (if available)
    */
   _asyncReportViolation:
-  function(blockedContentSource, violatedDirective, observerSubject,
+  function(blockedContentSource, originalUri, violatedDirective, observerSubject,
            aSourceFile, aScriptSample, aLineNum) {
     // if optional observerSubject isn't specified, default to the source of
     // the violation.
@@ -488,10 +512,61 @@ ContentSecurityPolicy.prototype = {
         Services.obs.notifyObservers(observerSubject,
                                      CSP_VIOLATION_TOPIC,
                                      violatedDirective);
-        reportSender.sendReports(blockedContentSource, violatedDirective,
+        reportSender.sendReports(blockedContentSource, originalUri,
+                                 violatedDirective,
                                  aSourceFile, aScriptSample, aLineNum);
       }, Ci.nsIThread.DISPATCH_NORMAL);
   },
+};
+
+// The POST of the violation report (if it happens) should not follow
+// redirects, per the spec. hence, we implement an nsIChannelEventSink
+// with an object so we can tell XHR to abort if a redirect happens.
+function CSPReportRedirectSink() {
+}
+
+CSPReportRedirectSink.prototype = {
+  QueryInterface: function requestor_qi(iid) {
+    if (iid.equals(Ci.nsISupports) ||
+        iid.equals(Ci.nsIInterfaceRequestor) ||
+        iid.equals(Ci.nsIChannelEventSink))
+      return this;
+    throw Cr.NS_ERROR_NO_INTERFACE;
+  },
+
+  // nsIInterfaceRequestor
+  getInterface: function requestor_gi(iid) {
+    if (iid.equals(Ci.nsIChannelEventSink))
+      return this;
+
+    throw Components.results.NS_ERROR_NO_INTERFACE;
+  },
+
+  // nsIChannelEventSink
+  asyncOnChannelRedirect: function channel_redirect(oldChannel, newChannel,
+                                                    flags, callback) {
+    CSPWarning("Post of violation report to " + oldChannel.URI.asciiSpec +
+               " failed, as a redirect occurred");
+
+    // cancel the old channel so XHR failure callback happens
+    oldChannel.cancel(Cr.NS_ERROR_ABORT);
+
+    // notify an observer that we have blocked the report POST due to a redirect,
+    // used in testing, do this async since we're in an async call now to begin with
+    Services.tm.mainThread.dispatch(
+      function() {
+        observerSubject = Cc["@mozilla.org/supports-cstring;1"]
+                             .createInstance(Ci.nsISupportsCString);
+        observerSubject.data = oldChannel.URI.asciiSpec;
+
+        Services.obs.notifyObservers(observerSubject,
+                                     CSP_VIOLATION_TOPIC,
+                                     "denied redirect while sending violation report");
+      }, Ci.nsIThread.DISPATCH_NORMAL);
+
+    // throw to stop the redirect happening
+    throw Cr.NS_BINDING_REDIRECTED;
+  }
 };
 
 var NSGetFactory = XPCOMUtils.generateNSGetFactory([ContentSecurityPolicy]);

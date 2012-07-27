@@ -308,11 +308,19 @@ nsStringBuffer::ToString(PRUint32 len, nsACString &str,
   }
 
 size_t
+nsStringBuffer::SizeOfIncludingThisMustBeUnshared(nsMallocSizeOfFun aMallocSizeOf) const
+  {
+    NS_ASSERTION(!IsReadonly(),
+                 "shared StringBuffer in SizeOfIncludingThisMustBeUnshared");
+    return aMallocSizeOf(this);
+  }
+
+size_t
 nsStringBuffer::SizeOfIncludingThisIfUnshared(nsMallocSizeOfFun aMallocSizeOf) const
   {
     if (!IsReadonly())
       {
-        return aMallocSizeOf(this);
+        return SizeOfIncludingThisMustBeUnshared(aMallocSizeOf);
       }
     return 0;
   }
@@ -336,4 +344,5 @@ nsStringBuffer::SizeOfIncludingThisIfUnshared(nsMallocSizeOfFun aMallocSizeOf) c
 #include "prlog.h"
 #include "nsXPCOMStrings.h"
 
-PR_STATIC_ASSERT(sizeof(nsStringContainer_base) == sizeof(nsSubstring));
+MOZ_STATIC_ASSERT(sizeof(nsStringContainer_base) == sizeof(nsSubstring),
+                  "internal and external strings must have the same size");

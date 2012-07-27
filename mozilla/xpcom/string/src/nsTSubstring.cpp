@@ -731,27 +731,37 @@ nsTSubstring_CharT::StripChars( const char_type* aChars, PRUint32 aOffset )
     mLength = to - mData;
   }
 
-void nsTSubstring_CharT::AppendPrintf31( const char* format, ...)
+PRIntn
+nsTSubstring_CharT::AppendFunc(void* arg, const char* s, PRUint32 len)
   {
-    char buf[32];
-    va_list ap;
-    va_start(ap, format);
-    PRUint32 len = PR_vsnprintf(buf, sizeof(buf), format, ap);
-    AppendASCII(buf, len);
-    va_end(ap);
+    self_type* self = static_cast<self_type*>(arg);
+
+    // NSPR sends us the final null terminator even though we don't want it
+    if (len && s[len - 1] == '\0') {
+      --len;
+    }
+
+    self->AppendASCII(s, len);
+
+    return len;
   }
 
 void nsTSubstring_CharT::AppendPrintf( const char* format, ...)
   {
-    char *buf;
     va_list ap;
     va_start(ap, format);
-    buf = PR_vsmprintf(format, ap);
-    AppendASCII(buf);
-    PR_smprintf_free(buf);
+    PRUint32 r = PR_vsxprintf(AppendFunc, this, format, ap);
+    if (r == (PRUint32) -1)
+      NS_RUNTIMEABORT("Allocation or other failure in PR_vsxprintf");
     va_end(ap);
   }
 
+void nsTSubstring_CharT::AppendPrintf( const char* format, va_list ap )
+  {
+    PRUint32 r = PR_vsxprintf(AppendFunc, this, format, ap);
+    if (r == (PRUint32) -1)
+      NS_RUNTIMEABORT("Allocation or other failure in PR_vsxprintf");
+  }
 
 /* hack to make sure we define Modified_cnvtf only once */
 #ifdef CharT_is_PRUnichar
@@ -857,5 +867,58 @@ nsTSubstring_CharT::DoAppendFloat( double aFloat, int digits )
   // locale-sensitive PR_snprintf or sprintf(3)
   Modified_cnvtf(buf, sizeof(buf), digits, aFloat);
   AppendASCII(buf);
+}
+
+size_t
+nsTSubstring_CharT::SizeOfExcludingThisMustBeUnshared(
+    nsMallocSizeOfFun mallocSizeOf) const
+{
+  if (mFlags & F_SHARED) {
+    return nsStringBuffer::FromData(mData)->
+             SizeOfIncludingThisMustBeUnshared(mallocSizeOf);
+  } 
+  if (mFlags & F_OWNED) {
+    return mallocSizeOf(mData);
+  }
+
+  // If we reach here, exactly one of the following must be true:
+  // - F_VOIDED is set, and mData points to sEmptyBuffer;
+  // - F_FIXED is set, and mData points to a buffer within a string
+  //   object (e.g. nsAutoString);
+  // - None of F_SHARED, F_OWNED, F_FIXED is set, and mData points to a buffer
+  //   owned by something else.
+  //
+  // In all three cases, we don't measure it.
+  return 0;
+}
+
+size_t
+nsTSubstring_CharT::SizeOfExcludingThisIfUnshared(
+    nsMallocSizeOfFun mallocSizeOf) const
+{
+  // This is identical to SizeOfExcludingThisMustBeUnshared except for the
+  // F_SHARED case.
+  if (mFlags & F_SHARED) {
+    return nsStringBuffer::FromData(mData)->
+             SizeOfIncludingThisIfUnshared(mallocSizeOf);
+  }
+  if (mFlags & F_OWNED) {
+    return mallocSizeOf(mData);
+  }
+  return 0;
+}
+
+size_t
+nsTSubstring_CharT::SizeOfIncludingThisMustBeUnshared(
+    nsMallocSizeOfFun mallocSizeOf) const
+{
+  return mallocSizeOf(this) + SizeOfExcludingThisMustBeUnshared(mallocSizeOf);
+}
+
+size_t
+nsTSubstring_CharT::SizeOfIncludingThisIfUnshared(
+    nsMallocSizeOfFun mallocSizeOf) const
+{
+  return mallocSizeOf(this) + SizeOfExcludingThisIfUnshared(mallocSizeOf);
 }
 

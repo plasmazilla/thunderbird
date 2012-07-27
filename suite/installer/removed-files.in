@@ -49,8 +49,16 @@ chrome/icons/default/abcardWindow16.xpm
 chrome/icons/default/ablistWindow.xpm
 chrome/icons/default/addressbookWindow.xpm
 chrome/icons/default/addressbookWindow16.xpm
+chrome/icons/default/bmPropsWindow.ico
+chrome/icons/default/bmPropsWindow.png
+chrome/icons/default/bmPropsWindow16.png
+chrome/icons/default/bmPropsWindow48.png
 chrome/icons/default/bmPropsWindow.xpm
 chrome/icons/default/bmPropsWindow16.xpm
+chrome/icons/default/bookmark-window.ico
+chrome/icons/default/bookmark-window.png
+chrome/icons/default/bookmark-window16.png
+chrome/icons/default/bookmark-window48.png
 chrome/icons/default/bookmark-window.xpm
 chrome/icons/default/bookmark-window16.xpm
 chrome/icons/default/calendar-window.xpm
@@ -128,6 +136,11 @@ components/nsUnsetDefaultMail.js
 #ifndef MOZ_UPDATER
 components/nsUpdateService.js
 components/nsUpdateServiceStub.js
+#endif
+#ifndef MOZ_URL_CLASSIFIER
+  components/nsUrlClassifierHashCompleter.js
+  components/nsUrlClassifierLib.js
+  components/nsUrlClassifierListManager.js
 #endif
 components/nsXmlRpcClient.js
 components/@DLL_PREFIX@oji@DLL_SUFFIX@
@@ -254,7 +267,6 @@ hyphenation/hyph_sl.dic
 hyphenation/hyph_sv.dic
 hyphenation/hyph_tr.dic
 hyphenation/hyph_uk.dic
-
 #ifdef XP_MACOSX
 isp/dotmac.rdf
 #endif
@@ -276,6 +288,26 @@ modules/dbViewWrapper.js
 modules/mailViewManager.js
 modules/quickSearchManager.js
 modules/searchSpec.js
+modules/services-sync/async.js
+modules/services-sync/auth.js
+modules/services-sync/base_records/collection.js
+modules/services-sync/base_records/crypto.js
+modules/services-sync/base_records/keys.js
+modules/services-sync/base_records/wbo.js
+modules/services-sync/ext/Observers.js
+modules/services-sync/ext/Preferences.js
+modules/services-sync/ext/StringBundle.js
+modules/services-sync/ext/Sync.js
+modules/services-sync/log4moz.js
+modules/services-sync/stores.js
+modules/services-sync/trackers.js
+modules/services-sync/type_records/bookmark.js
+modules/services-sync/type_records/clients.js
+modules/services-sync/type_records/forms.js
+modules/services-sync/type_records/history.js
+modules/services-sync/type_records/passwords.js
+modules/services-sync/type_records/prefs.js
+modules/services-sync/type_records/tabs.js
 #ifdef MOZ_STATIC_JS
 @DLL_PREFIX@mozjs@DLL_SUFFIX@
 #endif
@@ -307,6 +339,7 @@ modules/searchSpec.js
   #endif
 #endif
 @DLL_PREFIX@mozlcms@DLL_SUFFIX@
+omni.jar
 #ifdef XP_MACOSX
   ../Plug-Ins/PrintPDE.plugin/Contents/Info.plist
   ../Plug-Ins/PrintPDE.plugin/Contents/MacOS/PrintPDE
@@ -539,7 +572,6 @@ xpicleanup@BIN_SUFFIX@
 @DLL_PREFIX@xpistub@DLL_SUFFIX@
 
 #ifdef MOZ_OMNIJAR
-  omni.jar
   chrome/be.jar
   chrome/ca.jar
   chrome/cs.jar
@@ -581,7 +613,9 @@ xpicleanup@BIN_SUFFIX@
   components/addonManager.js
   components/amContentHandler.js
   components/amWebInstallListener.js
+  components/BrowserElementAPI.js
   components/ConsoleAPI.js
+  components/ContactManager.js
   components/contentAreaDropListener.js
   components/contentSecurityPolicy.js
   components/crypto-SDR.js
@@ -640,9 +674,15 @@ xpicleanup@BIN_SUFFIX@
   components/nsUpdateService.js
   components/nsUpdateServiceStub.js
   components/nsUpdateTimerManager.js
+  #ifdef MOZ_URL_CLASSIFIER
+    components/nsUrlClassifierHashCompleter.js
+    components/nsUrlClassifierLib.js
+    components/nsUrlClassifierListManager.js
+  #endif
   components/nsURLFormatter.js
   components/nsWebHandlerApp.js
   components/PlacesCategoriesStarter.js
+  components/SettingsManager.js
   components/smileApplication.js
   components/storage-Legacy.js
   components/storage-mozStorage.js
@@ -910,6 +950,7 @@ xpicleanup@BIN_SUFFIX@
   extensions/modern@themes.mozilla.org/icon.png
   extensions/modern@themes.mozilla.org/install.rdf
   extensions/modern@themes.mozilla.org/preview.png
+  jssubloader/
   modules/
   modules/AddonLogging.jsm
   modules/AddonManager.jsm
@@ -979,6 +1020,37 @@ xpicleanup@BIN_SUFFIX@
   modules/Services.jsm
   modules/SpatialNavigation.js
   modules/StringBundle.js
+  modules/services-common/async.js
+  modules/services-sync/keys.js
+  modules/services-common/log4moz.js
+  modules/services-common/observers.js
+  modules/services-common/preferences.js
+  modules/services-common/rest.js
+  modules/services-common/stringbundle.js
+  modules/services-common/tokenserverclient.js
+  modules/services-common/utils.js
+  modules/services-crypto/WeaveCrypto.js
+  modules/services-sync/constants.js
+  modules/services-sync/engines/apps.js
+  modules/services-sync/engines/bookmarks.js
+  modules/services-sync/engines/clients.js
+  modules/services-sync/engines/forms.js
+  modules/services-sync/engines/history.js
+  modules/services-sync/engines.js
+  modules/services-sync/engines/passwords.js
+  modules/services-sync/engines/prefs.js
+  modules/services-sync/engines/tabs.js
+  modules/services-sync/identity.js
+  modules/services-sync/jpakeclient.js
+  modules/services-sync/main.js
+  modules/services-sync/notifications.js
+  modules/services-sync/policies.js
+  modules/services-sync/record.js
+  modules/services-sync/resource.js
+  modules/services-sync/rest.js
+  modules/services-sync/service.js
+  modules/services-sync/status.js
+  modules/services-sync/util.js
   modules/templateUtils.js
   modules/traceHelper.js
   modules/utils.js
@@ -1043,7 +1115,6 @@ xpicleanup@BIN_SUFFIX@
   #endif
 #else
   components/binary.manifest
-  omni.jar
   omni.ja
 #endif
 

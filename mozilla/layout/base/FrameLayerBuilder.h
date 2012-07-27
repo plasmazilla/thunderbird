@@ -163,6 +163,17 @@ public:
     bool mInTransformedSubtree;
     bool mInActiveTransformedSubtree;
     bool mDisableSubpixelAntialiasingInDescendants;
+    /**
+     * When this is false, ThebesLayer coordinates are drawn to with an integer
+     * translation and the scale in mXScale/mYScale.
+     */
+    bool AllowResidualTranslation()
+    {
+      // If we're in a transformed subtree, but no ancestor transform is actively
+      // changing, we'll use the residual translation when drawing into the
+      // ThebesLayer to ensure that snapping exactly matches the ideal transform.
+      return mInTransformedSubtree && !mInActiveTransformedSubtree;
+    }
   };
   /**
    * Build a container layer for a display item that contains a child
@@ -249,7 +260,7 @@ public:
    * Dumps this FrameLayerBuilder's retained layer manager's retained
    * layer tree to stderr.
    */
-  void DumpRetainedLayerTree();
+  void DumpRetainedLayerTree(FILE* aFile = stdout);
 #endif
 
   /******* PRIVATE METHODS to FrameLayerBuilder.cpp ********/
@@ -414,7 +425,7 @@ protected:
 
     nsRefPtr<Layer> mLayer;
     PRUint32        mDisplayItemKey;
-    LayerState    mLayerState;
+    LayerState      mLayerState;
   };
 
   static void RemoveFrameFromLayerManager(nsIFrame* aFrame, void* aPropertyValue);
@@ -429,9 +440,9 @@ protected:
    */
   class DisplayItemDataEntry : public nsPtrHashKey<nsIFrame> {
   public:
-    DisplayItemDataEntry(const nsIFrame *key) : nsPtrHashKey<nsIFrame>(key) {}
+    DisplayItemDataEntry(const nsIFrame *key) : nsPtrHashKey<nsIFrame>(key), mIsSharingContainerLayer(false) {}
     DisplayItemDataEntry(DisplayItemDataEntry &toCopy) :
-      nsPtrHashKey<nsIFrame>(toCopy.mKey)
+      nsPtrHashKey<nsIFrame>(toCopy.mKey), mIsSharingContainerLayer(toCopy.mIsSharingContainerLayer)
     {
       // This isn't actually a copy-constructor; notice that it steals toCopy's
       // array.  Be careful.
@@ -441,6 +452,7 @@ protected:
     bool HasNonEmptyContainerLayer();
 
     nsAutoTArray<DisplayItemData, 1> mData;
+    bool mIsSharingContainerLayer;
 
     enum { ALLOW_MEMMOVE = false };
   };

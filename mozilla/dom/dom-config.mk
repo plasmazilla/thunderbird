@@ -1,8 +1,11 @@
 DOM_SRCDIRS = \
   dom/base \
   dom/battery \
+  dom/power \
   dom/network/src \
+  dom/settings \
   dom/sms/src \
+  dom/contacts \
   dom/src/events \
   dom/src/storage \
   dom/src/offline \
@@ -24,10 +27,14 @@ DOM_SRCDIRS = \
 
 ifdef MOZ_B2G_RIL
 DOM_SRCDIRS += \
-  dom/system/b2g \
+  dom/system/gonk \
   dom/telephony \
   dom/wifi \
   $(NULL)
+endif
+
+ifdef MOZ_B2G_BT
+DOM_SRCDIRS += dom/bluetooth
 endif
 
 LOCAL_INCLUDES += $(DOM_SRCDIRS:%=-I$(topsrcdir)/%)

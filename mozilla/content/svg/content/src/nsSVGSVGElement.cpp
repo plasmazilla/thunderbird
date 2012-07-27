@@ -61,7 +61,6 @@
 #include "nsSVGUtils.h"
 #include "nsSVGSVGElement.h"
 #include "nsContentErrors.h" // For NS_PROPTABLE_PROP_OVERWRITTEN
-#include "nsContentUtils.h"
 #include "nsStyleUtil.h"
 
 #include "nsEventDispatcher.h"
@@ -203,7 +202,6 @@ nsSVGSVGElement::nsSVGSVGElement(already_AddRefed<nsINodeInfo> aNodeInfo,
     mCurrentScale(1.0f),
     mPreviousTranslate(0.0f, 0.0f),
     mPreviousScale(1.0f),
-    mRedrawSuspendCount(0),
     mStartAnimationOnBindToTree(!aFromParser),
     mImageNeedsTransformInvalidation(false),
     mIsPaintingSVGImageElement(false)
@@ -380,20 +378,9 @@ nsSVGSVGElement::GetCurrentTranslate(nsIDOMSVGPoint * *aCurrentTranslate)
 NS_IMETHODIMP
 nsSVGSVGElement::SuspendRedraw(PRUint32 max_wait_milliseconds, PRUint32 *_retval)
 {
+  // suspendRedraw is a no-op in Mozilla, so it doesn't matter what
+  // we set the ID out-param to:
   *_retval = 1;
-
-  if (++mRedrawSuspendCount > 1) 
-    return NS_OK;
-
-  nsIFrame* frame = GetPrimaryFrame();
-  if (frame) {
-    nsISVGSVGFrame* svgframe = do_QueryFrame(frame);
-    // might fail this check if we've failed conditional processing
-    if (svgframe) {
-      svgframe->SuspendRedraw();
-    }
-  }
-  
   return NS_OK;
 }
 
@@ -401,32 +388,15 @@ nsSVGSVGElement::SuspendRedraw(PRUint32 max_wait_milliseconds, PRUint32 *_retval
 NS_IMETHODIMP
 nsSVGSVGElement::UnsuspendRedraw(PRUint32 suspend_handle_id)
 {
-  if (mRedrawSuspendCount == 0) {
-    return NS_ERROR_FAILURE;
-  }
-                 
-  if (mRedrawSuspendCount > 1) {
-    --mRedrawSuspendCount;
-    return NS_OK;
-  }
-  
-  return UnsuspendRedrawAll();
+  // no-op
+  return NS_OK;
 }
 
 /* void unsuspendRedrawAll (); */
 NS_IMETHODIMP
 nsSVGSVGElement::UnsuspendRedrawAll()
 {
-  mRedrawSuspendCount = 0;
-
-  nsIFrame* frame = GetPrimaryFrame();
-  if (frame) {
-    nsISVGSVGFrame* svgframe = do_QueryFrame(frame);
-    // might fail this check if we've failed conditional processing
-    if (svgframe) {
-      svgframe->UnsuspendRedraw();
-    }
-  }  
+  // no-op
   return NS_OK;
 }
 
@@ -992,6 +962,10 @@ nsSVGSVGElement::GetViewBoxTransform() const
     viewportHeight = mViewportHeight;
   }
 
+  if (viewportWidth <= 0.0f || viewportHeight <= 0.0f) {
+    return gfxMatrix(0.0, 0.0, 0.0, 0.0, 0.0, 0.0); // singular
+  }
+
   nsSVGViewBoxRect viewBox;
   if (mViewBox.IsValid()) {
     viewBox = mViewBox.GetAnimValue();
@@ -1176,16 +1150,43 @@ nsSVGSVGElement::GetLength(PRUint8 aCtxType)
   return 0;
 }
 
+void
+nsSVGSVGElement::SyncWidthOrHeight(nsIAtom* aName, nsSVGElement *aTarget) const
+{
+  NS_ASSERTION(aName == nsGkAtoms::width || aName == nsGkAtoms::height,
+               "The clue is in the function name");
+
+  PRUint32 index = *sLengthInfo[WIDTH].mName == aName ? WIDTH : HEIGHT;
+  aTarget->SetLength(aName, mLengthAttributes[index]);
+}
+
 //----------------------------------------------------------------------
 // nsSVGElement methods
 
 /* virtual */ gfxMatrix
-nsSVGSVGElement::PrependLocalTransformTo(const gfxMatrix &aMatrix) const
+nsSVGSVGElement::PrependLocalTransformsTo(const gfxMatrix &aMatrix,
+                                          TransformTypes aWhich) const
 {
+  NS_ABORT_IF_FALSE(aWhich != eChildToUserSpace || aMatrix.IsIdentity(),
+                    "Skipping eUserSpaceToParent transforms makes no sense");
+
   if (IsInner()) {
     float x, y;
     const_cast<nsSVGSVGElement*>(this)->GetAnimatedLengthValues(&x, &y, nsnull);
-    return GetViewBoxTransform() * gfxMatrix().Translate(gfxPoint(x, y)) * aMatrix;
+    if (aWhich == eAllTransforms) {
+      // the common case
+      return GetViewBoxTransform() * gfxMatrix().Translate(gfxPoint(x, y)) * aMatrix;
+    }
+    if (aWhich == eUserSpaceToParent) {
+      return gfxMatrix().Translate(gfxPoint(x, y)) * aMatrix;
+    }
+    NS_ABORT_IF_FALSE(aWhich == eChildToUserSpace, "Unknown TransformTypes");
+    return GetViewBoxTransform(); // no need to multiply identity aMatrix
+  }
+
+  if (aWhich == eUserSpaceToParent) {
+    // only inner-<svg> has eUserSpaceToParent transforms
+    return aMatrix;
   }
 
   if (IsRoot()) {
@@ -1197,6 +1198,16 @@ nsSVGSVGElement::PrependLocalTransformTo(const gfxMatrix &aMatrix) const
 
   // outer-<svg>, but inline in some other content:
   return GetViewBoxTransform() * aMatrix;
+}
+
+/* virtual */ bool
+nsSVGSVGElement::HasValidDimensions() const
+{
+  return !IsInner() ||
+    ((!mLengthAttributes[WIDTH].IsExplicitlySet() ||
+       mLengthAttributes[WIDTH].GetAnimValInSpecifiedUnits() > 0) &&
+     (!mLengthAttributes[HEIGHT].IsExplicitlySet() || 
+       mLengthAttributes[HEIGHT].GetAnimValInSpecifiedUnits() > 0));
 }
 
 nsSVGElement::LengthAttributesInfo

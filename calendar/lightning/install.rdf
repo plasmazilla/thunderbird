@@ -11,8 +11,8 @@
       <Description>
         <!-- thunderbird -->
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-        <em:minVersion>12.0</em:minVersion>
-        <em:maxVersion>12.*</em:maxVersion>
+        <em:minVersion>14.0</em:minVersion>
+        <em:maxVersion>14.*</em:maxVersion>
       </Description>
     </em:targetApplication>
 
@@ -20,8 +20,8 @@
       <Description>
         <!-- seamonkey -->
         <em:id>{92650c4d-4b8e-4d2a-b7eb-24ecf4f6b63a}</em:id>
-        <em:minVersion>2.9</em:minVersion>
-        <em:maxVersion>2.9.*</em:maxVersion>
+        <em:minVersion>2.11</em:minVersion>
+        <em:maxVersion>2.11.*</em:maxVersion>
       </Description>
     </em:targetApplication>
 
@@ -43,6 +43,9 @@
     <em:iconURL>chrome://calendar/skin/cal-icon32.png</em:iconURL>
     <em:optionsURL>chrome://messenger/content/preferences/preferences.xul</em:optionsURL>
     <em:targetPlatform>@TARGET_PLATFORM@</em:targetPlatform>
+#ifdef LIGHTNING_UPDATE_LOCATION
+    <em:updateURL>@LIGHTNING_UPDATE_LOCATION@?buildID=@GRE_BUILDID@&amp;appABI=%APP_ABI%&amp;appOS=%APP_OS%&amp;locale=%APP_LOCALE%&amp;appVersion=%APP_VERSION%&amp;appID=%APP_ID%</em:updateURL>
+#endif
     <em:unpack>true</em:unpack>
   </Description>
 </RDF>

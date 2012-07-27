@@ -106,6 +106,8 @@ endif
 include $(MOZILLA_DIR)/toolkit/mozapps/installer/signing.mk
 include $(MOZILLA_DIR)/toolkit/mozapps/installer/packager.mk
 
+PACKAGE_BASE_DIR = $(_ABS_DIST)/l10n-stage
+
 $(STAGEDIST): AB_CD:=en-US
 $(STAGEDIST): UNPACKAGE=$(call ESCAPE_SPACE,$(ZIP_IN))
 $(STAGEDIST): $(call ESCAPE_SPACE,$(ZIP_IN))
@@ -172,6 +174,9 @@ endif
 endif
 ifdef MOZ_OMNIJAR
 	@(cd $(STAGEDIST) && $(UNPACK_OMNIJAR))
+ifdef MOZ_WEBAPP_RUNTIME
+	@(cd $(STAGEDIST)/webapprt && $(UNPACK_OMNIJAR_WEBAPP_RUNTIME))
+endif
 endif
 	$(MAKE) clobber-zip AB_CD=$(AB_CD)
 	$(NSINSTALL) -D $(DIST)/$(PKG_PATH)

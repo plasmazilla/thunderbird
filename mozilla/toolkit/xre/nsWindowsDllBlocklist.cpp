@@ -50,10 +50,13 @@
 #endif
 
 #include "nsAutoPtr.h"
+#include "nsThreadUtils.h"
 
 #include "prlog.h"
 
 #include "nsWindowsDllInterceptor.h"
+
+using namespace mozilla;
 
 #if defined(MOZ_CRASHREPORTER) && !defined(NO_BLOCKLIST_CRASHREPORTER)
 #include "nsExceptionHandler.h"
@@ -151,11 +154,88 @@ static DllBlockInfo sWindowsDllBlocklist[] = {
 // define this for very verbose dll load debug spew
 #undef DEBUG_very_verbose
 
+extern bool gInXPCOMLoadOnMainThread;
+
 namespace {
 
 typedef NTSTATUS (NTAPI *LdrLoadDll_func) (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileName, PHANDLE handle);
 
 static LdrLoadDll_func stub_LdrLoadDll = 0;
+
+template <class T>
+struct RVAMap {
+  RVAMap(HANDLE map, DWORD offset) {
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+
+    DWORD alignedOffset = (offset / info.dwAllocationGranularity) *
+                          info.dwAllocationGranularity;
+
+    NS_ASSERTION(offset - alignedOffset < info.dwAllocationGranularity, "Wtf");
+
+    mRealView = ::MapViewOfFile(map, FILE_MAP_READ, 0, alignedOffset,
+                                sizeof(T) + (offset - alignedOffset));
+
+    mMappedView = mRealView ? reinterpret_cast<T*>((char*)mRealView + (offset - alignedOffset)) :
+                              nsnull;
+  }
+  ~RVAMap() {
+    if (mRealView) {
+      ::UnmapViewOfFile(mRealView);
+    }
+  }
+  operator const T*() const { return mMappedView; }
+  const T* operator->() const { return mMappedView; }
+private:
+  const T* mMappedView;
+  void* mRealView;
+};
+
+bool
+IsVistaOrLater()
+{
+  OSVERSIONINFO info;
+
+  ZeroMemory(&info, sizeof(OSVERSIONINFO));
+  info.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+  GetVersionEx(&info);
+
+  return info.dwMajorVersion >= 6;
+}
+
+bool
+CheckASLR(const wchar_t* path)
+{
+  bool retval = false;
+
+  HANDLE file = ::CreateFileW(path, GENERIC_READ, FILE_SHARE_READ,
+                              NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
+                              NULL);
+  if (file != INVALID_HANDLE_VALUE) {
+    HANDLE map = ::CreateFileMappingW(file, NULL, PAGE_READONLY, 0, 0, NULL);
+    if (map) {
+      RVAMap<IMAGE_DOS_HEADER> peHeader(map, 0);
+      if (peHeader) {
+        RVAMap<IMAGE_NT_HEADERS> ntHeader(map, peHeader->e_lfanew);
+        if (ntHeader) {
+          // If the DLL has no code, permit it regardless of ASLR status.
+          if (ntHeader->OptionalHeader.SizeOfCode == 0) {
+            retval = true;
+          }
+          // Check to see if the DLL supports ASLR
+          else if ((ntHeader->OptionalHeader.DllCharacteristics &
+                    IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE) != 0) {
+            retval = true;
+          }
+        }
+      }
+      ::CloseHandle(map);
+    }
+    ::CloseHandle(file);
+  }
+
+  return retval;
+}
 
 /**
  * Some versions of Windows call LoadLibraryEx to get the version information
@@ -213,6 +293,32 @@ private:
 CRITICAL_SECTION ReentrancySentinel::sLock;
 std::map<DWORD, const char*>* ReentrancySentinel::sThreadMap;
 
+static
+wchar_t* getFullPath (PWCHAR filePath, wchar_t* fname)
+{
+  // In Windows 8, the first parameter seems to be used for more than just the
+  // path name.  For example, its numerical value can be 1.  Passing a non-valid
+  // pointer to SearchPathW will cause a crash, so we need to check to see if we
+  // are handed a valid pointer, and otherwise just pass NULL to SearchPathW.
+  PWCHAR sanitizedFilePath = (intptr_t(filePath) < 1024) ? NULL : filePath;
+
+  // figure out the length of the string that we need
+  DWORD pathlen = SearchPathW(sanitizedFilePath, fname, L".dll", 0, NULL, NULL);
+  if (pathlen == 0) {
+    return nsnull;
+  }
+
+  wchar_t* full_fname = new wchar_t[pathlen+1];
+  if (!full_fname) {
+    // couldn't allocate memory?
+    return nsnull;
+  }
+
+  // now actually grab it
+  SearchPathW(sanitizedFilePath, fname, L".dll", pathlen+1, full_fname, NULL);
+  return full_fname;
+}
+
 static NTSTATUS NTAPI
 patched_LdrLoadDll (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileName, PHANDLE handle)
 {
@@ -224,6 +330,7 @@ patched_LdrLoadDll (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileNam
 
   int len = moduleFileName->Length / 2;
   wchar_t *fname = moduleFileName->Buffer;
+  nsAutoArrayPtr<wchar_t> full_fname;
 
   // The filename isn't guaranteed to be null terminated, but in practice
   // it always will be; ensure that this is so, and bail if not.
@@ -305,28 +412,12 @@ patched_LdrLoadDll (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileNam
         goto continue_loading;
       }
 
-      // In Windows 8, the first parameter seems to be used for more than just the
-      // path name.  For example, its numerical value can be 1.  Passing a non-valid
-      // pointer to SearchPathW will cause a crash, so we need to check to see if we
-      // are handed a valid pointer, and otherwise just pass NULL to SearchPathW.
-      PWCHAR sanitizedFilePath = (intptr_t(filePath) < 1024) ? NULL : filePath;
-
-      // figure out the length of the string that we need
-      DWORD pathlen = SearchPathW(sanitizedFilePath, fname, L".dll", 0, NULL, NULL);
-      if (pathlen == 0) {
+      full_fname = getFullPath(filePath, fname);
+      if (!full_fname) {
         // uh, we couldn't find the DLL at all, so...
         printf_stderr("LdrLoadDll: Blocking load of '%s' (SearchPathW didn't find it?)\n", dllName);
         return STATUS_DLL_NOT_FOUND;
       }
-
-      wchar_t *full_fname = (wchar_t*) malloc(sizeof(wchar_t)*(pathlen+1));
-      if (!full_fname) {
-        // couldn't allocate memory?
-        return STATUS_DLL_NOT_FOUND;
-      }
-
-      // now actually grab it
-      SearchPathW(sanitizedFilePath, fname, L".dll", pathlen+1, full_fname, NULL);
 
       DWORD zero;
       DWORD infoSize = GetFileVersionInfoSizeW(full_fname, &zero);
@@ -351,8 +442,6 @@ patched_LdrLoadDll (PWCHAR filePath, PULONG flags, PUNICODE_STRING moduleFileNam
             load_ok = true;
         }
       }
-
-      free(full_fname);
     }
 
     if (!load_ok) {
@@ -367,6 +456,21 @@ continue_loading:
 #endif
 
   NS_SetHasLoadedNewDLLs();
+
+  if (gInXPCOMLoadOnMainThread && NS_IsMainThread()) {
+    // Check to ensure that the DLL has ASLR.
+    full_fname = getFullPath(filePath, fname);
+    if (!full_fname) {
+      // uh, we couldn't find the DLL at all, so...
+      printf_stderr("LdrLoadDll: Blocking load of '%s' (SearchPathW didn't find it?)\n", dllName);
+      return STATUS_DLL_NOT_FOUND;
+    }
+
+    if (IsVistaOrLater() && !CheckASLR(full_fname)) {
+      printf_stderr("LdrLoadDll: Blocking load of '%s'.  XPCOM components must support ASLR.\n", dllName);
+      return STATUS_DLL_NOT_FOUND;
+    }
+  }
 
   return stub_LdrLoadDll(filePath, flags, moduleFileName, handle);
 }

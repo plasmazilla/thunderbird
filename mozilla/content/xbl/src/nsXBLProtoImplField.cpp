@@ -40,7 +40,6 @@
 #include "nsString.h"
 #include "jsapi.h"
 #include "nsIContent.h"
-#include "nsString.h"
 #include "nsUnicharUtils.h"
 #include "nsReadableUtils.h"
 #include "mozilla/FunctionTimer.h"
@@ -125,6 +124,8 @@ nsXBLProtoImplField::InstallField(nsIScriptContext* aContext,
   if (mFieldTextLength == 0) {
     return NS_OK;
   }
+
+  nsAutoMicroTask mt;
 
   // EvaluateStringWithValue and JS_DefineUCProperty can both trigger GC, so
   // protect |result| here.

@@ -47,6 +47,7 @@
 #include "nsIScriptContext.h"
 #include "nsIDOMNode.h"
 #include "nsIDOMNodeList.h"
+#include "nsIDOMText.h"
 #include "nsIDOMHTMLImageElement.h"
 #include "nsIDOMHTMLLinkElement.h"
 #include "nsIDOMHTMLAnchorElement.h"
@@ -114,6 +115,8 @@
 #include "nsIMsgWindow.h"
 #include "nsITextToSubURI.h"
 #include "nsIAbManager.h"
+#include "nsCRT.h"
+#include "mozilla/Services.h"
 
 static void GetReplyHeaderInfo(PRInt32* reply_header_type,
                                nsString& reply_header_locale,
@@ -151,14 +154,11 @@ static void TranslateLineEnding(nsString& data)
 
   while (rPtr < ePtr)
   {
-    if (*rPtr == 0x0D)
-      if (rPtr + 1 < ePtr && *(rPtr + 1) == 0x0A)
-      {
-        *wPtr = 0x0A;
+    if (*rPtr == nsCRT::CR) {
+      *wPtr = nsCRT::LF;
+      if (rPtr + 1 < ePtr && *(rPtr + 1) == nsCRT::LF)
         rPtr ++;
-      }
-      else
-        *wPtr = 0x0A;
+    }
     else
       *wPtr = *rPtr;
 
@@ -549,6 +549,81 @@ nsMsgCompose::SetInsertingQuotedContent(bool aInsertingQuotedText)
   return NS_OK;
 }
 
+void
+nsMsgCompose::InsertDivWrappedTextAtSelection(const nsAString &aText,
+                                              const nsAString &classStr)
+{
+  NS_ASSERTION(m_editor, "InsertDivWrappedTextAtSelection called, but no editor exists\n");
+  if (!m_editor)
+    return;
+
+  nsCOMPtr<nsIDOMElement> divElem;
+  nsCOMPtr<nsIHTMLEditor> htmlEditor(do_QueryInterface(m_editor));
+  nsCOMPtr<nsIPlaintextEditor> textEditor(do_QueryInterface(m_editor));
+
+  nsresult rv = htmlEditor->CreateElementWithDefaults(NS_LITERAL_STRING("div"),
+                                                      getter_AddRefs(divElem));
+
+  NS_ENSURE_SUCCESS(rv,);
+
+  nsCOMPtr<nsIDOMNode> divNode (do_QueryInterface(divElem));
+
+  // We need the document
+  nsCOMPtr<nsIDOMDocument> doc;
+  rv = m_editor->GetDocument(getter_AddRefs(doc));
+  NS_ENSURE_SUCCESS(rv,);
+
+  // Break up the text by newlines, and then insert text nodes followed
+  // by <br> nodes.
+  PRInt32 start = 0;
+  PRInt32 end = aText.Length();
+
+  for (;;)
+  {
+    PRInt32 delimiter = aText.FindChar('\n', start);
+    if (delimiter == kNotFound)
+      delimiter = end;
+
+    nsCOMPtr<nsIDOMText> textNode;
+    rv = doc->CreateTextNode(Substring(aText, start, delimiter - start), getter_AddRefs(textNode));
+    NS_ENSURE_SUCCESS(rv,);
+
+    nsCOMPtr<nsIDOMNode> newTextNode = do_QueryInterface(textNode);
+    nsCOMPtr<nsIDOMNode> resultNode;
+    rv = divElem->AppendChild(newTextNode, getter_AddRefs(resultNode));
+    NS_ENSURE_SUCCESS(rv,);
+
+    // Now create and insert a BR
+    nsCOMPtr<nsIDOMElement> brElem;
+    rv = htmlEditor->CreateElementWithDefaults(NS_LITERAL_STRING("br"),
+                                               getter_AddRefs(brElem));
+    rv = divElem->AppendChild(brElem, getter_AddRefs(resultNode));
+    NS_ENSURE_SUCCESS(rv,);
+
+    if (delimiter == end)
+      break;
+    start = ++delimiter;
+    if (start == end)
+      break;
+  }
+
+  htmlEditor->InsertElementAtSelection(divElem, true);
+  nsCOMPtr<nsIDOMNode> parent;
+  PRInt32 offset;
+
+  rv = GetNodeLocation(divNode, address_of(parent), &offset);
+  if (NS_SUCCEEDED(rv))
+  {
+    nsCOMPtr<nsISelection> selection;
+    m_editor->GetSelection(getter_AddRefs(selection));
+
+    if (selection)
+      selection->Collapse(parent, offset + 1);
+  }
+  if (divElem)
+    divElem->SetAttribute(NS_LITERAL_STRING("class"), classStr);
+}
+
 NS_IMETHODIMP
 nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
                                           nsString& aBuf,
@@ -602,8 +677,32 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
     {
       if (!aHTMLEditor)
         aPrefix.AppendLiteral("\n");
-      textEditor->InsertText(aPrefix);
-      m_editor->EndOfDocument();
+
+      PRInt32 reply_on_top = 0;
+      m_identity->GetReplyOnTop(&reply_on_top);
+      if (reply_on_top == 1)
+      {
+        // add one newline if a signature comes before the quote, two otherwise
+        bool includeSignature = true;
+        bool sig_bottom = true;
+        bool attachFile = false;
+        nsString prefSigText;
+
+        m_identity->GetSigOnReply(&includeSignature);
+        m_identity->GetSigBottom(&sig_bottom);
+        m_identity->GetHtmlSigText(prefSigText);
+        nsresult rv = m_identity->GetAttachSignature(&attachFile);
+        if (includeSignature && !sig_bottom &&
+            ((NS_SUCCEEDED(rv) && attachFile) || !prefSigText.IsEmpty()))
+          textEditor->InsertLineBreak();
+        else {
+          textEditor->InsertLineBreak();
+          textEditor->InsertLineBreak();
+        }
+      }
+
+      InsertDivWrappedTextAtSelection(aPrefix,
+                                      NS_LITERAL_STRING("moz-cite-prefix"));
     }
 
     if (!aBuf.IsEmpty() && mailEditor)
@@ -632,8 +731,12 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
 
       if (aHTMLEditor && htmlEditor)
         htmlEditor->InsertHTML(aSignature);
-      else if (textEditor)
-        textEditor->InsertText(aSignature);
+      else if (htmlEditor)
+      {
+        textEditor->InsertLineBreak();
+        InsertDivWrappedTextAtSelection(aSignature,
+                                        NS_LITERAL_STRING("moz-signature"));
+      }
 
       if( sigOnTop )
         m_editor->EndOfDocument();
@@ -666,11 +769,13 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
       else
         m_editor->EndOfDocument();
     }
-    else if (textEditor)
+    else if (htmlEditor)
     {
       if (sigOnTop && !aSignature.IsEmpty())
       {
-        textEditor->InsertText(aSignature);
+        textEditor->InsertLineBreak();
+        InsertDivWrappedTextAtSelection(aSignature,
+                                        NS_LITERAL_STRING("moz-signature"));
         m_editor->EndOfDocument();
       }
 
@@ -683,8 +788,11 @@ nsMsgCompose::ConvertAndLoadComposeWindow(nsString& aPrefix,
         m_editor->EndOfDocument();
       }
 
-      if (!sigOnTop && !aSignature.IsEmpty())
-        textEditor->InsertText(aSignature);
+      if (!sigOnTop && !aSignature.IsEmpty()) {
+        textEditor->InsertLineBreak();
+        InsertDivWrappedTextAtSelection(aSignature,
+                                        NS_LITERAL_STRING("moz-signature"));
+      }
     }
   }
 
@@ -1787,8 +1895,6 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
   if (!uriList)
     return NS_ERROR_OUT_OF_MEMORY;
 
-  nsCOMPtr<nsIMimeConverter> mimeConverter = do_GetService(NS_MIME_CONVERTER_CONTRACTID);
-
   nsCString charset;
   // use a charset of the original message
   nsCString mailCharset;
@@ -1836,7 +1942,6 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
     }
     if (msgHdr)
     {
-      nsString subject;
       nsCString decodedCString;
 
       if (!charsetOverride && charset.IsEmpty())
@@ -1873,10 +1978,8 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
       if (isFirstPass && !charset.IsEmpty())
         m_compFields->SetCharacterSet(charset.get());
 
-      nsCString subjectCStr;
-      (void) msgHdr->GetSubject(getter_Copies(subjectCStr));
-      rv = mimeConverter->DecodeMimeHeader(subjectCStr.get(), originCharset.get(),
-                                           charsetOverride, true, subject);
+      nsString subject;
+      rv = msgHdr->GetMime2DecodedSubject(subject);
       if (NS_FAILED(rv)) return rv;
 
       // Check if (was: is present in the subject
@@ -2112,8 +2215,9 @@ nsresult nsMsgCompose::CreateMessage(const char * originalMsgURI,
               if (subject.IsEmpty())
               {
                 nsresult rv;
-                nsCOMPtr<nsIStringBundleService> bundleService = do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
-                NS_ENSURE_SUCCESS(rv, rv);
+                nsCOMPtr<nsIStringBundleService> bundleService =
+                  mozilla::services::GetStringBundleService();
+                NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
                 nsCOMPtr<nsIStringBundle> composeBundle;
                 rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties",
                                                  getter_AddRefs(composeBundle));
@@ -2274,28 +2378,6 @@ QuotingOutputStreamListener::QuotingOutputStreamListener(const char * originalMs
           mCiteReference.Append(NS_ConvertASCIItoUTF16(buf));
         }
       }
-
-      PRInt32 reply_on_top = 0;
-      mIdentity->GetReplyOnTop(&reply_on_top);
-      if (reply_on_top == 1)
-      {
-        // add one newline if a signature comes before the quote, two otherwise
-        bool includeSignature = true;
-        bool sig_bottom = true;
-        bool attachFile = false;
-        nsString prefSigText;
-
-        mIdentity->GetSigOnReply(&includeSignature);
-        mIdentity->GetSigBottom(&sig_bottom);
-        mIdentity->GetHtmlSigText(prefSigText);
-        rv = mIdentity->GetAttachSignature(&attachFile);
-        if (includeSignature && !sig_bottom &&
-            ((NS_SUCCEEDED(rv) && attachFile) || !prefSigText.IsEmpty()))
-          mCitePrefix.AppendLiteral("\n");
-        else
-          mCitePrefix.AppendLiteral("\n\n");
-      }
-
 
       bool header, headerDate;
       PRInt32 replyHeaderType;
@@ -3910,8 +3992,9 @@ NS_IMETHODIMP nsMsgComposeSendListener::OnStateChange(nsIWebProgress *aWebProgre
         if (bCanceled)
         {
           nsresult rv;
-          nsCOMPtr<nsIStringBundleService> bundleService(do_GetService("@mozilla.org/intl/stringbundle;1", &rv));
-          NS_ENSURE_SUCCESS(rv, rv);
+          nsCOMPtr<nsIStringBundleService> bundleService =
+            mozilla::services::GetStringBundleService();
+          NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
           nsCOMPtr<nsIStringBundle> bundle;
           rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(bundle));
           NS_ENSURE_SUCCESS(rv, rv);
@@ -4296,8 +4379,6 @@ nsMsgCompose::ProcessSignature(nsIMsgIdentity *identity, bool aQuoted, nsString 
       else
         sigOutput.Append(NS_ConvertASCIItoUTF16(preopen));
     }
-    else
-      sigOutput.AppendLiteral(CRLF);
 
     if ((reply_on_top != 1 || sig_bottom || !aQuoted) &&
         sigData.Find("\r-- \r", true) < 0 &&
@@ -5125,7 +5206,7 @@ nsresult nsMsgCompose::TagConvertible(nsIDOMNode *node,  PRInt32 *_retval)
                  !color.LowerCaseEqualsLiteral("#ffffff")) {
           *_retval = nsIMsgCompConvertible::Altering;
         }
-		else if (NS_SUCCEEDED(domElement->HasAttribute(NS_LITERAL_STRING("dir"), &hasAttribute))
+        else if (NS_SUCCEEDED(domElement->HasAttribute(NS_LITERAL_STRING("dir"), &hasAttribute))
             && hasAttribute)  // dir=rtl attributes should not downconvert
           *_retval = nsIMsgCompConvertible::No;
 
@@ -5356,117 +5437,56 @@ nsMsgCompose::SetIdentity(nsIMsgIdentity *aIdentity)
   if (NS_SUCCEEDED(rv) && nsnull != lastNode)
   {
     node = lastNode;
-    if (m_composeHTML)
+    // In html, the signature is inside an element with
+    // class="moz-signature"
+    bool signatureFound = false;
+    nsAutoString attributeName;
+    attributeName.AssignLiteral("class");
+
+    do
     {
-      /* In html, the signature is inside an element with
-         class="moz-signature", it's must be the last node */
       nsCOMPtr<nsIDOMElement> element = do_QueryInterface(node);
       if (element)
       {
-        nsAutoString attributeName;
         nsAutoString attributeValue;
-        attributeName.AssignLiteral("class");
 
         rv = element->GetAttribute(attributeName, attributeValue);
-        if (NS_SUCCEEDED(rv))
-        {
-          if (attributeValue.Find("moz-signature", true) != kNotFound)
-          {
-            //Now, I am sure I get the right node!
-            m_editor->BeginTransaction();
-            node->GetPreviousSibling(getter_AddRefs(tempNode));
-            rv = m_editor->DeleteNode(node);
-            if (NS_FAILED(rv))
-            {
-              m_editor->EndTransaction();
-              return rv;
-            }
 
-            //Also, remove the <br> right before the signature.
-            if (tempNode)
-            {
-              tempNode->GetLocalName(tagLocalName);
-              if (tagLocalName.EqualsLiteral("br"))
-                m_editor->DeleteNode(tempNode);
-            }
-            m_editor->EndTransaction();
-          }
+        if (attributeValue.Find("moz-signature", true) != kNotFound) {
+          signatureFound = true;
+          break;
         }
       }
-    }
-    else
+    } while (!signatureFound &&
+             node &&
+             NS_SUCCEEDED(node->GetPreviousSibling(getter_AddRefs(node))));
+
+    if (signatureFound)
     {
-      //In plain text, we have to walk back the dom look for the pattern <br>-- <br>
-      PRUint16 nodeType;
-      PRInt32 searchState = 0; //0=nothing, 1=br 2='-- '+br, 3=br+'-- '+br
-
-      do
+      m_editor->BeginTransaction();
+      node->GetPreviousSibling(getter_AddRefs(tempNode));
+      rv = m_editor->DeleteNode(node);
+      if (NS_FAILED(rv))
       {
-        node->GetNodeType(&nodeType);
-        node->GetLocalName(tagLocalName);
-        switch (searchState)
-        {
-          case 0:
-            if (nodeType == nsIDOMNode::ELEMENT_NODE && tagLocalName.EqualsLiteral("br"))
-              searchState = 1;
-            break;
-
-          case 1:
-            searchState = 0;
-            if (nodeType == nsIDOMNode::TEXT_NODE)
-            {
-              nsString nodeValue;
-              node->GetNodeValue(nodeValue);
-              if (nodeValue.EqualsLiteral("-- "))
-                searchState = 2;
-            }
-            else
-              if (nodeType == nsIDOMNode::ELEMENT_NODE && tagLocalName.EqualsLiteral("br"))
-              {
-                searchState = 1;
-                break;
-              }
-            break;
-
-          case 2:
-            if (nodeType == nsIDOMNode::ELEMENT_NODE && tagLocalName.EqualsLiteral("br"))
-              searchState = 3;
-            else
-              searchState = 0;
-            break;
-        }
-
-        tempNode = node;
-      } while (searchState != 3 && NS_SUCCEEDED(tempNode->GetPreviousSibling(getter_AddRefs(node))) && node);
-
-      if (searchState == 3)
-      {
-        //Now, I am sure I get the right node!
-        m_editor->BeginTransaction();
-
-        tempNode = lastNode;
-        lastNode = node;
-        do
-        {
-          node = tempNode;
-          node->GetPreviousSibling(getter_AddRefs(tempNode));
-          rv = m_editor->DeleteNode(node);
-          if (NS_FAILED(rv))
-          {
-            m_editor->EndTransaction();
-            return rv;
-          }
-
-        } while (node != lastNode && tempNode);
         m_editor->EndTransaction();
+        return rv;
       }
+
+      //Also, remove the <br> right before the signature.
+      if (tempNode)
+      {
+        tempNode->GetLocalName(tagLocalName);
+        if (tagLocalName.EqualsLiteral("br"))
+          m_editor->DeleteNode(tempNode);
+      }
+      m_editor->EndTransaction();
     }
   }
 
   if (!CheckIncludeSignaturePrefs(aIdentity))
     return NS_OK;
 
-  //Then add the new one if needed
+  // Then add the new one if needed
   nsAutoString aSignature;
 
   // No delimiter needed if not a compose window
@@ -5500,16 +5520,17 @@ nsMsgCompose::SetIdentity(nsIMsgIdentity *aIdentity)
       m_editor->BeginningOfDocument();
     else
       m_editor->EndOfDocument();
+
+    nsCOMPtr<nsIHTMLEditor> htmlEditor (do_QueryInterface(m_editor));
+    nsCOMPtr<nsIPlaintextEditor> textEditor (do_QueryInterface(m_editor));
+
     if (m_composeHTML)
-    {
-      nsCOMPtr<nsIHTMLEditor> htmlEditor (do_QueryInterface(m_editor));
       rv = htmlEditor->InsertHTML(aSignature);
+    else {
+      rv = textEditor->InsertLineBreak();
+      InsertDivWrappedTextAtSelection(aSignature, NS_LITERAL_STRING("moz-signature"));
     }
-    else
-    {
-      nsCOMPtr<nsIPlaintextEditor> textEditor (do_QueryInterface(m_editor));
-      rv = textEditor->InsertText(aSignature);
-    }
+
     if (sigOnTop && noDelimiter)
       m_editor->EndOfDocument();
     m_editor->EndTransaction();

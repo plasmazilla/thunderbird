@@ -103,6 +103,9 @@ pref("browser.download.progress.closeWhenDone", false);
 // feedback from their action.
 pref("browser.download.saveLinkAsFilenameTimeout", 4000);
 
+// Output console.log/info/warn/error to the Error Console
+pref("browser.dom.window.console.enabled", false);
+
 // Use the findbar instead of the dialog box
 pref("browser.findbar.enabled", true);
 
@@ -150,6 +153,7 @@ pref("keyword.enabled", true);
 pref("keyword.URL", "");
 
 pref("browser.urlbar.autocomplete.enabled", true);
+pref("browser.urlbar.formatting.enabled", true);
 pref("browser.urlbar.clickSelectsAll", true);
 // when clickSelectsAll=true, does it also apply when the click is past end of text?
 pref("browser.urlbar.clickAtEndSelects", true);
@@ -724,6 +728,7 @@ pref("plugins.update.notifyUser", false);
 pref("plugins.hide_infobar_for_outdated_plugin", false);
 pref("plugins.hide_infobar_for_carbon_failure_plugin", false);
 pref("plugins.hide_infobar_for_missing_plugin", false);
+pref("plugins.click_to_play", false);
 pref("plugin.disable", false);
 
 #ifdef XP_MACOSX
@@ -807,6 +812,7 @@ pref("services.sync.prefs.sync.browser.formfill.enable", true);
 pref("services.sync.prefs.sync.browser.link.open_external", true);
 pref("services.sync.prefs.sync.browser.link.open_newwindow", true);
 pref("services.sync.prefs.sync.browser.search.update", true);
+pref("services.sync.prefs.sync.browser.sessionstore.max_concurrent_tabs", true);
 pref("services.sync.prefs.sync.browser.startup.homepage", true);
 pref("services.sync.prefs.sync.browser.startup.page", true);
 pref("services.sync.prefs.sync.browser.tabs.autoHide", true);
@@ -831,6 +837,55 @@ pref("services.sync.prefs.sync.javascript.enabled", true);
 pref("services.sync.prefs.sync.layout.spellcheckDefault", true);
 pref("services.sync.prefs.sync.lightweightThemes.isThemeSelected", true);
 pref("services.sync.prefs.sync.lightweightThemes.usedThemes", true);
+pref("services.sync.prefs.sync.mailnews.confirm.moveFoldersToTrash", true);
+pref("services.sync.prefs.sync.mailnews.customDBHeaders", true);
+pref("services.sync.prefs.sync.mailnews.customHeaders", true);
+pref("services.sync.prefs.sync.mailnews.display.date_senders_timezone", true);
+pref("services.sync.prefs.sync.mailnews.display.disable_format_flowed_support", true);
+pref("services.sync.prefs.sync.mailnews.display.disallow_mime_handlers", true);
+pref("services.sync.prefs.sync.mailnews.display.html_as", true);
+pref("services.sync.prefs.sync.mailnews.display.html_sanitizer.allowed_tags", true);
+pref("services.sync.prefs.sync.mailnews.display.prefer_plaintext", true);
+pref("services.sync.prefs.sync.mailnews.display.show_all_body_parts_menu", true);
+pref("services.sync.prefs.sync.mailnews.emptyTrash.dontAskAgain", true);
+pref("services.sync.prefs.sync.mailnews.filters.confirm_delete", true);
+pref("services.sync.prefs.sync.mailnews.headers.extraExpandedHeaders", true);
+pref("services.sync.prefs.sync.mailnews.headers.showMessageId", true);
+pref("services.sync.prefs.sync.mailnews.headers.showOrganization", true);
+pref("services.sync.prefs.sync.mailnews.headers.showReferences", true);
+pref("services.sync.prefs.sync.mailnews.headers.showSender", true);
+pref("services.sync.prefs.sync.mailnews.headers.showUserAgent", true);
+pref("services.sync.prefs.sync.mailnews.localizedRe", true);
+pref("services.sync.prefs.sync.mailnews.mark_message_read.auto", true);
+pref("services.sync.prefs.sync.mailnews.mark_message_read.delay", true);
+pref("services.sync.prefs.sync.mailnews.mark_message_read.delay.interval", true);
+pref("services.sync.prefs.sync.mailnews.messageid.openInNewWindow", true);
+pref("services.sync.prefs.sync.mailnews.message_display.allow_plugins", true);
+pref("services.sync.prefs.sync.mailnews.message_display.disable_remote_image", true);
+pref("services.sync.prefs.sync.mailnews.nav_crosses_folders", true);
+pref("services.sync.prefs.sync.mailnews.offline_sync_mail", true);
+pref("services.sync.prefs.sync.mailnews.offline_sync_news", true);
+pref("services.sync.prefs.sync.mailnews.offline_sync_send_unsent", true);
+pref("services.sync.prefs.sync.mailnews.offline_sync_work_offline", true);
+pref("services.sync.prefs.sync.mailnews.remember_selected_message", true);
+pref("services.sync.prefs.sync.mailnews.reply_header_authorwrote", true);
+pref("services.sync.prefs.sync.mailnews.reply_header_colon", true);
+pref("services.sync.prefs.sync.mailnews.reply_header_locale", true);
+pref("services.sync.prefs.sync.mailnews.reply_header_ondate", true);
+pref("services.sync.prefs.sync.mailnews.reply_header_originalmessage", true);
+pref("services.sync.prefs.sync.mailnews.reply_header_separator", true);
+pref("services.sync.prefs.sync.mailnews.reply_header_type", true);
+pref("services.sync.prefs.sync.mailnews.scroll_to_new_message", true);
+pref("services.sync.prefs.sync.mailnews.sendInBackground", true);
+pref("services.sync.prefs.sync.mailnews.send_default_charset", true);
+pref("services.sync.prefs.sync.mailnews.send_plaintext_flowed", true);
+pref("services.sync.prefs.sync.mailnews.show_send_progress", true);
+pref("services.sync.prefs.sync.mailnews.start_page.enabled", true);
+pref("services.sync.prefs.sync.mailnews.thread_pane_column_unthreads", true);
+pref("services.sync.prefs.sync.mailnews.ui.deleteMarksRead", true);
+pref("services.sync.prefs.sync.mailnews.ui.junk.manualMarkAsJunkMarksRead", true);
+pref("services.sync.prefs.sync.mailnews.view_default_charset", true);
+pref("services.sync.prefs.sync.mailnews.wraplength", true);
 pref("services.sync.prefs.sync.network.cookie.cookieBehavior", true);
 pref("services.sync.prefs.sync.network.cookie.lifetimePolicy", true);
 pref("services.sync.prefs.sync.permissions.default.image", true);

@@ -77,6 +77,7 @@
 #include "nsMsgFolderFlags.h"
 #include "nsMsgUtils.h"
 #include "nsAppDirectoryServiceDefs.h"
+#include "mozilla/Services.h"
 
 #define PORT_NOT_SET -1
 
@@ -329,15 +330,6 @@ nsMsgIncomingServer::GetCanEmptyTrashOnExit(bool *canEmptyTrashOnExit)
   // derived class should override if they need to do this.
   NS_ENSURE_ARG_POINTER(canEmptyTrashOnExit);
   *canEmptyTrashOnExit = true;
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsMsgIncomingServer::GetIsSecureServer(bool *isSecureServer)
-{
-  // derived class should override if they need to do this.
-  NS_ENSURE_ARG_POINTER(isSecureServer);
-  *isSecureServer = true;
   return NS_OK;
 }
 
@@ -1619,12 +1611,12 @@ NS_IMETHODIMP nsMsgIncomingServer::DisplayOfflineMsg(nsIMsgWindow *aMsgWindow)
 {
   NS_ENSURE_ARG_POINTER(aMsgWindow);
 
-  nsresult rv;
-  nsCOMPtr<nsIStringBundleService> bundleService = do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsIStringBundleService> bundleService =
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
 
   nsCOMPtr<nsIStringBundle> bundle;
-  rv = bundleService->CreateBundle(BASE_MSGS_URL, getter_AddRefs(bundle));
+  nsresult rv = bundleService->CreateBundle(BASE_MSGS_URL, getter_AddRefs(bundle));
   NS_ENSURE_SUCCESS(rv, rv);
   if (bundle)
   {

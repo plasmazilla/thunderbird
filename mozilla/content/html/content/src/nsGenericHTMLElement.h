@@ -45,7 +45,6 @@
 #include "nsFrameLoader.h"
 #include "nsGkAtoms.h"
 #include "nsContentCreatorFunctions.h"
-#include "nsDOMMemoryReporter.h"
 
 class nsIDOMAttr;
 class nsIDOMEventListener;
@@ -81,9 +80,6 @@ public:
     NS_ASSERTION(mNodeInfo->NamespaceID() == kNameSpaceID_XHTML,
                  "Unexpected namespace");
   }
-
-  NS_DECL_AND_IMPL_DOM_MEMORY_REPORTER_SIZEOF(nsGenericHTMLElement,
-                                              nsGenericHTMLElementBase)
 
   /** Typesafe, non-refcounting cast from nsIContent.  Cheaper than QI. **/
   static nsGenericHTMLElement* FromContent(nsIContent *aContent)
@@ -136,7 +132,6 @@ public:
   NS_IMETHOD InsertAdjacentHTML(const nsAString& aPosition,
                                 const nsAString& aText);
   nsresult ScrollIntoView(bool aTop, PRUint8 optional_argc);
-  nsresult MozRequestFullScreen();
   // Declare Focus(), Blur(), GetTabIndex(), SetTabIndex(), GetHidden(),
   // SetHidden(), GetSpellcheck(), SetSpellcheck(), and GetDraggable() such that
   // classes that inherit interfaces with those methods properly override them.
@@ -531,42 +526,24 @@ public:
   NS_HIDDEN_(nsresult) GetURIAttr(nsIAtom* aAttr, nsIAtom* aBaseAttr, nsAString& aResult);
 
   /**
+   * Gets the absolute URI values of an attribute, by resolving any relative
+   * URIs in the attribute against the baseuri of the element. If a substring
+   * isn't a relative URI, the substring is returned as is. Only works for
+   * attributes in null namespace.
+   */
+  bool GetURIAttr(nsIAtom* aAttr, nsIAtom* aBaseAttr, nsIURI** aURI) const;
+
+  /**
    * Returns the current disabled state of the element.
    */
   virtual bool IsDisabled() const {
-    return HasAttr(kNameSpaceID_None, nsGkAtoms::disabled);
+    return false;
   }
 
   bool IsHidden() const
   {
     return HasAttr(kNameSpaceID_None, nsGkAtoms::hidden);
   }
-
-  /**
-   * Shared cross-origin resource sharing attributes so they don't get
-   * duplicated on every CORS-enabled element
-   */
-
-  enum CORSMode {
-    /**
-     * The default of not using CORS to validate cross-origin loads.
-     */
-    CORS_NONE,
-
-    /**
-     * Validate cross-site loads using CORS, but do not send any credentials
-     * (cookies, HTTP auth logins, etc) along with the request.
-     */
-    CORS_ANONYMOUS,
-
-    /**
-     * Validate cross-site loads using CORS, and send credentials such as cookies
-     * and HTTP auth logins along with the request.
-     */
-    CORS_USE_CREDENTIALS
-  };
-
-  const static nsAttrValue::EnumTable kCORSAttributeTable[];
 
 protected:
   /**
@@ -631,24 +608,12 @@ protected:
   bool IsEventName(nsIAtom* aName);
 
   virtual nsresult AfterSetAttr(PRInt32 aNamespaceID, nsIAtom* aName,
-                                const nsAString* aValue, bool aNotify);
+                                const nsAttrValue* aValue, bool aNotify);
 
   virtual nsEventListenerManager*
     GetEventListenerManagerForAttr(nsIAtom* aAttrName, bool* aDefer);
 
   virtual const nsAttrName* InternalGetExistingAttrNameFromQName(const nsAString& aStr) const;
-
-  /**
-   * Helper method for NS_IMPL_STRING_ATTR macro.
-   * Gets the value of an attribute, returns empty string if
-   * attribute isn't set. Only works for attributes in null namespace.
-   *
-   * @param aAttr    name of attribute.
-   * @param aDefault default-value to return if attribute isn't set.
-   * @param aResult  result value [out]
-   * @result always NS_OK
-   */
-  NS_HIDDEN_(nsresult) GetAttrHelper(nsIAtom* aAttr, nsAString& aValue);
 
   /**
    * Helper method for NS_IMPL_STRING_ATTR macro.
@@ -747,14 +712,6 @@ protected:
    * @param aValue   Double value of attribute.
    */
   NS_HIDDEN_(nsresult) SetDoubleAttr(nsIAtom* aAttr, double aValue);
-
-  /**
-   * Helper for GetURIAttr and GetHrefURIForAnchors which returns an
-   * nsIURI in the out param.
-   *
-   * @return true if we had the attr, false otherwise.
-   */
-  NS_HIDDEN_(bool) GetURIAttr(nsIAtom* aAttr, nsIAtom* aBaseAttr, nsIURI** aURI) const;
 
   /**
    * This method works like GetURIAttr, except that it supports multiple
@@ -874,9 +831,6 @@ public:
   nsGenericHTMLFormElement(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsGenericHTMLFormElement();
 
-  NS_DECL_AND_IMPL_DOM_MEMORY_REPORTER_SIZEOF(nsGenericHTMLFormElement,
-                                              nsGenericHTMLElement)
-
   NS_IMETHOD QueryInterface(REFNSIID aIID, void** aInstancePtr);
 
   virtual bool IsNodeOfType(PRUint32 aFlags) const;
@@ -950,10 +904,11 @@ public:
 
 protected:
   virtual nsresult BeforeSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
-                                 const nsAString* aValue, bool aNotify);
+                                 const nsAttrValueOrString* aValue,
+                                 bool aNotify);
 
   virtual nsresult AfterSetAttr(PRInt32 aNameSpaceID, nsIAtom* aName,
-                                const nsAString* aValue, bool aNotify);
+                                const nsAttrValue* aValue, bool aNotify);
 
   void UpdateEditableFormControlState(bool aNotify);
 
@@ -1038,23 +993,6 @@ protected:
 PR_STATIC_ASSERT(ELEMENT_TYPE_SPECIFIC_BITS_OFFSET + 1 < 32);
 
 //----------------------------------------------------------------------
-
-/**
- * A macro to implement the getter and setter for a given string
- * valued content property. The method uses the generic GetAttr and
- * SetAttr methods.
- */
-#define NS_IMPL_STRING_ATTR(_class, _method, _atom)                  \
-  NS_IMETHODIMP                                                      \
-  _class::Get##_method(nsAString& aValue)                            \
-  {                                                                  \
-    return GetAttrHelper(nsGkAtoms::_atom, aValue);                  \
-  }                                                                  \
-  NS_IMETHODIMP                                                      \
-  _class::Set##_method(const nsAString& aValue)                      \
-  {                                                                  \
-    return SetAttrHelper(nsGkAtoms::_atom, aValue);                  \
-  }
 
 /**
  * This macro is similar to NS_IMPL_STRING_ATTR except that the getter method
@@ -1561,9 +1499,6 @@ PR_STATIC_ASSERT(ELEMENT_TYPE_SPECIFIC_BITS_OFFSET + 1 < 32);
   } \
   NS_SCRIPTABLE NS_IMETHOD GetOffsetHeight(PRInt32* aOffsetHeight) { \
     return _to GetOffsetHeight(aOffsetHeight); \
-  } \
-  NS_SCRIPTABLE NS_IMETHOD MozRequestFullScreen() { \
-    return _to MozRequestFullScreen(); \
   }
 
 /**

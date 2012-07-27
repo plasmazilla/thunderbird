@@ -85,7 +85,7 @@ public:
   virtual nsSize ComputeSize(nsRenderingContext *aRenderingContext,
                              nsSize aCBSize, nscoord aAvailableWidth,
                              nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                             bool aShrinkWrap);
+                             PRUint32 aFlags) MOZ_OVERRIDE;
   virtual nscoord GetBaseline() const;
   virtual void DestroyFrom(nsIFrame* aDestructRoot);
 
@@ -126,6 +126,8 @@ protected:
   virtual PRIntn GetSkipSides() const;
   void ReparentFrameList(const nsFrameList& aFrameList);
 
+  // mLegendFrame is a nsLegendFrame or a nsHTMLScrollFrame with the
+  // nsLegendFrame as the scrolled frame (aka content insertion frame).
   nsIFrame* mLegendFrame;
   nsIFrame* mContentFrame;
   nsRect    mLegendRect;
@@ -399,17 +401,17 @@ nsFieldSetFrame::GetPrefWidth(nsRenderingContext* aRenderingContext)
 nsFieldSetFrame::ComputeSize(nsRenderingContext *aRenderingContext,
                              nsSize aCBSize, nscoord aAvailableWidth,
                              nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                             bool aShrinkWrap)
+                             PRUint32 aFlags)
 {
   nsSize result =
     nsContainerFrame::ComputeSize(aRenderingContext, aCBSize, aAvailableWidth,
-                                  aMargin, aBorder, aPadding, aShrinkWrap);
+                                  aMargin, aBorder, aPadding, aFlags);
 
   // Fieldsets never shrink below their min width.
 
   // If we're a container for font size inflation, then shrink
   // wrapping inside of us should not apply font size inflation.
-  AutoMaybeNullInflationContainer an(this);
+  AutoMaybeDisableFontInflation an(this);
 
   nscoord minWidth = GetMinWidth(aRenderingContext);
   if (minWidth > result.width)
@@ -560,7 +562,8 @@ nsFieldSetFrame::Reflow(nsPresContext*           aPresContext,
   if (mLegendFrame) {
     // if the content rect is larger then the  legend we can align the legend
     if (contentRect.width > mLegendRect.width) {
-      PRInt32 align = static_cast<nsLegendFrame*>(mLegendFrame)->GetAlign();
+      PRInt32 align = static_cast<nsLegendFrame*>
+        (mLegendFrame->GetContentInsertionFrame())->GetAlign();
 
       switch(align) {
         case NS_STYLE_TEXT_ALIGN_RIGHT:

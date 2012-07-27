@@ -43,7 +43,6 @@
 
 #include "nsNavHistory.h"
 #include "nsAnnotationService.h"
-#include "nsILivemarkService.h"
 #include "nsPlacesMacros.h"
 #include "Helpers.h"
 
@@ -51,7 +50,6 @@
 #include "nsNetUtil.h"
 #include "nsUnicharUtils.h"
 #include "nsPrintfCString.h"
-#include "nsIUUIDGenerator.h"
 #include "prprf.h"
 #include "mozilla/storage.h"
 #include "mozilla/FunctionTimer.h"
@@ -100,7 +98,6 @@ PLACES_FACTORY_SINGLETON_IMPLEMENTATION(nsNavBookmarks, gBookmarksService)
 
 #define BOOKMARKS_ANNO_PREFIX "bookmarks/"
 #define BOOKMARKS_TOOLBAR_FOLDER_ANNO NS_LITERAL_CSTRING(BOOKMARKS_ANNO_PREFIX "toolbarFolder")
-#define GUID_ANNO NS_LITERAL_CSTRING("placesInternal/GUID")
 #define READ_ONLY_ANNO NS_LITERAL_CSTRING("placesInternal/READ_ONLY")
 
 
@@ -1053,6 +1050,48 @@ nsNavBookmarks::GetRemoveFolderTransaction(PRInt64 aFolderId, nsITransaction** a
 
 
 nsresult
+nsNavBookmarks::GetDescendantFolders(PRInt64 aFolderId,
+                                     nsTArray<PRInt64>& aDescendantFoldersArray) {
+  nsresult rv;
+  // New descendant folders will be added from this index on.
+  PRUint32 startIndex = aDescendantFoldersArray.Length();
+  {
+    nsCOMPtr<mozIStorageStatement> stmt = mDB->GetStatement(
+      "SELECT id "
+      "FROM moz_bookmarks "
+      "WHERE parent = :parent "
+      "AND type = :item_type "
+    );
+    NS_ENSURE_STATE(stmt);
+    mozStorageStatementScoper scoper(stmt);
+
+    rv = stmt->BindInt64ByName(NS_LITERAL_CSTRING("parent"), aFolderId);
+    NS_ENSURE_SUCCESS(rv, rv);
+    rv = stmt->BindInt32ByName(NS_LITERAL_CSTRING("item_type"), TYPE_FOLDER);
+    NS_ENSURE_SUCCESS(rv, rv);
+
+    bool hasMore = false;
+    while (NS_SUCCEEDED(stmt->ExecuteStep(&hasMore)) && hasMore) {
+      PRInt64 itemId;
+      rv = stmt->GetInt64(0, &itemId);
+      NS_ENSURE_SUCCESS(rv, rv);
+      aDescendantFoldersArray.AppendElement(itemId);
+    }
+  }
+
+  // Recursively call GetDescendantFolders for added folders.
+  // We start at startIndex since previous folders are checked
+  // by previous calls to this method.
+  PRUint32 childCount = aDescendantFoldersArray.Length();
+  for (PRUint32 i = startIndex; i < childCount; ++i) {
+    GetDescendantFolders(aDescendantFoldersArray[i], aDescendantFoldersArray);
+  }
+
+  return NS_OK;
+}
+
+
+nsresult
 nsNavBookmarks::GetDescendantChildren(PRInt64 aFolderId,
                                       const nsACString& aFolderGuid,
                                       PRInt64 aGrandParentId,
@@ -1625,104 +1664,6 @@ nsNavBookmarks::GetItemLastModified(PRInt64 aItemId, PRTime* _lastModified)
 }
 
 
-nsresult
-nsNavBookmarks::GetGUIDBase(nsAString &aGUIDBase)
-{
-  if (!mGUIDBase.IsEmpty()) {
-    aGUIDBase = mGUIDBase;
-    return NS_OK;
-  }
-
-  // generate a new GUID base for this session
-  nsCOMPtr<nsIUUIDGenerator> uuidgen =
-    do_GetService("@mozilla.org/uuid-generator;1");
-  NS_ENSURE_TRUE(uuidgen, NS_ERROR_OUT_OF_MEMORY);
-  nsID GUID;
-  nsresult rv = uuidgen->GenerateUUIDInPlace(&GUID);
-  NS_ENSURE_SUCCESS(rv, rv);
-  char GUIDChars[NSID_LENGTH];
-  GUID.ToProvidedString(GUIDChars);
-  CopyASCIItoUTF16(GUIDChars, mGUIDBase);
-  aGUIDBase = mGUIDBase;
-  return NS_OK;
-}
-
-
-NS_IMETHODIMP
-nsNavBookmarks::GetItemGUID(PRInt64 aItemId, nsAString& aGUID)
-{
-  NS_ENSURE_ARG_MIN(aItemId, 1);
-
-  nsAnnotationService* annosvc = nsAnnotationService::GetAnnotationService();
-  NS_ENSURE_TRUE(annosvc, NS_ERROR_OUT_OF_MEMORY);
-  nsresult rv = annosvc->GetItemAnnotationString(aItemId, GUID_ANNO, aGUID);
-  if (NS_SUCCEEDED(rv) || rv != NS_ERROR_NOT_AVAILABLE)
-    return rv;
-
-  nsAutoString tmp;
-  tmp.AppendInt(mItemCount++);
-  aGUID.SetCapacity(NSID_LENGTH - 1 + tmp.Length());
-  nsString GUIDBase;
-  rv = GetGUIDBase(GUIDBase);
-  NS_ENSURE_SUCCESS(rv, rv);
-  aGUID.Assign(GUIDBase);
-  aGUID.Append(tmp);
-
-  rv = SetItemGUID(aItemId, aGUID);
-  NS_ENSURE_SUCCESS(rv, rv);
-  return NS_OK;
-}
-
-
-NS_IMETHODIMP
-nsNavBookmarks::SetItemGUID(PRInt64 aItemId, const nsAString& aGUID)
-{
-  NS_ENSURE_ARG_MIN(aItemId, 1);
-
-  PRInt64 checkId;
-  GetItemIdForGUID(aGUID, &checkId);
-  if (checkId != -1)
-    return NS_ERROR_INVALID_ARG; // invalid GUID, already exists
-
-  nsAnnotationService* annosvc = nsAnnotationService::GetAnnotationService();
-  NS_ENSURE_TRUE(annosvc, NS_ERROR_OUT_OF_MEMORY);
-  nsresult rv = annosvc->SetItemAnnotationString(aItemId, GUID_ANNO, aGUID, 0,
-                                                 nsIAnnotationService::EXPIRE_NEVER);
-  NS_ENSURE_SUCCESS(rv, rv);
-  return NS_OK;
-}
-
-
-NS_IMETHODIMP
-nsNavBookmarks::GetItemIdForGUID(const nsAString& aGUID, PRInt64* aItemId)
-{
-  NS_ENSURE_ARG_POINTER(aItemId);
-
-  nsCOMPtr<mozIStorageStatement> stmt = mDB->GetStatement(
-    "SELECT item_id FROM moz_items_annos "
-    "WHERE content = :guid "
-    "LIMIT 1"
-  );
-  NS_ENSURE_STATE(stmt);
-  mozStorageStatementScoper scoper(stmt);
-
-  nsresult rv = stmt->BindStringByName(NS_LITERAL_CSTRING("guid"), aGUID);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  bool hasMore = false;
-  rv = stmt->ExecuteStep(&hasMore);
-  if (NS_FAILED(rv) || ! hasMore) {
-    *aItemId = -1;
-    return NS_OK; // not found: return -1
-  }
-
-  // found, get the itemId
-  rv = stmt->GetInt64(0, aItemId);
-  NS_ENSURE_SUCCESS(rv, rv);
-  return NS_OK;
-}
-
-
 NS_IMETHODIMP
 nsNavBookmarks::SetItemTitle(PRInt64 aItemId, const nsACString& aTitle)
 {
@@ -2154,35 +2095,27 @@ nsNavBookmarks::GetBookmarkedURIFor(nsIURI* aURI, nsIURI** _retval)
   // As a bonus the query also checks first if place_id is already a bookmark,
   // so you don't have to check that apart.
 
-#define COALESCE_PLACEID \
-  "COALESCE(greatgrandparent.place_id, grandparent.place_id, parent.place_id) "
+  nsCString query = nsPrintfCString(512,
+    "SELECT url FROM moz_places WHERE id = ( "
+      "SELECT :page_id FROM moz_bookmarks WHERE fk = :page_id "
+      "UNION ALL "
+      "SELECT COALESCE(grandparent.place_id, parent.place_id) AS r_place_id "
+      "FROM moz_historyvisits dest "
+      "LEFT JOIN moz_historyvisits parent ON parent.id = dest.from_visit " 
+                                        "AND dest.visit_type IN (%d, %d) "
+      "LEFT JOIN moz_historyvisits grandparent ON parent.from_visit = grandparent.id "
+                                             "AND parent.visit_type IN (%d, %d) "
+      "WHERE dest.place_id = :page_id "
+      "AND EXISTS(SELECT 1 FROM moz_bookmarks WHERE fk = r_place_id) "
+      "LIMIT 1 "
+    ")",
+    nsINavHistoryService::TRANSITION_REDIRECT_PERMANENT,
+    nsINavHistoryService::TRANSITION_REDIRECT_TEMPORARY,
+    nsINavHistoryService::TRANSITION_REDIRECT_PERMANENT,
+    nsINavHistoryService::TRANSITION_REDIRECT_TEMPORARY
+  );
 
-  nsCString redirectsFragment =
-    nsPrintfCString(3, "%d,%d",
-                    nsINavHistoryService::TRANSITION_REDIRECT_PERMANENT,
-                    nsINavHistoryService::TRANSITION_REDIRECT_TEMPORARY);
-
-  nsCOMPtr<mozIStorageStatement> stmt = mDB->GetStatement(NS_LITERAL_CSTRING(
-    "SELECT "
-      "(SELECT url FROM moz_places WHERE id = :page_id) "
-    "FROM moz_bookmarks b "
-    "WHERE b.fk = :page_id "
-    "UNION ALL " // Not directly bookmarked.
-    "SELECT "
-      "(SELECT url FROM moz_places WHERE id = " COALESCE_PLACEID ") "
-    "FROM moz_historyvisits self "
-    "JOIN moz_bookmarks b ON b.fk = " COALESCE_PLACEID
-    "LEFT JOIN moz_historyvisits parent ON parent.id = self.from_visit "
-    "LEFT JOIN moz_historyvisits grandparent ON parent.from_visit = grandparent.id "
-      "AND parent.visit_type IN (") + redirectsFragment + NS_LITERAL_CSTRING(") "
-    "LEFT JOIN moz_historyvisits greatgrandparent ON grandparent.from_visit = greatgrandparent.id "
-      "AND grandparent.visit_type IN (") + redirectsFragment + NS_LITERAL_CSTRING(") "
-    "WHERE self.visit_type IN (") + redirectsFragment + NS_LITERAL_CSTRING(") "
-      "AND self.place_id = :page_id "
-    "LIMIT 1 " // Stop at the first result.
-  ));
-#undef COALESCE_PLACEID
-
+  nsCOMPtr<mozIStorageStatement> stmt = mDB->GetStatement(query);
   NS_ENSURE_STATE(stmt);
   mozStorageStatementScoper scoper(stmt);
 

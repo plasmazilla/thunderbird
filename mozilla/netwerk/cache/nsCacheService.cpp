@@ -1,7 +1,6 @@
 /* -*- Mode: C++; tab-width: 4; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 /* vim: set sw=4 ts=8 et tw=80 : */
-/*
- * ***** BEGIN LICENSE BLOCK *****
+/* ***** BEGIN LICENSE BLOCK *****
  * Version: MPL 1.1/GPL 2.0/LGPL 2.1
  *
  * The contents of this file are subject to the Mozilla Public License Version
@@ -60,7 +59,6 @@
 #include "nsIObserverService.h"
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
-#include "nsIPrefBranch2.h"
 #include "nsILocalFile.h"
 #include "nsIOService.h"
 #include "nsDirectoryServiceDefs.h"
@@ -138,7 +136,11 @@ static const char * prefList[] = {
 // Cache sizes, in KB
 const PRInt32 DEFAULT_CACHE_SIZE = 250 * 1024;  // 250 MB
 const PRInt32 MIN_CACHE_SIZE = 50 * 1024;       //  50 MB
+#ifdef ANDROID
+const PRInt32 MAX_CACHE_SIZE = 200 * 1024;      // 200 MB
+#else
 const PRInt32 MAX_CACHE_SIZE = 1024 * 1024;     //   1 GB
+#endif
 // Default cache size was 50 MB for many years until FF 4:
 const PRInt32 PRE_GECKO_2_0_DEFAULT_CACHE_SIZE = 50 * 1024;
 
@@ -264,7 +266,7 @@ public:
 
         nsCacheService::SetDiskCacheCapacity(mSmartSize);
 
-        nsCOMPtr<nsIPrefBranch2> ps = do_GetService(NS_PREFSERVICE_CONTRACTID);
+        nsCOMPtr<nsIPrefBranch> ps = do_GetService(NS_PREFSERVICE_CONTRACTID);
         if (!ps ||
             NS_FAILED(ps->SetIntPref(DISK_CACHE_SMART_SIZE_PREF, mSmartSize)))
             NS_WARNING("Failed to set smart size pref");
@@ -336,7 +338,7 @@ nsCacheProfilePrefObserver::Install()
     }
     
     // install preferences observer
-    nsCOMPtr<nsIPrefBranch2> branch = do_GetService(NS_PREFSERVICE_CONTRACTID);
+    nsCOMPtr<nsIPrefBranch> branch = do_GetService(NS_PREFSERVICE_CONTRACTID);
     if (!branch) return NS_ERROR_FAILURE;
 
     for (unsigned int i=0; i<ArrayLength(prefList); i++) {
@@ -384,7 +386,7 @@ nsCacheProfilePrefObserver::Remove()
     }
 
     // remove Pref Service observers
-    nsCOMPtr<nsIPrefBranch2> prefs =
+    nsCOMPtr<nsIPrefBranch> prefs =
         do_GetService(NS_PREFSERVICE_CONTRACTID);
     if (!prefs)
         return;
@@ -628,8 +630,17 @@ SmartCacheSize(const PRUint32 availKB)
         avail10MBs = 50;
     }
 
+#ifdef ANDROID
+    // On Android, smaller/older devices may have very little storage and
+    // device owners may be sensitive to storage footprint: Use a smaller
+    // percentage of available space and a smaller minimum.
+
+    // 20% of space up to 500 MB (10 MB min)
+    sz10MBs += NS_MAX<PRUint32>(1, avail10MBs * .2);
+#else
     // 40% of space up to 500 MB (50 MB min)
     sz10MBs += NS_MAX<PRUint32>(5, avail10MBs * .4);
+#endif
 
     return NS_MIN<PRUint32>(MAX_CACHE_SIZE, sz10MBs * 10 * 1024);
 }
@@ -1021,7 +1032,8 @@ public:
                                                       nsnull);
 
         // Don't delete the request if it was queued
-        if (rv != NS_ERROR_CACHE_WAIT_FOR_VALIDATION)
+        if (!(mRequest->IsBlocking() &&
+            rv == NS_ERROR_CACHE_WAIT_FOR_VALIDATION))
             delete mRequest;
 
         return NS_OK;
@@ -1032,6 +1044,91 @@ protected:
 
 private:
     nsCacheRequest *mRequest;
+};
+
+/******************************************************************************
+ * nsNotifyDoomListener
+ *****************************************************************************/
+
+class nsNotifyDoomListener : public nsRunnable {
+public:
+    nsNotifyDoomListener(nsICacheListener *listener,
+                         nsresult status)
+        : mListener(listener)      // transfers reference
+        , mStatus(status)
+    {}
+
+    NS_IMETHOD Run()
+    {
+        mListener->OnCacheEntryDoomed(mStatus);
+        NS_RELEASE(mListener);
+        return NS_OK;
+    }
+
+private:
+    nsICacheListener *mListener;
+    nsresult          mStatus;
+};
+
+/******************************************************************************
+ * nsDoomEvent
+ *****************************************************************************/
+
+class nsDoomEvent : public nsRunnable {
+public:
+    nsDoomEvent(nsCacheSession *session,
+                const nsACString &key,
+                nsICacheListener *listener)
+    {
+        mKey = *session->ClientID();
+        mKey.Append(':');
+        mKey.Append(key);
+        mStoragePolicy = session->StoragePolicy();
+        mListener = listener;
+        mThread = do_GetCurrentThread();
+        // We addref the listener here and release it in nsNotifyDoomListener
+        // on the callers thread. If posting of nsNotifyDoomListener event fails
+        // we leak the listener which is better than releasing it on a wrong
+        // thread.
+        NS_IF_ADDREF(mListener);
+    }
+
+    NS_IMETHOD Run()
+    {
+        nsCacheServiceAutoLock lock;
+
+        bool foundActive = true;
+        nsresult status = NS_ERROR_NOT_AVAILABLE;
+        nsCacheEntry *entry;
+        entry = nsCacheService::gService->mActiveEntries.GetEntry(&mKey);
+        if (!entry) {
+            bool collision = false;
+            foundActive = false;
+            entry = nsCacheService::gService->SearchCacheDevices(&mKey,
+                                                                 mStoragePolicy,
+                                                                 &collision);
+        }
+
+        if (entry) {
+            status = NS_OK;
+            nsCacheService::gService->DoomEntry_Internal(entry, foundActive);
+        }
+
+        if (mListener) {
+            mThread->Dispatch(new nsNotifyDoomListener(mListener, status),
+                              NS_DISPATCH_NORMAL);
+            // posted event will release the reference on the correct thread
+            mListener = nsnull;
+        }
+
+        return NS_OK;
+    }
+
+private:
+    nsCString             mKey;
+    nsCacheStoragePolicy  mStoragePolicy;
+    nsICacheListener     *mListener;
+    nsCOMPtr<nsIThread>   mThread;
 };
 
 /******************************************************************************
@@ -1054,6 +1151,7 @@ nsCacheService::nsCacheService()
     : mLock("nsCacheService.mLock"),
       mCondVar(mLock, "nsCacheService.mCondVar"),
       mInitialized(false),
+      mClearingEntries(false),
       mEnableMemoryDevice(true),
       mEnableDiskDevice(true),
       mMemoryDevice(nsnull),
@@ -1101,7 +1199,7 @@ nsCacheService::Init()
 
     nsresult rv = NS_NewThread(getter_AddRefs(mCacheIOThread));
     if (NS_FAILED(rv)) {
-        NS_WARNING("Can't create cache IO thread");
+        NS_RUNTIMEABORT("Can't create cache IO thread");
     }
 
     rv = nsDeleteDir::Init();
@@ -1302,35 +1400,36 @@ nsCacheService::EvictEntriesForClient(const char *          clientID,
         storagePolicy == nsICache::STORE_ON_DISK) {
 
         if (mEnableDiskDevice) {
-            nsresult rv;
+            nsresult rv = NS_OK;
             if (!mDiskDevice)
                 rv = CreateDiskDevice();
             if (mDiskDevice)
                 rv = mDiskDevice->EvictEntries(clientID);
-            if (NS_FAILED(rv)) res = rv;
+            if (NS_FAILED(rv))
+                res = rv;
         }
     }
 
     // Only clear the offline cache if it has been specifically asked for.
     if (storagePolicy == nsICache::STORE_OFFLINE) {
         if (mEnableOfflineDevice) {
-            nsresult rv;
+            nsresult rv = NS_OK;
             if (!mOfflineDevice)
                 rv = CreateOfflineDevice();
             if (mOfflineDevice)
                 rv = mOfflineDevice->EvictEntries(clientID);
-            if (NS_FAILED(rv)) res = rv;
+            if (NS_FAILED(rv))
+                res = rv;
         }
     }
 
     if (storagePolicy == nsICache::STORE_ANYWHERE ||
         storagePolicy == nsICache::STORE_IN_MEMORY) {
-
         // If there is no memory device, there is no need to evict it...
         if (mMemoryDevice) {
-            nsresult rv;
-            rv = mMemoryDevice->EvictEntries(clientID);
-            if (NS_FAILED(rv)) res = rv;
+            nsresult rv = mMemoryDevice->EvictEntries(clientID);
+            if (NS_FAILED(rv))
+                res = rv;
         }
     }
 
@@ -1347,6 +1446,22 @@ nsCacheService::IsStorageEnabledForPolicy(nsCacheStoragePolicy  storagePolicy,
 
     *result = gService->IsStorageEnabledForPolicy_Locked(storagePolicy);
     return NS_OK;
+}
+
+
+nsresult
+nsCacheService::DoomEntry(nsCacheSession   *session,
+                          const nsACString &key,
+                          nsICacheListener *listener)
+{
+    CACHE_LOG_DEBUG(("Dooming entry for session %p, key %s\n",
+                     session, PromiseFlatCString(key).get()));
+    NS_ASSERTION(gService, "nsCacheService::gService is null.");
+
+    if (!gService->mInitialized)
+        return NS_ERROR_NOT_INITIALIZED;
+
+    return DispatchToCacheIOThread(new nsDoomEvent(session, key, listener));
 }
 
 
@@ -1484,6 +1599,18 @@ nsCacheService::CreateDiskDevice()
     // Ignore state of the timer and return success since the purpose of the
     // method (create the disk-device) has been fulfilled
 
+    return NS_OK;
+}
+
+nsresult
+nsCacheService::GetOfflineDevice(nsOfflineCacheDevice **aDevice)
+{
+    if (!mOfflineDevice) {
+        nsresult rv = CreateOfflineDevice();
+        NS_ENSURE_SUCCESS(rv, rv);
+    }
+
+    NS_ADDREF(*aDevice = mOfflineDevice);
     return NS_OK;
 }
 
@@ -1663,11 +1790,13 @@ nsCacheService::ProcessRequest(nsCacheRequest *           request,
             // entry->RequestAccess queues request on entry
             rv = entry->RequestAccess(request, &accessGranted);
             if (rv != NS_ERROR_CACHE_WAIT_FOR_VALIDATION) break;
-            
-            if (request->mListener) // async exits - validate, doom, or close will resume
-                return rv;
-            
+
             if (request->IsBlocking()) {
+                if (request->mListener) {
+                    // async exits - validate, doom, or close will resume
+                    return rv;
+                }
+
                 // XXX this is probably wrong...
                 Unlock();
                 rv = request->WaitForValidation();
@@ -1774,7 +1903,8 @@ nsCacheService::OpenCacheEntry(nsCacheSession *           session,
         rv = gService->ProcessRequest(request, true, result);
 
         // delete requests that have completed
-        if (!(listener && (rv == NS_ERROR_CACHE_WAIT_FOR_VALIDATION)))
+        if (!(listener && blockingMode &&
+            (rv == NS_ERROR_CACHE_WAIT_FOR_VALIDATION)))
             delete request;
     }
 
@@ -1788,7 +1918,9 @@ nsCacheService::ActivateEntry(nsCacheRequest * request,
                               nsCacheEntry ** doomedEntry)
 {
     CACHE_LOG_DEBUG(("Activate entry for request %p\n", request));
-    
+    if (!mInitialized || mClearingEntries)
+        return NS_ERROR_NOT_AVAILABLE;
+
     nsresult        rv = NS_OK;
 
     NS_ASSERTION(request != nsnull, "ActivateEntry called with no request");
@@ -2070,6 +2202,7 @@ nsCacheService::OnProfileShutdown(bool cleanse)
         return;
     }
     nsCacheServiceAutoLock lock;
+    gService->mClearingEntries = true;
 
     gService->DoomActiveEntries();
     gService->ClearDoomList();
@@ -2099,6 +2232,7 @@ nsCacheService::OnProfileShutdown(bool cleanse)
         gService->mMemoryDevice->EvictEntries(nsnull);
     }
 
+    gService->mClearingEntries = false;
 }
 
 
@@ -2325,7 +2459,13 @@ nsCacheService::OnDataSizeChange(nsCacheEntry * entry, PRInt32 deltaSize)
 void
 nsCacheService::Lock()
 {
-    gService->mLock.Lock();
+    if (NS_IsMainThread()) {
+        Telemetry::AutoTimer<Telemetry::CACHE_SERVICE_LOCK_WAIT_MAINTHREAD> timer;
+        gService->mLock.Lock();
+    } else {
+        Telemetry::AutoTimer<Telemetry::CACHE_SERVICE_LOCK_WAIT> timer;
+        gService->mLock.Lock();
+    }
 }
 
 void

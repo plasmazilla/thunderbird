@@ -39,9 +39,11 @@
 #ifndef NS_SVGTEXTFRAME_H
 #define NS_SVGTEXTFRAME_H
 
-#include "nsSVGTextContainerFrame.h"
-#include "gfxRect.h"
 #include "gfxMatrix.h"
+#include "gfxRect.h"
+#include "nsSVGTextContainerFrame.h"
+
+class nsRenderingContext;
 
 typedef nsSVGTextContainerFrame nsSVGTextFrameBase;
 
@@ -52,7 +54,6 @@ class nsSVGTextFrame : public nsSVGTextFrameBase
 protected:
   nsSVGTextFrame(nsStyleContext* aContext)
     : nsSVGTextFrameBase(aContext),
-      mMetricsState(unsuspended),
       mPositioningDirty(true) {}
 
 public:
@@ -85,16 +86,13 @@ public:
 
   // nsISVGChildFrame interface:
   virtual void NotifySVGChanged(PRUint32 aFlags);
-  NS_IMETHOD NotifyRedrawSuspended();
-  NS_IMETHOD NotifyRedrawUnsuspended();
   // Override these four to ensure that UpdateGlyphPositioning is called
   // to bring glyph positions up to date
-  NS_IMETHOD PaintSVG(nsSVGRenderState* aContext,
+  NS_IMETHOD PaintSVG(nsRenderingContext* aContext,
                       const nsIntRect *aDirtyRect);
   NS_IMETHOD_(nsIFrame*) GetFrameForPoint(const nsPoint & aPoint);
-  NS_IMETHOD UpdateCoveredRegion();
-  NS_IMETHOD InitialUpdate();
-  virtual gfxRect GetBBoxContribution(const gfxMatrix &aToBBoxUserspace,
+  virtual void UpdateBounds();
+  virtual SVGBBox GetBBoxContribution(const gfxMatrix &aToBBoxUserspace,
                                       PRUint32 aFlags);
   
   // nsSVGContainerFrame methods:
@@ -125,9 +123,6 @@ private:
   void SetWhitespaceHandling(nsSVGGlyphFrame *aFrame);
 
   nsAutoPtr<gfxMatrix> mCanvasTM;
-
-  enum UpdateState { unsuspended, suspended };
-  UpdateState mMetricsState;
 
   bool mPositioningDirty;
 };

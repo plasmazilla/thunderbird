@@ -41,7 +41,7 @@
 #include "jsapi.h"
 #include "nsIInterfaceRequestorUtils.h"
 
-using mozilla::dom::telephony::SystemWorkerManager;
+using mozilla::dom::gonk::SystemWorkerManager;
 
 namespace mozilla {
 namespace dom {
@@ -89,7 +89,7 @@ SmsService::Send(const nsAString& aNumber,
     return NS_OK;
   }
 
-  mRIL->SendSMS(aNumber, aMessage);
+  mRIL->SendSMS(aNumber, aMessage, aRequestId, aProcessId);
   return NS_OK;
 }
 

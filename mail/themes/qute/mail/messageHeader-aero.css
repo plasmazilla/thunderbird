@@ -128,7 +128,8 @@
 /* ::::: attachment view ::::: */
 
 #attachmentList {
-  margin: 0px;
+  -moz-appearance: none;
+  border-top: 1px solid #A9B7C9; /* The same color as the splitters */
   background-color: -moz-Field;
   color: -moz-FieldText;
 }
@@ -217,7 +218,7 @@
 }
 
 #attachmentView {
-  border-top: 1px solid ThreeDShadow;
+  border-top: 1px solid #A9B7C9; /* The same color as the splitters */
 }
 
 /* ::::: msg header captions ::::: */
@@ -330,7 +331,6 @@ toolbarpaletteitem > #hdrReplyToSenderButton {
 
 .hdrReplyToSenderButton,
 .hdrDummyReplyButton,
-.hdrReplyOnlyButton,
 .hdrReplyButton {
   list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.png");
   -moz-image-region: rect(0px, 72px, 18px, 54px);
@@ -341,7 +341,8 @@ toolbarpaletteitem > #hdrReplyToSenderButton {
   -moz-image-region: rect(0px, 90px, 18px, 72px);
 }
 
-.hdrReplyListButton {
+.hdrReplyListButton,
+.hdrFollowupButton {
   list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.png");
   -moz-image-region: rect(0px, 126px, 18px, 108px);
 }
@@ -376,6 +377,11 @@ toolbarpaletteitem > #hdrReplyToSenderButton {
 .hdrTrashButton {
   list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.png");
   -moz-image-region: rect(0px, 144px, 18px, 126px);
+}
+
+.hdrTagButton {
+  list-style-image: url("chrome://messenger/skin/icons/mail-toolbar.png");
+  -moz-image-region: rect(0px, 288px, 18px, 270px);
 }
 
 .inline-toolbar toolbarpaletteitem toolbarseparator,
@@ -443,6 +449,10 @@ toolbarpaletteitem .msgHeaderView-button {
   -moz-border-bottom-colors: none;
   -moz-border-left-colors: none;
   min-height: 1ex;
+}
+
+.msgHeaderView-flat-button:-moz-system-metric(windows-classic) {
+  border: 2px solid transparent;
 }
 
 .msgHeaderView-flat-button[type="menu-button"] > .button-menubutton-button {

@@ -54,6 +54,8 @@ toolkit.jar:
         skin/classic/global/textbox.css
 *       skin/classic/global/toolbar.css
         skin/classic/global/toolbarbutton.css
+        skin/classic/global/TopLevelImageDocument.css
+        skin/classic/global/TopLevelVideoDocument.css
         skin/classic/global/tree.css
         skin/classic/global/wizard.css
         skin/classic/global/alerts/alert.css                     (alerts/alert.css)
@@ -100,7 +102,6 @@ toolkit.jar:
         skin/classic/global/icons/Close.gif                      (icons/Close.gif)
         skin/classic/global/icons/close.png                      (icons/close.png)
         skin/classic/global/icons/collapse.png                   (icons/collapse.png)
-        skin/classic/global/icons/commandline.png                (icons/commandline.png)
         skin/classic/global/icons/Error.png                      (icons/Error.png)
         skin/classic/global/icons/error-16.png                   (icons/error-16.png)
         skin/classic/global/icons/error-24.png                   (icons/error-24.png)
@@ -230,6 +231,8 @@ toolkit.jar:
 *       skin/classic/aero/global/textbox.css                             (textbox-aero.css)
 *       skin/classic/aero/global/toolbar.css
 *       skin/classic/aero/global/toolbarbutton.css                       (toolbarbutton-aero.css)
+        skin/classic/aero/global/TopLevelImageDocument.css
+        skin/classic/aero/global/TopLevelVideoDocument.css
 *       skin/classic/aero/global/tree.css                                (tree-aero.css)
         skin/classic/aero/global/wizard.css
         skin/classic/aero/global/alerts/alert.css                        (alerts/alert.css)
@@ -276,7 +279,6 @@ toolkit.jar:
         skin/classic/aero/global/icons/Close.gif                         (icons/Close.gif)
         skin/classic/aero/global/icons/close.png                         (icons/close.png)
         skin/classic/aero/global/icons/collapse.png                      (icons/collapse.png)
-        skin/classic/aero/global/icons/commandline.png                   (icons/commandline.png)
         skin/classic/aero/global/icons/Error.png                         (icons/Error-aero.png)
         skin/classic/aero/global/icons/error-16.png                      (icons/error-16-aero.png)
         skin/classic/aero/global/icons/error-24.png                      (icons/error-24-aero.png)

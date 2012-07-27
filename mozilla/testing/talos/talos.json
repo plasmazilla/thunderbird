@@ -1,10 +1,6 @@
 {
     "talos.zip": {
-        "url": "http://build.mozilla.org/talos/zips/talos.bug721857.05f01e049452.zip",
+        "url": "http://build.mozilla.org/talos/zips/talos.b3fba447c7a4.bug745727.zip",
         "path": ""
-    },
-    "pageloader.xpi": {
-        "url": "http://build.mozilla.org/talos/xpis/pageloader.xpi",
-        "path": "talos/page_load_test"
     }
 }

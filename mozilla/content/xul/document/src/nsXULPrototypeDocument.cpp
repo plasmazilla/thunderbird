@@ -66,6 +66,9 @@
 #include "nsCCUncollectableMarker.h"
 #include "nsDOMJSUtils.h" // for GetScriptContextFromJSContext
 #include "xpcpublic.h"
+#include "mozilla/dom/bindings/Utils.h"
+
+using mozilla::dom::bindings::DestroyProtoOrIfaceCache;
 
 static NS_DEFINE_CID(kDOMScriptObjectFactoryCID,
                      NS_DOM_SCRIPT_OBJECT_FACTORY_CID);
@@ -85,10 +88,10 @@ public:
     virtual void SetScriptsEnabled(bool aEnabled, bool aFireTimeouts);
 
     virtual JSObject* GetGlobalJSObject();
-    virtual nsresult EnsureScriptEnvironment(PRUint32 aLangID);
+    virtual nsresult EnsureScriptEnvironment();
 
-    virtual nsIScriptContext *GetScriptContext(PRUint32 lang);
-    virtual nsresult SetScriptContext(PRUint32 language, nsIScriptContext *ctx);
+    virtual nsIScriptContext *GetScriptContext();
+    virtual nsresult SetScriptContext(nsIScriptContext *ctx);
 
     // nsIScriptObjectPrincipal methods
     virtual nsIPrincipal* GetPrincipal();
@@ -117,9 +120,9 @@ PRUint32 nsXULPrototypeDocument::gRefCnt;
 
 
 void
-nsXULPDGlobalObject_finalize(JSContext *cx, JSObject *obj)
+nsXULPDGlobalObject_finalize(JSFreeOp *fop, JSObject *obj)
 {
-    nsISupports *nativeThis = (nsISupports*)JS_GetPrivate(cx, obj);
+    nsISupports *nativeThis = (nsISupports*)JS_GetPrivate(obj);
 
     nsCOMPtr<nsIScriptGlobalObject> sgo(do_QueryInterface(nativeThis));
 
@@ -129,6 +132,8 @@ nsXULPDGlobalObject_finalize(JSContext *cx, JSObject *obj)
 
     // The addref was part of JSObject construction
     NS_RELEASE(nativeThis);
+
+    DestroyProtoOrIfaceCache(obj);
 }
 
 
@@ -146,7 +151,7 @@ JSClass nsXULPDGlobalObject::gSharedGlobalClass = {
     XPCONNECT_GLOBAL_FLAGS,
     JS_PropertyStub,  JS_PropertyStub, JS_PropertyStub, JS_StrictPropertyStub,
     JS_EnumerateStub, nsXULPDGlobalObject_resolve,  JS_ConvertStub,
-    nsXULPDGlobalObject_finalize, NULL, NULL, NULL, NULL, NULL, NULL,
+    nsXULPDGlobalObject_finalize, NULL, NULL, NULL, NULL,
     TraceXPCGlobal
 };
 
@@ -199,8 +204,7 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsXULPrototypeDocument)
     if (nsCCUncollectableMarker::InGeneration(cb, tmp->mCCGeneration)) {
         return NS_SUCCESS_INTERRUPTED_TRAVERSE;
     }
-    NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NATIVE_MEMBER(mRoot,
-                                                    nsXULPrototypeElement)
+    NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mRoot)
     NS_CYCLE_COLLECTION_NOTE_EDGE_NAME(cb, "mGlobalObject");
     cb.NoteXPCOMChild(static_cast<nsIScriptGlobalObject*>(tmp->mGlobalObject));
     NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NATIVE_MEMBER(mNodeInfoManager,
@@ -683,10 +687,8 @@ NS_IMPL_CYCLE_COLLECTING_RELEASE(nsXULPDGlobalObject)
 //
 
 nsresult
-nsXULPDGlobalObject::SetScriptContext(PRUint32 lang_id, nsIScriptContext *aScriptContext)
+nsXULPDGlobalObject::SetScriptContext(nsIScriptContext *aScriptContext)
 {
-  NS_ABORT_IF_FALSE(lang_id == nsIProgrammingLanguage::JAVASCRIPT,
-                    "We don't support this language ID");
   // almost a clone of nsGlobalWindow
   if (!aScriptContext) {
     NS_WARNING("Possibly early removal of script object, see bug #41608");
@@ -713,10 +715,8 @@ nsXULPDGlobalObject::SetScriptContext(PRUint32 lang_id, nsIScriptContext *aScrip
 }
 
 nsresult
-nsXULPDGlobalObject::EnsureScriptEnvironment(PRUint32 lang_id)
+nsXULPDGlobalObject::EnsureScriptEnvironment()
 {
-  NS_ABORT_IF_FALSE(lang_id == nsIProgrammingLanguage::JAVASCRIPT,
-                    "We don't support this language ID");
   if (mContext) {
     return NS_OK;
   }
@@ -747,28 +747,26 @@ nsXULPDGlobalObject::EnsureScriptEnvironment(PRUint32 lang_id)
 
     // Add an owning reference from JS back to us. This'll be
     // released when the JSObject is finalized.
-    ::JS_SetPrivate(cx, newGlob, this);
+    ::JS_SetPrivate(newGlob, this);
     NS_ADDREF(this);
   }
 
   NS_ENSURE_SUCCESS(rv, NS_OK);
-  rv = SetScriptContext(lang_id, ctxNew);
+  rv = SetScriptContext(ctxNew);
   NS_ENSURE_SUCCESS(rv, NS_OK);
   return NS_OK;
 }
 
 nsIScriptContext*
-nsXULPDGlobalObject::GetScriptContext(PRUint32 lang_id)
+nsXULPDGlobalObject::GetScriptContext()
 {
-  NS_ABORT_IF_FALSE(lang_id == nsIProgrammingLanguage::JAVASCRIPT,
-                    "We don't support this language ID");
   // This global object creates a context on demand - do that now.
-  nsresult rv = EnsureScriptEnvironment(nsIProgrammingLanguage::JAVASCRIPT);
+  nsresult rv = EnsureScriptEnvironment();
   if (NS_FAILED(rv)) {
     NS_ERROR("Failed to setup script language");
     return NULL;
   }
-  // Note that EnsureScriptEnvironment has validated lang_id
+
   return mContext;
 }
 
@@ -788,11 +786,7 @@ nsXULPDGlobalObject::ClearGlobalObjectOwner()
   if (this != nsXULPrototypeDocument::gSystemGlobal)
     mCachedPrincipal = mGlobalObjectOwner->DocumentPrincipal();
 
-  if (mContext) {
-    mContext->FinalizeContext();
-    mContext = NULL;
-  }
-
+  mContext = NULL;
   mGlobalObjectOwner = NULL;
 }
 

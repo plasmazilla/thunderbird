@@ -42,6 +42,8 @@
 /* An xpcom implementation of the JavaScript nsIID and nsCID objects. */
 
 #include "xpcprivate.h"
+#include "mozilla/dom/bindings/DOMJSClass.h"
+#include "mozilla/dom/bindings/Utils.h"
 
 /***************************************************************************/
 // nsJSID
@@ -260,10 +262,22 @@ NS_IMPL_THREADSAFE_RELEASE(SharedScriptableHelperForJSIID)
 #include "xpc_map_end.h" /* This will #undef the above */
 
 static nsIXPCScriptable* gSharedScriptableHelperForJSIID;
+static bool gClassObjectsWereInited = false;
+
+static void EnsureClassObjectsInitialized()
+{
+    if (!gClassObjectsWereInited) {
+        gSharedScriptableHelperForJSIID = new SharedScriptableHelperForJSIID();
+        NS_ADDREF(gSharedScriptableHelperForJSIID);
+
+        gClassObjectsWereInited = true;
+    }
+}
 
 NS_METHOD GetSharedScriptableHelperForJSIID(PRUint32 language,
                                             nsISupports **helper)
 {
+    EnsureClassObjectsInitialized();
     if (language == nsIProgrammingLanguage::JAVASCRIPT) {
         NS_IF_ADDREF(gSharedScriptableHelperForJSIID);
         *helper = gSharedScriptableHelperForJSIID;
@@ -273,8 +287,6 @@ NS_METHOD GetSharedScriptableHelperForJSIID(PRUint32 language,
 }
 
 /******************************************************/
-
-static JSBool gClassObjectsWereInited = false;
 
 #define NULL_CID                                                              \
 { 0x00000000, 0x0000, 0x0000,                                                 \
@@ -287,22 +299,15 @@ NS_IMPL_CLASSINFO(nsJSIID, GetSharedScriptableHelperForJSIID,
 NS_DECL_CI_INTERFACE_GETTER(nsJSCID)
 NS_IMPL_CLASSINFO(nsJSCID, NULL, nsIClassInfo::THREADSAFE, NULL_CID)
 
-void xpc_InitJSxIDClassObjects()
-{
-    if (!gClassObjectsWereInited) {
-        gSharedScriptableHelperForJSIID = new SharedScriptableHelperForJSIID();
-        NS_ADDREF(gSharedScriptableHelperForJSIID);
-    }
-    gClassObjectsWereInited = true;
-}
-
 void xpc_DestroyJSxIDClassObjects()
 {
-    NS_IF_RELEASE(NS_CLASSINFO_NAME(nsJSIID));
-    NS_IF_RELEASE(NS_CLASSINFO_NAME(nsJSCID));
-    NS_IF_RELEASE(gSharedScriptableHelperForJSIID);
+    if (gClassObjectsWereInited) {
+        NS_IF_RELEASE(NS_CLASSINFO_NAME(nsJSIID));
+        NS_IF_RELEASE(NS_CLASSINFO_NAME(nsJSCID));
+        NS_IF_RELEASE(gSharedScriptableHelperForJSIID);
 
-    gClassObjectsWereInited = false;
+        gClassObjectsWereInited = false;
+    }
 }
 
 /***************************************************************************/
@@ -510,9 +515,22 @@ nsJSIID::HasInstance(nsIXPConnectWrappedNative *wrapper,
                 return NS_ERROR_FAILURE;
         }
 
+        nsISupports *identity;
         if (mozilla::dom::binding::instanceIsProxy(obj)) {
-            nsISupports *identity =
+            identity =
                 static_cast<nsISupports*>(js::GetProxyPrivate(obj).toPrivate());
+        } else if (mozilla::dom::bindings::IsDOMClass(js::GetObjectJSClass(obj))) {
+            NS_ASSERTION(mozilla::dom::bindings::DOMJSClass::FromJSClass(
+                              js::GetObjectJSClass(obj))->mDOMObjectIsISupports,
+                         "This only works on nsISupports classes!");
+            identity =
+                mozilla::dom::bindings::UnwrapDOMObject<nsISupports>(obj,
+                                                                     js::GetObjectJSClass(obj));
+        } else {
+            identity = nsnull;
+        }
+
+        if (identity) {
             nsCOMPtr<nsIClassInfo> ci = do_QueryInterface(identity);
 
             XPCCallContext ccx(JS_CALLER, cx);
@@ -523,7 +541,7 @@ nsJSIID::HasInstance(nsIXPConnectWrappedNative *wrapper,
                 return NS_ERROR_FAILURE;
             *bp = set->HasInterfaceWithAncestor(iid);
             return NS_OK;
-     }
+        }
 
         XPCWrappedNative* other_wrapper =
            XPCWrappedNative::GetWrappedNativeOfJSObject(cx, obj);

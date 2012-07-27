@@ -41,6 +41,8 @@
 
 #include "nsHyperTextAccessibleWrap.h"
 #include "nsIAccessibleTable.h"
+#include "TableAccessible.h"
+#include "xpcAccessibleTable.h"
 
 class nsITableLayout;
 class nsITableCellLayout;
@@ -52,7 +54,7 @@ class nsHTMLTableCellAccessible : public nsHyperTextAccessibleWrap,
                                   public nsIAccessibleTableCell
 {
 public:
-  nsHTMLTableCellAccessible(nsIContent *aContent, nsIWeakReference *aShell);
+  nsHTMLTableCellAccessible(nsIContent* aContent, nsDocAccessible* aDoc);
 
   // nsISupports
   NS_DECL_ISUPPORTS_INHERITED
@@ -95,8 +97,8 @@ protected:
 class nsHTMLTableHeaderCellAccessible : public nsHTMLTableCellAccessible
 {
 public:
-  nsHTMLTableHeaderCellAccessible(nsIContent *aContent,
-                                  nsIWeakReference *aShell);
+  nsHTMLTableHeaderCellAccessible(nsIContent* aContent,
+                                  nsDocAccessible* aDoc);
 
   // nsAccessible
   virtual mozilla::a11y::role NativeRole();
@@ -112,38 +114,35 @@ public:
 // data vs. layout heuristic
 // #define SHOW_LAYOUT_HEURISTIC
 
-#define NS_TABLEACCESSIBLE_IMPL_CID                     \
-{  /* 8d6d9c40-74bd-47ac-88dc-4a23516aa23d */           \
-  0x8d6d9c40,                                           \
-  0x74bd,                                               \
-  0x47ac,                                               \
-  { 0x88, 0xdc, 0x4a, 0x23, 0x51, 0x6a, 0xa2, 0x3d }    \
-}
-
 class nsHTMLTableAccessible : public nsAccessibleWrap,
-                              public nsIAccessibleTable
+                              public xpcAccessibleTable,
+                              public nsIAccessibleTable,
+                              public mozilla::a11y::TableAccessible
 {
 public:
-  nsHTMLTableAccessible(nsIContent *aContent, nsIWeakReference *aShell);
+  nsHTMLTableAccessible(nsIContent* aContent, nsDocAccessible* aDoc);
 
   NS_DECL_ISUPPORTS_INHERITED
-  NS_DECL_NSIACCESSIBLETABLE
-  NS_DECLARE_STATIC_IID_ACCESSOR(NS_TABLEACCESSIBLE_IMPL_CID)
+
+  // nsIAccessible Table
+  NS_DECL_OR_FORWARD_NSIACCESSIBLETABLE_WITH_XPCACCESSIBLETABLE
+
+  // TableAccessible
+  virtual nsAccessible* Caption();
+  virtual void Summary(nsString& aSummary);
+  virtual bool IsProbablyLayoutTable();
+
+  // nsAccessNode
+  virtual void Shutdown();
 
   // nsAccessible
+  virtual mozilla::a11y::TableAccessible* AsTable() { return this; }
   virtual void Description(nsString& aDescription);
   virtual nsresult GetNameInternal(nsAString& aName);
   virtual mozilla::a11y::role NativeRole();
   virtual PRUint64 NativeState();
   virtual nsresult GetAttributesInternal(nsIPersistentProperties *aAttributes);
   virtual Relation RelationByType(PRUint32 aRelationType);
-
-  // TableAccessible
-  inline nsAccessible* Caption() const
-  {
-    nsAccessible* child = mChildren.SafeElementAt(0, nsnull);
-    return child && child->Role() == mozilla::a11y::roles::CAPTION ? child : nsnull;
-  }
 
   // nsHTMLTableAccessible
 
@@ -201,18 +200,15 @@ protected:
 #endif
 };
 
-NS_DEFINE_STATIC_IID_ACCESSOR(nsHTMLTableAccessible,
-                              NS_TABLEACCESSIBLE_IMPL_CID)
-
-
 /**
  * HTML caption accessible (html:caption).
  */
 class nsHTMLCaptionAccessible : public nsHyperTextAccessibleWrap
 {
 public:
-  nsHTMLCaptionAccessible(nsIContent *aContent, nsIWeakReference *aShell) :
-    nsHyperTextAccessibleWrap(aContent, aShell) { }
+  nsHTMLCaptionAccessible(nsIContent* aContent, nsDocAccessible* aDoc) :
+    nsHyperTextAccessibleWrap(aContent, aDoc) { }
+  virtual ~nsHTMLCaptionAccessible() { }
 
   // nsIAccessible
 

@@ -42,22 +42,19 @@
 #import "mozView.h"
 #import "nsRoleMap.h"
 
+#include "Accessible-inl.h"
+#include "nsIAccessibleRelation.h"
+#include "nsIAccessibleText.h"
+#include "nsIAccessibleEditableText.h"
+#include "nsRootAccessible.h"
+#include "Relation.h"
+#include "Role.h"
+
+#include "mozilla/Services.h"
 #include "nsRect.h"
 #include "nsCocoaUtils.h"
 #include "nsCoord.h"
 #include "nsObjCExceptions.h"
-
-#include "nsIAccessible.h"
-#include "nsIAccessibleRelation.h"
-#include "nsIAccessibleText.h"
-#include "nsIAccessibleEditableText.h"
-#include "Relation.h"
-#include "Role.h"
-
-#include "nsAccessNode.h"
-#include "nsRootAccessible.h"
-
-#include "mozilla/Services.h"
 
 using namespace mozilla;
 using namespace mozilla::a11y;
@@ -69,21 +66,6 @@ ConvertCocoaToGeckoPoint(NSPoint &aInPoint, nsPoint &aOutPoint)
 {
   float mainScreenHeight = [(NSView*)[[NSScreen screens] objectAtIndex:0] frame].size.height;
   aOutPoint.MoveTo ((nscoord)aInPoint.x, (nscoord)(mainScreenHeight - aInPoint.y));
-}
-
-// all mozAccessibles are either abstract objects (that correspond to XUL widgets, HTML frames, etc) or are
-// attached to a certain view; for example a document view. when we hand an object off to an AT, we always want
-// to give it the represented view, in the latter case.
-static inline id <mozAccessible>
-GetObjectOrRepresentedView(id <mozAccessible> anObject)
-{
-  NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NIL;
-
-  if ([anObject hasRepresentedView])
-    return [anObject representedView];
-  return anObject;
-
-  NS_OBJC_END_TRY_ABORT_BLOCK_NIL;
 }
 
 // returns the passed in object if it is not ignored. if it's ignored, will return
@@ -243,13 +225,8 @@ GetNativeFromGeckoAccessible(nsIAccessible *anAccessible)
     return [NSNumber numberWithBool:[self isEnabled]];
   if ([attribute isEqualToString:NSAccessibilityValueAttribute])
     return [self value];
-  if ([attribute isEqualToString:NSAccessibilityRoleDescriptionAttribute]) {
-    if (mRole == roles::DOCUMENT)
-      return utils::LocalizedString(NS_LITERAL_STRING("htmlContent"));
-
-    return NSAccessibilityRoleDescription([self role], nil);
-  }
-  
+  if ([attribute isEqualToString:NSAccessibilityRoleDescriptionAttribute]) 
+    return [self roleDescription];  
   if ([attribute isEqualToString:NSAccessibilityDescriptionAttribute])
     return [self customDescription];
   if ([attribute isEqualToString:NSAccessibilityFocusedAttribute])
@@ -369,14 +346,11 @@ GetNativeFromGeckoAccessible(nsIAccessible *anAccessible)
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK_NIL;
 
-  if (mParent)
-    return mParent;
-
-  nsCOMPtr<nsIAccessible> accessibleParent(mGeckoAccessible->GetUnignoredParent());
+  nsAccessible* accessibleParent = mGeckoAccessible->GetUnignoredParent();
   if (accessibleParent) {
     id nativeParent = GetNativeFromGeckoAccessible(accessibleParent);
     if (nativeParent)
-      return mParent = GetClosestInterestingAccessible(nativeParent);
+      return GetClosestInterestingAccessible(nativeParent);
   }
   
   // GetUnignoredParent() returns null when there is no unignored accessible all the way up to
@@ -388,7 +362,7 @@ GetNativeFromGeckoAccessible(nsIAccessible *anAccessible)
   id nativeParent = GetNativeFromGeckoAccessible(static_cast<nsIAccessible*>(root));
   NSAssert1 (nativeParent, @"!!! we can't find a parent for %@", self);
   
-  return mParent = GetClosestInterestingAccessible(nativeParent);
+  return GetClosestInterestingAccessible(nativeParent);
 
   NS_OBJC_END_TRY_ABORT_BLOCK_NIL;
 }
@@ -418,17 +392,15 @@ GetNativeFromGeckoAccessible(nsIAccessible *anAccessible)
     return mChildren;
 
   mChildren = [[NSMutableArray alloc] init];
-  
+
   // get the array of children.
-  nsTArray<nsRefPtr<nsAccessibleWrap> > childrenArray;
-  mGeckoAccessible->GetUnignoredChildren(childrenArray);
-  
+  nsAutoTArray<nsAccessible*, 10> childrenArray;
+  mGeckoAccessible->GetUnignoredChildren(&childrenArray);
+
   // now iterate through the children array, and get each native accessible.
-  int totalCount = childrenArray.Length();
-  int index = 0;
-   
-  for (; index < totalCount; index++) {
-    nsAccessibleWrap *curAccessible = childrenArray.ElementAt(index);
+  PRUint32 totalCount = childrenArray.Length();
+  for (PRUint32 idx = 0; idx < totalCount; idx++) {
+    nsAccessible* curAccessible = childrenArray.ElementAt(idx);
     if (curAccessible) {
       mozAccessible *curNative = GetNativeFromGeckoAccessible(curAccessible);
       if (curNative)
@@ -495,7 +467,57 @@ GetNativeFromGeckoAccessible(nsIAccessible *anAccessible)
 
 - (NSString*)subrole
 {
+  if (!mGeckoAccessible)
+    return nil;
+
+  nsIContent* content = mGeckoAccessible->GetContent();
+  if (!content || !content->IsHTML())
+    return nil;
+
+  nsIAtom* tag = content->Tag();
+
+  switch (mRole) {
+    case roles::LIST:
+      if ((tag == nsGkAtoms::ul) || (tag == nsGkAtoms::ol))
+        return NSAccessibilityContentListSubrole;
+
+      if (tag == nsGkAtoms::dl)
+        return NSAccessibilityDefinitionListSubrole;
+
+      break;
+
+    case roles::LISTITEM:
+      if (tag == nsGkAtoms::dt)
+        return @"AXTerm";
+
+      break;
+
+    case roles::PARAGRAPH:
+      if (tag == nsGkAtoms::dd)
+        return @"AXDefinition";
+
+      break;
+
+    default:
+      break;
+  }
+
   return nil;
+}
+
+- (NSString*)roleDescription
+{
+  if (mRole == roles::DOCUMENT)
+    return utils::LocalizedString(NS_LITERAL_STRING("htmlContent"));
+  
+  NSString* subrole = [self subrole];
+  
+  if ((mRole == roles::LISTITEM) && [subrole isEqualToString:@"AXTerm"])
+    return utils::LocalizedString(NS_LITERAL_STRING("term"));
+  if ((mRole == roles::PARAGRAPH) && [subrole isEqualToString:@"AXDefinition"])
+    return utils::LocalizedString(NS_LITERAL_STRING("definition"));
+  
+  return NSAccessibilityRoleDescription([self role], subrole);
 }
 
 - (NSString*)title
@@ -531,6 +553,11 @@ GetNativeFromGeckoAccessible(nsIAccessible *anAccessible)
   // like mozTextAccessible.
 
   NS_OBJC_END_TRY_ABORT_BLOCK;
+}
+
+- (void)selectedTextDidChange
+{
+  // Do nothing. mozTextAccessible will.
 }
 
 - (NSString*)customDescription
@@ -613,7 +640,7 @@ GetNativeFromGeckoAccessible(nsIAccessible *anAccessible)
 
   // Get a pointer to the native window (NSWindow) we reside in.
   NSWindow *nativeWindow = nil;
-  nsDocAccessible* docAcc = accWrap->GetDocAccessible();
+  nsDocAccessible* docAcc = accWrap->Document();
   if (docAcc)
     nativeWindow = static_cast<NSWindow*>(docAcc->GetNativeWindow());
 
@@ -626,8 +653,6 @@ GetNativeFromGeckoAccessible(nsIAccessible *anAccessible)
 - (void)invalidateChildren
 {
   NS_OBJC_BEGIN_TRY_ABORT_BLOCK;
-
-  [mChildren makeObjectsPerformSelector:@selector(invalidateParent)];
 
   // make room for new children
   [mChildren release];
@@ -645,11 +670,6 @@ GetNativeFromGeckoAccessible(nsIAccessible *anAccessible)
   mozAccessible *curNative = GetNativeFromGeckoAccessible(aAccessible);
   if (curNative)
     [mChildren addObject:GetObjectOrRepresentedView(curNative)];
-}
-
-- (void)invalidateParent
-{
-  mParent = nil;
 }
 
 - (void)expire

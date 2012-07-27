@@ -144,7 +144,9 @@ public:
                                                   NPError* result);
     virtual bool
     AnswerNPN_SetValue_NPPVpluginDrawingModel(const int& drawingModel,
-                                             NPError* result);
+                                              OptionalShmem *remoteImageData,
+                                              CrossProcessMutexHandle *mutex,
+                                              NPError* result);
     virtual bool
     AnswerNPN_SetValue_NPPVpluginEventModel(const int& eventModel,
                                              NPError* result);
@@ -229,6 +231,15 @@ public:
                            double *destY,
                            bool *result);
 
+    virtual bool
+    AnswerNPN_InitAsyncSurface(const gfxIntSize& size,
+                               const NPImageFormat& format,
+                               NPRemoteAsyncSurface* surfData,
+                               bool* result);
+
+    virtual bool
+    RecvRedrawPlugin();
+
     NS_OVERRIDE virtual bool
     RecvNegotiatedCarbon();
 
@@ -280,7 +291,7 @@ public:
     AnswerPluginFocusChange(const bool& gotFocus);
 
     nsresult AsyncSetWindow(NPWindow* window);
-    nsresult GetImage(mozilla::layers::ImageContainer* aContainer, mozilla::layers::Image** aImage);
+    nsresult GetImageContainer(mozilla::layers::ImageContainer** aContainer);
     nsresult GetImageSize(nsIntSize* aSize);
 #ifdef XP_MACOSX
     nsresult IsRemoteDrawingCoreAnimation(bool *aDrawing);
@@ -294,12 +305,17 @@ public:
     nsresult HandleGUIEvent(const nsGUIEvent& anEvent, bool* handled);
 #endif
 
+    void DidComposite() { SendNPP_DidComposite(); }
+
 private:
     // Create an appropriate platform surface for a background of size
     // |aSize|.  Return true if successful.
     bool CreateBackground(const nsIntSize& aSize);
     void DestroyBackground();
     SurfaceDescriptor BackgroundDescriptor() /*const*/;
+
+    typedef mozilla::layers::ImageContainer ImageContainer;
+    ImageContainer *GetImageContainer();
 
     NS_OVERRIDE
     virtual PPluginBackgroundDestroyerParent*
@@ -313,13 +329,19 @@ private:
                                      PPluginScriptableObjectParent** aValue,
                                      NPError* aResult);
 
+    bool IsAsyncDrawing();
+
 private:
     PluginModuleParent* mParent;
     NPP mNPP;
     const NPNetscapeFuncs* mNPNIface;
     NPWindowType mWindowType;
+    Shmem mRemoteImageDataShmem;
+    nsAutoPtr<CrossProcessMutex> mRemoteImageDataMutex;
+    int16_t            mDrawingModel;
+    nsAutoPtr<mozilla::layers::CompositionNotifySink> mNotifySink;
 
-    nsDataHashtable<nsVoidPtrHashKey, PluginScriptableObjectParent*> mScriptableObjects;
+    nsDataHashtable<nsPtrHashKey<NPObject>, PluginScriptableObjectParent*> mScriptableObjects;
 
 #if defined(OS_WIN)
 private:
@@ -348,7 +370,6 @@ private:
     uint16_t               mShWidth;
     uint16_t               mShHeight;
     CGColorSpaceRef        mShColorSpace;
-    int16_t                mDrawingModel;
     nsRefPtr<nsIOSurface> mIOSurface;
     nsRefPtr<nsIOSurface> mFrontIOSurface;
 #endif // definied(MOZ_WIDGET_COCOA)
@@ -365,6 +386,8 @@ private:
     // the consistency of the pixels in |mBackground|.  A plugin may
     // be able to observe partial updates to the background.
     nsRefPtr<gfxASurface>    mBackground;
+    
+    nsRefPtr<ImageContainer> mImageContainer;
 };
 
 

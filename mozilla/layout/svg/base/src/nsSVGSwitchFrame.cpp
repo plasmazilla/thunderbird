@@ -36,10 +36,14 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+// Keep in (case-insensitive) order:
+#include "gfxMatrix.h"
+#include "gfxRect.h"
 #include "nsSVGGFrame.h"
 #include "nsSVGSwitchElement.h"
-#include "gfxRect.h"
-#include "gfxMatrix.h"
+#include "nsSVGUtils.h"
+
+class nsRenderingContext;
 
 typedef nsSVGGFrame nsSVGSwitchFrameBase;
 
@@ -75,13 +79,10 @@ public:
 #endif
 
   // nsISVGChildFrame interface:
-  NS_IMETHOD PaintSVG(nsSVGRenderState* aContext, const nsIntRect *aDirtyRect);
+  NS_IMETHOD PaintSVG(nsRenderingContext* aContext, const nsIntRect *aDirtyRect);
   NS_IMETHODIMP_(nsIFrame*) GetFrameForPoint(const nsPoint &aPoint);
   NS_IMETHODIMP_(nsRect) GetCoveredRegion();
-  NS_IMETHOD UpdateCoveredRegion();
-  NS_IMETHOD InitialUpdate();
-  NS_IMETHOD NotifyRedrawUnsuspended();
-  virtual gfxRect GetBBoxContribution(const gfxMatrix &aToBBoxUserspace,
+  virtual SVGBBox GetBBoxContribution(const gfxMatrix &aToBBoxUserspace,
                                       PRUint32 aFlags);
 
 private:
@@ -119,7 +120,7 @@ nsSVGSwitchFrame::GetType() const
 }
 
 NS_IMETHODIMP
-nsSVGSwitchFrame::PaintSVG(nsSVGRenderState* aContext,
+nsSVGSwitchFrame::PaintSVG(nsRenderingContext* aContext,
                            const nsIntRect *aDirtyRect)
 {
   const nsStyleDisplay *display = mStyleContext->GetStyleDisplay();
@@ -163,54 +164,24 @@ nsSVGSwitchFrame::GetCoveredRegion()
   return rect;
 }
 
-NS_IMETHODIMP
-nsSVGSwitchFrame::UpdateCoveredRegion()
-{
-  static_cast<nsSVGSwitchElement*>(mContent)->UpdateActiveChild();
-
-  nsIFrame *kid = GetActiveChildFrame();
-  if (kid) {
-    nsISVGChildFrame* child = do_QueryFrame(kid);
-    if (child) {
-      child->UpdateCoveredRegion();
-    }
-  }
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsSVGSwitchFrame::InitialUpdate()
-{
-  nsSVGUtils::UpdateGraphic(this);
-
-  return nsSVGSwitchFrameBase::InitialUpdate();
-}
-
-NS_IMETHODIMP
-nsSVGSwitchFrame::NotifyRedrawUnsuspended()
-{
-  if (GetStateBits() & NS_STATE_SVG_DIRTY)
-    nsSVGUtils::UpdateGraphic(this);
-
-  return nsSVGSwitchFrameBase::NotifyRedrawUnsuspended();
-}
-
-gfxRect
+SVGBBox
 nsSVGSwitchFrame::GetBBoxContribution(const gfxMatrix &aToBBoxUserspace,
                                       PRUint32 aFlags)
 {
   nsIFrame* kid = GetActiveChildFrame();
-  nsISVGChildFrame* svgKid = do_QueryFrame(kid);
-  if (svgKid) {
-    nsIContent *content = kid->GetContent();
-    gfxMatrix transform = aToBBoxUserspace;
-    if (content->IsSVG()) {
-      transform = static_cast<nsSVGElement*>(content)->
-                    PrependLocalTransformTo(aToBBoxUserspace);
+  if (kid) {
+    nsISVGChildFrame* svgKid = do_QueryFrame(kid);
+    if (svgKid) {
+      nsIContent *content = kid->GetContent();
+      gfxMatrix transform = aToBBoxUserspace;
+      if (content->IsSVG()) {
+        transform = static_cast<nsSVGElement*>(content)->
+                      PrependLocalTransformsTo(aToBBoxUserspace);
+      }
+      return svgKid->GetBBoxContribution(transform, aFlags);
     }
-    return svgKid->GetBBoxContribution(transform, aFlags);
   }
-  return gfxRect(0.0, 0.0, 0.0, 0.0);
+  return SVGBBox();
 }
 
 nsIFrame *

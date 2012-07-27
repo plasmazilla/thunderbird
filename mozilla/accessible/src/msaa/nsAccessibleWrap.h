@@ -46,7 +46,7 @@
 #include "nsCOMPtr.h"
 #include "nsAccessible.h"
 #include "Accessible2.h"
-#include "CAccessibleComponent.h"
+#include "ia2AccessibleComponent.h"
 #include "CAccessibleHyperlink.h"
 #include "CAccessibleValue.h"
 
@@ -97,14 +97,14 @@ Class::QueryInterface(REFIID iid, void** ppv)                                 \
 
 
 class nsAccessibleWrap : public nsAccessible,
-                         public CAccessibleComponent,
+                         public ia2AccessibleComponent,
                          public CAccessibleHyperlink,
                          public CAccessibleValue,
                          public IAccessible2,
                          public IEnumVARIANT
 {
 public: // construction, destruction
-  nsAccessibleWrap(nsIContent *aContent, nsIWeakReference *aShell);
+  nsAccessibleWrap(nsIContent* aContent, nsDocAccessible* aDoc);
   virtual ~nsAccessibleWrap();
 
     // nsISupports
@@ -330,11 +330,6 @@ public: // construction, destruction
   nsAccessible* GetXPAccessibleFor(const VARIANT& aVarChild);
 
   NS_IMETHOD GetNativeInterface(void **aOutAccessible);
-
-  // NT4 does not have the oleacc that defines these methods. So we define copies here that automatically
-  // load the library only if needed.
-  static STDMETHODIMP AccessibleObjectFromWindow(HWND hwnd,DWORD dwObjectID,REFIID riid,void **ppvObject);
-  static STDMETHODIMP NotifyWinEvent(DWORD event,HWND hwnd,LONG idObjectType,LONG idObject);
 
   static IDispatch *NativeAccessible(nsIAccessible *aXPAccessible);
 

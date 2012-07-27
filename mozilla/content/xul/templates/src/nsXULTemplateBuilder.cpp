@@ -164,6 +164,8 @@ DestroyMatchList(nsISupports* aKey, nsTemplateMatch*& aMatch, void* aContext)
 
 nsXULTemplateBuilder::~nsXULTemplateBuilder(void)
 {
+    Uninit(true);
+
     if (--gRefCnt == 0) {
         NS_IF_RELEASE(gRDFService);
         NS_IF_RELEASE(gRDFContainerUtils);
@@ -171,8 +173,6 @@ nsXULTemplateBuilder::~nsXULTemplateBuilder(void)
         NS_IF_RELEASE(gScriptSecurityManager);
         NS_IF_RELEASE(gObserverService);
     }
-
-    Uninit(true);
 }
 
 
@@ -218,6 +218,23 @@ nsXULTemplateBuilder::InitGlobals()
     return mPool.Init("nsXULTemplateBuilder", bucketsizes, 1, 256);
 }
 
+void
+nsXULTemplateBuilder::CleanUp(bool aIsFinal)
+{
+    for (PRInt32 q = mQuerySets.Length() - 1; q >= 0; q--) {
+        nsTemplateQuerySet* qs = mQuerySets[q];
+        delete qs;
+    }
+
+    mQuerySets.Clear();
+
+    mMatchMap.Enumerate(DestroyMatchList, &mPool);
+
+    // Setting mQueryProcessor to null will close connections. This would be
+    // handled by the cycle collector, but we want to close them earlier.
+    if (aIsFinal)
+        mQueryProcessor = nsnull;
+}
 
 void
 nsXULTemplateBuilder::Uninit(bool aIsFinal)
@@ -232,14 +249,7 @@ nsXULTemplateBuilder::Uninit(bool aIsFinal)
     if (mQueryProcessor)
         mQueryProcessor->Done();
 
-    for (PRInt32 q = mQuerySets.Length() - 1; q >= 0; q--) {
-        nsTemplateQuerySet* qs = mQuerySets[q];
-        delete qs;
-    }
-
-    mQuerySets.Clear();
-
-    mMatchMap.Enumerate(DestroyMatchList, &mPool);
+    CleanUp(aIsFinal);
 
     mRootResult = nsnull;
     mRefVariable = nsnull;
@@ -284,6 +294,11 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsXULTemplateBuilder)
     tmp->mQuerySets.Clear();
 NS_IMPL_CYCLE_COLLECTION_UNLINK_END
 NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsXULTemplateBuilder)
+    if (tmp->mObservedDocument && !cb.WantAllTraces()) {
+        // The global observer service holds us alive.
+        return NS_SUCCESS_INTERRUPTED_TRAVERSE;
+    }
+
     NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mDataSource)
     NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mDB)
     NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mCompDB)
@@ -1182,6 +1197,8 @@ nsXULTemplateBuilder::ContentRemoved(nsIDocument* aDocument,
         nsXULElement *xulcontent = nsXULElement::FromContent(mRoot);
         if (xulcontent)
             xulcontent->ClearTemplateGenerated();
+
+        CleanUp(true);
 
         mDB = nsnull;
         mCompDB = nsnull;

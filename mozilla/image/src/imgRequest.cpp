@@ -411,7 +411,7 @@ void imgRequest::SetIsInCache(bool incache)
 void imgRequest::UpdateCacheEntrySize()
 {
   if (mCacheEntry) {
-    mCacheEntry->SetDataSize(mImage->GetDataSize());
+    mCacheEntry->SetDataSize(mImage->SizeOfData());
 
 #ifdef DEBUG_joe
     nsCAutoString url;
@@ -683,6 +683,15 @@ NS_IMETHODIMP imgRequest::OnStopDecode(imgIRequest *aRequest,
   while (iter.HasMore()) {
     mImage->GetStatusTracker().SendStopDecode(iter.GetNext(), aStatus,
                                               aStatusArg);
+  }
+
+  if (NS_FAILED(aStatus)) {
+    // Some kind of problem has happened with image decoding.
+    // Report the URI to net:failed-to-process-uri-conent observers.
+
+    nsCOMPtr<nsIObserverService> os = mozilla::services::GetObserverService();
+    if (os)
+      os->NotifyObservers(mURI, "net:failed-to-process-uri-content", nsnull);
   }
 
   // RasterImage and everything below it is completely correct and

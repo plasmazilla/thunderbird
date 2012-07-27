@@ -136,7 +136,9 @@ enum eGfxLog {
     // dump text runs, font matching, system fallback for content
     eGfxLog_textrun          = 2,
     // dump text runs, font matching, system fallback for chrome
-    eGfxLog_textrunui        = 3
+    eGfxLog_textrunui        = 3,
+    // dump cmap coverage data as they are loaded
+    eGfxLog_cmapdata         = 4
 };
 
 // when searching through pref langs, max number of pref langs
@@ -160,10 +162,8 @@ GetBackendName(mozilla::gfx::BackendType aBackend)
         return "skia";
       case mozilla::gfx::BACKEND_NONE:
         return "none";
-      default:
-        NS_ERROR("Invalid backend type!");
-        return "";
   }
+  MOZ_NOT_REACHED("Incomplet switch");
 }
 
 class THEBES_API gfxPlatform {
@@ -175,10 +175,6 @@ public:
      */
     static gfxPlatform *GetPlatform();
 
-    /**
-     * Start up Thebes.
-     */
-    static void Init();
 
     /**
      * Shut down Thebes.
@@ -211,6 +207,10 @@ public:
 
     virtual mozilla::RefPtr<mozilla::gfx::DrawTarget>
       CreateOffscreenDrawTarget(const mozilla::gfx::IntSize& aSize, mozilla::gfx::SurfaceFormat aFormat);
+
+    virtual mozilla::RefPtr<mozilla::gfx::DrawTarget>
+      CreateDrawTargetForData(unsigned char* aData, const mozilla::gfx::IntSize& aSize, 
+                              int32_t aStride, mozilla::gfx::SurfaceFormat aFormat);
 
     virtual bool SupportsAzure(mozilla::gfx::BackendType& aBackend) { return false; }
 
@@ -310,6 +310,20 @@ public:
      */
     bool SanitizeDownloadedFonts();
 
+    /**
+     * True when hinting should be enabled.  This setting shouldn't
+     * change per gecko process, while the process is live.  If so the
+     * results are not defined.
+     *
+     * NB: this bit is only honored by the FT2 backend, currently.
+     */
+    virtual bool FontHintingEnabled() { return true; }
+
+    /**
+     * Whether to check all font cmaps during system font fallback
+     */
+    bool UseCmapsDuringSystemFallback();
+
 #ifdef MOZ_GRAPHITE
     /**
      * Whether to use the SIL Graphite rendering engine
@@ -361,6 +375,15 @@ public:
     
     // helper method to add a pref lang to an array, if not already in array
     static void AppendPrefLang(eFontPrefLang aPrefLangs[], PRUint32& aLen, eFontPrefLang aAddLang);
+
+    // returns a list of commonly used fonts for a given character
+    // these are *possible* matches, no cmap-checking is done at this level
+    virtual void GetCommonFallbackFonts(const PRUint32 /*aCh*/,
+                                        PRInt32 /*aRunScript*/,
+                                        nsTArray<const char*>& /*aFontList*/)
+    {
+        // platform-specific override, by default do nothing
+    }
 
     // helper method to indicate if we want to use Azure content drawing
     static bool UseAzureContentDrawing();
@@ -432,6 +455,10 @@ public:
      */
     static PRLogModuleInfo* GetLog(eGfxLog aWhichLog);
 
+    bool WorkAroundDriverBugs() const { return mWorkAroundDriverBugs; }
+
+    virtual int GetScreenDepth() const;
+
 protected:
     gfxPlatform();
     virtual ~gfxPlatform();
@@ -447,6 +474,10 @@ protected:
 
     PRInt8  mBidiNumeralOption;
 
+    // whether to always search font cmaps globally 
+    // when doing system font fallback
+    PRInt8  mFallbackUsesCmaps;
+
     // which scripts should be shaped with harfbuzz
     PRInt32 mUseHarfBuzzScripts;
 
@@ -454,6 +485,11 @@ protected:
     mozilla::gfx::BackendType mPreferredDrawTargetBackend;
 
 private:
+    /**
+     * Start up Thebes.
+     */
+    static void Init();
+
     virtual qcms_profile* GetPlatformCMSOutputProfile();
 
     nsRefPtr<gfxASurface> mScreenReferenceSurface;
@@ -461,6 +497,7 @@ private:
     nsCOMPtr<nsIObserver> mSRGBOverrideObserver;
     nsCOMPtr<nsIObserver> mFontPrefsObserver;
     mozilla::widget::GfxInfoCollector<gfxPlatform> mAzureBackendCollector;
+    bool mWorkAroundDriverBugs;
 };
 
 #endif /* GFX_PLATFORM_H */

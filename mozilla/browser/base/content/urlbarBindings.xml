@@ -65,7 +65,7 @@
           <html:input anonid="input"
                       class="autocomplete-textbox urlbar-input textbox-input uri-element-right-align"
                       allowevents="true"
-                      xbl:inherits="tooltiptext=inputtooltiptext,onfocus,onblur,value,type,maxlength,disabled,size,readonly,placeholder,tabindex,accesskey"/>
+                      xbl:inherits="tooltiptext=inputtooltiptext,value,type,maxlength,disabled,size,readonly,placeholder,tabindex,accesskey"/>
         </xul:hbox>
         <children includes="hbox"/>
       </xul:hbox>
@@ -82,8 +82,7 @@
       <constructor><![CDATA[
         this._prefs = Components.classes["@mozilla.org/preferences-service;1"]
                                 .getService(Components.interfaces.nsIPrefService)
-                                .getBranch("browser.urlbar.")
-                                .QueryInterface(Components.interfaces.nsIPrefBranch2);
+                                .getBranch("browser.urlbar.");
 
         this._prefs.addObserver("", this, false);
         this.clickSelectsAll = this._prefs.getBoolPref("clickSelectsAll");

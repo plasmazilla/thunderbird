@@ -36,21 +36,20 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "nsIDOMSVGTextElement.h"
+// Main header first:
 #include "nsSVGTextFrame.h"
-#include "SVGLengthList.h"
-#include "nsIDOMSVGLength.h"
-#include "nsIDOMSVGAnimatedNumber.h"
+
+// Keep others in (case-insensitive) order:
+#include "nsGkAtoms.h"
+#include "nsIDOMSVGRect.h"
+#include "nsIDOMSVGTextElement.h"
 #include "nsISVGGlyphFragmentNode.h"
 #include "nsSVGGlyphFrame.h"
-#include "nsSVGOuterSVGFrame.h"
-#include "nsIDOMSVGRect.h"
-#include "nsSVGRect.h"
-#include "nsGkAtoms.h"
-#include "nsSVGTextPathFrame.h"
-#include "nsSVGPathElement.h"
-#include "nsSVGUtils.h"
 #include "nsSVGGraphicElement.h"
+#include "nsSVGPathElement.h"
+#include "nsSVGTextPathFrame.h"
+#include "nsSVGUtils.h"
+#include "SVGLengthList.h"
 
 using namespace mozilla;
 
@@ -181,6 +180,13 @@ nsSVGTextFrame::GetRotationOfChar(PRUint32 charnum, float *_retval)
 void
 nsSVGTextFrame::NotifySVGChanged(PRUint32 aFlags)
 {
+  NS_ABORT_IF_FALSE(!(aFlags & DO_NOT_NOTIFY_RENDERING_OBSERVERS) ||
+                    (GetStateBits() & NS_STATE_SVG_NONDISPLAY_CHILD),
+                    "Must be NS_STATE_SVG_NONDISPLAY_CHILD!");
+
+  NS_ABORT_IF_FALSE(aFlags & (TRANSFORM_CHANGED | COORD_CONTEXT_CHANGED),
+                    "Invalidation logic may need adjusting");
+
   bool updateGlyphMetrics = false;
   
   if (aFlags & COORD_CONTEXT_CHANGED) {
@@ -210,23 +216,7 @@ nsSVGTextFrame::NotifySVGChanged(PRUint32 aFlags)
 }
 
 NS_IMETHODIMP
-nsSVGTextFrame::NotifyRedrawSuspended()
-{
-  mMetricsState = suspended;
-
-  return nsSVGTextFrameBase::NotifyRedrawSuspended();
-}
-
-NS_IMETHODIMP
-nsSVGTextFrame::NotifyRedrawUnsuspended()
-{
-  mMetricsState = unsuspended;
-  UpdateGlyphPositioning(false);
-  return nsSVGTextFrameBase::NotifyRedrawUnsuspended();
-}
-
-NS_IMETHODIMP
-nsSVGTextFrame::PaintSVG(nsSVGRenderState* aContext,
+nsSVGTextFrame::PaintSVG(nsRenderingContext* aContext,
                          const nsIntRect *aDirtyRect)
 {
   UpdateGlyphPositioning(true);
@@ -242,25 +232,36 @@ nsSVGTextFrame::GetFrameForPoint(const nsPoint &aPoint)
   return nsSVGTextFrameBase::GetFrameForPoint(aPoint);
 }
 
-NS_IMETHODIMP
-nsSVGTextFrame::UpdateCoveredRegion()
+void
+nsSVGTextFrame::UpdateBounds()
 {
-  UpdateGlyphPositioning(true);
-  
-  return nsSVGTextFrameBase::UpdateCoveredRegion();
-}
+  NS_ASSERTION(nsSVGUtils::OuterSVGIsCallingUpdateBounds(this),
+               "This call is probaby a wasteful mistake");
 
-NS_IMETHODIMP
-nsSVGTextFrame::InitialUpdate()
-{
-  nsresult rv = nsSVGTextFrameBase::InitialUpdate();
-  
+  NS_ABORT_IF_FALSE(!(GetStateBits() & NS_STATE_SVG_NONDISPLAY_CHILD),
+                    "UpdateBounds mechanism not designed for this");
+
+  if (!nsSVGUtils::NeedsUpdatedBounds(this)) {
+    NS_ASSERTION(!mPositioningDirty, "How did this happen?");
+    return;
+  }
+
+  // UpdateGlyphPositioning may have been called under DOM calls and set
+  // mPositioningDirty to false. We may now have better positioning, though, so
+  // set it to true so that UpdateGlyphPositioning will do its work.
+  mPositioningDirty = true;
+
   UpdateGlyphPositioning(false);
 
-  return rv;
-}  
+  // With glyph positions updated, our descendants can invalidate their new
+  // areas correctly:
+  nsSVGTextFrameBase::UpdateBounds();
 
-gfxRect
+  // XXXsvgreflow once we store bounds on containers, call
+  // nsSVGUtils::InvalidateBounds(this) if not first reflow.
+}
+
+SVGBBox
 nsSVGTextFrame::GetBBoxContribution(const gfxMatrix &aToBBoxUserspace,
                                     PRUint32 aFlags)
 {
@@ -281,7 +282,7 @@ nsSVGTextFrame::GetCanvasTM()
     nsSVGContainerFrame *parent = static_cast<nsSVGContainerFrame*>(mParent);
     nsSVGGraphicElement *content = static_cast<nsSVGGraphicElement*>(mContent);
 
-    gfxMatrix tm = content->PrependLocalTransformTo(parent->GetCanvasTM());
+    gfxMatrix tm = content->PrependLocalTransformsTo(parent->GetCanvasTM());
 
     mCanvasTM = new gfxMatrix(tm);
   }
@@ -295,8 +296,9 @@ nsSVGTextFrame::GetCanvasTM()
 void
 nsSVGTextFrame::NotifyGlyphMetricsChange()
 {
+  nsSVGUtils::InvalidateAndScheduleBoundsUpdate(this);
+
   mPositioningDirty = true;
-  UpdateGlyphPositioning(false);
 }
 
 void
@@ -332,13 +334,19 @@ nsSVGTextFrame::SetWhitespaceHandling(nsSVGGlyphFrame *aFrame)
     aFrame = aFrame->GetNextGlyphFrame();
   }
 
-  lastNonWhitespaceFrame->SetTrimTrailingWhitespace(true);
+  // We're at the last non-whitespace frame so trim off the end
+  // and make sure we set one of the trim bits so that any
+  // further whitespace is compressed to nothing
+  while (aFrame) {
+    aFrame->SetTrimTrailingWhitespace(true);
+    aFrame = aFrame->GetNextGlyphFrame();
+  }
 }
 
 void
 nsSVGTextFrame::UpdateGlyphPositioning(bool aForceGlobalTransform)
 {
-  if (mMetricsState == suspended || !mPositioningDirty)
+  if (!mPositioningDirty)
     return;
 
   mPositioningDirty = false;
@@ -446,5 +454,4 @@ nsSVGTextFrame::UpdateGlyphPositioning(bool aForceGlobalTransform)
     }
     firstFrame = frame;
   }
-  nsSVGUtils::UpdateGraphic(this);
 }

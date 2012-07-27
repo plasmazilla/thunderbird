@@ -39,26 +39,32 @@
 #ifndef __nsXULTreeGridAccessible_h__
 #define __nsXULTreeGridAccessible_h__
 
-#include "nsIAccessibleTable.h"
-
 #include "nsXULTreeAccessible.h"
+#include "TableAccessible.h"
+#include "xpcAccessibleTable.h"
 
 /**
  * Represents accessible for XUL tree in the case when it has multiple columns.
  */
 class nsXULTreeGridAccessible : public nsXULTreeAccessible,
-                                public nsIAccessibleTable
+                                public xpcAccessibleTable,
+                                public nsIAccessibleTable,
+                                public mozilla::a11y::TableAccessible
 {
 public:
-  nsXULTreeGridAccessible(nsIContent *aContent, nsIWeakReference *aShell);
+  nsXULTreeGridAccessible(nsIContent* aContent, nsDocAccessible* aDoc);
 
   // nsISupports
   NS_DECL_ISUPPORTS_INHERITED
 
   // nsIAccessibleTable
-  NS_DECL_NSIACCESSIBLETABLE
+  NS_DECL_OR_FORWARD_NSIACCESSIBLETABLE_WITH_XPCACCESSIBLETABLE
+
+  // nsAccessNode
+  virtual void Shutdown();
 
   // nsAccessible
+  virtual mozilla::a11y::TableAccessible* AsTable() { return this; }
   virtual mozilla::a11y::role NativeRole();
 
 protected:
@@ -78,9 +84,9 @@ public:
   using nsAccessible::GetChildCount;
   using nsAccessible::GetChildAt;
 
-  nsXULTreeGridRowAccessible(nsIContent *aContent, nsIWeakReference *aShell,
-                             nsAccessible *aParent, nsITreeBoxObject *aTree,
-                             nsITreeView *aTreeView, PRInt32 aRow);
+  nsXULTreeGridRowAccessible(nsIContent* aContent, nsDocAccessible* aDoc,
+                             nsAccessible* aParent, nsITreeBoxObject* aTree,
+                             nsITreeView* aTreeView, PRInt32 aRow);
 
   // nsISupports and cycle collection
   NS_DECL_ISUPPORTS_INHERITED
@@ -132,9 +138,9 @@ class nsXULTreeGridCellAccessible : public nsLeafAccessible,
 public:
   using nsAccessible::GetParent;
 
-  nsXULTreeGridCellAccessible(nsIContent *aContent, nsIWeakReference *aShell,
-                              nsXULTreeGridRowAccessible *aRowAcc,
-                              nsITreeBoxObject *aTree, nsITreeView *aTreeView,
+  nsXULTreeGridCellAccessible(nsIContent* aContent, nsDocAccessible* aDoc,
+                              nsXULTreeGridRowAccessible* aRowAcc,
+                              nsITreeBoxObject* aTree, nsITreeView* aTreeView,
                               PRInt32 aRow, nsITreeColumn* aColumn);
 
   // nsISupports
@@ -155,7 +161,6 @@ public:
   NS_DECL_NSIACCESSIBLETABLECELL
 
   // nsAccessNode
-  virtual bool IsDefunct() const;
   virtual bool Init();
   virtual bool IsPrimaryForNode() const;
 

@@ -71,9 +71,9 @@ interface nsIDOMBlob : nsISupports
   // blob: protocol handler
   [noscript] DOMString getInternalUrl(in nsIPrincipal principal);
 
-  [optional_argc] nsIDOMBlob mozSlice([optional] in long long start,
-                                      [optional] in long long end,
-                                      [optional] in DOMString contentType);
+  [optional_argc] nsIDOMBlob slice([optional] in long long start,
+                                   [optional] in long long end,
+                                   [optional] in DOMString contentType);
 
   // Get internal id of stored file. Returns -1 if it is not a stored file.
   // Intended only for testing. It can be called on any thread.
@@ -88,6 +88,14 @@ interface nsIDOMBlob : nsISupports
   [notxpcom] FileInfo getFileInfo(in FileManager aFileManager);
 };
 
+[scriptable, builtinclass, uuid(96a9f6f5-2353-47a3-9bf5-4b1e0fe11c08)]
+interface nsIDOMBlob_GECKO_13 : nsISupports
+{
+  [optional_argc] nsIDOMBlob mozSlice([optional] in long long start,
+                                      [optional] in long long end,
+                                      [optional] in DOMString contentType);
+};
+
 [scriptable, builtinclass, uuid(b096ef67-7b77-47f8-8e70-5d8ee36416bf)]
 interface nsIDOMFile : nsIDOMBlob
 {
@@ -98,10 +106,17 @@ interface nsIDOMFile : nsIDOMBlob
   [noscript] readonly attribute DOMString mozFullPathInternal;
 };
 
-[scriptable, builtinclass, uuid(006d2cde-ec18-41d4-acc3-43682dd418e2)]
+[scriptable, builtinclass, uuid(57195950-edd9-496b-9b45-e4893a9ffca9)]
 interface nsIDOMMozBlobBuilder : nsISupports
 {
   nsIDOMBlob getBlob([optional] in DOMString contentType);
   nsIDOMFile getFile(in DOMString name, [optional] in DOMString contentType);
-  [implicit_jscontext] void append(in jsval data);
+  [implicit_jscontext] void append(in jsval data,
+                                   [optional] in DOMString endings);
+};
+
+dictionary BlobPropertyBag
+{
+  DOMString type;
+  DOMString endings = "transparent";
 };

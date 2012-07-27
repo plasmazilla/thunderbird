@@ -53,7 +53,6 @@
 #include "nsWeakPtr.h"
 #include "nsIPrompt.h"
 #include "nsISupportsArray.h"
-#include "nsIPrefBranch.h"
 #include "nsWeakReference.h"
 #include "nsThreadUtils.h"
 #include "nsTArray.h"
@@ -69,6 +68,8 @@ class nsIComponentManager;
 class nsIFile;
 class nsIChannel;
 class nsPluginNativeWindow;
+class nsObjectLoadingContent;
+class nsPluginInstanceOwner;
 
 #if defined(XP_MACOSX) && !defined(NP_NO_CARBON)
 #define MAC_CARBON_PLUGINS
@@ -109,20 +110,17 @@ public:
   NS_DECL_NSITIMERCALLBACK
 
   nsresult Init();
-  nsresult Destroy();
   nsresult LoadPlugins();
-  nsresult InstantiatePluginForChannel(nsIChannel* aChannel,
-                                       nsIPluginInstanceOwner* aOwner,
-                                       nsIStreamListener** aListener);
+  nsresult UnloadPlugins();
+  nsresult CreateListenerForChannel(nsIChannel* aChannel,
+                                    nsObjectLoadingContent* aContent,
+                                    nsIStreamListener** aListener);
   nsresult SetUpPluginInstance(const char *aMimeType,
                                nsIURI *aURL,
                                nsIPluginInstanceOwner *aOwner);
   nsresult IsPluginEnabledForType(const char* aMimeType);
-  nsresult IsPluginEnabledForType(const char* aMimeType,
-                                  bool aShouldPlay);
   nsresult IsPluginEnabledForExtension(const char* aExtension, const char* &aMimeType);
-  nsresult IsPluginEnabledForExtension(const char* aExtension, const char* &aMimeType,
-                                       bool aShouldPlay);
+
   nsresult GetPluginCount(PRUint32* aPluginCount);
   nsresult GetPlugins(PRUint32 aPluginCount, nsIDOMPlugin** aPluginArray);
 
@@ -152,7 +150,6 @@ public:
                                        char **outPostData, PRUint32 *outPostDataLen);
   nsresult CreateTempFileToPost(const char *aPostDataURL, nsIFile **aTmpFile);
   nsresult NewPluginNativeWindow(nsPluginNativeWindow ** aPluginNativeWindow);
-  nsresult DeletePluginNativeWindow(nsPluginNativeWindow * aPluginNativeWindow);
   nsresult InstantiateDummyJavaPlugin(nsIPluginInstanceOwner *aOwner);
 
   void AddIdleTimeTarget(nsIPluginInstanceOwner* objectFrame, bool isVisible);
@@ -221,13 +218,15 @@ public:
 
   // The last argument should be false if we already have an in-flight stream
   // and don't need to set up a new stream.
-  nsresult InstantiateEmbeddedPlugin(const char *aMimeType, nsIURI* aURL,
-                                     nsIPluginInstanceOwner* aOwner);
+  nsresult InstantiateEmbeddedPluginInstance(const char *aMimeType, nsIURI* aURL,
+                                             nsObjectLoadingContent *aContent,
+                                             nsPluginInstanceOwner** aOwner);
 
-  nsresult InstantiateFullPagePlugin(const char *aMimeType,
-                                     nsIURI* aURI,
-                                     nsIPluginInstanceOwner *aOwner,
-                                     nsIStreamListener **aStreamListener);
+  nsresult InstantiateFullPagePluginInstance(const char *aMimeType,
+                                             nsIURI* aURI,
+                                             nsObjectLoadingContent *aContent,
+                                             nsPluginInstanceOwner **aOwner,
+                                             nsIStreamListener **aStreamListener);
 
   // Does not accept NULL and should never fail.
   nsPluginTag* TagForPlugin(nsNPAPIPlugin* aPlugin);
@@ -239,17 +238,17 @@ private:
   TrySetUpPluginInstance(const char *aMimeType, nsIURI *aURL, nsIPluginInstanceOwner *aOwner);
 
   nsresult
-  NewEmbeddedPluginStreamListener(nsIURI* aURL, nsIPluginInstanceOwner *aOwner,
+  NewEmbeddedPluginStreamListener(nsIURI* aURL, nsObjectLoadingContent *aContent,
                                   nsNPAPIPluginInstance* aInstance,
                                   nsIStreamListener** aListener);
 
   nsresult
-  NewEmbeddedPluginStream(nsIURI* aURL, nsIPluginInstanceOwner *aOwner, nsNPAPIPluginInstance* aInstance);
+  NewEmbeddedPluginStream(nsIURI* aURL, nsObjectLoadingContent *aContent, nsNPAPIPluginInstance* aInstance);
 
   nsresult
-  NewFullPagePluginStream(nsIURI* aURI,
-                          nsNPAPIPluginInstance *aInstance,
-                          nsIStreamListener **aStreamListener);
+  NewFullPagePluginStreamListener(nsIURI* aURI,
+                                  nsNPAPIPluginInstance *aInstance,
+                                  nsIStreamListener **aStreamListener);
 
   // Return an nsPluginTag for this type, if any.  If aCheckEnabled is
   // true, only enabled plugins will be returned.
@@ -275,9 +274,9 @@ private:
                            bool aCreatePluginList,
                            bool *aPluginsChanged);
 
-  nsresult EnsurePluginLoaded(nsPluginTag* plugin);
+  nsresult EnsurePluginLoaded(nsPluginTag* aPluginTag);
 
-  bool IsRunningPlugin(nsPluginTag * plugin);
+  bool IsRunningPlugin(nsPluginTag * aPluginTag);
 
   // Stores all plugins info into the registry
   nsresult WritePluginInfo();
@@ -309,7 +308,6 @@ private:
   nsRefPtr<nsInvalidPluginTag> mInvalidPlugins;
   bool mPluginsLoaded;
   bool mDontShowBadPluginMessage;
-  bool mIsDestroyed;
 
   // set by pref plugin.override_internal_types
   bool mOverrideInternalTypes;
@@ -322,7 +320,6 @@ private:
   nsTArray< nsRefPtr<nsNPAPIPluginInstance> > mInstances;
 
   nsCOMPtr<nsIFile> mPluginRegFile;
-  nsCOMPtr<nsIPrefBranch> mPrefService;
 #ifdef XP_WIN
   nsRefPtr<nsPluginDirServiceProvider> mPrivateDirServiceProvider;
 #endif

@@ -51,10 +51,6 @@ MODULE_NAME     = nsWidgetAndroidModule
 GRE_MODULE      = 1
 LIBXUL_LIBRARY  = 1
 
-ifdef MOZ_JAVA_COMPOSITOR
-DEFINES += -DMOZ_JAVA_COMPOSITOR
-endif
-
 ifdef MOZ_ONLY_TOUCH_EVENTS
 DEFINES += -DMOZ_ONLY_TOUCH_EVENTS
 endif
@@ -66,6 +62,7 @@ CPPSRCS	= \
 	AndroidJavaWrappers.cpp \
 	AndroidBridge.cpp \
 	AndroidDirectTexture.cpp \
+	AndroidLayerViewWrapper.cpp \
 	AndroidGraphicBuffer.cpp \
 	AndroidJNI.cpp \
 	AndroidMediaLayer.cpp \
@@ -95,7 +92,7 @@ XPIDLSRCS	= \
 
 SHARED_LIBRARY_LIBS = ../xpwidgets/libxpwidgets_s.a
 
-EXPORTS = AndroidBridge.h AndroidJavaWrappers.h
+EXPORTS = AndroidBridge.h AndroidJavaWrappers.h AndroidLayerViewWrapper.h
 
 include $(topsrcdir)/config/rules.mk
 
@@ -109,6 +106,7 @@ LOCAL_INCLUDES += \
 	-I$(topsrcdir)/toolkit/components/places \
 	-I$(topsrcdir)/docshell/base \
 	-I$(topsrcdir)/content/events/src \
+	-I$(topsrcdir)/netwerk/cache \
 	-I$(srcdir) \
 	$(NULL)
 

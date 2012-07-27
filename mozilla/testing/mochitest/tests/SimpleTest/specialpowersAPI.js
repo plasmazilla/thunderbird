@@ -77,7 +77,9 @@ function bindDOMWindowUtils(aWindow) {
     if (prop in desc && typeof(desc[prop]) == "function") {
       var oldval = desc[prop];
       try {
-        desc[prop] = function() { return oldval.apply(util, arguments); };
+        desc[prop] = function() {
+          return oldval.apply(util, arguments);
+        };
       } catch (ex) {
         dump("WARNING: Special Powers failed to rebind function: " + desc + "::" + prop + "\n");
       }
@@ -92,45 +94,6 @@ function bindDOMWindowUtils(aWindow) {
   }
   return target;
 }
-
-function Observer(specialPowers, aTopic, aCallback, aIsPref) {
-  this._sp = specialPowers;
-  this._topic = aTopic;
-  this._callback = aCallback;
-  this._isPref = aIsPref;
-}
-
-Observer.prototype = {
-  _sp: null,
-  _topic: null,
-  _callback: null,
-  _isPref: false,
-
-  observe: function(aSubject, aTopic, aData) {
-    if ((!this._isPref && aTopic == this._topic) ||
-        (this._isPref && aTopic == "nsPref:changed")) {
-      if (aData == this._topic) {
-       this.cleanup();
-        /* The callback must execute asynchronously after all the preference observers have run */
-        content.window.setTimeout(this._callback, 0);
-        content.window.setTimeout(this._sp._finishPrefEnv, 0);
-      }
-    }
-  },
-
-  cleanup: function() {
-    if (this._isPref) {
-      var os = Cc["@mozilla.org/preferences-service;1"].getService()
-               .QueryInterface(Ci.nsIPrefBranch2);
-      os.removeObserver(this._topic, this);
-    } else {
-      var os = Cc["@mozilla.org/observer-service;1"]
-              .getService(Ci.nsIObserverService)
-              .QueryInterface(Ci.nsIObserverService);
-      os.removeObserver(this, this._topic);
-    }
-  },
-};
 
 function isWrappable(x) {
   if (typeof x === "object")
@@ -426,7 +389,7 @@ SpecialPowersAPI.prototype = {
   },
 
   getDOMWindowUtils: function(aWindow) {
-    if (aWindow == this.window && this.DOMWindowUtils != null)
+    if (aWindow == this.window.get() && this.DOMWindowUtils != null)
       return this.DOMWindowUtils;
 
     return bindDOMWindowUtils(aWindow);
@@ -466,7 +429,7 @@ SpecialPowersAPI.prototype = {
    * what we have set.
    *
    * prefs: {set|clear: [[pref, value], [pref, value, Iid], ...], set|clear: [[pref, value], ...], ...}
-   * ex: {'set': [['foo.bar', 2], ['browser.magic', '0xfeedface']], 'remove': [['bad.pref']] }
+   * ex: {'set': [['foo.bar', 2], ['browser.magic', '0xfeedface']], 'clear': [['bad.pref']] }
    *
    * In the scenario where our prefs specify the same pref more than once, we do not guarantee
    * the behavior.  
@@ -608,7 +571,19 @@ SpecialPowersAPI.prototype = {
     var callback = transaction[1];
 
     var lastPref = pendingActions[pendingActions.length-1];
-    this._addObserver(lastPref.name, callback, true);
+
+    var pb = Cc["@mozilla.org/preferences-service;1"].getService(Ci.nsIPrefBranch);
+    var self = this;
+    pb.addObserver(lastPref.name, function prefObs(subject, topic, data) {
+      pb.removeObserver(lastPref.name, prefObs);
+
+      content.window.setTimeout(callback, 0);
+      content.window.setTimeout(function () {
+        self._applyingPrefs = false;
+        // Now apply any prefs that may have been queued while we were applying
+        self._applyPrefs();
+      }, 0);
+    }, false);
 
     for (var idx in pendingActions) {
       var pref = pendingActions[idx];
@@ -618,31 +593,6 @@ SpecialPowersAPI.prototype = {
         this.clearUserPref(pref.name);
       }
     }
-  },
-
-  _addObserver: function(aTopic, aCallback, aIsPref) {
-    var observer = new Observer(this, aTopic, aCallback, aIsPref);
-
-    if (aIsPref) {
-      var os = Cc["@mozilla.org/preferences-service;1"].getService()
-               .QueryInterface(Ci.nsIPrefBranch2);	
-      os.addObserver(aTopic, observer, false);
-    } else {
-      var os = Cc["@mozilla.org/observer-service;1"]
-              .getService(Ci.nsIObserverService)
-              .QueryInterface(Ci.nsIObserverService);
-      os.addObserver(observer, aTopic, false);
-    }
-  },
-
-  /* called from the observer when we get a pref:changed.  */
-  _finishPrefEnv: function() {
-    /*
-      Any subsequent pref environment pushes that occurred while waiting 
-      for the preference update are pending, and will now be executed.
-    */
-    this.wrappedJSObject.SpecialPowers._applyingPrefs = false;
-    this.wrappedJSObject.SpecialPowers._applyPrefs();
   },
 
   addObserver: function(obs, notification, weak) {
@@ -756,6 +706,18 @@ SpecialPowersAPI.prototype = {
                                                            listener,
                                                            false);
   },
+  getFormFillController: function(window) {
+    return Components.classes["@mozilla.org/satchel/form-fill-controller;1"]
+                     .getService(Components.interfaces.nsIFormFillController);
+  },
+  attachFormFillControllerTo: function(window) {
+    this.getFormFillController()
+        .attachToBrowser(this._getDocShell(window),
+                         this._getAutoCompletePopup(window));
+  },
+  detachFormFillControllerFrom: function(window) {
+    this.getFormFillController().detachFromBrowser(this._getDocShell(window));
+  },
   isBackButtonEnabled: function(window) {
     return !this._getTopChromeWindow(window).document
                                       .getElementById("Browser:Back")
@@ -809,12 +771,11 @@ SpecialPowersAPI.prototype = {
   },
 
   createSystemXHR: function() {
-    return Cc["@mozilla.org/xmlextras/xmlhttprequest;1"]
-             .createInstance(Ci.nsIXMLHttpRequest);
+    return this.wrap(Cc["@mozilla.org/xmlextras/xmlhttprequest;1"].createInstance(Ci.nsIXMLHttpRequest));
   },
 
   snapshotWindow: function (win, withCaret) {
-    var el = this.window.document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+    var el = this.window.get().document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
     el.width = win.innerWidth;
     el.height = win.innerHeight;
     var ctx = el.getContext("2d");
@@ -911,6 +872,19 @@ SpecialPowersAPI.prototype = {
     Cc["@mozilla.org/eventlistenerservice;1"].
       getService(Ci.nsIEventListenerService).
       removeSystemEventListener(target, type, listener, useCapture);
+  },
+
+  getDOMRequestService: function() {
+    var serv = Cc["@mozilla.org/dom/dom-request-service;1"].
+      getService(Ci.nsIDOMRequestService);
+    var res = { __exposedProps__: {} };
+    var props = ["createRequest", "fireError", "fireSuccess"];
+    for (i in props) {
+      let prop = props[i];
+      res[prop] = function() { return serv[prop].apply(serv, arguments) };
+      res.__exposedProps__[prop] = "r";
+    }
+    return res;
   },
 
   setLogFile: function(path) {
@@ -1029,7 +1003,7 @@ SpecialPowersAPI.prototype = {
   },
 
   snapshotWindow: function (win, withCaret) {
-    var el = this.window.document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
+    var el = this.window.get().document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
     el.width = win.innerWidth;
     el.height = win.innerHeight;
     var ctx = el.getContext("2d");
@@ -1080,5 +1054,10 @@ SpecialPowersAPI.prototype = {
     var el = this._getElement(aWindow, target);
     return el.dispatchEvent(event);
   },
-};
 
+  get isDebugBuild() {
+    delete this.isDebugBuild;
+    var debug = Cc["@mozilla.org/xpcom/debug;1"].getService(Ci.nsIDebug2);
+    return this.isDebugBuild = debug.isDebugBuild;
+  }
+};

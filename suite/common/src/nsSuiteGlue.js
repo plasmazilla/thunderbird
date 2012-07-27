@@ -47,6 +47,15 @@ Components.utils.import("resource://gre/modules/AddonManager.jsm");
 Components.utils.import("resource:///modules/Sanitizer.jsm");
 Components.utils.import("resource:///modules/mailnewsMigrator.js");
 
+XPCOMUtils.defineLazyModuleGetter(this, "NetUtil",
+                                  "resource://gre/modules/NetUtil.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "PlacesUtils",
+                                  "resource://gre/modules/PlacesUtils.jsm");
+
+XPCOMUtils.defineLazyModuleGetter(this, "BookmarkHTMLUtils",
+                                  "resource://gre/modules/BookmarkHTMLUtils.jsm");
+
 // We try to backup bookmarks at idle times, to avoid doing that at shutdown.
 // Number of idle seconds before trying to backup bookmarks.  15 minutes.
 const BOOKMARKS_BACKUP_IDLE_TIME = 15 * 60;
@@ -77,6 +86,28 @@ SuiteGlue.prototype = {
   _setPrefToSaveSession: function()
   {
     Services.prefs.setBoolPref("browser.sessionstore.resume_session_once", true);
+  },
+
+  _logConsoleAPI: function(aEvent)
+  {
+    const nsIScriptError = Components.interfaces.nsIScriptError;
+    var flg = nsIScriptError.errorFlag;
+    switch (aEvent.level) {
+      case "warn":
+        flg = nsIScriptError.warningFlag;
+      case "error":
+        var scriptError = Components.classes["@mozilla.org/scripterror;1"]
+                                    .createInstance(nsIScriptError);
+        scriptError.initWithWindowID(Array.slice(aEvent.arguments),
+                                     aEvent.filename, "", aEvent.lineNumber, 0,
+                                     flg, "content javascript", aEvent.innerID);
+        Services.console.logMessage(scriptError);
+        break;
+      case "log":
+      case "info":
+        Services.console.logStringMessage(Array.slice(aEvent.arguments));
+        break;
+    }
   },
 
   _setSyncAutoconnectDelay: function BG__setSyncAutoconnectDelay() {
@@ -142,6 +173,10 @@ SuiteGlue.prototype = {
         if (this._saveSession)
           this._setPrefToSaveSession();
         break;
+      case "console-api-log-event":
+        if (Services.prefs.getBoolPref("browser.dom.window.console.enabled"))
+          this._logConsoleAPI(subject.wrappedJSObject);
+        break;
       case "weave:service:ready":
         this._setSyncAutoconnectDelay();
         break;
@@ -180,12 +215,8 @@ SuiteGlue.prototype = {
         if (this._idleService.idleTime > BOOKMARKS_BACKUP_IDLE_TIME * 1000)
           this._backupBookmarks();
         break;
-      case "bookmarks-restore-success":
-      case "bookmarks-restore-failed":
-        Services.obs.removeObserver(this, "bookmarks-restore-success");
-        Services.obs.removeObserver(this, "bookmarks-restore-failed");
-        if (topic == "bookmarks-restore-success" && data == "html-initial")
-          this.ensurePlacesDefaultQueriesInitialized();
+      case "initial-migration":
+        this._initialMigrationPerformed = true;
         break;
     }
   },
@@ -235,6 +266,7 @@ SuiteGlue.prototype = {
     Services.obs.addObserver(this, "quit-application-granted", false);
     Services.obs.addObserver(this, "browser-lastwindow-close-requested", false);
     Services.obs.addObserver(this, "browser-lastwindow-close-granted", false);
+    Services.obs.addObserver(this, "console-api-log-event", false);
     Services.obs.addObserver(this, "weave:service:ready", false);
     Services.obs.addObserver(this, "session-save", false);
     Services.obs.addObserver(this, "dl-done", false);
@@ -262,6 +294,7 @@ SuiteGlue.prototype = {
     Services.obs.removeObserver(this, "quit-application-granted");
     Services.obs.removeObserver(this, "browser-lastwindow-close-requested");
     Services.obs.removeObserver(this, "browser-lastwindow-close-granted");
+    Services.obs.removeObserver(this, "console-api-log-event");
     Services.obs.removeObserver(this, "weave:service:ready");
     Services.obs.removeObserver(this, "session-save");
     Services.obs.removeObserver(this, "dl-done");
@@ -626,33 +659,16 @@ SuiteGlue.prototype = {
     // We must instantiate the history service since it will tell us if we
     // need to import or restore bookmarks due to first-run, corruption or
     // forced migration (due to a major schema change).
-    var histsvc = Components.classes["@mozilla.org/browser/nav-history-service;1"]
-                            .getService(Components.interfaces.nsINavHistoryService);
-
-    Components.utils.import("resource://gre/modules/PlacesUtils.jsm");
     var bookmarksBackupFile = PlacesUtils.backups.getMostRecent("json");
 
     // If the database is corrupt or has been newly created we should
     // import bookmarks. Same if we don't have any JSON backups, which
     // probably means that we never have used bookmarks in places yet.
-    var databaseStatus = histsvc.databaseStatus;
-    var importBookmarks = databaseStatus == histsvc.DATABASE_STATUS_CREATE ||
-                          databaseStatus == histsvc.DATABASE_STATUS_CORRUPT ||
-                          !bookmarksBackupFile;
-
-    if (databaseStatus == histsvc.DATABASE_STATUS_CREATE ||
-        !bookmarksBackupFile) {
-      // If the database has just been created or we miss a JSON backup, but
-      // we already have any bookmark despite that, this is not the initial
-      // import. This can happen after a migration from a different browser
-      // since migrators run before us, or when someone cleaned out backups.
-      // In such a case we should not import, unless some pref has been set.
-      var bmsvc = Components.classes["@mozilla.org/browser/nav-bookmarks-service;1"]
-                            .getService(Components.interfaces.nsINavBookmarksService);
-      if (bmsvc.getIdForItemAt(bmsvc.bookmarksMenuFolder, 0) != -1 ||
-          bmsvc.getIdForItemAt(bmsvc.toolbarFolder, 0) != -1)
-        importBookmarks = false;
-    }
+    var dbStatus = PlacesUtils.history.databaseStatus;
+    var importBookmarks = !this._initialMigrationPerformed &&
+                          (dbStatus == PlacesUtils.history.DATABASE_STATUS_CREATE ||
+                           dbStatus == PlacesUtils.history.DATABASE_STATUS_CORRUPT ||
+                           !bookmarksBackupFile);
 
     // Check if user or an extension has required to import bookmarks.html
     var importBookmarksHTML = false;
@@ -736,26 +752,26 @@ SuiteGlue.prototype = {
       }
 
       if (bookmarksURI) {
-        // Add an import observer.  It will ensure that smart bookmarks are
-        // created once the operation is complete.
-        Services.obs.addObserver(this, "bookmarks-restore-success", false);
-        Services.obs.addObserver(this, "bookmarks-restore-failed", false);
-
         // Import from bookmarks.html file.
         try {
-          var importer = Components.classes["@mozilla.org/browser/places/import-export-service;1"]
-                                   .getService(Components.interfaces.nsIPlacesImportExportService);
-          importer.importHTMLFromURI(bookmarksURI, true /* overwrite existing */);
+          BookmarkHTMLUtils.importFromURL(bookmarksURI.spec, true, (function (success) {
+            if (success) {
+              // Ensure that smart bookmarks are created once the operation is
+              // complete.
+              this.ensurePlacesDefaultQueriesInitialized();
+            }
+            else {
+              Components.utils.reportError("Bookmarks.html file could be corrupt.");
+            }
+          }).bind(this));
         }
         catch(ex) {
-          // Report the error, but ignore it.
           Components.utils.reportError("bookmarks.html file could be corrupt. " + ex);
-          Services.obs.removeObserver(this, "bookmarks-restore-success");
-          Services.obs.removeObserver(this, "bookmarks-restore-failed");
         }
       }
-      else
+      else {
         Components.utils.reportError("Unable to find bookmarks.html file.");
+      }
 
       // Reset preferences, so we won't try to import again at next run.
       if (importBookmarksHTML)
@@ -806,8 +822,6 @@ SuiteGlue.prototype = {
    * Backup bookmarks if needed.
    */
   _backupBookmarks: function() {
-    Components.utils.import("resource://gre/modules/PlacesUtils.jsm");
-
     let lastBackupFile = PlacesUtils.backups.getMostRecent();
 
     // Backup bookmarks if there are no backups or the maximum interval between
@@ -877,148 +891,138 @@ SuiteGlue.prototype = {
     // be set to the version it has been added in, we will compare its value
     // to users' smartBookmarksVersion and add new smart bookmarks without
     // recreating old deleted ones.
-    const SMART_BOOKMARKS_VERSION = 2;
+    const SMART_BOOKMARKS_VERSION = 3;
     const SMART_BOOKMARKS_ANNO = "Places/SmartBookmark";
     const SMART_BOOKMARKS_PREF = "browser.places.smartBookmarksVersion";
 
     // TODO bug 399268: should this be a pref?
     const MAX_RESULTS = 10;
 
-    // Get current smart bookmarks version.
-    // By default, if the pref is not set up, we must create Smart Bookmarks.
-    var smartBookmarksCurrentVersion = 0;
+    // Get current smart bookmarks version.  If not set, create them.
+    let smartBookmarksCurrentVersion = 0;
     try {
       smartBookmarksCurrentVersion = Services.prefs.getIntPref(SMART_BOOKMARKS_PREF);
-    } catch(ex) { /* no version set, new profile */ }
+    } catch(ex) {}
 
-    // Bail out if we don't have to create or update Smart Bookmarks.
+    // If version is current or smart bookmarks are disabled, just bail out.
     if (smartBookmarksCurrentVersion == -1 ||
-        smartBookmarksCurrentVersion >= SMART_BOOKMARKS_VERSION)
+        smartBookmarksCurrentVersion >= SMART_BOOKMARKS_VERSION) {
       return;
+    }
 
-    var bmsvc = Components.classes["@mozilla.org/browser/nav-bookmarks-service;1"]
-                          .getService(Components.interfaces.nsINavBookmarksService);
-    var annosvc = Components.classes["@mozilla.org/browser/annotation-service;1"]
-                            .getService(Components.interfaces.nsIAnnotationService);
-
-    var callback = {
-      _uri: function BG_EPDQI__uri(aSpec) {
-        return Services.io.newURI(aSpec, null, null);
-      },
-
+    let batch = {
       runBatched: function BG_EPDQI_runBatched() {
-        var smartBookmarks = [];
-        var bookmarksMenuIndex = 0;
-        var bookmarksToolbarIndex = 0;
+        let menuIndex = 0;
+        let toolbarIndex = 0;
+        let bundle = Services.strings.createBundle("chrome://communicator/locale/places/places.properties");
 
-        var placesBundle = Services.strings.createBundle("chrome://communicator/locale/places/places.properties");
-
-        // MOST VISITED
-        var smart = {queryId: "MostVisited", // don't change this
-                     itemId: null,
-                     title: placesBundle.GetStringFromName("mostVisitedTitle"),
-                     uri: this._uri("place:redirectsMode=" +
-                                    Components.interfaces.nsINavHistoryQueryOptions.REDIRECTS_MODE_TARGET +
-                                    "&sort=" +
-                                    Components.interfaces.nsINavHistoryQueryOptions.SORT_BY_VISITCOUNT_DESCENDING +
-                                    "&maxResults=" + MAX_RESULTS),
-                     parent: bmsvc.toolbarFolder,
-                     position: bookmarksToolbarIndex++,
-                     newInVersion: 1 };
-        smartBookmarks.push(smart);
-
-        // RECENTLY BOOKMARKED
-        smart = {queryId: "RecentlyBookmarked", // don't change this
-                 itemId: null,
-                 title: placesBundle.GetStringFromName("recentlyBookmarkedTitle"),
-                 uri: this._uri("place:folder=BOOKMARKS_MENU" +
+        let smartBookmarks = {
+          MostVisited: {
+            title: bundle.GetStringFromName("mostVisitedTitle"),
+            uri: NetUtil.newURI("place:redirectsMode=" +
+                                Components.interfaces.nsINavHistoryQueryOptions.REDIRECTS_MODE_TARGET +
+                                "&sort=" +
+                                Components.interfaces.nsINavHistoryQueryOptions.SORT_BY_VISITCOUNT_DESCENDING +
+                                "&maxResults=" + MAX_RESULTS),
+            parent: PlacesUtils.toolbarFolderId,
+            position: toolbarIndex++,
+            newInVersion: 1
+          },
+          RecentlyBookmarked: {
+            title: bundle.GetStringFromName("recentlyBookmarkedTitle"),
+            uri: NetUtil.newURI("place:folder=BOOKMARKS_MENU" +
                                 "&folder=UNFILED_BOOKMARKS" +
                                 "&folder=TOOLBAR" +
                                 "&queryType=" +
                                 Components.interfaces.nsINavHistoryQueryOptions.QUERY_TYPE_BOOKMARKS +
                                 "&sort=" +
                                 Components.interfaces.nsINavHistoryQueryOptions.SORT_BY_DATEADDED_DESCENDING +
-                                "&excludeItemIfParentHasAnnotation=livemark%2FfeedURI" +
                                 "&maxResults=" + MAX_RESULTS +
                                 "&excludeQueries=1"),
-                 parent: bmsvc.bookmarksMenuFolder,
-                 position: bookmarksMenuIndex++,
-                 newInVersion: 1 };
-        smartBookmarks.push(smart);
+            parent: PlacesUtils.bookmarksMenuFolderId,
+            position: menuIndex++,
+            newInVersion: 1
+          },
+          RecentTags: {
+            title: bundle.GetStringFromName("recentTagsTitle"),
+            uri: NetUtil.newURI("place:"+
+                                "type=" +
+                                Components.interfaces.nsINavHistoryQueryOptions.RESULTS_AS_TAG_QUERY +
+                                "&sort=" +
+                                Components.interfaces.nsINavHistoryQueryOptions.SORT_BY_LASTMODIFIED_DESCENDING +
+                                "&maxResults=" + MAX_RESULTS),
+            parent: PlacesUtils.bookmarksMenuFolderId,
+            position: menuIndex++,
+            newInVersion: 1
+          }
+        };
 
-        // RECENT TAGS
-        smart = {queryId: "RecentTags", // don't change this
-                 itemId: null,
-                 title: placesBundle.GetStringFromName("recentTagsTitle"),
-                 uri: this._uri("place:"+
-                    "type=" +
-                    Components.interfaces.nsINavHistoryQueryOptions.RESULTS_AS_TAG_QUERY +
-                    "&sort=" +
-                    Components.interfaces.nsINavHistoryQueryOptions.SORT_BY_LASTMODIFIED_DESCENDING +
-                    "&maxResults=" + MAX_RESULTS),
-                 parent: bmsvc.bookmarksMenuFolder,
-                 position: bookmarksMenuIndex++,
-                 newInVersion: 1 };
-        smartBookmarks.push(smart);
-
-        var smartBookmarkItemIds = annosvc.getItemsWithAnnotation(SMART_BOOKMARKS_ANNO);
         // Set current itemId, parent and position if Smart Bookmark exists,
         // we will use these informations to create the new version at the same
         // position.
-        for each(var itemId in smartBookmarkItemIds) {
-          var queryId = annosvc.getItemAnnotation(itemId, SMART_BOOKMARKS_ANNO);
-          for (var i = 0; i < smartBookmarks.length; i++){
-            if (smartBookmarks[i].queryId == queryId) {
-              smartBookmarks[i].found = true;
-              smartBookmarks[i].itemId = itemId;
-              smartBookmarks[i].parent = bmsvc.getFolderIdForItem(itemId);
-              smartBookmarks[i].position = bmsvc.getItemIndex(itemId);
-              // Remove current item, since it will be replaced.
-              bmsvc.removeItem(itemId);
-              break;
-            }
+        let smartBookmarkItemIds = PlacesUtils.annotations.getItemsWithAnnotation(SMART_BOOKMARKS_ANNO);
+        smartBookmarkItemIds.forEach(function (itemId) {
+          let queryId = PlacesUtils.annotations.getItemAnnotation(itemId, SMART_BOOKMARKS_ANNO);
+          if (queryId in smartBookmarks) {
+            let smartBookmark = smartBookmarks[queryId];
+            smartBookmark.itemId = itemId;
+            smartBookmark.parent = PlacesUtils.bookmarks.getFolderIdForItem(itemId);
+            smartBookmark.position = PlacesUtils.bookmarks.getItemIndex(itemId);
+          } else {
             // We don't remove old Smart Bookmarks because user could still
             // find them useful, or could have personalized them.
             // Instead we remove the Smart Bookmark annotation.
-            if (i == smartBookmarks.length - 1)
-              annosvc.removeItemAnnotation(itemId, SMART_BOOKMARKS_ANNO);
+            PlacesUtils.annotations.removeItemAnnotation(itemId, SMART_BOOKMARKS_ANNO);
           }
-        }
+        });
 
-        // Create smart bookmarks.
-        for each(var smartBookmark in smartBookmarks) {
+        for (let queryId in smartBookmarks) {
+          let smartBookmark = smartBookmarks[queryId];
+
           // We update or create only changed or new smart bookmarks.
           // Also we respect user choices, so we won't try to create a smart
           // bookmark if it has been removed.
           if (smartBookmarksCurrentVersion > 0 &&
               smartBookmark.newInVersion <= smartBookmarksCurrentVersion &&
-              !smartBookmark.found)
+              !smartBookmark.itemId)
             continue;
 
-          smartBookmark.itemId = bmsvc.insertBookmark(smartBookmark.parent,
-                                                      smartBookmark.uri,
-                                                      smartBookmark.position,
-                                                      smartBookmark.title);
-          annosvc.setItemAnnotation(smartBookmark.itemId,
-                                    SMART_BOOKMARKS_ANNO, smartBookmark.queryId,
-                                    0, annosvc.EXPIRE_NEVER);
+          // Remove old version of the smart bookmark if it exists, since it
+          // will be replaced in place.
+          if (smartBookmark.itemId) {
+            PlacesUtils.bookmarks.removeItem(smartBookmark.itemId);
+          }
+
+          // Create the new smart bookmark and store its updated itemId.
+          smartBookmark.itemId =
+            PlacesUtils.bookmarks.insertBookmark(smartBookmark.parent,
+                                                 smartBookmark.uri,
+                                                 smartBookmark.position,
+                                                 smartBookmark.title);
+          PlacesUtils.annotations.setItemAnnotation(smartBookmark.itemId,
+                                                    SMART_BOOKMARKS_ANNO,
+                                                    queryId, 0,
+                                                    PlacesUtils.annotations.EXPIRE_NEVER);
         }
 
         // If we are creating all Smart Bookmarks from ground up, add a
         // separator below them in the bookmarks menu.
         if (smartBookmarksCurrentVersion == 0 &&
             smartBookmarkItemIds.length == 0) {
-          let id = bmsvc.getIdForItemAt(bmsvc.bookmarksMenuFolder,
-                                        bookmarksMenuIndex);
+          let id = PlacesUtils.bookmarks.getIdForItemAt(PlacesUtils.bookmarksMenuFolderId,
+                                                        menuIndex);
           // Don't add a separator if the menu was empty or there is one already.
-          if (id != -1 && bmsvc.getItemType(id) != bmsvc.TYPE_SEPARATOR)
-            bmsvc.insertSeparator(bmsvc.bookmarksMenuFolder, bookmarksMenuIndex);
-       }
+          if (id != -1 &&
+              PlacesUtils.bookmarks.getItemType(id) != PlacesUtils.bookmarks.TYPE_SEPARATOR) {
+            PlacesUtils.bookmarks.insertSeparator(PlacesUtils.bookmarksMenuFolderId,
+                                                  menuIndex);
+          }
+        }
       }
     };
 
     try {
-      bmsvc.runInBatchMode(callback, null);
+      PlacesUtils.bookmarks.runInBatchMode(batch, null);
     }
     catch(ex) {
       Components.utils.reportError(ex);

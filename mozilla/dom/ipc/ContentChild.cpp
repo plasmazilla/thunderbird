@@ -76,6 +76,7 @@
 #include "nsIConsoleService.h"
 #include "nsJSEnvironment.h"
 #include "SandboxHal.h"
+#include "nsDebugImpl.h"
 
 #include "History.h"
 #include "nsDocShellCID.h"
@@ -95,8 +96,6 @@
 #include "nsPermission.h"
 #include "nsPermissionManager.h"
 #endif
-
-#include "nsDeviceMotion.h"
 
 #if defined(MOZ_WIDGET_ANDROID)
 #include "APKOpen.h"
@@ -239,6 +238,9 @@ ContentChild::ContentChild()
  , mID(PRUint64(-1))
 #endif
 {
+    // This process is a content process, so it's clearly running in
+    // multiprocess mode!
+    nsDebugImpl::SetMultiprocessMode("Child");
 }
 
 ContentChild::~ContentChild()
@@ -739,18 +741,6 @@ ContentChild::RecvAddPermission(const IPC::Permission& permission)
 #endif
 
   return true;
-}
-
-bool
-ContentChild::RecvDeviceMotionChanged(const long int& type,
-                                      const double& x, const double& y,
-                                      const double& z)
-{
-    nsCOMPtr<nsIDeviceMotionUpdate> dmu = 
-        do_GetService(NS_DEVICE_MOTION_CONTRACTID);
-    if (dmu)
-        dmu->DeviceMotionChanged(type, x, y, z);
-    return true;
 }
 
 bool

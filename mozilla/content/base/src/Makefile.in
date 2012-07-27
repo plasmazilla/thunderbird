@@ -74,13 +74,14 @@ EXPORTS_mozilla/dom = \
   Link.h \
   $(NULL)
 
-LOCAL_INCLUDES = -I$(srcdir)/js/xpconnect/src
+LOCAL_INCLUDES = \
+		$(NULL)
 
 CPPSRCS		= \
-		mozSanitizingSerializer.cpp \
 		nsAtomListUtils.cpp \
 		nsAttrAndChildArray.cpp \
 		nsAttrValue.cpp \
+		nsAttrValueOrString.cpp \
 		nsCCUncollectableMarker.cpp \
 		nsChannelPolicy.cpp \
 		nsCommentNode.cpp \
@@ -98,7 +99,6 @@ CPPSRCS		= \
 		nsDOMAttributeMap.cpp \
 		nsDOMBlobBuilder.cpp \
 		nsDOMDocumentType.cpp \
-		nsDOMEventTargetWrapperCache.cpp \
 		nsDOMFile.cpp \
 		nsDOMFileReader.cpp \
 		nsDOMLists.cpp \
@@ -127,7 +127,6 @@ CPPSRCS		= \
 		nsNodeIterator.cpp \
 		nsNodeUtils.cpp \
 		nsObjectLoadingContent.cpp \
-		nsParserUtils.cpp \
 		nsPlainTextSerializer.cpp \
 		nsPropertyTable.cpp \
 		nsRange.cpp \
@@ -157,6 +156,7 @@ CPPSRCS		= \
 		ThirdPartyUtil.cpp \
 		nsEventSource.cpp \
 		FileIOObject.cpp \
+		nsDOMMutationObserver.cpp \
 		$(NULL)
 
 # Are we targeting x86-32 or x86-64?  If so, we want to include SSE2 code for
@@ -211,6 +211,7 @@ INCLUDES	+= \
 		$(NULL)
 
 DEFINES += -D_IMPL_NS_LAYOUT
+DEFINES += -DHB_DONT_DEFINE_STDINT
 
 # gcc requires -msse2 for this file since it uses SSE2 intrinsics.  (See bug
 # 585538 comment 12.)

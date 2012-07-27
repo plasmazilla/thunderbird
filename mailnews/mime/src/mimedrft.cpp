@@ -228,6 +228,20 @@ nsresult CreateComposeParams(nsCOMPtr<nsIMsgComposeParams> &pMsgComposeParams,
           attachment->SetMacType(curAttachment->m_xMacType.get());
           attachment->SetMacCreator(curAttachment->m_xMacCreator.get());
           attachment->SetSize(curAttachment->m_size);
+          if (!curAttachment->m_cloudPartInfo.IsEmpty())
+          {
+            nsCString provider;
+            nsCString cloudUrl;
+            attachment->SetSendViaCloud(true);
+            provider.Adopt(
+              MimeHeaders_get_parameter(curAttachment->m_cloudPartInfo.get(),
+                                        "provider", nsnull, nsnull));
+            cloudUrl.Adopt(
+              MimeHeaders_get_parameter(curAttachment->m_cloudPartInfo.get(),
+                                        "url", nsnull, nsnull));
+            attachment->SetCloudProviderKey(provider);
+            attachment->SetContentLocation(cloudUrl);
+          }
           compFields->AddAttachment(attachment);
         }
       }
@@ -563,6 +577,7 @@ mime_draft_process_attachments(mime_draft_data *mdd)
     tmp->m_realType = tmpFile->m_type;
     tmp->m_realEncoding = tmpFile->m_encoding;
     tmp->m_description = tmpFile->m_description;
+    tmp->m_cloudPartInfo = tmpFile->m_cloudPartInfo;
     tmp->m_xMacType = tmpFile->m_xMacType;
     tmp->m_xMacCreator = tmpFile->m_xMacCreator;
     tmp->m_size = tmpFile->m_size;
@@ -572,32 +587,6 @@ mime_draft_process_attachments(mime_draft_data *mdd)
 FAIL:
   delete [] attachData;
   return nsnull;
-}
-
-static void
-mime_fix_up_html_address( char **addr)
-{
-  //
-  // We need to replace paired <> they are treated as HTML tag
-  //
-  if (addr && *addr && PL_strchr(*addr, '<') && PL_strchr(*addr, '>'))
-  {
-    char *lt = NULL;
-    PRInt32 newLen = 0;
-    do
-    {
-      newLen = strlen(*addr) + 3 + 1;
-      *addr = (char *) PR_REALLOC(*addr, newLen);
-      NS_ASSERTION (*addr, "out of memory fixing up html address");
-      lt = PL_strchr(*addr, '<');
-      NS_ASSERTION(lt, "couldn't find < char in address");
-      memmove(lt+4, lt+1, newLen - 4 - (lt - *addr));
-      *lt++ = '&';
-      *lt++ = 'l';
-      *lt++ = 't';
-      *lt = ';';
-    } while (PL_strchr(*addr, '<'));
-  }
 }
 
 static void
@@ -633,8 +622,12 @@ mime_intl_insert_message_header_1(char        **body,
     char* utf8 = MIME_DecodeMimeHeader(*hdr_value, mailcharset, false,
                                        true);
     if (NULL != utf8) {
-        NS_MsgSACat(body, utf8);
-        PR_Free(utf8);
+      char *escaped = nsnull;
+      if (htmlEdit)
+        escaped = MsgEscapeHTML(utf8);
+      NS_MsgSACat(body, escaped ? escaped : utf8);
+      NS_Free(escaped);
+      PR_Free(utf8);
     } else {
         NS_MsgSACat(body, *hdr_value); // raw MIME encoded string
     }
@@ -656,6 +649,21 @@ MimeGetNamedString(PRInt32 id)
     PR_Free(tString);
   }
   return retString;
+}
+
+void
+MimeGetReplyHeaderOriginalMessage(nsACString &retString)
+{
+  nsCString defaultValue;
+  defaultValue.Adopt(MimeGetStringByID(MIME_FORWARDED_MESSAGE_HTML_USER_WROTE));
+
+  nsString tmpRetString;
+  NS_GetLocalizedUnicharPreferenceWithDefault(nsnull,
+    "mailnews.reply_header_originalmessage",
+    NS_ConvertUTF8toUTF16(defaultValue),
+    tmpRetString);
+
+  CopyUTF16toUTF8(tmpRetString, retString);
 }
 
 /* given an address string passed though parameter "address", this one will be converted
@@ -702,17 +710,18 @@ mime_insert_all_headers(char            **body,
     headers->done_p = true;
   }
 
+  nsCString replyHeader;
+  MimeGetReplyHeaderOriginalMessage(replyHeader);
   if (htmlEdit)
   {
     NS_MsgSACopy(&(newBody), "<HTML><BODY><BR><BR>");
-
-    NS_MsgSACat(&newBody, MimeGetNamedString(MIME_FORWARDED_MESSAGE_HTML_USER_WROTE));
+    NS_MsgSACat(&newBody, replyHeader.get());
     NS_MsgSACat(&newBody, MIME_HEADER_TABLE);
   }
   else
   {
     NS_MsgSACopy(&(newBody), MSG_LINEBREAK MSG_LINEBREAK);
-    NS_MsgSACat(&newBody, MimeGetNamedString(MIME_FORWARDED_MESSAGE_HTML_USER_WROTE));
+    NS_MsgSACat(&newBody, replyHeader.get());
   }
 
   for (i = 0; i < headers->heads_size; i++)
@@ -776,9 +785,6 @@ mime_insert_all_headers(char            **body,
     */
     if (PL_strcasecmp(name, "bcc") != 0)
     {
-      if (htmlEdit)
-        mime_fix_up_html_address(&c2);
-
       if (!PL_strcasecmp(name, "resent-from") || !PL_strcasecmp(name, "from") ||
           !PL_strcasecmp(name, "resent-to") || !PL_strcasecmp(name, "to") ||
           !PL_strcasecmp(name, "resent-cc") || !PL_strcasecmp(name, "cc") ||
@@ -856,16 +862,18 @@ mime_insert_normal_headers(char             **body,
   UnquoteMimeAddress(parser, &to);
   UnquoteMimeAddress(parser, &cc);
 
+  nsCString replyHeader;
+  MimeGetReplyHeaderOriginalMessage(replyHeader);
   if (htmlEdit)
   {
     NS_MsgSACopy(&(newBody), "<HTML><BODY><BR><BR>");
-    NS_MsgSACat(&newBody, MimeGetNamedString(MIME_FORWARDED_MESSAGE_HTML_USER_WROTE));
+    NS_MsgSACat(&newBody, replyHeader.get());
     NS_MsgSACat(&newBody, MIME_HEADER_TABLE);
   }
   else
   {
     NS_MsgSACopy(&(newBody), MSG_LINEBREAK MSG_LINEBREAK);
-    NS_MsgSACat(&newBody, MimeGetNamedString(MIME_FORWARDED_MESSAGE_HTML_USER_WROTE));
+    NS_MsgSACat(&newBody, replyHeader.get());
   }
   if (subject)
     mime_intl_insert_message_header_1(&newBody, &subject, HEADER_SUBJECT,
@@ -883,7 +891,6 @@ mime_insert_normal_headers(char             **body,
                       mailcharset, htmlEdit);
   if (resent_from)
   {
-    if (htmlEdit) mime_fix_up_html_address(&resent_from);
     mime_intl_insert_message_header_1(&newBody, &resent_from,
                       HEADER_RESENT_FROM,
                       MimeGetNamedString(MIME_MHTML_RESENT_FROM),
@@ -891,7 +898,6 @@ mime_insert_normal_headers(char             **body,
   }
   if (resent_to)
   {
-    if (htmlEdit) mime_fix_up_html_address(&resent_to);
     mime_intl_insert_message_header_1(&newBody, &resent_to,
                       HEADER_RESENT_TO,
                       MimeGetNamedString(MIME_MHTML_RESENT_TO),
@@ -899,7 +905,6 @@ mime_insert_normal_headers(char             **body,
   }
   if (resent_cc)
   {
-    if (htmlEdit) mime_fix_up_html_address(&resent_cc);
     mime_intl_insert_message_header_1(&newBody, &resent_cc,
                       HEADER_RESENT_CC,
                       MimeGetNamedString(MIME_MHTML_RESENT_CC),
@@ -911,14 +916,12 @@ mime_insert_normal_headers(char             **body,
                       mailcharset, htmlEdit);
   if (from)
   {
-    if (htmlEdit) mime_fix_up_html_address(&from);
     mime_intl_insert_message_header_1(&newBody, &from, HEADER_FROM,
                       MimeGetNamedString(MIME_MHTML_FROM),
                       mailcharset, htmlEdit);
   }
   if (reply_to)
   {
-    if (htmlEdit) mime_fix_up_html_address(&reply_to);
     mime_intl_insert_message_header_1(&newBody, &reply_to, HEADER_REPLY_TO,
                       MimeGetNamedString(MIME_MHTML_REPLY_TO),
                       mailcharset, htmlEdit);
@@ -930,14 +933,12 @@ mime_insert_normal_headers(char             **body,
                       mailcharset, htmlEdit);
   if (to)
   {
-    if (htmlEdit) mime_fix_up_html_address(&to);
     mime_intl_insert_message_header_1(&newBody, &to, HEADER_TO,
                       MimeGetNamedString(MIME_MHTML_TO),
                       mailcharset, htmlEdit);
   }
   if (cc)
   {
-    if (htmlEdit) mime_fix_up_html_address(&cc);
     mime_intl_insert_message_header_1(&newBody, &cc, HEADER_CC,
                       MimeGetNamedString(MIME_MHTML_CC),
                       mailcharset, htmlEdit);
@@ -952,7 +953,6 @@ mime_insert_normal_headers(char             **body,
                       mailcharset, htmlEdit);
   if (followup_to)
   {
-    if (htmlEdit) mime_fix_up_html_address(&followup_to);
     mime_intl_insert_message_header_1(&newBody, &followup_to,
                       HEADER_FOLLOWUP_TO,
                       MimeGetNamedString(MIME_MHTML_FOLLOWUP_TO),
@@ -961,8 +961,6 @@ mime_insert_normal_headers(char             **body,
   // only show references for newsgroups
   if (newsgroups && references)
   {
-    if (htmlEdit) 
-      mime_fix_up_html_address(&references);
     mime_intl_insert_message_header_1(&newBody, &references,
                       HEADER_REFERENCES,
                       MimeGetNamedString(MIME_MHTML_REFERENCES),
@@ -1040,22 +1038,23 @@ mime_insert_micro_headers(char            **body,
   UnquoteMimeAddress(parser, &to);
   UnquoteMimeAddress(parser, &cc);
 
+  nsCString replyHeader;
+  MimeGetReplyHeaderOriginalMessage(replyHeader);
+
   if (htmlEdit)
   {
     NS_MsgSACopy(&(newBody), "<HTML><BODY><BR><BR>");
-    NS_MsgSACat(&newBody, MimeGetNamedString(MIME_FORWARDED_MESSAGE_HTML_USER_WROTE));
+    NS_MsgSACat(&newBody, replyHeader.get());
     NS_MsgSACat(&newBody, MIME_HEADER_TABLE);
   }
   else
   {
     NS_MsgSACopy(&(newBody), MSG_LINEBREAK MSG_LINEBREAK);
-    NS_MsgSACat(&newBody, MimeGetNamedString(MIME_FORWARDED_MESSAGE_HTML_USER_WROTE));
+    NS_MsgSACat(&newBody, replyHeader.get());
   }
 
   if (from)
   {
-    if (htmlEdit)
-      mime_fix_up_html_address(&from);
     mime_intl_insert_message_header_1(&newBody, &from, HEADER_FROM,
                     MimeGetNamedString(MIME_MHTML_FROM),
                     mailcharset, htmlEdit);
@@ -1072,7 +1071,6 @@ mime_insert_micro_headers(char            **body,
 */
   if (resent_from)
   {
-    if (htmlEdit) mime_fix_up_html_address(&resent_from);
     mime_intl_insert_message_header_1(&newBody, &resent_from,
                     HEADER_RESENT_FROM,
                     MimeGetNamedString(MIME_MHTML_RESENT_FROM),
@@ -1080,14 +1078,12 @@ mime_insert_micro_headers(char            **body,
   }
   if (to)
   {
-    if (htmlEdit) mime_fix_up_html_address(&to);
     mime_intl_insert_message_header_1(&newBody, &to, HEADER_TO,
                     MimeGetNamedString(MIME_MHTML_TO),
                     mailcharset, htmlEdit);
   }
   if (cc)
   {
-    if (htmlEdit) mime_fix_up_html_address(&cc);
     mime_intl_insert_message_header_1(&newBody, &cc, HEADER_CC,
                     MimeGetNamedString(MIME_MHTML_CC),
                     mailcharset, htmlEdit);
@@ -1473,7 +1469,7 @@ mime_parse_stream_complete (nsMIMESession *stream)
                 *newbody = 0;
                 PL_strcatn(newbody, newbodylen, "<PRE>");
                 PL_strcatn(newbody, newbodylen, body);
-                PL_strcatn(newbody, newbodylen, "</PRE>"CRLF);
+                PL_strcatn(newbody, newbodylen, "</PRE>" CRLF);
                 PR_Free(body);
                 body = newbody;
               }
@@ -1811,9 +1807,10 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
     PR_FREEIF(boundary);
     PR_FREEIF(tmp_value);
   }
+
   newAttachment->m_size = 0;
   newAttachment->m_encoding.Adopt(MimeHeaders_get (headers, HEADER_CONTENT_TRANSFER_ENCODING,
-                                                   false, false ));
+                                                   false, false));
   newAttachment->m_description.Adopt(MimeHeaders_get(headers, HEADER_CONTENT_DESCRIPTION,
                                                      false, false ));
   //
@@ -1821,6 +1818,24 @@ mime_decompose_file_init_fn ( void *stream_closure, MimeHeaders *headers )
   //
   if (newAttachment->m_description.IsEmpty() && workURLSpec)
     newAttachment->m_description = workURLSpec;
+
+  newAttachment->m_cloudPartInfo.Adopt(MimeHeaders_get(headers,
+                                       HEADER_X_MOZILLA_CLOUD_PART,
+                                       false, false));
+
+  // There's no file in the message if it's a cloud part.
+  if (!newAttachment->m_cloudPartInfo.IsEmpty())
+  {
+    nsCAutoString fileURL;
+    fileURL.Adopt(
+      MimeHeaders_get_parameter(newAttachment->m_cloudPartInfo.get(), "file",
+                                nsnull, nsnull));
+    if (!fileURL.IsEmpty())
+      nsMimeNewURI(getter_AddRefs(newAttachment->m_origUrl), fileURL.get(),
+                   nsnull);
+    mdd->tmpFile = nsnull;
+    return 0;
+  }
 
   nsCOMPtr <nsIFile> tmpFile = nsnull;
   {
@@ -1960,7 +1975,7 @@ mime_decompose_file_close_fn ( void *stream_closure )
 {
   mime_draft_data *mdd = (mime_draft_data *) stream_closure;
 
-  if ( !mdd || !mdd->tmpFileStream )
+  if (!mdd)
     return -1;
 
   if ( --mdd->options->decompose_init_count > 0 )
@@ -1971,6 +1986,12 @@ mime_decompose_file_close_fn ( void *stream_closure )
     mdd->decoder_data = 0;
   }
 
+  if (!mdd->tmpFileStream) {
+    // it's ok to have a null tmpFileStream if there's no tmpFile.
+    // This happens for cloud file attachments.
+    NS_ASSERTION(!mdd->tmpFile, "shouldn't have a tmp file bu no stream");
+    return 0;
+  }
   mdd->tmpFileStream->Close();
 
   mdd->tmpFileStream = nsnull;

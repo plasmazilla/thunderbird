@@ -633,7 +633,7 @@ DrawTargetD2D::DrawSurfaceWithShadow(SourceSurface *aSurface,
   if (mPushedClips.size()) {
     mPrivateData->mEffect->GetVariableByName("mask")->AsShaderResource()->SetResource(maskSRView);
     mPrivateData->mEffect->GetVariableByName("MaskTexCoords")->AsVector()->
-      SetFloatVector(ShaderConstantRectD3D10(shadowDest.x / mSize.width, shadowDest.y / mSize.width,
+      SetFloatVector(ShaderConstantRectD3D10(shadowDest.x / mSize.width, shadowDest.y / mSize.height,
                                              Float(aSurface->GetSize().width) / mSize.width,
                                              Float(aSurface->GetSize().height) / mSize.height));
     mPrivateData->mEffect->GetTechniqueByName("SampleTextureWithShadow")->
@@ -658,7 +658,7 @@ DrawTargetD2D::DrawSurfaceWithShadow(SourceSurface *aSurface,
 
   if (mPushedClips.size()) {
     mPrivateData->mEffect->GetVariableByName("MaskTexCoords")->AsVector()->
-      SetFloatVector(ShaderConstantRectD3D10(aDest.x / mSize.width, aDest.y / mSize.width,
+      SetFloatVector(ShaderConstantRectD3D10(aDest.x / mSize.width, aDest.y / mSize.height,
                                              Float(aSurface->GetSize().width) / mSize.width,
                                              Float(aSurface->GetSize().height) / mSize.height));
     mPrivateData->mEffect->GetTechniqueByName("SampleMaskedTexture")->
@@ -880,7 +880,8 @@ void
 DrawTargetD2D::FillGlyphs(ScaledFont *aFont,
                           const GlyphBuffer &aBuffer,
                           const Pattern &aPattern,
-                          const DrawOptions &aOptions)
+                          const DrawOptions &aOptions,
+                          const GlyphRenderingOptions* aRenderOptions)
 {
   if (aFont->GetType() != FONT_DWRITE) {
     gfxDebug() << *this << ": Ignoring drawing call for incompatible font.";
@@ -892,6 +893,19 @@ DrawTargetD2D::FillGlyphs(ScaledFont *aFont,
   ID2D1RenderTarget *rt = GetRTForOperation(aOptions.mCompositionOp, aPattern);
 
   PrepareForDrawing(rt);
+
+  IDWriteRenderingParams *params = NULL;
+  if (aRenderOptions) {
+    if (aRenderOptions->GetType() != FONT_DWRITE) {
+    gfxDebug() << *this << ": Ignoring incompatible GlyphRenderingOptions.";
+    // This should never happen.
+    MOZ_ASSERT(false);
+    } else {
+      params = static_cast<const GlyphRenderingOptionsDWrite*>(aRenderOptions)->mParams;
+    }
+  }
+
+  rt->SetTextRenderingParams(params);
 
   RefPtr<ID2D1Brush> brush = CreateBrushForPattern(aPattern, aOptions.mAlpha);
 
@@ -1024,6 +1038,7 @@ DrawTargetD2D::PushClipRect(const Rect &aRect)
   mPushedClips.push_back(clip);
 
   mRT->SetTransform(D2D1::IdentityMatrix());
+  mTransformDirty = true;
   if (mClipsArePushed) {
     mRT->PushAxisAlignedClip(clip.mBounds, D2D1_ANTIALIAS_MODE_PER_PRIMITIVE);
   }

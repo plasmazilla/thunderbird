@@ -78,10 +78,8 @@
  */
 
 #include "gfxScriptItemizer.h"
-#include "gfxUnicodeProperties.h"
 #include "gfxFontUtils.h" // for the FindHighestBit function
-
-#include "harfbuzz/hb.h"
+#include "nsUnicodeProperties.h"
 
 #include "nsCharTraits.h"
 
@@ -219,11 +217,11 @@ getPairIndex(PRUint32 ch)
 }
 
 static bool
-sameScript(PRInt32 scriptOne, PRInt32 scriptTwo)
+sameScript(PRInt32 runScript, PRInt32 currCharScript)
 {
-    return scriptOne <= HB_SCRIPT_INHERITED ||
-           scriptTwo <= HB_SCRIPT_INHERITED ||
-           scriptOne == scriptTwo;
+    return runScript <= MOZ_SCRIPT_INHERITED ||
+           currCharScript <= MOZ_SCRIPT_INHERITED ||
+           currCharScript == runScript;
 }
 
 gfxScriptItemizer::gfxScriptItemizer(const PRUnichar *src, PRUint32 length)
@@ -251,7 +249,7 @@ gfxScriptItemizer::Next(PRUint32& aRunStart, PRUint32& aRunLimit,
     }
 
     SYNC_FIXUP();
-    scriptCode = HB_SCRIPT_COMMON;
+    scriptCode = MOZ_SCRIPT_COMMON;
 
     for (scriptStart = scriptLimit; scriptLimit < textLength; scriptLimit += 1) {
         PRUint32 ch;
@@ -271,7 +269,7 @@ gfxScriptItemizer::Next(PRUint32& aRunStart, PRUint32& aRunLimit,
             while (STACK_IS_NOT_EMPTY()) {
                 pop();
             }
-            sc = HB_SCRIPT_COMMON;
+            sc = MOZ_SCRIPT_COMMON;
             pairIndex = -1;
         } else {
             /* decode UTF-16 (may be surrogate pair) */
@@ -283,7 +281,7 @@ gfxScriptItemizer::Next(PRUint32& aRunStart, PRUint32& aRunLimit,
                 }
             }
 
-            sc = gfxUnicodeProperties::GetScriptCode(ch);
+            sc = mozilla::unicode::GetScriptCode(ch);
 
             pairIndex = getPairIndex(ch);
 
@@ -313,9 +311,10 @@ gfxScriptItemizer::Next(PRUint32& aRunStart, PRUint32& aRunLimit,
         }
 
         if (sameScript(scriptCode, sc)) {
-            if (scriptCode <= HB_SCRIPT_INHERITED && sc > HB_SCRIPT_INHERITED) {
+            if (scriptCode <= MOZ_SCRIPT_INHERITED &&
+                sc > MOZ_SCRIPT_INHERITED)
+            {
                 scriptCode = sc;
-
                 fixup(scriptCode);
             }
 

@@ -45,8 +45,6 @@
 #include "nsIPluginInstanceOwner.h"
 #include "nsIDocument.h"
 #include "nsServiceManagerUtils.h"
-#include "nsIPrefService.h"
-#include "nsIPrefBranch.h"
 #include "nsPluginsDir.h"
 #include "nsPluginHost.h"
 #include "nsIUnicodeDecoder.h"
@@ -56,7 +54,9 @@
 #include "nsICategoryManager.h"
 #include "nsNPAPIPlugin.h"
 #include "mozilla/TimeStamp.h"
+#include "mozilla/Preferences.h"
 
+using namespace mozilla;
 using mozilla::TimeStamp;
 
 inline char* new_str(const char* str)
@@ -80,7 +80,6 @@ mMimeTypes(aPluginTag->mMimeTypes),
 mMimeDescriptions(aPluginTag->mMimeDescriptions),
 mExtensions(aPluginTag->mExtensions),
 mLibrary(nsnull),
-mCanUnloadLibrary(true),
 mIsJavaPlugin(aPluginTag->mIsJavaPlugin),
 mIsNPRuntimeEnabledJavaPlugin(aPluginTag->mIsNPRuntimeEnabledJavaPlugin),
 mIsFlashPlugin(aPluginTag->mIsFlashPlugin),
@@ -97,11 +96,6 @@ nsPluginTag::nsPluginTag(nsPluginInfo* aPluginInfo)
 mName(aPluginInfo->fName),
 mDescription(aPluginInfo->fDescription),
 mLibrary(nsnull),
-#ifdef XP_MACOSX
-mCanUnloadLibrary(false),
-#else
-mCanUnloadLibrary(true),
-#endif
 mIsJavaPlugin(false),
 mIsNPRuntimeEnabledJavaPlugin(false),
 mIsFlashPlugin(false),
@@ -128,13 +122,11 @@ nsPluginTag::nsPluginTag(const char* aName,
                          const char* const* aExtensions,
                          PRInt32 aVariants,
                          PRInt64 aLastModifiedTime,
-                         bool aCanUnload,
                          bool aArgsAreUTF8)
 : mPluginHost(nsnull),
 mName(aName),
 mDescription(aDescription),
 mLibrary(nsnull),
-mCanUnloadLibrary(aCanUnload),
 mIsJavaPlugin(false),
 mIsNPRuntimeEnabledJavaPlugin(false),
 mIsFlashPlugin(false),
@@ -231,6 +223,7 @@ void nsPluginTag::InitMime(const char* const* aMimeTypes,
   }
 }
 
+#if !defined(XP_WIN) && !defined(XP_MACOSX)
 static nsresult ConvertToUTF8(nsIUnicodeDecoder *aUnicodeDecoder,
                               nsAFlatCString& aString)
 {
@@ -250,6 +243,7 @@ static nsresult ConvertToUTF8(nsIUnicodeDecoder *aUnicodeDecoder,
   
   return NS_OK;
 }
+#endif
 
 nsresult nsPluginTag::EnsureMembersAreUTF8()
 {
@@ -394,10 +388,6 @@ nsPluginTag::RegisterWithCategoryManager(bool aOverrideInternalTypes,
   
   const char *contractId = "@mozilla.org/content/plugin/document-loader-factory;1";
   
-  nsCOMPtr<nsIPrefBranch> psvc(do_GetService(NS_PREFSERVICE_CONTRACTID));
-  if (!psvc)
-    return; // NS_ERROR_OUT_OF_MEMORY
-  
   // A preference controls whether or not the full page plugin is disabled for
   // a particular type. The string must be in the form:
   //   type1,type2,type3,type4
@@ -405,11 +395,11 @@ nsPluginTag::RegisterWithCategoryManager(bool aOverrideInternalTypes,
   // (and other plugin host settings) so applications can reliably disable 
   // plugins - without relying on implementation details such as prefs/category
   // manager entries.
-  nsXPIDLCString overrideTypes;
   nsCAutoString overrideTypesFormatted;
   if (aType != ePluginUnregister) {
-    psvc->GetCharPref("plugin.disable_full_page_plugin_for_types", getter_Copies(overrideTypes));
     overrideTypesFormatted.Assign(',');
+    nsAdoptingCString overrideTypes =
+      Preferences::GetCString("plugin.disable_full_page_plugin_for_types");
     overrideTypesFormatted += overrideTypes;
     overrideTypesFormatted.Append(',');
   }
@@ -512,28 +502,16 @@ bool nsPluginTag::Equals(nsPluginTag *aPluginTag)
   return true;
 }
 
-void nsPluginTag::TryUnloadPlugin()
+void nsPluginTag::TryUnloadPlugin(bool inShutdown)
 {
-  if (mEntryPoint) {
-    mEntryPoint->Shutdown();
-    mEntryPoint = nsnull;
+  // We never want to send NPP_Shutdown to an in-process plugin unless
+  // this process is shutting down.
+  if (mLibrary && !inShutdown) {
+    return;
   }
-  
-  // before we unload check if we are allowed to, see bug #61388
-  if (mLibrary && mCanUnloadLibrary) {
-    // unload the plugin asynchronously by posting a PLEvent
-    nsPluginHost::PostPluginUnloadEvent(mLibrary);
-  }
-  
-  // we should zero it anyway, it is going to be unloaded by
-  // CleanUnsedLibraries before we need to call the library
-  // again so the calling code should not be fooled and reload
-  // the library fresh
-  mLibrary = nsnull;
-  
-  // Remove mime types added to the category manager
-  // only if we were made 'active' by setting the host
-  if (mPluginHost) {
-    RegisterWithCategoryManager(false, nsPluginTag::ePluginUnregister);
+
+  if (mPlugin) {
+    mPlugin->Shutdown();
+    mPlugin = nsnull;
   }
 }

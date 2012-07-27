@@ -159,7 +159,7 @@ SuppressEventHandlers(nsPresContext* aPresContext)
   return suppressHandlers;
 }
 
-class nsAnonDivObserver : public nsStubMutationObserver
+class nsAnonDivObserver MOZ_FINAL : public nsStubMutationObserver
 {
 public:
   nsAnonDivObserver(nsTextEditorState* aTextEditorState)
@@ -174,8 +174,8 @@ private:
   nsTextEditorState* mTextEditorState;
 };
 
-class nsTextInputSelectionImpl : public nsSupportsWeakReference
-                               , public nsISelectionController
+class nsTextInputSelectionImpl MOZ_FINAL : public nsSupportsWeakReference
+                                         , public nsISelectionController
 {
 public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
@@ -875,14 +875,6 @@ nsTextInputListener::EditAction()
     mTxtCtrlElement->OnValueChanged(true);
   }
 
-  // Fire input event
-  bool trusted = false;
-  editor->GetLastKeypressEventTrusted(&trusted);
-  frame->FireOnInput(trusted);
-
-  // mFrame may be dead after this, but we don't need to check for it, because
-  // we are not uisng it in this function any more.
-
   return NS_OK;
 }
 
@@ -1173,10 +1165,6 @@ nsTextEditorState::PrepareEditor(const nsAString *aValue)
   // All nsTextControlFrames are widgets
   editorFlags |= nsIPlaintextEditor::eEditorWidgetMask;
 
-  // Use async reflow and painting for text widgets to improve
-  // performance.
-  editorFlags |= nsIPlaintextEditor::eEditorUseAsyncUpdatesMask;
-  
   // Spell check is diabled at creation time. It is enabled once
   // the editor comes into focus.
   editorFlags |= nsIPlaintextEditor::eEditorSkipSpellCheck;
@@ -1327,12 +1315,7 @@ nsTextEditorState::PrepareEditor(const nsAString *aValue)
   // editor for us.
 
   if (!defaultValue.IsEmpty()) {
-    // Avoid causing reentrant painting and reflowing by telling the editor
-    // that we don't want it to force immediate view refreshes or force
-    // immediate reflows during any editor calls.
-
-    rv = newEditor->SetFlags(editorFlags |
-                             nsIPlaintextEditor::eEditorUseAsyncUpdatesMask);
+    rv = newEditor->SetFlags(editorFlags);
     NS_ENSURE_SUCCESS(rv, rv);
 
     // Now call SetValue() which will make the necessary editor calls to set
@@ -1784,7 +1767,7 @@ nsTextEditorState::SetValue(const nsAString& aValue, bool aUserInput)
     // this is necessary to avoid infinite recursion
     if (!currentValue.Equals(aValue))
     {
-      nsTextControlFrame::ValueSetter valueSetter(mBoundFrame,
+      nsTextControlFrame::ValueSetter valueSetter(mBoundFrame, mEditor,
                                                   mBoundFrame->mFocusedValue.Equals(currentValue));
 
       // \r is an illegal character in the dom, but people use them,
@@ -1850,7 +1833,6 @@ nsTextEditorState::SetValue(const nsAString& aValue, bool aUserInput)
         flags = savedFlags;
         flags &= ~(nsIPlaintextEditor::eEditorDisabledMask);
         flags &= ~(nsIPlaintextEditor::eEditorReadonlyMask);
-        flags |= nsIPlaintextEditor::eEditorUseAsyncUpdatesMask;
         flags |= nsIPlaintextEditor::eEditorDontEchoPassword;
         mEditor->SetFlags(flags);
 

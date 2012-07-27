@@ -153,16 +153,16 @@ nsLayoutDebugger::GetStyleSize(nsIPresShell* aPresentation,
 #ifdef MOZ_DUMP_PAINTING
 static void
 PrintDisplayListTo(nsDisplayListBuilder* aBuilder, const nsDisplayList& aList,
-                   PRInt32 aIndent, FILE* aOutput)
+                   FILE* aOutput)
 {
+  fprintf(aOutput, "<ul>");
+
   for (nsDisplayItem* i = aList.GetBottom(); i != nsnull; i = i->GetAbove()) {
 #ifdef DEBUG
     if (aList.DidComputeVisibility() && i->GetVisibleRect().IsEmpty())
       continue;
 #endif
-    for (PRInt32 j = 0; j < aIndent; ++j) {
-      fputc(' ', aOutput);
-    }
+    fprintf(aOutput, "<li>");
     nsIFrame* f = i->GetUnderlyingFrame();
     nsAutoString fName;
 #ifdef DEBUG
@@ -170,7 +170,8 @@ PrintDisplayListTo(nsDisplayListBuilder* aBuilder, const nsDisplayList& aList,
       f->GetFrameName(fName);
     }
 #endif
-    nsRect rect = i->GetBounds(aBuilder);
+    bool snap;
+    nsRect rect = i->GetBounds(aBuilder, &snap);
     switch (i->GetType()) {
       case nsDisplayItem::TYPE_CLIP:
       case nsDisplayItem::TYPE_CLIP_ROUNDED_RECT: {
@@ -191,20 +192,30 @@ PrintDisplayListTo(nsDisplayListBuilder* aBuilder, const nsDisplayList& aList,
     }
 #ifdef DEBUG
     if (!list || list->DidComputeVisibility()) {
-      opaque = i->GetOpaqueRegion(aBuilder);
+      bool forceTransparentSurface;
+      opaque = i->GetOpaqueRegion(aBuilder, &snap, &forceTransparentSurface);
     }
 #endif
+    if (i->Painted()) {
+      nsCString string(i->Name());
+      string.Append("-");
+      string.AppendInt((PRUint64)i);
+      fprintf(aOutput, "<a href=\"javascript:ViewImage('%s')\">", string.BeginReading());
+    }
     fprintf(aOutput, "%s %p(%s) (%d,%d,%d,%d)(%d,%d,%d,%d)%s%s",
             i->Name(), (void*)f, NS_ConvertUTF16toUTF8(fName).get(),
             rect.x, rect.y, rect.width, rect.height,
             vis.x, vis.y, vis.width, vis.height,
             opaque.IsEmpty() ? "" : " opaque",
             i->IsUniform(aBuilder, &color) ? " uniform" : "");
+    if (i->Painted()) {
+      fprintf(aOutput, "</a>");
+    }
     if (f) {
       PRUint32 key = i->GetPerFrameKey();
       Layer* layer = aBuilder->LayerBuilder()->GetOldLayerFor(f, key);
       if (layer) {
-        fprintf(aOutput, " layer=%p", layer);
+        fprintf(aOutput, " <a href=\"#%p\">layer=%p</a>", layer, layer);
       }
     }
     if (i->GetType() == nsDisplayItem::TYPE_SVG_EFFECTS) {
@@ -212,16 +223,20 @@ PrintDisplayListTo(nsDisplayListBuilder* aBuilder, const nsDisplayList& aList,
     }
     fputc('\n', aOutput);
     if (list) {
-      PrintDisplayListTo(aBuilder, *list, aIndent + 4, aOutput);
+      PrintDisplayListTo(aBuilder, *list, aOutput);
     }
+    fprintf(aOutput, "</li>");
   }
+  
+  fprintf(aOutput, "</ul>");
 }
 
 void
 nsFrame::PrintDisplayList(nsDisplayListBuilder* aBuilder,
-                          const nsDisplayList& aList)
+                          const nsDisplayList& aList,
+                          FILE* aFile)
 {
-  PrintDisplayListTo(aBuilder, aList, 0, stdout);
+  PrintDisplayListTo(aBuilder, aList, aFile);
 }
 
 #endif

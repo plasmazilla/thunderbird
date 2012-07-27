@@ -38,6 +38,7 @@
 #   David Dahl <ddahl@mozilla.com>
 #   Frank Yan <fyan@mozilla.com>
 #   Victor Porof <vporof@mozilla.com>
+#   Paul Rouget <paul@mozilla.com>
 #
 # Alternatively, the contents of this file may be used under the terms of
 # either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -90,8 +91,10 @@
         lightweightthemes="true"
         lightweightthemesfooter="browser-bottombox"
         windowtype="navigator:browser"
+        macanimationtype="document"
         screenX="4" screenY="4"
         browsingmode="normal"
+        fullscreenbutton="true"
         persist="screenX screenY width height sizemode">
 
 # All JS files which are not content (only) dependent that browser.xul
@@ -226,20 +229,21 @@
       </hbox>
     </panel>
 
-    <panel id="inspector-tree-panel"
-           orient="vertical"
-           hidden="true"
-           ignorekeys="true"
-           noautofocus="true"
-           noautohide="true"
-           titlebar="normal"
-           close="true"
-           label="&inspectPanelTitle.label;">
-      <hbox id="tree-panel-resizer-box" align="end">
-        <spacer flex="1" />
-        <resizer dir="bottomend" />
-      </hbox>
-    </panel>
+    <menupopup id="inspector-node-popup">
+      <menuitem id="inspectorHTMLCopyInner"
+                label="&inspectorHTMLCopyInner.label;"
+                accesskey="&inspectorHTMLCopyInner.accesskey;"
+                command="Inspector:CopyInner"/>
+      <menuitem id="inspectorHTMLCopyOuter"
+                label="&inspectorHTMLCopyOuter.label;"
+                accesskey="&inspectorHTMLCopyOuter.accesskey;"
+                command="Inspector:CopyOuter"/>
+      <menuseparator/>
+      <menuitem id="inspectorHTMLDelete"
+                label="&inspectorHTMLDelete.label;"
+                accesskey="&inspectorHTMLDelete.accesskey;"
+                command="Inspector:DeleteNode"/>
+    </menupopup>
 
     <menupopup id="toolbar-context-menu"
                onpopupshowing="onViewToolbarsPopupShowing(event);">
@@ -304,7 +308,7 @@
            type="arrow"
            hidden="true"
            noautofocus="true"
-           onpopupshown="document.getElementById('identity-popup-more-info-button').focus();"
+           onpopupshown="gIdentityHandler.onPopupShown(event);"
            level="top">
       <hbox id="identity-popup-container" align="top">
         <image id="identity-popup-icon"/>
@@ -471,7 +475,7 @@
              toolbarname="&navbarCmd.label;" accesskey="&navbarCmd.accesskey;"
              fullscreentoolbar="true" mode="icons" customizable="true"
              iconsize="large"
-             defaultset="unified-back-forward-button,urlbar-container,reload-button,stop-button,search-container,home-button,bookmarks-menu-button-container,fullscreenflex,window-controls"
+             defaultset="unified-back-forward-button,urlbar-container,reload-button,stop-button,search-container,home-button,bookmarks-menu-button-container,window-controls"
              context="toolbar-context-menu">
 
       <toolbaritem id="unified-back-forward-button" class="chromeclass-toolbar-additional"
@@ -524,6 +528,8 @@
             <image id="addons-notification-icon" class="notification-anchor-icon" role="button"/>
             <image id="indexedDB-notification-icon" class="notification-anchor-icon" role="button"/>
             <image id="password-notification-icon" class="notification-anchor-icon" role="button"/>
+            <image id="webapps-notification-icon" class="notification-anchor-icon" role="button"/>
+            <image id="plugins-notification-icon" class="notification-anchor-icon" role="button"/>
           </box>
           <!-- Use onclick instead of normal popup= syntax since the popup
                code fires onmousedown, and hence eats our favicon drag events.
@@ -536,9 +542,8 @@
             <hbox id="identity-box-inner" align="center">
               <hbox id="page-proxy-stack"
                     onclick="PageProxyClickHandler(event);">
-                <image id="page-proxy-favicon" validate="never"
-                       pageproxystate="invalid"
-                       onerror="this.removeAttribute('src');"/>
+                <image id="page-proxy-favicon"
+                       pageproxystate="invalid"/>
               </hbox>
               <hbox id="identity-icon-labels">
                 <label id="identity-icon-label" class="plain" flex="1"/>
@@ -692,8 +697,7 @@
         </toolbarbutton>
       </toolbaritem>
 
-      <hbox id="fullscreenflex" flex="1" hidden="true" fullscreencontrol="true"/>
-      <hbox id="window-controls" hidden="true" fullscreencontrol="true">
+      <hbox id="window-controls" hidden="true" fullscreencontrol="true" pack="end">
         <toolbarbutton id="minimize-button"
                        tooltiptext="&fullScreenMinimize.tooltip;"
                        oncommand="window.minimize();"/>
@@ -850,11 +854,9 @@
                      label="&printButton.label;" command="cmd_print"
                      tooltiptext="&printButton.tooltip;"/>
 
-      <toolbaritem id="navigator-throbber" title="&throbberItem.title;" align="center" pack="center"
-                   mousethrough="always">
-        <image/>
-      </toolbaritem>
-
+      <!-- This is a placeholder for the Downloads Indicator.  It is visible
+           only during the customization of the toolbar or in the palette, and
+           is replaced when customization is done. -->
       <toolbarbutton id="downloads-button" class="toolbarbutton-1 chromeclass-toolbar-additional"
                      observes="Tools:Downloads"
                      ondrop="DownloadsButtonDNDObserver.onDrop(event)"
@@ -885,21 +887,6 @@
                      ondragenter="newWindowButtonObserver.onDragOver(event)"
                      ondragexit="newWindowButtonObserver.onDragExit(event)"/>
 
-      <toolbarbutton id="cut-button" class="toolbarbutton-1 chromeclass-toolbar-additional"
-                     label="&cutCmd.label;"
-                     command="cmd_cut"
-                     tooltiptext="&cutButton.tooltip;"/>
-
-      <toolbarbutton id="copy-button" class="toolbarbutton-1 chromeclass-toolbar-additional"
-                     label="&copyCmd.label;"
-                     command="cmd_copy"
-                     tooltiptext="&copyButton.tooltip;"/>
-
-      <toolbarbutton id="paste-button" class="toolbarbutton-1 chromeclass-toolbar-additional"
-                     label="&pasteCmd.label;"
-                     command="cmd_paste"
-                     tooltiptext="&pasteButton.tooltip;"/>
-
       <toolbarbutton id="fullscreen-button" class="toolbarbutton-1 chromeclass-toolbar-additional"
                      observes="View:FullScreen"
                      type="checkbox"
@@ -917,12 +904,7 @@
                        command="cmd_fullZoomEnlarge"
                        tooltiptext="&zoomInButton.tooltip;"/>
       </toolbaritem>
-#ifdef MOZ_SERVICES_SYNC
-      <toolbarbutton id="sync-button"
-                     class="toolbarbutton-1 chromeclass-toolbar-additional"
-                     label="&syncToolbarButton.label;"
-                     oncommand="gSyncUI.handleToolbarButton()"/>
-#endif
+
       <toolbarbutton id="feed-button"
                      type="menu"
                      class="toolbarbutton-1 chromeclass-toolbar-additional"
@@ -936,6 +918,33 @@
                    oncommand="return FeedHandler.subscribeToFeed(null, event);"
                    onclick="checkForMiddleClick(this, event);"/>
       </toolbarbutton>
+
+      <toolbarbutton id="cut-button" class="toolbarbutton-1 chromeclass-toolbar-additional"
+                     label="&cutCmd.label;"
+                     command="cmd_cut"
+                     tooltiptext="&cutButton.tooltip;"/>
+
+      <toolbarbutton id="copy-button" class="toolbarbutton-1 chromeclass-toolbar-additional"
+                     label="&copyCmd.label;"
+                     command="cmd_copy"
+                     tooltiptext="&copyButton.tooltip;"/>
+
+      <toolbarbutton id="paste-button" class="toolbarbutton-1 chromeclass-toolbar-additional"
+                     label="&pasteCmd.label;"
+                     command="cmd_paste"
+                     tooltiptext="&pasteButton.tooltip;"/>
+
+#ifdef MOZ_SERVICES_SYNC
+      <toolbarbutton id="sync-button"
+                     class="toolbarbutton-1 chromeclass-toolbar-additional"
+                     label="&syncToolbarButton.label;"
+                     oncommand="gSyncUI.handleToolbarButton()"/>
+#endif
+
+      <toolbaritem id="navigator-throbber" title="&throbberItem.title;" align="center" pack="center"
+                   mousethrough="always">
+        <image/>
+      </toolbaritem>
 
       <toolbarbutton id="tabview-button" class="toolbarbutton-1 chromeclass-toolbar-additional"
                      label="&tabGroupsButton.label;"
@@ -964,7 +973,7 @@
                   tabcontainer="tabbrowser-tabs"
                   contentcontextmenu="contentAreaContextMenu"
                   autocompletepopup="PopupAutoComplete"
-                  onclick="return contentAreaClick(event, false);"/>
+                  onclick="contentAreaClick(event, false);"/>
       <statuspanel id="statusbar-display" inactive="true"/>
     </vbox>
     <splitter id="devtools-side-splitter" hidden="true"/>
@@ -991,45 +1000,44 @@
              class="devtools-toolbar"
              nowindowdrag="true"
              hidden="true">
-      <vbox flex="1">
-        <resizer id="inspector-top-resizer" flex="1" 
-                 dir="top" disabled="true"
-                 element="inspector-tree-box"/>
-        <hbox>
 #ifdef XP_MACOSX
-          <toolbarbutton id="highlighter-closebutton"
-                         oncommand="InspectorUI.closeInspectorUI(false);"
-                         tooltiptext="&inspectCloseButton.tooltiptext;"/>
+      <toolbarbutton id="highlighter-closebutton"
+                     oncommand="InspectorUI.closeInspectorUI(false);"
+                     tooltiptext="&inspectCloseButton.tooltiptext;"/>
 #endif
-          <toolbarbutton id="inspector-inspect-toolbutton"
-                         class="devtools-toolbarbutton"
-                         label="&inspectButton.label;"
-                         accesskey="&inspectButton.accesskey;"
-                         command="Inspector:Inspect"/>
-          <arrowscrollbox id="inspector-breadcrumbs"
-                          flex="1" orient="horizontal"
-                          clicktoscroll="true"/>
-          <hbox id="inspector-tools">
-            <toolbarbutton id="inspector-3D-button"
-                           class="devtools-toolbarbutton"
-                           hidden="true"
-                           label="&inspect3DViewButton.label;"
-                           accesskey="&inspect3DViewButton.accesskey;"
-                           command="Inspector:Tilt"/>
-            <toolbarbutton id="inspector-style-button"
-                           class="devtools-toolbarbutton"
-                           label="&inspectStyleButton.label;"
-                           accesskey="&inspectStyleButton.accesskey;"
-                           command="Inspector:Sidebar"/>
-            <!-- registered tools go here -->
-          </hbox>
+      <toolbarbutton id="inspector-inspect-toolbutton"
+                     class="devtools-toolbarbutton"
+                     command="Inspector:Inspect"/>
+      <toolbarbutton id="inspector-treepanel-toolbutton"
+                     class="devtools-toolbarbutton"
+                     tabindex="0"
+                     aria-label="&markupButton.arialabel;"
+                     accesskey="&markupButton.accesskey;"
+                     command="Inspector:HTMLPanel"/>
+      <arrowscrollbox id="inspector-breadcrumbs"
+                      flex="1" orient="horizontal"
+                      clicktoscroll="true"/>
+      <hbox id="inspector-tools">
+        <toolbarbutton id="inspector-3D-button"
+                       class="devtools-toolbarbutton"
+                       hidden="true"
+                       label="&inspect3DViewButton.label;"
+                       accesskey="&inspect3DViewButton.accesskey;"
+                       tabindex="0"
+                       command="Inspector:Tilt"/>
+        <toolbarbutton id="inspector-style-button"
+                       class="devtools-toolbarbutton"
+                       label="&inspectStyleButton.label;"
+                       accesskey="&inspectStyleButton.accesskey;"
+                       tabindex="0"
+                       command="Inspector:Sidebar"/>
+        <!-- registered tools go here -->
+      </hbox>
 #ifndef XP_MACOSX
-          <toolbarbutton id="highlighter-closebutton"
-                         oncommand="InspectorUI.closeInspectorUI(false);"
-                         tooltiptext="&inspectCloseButton.tooltiptext;"/>
+      <toolbarbutton id="highlighter-closebutton"
+                     oncommand="InspectorUI.closeInspectorUI(false);"
+                     tooltiptext="&inspectCloseButton.tooltiptext;"/>
 #endif
-        </hbox>
-      </vbox>
     </toolbar>
     <toolbar id="addon-bar"
              toolbarname="&addonBarCmd.label;" accesskey="&addonBarCmd.accesskey;"
@@ -1052,15 +1060,11 @@
   <svg:svg height="0">
     <svg:mask id="winstripe-keyhole-forward-mask" maskContentUnits="objectBoundingBox">
       <svg:rect x="0" y="0" width="1" height="1" fill="white"/>
-      <svg:circle cx="-0.46" cy="0.5" r="0.63"/>
-    </svg:mask>
-    <svg:mask id="winstripe-keyhole-forward-mask-hover" maskContentUnits="objectBoundingBox">
-      <svg:rect x="0" y="0" width="1" height="1" fill="white"/>
-      <svg:circle cx="-0.35" cy="0.5" r="0.58"/>
+      <svg:circle cx="-0.34" cy="0.5" r="0.61"/>
     </svg:mask>
     <svg:mask id="winstripe-urlbar-back-button-mask" maskContentUnits="userSpaceOnUse">
       <svg:rect x="0" y="0" width="10000" height="50" fill="white"/>
-      <svg:circle cx="-11" cy="13" r="15"/>
+      <svg:circle cx="-11" cy="18" r="15"/>
     </svg:mask>
   </svg:svg>
 #endif

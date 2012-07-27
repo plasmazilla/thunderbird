@@ -40,6 +40,9 @@
 /*
  * JS boolean implementation.
  */
+
+#include "mozilla/FloatingPoint.h"
+
 #include "jstypes.h"
 #include "jsutil.h"
 #include "jsapi.h"
@@ -53,12 +56,14 @@
 #include "jsobj.h"
 #include "jsstr.h"
 
-#include "vm/BooleanObject-inl.h"
 #include "vm/GlobalObject.h"
+#include "vm/StringBuffer.h"
 
 #include "jsinferinlines.h"
 #include "jsobjinlines.h"
-#include "jsstrinlines.h"
+
+#include "vm/BooleanObject-inl.h"
+#include "vm/MethodGuard-inl.h"
 
 using namespace js;
 using namespace js::types;
@@ -76,7 +81,7 @@ Class js::BooleanClass = {
 
 #if JS_HAS_TOSOURCE
 static JSBool
-bool_toSource(JSContext *cx, uintN argc, Value *vp)
+bool_toSource(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
 
@@ -97,7 +102,7 @@ bool_toSource(JSContext *cx, uintN argc, Value *vp)
 #endif
 
 static JSBool
-bool_toString(JSContext *cx, uintN argc, Value *vp)
+bool_toString(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
 
@@ -110,7 +115,7 @@ bool_toString(JSContext *cx, uintN argc, Value *vp)
 }
 
 static JSBool
-bool_valueOf(JSContext *cx, uintN argc, Value *vp)
+bool_valueOf(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
 
@@ -132,7 +137,7 @@ static JSFunctionSpec boolean_methods[] = {
 };
 
 static JSBool
-Boolean(JSContext *cx, uintN argc, Value *vp)
+Boolean(JSContext *cx, unsigned argc, Value *vp)
 {
     CallArgs args = CallArgsFromVp(argc, vp);
 
@@ -140,6 +145,8 @@ Boolean(JSContext *cx, uintN argc, Value *vp)
 
     if (IsConstructing(vp)) {
         JSObject *obj = BooleanObject::create(cx, b);
+        if (!obj)
+            return false;
         args.rval().setObject(*obj);
     } else {
         args.rval().setBoolean(b);
@@ -152,15 +159,15 @@ js_InitBooleanClass(JSContext *cx, JSObject *obj)
 {
     JS_ASSERT(obj->isNative());
 
-    GlobalObject *global = &obj->asGlobal();
+    RootedVar<GlobalObject*> global(cx, &obj->asGlobal());
 
-    JSObject *booleanProto = global->createBlankPrototype(cx, &BooleanClass);
+    RootedVarObject booleanProto (cx, global->createBlankPrototype(cx, &BooleanClass));
     if (!booleanProto)
         return NULL;
-    booleanProto->setPrimitiveThis(BooleanValue(false));
+    booleanProto->setFixedSlot(BooleanObject::PRIMITIVE_VALUE_SLOT, BooleanValue(false));
 
-    JSFunction *ctor = global->createConstructor(cx, Boolean, &BooleanClass,
-                                                 CLASS_ATOM(cx, Boolean), 1);
+    RootedVarFunction ctor(cx);
+    ctor = global->createConstructor(cx, Boolean, CLASS_ATOM(cx, Boolean), 1);
     if (!ctor)
         return NULL;
 
@@ -180,13 +187,6 @@ JSString *
 js_BooleanToString(JSContext *cx, JSBool b)
 {
     return cx->runtime->atomState.booleanAtoms[b ? 1 : 0];
-}
-
-/* This function implements E-262-3 section 9.8, toString. */
-bool
-js::BooleanToStringBuffer(JSContext *cx, JSBool b, StringBuffer &sb)
-{
-    return b ? sb.append("true") : sb.append("false");
 }
 
 namespace js {
@@ -228,10 +228,10 @@ js_ValueToBoolean(const Value &v)
     if (v.isNullOrUndefined())
         return JS_FALSE;
     if (v.isDouble()) {
-        jsdouble d;
+        double d;
 
         d = v.toDouble();
-        return !JSDOUBLE_IS_NaN(d) && d != 0;
+        return !MOZ_DOUBLE_IS_NaN(d) && d != 0;
     }
     JS_ASSERT(v.isBoolean());
     return v.toBoolean();

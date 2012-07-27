@@ -80,7 +80,7 @@
 #include "nsMsgCompUtils.h"
 #include "nsIMsgWindow.h"
 #include "MailNewsTypes2.h" // for nsMsgSocketType and nsMsgAuthMethod
-
+#include "mozilla/Services.h"
 
 #ifndef XP_UNIX
 #include <stdarg.h>
@@ -108,7 +108,6 @@ nsresult nsExplainErrorDetails(nsISmtpUrl * aSmtpUrl, int code, ...)
 {
   NS_ENSURE_ARG(aSmtpUrl);
 
-  nsresult rv = NS_OK;
   va_list args;
 
   nsCOMPtr<nsIPrompt> dialog;
@@ -117,10 +116,11 @@ nsresult nsExplainErrorDetails(nsISmtpUrl * aSmtpUrl, int code, ...)
 
   PRUnichar *  msg;
   nsString eMsg;
-  nsCOMPtr<nsIStringBundleService> bundleService(do_GetService("@mozilla.org/intl/stringbundle;1", &rv));
-  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsIStringBundleService> bundleService =
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
   nsCOMPtr<nsIStringBundle> bundle;
-  rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(bundle));
+  nsresult rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(bundle));
   NS_ENSURE_SUCCESS(rv, rv);
 
   va_start (args, code);
@@ -412,6 +412,13 @@ NS_IMETHODIMP nsSmtpProtocol::OnStopRequest(nsIRequest *request, nsISupports *ct
   bool connDroppedDuringAuth = aStatus == NS_OK && !m_sendDone &&
       (m_nextStateAfterResponse == SMTP_AUTH_LOGIN_STEP0_RESPONSE ||
        m_nextStateAfterResponse == SMTP_AUTH_LOGIN_RESPONSE);
+  // ignore errors handling the QUIT command so fcc can continue.
+  if (m_sendDone && NS_FAILED(aStatus))
+  {
+    PR_LOG(SMTPLogModule, PR_LOG_ALWAYS,
+     ("SMTP connection error quitting %lx, ignoring ", aStatus));
+    aStatus = NS_OK;
+  }
   if (aStatus == NS_OK && !m_sendDone) {
     // if we are getting OnStopRequest() with NS_OK,
     // but we haven't finished clean, that's spells trouble.
@@ -451,11 +458,11 @@ void nsSmtpProtocol::UpdateStatus(PRInt32 aStatusID)
 {
   if (m_statusFeedback)
   {
-    nsresult rv;
-    nsCOMPtr<nsIStringBundleService> bundleService(do_GetService("@mozilla.org/intl/stringbundle;1", &rv));
-    if (NS_FAILED(rv)) return;
+    nsCOMPtr<nsIStringBundleService> bundleService =
+      mozilla::services::GetStringBundleService();
+    if (!bundleService) return;
     nsCOMPtr<nsIStringBundle> bundle;
-    rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(bundle));
+    nsresult rv = bundleService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(bundle));
     if (NS_FAILED(rv)) return;
     nsString msg;
     bundle->GetStringFromID(aStatusID, getter_Copies(msg));
@@ -528,10 +535,9 @@ PRInt32 nsSmtpProtocol::SmtpResponse(nsIInputStream * inputStream, PRUint32 leng
     m_responseText += (PL_strlen(line) > 3) ? line + 4 : line;
   }
 
-  if (m_responseCode == 220 && m_responseText.Length() && !m_tlsInitiated)
-  {
+  if (m_responseCode == 220 && m_responseText.Length() && !m_tlsInitiated &&
+     !m_sendDone)
     m_nextStateAfterResponse = SMTP_EXTN_LOGIN_RESPONSE;
-  }
 
   if (m_continuationResponse == -1)  /* all done with this response? */
   {
@@ -564,9 +570,7 @@ PRInt32 nsSmtpProtocol::ExtensionLoginResponse(nsIInputStream * inputStream, PRU
   AppendHelloArgument(buffer);
   buffer += CRLF;
 
-  nsCOMPtr<nsIURI> url = do_QueryInterface(m_runningURL);
-
-  status = SendData(url, buffer.get());
+  status = SendData(buffer.get());
 
   m_nextState = SMTP_RESPONSE;
   m_nextStateAfterResponse = SMTP_SEND_EHLO_RESPONSE;
@@ -674,8 +678,7 @@ PRInt32 nsSmtpProtocol::SendHeloResponse(nsIInputStream * inputStream, PRUint32 
   }
   buffer += CRLF;
 
-  nsCOMPtr<nsIURI> url = do_QueryInterface(m_runningURL);
-  status = SendData(url, buffer.get());
+  status = SendData(buffer.get());
 
   m_nextState = SMTP_RESPONSE;
 
@@ -689,7 +692,6 @@ PRInt32 nsSmtpProtocol::SendHeloResponse(nsIInputStream * inputStream, PRUint32 
 PRInt32 nsSmtpProtocol::SendEhloResponse(nsIInputStream * inputStream, PRUint32 length)
 {
     PRInt32 status = 0;
-    nsCOMPtr<nsIURI> url = do_QueryInterface(m_runningURL);
 
     if (m_responseCode != 250)
     {
@@ -713,7 +715,7 @@ PRInt32 nsSmtpProtocol::SendEhloResponse(nsIInputStream * inputStream, PRUint32 
             AppendHelloArgument(buffer);
             buffer += CRLF;
 
-            status = SendData(url, buffer.get());
+            status = SendData(buffer.get());
 
             m_nextState = SMTP_RESPONSE;
             m_nextStateAfterResponse = SMTP_SEND_HELO_RESPONSE;
@@ -963,7 +965,6 @@ PRInt32 nsSmtpProtocol::ProcessAuth()
 {
     PRInt32 status = 0;
     nsCAutoString buffer;
-    nsCOMPtr<nsIURI> url = do_QueryInterface(m_runningURL);
 
     if (!m_tlsEnabled)
     {
@@ -980,7 +981,7 @@ PRInt32 nsSmtpProtocol::ProcessAuth()
                 buffer = "STARTTLS";
                 buffer += CRLF;
 
-                status = SendData(url, buffer.get());
+                status = SendData(buffer.get());
 
                 m_tlsInitiated = true;
 
@@ -1013,7 +1014,7 @@ PRInt32 nsSmtpProtocol::ProcessAuth()
   {
     buffer = "AUTH EXTERNAL =";
     buffer += CRLF;
-    SendData(url, buffer.get());
+    SendData(buffer.get());
     m_nextState = SMTP_RESPONSE;
     m_nextStateAfterResponse = SMTP_AUTH_EXTERNAL_RESPONSE;
     SetFlag(SMTP_PAUSE_FOR_READ);
@@ -1220,8 +1221,7 @@ PRInt32 nsSmtpProtocol::AuthGSSAPIFirst()
   m_nextState = SMTP_RESPONSE;
   m_nextStateAfterResponse = SMTP_SEND_AUTH_GSSAPI_STEP;
   SetFlag(SMTP_PAUSE_FOR_READ);
-  nsCOMPtr<nsIURI> url = do_QueryInterface(m_runningURL);
-  return SendData(url, command.get());
+  return SendData(command.get());
 }
 
 // GSSAPI may consist of multiple round trips
@@ -1248,8 +1248,7 @@ PRInt32 nsSmtpProtocol::AuthGSSAPIStep()
   m_nextState = SMTP_RESPONSE;
   SetFlag(SMTP_PAUSE_FOR_READ);
 
-  nsCOMPtr<nsIURI> url = do_QueryInterface(m_runningURL);
-  return SendData(url, cmd.get());
+  return SendData(cmd.get());
 }
 
 
@@ -1269,7 +1268,7 @@ PRInt32 nsSmtpProtocol::AuthLoginStep0()
     m_nextStateAfterResponse = SMTP_AUTH_LOGIN_STEP0_RESPONSE;
     SetFlag(SMTP_PAUSE_FOR_READ);
 
-    return SendData(m_url, command.get());
+    return SendData(command.get());
 }
 
 PRInt32 nsSmtpProtocol::AuthLoginStep0Response()
@@ -1357,8 +1356,7 @@ PRInt32 nsSmtpProtocol::AuthLoginStep1()
   else
     return (NS_ERROR_COMMUNICATIONS_ERROR);
 
-  nsCOMPtr<nsIURI> url = do_QueryInterface(m_runningURL);
-  status = SendData(url, buffer, true);
+  status = SendData(buffer, true);
   m_nextState = SMTP_RESPONSE;
   m_nextStateAfterResponse = SMTP_AUTH_LOGIN_RESPONSE;
   SetFlag(SMTP_PAUSE_FOR_READ);
@@ -1447,8 +1445,7 @@ PRInt32 nsSmtpProtocol::AuthLoginStep2()
     else
       return NS_ERROR_COMMUNICATIONS_ERROR;
 
-    nsCOMPtr<nsIURI> url = do_QueryInterface(m_runningURL);
-    status = SendData(url, buffer, true);
+    status = SendData(buffer, true);
     m_nextState = SMTP_RESPONSE;
     m_nextStateAfterResponse = SMTP_AUTH_LOGIN_RESPONSE;
     SetFlag(SMTP_PAUSE_FOR_READ);
@@ -1549,8 +1546,7 @@ PRInt32 nsSmtpProtocol::SendMailResponse()
       buffer += ">";
       buffer += CRLF;
     }
-    nsCOMPtr<nsIURI> url = do_QueryInterface(m_runningURL);
-    status = SendData(url, buffer.get());
+    status = SendData(buffer.get());
 
     m_nextState = SMTP_RESPONSE;
     m_nextStateAfterResponse = SMTP_SEND_RCPT_RESPONSE;
@@ -1598,8 +1594,7 @@ PRInt32 nsSmtpProtocol::SendRecipientResponse()
   /* else send the DATA command */
   buffer = "DATA";
   buffer += CRLF;
-  nsCOMPtr<nsIURI> url = do_QueryInterface(m_runningURL);
-  status = SendData(url, buffer.get());
+  status = SendData(buffer.get());
 
   m_nextState = SMTP_RESPONSE;
   m_nextStateAfterResponse = SMTP_SEND_DATA_RESPONSE;
@@ -1609,7 +1604,7 @@ PRInt32 nsSmtpProtocol::SendRecipientResponse()
 }
 
 
-PRInt32 nsSmtpProtocol::SendData(nsIURI *url, const char *dataBuffer, bool aSuppressLogging)
+nsresult nsSmtpProtocol::SendData(const char *dataBuffer, bool aSuppressLogging)
 {
   if (!dataBuffer) return -1;
 
@@ -1618,7 +1613,7 @@ PRInt32 nsSmtpProtocol::SendData(nsIURI *url, const char *dataBuffer, bool aSupp
   } else {
       PR_LOG(SMTPLogModule, PR_LOG_ALWAYS, ("Logging suppressed for this command (it probably contained authentication information)"));
   }
-  return nsMsgAsyncWriteProtocol::SendData(url, dataBuffer);
+  return nsMsgAsyncWriteProtocol::SendData(dataBuffer);
 }
 
 
@@ -1718,14 +1713,13 @@ PRInt32 nsSmtpProtocol::SendMessageResponse()
   return SendQuit();
 }
 
-PRInt32 nsSmtpProtocol::SendQuit()
+PRInt32 nsSmtpProtocol::SendQuit(SmtpState aNextStateAfterResponse)
 {
   m_sendDone = true;
-  nsCOMPtr<nsIURI> url = do_QueryInterface(m_runningURL);
-  SendData(url, "QUIT"CRLF); // send a quit command to close the connection with the server.
   m_nextState = SMTP_RESPONSE;
-  m_nextStateAfterResponse = SMTP_DONE;
-  return(0);
+  m_nextStateAfterResponse = aNextStateAfterResponse;
+
+  return SendData("QUIT" CRLF); // send a quit command to close the connection with the server.
 }
 
 nsresult nsSmtpProtocol::LoadUrl(nsIURI * aURL, nsISupports * aConsumer )
@@ -1967,19 +1961,13 @@ nsresult nsSmtpProtocol::LoadUrl(nsIURI * aURL, nsISupports * aConsumer )
     */
     if(status < 0 && m_nextState != SMTP_FREE)
     {
-      nsCOMPtr<nsIURI> url = do_QueryInterface(m_runningURL);
       // send a quit command to close the connection with the server.
-      if (SendData(url, "QUIT"CRLF) == NS_OK)
+      if (SendQuit(SMTP_ERROR_DONE) < 0)
       {
-        m_nextState = SMTP_RESPONSE;
-        m_nextStateAfterResponse = SMTP_ERROR_DONE;
+        m_nextState = SMTP_ERROR_DONE;
+        // Don't exit - loop around again and do the free case
+        ClearFlag(SMTP_PAUSE_FOR_READ);
       }
-      else
-      {
-      m_nextState = SMTP_ERROR_DONE;
-      /* don't exit! loop around again and do the free case */
-      ClearFlag(SMTP_PAUSE_FOR_READ);
-    }
     }
   } /* while(!SMTP_PAUSE_FOR_READ) */
 
@@ -2042,12 +2030,12 @@ nsSmtpProtocol::GetPassword(nsCString &aPassword)
 nsresult
 nsSmtpProtocol::PromptForPassword(nsISmtpServer *aSmtpServer, nsISmtpUrl *aSmtpUrl, const PRUnichar **formatStrings, nsACString &aPassword)
 {
-  nsresult rv;
-  nsCOMPtr<nsIStringBundleService> stringService = do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv,rv);
+  nsCOMPtr<nsIStringBundleService> stringService =
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(stringService, NS_ERROR_UNEXPECTED);
 
   nsCOMPtr<nsIStringBundle> composeStringBundle;
-  rv = stringService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(composeStringBundle));
+  nsresult rv = stringService->CreateBundle("chrome://messenger/locale/messengercompose/composeMsgs.properties", getter_AddRefs(composeStringBundle));
   NS_ENSURE_SUCCESS(rv,rv);
 
   nsString passwordPromptString;

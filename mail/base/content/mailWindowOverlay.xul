@@ -221,7 +221,9 @@
          valueGeneric="&folderPropsCmd.label;"/>
   <command id="cmd_find" oncommand="goDoCommand('cmd_find')" disabled="true"/>
   <command id="cmd_findAgain" oncommand="goDoCommand('cmd_findAgain')" disabled="true"/>
-  <command id="cmd_findPrevious"  oncommand="goDoCommand('cmd_findPrevious')"  disabled="true"/>
+  <command id="cmd_findPrevious" oncommand="goDoCommand('cmd_findPrevious')"
+           disabled="true"/>
+  <command id="cmd_search" oncommand="goDoCommand('cmd_search')"/>
   <!-- Stop/abort current network activities. -->
   <command id="cmd_stop" oncommand="goDoCommand('cmd_stop')"/>
   <command id="cmd_reload" oncommand="goDoCommand('cmd_reload')"/>
@@ -281,6 +283,7 @@
   <command id="button_reply"/>
   <command id="button_replyall"/>
   <command id="button_replylist"/>
+  <command id="button_followup"/>
   <command id="button_archive"/>
   <command id="button_forward"/>
   <command id="button_delete"/>
@@ -289,7 +292,9 @@
   <command id="button_getNewMessages"/>
   <command id="button_print"/>
   <command id="button_previous"/>
+  <command id="button_previousMsg"/>
   <command id="button_next"/>
+  <command id="button_nextMsg"/>
   <command id="button_goBack"/>
   <command id="button_goForward"/>
   <command id="button_file"/>
@@ -343,7 +348,6 @@
            valueMessageAccessKey="&filtersApplyToMessage.accesskey;"/>
   <command id="cmd_runJunkControls" oncommand="goDoCommand('cmd_runJunkControls');" disabled="true"/>
   <command id="cmd_deleteJunk" oncommand="goDoCommand('cmd_deleteJunk');" disabled="true"/>
-  <command id="cmd_search" oncommand="goDoCommand('cmd_search')"/>
 </commandset>
 
 #ifdef XP_MACOSX
@@ -415,6 +419,7 @@
   <key id="key_archive" key="&archiveMsgCmd.key;"                    oncommand="goDoCommand('cmd_archive')"/>
   <key id="key_goForward" key="&goForwardCmd.commandKey;"            oncommand="goDoCommand('cmd_goForward')"/>
   <key id="key_goBack" key="&goBackCmd.commandKey;"                  oncommand="goDoCommand('cmd_goBack')"/>
+  <key id="key_goChat" key="&goChatCmd.commandKey;"                  modifiers="accel,shift"/>
   <key id="key_goStartPage" keycode="VK_HOME"                        oncommand="goDoCommand('cmd_goStartPage')" modifiers="alt"/>
   <key id="key_undoCloseTab" key="&undoCloseTabCmd.commandkey;"      oncommand="goDoCommand('cmd_undoCloseTab')" modifiers="accel, shift"/> 
   <key id="key_reply" key="&replyMsgCmd.key;"                        oncommand="goDoCommand('cmd_reply')" modifiers="accel"/>
@@ -517,6 +522,7 @@
 
   <!-- Tools Keys -->
   <key id="key_searchMail" key="&searchMailCmd.key;" oncommand="goDoCommand('cmd_search')" modifiers="accel, shift"/>
+  <key id="key_errorConsole" key="&errorConsoleCmd.commandkey;" oncommand="toJavaScriptConsole();" modifiers="accel,shift"/>
   <key id="key_addressbook"
        key="&addressBookCmd.key;"
        modifiers="accel, shift"
@@ -672,8 +678,8 @@
               oncommand="gConversationOpener.openConversationForMessages(gFolderDisplay.selectedMessages);"/>
     <menuseparator id="mailContext-sep-open2"/>
     <menuitem id="mailContext-replyNewsgroup"
-              label="&contextReplyNewsgroup.label;"
-              accesskey="&contextReplyNewsgroup.accesskey;"
+              label="&contextReplyNewsgroup2.label;"
+              accesskey="&contextReplyNewsgroup2.accesskey;"
               oncommand="MsgReplyGroup(event);"/>
     <menuitem id="mailContext-replySender"
               label="&contextReplySender.label;"
@@ -1001,6 +1007,10 @@
                         label="&newExistingEmailAccountCmd.label;"
                         accesskey="&newExistingEmailAccountCmd.accesskey;"
                         oncommand="NewMailAccount(msgWindow);"/>
+              <menuitem id="newIMAccountMenuItem"
+                        label="&newIMAccountCmd.label;"
+                        accesskey="&newIMAccountCmd.accesskey;"
+                        oncommand="openIMAccountWizard();"/>
               <menuitem id="newAccountMenuItem"
                         label="&newOtherAccountsCmd.label;"
                         accesskey="&newOtherAccountsCmd.accesskey;"
@@ -1417,6 +1427,10 @@
                     accesskey="&goBackCmd.accesskey;" command="cmd_goBack"
                     key="key_goBack"/>
           <menuseparator id="goNextSeparator"/>
+          <menuitem id="menu_goChat" label="&goChatCmd.label;"
+                    accesskey="&goChatCmd.accesskey;" oncommand="showChatTab();"
+                    key="key_goChat"/>
+          <menuseparator id="goChatSeparator"/>
           <menu id="goFolderMenu"
                 label="&folderMenu.label;"
                 accesskey="&folderMenu.accesskey;"
@@ -1459,8 +1473,8 @@
                       accesskey="&replyMsgCmd.accesskey;"
                       key="key_reply"
                       command="cmd_reply"/>
-            <menuitem id="replyNewsgroupMainMenu" label="&replyNewsgroupCmd.label;"
-                      accesskey="&replyNewsgroupCmd.accesskey;"
+            <menuitem id="replyNewsgroupMainMenu" label="&replyNewsgroupCmd2.label;"
+                      accesskey="&replyNewsgroupCmd2.accesskey;"
                       key="key_reply"
                       command="cmd_replyGroup"/>
             <menuitem id="replySenderMainMenu" label="&replySenderCmd.label;"
@@ -1647,6 +1661,19 @@
         <menuitem id="activityManager" label="&activitymanager.label;"
                   accesskey="&activitymanager.accesskey;"
                   oncommand="openActivityMgr();"/>
+        <menu id="imAccountsStatus" label="&imAccountsStatus.label;"
+              accesskey="&imAccountsStatus.accesskey;"
+              oncommand="chatHandler.setStatusMenupopupCommand(event);">
+          <menupopup id="imStatusMenupopup">
+            <menuitem id="imStatusAvailable" status="available" label="&imStatus.available;" class="menuitem-iconic"/>
+            <menuitem id="imStatusUnavailable" status="unavailable" label="&imStatus.unavailable;" class="menuitem-iconic"/>
+            <menuseparator id="imStatusOfflineSeparator"/>
+            <menuitem id="imStatusOffline" status="offline" label="&imStatus.offline;" class="menuitem-iconic"/>
+            <menuseparator id="imStatusShowAccountsSeparator"/>
+            <menuitem id="imStatusShowAccounts" label="&imStatus.showAccounts;"/>
+          </menupopup>
+        </menu>
+
         <menuseparator id="devToolsSeparator"/>
         <menuitem id="filtersCmd" label="&filtersCmd.label;"
                   accesskey="&filtersCmd.accesskey;"
@@ -1672,7 +1699,7 @@
         <menuitem id="menu_import" label="&importCmd.label;"
                   accesskey="&importCmd.accesskey;"
                   oncommand="toImport();"/>
-        <menuitem id="javascriptConsole" label="&errorConsoleCmd.label;" accesskey="&errorConsoleCmd.accesskey;" oncommand="toJavaScriptConsole();"/>
+        <menuitem id="javascriptConsole" label="&errorConsoleCmd.label;" accesskey="&errorConsoleCmd.accesskey;" key="key_errorConsole" oncommand="toJavaScriptConsole();"/>
 #ifndef XP_UNIX
         <menuseparator id="prefSep"/>
         <menuitem id="menu_accountmgr" label="&accountManagerCmd.label;" accesskey="&accountManagerCmd.accesskey;" oncommand="MsgAccountManager(null);"/>
@@ -1813,18 +1840,40 @@
         <menuseparator id="button-goForwardSeparator"/>
       </menupopup>
     </toolbarbutton>
-    <toolbarbutton id="button-previous"
+    <toolbaritem id="button-previous"
+                 title="&previousButtonToolbarItem.label;"
+                 align="center"
+                 class="chromeclass-toolbar-additional">
+      <toolbarbutton id="button-previousUnread"
+                     class="toolbarbutton-1"
+                     label="&previousButton.label;"
+                     oncommand="goDoCommand('button_previous')"
+                     tooltiptext="&previousButton.tooltip;"
+                     observes="button_previous"/>
+    </toolbaritem>
+    <toolbarbutton id="button-previousMsg"
                    class="toolbarbutton-1"
-                   label="&previousButton.label;"
-                   oncommand="goDoCommand('button_previous')"
-                   tooltiptext="&previousButton.tooltip;"
-                   observes="button_previous"/>
-    <toolbarbutton id="button-next"
+                   label="&previousMsgButton.label;"
+                   oncommand="goDoCommand('button_previousMsg')"
+                   tooltiptext="&previousMsgButton.tooltip;"
+                   observes="button_previousMsg"/>
+    <toolbaritem id="button-next"
+                 title="&nextButtonToolbarItem.label;"
+                 align="center"
+                 class="chromeclass-toolbar-additional">
+      <toolbarbutton id="button-nextUnread"
+                     class="toolbarbutton-1"
+                     label="&nextButton.label;"
+                     oncommand="goDoCommand('button_next')"
+                     tooltiptext="&nextButton.tooltip;"
+                     observes="button_next"/>
+    </toolbaritem>
+    <toolbarbutton id="button-nextMsg"
                    class="toolbarbutton-1"
-                   label="&nextButton.label;"
-                   oncommand="goDoCommand('button_next')"
-                   tooltiptext="&nextButton.tooltip;"
-                   observes="button_next"/>
+                   label="&nextMsgButton.label;"
+                   oncommand="goDoCommand('button_nextMsg');"
+                   tooltiptext="&nextMsgButton.tooltip;"
+                   observes="button_nextMsg"/>
     <toolbaritem id="button-junk" title="&junkItem.title;">
       <deck id="junk-deck" observes="button_junk">
         <toolbarbutton id="button-isJunk"
@@ -1946,6 +1995,11 @@
                    label="&addressBookButton.label;"
                    oncommand="toAddressBook();"
                    tooltiptext="&addressBookButton.tooltip;"/>
+    <toolbarbutton id="button-chat"
+                   class="toolbarbutton-1"
+                   label="&chatButton.label;"
+                   oncommand="showChatTab();"
+                   tooltiptext="&chatButton.tooltip;"/>
     <toolbaritem id="throbber-box" title="&throbberItem.title;" align="center" pack="center"
                  mousethrough="always">
        <image/>
@@ -1971,9 +2025,9 @@
            context="toolbar-context-menu"
 #ifdef XP_MACOSX
            iconsize="small"
-           defaultset="button-getmsg,button-newmsg,button-address,spacer,button-tag,qfb-show-filter-bar,spring,gloda-search">
+           defaultset="button-getmsg,button-newmsg,button-chat,button-address,spacer,button-tag,qfb-show-filter-bar,spring,gloda-search">
 #else
-           defaultset="button-getmsg,button-newmsg,button-address,separator,button-tag,qfb-show-filter-bar,spring,gloda-search">
+           defaultset="button-getmsg,button-newmsg,button-chat,button-address,separator,button-tag,qfb-show-filter-bar,spring,gloda-search">
 #endif
   </toolbar>
 

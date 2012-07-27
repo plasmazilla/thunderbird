@@ -38,6 +38,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "jscntxt.h"
 #include "jsgcmark.h"
 #include "methodjit/MethodJIT.h"
 #include "Stack.h"
@@ -125,21 +126,31 @@ StackFrame::initDummyFrame(JSContext *cx, JSObject &chain)
     setScopeChainNoCallObj(chain);
 }
 
+template <class T, class U, StackFrame::TriggerPostBarriers doPostBarrier>
 void
-StackFrame::stealFrameAndSlots(Value *vp, StackFrame *otherfp,
-                               Value *othervp, Value *othersp)
+StackFrame::stealFrameAndSlots(StackFrame *fp, T *vp, StackFrame *otherfp, U *othervp,
+                               Value *othersp)
 {
-    JS_ASSERT(vp == (Value *)this - ((Value *)otherfp - othervp));
-    JS_ASSERT(othervp == otherfp->actualArgs() - 2);
+    JS_ASSERT((U *)vp == (U *)this - ((U *)otherfp - othervp));
+    JS_ASSERT((Value *)othervp == otherfp->actualArgs() - 2);
     JS_ASSERT(othersp >= otherfp->slots());
     JS_ASSERT(othersp <= otherfp->base() + otherfp->numSlots());
+    JS_ASSERT((T *)fp - vp == (U *)otherfp - othervp);
 
-    PodCopy(vp, othervp, othersp - othervp);
-    JS_ASSERT(vp == this->actualArgs() - 2);
+    /* Copy args, StackFrame, and slots. */
+    U *srcend = (U *)otherfp->formalArgsEnd();
+    T *dst = vp;
+    for (U *src = othervp; src < srcend; src++, dst++)
+        *dst = *src;
 
-    /* Catch bad-touching of non-canonical args (e.g., generator_trace). */
-    if (otherfp->hasOverflowArgs())
-        Debug_SetValueRangeToCrashOnTouch(othervp, othervp + 2 + otherfp->numFormalArgs());
+    *fp = *otherfp;
+    if (doPostBarrier)
+        fp->writeBarrierPost();
+
+    srcend = (U *)othersp;
+    dst = (T *)fp->slots();
+    for (U *src = (U *)otherfp->slots(); src < srcend; src++, dst++)
+        *dst = *src;
 
     /*
      * Repoint Call, Arguments, Block and With objects to the new live frame.
@@ -164,6 +175,37 @@ StackFrame::stealFrameAndSlots(Value *vp, StackFrame *otherfp,
             JS_ASSERT(!argsobj.maybeStackFrame());
         otherfp->flags_ &= ~HAS_ARGS_OBJ;
     }
+}
+
+/* Note: explicit instantiation for js_NewGenerator located in jsiter.cpp. */
+template void StackFrame::stealFrameAndSlots<Value, HeapValue, StackFrame::NoPostBarrier>(
+                                             StackFrame *, Value *,
+                                             StackFrame *, HeapValue *, Value *);
+template void StackFrame::stealFrameAndSlots<HeapValue, Value, StackFrame::DoPostBarrier>(
+                                             StackFrame *, HeapValue *,
+                                             StackFrame *, Value *, Value *);
+
+void
+StackFrame::writeBarrierPost()
+{
+    /* This needs to follow the same rules as in js_TraceStackFrame. */
+    if (scopeChain_)
+        JSObject::writeBarrierPost(scopeChain_, (void *)&scopeChain_);
+    if (isDummyFrame())
+        return;
+    if (hasArgsObj())
+        JSObject::writeBarrierPost(argsObj_, (void *)&argsObj_);
+    if (isScriptFrame()) {
+        if (isFunctionFrame()) {
+            JSFunction::writeBarrierPost((JSObject *)exec.fun, (void *)&exec.fun);
+            if (isEvalFrame())
+                JSScript::writeBarrierPost(u.evalScript, (void *)&u.evalScript);
+        } else {
+            JSScript::writeBarrierPost(exec.script, (void *)&exec.script);
+        }
+    }
+    if (hasReturnValue())
+        HeapValue::writeBarrierPost(rval_, &rval_);
 }
 
 #ifdef DEBUG
@@ -209,6 +251,32 @@ StackFrame::pcQuadratic(const ContextStack &stack, StackFrame *next, JSInlinedSi
     if (!next)
         next = seg.computeNextFrame(this);
     return next->prevpc(pinlined);
+}
+
+void
+StackFrame::mark(JSTracer *trc)
+{
+    /*
+     * Normally we would use MarkRoot here, except that generators also take
+     * this path. However, generators use a special write barrier when the stack
+     * frame is copied to the floating frame. Therefore, no barrier is needed.
+     */
+    if (flags_ & HAS_SCOPECHAIN)
+        gc::MarkObjectUnbarriered(trc, &scopeChain_, "scope chain");
+    if (isDummyFrame())
+        return;
+    if (hasArgsObj())
+        gc::MarkObjectUnbarriered(trc, &argsObj_, "arguments");
+    if (isFunctionFrame()) {
+        gc::MarkObjectUnbarriered(trc, &exec.fun, "fun");
+        if (isEvalFrame())
+            gc::MarkScriptUnbarriered(trc, &u.evalScript, "eval script");
+    } else {
+        gc::MarkScriptUnbarriered(trc, &exec.script, "script");
+    }
+    if (IS_GC_MARKING_TRACER(trc))
+        script()->compartment()->active = true;
+    gc::MarkValueUnbarriered(trc, &returnValue(), "rval");
 }
 
 /*****************************************************************************/
@@ -382,6 +450,76 @@ StackSpace::containingSegment(const StackFrame *target) const
 }
 
 void
+StackSpace::markFrameSlots(JSTracer *trc, StackFrame *fp, Value *slotsEnd, jsbytecode *pc)
+{
+    Value *slotsBegin = fp->slots();
+
+    if (!fp->isScriptFrame()) {
+        JS_ASSERT(fp->isDummyFrame());
+        gc::MarkValueRootRange(trc, slotsBegin, slotsEnd, "vm_stack");
+        return;
+    }
+
+    /* If it's a scripted frame, we should have a pc. */
+    JS_ASSERT(pc);
+
+    JSScript *script = fp->script();
+    if (!script->hasAnalysis() || !script->analysis()->ranLifetimes()) {
+        gc::MarkValueRootRange(trc, slotsBegin, slotsEnd, "vm_stack");
+        return;
+    }
+
+    /*
+     * If the JIT ran a lifetime analysis, then it may have left garbage in the
+     * slots considered not live. We need to avoid marking them. Additionally,
+     * in case the analysis information is thrown out later, we overwrite these
+     * dead slots with valid values so that future GCs won't crash. Analysis
+     * results are thrown away during the sweeping phase, so we always have at
+     * least one GC to do this.
+     */
+    analyze::AutoEnterAnalysis aea(script->compartment());
+    analyze::ScriptAnalysis *analysis = script->analysis();
+    uint32_t offset = pc - script->code;
+    Value *fixedEnd = slotsBegin + script->nfixed;
+    for (Value *vp = slotsBegin; vp < fixedEnd; vp++) {
+        uint32_t slot = analyze::LocalSlot(script, vp - slotsBegin);
+
+        /*
+         * Will this slot be synced by the JIT? If not, replace with a dummy
+         * value with the same type tag.
+         */
+        if (!analysis->trackSlot(slot) || analysis->liveness(slot).live(offset)) {
+            gc::MarkValueRoot(trc, vp, "vm_stack");
+        } else if (vp->isDouble()) {
+            *vp = DoubleValue(0.0);
+        } else {
+            /*
+             * It's possible that *vp may not be a valid Value. For example, it
+             * may be tagged as a NullValue but the low bits may be nonzero so
+             * that isNull() returns false. This can cause problems later on
+             * when marking the value. Extracting the type in this way and then
+             * overwriting the value circumvents the problem.
+             */
+            JSValueType type = vp->extractNonDoubleType();
+            if (type == JSVAL_TYPE_INT32)
+                *vp = Int32Value(0);
+            else if (type == JSVAL_TYPE_UNDEFINED)
+                *vp = UndefinedValue();
+            else if (type == JSVAL_TYPE_BOOLEAN)
+                *vp = BooleanValue(false);
+            else if (type == JSVAL_TYPE_STRING)
+                *vp = StringValue(trc->runtime->atomState.nullAtom);
+            else if (type == JSVAL_TYPE_NULL)
+                *vp = NullValue();
+            else if (type == JSVAL_TYPE_OBJECT)
+                *vp = ObjectValue(fp->scopeChain().global());
+        }
+    }
+
+    gc::MarkValueRootRange(trc, fixedEnd, slotsEnd, "vm_stack");
+}
+
+void
 StackSpace::mark(JSTracer *trc)
 {
     /*
@@ -401,16 +539,31 @@ StackSpace::mark(JSTracer *trc)
          * calls. Thus, marking can view the stack as the regex:
          *   (segment slots (frame slots)*)*
          * which gets marked in reverse order.
-         *
          */
         Value *slotsEnd = nextSegEnd;
+        jsbytecode *pc = seg->maybepc();
         for (StackFrame *fp = seg->maybefp(); (Value *)fp > (Value *)seg; fp = fp->prev()) {
-            MarkStackRangeConservatively(trc, fp->slots(), slotsEnd);
-            js_TraceStackFrame(trc, fp);
+            /* Mark from fp->slots() to slotsEnd. */
+            markFrameSlots(trc, fp, slotsEnd, pc);
+
+            fp->mark(trc);
             slotsEnd = (Value *)fp;
+
+            JSInlinedSite *site;
+            pc = fp->prevpc(&site);
+            JS_ASSERT_IF(fp->prev(), !site);
         }
-        MarkStackRangeConservatively(trc, seg->slotsBegin(), slotsEnd);
+        gc::MarkValueRootRange(trc, seg->slotsBegin(), slotsEnd, "vm_stack");
         nextSegEnd = (Value *)seg;
+    }
+}
+
+void
+StackSpace::markActiveCompartments()
+{
+    for (StackSegment *seg = seg_; seg; seg = seg->prevInMemory()) {
+        for (StackFrame *fp = seg->maybefp(); (Value *)fp > (Value *)seg; fp = fp->prev())
+            MarkCompartmentActive(fp);
     }
 }
 
@@ -470,7 +623,7 @@ StackSpace::ensureSpaceSlow(JSContext *cx, MaybeReportError report, Value *from,
 }
 
 bool
-StackSpace::tryBumpLimit(JSContext *cx, Value *from, uintN nvals, Value **limit)
+StackSpace::tryBumpLimit(JSContext *cx, Value *from, unsigned nvals, Value **limit)
 {
     if (!ensureSpace(cx, REPORT_ERROR, from, nvals))
         return false;
@@ -527,7 +680,7 @@ ContextStack::containsSlow(const StackFrame *target) const
  * there is space for nvars slots on top of the stack.
  */
 Value *
-ContextStack::ensureOnTop(JSContext *cx, MaybeReportError report, uintN nvars,
+ContextStack::ensureOnTop(JSContext *cx, MaybeReportError report, unsigned nvars,
                           MaybeExtend extend, bool *pushedSeg, JSCompartment *dest)
 {
     Value *firstUnused = space().firstUnused();
@@ -600,14 +753,16 @@ ContextStack::popSegment()
 }
 
 bool
-ContextStack::pushInvokeArgs(JSContext *cx, uintN argc, InvokeArgsGuard *iag)
+ContextStack::pushInvokeArgs(JSContext *cx, unsigned argc, InvokeArgsGuard *iag)
 {
     JS_ASSERT(argc <= StackSpace::ARGS_LENGTH_MAX);
 
-    uintN nvars = 2 + argc;
+    unsigned nvars = 2 + argc;
     Value *firstUnused = ensureOnTop(cx, REPORT_ERROR, nvars, CAN_EXTEND, &iag->pushedSeg_);
     if (!firstUnused)
         return false;
+
+    MakeRangeGCSafe(firstUnused, nvars);
 
     ImplicitCast<CallArgs>(*iag) = CallArgsFromVp(argc, firstUnused);
 
@@ -640,12 +795,12 @@ ContextStack::pushInvokeFrame(JSContext *cx, const CallArgs &args,
     JSFunction *fun = callee.toFunction();
     JSScript *script = fun->script();
 
-    /*StackFrame::Flags*/ uint32_t flags = ToFrameFlags(initial);
+    StackFrame::Flags flags = ToFrameFlags(initial);
     StackFrame *fp = getCallFrame(cx, REPORT_ERROR, args, fun, script, &flags);
     if (!fp)
         return false;
 
-    fp->initCallFrame(cx, *fun, script, args.length(), (StackFrame::Flags) flags);
+    fp->initCallFrame(cx, *fun, script, args.length(), flags);
     ifg->regs_.prepareToRun(*fp, script);
 
     ifg->prevRegs_ = seg_->pushRegs(ifg->regs_);
@@ -687,7 +842,7 @@ ContextStack::pushExecuteFrame(JSContext *cx, JSScript *script, const Value &thi
         extend = CAN_EXTEND;
     }
 
-    uintN nvars = 2 /* callee, this */ + VALUES_PER_STACK_FRAME + script->nslots;
+    unsigned nvars = 2 /* callee, this */ + VALUES_PER_STACK_FRAME + script->nslots;
     Value *firstUnused = ensureOnTop(cx, REPORT_ERROR, nvars, extend, &efg->pushedSeg_);
     if (!firstUnused)
         return NULL;
@@ -712,7 +867,7 @@ ContextStack::pushDummyFrame(JSContext *cx, JSCompartment *dest, JSObject &scope
 {
     JS_ASSERT(dest == scopeChain.compartment());
 
-    uintN nvars = VALUES_PER_STACK_FRAME;
+    unsigned nvars = VALUES_PER_STACK_FRAME;
     Value *firstUnused = ensureOnTop(cx, REPORT_ERROR, nvars, CAN_EXTEND, &dfg->pushedSeg_, dest);
     if (!firstUnused)
         return false;
@@ -755,10 +910,10 @@ bool
 ContextStack::pushGeneratorFrame(JSContext *cx, JSGenerator *gen, GeneratorFrameGuard *gfg)
 {
     StackFrame *genfp = gen->floatingFrame();
-    Value *genvp = gen->floatingStack;
-    uintN vplen = (Value *)genfp - genvp;
+    HeapValue *genvp = gen->floatingStack;
+    unsigned vplen = (HeapValue *)genfp - genvp;
 
-    uintN nvars = vplen + VALUES_PER_STACK_FRAME + genfp->numSlots();
+    unsigned nvars = vplen + VALUES_PER_STACK_FRAME + genfp->numSlots();
     Value *firstUnused = ensureOnTop(cx, REPORT_ERROR, nvars, CAN_EXTEND, &gfg->pushedSeg_);
     if (!firstUnused)
         return false;
@@ -782,7 +937,8 @@ ContextStack::pushGeneratorFrame(JSContext *cx, JSGenerator *gen, GeneratorFrame
     JSObject::writeBarrierPre(genobj);
 
     /* Copy from the generator's floating frame to the stack. */
-    stackfp->stealFrameAndSlots(stackvp, genfp, genvp, gen->regs.sp);
+    stackfp->stealFrameAndSlots<Value, HeapValue, StackFrame::NoPostBarrier>(
+                                stackfp, stackvp, genfp, genvp, gen->regs.sp);
     stackfp->resetGeneratorPrev(cx);
     stackfp->unsetFloatingGenerator();
     gfg->regs_.rebaseFromTo(gen->regs, *stackfp);
@@ -798,7 +954,7 @@ ContextStack::popGeneratorFrame(const GeneratorFrameGuard &gfg)
 {
     JSGenerator *gen = gfg.gen_;
     StackFrame *genfp = gen->floatingFrame();
-    Value *genvp = gen->floatingStack;
+    HeapValue *genvp = gen->floatingStack;
 
     const FrameRegs &stackRegs = gfg.regs_;
     StackFrame *stackfp = stackRegs.fp();
@@ -806,7 +962,8 @@ ContextStack::popGeneratorFrame(const GeneratorFrameGuard &gfg)
 
     /* Copy from the stack to the generator's floating frame. */
     gen->regs.rebaseFromTo(stackRegs, *genfp);
-    genfp->stealFrameAndSlots(genvp, stackfp, stackvp, stackRegs.sp);
+    genfp->stealFrameAndSlots<HeapValue, Value, StackFrame::DoPostBarrier>(
+                              genfp, genvp, stackfp, stackvp, stackRegs.sp);
     genfp->setFloatingGenerator();
 
     /* ~FrameGuard/popFrame will finish the popping. */
@@ -846,6 +1003,7 @@ StackIter::poisonRegs()
 {
     sp_ = (Value *)0xbad;
     pc_ = (jsbytecode *)0xbad;
+    script_ = (JSScript *)0xbad;
 }
 
 void
@@ -887,6 +1045,8 @@ StackIter::popFrame()
             JS_ASSERT(oldfp->isDummyFrame());
             sp_ = (Value *)oldfp;
         }
+
+        script_ = fp_->maybeScript();
     } else {
         poisonRegs();
     }
@@ -912,6 +1072,8 @@ StackIter::settleOnNewSegment()
     if (FrameRegs *regs = seg_->maybeRegs()) {
         sp_ = regs->sp;
         pc_ = regs->pc;
+        if (fp_)
+            script_ = fp_->maybeScript();
     } else {
         poisonRegs();
     }
@@ -932,7 +1094,7 @@ CrashIfInvalidSlot(StackFrame *fp, Value *vp)
     if (vp < fp->slots() || vp >= fp->slots() + fp->script()->nslots) {
         JS_ASSERT(false && "About to dereference invalid slot");
         *(int *)0xbad = 0;  // show up nicely in crash-stats
-        JS_Assert("About to dereference invalid slot", __FILE__, __LINE__);
+        MOZ_Assert("About to dereference invalid slot", __FILE__, __LINE__);
     }
 }
 
@@ -1013,8 +1175,8 @@ StackIter::settleOnNewState()
              */
             JSOp op = JSOp(*pc_);
             if (op == JSOP_CALL || op == JSOP_FUNCALL) {
-                uintN argc = GET_ARGC(pc_);
-                DebugOnly<uintN> spoff = sp_ - fp_->base();
+                unsigned argc = GET_ARGC(pc_);
+                DebugOnly<unsigned> spoff = sp_ - fp_->base();
                 JS_ASSERT_IF(cx_->stackIterAssertionEnabled,
                              spoff == js_ReconstructStackDepth(cx_, fp_->script(), pc_));
                 Value *vp = sp_ - (2 + argc);
@@ -1028,10 +1190,10 @@ StackIter::settleOnNewState()
             }
 
             state_ = SCRIPTED;
-            DebugOnly<JSScript *> script = fp_->script();
+            script_ = fp_->script();
             JS_ASSERT_IF(op != JSOP_FUNAPPLY,
-                         sp_ >= fp_->base() && sp_ <= fp_->slots() + script->nslots);
-            JS_ASSERT(pc_ >= script->code && pc_ < script->code + script->length);
+                         sp_ >= fp_->base() && sp_ <= fp_->slots() + script_->nslots);
+            JS_ASSERT(pc_ >= script_->code && pc_ < script_->code + script_->length);
             return;
         }
 
@@ -1061,7 +1223,9 @@ StackIter::StackIter(JSContext *cx, SavedOption savedOption)
     savedOption_(savedOption)
 {
 #ifdef JS_METHODJIT
-    mjit::ExpandInlineFrames(cx->compartment);
+    CompartmentVector &v = cx->runtime->compartments;
+    for (size_t i = 0; i < v.length(); i++)
+        mjit::ExpandInlineFrames(v[i]);
 #endif
 
     if (StackSegment *seg = cx->stack.seg_) {
@@ -1075,10 +1239,9 @@ StackIter::StackIter(JSContext *cx, SavedOption savedOption)
 StackIter &
 StackIter::operator++()
 {
-    JS_ASSERT(!done());
     switch (state_) {
       case DONE:
-        JS_NOT_REACHED("");
+        JS_NOT_REACHED("Unexpected state");
       case SCRIPTED:
         popFrame();
         settleOnNewState();
@@ -1102,6 +1265,89 @@ StackIter::operator==(const StackIter &rhs) const
             (isScript() == rhs.isScript() &&
              ((isScript() && fp() == rhs.fp()) ||
               (!isScript() && nativeArgs().base() == rhs.nativeArgs().base()))));
+}
+
+bool
+StackIter::isFunctionFrame() const
+{
+    switch (state_) {
+      case DONE:
+        break;
+      case SCRIPTED:
+        return fp()->isFunctionFrame();
+      case NATIVE:
+      case IMPLICIT_NATIVE:
+        return false;
+    }
+    JS_NOT_REACHED("Unexpected state");
+    return false;
+}
+
+bool
+StackIter::isEvalFrame() const
+{
+    switch (state_) {
+      case DONE:
+        break;
+      case SCRIPTED:
+        return fp()->isEvalFrame();
+      case NATIVE:
+      case IMPLICIT_NATIVE:
+        return false;
+    }
+    JS_NOT_REACHED("Unexpected state");
+    return false;
+}
+
+bool
+StackIter::isNonEvalFunctionFrame() const
+{
+    JS_ASSERT(!done());
+    switch (state_) {
+      case DONE:
+        break;
+      case SCRIPTED:
+        return fp()->isNonEvalFunctionFrame();
+      case NATIVE:
+      case IMPLICIT_NATIVE:
+        return !isEvalFrame() && isFunctionFrame();
+    }
+    JS_NOT_REACHED("Unexpected state");
+    return false;
+}
+
+JSObject &
+StackIter::callee() const
+{
+    switch (state_) {
+      case DONE:
+        break;
+      case SCRIPTED:
+        JS_ASSERT(isFunctionFrame());
+        return fp()->callee();
+      case NATIVE:
+      case IMPLICIT_NATIVE:
+        return nativeArgs().callee();
+    }
+    JS_NOT_REACHED("Unexpected state");
+    return *(JSObject *) NULL;
+}
+
+Value
+StackIter::calleev() const
+{
+    switch (state_) {
+      case DONE:
+        break;
+      case SCRIPTED:
+        JS_ASSERT(isFunctionFrame());
+        return fp()->calleev();
+      case NATIVE:
+      case IMPLICIT_NATIVE:
+        return nativeArgs().calleev();
+    }
+    JS_NOT_REACHED("Unexpected state");
+    return Value();
 }
 
 /*****************************************************************************/

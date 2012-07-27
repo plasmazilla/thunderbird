@@ -48,12 +48,15 @@
 #include "ImageLayerOGL.h"
 #include "ColorLayerOGL.h"
 #include "CanvasLayerOGL.h"
+#include "TiledThebesLayerOGL.h"
 #include "mozilla/TimeStamp.h"
 #include "mozilla/Preferences.h"
 
 #include "LayerManagerOGLShaders.h"
 
 #include "gfxContext.h"
+#include "gfxUtils.h"
+#include "gfxPlatform.h"
 #include "nsIWidget.h"
 
 #include "GLContext.h"
@@ -66,9 +69,14 @@
 
 #include "sampler.h"
 
+#ifdef MOZ_WIDGET_ANDROID
+#include <android/log.h>
+#endif
+
 namespace mozilla {
 namespace layers {
 
+using namespace mozilla::gfx;
 using namespace mozilla::gl;
 
 #ifdef CHECK_CURRENT_PROGRAM
@@ -78,13 +86,16 @@ int LayerManagerOGLProgram::sCurrentProgramKey = 0;
 /**
  * LayerManagerOGL
  */
-LayerManagerOGL::LayerManagerOGL(nsIWidget *aWidget)
+LayerManagerOGL::LayerManagerOGL(nsIWidget *aWidget, int aSurfaceWidth, int aSurfaceHeight,
+                                 bool aIsRenderingToEGLSurface)
   : mWidget(aWidget)
   , mWidgetSize(-1, -1)
+  , mSurfaceSize(aSurfaceWidth, aSurfaceHeight)
   , mBackBufferFBO(0)
   , mBackBufferTexture(0)
   , mBackBufferSize(-1, -1)
   , mHasBGRA(0)
+  , mIsRenderingToEGLSurface(aIsRenderingToEGLSurface)
 {
 }
 
@@ -101,14 +112,6 @@ LayerManagerOGL::Destroy()
       RootLayer()->Destroy();
     }
     mRoot = nsnull;
-
-    // Make a copy, since SetLayerManager will cause mImageContainers
-    // to get mutated.
-    nsTArray<ImageContainer*> imageContainers(mImageContainers);
-    for (PRUint32 i = 0; i < imageContainers.Length(); ++i) {
-      ImageContainer *c = imageContainers[i];
-      c->SetLayerManager(nsnull);
-    }
 
     CleanupResources();
 
@@ -252,67 +255,80 @@ LayerManagerOGL::Initialize(nsRefPtr<GLContext> aContext, bool force)
   NS_ASSERTION(programIndex == NumProgramTypes,
                "not all programs were initialized!");
 
-  /**
-   * We'll test the ability here to bind NPOT textures to a framebuffer, if
-   * this fails we'll try ARB_texture_rectangle.
-   */
   mGLContext->fGenFramebuffers(1, &mBackBufferFBO);
 
-  GLenum textureTargets[] = {
-    LOCAL_GL_TEXTURE_2D,
-#ifndef USE_GLES2
-    LOCAL_GL_TEXTURE_RECTANGLE_ARB
-#endif
-  };
+  if (mGLContext->WorkAroundDriverBugs()) {
 
-  mFBOTextureTarget = LOCAL_GL_NONE;
+    /**
+    * We'll test the ability here to bind NPOT textures to a framebuffer, if
+    * this fails we'll try ARB_texture_rectangle.
+    */
 
-  for (PRUint32 i = 0; i < ArrayLength(textureTargets); i++) {
-    GLenum target = textureTargets[i];
-    mGLContext->fGenTextures(1, &mBackBufferTexture);
-    mGLContext->fBindTexture(target, mBackBufferTexture);
-    mGLContext->fTexParameteri(target,
-                               LOCAL_GL_TEXTURE_MIN_FILTER,
-                               LOCAL_GL_NEAREST);
-    mGLContext->fTexParameteri(target,
-                               LOCAL_GL_TEXTURE_MAG_FILTER,
-                               LOCAL_GL_NEAREST);
-    mGLContext->fTexImage2D(target,
-                            0,
-                            LOCAL_GL_RGBA,
-                            5, 3, /* sufficiently NPOT */
-                            0,
-                            LOCAL_GL_RGBA,
-                            LOCAL_GL_UNSIGNED_BYTE,
-                            NULL);
+    GLenum textureTargets[] = {
+      LOCAL_GL_TEXTURE_2D,
+      LOCAL_GL_NONE
+    };
 
-    // unbind this texture, in preparation for binding it to the FBO
-    mGLContext->fBindTexture(target, 0);
-
-    mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mBackBufferFBO);
-    mGLContext->fFramebufferTexture2D(LOCAL_GL_FRAMEBUFFER,
-                                      LOCAL_GL_COLOR_ATTACHMENT0,
-                                      target,
-                                      mBackBufferTexture,
-                                      0);
-
-    if (mGLContext->fCheckFramebufferStatus(LOCAL_GL_FRAMEBUFFER) ==
-        LOCAL_GL_FRAMEBUFFER_COMPLETE)
-    {
-      mFBOTextureTarget = target;
-      break;
+    if (mGLContext->IsGLES2()) {
+        textureTargets[1] = LOCAL_GL_TEXTURE_RECTANGLE_ARB;
     }
 
-    // We weren't succesful with this texture, so we don't need it
-    // any more.
-    mGLContext->fDeleteTextures(1, &mBackBufferTexture);
+    mFBOTextureTarget = LOCAL_GL_NONE;
+
+    for (PRUint32 i = 0; i < ArrayLength(textureTargets); i++) {
+      GLenum target = textureTargets[i];
+      if (!target)
+          continue;
+
+      mGLContext->fGenTextures(1, &mBackBufferTexture);
+      mGLContext->fBindTexture(target, mBackBufferTexture);
+      mGLContext->fTexParameteri(target,
+                                LOCAL_GL_TEXTURE_MIN_FILTER,
+                                LOCAL_GL_NEAREST);
+      mGLContext->fTexParameteri(target,
+                                LOCAL_GL_TEXTURE_MAG_FILTER,
+                                LOCAL_GL_NEAREST);
+      mGLContext->fTexImage2D(target,
+                              0,
+                              LOCAL_GL_RGBA,
+                              5, 3, /* sufficiently NPOT */
+                              0,
+                              LOCAL_GL_RGBA,
+                              LOCAL_GL_UNSIGNED_BYTE,
+                              NULL);
+
+      // unbind this texture, in preparation for binding it to the FBO
+      mGLContext->fBindTexture(target, 0);
+
+      mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, mBackBufferFBO);
+      mGLContext->fFramebufferTexture2D(LOCAL_GL_FRAMEBUFFER,
+                                        LOCAL_GL_COLOR_ATTACHMENT0,
+                                        target,
+                                        mBackBufferTexture,
+                                        0);
+
+      if (mGLContext->fCheckFramebufferStatus(LOCAL_GL_FRAMEBUFFER) ==
+          LOCAL_GL_FRAMEBUFFER_COMPLETE)
+      {
+        mFBOTextureTarget = target;
+        break;
+      }
+
+      // We weren't succesful with this texture, so we don't need it
+      // any more.
+      mGLContext->fDeleteTextures(1, &mBackBufferTexture);
+    }
+
+    if (mFBOTextureTarget == LOCAL_GL_NONE) {
+      /* Unable to find a texture target that works with FBOs and NPOT textures */
+      return false;
+    }
+  } else {
+    // not trying to work around driver bugs, so TEXTURE_2D should just work
+    mFBOTextureTarget = LOCAL_GL_TEXTURE_2D;
   }
 
-  if (mFBOTextureTarget == LOCAL_GL_NONE) {
-    /* Unable to find a texture target that works with FBOs and NPOT textures */
-    return false;
-  }
-
+  // back to default framebuffer, to avoid confusion
   mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, 0);
 
   if (mFBOTextureTarget == LOCAL_GL_TEXTURE_RECTANGLE_ARB) {
@@ -330,9 +346,6 @@ LayerManagerOGL::Initialize(nsRefPtr<GLContext> aContext, bool force)
     mGLContext->fDeleteFramebuffers(1, &mBackBufferFBO);
     mBackBufferFBO = 0;
   }
-
-  // back to default framebuffer, to avoid confusion
-  mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER, 0);
 
   /* Create a simple quad VBO */
 
@@ -373,7 +386,20 @@ LayerManagerOGL::Initialize(nsRefPtr<GLContext> aContext, bool force)
     console->LogStringMessage(msg.get());
   }
 
-  Preferences::AddBoolVarCache(&sDrawFPS, "layers.acceleration.draw-fps");
+  if (NS_IsMainThread()) {
+    Preferences::AddBoolVarCache(&sDrawFPS, "layers.acceleration.draw-fps");
+  } else {
+    // We have to dispatch an event to the main thread to read the pref.
+    class ReadDrawFPSPref : public nsRunnable {
+    public:
+      NS_IMETHOD Run()
+      {
+        Preferences::AddBoolVarCache(&sDrawFPS, "layers.acceleration.draw-fps");
+        return NS_OK;
+      }
+    };
+    NS_DispatchToMainThread(new ReadDrawFPSPref());
+  }
 
   reporter.SetSuccessful();
   return true;
@@ -477,19 +503,6 @@ LayerManagerOGL::CreateContainerLayer()
   return layer.forget();
 }
 
-already_AddRefed<ImageContainer>
-LayerManagerOGL::CreateImageContainer()
-{
-  if (mDestroyed) {
-    NS_WARNING("Call on destroyed layer manager");
-    return nsnull;
-  }
-
-  nsRefPtr<ImageContainer> container = new ImageContainerOGL(this);
-  RememberImageContainer(container);
-  return container.forget();
-}
-
 already_AddRefed<ImageLayer>
 LayerManagerOGL::CreateImageLayer()
 {
@@ -524,26 +537,6 @@ LayerManagerOGL::CreateCanvasLayer()
 
   nsRefPtr<CanvasLayer> layer = new CanvasLayerOGL(this);
   return layer.forget();
-}
-
-void
-LayerManagerOGL::ForgetImageContainer(ImageContainer *aContainer)
-{
-  NS_ASSERTION(aContainer->Manager() == this,
-               "ForgetImageContainer called on non-owned container!");
-
-  if (!mImageContainers.RemoveElement(aContainer)) {
-    NS_WARNING("ForgetImageContainer couldn't find container it was supposed to forget!");
-    return;
-  }
-}
-
-void
-LayerManagerOGL::RememberImageContainer(ImageContainer *aContainer)
-{
-  NS_ASSERTION(aContainer->Manager() == this,
-               "RememberImageContainer called on non-owned container!");
-  mImageContainers.AppendElement(aContainer);
 }
 
 LayerOGL*
@@ -703,7 +696,8 @@ void
 LayerManagerOGL::BindAndDrawQuadWithTextureRect(LayerProgram *aProg,
                                                 const nsIntRect& aTexCoordRect,
                                                 const nsIntSize& aTexSize,
-                                                GLenum aWrapMode)
+                                                GLenum aWrapMode /* = LOCAL_GL_REPEAT */,
+                                                bool aFlipped /* = false */)
 {
   GLuint vertAttribIndex =
     aProg->AttribLocation(LayerProgram::VertexAttrib);
@@ -724,16 +718,24 @@ LayerManagerOGL::BindAndDrawQuadWithTextureRect(LayerProgram *aProg,
 
   GLContext::RectTriangles rects;
 
+  nsIntSize realTexSize = aTexSize;
+  if (!mGLContext->CanUploadNonPowerOfTwo()) {
+    realTexSize = nsIntSize(NextPowerOfTwo(aTexSize.width),
+                            NextPowerOfTwo(aTexSize.height));
+  }
+
   if (aWrapMode == LOCAL_GL_REPEAT) {
     rects.addRect(/* dest rectangle */
                   0.0f, 0.0f, 1.0f, 1.0f,
                   /* tex coords */
-                  aTexCoordRect.x / GLfloat(aTexSize.width),
-                  aTexCoordRect.y / GLfloat(aTexSize.height),
-                  aTexCoordRect.XMost() / GLfloat(aTexSize.width),
-                  aTexCoordRect.YMost() / GLfloat(aTexSize.height));
+                  aTexCoordRect.x / GLfloat(realTexSize.width),
+                  aTexCoordRect.y / GLfloat(realTexSize.height),
+                  aTexCoordRect.XMost() / GLfloat(realTexSize.width),
+                  aTexCoordRect.YMost() / GLfloat(realTexSize.height),
+                  aFlipped);
   } else {
-    GLContext::DecomposeIntoNoRepeatTriangles(aTexCoordRect, aTexSize, rects);
+    GLContext::DecomposeIntoNoRepeatTriangles(aTexCoordRect, realTexSize,
+                                              rects, aFlipped);
   }
 
   mGLContext->fVertexAttribPointer(vertAttribIndex, 2,
@@ -767,7 +769,11 @@ LayerManagerOGL::Render()
   }
 
   nsIntRect rect;
-  mWidget->GetClientBounds(rect);
+  if (mIsRenderingToEGLSurface) {
+    rect = nsIntRect(0, 0, mSurfaceSize.width, mSurfaceSize.height);
+  } else {
+    mWidget->GetClientBounds(rect);
+  }
   WorldTransformRect(rect);
 
   GLint width = rect.width;
@@ -811,17 +817,42 @@ LayerManagerOGL::Render()
 
   mGLContext->fEnable(LOCAL_GL_SCISSOR_TEST);
 
+  // If the Java compositor is being used, this clear will be done in
+  // DrawWindowUnderlay. Make sure the bits used here match up with those used
+  // in mobile/android/base/gfx/LayerRenderer.java
+#ifndef MOZ_JAVA_COMPOSITOR
   mGLContext->fClearColor(0.0, 0.0, 0.0, 0.0);
   mGLContext->fClear(LOCAL_GL_COLOR_BUFFER_BIT | LOCAL_GL_DEPTH_BUFFER_BIT);
+#endif
+
+  // Allow widget to render a custom background.
+  mWidget->DrawWindowUnderlay(this, rect);
 
   // Render our layers.
   RootLayer()->RenderLayer(mGLContext->IsDoubleBuffered() ? 0 : mBackBufferFBO,
                            nsIntPoint(0, 0));
 
+  // Allow widget to render a custom foreground too.
   mWidget->DrawWindowOverlay(this, rect);
 
+#ifdef MOZ_DUMP_PAINTING
+  if (gfxUtils::sDumpPainting) {
+    nsIntRect rect;
+    if (mIsRenderingToEGLSurface) {
+      rect = nsIntRect(0, 0, mSurfaceSize.width, mSurfaceSize.height);
+    } else {
+      mWidget->GetBounds(rect);
+    }
+    nsRefPtr<gfxASurface> surf = gfxPlatform::GetPlatform()->CreateOffscreenSurface(rect.Size(), gfxASurface::CONTENT_COLOR_ALPHA);
+    nsRefPtr<gfxContext> ctx = new gfxContext(surf);
+    CopyToTarget(ctx);
+
+    WriteSnapshotToDumpFile(this, surf);
+  }
+#endif
+
   if (mTarget) {
-    CopyToTarget();
+    CopyToTarget(mTarget);
     mGLContext->fBindBuffer(LOCAL_GL_ARRAY_BUFFER, 0);
     return;
   }
@@ -947,6 +978,13 @@ LayerManagerOGL::WorldTransformRect(nsIntRect& aRect)
 }
 
 void
+LayerManagerOGL::SetSurfaceSize(int width, int height)
+{
+  mSurfaceSize.width = width;
+  mSurfaceSize.height = height;
+}
+
+void
 LayerManagerOGL::SetupPipeline(int aWidth, int aHeight, WorldTransforPolicy aTransformPolicy)
 {
   // Set the viewport correctly. 
@@ -1027,10 +1065,14 @@ LayerManagerOGL::SetupBackBuffer(int aWidth, int aHeight)
 }
 
 void
-LayerManagerOGL::CopyToTarget()
+LayerManagerOGL::CopyToTarget(gfxContext *aTarget)
 {
   nsIntRect rect;
-  mWidget->GetBounds(rect);
+  if (mIsRenderingToEGLSurface) {
+    rect = nsIntRect(0, 0, mSurfaceSize.width, mSurfaceSize.height);
+  } else {
+    mWidget->GetBounds(rect);
+  }
   GLint width = rect.width;
   GLint height = rect.height;
 
@@ -1046,56 +1088,27 @@ LayerManagerOGL::CopyToTarget()
   mGLContext->fBindFramebuffer(LOCAL_GL_FRAMEBUFFER,
                                mGLContext->IsDoubleBuffered() ? 0 : mBackBufferFBO);
 
-#ifndef USE_GLES2
-  // GLES2 promises that binding to any custom FBO will attach
-  // to GL_COLOR_ATTACHMENT0 attachment point.
-  if (mGLContext->IsDoubleBuffered()) {
-    mGLContext->fReadBuffer(LOCAL_GL_BACK);
+  if (!mGLContext->IsGLES2()) {
+    // GLES2 promises that binding to any custom FBO will attach
+    // to GL_COLOR_ATTACHMENT0 attachment point.
+    if (mGLContext->IsDoubleBuffered()) {
+      mGLContext->fReadBuffer(LOCAL_GL_BACK);
+    }
+    else {
+      mGLContext->fReadBuffer(LOCAL_GL_COLOR_ATTACHMENT0);
+    }
   }
-  else {
-    mGLContext->fReadBuffer(LOCAL_GL_COLOR_ATTACHMENT0);
-  }
-#endif
-
-  GLenum format = LOCAL_GL_RGBA;
-  if (mHasBGRA)
-    format = LOCAL_GL_BGRA;
 
   NS_ASSERTION(imageSurface->Stride() == width * 4,
                "Image Surfaces being created with weird stride!");
 
-  PRUint32 currentPackAlignment = 0;
-  mGLContext->fGetIntegerv(LOCAL_GL_PACK_ALIGNMENT, (GLint*)&currentPackAlignment);
-  if (currentPackAlignment != 4) {
-    mGLContext->fPixelStorei(LOCAL_GL_PACK_ALIGNMENT, 4);
-  }
+  mGLContext->ReadPixelsIntoImageSurface(0, 0, width, height, imageSurface);
 
-  mGLContext->fReadPixels(0, 0,
-                          width, height,
-                          format,
-                          LOCAL_GL_UNSIGNED_BYTE,
-                          imageSurface->Data());
-
-  if (currentPackAlignment != 4) {
-    mGLContext->fPixelStorei(LOCAL_GL_PACK_ALIGNMENT, currentPackAlignment);
-  }
-
-  if (!mHasBGRA) {
-    // need to swap B and R bytes
-    for (int j = 0; j < height; ++j) {
-      PRUint32 *row = (PRUint32*) (imageSurface->Data() + imageSurface->Stride() * j);
-      for (int i = 0; i < width; ++i) {
-        *row = (*row & 0xff00ff00) | ((*row & 0xff) << 16) | ((*row & 0xff0000) >> 16);
-        row++;
-      }
-    }
-  }
-
-  mTarget->SetOperator(gfxContext::OPERATOR_SOURCE);
-  mTarget->Scale(1.0, -1.0);
-  mTarget->Translate(-gfxPoint(0.0, height));
-  mTarget->SetSource(imageSurface);
-  mTarget->Paint();
+  aTarget->SetOperator(gfxContext::OPERATOR_SOURCE);
+  aTarget->Scale(1.0, -1.0);
+  aTarget->Translate(-gfxPoint(0.0, height));
+  aTarget->SetSource(imageSurface);
+  aTarget->Paint();
 }
 
 LayerManagerOGL::ProgramType LayerManagerOGL::sLayerProgramTypes[] = {
@@ -1143,19 +1156,6 @@ GetFrameBufferInternalFormat(GLContext* gl,
   return LOCAL_GL_RGBA;
 }
 
-static bool
-AreFormatsCompatibleForCopyTexImage2D(GLenum aF1, GLenum aF2)
-{
-  // GL requires that the implementation has to handle copies between
-  // different formats, so all are "compatible".  GLES does not
-  // require that.
-#ifdef USE_GLES2
-  return (aF1 == aF2);
-#else
-  return true;
-#endif
-}
-
 void
 LayerManagerOGL::CreateFBOWithTexture(const nsIntRect& aRect, InitMode aInit,
                                       GLuint aCurrentFrameBuffer,
@@ -1166,6 +1166,7 @@ LayerManagerOGL::CreateFBOWithTexture(const nsIntRect& aRect, InitMode aInit,
   mGLContext->fActiveTexture(LOCAL_GL_TEXTURE0);
   mGLContext->fGenTextures(1, &tex);
   mGLContext->fBindTexture(mFBOTextureTarget, tex);
+
   if (aInit == InitModeCopy) {
     // We're going to create an RGBA temporary fbo.  But to
     // CopyTexImage() from the current framebuffer, the framebuffer's
@@ -1174,7 +1175,12 @@ LayerManagerOGL::CreateFBOWithTexture(const nsIntRect& aRect, InitMode aInit,
     // if it's incompatible.
     GLenum format =
       GetFrameBufferInternalFormat(gl(), aCurrentFrameBuffer, mWidget);
-    if (AreFormatsCompatibleForCopyTexImage2D(format, LOCAL_GL_RGBA)) {
+ 
+    bool isFormatCompatibleWithRGBA
+        = gl()->IsGLES2() ? (format == LOCAL_GL_RGBA)
+                          : true;
+
+    if (isFormatCompatibleWithRGBA) {
       mGLContext->fCopyTexImage2D(mFBOTextureTarget,
                                   0,
                                   LOCAL_GL_RGBA,
@@ -1264,7 +1270,11 @@ LayerManagerOGL::CreateShadowThebesLayer()
     NS_WARNING("Call on destroyed layer manager");
     return nsnull;
   }
+#ifdef FORCE_BASICTILEDTHEBESLAYER
+  return nsRefPtr<ShadowThebesLayer>(new TiledThebesLayerOGL(this)).forget();
+#else
   return nsRefPtr<ShadowThebesLayerOGL>(new ShadowThebesLayerOGL(this)).forget();
+#endif
 }
 
 already_AddRefed<ShadowContainerLayer>

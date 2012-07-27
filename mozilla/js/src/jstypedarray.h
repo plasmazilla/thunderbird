@@ -57,16 +57,16 @@ namespace js {
  * TypedArray subclass, or can be created implicitly by constructing a
  * TypedArray with a size.
  */
-struct JS_FRIEND_API(ArrayBuffer) {
+struct ArrayBuffer {
     static Class slowClass;
     static JSPropertySpec jsprops[];
     static JSFunctionSpec jsfuncs[];
 
     static JSBool prop_getByteLength(JSContext *cx, JSObject *obj, jsid id, Value *vp);
 
-    static JSBool fun_slice(JSContext *cx, uintN argc, Value *vp);
+    static JSBool fun_slice(JSContext *cx, unsigned argc, Value *vp);
 
-    static JSBool class_constructor(JSContext *cx, uintN argc, Value *vp);
+    static JSBool class_constructor(JSContext *cx, unsigned argc, Value *vp);
 
     static JSObject *create(JSContext *cx, int32_t nbytes, uint8_t *contents = NULL);
 
@@ -97,16 +97,16 @@ struct JS_FRIEND_API(ArrayBuffer) {
 
     static JSBool
     obj_defineGeneric(JSContext *cx, JSObject *obj, jsid id, const Value *v,
-                      PropertyOp getter, StrictPropertyOp setter, uintN attrs);
+                      PropertyOp getter, StrictPropertyOp setter, unsigned attrs);
     static JSBool
     obj_defineProperty(JSContext *cx, JSObject *obj, PropertyName *name, const Value *v,
-                       PropertyOp getter, StrictPropertyOp setter, uintN attrs);
+                       PropertyOp getter, StrictPropertyOp setter, unsigned attrs);
     static JSBool
     obj_defineElement(JSContext *cx, JSObject *obj, uint32_t index, const Value *v,
-                      PropertyOp getter, StrictPropertyOp setter, uintN attrs);
+                      PropertyOp getter, StrictPropertyOp setter, unsigned attrs);
     static JSBool
     obj_defineSpecial(JSContext *cx, JSObject *obj, SpecialId sid, const Value *v,
-                      PropertyOp getter, StrictPropertyOp setter, uintN attrs);
+                      PropertyOp getter, StrictPropertyOp setter, unsigned attrs);
 
     static JSBool
     obj_getGeneric(JSContext *cx, JSObject *obj, JSObject *receiver, jsid id, Value *vp);
@@ -134,22 +134,22 @@ struct JS_FRIEND_API(ArrayBuffer) {
     obj_setSpecial(JSContext *cx, JSObject *obj, SpecialId sid, Value *vp, JSBool strict);
 
     static JSBool
-    obj_getGenericAttributes(JSContext *cx, JSObject *obj, jsid id, uintN *attrsp);
+    obj_getGenericAttributes(JSContext *cx, JSObject *obj, jsid id, unsigned *attrsp);
     static JSBool
-    obj_getPropertyAttributes(JSContext *cx, JSObject *obj, PropertyName *name, uintN *attrsp);
+    obj_getPropertyAttributes(JSContext *cx, JSObject *obj, PropertyName *name, unsigned *attrsp);
     static JSBool
-    obj_getElementAttributes(JSContext *cx, JSObject *obj, uint32_t index, uintN *attrsp);
+    obj_getElementAttributes(JSContext *cx, JSObject *obj, uint32_t index, unsigned *attrsp);
     static JSBool
-    obj_getSpecialAttributes(JSContext *cx, JSObject *obj, SpecialId sid, uintN *attrsp);
+    obj_getSpecialAttributes(JSContext *cx, JSObject *obj, SpecialId sid, unsigned *attrsp);
 
     static JSBool
-    obj_setGenericAttributes(JSContext *cx, JSObject *obj, jsid id, uintN *attrsp);
+    obj_setGenericAttributes(JSContext *cx, JSObject *obj, jsid id, unsigned *attrsp);
     static JSBool
-    obj_setPropertyAttributes(JSContext *cx, JSObject *obj, PropertyName *name, uintN *attrsp);
+    obj_setPropertyAttributes(JSContext *cx, JSObject *obj, PropertyName *name, unsigned *attrsp);
     static JSBool
-    obj_setElementAttributes(JSContext *cx, JSObject *obj, uint32_t index, uintN *attrsp);
+    obj_setElementAttributes(JSContext *cx, JSObject *obj, uint32_t index, unsigned *attrsp);
     static JSBool
-    obj_setSpecialAttributes(JSContext *cx, JSObject *obj, SpecialId sid, uintN *attrsp);
+    obj_setSpecialAttributes(JSContext *cx, JSObject *obj, SpecialId sid, unsigned *attrsp);
 
     static JSBool
     obj_deleteProperty(JSContext *cx, JSObject *obj, PropertyName *name, Value *rval, JSBool strict);
@@ -177,7 +177,7 @@ struct JS_FRIEND_API(ArrayBuffer) {
  * the subclasses.
  */
 
-struct JS_FRIEND_API(TypedArray) {
+struct TypedArray {
     enum {
         TYPE_INT8 = 0,
         TYPE_UINT8,
@@ -233,15 +233,15 @@ struct JS_FRIEND_API(TypedArray) {
     static JSBool obj_lookupSpecial(JSContext *cx, JSObject *obj, SpecialId sid,
                                     JSObject **objp, JSProperty **propp);
 
-    static JSBool obj_getGenericAttributes(JSContext *cx, JSObject *obj, jsid id, uintN *attrsp);
-    static JSBool obj_getPropertyAttributes(JSContext *cx, JSObject *obj, PropertyName *name, uintN *attrsp);
-    static JSBool obj_getElementAttributes(JSContext *cx, JSObject *obj, uint32_t index, uintN *attrsp);
-    static JSBool obj_getSpecialAttributes(JSContext *cx, JSObject *obj, SpecialId sid, uintN *attrsp);
+    static JSBool obj_getGenericAttributes(JSContext *cx, JSObject *obj, jsid id, unsigned *attrsp);
+    static JSBool obj_getPropertyAttributes(JSContext *cx, JSObject *obj, PropertyName *name, unsigned *attrsp);
+    static JSBool obj_getElementAttributes(JSContext *cx, JSObject *obj, uint32_t index, unsigned *attrsp);
+    static JSBool obj_getSpecialAttributes(JSContext *cx, JSObject *obj, SpecialId sid, unsigned *attrsp);
 
-    static JSBool obj_setGenericAttributes(JSContext *cx, JSObject *obj, jsid id, uintN *attrsp);
-    static JSBool obj_setPropertyAttributes(JSContext *cx, JSObject *obj, PropertyName *name, uintN *attrsp);
-    static JSBool obj_setElementAttributes(JSContext *cx, JSObject *obj, uint32_t index, uintN *attrsp);
-    static JSBool obj_setSpecialAttributes(JSContext *cx, JSObject *obj, SpecialId sid, uintN *attrsp);
+    static JSBool obj_setGenericAttributes(JSContext *cx, JSObject *obj, jsid id, unsigned *attrsp);
+    static JSBool obj_setPropertyAttributes(JSContext *cx, JSObject *obj, PropertyName *name, unsigned *attrsp);
+    static JSBool obj_setElementAttributes(JSContext *cx, JSObject *obj, uint32_t index, unsigned *attrsp);
+    static JSBool obj_setSpecialAttributes(JSContext *cx, JSObject *obj, SpecialId sid, unsigned *attrsp);
 
     static uint32_t getLength(JSObject *obj);
     static uint32_t getByteOffset(JSObject *obj);
@@ -252,7 +252,7 @@ struct JS_FRIEND_API(TypedArray) {
 
   public:
     static bool
-    isArrayIndex(JSContext *cx, JSObject *obj, jsid id, jsuint *ip = NULL);
+    isArrayIndex(JSContext *cx, JSObject *obj, jsid id, uint32_t *ip = NULL);
 
     static inline uint32_t slotWidth(int atype) {
         switch (atype) {
@@ -283,82 +283,15 @@ struct JS_FRIEND_API(TypedArray) {
     static int dataOffset();
 };
 
-extern bool
+bool
+IsFastOrSlowTypedArray(JSObject *obj);
+
+bool
+IsFastOrSlowTypedArrayClass(const Class *clasp);
+
+bool
 IsFastTypedArrayClass(const Class *clasp);
 
 } // namespace js
-
-/* Friend API methods */
-
-JS_FRIEND_API(JSObject *)
-js_InitTypedArrayClasses(JSContext *cx, JSObject *obj);
-
-JS_FRIEND_API(JSBool)
-js_IsTypedArray(JSObject *obj);
-
-JS_FRIEND_API(JSBool)
-js_IsArrayBuffer(JSObject *obj);
-
-JS_FRIEND_API(JSObject *)
-js_CreateArrayBuffer(JSContext *cx, uint32_t nbytes);
-
-/*
- * Create a new typed array of type atype (one of the TypedArray
- * enumerant values above), with nelements elements.
- */
-JS_FRIEND_API(JSObject *)
-js_CreateTypedArray(JSContext *cx, jsint atype, uint32_t nelements);
-
-/*
- * Create a new typed array of type atype (one of the TypedArray
- * enumerant values above), and copy in values from the given JSObject,
- * which must either be a typed array or an array-like object.
- */
-JS_FRIEND_API(JSObject *)
-js_CreateTypedArrayWithArray(JSContext *cx, jsint atype, JSObject *arrayArg);
-
-/*
- * Create a new typed array of type atype (one of the TypedArray
- * enumerant values above), using a given ArrayBuffer for storage.
- * The byteoffset and length values are optional; if -1 is passed, an
- * offset of 0 and enough elements to use up the remainder of the byte
- * array are used as the default values.
- */
-JS_FRIEND_API(JSObject *)
-js_CreateTypedArrayWithBuffer(JSContext *cx, jsint atype, JSObject *bufArg,
-                              jsint byteoffset, jsint length);
-
-extern int32_t JS_FASTCALL
-js_TypedArray_uint8_clamp_double(const double x);
-
-JS_FRIEND_API(JSBool)
-JS_IsArrayBufferObject(JSObject *obj);
-
-JS_FRIEND_API(JSObject *)
-JS_NewArrayBuffer(JSContext *cx, jsuint nbytes);
-
-JS_FRIEND_API(uint32_t)
-JS_GetArrayBufferByteLength(JSObject *obj);
-
-JS_FRIEND_API(uint8_t *)
-JS_GetArrayBufferData(JSObject *obj);
-
-JS_FRIEND_API(uint32_t)
-JS_GetTypedArrayLength(JSObject *obj);
-
-JS_FRIEND_API(uint32_t)
-JS_GetTypedArrayByteOffset(JSObject *obj);
-
-JS_FRIEND_API(uint32_t)
-JS_GetTypedArrayByteLength(JSObject *obj);
-
-JS_FRIEND_API(uint32_t)
-JS_GetTypedArrayType(JSObject *obj);
-
-JS_FRIEND_API(JSObject *)
-JS_GetTypedArrayBuffer(JSObject *obj);
-
-JS_FRIEND_API(void *)
-JS_GetTypedArrayData(JSObject *obj);
 
 #endif /* jstypedarray_h */

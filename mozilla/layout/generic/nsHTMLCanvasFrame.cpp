@@ -82,20 +82,21 @@ public:
   NS_DISPLAY_DECL_NAME("nsDisplayCanvas", TYPE_CANVAS)
 
   virtual nsRegion GetOpaqueRegion(nsDisplayListBuilder* aBuilder,
-                                   bool* aForceTransparentSurface = nsnull) {
-    if (aForceTransparentSurface) {
-      *aForceTransparentSurface = false;
-    }
+                                   bool* aSnap,
+                                   bool* aForceTransparentSurface) {
+    *aForceTransparentSurface = false;
+    *aSnap = false;
     nsIFrame* f = GetUnderlyingFrame();
     nsHTMLCanvasElement *canvas = CanvasElementFromContent(f->GetContent());
     nsRegion result;
     if (canvas->GetIsOpaque()) {
-      result = GetBounds(aBuilder);
+      result = GetBounds(aBuilder, aSnap);
     }
     return result;
   }
 
-  virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder) {
+  virtual nsRect GetBounds(nsDisplayListBuilder* aBuilder, bool* aSnap) {
+    *aSnap = false;
     nsHTMLCanvasFrame* f = static_cast<nsHTMLCanvasFrame*>(GetUnderlyingFrame());
     return f->GetInnerArea() + ToReferenceFrame();
   }
@@ -195,7 +196,7 @@ nsHTMLCanvasFrame::GetIntrinsicRatio()
 nsHTMLCanvasFrame::ComputeSize(nsRenderingContext *aRenderingContext,
                                nsSize aCBSize, nscoord aAvailableWidth,
                                nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                               bool aShrinkWrap)
+                               PRUint32 aFlags)
 {
   nsIntSize size = GetCanvasSize();
 
@@ -249,10 +250,24 @@ nsHTMLCanvasFrame::Reflow(nsPresContext*           aPresContext,
     Invalidate(nsRect(0, 0, mRect.width, mRect.height));
   }
 
+  // Reflow the single anon block child.
+  nsReflowStatus childStatus;
+  nsSize availSize(aReflowState.ComputedWidth(), NS_UNCONSTRAINEDSIZE);
+  nsIFrame* childFrame = mFrames.FirstChild();
+  NS_ASSERTION(!childFrame->GetNextSibling(), "HTML canvas should have 1 kid");
+  nsHTMLReflowMetrics childDesiredSize(aMetrics.mFlags);
+  nsHTMLReflowState childReflowState(aPresContext, aReflowState, childFrame,
+                                     availSize);
+  ReflowChild(childFrame, aPresContext, childDesiredSize, childReflowState,
+              0, 0, 0, childStatus, nsnull);
+  FinishReflowChild(childFrame, aPresContext, &childReflowState,
+                    childDesiredSize, 0, 0, 0);
+
   NS_FRAME_TRACE(NS_FRAME_TRACE_CALLS,
                   ("exit nsHTMLCanvasFrame::Reflow: size=%d,%d",
                   aMetrics.width, aMetrics.height));
   NS_FRAME_SET_TRUNCATION(aStatus, aReflowState, aMetrics);
+
   return NS_OK;
 }
 

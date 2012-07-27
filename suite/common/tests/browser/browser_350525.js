@@ -29,6 +29,9 @@ function test() {
   // value should not exist post-delete
   is(ss.getWindowValue(window, key), "", "window value was deleted");
   
+  // test deleting a non-existent value
+  ok(test(function() ss.deleteWindowValue(window, key)), "delete non-existent window value");
+  
   /////////////////////////
   // setTabValue, et al. //
   /////////////////////////
@@ -48,6 +51,9 @@ function test() {
   // value should not exist post-delete
   is(ss.getTabValue(tab, key), "", "tab value was deleted");
   
+  // test deleting a non-existent value
+  ok(test(function() ss.deleteTabValue(tab, key)), "delete non-existent tab value");
+  
   // clean up
   getBrowser().removeTab(tab);
   
@@ -56,11 +62,8 @@ function test() {
   /////////////////////////////////////
   
   // get closed tab count
-  var gPrefService = Components.classes["@mozilla.org/preferences-service;1"]
-                               .getService(Components.interfaces.nsIPrefBranch);
-
   let count = ss.getClosedTabCount(window);
-  let max_tabs_undo = gPrefService.getIntPref("browser.sessionstore.max_tabs_undo");
+  let max_tabs_undo = Services.prefs.getIntPref("browser.sessionstore.max_tabs_undo");
   ok(0 <= count && count <= max_tabs_undo,
      "getClosedTabCount returns zero or at most max_tabs_undo");
   
@@ -70,7 +73,7 @@ function test() {
   tab.linkedBrowser.addEventListener("load", function(aEvent) {
     this.removeEventListener("load", arguments.callee, true);
     // make sure that the next closed tab will increase getClosedTabCount
-    gPrefService.setIntPref("browser.sessionstore.max_tabs_undo", max_tabs_undo + 1);
+    Services.prefs.setIntPref("browser.sessionstore.max_tabs_undo", max_tabs_undo + 1);
     
     // remove tab
     getBrowser().removeTab(tab);
@@ -88,8 +91,8 @@ function test() {
       is(this.currentURI.spec, testURL, "correct tab was reopened");
       
       // clean up
-      if (gPrefService.prefHasUserValue("browser.sessionstore.max_tabs_undo"))
-        gPrefService.clearUserPref("browser.sessionstore.max_tabs_undo");
+      if (Services.prefs.prefHasUserValue("browser.sessionstore.max_tabs_undo"))
+        Services.prefs.clearUserPref("browser.sessionstore.max_tabs_undo");
       getBrowser().removeTab(tab);
       finish();
     }, true);

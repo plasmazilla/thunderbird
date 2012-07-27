@@ -71,8 +71,8 @@ JS_BEGIN_EXTERN_C
 #define JS_BITS_PER_UINT32      32
 
 /* The alignment required of objects stored in GC arenas. */
-static const uintN JS_GCTHING_ALIGN = 8;
-static const uintN JS_GCTHING_ZEROBITS = 3;
+static const unsigned JS_GCTHING_ALIGN = 8;
+static const unsigned JS_GCTHING_ZEROBITS = 3;
 
 /* Scalar typedefs. */
 typedef uint8_t     jsbytecode;
@@ -123,19 +123,15 @@ namespace js {
 struct ArgumentsData;
 struct Class;
 
+class RegExpGuard;
 class RegExpObject;
-class RegExpMatcher;
 class RegExpObjectBuilder;
+class RegExpShared;
 class RegExpStatics;
 class MatchPairs;
+class PropertyName;
 
-namespace detail {
-
-class RegExpPrivate;
-class RegExpPrivateCode;
-class RegExpPrivateCacheValue;
-
-} /* namespace detail */
+namespace detail { class RegExpCode; }
 
 enum RegExpFlag
 {
@@ -221,12 +217,6 @@ class BreakpointSite;
 class Debugger;
 class WatchpointMap;
 
-typedef HashMap<JSAtom *,
-                detail::RegExpPrivateCacheValue,
-                DefaultHasher<JSAtom *>,
-                RuntimeAllocPolicy>
-    RegExpPrivateCache;
-
 /*
  * Env is the type of what ES5 calls "lexical environments" (runtime
  * activations of lexical scopes). This is currently just JSObject, and is
@@ -260,72 +250,33 @@ struct TypeCompartment;
 
 } /* namespace types */
 
-enum ThingRootKind
-{
-    THING_ROOT_OBJECT,
-    THING_ROOT_SHAPE,
-    THING_ROOT_BASE_SHAPE,
-    THING_ROOT_TYPE_OBJECT,
-    THING_ROOT_STRING,
-    THING_ROOT_SCRIPT,
-    THING_ROOT_ID,
-    THING_ROOT_VALUE,
-    THING_ROOT_LIMIT
+typedef JS::Handle<Shape*>             HandleShape;
+typedef JS::Handle<BaseShape*>         HandleBaseShape;
+typedef JS::Handle<types::TypeObject*> HandleTypeObject;
+typedef JS::Handle<JSAtom*>            HandleAtom;
+typedef JS::Handle<PropertyName*>      HandlePropertyName;
+
+typedef JS::Root<Shape*>             RootShape;
+typedef JS::Root<BaseShape*>         RootBaseShape;
+typedef JS::Root<types::TypeObject*> RootTypeObject;
+typedef JS::Root<JSAtom*>            RootAtom;
+typedef JS::Root<PropertyName*>      RootPropertyName;
+
+typedef JS::RootedVar<Shape*>             RootedVarShape;
+typedef JS::RootedVar<BaseShape*>         RootedVarBaseShape;
+typedef JS::RootedVar<types::TypeObject*> RootedVarTypeObject;
+typedef JS::RootedVar<JSAtom*>            RootedVarAtom;
+typedef JS::RootedVar<PropertyName*>      RootedVarPropertyName;
+
+enum XDRMode {
+    XDR_ENCODE,
+    XDR_DECODE
 };
 
-template <typename T> class Root;
-template <typename T> class RootedVar;
+template <XDRMode mode>
+class XDRState;
 
-template <typename T>
-struct RootMethods { };
-
-/*
- * Reference to a stack location rooted for GC. See "Moving GC Stack Rooting"
- * comment in jscntxt.h.
- */
-template <typename T>
-class Handle
-{
-  public:
-    /* Copy handles of different types, with implicit coercion. */
-    template <typename S> Handle(Handle<S> handle) {
-        testAssign<S>();
-        ptr = reinterpret_cast<const T *>(handle.address());
-    }
-
-    /* Get a handle from a rooted stack location, with implicit coercion. */
-    template <typename S> inline Handle(const Root<S> &root);
-    template <typename S> inline Handle(const RootedVar<S> &root);
-
-    const T *address() { return ptr; }
-
-    operator T () { return value(); }
-    T operator ->() { return value(); }
-
-  private:
-    const T *ptr;
-    T value() { return *ptr; }
-
-    template <typename S>
-    void testAssign() {
-#ifdef DEBUG
-        T a = RootMethods<T>::initial();
-        S b = RootMethods<S>::initial();
-        a = b;
-        (void)a;
-#endif
-    }
-};
-
-typedef Handle<JSObject*>          HandleObject;
-typedef Handle<JSFunction*>        HandleFunction;
-typedef Handle<Shape*>             HandleShape;
-typedef Handle<BaseShape*>         HandleBaseShape;
-typedef Handle<types::TypeObject*> HandleTypeObject;
-typedef Handle<JSString*>          HandleString;
-typedef Handle<JSAtom*>            HandleAtom;
-typedef Handle<jsid>               HandleId;
-typedef Handle<Value>              HandleValue;
+class FreeOp;
 
 } /* namespace js */
 
@@ -382,19 +333,19 @@ typedef JSBool
 typedef void
 (* JSNewScriptHook)(JSContext  *cx,
                     const char *filename,  /* URL of script */
-                    uintN      lineno,     /* first line */
+                    unsigned      lineno,     /* first line */
                     JSScript   *script,
                     JSFunction *fun,
                     void       *callerdata);
 
 /* called just before script destruction */
 typedef void
-(* JSDestroyScriptHook)(JSContext *cx,
+(* JSDestroyScriptHook)(JSFreeOp *fop,
                         JSScript  *script,
                         void      *callerdata);
 
 typedef void
-(* JSSourceHandler)(const char *filename, uintN lineno, const jschar *str,
+(* JSSourceHandler)(const char *filename, unsigned lineno, const jschar *str,
                     size_t length, void **listenerTSData, void *closure);
 
 /*
@@ -473,7 +424,7 @@ typedef JSBool
  * exception, true with current attributes in *attrsp.
  */
 typedef JSBool
-(* JSAttributesOp)(JSContext *cx, JSObject *obj, jsid id, uintN *attrsp);
+(* JSAttributesOp)(JSContext *cx, JSObject *obj, jsid id, unsigned *attrsp);
 
 /*
  * A generic type for functions mapping an object to another object, or null

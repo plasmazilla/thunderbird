@@ -71,6 +71,7 @@
 #include "nsINameSpaceManager.h"
 #include "nsBlockFrame.h"
 #include "gfxContext.h"
+#include "nsRenderingContext.h"
 #include "nsIInterfaceRequestorUtils.h"
 #include "gfxPlatform.h"
 #include "gfxImageSurface.h"
@@ -2425,7 +2426,8 @@ nsCSSRendering::PaintBackgroundWithSC(nsPresContext* aPresContext,
 
   // We can skip painting the background color if a background image is opaque.
   if (drawBackgroundColor &&
-      bg->BottomLayer().mRepeat == NS_STYLE_BG_REPEAT_XY &&
+      bg->BottomLayer().mRepeat.mXRepeat == NS_STYLE_BG_REPEAT_REPEAT &&
+      bg->BottomLayer().mRepeat.mYRepeat == NS_STYLE_BG_REPEAT_REPEAT &&
       bg->BottomLayer().mImage.IsOpaque())
     drawBackgroundColor = false;
 
@@ -2683,14 +2685,13 @@ PrepareBackgroundLayer(nsPresContext* aPresContext,
 
   state.mDestArea = nsRect(imageTopLeft + aBorderArea.TopLeft(), imageSize);
   state.mFillArea = state.mDestArea;
-  PRIntn repeat = aLayer.mRepeat;
-  PR_STATIC_ASSERT(NS_STYLE_BG_REPEAT_XY ==
-                   (NS_STYLE_BG_REPEAT_X | NS_STYLE_BG_REPEAT_Y));
-  if (repeat & NS_STYLE_BG_REPEAT_X) {
+  PRIntn repeatX = aLayer.mRepeat.mXRepeat;
+  PRIntn repeatY = aLayer.mRepeat.mYRepeat;
+  if (repeatX == NS_STYLE_BG_REPEAT_REPEAT) {
     state.mFillArea.x = bgClipRect.x;
     state.mFillArea.width = bgClipRect.width;
   }
-  if (repeat & NS_STYLE_BG_REPEAT_Y) {
+  if (repeatY == NS_STYLE_BG_REPEAT_REPEAT) {
     state.mFillArea.y = bgClipRect.y;
     state.mFillArea.height = bgClipRect.height;
   }
@@ -4212,16 +4213,18 @@ ImageRenderer::Draw(nsPresContext*       aPresContext,
 #define MAX_SPREAD_RADIUS 50
 
 static inline gfxIntSize
-ComputeBlurRadius(nscoord aBlurRadius, PRInt32 aAppUnitsPerDevPixel)
+ComputeBlurRadius(nscoord aBlurRadius, PRInt32 aAppUnitsPerDevPixel, gfxFloat aScaleX = 1.0, gfxFloat aScaleY = 1.0)
 {
   // http://dev.w3.org/csswg/css3-background/#box-shadow says that the
   // standard deviation of the blur should be half the given blur value.
-  gfxFloat blurStdDev =
-    NS_MIN(gfxFloat(aBlurRadius) / gfxFloat(aAppUnitsPerDevPixel),
-           gfxFloat(MAX_BLUR_RADIUS))
-    / 2.0;
+  gfxFloat blurStdDev = gfxFloat(aBlurRadius) / gfxFloat(aAppUnitsPerDevPixel);
+
+  gfxPoint scaledBlurStdDev = gfxPoint(NS_MIN((blurStdDev * aScaleX),
+                                              gfxFloat(MAX_BLUR_RADIUS)) / 2.0,
+                                       NS_MIN((blurStdDev * aScaleY),
+                                              gfxFloat(MAX_BLUR_RADIUS)) / 2.0);
   return
-    gfxAlphaBoxBlur::CalculateBlurRadius(gfxPoint(blurStdDev, blurStdDev));
+    gfxAlphaBoxBlur::CalculateBlurRadius(scaledBlurStdDev);
 }
 
 // -----
@@ -4241,13 +4244,32 @@ nsContextBoxBlur::Init(const nsRect& aRect, nscoord aSpreadRadius,
     return nsnull;
   }
 
-  gfxIntSize blurRadius = ComputeBlurRadius(aBlurRadius, aAppUnitsPerDevPixel);
-  PRInt32 spreadRadius = NS_MIN(PRInt32(aSpreadRadius / aAppUnitsPerDevPixel),
-                                PRInt32(MAX_SPREAD_RADIUS));
+  gfxFloat scaleX = 1;
+  gfxFloat scaleY = 1;
+
+  // Do blurs in device space when possible.
+  // Chrome/Skia always does the blurs in device space
+  // and will sometimes get incorrect results (e.g. rotated blurs)
+  gfxMatrix transform = aDestinationCtx->CurrentMatrix();
+  // XXX: we could probably handle negative scales but for now it's easier just to fallback
+  if (transform.HasNonAxisAlignedTransform() || transform.xx <= 0.0 || transform.yy <= 0.0) {
+    transform = gfxMatrix();
+  } else {
+    scaleX = transform.xx;
+    scaleY = transform.yy;
+  }
+
+  // compute a large or smaller blur radius
+  gfxIntSize blurRadius = ComputeBlurRadius(aBlurRadius, aAppUnitsPerDevPixel, scaleX, scaleY);
+  gfxIntSize spreadRadius = gfxIntSize(NS_MIN(PRInt32(aSpreadRadius * scaleX / aAppUnitsPerDevPixel),
+                                              PRInt32(MAX_SPREAD_RADIUS)),
+                                       NS_MIN(PRInt32(aSpreadRadius * scaleY / aAppUnitsPerDevPixel),
+                                              PRInt32(MAX_SPREAD_RADIUS)));
   mDestinationCtx = aDestinationCtx;
 
   // If not blurring, draw directly onto the destination device
-  if (blurRadius.width <= 0 && blurRadius.height <= 0 && spreadRadius <= 0 &&
+  if (blurRadius.width <= 0 && blurRadius.height <= 0 &&
+      spreadRadius.width <= 0 && spreadRadius.height <= 0 &&
       !(aFlags & FORCE_MASK)) {
     mContext = aDestinationCtx;
     return mContext;
@@ -4260,9 +4282,26 @@ nsContextBoxBlur::Init(const nsRect& aRect, nscoord aSpreadRadius,
     nsLayoutUtils::RectToGfxRect(aDirtyRect, aAppUnitsPerDevPixel);
   dirtyRect.RoundOut();
 
+  rect = transform.TransformBounds(rect);
+
+  mPreTransformed = !transform.IsIdentity();
+
   // Create the temporary surface for blurring
-  mContext = blur.Init(rect, gfxIntSize(spreadRadius, spreadRadius),
-                       blurRadius, &dirtyRect, aSkipRect);
+  dirtyRect = transform.TransformBounds(dirtyRect);
+  if (aSkipRect) {
+    gfxRect skipRect = transform.TransformBounds(*aSkipRect);
+    mContext = blur.Init(rect, spreadRadius,
+                         blurRadius, &dirtyRect, &skipRect);
+  } else {
+    mContext = blur.Init(rect, spreadRadius,
+                         blurRadius, &dirtyRect, NULL);
+  }
+
+  if (mContext) {
+    // we don't need to blur if skipRect is equal to rect
+    // and mContext will be NULL
+    mContext->SetMatrix(transform);
+  }
   return mContext;
 }
 
@@ -4271,6 +4310,12 @@ nsContextBoxBlur::DoPaint()
 {
   if (mContext == mDestinationCtx)
     return;
+
+  gfxContextMatrixAutoSaveRestore saveMatrix(mDestinationCtx);
+
+  if (mPreTransformed) {
+    mDestinationCtx->IdentityMatrix();
+  }
 
   blur.Paint(mDestinationCtx);
 }

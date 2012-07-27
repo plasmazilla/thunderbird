@@ -39,7 +39,6 @@
 
 #include "nsAccessNodeWrap.h"
 #include "nsApplicationAccessibleWrap.h"
-#include "nsMaiInterfaceText.h"
 
 /* For documentation of the accessibility architecture, 
  * see http://lxr.mozilla.org/seamonkey/source/accessible/accessible-docs.html
@@ -55,8 +54,8 @@
 //-----------------------------------------------------
 
 nsAccessNodeWrap::
-    nsAccessNodeWrap(nsIContent *aContent, nsIWeakReference *aShell) :
-    nsAccessNode(aContent, aShell)
+  nsAccessNodeWrap(nsIContent* aContent, nsDocAccessible* aDoc) :
+  nsAccessNode(aContent, aDoc)
 {
 }
 

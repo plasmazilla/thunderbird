@@ -62,6 +62,7 @@
 #include "nsIObserverService.h"
 #include "nsIMsgLocalMailFolder.h"
 #include "nsIMsgDatabase.h"
+#include "mozilla/Services.h"
 
 // Consts for checking and sending mail in milliseconds
 
@@ -134,8 +135,8 @@ nsMsgSendLater::Init()
 
   // We need to know when we're shutting down.
   nsCOMPtr<nsIObserverService> observerService =
-    do_GetService("@mozilla.org/observer-service;1", &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
+    mozilla::services::GetObserverService();
+  NS_ENSURE_TRUE(observerService, NS_ERROR_UNEXPECTED);
 
   rv = observerService->AddObserver(this, "xpcom-shutdown", false);
   NS_ENSURE_SUCCESS(rv, rv);
@@ -200,8 +201,8 @@ nsMsgSendLater::Observe(nsISupports *aSubject, const char* aTopic,
 
     // Now remove ourselves from the observer service as well.
     nsCOMPtr<nsIObserverService> observerService =
-      do_GetService("@mozilla.org/observer-service;1", &rv);
-    NS_ENSURE_SUCCESS(rv, rv);
+      mozilla::services::GetObserverService();
+    NS_ENSURE_TRUE(observerService, NS_ERROR_UNEXPECTED);
 
     rv = observerService->RemoveObserver(this, "xpcom-shutdown");
     NS_ENSURE_SUCCESS(rv, rv);
@@ -354,23 +355,25 @@ nsMsgSendLater::BuildNewBuffer(const char* aBuf, PRUint32 aCount, PRUint32 *tota
 NS_IMETHODIMP
 nsMsgSendLater::OnDataAvailable(nsIRequest *request, nsISupports *ctxt, nsIInputStream *inStr, PRUint32 sourceOffset, PRUint32 count)
 {
+  NS_ENSURE_ARG_POINTER(inStr);
+
   // This is a little bit tricky since we have to chop random 
   // buffers into lines and deliver the lines...plus keeping the
   // leftovers for next time...some fun, eh?
   //
   nsresult    rv = NS_OK;
-  char        *startBuf; 
+  char        *startBuf;
   char        *endBuf;
   char        *lineEnd;
   char        *newbuf = nsnull;
-  PRUint32    size;  
+  PRUint32    size;
 
   PRUint32    aCount = count;
   char        *aBuf = (char *)PR_Malloc(aCount + 1);
 
   inStr->Read(aBuf, count, &aCount);
 
-  // First, create a new work buffer that will 
+  // First, create a new work buffer that will
   if (NS_FAILED(BuildNewBuffer(aBuf, aCount, &size))) // no leftovers...
   {
     startBuf = (char *)aBuf;
@@ -379,9 +382,9 @@ nsMsgSendLater::OnDataAvailable(nsIRequest *request, nsISupports *ctxt, nsIInput
   else  // yum, leftovers...new buffer created...sitting in mLeftoverBuffer
   {
     newbuf = mLeftoverBuffer;
-    startBuf = newbuf; 
+    startBuf = newbuf;
     endBuf = startBuf + size - 1;
-    mLeftoverBuffer = nsnull; // null out this 
+    mLeftoverBuffer = nsnull; // null out this
   }
 
   while (startBuf <= endBuf)
@@ -389,7 +392,7 @@ nsMsgSendLater::OnDataAvailable(nsIRequest *request, nsISupports *ctxt, nsIInput
     lineEnd = FindEOL(startBuf, endBuf);
     if (!lineEnd)
     {
-      rv = RebufferLeftovers(startBuf, (endBuf - startBuf) + 1);           
+      rv = RebufferLeftovers(startBuf, (endBuf - startBuf) + 1);
       break;
     }
 
@@ -731,6 +734,21 @@ nsMsgSendLater::HasUnsentMessages(nsIMsgIdentity *aIdentity, bool *aResult)
 {
   NS_ENSURE_ARG_POINTER(aResult);
   nsresult rv;
+
+  nsCOMPtr<nsIMsgAccountManager> accountManager =
+    do_GetService(NS_MSGACCOUNTMANAGER_CONTRACTID, &rv);
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  nsCOMPtr<nsISupportsArray> accounts;
+  accountManager->GetAccounts(getter_AddRefs(accounts));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  PRUint32 cnt = 0;
+  rv = accounts->Count(&cnt);
+  if (cnt == 0) {
+    *aResult = false;
+    return NS_OK; // no account set up -> no unsent messages
+  }
 
   // XXX This code should be set up for multiple unsent folders, however we
   // don't support that at the moment, so for now just assume one folder.
@@ -1245,7 +1263,7 @@ nsMsgSendLater::DeliverQueuedLine(char *line, PRInt32 length)
 
       PRUint32 n;
       rv = mOutFile->Write(m_headers, m_headersFP, &n);
-      if (NS_FAILED(rv) || n != m_headersFP)
+      if (NS_FAILED(rv) || n != (PRUint32)m_headersFP)
         return NS_MSG_ERROR_WRITING_FILE;
     }
     else

@@ -36,6 +36,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+#include "base/basictypes.h"
 #include "assert.h"
 #include "ANPBase.h"
 #include <android/log.h>
@@ -43,11 +44,21 @@
 #include "nsNPAPIPluginInstance.h"
 #include "nsIPluginInstanceOwner.h"
 #include "nsPluginInstanceOwner.h"
+#include "nsWindow.h"
+#include "IPCMessageUtils.h"
+#include "mozilla/dom/ScreenOrientation.h"
 
 #define LOG(args...)  __android_log_print(ANDROID_LOG_INFO, "GeckoPlugins" , ## args)
 #define ASSIGN(obj, name)   (obj)->name = anp_window_##name
 
 using namespace mozilla;
+using namespace mozilla::widget;
+using namespace mozilla::dom;
+
+static nsresult GetOwner(NPP instance, nsPluginInstanceOwner** owner) {
+  nsNPAPIPluginInstance* pinst = static_cast<nsNPAPIPluginInstance*>(instance->ndata);
+  return pinst->GetOwner((nsIPluginInstanceOwner**)owner);
+}
 
 void
 anp_window_setVisibleRects(NPP instance, const ANPRectI rects[], int32_t count)
@@ -64,19 +75,48 @@ anp_window_clearVisibleRects(NPP instance)
 void
 anp_window_showKeyboard(NPP instance, bool value)
 {
-  NOT_IMPLEMENTED();
+  InputContext context;
+  context.mIMEState.mEnabled = value ? IMEState::PLUGIN : IMEState::DISABLED;
+  context.mIMEState.mOpen = value ? IMEState::OPEN : IMEState::CLOSED;
+  context.mActionHint.Assign(EmptyString());
+
+  InputContextAction action;
+  action.mCause = InputContextAction::CAUSE_UNKNOWN;
+  action.mFocusChange = InputContextAction::FOCUS_NOT_CHANGED;
+
+  nsWindow* window = nsWindow::TopWindow();
+  if (!window) {
+    LOG("Couldn't get top window?");
+    return;
+  }
+
+  window->SetInputContext(context, action);
 }
 
 void
 anp_window_requestFullScreen(NPP instance)
 {
-  NOT_IMPLEMENTED();
+  nsNPAPIPluginInstance* pinst = static_cast<nsNPAPIPluginInstance*>(instance->ndata);
+
+  nsRefPtr<nsPluginInstanceOwner> owner;
+  if (NS_FAILED(GetOwner(instance, getter_AddRefs(owner)))) {
+    return;
+  }
+
+  owner->RequestFullScreen();
 }
 
 void
 anp_window_exitFullScreen(NPP instance)
 {
-  NOT_IMPLEMENTED();
+  nsNPAPIPluginInstance* pinst = static_cast<nsNPAPIPluginInstance*>(instance->ndata);
+
+  nsRefPtr<nsPluginInstanceOwner> owner;
+  if (NS_FAILED(GetOwner(instance, getter_AddRefs(owner)))) {
+    return;
+  }
+
+  owner->ExitFullScreen();
 }
 
 void
@@ -92,8 +132,8 @@ anp_window_visibleRect(NPP instance)
 
   nsNPAPIPluginInstance* pinst = static_cast<nsNPAPIPluginInstance*>(instance->ndata);
 
-  nsPluginInstanceOwner* owner;
-  if (NS_FAILED(pinst->GetOwner((nsIPluginInstanceOwner**)&owner))) {
+  nsRefPtr<nsPluginInstanceOwner> owner;
+  if (NS_FAILED(GetOwner(instance, getter_AddRefs(owner)))) {
     return rect;
   }
 
@@ -108,7 +148,29 @@ anp_window_visibleRect(NPP instance)
 
 void anp_window_requestFullScreenOrientation(NPP instance, ANPScreenOrientation orientation)
 {
-  NOT_IMPLEMENTED();
+  short newOrientation;
+
+  // Convert to the ActivityInfo equivalent
+  switch (orientation) {
+    case kFixedLandscape_ANPScreenOrientation:
+      newOrientation = eScreenOrientation_LandscapePrimary;
+      break;
+    case kFixedPortrait_ANPScreenOrientation:
+      newOrientation = eScreenOrientation_PortraitPrimary;
+      break;
+    case kLandscape_ANPScreenOrientation:
+      newOrientation = eScreenOrientation_Landscape;
+      break;
+    case kPortrait_ANPScreenOrientation:
+      newOrientation = eScreenOrientation_Portrait;
+      break;
+    default:
+      newOrientation = eScreenOrientation_None;
+      break;
+  }
+
+  nsNPAPIPluginInstance* pinst = static_cast<nsNPAPIPluginInstance*>(instance->ndata);
+  pinst->SetFullScreenOrientation(newOrientation);
 }
 
 void InitWindowInterface(ANPWindowInterfaceV0 *i) {

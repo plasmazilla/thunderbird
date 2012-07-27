@@ -43,16 +43,24 @@
 
 #include "nsTArray.h"
 
-#ifdef ACCESSIBILITY
-#include "nsAccessible.h"
+#ifdef MOZ_JAVA_COMPOSITOR
+#include "AndroidJavaWrappers.h"
+#include "Layers.h"
 #endif
 
 class gfxASurface;
 class nsIdleService;
 
+struct ANPEvent;
+
 namespace mozilla {
     class AndroidGeckoEvent;
     class AndroidKeyEvent;
+
+    namespace layers {
+        class CompositorParent;
+        class CompositorChild;
+    }
 }
 
 class nsWindow :
@@ -68,6 +76,7 @@ public:
 
     static void OnGlobalAndroidEvent(mozilla::AndroidGeckoEvent *ae);
     static gfxIntSize GetAndroidScreenBounds();
+    static nsWindow* TopWindow();
 
     nsWindow* FindWindowForPoint(const nsIntPoint& pt);
 
@@ -121,9 +130,7 @@ public:
     NS_IMETHOD SetSizeMode(PRInt32 aMode);
     NS_IMETHOD Enable(bool aState);
     NS_IMETHOD IsEnabled(bool *aState);
-    NS_IMETHOD Invalidate(const nsIntRect &aRect,
-                          bool aIsSynchronous);
-    NS_IMETHOD Update();
+    NS_IMETHOD Invalidate(const nsIntRect &aRect);
     NS_IMETHOD SetFocus(bool aRaise = false);
     NS_IMETHOD GetScreenBounds(nsIntRect &aRect);
     virtual nsIntPoint WidgetToScreenOffset();
@@ -170,17 +177,21 @@ public:
                                    LayersBackend aBackendHint = LayerManager::LAYERS_NONE, 
                                    LayerManagerPersistence aPersistence = LAYER_MANAGER_CURRENT, 
                                    bool* aAllowRetaining = nsnull);
-    gfxASurface* GetThebesSurface();
 
     NS_IMETHOD ReparentNativeWidget(nsIWidget* aNewParent);
 
-#ifdef ACCESSIBILITY
-    static bool sAccessibilityEnabled;
-#endif
-
 #ifdef MOZ_JAVA_COMPOSITOR
-    static void BindToTexture();
-    static bool HasDirectTexture();
+    virtual void DrawWindowUnderlay(LayerManager* aManager, nsIntRect aRect);
+    virtual void DrawWindowOverlay(LayerManager* aManager, nsIntRect aRect);
+
+    static void SetCompositor(mozilla::layers::CompositorParent* aCompositorParent,
+                              mozilla::layers::CompositorChild* aCompositorChild,
+                              ::base::Thread* aCompositorThread);
+    static void ScheduleComposite();
+    static void SchedulePauseComposition();
+    static void ScheduleResumeComposition(int width, int height);
+
+    virtual bool WidgetPaintsBackground() { return true; }
 #endif
 
 protected:
@@ -223,7 +234,8 @@ protected:
     static void LogWindow(nsWindow *win, int index, int indent);
 
 private:
-    void InitKeyEvent(nsKeyEvent& event, mozilla::AndroidGeckoEvent& key);
+    void InitKeyEvent(nsKeyEvent& event, mozilla::AndroidGeckoEvent& key,
+                      ANPEvent* pluginEvent);
     bool DispatchMultitouchEvent(nsTouchEvent &event,
                              mozilla::AndroidGeckoEvent *ae);
     void DispatchMotionEvent(nsInputEvent &event,
@@ -234,20 +246,14 @@ private:
     void HandleSpecialKey(mozilla::AndroidGeckoEvent *ae);
     void RedrawAll();
 
-#ifdef ACCESSIBILITY
-    nsRefPtr<nsAccessible> mRootAccessible;
+#ifdef MOZ_JAVA_COMPOSITOR
+    mozilla::AndroidLayerRendererFrame mLayerRendererFrame;
 
-    /**
-     * Request to create the accessible for this window if it is top level.
-     */
-    void CreateRootAccessible();
-
-    /**
-     * Generate the NS_GETACCESSIBLE event to get accessible for this window
-     * and return it.
-     */
-    nsAccessible *DispatchAccessibleEvent();
-#endif // ACCESSIBILITY
+    static nsRefPtr<mozilla::layers::CompositorParent> sCompositorParent;
+    static nsRefPtr<mozilla::layers::CompositorChild> sCompositorChild;
+    static bool sCompositorPaused;
+    static base::Thread *sCompositorThread;
+#endif
 };
 
 #endif /* NSWINDOW_H_ */

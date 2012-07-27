@@ -224,7 +224,7 @@ NS_IMETHODIMP nsSVGMarkerElement::SetOrientToAngle(nsIDOMSVGAngle *angle)
   nsresult rv = angle->GetValue(&f);
   NS_ENSURE_SUCCESS(rv, rv);
   NS_ENSURE_FINITE(f, NS_ERROR_DOM_SVG_WRONG_TYPE_ERR);
-  mAngleAttributes[ORIENT].SetBaseValue(f, this);
+  mAngleAttributes[ORIENT].SetBaseValue(f, this, true);
 
   return NS_OK;
 }
@@ -304,6 +304,15 @@ nsSVGMarkerElement::SetParentCoordCtxProvider(nsSVGSVGElement *aContext)
 {
   mCoordCtx = aContext;
   mViewBoxToViewportTransform = nsnull;
+}
+
+/* virtual */ bool
+nsSVGMarkerElement::HasValidDimensions() const
+{
+  return (!mLengthAttributes[MARKERWIDTH].IsExplicitlySet() ||
+           mLengthAttributes[MARKERWIDTH].GetAnimValInSpecifiedUnits() > 0) &&
+         (!mLengthAttributes[MARKERHEIGHT].IsExplicitlySet() || 
+           mLengthAttributes[MARKERHEIGHT].GetAnimValInSpecifiedUnits() > 0);
 }
 
 nsSVGElement::LengthAttributesInfo

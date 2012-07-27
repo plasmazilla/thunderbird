@@ -53,7 +53,7 @@ CPPSRCS = \
   nsTextAccessibleWrap.cpp \
   nsDocAccessibleWrap.cpp \
   nsHTMLWin32ObjectAccessible.cpp \
-  nsARIAGridAccessibleWrap.cpp \
+  ARIAGridAccessibleWrap.cpp \
   nsRootAccessibleWrap.cpp \
   nsXULMenuAccessibleWrap.cpp \
   nsXULListboxAccessibleWrap.cpp \
@@ -63,13 +63,13 @@ CPPSRCS = \
   nsHTMLTableAccessibleWrap.cpp \
   nsApplicationAccessibleWrap.cpp \
   nsWinUtils.cpp \
-  CAccessibleAction.cpp \
+  ia2AccessibleAction.cpp \
+  ia2AccessibleComponent.cpp \
   CAccessibleImage.cpp \
-  CAccessibleComponent.cpp \
   CAccessibleText.cpp \
   CAccessibleEditableText.cpp \
   CAccessibleHyperlink.cpp \
-  CAccessibleHypertext.cpp \
+  ia2AccessibleHypertext.cpp \
   ia2AccessibleRelation.cpp \
   CAccessibleTable.cpp \
   CAccessibleTableCell.cpp \
@@ -78,13 +78,13 @@ CPPSRCS = \
   $(NULL)
 
 EXPORTS = \
+  ARIAGridAccessibleWrap.h \
   nsAccessNodeWrap.h \
   nsAccessibleWrap.h \
   nsTextAccessibleWrap.h \
   nsDocAccessibleWrap.h \
   nsRootAccessibleWrap.h \
   nsHTMLWin32ObjectAccessible.h \
-  nsARIAGridAccessibleWrap.h \
   nsXULMenuAccessibleWrap.h \
   nsXULListboxAccessibleWrap.h \
   nsXULTreeGridAccessibleWrap.h \
@@ -92,13 +92,13 @@ EXPORTS = \
   nsHTMLImageAccessibleWrap.h \
   nsHTMLTableAccessibleWrap.h \
   nsApplicationAccessibleWrap.h \
-  CAccessibleAction.h \
+  ia2AccessibleAction.h \
+  ia2AccessibleComponent.h \
   CAccessibleImage.h \
-  CAccessibleComponent.h \
   CAccessibleText.h \
   CAccessibleEditableText.h \
   CAccessibleHyperlink.h \
-  CAccessibleHypertext.h \
+  ia2AccessibleHypertext.h \
   CAccessibleTable.h \
   CAccessibleTableCell.h \
   CAccessibleValue.h \
@@ -114,7 +114,9 @@ include $(topsrcdir)/config/rules.mk
 LOCAL_INCLUDES += \
   -I$(srcdir) \
   -I$(srcdir)/../base \
+  -I$(srcdir)/../generic \
   -I$(srcdir)/../html \
+  -I$(srcdir)/../xpcom \
   -I$(srcdir)/../xul \
   -I$(srcdir)/../../../content/base/src \
   -I$(srcdir)/../../../content/events/src \

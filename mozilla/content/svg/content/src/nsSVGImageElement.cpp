@@ -170,7 +170,7 @@ nsSVGImageElement::LoadSVGImage(bool aForce, bool aNotify)
 
 nsresult
 nsSVGImageElement::AfterSetAttr(PRInt32 aNamespaceID, nsIAtom* aName,
-                                const nsAString* aValue, bool aNotify)
+                                const nsAttrValue* aValue, bool aNotify)
 {
   if (aNamespaceID == kNameSpaceID_XLink && aName == nsGkAtoms::href) {
 
@@ -266,6 +266,15 @@ nsSVGImageElement::ConstructPath(gfxContext *aCtx)
 
 //----------------------------------------------------------------------
 // nsSVGElement methods
+
+/* virtual */ bool
+nsSVGImageElement::HasValidDimensions() const
+{
+  return mLengthAttributes[WIDTH].IsExplicitlySet() &&
+         mLengthAttributes[WIDTH].GetAnimValInSpecifiedUnits() > 0 &&
+         mLengthAttributes[HEIGHT].IsExplicitlySet() &&
+         mLengthAttributes[HEIGHT].GetAnimValInSpecifiedUnits() > 0;
+}
 
 nsSVGElement::LengthAttributesInfo
 nsSVGImageElement::GetLengthInfo()

@@ -43,7 +43,6 @@
 #include "nsContentUtils.h"
 #include "nsDOMClassInfoID.h"
 #include "nsDOMError.h"
-#include "nsICharsetAlias.h"
 #include "nsICharsetDetector.h"
 #include "nsICharsetConverterManager.h"
 #include "nsIConverterInputStream.h"
@@ -68,6 +67,7 @@
 
 #include "plbase64.h"
 #include "prmem.h"
+#include "dombindings.h"
 
 using namespace mozilla;
 using namespace mozilla::dom;
@@ -142,6 +142,7 @@ DOMCI_DATA(Blob, nsDOMFileBase)
 NS_INTERFACE_MAP_BEGIN(nsDOMFileBase)
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMFile)
   NS_INTERFACE_MAP_ENTRY(nsIDOMBlob)
+  NS_INTERFACE_MAP_ENTRY(nsIDOMBlob_GECKO_13)
   NS_INTERFACE_MAP_ENTRY_CONDITIONAL(nsIDOMFile, mIsFile)
   NS_INTERFACE_MAP_ENTRY(nsIXHRSendable)
   NS_INTERFACE_MAP_ENTRY(nsIMutable)
@@ -238,9 +239,9 @@ ParseSize(PRInt64 aSize, PRInt64& aStart, PRInt64& aEnd)
 }
 
 NS_IMETHODIMP
-nsDOMFileBase::MozSlice(PRInt64 aStart, PRInt64 aEnd,
-                        const nsAString& aContentType, PRUint8 optional_argc,
-                        nsIDOMBlob **aBlob)
+nsDOMFileBase::Slice(PRInt64 aStart, PRInt64 aEnd,
+                     const nsAString& aContentType, PRUint8 optional_argc,
+                     nsIDOMBlob **aBlob)
 {
   *aBlob = nsnull;
 
@@ -260,6 +261,16 @@ nsDOMFileBase::MozSlice(PRInt64 aStart, PRInt64 aEnd,
                        aContentType).get();
 
   return *aBlob ? NS_OK : NS_ERROR_UNEXPECTED;
+}
+
+NS_IMETHODIMP
+nsDOMFileBase::MozSlice(PRInt64 aStart, PRInt64 aEnd,
+                        const nsAString& aContentType, PRUint8 optional_argc,
+                        nsIDOMBlob **aBlob)
+{
+  MOZ_ASSERT(NS_IsMainThread());
+
+  return Slice(aStart, aEnd, aContentType, optional_argc, aBlob);
 }
 
 NS_IMETHODIMP
@@ -608,14 +619,39 @@ nsDOMMemoryFile::GetInternalStream(nsIInputStream **aStream)
 
 DOMCI_DATA(FileList, nsDOMFileList)
 
-NS_INTERFACE_MAP_BEGIN(nsDOMFileList)
+NS_IMPL_CYCLE_COLLECTION_CLASS(nsDOMFileList)
+NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsDOMFileList)
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_PRESERVED_WRAPPER
+NS_IMPL_CYCLE_COLLECTION_UNLINK_END
+NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsDOMFileList)
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_SCRIPT_OBJECTS
+NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
+NS_IMPL_CYCLE_COLLECTION_TRACE_BEGIN(nsDOMFileList)
+  NS_IMPL_CYCLE_COLLECTION_TRACE_PRESERVED_WRAPPER
+NS_IMPL_CYCLE_COLLECTION_TRACE_END
+
+NS_INTERFACE_MAP_BEGIN_CYCLE_COLLECTION(nsDOMFileList)
+  NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
   NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMFileList)
   NS_INTERFACE_MAP_ENTRY(nsIDOMFileList)
   NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(FileList)
 NS_INTERFACE_MAP_END
 
-NS_IMPL_ADDREF(nsDOMFileList)
-NS_IMPL_RELEASE(nsDOMFileList)
+NS_IMPL_CYCLE_COLLECTING_ADDREF(nsDOMFileList)
+NS_IMPL_CYCLE_COLLECTING_RELEASE(nsDOMFileList)
+
+JSObject*
+nsDOMFileList::WrapObject(JSContext *cx, JSObject *scope,
+                          bool *triedToWrap)
+{
+  return mozilla::dom::binding::FileList::create(cx, scope, this, triedToWrap);
+}
+
+nsIDOMFile*
+nsDOMFileList::GetItemAt(PRUint32 aIndex)
+{
+  return mFiles.SafeObjectAt(aIndex);
+}
 
 NS_IMETHODIMP
 nsDOMFileList::GetLength(PRUint32* aLength)
@@ -628,29 +664,8 @@ nsDOMFileList::GetLength(PRUint32* aLength)
 NS_IMETHODIMP
 nsDOMFileList::Item(PRUint32 aIndex, nsIDOMFile **aFile)
 {
-  NS_IF_ADDREF(*aFile = GetItemAt(aIndex));
+  NS_IF_ADDREF(*aFile = nsDOMFileList::GetItemAt(aIndex));
 
-  return NS_OK;
-}
-
-////////////////////////////////////////////////////////////////////////////
-// nsDOMFileError implementation
-
-DOMCI_DATA(FileError, nsDOMFileError)
-
-NS_INTERFACE_MAP_BEGIN(nsDOMFileError)
-  NS_INTERFACE_MAP_ENTRY_AMBIGUOUS(nsISupports, nsIDOMFileError)
-  NS_INTERFACE_MAP_ENTRY(nsIDOMFileError)
-  NS_DOM_INTERFACE_MAP_ENTRY_CLASSINFO(FileError)
-NS_INTERFACE_MAP_END
-
-NS_IMPL_ADDREF(nsDOMFileError)
-NS_IMPL_RELEASE(nsDOMFileError)
-
-NS_IMETHODIMP
-nsDOMFileError::GetCode(PRUint16* aCode)
-{
-  *aCode = mCode;
   return NS_OK;
 }
 

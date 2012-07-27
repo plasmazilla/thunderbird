@@ -56,6 +56,7 @@ class nsIObjectInputStream;
 class nsIObjectOutputStream;
 template<class> class nsScriptObjectHolder;
 class nsIScriptObjectPrincipal;
+class nsIDOMWindow;
 
 typedef void (*nsScriptTerminationFunc)(nsISupports* aRef);
 
@@ -75,8 +76,8 @@ NS_DEFINE_STATIC_IID_ACCESSOR(nsIScriptContextPrincipal,
                               NS_ISCRIPTCONTEXTPRINCIPAL_IID)
 
 #define NS_ISCRIPTCONTEXT_IID \
-{ 0xf3840057, 0x4fe5, 0x4f92, \
- { 0xa3, 0xb8, 0x27, 0xd7, 0x44, 0x6f, 0x72, 0x4d } }
+{ 0xf1c8c13e, 0xc23b, 0x434e, \
+  { 0xa4, 0x77, 0xe0, 0x2f, 0xc3, 0x73, 0xf8, 0x71 } }
 
 /* This MUST match JSVERSION_DEFAULT.  This version stuff if we don't
    know what language we have is a little silly... */
@@ -91,8 +92,7 @@ class nsIScriptContext : public nsIScriptContextPrincipal
 public:
   NS_DECLARE_STATIC_IID_ACCESSOR(NS_ISCRIPTCONTEXT_IID)
 
-  /* Get the ID of this language. */
-  virtual PRUint32 GetScriptTypeID() = 0;
+  virtual void SetGlobalObject(nsIScriptGlobalObject* aGlobalObject) = 0;
 
   /**
    * Compile and execute a script.
@@ -121,7 +121,7 @@ public:
                                   nsIPrincipal *aOriginPrincipal,
                                   const char *aURL,
                                   PRUint32 aLineNo,
-                                  PRUint32 aVersion,
+                                  JSVersion aVersion,
                                   nsAString *aRetValue,
                                   bool* aIsUndefined) = 0;
 
@@ -303,31 +303,9 @@ public:
                                       nsISupports **aHolder) = 0;
 
   /**
-   * Connect this context to a new inner window, to allow "prototype"
-   * chaining from the inner to the outer.
-   * Called after both the the inner and outer windows are initialized
-   **/
-  virtual nsresult ConnectToInner(nsIScriptGlobalObject *aNewInner,
-                                  JSObject *aOuterGlobal) = 0;
-
-
-  /**
    * Initialize the context generally. Does not create a global object.
    **/
   virtual nsresult InitContext() = 0;
-
-  /**
-   * Creates the outer window for this context.
-   *
-   * @param aGlobalObject The script global object to use as our global.
-   */
-  virtual nsresult CreateOuterObject(nsIScriptGlobalObject *aGlobalObject,
-                                     nsIScriptGlobalObject *aCurrentInner) = 0;
-
-  /**
-   * Given an outer object, updates this context with that outer object.
-   */
-  virtual nsresult SetOuterObject(JSObject* aOuterObject) = 0;
 
   /**
    * Prepares this context for use with the current inner window for the
@@ -343,11 +321,6 @@ public:
    *
    */
   virtual bool IsContextInitialized() = 0;
-
-  /**
-   * Called as the global object discards its reference to the context.
-   */
-  virtual void FinalizeContext() = 0;
 
   /**
    * For garbage collected systems, do a synchronous collection pass.
@@ -389,8 +362,8 @@ public:
    *
    * @throws NS_ERROR_OUT_OF_MEMORY if that happens
    */
-  virtual nsresult SetTerminationFunction(nsScriptTerminationFunc aFunc,
-                                          nsISupports* aRef) = 0;
+  virtual void SetTerminationFunction(nsScriptTerminationFunc aFunc,
+                                      nsIDOMWindow* aRef) = 0;
 
   /**
    * Called to disable/enable script execution in this context.
@@ -400,7 +373,7 @@ public:
 
   // SetProperty is suspect and jst believes should not be needed.  Currenly
   // used only for "arguments".
-  virtual nsresult SetProperty(void *aTarget, const char *aPropName, nsISupports *aVal) = 0;
+  virtual nsresult SetProperty(JSObject* aTarget, const char* aPropName, nsISupports* aVal) = 0;
   /** 
    * Called to set/get information if the script context is
    * currently processing a script tag
@@ -426,20 +399,6 @@ public:
    * (successfully) initialized.
    */
   virtual nsresult InitClasses(JSObject* aGlobalObj) = 0;
-
-  /**
-   * Clear the scope object - may be called either as we are being torn down,
-   * or before we are attached to a different document.
-   *
-   * aClearFromProtoChain is probably somewhat JavaScript specific.  It
-   * indicates that the global scope polluter should be removed from the
-   * prototype chain and that the objects in the prototype chain should
-   * also have their scopes cleared.  We don't do this all the time
-   * because the prototype chain is shared between inner and outer
-   * windows, and needs to stay with inner windows that we're keeping
-   * around.
-   */
-  virtual void ClearScope(void* aGlobalObj, bool aClearFromProtoChain) = 0;
 
   /**
    * Tell the context we're about to be reinitialize it.

@@ -93,7 +93,8 @@ nsresult nsMailboxService::ParseMailbox(nsIMsgWindow *aMsgWindow, nsILocalFile *
     url->SetMsgWindow(aMsgWindow);
     nsCAutoString uriSpec("mailbox://");
     uriSpec.Append(buf);
-    url->SetSpec(uriSpec);
+    rv = url->SetSpec(uriSpec);
+    NS_ENSURE_SUCCESS(rv, rv);
 
     mailboxurl->SetMailboxParser(aMailboxParser);
     if (aUrlListener)
@@ -381,10 +382,6 @@ NS_IMETHODIMP nsMailboxService::OpenAttachment(const char *aContentType,
   CreateStartupUrl(urlString.get(), getter_AddRefs(URL));
   nsresult rv;
 
-  nsCOMPtr<nsIMsgMailNewsUrl> mailboxUrl(do_QueryInterface(URL, &rv));
-  if (NS_SUCCEEDED(rv) && mailboxUrl)
-    mailboxUrl->SetMsgWindow(aMsgWindow);
-
   // try to run the url in the docshell...
   nsCOMPtr<nsIDocShell> docShell(do_QueryInterface(aDisplayConsumer, &rv));
   // if we were given a docShell, run the url in the docshell..otherwise just run it normally.
@@ -514,7 +511,9 @@ nsresult nsMailboxService::PrepareMessageUrl(const char * aSrcMsgMailboxURI, nsI
         urlSpec = PR_smprintf("mailbox://%s?number=%lu", buf.get(), msgKey);
 
       nsCOMPtr <nsIMsgMailNewsUrl> url = do_QueryInterface(*aMailboxUrl);
-      url->SetSpec(nsDependentCString(urlSpec));
+      rv = url->SetSpec(nsDependentCString(urlSpec));
+      NS_ENSURE_SUCCESS(rv, rv);
+
       PR_smprintf_free(urlSpec);
 
       (*aMailboxUrl)->SetMailboxAction(aMailboxAction);
@@ -577,25 +576,25 @@ NS_IMETHODIMP nsMailboxService::NewURI(const nsACString &aSpec,
 {
   NS_ENSURE_ARG_POINTER(_retval);
   *_retval = 0;
-  nsresult rv = NS_OK;
+  nsresult rv;
   nsCOMPtr<nsIURI> aMsgUri = do_CreateInstance(NS_MAILBOXURL_CONTRACTID, &rv);
-
-  if (NS_SUCCEEDED(rv))
+  NS_ENSURE_SUCCESS(rv, rv);
+  // SetSpec calls below may fail if the mailbox url is of the form
+  // mailbox://<account>/<mailbox name>?... instead of
+  // mailbox://<path to folder>?.... This is the case for pop3 download urls.
+  // We know this, and the failure is harmless.
+  if (aBaseURI)
   {
-    if (aBaseURI)
-    {
-      nsCAutoString newSpec;
-      rv = aBaseURI->Resolve(aSpec, newSpec);
-      if (NS_FAILED(rv))
-        return rv;
-      aMsgUri->SetSpec(newSpec);
-    }
-    else
-    {
-      aMsgUri->SetSpec(aSpec);
-    }
-    aMsgUri.swap(*_retval);
+    nsCAutoString newSpec;
+    rv = aBaseURI->Resolve(aSpec, newSpec);
+    NS_ENSURE_SUCCESS(rv, rv);
+    (void) aMsgUri->SetSpec(newSpec);
   }
+  else
+  {
+    (void) aMsgUri->SetSpec(aSpec);
+  }
+  aMsgUri.swap(*_retval);
 
   return rv;
 }

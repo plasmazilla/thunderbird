@@ -161,8 +161,6 @@ public:
 
   virtual already_AddRefed<ReadbackLayer> CreateReadbackLayer();
 
-  virtual already_AddRefed<ImageContainer> CreateImageContainer();
-
   virtual already_AddRefed<gfxASurface>
     CreateOptimalSurface(const gfxIntSize &aSize,
                          gfxASurface::gfxImageFormat imageFormat);
@@ -186,6 +184,7 @@ public:
 
   ReadbackManagerD3D10 *readbackManager();
 
+  void SetupInputAssembler();
   void SetViewport(const nsIntSize &aViewport);
   const nsIntSize &GetViewport() { return mViewport; }
 

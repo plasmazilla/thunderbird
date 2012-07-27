@@ -62,7 +62,6 @@
 #include "nsIFactory.h"
 #include "nsIFrameUtil.h"
 #include "nsHTMLStyleSheet.h"
-#include "nsIHTMLToTextSink.h"
 #include "nsILayoutDebugger.h"
 #include "nsINameSpaceManager.h"
 #include "nsINodeInfo.h"
@@ -74,7 +73,6 @@
 #include "nsIXBLService.h"
 #include "nsCaret.h"
 #include "nsPlainTextSerializer.h"
-#include "mozSanitizingSerializer.h"
 #include "nsXMLContentSerializer.h"
 #include "nsXHTMLContentSerializer.h"
 #include "nsRuleNode.h"
@@ -123,12 +121,14 @@
 #include "nsDOMStorage.h"
 #include "nsJSON.h"
 #include "mozilla/dom/indexedDB/IndexedDatabaseManager.h"
+#include "mozilla/dom/DOMRequest.h"
 
 using mozilla::dom::indexedDB::IndexedDatabaseManager;
+using mozilla::dom::DOMRequestService;
 
 #ifdef MOZ_B2G_RIL
 #include "SystemWorkerManager.h"
-using mozilla::dom::telephony::SystemWorkerManager;
+using mozilla::dom::gonk::SystemWorkerManager;
 #define SYSTEMWORKERMANAGER_CID \
   {0xd53b6524, 0x6ac3, 0x42b0, {0xae, 0xca, 0x62, 0xb3, 0xc4, 0xe5, 0x2b, 0x04}}
 #define SYSTEMWORKERMANAGER_CONTRACTID \
@@ -137,17 +137,15 @@ using mozilla::dom::telephony::SystemWorkerManager;
 
 #ifdef MOZ_WIDGET_GONK
 #include "AudioManager.h"
-using mozilla::dom::telephony::AudioManager;
+using mozilla::dom::gonk::AudioManager;
 #endif
+#include "nsDOMMutationObserver.h"
 
 // Editor stuff
 #include "nsEditorCID.h"
 #include "nsEditor.h"
 #include "nsPlaintextEditor.h"
 #include "nsEditorController.h" //CID
-#include "nsIController.h"
-#include "nsIControllerContext.h"
-#include "nsIControllerCommandTable.h"
 
 #include "nsHTMLEditor.h"
 #include "nsTextServicesDocument.h"
@@ -158,10 +156,12 @@ using mozilla::dom::telephony::AudioManager;
 #include "nsSystemPrincipal.h"
 #include "nsNullPrincipal.h"
 #include "nsNetCID.h"
-#include "nsINodeInfo.h"
+#ifndef MOZ_WIDGET_GONK
 #if defined(MOZ_WIDGET_ANDROID) || defined(MOZ_PLATFORM_MAEMO)
 #include "nsHapticFeedback.h"
 #endif
+#endif
+#include "nsParserUtils.h"
 
 #define NS_EDITORCOMMANDTABLE_CID \
 { 0x4f5e62b8, 0xd659, 0x4156, { 0x84, 0xfc, 0x2f, 0x60, 0x99, 0x40, 0x03, 0x69 }}
@@ -174,6 +174,8 @@ using mozilla::dom::telephony::AudioManager;
 { 0x8a, 0x46, 0x08, 0xe2, 0xe2, 0x63, 0x26, 0xb0 } }
 
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsPlaintextEditor)
+
+NS_GENERIC_FACTORY_CONSTRUCTOR(nsParserUtils)
 
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsTextServicesDocument)
 #ifdef ENABLE_EDITOR_API_LOG
@@ -241,20 +243,19 @@ static void Shutdown();
 #endif
 
 #include "nsGeolocation.h"
-#ifndef MOZ_WIDGET_GONK
-#if defined(XP_UNIX)    || \
-    defined(_WINDOWS)   || \
-    defined(machintosh) || \
-    defined(android)
-#include "nsDeviceMotionSystem.h"
-#endif
-#endif
+#include "nsDeviceSensors.h"
 #include "nsCSPService.h"
 #include "nsISmsService.h"
 #include "nsISmsDatabaseService.h"
+#include "mozilla/dom/sms/SmsRequestManager.h"
 #include "mozilla/dom/sms/SmsServicesFactory.h"
+#include "nsIPowerManagerService.h"
 
 using namespace mozilla::dom::sms;
+
+#include "mozilla/dom/power/PowerManagerService.h"
+
+using mozilla::dom::power::PowerManagerService;
 
 // Transformiix
 /* 5d5d92cd-6bf8-11d9-bf4a-000a95dc234c */
@@ -281,20 +282,20 @@ NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsDOMStorageManager,
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsChannelPolicy)
 NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(IndexedDatabaseManager,
                                          IndexedDatabaseManager::FactoryCreate)
+NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(DOMRequestService,
+                                         DOMRequestService::FactoryCreate)
 #ifdef MOZ_B2G_RIL
 NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(SystemWorkerManager,
                                          SystemWorkerManager::FactoryCreate)
 #endif
+NS_GENERIC_FACTORY_CONSTRUCTOR(nsDOMMutationObserver)
 
 #ifdef MOZ_WIDGET_GONK
 NS_GENERIC_FACTORY_CONSTRUCTOR(AudioManager)
-#else
-#if defined(XP_UNIX)    || \
-    defined(_WINDOWS)   || \
-    defined(machintosh) || \
-    defined(android)
-NS_GENERIC_FACTORY_CONSTRUCTOR(nsDeviceMotionSystem)
 #endif
+NS_GENERIC_FACTORY_CONSTRUCTOR(nsDeviceSensors)
+
+#ifndef MOZ_WIDGET_GONK
 #if defined(ANDROID) || defined(MOZ_PLATFORM_MAEMO)
 NS_GENERIC_FACTORY_CONSTRUCTOR(nsHapticFeedback)
 #endif
@@ -302,6 +303,9 @@ NS_GENERIC_FACTORY_CONSTRUCTOR(nsHapticFeedback)
 NS_GENERIC_FACTORY_CONSTRUCTOR_INIT(ThirdPartyUtil, Init)
 NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsISmsService, SmsServicesFactory::CreateSmsService)
 NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsISmsDatabaseService, SmsServicesFactory::CreateSmsDatabaseService)
+NS_GENERIC_FACTORY_SINGLETON_CONSTRUCTOR(nsIPowerManagerService,
+                                         PowerManagerService::GetInstance)
+NS_GENERIC_FACTORY_CONSTRUCTOR(SmsRequestManager)
 
 //-----------------------------------------------------------------------------
 
@@ -503,7 +507,6 @@ MAKE_CTOR(CreateXMLContentSerializer,     nsIContentSerializer,        NS_NewXML
 MAKE_CTOR(CreateHTMLContentSerializer,    nsIContentSerializer,        NS_NewHTMLContentSerializer)
 MAKE_CTOR(CreateXHTMLContentSerializer,   nsIContentSerializer,        NS_NewXHTMLContentSerializer)
 MAKE_CTOR(CreatePlainTextSerializer,      nsIContentSerializer,        NS_NewPlainTextSerializer)
-MAKE_CTOR(CreateSanitizingHTMLSerializer, nsIContentSerializer,        NS_NewSanitizingHTMLSerializer)
 MAKE_CTOR(CreateXBLService,               nsIXBLService,               NS_NewXBLService)
 MAKE_CTOR(CreateContentPolicy,            nsIContentPolicy,            NS_NewContentPolicy)
 #ifdef MOZ_XUL
@@ -700,7 +703,8 @@ NS_DEFINE_NAMED_CID(NS_XMLCONTENTSERIALIZER_CID);
 NS_DEFINE_NAMED_CID(NS_XHTMLCONTENTSERIALIZER_CID);
 NS_DEFINE_NAMED_CID(NS_HTMLCONTENTSERIALIZER_CID);
 NS_DEFINE_NAMED_CID(NS_PLAINTEXTSERIALIZER_CID);
-NS_DEFINE_NAMED_CID(MOZ_SANITIZINGHTMLSERIALIZER_CID);
+NS_DEFINE_NAMED_CID(NS_PARSERUTILS_CID);
+NS_DEFINE_NAMED_CID(NS_SCRIPTABLEUNESCAPEHTML_CID);
 NS_DEFINE_NAMED_CID(NS_XBLSERVICE_CID);
 NS_DEFINE_NAMED_CID(NS_CONTENTPOLICY_CID);
 NS_DEFINE_NAMED_CID(NS_DATADOCUMENTCONTENTPOLICY_CID);
@@ -747,6 +751,7 @@ NS_DEFINE_NAMED_CID(NS_DOMSTORAGEMANAGER_CID);
 NS_DEFINE_NAMED_CID(NS_DOMJSON_CID);
 NS_DEFINE_NAMED_CID(NS_TEXTEDITOR_CID);
 NS_DEFINE_NAMED_CID(INDEXEDDB_MANAGER_CID);
+NS_DEFINE_NAMED_CID(DOMREQUEST_SERVICE_CID);
 #ifdef MOZ_B2G_RIL
 NS_DEFINE_NAMED_CID(SYSTEMWORKERMANAGER_CID);
 #endif
@@ -779,20 +784,18 @@ NS_DEFINE_NAMED_CID(NS_NULLPRINCIPAL_CID);
 NS_DEFINE_NAMED_CID(NS_SECURITYNAMESET_CID);
 NS_DEFINE_NAMED_CID(THIRDPARTYUTIL_CID);
 NS_DEFINE_NAMED_CID(NS_STRUCTUREDCLONECONTAINER_CID);
+NS_DEFINE_NAMED_CID(NS_DOMMUTATIONOBSERVER_CID);
+NS_DEFINE_NAMED_CID(NS_DEVICE_SENSORS_CID);
 
 #ifndef MOZ_WIDGET_GONK
-#if defined(XP_UNIX)    || \
-    defined(_WINDOWS)   || \
-    defined(machintosh) || \
-    defined(android)
-NS_DEFINE_NAMED_CID(NS_DEVICE_MOTION_CID);
-#endif
 #if defined(ANDROID) || defined(MOZ_PLATFORM_MAEMO)
 NS_DEFINE_NAMED_CID(NS_HAPTICFEEDBACK_CID);
 #endif
 #endif
 NS_DEFINE_NAMED_CID(SMS_SERVICE_CID);
 NS_DEFINE_NAMED_CID(SMS_DATABASE_SERVICE_CID);
+NS_DEFINE_NAMED_CID(SMS_REQUEST_MANAGER_CID);
+NS_DEFINE_NAMED_CID(NS_POWERMANAGERSERVICE_CID);
 
 static nsresult
 CreateWindowCommandTableConstructor(nsISupports *aOuter,
@@ -971,7 +974,8 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
   { &kNS_HTMLCONTENTSERIALIZER_CID, false, NULL, CreateHTMLContentSerializer },
   { &kNS_XHTMLCONTENTSERIALIZER_CID, false, NULL, CreateXHTMLContentSerializer },
   { &kNS_PLAINTEXTSERIALIZER_CID, false, NULL, CreatePlainTextSerializer },
-  { &kMOZ_SANITIZINGHTMLSERIALIZER_CID, false, NULL, CreateSanitizingHTMLSerializer },
+  { &kNS_PARSERUTILS_CID, false, NULL, nsParserUtilsConstructor },
+  { &kNS_SCRIPTABLEUNESCAPEHTML_CID, false, NULL, nsParserUtilsConstructor },
   { &kNS_XBLSERVICE_CID, false, NULL, CreateXBLService },
   { &kNS_CONTENTPOLICY_CID, false, NULL, CreateContentPolicy },
   { &kNS_DATADOCUMENTCONTENTPOLICY_CID, false, NULL, nsDataDocumentContentPolicyConstructor },
@@ -1018,6 +1022,7 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
   { &kNS_DOMJSON_CID, false, NULL, NS_NewJSON },
   { &kNS_TEXTEDITOR_CID, false, NULL, nsPlaintextEditorConstructor },
   { &kINDEXEDDB_MANAGER_CID, false, NULL, IndexedDatabaseManagerConstructor },
+  { &kDOMREQUEST_SERVICE_CID, false, NULL, DOMRequestServiceConstructor },
 #ifdef MOZ_B2G_RIL
   { &kSYSTEMWORKERMANAGER_CID, true, NULL, SystemWorkerManagerConstructor },
 #endif
@@ -1048,21 +1053,19 @@ static const mozilla::Module::CIDEntry kLayoutCIDs[] = {
   { &kNS_SYSTEMPRINCIPAL_CID, false, NULL, nsSystemPrincipalConstructor },
   { &kNS_NULLPRINCIPAL_CID, false, NULL, nsNullPrincipalConstructor },
   { &kNS_SECURITYNAMESET_CID, false, NULL, nsSecurityNameSetConstructor },
+  { &kNS_DEVICE_SENSORS_CID, false, NULL, nsDeviceSensorsConstructor },
 #ifndef MOZ_WIDGET_GONK
-#if defined(XP_UNIX)    || \
-    defined(_WINDOWS)   || \
-    defined(machintosh) || \
-    defined(android)
-  { &kNS_DEVICE_MOTION_CID, false, NULL, nsDeviceMotionSystemConstructor },
-#endif
 #if defined(ANDROID) || defined(MOZ_PLATFORM_MAEMO)
   { &kNS_HAPTICFEEDBACK_CID, false, NULL, nsHapticFeedbackConstructor },
 #endif
 #endif
   { &kTHIRDPARTYUTIL_CID, false, NULL, ThirdPartyUtilConstructor },
   { &kNS_STRUCTUREDCLONECONTAINER_CID, false, NULL, nsStructuredCloneContainerConstructor },
+  { &kNS_DOMMUTATIONOBSERVER_CID, false, NULL, nsDOMMutationObserverConstructor },
   { &kSMS_SERVICE_CID, false, NULL, nsISmsServiceConstructor },
   { &kSMS_DATABASE_SERVICE_CID, false, NULL, nsISmsDatabaseServiceConstructor },
+  { &kSMS_REQUEST_MANAGER_CID, false, NULL, SmsRequestManagerConstructor },
+  { &kNS_POWERMANAGERSERVICE_CID, false, NULL, nsIPowerManagerServiceConstructor },
   { NULL }
 };
 
@@ -1114,8 +1117,8 @@ static const mozilla::Module::ContractIDEntry kLayoutContracts[] = {
   { NS_CONTENTSERIALIZER_CONTRACTID_PREFIX "text/html", &kNS_HTMLCONTENTSERIALIZER_CID },
   { NS_CONTENTSERIALIZER_CONTRACTID_PREFIX "application/vnd.mozilla.xul+xml", &kNS_XMLCONTENTSERIALIZER_CID },
   { NS_CONTENTSERIALIZER_CONTRACTID_PREFIX "text/plain", &kNS_PLAINTEXTSERIALIZER_CID },
-  { NS_PLAINTEXTSINK_CONTRACTID, &kNS_PLAINTEXTSERIALIZER_CID },
-  { MOZ_SANITIZINGHTMLSERIALIZER_CONTRACTID, &kMOZ_SANITIZINGHTMLSERIALIZER_CID },
+  { NS_PARSERUTILS_CONTRACTID, &kNS_PARSERUTILS_CID },
+  { NS_SCRIPTABLEUNESCAPEHTML_CONTRACTID, &kNS_SCRIPTABLEUNESCAPEHTML_CID },
   { "@mozilla.org/xbl;1", &kNS_XBLSERVICE_CID },
   { NS_CONTENTPOLICY_CONTRACTID, &kNS_CONTENTPOLICY_CID },
   { NS_DATADOCUMENTCONTENTPOLICY_CONTRACTID, &kNS_DATADOCUMENTCONTENTPOLICY_CID },
@@ -1154,6 +1157,7 @@ static const mozilla::Module::ContractIDEntry kLayoutContracts[] = {
   { "@mozilla.org/dom/json;1", &kNS_DOMJSON_CID },
   { "@mozilla.org/editor/texteditor;1", &kNS_TEXTEDITOR_CID },
   { INDEXEDDB_MANAGER_CONTRACTID, &kINDEXEDDB_MANAGER_CID },
+  { DOMREQUEST_SERVICE_CONTRACTID, &kDOMREQUEST_SERVICE_CID },
 #ifdef MOZ_B2G_RIL  
   { SYSTEMWORKERMANAGER_CONTRACTID, &kSYSTEMWORKERMANAGER_CID },
 #endif
@@ -1183,21 +1187,19 @@ static const mozilla::Module::ContractIDEntry kLayoutContracts[] = {
   { NS_SYSTEMPRINCIPAL_CONTRACTID, &kNS_SYSTEMPRINCIPAL_CID },
   { NS_NULLPRINCIPAL_CONTRACTID, &kNS_NULLPRINCIPAL_CID },
   { NS_SECURITYNAMESET_CONTRACTID, &kNS_SECURITYNAMESET_CID },
+  { NS_DEVICE_SENSORS_CONTRACTID, &kNS_DEVICE_SENSORS_CID },
 #ifndef MOZ_WIDGET_GONK
-#if defined(XP_UNIX)    || \
-    defined(_WINDOWS)   || \
-    defined(machintosh) || \
-    defined(android)
-  { NS_DEVICE_MOTION_CONTRACTID, &kNS_DEVICE_MOTION_CID },
-#endif
 #if defined(ANDROID) || defined(MOZ_PLATFORM_MAEMO)
   { "@mozilla.org/widget/hapticfeedback;1", &kNS_HAPTICFEEDBACK_CID },
 #endif
 #endif
   { THIRDPARTYUTIL_CONTRACTID, &kTHIRDPARTYUTIL_CID },
   { NS_STRUCTUREDCLONECONTAINER_CONTRACTID, &kNS_STRUCTUREDCLONECONTAINER_CID },
+  { NS_DOMMUTATIONOBSERVER_CONTRACTID, &kNS_DOMMUTATIONOBSERVER_CID },
   { SMS_SERVICE_CONTRACTID, &kSMS_SERVICE_CID },
   { SMS_DATABASE_SERVICE_CONTRACTID, &kSMS_DATABASE_SERVICE_CID },
+  { SMS_REQUEST_MANAGER_CONTRACTID, &kSMS_REQUEST_MANAGER_CID },
+  { POWERMANAGERSERVICE_CONTRACTID, &kNS_POWERMANAGERSERVICE_CID },
   { NULL }
 };
 

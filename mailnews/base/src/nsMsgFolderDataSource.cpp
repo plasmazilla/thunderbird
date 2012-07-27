@@ -76,6 +76,7 @@
 #include "nsServiceManagerUtils.h"
 #include "nsMemory.h"
 #include "nsMsgUtils.h"
+#include "mozilla/Services.h"
 
 #define MESSENGER_STRING_URL       "chrome://messenger/locale/messenger.properties"
 
@@ -159,7 +160,6 @@ nsMsgFolderDataSource::nsMsgFolderDataSource()
   nsIRDFService* rdf = getRDFService();
 
   if (gFolderResourceRefCnt++ == 0) {
-    nsresult res = NS_OK;
     nsCOMPtr<nsIStringBundle> sMessengerStringBundle;
 
     rdf->GetResource(NS_LITERAL_CSTRING(NC_RDF_CHILD),   &kNC_Child);
@@ -1995,11 +1995,12 @@ nsresult nsMsgFolderDataSource::DoDeleteFromFolder(nsIMsgFolder *folder, nsISupp
       if (folderFlags & nsMsgFolderFlags::Virtual)
       {
         NS_ENSURE_ARG_POINTER(msgWindow);
-        nsCOMPtr<nsIStringBundleService> sBundleService = do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
+        nsCOMPtr<nsIStringBundleService> sBundleService =
+          mozilla::services::GetStringBundleService();
+        NS_ENSURE_TRUE(sBundleService, NS_ERROR_UNEXPECTED);
         nsCOMPtr<nsIStringBundle> sMessengerStringBundle;
         nsString confirmMsg;
-        if (NS_SUCCEEDED(rv) && sBundleService)
-          rv = sBundleService->CreateBundle(MESSENGER_STRING_URL, getter_AddRefs(sMessengerStringBundle));
+        rv = sBundleService->CreateBundle(MESSENGER_STRING_URL, getter_AddRefs(sMessengerStringBundle));
         NS_ENSURE_SUCCESS(rv, rv);
         sMessengerStringBundle->GetStringFromName(NS_LITERAL_STRING("confirmSavedSearchDeleteMessage").get(), getter_Copies(confirmMsg));
 

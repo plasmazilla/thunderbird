@@ -50,7 +50,6 @@
 #include "nsWeakPtr.h"
 #include "nsVoidArray.h"
 #include "nsTArray.h"
-#include "nsHashSets.h"
 #include "nsIDOMXMLDocument.h"
 #include "nsIDOMDocumentXBL.h"
 #include "nsStubDocumentObserver.h"
@@ -124,6 +123,8 @@ class nsXMLEventsManager;
 class nsHTMLStyleSheet;
 class nsHTMLCSSStyleSheet;
 class nsDOMNavigationTiming;
+class nsWindowSizes;
+class nsHtml5TreeOpExecutor;
 
 /**
  * Right now our identifier map entries contain information for 'name'
@@ -238,8 +239,7 @@ public:
     static KeyTypePointer KeyToPointer(KeyType& aKey) { return &aKey; }
     static PLDHashNumber HashKey(KeyTypePointer aKey)
     {
-      return (NS_PTR_TO_INT32(aKey->mCallback) >> 2) ^
-             (NS_PTR_TO_INT32(aKey->mData));
+      return mozilla::HashGeneric(aKey->mCallback, aKey->mData);
     }
     enum { ALLOW_MEMMOVE = true };
     
@@ -506,9 +506,8 @@ public:
   typedef mozilla::dom::Element Element;
 
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
-  NS_DECL_DOM_MEMORY_REPORTER_SIZEOF
 
-  using nsINode::GetScriptTypeID;
+  NS_DECL_SIZEOF_EXCLUDING_THIS
 
   virtual void Reset(nsIChannel *aChannel, nsILoadGroup *aLoadGroup);
   virtual void ResetToURI(nsIURI *aURI, nsILoadGroup *aLoadGroup,
@@ -629,14 +628,6 @@ public:
   }
 
   /**
-   * Get this document's attribute stylesheet.  May return null if
-   * there isn't one.
-   */
-  virtual nsHTMLStyleSheet* GetAttributeStyleSheet() const {
-    return mAttrStyleSheet;
-  }
-
-  /**
    * Get this document's inline style sheet.  May return null if there
    * isn't one
    */
@@ -731,7 +722,7 @@ public:
   virtual nsresult InsertChildAt(nsIContent* aKid, PRUint32 aIndex,
                                  bool aNotify);
   virtual nsresult AppendChildTo(nsIContent* aKid, bool aNotify);
-  virtual nsresult RemoveChildAt(PRUint32 aIndex, bool aNotify);
+  virtual void RemoveChildAt(PRUint32 aIndex, bool aNotify);
   virtual nsresult Clone(nsINodeInfo *aNodeInfo, nsINode **aResult) const
   {
     return NS_ERROR_NOT_IMPLEMENTED;
@@ -763,8 +754,7 @@ public:
   virtual void SetValueMissingState(const nsAString& aName, bool aValue);
 
   // for radio group
-  nsresult GetRadioGroup(const nsAString& aName,
-                         nsRadioGroupStruct **aRadioGroup);
+  nsRadioGroupStruct* GetRadioGroup(const nsAString& aName);
 
   // nsIDOMNode
   NS_DECL_NSIDOMNODE
@@ -942,6 +932,16 @@ public:
   virtual NS_HIDDEN_(nsresult) RemoveImage(imgIRequest* aImage);
   virtual NS_HIDDEN_(nsresult) SetImageLockingState(bool aLocked);
 
+  // AddPlugin adds a plugin-related element to mPlugins when the element is
+  // added to the tree.
+  virtual nsresult AddPlugin(nsIObjectLoadingContent* aPlugin);
+  // RemovePlugin removes a plugin-related element to mPlugins when the
+  // element is removed from the tree.
+  virtual void RemovePlugin(nsIObjectLoadingContent* aPlugin);
+  // GetPlugins returns the plugin-related elements from
+  // the frame and any subframes.
+  virtual void GetPlugins(nsTArray<nsIObjectLoadingContent*>& aPlugins);
+
   virtual nsresult GetStateObject(nsIVariant** aResult);
 
   virtual nsDOMNavigationTiming* GetNavigationTiming() const;
@@ -985,11 +985,19 @@ public:
   // Returns the top element from the full-screen stack.
   Element* FullScreenStackTop();
 
+  void RequestPointerLock(Element* aElement);
+  bool ShouldLockPointer(Element* aElement);
+  bool SetPointerLock(Element* aElement, int aCursorStyle);
+  static void UnlockPointer();
+
   // This method may fire a DOM event; if it does so it will happen
   // synchronously.
   void UpdateVisibilityState();
   // Posts an event to call UpdateVisibilityState
   virtual void PostVisibilityUpdateEvent();
+
+  virtual void DocSizeOfExcludingThis(nsWindowSizes* aWindowSizes) const;
+  // DocSizeOfIncludingThis is inherited from nsIDocument.
 
 protected:
   friend class nsNodeUtils;
@@ -1023,9 +1031,10 @@ protected:
 
   void RetrieveRelevantHeaders(nsIChannel *aChannel);
 
-  static bool TryChannelCharset(nsIChannel *aChannel,
-                                  PRInt32& aCharsetSource,
-                                  nsACString& aCharset);
+  bool TryChannelCharset(nsIChannel *aChannel,
+                         PRInt32& aCharsetSource,
+                         nsACString& aCharset,
+                         nsHtml5TreeOpExecutor* aExecutor);
 
   // Call this before the document does something that will unbind all content.
   // That will stop us from doing a lot of work as each element is removed.
@@ -1197,11 +1206,10 @@ protected:
 
   PRUint8 mXMLDeclarationBits;
 
-  nsInterfaceHashtable<nsVoidPtrHashKey, nsPIBoxObject> *mBoxObjectTable;
+  nsInterfaceHashtable<nsPtrHashKey<nsIContent>, nsPIBoxObject> *mBoxObjectTable;
 
   // The channel that got passed to StartDocumentLoad(), if any
   nsCOMPtr<nsIChannel> mChannel;
-  nsRefPtr<nsHTMLStyleSheet> mAttrStyleSheet;
   nsRefPtr<nsHTMLCSSStyleSheet> mStyleAttrStyleSheet;
   nsRefPtr<nsXMLEventsManager> mXMLEventsManager;
 
@@ -1307,6 +1315,9 @@ private:
 
   // Tracking for images in the document.
   nsDataHashtable< nsPtrHashKey<imgIRequest>, PRUint32> mImageTracker;
+
+  // Tracking for plugins in the document.
+  nsTHashtable< nsPtrHashKey<nsIObjectLoadingContent> > mPlugins;
 
   VisibilityState mVisibilityState;
 

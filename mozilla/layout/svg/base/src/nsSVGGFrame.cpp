@@ -36,12 +36,15 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "nsIDOMSVGTransformable.h"
+// Main header first:
 #include "nsSVGGFrame.h"
-#include "nsIFrame.h"
+
+// Keep others in (case-insensitive) order:
 #include "nsGkAtoms.h"
-#include "nsSVGUtils.h"
+#include "nsIDOMSVGTransformable.h"
+#include "nsIFrame.h"
 #include "nsSVGGraphicElement.h"
+#include "nsSVGUtils.h"
 
 //----------------------------------------------------------------------
 // Implementation
@@ -80,6 +83,13 @@ nsSVGGFrame::GetType() const
 void
 nsSVGGFrame::NotifySVGChanged(PRUint32 aFlags)
 {
+  NS_ABORT_IF_FALSE(!(aFlags & DO_NOT_NOTIFY_RENDERING_OBSERVERS) ||
+                    (GetStateBits() & NS_STATE_SVG_NONDISPLAY_CHILD),
+                    "Must be NS_STATE_SVG_NONDISPLAY_CHILD!");
+
+  NS_ABORT_IF_FALSE(aFlags & (TRANSFORM_CHANGED | COORD_CONTEXT_CHANGED),
+                    "Invalidation logic may need adjusting");
+
   if (aFlags & TRANSFORM_CHANGED) {
     // make sure our cached transform matrix gets (lazily) updated
     mCanvasTM = nsnull;
@@ -97,7 +107,7 @@ nsSVGGFrame::GetCanvasTM()
     nsSVGContainerFrame *parent = static_cast<nsSVGContainerFrame*>(mParent);
     nsSVGGraphicElement *content = static_cast<nsSVGGraphicElement*>(mContent);
 
-    gfxMatrix tm = content->PrependLocalTransformTo(parent->GetCanvasTM());
+    gfxMatrix tm = content->PrependLocalTransformsTo(parent->GetCanvasTM());
 
     mCanvasTM = new gfxMatrix(tm);
   }

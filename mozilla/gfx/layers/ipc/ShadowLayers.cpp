@@ -50,6 +50,9 @@
 #include "ShadowLayers.h"
 #include "ShadowLayerChild.h"
 #include "gfxipc/ShadowLayerUtils.h"
+#include "RenderTrace.h"
+#include "sampler.h"
+#include "nsXULAppAPI.h"
 
 using namespace mozilla::ipc;
 
@@ -127,6 +130,7 @@ struct AutoTxnEnd {
 ShadowLayerForwarder::ShadowLayerForwarder()
  : mShadowManager(NULL)
  , mParentBackend(LayerManager::LAYERS_NONE)
+ , mIsFirstPaint(false)
 {
   mTxn = new Transaction();
 }
@@ -236,6 +240,17 @@ ShadowLayerForwarder::PaintedThebesBuffer(ShadowableLayer* aThebes,
                                                   aBufferRotation),
                                      aUpdatedRegion));
 }
+
+void
+ShadowLayerForwarder::PaintedTiledLayerBuffer(ShadowableLayer* aLayer,
+                                              BasicTiledLayerBuffer* aTiledLayerBuffer)
+{
+  if (XRE_GetProcessType() != GeckoProcessType_Default)
+    NS_RUNTIMEABORT("PaintedTiledLayerBuffer must be made IPC safe (not share pointers)");
+  mTxn->AddPaint(OpPaintTiledLayerBuffer(NULL, Shadow(aLayer),
+                                         uintptr_t(aTiledLayerBuffer)));
+}
+
 void
 ShadowLayerForwarder::PaintedImage(ShadowableLayer* aImage,
                                    const SharedImage& aNewFrontImage)
@@ -256,6 +271,8 @@ ShadowLayerForwarder::PaintedCanvas(ShadowableLayer* aCanvas,
 bool
 ShadowLayerForwarder::EndTransaction(InfallibleTArray<EditReply>* aReplies)
 {
+  SAMPLE_LABEL("ShadowLayerForwarder", "EndTranscation");
+  RenderTraceScope rendertrace("Foward Transaction", "000091");
   NS_ABORT_IF_FALSE(HasShadowManager(), "no manager to forward to");
   NS_ABORT_IF_FALSE(!mTxn->Finished(), "forgot BeginTransaction?");
 
@@ -278,6 +295,7 @@ ShadowLayerForwarder::EndTransaction(InfallibleTArray<EditReply>* aReplies)
   // before we add paint ops.  This allows layers to record the
   // attribute changes before new pixels arrive, which can be useful
   // for setting up back/front buffers.
+  RenderTraceScope rendertrace2("Foward Transaction", "000092");
   for (ShadowableLayerSet::const_iterator it = mTxn->mMutants.begin();
        it != mTxn->mMutants.end(); ++it) {
     ShadowableLayer* shadow = *it;
@@ -294,9 +312,6 @@ ShadowLayerForwarder::EndTransaction(InfallibleTArray<EditReply>* aReplies)
     common.clipRect() = (common.useClipRect() ?
                          *mutant->GetClipRect() : nsIntRect());
     common.isFixedPosition() = mutant->GetIsFixedPosition();
-    common.useTileSourceRect() = !!mutant->GetTileSourceRect();
-    common.tileSourceRect() = (common.useTileSourceRect() ?
-                               *mutant->GetTileSourceRect() : nsIntRect());
     attrs.specific() = null_t();
     mutant->FillSpecificAttributes(attrs.specific());
 
@@ -321,11 +336,13 @@ ShadowLayerForwarder::EndTransaction(InfallibleTArray<EditReply>* aReplies)
   PlatformSyncBeforeUpdate();
 
   MOZ_LAYERS_LOG(("[LayersForwarder] sending transaction..."));
-  if (!mShadowManager->SendUpdate(cset, aReplies)) {
+  RenderTraceScope rendertrace3("Foward Transaction", "000093");
+  if (!mShadowManager->SendUpdate(cset, mIsFirstPaint, aReplies)) {
     MOZ_LAYERS_LOG(("[LayersForwarder] WARNING: sending transaction failed!"));
     return false;
   }
 
+  mIsFirstPaint = false;
   MOZ_LAYERS_LOG(("[LayersForwarder] ... done"));
   return true;
 }

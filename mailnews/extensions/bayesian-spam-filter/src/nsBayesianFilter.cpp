@@ -77,22 +77,18 @@
 #include "nsIMsgHdr.h"
 
 // needed to strip html out of the body
-#include "nsParserCIID.h"
-#include "nsIParser.h"
-#include "nsIHTMLContentSink.h"
 #include "nsIContentSerializer.h"
 #include "nsLayoutCID.h"
-#include "nsIHTMLToTextSink.h"
+#include "nsIParserUtils.h"
 #include "nsIDocumentEncoder.h"
 
 #include "nsIncompleteGamma.h"
 #include <math.h>
 #include <prmem.h>
 #include "nsIMsgTraitService.h"
+#include "mozilla/Services.h"
 
 static PRLogModuleInfo *BayesianFilterLogModule = nsnull;
-
-static NS_DEFINE_CID(kParserCID, NS_PARSER_CID);
 
 #define kDefaultJunkThreshold .99 // we override this value via a pref
 static const char* kBayesianFilterTokenDelimiters = " \t\n\r\f.";
@@ -807,27 +803,13 @@ void Tokenizer::tokenize_japanese_word(char* chunk)
 
 nsresult Tokenizer::stripHTML(const nsAString& inString, nsAString& outString)
 {
-  nsresult rv = NS_OK;
-  // Create a parser
-  nsCOMPtr<nsIParser> parser = do_CreateInstance(kParserCID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  // Create the appropriate output sink
-  nsCOMPtr<nsIContentSink> sink = do_CreateInstance(NS_PLAINTEXTSINK_CONTRACTID,&rv);
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCOMPtr<nsIHTMLToTextSink> textSink(do_QueryInterface(sink));
-  NS_ENSURE_TRUE(textSink, NS_ERROR_FAILURE);
   PRUint32 flags = nsIDocumentEncoder::OutputLFLineBreak
                  | nsIDocumentEncoder::OutputNoScriptContent
                  | nsIDocumentEncoder::OutputNoFramesContent
                  | nsIDocumentEncoder::OutputBodyOnly;
-
-  textSink->Initialize(&outString, flags, 80);
-
-  parser->SetContentSink(sink);
-
-  return parser->Parse(inString, 0, NS_LITERAL_CSTRING("text/html"), true);
+  nsCOMPtr<nsIParserUtils> utils =
+    do_GetService(NS_PARSERUTILS_CONTRACTID);
+  return utils->ConvertToPlainText(inString, flags, 80, outString);
 }
 
 void Tokenizer::tokenize(const char* aText)
@@ -1106,13 +1088,11 @@ NS_IMETHODIMP TokenStreamListener::GetProperties(nsIWritablePropertyBag2 * *aPro
 NS_IMETHODIMP TokenStreamListener::OnStartRequest(nsIRequest *aRequest, nsISupports *aContext)
 {
     mLeftOverCount = 0;
-    if (!mTokenizer)
-        return NS_ERROR_OUT_OF_MEMORY;
+    NS_ENSURE_TRUE(mTokenizer, NS_ERROR_OUT_OF_MEMORY);
     if (!mBuffer)
     {
         mBuffer = new char[mBufferSize];
-        if (!mBuffer)
-            return NS_ERROR_OUT_OF_MEMORY;
+        NS_ENSURE_TRUE(mBuffer, NS_ERROR_OUT_OF_MEMORY);
     }
 
     // get the url for the channel and set our nsIMsgHeaderSink on it so we get notified
@@ -1150,8 +1130,7 @@ NS_IMETHODIMP TokenStreamListener::OnDataAvailable(nsIRequest *aRequest, nsISupp
         if (!mBuffer)
         {
           mBuffer = new char[mBufferSize];
-          if (!mBuffer)
-            return NS_ERROR_OUT_OF_MEMORY;
+          NS_ENSURE_TRUE(mBuffer, NS_ERROR_OUT_OF_MEMORY);
         }
 
         char* buffer = mBuffer;
@@ -1193,7 +1172,7 @@ NS_IMETHODIMP TokenStreamListener::OnDataAvailable(nsIRequest *aRequest, nsISupp
             if (totalCount >= (mBufferSize / 2)) {
                 PRUint32 newBufferSize = mBufferSize * 2;
                 char* newBuffer = new char[newBufferSize];
-                if (!newBuffer) return NS_ERROR_OUT_OF_MEMORY;
+                NS_ENSURE_TRUE(newBuffer, NS_ERROR_OUT_OF_MEMORY);
                 memcpy(newBuffer, mBuffer, mLeftOverCount);
                 delete[] mBuffer;
                 mBuffer = newBuffer;
@@ -1286,10 +1265,9 @@ nsBayesianFilter::nsBayesianFilter()
 
 nsresult nsBayesianFilter::Init()
 {
-  nsresult rv;
   nsCOMPtr<nsIObserverService> observerService =
-           do_GetService("@mozilla.org/observer-service;1", &rv);
-  if (NS_SUCCEEDED(rv))
+    mozilla::services::GetObserverService();
+  if (observerService)
     observerService->AddObserver(this, "profile-before-change", true);
   return NS_OK;
 }
@@ -1427,6 +1405,7 @@ private:
 
 nsresult nsBayesianFilter::tokenizeMessage(const char* aMessageURI, nsIMsgWindow *aMsgWindow, TokenAnalyzer* aAnalyzer)
 {
+    NS_ENSURE_ARG_POINTER(aMessageURI);
 
     nsCOMPtr <nsIMsgMessageService> msgService;
     nsresult rv = GetMessageServiceFromURI(nsDependentCString(aMessageURI), getter_AddRefs(msgService));
@@ -1881,11 +1860,9 @@ NS_IMETHODIMP nsBayesianFilter::GetShouldDownloadAllHeaders(bool *aShouldDownloa
 NS_IMETHODIMP nsBayesianFilter::ClassifyMessage(const char *aMessageURL, nsIMsgWindow *aMsgWindow, nsIJunkMailClassificationListener *aListener)
 {
     MessageClassifier* analyzer = new MessageClassifier(this, aListener, aMsgWindow, 1, &aMessageURL);
-    if (!analyzer)
-      return NS_ERROR_OUT_OF_MEMORY;
+    NS_ENSURE_TRUE(analyzer, NS_ERROR_OUT_OF_MEMORY);
     TokenStreamListener *tokenListener = new TokenStreamListener(analyzer);
-    if (!tokenListener)
-      return NS_ERROR_OUT_OF_MEMORY;
+    NS_ENSURE_TRUE(tokenListener, NS_ERROR_OUT_OF_MEMORY);
     analyzer->setTokenListener(tokenListener);
     return tokenizeMessage(aMessageURL, aMsgWindow, analyzer);
 }
@@ -1893,12 +1870,12 @@ NS_IMETHODIMP nsBayesianFilter::ClassifyMessage(const char *aMessageURL, nsIMsgW
 /* void classifyMessages (in unsigned long aCount, [array, size_is (aCount)] in string aMsgURLs, in nsIJunkMailClassificationListener aListener); */
 NS_IMETHODIMP nsBayesianFilter::ClassifyMessages(PRUint32 aCount, const char **aMsgURLs, nsIMsgWindow *aMsgWindow, nsIJunkMailClassificationListener *aListener)
 {
+    NS_ENSURE_ARG_POINTER(aMsgURLs);
+
     TokenAnalyzer* analyzer = new MessageClassifier(this, aListener, aMsgWindow, aCount, aMsgURLs);
-    if (!analyzer)
-      return NS_ERROR_OUT_OF_MEMORY;
+    NS_ENSURE_TRUE(analyzer, NS_ERROR_OUT_OF_MEMORY);
     TokenStreamListener *tokenListener = new TokenStreamListener(analyzer);
-    if (!tokenListener)
-      return NS_ERROR_OUT_OF_MEMORY;
+    NS_ENSURE_TRUE(tokenListener, NS_ERROR_OUT_OF_MEMORY);
     analyzer->setTokenListener(tokenListener);
     return tokenizeMessage(aMsgURLs[0], aMsgWindow, analyzer);
 }
@@ -2000,12 +1977,10 @@ NS_IMETHODIMP nsBayesianFilter::ClassifyTraitsInMessages(
 
   MessageClassifier* analyzer = new MessageClassifier(this, aJunkListener,
     aTraitListener, nsnull, proTraits, antiTraits, aMsgWindow, aCount, aMsgURIs);
-  if (!analyzer)
-    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ENSURE_TRUE(analyzer, NS_ERROR_OUT_OF_MEMORY);
 
   TokenStreamListener *tokenListener = new TokenStreamListener(analyzer);
-  if (!tokenListener)
-    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ENSURE_TRUE(tokenListener, NS_ERROR_OUT_OF_MEMORY);
 
   analyzer->setTokenListener(tokenListener);
   return tokenizeMessage(aMsgURIs[0], aMsgWindow, analyzer);
@@ -2063,11 +2038,11 @@ NS_IMETHODIMP nsBayesianFilter::SetMsgTraitClassification(
 
   MessageObserver* analyzer = new MessageObserver(this, oldTraits,
     newTraits, aJunkListener, aTraitListener);
-  if (!analyzer)
-    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ENSURE_TRUE(analyzer, NS_ERROR_OUT_OF_MEMORY);
+
   TokenStreamListener *tokenListener = new TokenStreamListener(analyzer);
-  if (!tokenListener)
-    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ENSURE_TRUE(tokenListener, NS_ERROR_OUT_OF_MEMORY);
+
   analyzer->setTokenListener(tokenListener);
   return tokenizeMessage(aMsgURI, aMsgWindow, analyzer);
 }
@@ -2197,12 +2172,10 @@ NS_IMETHODIMP nsBayesianFilter::SetMessageClassification(
 
   MessageObserver* analyzer = new MessageObserver(this, oldClassifications,
     newClassifications, aListener, nsnull);
-  if (!analyzer)
-    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ENSURE_TRUE(analyzer, NS_ERROR_OUT_OF_MEMORY);
 
   TokenStreamListener *tokenListener = new TokenStreamListener(analyzer);
-  if (!tokenListener)
-    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ENSURE_TRUE(tokenListener, NS_ERROR_OUT_OF_MEMORY);
 
   analyzer->setTokenListener(tokenListener);
   return tokenizeMessage(aMsgURL, aMsgWindow, analyzer);
@@ -2226,12 +2199,10 @@ NS_IMETHODIMP nsBayesianFilter::DetailMessage(const char *aMsgURI,
 
   MessageClassifier* analyzer = new MessageClassifier(this, nsnull,
     nsnull, aDetailListener, proTraits, antiTraits, aMsgWindow, 1, &aMsgURI);
-  if (!analyzer)
-    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ENSURE_TRUE(analyzer, NS_ERROR_OUT_OF_MEMORY);
 
   TokenStreamListener *tokenListener = new TokenStreamListener(analyzer);
-  if (!tokenListener)
-    return NS_ERROR_OUT_OF_MEMORY;
+  NS_ENSURE_TRUE(tokenListener, NS_ERROR_OUT_OF_MEMORY);
 
   analyzer->setTokenListener(tokenListener);
   return tokenizeMessage(aMsgURI, aMsgWindow, analyzer);
@@ -2875,8 +2846,6 @@ nsresult CorpusStore::ClearTrait(PRUint32 aTrait)
   // clear message counts
   setMessageCount(aTrait, 0);
 
-  // clear token counts
-  PRUint32 tokenCount = countTokens();
   TokenEnumeration tokens = getTokens();
   while (tokens.hasMoreTokens())
   {

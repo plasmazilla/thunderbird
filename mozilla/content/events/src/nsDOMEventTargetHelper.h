@@ -48,6 +48,7 @@
 #include "nsIScriptGlobalObject.h"
 #include "nsEventListenerManager.h"
 #include "nsIScriptContext.h"
+#include "nsWrapperCache.h"
 
 class nsDOMEventListenerWrapper : public nsIDOMEventListener
 {
@@ -61,19 +62,73 @@ public:
   NS_DECL_NSIDOMEVENTLISTENER
 
   nsIDOMEventListener* GetInner() { return mListener; }
+  void Disconnect() { mListener = nsnull; }
 protected:
   nsCOMPtr<nsIDOMEventListener> mListener;
 };
 
-class nsDOMEventTargetHelper : public nsIDOMEventTarget
+class nsDOMEventTargetHelper : public nsIDOMEventTarget,
+                               public nsWrapperCache
 {
 public:
-  nsDOMEventTargetHelper() {}
+  nsDOMEventTargetHelper() : mOwner(nsnull), mHasOrHasHadOwner(false) {}
   virtual ~nsDOMEventTargetHelper();
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
-  NS_DECL_CYCLE_COLLECTION_CLASS(nsDOMEventTargetHelper)
+  NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS(nsDOMEventTargetHelper)
 
   NS_DECL_NSIDOMEVENTTARGET
+  void AddEventListener(const nsAString& aType,
+                        nsIDOMEventListener* aCallback, // XXX nullable
+                        bool aCapture, Nullable<bool>& aWantsUntrusted,
+                        nsresult& aRv)
+  {
+    aRv = AddEventListener(aType, aCallback, aCapture,
+                           !aWantsUntrusted.IsNull() && aWantsUntrusted.Value(),
+                           aWantsUntrusted.IsNull() ? 1 : 2);
+  }
+  void RemoveEventListener(const nsAString& aType,
+                           nsIDOMEventListener* aCallback,
+                           bool aCapture, nsresult& aRv)
+  {
+    aRv = RemoveEventListener(aType, aCallback, aCapture);
+  }
+  bool DispatchEvent(nsIDOMEvent* aEvent, nsresult& aRv)
+  {
+    bool result = false;
+    aRv = DispatchEvent(aEvent, &result);
+    return result;
+  }
+
+  void GetParentObject(nsIScriptGlobalObject **aParentObject)
+  {
+    if (mOwner) {
+      CallQueryInterface(mOwner, aParentObject);
+    }
+    else {
+      *aParentObject = nsnull;
+    }
+  }
+
+  static nsDOMEventTargetHelper* FromSupports(nsISupports* aSupports)
+  {
+    nsIDOMEventTarget* target =
+      static_cast<nsIDOMEventTarget*>(aSupports);
+#ifdef DEBUG
+    {
+      nsCOMPtr<nsIDOMEventTarget> target_qi =
+        do_QueryInterface(aSupports);
+
+      // If this assertion fires the QI implementation for the object in
+      // question doesn't use the nsIDOMEventTarget pointer as the
+      // nsISupports pointer. That must be fixed, or we'll crash...
+      NS_ASSERTION(target_qi == target, "Uh, fix QI!");
+    }
+#endif
+
+    return static_cast<nsDOMEventTargetHelper*>(target);
+  }
+
+  void Init(JSContext* aCx = nsnull);
 
   bool HasListenersFor(const nsAString& aType)
   {
@@ -88,6 +143,7 @@ public:
 
   nsresult CheckInnerWindowCorrectness()
   {
+    NS_ENSURE_STATE(!mHasOrHasHadOwner || mOwner);
     if (mOwner) {
       NS_ASSERTION(mOwner->IsInnerWindow(), "Should have inner window here!\n");
       nsPIDOMWindow* outer = mOwner->GetOuterWindow();
@@ -97,18 +153,76 @@ public:
     }
     return NS_OK;
   }
+
+  void BindToOwner(nsPIDOMWindow* aOwner);
+  void BindToOwner(nsDOMEventTargetHelper* aOther);
+  virtual void DisconnectFromOwner();                   
+  nsPIDOMWindow* GetOwner() { return mOwner; }
+  bool HasOrHasHadOwner() { return mHasOrHasHadOwner; }
 protected:
   nsRefPtr<nsEventListenerManager> mListenerManager;
+private:
   // These may be null (native callers or xpcshell).
-  nsCOMPtr<nsIScriptContext> mScriptContext;
-  nsCOMPtr<nsPIDOMWindow>    mOwner; // Inner window.
+  nsPIDOMWindow*             mOwner; // Inner window.
+  bool                       mHasOrHasHadOwner;
 };
 
-#define NS_UNMARK_LISTENER_WRAPPER(_event)                       \
-  if (tmp->mOn##_event##Listener) {                              \
-    nsCOMPtr<nsIXPConnectWrappedJS> wjs =                        \
-      do_QueryInterface(tmp->mOn##_event##Listener->GetInner()); \
-    xpc_UnmarkGrayObject(wjs);                                   \
+#define NS_DECL_EVENT_HANDLER(_event)                                         \
+  protected:                                                                  \
+    nsRefPtr<nsDOMEventListenerWrapper> mOn##_event##Listener;                \
+  public:
+
+#define NS_DECL_AND_IMPL_EVENT_HANDLER(_event)                                \
+  protected:                                                                  \
+    nsRefPtr<nsDOMEventListenerWrapper> mOn##_event##Listener;                \
+  public:                                                                     \
+    NS_IMETHOD GetOn##_event(nsIDOMEventListener** a##_event)                 \
+    {                                                                         \
+      return GetInnerEventListener(mOn##_event##Listener, a##_event);         \
+    }                                                                         \
+    NS_IMETHOD SetOn##_event(nsIDOMEventListener* a##_event)                  \
+    {                                                                         \
+      return RemoveAddEventListener(NS_LITERAL_STRING(#_event),               \
+                                    mOn##_event##Listener, a##_event);        \
+    }
+
+#define NS_IMPL_EVENT_HANDLER(_class, _event)                                 \
+  NS_IMETHODIMP                                                               \
+  _class::GetOn##_event(nsIDOMEventListener** a##_event)                      \
+  {                                                                           \
+    return GetInnerEventListener(mOn##_event##Listener, a##_event);           \
+  }                                                                           \
+  NS_IMETHODIMP                                                               \
+  _class::SetOn##_event(nsIDOMEventListener* a##_event)                       \
+  {                                                                           \
+    return RemoveAddEventListener(NS_LITERAL_STRING(#_event),                 \
+                                  mOn##_event##Listener, a##_event);          \
+  }
+
+#define NS_IMPL_FORWARD_EVENT_HANDLER(_class, _event, _baseclass)             \
+    NS_IMETHODIMP                                                             \
+    _class::GetOn##_event(nsIDOMEventListener** a##_event)                    \
+    {                                                                         \
+      return _baseclass::GetOn##_event(a##_event);                           \
+    }                                                                         \
+    NS_IMETHODIMP                                                             \
+    _class::SetOn##_event(nsIDOMEventListener* a##_event)                     \
+    {                                                                         \
+      return _baseclass::SetOn##_event(a##_event);                            \
+    }
+
+#define NS_CYCLE_COLLECTION_TRAVERSE_EVENT_HANDLER(_event)                    \
+  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mOn##_event##Listener)
+
+#define NS_CYCLE_COLLECTION_UNLINK_EVENT_HANDLER(_event)                      \
+  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mOn##_event##Listener)
+
+#define NS_DISCONNECT_EVENT_HANDLER(_event)                                   \
+  if (mOn##_event##Listener) { mOn##_event##Listener->Disconnect(); }
+
+#define NS_UNMARK_LISTENER_WRAPPER(_event)                                    \
+  if (tmp->mOn##_event##Listener) {                                           \
+    xpc_TryUnmarkWrappedGrayObject(tmp->mOn##_event##Listener->GetInner());   \
   }
 
 #endif // nsDOMEventTargetHelper_h_

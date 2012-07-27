@@ -50,7 +50,6 @@
 #include "nsEventListenerManager.h"
 #include "nsGenericElement.h"
 #include "nsCycleCollectionParticipant.h"
-#include "nsDOMMemoryReporter.h"
 
 #include "nsISMILAttr.h"
 
@@ -79,7 +78,7 @@ class nsGenericDOMDataNode : public nsIContent
 public:
   NS_DECL_CYCLE_COLLECTING_ISUPPORTS
 
-  NS_DECL_DOM_MEMORY_REPORTER_SIZEOF
+  NS_DECL_SIZEOF_EXCLUDING_THIS
 
   nsGenericDOMDataNode(already_AddRefed<nsINodeInfo> aNodeInfo);
   virtual ~nsGenericDOMDataNode();
@@ -143,8 +142,12 @@ public:
   nsresult IsSupported(const nsAString& aFeature,
                        const nsAString& aVersion,
                        bool* aReturn);
-  nsresult CloneNode(bool aDeep, nsIDOMNode** aReturn)
+  nsresult CloneNode(bool aDeep, PRUint8 aOptionalArgc, nsIDOMNode** aReturn)
   {
+    if (!aOptionalArgc) {
+      aDeep = true;
+    }
+    
     return nsNodeUtils::CloneNodeImpl(this, aDeep, true, aReturn);
   }
 
@@ -167,7 +170,7 @@ public:
   virtual PRInt32 IndexOf(nsINode* aPossibleChild) const;
   virtual nsresult InsertChildAt(nsIContent* aKid, PRUint32 aIndex,
                                  bool aNotify);
-  virtual nsresult RemoveChildAt(PRUint32 aIndex, bool aNotify);
+  virtual void RemoveChildAt(PRUint32 aIndex, bool aNotify);
   NS_IMETHOD GetTextContent(nsAString &aTextContent)
   {
     nsresult rv = GetNodeValue(aTextContent);
@@ -208,7 +211,7 @@ public:
   virtual const nsAttrName* GetAttrNameAt(PRUint32 aIndex) const;
   virtual PRUint32 GetAttrCount() const;
   virtual const nsTextFragment *GetText();
-  virtual PRUint32 TextLength();
+  virtual PRUint32 TextLength() const;
   virtual nsresult SetText(const PRUnichar* aBuffer, PRUint32 aLength,
                            bool aNotify);
   // Need to implement this here too to avoid hiding.
@@ -223,15 +226,6 @@ public:
   virtual void DestroyContent();
   virtual void SaveSubtreeState();
 
-  virtual nsISMILAttr* GetAnimatedAttr(PRInt32 /*aNamespaceID*/, nsIAtom* /*aName*/)
-  {
-    return nsnull;
-  }
-  virtual nsIDOMCSSStyleDeclaration* GetSMILOverrideStyle();
-  virtual mozilla::css::StyleRule* GetSMILOverrideStyleRule();
-  virtual nsresult SetSMILOverrideStyleRule(mozilla::css::StyleRule* aStyleRule,
-                                            bool aNotify);
-
 #ifdef DEBUG
   virtual void List(FILE* out, PRInt32 aIndent) const;
   virtual void DumpContent(FILE* out, PRInt32 aIndent, bool aDumpAll) const;
@@ -244,8 +238,6 @@ public:
   virtual nsIAtom* DoGetID() const;
   virtual const nsAttrValue* DoGetClasses() const;
   NS_IMETHOD WalkContentStyleRules(nsRuleWalker* aRuleWalker);
-  virtual mozilla::css::StyleRule* GetInlineStyleRule();
-  NS_IMETHOD SetInlineStyleRule(mozilla::css::StyleRule* aStyleRule, bool aNotify);
   NS_IMETHOD_(bool) IsAttributeMapped(const nsIAtom* aAttribute) const;
   virtual nsChangeHint GetAttributeChangeHint(const nsIAtom* aAttribute,
                                               PRInt32 aModType) const;

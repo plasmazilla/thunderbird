@@ -53,6 +53,7 @@
 #include "nsITimer.h"
 #include "nsPIDOMWindow.h"
 
+#include "mozilla/dom/bindings/EventTargetBinding.h"
 #include "mozilla/Preferences.h"
 #include "nsContentUtils.h"
 #include "nsDOMJSUtils.h"
@@ -65,18 +66,17 @@
 #include "xpcpublic.h"
 
 #include "Events.h"
-#include "EventTarget.h"
 #include "Worker.h"
 #include "WorkerPrivate.h"
 
 using namespace mozilla;
+using namespace mozilla::dom::bindings::prototypes;
 
 USING_WORKERS_NAMESPACE
 
 using mozilla::MutexAutoLock;
 using mozilla::MutexAutoUnlock;
 using mozilla::Preferences;
-using namespace mozilla::xpconnect::memory;
 
 // The size of the worker runtime heaps in bytes. May be changed via pref.
 #define WORKER_DEFAULT_RUNTIME_HEAPSIZE 32 * 1024 * 1024
@@ -85,9 +85,14 @@ using namespace mozilla::xpconnect::memory;
 // consistency.
 #define WORKER_STACK_SIZE 256 * sizeof(size_t) * 1024
 
-// The stack limit the JS engine will check. Half the size of the
-// actual C stack, to be safe.
+// The stack limit the JS engine will check. 
+#ifdef MOZ_ASAN
+// For ASan, we need more stack space, so we use all that is available
+#define WORKER_CONTEXT_NATIVE_STACK_LIMIT WORKER_STACK_SIZE
+#else
+// Half the size of the actual C stack, to be safe.
 #define WORKER_CONTEXT_NATIVE_STACK_LIMIT 128 * sizeof(size_t) * 1024
+#endif
 
 // The maximum number of threads to use for workers, overridable via pref.
 #define MAX_WORKERS_PER_DOMAIN 10
@@ -243,11 +248,6 @@ PrefCallback(const char* aPrefName, void* aClosure)
       newOptions |= JSOPTION_TYPE_INFERENCE;
     }
 
-    // This one is special, it's enabled by default and only needs to be unset.
-    if (!Preferences::GetBool(gPrefsToWatch[PREF_jit_hardening])) {
-      newOptions |= JSOPTION_SOFTEN;
-    }
-
     RuntimeService::SetDefaultJSContextOptions(newOptions);
     rts->UpdateAllWorkerJSContextOptions();
   }
@@ -293,6 +293,8 @@ CreateJSContextForWorker(WorkerPrivate* aWorkerPrivate)
   JS_SetGCParameter(runtime, JSGC_MAX_BYTES,
                     aWorkerPrivate->GetJSRuntimeHeapSize());
 
+  JS_SetNativeStackQuota(runtime, WORKER_CONTEXT_NATIVE_STACK_LIMIT);
+
   JSContext* workerCx = JS_NewContext(runtime, 0);
   if (!workerCx) {
     JS_DestroyRuntime(runtime);
@@ -306,8 +308,6 @@ CreateJSContextForWorker(WorkerPrivate* aWorkerPrivate)
 
   JS_SetOperationCallback(workerCx, OperationCallback);
 
-  JS_SetNativeStackQuota(workerCx, WORKER_CONTEXT_NATIVE_STACK_LIMIT);
-
   NS_ASSERTION((aWorkerPrivate->GetJSContextOptions() &
                 kRequiredJSContextOptions) == kRequiredJSContextOptions,
                "Somehow we lost our required options!");
@@ -319,7 +319,7 @@ CreateJSContextForWorker(WorkerPrivate* aWorkerPrivate)
     NS_ASSERTION(zeal <= 3, "Bad zeal value!");
 
     PRUint32 frequency = zeal <= 2 ? JS_DEFAULT_ZEAL_FREQ : 1;
-    JS_SetGCZeal(workerCx, zeal, frequency, false);
+    JS_SetGCZeal(workerCx, zeal, frequency);
   }
 #endif
 
@@ -394,7 +394,7 @@ BEGIN_WORKERS_NAMESPACE
 
 // Entry point for the DOM.
 JSBool
-ResolveWorkerClasses(JSContext* aCx, JSObject* aObj, jsid aId, uintN aFlags,
+ResolveWorkerClasses(JSContext* aCx, JSObject* aObj, jsid aId, unsigned aFlags,
                      JSObject** aObjp)
 {
   AssertIsOnMainThread();
@@ -449,7 +449,7 @@ ResolveWorkerClasses(JSContext* aCx, JSObject* aObj, jsid aId, uintN aFlags,
       return true;
     }
 
-    JSObject* eventTarget = events::InitEventTargetClass(aCx, aObj, true);
+    JSObject* eventTarget = EventTarget_workers::GetProtoObject(aCx, aObj, aObj);
     if (!eventTarget) {
       return false;
     }

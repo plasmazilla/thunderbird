@@ -64,7 +64,7 @@
 #include "nsMsgBaseCID.h"
 #include "nsIMsgAccountManager.h"
 #include "nsMsgUtils.h"
-
+#include "mozilla/Services.h"
 
 // helper function for parsing the search field of a url
 char * extractAttributeValue(const char * searchString, const char * attributeName);
@@ -233,7 +233,6 @@ nsresult nsMailboxUrl::GetMsgHdrForKey(nsMsgKey  msgKey, nsIMsgDBHdr ** aMsgHdr)
         nsCOMPtr<nsIMsgMailSession> mailSession = do_GetService(NS_MSGMAILSESSION_CONTRACTID, &rv);
         NS_ENSURE_SUCCESS(rv, rv);
         mailSession->GetTopmostMsgWindow(getter_AddRefs(msgWindow));
-        SetMsgWindow(msgWindow);
       }
 
       // maybe this is .eml file we're trying to read. See if we can get a header from the header sink.
@@ -322,7 +321,8 @@ NS_IMETHODIMP nsMailboxUrl::IsUrlType(PRUint32 type, bool *isType)
       *isType = (m_mailboxAction == nsIMailboxUrl::ActionMoveMessage);
       break;
     case nsIMsgMailNewsUrl::eDisplay:
-      *isType = (m_mailboxAction == nsIMailboxUrl::ActionFetchMessage);
+      *isType = (m_mailboxAction == nsIMailboxUrl::ActionFetchMessage ||
+                 m_mailboxAction == nsIMailboxUrl::ActionFetchPart);
       break;
     default:
       *isType = false;
@@ -383,8 +383,9 @@ nsresult nsMailboxUrl::ParseUrl()
     nsCString fileUri("file://");
     fileUri.Append(m_file);
     nsresult rv;
-    nsCOMPtr<nsIIOService> ioService = do_GetService(NS_IOSERVICE_CONTRACTID, &rv);
-    NS_ENSURE_SUCCESS(rv, rv);
+    nsCOMPtr<nsIIOService> ioService =
+      mozilla::services::GetIOService();
+    NS_ENSURE_TRUE(ioService, NS_ERROR_UNEXPECTED);
     nsCOMPtr <nsIURI> uri;
     rv = ioService->NewURI(fileUri, nsnull, nsnull, getter_AddRefs(uri));
     NS_ENSURE_SUCCESS(rv, rv);

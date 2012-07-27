@@ -111,11 +111,12 @@ static const PRInt64 gUpdateInterval = 400 * PR_USEC_PER_MSEC;
 ////////////////////////////////////////////////////////////////////////////////
 //// nsDownloadManager
 
-NS_IMPL_ISUPPORTS3(
+NS_IMPL_ISUPPORTS4(
   nsDownloadManager
 , nsIDownloadManager
 , nsINavHistoryObserver
 , nsIObserver
+, nsISupportsWeakReference
 )
 
 nsDownloadManager *nsDownloadManager::gDownloadManagerService = nsnull;
@@ -318,9 +319,23 @@ nsDownloadManager::GetMemoryDBConnection() const
   return conn.forget();
 }
 
+void
+nsDownloadManager::CloseDB()
+{
+  DebugOnly<nsresult> rv = mGetIdsForURIStatement->Finalize();
+  MOZ_ASSERT(NS_SUCCEEDED(rv));
+  rv = mUpdateDownloadStatement->Finalize();
+  MOZ_ASSERT(NS_SUCCEEDED(rv));
+  rv = mDBConn->AsyncClose(nsnull);
+  MOZ_ASSERT(NS_SUCCEEDED(rv));
+}
+
 nsresult
 nsDownloadManager::InitMemoryDB()
 {
+  bool ready = false;
+  if (mDBConn && NS_SUCCEEDED(mDBConn->GetConnectionReady(&ready)) && ready)
+    CloseDB();
   mDBConn = GetMemoryDBConnection();
   if (!mDBConn)
     return NS_ERROR_NOT_AVAILABLE;
@@ -344,6 +359,9 @@ nsDownloadManager::InitFileDB()
   rv = dbFile->Append(DM_DB_NAME);
   NS_ENSURE_SUCCESS(rv, rv);
 
+  bool ready = false;
+  if (mDBConn && NS_SUCCEEDED(mDBConn->GetConnectionReady(&ready)) && ready)
+    CloseDB();
   mDBConn = GetFileDBConnection(dbFile);
   NS_ENSURE_TRUE(mDBConn, NS_ERROR_NOT_AVAILABLE);
 
@@ -881,28 +899,29 @@ nsDownloadManager::Init()
   nsCOMPtr<nsINavHistoryService> history =
     do_GetService(NS_NAVHISTORYSERVICE_CONTRACTID);
 
+  (void)mObserverService->NotifyObservers(
+                                static_cast<nsIDownloadManager *>(this),
+                                "download-manager-initialized",
+                                nsnull);
+
   // The following AddObserver calls must be the last lines in this function,
   // because otherwise, this function may fail (and thus, this object would be not
   // completely initialized), but the observerservice would still keep a reference
   // to us and notify us about shutdown, which may cause crashes.
   // failure to add an observer is not critical
-  //
-  // These observers will be cleaned up automatically at app shutdown.  We do
-  // not bother explicitly breaking the observers because we are a singleton
-  // that lives for the duration of the app.
-  (void)mObserverService->AddObserver(this, "quit-application", false);
-  (void)mObserverService->AddObserver(this, "quit-application-requested", false);
-  (void)mObserverService->AddObserver(this, "offline-requested", false);
-  (void)mObserverService->AddObserver(this, "sleep_notification", false);
-  (void)mObserverService->AddObserver(this, "wake_notification", false);
-  (void)mObserverService->AddObserver(this, "profile-before-change", false);
-  (void)mObserverService->AddObserver(this, NS_IOSERVICE_GOING_OFFLINE_TOPIC, false);
-  (void)mObserverService->AddObserver(this, NS_IOSERVICE_OFFLINE_STATUS_TOPIC, false);
-  (void)mObserverService->AddObserver(this, NS_PRIVATE_BROWSING_REQUEST_TOPIC, false);
-  (void)mObserverService->AddObserver(this, NS_PRIVATE_BROWSING_SWITCH_TOPIC, false);
+  (void)mObserverService->AddObserver(this, "quit-application", true);
+  (void)mObserverService->AddObserver(this, "quit-application-requested", true);
+  (void)mObserverService->AddObserver(this, "offline-requested", true);
+  (void)mObserverService->AddObserver(this, "sleep_notification", true);
+  (void)mObserverService->AddObserver(this, "wake_notification", true);
+  (void)mObserverService->AddObserver(this, "profile-before-change", true);
+  (void)mObserverService->AddObserver(this, NS_IOSERVICE_GOING_OFFLINE_TOPIC, true);
+  (void)mObserverService->AddObserver(this, NS_IOSERVICE_OFFLINE_STATUS_TOPIC, true);
+  (void)mObserverService->AddObserver(this, NS_PRIVATE_BROWSING_REQUEST_TOPIC, true);
+  (void)mObserverService->AddObserver(this, NS_PRIVATE_BROWSING_SWITCH_TOPIC, true);
 
   if (history)
-    (void)history->AddObserver(this, false);
+    (void)history->AddObserver(this, true);
 
   return NS_OK;
 }
@@ -918,6 +937,19 @@ nsDownloadManager::GetRetentionBehavior()
   PRInt32 val;
   rv = pref->GetIntPref(PREF_BDM_RETENTION, &val);
   NS_ENSURE_SUCCESS(rv, 0);
+
+  // Allow the Downloads Panel to change the retention behavior.  We do this to
+  // allow proper migration to the new feature when using the same profile on
+  // multiple versions of the product (bug 697678).  Implementation note: in
+  // order to allow observers to change the retention value, we have to pass an
+  // object in the aSubject parameter, we cannot use aData for that.
+  nsCOMPtr<nsISupportsPRInt32> retentionBehavior =
+    do_CreateInstance(NS_SUPPORTS_PRINT32_CONTRACTID);
+  retentionBehavior->SetData(val);
+  (void)mObserverService->NotifyObservers(retentionBehavior,
+                                          "download-manager-change-retention",
+                                          nsnull);
+  retentionBehavior->GetData(&val);
 
   return val;
 }
@@ -1827,6 +1859,12 @@ nsDownloadManager::SwitchDatabaseTypeTo(enum nsDownloadManager::DatabaseType aTy
   rv = RestoreDatabaseState();
   NS_ENSURE_SUCCESS(rv, rv);
 
+  // Notify that the database type changed before resuming current downloads
+  (void)mObserverService->NotifyObservers(
+                                static_cast<nsIDownloadManager *>(this),
+                                "download-manager-database-type-changed",
+                                nsnull);
+
   rv = RestoreActiveDownloads();
   NS_WARN_IF_FALSE(NS_SUCCEEDED(rv), "Failed to restore all active downloads");
 
@@ -1943,10 +1981,7 @@ nsDownloadManager::Observe(nsISupports *aSubject,
     if (dl2)
       return CancelDownload(id);
   } else if (strcmp(aTopic, "profile-before-change") == 0) {
-    mGetIdsForURIStatement->Finalize();
-    mUpdateDownloadStatement->Finalize();
-    mozilla::DebugOnly<nsresult> rv = mDBConn->Close();
-    MOZ_ASSERT(NS_SUCCEEDED(rv));
+    CloseDB();
   } else if (strcmp(aTopic, "quit-application") == 0) {
     // Try to pause all downloads and, if appropriate, mark them as auto-resume
     // unless user has specified that downloads should be canceled
@@ -2192,6 +2227,15 @@ nsDownload::SetState(DownloadState aState)
     case nsIDownloadManager::DOWNLOAD_DIRTY:
     case nsIDownloadManager::DOWNLOAD_CANCELED:
     case nsIDownloadManager::DOWNLOAD_FAILED:
+#ifdef ANDROID
+      // If we still have a temp file, remove it
+      bool tempExists;
+      if (mTempFile && NS_SUCCEEDED(mTempFile->Exists(&tempExists)) && tempExists) {
+        nsresult rv = mTempFile->Remove(false);
+        NS_ENSURE_SUCCESS(rv, rv);
+      }
+#endif
+
       // Transfers are finished, so break the reference cycle
       Finalize();
       break;

@@ -40,6 +40,8 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
+Components.utils.import("resource:///modules/MigrationUtils.jsm");
+
 var PlacesOrganizer = {
   _places: null,
   _content: null,
@@ -334,7 +336,7 @@ var PlacesOrganizer = {
         // The command execution function will take care of seeing if the
         // selection is a folder or a different container type, and will
         // load its contents in tabs.
-        PlacesUIUtils.openContainerNodeInTabs(selectedNode, aEvent);
+        PlacesUIUtils.openContainerNodeInTabs(selectedNode, aEvent, currentView);
       }
     }
   },
@@ -361,7 +363,7 @@ var PlacesOrganizer = {
 
   openSelectedNode: function PO_openSelectedNode(aEvent) {
     PlacesUIUtils.openNodeWithEvent(this._content.selectedNode, aEvent,
-                                    this._content.treeBoxObject.view);
+                                    this._content);
   },
 
   /**
@@ -385,20 +387,7 @@ var PlacesOrganizer = {
    * cookies, history, preferences, and bookmarks.
    */
   importFromBrowser: function PO_importFromBrowser() {
-#ifdef XP_MACOSX
-    // On Mac, the window is not modal
-    let win = Services.wm.getMostRecentWindow("Browser:MigrationWizard");
-    if (win) {
-      win.focus();
-      return;
-    }
-
-    let features = "centerscreen,chrome,resizable=no";
-#else
-    let features = "modal,centerscreen,chrome,resizable=no";
-#endif
-    window.openDialog("chrome://browser/content/migration/migration.xul",
-                      "migration", features);
+    MigrationUtils.showMigrationWizard(window);
   },
 
   /**
@@ -411,10 +400,9 @@ var PlacesOrganizer = {
             Ci.nsIFilePicker.modeOpen);
     fp.appendFilters(Ci.nsIFilePicker.filterHTML);
     if (fp.show() != Ci.nsIFilePicker.returnCancel) {
-      if (fp.file) {
-        var importer = Cc["@mozilla.org/browser/places/import-export-service;1"].
-                       getService(Ci.nsIPlacesImportExportService);
-        importer.importHTMLFromFile(fp.file, false);
+      if (fp.fileURL) {
+        Components.utils.import("resource://gre/modules/BookmarkHTMLUtils.jsm");
+        BookmarkHTMLUtils.importFromURL(fp.fileURL.spec, false);
       }
     }
   },
@@ -600,9 +588,7 @@ var PlacesOrganizer = {
       return;
     }
     if (aNode.itemId != -1 &&
-        ((PlacesUtils.nodeIsFolder(aNode) &&
-          !PlacesUtils.nodeIsLivemarkContainer(aNode)) ||
-         PlacesUtils.nodeIsLivemarkItem(aNode))) {
+        PlacesUtils.nodeIsFolder(aNode) && !aNode._feedURI) {
       if (infoBox.getAttribute("minimal") == "true")
         infoBox.setAttribute("wasminimal", "true");
       infoBox.removeAttribute("minimal");
@@ -688,8 +674,10 @@ var PlacesOrganizer = {
       else
         itemId = PlacesUtils._uri(aSelectedNode.uri);
 
-      gEditItemOverlay.initPanel(itemId, { hiddenRows: ["folderPicker"],
-                                           forceReadOnly: readOnly });
+      gEditItemOverlay.initPanel(itemId, { hiddenRows: ["folderPicker"]
+                                         , forceReadOnly: readOnly
+                                         , titleOverride: aSelectedNode.title
+                                         });
 
       // Dynamically generated queries, like history date containers, have
       // itemId !=0 and do not exist in history.  For them the panel is
@@ -828,11 +816,11 @@ var PlacesOrganizer = {
      return;
 
     // Add the place: uri as a bookmark under the bookmarks root.
-    var txn = PlacesUIUtils.ptm.createItem(placeURI,
-                                           PlacesUtils.bookmarksMenuFolderId,
-                                           PlacesUtils.bookmarks.DEFAULT_INDEX,
-                                           input.value);
-    PlacesUIUtils.ptm.doTransaction(txn);
+    var txn = new PlacesCreateBookmarkTransaction(placeURI,
+                                                  PlacesUtils.bookmarksMenuFolderId,
+                                                  PlacesUtils.bookmarks.DEFAULT_INDEX,
+                                                  input.value);
+    PlacesUtils.transactionManager.doTransaction(txn);
 
     // select and load the new query
     this._places.selectPlaceURI(placeSpec);

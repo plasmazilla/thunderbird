@@ -71,6 +71,20 @@ NS_NewInlineFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
   return new (aPresShell) nsInlineFrame(aContext);
 }
 
+NS_IMETHODIMP
+nsInlineFrame::Init(nsIContent*      aContent,
+                    nsIFrame*        aParent,
+                    nsIFrame*        aPrevInFlow)
+{
+  // Let the base class do its processing
+  nsresult rv = nsContainerFrame::Init(aContent, aParent, aPrevInFlow);
+
+  // Transforms do not affect regular inline elements (bug 722463)
+  mState &= ~NS_FRAME_MAY_BE_TRANSFORMED;
+
+  return rv;
+}
+
 NS_IMPL_FRAMEARENA_HELPERS(nsInlineFrame)
 
 NS_QUERYFRAME_HEAD(nsInlineFrame)
@@ -219,7 +233,7 @@ nsInlineFrame::AddInlinePrefWidth(nsRenderingContext *aRenderingContext,
 nsInlineFrame::ComputeSize(nsRenderingContext *aRenderingContext,
                            nsSize aCBSize, nscoord aAvailableWidth,
                            nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                           bool aShrinkWrap)
+                           PRUint32 aFlags)
 {
   // Inlines and text don't compute size before reflow.
   return nsSize(NS_UNCONSTRAINEDSIZE, NS_UNCONSTRAINEDSIZE);
@@ -646,8 +660,7 @@ nsInlineFrame::ReflowFrames(nsPresContext* aPresContext,
   }
 
   nsRefPtr<nsFontMetrics> fm;
-  float inflation =
-    nsLayoutUtils::FontSizeInflationFor(this, nsLayoutUtils::eInReflow);
+  float inflation = nsLayoutUtils::FontSizeInflationFor(this);
   nsLayoutUtils::GetFontMetricsForFrame(this, getter_AddRefs(fm), inflation);
   aReflowState.rendContext->SetFont(fm);
 

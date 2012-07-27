@@ -52,7 +52,7 @@ interface nsIContentFilter;
   NS_ERROR_GENERATE_SUCCESS(NS_ERROR_MODULE_EDITOR, 1)
 
 %}
-[scriptable, uuid(d58f35a7-c269-4292-b9aa-a79e200a7c99)]
+[scriptable, uuid(833f30de-94c7-4630-a852-2300ef329d7b)]
 
 interface nsIHTMLEditor : nsISupports
 {
@@ -118,9 +118,6 @@ interface nsIHTMLEditor : nsISupports
    *                    Example: aProperty="font", aAttribute="color",
    *                             aValue="0x00FFFF"
    */
-  void setCSSInlineProperty(in nsIAtom aProperty, 
-                            in AString aAttribute,
-                            in AString aValue);
   void setInlineProperty(in nsIAtom aProperty, 
                          in AString aAttribute,
                          in AString aValue);
@@ -198,26 +195,6 @@ interface nsIHTMLEditor : nsISupports
    *  so they will be decreased instead of inserting new <FONT> tag
    */
   void decreaseFontSize();
-
-  /* ------------ Drag/Drop methods -------------- */
-
-  /** 
-   * canDrag decides if a drag should be started
-   * (for example, based on the current selection and mousepoint).
-   */
-  boolean canDrag(in nsIDOMEvent aEvent);
-
-  /** 
-   * doDrag transfers the relevant data (as appropriate)
-   * to a transferable so it can later be dropped.
-   */
-  void doDrag(in nsIDOMEvent aEvent);
-
-  /** 
-   * insertFromDrop looks for a dragsession and inserts the
-   * relevant data in response to a drop.
-   */
-  void insertFromDrop(in nsIDOMEvent aEvent);
 
   /* ------------ HTML content methods -------------- */
 
@@ -534,12 +511,6 @@ interface nsIHTMLEditor : nsISupports
    */
   void setBodyAttribute(in AString aAttr, in AString aValue);
   
-  /** 
-   * XXX Used to suppress spurious drag/drop events to workaround bug 50703
-   * Don't use this method! It will go away after first release!
-   */
-  void ignoreSpuriousDragEvent(in boolean aIgnoreSpuriousDragEvent);
-
   /**
    * Find all the nodes in the document which contain references
    * to outside URIs (e.g. a href, img src, script src, etc.)

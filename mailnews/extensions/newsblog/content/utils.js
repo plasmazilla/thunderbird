@@ -59,6 +59,118 @@ var FeedUtils = {
   // There are no new articles for this feed
   kNewsBlogNoNewItems: 4,
 
+/**
+ * Dragging something from somewhere.  It may be a nice x-moz-url or from a
+ * browser or app that provides a less nice dataTransfer object in the event.
+ * Extract the url and if it passes the scheme test, try to subscribe.
+ * 
+ * @param  nsIDOMDataTransfer aDataTransfer  - the dnd event's dataTransfer.
+ * @return nsIURI uri                        - a uri if valid, null if none.
+ */
+  getFeedUriFromDataTransfer: function(aDataTransfer) {
+    let dt = aDataTransfer;
+    let types = ["text/x-moz-url-data", "text/x-moz-url"];
+    let validUri = false;
+    let uri = Cc["@mozilla.org/network/standard-url;1"].
+              createInstance(Ci.nsIURI);
+
+    if (dt.getData(types[0]))
+    {
+      // The url is the data.
+      uri.spec = dt.mozGetDataAt(types[0], 0);
+      validUri = this.isValidScheme(uri);
+      FeedUtils.log.trace("getFeedUriFromDataTransfer: dropEffect:type:value - "+
+                          dt.dropEffect+" : "+types[0]+" : "+uri.spec);
+    }
+    else if (dt.getData(types[1]))
+    {
+      // The url is the first part of the data, the second part is random.
+      uri.spec = dt.mozGetDataAt(types[1], 0).split("\n")[0];
+      validUri = this.isValidScheme(uri);
+      FeedUtils.log.trace("getFeedUriFromDataTransfer: dropEffect:type:value - "+
+                          dt.dropEffect+" : "+types[0]+" : "+uri.spec);
+    }
+    else
+    {
+      // Go through the types and see if there's a url; get the first one.
+      for (let i = 0; i < dt.types.length; i++) {
+        let spec = dt.mozGetDataAt(dt.types[i], 0);
+        FeedUtils.log.trace("getFeedUriFromDataTransfer: dropEffect:index:type:value - "+
+                            dt.dropEffect+" : "+i+" : "+dt.types[i]+" : "+spec);
+        try {
+          uri.spec = spec;
+          validUri = this.isValidScheme(uri);
+        }
+        catch(ex) {}
+
+        if (validUri)
+          break;
+      };
+    }
+
+    return validUri ? uri : null;
+  },
+
+/**
+ * Returns if a uri is valid to subscribe.
+ * 
+ * @param  nsIURI aUri  - the Uri.
+ * @return boolean      - true if a valid scheme, false if not.
+ */
+  isValidScheme: function(aUri) {
+    return (aUri instanceof Ci.nsIURI) &&
+           (aUri.schemeIs("http") || aUri.schemeIs("https"));
+  },
+
+/**
+ * Is a folder Trash or in Trash.
+ * 
+ * @param  nsIMsgFolder aFolder   - the folder.
+ * @return boolean                - true if folder is Trash else false.
+ */
+  isInTrash: function(aFolder) {
+    let trashFolder =
+        aFolder.rootFolder.getFolderWithFlags(Ci.nsMsgFolderFlags.Trash);
+    if (trashFolder &&
+        (trashFolder == aFolder || trashFolder.isAncestorOf(aFolder)))
+      return true;
+    return false;
+  },
+
+/**
+ * Return a folder path string constructed from individual folder UTF8 names
+ * stored as properties (not possible hashes used to construct disk foldername).
+ * 
+ * @param  nsIMsgFolder aFolder     - the folder.
+ * @return string prettyName | null - name or null if not a disk folder.
+ */
+  getFolderPrettyPath: function(aFolder) {
+    let msgFolder = GetMsgFolderFromUri(aFolder.URI, true);
+    if (!msgFolder)
+      // Not a real folder uri.
+      return null;
+
+    if (msgFolder.URI == msgFolder.server.serverURI)
+      return msgFolder.server.prettyName;
+
+    // Server part first.
+    let pathParts = [msgFolder.server.prettyName];
+    let rawPathParts = msgFolder.URI.split(msgFolder.server.serverURI + "/");
+    let folderURI = msgFolder.server.serverURI;
+    rawPathParts = rawPathParts[1].split("/");
+    for (let i = 0; i < rawPathParts.length - 1; i++)
+    {
+      // Two or more folders deep parts here.
+      folderURI += "/" + rawPathParts[i];
+      msgFolder = GetMsgFolderFromUri(folderURI, true);
+      pathParts.push(msgFolder.name);
+    }
+
+    // Leaf folder last.
+    pathParts.push(aFolder.name);
+    return decodeURI(pathParts.join(" / "));
+  },
+
   // Progress glue code.  Acts as a go between the RSS back end and the mail
   // window front end determined by the aMsgWindow parameter passed into
   // nsINewsBlogFeedDownloader.
@@ -94,41 +206,76 @@ var FeedUtils = {
 
     downloaded: function(feed, aErrorCode)
     {
-      FeedUtils.log.debug("downloaded: feed:errorCode - " +
-                          feed.name+" : "+aErrorCode);
-      if (this.mSubscribeMode && aErrorCode == FeedUtils.kNewsBlogSuccess)
+      FeedUtils.log.debug("downloaded: "+
+                          (this.mSubscribeMode ? "Subscribe " : "Update ") +
+                          "errorCode:feed:folder - " +
+                          aErrorCode+" : "+feed.name+" : "+
+                          (feed.folder ? feed.folder.filePath.path : "null"));
+      if (this.mSubscribeMode)
       {
-        // If we get here we should always have a folder by now, either in
-        // feed.folder or FeedItems created the folder for us.
-        updateFolderFeedUrl(feed.folder, feed.url, false);
+        if (aErrorCode == FeedUtils.kNewsBlogSuccess)
+        {
+          // If we get here we should always have a folder by now, either in
+          // feed.folder or FeedItems created the folder for us.
+          updateFolderFeedUrl(feed.folder, feed.url, false);
 
-        // Add feed just adds the feed to the subscription UI and flushes the
-        // datasource.
-        addFeed(feed.url, feed.name, feed.folder);
+          // Add feed just adds the feed to the subscription UI and flushes the
+          // datasource.
+          addFeed(feed.url, feed.name, feed.folder);
 
-        // Nice touch: select the folder that now contains the newly subscribed
-        // feed.  This is particularly nice if we just finished subscribing
-        // to a feed URL that the operating system gave us.
-        this.mMsgWindow.windowCommands.selectFolder(feed.folder.URI);
+          // Nice touch: select the folder that now contains the newly subscribed
+          // feed.  This is particularly nice if we just finished subscribing
+          // to a feed URL that the operating system gave us.
+          this.mMsgWindow.windowCommands.selectFolder(feed.folder.URI);
+
+          // Check for an existing feed subscriptions window and update it.
+          let subscriptionsWindow =
+              Services.wm.getMostRecentWindow("Mail:News-BlogSubscriptions");
+          if (subscriptionsWindow)
+            subscriptionsWindow.gFeedSubscriptionsWindow.refreshSubscriptionView();
+        }
+        else
+        {
+          // Non success.  Remove intermediate traces from the feeds database.
+          if (feed && feed.url && feed.server)
+            deleteFeed(rdf.GetResource(feed.url),
+                       feed.server,
+                       feed.server.rootFolder);
+        }
       }
-      else if (feed.folder && aErrorCode != FeedUtils.kNewsBlogFeedIsBusy)
+
+      if (feed.folder && aErrorCode != FeedUtils.kNewsBlogFeedIsBusy)
         // Free msgDatabase after new mail biff is set; if busy let the next
         // result do the freeing.  Otherwise new messages won't be indicated.
         feed.folder.msgDatabase = null;
 
+      let message = "";
+      switch (aErrorCode) {
+        case FeedUtils.kNewsBlogSuccess:
+        case FeedUtils.kNewsBlogFeedIsBusy:
+          break;
+        case FeedUtils.kNewsBlogNoNewItems:
+          message = feed.url+". " +
+                    FeedUtils.strings.GetStringFromName(
+                      "newsblog-noNewArticlesForFeed");
+          break;
+        case FeedUtils.kNewsBlogInvalidFeed:
+          message = FeedUtils.strings.formatStringFromName(
+                      "newsblog-feedNotValid", [feed.url], 1);
+          break;
+        case FeedUtils.kNewsBlogRequestFailure:
+          message = FeedUtils.strings.formatStringFromName(
+                      "newsblog-networkError", [feed.url], 1);
+          break;
+      }
+      if (message)
+        FeedUtils.log.info("downloaded: "+
+                           (this.mSubscribeMode ? "Subscribe " : "Update ") +
+                           message);
+
       if (this.mStatusFeedback)
       {
-        if (aErrorCode == FeedUtils.kNewsBlogNoNewItems)
-          this.mStatusFeedback.showStatusString(
-            FeedUtils.strings.GetStringFromName("newsblog-noNewArticlesForFeed"));
-        else if (aErrorCode == FeedUtils.kNewsBlogInvalidFeed)
-          this.mStatusFeedback.showStatusString(
-            FeedUtils.strings.formatStringFromName("newsblog-feedNotValid",
-                                                   [feed.url], 1));
-        else if (aErrorCode == FeedUtils.kNewsBlogRequestFailure)
-          this.mStatusFeedback.showStatusString(
-            FeedUtils.strings.formatStringFromName("newsblog-networkError",
-                                                   [feed.url], 1));
+        this.mStatusFeedback.showStatusString(message);
         this.mStatusFeedback.stopMeteors();
       }
 
@@ -365,7 +512,7 @@ function deleteFeed(aId, aServer, aParentFolder)
 function getFeedUrlsInFolder(aFolder)
 {
   if (aFolder.isServer || aFolder.getFlag(Ci.nsMsgFolderFlags.Trash))
-    // Never any feedUrls in the account folder or trash folder.
+    // Never get any feedUrls in the account folder or trash folder.
     return null;
 
   let feedUrlArray = [];

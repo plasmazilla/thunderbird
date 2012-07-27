@@ -40,7 +40,7 @@
 
 #include "nsIDOMSmsManager.h"
 #include "nsIObserver.h"
-#include "nsDOMEventTargetWrapperCache.h"
+#include "nsDOMEventTargetHelper.h"
 
 class nsIDOMMozSmsMessage;
 
@@ -48,21 +48,21 @@ namespace mozilla {
 namespace dom {
 namespace sms {
 
-class SmsManager : public nsIDOMMozSmsManager
+class SmsManager : public nsDOMEventTargetHelper
+                 , public nsIDOMMozSmsManager
                  , public nsIObserver
-                 , public nsDOMEventTargetWrapperCache
 {
 public:
   NS_DECL_ISUPPORTS
   NS_DECL_NSIOBSERVER
   NS_DECL_NSIDOMMOZSMSMANAGER
 
-  NS_FORWARD_NSIDOMEVENTTARGET(nsDOMEventTargetWrapperCache::)
+  NS_FORWARD_NSIDOMEVENTTARGET(nsDOMEventTargetHelper::)
 
   NS_DECL_CYCLE_COLLECTION_CLASS_INHERITED(SmsManager,
-                                           nsDOMEventTargetWrapperCache)
+                                           nsDOMEventTargetHelper)
 
-  void Init(nsPIDOMWindow *aWindow, nsIScriptContext* aScriptContext);
+  void Init(nsPIDOMWindow *aWindow);
   void Shutdown();
 
 private:

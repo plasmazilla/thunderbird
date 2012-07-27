@@ -88,6 +88,13 @@ public:
     // get hinted glyph width in pixels as 16.16 fixed-point value
     virtual PRInt32 GetGlyphWidth(gfxContext *aCtx, PRUint16 aGID);
 
+    virtual void SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf,
+                                     FontCacheSizes*   aSizes) const;
+    virtual void SizeOfIncludingThis(nsMallocSizeOfFun aMallocSizeOf,
+                                     FontCacheSizes*   aSizes) const;
+
+    virtual FontType GetType() const { return FONT_TYPE_GDI; }
+
 protected:
     virtual void CreatePlatformShaper();
 

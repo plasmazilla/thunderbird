@@ -93,6 +93,7 @@ SpdyStream::SpdyStream(nsAHttpTransaction *httpTransaction,
 
 SpdyStream::~SpdyStream()
 {
+  mStreamID = SpdySession::kDeadStreamID;
 }
 
 // ReadSegments() is used to write data down the socket. Generally, HTTP
@@ -325,8 +326,6 @@ SpdyStream::ParseHttpRequestHeaders(const char *buf,
   memset (mTxInlineFrame + 12, 0, 4);
 
   // Priority flags are the C0 mask of byte 16.
-  // From low to high: 00 40 80 C0
-  // higher raw priority values are actually less important
   //
   // The other 6 bits of 16 are unused. Spdy/3 will expand
   // priority to 4 bits.
@@ -336,13 +335,13 @@ SpdyStream::ParseHttpRequestHeaders(const char *buf,
   // receive windows, separate from their spdy priority
   //
   if (mPriority >= nsISupportsPriority::PRIORITY_LOW)
-    mTxInlineFrame[16] = SpdySession::kPri00;
-  else if (mPriority >= nsISupportsPriority::PRIORITY_NORMAL)
-    mTxInlineFrame[16] = SpdySession::kPri01;
-  else if (mPriority >= nsISupportsPriority::PRIORITY_HIGH)
-    mTxInlineFrame[16] = SpdySession::kPri02;
-  else
     mTxInlineFrame[16] = SpdySession::kPri03;
+  else if (mPriority >= nsISupportsPriority::PRIORITY_NORMAL)
+    mTxInlineFrame[16] = SpdySession::kPri02;
+  else if (mPriority >= nsISupportsPriority::PRIORITY_HIGH)
+    mTxInlineFrame[16] = SpdySession::kPri01;
+  else
+    mTxInlineFrame[16] = SpdySession::kPri00;
 
   mTxInlineFrame[17] = 0;                         /* unused */
   
@@ -452,16 +451,31 @@ SpdyStream::ParseHttpRequestHeaders(const char *buf,
   NS_ABORT_IF_FALSE(!mTxInlineFrame[4],
                     "Size greater than 24 bits");
   
-  // For methods other than POST and PUT, we will set the fin bit
-  // right on the syn stream packet.
+  // Determine whether to put the fin bit on the syn stream frame or whether
+  // to wait for a data packet to put it on.
 
-  if (mTransaction->RequestHead()->Method() != nsHttp::Post &&
-      mTransaction->RequestHead()->Method() != nsHttp::Put &&
-      mTransaction->RequestHead()->Method() != nsHttp::Options) {
+  if (mTransaction->RequestHead()->Method() == nsHttp::Get ||
+      mTransaction->RequestHead()->Method() == nsHttp::Connect ||
+      mTransaction->RequestHead()->Method() == nsHttp::Head) {
+    // for GET, CONNECT, and HEAD place the fin bit right on the
+    // syn stream packet
+
     mSentFinOnData = 1;
     mTxInlineFrame[4] = SpdySession::kFlag_Data_FIN;
   }
-
+  else if (mTransaction->RequestHead()->Method() == nsHttp::Post ||
+           mTransaction->RequestHead()->Method() == nsHttp::Put ||
+           mTransaction->RequestHead()->Method() == nsHttp::Options) {
+    // place fin in a data frame even for 0 length messages, I've seen
+    // the google gateway be unhappy with fin-on-syn for 0 length POST
+  }
+  else if (!mRequestBodyLenRemaining) {
+    // for other HTTP extension methods, rely on the content-length
+    // to determine whether or not to put fin on syn
+    mSentFinOnData = 1;
+    mTxInlineFrame[4] = SpdySession::kFlag_Data_FIN;
+  }
+  
   Telemetry::Accumulate(Telemetry::SPDY_SYN_SIZE, mTxInlineFrameUsed - 18);
 
   // The size of the input headers is approximate

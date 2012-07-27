@@ -9,13 +9,10 @@
 #include "js-config.h"
 #include "jsapi.h"
 #include "jsclass.h"
-#include "jscompat.h"
 #include "jscpucfg.h"
 #include "jspubtd.h"
-#include "jsstdint.h"
 #include "jstypes.h"
 #include "jsval.h"
-#include "jsxdrapi.h"
 
 #include "js/HashTable.h"
 #include "js/MemoryMetrics.h"

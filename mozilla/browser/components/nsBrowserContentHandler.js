@@ -52,7 +52,6 @@ const nsIDocShellTreeItem    = Components.interfaces.nsIDocShellTreeItem;
 const nsIDOMChromeWindow     = Components.interfaces.nsIDOMChromeWindow;
 const nsIDOMWindow           = Components.interfaces.nsIDOMWindow;
 const nsIFileURL             = Components.interfaces.nsIFileURL;
-const nsIHttpProtocolHandler = Components.interfaces.nsIHttpProtocolHandler;
 const nsIInterfaceRequestor  = Components.interfaces.nsIInterfaceRequestor;
 const nsINetUtil             = Components.interfaces.nsINetUtil;
 const nsIPrefBranch          = Components.interfaces.nsIPrefBranch;
@@ -65,13 +64,12 @@ const nsIWindowWatcher       = Components.interfaces.nsIWindowWatcher;
 const nsIWebNavigationInfo   = Components.interfaces.nsIWebNavigationInfo;
 const nsIBrowserSearchService = Components.interfaces.nsIBrowserSearchService;
 const nsICommandLineValidator = Components.interfaces.nsICommandLineValidator;
-const nsIXULAppInfo          = Components.interfaces.nsIXULAppInfo;
 
 const NS_BINDING_ABORTED = Components.results.NS_BINDING_ABORTED;
 const NS_ERROR_WONT_HANDLE_CONTENT = 0x805d0001;
 const NS_ERROR_ABORT = Components.results.NS_ERROR_ABORT;
 
-const URI_INHERITS_SECURITY_CONTEXT = nsIHttpProtocolHandler
+const URI_INHERITS_SECURITY_CONTEXT = Components.interfaces.nsIHttpProtocolHandler
                                         .URI_INHERITS_SECURITY_CONTEXT;
 
 function shouldLoadURI(aURI) {
@@ -137,16 +135,14 @@ function needHomepageOverride(prefb) {
   if (savedmstone == "ignore")
     return OVERRIDE_NONE;
 
-  var mstone = Components.classes["@mozilla.org/network/protocol;1?name=http"]
-                         .getService(nsIHttpProtocolHandler).misc;
+  var mstone = Services.appinfo.platformVersion;
 
   var savedBuildID = null;
   try {
     savedBuildID = prefb.getCharPref("browser.startup.homepage_override.buildID");
   } catch (e) {}
 
-  var buildID =  Components.classes["@mozilla.org/xre/app-info;1"]
-                           .getService(nsIXULAppInfo).platformBuildID;
+  var buildID = Services.appinfo.platformBuildID;
 
   if (mstone != savedmstone) {
     // Bug 462254. Previous releases had a default pref to suppress the EULA
@@ -762,10 +758,6 @@ nsDefaultCommandLineHandler.prototype = {
     return this;
   },
 
-  // List of uri's that were passed via the command line without the app
-  // running and have already been handled. This is compared against uri's
-  // opened using DDE on Win32 so we only open one of the requests.
-  _handledURIs: [ ],
 #ifdef XP_WIN
   _haveProfile: false,
 #endif
@@ -799,25 +791,8 @@ nsDefaultCommandLineHandler.prototype = {
     try {
       var ar;
       while ((ar = cmdLine.handleFlagWithParam("url", false))) {
-        var found = false;
         var uri = resolveURIInternal(cmdLine, ar);
-        // count will never be greater than zero except on Win32.
-        var count = this._handledURIs.length;
-        for (var i = 0; i < count; ++i) {
-          if (this._handledURIs[i].spec == uri.spec) {
-            this._handledURIs.splice(i, 1);
-            found = true;
-            cmdLine.preventDefault = true;
-            break;
-          }
-        }
-        if (!found) {
-          urilist.push(uri);
-          // The requestpending command line flag is only used on Win32.
-          if (cmdLine.handleFlag("requestpending", false) &&
-              cmdLine.state == nsICommandLine.STATE_INITIAL_LAUNCH)
-            this._handledURIs.push(uri)
-        }
+        urilist.push(uri);
       }
     }
     catch (e) {
@@ -902,7 +877,7 @@ let AboutHomeUtils = {
 
   loadSnippetsURL: function AHU_loadSnippetsURL()
   {
-    const STARTPAGE_VERSION = 1;
+    const STARTPAGE_VERSION = 3;
     let updateURL = Services.prefs
                             .getCharPref(this.SNIPPETS_URL_PREF)
                             .replace("%STARTPAGE_VERSION%", STARTPAGE_VERSION);

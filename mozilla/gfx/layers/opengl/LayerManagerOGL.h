@@ -80,8 +80,8 @@ class ShadowCanvasLayer;
 class ShadowColorLayer;
 
 /**
- * This is the LayerManager used for OpenGL 2.1. For now this will render on
- * the main thread.
+ * This is the LayerManager used for OpenGL 2.1 and OpenGL ES 2.0.
+ * This can be used either on the main thread or the compositor.
  */
 class THEBES_API LayerManagerOGL :
     public ShadowLayerManager
@@ -90,7 +90,8 @@ class THEBES_API LayerManagerOGL :
   typedef mozilla::gl::ShaderProgramType ProgramType;
 
 public:
-  LayerManagerOGL(nsIWidget *aWidget);
+  LayerManagerOGL(nsIWidget *aWidget, int aSurfaceWidth = -1, int aSurfaceHeight = -1,
+                  bool aIsRenderingToEGLSurface = false);
   virtual ~LayerManagerOGL();
 
   void CleanupResources();
@@ -162,8 +163,6 @@ public:
 
   virtual already_AddRefed<CanvasLayer> CreateCanvasLayer();
 
-  virtual already_AddRefed<ImageContainer> CreateImageContainer();
-
   virtual already_AddRefed<ShadowThebesLayer> CreateShadowThebesLayer();
   virtual already_AddRefed<ShadowContainerLayer> CreateShadowContainerLayer();
   virtual already_AddRefed<ShadowImageLayer> CreateShadowImageLayer();
@@ -172,16 +171,6 @@ public:
 
   virtual LayersBackend GetBackendType() { return LAYERS_OPENGL; }
   virtual void GetBackendName(nsAString& name) { name.AssignLiteral("OpenGL"); }
-
-  /**
-   * Image Container management.
-   */
-
-  /* Forget this image container.  Should be called by ImageContainerOGL
-   * on its current layer manager before switching to a new one.
-   */
-  void ForgetImageContainer(ImageContainer* aContainer);
-  void RememberImageContainer(ImageContainer* aContainer);
 
   /**
    * Helper methods.
@@ -248,9 +237,13 @@ public:
   }
 
   ColorTextureLayerProgram *GetFBOLayerProgram() {
+    return static_cast<ColorTextureLayerProgram*>(mPrograms[GetFBOLayerProgramType()]);
+  }
+
+  gl::ShaderProgramType GetFBOLayerProgramType() {
     if (mFBOTextureTarget == LOCAL_GL_TEXTURE_RECTANGLE_ARB)
-      return static_cast<ColorTextureLayerProgram*>(mPrograms[gl::RGBARectLayerProgramType]);
-    return static_cast<ColorTextureLayerProgram*>(mPrograms[gl::RGBALayerProgramType]);
+      return gl::RGBARectLayerProgramType;
+    return gl::RGBALayerProgramType;
   }
 
   GLContext *gl() const { return mGLContext; }
@@ -260,16 +253,6 @@ public:
 
   void* GetThebesLayerCallbackData() const
   { return mThebesLayerCallbackData; }
-
-  // This is a GLContext that can be used for resource
-  // management (creation, destruction).  It is guaranteed
-  // to be either the same as the gl() context, or a context
-  // that is in the same share pool.
-  GLContext *glForResources() const {
-    if (mGLContext->GetSharedContext())
-      return mGLContext->GetSharedContext();
-    return mGLContext;
-  }
 
   /*
    * Helper functions for our layers
@@ -378,14 +361,15 @@ public:
   void BindAndDrawQuadWithTextureRect(LayerProgram *aProg,
                                       const nsIntRect& aTexCoordRect,
                                       const nsIntSize& aTexSize,
-                                      GLenum aWrapMode = LOCAL_GL_REPEAT);
-                                      
+                                      GLenum aWrapMode = LOCAL_GL_REPEAT,
+                                      bool aFlipped = false);
+
 
 #ifdef MOZ_LAYERS_HAVE_LOG
   virtual const char* Name() const { return "OGL"; }
 #endif // MOZ_LAYERS_HAVE_LOG
 
-  const nsIntSize& GetWigetSize() {
+  const nsIntSize& GetWidgetSize() {
     return mWidgetSize;
   }
 
@@ -399,7 +383,7 @@ public:
    * to a window of the given dimensions.
    */
   void SetupPipeline(int aWidth, int aHeight, WorldTransforPolicy aTransformPolicy);
-  
+
   /**
    * Setup World transform matrix.
    * Transform will be ignored if it is not PreservesAxisAlignedRectangles
@@ -409,10 +393,18 @@ public:
   gfxMatrix& GetWorldTransform(void);
   void WorldTransformRect(nsIntRect& aRect);
 
+  /**
+   * Set the size of the surface we're rendering to.
+   */
+  void SetSurfaceSize(int width, int height);
+
 private:
   /** Widget associated with this layer manager */
   nsIWidget *mWidget;
   nsIntSize mWidgetSize;
+
+  /** The size of the surface we are rendering to */
+  nsIntSize mSurfaceSize;
 
   /** 
    * Context target, NULL when drawing directly to our swap chain.
@@ -422,11 +414,6 @@ private:
   nsRefPtr<GLContext> mGLContext;
 
   already_AddRefed<mozilla::gl::GLContext> CreateContext();
-
-  // The image containers that this layer manager has created.
-  // The destructor will tell the layer manager to remove
-  // it from the list.
-  nsTArray<ImageContainer*> mImageContainers;
 
   static ProgramType sLayerProgramTypes[];
 
@@ -452,6 +439,13 @@ private:
   /** Misc */
   bool mHasBGRA;
 
+  /**
+   * When rendering to an EGL surface (e.g. on Android), we rely on being told
+   * about size changes (via SetSurfaceSize) rather than pulling this information
+   * from the widget, since the widget's information can lag behind.
+   */
+  bool mIsRenderingToEGLSurface;
+
   /** Current root layer. */
   LayerOGL *RootLayer() const;
 
@@ -468,7 +462,7 @@ private:
   /**
    * Copies the content of our backbuffer to the set transaction target.
    */
-  void CopyToTarget();
+  void CopyToTarget(gfxContext *aTarget);
 
   /**
    * Updates all layer programs with a new projection matrix.

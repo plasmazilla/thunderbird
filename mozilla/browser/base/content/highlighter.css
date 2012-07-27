@@ -34,20 +34,13 @@
   direction: ltr;
 }
 
-#inspector-top-resizer {
-  display: none;
-}
-
-#inspector-toolbar[treepanel-open] > vbox > #inspector-top-resizer {
-  display: -moz-box;
-}
-
 /*
  * Node Infobar
  */
 
 #highlighter-nodeinfobar-container {
   position: absolute;
+  max-width: 95%;
 }
 
 #highlighter-nodeinfobar-container:not([disable-transitions]) {
@@ -56,19 +49,30 @@
   -moz-transition-timing-function: linear;
 }
 
-#highlighter-nodeinfobar {
-  display: block;
+#highlighter-nodeinfobar-text {
+  overflow: hidden;
   white-space: nowrap;
+  text-overflow: ellipsis;
   direction: ltr;
 }
 
-#highlighter-nodeinfobar-container[locked] > #highlighter-nodeinfobar {
+.highlighter-nodeinfobar-button > .toolbarbutton-text {
+  display: none;
+}
+
+#highlighter-nodeinfobar-container:not([locked]):not(:hover) > #highlighter-nodeinfobar > .highlighter-nodeinfobar-button {
+  visibility: hidden;
+}
+
+#highlighter-nodeinfobar-container[locked] > #highlighter-nodeinfobar,
+#highlighter-nodeinfobar-container:not([locked]):hover > #highlighter-nodeinfobar {
   pointer-events: auto;
 }
 
-#highlighter-nodeinfobar-id,
-.highlighter-nodeinfobar-class,
-#highlighter-nodeinfobar-tagname {
+html|*#highlighter-nodeinfobar-id,
+html|*#highlighter-nodeinfobar-classes,
+html|*#highlighter-nodeinfobar-pseudo-classes,
+html|*#highlighter-nodeinfobar-tagname {
   -moz-user-select: text;
   cursor: text;
 }
@@ -89,10 +93,22 @@
   visibility: hidden;
 }
 
-#highlighter-nodeinfobar-id:empty {
+html|*#highlighter-nodeinfobar-tagname {
+  text-transform: lowercase;
+}
+
+.devtools-toolbarbutton:not([label]) > .toolbarbutton-text {
   display: none;
 }
 
-#highlighter-nodeinfobar-tagname {
-  text-transform: lowercase;
+#inspector-layoutview-container > iframe {
+  -moz-transition-property: height;
+  -moz-transition-duration: 0.1s;
+  /* header size */
+  height: 22px;
+}
+
+#inspector-layoutview-container > iframe[open] {
+  /* header size + layout view size: 22px + 155px */
+  height: 177px;
 }

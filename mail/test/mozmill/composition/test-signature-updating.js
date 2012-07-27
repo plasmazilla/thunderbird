@@ -95,22 +95,41 @@ function plaintextComposeWindowSwitchSignatures(suppressSigSep) {
   prefBranch.setBoolPref("mail.identity.id2.suppress_signature_separator",
                          suppressSigSep);
 
+  let contentFrame = cwc.e("content-frame");
+  let mailBody = contentFrame.contentDocument.body;
+
+  // The first node in the body should be a BR node, which allows the user
+  // to insert text before / outside of the signature.
+  assert_equals(mailBody.firstChild.localName, "br");
+
   setupComposeWin("", "Plaintext compose window", "Body, first line.");
 
-  let contentFrame = cwc.e("content-frame");
-  let node = contentFrame.contentDocument.body.lastChild;
+  let node = mailBody.lastChild;
 
-  // In plaintext compose, the signature is followed by two <br> elements.
+  // The last node is a BR - this allows users to put text after the
+  // signature without it being styled like the signature.
   assert_equals(node.localName, "br");
   node = node.previousSibling;
-  assert_equals(node.localName, "br");
-  node = node.previousSibling;
-  assert_equals(node.nodeValue, "Tinderbox is soo 90ies");
+
+  // Now we should have the DIV node that contains the signature, with
+  // the class moz-signature.
+  assert_equals(node.localName, "div");
+
+  const kSeparator = "-- ";
+  const kSigClass = "moz-signature";
+  assert_equals(node.className, kSigClass);
+
+  let sigNode = node.firstChild;
+
   if (!suppressSigSep) {
-    // a <br> element, then the next text node
-    node = node.previousSibling.previousSibling;
-    assert_equals(node.nodeValue, "-- ");
+    assert_equals(sigNode.textContent, kSeparator);
+    let brNode = sigNode.nextSibling;
+    assert_equals(brNode.localName, "br");
+    sigNode = brNode.nextSibling;
   }
+
+  let expectedText = "Tinderbox is soo 90ies";
+  assert_equals(sigNode.textContent, expectedText);
 
   // Now switch identities!
   let menuID = cwc.e("msgIdentity");
@@ -119,27 +138,38 @@ function plaintextComposeWindowSwitchSignatures(suppressSigSep) {
 
   node = contentFrame.contentDocument.body.lastChild;
 
-  // In plaintext compose, the signature is followed by two <br> elements.
+  // The last node is a BR - this allows users to put text after the
+  // signature without it being styled like the signature.
   assert_equals(node.localName, "br");
   node = node.previousSibling;
-  assert_equals(node.localName, "br");
-  node = node.previousSibling;
-  assert_equals(node.nodeValue, "Tinderboxpushlog is the new *hotness!*");
+
+  assert_equals(node.localName, "div");
+  assert_equals(node.className, kSigClass);
+
+  sigNode = node.firstChild;
+
   if (!suppressSigSep) {
-    // a <br> element, then the next text node
-    node = node.previousSibling.previousSibling;
-    assert_equals(node.nodeValue, "-- ");
+    expectedText = "-- ";
+    assert_equals(sigNode.textContent, kSeparator);
+    let brNode = sigNode.nextSibling;
+    assert_equals(brNode.localName, "br");
+    sigNode = brNode.nextSibling;
   }
 
-  // Now check that the original signature has been removed!
+  expectedText = "Tinderboxpushlog is the new *hotness!*";
+  assert_equals(sigNode.textContent, expectedText);
+
+  // Now check that the original signature has been removed by ensuring
+  // that there's only one node with class moz-signature.
+  let sigs = contentFrame.contentDocument.querySelectorAll("." + kSigClass);
+  assert_equals(sigs.length, 1);
+
+  // And ensure that the text we wrote wasn't altered
   let bodyFirstChild =  contentFrame.contentDocument.body.firstChild;
-  while (node != bodyFirstChild) {
+
+  while (node != bodyFirstChild)
     node = node.previousSibling;
-    if (node) {
-      assert_not_equals(node.nodeValue, "Tinderbox is soo 90ies");
-      assert_not_equals(node.nodeValue, "-- ");
-    }
-  }
+
   assert_equals(node.nodeValue, "Body, first line.");
 
   composeHelper.close_compose_window(cwc);

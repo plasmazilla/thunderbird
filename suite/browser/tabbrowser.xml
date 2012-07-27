@@ -136,7 +136,7 @@
       </field>
       <field name="mPrefs" readonly="true">
         Components.classes['@mozilla.org/preferences-service;1']
-                  .getService(Components.interfaces.nsIPrefBranch2);
+                  .getService(Components.interfaces.nsIPrefBranch);
       </field>
       <field name="mURIFixup" readonly="true">
         Components.classes["@mozilla.org/docshell/urifixup;1"]
@@ -145,6 +145,10 @@
       <field name="mFaviconService" readonly="true">
         Components.classes["@mozilla.org/browser/favicon-service;1"]
                   .getService(Components.interfaces.nsIFaviconService);
+      </field>
+      <field name="mIOService" readonly="true">
+        Components.classes["@mozilla.org/network/io-service;1"]
+                  .getService(Components.interfaces.nsIIOService);
       </field>
       <field name="mTabBox" readonly="true">
         document.getAnonymousElementByAttribute(this, "anonid", "tabbox");
@@ -542,6 +546,8 @@
                 }
                 else if (this.mTabBrowser.shouldLoadFavIcon(location))
                   this.mTabBrowser.loadFavIcon(location, "image", this.mTab);
+                else
+                  this.mTab.removeAttribute("image");
 
                 if (this.mTab.label == this.mTabBrowser.mStringBundle.getString("tabs.loading"))
                   this.mTabBrowser.setTabTitle(this.mTab);
@@ -724,12 +730,12 @@
           <![CDATA[
             var browser = aTab.linkedBrowser;
             if (!(aURI instanceof Components.interfaces.nsIURI))
-              aURI = Services.io.newURI(aURI, null, null);
+              aURI = this.mIOService.newURI(aURI, null, null);
             browser.mIconURL = aURI.spec;
 
             if (aURI && this.mFaviconService) {
-              this.mFaviconService.setAndLoadFaviconForPage(browser.currentURI,
-                                                            aURI, false);
+              this.mFaviconService.setAndFetchFaviconForPage(browser.currentURI,
+                                                             aURI, false);
             }
 
             this.updateIcon(aTab);
@@ -800,8 +806,8 @@
           <![CDATA[
             var iconURL = this.buildFavIconString(aURI);
             if (this.mFaviconService) {
-              let uri = Services.io.newURI(iconURL, null, null);
-              this.mFaviconService.setAndLoadFaviconForPage(aURI, uri, false);
+              let uri = this.mIOService.newURI(iconURL, null, null);
+              this.mFaviconService.setAndFetchFaviconForPage(aURI, uri, false);
             }
             var entry = this.openCacheEntry(iconURL, Components.interfaces.nsICache.ACCESS_READ);
             if (!entry)
@@ -962,6 +968,7 @@
             } catch (e) {
             }
 
+            document.title = newTitle;
             window.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
                   .getInterface(Components.interfaces.nsIWebNavigation)
                   .QueryInterface(Components.interfaces.nsIBaseWindow).title = newTitle;
@@ -985,7 +992,9 @@
 
             var undoItem = document.getAnonymousElementByAttribute(this, "tbattr", "tabbrowser-undoclosetab");
             undoItem.setAttribute("disabled", this.mSessionStore.getClosedTabCount(window) == 0);
-            undoItem.hidden = this.mPrefs.getIntPref("browser.tabs.max_tabs_undo") <= 0 && this.mPrefs.getIntPref("browser.sessionstore.max_tabs_undo") <= 0;
+            undoItem.hidden = this.mPrefs.getIntPref("browser.tabs.max_tabs_undo") <= 0 &&
+                              this.mPrefs.getIntPref("browser.sessionstore.max_tabs_undo") <= 0;
+            return true;
           ]]>
         </body>
       </method>
@@ -1050,7 +1059,7 @@
                                          tabListener.mMessage],
                                         true, false);
 
-            this._callProgressListeners(this.mBrowser, "onProgressChange",
+            this._callProgressListeners(null, "onProgressChange",
                                         [this.mCurrentBrowser.webProgress,
                                          tabListener.mRequest,
                                          tabListener.mCurProgress,
@@ -1062,7 +1071,7 @@
             // Also send the onUpdateCurrentBrowser event for compatibility
             var progress = tabListener.mMaxProgress > 0 ?
                 tabListener.mCurProgress / tabListener.mMaxProgress : 0;
-            this._callProgressListeners(this.mBrowser, "onUpdateCurrentBrowser",
+            this._callProgressListeners(null, "onUpdateCurrentBrowser",
                                         [tabListener.mStateFlags,
                                          tabListener.mStatus,
                                          tabListener.mMessage,
@@ -1133,7 +1142,7 @@
 
               const targetDoc = event.target.ownerDocument;
               // Make a URI out of our href.
-              var uri = Services.io.newURI(href, targetDoc.characterSet, null);
+              var uri = this.mIOService.newURI(href, targetDoc.characterSet, null);
 
               // Verify that the load of this icon is legal.
               // error pages can load their favicon, to be on the safe side,
@@ -1186,7 +1195,7 @@
                 return; // Refuse to load if we can't do a security check.
               }
 
-              var origURI = Services.io.newURI(targetDoc.documentURI,
+              var origURI = this.mIOService.newURI(targetDoc.documentURI,
                                                targetDoc.characterSet, null);
               if (contentPolicy.shouldLoad(nsIContentPolicy.TYPE_IMAGE,
                                            uri, origURI, event.target,
@@ -1566,8 +1575,8 @@
         <parameter name="aIndex"/>
         <body>
           <![CDATA[
-            if (this.mSessionStore.getClosedTabCount(window))
-              return this.mSessionStore.undoCloseTab(window, aIndex);
+            return this.mSessionStore.getClosedTabCount(window) ?
+                     this.mSessionStore.undoCloseTab(window, aIndex) : null;
           ]]>
         </body>
       </method>
@@ -2337,7 +2346,7 @@
           ]]>
         </body>
       </method>
-      
+
       <method name="moveTabToEnd">
         <body>
           <![CDATA[
@@ -2349,7 +2358,7 @@
           ]]>
         </body>
       </method>
-      
+
       <field name="backBrowserGroup">
         []
       </field>
@@ -2952,7 +2961,7 @@
 
       <field name="mPrefs" readonly="true">
         Components.classes["@mozilla.org/preferences-service;1"]
-                  .getService(Components.interfaces.nsIPrefBranch2);
+                  .getService(Components.interfaces.nsIPrefBranch);
       </field>
 
       <field name="mTabstripWidth">0</field>

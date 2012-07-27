@@ -171,6 +171,7 @@ public:
   void MaybeLoadImage();
   virtual nsXPCClassInfo* GetClassInfo();
 protected:
+  nsIntPoint GetXY();
   nsSize GetWidthHeight();
 };
 
@@ -277,6 +278,42 @@ nsHTMLImageElement::GetComplete(bool* aComplete)
   return NS_OK;
 }
 
+nsIntPoint
+nsHTMLImageElement::GetXY()
+{
+  nsIntPoint point(0, 0);
+
+  nsIFrame* frame = GetPrimaryFrame(Flush_Layout);
+
+  if (!frame) {
+    return point;
+  }
+
+  nsIFrame* layer = nsLayoutUtils::GetClosestLayer(frame->GetParent());
+  nsPoint origin(frame->GetOffsetTo(layer));
+  // Convert to pixels using that scale
+  point.x = nsPresContext::AppUnitsToIntCSSPixels(origin.x);
+  point.y = nsPresContext::AppUnitsToIntCSSPixels(origin.y);
+
+  return point;
+}
+
+NS_IMETHODIMP
+nsHTMLImageElement::GetX(PRInt32* aX)
+{
+  *aX = GetXY().x;
+
+  return NS_OK;
+}
+
+NS_IMETHODIMP
+nsHTMLImageElement::GetY(PRInt32* aY)
+{
+  *aY = GetXY().y;
+
+  return NS_OK;
+}
+
 nsSize
 nsHTMLImageElement::GetWidthHeight()
 {
@@ -363,10 +400,8 @@ nsHTMLImageElement::ParseAttribute(PRInt32 aNamespaceID,
       return ParseAlignValue(aValue, aResult);
     }
     if (aAttribute == nsGkAtoms::crossorigin) {
-      return aResult.ParseEnumValue(aValue, nsGenericHTMLElement::kCORSAttributeTable, false,
-                                    // default value is anonymous if aValue is
-                                    // not a value we understand
-                                    &nsGenericHTMLElement::kCORSAttributeTable[0]);
+      ParseCORSValue(aValue, aResult);
+      return true;
     }
     if (ParseImageAttribute(aAttribute, aValue, aResult)) {
       return true;
@@ -662,17 +697,8 @@ nsHTMLImageElement::CopyInnerTo(nsGenericElement* aDest) const
   return nsGenericHTMLElement::CopyInnerTo(aDest);
 }
 
-nsGenericHTMLElement::CORSMode
+CORSMode
 nsHTMLImageElement::GetCORSMode()
 {
-  nsGenericHTMLElement::CORSMode ret = nsGenericHTMLElement::CORS_NONE;
-
-  const nsAttrValue* value = GetParsedAttr(nsGkAtoms::crossorigin);
-  if (value) {
-    NS_ASSERTION(value->Type() == nsAttrValue::eEnum,
-                 "Why is this not an enum value?");
-    ret = nsGenericHTMLElement::CORSMode(value->GetEnumValue());
-  }
-
-  return ret;
+  return AttrValueToCORSMode(GetParsedAttr(nsGkAtoms::crossorigin));
 }

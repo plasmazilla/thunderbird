@@ -54,10 +54,10 @@ using namespace js;
  */
 
 static void
-resc_finalize(JSContext *cx, JSObject *obj)
+resc_finalize(FreeOp *fop, JSObject *obj)
 {
     RegExpStatics *res = static_cast<RegExpStatics *>(obj->getPrivate());
-    cx->delete_(res);
+    fop->delete_(res);
 }
 
 static void
@@ -69,9 +69,9 @@ resc_trace(JSTracer *trc, JSObject *obj)
     res->mark(trc);
 }
 
-static Class regexp_statics_class = {
+Class js::RegExpStaticsClass = {
     "RegExpStatics",
-    JSCLASS_HAS_PRIVATE,
+    JSCLASS_HAS_PRIVATE | JSCLASS_IMPLEMENTS_BARRIERS,
     JS_PropertyStub,         /* addProperty */
     JS_PropertyStub,         /* delProperty */
     JS_PropertyStub,         /* getProperty */
@@ -80,11 +80,9 @@ static Class regexp_statics_class = {
     JS_ResolveStub,
     JS_ConvertStub,
     resc_finalize,
-    NULL,                    /* reserved0   */
     NULL,                    /* checkAccess */
     NULL,                    /* call        */
     NULL,                    /* construct   */
-    NULL,                    /* xdrObject   */
     NULL,                    /* hasInstance */
     resc_trace
 };
@@ -92,7 +90,7 @@ static Class regexp_statics_class = {
 JSObject *
 RegExpStatics::create(JSContext *cx, GlobalObject *parent)
 {
-    JSObject *obj = NewObjectWithGivenProto(cx, &regexp_statics_class, NULL, parent);
+    JSObject *obj = NewObjectWithGivenProto(cx, &RegExpStaticsClass, NULL, parent);
     if (!obj)
         return NULL;
     RegExpStatics *res = cx->new_<RegExpStatics>();

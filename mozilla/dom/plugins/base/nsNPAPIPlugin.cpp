@@ -36,10 +36,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#ifdef MOZ_WIDGET_QT
-#include <QX11Info>
-#endif
-
 #include "base/basictypes.h"
 
 /* This must occur *after* layers/PLayers.h to avoid typedefs conflicts. */
@@ -59,12 +55,11 @@
 #include "nsIServiceManager.h"
 #include "nsThreadUtils.h"
 #include "nsIPrivateBrowsingService.h"
+#include "mozilla/Preferences.h"
 
 #include "nsIPluginStreamListener.h"
 #include "nsPluginsDir.h"
 #include "nsPluginSafety.h"
-#include "nsIPrefService.h"
-#include "nsIPrefBranch.h"
 #include "nsPluginLogging.h"
 
 #include "nsIJSContextStack.h"
@@ -200,7 +195,10 @@ static NPNetscapeFuncs sBrowserFuncs = {
   _convertpoint,
   NULL, // handleevent, unimplemented
   NULL, // unfocusinstance, unimplemented
-  _urlredirectresponse
+  _urlredirectresponse,
+  _initasyncsurface,
+  _finalizeasyncsurface,
+  _setcurrentasyncsurface
 };
 
 static Mutex *sPluginThreadAsyncCallLock = nsnull;
@@ -314,6 +312,20 @@ static bool GMA9XXGraphics()
 }
 #endif
 
+#ifdef XP_WIN
+static bool
+IsVistaOrLater()
+{
+  OSVERSIONINFO info;
+
+  ZeroMemory(&info, sizeof(OSVERSIONINFO));
+  info.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+  GetVersionEx(&info);
+
+  return info.dwMajorVersion >= 6;
+}
+#endif
+
 bool
 nsNPAPIPlugin::RunPluginOOP(const nsPluginTag *aPluginTag)
 {
@@ -324,6 +336,14 @@ nsNPAPIPlugin::RunPluginOOP(const nsPluginTag *aPluginTag)
   if (!aPluginTag) {
     return false;
   }
+
+#ifdef XP_WIN
+  // On Windows Vista+, we force Flash to run in OOPP mode because Adobe
+  // doesn't test Flash in-process and there are known stability bugs.
+  if (aPluginTag->mIsFlashPlugin && IsVistaOrLater()) {
+    return true;
+  }
+#endif
 
 #if defined(XP_MACOSX) && defined(__i386__)
   // Only allow on Mac OS X 10.6 or higher.
@@ -353,17 +373,7 @@ nsNPAPIPlugin::RunPluginOOP(const nsPluginTag *aPluginTag)
   }
 #endif
 
-#ifdef XP_WIN
-  OSVERSIONINFO osVerInfo = {0};
-  osVerInfo.dwOSVersionInfoSize = sizeof(osVerInfo);
-  GetVersionEx(&osVerInfo);
-  // Always disabled on 2K or less. (bug 536303)
-  if (osVerInfo.dwMajorVersion < 5 ||
-      (osVerInfo.dwMajorVersion == 5 && osVerInfo.dwMinorVersion == 0))
-    return false;
-#endif
-
-  nsCOMPtr<nsIPrefBranch> prefs = do_GetService(NS_PREFSERVICE_CONTRACTID);
+  nsIPrefBranch* prefs = Preferences::GetRootBranch();
   if (!prefs) {
     return false;
   }
@@ -394,10 +404,8 @@ nsNPAPIPlugin::RunPluginOOP(const nsPluginTag *aPluginTag)
 
   // Java plugins include a number of different file names,
   // so use the mime type (mIsJavaPlugin) and a special pref.
-  bool javaIsEnabled;
   if (aPluginTag->mIsJavaPlugin &&
-      NS_SUCCEEDED(prefs->GetBoolPref("dom.ipc.plugins.java.enabled", &javaIsEnabled)) &&
-      !javaIsEnabled) {
+      !Preferences::GetBool("dom.ipc.plugins.java.enabled", true)) {
     return false;
   }
 
@@ -428,8 +436,8 @@ nsNPAPIPlugin::RunPluginOOP(const nsPluginTag *aPluginTag)
         match = (NS_WildCardMatch(prefFile.get(), maskStart, 0) == MATCH);
       }
 
-      if (match && NS_SUCCEEDED(prefs->GetBoolPref(prefNames[currentPref],
-                                                   &oopPluginsEnabled))) {
+      if (match && NS_SUCCEEDED(Preferences::GetBool(prefNames[currentPref],
+                                                     &oopPluginsEnabled))) {
         prefSet = true;
         break;
       }
@@ -438,17 +446,17 @@ nsNPAPIPlugin::RunPluginOOP(const nsPluginTag *aPluginTag)
   }
 
   if (!prefSet) {
-    oopPluginsEnabled = false;
+    oopPluginsEnabled =
 #ifdef XP_MACOSX
 #if defined(__i386__)
-    prefs->GetBoolPref("dom.ipc.plugins.enabled.i386", &oopPluginsEnabled);
+    Preferences::GetBool("dom.ipc.plugins.enabled.i386", false);
 #elif defined(__x86_64__)
-    prefs->GetBoolPref("dom.ipc.plugins.enabled.x86_64", &oopPluginsEnabled);
+    Preferences::GetBool("dom.ipc.plugins.enabled.x86_64", false);
 #elif defined(__ppc__)
-    prefs->GetBoolPref("dom.ipc.plugins.enabled.ppc", &oopPluginsEnabled);
+    Preferences::GetBool("dom.ipc.plugins.enabled.ppc", false);
 #endif
 #else
-    prefs->GetBoolPref("dom.ipc.plugins.enabled", &oopPluginsEnabled);
+    Preferences::GetBool("dom.ipc.plugins.enabled", false);
 #endif
   }
 
@@ -549,23 +557,6 @@ NPPluginFuncs*
 nsNPAPIPlugin::PluginFuncs()
 {
   return &mPluginFuncs;
-}
-
-nsresult
-nsNPAPIPlugin::CreatePluginInstance(nsNPAPIPluginInstance **aResult)
-{
-  if (!aResult)
-    return NS_ERROR_NULL_POINTER;
-
-  *aResult = NULL;
-
-  nsRefPtr<nsNPAPIPluginInstance> inst = new nsNPAPIPluginInstance(this);
-  if (!inst)
-    return NS_ERROR_OUT_OF_MEMORY;
-
-  *aResult = inst;
-  NS_ADDREF(*aResult);
-  return NS_OK;
 }
 
 nsresult
@@ -688,7 +679,7 @@ protected:
 
 public:
   nsNPAPIStreamWrapper(nsIOutputStream* stream);
-  ~nsNPAPIStreamWrapper();
+  virtual ~nsNPAPIStreamWrapper();
 
   void GetStream(nsIOutputStream* &result);
   NPStream* GetNPStream() { return &fNPStream; }
@@ -1308,22 +1299,6 @@ _invalidateregion(NPP npp, NPRegion invalidRegion)
 void NP_CALLBACK
 _forceredraw(NPP npp)
 {
-  if (!NS_IsMainThread()) {
-    NPN_PLUGIN_LOG(PLUGIN_LOG_ALWAYS,("NPN_forceredraw called from the wrong thread\n"));
-    return;
-  }
-  NPN_PLUGIN_LOG(PLUGIN_LOG_NORMAL, ("NPN_ForceDraw: npp=%p\n", (void*)npp));
-
-  if (!npp || !npp->ndata) {
-    NS_WARNING("_forceredraw: npp or npp->ndata == 0");
-    return;
-  }
-
-  nsNPAPIPluginInstance *inst = (nsNPAPIPluginInstance*)npp->ndata;
-
-  PluginDestructionGuard guard(inst);
-
-  inst->ForceRedraw();
 }
 
 NPObject* NP_CALLBACK
@@ -2043,15 +2018,22 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
       nsNPAPIPluginInstance *inst = (nsNPAPIPluginInstance *) npp->ndata;
       bool windowless = false;
       inst->IsWindowless(&windowless);
-      NPBool needXEmbed = false;
+      // The documentation on the types for many variables in NP(N|P)_GetValue
+      // is vague.  Often boolean values are NPBool (1 byte), but
+      // https://developer.mozilla.org/en/XEmbed_Extension_for_Mozilla_Plugins
+      // treats NPPVpluginNeedsXEmbed as PRBool (int), and
+      // on x86/32-bit, flash stores to this using |movl 0x1,&needsXEmbed|.
+      // thus we can't use NPBool for needsXEmbed, or the three bytes above
+      // it on the stack would get clobbered. so protect with the larger bool.
+      int needsXEmbed = 0;
       if (!windowless) {
-        res = inst->GetValueFromPlugin(NPPVpluginNeedsXEmbed, &needXEmbed);
+        res = inst->GetValueFromPlugin(NPPVpluginNeedsXEmbed, &needsXEmbed);
         // If the call returned an error code make sure we still use our default value.
         if (NS_FAILED(res)) {
-          needXEmbed = false;
+          needsXEmbed = 0;
         }
       }
-      if (windowless || needXEmbed) {
+      if (windowless || needsXEmbed) {
         (*(Display **)result) = mozilla::DefaultXDisplay();
         return NPERR_NO_ERROR;
       }
@@ -2098,12 +2080,10 @@ _getvalue(NPP npp, NPNVariable variable, void *result)
 
   case NPNVjavascriptEnabledBool: {
     *(NPBool*)result = false;
-    nsCOMPtr<nsIPrefBranch> prefs(do_GetService(NS_PREFSERVICE_CONTRACTID));
-    if (prefs) {
-      bool js = false;;
-      res = prefs->GetBoolPref("javascript.enabled", &js);
-      if (NS_SUCCEEDED(res))
-        *(NPBool*)result = js;
+    bool js = false;
+    res = Preferences::GetBool("javascript.enabled", &js);
+    if (NS_SUCCEEDED(res)) {
+      *(NPBool*)result = js;
     }
     return NPERR_NO_ERROR;
   }
@@ -2551,7 +2531,8 @@ _setvalue(NPP npp, NPPVariable variable, void *result)
       return inst->SetUsesDOMForCursor(useDOMForCursor);
     }
 
-#ifdef XP_MACOSX
+#ifndef MOZ_WIDGET_ANDROID
+    // On android, their 'drawing model' uses the same constant!
     case NPPVpluginDrawingModel: {
       if (inst) {
         inst->SetDrawingModel((NPDrawingModel)NS_PTR_TO_INT32(result));
@@ -2561,7 +2542,9 @@ _setvalue(NPP npp, NPPVariable variable, void *result)
         return NPERR_GENERIC_ERROR;
       }
     }
+#endif
 
+#ifdef XP_MACOSX
     case NPPVpluginEventModel: {
       if (inst) {
         inst->SetEventModel((NPEventModel)NS_PTR_TO_INT32(result));
@@ -2907,6 +2890,36 @@ _popupcontextmenu(NPP instance, NPMenu* menu)
     return NPERR_GENERIC_ERROR;
 
   return inst->PopUpContextMenu(menu);
+}
+
+NPError NP_CALLBACK
+_initasyncsurface(NPP instance, NPSize *size, NPImageFormat format, void *initData, NPAsyncSurface *surface)
+{
+  nsNPAPIPluginInstance *inst = (nsNPAPIPluginInstance *)instance->ndata;
+  if (!inst)
+    return NPERR_GENERIC_ERROR;
+
+  return inst->InitAsyncSurface(size, format, initData, surface);
+}
+
+NPError NP_CALLBACK
+_finalizeasyncsurface(NPP instance, NPAsyncSurface *surface)
+{
+  nsNPAPIPluginInstance *inst = (nsNPAPIPluginInstance *)instance->ndata;
+  if (!inst)
+    return NPERR_GENERIC_ERROR;
+
+  return inst->FinalizeAsyncSurface(surface);
+}
+
+void NP_CALLBACK
+_setcurrentasyncsurface(NPP instance, NPAsyncSurface *surface, NPRect *changed)
+{
+  nsNPAPIPluginInstance *inst = (nsNPAPIPluginInstance *)instance->ndata;
+  if (!inst)
+    return;
+
+  inst->SetCurrentAsyncSurface(surface, changed);
 }
 
 NPBool NP_CALLBACK

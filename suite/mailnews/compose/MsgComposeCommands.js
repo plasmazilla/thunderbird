@@ -1519,7 +1519,7 @@ function ComposeLoad()
   // been moved to toolkit interfaces.
   sPrefs = Components.classes["@mozilla.org/preferences-service;1"]
                      .getService(Components.interfaces.nsIPrefService)
-                     .QueryInterface(Components.interfaces.nsIPrefBranch2);
+                     .QueryInterface(Components.interfaces.nsIPrefBranch);
   sPrefBranchInternal = sPrefs;
 
   var otherHeaders = getPref("mail.compose.other.header");

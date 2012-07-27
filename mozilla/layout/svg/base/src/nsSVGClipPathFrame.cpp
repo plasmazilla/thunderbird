@@ -34,15 +34,17 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#include "nsIDOMDocument.h"
-#include "nsIDocument.h"
-#include "nsIDOMSVGClipPathElement.h"
+// Main header first:
 #include "nsSVGClipPathFrame.h"
-#include "nsGkAtoms.h"
-#include "nsSVGUtils.h"
-#include "nsSVGEffects.h"
-#include "nsSVGClipPathElement.h"
+
+// Keep others in (case-insensitive) order:
 #include "gfxContext.h"
+#include "nsGkAtoms.h"
+#include "nsIDOMSVGClipPathElement.h"
+#include "nsRenderingContext.h"
+#include "nsSVGClipPathElement.h"
+#include "nsSVGEffects.h"
+#include "nsSVGUtils.h"
 
 //----------------------------------------------------------------------
 // Implementation
@@ -56,7 +58,7 @@ NS_NewSVGClipPathFrame(nsIPresShell* aPresShell, nsStyleContext* aContext)
 NS_IMPL_FRAMEARENA_HELPERS(nsSVGClipPathFrame)
 
 nsresult
-nsSVGClipPathFrame::ClipPaint(nsSVGRenderState* aContext,
+nsSVGClipPathFrame::ClipPaint(nsRenderingContext* aContext,
                               nsIFrame* aParent,
                               const gfxMatrix &aMatrix)
 {
@@ -78,12 +80,11 @@ nsSVGClipPathFrame::ClipPaint(nsSVGRenderState* aContext,
 
   bool isTrivial = IsTrivial();
 
-  nsAutoSVGRenderMode mode(aContext,
-                           isTrivial ? nsSVGRenderState::CLIP
-                                     : nsSVGRenderState::CLIP_MASK);
+  SVGAutoRenderState mode(aContext,
+                          isTrivial ? SVGAutoRenderState::CLIP
+                                    : SVGAutoRenderState::CLIP_MASK);
 
-
-  gfxContext *gfx = aContext->GetGfxContext();
+  gfxContext *gfx = aContext->ThebesContext();
 
   nsSVGClipPathFrame *clipPathFrame =
     nsSVGEffects::GetEffectProperties(this).GetClipPathFrame(nsnull);
@@ -103,8 +104,9 @@ nsSVGClipPathFrame::ClipPaint(nsSVGRenderState* aContext,
     nsISVGChildFrame* SVGFrame = do_QueryFrame(kid);
     if (SVGFrame) {
       // The CTM of each frame referencing us can be different.
-      SVGFrame->NotifySVGChanged(nsISVGChildFrame::SUPPRESS_INVALIDATION | 
-                                 nsISVGChildFrame::TRANSFORM_CHANGED);
+      SVGFrame->NotifySVGChanged(
+                          nsISVGChildFrame::DO_NOT_NOTIFY_RENDERING_OBSERVERS | 
+                          nsISVGChildFrame::TRANSFORM_CHANGED);
 
       bool isOK = true;
       nsSVGClipPathFrame *clipPathFrame =
@@ -327,8 +329,8 @@ nsSVGClipPathFrame::GetCanvasTM()
   nsSVGClipPathElement *content = static_cast<nsSVGClipPathElement*>(mContent);
 
   gfxMatrix tm =
-    content->PrependLocalTransformTo(mClipParentMatrix ?
-                                     *mClipParentMatrix : gfxMatrix());
+    content->PrependLocalTransformsTo(mClipParentMatrix ?
+                                      *mClipParentMatrix : gfxMatrix());
 
   return nsSVGUtils::AdjustMatrixForUnits(tm,
                                           &content->mEnumAttributes[nsSVGClipPathElement::CLIPPATHUNITS],

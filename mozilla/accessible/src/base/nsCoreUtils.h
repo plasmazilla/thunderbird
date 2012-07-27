@@ -181,17 +181,18 @@ public:
    * @param aStartOffset  an offset inside the start node
    * @param aEndNode      end node of a range
    * @param aEndOffset    an offset inside the end node
-   * @param aVPercent     how to align vertically, specified in percents
-   * @param aHPercent     how to align horizontally, specified in percents
+   * @param aVertical     how to align vertically, specified in percents, and when.
+   * @param aHorizontal     how to align horizontally, specified in percents, and when.
    */
   static nsresult ScrollSubstringTo(nsIFrame *aFrame,
                                     nsIDOMNode *aStartNode, PRInt32 aStartIndex,
                                     nsIDOMNode *aEndNode, PRInt32 aEndIndex,
-                                    PRInt16 aVPercent, PRInt16 aHPercent);
+                                    nsIPresShell::ScrollAxis aVertical,
+                                    nsIPresShell::ScrollAxis aHorizontal);
 
   /**
    * Scrolls the given frame to the point, used for implememntation of
-   * nsIAccessNode::scrollToPoint and nsIAccessibleText::scrollSubstringToPoint.
+   * nsIAccessible::scrollToPoint and nsIAccessibleText::scrollSubstringToPoint.
    *
    * @param aScrollableFrame  the scrollable frame
    * @param aFrame            the frame to scroll
@@ -202,11 +203,11 @@ public:
 
   /**
    * Converts scroll type constant defined in nsIAccessibleScrollType to
-   * vertical and horizontal percents.
+   * vertical and horizontal parameters.
    */
   static void ConvertScrollTypeToPercents(PRUint32 aScrollType,
-                                          PRInt16 *aVPercent,
-                                          PRInt16 *aHPercent);
+                                          nsIPresShell::ScrollAxis *aVertical,
+                                          nsIPresShell::ScrollAxis *aHorizontal);
 
   /**
    * Returns coordinates relative screen for the top level window.
@@ -242,25 +243,11 @@ public:
   static bool IsErrorPage(nsIDocument *aDocument);
 
   /**
-   * Retrun true if the type of given frame equals to the given frame type.
-   *
-   * @param aFrame  the frame
-   * @param aAtom   the frame type
-   */
-  static bool IsCorrectFrameType(nsIFrame* aFrame, nsIAtom* aAtom);
-
-  /**
    * Return presShell for the document containing the given DOM node.
    */
   static nsIPresShell *GetPresShellFor(nsINode *aNode)
   {
     return aNode->OwnerDoc()->GetShell();
-  }
-  static already_AddRefed<nsIWeakReference> GetWeakShellFor(nsINode *aNode)
-  {
-    nsCOMPtr<nsIWeakReference> weakShell =
-      do_GetWeakReference(GetPresShellFor(aNode));
-    return weakShell.forget();
   }
 
   /**
@@ -301,13 +288,6 @@ public:
    */
   static void GetLanguageFor(nsIContent *aContent, nsIContent *aRootContent,
                              nsAString& aLanguage);
-
-  /**
-   * Return computed styles declaration for the given node.
-   */
-  static already_AddRefed<nsIDOMCSSStyleDeclaration>
-    GetComputedStyleDeclaration(const nsAString& aPseudoElt,
-                                nsIContent *aContent);
 
   /**
    * Return box object for XUL treechildren element by tree box object.
@@ -354,6 +334,12 @@ public:
    * Return true if the given column is hidden (i.e. not sensible).
    */
   static bool IsColumnHidden(nsITreeColumn *aColumn);
+
+  /**
+   * Scroll content into view.
+   */
+  static void ScrollTo(nsIPresShell* aPresShell, nsIContent* aContent,
+                       PRUint32 aScrollType);
 
   /**
    * Return true if the given node is table header element.

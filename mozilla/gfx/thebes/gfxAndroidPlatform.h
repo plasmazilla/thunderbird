@@ -68,7 +68,7 @@ public:
     
     virtual bool SupportsAzure(mozilla::gfx::BackendType& aBackend) { aBackend = mozilla::gfx::BACKEND_SKIA; return true; }
 
-    virtual gfxImageFormat GetOffscreenFormat() { return gfxASurface::ImageFormatRGB16_565; }
+    virtual gfxImageFormat GetOffscreenFormat() { return mOffscreenFormat; }
     
     mozilla::RefPtr<mozilla::gfx::ScaledFont>
       GetScaledFontForFont(gfxFont *aFont);
@@ -99,7 +99,15 @@ public:
                                           const gfxFontStyle *aStyle,
                                           gfxUserFontSet* aUserFontSet);
 
+    virtual bool FontHintingEnabled() MOZ_OVERRIDE;
+
     FT_Library GetFTLibrary();
+
+    virtual int GetScreenDepth() const;
+
+private:
+    int mScreenDepth;
+    gfxImageFormat mOffscreenFormat;
 };
 
 #endif /* GFX_PLATFORM_ANDROID_H */

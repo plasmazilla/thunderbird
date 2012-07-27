@@ -475,10 +475,11 @@ int do_relocation_section(Elf *elf, unsigned int rel_type, unsigned int rel_type
     relhack_entry.r_offset = relhack_entry.r_info = 0;
     relhack->push_back(relhack_entry);
 
-    relhackcode->insertAfter(section);
+    unsigned int old_end = section->getOffset() + section->getSize();
+
+    relhackcode->insertBefore(section);
     relhack->insertAfter(relhackcode);
 
-    unsigned int old_end = section->getOffset() + section->getSize();
     section->rels.assign(new_rels.begin(), new_rels.end());
     section->shrink(new_rels.size() * section->getEntSize());
     ElfLocation *init = new ElfLocation(relhackcode, relhackcode->getEntryPoint());
@@ -487,7 +488,7 @@ int do_relocation_section(Elf *elf, unsigned int rel_type, unsigned int rel_type
     if (dyn->getValueForType(Rel_Type::d_tag_count))
         dyn->setValueForType(Rel_Type::d_tag_count, new ElfPlainValue(0));
 
-    if (relhack->getOffset() + relhack->getSize() >= old_end) {
+    if (section->getOffset() + section->getSize() >= old_end) {
         fprintf(stderr, "No gain. Skipping\n");
         return -1;
     }
@@ -501,12 +502,17 @@ static inline int backup_file(const char *name)
     return rename(name, fname.c_str());
 }
 
-void do_file(const char *name, bool backup = false)
+void do_file(const char *name, bool backup = false, bool force = false)
 {
     std::ifstream file(name, std::ios::in|std::ios::binary);
     Elf *elf = new Elf(file);
     unsigned int size = elf->getSize();
     fprintf(stderr, "%s: ", name);
+    if (elf->getType() != ET_DYN) {
+        fprintf(stderr, "Not a shared object. Skipping\n");
+        delete elf;
+        return;
+    }
 
     for (ElfSection *section = elf->getSection(1); section != NULL;
          section = section->getNext()) {
@@ -531,7 +537,7 @@ void do_file(const char *name, bool backup = false)
         break;
     }
     if (exit == 0) {
-        if (elf->getSize() >= size) {
+        if (!force && (elf->getSize() >= size)) {
             fprintf(stderr, "No gain. Skipping\n");
         } else if (backup && backup_file(name) != 0) {
             fprintf(stderr, "Couln't create backup file\n");
@@ -548,14 +554,17 @@ int main(int argc, char *argv[])
 {
     int arg;
     bool backup = false;
+    bool force = false;
     char *lastSlash = rindex(argv[0], '/');
     if (lastSlash != NULL)
         rundir = strndup(argv[0], lastSlash - argv[0]);
     for (arg = 1; arg < argc; arg++) {
-        if (strcmp(argv[arg], "-b") == 0)
+        if (strcmp(argv[arg], "-f") == 0)
+            force = true;
+        else if (strcmp(argv[arg], "-b") == 0)
             backup = true;
         else
-            do_file(argv[arg], backup);
+            do_file(argv[arg], backup, force);
     }
 
     free(rundir);

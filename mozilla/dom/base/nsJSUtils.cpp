@@ -61,45 +61,28 @@
 
 #include "nsDOMJSUtils.h" // for GetScriptContextFromJSContext
 
+#include "mozilla/dom/bindings/Utils.h"
+
 JSBool
 nsJSUtils::GetCallingLocation(JSContext* aContext, const char* *aFilename,
                               PRUint32* aLineno)
 {
-  // Get the current filename and line number
-  JSStackFrame* frame = nsnull;
   JSScript* script = nsnull;
-  do {
-    frame = ::JS_FrameIterator(aContext, &frame);
+  unsigned lineno = 0;
 
-    if (frame) {
-      script = ::JS_GetFrameScript(aContext, frame);
-    }
-  } while (frame && !script);
-
-  if (script) {
-    const char* filename = ::JS_GetScriptFilename(aContext, script);
-
-    if (filename) {
-      PRUint32 lineno = 0;
-      jsbytecode* bytecode = ::JS_GetFramePC(aContext, frame);
-
-      if (bytecode) {
-        lineno = ::JS_PCToLineNumber(aContext, script, bytecode);
-      }
-
-      *aFilename = filename;
-      *aLineno = lineno;
-      return JS_TRUE;
-    }
+  if (!JS_DescribeScriptedCaller(aContext, &script, &lineno)) {
+    return JS_FALSE;
   }
 
-  return JS_FALSE;
+  *aFilename = ::JS_GetScriptFilename(aContext, script);
+  *aLineno = lineno;
+
+  return JS_TRUE;
 }
 
 nsIScriptGlobalObject *
 nsJSUtils::GetStaticScriptGlobal(JSContext* aContext, JSObject* aObj)
 {
-  nsISupports* supports;
   JSClass* clazz;
   JSObject* glob = aObj; // starting point for search
 
@@ -109,12 +92,16 @@ nsJSUtils::GetStaticScriptGlobal(JSContext* aContext, JSObject* aObj)
   glob = JS_GetGlobalForObject(aContext, glob);
   NS_ABORT_IF_FALSE(glob, "Infallible returns null");
 
-  clazz = JS_GET_CLASS(aContext, glob);
+  clazz = JS_GetClass(glob);
 
-  if (!clazz ||
-      !(clazz->flags & JSCLASS_HAS_PRIVATE) ||
+  // Whenever we end up with globals that are JSCLASS_IS_DOMJSCLASS
+  // and have an nsISupports DOM object, we will need to modify this
+  // check here.
+  MOZ_ASSERT(!(clazz->flags & JSCLASS_IS_DOMJSCLASS));
+  nsISupports* supports;
+  if (!(clazz->flags & JSCLASS_HAS_PRIVATE) ||
       !(clazz->flags & JSCLASS_PRIVATE_IS_NSISUPPORTS) ||
-      !(supports = (nsISupports*)::JS_GetPrivate(aContext, glob))) {
+      !(supports = (nsISupports*)::JS_GetPrivate(glob))) {
     return nsnull;
   }
 
@@ -143,7 +130,7 @@ nsJSUtils::GetStaticScriptContext(JSContext* aContext, JSObject* aObj)
   if (!nativeGlobal)
     return nsnull;
 
-  return nativeGlobal->GetScriptContext(nsIProgrammingLanguage::JAVASCRIPT);
+  return nativeGlobal->GetScriptContext();
 }
 
 nsIScriptGlobalObject *

@@ -65,6 +65,7 @@
 #include "nsIPrefService.h"
 #include "nsIPrefBranch.h"
 #include "nsIAbManager.h"
+#include "mozilla/Services.h"
 
 #define ID_PAB_TABLE            1
 #define ID_DELETEDCARDS_TABLE           2
@@ -470,8 +471,9 @@ NS_IMETHODIMP nsAddrDatabase::Open
 nsresult nsAddrDatabase::DisplayAlert(const PRUnichar *titleName, const PRUnichar *alertStringName, const PRUnichar **formatStrings, PRInt32 numFormatStrings)
 {
   nsresult rv;
-  nsCOMPtr<nsIStringBundleService> bundleService = do_GetService(NS_STRINGBUNDLE_CONTRACTID, &rv);
-  NS_ENSURE_SUCCESS(rv, rv);
+  nsCOMPtr<nsIStringBundleService> bundleService =
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(bundleService, NS_ERROR_UNEXPECTED);
 
   nsCOMPtr<nsIStringBundle> bundle;
   rv = bundleService->CreateBundle("chrome://messenger/locale/addressbook/addressBook.properties", getter_AddRefs(bundle));
@@ -714,9 +716,6 @@ NS_IMETHODIMP nsAddrDatabase::Commit(PRUint32 commitType)
   {
     switch (commitType)
     {
-      case nsAddrDBCommitType::kSmallCommit:
-        err = m_mdbStore->SmallCommit(m_mdbEnv);
-        break;
       case nsAddrDBCommitType::kLargeCommit:
         err = m_mdbStore->LargeCommit(m_mdbEnv, &commitThumb);
         break;

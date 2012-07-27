@@ -45,9 +45,10 @@
 #ifdef USE_SKIA
 #include "DrawTargetSkia.h"
 #include "ScaledFontBase.h"
+#include "ScaledFontFreetype.h"
 #endif
 
-#ifdef WIN32
+#if defined(WIN32) && defined(USE_SKIA)
 #include "ScaledFontWin.h"
 #endif
 
@@ -66,6 +67,7 @@
 #include <d3d10_1.h>
 #endif
 
+#include "DrawTargetDual.h"
 
 #include "Logging.h"
 
@@ -97,7 +99,17 @@ Factory::CreateDrawTarget(BackendType aBackend, const IntSize &aSize, SurfaceFor
       }
       break;
     }
-#elif defined XP_MACOSX || defined ANDROID || defined LINUX
+#elif defined XP_MACOSX
+  case BACKEND_COREGRAPHICS:
+    {
+      RefPtr<DrawTargetCG> newTarget;
+      newTarget = new DrawTargetCG();
+      if (newTarget->Init(aSize, aFormat)) {
+        return newTarget;
+      }
+      break;
+    }
+#endif
 #ifdef USE_SKIA
   case BACKEND_SKIA:
     {
@@ -109,17 +121,32 @@ Factory::CreateDrawTarget(BackendType aBackend, const IntSize &aSize, SurfaceFor
       break;
     }
 #endif
-#ifdef XP_MACOSX
-  case BACKEND_COREGRAPHICS:
+  default:
+    gfxDebug() << "Invalid draw target type specified.";
+    return NULL;
+  }
+
+  gfxDebug() << "Failed to create DrawTarget, Type: " << aBackend << " Size: " << aSize;
+  // Failed
+  return NULL;
+}
+
+TemporaryRef<DrawTarget>
+Factory::CreateDrawTargetForData(BackendType aBackend, 
+                                 unsigned char *aData, 
+                                 const IntSize &aSize, 
+                                 int32_t aStride, 
+                                 SurfaceFormat aFormat)
+{
+  switch (aBackend) {
+#ifdef USE_SKIA
+  case BACKEND_SKIA:
     {
-      RefPtr<DrawTargetCG> newTarget;
-      newTarget = new DrawTargetCG();
-      if (newTarget->Init(aSize, aFormat)) {
-        return newTarget;
-      }
-      break;
+      RefPtr<DrawTargetSkia> newTarget;
+      newTarget = new DrawTargetSkia();
+      newTarget->Init(aData, aSize, aStride, aFormat);
+      return newTarget;
     }
-#endif
 #endif
   default:
     gfxDebug() << "Invalid draw target type specified.";
@@ -151,12 +178,12 @@ Factory::CreateScaledFontForNativeFont(const NativeFont &aNativeFont, Float aSiz
 #ifdef WIN32
   case NATIVE_FONT_GDI_FONT_FACE:
     {
-      return new ScaledFontWin(static_cast<gfxGDIFont*>(aNativeFont.mFont), aSize);
+      return new ScaledFontWin(static_cast<LOGFONT*>(aNativeFont.mFont), aSize);
     }
 #endif
   case NATIVE_FONT_SKIA_FONT_FACE:
     {
-      return new ScaledFontBase(static_cast<gfxFont*>(aNativeFont.mFont), aSize);
+      return new ScaledFontFreetype(static_cast<gfxFont*>(aNativeFont.mFont), aSize);
     }
 #endif
 #ifdef USE_CAIRO
@@ -204,6 +231,32 @@ Factory::CreateDrawTargetForD3D10Texture(ID3D10Texture2D *aTexture, SurfaceForma
   return NULL;
 }
 
+TemporaryRef<DrawTarget>
+Factory::CreateDualDrawTargetForD3D10Textures(ID3D10Texture2D *aTextureA,
+                                              ID3D10Texture2D *aTextureB,
+                                              SurfaceFormat aFormat)
+{
+  RefPtr<DrawTargetD2D> newTargetA;
+  RefPtr<DrawTargetD2D> newTargetB;
+
+  newTargetA = new DrawTargetD2D();
+  if (!newTargetA->Init(aTextureA, aFormat)) {
+    gfxWarning() << "Failed to create draw target for D3D10 texture.";
+    return NULL;
+  }
+
+  newTargetB = new DrawTargetD2D();
+  if (!newTargetB->Init(aTextureB, aFormat)) {
+    gfxWarning() << "Failed to create draw target for D3D10 texture.";
+    return NULL;
+  }
+
+  RefPtr<DrawTarget> newTarget =
+    new DrawTargetDual(newTargetA, newTargetB);
+
+  return newTarget;
+}
+
 void
 Factory::SetDirect3D10Device(ID3D10Device1 *aDevice)
 {
@@ -214,6 +267,15 @@ ID3D10Device1*
 Factory::GetDirect3D10Device()
 {
   return mD3D10Device;
+}
+
+TemporaryRef<GlyphRenderingOptions>
+Factory::CreateDWriteGlyphRenderingOptions(IDWriteRenderingParams *aParams)
+{
+  RefPtr<GlyphRenderingOptions> options =
+    new GlyphRenderingOptionsDWrite(aParams);
+
+  return options;
 }
 
 #endif // XP_WIN

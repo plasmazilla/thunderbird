@@ -518,8 +518,8 @@ TiltUtils.destroyObject = function TU_destroyObject(aScope)
   }
 
   // objects in Tilt usually use a function to handle internal destruction
-  if ("function" === typeof aScope.finalize) {
-    aScope.finalize();
+  if ("function" === typeof aScope._finalize) {
+    aScope._finalize();
   }
   for (let i in aScope) {
     if (aScope.hasOwnProperty(i)) {
@@ -545,18 +545,6 @@ TiltUtils.getWindowId = function TU_getWindowId(aWindow)
   return aWindow.QueryInterface(Ci.nsIInterfaceRequestor)
                 .getInterface(Ci.nsIDOMWindowUtils)
                 .currentInnerWindowID;
-};
-
-/**
- * Gets the markup document viewer zoom for the currently selected browser.
- *
- * @param {Window} aChromeWindow
- *                 the top-level browser window
- *
- * @return {Number} the zoom ammount
- */
-TiltUtils.getDocumentZoom = function TU_getDocumentZoom(aChromeWindow) {
-  return aChromeWindow.gBrowser.selectedBrowser.markupDocumentViewer.fullZoom;
 };
 
 /**

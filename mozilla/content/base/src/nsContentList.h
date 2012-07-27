@@ -55,8 +55,8 @@
 #include "nsINameSpaceManager.h"
 #include "nsCycleCollectionParticipant.h"
 #include "nsWrapperCache.h"
-#include "nsCRT.h"
 #include "nsHashKeys.h"
+#include "mozilla/HashFunctions.h"
 
 // Magic namespace id that means "match all namespaces".  This is
 // negative so it won't collide with actual namespace constants.
@@ -86,8 +86,7 @@ class nsBaseContentList : public nsINodeList
 public:
   nsBaseContentList()
   {
-    // Mark ourselves as a proxy
-    SetIsProxy();
+    SetIsDOMBinding();
   }
   virtual ~nsBaseContentList();
 
@@ -103,10 +102,11 @@ public:
     return mElements.Length();
   }
 
-  NS_DECL_CYCLE_COLLECTION_SCRIPT_HOLDER_CLASS(nsBaseContentList)
+  NS_DECL_CYCLE_COLLECTION_SKIPPABLE_SCRIPT_HOLDER_CLASS(nsBaseContentList)
 
   void AppendElement(nsIContent *aContent)
   {
+    NS_ASSERTION(aContent, "Element to append must not be null");
     mElements.AppendElement(aContent);
   }
   void MaybeAppendElement(nsIContent* aContent)
@@ -138,7 +138,7 @@ public:
 
   virtual PRInt32 IndexOf(nsIContent *aContent, bool aDoFlush);
 
-  virtual JSObject* WrapObject(JSContext *cx, XPCWrappedNativeScope *scope,
+  virtual JSObject* WrapObject(JSContext *cx, JSObject *scope,
                                bool *triedToWrap) = 0;
 
 protected:
@@ -162,7 +162,7 @@ public:
   {
     return mRoot;
   }
-  virtual JSObject* WrapObject(JSContext *cx, XPCWrappedNativeScope *scope,
+  virtual JSObject* WrapObject(JSContext *cx, JSObject *scope,
                                bool *triedToWrap);
 
 private:
@@ -204,10 +204,8 @@ struct nsContentListKey
 
   inline PRUint32 GetHash(void) const
   {
-    return
-      HashString(mTagname) ^
-      (NS_PTR_TO_INT32(mRootNode) << 12) ^
-      (mMatchNameSpaceId << 24);
+    PRUint32 hash = mozilla::HashString(mTagname);
+    return mozilla::AddToHash(hash, mRootNode, mMatchNameSpaceId);
   }
   
   nsINode* const mRootNode; // Weak ref
@@ -295,7 +293,7 @@ public:
   virtual ~nsContentList();
 
   // nsWrapperCache
-  virtual JSObject* WrapObject(JSContext *cx, XPCWrappedNativeScope *scope,
+  virtual JSObject* WrapObject(JSContext *cx, JSObject *scope,
                                bool *triedToWrap);
 
   // nsIDOMHTMLCollection
@@ -490,8 +488,8 @@ public:
 
   PRUint32 GetHash(void) const
   {
-    return NS_PTR_TO_INT32(mRootNode) ^ (NS_PTR_TO_INT32(mFunc) << 12) ^
-      nsCRT::HashCode(mString.BeginReading(), mString.Length());
+    PRUint32 hash = mozilla::HashString(mString);
+    return mozilla::AddToHash(hash, mRootNode, mFunc);
   }
 
 private:

@@ -46,25 +46,29 @@ LIBRARY_NAME = gkconmedia_s
 LIBXUL_LIBRARY = 1
 
 EXPORTS = \
+  FileBlockCache.h \
+  nsAudioAvailableEventManager.h \
   nsMediaDecoder.h \
-  nsMediaStream.h \
   nsMediaCache.h \
   nsBuiltinDecoder.h \
   nsBuiltinDecoderStateMachine.h \
   nsBuiltinDecoderReader.h \
+  MediaResource.h \
+  VideoFrameContainer.h \
   VideoUtils.h \
-  nsAudioAvailableEventManager.h \
   $(NULL)
 
 CPPSRCS = \
+  FileBlockCache.cpp \
+  nsAudioAvailableEventManager.cpp \
   nsMediaDecoder.cpp \
   nsMediaCache.cpp \
-  nsMediaStream.cpp \
   nsBuiltinDecoder.cpp \
   nsBuiltinDecoderStateMachine.cpp \
   nsBuiltinDecoderReader.cpp \
+  MediaResource.cpp \
+  VideoFrameContainer.cpp \
   VideoUtils.cpp \
-  nsAudioAvailableEventManager.cpp \
   $(NULL)
 
 ifdef MOZ_SYDNEYAUDIO
@@ -90,6 +94,10 @@ endif
 
 ifdef MOZ_WEBM
 PARALLEL_DIRS += webm
+endif
+
+ifdef MOZ_GSTREAMER
+PARALLEL_DIRS += gstreamer
 endif
 
 ifdef ENABLE_TESTS

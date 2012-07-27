@@ -57,14 +57,13 @@
 #include "nsIDOMGeoPositionError.h"
 #include "nsIDOMGeoPositionCallback.h"
 #include "nsIDOMGeoPositionErrorCallback.h"
-#include "nsIDOMGeoPositionOptions.h"
 #include "nsIDOMNavigatorGeolocation.h"
 
 #include "nsPIDOMWindow.h"
 
 #include "nsIGeolocationProvider.h"
 #include "nsIContentPermissionPrompt.h"
-
+#include "DictionaryHelpers.h"
 #include "PCOMContentPermissionRequestChild.h"
 
 class nsGeolocationService;
@@ -85,9 +84,8 @@ class nsGeolocationRequest
   nsGeolocationRequest(nsGeolocation* locator,
                        nsIDOMGeoPositionCallback* callback,
                        nsIDOMGeoPositionErrorCallback* errorCallback,
-                       nsIDOMGeoPositionOptions* options,
                        bool watchPositionRequest = false);
-  nsresult Init();
+  nsresult Init(JSContext* aCx, const jsval& aOptions);
   void Shutdown();
 
   // Called by the geolocation device to notify that a location has changed.
@@ -114,7 +112,7 @@ class nsGeolocationRequest
   nsCOMPtr<nsITimer> mTimeoutTimer;
   nsCOMPtr<nsIDOMGeoPositionCallback> mCallback;
   nsCOMPtr<nsIDOMGeoPositionErrorCallback> mErrorCallback;
-  nsCOMPtr<nsIDOMGeoPositionOptions> mOptions;
+  nsAutoPtr<mozilla::dom::GeoPositionOptions> mOptions;
 
   nsRefPtr<nsGeolocation> mLocator;
 };
@@ -134,7 +132,9 @@ public:
   NS_DECL_NSIGEOLOCATIONUPDATE
   NS_DECL_NSIOBSERVER
 
-  nsGeolocationService() {}
+  nsGeolocationService() {
+      mHigherAccuracy = false;
+  }
 
   nsresult Init();
 
@@ -153,6 +153,9 @@ public:
   
   // create, or reinitalize the callback timer
   void     SetDisconnectTimer();
+
+  // request higher accuracy, if possible
+  void     SetHigherAccuracy(bool aEnable);
 
 private:
 
@@ -173,6 +176,9 @@ private:
 
   // This is the last geo position that we have seen.
   nsCOMPtr<nsIDOMGeoPosition> mLastPosition;
+
+  // Current state of requests for higher accuracy
+  bool mHigherAccuracy;
 };
 
 

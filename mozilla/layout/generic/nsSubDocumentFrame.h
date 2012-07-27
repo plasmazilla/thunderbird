@@ -89,7 +89,7 @@ public:
   virtual nsSize ComputeSize(nsRenderingContext *aRenderingContext,
                              nsSize aCBSize, nscoord aAvailableWidth,
                              nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                             bool aShrinkWrap);
+                             PRUint32 aFlags) MOZ_OVERRIDE;
 
   NS_IMETHOD Reflow(nsPresContext*          aPresContext,
                     nsHTMLReflowMetrics&     aDesiredSize,
@@ -128,6 +128,12 @@ public:
   {
     nsFrameLoader* frameLoader = FrameLoader();
     return !frameLoader || frameLoader->ShouldClipSubdocument();
+  }
+
+  bool ShouldClampScrollPosition()
+  {
+    nsFrameLoader* frameLoader = FrameLoader();
+    return !frameLoader || frameLoader->ShouldClampScrollPosition();
   }
 
 protected:

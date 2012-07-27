@@ -57,7 +57,6 @@
 #define OFFSET_NOT_SET -1
 
 // Print Options
-#include "nsIPrintSettings.h"
 #include "nsIPrintOptions.h"
 #include "nsGfxCIID.h"
 #include "nsIServiceManager.h"
@@ -123,7 +122,9 @@ nsSimplePageSequenceFrame::nsSimplePageSequenceFrame(nsStyleContext* aContext) :
 
   // XXX Unsafe to assume successful allocation
   mPageData = new nsSharedPageData();
-  mPageData->mHeadFootFont = new nsFont(*PresContext()->GetDefaultFont(kGenericFont_serif));
+  mPageData->mHeadFootFont =
+    new nsFont(*PresContext()->GetDefaultFont(kGenericFont_serif,
+                                              aContext->GetStyleFont()->mLanguage));
   mPageData->mHeadFootFont->size = nsPresContext::CSSPointsToAppUnits(10);
 
   nsresult rv;

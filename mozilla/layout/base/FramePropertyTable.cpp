@@ -70,7 +70,8 @@ FramePropertyTable::Set(nsIFrame* aFrame, const FramePropertyDescriptor* aProper
     // We need to expand the single current entry to an array
     PropertyValue current = entry->mProp;
     entry->mProp.mProperty = nsnull;
-    PR_STATIC_ASSERT(sizeof(nsTArray<PropertyValue>) <= sizeof(void *));
+    MOZ_STATIC_ASSERT(sizeof(nsTArray<PropertyValue>) <= sizeof(void *),
+                      "Property array must fit entirely within entry->mProp.mValue");
     new (&entry->mProp.mValue) nsTArray<PropertyValue>(4);
     entry->mProp.ToArray()->AppendElement(current);
   }
@@ -256,6 +257,20 @@ FramePropertyTable::DeleteAll()
   mLastEntry = nsnull;
 
   mEntries.EnumerateEntries(DeleteEnumerator, nsnull);
+}
+
+size_t
+FramePropertyTable::SizeOfExcludingThis(nsMallocSizeOfFun aMallocSizeOf) const
+{
+  return mEntries.SizeOfExcludingThis(SizeOfPropertyTableEntryExcludingThis,
+                                      aMallocSizeOf);
+}
+
+/* static */ size_t
+FramePropertyTable::SizeOfPropertyTableEntryExcludingThis(Entry* aEntry,
+                      nsMallocSizeOfFun aMallocSizeOf, void *)
+{
+  return aEntry->mProp.SizeOfExcludingThis(aMallocSizeOf);
 }
 
 }

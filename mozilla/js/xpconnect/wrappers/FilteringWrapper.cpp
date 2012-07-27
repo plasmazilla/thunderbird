@@ -53,7 +53,7 @@ using namespace js;
 namespace xpc {
 
 template <typename Base, typename Policy>
-FilteringWrapper<Base, Policy>::FilteringWrapper(uintN flags) : Base(flags)
+FilteringWrapper<Base, Policy>::FilteringWrapper(unsigned flags) : Base(flags)
 {
 }
 
@@ -111,7 +111,7 @@ FilteringWrapper<Base, Policy>::keys(JSContext *cx, JSObject *wrapper, AutoIdVec
 
 template <typename Base, typename Policy>
 bool
-FilteringWrapper<Base, Policy>::iterate(JSContext *cx, JSObject *wrapper, uintN flags, Value *vp)
+FilteringWrapper<Base, Policy>::iterate(JSContext *cx, JSObject *wrapper, unsigned flags, Value *vp)
 {
     // We refuse to trigger the iterator hook across chrome wrappers because
     // we don't know how to censor custom iterator objects. Instead we trigger
@@ -143,12 +143,14 @@ FilteringWrapper<Base, Policy>::enter(JSContext *cx, JSObject *wrapper, jsid id,
                              CrossOriginAccessiblePropertiesOnly>
 #define PXOW   FilteringWrapper<XrayProxy, \
                                 CrossOriginAccessiblePropertiesOnly>
+#define DXOW   FilteringWrapper<XrayDOM, \
+                                CrossOriginAccessiblePropertiesOnly>
 #define NNXOW FilteringWrapper<CrossCompartmentSecurityWrapper, \
                                CrossOriginAccessiblePropertiesOnly>
 #define LW    FilteringWrapper<XrayWrapper<SameCompartmentSecurityWrapper>, \
-                               SameOriginOrCrossOriginAccessiblePropertiesOnly>
+                               LocationPolicy>
 #define XLW   FilteringWrapper<XrayWrapper<CrossCompartmentSecurityWrapper>, \
-                               SameOriginOrCrossOriginAccessiblePropertiesOnly>
+                               LocationPolicy>
 
 template<> SOW SOW::singleton(WrapperFactory::SCRIPT_ACCESS_ONLY_FLAG |
                               WrapperFactory::SOW_FLAG);
@@ -159,6 +161,8 @@ template<> XOW XOW::singleton(WrapperFactory::SCRIPT_ACCESS_ONLY_FLAG |
                               WrapperFactory::PARTIALLY_TRANSPARENT);
 template<> PXOW PXOW::singleton(WrapperFactory::SCRIPT_ACCESS_ONLY_FLAG |
                                 WrapperFactory::PARTIALLY_TRANSPARENT);
+template<> DXOW DXOW::singleton(WrapperFactory::SCRIPT_ACCESS_ONLY_FLAG |
+                                WrapperFactory::PARTIALLY_TRANSPARENT);
 template<> NNXOW NNXOW::singleton(WrapperFactory::SCRIPT_ACCESS_ONLY_FLAG |
                                   WrapperFactory::PARTIALLY_TRANSPARENT);
 template<> LW  LW::singleton(WrapperFactory::SHADOWING_FORBIDDEN);
@@ -168,6 +172,7 @@ template class SOW;
 template class COW;
 template class XOW;
 template class PXOW;
+template class DXOW;
 template class NNXOW;
 template class LW;
 template class XLW;

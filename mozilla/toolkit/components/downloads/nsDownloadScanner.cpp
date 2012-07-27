@@ -37,8 +37,6 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-#if MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN
-
 #include "nsDownloadScanner.h"
 #include <comcat.h>
 #include <process.h>
@@ -49,7 +47,7 @@
 #include "nsNetUtil.h"
 #include "nsDeque.h"
 #include "nsIFileURL.h"
-#include "nsIPrefBranch2.h"
+#include "nsIPrefBranch.h"
 #include "nsXPCOMCIDInternal.h"
 
 /**
@@ -760,5 +758,3 @@ nsDownloadScannerWatchdog::WatchdogThread(void *p) {
   _endthreadex(0);
   return 0;
 }
-
-#endif // MOZ_WINSDK_TARGETVER >= MOZ_NTDDI_LONGHORN

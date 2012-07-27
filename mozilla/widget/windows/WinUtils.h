@@ -52,6 +52,8 @@
 #include "nscore.h"
 #include <windows.h>
 #include <shobjidl.h>
+#include "nsAutoPtr.h"
+#include "nsString.h"
 
 class nsWindow;
 
@@ -61,7 +63,6 @@ namespace widget {
 class WinUtils {
 public:
   enum WinVersion {
-    WIN2K_VERSION     = 0x500,
     WINXP_VERSION     = 0x501,
     WIN2K3_VERSION    = 0x502,
     VISTA_VERSION     = 0x600,
@@ -91,6 +92,17 @@ public:
                              const PRUnichar* aValueName,
                              PRUnichar* aBuffer,
                              DWORD aBufferLength);
+
+  /**
+   * Checks whether the registry key exists in either 32bit or 64bit branch on
+   * the environment.
+   *
+   * @param aRoot The registry root of aName.
+   * @param aKeyName The name of the registry key to check.
+   * @return TRUE if it exists and is readable.  Otherwise, FALSE.
+   */
+  static bool HasRegistryKey(HKEY aRoot,
+                             const PRUnichar* aKeyName);
 
   /**
    * GetTopLevelHWND() returns a window handle of the top level window which
@@ -201,13 +213,6 @@ public:
   static PRUint16 GetMouseInputSource();
 
   /**
-   * VistaCreateItemFromParsingNameInit() initializes the static pointer for
-   * SHCreateItemFromParsingName() API which is usable only on Vista and later.
-   * This returns TRUE if the API is available.  Otherwise, FALSE.
-   */
-  static bool VistaCreateItemFromParsingNameInit();
-
-  /**
    * SHCreateItemFromParsingName() calls native SHCreateItemFromParsingName()
    * API.  Note that you must call VistaCreateItemFromParsingNameInit() before
    * calling this.  And the result must be TRUE.  Otherwise, returns E_FAIL.
@@ -215,12 +220,30 @@ public:
   static HRESULT SHCreateItemFromParsingName(PCWSTR pszPath, IBindCtx *pbc,
                                              REFIID riid, void **ppv);
 
+  /**
+   * GetShellItemPath return the file or directory path of a shell item.
+   * Internally calls IShellItem's GetDisplayName.
+   *
+   * aItem  the shell item containing the path.
+   * aResultString  the resulting string path.
+   * returns  true if a path was retreived.
+   */
+  static bool GetShellItemPath(IShellItem* aItem,
+                               nsString& aResultString);
+
 private:
   typedef HRESULT (WINAPI * SHCreateItemFromParsingNamePtr)(PCWSTR pszPath,
                                                             IBindCtx *pbc,
                                                             REFIID riid,
                                                             void **ppv);
   static SHCreateItemFromParsingNamePtr sCreateItemFromParsingName;
+
+  /**
+   * VistaCreateItemFromParsingNameInit() initializes the static pointer for
+   * SHCreateItemFromParsingName() API which is usable only on Vista and later.
+   * This returns TRUE if the API is available.  Otherwise, FALSE.
+   */
+  static bool VistaCreateItemFromParsingNameInit();
 };
 
 } // namespace widget

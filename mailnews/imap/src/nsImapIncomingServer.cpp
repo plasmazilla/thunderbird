@@ -84,6 +84,7 @@
 #include "nsServiceManagerUtils.h"
 #include "nsComponentManagerUtils.h"
 #include "nsCRTGlue.h"
+#include "mozilla/Services.h"
 
 using namespace mozilla;
 
@@ -722,6 +723,8 @@ nsresult
 nsImapIncomingServer::GetImapConnection(nsIImapUrl * aImapUrl,
                                         nsIImapProtocol ** aImapConnection)
 {
+  NS_ENSURE_ARG_POINTER(aImapUrl);
+
   nsresult rv = NS_OK;
   bool canRunUrlImmediately = false;
   bool canRunButBusy = false;
@@ -1977,15 +1980,13 @@ NS_IMETHODIMP  nsImapIncomingServer::FEAlertFromServer(const nsACString& aString
 
 nsresult nsImapIncomingServer::GetStringBundle()
 {
-  nsresult res;
-  if (!m_stringBundle)
-  {
-    static const char propertyURL[] = IMAP_MSGS_URL;
-    nsCOMPtr<nsIStringBundleService> sBundleService = do_GetService(NS_STRINGBUNDLE_CONTRACTID, &res);
-    if (NS_SUCCEEDED(res) && (nsnull != sBundleService))
-      res = sBundleService->CreateBundle(propertyURL, getter_AddRefs(m_stringBundle));
-  }
-  return (m_stringBundle) ? NS_OK : res;
+  if (m_stringBundle)
+    return NS_OK;
+
+  nsCOMPtr<nsIStringBundleService> sBundleService =
+    mozilla::services::GetStringBundleService();
+  NS_ENSURE_TRUE(sBundleService, NS_ERROR_UNEXPECTED);
+  return sBundleService->CreateBundle(IMAP_MSGS_URL, getter_AddRefs(m_stringBundle));
 }
 
 NS_IMETHODIMP
@@ -2306,6 +2307,8 @@ NS_IMETHODIMP nsImapIncomingServer::GetManageMailAccountUrl(nsACString& manageMa
 NS_IMETHODIMP
 nsImapIncomingServer::StartPopulatingWithUri(nsIMsgWindow *aMsgWindow, bool aForceToServer /*ignored*/, const char *uri)
 {
+  NS_ENSURE_ARG_POINTER (uri);
+
   nsresult rv;
   mDoingSubscribeDialog = true;
 
@@ -2736,16 +2739,6 @@ nsImapIncomingServer::GetCanEmptyTrashOnExit(bool *canEmptyTrashOnExit)
   // Initialize canEmptyTrashOnExit true, a default value for IMAP
   *canEmptyTrashOnExit = true;
   GetPrefForServerAttribute("canEmptyTrashOnExit", canEmptyTrashOnExit);
-  return NS_OK;
-}
-
-NS_IMETHODIMP
-nsImapIncomingServer::GetIsSecureServer(bool *isSecureServer)
-{
-  NS_ENSURE_ARG_POINTER(isSecureServer);
-  // Initialize isSecureServer true, a default value for IMAP
-  *isSecureServer = true;
-  GetPrefForServerAttribute("isSecureServer", isSecureServer);
   return NS_OK;
 }
 
@@ -3234,33 +3227,24 @@ NS_IMETHODIMP nsImapIncomingServer::SetTrashFolderName(const nsAString& chvalue)
 }
 
 NS_IMETHODIMP
-nsImapIncomingServer::GetMsgFolderFromURI(nsIMsgFolder *aFolderResource, const nsACString& aURI, nsIMsgFolder **aFolder)
+nsImapIncomingServer::GetMsgFolderFromURI(nsIMsgFolder *aFolderResource,
+                                          const nsACString& aURI,
+                                          nsIMsgFolder **aFolder)
 {
-  nsCOMPtr<nsIMsgFolder> rootMsgFolder;
-  nsresult rv = GetRootMsgFolder(getter_AddRefs(rootMsgFolder));
-  NS_ENSURE_SUCCESS(rv, rv);
-
-  nsCOMPtr <nsIMsgFolder> msgFolder;
+  nsCOMPtr<nsIMsgFolder> msgFolder;
   bool namespacePrefixAdded = false;
   nsCString folderUriWithNamespace;
 
-  // Check if the folder exists as is...Even if we have a personal namespace,
-  // it might be in another namespace (e.g., shared) and this will catch that.
-  rv = rootMsgFolder->GetChildWithURI(aURI, true, false, getter_AddRefs(msgFolder));
+  // Check if the folder exists as is...
+  nsresult rv = GetExistingMsgFolder(aURI, folderUriWithNamespace,
+                                     namespacePrefixAdded, false,
+                                     getter_AddRefs(msgFolder));
 
-  // If we couldn't find the folder as is, check if we need to prepend the
-  // personal namespace
-  if (!msgFolder)
-  {
-    GetUriWithNamespacePrefixIfNecessary(kPersonalNamespace, aURI, folderUriWithNamespace);
-    if (!folderUriWithNamespace.IsEmpty())
-    {
-      namespacePrefixAdded = true;
-      rv = rootMsgFolder->GetChildWithURI(folderUriWithNamespace, true, false, getter_AddRefs(msgFolder));
-    }
-    else
-      rv = rootMsgFolder->GetChildWithURI(aURI, true, false, getter_AddRefs(msgFolder));
-  }
+  // Or try again with a case-insensitive lookup
+  if (NS_FAILED(rv) || !msgFolder)
+    rv = GetExistingMsgFolder(aURI, folderUriWithNamespace,
+                              namespacePrefixAdded, true,
+                              getter_AddRefs(msgFolder));
 
   if (NS_FAILED(rv) || !msgFolder) {
     // we didn't find the folder so we will have to create a new one.
@@ -3284,6 +3268,38 @@ nsImapIncomingServer::GetMsgFolderFromURI(nsIMsgFolder *aFolderResource, const n
 
   msgFolder.swap(*aFolder);
   return NS_OK;
+}
+
+nsresult
+nsImapIncomingServer::GetExistingMsgFolder(const nsACString& aURI,
+                                           nsACString& aFolderUriWithNamespace,
+                                           bool& aNamespacePrefixAdded,
+                                           bool aCaseInsensitive,
+                                           nsIMsgFolder **aFolder)
+{
+  nsCOMPtr<nsIMsgFolder> rootMsgFolder;
+  nsresult rv = GetRootMsgFolder(getter_AddRefs(rootMsgFolder));
+  NS_ENSURE_SUCCESS(rv, rv);
+
+  aNamespacePrefixAdded = false;
+  // Check if the folder exists as is...Even if we have a personal namespace,
+  // it might be in another namespace (e.g., shared) and this will catch that.
+  rv = rootMsgFolder->GetChildWithURI(aURI, true, aCaseInsensitive, aFolder);
+
+  // If we couldn't find the folder as is, check if we need to prepend the
+  // personal namespace
+  if (!*aFolder)
+  {
+    GetUriWithNamespacePrefixIfNecessary(kPersonalNamespace, aURI,
+                                         aFolderUriWithNamespace);
+    if (!aFolderUriWithNamespace.IsEmpty())
+    {
+      aNamespacePrefixAdded = true;
+      rv = rootMsgFolder->GetChildWithURI(aFolderUriWithNamespace, true,
+                                          aCaseInsensitive, aFolder);
+    }
+  }
+  return rv;
 }
 
 NS_IMETHODIMP

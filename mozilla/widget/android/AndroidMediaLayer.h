@@ -41,15 +41,17 @@
 #include <map>
 #include <jni.h>
 #include "gfxRect.h"
+#include "nsISupports.h"
 
 namespace mozilla {
 
 class AndroidMediaLayer
 {
 public:
-
   AndroidMediaLayer();
   virtual ~AndroidMediaLayer();
+
+  NS_INLINE_DECL_REFCOUNTING(AndroidMediaLayer)
   
   void* GetNativeWindowForContent();
 
@@ -58,7 +60,7 @@ public:
 
   void SetNativeWindowDimensions(void* aWindow, const gfxRect& aDimensions);
 
-  void UpdatePosition(const gfxRect& aRect, float aZoomLevel);
+  void UpdatePosition(const gfxRect& aRect);
 
   bool Inverted() {
     return mInverted;
@@ -68,8 +70,15 @@ public:
     mInverted = aInverted;
   }
 
+  bool IsVisible() {
+    return mVisible;
+  }
+
+  void SetVisible(bool aVisible);
+
 private:
   bool mInverted;
+  bool mVisible;
 
   class SurfaceData {
     public:

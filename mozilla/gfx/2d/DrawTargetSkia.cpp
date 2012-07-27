@@ -325,7 +325,7 @@ struct AutoPaintSetup {
       mPaint.setAntiAlias(false);
     }
 
-    NS_ASSERTION(aOptions.mSnapping == SNAP_NONE, "Pixel snapping not supported yet!");
+    MOZ_ASSERT(aOptions.mSnapping == SNAP_NONE, "Pixel snapping not supported yet!");
     
     // TODO: We could skip the temporary for operator_source and just
     // clear the clip rect. The other operators would be harder
@@ -543,7 +543,8 @@ void
 DrawTargetSkia::FillGlyphs(ScaledFont *aFont,
                            const GlyphBuffer &aBuffer,
                            const Pattern &aPattern,
-                           const DrawOptions &aOptions)
+                           const DrawOptions &aOptions,
+                           const GlyphRenderingOptions*)
 {
   if (aFont->GetType() != FONT_MAC && aFont->GetType() != FONT_SKIA) {
     return;

@@ -94,7 +94,8 @@ nsSMILAnimationFunction::nsSMILAnimationFunction()
     mLastValue(false),
     mHasChanged(true),
     mValueNeedsReparsingEverySample(false),
-    mPrevSampleWasSingleValueAnimation(false)
+    mPrevSampleWasSingleValueAnimation(false),
+    mWasSkippedInPrevSample(false)
 {
 }
 
@@ -233,6 +234,7 @@ nsSMILAnimationFunction::ComposeResult(const nsISMILAttr& aSMILAttr,
 {
   mHasChanged = false;
   mPrevSampleWasSingleValueAnimation = false;
+  mWasSkippedInPrevSample = false;
 
   // Skip animations that are inactive or in error
   if (!IsActiveOrFrozen() || mErrorFlags != 0)
@@ -669,7 +671,7 @@ nsSMILAnimationFunction::ScaleSimpleProgress(double aProgress,
     return aProgress;
 
   PRUint32 i = 0;
-  for (; i < numTimes - 2 && aProgress >= mKeyTimes[i+1]; ++i);
+  for (; i < numTimes - 2 && aProgress >= mKeyTimes[i+1]; ++i) { }
 
   if (aCalcMode == CALC_DISCRETE) {
     // discrete calcMode behaviour differs in that each keyTime defines the time
@@ -755,7 +757,7 @@ nsSMILAnimationFunction::ParseAttr(nsIAtom* aAttName,
 {
   nsAutoString attValue;
   if (GetAttr(aAttName, attValue)) {
-    bool preventCachingOfSandwich;
+    bool preventCachingOfSandwich = false;
     nsresult rv = aSMILAttr.ValueFromString(attValue, mAnimationElement,
                                             aResult, preventCachingOfSandwich);
     if (NS_FAILED(rv))
@@ -796,7 +798,7 @@ nsSMILAnimationFunction::GetValues(const nsISMILAttr& aSMILAttr,
   if (HasAttr(nsGkAtoms::values)) {
     nsAutoString attValue;
     GetAttr(nsGkAtoms::values, attValue);
-    bool preventCachingOfSandwich;
+    bool preventCachingOfSandwich = false;
     nsresult rv = nsSMILParserUtils::ParseValues(attValue, mAnimationElement,
                                                  aSMILAttr, result,
                                                  preventCachingOfSandwich);

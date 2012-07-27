@@ -41,6 +41,8 @@
 #include <queue>
 
 #include "mozilla/Mutex.h"
+#include "mozilla/Observer.h"
+#include "nsAutoPtr.h"
 #include "nsBaseAppShell.h"
 #include "nsRect.h"
 #include "nsTArray.h"
@@ -50,6 +52,10 @@
 namespace mozilla {
 bool ProcessNextEvent();
 void NotifyEvent();
+namespace hal {
+class SensorData;
+typedef Observer<SensorData> ISensorObserver;
+}
 }
 
 extern bool gDrawRequest;
@@ -91,6 +97,8 @@ public:
 
     void NotifyNativeEvent();
 
+    static void NotifyScreenInitialized();
+
 protected:
     virtual ~nsAppShell();
 
@@ -99,6 +107,7 @@ protected:
 private:
     nsresult AddFdHandler(int fd, FdHandlerCallback handlerFunc,
                           const char* deviceName);
+    void InitInputDevices();
 
     // This is somewhat racy but is perfectly safe given how the callback works
     bool mNativeCallbackRequest;
@@ -109,6 +118,7 @@ private:
     android::sp<GeckoInputDispatcher>   mDispatcher;
     android::sp<android::InputReader>            mReader;
     android::sp<android::InputReaderThread>      mReaderThread;
+    nsAutoPtr<mozilla::hal::ISensorObserver>     mObserver;
 };
 
 #endif /* nsAppShell_h */

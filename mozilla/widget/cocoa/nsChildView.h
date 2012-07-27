@@ -429,7 +429,7 @@ public:
   NS_IMETHOD              SetFocus(bool aRaise);
   NS_IMETHOD              GetBounds(nsIntRect &aRect);
 
-  NS_IMETHOD              Invalidate(const nsIntRect &aRect, bool aIsSynchronous);
+  NS_IMETHOD              Invalidate(const nsIntRect &aRect);
 
   virtual void*           GetNativeData(PRUint32 aDataType);
   virtual nsresult        ConfigureChildren(const nsTArray<Configuration>& aConfigurations);
@@ -440,7 +440,6 @@ public:
                           { return aStatus == nsEventStatus_eConsumeNoDefault; }
   NS_IMETHOD              DispatchEvent(nsGUIEvent* event, nsEventStatus & aStatus);
 
-  NS_IMETHOD              Update();
   virtual bool            GetShouldAccelerate();
 
   NS_IMETHOD        SetCursor(nsCursor aCursor);
@@ -489,7 +488,10 @@ public:
   virtual nsresult SynthesizeNativeMouseEvent(nsIntPoint aPoint,
                                               PRUint32 aNativeMessage,
                                               PRUint32 aModifierFlags);
-  
+
+  virtual nsresult SynthesizeNativeMouseMove(nsIntPoint aPoint)
+  { return SynthesizeNativeMouseEvent(aPoint, NSMouseMoved, 0); }
+
   // Mac specific methods
   
   virtual bool      DispatchWindowEvent(nsGUIEvent& event);

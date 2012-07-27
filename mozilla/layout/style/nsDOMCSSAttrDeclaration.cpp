@@ -49,6 +49,7 @@
 #include "nsIPrincipal.h"
 #include "nsIURI.h"
 #include "nsNodeUtils.h"
+#include "nsGenericElement.h"
 
 namespace css = mozilla::css;
 namespace dom = mozilla::dom;
@@ -68,7 +69,25 @@ nsDOMCSSAttributeDeclaration::~nsDOMCSSAttributeDeclaration()
   MOZ_COUNT_DTOR(nsDOMCSSAttributeDeclaration);
 }
 
+// If nsDOMCSSAttributeDeclaration is changed so that any additional
+// fields are traversed by the cycle collector (for instance, if
+// wrapper cache handling is changed) then CAN_SKIP must be updated.
 NS_IMPL_CYCLE_COLLECTION_1(nsDOMCSSAttributeDeclaration, mElement)
+
+// nsDOMCSSAttributeDeclaration has only one cycle collected field, so
+// if mElement is going to be skipped, the attribute declaration can't
+// be part of a garbage cycle.
+NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_BEGIN(nsDOMCSSAttributeDeclaration)
+  return !tmp->mElement || nsGenericElement::CanSkip(tmp->mElement, true);
+NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_END
+
+NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_IN_CC_BEGIN(nsDOMCSSAttributeDeclaration)
+  return !tmp->mElement || nsGenericElement::CanSkipInCC(tmp->mElement);
+NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_IN_CC_END
+
+// CanSkipThis returns false to avoid problems with incomplete unlinking.
+NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_THIS_BEGIN(nsDOMCSSAttributeDeclaration)
+NS_IMPL_CYCLE_COLLECTION_CAN_SKIP_THIS_END
 
 NS_INTERFACE_MAP_BEGIN(nsDOMCSSAttributeDeclaration)
   NS_WRAPPERCACHE_INTERFACE_MAP_ENTRY
@@ -95,7 +114,7 @@ nsDOMCSSAttributeDeclaration::SetCSSDeclaration(css::Declaration* aDecl)
 
   return
     mIsSMILOverride ? mElement->SetSMILOverrideStyleRule(newRule, true) :
-    mElement->SetInlineStyleRule(newRule, true);
+    mElement->SetInlineStyleRule(newRule, nsnull, true);
 }
 
 nsIDocument*
@@ -145,7 +164,7 @@ nsDOMCSSAttributeDeclaration::GetCSSDeclaration(bool aAllocate)
   if (mIsSMILOverride)
     rv = mElement->SetSMILOverrideStyleRule(newRule, false);
   else
-    rv = mElement->SetInlineStyleRule(newRule, false);
+    rv = mElement->SetInlineStyleRule(newRule, nsnull, false);
 
   if (NS_FAILED(rv)) {
     return nsnull; // the decl will be destroyed along with the style rule

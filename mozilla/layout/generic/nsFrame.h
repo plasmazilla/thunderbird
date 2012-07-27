@@ -130,6 +130,7 @@
 //----------------------------------------------------------------------
 
 struct nsBoxLayoutMetrics;
+class nsDisplayBackground;
 
 /**
  * Implementation of a simple frame that's not splittable and has no
@@ -190,7 +191,7 @@ public:
                                          nsStyleContext* aStyleContext);
   virtual void SetParent(nsIFrame* aParent);
   virtual nscoord GetBaseline() const;
-  virtual nsFrameList GetChildList(ChildListID aListID) const;
+  virtual const nsFrameList& GetChildList(ChildListID aListID) const;
   virtual void GetChildLists(nsTArray<ChildList>* aLists) const;
 
   NS_IMETHOD  HandleEvent(nsPresContext* aPresContext, 
@@ -263,7 +264,7 @@ public:
   virtual already_AddRefed<nsAccessible> CreateAccessible();
 #endif
 
-  virtual nsIFrame* GetParentStyleContextFrame() {
+  virtual nsIFrame* GetParentStyleContextFrame() const {
     return DoGetParentStyleContextFrame();
   }
 
@@ -274,7 +275,7 @@ public:
    * frames by using the frame manager's placeholder map and it also
    * handles block-within-inline and generated content wrappers.)
    */
-  nsIFrame* DoGetParentStyleContextFrame();
+  nsIFrame* DoGetParentStyleContextFrame() const;
 
   virtual bool IsEmpty();
   virtual bool IsSelfEmpty();
@@ -294,7 +295,7 @@ public:
   virtual nsSize ComputeSize(nsRenderingContext *aRenderingContext,
                              nsSize aCBSize, nscoord aAvailableWidth,
                              nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                             bool aShrinkWrap);
+                             PRUint32 aFlags) MOZ_OVERRIDE;
 
   // Compute tight bounds assuming this frame honours its border, background
   // and outline, its children's tight bounds, and nothing else.
@@ -509,10 +510,13 @@ public:
    * background style appears to have no background --- this is useful
    * for frames that might receive a propagated background via
    * nsCSSRendering::FindBackground
+   * @param aBackground *aBackground is set to the new nsDisplayBackground item,
+   * if one is created, otherwise null.
    */
   nsresult DisplayBackgroundUnconditional(nsDisplayListBuilder*   aBuilder,
                                           const nsDisplayListSet& aLists,
-                                          bool aForceBackground = false);
+                                          bool aForceBackground,
+                                          nsDisplayBackground** aBackground);
   /**
    * Adds display items for standard CSS borders, background and outline for
    * for this frame, as necessary. Checks IsVisibleForPainting and won't
@@ -608,8 +612,8 @@ public:
     // If we're paginated and a block, and have NS_BLOCK_CLIP_PAGINATED_OVERFLOW
     // set, then we want to clip our overflow.
     return
-      aFrame->PresContext()->IsPaginated() &&
       (aFrame->GetStateBits() & NS_BLOCK_CLIP_PAGINATED_OVERFLOW) != 0 &&
+      aFrame->PresContext()->IsPaginated() &&
       aFrame->GetType() == nsGkAtoms::blockFrame;
   }
 
@@ -728,7 +732,8 @@ public:
 public:
 
   static void PrintDisplayList(nsDisplayListBuilder* aBuilder,
-                               const nsDisplayList& aList);
+                               const nsDisplayList& aList,
+                               FILE* aFile = stdout);
 
 #endif
 };

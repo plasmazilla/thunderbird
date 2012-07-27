@@ -105,6 +105,14 @@ _MOCHITEST_FILES = \
   test_NPPVpluginWantsAllNetworkStreams.html \
   test_npruntime_npnsetexception.html \
   test_NPNVdocumentOrigin.html \
+  test_instance_re-parent.html \
+  test_instance_unparent1.html \
+  test_instance_unparent2.html \
+  test_instance_unparent3.html \
+  test_pluginstream_referer.html \
+  test_pluginstream_src_referer.html \
+  plugin-stream-referer.sjs \
+  test_src_url_change.html \
   $(NULL)
 
 #  test_plugin_scroll_painting.html \ bug 596491
@@ -129,6 +137,7 @@ _MOCHICHROME_FILES = \
 
 ifneq ($(MOZ_WIDGET_TOOLKIT),cocoa)
 _MOCHITEST_FILES += \
+  test_instance_re-parent-windowed.html \
   test_visibility.html \
   $(NULL)
 

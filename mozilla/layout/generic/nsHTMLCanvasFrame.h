@@ -40,7 +40,7 @@
 #ifndef nsHTMLCanvasFrame_h___
 #define nsHTMLCanvasFrame_h___
 
-#include "nsSplittableFrame.h"
+#include "nsContainerFrame.h"
 #include "nsString.h"
 #include "nsAString.h"
 #include "nsIIOService.h"
@@ -52,7 +52,7 @@ class nsDisplayItem;
 
 nsIFrame* NS_NewHTMLCanvasFrame (nsIPresShell* aPresShell, nsStyleContext* aContext);
 
-class nsHTMLCanvasFrame : public nsSplittableFrame
+class nsHTMLCanvasFrame : public nsContainerFrame
 {
 public:
   typedef mozilla::layers::Layer Layer;
@@ -60,7 +60,7 @@ public:
 
   NS_DECL_FRAMEARENA_HELPERS
 
-  nsHTMLCanvasFrame(nsStyleContext* aContext) : nsSplittableFrame(aContext) {}
+  nsHTMLCanvasFrame(nsStyleContext* aContext) : nsContainerFrame(aContext) {}
 
   NS_IMETHOD Init(nsIContent* aContent,
                   nsIFrame*   aParent,
@@ -84,7 +84,7 @@ public:
   virtual nsSize ComputeSize(nsRenderingContext *aRenderingContext,
                              nsSize aCBSize, nscoord aAvailableWidth,
                              nsSize aMargin, nsSize aBorder, nsSize aPadding,
-                             bool aShrinkWrap);
+                             PRUint32 aFlags) MOZ_OVERRIDE;
 
   NS_IMETHOD Reflow(nsPresContext*          aPresContext,
                     nsHTMLReflowMetrics&     aDesiredSize,
@@ -107,6 +107,11 @@ public:
 #ifdef DEBUG
   NS_IMETHOD GetFrameName(nsAString& aResult) const;
 #endif
+
+  // Inserted child content gets its frames parented by our child block
+  virtual nsIFrame* GetContentInsertionFrame() {
+    return GetFirstPrincipalChild()->GetContentInsertionFrame();
+  }
 
 protected:
   virtual ~nsHTMLCanvasFrame();

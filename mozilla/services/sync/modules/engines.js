@@ -46,12 +46,12 @@ const Ci = Components.interfaces;
 const Cr = Components.results;
 const Cu = Components.utils;
 
-Cu.import("resource://services-sync/async.js");
+Cu.import("resource://services-common/async.js");
 Cu.import("resource://services-sync/record.js");
 Cu.import("resource://services-sync/constants.js");
-Cu.import("resource://services-sync/ext/Observers.js");
+Cu.import("resource://services-common/observers.js");
 Cu.import("resource://services-sync/identity.js");
-Cu.import("resource://services-sync/log4moz.js");
+Cu.import("resource://services-common/log4moz.js");
 Cu.import("resource://services-sync/resource.js");
 Cu.import("resource://services-sync/util.js");
 
@@ -573,7 +573,7 @@ SyncEngine.prototype = {
   applyIncomingBatchSize: DEFAULT_STORE_BATCH_SIZE,
 
   get storageURL() Svc.Prefs.get("clusterURL") + SYNC_API_VERSION +
-    "/" + ID.get("WeaveID").username + "/storage/",
+    "/" + Identity.username + "/storage/",
 
   get engineURL() this.storageURL + this.name,
 
