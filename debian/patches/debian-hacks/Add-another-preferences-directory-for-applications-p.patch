@@ -5,13 +5,12 @@ Subject: Add another preferences directory for applications:
 
 This can be used to symlink to /etc/ice*/pref.
 
-
 ---
  mozilla/toolkit/xre/nsXREDirProvider.cpp |    2 ++
  1 file changed, 2 insertions(+)
 
 diff --git a/mozilla/toolkit/xre/nsXREDirProvider.cpp b/mozilla/toolkit/xre/nsXREDirProvider.cpp
-index ecbcc0d..6951312 100644
+index ecbcc0d..754467b 100644
 --- a/mozilla/toolkit/xre/nsXREDirProvider.cpp
 +++ b/mozilla/toolkit/xre/nsXREDirProvider.cpp
 @@ -606,6 +606,7 @@ nsXREDirProvider::LoadAppBundleDirs()
@@ -26,7 +25,7 @@ index ecbcc0d..6951312 100644
      LoadDirIntoArray(mXULAppDir, kAppendPrefDir, directories);
      LoadDirsIntoArray(mAppBundleDirectories,
                        kAppendPrefDir, directories);
-+    LoadAppDirIntoArray(mXULAppDir, kAppendSysPrefDir, directories);
++    LoadDirIntoArray(mXULAppDir, kAppendSysPrefDir, directories);
  
      rv = NS_NewArrayEnumerator(aResult, directories);
    }
