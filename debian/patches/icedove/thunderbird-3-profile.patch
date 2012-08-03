@@ -41,7 +41,7 @@ index 3389b5f..5824d97 100644
  #filter substitution
  [App]
 -Name=Thunderbird
-+Name=@APP_UA_NAME@
++Name=Icedove
  Version=@APP_VERSION@
  BuildID=@GRE_BUILDID@
  #ifdef MOZ_SOURCE_REPO
