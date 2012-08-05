@@ -318,7 +318,9 @@ def do_hg_pull(dir, repository, hg, rev, hgtool=None):
 
     if hgtool:
         hgtoolcmd = hgtool.split()
-        check_call_noisy(['python'] + hgtoolcmd + [repository, fulldir], retryMax=options.retries)
+        # We need to strip the trailing slash from the repository url so that the hg tool gets a
+        # url that's consistent with the rest of the build automation.
+        check_call_noisy(['python'] + hgtoolcmd + [repository.rstrip('/'), fulldir], retryMax=options.retries)
     elif not os.path.exists(fulldir):
         fulldir = os.path.join(topsrcdir, dir)
         check_call_noisy([hg, 'clone'] + hgcloneopts + hgopts + [repository, fulldir],

@@ -3358,16 +3358,20 @@ nsXPCComponents_utils_Sandbox::CallOrConstruct(nsIXPConnectWrappedNative *wrappe
     return rv;
 }
 
-class ContextHolder : public nsISupports
+class ContextHolder : public nsIScriptObjectPrincipal
+                    , public nsIScriptContextPrincipal
 {
 public:
-    ContextHolder(JSContext *aOuterCx, JSObject *aSandbox);
+    ContextHolder(JSContext *aOuterCx, JSObject *aSandbox, nsIPrincipal *aPrincipal);
     virtual ~ContextHolder();
 
     JSContext * GetJSContext()
     {
         return mJSContext;
     }
+
+    nsIScriptObjectPrincipal * GetObjectPrincipal() { return this; }
+    nsIPrincipal * GetPrincipal() { return mPrincipal; }
 
     NS_DECL_ISUPPORTS
 
@@ -3376,13 +3380,17 @@ private:
 
     JSContext* mJSContext;
     JSContext* mOrigCx;
+    nsCOMPtr<nsIPrincipal> mPrincipal;
 };
 
-NS_IMPL_ISUPPORTS0(ContextHolder)
+NS_IMPL_ISUPPORTS2(ContextHolder, nsIScriptObjectPrincipal, nsIScriptContextPrincipal)
 
-ContextHolder::ContextHolder(JSContext *aOuterCx, JSObject *aSandbox)
+ContextHolder::ContextHolder(JSContext *aOuterCx,
+                             JSObject *aSandbox,
+                             nsIPrincipal *aPrincipal)
     : mJSContext(JS_NewContext(JS_GetRuntime(aOuterCx), 1024)),
-      mOrigCx(aOuterCx)
+      mOrigCx(aOuterCx),
+      mPrincipal(aPrincipal)
 {
     if (mJSContext) {
         JSAutoRequest ar(mJSContext);
@@ -3514,6 +3522,56 @@ nsXPCComponents_Utils::EvalInSandbox(const nsAString &source)
     return rv;
 }
 
+struct NS_STACK_CLASS AutoSecurityJunkPusher
+{
+    JSContext                *mCx;
+    nsIPrincipal             *mPrincipal;
+    XPCJSContextStack        *mStack;
+    nsIScriptSecurityManager *mSSM;
+    bool                      mPushed;
+
+    AutoSecurityJunkPusher(JSContext *cx, nsIPrincipal *principal)
+       : mCx(cx)
+       , mPrincipal(principal)
+       , mStack(XPCPerThreadData::GetData(cx)->GetJSContextStack())
+       , mSSM(XPCWrapper::GetSecurityManager())
+       , mPushed(false)
+    {}
+
+    bool Push() {
+        if (!mStack)
+            return false;
+
+        // First, push the js context.
+        if (NS_FAILED(mStack->Push(mCx))) {
+            JS_ReportError(mCx, "Unable to initialize XPConnect with the sandbox context");
+            return false;
+        }
+
+        // Then, push the principal.
+        nsresult rv = mSSM->PushContextPrincipal(mCx, nsnull, mPrincipal);
+        if (NS_FAILED(rv)) {
+            mStack->Pop(nsnull);
+            return false;
+        }
+
+        mPushed = true;
+        return true;
+    }
+
+    void Pop() {
+        MOZ_ASSERT(mPushed);
+        mSSM->PopContextPrincipal(mCx);
+        mStack->Pop(nsnull);
+    }
+
+    ~AutoSecurityJunkPusher() {
+        if (mPushed)
+            Pop();
+    }
+};
+
+
 nsresult
 xpc_EvalInSandbox(JSContext *cx, JSObject *sandbox, const nsAString& source,
                   const char *filename, PRInt32 lineNo,
@@ -3567,7 +3625,7 @@ xpc_EvalInSandbox(JSContext *cx, JSObject *sandbox, const nsAString& source,
         }
     }
 
-    nsRefPtr<ContextHolder> sandcx = new ContextHolder(cx, sandbox);
+    nsRefPtr<ContextHolder> sandcx = new ContextHolder(cx, sandbox, prin);
     if (!sandcx || !sandcx->GetJSContext()) {
         JS_ReportError(cx, "Can't prepare context for evalInSandbox");
         JSPRINCIPALS_DROP(cx, jsPrincipals);
@@ -3577,15 +3635,10 @@ xpc_EvalInSandbox(JSContext *cx, JSObject *sandbox, const nsAString& source,
     if (jsVersion != JSVERSION_DEFAULT)
         JS_SetVersion(sandcx->GetJSContext(), jsVersion);
 
-    XPCPerThreadData *data = XPCPerThreadData::GetData(cx);
-    XPCJSContextStack *stack = nsnull;
-    if (data && (stack = data->GetJSContextStack())) {
-        if (NS_FAILED(stack->Push(sandcx->GetJSContext()))) {
-            JS_ReportError(cx,
-                           "Unable to initialize XPConnect with the sandbox context");
-            JSPRINCIPALS_DROP(cx, jsPrincipals);
-            return NS_ERROR_FAILURE;
-        }
+    AutoSecurityJunkPusher pusher(sandcx->GetJSContext(), prin);
+    if (!pusher.Push()) {
+        JSPRINCIPALS_DROP(cx, jsPrincipals);
+        return NS_ERROR_FAILURE;
     }
 
     if (!filename) {
@@ -3603,9 +3656,6 @@ xpc_EvalInSandbox(JSContext *cx, JSObject *sandbox, const nsAString& source,
         JSString *str = nsnull;
 
         if (!ac.enter(sandcx->GetJSContext(), sandbox)) {
-            if (stack) {
-                stack->Pop(nsnull);
-            }
             return NS_ERROR_FAILURE;
         }
 
@@ -3679,10 +3729,6 @@ xpc_EvalInSandbox(JSContext *cx, JSObject *sandbox, const nsAString& source,
                 *rval = v;
             }
         }
-    }
-
-    if (stack) {
-        stack->Pop(nsnull);
     }
 
     JSPRINCIPALS_DROP(cx, jsPrincipals);

@@ -51,7 +51,6 @@
 #include "XPCWrapper.h"
 #include "nsJSPrincipals.h"
 #include "nsWrapperCache.h"
-#include "WrapperFactory.h"
 #include "AccessCheck.h"
 #include "nsJSUtils.h"
 
@@ -1237,48 +1236,15 @@ XPCConvert::NativeInterface2JSObject(XPCLazyCallContext& lccx,
     if (!ccx.IsValid())
         return JS_FALSE;
 
+    // The call to wrap here handles both cross-compartment and same-compartment
+    // security wrappers.
     JSObject *original = flat;
     if (!JS_WrapObject(ccx, &flat))
         return JS_FALSE;
 
-    // If the object was not wrapped, we are same compartment and don't need
-    // to enforce any cross origin policies, except in case of the location
-    // object, which always needs a wrapper in between.
-    if (original == flat) {
-        if (xpc::WrapperFactory::IsLocationObject(flat)) {
-            JSObject *locationWrapper = wrapper->GetWrapper();
-            if (!locationWrapper) {
-                locationWrapper = xpc::WrapperFactory::WrapLocationObject(cx, flat);
-                if (!locationWrapper)
-                    return JS_FALSE;
-
-                // Cache the location wrapper to ensure that we maintain
-                // the identity of window/document.location.
-                wrapper->SetWrapper(locationWrapper);
-            }
-
-            flat = locationWrapper;
-        } else if (wrapper->NeedsSOW() &&
-                   !xpc::AccessCheck::isChrome(cx->compartment)) {
-            JSObject *sowWrapper = wrapper->GetWrapper();
-            if (!sowWrapper) {
-                sowWrapper = xpc::WrapperFactory::WrapSOWObject(cx, flat);
-                if (!sowWrapper)
-                    return JS_FALSE;
-
-                // Cache the sow wrapper to ensure that we maintain
-                // the identity of this node.
-                wrapper->SetWrapper(sowWrapper);
-            }
-
-            flat = sowWrapper;
-        } else {
-            flat = JS_ObjectToOuterObject(cx, flat);
-            NS_ASSERTION(flat, "bad outer object hook!");
-            NS_ASSERTION(js::GetObjectCompartment(flat) == cx->compartment,
-                         "bad compartment");
-        }
-    }
+    // Outerize if necessary.
+    flat = JS_ObjectToOuterObject(cx, flat);
+    JS_ASSERT(flat);
 
     *d = OBJECT_TO_JSVAL(flat);
 
@@ -1343,7 +1309,7 @@ XPCConvert::JSObject2NativeInterface(XPCCallContext& ccx,
         // we aren't, throw an exception eagerly.
         JSObject* inner = nsnull;
         if (XPCWrapper::IsSecurityWrapper(src)) {
-            inner = XPCWrapper::Unwrap(cx, src);
+            inner = XPCWrapper::Unwrap(cx, src, false);
             if (!inner) {
                 if (pErr)
                     *pErr = NS_ERROR_XPC_SECURITY_MANAGER_VETO;

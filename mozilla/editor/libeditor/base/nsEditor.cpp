@@ -1734,10 +1734,11 @@ nsEditor::MoveNode(nsIDOMNode *aNode, nsIDOMNode *aParent, PRInt32 aOffset)
     aOffset--;  // this is because when we delete aNode, it will make the offsets after it off by one
   }
 
-  // put aNode in new parent
-  res = DeleteNode(aNode);
+  // Hold a reference so aNode doesn't go away when we remove it (bug 772282)
+  nsCOMPtr<nsIDOMNode> node = aNode;
+  res = DeleteNode(node);
   NS_ENSURE_SUCCESS(res, res);
-  return InsertNode(aNode, aParent, aOffset);
+  return InsertNode(node, aParent, aOffset);
 }
 
 
@@ -5155,6 +5156,7 @@ nsEditor::InitializeSelection(nsIDOMEventTarget* aFocusEventTarget)
 
   // Init selection
   selCon->SetDisplaySelection(nsISelectionController::SELECTION_ON);
+  selCon->SetSelectionFlags(nsISelectionDisplay::DISPLAY_ALL);
   selCon->RepaintSelection(nsISelectionController::SELECTION_NORMAL);
   // If the computed selection root isn't root content, we should set it
   // as selection ancestor limit.  However, if that is root element, it means
