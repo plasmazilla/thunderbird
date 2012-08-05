@@ -1,3 +1,19 @@
+icedove (10.0.6-1) unstable; urgency=high
+
+  * [1b75920] New Upstream version 10.0.6 (Closes: #682817)
+  * Fixes for MFSA2012-{42,44-45,47-49,51-54,56}, also known as
+    CVE-2012-1948, CVE-2012-1951, CVE-2012-1952, CVE-2012-1953,
+    CVE-2012-1954, CVE-2012-1955, CVE-2012-1957, CVE-2012-1958,
+    CVE-2012-1959, CVE-2012-1961, CVE-2012-1962, CVE-2012-1963,
+    CVE-2012-1964, CVE-2012-1967
+  * [5fdf662] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Bug-761082-Only-export-TabMessageUtils.h-in-mozilla-.patch
+    modified patches:
+    - icedove/fix-branding-in-migration-wizard-and-the-addon-manag.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 05 Aug 2012 19:05:48 +0200
+
 icedove (10.0.5-1) unstable; urgency=low
 
   * [9a9ff18] New Upstream version 10.0.5 (Closes: #677040)
