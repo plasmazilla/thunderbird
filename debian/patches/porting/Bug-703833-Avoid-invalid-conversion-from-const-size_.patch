@@ -8,7 +8,7 @@ Subject: Bug 703833 - Avoid invalid conversion from 'const size_t*' to 'const
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/js/src/jsgc.cpp b/mozilla/js/src/jsgc.cpp
-index e64f3f5..ea4b1f5 100644
+index e8818d1..1c07e38 100644
 --- a/mozilla/js/src/jsgc.cpp
 +++ b/mozilla/js/src/jsgc.cpp
 @@ -1052,8 +1052,8 @@ MarkStackRangeConservatively(JSTracer *trc, Value *beginv, Value *endv)

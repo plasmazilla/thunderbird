@@ -7,7 +7,7 @@ Subject: Bug 747870 - Properly align XPCLazyCallContext::mData. r=bholley
  1 file changed, 7 insertions(+), 6 deletions(-)
 
 diff --git a/mozilla/js/xpconnect/src/xpcprivate.h b/mozilla/js/xpconnect/src/xpcprivate.h
-index cccbe1a..0868b0e 100644
+index bc661a8..8f438de 100644
 --- a/mozilla/js/xpconnect/src/xpcprivate.h
 +++ b/mozilla/js/xpconnect/src/xpcprivate.h
 @@ -1327,12 +1327,13 @@ public:

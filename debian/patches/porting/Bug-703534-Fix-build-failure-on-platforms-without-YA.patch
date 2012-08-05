@@ -7,7 +7,7 @@ Subject: Bug 703534 - Fix build failure on platforms without YARR JIT
  1 file changed, 1 deletion(-)
 
 diff --git a/mozilla/js/src/jscompartment.cpp b/mozilla/js/src/jscompartment.cpp
-index 3db31a5..c3eada7 100644
+index fc038f5..59e83b4 100644
 --- a/mozilla/js/src/jscompartment.cpp
 +++ b/mozilla/js/src/jscompartment.cpp
 @@ -50,7 +50,6 @@
