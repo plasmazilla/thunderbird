@@ -59,7 +59,7 @@ class WrapperFactory {
     // Return true if any of any of the nested wrappers have the flag set.
     static bool HasWrapperFlag(JSObject *wrapper, uintN flag) {
         uintN flags = 0;
-        js::UnwrapObject(wrapper, &flags);
+        js::UnwrapObject(wrapper, true, &flags);
         return !!(flags & flag);
     }
 
@@ -95,6 +95,10 @@ class WrapperFactory {
                             JSObject *wrappedProto,
                             JSObject *parent,
                             uintN flags);
+
+    // Wrap an object for same-compartment access.
+    static JSObject *WrapForSameCompartment(JSContext *cx,
+                                            JSObject *obj);
 
     // Return true if this is a location object.
     static bool IsLocationObject(JSObject *obj);

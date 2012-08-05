@@ -714,7 +714,7 @@ public:
 
     JSBool OnJSContextNew(JSContext* cx);
 
-    JSBool DeferredRelease(nsISupports* obj);
+    bool DeferredRelease(nsISupports* obj);
 
     JSBool GetDoingFinalization() const {return mDoingFinalization;}
 
@@ -769,7 +769,7 @@ public:
     void AddXPConnectRoots(JSContext* cx,
                            nsCycleCollectionTraversalCallback& cb);
 
-    static JSBool GCCallback(JSContext *cx, JSGCStatus status);
+    static JSBool GCCallback(JSContext *cx, JSGCStatus status, JSBool isCompartmentGC);
 
     inline void AddVariantRoot(XPCTraceableVariant* variant);
     inline void AddWrappedJSRoot(nsXPCWrappedJS* wrappedJS);
@@ -2769,6 +2769,13 @@ public:
                          needsSOW |
                          needsCOW;
     }
+
+    // Returns the relevant same-compartment security if applicable, or
+    // mFlatJSObject otherwise.
+    //
+    // This takes care of checking mWrapperWord to see if we already have such
+    // a wrapper.
+    JSObject *GetSameCompartmentSecurityWrapper(JSContext *cx);
 
     void NoteTearoffs(nsCycleCollectionTraversalCallback& cb);
 

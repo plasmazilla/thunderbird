@@ -724,6 +724,7 @@ JSRuntime::JSRuntime()
     trustedPrincipals_(NULL),
     shapeGen(0),
     wrapObjectCallback(NULL),
+    sameCompartmentWrapObjectCallback(NULL),
     preWrapObjectCallback(NULL),
     inOOMReport(0)
 {
@@ -1283,10 +1284,12 @@ JS_SetCompartmentCallback(JSRuntime *rt, JSCompartmentCallback callback)
 JS_PUBLIC_API(JSWrapObjectCallback)
 JS_SetWrapObjectCallbacks(JSRuntime *rt,
                           JSWrapObjectCallback callback,
+                          JSSameCompartmentWrapObjectCallback sccallback,
                           JSPreWrapCallback precallback)
 {
     JSWrapObjectCallback old = rt->wrapObjectCallback;
     rt->wrapObjectCallback = callback;
+    rt->sameCompartmentWrapObjectCallback = sccallback;
     rt->preWrapObjectCallback = precallback;
     return old;
 }
@@ -1448,6 +1451,9 @@ JS_WrapValue(JSContext *cx, jsval *vp)
 JS_PUBLIC_API(JSObject *)
 JS_TransplantObject(JSContext *cx, JSObject *origobj, JSObject *target)
 {
+    JS_ASSERT(!IsCrossCompartmentWrapper(origobj));
+    JS_ASSERT(!IsCrossCompartmentWrapper(target));
+
      // This function is called when an object moves between two
      // different compartments. In that case, we need to "move" the
      // window from origobj's compartment to target's compartment.
@@ -1476,6 +1482,7 @@ JS_TransplantObject(JSContext *cx, JSObject *origobj, JSObject *target)
         // innards).
         obj = &p->value.toObject();
         map.remove(p);
+        NukeCrossCompartmentWrapper(obj);
         if (!obj->swap(cx, target))
             return NULL;
     } else {
@@ -1509,6 +1516,7 @@ JS_TransplantObject(JSContext *cx, JSObject *origobj, JSObject *target)
         WrapperMap &pmap = wcompartment->crossCompartmentWrappers;
         JS_ASSERT(pmap.lookup(origv));
         pmap.remove(origv);
+        NukeCrossCompartmentWrapper(wobj);
 
         // First, we wrap it in the new compartment. This will return
         // a new wrapper.
@@ -1556,6 +1564,11 @@ js_TransplantObjectWithWrapper(JSContext *cx,
                                JSObject *targetobj,
                                JSObject *targetwrapper)
 {
+    JS_ASSERT(!IsCrossCompartmentWrapper(origobj));
+    JS_ASSERT(!IsCrossCompartmentWrapper(origwrapper));
+    JS_ASSERT(!IsCrossCompartmentWrapper(targetobj));
+    JS_ASSERT(!IsCrossCompartmentWrapper(targetwrapper));
+
     JSObject *obj;
     JSCompartment *destination = targetobj->compartment();
     WrapperMap &map = destination->crossCompartmentWrappers;
@@ -1571,6 +1584,7 @@ js_TransplantObjectWithWrapper(JSContext *cx,
         // wrapper (swapping it with the given new wrapper).
         obj = &p->value.toObject();
         map.remove(p);
+        NukeCrossCompartmentWrapper(obj);
         if (!obj->swap(cx, targetwrapper))
             return NULL;
     } else {
@@ -1603,6 +1617,7 @@ js_TransplantObjectWithWrapper(JSContext *cx,
         WrapperMap &pmap = wcompartment->crossCompartmentWrappers;
         JS_ASSERT(pmap.lookup(origv));
         pmap.remove(origv);
+        NukeCrossCompartmentWrapper(wobj);
 
         // First, we wrap it in the new compartment. This will return a
         // new wrapper.

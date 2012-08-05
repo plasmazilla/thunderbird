@@ -744,9 +744,10 @@ BasicThebesLayer::PaintThebes(gfxContext* aContext,
       Mutated();
     } else {
       // It's possible that state.mRegionToInvalidate is nonempty here,
-      // if we are shrinking the valid region to nothing.
-      NS_ASSERTION(state.mRegionToDraw.IsEmpty(),
-                   "If we need to draw, we should have a context");
+      // if we are shrinking the valid region to nothing. So use mRegionToDraw
+      // instead.
+      NS_WARN_IF_FALSE(state.mRegionToDraw.IsEmpty(),
+                       "No context when we have something to draw; resource exhaustion?");
     }
   }
 
@@ -1334,23 +1335,27 @@ already_AddRefed<gfxContext>
 BasicLayerManager::PushGroupWithCachedSurface(gfxContext *aTarget,
                                               gfxASurface::gfxContentType aContent)
 {
-  if (mCachedSurfaceInUse) {
-    aTarget->PushGroup(aContent);
-    nsRefPtr<gfxContext> result = aTarget;
-    return result.forget();
+  nsRefPtr<gfxContext> ctx;
+  if (!mCachedSurfaceInUse) {
+    gfxContextMatrixAutoSaveRestore saveMatrix(aTarget);
+    aTarget->IdentityMatrix();
+
+    nsRefPtr<gfxASurface> currentSurf = aTarget->CurrentSurface();
+    gfxRect clip = aTarget->GetClipExtents();
+    clip.RoundOut();
+
+    ctx = mCachedSurface.Get(aContent, clip, currentSurf);
+
+	if (ctx) {
+      mCachedSurfaceInUse = true;
+      /* Align our buffer for the original surface */
+      ctx->SetMatrix(saveMatrix.Matrix());
+      return ctx.forget();
+	}
   }
-  mCachedSurfaceInUse = true;
 
-  gfxContextMatrixAutoSaveRestore saveMatrix(aTarget);
-  aTarget->IdentityMatrix();
-
-  nsRefPtr<gfxASurface> currentSurf = aTarget->CurrentSurface();
-  gfxRect clip = aTarget->GetClipExtents();
-  clip.RoundOut();
-
-  nsRefPtr<gfxContext> ctx = mCachedSurface.Get(aContent, clip, currentSurf);
-  /* Align our buffer for the original surface */
-  ctx->SetMatrix(saveMatrix.Matrix());
+  ctx = aTarget;
+  ctx->PushGroup(aContent);
   return ctx.forget();
 }
 
