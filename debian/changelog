@@ -1,3 +1,15 @@
+icedove (10.0.6-2) unstable; urgency=low
+
+  * [a657277] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Bug-693343-a11y-disabled-in-Gnome-3-when-GNOME_ACCES.patch
+      (Closes: #682913)
+    - porting/fix-FTBFS-on-Alpha-add-arch-support-for-IPC.patch
+      (Closes: #685126)
+  * [bf09ad9] update build dependencies (Thanks to Mike) (Closes: #666722)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 17 Aug 2012 16:11:57 +0200
+
 icedove (10.0.6-1) unstable; urgency=high
 
   * [1b75920] New Upstream version 10.0.6 (Closes: #682817)
