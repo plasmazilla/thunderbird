@@ -1,0 +1,23 @@
+From: Michael Cree <mcree@orcon.net.nz>
+Date: Fri, 17 Aug 2012 15:47:59 +0200
+Subject: fix FTBFS on Alpha: add arch support for IPC
+
+Closes: #685126
+---
+ mozilla/ipc/chromium/src/build/build_config.h |    3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h
+index 463b3d9..055d799 100644
+--- a/mozilla/ipc/chromium/src/build/build_config.h
++++ b/mozilla/ipc/chromium/src/build/build_config.h
+@@ -86,6 +86,9 @@
+ #elif defined(__s390__)
+ #define ARCH_CPU_S390 1
+ #define ARCH_CPU_32_BITS 1
++#elif defined(__alpha__)
++#define ARCH_CPU_ALPHA 1
++#define ARCH_CPU_64_BITS 1
+ #else
+ #error Please add support for your architecture in build/build_config.h
+ #endif

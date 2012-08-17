@@ -57,3 +57,5 @@ fixes/Fix-more-gcc-4.7-errors-in-ipc-code.patch
 fixes/Bug-734490-fix-build-failures-with-Clang-and-GCC-4.7.patch
 fixes/Bug-709259-Try-creating-a-named-cursor-before-a-bitm.patch
 fixes/Bug-761082-Only-export-TabMessageUtils.h-in-mozilla-.patch
+fixes/Bug-693343-a11y-disabled-in-Gnome-3-when-GNOME_ACCES.patch
+porting/fix-FTBFS-on-Alpha-add-arch-support-for-IPC.patch
