@@ -235,6 +235,12 @@ JS_SetAccumulateTelemetryCallback(JSRuntime *rt, JSAccumulateTelemetryDataCallba
     rt->telemetryCallback = callback;
 }
 
+JS_FRIEND_API(bool)
+js::GetGeneric(JSContext *cx, JSObject *obj, JSObject *receiver, jsid id, Value *vp)
+{
+    return obj->getGeneric(cx, receiver, id, vp);
+}
+
 #ifdef DEBUG
 
 struct DumpingChildInfo {
