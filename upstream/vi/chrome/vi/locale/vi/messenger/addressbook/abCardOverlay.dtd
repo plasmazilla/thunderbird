@@ -171,3 +171,24 @@
 <!ENTITY PhotoURL.placeholder           "Dán hoặc gõ địa chỉ web của ảnh">
 <!ENTITY UpdatePhoto.label              "Cập nhật">
 <!ENTITY UpdatePhoto.accesskey          "p">
+
+<!ENTITY AIM.accesskey                  "r">
+<!ENTITY AIM.label                      "AIM:">
+<!ENTITY Chat.accesskey                 "a">
+
+<!ENTITY Chat.tab                       "Chat">
+<!ENTITY Gtalk.accesskey                "G">
+<!ENTITY Gtalk.label                    "Google Talk:">
+<!ENTITY ICQ.accesskey                  "I">
+<!ENTITY ICQ.label                      "ICQ:">
+<!ENTITY MSN.accesskey                  "M">
+<!ENTITY MSN.label                      "MSN:">
+<!ENTITY QQ.accesskey                   "Q">
+<!ENTITY QQ.label                       "QQ:">
+<!ENTITY Skype.accesskey                "S">
+<!ENTITY Skype.label                    "Skype:">
+<!ENTITY XMPP.accesskey                 "J">
+<!ENTITY XMPP.label                     "Jabber ID:">
+<!ENTITY Yahoo.accesskey                "Y">
+<!ENTITY Yahoo.label                    "Yahoo!:">
+<!ENTITY chatName.label                 "Chat Name:">

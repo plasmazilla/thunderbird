@@ -110,3 +110,7 @@
 <!ENTITY viewSecurityDevices.label      "Безбедносни уређаји">
 <!ENTITY viewSecurityDevices.accesskey  "з">
 
+
+<!ENTITY useService.accesskey            "b">
+
+<!ENTITY useService.label                "Use a background service to install updates">

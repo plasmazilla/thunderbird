@@ -21,3 +21,7 @@
 <!ENTITY userName.label   "Tên đăng nhập: ">
 <!ENTITY connectionSecurity.label "Bảo mật Kết nối: ">
 <!ENTITY authMethod.label   "Phương thức xác thực: ">
+
+
+<!-- LOCALIZATION NOTE (smtpDescription.label): do not translate "SMTP" in below line -->
+<!ENTITY smtpDescription.label "When managing your identities you can use a server from this list by selecting it as the Outgoing Server (SMTP), or you can use the default server from this list by selecting &quot;Use Default Server&quot;.">

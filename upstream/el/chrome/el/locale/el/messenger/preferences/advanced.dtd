@@ -86,3 +86,7 @@
 <!ENTITY submitTelemetry.label         "Υποβολή δεδομένων επιδόσεων">
 <!ENTITY submitTelemetry.accesskey     "δ">
 <!ENTITY telemetryInfoLink.label       "Περισσότερες πληροφορίες για την τηλεμετρία">
+
+<!ENTITY useService.accesskey            "b">
+
+<!ENTITY useService.label                "Use a background service to install updates">

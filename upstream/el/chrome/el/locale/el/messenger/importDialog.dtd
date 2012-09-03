@@ -25,3 +25,9 @@
 <!ENTITY select.label "Επιλογή είδους υλικού για εισαγωγή:">
 <!ENTITY title.label "Τίτλος">
 <!ENTITY processing.label "Εισαγωγή...">
+
+<!ENTITY acctName.accesskey       "N">
+<!ENTITY acctName.label           "Name:">
+<!ENTITY importFeeds.accesskey    "d">
+<!ENTITY importFeeds.label        "Feed Subscriptions">
+<!ENTITY selectDescriptionB.label "Please select an existing account or create a new account:">

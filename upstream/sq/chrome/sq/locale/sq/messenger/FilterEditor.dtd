@@ -41,3 +41,7 @@
 
 <!ENTITY contextPostPlugin.label "Kontrollim Poste (pas klasifikimi)">
 <!ENTITY contextPostPluginBoth.label "Kontrollim Poste (pas klasifikimi) ose Xhirim Dorazi">
+
+
+<!ENTITY addAction.tooltip "Add a new action">
+<!ENTITY removeAction.tooltip "Remove this action">

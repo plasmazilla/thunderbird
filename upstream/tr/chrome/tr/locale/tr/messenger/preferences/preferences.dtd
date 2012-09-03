@@ -7,9 +7,8 @@
 <!ENTITY paneGeneral.title        "Genel">
 <!ENTITY paneDisplay.title        "Görünüm">
 <!ENTITY paneComposition.title    "Düzenleme">
+<!ENTITY paneChat.title           "Sohbet">
 <!ENTITY paneAttachments.title    "Ekler">
 <!ENTITY paneSecurity.title       "Güvenlik">
 <!ENTITY paneAdvanced.title       "Gelişmiş">
 
-
-<!ENTITY paneChat.title           "Chat">

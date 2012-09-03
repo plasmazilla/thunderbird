@@ -113,3 +113,6 @@
 
 <!ENTITY submitTelemetry.label         "Submit Performance Data">
 <!ENTITY telemetryInfoLink.label       "More information about Telemetry">
+<!ENTITY useService.accesskey            "b">
+
+<!ENTITY useService.label                "Use a background service to install updates">

@@ -113,3 +113,7 @@
 <!ENTITY validation.accesskey           "V">
 <!ENTITY viewSecurityDevices.label      "ਸੁਰੱਖਿਆ ਜੰਤਰ">
 <!ENTITY viewSecurityDevices.accesskey  "S">
+
+<!ENTITY useService.accesskey            "b">
+
+<!ENTITY useService.label                "Use a background service to install updates">

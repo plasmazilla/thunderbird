@@ -32,6 +32,8 @@
 <!ENTITY newExistingEmailAccountCmd.accesskey "o">
 <!ENTITY newIMAccountCmd.label "Configurar conta de bate-papo…">
 <!ENTITY newIMAccountCmd.accesskey "b">
+<!ENTITY newIMContactCmd.label "Novo contato…">
+<!ENTITY newIMContactCmd.accesskey "c">
 <!ENTITY openMessageFileCmd.label "Abrir arquivo de mensagem…">
 <!ENTITY openMessageFileCmd.accesskey "b">
 <!ENTITY openAttachmentCmd.label "Anexos">
@@ -450,7 +452,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY openMessageWindowCmd.label "Abrir mensagem">
 <!ENTITY openMessageWindowCmd.accesskey "b">
 <!ENTITY openMessageWindowCmd.key "O">
-<!ENTITY openConversationCmd.label "Abrir na conversação">
+<!ENTITY openConversationCmd.label "Abrir como conversa">
 <!ENTITY openConversationCmd.accesskey "r">
 <!ENTITY openConversationCmd.key "O">
 <!ENTITY openFeedMessage.label "Abrir mensagem RSS">
@@ -483,6 +485,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY imStatus.unavailable        "Ocupado">
 <!ENTITY imStatus.offline            "Off-line">
 <!ENTITY imStatus.showAccounts       "Exibir contas…">
+<!ENTITY joinChatCmd.label "Entrar no bate-papo…">
+<!ENTITY joinChatCmd.accesskey "E">
 <!ENTITY savedFiles.label "Arquivos salvos">
 <!ENTITY savedFiles.accesskey "u">
 <!ENTITY savedFiles.key "J">
@@ -689,7 +693,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
      would probably need to be changed. -->
 <!ENTITY contextOpenNewTab.label "Abrir em nova aba">
 <!ENTITY contextOpenNewTab.accesskey "b">
-<!ENTITY contextOpenConversation.label "Abrir mensagem na conversação">
+<!ENTITY contextOpenConversation.label "Abrir mensagem como conversa">
 <!ENTITY contextOpenConversation.accesskey "r">
 <!ENTITY contextEditAsNew.label "Editar como nova">
 <!ENTITY contextEditAsNew.accesskey "d">
@@ -778,7 +782,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextUnmute.accesskey "A">
 
 <!-- Junk Bar -->
-<!ENTITY junkBarMessage1.label "Spam">
+<!ENTITY junkBarMessage2.label "O &brandShortName; acha que esta mensagem é um Spam.">
 <!ENTITY junkBarButton1.label "Não é spam">
 <!ENTITY junkInfoButton.label "Dica">
 

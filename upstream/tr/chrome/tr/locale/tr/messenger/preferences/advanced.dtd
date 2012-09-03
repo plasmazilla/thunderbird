@@ -110,3 +110,7 @@
 <!ENTITY viewSecurityDevices.label      "Güvenlik aygıtları">
 <!ENTITY viewSecurityDevices.accesskey  "G">
 
+
+<!ENTITY useService.accesskey            "b">
+
+<!ENTITY useService.label                "Use a background service to install updates">

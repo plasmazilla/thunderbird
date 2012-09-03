@@ -40,3 +40,7 @@
 <!ENTITY ignoreSubthread.label "Ignorer deltråd">
 <!ENTITY watchThread.label "Følg tråd">
 <!ENTITY stopExecution.label "Stopp filtrering">
+
+
+<!ENTITY addAction.tooltip "Add a new action">
+<!ENTITY removeAction.tooltip "Remove this action">

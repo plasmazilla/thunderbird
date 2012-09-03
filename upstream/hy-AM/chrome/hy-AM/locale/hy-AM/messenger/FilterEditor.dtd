@@ -55,3 +55,7 @@
 <!ENTITY ignoreSubthread.label "Անտեսել ենթաթեման">
 <!ENTITY watchThread.label "Նայել թեմատիկան">
 <!ENTITY stopExecution.label "Կանգնեցնել ֆիլտրը">
+
+
+<!ENTITY addAction.tooltip "Add a new action">
+<!ENTITY removeAction.tooltip "Remove this action">

@@ -5,7 +5,7 @@
 <!ENTITY addAccountDialog.menuTitle "Trieu un servei d'emmagatzematge en línia">
 <!ENTITY addAccountDialog.style "width: 55em; min-height: 20em;">
 <!ENTITY addAccountDialog.accountName.label "Nom del compte:">
-<!ENTITY addAccountDialog.noAccountText "La versió actual del &brandShortName; només permet un compte per cada servei d'emmagatzemament en línia.">
+<!ENTITY addAccountDialog.noAccountText "La versió actual del &brandShortName; només permet un compte per cada servei d'emmagatzematge en línia.">
 <!ENTITY addAccountDialog.createAccountText2 "Podeu enviar fitxers adjunts mitjançant un web de compartició de fitxers. Configureu un compte ja existent o creeu-ne un de nou.">
 <!ENTITY addAccountDialog.authorizing "S'està comprovant l'autorització…">
 <!ENTITY addAccountDialog.error "S'ha produït un error mentre es configurava el compte!">

@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY window.title "مرحبًا بك في &brandShortName;">
 <!ENTITY header2.label "أتريد عنوان بريد إلكتروني جديد؟">
 <!ENTITY other.languages "سنُظهر فقط المزودين الذين يعرضون عناوين البريد في منطقتك. انقر هنا لعرض كافة المزودين.">

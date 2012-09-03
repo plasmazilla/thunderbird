@@ -1,5 +1,10 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!-- extracted from am-server-top.xul -->
 
+
+<!ENTITY messageStorage.label "Stóráil na dTeachtaireachtaí">
 <!ENTITY securitySettings.label "Socruithe Slándála">
 <!ENTITY serverSettings.label "Socruithe an Fhreastalaí">
 <!ENTITY serverType.label "Cineál an Fhreastalaí:">
@@ -63,23 +68,19 @@
 <!ENTITY alwaysAuthenticate.label "Iarr fíordheimhniú i gcónaí nuair a cheanglófar leis an bhfreastalaí seo">
 <!ENTITY alwaysAuthenticate.accesskey "f">
 <!ENTITY newsrcFilePath.label "comhad newsrc:">
-<!ENTITY localPath.label "Comhadlann logánta:">
+<!ENTITY newsrcPicker.label "Roghnaigh comhad newsrc">
 <!ENTITY abbreviate.label "Taispeáin ainmneacha na ngrúpaí nuachta i bpána an Fhillteáin Ríomhphoist mar:">
 <!ENTITY abbreviateOn.label 'Ainmneacha iomlána (m.sh. "netscape.public.mozilla.mail-news")'>
 <!ENTITY abbreviateOff.label 'Ainmneacha giorraithe (m.sh. "n.p.m.mail-news")'>
 <!ENTITY advancedButton.label "Ardroghanna…">
-<!ENTITY advancedButton.accesskey "r">
+<!ENTITY advancedButton.accesskey "A">
 <!ENTITY serverDefaultCharset.label "Ionchódú Réamhshocraithe:">
+<!ENTITY localPath.label "Comhadlann logánta:">
 <!ENTITY localFolderPicker.label "Roghnaigh Comhadlann Logánta">
 <!ENTITY browseFolder.label "Brabhsáil…">
 <!ENTITY browseFolder.accesskey "B">
-<!ENTITY newsrcPicker.label "Roghnaigh comhad newsrc">
 <!ENTITY browseNewsrc.label "Brabhsáil…">
 <!ENTITY browseNewsrc.accesskey "B">
 
-<!ENTITY accountSettingsDesc.label "The following is a special account.  There are no identities associated with it.">
-
-<!ENTITY accountTitle.label "Account Settings">
-<!-- extracted from am-server-top.xul -->
-
-<!ENTITY messageStorage.label "Message Storage">
+<!ENTITY accountTitle.label "Socruithe Cuntais">
+<!ENTITY accountSettingsDesc.label "Cuntas speisialta é seo. Níl aon aitheantas comhcheangailte leis.">

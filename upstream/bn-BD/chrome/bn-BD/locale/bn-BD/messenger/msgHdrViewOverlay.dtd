@@ -165,7 +165,7 @@
 <!ENTITY hdrReplyAllButton1.label "Reply All">
 <!ENTITY hdrReplyAllButton1.tooltip "Reply to sender and all recipients">
 <!ENTITY hdrReplyButton1.label "Reply">
-<!ENTITY hdrReplyButton1.tooltip "Reply to this message">
+<!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">
 <!ENTITY hdrReplyListButton1.label "Reply List">
 <!ENTITY hdrReplyListButton1.tooltip "Reply to mailing list">
 <!ENTITY hdrSmartReplyButton1.label "Smart Reply">

@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY itemJunk.label "Dramhphost">
 <!ENTITY itemPhishing.label "Camscéimeanna Ríomhphoist">
 <!ENTITY itemPasswords.label "Focail Fhaire">
@@ -14,8 +18,8 @@
 <!ENTITY manualMarkModeDelete.accesskey "d">
 <!ENTITY markAsReadOnSpam.label "Marcáil teachtaireachtaí ar Dramhphost iad mar léite">
 <!ENTITY markAsReadOnSpam.accesskey "M">
-<!ENTITY enableJunkLogging.label "Cumasaigh logáil don scagaire dramhphoist">
-<!ENTITY enableJunkLogging.accesskey "e">
+<!ENTITY enableAdaptiveJunkLogging.label "Cumasaigh logáil don scagaire dramhphoist">
+<!ENTITY enableAdaptiveJunkLogging.accesskey "C">
 <!ENTITY openJunkLog.label "Taispeáin an logchomhad">
 <!ENTITY openJunkLog.accesskey "s">
 <!ENTITY resetTrainingData.label "Glan na Sonraí Traenála">
@@ -48,7 +52,7 @@
 <!ENTITY acceptCookies.label "Glac le fianáin ó shuímh">
 <!ENTITY acceptCookies.accesskey "c">
 <!ENTITY keepUntil.label "Coinnigh:">
-<!ENTITY keepUntil.accesskey "C">
+<!ENTITY keepUntil.accesskey "o">
 <!ENTITY expire.label "go dtí go mbeidh siad caite">
 <!ENTITY close.label "go dtí go ndúnaim &brandShortName;">
 <!ENTITY askEachTime.label "fiafraigh díom i gcónaí">
@@ -56,7 +60,7 @@
 <!ENTITY cookieExceptions.accesskey "E">
 <!ENTITY showCookies.label "Taispeáin Fianáin…">
 <!ENTITY showCookies.accesskey "s">
+<!-- Do Not Track -->
 
-
-<!ENTITY enableAdaptiveJunkLogging.accesskey "E">
-<!ENTITY enableAdaptiveJunkLogging.label "Enable adaptive junk filter logging">
+<!ENTITY doNotTrack.label "Cuir in iúl do shuímh Ghréasáin gan mé a rianú">
+<!ENTITY doNotTrack.accesskey "d">

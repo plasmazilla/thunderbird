@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY itemFormatting.label             "格式">
 <!ENTITY itemTags.label                   "標籤">
 
@@ -12,7 +16,7 @@
 <!ENTITY regularSize.label                "正常">
 <!ENTITY bigger.label                     "增大">
 <!ENTITY smaller.label                    "減少">
-<!ENTITY color.label                      "色彩:">
+<!ENTITY color.label                      "顏色:">
 <!ENTITY color.accesskey                  "C">
 <!ENTITY displayWidth.label               "純文字郵件">
 <!ENTITY displayText.label                "顯示引用的純文字郵件時:">

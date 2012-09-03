@@ -5,5 +5,7 @@
 <!ENTITY closeLog.label "Зачыніць">
 <!ENTITY closeLog.accesskey "ч">
 
+
+
 <!ENTITY adaptiveJunkLog.title "Adaptive Junk Mail Log">
 <!ENTITY adaptiveJunkLogInfo.label "Log of adaptive junk mail control activity.">

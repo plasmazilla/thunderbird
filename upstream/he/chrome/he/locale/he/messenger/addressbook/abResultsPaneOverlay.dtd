@@ -67,3 +67,6 @@
 <!ENTITY sortDescending.label                  "יורד">
 <!ENTITY sortDescending.accesskey              "י">
 
+
+<!ENTITY ChatName.accesskey                    "C">
+<!ENTITY ChatName.label                        "Chat Name">

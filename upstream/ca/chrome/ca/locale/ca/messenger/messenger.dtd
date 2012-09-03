@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY titledefault.label    "&brandFullName;">
 <!ENTITY titleSeparator.label " - ">
 <!-- File Menu -->
@@ -28,6 +32,8 @@
 <!ENTITY newExistingEmailAccountCmd.accesskey "e">
 <!ENTITY newIMAccountCmd.label "Compte de xat…">
 <!ENTITY newIMAccountCmd.accesskey "x">
+<!ENTITY newIMContactCmd.label "Contacte del xat...">
+<!ENTITY newIMContactCmd.accesskey "a">
 <!ENTITY openMessageFileCmd.label "Obre un missatge desat…">
 <!ENTITY openMessageFileCmd.accesskey "O">
 <!ENTITY openAttachmentCmd.label "Adjuncions">
@@ -66,7 +72,7 @@
 <!ENTITY offlineGoOfflineCmd.accesskey "T">
 <!ENTITY synchronizeOfflineCmd.label "Baixa/sincronitza ara…">
 <!ENTITY synchronizeOfflineCmd.accesskey "B">
-<!ENTITY settingsOfflineCmd.label "Paràmetres de fora de línia">
+<!ENTITY settingsOfflineCmd.label "Paràmetres de fora de línia…">
 <!ENTITY settingsOfflineCmd.accesskey "e">
 <!ENTITY downloadSelectedCmd.label "Baixa els missatges seleccionats">
 <!ENTITY downloadSelectedCmd.accesskey "m">
@@ -329,7 +335,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goBackCmd.accesskey "r">
 <!ENTITY goBackCmd.commandKey "[">
 <!ENTITY goChatCmd.label "Xat">
-<!ENTITY goChatCmd.accesskey "x">
+<!ENTITY goChatCmd.accesskey "X">
 <!ENTITY goChatCmd.commandKey "C">
 <!ENTITY prevStarredMsgCmd.label "Missatge destacat">
 <!ENTITY prevStarredMsgCmd.accesskey "s">
@@ -480,6 +486,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY imStatus.unavailable        "No disponible">
 <!ENTITY imStatus.offline            "Fora de línia">
 <!ENTITY imStatus.showAccounts       "Mostra els comptes…">
+<!ENTITY joinChatCmd.label "Uniu-vos al xat...">
+<!ENTITY joinChatCmd.accesskey "u">
 <!ENTITY savedFiles.label "Fitxers desats">
 <!ENTITY savedFiles.accesskey "d">
 <!ENTITY savedFiles.key "j">
@@ -525,7 +533,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY goForwardButton1.label "Endavant">
 <!ENTITY deleteItem.title "Suprimeix">
 <!ENTITY deleteButton.label "Suprimeix">
-<!ENTITY undeleteButton.label "Dessuprimeix">
+<!ENTITY undeleteButton.label "Desfés la supressió">
 <!ENTITY markButton.label "Marca">
 <!ENTITY printButton.label "Imprimeix">
 <!ENTITY stopButton.label "Atura">
@@ -775,7 +783,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY contextUnmute.accesskey "S">
 <!-- Junk Bar -->
 
-<!ENTITY junkBarMessage1.label "Correu brossa">
+<!ENTITY junkBarMessage2.label "El &brandShortName; ha indicat que aquest missatge pot ser correu brossa.">
 <!ENTITY junkBarButton1.label "Correu legítim">
 <!ENTITY junkInfoButton.label "?">
 <!-- Remote Content Bar -->

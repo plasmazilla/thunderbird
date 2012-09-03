@@ -1,4 +1,8 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
 <!-- extracted from AccountManager.xul -->
+
 
 <!ENTITY accountManagerTitle.label "Socruithe Cuntais">
 
@@ -6,6 +10,8 @@
 <!ENTITY accountActionsButton.accesskey "a">
 <!ENTITY addMailAccountButton.label "Cuir Cuntas Ríomhphoist Leis…">
 <!ENTITY addMailAccountButton.accesskey "a">
+<!ENTITY addIMAccountButton.label "Cuir Cuntas Comhrá Leis…">
+<!ENTITY addIMAccountButton.accesskey "C">
 <!ENTITY addOtherAccountButton.label "Cuir Cuntas Eile Leis…">
 <!ENTITY addOtherAccountButton.accesskey "E">
 <!ENTITY setDefaultButton.label "Socraigh mar Réamhshocrú">
@@ -24,6 +30,3 @@
 
 <!ENTITY accountManager.size "width: 115ch; height: 60em;">
 <!ENTITY accountTree.width "width: 31ch;">
-
-<!ENTITY addIMAccountButton.accesskey "C">
-<!ENTITY addIMAccountButton.label "Add Chat Account…">

@@ -150,3 +150,5 @@
 <!ENTITY OpenMessageForMsgId.accesskey "Բ">
 <!ENTITY OpenBrowserWithMsgId.label "Բացել դիտարկիչը՝ նամակի ID-ով">
 <!ENTITY OpenBrowserWithMsgId.accesskey "Բ">
+
+<!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">

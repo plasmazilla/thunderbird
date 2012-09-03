@@ -78,3 +78,6 @@
 <!ENTITY sortAscending.accesskey               "A">
 <!ENTITY sortDescending.label                  "Նվազմամբ">
 <!ENTITY sortDescending.accesskey              "D">
+
+<!ENTITY ChatName.accesskey                    "C">
+<!ENTITY ChatName.label                        "Chat Name">

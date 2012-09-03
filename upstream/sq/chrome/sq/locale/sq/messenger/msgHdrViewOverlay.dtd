@@ -136,3 +136,5 @@
 <!ENTITY OpenMessageForMsgId.accesskey "H">
 <!ENTITY OpenBrowserWithMsgId.label "Hape Shfletuesin Me Mesazhin Me ID">
 <!ENTITY OpenBrowserWithMsgId.accesskey "M">
+
+<!ENTITY hdrReplyButton2.tooltip "Reply to the sender of this message">

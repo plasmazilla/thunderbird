@@ -42,4 +42,7 @@
 <!ENTITY watchThread.label "ਥਰਿੱਡ ਨਿਗਰਾਨੀ">
 <!ENTITY stopExecution.label "ਫਿਲਟਰ ਚਲਾਉਣਾ ਰੋਕੋ">
 
+
+<!ENTITY addAction.tooltip "Add a new action">
 <!ENTITY markMessageUnread.label "Mark As Unread">
+<!ENTITY removeAction.tooltip "Remove this action">

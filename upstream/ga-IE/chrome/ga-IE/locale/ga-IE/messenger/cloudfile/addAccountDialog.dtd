@@ -1,13 +1,13 @@
 <!-- This Source Code Form is subject to the terms of the Mozilla Public
    - License, v. 2.0. If a copy of the MPL was not distributed with this file,
    - You can obtain one at http://mozilla.org/MPL/2.0/.  -->
-<!ENTITY addAccountDialog.title   "Set up Filelink">
-<!ENTITY addAccountDialog.menuTitle "Select an online storage service">
+<!ENTITY addAccountDialog.title "Socraigh Filelink">
+<!ENTITY addAccountDialog.menuTitle "Roghnaigh seirbhís stórála ar líne">
 <!ENTITY addAccountDialog.style "width: 40em; min-height: 20em;">
-<!ENTITY addAccountDialog.accountName.label "Account Name:">
-<!ENTITY addAccountDialog.noAccountText "We're sorry, but the current version of &brandShortName; only allows one account from each online storage service.">
-<!ENTITY addAccountDialog.createAccountText2 "You can send large attachments using one of several online storage services. Please either set up an existing account, or sign up for a new account.">
-<!ENTITY addAccountDialog.authorizing "Checking authorization...">
-<!ENTITY addAccountDialog.error "An error occurred while setting up the account!">
-<!ENTITY addAccountDialog.acceptButton.label "Set up Account">
-<!ENTITY addAccountDialog.learnMore "Learn more…">
+<!ENTITY addAccountDialog.accountName.label "Ainm an Chuntais:">
+<!ENTITY addAccountDialog.noAccountText "Tá brón orainn, ach ní cheadaíonn an leagan reatha de &brandShortName; níos mó ná cuntas amháin ar gach seirbhís stórála ar líne.">
+<!ENTITY addAccountDialog.createAccountText2 "Is féidir leat iatáin mhóra a sheoladh trí do rogha seirbhís stórála ar líne. Má tá cuntas agat cheana caithfidh tú é a roghnú, nó cuntas nua a chruthú mura bhfuil.">
+<!ENTITY addAccountDialog.authorizing "Údarú á dhearbhú...">
+<!ENTITY addAccountDialog.error "Tharla earráid agus an cuntas á shocrú!">
+<!ENTITY addAccountDialog.acceptButton.label "Socraigh Cuntas">
+<!ENTITY addAccountDialog.learnMore "Tuilleadh eolais…">

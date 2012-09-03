@@ -1,5 +1,9 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY window.title "Fáilte go &brandShortName;">
-<!ENTITY header.label "An bhfuil fonn ort seoladh nua ríomhphoist a fháil?">
+<!ENTITY header2.label "An bhfuil fonn ort seoladh nua ríomhphoist a fháil?">
 <!ENTITY other.languages "Nílimid ag taispeáint ach na soláthraithe a chuireann seoltaí ríomhphoist ar fáil i do cheantar. Cliceáil anseo chun gach uile sholáthraí a thaispeáint.">
 <!ENTITY error.line1 "Tá brón orainn, níorbh fhéidir linn aon seoltaí ríomhphoist a mholadh duit.">
 <!ENTITY error.line2 "Tig leat cuardach a dhéanamh ar leasainmneacha nó téarmaí eile chun tuilleadh seoltaí a fháil">
@@ -37,5 +41,3 @@
 <!ENTITY search_engine.title "Saincheap d'inneall cuardaigh">
 <!ENTITY search_engine.message "Seans gur féidir leat an Gréasán a chuardach trí do sholáthraí ríomhphoist freisin.">
 <!ENTITY search_engine.button "Críochnaigh">
-
-<!ENTITY header2.label "Would you like a new email address?">

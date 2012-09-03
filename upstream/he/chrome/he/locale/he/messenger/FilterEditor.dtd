@@ -53,3 +53,7 @@
 <!ENTITY watchThread.label "עקוב אחר נושא דיון">
 <!ENTITY stopExecution.label "הפסק הפעלת מסננים">
 
+
+
+<!ENTITY addAction.tooltip "Add a new action">
+<!ENTITY removeAction.tooltip "Remove this action">

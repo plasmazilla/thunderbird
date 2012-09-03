@@ -30,3 +30,6 @@
 <!ENTITY sortAscending.accesskey               "r">
 <!ENTITY sortDescending.label                  "Zbritës">
 <!ENTITY sortDescending.accesskey              "z">
+
+<!ENTITY ChatName.accesskey                    "C">
+<!ENTITY ChatName.label                        "Chat Name">

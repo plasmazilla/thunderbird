@@ -18,3 +18,13 @@
 
 <!ENTITY ispHeaders.label "இதனால் அமைக்கப்பட்ட குப்பை அஞ்சல் தலைப்புகளை நம்புக: ">
 <!ENTITY ispHeaders.accesskey "T">
+
+
+<!ENTITY ispHeadersWarning.label "If enabled, &brandShortName; will automatically consider messages marked by this external classifier as junk.">
+<!ENTITY junkActions.label "Destination and Retention">
+
+<!ENTITY junkClassification.label "Selection">
+<!ENTITY trainingDescription.label "If enabled, you must first train &brandShortName; to identify junk mail by using the Junk toolbar button to mark messages as junk or not. You need to identify both junk and non junk messages. After that &brandShortName; will be able to mark junk automatically.">
+<!ENTITY whitelistHeader.accesskey "D">
+
+<!ENTITY whitelistHeader.label "Do not automatically mark mail as junk if the sender is in: ">

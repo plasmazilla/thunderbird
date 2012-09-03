@@ -85,3 +85,7 @@
 <!ENTITY validation.accesskey "ц">
 <!ENTITY viewSecurityDevices.label "Збудовы бяспекі">
 <!ENTITY viewSecurityDevices.accesskey "б">
+
+<!ENTITY useService.accesskey            "b">
+
+<!ENTITY useService.label                "Use a background service to install updates">

@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY titledefault.label    "&brandFullName;">
 <!ENTITY titleSeparator.label  " - ">
 
@@ -25,6 +29,8 @@
 <!ENTITY newExistingEmailAccountCmd.accesskey "K">
 <!ENTITY newIMAccountCmd.label "Konfigurację konta czat…">
 <!ENTITY newIMAccountCmd.accesskey "c">
+<!ENTITY newIMContactCmd.label "Wizytówkę dla kontaktu z czatu…">
+<!ENTITY newIMContactCmd.accesskey "t">
 <!ENTITY newOtherAccountsCmd.label            "Konfigurację innego konta…">
 <!ENTITY newOtherAccountsCmd.accesskey        "o">
 
@@ -468,6 +474,8 @@
 <!ENTITY imStatus.unavailable "Niedostępny">
 <!ENTITY imStatus.offline "Poza siecią">
 <!ENTITY imStatus.showAccounts "Wyświetl konta…">
+<!ENTITY joinChatCmd.label "Dołącz do czatu…">
+<!ENTITY joinChatCmd.accesskey "D">
 <!ENTITY savedFiles.label                  "Zapisane pliki">
 <!ENTITY savedFiles.accesskey              "Z">
 <!ENTITY savedFiles.key                    "j">
@@ -715,7 +723,7 @@
 <!ENTITY contextUnmute.accesskey "P">
 
 <!-- Junk Bar -->
-<!ENTITY junkBarMessage1.label "Niechciana wiadomość">
+<!ENTITY junkBarMessage2.label "Program &brandShortName; uznał tę wiadomość za niechcianą.">
 <!ENTITY junkBarButton1.label  "Pożądana wiadomość">
 <!ENTITY junkInfoButton.label  "Dlaczego?">
 

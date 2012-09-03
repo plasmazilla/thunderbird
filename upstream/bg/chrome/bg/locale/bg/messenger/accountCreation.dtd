@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY autoconfigWizard.title          "Настройка на пощенска регистрация">
 <!ENTITY name.label                      "Вашето име:">
 <!ENTITY name.accesskey                  "и">
@@ -62,11 +66,11 @@
      checkbox beside this text before continuing. -->
 <!ENTITY confirmWarning.label            "Разбирам риска.">
 <!ENTITY confirmWarning.accesskey        "з">
-<!-- LOCALIZATION NOTE (createAccount.label): If there is a security warning
+<!-- LOCALIZATION NOTE (doneAccount.label): If there is a security warning
      on the incoming or outgoing servers, then the page that pops up will
      have this text in a button to continue by creating the account. -->
-<!ENTITY createAccount.label             "Създаване на регистрация">
-<!ENTITY createAccount.accesskey         "ъ">
+<!ENTITY doneAccount.label               "Готово">
+<!ENTITY doneAccount.accesskey           "Г">
 <!-- LOCALIZATION NOTE (changeSettings.label): If there is a security warning on
      the incoming or outgoing servers, then the page that pops up will have
      this text in a button to take you back to the previous page to change
@@ -82,9 +86,3 @@
 <!ENTITY insecureUnencrypted.description "Вашата поща и удостоверяването се изпращат нешифровани, поради което паролата ви и писмото могат лесно да бъдат прочетени от други хора. &brandShortName; ще ви отвори пощата, но вие трябва да се свържете с вашия доставчик на пощенска услуга, за да конфигурира сървъра за защитена връзка.">
 <!ENTITY insecureSelfSigned.description  "Сървърът използва недоверен сертификат и поради това не можете да бъдете сигурни за връзка между &brandShortName; и вашия сървър. &brandShortName; ще ви позволи да си получите пощата, но вие наистина трябва да поискате от вашия доставчик да конфигурира сървъра с доверен сертификат.">
 <!ENTITY secureServer.description        "Поздравления! Това е защитен сървър.">
-
-<!ENTITY doneAccount.accesskey           "D">
-<!-- LOCALIZATION NOTE (doneAccount.label): If there is a security warning
-     on the incoming or outgoing servers, then the page that pops up will
-     have this text in a button to continue by creating the account. -->
-<!ENTITY doneAccount.label               "Done">

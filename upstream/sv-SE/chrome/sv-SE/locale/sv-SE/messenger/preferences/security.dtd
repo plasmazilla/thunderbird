@@ -57,5 +57,9 @@
 <!ENTITY  showCookies.label             "Visa kakor…">
 <!ENTITY  showCookies.accesskey         "V">
 
+<!ENTITY doNotTrack.accesskey           "d">
+
+<!-- Do Not Track -->
+<!ENTITY doNotTrack.label               "Tell web sites I do not want to be tracked">
 <!ENTITY enableAdaptiveJunkLogging.accesskey "E">
 <!ENTITY enableAdaptiveJunkLogging.label "Enable adaptive junk filter logging">

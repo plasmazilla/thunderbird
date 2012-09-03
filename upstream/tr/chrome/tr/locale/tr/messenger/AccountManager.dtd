@@ -6,6 +6,8 @@
 <!ENTITY accountActionsButton.accesskey "H">
 <!ENTITY addMailAccountButton.label "Posta hesabı ekle…">
 <!ENTITY addMailAccountButton.accesskey "P">
+<!ENTITY addIMAccountButton.label "Sohbet hesabı ekle…">
+<!ENTITY addIMAccountButton.accesskey "e">
 <!ENTITY addOtherAccountButton.label "Diğer hesap ekle…">
 <!ENTITY addOtherAccountButton.accesskey "D">
 <!ENTITY setDefaultButton.label "Varsayılan olarak ayarla">
@@ -25,6 +27,3 @@
 <!ENTITY accountManager.size "width: 105ch; height: 55em;">
 <!ENTITY accountTree.width "width: 31ch;">
 
-
-<!ENTITY addIMAccountButton.accesskey "C">
-<!ENTITY addIMAccountButton.label "Add Chat Account…">

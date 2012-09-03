@@ -117,3 +117,7 @@ Entities below were automatically added by compare-locales,
 <!ENTITY closeMsgOnMoveOrDelete.accesskey "C">
 <!ENTITY mb.label "MB">
 <!ENTITY closeMsgOnMoveOrDelete.label "செய்தி சாளரத்தை மூடுக /நகர்த்தல் அல்லது அழித்தலுக்கான தத்தல்">
+
+<!ENTITY useService.accesskey            "b">
+
+<!ENTITY useService.label                "Use a background service to install updates">

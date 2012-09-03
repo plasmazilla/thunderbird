@@ -1,3 +1,7 @@
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+
 <!ENTITY typeColumn.label "Cineál Ábhair">
 <!ENTITY typeColumn.accesskey "b">
 
@@ -12,24 +16,23 @@
 <!ENTITY saveTo.label "Sábháil comhaid i">
 <!ENTITY saveTo.accesskey "S">
 <!ENTITY alwaysAsk.label "Fiafraigh díom cá sábhálfar an comhad i gcónaí">
-<!ENTITY alwaysAsk.accesskey "a">
+<!ENTITY alwaysAsk.accesskey "g">
 <!ENTITY chooseFolderWin.label "Brabhsáil…">
 <!ENTITY chooseFolderWin.accesskey "B">
 <!ENTITY chooseFolderMac.label "Roghnaigh…">
 <!ENTITY chooseFolderMac.accesskey "R">
 
-<!ENTITY addCloudFileAccount.accesskey    "A">
-<!ENTITY addCloudFileAccount.description  "Add a new Filelink storage service">
+<!ENTITY attachments.incoming.label "Isteach">
+<!ENTITY attachments.outgoing.label "Amach">
 
-<!ENTITY addCloudFileAccount.label        "Add">
+<!ENTITY addCloudFileAccount.label "Cuir Leis">
+<!ENTITY addCloudFileAccount.accesskey "L">
+<!ENTITY addCloudFileAccount.description "Cuir seirbhís stórála Filelink leis">
+<!ENTITY removeCloudFileAccount.label "Bain">
+<!ENTITY removeCloudFileAccount.accesskey "B">
+<!ENTITY authRequired.description "Ní mór duit údarú chun socruithe na seirbhíse stórála seo a fheiceáil.">
+<!ENTITY authRequired.button.label "Údaraigh">
+<!ENTITY authRequired.button.accesskey "d">
 
-<!ENTITY attachments.incoming.label   "Incoming">
-<!ENTITY attachments.outgoing.label   "Outgoing">
-<!ENTITY authRequired.button.accesskey    "U">
-<!ENTITY authRequired.button.label        "Authorize">
-<!ENTITY authRequired.description         "Your authorization is required in order to see the settings for this storage service.">
-
-<!ENTITY enableCloudFileAccountOffer.label "Offer to share for files larger than">
+<!ENTITY enableCloudFileAccountOffer.label "Tabhair tairiscint comhaid a chomhroinnt má tá siad níos mó ná">
 <!ENTITY enableCloudFileAccountOffer.mb "MB">
-<!ENTITY removeCloudFileAccount.accesskey "R">
-<!ENTITY removeCloudFileAccount.label     "Remove">

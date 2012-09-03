@@ -40,4 +40,7 @@
 <!ENTITY watchThread.label "Theo dõi Chủ đề">
 <!ENTITY stopExecution.label "Ngừng Thực thi Bộ lọc">
 
+
+<!ENTITY addAction.tooltip "Add a new action">
 <!ENTITY markMessageUnread.label "Mark As Unread">
+<!ENTITY removeAction.tooltip "Remove this action">

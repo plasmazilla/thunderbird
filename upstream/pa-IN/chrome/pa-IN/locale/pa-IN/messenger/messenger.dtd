@@ -887,12 +887,19 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY imStatus.offline            "Offline">
 <!ENTITY imStatus.showAccounts       "Show Accounts…">
 <!ENTITY imStatus.unavailable        "Unavailable">
+<!ENTITY joinChatCmd.accesskey "o">
+<!ENTITY joinChatCmd.label "Join Chat…">
+
+<!-- Junk Bar -->
+<!ENTITY junkBarMessage2.label "&brandShortName; thinks this message is junk mail.">
 <!ENTITY newCreateEmailAccountCmd.accesskey "G">
 <!ENTITY newCreateEmailAccountCmd.label "Get a New Mail Account…">
 <!ENTITY newExistingEmailAccountCmd.accesskey "E">
 <!ENTITY newExistingEmailAccountCmd.label "Existing Mail Account…">
 <!ENTITY newIMAccountCmd.accesskey "C">
 <!ENTITY newIMAccountCmd.label "Chat Account…">
+<!ENTITY newIMContactCmd.accesskey "h">
+<!ENTITY newIMContactCmd.label "Chat Contact…">
 <!ENTITY nextButtonToolbarItem.label "Next Unread">
 <!ENTITY nextMsgButton.label "Next">
 <!ENTITY nextMsgButton.tooltip "Move to the next message">

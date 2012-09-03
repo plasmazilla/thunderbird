@@ -15,7 +15,7 @@
 <!ENTITY pluginWizard.finalPage.restart.label "&brandShortName; deve essere riavviato affinché i plugin funzionino.">
 <!ENTITY missingPlugin "Per visualizzare questo contenuto è richiesto un plugin.">
 <!ENTITY tapToPlayPlugin "Toccare qui per attivare il plugin.">
-<!ENTITY clickToPlayPlugins "Fare clic qui per attivare i plugin.">
+<!ENTITY clickToPlayPlugin "Fare clic per attivare il plugin.">
 <!ENTITY disabledPlugin "Questo plugin è disattivato.">
 <!ENTITY blockedPlugin.label "Questo plugin è stato bloccato per motivi di sicurezza.">
 <!ENTITY installPlugin "Installa plugin…">
@@ -29,3 +29,13 @@
 <!ENTITY report.disabled "Invio segnalazioni disattivato.">
 <!ENTITY report.failed "Invio segnalazione non riuscito.">
 <!ENTITY report.unavailable "Nessuna segnalazione disponibile.">
+
+<!-- LOCALIZATION NOTE (unsupportedPlatform.learnMore): Mobile only. This text is used to link to a SUMO page explaining why Flash is not
+     supported on this device. Use the unicode ellipsis char, \u2026, or use "..." if \u2026 doesn't suit traditions in your locale. -->
+<!ENTITY unsupportedPlatform.learnMore                       "Learn More…">
+<!-- LOCALIZATION NOTE (unsupportedPlatform.post): Mobile only. Include text here if needed for your locale. -->
+<!ENTITY unsupportedPlatform.post                            "">
+
+<!-- LOCALIZATION NOTE (unsupportedPlatform.pre): Mobile only. Flash (the only plugin available on mobile)
+     is not supported on some devices. Include a trailing space as needed. -->
+<!ENTITY unsupportedPlatform.pre                             "We're very sorry, but &brandShortName; can't play Flash on this device. ">
