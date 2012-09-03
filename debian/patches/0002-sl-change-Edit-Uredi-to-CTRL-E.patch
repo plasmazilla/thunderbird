@@ -1,6 +1,6 @@
 From: Christoph Goehre <chris@sigxcpu.org>
 Date: Mon, 5 Sep 2011 19:21:25 +0200
-Subject: [PATCH] sl: change Edit (Uredi) to CTRL+E
+Subject: sl: change Edit (Uredi) to CTRL+E
 
 Closes: #601331
 ---
@@ -20,4 +20,3 @@ index 8c137f4..27db01d 100644
  <!ENTITY undoCmd.label            "Razveljavi">
  <!ENTITY undoCmd.key            "Z">
  <!ENTITY undoCmd.accesskey          "Z">
--- 
