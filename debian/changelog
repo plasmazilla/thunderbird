@@ -1,3 +1,20 @@
+icedove (3.0.11-1+squeeze13) stable-security; urgency=high
+
+  * [9738634] backported patches from xulrunner fixes mfsa2012-{57,58,63,65,70}
+    - MFSA 2012-57 aka CVE-2012-1970: Miscellaneous memory safety hazards
+      (rv:15.0/ rv:10.0.7)
+    - MFSA 2012-58 aka CVE-2012-1972, CVE-2012-1973, CVE-2012-1974,
+      CVE-2012-1975, CVE-2012-1976, CVE-2012-3959, CVE-2012-3962:
+      Use-after-free issues found using Address Sanitizer
+    - MFSA 2012-63 aka CVE-2012-3969: SVG buffer overflow and use-after-free
+      issues
+    - MFSA 2012-65 aka CVE-2012-3972: Out-of-bounds read in format-number in
+      XSLT
+    - MFSA 2012-70 aka CVE-2012-3978: Location object security checks bypassed
+      by chrome code
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sat, 22 Sep 2012 18:44:16 -0400
+
 icedove (3.0.11-1+squeeze12) stable-security; urgency=high
 
   * [23f20f9] backported patches from xulrunner fixes mfsa2012-{42-44,56}
