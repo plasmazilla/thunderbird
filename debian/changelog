@@ -1,3 +1,19 @@
+icedove (10.0.7-1) unstable; urgency=high
+
+  * [d059477] New Upstream version 10.0.7 (Closes: #686201)
+  * Fixes for MFSA2012-{57,58,61-63,65,70,72}, also known as
+    CVE-2012-1970, CVE-2012-1972, CVE-2012-1973, CVE-2012-1974,
+    CVE-2012-1975, CVE-2012-1976, CVE-2012-3956, CVE-2012-3957,
+    CVE-2012-3958, CVE-2012-3959, CVE-2012-3960, CVE-2012-3961,
+    CVE-2012-3962, CVE-2012-3963, CVE-2012-3964, CVE-2012-3966,
+    CVE-2012-3968, CVE-2012-3967, CVE-2012-3969, CVE-2012-3970,
+    CVE-2012-3972, CVE-2012-3978, CVE-2012-3980
+  * [13e3592] rebuild patch queue from patch-queue branch
+    added patches:
+    - fixes/Allow-webGL-with-mesa-assuming-users-will-have-updat.patch
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Fri, 21 Sep 2012 21:11:01 -0400
+
 icedove (10.0.6-2) unstable; urgency=low
 
   * [a657277] rebuild patch queue from patch-queue branch
