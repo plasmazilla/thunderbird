@@ -38,8 +38,6 @@ fixes/Bug-720682-Don-t-crash-an-app-using-libxul-because-o.patch
 fixes/Bug-696636-Block-OpenGL-1-drivers-explicitly-to-stee.patch
 fixes/Load-dependent-libraries-with-their-real-path-to-avo.patch
 fixes/Bug-515232-Try-getting-general.useragent.locale-as-a.patch
-fixes/Bug-729817-Block-the-Nouveau-3D-driver-as-it-s-insta.patch
-fixes/Bug-729817-Allow-the-Nouveau-driver-with-Mesa-8.0.1-.patch
 porting/Bug-703534-Fix-build-failure-on-platforms-without-YA.patch
 prefs/Set-javascript.options.showInConsole.patch
 prefs/Don-t-auto-disable-extensions-in-system-directories.patch
@@ -59,3 +57,6 @@ fixes/Bug-709259-Try-creating-a-named-cursor-before-a-bitm.patch
 fixes/Bug-761082-Only-export-TabMessageUtils.h-in-mozilla-.patch
 fixes/Bug-693343-a11y-disabled-in-Gnome-3-when-GNOME_ACCES.patch
 porting/fix-FTBFS-on-Alpha-add-arch-support-for-IPC.patch
+fixes/Bug-729817-Block-the-Nouveau-3D-driver-as-it-s-insta.patch
+fixes/Bug-729817-Allow-the-Nouveau-driver-with-Mesa-8.0.1-.patch
+fixes/Allow-webGL-with-mesa-assuming-users-will-have-updat.patch

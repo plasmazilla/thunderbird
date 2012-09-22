@@ -1,5 +1,5 @@
-From: Zack Weinberg <zackw@panix.com>
-Date: Fri, 9 Mar 2012 11:07:16 +0100
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Fri, 21 Sep 2012 20:58:30 -0400
 Subject: Bug 729817 - Allow the Nouveau driver with Mesa >= 8.0.1 - r=bjacob
 
 ---
@@ -7,13 +7,13 @@ Subject: Bug 729817 - Allow the Nouveau driver with Mesa >= 8.0.1 - r=bjacob
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp b/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp
-index c6f7d96..27a0fd0 100644
+index c6b2ad3..a2d5e0b 100644
 --- a/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp
 +++ b/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp
-@@ -310,9 +310,9 @@ GfxInfo::GetFeatureStatusImpl(PRInt32 aFeature,
-     }
- 
-     if (mIsMesa) {
+@@ -314,9 +314,9 @@ GfxInfo::GetFeatureStatusImpl(PRInt32 aFeature,
+             *aStatus = nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION;
+             aSuggestedDriverVersion.AssignLiteral("Not Mesa");
+         }
 -        if (mIsNouveau) {
 +        if (mIsNouveau && version(mMajorVersion, mMinorVersion) < version(8,0)) {
              *aStatus = nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION;

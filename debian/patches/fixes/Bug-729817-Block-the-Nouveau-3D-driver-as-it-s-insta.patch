@@ -1,5 +1,5 @@
-From: Benoit Jacob <bjacob@mozilla.com>
-Date: Thu, 23 Feb 2012 17:23:29 -0500
+From: Christoph Goehre <chris@sigxcpu.org>
+Date: Fri, 21 Sep 2012 20:56:46 -0400
 Subject: Bug 729817 - Block the Nouveau 3D driver as it's installed by
  default on OpenSuse 12.1 and crashes - r=mattwoodrow
 
@@ -9,7 +9,7 @@ Subject: Bug 729817 - Block the Nouveau 3D driver as it's installed by
  2 files changed, 8 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp b/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp
-index ad9e5e4..c6f7d96 100644
+index 4974c5f..c6b2ad3 100644
 --- a/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp
 +++ b/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp
 @@ -68,6 +68,7 @@ GfxInfo::Init()
@@ -29,10 +29,10 @@ index ad9e5e4..c6f7d96 100644
      } else if (strstr(mVendor.get(), "NVIDIA Corporation")) {
          mIsNVIDIA = true;
          // with the NVIDIA driver, the version string contains "NVIDIA major.minor"
-@@ -307,7 +310,10 @@ GfxInfo::GetFeatureStatusImpl(PRInt32 aFeature,
-     }
- 
-     if (mIsMesa) {
+@@ -311,7 +314,10 @@ GfxInfo::GetFeatureStatusImpl(PRInt32 aFeature,
+             *aStatus = nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION;
+             aSuggestedDriverVersion.AssignLiteral("Not Mesa");
+         }
 -        if (version(mMajorVersion, mMinorVersion, mRevisionVersion) < version(7,10,3)) {
 +        if (mIsNouveau) {
 +            *aStatus = nsIGfxInfo::FEATURE_BLOCKED_DRIVER_VERSION;

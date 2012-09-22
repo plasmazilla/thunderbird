@@ -9,7 +9,7 @@ Subject: Bug 696636 - Block OpenGL 1 drivers explicitly to steer clear of
  2 files changed, 14 insertions(+), 2 deletions(-)
 
 diff --git a/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp b/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp
-index 2bc377d..ad9e5e4 100644
+index 018b8fa..4974c5f 100644
 --- a/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp
 +++ b/mozilla/widget/src/xpwidgets/GfxInfoX11.cpp
 @@ -61,6 +61,7 @@ pid_t glxtest_pid = 0;
