@@ -1,0 +1,26 @@
+From 59db602701f18db8fdf636fe31685b7f2940d7c0 Mon Sep 17 00:00:00 2001
+From: William Chen <wchen@mozilla.com>
+Date: Mon, 11 Jun 2012 13:31:35 -0400
+Subject: Bug 746855 - Be more careful when checking for a carry during number
+ format evaluation. r=sicking a=lsblakk
+
+---
+ content/xslt/src/xslt/txFormatNumberFunctionCall.cpp |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mozilla/content/xslt/src/xslt/txFormatNumberFunctionCall.cpp b/mozilla/content/xslt/src/xslt/txFormatNumberFunctionCall.cpp
+index 93ca46e..1c48d16 100644
+--- a/mozilla/content/xslt/src/xslt/txFormatNumberFunctionCall.cpp
++++ b/mozilla/content/xslt/src/xslt/txFormatNumberFunctionCall.cpp
+@@ -327,7 +327,7 @@ txFormatNumberFunctionCall::evaluate(txIEvalContext* aContext,
+                   (intDigits-1)/groupSize); // group separators
+ 
+     PRInt32 i = bufIntDigits + maxFractionSize - 1;
+-    MBool carry = (i+1 < buflen) && (buf[i+1] >= '5');
++    MBool carry = (0 <= i+1) && (i+1 < buflen) && (buf[i+1] >= '5');
+     MBool hasFraction = MB_FALSE;
+ 
+     PRUint32 resPos = res.Length()-1;
+-- 
+1.7.10.4
+

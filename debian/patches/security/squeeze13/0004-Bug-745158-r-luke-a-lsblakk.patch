@@ -1,0 +1,25 @@
+From 597ddb4bccba598f3876de60775ab9e94b0f80f7 Mon Sep 17 00:00:00 2001
+From: David Mandelin <dmandelin@mozilla.com>
+Date: Wed, 1 Aug 2012 17:54:36 -0700
+Subject: Bug 745158, r=luke, a=lsblakk
+
+---
+ js/src/jsopcode.cpp |    2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mozilla/js/src/jsopcode.cpp b/mozilla/js/src/jsopcode.cpp
+index aa7fad5..26b6b41 100644
+--- a/mozilla/js/src/jsopcode.cpp
++++ b/mozilla/js/src/jsopcode.cpp
+@@ -4444,7 +4444,7 @@ Decompile(SprintStack *ss, jsbytecode *pc, intN nb, JSOp nextop)
+                 sn = js_GetSrcNote(jp->script, pc);
+ 
+                 /* Skip any #n= prefix to find the opening bracket. */
+-                for (xval = rval; *xval != '[' && *xval != '{'; xval++)
++                for (xval = rval; *xval != '[' && *xval != '{' && *xval; xval++)
+                     continue;
+                 inArray = (*xval == '[');
+                 if (inArray)
+-- 
+1.7.10.4
+

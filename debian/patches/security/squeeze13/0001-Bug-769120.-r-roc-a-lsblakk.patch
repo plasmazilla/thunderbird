@@ -1,0 +1,31 @@
+From 173eb4146fa841c70cc3fe4e2e4353215eda5166 Mon Sep 17 00:00:00 2001
+From: Mats Palmgren <matspal@gmail.com>
+Date: Mon, 30 Jul 2012 10:34:25 +0200
+Subject: Bug 769120. r=roc a=lsblakk
+
+---
+ layout/generic/nsTextFrameThebes.cpp |    7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/mozilla/layout/generic/nsTextFrameThebes.cpp b/mozilla/layout/generic/nsTextFrameThebes.cpp
+index 924e2ca..cdfbdec 100644
+--- a/mozilla/layout/generic/nsTextFrameThebes.cpp
++++ b/mozilla/layout/generic/nsTextFrameThebes.cpp
+@@ -5887,12 +5887,9 @@ nsTextFrame::SetLength(PRInt32 aLength)
+ PRBool
+ nsTextFrame::IsFloatingFirstLetterChild()
+ {
+-  if (!GetStateBits() & TEXT_FIRST_LETTER)
+-    return PR_FALSE;
+   nsIFrame* frame = GetParent();
+-  if (!frame || frame->GetType() != nsGkAtoms::letterFrame)
+-    return PR_FALSE;
+-  return frame->GetStyleDisplay()->IsFloating();
++  return frame && frame->GetStyleDisplay()->IsFloating() &&
++         frame->GetType() == nsGkAtoms::letterFrame;
+ }
+ 
+ NS_IMETHODIMP
+-- 
+1.7.10.4
+

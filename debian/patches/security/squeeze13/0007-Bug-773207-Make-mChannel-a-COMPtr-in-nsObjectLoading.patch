@@ -1,0 +1,30 @@
+From f0bfe5ddfa7f0270ab999ed857a70fade3a936ff Mon Sep 17 00:00:00 2001
+From: John Schoenick <jschoenick@mozilla.com>
+Date: Tue, 7 Aug 2012 15:59:16 -0700
+Subject: Bug 773207 - Make mChannel a COMPtr in nsObjectLoadingContent.
+ r=smaug a=lsblakk
+
+---
+ content/base/src/nsObjectLoadingContent.h |    4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/mozilla/content/base/src/nsObjectLoadingContent.h b/mozilla/content/base/src/nsObjectLoadingContent.h
+index 16d3426..58d57f2 100644
+--- a/mozilla/content/base/src/nsObjectLoadingContent.h
++++ b/mozilla/content/base/src/nsObjectLoadingContent.h
+@@ -392,10 +392,10 @@ class nsObjectLoadingContent : public nsImageLoadingContent
+     nsCString                   mContentType;
+ 
+     /**
+-     * The channel that's currently being loaded. This is a weak reference.
++     * The channel that's currently being loaded.
+      * Non-null between asyncOpen and onStopRequest.
+      */
+-    nsIChannel*                 mChannel;
++    nsCOMPtr<nsIChannel>        mChannel;
+ 
+     // The data we were last asked to load
+     nsCOMPtr<nsIURI>            mURI;
+-- 
+1.7.10.4
+

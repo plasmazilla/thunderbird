@@ -1,0 +1,130 @@
+From 09a040521a661076cd405fbd3b600b72bb2a00a0 Mon Sep 17 00:00:00 2001
+From: Jonathan Kew <jkew@mozilla.com>
+Date: Thu, 16 Aug 2012 19:35:04 +0100
+Subject: bug 769303 - precompute intrinsic width of floats. r=roc a=lsblakk
+
+---
+ layout/generic/nsFrame.cpp            |   20 +++++++-------------
+ layout/generic/nsIFrame.h             |   15 ++++++++++++++-
+ layout/generic/nsPlaceholderFrame.cpp |   20 ++++++++++++++++----
+ 3 files changed, 37 insertions(+), 18 deletions(-)
+
+diff --git a/mozilla/layout/generic/nsFrame.cpp b/mozilla/layout/generic/nsFrame.cpp
+index 9a2d23c..881c5d0 100644
+--- a/mozilla/layout/generic/nsFrame.cpp
++++ b/mozilla/layout/generic/nsFrame.cpp
+@@ -2972,11 +2972,8 @@ nsIFrame::InlineMinWidthData::ForceBreak(nsIRenderingContext *aRenderingContext)
+   prevLines = PR_MAX(prevLines, currentLine);
+   currentLine = trailingWhitespace = 0;
+ 
+-  for (PRInt32 i = 0, i_end = floats.Count(); i != i_end; ++i) {
+-    nsIFrame *floatFrame = static_cast<nsIFrame*>(floats[i]);
+-    nscoord float_min =
+-      nsLayoutUtils::IntrinsicForContainer(aRenderingContext, floatFrame,
+-                                           nsLayoutUtils::MIN_WIDTH);
++  for (PRInt32 i = 0, i_end = floats.Length(); i != i_end; ++i) {
++    nscoord float_min = floats[i].Width();
+     if (float_min > prevLines)
+       prevLines = float_min;
+   }
+@@ -3003,7 +3000,7 @@ nsIFrame::InlineMinWidthData::OptionallyBreak(nsIRenderingContext *aRenderingCon
+ void
+ nsIFrame::InlinePrefWidthData::ForceBreak(nsIRenderingContext *aRenderingContext)
+ {
+-  if (floats.Count() != 0) {
++  if (floats.Length() != 0) {
+             // preferred widths accumulated for floats that have already
+             // been cleared past
+     nscoord floats_done = 0,
+@@ -3012,9 +3009,9 @@ nsIFrame::InlinePrefWidthData::ForceBreak(nsIRenderingContext *aRenderingContext
+             floats_cur_left = 0,
+             floats_cur_right = 0;
+ 
+-    for (PRInt32 i = 0, i_end = floats.Count(); i != i_end; ++i) {
+-      nsIFrame *floatFrame = static_cast<nsIFrame*>(floats[i]);
+-      const nsStyleDisplay *floatDisp = floatFrame->GetStyleDisplay();
++    for (PRInt32 i = 0, i_end = floats.Length(); i != i_end; ++i) {
++      const FloatInfo& floatInfo = floats[i];
++      const nsStyleDisplay *floatDisp = floatInfo.Frame()->GetStyleDisplay();
+       if (floatDisp->mBreakType == NS_STYLE_CLEAR_LEFT ||
+           floatDisp->mBreakType == NS_STYLE_CLEAR_RIGHT ||
+           floatDisp->mBreakType == NS_STYLE_CLEAR_LEFT_AND_RIGHT) {
+@@ -3030,10 +3027,7 @@ nsIFrame::InlinePrefWidthData::ForceBreak(nsIRenderingContext *aRenderingContext
+ 
+       nscoord &floats_cur = floatDisp->mFloats == NS_STYLE_FLOAT_LEFT
+                               ? floats_cur_left : floats_cur_right;
+-      nscoord floatWidth =
+-          nsLayoutUtils::IntrinsicForContainer(aRenderingContext,
+-                                               floatFrame,
+-                                               nsLayoutUtils::PREF_WIDTH);
++      nscoord floatWidth = floatInfo.Width();
+       // Negative-width floats don't change the available space so they
+       // shouldn't change our intrinsic line width either.
+       floats_cur =
+diff --git a/mozilla/layout/generic/nsIFrame.h b/mozilla/layout/generic/nsIFrame.h
+index 134f4cf..f1cdf06 100644
+--- a/mozilla/layout/generic/nsIFrame.h
++++ b/mozilla/layout/generic/nsIFrame.h
+@@ -1209,7 +1209,20 @@ public:
+     nscoord trailingWhitespace;
+ 
+     // Floats encountered in the lines.
+-    nsVoidArray floats; // of nsIFrame*
++    class FloatInfo {
++    public:
++      FloatInfo(const nsIFrame* aFrame, nscoord aWidth)
++        : mFrame(aFrame), mWidth(aWidth)
++      { }
++      const nsIFrame* Frame() const { return mFrame; }
++      nscoord         Width() const { return mWidth; }
++
++    private:
++      const nsIFrame* mFrame;
++      nscoord         mWidth;
++    };
++
++    nsTArray<FloatInfo> floats;
+   };
+ 
+   struct InlineMinWidthData : public InlineIntrinsicWidthData {
+diff --git a/mozilla/layout/generic/nsPlaceholderFrame.cpp b/mozilla/layout/generic/nsPlaceholderFrame.cpp
+index a880589..ced6384 100644
+--- a/mozilla/layout/generic/nsPlaceholderFrame.cpp
++++ b/mozilla/layout/generic/nsPlaceholderFrame.cpp
+@@ -87,8 +87,14 @@ nsPlaceholderFrame::AddInlineMinWidth(nsIRenderingContext *aRenderingContext,
+   // false.
+ 
+   // ...but push floats onto the list
+-  if (mOutOfFlowFrame->GetStyleDisplay()->mFloats != NS_STYLE_FLOAT_NONE)
+-    aData->floats.AppendElement(mOutOfFlowFrame);
++  if (mOutOfFlowFrame->GetStyleDisplay()->mFloats != NS_STYLE_FLOAT_NONE) {
++    nscoord floatWidth =
++      nsLayoutUtils::IntrinsicForContainer(aRenderingContext,
++                                           mOutOfFlowFrame,
++                                           nsLayoutUtils::MIN_WIDTH);
++    aData->floats.AppendElement(
++      InlineIntrinsicWidthData::FloatInfo(mOutOfFlowFrame, floatWidth));
++  }
+ }
+ 
+ /* virtual */ void
+@@ -102,8 +108,14 @@ nsPlaceholderFrame::AddInlinePrefWidth(nsIRenderingContext *aRenderingContext,
+   // false.
+ 
+   // ...but push floats onto the list
+-  if (mOutOfFlowFrame->GetStyleDisplay()->mFloats != NS_STYLE_FLOAT_NONE)
+-    aData->floats.AppendElement(mOutOfFlowFrame);
++  if (mOutOfFlowFrame->GetStyleDisplay()->mFloats != NS_STYLE_FLOAT_NONE) {
++    nscoord floatWidth =
++      nsLayoutUtils::IntrinsicForContainer(aRenderingContext,
++                                           mOutOfFlowFrame,
++                                           nsLayoutUtils::PREF_WIDTH);
++    aData->floats.AppendElement(
++      InlineIntrinsicWidthData::FloatInfo(mOutOfFlowFrame, floatWidth));
++  }
+ }
+ 
+ NS_IMETHODIMP
+-- 
+1.7.10.4
+

@@ -189,3 +189,14 @@ security/squeeze12/0195-Bug-749385-use-deferred-release-in-nsHTMLDocumentSH-.pat
 security/squeeze12/0196-Bug-758344-Push-more-stuff-when-evaluating-in-a-sand.patch
 security/squeeze12/0197-Bug-765139-prevent-leaking-oldDocument-r-peterv-a-dv.patch
 security/squeeze12/0198-Bug-772282-Hold-on-to-nodes-when-we-delete-them-in-n.patch
+security/squeeze13/0001-Bug-769120.-r-roc-a-lsblakk.patch
+security/squeeze13/0002-Bug-777578-Make-mLimiter-and-mAncestorLimiter-strong.patch
+security/squeeze13/0003-Bug-770429-do-uri-load-check-earlier-to-avoid-runnin.patch
+security/squeeze13/0004-Bug-745158-r-luke-a-lsblakk.patch
+security/squeeze13/0005-Bug-746855-Be-more-careful-when-checking-for-a-carry.patch
+security/squeeze13/0006-Bug-776213-don-t-forget-about-sortedControls.-r-smau.patch
+security/squeeze13/0007-Bug-773207-Make-mChannel-a-COMPtr-in-nsObjectLoading.patch
+security/squeeze13/0008-bug-769303-precompute-intrinsic-width-of-floats.-r-r.patch
+security/squeeze13/0009-Bug-771994-Make-nsRangeStore-refcounted-r-ehsan-a-ls.patch
+security/squeeze13/0010-Bug-778428-Refcount-arrays-of-nodes-in-editor-r-ehsa.patch
+security/squeeze13/0011-Bug-782141-Don-t-mix-signed-and-unsigned-variables-i.patch

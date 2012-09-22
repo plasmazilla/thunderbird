@@ -1,0 +1,44 @@
+From 8a10df9fc46014511a06a04c9058e3f54535c513 Mon Sep 17 00:00:00 2001
+From: Andrew McCreight <amccreight@mozilla.com>
+Date: Tue, 31 Jul 2012 07:00:13 -0700
+Subject: Bug 776213 - don't forget about sortedControls. r=smaug a=lsblakk
+
+---
+ content/html/content/src/nsHTMLFormElement.cpp |   13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/mozilla/content/html/content/src/nsHTMLFormElement.cpp b/mozilla/content/html/content/src/nsHTMLFormElement.cpp
+index 4984f28..e718d25 100644
+--- a/mozilla/content/html/content/src/nsHTMLFormElement.cpp
++++ b/mozilla/content/html/content/src/nsHTMLFormElement.cpp
+@@ -1217,15 +1217,26 @@ nsHTMLFormElement::WalkFormElements(nsIFormSubmission* aFormSubmission,
+   nsresult rv = mControls->GetSortedControls(sortedControls);
+   NS_ENSURE_SUCCESS(rv, rv);
+ 
++  PRUint32 len = sortedControls.Length();
++  // Hold a reference to the elements so they can't be deleted while
++  // calling SubmitNamesValues().
++  for (PRUint32 i = 0; i < len; ++i) {
++    static_cast<nsIFormControl*>(sortedControls[i])->AddRef();
++  }
++
+   //
+   // Walk the list of nodes and call SubmitNamesValues() on the controls
+   //
+-  PRUint32 len = sortedControls.Length();
+   for (PRUint32 i = 0; i < len; ++i) {
+     // Tell the control to submit its name/value pairs to the submission
+     sortedControls[i]->SubmitNamesValues(aFormSubmission, aSubmitElement);
+   }
+ 
++  // Release the references.
++  for (PRUint32 i = 0; i < len; ++i) {
++    static_cast<nsIFormControl*>(sortedControls[i])->Release();
++  }
++
+   return NS_OK;
+ }
+ 
+-- 
+1.7.10.4
+

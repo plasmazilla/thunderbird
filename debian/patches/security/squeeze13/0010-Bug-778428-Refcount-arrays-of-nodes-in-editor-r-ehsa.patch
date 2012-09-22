@@ -1,0 +1,152 @@
+From c2a64c4d68735944e01aff7dcbbc56d345e859c0 Mon Sep 17 00:00:00 2001
+From: Aryeh Gregor <ayg@aryeh.name>
+Date: Wed, 1 Aug 2012 11:17:51 +0300
+Subject: Bug 778428 - Refcount arrays of nodes in editor/; r=ehsan a=lsblakk
+
+---
+ editor/libeditor/html/nsHTMLEditRules.cpp |    8 ++++----
+ editor/libeditor/html/nsHTMLEditor.cpp    |   13 +++++++------
+ editor/libeditor/html/nsTableEditor.cpp   |   16 ++++++++--------
+ 3 files changed, 19 insertions(+), 18 deletions(-)
+
+diff --git a/mozilla/editor/libeditor/html/nsHTMLEditRules.cpp b/mozilla/editor/libeditor/html/nsHTMLEditRules.cpp
+index 079d467..e2b73cc 100644
+--- a/mozilla/editor/libeditor/html/nsHTMLEditRules.cpp
++++ b/mozilla/editor/libeditor/html/nsHTMLEditRules.cpp
+@@ -7905,7 +7905,7 @@ nsHTMLEditRules::RemoveEmptyNodes()
+   nsresult res = iter->Init(mDocChangeRange);
+   if (NS_FAILED(res)) return res;
+   
+-  nsVoidArray skipList;
++  nsTArray<nsCOMPtr<nsIDOMNode> > skipList;
+ 
+   // check for empty nodes
+   while (!iter->IsDone())
+@@ -7918,12 +7918,12 @@ nsHTMLEditRules::RemoveEmptyNodes()
+ 
+     node->GetParentNode(getter_AddRefs(parent));
+     
+-    PRInt32 idx = skipList.IndexOf((void*)node);
++    PRInt32 idx = skipList.IndexOf(node);
+     if (idx>=0)
+     {
+       // this node is on our skip list.  Skip processing for this node, 
+       // and replace it's value in the skip list with the value of it's parent
+-      skipList.ReplaceElementAt((void*)parent, idx);
++      skipList[idx] = parent;
+     }
+     else
+     {
+@@ -7984,7 +7984,7 @@ nsHTMLEditRules::RemoveEmptyNodes()
+       if (!bIsEmptyNode)
+       {
+         // put parent on skip list
+-        skipList.AppendElement((void*)parent);
++        skipList.AppendElement(parent);
+       }
+     }
+ 
+diff --git a/mozilla/editor/libeditor/html/nsHTMLEditor.cpp b/mozilla/editor/libeditor/html/nsHTMLEditor.cpp
+index ba5b727..928c036 100644
+--- a/mozilla/editor/libeditor/html/nsHTMLEditor.cpp
++++ b/mozilla/editor/libeditor/html/nsHTMLEditor.cpp
+@@ -4541,9 +4541,10 @@ nsHTMLEditor::CollapseAdjacentTextNodes(nsIDOMRange *aInRange)
+ {
+   if (!aInRange) return NS_ERROR_NULL_POINTER;
+   nsAutoTxnsConserveSelection dontSpazMySelection(this);
+-  nsVoidArray textNodes;  // we can't actually do anything during iteration, so store the text nodes in an array
+-                          // don't bother ref counting them because we know we can hold them for the 
+-                          // lifetime of this method
++  nsTArray<nsCOMPtr<nsIDOMNode> > textNodes;
++  // we can't actually do anything during iteration, so store the text nodes in an array
++  // don't bother ref counting them because we know we can hold them for the 
++  // lifetime of this method
+ 
+ 
+   // build a list of editable text nodes
+@@ -4567,11 +4568,11 @@ nsHTMLEditor::CollapseAdjacentTextNodes(nsIDOMRange *aInRange)
+ 
+   // now that I have a list of text nodes, collapse adjacent text nodes
+   // NOTE: assumption that JoinNodes keeps the righthand node
+-  while (textNodes.Count() > 1)
++  while (textNodes.Length() > 1)
+   {
+     // we assume a textNodes entry can't be nsnull
+-    nsIDOMNode *leftTextNode = (nsIDOMNode *)(textNodes.ElementAt(0));
+-    nsIDOMNode *rightTextNode = (nsIDOMNode *)(textNodes.ElementAt(1));
++    nsIDOMNode *leftTextNode = textNodes.ElementAt(0);
++    nsIDOMNode *rightTextNode = textNodes.ElementAt(1);
+     NS_ASSERTION(leftTextNode && rightTextNode,"left or rightTextNode null in CollapseAdjacentTextNodes");
+ 
+     // get the prev sibling of the right node, and see if it's leftTextNode
+diff --git a/mozilla/editor/libeditor/html/nsTableEditor.cpp b/mozilla/editor/libeditor/html/nsTableEditor.cpp
+index 770a4d1..da5888a 100644
+--- a/mozilla/editor/libeditor/html/nsTableEditor.cpp
++++ b/mozilla/editor/libeditor/html/nsTableEditor.cpp
+@@ -1399,7 +1399,7 @@ nsHTMLEditor::DeleteRow(nsIDOMElement *aTable, PRInt32 aRowIndex)
+ 
+   // The list of cells we will change rowspan in
+   //  and the new rowspan values for each
+-  nsVoidArray spanCellList;
++  nsTArray<nsCOMPtr<nsIDOMElement> > spanCellList;
+   nsVoidArray newSpanList;
+ 
+   // Scan through cells in row to do rowspan adjustments
+@@ -1427,7 +1427,7 @@ nsHTMLEditor::DeleteRow(nsIDOMElement *aTable, PRInt32 aRowIndex)
+           // Build list of cells to change rowspan
+           // We can't do it now since it upsets cell map,
+           //  so we will do it after deleting the row
+-          spanCellList.AppendElement((void*)cell.get());
++          spanCellList.AppendElement(cell.get());
+           newSpanList.AppendElement((void*)PR_MAX((aRowIndex - startRowIndex), actualRowSpan-1));
+         }
+       }
+@@ -1470,11 +1470,11 @@ nsHTMLEditor::DeleteRow(nsIDOMElement *aTable, PRInt32 aRowIndex)
+   nsIDOMElement *cellPtr;
+   PRInt32 newSpan;
+   PRInt32 count;
+-  while ((count = spanCellList.Count()))
++  while ((count = spanCellList.Length()))
+   {
+     // go backwards to keep nsVoidArray from mem-moving everything each time
+     count--; // nsVoidArray is zero based
+-    cellPtr = (nsIDOMElement*)spanCellList.ElementAt(count);
++    cellPtr = spanCellList.ElementAt(count);
+     spanCellList.RemoveElementAt(count);
+     newSpan = NS_PTR_TO_INT32(newSpanList.ElementAt(count));
+     newSpanList.RemoveElementAt(count);
+@@ -2247,7 +2247,7 @@ nsHTMLEditor::JoinTableCells(PRBool aMergeNonContiguousContents)
+     }
+   
+     // The list of cells we will delete after joining
+-    nsVoidArray deleteList;
++    nsTArray<nsCOMPtr<nsIDOMElement> > deleteList;
+ 
+     // 2nd pass: Do the joining and merging
+     for (rowIndex = 0; rowIndex < rowCount; rowIndex++)
+@@ -2293,7 +2293,7 @@ nsHTMLEditor::JoinTableCells(PRBool aMergeNonContiguousContents)
+             if (NS_FAILED(res)) return res;
+             
+             // Add cell to list to delete
+-            deleteList.AppendElement((void *)cell2.get());
++            deleteList.AppendElement(cell2.get());
+           }
+           else if (aMergeNonContiguousContents)
+           {
+@@ -2311,11 +2311,11 @@ nsHTMLEditor::JoinTableCells(PRBool aMergeNonContiguousContents)
+ 
+     nsIDOMElement *elementPtr;
+     PRInt32 count;
+-    while ((count = deleteList.Count()))
++    while ((count = deleteList.Length()))
+     {
+       // go backwards to keep nsVoidArray from mem-moving everything each time
+       count--; // nsVoidArray is zero based
+-      elementPtr = (nsIDOMElement*)deleteList.ElementAt(count);
++      elementPtr = deleteList.ElementAt(count);
+       deleteList.RemoveElementAt(count);
+       if (elementPtr)
+       {
+-- 
+1.7.10.4
+

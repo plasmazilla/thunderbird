@@ -1,0 +1,64 @@
+From fa1f5e0212d3ef6df91a85bb5883f8e6d0bd37da Mon Sep 17 00:00:00 2001
+From: Mats Palmgren <matspal@gmail.com>
+Date: Mon, 30 Jul 2012 21:05:44 +0200
+Subject: Bug 777578 - Make mLimiter and mAncestorLimiter strong refs. r=smaug
+ a=akeybl
+
+---
+ layout/generic/nsFrameSelection.h |    8 +++++---
+ layout/generic/nsSelection.cpp    |    6 ++++--
+ 2 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/mozilla/layout/generic/nsFrameSelection.h b/mozilla/layout/generic/nsFrameSelection.h
+index cccd86b..acce4da 100644
+--- a/mozilla/layout/generic/nsFrameSelection.h
++++ b/mozilla/layout/generic/nsFrameSelection.h
+@@ -654,9 +654,11 @@ private:
+   //batching
+   PRInt32 mBatching;
+     
+-  nsIContent *mLimiter;     //limit selection navigation to a child of this node.
+-  nsIContent *mAncestorLimiter; // Limit selection navigation to a descendant of
+-                                // this node.
++  // Limit selection navigation to a child of this node.
++  nsCOMPtr<nsIContent> mLimiter;
++  // Limit selection navigation to a descendant of this node.
++  nsCOMPtr<nsIContent> mAncestorLimiter;
++
+   nsIPresShell *mShell;
+ 
+   PRInt16 mSelectionChangeReason; // reason for notifications of selection changing
+diff --git a/mozilla/layout/generic/nsSelection.cpp b/mozilla/layout/generic/nsSelection.cpp
+index 0cc826f..19a3997 100644
+--- a/mozilla/layout/generic/nsSelection.cpp
++++ b/mozilla/layout/generic/nsSelection.cpp
+@@ -819,8 +819,6 @@ nsFrameSelection::nsFrameSelection()
+   mBatching = 0;
+   mChangesDuringBatching = PR_FALSE;
+   mNotifyFrames = PR_TRUE;
+-  mLimiter = nsnull; //no default limiter.
+-  mAncestorLimiter = nsnull;
+   
+   mMouseDoubleDownState = PR_FALSE;
+   
+@@ -868,6 +866,8 @@ NS_IMPL_CYCLE_COLLECTION_UNLINK_BEGIN(nsFrameSelection)
+   NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mAppendStartSelectedCell)
+   NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mUnselectCellOnMouseUp)
+   NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mMaintainRange)
++  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mLimiter)
++  NS_IMPL_CYCLE_COLLECTION_UNLINK_NSCOMPTR(mAncestorLimiter)
+ NS_IMPL_CYCLE_COLLECTION_UNLINK_END
+ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsFrameSelection)
+   PRInt32 i;
+@@ -882,6 +882,8 @@ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_BEGIN(nsFrameSelection)
+   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mAppendStartSelectedCell)
+   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mUnselectCellOnMouseUp)
+   NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mMaintainRange)
++  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mLimiter)
++  NS_IMPL_CYCLE_COLLECTION_TRAVERSE_NSCOMPTR(mAncestorLimiter)
+ NS_IMPL_CYCLE_COLLECTION_TRAVERSE_END
+ 
+ NS_IMPL_CYCLE_COLLECTING_ADDREF(nsFrameSelection)
+-- 
+1.7.10.4
+

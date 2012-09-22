@@ -1,0 +1,80 @@
+From c377e91b09a21faacad329490672f10d2a8e0868 Mon Sep 17 00:00:00 2001
+From: Jonathan Watt <jwatt@jwatt.org>
+Date: Wed, 22 Aug 2012 18:19:51 -0400
+Subject: Bug 782141 - Don't mix signed and unsigned variables in
+ nsSVGFEMorphologyElement::Filter(), and clamp radii to 100000.
+ r=roc, a=lsblakk.
+
+---
+ content/svg/content/src/nsSVGFilters.cpp |   28 ++++++++++++++++------------
+ 1 file changed, 16 insertions(+), 12 deletions(-)
+
+diff --git a/mozilla/content/svg/content/src/nsSVGFilters.cpp b/mozilla/content/svg/content/src/nsSVGFilters.cpp
+index 9f090c9..64d83aa 100644
+--- a/mozilla/content/svg/content/src/nsSVGFilters.cpp
++++ b/mozilla/content/svg/content/src/nsSVGFilters.cpp
+@@ -3635,10 +3635,14 @@ nsSVGFEMorphologyElement::Filter(nsSVGFilterInstance *instance,
+     return NS_OK;
+   }
+ 
++  // Clamp radii to prevent completely insane values:
++  rx = NS_MIN(rx, 100000);
++  ry = NS_MIN(ry, 100000);
++
+   PRUint8* sourceData = aSources[0]->mImage->Data();
+   PRUint8* targetData = aTarget->mImage->Data();
+-  PRUint32 stride = aTarget->mImage->Stride();
+-  PRUint32 xExt[4], yExt[4];  // X, Y indices of RGBA extrema
++  PRInt32 stride = aTarget->mImage->Stride();
++  PRInt32 xExt[4], yExt[4];  // X, Y indices of RGBA extrema
+   PRUint8 extrema[4];         // RGBA magnitude of extrema
+   PRUint16 op = mEnumAttributes[OPERATOR].GetAnimValue();
+ 
+@@ -3650,25 +3654,25 @@ nsSVGFEMorphologyElement::Filter(nsSVGFilterInstance *instance,
+    * not fall within the current kernel or if we are starting a new row.
+    */
+   for (PRInt32 y = rect.y; y < rect.YMost(); y++) {
+-    PRUint32 startY = PR_MAX(0, y - ry);
++    PRInt32 startY = PR_MAX(0, y - ry);
+     // We need to read pixels not just in 'rect', which is limited to
+     // the dirty part of our filter primitive subregion, but all pixels in
+     // the given radii from the source surface, so use the surface size here.
+-    PRUint32 endY = PR_MIN(y + ry, instance->GetSurfaceHeight() - 1);
++    PRInt32 endY = PR_MIN(y + ry, instance->GetSurfaceHeight() - 1);
+     for (PRInt32 x = rect.x; x < rect.XMost(); x++) {
+-      PRUint32 startX = PR_MAX(0, x - rx);
+-      PRUint32 endX = PR_MIN(x + rx, instance->GetSurfaceWidth() - 1);
+-      PRUint32 targIndex = y * stride + 4 * x;
++      PRInt32 startX = PR_MAX(0, x - rx);
++      PRInt32 endX = PR_MIN(x + rx, instance->GetSurfaceWidth() - 1);
++      PRInt32 targIndex = y * stride + 4 * x;
+ 
+       // We need to scan the entire kernel
+       if (x == rect.x || xExt[0]  <= startX || xExt[1] <= startX ||
+           xExt[2] <= startX || xExt[3] <= startX) {
+-        PRUint32 i;
++        PRInt32 i;
+         for (i = 0; i < 4; i++) {
+           extrema[i] = sourceData[targIndex + i];
+         }
+-        for (PRUint32 y1 = startY; y1 <= endY; y1++) {
+-          for (PRUint32 x1 = startX; x1 <= endX; x1++) {
++        for (PRInt32 y1 = startY; y1 <= endY; y1++) {
++          for (PRInt32 x1 = startX; x1 <= endX; x1++) {
+             for (i = 0; i < 4; i++) {
+               PRUint8 pixel = sourceData[y1 * stride + 4 * x1 + i];
+               if ((extrema[i] >= pixel &&
+@@ -3683,8 +3687,8 @@ nsSVGFEMorphologyElement::Filter(nsSVGFilterInstance *instance,
+           }
+         }
+       } else { // We only need to look at the newest column
+-        for (PRUint32 y1 = startY; y1 <= endY; y1++) {
+-          for (PRUint32 i = 0; i < 4; i++) {
++        for (PRInt32 y1 = startY; y1 <= endY; y1++) {
++          for (PRInt32 i = 0; i < 4; i++) {
+             PRUint8 pixel = sourceData[y1 * stride + 4 * endX + i];
+             if ((extrema[i] >= pixel &&
+                  op == nsSVGFEMorphologyElement::SVG_OPERATOR_ERODE) ||
+-- 
+1.7.10.4
+
