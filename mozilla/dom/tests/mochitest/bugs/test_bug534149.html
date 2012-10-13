@@ -19,13 +19,11 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=534149
 
 /** Test for Bug 534149 **/
 function getIDs(iframe) {
-  netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
   var win = iframe.contentWindow;
   // Force inner creation
   win.document;
 
-  var util = win.QueryInterface(Components.interfaces.nsIInterfaceRequestor)
-                .getInterface(Components.interfaces.nsIDOMWindowUtils);
+  var util = SpecialPowers.getDOMWindowUtils(win);
   return [util.outerWindowID, util.currentInnerWindowID];
 }
 
@@ -53,7 +51,7 @@ function outerObserver(id) {
 function innerObserver(id) {
   netscape.security.PrivilegeManager.enablePrivilege("UniversalXPConnect");
   innerWindowDestroyID =
-   id.QueryInterface(Components.interfaces.nsISupportsPRUint64).data;
+    id.QueryInterface(Components.interfaces.nsISupportsPRUint64).data;
 }
 
 function removeFrame(iframe) {
