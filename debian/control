@@ -91,10 +91,9 @@ Description: Debug Symbols for Icedove
 Package: calendar-timezones
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: Timezone Extension for Sunbird/Iceowl (mandatory)
- This Timezone provides timezone data for Sunbird and the Iceowl/Lightning
- extension. It's an essential component if you want to use all
- calendaring features.
+Description: Timezone Extension for Lightning/Iceowl (mandatory)
+ This package provides timezone data for the Lightning/Iceowl extension. It's
+ an essential component if you want to use all calendaring features.
 
 Package: iceowl-extension
 Architecture: any
@@ -104,9 +103,8 @@ Depends: icedove (>= ${binary:Version}) | thunderbird (>= ${binary:Version}),
 Recommends: calendar-google-provider
 Suggests: fonts-lyx
 Description: Calendar Extension for Thunderbird/Icedove
- Iceowl Extension is a Calendar extension for Thunderbird
- and Icedove based on Sunbird - the Mozilla Based Standalone
- Calendar application.
+ Iceowl Extension is an unbranded Lightning Calendar extension for Thunderbird/
+ Icedove.
 
 Package: calendar-google-provider
 Architecture: any
