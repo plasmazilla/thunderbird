@@ -7,11 +7,11 @@ Subject: Bug 720682 - Don't crash an app using libxul because of the lack of
  mozilla/storage/src/mozStorageService.cpp |    3 ++-
  1 file changed, 2 insertions(+), 1 deletion(-)
 
-diff --git a/mozilla/storage/src/mozStorageService.cpp b/mozilla/storage/src/mozStorageService.cpp
-index 497a7e2..90c514e 100644
---- a/mozilla/storage/src/mozStorageService.cpp
-+++ b/mozilla/storage/src/mozStorageService.cpp
-@@ -571,7 +571,8 @@ static int sqliteMemSize(void *p)
+Index: icedove/mozilla/storage/src/mozStorageService.cpp
+===================================================================
+--- icedove.orig/mozilla/storage/src/mozStorageService.cpp	2012-10-13 15:55:00.566433165 +0530
++++ icedove/mozilla/storage/src/mozStorageService.cpp	2012-10-13 15:59:32.926445816 +0530
+@@ -537,7 +537,8 @@
  
  static int sqliteMemRoundup(int n)
  {

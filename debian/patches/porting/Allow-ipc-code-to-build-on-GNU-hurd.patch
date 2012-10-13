@@ -10,10 +10,10 @@ Thanks: Pino Toscano <pino@debian.org>
  mozilla/ipc/chromium/src/build/build_config.h             |    2 +-
  3 files changed, 2 insertions(+), 3 deletions(-)
 
-diff --git a/mozilla/ipc/chromium/src/base/debug_util_posix.cc b/mozilla/ipc/chromium/src/base/debug_util_posix.cc
-index 72a4ebf..5a45ac9 100644
---- a/mozilla/ipc/chromium/src/base/debug_util_posix.cc
-+++ b/mozilla/ipc/chromium/src/base/debug_util_posix.cc
+Index: icedove/mozilla/ipc/chromium/src/base/debug_util_posix.cc
+===================================================================
+--- icedove.orig/mozilla/ipc/chromium/src/base/debug_util_posix.cc	2012-10-13 14:20:18.842169278 +0530
++++ icedove/mozilla/ipc/chromium/src/base/debug_util_posix.cc	2012-10-13 15:57:23.378439799 +0530
 @@ -17,7 +17,6 @@
  #include <unistd.h>
  #if MOZ_HAVE_EXECINFO_H
@@ -22,10 +22,10 @@ index 72a4ebf..5a45ac9 100644
  #endif
  
  #include "base/basictypes.h"
-diff --git a/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h b/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h
-index 30fef1b..c7e47ba 100644
---- a/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h
-+++ b/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h
+Index: icedove/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h
+===================================================================
+--- icedove.orig/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h	2012-10-13 15:57:12.286439284 +0530
++++ icedove/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h	2012-10-13 15:57:23.378439799 +0530
 @@ -34,7 +34,7 @@
  #include "base/third_party/nspr/prcpucfg_win.h"
  #elif defined(__APPLE__)
@@ -35,10 +35,10 @@ index 30fef1b..c7e47ba 100644
  #include "base/third_party/nspr/prcpucfg_linux.h"
  #elif defined(__OpenBSD__)
  #include "base/third_party/nspr/prcpucfg_openbsd.h"
-diff --git a/mozilla/ipc/chromium/src/build/build_config.h b/mozilla/ipc/chromium/src/build/build_config.h
-index f79884e..055d799 100644
---- a/mozilla/ipc/chromium/src/build/build_config.h
-+++ b/mozilla/ipc/chromium/src/build/build_config.h
+Index: icedove/mozilla/ipc/chromium/src/build/build_config.h
+===================================================================
+--- icedove.orig/mozilla/ipc/chromium/src/build/build_config.h	2012-10-13 15:57:12.286439284 +0530
++++ icedove/mozilla/ipc/chromium/src/build/build_config.h	2012-10-13 15:57:23.378439799 +0530
 @@ -17,7 +17,7 @@
  // A set of macros to use for platform detection.
  #if defined(__APPLE__)

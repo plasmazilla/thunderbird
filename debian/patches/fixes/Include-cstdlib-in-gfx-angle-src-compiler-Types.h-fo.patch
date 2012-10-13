@@ -6,10 +6,10 @@ Subject: Include cstdlib in gfx/angle/src/compiler/Types.h for abort()
  mozilla/gfx/angle/src/compiler/Types.h |    1 +
  1 file changed, 1 insertion(+)
 
-diff --git a/mozilla/gfx/angle/src/compiler/Types.h b/mozilla/gfx/angle/src/compiler/Types.h
-index 86a02e9..87784f2 100644
---- a/mozilla/gfx/angle/src/compiler/Types.h
-+++ b/mozilla/gfx/angle/src/compiler/Types.h
+Index: icedove/mozilla/gfx/angle/src/compiler/Types.h
+===================================================================
+--- icedove.orig/mozilla/gfx/angle/src/compiler/Types.h	2012-10-13 14:20:18.350169254 +0530
++++ icedove/mozilla/gfx/angle/src/compiler/Types.h	2012-10-13 15:59:56.242446898 +0530
 @@ -7,6 +7,7 @@
  #ifndef _TYPES_INCLUDED
  #define _TYPES_INCLUDED

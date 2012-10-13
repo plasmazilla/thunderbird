@@ -7,10 +7,10 @@ Subject: Fix GNU/non-Linux failure to build because of
  mozilla/ipc/chromium/src/base/dir_reader_posix.h |    4 ++--
  1 file changed, 2 insertions(+), 2 deletions(-)
 
-diff --git a/mozilla/ipc/chromium/src/base/dir_reader_posix.h b/mozilla/ipc/chromium/src/base/dir_reader_posix.h
-index 9a34492..4b74a08 100644
---- a/mozilla/ipc/chromium/src/base/dir_reader_posix.h
-+++ b/mozilla/ipc/chromium/src/base/dir_reader_posix.h
+Index: icedove/mozilla/ipc/chromium/src/base/dir_reader_posix.h
+===================================================================
+--- icedove.orig/mozilla/ipc/chromium/src/base/dir_reader_posix.h	2012-10-13 14:20:18.846169278 +0530
++++ icedove/mozilla/ipc/chromium/src/base/dir_reader_posix.h	2012-10-13 15:57:32.030440200 +0530
 @@ -18,7 +18,7 @@
  // seems worse than falling back to enumerating all file descriptors so we will
  // probably never implement this on the Mac.

@@ -9,11 +9,11 @@ The use of this component leads to crashes when built with optimizations.
  mozilla/toolkit/components/url-classifier/Makefile.in |    4 ++++
  1 file changed, 4 insertions(+)
 
-diff --git a/mozilla/toolkit/components/url-classifier/Makefile.in b/mozilla/toolkit/components/url-classifier/Makefile.in
-index 7d69023..eaacf2c 100644
---- a/mozilla/toolkit/components/url-classifier/Makefile.in
-+++ b/mozilla/toolkit/components/url-classifier/Makefile.in
-@@ -86,4 +86,8 @@ ifdef ENABLE_TESTS
+Index: icedove/mozilla/toolkit/components/url-classifier/Makefile.in
+===================================================================
+--- icedove.orig/mozilla/toolkit/components/url-classifier/Makefile.in	2012-10-13 14:27:22.522188956 +0530
++++ icedove/mozilla/toolkit/components/url-classifier/Makefile.in	2012-10-13 15:54:53.934432857 +0530
+@@ -54,4 +54,8 @@
  TOOL_DIRS += tests
  endif
  

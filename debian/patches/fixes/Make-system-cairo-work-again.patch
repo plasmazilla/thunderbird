@@ -9,11 +9,11 @@ Patch: https://bug722975.bugzilla.mozilla.org/attachment.cgi?id=624394
  mozilla/gfx/thebes/gfxPlatform.cpp |   16 ++++------------
  1 file changed, 4 insertions(+), 12 deletions(-)
 
-diff --git a/mozilla/gfx/thebes/gfxPlatform.cpp b/mozilla/gfx/thebes/gfxPlatform.cpp
-index 1208b9e..03f76af 100644
---- a/mozilla/gfx/thebes/gfxPlatform.cpp
-+++ b/mozilla/gfx/thebes/gfxPlatform.cpp
-@@ -459,11 +459,9 @@ void SourceBufferDestroy(void *srcBuffer)
+Index: icedove/mozilla/gfx/thebes/gfxPlatform.cpp
+===================================================================
+--- icedove.orig/mozilla/gfx/thebes/gfxPlatform.cpp	2012-10-13 14:27:19.000000000 +0530
++++ icedove/mozilla/gfx/thebes/gfxPlatform.cpp	2012-10-13 16:05:13.678461641 +0530
+@@ -443,11 +443,9 @@
    static_cast<SourceSurface*>(srcBuffer)->Release();
  }
  
@@ -27,16 +27,16 @@ index 1208b9e..03f76af 100644
    origSurf->SetData(&kSourceSurface, NULL, NULL);
  }
  
-@@ -535,14 +533,8 @@ gfxPlatform::GetSourceSurfaceForSurface(DrawTarget *aTarget, gfxASurface *aSurfa
-                                                      imgSurface->Stride(),
-                                                      format);
+@@ -544,14 +542,8 @@
+ 
+     }
  
 -    cairo_surface_t *nullSurf =
 -	cairo_null_surface_create(CAIRO_CONTENT_COLOR_ALPHA);
 -    cairo_surface_set_user_data(nullSurf,
--				&kSourceSurface,
--				imgSurface,
--				NULL);
+-                                &kSourceSurface,
+-                                imgSurface,
+-                                NULL);
 -    cairo_surface_attach_snapshot(imgSurface->CairoSurface(), nullSurf, SourceSnapshotDetached);
 -    cairo_surface_destroy(nullSurf);
 +    cairo_surface_set_mime_data(imgSurface->CairoSurface(), "mozilla/magic",

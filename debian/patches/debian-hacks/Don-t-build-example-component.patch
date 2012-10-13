@@ -6,11 +6,11 @@ Subject: Don't build example component
  mozilla/xulrunner/Makefile.in |    1 -
  1 file changed, 1 deletion(-)
 
-diff --git a/mozilla/xulrunner/Makefile.in b/mozilla/xulrunner/Makefile.in
-index 2dc7eaf..0eebe0d 100644
---- a/mozilla/xulrunner/Makefile.in
-+++ b/mozilla/xulrunner/Makefile.in
-@@ -47,7 +47,6 @@ PARALLEL_DIRS = \
+Index: icedove/mozilla/xulrunner/Makefile.in
+===================================================================
+--- icedove.orig/mozilla/xulrunner/Makefile.in	2012-10-13 14:27:23.318188993 +0530
++++ icedove/mozilla/xulrunner/Makefile.in	2012-10-13 15:59:46.922446465 +0530
+@@ -14,7 +14,6 @@
    app \
    setup \
    stub \

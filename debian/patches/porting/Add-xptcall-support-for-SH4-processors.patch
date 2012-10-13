@@ -13,11 +13,11 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=382214
  create mode 100644 mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_linux_sh.cpp
  create mode 100644 mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_linux_sh.cpp
 
-diff --git a/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in b/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
-index 747a3d0..a446752 100644
---- a/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
-+++ b/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
-@@ -428,6 +428,17 @@ CPPSRCS		:= xptcinvoke_linux_s390x.cpp xptcstubs_linux_s390x.cpp
+Index: icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
+===================================================================
+--- icedove.orig/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in	2012-10-13 14:27:23.198188986 +0530
++++ icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in	2012-10-13 15:55:04.278433338 +0530
+@@ -396,6 +396,17 @@
  CXXFLAGS	+= -fno-strict-aliasing -fno-inline -fomit-frame-pointer -mbackchain
  endif
  
@@ -35,11 +35,10 @@ index 747a3d0..a446752 100644
  
  # we don't want the shared lib, but we want to force the creation of a static lib.
  FORCE_STATIC_LIB = 1
-diff --git a/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_linux_sh.cpp b/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_linux_sh.cpp
-new file mode 100644
-index 0000000..ca4807d
---- /dev/null
-+++ b/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_linux_sh.cpp
+Index: icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_linux_sh.cpp
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_linux_sh.cpp	2012-10-13 15:55:04.278433338 +0530
 @@ -0,0 +1,203 @@
 +/* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
 + *
@@ -244,11 +243,10 @@ index 0000000..ca4807d
 +	"1: .long copy_to_stack \n\t"
 +   );
 +
-diff --git a/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_linux_sh.cpp b/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_linux_sh.cpp
-new file mode 100644
-index 0000000..cf9fcea
---- /dev/null
-+++ b/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_linux_sh.cpp
+Index: icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_linux_sh.cpp
+===================================================================
+--- /dev/null	1970-01-01 00:00:00.000000000 +0000
++++ icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_linux_sh.cpp	2012-10-13 15:55:04.278433338 +0530
 @@ -0,0 +1,271 @@
 +/* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 +/* ***** BEGIN LICENSE BLOCK *****

@@ -12,11 +12,11 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=440908
  mozilla/modules/libpref/src/prefread.h   |    4 +++-
  4 files changed, 17 insertions(+), 6 deletions(-)
 
-diff --git a/mozilla/modules/libpref/src/prefapi.cpp b/mozilla/modules/libpref/src/prefapi.cpp
-index d1a45f9..af2adb1 100644
---- a/mozilla/modules/libpref/src/prefapi.cpp
-+++ b/mozilla/modules/libpref/src/prefapi.cpp
-@@ -948,7 +948,10 @@ void PREF_ReaderCallback(void       *closure,
+Index: icedove/mozilla/modules/libpref/src/prefapi.cpp
+===================================================================
+--- icedove.orig/mozilla/modules/libpref/src/prefapi.cpp	2012-10-13 14:27:21.606188912 +0530
++++ icedove/mozilla/modules/libpref/src/prefapi.cpp	2012-10-13 15:53:45.570429683 +0530
+@@ -916,7 +916,10 @@
                           const char *pref,
                           PrefValue   value,
                           PrefType    type,
@@ -28,11 +28,11 @@ index d1a45f9..af2adb1 100644
 +    if (isLocked)
 +        PREF_LockPref(pref, PR_TRUE);
  }
-diff --git a/mozilla/modules/libpref/src/prefapi.h b/mozilla/modules/libpref/src/prefapi.h
-index 22a88d3..2b20c4e 100644
---- a/mozilla/modules/libpref/src/prefapi.h
-+++ b/mozilla/modules/libpref/src/prefapi.h
-@@ -208,7 +208,8 @@ void PREF_ReaderCallback( void *closure,
+Index: icedove/mozilla/modules/libpref/src/prefapi.h
+===================================================================
+--- icedove.orig/mozilla/modules/libpref/src/prefapi.h	2012-10-13 14:27:21.606188912 +0530
++++ icedove/mozilla/modules/libpref/src/prefapi.h	2012-10-13 15:53:45.570429683 +0530
+@@ -176,7 +176,8 @@
                            const char *pref,
                            PrefValue   value,
                            PrefType    type,
@@ -42,11 +42,11 @@ index 22a88d3..2b20c4e 100644
  
  PR_END_EXTERN_C
  #endif
-diff --git a/mozilla/modules/libpref/src/prefread.cpp b/mozilla/modules/libpref/src/prefread.cpp
-index 893d256..d4ef51a 100644
---- a/mozilla/modules/libpref/src/prefread.cpp
-+++ b/mozilla/modules/libpref/src/prefread.cpp
-@@ -75,6 +75,7 @@ enum {
+Index: icedove/mozilla/modules/libpref/src/prefread.cpp
+===================================================================
+--- icedove.orig/mozilla/modules/libpref/src/prefread.cpp	2012-10-13 14:27:21.606188912 +0530
++++ icedove/mozilla/modules/libpref/src/prefread.cpp	2012-10-13 15:53:45.570429683 +0530
+@@ -43,6 +43,7 @@
  #define BITS_PER_HEX_DIGIT      4
  
  static const char kUserPref[] = "user_pref";
@@ -54,7 +54,7 @@ index 893d256..d4ef51a 100644
  static const char kPref[] = "pref";
  static const char kTrue[] = "true";
  static const char kFalse[] = "false";
-@@ -161,7 +162,7 @@ pref_DoCallback(PrefParseState *ps)
+@@ -129,7 +130,7 @@
      default:
          break;
      }
@@ -63,7 +63,7 @@ index 893d256..d4ef51a 100644
      return true;
  }
  
-@@ -220,6 +221,7 @@ PREF_ParseBuf(PrefParseState *ps, const char *buf, int bufLen)
+@@ -188,6 +189,7 @@
                  ps->vb    = NULL;
                  ps->vtype = PREF_INVALID;
                  ps->fdefault = false;
@@ -71,7 +71,7 @@ index 893d256..d4ef51a 100644
              }
              switch (c) {
              case '/':       /* begin comment block or line? */
-@@ -230,7 +232,9 @@ PREF_ParseBuf(PrefParseState *ps, const char *buf, int bufLen)
+@@ -198,7 +200,9 @@
                  break;
              case 'u':       /* indicating user_pref */
              case 'p':       /* indicating pref */
@@ -82,7 +82,7 @@ index 893d256..d4ef51a 100644
                  ps->sindex = 1;
                  ps->nextstate = PREF_PARSE_UNTIL_OPEN_PAREN;
                  state = PREF_PARSE_MATCH_STRING;
-@@ -274,7 +278,8 @@ PREF_ParseBuf(PrefParseState *ps, const char *buf, int bufLen)
+@@ -242,7 +246,8 @@
          /* name parsing */
          case PREF_PARSE_UNTIL_NAME:
              if (c == '\"' || c == '\'') {
@@ -92,11 +92,11 @@ index 893d256..d4ef51a 100644
                  ps->quotechar = c;
                  ps->nextstate = PREF_PARSE_UNTIL_COMMA; /* return here when done */
                  state = PREF_PARSE_QUOTED_STRING;
-diff --git a/mozilla/modules/libpref/src/prefread.h b/mozilla/modules/libpref/src/prefread.h
-index 50f4d54..e65b85e 100644
---- a/mozilla/modules/libpref/src/prefread.h
-+++ b/mozilla/modules/libpref/src/prefread.h
-@@ -62,7 +62,8 @@ typedef void (*PrefReader)(void       *closure,
+Index: icedove/mozilla/modules/libpref/src/prefread.h
+===================================================================
+--- icedove.orig/mozilla/modules/libpref/src/prefread.h	2012-10-13 14:27:21.606188912 +0530
++++ icedove/mozilla/modules/libpref/src/prefread.h	2012-10-13 15:53:45.574429683 +0530
+@@ -30,7 +30,8 @@
                             const char *pref,
                             PrefValue   val,
                             PrefType    type,
@@ -106,7 +106,7 @@ index 50f4d54..e65b85e 100644
  
  /* structure fields are private */
  typedef struct PrefParseState {
-@@ -83,6 +84,7 @@ typedef struct PrefParseState {
+@@ -51,6 +52,7 @@
      char       *vb;         /* value buffer (ptr into lb)    */
      PrefType    vtype;      /* PREF_STRING,INT,BOOL          */
      bool        fdefault;   /* true if (default) pref     */

@@ -9,11 +9,11 @@ Subject: Change extension's name to Iceowl
  calendar/locales/en-US/chrome/lightning/lightning.properties |    8 ++++----
  4 files changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/calendar/lightning/install.rdf b/calendar/lightning/install.rdf
-index 00b99c2..95cb45a 100644
---- a/calendar/lightning/install.rdf
-+++ b/calendar/lightning/install.rdf
-@@ -26,7 +26,7 @@
+Index: icedove/calendar/lightning/install.rdf
+===================================================================
+--- icedove.orig/calendar/lightning/install.rdf	2012-10-13 14:27:14.818188598 +0530
++++ icedove/calendar/lightning/install.rdf	2012-10-13 15:57:26.882439961 +0530
+@@ -30,7 +30,7 @@
      </em:targetApplication>
  
      <em:id>@XPI_EM_ID@</em:id>
@@ -22,11 +22,11 @@ index 00b99c2..95cb45a 100644
      <em:version>@LIGHTNING_VERSION@</em:version> <!-- BuildID=@GRE_BUILDID@ -->
      <em:description>An integrated calendar for Thunderbird</em:description>
  #ifdef LIGHTNING_PRERELEASE_VERSION
-diff --git a/calendar/locales/en-US/chrome/calendar/timezones.properties b/calendar/locales/en-US/chrome/calendar/timezones.properties
-index f7275f8..bd0f618 100644
---- a/calendar/locales/en-US/chrome/calendar/timezones.properties
-+++ b/calendar/locales/en-US/chrome/calendar/timezones.properties
-@@ -41,7 +41,7 @@
+Index: icedove/calendar/locales/en-US/chrome/calendar/timezones.properties
+===================================================================
+--- icedove.orig/calendar/locales/en-US/chrome/calendar/timezones.properties	2012-10-13 14:27:14.850188599 +0530
++++ icedove/calendar/locales/en-US/chrome/calendar/timezones.properties	2012-10-13 15:57:26.882439961 +0530
+@@ -4,7 +4,7 @@
  
  # extension:
  extensions.calendar-timezones@mozilla.org.name=Timezone Definitions for Mozilla Calendar
@@ -35,11 +35,11 @@ index f7275f8..bd0f618 100644
  extensions.calendar-timezones@mozilla.org.creator=Mozilla Calendar Project
  
  pref.timezone.floating=Local Time
-diff --git a/calendar/locales/en-US/chrome/lightning/lightning.dtd b/calendar/locales/en-US/chrome/lightning/lightning.dtd
-index 5d6aad4..5b055dd 100644
---- a/calendar/locales/en-US/chrome/lightning/lightning.dtd
-+++ b/calendar/locales/en-US/chrome/lightning/lightning.dtd
-@@ -46,7 +46,7 @@
+Index: icedove/calendar/locales/en-US/chrome/lightning/lightning.dtd
+===================================================================
+--- icedove.orig/calendar/locales/en-US/chrome/lightning/lightning.dtd	2012-10-13 14:27:14.850188599 +0530
++++ icedove/calendar/locales/en-US/chrome/lightning/lightning.dtd	2012-10-13 15:57:26.882439961 +0530
+@@ -8,7 +8,7 @@
    -->
  
  <!-- Tools menu -->
@@ -48,12 +48,12 @@ index 5d6aad4..5b055dd 100644
  
  <!-- New menu popup in File menu -->
  <!ENTITY lightning.menupopup.new.event.label    "Event…">
-diff --git a/calendar/locales/en-US/chrome/lightning/lightning.properties b/calendar/locales/en-US/chrome/lightning/lightning.properties
-index ca1e001..76cdf8b 100644
---- a/calendar/locales/en-US/chrome/lightning/lightning.properties
-+++ b/calendar/locales/en-US/chrome/lightning/lightning.properties
-@@ -38,12 +38,12 @@
- # ***** END LICENSE BLOCK *****
+Index: icedove/calendar/locales/en-US/chrome/lightning/lightning.properties
+===================================================================
+--- icedove.orig/calendar/locales/en-US/chrome/lightning/lightning.properties	2012-10-13 14:27:14.850188599 +0530
++++ icedove/calendar/locales/en-US/chrome/lightning/lightning.properties	2012-10-13 15:57:26.882439961 +0530
+@@ -3,12 +3,12 @@
+ # file, You can obtain one at http://mozilla.org/MPL/2.0/.
  
  # addon description:
 -extensions.{e2fda1a4-762b-4020-b5ad-a41df1933103}.name=Lightning

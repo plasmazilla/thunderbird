@@ -13,11 +13,11 @@ Ported to icedove by Christoph Goehre <chris@sigxcpu.org>
  mozilla/xpcom/string/public/nsLiteralString.h |    1 +
  3 files changed, 24 insertions(+)
 
-diff --git a/mozilla/xpcom/base/nscore.h b/mozilla/xpcom/base/nscore.h
-index 17043a9..4eee557 100644
---- a/mozilla/xpcom/base/nscore.h
-+++ b/mozilla/xpcom/base/nscore.h
-@@ -377,6 +377,28 @@ typedef PRUint32 nsrefcnt;
+Index: icedove/mozilla/xpcom/base/nscore.h
+===================================================================
+--- icedove.orig/mozilla/xpcom/base/nscore.h	2012-10-13 14:27:23.110188983 +0530
++++ icedove/mozilla/xpcom/base/nscore.h	2012-10-13 15:56:42.738437912 +0530
+@@ -345,6 +345,28 @@
    #define HAVE_CPP_2BYTE_WCHAR_T
  #endif
  
@@ -46,11 +46,11 @@ index 17043a9..4eee557 100644
  #ifndef __PRUNICHAR__
  #define __PRUNICHAR__
    /* For now, don't use wchar_t on Unix because it breaks the Netscape
-diff --git a/mozilla/xpcom/glue/nsStringAPI.h b/mozilla/xpcom/glue/nsStringAPI.h
-index 02baf75..616ce8c 100644
---- a/mozilla/xpcom/glue/nsStringAPI.h
-+++ b/mozilla/xpcom/glue/nsStringAPI.h
-@@ -1111,6 +1111,7 @@ private:
+Index: icedove/mozilla/xpcom/glue/nsStringAPI.h
+===================================================================
+--- icedove.orig/mozilla/xpcom/glue/nsStringAPI.h	2012-10-13 14:27:23.158188984 +0530
++++ icedove/mozilla/xpcom/glue/nsStringAPI.h	2012-10-13 15:56:42.738437912 +0530
+@@ -1076,6 +1076,7 @@
    #define NS_NAMED_MULTILINE_LITERAL_STRING(n,s)  const nsDependentString n(reinterpret_cast<const nsAString::char_type*>(s), PRUint32((sizeof(s)/2)-1))
    typedef nsDependentString nsLiteralString;
  #else
@@ -58,11 +58,11 @@ index 02baf75..616ce8c 100644
    #define NS_LL(s)                                s
    #define NS_MULTILINE_LITERAL_STRING(s)          NS_ConvertASCIItoUTF16(s, PRUint32(sizeof(s)-1))
    #define NS_MULTILINE_LITERAL_STRING_INIT(n,s)   n(s, PRUint32(sizeof(s)-1))
-diff --git a/mozilla/xpcom/string/public/nsLiteralString.h b/mozilla/xpcom/string/public/nsLiteralString.h
-index 7808f24..2cf1f7b 100644
---- a/mozilla/xpcom/string/public/nsLiteralString.h
-+++ b/mozilla/xpcom/string/public/nsLiteralString.h
-@@ -91,6 +91,7 @@ literal_string( const nsACString::char_type* aPtr, PRUint32 aLength )
+Index: icedove/mozilla/xpcom/string/public/nsLiteralString.h
+===================================================================
+--- icedove.orig/mozilla/xpcom/string/public/nsLiteralString.h	2012-10-13 14:27:23.230188989 +0530
++++ icedove/mozilla/xpcom/string/public/nsLiteralString.h	2012-10-13 15:56:42.738437912 +0530
+@@ -58,6 +58,7 @@
    #define NS_NAMED_MULTILINE_LITERAL_STRING(n,s)  const nsDependentString n(reinterpret_cast<const nsAString::char_type*>(s), PRUint32((sizeof(s)/2)-1))
    typedef nsDependentString nsLiteralString;
  #else

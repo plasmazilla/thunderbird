@@ -10,11 +10,11 @@ In Debian, we have shlibs to handle this.
  mozilla/storage/src/mozStorageService.cpp |    2 ++
  1 file changed, 2 insertions(+)
 
-diff --git a/mozilla/storage/src/mozStorageService.cpp b/mozilla/storage/src/mozStorageService.cpp
-index 54806d0..497a7e2 100644
---- a/mozilla/storage/src/mozStorageService.cpp
-+++ b/mozilla/storage/src/mozStorageService.cpp
-@@ -396,6 +396,7 @@ Service::getSingleton()
+Index: icedove/mozilla/storage/src/mozStorageService.cpp
+===================================================================
+--- icedove.orig/mozilla/storage/src/mozStorageService.cpp	2012-10-13 14:27:22.230188942 +0530
++++ icedove/mozilla/storage/src/mozStorageService.cpp	2012-10-13 15:55:00.566433165 +0530
+@@ -362,6 +362,7 @@
      return gService;
    }
  
@@ -22,7 +22,7 @@ index 54806d0..497a7e2 100644
    // Ensure that we are using the same version of SQLite that we compiled with
    // or newer.  Our configure check ensures we are using a new enough version
    // at compile time.
-@@ -411,6 +412,7 @@ Service::getSingleton()
+@@ -377,6 +378,7 @@
      }
      ::PR_Abort();
    }

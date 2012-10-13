@@ -7,10 +7,10 @@ Subject: Bug 628252 - os2.cc fails to compile against GCC 4.6, missing
  mozilla/gfx/ots/src/os2.cc |    2 ++
  1 file changed, 2 insertions(+)
 
-diff --git a/mozilla/gfx/ots/src/os2.cc b/mozilla/gfx/ots/src/os2.cc
-index 23688ef..2e93edd 100644
---- a/mozilla/gfx/ots/src/os2.cc
-+++ b/mozilla/gfx/ots/src/os2.cc
+Index: icedove/mozilla/gfx/ots/src/os2.cc
+===================================================================
+--- icedove.orig/mozilla/gfx/ots/src/os2.cc	2012-10-13 14:20:18.470169260 +0530
++++ icedove/mozilla/gfx/ots/src/os2.cc	2012-10-13 15:59:53.194446757 +0530
 @@ -2,6 +2,8 @@
  // Use of this source code is governed by a BSD-style license that can be
  // found in the LICENSE file.

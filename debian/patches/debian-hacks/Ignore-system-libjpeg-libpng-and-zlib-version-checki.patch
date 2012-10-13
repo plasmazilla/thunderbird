@@ -11,11 +11,11 @@ internal version, which makes system library not used even though
  mozilla/configure.in |    6 +++---
  1 file changed, 3 insertions(+), 3 deletions(-)
 
-diff --git a/mozilla/configure.in b/mozilla/configure.in
-index cc861a5..f6d153e 100644
---- a/mozilla/configure.in
-+++ b/mozilla/configure.in
-@@ -4309,7 +4309,7 @@ else
+Index: icedove/mozilla/configure.in
+===================================================================
+--- icedove.orig/mozilla/configure.in	2012-10-13 14:27:16.762188687 +0530
++++ icedove/mozilla/configure.in	2012-10-13 15:56:50.478438271 +0530
+@@ -4329,7 +4329,7 @@
      AC_CHECK_LIB(jpeg, jpeg_destroy_compress, [SYSTEM_JPEG=1 JPEG_LIBS="-ljpeg $JPEG_LIBS"], SYSTEM_JPEG=, $JPEG_LIBS)
  fi
  
@@ -24,7 +24,7 @@ index cc861a5..f6d153e 100644
      LIBS="$JPEG_LIBS $LIBS"
      AC_TRY_COMPILE([ #include <stdio.h>
                       #include <sys/types.h>
-@@ -4349,7 +4349,7 @@ else
+@@ -4369,7 +4369,7 @@
      AC_CHECK_LIB(z, gzread, [SYSTEM_ZLIB=1 ZLIB_LIBS="-lz $ZLIB_LIBS"],
  	[SYSTEM_ZLIB= ZLIB_CFLAGS= ZLIB_LIBS=], $ZLIB_LIBS)
  fi
@@ -33,7 +33,7 @@ index cc861a5..f6d153e 100644
      LIBS="$ZLIB_LIBS $LIBS"
      AC_TRY_COMPILE([ #include <stdio.h>
                       #include <string.h>
-@@ -4429,7 +4429,7 @@ else
+@@ -4449,7 +4449,7 @@
                   AC_MSG_ERROR([--with-system-png won't work because the system's libpng doesn't have APNG support]),
                   $_SAVE_PNG_LIBS)
  fi

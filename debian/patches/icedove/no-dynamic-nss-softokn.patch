@@ -6,11 +6,11 @@ Subject: no dynamic nss softokn
  ldap/sdks/c-sdk/component_versions.mk |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/ldap/sdks/c-sdk/component_versions.mk b/ldap/sdks/c-sdk/component_versions.mk
-index 2ad6347..5f61b57 100644
---- a/ldap/sdks/c-sdk/component_versions.mk
-+++ b/ldap/sdks/c-sdk/component_versions.mk
-@@ -46,7 +46,7 @@ NSPR_RELEASE_TREE	= $(COMPONENTS_DIR)
+Index: icedove/ldap/sdks/c-sdk/component_versions.mk
+===================================================================
+--- icedove.orig/ldap/sdks/c-sdk/component_versions.mk	2012-10-13 14:20:16.346169162 +0530
++++ icedove/ldap/sdks/c-sdk/component_versions.mk	2012-10-13 15:53:33.622429128 +0530
+@@ -46,7 +46,7 @@
  # NSS - Network Security Services
  NSSVERS			= 3
  NSS_RELEASE_TAG		= NSS_3_9_3_RTM

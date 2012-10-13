@@ -6,11 +6,11 @@ Subject: Don't auto-disable extensions in system directories
  mail/app/profile/all-thunderbird.js |    2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
-diff --git a/mail/app/profile/all-thunderbird.js b/mail/app/profile/all-thunderbird.js
-index 6b82096..c6f7399 100644
---- a/mail/app/profile/all-thunderbird.js
-+++ b/mail/app/profile/all-thunderbird.js
-@@ -138,7 +138,7 @@ pref("extensions.update.autoUpdateDefault", true);
+Index: icedove/mail/app/profile/all-thunderbird.js
+===================================================================
+--- icedove.orig/mail/app/profile/all-thunderbird.js	2012-10-13 15:54:41.218432267 +0530
++++ icedove/mail/app/profile/all-thunderbird.js	2012-10-13 15:59:43.938446326 +0530
+@@ -153,7 +153,7 @@
  // Disable add-ons installed into the shared user and shared system areas by
  // default. This does not include the application directory. See the SCOPE
  // constants in AddonManager.jsm for values to use here
