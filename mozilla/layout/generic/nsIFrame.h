@@ -269,6 +269,10 @@ typedef PRUint64 nsFrameState;
 // placeholder.  This can happen for two reasons:  (1) the float was
 // split, and this piece is the continuation, or (2) the entire float
 // didn't fit on the page.
+// Note that this bit is also shared by text frames for
+// TEXT_FORCE_TRIM_WHITESPACE.  That's OK because we only check the
+// NS_FRAME_IS_PUSHED_FLOAT bit on frames which we already know are
+// out-of-flow.
 #define NS_FRAME_IS_PUSHED_FLOAT                    NS_FRAME_STATE_BIT(32)
 
 // This bit acts as a loop flag for recursive paint server drawing.
@@ -676,6 +680,12 @@ public:
    * May return nsnull during reflow
    */
   virtual nsIFrame* GetContentInsertionFrame() { return this; }
+
+  /**
+   * Move any frames on our overflow list to the end of our principal list.
+   * @return true if there were any overflow frames
+   */
+  virtual bool DrainSelfOverflowList() { return false; }
 
   /**
    * Get the frame that should be scrolled if the content associated

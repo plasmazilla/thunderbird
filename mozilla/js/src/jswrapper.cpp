@@ -153,8 +153,9 @@ Wrapper::getOwnPropertyDescriptor(JSContext *cx, JSObject *wrapper, jsid id, boo
 bool
 Wrapper::defineProperty(JSContext *cx, JSObject *wrapper, jsid id, PropertyDescriptor *desc)
 {
-    SET(JS_DefinePropertyById(cx, wrappedObject(wrapper), id, desc->value,
-                              desc->getter, desc->setter, desc->attrs));
+    JSObject *wobj = wrappedObject(wrapper);
+    SET(CheckDefineProperty(cx, wobj, id, desc->value, desc->getter, desc->setter, desc->attrs) &&
+        JS_DefinePropertyById(cx, wobj, id, desc->value, desc->getter, desc->setter, desc->attrs));
 }
 
 bool
@@ -336,10 +337,42 @@ Wrapper::fun_toString(JSContext *cx, JSObject *wrapper, uintN indent)
 bool
 Wrapper::defaultValue(JSContext *cx, JSObject *wrapper, JSType hint, Value *vp)
 {
-    *vp = ObjectValue(*wrappedObject(wrapper));
+    // If the wrapper doesn't subsume the wrapped object, run the default value
+    // algorithm on the wrapper itself. If it does, unwrap and process the
+    // underlying object.
+    JSObject *wrapped = wrappedObject(wrapper);
+    JSPrincipals *wrapperPrincipals = wrapper->compartment()->principals;
+    JSPrincipals *wrappedPrincipals = wrapped->compartment()->principals;
+    if (!wrapperPrincipals || !wrappedPrincipals ||
+        !wrapperPrincipals->subsume(wrapperPrincipals, wrappedPrincipals))
+    {
+        return DefaultValue(cx, wrapper, hint, vp);
+    }
+
+    AutoCompartment call(cx, wrapped);
+    if (!call.enter())
+        return false;
+
+    // Given the subsumes check above, we should definitely be able to enter
+    // the compartment at this point. However, we still want to call the
+    // enter() policy enforcement trap on the wrapper, because that might have
+    // *ahem* important side effects. It really shouldn't fail, but given that
+    // this is a late-breaking esr10 fix, let's just handle the failure if it
+    // happens.
+    //
+    // NB: Passing JSID_VOID as the 'property being accessed' here mimics what
+    // we do for things like enumerate. Given that we're not actually expecting
+    // to be vetoed here, that should be fine.
+    bool status;
+    if (!enter(cx, wrapper, JSID_VOID, GET, &status))
+        return status; // Totally unexpected, but roll with it. This is safe.
+    *vp = ObjectValue(*wrapped);
     if (hint == JSTYPE_VOID)
-        return ToPrimitive(cx, vp);
-    return ToPrimitive(cx, hint, vp);
+        status = ToPrimitive(cx, vp);
+    else
+        status = ToPrimitive(cx, hint, vp);
+    leave(cx, wrapper);
+    return status;
 }
 
 void
@@ -829,15 +862,12 @@ CrossCompartmentWrapper::fun_toString(JSContext *cx, JSObject *wrapper, uintN in
 bool
 CrossCompartmentWrapper::defaultValue(JSContext *cx, JSObject *wrapper, JSType hint, Value *vp)
 {
-    AutoCompartment call(cx, wrappedObject(wrapper));
-    if (!call.enter())
-        return false;
-
+    // We don't want to enter the compartment yet. Wrapper::defaultValue will
+    // decide whether to do that or not.
     if (!Wrapper::defaultValue(cx, wrapper, hint, vp))
         return false;
 
-    call.leave();
-    return call.origin->wrap(cx, vp);
+    return cx->compartment->wrap(cx, vp);
 }
 
 void

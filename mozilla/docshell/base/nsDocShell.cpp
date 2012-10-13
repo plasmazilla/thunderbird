@@ -205,6 +205,7 @@
 #endif
 
 #include "nsIFrame.h"
+#include "nsSubDocumentFrame.h"
 
 // for embedding
 #include "nsIWebBrowserChromeFocus.h"
@@ -7032,6 +7033,17 @@ nsDocShell::RestoreFromHistory()
         }
     }
 
+    nsCOMPtr<nsIContent> container;
+    nsCOMPtr<nsIDocument> sibling;
+    if (rootViewParent && rootViewParent->GetParent()) {
+        nsIFrame* frame = static_cast<nsIFrame*>(rootViewParent->GetParent()->GetClientData());
+        container = frame ? frame->GetContent() : nsnull;
+    }
+    if (rootViewSibling) {
+        nsIFrame *frame = static_cast<nsIFrame*>(rootViewSibling->GetClientData());
+        sibling = frame ? frame->PresContext()->PresShell()->GetDocument() : nsnull;
+    }
+
     // Transfer ownership to mContentViewer.  By ensuring that either the
     // docshell or the session history, but not both, have references to the
     // content viewer, we prevent the viewer from being torn down after
@@ -7118,7 +7130,7 @@ nsDocShell::RestoreFromHistory()
 
     // mLSHE is now our currently-loaded document.
     SetHistoryEntry(&mOSHE, mLSHE);
-    
+
     // XXX special wyciwyg handling in Embed()?
 
     // We aren't going to restore any items from the LayoutHistoryState,
@@ -7231,10 +7243,20 @@ nsDocShell::RestoreFromHistory()
     nsIView *newRootView = newVM ? newVM->GetRootView() : nsnull;
 
     // Insert the new root view at the correct location in the view tree.
-    if (rootViewParent) {
-        nsIViewManager *parentVM = rootViewParent->GetViewManager();
-
-        if (parentVM && newRootView) {
+    if (container) {
+        nsSubDocumentFrame* subDocFrame = do_QueryFrame(container->GetPrimaryFrame());
+        rootViewParent = subDocFrame ? subDocFrame->EnsureInnerView() : nsnull;
+    }
+    if (sibling &&
+        sibling->GetShell() &&
+        sibling->GetShell()->GetViewManager()) {
+        rootViewSibling = sibling->GetShell()->GetViewManager()->GetRootView();
+    } else {
+        rootViewSibling = nsnull;
+    }
+    if (rootViewParent && newRootView && newRootView->GetParent() != rootViewParent) {
+         nsIViewManager *parentVM = rootViewParent->GetViewManager();
+        if (parentVM) {
             // InsertChild(parent, child, sib, true) inserts the child after
             // sib in content order, which is before sib in view order. BUT
             // when sib is null it inserts at the end of the the document
@@ -8345,6 +8367,19 @@ nsDocShell::InternalLoad(nsIURI * aURI,
                               !curHash.Equals(newHash);
 
         if (doShortCircuitedLoad) {
+            // Cancel an outstanding new-document load if this is a history
+            // load.
+            //
+            // We can't cancel the oustanding load unconditionally, because if a
+            // page does
+            //   - load a.html
+            //   - start loading b.html
+            //   - load a.html#h
+            // we break the web if we cancel the load of b.html.
+            if (aSHEntry && mDocumentRequest) {
+                mDocumentRequest->Cancel(NS_BINDING_ABORTED);
+            }
+
             // Save the current URI; we need it if we fire a hashchange later.
             nsCOMPtr<nsIURI> oldURI = mCurrentURI;
 
