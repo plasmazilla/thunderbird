@@ -1,3 +1,21 @@
+icedove (10.0.9-1) unstable; urgency=high
+
+  [ Christoph Goehre ]
+  * [f2e80c5] New Upstream version 10.0.9
+  * Fixes for MFSA2012-{59,74,77,79,81-87,89}, also known as
+    CVE-2012-1956, CVE-2012-3982, CVE-2012-3986, CVE-2012-3988,
+    CVE-2012-3991, CVE-2012-3994, CVE-2012-3993, CVE-2012-4184,
+    CVE-2012-3992, CVE-2012-3995, CVE-2012-4179, CVE-2012-4180,
+    CVE-2012-4181, CVE-2012-4182, CVE-2012-4183, CVE-2012-4185,
+    CVE-2012-4186, CVE-2012-4187, CVE-2012-4188, CVE-2012-3990,
+    CVE-2012-4193, CVE-2012-4192
+
+  [ Jens Reyer ]
+  * [bfe7fe6] clarify the relation between iceowl, lightning and sunbird
+    (Closes: #686206)
+
+ -- Christoph Goehre <chris@sigxcpu.org>  Sun, 14 Oct 2012 10:26:01 -0400
+
 icedove (10.0.7-1) unstable; urgency=high
 
   * [d059477] New Upstream version 10.0.7 (Closes: #686201)
