@@ -581,6 +581,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "Nyt mærkat…">
 <!ENTITY addNewTag.accesskey "m">
+<!ENTITY manageTags.label "Håndter mærkater…">
+<!ENTITY manageTags.accesskey "H">
 
 <!-- Folder Pane -->
 <!ENTITY folderColumn.label "Navn">
@@ -597,7 +599,7 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!ENTITY folderContextNew.accesskey "p">
 <!ENTITY folderContextRename.label "Omdøb">
 <!ENTITY folderContextRename.accesskey "O">
-<!ENTITY folderContextRemove.label "Slet">
+<!ENTITY folderContextRemove.label "Slet mappe">
 <!ENTITY folderContextRemove.accesskey "S">
 <!ENTITY folderContextCompact.label "Optimer denne mappe">
 <!ENTITY folderContextCompact.accesskey "p">

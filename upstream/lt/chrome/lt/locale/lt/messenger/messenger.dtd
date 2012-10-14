@@ -64,13 +64,13 @@
 <!ENTITY emptyTrashCmd.accesskey		"v">
 <!ENTITY importCmd.label "Importuoti…">
 <!ENTITY importCmd.accesskey "I">
-<!ENTITY offlineMenu.label "Darbas atsijungus nuo tinklo">
+<!ENTITY offlineMenu.label "Darbas neprisijungus prie tinklo">
 <!ENTITY offlineMenu.accesskey "t">
 <!ENTITY offlineGoOfflineCmd.label "Atsijungti nuo tinklo">
 <!ENTITY offlineGoOfflineCmd.accesskey "i">
 <!ENTITY synchronizeOfflineCmd.label "Atsiųsti ir suvienodinti…">
 <!ENTITY synchronizeOfflineCmd.accesskey "A">
-<!ENTITY settingsOfflineCmd.label "Nuostatos darbui atsijungus">
+<!ENTITY settingsOfflineCmd.label "Nuostatos darbui neprisijungus">
 <!ENTITY settingsOfflineCmd.accesskey "N">
 <!ENTITY downloadSelectedCmd.label "Atsiųsti pažymėtus laiškus">
 <!ENTITY downloadSelectedCmd.accesskey "t">
@@ -573,7 +573,9 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 
 <!-- Tags Menu Popup -->
 <!ENTITY addNewTag.label "Nauja gairė…">
-<!ENTITY addNewTag.accesskey "ė">
+<!ENTITY addNewTag.accesskey "N">
+<!ENTITY manageTags.label "Tvarkyti gaires…">
+<!ENTITY manageTags.accesskey "T">
 
 <!-- Folder Pane -->
 <!ENTITY folderColumn.label "Vardas">

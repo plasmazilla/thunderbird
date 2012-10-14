@@ -74,3 +74,5 @@
 <!ENTITY viewDefaultCharsetList.accesskey "e">
 <!ENTITY replyInDefaultCharset2.label     "Använd om möjligt standardteckenuppsättningen för svar">
 <!ENTITY replyInDefaultCharset2.accesskey "d">
+
+<!ENTITY  font.langGroup.unicode1                 "Unicode">

@@ -819,6 +819,8 @@ Entities below were automatically added by compare-locales,
 
 <!-- Junk Bar -->
 <!ENTITY junkBarMessage2.label "&brandShortName; thinks this message is junk mail.">
+<!ENTITY manageTags.accesskey "M">
+<!ENTITY manageTags.label "Manage Tags…">
 <!ENTITY newCreateEmailAccountCmd.accesskey "G">
 <!ENTITY newCreateEmailAccountCmd.label "Get a New Mail Account…">
 <!ENTITY newExistingEmailAccountCmd.accesskey "E">

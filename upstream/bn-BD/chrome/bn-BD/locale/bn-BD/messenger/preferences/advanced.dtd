@@ -107,12 +107,21 @@
 <!ENTITY viewSecurityDevices.label      "নিরাপত্তা ডিভাইস (S)">
 <!ENTITY viewSecurityDevices.accesskey  "S">
 
+<!ENTITY offlineCompactFolders.accesskey "a">
+<!ENTITY offlineCompactFolders.label     "Compact all folders when it will save over">
+<!ENTITY offlineCompactFoldersMB.label   "MB in total">
+
+<!ENTITY scrolling.label               "Scrolling">
 <!ENTITY submitTelemetry.accesskey     "P">
 
 <!-- General Settings -->
 
 <!ENTITY submitTelemetry.label         "Submit Performance Data">
 <!ENTITY telemetryInfoLink.label       "More information about Telemetry">
+<!ENTITY useAutoScroll.accesskey       "U">
+<!ENTITY useAutoScroll.label           "Use autoscrolling">
 <!ENTITY useService.accesskey            "b">
 
 <!ENTITY useService.label                "Use a background service to install updates">
+<!ENTITY useSmoothScrolling.accesskey  "m">
+<!ENTITY useSmoothScrolling.label      "Use smooth scrolling">

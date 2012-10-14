@@ -741,6 +741,8 @@
 
 <!-- Junk Bar -->
 <!ENTITY junkBarMessage2.label "&brandShortName; thinks this message is junk mail.">
+<!ENTITY manageTags.accesskey "M">
+<!ENTITY manageTags.label "Manage Tags…">
 <!ENTITY newIMAccountCmd.accesskey "C">
 <!ENTITY newIMAccountCmd.label "Chat Account…">
 <!ENTITY newIMContactCmd.accesskey "h">

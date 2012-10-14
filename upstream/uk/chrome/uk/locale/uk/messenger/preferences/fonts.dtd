@@ -78,3 +78,5 @@
 <!ENTITY viewDefaultCharsetList.accesskey  "і">
 <!ENTITY replyInDefaultCharset2.label     "Вживати стандартне кодування символів у відповідях на листи, коли це можливо">
 <!ENTITY replyInDefaultCharset2.accesskey "с">
+
+<!ENTITY  font.langGroup.unicode1                 "Unicode">

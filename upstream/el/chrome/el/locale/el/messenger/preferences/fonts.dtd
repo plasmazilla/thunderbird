@@ -60,3 +60,5 @@
 <!ENTITY viewDefaultCharsetList.accesskey "ι">
 <!ENTITY replyInDefaultCharset2.label "Όταν είναι δυνατόν, να γίνεται χρήση της προεπιλεγμένης κωδικοποίησης στις απαντήσεις">
 <!ENTITY replyInDefaultCharset2.accesskey "υ">
+
+<!ENTITY  font.langGroup.unicode1                 "Unicode">

@@ -890,6 +890,8 @@ you can use these alternative items. Otherwise, their values should be empty.  -
 <!-- Junk Bar -->
 <!ENTITY junkBarMessage2.label "&brandShortName; thinks this message is junk mail.">
 <!ENTITY junkItem.title "Junk">
+<!ENTITY manageTags.accesskey "M">
+<!ENTITY manageTags.label "Manage Tags…">
 <!ENTITY menubarCmd.accesskey "M">
 
 <!-- View Menu -->

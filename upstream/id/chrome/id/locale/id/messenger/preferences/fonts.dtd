@@ -74,3 +74,5 @@
 <!ENTITY viewDefaultCharsetList.accesskey  "i">
 <!ENTITY replyInDefaultCharset2.label     "Jika memungkinkan, gunakan pengodean karakter default saat membalas">
 <!ENTITY replyInDefaultCharset2.accesskey "k">
+
+<!ENTITY  font.langGroup.unicode1                 "Unicode">

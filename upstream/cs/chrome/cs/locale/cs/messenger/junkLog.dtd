@@ -1,0 +1,6 @@
+<!ENTITY adaptiveJunkLog.title "Žurnál adaptivní nevyžádané pošty">
+<!ENTITY adaptiveJunkLogInfo.label "Povolit žurnál aktivit v adaptivní nevyžádané poštěy.">
+<!ENTITY clearLog.label "Smazat žurnál">
+<!ENTITY clearLog.accesskey "m">
+<!ENTITY closeLog.label "Zavřít">
+<!ENTITY closeLog.accesskey "Z">

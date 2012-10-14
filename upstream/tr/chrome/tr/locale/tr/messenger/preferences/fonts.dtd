@@ -75,3 +75,5 @@
 <!ENTITY replyInDefaultCharset2.label     "Yanıtlarda mümkünse varsayılan karakter kodlamasını kullan">
 <!ENTITY replyInDefaultCharset2.accesskey "Y">
 
+
+<!ENTITY  font.langGroup.unicode1                 "Unicode">

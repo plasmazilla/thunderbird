@@ -60,3 +60,5 @@
 <!ENTITY viewDefaultCharsetList.accesskey "У">
 <!ENTITY replyInDefaultCharset2.label "Ужываць, калі магчыма, змоўчную кадоўку знакаў у адказах">
 <!ENTITY replyInDefaultCharset2.accesskey "ж">
+
+<!ENTITY  font.langGroup.unicode1                 "Unicode">

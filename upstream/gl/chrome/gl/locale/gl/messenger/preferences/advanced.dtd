@@ -11,6 +11,13 @@
 <!ENTITY telemetryInfoLink.label       "Máis información sobre Telemetry">
 <!ENTITY enableGlodaSearch.label       "Activar indexador de mensaxes">
 <!ENTITY enableGlodaSearch.accesskey   "i">
+
+<!ENTITY scrolling.label               "Desprazamento">
+<!ENTITY useAutoScroll.label           "Utilizar desprazamento automático">
+<!ENTITY useAutoScroll.accesskey       "U">
+<!ENTITY useSmoothScrolling.label      "Utilizar desprazamento suave">
+<!ENTITY useSmoothScrolling.accesskey  "m">
+
 <!ENTITY systemIntegration.label       "Integración co sistema">
 <!ENTITY alwaysCheckDefault.label      "Sempre comprobar se &brandShortName; é o navegador predefinido no inicio">
 <!ENTITY alwaysCheckDefault.accesskey  "a">
@@ -80,10 +87,10 @@
 <!ENTITY showOffline.label             "Sen conexión…">
 <!ENTITY showOffline.accesskey         "S">
 
-<!ENTITY Diskspace "Espazo en disco">
-<!ENTITY offlineCompact.label "Compactar cartafoles ao liberar">
-<!ENTITY offlineCompact.accesskey "C">
-<!ENTITY mb.label "MB">
+<!ENTITY Diskspace                       "Espazo en disco">
+<!ENTITY offlineCompactFolders.label     "Compactar todos os cartafoles ao liberar">
+<!ENTITY offlineCompactFolders.accesskey "a">
+<!ENTITY offlineCompactFoldersMB.label   "MB en total">
 
 <!-- LOCALIZATION NOTE:
   The entities useCacheBefore.label and useCacheAfter.label appear on a single

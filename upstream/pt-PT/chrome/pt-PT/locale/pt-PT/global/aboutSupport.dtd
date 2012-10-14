@@ -53,3 +53,8 @@ variant of aboutSupport.showDir.label. -->
 <!ENTITY aboutSupport.updateHistoryTitle "Atualizar histórico">
 
 <!ENTITY aboutSupport.copyToClipboard.label "Copiar tudo para o clipboard">
+
+<!ENTITY aboutSupport.a11yActivated "Activated">
+<!ENTITY aboutSupport.a11yForceDisabled "Prevent Accessibility">
+
+<!ENTITY aboutSupport.a11yTitle "Accessibility">

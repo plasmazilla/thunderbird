@@ -74,3 +74,5 @@
 <!ENTITY viewDefaultCharsetList.accesskey  "I">
 <!ENTITY replyInDefaultCharset2.label     "যখনই সম্ভব, জবাব দেয়ার সময় ডিফল্ট অক্ষর এনকোডিং ব্যবহার করা হবে (h)">
 <!ENTITY replyInDefaultCharset2.accesskey "h">
+
+<!ENTITY  font.langGroup.unicode1                 "Unicode">

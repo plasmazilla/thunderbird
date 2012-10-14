@@ -88,3 +88,5 @@
 <!ENTITY replyInDefaultCharset2.label     "במידת האפשר, עשה שימוש בקידוד ברירת המחדל בתשובות">
 <!ENTITY replyInDefaultCharset2.accesskey "ש">
 
+
+<!ENTITY  font.langGroup.unicode1                 "Unicode">

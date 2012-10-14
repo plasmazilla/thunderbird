@@ -8,15 +8,15 @@
   <Description about="urn:mozilla:install-manifest"
                em:id="langpack-ru@thunderbird.mozilla.org"
                em:name="Russian (RU) Language Pack"
-               em:version="15.0"
+               em:version="16.0"
                em:type="8"
                em:creator="Mozilla Russia">
     <em:contributor>Александр Словесник</em:contributor>
     <em:targetApplication>
       <Description>
         <em:id>{3550f703-e582-4d05-9a08-453d09bdfdc6}</em:id>
-        <em:minVersion>15.0</em:minVersion>
-        <em:maxVersion>15.0.*</em:maxVersion>
+        <em:minVersion>16.0</em:minVersion>
+        <em:maxVersion>16.0.*</em:maxVersion>
       </Description>
     </em:targetApplication>
   </Description>

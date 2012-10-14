@@ -74,3 +74,5 @@
 <!ENTITY  size.label                              "Madhësi:">
 <!ENTITY  useFixedWidthForPlainText.label         "Përdor shkronja me gjerësi fikse për mesazhe tekst të thjeshtë">
 
+
+<!ENTITY  font.langGroup.unicode1                 "Unicode">
