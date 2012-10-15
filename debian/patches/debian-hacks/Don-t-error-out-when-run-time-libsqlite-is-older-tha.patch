@@ -12,9 +12,9 @@ In Debian, we have shlibs to handle this.
 
 Index: icedove/mozilla/storage/src/mozStorageService.cpp
 ===================================================================
---- icedove.orig/mozilla/storage/src/mozStorageService.cpp	2012-10-13 14:27:22.230188942 +0530
-+++ icedove/mozilla/storage/src/mozStorageService.cpp	2012-10-13 15:55:00.566433165 +0530
-@@ -362,6 +362,7 @@
+--- icedove.orig/mozilla/storage/src/mozStorageService.cpp	2012-10-15 20:21:46.091202251 +0530
++++ icedove/mozilla/storage/src/mozStorageService.cpp	2012-10-15 20:22:29.355204261 +0530
+@@ -363,6 +363,7 @@
      return gService;
    }
  
@@ -22,7 +22,7 @@ Index: icedove/mozilla/storage/src/mozStorageService.cpp
    // Ensure that we are using the same version of SQLite that we compiled with
    // or newer.  Our configure check ensures we are using a new enough version
    // at compile time.
-@@ -377,6 +378,7 @@
+@@ -378,6 +379,7 @@
      }
      ::PR_Abort();
    }

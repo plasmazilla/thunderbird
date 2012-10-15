@@ -10,12 +10,10 @@ fixes/Properly-launch-applications-set-in-HOME-.mailcap.patch
 debian-hacks/Don-t-error-out-when-run-time-libsqlite-is-older-tha.patch
 porting/Add-xptcall-support-for-SH4-processors.patch
 debian-hacks/Do-build-time-detection-of-2-bytes-wchar_t-and-char1.patch
-debian-hacks/Ignore-system-libjpeg-libpng-and-zlib-version-checki.patch
 debian-hacks/stop-configure-if-with-system-bz2-was-passed-but-no-.patch
 system-libs/Allow-to-build-against-system-libffi.patch
 porting/Allow-ipc-code-to-build-on-GNU-kfreebsd.patch
 debian-hacks/Don-t-register-plugins-if-the-MOZILLA_DISABLE_PLUGIN.patch
-debian-hacks/Gross-workaround-to-avoid-installing-test-idl-and-in.patch
 porting/Allow-ipc-code-to-build-on-GNU-hurd.patch
 iceowl/Change-extension-s-name-to-Iceowl.patch
 porting/Fix-GNU-non-Linux-failure-to-build-because-of-ipc-ch.patch

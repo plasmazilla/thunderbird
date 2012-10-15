@@ -10,8 +10,8 @@ Subject: Allow ipc code to build on GNU/kfreebsd
 
 Index: icedove/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
 ===================================================================
---- icedove.orig/mozilla/ipc/chromium/src/base/platform_thread_posix.cc	2012-10-13 14:27:19.634188821 +0530
-+++ icedove/mozilla/ipc/chromium/src/base/platform_thread_posix.cc	2012-10-13 15:57:12.286439284 +0530
+--- icedove.orig/mozilla/ipc/chromium/src/base/platform_thread_posix.cc	2012-10-15 20:21:26.000000000 +0530
++++ icedove/mozilla/ipc/chromium/src/base/platform_thread_posix.cc	2012-10-15 20:29:26.859223651 +0530
 @@ -42,7 +42,11 @@
    // TODO(BSD): find a better thread ID
    return (intptr_t)(pthread_self());
@@ -24,23 +24,10 @@ Index: icedove/mozilla/ipc/chromium/src/base/platform_thread_posix.cc
  #endif
  }
  
-Index: icedove/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h
-===================================================================
---- icedove.orig/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h	2012-10-13 14:20:18.866169279 +0530
-+++ icedove/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h	2012-10-13 15:57:12.286439284 +0530
-@@ -34,7 +34,7 @@
- #include "base/third_party/nspr/prcpucfg_win.h"
- #elif defined(__APPLE__)
- #include "base/third_party/nspr/prcpucfg_mac.h"
--#elif defined(__linux__) || defined(ANDROID)
-+#elif defined(__linux__) || defined(ANDROID) || defined(__GLIBC__)
- #include "base/third_party/nspr/prcpucfg_linux.h"
- #elif defined(__OpenBSD__)
- #include "base/third_party/nspr/prcpucfg_openbsd.h"
 Index: icedove/mozilla/ipc/chromium/src/build/build_config.h
 ===================================================================
---- icedove.orig/mozilla/ipc/chromium/src/build/build_config.h	2012-10-13 14:20:18.874169279 +0530
-+++ icedove/mozilla/ipc/chromium/src/build/build_config.h	2012-10-13 15:57:12.286439284 +0530
+--- icedove.orig/mozilla/ipc/chromium/src/build/build_config.h	2012-10-15 20:21:26.000000000 +0530
++++ icedove/mozilla/ipc/chromium/src/build/build_config.h	2012-10-15 20:29:26.859223651 +0530
 @@ -17,7 +17,7 @@
  // A set of macros to use for platform detection.
  #if defined(__APPLE__)

@@ -9,8 +9,8 @@ Subject: Fix GNU/non-Linux failure to build because of
 
 Index: icedove/mozilla/ipc/chromium/src/base/dir_reader_posix.h
 ===================================================================
---- icedove.orig/mozilla/ipc/chromium/src/base/dir_reader_posix.h	2012-10-13 14:20:18.846169278 +0530
-+++ icedove/mozilla/ipc/chromium/src/base/dir_reader_posix.h	2012-10-13 15:57:32.030440200 +0530
+--- icedove.orig/mozilla/ipc/chromium/src/base/dir_reader_posix.h	2012-10-15 20:21:23.503201202 +0530
++++ icedove/mozilla/ipc/chromium/src/base/dir_reader_posix.h	2012-10-15 20:40:24.919254215 +0530
 @@ -18,7 +18,7 @@
  // seems worse than falling back to enumerating all file descriptors so we will
  // probably never implement this on the Mac.

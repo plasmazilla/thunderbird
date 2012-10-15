@@ -24,9 +24,9 @@ Squashed kFreeBSD/Hurd related fixes:
 
 Index: icedove/configure.in
 ===================================================================
---- icedove.orig/configure.in	2012-10-13 14:27:14.970188605 +0530
-+++ icedove/configure.in	2012-10-13 15:54:47.354432552 +0530
-@@ -1053,6 +1053,7 @@
+--- icedove.orig/configure.in	2012-10-15 20:21:44.939202198 +0530
++++ icedove/configure.in	2012-10-15 20:22:13.807203538 +0530
+@@ -1021,6 +1021,7 @@
      case "${target_os}" in
          linux*)       OS_ARCH=Linux OS_TARGET=Linux ;;
          kfreebsd*-gnu) OS_ARCH=GNU_kFreeBSD OS_TARGET=GNU_kFreeBSD ;;
@@ -34,7 +34,7 @@ Index: icedove/configure.in
          solaris*)     OS_ARCH=SunOS OS_RELEASE=5 ;;
          mingw*)       OS_ARCH=WINNT ;;
          wince*)       OS_ARCH=WINCE ;;
-@@ -1685,7 +1686,7 @@
+@@ -1651,7 +1652,7 @@
      HOST_OPTIMIZE_FLAGS="${HOST_OPTIMIZE_FLAGS=-O3}"
      ;;
  
@@ -43,7 +43,7 @@ Index: icedove/configure.in
      HOST_CFLAGS="$HOST_CFLAGS -DXP_UNIX"
      HOST_NSPR_MDCPUCFG='\"md/_linux.cfg\"'
      HOST_OPTIMIZE_FLAGS="${HOST_OPTIMIZE_FLAGS=-O3}"
-@@ -2640,7 +2641,7 @@
+@@ -2606,7 +2607,7 @@
  dnl = Flags to strip unused symbols from .so components
  dnl ========================================================
  case "$target" in
@@ -52,7 +52,7 @@ Index: icedove/configure.in
          MOZ_COMPONENTS_VERSION_SCRIPT_LDFLAGS='-Wl,--version-script -Wl,$(BUILD_TOOLS)/gnu-ld-scripts/components-version-script'
          ;;
      *-solaris*)
-@@ -3306,7 +3307,7 @@
+@@ -3253,7 +3254,7 @@
  			fi
  			;;
  
@@ -63,8 +63,8 @@ Index: icedove/configure.in
  
 Index: icedove/ldap/sdks/c-sdk/config/nsinstall.c
 ===================================================================
---- icedove.orig/ldap/sdks/c-sdk/config/nsinstall.c	2012-10-13 14:20:16.350169162 +0530
-+++ icedove/ldap/sdks/c-sdk/config/nsinstall.c	2012-10-13 15:54:47.354432552 +0530
+--- icedove.orig/ldap/sdks/c-sdk/config/nsinstall.c	2012-10-15 20:21:37.555201855 +0530
++++ icedove/ldap/sdks/c-sdk/config/nsinstall.c	2012-10-15 20:22:13.811203538 +0530
 @@ -109,7 +109,7 @@
  }
  #endif /* NEXTSTEP */
@@ -76,8 +76,8 @@ Index: icedove/ldap/sdks/c-sdk/config/nsinstall.c
  
 Index: icedove/ldap/sdks/c-sdk/configure.in
 ===================================================================
---- icedove.orig/ldap/sdks/c-sdk/configure.in	2012-10-13 14:20:16.354169162 +0530
-+++ icedove/ldap/sdks/c-sdk/configure.in	2012-10-13 15:54:47.354432552 +0530
+--- icedove.orig/ldap/sdks/c-sdk/configure.in	2012-10-15 20:21:37.555201855 +0530
++++ icedove/ldap/sdks/c-sdk/configure.in	2012-10-15 20:22:13.811203538 +0530
 @@ -794,6 +794,7 @@
      OS_TEST="${target_cpu}"
      case "${target_os}" in
@@ -130,8 +130,8 @@ Index: icedove/ldap/sdks/c-sdk/configure.in
      fi
 Index: icedove/ldap/sdks/c-sdk/ldap/include/portable.h
 ===================================================================
---- icedove.orig/ldap/sdks/c-sdk/ldap/include/portable.h	2012-10-13 14:20:16.366169163 +0530
-+++ icedove/ldap/sdks/c-sdk/ldap/include/portable.h	2012-10-13 15:54:47.354432552 +0530
+--- icedove.orig/ldap/sdks/c-sdk/ldap/include/portable.h	2012-10-15 20:21:37.555201855 +0530
++++ icedove/ldap/sdks/c-sdk/ldap/include/portable.h	2012-10-15 20:22:13.811203538 +0530
 @@ -122,7 +122,7 @@
   * some systems don't have the BSD re_comp and re_exec routines
   */
@@ -222,8 +222,8 @@ Index: icedove/ldap/sdks/c-sdk/ldap/include/portable.h
  #else
 Index: icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.client
 ===================================================================
---- icedove.orig/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.client	2012-10-13 14:20:16.370169162 +0530
-+++ icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.client	2012-10-13 15:54:47.354432552 +0530
+--- icedove.orig/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.client	2012-10-15 20:21:37.555201855 +0530
++++ icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.client	2012-10-15 20:22:13.811203538 +0530
 @@ -177,7 +177,7 @@
  EXTRA_LIBS += -L$(NSCP_DISTDIR)/lib
  endif
@@ -244,8 +244,8 @@ Index: icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.client
  	$(LINK_LIB) $(EXTRA_LIBS)
 Index: icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in
 ===================================================================
---- icedove.orig/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in	2012-10-13 14:20:16.370169162 +0530
-+++ icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in	2012-10-13 15:54:47.354432552 +0530
+--- icedove.orig/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in	2012-10-15 20:21:37.555201855 +0530
++++ icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in	2012-10-15 20:22:13.811203538 +0530
 @@ -202,7 +202,7 @@
  EXTRA_LIBS = -L$(dist_libdir) -l$(LBER_LIBNAME) $(OS_LIBS) -lc
  endif
@@ -257,8 +257,8 @@ Index: icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in
  
 Index: icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/compat.c
 ===================================================================
---- icedove.orig/ldap/sdks/c-sdk/ldap/libraries/libldap/compat.c	2012-10-13 14:20:16.370169162 +0530
-+++ icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/compat.c	2012-10-13 15:54:47.354432552 +0530
+--- icedove.orig/ldap/sdks/c-sdk/ldap/libraries/libldap/compat.c	2012-10-15 20:21:37.555201855 +0530
++++ icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/compat.c	2012-10-15 20:22:13.811203538 +0530
 @@ -83,7 +83,7 @@
  }
  #endif /* HPUX10 && _REENTRANT && !HPUX11 */
@@ -270,8 +270,8 @@ Index: icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/compat.c
   * overflow the destination buffer and the buffer will always be null 
 Index: icedove/ldap/sdks/c-sdk/ldap/libraries/libprldap/ldappr-error.c
 ===================================================================
---- icedove.orig/ldap/sdks/c-sdk/ldap/libraries/libprldap/ldappr-error.c	2012-10-13 14:20:16.378169163 +0530
-+++ icedove/ldap/sdks/c-sdk/ldap/libraries/libprldap/ldappr-error.c	2012-10-13 15:54:47.354432552 +0530
+--- icedove.orig/ldap/sdks/c-sdk/ldap/libraries/libprldap/ldappr-error.c	2012-10-15 20:21:37.555201855 +0530
++++ icedove/ldap/sdks/c-sdk/ldap/libraries/libprldap/ldappr-error.c	2012-10-15 20:22:13.811203538 +0530
 @@ -231,7 +231,7 @@
  
  #if defined(__hpux) || defined(_AIX) || defined(OSF1) || defined(DARWIN) || \

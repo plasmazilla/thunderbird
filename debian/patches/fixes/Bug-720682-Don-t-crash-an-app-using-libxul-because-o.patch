@@ -9,9 +9,9 @@ Subject: Bug 720682 - Don't crash an app using libxul because of the lack of
 
 Index: icedove/mozilla/storage/src/mozStorageService.cpp
 ===================================================================
---- icedove.orig/mozilla/storage/src/mozStorageService.cpp	2012-10-13 15:55:00.566433165 +0530
-+++ icedove/mozilla/storage/src/mozStorageService.cpp	2012-10-13 15:59:32.926445816 +0530
-@@ -537,7 +537,8 @@
+--- icedove.orig/mozilla/storage/src/mozStorageService.cpp	2012-10-15 20:22:29.355204261 +0530
++++ icedove/mozilla/storage/src/mozStorageService.cpp	2012-10-15 20:40:29.231254415 +0530
+@@ -538,7 +538,8 @@
  
  static int sqliteMemRoundup(int n)
  {

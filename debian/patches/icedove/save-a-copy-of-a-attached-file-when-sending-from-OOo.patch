@@ -14,9 +14,9 @@ Closes: #505875
 
 Index: icedove/mail/components/compose/content/MsgComposeCommands.js
 ===================================================================
---- icedove.orig/mail/components/compose/content/MsgComposeCommands.js	2012-10-13 14:27:15.110188612 +0530
-+++ icedove/mail/components/compose/content/MsgComposeCommands.js	2012-10-13 15:59:59.150447033 +0530
-@@ -3565,6 +3565,37 @@
+--- icedove.orig/mail/components/compose/content/MsgComposeCommands.js	2012-10-15 20:21:44.955202199 +0530
++++ icedove/mail/components/compose/content/MsgComposeCommands.js	2012-10-15 20:40:40.535254941 +0530
+@@ -3572,6 +3572,37 @@
      if (attachment.size != -1)
        gAttachmentsSize += attachment.size;
  

@@ -12,8 +12,8 @@ Thanks: Pino Toscano <pino@debian.org>
 
 Index: icedove/mozilla/ipc/chromium/src/base/debug_util_posix.cc
 ===================================================================
---- icedove.orig/mozilla/ipc/chromium/src/base/debug_util_posix.cc	2012-10-13 14:20:18.842169278 +0530
-+++ icedove/mozilla/ipc/chromium/src/base/debug_util_posix.cc	2012-10-13 15:57:23.378439799 +0530
+--- icedove.orig/mozilla/ipc/chromium/src/base/debug_util_posix.cc	2012-10-15 20:21:24.000000000 +0530
++++ icedove/mozilla/ipc/chromium/src/base/debug_util_posix.cc	2012-10-15 20:38:52.327249916 +0530
 @@ -17,7 +17,6 @@
  #include <unistd.h>
  #if MOZ_HAVE_EXECINFO_H
@@ -22,23 +22,10 @@ Index: icedove/mozilla/ipc/chromium/src/base/debug_util_posix.cc
  #endif
  
  #include "base/basictypes.h"
-Index: icedove/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h
-===================================================================
---- icedove.orig/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h	2012-10-13 15:57:12.286439284 +0530
-+++ icedove/mozilla/ipc/chromium/src/base/third_party/nspr/prcpucfg.h	2012-10-13 15:57:23.378439799 +0530
-@@ -34,7 +34,7 @@
- #include "base/third_party/nspr/prcpucfg_win.h"
- #elif defined(__APPLE__)
- #include "base/third_party/nspr/prcpucfg_mac.h"
--#elif defined(__linux__) || defined(ANDROID) || defined(__GLIBC__)
-+#elif defined(__linux__) || defined(ANDROID) || defined(__GLIBC__) || defined(__GNU__)
- #include "base/third_party/nspr/prcpucfg_linux.h"
- #elif defined(__OpenBSD__)
- #include "base/third_party/nspr/prcpucfg_openbsd.h"
 Index: icedove/mozilla/ipc/chromium/src/build/build_config.h
 ===================================================================
---- icedove.orig/mozilla/ipc/chromium/src/build/build_config.h	2012-10-13 15:57:12.286439284 +0530
-+++ icedove/mozilla/ipc/chromium/src/build/build_config.h	2012-10-13 15:57:23.378439799 +0530
+--- icedove.orig/mozilla/ipc/chromium/src/build/build_config.h	2012-10-15 20:31:47.000000000 +0530
++++ icedove/mozilla/ipc/chromium/src/build/build_config.h	2012-10-15 20:38:52.327249916 +0530
 @@ -17,7 +17,7 @@
  // A set of macros to use for platform detection.
  #if defined(__APPLE__)

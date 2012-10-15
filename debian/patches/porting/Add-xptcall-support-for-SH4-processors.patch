@@ -15,8 +15,8 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=382214
 
 Index: icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
 ===================================================================
---- icedove.orig/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in	2012-10-13 14:27:23.198188986 +0530
-+++ icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in	2012-10-13 15:55:04.278433338 +0530
+--- icedove.orig/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in	2012-10-15 20:21:33.823201681 +0530
++++ icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in	2012-10-15 20:22:30.967204336 +0530
 @@ -396,6 +396,17 @@
  CXXFLAGS	+= -fno-strict-aliasing -fno-inline -fomit-frame-pointer -mbackchain
  endif
@@ -38,7 +38,7 @@ Index: icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/Makefile.in
 Index: icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_linux_sh.cpp
 ===================================================================
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_linux_sh.cpp	2012-10-13 15:55:04.278433338 +0530
++++ icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_linux_sh.cpp	2012-10-15 20:22:30.967204336 +0530
 @@ -0,0 +1,203 @@
 +/* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*-
 + *
@@ -246,7 +246,7 @@ Index: icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcinvoke_linux_sh.cpp
 Index: icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_linux_sh.cpp
 ===================================================================
 --- /dev/null	1970-01-01 00:00:00.000000000 +0000
-+++ icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_linux_sh.cpp	2012-10-13 15:55:04.278433338 +0530
++++ icedove/mozilla/xpcom/reflect/xptcall/src/md/unix/xptcstubs_linux_sh.cpp	2012-10-15 20:22:30.967204336 +0530
 @@ -0,0 +1,271 @@
 +/* -*- Mode: C; tab-width: 8; indent-tabs-mode: nil; c-basic-offset: 4 -*- */
 +/* ***** BEGIN LICENSE BLOCK *****

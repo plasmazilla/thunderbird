@@ -8,8 +8,8 @@ Subject: Don't build example component
 
 Index: icedove/mozilla/xulrunner/Makefile.in
 ===================================================================
---- icedove.orig/mozilla/xulrunner/Makefile.in	2012-10-13 14:27:23.318188993 +0530
-+++ icedove/mozilla/xulrunner/Makefile.in	2012-10-13 15:59:46.922446465 +0530
+--- icedove.orig/mozilla/xulrunner/Makefile.in	2012-10-15 20:21:20.791201077 +0530
++++ icedove/mozilla/xulrunner/Makefile.in	2012-10-15 20:40:35.631254713 +0530
 @@ -14,7 +14,6 @@
    app \
    setup \

@@ -11,8 +11,8 @@ The use of this component leads to crashes when built with optimizations.
 
 Index: icedove/mozilla/toolkit/components/url-classifier/Makefile.in
 ===================================================================
---- icedove.orig/mozilla/toolkit/components/url-classifier/Makefile.in	2012-10-13 14:27:22.522188956 +0530
-+++ icedove/mozilla/toolkit/components/url-classifier/Makefile.in	2012-10-13 15:54:53.934432857 +0530
+--- icedove.orig/mozilla/toolkit/components/url-classifier/Makefile.in	2012-10-15 20:21:37.015201830 +0530
++++ icedove/mozilla/toolkit/components/url-classifier/Makefile.in	2012-10-15 20:22:26.719204138 +0530
 @@ -54,4 +54,8 @@
  TOOL_DIRS += tests
  endif

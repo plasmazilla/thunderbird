@@ -11,8 +11,8 @@ https://bugzilla.mozilla.org/show_bug.cgi?id=527454
 
 Index: icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in
 ===================================================================
---- icedove.orig/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in	2012-10-13 15:54:47.354432552 +0530
-+++ icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in	2012-10-13 15:59:50.642446639 +0530
+--- icedove.orig/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in	2012-10-15 20:22:13.811203538 +0530
++++ icedove/ldap/sdks/c-sdk/ldap/libraries/libldap/Makefile.in	2012-10-15 20:40:37.399254795 +0530
 @@ -203,7 +203,7 @@
  endif
  

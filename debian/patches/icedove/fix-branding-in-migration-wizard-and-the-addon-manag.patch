@@ -15,14 +15,14 @@ Closes: #565559
 
 Index: icedove/mail/app/profile/all-thunderbird.js
 ===================================================================
---- icedove.orig/mail/app/profile/all-thunderbird.js	2012-10-13 14:27:15.000000000 +0530
-+++ icedove/mail/app/profile/all-thunderbird.js	2012-10-13 15:54:41.218432267 +0530
+--- icedove.orig/mail/app/profile/all-thunderbird.js	2012-10-15 20:21:44.943202198 +0530
++++ icedove/mail/app/profile/all-thunderbird.js	2012-10-15 20:22:07.535203247 +0530
 @@ -1,4 +1,3 @@
 -/* -*- Mode: JavaScript; tab-width: 2; indent-tabs-mode: nil; c-basic-offset: 2 -*- */
  /* This Source Code Form is subject to the terms of the Mozilla Public
   * License, v. 2.0. If a copy of the MPL was not distributed with this
   * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-@@ -112,7 +111,7 @@
+@@ -116,7 +115,7 @@
  pref("app.update.url.manual", "http://www.getthunderbird.com");
  // A default value for the "More information about this update" link
  // supplied in the "An update is available" page of the update wizard. 
@@ -31,7 +31,7 @@ Index: icedove/mail/app/profile/all-thunderbird.js
  // User-settable override to app.update.url for testing purposes.
  //pref("app.update.url.override", "");
  
-@@ -134,10 +133,10 @@
+@@ -138,10 +137,10 @@
  #endif
  
  // Release notes URL
@@ -44,7 +44,7 @@ Index: icedove/mail/app/profile/all-thunderbird.js
  
  // Controls enabling of the extension system logging (can reduce performance)
  pref("extensions.logging.enabled", false);
-@@ -159,18 +158,18 @@
+@@ -163,18 +162,18 @@
  // Preferences for AMO integration
  pref("extensions.getAddons.cache.enabled", true);
  pref("extensions.getAddons.maxResults", 15);
@@ -70,7 +70,7 @@ Index: icedove/mail/app/profile/all-thunderbird.js
  
  // Enables some extra Extension System Logging (can reduce performance) 
  pref("extensions.logging.enabled", false); 
-@@ -188,7 +187,7 @@
+@@ -192,7 +191,7 @@
  pref("extensions.update.interval", 86400);  // Check for updates to Extensions and 
                                              // Themes every day
  
@@ -79,7 +79,7 @@ Index: icedove/mail/app/profile/all-thunderbird.js
  pref("extensions.dss.enabled", false);          // Dynamic Skin Switching                                               
  pref("extensions.dss.switchPending", false);    // Non-dynamic switch pending after next
  
-@@ -381,7 +380,7 @@
+@@ -392,7 +391,7 @@
  
  pref("spellchecker.dictionary", "");
  // Dictionary download preference
@@ -88,7 +88,7 @@ Index: icedove/mail/app/profile/all-thunderbird.js
  
  // profile.force.migration can be used to bypass the migration wizard, forcing migration from a particular
  // mail application without any user intervention. Possible values are: 
-@@ -527,7 +526,7 @@
+@@ -538,7 +537,7 @@
  pref("mailnews.database.global.logging.console", true);
  
  // page to load to find good header add-ons
@@ -97,7 +97,7 @@ Index: icedove/mail/app/profile/all-thunderbird.js
  
  // Serif fonts look dated.  Switching those language families to sans-serif
  // where we think it makes sense.  Worth investigating for other font families
-@@ -751,7 +750,7 @@
+@@ -762,7 +761,7 @@
  
  pref("plugins.update.url", "https://www.mozilla.com/%LOCALE%/plugincheck/");
  pref("plugins.update.notifyUser", false);
@@ -108,8 +108,8 @@ Index: icedove/mail/app/profile/all-thunderbird.js
  #ifdef XP_WIN
 Index: icedove/mail/locales/en-US/chrome/messenger/accountCreation.dtd
 ===================================================================
---- icedove.orig/mail/locales/en-US/chrome/messenger/accountCreation.dtd	2012-10-13 14:27:15.000000000 +0530
-+++ icedove/mail/locales/en-US/chrome/messenger/accountCreation.dtd	2012-10-13 15:54:00.970430397 +0530
+--- icedove.orig/mail/locales/en-US/chrome/messenger/accountCreation.dtd	2012-10-15 20:21:37.979201875 +0530
++++ icedove/mail/locales/en-US/chrome/messenger/accountCreation.dtd	2012-10-15 20:22:07.535203247 +0530
 @@ -78,7 +78,7 @@
  <!ENTITY changeSettings.label            "Change Settings">
  <!ENTITY changeSettings.accesskey        "S">

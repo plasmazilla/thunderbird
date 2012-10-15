@@ -11,9 +11,9 @@ Patch: https://bug722975.bugzilla.mozilla.org/attachment.cgi?id=624394
 
 Index: icedove/mozilla/gfx/thebes/gfxPlatform.cpp
 ===================================================================
---- icedove.orig/mozilla/gfx/thebes/gfxPlatform.cpp	2012-10-13 14:27:19.000000000 +0530
-+++ icedove/mozilla/gfx/thebes/gfxPlatform.cpp	2012-10-13 16:05:13.678461641 +0530
-@@ -443,11 +443,9 @@
+--- icedove.orig/mozilla/gfx/thebes/gfxPlatform.cpp	2012-10-15 20:21:45.455202222 +0530
++++ icedove/mozilla/gfx/thebes/gfxPlatform.cpp	2012-10-15 20:40:41.759254997 +0530
+@@ -496,11 +496,9 @@
    static_cast<SourceSurface*>(srcBuffer)->Release();
  }
  
@@ -27,7 +27,7 @@ Index: icedove/mozilla/gfx/thebes/gfxPlatform.cpp
    origSurf->SetData(&kSourceSurface, NULL, NULL);
  }
  
-@@ -544,14 +542,8 @@
+@@ -597,14 +595,8 @@
  
      }
  
